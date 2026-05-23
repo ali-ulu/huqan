@@ -7,6 +7,7 @@
     "start": "node cli.js",
     "server": "node server.js",
     "mcp": "node mcpServer.js",
+    "bench": "node benchmarks/bench.js",
     "train": "node egitim.js",
     "test": "node --test",
     "test:watch": "node --test --watch",

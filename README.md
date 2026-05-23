@@ -164,6 +164,16 @@ Available tools:
 
 The adapter returns both human-readable `content` and structured MCP `structuredContent` so clients can choose the format they prefer.
 
+## Benchmarks
+
+Run deterministic local performance checks with:
+
+```bash
+npm run bench
+```
+
+Fixture sizes live under `benchmarks/fixtures/` and are intentionally stable so results can be compared across commits.
+
 ### Belge Yükleme
 
 ```
