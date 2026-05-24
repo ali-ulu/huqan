@@ -1,17 +1,16 @@
-const { describe, it } = require('node:test');
+﻿const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const CLI = require('./cli');
 const Kernel = require('./kernel');
+const KernelV2 = require('./kernel.v2');
+const Dream = require('./dream');
 
-// Test için memory.json yüklemeden temiz CLI
 function freshCLI() {
   const cli = new CLI();
-  // Kernel'i temiz başlat
   cli.kernel = new Kernel({ noLoad: true });
-  const Dream = require('./dream');
   cli.dream = new Dream(cli.kernel);
   return cli;
 }
@@ -139,5 +138,14 @@ describe('CLI - Komut Çalıştırma', () => {
     const result = cli.execute('llm-sor', 'Kedi nedir');
     assert.ok(result.includes('AXIOM'));
     assert.ok(result.includes('kedi'));
+  });
+
+  it('constructor: v2 kernel flag opens KernelV2 without breaking CLI flow', () => {
+    const cli = new CLI({ kernel: { noLoad: true, useSQLite: false, version: 'v2' } });
+    assert.ok(cli.kernel instanceof KernelV2);
+    cli.kernel.learn('kus ucmaz');
+    const result = cli.kernel.verify('kus ucar');
+    assert.strictEqual(result.data.status, 'celiski');
+    assert.strictEqual(result.data.contradictionReason, 'opposite_predicate_conflict');
   });
 });

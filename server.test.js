@@ -15,6 +15,7 @@ before(() => {
   process.env.PORT = String(PORT);
   process.env.AXIOM_MEMORY_PATH = path.join(tempDir, 'memory.json');
   process.env.AXIOM_DB_PATH = path.join(tempDir, 'memory.db');
+  process.env.AXIOM_KERNEL_VERSION = 'v2';
   server = require('./server');
   server.unref();
 });
@@ -25,6 +26,7 @@ after(() => {
   server.closeAxiom?.();
   delete process.env.AXIOM_MEMORY_PATH;
   delete process.env.AXIOM_DB_PATH;
+  delete process.env.AXIOM_KERNEL_VERSION;
   if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
 });
 
@@ -142,6 +144,7 @@ describe('Server - API', () => {
     const j = await r.json();
     assert.strictEqual(j.ok, true);
     assert.strictEqual(j.service, 'axiom');
+    assert.strictEqual(j.kernelVersion, 'v2');
     assert.ok(['sqlite', 'json'].includes(j.backend));
     assert.ok(Number.isInteger(j.nodes));
     assert.ok(Number.isInteger(j.edges));
@@ -157,6 +160,7 @@ describe('Server - API', () => {
     assert.ok(Array.isArray(j.phases));
     assert.ok(j.counts.total >= 1);
     assert.strictEqual(typeof j.currentFocus, 'string');
+    assert.strictEqual(j.currentFocus, 'v2.3 CLI/REST Runtime');
   });
 
   it('Method not allowed: POST /health', async () => {

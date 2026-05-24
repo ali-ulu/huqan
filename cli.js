@@ -1,11 +1,18 @@
 const Kernel = require('./kernel');
+const KernelV2 = require('./kernel.v2');
 const Dream = require('./dream');
 const LLMAdapter = require('./llmAdapter');
 const fs = require('fs');
 
+function createKernel(opts = {}) {
+  const { version, ...kernelOpts } = opts || {};
+  const selected = version || process.env.AXIOM_KERNEL_VERSION;
+  return selected === 'v2' ? new KernelV2(kernelOpts) : new Kernel(kernelOpts);
+}
+
 class CLI {
   constructor(opts = {}) {
-    this.kernel = new Kernel(opts.kernel || {});
+    this.kernel = opts.kernelInstance || createKernel(opts.kernel || {});
     this.dream = new Dream(this.kernel);
     this.llm = new LLMAdapter();
   }
@@ -295,3 +302,4 @@ if (require.main === module) {
 }
 
 module.exports = CLI;
+module.exports.createKernel = createKernel;

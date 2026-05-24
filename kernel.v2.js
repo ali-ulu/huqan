@@ -1,7 +1,7 @@
 ﻿const Kernel = require('./kernel');
 
 const TYPE_RELATIONS = new Set(['tür', 'tur', 'tÃ¼r']);
-const FACT_RELATIONS = new Set(['özellik', 'ozellik', 'yapabilir']);
+const FACT_RELATIONS = new Set(['özellik', 'ozellik', 'Ã¶zellik', 'yapabilir']);
 const OPPOSITE_PREDICATES = new Map([
   ['ucar', 'ucmaz'],
   ['ucmaz', 'ucar'],
@@ -52,6 +52,14 @@ function parseSimpleTurkishStatement(statement) {
 class KernelV2 {
   constructor(opts = {}) {
     this.kernel = opts.kernel instanceof Kernel ? opts.kernel : new Kernel(opts);
+  }
+
+  get graph() {
+    return this.kernel.graph;
+  }
+
+  get contractVersion() {
+    return this.kernel.contractVersion;
   }
 
   _ok(type, data = null, evidence = [], meta = {}) {
@@ -114,6 +122,14 @@ class KernelV2 {
       source,
       learnedAt,
     });
+  }
+
+  learnDocument(text, opts = {}) {
+    return this.kernel.learnDocument(text, opts);
+  }
+
+  learnFromLLM(text, opts = {}) {
+    return this.kernel.learnFromLLM(text, opts);
   }
 
   ask(question, opts = {}) {
@@ -392,6 +408,26 @@ class KernelV2 {
 
   getStats() {
     return this.kernel.graph.getStats();
+  }
+
+  entropy() {
+    return this.kernel.entropy();
+  }
+
+  detectGaps() {
+    return this.kernel.detectGaps();
+  }
+
+  detectContradictions() {
+    return this.kernel.detectContradictions();
+  }
+
+  startAutoThink(intervalMs) {
+    return this.kernel.startAutoThink(intervalMs);
+  }
+
+  stopAutoThink() {
+    return this.kernel.stopAutoThink();
   }
 }
 

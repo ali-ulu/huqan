@@ -166,6 +166,13 @@ The adapter returns both human-readable `content` and structured MCP `structured
 
 Set `AXIOM_KERNEL_VERSION=v2` to expose the newer `KernelV2.verify` behavior through MCP. The `axiom.verify` output schema includes v2.1 fields such as `inferred`, `reasoningPath`, `pathLength`, `confidenceSource`, and `contradictionReason`.
 
+The same flag also enables `KernelV2` for CLI and REST flows:
+
+```bash
+AXIOM_KERNEL_VERSION=v2 node cli.js
+AXIOM_KERNEL_VERSION=v2 node server.js
+```
+
 ## Benchmarks
 
 Run deterministic local performance checks with:
@@ -188,7 +195,8 @@ For the current v2 shipping status and next-phase priorities, see [RELEASE_V2.md
 - Phase 4 Packaging/Docs: done
 - v2.1 Verify Reasoning: done
 - v2.2 MCP Schema Reflection: done
-- Test status: `156/156`
+- v2.3 CLI/REST Runtime: done
+- Test status: `157/157`
 
 ## Benchmark Baseline
 
