@@ -276,6 +276,8 @@ const VERIFY_DATA_SCHEMA = {
         additionalProperties: false,
       },
     },
+    evidenceSummary: { type: 'array', items: { type: 'string' } },
+    explanation: { type: 'string' },
     knownTypes: { type: 'array', items: { type: 'string' } },
     requestedType: { type: 'string' },
     requestedTarget: { type: 'string' },

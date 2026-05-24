@@ -331,6 +331,77 @@ class KernelV2 {
     }));
   }
 
+  _summarizeEvidence(evidence = [], reasoningPath = []) {
+    const summary = [];
+    for (const item of Array.isArray(evidence) ? evidence : []) {
+      if (!item || typeof item.text !== 'string') continue;
+      if (!summary.includes(item.text)) summary.push(item.text);
+      if (summary.length >= 4) break;
+    }
+
+    if (summary.length === 0 && Array.isArray(reasoningPath) && reasoningPath.length > 0) {
+      for (const step of reasoningPath) {
+        if (!step || !step.from || !step.relation || !step.to) continue;
+        const text = `${step.from} --[${step.relation}]--> ${step.to}`;
+        if (!summary.includes(text)) summary.push(text);
+        if (summary.length >= 4) break;
+      }
+    }
+
+    return summary;
+  }
+
+  _buildVerifyExplanation(data, evidenceSummary = [], risk = null) {
+    const parts = [];
+    const status = data && data.status;
+
+    if (status === 'dogrulandi') {
+      parts.push(data?.inferred ? 'İfade grafikteki bir çıkarım zinciriyle desteklendi.' : 'İfade doğrudan grafikte desteklendi.');
+    } else if (status === 'celiski') {
+      const reason = data?.contradictionReason || 'çelişki';
+      parts.push(`İfade çelişkili bulundu (${reason}).`);
+    } else {
+      parts.push('İfade için yeterli kanıt bulunamadı.');
+    }
+
+    if (Array.isArray(data?.reasoningPath) && data.reasoningPath.length > 0) {
+      const pathText = data.reasoningPath
+        .map(step => `${step.from} -> ${step.relation} -> ${step.to}`)
+        .join(' | ');
+      parts.push(`İzlenen yol: ${pathText}.`);
+    } else if (evidenceSummary.length > 0) {
+      parts.push(`Kanıt özeti: ${evidenceSummary.join(' | ')}.`);
+    }
+
+    if (risk?.manipulation) {
+      const labels = Array.isArray(risk.labels) && risk.labels.length > 0
+        ? risk.labels.join(', ')
+        : 'manipulation';
+      parts.push(`Risk işaretleri: ${labels}.`);
+    }
+
+    return parts.join(' ');
+  }
+
+  _withVerifyDetails(result, risk = null) {
+    const hasDataObject = result && result.data && typeof result.data === 'object' && !Array.isArray(result.data);
+    const data = hasDataObject ? { ...result.data } : result.data;
+    const reasoningPath = Array.isArray(data?.reasoningPath) ? data.reasoningPath : [];
+    const evidenceSummary = this._summarizeEvidence(result?.evidence || [], reasoningPath);
+    const explanation = this._buildVerifyExplanation(data, evidenceSummary, risk);
+    const enriched = hasDataObject
+      ? {
+          ...result,
+          data: {
+            ...data,
+            evidenceSummary,
+            explanation,
+          },
+        }
+      : result;
+    return this._withManipulationRisk(enriched, risk);
+  }
+
   _collectTypeTargets(subject) {
     return this.kernel.graph
       .getEdges(subject)
@@ -528,17 +599,17 @@ class KernelV2 {
     const risk = this._analyzeManipulation(statement);
     const verificationStatement = risk.extractedStatement || statement;
     const parsed = parseSimpleTurkishStatement(verificationStatement);
-    if (!parsed) return this._withManipulationRisk(this.kernel.verify(verificationStatement, opts), risk);
+    if (!parsed) return this._withVerifyDetails(this.kernel.verify(verificationStatement, opts), risk);
 
     const normalizedTarget = this._normalizeCopulaTail(parsed.predicate);
-    if (!normalizedTarget) return this._withManipulationRisk(this.kernel.verify(verificationStatement, opts), risk);
+    if (!normalizedTarget) return this._withVerifyDetails(this.kernel.verify(verificationStatement, opts), risk);
     const normalizedTargetToken = this._normalizePredicateToken(normalizedTarget);
 
     const knownFacts = this._collectFactTargets(parsed.subject);
     if (parsed.isNegated && knownFacts.length > 0) {
       const directPositive = knownFacts.find(item => item.target === normalizedTargetToken);
       if (directPositive) {
-        return this._withManipulationRisk(this._ok(
+        return this._withVerifyDetails(this._ok(
           'verify',
           {
             status: 'celiski',
@@ -557,7 +628,7 @@ class KernelV2 {
     }
 
     const base = this.kernel.verify(verificationStatement, opts);
-    if (base?.data?.status !== 'bilinmiyor') return this._withManipulationRisk(base, risk);
+    if (base?.data?.status !== 'bilinmiyor') return this._withVerifyDetails(base, risk);
 
     if (!parsed.isNegated) {
       const oppositeConflict = this._findOppositePredicateConflict(
@@ -566,7 +637,7 @@ class KernelV2 {
         opts.maxDepth || 4
       );
       if (oppositeConflict) {
-        return this._withManipulationRisk(this._ok(
+        return this._withVerifyDetails(this._ok(
           'verify',
           {
             status: oppositeConflict.status,
@@ -593,7 +664,7 @@ class KernelV2 {
     if (!parsed.isNegated) {
       const knownTypes = this._collectTypeTargets(parsed.subject);
       if (knownTypes.length > 0 && !knownTypes.includes(normalizedTarget)) {
-        return this._withManipulationRisk(this._ok(
+        return this._withVerifyDetails(this._ok(
           'verify',
           {
             status: 'celiski',
@@ -614,14 +685,14 @@ class KernelV2 {
     }
 
     const chain = this._inferTypeChain(parsed.subject, normalizedTarget, opts.maxDepth || 4);
-    if (!chain) return this._withManipulationRisk(base, risk);
+    if (!chain) return this._withVerifyDetails(base, risk);
 
     const evidence = this._toPathEvidence(chain);
     const confidence = this._aggregatePathConfidence(chain);
     const reasoningPath = this._buildReasoningPath(chain);
 
     if (parsed.isNegated) {
-      return this._withManipulationRisk(this._ok(
+      return this._withVerifyDetails(this._ok(
         'verify',
         {
           status: 'celiski',
@@ -640,7 +711,7 @@ class KernelV2 {
       ), risk);
     }
 
-    return this._withManipulationRisk(this._ok(
+    return this._withVerifyDetails(this._ok(
       'verify',
       {
         status: 'dogrulandi',

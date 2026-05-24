@@ -44,7 +44,14 @@ Status: Completed
 - Clearer current focus / next action display
 Status: Completed
 
-## Next Active Track (v2.9 TBD)
+## Phase 7
+
+- Verify explanation text
+- Compact evidence summary
+- Risk-aware reasoning polish
+Status: Completed
+
+## Next Active Track (v3.0 TBD)
 
 - Scope not locked yet.
 - Candidate areas: risk telemetry tuning, evidence detail polish, and product UI cleanup.

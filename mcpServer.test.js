@@ -143,6 +143,8 @@ describe('MCP Server', () => {
     assert.ok(dataSchema.properties.reasoningPath);
     assert.ok(dataSchema.properties.pathLength);
     assert.ok(dataSchema.properties.confidenceSource);
+    assert.ok(dataSchema.properties.evidenceSummary);
+    assert.ok(dataSchema.properties.explanation);
     assert.ok(dataSchema.properties.knownTypes);
     assert.ok(verifyTool.description.includes('contradictory'));
   });
@@ -161,5 +163,7 @@ describe('MCP Server', () => {
     assert.strictEqual(res.result.structuredContent.data.status, 'dogrulandi');
     assert.ok(res.result.structuredContent.data.risk);
     assert.strictEqual(res.result.structuredContent.data.risk.manipulation, true);
+    assert.ok(Array.isArray(res.result.structuredContent.data.evidenceSummary));
+    assert.strictEqual(typeof res.result.structuredContent.data.explanation, 'string');
   });
 });

@@ -226,6 +226,18 @@ function getV2StatusData() {
         'Dashboard readability polish',
       ],
     },
+    {
+      id: 'v2.9',
+      title: 'v2.9 Evidence Polish',
+      status: 'done',
+      summary: 'KernelV2 verify now adds compact explanation and evidence summary fields for clearer reasoning traces.',
+      items: [
+        'Verify explanation text',
+        'Compact evidence summary',
+        'Risk-aware reasoning polish',
+        'MCP schema exposure',
+      ],
+    },
   ];
 
   const counts = phases.reduce((acc, phase) => {
@@ -251,8 +263,8 @@ function getV2StatusData() {
     progressPercent,
     remainingPhases,
     phases,
-    currentFocus: 'v2.8 Status Dashboard Polish',
-    nextAction: 'Use progress and remaining phase data to keep roadmap tracking readable at a glance.',
+    currentFocus: 'v2.9 Evidence Polish',
+    nextAction: 'Use explanation and evidence summary fields to make verify results easier to read at a glance.',
   };
 }
 
