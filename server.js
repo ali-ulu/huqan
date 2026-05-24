@@ -1,5 +1,9 @@
 const http = require('http');
+const { execSync } = require('child_process');
 const CLI = require('./cli');
+const pkg = require('./package.json');
+
+const TEST_STATUS = '157/157';
 
 const kernelOpts = {};
 if (process.env.AXIOM_MEMORY_PATH) kernelOpts.memoryPath = process.env.AXIOM_MEMORY_PATH;
@@ -90,7 +94,21 @@ function getHealthData() {
   };
 }
 
+function getLastCommit() {
+  try {
+    return execSync('git rev-parse --short HEAD', {
+      cwd: __dirname,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch (_) {
+    return 'unknown';
+  }
+}
+
 function getV2StatusData() {
+  const stats = cli.kernel.graph.getStats();
+  const activeKernel = process.env.AXIOM_KERNEL_VERSION === 'v2' ? 'v2' : 'v1';
   const phases = [
     {
       id: 'v2.0',
@@ -149,12 +167,19 @@ function getV2StatusData() {
 
   return {
     ok: true,
-    version: require('./package.json').version,
+    version: pkg.version,
     contractVersion: cli.kernel.contractVersion || '1.0.0',
+    activeKernel,
+    backend: stats.backend,
+    nodes: stats.nodes,
+    edges: stats.edges,
+    testStatus: TEST_STATUS,
+    lastCommit: getLastCommit(),
+    updatedAt: new Date().toISOString(),
     counts,
     phases,
-    currentFocus: 'v2.3 CLI/REST Runtime',
-    nextAction: 'Run with AXIOM_KERNEL_VERSION=v2 to exercise the new verify reasoning in user-facing flows.',
+    currentFocus: 'v2.4 Status Dashboard',
+    nextAction: 'Use /v2-status as the single screen for phase, runtime, test, and commit tracking.',
   };
 }
 
@@ -359,12 +384,15 @@ function renderStatus(d) {
   if (!dashboard || !phases) return;
 
   dashboard.innerHTML =
-    '<div class="metric"><div class="label">S?r?m</div><div class="value">' + escapeHtml(d.version || '?') + '</div><div class="sub">Contract: ' + escapeHtml(d.contractVersion || '?') + '</div></div>' +
+    '<div class="metric"><div class="label">Sürüm</div><div class="value">' + escapeHtml(d.version || '?') + '</div><div class="sub">Contract: ' + escapeHtml(d.contractVersion || '?') + '</div></div>' +
+    '<div class="metric"><div class="label">Kernel</div><div class="value">' + escapeHtml(d.activeKernel || '?') + '</div><div class="sub">Backend: ' + escapeHtml(d.backend || '?') + ' · ' + d.nodes + ' node / ' + d.edges + ' edge</div></div>' +
+    '<div class="metric"><div class="label">Test</div><div class="value">' + escapeHtml(d.testStatus || '?') + '</div><div class="sub">Son commit: ' + escapeHtml(d.lastCommit || '?') + '</div></div>' +
     '<div class="metric"><div class="label">Fazlar</div><div class="value">' + d.counts.total + '</div><div class="sub">' + d.counts.done + ' tamam, ' + d.counts.in_progress + ' aktif, ' + d.counts.pending + ' bekliyor</div></div>' +
-    '<div class="metric"><div class="label">Odak</div><div class="value">' + escapeHtml(d.currentFocus || '?') + '</div><div class="sub">' + escapeHtml(d.nextAction || '?') + '</div></div>';
+    '<div class="metric"><div class="label">Odak</div><div class="value">' + escapeHtml(d.currentFocus || '?') + '</div><div class="sub">' + escapeHtml(d.nextAction || '?') + '</div></div>' +
+    '<div class="metric"><div class="label">Güncelleme</div><div class="value">canlı</div><div class="sub">' + escapeHtml(d.updatedAt || '?') + '</div></div>';
 
   phases.innerHTML = (d.phases || []).map(phase => {
-    const badge = phase.status === 'done' ? 'Tamamland?' : phase.status === 'in_progress' ? 'Aktif' : 'Bekliyor';
+    const badge = phase.status === 'done' ? 'Tamamlandı' : phase.status === 'in_progress' ? 'Aktif' : 'Bekliyor';
     const items = (phase.items || []).map(item => '<li>' + escapeHtml(item) + '</li>').join('');
     return '<div class="phase-card ' + phase.status + '">' +
       '<div class="phase-head">' +

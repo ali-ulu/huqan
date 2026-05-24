@@ -196,6 +196,7 @@ For the current v2 shipping status and next-phase priorities, see [RELEASE_V2.md
 - v2.1 Verify Reasoning: done
 - v2.2 MCP Schema Reflection: done
 - v2.3 CLI/REST Runtime: done
+- v2.4 Status Dashboard: done
 - Test status: `157/157`
 
 ## Benchmark Baseline

@@ -160,7 +160,14 @@ describe('Server - API', () => {
     assert.ok(Array.isArray(j.phases));
     assert.ok(j.counts.total >= 1);
     assert.strictEqual(typeof j.currentFocus, 'string');
-    assert.strictEqual(j.currentFocus, 'v2.3 CLI/REST Runtime');
+    assert.strictEqual(j.currentFocus, 'v2.4 Status Dashboard');
+    assert.strictEqual(j.activeKernel, 'v2');
+    assert.strictEqual(j.testStatus, '157/157');
+    assert.ok(['sqlite', 'json'].includes(j.backend));
+    assert.ok(Number.isInteger(j.nodes));
+    assert.ok(Number.isInteger(j.edges));
+    assert.strictEqual(typeof j.lastCommit, 'string');
+    assert.strictEqual(typeof j.updatedAt, 'string');
   });
 
   it('Method not allowed: POST /health', async () => {
