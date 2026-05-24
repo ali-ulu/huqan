@@ -37,7 +37,14 @@ Status: Completed
 - Risk-aware `learnFromLLM` filtering
 Status: Completed
 
-## Next Active Track (v2.8 TBD)
+## Phase 6
+
+- Status dashboard polish
+- Progress percentage and remaining phase count
+- Clearer current focus / next action display
+Status: Completed
+
+## Next Active Track (v2.9 TBD)
 
 - Scope not locked yet.
 - Candidate areas: risk telemetry tuning, evidence detail polish, and product UI cleanup.

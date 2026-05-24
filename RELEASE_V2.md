@@ -12,7 +12,7 @@
 
 ## Current verification
 
-- Test suite: `161/161`
+- Test suite: `167/167`
 - Benchmark runner: `npm run bench`
 - Main branch: pushed and synchronized
 
@@ -23,6 +23,9 @@
 - Phase 3 (Benchmark Regression): Completed
 - Phase 4 (Packaging/Docs): Completed
 - Phase 5 (Manipulation Guard): Completed
+- Phase 6 (Status Dashboard Polish): Completed
+
+Phase 6 adds a progress bar, remaining-phase count, and clearer current-focus telemetry to the live status dashboard.
 
 ## Performance snapshot
 

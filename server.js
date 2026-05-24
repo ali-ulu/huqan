@@ -214,6 +214,18 @@ function getV2StatusData() {
         'Structured verify risk metadata',
       ],
     },
+    {
+      id: 'v2.8',
+      title: 'v2.8 Status Dashboard Polish',
+      status: 'done',
+      summary: 'The dashboard now makes progress, remaining phases, and current focus easier to scan at a glance.',
+      items: [
+        'Progress percentage',
+        'Remaining phase count',
+        'Current focus clarity',
+        'Dashboard readability polish',
+      ],
+    },
   ];
 
   const counts = phases.reduce((acc, phase) => {
@@ -221,6 +233,8 @@ function getV2StatusData() {
     acc[phase.status] += 1;
     return acc;
   }, { total: 0, done: 0, in_progress: 0, pending: 0 });
+  const progressPercent = counts.total ? Math.round((counts.done / counts.total) * 100) : 0;
+  const remainingPhases = Math.max(0, counts.total - counts.done);
 
   return {
     ok: true,
@@ -234,9 +248,11 @@ function getV2StatusData() {
     lastCommit: getLastCommit(),
     updatedAt: new Date().toISOString(),
     counts,
+    progressPercent,
+    remainingPhases,
     phases,
-    currentFocus: 'v2.7 Manipulation Guard',
-    nextAction: 'Use the risk metadata to flag adversarial phrasing without changing truth verdicts.',
+    currentFocus: 'v2.8 Status Dashboard Polish',
+    nextAction: 'Use progress and remaining phase data to keep roadmap tracking readable at a glance.',
   };
 }
 
@@ -266,6 +282,9 @@ body{background:#0a0a0f;color:#e0e0e0;height:100vh;display:flex;flex-direction:c
 .metric .label{font-size:11px;color:#7c7c94;text-transform:uppercase;letter-spacing:.08em}
 .metric .value{font-size:26px;font-weight:700;color:#f2f2ff;margin-top:6px}
 .metric .sub{font-size:12px;color:#aaa;margin-top:4px;line-height:1.4}
+.progress-wrap{margin-top:10px;background:#1a1a28;border:1px solid #2a2a44;border-radius:999px;height:10px;overflow:hidden}
+.progress-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#00d4ff,#7b2ff7)}
+.progress-meta{display:flex;justify-content:space-between;gap:8px;margin-top:6px;font-size:11px;color:#8f8fb0}
 .phase-list{padding:0 16px 16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
 .phase-card{background:#11111b;border:1px solid #25253a;border-radius:14px;padding:14px}
 .phase-card.done{border-color:#1f6f49}
@@ -445,6 +464,10 @@ function renderStatus(d) {
     '<div class="metric"><div class="label">Kernel</div><div class="value">' + escapeHtml(d.activeKernel || '?') + '</div><div class="sub">Backend: ' + escapeHtml(d.backend || '?') + ' · ' + d.nodes + ' node / ' + d.edges + ' edge</div></div>' +
     '<div class="metric"><div class="label">Test</div><div class="value">' + escapeHtml(d.testStatus || '?') + '</div><div class="sub">Son commit: ' + escapeHtml(d.lastCommit || '?') + '</div></div>' +
     '<div class="metric"><div class="label">Fazlar</div><div class="value">' + d.counts.total + '</div><div class="sub">' + d.counts.done + ' tamam, ' + d.counts.in_progress + ' aktif, ' + d.counts.pending + ' bekliyor</div></div>' +
+    '<div class="metric"><div class="label">İlerleme</div><div class="value">' + escapeHtml(String(d.progressPercent || 0)) + '%</div><div class="sub">' +
+      '<div class="progress-wrap"><div class="progress-fill" style="width:' + escapeHtml(String(d.progressPercent || 0)) + '%"></div></div>' +
+      '<div class="progress-meta"><span>' + escapeHtml(String(d.counts.done || 0)) + '/' + escapeHtml(String(d.counts.total || 0)) + ' faz</span><span>' + escapeHtml(String(d.remainingPhases || 0)) + ' kalan</span></div>' +
+    '</div></div>' +
     '<div class="metric"><div class="label">Odak</div><div class="value">' + escapeHtml(d.currentFocus || '?') + '</div><div class="sub">' + escapeHtml(d.nextAction || '?') + '</div></div>' +
     '<div class="metric"><div class="label">Güncelleme</div><div class="value">canlı</div><div class="sub">' + escapeHtml(d.updatedAt || '?') + '</div></div>';
 
