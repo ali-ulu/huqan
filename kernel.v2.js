@@ -2,16 +2,7 @@
 
 const TYPE_RELATIONS = new Set(['tür', 'tur', 'tÃ¼r']);
 const FACT_RELATIONS = new Set(['özellik', 'ozellik', 'Ã¶zellik', 'yapabilir']);
-const OPPOSITE_PREDICATES = new Map([
-  ['ucar', 'ucmaz'],
-  ['ucmaz', 'ucar'],
-  ['yuzer', 'yuzmez'],
-  ['yuzmez', 'yuzer'],
-  ['sicaktir', 'soguktur'],
-  ['soguktur', 'sicaktir'],
-  ['canlidir', 'cansizdir'],
-  ['cansizdir', 'canlidir'],
-]);
+const OPPOSITE_PREDICATES = new Map();
 
 function nowIso() {
   return new Date().toISOString();
@@ -32,6 +23,31 @@ function normalizeAscii(word) {
     .replace(/ç/g, 'c')
     .trim();
 }
+
+function stripCopulaTail(token) {
+  return String(token || '')
+    .toLowerCase()
+    .replace(/(?:dır|dir|dur|dür|tır|tir|tur|tür)$/i, '')
+    .trim();
+}
+
+function registerOppositePair(left, right) {
+  const leftVariants = [normalizeAscii(left), stripCopulaTail(normalizeAscii(left))].filter(Boolean);
+  const rightVariants = [normalizeAscii(right), stripCopulaTail(normalizeAscii(right))].filter(Boolean);
+  for (const l of leftVariants) {
+    for (const r of rightVariants) {
+      OPPOSITE_PREDICATES.set(l, r);
+      OPPOSITE_PREDICATES.set(r, l);
+    }
+  }
+}
+
+[
+  ['ucar', 'ucmaz'],
+  ['yuzer', 'yuzmez'],
+  ['sicaktir', 'soguktur'],
+  ['canlidir', 'cansizdir'],
+].forEach(([left, right]) => registerOppositePair(left, right));
 
 function parseSimpleTurkishStatement(statement) {
   const raw = normalizeText(statement);
@@ -278,6 +294,43 @@ class KernelV2 {
       }));
   }
 
+  _findOppositePredicateConflict(subject, normalizedTargetToken, maxDepth = 4) {
+    const opposite = OPPOSITE_PREDICATES.get(normalizedTargetToken);
+    if (!opposite) return null;
+
+    const directOpposite = this._collectPredicateTargets(subject).find(item => item.target === opposite);
+    if (directOpposite) {
+      return {
+        status: 'celiski',
+        confidence: Math.max(0.65, Math.min(0.9, directOpposite.weight || 0.72)),
+        inferred: true,
+        contradictionReason: 'opposite_predicate_conflict',
+        conflictTarget: directOpposite.rawTarget,
+        requestedTarget: normalizedTargetToken,
+        confidenceSource: 'opposite-predicate-map',
+        evidence: this._buildPredicateEvidence(subject),
+        meta: { inferredBy: 'opposite-predicate-conflict' },
+      };
+    }
+
+    const oppositeChain = this._inferTypeChain(subject, opposite, maxDepth);
+    if (!oppositeChain) return null;
+
+    return {
+      status: 'celiski',
+      confidence: this._aggregatePathConfidence(oppositeChain),
+      inferred: true,
+      contradictionReason: 'opposite_predicate_conflict',
+      conflictTarget: opposite,
+      requestedTarget: normalizedTargetToken,
+      reasoningPath: this._buildReasoningPath(oppositeChain),
+      pathLength: oppositeChain.length,
+      confidenceSource: 'type-chain-opposite',
+      evidence: this._toPathEvidence(oppositeChain),
+      meta: { inferredBy: 'opposite-predicate-chain' },
+    };
+  }
+
   verify(statement, opts = {}) {
     const parsed = parseSimpleTurkishStatement(statement);
     if (!parsed) return this.kernel.verify(statement, opts);
@@ -312,29 +365,34 @@ class KernelV2 {
     const base = this.kernel.verify(statement, opts);
     if (base?.data?.status !== 'bilinmiyor') return base;
 
-    if (knownPredicates.length > 0 && !parsed.isNegated) {
-      const opposite = OPPOSITE_PREDICATES.get(normalizedTargetToken);
-      if (opposite) {
-        const oppositeFact = knownPredicates.find(item => item.target === opposite);
-        if (oppositeFact) {
-          return this._ok(
-            'verify',
-            {
-              status: 'celiski',
-            confidence: Math.max(0.65, Math.min(0.9, oppositeFact.weight || 0.72)),
-            inferred: true,
-            contradictionReason: 'opposite_predicate_conflict',
-            conflictTarget: oppositeFact.rawTarget,
+    if (!parsed.isNegated) {
+      const oppositeConflict = this._findOppositePredicateConflict(
+        parsed.subject,
+        normalizedTargetToken,
+        opts.maxDepth || 4
+      );
+      if (oppositeConflict) {
+        return this._ok(
+          'verify',
+          {
+            status: oppositeConflict.status,
+            confidence: oppositeConflict.confidence,
+            inferred: oppositeConflict.inferred,
+            contradictionReason: oppositeConflict.contradictionReason,
+            conflictTarget: oppositeConflict.conflictTarget,
             requestedTarget: normalizedTarget,
-            confidenceSource: 'opposite-predicate-map',
+            confidenceSource: oppositeConflict.confidenceSource,
+            ...(oppositeConflict.reasoningPath ? {
+              reasoningPath: oppositeConflict.reasoningPath,
+              pathLength: oppositeConflict.pathLength,
+            } : {}),
           },
-          this._buildPredicateEvidence(parsed.subject),
+          oppositeConflict.evidence,
           {
             ...base.meta,
-            inferredBy: 'opposite-predicate-conflict',
+            ...oppositeConflict.meta,
           }
         );
-        }
       }
     }
 

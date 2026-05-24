@@ -105,4 +105,21 @@ describe('KernelV2', () => {
     assert.ok(Array.isArray(res.evidence));
     assert.ok(res.evidence.length >= 1);
   });
+
+  it('returns contradiction for opposite predicate conflict inferred through chain', () => {
+    const k = freshV2();
+    k.learn('kedi memelidir');
+    k.learn('memeli hayvandir');
+    k.learn('hayvan canlidir');
+    const res = k.verify('kedi cansizdir');
+    assert.strictEqual(res.ok, true);
+    assert.strictEqual(res.data.status, 'celiski');
+    assert.strictEqual(res.data.contradictionReason, 'opposite_predicate_conflict');
+    assert.strictEqual(res.data.inferred, true);
+    assert.ok(Array.isArray(res.evidence));
+    assert.ok(res.evidence.length >= 2);
+    assert.strictEqual(res.data.confidenceSource, 'type-chain-opposite');
+    assert.ok(Array.isArray(res.data.reasoningPath));
+    assert.ok(res.data.pathLength >= 2);
+  });
 });
