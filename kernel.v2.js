@@ -149,6 +149,24 @@ class KernelV2 {
     }));
   }
 
+  _aggregatePathConfidence(chain) {
+    if (!Array.isArray(chain) || chain.length === 0) return 0.5;
+    let total = 0;
+    for (const edge of chain) {
+      total += Math.max(0.4, Math.min(0.9, edge.weight || 0.5));
+    }
+    const avg = total / chain.length;
+    return Number(Math.max(0.4, Math.min(0.9, avg)).toFixed(2));
+  }
+
+  _buildReasoningPath(chain) {
+    return chain.map(edge => ({
+      from: edge.from,
+      relation: edge.relation,
+      to: edge.to,
+    }));
+  }
+
   verify(statement, opts = {}) {
     const base = this.kernel.verify(statement, opts);
     if (base?.data?.status !== 'bilinmiyor') return base;
@@ -163,14 +181,20 @@ class KernelV2 {
     if (!chain) return base;
 
     const evidence = this._toPathEvidence(chain);
+    const confidence = this._aggregatePathConfidence(chain);
+    const reasoningPath = this._buildReasoningPath(chain);
 
     if (parsed.isNegated) {
       return this._ok(
         'verify',
         {
           status: 'celiski',
-          confidence: 0.75,
+          confidence,
           inferred: true,
+          contradictionReason: 'negated_statement_conflicts_with_type_chain',
+          reasoningPath,
+          pathLength: chain.length,
+          confidenceSource: 'path-average',
         },
         evidence,
         {
@@ -184,8 +208,11 @@ class KernelV2 {
       'verify',
       {
         status: 'dogrulandi',
-        confidence: 0.6,
+        confidence,
         inferred: true,
+        reasoningPath,
+        pathLength: chain.length,
+        confidenceSource: 'path-average',
       },
       evidence,
       {

@@ -47,6 +47,9 @@ describe('KernelV2', () => {
     if (Object.prototype.hasOwnProperty.call(res.data, 'inferred')) {
       assert.strictEqual(res.data.inferred, true);
       assert.ok(res.evidence.length >= 2);
+      assert.strictEqual(res.data.pathLength >= 2, true);
+      assert.strictEqual(res.data.confidenceSource, 'path-average');
+      assert.ok(Array.isArray(res.data.reasoningPath));
     } else {
       assert.ok(res.evidence.length >= 1);
     }
@@ -60,6 +63,7 @@ describe('KernelV2', () => {
     assert.strictEqual(res.ok, true);
     assert.strictEqual(res.data.status, 'celiski');
     assert.strictEqual(res.data.inferred, true);
+    assert.strictEqual(res.data.contradictionReason, 'negated_statement_conflicts_with_type_chain');
     assert.ok(Array.isArray(res.evidence));
     assert.ok(res.evidence.length >= 1);
   });
