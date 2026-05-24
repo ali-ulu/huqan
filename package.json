@@ -1,13 +1,17 @@
 {
   "name": "axiom",
   "version": "2.0.0",
-  "description": "Türkçe doğal dil ile çalışan, kendi kendine öğrenen bilgi grafiği motoru",
+  "description": "Deterministic symbolic AI reasoning engine — verifies LLM outputs, detects contradictions, learns from natural language. Zero external LLM/GPU/cloud dependencies.",
   "main": "kernel.js",
+  "bin": {
+    "axiom": "./cli.js"
+  },
   "scripts": {
     "start": "node cli.js",
     "server": "node server.js",
     "mcp": "node mcpServer.js",
     "bench": "node benchmarks/bench.js",
+    "bench:verify": "node benchmarks/verifBench.js",
     "train": "node egitim.js",
     "test": "node --test",
     "test:watch": "node --test --watch",
@@ -20,13 +24,28 @@
     "test:server": "node --test server.test.js"
   },
   "keywords": [
+    "symbolic-ai",
+    "neuro-symbolic",
     "knowledge-graph",
-    "nlp",
-    "turkish",
-    "ai",
-    "reasoning"
+    "llm-verification",
+    "hallucination-detection",
+    "contradiction-detection",
+    "reasoning-engine",
+    "truth-layer",
+    "deterministic-ai",
+    "turkish-nlp",
+    "graph-reasoning",
+    "explainable-ai"
   ],
-  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agiulucom42-del/axiom.git"
+  },
+  "bugs": {
+    "url": "https://github.com/agiulucom42-del/axiom/issues"
+  },
+  "homepage": "https://github.com/agiulucom42-del/axiom#readme",
+  "author": "AXIOM Contributors",
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0"

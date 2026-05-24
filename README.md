@@ -207,6 +207,7 @@ Run deterministic local performance checks with:
 
 ```bash
 npm run bench
+npm run bench:verify
 ```
 
 Fixture sizes live under `benchmarks/fixtures/` and are intentionally stable so results can be compared across commits.
