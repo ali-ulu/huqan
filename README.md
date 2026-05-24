@@ -115,6 +115,26 @@ POST /dogrula  { "statement": "kedi hayvandır" }
 
 Olası `status` değerleri: `dogrulandi` · `celiski` · `bilinmiyor`
 
+### Structured v2 Verify
+
+`/v2/verify` returns the full Core API envelope for integrations, dashboards, and MCP-like clients. Legacy `/dogrula` and `/verify` still keep the old JSON shape.
+
+```http
+GET  /v2/verify?statement=kedi+hayvandir
+POST /v2/verify  { "statement": "kedi hayvandir" }
+```
+
+```js
+{
+  ok: true,
+  type: "verify",
+  data: { status: "dogrulandi", confidence: 0.9 },
+  evidence: [/* Evidence[] */],
+  error: null,
+  meta: { contractVersion: "1.0.0", backend: "sqlite" }
+}
+```
+
 ---
 
 ## Core API Contract
@@ -140,7 +160,7 @@ AXIOM v2 core methods (`learn`, `ask`, `verify`, `reason`, `compare`, `dream`) r
 }
 ```
 
-CLI and legacy REST endpoints keep their user-facing output stable; the structured contract is for code that imports `Kernel` directly.
+CLI and legacy REST endpoints keep their user-facing output stable. Code that imports `Kernel` directly, MCP clients, and the `/v2/verify` endpoint can consume the structured contract.
 
 ### Paranoid Mode
 
@@ -197,7 +217,8 @@ For the current v2 shipping status and next-phase priorities, see [RELEASE_V2.md
 - v2.2 MCP Schema Reflection: done
 - v2.3 CLI/REST Runtime: done
 - v2.4 Status Dashboard: done
-- Test status: `157/157`
+- v2.5 REST Structured Verify: done
+- Test status: `160/160`
 
 ## Benchmark Baseline
 

@@ -3,7 +3,7 @@ const { execSync } = require('child_process');
 const CLI = require('./cli');
 const pkg = require('./package.json');
 
-const TEST_STATUS = '157/157';
+const TEST_STATUS = '160/160';
 
 const kernelOpts = {};
 if (process.env.AXIOM_MEMORY_PATH) kernelOpts.memoryPath = process.env.AXIOM_MEMORY_PATH;
@@ -51,6 +51,15 @@ function legacyVerify(result) {
     confidence: result.data.confidence,
     evidence: result.evidence.map(e => e.text),
   };
+}
+
+function writeJson(res, statusCode, payload, headers = {}) {
+  res.writeHead(statusCode, {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    ...headers,
+  });
+  res.end(JSON.stringify(payload));
 }
 
 // Graf verisini D3 formatına dönüştür
@@ -157,6 +166,30 @@ function getV2StatusData() {
         'Health/status kernel visibility',
       ],
     },
+    {
+      id: 'v2.4',
+      title: 'v2.4 Status Dashboard',
+      status: 'done',
+      summary: 'The web UI and /v2-status endpoint show phase, runtime, test, and commit state in one place.',
+      items: [
+        'Single status endpoint',
+        'Runtime kernel/backend cards',
+        'Phase progress cards',
+        'Last commit visibility',
+      ],
+    },
+    {
+      id: 'v2.5',
+      title: 'v2.5 REST Structured Verify',
+      status: 'done',
+      summary: 'New /v2/verify endpoint returns the full core envelope while legacy /dogrula stays stable.',
+      items: [
+        'GET /v2/verify',
+        'POST /v2/verify',
+        'Legacy /dogrula compatibility',
+        'Structured REST tests',
+      ],
+    },
   ];
 
   const counts = phases.reduce((acc, phase) => {
@@ -178,8 +211,8 @@ function getV2StatusData() {
     updatedAt: new Date().toISOString(),
     counts,
     phases,
-    currentFocus: 'v2.4 Status Dashboard',
-    nextAction: 'Use /v2-status as the single screen for phase, runtime, test, and commit tracking.',
+    currentFocus: 'v2.5 REST Structured Verify',
+    nextAction: 'Use /v2/verify for structured integrations; keep /dogrula for legacy clients.',
   };
 }
 
@@ -604,6 +637,42 @@ const server = http.createServer(async (req, res) => {
       'Cache-Control': 'no-cache',
     });
     res.end(JSON.stringify(getHealthData()));
+    return;
+  }
+
+  // Structured v2 contract endpoint. Legacy /dogrula stays unchanged below.
+  if (reqUrl.pathname === '/v2/verify') {
+    if (req.method !== 'POST' && req.method !== 'GET') {
+      writeJson(res, 405, { error: 'Method not allowed' });
+      return;
+    }
+
+    const sendVerifyResult = (statement) => {
+      const text = sanitizeInput(statement || '');
+      if (!text) {
+        writeJson(res, 400, { error: 'statement required' });
+        return;
+      }
+
+      const result = cli.kernel.verify(text);
+      writeJson(res, 200, result, { 'Cache-Control': 'no-cache' });
+    };
+
+    if (req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => body += chunk);
+      req.on('end', () => {
+        try {
+          const data = JSON.parse(body);
+          sendVerifyResult(data.statement || data.text || '');
+        } catch (e) {
+          writeJson(res, 400, { error: 'Invalid JSON: ' + e.message });
+        }
+      });
+      return;
+    }
+
+    sendVerifyResult(reqUrl.searchParams.get('statement') || '');
     return;
   }
 

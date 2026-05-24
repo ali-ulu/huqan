@@ -49,12 +49,56 @@ describe('Server - API', () => {
     assert.strictEqual(r.status, 200);
     const j = await r.json();
     assert.ok('status' in j);
+    assert.ok(!('ok' in j));
     assert.strictEqual(r.headers.get('access-control-allow-origin'), '*');
   });
 
   it('GET /dogrula boş statement hata döndürür', async () => {
     const r = await fetch(`${BASE}/dogrula?statement=`);
     assert.strictEqual(r.status, 400);
+  });
+
+  it('GET /v2/verify returns structured envelope', async () => {
+    const r = await fetch(`${BASE}/v2/verify?statement=kedi+balik+yer`);
+    assert.strictEqual(r.status, 200);
+    const j = await r.json();
+    assert.strictEqual(j.ok, true);
+    assert.strictEqual(j.type, 'verify');
+    assert.ok(j.data);
+    assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(j.data.status));
+    assert.ok(Array.isArray(j.evidence));
+    assert.strictEqual(j.error, null);
+    assert.ok(j.meta.contractVersion);
+    assert.strictEqual(r.headers.get('access-control-allow-origin'), '*');
+    assert.strictEqual(r.headers.get('cache-control'), 'no-cache');
+  });
+
+  it('POST /v2/verify keeps KernelV2 contradiction details', async () => {
+    const learn = await fetch(`${BASE}/yukle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: 'kus ucmaz' }),
+    });
+    assert.strictEqual(learn.status, 200);
+
+    const r = await fetch(`${BASE}/v2/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ statement: 'kus ucar' }),
+    });
+    assert.strictEqual(r.status, 200);
+    const j = await r.json();
+    assert.strictEqual(j.ok, true);
+    assert.strictEqual(j.type, 'verify');
+    assert.strictEqual(j.data.status, 'celiski');
+    assert.strictEqual(j.data.contradictionReason, 'opposite_predicate_conflict');
+    assert.ok(Array.isArray(j.evidence));
+    assert.ok(j.evidence.length >= 1);
+  });
+
+  it('PUT /v2/verify returns method not allowed', async () => {
+    const r = await fetch(`${BASE}/v2/verify`, { method: 'PUT' });
+    assert.strictEqual(r.status, 405);
   });
 
   it('POST /dogrula JSON body ile çalışır', async () => {
@@ -160,9 +204,9 @@ describe('Server - API', () => {
     assert.ok(Array.isArray(j.phases));
     assert.ok(j.counts.total >= 1);
     assert.strictEqual(typeof j.currentFocus, 'string');
-    assert.strictEqual(j.currentFocus, 'v2.4 Status Dashboard');
+    assert.strictEqual(j.currentFocus, 'v2.5 REST Structured Verify');
     assert.strictEqual(j.activeKernel, 'v2');
-    assert.strictEqual(j.testStatus, '157/157');
+    assert.strictEqual(j.testStatus, '160/160');
     assert.ok(['sqlite', 'json'].includes(j.backend));
     assert.ok(Number.isInteger(j.nodes));
     assert.ok(Number.isInteger(j.edges));
