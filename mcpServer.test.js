@@ -75,6 +75,13 @@ describe('MCP Server', () => {
     assert.ok(Array.isArray(list.result.tools));
     assert.ok(list.result.tools.some(t => t.name === 'axiom.learn'));
     assert.ok(list.result.tools.some(t => t.name === 'axiom.ask'));
+    const verifyTool = list.result.tools.find(t => t.name === 'axiom.verify');
+    assert.ok(verifyTool);
+    assert.ok(verifyTool.outputSchema);
+    assert.deepStrictEqual(
+      verifyTool.outputSchema.properties.data.anyOf[1].properties.status.enum,
+      ['dogrulandi', 'celiski', 'bilinmiyor']
+    );
   });
 
   it('can learn and ask through tools/call', async () => {

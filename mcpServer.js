@@ -6,6 +6,7 @@ const pkg = require('./package.json');
 const PROTOCOL_VERSION = '2025-06-18';
 const SERVER_NAME = 'axiom';
 const SERVER_VERSION = pkg.version;
+const VERIFY_STATUS = ['dogrulandi', 'celiski', 'bilinmiyor'];
 
 const ENVELOPE_OUTPUT_SCHEMA = {
   type: 'object',
@@ -34,6 +35,27 @@ const ENVELOPE_OUTPUT_SCHEMA = {
   additionalProperties: true,
 };
 
+const VERIFY_ENVELOPE_OUTPUT_SCHEMA = {
+  ...ENVELOPE_OUTPUT_SCHEMA,
+  properties: {
+    ...ENVELOPE_OUTPUT_SCHEMA.properties,
+    data: {
+      anyOf: [
+        { type: 'null' },
+        {
+          type: 'object',
+          properties: {
+            status: { type: 'string', enum: VERIFY_STATUS },
+            confidence: { type: 'number', minimum: 0, maximum: 1 },
+          },
+          required: ['status'],
+          additionalProperties: true,
+        },
+      ],
+    },
+  },
+};
+
 function buildKernelOptsFromEnv() {
   const kernelOpts = {};
   if (process.env.AXIOM_MEMORY_PATH) kernelOpts.memoryPath = process.env.AXIOM_MEMORY_PATH;
@@ -53,7 +75,11 @@ const TOOL_SCHEMAS = [
       properties: {
         text: { type: 'string', description: 'Natural-language statement to learn, for example: "kedi hayvandir".' },
         skipConflicts: { type: 'boolean', description: 'Skip conflicting statements when true. Defaults to true.' },
-        maxSentences: { type: 'number', description: 'Maximum number of sentences to ingest from the input text.' },
+        maxSentences: {
+          type: 'integer',
+          minimum: 1,
+          description: 'Maximum number of sentences to ingest from the input text.',
+        },
       },
       required: ['text'],
       additionalProperties: false,
@@ -88,7 +114,7 @@ const TOOL_SCHEMAS = [
       required: ['statement'],
       additionalProperties: false,
     },
-    outputSchema: ENVELOPE_OUTPUT_SCHEMA,
+    outputSchema: VERIFY_ENVELOPE_OUTPUT_SCHEMA,
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   {
@@ -129,7 +155,7 @@ const TOOL_SCHEMAS = [
     inputSchema: {
       type: 'object',
       properties: {
-        depth: { type: 'number', description: 'Optional exploration depth.' },
+        depth: { type: 'integer', minimum: 1, maximum: 5, description: 'Optional exploration depth. Defaults to 2.' },
       },
       additionalProperties: false,
     },
@@ -282,6 +308,7 @@ module.exports = {
   PROTOCOL_VERSION,
   SERVER_NAME,
   TOOL_SCHEMAS,
+  VERIFY_STATUS,
   buildKernelOptsFromEnv,
   callTool,
   createServer,
