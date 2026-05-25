@@ -175,6 +175,7 @@ CLI and legacy REST endpoints keep their user-facing output stable. Code that im
 ## Language Strategy
 
 AXIOM is currently Turkish-first and rule-based.
+`lang: auto` mode can detect the pack from the input text for `extractFacts()`.
 
 | Pack | Status | Purpose |
 |---|---|---|
