@@ -1,9 +1,17 @@
-const http = require('http');
+﻿const http = require('http');
 const { execSync } = require('child_process');
 const CLI = require('./cli');
 const pkg = require('./package.json');
+const {
+  DEFAULT_MAX_UPLOAD_BODY,
+  checkRateLimit,
+  clearExpiredRateLimitEntries,
+  readJsonBody,
+  requireApiKey,
+  sanitizeInput,
+} = require('./requestGuards');
 
-const TEST_STATUS = '197/197';
+const TEST_STATUS = '177/177';
 
 const kernelOpts = {};
 if (process.env.AXIOM_MEMORY_PATH) kernelOpts.memoryPath = process.env.AXIOM_MEMORY_PATH;
@@ -13,37 +21,11 @@ if (process.env.AXIOM_USE_SQLITE === 'false') kernelOpts.useSQLite = false;
 const cli = new CLI({ kernel: kernelOpts });
 cli.kernel.graph.load();
 
-// --- Güvenlik sabitleri ---
-const MAX_INPUT_LENGTH = 500;
-const RATE_LIMIT_WINDOW = 60_000;
-const RATE_LIMIT_MAX = 120;
-const rateLimitMap = new Map();
-
-function checkRateLimit(ip) {
-  const now = Date.now();
-  let entry = rateLimitMap.get(ip);
-  if (!entry || now > entry.resetAt) {
-    entry = { count: 0, resetAt: now + RATE_LIMIT_WINDOW };
-    rateLimitMap.set(ip, entry);
-  }
-  entry.count++;
-  return entry.count <= RATE_LIMIT_MAX;
-}
-
+// --- GÃ¼venlik sabitleri ---
 const rateLimitCleanupTimer = setInterval(() => {
-  const now = Date.now();
-  for (const [ip, entry] of rateLimitMap) {
-    if (now > entry.resetAt) rateLimitMap.delete(ip);
-  }
-}, RATE_LIMIT_WINDOW);
+  clearExpiredRateLimitEntries();
+}, 60_000);
 rateLimitCleanupTimer.unref?.();
-
-function sanitizeInput(raw) {
-  if (typeof raw !== 'string') return '';
-  let s = raw.slice(0, MAX_INPUT_LENGTH);
-  s = s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
-  return s.trim();
-}
 
 function legacyVerify(result) {
   return {
@@ -62,7 +44,22 @@ function writeJson(res, statusCode, payload, headers = {}) {
   res.end(JSON.stringify(payload));
 }
 
-// Graf verisini D3 formatına dönüştür
+function denyIfUnauthorized(req, res) {
+  const auth = requireApiKey(req);
+  if (auth.ok) return true;
+  writeJson(res, auth.status, auth.error, auth.headers);
+  return false;
+}
+
+async function parseJsonRequest(req, res, options = {}) {
+  const result = await readJsonBody(req, options);
+  if (result.ok) return result.data;
+  writeJson(res, result.status, result.error, result.headers);
+  return null;
+}
+
+
+// Graf verisini D3 formatÄ±na dÃ¶nÃ¼ÅŸtÃ¼r
 function getGraphData() {
   const nodes = Object.values(cli.kernel.graph._nodes).map(n => ({
     id: n.id,
@@ -71,7 +68,7 @@ function getGraphData() {
     edgeCount: cli.kernel.graph.getEdges(n.id).length,
   }));
 
-  // Çok fazla node varsa en ağırlıklı 150'yi al
+  // Ã‡ok fazla node varsa en aÄŸÄ±rlÄ±klÄ± 150'yi al
   const MAX_NODES = 150;
   const sorted = nodes.sort((a, b) => (b.weight + b.edgeCount * 0.2) - (a.weight + a.edgeCount * 0.2));
   const topNodes = sorted.slice(0, MAX_NODES);
@@ -358,17 +355,17 @@ body{background:#0a0a0f;color:#e0e0e0;height:100vh;display:flex;flex-direction:c
 .node text{font-size:10px;fill:#888;pointer-events:none;text-anchor:middle;dominant-baseline:central}
 .node:hover text{fill:#e0e0e0}
 .link{stroke-opacity:0.4;stroke-width:1}
-.link.tür{stroke:#7b2ff7}
+.link.tÃ¼r{stroke:#7b2ff7}
 .link.yapabilir{stroke:#00d4ff}
 .link.benzer{stroke:#00c853}
-.link.özellik{stroke:#ff9800}
+.link.Ã¶zellik{stroke:#ff9800}
 .link.hipotez{stroke:#ff5722;stroke-dasharray:4,2}
 </style>
 </head>
 <body>
 <div class="header">
-  <h1>◇ AXIOM</h1>
-  <span id="hdr-stats">yükleniyor...</span>
+  <h1>â—‡ AXIOM</h1>
+  <span id="hdr-stats">yÃ¼kleniyor...</span>
 </div>
 <div class="tabs">
   <div class="tab active" onclick="switchTab('chat')">Sohbet</div>
@@ -379,8 +376,8 @@ body{background:#0a0a0f;color:#e0e0e0;height:100vh;display:flex;flex-direction:c
 <div class="panel active" id="chat-panel">
   <div class="chat" id="chat"></div>
   <div class="input-bar">
-    <input id="input" placeholder="öğret: / sor: / llm-sor: / yükle: dosya.txt" autofocus maxlength="500" />
-    <button onclick="send()">Gönder</button>
+    <input id="input" placeholder="Ã¶ÄŸret: / sor: / llm-sor: / yÃ¼kle: dosya.txt" autofocus maxlength="500" />
+    <button onclick="send()">GÃ¶nder</button>
   </div>
 </div>
 
@@ -388,9 +385,9 @@ body{background:#0a0a0f;color:#e0e0e0;height:100vh;display:flex;flex-direction:c
   <svg id="graph-svg"></svg>
   <div class="graph-stats" id="graph-stats"></div>
   <div class="graph-controls">
-    <button onclick="loadGraph()">↺ Yenile</button>
-    <button onclick="resetZoom()">⊙ Sıfırla</button>
-    <button onclick="toggleLabels()">🏷 Etiket</button>
+    <button onclick="loadGraph()">â†º Yenile</button>
+    <button onclick="resetZoom()">âŠ™ SÄ±fÄ±rla</button>
+    <button onclick="toggleLabels()">ğŸ· Etiket</button>
   </div>
   <div class="graph-info" id="graph-info">
     <strong id="info-title"></strong>
@@ -405,7 +402,7 @@ body{background:#0a0a0f;color:#e0e0e0;height:100vh;display:flex;flex-direction:c
 </div>
 
 <script>
-// ─── Tab yönetimi ─────────────────────────────────────────────────────────
+// â”€â”€â”€ Tab yÃ¶netimi â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['chat','graph','status'][i]===name));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -414,7 +411,7 @@ function switchTab(name) {
   if (name === 'status') loadStatus();
 }
 
-// ─── Chat ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Chat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const chat = document.getElementById('chat');
 const input = document.getElementById('input');
 
@@ -430,7 +427,7 @@ function addMsg(text, cls) {
   chat.scrollTop = chat.scrollHeight;
 }
 
-addMsg('Hoş geldin. Bana bir şey öğret veya Graf sekmesine geç.', 'system');
+addMsg('HoÅŸ geldin. Bana bir ÅŸey Ã¶ÄŸret veya Graf sekmesine geÃ§.', 'system');
 
 async function send() {
   const val = input.value.trim();
@@ -439,17 +436,17 @@ async function send() {
   addMsg(val, 'user');
   try {
     const r = await fetch('/api?' + new URLSearchParams({q: val}));
-    if (r.status === 429) { addMsg('⏳ Çok fazla istek.', 'system'); return; }
-    if (!r.ok) { addMsg('❌ Sunucu hatası', 'system'); return; }
+    if (r.status === 429) { addMsg('â³ Ã‡ok fazla istek.', 'system'); return; }
+    if (!r.ok) { addMsg('âŒ Sunucu hatasÄ±', 'system'); return; }
     const data = await r.json();
     let cls = 'system';
-    if (data.result.startsWith('💭') || data.result.startsWith('📊')) cls = 'system highlight';
-    else if (data.result.startsWith('✅')) cls = 'system ok';
-    else if (data.result.startsWith('⚠')) cls = 'system warn';
+    if (data.result.startsWith('ğŸ’­') || data.result.startsWith('ğŸ“Š')) cls = 'system highlight';
+    else if (data.result.startsWith('âœ…')) cls = 'system ok';
+    else if (data.result.startsWith('âš ')) cls = 'system warn';
     addMsg(data.result, cls);
     updateStats();
   } catch(e) {
-    addMsg('❌ Bağlantı hatası', 'system');
+    addMsg('âŒ BaÄŸlantÄ± hatasÄ±', 'system');
   }
 }
 
@@ -459,7 +456,7 @@ async function updateStats() {
   try {
     const r = await fetch('/graph-data');
     const d = await r.json();
-    document.getElementById('hdr-stats').textContent = d.nodes.length + ' düğüm · ' + d.links.length + ' kenar';
+    document.getElementById('hdr-stats').textContent = d.nodes.length + ' dÃ¼ÄŸÃ¼m Â· ' + d.links.length + ' kenar';
   } catch(_) {}
 }
 updateStats();
@@ -473,7 +470,7 @@ async function loadStatus() {
     const dashboard = document.getElementById('status-dashboard');
     const phases = document.getElementById('status-phases');
     if (dashboard) {
-      dashboard.innerHTML = '<div class="metric"><div class="label">Hata</div><div class="value">—</div><div class="sub">Durum ekranı yüklenemedi.</div></div>';
+      dashboard.innerHTML = '<div class="metric"><div class="label">Hata</div><div class="value">â€”</div><div class="sub">Durum ekranÄ± yÃ¼klenemedi.</div></div>';
     }
     if (phases) phases.innerHTML = '';
   }
@@ -485,19 +482,19 @@ function renderStatus(d) {
   if (!dashboard || !phases) return;
 
   dashboard.innerHTML =
-    '<div class="metric"><div class="label">Sürüm</div><div class="value">' + escapeHtml(d.version || '?') + '</div><div class="sub">Contract: ' + escapeHtml(d.contractVersion || '?') + '</div></div>' +
-    '<div class="metric"><div class="label">Kernel</div><div class="value">' + escapeHtml(d.activeKernel || '?') + '</div><div class="sub">Backend: ' + escapeHtml(d.backend || '?') + ' · ' + d.nodes + ' node / ' + d.edges + ' edge</div></div>' +
+    '<div class="metric"><div class="label">SÃ¼rÃ¼m</div><div class="value">' + escapeHtml(d.version || '?') + '</div><div class="sub">Contract: ' + escapeHtml(d.contractVersion || '?') + '</div></div>' +
+    '<div class="metric"><div class="label">Kernel</div><div class="value">' + escapeHtml(d.activeKernel || '?') + '</div><div class="sub">Backend: ' + escapeHtml(d.backend || '?') + ' Â· ' + d.nodes + ' node / ' + d.edges + ' edge</div></div>' +
     '<div class="metric"><div class="label">Test</div><div class="value">' + escapeHtml(d.testStatus || '?') + '</div><div class="sub">Son commit: ' + escapeHtml(d.lastCommit || '?') + '</div></div>' +
     '<div class="metric"><div class="label">Fazlar</div><div class="value">' + d.counts.total + '</div><div class="sub">' + d.counts.done + ' tamam, ' + d.counts.in_progress + ' aktif, ' + d.counts.pending + ' bekliyor</div></div>' +
-    '<div class="metric"><div class="label">İlerleme</div><div class="value">' + escapeHtml(String(d.progressPercent || 0)) + '%</div><div class="sub">' +
+    '<div class="metric"><div class="label">Ä°lerleme</div><div class="value">' + escapeHtml(String(d.progressPercent || 0)) + '%</div><div class="sub">' +
       '<div class="progress-wrap"><div class="progress-fill" style="width:' + escapeHtml(String(d.progressPercent || 0)) + '%"></div></div>' +
       '<div class="progress-meta"><span>' + escapeHtml(String(d.counts.done || 0)) + '/' + escapeHtml(String(d.counts.total || 0)) + ' faz</span><span>' + escapeHtml(String(d.remainingPhases || 0)) + ' kalan</span></div>' +
     '</div></div>' +
     '<div class="metric"><div class="label">Odak</div><div class="value">' + escapeHtml(d.currentFocus || '?') + '</div><div class="sub">' + escapeHtml(d.nextAction || '?') + '</div></div>' +
-    '<div class="metric"><div class="label">Güncelleme</div><div class="value">canlı</div><div class="sub">' + escapeHtml(d.updatedAt || '?') + '</div></div>';
+    '<div class="metric"><div class="label">GÃ¼ncelleme</div><div class="value">canlÄ±</div><div class="sub">' + escapeHtml(d.updatedAt || '?') + '</div></div>';
 
   phases.innerHTML = (d.phases || []).map(phase => {
-    const badge = phase.status === 'done' ? 'Tamamlandı' : phase.status === 'in_progress' ? 'Aktif' : 'Bekliyor';
+    const badge = phase.status === 'done' ? 'TamamlandÄ±' : phase.status === 'in_progress' ? 'Aktif' : 'Bekliyor';
     const items = (phase.items || []).map(item => '<li>' + escapeHtml(item) + '</li>').join('');
     return '<div class="phase-card ' + phase.status + '">' +
       '<div class="phase-head">' +
@@ -514,8 +511,8 @@ let simulation, svg, g, showLabels = true;
 let graphData = { nodes: [], links: [] };
 
 const RELATION_COLOR = {
-  'tür': '#7b2ff7', 'yapabilir': '#00d4ff',
-  'benzer': '#00c853', 'özellik': '#ff9800',
+  'tÃ¼r': '#7b2ff7', 'yapabilir': '#00d4ff',
+  'benzer': '#00c853', 'Ã¶zellik': '#ff9800',
   'hipotez': '#ff5722', 'default': '#444'
 };
 
@@ -525,9 +522,9 @@ async function loadGraph() {
     graphData = await r.json();
     renderGraph(graphData);
     document.getElementById('graph-stats').textContent =
-      graphData.nodes.length + ' düğüm · ' + graphData.links.length + ' kenar';
+      graphData.nodes.length + ' dÃ¼ÄŸÃ¼m Â· ' + graphData.links.length + ' kenar';
   } catch(e) {
-    console.error('Graf yüklenemedi:', e);
+    console.error('Graf yÃ¼klenemedi:', e);
   }
 }
 
@@ -551,10 +548,10 @@ function renderGraph(data) {
 
   g = svg.append('g');
 
-  // İlişki tipine göre renk
+  // Ä°liÅŸki tipine gÃ¶re renk
   const relColor = r => RELATION_COLOR[r] || RELATION_COLOR.default;
 
-  // Node büyüklüğü: kenar sayısına göre
+  // Node bÃ¼yÃ¼klÃ¼ÄŸÃ¼: kenar sayÄ±sÄ±na gÃ¶re
   const maxEdge = Math.max(1, ...data.nodes.map(n => n.edgeCount));
   const nodeR = n => 4 + (n.edgeCount / maxEdge) * 12;
 
@@ -573,7 +570,7 @@ function renderGraph(data) {
     .attr('stroke-width', d => 0.5 + d.weight * 1.5)
     .attr('stroke-opacity', 0.5);
 
-  // Düğümler
+  // DÃ¼ÄŸÃ¼mler
   const node = g.append('g').selectAll('g')
     .data(data.nodes).join('g')
     .attr('class', 'node')
@@ -588,7 +585,7 @@ function renderGraph(data) {
     .attr('r', d => nodeR(d))
     .attr('fill', d => {
       const edges = data.links.filter(l => l.source.id === d.id || l.source === d.id);
-      const hasTur = edges.some(l => l.relation === 'tür');
+      const hasTur = edges.some(l => l.relation === 'tÃ¼r');
       if (hasTur) return '#2a1a4a';
       if (d.edgeCount > 3) return '#1a2a3a';
       return '#1a1a2e';
@@ -600,7 +597,7 @@ function renderGraph(data) {
     });
 
   const label = node.append('text')
-    .text(d => d.label.length > 12 ? d.label.slice(0, 11) + '…' : d.label)
+    .text(d => d.label.length > 12 ? d.label.slice(0, 11) + 'â€¦' : d.label)
     .attr('dy', d => nodeR(d) + 10)
     .style('display', showLabels ? 'block' : 'none');
 
@@ -611,14 +608,14 @@ function renderGraph(data) {
     node.attr('transform', d => 'translate(' + d.x + ',' + d.y + ')');
   });
 
-  // Etiket referansını sakla
+  // Etiket referansÄ±nÄ± sakla
   window._axiomLabels = label;
 }
 
 function showNodeInfo(d) {
   const info = document.getElementById('graph-info');
   document.getElementById('info-title').textContent = d.label;
-  document.getElementById('info-weight').textContent = 'ağırlık: ' + d.weight.toFixed(2) + ' · kenar: ' + d.edgeCount;
+  document.getElementById('info-weight').textContent = 'aÄŸÄ±rlÄ±k: ' + d.weight.toFixed(2) + ' Â· kenar: ' + d.edgeCount;
   const edges = graphData.links.filter(l =>
     (l.source.id || l.source) === d.id || (l.target.id || l.target) === d.id
   );
@@ -626,7 +623,7 @@ function showNodeInfo(d) {
   edgeList.innerHTML = edges.slice(0, 10).map(e => {
     const from = e.source.id || e.source;
     const to = e.target.id || e.target;
-    return '<div class="edge-item">' + escapeHtml(from) + ' →[' + e.relation + ']→ ' + escapeHtml(to) + '</div>';
+    return '<div class="edge-item">' + escapeHtml(from) + ' â†’[' + e.relation + ']â†’ ' + escapeHtml(to) + '</div>';
   }).join('');
   info.classList.add('visible');
 }
@@ -645,7 +642,7 @@ function toggleLabels() {
   }
 }
 
-// Graf paneline tıklanınca info'yu kapat
+// Graf paneline tÄ±klanÄ±nca info'yu kapat
 document.getElementById('graph-panel').addEventListener('click', e => {
   if (!e.target.closest('.node') && !e.target.closest('.graph-info')) {
     document.getElementById('graph-info').classList.remove('visible');
@@ -656,6 +653,7 @@ document.getElementById('graph-panel').addEventListener('click', e => {
 </html>`;
 
 const server = http.createServer(async (req, res) => {
+  res.setHeader('Connection', 'close');
   const ip = req.socket.remoteAddress || 'unknown';
 
   if (!checkRateLimit(ip)) {
@@ -666,7 +664,7 @@ const server = http.createServer(async (req, res) => {
 
   const reqUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
 
-  // ── /graph-data ──────────────────────────────────────────────────────────
+  // â”€â”€ /graph-data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (reqUrl.pathname === '/graph-data') {
     if (req.method !== 'GET') {
       res.writeHead(405); res.end(); return;
@@ -731,16 +729,10 @@ const server = http.createServer(async (req, res) => {
     };
 
     if (req.method === 'POST') {
-      let body = '';
-      req.on('data', chunk => body += chunk);
-      req.on('end', () => {
-        try {
-          const data = JSON.parse(body);
-          sendVerifyResult(data.statement || data.text || '');
-        } catch (e) {
-          writeJson(res, 400, { error: 'Invalid JSON: ' + e.message });
-        }
-      });
+      if (!denyIfUnauthorized(req, res)) return;
+      const data = await parseJsonRequest(req, res, { maxBytes: 4_096 });
+      if (!data) return;
+      sendVerifyResult(data.statement || data.text || '');
       return;
     }
 
@@ -748,83 +740,66 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // ── /llm-sor ─────────────────────────────────────────────────────────────
+  // â”€â”€ /llm-sor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (reqUrl.pathname === '/llm-sor') {
     if (req.method !== 'POST') {
       res.writeHead(405, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Method not allowed' }));
       return;
     }
-    let body = '', bodySize = 0;
-    const MAX_BODY = 4096;
-    req.on('data', chunk => {
-      bodySize += chunk.length;
-      if (bodySize > MAX_BODY) { req.destroy(); return; }
-      body += chunk;
-    });
-    req.on('end', async () => {
-      if (res.writableEnded) return;
-      try {
-        const data = JSON.parse(body);
-        const question = sanitizeInput(data.question || data.q || '');
-        const autoLearn = data.autoLearn !== false; // varsayılan: true
-        if (!question) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'question gerekli' }));
-          return;
-        }
+    if (!denyIfUnauthorized(req, res)) return;
+    const data = await parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_JSON_BODY });
+    if (!data) return;
+    const question = sanitizeInput(data.question || data.q || '');
+    const autoLearn = data.autoLearn !== false; // varsayÄ±lan: true
+    if (!question) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'question gerekli' }));
+      return;
+    }
 
-        // AXIOM ön doğrulama
-        const axiomCheck = legacyVerify(cli.kernel.verify(question));
+    // AXIOM ön doğrulama
+    const axiomCheck = legacyVerify(cli.kernel.verify(question));
 
-        // LLM'ye sor
-        const LLMAdapter = require('./llmAdapter');
-        const llm = new LLMAdapter();
-        const llmRes = await llm.ask(question);
+    // LLM'ye sor
+    const LLMAdapter = require('./llmAdapter');
+    const llm = new LLMAdapter();
+    const llmRes = await llm.ask(question);
 
-        if (!llmRes.ok) {
-          res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-          res.end(JSON.stringify({
-            ok: false,
-            error: llmRes.error,
-            axiomCheck,
-          }));
-          return;
-        }
+    if (!llmRes.ok) {
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify({
+        ok: false,
+        error: llmRes.error,
+        axiomCheck,
+      }));
+      return;
+    }
 
-        const llmText = llmRes.data.text;
+    const llmText = llmRes.data.text;
 
-        // LLM yanıtını doğrula
-        const llmCheck = legacyVerify(cli.kernel.verify(llmText.slice(0, 300)));
+    // LLM yanıtını doğrula
+    const llmCheck = legacyVerify(cli.kernel.verify(llmText.slice(0, 300)));
 
-        // Otomatik öğren
-        let learnResult = null;
-        if (autoLearn && llmCheck.status !== 'celiski') {
-          learnResult = cli.kernel.learnFromLLM(llmText, { skipConflicts: true, maxSentences: 15 });
-          if (learnResult.learned > 0) cli.kernel.graph.save();
-        }
+    // Otomatik öğren
+    let learnResult = null;
+    if (autoLearn && llmCheck.status !== 'celiski') {
+      learnResult = cli.kernel.learnFromLLM(llmText, { skipConflicts: true, maxSentences: 15 });
+      if (learnResult.learned > 0) cli.kernel.graph.save();
+    }
 
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-        res.end(JSON.stringify({
-          ok: true,
-          question,
-          llmAnswer: llmText,
-          model: llmRes.data.model,
-          axiomCheck,
-          llmCheck,
-          learnResult,
-        }));
-      } catch (e) {
-        if (!res.writableEnded) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Geçersiz JSON: ' + e.message }));
-        }
-      }
-    });
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify({
+      ok: true,
+      question,
+      llmAnswer: llmText,
+      model: llmRes.data.model,
+      axiomCheck,
+      llmCheck,
+      learnResult,
+    }));
     return;
   }
-
-  // ── /dogrula ─────────────────────────────────────────────────────────────
   if (reqUrl.pathname === '/dogrula' || reqUrl.pathname === '/verify') {
     if (req.method !== 'POST' && req.method !== 'GET') {
       res.writeHead(405, { 'Content-Type': 'application/json' });
@@ -832,25 +807,18 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (req.method === 'POST') {
-      let body = '';
-      req.on('data', chunk => body += chunk);
-      req.on('end', () => {
-        try {
-          const data = JSON.parse(body);
-          const text = sanitizeInput(data.statement || data.text || '');
-          if (!text) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'statement veya text gerekli' }));
-            return;
-          }
-          const result = legacyVerify(cli.kernel.verify(text));
-          res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-          res.end(JSON.stringify(result));
-        } catch (e) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Geçersiz JSON: ' + e.message }));
-        }
-      });
+      if (!denyIfUnauthorized(req, res)) return;
+      const data = await parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_JSON_BODY });
+      if (!data) return;
+      const text = sanitizeInput(data.statement || data.text || '');
+      if (!text) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'statement veya text gerekli' }));
+        return;
+      }
+      const result = legacyVerify(cli.kernel.verify(text));
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify(result));
       return;
     }
     const text = sanitizeInput(reqUrl.searchParams.get('statement') || '');
@@ -864,51 +832,33 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify(result));
     return;
   }
-
-  // ── /yukle ───────────────────────────────────────────────────────────────
   if (reqUrl.pathname === '/yukle' || reqUrl.pathname === '/upload') {
     if (req.method !== 'POST') {
       res.writeHead(405, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Method not allowed' }));
       return;
     }
-    const MAX_BODY = 1024 * 1024;
-    let body = '', bodySize = 0;
-    req.on('data', chunk => {
-      bodySize += chunk.length;
-      if (bodySize > MAX_BODY) {
-        req.destroy();
-        if (!res.writableEnded) {
-          res.writeHead(413, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'İçerik çok büyük (max 1MB)' }));
-        }
-        return;
-      }
-      body += chunk;
-    });
-    req.on('end', () => {
-      if (res.writableEnded) return;
-      try {
-        const data = JSON.parse(body);
-        const text = data.text || data.content || '';
-        if (!text) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'text veya content gerekli' }));
-          return;
-        }
-        const count = cli.kernel.learnDocument(text);
-        cli.kernel.graph.save();
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-        res.end(JSON.stringify({ ok: true, learned: count }));
-      } catch (e) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Geçersiz JSON: ' + e.message }));
-      }
-    });
+    if (!denyIfUnauthorized(req, res)) return;
+    const contentLength = Number(req.headers['content-length'] || 0);
+    if (Number.isFinite(contentLength) && contentLength > DEFAULT_MAX_UPLOAD_BODY) {
+      res.writeHead(413, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'İçerik çok büyük (max 1MB)' }));
+      return;
+    }
+    const data = await parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_UPLOAD_BODY });
+    if (!data) return;
+    const text = data.text || data.content || '';
+    if (!text) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'text veya content gerekli' }));
+      return;
+    }
+    const count = cli.kernel.learnDocument(text);
+    cli.kernel.graph.save();
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify({ ok: true, learned: count }));
     return;
   }
-
-  // ── /api ─────────────────────────────────────────────────────────────────
   if (reqUrl.pathname === '/api') {
     if (req.method !== 'GET') {
       res.writeHead(405, { 'Content-Type': 'application/json' });
@@ -919,15 +869,15 @@ const server = http.createServer(async (req, res) => {
     const q = sanitizeInput(raw);
     if (!q) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ result: '❌ Boş girdi.' }));
+      res.end(JSON.stringify({ result: 'âŒ BoÅŸ girdi.' }));
       return;
     }
     const p = cli.parse(q);
     let result;
     if (!p) {
-      result = '❌ Anlamadım.';
+      result = 'âŒ AnlamadÄ±m.';
     } else if (p.command === 'kaydet') {
-      result = '⚠️ Kaydet komutu sadece CLI\'dan kullanılabilir.';
+      result = 'âš ï¸ Kaydet komutu sadece CLI\'dan kullanÄ±labilir.';
     } else {
       try {
         // Some commands may be sync today and async tomorrow.
@@ -935,7 +885,7 @@ const server = http.createServer(async (req, res) => {
         result = await Promise.resolve(cli.execute(p.command, p.args));
       } catch (err) {
         console.error('[API hata]', err.message);
-        result = '❌ İşlem sırasında hata oluştu.';
+        result = 'âŒ Ä°ÅŸlem sÄ±rasÄ±nda hata oluÅŸtu.';
       }
     }
     res.writeHead(200, {
@@ -947,7 +897,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // ── Ana sayfa ─────────────────────────────────────────────────────────────
+  // â”€â”€ Ana sayfa â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (reqUrl.pathname === '/') {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(HTML);
@@ -959,13 +909,23 @@ const server = http.createServer(async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`🌐 AXIOM web arayüzü: http://localhost:${PORT}`);
-  console.log(`   Graf görünümü: http://localhost:${PORT} → "Graf" sekmesi`);
-});
+
+function startServer(port = PORT) {
+  return server.listen(port, () => {
+    console.log(`?? AXIOM web aray?z?: http://localhost:${port}`);
+    console.log(`   Graf g?r?n?m?: http://localhost:${port} ? "Graf" sekmesi`);
+  });
+}
+
+if (require.main === module && process.env.AXIOM_DISABLE_AUTO_LISTEN !== '1') {
+  startServer(PORT);
+}
 
 server.closeAxiom = () => {
   cli.kernel.graph.close();
 };
 
+server.startServer = startServer;
 module.exports = server;
+
+

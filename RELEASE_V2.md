@@ -1,4 +1,4 @@
-# AXIOM v2 Release Summary
+﻿# AXIOM v2 Release Summary
 
 ## What is shipped
 
@@ -9,10 +9,11 @@
 - Minimal stdio MCP adapter is available with `tools/list` and `tools/call`.
 - Deterministic benchmark fixtures are available for repeatable local performance checks.
 - Benchmark regression gate is active in CI with fixture-aware checks.
+- Request guards now cover input sanitization, rate limiting, and optional API-key protection on write endpoints.
 
 ## Current verification
 
-- Test suite: `197/197`
+- Test suite: `177/177`
 - Benchmark runner: `npm run bench`
 - Main branch: pushed and synchronized
 
@@ -53,3 +54,4 @@ npm run bench -- --quick
 - New storage backend migration
 - Heavy product UI work
 - N-API rewrite
+
