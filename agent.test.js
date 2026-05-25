@@ -164,6 +164,53 @@ describe('Agent', () => {
     assert.ok(plan.data.policy.failureHits.length >= 1);
     assert.ok(plan.data.rationale.includes('Amaç sinyali açık') || plan.data.rationale.includes('Default'));
   });
+  it('blocks unsupported tools instead of silently rerouting them', () => {
+    const agent = freshAgent();
+    const originalPlan = agent.plan.bind(agent);
+    agent.plan = () => ({
+      ok: true,
+      type: 'plan',
+      data: {
+        goal: 'harici komut çalıştır',
+        objective: 'investigate',
+        shortGoal: 'harici komut çalıştır',
+        steps: [{
+          id: 'external-1',
+          action: 'run',
+          tool: 'shell',
+          input: 'ls',
+          rationale: 'unsupported external tool',
+        }],
+        selectedTools: ['shell'],
+        maxSteps: 1,
+        status: 'planned',
+        confidence: 0.2,
+        policy: {
+          objective: 'investigate',
+          selectedTools: ['shell'],
+          baseTools: ['shell'],
+          signals: [],
+          failureHits: [],
+          rationale: 'test',
+        },
+        memory: { knownGoals: 0, previousRuns: 0, resumed: false },
+        rationale: 'test',
+      },
+      evidence: [],
+      error: null,
+      meta: {},
+    });
+
+    const runResult = agent.run('harici komut çalıştır', { resume: false, stepRetries: 0 });
+    agent.plan = originalPlan;
+
+    assert.strictEqual(runResult.ok, false);
+    assert.strictEqual(runResult.type, 'agent');
+    assert.strictEqual(runResult.data.status, 'blocked');
+    assert.ok(runResult.data.steps.some(step => step.status === 'blocked'));
+    assert.ok(runResult.data.report.includes('Durum: blocked'));
+  });
+
   it('switches to dream when progress stalls across successful steps', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-agent-stall-'));
     const memoryPath = path.join(tmpDir, 'agent.memory.json');

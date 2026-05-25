@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const Dream = require('./dream');
 
 const DEFAULT_MAX_STEPS = 4;
+const ALLOWED_TOOLS = new Set(['learn', 'ask', 'verify', 'reason', 'compare', 'dream']);
 const MEMORY_LIMITS = {
   plans: 24,
   runs: 32,
@@ -102,6 +103,25 @@ class Agent {
       data,
       evidence: Array.isArray(evidence) ? evidence : [],
       error: null,
+      meta,
+    };
+  }
+
+  _fail(type, code, message, evidence = [], meta = {}, data = null) {
+    if (this.kernel && typeof this.kernel._fail === 'function') {
+      const result = this.kernel._fail(type, code, message, meta);
+      result.data = data;
+      if (Array.isArray(evidence) && evidence.length) {
+        result.evidence = evidence;
+      }
+      return result;
+    }
+    return {
+      ok: false,
+      type,
+      data,
+      evidence: Array.isArray(evidence) ? evidence : [],
+      error: { code, message },
       meta,
     };
   }
@@ -576,18 +596,32 @@ class Agent {
         result = this.dream ? this.dream.dream(opts.dreamOpts || {}) : this.kernel.dream(opts.dreamOpts || {});
         break;
       default:
-        result = this.kernel.ask(state.goal, opts.askOpts || {});
+        result = {
+          ok: false,
+          type: 'agent',
+          data: null,
+          evidence: [],
+          error: {
+            code: 'UNSUPPORTED_TOOL',
+            message: `Unsupported tool: ${String(step.tool || 'unknown')}`,
+          },
+          meta: {
+            blocked: true,
+            allowedTools: [...ALLOWED_TOOLS],
+          },
+        };
         break;
     }
 
     const summary = this._extractAgentSummary(result);
+    const blocked = result?.error?.code === 'UNSUPPORTED_TOOL' || result?.meta?.blocked === true;
     const stepReport = {
       id: step.id,
       action: step.action,
       tool: step.tool,
       input: step.input,
       rationale: step.rationale,
-      status: result?.ok === false ? 'error' : 'done',
+      status: blocked ? 'blocked' : (result?.ok === false ? 'error' : 'done'),
       summary: summary.text || '',
       result,
     };
@@ -715,6 +749,15 @@ class Agent {
     this.lastRun = state;
     this._rememberRun(state);
     this._emit('afterAgentRun', state);
+
+    if (state.status === 'blocked') {
+      return this._fail('agent', 'AGENT_BLOCKED', finalAnswer, state.evidence, {
+        objective: activePlan.objective,
+        selectedTools: activePlan.selectedTools,
+        resumed: state.resumed,
+        report: state.report,
+      }, state);
+    }
 
     return this._ok('agent', state, state.evidence, {
       objective: activePlan.objective,
