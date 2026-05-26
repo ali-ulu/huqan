@@ -1263,7 +1263,109 @@ if (verbSuffix.test(predicate)) {
       }
     }
 
+    for (const node of allNodes) {
+      const edges = this.graph.getEdges(node.id);
+      const degilEdges = edges.filter(e => e.relation === 'değil');
+      if (degilEdges.length === 0) continue;
+      const otherEdges = edges.filter(e => e.relation !== 'değil' && e.relation !== 'benzer' && e.relation !== 'hipotez');
+      for (const degil of degilEdges) {
+        const degilCore = degil.to.replace(/(?:maz|mez|mamak|memek|değildir|değil)$/i, '').trim();
+        for (const other of otherEdges) {
+          const otherCore = other.to.replace(/(?:maz|mez|mamak|memek|değildir|değil|yapabilir|yapamaz|edebilir|edemez)$/i, '').trim();
+          if (degilCore.length > 3 && otherCore.length > 3 && (otherCore.includes(degilCore.slice(0, 8)) || degilCore.includes(otherCore.slice(0, 8)))) {
+            contradictions.push({
+              type: 'negasyon',
+              node: node.id,
+              targets: [degil.to, other.to],
+              confidence: 0.8,
+              message: `"${node.id}" için "${degil.to}" (değil) ile "${other.to}" (${other.relation}) çelişiyor`,
+            });
+          }
+        }
+      }
+    }
+
+    for (const node of allNodes) {
+      const edges = this.graph.getEdges(node.id);
+      const edgesWithNums = [];
+      for (const e of edges) {
+        if (e.relation === 'hipotez') continue;
+        const nums = this._extractNumbers(e.to);
+        if (nums) edgesWithNums.push({ edge: e, nums });
+      }
+      if (edgesWithNums.length < 2) continue;
+      for (let i = 0; i < edgesWithNums.length; i++) {
+        for (let j = i + 1; j < edgesWithNums.length; j++) {
+          if (edgesWithNums[i].nums === edgesWithNums[j].nums) continue;
+          const coreI = this._getTextCore(edgesWithNums[i].edge.to);
+          const coreJ = this._getTextCore(edgesWithNums[j].edge.to);
+          const normI = coreI.replace(/\s+/g, ' ');
+          const normJ = coreJ.replace(/\s+/g, ' ');
+          const shorter = normI.length <= normJ.length ? normI : normJ;
+          const longer = normI.length <= normJ.length ? normJ : normI;
+          if (shorter.length < 5) continue;
+          if (!longer.includes(shorter)) continue;
+          contradictions.push({
+            type: 'sayısal',
+            node: node.id,
+            targets: [edgesWithNums[i].edge.to, edgesWithNums[j].edge.to],
+            confidence: 0.75,
+            message: `"${node.id}" için sayısal çelişki: ${edgesWithNums[i].nums} vs ${edgesWithNums[j].nums}`,
+          });
+        }
+      }
+    }
+
+    for (const node of allNodes) {
+      const edges = this.graph.getEdges(node.id);
+      for (const e of edges) {
+        if (e.relation === 'benzer' || e.relation === 'hipotez') continue;
+        if (e.celiski || (e.weight !== undefined && e.weight < 0.3)) {
+          contradictions.push({
+            type: 'düşük-ağırlık',
+            node: node.id,
+            targets: [e.to],
+            confidence: 0.6,
+            message: e.celiski
+              ? `"${node.id}" --[${e.relation}]--> "${e.to}" çelişki nedeniyle düşürüldü (weight: ${e.weight})`
+              : `"${node.id}" --[${e.relation}]--> "${e.to}" düşük güven (weight: ${e.weight})`,
+          });
+        }
+      }
+    }
+
     return contradictions;
+  }
+
+  _extractNumbers(text) {
+    const turkishNums = {
+      'bir':1,'iki':2,'uc':3,'dort':4,'bes':5,'alti':6,'yedi':7,'sekiz':8,'dokuz':9,
+      'on':10,'yirmi':20,'otuz':30,'kirk':40,'elli':50,'altmis':60,'yetmis':70,'seksen':80,'doksan':90,
+      'yuz':100,'bin':1000,
+    };
+    const words = text.toLowerCase().split(/\s+/).filter(Boolean);
+    const nums = [];
+    for (const w of words) {
+      if (/^\d+$/.test(w)) nums.push(parseInt(w, 10));
+      else if (turkishNums[w] !== undefined) nums.push(turkishNums[w]);
+    }
+    const digitMatches = text.match(/\d+/g);
+    if (digitMatches) for (const d of digitMatches) nums.push(Number(d));
+    if (nums.length === 0) return null;
+    return [...new Set(nums)].sort((a,b)=>a-b).join(',');
+  }
+
+  _getTextCore(text) {
+    const turkishNums = {
+      'bir':1,'iki':2,'uc':3,'dort':4,'bes':5,'alti':6,'yedi':7,'sekiz':8,'dokuz':9,
+      'on':10,'yirmi':20,'otuz':30,'kirk':40,'elli':50,'altmis':60,'yetmis':70,'seksen':80,'doksan':90,
+      'yuz':100,'bin':1000,
+    };
+    let s = text.toLowerCase();
+    for (const [word, num] of Object.entries(turkishNums)) {
+      s = s.replace(new RegExp(`\\b${word}\\b`, 'g'), String(num));
+    }
+    return s.replace(/\d+/g, '').replace(/\s+/g, ' ').trim();
   }
 
   introspect() {
