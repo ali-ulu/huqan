@@ -81,6 +81,7 @@ class Agent {
     this.dream = opts.dream || (this.kernel ? new Dream(this.kernel) : null);
     this.maxSteps = opts.maxSteps || DEFAULT_MAX_STEPS;
     this.memoryPath = normalizeMemoryPath(opts, this.kernel);
+    this.storage = opts.storage || null;
     this.memory = this._loadMemory();
     this.lastPlan = null;
     this.lastRun = null;
@@ -247,6 +248,21 @@ class Agent {
     };
     this.memory.goals.push(entry);
     this._pruneMemory();
+    if (this.storage && typeof this.storage.saveGoalMemory === 'function') {
+      try {
+        this.storage.saveGoalMemory({
+          goal: entry.goal,
+          objective,
+          status,
+          completedSteps: meta.completedSteps || 0,
+          finalAnswer: meta.finalAnswer || '',
+          resumed: Boolean(meta.resumed),
+          selectedTools: meta.selectedTools || [],
+        });
+      } catch (_) {
+        // Storage is best-effort; JSON memory remains canonical fallback.
+      }
+    }
   }
 
   _stepSignature(step = {}, state = {}) {
@@ -339,9 +355,23 @@ class Agent {
       selectedTools: entry.selectedTools,
       finalAnswer: entry.finalAnswer,
       resumed: entry.resumed,
+      completedSteps: entry.completedSteps,
     });
     this._pruneMemory();
     this._saveMemory();
+    if (this.storage && typeof this.storage.saveRun === 'function') {
+      try {
+        this.storage.saveRun({
+          ...entry,
+          checkpointId: state.checkpointId || state.resumeToken || null,
+          resumeToken: state.resumeToken || null,
+          iteration: state.steps ? state.steps.length : 0,
+          budgetRemaining: state.budgetRemaining || 0,
+        });
+      } catch (_) {
+        // Non-fatal persistence mirror.
+      }
+    }
     return entry;
   }
 
