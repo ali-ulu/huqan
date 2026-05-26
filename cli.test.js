@@ -191,4 +191,12 @@ describe('CLI - Komut Çalıştırma', () => {
     assert.ok(result.includes('Sonraki adım'));
     assert.ok(result.includes('Öneriler'));
   });
+
+  it('execute: ajan shows checkpoint details when v3 agent is enabled', () => {
+    const cli = new CLI({ kernel: { noLoad: true, useSQLite: false, version: 'v2' }, agentVersion: 'v3' });
+    cli.kernel.learn('kedi hayvandir');
+    const result = cli.execute('ajan', 'kedi hayvandir mi');
+    assert.ok(result.includes('Checkpoint'));
+    assert.ok(result.includes('Kalan bütçe'));
+  });
 });
