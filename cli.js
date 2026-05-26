@@ -161,10 +161,14 @@ class CLI {
         const steps = (plan.steps || []).map((step, index) =>
           `  ${index + 1}. ${step.action} -> ${step.tool} | ${step.rationale}`
         ).join('\n');
+        const nextAction = plan.nextAction ? `${plan.nextAction.action} -> ${plan.nextAction.tool}` : 'yok';
+        const recommendations = Array.isArray(plan.recommendations?.items) ? plan.recommendations.items : [];
         return [
           `📝 Ajan planı: ${plan.objective} (${plan.status})`,
           `Hedef: ${plan.goal}`,
           `Seçilen araçlar: ${(plan.selectedTools || []).join(', ') || 'yok'}`,
+          `Sonraki adım: ${nextAction}`,
+          `Öneriler: ${recommendations.length > 0 ? recommendations.join(' | ') : 'yok'}`,
           `Adımlar:\n${steps || '  -'}`,
           `Güven: ${plan.confidence.toFixed(2)}`,
         ].join('\n');
@@ -176,11 +180,15 @@ class CLI {
           const status = step.result?.ok === false ? 'hata' : 'tamam';
           return `  ${index + 1}. ${step.action} -> ${status}${step.summary ? ` | ${step.summary}` : ''}`;
         }).join('\n');
+        const nextAction = data.nextAction ? `${data.nextAction.action} -> ${data.nextAction.tool}` : 'yok';
+        const recommendations = Array.isArray(data.recommendations?.items) ? data.recommendations.items : [];
         return [
           `🤖 Ajan durumu: ${data.status}`,
           `Hedef: ${data.goal}`,
           `Amaç: ${data.objective}`,
           `Araçlar: ${(data.selectedTools || []).join(', ') || 'yok'}`,
+          `Sonraki adım: ${nextAction}`,
+          `Öneriler: ${recommendations.length > 0 ? recommendations.join(' | ') : 'yok'}`,
           `Adımlar:\n${steps || '  -'}`,
           `Sonuç: ${data.finalAnswer}`,
         ].join('\n');

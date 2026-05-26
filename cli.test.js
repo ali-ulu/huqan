@@ -177,6 +177,8 @@ describe('CLI - Komut Çalıştırma', () => {
     assert.ok(result.includes('Ajan planı'));
     assert.ok(result.includes('ask'));
     assert.ok(result.includes('verify'));
+    assert.ok(result.includes('Sonraki adım'));
+    assert.ok(result.includes('Öneriler'));
   });
 
   it('execute: ajan runs a multi-step report', () => {
@@ -186,5 +188,7 @@ describe('CLI - Komut Çalıştırma', () => {
     assert.ok(result.includes('Ajan durumu'));
     assert.ok(result.includes('Hedef'));
     assert.ok(result.includes('Sonuç'));
+    assert.ok(result.includes('Sonraki adım'));
+    assert.ok(result.includes('Öneriler'));
   });
 });
