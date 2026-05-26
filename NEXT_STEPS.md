@@ -14,6 +14,7 @@ This file keeps the remaining work honest after the v2 core is complete.
 - support longer-running plan and resume flows
 - make agent reports more useful for real tasks
 - add guardrails for external tool execution and approval
+- keep checkpoint and goal-memory storage behind a storage abstraction
 
 ## 2. Security and Request Handling
 

@@ -1,6 +1,6 @@
 const Kernel = require('./kernel');
 const KernelV2 = require('./kernel.v2');
-const Agent = require('./agent');
+const { createAgent } = require('./agentRuntime');
 const Dream = require('./dream');
 const LLMAdapter = require('./llmAdapter');
 const fs = require('fs');
@@ -15,7 +15,11 @@ class CLI {
   constructor(opts = {}) {
     this.kernel = opts.kernelInstance || createKernel(opts.kernel || {});
     this.dream = new Dream(this.kernel);
-    this.agent = new Agent({ kernel: this.kernel, dream: this.dream });
+    this.agent = createAgent({
+      kernel: this.kernel,
+      dream: this.dream,
+      version: opts.agentVersion || process.env.AXIOM_AGENT_VERSION,
+    });
     this.llm = new LLMAdapter();
   }
 

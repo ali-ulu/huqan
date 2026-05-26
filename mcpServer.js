@@ -2,7 +2,7 @@ const fs = require('fs');
 const readline = require('readline');
 const Kernel = require('./kernel');
 const KernelV2 = require('./kernel.v2');
-const Agent = require('./agent');
+const { createAgent } = require('./agentRuntime');
 const pkg = require('./package.json');
 
 const PROTOCOL_VERSION = '2025-06-18';
@@ -615,7 +615,10 @@ function createServer() {
 function callTool(kernel, params = {}) {
   const name = params.name;
   const args = params.arguments || {};
-  const agent = new Agent({ kernel });
+  const agent = createAgent({
+    kernel,
+    version: process.env.AXIOM_AGENT_VERSION,
+  });
 
   switch (name) {
     case 'axiom.learn':
