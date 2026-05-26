@@ -1,4 +1,4 @@
-﻿# â—‡ AXIOM
+﻿?# �-? AXIOM
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node-%3E%3D18-brightgreen)](https://nodejs.org)
@@ -11,25 +11,25 @@
 > verifies LLM outputs, detects contradictions, and generates
 > hypotheses autonomously. Zero external dependencies.
 
-TÃ¼rkÃ§e doÄŸal dil ile Ã§alÄ±ÅŸan, kendi kendine Ã¶ÄŸrenen bilgi grafiÄŸi motoru.
+Türkçe do�Yal dil ile çalı�Yan, kendi kendine ö�Yrenen bilgi grafi�Yi motoru.
 
-LLM yanÄ±tlarÄ±nÄ± doÄŸrular, Ã§eliÅŸkileri tespit eder ve kiÅŸisel hafÄ±za katmanÄ± olarak Ã§alÄ±ÅŸÄ±r. Ollama veya OpenAI ile entegre olur, Ã¶ÄŸrenilen bilgileri SQLite'ta kalÄ±cÄ± olarak saklar.
+LLM yanıtlarını do�Yrular, çeli�Ykileri tespit eder ve ki�Yisel hafıza katmanı olarak çalı�Yır. Ollama veya OpenAI ile entegre olur, ö�Yrenilen bilgileri SQLite'ta kalıcı olarak saklar.
 
 ---
 
-## HÄ±zlÄ± BaÅŸlangÄ±Ã§
+## Hızlı Ba�Ylangıç
 
 ```bash
-# 1. BaÄŸÄ±mlÄ±lÄ±klarÄ± kur
+# 1. Ba�Yımlılıkları kur
 npm install
 
-# 2. BaÅŸlangÄ±Ã§ bilgi tabanÄ±nÄ± yÃ¼kle
+# 2. Ba�Ylangıç bilgi tabanını yükle
 node egitim.js
 
-# 3. CLI ile konuÅŸ
+# 3. CLI ile konu�Y
 node cli.js
 
-# 4. Web arayÃ¼zÃ¼ (http://localhost:3000)
+# 4. Web arayüzü (http://localhost:3000)
 node server.js
 ```
 
@@ -41,41 +41,41 @@ Node.js >= 18 gereklidir.
 
 ### Temel
 
-| Komut | AÃ§Ä±klama |
+| Komut | Açıklama |
 |---|---|
-| `kedi hayvandÄ±r` | Bilgi Ã¶ÄŸret |
+| `kedi hayvandır` | Bilgi ö�Yret |
 | `kedi nedir` | Soru sor |
-| `sor: kedi nedir` | AÃ§Ä±k soru komutu |
-| `Ã¶ÄŸret: kedi balÄ±k yer` | AÃ§Ä±k Ã¶ÄŸret komutu |
-| `neden tavuk` | Sebep-sonuÃ§ analizi |
-| `tavuk mu yumurta mÄ±` | Ä°ki kavramÄ± karÅŸÄ±laÅŸtÄ±r |
+| `sor: kedi nedir` | Açık soru komutu |
+| `ö�Yret: kedi balık yer` | Açık ö�Yret komutu |
+| `neden tavuk` | Sebep-sonuç analizi |
+| `tavuk mu yumurta mı` | İki kavramı kar�Yıla�Ytır |
 
 ### Sistem
 
-| Komut | AÃ§Ä±klama |
+| Komut | Açıklama |
 |---|---|
-| `durum` / `nasÄ±lsÄ±n` | DÃ¼ÄŸÃ¼m/kenar sayÄ±sÄ±, entropi, Ã§eliÅŸkiler |
-| `rÃ¼ya` | Hipotez Ã¼ret (benzerlik, zincir, simetri) |
-| `aÃ§Ä±k dÃ¼ÅŸÃ¼n` | Arka planda otomatik hipotez Ã¼retimi baÅŸlat |
-| `dur dÃ¼ÅŸÃ¼nme` | Otomatik dÃ¼ÅŸÃ¼nmeyi durdur |
-| `optimize` | ZayÄ±f kenarlarÄ± buda, eski dÃ¼ÄŸÃ¼mleri temizle |
-| `kaydet` | HafÄ±zayÄ± diske yaz |
-| `Ã§Ä±kÄ±ÅŸ` / `bb` | Ã‡Ä±kÄ±ÅŸ (otomatik kaydeder) |
+| `durum` / `nasılsın` | Dü�Yüm/kenar sayısı, entropi, çeli�Ykiler |
+| `rüya` | Hipotez üret (benzerlik, zincir, simetri) |
+| `açık dü�Yün` | Arka planda otomatik hipotez üretimi ba�Ylat |
+| `dur dü�Yünme` | Otomatik dü�Yünmeyi durdur |
+| `optimize` | Zayıf kenarları buda, eski dü�Yümleri temizle |
+| `kaydet` | Hafızayı diske yaz |
+| `çıkı�Y` / `bb` | �?ıkı�Y (otomatik kaydeder) |
 
 ### LLM & Belge
 
-| Komut | AÃ§Ä±klama |
+| Komut | Açıklama |
 |---|---|
-| `llm-sor: soru` | LLM'ye sor â†’ AXIOM doÄŸrula â†’ otomatik Ã¶ÄŸren |
-| `yÃ¼kle: dosya.txt` | `.txt` veya `.md` dosyasÄ±ndan Ã¶ÄŸren |
+| `llm-sor: soru` | LLM'ye sor �?' AXIOM do�Yrula �?' otomatik ö�Yren |
+| `yükle: dosya.txt` | `.txt` veya `.md` dosyasından ö�Yren |
 
 ---
 
 ## LLM Entegrasyonu
 
-AXIOM, Ollama (local, Ã¼cretsiz) ve OpenAI ile Ã§alÄ±ÅŸÄ±r.
+AXIOM, Ollama (local, ücretsiz) ve OpenAI ile çalı�Yır.
 
-### Ollama (Ã¶nerilen)
+### Ollama (önerilen)
 
 ```bash
 # Ollama kur: https://ollama.com
@@ -83,14 +83,14 @@ ollama serve
 ollama pull llama3.2:3b
 
 node cli.js
-axiom> llm-sor: kedi memeliler sÄ±nÄ±fÄ±na girer mi?
+axiom> llm-sor: kedi memeliler sınıfına girer mi?
 ```
 
-`llm-sor:` komutu ÅŸu adÄ±mlarÄ± otomatik yapar:
-1. AXIOM'un mevcut bilgisiyle Ã¶n doÄŸrulama
-2. LLM'ye soru gÃ¶nder
-3. LLM yanÄ±tÄ±nÄ± AXIOM ile Ã§apraz doÄŸrula
-4. Ã‡eliÅŸki yoksa yanÄ±tÄ± otomatik hafÄ±zaya ekle
+`llm-sor:` komutu �Yu adımları otomatik yapar:
+1. AXIOM'un mevcut bilgisiyle ön do�Yrulama
+2. LLM'ye soru gönder
+3. LLM yanıtını AXIOM ile çapraz do�Yrula
+4. �?eli�Yki yoksa yanıtı otomatik hafızaya ekle
 
 ### OpenAI
 
@@ -102,24 +102,24 @@ OPENAI_API_KEY=sk-... node cli.js
 
 ## REST API
 
-Sunucu `node server.js` ile baÅŸlatÄ±lÄ±r.
+Sunucu `node server.js` ile ba�Ylatılır.
 
 ### Sohbet
 
 ```
 GET /api?q=kedi+nedir
-â†’ { "result": "ğŸ’¬ kedi hayvan" }
+�?' { "result": "gY'� kedi hayvan" }
 ```
 
-### DoÄŸrulama
+### Do�Yrulama
 
 ```
-GET  /dogrula?statement=kedi+hayvandÄ±r
-POST /dogrula  { "statement": "kedi hayvandÄ±r" }
-â†’ { "status": "dogrulandi", "confidence": 0.9, "evidence": [...] }
+GET  /dogrula?statement=kedi+hayvandır
+POST /dogrula  { "statement": "kedi hayvandır" }
+�?' { "status": "dogrulandi", "confidence": 0.9, "evidence": [...] }
 ```
 
-OlasÄ± `status` deÄŸerleri: `dogrulandi` Â· `celiski` Â· `bilinmiyor`
+Olası `status` de�Yerleri: `dogrulandi` · `celiski` · `bilinmiyor`
 
 ### Structured v2 Verify
 
@@ -280,20 +280,20 @@ Security note: write-heavy HTTP endpoints can be protected with `AXIOM_API_KEY`.
 
 Committed benchmark summaries live in [benchmarks/results.json](./benchmarks/results.json). The regression workflow compares fresh runs against that baseline on every push to `main`.
 
-### Belge YÃ¼kleme
+### Belge Yükleme
 
 ```
-POST /yukle  { "text": "kedi hayvandÄ±r\nkÃ¶pek memelidir" }
-â†’ { "ok": true, "learned": 2 }
+POST /yukle  { "text": "kedi hayvandır\nköpek memelidir" }
+�?' { "ok": true, "learned": 2 }
 ```
 
-Maksimum 1 MB. YÃ¼kleme sonrasÄ± otomatik kaydedilir.
+Maksimum 1 MB. Yükleme sonrası otomatik kaydedilir.
 
 ### LLM Soru
 
 ```
 POST /llm-sor  { "question": "kedi nedir?", "autoLearn": true }
-â†’ {
+�?' {
     "ok": true,
     "llmAnswer": "...",
     "axiomCheck": { "status": "dogrulandi", ... },
@@ -306,34 +306,34 @@ POST /llm-sor  { "question": "kedi nedir?", "autoLearn": true }
 
 ```
 GET /graph-data
-â†’ { "nodes": [...], "links": [...] }
+�?' { "nodes": [...], "links": [...] }
 ```
 
-Web arayÃ¼zÃ¼ndeki Graf sekmesi bu endpoint'i kullanÄ±r.
+Web arayüzündeki Graf sekmesi bu endpoint'i kullanır.
 
 ---
 
-## Web ArayÃ¼zÃ¼
+## Web Arayüzü
 
 `http://localhost:3000` adresinde iki sekme bulunur:
 
-**Sohbet** â€” TÃ¼m CLI komutlarÄ±nÄ± web Ã¼zerinden kullan.
+**Sohbet** �?" Tüm CLI komutlarını web üzerinden kullan.
 
-**Graf** â€” D3.js force-directed interaktif gÃ¶rselleÅŸtirme.
-- DÃ¼ÄŸÃ¼m bÃ¼yÃ¼klÃ¼ÄŸÃ¼ kenar sayÄ±sÄ±na gÃ¶re Ã¶lÃ§eklenir
-- Renk kodlamasÄ±: `tÃ¼r` mor Â· `yapabilir` cyan Â· `benzer` yeÅŸil Â· `Ã¶zellik` turuncu Â· `hipotez` kÄ±rmÄ±zÄ± kesikli
-- DÃ¼ÄŸÃ¼me tÄ±kla â†’ kenar listesi paneli aÃ§Ä±lÄ±r
-- SÃ¼rÃ¼kle, zoom, etiket toggle
+**Graf** �?" D3.js force-directed interaktif görselle�Ytirme.
+- Dü�Yüm büyüklü�Yü kenar sayısına göre ölçeklenir
+- Renk kodlaması: `tür` mor · `yapabilir` cyan · `benzer` ye�Yil · `özellik` turuncu · `hipotez` kırmızı kesikli
+- Dü�Yüme tıkla �?' kenar listesi paneli açılır
+- Sürükle, zoom, etiket toggle
 
 ---
 
 ## Testler
 
 ```bash
-# TÃ¼m testler (167 test)
+# Tüm testler (167 test)
 npm test
 
-# ModÃ¼l bazlÄ±
+# Modül bazlı
 npm run test:graph
 npm run test:kernel
 npm run test:cli
@@ -347,29 +347,29 @@ node --test llmAdapter.test.js
 ## Mimari
 
 ```
-kernel.js        â€” Ã–ÄŸrenme, sorgulama, Ã§Ä±karÄ±m, verify(), learnFromLLM()
-graph.js         â€” Graf veri yapÄ±sÄ± + SQLite/JSON Ã§ift katman
-dream.js         â€” Hipotez motoru (node2vec embedding, benzerlik keÅŸfi)
-llmAdapter.js    â€” Ollama + OpenAI wrapper ({ ok, data, error })
-plugin.js        â€” Event-driven plugin sistemi
-agent.js         â€” Goal planning + multi-step agent execution
-cli.js           â€” DoÄŸal dil parser + async LLM desteÄŸi
-server.js        â€” HTTP API + D3.js graf arayÃ¼zÃ¼ + rate limiting
-rustGraph.js     â€” Rust binary kÃ¶prÃ¼sÃ¼ (opsiyonel hÄ±zlandÄ±rÄ±cÄ±)
-egitim.js        â€” BaÅŸlangÄ±Ã§ eÄŸitim verisi (mantÄ±k, felsefe, bilim)
+kernel.js        �?" �-�Yrenme, sorgulama, çıkarım, verify(), learnFromLLM()
+graph.js         �?" Graf veri yapısı + SQLite/JSON çift katman
+dream.js         �?" Hipotez motoru (node2vec embedding, benzerlik ke�Yfi)
+llmAdapter.js    �?" Ollama + OpenAI wrapper ({ ok, data, error })
+plugin.js        �?" Event-driven plugin sistemi
+agent.js         �?" Goal planning + multi-step agent execution
+cli.js           �?" Do�Yal dil parser + async LLM deste�Yi
+server.js        �?" HTTP API + D3.js graf arayüzü + rate limiting
+rustGraph.js     �?" Rust binary köprüsü (opsiyonel hızlandırıcı)
+egitim.js        �?" Ba�Ylangıç e�Yitim verisi (mantık, felsefe, bilim)
 ```
 
 ---
 
-## HafÄ±za
+## Hafıza
 
-| Dosya | Ä°Ã§erik |
+| Dosya | İçerik |
 |---|---|
-| `memory.db` | SQLite â€” dÃ¼ÄŸÃ¼mler + kenarlar (WAL modu, crash-safe) |
-| `memory.json` | JSON yedek â€” Rust katmanÄ± ve fallback iÃ§in |
-| `memory.embeddings.json` | Node2Vec vektÃ¶rleri (ayrÄ± tutulur, ÅŸiÅŸmeyi Ã¶nler) |
+| `memory.db` | SQLite �?" dü�Yümler + kenarlar (WAL modu, crash-safe) |
+| `memory.json` | JSON yedek �?" Rust katmanı ve fallback için |
+| `memory.embeddings.json` | Node2Vec vektörleri (ayrı tutulur, �Yi�Ymeyi önler) |
 
-SQLite varsayÄ±lan olarak aktif. Devre dÄ±ÅŸÄ± bÄ±rakmak iÃ§in:
+SQLite varsayılan olarak aktif. Devre dı�Yı bırakmak için:
 
 ```js
 const g = new Graph({ useSQLite: false });
@@ -379,29 +379,29 @@ const g = new Graph({ useSQLite: false });
 
 ## Plugin Sistemi
 
-`plugins/` klasÃ¶rÃ¼ne `.js` dosyasÄ± bÄ±rak, otomatik yÃ¼klenir.
+`plugins/` klasörüne `.js` dosyası bırak, otomatik yüklenir.
 
 ```js
 // plugins/my-plugin.js
 module.exports = {
   name: 'my-plugin',
-  init(kernel) { /* baÅŸlangÄ±Ã§ */ },
-  beforeLearn(kernel, data) { /* data.text deÄŸiÅŸtirilebilir */ },
-  afterLearn(kernel, data) { /* Ã¶ÄŸrenme sonrasÄ± */ },
-  beforeAsk(kernel, data) { /* data.question deÄŸiÅŸtirilebilir */ },
+  init(kernel) { /* ba�Ylangıç */ },
+  beforeLearn(kernel, data) { /* data.text de�Yi�Ytirilebilir */ },
+  afterLearn(kernel, data) { /* ö�Yrenme sonrası */ },
+  beforeAsk(kernel, data) { /* data.question de�Yi�Ytirilebilir */ },
   afterAsk(kernel, data) { /* data.answer okunabilir */ },
   beforeDream(kernel, data) { },
   afterDream(kernel, data) { /* data.hypotheses */ },
-  beforeEmbedding(kernel, opts) { /* opts.dimensions deÄŸiÅŸtirilebilir */ },
+  beforeEmbedding(kernel, opts) { /* opts.dimensions de�Yi�Ytirilebilir */ },
   afterEmbedding(kernel, result) { },
 };
 ```
 
 ---
 
-## Rust HÄ±zlandÄ±rÄ±cÄ± (Opsiyonel)
+## Rust Hızlandırıcı (Opsiyonel)
 
-`axiom-core/` dizininde Rust ile yazÄ±lmÄ±ÅŸ bir graf motoru bulunur. Rust binary varsa otomatik kullanÄ±lÄ±r, yoksa JS katmanÄ±na dÃ¼ÅŸer.
+`axiom-core/` dizininde Rust ile yazılmı�Y bir graf motoru bulunur. Rust binary varsa otomatik kullanılır, yoksa JS katmanına dü�Yer.
 
 ```bash
 # Windows cross-compile
@@ -415,6 +415,6 @@ cargo build --release --target x86_64-pc-windows-gnu
 
 - Node.js >= 18
 - `better-sqlite3` (npm ile otomatik kurulur)
-- Ollama (opsiyonel, local LLM iÃ§in)
-- Rust toolchain (opsiyonel, hÄ±zlandÄ±rÄ±cÄ± iÃ§in)
+- Ollama (opsiyonel, local LLM için)
+- Rust toolchain (opsiyonel, hızlandırıcı için)
 
