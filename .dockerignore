@@ -1,0 +1,14 @@
+.git
+.github
+node_modules
+backups
+memory.json
+memory.db
+memory.db-shm
+memory.db-wal
+memory.embeddings.json
+test_memory.db
+demo-sonuc.json
+tbk-demo.js
+tbk-kira.js
+.kiro

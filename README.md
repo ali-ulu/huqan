@@ -244,7 +244,7 @@ Fixture sizes live under `benchmarks/fixtures/` and are intentionally stable so 
 
 ## Release Notes
 
-For the current v2 shipping status and next-phase priorities, see [RELEASE_V2.md](./RELEASE_V2.md), [ROADMAP_V2.md](./ROADMAP_V2.md), [RELEASE_NOTES_v2.0.0.md](./RELEASE_NOTES_v2.0.0.md), and [PUBLIC_RELEASE_POST.md](./PUBLIC_RELEASE_POST.md).
+For the current shipped status and release context, see [RELEASE_V2.md](./RELEASE_V2.md), [RELEASE_NOTES_v2.0.0.md](./RELEASE_NOTES_v2.0.0.md), and [PUBLIC_RELEASE_POST.md](./PUBLIC_RELEASE_POST.md).
 
 ## V2 Status (Single View)
 
@@ -266,13 +266,25 @@ For the current v2 shipping status and next-phase priorities, see [RELEASE_V2.md
 
 ## Current Remaining Work
 
-The next practical work is captured in [NEXT_STEPS.md](./NEXT_STEPS.md). In short:
+Current remaining work is tracked in the active implementation backlog and, in short, focuses on:
 
 - finish the stronger v3 agent loop with checkpoint/resume
 - opt into `AXIOM_AGENT_VERSION=v3` when you want the checkpointed runtime
 - harden security and request handling
 - add basic operational packaging such as Docker and CI
 - keep language packs lightweight and only expand where they create clear user value
+
+## Docker
+
+Build and run with persistent memory and backups:
+
+```bash
+docker compose up --build
+```
+
+The container stores `memory.json`, `memory.db`, and `backups/` under `/app/data`, exposed through the named volume `axiom-data`.
+
+Health is available at `/health`, and the container healthcheck uses the same endpoint.
 
 Security note: write-heavy HTTP endpoints can be protected with `AXIOM_API_KEY`. If set, the server accepts `Authorization: Bearer ...` or `X-API-Key: ...` and applies input length, JSON body, and rate-limit guards before mutating memory.
 

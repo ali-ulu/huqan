@@ -22,6 +22,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run test suite
+        run: npm test
+
       - name: Run benchmark
         run: node benchmarks/bench.js --json --quick > benchmarks/current-results.json
 
@@ -33,3 +36,6 @@ jobs:
         run: |
           echo "## Benchmark Summary" >> $GITHUB_STEP_SUMMARY
           node benchmarks/check-regression.js benchmarks/results.json benchmarks/current-results.json --multiplier=2.5 >> $GITHUB_STEP_SUMMARY
+
+      - name: Build Docker image
+        run: docker build -t axiom:test .

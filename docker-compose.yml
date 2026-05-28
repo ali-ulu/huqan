@@ -1,0 +1,30 @@
+services:
+  axiom:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: axiom
+    ports:
+      - "${AXIOM_PORT:-3000}:3000"
+    environment:
+      PORT: 3000
+      AXIOM_HOST: 0.0.0.0
+      AXIOM_MEMORY_PATH: /app/data/memory.json
+      AXIOM_DB_PATH: /app/data/memory.db
+      AXIOM_BACKUP_DIR: /app/data/backups
+      AXIOM_KERNEL_VERSION: ${AXIOM_KERNEL_VERSION:-v2}
+      AXIOM_AGENT_VERSION: ${AXIOM_AGENT_VERSION:-v2}
+      AXIOM_API_KEY: ${AXIOM_API_KEY:-}
+      AXIOM_TRUST_PROXY: ${AXIOM_TRUST_PROXY:-0}
+    volumes:
+      - axiom-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "const http=require('http');const req=http.get('http://127.0.0.1:3000/health',res=>{process.exit(res.statusCode===200?0:1)});req.on('error',()=>process.exit(1));req.setTimeout(4000,()=>{req.destroy();process.exit(1);});"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  axiom-data:
