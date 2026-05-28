@@ -4,6 +4,8 @@ const path = require('path');
 const fs = require('fs');
 const Kernel = require('./kernel');
 const PluginManager = require('./plugin');
+const createIdeaMriPlugin = require('./plugins/idea-mri').create;
+const createDevilAdvocatePlugin = require('./plugins/devil-advocate').create;
 
 function writePluginWithManifest(pluginPath, contents, opts = {}) {
   const manifestPath = pluginPath.replace(/\.js$/i, '.manifest.json');
@@ -259,5 +261,70 @@ describe('Plugin - Yonetici', () => {
     assert.strictEqual(result.ok, true);
     assert.strictEqual(result.capability, 'ideaMri');
     assert.deepStrictEqual(result.input, { text: 'foo' });
+  });
+
+  it('idea-mri: returns structured analysis fields', async () => {
+    const k = new Kernel({ noLoad: true, loadPlugins: false });
+    k.usePlugin(createIdeaMriPlugin());
+    const result = await k.plugins.runCapability('ideaMri', {
+      text: 'AXIOM sirket kararlari icin dusunce hakemi olacak. Once bireysel kullanimda dogrulanacak.',
+    });
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.data.mode, 'structured-analysis');
+    assert.strictEqual(typeof result.data.mainClaim, 'string');
+    assert.ok(Array.isArray(result.data.claims));
+    assert.ok(Array.isArray(result.data.assumptions));
+    assert.ok(Array.isArray(result.data.risks));
+    assert.ok(Array.isArray(result.data.evidenceGaps));
+    assert.ok(Array.isArray(result.data.strengths));
+  });
+
+  it('devil-advocate: uses graph-backed output when subject has graph evidence', async () => {
+    const k = new Kernel({ noLoad: true, loadPlugins: false });
+    k.learn('axiom motordur');
+    k.learn('axiom dogrulama yapar');
+    k.usePlugin(createDevilAdvocatePlugin());
+    const result = await k.plugins.runCapability('devilAdvocate', {
+      text: 'axiom ana urun olmali',
+    });
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.data.mode, 'graph-backed');
+    assert.strictEqual(result.data.fallbackUsed, false);
+    assert.ok(Array.isArray(result.data.evidence));
+    assert.ok(result.data.evidence.length >= 1);
+    assert.match(result.data.counterArgument, /axiom/i);
+  });
+
+  it('devil-advocate: labels llm fallback when graph is weak and llm is available', async () => {
+    const k = new Kernel({ noLoad: true, loadPlugins: false });
+    const plugin = createDevilAdvocatePlugin();
+    plugin.adapter = {
+      ask: async () => ({
+        ok: true,
+        data: { text: 'Bu fikir maliyet varsayimini kanitlamiyor.' },
+      }),
+    };
+    k.usePlugin(plugin);
+    const result = await k.plugins.runCapability('devilAdvocate', {
+      text: 'yeni urun hemen buyuyecek',
+    });
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.data.mode, 'llm-assisted');
+    assert.strictEqual(result.data.fallbackUsed, true);
+    assert.strictEqual(result.data.fallbackLabel, 'llm-assisted');
+  });
+
+  it('devil-advocate: returns a question list when graph is weak and llm is unavailable', async () => {
+    const k = new Kernel({ noLoad: true, loadPlugins: false, capabilities: { llm: false } });
+    const plugin = createDevilAdvocatePlugin();
+    plugin.adapter = { ask: async () => ({ ok: false, error: 'disabled' }) };
+    k.usePlugin(plugin);
+    const result = await k.plugins.runCapability('devilAdvocate', {
+      text: 'bilinmeyen fikir',
+    });
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.data.mode, 'questions');
+    assert.ok(Array.isArray(result.data.questions));
+    assert.ok(result.data.questions.length >= 3);
   });
 });
