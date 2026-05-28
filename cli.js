@@ -7,6 +7,7 @@ const Dream = require('./dream');
 const LLMAdapter = require('./llmAdapter');
 const { createAgent } = require('./agentRuntime');
 const { createBackup, restoreBackup } = require('./backupRestore');
+const { resolvePersistencePaths } = require('./persistencePaths');
 
 /**
  * @param {object} [opts]
@@ -89,13 +90,13 @@ class CLI {
 
   _backupOptions(extra = {}) {
     const memoryPath = this.kernel?.graph?.memoryPath || 'memory.json';
-    return {
+    const resolved = resolvePersistencePaths({
       rootDir: process.cwd(),
       memoryPath,
       dbPath: normalizeDbPath(memoryPath),
-      backupBaseDir: path.join(path.dirname(memoryPath), 'backups'),
       ...extra,
-    };
+    });
+    return { ...resolved, ...extra };
   }
 
   execute(command, args) {

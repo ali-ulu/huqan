@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { resolvePersistencePaths } = require('./persistencePaths');
 
 const DEFAULT_FILES = Object.freeze([
   'memory.db',
@@ -33,10 +34,7 @@ function timestamp(date = new Date()) {
  * @returns {{rootDir: string, backupBaseDir: string, files: string[]}}
  */
 function resolveRuntimePaths(opts = {}) {
-  const cwd = path.resolve(opts.rootDir || process.cwd());
-  const memoryPath = path.resolve(cwd, opts.memoryPath || 'memory.json');
-  const dbPath = path.resolve(cwd, opts.dbPath || memoryPath.replace(/\.json$/i, '.db'));
-  const backupBaseDir = path.resolve(cwd, opts.backupBaseDir || 'backups');
+  const { rootDir: cwd, memoryPath, dbPath, backupBaseDir } = resolvePersistencePaths(opts);
   const embeddingPath = path.resolve(cwd, opts.embeddingPath || memoryPath.replace(/\.json$/i, '.embeddings.json'));
   const agentMemoryPath = path.resolve(cwd, opts.agentMemoryPath || path.join(path.dirname(memoryPath), 'memory.agent.json'));
 

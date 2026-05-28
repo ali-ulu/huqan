@@ -56,4 +56,19 @@ describe('backupRestore', () => {
     assert.strictEqual(path.basename(backups[0]), '20260529_110000');
     assert.strictEqual(path.basename(backups[1]), '20260529_100000');
   });
+
+  it('uses AXIOM_BACKUP_DIR when no backup dir is passed', () => {
+    const rootDir = makeTempRoot();
+    const backupBaseDir = path.join(rootDir, 'persistent-backups');
+    const original = process.env.AXIOM_BACKUP_DIR;
+    process.env.AXIOM_BACKUP_DIR = backupBaseDir;
+    fs.writeFileSync(path.join(rootDir, 'memory.json'), JSON.stringify({ ok: true }));
+    try {
+      const result = createBackup({ rootDir });
+      assert.ok(result.backupDir.startsWith(backupBaseDir));
+    } finally {
+      if (original === undefined) delete process.env.AXIOM_BACKUP_DIR;
+      else process.env.AXIOM_BACKUP_DIR = original;
+    }
+  });
 });

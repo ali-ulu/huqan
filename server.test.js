@@ -54,6 +54,7 @@ before(async () => {
   tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-server-'));
   process.env.AXIOM_MEMORY_PATH = path.join(tempDir, 'memory.json');
   process.env.AXIOM_DB_PATH = path.join(tempDir, 'memory.db');
+  process.env.AXIOM_BACKUP_DIR = path.join(tempDir, 'backups');
   process.env.AXIOM_KERNEL_VERSION = 'v2';
   process.env.AXIOM_DISABLE_AUTO_LISTEN = '1';
   server = require('./server');
@@ -81,6 +82,7 @@ after(async () => {
   server.closeIdleConnections?.();
   delete process.env.AXIOM_MEMORY_PATH;
   delete process.env.AXIOM_DB_PATH;
+  delete process.env.AXIOM_BACKUP_DIR;
   delete process.env.AXIOM_KERNEL_VERSION;
   delete process.env.AXIOM_DISABLE_AUTO_LISTEN;
   await new Promise(resolve => setTimeout(resolve, 25));
@@ -309,6 +311,13 @@ describe('Server - API', () => {
     assert.ok(Number.isInteger(j.edges));
     assert.ok(Number.isInteger(j.uptimeSec));
     assert.ok(typeof j.timestamp === 'string');
+    assert.ok(j.persistence);
+    assert.strictEqual(j.persistence.memoryPath, process.env.AXIOM_MEMORY_PATH);
+    assert.strictEqual(j.persistence.dbPath, process.env.AXIOM_DB_PATH);
+    assert.strictEqual(j.persistence.backupBaseDir, process.env.AXIOM_BACKUP_DIR);
+    assert.strictEqual(typeof j.persistence.memoryWritable, 'boolean');
+    assert.strictEqual(typeof j.persistence.dbWritable, 'boolean');
+    assert.strictEqual(typeof j.persistence.backupDirWritable, 'boolean');
   });
 
   it('GET /v2-status durum ekranÄ± bilgisini dÃ¶ndÃ¼rÃ¼r', async () => {
@@ -327,12 +336,16 @@ describe('Server - API', () => {
     assert.strictEqual(typeof j.agentCheckpointPath, 'string');
     assert.strictEqual(j.agentV3Status, null);
     assert.strictEqual(j.activeKernel, 'v2');
-  assert.match(j.testStatus, /^\d+\/\d+$/);
+    assert.match(j.testStatus, /^\d+\/\d+$/);
     assert.ok(['sqlite', 'json'].includes(j.backend));
     assert.ok(Number.isInteger(j.nodes));
     assert.ok(Number.isInteger(j.edges));
     assert.strictEqual(typeof j.lastCommit, 'string');
     assert.strictEqual(typeof j.updatedAt, 'string');
+    assert.ok(j.persistencePaths);
+    assert.strictEqual(j.persistencePaths.memoryPath, process.env.AXIOM_MEMORY_PATH);
+    assert.strictEqual(j.persistencePaths.dbPath, process.env.AXIOM_DB_PATH);
+    assert.strictEqual(j.persistencePaths.backupBaseDir, process.env.AXIOM_BACKUP_DIR);
   });
 
   it('Method not allowed: POST /health', async () => {

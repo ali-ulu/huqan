@@ -4,6 +4,7 @@ const { globSync, readFileSync } = require('fs');
 const { execSync } = require('child_process');
 const CLI = require('./cli');
 const pkg = require('./package.json');
+const { inspectPersistence, resolvePersistencePaths } = require('./persistencePaths');
 const {
   DEFAULT_MAX_UPLOAD_BODY,
   DEFAULT_MAX_JSON_BODY,
@@ -162,6 +163,12 @@ function getGraphData() {
 
 function getHealthData() {
   const stats = cli.kernel.graph.getStats();
+  const persistence = inspectPersistence({
+    rootDir: __dirname,
+    memoryPath: process.env.AXIOM_MEMORY_PATH,
+    dbPath: process.env.AXIOM_DB_PATH,
+    backupBaseDir: process.env.AXIOM_BACKUP_DIR,
+  });
   return {
     ok: true,
     service: 'axiom',
@@ -171,6 +178,7 @@ function getHealthData() {
     edges: stats.edges,
     uptimeSec: Math.floor(process.uptime()),
     timestamp: new Date().toISOString(),
+    persistence,
   };
 }
 
@@ -188,6 +196,12 @@ function getLastCommit() {
 
 function getV2StatusData() {
   const stats = cli.kernel.graph.getStats();
+  const persistence = resolvePersistencePaths({
+    rootDir: __dirname,
+    memoryPath: process.env.AXIOM_MEMORY_PATH,
+    dbPath: process.env.AXIOM_DB_PATH,
+    backupBaseDir: process.env.AXIOM_BACKUP_DIR,
+  });
   const activeKernel = process.env.AXIOM_KERNEL_VERSION === 'v2' ? 'v2' : 'v1';
   const agentRuntime = String(process.env.AXIOM_AGENT_VERSION || 'v2').toLowerCase();
   const checkpointBackend = agentRuntime === 'v3' ? 'sqlite' : 'json';
@@ -354,7 +368,8 @@ function getV2StatusData() {
     agentRuntime,
     checkpointBackend,
     agentV3Status: agentRuntime === 'v3' ? getAgentV3Status() : null,
-    agentCheckpointPath: agentRuntime === 'v3' ? (process.env.AXIOM_DB_PATH || 'memory.db') : 'agent.memory.json',
+    agentCheckpointPath: agentRuntime === 'v3' ? persistence.dbPath : 'agent.memory.json',
+    persistencePaths: persistence,
   };
 }
 
