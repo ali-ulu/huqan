@@ -24,6 +24,35 @@ function normalizeDbPath(memoryPath = 'memory.json') {
   return String(memoryPath).replace(/\.json$/i, '.db');
 }
 
+function extractQuoted(raw) {
+  const quoted = String(raw || '').match(/"([^"]+)"/g) || [];
+  return quoted.map(item => item.slice(1, -1));
+}
+
+function parseCompanyIngestArgs(raw) {
+  const text = String(raw || '');
+  const sourceMatch = text.match(/--kaynak\s+(\S+)/i);
+  if (!sourceMatch) return null;
+  const source = sourceMatch[1].toLowerCase();
+  const quoted = extractQuoted(text);
+
+  const readFlag = (name) => {
+    const match = text.match(new RegExp(`--${name}\\s+([^\\s]+)`, 'i'));
+    return match ? match[1] : '';
+  };
+
+  return {
+    source,
+    author: readFlag('yazar') || readFlag('author') || 'unknown',
+    repoUrl: readFlag('repo') || readFlag('url'),
+    targetPath: readFlag('yol') || readFlag('path'),
+    title: readFlag('baslik') || quoted[0] || '',
+    rationale: readFlag('gerekce') || quoted[1] || '',
+    text: quoted[quoted.length - 1] || '',
+    date: readFlag('tarih') || '',
+  };
+}
+
 class CLI {
   /**
    * @param {object} [opts]
@@ -45,6 +74,13 @@ class CLI {
   parse(input) {
     const raw = String(input || '').trim();
     const trimmed = raw.toLowerCase();
+
+    if (/^(ogren|öğren)\s+--kaynak\s+/i.test(raw)) {
+      const parsed = parseCompanyIngestArgs(raw);
+      return { command: 'company-ingest', args: parsed };
+    }
+    if (trimmed.startsWith('sirket-sor:')) return { command: 'company-query', args: raw.slice(11).trim() };
+    if (trimmed === 'ingest-durum') return { command: 'ingest-status', args: '' };
 
     if (trimmed.startsWith('öğret:')) return { command: 'öğret', args: raw.slice(6).trim() };
     if (trimmed.startsWith('llm-sor:')) return { command: 'llm-sor', args: raw.slice(8).trim() };
@@ -97,6 +133,18 @@ class CLI {
       ...extra,
     });
     return { ...resolved, ...extra };
+  }
+
+  _ensureCompanyCapabilities() {
+    if (typeof this.kernel.hasCapability === 'function' && !this.kernel.hasCapability('companyMode')) {
+      this.kernel.enableCapability('companyMode');
+    }
+    if (typeof this.kernel.hasCapability === 'function' && !this.kernel.hasCapability('pluginCapabilities')) {
+      this.kernel.enableCapability('pluginCapabilities');
+    }
+    if (this.kernel.plugins && typeof this.kernel.plugins.load === 'function') {
+      this.kernel.plugins.load(path.join(__dirname, 'plugins'));
+    }
   }
 
   execute(command, args) {
@@ -187,6 +235,74 @@ class CLI {
         } catch (error) {
           return `Dosya okunamadı: ${error.message}`;
         }
+      }
+      case 'company-ingest': {
+        const payload = args && typeof args === 'object' ? args : {};
+        const source = String(payload.source || '').toLowerCase();
+        this._ensureCompanyCapabilities();
+
+        if (source === 'manuel' || source === 'manual') {
+          const run = this.kernel.runCapability('companyBrain', {
+            action: 'manual',
+            sourceType: 'manual',
+            text: payload.text,
+            author: payload.author,
+            date: payload.date,
+          });
+          return Promise.resolve(run).then(result => `Manual ingest: ${result.ok ? 'ok' : 'hata'} (${result.added || 0})`);
+        }
+
+        if (source === 'karar' || source === 'decision') {
+          const run = this.kernel.runCapability('companyBrain', {
+            action: 'decision',
+            sourceType: 'decision',
+            title: payload.title,
+            rationale: payload.rationale,
+            decidedBy: payload.author,
+            date: payload.date,
+          });
+          return Promise.resolve(run).then(result => `Decision ingest: ${result.ok ? 'ok' : 'hata'} (${result.decisionId || '-'})`);
+        }
+
+        if (source === 'github' || source === 'repo') {
+          const run = this.kernel.runCapability('repoMemory', {
+            action: 'ingest',
+            sourceType: 'github',
+            repoUrl: payload.repoUrl,
+          });
+          return Promise.resolve(run).then(result => `Repo ingest: ${result.ok ? 'ok' : 'hata'} (files=${result.files || 0}, added=${result.added || 0})`);
+        }
+
+        if (source === 'markdown' || source === 'md') {
+          const run = this.kernel.runCapability('repoMemory', {
+            action: 'ingest',
+            sourceType: 'markdown',
+            path: payload.targetPath,
+          });
+          return Promise.resolve(run).then(result => `Markdown ingest: ${result.ok ? 'ok' : 'hata'} (files=${result.files || 0}, added=${result.added || 0})`);
+        }
+
+        return 'Desteklenmeyen kaynak. Kullanim: ogren --kaynak manuel|karar|github|markdown ...';
+      }
+      case 'company-query': {
+        this._ensureCompanyCapabilities();
+        const run = this.kernel.runCapability('companyBrain', {
+          action: 'query',
+          question: String(args || '').trim(),
+        });
+        return Promise.resolve(run).then(result => {
+          if (!result.ok) return `Sorgu hatasi: ${result.error || 'bilinmeyen hata'}`;
+          return `Company Brain: ${result.answer}\nKaynak: ${result.source}\nRefs: ${(result.sourceRefs || []).join(', ') || 'yok'}`;
+        });
+      }
+      case 'ingest-status': {
+        this._ensureCompanyCapabilities();
+        const run = this.kernel.runCapability('ingestStatus', {});
+        return Promise.resolve(run).then(result => {
+          if (!result.ok) return `Ingest durum hatasi: ${result.error || 'bilinmeyen hata'}`;
+          const dist = result.distribution || {};
+          return `Ingest durum -> node:${result.totalNodes} repo:${dist.repo || 0} markdown:${dist.markdown || 0} manual:${dist.manual || 0}`;
+        });
       }
       case 'backup': {
         const result = createBackup(this._backupOptions());
@@ -299,7 +415,8 @@ class CLI {
       } else if (parsed.command === 'llm-sor') {
         console.log(this.execute('llm-sor', parsed.args));
       } else {
-        console.log(this.execute(parsed.command, parsed.args));
+        const output = await Promise.resolve(this.execute(parsed.command, parsed.args));
+        console.log(output);
       }
       rl.prompt();
     });

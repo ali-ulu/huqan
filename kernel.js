@@ -230,9 +230,39 @@ class Kernel {
     return this._verifyService._contradictionEvidence(contradiction);
   }
 
-  learn(text) {
-    const ev = this.plugins.emit('beforeLearn', { text });
+  _resolveLearnMetadata(opts = {}) {
+    const sourceType = typeof opts.sourceType === 'string' ? opts.sourceType.trim() : '';
+    const sourceRef = typeof opts.sourceRef === 'string' ? opts.sourceRef.trim() : '';
+    const sessionId = typeof opts.sessionId === 'string' ? opts.sessionId.trim() : '';
+    const evidenceType = typeof opts.evidenceType === 'string' ? opts.evidenceType.trim() : '';
+    const explicitCompanyMode = typeof opts.companyMode === 'boolean' ? opts.companyMode : this.hasCapability('companyMode');
+    const companyMode = explicitCompanyMode && this.hasCapability('companyMode');
+    return {
+      sourceType,
+      sourceRef,
+      sessionId,
+      evidenceType,
+      companyMode,
+    };
+  }
+
+  _learnEdgeOptions(base, meta, text) {
+    const options = {
+      ...base,
+      evidence: Array.isArray(base.evidence) ? base.evidence : [text],
+    };
+    if (meta.sourceRef) options.sourceRef = meta.sourceRef;
+    if (meta.sessionId) options.sessionId = meta.sessionId;
+    if (meta.sourceType) options.sourceType = meta.sourceType;
+    if (meta.evidenceType) options.evidenceType = meta.evidenceType;
+    if (meta.companyMode) options.companyMode = true;
+    return options;
+  }
+
+  learn(text, opts = {}) {
+    const ev = this.plugins.emit('beforeLearn', { text, opts: { ...opts } });
     text = ev.text;
+    opts = ev.opts || opts;
 
     const parsed = this.extractFacts(text, this.graph._nodes);
     if (!parsed) return this._ok('learn', { learned: 0, skipped: 1, conflicts: [] }, []);
@@ -242,6 +272,7 @@ class Kernel {
     const alternatives = [];
     let learned = 0;
     const evidence = [];
+    const metadata = this._resolveLearnMetadata(opts);
 
     for (const { subject, predicate } of parsed) {
       if (!subject || this.isStopWord(subject)) continue;
@@ -336,18 +367,33 @@ class Kernel {
 
         if (celiskiBulundu && (relation === 'tür')) {
           // tür çelişkisi ? benzer olarak kaydet
-          const edge = this.graph.addEdge(subject, object, 'benzer', { source: 'alt', weight: 0.15, evidence: [text] });
+          const edge = this.graph.addEdge(
+            subject,
+            object,
+            'benzer',
+            this._learnEdgeOptions({ source: 'alt', weight: 0.15, evidence: [text] }, metadata, text)
+          );
           if (edge) { learned++; evidence.push(this._edgeEvidence(edge)); }
         } else if (celiskiBulundu && relation === 'değil') {
           // değil çelişkisi: tür edge weight zaten d?r?ld?, yeni edge ekleme
         } else if (celiskiBulundu) {
           // kistlama ? d?k weight ile kaydet
-          const edge = this.graph.addEdge(subject, object, relation, { source: 'learn', weight: 0.2, evidence: [text] });
+          const edge = this.graph.addEdge(
+            subject,
+            object,
+            relation,
+            this._learnEdgeOptions({ source: 'learn', weight: 0.2, evidence: [text] }, metadata, text)
+          );
           if (rel.kistlama && edge) edge.kistlama = true;
           if (edge) { learned++; evidence.push(this._edgeEvidence(edge)); }
         } else {
           // Normal ?ÄŸrenme
-          const edge = this.graph.addEdge(subject, object, relation, { source: 'learn', evidence: [text] });
+          const edge = this.graph.addEdge(
+            subject,
+            object,
+            relation,
+            this._learnEdgeOptions({ source: 'learn', evidence: [text] }, metadata, text)
+          );
           this.graph.addTag(subject, object, 0.3);
           this._crossLink(subject, object, relation);
           learned++;
@@ -356,7 +402,7 @@ class Kernel {
       }
     }
 
-    this.plugins.emit('afterLearn', { text, conflicts, alternatives });
+    this.plugins.emit('afterLearn', { text, conflicts, alternatives, opts: metadata });
 
     if (this._rust) {
       this._rust.learn(text).catch((e) => { console.error("[Kernel] Rust learn hatası:", e?.message || e); });
@@ -1061,14 +1107,14 @@ if (verbSuffix.test(predicate)) {
     return this._ok('dream', { hypotheses, learned, cycle: this._dreamCount }, evidence);
   }
 
-  learnDocument(text) {
+  learnDocument(text, opts = {}) {
     const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 3 && !l.startsWith('#') && !l.startsWith('//'));
     let count = 0;
     for (const line of lines) {
       const cleaned = line.replace(/^[\s-â€“â€”*â€¢]+/, '').trim();
       const words = cleaned.split(/\s+/);
       if (words.length >= 2) {
-        this.learn(cleaned);
+        this.learn(cleaned, opts);
         count++;
       }
     }

@@ -249,6 +249,76 @@ describe('Server - API', () => {
     assert.strictEqual(r.status, 400);
   });
 
+  it('POST /api/ingest manual accepts source metadata', async () => {
+    const r = await request(`${BASE}/api/ingest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourceType: 'manual',
+        author: 'sonfi',
+        date: '2026-05-31',
+        text: 'axiom motordur',
+      }),
+    });
+    assert.strictEqual(r.status, 200);
+    const j = await r.json();
+    assert.strictEqual(j.ok, true);
+    assert.strictEqual(j.sourceType, 'manual');
+  });
+
+  it('POST /api/ingest decision writes decision log payload', async () => {
+    const r = await request(`${BASE}/api/ingest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourceType: 'decision',
+        title: 'Company mode rollout',
+        rationale: 'Need explicit capability gate',
+        decidedBy: 'team',
+        date: '2026-05-31',
+        links: ['repo:ai-ulu/axiom:README.md'],
+      }),
+    });
+    assert.strictEqual(r.status, 200);
+    const j = await r.json();
+    assert.strictEqual(j.ok, true);
+    assert.strictEqual(typeof j.decisionId, 'string');
+  });
+
+  it('POST /api/ingest markdown ingests local markdown recursively', async () => {
+    const mdDir = path.join(tempDir, 'md-source');
+    fs.mkdirSync(mdDir, { recursive: true });
+    const mdFile = path.join(mdDir, 'notes.md');
+    fs.writeFileSync(mdFile, '# Notes\nAxiom company memory note', 'utf8');
+
+    const r = await request(`${BASE}/api/ingest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourceType: 'markdown',
+        path: mdDir,
+      }),
+    });
+    assert.strictEqual(r.status, 200);
+    const j = await r.json();
+    assert.strictEqual(j.ok, true);
+    assert.strictEqual(j.sourceType, 'markdown');
+    assert.ok(j.files >= 1);
+  });
+
+  it('GET /api/ingest/status returns ingest distribution and errors list', async () => {
+    const r = await request(`${BASE}/api/ingest/status`);
+    assert.strictEqual(r.status, 200);
+    const j = await r.json();
+    assert.strictEqual(j.ok, true);
+    assert.strictEqual(typeof j.totalNodes, 'number');
+    assert.ok(j.distribution);
+    assert.strictEqual(typeof j.distribution.repo, 'number');
+    assert.strictEqual(typeof j.distribution.markdown, 'number');
+    assert.strictEqual(typeof j.distribution.manual, 'number');
+    assert.ok(Array.isArray(j.ingestErrors));
+  });
+
   it('POST /llm-sor soru gÃ¶nderir', async () => {
     const LLMAdapter = require('./llmAdapter');
     const originalAsk = LLMAdapter.prototype.ask;

@@ -150,6 +150,7 @@ class PluginManager {
 
   register(plugin) {
     if (!plugin || !plugin.name) return;
+    if (this.plugins.some(existing => existing.name === plugin.name)) return;
     const dependencyCheck = this._validatePluginDependencies(plugin);
     if (!dependencyCheck.ok) {
       throw new Error(dependencyCheck.reason);

@@ -100,12 +100,59 @@ class KernelV2 {
     this.kernel = opts.kernel instanceof Kernel ? opts.kernel : new Kernel(opts);
   }
 
+  get plugins() {
+    return this.kernel.plugins;
+  }
+
   get graph() {
     return this.kernel.graph;
   }
 
   get contractVersion() {
     return this.kernel.contractVersion;
+  }
+
+  hasCapability(name) {
+    if (!this.kernel || typeof this.kernel.hasCapability !== 'function') return false;
+    return this.kernel.hasCapability(name);
+  }
+
+  enableCapability(name) {
+    if (!this.kernel || typeof this.kernel.enableCapability !== 'function') {
+      throw new Error('Capability system is unavailable.');
+    }
+    return this.kernel.enableCapability(name);
+  }
+
+  requireCapability(name) {
+    if (!this.kernel || typeof this.kernel.requireCapability !== 'function') {
+      throw new Error('Capability system is unavailable.');
+    }
+    return this.kernel.requireCapability(name);
+  }
+
+  listCapabilities() {
+    if (!this.kernel || typeof this.kernel.listCapabilities !== 'function') return [];
+    return this.kernel.listCapabilities();
+  }
+
+  getCapability(name) {
+    if (!this.kernel || typeof this.kernel.getCapability !== 'function') return null;
+    return this.kernel.getCapability(name);
+  }
+
+  runCapability(name, input, opts = {}) {
+    if (!this.kernel || typeof this.kernel.runCapability !== 'function') {
+      throw new Error('Plugin capability runner is unavailable.');
+    }
+    return this.kernel.runCapability(name, input, opts);
+  }
+
+  usePlugin(plugin) {
+    if (!this.kernel || typeof this.kernel.usePlugin !== 'function') {
+      throw new Error('Plugin manager is unavailable.');
+    }
+    return this.kernel.usePlugin(plugin);
   }
 
   _ok(type, data = null, evidence = [], meta = {}) {
@@ -161,7 +208,7 @@ class KernelV2 {
     const source = opts.source || 'user';
     const learnedAt = opts.learnedAt || nowIso();
     const beforeEdgeMap = new Set(this.kernel.graph._edges.map(e => this._edgeKey(e)));
-    const result = this.kernel.learn(text);
+    const result = this.kernel.learn(text, opts);
     this._markTemporalMetadata(source, learnedAt, beforeEdgeMap);
     return this._ok('learn', result.data, result.evidence, {
       ...result.meta,
