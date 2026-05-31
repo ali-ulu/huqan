@@ -44,6 +44,7 @@ describe('workflow-runtime', () => {
     assert.ok(toolNames.includes('findcontradictions'));
     assert.ok(toolNames.includes('rankevidence'));
     assert.ok(toolNames.includes('repomemory'));
+    assert.ok(toolNames.includes('companybrain'));
     assert.ok(toolNames.includes('runcapability'));
     assert.ok(toolNames.includes('getgraphstats'));
     assert.strictEqual(runtime.getStatus().agent, 'workflow');
@@ -136,6 +137,23 @@ describe('workflow-runtime', () => {
     assert.strictEqual(result.data.action, 'ingest');
     assert.strictEqual(result.data.input.path, 'docs/README.md');
     assert.strictEqual(result.data.input.sessionId, 'session-1');
+  });
+
+  it('runs companyBrain through the workflow tool adapter', async () => {
+    const runtime = createWorkflowRuntime(createKernel());
+    const result = await runtime.runTool('companyBrain', {
+      action: 'query',
+      question: 'Bu repo neden var?',
+      sessionId: 'session-2',
+    });
+
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.status, 'done');
+    assert.strictEqual(result.data.capability, 'companyBrain');
+    assert.strictEqual(result.data.source, 'company-brain');
+    assert.strictEqual(result.data.input.question, 'Bu repo neden var?');
+    assert.strictEqual(result.data.input.action, 'query');
+    assert.strictEqual(result.data.input.sessionId, 'session-2');
   });
 
   it('exposes listTools and getStatus after a run', async () => {

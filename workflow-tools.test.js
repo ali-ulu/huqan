@@ -63,6 +63,7 @@ describe('workflow-tools', () => {
       'findContradictions',
       'rankEvidence',
       'repoMemory',
+      'companyBrain',
       'runCapability',
       'getGraphStats',
     ]);
@@ -146,6 +147,23 @@ describe('workflow-tools', () => {
     assert.strictEqual(result.data.value.sessionId, 'session-1');
   });
 
+  it('companyBrain calls kernel.runCapability and forwards company query input', async () => {
+    const tool = createWorkflowTools(createKernel()).find(item => item.name === 'companyBrain');
+    const result = await tool.run({}, {
+      action: 'query',
+      question: 'Bu repo neden var?',
+      sessionId: 'session-2',
+    });
+
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.status, 'done');
+    assert.strictEqual(result.data.capability, 'companyBrain');
+    assert.strictEqual(result.data.source, 'company-brain');
+    assert.strictEqual(result.data.input.question, 'Bu repo neden var?');
+    assert.strictEqual(result.data.input.action, 'query');
+    assert.strictEqual(result.data.input.sessionId, 'session-2');
+  });
+
   it('getGraphStats exposes graph statistics', () => {
     const tool = createWorkflowTools(createKernel()).find(item => item.name === 'getGraphStats');
     const result = tool.run();
@@ -163,6 +181,7 @@ describe('workflow-tools', () => {
     const graphStats = tools.find(item => item.name === 'getGraphStats');
     const runCapability = tools.find(item => item.name === 'runCapability');
     const repoMemory = tools.find(item => item.name === 'repoMemory');
+    const companyBrain = tools.find(item => item.name === 'companyBrain');
 
     assert.strictEqual(verify.run({}, { statement: 'kedi' }).ok, false);
     assert.strictEqual(contradiction.run({}, { subject: 'kedi' }).ok, false);
@@ -173,6 +192,9 @@ describe('workflow-tools', () => {
     const repoResult = await repoMemory.run({}, { sourceType: 'github', repoUrl: 'https://example.com/org/repo' });
     assert.strictEqual(repoResult.ok, false);
     assert.strictEqual(repoResult.status, 'error');
+    const companyResult = await companyBrain.run({}, { question: 'Bu repo neden var?' });
+    assert.strictEqual(companyResult.ok, false);
+    assert.strictEqual(companyResult.status, 'unavailable');
   });
 
   it('registerDefaultWorkflowTools registers tools into a registry', async () => {

@@ -1,26 +1,59 @@
-﻿# AXIOM
+# AXIOM
 
-[![Tests](https://img.shields.io/badge/Tests-294%2F294-green)]()
+[![Tests](https://img.shields.io/badge/Tests-passing-green)]()
 [![Node](https://img.shields.io/badge/node-%3E%3D18-blue)]()
 
-Deterministic symbolic reasoning engine.
-AXIOM verifies claims, detects contradictions, tracks evidence, and keeps local memory.
-
-## What It Is
-
-AXIOM is a local-first reasoning core with:
-- knowledge graph learning
-- contradiction detection
-- evidence-aware verification
-- plugin capability system
-- optional LLM-assisted flows
-- agent runtime (v2/v3 runtime selectable)
+AXIOM is a local-first symbolic reasoning core. It learns facts, verifies claims, detects contradictions, ranks evidence, and exposes the same engine through CLI, REST, MCP, and workflow-agent runtime layers.
 
 ## Current Status
 
-- Core contract: stable (`ok`, `type`, `data`, `evidence`, `error`, `meta`)
-- Test status: `294/294`
-- v0.4 company-brain ingestion: implemented
+- Core contract is stable: `ok`, `type`, `data`, `evidence`, `error`, `meta`
+- Company Brain is shipped and exposed through ingest/query surfaces
+- Workflow Agent OS is in progress and available as an opt-in runtime
+- `AXIOM_AGENT_RUNTIME=workflow` enables the workflow agent stack
+- `AXIOM_AGENT_VERSION=v3` keeps the checkpoint/resume agent available
+- Discovery engine is not started yet
+
+## What AXIOM Does
+
+- learns local facts into a graph
+- verifies statements with evidence
+- finds contradictions and manipulation risk
+- tracks persistence in SQLite / JSON
+- runs plugin capabilities through a strict contract
+- exposes an Agent OS workflow path for tool orchestration
+
+## Runtime Modes
+
+### Default runtime
+
+AXIOM uses the classic agent path by default.
+
+### Workflow Agent OS
+
+Set this environment variable to use the workflow runtime:
+
+```bash
+set AXIOM_AGENT_RUNTIME=workflow
+```
+
+The workflow runtime exposes these tools:
+
+- `verifyClaim`
+- `findContradictions`
+- `rankEvidence`
+- `repoMemory`
+- `companyBrain`
+- `runCapability`
+- `getGraphStats`
+
+### v3 agent
+
+Set this environment variable to use the checkpoint/resume agent:
+
+```bash
+set AXIOM_AGENT_VERSION=v3
+```
 
 ## Quick Start
 
@@ -45,6 +78,7 @@ npm run mcp
 ## CLI Commands
 
 General:
+
 - `ogret: kedi hayvandir`
 - `sor: kedi nedir`
 - `plan: hedef`
@@ -53,7 +87,14 @@ General:
 - `backup`
 - `restore`
 
+Agent OS:
+
+- `mri: AXIOM company brain olmali`
+- `tartis: AXIOM company brain olmali`
+- `celiski: AXIOM motor degil ana urun olmali`
+
 Company ingest/query:
+
 - `ogren --kaynak manuel --yazar sonfi "kedi hayvandir"`
 - `ogren --kaynak karar --baslik "X" --gerekce "Y"`
 - `sirket-sor: Bu karar neden alindi?`
@@ -62,38 +103,56 @@ Company ingest/query:
 ## REST Endpoints
 
 Verification:
+
 - `GET /v2/verify?statement=...`
 - `POST /v2/verify`
 - Legacy: `GET/POST /dogrula`
 
 Ingest:
+
 - `POST /api/ingest`
 - `GET /api/ingest/status`
 
 System:
+
 - `GET /health`
 - `GET /v2-status`
 - `GET /graph-data`
 
-## v0.4 Company Brain Scope
+## Company Brain
+
+Company Brain is shipped as the v0.4 line and is still the main ingest/query layer for company context.
 
 Implemented files:
+
 - `adapters/github-adapter.js`
 - `adapters/markdown-adapter.js`
 - `plugins/repo-memory.js`
 - `plugins/company-brain.js`
 
 Behavior:
-- GitHub ingest via native `fetch` (no Octokit)
-- recursive markdown ingest
-- manual ingest and decision log
-- ingest status reporting (`repo/markdown/manual` distribution + error list)
+
+- GitHub ingest uses native `fetch`, not Octokit
+- markdown ingest is recursive
+- manual ingest and decision log flows are supported
+- ingest status tracks `repo / markdown / manual` distribution plus errors
+
+## Workflow Agent OS
+
+The v0.5 line adds an opt-in workflow stack:
+
+- `workflow-agent.js` for deterministic plan/run execution
+- `workflow-tools.js` for kernel/plugin adapters
+- `workflow-runtime.js` for wiring the agent and tools together
+- `repoMemory` and `companyBrain` are tools, not phases
+
+Use it when you want AXIOM to coordinate tools through a single runtime instead of invoking capabilities directly.
 
 ## Persistence
 
-- `memory.db` (SQLite, primary)
-- `memory.json` (JSON fallback)
-- `memory.embeddings.json` (embedding store)
+- `memory.db` - SQLite primary storage
+- `memory.json` - JSON fallback
+- `memory.embeddings.json` - embedding store
 
 ## Security Notes
 
@@ -101,7 +160,7 @@ Behavior:
 - CORS restrictions for safe local origins
 - request size limits and rate limiting
 
-## Project Layout
+## Repository Layout
 
 ```text
 kernel.js
@@ -110,16 +169,19 @@ graph.js
 plugin.js
 agent.js
 agent.v3.js
+workflow-agent.js
+workflow-tools.js
+workflow-runtime.js
 server.js
 cli.js
 mcpServer.js
 adapters/
 plugins/
 benchmarks/
+specs/
+docs/
 ```
 
 ## License
 
 MIT
-
-

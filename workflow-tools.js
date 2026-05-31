@@ -304,6 +304,117 @@ function createWorkflowTools(kernel) {
   });
 
   tools.push({
+    name: 'companyBrain',
+    description: 'Query or ingest company memory through the company-brain capability.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: { type: 'string' },
+        question: { type: 'string' },
+        text: { type: 'string' },
+        sourceType: { type: 'string' },
+        title: { type: 'string' },
+        rationale: { type: 'string' },
+        decidedBy: { type: 'string' },
+        date: { type: 'string' },
+        links: { type: 'array' },
+        alternatives: { type: 'array' },
+        sessionId: { type: 'string' },
+        opts: { type: 'object' },
+      },
+    },
+    async run(context = {}, input = {}) {
+      if (!kernel || typeof kernel.runCapability !== 'function') {
+        return buildEnvelope({
+          ok: false,
+          tool: 'companyBrain',
+          status: 'unavailable',
+          data: {
+            source: 'company-brain',
+            capability: 'companyBrain',
+            input: cloneValue(normalizeToolInput(input)),
+          },
+          error: { code: 'MISSING_METHOD', message: 'companyBrain capability unavailable' },
+          confidence: 0,
+          meta: {
+            source: 'company-brain',
+            capability: 'companyBrain',
+          },
+        });
+      }
+
+      const payload = normalizeToolInput(input);
+      const action = String(payload.action || context.action || (payload.question || payload.text ? 'query' : 'query')).toLowerCase();
+      const sourceType = String(payload.sourceType || context.sourceType || '').toLowerCase();
+      const opts = payload.opts && typeof payload.opts === 'object' ? payload.opts : context.opts || {};
+      const request = {
+        action,
+        question: payload.question || context.question || '',
+        text: payload.text || context.text || '',
+        sourceType,
+        title: payload.title || context.title || '',
+        rationale: payload.rationale || context.rationale || '',
+        decidedBy: payload.decidedBy || context.decidedBy || '',
+        date: payload.date || context.date || '',
+        links: Array.isArray(payload.links) ? payload.links : (Array.isArray(context.links) ? context.links : []),
+        alternatives: Array.isArray(payload.alternatives) ? payload.alternatives : (Array.isArray(context.alternatives) ? context.alternatives : []),
+        sessionId: payload.sessionId || context.sessionId || '',
+        input: cloneValue(payload),
+      };
+
+      try {
+        const result = await kernel.runCapability('companyBrain', request, opts);
+        if (result && result.ok === false) {
+          const message = result.error?.message || result.error || '';
+          if (/missing capability|unavailable/i.test(String(message))) {
+            return buildEnvelope({
+              ok: false,
+              tool: 'companyBrain',
+              status: 'unavailable',
+              data: {
+                source: 'company-brain',
+                capability: 'companyBrain',
+                input: request,
+              },
+              error: { code: 'CAPABILITY_UNAVAILABLE', message: 'companyBrain capability unavailable' },
+              confidence: 0,
+              meta: {
+                source: 'company-brain',
+                capability: 'companyBrain',
+              },
+            });
+          }
+        }
+        return resultFromKernel('companyBrain', result, {
+          source: 'company-brain',
+          capability: 'companyBrain',
+          input: request,
+        }, {
+          source: 'company-brain',
+          capability: 'companyBrain',
+        });
+      } catch (error) {
+        return buildEnvelope({
+          ok: false,
+          tool: 'companyBrain',
+          status: 'unavailable',
+          data: {
+            source: 'company-brain',
+            capability: 'companyBrain',
+            input: request,
+          },
+          error,
+          confidence: 0,
+          meta: {
+            source: 'company-brain',
+            capability: 'companyBrain',
+          },
+        });
+      }
+    },
+  });
+
+  tools.push({
     name: 'runCapability',
     description: 'Execute a registered plugin capability through the kernel.',
     inputSchema: {
