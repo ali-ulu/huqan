@@ -53,6 +53,19 @@ function parseCompanyIngestArgs(raw) {
   };
 }
 
+function normalizeCommandText(input) {
+  return String(input || '')
+    .replace(/\uFEFF/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[ç]/g, 'c')
+    .replace(/[ğ]/g, 'g')
+    .replace(/[ı]/g, 'i')
+    .replace(/[ö]/g, 'o')
+    .replace(/[ş]/g, 's')
+    .replace(/[ü]/g, 'u');
+}
+
 class CLI {
   /**
    * @param {object} [opts]
@@ -74,6 +87,8 @@ class CLI {
   parse(input) {
     const raw = String(input || '').trim();
     const trimmed = raw.toLowerCase();
+    const normalized = normalizeCommandText(raw);
+    const plain = normalized.replace(/[^a-z0-9:\s-]/g, '');
 
     if (/^(ogren|öğren)\s+--kaynak\s+/i.test(raw)) {
       const parsed = parseCompanyIngestArgs(raw);
@@ -82,6 +97,14 @@ class CLI {
     if (trimmed.startsWith('sirket-sor:')) return { command: 'company-query', args: raw.slice(11).trim() };
     if (trimmed === 'ingest-durum') return { command: 'ingest-status', args: '' };
 
+    if (plain.startsWith('mri:') || plain.startsWith('mr:') || plain.startsWith('tartis:') || plain.startsWith('celiski:')) {
+      const sep = raw.indexOf(':');
+      const payload = sep >= 0 ? raw.slice(sep + 1).trim() : '';
+      if (plain.startsWith('mri:') || plain.startsWith('mr:')) return { command: 'mri', args: payload };
+      if (plain.startsWith('tartis:')) return { command: 'tartis', args: payload };
+      return { command: 'celiski', args: payload };
+    }
+
     if (trimmed.startsWith('öğret:')) return { command: 'öğret', args: raw.slice(6).trim() };
     if (trimmed.startsWith('llm-sor:')) return { command: 'llm-sor', args: raw.slice(8).trim() };
     if (trimmed.startsWith('plan:')) return { command: 'plan', args: raw.slice(5).trim() };
@@ -89,6 +112,8 @@ class CLI {
     if (trimmed.startsWith('yükle:')) return { command: 'yükle', args: raw.slice(6).trim() };
     if (trimmed.startsWith('restore:')) return { command: 'restore', args: raw.slice(8).trim() };
     if (trimmed.startsWith('sor:')) return { command: 'sor', args: raw.slice(4).trim() };
+
+    if (['cikis', 'exit', 'quit'].includes(plain)) return { command: 'exit', args: '' };
 
     if (['durum', 'durum nedir', 'ne durumdasın', 'nasılsın', 'durum raporu'].includes(trimmed)) return { command: 'durum', args: '' };
     if (['rüya', 'rüya gör', 'hayal kur', 'ne düşünüyorsun'].includes(trimmed)) return { command: 'rüya', args: '' };
@@ -147,6 +172,24 @@ class CLI {
     }
   }
 
+
+  _ensureProductCapabilities() {
+    if (typeof this.kernel.hasCapability === 'function' && !this.kernel.hasCapability('pluginCapabilities')) {
+      this.kernel.enableCapability('pluginCapabilities');
+    }
+    if (typeof this.kernel.hasCapability === 'function' && !this.kernel.hasCapability('companyMode')) {
+      this.kernel.enableCapability('companyMode');
+    }
+    if (typeof this.kernel.hasCapability === 'function' && !this.kernel.hasCapability('temporal')) {
+      this.kernel.enableCapability('temporal');
+    }
+    if (typeof this.kernel.hasCapability === 'function' && !this.kernel.hasCapability('evidenceRanking')) {
+      this.kernel.enableCapability('evidenceRanking');
+    }
+    if (this.kernel.plugins && typeof this.kernel.plugins.load === 'function') {
+      this.kernel.plugins.load(path.join(__dirname, 'plugins'));
+    }
+  }
   execute(command, args) {
     switch (command) {
       case 'öğret': {
@@ -170,6 +213,42 @@ class CLI {
         const answer = result.data.answer;
         return answer === 'Bilmiyorum' ? `X ${answer}` : `Karsilastirma: ${answer}`;
       }
+      case 'mri': {
+        this._ensureProductCapabilities();
+        const run = this.kernel.runCapability('ideaMri', { text: String(args || '').trim() });
+        return Promise.resolve(run).then(result => {
+          if (!result || result.ok === false) return `MRI hatasi: ${result?.error || 'bilinmeyen hata'}`;
+          const data = result.data || {};
+          const claim = data.mainClaim || String(args || '').trim();
+          const risks = Array.isArray(data.risks)
+            ? data.risks.slice(0, 2).map(item => item?.text).filter(Boolean).join(' | ')
+            : '';
+          const gaps = Array.isArray(data.missingEvidence)
+            ? data.missingEvidence.slice(0, 2).map(item => item?.text).filter(Boolean).join(' | ')
+            : '';
+          return `MRI: ${claim}\nRiskler: ${risks || 'yok'}\nEksik kanit: ${gaps || 'yok'}`;
+        });
+      }
+      case 'tartis': {
+        this._ensureProductCapabilities();
+        const run = this.kernel.runCapability('devilAdvocate', { text: String(args || '').trim() });
+        return Promise.resolve(run).then(result => {
+          if (!result || result.ok === false) return `Tartisma hatasi: ${result?.error || 'bilinmeyen hata'}`;
+          const data = result.data || {};
+          return `Seytanin Avukati (${data.mode || 'unknown'}): ${data.counterArgument || 'cikti yok'}`;
+        });
+      }
+      case 'celiski': {
+        this._ensureProductCapabilities();
+        const run = this.kernel.runCapability('contradictionAlert', { text: String(args || '').trim() });
+        return Promise.resolve(run).then(result => {
+          if (!result || result.ok === false) return `Celiski hatasi: ${result?.error || 'bilinmeyen hata'}`;
+          const data = result.data || {};
+          const count = Array.isArray(data.conflictingThoughts) ? data.conflictingThoughts.length : 0;
+          return `Celiski Analizi: ${count} bulgu${data.conflictType ? ` (${data.conflictType})` : ''}`;
+        });
+      }
+
       case 'llm-sor': {
         const axiomResult = this.kernel.ask(args);
         const verifyResult = this.kernel.verify(args);
@@ -407,7 +486,7 @@ class CLI {
       if (parsed.command === 'kaydet') {
         this.kernel.graph.save();
         console.log('Hafiza kaydedildi.');
-      } else if (parsed.command === 'çıkış') {
+      } else if (parsed.command === 'çıkış' || parsed.command === 'exit') {
         this.kernel.graph.save();
         console.log('Hafiza kaydedildi. Gule gule.');
         rl.close();

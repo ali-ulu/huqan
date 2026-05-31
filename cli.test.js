@@ -138,6 +138,20 @@ describe('CLI - Komut Çalıştırma', () => {
     assert.strictEqual(result.args.author, 'sonfi');
   });
 
+  it('parse: v0.4 product komutlarini tanir', () => {
+    const cli = freshCLI();
+    assert.strictEqual(cli.parse('mri: axiom company brain olmali').command, 'mri');
+    assert.strictEqual(cli.parse('tartis: axiom company brain olmali').command, 'tartis');
+    assert.strictEqual(cli.parse('celiski: axiom motor degil ana urun').command, 'celiski');
+  });
+
+  it('parse: ascii cikis aliasini tanir', () => {
+    const cli = freshCLI();
+    const parsed = cli.parse('cikis');
+    assert.ok(parsed.command && parsed.command !== 'anlamadÄ±m');
+    assert.strictEqual(parsed.args, '');
+  });
+
   it('parse: backup ve restore komutlarini tanir', () => {
     const cli = freshCLI();
     assert.strictEqual(cli.parse('backup').command, 'backup');
@@ -170,6 +184,23 @@ describe('CLI - Komut Çalıştırma', () => {
       text: 'kedi hayvandir',
     });
     assert.ok(output.includes('Manual ingest'));
+  });
+
+  it('execute: mri/tartis/celiski komutlari runCapability ile calisir', async () => {
+    const cli = freshCLI({
+      loadPlugins: false,
+      capabilities: { pluginCapabilities: true, temporal: true, evidenceRanking: true, companyMode: true },
+    });
+    cli.kernel.plugins.load(path.join(__dirname, 'plugins'));
+    cli.kernel.learn('axiom motor degildir');
+
+    const mri = await cli.execute('mri', 'AXIOM company brain olmali');
+    const tartis = await cli.execute('tartis', 'AXIOM company brain olmali');
+    const celiski = await cli.execute('celiski', 'AXIOM motor degil ana urun olmali');
+
+    assert.ok(mri.includes('MRI:'));
+    assert.ok(tartis.includes('Seytanin Avukati'));
+    assert.ok(celiski.includes('Celiski Analizi'));
   });
 
   it('execute: ingest-status returns distribution string', async () => {

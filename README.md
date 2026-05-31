@@ -1,6 +1,6 @@
 ﻿# AXIOM
 
-[![Tests](https://img.shields.io/badge/Tests-291%2F291-green)]()
+[![Tests](https://img.shields.io/badge/Tests-294%2F294-green)]()
 [![Node](https://img.shields.io/badge/node-%3E%3D18-blue)]()
 
 Deterministic symbolic reasoning engine.
@@ -19,7 +19,7 @@ AXIOM is a local-first reasoning core with:
 ## Current Status
 
 - Core contract: stable (`ok`, `type`, `data`, `evidence`, `error`, `meta`)
-- Test status: `291/291`
+- Test status: `294/294`
 - v0.4 company-brain ingestion: implemented
 
 ## Quick Start
@@ -121,3 +121,5 @@ benchmarks/
 ## License
 
 MIT
+
+
