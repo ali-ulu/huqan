@@ -62,6 +62,7 @@ describe('workflow-tools', () => {
       'verifyClaim',
       'findContradictions',
       'rankEvidence',
+      'repoMemory',
       'runCapability',
       'getGraphStats',
     ]);
@@ -127,6 +128,24 @@ describe('workflow-tools', () => {
     assert.ok(result.evidence.length >= 1);
   });
 
+  it('repoMemory calls kernel.runCapability and forwards repo ingest input', async () => {
+    const tool = createWorkflowTools(createKernel()).find(item => item.name === 'repoMemory');
+    const result = await tool.run({}, {
+      sourceType: 'markdown',
+      path: 'docs/README.md',
+      action: 'ingest',
+      sessionId: 'session-1',
+    });
+
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.status, 'done');
+    assert.strictEqual(result.data.capability, 'repoMemory');
+    assert.strictEqual(result.data.value.sourceType, 'markdown');
+    assert.strictEqual(result.data.value.path, 'docs/README.md');
+    assert.strictEqual(result.data.value.action, 'ingest');
+    assert.strictEqual(result.data.value.sessionId, 'session-1');
+  });
+
   it('getGraphStats exposes graph statistics', () => {
     const tool = createWorkflowTools(createKernel()).find(item => item.name === 'getGraphStats');
     const result = tool.run();
@@ -143,6 +162,7 @@ describe('workflow-tools', () => {
     const contradiction = tools.find(item => item.name === 'findContradictions');
     const graphStats = tools.find(item => item.name === 'getGraphStats');
     const runCapability = tools.find(item => item.name === 'runCapability');
+    const repoMemory = tools.find(item => item.name === 'repoMemory');
 
     assert.strictEqual(verify.run({}, { statement: 'kedi' }).ok, false);
     assert.strictEqual(contradiction.run({}, { subject: 'kedi' }).ok, false);
@@ -150,6 +170,9 @@ describe('workflow-tools', () => {
     const runResult = await runCapability.run({}, { name: 'missing' });
     assert.strictEqual(runResult.ok, false);
     assert.strictEqual(runResult.status, 'error');
+    const repoResult = await repoMemory.run({}, { sourceType: 'github', repoUrl: 'https://example.com/org/repo' });
+    assert.strictEqual(repoResult.ok, false);
+    assert.strictEqual(repoResult.status, 'error');
   });
 
   it('registerDefaultWorkflowTools registers tools into a registry', async () => {

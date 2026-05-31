@@ -43,6 +43,7 @@ describe('workflow-runtime', () => {
     assert.ok(toolNames.includes('verifyclaim'));
     assert.ok(toolNames.includes('findcontradictions'));
     assert.ok(toolNames.includes('rankevidence'));
+    assert.ok(toolNames.includes('repomemory'));
     assert.ok(toolNames.includes('runcapability'));
     assert.ok(toolNames.includes('getgraphstats'));
     assert.strictEqual(runtime.getStatus().agent, 'workflow');
@@ -117,6 +118,24 @@ describe('workflow-runtime', () => {
     assert.strictEqual(result.data.input.foo, 'bar');
     assert.deepStrictEqual(result.data.input, { foo: 'bar' });
     assert.deepStrictEqual(result.data.opts, { fast: true });
+  });
+
+  it('runs repoMemory through the workflow tool adapter', async () => {
+    const runtime = createWorkflowRuntime(createKernel());
+    const result = await runtime.runTool('repoMemory', {
+      action: 'ingest',
+      sourceType: 'markdown',
+      path: 'docs/README.md',
+      sessionId: 'session-1',
+    });
+
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.status, 'done');
+    assert.strictEqual(result.data.capability, 'repoMemory');
+    assert.strictEqual(result.data.sourceType, 'markdown');
+    assert.strictEqual(result.data.action, 'ingest');
+    assert.strictEqual(result.data.input.path, 'docs/README.md');
+    assert.strictEqual(result.data.input.sessionId, 'session-1');
   });
 
   it('exposes listTools and getStatus after a run', async () => {
