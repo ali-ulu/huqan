@@ -130,6 +130,14 @@ describe('CLI - Komut Çalıştırma', () => {
     assert.strictEqual(result.args, 'bilgi.txt');
   });
 
+  it('parse: company ingest komutunu tanır', () => {
+    const cli = freshCLI();
+    const result = cli.parse('ogren --kaynak manuel --yazar sonfi "kedi hayvandir"');
+    assert.strictEqual(result.command, 'company-ingest');
+    assert.strictEqual(result.args.source, 'manuel');
+    assert.strictEqual(result.args.author, 'sonfi');
+  });
+
   it('parse: backup ve restore komutlarini tanir', () => {
     const cli = freshCLI();
     assert.strictEqual(cli.parse('backup').command, 'backup');
@@ -151,6 +159,29 @@ describe('CLI - Komut Çalıştırma', () => {
     const cli = freshCLI();
     const result = cli.execute('yükle', 'yok.txt');
     assert.ok(result.includes('Dosya okunamadı'));
+  });
+
+  it('execute: company-ingest manual path works and returns status text', async () => {
+    const cli = freshCLI({ loadPlugins: false, capabilities: { companyMode: true, pluginCapabilities: true } });
+    const output = await cli.execute('company-ingest', {
+      source: 'manual',
+      author: 'sonfi',
+      date: '2026-05-31',
+      text: 'kedi hayvandir',
+    });
+    assert.ok(output.includes('Manual ingest'));
+  });
+
+  it('execute: ingest-status returns distribution string', async () => {
+    const cli = freshCLI({ loadPlugins: false, capabilities: { companyMode: true, pluginCapabilities: true } });
+    await cli.execute('company-ingest', {
+      source: 'manual',
+      author: 'sonfi',
+      date: '2026-05-31',
+      text: 'kopek hayvandir',
+    });
+    const output = await cli.execute('ingest-status', '');
+    assert.ok(output.includes('Ingest durum'));
   });
 
   it('execute: backup ve restore komutlari memory dosyasini geri yukler', () => {

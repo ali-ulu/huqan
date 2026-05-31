@@ -74,7 +74,10 @@ class Graph {
         source_ref TEXT NOT NULL DEFAULT '',
         session_id TEXT NOT NULL DEFAULT '',
         evidence TEXT NOT NULL DEFAULT '[]',
+        evidence_type TEXT NOT NULL DEFAULT '',
         confidence_history TEXT NOT NULL DEFAULT '[]',
+        company_mode INTEGER NOT NULL DEFAULT 0,
+        source_type TEXT NOT NULL DEFAULT '',
         updated_at TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL DEFAULT '',
         created INTEGER NOT NULL,
@@ -93,7 +96,10 @@ class Graph {
     if (!edgeColumns.includes('source_ref')) this._db.exec("ALTER TABLE edges ADD COLUMN source_ref TEXT NOT NULL DEFAULT ''");
     if (!edgeColumns.includes('session_id')) this._db.exec("ALTER TABLE edges ADD COLUMN session_id TEXT NOT NULL DEFAULT ''");
     if (!edgeColumns.includes('evidence')) this._db.exec("ALTER TABLE edges ADD COLUMN evidence TEXT NOT NULL DEFAULT '[]'");
+    if (!edgeColumns.includes('evidence_type')) this._db.exec("ALTER TABLE edges ADD COLUMN evidence_type TEXT NOT NULL DEFAULT ''");
     if (!edgeColumns.includes('confidence_history')) this._db.exec("ALTER TABLE edges ADD COLUMN confidence_history TEXT NOT NULL DEFAULT '[]'");
+    if (!edgeColumns.includes('company_mode')) this._db.exec("ALTER TABLE edges ADD COLUMN company_mode INTEGER NOT NULL DEFAULT 0");
+    if (!edgeColumns.includes('source_type')) this._db.exec("ALTER TABLE edges ADD COLUMN source_type TEXT NOT NULL DEFAULT ''");
     if (!edgeColumns.includes('updated_at')) this._db.exec("ALTER TABLE edges ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''");
     if (!edgeColumns.includes('created_at')) this._db.exec("ALTER TABLE edges ADD COLUMN created_at TEXT NOT NULL DEFAULT ''");
 
@@ -113,8 +119,8 @@ class Graph {
       deleteEdgesOf: this._db.prepare('DELETE FROM edges WHERE from_id = ? OR to_id = ?'),
       touchNode: this._db.prepare('UPDATE nodes SET last_accessed = ? WHERE id = ?'),
       upsertEdge: this._db.prepare(`
-        INSERT INTO edges (from_id, to_id, relation, weight, confidence, source, source_ref, session_id, evidence, confidence_history, updated_at, created_at, created)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO edges (from_id, to_id, relation, weight, confidence, source, source_ref, session_id, evidence, evidence_type, confidence_history, company_mode, source_type, updated_at, created_at, created)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(from_id, to_id, relation) DO UPDATE SET
           weight = excluded.weight,
           confidence = excluded.confidence,
@@ -122,7 +128,10 @@ class Graph {
           source_ref = excluded.source_ref,
           session_id = excluded.session_id,
           evidence = excluded.evidence,
+          evidence_type = excluded.evidence_type,
           confidence_history = excluded.confidence_history,
+          company_mode = excluded.company_mode,
+          source_type = excluded.source_type,
           updated_at = excluded.updated_at
       `),
       getEdge: this._db.prepare('SELECT * FROM edges WHERE from_id = ? AND to_id = ? AND relation = ?'),
@@ -133,7 +142,7 @@ class Graph {
       countEdges: this._db.prepare('SELECT COUNT(*) as c FROM edges'),
       allNodes: this._db.prepare('SELECT * FROM nodes'),
       allEdges: this._db.prepare('SELECT * FROM edges'),
-      updateEdgeWeight: this._db.prepare('UPDATE edges SET weight = ?, confidence = ?, source = ?, source_ref = ?, session_id = ?, evidence = ?, confidence_history = ?, updated_at = ? WHERE from_id = ? AND to_id = ? AND relation = ?'),
+      updateEdgeWeight: this._db.prepare('UPDATE edges SET weight = ?, confidence = ?, source = ?, source_ref = ?, session_id = ?, evidence = ?, evidence_type = ?, confidence_history = ?, company_mode = ?, source_type = ?, updated_at = ? WHERE from_id = ? AND to_id = ? AND relation = ?'),
       updateNodeVector: this._db.prepare('UPDATE nodes SET vector = ? WHERE id = ?'),
     };
   }
@@ -223,6 +232,7 @@ class Graph {
     if (!this._nodes[fromId] || !this._nodes[toId]) return null;
     const existing = this.getEdge(fromId, toId, relation);
     const isoNow = nowIso();
+    const requestedCreatedAt = typeof opts.createdAt === 'string' && opts.createdAt ? opts.createdAt : '';
     const nextEvidence = Array.isArray(opts.evidence) ? opts.evidence : [];
     if (existing) {
       const oldConfidence = existing.confidence ?? existing.weight ?? 0.5;
@@ -231,6 +241,10 @@ class Graph {
       if (opts.source) existing.source = opts.source;
       if (typeof opts.sourceRef === 'string') existing.source_ref = opts.sourceRef;
       if (typeof opts.sessionId === 'string') existing.session_id = opts.sessionId;
+      if (typeof opts.evidenceType === 'string') existing.evidence_type = opts.evidenceType;
+      if (typeof opts.sourceType === 'string') existing.source_type = opts.sourceType;
+      if (typeof opts.companyMode === 'boolean') existing.company_mode = opts.companyMode ? 1 : 0;
+      if (requestedCreatedAt && !existing.created_at) existing.created_at = requestedCreatedAt;
       existing.evidence = [...new Set([...(existing.evidence || []), ...nextEvidence])];
       existing.updated_at = isoNow;
       if (!Array.isArray(existing.confidence_history)) existing.confidence_history = [];
@@ -245,7 +259,10 @@ class Graph {
           existing.source_ref || '',
           existing.session_id || '',
           JSON.stringify(existing.evidence || []),
+          existing.evidence_type || '',
           JSON.stringify(existing.confidence_history || []),
+          existing.company_mode ? 1 : 0,
+          existing.source_type || '',
           existing.updated_at || isoNow,
           fromId,
           toId,
@@ -264,9 +281,12 @@ class Graph {
       source_ref: opts.sourceRef || '',
       session_id: opts.sessionId || '',
       evidence: nextEvidence,
+      evidence_type: opts.evidenceType || '',
       confidence_history: [],
+      company_mode: opts.companyMode ? 1 : 0,
+      source_type: opts.sourceType || '',
       updated_at: isoNow,
-      created_at: isoNow,
+      created_at: requestedCreatedAt || isoNow,
       created: Date.now(),
     };
     this._edges.push(edge);
@@ -282,7 +302,10 @@ class Graph {
         edge.source_ref || '',
         edge.session_id || '',
         JSON.stringify(edge.evidence || []),
+        edge.evidence_type || '',
         JSON.stringify(edge.confidence_history || []),
+        edge.company_mode ? 1 : 0,
+        edge.source_type || '',
         edge.updated_at || isoNow,
         edge.created_at || isoNow,
         edge.created
@@ -429,8 +452,8 @@ class Graph {
         }
         for (const edge of this._edges) {
           this._db.prepare(`
-            INSERT INTO edges (from_id, to_id, relation, weight, confidence, source, source_ref, session_id, evidence, confidence_history, updated_at, created_at, created)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO edges (from_id, to_id, relation, weight, confidence, source, source_ref, session_id, evidence, evidence_type, confidence_history, company_mode, source_type, updated_at, created_at, created)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(from_id, to_id, relation) DO UPDATE SET
               weight = excluded.weight,
               confidence = excluded.confidence,
@@ -438,7 +461,10 @@ class Graph {
               source_ref = excluded.source_ref,
               session_id = excluded.session_id,
               evidence = excluded.evidence,
+              evidence_type = excluded.evidence_type,
               confidence_history = excluded.confidence_history,
+              company_mode = excluded.company_mode,
+              source_type = excluded.source_type,
               updated_at = excluded.updated_at
           `).run(
             edge.from,
@@ -450,7 +476,10 @@ class Graph {
             edge.source_ref || '',
             edge.session_id || '',
             JSON.stringify(edge.evidence || []),
+            edge.evidence_type || '',
             JSON.stringify(edge.confidence_history || []),
+            edge.company_mode ? 1 : 0,
+            edge.source_type || '',
             edge.updated_at || nowIso(),
             edge.created_at || nowIso(),
             edge.created
@@ -506,7 +535,10 @@ class Graph {
             source_ref: row.source_ref || '',
             session_id: row.session_id || '',
             evidence: JSON.parse(row.evidence || '[]'),
+            evidence_type: row.evidence_type || '',
             confidence_history: JSON.parse(row.confidence_history || '[]'),
+            company_mode: Number(row.company_mode || 0),
+            source_type: row.source_type || '',
             updated_at: row.updated_at || '',
             created_at: row.created_at || '',
             created: row.created,
@@ -539,7 +571,10 @@ class Graph {
         source_ref: edge.source_ref || '',
         session_id: edge.session_id || '',
         evidence: Array.isArray(edge.evidence) ? edge.evidence : [],
+        evidence_type: edge.evidence_type || '',
         confidence_history: Array.isArray(edge.confidence_history) ? edge.confidence_history : [],
+        company_mode: Number(edge.company_mode || 0),
+        source_type: edge.source_type || '',
         updated_at: edge.updated_at || '',
         created_at: edge.created_at || '',
       }));

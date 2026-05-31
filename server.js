@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const http = require('http');
+const path = require('path');
 const { globSync, readFileSync } = require('fs');
 const { execSync } = require('child_process');
 const CLI = require('./cli');
@@ -38,6 +39,7 @@ if (process.env.AXIOM_USE_SQLITE === 'false') kernelOpts.useSQLite = false;
 
 const cli = new CLI({ kernel: kernelOpts });
 cli.kernel.graph.load();
+let companyRuntimeReady = false;
 
 // --- GÃ¼venlik sabitleri ---
 const rateLimitCleanupTimer = setInterval(() => {
@@ -380,6 +382,19 @@ function getAgentV3Status() {
     }
   } catch (_) {}
   return null;
+}
+
+function ensureCompanyRuntime() {
+  if (typeof cli.kernel.hasCapability === 'function' && !cli.kernel.hasCapability('companyMode')) {
+    cli.kernel.enableCapability('companyMode');
+  }
+  if (typeof cli.kernel.hasCapability === 'function' && !cli.kernel.hasCapability('pluginCapabilities')) {
+    cli.kernel.enableCapability('pluginCapabilities');
+  }
+  if (!companyRuntimeReady && cli.kernel.plugins && typeof cli.kernel.plugins.load === 'function') {
+    cli.kernel.plugins.load(path.join(__dirname, 'plugins'));
+    companyRuntimeReady = true;
+  }
 }
 
 const HTML = `<!DOCTYPE html>
@@ -975,6 +990,86 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify({ ok: true, learned: count }));
     return;
   }
+
+  if (reqUrl.pathname === '/api/ingest/status') {
+    if (req.method !== 'GET') {
+      res.writeHead(405, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
+      res.end(JSON.stringify({ error: 'Method not allowed' }));
+      return;
+    }
+    try {
+      ensureCompanyRuntime();
+      const status = await cli.kernel.runCapability('ingestStatus', {});
+      writeJson(req, res, 200, status, { 'Cache-Control': 'no-cache' });
+    } catch (err) {
+      writeJson(req, res, 500, { error: err.message || 'ingest status failed' });
+    }
+    return;
+  }
+
+  if (reqUrl.pathname === '/api/ingest') {
+    if (req.method !== 'POST') {
+      res.writeHead(405, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
+      res.end(JSON.stringify({ error: 'Method not allowed' }));
+      return;
+    }
+    if (!denyIfUnauthorized(req, res)) return;
+    const data = await parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_UPLOAD_BODY });
+    if (!data) return;
+
+    const sourceType = sanitizeInput(String(data.sourceType || data.source || ''), 32).toLowerCase();
+    try {
+      ensureCompanyRuntime();
+      let result = null;
+      if (sourceType === 'github' || sourceType === 'repo') {
+        result = await cli.kernel.runCapability('repoMemory', {
+          action: 'ingest',
+          sourceType: 'github',
+          repoUrl: sanitizeInput(String(data.repoUrl || data.url || ''), 512),
+          branch: sanitizeInput(String(data.branch || ''), 128) || 'main',
+          paths: Array.isArray(data.paths) ? data.paths.slice(0, 200) : undefined,
+        });
+      } else if (sourceType === 'markdown') {
+        result = await cli.kernel.runCapability('repoMemory', {
+          action: 'ingest',
+          sourceType: 'markdown',
+          path: String(data.path || data.targetPath || ''),
+        });
+      } else if (sourceType === 'manual' || sourceType === 'manuel') {
+        result = await cli.kernel.runCapability('companyBrain', {
+          action: 'manual',
+          sourceType: 'manual',
+          text: sanitizeInput(String(data.text || ''), 4000),
+          author: sanitizeInput(String(data.author || data.yazar || 'unknown'), 128),
+          date: sanitizeInput(String(data.date || ''), 32),
+        });
+      } else if (sourceType === 'decision' || sourceType === 'karar') {
+        result = await cli.kernel.runCapability('companyBrain', {
+          action: 'decision',
+          sourceType: 'decision',
+          title: sanitizeInput(String(data.title || data.baslik || ''), 512),
+          rationale: sanitizeInput(String(data.rationale || data.gerekce || ''), 4000),
+          decidedBy: sanitizeInput(String(data.decidedBy || data.author || data.yazar || 'unknown'), 128),
+          date: sanitizeInput(String(data.date || ''), 32),
+          alternatives: Array.isArray(data.alternatives) ? data.alternatives.slice(0, 20).map(item => sanitizeInput(String(item), 512)) : [],
+          links: Array.isArray(data.links) ? data.links.slice(0, 50).map(item => sanitizeInput(String(item), 512)) : [],
+        });
+      } else {
+        writeJson(req, res, 400, { error: 'sourceType must be one of github|markdown|manual|decision' });
+        return;
+      }
+
+      if (!result || result.ok === false) {
+        writeJson(req, res, 400, result || { error: 'ingest failed' });
+        return;
+      }
+      writeJson(req, res, 200, result, { 'Cache-Control': 'no-cache' });
+    } catch (err) {
+      writeJson(req, res, 500, { error: err.message || 'ingest failed' });
+    }
+    return;
+  }
+
   if (reqUrl.pathname === '/api') {
     if (req.method !== 'GET') {
       res.writeHead(405, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
