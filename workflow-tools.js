@@ -1,4 +1,4 @@
-﻿const { adjustedConfidence, rankEvidence, WEIGHTS } = require('./evidence-ranker');
+const { adjustedConfidence, rankEvidence, WEIGHTS } = require('./evidence-ranker');
 const {
   normalizeConfidence,
   normalizeEvidence,
@@ -75,6 +75,26 @@ function resultFromKernel(tool, kernelResult, fallbackData = null, meta = {}) {
   });
 }
 
+function resolveCapabilityRunner(kernel) {
+  if (kernel && kernel.plugins && typeof kernel.plugins.runCapability === 'function') {
+    return {
+      source: 'plugin-manager',
+      run: kernel.plugins.runCapability.bind(kernel.plugins),
+    };
+  }
+  if (kernel && typeof kernel.runCapability === 'function') {
+    return {
+      source: 'kernel.runCapability',
+      run: kernel.runCapability.bind(kernel),
+    };
+  }
+  return null;
+}
+
+function isUnavailableCapabilityError(error) {
+  const message = String(error?.message || error || '');
+  return /missing capability|unavailable|unknown plugin capability|unknown capability/i.test(message);
+}
 
 function createWorkflowTools(kernel) {
   const tools = [];
@@ -242,7 +262,8 @@ function createWorkflowTools(kernel) {
       },
     },
     async run(context = {}, input = {}) {
-      if (!kernel || typeof kernel.runCapability !== 'function') {
+      const runner = resolveCapabilityRunner(kernel);
+      if (!runner) {
         return buildEnvelope({
           ok: false,
           tool: 'repoMemory',
@@ -275,7 +296,7 @@ function createWorkflowTools(kernel) {
       };
 
       try {
-        const result = await kernel.runCapability('repoMemory', request, opts);
+        const result = await runner.run('repoMemory', request, opts);
         return resultFromKernel('repoMemory', result, {
           sourceType,
           action,
@@ -324,7 +345,8 @@ function createWorkflowTools(kernel) {
       },
     },
     async run(context = {}, input = {}) {
-      if (!kernel || typeof kernel.runCapability !== 'function') {
+      const runner = resolveCapabilityRunner(kernel);
+      if (!runner) {
         return buildEnvelope({
           ok: false,
           tool: 'companyBrain',
@@ -363,27 +385,24 @@ function createWorkflowTools(kernel) {
       };
 
       try {
-        const result = await kernel.runCapability('companyBrain', request, opts);
-        if (result && result.ok === false) {
-          const message = result.error?.message || result.error || '';
-          if (/missing capability|unavailable/i.test(String(message))) {
-            return buildEnvelope({
-              ok: false,
-              tool: 'companyBrain',
-              status: 'unavailable',
-              data: {
-                source: 'company-brain',
-                capability: 'companyBrain',
-                input: request,
-              },
-              error: { code: 'CAPABILITY_UNAVAILABLE', message: 'companyBrain capability unavailable' },
-              confidence: 0,
-              meta: {
-                source: 'company-brain',
-                capability: 'companyBrain',
-              },
-            });
-          }
+        const result = await runner.run('companyBrain', request, opts);
+        if (result && result.ok === false && isUnavailableCapabilityError(result.error)) {
+          return buildEnvelope({
+            ok: false,
+            tool: 'companyBrain',
+            status: 'unavailable',
+            data: {
+              source: 'company-brain',
+              capability: 'companyBrain',
+              input: request,
+            },
+            error: { code: 'CAPABILITY_UNAVAILABLE', message: 'companyBrain capability unavailable' },
+            confidence: 0,
+            meta: {
+              source: 'company-brain',
+              capability: 'companyBrain',
+            },
+          });
         }
         return resultFromKernel('companyBrain', result, {
           source: 'company-brain',
@@ -415,6 +434,370 @@ function createWorkflowTools(kernel) {
   });
 
   tools.push({
+    name: 'discoveryEngine',
+    description: 'Run the discovery engine skeleton through the kernel.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        goal: { type: 'string' },
+        hypothesis: { type: 'string' },
+        text: { type: 'string' },
+        opts: { type: 'object' },
+      },
+    },
+    async run(context = {}, input = {}) {
+      const runner = resolveCapabilityRunner(kernel);
+      if (!runner) {
+        return buildEnvelope({
+          ok: false,
+          tool: 'discoveryEngine',
+          status: 'unavailable',
+          data: {
+            source: 'discovery-engine',
+            capability: 'discoveryEngine',
+            input: cloneValue(normalizeToolInput(input)),
+          },
+          error: { code: 'MISSING_METHOD', message: 'discoveryEngine capability unavailable' },
+          confidence: 0,
+          meta: {
+            source: 'discovery-engine',
+            capability: 'discoveryEngine',
+          },
+        });
+      }
+
+      const payload = normalizeToolInput(input);
+      const request = {
+        goal: payload.goal || context.goal || '',
+        hypothesis: payload.hypothesis || context.hypothesis || '',
+        text: payload.text || context.text || '',
+        opts: payload.opts && typeof payload.opts === 'object' ? payload.opts : context.opts || {},
+        input: cloneValue(payload),
+      };
+
+      try {
+        const result = await runner.run('discoveryEngine', request, request.opts);
+        if (result && result.ok === false && isUnavailableCapabilityError(result.error)) {
+          return buildEnvelope({
+            ok: false,
+            tool: 'discoveryEngine',
+            status: 'unavailable',
+            data: {
+              source: 'discovery-engine',
+              capability: 'discoveryEngine',
+              input: request,
+            },
+            error: { code: 'CAPABILITY_UNAVAILABLE', message: 'discoveryEngine capability unavailable' },
+            confidence: 0,
+            meta: {
+              source: 'discovery-engine',
+              capability: 'discoveryEngine',
+            },
+          });
+        }
+        return resultFromKernel('discoveryEngine', result, {
+          source: 'discovery-engine',
+          capability: 'discoveryEngine',
+          input: request,
+        }, {
+          source: 'discovery-engine',
+          capability: 'discoveryEngine',
+        });
+      } catch (error) {
+        return buildEnvelope({
+          ok: false,
+          tool: 'discoveryEngine',
+          status: 'unavailable',
+          data: {
+            source: 'discovery-engine',
+            capability: 'discoveryEngine',
+            input: request,
+          },
+          error,
+          confidence: 0,
+          meta: {
+            source: 'discovery-engine',
+            capability: 'discoveryEngine',
+          },
+        });
+      }
+    },
+  });
+
+  tools.push({
+    name: 'experimentPlanner',
+    description: 'Create an experiment plan for a discovery hypothesis.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        goal: { type: 'string' },
+        hypothesis: { type: 'string' },
+        text: { type: 'string' },
+        opts: { type: 'object' },
+      },
+    },
+    async run(context = {}, input = {}) {
+      const runner = resolveCapabilityRunner(kernel);
+      if (!runner) {
+        return buildEnvelope({
+          ok: false,
+          tool: 'experimentPlanner',
+          status: 'unavailable',
+          data: {
+            source: 'experiment-planner',
+            capability: 'experimentPlanner',
+            input: cloneValue(normalizeToolInput(input)),
+          },
+          error: { code: 'MISSING_METHOD', message: 'experimentPlanner capability unavailable' },
+          confidence: 0,
+          meta: {
+            source: 'experiment-planner',
+            capability: 'experimentPlanner',
+          },
+        });
+      }
+
+      const payload = normalizeToolInput(input);
+      const request = {
+        goal: payload.goal || context.goal || '',
+        hypothesis: payload.hypothesis || context.hypothesis || '',
+        text: payload.text || context.text || '',
+        opts: payload.opts && typeof payload.opts === 'object' ? payload.opts : context.opts || {},
+        input: cloneValue(payload),
+      };
+
+      try {
+        const result = await runner.run('experimentPlanner', request, request.opts);
+        if (result && result.ok === false && isUnavailableCapabilityError(result.error)) {
+          return buildEnvelope({
+            ok: false,
+            tool: 'experimentPlanner',
+            status: 'unavailable',
+            data: {
+              source: 'experiment-planner',
+              capability: 'experimentPlanner',
+              input: request,
+            },
+            error: { code: 'CAPABILITY_UNAVAILABLE', message: 'experimentPlanner capability unavailable' },
+            confidence: 0,
+            meta: {
+              source: 'experiment-planner',
+              capability: 'experimentPlanner',
+            },
+          });
+        }
+        return resultFromKernel('experimentPlanner', result, {
+          source: 'experiment-planner',
+          capability: 'experimentPlanner',
+          input: request,
+        }, {
+          source: 'experiment-planner',
+          capability: 'experimentPlanner',
+        });
+      } catch (error) {
+        return buildEnvelope({
+          ok: false,
+          tool: 'experimentPlanner',
+          status: 'unavailable',
+          data: {
+            source: 'experiment-planner',
+            capability: 'experimentPlanner',
+            input: request,
+          },
+          error,
+          confidence: 0,
+          meta: {
+            source: 'experiment-planner',
+            capability: 'experimentPlanner',
+          },
+        });
+      }
+    },
+  });
+
+  tools.push({
+    name: 'resultAnalyzer',
+    description: 'Analyze discovery results into a minimal evidence summary.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        result: { type: 'string' },
+        observation: { type: 'string' },
+        text: { type: 'string' },
+        opts: { type: 'object' },
+      },
+    },
+    async run(context = {}, input = {}) {
+      const runner = resolveCapabilityRunner(kernel);
+      if (!runner) {
+        return buildEnvelope({
+          ok: false,
+          tool: 'resultAnalyzer',
+          status: 'unavailable',
+          data: {
+            source: 'result-analyzer',
+            capability: 'resultAnalyzer',
+            input: cloneValue(normalizeToolInput(input)),
+          },
+          error: { code: 'MISSING_METHOD', message: 'resultAnalyzer capability unavailable' },
+          confidence: 0,
+          meta: {
+            source: 'result-analyzer',
+            capability: 'resultAnalyzer',
+          },
+        });
+      }
+
+      const payload = normalizeToolInput(input);
+      const request = {
+        result: payload.result || context.result || '',
+        observation: payload.observation || context.observation || '',
+        text: payload.text || context.text || '',
+        opts: payload.opts && typeof payload.opts === 'object' ? payload.opts : context.opts || {},
+        input: cloneValue(payload),
+      };
+
+      try {
+        const result = await runner.run('resultAnalyzer', request, request.opts);
+        if (result && result.ok === false && isUnavailableCapabilityError(result.error)) {
+          return buildEnvelope({
+            ok: false,
+            tool: 'resultAnalyzer',
+            status: 'unavailable',
+            data: {
+              source: 'result-analyzer',
+              capability: 'resultAnalyzer',
+              input: request,
+            },
+            error: { code: 'CAPABILITY_UNAVAILABLE', message: 'resultAnalyzer capability unavailable' },
+            confidence: 0,
+            meta: {
+              source: 'result-analyzer',
+              capability: 'resultAnalyzer',
+            },
+          });
+        }
+        return resultFromKernel('resultAnalyzer', result, {
+          source: 'result-analyzer',
+          capability: 'resultAnalyzer',
+          input: request,
+        }, {
+          source: 'result-analyzer',
+          capability: 'resultAnalyzer',
+        });
+      } catch (error) {
+        return buildEnvelope({
+          ok: false,
+          tool: 'resultAnalyzer',
+          status: 'unavailable',
+          data: {
+            source: 'result-analyzer',
+            capability: 'resultAnalyzer',
+            input: request,
+          },
+          error,
+          confidence: 0,
+          meta: {
+            source: 'result-analyzer',
+            capability: 'resultAnalyzer',
+          },
+        });
+      }
+    },
+  });
+
+  tools.push({
+    name: 'replicationChecker',
+    description: 'Check whether discovery results look reproducible.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        runs: { type: 'array' },
+        observations: { type: 'array' },
+        text: { type: 'string' },
+        opts: { type: 'object' },
+      },
+    },
+    async run(context = {}, input = {}) {
+      const runner = resolveCapabilityRunner(kernel);
+      if (!runner) {
+        return buildEnvelope({
+          ok: false,
+          tool: 'replicationChecker',
+          status: 'unavailable',
+          data: {
+            source: 'replication-checker',
+            capability: 'replicationChecker',
+            input: cloneValue(normalizeToolInput(input)),
+          },
+          error: { code: 'MISSING_METHOD', message: 'replicationChecker capability unavailable' },
+          confidence: 0,
+          meta: {
+            source: 'replication-checker',
+            capability: 'replicationChecker',
+          },
+        });
+      }
+
+      const payload = normalizeToolInput(input);
+      const request = {
+        runs: Array.isArray(payload.runs) ? payload.runs : (Array.isArray(context.runs) ? context.runs : []),
+        observations: Array.isArray(payload.observations) ? payload.observations : (Array.isArray(context.observations) ? context.observations : []),
+        text: payload.text || context.text || '',
+        opts: payload.opts && typeof payload.opts === 'object' ? payload.opts : context.opts || {},
+        input: cloneValue(payload),
+      };
+
+      try {
+        const result = await runner.run('replicationChecker', request, request.opts);
+        if (result && result.ok === false && isUnavailableCapabilityError(result.error)) {
+          return buildEnvelope({
+            ok: false,
+            tool: 'replicationChecker',
+            status: 'unavailable',
+            data: {
+              source: 'replication-checker',
+              capability: 'replicationChecker',
+              input: request,
+            },
+            error: { code: 'CAPABILITY_UNAVAILABLE', message: 'replicationChecker capability unavailable' },
+            confidence: 0,
+            meta: {
+              source: 'replication-checker',
+              capability: 'replicationChecker',
+            },
+          });
+        }
+        return resultFromKernel('replicationChecker', result, {
+          source: 'replication-checker',
+          capability: 'replicationChecker',
+          input: request,
+        }, {
+          source: 'replication-checker',
+          capability: 'replicationChecker',
+        });
+      } catch (error) {
+        return buildEnvelope({
+          ok: false,
+          tool: 'replicationChecker',
+          status: 'unavailable',
+          data: {
+            source: 'replication-checker',
+            capability: 'replicationChecker',
+            input: request,
+          },
+          error,
+          confidence: 0,
+          meta: {
+            source: 'replication-checker',
+            capability: 'replicationChecker',
+          },
+        });
+      }
+    },
+  });
+
+  tools.push({
     name: 'runCapability',
     description: 'Execute a registered plugin capability through the kernel.',
     inputSchema: {
@@ -427,7 +810,8 @@ function createWorkflowTools(kernel) {
       required: ['name'],
     },
     async run(context = {}, input = {}) {
-      if (!kernel || typeof kernel.runCapability !== 'function') {
+      const runner = resolveCapabilityRunner(kernel);
+      if (!runner) {
         return buildEnvelope({
           ok: false,
           tool: 'runCapability',
@@ -444,7 +828,7 @@ function createWorkflowTools(kernel) {
       const opts = payload.opts && typeof payload.opts === 'object' ? payload.opts : context.opts || {};
 
       try {
-        const result = await kernel.runCapability(capabilityName, capabilityInput, opts);
+        const result = await runner.run(capabilityName, capabilityInput, opts);
         return resultFromKernel('runCapability', result, {
           capability: capabilityName,
           input: capabilityInput,

@@ -1,5 +1,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
+const Kernel = require('./kernel');
 const { createWorkflowRuntime } = require('./workflow-runtime');
 
 function createKernel() {
@@ -25,6 +26,81 @@ function createKernel() {
       },
     },
     async runCapability(name, input, opts) {
+      if (name === 'discoveryEngine') {
+        return {
+          ok: true,
+          data: {
+            capability: name,
+            status: 'ready',
+            source: 'discovery-engine',
+            output: {
+              goal: input.goal || input.text || '',
+              hypotheses: [{
+                subject: input.goal || input.text || 'goal',
+                predicate: 'requires experiment planning',
+                source: 'parsed',
+              }],
+              nextAction: 'experimentPlanner',
+            },
+          },
+          evidence: ['discovery-evidence'],
+          confidence: 0.64,
+        };
+      }
+      if (name === 'experimentPlanner') {
+        return {
+          ok: true,
+          data: {
+            capability: name,
+            status: 'ready',
+            source: 'experiment-planner',
+            output: {
+              hypothesis: input.hypothesis || input.goal || '',
+              plan: [{ step: 'collect evidence', tool: 'resultAnalyzer' }],
+              successCriteria: ['clear hypothesis'],
+              nextAction: 'resultAnalyzer',
+            },
+          },
+          evidence: ['plan-evidence'],
+          confidence: 0.57,
+        };
+      }
+      if (name === 'resultAnalyzer') {
+        return {
+          ok: true,
+          data: {
+            capability: name,
+            status: 'ready',
+            source: 'result-analyzer',
+            output: {
+              signal: 'support',
+              summary: input.result || input.observation || input.text || '',
+              updatedHypothesis: 'strengthen',
+              nextAction: 'replicationChecker',
+            },
+          },
+          evidence: ['analysis-evidence'],
+          confidence: 0.58,
+        };
+      }
+      if (name === 'replicationChecker') {
+        return {
+          ok: true,
+          data: {
+            capability: name,
+            status: 'ready',
+            source: 'replication-checker',
+            output: {
+              replicationStatus: 'replicable',
+              repeatCount: Array.isArray(input.runs) ? input.runs.length : 2,
+              consistency: 'stable',
+              nextAction: 'discoveryEngine',
+            },
+          },
+          evidence: ['replication-evidence'],
+          confidence: 0.61,
+        };
+      }
       return {
         ok: true,
         data: { capability: name, input, opts },
@@ -45,6 +121,10 @@ describe('workflow-runtime', () => {
     assert.ok(toolNames.includes('rankevidence'));
     assert.ok(toolNames.includes('repomemory'));
     assert.ok(toolNames.includes('companybrain'));
+    assert.ok(toolNames.includes('discoveryengine'));
+    assert.ok(toolNames.includes('experimentplanner'));
+    assert.ok(toolNames.includes('resultanalyzer'));
+    assert.ok(toolNames.includes('replicationchecker'));
     assert.ok(toolNames.includes('runcapability'));
     assert.ok(toolNames.includes('getgraphstats'));
     assert.strictEqual(runtime.getStatus().agent, 'workflow');
@@ -156,6 +236,68 @@ describe('workflow-runtime', () => {
     assert.strictEqual(result.data.input.sessionId, 'session-2');
   });
 
+  it('runs discoveryEngine through the workflow tool adapter', async () => {
+    const runtime = createWorkflowRuntime(createKernel());
+    const result = await runtime.runTool('discoveryEngine', {
+      goal: 'Find a useful hypothesis',
+      text: 'Find a useful hypothesis',
+      sessionId: 'session-3',
+    });
+
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.status, 'done');
+    assert.strictEqual(result.data.capability, 'discoveryEngine');
+    assert.strictEqual(result.data.source, 'discovery-engine');
+    assert.ok(Array.isArray(result.data.output.hypotheses));
+    assert.strictEqual(result.data.output.nextAction, 'experimentPlanner');
+  });
+
+  it('runs experimentPlanner through the workflow tool adapter', async () => {
+    const runtime = createWorkflowRuntime(createKernel());
+    const result = await runtime.runTool('experimentPlanner', {
+      goal: 'Validate a hypothesis',
+      hypothesis: 'Validate a hypothesis',
+      sessionId: 'session-4',
+    });
+
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.status, 'done');
+    assert.strictEqual(result.data.capability, 'experimentPlanner');
+    assert.strictEqual(result.data.source, 'experiment-planner');
+    assert.ok(Array.isArray(result.data.output.plan));
+    assert.strictEqual(result.data.output.nextAction, 'resultAnalyzer');
+  });
+
+  it('runs resultAnalyzer through the workflow tool adapter', async () => {
+    const runtime = createWorkflowRuntime(createKernel());
+    const result = await runtime.runTool('resultAnalyzer', {
+      result: 'support',
+      sessionId: 'session-5',
+    });
+
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.status, 'done');
+    assert.strictEqual(result.data.capability, 'resultAnalyzer');
+    assert.strictEqual(result.data.source, 'result-analyzer');
+    assert.strictEqual(result.data.output.signal, 'support');
+    assert.strictEqual(result.data.output.nextAction, 'replicationChecker');
+  });
+
+  it('runs replicationChecker through the workflow tool adapter', async () => {
+    const runtime = createWorkflowRuntime(createKernel());
+    const result = await runtime.runTool('replicationChecker', {
+      runs: [{ id: 1 }, { id: 2 }],
+      sessionId: 'session-6',
+    });
+
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.status, 'done');
+    assert.strictEqual(result.data.capability, 'replicationChecker');
+    assert.strictEqual(result.data.source, 'replication-checker');
+    assert.strictEqual(result.data.output.replicationStatus, 'replicable');
+    assert.strictEqual(result.data.output.nextAction, 'discoveryEngine');
+  });
+
   it('exposes listTools and getStatus after a run', async () => {
     const runtime = createWorkflowRuntime(createKernel());
     const result = await runtime.run('verify kedi hayvandir mi?', {
@@ -184,5 +326,47 @@ describe('workflow-runtime', () => {
     assert.ok(status.lastRun);
     assert.strictEqual(status.lastRun.goal, 'verify kedi hayvandir mi?');
     assert.strictEqual(status.lastRun.status, 'completed');
+  });
+
+  it('lists and runs the discovery skeleton through the real plugin manager', async () => {
+    const kernel = new Kernel({ noLoad: true, loadPlugins: false });
+    kernel.usePlugin(require('./plugins/discovery-engine'));
+    kernel.usePlugin(require('./plugins/experiment-planner'));
+    kernel.usePlugin(require('./plugins/result-analyzer'));
+    kernel.usePlugin(require('./plugins/replication-checker'));
+
+    const runtime = createWorkflowRuntime(kernel, { registerDefaultTools: true });
+    const toolNames = runtime.listTools().map(tool => tool.name);
+
+    assert.ok(toolNames.includes('discoveryengine'));
+    assert.ok(toolNames.includes('experimentplanner'));
+    assert.ok(toolNames.includes('resultanalyzer'));
+    assert.ok(toolNames.includes('replicationchecker'));
+
+    const discovery = await runtime.runTool('discoveryEngine', {
+      goal: 'Find a useful hypothesis',
+      text: 'Find a useful hypothesis',
+    });
+    const experiment = await runtime.runTool('experimentPlanner', {
+      hypothesis: 'Validate a hypothesis',
+      text: 'Validate a hypothesis',
+    });
+    const analysis = await runtime.runTool('resultAnalyzer', {
+      result: 'support',
+      text: 'support',
+    });
+    const replication = await runtime.runTool('replicationChecker', {
+      runs: [{ id: 1 }, { id: 2 }],
+      text: 'support',
+    });
+
+    assert.strictEqual(discovery.ok, true);
+    assert.strictEqual(experiment.ok, true);
+    assert.strictEqual(analysis.ok, true);
+    assert.strictEqual(replication.ok, true);
+    assert.strictEqual(discovery.data.capability, 'discoveryEngine');
+    assert.strictEqual(experiment.data.capability, 'experimentPlanner');
+    assert.strictEqual(analysis.data.capability, 'resultAnalyzer');
+    assert.strictEqual(replication.data.capability, 'replicationChecker');
   });
 });

@@ -12,7 +12,7 @@ AXIOM is a local-first symbolic reasoning core. It learns facts, verifies claims
 - Workflow Agent OS is in progress and available as an opt-in runtime
 - `AXIOM_AGENT_RUNTIME=workflow` enables the workflow agent stack
 - `AXIOM_AGENT_VERSION=v3` keeps the checkpoint/resume agent available
-- Discovery engine is not started yet
+- Discovery engine skeleton is in progress through workflow tools
 
 ## What AXIOM Does
 
@@ -44,6 +44,10 @@ The workflow runtime exposes these tools:
 - `rankEvidence`
 - `repoMemory`
 - `companyBrain`
+- `discoveryEngine`
+- `experimentPlanner`
+- `resultAnalyzer`
+- `replicationChecker`
 - `runCapability`
 - `getGraphStats`
 
@@ -145,6 +149,7 @@ The v0.5 line adds an opt-in workflow stack:
 - `workflow-tools.js` for kernel/plugin adapters
 - `workflow-runtime.js` for wiring the agent and tools together
 - `repoMemory` and `companyBrain` are tools, not phases
+- `discoveryEngine`, `experimentPlanner`, `resultAnalyzer`, and `replicationChecker` are the discovery skeleton tools
 
 Use it when you want AXIOM to coordinate tools through a single runtime instead of invoking capabilities directly.
 
