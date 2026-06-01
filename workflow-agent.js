@@ -1,4 +1,5 @@
 ﻿const { INTERNAL_TOOLS, evaluateToolPolicy } = require('./toolPolicy');
+const { buildFinalSummary } = require('./finalizer');
 
 const DEFAULT_MAX_STEPS = 4;
 const DEFAULT_BUDGET = null;
@@ -274,6 +275,7 @@ function buildStepInput(goal, objective, toolName, index, total) {
 }
 
 function buildReport(run) {
+  const finalSummary = run.finalSummary || buildFinalSummary(run);
   const lines = [
     `Goal: ${run.goal}`,
     `Objective: ${run.objective}`,
@@ -281,6 +283,15 @@ function buildReport(run) {
     `Steps: ${run.steps.length}`,
     `Confidence: ${run.confidence.toFixed(2)}`,
     `Next action: ${run.nextAction.action}${run.nextAction.tool ? ` -> ${run.nextAction.tool}` : ''}`,
+    'Final summary:',
+    `- Mode: ${finalSummary.mode}`,
+    'Known facts:',
+    ...(finalSummary.knownFacts.length ? finalSummary.knownFacts.map(item => `- ${item}`) : ['- none']),
+    'Unknowns:',
+    ...(finalSummary.unknowns.length ? finalSummary.unknowns.map(item => `- ${item}`) : ['- none']),
+    `- Conclusion: ${finalSummary.conclusion}`,
+    'Next questions:',
+    ...(finalSummary.nextQuestions.length ? finalSummary.nextQuestions.map(item => `- ${item}`) : ['- none']),
     'Recommendations:',
     ...run.recommendations.map(item => `- ${item}`),
     'Trace:',
@@ -931,6 +942,7 @@ class WorkflowAgent {
 
     run.nextAction = deriveNextAction(run, planSteps.slice(steps.length));
     run.recommendations = buildRecommendations(run);
+    run.finalSummary = buildFinalSummary(run);
     run.report = buildReport(run);
 
     this.lastRun = cloneValue(run);
@@ -944,3 +956,4 @@ module.exports.ToolRegistry = ToolRegistry;
 module.exports.normalizeConfidence = normalizeConfidence;
 module.exports.normalizeEvidence = normalizeEvidence;
 module.exports.normalizeError = normalizeError;
+

@@ -38,7 +38,10 @@ describe('Agent', () => {
     assert.ok(runResult.data.steps.length >= 2);
     assert.ok(runResult.data.selectedTools.includes('verify'));
     assert.ok(typeof runResult.data.finalAnswer === 'string');
+    assert.ok(runResult.data.finalSummary);
+    assert.ok(typeof runResult.data.finalSummary.mode === 'string');
     assert.ok(runResult.data.report.includes('Hedef:'));
+    assert.ok(runResult.data.report.includes('Yargı özeti:'));
     assert.ok(runResult.data.report.includes('Sonuç:'));
   });
 

@@ -193,11 +193,14 @@ describe('workflow-agent', () => {
     assert.ok(result.trace.some(item => item.phase === 'run'));
     assert.ok(result.report.includes('Goal: kedi hayvandir mi?'));
     assert.ok(result.report.includes('Next action: none'));
+    assert.ok(result.report.includes('Final summary:'));
     assert.ok(result.report.includes('Final answer: verify:kedi hayvandir mi?'));
     assert.strictEqual(result.nextAction.action, 'none');
     assert.ok(Array.isArray(result.recommendations));
     assert.ok(result.recommendations.includes('No immediate action required.'));
     assert.strictEqual(result.finalAnswer, 'verify:kedi hayvandir mi?');
+    assert.ok(result.finalSummary);
+    assert.strictEqual(typeof result.finalSummary.mode, 'string');
   });
 
   it('rejects unknown tools', () => {
@@ -351,6 +354,7 @@ describe('workflow-agent', () => {
       'replicationchecker',
     ]);
     assert.ok(result.report.includes('Objective: discover'));
+    assert.ok(result.report.includes('Final summary:'));
     assert.ok(result.finalAnswer.includes('replication:'));
     assert.strictEqual(result.nextAction.action, 'none');
   });

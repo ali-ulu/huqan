@@ -3,6 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 const Dream = require('./dream');
 const { INTERNAL_TOOLS, evaluateToolPolicy } = require('./toolPolicy');
+const { buildFinalSummary } = require('./finalizer');
 
 const DEFAULT_MAX_STEPS = 4;
 const ALLOWED_TOOLS = INTERNAL_TOOLS;
@@ -982,7 +983,16 @@ class Agent {
     const finalSummary = finalStep ? this._extractAgentSummary(finalStep.result) : { text: '' };
     const finalAnswer = finalSummary.text || 'Ajan görevi tamamladı ancak kısa özet üretilemedi.';
     state.status = finalStep && finalStep.result && finalStep.result.ok === false ? 'blocked' : 'completed';
-    state.finalAnswer = finalAnswer;
+    state.finalSummary = buildFinalSummary({
+      goal: state.goal,
+      objective: activePlan.objective,
+      status: state.status,
+      steps: state.steps,
+      evidence: state.evidence,
+      finalAnswer,
+      selectedTools: activePlan.selectedTools,
+    });
+    state.finalAnswer = state.finalSummary.conclusion || finalAnswer;
     state.completedSteps = state.steps.length;
     state.remainingSteps = queued.length;
     state.recommendations = this._buildRunRecommendations(state);
@@ -1018,6 +1028,7 @@ class Agent {
       const summary = step.summary ? ` - ${step.summary}` : '';
       return `${index + 1}. ${step.action} (${step.tool})${summary}`;
     });
+    const finalSummary = state.finalSummary || buildFinalSummary(state);
     const recommendations = this._buildRunRecommendations(state);
     const recommendationLines = recommendations.items.map(item => `- ${item}`);
     const nextAction = state.nextAction || this._suggestNextAction(state);
@@ -1032,6 +1043,15 @@ class Agent {
       `Adım sayısı: ${state.completedSteps}`,
       `İlerleme: ${(state.progress && typeof state.progress.stalledCount === 'number') ? `stalled=${state.progress.stalledCount}` : 'unknown'}`,
       `Sonraki adim: ${nextActionLine}`,
+      'Yargı özeti:',
+      `- Mod: ${finalSummary.mode}`,
+      'Bilinenler:',
+      ...(finalSummary.knownFacts.length ? finalSummary.knownFacts.map(item => `- ${item}`) : ['- yok']),
+      'Bilinmeyenler:',
+      ...(finalSummary.unknowns.length ? finalSummary.unknowns.map(item => `- ${item}`) : ['- yok']),
+      `- Sonuç: ${finalSummary.conclusion}`,
+      'Takip soruları:',
+      ...(finalSummary.nextQuestions.length ? finalSummary.nextQuestions.map(item => `- ${item}`) : ['- yok']),
       'Öneri:',
       ...recommendationLines,
       'Araç sağlığı:',
