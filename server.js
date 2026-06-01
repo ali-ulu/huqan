@@ -5,6 +5,7 @@ const { globSync, readFileSync } = require('fs');
 const { execSync } = require('child_process');
 const CLI = require('./cli');
 const { evaluateLlmSor } = require('./lib/shield');
+const { handleIngest } = require('./lib/ingest');
 const pkg = require('./package.json');
 const { inspectPersistence, resolvePersistencePaths } = require('./persistencePaths');
 const {
@@ -649,48 +650,12 @@ const server = http.createServer(async (req, res) => {
     if (!denyIfUnauthorized(req, res)) return;
     const data = await parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_UPLOAD_BODY });
     if (!data) return;
-
-    const sourceType = sanitizeInput(String(data.sourceType || data.source || ''), 32).toLowerCase();
     try {
-      ensureCompanyRuntime();
-      let result = null;
-      if (sourceType === 'github' || sourceType === 'repo') {
-        result = await cli.kernel.runCapability('repoMemory', {
-          action: 'ingest',
-          sourceType: 'github',
-          repoUrl: sanitizeInput(String(data.repoUrl || data.url || ''), 512),
-          branch: sanitizeInput(String(data.branch || ''), 128) || 'main',
-          paths: Array.isArray(data.paths) ? data.paths.slice(0, 200) : undefined,
-        });
-      } else if (sourceType === 'markdown') {
-        result = await cli.kernel.runCapability('repoMemory', {
-          action: 'ingest',
-          sourceType: 'markdown',
-          path: String(data.path || data.targetPath || ''),
-        });
-      } else if (sourceType === 'manual' || sourceType === 'manuel') {
-        result = await cli.kernel.runCapability('companyBrain', {
-          action: 'manual',
-          sourceType: 'manual',
-          text: sanitizeInput(String(data.text || ''), 4000),
-          author: sanitizeInput(String(data.author || data.yazar || 'unknown'), 128),
-          date: sanitizeInput(String(data.date || ''), 32),
-        });
-      } else if (sourceType === 'decision' || sourceType === 'karar') {
-        result = await cli.kernel.runCapability('companyBrain', {
-          action: 'decision',
-          sourceType: 'decision',
-          title: sanitizeInput(String(data.title || data.baslik || ''), 512),
-          rationale: sanitizeInput(String(data.rationale || data.gerekce || ''), 4000),
-          decidedBy: sanitizeInput(String(data.decidedBy || data.author || data.yazar || 'unknown'), 128),
-          date: sanitizeInput(String(data.date || ''), 32),
-          alternatives: Array.isArray(data.alternatives) ? data.alternatives.slice(0, 20).map(item => sanitizeInput(String(item), 512)) : [],
-          links: Array.isArray(data.links) ? data.links.slice(0, 50).map(item => sanitizeInput(String(item), 512)) : [],
-        });
-      } else {
-        writeJson(req, res, 400, { error: 'sourceType must be one of github|markdown|manual|decision' });
-        return;
-      }
+      const result = await handleIngest({
+        kernel: cli.kernel,
+        data,
+        ensureRuntime: ensureCompanyRuntime,
+      });
 
       if (!result || result.ok === false) {
         writeJson(req, res, 400, result || { error: 'ingest failed' });
