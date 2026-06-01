@@ -140,12 +140,33 @@ async function parseJsonRequest(req, res, options = {}) {
 
 // Graf verisini D3 formatÄ±na dÃ¶nÃ¼ÅŸtÃ¼r
 function getGraphData() {
-  const nodes = Object.values(cli.kernel.graph._nodes).map(n => ({
-    id: n.id,
-    label: n.label,
-    weight: n.weight,
-    edgeCount: cli.kernel.graph.getEdges(n.id).length,
-  }));
+  const nodeEdges = new Map();
+  for (const edge of cli.kernel.graph._edges) {
+    if (!nodeEdges.has(edge.from)) nodeEdges.set(edge.from, []);
+    if (!nodeEdges.has(edge.to)) nodeEdges.set(edge.to, []);
+    nodeEdges.get(edge.from).push(edge);
+    nodeEdges.get(edge.to).push(edge);
+  }
+
+  const nodes = Object.values(cli.kernel.graph._nodes).map(n => {
+    const edges = nodeEdges.get(n.id) || [];
+    const sources = [...new Set(edges.map(e => e.source || e.source_type || 'manual').filter(Boolean))].slice(0, 3);
+    const confidence = edges.length > 0
+      ? edges.reduce((max, e) => Math.max(max, Number(e.confidence ?? e.weight ?? 0.5)), 0)
+      : Number(n.weight ?? 0.5);
+    const evidenceCount = edges.reduce((sum, e) => sum + (Array.isArray(e.evidence) ? e.evidence.length : 0), 0);
+    return {
+      id: n.id,
+      label: n.label,
+      weight: n.weight,
+      edgeCount: cli.kernel.graph.getEdges(n.id).length,
+      confidence,
+      sources,
+      evidenceCount,
+      last_seen: n.last_seen || n.lastSeen || '',
+      created_at: n.created_at || '',
+    };
+  });
 
   // Ã‡ok fazla node varsa en aÄŸÄ±rlÄ±klÄ± 150'yi al
   const MAX_NODES = 150;
@@ -160,6 +181,15 @@ function getGraphData() {
       target: e.to,
       relation: e.relation,
       weight: e.weight,
+      confidence: e.confidence ?? e.weight ?? 0.5,
+      sourceType: e.source_type || '',
+      source: e.source || 'manual',
+      sourceRef: e.source_ref || '',
+      evidenceCount: Array.isArray(e.evidence) ? e.evidence.length : 0,
+      evidence: Array.isArray(e.evidence) ? e.evidence.slice(0, 2) : [],
+      updatedAt: e.updated_at || '',
+      createdAt: e.created_at || '',
+      sessionId: e.session_id || '',
     }));
 
   return { nodes: topNodes, links };

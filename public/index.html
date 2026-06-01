@@ -1,257 +1,460 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AXIOM</title>
-<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"><\/script>
+<title>AXIOM — Productization & Shield</title>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
-body{background:#0a0a0f;color:#e0e0e0;height:100vh;display:flex;flex-direction:column;overflow:hidden}
-.header{background:linear-gradient(135deg,#1a1a2e,#16213e);padding:12px 20px;border-bottom:1px solid #2a2a4a;display:flex;align-items:center;gap:12px;flex-shrink:0}
-.header h1{font-size:18px;font-weight:700;background:linear-gradient(90deg,#00d4ff,#7b2ff7);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.header span{color:#555;font-size:12px}
-.tabs{display:flex;gap:0;border-bottom:1px solid #2a2a4a;flex-shrink:0;background:#0f0f1a}
-.tab{padding:8px 20px;font-size:13px;cursor:pointer;color:#666;border-bottom:2px solid transparent;transition:all 0.2s;user-select:none}
-.tab.active{color:#00d4ff;border-bottom-color:#00d4ff}
-.tab:hover{color:#aaa}
-.panel{flex:1;display:none;overflow:hidden;flex-direction:column}
-.panel.active{display:flex}
+:root{
+  --bg:#080a12;
+  --panel:#111523;
+  --panel-2:#0e1220;
+  --line:#262d42;
+  --line-2:#2f3a56;
+  --text:#e9ebff;
+  --muted:#8e95b5;
+  --accent:#69d7ff;
+  --accent-2:#9d68ff;
+  --good:#67d39a;
+  --warn:#ffbf69;
+  --bad:#ff6b86;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:radial-gradient(circle at top,#11162a 0,#080a12 45%,#05070d 100%);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;overflow:hidden}
+body{display:flex;flex-direction:column}
+.header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px;border-bottom:1px solid var(--line);background:linear-gradient(135deg,rgba(17,21,35,.96),rgba(9,11,18,.96));backdrop-filter:blur(16px)}
+.brand{display:flex;flex-direction:column;gap:4px}
+.brand h1{margin:0;font-size:20px;line-height:1.1;letter-spacing:.02em;background:linear-gradient(90deg,var(--accent),var(--accent-2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.brand .subtitle{font-size:12px;color:var(--muted)}
+.header-stats{font-size:12px;color:var(--muted);text-align:right}
+.tabs{display:flex;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line);background:rgba(7,9,15,.9);overflow-x:auto;flex-shrink:0}
+.tab{padding:10px 14px;border:1px solid transparent;border-radius:999px;background:rgba(17,21,35,.7);color:var(--muted);font-size:13px;white-space:nowrap;cursor:pointer;transition:all .18s ease}
+.tab:hover{color:var(--text);border-color:var(--line-2)}
+.tab.active{color:var(--text);border-color:rgba(105,215,255,.45);background:linear-gradient(180deg,rgba(30,38,60,.98),rgba(16,20,32,.98));box-shadow:0 0 0 1px rgba(157,104,255,.1) inset}
+.panel{display:none;flex:1;min-height:0;overflow:hidden}
+.panel.active{display:flex;flex-direction:column}
 .panel.scrollable{overflow:auto}
-
-.dashboard{padding:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
-.metric{background:#12121d;border:1px solid #24243a;border-radius:12px;padding:14px}
-.metric .label{font-size:11px;color:#7c7c94;text-transform:uppercase;letter-spacing:.08em}
-.metric .value{font-size:26px;font-weight:700;color:#f2f2ff;margin-top:6px}
-.metric .sub{font-size:12px;color:#aaa;margin-top:4px;line-height:1.4}
-.progress-wrap{margin-top:10px;background:#1a1a28;border:1px solid #2a2a44;border-radius:999px;height:10px;overflow:hidden}
-.progress-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#00d4ff,#7b2ff7)}
-.progress-meta{display:flex;justify-content:space-between;gap:8px;margin-top:6px;font-size:11px;color:#8f8fb0}
-.phase-list{padding:0 16px 16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
-.phase-card{background:#11111b;border:1px solid #25253a;border-radius:14px;padding:14px}
-.phase-card.done{border-color:#1f6f49}
-.phase-card.in_progress{border-color:#956b1f}
-.phase-card.pending{border-color:#2a2a44}
-.phase-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
-.phase-title{font-weight:700;color:#f0f0ff}
-.phase-badge{font-size:11px;padding:3px 8px;border-radius:999px;background:#222239;color:#bdbdd6}
-.phase-card.done .phase-badge{background:#123624;color:#7dffb1}
-.phase-card.in_progress .phase-badge{background:#3a2a12;color:#ffd28a}
-.phase-card.pending .phase-badge{background:#1a1a28;color:#a6a6bf}
-.phase-summary{font-size:12px;color:#c0c0d8;line-height:1.5;margin-bottom:10px}
-.phase-items{margin:0;padding-left:18px;font-size:12px;color:#9aa0c3;line-height:1.6}
-.phase-items li{margin:4px 0}
-
-/* Chat panel */
-.chat{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:6px}
-.msg{max-width:80%;padding:9px 14px;border-radius:10px;font-size:13px;line-height:1.5;animation:fadeIn 0.2s ease}
-.msg.user{background:#1a3a5c;align-self:flex-end;border-bottom-right-radius:3px}
-.msg.system{background:#1a1a2e;align-self:flex-start;border-bottom-left-radius:3px;color:#aaa}
-.msg.highlight{border-left:3px solid #7b2ff7;background:#1a1a2e}
-.msg.ok{border-left:3px solid #00c853}
-.msg.warn{border-left:3px solid #ff9800}
+.shell{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,.95fr);gap:14px;padding:14px;min-height:0;flex:1}
+.card{background:linear-gradient(180deg,rgba(17,21,35,.98),rgba(12,15,25,.98));border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 12px 30px rgba(0,0,0,.28)}
+.hero{display:flex;flex-direction:column;gap:12px}
+.hero h2{margin:0;font-size:24px;line-height:1.15}
+.hero p{margin:0;color:var(--muted);font-size:13px;line-height:1.6}
+.hero-actions{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:rgba(9,12,20,.8);color:var(--text);border-radius:999px;padding:8px 12px;font-size:12px;cursor:pointer;transition:all .18s ease}
+.chip:hover{border-color:rgba(105,215,255,.55);transform:translateY(-1px)}
+.dashboard{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.metric{background:rgba(10,13,22,.92);border:1px solid var(--line);border-radius:14px;padding:12px}
+.metric .label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.metric .value{margin-top:6px;font-size:22px;font-weight:700;color:var(--text);line-height:1.1}
+.metric .sub{margin-top:4px;font-size:12px;color:var(--muted);line-height:1.5}
+.progress-wrap{margin-top:8px;height:10px;border-radius:999px;background:#1a2030;overflow:hidden;border:1px solid #2c3550}
+.progress-fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+.progress-meta{display:flex;justify-content:space-between;gap:10px;margin-top:6px;font-size:11px;color:var(--muted)}
+.chat{min-height:0;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-right:4px}
+.msg{max-width:86%;padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.5;animation:fadeIn .16s ease}
+.msg.user{align-self:flex-end;background:rgba(58,92,150,.42);border:1px solid rgba(105,215,255,.18)}
+.msg.system{align-self:flex-start;background:rgba(18,21,35,.96);border:1px solid var(--line);color:#d7dcf8}
+.msg.ok{border-left:3px solid var(--good)}
+.msg.warn{border-left:3px solid var(--warn)}
+.msg.highlight{border-left:3px solid var(--accent-2)}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-.input-bar{display:flex;padding:10px 16px;background:#0f0f1a;border-top:1px solid #2a2a4a;gap:8px;flex-shrink:0}
-.input-bar input{flex:1;padding:9px 14px;border-radius:7px;border:1px solid #2a2a4a;background:#1a1a2e;color:#e0e0e0;font-size:13px;outline:none;transition:border-color 0.2s}
-.input-bar input:focus{border-color:#7b2ff7}
-.input-bar button{padding:9px 18px;border-radius:7px;border:none;background:linear-gradient(90deg,#00d4ff,#7b2ff7);color:white;font-weight:600;font-size:13px;cursor:pointer;transition:opacity 0.2s}
-.input-bar button:hover{opacity:0.85}
-
-/* Graph panel */
-#graph-panel{position:relative;background:#070710}
+.input-bar{display:flex;gap:10px;padding-top:10px;flex-shrink:0}
+.input-bar input{flex:1;min-width:0;background:rgba(9,12,20,.92);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13px;outline:none}
+.input-bar input:focus{border-color:rgba(105,215,255,.55);box-shadow:0 0 0 3px rgba(105,215,255,.08)}
+.input-bar button{border:none;border-radius:12px;padding:0 18px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#fff;font-weight:700;cursor:pointer}
+.input-bar button:hover{filter:brightness(1.06)}
+.stack{display:flex;flex-direction:column;gap:14px;min-height:0}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,.8fr);gap:14px}
+.story-list{display:grid;gap:10px}
+.story-item{padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:rgba(9,12,20,.92)}
+.story-item strong{display:block;font-size:13px;margin-bottom:4px}
+.story-item span{font-size:12px;color:var(--muted);line-height:1.5}
+.legend{display:flex;flex-wrap:wrap;gap:8px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;font-size:12px;border:1px solid var(--line);background:rgba(9,12,20,.8)}
+.dot{width:8px;height:8px;border-radius:50%}
+.dot.graph{background:var(--good)}
+.dot.llm{background:var(--accent)}
+.dot.unsupported{background:var(--warn)}
+.dot.contradicted{background:var(--bad)}
+.conflict-feed{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.conflict-card{padding:14px;border-radius:16px;background:rgba(10,13,22,.95);border:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.conflict-card.contradicted{border-color:rgba(255,107,134,.5);box-shadow:0 0 0 1px rgba(255,107,134,.09) inset}
+.conflict-card.stale{opacity:.72}
+.conflict-card.low{border-style:dashed}
+.conflict-card h3{margin:0;font-size:14px}
+.conflict-card p{margin:0;color:var(--muted);font-size:12px;line-height:1.55}
+.conflict-tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-size:11px;padding:4px 8px;border-radius:999px;background:#151c2b;border:1px solid var(--line);color:#cfd5f7}
+.tag.bad{background:rgba(255,107,134,.08);border-color:rgba(255,107,134,.35);color:#ffd2db}
+.tag.warn{background:rgba(255,191,105,.08);border-color:rgba(255,191,105,.35);color:#ffe4b3}
+.tag.good{background:rgba(103,211,154,.08);border-color:rgba(103,211,154,.35);color:#cff4df}
+#graph-panel{position:relative;background:#070910}
 #graph-svg{width:100%;height:100%}
-.graph-controls{position:absolute;top:12px;right:12px;display:flex;flex-direction:column;gap:6px}
-.graph-controls button{padding:6px 12px;border-radius:6px;border:1px solid #2a2a4a;background:#1a1a2e;color:#aaa;font-size:12px;cursor:pointer;transition:all 0.2s}
-.graph-controls button:hover{background:#2a2a4a;color:#e0e0e0}
-.graph-info{position:absolute;bottom:12px;left:12px;background:rgba(10,10,15,0.85);border:1px solid #2a2a4a;border-radius:8px;padding:10px 14px;font-size:12px;color:#888;min-width:160px;display:none}
+.graph-controls{position:absolute;top:14px;right:14px;display:flex;flex-direction:column;gap:8px}
+.graph-controls button{padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:rgba(15,18,30,.92);color:var(--muted);cursor:pointer}
+.graph-controls button:hover{color:var(--text);border-color:rgba(105,215,255,.4)}
+.graph-info{position:absolute;left:14px;bottom:14px;max-width:320px;background:rgba(8,10,18,.92);border:1px solid var(--line);border-radius:14px;padding:12px;display:none;box-shadow:0 12px 30px rgba(0,0,0,.28)}
 .graph-info.visible{display:block}
-.graph-info strong{color:#e0e0e0;display:block;margin-bottom:4px;font-size:13px}
-.graph-info .edge-list{margin-top:6px;max-height:120px;overflow-y:auto}
-.graph-info .edge-item{color:#7b2ff7;font-size:11px;padding:1px 0}
-.graph-stats{position:absolute;top:12px;left:12px;background:rgba(10,10,15,0.7);border:1px solid #1a1a2e;border-radius:6px;padding:6px 10px;font-size:11px;color:#555}
-
-/* D3 styles */
-.node circle{stroke-width:1.5;cursor:pointer;transition:r 0.2s}
-.node text{font-size:10px;fill:#888;pointer-events:none;text-anchor:middle;dominant-baseline:central}
-.node:hover text{fill:#e0e0e0}
-.link{stroke-opacity:0.4;stroke-width:1}
-.link.tÃƒÂ¼r{stroke:#7b2ff7}
-.link.yapabilir{stroke:#00d4ff}
-.link.benzer{stroke:#00c853}
-.link.ÃƒÂ¶zellik{stroke:#ff9800}
-.link.hipotez{stroke:#ff5722;stroke-dasharray:4,2}
+.graph-info strong{display:block;margin-bottom:6px;font-size:14px}
+.graph-info .meta{font-size:12px;color:var(--muted);line-height:1.5}
+.graph-info .edge-list{margin-top:8px;display:grid;gap:4px;max-height:150px;overflow-y:auto}
+.graph-info .edge-item{font-size:11px;color:#cfd5f7}
+.graph-stats{position:absolute;top:14px;left:14px;padding:8px 12px;border-radius:12px;background:rgba(8,10,18,.72);border:1px solid rgba(255,255,255,.06);font-size:11px;color:var(--muted)}
+.node circle{stroke-width:1.5;cursor:pointer;transition:transform .2s ease, opacity .2s ease, stroke .2s ease, fill .2s ease}
+.node text{font-size:10px;fill:#99a0c4;pointer-events:none;text-anchor:middle;dominant-baseline:central}
+.node:hover text{fill:var(--text)}
+.node.contradicted circle{stroke:var(--bad);stroke-width:2.4;fill:rgba(255,107,134,.12)}
+.node.stale circle{opacity:.45}
+.node.low-confidence circle{stroke-dasharray:4 3}
+.link{stroke-opacity:.46;stroke-width:1.05}
+.link.tur{stroke:#9d68ff}
+.link.yapabilir{stroke:#69d7ff}
+.link.benzer{stroke:#67d39a}
+.link.ozellik{stroke:#ffbf69}
+.link.hipotez{stroke:#ff9a5f;stroke-dasharray:4 2}
+.link.degil{stroke:#ff6b86;stroke-dasharray:6 3}
+.link.low-confidence{stroke-opacity:.24}
+.link.contradicted{stroke-width:1.8}
+@media (max-width: 980px){
+  body{overflow:auto}
+  .shell,.split{grid-template-columns:1fr}
+  #graph-panel{min-height:70vh}
+}
 </style>
 </head>
 <body>
-<div class="header">
-  <h1>Ã¢â€”â€¡ AXIOM</h1>
-  <span id="hdr-stats">yÃƒÂ¼kleniyor...</span>
-</div>
-<div class="tabs">
-  <div class="tab active" onclick="switchTab('chat')">Sohbet</div>
-  <div class="tab" onclick="switchTab('graph')">Graf</div>
-  <div class="tab" onclick="switchTab('status')">V2 Durumu</div>
-</div>
-
-<div class="panel active" id="chat-panel">
-  <div class="chat" id="chat"></div>
-  <div class="input-bar">
-    <input id="input" placeholder="ÃƒÂ¶Ã„Å¸ret: / sor: / llm-sor: / yÃƒÂ¼kle: dosya.txt" autofocus maxlength="500" />
-    <button onclick="send()">GÃƒÂ¶nder</button>
+<header class="header">
+  <div class="brand">
+    <h1>AXIOM</h1>
+    <div class="subtitle">AXIOM cevap vermez. Düşünceni yargılar.</div>
   </div>
-</div>
+  <div class="header-stats" id="hdr-stats">yükleniyor...</div>
+</header>
 
-<div class="panel" id="graph-panel">
+<nav class="tabs">
+  <button class="tab active" data-tab="judge">Fikrini Yargılat</button>
+  <button class="tab" data-tab="advocate">Şeytan'ın Avukatı</button>
+  <button class="tab" data-tab="conflicts">Geçmiş Çelişkiler</button>
+  <button class="tab" data-tab="graph">Hafıza / Graph</button>
+</nav>
+
+<section class="panel active" id="judge-panel">
+  <div class="shell">
+    <div class="stack">
+      <div class="card hero">
+        <h2>Fikrini yargılat</h2>
+        <p>Bir iddia yaz, AXIOM graf ile doğrulasın. Bilmediğini uydurmasın, bildiğini ayırıp sonucu açıkça raporlasın.</p>
+        <div class="hero-actions">
+          <button class="chip" data-preset="öğret: kedi hayvandır">Öğret</button>
+          <button class="chip" data-preset="sor: kedi nedir">Sor</button>
+          <button class="chip" data-preset="llm-sor: kedi neden uyur?">LLM sor</button>
+          <button class="chip" data-preset="yukle: notlar.md">Yükle</button>
+        </div>
+      </div>
+      <div class="dashboard" id="judge-dashboard"></div>
+      <div class="card">
+        <div class="chat" id="judge-chat"></div>
+        <div class="input-bar">
+          <input id="judge-input" placeholder="öğret:, sor:, llm-sor:, yükle: ..." maxlength="500" />
+          <button id="judge-send">Gönder</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="stack">
+      <div class="card">
+        <strong style="display:block;font-size:14px;margin-bottom:8px">Anlamlı çıktı</strong>
+        <div class="story-list">
+          <div class="story-item"><strong>graph-backed</strong><span>Bilgi graf üzerinde doğrulanıyor.</span></div>
+          <div class="story-item"><strong>llm-assisted</strong><span>LLM destekli ama AXIOM bunu etiketliyor.</span></div>
+          <div class="story-item"><strong>unsupported</strong><span>Graf bilmiyor; uydurma yok.</span></div>
+          <div class="story-item"><strong>contradicted</strong><span>Graf ile çelişen cevaplar otomatik öğrenilmez.</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <strong style="display:block;font-size:14px;margin-bottom:8px">Hızlı eylemler</strong>
+        <div class="story-list">
+          <div class="story-item"><strong>Şeytan'ın Avukatı</strong><span>Bir fikri en güçlü karşı argümanla zorla.</span></div>
+          <div class="story-item"><strong>Geçmiş Çelişkiler</strong><span>Eski kararları ve zayıf kanıtları takip et.</span></div>
+          <div class="story-item"><strong>Hafıza / Graph</strong><span>Düğümler, kenarlar ve kanıt zinciri tek ekranda.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="panel" id="advocate-panel">
+  <div class="shell" style="grid-template-columns:1.2fr .8fr">
+    <div class="card">
+      <h2 style="margin:0 0 8px;font-size:22px">Şeytan'ın Avukatı</h2>
+      <p style="margin:0 0 14px;color:var(--muted);font-size:13px;line-height:1.6">
+        Amaç cevap vermek değil, fikri zorlamak. En iyi karşı argümanı üretmek için grafı kullan; graf zayıfsa bunu açıkça söyle.
+      </p>
+      <div class="legend" style="margin-bottom:14px">
+        <span class="pill"><span class="dot graph"></span>graph-backed</span>
+        <span class="pill"><span class="dot llm"></span>llm-assisted</span>
+        <span class="pill"><span class="dot unsupported"></span>unsupported</span>
+        <span class="pill"><span class="dot contradicted"></span>contradicted</span>
+      </div>
+      <div class="story-list">
+        <div class="story-item"><strong>Örnek</strong><span>tartış: AXIOM motor değil ana ürün olmalı</span></div>
+        <div class="story-item"><strong>Örnek</strong><span>çelişki: önceki karar ile yeni hedef çelişiyor mu?</span></div>
+        <div class="story-item"><strong>Örnek</strong><span>tartış: bu karar hangi kanıtla destekleniyor?</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <strong style="display:block;font-size:14px;margin-bottom:10px">Hazır sorgular</strong>
+      <div class="story-list">
+        <button class="chip" data-preset="tartış: AXIOM motor değil ana ürün olmalı">Motor değil</button>
+        <button class="chip" data-preset="tartış: bu repo neden var?">Repo amacı</button>
+        <button class="chip" data-preset="tartış: bu karar hangi kanıta dayanıyor?">Karar dayanağı</button>
+        <button class="chip" data-preset="çelişki: önceki karar ile bu karar uyumlu mu?">Çelişki sorgusu</button>
+      </div>
+      <div class="story-item" style="margin-top:12px">
+        <strong>Çalışma kuralı</strong>
+        <span>Unsupported veya contradicted çıktılar otomatik öğrenmeye gitmez. AXIOM bunu saklar, etiketler ve kullanıcıya açıkça gösterir.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="panel scrollable" id="conflicts-panel">
+  <div class="shell" style="grid-template-columns:1fr">
+    <div class="card">
+      <h2 style="margin:0 0 8px;font-size:22px">Geçmiş çelişkiler</h2>
+      <p style="margin:0;color:var(--muted);font-size:13px;line-height:1.6">
+        Graph verisinden türetilen çoklu-tür, negasyon, düşük güven ve eski düğüm sinyalleri burada görünür. Bu ekran ürün yüzünde “neden” sorusuna cevap vermek için var.
+      </p>
+    </div>
+    <div class="dashboard" id="conflict-dashboard"></div>
+    <div class="conflict-feed" id="conflict-feed"></div>
+  </div>
+</section>
+
+<section class="panel" id="graph-panel">
   <svg id="graph-svg"></svg>
   <div class="graph-stats" id="graph-stats"></div>
   <div class="graph-controls">
-    <button onclick="loadGraph()">Ã¢â€ Âº Yenile</button>
-    <button onclick="resetZoom()">Ã¢Å â„¢ SÃ„Â±fÃ„Â±rla</button>
-    <button onclick="toggleLabels()">ÄŸÅ¸ÂÂ· Etiket</button>
+    <button id="graph-refresh">Yenile</button>
+    <button id="graph-reset">Sıfırla</button>
+    <button id="graph-labels">Etiket</button>
   </div>
   <div class="graph-info" id="graph-info">
     <strong id="info-title"></strong>
-    <div id="info-weight"></div>
+    <div class="meta" id="info-meta"></div>
     <div class="edge-list" id="info-edges"></div>
   </div>
-</div>
-
-<div class="panel scrollable" id="status-panel">
-  <div class="dashboard" id="status-dashboard"></div>
-  <div class="phase-list" id="status-phases"></div>
-</div>
+</section>
 
 <script>
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Tab yÃƒÂ¶netimi Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+const tabs = Array.from(document.querySelectorAll('.tab'));
+const panels = {
+  judge: document.getElementById('judge-panel'),
+  advocate: document.getElementById('advocate-panel'),
+  conflicts: document.getElementById('conflicts-panel'),
+  graph: document.getElementById('graph-panel'),
+};
+
+let graphData = { nodes: [], links: [] };
+let simulation = null;
+let svg = null;
+let g = null;
+let showLabels = true;
+let currentTransform = d3.zoomIdentity;
+
+function normalizeText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function relationKey(value) {
+  return normalizeText(value);
+}
+
+function endpointId(value) {
+  if (value && typeof value === 'object') return value.id || value.name || '';
+  return String(value || '');
+}
+
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 function switchTab(name) {
-  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['chat','graph','status'][i]===name));
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.getElementById(name+'-panel').classList.add('active');
+  tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  Object.entries(panels).forEach(([key, panel]) => panel.classList.toggle('active', key === name));
   if (name === 'graph') loadGraph();
-  if (name === 'status') loadStatus();
+  if (name === 'conflicts') loadConflicts();
+  if (name === 'judge') loadStatus();
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Chat Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-const chat = document.getElementById('chat');
-const input = document.getElementById('input');
+tabs.forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
 
-function escapeHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-function addMsg(text, cls) {
-  const d = document.createElement('div');
-  d.className = 'msg ' + cls;
-  d.innerHTML = escapeHtml(text).replace(/\\n/g,'<br>');
-  chat.appendChild(d);
+function addMessage(text, kind = 'system') {
+  const chat = document.getElementById('judge-chat');
+  if (!chat) return;
+  const div = document.createElement('div');
+  div.className = `msg ${kind}`;
+  div.innerHTML = escapeHtml(text).replace(/\n/g, '<br>');
+  chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
 }
 
-addMsg('HoÃ…Å¸ geldin. Bana bir Ã…Å¸ey ÃƒÂ¶Ã„Å¸ret veya Graf sekmesine geÃƒÂ§.', 'system');
+function queuePrompt(prompt) {
+  const input = document.getElementById('judge-input');
+  if (!input) return;
+  input.value = prompt;
+  switchTab('judge');
+  input.focus();
+}
 
-async function send() {
-  const val = input.value.trim();
-  if (!val) return;
-  input.value = '';
-  addMsg(val, 'user');
+async function runPrompt(value) {
+  const input = document.getElementById('judge-input');
+  const raw = typeof value === 'string' ? value : input.value.trim();
+  if (!raw) return;
+  if (input) input.value = '';
+  addMessage(raw, 'user');
   try {
-    const r = await fetch('/api?' + new URLSearchParams({q: val}));
-    if (r.status === 429) { addMsg('Ã¢ÂÂ³ Ãƒâ€¡ok fazla istek.', 'system'); return; }
-    if (!r.ok) { addMsg('Ã¢ÂÅ’ Sunucu hatasÃ„Â±', 'system'); return; }
-    const data = await r.json();
+    const res = await fetch('/api?' + new URLSearchParams({ q: raw }));
+    if (res.status === 429) {
+      addMessage('Çok fazla istek.', 'system warn');
+      return;
+    }
+    if (!res.ok) {
+      addMessage('Sunucu hatası.', 'system warn');
+      return;
+    }
+    const data = await res.json();
     let cls = 'system';
-    if (data.result.startsWith('ÄŸÅ¸â€™Â­') || data.result.startsWith('ÄŸÅ¸â€œÅ ')) cls = 'system highlight';
-    else if (data.result.startsWith('Ã¢Å“â€¦')) cls = 'system ok';
-    else if (data.result.startsWith('Ã¢Å¡Â ')) cls = 'system warn';
-    addMsg(data.result, cls);
-    updateStats();
-  } catch(e) {
-    addMsg('Ã¢ÂÅ’ BaÃ„Å¸lantÃ„Â± hatasÃ„Â±', 'system');
+    if (typeof data.result === 'string' && data.result.startsWith('✅')) cls = 'system ok';
+    else if (typeof data.result === 'string' && data.result.startsWith('⚠')) cls = 'system warn';
+    else if (typeof data.result === 'string' && (data.result.startsWith('❗') || data.result.startsWith('❌'))) cls = 'system highlight';
+    addMessage(String(data.result || ''), cls);
+    await updateHeaderStats();
+  } catch (err) {
+    addMessage('Bağlantı hatası.', 'system warn');
   }
 }
 
-input.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+document.getElementById('judge-send').addEventListener('click', () => runPrompt());
+document.getElementById('judge-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') runPrompt();
+});
+document.querySelectorAll('[data-preset]').forEach(btn => {
+  btn.addEventListener('click', () => queuePrompt(btn.dataset.preset));
+});
+document.getElementById('graph-refresh').addEventListener('click', loadGraph);
+document.getElementById('graph-reset').addEventListener('click', resetZoom);
+document.getElementById('graph-labels').addEventListener('click', toggleLabels);
 
-async function updateStats() {
+addMessage('Hoş geldin. Fikrini yaz veya bir hazır sorgu seç.', 'system');
+
+async function updateHeaderStats() {
   try {
-    const r = await fetch('/graph-data');
-    const d = await r.json();
-    document.getElementById('hdr-stats').textContent = d.nodes.length + ' dÃƒÂ¼Ã„Å¸ÃƒÂ¼m Ã‚Â· ' + d.links.length + ' kenar';
-  } catch(_) {}
+    const [graphRes, statusRes] = await Promise.all([
+      fetch('/graph-data'),
+      fetch('/v2-status'),
+    ]);
+    const graph = await graphRes.json();
+    const status = await statusRes.json();
+    graphData = graph;
+    document.getElementById('hdr-stats').textContent =
+      `${graph.nodes.length} düğüm · ${graph.links.length} kenar · ${status.version || 'v?'}`;
+    renderJudgeDashboard(status);
+  } catch (_) {}
 }
-updateStats();
+
+function renderJudgeDashboard(status) {
+  const target = document.getElementById('judge-dashboard');
+  if (!target) return;
+  const agentV3 = status.agentV3Status || {};
+  const lastPlan = agentV3.lastPlan || null;
+  const lastRun = agentV3.lastRun || null;
+  target.innerHTML = [
+    card('Sürüm', `${escapeHtml(status.version || '?')}`, `Contract: ${escapeHtml(status.contractVersion || '?')}`),
+    card('Kernel', `${escapeHtml(status.activeKernel || '?')}`, `Backend: ${escapeHtml(status.backend || '?')} · ${status.nodes || 0} node / ${status.edges || 0} edge`),
+    card('Agent V3', `${agentV3.goals || 0} hedef`, `${agentV3.runs || 0} çalışma · ${agentV3.checkpoints || 0} kontrol noktası`),
+    card('Test', `${escapeHtml(status.testStatus || '?')}`, `Son commit: ${escapeHtml(status.lastCommit || '?')}`),
+    card('Odak', `${escapeHtml(status.currentFocus || '?')}`, `${escapeHtml(status.nextAction || '?')}`),
+    card('Güncelleme', 'canlı', `${escapeHtml(status.updatedAt || '?')}`),
+  ].join('');
+
+  if (lastPlan || lastRun) {
+    const extra = document.createElement('div');
+    extra.className = 'story-item';
+    extra.innerHTML = `<strong>Son çalışma</strong><span>${escapeHtml(lastPlan ? `${lastPlan.goal || '?'} · ${lastPlan.steps || 0} adım` : '')}${lastPlan && lastRun ? '<br>' : ''}${escapeHtml(lastRun ? `${lastRun.goal || '?'} · ${lastRun.completedSteps || 0} adım · ${lastRun.status || '?'}` : '')}</span>`;
+    target.appendChild(extra);
+  }
+}
+
+function card(label, value, sub) {
+  return `<div class="metric"><div class="label">${escapeHtml(label)}</div><div class="value">${escapeHtml(value)}</div><div class="sub">${escapeHtml(sub)}</div></div>`;
+}
 
 async function loadStatus() {
   try {
-    const r = await fetch('/v2-status');
-    const d = await r.json();
-    renderStatus(d);
-  } catch (_) {
-    const dashboard = document.getElementById('status-dashboard');
-    const phases = document.getElementById('status-phases');
-    if (dashboard) {
-      dashboard.innerHTML = '<div class="metric"><div class="label">Hata</div><div class="value">Ã¢â‚¬â€</div><div class="sub">Durum ekranÃ„Â± yÃƒÂ¼klenemedi.</div></div>';
-    }
-    if (phases) phases.innerHTML = '';
+    const res = await fetch('/v2-status');
+    const data = await res.json();
+    renderJudgeDashboard(data);
+  } catch (_) {}
+}
+
+function analyzeGraph(data) {
+  const outgoing = new Map();
+  const incident = new Map();
+  for (const node of data.nodes) {
+    outgoing.set(node.id, []);
+    incident.set(node.id, []);
   }
+  for (const link of data.links) {
+    const from = endpointId(link.source);
+    const to = endpointId(link.target);
+    if (!outgoing.has(from)) outgoing.set(from, []);
+    if (!incident.has(from)) incident.set(from, []);
+    if (!incident.has(to)) incident.set(to, []);
+    outgoing.get(from).push(link);
+    incident.get(from).push(link);
+    incident.get(to).push(link);
+  }
+
+  const now = Date.now();
+  data.nodes.forEach(node => {
+    const out = outgoing.get(node.id) || [];
+    const inc = incident.get(node.id) || [];
+    const typeCount = out.filter(link => relationKey(link.relation) === 'tur').length;
+    const negCount = out.filter(link => relationKey(link.relation) === 'degil').length;
+    const anyLow = (node.confidence ?? node.weight ?? 0.5) < 0.35 || [...out, ...inc].some(link => (link.confidence ?? link.weight ?? 0.5) < 0.35);
+    const stale = node.last_seen ? (now - Date.parse(node.last_seen) > 30 * 24 * 60 * 60 * 1000) : false;
+    node.__flags = {
+      contradiction: typeCount > 1 || (negCount > 0 && out.some(link => relationKey(link.relation) !== 'degil')),
+      lowConfidence: anyLow,
+      stale,
+    };
+  });
+
+  data.links.forEach(link => {
+    link.__flags = {
+      lowConfidence: (link.confidence ?? link.weight ?? 0.5) < 0.35,
+      contradiction: relationKey(link.relation) === 'degil',
+    };
+  });
 }
-
-function renderStatus(d) {
-  const dashboard = document.getElementById('status-dashboard');
-  const phases = document.getElementById('status-phases');
-  if (!dashboard || !phases) return;
-
-  const agentV3 = d.agentV3Status || null;
-  const lastPlan = agentV3 && agentV3.lastPlan ? agentV3.lastPlan : null;
-  const lastRun = agentV3 && agentV3.lastRun ? agentV3.lastRun : null;
-
-  dashboard.innerHTML =
-    '<div class="metric"><div class="label">SÃ¼rÃ¼m</div><div class="value">' + escapeHtml(d.version || '?') + '</div><div class="sub">Contract: ' + escapeHtml(d.contractVersion || '?') + '</div></div>' +
-    '<div class="metric"><div class="label">Kernel</div><div class="value">' + escapeHtml(d.activeKernel || '?') + '</div><div class="sub">Backend: ' + escapeHtml(d.backend || '?') + ' Â· ' + d.nodes + ' node / ' + d.edges + ' edge</div></div>' +
-    (agentV3 ? '<div class="metric"><div class="label">Agent V3</div><div class="value">' + agentV3.goals + ' hedef</div><div class="sub">' + agentV3.runs + ' Ã§alÄ±ÅŸma Â· ' + agentV3.checkpoints + ' kontrol noktasÄ±</div></div>' : '') +
-    (agentV3 && Number.isInteger(agentV3.pendingApprovals) ? '<div class="metric"><div class="label">Approval Queue</div><div class="value">' + agentV3.pendingApprovals + '</div><div class="sub">Bekleyen tool onaylarÄ±</div></div>' : '') +
-    (lastPlan ? '<div class="metric"><div class="label">Son Plan</div><div class="value">' + escapeHtml(lastPlan.goal || '?') + '</div><div class="sub">' + escapeHtml(String(lastPlan.steps || 0)) + ' adÄ±m</div></div>' : '') +
-    (lastRun ? '<div class="metric"><div class="label">Son Ã‡alÄ±ÅŸma</div><div class="value">' + escapeHtml(lastRun.status || '?') + '</div><div class="sub">' + escapeHtml(lastRun.goal || '?') + ' Â· ' + escapeHtml(String(lastRun.completedSteps || 0)) + ' adÄ±m</div></div>' : '') +
-    '<div class="metric"><div class="label">Test</div><div class="value">' + escapeHtml(d.testStatus || '?') + '</div><div class="sub">Son commit: ' + escapeHtml(d.lastCommit || '?') + '</div></div>' +
-    '<div class="metric"><div class="label">Fazlar</div><div class="value">' + d.counts.total + '</div><div class="sub">' + d.counts.done + ' tamam, ' + d.counts.in_progress + ' aktif, ' + d.counts.pending + ' bekliyor</div></div>' +
-    '<div class="metric"><div class="label">Ä°lerleme</div><div class="value">' + escapeHtml(String(d.progressPercent || 0)) + '%</div><div class="sub">' +
-      '<div class="progress-wrap"><div class="progress-fill" style="width:' + escapeHtml(String(d.progressPercent || 0)) + '%"></div></div>' +
-      '<div class="progress-meta"><span>' + escapeHtml(String(d.counts.done || 0)) + '/' + escapeHtml(String(d.counts.total || 0)) + ' faz</span><span>' + escapeHtml(String(d.remainingPhases || 0)) + ' kalan</span></div>' +
-    '</div></div>' +
-    '<div class="metric"><div class="label">Odak</div><div class="value">' + escapeHtml(d.currentFocus || '?') + '</div><div class="sub">' + escapeHtml(d.nextAction || '?') + '</div></div>' +
-    '<div class="metric"><div class="label">GÃ¼ncelleme</div><div class="value">canlÄ±</div><div class="sub">' + escapeHtml(d.updatedAt || '?') + '</div></div>';
-phases.innerHTML = (d.phases || []).map(phase => {
-    const badge = phase.status === 'done' ? 'TamamlandÃ„Â±' : phase.status === 'in_progress' ? 'Aktif' : 'Bekliyor';
-    const items = (phase.items || []).map(item => '<li>' + escapeHtml(item) + '</li>').join('');
-    return '<div class="phase-card ' + phase.status + '">' +
-      '<div class="phase-head">' +
-        '<div class="phase-title">' + escapeHtml(phase.title) + '</div>' +
-        '<div class="phase-badge">' + badge + '</div>' +
-      '</div>' +
-      '<div class="phase-summary">' + escapeHtml(phase.summary) + '</div>' +
-      '<ul class="phase-items">' + items + '</ul>' +
-    '</div>';
-  }).join('');
-}
-
-let simulation, svg, g, showLabels = true;
-let graphData = { nodes: [], links: [] };
-
-const RELATION_COLOR = {
-  'tÃƒÂ¼r': '#7b2ff7', 'yapabilir': '#00d4ff',
-  'benzer': '#00c853', 'ÃƒÂ¶zellik': '#ff9800',
-  'hipotez': '#ff5722', 'default': '#444'
-};
 
 async function loadGraph() {
   try {
-    const r = await fetch('/graph-data');
-    graphData = await r.json();
+    const res = await fetch('/graph-data');
+    graphData = await res.json();
+    analyzeGraph(graphData);
     renderGraph(graphData);
-    document.getElementById('graph-stats').textContent =
-      graphData.nodes.length + ' dÃƒÂ¼Ã„Å¸ÃƒÂ¼m Ã‚Â· ' + graphData.links.length + ' kenar';
-  } catch(e) {
-    console.error('Graf yÃƒÂ¼klenemedi:', e);
+    document.getElementById('graph-stats').textContent = `${graphData.nodes.length} düğüm · ${graphData.links.length} kenar`;
+  } catch (err) {
+    console.error('Graf yüklenemedi:', err);
   }
 }
 
@@ -261,120 +464,242 @@ function renderGraph(data) {
   const H = container.clientHeight || 600;
 
   d3.select('#graph-svg').selectAll('*').remove();
+  svg = d3.select('#graph-svg').attr('width', W).attr('height', H);
 
-  svg = d3.select('#graph-svg')
-    .attr('width', W).attr('height', H);
-
-  // Zoom
   const zoom = d3.zoom()
     .scaleExtent([0.1, 8])
-    .on('zoom', e => g.attr('transform', e.transform));
+    .on('zoom', e => {
+      currentTransform = e.transform;
+      g.attr('transform', e.transform);
+    });
   svg.call(zoom);
   window._axiomZoom = zoom;
   window._axiomSvg = svg;
 
   g = svg.append('g');
 
-  // Ã„Â°liÃ…Å¸ki tipine gÃƒÂ¶re renk
-  const relColor = r => RELATION_COLOR[r] || RELATION_COLOR.default;
+  const maxEdge = Math.max(1, ...data.nodes.map(n => n.edgeCount || 0));
+  const nodeRadius = node => 4 + ((node.edgeCount || 0) / maxEdge) * 12;
 
-  // Node bÃƒÂ¼yÃƒÂ¼klÃƒÂ¼Ã„Å¸ÃƒÂ¼: kenar sayÃ„Â±sÃ„Â±na gÃƒÂ¶re
-  const maxEdge = Math.max(1, ...data.nodes.map(n => n.edgeCount));
-  const nodeR = n => 4 + (n.edgeCount / maxEdge) * 12;
-
-  // Simulation
   simulation = d3.forceSimulation(data.nodes)
-    .force('link', d3.forceLink(data.links).id(d => d.id).distance(80).strength(0.3))
+    .force('link', d3.forceLink(data.links).id(d => d.id).distance(82).strength(0.3))
     .force('charge', d3.forceManyBody().strength(-120))
     .force('center', d3.forceCenter(W / 2, H / 2))
-    .force('collision', d3.forceCollide().radius(d => nodeR(d) + 4));
+    .force('collision', d3.forceCollide().radius(d => nodeRadius(d) + 4));
 
-  // Kenarlar
   const link = g.append('g').selectAll('line')
-    .data(data.links).join('line')
-    .attr('class', d => 'link ' + (d.relation || ''))
-    .attr('stroke', d => relColor(d.relation))
-    .attr('stroke-width', d => 0.5 + d.weight * 1.5)
-    .attr('stroke-opacity', 0.5);
+    .data(data.links)
+    .join('line')
+    .attr('class', d => {
+      const classes = ['link', relationKey(d.relation)];
+      if (d.__flags?.lowConfidence) classes.push('low-confidence');
+      if (d.__flags?.contradiction) classes.push('contradicted');
+      return classes.join(' ');
+    })
+    .attr('stroke', d => relationColor(d.relation))
+    .attr('stroke-width', d => 0.65 + ((d.confidence ?? d.weight ?? 0.5) * 1.25));
 
-  // DÃƒÂ¼Ã„Å¸ÃƒÂ¼mler
   const node = g.append('g').selectAll('g')
-    .data(data.nodes).join('g')
-    .attr('class', 'node')
+    .data(data.nodes)
+    .join('g')
+    .attr('class', d => {
+      const classes = ['node'];
+      if (d.__flags?.contradiction) classes.push('contradicted');
+      if (d.__flags?.stale) classes.push('stale');
+      if (d.__flags?.lowConfidence) classes.push('low-confidence');
+      return classes.join(' ');
+    })
     .call(d3.drag()
       .on('start', (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
-      .on('drag',  (e, d) => { d.fx = e.x; d.fy = e.y; })
-      .on('end',   (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+      .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
+      .on('end', (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
     )
-    .on('click', (e, d) => showNodeInfo(d));
+    .on('click', (_, d) => showNodeInfo(d));
 
   node.append('circle')
-    .attr('r', d => nodeR(d))
+    .attr('r', d => nodeRadius(d))
     .attr('fill', d => {
-      const edges = data.links.filter(l => l.source.id === d.id || l.source === d.id);
-      const hasTur = edges.some(l => l.relation === 'tÃƒÂ¼r');
-      if (hasTur) return '#2a1a4a';
-      if (d.edgeCount > 3) return '#1a2a3a';
-      return '#1a1a2e';
+      if (d.__flags?.contradiction) return 'rgba(255,107,134,.18)';
+      if (d.__flags?.stale) return 'rgba(120,125,160,.16)';
+      if ((d.confidence ?? d.weight ?? 0.5) < 0.35) return 'rgba(255,191,105,.14)';
+      return 'rgba(17,21,35,.95)';
     })
     .attr('stroke', d => {
-      if (d.edgeCount > 5) return '#7b2ff7';
-      if (d.edgeCount > 2) return '#00d4ff';
-      return '#2a2a4a';
+      if (d.__flags?.contradiction) return 'rgba(255,107,134,.95)';
+      if (d.__flags?.lowConfidence) return 'rgba(255,191,105,.85)';
+      if ((d.confidence ?? d.weight ?? 0.5) > 0.65) return 'rgba(105,215,255,.75)';
+      return '#2f3852';
     });
 
-  const label = node.append('text')
-    .text(d => d.label.length > 12 ? d.label.slice(0, 11) + 'Ã¢â‚¬Â¦' : d.label)
-    .attr('dy', d => nodeR(d) + 10)
+  const labels = node.append('text')
+    .text(d => d.label.length > 12 ? d.label.slice(0, 11) + '…' : d.label)
+    .attr('dy', d => nodeRadius(d) + 10)
     .style('display', showLabels ? 'block' : 'none');
 
   simulation.on('tick', () => {
     link
       .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
       .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
-    node.attr('transform', d => 'translate(' + d.x + ',' + d.y + ')');
+    node.attr('transform', d => `translate(${d.x},${d.y})`);
   });
 
-  // Etiket referansÃ„Â±nÃ„Â± sakla
-  window._axiomLabels = label;
+  window._axiomLabels = labels;
 }
 
-function showNodeInfo(d) {
+function relationColor(rel) {
+  const key = relationKey(rel);
+  const map = {
+    tur: '#9d68ff',
+    yapabilir: '#69d7ff',
+    benzer: '#67d39a',
+    ozellik: '#ffbf69',
+    hipotez: '#ff9a5f',
+    degil: '#ff6b86',
+  };
+  return map[key] || '#44506f';
+}
+
+function showNodeInfo(node) {
   const info = document.getElementById('graph-info');
-  document.getElementById('info-title').textContent = d.label;
-  document.getElementById('info-weight').textContent = 'aÃ„Å¸Ã„Â±rlÃ„Â±k: ' + d.weight.toFixed(2) + ' Ã‚Â· kenar: ' + d.edgeCount;
-  const edges = graphData.links.filter(l =>
-    (l.source.id || l.source) === d.id || (l.target.id || l.target) === d.id
-  );
+  const edges = graphData.links.filter(link => endpointId(link.source) === node.id || endpointId(link.target) === node.id);
+  const totalEvidence = edges.reduce((sum, link) => sum + (link.evidenceCount || 0), 0);
+  const sources = [...new Set(edges.map(link => link.source || link.sourceType || 'manual').filter(Boolean))];
+  document.getElementById('info-title').textContent = node.label;
+  document.getElementById('info-meta').innerHTML =
+    `Ağırlık: <strong>${Number(node.weight || 0).toFixed(2)}</strong><br>` +
+    `Güven: <strong>${Number(node.confidence || node.weight || 0).toFixed(2)}</strong><br>` +
+    `Kenar: <strong>${node.edgeCount || 0}</strong><br>` +
+    `Kanıt: <strong>${totalEvidence}</strong><br>` +
+    `Kaynak: <strong>${escapeHtml(sources.slice(0, 3).join(', ') || '—')}</strong><br>` +
+    `Son görülme: <strong>${escapeHtml(node.last_seen || '—')}</strong>`;
   const edgeList = document.getElementById('info-edges');
-  edgeList.innerHTML = edges.slice(0, 10).map(e => {
-    const from = e.source.id || e.source;
-    const to = e.target.id || e.target;
-    return '<div class="edge-item">' + escapeHtml(from) + ' Ã¢â€ â€™[' + escapeHtml(e.relation) + ']Ã¢â€ â€™ ' + escapeHtml(to) + '</div>';
+  edgeList.innerHTML = edges.slice(0, 10).map(edge => {
+    const from = endpointId(edge.source);
+    const to = endpointId(edge.target);
+    const label = `${from} —[${edge.relation}]→ ${to}`;
+    return `<div class="edge-item">${escapeHtml(label)}</div>`;
   }).join('');
   info.classList.add('visible');
 }
 
 function resetZoom() {
   if (window._axiomSvg && window._axiomZoom) {
-    window._axiomSvg.transition().duration(400)
-      .call(window._axiomZoom.transform, d3.zoomIdentity);
+    window._axiomSvg.transition().duration(350).call(window._axiomZoom.transform, d3.zoomIdentity);
   }
 }
 
 function toggleLabels() {
   showLabels = !showLabels;
-  if (window._axiomLabels) {
-    window._axiomLabels.style('display', showLabels ? 'block' : 'none');
+  if (window._axiomLabels) window._axiomLabels.style('display', showLabels ? 'block' : 'none');
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.node') && !e.target.closest('.graph-info')) {
+    const info = document.getElementById('graph-info');
+    if (info) info.classList.remove('visible');
+  }
+});
+
+function buildConflictItems(data) {
+  const now = Date.now();
+  const out = new Map();
+  for (const node of data.nodes) out.set(node.id, []);
+  for (const link of data.links) {
+    const from = endpointId(link.source);
+    if (!out.has(from)) out.set(from, []);
+    out.get(from).push(link);
+  }
+  const items = [];
+  for (const node of data.nodes) {
+    const outgoing = out.get(node.id) || [];
+    const typeEdges = outgoing.filter(link => relationKey(link.relation) === 'tur');
+    const negEdges = outgoing.filter(link => relationKey(link.relation) === 'degil');
+    const lowConfidence = (node.confidence ?? node.weight ?? 0.5) < 0.35 || outgoing.some(link => (link.confidence ?? link.weight ?? 0.5) < 0.35);
+    const stale = node.last_seen ? (now - Date.parse(node.last_seen) > 30 * 24 * 60 * 60 * 1000) : false;
+
+    if (typeEdges.length > 1) {
+      items.push({
+        kind: 'contradicted',
+        title: `${node.label} için çoklu-tür çatışması`,
+        text: `Aynı düğüm altında birden fazla tür ilişkisi var. Bu durum graph-backed çelişki sinyali üretir.`,
+        tags: ['çoklu-tür', `confidence ${Number(node.confidence || node.weight || 0).toFixed(2)}`],
+      });
+    }
+    if (negEdges.length > 0 && outgoing.some(link => relationKey(link.relation) !== 'degil')) {
+      items.push({
+        kind: 'contradicted',
+        title: `${node.label} için negasyon çatışması`,
+        text: `Negasyon ilişkisinin yanında olumlu bir ilişki de var. Bu kombinasyon kullanıcıya açıkça gösterilmeli.`,
+        tags: ['negasyon', 'çelişki'],
+      });
+    }
+    if (lowConfidence) {
+      items.push({
+        kind: 'low',
+        title: `${node.label} düşük güven bölgesinde`,
+        text: `Bu düğümün ya da çevresindeki kenarların confidence değeri düşük. Ürün yüzünde soluk gösterilmeli.`,
+        tags: ['low-confidence', 'kanıt zayıf'],
+      });
+    }
+    if (stale) {
+      items.push({
+        kind: 'stale',
+        title: `${node.label} eski`,
+        text: `Son görülme tarihi eski. Hafıza panelinde bu düğümün pasif görünmesi daha doğru olur.`,
+        tags: ['stale', 'last_seen'],
+      });
+    }
+  }
+  return items.slice(0, 12);
+}
+
+async function loadConflicts() {
+  try {
+    const [graphRes, statusRes] = await Promise.all([fetch('/graph-data'), fetch('/v2-status')]);
+    const graph = await graphRes.json();
+    const status = await statusRes.json();
+    graphData = graph;
+    analyzeGraph(graphData);
+    renderConflictPanel(graphData, status);
+  } catch (err) {
+    const feed = document.getElementById('conflict-feed');
+    if (feed) {
+      feed.innerHTML = '<div class="story-item"><strong>Hata</strong><span>Çelişki ekranı yüklenemedi.</span></div>';
+    }
   }
 }
 
-// Graf paneline tÃ„Â±klanÃ„Â±nca info'yu kapat
-document.getElementById('graph-panel').addEventListener('click', e => {
-  if (!e.target.closest('.node') && !e.target.closest('.graph-info')) {
-    document.getElementById('graph-info').classList.remove('visible');
+function renderConflictPanel(graph, status) {
+  const dash = document.getElementById('conflict-dashboard');
+  const feed = document.getElementById('conflict-feed');
+  const conflicts = buildConflictItems(graph);
+  if (dash) {
+    dash.innerHTML = [
+      card('Çelişki sinyali', `${conflicts.length}`, 'Graph üzerinden türetilen aktif çatışmalar'),
+      card('Düşük güven', `${graph.links.filter(l => (l.confidence ?? l.weight ?? 0.5) < 0.35).length}`, 'Zayıf kenarlar'),
+      card('Eski düğüm', `${graph.nodes.filter(n => n.last_seen && (Date.now() - Date.parse(n.last_seen) > 30 * 24 * 60 * 60 * 1000)).length}`, '30+ gün görmeyen düğümler'),
+      card('Durum', `${escapeHtml(status.currentFocus || '?')}`, `${escapeHtml(status.nextAction || '?')}`),
+    ].join('');
   }
+  if (feed) {
+    feed.innerHTML = conflicts.length > 0
+      ? conflicts.map(item => `
+        <div class="conflict-card ${item.kind}">
+          <h3>${escapeHtml(item.title)}</h3>
+          <p>${escapeHtml(item.text)}</p>
+          <div class="conflict-tags">${item.tags.map(tag => `<span class="tag ${item.kind === 'contradicted' ? 'bad' : item.kind === 'low' ? 'warn' : ''}">${escapeHtml(tag)}</span>`).join('')}</div>
+        </div>
+      `).join('')
+      : '<div class="story-item"><strong>Çelişki yok</strong><span>Bu graph snapshot’ında belirgin bir çatışma görünmüyor.</span></div>';
+  }
+}
+
+window.addEventListener('resize', () => {
+  if (document.getElementById('graph-panel').classList.contains('active')) loadGraph();
 });
-<\/script>
+
+updateHeaderStats();
+loadStatus();
+</script>
 </body>
 </html>

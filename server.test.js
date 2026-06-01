@@ -368,6 +368,15 @@ describe('Server - API', () => {
     const j = await r.json();
     assert.ok(Array.isArray(j.nodes));
     assert.ok(Array.isArray(j.links));
+    if (j.nodes.length > 0) {
+      assert.ok('confidence' in j.nodes[0]);
+      assert.ok('last_seen' in j.nodes[0]);
+    }
+    if (j.links.length > 0) {
+      assert.ok('confidence' in j.links[0]);
+      assert.ok('source' in j.links[0]);
+      assert.ok('evidenceCount' in j.links[0]);
+    }
     assert.notStrictEqual(r.headers.get('access-control-allow-origin'), '*');
     assert.strictEqual(r.headers.get('cache-control'), 'no-cache');
   });
@@ -433,7 +442,8 @@ describe('Server - API', () => {
     assert.ok(html.includes('AXIOM'));
     assert.ok(html.includes('d3@7'));
     assert.ok(html.includes('forceSimulation'));
-    assert.ok(html.includes('V2 Durumu'));
+    assert.ok(html.includes('Fikrini Yargılat'));
+    assert.ok(html.includes("Şeytan'ın Avukatı"));
   });
 
   it('bilinmeyen rota 404 dÃ¶ndÃ¼rÃ¼r', async () => {
