@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.7.0
+
+Released 2026-06-01.
+
+### Added
+- Causal reasoning line promoted from `v0.7.0-rc.1`.
+- Causal relation support with `CAUSES`, `PREVENTS`, `ENABLES`, `DEPENDS_ON`, and `LEADS_TO`.
+- Deterministic causal traversal with loop detection and max-depth stopping.
+- Deterministic what-if causal simulator output.
+- Causal finalizer summaries with risk, evidence, recommendation, and next questions.
+- Deterministic demo for `autoLearn default true` risk analysis.
+
+### Known limitations
+- Not a full world model.
+- No probabilistic prediction layer.
+- No UI integration for the causal branch.
+- No enterprise governance or multi-user permissions layer.
+- Causal relations are still structured inputs, not autonomous discovery.
+
+### Tests
+- 392/392 passing.
+
 ## v0.7.0-rc.1
 
 Branch: `v0.7-causal-wip`

@@ -1,6 +1,6 @@
 {
   "name": "axiom",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Deterministic symbolic AI reasoning engine — verifies LLM outputs, detects contradictions, learns from natural language. Zero external LLM/GPU/cloud dependencies.",
   "main": "kernel.js",
   "types": "kernel.d.ts",
