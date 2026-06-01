@@ -25,6 +25,31 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function normalizeLoadedEdge(edge) {
+  const normalized = {
+    ...edge,
+    confidence: edge.confidence ?? edge.weight ?? 0.5,
+    source: edge.source || 'manual',
+    source_ref: edge.source_ref || '',
+    session_id: edge.session_id || '',
+    evidence: Array.isArray(edge.evidence) ? edge.evidence : [],
+    evidence_type: edge.evidence_type || '',
+    confidence_history: Array.isArray(edge.confidence_history) ? edge.confidence_history : [],
+    company_mode: Number(edge.company_mode || 0),
+    source_type: edge.source_type || '',
+    updated_at: edge.updated_at || '',
+    created_at: edge.created_at || '',
+  };
+
+  if (CAUSAL_RELATIONS.includes(normalized.relation)) {
+    normalized.strength = typeof normalized.strength === 'number' ? normalized.strength : 0.5;
+  } else if ('strength' in normalized) {
+    delete normalized.strength;
+  }
+
+  return normalized;
+}
+
 class Graph {
   /**
    * @param {object|string} [opts]
@@ -548,20 +573,20 @@ class Graph {
         if (nodes.length > 0) {
           this._nodes = {};
           for (const row of nodes) {
-            this._nodes[row.id] = {
-              id: row.id,
-              label: row.label,
-              weight: row.weight,
-              created: row.created,
+          this._nodes[row.id] = {
+            id: row.id,
+            label: row.label,
+            weight: row.weight,
+            created: row.created,
               created_at: row.created_at || '',
               lastAccessed: row.last_accessed,
               lastSeen: row.last_seen || '',
-              last_seen: row.last_seen || '',
-              tags: [],
-              vector: JSON.parse(row.vector || '{}'),
-            };
-          }
-          this._edges = edges.map(row => ({
+            last_seen: row.last_seen || '',
+            tags: [],
+            vector: JSON.parse(row.vector || '{}'),
+          };
+        }
+          this._edges = edges.map(row => normalizeLoadedEdge({
             from: row.from_id,
             to: row.to_id,
             relation: row.relation,
@@ -578,6 +603,7 @@ class Graph {
             updated_at: row.updated_at || '',
             created_at: row.created_at || '',
             created: row.created,
+            strength: row.strength,
           }));
           this._rebuildIndex();
 
@@ -600,20 +626,7 @@ class Graph {
     try {
       const data = JSON.parse(fs.readFileSync(this.memoryPath, 'utf-8'));
       this._nodes = data.nodes || {};
-      this._edges = (data.edges || []).map(edge => ({
-        ...edge,
-        confidence: edge.confidence ?? edge.weight ?? 0.5,
-        source: edge.source || 'manual',
-        source_ref: edge.source_ref || '',
-        session_id: edge.session_id || '',
-        evidence: Array.isArray(edge.evidence) ? edge.evidence : [],
-        evidence_type: edge.evidence_type || '',
-        confidence_history: Array.isArray(edge.confidence_history) ? edge.confidence_history : [],
-        company_mode: Number(edge.company_mode || 0),
-        source_type: edge.source_type || '',
-        updated_at: edge.updated_at || '',
-        created_at: edge.created_at || '',
-      }));
+      this._edges = (data.edges || []).map(edge => normalizeLoadedEdge(edge));
       for (const node of Object.values(this._nodes)) {
         if (!node.created_at && typeof node.created === 'number') {
           node.created_at = new Date(node.created).toISOString();

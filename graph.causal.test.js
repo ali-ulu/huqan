@@ -1,6 +1,16 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { Graph, CAUSAL_RELATIONS, STANDARD_RELATIONS } = require('./graph');
+
+let Database;
+try {
+  Database = require('better-sqlite3');
+} catch (_) {
+  Database = null;
+}
 
 describe('Causal Relations - v0.7', () => {
   it('CAUSAL_RELATIONS sabitleri tanımlı', () => {
@@ -164,5 +174,88 @@ describe('Causal Relations - v0.7', () => {
     // Loop tespiti için visited set kullanılır, sonsuz döngü olmamalı
     assert.ok(chain.length > 0);
     assert.ok(chain.length < 10); // Sonsuz döngü değil
+  });
+
+  it('legacy JSON load keeps non-causal edges intact and defaults causal strength', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-graph-json-'));
+    const memoryPath = path.join(tmpDir, 'memory.json');
+    fs.writeFileSync(memoryPath, JSON.stringify({
+      nodes: {
+        a: { id: 'a', label: 'A', weight: 0.5, created: 1, lastAccessed: 1, vector: {} },
+        b: { id: 'b', label: 'B', weight: 0.5, created: 1, lastAccessed: 1, vector: {} },
+      },
+      edges: [
+        { from: 'a', to: 'b', relation: 'is_a', weight: 0.8 },
+        { from: 'b', to: 'a', relation: 'CAUSES', weight: 0.7, confidence: 0.6 },
+      ],
+    }));
+
+    const graph = new Graph({ memoryPath, useSQLite: false });
+    graph.load();
+
+    const legacyEdge = graph.getEdge('a', 'b', 'is_a');
+    const causalEdge = graph.getEdge('b', 'a', 'CAUSES');
+
+    assert.ok(legacyEdge);
+    assert.strictEqual(legacyEdge.strength, undefined);
+    assert.ok(causalEdge);
+    assert.strictEqual(causalEdge.strength, 0.5);
+    assert.strictEqual(graph.getEdgesBetween('a', 'b').length, 1);
+    assert.strictEqual(graph.getEdgesBetween('b', 'a').length, 1);
+  });
+
+  it('SQLite migration smoke keeps old DB readable with causal defaults', () => {
+    if (!Database) return;
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-graph-sqlite-'));
+    const dbPath = path.join(tmpDir, 'memory.db');
+    const memoryPath = path.join(tmpDir, 'memory.json');
+    const db = new Database(dbPath);
+    db.exec(`
+      CREATE TABLE nodes (
+        id TEXT PRIMARY KEY,
+        label TEXT NOT NULL,
+        weight REAL NOT NULL DEFAULT 0.5,
+        created INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT '',
+        last_accessed INTEGER NOT NULL,
+        last_seen TEXT NOT NULL DEFAULT '',
+        vector TEXT NOT NULL DEFAULT '{}'
+      );
+      CREATE TABLE edges (
+        from_id TEXT NOT NULL,
+        to_id TEXT NOT NULL,
+        relation TEXT NOT NULL,
+        weight REAL NOT NULL DEFAULT 0.5,
+        confidence REAL NOT NULL DEFAULT 0.5,
+        source TEXT NOT NULL DEFAULT 'manual',
+        source_ref TEXT NOT NULL DEFAULT '',
+        session_id TEXT NOT NULL DEFAULT '',
+        evidence TEXT NOT NULL DEFAULT '[]',
+        evidence_type TEXT NOT NULL DEFAULT '',
+        confidence_history TEXT NOT NULL DEFAULT '[]',
+        company_mode INTEGER NOT NULL DEFAULT 0,
+        source_type TEXT NOT NULL DEFAULT '',
+        updated_at TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT '',
+        created INTEGER NOT NULL,
+        UNIQUE(from_id, to_id, relation)
+      );
+      INSERT INTO nodes (id, label, weight, created, created_at, last_accessed, last_seen, vector)
+      VALUES ('a', 'A', 0.5, 1, '2026-01-01T00:00:00.000Z', 1, '2026-01-01T00:00:00.000Z', '{}');
+      INSERT INTO nodes (id, label, weight, created, created_at, last_accessed, last_seen, vector)
+      VALUES ('b', 'B', 0.5, 1, '2026-01-01T00:00:00.000Z', 1, '2026-01-01T00:00:00.000Z', '{}');
+      INSERT INTO edges (from_id, to_id, relation, weight, confidence, source, source_ref, session_id, evidence, evidence_type, confidence_history, company_mode, source_type, updated_at, created_at, created)
+      VALUES ('a', 'b', 'CAUSES', 0.7, 0.6, 'manual', '', '', '[]', '', '[]', 0, '', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z', 1);
+    `);
+    db.close();
+
+    const graph = new Graph({ memoryPath, dbPath, useSQLite: true });
+    graph.load();
+
+    const edge = graph.getEdge('a', 'b', 'CAUSES');
+    assert.ok(edge);
+    assert.strictEqual(edge.strength, 0.5);
+    assert.strictEqual(graph.getEdgesBetween('a', 'b').length, 1);
+    assert.strictEqual(graph.getEdgesBetween('a', 'b')[0].relation, 'CAUSES');
   });
 });
