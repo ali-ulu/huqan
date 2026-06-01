@@ -13,6 +13,7 @@ What it shows:
 - finalizer-backed causal summary
 - risk level and recommendation
 - next questions for the missing evidence
+- stable text output across repeated runs
 
 Expected story:
 
@@ -26,6 +27,14 @@ Expected outcome:
 - risk level: `critical`
 - recommendation: `Change is not recommended.`
 - output is stable across repeated runs
+
+Smoke commands:
+
+```bash
+npm test
+node demo-causal-autolearn.js
+node --test graph.causal.test.js causalSimulator.test.js finalizer.causal.test.js demo-causal-autolearn.test.js
+```
 
 Implementation note:
 

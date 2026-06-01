@@ -196,6 +196,36 @@ Release artifacts:
 - `docs/demo-v0.6.md`
 - `docs/sdk-v0.6.md`
 
+### v0.7 Causal Branch
+
+The causal reasoning line is isolated on `v0.7-causal-wip` and is not merged into `main` yet.
+
+It adds:
+
+- causal relations: `CAUSES`, `PREVENTS`, `ENABLES`, `DEPENDS_ON`, `LEADS_TO`
+- deterministic causal traversal
+- what-if simulation
+- causal finalizer summaries
+- the `autoLearn default true` demo scenario
+
+Current scope:
+
+- founder and builder decision simulation
+- deterministic, symbolic, explainable output
+
+Out of scope for the branch:
+
+- full world model
+- probabilistic prediction
+- UI integration
+- enterprise governance
+- multi-user permissions and audit layers
+
+Release candidate artifacts will be documented in:
+
+- `docs/v0.7-release-notes.md`
+- `docs/demo-causal-v0.7.md`
+
 ## Persistence
 
 - `memory.db` - SQLite primary storage
