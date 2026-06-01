@@ -3,7 +3,7 @@
 [![Tests](https://img.shields.io/badge/Tests-passing-green)]()
 [![Node](https://img.shields.io/badge/node-%3E%3D18-blue)]()
 
-AXIOM is a local-first symbolic reasoning core. It learns facts, verifies claims, detects contradictions, ranks evidence, and exposes the same engine through CLI, REST, MCP, and workflow-agent runtime layers.
+AXIOM is a local-first symbolic reasoning core. It learns facts, verifies claims, detects contradictions, ranks evidence, and exposes the same engine through CLI, REST, MCP, workflow-agent runtime, and SDK wrapper layers.
 
 ## Current Status
 
@@ -13,6 +13,7 @@ AXIOM is a local-first symbolic reasoning core. It learns facts, verifies claims
 - `AXIOM_AGENT_RUNTIME=workflow` enables the workflow agent stack
 - `AXIOM_AGENT_VERSION=v3` keeps the checkpoint/resume agent available
 - Discovery engine skeleton is shipped through workflow tools
+- Product UI, Shield, ingest routing, demo smoke, and SDK wrappers are shipped in the v0.6 line
 
 ## What AXIOM Does
 
@@ -151,6 +152,37 @@ The v0.5 line ships an opt-in workflow stack:
 - `repoMemory` and `companyBrain` are tools, not phases
 - `discoveryEngine`, `experimentPlanner`, `resultAnalyzer`, and `replicationChecker` are the discovery skeleton tools
 
+### SDK Wrappers
+
+AXIOM exposes dependency-free wrappers for external AI systems:
+
+- `lib/sdk.js` for `createAxiomClient`, `toLangChainTool`, and `toVercelAiMiddleware`
+- `docs/sdk-v0.6.md` for the wrapper contract and out-of-scope notes
+
+Supported SDK commands:
+
+- `verify`
+- `reason`
+- `mri` / `ideaMRI`
+- `devil` / `devilAdvocate`
+- `contradictions` / `contradictionAlert`
+- `shield`
+
+### Demo Smoke
+
+The v0.6 release smoke flow is documented in:
+
+- `docs/demo-v0.6.md`
+
+It covers:
+
+- `GET /health`
+- `GET /v2-status`
+- `GET /graph-data`
+- `POST /llm-sor`
+- `POST /api/ingest`
+- the product UI tabs and graph metadata
+
 Use it when you want AXIOM to coordinate tools through a single runtime instead of invoking capabilities directly.
 
 ## Persistence
@@ -164,6 +196,7 @@ Use it when you want AXIOM to coordinate tools through a single runtime instead 
 - API key guard for write-heavy endpoints
 - CORS restrictions for safe local origins
 - request size limits and rate limiting
+- Shield labels are explicit: `graph-backed`, `llm-assisted`, `unsupported`, `contradicted`
 
 ## Repository Layout
 
