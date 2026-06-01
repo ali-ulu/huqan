@@ -249,9 +249,149 @@ function normalizeCausalRisk(risk) {
   if (!risk || typeof risk !== 'object') return null;
   return {
     chain: Array.isArray(risk.chain) ? risk.chain : [],
-    severity: risk.severity === 'critical' ? 'critical' : (risk.severity === 'high' ? 'high' : 'medium'),
+    severity: risk.severity === 'critical'
+      ? 'critical'
+      : (risk.severity === 'high'
+        ? 'high'
+        : (risk.severity === 'low'
+          ? 'low'
+          : (risk.severity === 'unknown'
+            ? 'unknown'
+            : 'medium'))),
     description: normalizeText(risk.description || ''),
   };
+}
+
+function normalizeCausalEvidenceItem(item) {
+  if (item === undefined || item === null) return null;
+  if (typeof item === 'string') {
+    return { type: 'text', value: normalizeText(item) };
+  }
+  if (typeof item !== 'object') {
+    return { type: 'value', value: item };
+  }
+  const normalized = cloneValue(item);
+  if (Object.prototype.hasOwnProperty.call(normalized, 'description')) {
+    normalized.description = normalizeText(normalized.description || '');
+  }
+  if (Object.prototype.hasOwnProperty.call(normalized, 'value')) {
+    normalized.value = extractText(normalized.value) || normalized.value;
+  }
+  if (Object.prototype.hasOwnProperty.call(normalized, 'confidence')) {
+    const num = Number(normalized.confidence);
+    normalized.confidence = Number.isFinite(num) ? Math.max(0, Math.min(1, num)) : 0;
+  }
+  return normalized;
+}
+
+function normalizeCausalEvidence(value) {
+  if (value === undefined || value === null) return [];
+  const items = Array.isArray(value) ? value : [value];
+  return dedupeStable(items.map(normalizeCausalEvidenceItem).filter(Boolean));
+}
+
+function normalizeAffectedNode(node) {
+  if (!node || typeof node !== 'object') return null;
+  return {
+    nodeId: normalizeText(node.nodeId || node.id || ''),
+    label: normalizeText(node.label || node.nodeId || node.id || ''),
+    relation: normalizeText(node.relation || ''),
+    effect: normalizeText(node.effect || ''),
+    impact: typeof node.impact === 'number' ? Math.max(0, Math.min(1, node.impact)) : 0,
+    confidence: typeof node.confidence === 'number' ? Math.max(0, Math.min(1, node.confidence)) : 0,
+    severity: node.severity === 'critical'
+      ? 'critical'
+      : node.severity === 'high'
+        ? 'high'
+        : node.severity === 'medium'
+          ? 'medium'
+          : node.severity === 'low'
+            ? 'low'
+            : 'unknown',
+    path: Array.isArray(node.path) ? dedupeStable(node.path.map(step => normalizeText(step)).filter(Boolean)) : [],
+  };
+}
+
+function normalizeCausalChain(chain) {
+  if (!Array.isArray(chain)) return [];
+  return chain.map(step => {
+    if (!step || typeof step !== 'object') return null;
+    return {
+      from: normalizeText(step.from || ''),
+      to: normalizeText(step.to || ''),
+      relation: normalizeText(step.relation || ''),
+      strength: typeof step.strength === 'number' ? Math.max(0, Math.min(1, step.strength)) : 0.5,
+      confidence: typeof step.confidence === 'number' ? Math.max(0, Math.min(1, step.confidence)) : 0.5,
+      source: normalizeText(step.source || 'manual'),
+      source_ref: normalizeText(step.source_ref || ''),
+      evidence: normalizeEvidence(step.evidence),
+      evidence_type: normalizeText(step.evidence_type || ''),
+      created_at: normalizeText(step.created_at || ''),
+      updated_at: normalizeText(step.updated_at || ''),
+    };
+  }).filter(Boolean);
+}
+
+function deriveCausalRiskLevel(risks, confidence = 0, causalChains = 0, evidence = []) {
+  if (!Array.isArray(risks) || risks.length === 0) {
+    if (causalChains === 0 || !Array.isArray(evidence) || evidence.length === 0) {
+      return 'unknown';
+    }
+    return confidence >= 0.75 ? 'low' : 'unknown';
+  }
+
+  if (risks.some(r => r.severity === 'critical')) return 'critical';
+  if (risks.some(r => r.severity === 'high')) return 'high';
+  if (risks.some(r => r.severity === 'medium')) return 'medium';
+  if (risks.some(r => r.severity === 'low')) return 'low';
+  return 'unknown';
+}
+
+function causalRiskMessage(riskLevel) {
+  switch (riskLevel) {
+    case 'critical':
+      return 'Değişiklik önerilmiyor.';
+    case 'high':
+      return 'Yüksek risk; insan onayı gerekir.';
+    case 'medium':
+      return 'Dikkatli uygulanmalı.';
+    case 'low':
+      return 'Düşük risk.';
+    default:
+      return 'Yetersiz causal veri.';
+  }
+}
+
+function deriveCausalConclusion({ riskLevel, recommendation, confidence, causalChains }) {
+  const head = `Karar: ${causalRiskMessage(riskLevel)}`;
+  const recommendationText = recommendation ? ` Öneri: ${normalizeText(recommendation)}` : '';
+  const confidenceText = ` Confidence: ${(Math.max(0, Math.min(1, confidence || 0)) * 100).toFixed(1)}%.`;
+  const chainText = causalChains > 0 ? ` Causal chain count: ${causalChains}.` : ' Causal chain yok.';
+  return `${head}${recommendationText}${confidenceText}${chainText}`.trim();
+}
+
+function deriveCausalNextQuestions({ unknowns, riskLevel }) {
+  const questionSet = [];
+  for (const unknown of unknowns) {
+    const text = normalizeText(unknown);
+    if (!text) continue;
+    questionSet.push(/\?$/.test(text) ? text : `${text}?`);
+  }
+
+  if (riskLevel === 'critical' || riskLevel === 'high') {
+    questionSet.push('Bu riski azaltmak için hangi alternatifler var?');
+    questionSet.push('İnsan onayı veya ek kanıt gerekiyor mu?');
+  } else if (riskLevel === 'medium') {
+    questionSet.push('Bu kararı güvenli hale getirmek için hangi ek veri lazım?');
+  } else if (riskLevel === 'unknown' && questionSet.length === 0) {
+    questionSet.push('Bu causal zincir için hangi kanıt eksik?');
+  }
+
+  if (questionSet.length === 0) {
+    questionSet.push('Bu sonuç hangi ek gözlemlerle doğrulanabilir?');
+  }
+
+  return dedupeStable(questionSet);
 }
 
 function buildCausalSummary(simulationResult = {}) {
@@ -275,21 +415,85 @@ function buildCausalSummary(simulationResult = {}) {
 
   const confidence = typeof simulationResult.confidence === 'number' ? simulationResult.confidence : 0;
   const causalChains = typeof simulationResult.causalChains === 'number' ? simulationResult.causalChains : 0;
+  const isCausalMode =
+    simulationResult.mode === 'causal' ||
+    Array.isArray(simulationResult.affectedNodes) ||
+    Array.isArray(simulationResult.unknowns) ||
+    Array.isArray(simulationResult.traversal?.loops) ||
+    Object.prototype.hasOwnProperty.call(simulationResult, 'riskLevel');
 
   const summary = simulationResult.summary || 
     `Simulation found ${outcomes.length} outcome(s) with ${risks.length} risk(s). Confidence: ${(confidence * 100).toFixed(1)}%`;
 
+  if (!isCausalMode) {
+    return {
+      ok: true,
+      action: normalizeText(simulationResult.action || ''),
+      nodeId: simulationResult.nodeId || '',
+      changeType: simulationResult.changeType || 'unknown',
+      outcomes,
+      risks,
+      confidence,
+      causalChains,
+      summary,
+      recommendation: deriveCausalRecommendation(risks, confidence),
+    };
+  }
+
+  const affectedNodes = Array.isArray(simulationResult.affectedNodes)
+    ? simulationResult.affectedNodes.map(normalizeAffectedNode).filter(Boolean)
+    : [];
+  const evidence = normalizeCausalEvidence(simulationResult.evidence);
+  const unknowns = dedupeStable(
+    (Array.isArray(simulationResult.unknowns) ? simulationResult.unknowns : simulationResult.unknowns ? [simulationResult.unknowns] : [])
+      .map(item => extractText(item) || normalizeText(typeof item === 'string' ? item : JSON.stringify(item)))
+      .filter(Boolean)
+  );
+  const recommendation = normalizeText(
+    simulationResult.recommendation || deriveCausalRecommendation(risks, confidence)
+  );
+  const riskLevel = deriveCausalRiskLevel(risks, confidence, causalChains, evidence);
+  const conclusion = deriveCausalConclusion({
+    riskLevel,
+    recommendation,
+    confidence,
+    causalChains,
+  });
+  const nextQuestions = deriveCausalNextQuestions({
+    unknowns,
+    riskLevel,
+  });
+  const input = simulationResult.input && typeof simulationResult.input === 'object'
+    ? cloneValue(simulationResult.input)
+    : {
+        action: normalizeText(simulationResult.action || ''),
+        nodeId: simulationResult.nodeId || '',
+        changeType: simulationResult.changeType || 'unknown',
+        newState: typeof simulationResult.newState === 'undefined' ? null : cloneValue(simulationResult.newState),
+      };
+
   return {
     ok: true,
+    mode: 'causal',
+    input,
     action: normalizeText(simulationResult.action || ''),
     nodeId: simulationResult.nodeId || '',
     changeType: simulationResult.changeType || 'unknown',
+    conclusion,
+    riskLevel,
     outcomes,
     risks,
     confidence,
     causalChains,
+    affectedNodes,
+    evidence,
+    unknowns,
+    recommendation,
+    nextQuestions,
     summary,
-    recommendation: deriveCausalRecommendation(risks, confidence),
+    traversal: simulationResult.traversal && typeof simulationResult.traversal === 'object'
+      ? cloneValue(simulationResult.traversal)
+      : undefined,
   };
 }
 

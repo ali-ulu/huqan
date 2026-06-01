@@ -166,4 +166,122 @@ describe('Causal Finalizer - v0.7', () => {
     assert.strictEqual(result.confidence, 0);
     assert.strictEqual(result.causalChains, 0);
   });
+
+  it('buildCausalSummary causal mode için deterministic yargı özeti üretir', () => {
+    const simulation = {
+      ok: true,
+      mode: 'causal',
+      action: 'autoLearn default true yap',
+      nodeId: 'autoLearn_default_true',
+      changeType: 'modify',
+      input: {
+        action: 'autoLearn default true yap',
+        nodeId: 'autoLearn_default_true',
+        changeType: 'modify',
+        maxDepth: 10,
+      },
+      outcomes: [
+        {
+          chain: [{ from: 'autoLearn_default_true', to: 'unsupported_llm_output', relation: 'CAUSES', strength: 0.9, confidence: 0.85 }],
+          relation: 'CAUSES',
+          effect: 'direct',
+          impact: 0.9,
+          confidence: 0.85,
+          severity: 'critical',
+          evidence: ['shield-policy'],
+          description: 'autoLearn default true causes unsupported LLM output',
+        },
+      ],
+      risks: [
+        {
+          chain: ['unsupported_llm_output'],
+          relation: 'CAUSES',
+          severity: 'critical',
+          impact: 0.9,
+          confidence: 0.85,
+          description: 'CAUSES: autoLearn_default_true → unsupported_llm_output',
+        },
+      ],
+      confidence: 0.85,
+      causalChains: 1,
+      affectedNodes: [
+        {
+          nodeId: 'unsupported_llm_output',
+          label: 'unsupported LLM output',
+          relation: 'CAUSES',
+          effect: 'direct',
+          impact: 0.9,
+          confidence: 0.85,
+          severity: 'critical',
+          path: ['unsupported_llm_output'],
+        },
+      ],
+      evidence: ['shield-policy'],
+      unknowns: ['Unsupported output details are missing'],
+      recommendation: 'Change is not recommended.',
+      traversal: { loops: [], stoppedReason: 'exhausted', maxDepth: 10, confidence: 0.85 },
+      summary: 'Simulation found 1 outcome(s) with 1 risk(s). Confidence: 85.0%',
+    };
+
+    const result = buildCausalSummary(simulation);
+
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.mode, 'causal');
+    assert.strictEqual(result.riskLevel, 'critical');
+    assert.ok(result.conclusion.includes('Değişiklik önerilmiyor'));
+    assert.ok(result.conclusion.includes('Confidence'));
+    assert.ok(result.recommendation.includes('Change is not recommended'));
+    assert.strictEqual(result.affectedNodes.length, 1);
+    assert.strictEqual(result.evidence.length, 1);
+    assert.strictEqual(result.nextQuestions.length >= 2, true);
+        assert.ok(result.nextQuestions.some(q => q.toLowerCase().includes('onay')));
+        assert.ok(result.nextQuestions.some(q => q.toLowerCase().includes('onay')));
+    assert.strictEqual(result.unknowns.length, 1);
+  });
+
+  it('buildCausalSummary risk seviyelerini insan okunur hükme çevirir', () => {
+    const cases = [
+      { severity: 'critical', expected: 'Değişiklik önerilmiyor.' },
+      { severity: 'high', expected: 'Yüksek risk; insan onayı gerekir.' },
+      { severity: 'medium', expected: 'Dikkatli uygulanmalı.' },
+      { severity: 'low', expected: 'Düşük risk.' },
+      { severity: 'unknown', expected: 'Yetersiz causal veri.' },
+    ];
+
+    for (const testCase of cases) {
+      const result = buildCausalSummary({
+        ok: true,
+        mode: 'causal',
+        outcomes: [],
+        risks: [{ chain: [], severity: testCase.severity, description: 'risk' }],
+        confidence: 0.6,
+        causalChains: 1,
+        evidence: ['evidence'],
+        unknowns: [],
+      });
+
+      assert.strictEqual(result.riskLevel, testCase.severity);
+      assert.ok(result.conclusion.includes(testCase.expected));
+    }
+  });
+
+  it('buildCausalSummary causal chain yoksa yetersiz veri döner', () => {
+    const result = buildCausalSummary({
+      ok: true,
+      mode: 'causal',
+      outcomes: [],
+      risks: [],
+      confidence: 0,
+      causalChains: 0,
+      evidence: [],
+      unknowns: [],
+      summary: '',
+    });
+
+    assert.strictEqual(result.riskLevel, 'unknown');
+    assert.ok(result.conclusion.includes('Yetersiz causal veri'));
+    assert.ok(result.nextQuestions.length > 0);
+    assert.ok(result.nextQuestions[0].includes('causal zincir'));
+  });
 });
+
