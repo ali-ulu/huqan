@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.8.0
+
+Prepared 2026-06-02.
+
+### Added
+- Trust Kernel and AXIOM Trust Protocol release prep.
+- Provenance schema enforcement and strict provenance handling.
+- Trust policy config and provenance ingestion helper.
+- Append-only audit log core.
+- Workspace scoping and SQLite indexes.
+- Conflict detection and candidate claim quarantine.
+- Provenance-aware GitHub connector.
+- Provenance Query API and Trust Dashboard.
+- Trust Receipt support.
+- ATP/AVP v0.1 specs and conformance suite.
+- `.axiom` package format draft and validator.
+- Minimal `axiom-verify` package skeleton.
+- Serial test runner to avoid test race conditions.
+
+### Notes
+- `.axiom` is an exchange format, not runtime storage.
+- ATP v0.1 is not v1.0.
+- `axiom-verify` validates structure and semantics; it does not prove absolute truth.
+
 ## v0.7.0
 
 Released 2026-06-01.

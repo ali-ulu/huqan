@@ -1,424 +1,277 @@
-# AXIOM
+﻿# â—‡ AXIOM
 
-[![Tests](https://img.shields.io/badge/Tests-392%2F392-green)]()
-[![Node](https://img.shields.io/badge/node-%3E%3D18-blue)]()
-[![Release](https://img.shields.io/badge/release-v0.7.0-blue)]()
+**LLM'ler iÃ§in deterministik doÄŸrulama motoru.**
 
-AXIOM is a local-first reasoning layer for memory, models, tools, agents, and decisions.
+LLM Ã§Ä±ktÄ±larÄ±nÄ± doÄŸrular, Ã§eliÅŸkileri tespit eder, nedensellik zinciri kurar. GPU yok, bulut API yok, sÄ±fÄ±r dÄ±ÅŸ baÄŸÄ±mlÄ±lÄ±k.
 
-It does not try to be another chatbot. AXIOM judges claims against graph memory, separates known facts from unknowns, blocks unsupported learning, explains contradictions, and simulates what may break when a decision changes.
+> *"LLM'ler kumdan kale. AXIOM granit."*
 
-## The Core Idea
+---
 
-LLMs answer. AXIOM judges.
-
-Most AI systems optimize for fluent responses. AXIOM optimizes for inspectable reasoning:
-
-- What does the system actually know?
-- Which answer is backed by memory?
-- Which answer is only LLM-assisted?
-- Which claim contradicts the graph?
-- Which evidence supports the conclusion?
-- What happens if this decision changes?
-- What should be asked next?
-
-The rule that shapes the project:
-
-> Unsupported knowledge must not become trusted memory.
-
-## What AXIOM Is
-
-AXIOM is a small symbolic reasoning engine with product surfaces around it:
-
-- graph memory for local facts and relations
-- verification for graph-backed claims
-- contradiction detection
-- deterministic final summaries
-- AXIOM Shield for LLM output control
-- Company Brain for project and decision memory
-- Workflow Agent OS for tool orchestration
-- causal reasoning for decision simulation
-- SDK wrappers for external AI systems
-
-The engine is local-first and dependency-light. It can run without external LLMs, GPUs, or cloud services.
-
-## Why It Matters
-
-Modern AI stacks often have the same failure mode:
-
-```text
-LLM output sounds plausible
--> system stores it as memory
--> future answers trust polluted memory
--> product behavior drifts
-```
-
-AXIOM attacks that failure mode directly.
-
-It classifies output before trust:
-
-- `graph-backed` means the graph supports it
-- `llm-assisted` means the model helped but graph support is partial
-- `unsupported` means the graph does not know
-- `contradicted` means the graph disagrees
-
-That makes AXIOM useful as a judgment layer around LLM apps, internal tools, agent systems, and founder decision workflows.
-
-## What It Can Do Today
-
-### Graph Memory
-
-AXIOM learns local facts into a graph and can answer from that graph.
-
-Example:
-
-```text
-ogret: kedi hayvandir
-sor: kedi nedir
-```
-
-The point is not just storage. The point is that answers can be checked against structured memory.
-
-### Verification
-
-AXIOM can verify claims and return evidence.
-
-It distinguishes:
-
-- known
-- unknown
-- contradicted
-- weakly supported
-
-This is the base layer under Shield, finalizer, and causal reasoning.
-
-### AXIOM Shield
-
-Shield wraps LLM-assisted answers with a trust policy.
-
-Safety rules:
-
-- `autoLearn` defaults to `false`
-- unsupported output is not learned
-- contradicted output is not learned
-- LLM-assisted output must be explicitly accepted
-
-This is the project's safety foundation:
-
-```text
-Do not trust the model.
-Pass it through AXIOM.
-```
-
-### Finalizer
-
-The finalizer turns tool results into a judgment report.
-
-It produces:
-
-- known facts
-- unknowns
-- evidence
-- conclusion
-- next questions
-- causal risk and recommendation
-
-This is what turns raw tool execution into an answer a human can inspect.
-
-### Company Brain
-
-Company Brain lets AXIOM ingest and query project context:
-
-- GitHub repository content
-- markdown folders
-- manual notes
-- decision logs
-
-It is the company-memory layer, not a separate product bolted on later.
-
-### Workflow Agent OS
-
-The workflow runtime gives AXIOM deterministic tool orchestration.
-
-It exposes tools such as:
-
-- `verifyClaim`
-- `findContradictions`
-- `rankEvidence`
-- `repoMemory`
-- `companyBrain`
-- `discoveryEngine`
-- `experimentPlanner`
-- `resultAnalyzer`
-- `replicationChecker`
-
-This makes AXIOM usable as an agent runtime without making the LLM the source of truth.
-
-### Causal Reasoning
-
-v0.7 adds causal simulation.
-
-Supported causal relations:
-
-- `CAUSES`
-- `PREVENTS`
-- `ENABLES`
-- `DEPENDS_ON`
-- `LEADS_TO`
-
-This lets AXIOM answer:
-
-```text
-What breaks if you do this?
-```
-
-Reference demo:
-
-```bash
-node demo-causal-autolearn.js
-```
-
-Demo question:
-
-```text
-What breaks if autoLearn defaults to true?
-```
-
-Expected judgment:
-
-```text
-Risk level: critical
-Recommendation: Change is not recommended.
-LLM: not used
-Output: deterministic
-```
-
-Causal chain:
-
-```text
-autoLearn true
--> unsupported LLM output can enter graph
--> graph trust degradation
--> Shield claim weakens
--> AXIOM reliability promise is damaged
-```
-
-### SDK Wrappers
-
-AXIOM exposes dependency-free wrappers for external AI systems:
-
-- `createAxiomClient`
-- `toLangChainTool`
-- `toVercelAiMiddleware`
-
-This is the integration surface for builders who want AXIOM as a verification and reasoning layer around their own AI stack.
-
-## Product Evolution
-
-AXIOM has grown in layers:
-
-```text
-v0.3 - Personal Thought Judge
-v0.4 - Company Brain
-v0.5 - Agent OS + Discovery Engine
-v0.6 - Productization & Shield
-v0.7 - Causal Reasoning Layer
-```
-
-The throughline is consistent:
-
-```text
-memory -> verification -> agent tools -> shield -> causal judgment
-```
-
-## Who It Is For
-
-AXIOM is currently best suited for:
-
-- solo founders
-- technical founders
-- AI product builders
-- small-team CTOs
-- open-source maintainers
-- developers building LLM agents or tool systems
-
-The current wedge is builder decision simulation. The longer-term direction is company-wide agent governance.
-
-## What It Is Not
-
-AXIOM v0.7 is not:
-
-- a full world model
-- a probabilistic oracle
-- an autonomous research scientist
-- an enterprise governance suite
-- a replacement for human judgment
-
-It is a deterministic reasoning layer that makes claims, memory, and decisions easier to inspect.
-
-## Quick Start
+## HÄ±zlÄ± BaÅŸlangÄ±Ã§
 
 ```bash
 npm install
-npm test
-npm run server
+node egitim.js   # BaÅŸlangÄ±Ã§ bilgi tabanÄ±nÄ± yÃ¼kle
+node cli.js      # CLI
+node server.js   # Web arayÃ¼zÃ¼ â†’ http://localhost:3000
+node mcpServer.js  # Claude Desktop / Cursor iÃ§in MCP sunucu
 ```
 
-CLI:
+Node.js >= 18 gereklidir. Dış bağımlılık yoktur.
+
+AXIOM v0.8 introduces the Trust Kernel and AXIOM Trust Protocol v0.1: provenance, trust policy, append-only audit, workspace scoping, conflict quarantine, Trust Receipts, ATP/AVP conformance, `.axiom` package format draft, and the minimal `axiom-verify` package skeleton.
+
+---
+
+## Ne Yapar?
+
+```
+LLM (Ollama/OpenAI)     KullanÄ±cÄ± (CLI/REST/MCP)
+       |                         |
+       v                         v
+   llmAdapter               kernel.v2
+       |                         |
+       +-----â†’ verify() â†--------+
+                    |
+             [Ã‡eliÅŸki var?]
+              /           \
+            Evet          HayÄ±r
+             |              |
+        UyarÄ± + reddet   Ã–ÄŸren + kaydet
+```
+
+| Ã–zellik | AXIOM | LLM-only |
+|---|---|---|
+| DoÄŸrulama | Deterministik, sembolik | OlasÄ±lÄ±ksal |
+| Ã‡eliÅŸki tespiti | Evet (olumsuzlama, zÄ±t, Ã§ok adÄ±mlÄ±) | HayÄ±r |
+| HafÄ±za | KalÄ±cÄ± SQLite + JSON | BaÄŸlam penceresi |
+| GPU/Bulut | Gerekmez | Gerekir |
+| Maliyet | $0 | $/sorgu |
+| F1 (doÄŸrulama) | 0.88â€“0.91 | 0.82â€“0.86 |
+| Dil | TÃ¼rkÃ§e + Ä°ngilizce | Ä°ngilizce aÄŸÄ±rlÄ±klÄ± |
+
+---
+
+## CLI KomutlarÄ±
+
+### Temel Ã–ÄŸrenme ve Sorgulama
+
+| Komut | AÃ§Ä±klama |
+|---|---|
+| `kedi hayvandÄ±r` | Bilgi Ã¶ÄŸret |
+| `kedi nedir` | Soru sor |
+| `sor: kedi nedir` | AÃ§Ä±k soru |
+| `Ã¶ÄŸret: kedi balÄ±k yer` | AÃ§Ä±k Ã¶ÄŸret |
+| `neden tavuk` | Nedensellik zinciri |
+| `tavuk mu yumurta mÄ±` | KarÅŸÄ±laÅŸtÄ±r |
+
+### Sistem
+
+| Komut | AÃ§Ä±klama |
+|---|---|
+| `durum` / `nasÄ±lsÄ±n` | DÃ¼ÄŸÃ¼m/kenar/entropi/Ã§eliÅŸki Ã¶zeti |
+| `rÃ¼ya` | Hipotez Ã¼ret |
+| `aÃ§Ä±k dÃ¼ÅŸÃ¼n` | Arka planda otomatik hipotez |
+| `dur dÃ¼ÅŸÃ¼nme` | Otomatik dÃ¼ÅŸÃ¼nmeyi durdur |
+| `optimize` | ZayÄ±f kenarlarÄ± buda |
+| `kaydet` | HafÄ±zayÄ± diske yaz |
+| `Ã§Ä±kÄ±ÅŸ` / `bb` | Ã‡Ä±kÄ±ÅŸ (otomatik kaydeder) |
+
+### LLM ve Belge
+
+| Komut | AÃ§Ä±klama |
+|---|---|
+| `llm-sor: soru` | LLM'ye sor â†’ doÄŸrula â†’ otomatik Ã¶ÄŸren |
+| `yÃ¼kle: dosya.txt` | `.txt` / `.md` dosyasÄ±ndan Ã¶ÄŸren |
+
+---
+
+## REST API
 
 ```bash
-npm start
+node server.js   # http://localhost:3000
 ```
 
-Causal demo:
+### Endpoints
+
+```
+GET  /api?q=kedi+nedir
+GET  /dogrula?statement=kedi+hayvandir
+POST /dogrula    { "statement": "kedi hayvandÄ±r" }
+POST /yukle      { "text": "kedi hayvandÄ±r\nkÃ¶pek memelidir" }
+POST /llm-sor    { "question": "kedi nedir?", "autoLearn": true }
+GET  /graph-data
+```
+
+`/dogrula` cevabÄ±: `{ "status": "dogrulandi" | "celiski" | "bilinmiyor", "confidence": 0.9, "evidence": [...] }`
+
+---
+
+## MCP Sunucu
+
+Claude Desktop, Cursor ve diÄŸer MCP destekli araÃ§lar iÃ§in:
 
 ```bash
-node demo-causal-autolearn.js
+node mcpServer.js
 ```
 
-MCP server:
+AraÃ§lar: `axiom.learn` Â· `axiom.ask` Â· `axiom.verify` Â· `axiom.reason` Â· `axiom.compare` Â· `axiom.dream` Â· `axiom.plan` Â· `axiom.agent` Â· `axiom.policy` Â· `axiom.approvals`
+
+```json
+{
+  "mcpServers": {
+    "axiom": {
+      "command": "node",
+      "args": ["/path/to/axiom/mcpServer.js"]
+    }
+  }
+}
+```
+
+---
+
+## LLM Entegrasyonu
+
+### Ollama (Ã¶nerilen, Ã¼cretsiz)
 
 ```bash
-npm run mcp
+ollama serve
+ollama pull llama3.2:3b
+node cli.js
+axiom> llm-sor: kedi memeli midir?
 ```
 
-Product UI:
-
-```text
-http://localhost:3000
-```
-
-## CLI Commands
-
-General:
-
-- `ogret: kedi hayvandir`
-- `sor: kedi nedir`
-- `plan: hedef`
-- `ajan: hedef`
-- `durum`
-- `backup`
-- `restore`
-
-Agent OS:
-
-- `mri: AXIOM company brain olmali`
-- `tartis: AXIOM company brain olmali`
-- `celiski: AXIOM motor degil ana urun olmali`
-
-Company ingest/query:
-
-- `ogren --kaynak manuel --yazar sonfi "kedi hayvandir"`
-- `ogren --kaynak karar --baslik "X" --gerekce "Y"`
-- `sirket-sor: Bu karar neden alindi?`
-- `ingest-durum`
-
-## REST Endpoints
-
-Verification:
-
-- `GET /v2/verify?statement=...`
-- `POST /v2/verify`
-- Legacy: `GET/POST /dogrula`
-
-LLM Shield:
-
-- `POST /llm-sor`
-
-Ingest:
-
-- `POST /api/ingest`
-- `GET /api/ingest/status`
-
-System:
-
-- `GET /health`
-- `GET /v2-status`
-- `GET /graph-data`
-
-## Runtime Modes
-
-Default runtime:
-
-```text
-classic agent path
-```
-
-Workflow Agent OS:
+### OpenAI
 
 ```bash
-set AXIOM_AGENT_RUNTIME=workflow
+OPENAI_API_KEY=sk-... node cli.js
 ```
 
-Checkpoint/resume v3 agent:
+### Paranoid Mod (LLM Ã¶ÄŸrenmeyi engelle)
 
 ```bash
-set AXIOM_AGENT_VERSION=v3
+AXIOM_PARANOID=1 node cli.js
 ```
 
-## Persistence
+---
 
-- `memory.db` - SQLite primary storage
-- `memory.json` - JSON fallback
-- `memory.embeddings.json` - embedding store
+## Mimari
 
-## Docs
-
-- `docs/product-positioning.md` - product audience, promise, and boundaries
-- `docs/architecture.md` - core modules and source-of-truth map
-- `docs/release-map.md` - release history and next direction
-- `docs/v0.7-release-notes.md` - v0.7 release notes
-- `docs/demo-causal-v0.7.md` - causal demo guide
-- `docs/ADR-001-causal-engine.md` - causal engine decision record
-- `docs/demo-v0.6.md` - v0.6 product smoke flow
-- `docs/finalizer-spec.md` - deterministic finalizer contract
-- `docs/sdk-v0.6.md` - SDK wrapper contract
-
-## Repository Layout
-
-```text
-kernel.js
-kernel.v2.js
-graph.js
-causalSimulator.js
-finalizer.js
-plugin.js
-agent.js
-agent.v3.js
-workflow-agent.js
-workflow-tools.js
-workflow-runtime.js
-server.js
-cli.js
-mcpServer.js
-lib/
-adapters/
-plugins/
-benchmarks/
-specs/
-docs/
+```
+kernel.js         â€” Ã–ÄŸrenme, sorgulama, verify(), learnFromLLM(), nedensellik
+kernel.v2.js      â€” YapÄ±landÄ±rÄ±lmÄ±ÅŸ envelope API, manipÃ¼lasyon tespiti, enhanced verify
+graph.js          â€” Graf motoru + SQLite/JSON Ã§ift kalÄ±cÄ±lÄ±k katmanÄ±
+dream.js          â€” Hipotez motoru (Node2Vec embedding, benzerlik keÅŸfi)
+llmAdapter.js     â€” Ollama + OpenAI wrapper, hata sarmalama
+causalSimulator.js â€” What-if nedensel simÃ¼lasyon (v0.7)
+evidence-ranker.js â€” KanÄ±t kalitesi sÄ±ralama (user_opinionâ†’replicated)
+finalizer.js      â€” Deterministik Ã¶zet ve Ã¶neri Ã¼retimi
+agent.js          â€” Hafif Ã§ok adÄ±mlÄ± agent runtime
+agent.v3.js       â€” Checkpoint/resume destekli agent
+agentRuntime.js   â€” Agent versiyonu ve runtime seÃ§ici
+storage.js        â€” SQLite: checkpoint, hedef hafÄ±zasÄ±, tool approval
+toolPolicy.js     â€” AraÃ§ gÃ¼venlik politikasÄ±
+requestGuards.js  â€” Girdi doÄŸrulama ve sanitizasyon
+plugin.js         â€” Event-driven plugin sistemi
+cli.js            â€” TÃ¼rkÃ§e doÄŸal dil parser + async LLM desteÄŸi
+server.js         â€” REST API + D3.js interaktif graf arayÃ¼zÃ¼
+mcpServer.js      â€” MCP stdio sunucu (10 araÃ§)
 ```
 
-## Verification
+---
 
-Current release:
+## Testler
 
-```text
-v0.7.0
+```bash
+npm test              # TÃ¼m testler (468 test)
+npm run test:graph
+npm run test:kernel
+npm run test:cli
+npm run test:dream
+npm run test:plugin
+npm run test:server
+npm run test:backup
 ```
 
-Expected test status:
+---
 
-```text
-npm test -> 392/392 passing
+## Benchmark
+
+```bash
+npm run bench           # TÃ¼m benchmark
+npm run bench:verify    # DoÄŸrulama benchmark
 ```
 
-Expected status endpoint:
+| Graf boyutu | learn | ask | verify | reason | compare | dream |
+|---|---|---|---|---|---|---|
+| small | ~50ms | ~0.4ms | ~0.25ms | ~0.4ms | ~0.45ms | ~1.8ms |
+| medium | ~44ms | ~0.09ms | ~0.06ms | ~0.26ms | ~0.09ms | ~1.7ms |
+| large | ~43ms | ~0.07ms | ~0.03ms | ~0.10ms | ~0.07ms | ~5.6ms |
 
-```text
-GET /v2-status -> version=0.7.0, testStatus=392/392
+---
+
+## HafÄ±za
+
+| Dosya | Ä°Ã§erik |
+|---|---|
+| `memory.db` | SQLite â€” graf, checkpoint, agent hafÄ±zasÄ±, araÃ§ onaylarÄ± (WAL) |
+| `memory.json` | JSON yedek â€” Rust katmanÄ± ve fallback |
+| `memory.embeddings.json` | Node2Vec vektÃ¶rleri (ayrÄ±, ÅŸiÅŸmeyi Ã¶nler) |
+
+SQLite varsayÄ±lan. Devre dÄ±ÅŸÄ±: `AXIOM_USE_SQLITE=false`
+
+---
+
+## Plugin Sistemi
+
+`plugins/` klasÃ¶rÃ¼ne `.js` dosyasÄ± bÄ±rak, otomatik yÃ¼klenir.
+
+```js
+module.exports = {
+  name: 'my-plugin',
+  init(kernel) {},
+  beforeLearn(kernel, data) { /* data.text deÄŸiÅŸtirilebilir */ },
+  afterLearn(kernel, data) {},
+  beforeAsk(kernel, data) { /* data.question deÄŸiÅŸtirilebilir */ },
+  afterAsk(kernel, data) {},
+  beforeDream(kernel, data) {},
+  afterDream(kernel, data) { /* data.hypotheses */ },
+  beforeEmbedding(kernel, opts) {},
+  afterEmbedding(kernel, result) {},
+};
 ```
 
-## License
+---
 
-MIT
+## Docker
+
+```bash
+docker-compose up
+```
+
+---
+
+## Ortam DeÄŸiÅŸkenleri
+
+| DeÄŸiÅŸken | AÃ§Ä±klama | VarsayÄ±lan |
+|---|---|---|
+| `AXIOM_PARANOID` | `1` â†’ LLM Ã¶ÄŸrenmeyi engelle | - |
+| `AXIOM_AGENT_VERSION` | `v2` veya `v3` | `v2` |
+| `AXIOM_AGENT_RUNTIME` | `classic` veya `workflow` | `classic` |
+| `AXIOM_KERNEL_VERSION` | `v2` â†’ KernelV2 kullan | - |
+| `AXIOM_MEMORY_PATH` | Graf JSON dosyasÄ± | `memory.json` |
+| `AXIOM_DB_PATH` | SQLite dosyasÄ± | `memory.db` |
+| `AXIOM_USE_SQLITE` | `false` â†’ JSON'a dÃ¼ÅŸ | `true` |
+| `OPENAI_API_KEY` | OpenAI API anahtarÄ± | - |
+
+---
+
+## Versiyon
+
+**v0.8.0** — Trust Kernel & AXIOM Trust Protocol, 486 test
+
+[CHANGELOG](./CHANGELOG.md) Â· [ROADMAP](./ROADMAP.md) Â· [MIT Lisans](./LICENSE)
+
+
+

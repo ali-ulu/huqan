@@ -1,4 +1,4 @@
-# AXIOM Architecture
+﻿# AXIOM Architecture
 
 ## Source of Truth
 
@@ -181,20 +181,20 @@ GET /graph-data
 Release:
 
 ```text
-v0.7.0
+v0.8.0
 ```
 
 Expected test status:
 
 ```text
-392/392
+486/486
 ```
 
 Expected status endpoint:
 
 ```text
-version=0.7.0
-testStatus=392/392
+version=0.8.0
+testStatus=486/486
 ```
 
 ## v0.8 Direction Note
@@ -202,3 +202,4 @@ testStatus=392/392
 Trust Kernel plus ATP/AVP is the documented source-of-truth direction for v0.8.
 
 That direction is intentionally documented before runtime work so protocol design is not mixed with incomplete storage or kernel behavior in the same step.
+
