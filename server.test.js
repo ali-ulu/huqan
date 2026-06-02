@@ -1,4 +1,4 @@
-﻿const { describe, it, before, after } = require('node:test');
+const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert');
 const http = require('http');
 const fs = require('fs');
@@ -57,6 +57,7 @@ before(async () => {
   process.env.AXIOM_BACKUP_DIR = path.join(tempDir, 'backups');
   process.env.AXIOM_KERNEL_VERSION = 'v2';
   process.env.AXIOM_DISABLE_AUTO_LISTEN = '1';
+  process.env.AXIOM_TEST_STATUS = 'static-test-status';
   server = require('./server');
   server.keepAliveTimeout = 1;
   server.headersTimeout = 2_000;
@@ -67,7 +68,6 @@ before(async () => {
     server.once('error', reject);
     server.startServer(0);
   });
-  server.unref();
   const addr = server.address();
   PORT = addr.port;
   BASE = `http://127.0.0.1:${PORT}`;
@@ -85,6 +85,7 @@ after(async () => {
   delete process.env.AXIOM_BACKUP_DIR;
   delete process.env.AXIOM_KERNEL_VERSION;
   delete process.env.AXIOM_DISABLE_AUTO_LISTEN;
+  delete process.env.AXIOM_TEST_STATUS;
   await new Promise(resolve => setTimeout(resolve, 25));
   if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
 });
@@ -430,7 +431,7 @@ describe('Server - API', () => {
     assert.strictEqual(r.status, 400);
   });
   it('GET /graph-data dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {
-    const r = await request(`${BASE}/graph-data`);
+    const r = await request(`${BASE}/graph-data?workspaceId=default`);
     assert.strictEqual(r.status, 200);
     const j = await r.json();
     assert.ok(Array.isArray(j.nodes));
@@ -442,7 +443,9 @@ describe('Server - API', () => {
     if (j.links.length > 0) {
       assert.ok('confidence' in j.links[0]);
       assert.ok('source' in j.links[0]);
+      assert.ok('evidenceSource' in j.links[0]);
       assert.ok('evidenceCount' in j.links[0]);
+      assert.ok('target' in j.links[0]);
     }
     assert.notStrictEqual(r.headers.get('access-control-allow-origin'), '*');
     assert.strictEqual(r.headers.get('cache-control'), 'no-cache');
@@ -485,7 +488,7 @@ describe('Server - API', () => {
     assert.strictEqual(typeof j.agentCheckpointPath, 'string');
     assert.strictEqual(j.agentV3Status, null);
     assert.strictEqual(j.activeKernel, 'v2');
-    assert.match(j.testStatus, /^\d+\/\d+$/);
+    assert.strictEqual(j.testStatus, 'static-test-status');
     assert.ok(['sqlite', 'json'].includes(j.backend));
     assert.ok(Number.isInteger(j.nodes));
     assert.ok(Number.isInteger(j.edges));

@@ -136,6 +136,33 @@ describe('Provenance System', () => {
     assert.strictEqual(learnEvents[0].provenanceId, provenance.provenanceId);
   });
 
+  it('keeps same node id separate across workspaces', () => {
+    const kernel = new Kernel({ noLoad: true, useSQLite: false, ...makePaths('workspace-collision') });
+    const provenanceA = makeProvenance({ provenanceId: 'prov-workspace-a', workspaceId: 'workspace-a' });
+    const provenanceB = makeProvenance({ provenanceId: 'prov-workspace-b', workspaceId: 'workspace-b' });
+
+    kernel.learn('kedi hayvandir', { provenance: provenanceA });
+    kernel.learn('kedi canlidir', { provenance: provenanceB });
+
+    const nodeA = kernel.graph.getNode('kedi', 'workspace-a');
+    const nodeB = kernel.graph.getNode('kedi', 'workspace-b');
+    const nodeDefault = kernel.graph.getNode('kedi', 'default');
+    const edgeA = kernel.graph.getEdge('kedi', 'hayvan', 'tür', 'workspace-a');
+    const edgeB = kernel.graph.getEdge('kedi', 'canli', 'tür', 'workspace-b');
+
+    assert.ok(nodeA);
+    assert.ok(nodeB);
+    assert.strictEqual(nodeA.workspaceId, 'workspace-a');
+    assert.strictEqual(nodeB.workspaceId, 'workspace-b');
+    assert.strictEqual(nodeA.provenance.provenanceId, 'prov-workspace-a');
+    assert.strictEqual(nodeB.provenance.provenanceId, 'prov-workspace-b');
+    assert.ok(edgeA);
+    assert.ok(edgeB);
+    assert.strictEqual(edgeA.workspaceId, 'workspace-a');
+    assert.strictEqual(edgeB.workspaceId, 'workspace-b');
+    assert.strictEqual(nodeDefault, null);
+  });
+
   it('persists provenance through JSON save/load roundtrip', () => {
     const paths = makePaths('json-roundtrip');
     const provenance = makeProvenance({ provenanceId: 'prov-json' });

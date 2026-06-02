@@ -1,8 +1,8 @@
 const crypto = require('crypto');
 const http = require('http');
 const path = require('path');
-const { globSync, readFileSync } = require('fs');
-const { execFileSync, execSync } = require('child_process');
+const { readFileSync } = require('fs');
+const { execSync } = require('child_process');
 const CLI = require('./cli');
 const { evaluateLlmSor } = require('./lib/shield');
 const { handleIngest } = require('./lib/ingest');
@@ -27,36 +27,13 @@ const {
 
 function computeTestStatus() {
   if (computeTestStatus.cached) return computeTestStatus.cached;
-  try {
-    const files = globSync('**/*.test.js', { exclude: (p) => p.includes('node_modules') || p.includes('.git') });
-    const serverTestFile = files.find((file) => path.basename(file) === 'server.test.js');
-    const testFiles = files.filter((file) => path.basename(file) !== 'server.test.js');
-    const tapOutput = execFileSync(process.execPath, ['--test', '--test-reporter=tap', ...testFiles], {
-      encoding: 'utf8',
-      maxBuffer: 16 * 1024 * 1024,
-    });
-    const match = tapOutput.match(/^# tests (\d+)/m);
-    if (!match) throw new Error('Unable to parse node --test summary');
-    const serverTestCount = serverTestFile
-      ? (readFileSync(serverTestFile, 'utf-8').match(/^\s*(?:it|test)\s*\(/gm) || []).length
-      : 0;
-    const total = Number(match[1]) + serverTestCount;
-    computeTestStatus.cached = `${total}/${total}`;
+  const status = process.env.AXIOM_TEST_STATUS || pkg.axiom?.testStatus || pkg.axiom?.test_status;
+  if (typeof status === 'string' && status.trim()) {
+    computeTestStatus.cached = status.trim();
     return computeTestStatus.cached;
-  } catch (_) {
-    try {
-      const files = globSync('**/*.test.js', { exclude: (p) => p.includes('node_modules') || p.includes('.git') });
-      let total = 0;
-      for (const file of files) {
-        const content = readFileSync(file, 'utf-8');
-        total += (content.match(/^\s*(?:it|test)\s*\(/gm) || []).length;
-      }
-      computeTestStatus.cached = `${total}/${total}`;
-      return computeTestStatus.cached;
-    } catch (_) {
-      return '?/?';
-    }
   }
+  computeTestStatus.cached = 'unknown';
+  return computeTestStatus.cached;
 }
 
 const kernelOpts = {};
@@ -199,16 +176,21 @@ async function parseJsonRequest(req, res, options = {}) {
 
 
 // Graf verisini D3 formatÄ±na dÃ¶nÃ¼ÅŸtÃ¼r
-function getGraphData() {
+function getGraphData(workspaceId = 'default') {
+  const scope = typeof workspaceId === 'string' && workspaceId.trim() ? workspaceId.trim() : 'default';
+  const nodesById = cli.kernel.graph.getNodes(scope);
   const nodeEdges = new Map();
-  for (const edge of cli.kernel.graph._edges) {
+  for (const edge of cli.kernel.graph._edges.filter((edge) => {
+    const edgeScope = edge.workspaceId || 'default';
+    return edgeScope === scope;
+  })) {
     if (!nodeEdges.has(edge.from)) nodeEdges.set(edge.from, []);
     if (!nodeEdges.has(edge.to)) nodeEdges.set(edge.to, []);
     nodeEdges.get(edge.from).push(edge);
     nodeEdges.get(edge.to).push(edge);
   }
 
-  const nodes = Object.values(cli.kernel.graph._nodes).map(n => {
+  const nodes = Object.values(nodesById).map(n => {
     const edges = nodeEdges.get(n.id) || [];
     const sources = [...new Set(edges.map(e => e.source || e.source_type || 'manual').filter(Boolean))].slice(0, 3);
     const confidence = edges.length > 0
@@ -219,10 +201,11 @@ function getGraphData() {
       id: n.id,
       label: n.label,
       weight: n.weight,
-      edgeCount: cli.kernel.graph.getEdges(n.id).length,
+      edgeCount: cli.kernel.graph.getEdges(n.id, scope).length,
       confidence,
       sources,
       evidenceCount,
+      workspaceId: n.workspaceId || scope,
       last_seen: n.last_seen || n.lastSeen || '',
       created_at: n.created_at || '',
     };
@@ -235,7 +218,7 @@ function getGraphData() {
   const nodeIds = new Set(topNodes.map(n => n.id));
 
   const links = cli.kernel.graph._edges
-    .filter(e => nodeIds.has(e.from) && nodeIds.has(e.to))
+    .filter(e => nodeIds.has(e.from) && nodeIds.has(e.to) && (e.workspaceId || 'default') === scope)
     .map(e => ({
       source: e.from,
       target: e.to,
@@ -243,13 +226,14 @@ function getGraphData() {
       weight: e.weight,
       confidence: e.confidence ?? e.weight ?? 0.5,
       sourceType: e.source_type || '',
-      source: e.source || 'manual',
+      evidenceSource: e.source || 'manual',
       sourceRef: e.source_ref || '',
       evidenceCount: Array.isArray(e.evidence) ? e.evidence.length : 0,
       evidence: Array.isArray(e.evidence) ? e.evidence.slice(0, 2) : [],
       updatedAt: e.updated_at || '',
       createdAt: e.created_at || '',
       sessionId: e.session_id || '',
+      workspaceId: e.workspaceId || scope,
     }));
 
   return { nodes: topNodes, links };
@@ -519,7 +503,8 @@ const server = http.createServer(async (req, res) => {
     if (req.method !== 'GET') {
       res.writeHead(405); res.end(); return;
     }
-    const data = getGraphData();
+    const workspaceId = reqUrl.searchParams.get('workspaceId') || 'default';
+    const data = getGraphData(workspaceId);
     res.writeHead(200, {
       'Content-Type': 'application/json',
       ...buildCorsHeaders(req),
@@ -567,14 +552,15 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const sendVerifyResult = (statement) => {
+    const sendVerifyResult = (statement, workspaceId = '') => {
       const text = sanitizeInput(statement || '');
       if (!text) {
         writeJson(req, res, 400, { error: 'statement required' });
         return;
       }
 
-      const result = cli.kernel.verify(text);
+      const normalizedWorkspaceId = sanitizeInput(workspaceId || reqUrl.searchParams.get('workspaceId') || '');
+      const result = cli.kernel.verify(text, normalizedWorkspaceId ? { workspaceId: normalizedWorkspaceId } : {});
       writeJson(req, res, 200, result, { 'Cache-Control': 'no-cache' });
     };
 
@@ -582,11 +568,11 @@ const server = http.createServer(async (req, res) => {
       if (!denyIfUnauthorized(req, res)) return;
       const data = await parseJsonRequest(req, res, { maxBytes: 4_096 });
       if (!data) return;
-      sendVerifyResult(data.statement || data.text || '');
+      sendVerifyResult(data.statement || data.text || '', data.workspaceId || '');
       return;
     }
 
-    sendVerifyResult(reqUrl.searchParams.get('statement') || '');
+    sendVerifyResult(reqUrl.searchParams.get('statement') || '', reqUrl.searchParams.get('workspaceId') || '');
     return;
   }
 
@@ -602,6 +588,7 @@ const server = http.createServer(async (req, res) => {
     if (!data) return;
     const question = sanitizeInput(data.question || data.q || '');
     const autoLearn = data.autoLearn === true;
+    const workspaceId = sanitizeInput(data.workspaceId || reqUrl.searchParams.get('workspaceId') || '');
     if (!question) {
       res.writeHead(400, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
       res.end(JSON.stringify({ error: 'question gerekli' }));
@@ -609,7 +596,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // AXIOM ön doğrulama
-    const axiomCheck = legacyVerify(cli.kernel.verify(question));
+    const axiomCheck = legacyVerify(cli.kernel.verify(question, workspaceId ? { workspaceId } : {}));
 
     // LLM'ye sor
     const LLMAdapter = require('./llmAdapter');
@@ -629,7 +616,7 @@ const server = http.createServer(async (req, res) => {
     const llmText = llmRes.data.text;
 
     // LLM yanıtını doğrula
-    const llmCheck = legacyVerify(cli.kernel.verify(llmText.slice(0, 300)));
+    const llmCheck = legacyVerify(cli.kernel.verify(llmText.slice(0, 300), workspaceId ? { workspaceId } : {}));
 
     const shield = evaluateLlmSor({
       kernel: cli.kernel,
@@ -639,6 +626,7 @@ const server = http.createServer(async (req, res) => {
       llmCheck,
       autoLearn,
       maxSentences: 15,
+      workspaceId,
     });
 
     res.writeHead(200, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
@@ -666,23 +654,25 @@ const server = http.createServer(async (req, res) => {
       const data = await parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_JSON_BODY });
       if (!data) return;
       const text = sanitizeInput(data.statement || data.text || '');
+      const workspaceId = sanitizeInput(data.workspaceId || reqUrl.searchParams.get('workspaceId') || '');
       if (!text) {
         res.writeHead(400, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
         res.end(JSON.stringify({ error: 'statement veya text gerekli' }));
         return;
       }
-      const result = legacyVerify(cli.kernel.verify(text));
+      const result = legacyVerify(cli.kernel.verify(text, workspaceId ? { workspaceId } : {}));
       res.writeHead(200, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
       res.end(JSON.stringify(result));
       return;
     }
     const text = sanitizeInput(reqUrl.searchParams.get('statement') || '');
+    const workspaceId = sanitizeInput(reqUrl.searchParams.get('workspaceId') || '');
     if (!text) {
       res.writeHead(400, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
       res.end(JSON.stringify({ error: 'statement parametresi gerekli' }));
       return;
     }
-    const result = legacyVerify(cli.kernel.verify(text));
+    const result = legacyVerify(cli.kernel.verify(text, workspaceId ? { workspaceId } : {}));
     res.writeHead(200, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
     res.end(JSON.stringify(result));
     return;

@@ -1235,8 +1235,8 @@ if (verbSuffix.test(predicate)) {
    * Bir ifadeyi bilgi grafiÄŸiyle doÄŸrula.
    * "kedi bal?k yer" ? ?zne=kedi, nesne=bal?k yer ? kenar var m??
    */
-  verify(statement) {
-    return this._verifyService.verify(statement);
+  verify(statement, opts = {}) {
+    return this._verifyService.verify(statement, opts);
   }
 
   dream(opts = {}) {
@@ -1354,7 +1354,8 @@ if (verbSuffix.test(predicate)) {
 
       // Ã‡eli?ki kontrol?
       if (skipConflicts) {
-        const check = this.verify(cleaned);
+        const workspaceId = normalizeWorkspaceId(opts.workspaceId || opts.provenance?.workspaceId || 'default');
+        const check = this.verify(cleaned, { workspaceId });
         if (check.data.status === 'celiski') {
           conflicts.push(cleaned);
           skipped++;
@@ -1362,15 +1363,33 @@ if (verbSuffix.test(predicate)) {
         }
       }
 
-      this.learn(cleaned);
+      const workspaceId = normalizeWorkspaceId(opts.workspaceId || opts.provenance?.workspaceId || 'default');
+      const provenance = opts.provenance && typeof opts.provenance === 'object'
+        ? { ...opts.provenance }
+        : {
+            provenanceId: `llm-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+            sourceRef: opts.sourceRef || 'llm:auto-learn',
+            sourceTitle: opts.sourceTitle || 'LLM auto-learn sentence',
+            sourceType: 'llm',
+            actor: opts.actor || 'system',
+            timestamp: opts.timestamp || new Date().toISOString(),
+            workspaceId,
+            confidence: opts.confidence ?? 0.5,
+            trustPolicyVersion: opts.trustPolicyVersion || '0.8.0',
+          };
+      this.learn(cleaned, {
+        ...opts,
+        provenance,
+        workspaceId,
+      });
       learned++;
     }
 
     return { learned, skipped, conflicts };
   }
 
-  detectContradictions() {
-    return this._verifyService.detectContradictions();
+  detectContradictions(subject = '', workspaceId = 'default') {
+    return this._verifyService.detectContradictions(subject, workspaceId);
   }
 
   _extractNumbers(text) {
