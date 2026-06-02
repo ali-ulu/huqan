@@ -1,0 +1,247 @@
+{
+  "manifest": {
+    "packageId": "pkg-causal-simulation-001",
+    "format": "axiom-package",
+    "formatVersion": "0.1",
+    "createdAt": "2026-06-02T00:00:00.000Z",
+    "createdBy": "axiom",
+    "workspaceId": "workspace-causal",
+    "source": {
+      "type": "system",
+      "sourceRef": "axiom://demo/causal/autolearn"
+    },
+    "description": "Causal simulation export package.",
+    "objectCounts": {
+      "provenanceRecords": 1,
+      "auditEvents": 1,
+      "candidateClaims": 0,
+      "conflictResults": 0,
+      "verificationResults": 0,
+      "trustReceipts": 0,
+      "causalChains": 1,
+      "simulationResults": 1
+    },
+    "atpVersion": "0.1"
+  },
+  "objects": {
+    "provenanceRecords": [
+      {
+        "provenanceId": "prov-causal-demo",
+        "sourceRef": "axiom://demo/causal/autolearn",
+        "sourceTitle": "autoLearn safety demo",
+        "sourceType": "system",
+        "actor": "axiom",
+        "timestamp": "2026-06-02T00:00:00.000Z",
+        "confidence": 0.8,
+        "workspaceId": "workspace-causal",
+        "trustPolicyVersion": "0.8.0"
+      }
+    ],
+    "auditEvents": [
+      {
+        "auditId": "audit-causal-demo",
+        "eventType": "EXPORTED",
+        "targetType": "simulation-result",
+        "targetId": "sim-autoLearn-true",
+        "workspaceId": "workspace-causal",
+        "actor": "axiom",
+        "timestamp": "2026-06-02T00:00:00.000Z",
+        "sourceRef": "axiom://demo/causal/autolearn",
+        "provenanceId": "prov-causal-demo",
+        "trustPolicyVersion": "0.8.0",
+        "details": {
+          "exported": true
+        }
+      }
+    ],
+    "candidateClaims": [],
+    "conflictResults": [],
+    "verificationResults": [],
+    "trustReceipts": [],
+    "causalChains": [
+      {
+        "start": "autoLearn true",
+        "chain": [
+          {
+            "from": "autoLearn true",
+            "relation": "CAUSES",
+            "to": "unsupported LLM output can enter graph",
+            "confidence": 0.92
+          },
+          {
+            "from": "unsupported LLM output can enter graph",
+            "relation": "CAUSES",
+            "to": "graph trust degradation",
+            "confidence": 0.9
+          },
+          {
+            "from": "graph trust degradation",
+            "relation": "CAUSES",
+            "to": "Shield claim weakens",
+            "confidence": 0.85
+          },
+          {
+            "from": "Shield claim weakens",
+            "relation": "LEADS_TO",
+            "to": "AXIOM reliability promise is damaged",
+            "confidence": 0.8
+          },
+          {
+            "from": "AXIOM reliability promise is damaged",
+            "relation": "DEPENDS_ON",
+            "to": "trust-policy enforcement",
+            "confidence": 0.7
+          }
+        ],
+        "visited": [
+          "autoLearn true",
+          "unsupported LLM output can enter graph",
+          "graph trust degradation",
+          "Shield claim weakens",
+          "AXIOM reliability promise is damaged"
+        ],
+        "loops": [],
+        "stoppedReason": "exhausted",
+        "maxDepth": 5,
+        "confidence": 0.84,
+        "evidence": [
+          {
+            "type": "causal",
+            "ref": "prov-causal-demo"
+          }
+        ]
+      }
+    ],
+    "simulationResults": [
+      {
+        "mode": "causal",
+        "input": "What breaks if autoLearn defaults to true?",
+        "affectedNodes": [
+          "unsupported LLM output can enter graph",
+          "graph trust degradation",
+          "Shield claim weakens",
+          "AXIOM reliability promise is damaged"
+        ],
+        "causalChains": [
+          {
+            "start": "autoLearn true",
+            "chain": [
+              {
+                "from": "autoLearn true",
+                "relation": "CAUSES",
+                "to": "unsupported LLM output can enter graph",
+                "confidence": 0.92
+              },
+              {
+                "from": "unsupported LLM output can enter graph",
+                "relation": "CAUSES",
+                "to": "graph trust degradation",
+                "confidence": 0.9
+              },
+              {
+                "from": "graph trust degradation",
+                "relation": "CAUSES",
+                "to": "Shield claim weakens",
+                "confidence": 0.85
+              },
+              {
+                "from": "Shield claim weakens",
+                "relation": "LEADS_TO",
+                "to": "AXIOM reliability promise is damaged",
+                "confidence": 0.8
+              },
+              {
+                "from": "AXIOM reliability promise is damaged",
+                "relation": "DEPENDS_ON",
+                "to": "trust-policy enforcement",
+                "confidence": 0.7
+              }
+            ],
+            "visited": [
+              "autoLearn true",
+              "unsupported LLM output can enter graph",
+              "graph trust degradation",
+              "Shield claim weakens",
+              "AXIOM reliability promise is damaged"
+            ],
+            "loops": [],
+            "stoppedReason": "exhausted",
+            "maxDepth": 5,
+            "confidence": 0.84,
+            "evidence": [
+              {
+                "type": "causal",
+                "ref": "prov-causal-demo"
+              }
+            ]
+          }
+        ],
+        "risks": [
+          {
+            "level": "critical",
+            "reason": "autoLearn true can admit unsupported outputs into the canonical graph"
+          }
+        ],
+        "confidence": 0.84,
+        "recommendation": "Change is not recommended.",
+        "evidence": [
+          {
+            "type": "causal",
+            "ref": "prov-causal-demo"
+          }
+        ],
+        "unknowns": []
+      }
+    ]
+  },
+  "index": {
+    "byId": {
+      "prov-causal-demo": {
+        "type": "provenance-record",
+        "workspaceId": "workspace-causal"
+      },
+      "audit-causal-demo": {
+        "type": "audit-event",
+        "workspaceId": "workspace-causal"
+      },
+      "sim-autoLearn-true": {
+        "type": "simulation-result",
+        "workspaceId": "workspace-causal"
+      }
+    },
+    "bySourceRef": {
+      "axiom://demo/causal/autolearn": [
+        "prov-causal-demo",
+        "audit-causal-demo",
+        "sim-autoLearn-true"
+      ]
+    },
+    "byWorkspaceId": {
+      "workspace-causal": [
+        "prov-causal-demo",
+        "audit-causal-demo",
+        "sim-autoLearn-true"
+      ]
+    },
+    "byType": {
+      "provenance-record": [
+        "prov-causal-demo"
+      ],
+      "audit-event": [
+        "audit-causal-demo"
+      ],
+      "simulation-result": [
+        "sim-autoLearn-true"
+      ],
+      "causal-chain": [
+        "prov-causal-demo"
+      ]
+    }
+  },
+  "metadata": {
+    "exportedFrom": "axiom",
+    "exportReason": "causal-simulation",
+    "generator": "axiom-package-draft",
+    "warnings": []
+  }
+}

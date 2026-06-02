@@ -1,0 +1,29 @@
+{
+  "title": "AXIOM Package Manifest",
+  "type": "object",
+  "required": [
+    "packageId",
+    "format",
+    "formatVersion",
+    "createdAt",
+    "createdBy",
+    "workspaceId",
+    "source",
+    "description",
+    "objectCounts",
+    "atpVersion"
+  ],
+  "properties": {
+    "packageId": { "type": "string" },
+    "format": { "const": "axiom-package" },
+    "formatVersion": { "const": "0.1" },
+    "createdAt": { "type": "string" },
+    "createdBy": { "type": "string" },
+    "workspaceId": { "type": "string" },
+    "source": {},
+    "description": { "type": "string" },
+    "objectCounts": { "type": "object" },
+    "atpVersion": { "const": "0.1" }
+  },
+  "additionalProperties": true
+}

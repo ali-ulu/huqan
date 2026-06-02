@@ -1,0 +1,12 @@
+{
+  "title": "AXIOM Package Object Reference",
+  "type": "object",
+  "required": ["type", "id"],
+  "properties": {
+    "type": { "type": "string" },
+    "id": { "type": "string" },
+    "workspaceId": { "type": "string" },
+    "sourceRef": { "type": "string" }
+  },
+  "additionalProperties": true
+}

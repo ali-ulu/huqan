@@ -16,7 +16,7 @@
     "bench": "node benchmarks/bench.js",
     "bench:verify": "node benchmarks/verifBench.js",
     "train": "node egitim.js",
-    "test": "node --test",
+    "test": "node --test --test-concurrency=1",
     "test:watch": "node --test --watch",
     "test:graph": "node --test graph.test.js",
     "test:kernel": "node --test kernel.test.js",

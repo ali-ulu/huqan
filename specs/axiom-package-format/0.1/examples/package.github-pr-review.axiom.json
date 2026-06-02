@@ -1,0 +1,378 @@
+{
+  "manifest": {
+    "packageId": "pkg-github-pr-review-001",
+    "format": "axiom-package",
+    "formatVersion": "0.1",
+    "createdAt": "2026-06-02T00:00:00.000Z",
+    "createdBy": "axiom",
+    "workspaceId": "workspace-a",
+    "source": {
+      "type": "github",
+      "sourceRef": "github://agiulucom42-del/axiom/pull/124"
+    },
+    "description": "GitHub PR review package.",
+    "objectCounts": {
+      "provenanceRecords": 1,
+      "auditEvents": 2,
+      "candidateClaims": 1,
+      "conflictResults": 1,
+      "verificationResults": 1,
+      "trustReceipts": 1,
+      "causalChains": 0,
+      "simulationResults": 0
+    },
+    "atpVersion": "0.1"
+  },
+  "objects": {
+    "provenanceRecords": [
+      {
+        "provenanceId": "prov-github-pr-124",
+        "sourceRef": "github://agiulucom42-del/axiom/pull/124",
+        "sourceTitle": "PR 124 review",
+        "sourceType": "github",
+        "sourceSubType": "open_pr",
+        "actor": "axiom",
+        "timestamp": "2026-06-02T00:00:00.000Z",
+        "confidence": 0.65,
+        "workspaceId": "workspace-a",
+        "trustPolicyVersion": "0.8.0"
+      }
+    ],
+    "auditEvents": [
+      {
+        "auditId": "audit-pr-124-imported",
+        "eventType": "IMPORTED",
+        "targetType": "candidate-claim",
+        "targetId": "cand-pr-124",
+        "workspaceId": "workspace-a",
+        "actor": "axiom",
+        "timestamp": "2026-06-02T00:00:00.000Z",
+        "sourceRef": "github://agiulucom42-del/axiom/pull/124",
+        "provenanceId": "prov-github-pr-124",
+        "trustPolicyVersion": "0.8.0",
+        "details": {
+          "importType": "github-pr"
+        }
+      },
+      {
+        "auditId": "audit-pr-124-flagged",
+        "eventType": "CLAIM_FLAGGED",
+        "targetType": "candidate-claim",
+        "targetId": "cand-pr-124",
+        "workspaceId": "workspace-a",
+        "actor": "axiom",
+        "timestamp": "2026-06-02T00:00:00.000Z",
+        "sourceRef": "github://agiulucom42-del/axiom/pull/124",
+        "provenanceId": "prov-github-pr-124",
+        "trustPolicyVersion": "0.8.0",
+        "details": {
+          "reason": "conflicts with current graph facts"
+        }
+      }
+    ],
+    "candidateClaims": [
+      {
+        "candidateId": "cand-pr-124",
+        "claim": "axiom adds trust-receipt-ui",
+        "proposedEdge": {
+          "from": "axiom",
+          "relation": "adds",
+          "to": "trust-receipt-ui",
+          "confidence": 0.55,
+          "workspaceId": "workspace-a"
+        },
+        "provenance": {
+          "provenanceId": "prov-github-pr-124",
+          "sourceRef": "github://agiulucom42-del/axiom/pull/124",
+          "sourceTitle": "PR 124 review",
+          "sourceType": "github",
+          "sourceSubType": "open_pr",
+          "actor": "axiom",
+          "timestamp": "2026-06-02T00:00:00.000Z",
+          "confidence": 0.65,
+          "workspaceId": "workspace-a",
+          "trustPolicyVersion": "0.8.0"
+        },
+        "conflict": {
+          "conflict": true,
+          "type": "agent-vs-graph",
+          "recommendation": "flag",
+          "reason": "graph does not yet support the proposed UI mutation",
+          "confidenceDelta": -0.2,
+          "existingEvidence": [
+            {
+              "type": "graph",
+              "ref": "trust-dashboard"
+            }
+          ],
+          "proposedEvidence": [
+            {
+              "type": "github",
+              "ref": "github://agiulucom42-del/axiom/pull/124"
+            }
+          ],
+          "workspaceId": "workspace-a",
+          "provenanceId": "prov-github-pr-124",
+          "sourceRef": "github://agiulucom42-del/axiom/pull/124"
+        },
+        "recommendation": "flag",
+        "status": "pending",
+        "workspaceId": "workspace-a",
+        "createdAt": "2026-06-02T00:00:00.000Z",
+        "reviewedAt": "2026-06-02T00:00:00.000Z",
+        "reviewedBy": "axiom"
+      }
+    ],
+    "conflictResults": [
+      {
+        "conflict": true,
+        "type": "agent-vs-graph",
+        "recommendation": "flag",
+        "reason": "graph does not yet support the proposed UI mutation",
+        "confidenceDelta": -0.2,
+        "existingEvidence": [
+          {
+            "type": "graph",
+            "ref": "trust-dashboard"
+          }
+        ],
+        "proposedEvidence": [
+          {
+            "type": "github",
+            "ref": "github://agiulucom42-del/axiom/pull/124"
+          }
+        ],
+        "workspaceId": "workspace-a",
+        "provenanceId": "prov-github-pr-124",
+        "sourceRef": "github://agiulucom42-del/axiom/pull/124"
+      }
+    ],
+    "verificationResults": [
+      {
+        "ok": false,
+        "claim": "axiom adds trust-receipt-ui",
+        "status": "unsupported",
+        "mode": "unsupported",
+        "confidence": 0.2,
+        "evidence": [],
+        "provenance": {
+          "provenanceId": "prov-github-pr-124",
+          "sourceRef": "github://agiulucom42-del/axiom/pull/124",
+          "sourceTitle": "PR 124 review",
+          "sourceType": "github",
+          "sourceSubType": "open_pr",
+          "actor": "axiom",
+          "timestamp": "2026-06-02T00:00:00.000Z",
+          "confidence": 0.65,
+          "workspaceId": "workspace-a",
+          "trustPolicyVersion": "0.8.0"
+        },
+        "conflict": {
+          "conflict": true,
+          "type": "agent-vs-graph",
+          "recommendation": "flag",
+          "reason": "graph does not yet support the proposed UI mutation",
+          "confidenceDelta": -0.2,
+          "existingEvidence": [
+            {
+              "type": "graph",
+              "ref": "trust-dashboard"
+            }
+          ],
+          "proposedEvidence": [
+            {
+              "type": "github",
+              "ref": "github://agiulucom42-del/axiom/pull/124"
+            }
+          ],
+          "workspaceId": "workspace-a"
+        },
+        "receipt": {
+          "receiptId": "receipt-pr-124",
+          "targetType": "candidate-claim",
+          "targetId": "cand-pr-124",
+          "claim": "axiom adds trust-receipt-ui",
+          "status": "flagged",
+          "workspaceId": "workspace-a",
+          "provenance": {
+            "provenanceId": "prov-github-pr-124",
+            "sourceRef": "github://agiulucom42-del/axiom/pull/124",
+            "sourceTitle": "PR 124 review",
+            "sourceType": "github",
+            "sourceSubType": "open_pr",
+            "actor": "axiom",
+            "timestamp": "2026-06-02T00:00:00.000Z",
+            "confidence": 0.65,
+            "workspaceId": "workspace-a",
+            "trustPolicyVersion": "0.8.0"
+          },
+          "trustPolicyVersion": "0.8.0",
+          "confidence": 0.2,
+          "auditTrail": [
+            {
+              "auditId": "audit-pr-124-imported",
+              "eventType": "IMPORTED"
+            },
+            {
+              "auditId": "audit-pr-124-flagged",
+              "eventType": "CLAIM_FLAGGED"
+            }
+          ],
+          "conflict": {
+            "conflict": true,
+            "type": "agent-vs-graph",
+            "recommendation": "flag",
+            "reason": "graph does not yet support the proposed UI mutation",
+            "confidenceDelta": -0.2,
+            "existingEvidence": [
+              {
+                "type": "graph",
+                "ref": "trust-dashboard"
+              }
+            ],
+            "proposedEvidence": [
+              {
+                "type": "github",
+                "ref": "github://agiulucom42-del/axiom/pull/124"
+              }
+            ],
+            "workspaceId": "workspace-a"
+          },
+          "candidateClaim": {
+            "candidateId": "cand-pr-124",
+            "status": "pending"
+          },
+          "canonical": false,
+          "generatedAt": "2026-06-02T00:00:00.000Z"
+        }
+      }
+    ],
+    "trustReceipts": [
+      {
+        "receiptId": "receipt-pr-124",
+        "targetType": "candidate-claim",
+        "targetId": "cand-pr-124",
+        "claim": "axiom adds trust-receipt-ui",
+        "status": "flagged",
+        "workspaceId": "workspace-a",
+        "provenance": {
+          "provenanceId": "prov-github-pr-124",
+          "sourceRef": "github://agiulucom42-del/axiom/pull/124",
+          "sourceTitle": "PR 124 review",
+          "sourceType": "github",
+          "sourceSubType": "open_pr",
+          "actor": "axiom",
+          "timestamp": "2026-06-02T00:00:00.000Z",
+          "confidence": 0.65,
+          "workspaceId": "workspace-a",
+          "trustPolicyVersion": "0.8.0"
+        },
+        "trustPolicyVersion": "0.8.0",
+        "confidence": 0.2,
+        "auditTrail": [
+          {
+            "auditId": "audit-pr-124-imported",
+            "eventType": "IMPORTED"
+          },
+          {
+            "auditId": "audit-pr-124-flagged",
+            "eventType": "CLAIM_FLAGGED"
+          }
+        ],
+        "conflict": {
+          "conflict": true,
+          "type": "agent-vs-graph",
+          "recommendation": "flag",
+          "reason": "graph does not yet support the proposed UI mutation",
+          "confidenceDelta": -0.2,
+          "existingEvidence": [
+            {
+              "type": "graph",
+              "ref": "trust-dashboard"
+            }
+          ],
+          "proposedEvidence": [
+            {
+              "type": "github",
+              "ref": "github://agiulucom42-del/axiom/pull/124"
+            }
+          ],
+          "workspaceId": "workspace-a"
+        },
+        "candidateClaim": {
+          "candidateId": "cand-pr-124",
+          "status": "pending"
+        },
+        "canonical": false,
+        "generatedAt": "2026-06-02T00:00:00.000Z"
+      }
+    ],
+    "causalChains": [],
+    "simulationResults": []
+  },
+  "index": {
+    "byId": {
+      "prov-github-pr-124": {
+        "type": "provenance-record",
+        "workspaceId": "workspace-a"
+      },
+      "audit-pr-124-imported": {
+        "type": "audit-event",
+        "workspaceId": "workspace-a"
+      },
+      "audit-pr-124-flagged": {
+        "type": "audit-event",
+        "workspaceId": "workspace-a"
+      },
+      "cand-pr-124": {
+        "type": "candidate-claim",
+        "workspaceId": "workspace-a"
+      },
+      "receipt-pr-124": {
+        "type": "trust-receipt",
+        "workspaceId": "workspace-a"
+      }
+    },
+    "bySourceRef": {
+      "github://agiulucom42-del/axiom/pull/124": [
+        "prov-github-pr-124",
+        "audit-pr-124-imported",
+        "audit-pr-124-flagged",
+        "cand-pr-124",
+        "receipt-pr-124"
+      ]
+    },
+    "byWorkspaceId": {
+      "workspace-a": [
+        "prov-github-pr-124",
+        "audit-pr-124-imported",
+        "audit-pr-124-flagged",
+        "cand-pr-124",
+        "receipt-pr-124"
+      ]
+    },
+    "byType": {
+      "provenance-record": [
+        "prov-github-pr-124"
+      ],
+      "audit-event": [
+        "audit-pr-124-imported",
+        "audit-pr-124-flagged"
+      ],
+      "candidate-claim": [
+        "cand-pr-124"
+      ],
+      "trust-receipt": [
+        "receipt-pr-124"
+      ]
+    }
+  },
+  "metadata": {
+    "exportedFrom": "github",
+    "exportReason": "pull-request-review",
+    "generator": "axiom-package-draft",
+    "warnings": [
+      "candidate claim was flagged for review"
+    ]
+  }
+}

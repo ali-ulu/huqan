@@ -1,0 +1,12 @@
+{
+  "title": "AXIOM Package",
+  "type": "object",
+  "required": ["manifest", "objects", "index", "metadata"],
+  "properties": {
+    "manifest": { "$ref": "./axiom-manifest.schema.json" },
+    "objects": { "type": "object" },
+    "index": { "$ref": "./axiom-bundle-index.schema.json" },
+    "metadata": { "type": "object" }
+  },
+  "additionalProperties": true
+}

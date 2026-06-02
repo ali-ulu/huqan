@@ -1,0 +1,225 @@
+{
+  "manifest": {
+    "packageId": "pkg-candidate-claims-001",
+    "format": "axiom-package",
+    "formatVersion": "0.1",
+    "createdAt": "2026-06-02T00:00:00.000Z",
+    "createdBy": "axiom",
+    "workspaceId": "workspace-a",
+    "source": {
+      "type": "import",
+      "sourceRef": "axiom://demo/candidate-claims"
+    },
+    "description": "Candidate claims export package.",
+    "objectCounts": {
+      "provenanceRecords": 2,
+      "auditEvents": 1,
+      "candidateClaims": 2,
+      "conflictResults": 0,
+      "verificationResults": 0,
+      "trustReceipts": 0,
+      "causalChains": 0,
+      "simulationResults": 0
+    },
+    "atpVersion": "0.1"
+  },
+  "objects": {
+    "provenanceRecords": [
+      {
+        "provenanceId": "prov-cand-1",
+        "sourceRef": "axiom://demo/candidate-claims/1",
+        "sourceTitle": "candidate claim one",
+        "sourceType": "import",
+        "actor": "axiom",
+        "timestamp": "2026-06-02T00:00:00.000Z",
+        "confidence": 0.55,
+        "workspaceId": "workspace-a",
+        "trustPolicyVersion": "0.8.0"
+      },
+      {
+        "provenanceId": "prov-cand-2",
+        "sourceRef": "axiom://demo/candidate-claims/2",
+        "sourceTitle": "candidate claim two",
+        "sourceType": "import",
+        "actor": "axiom",
+        "timestamp": "2026-06-02T00:00:00.000Z",
+        "confidence": 0.45,
+        "workspaceId": "workspace-a",
+        "trustPolicyVersion": "0.8.0"
+      }
+    ],
+    "auditEvents": [
+      {
+        "auditId": "audit-candidates-exported",
+        "eventType": "EXPORTED",
+        "targetType": "candidate-claim",
+        "targetId": "cand-1",
+        "workspaceId": "workspace-a",
+        "actor": "axiom",
+        "timestamp": "2026-06-02T00:00:00.000Z",
+        "sourceRef": "axiom://demo/candidate-claims",
+        "provenanceId": "prov-cand-1",
+        "trustPolicyVersion": "0.8.0",
+        "details": {
+          "count": 2
+        }
+      }
+    ],
+    "candidateClaims": [
+      {
+        "candidateId": "cand-1",
+        "claim": "axiom stores trust-receipts",
+        "proposedEdge": {
+          "from": "axiom",
+          "relation": "stores",
+          "to": "trust-receipts",
+          "confidence": 0.4,
+          "workspaceId": "workspace-a"
+        },
+        "provenance": {
+          "provenanceId": "prov-cand-1",
+          "sourceRef": "axiom://demo/candidate-claims/1",
+          "sourceTitle": "candidate claim one",
+          "sourceType": "import",
+          "actor": "axiom",
+          "timestamp": "2026-06-02T00:00:00.000Z",
+          "confidence": 0.55,
+          "workspaceId": "workspace-a",
+          "trustPolicyVersion": "0.8.0"
+        },
+        "conflict": {
+          "conflict": false,
+          "type": null,
+          "recommendation": "accept",
+          "reason": "candidate is aligned with existing graph policy",
+          "confidenceDelta": 0,
+          "existingEvidence": [],
+          "proposedEvidence": [
+            {
+              "type": "import",
+              "ref": "axiom://demo/candidate-claims/1"
+            }
+          ],
+          "workspaceId": "workspace-a"
+        },
+        "recommendation": "accept",
+        "status": "accepted",
+        "workspaceId": "workspace-a",
+        "createdAt": "2026-06-02T00:00:00.000Z"
+      },
+      {
+        "candidateId": "cand-2",
+        "claim": "axiom rejects bad-claim",
+        "proposedEdge": {
+          "from": "axiom",
+          "relation": "rejects",
+          "to": "bad-claim",
+          "confidence": 0.2,
+          "workspaceId": "workspace-a"
+        },
+        "provenance": {
+          "provenanceId": "prov-cand-2",
+          "sourceRef": "axiom://demo/candidate-claims/2",
+          "sourceTitle": "candidate claim two",
+          "sourceType": "import",
+          "actor": "axiom",
+          "timestamp": "2026-06-02T00:00:00.000Z",
+          "confidence": 0.45,
+          "workspaceId": "workspace-a",
+          "trustPolicyVersion": "0.8.0"
+        },
+        "conflict": {
+          "conflict": true,
+          "type": "provenance-mismatch",
+          "recommendation": "reject",
+          "reason": "claim provenance does not match known workspace rules",
+          "confidenceDelta": -0.3,
+          "existingEvidence": [
+            {
+              "type": "policy",
+              "ref": "trust-policy.default"
+            }
+          ],
+          "proposedEvidence": [
+            {
+              "type": "import",
+              "ref": "axiom://demo/candidate-claims/2"
+            }
+          ],
+          "workspaceId": "workspace-a"
+        },
+        "recommendation": "reject",
+        "status": "pending",
+        "workspaceId": "workspace-a",
+        "createdAt": "2026-06-02T00:00:00.000Z"
+      }
+    ],
+    "conflictResults": [],
+    "verificationResults": [],
+    "trustReceipts": [],
+    "causalChains": [],
+    "simulationResults": []
+  },
+  "index": {
+    "byId": {
+      "prov-cand-1": {
+        "type": "provenance-record",
+        "workspaceId": "workspace-a"
+      },
+      "prov-cand-2": {
+        "type": "provenance-record",
+        "workspaceId": "workspace-a"
+      },
+      "audit-candidates-exported": {
+        "type": "audit-event",
+        "workspaceId": "workspace-a"
+      },
+      "cand-1": {
+        "type": "candidate-claim",
+        "workspaceId": "workspace-a"
+      },
+      "cand-2": {
+        "type": "candidate-claim",
+        "workspaceId": "workspace-a"
+      }
+    },
+    "bySourceRef": {
+      "axiom://demo/candidate-claims/1": [
+        "prov-cand-1",
+        "cand-1"
+      ],
+      "axiom://demo/candidate-claims/2": [
+        "prov-cand-2",
+        "cand-2"
+      ]
+    },
+    "byWorkspaceId": {
+      "workspace-a": [
+        "prov-cand-1",
+        "prov-cand-2",
+        "audit-candidates-exported",
+        "cand-1",
+        "cand-2"
+      ]
+    },
+    "byType": {
+      "provenance-record": [
+        "prov-cand-1",
+        "prov-cand-2"
+      ],
+      "audit-event": [
+        "audit-candidates-exported"
+      ],
+      "candidate-claim": [
+        "cand-1",
+        "cand-2"
+      ]
+    }
+  },
+  "metadata": {
+    "exportedFrom": "axiom",
+    "exportReason": "candidate-claims-review",
+    "generator": "axiom-package-draft",
+    "warnings": []
+  }
+}

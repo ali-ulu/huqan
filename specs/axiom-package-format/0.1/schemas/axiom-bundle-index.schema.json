@@ -1,0 +1,12 @@
+{
+  "title": "AXIOM Package Bundle Index",
+  "type": "object",
+  "required": ["byId", "bySourceRef", "byWorkspaceId", "byType"],
+  "properties": {
+    "byId": { "type": "object" },
+    "bySourceRef": { "type": "object" },
+    "byWorkspaceId": { "type": "object" },
+    "byType": { "type": "object" }
+  },
+  "additionalProperties": true
+}

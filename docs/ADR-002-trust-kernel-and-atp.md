@@ -197,5 +197,6 @@ Tradeoffs:
 - PR-6: provenance-aware GitHub connector
 - PR-7: provenance query API + trust dashboard
 - PR-8: ATP/AVP v0.1 hardening + conformance suite
+- PR-8.5: `.axiom` exchange / package format draft
 - PR-9: minimal `axiom-verify` package skeleton
 - PR-10: v0.8 release prep
