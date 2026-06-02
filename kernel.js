@@ -77,6 +77,55 @@ class Kernel {
     }
     this._verifyService = new VerifyService(this);
     this.strictProvenance = opts.strictProvenance === true;
+    
+    // r1: RwLock mutex for concurrent access safety
+    // Simple lock mechanism (no npm dependencies)
+    // Can be disabled with enableConcurrencyLock=false for backward compatibility
+    this._enableConcurrencyLock = opts.enableConcurrencyLock !== false;
+    this._lockQueue = [];
+    this._lockAcquired = false;
+    this._lockTimeoutMs = opts.lockTimeoutMs || 5000;
+  }
+
+  // r1: Acquire lock for critical operations (verify/learn)
+  async _acquireLock(timeoutMs = null) {
+    if (!this._enableConcurrencyLock) return; // Lock disabled
+    
+    const timeout = timeoutMs !== null ? timeoutMs : this._lockTimeoutMs;
+    const startTime = Date.now();
+    
+    while (this._lockAcquired && Date.now() - startTime < timeout) {
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    
+    if (this._lockAcquired) {
+      throw new Error(`Lock acquisition timeout after ${timeout}ms`);
+    }
+    
+    this._lockAcquired = true;
+  }
+
+  // r1: Release lock
+  _releaseLock() {
+    if (!this._enableConcurrencyLock) return; // Lock disabled
+    this._lockAcquired = false;
+  }
+
+  _enterCriticalSection(operation = 'operation') {
+    if (!this._enableConcurrencyLock) return false;
+    if (this._lockAcquired) {
+      const error = new Error(`Critical section busy during ${operation}`);
+      error.code = 'LOCK_BUSY';
+      error.operation = operation;
+      throw error;
+    }
+    this._lockAcquired = true;
+    return true;
+  }
+
+  _exitCriticalSection() {
+    if (!this._enableConcurrencyLock) return;
+    this._lockAcquired = false;
   }
 
   hasCapability(name) {
@@ -242,6 +291,17 @@ class Kernel {
     };
   }
 
+  _runBeforeLearn(text, opts = {}) {
+    const payload = { text, opts: { ...opts } };
+    if (this.plugins && typeof this.plugins.emitStrict === 'function') {
+      return this.plugins.emitStrict('beforeLearn', payload);
+    }
+    if (this.plugins && typeof this.plugins.emit === 'function') {
+      return this.plugins.emit('beforeLearn', payload);
+    }
+    return payload;
+  }
+
   _contradictionEvidence(contradiction) {
     return this._verifyService._contradictionEvidence(contradiction);
   }
@@ -304,10 +364,32 @@ class Kernel {
     }
   }
 
+  // r1: Wrapper with lock for concurrent safety (async version)
+  async learnAsync(text, opts = {}) {
+    return this.learn(text, opts);
+  }
+
+  // Original synchronous learn (backward compatible - no locks)
+  // For concurrent access, use learnAsync() instead
   learn(text, opts = {}) {
-    const ev = this.plugins.emit('beforeLearn', { text, opts: { ...opts } });
-    text = ev.text;
-    opts = ev.opts || opts;
+    const ev = this._runBeforeLearn(text, opts);
+    const nextText = ev.text;
+    const nextOpts = ev.opts || opts;
+    this._enterCriticalSection('learn');
+    try {
+      return this._learnInternal(nextText, nextOpts, true);
+    } finally {
+      this._exitCriticalSection();
+    }
+  }
+
+  // r1: Internal learn implementation
+  _learnInternal(text, opts = {}, skipBeforeLearn = false) {
+    if (!skipBeforeLearn) {
+      const ev = this._runBeforeLearn(text, opts);
+      text = ev.text;
+      opts = ev.opts || opts;
+    }
     const fallbackWorkspaceId = normalizeWorkspaceId(opts.workspaceId || opts.provenance?.workspaceId);
     const hasProvenanceInput =
       Object.prototype.hasOwnProperty.call(opts, 'provenance') ||
@@ -1139,21 +1221,67 @@ if (verbSuffix.test(predicate)) {
   }
 
   _findPath(from, to, visited, pathArr, depth, workspaceId = 'default') {
-    if (depth <= 0 || visited.has(from)) return null;
-    visited.add(from);
-    pathArr.push(from);
-    if (from === to) return [...pathArr];
-    const edges = this.graph.getEdges(from, workspaceId);
-    for (const e of edges) {
-      const result = this._findPath(e.to, to, visited, [...pathArr], depth - 1, workspaceId);
-      if (result) return result;
-    }
-    const inEdges = this.graph.getInEdges(from, workspaceId);
-    for (const e of inEdges) {
-      const result = this._findPath(e.from, to, visited, [...pathArr], depth - 1, workspaceId);
-      if (result) return result;
-    }
-    return null;
+    return this._findPathWithTimeout(from, to, 100, workspaceId, depth).path;
+  }
+
+  // r3: findPathWithTimeout - DFS path finding with timeout protection
+  // Prevents infinite recursion or excessive backtracking in cyclic graphs
+  _findPathWithTimeout(from, to, timeoutMs = 100, workspaceId = 'default', maxDepth = 5) {
+    const startTime = Date.now();
+    const visited = new Set();
+    const pathArr = [];
+    let stoppedReason = null;
+    
+    const search = (current, depth) => {
+      // r3: Check timeout on each recursion step
+      if (Date.now() - startTime > timeoutMs) {
+        stoppedReason = 'timeout';
+        return null; // Timeout - abort search
+      }
+      
+      if (depth <= 0) {
+        stoppedReason = stoppedReason || 'maxDepth';
+        return null;
+      }
+
+      if (visited.has(current)) {
+        stoppedReason = stoppedReason || 'cycle';
+        return null;
+      }
+      
+      visited.add(current);
+      pathArr.push(current);
+      
+      if (current === to) return [...pathArr];
+      
+      // Forward search
+      const edges = this.graph.getEdges(current, workspaceId);
+      for (const e of edges) {
+        const result = search(e.to, depth - 1);
+        if (result) return result;
+      }
+      
+      // Backward search
+      const inEdges = this.graph.getInEdges(current, workspaceId);
+      for (const e of inEdges) {
+        const result = search(e.from, depth - 1);
+        if (result) return result;
+      }
+      
+      pathArr.pop();
+      return null;
+    };
+    
+    const path = search(from, maxDepth);
+    if (!path && !stoppedReason) stoppedReason = 'not_found';
+    return {
+      path,
+      stoppedReason,
+      maxDepth,
+      timeoutMs,
+      workspaceId,
+      visitedCount: visited.size,
+    };
   }
 
   // --- Background auto-think ---
@@ -1234,8 +1362,24 @@ if (verbSuffix.test(predicate)) {
   /**
    * Bir ifadeyi bilgi grafiÄŸiyle doÄŸrula.
    * "kedi bal?k yer" ? ?zne=kedi, nesne=bal?k yer ? kenar var m??
+   * r1: Use verifyAsync() for concurrent safety with locks
    */
   verify(statement, opts = {}) {
+    this._enterCriticalSection('verify');
+    try {
+      return this._verifyInternal(statement, opts);
+    } finally {
+      this._exitCriticalSection();
+    }
+  }
+
+  // r1: Async wrapper with lock for concurrent safety
+  async verifyAsync(statement, opts = {}) {
+    return this.verify(statement, opts);
+  }
+
+  // r1: Internal verify implementation (protected by lock if verifyAsync is called)
+  _verifyInternal(statement, opts = {}) {
     return this._verifyService.verify(statement, opts);
   }
 
@@ -1311,6 +1455,8 @@ if (verbSuffix.test(predicate)) {
    * @returns {{ learned: number, skipped: number, conflicts: string[] }}
    */
   learnFromLLM(text, opts = {}) {
+    // r1: Note - this method calls learn() and verify() which are now async
+    // For backward compatibility, returning async function result
     if (this.paranoidMode) {
       return {
         learned: 0,

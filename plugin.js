@@ -183,6 +183,18 @@ class PluginManager {
     return data;
   }
 
+  emitStrict(event, data) {
+    let nextData = data;
+    for (const plugin of this._handlers[event]) {
+      if (typeof plugin[event] !== 'function') continue;
+      const result = plugin[event](this.kernel, nextData);
+      if (result !== undefined) {
+        nextData = result;
+      }
+    }
+    return nextData;
+  }
+
   _validatePluginDependencies(plugin) {
     const required = Array.isArray(plugin.requires) ? plugin.requires : [];
     for (const capability of required) {
