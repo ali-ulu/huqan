@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { buildAuditEvent, getAuditEvents: filterAuditEvents, normalizeAuditEvent } = require('./lib/audit-log');
 
 // SQLite opsiyonel — yoksa JSON fallback
 let Database;
@@ -143,6 +144,7 @@ class Graph {
     this._pruneThreshold = opts.pruneThreshold || 0.01;
     this._nodes = {};
     this._edges = [];
+    this._auditEvents = [];
     this._outIndex = new Map();
     this._inIndex = new Map();
 
@@ -203,6 +205,29 @@ class Graph {
       );
       CREATE INDEX IF NOT EXISTS idx_edges_from ON edges(from_id);
       CREATE INDEX IF NOT EXISTS idx_edges_to   ON edges(to_id);
+      CREATE TABLE IF NOT EXISTS audit_log (
+        audit_id TEXT PRIMARY KEY,
+        event_type TEXT NOT NULL,
+        target_type TEXT,
+        target_id TEXT,
+        workspace_id TEXT NOT NULL DEFAULT 'default',
+        actor TEXT,
+        timestamp TEXT NOT NULL,
+        source_ref TEXT,
+        provenance_id TEXT,
+        trust_policy_version TEXT,
+        details TEXT NOT NULL DEFAULT '{}'
+      );
+      CREATE TRIGGER IF NOT EXISTS audit_log_no_update
+      BEFORE UPDATE ON audit_log
+      BEGIN
+        SELECT RAISE(ABORT, 'audit_log is append-only');
+      END;
+      CREATE TRIGGER IF NOT EXISTS audit_log_no_delete
+      BEFORE DELETE ON audit_log
+      BEGIN
+        SELECT RAISE(ABORT, 'audit_log is append-only');
+      END;
     `);
 
     const edgeColumns = this._db.prepare('PRAGMA table_info(edges)').all().map(c => c.name);
@@ -268,6 +293,13 @@ class Graph {
       allEdges: this._db.prepare('SELECT * FROM edges'),
       updateEdgeWeight: this._db.prepare('UPDATE edges SET weight = ?, confidence = ?, source = ?, source_ref = ?, session_id = ?, evidence = ?, evidence_type = ?, confidence_history = ?, company_mode = ?, source_type = ?, updated_at = ?, provenance = ? WHERE from_id = ? AND to_id = ? AND relation = ?'),
       updateNodeVector: this._db.prepare('UPDATE nodes SET vector = ? WHERE id = ?'),
+      insertAuditEvent: this._db.prepare(`
+        INSERT OR IGNORE INTO audit_log (
+          audit_id, event_type, target_type, target_id, workspace_id, actor, timestamp,
+          source_ref, provenance_id, trust_policy_version, details
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `),
+      allAuditEvents: this._db.prepare('SELECT * FROM audit_log ORDER BY timestamp ASC, audit_id ASC'),
     };
   }
 
@@ -329,6 +361,31 @@ class Graph {
       this._stmts.touchNode.run(Date.now(), id);
     }
     return this._nodes[id];
+  }
+
+  appendAuditEvent(event, opts = {}) {
+    const normalized = buildAuditEvent(event, opts);
+    this._auditEvents.push(normalized);
+    if (this._db && this._stmts) {
+      this._stmts.insertAuditEvent.run(
+        normalized.auditId,
+        normalized.eventType,
+        normalized.targetType || '',
+        normalized.targetId || '',
+        normalized.workspaceId || 'default',
+        normalized.actor || 'system',
+        normalized.timestamp,
+        normalized.sourceRef || '',
+        normalized.provenanceId || '',
+        normalized.trustPolicyVersion || '',
+        JSON.stringify(normalized.details ?? {}),
+      );
+    }
+    return normalized;
+  }
+
+  getAuditEvents(filters = {}) {
+    return filterAuditEvents(this._auditEvents, filters);
   }
 
   removeNode(id) {
@@ -644,12 +701,27 @@ class Graph {
             edge.created
           );
         }
+        for (const event of this._auditEvents) {
+          this._stmts.insertAuditEvent.run(
+            event.auditId,
+            event.eventType,
+            event.targetType || '',
+            event.targetId || '',
+            event.workspaceId || 'default',
+            event.actor || 'system',
+            event.timestamp,
+            event.sourceRef || '',
+            event.provenanceId || '',
+            event.trustPolicyVersion || '',
+            JSON.stringify(event.details ?? {}),
+          );
+        }
       });
       saveAll();
     }
 
     // JSON de yaz (Rust katmanı ve fallback için)
-    const data = { nodes: this._nodes, edges: this._edges };
+    const data = { nodes: this._nodes, edges: this._edges, auditEvents: this._auditEvents };
     fs.writeFileSync(this.memoryPath, JSON.stringify(data));
 
     // Embedding'leri geri koy
@@ -662,13 +734,20 @@ class Graph {
   }
 
   load() {
+    this._nodes = {};
+    this._edges = [];
+    this._auditEvents = [];
+    this._outIndex.clear();
+    this._inIndex.clear();
+
     if (this._db && this._stmts) {
       // SQLite'tan yükle
       try {
         const nodes = this._stmts.allNodes.all();
         const edges = this._stmts.allEdges.all();
+        const auditRows = this._stmts.allAuditEvents.all();
 
-        if (nodes.length > 0) {
+        if (nodes.length > 0 || edges.length > 0 || auditRows.length > 0) {
           this._nodes = {};
           for (const row of nodes) {
             this._nodes[row.id] = {
@@ -705,6 +784,19 @@ class Graph {
             created: row.created,
             strength: row.strength,
           }));
+          this._auditEvents = auditRows.map(row => normalizeAuditEvent({
+            auditId: row.audit_id,
+            eventType: row.event_type,
+            targetType: row.target_type || '',
+            targetId: row.target_id || '',
+            workspaceId: row.workspace_id || 'default',
+            actor: row.actor || 'system',
+            timestamp: row.timestamp,
+            sourceRef: row.source_ref || '',
+            provenanceId: row.provenance_id || '',
+            trustPolicyVersion: row.trust_policy_version || '',
+            details: JSON.parse(row.details || '{}'),
+          }));
           this._rebuildIndex();
 
           // Embedding'leri yükle
@@ -727,6 +819,7 @@ class Graph {
       const data = JSON.parse(fs.readFileSync(this.memoryPath, 'utf-8'));
       this._nodes = data.nodes || {};
       this._edges = (data.edges || []).map(edge => normalizeLoadedEdge(edge));
+      this._auditEvents = (data.auditEvents || data.audit_log || []).map(event => normalizeAuditEvent(event));
       for (const node of Object.values(this._nodes)) {
         if (!node.created_at && typeof node.created === 'number') {
           node.created_at = new Date(node.created).toISOString();

@@ -1,4 +1,4 @@
-const { describe, it, after } = require('node:test');
+﻿const { describe, it, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
@@ -43,6 +43,7 @@ describe('Provenance System', () => {
 
     const node = kernel.graph.getNode('kedi');
     const edge = kernel.graph.getEdge('kedi', 'hayvan', 'tür');
+    const learnEvents = kernel.graph.getAuditEvents({ eventType: 'LEARN' });
 
     assert.strictEqual(node.provenance.provenanceId, provenance.provenanceId);
     assert.strictEqual(edge.provenance.provenanceId, provenance.provenanceId);
@@ -52,6 +53,9 @@ describe('Provenance System', () => {
     assert.strictEqual(edge.provenance.trustPolicyVersion, '0.8.0');
     assert.strictEqual(node.provenance.sourceType, 'document');
     assert.ok(!Object.prototype.hasOwnProperty.call(node.provenance, 'sourceSubType'));
+    assert.ok(learnEvents.length >= 1);
+    assert.strictEqual(learnEvents[0].provenanceId, provenance.provenanceId);
+    assert.strictEqual(learnEvents[0].trustPolicyVersion, '0.8.0');
   });
 
   it('persists provenance through JSON save/load roundtrip', () => {
@@ -65,6 +69,7 @@ describe('Provenance System', () => {
     const reader = new Kernel({ useSQLite: false, ...paths });
     const node = reader.graph.getNode('kedi');
     const edge = reader.graph.getEdge('kedi', 'hayvan', 'tür');
+    const learnEvents = reader.graph.getAuditEvents({ eventType: 'LEARN' });
 
     assert.strictEqual(node.provenance.provenanceId, provenance.provenanceId);
     assert.strictEqual(edge.provenance.provenanceId, provenance.provenanceId);
@@ -72,6 +77,8 @@ describe('Provenance System', () => {
     assert.strictEqual(edge.provenance.confidence, 0.91);
     assert.strictEqual(node.provenance.trustPolicyVersion, '0.8.0');
     assert.strictEqual(edge.provenance.trustPolicyVersion, '0.8.0');
+    assert.ok(learnEvents.length >= 1);
+    assert.strictEqual(learnEvents[0].provenanceId, provenance.provenanceId);
   });
 
   it('persists provenance through SQLite save/load roundtrip', (t) => {
@@ -95,6 +102,7 @@ describe('Provenance System', () => {
 
     const node = reader.graph.getNode('kedi');
     const edge = reader.graph.getEdge('kedi', 'hayvan', 'tür');
+    const learnEvents = reader.graph.getAuditEvents({ eventType: 'LEARN' });
 
     assert.strictEqual(node.provenance.provenanceId, provenance.provenanceId);
     assert.strictEqual(edge.provenance.provenanceId, provenance.provenanceId);
@@ -102,6 +110,8 @@ describe('Provenance System', () => {
     assert.strictEqual(edge.provenance.confidence, 0.91);
     assert.strictEqual(node.provenance.trustPolicyVersion, '0.8.0');
     assert.strictEqual(edge.provenance.trustPolicyVersion, '0.8.0');
+    assert.ok(learnEvents.length >= 1);
+    assert.strictEqual(learnEvents[0].provenanceId, provenance.provenanceId);
   });
 
   it('throws ProvenanceError in strict mode when provenance is missing', () => {
@@ -113,6 +123,10 @@ describe('Provenance System', () => {
         && error.code === 'PROVENANCE_REQUIRED'
         && /provenance is required/i.test(error.message),
     );
+
+    const rejectEvents = kernel.graph.getAuditEvents({ eventType: 'REJECT' });
+    assert.ok(rejectEvents.length >= 1);
+    assert.strictEqual(rejectEvents[0].targetType, 'learn');
   });
 
   it('supports provenance through KernelV2 delegation', () => {
@@ -123,6 +137,7 @@ describe('Provenance System', () => {
 
     const node = kernel.graph.getNode('kedi');
     const edge = kernel.graph.getEdge('kedi', 'hayvan', 'tür');
+    const learnEvents = kernel.graph.getAuditEvents({ eventType: 'LEARN' });
 
     assert.strictEqual(node.provenance.provenanceId, provenance.provenanceId);
     assert.strictEqual(edge.provenance.provenanceId, provenance.provenanceId);
@@ -130,5 +145,7 @@ describe('Provenance System', () => {
     assert.strictEqual(edge.provenance.confidence, 0.91);
     assert.strictEqual(node.provenance.trustPolicyVersion, '0.8.0');
     assert.strictEqual(edge.provenance.trustPolicyVersion, '0.8.0');
+    assert.ok(learnEvents.length >= 1);
+    assert.strictEqual(learnEvents[0].provenanceId, provenance.provenanceId);
   });
 });

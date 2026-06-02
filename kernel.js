@@ -288,6 +288,16 @@ class Kernel {
     });
   }
 
+  _appendAuditEvent(event, provenance = null) {
+    if (!this.graph || typeof this.graph.appendAuditEvent !== 'function') return null;
+    try {
+      return this.graph.appendAuditEvent(event, provenance ? { provenance } : {});
+    } catch (error) {
+      console.error('[Kernel] Audit log hatası:', error.message);
+      return null;
+    }
+  }
+
   learn(text, opts = {}) {
     const ev = this.plugins.emit('beforeLearn', { text, opts: { ...opts } });
     text = ev.text;
@@ -300,13 +310,40 @@ class Kernel {
       opts.actor ||
       opts.timestamp ||
       opts.workspaceId;
-    const provenanceBundle = hasProvenanceInput
-      ? this._normalizeProvenanceInput(opts.provenance || {}, opts)
-      : { provenance: null, warnings: [] };
+    let provenanceBundle;
+    try {
+      provenanceBundle = hasProvenanceInput
+        ? this._normalizeProvenanceInput(opts.provenance || {}, opts)
+        : { provenance: null, warnings: [] };
+    } catch (error) {
+      if (error instanceof ProvenanceError || error.code === 'PROVENANCE_REQUIRED') {
+        this._appendAuditEvent({
+          eventType: 'REJECT',
+          targetType: 'learn',
+          targetId: text,
+          details: {
+            reason: error.code || 'PROVENANCE_REQUIRED',
+            message: error.message,
+            text,
+          },
+        }, opts.provenance && typeof opts.provenance === 'object' ? opts.provenance : null);
+      }
+      throw error;
+    }
     const provenance = provenanceBundle.provenance;
     const provenanceWarnings = provenanceBundle.warnings;
 
     if (this.strictProvenance && !hasProvenanceInput) {
+      this._appendAuditEvent({
+        eventType: 'REJECT',
+        targetType: 'learn',
+        targetId: text,
+        details: {
+          reason: 'PROVENANCE_REQUIRED',
+          message: 'provenance is required when strictProvenance is true',
+          text,
+        },
+      }, opts.provenance && typeof opts.provenance === 'object' ? opts.provenance : null);
       throw new ProvenanceError();
     }
 
@@ -427,6 +464,20 @@ class Kernel {
             edgeOptions
           );
           if (edge) { learned++; evidence.push(this._edgeEvidence(edge)); }
+          if (edge) {
+            this._appendAuditEvent({
+              eventType: 'LEARN',
+              targetType: 'edge',
+              targetId: `${edge.from}|${edge.relation}|${edge.to}`,
+              details: {
+                text,
+                subject,
+                relation: edge.relation,
+                object: edge.to,
+                conflict: true,
+              },
+            }, provenance);
+          }
         } else if (celiskiBulundu && relation === 'değil') {
           // değil çelişkisi: tür edge weight zaten d?r?ld?, yeni edge ekleme
         } else if (celiskiBulundu) {
@@ -441,10 +492,27 @@ class Kernel {
           );
           if (rel.kistlama && edge) edge.kistlama = true;
           if (edge) { learned++; evidence.push(this._edgeEvidence(edge)); }
+          if (edge) {
+            const hadExisting = existingEdges.some(e => e.to === object && e.relation === relation);
+            this._appendAuditEvent({
+              eventType: hadExisting ? 'REAFFIRMED' : 'LEARN',
+              targetType: 'edge',
+              targetId: `${edge.from}|${edge.relation}|${edge.to}`,
+              details: {
+                text,
+                subject,
+                relation,
+                object,
+                conflict: true,
+                reaffirmed: hadExisting,
+              },
+            }, provenance);
+          }
         } else {
           // Normal ?ÄŸrenme
           const edgeOptions = this._learnEdgeOptions({ source: 'learn', evidence: [text] }, metadata, text);
           if (provenance) edgeOptions.provenance = provenance;
+          const hadExisting = existingEdges.some(e => e.to === object && e.relation === relation);
           const edge = this.graph.addEdge(
             subject,
             object,
@@ -455,6 +523,20 @@ class Kernel {
           this._crossLink(subject, object, relation);
           learned++;
           if (edge) evidence.push(this._edgeEvidence(edge));
+          if (edge) {
+            this._appendAuditEvent({
+              eventType: hadExisting ? 'REAFFIRMED' : 'LEARN',
+              targetType: 'edge',
+              targetId: `${edge.from}|${edge.relation}|${edge.to}`,
+              details: {
+                text,
+                subject,
+                relation,
+                object,
+                reaffirmed: hadExisting,
+              },
+            }, provenance);
+          }
         }
       }
     }
