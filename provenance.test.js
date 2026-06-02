@@ -53,9 +53,35 @@ describe('Provenance System', () => {
     assert.strictEqual(edge.provenance.trustPolicyVersion, '0.8.0');
     assert.strictEqual(node.provenance.sourceType, 'document');
     assert.ok(!Object.prototype.hasOwnProperty.call(node.provenance, 'sourceSubType'));
+    assert.strictEqual(node.workspaceId, 'default');
+    assert.strictEqual(edge.workspaceId, 'default');
     assert.ok(learnEvents.length >= 1);
     assert.strictEqual(learnEvents[0].provenanceId, provenance.provenanceId);
     assert.strictEqual(learnEvents[0].trustPolicyVersion, '0.8.0');
+    assert.strictEqual(learnEvents[0].workspaceId, 'default');
+  });
+
+  it('keeps workspace scoped provenance isolated', () => {
+    const kernel = new Kernel({ noLoad: true, useSQLite: false, ...makePaths('workspace-scope') });
+    const provenance = makeProvenance({ provenanceId: 'prov-workspace', workspaceId: 'workspace-a' });
+
+    kernel.learn('kedi hayvandir', { provenance });
+
+    const scopedNode = kernel.graph.getNode('kedi', 'workspace-a');
+    const defaultNode = kernel.graph.getNode('kedi', 'default');
+    const scopedEdge = kernel.graph.getEdge('kedi', 'hayvan', 'tür', 'workspace-a');
+    const defaultEdge = kernel.graph.getEdge('kedi', 'hayvan', 'tür', 'default');
+    const learnEvents = kernel.graph.getAuditEvents({ eventType: 'LEARN', workspaceId: 'workspace-a' });
+
+    assert.ok(scopedNode);
+    assert.strictEqual(scopedNode.workspaceId, 'workspace-a');
+    assert.ok(scopedEdge);
+    assert.strictEqual(scopedEdge.workspaceId, 'workspace-a');
+    assert.strictEqual(defaultNode, null);
+    assert.strictEqual(defaultEdge, null);
+    assert.strictEqual(learnEvents.length >= 1, true);
+    assert.strictEqual(learnEvents[0].workspaceId, 'workspace-a');
+    assert.strictEqual(learnEvents[0].provenanceId, provenance.provenanceId);
   });
 
   it('persists provenance through JSON save/load roundtrip', () => {
@@ -77,8 +103,34 @@ describe('Provenance System', () => {
     assert.strictEqual(edge.provenance.confidence, 0.91);
     assert.strictEqual(node.provenance.trustPolicyVersion, '0.8.0');
     assert.strictEqual(edge.provenance.trustPolicyVersion, '0.8.0');
+    assert.strictEqual(node.workspaceId, 'default');
+    assert.strictEqual(edge.workspaceId, 'default');
     assert.ok(learnEvents.length >= 1);
     assert.strictEqual(learnEvents[0].provenanceId, provenance.provenanceId);
+  });
+
+  it('defaults legacy JSON records to the default workspace', () => {
+    const paths = makePaths('legacy-json');
+    const provenance = makeProvenance({ provenanceId: 'prov-legacy' });
+    const writer = new Kernel({ noLoad: true, useSQLite: false, ...paths });
+
+    writer.learn('kedi hayvandir', { provenance });
+    writer.graph.save();
+
+    const raw = JSON.parse(fs.readFileSync(paths.memoryPath, 'utf-8'));
+    delete raw.nodes.kedi.workspaceId;
+    delete raw.edges[0].workspaceId;
+    delete raw.auditEvents[0].workspaceId;
+    fs.writeFileSync(paths.memoryPath, JSON.stringify(raw));
+
+    const reader = new Kernel({ useSQLite: false, ...paths });
+    const node = reader.graph.getNode('kedi');
+    const edge = reader.graph.getEdge('kedi', 'hayvan', 'tür');
+    const learnEvents = reader.graph.getAuditEvents({ eventType: 'LEARN' });
+
+    assert.strictEqual(node.workspaceId, 'default');
+    assert.strictEqual(edge.workspaceId, 'default');
+    assert.strictEqual(learnEvents[0].workspaceId, 'default');
   });
 
   it('persists provenance through SQLite save/load roundtrip', (t) => {
@@ -110,6 +162,8 @@ describe('Provenance System', () => {
     assert.strictEqual(edge.provenance.confidence, 0.91);
     assert.strictEqual(node.provenance.trustPolicyVersion, '0.8.0');
     assert.strictEqual(edge.provenance.trustPolicyVersion, '0.8.0');
+    assert.strictEqual(node.workspaceId, 'default');
+    assert.strictEqual(edge.workspaceId, 'default');
     assert.ok(learnEvents.length >= 1);
     assert.strictEqual(learnEvents[0].provenanceId, provenance.provenanceId);
   });

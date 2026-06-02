@@ -34,6 +34,11 @@ const DEFAULT_CAPABILITIES = Object.freeze({
   discoveryLoop: false,
 });
 
+function normalizeWorkspaceId(value, fallback = 'default') {
+  if (typeof value === 'string' && value.trim()) return value.trim();
+  return fallback;
+}
+
 class ProvenanceError extends Error {
   constructor(message = 'provenance is required when strictProvenance is true') {
     super(message);
@@ -219,11 +224,11 @@ class Kernel {
     };
   }
 
-  _pathEvidence(pathArr, kind = 'path', confidence = 0.5) {
+  _pathEvidence(pathArr, kind = 'path', confidence = 0.5, workspaceId = 'default') {
     const edges = [];
     for (let i = 0; i < pathArr.length - 1; i++) {
-      const direct = this.graph.getEdges(pathArr[i]).find(e => e.to === pathArr[i + 1]);
-      const reverse = this.graph.getInEdges(pathArr[i]).find(e => e.from === pathArr[i + 1]);
+      const direct = this.graph.getEdges(pathArr[i], workspaceId).find(e => e.to === pathArr[i + 1]);
+      const reverse = this.graph.getInEdges(pathArr[i], workspaceId).find(e => e.from === pathArr[i + 1]);
       const edge = direct || reverse;
       if (edge) edges.push(this._edgeRef(edge));
     }
@@ -288,10 +293,10 @@ class Kernel {
     });
   }
 
-  _appendAuditEvent(event, provenance = null) {
+  _appendAuditEvent(event, provenance = null, workspaceId = 'default') {
     if (!this.graph || typeof this.graph.appendAuditEvent !== 'function') return null;
     try {
-      return this.graph.appendAuditEvent(event, provenance ? { provenance } : {});
+      return this.graph.appendAuditEvent(event, provenance ? { provenance, workspaceId } : { workspaceId });
     } catch (error) {
       console.error('[Kernel] Audit log hatası:', error.message);
       return null;
@@ -332,6 +337,7 @@ class Kernel {
     }
     const provenance = provenanceBundle.provenance;
     const provenanceWarnings = provenanceBundle.warnings;
+    const workspaceId = normalizeWorkspaceId(provenance?.workspaceId || opts.workspaceId);
 
     if (this.strictProvenance && !hasProvenanceInput) {
       this._appendAuditEvent({
@@ -343,11 +349,11 @@ class Kernel {
           message: 'provenance is required when strictProvenance is true',
           text,
         },
-      }, opts.provenance && typeof opts.provenance === 'object' ? opts.provenance : null);
+      }, opts.provenance && typeof opts.provenance === 'object' ? opts.provenance : null, workspaceId);
       throw new ProvenanceError();
     }
 
-    const parsed = this.extractFacts(text, this.graph._nodes);
+    const parsed = this.extractFacts(text, this.graph.getNodes(workspaceId));
     if (!parsed) return this._ok('learn', { learned: 0, skipped: 1, conflicts: [] }, []);
 
     // KAL?TE KONTROLÃœ: çelişki ve alternatif tespiti
@@ -366,7 +372,7 @@ class Kernel {
         if (this.isStopWord(object)) continue;
 
         // AYNI ?zne-ili?ki i?in mevcut nesneleri bul
-        const existingEdges = this.graph.getEdges(subject).filter(e => e.relation === relation);
+        const existingEdges = this.graph.getEdges(subject, workspaceId).filter(e => e.relation === relation);
         const existingTargets = existingEdges.map(e => e.to);
 
         // Ã‡EL?ÅK? KONTROLÃœ
@@ -396,7 +402,7 @@ class Kernel {
 
         if (relation === 'değil') {
           // "X Y değildir" ? X'te ayn? hedef i?in tür var m??
-          const turEdges = this.graph.getEdges(subject).filter(e => e.relation === 'tür');
+          const turEdges = this.graph.getEdges(subject, workspaceId).filter(e => e.relation === 'tür');
           for (const tur of turEdges) {
             if (tur.to === object) {
               // Ayn? kavram ? çelişki: tür edge weight d?r
@@ -446,17 +452,18 @@ class Kernel {
 
         // Ã–ÄRENME: d?k g?venli alternatifleri de ekle (çelişkiyi ?nlemek i?in farkl? ili?kiyle)
         if (provenance) {
-          this.graph.addNode(subject, subject, provenance);
-          this.graph.addNode(object, object, provenance);
+          this.graph.addNode(subject, subject, provenance, { workspaceId });
+          this.graph.addNode(object, object, provenance, { workspaceId });
         } else {
-          this.graph.addNode(subject, subject);
-          this.graph.addNode(object, object);
+          this.graph.addNode(subject, subject, null, { workspaceId });
+          this.graph.addNode(object, object, null, { workspaceId });
         }
 
         if (celiskiBulundu && (relation === 'tür')) {
           // tür çelişkisi ? benzer olarak kaydet
           const edgeOptions = this._learnEdgeOptions({ source: 'alt', weight: 0.15, evidence: [text] }, metadata, text);
           if (provenance) edgeOptions.provenance = provenance;
+          edgeOptions.workspaceId = workspaceId;
           const edge = this.graph.addEdge(
             subject,
             object,
@@ -476,7 +483,7 @@ class Kernel {
                 object: edge.to,
                 conflict: true,
               },
-            }, provenance);
+            }, provenance, workspaceId);
           }
         } else if (celiskiBulundu && relation === 'değil') {
           // değil çelişkisi: tür edge weight zaten d?r?ld?, yeni edge ekleme
@@ -484,6 +491,7 @@ class Kernel {
           // kistlama ? d?k weight ile kaydet
           const edgeOptions = this._learnEdgeOptions({ source: 'learn', weight: 0.2, evidence: [text] }, metadata, text);
           if (provenance) edgeOptions.provenance = provenance;
+          edgeOptions.workspaceId = workspaceId;
           const edge = this.graph.addEdge(
             subject,
             object,
@@ -506,12 +514,13 @@ class Kernel {
                 conflict: true,
                 reaffirmed: hadExisting,
               },
-            }, provenance);
+            }, provenance, workspaceId);
           }
         } else {
           // Normal ?ÄŸrenme
           const edgeOptions = this._learnEdgeOptions({ source: 'learn', evidence: [text] }, metadata, text);
           if (provenance) edgeOptions.provenance = provenance;
+          edgeOptions.workspaceId = workspaceId;
           const hadExisting = existingEdges.some(e => e.to === object && e.relation === relation);
           const edge = this.graph.addEdge(
             subject,
@@ -519,8 +528,8 @@ class Kernel {
             relation,
             edgeOptions
           );
-          this.graph.addTag(subject, object, 0.3);
-          this._crossLink(subject, object, relation);
+          this.graph.addTag(subject, object, 0.3, workspaceId);
+          this._crossLink(subject, object, relation, workspaceId);
           learned++;
           if (edge) evidence.push(this._edgeEvidence(edge));
           if (edge) {
@@ -535,13 +544,13 @@ class Kernel {
                 object,
                 reaffirmed: hadExisting,
               },
-            }, provenance);
+            }, provenance, workspaceId);
           }
         }
       }
     }
 
-    this.plugins.emit('afterLearn', { text, conflicts, alternatives, opts: metadata });
+    this.plugins.emit('afterLearn', { text, conflicts, alternatives, opts: { ...metadata, workspaceId } });
 
     if (this._rust) {
       this._rust.learn(text).catch((e) => { console.error("[Kernel] Rust learn hatası:", e?.message || e); });
@@ -637,16 +646,16 @@ if (verbSuffix.test(predicate)) {
     return { object: predicate, relation: 'özellik' };
   }
 
-  _crossLink(subject, object, relation) {
-    const subjNode = this.graph.getNode(subject);
-    const objNode = this.graph.getNode(object);
+  _crossLink(subject, object, relation, workspaceId = 'default') {
+    const subjNode = this.graph.getNode(subject, workspaceId);
+    const objNode = this.graph.getNode(object, workspaceId);
     if (!subjNode || !objNode) return;
 
     for (const tag of Object.keys(subjNode.vector)) {
-      if (tag !== object && this.graph.getNode(tag) && objNode.vector[tag]) {
-        const existing = this.graph.getEdge(subject, object, 'benzer');
+      if (tag !== object && this.graph.getNode(tag, workspaceId) && objNode.vector[tag]) {
+        const existing = this.graph.getEdge(subject, object, 'benzer', workspaceId);
         if (!existing) {
-          this.graph.addEdge(subject, object, 'benzer');
+          this.graph.addEdge(subject, object, 'benzer', { workspaceId });
         }
       }
     }
@@ -655,6 +664,7 @@ if (verbSuffix.test(predicate)) {
   ask(question) {
     const ev = this.plugins.emit('beforeAsk', { question });
     question = ev.question;
+    const workspaceId = 'default';
 
     const raw = question.toLowerCase().trim();
     const cleaned = raw
@@ -782,7 +792,7 @@ if (verbSuffix.test(predicate)) {
     }
 
     // Alternatif ??z?m ?nerileri
-    const altResult = this.alternatives(finalSubject, 2);
+    const altResult = this.alternatives(finalSubject, 2, workspaceId);
     const altPaths = altResult.data.paths || [];
     const altText = altPaths.length > 1
       ? `\n  alternatif: ${altPaths.map(p => `[${p.type}] ${p.to}`).join(', ')}`
@@ -807,15 +817,15 @@ if (verbSuffix.test(predicate)) {
     return results;
   }
 
-  alternatives(subject, maxPaths = 3) {
+  alternatives(subject, maxPaths = 3, workspaceId = 'default') {
     const normalized = this.normalizeWord(subject);
-    const node = this.graph.getNode(normalized);
+    const node = this.graph.getNode(normalized, workspaceId);
     if (!node) {
       return this._ok('alternatives', { subject: normalized, answer: 'Bilmiyorum', paths: [] }, []);
     }
 
     // 1. DoÄŸrudan kenarlardan alternatif gruplar? olu?tur
-    const edges = this.graph.getEdges(normalized);
+    const edges = this.graph.getEdges(normalized, workspaceId);
     const groups = { 'tür': [], yapabilir: [], 'özellik': [], benzer: [], hipotez: [] };
     for (const e of edges) {
       const g = groups[e.relation];
@@ -842,7 +852,7 @@ if (verbSuffix.test(predicate)) {
       const best = sorted[0];
       if (usedNodes.has(best.target)) continue;
 
-      const subEdges = this.graph.getEdges(best.target).filter(e => !usedNodes.has(e.to));
+      const subEdges = this.graph.getEdges(best.target, workspaceId).filter(e => !usedNodes.has(e.to));
       const chain = subEdges.slice(0, 2).map(e => ({ node: e.to, rel: e.relation }));
       paths.push({
         type: rel,
@@ -909,13 +919,13 @@ if (verbSuffix.test(predicate)) {
     return mag === 0 ? 0 : dot / mag;
   }
 
-  entropy() {
-    const allNodes = Object.values(this.graph._nodes);
+  entropy(workspaceId = 'default') {
+    const allNodes = Object.values(this.graph.getNodes(workspaceId));
     if (allNodes.length === 0) return 0;
     let totalWeight = 0;
     const weights = [];
     for (const node of allNodes) {
-      const edges = this.graph.getEdges(node.id);
+      const edges = this.graph.getEdges(node.id, workspaceId);
       for (const e of edges) {
         weights.push(e.weight);
         totalWeight += e.weight;
@@ -930,11 +940,11 @@ if (verbSuffix.test(predicate)) {
     return s;
   }
 
-  detectGaps() {
-    const allNodes = Object.values(this.graph._nodes);
+  detectGaps(workspaceId = 'default') {
+    const allNodes = Object.values(this.graph.getNodes(workspaceId));
     const gaps = [];
     for (const node of allNodes) {
-      const edges = this.graph.getEdges(node.id);
+      const edges = this.graph.getEdges(node.id, workspaceId);
       if (edges.length === 0) {
         gaps.push(node.id);
       }
@@ -942,9 +952,9 @@ if (verbSuffix.test(predicate)) {
     return gaps;
   }
 
-  reason(subject) {
+  reason(subject, workspaceId = 'default') {
     const normalized = this.normalizeWord(subject);
-    const node = this.graph.getNode(normalized);
+    const node = this.graph.getNode(normalized, workspaceId);
     if (!node) {
       return this._ok('reason', {
         subject: normalized,
@@ -955,9 +965,9 @@ if (verbSuffix.test(predicate)) {
       }, []);
     }
 
-    const ileri = this._forwardChain(normalized, [], new Set(), 4);
-    const geri = this._backwardChain(normalized, [], new Set(), 4);
-    const cycle = this._detectCycle(normalized, new Set(), []);
+    const ileri = this._forwardChain(normalized, [], new Set(), 4, workspaceId);
+    const geri = this._backwardChain(normalized, [], new Set(), 4, workspaceId);
+    const cycle = this._detectCycle(normalized, new Set(), [], workspaceId);
     const evidence = [
       ...ileri.map(edge => this._edgeEvidence(edge, 'path', 0.5)),
       ...geri.map(edge => this._edgeEvidence(edge, 'path', 0.5)),
@@ -968,8 +978,8 @@ if (verbSuffix.test(predicate)) {
     if (geri.length > 0) answer += '\n  nedeni: ' + geri.map(e => e.from + ' [' + e.relation + ']').join(', ');
     if (cycle) {
       answer += '\n  ? döngü tespit edildi: ' + cycle.join(' ? ');
-      evidence.push(this._pathEvidence(cycle, 'path', 0.4));
-      const nedenOnce = this._resolveCycleOrder(cycle);
+      evidence.push(this._pathEvidence(cycle, 'path', 0.4, workspaceId));
+      const nedenOnce = this._resolveCycleOrder(cycle, workspaceId);
       if (nedenOnce) answer += '\n  ? ilk neden: ' + nedenOnce;
     }
 
@@ -982,9 +992,9 @@ if (verbSuffix.test(predicate)) {
     }, evidence);
   }
 
-  compare(a, b) {
-    const na = this.graph.getNode(this.normalizeWord(a));
-    const nb = this.graph.getNode(this.normalizeWord(b));
+  compare(a, b, workspaceId = 'default') {
+    const na = this.graph.getNode(this.normalizeWord(a), workspaceId);
+    const nb = this.graph.getNode(this.normalizeWord(b), workspaceId);
     if (!na || !nb) {
       return this._ok('compare', {
         a: this.normalizeWord(a),
@@ -999,22 +1009,22 @@ if (verbSuffix.test(predicate)) {
 
     const aN = na.id;
     const bN = nb.id;
-    const aEdges = this.graph.getEdges(aN);
-    const bEdges = this.graph.getEdges(bN);
+    const aEdges = this.graph.getEdges(aN, workspaceId);
+    const bEdges = this.graph.getEdges(bN, workspaceId);
     const aSet = new Set(aEdges.map(e => e.to + '|' + e.relation));
     const bSet = new Set(bEdges.map(e => e.to + '|' + e.relation));
 
     const ortak = aEdges.filter(e => bSet.has(e.to + '|' + e.relation));
     const aFark = aEdges.filter(e => !bSet.has(e.to + '|' + e.relation));
     const bFark = bEdges.filter(e => !aSet.has(e.to + '|' + e.relation));
-    const foundPath = this._findPath(aN, bN, new Set(), [], 5);
+    const foundPath = this._findPath(aN, bN, new Set(), [], 5, workspaceId);
 
     const evidence = [
       ...ortak.map(edge => this._edgeEvidence(edge)),
       ...aFark.map(edge => this._edgeEvidence(edge, 'partial_match', 0.35)),
       ...bFark.map(edge => this._edgeEvidence(edge, 'partial_match', 0.35)),
     ];
-    if (foundPath) evidence.push(this._pathEvidence(foundPath, 'path', 0.5));
+    if (foundPath) evidence.push(this._pathEvidence(foundPath, 'path', 0.5, workspaceId));
 
     let answer = '?? ' + aN + ' vs ' + bN + ':';
     if (ortak.length > 0) answer += '\n  ortak: ' + ortak.map(e => e.to + ' [' + e.relation + ']').join(', ');
@@ -1037,33 +1047,33 @@ if (verbSuffix.test(predicate)) {
     return this._verifyService._parseNumericComparison(text);
   }
 
-  _forwardChain(id, chain, visited, depth) {
+  _forwardChain(id, chain, visited, depth, workspaceId = 'default') {
     if (depth <= 0 || visited.has(id)) return chain;
     visited.add(id);
-    const edges = this.graph.getEdges(id);
+    const edges = this.graph.getEdges(id, workspaceId);
     for (const e of edges) {
       if (!visited.has(e.to) && !chain.some(c => c.to === e.to)) {
         chain.push(e);
-        this._forwardChain(e.to, chain, visited, depth - 1);
+        this._forwardChain(e.to, chain, visited, depth - 1, workspaceId);
       }
     }
     return chain;
   }
 
-  _backwardChain(id, chain, visited, depth) {
+  _backwardChain(id, chain, visited, depth, workspaceId = 'default') {
     if (depth <= 0 || visited.has(id)) return chain;
     visited.add(id);
-    const inEdges = this.graph.getInEdges(id);
+    const inEdges = this.graph.getInEdges(id, workspaceId);
     for (const e of inEdges) {
       if (!visited.has(e.from) && !chain.some(c => c.from === e.from)) {
         chain.push(e);
-        this._backwardChain(e.from, chain, visited, depth - 1);
+        this._backwardChain(e.from, chain, visited, depth - 1, workspaceId);
       }
     }
     return chain;
   }
 
-  _detectCycle(start, visited, pathArr) {
+  _detectCycle(start, visited, pathArr, workspaceId = 'default') {
     if (visited.has(start)) {
       const idx = pathArr.indexOf(start);
       if (idx >= 0) return pathArr.slice(idx).concat(start);
@@ -1071,26 +1081,26 @@ if (verbSuffix.test(predicate)) {
     }
     visited.add(start);
     pathArr.push(start);
-    const edges = this.graph.getEdges(start);
+    const edges = this.graph.getEdges(start, workspaceId);
     for (const e of edges) {
-      const result = this._detectCycle(e.to, visited, [...pathArr]);
+      const result = this._detectCycle(e.to, visited, [...pathArr], workspaceId);
       if (result) return result;
     }
-    const inEdges = this.graph.getInEdges(start);
+    const inEdges = this.graph.getInEdges(start, workspaceId);
     for (const e of inEdges) {
       if (!visited.has(e.from)) {
-        const result = this._detectCycle(e.from, visited, [...pathArr]);
+        const result = this._detectCycle(e.from, visited, [...pathArr], workspaceId);
         if (result) return result;
       }
     }
     return null;
   }
 
-  _resolveCycleOrder(cycle) {
+  _resolveCycleOrder(cycle, workspaceId = 'default') {
     const giren = new Set();
     const cikan = new Set();
     for (let i = 0; i < cycle.length - 1; i++) {
-      const edges = this.graph.getEdges(cycle[i]);
+      const edges = this.graph.getEdges(cycle[i], workspaceId);
       for (const e of edges) {
         if (e.to === cycle[i + 1] && e.relation === 'tür') {
           cikan.add(cycle[i]);
@@ -1104,19 +1114,19 @@ if (verbSuffix.test(predicate)) {
     return null;
   }
 
-  _findPath(from, to, visited, pathArr, depth) {
+  _findPath(from, to, visited, pathArr, depth, workspaceId = 'default') {
     if (depth <= 0 || visited.has(from)) return null;
     visited.add(from);
     pathArr.push(from);
     if (from === to) return [...pathArr];
-    const edges = this.graph.getEdges(from);
+    const edges = this.graph.getEdges(from, workspaceId);
     for (const e of edges) {
-      const result = this._findPath(e.to, to, visited, [...pathArr], depth - 1);
+      const result = this._findPath(e.to, to, visited, [...pathArr], depth - 1, workspaceId);
       if (result) return result;
     }
-    const inEdges = this.graph.getInEdges(from);
+    const inEdges = this.graph.getInEdges(from, workspaceId);
     for (const e of inEdges) {
-      const result = this._findPath(e.from, to, visited, [...pathArr], depth - 1);
+      const result = this._findPath(e.from, to, visited, [...pathArr], depth - 1, workspaceId);
       if (result) return result;
     }
     return null;
@@ -1347,11 +1357,11 @@ if (verbSuffix.test(predicate)) {
     return this._verifyService._getTextCore(text);
   }
 
-  introspect() {
+  introspect(workspaceId = 'default') {
     this.plugins.emit('beforeIntrospect', {});
-    const allNodes = Object.values(this.graph._nodes);
-    const allEdges = allNodes.flatMap(n => this.graph.getEdges(n.id));
-    const inEdges  = allNodes.flatMap(n => this.graph.getInEdges(n.id));
+    const allNodes = Object.values(this.graph.getNodes(workspaceId));
+    const allEdges = allNodes.flatMap(n => this.graph.getEdges(n.id, workspaceId));
+    const inEdges  = allNodes.flatMap(n => this.graph.getInEdges(n.id, workspaceId));
 
     // Temel istatistikler
     const nodeCount = allNodes.length;
@@ -1364,8 +1374,8 @@ if (verbSuffix.test(predicate)) {
 
     // Yal?t?lm?? d?ÄŸ?mler
     const yalitilmis = allNodes.filter(n => {
-      const out = this.graph.getEdges(n.id);
-      const inn = this.graph.getInEdges(n.id);
+      const out = this.graph.getEdges(n.id, workspaceId);
+      const inn = this.graph.getInEdges(n.id, workspaceId);
       return out.length === 0 && inn.length === 0;
     }).map(n => n.id);
 
@@ -1373,7 +1383,7 @@ if (verbSuffix.test(predicate)) {
     const celiskiler = this.detectContradictions();
 
     // Bo?luklar (hi? kenar? olmayan)
-    const bosluklar = this.detectGaps();
+    const bosluklar = this.detectGaps(workspaceId);
 
     // Kenar aÄŸ?rl?k daÄŸ?l?m?
     const agirliklar = allEdges.map(e => e.weight || 0.5);
@@ -1384,9 +1394,9 @@ if (verbSuffix.test(predicate)) {
     const selfNodes = ['axiom', 'kernel', 'dream', 'r?ya', 'hipotez'];
     const selfBilgi = {};
     for (const n of selfNodes) {
-      const node = this.graph.getNode(n);
+      const node = this.graph.getNode(n, workspaceId);
       if (node) {
-        const edges = this.graph.getEdges(n);
+        const edges = this.graph.getEdges(n, workspaceId);
         selfBilgi[n] = { var: true, kenar: edges.length };
       } else {
         selfBilgi[n] = { var: false, kenar: 0 };
@@ -1397,7 +1407,7 @@ if (verbSuffix.test(predicate)) {
     const dreamCycle = this._dreamCount || 0;
 
     // Entropi (bilgi ?e?itliliÄŸi)
-    const entropi = this.entropy();
+    const entropi = this.entropy(workspaceId);
 
     // Meta-g?ven skoru
     let metaGuven = 0.5;
