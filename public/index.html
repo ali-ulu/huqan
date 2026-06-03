@@ -93,6 +93,8 @@ body{display:flex;flex-direction:column}
 .trust-toolbar button{border:none;border-radius:12px;padding:0 18px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#fff;font-weight:700;cursor:pointer}
 .trust-json{margin:0;white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.6;color:#d9e1ff;background:rgba(9,12,20,.9);border:1px solid var(--line);border-radius:14px;padding:14px;max-height:340px;overflow:auto}
 .trust-empty{font-size:12px;color:var(--muted);line-height:1.6}
+.trust-raw-details summary{cursor:pointer;font-size:12px;color:var(--muted);margin-bottom:8px;outline:none;user-select:none}
+.trust-raw-details summary:hover{color:var(--text)}
 .trust-list{display:grid;gap:10px}
 .trust-item{padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:rgba(9,12,20,.92)}
 .trust-item strong{display:block;font-size:13px;margin-bottom:4px}
@@ -281,7 +283,10 @@ body{display:flex;flex-direction:column}
       <div class="dashboard" id="trust-dashboard"></div>
       <div class="card">
         <strong style="display:block;font-size:14px;margin-bottom:10px">Trust Receipt</strong>
-        <pre class="trust-json" id="trust-receipt">Bir sorgu gir, Trust Receipt burada görünsün.</pre>
+        <details class="trust-raw-details">
+          <summary>Raw JSON Göster/Gizle</summary>
+          <pre class="trust-json" id="trust-receipt">Bir sorgu gir, Trust Receipt burada görünsün.</pre>
+        </details>
       </div>
     </div>
     <div class="stack">
@@ -377,10 +382,21 @@ function queuePrompt(prompt) {
 
 async function runPrompt(value) {
   const input = document.getElementById('judge-input');
+  const btn = document.getElementById('judge-send');
   const raw = typeof value === 'string' ? value : input.value.trim();
   if (!raw) return;
+  if (btn && btn.disabled) return;
   if (input) input.value = '';
   addMessage(raw, 'user');
+  
+  const originalBtnText = btn ? btn.textContent : 'Gönder';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Yargılanıyor...';
+    btn.style.opacity = '0.7';
+    btn.style.cursor = 'wait';
+  }
+  
   try {
     const res = await fetch('/api?' + new URLSearchParams({ q: raw }));
     if (res.status === 429) {
@@ -400,6 +416,13 @@ async function runPrompt(value) {
     await updateHeaderStats();
   } catch (err) {
     addMessage('Bağlantı hatası.', 'system warn');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalBtnText;
+      btn.style.opacity = '1';
+      btn.style.cursor = 'pointer';
+    }
   }
 }
 
