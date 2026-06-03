@@ -1,6 +1,6 @@
 {
   "name": "axiom",
-  "version": "0.8.0",
+  "version": "0.9.0-rc.1",
   "description": "Deterministic symbolic AI reasoning engine — verifies LLM outputs, detects contradictions, learns from natural language. Zero external LLM/GPU/cloud dependencies.",
   "main": "kernel.js",
   "types": "kernel.d.ts",
@@ -51,6 +51,9 @@
   "homepage": "https://github.com/agiulucom42-del/axiom#readme",
   "author": "AXIOM Contributors",
   "license": "MIT",
+  "axiom": {
+    "testStatus": "592/592"
+  },
   "engines": {
     "node": ">=18.0.0"
   },
