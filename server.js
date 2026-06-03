@@ -936,11 +936,28 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     const p = cli.parse(q);
+
+    // PR-S0: Public /api must not execute filesystem/admin commands.
+    // Block restore and yükle (plus aliases) at the HTTP surface.
+    // Local CLI behavior is unchanged.
+    const qLower = q.toLowerCase();
+    const blockedPrefixes = ['restore:', 'yükle:', 'yukle:', 'geri '];
+    const blockedCommands = new Set(['restore', 'yükle']);
+    if (blockedPrefixes.some(pfx => qLower.startsWith(pfx)) || (p && blockedCommands.has(p.command))) {
+      res.writeHead(403, {
+        'Content-Type': 'application/json; charset=utf-8',
+        ...buildCorsHeaders(req),
+        'X-Content-Type-Options': 'nosniff',
+      });
+      res.end(JSON.stringify({ result: 'Bu komut web API üzerinden çalıştırılamaz.' }));
+      return;
+    }
+
     let result;
     if (!p) {
       result = 'HATA: Anlamadım.';
     } else if (p.command === 'kaydet') {
-      result = '⚠️ Kaydet komutu sadece CLI\'dan kullanılabilir.';
+      result = '⚠️ Kaydet komutu sadece CLI\'dan kullanılabilir.';
     } else {
       try {
         // Some commands may be sync today and async tomorrow.

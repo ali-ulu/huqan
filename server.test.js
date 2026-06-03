@@ -104,6 +104,34 @@ describe('Server - API', () => {
     assert.strictEqual(r.status, 400);
   });
 
+  it('GET /api?q=restore:<path> filesystem komutunu web API üzerinden çalıştırmaz', async () => {
+    const r = await request(`${BASE}/api?q=restore:foo`);
+    assert.strictEqual(r.status, 403);
+    const j = await r.json();
+    assert.strictEqual(j.result, 'Bu komut web API üzerinden çalıştırılamaz.');
+  });
+
+  it('GET /api?q=yükle:<path> filesystem komutunu web API üzerinden çalıştırmaz', async () => {
+    const r = await request(`${BASE}/api?q=yükle:/etc/passwd`);
+    assert.strictEqual(r.status, 403);
+    const j = await r.json();
+    assert.strictEqual(j.result, 'Bu komut web API üzerinden çalıştırılamaz.');
+  });
+
+  it('GET /api?q=yukle:<path> ASCII alias da bloklanır', async () => {
+    const r = await request(`${BASE}/api?q=yukle:foo`);
+    assert.strictEqual(r.status, 403);
+    const j = await r.json();
+    assert.strictEqual(j.result, 'Bu komut web API üzerinden çalıştırılamaz.');
+  });
+
+  it('GET /api?q=restore bare komut da bloklanır', async () => {
+    const r = await request(`${BASE}/api?q=restore`);
+    assert.strictEqual(r.status, 403);
+    const j = await r.json();
+    assert.strictEqual(j.result, 'Bu komut web API üzerinden çalıştırılamaz.');
+  });
+
   it('GET /dogrula?statement=... ÃƒÂ§alÃ„Â±Ã…Å¸Ã„Â±r', async () => {
     const r = await request(`${BASE}/dogrula?statement=kedi+balÃ„Â±k+yer`);
     assert.strictEqual(r.status, 200);
