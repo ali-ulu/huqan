@@ -48,7 +48,7 @@ LLM (Ollama/OpenAI)     Kullanıcı (CLI/REST/MCP)
 | Hafıza | Kalıcı SQLite + JSON | Bağlam penceresi |
 | GPU/Bulut | Gerekmez | Gerekir |
 | Maliyet | $0 | $/sorgu |
-| F1 (doğrulama) | 0.88â€“0.91 | 0.82â€“0.86 |
+| F1 (doğrulama) | 0.88-0.91 | 0.82-0.86 |
 | Dil | Türkçe + İngilizce | İngilizce ağırlıklı |
 
 ---

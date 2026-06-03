@@ -498,7 +498,7 @@ const server = http.createServer(async (req, res) => {
 
   const reqUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
 
-  // â”€â”€ /graph-data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- /graph-data ---
   if (reqUrl.pathname === '/graph-data') {
     if (req.method !== 'GET') {
       res.writeHead(405); res.end(); return;
@@ -576,7 +576,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // â”€â”€ /llm-sor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- /llm-sor ---
   if (reqUrl.pathname === '/llm-sor') {
     if (req.method !== 'POST') {
       res.writeHead(405, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
@@ -834,13 +834,13 @@ const server = http.createServer(async (req, res) => {
     const q = sanitizeInput(raw);
     if (!q) {
       res.writeHead(400, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ result: 'âŒ Boş girdi.' }));
+      res.end(JSON.stringify({ result: 'HATA: Boş girdi.' }));
       return;
     }
     const p = cli.parse(q);
     let result;
     if (!p) {
-      result = 'âŒ Anlamadım.';
+      result = 'HATA: Anlamadım.';
     } else if (p.command === 'kaydet') {
       result = '⚠️ Kaydet komutu sadece CLI\'dan kullanılabilir.';
     } else {
@@ -850,7 +850,7 @@ const server = http.createServer(async (req, res) => {
         result = await Promise.resolve(cli.execute(p.command, p.args));
       } catch (err) {
         console.error('[API hata]', err.code || err.name || 'internal');
-        result = 'âŒ İşlem sırasında hata oluştu.';
+        result = 'HATA: İşlem sırasında hata oluştu.';
       }
     }
     res.writeHead(200, {
@@ -862,7 +862,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // â”€â”€ Ana sayfa â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Ana sayfa ---
   if (reqUrl.pathname === '/') {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', ...buildCorsHeaders(req) });
     res.end(getHtmlPage());
