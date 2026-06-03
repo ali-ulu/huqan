@@ -9,6 +9,20 @@ function createStore(opts) {
   return new MemoryStore(opts);
 }
 
+function makeValidProvenance(actor, sourceType, sourceRef) {
+  return {
+    provenanceId: 'prov-' + Math.random().toString(36).slice(2, 9),
+    sourceRef: sourceRef || 'axiom-memory-core',
+    sourceTitle: 'AXIOM Memory Core',
+    sourceType: sourceType || 'memory-api',
+    actor: actor || 'system',
+    timestamp: new Date().toISOString(),
+    workspaceId: 'default',
+    trustPolicyVersion: '1.0.0',
+    confidence: 1.0,
+  };
+}
+
 describe('memory-store', () => {
 
   // ── store ────────────────────────────────────────────────
@@ -282,6 +296,203 @@ describe('memory-store', () => {
     } catch (e) {
       threw = true;
     }
-    assert.strictEqual(threw, true);
+  });
+
+  // ── query ────────────────────────────────────────────────
+  it('query respects workspace boundary', () => {
+    const store = createStore();
+    store.store({ content: 'ws-a', workspaceId: 'ws-a' });
+    store.store({ content: 'ws-b', workspaceId: 'ws-b' });
+
+    const rA = store.query({ workspaceId: 'ws-a' });
+    assert.strictEqual(rA.ok, true);
+    assert.strictEqual(rA.total, 1);
+    assert.strictEqual(rA.memories[0].content, 'ws-a');
+
+    const rB = store.query({ workspaceId: 'ws-b' });
+    assert.strictEqual(rB.ok, true);
+    assert.strictEqual(rB.total, 1);
+    assert.strictEqual(rB.memories[0].content, 'ws-b');
+  });
+
+  it('query hides deleted memories by default', () => {
+    const store = createStore();
+    const r1 = store.store({ content: 'active-1' });
+    const r2 = store.store({ content: 'deleted-1' });
+    store.tombstone(r2.memory.memoryId);
+
+    const r = store.query();
+    assert.strictEqual(r.ok, true);
+    assert.strictEqual(r.total, 1);
+    assert.strictEqual(r.memories[0].content, 'active-1');
+  });
+
+  it('query includes deleted with includeDeleted/includeTombstoned', () => {
+    const store = createStore();
+    const r1 = store.store({ content: 'active-1' });
+    const r2 = store.store({ content: 'deleted-1' });
+    store.tombstone(r2.memory.memoryId);
+
+    const r = store.query({ includeDeleted: true });
+    assert.strictEqual(r.total, 2);
+
+    const rTomb = store.query({ includeTombstoned: true });
+    assert.strictEqual(rTomb.total, 2);
+  });
+
+  it('query filters by kind', () => {
+    const store = createStore();
+    store.store({ content: 'm1' });
+    const m = store.query({ kind: 'memory-record' });
+    assert.strictEqual(m.total, 1);
+
+    const mEmpty = store.query({ kind: 'other-kind' });
+    assert.strictEqual(mEmpty.total, 0);
+  });
+
+  it('query filters by status', () => {
+    const store = createStore();
+    const r = store.store({ content: 'v1' });
+    store.supersede(r.memory.memoryId, 'v2');
+
+    const active = store.query({ status: 'active' });
+    assert.strictEqual(active.total, 1);
+    assert.strictEqual(active.memories[0].content, 'v2');
+
+    const superseded = store.query({ status: 'superseded' });
+    assert.strictEqual(superseded.total, 1);
+    assert.strictEqual(superseded.memories[0].content, 'v1');
+  });
+
+  it('query filters by actor/sourceType/sourceRef', () => {
+    const store = createStore();
+    store.store({ content: 'm1', provenance: makeValidProvenance('alice', 'document', 'ref-1') });
+    store.store({ content: 'm2', provenance: makeValidProvenance('bob', 'chat', 'ref-2') });
+
+    const r1 = store.query({ actor: 'alice' });
+    assert.strictEqual(r1.total, 1);
+    assert.strictEqual(r1.memories[0].content, 'm1');
+
+    const r2 = store.query({ sourceType: 'chat' });
+    assert.strictEqual(r2.total, 1);
+    assert.strictEqual(r2.memories[0].content, 'm2');
+
+    const r3 = store.query({ sourceRef: 'ref-1' });
+    assert.strictEqual(r3.total, 1);
+    assert.strictEqual(r3.memories[0].content, 'm1');
+  });
+
+  it('query filters by createdAfter/createdBefore', () => {
+    const store = createStore();
+    const r1 = store.store({ content: 'm1' });
+    const r2 = store.store({ content: 'm2' });
+    const r3 = store.store({ content: 'm3' });
+
+    r1.memory.createdAt = '2026-06-03T12:00:00.000Z';
+    r2.memory.createdAt = '2026-06-03T12:00:05.000Z';
+    r3.memory.createdAt = '2026-06-03T12:00:10.000Z';
+
+    const r = store.query({
+      createdAfter: '2026-06-03T12:00:05.000Z',
+      createdBefore: '2026-06-03T12:00:10.000Z'
+    });
+    assert.strictEqual(r.total, 2);
+    assert.strictEqual(r.memories[0].content, 'm2');
+    assert.strictEqual(r.memories[1].content, 'm3');
+  });
+
+  it('query filters by updatedAfter/updatedBefore', () => {
+    const store = createStore();
+    const r1 = store.store({ content: 'm1' });
+    const r2 = store.store({ content: 'm2' });
+
+    r1.memory.updatedAt = '2026-06-03T12:10:00.000Z';
+    r2.memory.updatedAt = '2026-06-03T12:10:10.000Z';
+
+    const r = store.query({
+      updatedAfter: '2026-06-03T12:10:05.000Z'
+    });
+    assert.strictEqual(r.total, 1);
+    assert.strictEqual(r.memories[0].content, 'm2');
+  });
+
+  it('query supports contentIncludes/text case-insensitive search', () => {
+    const store = createStore();
+    store.store({ content: 'The quick brown fox jumps' });
+    store.store({ content: 'Over the lazy dog' });
+
+    const r1 = store.query({ contentIncludes: 'FOX' });
+    assert.strictEqual(r1.total, 1);
+    assert.strictEqual(r1.memories[0].content, 'The quick brown fox jumps');
+
+    const r2 = store.query({ text: 'lazy' });
+    assert.strictEqual(r2.total, 1);
+    assert.strictEqual(r2.memories[0].content, 'Over the lazy dog');
+  });
+
+  it('query supports object content deterministic search', () => {
+    const store = createStore();
+    store.store({ content: { name: 'Alice', role: 'admin' } });
+    store.store({ content: { role: 'user', name: 'Bob' } });
+
+    const r = store.query({ contentIncludes: 'role":"admin' });
+    assert.strictEqual(r.total, 1);
+    assert.strictEqual(r.memories[0].content.name, 'Alice');
+  });
+
+  it('query supports shallow metadata exact match', () => {
+    const store = createStore();
+    store.store({ content: 'm1', metadata: { category: 'A', status: 1 } });
+    store.store({ content: 'm2', metadata: { category: 'B', status: 1 } });
+
+    const r = store.query({ metadata: { category: 'A', status: 1 } });
+    assert.strictEqual(r.total, 1);
+    assert.strictEqual(r.memories[0].content, 'm1');
+  });
+
+  it('query supports limit/offset', () => {
+    const store = createStore();
+    for (let i = 0; i < 5; i++) {
+      store.store({ content: `item-${i}` });
+    }
+    const r = store.query({ limit: 2, offset: 2 });
+    assert.strictEqual(r.memories.length, 2);
+    assert.strictEqual(r.total, 5);
+    assert.strictEqual(r.limit, 2);
+    assert.strictEqual(r.offset, 2);
+  });
+
+  it('query ordering is deterministic with same timestamps', () => {
+    const store = createStore();
+    const r1 = store.store({ content: 'first' });
+    const r2 = store.store({ content: 'second' });
+
+    r1.memory.createdAt = '2026-06-03T12:00:00.000Z';
+    r2.memory.createdAt = '2026-06-03T12:00:00.000Z';
+
+    const order = [r1.memory.memoryId, r2.memory.memoryId].sort();
+
+    const r = store.query({ orderBy: 'createdAt', order: 'asc' });
+    assert.strictEqual(r.memories[0].memoryId, order[0]);
+    assert.strictEqual(r.memories[1].memoryId, order[1]);
+  });
+
+  it('invalid query options are handled consistently', () => {
+    const store = createStore();
+    const r1 = store.query({ limit: -5 });
+    assert.strictEqual(r1.ok, false);
+    assert.strictEqual(r1.error.code, 'VALIDATION_ERROR');
+
+    const r2 = store.query({ limit: 1005 });
+    assert.strictEqual(r2.ok, false);
+    assert.strictEqual(r2.error.code, 'VALIDATION_ERROR');
+
+    const r3 = store.query({ createdAfter: 'invalid-date' });
+    assert.strictEqual(r3.ok, false);
+    assert.strictEqual(r3.error.code, 'VALIDATION_ERROR');
+
+    const r4 = store.query({ order: 'invalid-direction' });
+    assert.strictEqual(r4.ok, false);
+    assert.strictEqual(r4.error.code, 'VALIDATION_ERROR');
   });
 });

@@ -266,4 +266,61 @@ describe('memory-store-sqlite', () => {
     assert.strictEqual(r.ok, true);
     assert.strictEqual(store._db, null);
   });
+
+  it('query results remain identical after closing and reopening SQLite-backed MemoryStore', () => {
+    const dbPath = getDbPath('query-reload');
+    const store1 = new MemoryStore({ useSQLite: true, dbPath });
+
+    store1.store({ content: 'target A', metadata: { priority: 'high' } });
+    store1.store({ content: 'other B', metadata: { priority: 'low' } });
+    store1.close();
+
+    const store2 = new MemoryStore({ useSQLite: true, dbPath });
+    const r = store2.query({ metadata: { priority: 'high' } });
+    assert.strictEqual(r.ok, true);
+    assert.strictEqual(r.total, 1);
+    assert.strictEqual(r.memories[0].content, 'target A');
+    store2.close();
+  });
+
+  it('workspace isolation remains true after reload', () => {
+    const dbPath = getDbPath('query-workspace-reload');
+    const store1 = new MemoryStore({ useSQLite: true, dbPath });
+
+    store1.store({ content: 'Fact X', workspaceId: 'ws-x' });
+    store1.store({ content: 'Fact Y', workspaceId: 'ws-y' });
+    store1.close();
+
+    const store2 = new MemoryStore({ useSQLite: true, dbPath });
+    const rX = store2.query({ workspaceId: 'ws-x' });
+    assert.strictEqual(rX.total, 1);
+    assert.strictEqual(rX.memories[0].content, 'Fact X');
+
+    const rY = store2.query({ workspaceId: 'ws-y' });
+    assert.strictEqual(rY.total, 1);
+    assert.strictEqual(rY.memories[0].content, 'Fact Y');
+    store2.close();
+  });
+
+  it('deleted memory default hiding remains true after reload', () => {
+    const dbPath = getDbPath('query-deleted-reload');
+    const store1 = new MemoryStore({ useSQLite: true, dbPath });
+
+    const r1 = store1.store({ content: 'persist active' });
+    const r2 = store1.store({ content: 'persist deleted' });
+    store1.tombstone(r2.memory.memoryId);
+    store1.close();
+
+    const store2 = new MemoryStore({ useSQLite: true, dbPath });
+    
+    // Default hiding
+    const rDefault = store2.query();
+    assert.strictEqual(rDefault.total, 1);
+    assert.strictEqual(rDefault.memories[0].content, 'persist active');
+
+    // With includeDeleted
+    const rAll = store2.query({ includeDeleted: true });
+    assert.strictEqual(rAll.total, 2);
+    store2.close();
+  });
 });
