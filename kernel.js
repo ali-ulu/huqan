@@ -90,7 +90,21 @@ class Kernel {
     // v0.9.1: AXIOM Memory Core — kernel.memory API
     this.memory = new MemoryStore({
       trustPolicyVersion: this.contractVersion,
+      useSQLite: opts.useSQLite,
+      dbPath: opts.dbPath,
+      memoryPath: opts.memoryPath,
     });
+
+    // Hook graph.close to also close memory store db connection
+    const originalClose = this.graph.close;
+    this.graph.close = () => {
+      if (typeof originalClose === 'function') {
+        originalClose.call(this.graph);
+      }
+      if (this.memory && typeof this.memory.close === 'function') {
+        this.memory.close();
+      }
+    };
   }
 
   // r1: Acquire lock for critical operations (verify/learn)
