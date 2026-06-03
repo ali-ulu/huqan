@@ -145,6 +145,31 @@ describe('verify semantic integration', () => {
     );
   });
 
+  it('promotes graph-aware type lattice conflicts to celiski', () => {
+    const kernel = makeKernel('type-lattice');
+    kernel.graph.addNode('köpek', 'köpek', null, { workspaceId: 'default' });
+    kernel.graph.addNode('hayvan', 'hayvan', null, { workspaceId: 'default' });
+    kernel.graph.addNode('canlı', 'canlı', null, { workspaceId: 'default' });
+    kernel.graph.addNode('organizma', 'organizma', null, { workspaceId: 'default' });
+    kernel.graph.addEdge('köpek', 'hayvan', 'tür', { workspaceId: 'default' });
+    kernel.graph.addEdge('hayvan', 'canlı', 'tür', { workspaceId: 'default' });
+    kernel.graph.addEdge('canlı', 'organizma', 'tür', { workspaceId: 'default' });
+
+    const raw = kernel.verify('köpek bitkidir', { workspaceId: 'default' });
+    const result = unwrap(raw);
+    const semanticTrust = raw.meta.semanticTrust;
+
+    assert.ok(result && typeof result === 'object', 'verify result should be an object');
+    assert.strictEqual(result.status, 'celiski');
+    assert.ok(semanticTrust && typeof semanticTrust === 'object', 'semantic trust meta should be attached');
+    assert.strictEqual(semanticTrust.status, 'celiski');
+    assert.ok(
+      semanticTrust.warnings.includes('TYPE_CONFLICT') ||
+      semanticTrust.warnings.includes('TYPE_LATTICE_CONFLICT'),
+      'type lattice conflict should surface in warnings',
+    );
+  });
+
   it('keeps high-risk weak claims as bilinmiyor with risk flags', () => {
     const kernel = makeKernel('high-risk');
     seedFacts(kernel);
