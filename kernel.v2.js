@@ -642,6 +642,84 @@ class KernelV2 {
     };
   }
 
+  _buildContradictionDetails(parsed, normalizedTarget, normalizedTargetToken, opts = {}) {
+    const maxDepth = opts.maxDepth || 4;
+    const knownFacts = this._collectFactTargets(parsed.subject);
+    if (parsed.isNegated && knownFacts.length > 0) {
+      const directPositive = knownFacts.find(item => item.target === normalizedTargetToken);
+      if (directPositive) {
+        return {
+          status: 'celiski',
+          confidence: Math.max(0.65, Math.min(0.9, directPositive.weight || 0.72)),
+          inferred: true,
+          contradictionReason: 'negated_statement_conflicts_with_known_fact',
+          conflictTarget: normalizedTarget,
+          confidenceSource: 'known-fact-conflict',
+          evidence: this._buildDirectFactEvidence(parsed.subject),
+          meta: { inferredBy: 'fact-negation-conflict' },
+        };
+      }
+    }
+
+    if (!parsed.isNegated) {
+      const oppositeConflict = this._findOppositePredicateConflict(
+        parsed.subject,
+        normalizedTargetToken,
+        maxDepth
+      );
+      if (oppositeConflict) {
+        return oppositeConflict;
+      }
+    }
+
+    if (!parsed.isNegated) {
+      const knownTypes = this._collectTypeTargets(parsed.subject);
+      if (knownTypes.length > 0 && !knownTypes.includes(normalizedTarget)) {
+        return {
+          status: 'celiski',
+          confidence: 0.72,
+          inferred: true,
+          contradictionReason: 'type_mismatch_with_known_types',
+          knownTypes,
+          requestedType: normalizedTarget,
+          confidenceSource: 'known-type-conflict',
+          evidence: this._buildDirectTypeEvidence(parsed.subject),
+          meta: { inferredBy: 'type-conflict' },
+        };
+      }
+    }
+
+    const chain = this._inferTypeChain(parsed.subject, normalizedTarget, maxDepth);
+    if (chain && parsed.isNegated) {
+      return {
+        status: 'celiski',
+        confidence: this._aggregatePathConfidence(chain),
+        inferred: true,
+        contradictionReason: 'negated_statement_conflicts_with_type_chain',
+        reasoningPath: this._buildReasoningPath(chain),
+        pathLength: chain.length,
+        confidenceSource: 'path-average',
+        evidence: this._toPathEvidence(chain),
+        meta: { inferredBy: 'type-chain-negation' },
+      };
+    }
+
+    if (chain && !parsed.isNegated) {
+      return {
+        status: 'dogrulandi',
+        confidence: this._aggregatePathConfidence(chain),
+        inferred: true,
+        reasoningPath: this._buildReasoningPath(chain),
+        pathLength: chain.length,
+        confidenceSource: 'path-average',
+        evidence: this._toPathEvidence(chain),
+        meta: { inferredBy: 'type-chain' },
+      };
+    }
+
+    return null;
+  }
+
   verify(statement, opts = {}) {
     const risk = this._analyzeManipulation(statement);
     const verificationStatement = risk.extractedStatement || statement;
@@ -675,103 +753,35 @@ class KernelV2 {
     }
 
     const base = this.kernel.verify(verificationStatement, opts);
-    if (base?.data?.status !== 'bilinmiyor') return this._withVerifyDetails(base, risk);
-
-    if (!parsed.isNegated) {
-      const oppositeConflict = this._findOppositePredicateConflict(
-        parsed.subject,
-        normalizedTargetToken,
-        opts.maxDepth || 4
-      );
-      if (oppositeConflict) {
-        return this._withVerifyDetails(this._ok(
-          'verify',
-          {
-            status: oppositeConflict.status,
-            confidence: oppositeConflict.confidence,
-            inferred: oppositeConflict.inferred,
-            contradictionReason: oppositeConflict.contradictionReason,
-            conflictTarget: oppositeConflict.conflictTarget,
-            requestedTarget: normalizedTarget,
-            confidenceSource: oppositeConflict.confidenceSource,
-            ...(oppositeConflict.reasoningPath ? {
-              reasoningPath: oppositeConflict.reasoningPath,
-              pathLength: oppositeConflict.pathLength,
-            } : {}),
-          },
-          oppositeConflict.evidence,
-          {
-            ...base.meta,
-            ...oppositeConflict.meta,
-          }
-        ), risk);
+    if (base?.data?.status !== 'bilinmiyor') {
+      const contradictionReason = base?.data?.contradictionReason;
+      if (base?.data?.status !== 'celiski' || contradictionReason) {
+        return this._withVerifyDetails(base, risk);
       }
     }
 
-    if (!parsed.isNegated) {
-      const knownTypes = this._collectTypeTargets(parsed.subject);
-      if (knownTypes.length > 0 && !knownTypes.includes(normalizedTarget)) {
-        return this._withVerifyDetails(this._ok(
-          'verify',
-          {
-            status: 'celiski',
-            confidence: 0.72,
-            inferred: true,
-            contradictionReason: 'type_mismatch_with_known_types',
-            knownTypes,
-            requestedType: normalizedTarget,
-            confidenceSource: 'known-type-conflict',
-          },
-          this._buildDirectTypeEvidence(parsed.subject),
-          {
-            ...base.meta,
-            inferredBy: 'type-conflict',
-          }
-        ), risk);
-      }
-    }
+    const contradictionDetails = this._buildContradictionDetails(
+      parsed,
+      normalizedTarget,
+      normalizedTargetToken,
+      opts
+    );
 
-    const chain = this._inferTypeChain(parsed.subject, normalizedTarget, opts.maxDepth || 4);
-    if (!chain) return this._withVerifyDetails(base, risk);
+    if (!contradictionDetails) return this._withVerifyDetails(base, risk);
 
-    const evidence = this._toPathEvidence(chain);
-    const confidence = this._aggregatePathConfidence(chain);
-    const reasoningPath = this._buildReasoningPath(chain);
-
-    if (parsed.isNegated) {
-      return this._withVerifyDetails(this._ok(
-        'verify',
-        {
-          status: 'celiski',
-          confidence,
-          inferred: true,
-          contradictionReason: 'negated_statement_conflicts_with_type_chain',
-          reasoningPath,
-          pathLength: chain.length,
-          confidenceSource: 'path-average',
-        },
-        evidence,
-        {
-          ...base.meta,
-          inferredBy: 'type-chain-negation',
-        }
-      ), risk);
-    }
-
+    const { evidence, meta, ...data } = contradictionDetails;
     return this._withVerifyDetails(this._ok(
       'verify',
       {
-        status: 'dogrulandi',
-        confidence,
-        inferred: true,
-        reasoningPath,
-        pathLength: chain.length,
-        confidenceSource: 'path-average',
+        ...data,
+        ...(data.conflictTarget ? { conflictTarget: data.conflictTarget } : {}),
+        ...(data.requestedType ? { requestedType: data.requestedType } : {}),
+        ...(data.requestedTarget ? { requestedTarget: data.requestedTarget } : {}),
       },
       evidence,
       {
         ...base.meta,
-        inferredBy: 'type-chain',
+        ...meta,
       }
     ), risk);
   }

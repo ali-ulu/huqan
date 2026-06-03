@@ -181,25 +181,25 @@ GET /graph-data
 Release:
 
 ```text
-v0.8.0
+v0.9.0-rc.1
 ```
 
 Expected test status:
 
 ```text
-486/486
+592/592
 ```
 
 Expected status endpoint:
 
 ```text
-version=0.8.0
-testStatus=486/486
+version=0.9.0-rc.1
+testStatus=592/592
 ```
 
-## v0.8 Direction Note
+## v0.9 RC Direction Note
 
-Trust Kernel plus ATP/AVP is the documented source-of-truth direction for v0.8.
+Trust Kernel plus ATP/AVP remains the documented source-of-truth direction, and the RC metadata now reflects the v0.9 release candidate alignment.
 
 That direction is intentionally documented before runtime work so protocol design is not mixed with incomplete storage or kernel behavior in the same step.
 

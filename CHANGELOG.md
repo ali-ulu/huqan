@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.9.0-rc.1
+
+Prepared 2026-06-03.
+
+### Notes
+- RC metadata aligned after clean-clone blocker fixes passed.
+- `/v2-status` now reflects the v0.9 RC release metadata and static test status.
+- No verifier behavior changes in this patch.
+
 ## v0.8.0
 
 Prepared 2026-06-02.
