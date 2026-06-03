@@ -269,7 +269,7 @@ docker-compose up
 
 ## Versiyon
 
-**v0.9.0-rc.1** — Trust Kernel & AXIOM Trust Protocol, 592 test
+**v0.9.0** — Trust Kernel & AXIOM Trust Protocol, 592 test
 
 [CHANGELOG](./CHANGELOG.md) Â· [ROADMAP](./ROADMAP.md) Â· [MIT Lisans](./LICENSE)
 
