@@ -706,4 +706,166 @@ describe('memory-store', () => {
       assert.strictEqual(res.memories[1].content, 'm3');
     });
   });
+
+  describe('PR-M6 provenance, audit & workspace isolation', () => {
+    it('same memoryId can exist in two workspaces without in-memory overwrite', () => {
+      const store = createStore();
+      const memoryId = 'test-dup-id';
+      
+      const recordA = {
+        memoryId,
+        workspaceId: 'ws-a',
+        content: { data: 'a' },
+        createdAt: new Date().toISOString(),
+        provenance: makeValidProvenance('alice', 'api', 'ref'),
+        trustPolicyVersion: '1.0.0',
+        status: 'active'
+      };
+      
+      const recordB = {
+        memoryId,
+        workspaceId: 'ws-b',
+        content: { data: 'b' },
+        createdAt: new Date().toISOString(),
+        provenance: makeValidProvenance('bob', 'api', 'ref'),
+        trustPolicyVersion: '1.0.0',
+        status: 'active'
+      };
+      
+      store._memories.set(store._makeMemoryKey('ws-a', memoryId), recordA);
+      store._memories.set(store._makeMemoryKey('ws-b', memoryId), recordB);
+      
+      assert.strictEqual(store._memories.size, 2);
+      
+      const getA = store.get(memoryId, { workspaceId: 'ws-a' });
+      assert.strictEqual(getA.ok, true);
+      assert.strictEqual(getA.memory.content.data, 'a');
+      
+      const getB = store.get(memoryId, { workspaceId: 'ws-b' });
+      assert.strictEqual(getB.ok, true);
+      assert.strictEqual(getB.memory.content.data, 'b');
+    });
+
+    it('get/list/query stay workspace-safe with same memoryId', () => {
+      const store = createStore();
+      const memoryId = 'test-dup-id';
+      
+      const recordA = {
+        memoryId,
+        workspaceId: 'ws-a',
+        content: { data: 'a' },
+        createdAt: '2026-06-03T12:00:00.000Z',
+        provenance: makeValidProvenance('alice', 'api', 'ref'),
+        trustPolicyVersion: '1.0.0',
+        status: 'active'
+      };
+      
+      const recordB = {
+        memoryId,
+        workspaceId: 'ws-b',
+        content: { data: 'b' },
+        createdAt: '2026-06-03T12:00:01.000Z',
+        provenance: makeValidProvenance('bob', 'api', 'ref'),
+        trustPolicyVersion: '1.0.0',
+        status: 'active'
+      };
+      
+      store._memories.set(store._makeMemoryKey('ws-a', memoryId), recordA);
+      store._memories.set(store._makeMemoryKey('ws-b', memoryId), recordB);
+      
+      const listA = store.list({ workspaceId: 'ws-a' });
+      assert.strictEqual(listA.total, 1);
+      assert.strictEqual(listA.memories[0].content.data, 'a');
+      
+      const listB = store.list({ workspaceId: 'ws-b' });
+      assert.strictEqual(listB.total, 1);
+      assert.strictEqual(listB.memories[0].content.data, 'b');
+      
+      const queryA = store.query({ workspaceId: 'ws-a' });
+      assert.strictEqual(queryA.total, 1);
+      assert.strictEqual(queryA.memories[0].content.data, 'a');
+      
+      const queryB = store.query({ workspaceId: 'ws-b' });
+      assert.strictEqual(queryB.total, 1);
+      assert.strictEqual(queryB.memories[0].content.data, 'b');
+    });
+
+    it('patchMetadata stores fresh action provenance in event', () => {
+      const store = createStore();
+      const r = store.store({ content: 'provenance test' });
+      
+      const customProvenance = makeValidProvenance('custom-actor', 'custom-type', 'custom-ref');
+      const patchRes = store.patchMetadata(r.memory.memoryId, { category: 'patched' }, { provenance: customProvenance });
+      
+      assert.strictEqual(patchRes.ok, true);
+      assert.strictEqual(patchRes.event.provenance.actor, 'custom-actor');
+      assert.strictEqual(patchRes.event.provenance.sourceRef, 'custom-ref');
+      
+      const patchResDefault = store.patchMetadata(r.memory.memoryId, { category: 'patched-2' }, { actor: 'default-patcher' });
+      assert.strictEqual(patchResDefault.ok, true);
+      assert.strictEqual(patchResDefault.event.provenance.actor, 'default-patcher');
+      assert.notDeepStrictEqual(patchResDefault.event.provenance, r.memory.provenance);
+    });
+
+    it('tombstone stores fresh action provenance in event', () => {
+      const store = createStore();
+      const r = store.store({ content: 'tombstone prov test' });
+      
+      const customProvenance = makeValidProvenance('tombstone-actor', 'tombstone-type', 'tombstone-ref');
+      const tombRes = store.tombstone(r.memory.memoryId, { provenance: customProvenance });
+      
+      assert.strictEqual(tombRes.ok, true);
+      assert.strictEqual(tombRes.event.provenance.actor, 'tombstone-actor');
+      
+      const r2 = store.store({ content: 'tombstone prov test 2' });
+      const tombResDefault = store.tombstone(r2.memory.memoryId, { actor: 'default-tombstoner' });
+      assert.strictEqual(tombResDefault.ok, true);
+      assert.strictEqual(tombResDefault.event.provenance.actor, 'default-tombstoner');
+      assert.notDeepStrictEqual(tombResDefault.event.provenance, r2.memory.provenance);
+    });
+
+    it('supersede creates audit event for old memory', () => {
+      const store = createStore();
+      const r = store.store({ content: 'v1' });
+      
+      const superRes = store.supersede(r.memory.memoryId, 'v2');
+      assert.strictEqual(superRes.ok, true);
+      assert.ok(superRes.oldMemoryUpdateEvent);
+      assert.strictEqual(superRes.oldMemoryUpdateEvent.eventType, 'UPDATED');
+      assert.strictEqual(superRes.oldMemoryUpdateEvent.memoryId, r.memory.memoryId);
+      
+      const events = store.getEvents(r.memory.memoryId);
+      const updateEvent = events.find(e => e.eventType === 'UPDATED');
+      assert.ok(updateEvent);
+      assert.strictEqual(updateEvent.details.action, 'supersede');
+    });
+
+    it('supersede event details include supersededByMemoryId', () => {
+      const store = createStore();
+      const r = store.store({ content: 'v1' });
+      
+      const superRes = store.supersede(r.memory.memoryId, 'v2');
+      assert.strictEqual(superRes.ok, true);
+      
+      const details = superRes.oldMemoryUpdateEvent.details;
+      assert.strictEqual(details.supersededByMemoryId, superRes.newMemory.memoryId);
+      assert.strictEqual(details.previousStatus, 'active');
+      assert.strictEqual(details.newStatus, 'superseded');
+    });
+
+    it('event types remain schema-valid', () => {
+      const store = createStore();
+      const r = store.store({ content: 'v1' });
+      const superRes = store.supersede(r.memory.memoryId, 'v2');
+      
+      assert.strictEqual(superRes.ok, true);
+      
+      const { validateMemoryEvent } = require('../lib/memory-schema');
+      const valCreated = validateMemoryEvent(superRes.event);
+      assert.strictEqual(valCreated.ok, true);
+      
+      const valUpdated = validateMemoryEvent(superRes.oldMemoryUpdateEvent);
+      assert.strictEqual(valUpdated.ok, true);
+    });
+  });
 });

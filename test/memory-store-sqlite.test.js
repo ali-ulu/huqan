@@ -450,4 +450,235 @@ describe('memory-store-sqlite', () => {
 
     store2.close();
   });
+
+  describe('PR-M6 SQLite provenance, audit & workspace isolation', () => {
+    it('same memoryId across workspaces survives SQLite reload and warmup rebuilds cache correctly', () => {
+      const dbPath = getDbPath('dup-id-reload');
+      const store1 = new MemoryStore({ useSQLite: true, dbPath });
+      
+      const memoryId = 'test-dup-id';
+      const recordA = {
+        memoryId,
+        workspaceId: 'ws-a',
+        content: { data: 'a' },
+        createdAt: '2026-06-03T12:00:00.000Z',
+        provenance: {
+          provenanceId: 'prov-a',
+          sourceRef: 'ref',
+          sourceTitle: 'Title',
+          sourceType: 'api',
+          actor: 'alice',
+          timestamp: '2026-06-03T12:00:00.000Z',
+          workspaceId: 'ws-a',
+          trustPolicyVersion: '1.0.0',
+          confidence: 1.0,
+        },
+        trustPolicyVersion: '1.0.0',
+        status: 'active'
+      };
+      
+      const recordB = {
+        memoryId,
+        workspaceId: 'ws-b',
+        content: { data: 'b' },
+        createdAt: '2026-06-03T12:00:01.000Z',
+        provenance: {
+          provenanceId: 'prov-b',
+          sourceRef: 'ref',
+          sourceTitle: 'Title',
+          sourceType: 'api',
+          actor: 'bob',
+          timestamp: '2026-06-03T12:00:01.000Z',
+          workspaceId: 'ws-b',
+          trustPolicyVersion: '1.0.0',
+          confidence: 1.0,
+        },
+        trustPolicyVersion: '1.0.0',
+        status: 'active'
+      };
+
+      store1._db.transaction(() => {
+        store1._stmts.upsertMemory.run({
+          workspace_id: recordA.workspaceId,
+          memory_id: recordA.memoryId,
+          kind: 'memory-record',
+          content_json: JSON.stringify(recordA.content),
+          content_hash: 'hash-a',
+          status: recordA.status,
+          metadata_json: '{}',
+          provenance_json: JSON.stringify(recordA.provenance),
+          trust_policy_version: recordA.trustPolicyVersion,
+          created_at: recordA.createdAt,
+          updated_at: null,
+          deleted_at: null,
+          supersedes_memory_id: null,
+        });
+
+        store1._stmts.upsertMemory.run({
+          workspace_id: recordB.workspaceId,
+          memory_id: recordB.memoryId,
+          kind: 'memory-record',
+          content_json: JSON.stringify(recordB.content),
+          content_hash: 'hash-b',
+          status: recordB.status,
+          metadata_json: '{}',
+          provenance_json: JSON.stringify(recordB.provenance),
+          trust_policy_version: recordB.trustPolicyVersion,
+          created_at: recordB.createdAt,
+          updated_at: null,
+          deleted_at: null,
+          supersedes_memory_id: null,
+        });
+      })();
+
+      store1.close();
+
+      const store2 = new MemoryStore({ useSQLite: true, dbPath });
+      assert.strictEqual(store2._memories.size, 2);
+
+      const getA = store2.get(memoryId, { workspaceId: 'ws-a' });
+      assert.strictEqual(getA.ok, true);
+      assert.strictEqual(getA.memory.content.data, 'a');
+
+      const getB = store2.get(memoryId, { workspaceId: 'ws-b' });
+      assert.strictEqual(getB.ok, true);
+      assert.strictEqual(getB.memory.content.data, 'b');
+
+      store2.close();
+    });
+
+    it('patchMetadata/tombstone/supersede provenance and supersede audit event survive reload', () => {
+      const dbPath = getDbPath('prov-audit-reload');
+      const store1 = new MemoryStore({ useSQLite: true, dbPath });
+
+      const r1 = store1.store({ content: 'v1', workspaceId: 'ws-a' });
+      const mid1 = r1.memory.memoryId;
+
+      const provPatch = {
+        provenanceId: 'prov-patch',
+        sourceRef: 'patch-ref',
+        sourceTitle: 'Title',
+        sourceType: 'api',
+        actor: 'patcher',
+        timestamp: '2026-06-03T12:00:00.000Z',
+        workspaceId: 'ws-a',
+        trustPolicyVersion: '1.0.0',
+        confidence: 1.0,
+      };
+      store1.patchMetadata(mid1, { status: 'edited' }, { provenance: provPatch });
+
+      const provSupersede = {
+        provenanceId: 'prov-super',
+        sourceRef: 'super-ref',
+        sourceTitle: 'Title',
+        sourceType: 'api',
+        actor: 'superseder',
+        timestamp: '2026-06-03T12:00:05.000Z',
+        workspaceId: 'ws-a',
+        trustPolicyVersion: '1.0.0',
+        confidence: 1.0,
+      };
+      const superRes = store1.supersede(mid1, 'v2', { provenance: provSupersede });
+      const mid2 = superRes.newMemory.memoryId;
+
+      const provTombstone = {
+        provenanceId: 'prov-tomb',
+        sourceRef: 'tomb-ref',
+        sourceTitle: 'Title',
+        sourceType: 'api',
+        actor: 'tombstoner',
+        timestamp: '2026-06-03T12:00:10.000Z',
+        workspaceId: 'ws-a',
+        trustPolicyVersion: '1.0.0',
+        confidence: 1.0,
+      };
+      store1.tombstone(mid2, { provenance: provTombstone });
+
+      store1.close();
+
+      const store2 = new MemoryStore({ useSQLite: true, dbPath });
+
+      const events1 = store2.getEvents(mid1);
+      const updateEvent = events1.find(e => e.eventType === 'UPDATED' && e.details.action === 'supersede');
+      assert.ok(updateEvent);
+      assert.strictEqual(updateEvent.provenance.actor, 'superseder');
+      assert.strictEqual(updateEvent.details.supersededByMemoryId, mid2);
+      assert.strictEqual(updateEvent.details.previousStatus, 'active');
+      assert.strictEqual(updateEvent.details.newStatus, 'superseded');
+
+      const events2 = store2.getEvents(mid2);
+      const tombstoneEvent = events2.find(e => e.eventType === 'TOMBSTONE');
+      assert.ok(tombstoneEvent);
+      assert.strictEqual(tombstoneEvent.provenance.actor, 'tombstoner');
+
+      store2.close();
+    });
+
+    it('no cross-workspace event/link leakage after reload', () => {
+      const dbPath = getDbPath('cross-ws-reload');
+      const store1 = new MemoryStore({ useSQLite: true, dbPath });
+
+      const m1 = store1.store({ content: 'm1', workspaceId: 'ws-a' }).memory;
+      const m2 = store1.store({ content: 'm2', workspaceId: 'ws-a' }).memory;
+      store1.linkMemories({ fromMemoryId: m1.memoryId, toMemoryId: m2.memoryId, relation: 'supports', workspaceId: 'ws-a' });
+
+      const m3 = store1.store({ content: 'm3', workspaceId: 'ws-b' }).memory;
+
+      store1.close();
+
+      const store2 = new MemoryStore({ useSQLite: true, dbPath });
+
+      const linksA = store2.queryLinks({ workspaceId: 'ws-a' });
+      assert.strictEqual(linksA.total, 1);
+
+      const linksB = store2.queryLinks({ workspaceId: 'ws-b' });
+      assert.strictEqual(linksB.total, 0);
+
+      const timelineA = store2.timeline({ workspaceId: 'ws-a' });
+      assert.strictEqual(timelineA.total, 3);
+
+      const timelineB = store2.timeline({ workspaceId: 'ws-b' });
+      assert.strictEqual(timelineB.total, 1);
+
+      store2.close();
+    });
+
+    it('transaction rollback test for failed supersede operation', () => {
+      const dbPath = getDbPath('rollback-supersede');
+      const store = new MemoryStore({ useSQLite: true, dbPath });
+
+      const r1 = store.store({ content: 'v1' });
+      const mid1 = r1.memory.memoryId;
+
+      let callCount = 0;
+      const originalRun = store._stmts.insertEvent.run;
+      store._stmts.insertEvent.run = function() {
+        callCount++;
+        if (callCount >= 2) {
+          throw new Error('Simulated event write failure during supersede');
+        }
+        return originalRun.apply(this, arguments);
+      };
+
+      assert.throws(() => {
+        store.supersede(mid1, 'v2');
+      }, /Simulated event write failure during supersede/);
+
+      store._stmts.insertEvent.run = originalRun;
+
+      const oldMemCached = store.get(mid1).memory;
+      assert.strictEqual(oldMemCached.status, 'active');
+
+      store.close();
+
+      const store2 = new MemoryStore({ useSQLite: true, dbPath });
+      const oldMemDB = store2.get(mid1).memory;
+      assert.strictEqual(oldMemDB.status, 'active');
+
+      const timeline = store2.timeline();
+      assert.strictEqual(timeline.total, 1);
+
+      store2.close();
+    });
+  });
 });
