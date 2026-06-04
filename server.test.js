@@ -7,17 +7,19 @@ const path = require('path');
 
 let PORT;
 let BASE;
+const TEST_API_KEY = 'test-server-secret';
 
 function request(url, options = {}) {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
     let socket = null;
+    const defaultHeaders = options.skipAuth ? {} : { 'X-API-Key': TEST_API_KEY };
     const req = http.request({
       method: options.method || 'GET',
       hostname: u.hostname,
       port: u.port,
       path: u.pathname + u.search,
-      headers: { Connection: 'close', ...(options.headers || {}) },
+      headers: { Connection: 'close', ...defaultHeaders, ...(options.headers || {}) },
       agent: false,
     }, (res) => {
       const chunks = [];
@@ -58,6 +60,7 @@ before(async () => {
   process.env.AXIOM_KERNEL_VERSION = 'v2';
   process.env.AXIOM_DISABLE_AUTO_LISTEN = '1';
   process.env.AXIOM_TEST_STATUS = 'static-test-status';
+  process.env.AXIOM_API_KEY = TEST_API_KEY;
   server = require('./server');
   server.keepAliveTimeout = 1;
   server.headersTimeout = 2_000;
@@ -410,6 +413,23 @@ describe('Server - API', () => {
       assert.strictEqual(authorized.status, 200);
       const payload = await authorized.json();
       assert.strictEqual(payload.ok, true);
+    } finally {
+      if (previousApiKey === undefined) delete process.env.AXIOM_API_KEY;
+      else process.env.AXIOM_API_KEY = previousApiKey;
+    }
+  });
+
+  it('GUV-1 fail-closed: AXIOM_API_KEY unset ise authenticated endpoint 401 dondurur', async () => {
+    const previousApiKey = process.env.AXIOM_API_KEY;
+    delete process.env.AXIOM_API_KEY;
+    try {
+      const res = await request(`${BASE}/api/provenance?targetId=kedi&workspaceId=default`, {
+        skipAuth: true,
+      });
+      assert.strictEqual(res.status, 401);
+      const body = await res.json();
+      assert.strictEqual(body.error, 'API key not configured');
+      assert.strictEqual(res.headers.get('WWW-Authenticate'), 'Bearer');
     } finally {
       if (previousApiKey === undefined) delete process.env.AXIOM_API_KEY;
       else process.env.AXIOM_API_KEY = previousApiKey;

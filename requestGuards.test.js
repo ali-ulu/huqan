@@ -71,4 +71,22 @@ describe('Request Guards', () => {
     assert.strictEqual(oversized.ok, false);
     assert.strictEqual(oversized.status, 413);
   });
+
+  it('requireApiKey fails closed when configured key is missing, empty, or whitespace', () => {
+    const missing = requireApiKey({ headers: { authorization: 'Bearer anything' } }, '');
+    assert.strictEqual(missing.ok, false);
+    assert.strictEqual(missing.status, 401);
+    assert.strictEqual(missing.headers['WWW-Authenticate'], 'Bearer');
+    assert.strictEqual(missing.error.error, 'API key not configured');
+
+    const undefinedKey = requireApiKey({ headers: { 'x-api-key': 'anything' } }, undefined);
+    assert.strictEqual(undefinedKey.ok, false);
+    assert.strictEqual(undefinedKey.status, 401);
+    assert.strictEqual(undefinedKey.error.error, 'API key not configured');
+
+    const whitespace = requireApiKey({ headers: { authorization: 'Bearer anything' } }, '   \t\n  ');
+    assert.strictEqual(whitespace.ok, false);
+    assert.strictEqual(whitespace.status, 401);
+    assert.strictEqual(whitespace.error.error, 'API key not configured');
+  });
 });
