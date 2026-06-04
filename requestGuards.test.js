@@ -4,10 +4,11 @@ const { Readable } = require('node:stream');
 
 const {
   checkRateLimit,
+  clearExpiredRateLimitEntries,
+  isUnsafePublicApiCommand,
   readJsonBody,
   requireApiKey,
   sanitizeInput,
-  clearExpiredRateLimitEntries,
 } = require('./requestGuards');
 
 function makeReq(body, headers = {}) {
@@ -26,9 +27,9 @@ function makeHeaderOnlyReq(headers = {}) {
 
 describe('Request Guards', () => {
   it('sanitizeInput strips control chars and clamps length', () => {
-    const input = `\u0000  kedi hayvandır  \u0007`;
+    const input = `\u0000  kedi hayvandÄ±r  \u0007`;
     const output = sanitizeInput(input, 50);
-    assert.strictEqual(output, 'kedi hayvandır');
+    assert.strictEqual(output, 'kedi hayvandÄ±r');
 
     const longInput = 'a'.repeat(600);
     assert.strictEqual(sanitizeInput(longInput).length, 500);
@@ -91,7 +92,38 @@ describe('Request Guards', () => {
     assert.strictEqual(whitespace.error.error, 'API key not configured');
   });
 
-  // ── PR-S1 GUV-2: rate-limit pruning behavior ─────────────
+  it('isUnsafePublicApiCommand blocks public mutating command variants', () => {
+    const blocked = [
+      'restore:foo',
+      'restore foo',
+      'yukle:README.md',
+      'yüKle README.md',
+      'load:README.md',
+      'delete:foo',
+      'remove:foo',
+      'tombstone:foo',
+      'supersede:foo',
+      'link:foo',
+      'backup now',
+      'export:README.md',
+      'kaydet',
+      'learn:foo',
+      'öğret:foo',
+      'company-ingest:README.md',
+      'company ingest README.md',
+      'öğren --kaynak markdown --yol README.md',
+      'import:README.md',
+    ];
+
+    for (const input of blocked) {
+      assert.strictEqual(isUnsafePublicApiCommand(input), true, `Expected blocked: ${input}`);
+    }
+
+    assert.strictEqual(isUnsafePublicApiCommand('merhaba'), false);
+    assert.strictEqual(isUnsafePublicApiCommand('kedi nedir'), false);
+  });
+
+  // â”€â”€ PR-S1 GUV-2: rate-limit pruning behavior â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   it('PR-S1 GUV-2: clearExpiredRateLimitEntries prunes expired entries and resets window', () => {
     const key = 'guv2-test-' + Math.random().toString(36).slice(2, 9);
     const windowMs = 1_000;

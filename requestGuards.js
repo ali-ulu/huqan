@@ -7,12 +7,57 @@ const DEFAULT_MAX_JSON_BODY = 4_096;
 const DEFAULT_MAX_UPLOAD_BODY = 1_048_576;
 
 const rateLimitMap = new Map();
+const UNSAFE_PUBLIC_API_COMMANDS = Object.freeze([
+  'restore',
+  'geri yukle',
+  'yukle',
+  'ogren',
+  'ogret',
+  'load',
+  'import',
+  'ingest',
+  'company ingest',
+  'kaydet',
+  'learn',
+  'delete',
+  'remove',
+  'tombstone',
+  'supersede',
+  'link',
+  'backup',
+  'export',
+]);
 
 function sanitizeInput(raw, maxLength = DEFAULT_MAX_INPUT_LENGTH) {
   if (typeof raw !== 'string') return '';
   let s = raw.slice(0, maxLength);
   s = s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
   return s.trim();
+}
+
+function normalizePublicApiCommandText(raw) {
+  if (typeof raw !== 'string') return '';
+  return raw
+    .replace(/\uFEFF/g, '')
+    .trim()
+    .toLowerCase()
+    .replace(/[ç]/g, 'c')
+    .replace(/[ğ]/g, 'g')
+    .replace(/[ı]/g, 'i')
+    .replace(/[ö]/g, 'o')
+    .replace(/[ş]/g, 's')
+    .replace(/[ü]/g, 'u')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isUnsafePublicApiCommand(input) {
+  const text = normalizePublicApiCommandText(input);
+  if (!text) return false;
+  return UNSAFE_PUBLIC_API_COMMANDS.some((command) => {
+    return text === command || text.startsWith(`${command}:`) || text.startsWith(`${command} `);
+  });
 }
 
 function checkRateLimit(ip, now = Date.now(), windowMs = DEFAULT_RATE_LIMIT_WINDOW, maxRequests = DEFAULT_RATE_LIMIT_MAX) {
@@ -141,8 +186,10 @@ module.exports = {
   clearExpiredRateLimitEntries,
   checkRateLimit,
   extractApiKey,
+  isUnsafePublicApiCommand,
   readJsonBody,
   rateLimitMap,
   requireApiKey,
+  normalizePublicApiCommandText,
   sanitizeInput,
 };

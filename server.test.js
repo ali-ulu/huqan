@@ -50,6 +50,18 @@ function request(url, options = {}) {
   });
 }
 
+async function getGraphCounts() {
+  const res = await request(`${BASE}/graph-data?workspaceId=default`);
+  assert.strictEqual(res.status, 200);
+  const data = await res.json();
+  return {
+    nodes: Array.isArray(data.nodes) ? data.nodes.length : -1,
+    links: Array.isArray(data.links) ? data.links.length : -1,
+    memoryNodes: Array.isArray(data.memoryNodes) ? data.memoryNodes.length : -1,
+    memoryLinks: Array.isArray(data.memoryLinks) ? data.memoryLinks.length : -1,
+  };
+}
+
 let server;
 let tempDir;
 before(async () => {
@@ -596,5 +608,36 @@ describe('Server - API', () => {
     } finally {
       CLI.prototype.execute = originalExecute;
     }
+  });
+});
+
+describe('Server - Public API Lockdown', () => {
+  const blockedQueries = [
+    ['GET /api?q=restore:<path> filesystem komutunu web API üzerinden çalıştırmaz', 'restore:foo'],
+    ['GET /api?q=restore bare komut da bloklanır', 'restore'],
+    ['GET /api?q=yükle:<path> filesystem komutunu web API üzerinden çalıştırmaz', 'yükle:/etc/passwd'],
+    ['GET /api?q=yukle:<path> ASCII alias da bloklanır', 'yukle:foo'],
+    ['GET /api?q=company-ingest:<path> filesystem okumasını bloklar', 'company-ingest:README.md'],
+    ['GET /api?q=company-ingest whitespace biçimi de bloklanır', 'company-ingest README.md'],
+    ['GET /api?q=ingest:<path> public ingest komutu bloklanır', 'ingest:README.md'],
+    ['GET /api?q=import:<path> public import komutu bloklanır', 'import:README.md'],
+    ['GET /api?q=öğren --kaynak markdown --yol README.md graph ve dosya erişimi bloklanır', 'öğren --kaynak markdown --yol README.md'],
+  ];
+
+  for (const [title, query] of blockedQueries) {
+    it(title, async () => {
+      const r = await request(`${BASE}/api?q=${encodeURIComponent(query)}`);
+      assert.strictEqual(r.status, 403);
+      const j = await r.json();
+      assert.strictEqual(j.result, 'Bu komut web API üzerinden çalıştırılamaz.');
+    });
+  }
+
+  it('GET /api forbidden mutating command leaves graph and memory counts unchanged', async () => {
+    const before = await getGraphCounts();
+    const r = await request(`${BASE}/api?q=${encodeURIComponent('öğren --kaynak markdown --yol README.md')}`);
+    assert.strictEqual(r.status, 403);
+    const after = await getGraphCounts();
+    assert.deepStrictEqual(after, before);
   });
 });
