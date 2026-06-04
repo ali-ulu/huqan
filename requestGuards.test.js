@@ -7,6 +7,7 @@ const {
   readJsonBody,
   requireApiKey,
   sanitizeInput,
+  clearExpiredRateLimitEntries,
 } = require('./requestGuards');
 
 function makeReq(body, headers = {}) {
@@ -88,5 +89,26 @@ describe('Request Guards', () => {
     assert.strictEqual(whitespace.ok, false);
     assert.strictEqual(whitespace.status, 401);
     assert.strictEqual(whitespace.error.error, 'API key not configured');
+  });
+
+  // ── PR-S1 GUV-2: rate-limit pruning behavior ─────────────
+  it('PR-S1 GUV-2: clearExpiredRateLimitEntries prunes expired entries and resets window', () => {
+    const key = 'guv2-test-' + Math.random().toString(36).slice(2, 9);
+    const windowMs = 1_000;
+    const max = 5;
+
+    checkRateLimit(key, 0, windowMs, max);
+    checkRateLimit(key, 100, windowMs, max);
+    checkRateLimit(key, 500, windowMs, max);
+
+    assert.doesNotThrow(() => clearExpiredRateLimitEntries(1_500));
+
+    const allowedAfter = checkRateLimit(key, 1_600, windowMs, max);
+    assert.strictEqual(allowedAfter, true);
+  });
+
+  it('PR-S1 GUV-2: clearExpiredRateLimitEntries is callable and does not throw on empty map', () => {
+    assert.doesNotThrow(() => clearExpiredRateLimitEntries(Date.now() + 60_000));
+    assert.doesNotThrow(() => clearExpiredRateLimitEntries(0));
   });
 });

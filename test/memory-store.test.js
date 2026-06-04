@@ -857,15 +857,95 @@ describe('memory-store', () => {
       const store = createStore();
       const r = store.store({ content: 'v1' });
       const superRes = store.supersede(r.memory.memoryId, 'v2');
-      
+
       assert.strictEqual(superRes.ok, true);
-      
+
       const { validateMemoryEvent } = require('../lib/memory-schema');
       const valCreated = validateMemoryEvent(superRes.event);
       assert.strictEqual(valCreated.ok, true);
-      
+
       const valUpdated = validateMemoryEvent(superRes.oldMemoryUpdateEvent);
       assert.strictEqual(valUpdated.ok, true);
+    });
+  });
+
+  // ── PR-S1 MEM-2: validation hardening ─────────────────────
+  describe('PR-S1 MEM-2 validation hardening', () => {
+    it('store rejects empty string content with INVALID_INPUT', () => {
+      const store = createStore();
+      const result = store.store({ content: '' });
+      assert.strictEqual(result.ok, false);
+      assert.strictEqual(result.error.code, 'INVALID_INPUT');
+    });
+
+    it('store rejects whitespace-only string content with INVALID_INPUT', () => {
+      const store = createStore();
+      const result = store.store({ content: '   \t\n  ' });
+      assert.strictEqual(result.ok, false);
+      assert.strictEqual(result.error.code, 'INVALID_INPUT');
+    });
+
+    it('patchMetadata rejects empty patch with EMPTY_PATCH', () => {
+      const store = createStore();
+      const r = store.store({ content: 'stable fact' });
+      const result = store.patchMetadata(r.memory.memoryId, {});
+      assert.strictEqual(result.ok, false);
+      assert.strictEqual(result.error.code, 'EMPTY_PATCH');
+    });
+
+    it('patchMetadata rejects status mutation with IMMUTABLE_STATUS', () => {
+      const store = createStore();
+      const r = store.store({ content: 'stable fact' });
+      const result = store.patchMetadata(r.memory.memoryId, { status: 'deleted' });
+      assert.strictEqual(result.ok, false);
+      assert.strictEqual(result.error.code, 'IMMUTABLE_STATUS');
+    });
+
+    it('patchMetadata still rejects content mutation with IMMUTABLE_CONTENT', () => {
+      const store = createStore();
+      const r = store.store({ content: 'immutable fact' });
+      const result = store.patchMetadata(r.memory.memoryId, { content: 'hacked' });
+      assert.strictEqual(result.ok, false);
+      assert.strictEqual(result.error.code, 'IMMUTABLE_CONTENT');
+    });
+  });
+
+  // ── PR-S1 MEM-3: persistence error guard (in-memory mode) ─
+  describe('PR-S1 MEM-3 persistence error guard', () => {
+    function attachFailingDb(store) {
+      store._db = {
+        transaction(fn) {
+          return () => {
+            throw new Error('simulated sqlite write failure');
+          };
+        },
+      };
+    }
+
+    it('store returns PERSISTENCE_ERROR when SQLite write fails (no throw)', () => {
+      const store = createStore();
+      attachFailingDb(store);
+      const result = store.store({ content: 'critical write' });
+      assert.strictEqual(result.ok, false);
+      assert.strictEqual(result.error.code, 'PERSISTENCE_ERROR');
+    });
+
+    it('patchMetadata returns PERSISTENCE_ERROR when SQLite write fails (no throw)', () => {
+      const store = createStore();
+      const r = store.store({ content: 'baseline' });
+      attachFailingDb(store);
+      const result = store.patchMetadata(r.memory.memoryId, { tag: 'updated' });
+      assert.strictEqual(result.ok, false);
+      assert.strictEqual(result.error.code, 'PERSISTENCE_ERROR');
+    });
+
+    it('tombstone returns PERSISTENCE_ERROR when SQLite write fails (no throw)', () => {
+      const store = createStore();
+      const r = store.store({ content: 'to-delete' });
+      attachFailingDb(store);
+      const result = store.tombstone(r.memory.memoryId);
+      assert.strictEqual(result.ok, false);
+      assert.strictEqual(result.error.code, 'PERSISTENCE_ERROR');
     });
   });
 });
