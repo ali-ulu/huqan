@@ -683,4 +683,18 @@ describe('memory-store-sqlite', () => {
       store2.close();
     });
   });
+
+  describe('PR-S2 SQLite WAL mode', () => {
+    it('SQLite store initializes with WAL journal mode', () => {
+      const dbPath = getDbPath('wal-mode');
+      const store = new MemoryStore({ useSQLite: true, dbPath });
+      try {
+        const result = store._db.pragma('journal_mode');
+        const mode = Array.isArray(result) ? result[0].journal_mode : result.journal_mode;
+        assert.strictEqual(mode, 'wal', `expected journal_mode=wal, got ${mode}`);
+      } finally {
+        store.close();
+      }
+    });
+  });
 });
