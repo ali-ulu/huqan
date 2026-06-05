@@ -1,282 +1,163 @@
-﻿# ◇ AXIOM
+# Huqan — Think Without Hallucinating
 
-**LLM'ler için deterministik doğrulama motoru.**
+> **LLM outputs lie. Huqan doesn't.**
 
-LLM çıktılarını doğrular, çelişkileri tespit eder, nedensellik zinciri kurar. GPU yok, bulut API yok. (better-sqlite3 opsiyonel bağımlılıktır).
-
-> *"LLM'ler kumdan kale. AXIOM granit."*
+Huqan is a deterministic causal reasoning engine.  
+No LLM. No GPU. No cloud. No hallucination.
 
 ---
 
-## Hızlı Başlangıç
+## Who is this for?
+
+- **Developers** building on top of LLMs who need a truth/verification layer
+- **Teams** in critical domains (legal, medical, finance, engineering) where hallucination is not acceptable
+- **Anyone** who needs reasoning that runs fully offline — no API key, no cloud, no cost per query
+- **Claude / Cursor users** who want a local MCP server for grounded, verifiable answers
+
+---
+
+## How it works
+
+```
+User / LLM Output
+       |
+       v
+   Huqan Kernel
+       |
+  [Causal Graph]
+       |
+  ┌────┴────┐
+  │ Known?  │
+  └────┬────┘
+   Yes │          No
+       │           │
+  Verify &     "Evidence
+  Confirm      missing."
+       │
+  ┌────┴────────────┐
+  │ Contradiction?  │
+  └────┬────────────┘
+   Yes │          No
+       │           │
+   Reject &     Learn &
+    Warn         Store
+```
+
+Huqan builds a **causal knowledge graph** from what it learns.  
+When a claim arrives, it checks it deterministically — no probability, no guessing.  
+If evidence is missing, it says so. If there's a contradiction, it rejects and explains why.
+
+---
+
+## Quick Start
 
 ```bash
 npm install
-node egitim.js   # Başlangıç bilgi tabanını yükle
-node cli.js      # CLI
-node server.js   # Web arayüzü → http://localhost:3000
-node mcpServer.js  # Claude Desktop / Cursor için MCP sunucu
+node egitim.js    # Load initial knowledge base
+node cli.js       # Interactive CLI
+node server.js    # Web UI → http://localhost:3000
+node mcpServer.js # MCP server for Claude Desktop / Cursor
 ```
 
-Node.js >= 18 gereklidir. better-sqlite3 veritabanı kalıcılığı için opsiyonel (native) bağımlılıktır.
-
-AXIOM v0.8 introduces the Trust Kernel and AXIOM Trust Protocol v0.1: provenance, trust policy, append-only audit, workspace scoping, conflict quarantine, Trust Receipts, ATP/AVP conformance, `.axiom` package format draft, and the minimal `axiom-verify` package skeleton.
+> Node.js >= 18 required.
 
 ---
 
-## Ne Yapar?
+## Core Features
 
-```
-LLM (Ollama/OpenAI)     Kullanıcı (CLI/REST/MCP)
-       |                         |
-       v                         v
-   llmAdapter               kernel.v2
-       |                         |
-       +-----→ verify() ←--------+
-                    |
-             [Çelişki var?]
-              /           \
-            Evet          Hayır
-             |              |
-        Uyarı + reddet   Öğren + kaydet
-```
-
-| Özellik | AXIOM | LLM-only |
+| Feature | Huqan | LLM-only |
 |---|---|---|
-| Doğrulama | Deterministik, sembolik | Olasılıksal |
-| Çelişki tespiti | Evet (olumsuzlama, zıt, çok adımlı) | Hayır |
-| Hafıza | Kalıcı SQLite + JSON | Bağlam penceresi |
-| GPU/Bulut | Gerekmez | Gerekir |
-| Maliyet | $0 | $/sorgu |
-| F1 (doğrulama) | 0.88-0.91 | 0.82-0.86 |
-| Dil | Türkçe + İngilizce | İngilizce ağırlıklı |
+| Deterministic answers | ✅ Always | ❌ Never |
+| Contradiction detection | ✅ Built-in | ❌ No |
+| Runs offline | ✅ Fully | ❌ Needs API |
+| GPU required | ❌ No | ✅ Yes |
+| Cost per query | $0 | $/query |
+| Explainable reasoning | ✅ Full trace | ❌ Black box |
+| Causal chains | ✅ CAUSES, PREVENTS, ENABLES... | ❌ No |
+| Validation F1 | 0.88–0.91 | 0.82–0.86 |
 
 ---
 
-## CLI Komutları
+## Causal Reasoning
 
-### Temel Öğrenme ve Sorgulama
+Huqan understands causal relationships:
 
-| Komut | Açıklama |
-|---|---|
-| `kedi hayvandır` | Bilgi öğret |
-| `kedi nedir` | Soru sor |
-| `sor: kedi nedir` | Açık soru |
-| `öğret: kedi balık yer` | Açık öğret |
-| `neden tavuk` | Nedensellik zinciri |
-| `tavuk mu yumurta mı` | Karşılaştır |
+```
+CAUSES      — A causes B
+PREVENTS    — A prevents B
+ENABLES     — A enables B
+DEPENDS_ON  — A depends on B
+LEADS_TO    — A leads to B
+```
 
-### Sistem
+Ask Huqan why something happens — it traces the full causal chain, step by step.
 
-| Komut | Açıklama |
-|---|---|
-| `durum` / `nasılsın` | Düğüm/kenar/entropi/çelişki özeti |
-| `rüya` | Hipotez üret |
-| `açık düşün` | Arka planda otomatik hipotez |
-| `dur düşünme` | Otomatik düşünmeyi durdur |
-| `optimize` | Zayıf kenarları buda |
-| `kaydet` | Hafızayı diske yaz |
-| `çıkış` / `bb` | Çıkış (otomatik kaydeder) |
+---
 
-### LLM ve Belge
+## MCP Server (Claude / Cursor)
 
-| Komut | Açıklama |
-|---|---|
-| `llm-sor: soru` | LLM'ye sor → doğrula → otomatik öğren |
-| `yükle: dosya.txt` | `.txt` / `.md` dosyasından öğren |
+```bash
+node mcpServer.js
+```
+
+Connect Huqan as a local MCP server to Claude Desktop or Cursor.  
+Your AI assistant will verify its own outputs against Huqan's knowledge graph before answering.
 
 ---
 
 ## REST API
 
 ```bash
-node server.js   # http://localhost:3000
+node server.js  # http://localhost:3000
 ```
 
-### Endpoints
-
-```
-GET  /api?q=kedi+nedir
-GET  /dogrula?statement=kedi+hayvandir
-POST /dogrula    { "statement": "kedi hayvandır" }
-POST /yukle      { "text": "kedi hayvandır\nköpek memelidir" }
-POST /llm-sor    { "question": "kedi nedir?", "autoLearn": true }
-GET  /graph-data
-```
-
-`/dogrula` cevabı: `{ "status": "dogrulandi" | "celiski" | "bilinmiyor", "confidence": 0.9, "evidence": [...] }`
-
----
-
-## MCP Sunucu
-
-Claude Desktop, Cursor ve diğer MCP destekli araçlar için:
-
-```bash
-node mcpServer.js
-```
-
-Araçlar: `axiom.learn` · `axiom.ask` · `axiom.verify` · `axiom.reason` · `axiom.compare` · `axiom.dream` · `axiom.plan` · `axiom.agent` · `axiom.policy` · `axiom.approvals`
-
-```json
-{
-  "mcpServers": {
-    "axiom": {
-      "command": "node",
-      "args": ["/path/to/axiom/mcpServer.js"]
-    }
-  }
-}
-```
-
----
-
-## LLM Entegrasyonu
-
-### Ollama (önerilen, ücretsiz)
-
-```bash
-ollama serve
-ollama pull llama3.2:3b
-node cli.js
-axiom> llm-sor: kedi memeli midir?
-```
-
-### OpenAI
-
-```bash
-OPENAI_API_KEY=sk-... node cli.js
-```
-
-### Paranoid Mod (LLM öğrenmeyi engelle)
-
-```bash
-AXIOM_PARANOID=1 node cli.js
-```
-
----
-
-## Mimari
-
-```
-kernel.js         — Öğrenme, sorgulama, verify(), learnFromLLM(), nedensellik
-kernel.v2.js      — Yapılandırılmış envelope API, manipülasyon tespiti, enhanced verify
-graph.js          — Graf motoru + SQLite/JSON çift kalıcılık katmanı
-dream.js          — Hipotez motoru (Node2Vec embedding, benzerlik keşfi)
-llmAdapter.js     — Ollama + OpenAI wrapper, hata sarmalama
-causalSimulator.js — What-if nedensel simülasyon (v0.7)
-evidence-ranker.js — Kanıt kalitesi sıralama (user_opinion→replicated)
-finalizer.js      — Deterministik özet ve öneri üretimi
-agent.js          — Hafif çok adımlı agent runtime
-agent.v3.js       — Checkpoint/resume destekli agent
-agentRuntime.js   — Agent versiyonu ve runtime seçici
-storage.js        — SQLite: checkpoint, hedef hafızası, tool approval
-toolPolicy.js     — Araç güvenlik politikası
-requestGuards.js  — Girdi doğrulama ve sanitizasyon
-plugin.js         — Event-driven plugin sistemi
-cli.js            — Türkçe doğal dil parser + async LLM desteği
-server.js         — REST API + D3.js interaktif graf arayüzü
-mcpServer.js      — MCP stdio sunucu (10 araç)
-```
-
----
-
-## Testler
-
-```bash
-npm test              # Tüm testler (468 test)
-npm run test:graph
-npm run test:kernel
-npm run test:cli
-npm run test:dream
-npm run test:plugin
-npm run test:server
-npm run test:backup
-```
-
----
-
-## Benchmark
-
-```bash
-npm run bench           # Tüm benchmark
-npm run bench:verify    # Doğrulama benchmark
-```
-
-| Graf boyutu | learn | ask | verify | reason | compare | dream |
-|---|---|---|---|---|---|---|
-| small | ~50ms | ~0.4ms | ~0.25ms | ~0.4ms | ~0.45ms | ~1.8ms |
-| medium | ~44ms | ~0.09ms | ~0.06ms | ~0.26ms | ~0.09ms | ~1.7ms |
-| large | ~43ms | ~0.07ms | ~0.03ms | ~0.10ms | ~0.07ms | ~5.6ms |
-
----
-
-## Hafıza
-
-| Dosya | İçerik |
+| Endpoint | Description |
 |---|---|
-| `memory.db` | SQLite — graf, checkpoint, agent hafızası, araç onayları (WAL) |
-| `memory.json` | JSON yedek — Rust katmanı ve fallback |
-| `memory.embeddings.json` | Node2Vec vektörleri (ayrı, şişmeyi önler) |
+| `GET /api?q=query` | Ask a question |
+| `POST /dogrula` | Verify a statement |
+| `POST /yukle` | Load text into knowledge base |
+| `GET /graph-data` | Export the knowledge graph |
 
-SQLite varsayılan. Devre dışı: `AXIOM_USE_SQLITE=false`
-
----
-
-## Plugin Sistemi
-
-`plugins/` klasörüne `.js` dosyası bırak, otomatik yüklenir.
-
-```js
-module.exports = {
-  name: 'my-plugin',
-  init(kernel) {},
-  beforeLearn(kernel, data) { /* data.text değiştirilebilir */ },
-  afterLearn(kernel, data) {},
-  beforeAsk(kernel, data) { /* data.question değiştirilebilir */ },
-  afterAsk(kernel, data) {},
-  beforeDream(kernel, data) {},
-  afterDream(kernel, data) { /* data.hypotheses */ },
-  beforeEmbedding(kernel, opts) {},
-  afterEmbedding(kernel, result) {},
-};
-```
+Response: `{ "status": "verified" | "contradiction" | "unknown", "confidence": 0.9, "evidence": [...] }`
 
 ---
 
-## Docker
+## Obsidian Plugin
 
-```bash
-docker-compose up
-```
+Use Huqan directly inside Obsidian to verify your notes and build a local knowledge graph from your vault.
 
----
-
-## Ortam Değişkenleri
-
-| Değişken | Açıklama | Varsayılan |
-|---|---|---|
-| `AXIOM_PARANOID` | `1` → LLM öğrenmeyi engelle | - |
-| `AXIOM_AGENT_VERSION` | `v2` veya `v3` | `v2` |
-| `AXIOM_AGENT_RUNTIME` | `classic` veya `workflow` | `classic` |
-| `AXIOM_KERNEL_VERSION` | `v2` → KernelV2 kullan | - |
-| `AXIOM_MEMORY_PATH` | Graf JSON dosyası | `memory.json` |
-| `AXIOM_DB_PATH` | SQLite dosyası | `memory.db` |
-| `AXIOM_USE_SQLITE` | `false` → JSON'a düş | `true` |
-| `OPENAI_API_KEY` | OpenAI API anahtarı | - |
+→ See [`/obsidian-plugin`](./obsidian-plugin)
 
 ---
 
-## Versiyon
+## Roadmap
 
-**v0.9.0** — Trust Kernel & AXIOM Trust Protocol, 592 test
+- [x] Causal graph engine
+- [x] Contradiction detection
+- [x] MCP server
+- [x] Obsidian plugin
+- [x] Trust Receipts (ATP v0.1)
+- [ ] A2A Internal Exchange (agent-to-agent task economy)
+- [ ] Distributed trust layer
+- [ ] Public API
 
-*Memory Core (Main Branch Work):*
-- [Memory Core v0.9.1](./docs/memory-core-v0.9.1.md)
-- [Memory Core Smoke Test](./docs/memory-core-smoke.md)
-- [v0.9.1 Release Checklist](./docs/v0.9.1-release-checklist.md)
+---
 
-[CHANGELOG](./CHANGELOG.md) · [ROADMAP](./ROADMAP.md) · [MIT Lisans](./LICENSE)
+## Philosophy
 
+Most AI tools are trying to make LLMs remember more.  
+We're building something that **doesn't need to guess**.
 
+> *"While everyone is building better memory for LLMs, we removed the LLM."*
 
+---
+
+## License
+
+MIT — see [LICENSE](./LICENSE)
+
+---
+
+<p align="center">
+  <b>huqan.ai</b> · <a href="https://github.com/agiulucom42-del/axiom/issues">Issues</a> · <a href="https://github.com/agiulucom42-del/axiom/discussions">Discussions</a>
+</p>
