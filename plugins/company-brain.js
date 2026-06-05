@@ -1,5 +1,6 @@
 const LLMAdapter = require('../llmAdapter');
 const { adjustedConfidence } = require('../evidence-ranker');
+const { normalizeAlias, resolveEntity } = require('../lib/entity-resolution');
 
 function nowIso() {
   return new Date().toISOString();
@@ -53,7 +54,51 @@ function addCompanyEdge(kernel, fromId, toId, relation, opts = {}) {
     evidenceType: opts.evidenceType || 'user_experience',
     evidence: Array.isArray(opts.evidence) ? opts.evidence : [],
     confidence: typeof opts.confidence === 'number' ? opts.confidence : 0.65,
+    meta: opts.meta,
   });
+}
+
+function extractOriginalLiteral(text, normalizedSubject) {
+  const raw = String(text || '').trim();
+  if (!raw || !normalizedSubject) return raw;
+
+  const words = raw.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return raw;
+
+  const filtered = words.filter(word => {
+    const lowered = normalizeAlias(word);
+    return lowered !== 'bir' && lowered !== 'de' && lowered !== 'da';
+  });
+
+  for (let len = Math.min(3, filtered.length); len >= 1; len--) {
+    const candidate = filtered.slice(0, len).join(' ');
+    if (normalizeAlias(candidate) === normalizeAlias(normalizedSubject)) {
+      return candidate;
+    }
+  }
+
+  return filtered[0] || raw;
+}
+
+function buildEntityResolutionMeta(text, subject, domain) {
+  if (!domain) return null;
+
+  const originalLiteral = extractOriginalLiteral(text, subject);
+  const resolution = resolveEntity(originalLiteral, { domain });
+  if (!resolution.matched || resolution.ambiguous) return null;
+
+  return {
+    entityResolution: {
+      originalLiteral,
+      canonicalId: resolution.canonical,
+      domain: resolution.domain,
+      matched: true,
+      ambiguous: false,
+      confidence: resolution.confidence ?? 1,
+      reason: resolution.reason || 'exact_alias',
+      aliases: Array.isArray(resolution.aliases) ? [...resolution.aliases] : [],
+    },
+  };
 }
 
 function extractTokens(text) {
@@ -187,6 +232,7 @@ function ingestManual(kernel, input = {}) {
     if (!parsed || !fact.subject || !parsed.object) continue;
     const base = 0.6;
     const confidence = rankingEnabled ? adjustedConfidence(base, 'user_experience') : base;
+    const entityMeta = buildEntityResolutionMeta(text, fact.subject, input.domain);
     addCompanyEdge(kernel, fact.subject, parsed.object, parsed.relation, {
       source: 'manual',
       sourceRef,
@@ -195,6 +241,7 @@ function ingestManual(kernel, input = {}) {
       evidence: [text],
       confidence,
       sessionId: input.sessionId || '',
+      meta: entityMeta,
     });
     addCompanyEdge(kernel, noteNode, fact.subject, 'destekler', {
       source: 'manual',
@@ -204,6 +251,7 @@ function ingestManual(kernel, input = {}) {
       evidence: [text],
       confidence,
       sessionId: input.sessionId || '',
+      meta: entityMeta,
     });
     added += 1;
   }
