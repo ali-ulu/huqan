@@ -468,12 +468,17 @@ class Kernel {
     const metadata = this._resolveLearnMetadata(opts);
 
     for (const { subject, predicate } of parsed) {
-      if (!subject || this.isStopWord(subject)) continue;
+      if (typeof subject !== 'string' || !subject.trim() || this.isStopWord(subject)) continue;
+      if (typeof predicate !== 'string' || !predicate.trim()) continue;
 
       const rel = this._parsePredicate(predicate);
-      if (rel) {
-        const { object, relation } = rel;
-        if (this.isStopWord(object)) continue;
+      if (!rel || typeof rel !== 'object') continue;
+      const { object, relation } = rel;
+      if (typeof object !== 'string' || !object.trim() || typeof relation !== 'string' || !relation.trim()) continue;
+      if (this.isStopWord(object)) continue;
+
+      const isCopulaNegation = relation === 'değil' && /(?:^|\s)(?:değildir|degildir)\s*$/i.test(predicate.trim());
+      const negatedObject = isCopulaNegation ? `${object} [değil]` : object;
 
         // AYNI ?zne-ili?ki i?in mevcut nesneleri bul
         const existingEdges = this.graph.getEdges(subject, workspaceId).filter(e => e.relation === relation);
@@ -505,21 +510,26 @@ class Kernel {
         }
 
         if (relation === 'değil') {
-          // "X Y değildir" ? X'te ayn? hedef i?in tür var m??
           const turEdges = this.graph.getEdges(subject, workspaceId).filter(e => e.relation === 'tür');
           for (const tur of turEdges) {
             if (tur.to === object) {
-              // Ayn? kavram ? çelişki: tür edge weight d?r
               const onceki = tur.weight;
+              const oncekiTarget = tur.to;
               tur.weight = 0.2;
               tur.celiski = 'downgraded';
+              if (isCopulaNegation) {
+                tur.to = negatedObject;
+                tur.relation = 'değil';
+                tur.negated = true;
+                tur.negatedObject = object;
+              }
               conflicts.push({
                 type: 'negation',
                 subject,
                 relation: 'değil',
                 current: object,
-                existing: tur.to,
-                message: `"${subject}" "${object} değildir" deniyor (?nceden tür:${onceki}) ? tür weight d?r?ld?`,
+                existing: oncekiTarget,
+                message: `"${subject}" "${object} değildir" deniyor (önceden tür:${onceki}) → tür weight düşürüldü`,
                 confidence: 0,
               });
               celiskiBulundu = true;
@@ -558,9 +568,11 @@ class Kernel {
         if (provenance) {
           this.graph.addNode(subject, subject, provenance, { workspaceId });
           this.graph.addNode(object, object, provenance, { workspaceId });
+          if (isCopulaNegation) this.graph.addNode(negatedObject, negatedObject, provenance, { workspaceId });
         } else {
           this.graph.addNode(subject, subject, null, { workspaceId });
           this.graph.addNode(object, object, null, { workspaceId });
+          if (isCopulaNegation) this.graph.addNode(negatedObject, negatedObject, null, { workspaceId });
         }
 
         if (celiskiBulundu && (relation === 'tür')) {
@@ -589,8 +601,35 @@ class Kernel {
               },
             }, provenance, workspaceId);
           }
-        } else if (celiskiBulundu && relation === 'değil') {
-          // değil çelişkisi: tür edge weight zaten d?r?ld?, yeni edge ekleme
+                } else if (relation === 'değil') {
+          const edgeOptions = this._learnEdgeOptions({ source: 'learn', evidence: [text] }, metadata, text);
+          if (provenance) edgeOptions.provenance = provenance;
+          edgeOptions.workspaceId = workspaceId;
+          const edge = this.graph.addEdge(
+            subject,
+            isCopulaNegation ? negatedObject : object,
+            relation,
+            edgeOptions
+          );
+          if (edge) { learned++; evidence.push(this._edgeEvidence(edge)); }
+          if (edge) {
+            const storedObject = isCopulaNegation ? negatedObject : object;
+            const hadExisting = existingEdges.some(e => e.to === storedObject && e.relation === relation);
+            this._appendAuditEvent({
+              eventType: hadExisting ? 'REAFFIRMED' : 'LEARN',
+              targetType: 'edge',
+              targetId: `${edge.from}|${edge.relation}|${edge.to}`,
+              details: {
+                text,
+                subject,
+                relation,
+                object: storedObject,
+                originalObject: object,
+                conflict: celiskiBulundu,
+                reaffirmed: hadExisting,
+              },
+            }, provenance, workspaceId);
+          }
         } else if (celiskiBulundu) {
           // kistlama ? d?k weight ile kaydet
           const edgeOptions = this._learnEdgeOptions({ source: 'learn', weight: 0.2, evidence: [text] }, metadata, text);
@@ -652,7 +691,6 @@ class Kernel {
           }
         }
       }
-    }
 
     this.plugins.emit('afterLearn', { text, conflicts, alternatives, opts: { ...metadata, workspaceId } });
 
