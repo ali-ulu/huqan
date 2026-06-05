@@ -20,6 +20,7 @@ const {
   checkRateLimit,
   clearExpiredRateLimitEntries,
   extractApiKey,
+  isAllowedPublicCommand,
   isUnsafePublicApiCommand,
   readJsonBody,
   requireApiKey,
@@ -947,7 +948,7 @@ const server = http.createServer(async (req, res) => {
     }
     const p = cli.parse(q);
 
-    if (p && isUnsafePublicApiCommand(p.command)) {
+    if (p && (!isAllowedPublicCommand(p.command) || isUnsafePublicApiCommand(p.command))) {
       res.writeHead(403, {
         'Content-Type': 'application/json; charset=utf-8',
         ...buildCorsHeaders(req),

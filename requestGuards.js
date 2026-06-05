@@ -26,7 +26,27 @@ const UNSAFE_PUBLIC_API_COMMANDS = Object.freeze([
   'link',
   'backup',
   'export',
+  'dusun',
+  'autothink',
+  'dusunmeye basla',
+  'surekli dusun',
+  'optimize',
+  'konsolide',
+  'evolve',
+  'ajan',
+  'plan',
+  'listele',
+  'kimler',
+  'neler',
 ]);
+
+const DEFAULT_ALLOWED_PUBLIC_COMMANDS = Object.freeze(new Set([
+  'selam',
+  'yardim',
+  'sor',
+  'durum',
+  'anlamadim',
+]));
 
 function sanitizeInput(raw, maxLength = DEFAULT_MAX_INPUT_LENGTH) {
   if (typeof raw !== 'string') return '';
@@ -58,6 +78,13 @@ function isUnsafePublicApiCommand(input) {
   return UNSAFE_PUBLIC_API_COMMANDS.some((command) => {
     return text === command || text.startsWith(`${command}:`) || text.startsWith(`${command} `);
   });
+}
+
+function isAllowedPublicCommand(command, allowedSet = DEFAULT_ALLOWED_PUBLIC_COMMANDS) {
+  if (typeof command !== 'string' || !command) return false;
+  const normalized = normalizePublicApiCommandText(command);
+  if (!normalized) return false;
+  return allowedSet.has(normalized);
 }
 
 function checkRateLimit(ip, now = Date.now(), windowMs = DEFAULT_RATE_LIMIT_WINDOW, maxRequests = DEFAULT_RATE_LIMIT_MAX) {
@@ -183,9 +210,11 @@ module.exports = {
   DEFAULT_MAX_UPLOAD_BODY,
   DEFAULT_RATE_LIMIT_MAX,
   DEFAULT_RATE_LIMIT_WINDOW,
+  DEFAULT_ALLOWED_PUBLIC_COMMANDS,
   clearExpiredRateLimitEntries,
   checkRateLimit,
   extractApiKey,
+  isAllowedPublicCommand,
   isUnsafePublicApiCommand,
   readJsonBody,
   rateLimitMap,

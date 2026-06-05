@@ -5,6 +5,7 @@ const { Readable } = require('node:stream');
 const {
   checkRateLimit,
   clearExpiredRateLimitEntries,
+  isAllowedPublicCommand,
   isUnsafePublicApiCommand,
   readJsonBody,
   requireApiKey,
@@ -113,6 +114,15 @@ describe('Request Guards', () => {
       'company ingest README.md',
       'öğren --kaynak markdown --yol README.md',
       'import:README.md',
+      'düşünmeye başla',
+      'sürekli düşün',
+      'düşün:derin',
+      'optimize',
+      'optimize:graph',
+      'konsolide',
+      'evolve',
+      'ajan:plan-yap',
+      'plan',
     ];
 
     for (const input of blocked) {
@@ -121,6 +131,50 @@ describe('Request Guards', () => {
 
     assert.strictEqual(isUnsafePublicApiCommand('merhaba'), false);
     assert.strictEqual(isUnsafePublicApiCommand('kedi nedir'), false);
+  });
+
+  it('isAllowedPublicCommand accepts whitelisted read-only commands', () => {
+    const allowed = [
+      'selam',       // parsed from selam/merhaba
+      'yardım',      // parsed from yardım/help
+      'yardim',      // fallback for ASCII variant (maps to anlamadım)
+      'sor',         // parsed from nasıl/niçin/sor/kedi nedir
+      'durum',       // parsed from durum
+      'anlamadim',   // fallback for unrecognized queries
+      'anlamadım',   // Turkish variant
+    ];
+    for (const c of allowed) {
+      assert.strictEqual(isAllowedPublicCommand(c), true, `Expected allowed: ${c}`);
+    }
+  });
+
+  it('isAllowedPublicCommand rejects mutating/agent/background/list commands', () => {
+    const blocked = [
+      'öğren', 'ogren', 'learn',
+      'restore', 'yükle', 'yukle', 'load', 'import', 'ingest',
+      'backup', 'export', 'kaydet', 'delete', 'remove',
+      'düşün', 'dusun', 'autothink',
+      'düşünmeye başla', 'sürekli düşün',
+      'optimize', 'konsolide', 'evolve', 'ajan', 'plan',
+      'listele', 'kimler', 'neler',
+    ];
+    for (const c of blocked) {
+      assert.strictEqual(isAllowedPublicCommand(c), false, `Expected rejected: ${c}`);
+    }
+  });
+
+  it('isAllowedPublicCommand rejects non-string or empty input', () => {
+    assert.strictEqual(isAllowedPublicCommand(null), false);
+    assert.strictEqual(isAllowedPublicCommand(undefined), false);
+    assert.strictEqual(isAllowedPublicCommand(''), false);
+    assert.strictEqual(isAllowedPublicCommand(123), false);
+    assert.strictEqual(isAllowedPublicCommand('   '), false);
+  });
+
+  it('isAllowedPublicCommand respects injected allowlist set', () => {
+    const customSet = new Set(['foo', 'bar']);
+    assert.strictEqual(isAllowedPublicCommand('foo', customSet), true);
+    assert.strictEqual(isAllowedPublicCommand('selam', customSet), false);
   });
 
   // â”€â”€ PR-S1 GUV-2: rate-limit pruning behavior â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

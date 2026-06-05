@@ -641,3 +641,103 @@ describe('Server - Public API Lockdown', () => {
     assert.deepStrictEqual(after, before);
   });
 });
+
+describe('Server - Public API Allowlist Lockdown', () => {
+  const allowedQueries = [
+    'selam',
+    'merhaba',
+    'yardım',
+    'help',
+    'nasıl',
+    'niçin',
+    'kedi nedir',
+    'durum',
+  ];
+
+  for (const query of allowedQueries) {
+    it(`GET /api?q=${query} still works (allowlist hit)`, async () => {
+      const r = await request(`${BASE}/api?q=${encodeURIComponent(query)}`);
+      assert.strictEqual(r.status, 200);
+    });
+  }
+
+  const blockedByAllowlist = [
+    'düşünmeye başla',
+    'sürekli düşün',
+    'optimize',
+    'konsolide',
+    'evolve',
+    'ajan:test',
+    'plan',
+    'listele',
+    'kimler',
+    'neler',
+    'düşün',
+    'autothink',
+  ];
+
+  for (const query of blockedByAllowlist) {
+    it(`GET /api?q=${query} -> 403 (allowlist miss)`, async () => {
+      const r = await request(`${BASE}/api?q=${encodeURIComponent(query)}`);
+      assert.strictEqual(r.status, 403);
+      const j = await r.json();
+      assert.strictEqual(j.result, 'Bu komut web API üzerinden çalıştırılamaz.');
+    });
+  }
+
+  it('GET /api?q=öğren:kedi -> 403 (allowlist miss + denylist match)', async () => {
+    const r = await request(`${BASE}/api?q=${encodeURIComponent('öğren:kedi')}`);
+    assert.strictEqual(r.status, 403);
+    const j = await r.json();
+    assert.strictEqual(j.result, 'Bu komut web API üzerinden çalıştırılamaz.');
+  });
+
+  it('GET /api?q=restore -> 403 (allowlist miss + denylist match)', async () => {
+    const r = await request(`${BASE}/api?q=${encodeURIComponent('restore')}`);
+    assert.strictEqual(r.status, 403);
+  });
+
+  it('blocked command does not invoke cli.execute (allowlist guard)', async () => {
+    const CLI = require('./cli');
+    const originalExecute = CLI.prototype.execute;
+    let called = false;
+    CLI.prototype.execute = () => {
+      called = true;
+      return 'should-not-run';
+    };
+    try {
+      const r = await request(`${BASE}/api?q=${encodeURIComponent('düşünmeye başla')}`);
+      assert.strictEqual(r.status, 403);
+      assert.strictEqual(called, false, 'cli.execute must not be called for blocked commands');
+    } finally {
+      CLI.prototype.execute = originalExecute;
+    }
+  });
+
+  it('blocked command does not invoke cli.execute (denylist guard)', async () => {
+    const CLI = require('./cli');
+    const originalExecute = CLI.prototype.execute;
+    let called = false;
+    CLI.prototype.execute = () => {
+      called = true;
+      return 'should-not-run';
+    };
+    try {
+      const r = await request(`${BASE}/api?q=${encodeURIComponent('restore:foo')}`);
+      assert.strictEqual(r.status, 403);
+      assert.strictEqual(called, false, 'cli.execute must not be called for denylist commands');
+    } finally {
+      CLI.prototype.execute = originalExecute;
+    }
+  });
+
+  it('fallback queries (hello, hi, ?) preserve existing behavior (200 + Anlamadım)', async () => {
+    const fallbackQueries = ['hello', 'hi', 'selamlar', '?', 'h', 'sor', 'neden', 'kim', 'ne', 'yardim', 'nasil', 'nicin'];
+    for (const query of fallbackQueries) {
+      const r = await request(`${BASE}/api?q=${encodeURIComponent(query)}`);
+      assert.strictEqual(r.status, 200, `Expected 200 for fallback query: ${query}`);
+      const j = await r.json();
+      assert.ok(j.result.includes('Anlamadım') || j.result.includes('Anlamadim'), `Expected 'Anlamadım' variant for: ${query}, got: ${j.result}`);
+    }
+  });
+});
