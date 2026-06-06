@@ -278,15 +278,17 @@ describe('PR-S3 transaction safety & concurrency', () => {
       assert.strictEqual(linkEvents.length, 2);
     });
 
-    test('supersede: 2x sequential on same oldId => 2 new memories, 1 superseded, 2 SUPERSEDE events, 2 links', () => {
+    test('supersede: 2x sequential on same oldId keeps superseded links out of active queries', () => {
       const store = new MemoryStore();
       const r1 = store.store({ content: 'v1' }).memory;
       const res1 = store.supersede(r1.memoryId, 'v2a');
       const res2 = store.supersede(r1.memoryId, 'v2b');
       assert.strictEqual(res1.ok, true);
       assert.strictEqual(res2.ok, true);
-      const links = store.queryLinks();
-      assert.strictEqual(links.total, 2);
+      const activeLinks = store.queryLinks();
+      assert.strictEqual(activeLinks.total, 0);
+      const auditLinks = store.queryLinks({ includeDeleted: true });
+      assert.strictEqual(auditLinks.total, 2);
       const timeline = store.timeline();
       const supEvents = timeline.events.filter(
         e => e.eventType === 'UPDATED' && e.details && e.details.action === 'supersede'
