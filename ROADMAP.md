@@ -1,79 +1,398 @@
-# AXIOM v0.3-v0.6 Roadmap
+# HUQAN / AXIOM Roadmap
 
-## Summary
+> **Models generate. Agents act. Memory stores. AXIOM judges.**
 
-AXIOM'un urun yonu `Personal Thought Judge -> Company Brain -> Agent OS + Discovery Engine -> Scale` olarak kilitlenir. `Discovery Engine` ayri v0.6 isi degil, v0.5 Agent OS icinde gelir. `evidence-ranker.js` v0.3 altyapisina cekilir cunku `devil-advocate` ve `contradiction-alert` kanit kalitesi bilmeden guvenilir cikti uretemez.
+<details open>
+<summary><strong>Current Sprint: AB1 — Action Risk Classifier</strong></summary>
 
-## v0.3 - Personal Thought Judge
+**Date:** 2026-06-07 → 2026-06-14  
+**Track:** V2 — Action Boundary / Tool Safety Layer  
+**Goal:** Implement, test, and review `lib/action-risk-classifier.js`.
 
-- `P0 Graph Reliability`
-  - P0 zaten implement edildi.
-  - Sadece su regresyon testleri eklenir: duplicate hypothesis engeli, reverse edge senaryosu, relation-specific edge ayrimi.
-  - Testler gectikten sonra `P0.5`'e gecilir.
-- `P0.5 Kernel Capability System`
-  - `kernel.capabilities` eklenir.
-  - `hasCapability(name)`, `enableCapability(name)`, `requireCapability(name)` eklenir.
-  - Default: `graph=true`, `llm=true`, `contradictionDetection=true`, diger yeni capability'ler `false`.
-- `P1A Product Plugins Without Temporal`
-  - `plugins/idea-mri.js` ve `plugins/devil-advocate.js` eklenir.
-  - `idea-mri` temporal beklemedigi icin `P1B` ile eszamanli baslayabilir.
-  - `devil-advocate` graph-backed calisir; graph zayifsa ve LLM varsa fallback acikca etiketlenir; LLM yoksa soru listesi doner.
-- `P1B Temporal v1`
-  - Graph node/edge metadata kalici hale getirilir.
-  - Node: `created_at`, `last_seen`.
-  - Edge: `created_at`, `updated_at`, `source_ref`, `session_id`, `confidence_history`.
-  - Mevcut `KernelV2` temporal metadata davranisi korunur, graph persistence ile uyumlu hale getirilir.
-  - Tamamlaninca `kernel.enableCapability("temporal")`.
-- `P2 Plugin Contract v1`
-  - Mevcut hook sistemi korunur.
-  - `listCapabilities()`, `getCapability(name)`, `runCapability(name,input,opts)` eklenir.
-  - Dependency check `kernel.hasCapability()` ustunden yapilir.
-  - Tamamlaninca `kernel.enableCapability("pluginCapabilities")`.
-- `P2.5 Evidence Ranker`
-  - Root seviyede `evidence-ranker.js` eklenir.
-  - Evidence enum ve weight hiyerarsisi uygulanir.
-  - Kernel `_rankEvidence()` bu helper'a baglanir.
-  - `devil-advocate` ve `contradiction-alert` ciktilarinda evidence quality ve adjusted confidence gosterilir.
-  - Tamamlaninca `kernel.enableCapability("evidenceRanking")`.
-- `P3 Contradiction Alert`
-  - `plugins/contradiction-alert.js` eklenir.
-  - `requires=["graph","temporal"]`, `optional=["llm","evidenceRanking"]`.
-  - Yeni fikirleri eski fikirlerle karsilastirir, stratejik yon degisimi ve kanit kalitesi dondurur.
-- `P4 Minimal Personal App`
-  - Ilk ekran: `Fikrini Yargilat`.
-  - Sekmeler: `Fikrinin MR'i`, `Seytan'in Avukati`, `Gecmis Celiskiler`, `Hafiza / Graph`.
-  - Slogan: `AXIOM cevap vermez. Dusunceni yargilar.`
+AB1 implements the first deterministic action-risk classifier.
 
-## v0.4-v0.6 Roadmap
+It does **not** execute tools.  
+It only classifies intended actions before any execution layer exists.
 
-- `v0.4 Company Brain`
-  - `plugins/repo-memory.js` ve `plugins/company-brain.js`.
-  - Ilk kaynaklar: GitHub, Markdown docs, manual notes.
-  - Repo amaci, dosya-strateji iliskisi, karar dayanagi, PR/karar celiskisi, teknik borc kokeni sorulari cevaplanir.
-- `v0.5 Agent OS + Discovery Engine`
-  - MCP, CLI, API ve `workflow-agent.js` ayni agent tool contract ustunden calisir.
-  - Discovery pluginleri: `discovery-engine`, `experiment-planner`, `result-analyzer`, `replication-checker`.
-  - Kapali dongu: hipotez uret, deney tasarla, sonucu al, kaniti skorla, graph confidence guncelle, yeni hipotez uret.
-  - `evidence-ranker.js` yeniden yazilmaz; v0.3 helper genisletilir.
-- `v0.6 Scale`
-  - Obsidian plugin, multi-source connectors, Slack/Gmail/Jira/Linear/Notion, multi-user workspace, permissions, audit log, YC pitch.
-  - Discovery Engine burada baslamaz; burada olceklenir.
+```txt
+What kind of action is this?
+How risky is it?
+Should it be allowed, reviewed, or blocked?
+```
 
-## Test Plan
+<details>
+<summary><strong>Goal</strong></summary>
 
-- Graph reliability: duplicate hypothesis, reverse edge, relation-specific lookup.
-- Capability system: default capabilities, enable/require behavior, missing capability failure.
-- Plugin contract: capability listing, dependency block, optional dependency fallback, `runCapability()` happy/error paths.
-- Product plugins: graph-backed output, LLM fallback labeling, no-data question list, structured `idea-mri` output.
-- Evidence ranker: enum weight mapping, adjusted confidence, dedupe/sort preservation, Kernel result compatibility.
-- Temporal v1: timestamp persistence, source/session metadata, confidence history append, v2 contract unchanged.
-- Contradiction alert: temporal dependency required, old/new thought comparison, evidence quality included.
-- Regression: existing Kernel, KernelV2, Agent, MCP, server, CLI, plugin, benchmark tests stay green.
+Implement and test:
 
-## Assumptions
+```txt
+lib/action-risk-classifier.js
+```
 
-- Eski v3 backlog kapandi; yeni urun yol haritasi `v0.3-v0.6`.
-- `AXIOM_AGENT_VERSION=v3` mevcut runtime tercihi olarak kalir; otomatik default yapilmaz.
-- Core kucuk kalir; urun modlari plugin olur.
-- `evidence-ranker.js` root seviyede tutulur; ayri `core/` klasoru acilmaz.
-- Dikey nisler v0.6 sonrasina birakilir.
+Core function:
+
+```js
+classify(action, opts = {})
+```
+
+Expected output shape:
+
+```js
+{
+  ok: true,
+  actionType,
+  riskLevel,
+  decision,
+  reasons,
+  requiredReview,
+  blocked,
+  policyVersion,
+  meta
+}
+```
+
+Allowed `riskLevel` values:
+
+- `low`
+- `medium`
+- `high`
+- `critical`
+
+Allowed `decision` values:
+
+- `allow`
+- `review`
+- `block`
+
+</details>
+
+<details>
+<summary><strong>Forbidden in AB1</strong></summary>
+
+- Tool execution
+- Server/API/MCP changes
+- Memory write
+- Deploy
+- Auto-merge
+- External network calls
+- UI changes
+- Package version bump
+- Self-healer logic
+- GitHub PR automation
+
+</details>
+
+<details>
+<summary><strong>To Do</strong></summary>
+
+- Extract action classes from `docs/action-taxonomy.md`
+- Implement `classify()` function
+- Add 5 core tests
+- Add edge-case tests:
+  - `null`
+  - `undefined`
+  - empty object
+  - unknown action type
+- Open PR
+- Request review
+
+</details>
+
+<details>
+<summary><strong>Action Classes</strong></summary>
+
+Minimum action classes:
+
+| Class | Default Risk | Default Decision |
+|---|---:|---:|
+| `read_only` | low | allow |
+| `local_analysis` | low | allow |
+| `test_execution` | medium | allow / review |
+| `file_write` | medium | review |
+| `memory_write` | high | review / block |
+| `tool_execution` | high | review |
+| `network_access` | high | review |
+| `deployment` | critical | block / human review |
+| `destructive` | critical | block |
+| `auto_merge` | critical | block |
+| `unknown` | high | review / block |
+
+</details>
+
+<details>
+<summary><strong>Required Tests</strong></summary>
+
+Core tests:
+
+- `read_only` action is low risk and allowed
+- `file_write` action requires review
+- `tool_execution` action requires review and does not execute
+- `deployment` action is critical and blocked or requires human review
+- `auto_merge` action is critical and blocked
+
+Edge-case tests:
+
+- `null` action does not throw
+- `undefined` action does not throw
+- empty object becomes unknown
+- unknown action type is not silently allowed
+- malformed fields normalize safely
+
+</details>
+
+<details>
+<summary><strong>Definition of Done</strong></summary>
+
+AB1 is complete only if:
+
+- `lib/action-risk-classifier.js` exists
+- `classify()` is exported
+- tests exist
+- null / undefined / unknown action cases are covered
+- `npm test` passes
+- only `lib/` and `test/` changed
+- `docs/action-taxonomy.md` changed only if needed
+- no server/API/MCP changes
+- no tool execution behavior added
+- no memory writes added
+- no deploy logic added
+- no auto-merge logic added
+- PR opened
+- review requested
+- no auto-merge
+
+</details>
+
+<details>
+<summary><strong>Next Sprint</strong></summary>
+
+AB2 — Tool Call Gate
+
+AB2 may consume AB1 `classify()` results.
+
+AB2 must not be started inside AB1.
+
+</details>
+
+</details>
+
+---
+
+# V1 → V5 Roadmap
+
+<details>
+<summary><strong>V1 — Trust Kernel / Causal Granite</strong></summary>
+
+**Purpose:** Build the deterministic trust and reasoning kernel.
+
+Main question:
+
+```txt
+Is this claim safe to believe?
+```
+
+Core capabilities:
+
+- graph-backed knowledge
+- causal reasoning
+- semantic trust gate
+- provenance
+- audit
+- Trust Receipt
+- ATP / `.axiom` package foundation
+- reasoning trace
+- claim decomposition
+- local-first verification
+
+Rule:
+
+```txt
+No weak, risky, contradictory, or provenance-less claim should become trusted canonical knowledge.
+```
+
+</details>
+
+<details open>
+<summary><strong>V2 — Action Boundary / Tool Safety Layer</strong></summary>
+
+**Purpose:** Before agents act, classify and gate their actions.
+
+Main question:
+
+```txt
+Is this action safe to perform?
+```
+
+Sprint sequence:
+
+- AB0 — Action Boundary ADR / Architecture
+- AB1 — Action Risk Classifier
+- AB2 — Tool Call Gate
+- AB3 — Action Receipt
+- AB4 — Sandbox / Dry Run Boundary
+- AB5 — Agent Workflow Admission
+
+Rule:
+
+```txt
+No agent action should bypass classification.
+```
+
+</details>
+
+<details>
+<summary><strong>V3 — Governance / Workspace / Enterprise Control</strong></summary>
+
+**Purpose:** Make HUQAN / AXIOM usable in teams and controlled environments.
+
+Main question:
+
+```txt
+Who is allowed to trust, approve, reject, or execute this?
+```
+
+Capabilities:
+
+- workspace policies
+- role-aware review
+- approval gates
+- team audit trail
+- policy packs
+- project-level trust settings
+- enterprise dashboard
+- scheduled scans
+- compliance exports
+
+Rule:
+
+```txt
+Trust and execution must be governed by workspace policy, not hardcoded behavior.
+```
+
+</details>
+
+<details>
+<summary><strong>V4 — Self-Healer / Accountable AI Engineer</strong></summary>
+
+**Purpose:** Let AXIOM detect bugs, propose fixes, write tests, and open draft PRs.
+
+Main question:
+
+```txt
+What is broken, what fix is proposed, and should a human approve it?
+```
+
+Capabilities:
+
+- repo scan memory
+- bug pattern memory
+- fix proposal
+- regression test generation
+- draft PR creation
+- Trust Receipt for each proposed fix
+- human review required
+
+Hard rules:
+
+- Draft PR only
+- No auto-merge
+- No silent production mutation
+- No canonical fix fact without review
+- Human decides
+
+Rule:
+
+```txt
+AXIOM may propose repairs, but humans approve them.
+```
+
+</details>
+
+<details>
+<summary><strong>V5 — Ecosystem / Marketplace / Agent Exchange</strong></summary>
+
+**Purpose:** Turn HUQAN / AXIOM into a trust infrastructure layer for external tools, agents, and teams.
+
+Main question:
+
+```txt
+Can external agents, tools, and organizations exchange trusted work safely?
+```
+
+Capabilities:
+
+- GitHub App
+- Streaming Trust
+- public Trust Receipts
+- `.axiom` package exchange
+- ATP / HTP compatibility
+- conformance suite
+- internal agent economy
+- later public agent/service marketplace
+- reputation based on verified delivery, not self-claims
+
+Rule:
+
+```txt
+No marketplace before internal trust, escrow, receipt, reputation, and review gates are stable.
+```
+
+</details>
+
+---
+
+# GitHub Release Short Version
+
+<details open>
+<summary><strong>AB1 — Action Risk Classifier</strong></summary>
+
+AB1 starts the V2 Action Boundary track.
+
+It adds the first deterministic classifier for intended agent actions.
+
+AB1 does not execute tools, write memory, deploy, or auto-merge.
+
+It only classifies risk.
+
+</details>
+
+<details>
+<summary><strong>Why It Matters</strong></summary>
+
+V1 answered:
+
+```txt
+Is this claim safe to believe?
+```
+
+V2 starts answering:
+
+```txt
+Is this action safe to perform?
+```
+
+Before agents can execute tools, mutate files, write memory, open PRs, or deploy, AXIOM must classify the risk of the intended action.
+
+</details>
+
+<details>
+<summary><strong>Safety Rules</strong></summary>
+
+- No tool execution
+- No server/API/MCP changes
+- No memory write
+- No deploy
+- No auto-merge
+- Unknown actions are not silently allowed
+- Destructive actions are blocked
+
+</details>
+
+<details>
+<summary><strong>Next</strong></summary>
+
+AB2 — Tool Call Gate
+
+AB2 consumes AB1 `classify()` results and begins enforcing tool-call boundaries.
+
+</details>
