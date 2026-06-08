@@ -146,10 +146,10 @@ External Action Requested
 - [x] All enums frozen
 - [x] Fail-safe behavior confirmed (unknown → block)
 - [x] Documentation complete
-- [ ] MCP server runtime integration (V2.6)
-- [ ] Config validation for MCP tools (V2.6)
-- [ ] Limited tool surface for alpha testers (V2.6)
-- [ ] Monitoring/logging for alpha usage (V2.6)
+- [x] MCP server runtime integration (V2.6-PR0 inventory, PR1 adapter, PR2 enforcement)
+- [x] Config validation for MCP tools (V2.6 adapter classifies all 10 tools)
+- [x] Limited tool surface for alpha testers (8 allow, 1 review, 1 dry_run_only)
+- [ ] Monitoring/logging for alpha usage (post-alpha)
 
 ---
 
@@ -197,17 +197,19 @@ External Action Requested
 
 ## What Changed Since V2.4
 
-| Area | V2.4 | V2.5 |
-|------|------|------|
-| Safety gates | 0 | 6 (AB1–AB6) |
-| Risk classification | None | AB1 classifies all actions |
-| Tool call gating | None | AB2 authorizes all tool calls |
-| Code change verification | None | AB3 verifies all code changes |
-| Memory mutation approval | None | AB4 approves all memory writes |
-| Automation safety review | None | AB5 reviews all automation |
-| Sandbox isolation | None | AB6 evaluates all sandbox execution |
-| Test coverage | Baseline | +181 gate-specific tests |
-| Fail-safe behavior | Undefined | Unknown → block everywhere |
+| Area | V2.4 | V2.5 | V2.6 |
+|------|------|------|------|
+| Safety gates | 0 | 6 (AB1–AB6) | 6 + MCP gate adapter |
+| Risk classification | None | AB1 classifies all actions | AB1 wired at MCP boundary |
+| Tool call gating | None | AB2 authorizes all tool calls | AB2 wired at MCP boundary |
+| Code change verification | None | AB3 verifies all code changes | — |
+| Memory mutation approval | None | AB4 approves all memory writes | AB4 wired at MCP boundary |
+| Automation safety review | None | AB5 reviews all automation | AB5 wired at MCP boundary |
+| Sandbox isolation | None | AB6 evaluates all sandbox execution | AB6 wired at MCP boundary |
+| MCP dispatch gating | None | None | **callTool() gate intercept** |
+| Unknown tool handling | Crash | Crash | **Block with structured response** |
+| Test coverage | Baseline | +181 gate-specific tests | +26 MCP gate tests |
+| Fail-safe behavior | Undefined | Unknown → block everywhere | Unknown → block at MCP boundary |
 
 ---
 
