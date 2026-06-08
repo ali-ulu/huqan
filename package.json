@@ -52,7 +52,7 @@
     "author":  "AXIOM Contributors",
     "license":  "MIT",
     "axiom":  {
-                  "testStatus":  "592/592"
+                  "testStatus":  "1242 total / 1226 pass / 0 fail / 16 skipped"
               },
     "engines":  {
                     "node":  "\u003e=18.0.0"

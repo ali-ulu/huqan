@@ -48,6 +48,8 @@ The following three PRs are merged into `origin/main` and form the precondition 
 
 Sealed test baseline on `origin/main`:
 
+> Historical note: the counts in this section are the sealed baseline for this plan snapshot only. Current `main` may have a larger passing suite.
+
 - Targeted: `node --test test/entity-resolution.test.js test/verify-entity-resolution.test.js` → **51/51 pass** (29 ER + 22 ER2A).
 - Full: `npm test` → **913 tests / 897 pass / 0 fail / 16 skipped** (sqlite-skip tests are pre-existing environmental skips, not regressions).
 
@@ -257,6 +259,8 @@ A new test file `test/verify-canonical-lookup.test.js` is added. It must cover, 
 ### 7.2 Existing-test compatibility
 
 All existing tests in `test/entity-resolution.test.js` (29 tests) and `test/verify-entity-resolution.test.js` (22 tests) must continue to pass unchanged. The full `npm test` baseline (913 tests / 897 pass / 0 fail / 16 skipped) must be preserved or improved (only improvements are allowed: more tests passing, no new failures).
+
+> Historical note: this paragraph refers to the baseline that existed when the plan was authored, not the current global test total on `main`.
 
 ### 7.3 Determinism
 

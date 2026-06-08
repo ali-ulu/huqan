@@ -187,14 +187,14 @@ v0.9.0
 Expected test status:
 
 ```text
-592/592
+1242 total / 1226 pass / 0 fail / 16 skipped
 ```
 
 Expected status endpoint:
 
 ```text
 version=0.9.0
-testStatus=592/592
+testStatus=1242 total / 1226 pass / 0 fail / 16 skipped
 ```
 
 ## v0.9 Release Direction Note
