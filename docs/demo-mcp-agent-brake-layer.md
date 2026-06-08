@@ -156,4 +156,4 @@ Unknown tools → **blocked** by default.
 ```bash
 node --test test/*.test.js
 ```
-The root `mcpServer.test.js` may need updating for gate enforcement changes. This is expected after V2.6-PR2.
+`mcpServer.test.js` has been updated for V2.6 gate behavior (PR #16). The expected private-alpha behavior is: `axiom.learn` returns `review-required` and `axiom.agent` returns `dry_run_only`.

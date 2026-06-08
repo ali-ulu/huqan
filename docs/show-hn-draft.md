@@ -46,7 +46,7 @@ The result: an AI can *read* from Huqan freely, but it can never *write* without
 - Deterministic causal reasoning engine (Turkish + English)
 - Contradiction detection with evidence trails
 - MCP server with Agent Brake Layer (private alpha)
-- 669 passing tests, 0 failures
+- 1226 passing tests, 0 failures, 16 skipped
 - Runs locally, no cloud dependency
 
 **What's not done:**
@@ -55,7 +55,7 @@ The result: an AI can *read* from Huqan freely, but it can never *write* without
 - Distributed trust layer
 - The Dream/Hypothesis Engine (planned for V3)
 
-**Tech:** Node.js, in-memory causal graph, no external dependencies. ~54 test files, ~300 lines in the gate adapter alone.
+**Tech:** Node.js, in-memory causal graph, no external dependencies. ~55 test files, ~275 lines in the gate adapter alone.
 
 I'm looking for:
 - Feedback on the architecture (is the 6-layer brake overkill? underkill?)

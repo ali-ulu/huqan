@@ -133,5 +133,6 @@ netstat -ano | findstr :3000  # Windows
 - Restart Claude Desktop after config changes
 
 **Tests show failures in `mcpServer.test.js`:**
-- This is expected after V2.6-PR2 gate enforcement changes
-- Core test suite (`test/*.test.js`) should pass: `node --test test/*.test.js`
+- `mcpServer.test.js` is now aligned with V2.6 gate behavior (PR #16).
+- If it fails, treat it as a regression or environment issue, not an expected failure.
+- Run `node --test mcpServer.test.js` to isolate.
