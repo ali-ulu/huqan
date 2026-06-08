@@ -132,14 +132,32 @@ Result: ✅ verified
 
 ---
 
-## MCP Server (Claude / Cursor)
+## MCP Server (Claude / Cursor) — Private Alpha
 
 ```bash
 node mcpServer.js
 ```
 
 Connect Huqan as a local MCP server to Claude Desktop or Cursor.
-Your AI assistant verifies its outputs against Huqan's knowledge graph before answering.
+
+**Agent Brake Layer** — Every MCP tool call passes through 6 safety gates (AB1–AB6) before execution:
+- Risk classification, tool authorization, code change verification
+- Memory mutation approval, automation safety review, sandbox isolation
+- Unknown tools are blocked by default
+- Mutating tools (`axiom.learn`) require human review
+- Agent loop (`axiom.agent`) runs in dry-run-only mode
+
+```json
+// Claude Desktop MCP config
+{
+  "axiom": {
+    "mcp": { "command": "node", "args": ["mcpServer.js"] }
+  }
+}
+```
+
+→ See [`docs/demo-mcp-agent-brake-layer.md`](./docs/demo-mcp-agent-brake-layer.md) for full demo guide
+→ See [`docs/local-install.md`](./docs/local-install.md) for setup instructions
 
 ---
 

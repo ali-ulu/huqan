@@ -3,6 +3,7 @@ const readline = require('readline');
 const Kernel = require('./kernel');
 const KernelV2 = require('./kernel.v2');
 const { createAgent } = require('./agentRuntime');
+const { evaluateMcpGate, MCP_GATE_DECISIONS } = require('./lib/mcp-gate-adapter');
 const pkg = require('./package.json');
 
 const PROTOCOL_VERSION = '2025-06-18';
@@ -668,6 +669,25 @@ function createServer() {
 function callTool(kernel, params = {}) {
   const name = params.name;
   const args = params.arguments || {};
+
+  const gate = evaluateMcpGate({ tool: name, args, metadata: {} });
+
+  if (!gate.canExecute) {
+    return {
+      ok: false,
+      gate: {
+        decision: gate.decision,
+        allowed: gate.allowed,
+        canExecute: gate.canExecute,
+        canDryRun: gate.canDryRun,
+        requiredReview: gate.requiredReview,
+        reason: gate.reason,
+        metadata: { policyVersion: gate.metadata?.adapterVersion || 'V2.6-PR2' },
+      },
+      message: `Tool call blocked by gate: ${gate.reason}`,
+    };
+  }
+
   const agent = createAgent({
     kernel,
     version: process.env.AXIOM_AGENT_VERSION,
