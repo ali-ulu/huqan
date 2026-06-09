@@ -1,12 +1,10 @@
 {
     "name": "huqan",
     "version":  "0.9.0",
-    "description":  "Deterministic symbolic AI reasoning engine Ã¢â‚¬â€ verifies LLM outputs, detects contradictions, learns from natural language. Zero external LLM/GPU/cloud dependencies.",
+    "description": "Deterministic causal reasoning engine. Verifies LLM outputs, detects contradictions, learns from natural language. Zero external LLM/GPU/cloud dependencies.",
     "main":  "kernel.js",
     "types":  "kernel.d.ts",
-    "bin":  {
-                "axiom":  "./cli.js"
-            },
+    "bin": { "huqan": "./cli.js" },
     "scripts":  {
                     "start":  "node cli.js",
                     "server":  "node server.js",
@@ -49,9 +47,9 @@
                  "url":  "https://github.com/agiulucom42-del/axiom/issues"
              },
     "homepage":  "https://github.com/agiulucom42-del/axiom#readme",
-    "author":  "AXIOM Contributors",
+    "author": "Huqan Contributors",
     "license": "AGPL-3.0",
-    "axiom":  {
+    "huqan": {
                   "testStatus":  "1242 total / 1226 pass / 0 fail / 16 skipped"
               },
     "engines":  {
