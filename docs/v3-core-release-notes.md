@@ -39,4 +39,3 @@ That is a tooling limitation, not a V3 Core behavior change.
 ## Next Step
 
 V3.1 MCP Live Integration Recovery
-

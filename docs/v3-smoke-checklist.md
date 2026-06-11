@@ -49,4 +49,3 @@ This checklist records the V3 Core smoke boundary, not MCP certification.
   - `/health`
   - `/v2-status`
   - `/graph-data`
-
