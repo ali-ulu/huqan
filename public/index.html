@@ -72,6 +72,15 @@ body{display:flex;flex-direction:column}
 .composer-note{font-size:12px;color:var(--muted);line-height:1.5}
 .quick-actions{display:flex;flex-wrap:wrap;gap:8px}
 .quick-actions .chip{padding:7px 11px}
+.teach-flow{display:none;flex-direction:column;gap:10px;margin-top:10px;padding:14px;border:1px solid rgba(105,215,255,.18);border-radius:14px;background:rgba(8,11,18,.92)}
+.teach-flow.visible{display:flex}
+.teach-flow h3{margin:0;font-size:14px;line-height:1.35}
+.teach-flow p{margin:0;color:var(--muted);font-size:12px;line-height:1.5}
+.teach-flow textarea{width:100%;min-height:112px;resize:vertical;background:rgba(9,12,20,.96);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:12px;line-height:1.5;outline:none;white-space:pre-wrap}
+.teach-flow textarea:focus{border-color:rgba(105,215,255,.55);box-shadow:0 0 0 3px rgba(105,215,255,.08)}
+.teach-flow-actions{display:flex;flex-wrap:wrap;gap:8px}
+.teach-flow-actions button{border:none;border-radius:10px;padding:0 14px;background:rgba(15,18,30,.92);color:var(--text);border:1px solid var(--line);min-height:38px;font-size:12px;cursor:pointer}
+.teach-flow-actions button.primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#fff;border:none}
 .input-bar{display:none}
 .input-bar button:hover{filter:brightness(1.06)}
 .input-bar button:hover{filter:brightness(1.06)}
@@ -195,6 +204,19 @@ body{display:flex;flex-direction:column}
             <button class="chip" data-quick-action="search">Hafızada ara</button>
           </div>
           <div class="composer-note">Kısa not: `.txt` veya `.md` dosyasını seç, içerik alana gelsin; sonra mevcut akışla yargılat.</div>
+          <section class="teach-flow" id="teach-flow" hidden>
+            <div>
+              <h3>Bilmiyorum - öğretme taslağı</h3>
+              <p>Bilmiyorum - uydurmuyorum. Bu bilgi AXIOM’un graph'ında yok. İstersen öğretme taslağı oluşturabilirsin.</p>
+            </div>
+            <textarea id="teach-draft-input" aria-label="Öğretme taslağı"></textarea>
+            <p>Bu taslak henüz AXIOM hafızasına yazılmadı. Kalıcı öğrenme için review / approval gerekir.</p>
+            <div class="teach-flow-actions">
+              <button type="button" class="primary" id="teach-draft-copy">Taslağı kopyala</button>
+              <button type="button" id="teach-draft-reset">Sıfırla</button>
+              <button type="button" id="teach-draft-hide">Kapat</button>
+            </div>
+          </section>
         </div>
       </div>
     </div>
@@ -353,6 +375,12 @@ const judgeFileInput = document.getElementById('judge-file-input');
 const judgeFileButton = document.getElementById('judge-file-button');
 const judgeFileMeta = document.getElementById('judge-file-meta');
 const judgeQuickActions = document.getElementById('judge-quick-actions');
+const teachFlow = document.getElementById('teach-flow');
+const teachDraftInput = document.getElementById('teach-draft-input');
+const teachDraftCopy = document.getElementById('teach-draft-copy');
+const teachDraftReset = document.getElementById('teach-draft-reset');
+const teachDraftHide = document.getElementById('teach-draft-hide');
+let lastPromptText = '';
 
 function normalizeText(value) {
   return String(value || '')
@@ -413,6 +441,32 @@ function showQuickActions(visible) {
   judgeQuickActions.hidden = !visible;
 }
 
+function showTeachFlow(promptText, resultText) {
+  if (!teachFlow || !teachDraftInput) return;
+  const source = String(promptText || '').trim() || 'Bu bilgi';
+  const draft = [
+    `İddia: ${source}`,
+    'Durum: Bilmiyorum - uydurmuyorum.',
+    'Açıklama: Bu bilgi AXIOM’un graph’ında yok.',
+    'Not: Bu taslak henüz AXIOM hafızasına yazılmadı. Kalıcı öğrenme için review / approval gerekir.',
+    'Öneri: Kaynak, gerekçe ve kısa tanımı ekleyerek öğretme taslağı oluşturabilirsin.',
+  ].join('\n');
+  teachDraftInput.value = draft;
+  teachFlow.hidden = false;
+  teachFlow.classList.add('visible');
+}
+
+function hideTeachFlow(clear = false) {
+  if (!teachFlow || !teachDraftInput) return;
+  if (clear) teachDraftInput.value = '';
+  teachFlow.classList.remove('visible');
+  teachFlow.hidden = true;
+}
+
+function isUnknownResultText(text) {
+  return /\b(bilmiyorum|bilinmiyor|doğrulayamıyor|doğrulayamıyorum)\b/i.test(String(text || ''));
+}
+
 function friendlyServerMessage(status) {
   if (status === 401 || status === 403) {
     return 'Bu işlem yetki gerektiriyor. Local demo’da önce metni alana aktarabilir ve yargılatabilirsin.';
@@ -432,7 +486,7 @@ function friendlyServerMessage(status) {
 function normalizeResultText(resultText) {
   const text = String(resultText || '');
   if (/Boş girdi/i.test(text)) return 'Önce bir metin gir veya bir dosya seç.';
-  if (/Anlamadım/i.test(text)) return 'AXIOM bu bilgiyi güvenli biçimde doğrulayamıyor.';
+  if (/Anlamadım/i.test(text)) return 'Bilmiyorum - uydurmuyorum. Bu bilgiyi güvenli biçimde doğrulayamıyorum.';
   return text;
 }
 
@@ -482,6 +536,7 @@ async function runPrompt(value) {
     return;
   }
   if (judgeInput) judgeInput.value = '';
+  lastPromptText = raw;
   addMessage(raw, 'user');
   try {
     const res = await fetch('/api?' + new URLSearchParams({ q: raw }));
@@ -495,13 +550,16 @@ async function runPrompt(value) {
     }
     const data = await res.json();
     const resultText = normalizeResultText(data.result);
-    let cls = 'system';
+    let cls = isUnknownResultText(resultText) ? 'system warn' : 'system';
     if (typeof resultText === 'string' && resultText.startsWith('✅')) cls = 'system ok';
     else if (typeof resultText === 'string' && resultText.startsWith('⚠')) cls = 'system warn';
     else if (typeof resultText === 'string' && (resultText.startsWith('❗') || resultText.startsWith('❌'))) cls = 'system highlight';
     addMessage(resultText, cls);
+    if (isUnknownResultText(resultText)) showTeachFlow(raw, resultText);
+    else hideTeachFlow(false);
     await updateHeaderStats();
   } catch (err) {
+    hideTeachFlow(false);
     addMessage(friendlyServerMessage(0), 'system warn');
   }
 }
@@ -524,6 +582,30 @@ judgeFileInput?.addEventListener('change', e => {
   importFileToInput(file);
   e.target.value = '';
 });
+teachDraftCopy?.addEventListener('click', async () => {
+  if (!teachDraftInput) return;
+  const text = teachDraftInput.value.trim();
+  if (!text) {
+    addMessage('Önce bir metin gir veya bir sorgu çalıştır.', 'system warn');
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    addMessage('Öğretme taslağı kopyalandı.', 'system ok');
+  } catch (_) {
+    teachDraftInput.focus();
+    teachDraftInput.select?.();
+    addMessage('Öğretme taslağı seçildi. Kopyalamak için Ctrl+C kullanabilirsin.', 'system warn');
+  }
+});
+teachDraftReset?.addEventListener('click', () => {
+  if (!teachDraftInput) return;
+  teachDraftInput.value = lastPromptText
+    ? `İddia: ${lastPromptText}\nDurum: Bilmiyorum - uydurmuyorum.\nAçıklama: Bu bilgi AXIOM’un graph’ında yok.\nNot: Bu taslak henüz AXIOM hafızasına yazılmadı. Kalıcı öğrenme için review / approval gerekir.\nÖneri: Kaynak, gerekçe ve kısa tanımı ekleyerek öğretme taslağı oluşturabilirsin.`
+    : '';
+  addMessage('Öğretme taslağı sıfırlandı.', 'system');
+});
+teachDraftHide?.addEventListener('click', () => hideTeachFlow(true));
 document.querySelectorAll('[data-quick-action]').forEach(btn => {
   btn.addEventListener('click', () => {
     const action = btn.dataset.quickAction;
