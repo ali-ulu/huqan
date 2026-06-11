@@ -41,6 +41,8 @@ describe('real user smoke blockers', () => {
 
       assert.strictEqual(result.status, 0, result.stderr);
       const memory = fs.readFileSync(path.join(cwd, 'memory.json'), 'utf8');
+      assert.match(memory, /HUQAN/);
+      assert.match(memory, /dış marka ürün kimliğidir/);
       assert.match(memory, /mant\u0131k/);
       assert.match(memory, /do\u011fru d\u00fc\u015f\u00fcnme y\u00f6ntemi/);
       assert.match(memory, /bilgi grafi\u011fi motoru/);
@@ -50,6 +52,8 @@ describe('real user smoke blockers', () => {
         memoryPath: path.join(cwd, 'memory.json'),
         dbPath: path.join(cwd, 'memory.db'),
       });
+      assert.strictEqual(kernel.ask('HUQAN nedir?').data.unknown, false);
+      assert.match(kernel.ask('HUQAN nedir?').data.answer, /huqan/i);
       assert.strictEqual(kernel.verify('mantik dogru dusunme yontemidir').data.status, 'dogrulandi');
       assert.strictEqual(kernel.verify('AXIOM bilgi grafigi motorudur').data.status, 'dogrulandi');
       kernel.graph.close?.();
@@ -65,11 +69,13 @@ describe('real user smoke blockers', () => {
 
     const turkish = kernel.verify('mant\u0131k do\u011fru d\u00fc\u015f\u00fcnme y\u00f6ntemidir');
     const ascii = kernel.verify('mantik dogru dusunme yontemidir');
+    const huqan = kernel.ask('HUQAN nedir?');
     const axiom = kernel.verify('AXIOM bilgi grafigi motorudur');
     const unknown = kernel.verify('mantik kahve makinesidir');
 
     assert.strictEqual(turkish.data.status, 'dogrulandi');
     assert.strictEqual(ascii.data.status, 'dogrulandi');
+    assert.strictEqual(huqan.data.unknown, false);
     assert.strictEqual(axiom.data.status, 'dogrulandi');
     assert.strictEqual(unknown.data.status, 'bilinmiyor');
   });

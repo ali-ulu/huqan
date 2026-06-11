@@ -1,11 +1,20 @@
+const fs = require('fs');
+const path = require('path');
 const Kernel = require('./kernel');
 const Dream = require('./dream');
+
+const identitySeedPath = path.join(__dirname, 'docs', 'seed', 'axiom-identity.seed.json');
+const identitySeed = JSON.parse(fs.readFileSync(identitySeedPath, 'utf8'));
 
 // Egitim: temiz baslat, mevcut hafizayi karistirma.
 const k = new Kernel({ noLoad: true, useSQLite: true });
 const d = new Dream(k);
 
+const identityFacts = Array.isArray(identitySeed.facts) ? identitySeed.facts.filter(Boolean) : [];
+
 const veriler = [
+  ...identityFacts,
+
   // Mantik
   'her A Bdir',
   'baz\u0131 A Bdir',
@@ -96,8 +105,20 @@ const veriler = [
 ];
 
 console.log(`AXIOM Egitim Basladi: ${veriler.length} bilgi`);
-for (const v of veriler) {
-  k.learn(v);
+for (let i = 0; i < veriler.length; i += 1) {
+  const v = veriler[i];
+  const provenance = i < identityFacts.length
+    ? {
+        provenanceId: `axiom-identity-seed-${i + 1}`,
+        sourceRef: `${identitySeed.sourceRef}#${i + 1}`,
+        sourceTitle: identitySeed.sourceTitle,
+        sourceType: identitySeed.sourceType || 'system',
+        sourceSubType: identitySeed.sourceSubType || 'identity-seed',
+        actor: identitySeed.actor || 'system',
+        workspaceId: identitySeed.workspaceId || 'default',
+      }
+    : null;
+  k.learn(v, provenance ? { provenance, workspaceId: provenance.workspaceId } : undefined);
 }
 
 console.log(`Istatistik: ${Object.keys(k.graph._nodes).length} dugum, ${k.graph._edges.length} kenar`);
@@ -120,7 +141,7 @@ else for (const x of h.slice(0, 10)) {
 }
 
 console.log('\nOrnek Cikarimlar:');
-const sorular = ['mantik nedir', 'felsefe nedir', '\u00f6\u011frenmek nedir', 'bilim nedir', 'hipotez nedir', 'AXIOM nedir'];
+const sorular = ['HUQAN nedir', 'mantik nedir', 'felsefe nedir', '\u00f6\u011frenmek nedir', 'bilim nedir', 'hipotez nedir', 'AXIOM nedir'];
 for (const s of sorular) {
   console.log(`  sor: "${s}" -> ${k.ask(s)}`);
 }
