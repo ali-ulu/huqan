@@ -253,5 +253,30 @@ describe('MCP Server', () => {
     assert.ok(Array.isArray(approvals.result.structuredContent.approvals));
     assert.ok(approvals.result.structuredContent.approvals.some(item => item.tool === 'browser.open'));
   });
+
+  it('blocks unknown external tools through MCP policy without creating pending approval', async () => {
+    const policy = await request('tools/call', {
+      name: 'axiom.policy',
+      arguments: { tool: 'unknown.tool', input: 'do something', goal: 'test fail closed' },
+    });
+
+    assert.strictEqual(policy.result.isError, false);
+    assert.strictEqual(policy.result.structuredContent.type, 'policy');
+    assert.strictEqual(policy.result.structuredContent.data.category, 'external');
+    assert.strictEqual(policy.result.structuredContent.data.action, 'block');
+    assert.strictEqual(policy.result.structuredContent.data.approval, 'blocked');
+    assert.strictEqual(policy.result.structuredContent.data.blocked, true);
+    assert.strictEqual(policy.result.structuredContent.data.requiresApproval, false);
+    assert.strictEqual(policy.result.structuredContent.data.approvalStatus, 'blocked');
+    assert.ok(policy.result.structuredContent.data.labels.includes('unknown-tool-blocked'));
+
+    const approvals = await request('tools/call', {
+      name: 'axiom.approvals',
+      arguments: { limit: 20 },
+    });
+    assert.strictEqual(approvals.result.isError, false);
+    assert.ok(Array.isArray(approvals.result.structuredContent.approvals));
+    assert.ok(!approvals.result.structuredContent.approvals.some(item => item.tool === 'unknown.tool' && item.status === 'pending'));
+  });
 });
 

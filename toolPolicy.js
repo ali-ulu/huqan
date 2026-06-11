@@ -53,7 +53,9 @@ function buildReasons({ category, tool, input, context, blocked, review }) {
     return reasons;
   }
   reasons.push(`External tool request: ${tool || 'unknown'}.`);
-  if (blocked) {
+  if (blocked && !review && !matchesAny(tool, EXTERNAL_BLOCK_PATTERNS) && !matchesAny(input, [...EXTERNAL_BLOCK_PATTERNS, ...INJECTION_PATTERNS])) {
+    reasons.push('Unknown external tools are fail-closed by default.');
+  } else if (blocked) {
     reasons.push('The requested tool or input looks destructive or executable.');
   } else if (review) {
     reasons.push('External execution requires explicit approval or a sandboxed runner.');
@@ -92,12 +94,15 @@ function evaluateToolPolicy({ tool, input = '', context = {}, internalTools = IN
     };
   }
 
-  const blocked = matchesAny(normalizedTool, EXTERNAL_BLOCK_PATTERNS) || matchesAny(normalizedInput, [...EXTERNAL_BLOCK_PATTERNS, ...INJECTION_PATTERNS]);
-  const review = !blocked && (matchesAny(normalizedTool, EXTERNAL_REVIEW_PATTERNS) || matchesAny(normalizedInput, EXTERNAL_REVIEW_PATTERNS));
+  const explicitlyBlocked = matchesAny(normalizedTool, EXTERNAL_BLOCK_PATTERNS) || matchesAny(normalizedInput, [...EXTERNAL_BLOCK_PATTERNS, ...INJECTION_PATTERNS]);
+  const explicitlyReviewable = matchesAny(normalizedTool, EXTERNAL_REVIEW_PATTERNS) || matchesAny(normalizedInput, EXTERNAL_REVIEW_PATTERNS);
+  const blocked = explicitlyBlocked || !explicitlyReviewable;
+  const review = !blocked && explicitlyReviewable;
   const action = blocked ? 'block' : 'review';
   const labels = ['external-tool'];
   if (blocked) labels.push('blocked');
   if (review) labels.push('requires-approval');
+  if (!explicitlyBlocked && !explicitlyReviewable) labels.push('unknown-tool-blocked');
   if (matchesAny(normalizedInput, INJECTION_PATTERNS)) labels.push('prompt-injection-risk');
   if (matchesAny(normalizedTool, EXTERNAL_BLOCK_PATTERNS)) labels.push('destructive');
   const approval = blocked ? 'blocked' : 'review';
