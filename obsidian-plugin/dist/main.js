@@ -3350,11 +3350,20 @@ var DEFAULT_SETTINGS = {
   memoryPath: ".obsidian/axiom-memory.json",
   lang: "tr"
 };
+function resolveVaultMemoryPath(vaultPath, memoryPath) {
+  const resolvedCandidate = path.resolve(vaultPath, memoryPath || DEFAULT_SETTINGS.memoryPath);
+  const relative = path.relative(vaultPath, resolvedCandidate);
+  if (relative === "" || !relative.startsWith("..") && !path.isAbsolute(relative)) {
+    return resolvedCandidate;
+  }
+  new import_obsidian.Notice("Hafiza yolu vault disina cikamaz; varsayilan yol kullanildi");
+  return path.resolve(vaultPath, DEFAULT_SETTINGS.memoryPath);
+}
 var AxiomPlugin = class extends import_obsidian.Plugin {
   async onload() {
     await this.loadSettings();
     const vaultPath = this.app.vault.getRoot().path;
-    const memoryPath = `${vaultPath}${this.settings.memoryPath}`;
+    const memoryPath = resolveVaultMemoryPath(vaultPath, this.settings.memoryPath);
     this.kernel = new import_kernel.default({
       memoryPath,
       lang: this.settings.lang

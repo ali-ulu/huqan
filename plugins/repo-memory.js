@@ -119,8 +119,15 @@ async function ingestMarkdownPath(kernel, input = {}) {
     throw new Error('markdown path is required');
   }
 
+  const rootPath = input.rootPath || input.workspaceRoot || input.allowedRoot || '';
+  if (!rootPath) {
+    const err = new Error('markdown rootPath is required');
+    err.code = 'MARKDOWN_ROOT_REQUIRED';
+    throw err;
+  }
+
   const sessionId = input.sessionId || '';
-  const ingested = ingestMarkdown(targetPath);
+  const ingested = ingestMarkdown(targetPath, { rootPath });
   let added = 0;
 
   for (const section of ingested.sections) {

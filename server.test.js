@@ -328,6 +328,7 @@ describe('Server - API', () => {
       body: JSON.stringify({
         sourceType: 'markdown',
         path: mdDir,
+        rootPath: mdDir,
       }),
     });
     assert.strictEqual(r.status, 200);
