@@ -147,34 +147,23 @@ describe('Server - API', () => {
     assert.strictEqual(j.result, 'Bu komut web API üzerinden çalıştırılamaz.');
   });
 
-  it('GET /dogrula?statement=... ÃƒÂ§alÃ„Â±Ã…Å¸Ã„Â±r', async () => {
-    const r = await request(`${BASE}/dogrula?statement=kedi+balÃ„Â±k+yer`);
-    assert.strictEqual(r.status, 200);
+  it('GET /dogrula?statement=... method not allowed', async () => {
+    const r = await request(`${BASE}/dogrula?statement=kedi+balik+yer`);
+    assert.strictEqual(r.status, 405);
     const j = await r.json();
-    assert.ok('status' in j);
-    assert.ok(!('ok' in j));
-    assert.notStrictEqual(r.headers.get('access-control-allow-origin'), '*');
+    assert.strictEqual(j.error, 'Method not allowed');
   });
 
-  it('GET /dogrula boÃ…Å¸ statement hata dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {
+  it('GET /dogrula bos statement da method not allowed kalir', async () => {
     const r = await request(`${BASE}/dogrula?statement=`);
-    assert.strictEqual(r.status, 400);
+    assert.strictEqual(r.status, 405);
   });
 
-  it('GET /v2/verify returns structured envelope', async () => {
+  it('GET /v2/verify returns method not allowed', async () => {
     const r = await request(`${BASE}/v2/verify?statement=kedi+balik+yer`);
-    assert.strictEqual(r.status, 200);
-    assert.match(r.headers.get('content-type'), /application\/json;\s*charset=utf-8/i);
+    assert.strictEqual(r.status, 405);
     const j = await r.json();
-    assert.strictEqual(j.ok, true);
-    assert.strictEqual(j.type, 'verify');
-    assert.ok(j.data);
-    assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(j.data.status));
-    assert.ok(Array.isArray(j.evidence));
-    assert.strictEqual(j.error, null);
-    assert.ok(j.meta.contractVersion);
-    assert.notStrictEqual(r.headers.get('access-control-allow-origin'), '*');
-    assert.strictEqual(r.headers.get('cache-control'), 'no-cache');
+    assert.strictEqual(j.error, 'Method not allowed');
   });
 
   it('OPTIONS preflight returns safe CORS headers', async () => {
@@ -597,15 +586,20 @@ describe('Server - API', () => {
     assert.strictEqual(r.status, 405);
   });
 
-  it('GET /api async komutlarda Promise sÃ„Â±zdÃ„Â±rmaz', async () => {
-    const originalExecute = server && require('./cli').prototype.execute;
+  it('GET /api public allowlist does not invoke cli.execute', async () => {
     const CLI = require('./cli');
-    CLI.prototype.execute = () => Promise.resolve('async-ok');
+    const originalExecute = CLI.prototype.execute;
+    let called = false;
+    CLI.prototype.execute = () => {
+      called = true;
+      return Promise.resolve('async-ok');
+    };
     try {
       const r = await request(`${BASE}/api?q=merhaba`);
       assert.strictEqual(r.status, 200);
       const j = await r.json();
-      assert.strictEqual(j.result, 'async-ok');
+      assert.ok(typeof j.result === 'string' && j.result.length > 0);
+      assert.strictEqual(called, false);
     } finally {
       CLI.prototype.execute = originalExecute;
     }
