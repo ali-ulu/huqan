@@ -130,7 +130,7 @@ export interface KernelMemoryApi {
   patchMetadata(memoryId: string, patch?: Record<string, unknown>, opts?: Record<string, unknown>): { ok: boolean; memory?: KernelMemoryRecord; event?: Record<string, unknown>; error?: Record<string, unknown> };
   save(): { ok: boolean; backend?: string; workspaceCount?: number; skipped?: boolean; error?: Record<string, unknown> };
   load(): { ok: boolean; backend?: string; loaded?: number; skipped?: boolean; error?: Record<string, unknown> };
-  getEvents(memoryId: string): Record<string, unknown>[];
+  getEvents(memoryId: string, opts?: Record<string, unknown>): Record<string, unknown>[];
   getLinks(memoryId: string, opts?: Record<string, unknown>): KernelMemoryLink[];
   close(): void;
 }
