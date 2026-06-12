@@ -116,6 +116,12 @@ export interface KernelMemoryApi {
   findByStatus(status: string, opts?: Record<string, unknown>): { ok: boolean; memories?: KernelMemoryRecord[]; total?: number; status?: string; error?: Record<string, unknown> };
   findLinks(memoryId: string, opts?: Record<string, unknown>): { ok: boolean; links?: KernelMemoryLink[]; total?: number; memoryId?: string; workspaceId?: string; error?: Record<string, unknown> };
   findLinkedMemories(memoryId: string, opts?: Record<string, unknown>): { ok: boolean; memories?: KernelMemoryRecord[]; links?: KernelMemoryLink[]; total?: number; memoryId?: string; workspaceId?: string; error?: Record<string, unknown> };
+  getBacklinks(memoryId: string, opts?: Record<string, unknown>): KernelMemoryLink[];
+  traverseLinks(memoryId: string, opts?: Record<string, unknown>): { ok: boolean; nodes?: KernelMemoryRecord[]; links?: KernelMemoryLink[]; totalNodes?: number; totalLinks?: number; memoryId?: string; workspaceId?: string; maxDepth?: number; error?: Record<string, unknown> };
+  timeline(opts?: Record<string, unknown>): { ok: boolean; memories?: KernelMemoryRecord[]; total?: number; workspaceId?: string; field?: string; range?: Record<string, unknown>; error?: Record<string, unknown> };
+  since(timestamp: string, opts?: Record<string, unknown>): { ok: boolean; memories?: KernelMemoryRecord[]; total?: number; workspaceId?: string; field?: string; range?: Record<string, unknown>; error?: Record<string, unknown> };
+  before(timestamp: string, opts?: Record<string, unknown>): { ok: boolean; memories?: KernelMemoryRecord[]; total?: number; workspaceId?: string; field?: string; range?: Record<string, unknown>; error?: Record<string, unknown> };
+  between(start: string, end: string, opts?: Record<string, unknown>): { ok: boolean; memories?: KernelMemoryRecord[]; total?: number; workspaceId?: string; field?: string; range?: Record<string, unknown>; error?: Record<string, unknown> };
   history(memoryId: string, opts?: Record<string, unknown>): { ok: boolean; events?: Record<string, unknown>[]; total?: number; memoryId?: string; workspaceId?: string; error?: Record<string, unknown> };
   link(input: Record<string, unknown>): { ok: boolean; link?: KernelMemoryLink; event?: Record<string, unknown>; error?: Record<string, unknown>; deduped?: boolean };
   tombstone(memoryId: string, opts?: Record<string, unknown>): { ok: boolean; memory?: KernelMemoryRecord; event?: Record<string, unknown>; error?: Record<string, unknown> };
@@ -125,7 +131,7 @@ export interface KernelMemoryApi {
   save(): { ok: boolean; backend?: string; workspaceCount?: number; skipped?: boolean; error?: Record<string, unknown> };
   load(): { ok: boolean; backend?: string; loaded?: number; skipped?: boolean; error?: Record<string, unknown> };
   getEvents(memoryId: string): Record<string, unknown>[];
-  getLinks(memoryId: string): KernelMemoryLink[];
+  getLinks(memoryId: string, opts?: Record<string, unknown>): KernelMemoryLink[];
   close(): void;
 }
 
