@@ -109,6 +109,14 @@ export interface KernelMemoryApi {
   get(memoryId: string, opts?: Record<string, unknown>): { ok: boolean; memory?: KernelMemoryRecord; error?: Record<string, unknown> };
   list(opts?: Record<string, unknown>): { ok: boolean; memories: KernelMemoryRecord[]; total: number };
   search(query: string, opts?: Record<string, unknown>): { ok: boolean; memories?: KernelMemoryRecord[]; total?: number; error?: Record<string, unknown> };
+  findById(memoryId: string, opts?: Record<string, unknown>): { ok: boolean; memory?: KernelMemoryRecord; error?: Record<string, unknown> };
+  findByContentHash(contentHash: string, opts?: Record<string, unknown>): { ok: boolean; memories?: KernelMemoryRecord[]; total?: number; contentHash?: string; error?: Record<string, unknown> };
+  findBySourceRef(sourceRef: string, opts?: Record<string, unknown>): { ok: boolean; memories?: KernelMemoryRecord[]; total?: number; sourceRef?: string; error?: Record<string, unknown> };
+  findByKind(kind: string, opts?: Record<string, unknown>): { ok: boolean; memories?: KernelMemoryRecord[]; total?: number; kind?: string; error?: Record<string, unknown> };
+  findByStatus(status: string, opts?: Record<string, unknown>): { ok: boolean; memories?: KernelMemoryRecord[]; total?: number; status?: string; error?: Record<string, unknown> };
+  findLinks(memoryId: string, opts?: Record<string, unknown>): { ok: boolean; links?: KernelMemoryLink[]; total?: number; memoryId?: string; workspaceId?: string; error?: Record<string, unknown> };
+  findLinkedMemories(memoryId: string, opts?: Record<string, unknown>): { ok: boolean; memories?: KernelMemoryRecord[]; links?: KernelMemoryLink[]; total?: number; memoryId?: string; workspaceId?: string; error?: Record<string, unknown> };
+  history(memoryId: string, opts?: Record<string, unknown>): { ok: boolean; events?: Record<string, unknown>[]; total?: number; memoryId?: string; workspaceId?: string; error?: Record<string, unknown> };
   link(input: Record<string, unknown>): { ok: boolean; link?: KernelMemoryLink; event?: Record<string, unknown>; error?: Record<string, unknown>; deduped?: boolean };
   tombstone(memoryId: string, opts?: Record<string, unknown>): { ok: boolean; memory?: KernelMemoryRecord; event?: Record<string, unknown>; error?: Record<string, unknown> };
   supersede(memoryId: string, newContent: unknown, opts?: Record<string, unknown>): { ok: boolean; oldMemory?: KernelMemoryRecord; newMemory?: KernelMemoryRecord; link?: KernelMemoryLink; event?: Record<string, unknown>; oldMemoryUpdateEvent?: Record<string, unknown>; error?: Record<string, unknown> };
@@ -116,6 +124,8 @@ export interface KernelMemoryApi {
   patchMetadata(memoryId: string, patch?: Record<string, unknown>, opts?: Record<string, unknown>): { ok: boolean; memory?: KernelMemoryRecord; event?: Record<string, unknown>; error?: Record<string, unknown> };
   save(): { ok: boolean; backend?: string; workspaceCount?: number; skipped?: boolean; error?: Record<string, unknown> };
   load(): { ok: boolean; backend?: string; loaded?: number; skipped?: boolean; error?: Record<string, unknown> };
+  getEvents(memoryId: string): Record<string, unknown>[];
+  getLinks(memoryId: string): KernelMemoryLink[];
   close(): void;
 }
 
