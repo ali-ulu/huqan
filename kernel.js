@@ -90,9 +90,9 @@ class Kernel {
     // v0.9.1: AXIOM Memory Core — kernel.memory API
     this.memory = new MemoryStore({
       trustPolicyVersion: this.contractVersion,
-      useSQLite: opts.useSQLite,
-      dbPath: opts.dbPath,
-      memoryPath: opts.memoryPath,
+      useSQLite: opts.memoryStoreUseSQLite !== undefined ? opts.memoryStoreUseSQLite : opts.useSQLite,
+      dbPath: opts.memoryStoreDbPath || opts.dbPath,
+      memoryPath: opts.memoryStorePath || opts.memoryPath,
     });
 
     // Hook graph.close to also close memory store db connection
