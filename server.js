@@ -61,6 +61,64 @@ function legacyVerify(result) {
   };
 }
 
+function runPublicApiCommand(command, args) {
+  const normalizedCommand = String(command || '')
+    .replace(/\uFEFF/g, '')
+    .toLowerCase()
+    .replace(/[ç]/g, 'c')
+    .replace(/[ğ]/g, 'g')
+    .replace(/[ı]/g, 'i')
+    .replace(/[ö]/g, 'o')
+    .replace(/[ş]/g, 's')
+    .replace(/[ü]/g, 'u')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  switch (normalizedCommand) {
+    case 'selam':
+      return 'Merhaba! Bana bir sey ogretebilir veya soru sorabilirsin.';
+    case 'yardim':
+      return [
+        'AXIOM komutlari:',
+        '  "kedi balik yer"          -> bilgi ogrenirim',
+        '  "kedi nedir"              -> soruyu cevaplarim',
+        '  "neden tavuk"             -> sebep analizi',
+        '  "tavuk mu yumurta mi"     -> karsilastirma',
+        '  "durum"                   -> sistem durumu',
+        '  "ruya"                    -> hipotez uretirim',
+        '  "plan: hedef"             -> ajan plani uretirim',
+        '  "ajan: hedef"             -> cok adimli ajan calistiririm',
+        '  "backup"                  -> calisma durumunu yedeklerim',
+        '  "restore[: yol]"          -> en son veya secili yedekten geri yuklerim',
+        '  "kaydet"                  -> hafizayi kaydederim',
+        '  "llm-sor: soru"           -> LLM tavsiyesi hazirlarim',
+        '  "yukle: dosya.txt"        -> dosyadan ogrenirim',
+        '  "cikis"                   -> cikis',
+      ].join('\n');
+    case 'anlamadim':
+      return 'Anlamadim. Daha uzun bir cumle yaz veya "yardim" yaz.';
+    case 'sor': {
+      const result = cli.kernel.ask(args);
+      const answer = result.data.answer;
+      return answer === 'Bilmiyorum' ? `X ${answer}` : `Cevap: ${answer}`;
+    }
+    case 'durum': {
+      const stats = cli.kernel.graph.getStats();
+      const gaps = cli.kernel.detectGaps();
+      const contradictions = cli.kernel.detectContradictions();
+      let out = `Durum: ${stats.nodes} düğüm, ${stats.edges} kenar, entropi: ${cli.kernel.entropy().toFixed(3)}`;
+      if (gaps.length > 0) out += `\n  ${gaps.length} baglantisiz dugum: ${gaps.slice(0, 10).join(', ')}${gaps.length > 10 ? '...' : ''}`;
+      for (const item of contradictions.slice(0, 5)) {
+        out += `\n  Celiski [${item.type}]: ${item.node} -> ${item.targets.join(', ')}`;
+      }
+      return out;
+    }
+    default:
+      return null;
+  }
+}
+
 const ALLOWED_CORS_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
 const JSON_CONTENT_TYPE = 'application/json; charset=utf-8';
 
@@ -673,7 +731,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    sendVerifyResult(reqUrl.searchParams.get('statement') || '', reqUrl.searchParams.get('workspaceId') || '');
+    writeJson(req, res, 405, { error: 'Method not allowed' });
     return;
   }
 
@@ -766,16 +824,7 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify(result));
       return;
     }
-    const text = sanitizeInput(reqUrl.searchParams.get('statement') || '');
-    const workspaceId = sanitizeInput(reqUrl.searchParams.get('workspaceId') || '');
-    if (!text) {
-      res.writeHead(400, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ error: 'statement parametresi gerekli' }));
-      return;
-    }
-    const result = legacyVerify(cli.kernel.verify(text, workspaceId ? { workspaceId } : {}));
-    res.writeHead(200, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-    res.end(JSON.stringify(result));
+    writeJson(req, res, 405, { error: 'Method not allowed' });
     return;
   }
   if (reqUrl.pathname === '/yukle' || reqUrl.pathname === '/upload') {
@@ -965,13 +1014,15 @@ const server = http.createServer(async (req, res) => {
     } else if (p.command === 'kaydet') {
       result = '⚠️ Kaydet komutu sadece CLI\'dan kullanılabilir.';
     } else {
-      try {
-        // Some commands may be sync today and async tomorrow.
-        // Normalize here so API never leaks "[object Promise]".
-        result = await Promise.resolve(cli.execute(p.command, p.args));
-      } catch (err) {
-        console.error('[API hata]', err.code || err.name || 'internal');
-        result = 'HATA: İşlem sırasında hata oluştu.';
+      result = runPublicApiCommand(p.command, p.args);
+      if (result === null) {
+        res.writeHead(403, {
+          'Content-Type': 'application/json; charset=utf-8',
+          ...buildCorsHeaders(req),
+          'X-Content-Type-Options': 'nosniff',
+        });
+        res.end(JSON.stringify({ result: 'Bu komut web API üzerinden çalıştırılamaz.' }));
+        return;
       }
     }
     res.writeHead(200, {
