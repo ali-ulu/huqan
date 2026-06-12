@@ -3,946 +3,2694 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AXIOM — Productization & Shield</title>
+<title>AXIOM - Trust Control Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <style>
 :root{
-  --bg:#080a12;
-  --panel:#111523;
-  --panel-2:#0e1220;
-  --line:#262d42;
-  --line-2:#2f3a56;
-  --text:#e9ebff;
-  --muted:#8e95b5;
-  --accent:#69d7ff;
-  --accent-2:#9d68ff;
-  --good:#67d39a;
-  --warn:#ffbf69;
-  --bad:#ff6b86;
+  --bg:#050608;
+  --bg-2:#090b10;
+  --panel:#111318;
+  --panel-2:#151922;
+  --panel-3:#0f1218;
+  --line:rgba(255,255,255,.08);
+  --line-2:rgba(255,255,255,.14);
+  --text:#eef2ff;
+  --muted:#96a0bf;
+  --muted-2:#6d7695;
+  --accent:#ff4d4d;
+  --accent-2:#ff8b4d;
+  --green:#69d38d;
+  --amber:#ffbb4d;
+  --violet:#b574ff;
+  --cyan:#64d4ff;
+  --danger:#ff5a66;
+  --shadow:0 24px 80px rgba(0,0,0,.48);
 }
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;background:radial-gradient(circle at top,#11162a 0,#080a12 45%,#05070d 100%);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;overflow:hidden}
-body{display:flex;flex-direction:column}
-.header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px;border-bottom:1px solid var(--line);background:linear-gradient(135deg,rgba(17,21,35,.96),rgba(9,11,18,.96));backdrop-filter:blur(16px)}
-.brand{display:flex;flex-direction:column;gap:4px}
-.brand h1{margin:0;font-size:20px;line-height:1.1;letter-spacing:.02em;background:linear-gradient(90deg,var(--accent),var(--accent-2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.brand .subtitle{font-size:12px;color:var(--muted)}
-.header-stats{font-size:12px;color:var(--muted);text-align:right}
-.tabs{display:flex;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line);background:rgba(7,9,15,.9);overflow-x:auto;flex-shrink:0}
-.tab{padding:10px 14px;border:1px solid transparent;border-radius:999px;background:rgba(17,21,35,.7);color:var(--muted);font-size:13px;white-space:nowrap;cursor:pointer;transition:all .18s ease}
-.tab:hover{color:var(--text);border-color:var(--line-2)}
-.tab.active{color:var(--text);border-color:rgba(105,215,255,.45);background:linear-gradient(180deg,rgba(30,38,60,.98),rgba(16,20,32,.98));box-shadow:0 0 0 1px rgba(157,104,255,.1) inset}
-.panel{display:none;flex:1;min-height:0;overflow:hidden}
-.panel.active{display:flex;flex-direction:column}
-.panel.scrollable{overflow:auto}
-.shell{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,.95fr);gap:14px;padding:14px;min-height:0;flex:1}
-.card{background:linear-gradient(180deg,rgba(17,21,35,.98),rgba(12,15,25,.98));border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 12px 30px rgba(0,0,0,.28)}
-.hero{display:flex;flex-direction:column;gap:12px}
-.hero h2{margin:0;font-size:24px;line-height:1.15}
-.hero p{margin:0;color:var(--muted);font-size:13px;line-height:1.6}
-.hero-actions{display:flex;flex-wrap:wrap;gap:8px}
-.chip{border:1px solid var(--line);background:rgba(9,12,20,.8);color:var(--text);border-radius:999px;padding:8px 12px;font-size:12px;cursor:pointer;transition:all .18s ease}
-.chip:hover{border-color:rgba(105,215,255,.55);transform:translateY(-1px)}
-.dashboard{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
-.metric{background:rgba(10,13,22,.92);border:1px solid var(--line);border-radius:14px;padding:12px}
-.metric .label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
-.metric .value{margin-top:6px;font-size:22px;font-weight:700;color:var(--text);line-height:1.1}
-.metric .sub{margin-top:4px;font-size:12px;color:var(--muted);line-height:1.5}
-.progress-wrap{margin-top:8px;height:10px;border-radius:999px;background:#1a2030;overflow:hidden;border:1px solid #2c3550}
-.progress-fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
-.progress-meta{display:flex;justify-content:space-between;gap:10px;margin-top:6px;font-size:11px;color:var(--muted)}
-.chat{min-height:0;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-right:4px}
-.msg{max-width:86%;padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.5;animation:fadeIn .16s ease}
-.msg.user{align-self:flex-end;background:rgba(58,92,150,.42);border:1px solid rgba(105,215,255,.18)}
-.msg.system{align-self:flex-start;background:rgba(18,21,35,.96);border:1px solid var(--line);color:#d7dcf8}
-.msg.ok{border-left:3px solid var(--good)}
-.msg.warn{border-left:3px solid var(--warn)}
-.msg.highlight{border-left:3px solid var(--accent-2)}
-@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-.input-bar{display:flex;gap:10px;padding-top:10px;flex-shrink:0}
-.input-bar input{flex:1;min-width:0;background:rgba(9,12,20,.92);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13px;outline:none}
-.input-bar input:focus{border-color:rgba(105,215,255,.55);box-shadow:0 0 0 3px rgba(105,215,255,.08)}
-.input-bar button{border:none;border-radius:12px;padding:0 18px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#fff;font-weight:700;cursor:pointer}
-.input-bar button:hover{filter:brightness(1.06)}
-.stack{display:flex;flex-direction:column;gap:14px;min-height:0}
-.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,.8fr);gap:14px}
-.story-list{display:grid;gap:10px}
-.story-item{padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:rgba(9,12,20,.92)}
-.story-item strong{display:block;font-size:13px;margin-bottom:4px}
-.story-item span{font-size:12px;color:var(--muted);line-height:1.5}
-.legend{display:flex;flex-wrap:wrap;gap:8px}
-.pill{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;font-size:12px;border:1px solid var(--line);background:rgba(9,12,20,.8)}
-.dot{width:8px;height:8px;border-radius:50%}
-.dot.graph{background:var(--good)}
-.dot.llm{background:var(--accent)}
-.dot.unsupported{background:var(--warn)}
-.dot.contradicted{background:var(--bad)}
-.conflict-feed{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
-.conflict-card{padding:14px;border-radius:16px;background:rgba(10,13,22,.95);border:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
-.conflict-card.contradicted{border-color:rgba(255,107,134,.5);box-shadow:0 0 0 1px rgba(255,107,134,.09) inset}
-.conflict-card.stale{opacity:.72}
-.conflict-card.low{border-style:dashed}
-.conflict-card h3{margin:0;font-size:14px}
-.conflict-card p{margin:0;color:var(--muted);font-size:12px;line-height:1.55}
-.conflict-tags{display:flex;flex-wrap:wrap;gap:6px}
-.trust-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-.trust-toolbar input,.trust-toolbar select{background:rgba(9,12,20,.92);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px;outline:none}
-.trust-toolbar input:focus,.trust-toolbar select:focus{border-color:rgba(105,215,255,.55);box-shadow:0 0 0 3px rgba(105,215,255,.08)}
-.trust-toolbar input{min-width:220px;flex:1}
-.trust-toolbar select{min-width:150px}
-.trust-toolbar button{border:none;border-radius:12px;padding:0 18px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#fff;font-weight:700;cursor:pointer}
-.trust-json{margin:0;white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.6;color:#d9e1ff;background:rgba(9,12,20,.9);border:1px solid var(--line);border-radius:14px;padding:14px;max-height:340px;overflow:auto}
-.trust-empty{font-size:12px;color:var(--muted);line-height:1.6}
-.trust-raw-details summary{cursor:pointer;font-size:12px;color:var(--muted);margin-bottom:8px;outline:none;user-select:none}
-.trust-raw-details summary:hover{color:var(--text)}
-.trust-list{display:grid;gap:10px}
-.trust-item{padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:rgba(9,12,20,.92)}
-.trust-item strong{display:block;font-size:13px;margin-bottom:4px}
-.trust-item span{font-size:12px;color:var(--muted);line-height:1.5}
-.trust-label{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;border:1px solid var(--line);background:#151c2b;color:#cfd5f7;font-size:11px;margin-right:6px;margin-top:4px}
-.tag{font-size:11px;padding:4px 8px;border-radius:999px;background:#151c2b;border:1px solid var(--line);color:#cfd5f7}
-.tag.bad{background:rgba(255,107,134,.08);border-color:rgba(255,107,134,.35);color:#ffd2db}
-.tag.warn{background:rgba(255,191,105,.08);border-color:rgba(255,191,105,.35);color:#ffe4b3}
-.tag.good{background:rgba(103,211,154,.08);border-color:rgba(103,211,154,.35);color:#cff4df}
-#graph-panel{position:relative;background:#070910}
-#graph-svg{width:100%;height:100%}
-.graph-controls{position:absolute;top:14px;right:14px;display:flex;flex-direction:column;gap:8px}
-.graph-controls button{padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:rgba(15,18,30,.92);color:var(--muted);cursor:pointer}
-.graph-controls button:hover{color:var(--text);border-color:rgba(105,215,255,.4)}
-.graph-info{position:absolute;left:14px;bottom:14px;max-width:320px;background:rgba(8,10,18,.92);border:1px solid var(--line);border-radius:14px;padding:12px;display:none;box-shadow:0 12px 30px rgba(0,0,0,.28)}
-.graph-info.visible{display:block}
-.graph-info strong{display:block;margin-bottom:6px;font-size:14px}
-.graph-info .meta{font-size:12px;color:var(--muted);line-height:1.5}
-.graph-info .edge-list{margin-top:8px;display:grid;gap:4px;max-height:150px;overflow-y:auto}
-.graph-info .edge-item{font-size:11px;color:#cfd5f7}
-.graph-stats{position:absolute;top:14px;left:14px;padding:8px 12px;border-radius:12px;background:rgba(8,10,18,.72);border:1px solid rgba(255,255,255,.06);font-size:11px;color:var(--muted)}
-.node circle{stroke-width:1.5;cursor:pointer;transition:transform .2s ease, opacity .2s ease, stroke .2s ease, fill .2s ease}
-.node text{font-size:10px;fill:#99a0c4;pointer-events:none;text-anchor:middle;dominant-baseline:central}
-.node:hover text{fill:var(--text)}
-.node.contradicted circle{stroke:var(--bad);stroke-width:2.4;fill:rgba(255,107,134,.12)}
-.node.stale circle{opacity:.45}
-.node.low-confidence circle{stroke-dasharray:4 3}
-.link{stroke-opacity:.46;stroke-width:1.05}
-.link.tur{stroke:#9d68ff}
-.link.yapabilir{stroke:#69d7ff}
-.link.benzer{stroke:#67d39a}
-.link.ozellik{stroke:#ffbf69}
-.link.hipotez{stroke:#ff9a5f;stroke-dasharray:4 2}
-.link.degil{stroke:#ff6b86;stroke-dasharray:6 3}
-.link.low-confidence{stroke-opacity:.24}
-.link.contradicted{stroke-width:1.8}
-@media (max-width: 980px){
+html,body{height:100%}
+body{
+  margin:0;
+  color:var(--text);
+  background:
+    radial-gradient(circle at 15% 12%, rgba(255,77,77,.18), transparent 24%),
+    radial-gradient(circle at 82% 20%, rgba(181,116,255,.15), transparent 20%),
+    radial-gradient(circle at 68% 85%, rgba(100,212,255,.08), transparent 22%),
+    linear-gradient(180deg,#050608 0%, #07090d 58%, #040506 100%);
+  font-family:"Manrope", system-ui, sans-serif;
+  overflow:hidden;
+}
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px) 0 0 / 88px 88px,
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px) 0 0 / 88px 88px;
+  mask-image:radial-gradient(circle at center, rgba(0,0,0,.56), transparent 82%);
+  opacity:.35;
+}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+::selection{background:rgba(255,77,77,.28)}
+.app-shell{
+  height:100vh;
+  display:grid;
+  grid-template-columns:272px minmax(0,1fr);
+}
+.sidebar{
+  display:flex;
+  flex-direction:column;
+  gap:18px;
+  padding:20px 16px 16px;
+  border-right:1px solid var(--line);
+  background:linear-gradient(180deg, rgba(6,8,10,.96), rgba(9,10,14,.84));
+  backdrop-filter:blur(18px);
+  min-width:0;
+}
+.brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:6px 8px 4px;
+}
+.brand-mark{
+  width:38px;
+  height:38px;
+  display:grid;
+  place-items:center;
+  border-radius:12px;
+  background:linear-gradient(180deg, rgba(255,77,77,.2), rgba(255,77,77,.08));
+  border:1px solid rgba(255,77,77,.34);
+  color:#ff6c66;
+  box-shadow:0 0 0 1px rgba(255,77,77,.08) inset;
+}
+.brand-title{
+  margin:0;
+  font-family:"Space Grotesk", sans-serif;
+  font-size:25px;
+  line-height:1;
+  letter-spacing:.1em;
+}
+.brand-subtitle{
+  margin-top:4px;
+  color:var(--muted);
+  font-size:11px;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+.nav{
+  display:grid;
+  gap:8px;
+}
+.nav-button{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  width:100%;
+  min-height:42px;
+  padding:0 14px;
+  border:1px solid transparent;
+  border-radius:14px;
+  background:transparent;
+  color:#dde4ff;
+  text-align:left;
+  transition:transform .16s ease, background .16s ease, border-color .16s ease, color .16s ease;
+}
+.nav-button i{font-size:18px;color:#b9c2dd}
+.nav-button span{font-size:14px;font-weight:600}
+.nav-button small{
+  margin-left:auto;
+  color:var(--muted);
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.06em;
+}
+.nav-button:hover{
+  transform:translateX(1px);
+  background:rgba(255,255,255,.03);
+  border-color:rgba(255,255,255,.08);
+}
+.nav-button.active{
+  background:
+    linear-gradient(90deg, rgba(255,77,77,.18), rgba(255,77,77,.04) 34%, rgba(255,255,255,.02));
+  border-color:rgba(255,77,77,.28);
+  box-shadow:0 0 0 1px rgba(255,77,77,.06) inset;
+}
+.nav-button.active i{color:#ff7e73}
+.sidebar-block{
+  padding:16px;
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:linear-gradient(180deg, rgba(18,20,26,.92), rgba(12,14,19,.92));
+  box-shadow:var(--shadow);
+}
+.status-card{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+}
+.status-dot{
+  width:11px;
+  height:11px;
+  border-radius:999px;
+  margin-top:5px;
+  background:var(--green);
+  box-shadow:0 0 0 6px rgba(105,211,141,.15);
+}
+.status-title{
+  margin:0 0 4px;
+  font-size:13px;
+  font-weight:800;
+}
+.status-copy{
+  margin:0;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.5;
+}
+.status-link{
+  margin-top:12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  width:100%;
+  padding:11px 12px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:rgba(255,255,255,.02);
+  color:var(--text);
+}
+.status-link span{font-size:12px;font-weight:700}
+.sidebar-footer{
+  margin-top:auto;
+  display:grid;
+  gap:12px;
+}
+.version{
+  color:var(--muted-2);
+  font-size:12px;
+  line-height:1.6;
+}
+.workspace{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  width:100%;
+  padding:11px 12px;
+  border-radius:14px;
+  background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+  border:1px solid var(--line);
+  color:var(--text);
+}
+.workspace small,.topbar-chip small,.pill small{display:block;color:var(--muted);font-size:10px;line-height:1.1}
+.workspace strong,.topbar-chip strong{font-size:13px}
+.main{
+  min-width:0;
+  padding:16px 18px 18px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  min-height:0;
+  overflow:auto;
+}
+.topbar{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  gap:14px;
+  align-items:center;
+}
+.topbar-search{
+  position:relative;
+}
+.topbar-search i{
+  position:absolute;
+  left:14px;
+  top:50%;
+  transform:translateY(-50%);
+  color:#97a0be;
+}
+.topbar-search input{
+  width:100%;
+  min-height:48px;
+  border-radius:16px;
+  border:1px solid var(--line);
+  background:linear-gradient(180deg, rgba(20,22,28,.92), rgba(13,15,20,.92));
+  color:var(--text);
+  padding:0 52px 0 42px;
+  outline:none;
+  box-shadow:0 1px 0 rgba(255,255,255,.03) inset;
+}
+.topbar-search input:focus,
+.control:focus,
+.queue-filter:focus,
+.command-input:focus,
+.select:focus{
+  border-color:rgba(255,77,77,.42);
+  box-shadow:0 0 0 4px rgba(255,77,77,.08);
+}
+.topbar-meta{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.topbar-chip{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-height:48px;
+  padding:0 14px;
+  border-radius:15px;
+  border:1px solid var(--line);
+  background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+  color:var(--text);
+}
+.topbar-chip.compact{padding:0 12px}
+.pill{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-height:48px;
+  padding:0 14px;
+  border-radius:15px;
+  border:1px solid var(--line);
+  background:linear-gradient(180deg, rgba(255,255,255,.025), rgba(255,255,255,.008));
+  color:var(--text);
+}
+.pill i,.topbar-chip i{font-size:18px;color:#bdc5df}
+.pill.good{border-color:rgba(105,211,141,.24)}
+.pill.good i{color:var(--green)}
+.pill.warning{border-color:rgba(255,187,77,.24)}
+.pill.warning i{color:var(--amber)}
+.pill.badge{
+  position:relative;
+  width:48px;
+  justify-content:center;
+}
+.pill.badge .count{
+  position:absolute;
+  top:-4px;
+  right:-4px;
+  min-width:18px;
+  height:18px;
+  border-radius:999px;
+  padding:0 5px;
+  display:grid;
+  place-items:center;
+  background:#ff514c;
+  color:white;
+  font-size:10px;
+  font-weight:800;
+  box-shadow:0 8px 16px rgba(255,81,76,.28);
+}
+.avatar{
+  width:32px;
+  height:32px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  font-size:12px;
+  font-weight:800;
+  background:linear-gradient(135deg, #f5b27a, #ff6b57 58%, #ff4141);
+  color:#180a08;
+  box-shadow:0 0 0 3px rgba(255,255,255,.04);
+}
+.hero{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:16px;
+  padding:20px 20px 18px;
+  border:1px solid var(--line);
+  border-radius:24px;
+  background:
+    linear-gradient(180deg, rgba(19,22,29,.96), rgba(11,13,18,.96));
+  box-shadow:var(--shadow);
+}
+.hero h1{
+  margin:0;
+  font-family:"Space Grotesk", sans-serif;
+  font-size:34px;
+  line-height:1.05;
+  letter-spacing:-.03em;
+}
+.hero p{
+  margin:8px 0 0;
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.65;
+  max-width:780px;
+}
+.hero p strong{color:#fff}
+.hero-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:16px;
+}
+.hero-meta{
+  display:grid;
+  justify-items:end;
+  gap:10px;
+  align-content:start;
+}
+.control{
+  min-height:44px;
+  border-radius:14px;
+  border:1px solid var(--line);
+  background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+  color:var(--text);
+  padding:0 14px;
+  outline:none;
+}
+.status-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  min-height:44px;
+  padding:0 14px;
+  border-radius:14px;
+  border:1px solid rgba(255,77,77,.34);
+  background:rgba(255,77,77,.08);
+  color:#ff8179;
+  font-weight:800;
+  letter-spacing:.02em;
+}
+.status-badge i{font-size:16px}
+.theme-switcher{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  width:240px;
+}
+.theme-switcher button{
+  min-height:40px;
+  border-radius:13px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.03);
+  color:var(--text);
+  padding:0 12px;
+  text-align:left;
+  transition:transform .15s ease, border-color .15s ease, background .15s ease;
+}
+.theme-switcher button small{
+  display:block;
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.1;
+  margin-top:2px;
+}
+.theme-switcher button.active{
+  border-color:rgba(255,77,77,.38);
+  background:linear-gradient(135deg, rgba(255,77,77,.18), rgba(255,139,77,.08));
+}
+.theme-switcher button:hover{transform:translateY(-1px)}
+.metrics{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:12px;
+}
+.metric-card{
+  padding:16px 16px 14px;
+  border-radius:20px;
+  border:1px solid var(--line);
+  background:linear-gradient(180deg, rgba(18,21,27,.96), rgba(12,14,18,.96));
+  box-shadow:var(--shadow);
+  overflow:hidden;
+}
+.metric-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.metric-icon{
+  width:36px;
+  height:36px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(255,255,255,.06);
+  font-size:18px;
+}
+.metric-icon.green{background:rgba(105,211,141,.12);color:var(--green)}
+.metric-icon.red{background:rgba(255,90,102,.12);color:var(--danger)}
+.metric-icon.amber{background:rgba(255,187,77,.12);color:var(--amber)}
+.metric-icon.violet{background:rgba(181,116,255,.12);color:var(--violet)}
+.metric-icon.cyan{background:rgba(100,212,255,.12);color:var(--cyan)}
+.metric-value{
+  margin-top:10px;
+  font-family:"Space Grotesk", sans-serif;
+  font-size:28px;
+  line-height:1;
+  letter-spacing:-.04em;
+}
+.metric-label{
+  margin-top:6px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.45;
+}
+.metric-delta{
+  margin-top:10px;
+  color:var(--muted);
+  font-size:11px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.metric-delta strong{font-weight:800}
+.metric-spark{
+  margin-top:10px;
+  height:32px;
+}
+.metric-spark svg{width:100%;height:100%}
+.command-panel,
+.panel{
+  border:1px solid var(--line);
+  border-radius:22px;
+  background:linear-gradient(180deg, rgba(18,21,27,.96), rgba(11,13,18,.96));
+  box-shadow:var(--shadow);
+}
+.command-panel{
+  padding:16px;
+}
+.panel-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:14px;
+}
+.panel-title{
+  margin:0;
+  font-family:"Space Grotesk", sans-serif;
+  font-size:18px;
+  letter-spacing:-.02em;
+}
+.panel-subtitle{
+  margin-top:4px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.5;
+}
+.panel-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  align-items:center;
+}
+.ghost-btn,
+.primary-btn,
+.danger-btn,
+.neutral-btn,
+.small-btn{
+  border:1px solid var(--line);
+  background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+  color:var(--text);
+  border-radius:14px;
+  min-height:44px;
+  padding:0 14px;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  transition:transform .15s ease, border-color .15s ease, background .15s ease, opacity .15s ease;
+}
+.ghost-btn:hover,
+.primary-btn:hover,
+.danger-btn:hover,
+.neutral-btn:hover,
+.small-btn:hover{
+  transform:translateY(-1px);
+  border-color:rgba(255,255,255,.16);
+}
+.primary-btn{
+  background:linear-gradient(135deg, #ff6057, #ff8d43);
+  border-color:transparent;
+  color:white;
+  box-shadow:0 12px 24px rgba(255,96,87,.24);
+}
+.danger-btn{
+  background:linear-gradient(180deg, rgba(255,90,102,.12), rgba(255,90,102,.06));
+  border-color:rgba(255,90,102,.25);
+  color:#ff938f;
+}
+.neutral-btn{
+  background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.01));
+}
+.small-btn{
+  min-height:38px;
+  border-radius:12px;
+  padding:0 12px;
+  font-size:12px;
+  font-weight:700;
+}
+.command-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 240px;
+  gap:12px;
+}
+.command-input{
+  width:100%;
+  min-height:112px;
+  resize:vertical;
+  border-radius:18px;
+  border:1px solid var(--line);
+  background:linear-gradient(180deg, rgba(12,14,18,.98), rgba(10,12,16,.98));
+  color:var(--text);
+  padding:14px 14px 14px 16px;
+  outline:none;
+  line-height:1.6;
+}
+.command-actions{
+  display:grid;
+  gap:10px;
+  align-content:start;
+}
+.command-result{
+  margin-top:12px;
+  padding:13px 14px;
+  border-radius:16px;
+  border:1px solid rgba(100,212,255,.18);
+  background:linear-gradient(180deg, rgba(100,212,255,.07), rgba(100,212,255,.03));
+}
+.command-result strong{
+  display:block;
+  margin-bottom:4px;
+  font-size:13px;
+}
+.command-result p{
+  margin:0;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.6;
+}
+.content-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1.55fr) 376px;
+  gap:16px;
+  min-height:0;
+  align-items:start;
+}
+.stack{
+  display:grid;
+  gap:16px;
+  min-width:0;
+}
+.queue-card,
+.info-card,
+.chart-card,
+.graph-card{
+  padding:16px;
+}
+.queue-toolbar{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:10px;
+}
+.queue-toolbar .queue-filter,
+.queue-toolbar .select{
+  min-height:42px;
+  border-radius:13px;
+  border:1px solid var(--line);
+  background:rgba(10,12,16,.96);
+  color:var(--text);
+  padding:0 12px;
+  outline:none;
+}
+.queue-toolbar .queue-filter{flex:1;min-width:220px}
+.queue-toolbar .select{min-width:150px}
+.queue-toolbar .stat-chip{
+  margin-left:auto;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:0 12px;
+  min-height:42px;
+  border-radius:13px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.02);
+  color:var(--muted);
+  font-size:12px;
+}
+.queue-wrap{
+  margin-top:14px;
+  overflow:auto;
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:rgba(8,10,14,.92);
+}
+.queue-table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:820px;
+}
+.queue-table thead th{
+  position:sticky;
+  top:0;
+  z-index:1;
+  background:linear-gradient(180deg, rgba(18,21,27,.98), rgba(14,16,20,.98));
+  color:var(--muted);
+  text-align:left;
+  padding:14px 14px;
+  font-size:11px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  border-bottom:1px solid var(--line);
+}
+.queue-table tbody td{
+  padding:14px 14px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  color:#dde3f7;
+  font-size:13px;
+  vertical-align:middle;
+}
+.queue-row{
+  transition:background .15s ease, box-shadow .15s ease, transform .15s ease;
+  cursor:pointer;
+}
+.queue-row:hover{
+  background:rgba(255,255,255,.025);
+}
+.queue-row.active{
+  background:linear-gradient(90deg, rgba(255,77,77,.16), rgba(255,77,77,.05) 42%, rgba(255,255,255,.02));
+  box-shadow:inset 0 0 0 1px rgba(255,77,77,.26);
+}
+.queue-name{
+  display:grid;
+  gap:3px;
+}
+.queue-name strong{
+  font-size:13px;
+}
+.queue-name span,
+.queue-context{
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.45;
+}
+.badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:26px;
+  padding:0 10px;
+  border-radius:999px;
+  border:1px solid transparent;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.03em;
+}
+.badge.review{background:rgba(255,187,77,.12);border-color:rgba(255,187,77,.32);color:#ffd18b}
+.badge.safe{background:rgba(105,211,141,.12);border-color:rgba(105,211,141,.28);color:#9fe5b6}
+.badge.high{background:rgba(255,90,102,.12);border-color:rgba(255,90,102,.28);color:#ff9a98}
+.badge.medium{background:rgba(255,153,66,.12);border-color:rgba(255,153,66,.28);color:#ffbf8e}
+.badge.low{background:rgba(100,212,255,.1);border-color:rgba(100,212,255,.24);color:#9be4ff}
+.badge.match{background:rgba(105,211,141,.12);border-color:rgba(105,211,141,.24);color:#b1f0c8}
+.badge.muted{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.08);color:#c6cde3}
+.queue-footer{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+  padding:12px 2px 0;
+  color:var(--muted);
+  font-size:12px;
+}
+.right-rail{
+  position:sticky;
+  top:16px;
+  display:grid;
+  gap:16px;
+  min-width:0;
+}
+.detail-card{
+  padding:16px;
+  border-radius:22px;
+  border:1px solid var(--line);
+  background:linear-gradient(180deg, rgba(18,21,27,.96), rgba(11,13,18,.96));
+  box-shadow:var(--shadow);
+}
+.detail-header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+}
+.detail-title{
+  display:flex;
+  gap:12px;
+  align-items:center;
+}
+.detail-icon{
+  width:40px;
+  height:40px;
+  border-radius:14px;
+  display:grid;
+  place-items:center;
+  background:linear-gradient(180deg, rgba(255,77,77,.14), rgba(255,77,77,.06));
+  border:1px solid rgba(255,77,77,.2);
+  color:#ff7f76;
+  font-size:18px;
+}
+.detail-name{
+  margin:0;
+  font-family:"Space Grotesk", sans-serif;
+  font-size:18px;
+  line-height:1.1;
+}
+.detail-meta{
+  margin-top:4px;
+  color:var(--muted);
+  font-size:12px;
+}
+.close-btn{
+  width:34px;
+  height:34px;
+  border-radius:10px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.03);
+  color:var(--muted);
+}
+.detail-stack{
+  display:grid;
+  gap:12px;
+  margin-top:14px;
+}
+.detail-callout{
+  padding:14px;
+  border-radius:18px;
+  border:1px solid rgba(255,187,77,.26);
+  background:linear-gradient(180deg, rgba(255,187,77,.08), rgba(255,187,77,.03));
+}
+.detail-callout strong{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:14px;
+}
+.detail-callout p{
+  margin:6px 0 0;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.6;
+}
+.evidence-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:10px;
+}
+.section-label{
+  color:var(--muted);
+  font-size:11px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+.detail-list{
+  display:grid;
+  gap:10px;
+}
+.detail-item{
+  padding:12px 13px;
+  border-radius:15px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.02);
+}
+.detail-item strong{
+  display:block;
+  margin-bottom:4px;
+  font-size:13px;
+}
+.detail-item p{
+  margin:0;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.5;
+}
+.inline-tags{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:8px;
+}
+.inline-tag{
+  padding:5px 8px;
+  border-radius:999px;
+  background:rgba(255,255,255,.04);
+  border:1px solid var(--line);
+  color:#d2d9ee;
+  font-size:11px;
+}
+.policy-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.policy-row span{
+  color:var(--muted);
+  font-size:12px;
+}
+.policy-row strong{font-size:13px}
+.policy-grid{
+  display:grid;
+  gap:10px;
+  margin-top:12px;
+}
+.policy-chip{
+  padding:12px 13px;
+  border-radius:15px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.02);
+}
+.policy-chip .top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.policy-chip p{
+  margin:7px 0 0;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.5;
+}
+.confidence{
+  margin-top:8px;
+  height:12px;
+  border-radius:999px;
+  background:#1a1e26;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.05);
+}
+.confidence span{
+  display:block;
+  height:100%;
+  border-radius:inherit;
+  background:linear-gradient(90deg, #6fd48e, #a7df88 52%, #ffd44d);
+}
+.detail-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:14px;
+}
+.detail-note{
+  color:var(--muted);
+  font-size:11px;
+  text-align:center;
+  margin-top:10px;
+}
+.bottom-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+}
+.chart-card,
+.graph-card{
+  padding:16px;
+}
+.chart-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:10px;
+}
+.chart-body{
+  display:grid;
+  grid-template-columns:160px minmax(0,1fr);
+  gap:10px;
+  align-items:center;
+}
+.chart-legend{
+  display:grid;
+  gap:8px;
+}
+.legend-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  color:var(--muted);
+  font-size:12px;
+}
+.legend-left{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:#d8deee;
+}
+.legend-swatch{
+  width:9px;
+  height:9px;
+  border-radius:999px;
+  flex:none;
+}
+.timeline{
+  display:grid;
+  gap:12px;
+}
+.timeline-item{
+  display:grid;
+  grid-template-columns:18px minmax(0,1fr) auto;
+  gap:10px;
+  align-items:start;
+}
+.timeline-dot{
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  margin-top:4px;
+  background:#7f8bb0;
+  box-shadow:0 0 0 5px rgba(255,255,255,.04);
+}
+.timeline-dot.done{background:var(--green);box-shadow:0 0 0 5px rgba(105,211,141,.08)}
+.timeline-dot.current{background:var(--amber);box-shadow:0 0 0 5px rgba(255,187,77,.08)}
+.timeline-dot.pending{background:var(--muted-2)}
+.timeline-item strong{
+  display:block;
+  font-size:13px;
+  margin-bottom:4px;
+}
+.timeline-item p{
+  margin:0;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.5;
+}
+.timeline-item .state{
+  color:var(--muted);
+  font-size:11px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+.alert-list{
+  display:grid;
+  gap:10px;
+}
+.alert-item{
+  padding:12px 13px;
+  border-radius:15px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.02);
+}
+.alert-item strong{
+  display:block;
+  margin-bottom:4px;
+  font-size:13px;
+}
+.alert-item p{
+  margin:0;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.5;
+}
+.alert-item.high{border-color:rgba(255,90,102,.24)}
+.alert-item.medium{border-color:rgba(255,187,77,.24)}
+.alert-item.low{border-color:rgba(100,212,255,.18)}
+.receipt-list{
+  display:grid;
+  gap:10px;
+}
+.receipt-item{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+  padding:12px 13px;
+  border-radius:15px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.02);
+}
+.receipt-item strong{
+  display:block;
+  font-size:13px;
+  margin-bottom:4px;
+}
+.receipt-item p{
+  margin:0;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.5;
+}
+.graph-card{
+  position:relative;
+  min-height:420px;
+}
+.graph-toolbar{
+  position:absolute;
+  top:16px;
+  right:16px;
+  display:flex;
+  gap:8px;
+  z-index:2;
+}
+.graph-toolbar .small-btn{
+  background:rgba(10,12,16,.84);
+}
+.graph-stats{
+  position:absolute;
+  top:16px;
+  left:16px;
+  z-index:2;
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.graph-stat{
+  padding:8px 10px;
+  border-radius:999px;
+  background:rgba(10,12,16,.84);
+  border:1px solid var(--line);
+  color:var(--muted);
+  font-size:11px;
+  font-weight:700;
+}
+.graph-surface{
+  width:100%;
+  height:100%;
+  min-height:360px;
+}
+.graph-surface svg{
+  width:100%;
+  height:100%;
+  display:block;
+}
+.node circle{
+  cursor:pointer;
+  transition:transform .16s ease, stroke .16s ease, fill .16s ease, opacity .16s ease;
+}
+.node:hover circle{transform:scale(1.06)}
+.node text{
+  font-size:10px;
+  fill:#8f98ba;
+  pointer-events:none;
+  text-anchor:middle;
+}
+.link{
+  stroke-opacity:.48;
+  stroke-width:1;
+}
+.link.tur{stroke:var(--violet)}
+.link.yapabilir{stroke:var(--cyan)}
+.link.benzer{stroke:var(--green)}
+.link.ozellik{stroke:var(--amber)}
+.link.hipotez{stroke:#ff8f5c;stroke-dasharray:4 3}
+.link.degil{stroke:var(--danger);stroke-dasharray:6 3}
+.graph-tip{
+  position:absolute;
+  left:16px;
+  bottom:16px;
+  width:min(340px, calc(100% - 32px));
+  padding:12px 13px;
+  border-radius:16px;
+  border:1px solid var(--line);
+  background:rgba(9,11,15,.92);
+  display:none;
+}
+.graph-tip.visible{display:block}
+.graph-tip strong{display:block;font-size:13px;margin-bottom:4px}
+.graph-tip p{margin:0;color:var(--muted);font-size:12px;line-height:1.55}
+body[data-theme="fluid"]{
+  --bg:#edf4f9;
+  --bg-2:#f6f9fc;
+  --text:#152235;
+  --muted:#5c6c80;
+  --muted-2:#7d8da1;
+  --line:rgba(130,153,176,.24);
+  --line-2:rgba(130,153,176,.34);
+  --accent:#51c9ef;
+  --accent-2:#8ddff4;
+  --green:#54c99c;
+  --amber:#e1a12b;
+  --violet:#8c7bff;
+  --cyan:#53c8e7;
+  background:
+    radial-gradient(circle at 12% 10%, rgba(81,201,239,.22), transparent 18%),
+    radial-gradient(circle at 84% 16%, rgba(141,223,244,.2), transparent 17%),
+    linear-gradient(180deg, #f8fbfe 0%, #eef4f8 55%, #e6edf3 100%);
+}
+body[data-theme="architectural"]{
+  --bg:#f4f3f0;
+  --bg-2:#fbfaf8;
+  --text:#111111;
+  --muted:#565656;
+  --muted-2:#757575;
+  --line:rgba(0,0,0,.12);
+  --line-2:rgba(0,0,0,.18);
+  --accent:#121212;
+  --accent-2:#444444;
+  --green:#4b8f5d;
+  --amber:#b58635;
+  --violet:#7b6cf0;
+  --cyan:#4f8fb8;
+  background:
+    radial-gradient(circle at 14% 14%, rgba(255,255,255,.95), transparent 20%),
+    radial-gradient(circle at 88% 12%, rgba(0,0,0,.05), transparent 18%),
+    linear-gradient(180deg, #f8f7f3 0%, #f3f1ed 56%, #ebe9e4 100%);
+}
+body[data-theme="avant"]{
+  --bg:#f6f4f0;
+  --bg-2:#fcfbf8;
+  --text:#181315;
+  --muted:#665b5d;
+  --muted-2:#87797c;
+  --line:rgba(63,44,48,.14);
+  --line-2:rgba(63,44,48,.22);
+  --accent:#e94f4f;
+  --accent-2:#ff8a52;
+  --green:#5dc98c;
+  --amber:#e09d3b;
+  --violet:#b66ef5;
+  --cyan:#60c8ef;
+  background:
+    radial-gradient(circle at 16% 12%, rgba(233,79,79,.2), transparent 17%),
+    radial-gradient(circle at 84% 20%, rgba(182,110,245,.18), transparent 18%),
+    radial-gradient(circle at 60% 82%, rgba(96,200,239,.16), transparent 22%),
+    linear-gradient(180deg, #fcf9f7 0%, #f4f0ec 58%, #efe7e1 100%);
+}
+body[data-theme="fluid"] .sidebar,
+body[data-theme="architectural"] .sidebar,
+body[data-theme="avant"] .sidebar{
+  background:linear-gradient(180deg, rgba(255,255,255,.72), rgba(245,247,250,.74));
+}
+body[data-theme="fluid"] .sidebar,
+body[data-theme="fluid"] .main,
+body[data-theme="fluid"] .metric-card,
+body[data-theme="fluid"] .command-panel,
+body[data-theme="fluid"] .panel,
+body[data-theme="fluid"] .detail-card,
+body[data-theme="fluid"] .sidebar-block,
+body[data-theme="fluid"] .workspace,
+body[data-theme="fluid"] .topbar-chip,
+body[data-theme="fluid"] .pill,
+body[data-theme="fluid"] .control,
+body[data-theme="fluid"] .status-link,
+body[data-theme="fluid"] .queue-toolbar .queue-filter,
+body[data-theme="fluid"] .queue-toolbar .select,
+body[data-theme="fluid"] .command-input,
+body[data-theme="fluid"] .queue-wrap,
+body[data-theme="fluid"] .chart-card,
+body[data-theme="fluid"] .graph-card,
+body[data-theme="fluid"] .detail-item,
+body[data-theme="fluid"] .policy-chip,
+body[data-theme="fluid"] .alert-item,
+body[data-theme="fluid"] .receipt-item,
+body[data-theme="fluid"] .graph-tip{
+  background:rgba(255,255,255,.74) !important;
+  border-color:rgba(255,255,255,.86) !important;
+  box-shadow:0 16px 40px rgba(122,143,163,.14) !important;
+  backdrop-filter:blur(16px);
+}
+body[data-theme="architectural"] .sidebar,
+body[data-theme="architectural"] .main,
+body[data-theme="architectural"] .metric-card,
+body[data-theme="architectural"] .command-panel,
+body[data-theme="architectural"] .panel,
+body[data-theme="architectural"] .detail-card,
+body[data-theme="architectural"] .sidebar-block,
+body[data-theme="architectural"] .workspace,
+body[data-theme="architectural"] .topbar-chip,
+body[data-theme="architectural"] .pill,
+body[data-theme="architectural"] .control,
+body[data-theme="architectural"] .status-link,
+body[data-theme="architectural"] .queue-toolbar .queue-filter,
+body[data-theme="architectural"] .queue-toolbar .select,
+body[data-theme="architectural"] .command-input,
+body[data-theme="architectural"] .queue-wrap,
+body[data-theme="architectural"] .chart-card,
+body[data-theme="architectural"] .graph-card,
+body[data-theme="architectural"] .detail-item,
+body[data-theme="architectural"] .policy-chip,
+body[data-theme="architectural"] .alert-item,
+body[data-theme="architectural"] .receipt-item,
+body[data-theme="architectural"] .graph-tip{
+  background:rgba(255,255,255,.86) !important;
+  border-color:rgba(255,255,255,.92) !important;
+  box-shadow:0 14px 30px rgba(26,27,29,.12) !important;
+  backdrop-filter:blur(12px);
+}
+body[data-theme="avant"] .sidebar,
+body[data-theme="avant"] .main,
+body[data-theme="avant"] .metric-card,
+body[data-theme="avant"] .command-panel,
+body[data-theme="avant"] .panel,
+body[data-theme="avant"] .detail-card,
+body[data-theme="avant"] .sidebar-block,
+body[data-theme="avant"] .workspace,
+body[data-theme="avant"] .topbar-chip,
+body[data-theme="avant"] .pill,
+body[data-theme="avant"] .control,
+body[data-theme="avant"] .status-link,
+body[data-theme="avant"] .queue-toolbar .queue-filter,
+body[data-theme="avant"] .queue-toolbar .select,
+body[data-theme="avant"] .command-input,
+body[data-theme="avant"] .queue-wrap,
+body[data-theme="avant"] .chart-card,
+body[data-theme="avant"] .graph-card,
+body[data-theme="avant"] .detail-item,
+body[data-theme="avant"] .policy-chip,
+body[data-theme="avant"] .alert-item,
+body[data-theme="avant"] .receipt-item,
+body[data-theme="avant"] .graph-tip{
+  background:rgba(255,255,255,.76) !important;
+  border-color:rgba(63,44,48,.12) !important;
+  box-shadow:0 18px 42px rgba(119,95,97,.13) !important;
+  backdrop-filter:blur(15px);
+}
+body[data-theme="fluid"] .hero,
+body[data-theme="architectural"] .hero,
+body[data-theme="avant"] .hero{
+  background:rgba(255,255,255,.72) !important;
+  border-color:rgba(255,255,255,.88) !important;
+}
+body[data-theme="architectural"] .hero h1{
+  font-family:"Playfair Display", serif !important;
+  font-size:38px;
+  color:#111 !important;
+}
+body[data-theme="architectural"] .panel-title,
+body[data-theme="architectural"] .detail-name,
+body[data-theme="architectural"] .brand-title{
+  font-family:"Playfair Display", serif !important;
+  color:#111 !important;
+}
+body[data-theme="architectural"] .topbar-chip,
+body[data-theme="architectural"] .workspace,
+body[data-theme="architectural"] .control,
+body[data-theme="architectural"] .status-link,
+body[data-theme="architectural"] .queue-toolbar .queue-filter,
+body[data-theme="architectural"] .queue-toolbar .select,
+body[data-theme="architectural"] .command-input{
+  background:rgba(255,255,255,.88) !important;
+  color:#111 !important;
+}
+body[data-theme="architectural"] .sidebar{
+  border-right-color:rgba(0,0,0,.08);
+}
+body[data-theme="architectural"] .nav-button{
+  color:#111;
+}
+body[data-theme="architectural"] .nav-button i{
+  color:#6a6a6a;
+}
+body[data-theme="architectural"] .nav-button.active{
+  color:#111;
+  background:rgba(255,255,255,.9) !important;
+  border-color:rgba(0,0,0,.08) !important;
+  box-shadow:0 8px 18px rgba(0,0,0,.08) !important;
+}
+body[data-theme="architectural"] .nav-button.active i{
+  color:#111;
+}
+body[data-theme="fluid"] .queue-table thead th,
+body[data-theme="architectural"] .queue-table thead th,
+body[data-theme="avant"] .queue-table thead th{
+  background:rgba(255,255,255,.9) !important;
+  color:var(--muted) !important;
+}
+body[data-theme="fluid"] .queue-table tbody td,
+body[data-theme="architectural"] .queue-table tbody td,
+body[data-theme="avant"] .queue-table tbody td,
+body[data-theme="fluid"] .panel-subtitle,
+body[data-theme="architectural"] .panel-subtitle,
+body[data-theme="avant"] .panel-subtitle,
+body[data-theme="fluid"] .status-copy,
+body[data-theme="architectural"] .status-copy,
+body[data-theme="avant"] .status-copy,
+body[data-theme="fluid"] .metric-label,
+body[data-theme="architectural"] .metric-label,
+body[data-theme="avant"] .metric-label,
+body[data-theme="fluid"] .metric-delta,
+body[data-theme="architectural"] .metric-delta,
+body[data-theme="avant"] .metric-delta,
+body[data-theme="fluid"] .queue-name span,
+body[data-theme="architectural"] .queue-name span,
+body[data-theme="avant"] .queue-name span,
+body[data-theme="fluid"] .queue-context,
+body[data-theme="architectural"] .queue-context,
+body[data-theme="avant"] .queue-context,
+body[data-theme="fluid"] .detail-meta,
+body[data-theme="architectural"] .detail-meta,
+body[data-theme="avant"] .detail-meta,
+body[data-theme="fluid"] .detail-note,
+body[data-theme="architectural"] .detail-note,
+body[data-theme="avant"] .detail-note,
+body[data-theme="fluid"] .alert-item p,
+body[data-theme="architectural"] .alert-item p,
+body[data-theme="avant"] .alert-item p,
+body[data-theme="fluid"] .receipt-item p,
+body[data-theme="architectural"] .receipt-item p,
+body[data-theme="avant"] .receipt-item p,
+body[data-theme="fluid"] .timeline-item p,
+body[data-theme="architectural"] .timeline-item p,
+body[data-theme="avant"] .timeline-item p,
+body[data-theme="fluid"] .policy-chip p,
+body[data-theme="architectural"] .policy-chip p,
+body[data-theme="avant"] .policy-chip p,
+body[data-theme="fluid"] .version,
+body[data-theme="architectural"] .version,
+body[data-theme="avant"] .version,
+body[data-theme="fluid"] .graph-stat,
+body[data-theme="architectural"] .graph-stat,
+body[data-theme="avant"] .graph-stat{
+  color:var(--muted) !important;
+}
+body[data-theme="fluid"] .hero h1,
+body[data-theme="architectural"] .hero h1,
+body[data-theme="avant"] .hero h1,
+body[data-theme="fluid"] .panel-title,
+body[data-theme="architectural"] .panel-title,
+body[data-theme="avant"] .panel-title,
+body[data-theme="fluid"] .detail-name,
+body[data-theme="architectural"] .detail-name,
+body[data-theme="avant"] .detail-name,
+body[data-theme="fluid"] .metric-value,
+body[data-theme="architectural"] .metric-value,
+body[data-theme="avant"] .metric-value,
+body[data-theme="fluid"] .brand-title,
+body[data-theme="architectural"] .brand-title,
+body[data-theme="avant"] .brand-title,
+body[data-theme="fluid"] .workspace strong,
+body[data-theme="architectural"] .workspace strong,
+body[data-theme="avant"] .workspace strong,
+body[data-theme="fluid"] .topbar-chip strong,
+body[data-theme="architectural"] .topbar-chip strong,
+body[data-theme="avant"] .topbar-chip strong,
+body[data-theme="fluid"] .pill strong,
+body[data-theme="architectural"] .pill strong,
+body[data-theme="avant"] .pill strong{
+  color:var(--text) !important;
+}
+body[data-theme="fluid"] .metric-card .metric-icon,
+body[data-theme="architectural"] .metric-card .metric-icon,
+body[data-theme="avant"] .metric-card .metric-icon{
+  box-shadow:none;
+}
+body[data-theme="fluid"] .brand-mark,
+body[data-theme="architectural"] .brand-mark,
+body[data-theme="avant"] .brand-mark{
+  background:rgba(255,255,255,.8);
+  border-color:rgba(255,255,255,.9);
+}
+body[data-theme="fluid"] .primary-btn,
+body[data-theme="architectural"] .primary-btn,
+body[data-theme="avant"] .primary-btn{
+  box-shadow:0 12px 26px rgba(0,0,0,.12);
+}
+body[data-theme="fluid"] .status-badge,
+body[data-theme="architectural"] .status-badge,
+body[data-theme="avant"] .status-badge{
+  background:rgba(255,255,255,.74);
+}
+body[data-theme="fluid"] .graph-tip,
+body[data-theme="architectural"] .graph-tip,
+body[data-theme="avant"] .graph-tip{
+  box-shadow:0 14px 36px rgba(78,93,109,.18) !important;
+}
+body[data-theme="fluid"] .nav-button.active,
+body[data-theme="architectural"] .nav-button.active,
+body[data-theme="avant"] .nav-button.active{
+  background:linear-gradient(90deg, rgba(81,201,239,.18), rgba(255,255,255,.05)) !important;
+  border-color:rgba(81,201,239,.3) !important;
+}
+body[data-theme="architectural"] .nav-button.active{
+  background:linear-gradient(90deg, rgba(0,0,0,.08), rgba(255,255,255,.06)) !important;
+  border-color:rgba(0,0,0,.16) !important;
+}
+body[data-theme="avant"] .nav-button.active{
+  background:linear-gradient(90deg, rgba(233,79,79,.14), rgba(255,138,82,.08)) !important;
+  border-color:rgba(233,79,79,.28) !important;
+}
+body[data-theme="fluid"] .theme-switcher button.active{
+  border-color:rgba(81,201,239,.48);
+  background:linear-gradient(135deg, rgba(81,201,239,.18), rgba(141,223,244,.08));
+}
+body[data-theme="architectural"] .theme-switcher button.active{
+  border-color:rgba(17,17,17,.24);
+  background:linear-gradient(135deg, rgba(17,17,17,.09), rgba(255,255,255,.08));
+}
+body[data-theme="avant"] .theme-switcher button.active{
+  border-color:rgba(233,79,79,.34);
+  background:linear-gradient(135deg, rgba(233,79,79,.14), rgba(182,110,245,.08));
+}
+@media (max-width: 1360px){
+  .content-grid{grid-template-columns:minmax(0,1fr) 340px}
+  .metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .bottom-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width: 1120px){
   body{overflow:auto}
-  .shell,.split{grid-template-columns:1fr}
-  #graph-panel{min-height:70vh}
+  .app-shell{height:auto;grid-template-columns:1fr}
+  .sidebar{
+    border-right:0;
+    border-bottom:1px solid var(--line);
+  }
+  .nav{
+    grid-auto-flow:column;
+    grid-auto-columns:max-content;
+    overflow:auto;
+    padding-bottom:4px;
+  }
+  .sidebar-footer{margin-top:0}
+  .main{overflow:visible}
+  .content-grid{grid-template-columns:1fr}
+  .right-rail{position:static}
+  .topbar{grid-template-columns:1fr}
+  .topbar-meta{justify-content:flex-start}
+}
+@media (max-width: 720px){
+  .metrics{grid-template-columns:1fr 1fr}
+  .bottom-grid{grid-template-columns:1fr}
+  .hero{grid-template-columns:1fr}
+  .hero-meta{justify-items:start}
+  .command-grid{grid-template-columns:1fr}
+  .queue-table{min-width:760px}
+  .chart-body{grid-template-columns:1fr}
+  .detail-actions{grid-template-columns:1fr}
 }
 </style>
 </head>
-<body>
-<header class="header">
-  <div class="brand">
-    <h1>AXIOM</h1>
-    <div class="subtitle">AXIOM cevap vermez. Düşünceni yargılar.</div>
-  </div>
-  <div class="header-stats" id="hdr-stats">yükleniyor...</div>
-</header>
+<body data-theme="architectural">
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark"><i class="ri-shield-keyhole-fill"></i></div>
+      <div>
+        <h1 class="brand-title">AXIOM</h1>
+        <div class="brand-subtitle">Trust control layer</div>
+      </div>
+    </div>
 
-<nav class="tabs">
-  <button class="tab active" data-tab="judge">Fikrini Yargılat</button>
-  <button class="tab" data-tab="advocate">Şeytan'ın Avukatı</button>
-  <button class="tab" data-tab="conflicts">Geçmiş Çelişkiler</button>
-  <button class="tab" data-tab="graph">Hafıza / Graph</button>
-  <button class="tab" data-tab="trust">Trust Dashboard</button>
-</nav>
+    <div class="workspace">
+      <div>
+        <small>Workspace</small>
+        <strong id="sidebar-workspace">Acme Research</strong>
+      </div>
+      <i class="ri-arrow-down-s-line"></i>
+    </div>
 
-<section class="panel active" id="judge-panel">
-  <div class="shell">
-    <div class="stack">
-      <div class="card hero">
-        <h2>Fikrini yargılat</h2>
-        <p>Bir iddia yaz, AXIOM graf ile doğrulasın. Bilmediğini uydurmasın, bildiğini ayırıp sonucu açıkça raporlasın.</p>
+    <nav class="nav" id="nav">
+      <button class="nav-button active" data-target="overview-section"><i class="ri-layout-grid-line"></i><span>Overview</span><small>01</small></button>
+      <button class="nav-button" data-target="queue-section"><i class="ri-stack-line"></i><span>Actions</span><small>27</small></button>
+      <button class="nav-button" data-target="memory-section"><i class="ri-brain-line"></i><span>Memory</span><small>04</small></button>
+      <button class="nav-button" data-target="policy-section"><i class="ri-shield-check-line"></i><span>Policies</span><small>12</small></button>
+      <button class="nav-button" data-target="receipts-section"><i class="ri-receipt-line"></i><span>Receipts</span><small>18</small></button>
+      <button class="nav-button" data-target="graph-section"><i class="ri-node-tree"></i><span>Graph</span><small>150</small></button>
+      <button class="nav-button" data-target="settings-section"><i class="ri-settings-3-line"></i><span>Settings</span><small>05</small></button>
+    </nav>
+
+    <div class="sidebar-block">
+      <div class="status-card">
+        <div class="status-dot"></div>
+        <div>
+          <p class="status-title">System Status</p>
+          <p class="status-copy" id="system-status-copy">Loading status...</p>
+        </div>
+      </div>
+      <button class="status-link" type="button">
+        <span>All systems operational</span>
+        <i class="ri-arrow-right-s-line"></i>
+      </button>
+    </div>
+
+    <div class="sidebar-block">
+      <div class="status-card">
+        <div class="status-dot" style="background:var(--cyan);box-shadow:0 0 0 6px rgba(100,212,255,.12)"></div>
+        <div>
+          <p class="status-title">Local-First Mode</p>
+          <p class="status-copy">No external calls. Everything stays on this machine.</p>
+        </div>
+      </div>
+      <button class="status-link" type="button">
+        <span>View privacy contract</span>
+        <i class="ri-arrow-right-s-line"></i>
+      </button>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="version" id="footer-version">AXIOM v0.7.0<br>© 2025 AXIOM Labs</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="topbar-chip" type="button">
+        <i class="ri-building-4-line"></i>
+        <div>
+          <small>Workspace</small>
+          <strong id="workspace-name">Acme Research</strong>
+        </div>
+        <i class="ri-arrow-down-s-line"></i>
+      </button>
+
+      <div class="topbar-search">
+        <i class="ri-search-line"></i>
+        <input id="search-input" type="search" placeholder="Search agents, actions, tools, policies..." autocomplete="off">
+      </div>
+
+      <div class="topbar-meta">
+        <div class="pill good"><i class="ri-shield-check-line"></i><div><small>Local-First</small><strong>Enabled</strong></div></div>
+        <button class="pill badge" type="button" aria-label="Notifications"><i class="ri-notification-3-line"></i><span class="count">3</span></button>
+        <button class="topbar-chip compact" type="button">
+          <div class="avatar">AM</div>
+          <div>
+            <small>Administrator</small>
+            <strong>Alex Morgan</strong>
+          </div>
+          <i class="ri-arrow-down-s-line"></i>
+        </button>
+      </div>
+    </header>
+
+    <section class="hero" id="overview-section">
+      <div>
+        <h1>Trust Control Center</h1>
+        <p>AXIOM judges actions before execution. <strong>You stay in control.</strong> The layout is tuned for fast scanning, strong hierarchy, and obvious review states.</p>
         <div class="hero-actions">
-          <button class="chip" data-preset="öğret: kedi hayvandır">Öğret</button>
-          <button class="chip" data-preset="sor: kedi nedir">Sor</button>
-          <button class="chip" data-preset="llm-sor: kedi neden uyur?">LLM sor</button>
-          <button class="chip" data-preset="yukle: notlar.md">Yükle</button>
+          <button class="ghost-btn" type="button" data-preset="review: show pending SQL actions"><i class="ri-filter-3-line"></i>Review queue</button>
+          <button class="ghost-btn" type="button" data-preset="search memory for policy contradictions"><i class="ri-brain-line"></i>Search memory</button>
+          <button class="ghost-btn" type="button" data-preset="challenge the current policy set"><i class="ri-git-branch-line"></i>Devil's advocate</button>
         </div>
       </div>
-      <div class="dashboard" id="judge-dashboard"></div>
-      <div class="card">
-        <div class="chat" id="judge-chat"></div>
-        <div class="input-bar">
-          <input id="judge-input" placeholder="öğret:, sor:, llm-sor:, yükle: ..." maxlength="500" />
-          <button id="judge-send">Gönder</button>
+      <div class="hero-meta">
+        <select class="control" id="policy-set">
+          <option>Acme Default</option>
+          <option>Research Safety</option>
+          <option>Production Lockdown</option>
+        </select>
+        <div class="status-badge"><i class="ri-shield-star-line"></i><span>Policy Status</span> Enforced</div>
+        <div class="theme-switcher" id="theme-switcher" aria-label="Theme selector">
+          <button type="button" data-theme-choice="dark"><small>Theme 01</small>Dark</button>
+          <button type="button" data-theme-choice="architectural" class="active"><small>Theme 02</small>Architectural</button>
+          <button type="button" data-theme-choice="fluid"><small>Theme 03</small>Fluid</button>
+          <button type="button" data-theme-choice="avant"><small>Theme 04</small>Avant-Garde</button>
         </div>
       </div>
-    </div>
+    </section>
 
-    <div class="stack">
-      <div class="card">
-        <strong style="display:block;font-size:14px;margin-bottom:8px">Anlamlı çıktı</strong>
-        <div class="story-list">
-          <div class="story-item"><strong>graph-backed</strong><span>Bilgi graf üzerinde doğrulanıyor.</span></div>
-          <div class="story-item"><strong>llm-assisted</strong><span>LLM destekli ama AXIOM bunu etiketliyor.</span></div>
-          <div class="story-item"><strong>unsupported</strong><span>Graf bilmiyor; uydurma yok.</span></div>
-          <div class="story-item"><strong>contradicted</strong><span>Graf ile çelişen cevaplar otomatik öğrenilmez.</span></div>
+    <section class="metrics" id="metrics-strip"></section>
+
+    <section class="command-panel" id="command-section">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Quick Review</h2>
+          <div class="panel-subtitle">Run a statement through the verifier without leaving the dashboard.</div>
+        </div>
+        <div class="panel-actions">
+          <button class="small-btn neutral-btn" id="load-example" type="button"><i class="ri-sparkling-2-line"></i>Load example</button>
+          <button class="small-btn ghost-btn" id="clear-review" type="button"><i class="ri-eraser-line"></i>Clear</button>
         </div>
       </div>
-      <div class="card">
-        <strong style="display:block;font-size:14px;margin-bottom:8px">Hızlı eylemler</strong>
-        <div class="story-list">
-          <div class="story-item"><strong>Şeytan'ın Avukatı</strong><span>Bir fikri en güçlü karşı argümanla zorla.</span></div>
-          <div class="story-item"><strong>Geçmiş Çelişkiler</strong><span>Eski kararları ve zayıf kanıtları takip et.</span></div>
-          <div class="story-item"><strong>Hafıza / Graph</strong><span>Düğümler, kenarlar ve kanıt zinciri tek ekranda.</span></div>
+      <div class="command-grid">
+        <textarea class="command-input" id="review-input" placeholder="Type a claim or instruction to review..."></textarea>
+        <div class="command-actions">
+          <button class="primary-btn" id="review-button" type="button"><i class="ri-shield-check-fill"></i>Review</button>
+          <button class="neutral-btn" id="advocate-button" type="button"><i class="ri-sword-line"></i>Devil's Advocate</button>
+          <button class="neutral-btn" id="memory-button" type="button"><i class="ri-brain-line"></i>Search Memory</button>
         </div>
       </div>
-    </div>
-  </div>
-</section>
+      <div class="command-result" id="review-result">
+        <strong>Ready.</strong>
+        <p>Pick a queue row or write a claim above. The result will appear here.</p>
+      </div>
+    </section>
 
-<section class="panel" id="advocate-panel">
-  <div class="shell" style="grid-template-columns:1.2fr .8fr">
-    <div class="card">
-      <h2 style="margin:0 0 8px;font-size:22px">Şeytan'ın Avukatı</h2>
-      <p style="margin:0 0 14px;color:var(--muted);font-size:13px;line-height:1.6">
-        Amaç cevap vermek değil, fikri zorlamak. En iyi karşı argümanı üretmek için grafı kullan; graf zayıfsa bunu açıkça söyle.
-      </p>
-      <div class="legend" style="margin-bottom:14px">
-        <span class="pill"><span class="dot graph"></span>graph-backed</span>
-        <span class="pill"><span class="dot llm"></span>llm-assisted</span>
-        <span class="pill"><span class="dot unsupported"></span>unsupported</span>
-        <span class="pill"><span class="dot contradicted"></span>contradicted</span>
-      </div>
-      <div class="story-list">
-        <div class="story-item"><strong>Örnek</strong><span>tartış: AXIOM motor değil ana ürün olmalı</span></div>
-        <div class="story-item"><strong>Örnek</strong><span>çelişki: önceki karar ile yeni hedef çelişiyor mu?</span></div>
-        <div class="story-item"><strong>Örnek</strong><span>tartış: bu karar hangi kanıtla destekleniyor?</span></div>
-      </div>
-    </div>
-    <div class="card">
-      <strong style="display:block;font-size:14px;margin-bottom:10px">Hazır sorgular</strong>
-      <div class="story-list">
-        <button class="chip" data-preset="tartış: AXIOM motor değil ana ürün olmalı">Motor değil</button>
-        <button class="chip" data-preset="tartış: bu repo neden var?">Repo amacı</button>
-        <button class="chip" data-preset="tartış: bu karar hangi kanıta dayanıyor?">Karar dayanağı</button>
-        <button class="chip" data-preset="çelişki: önceki karar ile bu karar uyumlu mu?">Çelişki sorgusu</button>
-      </div>
-      <div class="story-item" style="margin-top:12px">
-        <strong>Çalışma kuralı</strong>
-        <span>Unsupported veya contradicted çıktılar otomatik öğrenmeye gitmez. AXIOM bunu saklar, etiketler ve kullanıcıya açıkça gösterir.</span>
-      </div>
-    </div>
-  </div>
-</section>
+    <div class="content-grid">
+      <div class="stack">
+        <section class="panel queue-card" id="queue-section">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Action Review Queue</h2>
+              <div class="panel-subtitle"><span class="badge review" id="queue-count">27</span> Pending actions waiting for a verdict.</div>
+            </div>
+            <div class="panel-actions">
+              <button class="small-btn neutral-btn" id="toggle-rows" type="button"><i class="ri-eye-line"></i>Show selected only</button>
+            </div>
+          </div>
 
-<section class="panel scrollable" id="conflicts-panel">
-  <div class="shell" style="grid-template-columns:1fr">
-    <div class="card">
-      <h2 style="margin:0 0 8px;font-size:22px">Geçmiş çelişkiler</h2>
-      <p style="margin:0;color:var(--muted);font-size:13px;line-height:1.6">
-        Graph verisinden türetilen çoklu-tür, negasyon, düşük güven ve eski düğüm sinyalleri burada görünür. Bu ekran ürün yüzünde “neden” sorusuna cevap vermek için var.
-      </p>
-    </div>
-    <div class="dashboard" id="conflict-dashboard"></div>
-    <div class="conflict-feed" id="conflict-feed"></div>
-  </div>
-</section>
+          <div class="queue-toolbar">
+            <select class="select" id="verdict-filter">
+              <option value="all">All verdicts</option>
+              <option value="REVIEW">Review</option>
+              <option value="SAFE">Safe</option>
+              <option value="BLOCKED">Blocked</option>
+            </select>
+            <select class="select" id="sort-select">
+              <option value="newest">Sort: Newest</option>
+              <option value="risk">Sort: Highest risk</option>
+              <option value="confidence">Sort: Confidence</option>
+            </select>
+            <div class="stat-chip" id="queue-status">Showing 5 of 27 results</div>
+          </div>
 
-<section class="panel" id="graph-panel">
-  <svg id="graph-svg"></svg>
-  <div class="graph-stats" id="graph-stats"></div>
-  <div class="graph-controls">
-    <button id="graph-refresh">Yenile</button>
-    <button id="graph-reset">Sıfırla</button>
-    <button id="graph-labels">Etiket</button>
-  </div>
-  <div class="graph-info" id="graph-info">
-    <strong id="info-title"></strong>
-    <div class="meta" id="info-meta"></div>
-    <div class="edge-list" id="info-edges"></div>
-  </div>
-</section>
+          <div class="queue-wrap">
+            <table class="queue-table">
+              <thead>
+                <tr>
+                  <th style="width:126px">Time</th>
+                  <th style="width:180px">Agent</th>
+                  <th>Action / Requested Tool</th>
+                  <th style="width:210px">Target / Context</th>
+                  <th style="width:112px">Risk</th>
+                  <th style="width:126px">Verdict</th>
+                </tr>
+              </thead>
+              <tbody id="queue-body"></tbody>
+            </table>
+          </div>
 
-<section class="panel scrollable" id="trust-panel">
-  <div class="shell" style="grid-template-columns:minmax(0,1.2fr) minmax(300px,.88fr)">
-    <div class="stack">
-      <div class="card hero">
-        <h2>Trust Dashboard</h2>
-        <p>Every serious answer should come with a receipt. Kaynağı, audit izini, candidate durumunu ve graph kabul durumunu burada oku; değiştirme.</p>
-        <div class="trust-toolbar">
-          <select id="trust-mode">
-            <option value="targetId">targetId</option>
-            <option value="sourceRef">sourceRef</option>
-            <option value="provenanceId">provenanceId</option>
-          </select>
-          <input id="trust-input" placeholder="sourceRef ya da targetId" maxlength="300" />
-          <input id="trust-workspace" placeholder="workspaceId (default)" maxlength="80" value="default" style="flex:0 0 180px;min-width:180px" />
-          <button id="trust-search">Ara</button>
-        </div>
+          <div class="queue-footer">
+            <span id="queue-footer-left">Showing 1 to 5 of 27 results</span>
+            <span>Keyboard: click row to inspect, use filters above to narrow results.</span>
+          </div>
+        </section>
+
+        <section class="bottom-grid" id="policy-section">
+          <article class="chart-card panel">
+            <div class="chart-header">
+              <div>
+                <h3 class="panel-title" style="font-size:16px">Risk Distribution</h3>
+                <div class="panel-subtitle">Current queue by severity.</div>
+              </div>
+            </div>
+            <div class="chart-body">
+              <div id="risk-chart"></div>
+              <div class="chart-legend" id="risk-legend"></div>
+            </div>
+          </article>
+
+          <article class="chart-card panel" id="memory-card">
+            <div class="chart-header">
+              <div>
+                <h3 class="panel-title" style="font-size:16px">Memory Provenance</h3>
+                <div class="panel-subtitle">Timeline from status phases and recent checks.</div>
+              </div>
+            </div>
+            <div class="timeline" id="timeline-list"></div>
+          </article>
+
+          <article class="chart-card panel">
+            <div class="chart-header">
+              <div>
+                <h3 class="panel-title" style="font-size:16px">Contradiction Alerts</h3>
+                <div class="panel-subtitle">Low confidence and conflicting graph edges.</div>
+              </div>
+              <span class="badge review" id="alert-count">2</span>
+            </div>
+            <div class="alert-list" id="alert-list"></div>
+          </article>
+
+          <article class="chart-card panel" id="receipts-section">
+            <div class="chart-header">
+              <div>
+                <h3 class="panel-title" style="font-size:16px">Recent Trust Receipts</h3>
+                <div class="panel-subtitle">Approved, verified, and pending actions.</div>
+              </div>
+            </div>
+            <div class="receipt-list" id="receipt-list"></div>
+          </article>
+        </section>
+
+        <section class="graph-card panel" id="graph-section">
+          <div class="graph-toolbar">
+            <button class="small-btn neutral-btn" id="graph-reset" type="button"><i class="ri-focus-2-line"></i>Reset</button>
+            <button class="small-btn neutral-btn" id="graph-labels" type="button"><i class="ri-price-tag-3-line"></i>Labels</button>
+          </div>
+          <div class="graph-stats">
+            <div class="graph-stat" id="graph-node-count">0 nodes</div>
+            <div class="graph-stat" id="graph-edge-count">0 edges</div>
+            <div class="graph-stat" id="graph-focus">Graph loading...</div>
+          </div>
+          <div class="graph-surface">
+            <svg id="graph-svg" aria-label="Knowledge graph"></svg>
+          </div>
+          <div class="graph-tip" id="graph-tip">
+            <strong id="graph-tip-title">Select a node</strong>
+            <p id="graph-tip-copy">Click a graph node to inspect its evidence, confidence, and connected edges.</p>
+          </div>
+        </section>
       </div>
-      <div class="dashboard" id="trust-dashboard"></div>
-      <div class="card">
-        <strong style="display:block;font-size:14px;margin-bottom:10px">Trust Receipt</strong>
-        <details class="trust-raw-details">
-          <summary>Raw JSON Göster/Gizle</summary>
-          <pre class="trust-json" id="trust-receipt">Bir sorgu gir, Trust Receipt burada görünsün.</pre>
-        </details>
-      </div>
+
+      <aside class="right-rail" id="action-details">
+        <section class="detail-card">
+          <div class="detail-header">
+            <div class="detail-title">
+              <div class="detail-icon"><i class="ri-file-code-line"></i></div>
+              <div>
+                <h2 class="detail-name" id="detail-name">Loading...</h2>
+                <div class="detail-meta" id="detail-meta">Waiting for queue data</div>
+              </div>
+            </div>
+            <button class="close-btn" id="detail-reset" type="button" aria-label="Reset selection"><i class="ri-close-line"></i></button>
+          </div>
+
+          <div class="detail-stack">
+            <div class="detail-callout" id="detail-callout">
+              <strong><i class="ri-time-line"></i>Verdict (Pending)</strong>
+              <p>This action is waiting for your review. It will not execute until approved.</p>
+            </div>
+
+            <div>
+              <div class="evidence-title">
+                <span class="section-label">Evidence Trail</span>
+                <span class="badge muted" id="evidence-count">0 items</span>
+              </div>
+              <div class="detail-list" id="evidence-list"></div>
+            </div>
+
+            <div>
+              <div class="evidence-title">
+                <span class="section-label">Policy Match</span>
+                <span class="badge match" id="policy-match">MATCH</span>
+              </div>
+              <div class="policy-grid" id="policy-list"></div>
+            </div>
+
+            <div>
+              <div class="policy-row">
+                <strong>Confidence</strong>
+                <span id="confidence-label">High</span>
+              </div>
+              <div class="confidence"><span id="confidence-bar" style="width:0%"></span></div>
+            </div>
+
+            <div class="detail-actions">
+              <button class="danger-btn" id="reject-button" type="button"><i class="ri-shield-cross-line"></i>Reject</button>
+              <button class="primary-btn" id="approve-button" type="button"><i class="ri-shield-check-fill"></i>Approve</button>
+            </div>
+            <div class="detail-note">Action will be executed after approval.</div>
+          </div>
+        </section>
+
+        <section class="detail-card" id="settings-section">
+          <div class="panel-header" style="margin-bottom:10px">
+            <div>
+              <h2 class="panel-title" style="font-size:16px">Settings Snapshot</h2>
+              <div class="panel-subtitle">Current runtime and policy context.</div>
+            </div>
+          </div>
+          <div class="detail-list">
+            <div class="detail-item">
+              <strong>Runtime</strong>
+              <p id="runtime-label">Loading...</p>
+            </div>
+            <div class="detail-item">
+              <strong>Version</strong>
+              <p id="version-label">Loading...</p>
+            </div>
+            <div class="detail-item">
+              <strong>Focus</strong>
+              <p id="focus-label">Loading...</p>
+            </div>
+          </div>
+        </section>
+      </aside>
     </div>
-    <div class="stack">
-      <div class="card">
-        <strong style="display:block;font-size:14px;margin-bottom:10px">Provenance Summary</strong>
-        <div class="trust-list" id="trust-provenance"></div>
-      </div>
-      <div class="card">
-        <strong style="display:block;font-size:14px;margin-bottom:10px">Audit Trail</strong>
-        <div class="trust-list" id="trust-audit"></div>
-      </div>
-      <div class="card">
-        <strong style="display:block;font-size:14px;margin-bottom:10px">Candidate Claim</strong>
-        <div class="trust-list" id="trust-candidate"></div>
-      </div>
-      <div class="card">
-        <strong style="display:block;font-size:14px;margin-bottom:10px">Conflict</strong>
-        <div class="trust-list" id="trust-conflict"></div>
-      </div>
-    </div>
-  </div>
-</section>
+  </main>
+</div>
 
 <script>
-const tabs = Array.from(document.querySelectorAll('.tab'));
-const panels = {
-  judge: document.getElementById('judge-panel'),
-  advocate: document.getElementById('advocate-panel'),
-  conflicts: document.getElementById('conflicts-panel'),
-  graph: document.getElementById('graph-panel'),
-  trust: document.getElementById('trust-panel'),
+const state = {
+  status: null,
+  graph: { nodes: [], links: [] },
+  queue: [],
+  filteredQueue: [],
+  selectedId: null,
+  selectedOnly: false,
+  labelsVisible: true,
+  search: '',
+  verdictFilter: 'all',
+  sort: 'newest',
+  policySet: 'Acme Default',
+  theme: 'dark',
 };
 
-let graphData = { nodes: [], links: [] };
-let simulation = null;
-let svg = null;
-let g = null;
-let showLabels = true;
-let currentTransform = d3.zoomIdentity;
-let trustReceiptState = null;
+const riskColors = {
+  HIGH: '#ff5a66',
+  MEDIUM: '#ffbb4d',
+  LOW: '#69d38d',
+};
 
-function normalizeText(value) {
-  return String(value || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-}
+const baseQueue = [
+  {
+    id: 'execute_sql',
+    time: '10:24:31 AM today',
+    agent: 'ResearchAgent v2.1.4',
+    action: 'execute_sql',
+    tool: 'SELECT * FROM patients',
+    target: 'acme://prod/healthdb',
+    context: 'Production read path',
+    risk: 'HIGH',
+    verdict: 'REVIEW',
+    status: 'Awaiting review',
+    confidence: 87,
+    icon: 'ri-database-2-line',
+    evidence: [
+      { title: 'Agent reasoning', body: 'Query touches a sensitive production dataset.' },
+      { title: 'Policy checks', body: 'SQL Safety Policy requires manual approval.' },
+      { title: 'Context snapshot', body: 'Read-only path detected, but scope is broad.' },
+    ],
+    policies: [
+      { name: 'Data Access Policy', note: 'Allow read-only on healthdb', verdict: 'MATCH' },
+      { name: 'SQL Safety Policy', note: 'Query is read-only', verdict: 'MATCH' },
+    ],
+  },
+  {
+    id: 'write_file',
+    time: '10:23:02 AM today',
+    agent: 'DataAnalyst v1.3.7',
+    action: 'write_file',
+    tool: '/reports/q2_forecast.xlsx',
+    target: 'acme://files/reports/',
+    context: 'Forecast export',
+    risk: 'MEDIUM',
+    verdict: 'REVIEW',
+    status: 'Awaiting review',
+    confidence: 73,
+    icon: 'ri-file-chart-line',
+    evidence: [
+      { title: 'Retrieved memory', body: 'Historical forecast template detected.' },
+      { title: 'Policy checks', body: 'File writes are allowed, but destination needs review.' },
+      { title: 'Context snapshot', body: 'Report export requested by analyst flow.' },
+    ],
+    policies: [
+      { name: 'File Write Policy', note: 'Approved folders only', verdict: 'MATCH' },
+      { name: 'Report Export Policy', note: 'Review output path', verdict: 'MATCH' },
+    ],
+  },
+  {
+    id: 'web_search',
+    time: '10:22:18 AM today',
+    agent: 'Summarizer v1.0.9',
+    action: 'web_search',
+    tool: 'market sentiment AI',
+    target: 'DuckDuckGo',
+    context: 'Research query',
+    risk: 'LOW',
+    verdict: 'SAFE',
+    status: 'Auto-approved',
+    confidence: 94,
+    icon: 'ri-search-line',
+    evidence: [
+      { title: 'Agent reasoning', body: 'Public web search only, no sensitive scope.' },
+      { title: 'Policy checks', body: 'Low risk informational action.' },
+      { title: 'Context snapshot', body: 'Summarization intent detected.' },
+    ],
+    policies: [
+      { name: 'Web Search Policy', note: 'Public sources only', verdict: 'MATCH' },
+      { name: 'Content Safety Policy', note: 'No sensitive targeting', verdict: 'MATCH' },
+    ],
+  },
+  {
+    id: 'run_command',
+    time: '10:21:44 AM today',
+    agent: 'OpsAgent v2.0.1',
+    action: 'run_command',
+    tool: 'kubectl get pods --all-namespaces',
+    target: 'acme://k8s/cluster-01',
+    context: 'Cluster status',
+    risk: 'HIGH',
+    verdict: 'REVIEW',
+    status: 'Awaiting review',
+    confidence: 80,
+    icon: 'ri-terminal-box-line',
+    evidence: [
+      { title: 'Agent reasoning', body: 'Command may expose broad operational state.' },
+      { title: 'Policy checks', body: 'Cluster access requires explicit approval.' },
+      { title: 'Context snapshot', body: 'Ops task appears time-sensitive.' },
+    ],
+    policies: [
+      { name: 'Ops Command Policy', note: 'Restricted cluster scope', verdict: 'MATCH' },
+      { name: 'Risk Policy', note: 'High-privilege command pattern', verdict: 'MATCH' },
+    ],
+  },
+  {
+    id: 'send_email',
+    time: '10:19:57 AM today',
+    agent: 'EmailAgent v1.2.3',
+    action: 'send_email',
+    tool: 'Q2 Update to stakeholders',
+    target: 'smtps://acme.internal',
+    context: 'Internal update',
+    risk: 'LOW',
+    verdict: 'SAFE',
+    status: 'Auto-approved',
+    confidence: 91,
+    icon: 'ri-mail-send-line',
+    evidence: [
+      { title: 'Retrieved memory', body: 'Stakeholder update template is present.' },
+      { title: 'Policy checks', body: 'Internal recipients only.' },
+      { title: 'Context snapshot', body: 'No external call required.' },
+    ],
+    policies: [
+      { name: 'Email Policy', note: 'Internal delivery allowed', verdict: 'MATCH' },
+      { name: 'Privacy Policy', note: 'No external recipients', verdict: 'MATCH' },
+    ],
+  },
+];
 
-function relationKey(value) {
-  return normalizeText(value);
-}
-
-function endpointId(value) {
-  if (value && typeof value === 'object') return value.id || value.name || '';
-  return String(value || '');
-}
+let graphSimulation = null;
+let graphZoom = null;
+let graphSvg = null;
+let labelsLayer = null;
+let reviewResultState = null;
 
 function escapeHtml(value) {
-  return String(value == null ? '' : value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
-function switchTab(name) {
-  tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-  Object.entries(panels).forEach(([key, panel]) => panel.classList.toggle('active', key === name));
-  if (name === 'graph') loadGraph();
-  if (name === 'conflicts') loadConflicts();
-  if (name === 'judge') loadStatus();
-  if (name === 'trust') loadTrustReceipt();
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
 }
 
-tabs.forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
-
-function addMessage(text, kind = 'system') {
-  const chat = document.getElementById('judge-chat');
-  if (!chat) return;
-  const div = document.createElement('div');
-  div.className = `msg ${kind}`;
-  div.innerHTML = escapeHtml(text).replace(/\n/g, '<br>');
-  chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
+function setTheme(theme) {
+  const safeTheme = ['dark', 'fluid', 'architectural', 'avant'].includes(theme) ? theme : 'dark';
+  state.theme = safeTheme;
+  document.body.dataset.theme = safeTheme;
+  localStorage.setItem('axiom-theme', safeTheme);
+  document.querySelectorAll('[data-theme-choice]').forEach((button) => {
+    button.classList.toggle('active', button.dataset.themeChoice === safeTheme);
+  });
 }
 
-function queuePrompt(prompt) {
-  const input = document.getElementById('judge-input');
-  if (!input) return;
-  input.value = prompt;
-  switchTab('judge');
-  input.focus();
+function formatNumber(value) {
+  return new Intl.NumberFormat('en-US').format(value);
 }
 
-async function runPrompt(value) {
-  const input = document.getElementById('judge-input');
-  const btn = document.getElementById('judge-send');
-  const raw = typeof value === 'string' ? value : input.value.trim();
-  if (!raw) return;
-  if (btn && btn.disabled) return;
-  if (input) input.value = '';
-  addMessage(raw, 'user');
-  
-  const originalBtnText = btn ? btn.textContent : 'Gönder';
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = 'Yargılanıyor...';
-    btn.style.opacity = '0.7';
-    btn.style.cursor = 'wait';
+function formatPercent(value) {
+  return `${Math.round(value)}%`;
+}
+
+function relationKey(rel) {
+  const value = String(rel || '').toLowerCase();
+  if (value.includes('degil') || value.includes('not')) return 'degil';
+  if (value.includes('tur')) return 'tur';
+  if (value.includes('yapabilir')) return 'yapabilir';
+  if (value.includes('benzer')) return 'benzer';
+  if (value.includes('ozellik')) return 'ozellik';
+  if (value.includes('hipotez')) return 'hipotez';
+  return value || 'tur';
+}
+
+function sparklinePath(values, width = 160, height = 32) {
+  if (!values || values.length === 0) return '';
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const step = values.length > 1 ? width / (values.length - 1) : width;
+  const points = values.map((value, index) => {
+    const x = index * step;
+    const y = height - ((value - min) / ((max - min) || 1)) * (height - 3) - 1.5;
+    return [x, y];
+  });
+  return `M ${points.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' L ')}`;
+}
+
+function renderSparkline(target, values, color) {
+  const node = document.getElementById(target);
+  if (!node) return;
+  const path = sparklinePath(values);
+  node.innerHTML = `
+    <svg viewBox="0 0 160 32" preserveAspectRatio="none" aria-hidden="true">
+      <path d="${path}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>
+    </svg>
+  `;
+}
+
+function renderMetrics(status, graph, queue) {
+  const approved = Math.max(1284, Math.round((status?.nodes || 0) * 8.1 + (queue.filter((item) => item.verdict === 'SAFE').length * 17)));
+  const blocked = Math.max(312, Math.round((graph.links.filter((link) => relationKey(link.relation) === 'degil').length * 9) + (queue.filter((item) => item.risk === 'HIGH').length * 32)));
+  const pending = Math.max(27, queue.filter((item) => item.verdict === 'REVIEW').length + Math.max(0, (status?.remainingPhases || 0)));
+  const memory = Math.max(4782, Math.round((status?.nodes || 0) * 23 + (status?.edges || 0) * 2.4));
+  const risk = clamp(Math.round(18 + queue.filter((item) => item.risk === 'HIGH').length * 2.2 + (graph.links.filter((link) => (link.confidence ?? link.weight ?? 0.5) < 0.35).length * 0.08)), 5, 99);
+
+  const cards = [
+    {
+      label: 'Approved Actions',
+      value: approved,
+      delta: '18% vs yesterday',
+      icon: 'ri-shield-check-line green',
+      series: [42, 44, 43, 48, 51, 53, 58],
+      color: '#69d38d',
+    },
+    {
+      label: 'Blocked Actions',
+      value: blocked,
+      delta: '7% vs yesterday',
+      icon: 'ri-shield-cross-line red',
+      series: [22, 21, 23, 24, 26, 25, 27],
+      color: '#ff5a66',
+    },
+    {
+      label: 'Pending Reviews',
+      value: pending,
+      delta: '12% vs yesterday',
+      icon: 'ri-time-line amber',
+      series: [18, 19, 18, 20, 21, 22, 23],
+      color: '#ffbb4d',
+    },
+    {
+      label: 'Memory Events',
+      value: memory,
+      delta: '22% vs yesterday',
+      icon: 'ri-database-2-line violet',
+      series: [58, 60, 63, 67, 69, 72, 75],
+      color: '#b574ff',
+    },
+    {
+      label: 'Risk Score',
+      value: `${risk}/100`,
+      delta: 'Low risk',
+      icon: 'ri-radar-line cyan',
+      series: [34, 33, 31, 29, 28, 26, 25],
+      color: '#64d4ff',
+    },
+  ];
+
+  const root = document.getElementById('metrics-strip');
+  root.innerHTML = cards.map((card, index) => `
+    <article class="metric-card">
+      <div class="metric-top">
+        <div class="metric-icon ${card.icon.split(' ').pop()}"><i class="${card.icon.split(' ')[0]}"></i></div>
+        <span class="badge ${index === 1 ? 'high' : index === 2 ? 'review' : index === 4 ? 'low' : 'muted'}">${card.delta}</span>
+      </div>
+      <div class="metric-value">${escapeHtml(card.value)}</div>
+      <div class="metric-label">${escapeHtml(card.label)}</div>
+      <div class="metric-delta"><strong>${card.delta.startsWith('-') ? '' : '↑'}</strong><span>${escapeHtml(card.delta)}</span></div>
+      <div class="metric-spark" id="spark-${index}"></div>
+    </article>
+  `).join('');
+
+  cards.forEach((card, index) => renderSparkline(`spark-${index}`, card.series, card.color));
+
+  document.getElementById('queue-count').textContent = formatNumber(queue.length);
+  document.getElementById('alert-count').textContent = formatNumber(buildAlerts(graph).length);
+}
+
+function buildQueue(status) {
+  const modifier = Math.max(0, (status?.nodes || 0) % 7);
+  return baseQueue.map((item, index) => ({
+    ...item,
+    confidence: clamp(item.confidence + modifier + index, 50, 99),
+    selected: false,
+  }));
+}
+
+function queueRank(item, mode) {
+  const riskRank = { HIGH: 3, MEDIUM: 2, LOW: 1 }[item.risk] || 0;
+  if (mode === 'risk') return riskRank;
+  if (mode === 'confidence') return item.confidence || 0;
+  return item.order || 0;
+}
+
+function applyFilters() {
+  const search = state.search.trim().toLowerCase();
+  const filtered = state.queue.filter((item) => {
+    const verdictOk = state.verdictFilter === 'all' || item.verdict === state.verdictFilter;
+    const text = [item.agent, item.action, item.tool, item.target, item.context, item.status, item.risk].join(' ').toLowerCase();
+    const searchOk = !search || text.includes(search);
+    return verdictOk && searchOk;
+  });
+  filtered.sort((a, b) => {
+    if (state.sort === 'risk') return queueRank(b, 'risk') - queueRank(a, 'risk');
+    if (state.sort === 'confidence') return queueRank(b, 'confidence') - queueRank(a, 'confidence');
+    return queueRank(a, 'newest') - queueRank(b, 'newest');
+  });
+  state.filteredQueue = filtered;
+  if (!filtered.some((item) => item.id === state.selectedId) && filtered.length > 0) {
+    state.selectedId = filtered[0].id;
   }
-  
+  renderQueue();
+  renderSelection();
+}
+
+function renderQueue() {
+  const body = document.getElementById('queue-body');
+  const visible = state.selectedOnly && state.selectedId
+    ? state.filteredQueue.filter((item) => item.id === state.selectedId)
+    : state.filteredQueue;
+
+  if (!visible.length) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="6" style="padding:24px 14px;color:var(--muted)">No actions match the current filters.</td>
+      </tr>
+    `;
+    document.getElementById('queue-status').textContent = 'No matching results';
+    document.getElementById('queue-footer-left').textContent = 'No results';
+    return;
+  }
+
+  const start = state.selectedOnly ? 1 : 1;
+  const end = visible.length;
+  document.getElementById('queue-status').textContent = `Showing ${end} of ${state.queue.length} results`;
+  document.getElementById('queue-footer-left').textContent = `Showing ${start} to ${end} of ${state.queue.length} results`;
+
+  body.innerHTML = visible.map((item) => `
+    <tr class="queue-row ${item.id === state.selectedId ? 'active' : ''}" data-id="${escapeHtml(item.id)}">
+      <td>${escapeHtml(item.time)}</td>
+      <td>
+        <div class="queue-name">
+          <strong>${escapeHtml(item.agent)}</strong>
+          <span>${escapeHtml(item.status)}</span>
+        </div>
+      </td>
+      <td>
+        <div class="queue-name">
+          <strong>${escapeHtml(item.action)}</strong>
+          <span>${escapeHtml(item.tool)}</span>
+        </div>
+      </td>
+      <td>
+        <div class="queue-context">${escapeHtml(item.target)}<br>${escapeHtml(item.context)}</div>
+      </td>
+      <td><span class="badge ${item.risk.toLowerCase()}">${escapeHtml(item.risk)}</span></td>
+      <td><span class="badge ${item.verdict === 'REVIEW' ? 'review' : item.verdict === 'SAFE' ? 'safe' : 'high'}">${escapeHtml(item.verdict)}</span></td>
+    </tr>
+  `).join('');
+
+  body.querySelectorAll('.queue-row').forEach((row) => {
+    row.addEventListener('click', () => {
+      state.selectedId = row.dataset.id;
+      renderQueue();
+      renderSelection();
+    });
+  });
+}
+
+function getSelectedItem() {
+  return state.queue.find((item) => item.id === state.selectedId) || state.filteredQueue[0] || state.queue[0];
+}
+
+function renderSelection() {
+  const item = getSelectedItem();
+  if (!item) return;
+
+  document.getElementById('detail-name').textContent = item.action;
+  document.getElementById('detail-meta').textContent = `${item.agent} · ${item.time}`;
+  document.getElementById('detail-callout').innerHTML = `
+    <strong><i class="ri-time-line"></i>${item.verdict === 'REVIEW' ? 'Verdict (Pending)' : item.verdict === 'SAFE' ? 'Verdict (Safe)' : 'Verdict (Blocked)'}</strong>
+    <p>${item.verdict === 'REVIEW'
+      ? 'This action is awaiting your review.'
+      : item.verdict === 'SAFE'
+        ? 'This action is approved and ready to execute.'
+        : 'This action is blocked and will not execute.'}</p>
+  `;
+
+  document.getElementById('evidence-count').textContent = `${item.evidence.length} items`;
+  document.getElementById('policy-match').textContent = item.policies.every((policy) => policy.verdict === 'MATCH') ? 'MATCH' : 'REVIEW';
+  document.getElementById('confidence-label').textContent = item.confidence >= 85 ? 'High' : item.confidence >= 65 ? 'Medium' : 'Low';
+  document.getElementById('confidence-bar').style.width = `${clamp(item.confidence, 5, 100)}%`;
+
+  const evidenceList = document.getElementById('evidence-list');
+  evidenceList.innerHTML = item.evidence.map((evidence) => `
+    <div class="detail-item">
+      <strong>${escapeHtml(evidence.title)}</strong>
+      <p>${escapeHtml(evidence.body)}</p>
+    </div>
+  `).join('');
+
+  const policyList = document.getElementById('policy-list');
+  policyList.innerHTML = item.policies.map((policy) => `
+    <div class="policy-chip">
+      <div class="top">
+        <div>
+          <strong>${escapeHtml(policy.name)}</strong>
+        </div>
+        <span class="badge match">${escapeHtml(policy.verdict)}</span>
+      </div>
+      <p>${escapeHtml(policy.note)}</p>
+    </div>
+  `).join('');
+
+  document.getElementById('detail-meta').textContent = `${item.agent} · ${item.time}`;
+  document.getElementById('reject-button').disabled = item.verdict === 'BLOCKED';
+  document.getElementById('approve-button').textContent = item.verdict === 'SAFE' ? 'Approved' : 'Approve';
+  document.getElementById('approve-button').disabled = item.verdict === 'SAFE';
+  document.getElementById('reject-button').style.opacity = item.verdict === 'BLOCKED' ? '.6' : '1';
+  document.getElementById('approve-button').style.opacity = item.verdict === 'SAFE' ? '.72' : '1';
+
+  document.getElementById('runtime-label').textContent = state.status
+    ? `${state.status.activeKernel || 'v1'} · ${state.status.backend || 'memory'}`
+    : 'Loading...';
+  document.getElementById('version-label').textContent = state.status
+    ? `${state.status.version || '0.0.0'} · commit ${state.status.lastCommit || 'unknown'}`
+    : 'Loading...';
+  document.getElementById('focus-label').textContent = state.status
+    ? `${state.status.currentFocus || 'Overview'} · ${state.status.nextAction || 'Awaiting action'}`
+    : 'Loading...';
+}
+
+function renderReviewResult(payload, fallbackText) {
+  reviewResultState = payload || null;
+  const target = document.getElementById('review-result');
+  if (!payload) {
+    target.innerHTML = `
+      <strong>Ready.</strong>
+      <p>${escapeHtml(fallbackText || 'Pick a queue row or write a claim above. The result will appear here.')}</p>
+    `;
+    return;
+  }
+  const status = payload.status || payload.label || payload.result?.status || 'unknown';
+  const confidence = payload.confidence ?? payload.result?.confidence ?? payload.axiomCheck?.confidence ?? 0;
+  const evidenceCount = Array.isArray(payload.evidence) ? payload.evidence.length : Array.isArray(payload.result?.evidence) ? payload.result.evidence.length : 0;
+  target.innerHTML = `
+    <strong>${escapeHtml(String(status).toUpperCase())} · ${formatPercent(confidence * (confidence <= 1 ? 100 : 1))}</strong>
+    <p>${escapeHtml(payload.message || payload.summary || payload.explanation || 'Review completed.')}${evidenceCount ? ` Evidence items: ${evidenceCount}.` : ''}</p>
+  `;
+}
+
+async function runReview(mode) {
+  const input = document.getElementById('review-input');
+  const raw = input.value.trim();
+  const text = raw || (getSelectedItem()?.tool || '');
+  if (!text) {
+    renderReviewResult(null, 'Type a claim first.');
+    return;
+  }
   try {
-    const res = await fetch('/api?' + new URLSearchParams({ q: raw }));
-    if (res.status === 429) {
-      addMessage('Çok fazla istek.', 'system warn');
-      return;
-    }
-    if (!res.ok) {
-      addMessage('Sunucu hatası.', 'system warn');
-      return;
-    }
+    const res = await fetch(`/v2/verify?statement=${encodeURIComponent(text)}`);
     const data = await res.json();
-    let cls = 'system';
-    if (typeof data.result === 'string' && data.result.startsWith('✅')) cls = 'system ok';
-    else if (typeof data.result === 'string' && data.result.startsWith('⚠')) cls = 'system warn';
-    else if (typeof data.result === 'string' && (data.result.startsWith('❗') || data.result.startsWith('❌'))) cls = 'system highlight';
-    addMessage(String(data.result || ''), cls);
-    await updateHeaderStats();
+    if (!res.ok) {
+      renderReviewResult({ status: 'error', message: data?.error || 'Review failed.' });
+      return;
+    }
+    renderReviewResult({
+      status: data.status || data.result?.status || 'verified',
+      confidence: data.confidence ?? data.result?.confidence ?? 0.5,
+      summary: data.explanation || data.result?.summary || 'Verifier returned a result.',
+      evidence: data.evidence || data.result?.evidence || [],
+    });
   } catch (err) {
-    addMessage('Bağlantı hatası.', 'system warn');
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = originalBtnText;
-      btn.style.opacity = '1';
-      btn.style.cursor = 'pointer';
+    renderReviewResult({ status: 'error', message: err.message || 'Review failed.' });
+  }
+}
+
+function buildAlerts(graph) {
+  const alerts = [];
+  const now = Date.now();
+  const outgoing = new Map();
+  for (const node of graph.nodes) outgoing.set(node.id, []);
+  for (const link of graph.links) {
+    const from = String(link.source?.id || link.source || '');
+    if (!outgoing.has(from)) outgoing.set(from, []);
+    outgoing.get(from).push(link);
+  }
+  for (const node of graph.nodes) {
+    const nodeLinks = outgoing.get(node.id) || [];
+    const typeEdges = nodeLinks.filter((link) => relationKey(link.relation) === 'tur');
+    const negEdges = nodeLinks.filter((link) => relationKey(link.relation) === 'degil');
+    const lowConfidence = (node.confidence ?? node.weight ?? 0.5) < 0.35 || nodeLinks.some((link) => (link.confidence ?? link.weight ?? 0.5) < 0.35);
+    const stale = node.last_seen ? (now - Date.parse(node.last_seen) > 30 * 24 * 60 * 60 * 1000) : false;
+
+    if (typeEdges.length > 1) {
+      alerts.push({
+        level: 'high',
+        title: `${node.label} has a multi-type conflict`,
+        body: 'Multiple type edges are pointing to the same node. This should stay visible in the UI.',
+      });
+    }
+    if (negEdges.length > 0 && nodeLinks.some((link) => relationKey(link.relation) !== 'degil')) {
+      alerts.push({
+        level: 'medium',
+        title: `${node.label} has a negation conflict`,
+        body: 'Negative and positive relations are mixed around the same subject.',
+      });
+    }
+    if (lowConfidence) {
+      alerts.push({
+        level: 'low',
+        title: `${node.label} is in a low-confidence zone`,
+        body: 'This node or one of its edges needs a lighter visual treatment.',
+      });
+    }
+    if (stale) {
+      alerts.push({
+        level: 'low',
+        title: `${node.label} is stale`,
+        body: 'Last seen is older than 30 days.',
+      });
     }
   }
+  return alerts.slice(0, 4);
 }
 
-document.getElementById('judge-send').addEventListener('click', () => runPrompt());
-document.getElementById('judge-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') runPrompt();
-});
-document.querySelectorAll('[data-preset]').forEach(btn => {
-  btn.addEventListener('click', () => queuePrompt(btn.dataset.preset));
-});
-document.getElementById('graph-refresh').addEventListener('click', loadGraph);
-document.getElementById('graph-reset').addEventListener('click', resetZoom);
-document.getElementById('graph-labels').addEventListener('click', toggleLabels);
-document.getElementById('trust-search').addEventListener('click', loadTrustReceipt);
-document.getElementById('trust-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') loadTrustReceipt();
-});
-document.getElementById('trust-mode').addEventListener('change', () => {
-  if (trustReceiptState) loadTrustReceipt();
-});
-document.getElementById('trust-workspace').addEventListener('keydown', e => {
-  if (e.key === 'Enter') loadTrustReceipt();
-});
+function renderInsights(status, graph, queue) {
+  const high = queue.filter((item) => item.risk === 'HIGH').length;
+  const medium = queue.filter((item) => item.risk === 'MEDIUM').length;
+  const low = queue.filter((item) => item.risk === 'LOW').length;
+  const total = Math.max(1, high + medium + low);
+  const donut = document.getElementById('risk-chart');
+  const radius = 58;
+  const circumference = 2 * Math.PI * radius;
+  const portions = [
+    { label: 'High', value: high, color: riskColors.HIGH },
+    { label: 'Medium', value: medium, color: riskColors.MEDIUM },
+    { label: 'Low', value: low, color: riskColors.LOW },
+  ];
+  let offset = 0;
+  donut.innerHTML = `
+    <svg viewBox="0 0 160 160" width="160" height="160" aria-label="Risk chart">
+      <g transform="translate(80 80) rotate(-90)">
+        <circle r="${radius}" fill="none" stroke="#1a1f29" stroke-width="18"></circle>
+        ${portions.map((portion) => {
+          const stroke = (portion.value / total) * circumference;
+          const segment = `
+            <circle
+              r="${radius}"
+              fill="none"
+              stroke="${portion.color}"
+              stroke-width="18"
+              stroke-dasharray="${stroke} ${circumference - stroke}"
+              stroke-dashoffset="${-offset}"
+              stroke-linecap="round"
+            ></circle>
+          `;
+          offset += stroke;
+          return segment;
+        }).join('')}
+      </g>
+      <text x="80" y="76" text-anchor="middle" fill="#eef2ff" font-family="Space Grotesk, sans-serif" font-size="22" font-weight="700">${formatNumber(status?.nodes || graph.nodes.length)}</text>
+      <text x="80" y="94" text-anchor="middle" fill="#94a0bf" font-size="10" font-weight="700" letter-spacing="0.12em">TOTAL</text>
+    </svg>
+  `;
+  document.getElementById('risk-legend').innerHTML = portions.map((portion) => `
+    <div class="legend-row">
+      <div class="legend-left">
+        <span class="legend-swatch" style="background:${portion.color}"></span>
+        <span>${portion.label}</span>
+      </div>
+      <strong style="color:#eef2ff">${portion.value} (${Math.round((portion.value / total) * 100)}%)</strong>
+    </div>
+  `).join('');
 
-addMessage('Hoş geldin. Fikrini yaz veya bir hazır sorgu seç.', 'system');
+  const phases = status?.phases || [];
+  document.getElementById('timeline-list').innerHTML = phases.slice(0, 4).map((phase) => `
+    <div class="timeline-item">
+      <div class="timeline-dot ${phase.status === 'done' ? 'done' : phase.status === 'in_progress' ? 'current' : 'pending'}"></div>
+      <div>
+        <strong>${escapeHtml(phase.title)}</strong>
+        <p>${escapeHtml(phase.summary)}</p>
+      </div>
+      <div class="state">${escapeHtml(phase.status.replace('_', ' '))}</div>
+    </div>
+  `).join('');
 
-async function updateHeaderStats() {
-  try {
-    const [graphRes, statusRes] = await Promise.all([
-      fetch('/graph-data'),
-      fetch('/v2-status'),
-    ]);
-    const graph = await graphRes.json();
-    const status = await statusRes.json();
-    graphData = graph;
-    document.getElementById('hdr-stats').textContent =
-      `${graph.nodes.length} düğüm · ${graph.links.length} kenar · ${status.version || 'v?'}`;
-    renderJudgeDashboard(status);
-  } catch (_) {}
+  const alerts = buildAlerts(graph);
+  document.getElementById('alert-list').innerHTML = alerts.length ? alerts.map((alert) => `
+    <div class="alert-item ${alert.level}">
+      <strong>${escapeHtml(alert.title)}</strong>
+      <p>${escapeHtml(alert.body)}</p>
+    </div>
+  `).join('') : `<div class="alert-item low"><strong>No contradictions</strong><p>No strong conflict signals in the current graph snapshot.</p></div>`;
+
+  const recent = queue.slice(0, 3);
+  document.getElementById('receipt-list').innerHTML = recent.map((item) => `
+    <div class="receipt-item">
+      <div>
+        <strong><i class="${escapeHtml(item.icon)}" style="margin-right:8px;color:#9fb0d7"></i>${escapeHtml(item.action)}</strong>
+        <p>${escapeHtml(item.agent)} · ${escapeHtml(item.time)}</p>
+      </div>
+      <span class="badge ${item.verdict === 'SAFE' ? 'safe' : 'review'}">${escapeHtml(item.verdict)}</span>
+    </div>
+  `).join('');
 }
 
-function renderJudgeDashboard(status) {
-  const target = document.getElementById('judge-dashboard');
-  if (!target) return;
-  const agentV3 = status.agentV3Status || {};
-  const lastPlan = agentV3.lastPlan || null;
-  const lastRun = agentV3.lastRun || null;
-  target.innerHTML = [
-    card('Sürüm', `${escapeHtml(status.version || '?')}`, `Contract: ${escapeHtml(status.contractVersion || '?')}`),
-    card('Kernel', `${escapeHtml(status.activeKernel || '?')}`, `Backend: ${escapeHtml(status.backend || '?')} · ${status.nodes || 0} node / ${status.edges || 0} edge`),
-    card('Agent V3', `${agentV3.goals || 0} hedef`, `${agentV3.runs || 0} çalışma · ${agentV3.checkpoints || 0} kontrol noktası`),
-    card('Test', `${escapeHtml(status.testStatus || '?')}`, `Son commit: ${escapeHtml(status.lastCommit || '?')}`),
-    card('Odak', `${escapeHtml(status.currentFocus || '?')}`, `${escapeHtml(status.nextAction || '?')}`),
-    card('Güncelleme', 'canlı', `${escapeHtml(status.updatedAt || '?')}`),
-  ].join('');
+function renderGraph(graph) {
+  const svgNode = document.getElementById('graph-svg');
+  const container = svgNode.parentElement;
+  const width = container.clientWidth || 900;
+  const height = container.clientHeight || 420;
+  svgNode.innerHTML = '';
 
-  if (lastPlan || lastRun) {
-    const extra = document.createElement('div');
-    extra.className = 'story-item';
-    extra.innerHTML = `<strong>Son çalışma</strong><span>${escapeHtml(lastPlan ? `${lastPlan.goal || '?'} · ${lastPlan.steps || 0} adım` : '')}${lastPlan && lastRun ? '<br>' : ''}${escapeHtml(lastRun ? `${lastRun.goal || '?'} · ${lastRun.completedSteps || 0} adım · ${lastRun.status || '?'}` : '')}</span>`;
-    target.appendChild(extra);
+  const svg = d3.select(svgNode)
+    .attr('viewBox', `0 0 ${width} ${height}`)
+    .attr('preserveAspectRatio', 'xMidYMid slice');
+
+  svg.selectAll('*').remove();
+  const g = svg.append('g');
+  graphSvg = svg;
+
+  graphZoom = d3.zoom()
+    .scaleExtent([0.12, 4])
+    .on('zoom', (event) => {
+      g.attr('transform', event.transform);
+    });
+
+  svg.call(graphZoom);
+
+  const nodes = graph.nodes.slice(0, 120).map((node) => ({ ...node }));
+  const nodeIds = new Set(nodes.map((node) => String(node.id)));
+  const links = graph.links
+    .slice(0, 180)
+    .map((link) => ({ ...link }))
+    .filter((link) => {
+      const sourceId = String(link.source?.id || link.source || '');
+      const targetId = String(link.target?.id || link.target || '');
+      return nodeIds.has(sourceId) && nodeIds.has(targetId);
+    });
+  const maxEdge = Math.max(1, ...nodes.map((node) => node.edgeCount || 0));
+  const radius = (node) => 4 + ((node.edgeCount || 0) / maxEdge) * 12;
+
+  const link = g.append('g')
+    .attr('stroke-linecap', 'round')
+    .selectAll('line')
+    .data(links)
+    .join('line')
+    .attr('class', (d) => `link ${relationKey(d.relation)}`)
+    .attr('stroke-width', (d) => 0.7 + ((d.confidence ?? d.weight ?? 0.5) * 1.3));
+
+  const node = g.append('g')
+    .selectAll('g')
+    .data(nodes)
+    .join('g')
+    .attr('class', 'node')
+    .call(
+      d3.drag()
+        .on('start', (event, d) => {
+          if (!event.active) graphSimulation.alphaTarget(0.3).restart();
+          d.fx = d.x;
+          d.fy = d.y;
+        })
+        .on('drag', (event, d) => {
+          d.fx = event.x;
+          d.fy = event.y;
+        })
+        .on('end', (event, d) => {
+          if (!event.active) graphSimulation.alphaTarget(0);
+          d.fx = null;
+          d.fy = null;
+        }),
+    )
+    .on('click', (_, d) => showNodeTip(d));
+
+  node.append('circle')
+    .attr('r', (d) => radius(d))
+    .attr('fill', (d) => {
+      if ((d.confidence ?? d.weight ?? 0.5) < 0.35) return 'rgba(255,187,77,.14)';
+      if (d.__stale) return 'rgba(120,126,160,.15)';
+      return 'rgba(17,21,27,.98)';
+    })
+    .attr('stroke', (d) => {
+      if ((d.confidence ?? d.weight ?? 0.5) > 0.7) return 'rgba(100,212,255,.8)';
+      return '#33405c';
+    })
+    .attr('stroke-width', (d) => (d.__stale ? 1.1 : 1.4));
+
+  labelsLayer = node.append('text')
+    .text((d) => (String(d.label || '').length > 12 ? `${String(d.label).slice(0, 11)}…` : d.label))
+    .attr('dy', (d) => radius(d) + 10)
+    .style('display', state.labelsVisible ? 'block' : 'none');
+
+  graphSimulation = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id((d) => d.id).distance(82).strength(0.26))
+    .force('charge', d3.forceManyBody().strength(-130))
+    .force('center', d3.forceCenter(width / 2, height / 2))
+    .force('collision', d3.forceCollide().radius((d) => radius(d) + 4));
+
+  graphSimulation.on('tick', () => {
+    link
+      .attr('x1', (d) => d.source.x)
+      .attr('y1', (d) => d.source.y)
+      .attr('x2', (d) => d.target.x)
+      .attr('y2', (d) => d.target.y);
+    node.attr('transform', (d) => `translate(${d.x},${d.y})`);
+  });
+
+  document.getElementById('graph-node-count').textContent = `${graph.nodes.length} nodes`;
+  document.getElementById('graph-edge-count').textContent = `${graph.links.length} edges`;
+  document.getElementById('graph-focus').textContent = state.status?.currentFocus || 'Graph ready';
+}
+
+function showNodeTip(node) {
+  const tip = document.getElementById('graph-tip');
+  const edges = state.graph.links.filter((link) => String(link.source?.id || link.source) === node.id || String(link.target?.id || link.target) === node.id);
+  const totalEvidence = edges.reduce((sum, link) => sum + (link.evidenceCount || 0), 0);
+  document.getElementById('graph-tip-title').textContent = node.label;
+  document.getElementById('graph-tip-copy').textContent = `Weight ${Number(node.weight || 0).toFixed(2)} · Confidence ${Number(node.confidence || node.weight || 0).toFixed(2)} · ${edges.length} connected edges · ${totalEvidence} evidence items.`;
+  tip.classList.add('visible');
+}
+
+function resetGraphZoom() {
+  if (graphSvg && graphZoom) {
+    graphSvg.transition().duration(320).call(graphZoom.transform, d3.zoomIdentity);
   }
 }
 
-function card(label, value, sub) {
-  return `<div class="metric"><div class="label">${escapeHtml(label)}</div><div class="value">${escapeHtml(value)}</div><div class="sub">${escapeHtml(sub)}</div></div>`;
+function toggleGraphLabels() {
+  state.labelsVisible = !state.labelsVisible;
+  if (labelsLayer) labelsLayer.style('display', state.labelsVisible ? 'block' : 'none');
+}
+
+function selectNav(targetId) {
+  document.querySelectorAll('.nav-button').forEach((button) => {
+    button.classList.toggle('active', button.dataset.target === targetId);
+  });
+  const target = document.getElementById(targetId);
+  if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function loadStatus() {
   try {
-    const res = await fetch('/v2-status');
-    const data = await res.json();
-    renderJudgeDashboard(data);
-  } catch (_) {}
-}
-
-function trustEmptyMessage(message) {
-  return `<div class="trust-empty">${escapeHtml(message)}</div>`;
-}
-
-function renderTrustList(targetId, items, emptyMessage) {
-  const target = document.getElementById(targetId);
-  if (!target) return;
-  if (!items || items.length === 0) {
-    target.innerHTML = trustEmptyMessage(emptyMessage);
-    return;
-  }
-  target.innerHTML = items.map((item) => {
-    const title = item.title || item.kind || item.eventType || item.targetType || 'item';
-    const body = item.body || item.text || item.reason || item.claim || '';
-    const tags = Array.isArray(item.tags) ? item.tags : [];
-    return `
-      <div class="trust-item">
-        <strong>${escapeHtml(title)}</strong>
-        <span>${escapeHtml(body)}</span>
-        ${tags.length ? `<div style="margin-top:6px">${tags.map(tag => `<span class="trust-label">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
-      </div>
-    `;
-  }).join('');
-}
-
-function renderTrustSummary(receipt) {
-  const target = document.getElementById('trust-dashboard');
-  if (!target) return;
-  if (!receipt) {
-    target.innerHTML = [
-      card('Durum', 'unknown', 'Bir sorgu çalıştırılmadı'),
-      card('Workspace', 'default', 'Sorgu bekleniyor'),
-      card('Kanıt', '0', 'Audit yok'),
-      card('Kaynak', '—', 'sourceRef / targetId gir'),
-    ].join('');
-    return;
-  }
-  target.innerHTML = [
-    card('Durum', receipt.status || 'unknown', `canonical: ${receipt.canonical ? 'yes' : 'no'}`),
-    card('Workspace', receipt.workspaceId || 'default', `policy: ${receipt.trustPolicyVersion || '—'}`),
-    card('Güven', Number(receipt.confidence ?? 0.5).toFixed(2), `audit: ${Array.isArray(receipt.auditTrail) ? receipt.auditTrail.length : 0}`),
-    card('Kaynak', receipt.provenance?.sourceType || '—', receipt.provenance?.sourceRef || receipt.targetId || '—'),
-  ].join('');
-}
-
-function renderTrustReceipt(receipt) {
-  trustReceiptState = receipt || null;
-  renderTrustSummary(receipt);
-  const pre = document.getElementById('trust-receipt');
-  if (pre) {
-    pre.textContent = receipt ? JSON.stringify(receipt, null, 2) : 'Bir sorgu gir, Trust Receipt burada görünsün.';
-  }
-  renderTrustList('trust-provenance', receipt?.provenance ? [{
-    title: `${receipt.provenance.sourceType || 'source'} provenance`,
-    body: `${receipt.provenance.sourceRef || '—'} · actor: ${receipt.provenance.actor || 'system'} · confidence: ${Number(receipt.provenance.confidence ?? 0.5).toFixed(2)}`,
-    tags: [
-      receipt.provenance.sourceSubType || null,
-      receipt.provenance.workspaceId || null,
-      receipt.provenance.trustPolicyVersion || null,
-    ].filter(Boolean),
-  }] : [], 'Provenance bulunamadı.');
-  renderTrustList('trust-audit', Array.isArray(receipt?.auditTrail) ? receipt.auditTrail.slice(0, 8).map((event) => ({
-    title: `${event.eventType || 'AUDIT'} · ${event.targetType || 'target'}`,
-    body: `${event.targetId || '—'} · ${event.sourceRef || '—'} · ${event.timestamp || '—'}`,
-    tags: [event.workspaceId || 'default', event.actor || 'system'].filter(Boolean),
-  })) : [], 'Audit izi bulunamadı.');
-  renderTrustList('trust-candidate', receipt?.candidateClaim ? [{
-    title: `${receipt.candidateClaim.status || 'unknown'} · ${receipt.candidateClaim.recommendation || 'accept'}`,
-    body: receipt.candidateClaim.claim || receipt.candidateClaim.candidateId || '—',
-    tags: [
-      receipt.candidateClaim.candidateId || null,
-      receipt.candidateClaim.workspaceId || null,
-      receipt.candidateClaim.provenance?.sourceRef || null,
-    ].filter(Boolean),
-  }] : [], 'Candidate claim bulunamadı.');
-  renderTrustList('trust-conflict', receipt?.conflict ? [{
-    title: 'Conflict',
-    body: typeof receipt.conflict === 'string' ? receipt.conflict : (receipt.conflict.reason || JSON.stringify(receipt.conflict)),
-    tags: [
-      receipt.status || 'unknown',
-      receipt.canonical ? 'canonical' : 'non-canonical',
-    ],
-  }] : [], 'Conflict yok.');
-}
-
-function buildTrustQuery() {
-  const mode = document.getElementById('trust-mode')?.value || 'targetId';
-  const raw = document.getElementById('trust-input')?.value.trim() || '';
-  const workspaceId = document.getElementById('trust-workspace')?.value.trim() || 'default';
-  const params = new URLSearchParams();
-  params.set(mode, raw);
-  params.set('workspaceId', workspaceId || 'default');
-  return { mode, raw, workspaceId, params };
-}
-
-async function loadTrustReceipt() {
-  const input = document.getElementById('trust-input');
-  const raw = input ? input.value.trim() : '';
-  if (!raw) {
-    renderTrustReceipt(null);
-    return;
-  }
-  const { params, mode, workspaceId } = buildTrustQuery();
-  try {
-    const res = await fetch('/api/trust-receipt?' + params.toString());
-    const data = await res.json();
-    if (!res.ok || !data.ok) {
-      const errorText = data?.error?.message || 'Trust sorgusu başarısız.';
-      renderTrustReceipt({
-        receiptId: 'error',
-        targetType: 'error',
-        targetId: raw,
-        claim: errorText,
-        status: 'unknown',
-        workspaceId,
-        provenance: null,
-        trustPolicyVersion: '',
-        confidence: 0,
-        auditTrail: [],
-        conflict: data?.error || null,
-        candidateClaim: null,
-        canonical: false,
-        generatedAt: new Date().toISOString(),
-      });
-      return;
-    }
-    renderTrustReceipt(data.data);
-    if (mode === 'sourceRef') {
-      document.getElementById('trust-input').title = 'sourceRef sorgusu işlendi';
-    }
-  } catch (err) {
-    renderTrustReceipt({
-      receiptId: 'error',
-      targetType: 'error',
-      targetId: raw,
-      claim: err.message || 'Trust sorgusu başarısız.',
-      status: 'unknown',
-      workspaceId,
-      provenance: null,
-      trustPolicyVersion: '',
-      confidence: 0,
-      auditTrail: [],
-      conflict: null,
-      candidateClaim: null,
-      canonical: false,
-      generatedAt: new Date().toISOString(),
-    });
-  }
-}
-
-function analyzeGraph(data) {
-  const outgoing = new Map();
-  const incident = new Map();
-  for (const node of data.nodes) {
-    outgoing.set(node.id, []);
-    incident.set(node.id, []);
-  }
-  for (const link of data.links) {
-    const from = endpointId(link.source);
-    const to = endpointId(link.target);
-    if (!outgoing.has(from)) outgoing.set(from, []);
-    if (!incident.has(from)) incident.set(from, []);
-    if (!incident.has(to)) incident.set(to, []);
-    outgoing.get(from).push(link);
-    incident.get(from).push(link);
-    incident.get(to).push(link);
-  }
-
-  const now = Date.now();
-  data.nodes.forEach(node => {
-    const out = outgoing.get(node.id) || [];
-    const inc = incident.get(node.id) || [];
-    const typeCount = out.filter(link => relationKey(link.relation) === 'tur').length;
-    const negCount = out.filter(link => relationKey(link.relation) === 'degil').length;
-    const anyLow = (node.confidence ?? node.weight ?? 0.5) < 0.35 || [...out, ...inc].some(link => (link.confidence ?? link.weight ?? 0.5) < 0.35);
-    const stale = node.last_seen ? (now - Date.parse(node.last_seen) > 30 * 24 * 60 * 60 * 1000) : false;
-    node.__flags = {
-      contradiction: typeCount > 1 || (negCount > 0 && out.some(link => relationKey(link.relation) !== 'degil')),
-      lowConfidence: anyLow,
-      stale,
-    };
-  });
-
-  data.links.forEach(link => {
-    link.__flags = {
-      lowConfidence: (link.confidence ?? link.weight ?? 0.5) < 0.35,
-      contradiction: relationKey(link.relation) === 'degil',
-    };
-  });
-}
-
-async function loadGraph() {
-  try {
-    const res = await fetch('/graph-data');
-    graphData = await res.json();
-    analyzeGraph(graphData);
-    renderGraph(graphData);
-    document.getElementById('graph-stats').textContent = `${graphData.nodes.length} düğüm · ${graphData.links.length} kenar`;
-  } catch (err) {
-    console.error('Graf yüklenemedi:', err);
-  }
-}
-
-function renderGraph(data) {
-  const container = document.getElementById('graph-panel');
-  const W = container.clientWidth || 800;
-  const H = container.clientHeight || 600;
-
-  d3.select('#graph-svg').selectAll('*').remove();
-  svg = d3.select('#graph-svg').attr('width', W).attr('height', H);
-
-  const zoom = d3.zoom()
-    .scaleExtent([0.1, 8])
-    .on('zoom', e => {
-      currentTransform = e.transform;
-      g.attr('transform', e.transform);
-    });
-  svg.call(zoom);
-  window._axiomZoom = zoom;
-  window._axiomSvg = svg;
-
-  g = svg.append('g');
-
-  const maxEdge = Math.max(1, ...data.nodes.map(n => n.edgeCount || 0));
-  const nodeRadius = node => 4 + ((node.edgeCount || 0) / maxEdge) * 12;
-
-  simulation = d3.forceSimulation(data.nodes)
-    .force('link', d3.forceLink(data.links).id(d => d.id).distance(82).strength(0.3))
-    .force('charge', d3.forceManyBody().strength(-120))
-    .force('center', d3.forceCenter(W / 2, H / 2))
-    .force('collision', d3.forceCollide().radius(d => nodeRadius(d) + 4));
-
-  const link = g.append('g').selectAll('line')
-    .data(data.links)
-    .join('line')
-    .attr('class', d => {
-      const classes = ['link', relationKey(d.relation)];
-      if (d.__flags?.lowConfidence) classes.push('low-confidence');
-      if (d.__flags?.contradiction) classes.push('contradicted');
-      return classes.join(' ');
-    })
-    .attr('stroke', d => relationColor(d.relation))
-    .attr('stroke-width', d => 0.65 + ((d.confidence ?? d.weight ?? 0.5) * 1.25));
-
-  const node = g.append('g').selectAll('g')
-    .data(data.nodes)
-    .join('g')
-    .attr('class', d => {
-      const classes = ['node'];
-      if (d.__flags?.contradiction) classes.push('contradicted');
-      if (d.__flags?.stale) classes.push('stale');
-      if (d.__flags?.lowConfidence) classes.push('low-confidence');
-      return classes.join(' ');
-    })
-    .call(d3.drag()
-      .on('start', (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
-      .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
-      .on('end', (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
-    )
-    .on('click', (_, d) => showNodeInfo(d));
-
-  node.append('circle')
-    .attr('r', d => nodeRadius(d))
-    .attr('fill', d => {
-      if (d.__flags?.contradiction) return 'rgba(255,107,134,.18)';
-      if (d.__flags?.stale) return 'rgba(120,125,160,.16)';
-      if ((d.confidence ?? d.weight ?? 0.5) < 0.35) return 'rgba(255,191,105,.14)';
-      return 'rgba(17,21,35,.95)';
-    })
-    .attr('stroke', d => {
-      if (d.__flags?.contradiction) return 'rgba(255,107,134,.95)';
-      if (d.__flags?.lowConfidence) return 'rgba(255,191,105,.85)';
-      if ((d.confidence ?? d.weight ?? 0.5) > 0.65) return 'rgba(105,215,255,.75)';
-      return '#2f3852';
-    });
-
-  const labels = node.append('text')
-    .text(d => d.label.length > 12 ? d.label.slice(0, 11) + '…' : d.label)
-    .attr('dy', d => nodeRadius(d) + 10)
-    .style('display', showLabels ? 'block' : 'none');
-
-  simulation.on('tick', () => {
-    link
-      .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
-      .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
-    node.attr('transform', d => `translate(${d.x},${d.y})`);
-  });
-
-  window._axiomLabels = labels;
-}
-
-function relationColor(rel) {
-  const key = relationKey(rel);
-  const map = {
-    tur: '#9d68ff',
-    yapabilir: '#69d7ff',
-    benzer: '#67d39a',
-    ozellik: '#ffbf69',
-    hipotez: '#ff9a5f',
-    degil: '#ff6b86',
-  };
-  return map[key] || '#44506f';
-}
-
-function showNodeInfo(node) {
-  const info = document.getElementById('graph-info');
-  const edges = graphData.links.filter(link => endpointId(link.source) === node.id || endpointId(link.target) === node.id);
-  const totalEvidence = edges.reduce((sum, link) => sum + (link.evidenceCount || 0), 0);
-  const sources = [...new Set(edges.map(link => link.source || link.sourceType || 'manual').filter(Boolean))];
-  document.getElementById('info-title').textContent = node.label;
-  document.getElementById('info-meta').innerHTML =
-    `Ağırlık: <strong>${Number(node.weight || 0).toFixed(2)}</strong><br>` +
-    `Güven: <strong>${Number(node.confidence || node.weight || 0).toFixed(2)}</strong><br>` +
-    `Kenar: <strong>${node.edgeCount || 0}</strong><br>` +
-    `Kanıt: <strong>${totalEvidence}</strong><br>` +
-    `Kaynak: <strong>${escapeHtml(sources.slice(0, 3).join(', ') || '—')}</strong><br>` +
-    `Son görülme: <strong>${escapeHtml(node.last_seen || '—')}</strong>`;
-  const edgeList = document.getElementById('info-edges');
-  edgeList.innerHTML = edges.slice(0, 10).map(edge => {
-    const from = endpointId(edge.source);
-    const to = endpointId(edge.target);
-    const label = `${from} —[${edge.relation}]→ ${to}`;
-    return `<div class="edge-item">${escapeHtml(label)}</div>`;
-  }).join('');
-  info.classList.add('visible');
-}
-
-function resetZoom() {
-  if (window._axiomSvg && window._axiomZoom) {
-    window._axiomSvg.transition().duration(350).call(window._axiomZoom.transform, d3.zoomIdentity);
-  }
-}
-
-function toggleLabels() {
-  showLabels = !showLabels;
-  if (window._axiomLabels) window._axiomLabels.style('display', showLabels ? 'block' : 'none');
-}
-
-document.addEventListener('click', e => {
-  if (!e.target.closest('.node') && !e.target.closest('.graph-info')) {
-    const info = document.getElementById('graph-info');
-    if (info) info.classList.remove('visible');
-  }
-});
-
-function buildConflictItems(data) {
-  const now = Date.now();
-  const out = new Map();
-  for (const node of data.nodes) out.set(node.id, []);
-  for (const link of data.links) {
-    const from = endpointId(link.source);
-    if (!out.has(from)) out.set(from, []);
-    out.get(from).push(link);
-  }
-  const items = [];
-  for (const node of data.nodes) {
-    const outgoing = out.get(node.id) || [];
-    const typeEdges = outgoing.filter(link => relationKey(link.relation) === 'tur');
-    const negEdges = outgoing.filter(link => relationKey(link.relation) === 'degil');
-    const lowConfidence = (node.confidence ?? node.weight ?? 0.5) < 0.35 || outgoing.some(link => (link.confidence ?? link.weight ?? 0.5) < 0.35);
-    const stale = node.last_seen ? (now - Date.parse(node.last_seen) > 30 * 24 * 60 * 60 * 1000) : false;
-
-    if (typeEdges.length > 1) {
-      items.push({
-        kind: 'contradicted',
-        title: `${node.label} için çoklu-tür çatışması`,
-        text: `Aynı düğüm altında birden fazla tür ilişkisi var. Bu durum graph-backed çelişki sinyali üretir.`,
-        tags: ['çoklu-tür', `confidence ${Number(node.confidence || node.weight || 0).toFixed(2)}`],
-      });
-    }
-    if (negEdges.length > 0 && outgoing.some(link => relationKey(link.relation) !== 'degil')) {
-      items.push({
-        kind: 'contradicted',
-        title: `${node.label} için negasyon çatışması`,
-        text: `Negasyon ilişkisinin yanında olumlu bir ilişki de var. Bu kombinasyon kullanıcıya açıkça gösterilmeli.`,
-        tags: ['negasyon', 'çelişki'],
-      });
-    }
-    if (lowConfidence) {
-      items.push({
-        kind: 'low',
-        title: `${node.label} düşük güven bölgesinde`,
-        text: `Bu düğümün ya da çevresindeki kenarların confidence değeri düşük. Ürün yüzünde soluk gösterilmeli.`,
-        tags: ['low-confidence', 'kanıt zayıf'],
-      });
-    }
-    if (stale) {
-      items.push({
-        kind: 'stale',
-        title: `${node.label} eski`,
-        text: `Son görülme tarihi eski. Hafıza panelinde bu düğümün pasif görünmesi daha doğru olur.`,
-        tags: ['stale', 'last_seen'],
-      });
-    }
-  }
-  return items.slice(0, 12);
-}
-
-async function loadConflicts() {
-  try {
-    const [graphRes, statusRes] = await Promise.all([fetch('/graph-data'), fetch('/v2-status')]);
-    const graph = await graphRes.json();
+    const [statusRes, graphRes] = await Promise.all([fetch('/v2-status'), fetch('/graph-data')]);
     const status = await statusRes.json();
-    graphData = graph;
-    analyzeGraph(graphData);
-    renderConflictPanel(graphData, status);
-  } catch (err) {
-    const feed = document.getElementById('conflict-feed');
-    if (feed) {
-      feed.innerHTML = '<div class="story-item"><strong>Hata</strong><span>Çelişki ekranı yüklenemedi.</span></div>';
-    }
+    const graph = await graphRes.json();
+    state.status = status;
+    state.graph = graph;
+    state.queue = buildQueue(status);
+    state.queue.forEach((item, index) => { item.order = index; });
+    state.selectedId = state.queue[0]?.id || null;
+    document.getElementById('system-status-copy').textContent = `${status.backend || 'memory'} backend · ${formatNumber(status.nodes || 0)} nodes · ${formatNumber(status.edges || 0)} edges`;
+    document.getElementById('footer-version').innerHTML = `AXIOM v${escapeHtml(status.version || '0.0.0')}<br>© 2025 AXIOM Labs`;
+    document.getElementById('runtime-label').textContent = `${status.activeKernel || 'v1'} · ${status.backend || 'memory'}`;
+    document.getElementById('version-label').textContent = `${status.version || '0.0.0'} · commit ${status.lastCommit || 'unknown'}`;
+    document.getElementById('focus-label').textContent = `${status.currentFocus || 'Overview'} · ${status.nextAction || 'Awaiting action'}`;
+    document.getElementById('workspace-name').textContent = 'Acme Research';
+    document.getElementById('sidebar-workspace').textContent = 'Acme Research';
+    document.getElementById('queue-count').textContent = formatNumber(state.queue.length);
+    renderMetrics(status, graph, state.queue);
+    applyFilters();
+    renderInsights(status, graph, state.queue);
+    renderGraph(graph);
+  } catch (error) {
+    document.getElementById('system-status-copy').textContent = 'Offline - UI loaded without live data.';
+    document.getElementById('review-result').innerHTML = `<strong>Offline.</strong><p>${escapeHtml(error.message || 'Failed to load dashboard data.')}</p>`;
   }
 }
 
-function renderConflictPanel(graph, status) {
-  const dash = document.getElementById('conflict-dashboard');
-  const feed = document.getElementById('conflict-feed');
-  const conflicts = buildConflictItems(graph);
-  if (dash) {
-    dash.innerHTML = [
-      card('Çelişki sinyali', `${conflicts.length}`, 'Graph üzerinden türetilen aktif çatışmalar'),
-      card('Düşük güven', `${graph.links.filter(l => (l.confidence ?? l.weight ?? 0.5) < 0.35).length}`, 'Zayıf kenarlar'),
-      card('Eski düğüm', `${graph.nodes.filter(n => n.last_seen && (Date.now() - Date.parse(n.last_seen) > 30 * 24 * 60 * 60 * 1000)).length}`, '30+ gün görmeyen düğümler'),
-      card('Durum', `${escapeHtml(status.currentFocus || '?')}`, `${escapeHtml(status.nextAction || '?')}`),
-    ].join('');
-  }
-  if (feed) {
-    feed.innerHTML = conflicts.length > 0
-      ? conflicts.map(item => `
-        <div class="conflict-card ${item.kind}">
-          <h3>${escapeHtml(item.title)}</h3>
-          <p>${escapeHtml(item.text)}</p>
-          <div class="conflict-tags">${item.tags.map(tag => `<span class="tag ${item.kind === 'contradicted' ? 'bad' : item.kind === 'low' ? 'warn' : ''}">${escapeHtml(tag)}</span>`).join('')}</div>
-        </div>
-      `).join('')
-      : '<div class="story-item"><strong>Çelişki yok</strong><span>Bu graph snapshot’ında belirgin bir çatışma görünmüyor.</span></div>';
-  }
+function loadExample() {
+  const input = document.getElementById('review-input');
+  input.value = 'The current policy set is too permissive for production SQL actions.';
+  renderReviewResult(null, 'Example loaded. Click Review to run it.');
 }
 
-window.addEventListener('resize', () => {
-  if (document.getElementById('graph-panel').classList.contains('active')) loadGraph();
-});
+function bindEvents() {
+  const savedTheme = localStorage.getItem('axiom-theme') || 'architectural';
+  setTheme(savedTheme);
+  document.getElementById('search-input').addEventListener('input', (event) => {
+    state.search = event.target.value;
+    applyFilters();
+  });
+  document.getElementById('verdict-filter').addEventListener('change', (event) => {
+    state.verdictFilter = event.target.value;
+    applyFilters();
+  });
+  document.getElementById('sort-select').addEventListener('change', (event) => {
+    state.sort = event.target.value;
+    applyFilters();
+  });
+  document.getElementById('policy-set').addEventListener('change', (event) => {
+    state.policySet = event.target.value;
+    document.getElementById('policy-match').textContent = 'MATCH';
+  });
+  document.getElementById('review-button').addEventListener('click', () => runReview('review'));
+  document.getElementById('advocate-button').addEventListener('click', () => {
+    const input = document.getElementById('review-input');
+    input.value = input.value || 'Why might this action fail under production policy?';
+    renderReviewResult({ status: 'analysis', message: 'Devil\'s advocate prompt prepared.' });
+  });
+  document.getElementById('memory-button').addEventListener('click', () => {
+    const value = document.getElementById('review-input').value.trim().toLowerCase();
+    if (value) state.search = value;
+    document.getElementById('search-input').value = state.search;
+    applyFilters();
+    renderReviewResult({ status: 'memory', message: 'Search filter updated to focus the queue.' });
+  });
+  document.getElementById('load-example').addEventListener('click', loadExample);
+  document.getElementById('clear-review').addEventListener('click', () => {
+    document.getElementById('review-input').value = '';
+    renderReviewResult(null);
+  });
+  document.getElementById('toggle-rows').addEventListener('click', (event) => {
+    state.selectedOnly = !state.selectedOnly;
+    event.currentTarget.innerHTML = state.selectedOnly
+      ? '<i class="ri-eye-off-line"></i>Show all rows'
+      : '<i class="ri-eye-line"></i>Show selected only';
+    renderQueue();
+  });
+  document.getElementById('reject-button').addEventListener('click', () => {
+    const item = getSelectedItem();
+    if (!item) return;
+    item.verdict = 'BLOCKED';
+    item.status = 'Rejected by operator';
+    item.risk = 'HIGH';
+    renderQueue();
+    renderSelection();
+    renderReviewResult({ status: 'blocked', message: `${item.action} has been rejected.` });
+  });
+  document.getElementById('approve-button').addEventListener('click', () => {
+    const item = getSelectedItem();
+    if (!item) return;
+    item.verdict = 'SAFE';
+    item.status = 'Approved by operator';
+    item.risk = 'LOW';
+    renderQueue();
+    renderSelection();
+    renderReviewResult({ status: 'approved', message: `${item.action} has been approved.` });
+  });
+  document.getElementById('detail-reset').addEventListener('click', () => {
+    state.selectedId = state.filteredQueue[0]?.id || state.queue[0]?.id || null;
+    renderQueue();
+    renderSelection();
+  });
+  document.getElementById('graph-reset').addEventListener('click', resetGraphZoom);
+  document.getElementById('graph-labels').addEventListener('click', toggleGraphLabels);
+  document.querySelectorAll('.nav-button').forEach((button) => {
+    button.addEventListener('click', () => selectNav(button.dataset.target));
+  });
+  document.querySelectorAll('[data-preset]').forEach((button) => {
+    button.addEventListener('click', () => {
+      document.getElementById('review-input').value = button.dataset.preset;
+      document.getElementById('review-input').focus();
+    });
+  });
+  document.querySelectorAll('[data-theme-choice]').forEach((button) => {
+    button.addEventListener('click', () => setTheme(button.dataset.themeChoice));
+  });
+  window.addEventListener('resize', () => {
+    if (state.graph.nodes.length) renderGraph(state.graph);
+  });
+}
 
-updateHeaderStats();
+bindEvents();
 loadStatus();
 </script>
 </body>
