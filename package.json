@@ -1,6 +1,6 @@
 {
   "name": "axiom",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Deterministic symbolic AI reasoning engine — verifies LLM outputs, detects contradictions, learns from natural language. Zero external LLM/GPU/cloud dependencies.",
   "main": "kernel.js",
   "types": "kernel.d.ts",
@@ -52,7 +52,7 @@
   "author": "AXIOM Contributors",
   "license": "MIT",
   "axiom": {
-    "testStatus": "592/592"
+    "testStatus": "603 pass / 0 fail / 16 skipped"
   },
   "engines": {
     "node": ">=18.0.0"

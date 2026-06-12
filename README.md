@@ -22,6 +22,11 @@ Node.js >= 18 gereklidir. Dış bağımlılık yoktur.
 
 AXIOM v0.8 introduces the Trust Kernel and AXIOM Trust Protocol v0.1: provenance, trust policy, append-only audit, workspace scoping, conflict quarantine, Trust Receipts, ATP/AVP conformance, `.axiom` package format draft, and the minimal `axiom-verify` package skeleton.
 
+### v0.9.1 Memory Core
+
+Memory Core now covers schema, `kernel.memory` API, persistence, query helpers, graph links, temporal queries, provenance/audit/workspace hardening, docs, and smoke coverage.
+The release prep line also includes the deterministic memory graph link ordering flake fix.
+
 ---
 
 ## Ne Yapar?

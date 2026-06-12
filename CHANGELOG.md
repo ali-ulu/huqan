@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.9.1
+
+Prepared 2026-06-12.
+
+### Added
+- Memory Core schema, kernel.memory API, persistence, query helpers, graph links, temporal queries, provenance/audit/workspace hardening.
+- Memory Core docs and smoke checklist for release prep.
+- Deterministic memory graph link ordering flake fix.
+
+### Notes
+- No embeddings.
+- No summary/cluster plugin.
+- No MCP tool surface.
+- No Self-Healer.
+- No UI.
+
 ## v0.9.0
 
 Prepared 2026-06-03.
