@@ -75,6 +75,44 @@ export interface DreamData {
   cycle?: number;
 }
 
+export interface KernelMemoryRecord {
+  memoryId: string;
+  workspaceId: string;
+  content: unknown;
+  createdAt: string;
+  updatedAt?: string;
+  deletedAt?: string;
+  supersedesMemoryId?: string;
+  status?: string;
+  metadata?: Record<string, unknown>;
+  provenance: Record<string, unknown>;
+  trustPolicyVersion: string;
+}
+
+export interface KernelMemoryLink {
+  linkId: string;
+  relation: string;
+  fromMemoryId: string;
+  toMemoryId: string;
+  workspaceId: string;
+  createdAt: string;
+  provenance: Record<string, unknown>;
+  trustPolicyVersion: string;
+  strength?: number;
+  metadata?: Record<string, unknown>;
+}
+
+export interface KernelMemoryApi {
+  store(input: Record<string, unknown>): { ok: boolean; memory?: KernelMemoryRecord; event?: Record<string, unknown>; error?: Record<string, unknown> };
+  get(memoryId: string, opts?: Record<string, unknown>): { ok: boolean; memory?: KernelMemoryRecord; error?: Record<string, unknown> };
+  list(opts?: Record<string, unknown>): { ok: boolean; memories: KernelMemoryRecord[]; total: number };
+  search(query: string, opts?: Record<string, unknown>): { ok: boolean; memories?: KernelMemoryRecord[]; total?: number; error?: Record<string, unknown> };
+  link(input: Record<string, unknown>): { ok: boolean; link?: KernelMemoryLink; event?: Record<string, unknown>; error?: Record<string, unknown>; deduped?: boolean };
+  tombstone(memoryId: string, opts?: Record<string, unknown>): { ok: boolean; memory?: KernelMemoryRecord; event?: Record<string, unknown>; error?: Record<string, unknown> };
+  supersede(memoryId: string, newContent: unknown, opts?: Record<string, unknown>): { ok: boolean; oldMemory?: KernelMemoryRecord; newMemory?: KernelMemoryRecord; link?: KernelMemoryLink; event?: Record<string, unknown>; oldMemoryUpdateEvent?: Record<string, unknown>; error?: Record<string, unknown> };
+  contradict(memoryId: string, targetMemoryId: string, opts?: Record<string, unknown>): { ok: boolean; link?: KernelMemoryLink; event?: Record<string, unknown>; error?: Record<string, unknown>; deduped?: boolean };
+}
+
 export interface KernelOptions {
   noLoad?: boolean;
   memoryPath?: string;
@@ -96,6 +134,8 @@ declare class Kernel {
     load(): void;
     save(): void;
   };
+
+  memory: KernelMemoryApi;
 
   lang: string;
   contractVersion: string;

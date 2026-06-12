@@ -5,6 +5,7 @@ const path = require('path');
 const PluginManager = require('./plugin');
 const createNlp = require('./nlp');
 const VerifyService = require('./lib/verify');
+const MemoryStore = require('./lib/memory-store');
 const { buildProvenance } = require('./lib/provenance-ingest');
 const { detectClaimConflict, routeCandidateClaim } = require('./lib/conflict-detector');
 
@@ -76,6 +77,9 @@ class Kernel {
       if (fs.existsSync(pDir)) this.plugins.load(pDir);
     }
     this._verifyService = new VerifyService(this);
+    this.memory = new MemoryStore({
+      trustPolicyVersion: this.contractVersion,
+    });
     this.strictProvenance = opts.strictProvenance === true;
     
     // r1: RwLock mutex for concurrent access safety
