@@ -1,6 +1,6 @@
 {
     "name": "huqan",
-    "version":  "0.9.0",
+    "version":  "0.9.1",
     "description": "Deterministic causal reasoning engine. Verifies LLM outputs, detects contradictions, learns from natural language. Zero external LLM/GPU/cloud dependencies.",
     "main":  "kernel.js",
     "types":  "kernel.d.ts",
@@ -50,7 +50,7 @@
     "author": "Huqan Contributors",
     "license": "AGPL-3.0",
     "huqan": {
-                  "testStatus":  "1242 total / 1226 pass / 0 fail / 16 skipped"
+                  "testStatus":  "1277 pass / 0 fail / 16 skipped"
               },
     "engines":  {
                     "node":  "\u003e=18.0.0"

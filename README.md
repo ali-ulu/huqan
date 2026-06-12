@@ -81,6 +81,16 @@ node mcpServer.js # MCP server for Claude Desktop / Cursor
 | Causal chains | ✅ CAUSES, PREVENTS, ENABLES... | ❌ No |
 | Validation F1 | 0.88-0.91 | 0.82-0.86 |
 
+## v0.9.1 Memory Core
+
+AXIOM v0.9.1 is shipped from `main` with Memory Core compatibility aligned through PR #42.
+
+- Deterministic memory behavior is preserved.
+- The normalized SQLite `MemoryStore` architecture remains intact.
+- Memory Core compatibility aliases are available on `kernel.memory`.
+- Provenance, audit, and workspace invariants remain in place.
+- Final verified suite result: `1277 pass / 0 fail / 16 skipped`.
+
 ---
 
 ## Causal Reasoning
