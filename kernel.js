@@ -79,6 +79,11 @@ class Kernel {
     this._verifyService = new VerifyService(this);
     this.memory = new MemoryStore({
       trustPolicyVersion: this.contractVersion,
+      memoryPath: opts.memoryStorePath,
+      dbPath: opts.memoryStoreDbPath,
+      useSQLite: opts.memoryStoreUseSQLite,
+      autoLoad: !opts.noLoad,
+      autoPersist: opts.memoryStorePath || opts.memoryStoreDbPath ? true : false,
     });
     this.strictProvenance = opts.strictProvenance === true;
     

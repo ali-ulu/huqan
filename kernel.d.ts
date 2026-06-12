@@ -113,6 +113,10 @@ export interface KernelMemoryApi {
   tombstone(memoryId: string, opts?: Record<string, unknown>): { ok: boolean; memory?: KernelMemoryRecord; event?: Record<string, unknown>; error?: Record<string, unknown> };
   supersede(memoryId: string, newContent: unknown, opts?: Record<string, unknown>): { ok: boolean; oldMemory?: KernelMemoryRecord; newMemory?: KernelMemoryRecord; link?: KernelMemoryLink; event?: Record<string, unknown>; oldMemoryUpdateEvent?: Record<string, unknown>; error?: Record<string, unknown> };
   contradict(memoryId: string, targetMemoryId: string, opts?: Record<string, unknown>): { ok: boolean; link?: KernelMemoryLink; event?: Record<string, unknown>; error?: Record<string, unknown>; deduped?: boolean };
+  patchMetadata(memoryId: string, patch?: Record<string, unknown>, opts?: Record<string, unknown>): { ok: boolean; memory?: KernelMemoryRecord; event?: Record<string, unknown>; error?: Record<string, unknown> };
+  save(): { ok: boolean; backend?: string; workspaceCount?: number; skipped?: boolean; error?: Record<string, unknown> };
+  load(): { ok: boolean; backend?: string; loaded?: number; skipped?: boolean; error?: Record<string, unknown> };
+  close(): void;
 }
 
 export interface KernelOptions {
@@ -120,6 +124,9 @@ export interface KernelOptions {
   memoryPath?: string;
   dbPath?: string;
   useSQLite?: boolean;
+  memoryStorePath?: string;
+  memoryStoreDbPath?: string;
+  memoryStoreUseSQLite?: boolean;
   paranoidMode?: boolean;
   lang?: string;
   loadPlugins?: boolean;
