@@ -2,7 +2,7 @@
 
 ## Durum
 
-Kabul edildi.
+Önerildi / review bekliyor.
 
 ## Bağlam
 

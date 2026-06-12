@@ -6,13 +6,9 @@ Self-Healer hattının amacı, AXIOM'un geçmiş scan/fix/test/PR bilgisini Memo
 
 Bu dosya implementasyon değil, yön haritasıdır.
 
-## Kanonik Başlangıç Durumu
+## Başlangıç Varsayımı
 
-- Main HEAD: `26d73e9`
-- `V3.1 runtime + live Codex MCP certified`
-- `Memory Core readiness PASS`
-- Memory Core için kanonik baz: `main`
-- `origin/v0.9.1-memory-core` stale kabul edilir
+Self-Healer hattı, Memory Core readiness doğrulandıktan ve canonical `main` üzerinde V3.1 runtime/MCP güvenlik davranışı sertifikalandıktan sonra başlatılır. Kesin commit hash, branch ve smoke sonuçları release/checkpoint notlarında tutulur; bu roadmap kalıcı tasarım sırasını tanımlar.
 
 ## Neden Şimdi
 
