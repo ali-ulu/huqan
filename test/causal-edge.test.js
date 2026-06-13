@@ -309,6 +309,9 @@ describe('normalizeCausalEdge', () => {
     assert.strictEqual(normalized.strengthLabel, 'very_strong');
     assert.strictEqual(normalized.confidence, 0.9);
     assert.deepStrictEqual(normalized.metadata, { note: 'test' });
+    edge.metadata.note = 'mutated';
+    assert.deepStrictEqual(normalized.metadata, { note: 'test' });
+    assert.notStrictEqual(normalized.metadata, edge.metadata);
   });
 
   it('omits optional fields when absent', () => {

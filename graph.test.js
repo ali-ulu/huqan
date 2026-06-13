@@ -62,6 +62,17 @@ describe('Graph - Kenar Yönetimi', () => {
     assert.strictEqual(g.getEdge('x', 'y', 'z'), null);
   });
 
+  it('getEdge returns a defensive copy', () => {
+    g = new Graph({ useSQLite: false });
+    g.addNode('a', 'x');
+    g.addNode('b', 'y');
+    g.addEdge('a', 'b', 'bag');
+    const edge = g.getEdge('a', 'b', 'bag');
+    edge.weight = 0.001;
+    const again = g.getEdge('a', 'b', 'bag');
+    assert.notStrictEqual(again.weight, 0.001);
+  });
+
   it('getEdgesBetween: iki düğüm arasındaki tüm kenarları döndürür', () => {
     g = new Graph({ useSQLite: false });
     g.addNode('a', 'x'); g.addNode('b', 'y');
@@ -163,6 +174,17 @@ describe('Graph - Unutma Eğrisi', () => {
     const erisim1 = once.lastAccessed;
     const iki = g.getNode('köpek');
     assert.ok(iki.lastAccessed >= erisim1);
+  });
+
+  it('getNode returns a defensive copy', () => {
+    g = new Graph({ useSQLite: false });
+    g.addNode('kedi', 'hayvan');
+    const node = g.getNode('kedi');
+    node.label = 'mutated';
+    node.vector.mem = 1;
+    const again = g.getNode('kedi');
+    assert.strictEqual(again.label, 'hayvan');
+    assert.strictEqual(again.vector.mem, undefined);
   });
 
   it('getWeight: zamanla azalan weight döner', () => {

@@ -69,9 +69,9 @@ describe('memory-store', () => {
     const r3 = store.store({ content: 'gamma' });
 
     // Manually force different timestamps to avoid sub-millisecond clustering in fast environments
-    r1.memory.createdAt = '2026-06-03T12:00:00.000Z';
-    r2.memory.createdAt = '2026-06-03T12:00:01.000Z';
-    r3.memory.createdAt = '2026-06-03T12:00:02.000Z';
+    store._memories.get(store._makeMemoryKey('default', r1.memory.memoryId)).createdAt = '2026-06-03T12:00:00.000Z';
+    store._memories.get(store._makeMemoryKey('default', r2.memory.memoryId)).createdAt = '2026-06-03T12:00:01.000Z';
+    store._memories.get(store._makeMemoryKey('default', r3.memory.memoryId)).createdAt = '2026-06-03T12:00:02.000Z';
 
     const result = store.list();
     assert.strictEqual(result.ok, true);
@@ -121,6 +121,15 @@ describe('memory-store', () => {
     const result = store.get(r.memory.memoryId);
     assert.strictEqual(result.ok, true);
     assert.deepStrictEqual(result.memory.content, { fact: 'V1 is decision speed' });
+  });
+
+  it('get returns a defensive copy', () => {
+    const store = createStore();
+    const r = store.store({ content: { fact: 'immutable' } });
+    const fetched = store.get(r.memory.memoryId);
+    fetched.memory.content.fact = 'mutated';
+    const again = store.get(r.memory.memoryId);
+    assert.strictEqual(again.memory.content.fact, 'immutable');
   });
 
   it('get returns NOT_FOUND for unknown id', () => {
@@ -263,6 +272,14 @@ describe('memory-store', () => {
     assert.strictEqual(result.error.code, 'NOT_FOUND');
   });
 
+  it('get without workspaceId stays in default workspace', () => {
+    const store = createStore();
+    const r = store.store({ content: 'scoped', workspaceId: 'ws-x' });
+    const result = store.get(r.memory.memoryId);
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.error.code, 'NOT_FOUND');
+  });
+
   // ── events and links ────────────────────────────────────
   it('getEvents returns events for a memory', () => {
     const store = createStore();
@@ -388,9 +405,9 @@ describe('memory-store', () => {
     const r2 = store.store({ content: 'm2' });
     const r3 = store.store({ content: 'm3' });
 
-    r1.memory.createdAt = '2026-06-03T12:00:00.000Z';
-    r2.memory.createdAt = '2026-06-03T12:00:05.000Z';
-    r3.memory.createdAt = '2026-06-03T12:00:10.000Z';
+    store._memories.get(store._makeMemoryKey('default', r1.memory.memoryId)).createdAt = '2026-06-03T12:00:00.000Z';
+    store._memories.get(store._makeMemoryKey('default', r2.memory.memoryId)).createdAt = '2026-06-03T12:00:05.000Z';
+    store._memories.get(store._makeMemoryKey('default', r3.memory.memoryId)).createdAt = '2026-06-03T12:00:10.000Z';
 
     const r = store.query({
       createdAfter: '2026-06-03T12:00:05.000Z',
@@ -406,8 +423,8 @@ describe('memory-store', () => {
     const r1 = store.store({ content: 'm1' });
     const r2 = store.store({ content: 'm2' });
 
-    r1.memory.updatedAt = '2026-06-03T12:10:00.000Z';
-    r2.memory.updatedAt = '2026-06-03T12:10:10.000Z';
+    store._memories.get(store._makeMemoryKey('default', r1.memory.memoryId)).updatedAt = '2026-06-03T12:10:00.000Z';
+    store._memories.get(store._makeMemoryKey('default', r2.memory.memoryId)).updatedAt = '2026-06-03T12:10:10.000Z';
 
     const r = store.query({
       updatedAfter: '2026-06-03T12:10:05.000Z'
@@ -467,8 +484,8 @@ describe('memory-store', () => {
     const r1 = store.store({ content: 'first' });
     const r2 = store.store({ content: 'second' });
 
-    r1.memory.createdAt = '2026-06-03T12:00:00.000Z';
-    r2.memory.createdAt = '2026-06-03T12:00:00.000Z';
+    store._memories.get(store._makeMemoryKey('default', r1.memory.memoryId)).createdAt = '2026-06-03T12:00:00.000Z';
+    store._memories.get(store._makeMemoryKey('default', r2.memory.memoryId)).createdAt = '2026-06-03T12:00:00.000Z';
 
     const order = [r1.memory.memoryId, r2.memory.memoryId].sort();
 
@@ -641,10 +658,10 @@ describe('memory-store', () => {
     it('eventsForMemory returns deterministic event timeline for one memory', () => {
       const store = createStore();
       const m = store.store({ content: 'tracked' }).memory;
-      store.getEvents(m.memoryId)[0].createdAt = '2026-06-03T12:00:00.000Z';
+      store._events[0].createdAt = '2026-06-03T12:00:00.000Z';
 
       const patch = store.patchMetadata(m.memoryId, { tag: 'v2' });
-      patch.event.createdAt = '2026-06-03T12:00:05.000Z';
+      store._events[1].createdAt = '2026-06-03T12:00:05.000Z';
 
       const res = store.eventsForMemory(m.memoryId);
       assert.strictEqual(res.ok, true);
@@ -659,8 +676,8 @@ describe('memory-store', () => {
       const m2 = store.store({ content: 'm2', actor: 'bob' }).memory;
 
       // Force timestamps
-      store.getEvents(m1.memoryId)[0].createdAt = '2026-06-03T12:00:00.000Z';
-      store.getEvents(m2.memoryId)[0].createdAt = '2026-06-03T12:00:10.000Z';
+      store._events[0].createdAt = '2026-06-03T12:00:00.000Z';
+      store._events[1].createdAt = '2026-06-03T12:00:10.000Z';
 
       const t1 = store.timeline({ actor: 'alice' });
       assert.strictEqual(t1.total, 1);
@@ -679,9 +696,9 @@ describe('memory-store', () => {
       const m2 = store.store({ content: 'm2' }).memory;
       const m3 = store.store({ content: 'm3' }).memory;
 
-      m1.createdAt = '2026-06-03T12:00:00.000Z';
-      m2.createdAt = '2026-06-03T12:00:05.000Z';
-      m3.createdAt = '2026-06-03T12:00:10.000Z';
+      store._memories.get(store._makeMemoryKey('default', m1.memoryId)).createdAt = '2026-06-03T12:00:00.000Z';
+      store._memories.get(store._makeMemoryKey('default', m2.memoryId)).createdAt = '2026-06-03T12:00:05.000Z';
+      store._memories.get(store._makeMemoryKey('default', m3.memoryId)).createdAt = '2026-06-03T12:00:10.000Z';
 
       const res = store.memoriesBetween('2026-06-03T12:00:00.000Z', '2026-06-03T12:00:05.000Z');
       assert.strictEqual(res.ok, true);
@@ -696,9 +713,9 @@ describe('memory-store', () => {
       const m2 = store.store({ content: 'm2' }).memory;
       const m3 = store.store({ content: 'm3' }).memory;
 
-      m1.createdAt = '2026-06-03T12:00:00.000Z';
-      m2.createdAt = '2026-06-03T12:00:05.000Z';
-      m3.createdAt = '2026-06-03T12:00:10.000Z';
+      store._memories.get(store._makeMemoryKey('default', m1.memoryId)).createdAt = '2026-06-03T12:00:00.000Z';
+      store._memories.get(store._makeMemoryKey('default', m2.memoryId)).createdAt = '2026-06-03T12:00:05.000Z';
+      store._memories.get(store._makeMemoryKey('default', m3.memoryId)).createdAt = '2026-06-03T12:00:10.000Z';
 
       const res = store.memoriesBetween('2026-06-03T12:00:00.000Z', '2026-06-03T12:00:10.000Z', { limit: 2, offset: 1 });
       assert.strictEqual(res.memories.length, 2);

@@ -60,14 +60,41 @@ function normalizeNodeRecord(node = {}, fallbackKey = '') {
     created_at: createdAt,
     last_seen: lastSeen,
     lastSeen,
-    provenance: node.provenance ?? null,
-    vector: node.vector || {},
-    tags: Array.isArray(node.tags) ? node.tags : [],
+    provenance: deepClone(node.provenance),
+    vector: isPlainObject(node.vector) ? deepClone(node.vector) : {},
+    tags: Array.isArray(node.tags) ? [...node.tags] : [],
   };
 }
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function deepClone(value) {
+  if (value === undefined || value === null) return value;
+  if (typeof value !== 'object') return value;
+  return JSON.parse(JSON.stringify(value));
+}
+
+function cloneNodeRecord(node) {
+  if (!node) return null;
+  return {
+    ...node,
+    tags: Array.isArray(node.tags) ? [...node.tags] : [],
+    vector: isPlainObject(node.vector) ? deepClone(node.vector) : {},
+    provenance: deepClone(node.provenance),
+  };
+}
+
+function cloneEdgeRecord(edge) {
+  if (!edge) return null;
+  return {
+    ...edge,
+    evidence: Array.isArray(edge.evidence) ? [...edge.evidence] : [],
+    confidence_history: Array.isArray(edge.confidence_history) ? deepClone(edge.confidence_history) : [],
+    provenance: deepClone(edge.provenance),
+    meta: deepClone(edge.meta) ?? {},
+  };
 }
 
 function clamp01(value, fallback = 0.5) {
@@ -178,7 +205,7 @@ function normalizeLoadedEdge(edge) {
     source_type: edge.source_type || '',
     updated_at: edge.updated_at || '',
     created_at: edge.created_at || '',
-    provenance: edge.provenance ?? null,
+    provenance: deepClone(edge.provenance),
     meta: sanitizeEdgeMeta(edge.meta),
     workspaceId: edge.workspaceId || edge.workspace_id || 'default',
   };
@@ -500,7 +527,7 @@ class Graph {
     const nodes = {};
     for (const [id, node] of Object.entries(this._nodes)) {
       if (normalizeWorkspaceId(node.workspaceId) === scope) {
-        nodes[id] = node;
+        nodes[id] = cloneNodeRecord(node);
       }
     }
     return nodes;
@@ -528,7 +555,7 @@ class Graph {
         this._nodes[storageKey].lastAccessed = now;
         this._nodes[storageKey].lastSeen = isoNow;
         this._nodes[storageKey].last_seen = isoNow;
-        if (hasExplicitProvenance) this._nodes[storageKey].provenance = provenance;
+        if (hasExplicitProvenance) this._nodes[storageKey].provenance = deepClone(provenance);
       } else {
         this._nodes[storageKey] = {
           id, label, tags: [], vector: {}, weight: 0.5, workspaceId,
@@ -545,7 +572,7 @@ class Graph {
         this._nodes[storageKey].lastAccessed = now;
         this._nodes[storageKey].lastSeen = isoNow;
         this._nodes[storageKey].last_seen = isoNow;
-        if (hasExplicitProvenance) this._nodes[storageKey].provenance = provenance;
+        if (hasExplicitProvenance) this._nodes[storageKey].provenance = deepClone(provenance);
       } else {
         this._nodes[storageKey] = {
           id, label, tags: [], vector: {}, weight: 0.5, workspaceId,
@@ -555,7 +582,7 @@ class Graph {
         };
       }
     }
-    return this._nodes[storageKey];
+    return cloneNodeRecord(this._nodes[storageKey]);
   }
 
   getNode(id, workspaceId = 'default') {
@@ -567,7 +594,7 @@ class Graph {
     if (this._db && this._stmts) {
       this._stmts.touchNode.run(Date.now(), id, scope);
     }
-    return node;
+    return cloneNodeRecord(node);
   }
 
   appendAuditEvent(event, opts = {}) {
@@ -715,7 +742,8 @@ class Graph {
   }
 
   addTag(nodeId, dim, weight, workspaceId = 'default') {
-    const node = this.getNode(nodeId, workspaceId);
+    const storageKey = nodeStorageKey(nodeId, workspaceId);
+    const node = this._nodes[storageKey] || (normalizeWorkspaceId(workspaceId) === 'default' ? this._nodes[nodeId] : null);
     if (!node) return;
     const v = node.vector;
     v[dim] = (v[dim] || 0) + weight;
@@ -743,7 +771,9 @@ class Graph {
       }
     }
     
-      const existing = this.getEdge(fromId, toId, relation, workspaceId);
+      const existing = (this._outIndex.get(edgeIndexKey(fromId, workspaceId)) || []).find(
+        e => e.to === toId && e.relation === relation && normalizeWorkspaceId(e.workspaceId) === workspaceId
+      );
       const isoNow = nowIso();
       const requestedCreatedAt = typeof opts.createdAt === 'string' && opts.createdAt ? opts.createdAt : '';
       const nextEvidence = Array.isArray(opts.evidence) ? opts.evidence : [];
@@ -764,7 +794,7 @@ class Graph {
       if (typeof opts.evidenceType === 'string') existing.evidence_type = opts.evidenceType;
       if (typeof opts.sourceType === 'string') existing.source_type = opts.sourceType;
       if (typeof opts.companyMode === 'boolean') existing.company_mode = opts.companyMode ? 1 : 0;
-      if (hasExplicitProvenance) existing.provenance = opts.provenance;
+      if (hasExplicitProvenance) existing.provenance = deepClone(opts.provenance);
       if (hasExplicitMeta) existing.meta = nextMeta;
       else existing.meta = sanitizeEdgeMeta(existing.meta);
       existing.workspaceId = workspaceId;
@@ -798,7 +828,7 @@ class Graph {
           relation
         );
       }
-      return existing;
+      return cloneEdgeRecord(existing);
     }
       const edge = {
         from: fromId,
@@ -816,7 +846,7 @@ class Graph {
         source_type: opts.sourceType || '',
         updated_at: isoNow,
         created_at: requestedCreatedAt || isoNow,
-        provenance: hasExplicitProvenance ? opts.provenance : null,
+        provenance: hasExplicitProvenance ? deepClone(opts.provenance) : null,
         meta: nextMeta,
         created: Date.now(),
         workspaceId,
@@ -850,20 +880,20 @@ class Graph {
         edge.strength ?? 0.5
       );
     }
-    return edge;
+    return cloneEdgeRecord(edge);
   }
 
   getEdge(fromId, toId, relation, workspaceId = 'default') {
     const out = this._outIndex.get(edgeIndexKey(fromId, workspaceId)) || [];
     for (const e of out) {
-      if (e.to === toId && e.relation === relation && normalizeWorkspaceId(e.workspaceId) === normalizeWorkspaceId(workspaceId)) return e;
+      if (e.to === toId && e.relation === relation && normalizeWorkspaceId(e.workspaceId) === normalizeWorkspaceId(workspaceId)) return cloneEdgeRecord(e);
     }
     return null;
   }
 
   getEdgesBetween(fromId, toId, workspaceId = 'default') {
     const out = this._outIndex.get(edgeIndexKey(fromId, workspaceId)) || [];
-    return out.filter(e => e.to === toId && normalizeWorkspaceId(e.workspaceId) === normalizeWorkspaceId(workspaceId));
+    return out.filter(e => e.to === toId && normalizeWorkspaceId(e.workspaceId) === normalizeWorkspaceId(workspaceId)).map(cloneEdgeRecord);
   }
 
   hasAnyEdge(fromId, toId, workspaceId = 'default') {
@@ -872,16 +902,18 @@ class Graph {
 
   getEdges(nodeId, workspaceId = 'default') {
     const out = this._outIndex.get(edgeIndexKey(nodeId, workspaceId)) || [];
-    return out.filter(e => normalizeWorkspaceId(e.workspaceId) === normalizeWorkspaceId(workspaceId));
+    return out.filter(e => normalizeWorkspaceId(e.workspaceId) === normalizeWorkspaceId(workspaceId)).map(cloneEdgeRecord);
   }
 
   getInEdges(nodeId, workspaceId = 'default') {
     const out = this._inIndex.get(edgeIndexKey(nodeId, workspaceId)) || [];
-    return out.filter(e => normalizeWorkspaceId(e.workspaceId) === normalizeWorkspaceId(workspaceId));
+    return out.filter(e => normalizeWorkspaceId(e.workspaceId) === normalizeWorkspaceId(workspaceId)).map(cloneEdgeRecord);
   }
 
   query(label, workspaceId = 'default') {
-    return Object.values(this._nodes).filter(n => n.label === label && normalizeWorkspaceId(n.workspaceId) === normalizeWorkspaceId(workspaceId));
+    return Object.values(this._nodes)
+      .filter(n => n.label === label && normalizeWorkspaceId(n.workspaceId) === normalizeWorkspaceId(workspaceId))
+      .map(cloneNodeRecord);
   }
 
   nodeCount(workspaceId) {
