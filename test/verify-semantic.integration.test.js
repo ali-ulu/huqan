@@ -170,6 +170,47 @@ describe('verify semantic integration', () => {
     );
   });
 
+  it('promotes cause/prevent opposition to celiski', () => {
+    const kernel = makeKernel('cause-prevent-opposition');
+    kernel.learn('asilama hastaligi onler', { workspaceId: 'default' });
+
+    const raw = kernel.verify('Asilama hastaliga neden olur', { workspaceId: 'default' });
+    const result = unwrap(raw);
+    const semanticTrust = raw.meta.semanticTrust;
+
+    assert.strictEqual(result.status, 'celiski');
+    assert.strictEqual(semanticTrust.status, 'celiski');
+    assert.ok(semanticTrust.contradictionScore >= semanticTrust.thresholds.contradictionConflict);
+    assert.ok(
+      semanticTrust.warnings.includes('CAUSE_PREVENT_OPPOSITION') ||
+      semanticTrust.warnings.includes('SEMANTIC_OPPOSITION'),
+      'cause/prevent opposition should surface in semantic warnings',
+    );
+  });
+
+  it('promotes reverse cause/prevent opposition to celiski', () => {
+    const kernel = makeKernel('prevent-cause-opposition');
+    kernel.learn('sigara hastaliga neden olur', { workspaceId: 'default' });
+
+    const raw = kernel.verify('Sigara hastaligi onler', { workspaceId: 'default' });
+    const result = unwrap(raw);
+    const semanticTrust = raw.meta.semanticTrust;
+
+    assert.strictEqual(result.status, 'celiski');
+    assert.strictEqual(semanticTrust.status, 'celiski');
+    assert.ok(semanticTrust.contradictionScore >= semanticTrust.thresholds.contradictionConflict);
+  });
+
+  it('keeps benign unrelated drift out of celiski', () => {
+    const kernel = makeKernel('benign-relation-drift');
+    kernel.learn('aspirin kan inceltici olarak etki eder', { workspaceId: 'default' });
+
+    const raw = kernel.verify('aspirin beyaz tablettir', { workspaceId: 'default' });
+    const result = unwrap(raw);
+
+    assert.notStrictEqual(result.status, 'celiski');
+  });
+
   it('keeps high-risk weak claims as bilinmiyor with risk flags', () => {
     const kernel = makeKernel('high-risk');
     seedFacts(kernel);
