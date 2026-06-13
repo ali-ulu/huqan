@@ -96,6 +96,13 @@ node mcpServer.js
 
 See [docs/product-surfaces.md](./docs/product-surfaces.md) for the explicit surface policy.
 
+## Scale Truth
+
+- Current benchmark fixtures cover small-to-medium graphs only.
+- Largest existing benchmark fixture: `xlarge` with 140 nodes and 131 edges in `benchmarks/results.json`.
+- Larger graph support requires dedicated benchmarking; it is not yet proven at Wikipedia-scale.
+- See [docs/scale-truth-pack.md](./docs/scale-truth-pack.md) for the measured status and safe public language.
+
 ## English-first Developer UX
 
 - Public docs use English-first command examples.
