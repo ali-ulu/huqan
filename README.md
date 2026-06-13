@@ -307,6 +307,14 @@ We're building something that **doesn't need to guess**.
 
 Contributions are welcome. Please open an issue first to discuss what you'd like to change.
 
+## Governance and contribution
+
+- The project is maintainer-led and human-reviewed.
+- AI-assisted contributions are allowed, but they must be reviewed before merge.
+- Security-sensitive changes require explicit approval.
+- Release tags require clean test and smoke gates.
+- See [CONTRIBUTING.md](./CONTRIBUTING.md), [docs/governance.md](./docs/governance.md), and [SECURITY.md](./SECURITY.md).
+
 ---
 
 ## License
