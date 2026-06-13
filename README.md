@@ -315,6 +315,13 @@ Contributions are welcome. Please open an issue first to discuss what you'd like
 - Release tags require clean test and smoke gates.
 - See [CONTRIBUTING.md](./CONTRIBUTING.md), [docs/governance.md](./docs/governance.md), and [SECURITY.md](./SECURITY.md).
 
+## Launch UAT and Demo
+
+- [Launch UAT](./docs/launch-uat.md)
+- [Demo Script](./docs/demo-script.md)
+- Static demo surface: `demo/index.html`
+- Local UI surface: `public/index.html`
+
 ---
 
 ## License
