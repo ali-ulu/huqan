@@ -48,7 +48,7 @@
              },
     "homepage":  "https://github.com/agiulucom42-del/axiom#readme",
     "author": "Huqan Contributors",
-    "license": "AGPL-3.0",
+    "license": "Apache-2.0",
     "huqan": {
                   "testStatus":  "1277 pass / 0 fail / 16 skipped"
               },

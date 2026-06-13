@@ -16,7 +16,7 @@
 ```bash
 git clone https://github.com/agiulucom42-del/axiom.git
 cd axiom
-npm install
+npm ci --include=optional
 ```
 
 ---
@@ -34,6 +34,7 @@ This loads the initial Turkish knowledge base (~5 seconds). You can skip this â€
 ## Verify installation
 
 ```bash
+node -e "require('better-sqlite3'); console.log('better-sqlite3 ok')"
 npm test
 ```
 
@@ -62,6 +63,11 @@ node server.js
 # Open http://localhost:3000
 ```
 
+Static demo note:
+- `demo/index.html` is a concept/demo surface.
+- `public/index.html` is the local backend-connected UI served by `node server.js`.
+- Canonical public product surface selection is deferred to PTD-2.
+
 ### MCP Server (for Claude Desktop / Cursor)
 
 ```bash
@@ -88,8 +94,11 @@ Add to your MCP client config â€” see [MCP setup instructions](./demo-mcp-agent-
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api?q=query` | Ask a question |
-| POST | `/dogrula` | Verify a statement |
+| GET | `/api?q=query` | Read-only allowlisted query surface |
+| GET | `/dogrula?statement=...` | `405 Method Not Allowed` |
+| GET | `/v2/verify?statement=...` | `405 Method Not Allowed` |
+| POST | `/dogrula` | Guarded verification endpoint |
+| POST | `/v2/verify` | Guarded structured verification endpoint |
 | POST | `/yukle` | Load text into knowledge base |
 | GET | `/graph-data` | Export the knowledge graph |
 
@@ -117,7 +126,7 @@ Teach causal chains:
 
 ## Troubleshooting
 
-**`npm install` fails:**
+**`npm ci --include=optional` fails:**
 - Check Node.js version: `node --version` (must be >= 18)
 - Try `npm cache clean --force` then retry
 

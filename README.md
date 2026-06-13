@@ -7,7 +7,7 @@
 **A deterministic causal reasoning engine that verifies claims — no LLM, no GPU, no cloud.**
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Tests](https://img.shields.io/badge/tests-1277%20pass-brightgreen)](./test)
+[![Tests](https://img.shields.io/badge/tests-1434%20pass-brightgreen)](./test)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js)](https://nodejs.org)
 
 [Quick Start](#quick-start) · [Architecture](#architecture) · [Safety Gates](#safety-gates) · [MCP Server](#mcp-server-claude--cursor) · [API](#rest-api) · [Roadmap](#roadmap)
@@ -62,7 +62,11 @@ Same input → same output. Every time. No probability, no guessing, no hallucin
 # Clone and install
 git clone https://github.com/agiulucom42-del/axiom.git
 cd axiom
-npm ci
+npm ci --include=optional
+
+# Verify local runtime
+node -e "require('better-sqlite3'); console.log('better-sqlite3 ok')"
+npm test
 
 # Load initial knowledge base
 node egitim.js
@@ -77,7 +81,7 @@ node server.js
 node mcpServer.js
 ```
 
-> **Requirements:** Node.js >= 18. Use `npm ci` for deterministic installs.
+> **Requirements:** Node.js >= 18. Use `npm ci --include=optional` for deterministic installs with the local SQLite path enabled.
 
 ---
 
@@ -180,15 +184,17 @@ node server.js  # Starts at http://localhost:3000
 |---|---|---|---|
 | `/health` | GET | Public | Health check |
 | `/v2-status` | GET | Public | V2 status |
-| `/api?q=query` | GET | Public | Ask a question |
-| `/dogrula?statement=...` | GET | Public | Verify a claim |
-| `/v2/verify?statement=...` | GET | Public | Structured verification |
+| `/api?q=query` | GET | Public | Read-only allowlisted query surface |
+| `/dogrula?statement=...` | GET | Public | `405 Method Not Allowed` |
+| `/v2/verify?statement=...` | GET | Public | `405 Method Not Allowed` |
 | `/graph-data` | GET | Public | Export knowledge graph |
-| `/dogrula` | POST | Required | Verification mutation |
-| `/v2/verify` | POST | Required | Structured verification mutation |
+| `/dogrula` | POST | Required | Guarded verification endpoint |
+| `/v2/verify` | POST | Required | Guarded structured verification endpoint |
 | `/yukle` | POST | Required | Load knowledge base |
 
 **Auth:** Mutation endpoints require `AXIOM_API_KEY` on the server and `X-API-Key` or `Authorization: Bearer <key>` header.
+
+**Public surface note:** `demo/index.html` is the static concept demo. `public/index.html` is the local backend-connected UI served by `node server.js`. Choosing the canonical public product surface is deferred to PTD-2.
 
 **Response format:**
 ```json
