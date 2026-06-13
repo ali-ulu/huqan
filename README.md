@@ -111,6 +111,12 @@ See [docs/product-surfaces.md](./docs/product-surfaces.md) for the explicit surf
 - Guarded API examples use `POST /verify`, `POST /v2/verify`, and `POST /upload`.
 - Unsafe GET verification is not supported; `GET /verify`, `GET /dogrula`, and `GET /v2/verify` return `405 Method Not Allowed`.
 
+## NLP Boundary
+
+- `nlp/lang-tr.js` is a simple deterministic parser for controlled statements.
+- It is not a full Turkish NLP engine and should not be presented as general semantic understanding.
+- Parser limits, safe examples, and the optional adapter strategy are documented in [docs/nlp-boundary.md](./docs/nlp-boundary.md).
+
 ---
 
 ## Architecture
