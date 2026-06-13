@@ -1,4 +1,5 @@
 const path = require('path');
+const { resolveContainedPath } = require('./lib/memory-store-utils');
 let Database;
 
 try {
@@ -16,14 +17,22 @@ function lower(goal) {
 }
 
 function resolveDbPath(opts = {}, kernel) {
+  const allowedRoots = [process.cwd()];
+  if (typeof kernel?.graph?.memoryPath === 'string' && kernel.graph.memoryPath.trim()) {
+    allowedRoots.push(path.dirname(path.resolve(kernel.graph.memoryPath.trim())));
+  }
+  if (typeof opts.memoryPath === 'string' && opts.memoryPath.trim()) {
+    allowedRoots.push(path.dirname(path.resolve(opts.memoryPath.trim())));
+  }
+
   if (Object.prototype.hasOwnProperty.call(opts, 'dbPath') && opts.dbPath) {
-    return opts.dbPath;
+    return resolveContainedPath(opts.dbPath, allowedRoots);
   }
   const graphMemoryPath = kernel?.graph?.memoryPath;
   if (typeof graphMemoryPath === 'string' && graphMemoryPath.endsWith('.json')) {
-    return graphMemoryPath.replace(/\.json$/, '.db');
+    return resolveContainedPath(graphMemoryPath.replace(/\.json$/, '.db'), allowedRoots);
   }
-  return path.join(process.cwd(), 'memory.db');
+  return resolveContainedPath(path.join(process.cwd(), 'memory.db'), allowedRoots);
 }
 
 class AxiomStorage {
