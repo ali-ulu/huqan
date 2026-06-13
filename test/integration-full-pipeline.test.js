@@ -209,17 +209,21 @@ describe('Integration: Kernel + Causal Traversal', () => {
     assert.ok(result, 'ask should return a result');
   });
 
-  it('PREVENTS relation is stored and queryable', () => {
+  it('PREVENTS relation creates a contradiction — verify detects it', () => {
     const kernel = makeKernel('causal-3');
     seedCausalChain(kernel);
 
-    // Sigara PREVENTS sağlık — this edge exists in the graph
-    const edges = kernel.graph.getEdges('sigara');
-    const preventsEdge = edges.find(e => e.relation === 'PREVENTS');
-    assert.ok(preventsEdge, 'should have PREVENTS edge from sigara to sağlık');
-    assert.strictEqual(preventsEdge.target || preventsEdge.to, 'sağlık');
-    // NOTE: verify() currently does NOT use PREVENTS edges for contradiction detection.
-    // This is a known limitation — the verify engine treats PREVENTS as a regular edge.
+    // Sigara PREVENTS sağlık — "Sigara sağlıklıdır" should now be contradicted
+    const raw = kernel.verify('Sigara sağlıklıdır');
+    const result = unwrap(raw);
+    assert.strictEqual(result.status, 'celiski',
+      `Expected celiski for "Sigara sağlıklıdır" (PREVENTS edge exists), got ${result.status}`);
+    assert.ok(result.confidence > 0, 'contradiction should have positive confidence');
+    // Evidence should mention PREVENTS
+    if (raw.evidence && raw.evidence.length > 0) {
+      const preventsEvidence = raw.evidence.find(e => e.text && e.text.includes('PREVENTS'));
+      assert.ok(preventsEvidence, 'evidence should mention PREVENTS relation');
+    }
   });
 
   it('ENABLES relation is traversable', () => {
