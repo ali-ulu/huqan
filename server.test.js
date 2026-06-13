@@ -520,13 +520,7 @@ describe('Server - API', () => {
     assert.ok(Number.isInteger(j.edges));
     assert.ok(Number.isInteger(j.uptimeSec));
     assert.ok(typeof j.timestamp === 'string');
-    assert.ok(j.persistence);
-    assert.strictEqual(j.persistence.memoryPath, process.env.AXIOM_MEMORY_PATH);
-    assert.strictEqual(j.persistence.dbPath, process.env.AXIOM_DB_PATH);
-    assert.strictEqual(j.persistence.backupBaseDir, process.env.AXIOM_BACKUP_DIR);
-    assert.strictEqual(typeof j.persistence.memoryWritable, 'boolean');
-    assert.strictEqual(typeof j.persistence.dbWritable, 'boolean');
-    assert.strictEqual(typeof j.persistence.backupDirWritable, 'boolean');
+    assert.strictEqual('persistence' in j, false);
   });
 
   it('GET /v2-status durum ekranÃ„Â± bilgisini dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {
@@ -542,19 +536,16 @@ describe('Server - API', () => {
     assert.strictEqual(j.currentFocus, 'v3.0 Agent Workflow');
     assert.strictEqual(j.agentRuntime, 'v2');
     assert.strictEqual(j.checkpointBackend, 'json');
-    assert.strictEqual(typeof j.agentCheckpointPath, 'string');
-    assert.strictEqual(j.agentV3Status, null);
     assert.strictEqual(j.activeKernel, 'v2');
-    assert.strictEqual(j.testStatus, 'static-test-status');
     assert.ok(['sqlite', 'json'].includes(j.backend));
     assert.ok(Number.isInteger(j.nodes));
     assert.ok(Number.isInteger(j.edges));
-    assert.strictEqual(typeof j.lastCommit, 'string');
     assert.strictEqual(typeof j.updatedAt, 'string');
-    assert.ok(j.persistencePaths);
-    assert.strictEqual(j.persistencePaths.memoryPath, process.env.AXIOM_MEMORY_PATH);
-    assert.strictEqual(j.persistencePaths.dbPath, process.env.AXIOM_DB_PATH);
-    assert.strictEqual(j.persistencePaths.backupBaseDir, process.env.AXIOM_BACKUP_DIR);
+    assert.strictEqual('agentCheckpointPath' in j, false);
+    assert.strictEqual('agentV3Status' in j, false);
+    assert.strictEqual('testStatus' in j, false);
+    assert.strictEqual('lastCommit' in j, false);
+    assert.strictEqual('persistencePaths' in j, false);
   });
 
   it('Method not allowed: POST /health', async () => {
@@ -567,7 +558,9 @@ describe('Server - API', () => {
     assert.strictEqual(r.status, 200);
     const html = await r.text();
     assert.ok(html.includes('AXIOM'));
-    assert.ok(html.includes('d3@7'));
+    assert.ok(html.includes('d3@7.9.0'));
+    assert.ok(html.includes('integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i"'));
+    assert.ok(html.includes('Content-Security-Policy'));
     assert.ok(html.includes('forceSimulation'));
     assert.ok(html.includes('Trust Dashboard'));
   });

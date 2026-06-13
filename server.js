@@ -2,7 +2,6 @@ const crypto = require('crypto');
 const http = require('http');
 const path = require('path');
 const { readFileSync } = require('fs');
-const { execSync } = require('child_process');
 const CLI = require('./cli');
 const { evaluateLlmSor } = require('./lib/shield');
 const { handleIngest } = require('./lib/ingest');
@@ -13,7 +12,6 @@ const {
   queryProvenance,
 } = require('./lib/provenance-query');
 const pkg = require('./package.json');
-const { inspectPersistence, resolvePersistencePaths } = require('./persistencePaths');
 const {
   DEFAULT_MAX_UPLOAD_BODY,
   DEFAULT_MAX_JSON_BODY,
@@ -26,17 +24,6 @@ const {
   requireApiKey,
   sanitizeInput,
 } = require('./requestGuards');
-
-function computeTestStatus() {
-  if (computeTestStatus.cached) return computeTestStatus.cached;
-  const status = process.env.AXIOM_TEST_STATUS || pkg.axiom?.testStatus || pkg.axiom?.test_status;
-  if (typeof status === 'string' && status.trim()) {
-    computeTestStatus.cached = status.trim();
-    return computeTestStatus.cached;
-  }
-  computeTestStatus.cached = 'unknown';
-  return computeTestStatus.cached;
-}
 
 const kernelOpts = {};
 if (process.env.AXIOM_MEMORY_PATH) kernelOpts.memoryPath = process.env.AXIOM_MEMORY_PATH;
@@ -400,12 +387,6 @@ function getGraphData(workspaceId = 'default') {
 
 function getHealthData() {
   const stats = cli.kernel.graph.getStats();
-  const persistence = inspectPersistence({
-    rootDir: __dirname,
-    memoryPath: process.env.AXIOM_MEMORY_PATH,
-    dbPath: process.env.AXIOM_DB_PATH,
-    backupBaseDir: process.env.AXIOM_BACKUP_DIR,
-  });
   return {
     ok: true,
     service: 'axiom',
@@ -415,30 +396,11 @@ function getHealthData() {
     edges: stats.edges,
     uptimeSec: Math.floor(process.uptime()),
     timestamp: new Date().toISOString(),
-    persistence,
   };
-}
-
-function getLastCommit() {
-  try {
-    return execSync('git rev-parse --short HEAD', {
-      cwd: __dirname,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim();
-  } catch (_) {
-    return 'unknown';
-  }
 }
 
 function getV2StatusData() {
   const stats = cli.kernel.graph.getStats();
-  const persistence = resolvePersistencePaths({
-    rootDir: __dirname,
-    memoryPath: process.env.AXIOM_MEMORY_PATH,
-    dbPath: process.env.AXIOM_DB_PATH,
-    backupBaseDir: process.env.AXIOM_BACKUP_DIR,
-  });
   const activeKernel = process.env.AXIOM_KERNEL_VERSION === 'v2' ? 'v2' : 'v1';
   const agentRuntime = String(process.env.AXIOM_AGENT_VERSION || 'v2').toLowerCase();
   const agentRuntimeMode = String(process.env.AXIOM_AGENT_RUNTIME || '').toLowerCase() || agentRuntime;
@@ -594,8 +556,6 @@ function getV2StatusData() {
     backend: stats.backend,
     nodes: stats.nodes,
     edges: stats.edges,
-    testStatus: computeTestStatus(),
-    lastCommit: getLastCommit(),
     updatedAt: new Date().toISOString(),
     counts,
     progressPercent,
@@ -606,19 +566,7 @@ function getV2StatusData() {
     agentRuntime,
     agentRuntimeMode,
     checkpointBackend,
-    agentV3Status: agentRuntime === 'v3' ? getAgentV3Status() : null,
-    agentCheckpointPath: agentRuntime === 'v3' ? persistence.dbPath : 'agent.memory.json',
-    persistencePaths: persistence,
   };
-}
-
-function getAgentV3Status() {
-  try {
-    if (cli.agent && typeof cli.agent.getStatus === 'function') {
-      return cli.agent.getStatus();
-    }
-  } catch (_) {}
-  return null;
 }
 
 function ensureCompanyRuntime() {
