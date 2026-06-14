@@ -201,6 +201,53 @@ describe('verify semantic integration', () => {
     assert.ok(semanticTrust.contradictionScore >= semanticTrust.thresholds.contradictionConflict);
   });
 
+  it('fails closed when direct support coexists with opposition evidence', () => {
+    const kernel = makeKernel('direct-support-opposition');
+    kernel.graph.addNode('sigara', 'sigara', null, { workspaceId: 'default' });
+    kernel.graph.addNode('sagliklidir', 'sagliklidir', null, { workspaceId: 'default' });
+    kernel.graph.addNode('sagligi', 'sagligi', null, { workspaceId: 'default' });
+    kernel.graph.addEdge('sigara', 'sagliklidir', 'ifade', {
+      workspaceId: 'default',
+      confidence: 0.5,
+      weight: 0.5,
+    });
+    kernel.graph.addEdge('sigara', 'sagligi', 'PREVENTS', {
+      workspaceId: 'default',
+      confidence: 0.9,
+      weight: 0.9,
+      strength: 0.9,
+    });
+
+    const raw = kernel.verify('sigara sagliklidir', { workspaceId: 'default' });
+    const result = unwrap(raw);
+    const semanticTrust = raw.meta.semanticTrust;
+
+    assert.notStrictEqual(result.status, 'dogrulandi');
+    assert.strictEqual(result.status, 'celiski');
+    assert.ok(semanticTrust.contradictionScore >= semanticTrust.thresholds.contradictionConflict);
+    assert.ok(
+      semanticTrust.warnings.includes('CAUSE_PREVENT_OPPOSITION') ||
+      semanticTrust.warnings.includes('SEMANTIC_OPPOSITION'),
+      'direct support contradiction should surface as semantic opposition',
+    );
+  });
+
+  it('keeps direct support verified when no contradiction evidence exists', () => {
+    const kernel = makeKernel('direct-support-clean');
+    kernel.graph.addNode('sigara', 'sigara', null, { workspaceId: 'default' });
+    kernel.graph.addNode('sagliklidir', 'sagliklidir', null, { workspaceId: 'default' });
+    kernel.graph.addEdge('sigara', 'sagliklidir', 'ifade', {
+      workspaceId: 'default',
+      confidence: 0.5,
+      weight: 0.5,
+    });
+
+    const raw = kernel.verify('sigara sagliklidir', { workspaceId: 'default' });
+    const result = unwrap(raw);
+
+    assert.strictEqual(result.status, 'dogrulandi');
+  });
+
   it('keeps benign unrelated drift out of celiski', () => {
     const kernel = makeKernel('benign-relation-drift');
     kernel.learn('aspirin kan inceltici olarak etki eder', { workspaceId: 'default' });
@@ -231,4 +278,15 @@ describe('verify semantic integration', () => {
       'high-risk weak claim should carry risk flags',
     );
   });
+
+  it('keeps unsupported claims fail closed for unrelated statements', () => {
+    const kernel = makeKernel('mars-cheese');
+    seedFacts(kernel);
+
+    const raw = kernel.verify('Mars peynirdendir', { workspaceId: 'default' });
+    const result = unwrap(raw);
+
+    assert.strictEqual(result.status, 'bilinmiyor');
+  });
+
 });
