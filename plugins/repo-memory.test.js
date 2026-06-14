@@ -13,8 +13,8 @@ function makeKernel() {
     edges,
     nodes,
     graph: {
-      addNode(id, label) {
-        nodes.push({ id, label });
+      addNode(id, label, provenance, opts) {
+        nodes.push({ id, label, provenance, opts });
       },
       addEdge(from, to, relation, meta) {
         const edge = { from, to, relation, meta };
@@ -53,10 +53,21 @@ test('repo-memory markdown ingest requires an explicit root and stays inside it'
       sourceType: 'markdown',
       path: insideFile,
       rootPath: rootDir,
+      workspaceId: 'workspace-a',
+      actor: 'repo-bot',
     });
     assert.equal(safe.ok, true);
     assert.equal(safe.files, 1);
     assert.ok(safe.added >= 1);
+    assert.ok(kernel.nodes.some((node) => node.provenance
+      && node.provenance.sourceType === 'document'
+      && node.provenance.actor === 'repo-bot'
+      && node.provenance.workspaceId === 'workspace-a'));
+    assert.ok(kernel.edges.some((edge) => edge.meta
+      && edge.meta.provenance
+      && edge.meta.provenance.sourceType === 'document'
+      && edge.meta.provenance.actor === 'repo-bot'
+      && edge.meta.provenance.workspaceId === 'workspace-a'));
 
     const beforeEdges = kernel.edges.length;
     const escaped = await repoMemory.run(kernel, {
@@ -72,4 +83,37 @@ test('repo-memory markdown ingest requires an explicit root and stays inside it'
     fs.rmSync(rootDir, { recursive: true, force: true });
     fs.rmSync(outsideDir, { recursive: true, force: true });
   }
+});
+
+test('repo-memory github ingest preserves provenance on nodes and edges', async () => {
+  const kernel = makeKernel();
+  const result = await repoMemory.run(kernel, {
+    action: 'ingest',
+    sourceType: 'github',
+    repoUrl: 'https://github.com/owner/repo',
+    workspaceId: 'workspace-b',
+    actor: 'connector-bot',
+    fetchRepoFiles: async () => [{
+      owner: 'owner',
+      repo: 'repo',
+      branch: 'main',
+      path: 'docs/claim.md',
+      content: '# Claim\nHello world',
+      lastModified: '2026-06-15T10:00:00Z',
+    }],
+    parseRepoUrl: () => ({ owner: 'owner', repo: 'repo' }),
+  });
+
+  assert.equal(result.ok, true);
+  assert.ok(kernel.nodes.some((node) => node.id === 'repo:owner/repo'));
+  assert.ok(kernel.nodes.some((node) => node.provenance
+    && node.provenance.sourceType === 'github'
+    && node.provenance.actor === 'connector-bot'
+    && node.provenance.workspaceId === 'workspace-b'));
+  assert.ok(kernel.edges.some((edge) => edge.meta
+    && edge.meta.provenance
+    && edge.meta.provenance.sourceType === 'github'
+    && edge.meta.provenance.actor === 'connector-bot'
+    && edge.meta.provenance.workspaceId === 'workspace-b'));
+  assert.ok(kernel.edges.some((edge) => /repo:owner\/repo:docs\/claim\.md/.test(edge.meta?.provenance?.sourceRef || '')));
 });

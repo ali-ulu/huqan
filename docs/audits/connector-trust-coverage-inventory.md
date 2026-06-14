@@ -1,6 +1,6 @@
 # Connector Trust Coverage Inventory
 
-Current main: `7f71e796f7dd831617efc45d1ad3d49b037849ce`
+Current main: `9df5bc3fba5c579e906884bd4d8eb138a01cffd0`
 
 Current classification: `Partial trust layer`
 
@@ -40,7 +40,7 @@ If any of these are not proven for the tested path, the path remains partial.
 | `cli.js` mutating / agent surface | `learn`, `teach`, `öğret`, `yükle`, `upload`, `company-ingest`, `ajan`, `agent`, `plan` | `cli_mutation_or_agent` | yes | mixed | yes | yes for learn and ingest routes | partial | partial | partial | yes for memory/workspace paths | `cli.test.js`, `test/cli-english-aliases.test.js`, `server.test.js`, `test/mcp-server-gate-enforcement.test.js` | `partially-trust-connected` | Dogfood client path is missing; provenance is not universal across every mutation route |
 | `adapters/github-adapter.js` | `parseRepoUrl`, `includePath`, `fetchRepoFiles` | `api_wrapper` | no | yes | no | no | no | no | no | no | `adapters/github-adapter.test.js` | `api-wrapper` | Fetching remote repo files is only a source wrapper; trust attachment happens later |
 | `adapters/markdown-adapter.js` | `parseMarkdown`, `listMarkdownFiles`, `ingestMarkdown` | `filesystem_wrapper` | no | no | no | no | no | no | no | no | `adapters/markdown-adapter.test.js`, `plugins/repo-memory.test.js` | `logged-wrapper` | Root confinement is proven, but the adapter itself does not attach provenance |
-| `plugins/repo-memory.js` | `ingestGithubRepo`, `ingestMarkdownPath`, `run` | `connector_ingest` | yes | yes for GitHub, no for markdown | partial | yes | partial | partial | no | partial | `plugins/repo-memory.test.js`, `lib/provenance-query.test.js`, `lib/provenance-ingest.test.js` | `partially-trust-connected` | Connector provenance coverage remains partial |
+| `plugins/repo-memory.js` | `ingestGithubRepo`, `ingestMarkdownPath`, `run` | `connector_ingest` | yes | yes for GitHub, no for markdown | partial | yes | partial | partial | no | partial | `plugins/repo-memory.test.js`, `lib/provenance-query.test.js`, `lib/provenance-ingest.test.js` | `partially-trust-connected` | Provenance coverage improved on tested current-main paths; graph admission and dogfood gaps remain |
 | `lib/github-connector.js` | `buildGitHubProvenance`, `routeAsPendingCandidate`, `ingestGitHubItem`, `ingestGitHubItems` | `connector_ingest` | yes | no | partial | yes | yes | yes | partial | yes for stored candidate/audit paths | `lib/github-connector.test.js`, `lib/provenance-query.test.js`, `lib/provenance-ingest.test.js` | `partially-trust-connected` | Candidate routing is proven; universal connector provenance is not |
 | `lib/provenance-ingest.js` | `buildProvenance`, `ingestWithProvenance` | `provenance_ingest` | yes | no | yes | yes | yes | yes | partial | yes | `lib/provenance-ingest.test.js` | `trust-connected` | Strict provenance policy is caller-controlled |
 | `lib/provenance-query.js` | `queryProvenance`, `queryTrustGraph`, `buildTrustReceipt` | `provenance_query` | no | no | n/a | no | no | no | yes | n/a | `lib/provenance-query.test.js`, `test/provenance-receipt-bridge.integration.test.js`, `test/causal-receipt-bridge.test.js` | `trust-connected` | Dogfood client path remains missing |
