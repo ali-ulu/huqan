@@ -8,6 +8,7 @@ const LLMAdapter = require('./llmAdapter');
 const { createAgent } = require('./agentRuntime');
 const { createBackup, restoreBackup } = require('./backupRestore');
 const { resolvePersistencePaths } = require('./persistencePaths');
+const { evaluateMcpGate } = require('./lib/mcp-gate-adapter');
 
 /**
  * @param {object} [opts]
@@ -85,6 +86,30 @@ function unwrapAgentPayload(result) {
     return result.data;
   }
   return result;
+}
+
+function mapCliCommandToMcpTool(command) {
+  const normalized = normalizeCommandText(command);
+  switch (normalized) {
+    case 'ogret':
+    case 'yukle':
+    case 'company-ingest':
+    case 'company ingest':
+      return 'axiom.learn';
+    case 'ajan':
+    case 'plan':
+      return 'axiom.agent';
+    case 'sor':
+      return 'axiom.ask';
+    case 'verify':
+      return 'axiom.verify';
+    case 'neden':
+      return 'axiom.reason';
+    case 'karsilastir':
+      return 'axiom.compare';
+    default:
+      return null;
+  }
 }
 
 class CLI {
@@ -220,6 +245,10 @@ class CLI {
     }
   }
   execute(command, args) {
+    const gateResult = this._evaluateCliGate(command, args);
+    if (gateResult && !gateResult.canExecute) {
+      return this._formatCliGateMessage(command, gateResult);
+    }
     switch (command) {
       case 'öğret': {
         this.kernel.learn(args);
@@ -553,6 +582,59 @@ class CLI {
       rl.prompt();
     });
     rl.on('close', () => process.exit(0));
+  }
+
+  _evaluateCliGate(command, args) {
+    const tool = mapCliCommandToMcpTool(command);
+    if (!tool) return null;
+
+    const metadata = {
+      source: 'cli',
+      actor: 'cli-user',
+      runner: 'cli',
+      sourceTrust: 'local',
+    };
+
+    let gateArgs = {};
+    switch (tool) {
+      case 'axiom.learn':
+        gateArgs = { text: typeof args === 'string' ? args : JSON.stringify(args || {}) };
+        break;
+      case 'axiom.agent':
+        gateArgs = { goal: typeof args === 'string' ? args : JSON.stringify(args || {}) };
+        break;
+      case 'axiom.ask':
+        gateArgs = { question: String(args || '') };
+        break;
+      case 'axiom.verify':
+        gateArgs = { statement: String(args || '') };
+        break;
+      case 'axiom.reason':
+        gateArgs = { subject: String(args || '') };
+        break;
+      case 'axiom.compare': {
+        const [left = '', right = ''] = String(args || '').split('|');
+        gateArgs = { left: left.trim(), right: right.trim() };
+        break;
+      }
+      default:
+        gateArgs = {};
+    }
+
+    return evaluateMcpGate({ tool, args: gateArgs, metadata });
+  }
+
+  _formatCliGateMessage(command, gate) {
+    const decision = gate?.decision || 'block';
+    const reason = gate?.reason || 'gate_blocked';
+    const commandLabel = String(command || '');
+    if (decision === 'dry_run_only') {
+      return `Gate: ${commandLabel} dry-run-only. Calisma baslatilmadi. Karar: ${decision}. Sebep: ${reason}.`;
+    }
+    if (decision === 'review') {
+      return `Gate: ${commandLabel} review gerektiriyor. Sessiz mutation/calistirma yapilmadi. Karar: ${decision}. Sebep: ${reason}.`;
+    }
+    return `Gate: ${commandLabel} engellendi. Karar: ${decision}. Sebep: ${reason}.`;
   }
 }
 
