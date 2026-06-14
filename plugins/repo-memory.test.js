@@ -57,6 +57,10 @@ test('repo-memory markdown ingest requires an explicit root and stays inside it'
       actor: 'repo-bot',
     });
     assert.equal(safe.ok, true);
+    assert.equal(safe.admission.outcome, 'admitted');
+    assert.ok(Array.isArray(safe.admission.entries));
+    assert.ok(safe.admission.entries.length >= 3);
+    assert.ok(safe.admission.entries.every((entry) => entry.outcome === 'admitted'));
     assert.equal(safe.files, 1);
     assert.ok(safe.added >= 1);
     assert.ok(kernel.nodes.some((node) => node.provenance
@@ -105,6 +109,10 @@ test('repo-memory github ingest preserves provenance on nodes and edges', async 
   });
 
   assert.equal(result.ok, true);
+  assert.equal(result.admission.outcome, 'admitted');
+  assert.ok(Array.isArray(result.admission.entries));
+  assert.ok(result.admission.entries.some((entry) => entry.targetType === 'graph_node' && entry.targetId === 'repo:owner/repo'));
+  assert.ok(result.admission.entries.some((entry) => entry.targetType === 'graph_edge' && /repo:owner\/repo:docs\/claim\.md/.test(entry.sourceRef || '')));
   assert.ok(kernel.nodes.some((node) => node.id === 'repo:owner/repo'));
   assert.ok(kernel.nodes.some((node) => node.provenance
     && node.provenance.sourceType === 'github'

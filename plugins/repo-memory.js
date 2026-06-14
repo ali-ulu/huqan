@@ -78,6 +78,54 @@ function buildConnectorProvenance({
   }).provenance;
 }
 
+function buildGraphAdmissionRecord({
+  kind,
+  outcome = 'admitted',
+  targetType,
+  targetId,
+  provenance = null,
+  workspaceId = 'default',
+  details = {},
+}) {
+  return {
+    kind,
+    outcome,
+    targetType,
+    targetId,
+    workspaceId,
+    sourceType: provenance?.sourceType || '',
+    sourceRef: provenance?.sourceRef || '',
+    actor: provenance?.actor || '',
+    provenanceId: provenance?.provenanceId || '',
+    trustPolicyVersion: provenance?.trustPolicyVersion || '',
+    graphWrite: outcome === 'admitted',
+    provenance: provenance || null,
+    ...details,
+  };
+}
+
+function summarizeGraphAdmissions(entries = []) {
+  const list = Array.isArray(entries) ? entries.filter(Boolean) : [];
+  const counts = list.reduce((acc, entry) => {
+    const key = entry.outcome || 'unknown';
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const outcome = list.length === 0
+    ? 'skipped'
+    : (counts.rejected > 0 ? 'rejected'
+      : counts.candidate > 0 ? 'candidate'
+        : counts.admitted > 0 ? 'admitted'
+          : counts.skipped > 0 ? 'skipped'
+            : 'unknown');
+  return {
+    outcome,
+    counts,
+    total: list.length,
+    entries: list,
+  };
+}
+
 function buildSectionNodeId(prefix, sectionTitle) {
   return `section:${prefix}:${sectionTitle}`;
 }
@@ -97,6 +145,7 @@ async function ingestGithubRepo(kernel, input = {}) {
   const { owner, repo } = parseRepoUrlImpl(repoUrl);
   const repoNode = `repo:${owner}/${repo}`;
   const workspaceId = input.workspaceId || 'default';
+  const admissions = [];
   const repoProvenance = buildConnectorProvenance({
     sourceType: 'github',
     sourceSubType: 'repo',
@@ -108,6 +157,13 @@ async function ingestGithubRepo(kernel, input = {}) {
     timestamp: input.timestamp || nowIso(),
   });
   kernel.graph.addNode(repoNode, repoNode, repoProvenance, { workspaceId });
+  admissions.push(buildGraphAdmissionRecord({
+    kind: 'node',
+    targetType: 'graph_node',
+    targetId: repoNode,
+    provenance: repoProvenance,
+    workspaceId,
+  }));
 
   let added = 0;
   for (const file of files) {
@@ -124,7 +180,7 @@ async function ingestGithubRepo(kernel, input = {}) {
     });
     const useTemporalCreatedAt = kernel.hasCapability && kernel.hasCapability('temporal');
     const createdAt = useTemporalCreatedAt ? String(file.lastModified || nowIso()) : nowIso();
-    addCompanyEdge(kernel, repoNode, fileRef, 'içerir', {
+    const fileEdge = addCompanyEdge(kernel, repoNode, fileRef, 'içerir', {
       source: 'repo',
       sourceRef: fileRef,
       sessionId,
@@ -139,6 +195,30 @@ async function ingestGithubRepo(kernel, input = {}) {
       fromLabel: repoNode,
       toLabel: file.path,
     });
+    admissions.push(buildGraphAdmissionRecord({
+      kind: 'node',
+      targetType: 'graph_node',
+      targetId: fileRef,
+      provenance: fileProvenance,
+      workspaceId,
+      details: {
+        parentId: repoNode,
+        filePath: file.path,
+      },
+    }));
+    if (fileEdge) {
+      admissions.push(buildGraphAdmissionRecord({
+        kind: 'edge',
+        targetType: 'graph_edge',
+        targetId: `${fileEdge.from}|${fileEdge.relation}|${fileEdge.to}`,
+        provenance: fileProvenance,
+        workspaceId,
+        details: {
+          relation: fileEdge.relation,
+          sourceRef: fileProvenance.sourceRef,
+        },
+      }));
+    }
 
     const sections = parseMarkdown(file.content, `${owner}/${repo}/${file.path}`);
     if (sections.length === 0) {
@@ -158,7 +238,7 @@ async function ingestGithubRepo(kernel, input = {}) {
         confidence: 0.72,
         timestamp: file.lastModified || nowIso(),
       });
-      addCompanyEdge(kernel, fileRef, sectionNode, 'özellik', {
+      const sectionEdge = addCompanyEdge(kernel, fileRef, sectionNode, 'özellik', {
         source: 'repo',
         sourceRef: sectionProvenance.sourceRef,
         sessionId,
@@ -173,6 +253,30 @@ async function ingestGithubRepo(kernel, input = {}) {
         fromLabel: file.path,
         toLabel: section.sectionTitle,
       });
+      admissions.push(buildGraphAdmissionRecord({
+        kind: 'node',
+        targetType: 'graph_node',
+        targetId: sectionNode,
+        provenance: sectionProvenance,
+        workspaceId,
+        details: {
+          parentId: fileRef,
+          sectionTitle: section.sectionTitle,
+        },
+      }));
+      if (sectionEdge) {
+        admissions.push(buildGraphAdmissionRecord({
+          kind: 'edge',
+          targetType: 'graph_edge',
+          targetId: `${sectionEdge.from}|${sectionEdge.relation}|${sectionEdge.to}`,
+          provenance: sectionProvenance,
+          workspaceId,
+          details: {
+            relation: sectionEdge.relation,
+            sourceRef: sectionProvenance.sourceRef,
+          },
+        }));
+      }
       added += 1;
     }
   }
@@ -184,6 +288,8 @@ async function ingestGithubRepo(kernel, input = {}) {
     repoUrl,
     files: files.length,
     added,
+    admission: summarizeGraphAdmissions(admissions),
+    admissions,
   };
 }
 
@@ -204,6 +310,7 @@ async function ingestMarkdownPath(kernel, input = {}) {
   const ingested = ingestMarkdown(targetPath, { rootPath });
   let added = 0;
   const workspaceId = input.workspaceId || 'default';
+  const admissions = [];
 
   for (const section of ingested.sections) {
     const fileRef = `file:${section.filePath}`;
@@ -230,8 +337,29 @@ async function ingestMarkdownPath(kernel, input = {}) {
       timestamp: input.timestamp || nowIso(),
     });
     kernel.graph.addNode(fileRef, section.filePath, fileProvenance, { workspaceId });
+    admissions.push(buildGraphAdmissionRecord({
+      kind: 'node',
+      targetType: 'graph_node',
+      targetId: fileRef,
+      provenance: fileProvenance,
+      workspaceId,
+      details: {
+        filePath: section.filePath,
+      },
+    }));
     kernel.graph.addNode(sectionNode, section.sectionTitle, sectionProvenance, { workspaceId });
-    addCompanyEdge(kernel, fileRef, sectionNode, 'özellik', {
+    admissions.push(buildGraphAdmissionRecord({
+      kind: 'node',
+      targetType: 'graph_node',
+      targetId: sectionNode,
+      provenance: sectionProvenance,
+      workspaceId,
+      details: {
+        parentId: fileRef,
+        sectionTitle: section.sectionTitle,
+      },
+    }));
+    const sectionEdge = addCompanyEdge(kernel, fileRef, sectionNode, 'özellik', {
       source: 'markdown',
       sourceRef,
       sessionId,
@@ -245,6 +373,19 @@ async function ingestMarkdownPath(kernel, input = {}) {
       fromLabel: section.filePath,
       toLabel: section.sectionTitle,
     });
+    if (sectionEdge) {
+      admissions.push(buildGraphAdmissionRecord({
+        kind: 'edge',
+        targetType: 'graph_edge',
+        targetId: `${sectionEdge.from}|${sectionEdge.relation}|${sectionEdge.to}`,
+        provenance: sectionProvenance,
+        workspaceId,
+        details: {
+          relation: sectionEdge.relation,
+          sourceRef,
+        },
+      }));
+    }
     added += 1;
   }
 
@@ -254,6 +395,8 @@ async function ingestMarkdownPath(kernel, input = {}) {
     sourceType: 'markdown',
     files: ingested.files.length,
     added,
+    admission: summarizeGraphAdmissions(admissions),
+    admissions,
   };
 }
 
