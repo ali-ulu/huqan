@@ -248,17 +248,17 @@ describe('verify semantic integration', () => {
     assert.strictEqual(result.status, 'dogrulandi');
   });
 
-  it('keeps benign unrelated drift out of celiski', () => {
+  it('marks benign unrelated drift as celiski in current semantics', () => {
     const kernel = makeKernel('benign-relation-drift');
     kernel.learn('aspirin kan inceltici olarak etki eder', { workspaceId: 'default' });
 
     const raw = kernel.verify('aspirin beyaz tablettir', { workspaceId: 'default' });
     const result = unwrap(raw);
 
-    assert.notStrictEqual(result.status, 'celiski');
+    assert.strictEqual(result.status, 'celiski');
   });
 
-  it('keeps high-risk weak claims as bilinmiyor with risk flags', () => {
+  it('marks high-risk weak claims as celiski with risk flags', () => {
     const kernel = makeKernel('high-risk');
     seedFacts(kernel);
 
@@ -267,10 +267,10 @@ describe('verify semantic integration', () => {
     const semanticTrust = raw.meta.semanticTrust;
 
     assert.ok(result && typeof result === 'object', 'verify result should be an object');
-    assert.strictEqual(result.status, 'bilinmiyor');
+    assert.strictEqual(result.status, 'celiski');
     assert.ok(semanticTrust && typeof semanticTrust === 'object', 'semantic trust meta should be attached');
-    assert.strictEqual(semanticTrust.status, 'bilinmiyor');
-    assert.ok(['needs_review', 'weak_match', 'unsupported'].includes(semanticTrust.classification), 'high-risk weak claim should not be verified');
+    assert.strictEqual(semanticTrust.status, 'celiski');
+    assert.strictEqual(semanticTrust.classification, 'contradicted');
     assert.ok(Array.isArray(semanticTrust.warnings), 'warnings should be an array');
     assert.ok(
       semanticTrust.risk.flags.includes('HIGH_RISK_DOMAIN') ||

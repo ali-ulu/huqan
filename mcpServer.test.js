@@ -165,7 +165,7 @@ describe('MCP Server', () => {
     assert.strictEqual(learn.result.structuredContent.ok, false);
     assert.strictEqual(learn.result.structuredContent.gate.decision, 'review');
     assert.strictEqual(learn.result.structuredContent.gate.canExecute, false);
-    assert.ok(learn.result.structuredContent.message.includes('blocked by gate'));
+    assert.ok(learn.result.structuredContent.message.includes('queued for review'));
 
     const ask = await request('tools/call', {
       name: 'axiom.ask',
@@ -216,12 +216,14 @@ describe('MCP Server', () => {
       name: 'axiom.agent',
       arguments: { goal: 'kedi hayvandir' },
     });
-    assert.strictEqual(agent.result.isError, true);
-    assert.strictEqual(agent.result.structuredContent.ok, false);
+    assert.strictEqual(agent.result.isError, false);
+    assert.strictEqual(agent.result.structuredContent.ok, true);
+    assert.strictEqual(agent.result.structuredContent.dryRun, true);
     assert.strictEqual(agent.result.structuredContent.gate.decision, 'dry_run_only');
     assert.strictEqual(agent.result.structuredContent.gate.canExecute, false);
+    assert.strictEqual(agent.result.structuredContent.gate.canDryRun, true);
     assert.strictEqual(agent.result.structuredContent.gate.reason, 'agent_loop_dry_run_only');
-    assert.ok(agent.result.structuredContent.message.includes('blocked by gate'));
+    assert.ok(agent.result.structuredContent.message.includes('dry-run'));
   });
 
   it('exposes external tool policy decisions through MCP', async () => {

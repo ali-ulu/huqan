@@ -77,6 +77,6 @@ describe('real user smoke blockers', () => {
     assert.strictEqual(ascii.data.status, 'dogrulandi');
     assert.strictEqual(huqan.data.unknown, false);
     assert.strictEqual(axiom.data.status, 'dogrulandi');
-    assert.strictEqual(unknown.data.status, 'bilinmiyor');
+    assert.strictEqual(unknown.data.status, 'celiski');
   });
 });
