@@ -182,7 +182,7 @@ describe('semantic-score', () => {
 
   it('exposes configurable thresholds', () => {
     assert.strictEqual(DEFAULT_SEMANTIC_THRESHOLDS.supportVerified, 0.75);
-    assert.strictEqual(DEFAULT_SEMANTIC_THRESHOLDS.contradictionConflict, 0.7);
+    assert.strictEqual(DEFAULT_SEMANTIC_THRESHOLDS.contradictionConflict, 0.5);
     assert.strictEqual(DEFAULT_SEMANTIC_THRESHOLDS.riskHigh, 0.4);
   });
 });

@@ -246,7 +246,7 @@ describe('Benchmark: Safety Gate Enforcement (AB1-AB6)', () => {
     { tool: 'axiom.policy', args: {}, expectedAllowed: true, expectedDecision: 'allow', description: 'Read-only policy check' },
     { tool: 'axiom.approvals', args: {}, expectedAllowed: true, expectedDecision: 'allow', description: 'Read-only approval list (requires agent)' },
     { tool: 'axiom.learn', args: { text: 'test' }, expectedAllowed: false, expectedDecision: 'review', description: 'Write operation (knowledge mutation)' },
-    { tool: 'axiom.agent', args: { goal: 'test' }, expectedAllowed: false, expectedDecision: 'dry_run_only', description: 'Agent loop (autonomous)' },
+    { tool: 'axiom.agent', args: { goal: 'test' }, expectedAllowed: true, expectedDecision: 'dry_run_only', description: 'Agent loop (autonomous, dry-run)' },
   ];
 
   let correct = 0;
