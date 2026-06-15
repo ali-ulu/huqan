@@ -191,14 +191,39 @@ describe('kernel.learnFromLLM()', () => {
     return new Kernel({ noLoad: true });
   }
 
-  it('learns sentences from LLM text', () => {
+  it('does not auto-write canonical graph from LLM text without approved admission', () => {
     const k = freshK();
     const text = 'Kedi bir memelilerdir. Kediler balık yer. Kediler miyavlar.';
     const result = k.learnFromLLM(text);
     assert(typeof result.learned === 'number');
     assert(typeof result.skipped === 'number');
     assert(Array.isArray(result.conflicts));
-    assert(result.learned > 0, 'En az 1 cümle öğrenilmeli');
+    assert.strictEqual(result.learned, 0);
+    assert(result.skipped > 0, 'Onaysız auto-learn review olarak skip edilmelidir');
+  });
+
+  it('learns sentences from LLM text with approved admission context', () => {
+    const k = freshK();
+    const text = 'Kedi bir memelidir. Kediler balık yer.';
+    const result = k.learnFromLLM(text, {
+      approvalRequired: true,
+      approvalStatus: 'approved',
+      approvalId: 'apr_llm_test_001',
+      sourceType: 'llm',
+      sourceRef: 'test:llm-admission',
+      actor: 'llm-test',
+      workspaceId: 'default',
+      provenance: {
+        provenanceId: 'prov_llm_test_001',
+        sourceType: 'llm',
+        sourceRef: 'test:llm-admission',
+        actor: 'llm-test',
+        workspaceId: 'default',
+        timestamp: '2026-06-16T00:00:00.000Z',
+        trustPolicyVersion: '1.0.0',
+      },
+    });
+    assert(result.learned > 0, 'Onaylı admission ile en az 1 cümle öğrenilmeli');
   });
 
   it('skips conflicting sentences when skipConflicts=true', () => {

@@ -796,10 +796,22 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ error: 'text veya content gerekli' }));
       return;
     }
-    const count = cli.kernel.learnDocument(text);
-    cli.kernel.graph.save();
+    const workspaceId = sanitizeInput(data.workspaceId || reqUrl.searchParams.get('workspaceId') || '');
+    const learnResult = cli.kernel.learnDocument(text, {
+      returnDetails: true,
+      workspaceId,
+      sourceType: sanitizeInput(data.sourceType || '') || 'upload',
+      sourceRef: sanitizeInput(data.sourceRef || '') || reqUrl.pathname,
+      sourceTitle: sanitizeInput(data.sourceTitle || '') || 'HTTP upload',
+      actor: sanitizeInput(data.actor || '') || 'http-api',
+      approvalRequired: data.approvalRequired === undefined ? true : data.approvalRequired === true,
+      approvalStatus: sanitizeInput(data.approvalStatus || ''),
+      approvalId: sanitizeInput(data.approvalId || ''),
+      provenance: data.provenance && typeof data.provenance === 'object' ? data.provenance : undefined,
+    });
+    const admission = Array.isArray(learnResult.admissions) ? (learnResult.admissions.find(Boolean) || null) : null;
     res.writeHead(200, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-    res.end(JSON.stringify({ ok: true, learned: count }));
+    res.end(JSON.stringify({ ok: true, learned: learnResult.learned, admission }));
     return;
   }
 

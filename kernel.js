@@ -6,6 +6,7 @@ const PluginManager = require('./plugin');
 const createNlp = require('./nlp');
 const VerifyService = require('./lib/verify');
 const { buildProvenance } = require('./lib/provenance-ingest');
+const { evaluateMemoryAdmission } = require('./lib/memory-admission-gate');
 const { detectClaimConflict, routeCandidateClaim } = require('./lib/conflict-detector');
 const MemoryStore = require('./lib/memory-store');
 
@@ -39,6 +40,10 @@ const DEFAULT_CAPABILITIES = Object.freeze({
 function normalizeWorkspaceId(value, fallback = 'default') {
   if (typeof value === 'string' && value.trim()) return value.trim();
   return fallback;
+}
+
+function isPlainObject(value) {
+  return Boolean(value) && Object.prototype.toString.call(value) === '[object Object]';
 }
 
 class ProvenanceError extends Error {
@@ -384,6 +389,92 @@ class Kernel {
     }
   }
 
+  _evaluateLearnAdmission(text, opts = {}, provenance = null, workspaceId = 'default') {
+    const requiresAdmission = Boolean(
+      opts.admissionRequired ||
+      opts.requiresAdmission ||
+      opts.approvalRequired ||
+      isPlainObject(opts.admissionContext)
+    );
+    if (!requiresAdmission) return null;
+
+    const admissionContext = isPlainObject(opts.admissionContext) ? opts.admissionContext : {};
+    const createdAt =
+      provenance?.timestamp ||
+      opts.timestamp ||
+      admissionContext.createdAt ||
+      admissionContext.timestamp ||
+      new Date().toISOString();
+    const provenanceId =
+      provenance?.provenanceId ||
+      opts.provenanceId ||
+      admissionContext.provenanceId ||
+      `prov_${workspaceId}_${Date.now()}`;
+    const actor =
+      provenance?.actor ||
+      opts.actor ||
+      admissionContext.actor ||
+      'kernel';
+    const agentId =
+      opts.agentId ||
+      admissionContext.agentId ||
+      'kernel';
+    const memoryDraftId =
+      opts.memoryDraftId ||
+      admissionContext.memoryDraftId ||
+      `draft_${provenanceId}`;
+    const request = {
+      ...admissionContext,
+      workspaceId,
+      actor,
+      agentId,
+      memoryDraftId,
+      provenanceId,
+      trustPolicyVersion:
+        provenance?.trustPolicyVersion ||
+        opts.trustPolicyVersion ||
+        admissionContext.trustPolicyVersion ||
+        this.contractVersion,
+      approvalId: opts.approvalId || admissionContext.approvalId || '',
+      approvalStatus: opts.approvalStatus || admissionContext.approvalStatus || '',
+      approvalRequired: opts.approvalRequired ?? admissionContext.approvalRequired ?? true,
+      reason: opts.admissionReason || admissionContext.reason || 'kernel_learn_write',
+      createdAt,
+      proposedMemory: {
+        content: String(text || ''),
+        edges: [{ relation: 'learn', workspaceId }],
+        metadata: {
+          sourceType: provenance?.sourceType || opts.sourceType || admissionContext.sourceType || '',
+          sourceRef: provenance?.sourceRef || opts.sourceRef || admissionContext.sourceRef || '',
+          actor,
+        },
+      },
+    };
+
+    const evaluated = evaluateMemoryAdmission(request, {
+      approvalRequired: request.approvalRequired,
+    });
+    if (!evaluated || !evaluated.ok || !evaluated.decision) {
+      return {
+        outcome: 'review',
+        reason: 'memory_admission_evaluation_failed',
+        graphWrite: false,
+        workspaceId,
+      };
+    }
+
+    return {
+      outcome: evaluated.decision.decision,
+      reason: evaluated.decision.reason,
+      graphWrite: evaluated.decision.allowed,
+      workspaceId,
+      approvalStatus: evaluated.decision.approvalStatus,
+      provenanceId: evaluated.decision.provenanceId,
+      receiptId: evaluated.decision.receiptId,
+      trustPolicyVersion: evaluated.decision.trustPolicyVersion,
+    };
+  }
+
   // r1: Wrapper with lock for concurrent safety (async version)
   async learnAsync(text, opts = {}) {
     return this.learn(text, opts);
@@ -442,6 +533,34 @@ class Kernel {
     const provenance = provenanceBundle.provenance;
     const provenanceWarnings = provenanceBundle.warnings;
     const workspaceId = normalizeWorkspaceId(provenance?.workspaceId || opts.workspaceId || fallbackWorkspaceId);
+    const admission = this._evaluateLearnAdmission(text, opts, provenance, workspaceId);
+
+    if (admission && admission.outcome !== 'allow') {
+      this._appendAuditEvent({
+        eventType: admission.outcome === 'reject' ? 'REJECT' : 'REVIEW',
+        targetType: 'learn',
+        targetId: text,
+        details: {
+          text,
+          reason: admission.reason,
+          admissionOutcome: admission.outcome,
+          approvalStatus: admission.approvalStatus,
+        },
+      }, provenance, workspaceId);
+      return this._ok('learn', {
+        learned: 0,
+        skipped: 1,
+        conflicts: [],
+        alternatives: [],
+        provenanceWarnings,
+        admission,
+      }, [], {
+        provenance: provenance || null,
+        provenanceWarnings,
+        trustPolicyVersion: provenance ? provenance.trustPolicyVersion : undefined,
+        admission,
+      });
+    }
 
     if (this.strictProvenance && !hasProvenanceInput) {
       this._appendAuditEvent({
@@ -458,7 +577,12 @@ class Kernel {
     }
 
     const parsed = this.extractFacts(text, this.graph.getNodes(workspaceId));
-    if (!parsed) return this._ok('learn', { learned: 0, skipped: 1, conflicts: [] }, []);
+    if (!parsed) return this._ok('learn', {
+      learned: 0,
+      skipped: 1,
+      conflicts: [],
+      admission: admission || null,
+    }, [], admission ? { admission } : {});
 
     // KAL?TE KONTROLÃœ: çelişki ve alternatif tespiti
     const conflicts = [];
@@ -709,10 +833,12 @@ class Kernel {
       conflicts,
       alternatives,
       provenanceWarnings,
+      admission: admission || null,
     }, evidence, {
       provenance: provenance || null,
       provenanceWarnings,
       trustPolicyVersion: provenance ? provenance.trustPolicyVersion : undefined,
+      admission: admission || null,
     });
   }
 
@@ -1490,13 +1616,18 @@ if (verbSuffix.test(predicate)) {
   learnDocument(text, opts = {}) {
     const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 3 && !l.startsWith('#') && !l.startsWith('//'));
     let count = 0;
+    const admissions = [];
     for (const line of lines) {
       const cleaned = line.replace(/^[\s-â€“â€”*â€¢]+/, '').trim();
       const words = cleaned.split(/\s+/);
       if (words.length >= 2) {
-        this.learn(cleaned, opts);
-        count++;
+        const result = this.learn(cleaned, opts);
+        count += Number(result?.data?.learned || 0);
+        if (result?.data?.admission) admissions.push(result.data.admission);
       }
+    }
+    if (opts.returnDetails) {
+      return { learned: count, admissions };
     }
     return count;
   }
@@ -1581,12 +1712,15 @@ if (verbSuffix.test(predicate)) {
             confidence: opts.confidence ?? 0.5,
             trustPolicyVersion: opts.trustPolicyVersion || '0.8.0',
           };
-      this.learn(cleaned, {
+      const learnResult = this.learn(cleaned, {
         ...opts,
         provenance,
         workspaceId,
+        admissionRequired: true,
+        approvalRequired: opts.approvalRequired ?? true,
       });
-      learned++;
+      if (Number(learnResult?.data?.learned || 0) > 0) learned++;
+      else skipped++;
     }
 
     return { learned, skipped, conflicts };
