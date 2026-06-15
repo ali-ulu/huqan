@@ -62,6 +62,20 @@ async function getGraphCounts() {
   };
 }
 
+function admittedUploadBody(text, overrides = {}) {
+  return JSON.stringify({
+    text,
+    approvalStatus: 'approved',
+    provenance: {
+      sourceType: 'upload',
+      sourceRef: 'test:upload',
+      actor: 'server-test',
+      workspaceId: 'default',
+    },
+    ...overrides,
+  });
+}
+
 let server;
 let tempDir;
 before(async () => {
@@ -197,7 +211,7 @@ describe('Server - API', () => {
     const learn = await request(`${BASE}/yukle`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: 'kus ucmaz' }),
+      body: admittedUploadBody('kus ucmaz'),
     });
     assert.strictEqual(learn.status, 200);
 
@@ -220,7 +234,7 @@ describe('Server - API', () => {
     const learn = await request(`${BASE}/yukle`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: 'kedi hayvandir' }),
+      body: admittedUploadBody('kedi hayvandir'),
     });
     assert.strictEqual(learn.status, 200);
 
@@ -260,6 +274,7 @@ describe('Server - API', () => {
   });
 
   it('POST /yukle metin ÃƒÂ¶Ã„Å¸renir', async () => {
+    const before = await getGraphCounts();
     const r = await request(`${BASE}/yukle`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -268,7 +283,25 @@ describe('Server - API', () => {
     assert.strictEqual(r.status, 200);
     const j = await r.json();
     assert.strictEqual(j.ok, true);
+    assert.strictEqual(j.learned, 0);
+    assert.ok(j.admission);
+    assert.strictEqual(j.admission.outcome, 'review');
+    const after = await getGraphCounts();
+    assert.deepStrictEqual(after, before);
+  });
+
+  it('POST /yukle explicit admitted context ile ogrenir', async () => {
+    const r = await request(`${BASE}/yukle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: admittedUploadBody('test-node test-edge-eder'),
+    });
+    assert.strictEqual(r.status, 200);
+    const j = await r.json();
+    assert.strictEqual(j.ok, true);
     assert.ok(j.learned > 0);
+    assert.ok(j.admission);
+    assert.strictEqual(j.admission.outcome, 'allow');
   });
 
   it('POST /yukle boÃ…Å¸ body hata dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {
@@ -355,7 +388,7 @@ describe('Server - API', () => {
     const learn = await request(`${BASE}/yukle`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: 'kedi hayvandir' }),
+      body: admittedUploadBody('kedi hayvandir'),
     });
     assert.strictEqual(learn.status, 200);
 
