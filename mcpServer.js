@@ -675,24 +675,6 @@ function callTool(kernel, params = {}) {
   const gate = evaluateMcpGate({ tool: name, args, metadata: {} });
 
   if (!gate.canExecute) {
-    if (gate.canDryRun) {
-      const dryRunResult = executeReadOnlyDryRun(kernel, name, args);
-      return {
-        ok: true,
-        dryRun: true,
-        gate: {
-          decision: gate.decision,
-          allowed: gate.allowed,
-          canExecute: gate.canExecute,
-          canDryRun: gate.canDryRun,
-          requiredReview: gate.requiredReview,
-          reason: gate.reason,
-          metadata: { policyVersion: gate.metadata?.adapterVersion || 'V2.6-PR2' },
-        },
-        result: dryRunResult,
-        message: `Tool dry-run: ${gate.reason}`,
-      };
-    }
     if (gate.decision === 'review' || gate.requiredReview) {
       const approval = {
         id: `approval-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
@@ -721,6 +703,24 @@ function callTool(kernel, params = {}) {
         },
         approval,
         message: `Tool call queued for review: ${gate.reason}`,
+      };
+    }
+    if (gate.canDryRun) {
+      const dryRunResult = executeReadOnlyDryRun(kernel, name, args);
+      return {
+        ok: true,
+        dryRun: true,
+        gate: {
+          decision: gate.decision,
+          allowed: gate.allowed,
+          canExecute: gate.canExecute,
+          canDryRun: gate.canDryRun,
+          requiredReview: gate.requiredReview,
+          reason: gate.reason,
+          metadata: { policyVersion: gate.metadata?.adapterVersion || 'V2.6-PR2' },
+        },
+        result: dryRunResult,
+        message: `Tool dry-run: ${gate.reason}`,
       };
     }
     return {
