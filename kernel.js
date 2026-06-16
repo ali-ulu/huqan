@@ -92,7 +92,7 @@ class Kernel {
     this._lockAcquired = false;
     this._lockTimeoutMs = opts.lockTimeoutMs || 5000;
 
-    // v0.9.1: AXIOM Memory Core — kernel.memory API
+    // v0.9.1: AXIOM Memory Core â€” kernel.memory API
     this.memory = new MemoryStore({
       trustPolicyVersion: this.contractVersion,
       useSQLite: opts.memoryStoreUseSQLite !== undefined ? opts.memoryStoreUseSQLite : opts.useSQLite,
@@ -384,7 +384,7 @@ class Kernel {
     try {
       return this.graph.appendAuditEvent(event, provenance ? { provenance, workspaceId } : { workspaceId });
     } catch (error) {
-      console.error('[Kernel] Audit log hatası:', error.message);
+      console.error('[Kernel] Audit log hatasÄ±:', error.message);
       return null;
     }
   }
@@ -584,7 +584,7 @@ class Kernel {
       admission: admission || null,
     }, [], admission ? { admission } : {});
 
-    // KAL?TE KONTROLÃœ: çelişki ve alternatif tespiti
+    // KAL?TE KONTROLÃƒÅ“: Ã§eliÅŸki ve alternatif tespiti
     const conflicts = [];
     const alternatives = [];
     let learned = 0;
@@ -601,20 +601,20 @@ class Kernel {
       if (typeof object !== 'string' || !object.trim() || typeof relation !== 'string' || !relation.trim()) continue;
       if (this.isStopWord(object)) continue;
 
-      const isCopulaNegation = relation === 'değil' && /(?:^|\s)(?:değildir|degildir)\s*$/i.test(predicate.trim());
-      const negatedObject = isCopulaNegation ? `${object} [değil]` : object;
+      const isCopulaNegation = relation === 'deÄŸil' && /(?:^|\s)(?:deÄŸildir|degildir)\s*$/i.test(predicate.trim());
+      const negatedObject = isCopulaNegation ? `${object} [deÄŸil]` : object;
 
         // AYNI ?zne-ili?ki i?in mevcut nesneleri bul
         const existingEdges = this.graph.getEdges(subject, workspaceId).filter(e => e.relation === relation);
         const existingTargets = existingEdges.map(e => e.to);
 
-        // Ã‡EL?ÅK? KONTROLÃœ
-        // tür: farkl? anlam ta??yan iki tür ? çelişki
-        // değil: ayn? nesne i?in "tür" varsa ? çelişki
-        // kistlama (sadece): ayn? ?zne i?in ba?ka yapabilir varsa ? çelişki
+        // Ãƒâ€¡EL?Ã…ÂK? KONTROLÃƒÅ“
+        // tÃ¼r: farkl? anlam ta??yan iki tÃ¼r ? Ã§eliÅŸki
+        // deÄŸil: ayn? nesne i?in "tÃ¼r" varsa ? Ã§eliÅŸki
+        // kistlama (sadece): ayn? ?zne i?in ba?ka yapabilir varsa ? Ã§eliÅŸki
         let celiskiBulundu = false;
 
-        if (relation === 'tür') {
+        if (relation === 'tÃ¼r') {
           for (const existing of existingTargets) {
             if (existing !== object) {
               const benzerlik = this.contextSimilarity(object, existing, subject);
@@ -622,7 +622,7 @@ class Kernel {
                 conflicts.push({
                   type: 'alternative',
                   subject,
-                  relation: 'tür',
+                  relation: 'tÃ¼r',
                   current: object,
                   existing,
                   confidence: parseFloat(benzerlik.toFixed(3)),
@@ -633,8 +633,8 @@ class Kernel {
           }
         }
 
-        if (relation === 'değil') {
-          const turEdges = this.graph.getEdges(subject, workspaceId).filter(e => e.relation === 'tür');
+        if (relation === 'deÄŸil') {
+          const turEdges = this.graph.getEdges(subject, workspaceId).filter(e => e.relation === 'tÃ¼r');
           for (const tur of turEdges) {
             if (tur.to === object) {
               const onceki = tur.weight;
@@ -643,17 +643,17 @@ class Kernel {
               tur.celiski = 'downgraded';
               if (isCopulaNegation) {
                 tur.to = negatedObject;
-                tur.relation = 'değil';
+                tur.relation = 'deÄŸil';
                 tur.negated = true;
                 tur.negatedObject = object;
               }
               conflicts.push({
                 type: 'negation',
                 subject,
-                relation: 'değil',
+                relation: 'deÄŸil',
                 current: object,
                 existing: oncekiTarget,
-                message: `"${subject}" "${object} değildir" deniyor (önceden tür:${onceki}) → tür weight düşürüldü`,
+                message: `"${subject}" "${object} deÄŸildir" deniyor (Ã¶nceden tÃ¼r:${onceki}) â†’ tÃ¼r weight dÃ¼ÅŸÃ¼rÃ¼ldÃ¼`,
                 confidence: 0,
               });
               celiskiBulundu = true;
@@ -661,7 +661,7 @@ class Kernel {
           }
         }
 
-        // KISITLAMA: "sadece x yapar" ? ba?ka yapabilir varsa çelişki
+        // KISITLAMA: "sadece x yapar" ? ba?ka yapabilir varsa Ã§eliÅŸki
         if (rel.kistlama && relation === 'yapabilir') {
           const digerYapabilir = existingEdges.filter(e => e.relation === 'yapabilir' && e.to !== object);
           for (const dg of digerYapabilir) {
@@ -688,7 +688,7 @@ class Kernel {
           });
         }
 
-        // Ã–ÄRENME: d?k g?venli alternatifleri de ekle (çelişkiyi ?nlemek i?in farkl? ili?kiyle)
+        // Ãƒâ€“Ã„ÂRENME: d?k g?venli alternatifleri de ekle (Ã§eliÅŸkiyi ?nlemek i?in farkl? ili?kiyle)
         if (provenance) {
           this.graph.addNode(subject, subject, provenance, { workspaceId });
           this.graph.addNode(object, object, provenance, { workspaceId });
@@ -699,8 +699,8 @@ class Kernel {
           if (isCopulaNegation) this.graph.addNode(negatedObject, negatedObject, null, { workspaceId });
         }
 
-        if (celiskiBulundu && (relation === 'tür')) {
-          // tür çelişkisi ? benzer olarak kaydet
+        if (celiskiBulundu && (relation === 'tÃ¼r')) {
+          // tÃ¼r Ã§eliÅŸkisi ? benzer olarak kaydet
           const edgeOptions = this._learnEdgeOptions({ source: 'alt', weight: 0.15, evidence: [text] }, metadata, text);
           if (provenance) edgeOptions.provenance = provenance;
           edgeOptions.workspaceId = workspaceId;
@@ -725,7 +725,7 @@ class Kernel {
               },
             }, provenance, workspaceId);
           }
-                } else if (relation === 'değil') {
+                } else if (relation === 'deÄŸil') {
           const edgeOptions = this._learnEdgeOptions({ source: 'learn', evidence: [text] }, metadata, text);
           if (provenance) edgeOptions.provenance = provenance;
           edgeOptions.workspaceId = workspaceId;
@@ -785,7 +785,7 @@ class Kernel {
             }, provenance, workspaceId);
           }
         } else {
-          // Normal ?ÄŸrenme
+          // Normal ?Ã„Å¸renme
           const edgeOptions = this._learnEdgeOptions({ source: 'learn', evidence: [text] }, metadata, text);
           if (provenance) edgeOptions.provenance = provenance;
           edgeOptions.workspaceId = workspaceId;
@@ -821,11 +821,11 @@ class Kernel {
     this.plugins.emit('afterLearn', { text, conflicts, alternatives, opts: { ...metadata, workspaceId } });
 
     if (this._rust) {
-      this._rust.learn(text).catch((e) => { console.error("[Kernel] Rust learn hatası:", e?.message || e); });
+      this._rust.learn(text).catch((e) => { console.error("[Kernel] Rust learn hatasÄ±:", e?.message || e); });
     }
 
     if (learned > 0) {
-      try { this.graph.save(); } catch (e) { console.error("[Kernel] Graph save hatası:", e.message); }
+      try { this.graph.save(); } catch (e) { console.error("[Kernel] Graph save hatasÄ±:", e.message); }
       if (typeof setImmediate !== 'undefined') setImmediate(() => this._autoMaintain());
     }
 
@@ -876,7 +876,7 @@ class Kernel {
     const last = words[words.length - 1];
     let cleaned = last;
     if (opts.trimCaseSuffixes !== false) {
-      cleaned = cleaned.replace(/(y[iıuü]|[iıuü]|[ae])$/i, '');
+      cleaned = cleaned.replace(/(n[ae]|y[ae]|y[iÄ±uÃ¼]|[iÄ±uÃ¼]|[ae])$/i, '');
     }
     if (!cleaned) cleaned = last;
     if (opts.trimCaseSuffixes !== false) {
@@ -898,13 +898,13 @@ class Kernel {
     if (!normalized) return null;
 
     const patterns = [
-      { relation: 'CAUSES', mode: 'suffix', trimCaseSuffixes: true, marker: /^(.*?)\s+(neden olur|yol acar|yol açar|sebep olur|tetikler|yapar)$/i },
+      { relation: 'CAUSES', mode: 'suffix', trimCaseSuffixes: true, marker: /^(.*?)\s+(neden olur|yol acar|yol aÃ§ar|sebep olur|tetikler|yapar)$/i },
       { relation: 'CAUSES', mode: 'prefix', trimCaseSuffixes: false, marker: /^(causes|cause|leads to|triggers)\s+(.+)$/i },
-      { relation: 'PREVENTS', mode: 'suffix', trimCaseSuffixes: true, marker: /^(.*?)\s+(onler|önler|engeller|durdurur|onune gecer|önüne geçer)$/i },
+      { relation: 'PREVENTS', mode: 'suffix', trimCaseSuffixes: true, marker: /^(.*?)\s+(onler|Ã¶nler|engeller|durdurur|onune gecer|Ã¶nÃ¼ne geÃ§er)$/i },
       { relation: 'PREVENTS', mode: 'prefix', trimCaseSuffixes: false, marker: /^(prevents|prevent|blocks|stops)\s+(.+)$/i },
-      { relation: 'DEPENDS_ON', mode: 'suffix', trimCaseSuffixes: true, marker: /^(.*?)\s+(baglidir|bağlıdır|gerektirir|dayanir|dayanır|olmadan)$/i },
+      { relation: 'DEPENDS_ON', mode: 'suffix', trimCaseSuffixes: true, marker: /^(.*?)\s+(bagli|baÄŸlÄ±|baglidir|baÄŸlÄ±dÄ±r|gerektirir|dayanir|dayanÄ±r|olmadan)$/i },
       { relation: 'DEPENDS_ON', mode: 'prefix', trimCaseSuffixes: false, marker: /^(requires|depends on)\s+(.+)$/i },
-      { relation: 'ENABLES', mode: 'suffix', trimCaseSuffixes: true, marker: /^(.*?)\s+(saglar|sağlar|mumkun kilar|mümkün kılar|olanak verir|etkinlestirir|etkinleştirir)$/i },
+      { relation: 'ENABLES', mode: 'suffix', trimCaseSuffixes: true, marker: /^(.*?)\s+(saglar|saÄŸlar|mumkun kilar|mÃ¼mkÃ¼n kÄ±lar|olanak verir|etkinlestirir|etkinleÅŸtirir)$/i },
       { relation: 'ENABLES', mode: 'prefix', trimCaseSuffixes: false, marker: /^(enables|enable)\s+(.+)$/i },
     ];
 
@@ -939,44 +939,49 @@ class Kernel {
       }
     }
 
-    // -değil/-değildir ? olumsuzluk
-    // "fark?ndal?k değildir" ? değil ili?kisi
-    const degilMatch = predicate.match(/^(.+?)\s+değildir$/i);
+    // -deÄŸil/-deÄŸildir ? olumsuzluk
+    // "fark?ndal?k deÄŸildir" ? deÄŸil ili?kisi
+    const degilMatch = predicate.match(/^(.+?)\s+deÄŸildir$/i);
     if (degilMatch) {
-      return { object: degilMatch[1].trim(), relation: 'değil' };
+      return { object: degilMatch[1].trim(), relation: 'deÄŸil' };
     }
-    // tek kelime "değildir" biti?ik: "fark?ndal?kdeğildir"
-    const degilSuffix = /^(.+?)değildir$/i;
+    // tek kelime "deÄŸildir" biti?ik: "fark?ndal?kdeÄŸildir"
+    const degilSuffix = /^(.+?)deÄŸildir$/i;
     const dMatch = predicate.match(degilSuffix);
     if (dMatch && dMatch[1].trim()) {
-      return { object: dMatch[1].trim(), relation: 'değil' };
+      return { object: dMatch[1].trim(), relation: 'deÄŸil' };
     }
 
-    // -mez/-maz olumsuz fiil: "hissetmez", "anlamaz", "bilmez" ? değil
+    // -mez/-maz olumsuz fiil: "hissetmez", "anlamaz", "bilmez" ? deÄŸil
     // "duyguyu hissetmez" gibi ?ok kelimeli i?in son kelimeyi kontrol et
     const negVerbMatch = predicate.match(/^(.+?)\s+(.+)(mez|maz)$/i);
     if (negVerbMatch) {
       const verb = negVerbMatch[2] + negVerbMatch[3];
-      return { object: (negVerbMatch[1] + ' ' + verb).trim(), relation: 'değil' };
+      return { object: (negVerbMatch[1] + ' ' + verb).trim(), relation: 'deÄŸil' };
     }
     // tek kelimeli: "hissetmez"
     const negSingle = predicate.match(/^(.+?)(mez|maz)$/i);
     if (negSingle && predicate.indexOf(' ') === -1) {
-      return { object: predicate, relation: 'değil' };
+      return { object: predicate, relation: 'deÄŸil' };
     }
 
-    // -dır/-dir/-dur/-dır/-tür/-tir/-tur/-tür ? tür ili?kisi
-    const tirSuffix = /(dır|dir|dur|dır|tür|tir|tur|tür)$/i;
+    const explicitDependency = this._parseExplicitRelationPredicate(predicate);
+    if (explicitDependency?.relation === 'DEPENDS_ON') {
+      return explicitDependency;
+    }
+
+    // -dÄ±r/-dir/-dur/-dÄ±r/-tÃ¼r/-tir/-tur/-tÃ¼r ? tÃ¼r ili?kisi
+    const tirSuffix = /(dÄ±r|dir|dur|dÄ±r|tÃ¼r|tir|tur|tÃ¼r)$/i;
     if (tirSuffix.test(predicate)) {
       const stem = this.normalizeWord(predicate.replace(tirSuffix, ''));
-      return { object: stem, relation: 'tür' };
+      return { object: stem, relation: 'tÃ¼r' };
     }
 
-    // -dır/-dir ekli ?ok kelimeli y?klem: "doÄŸru d?nme y?ntemidir"
-    const tirMulti = /^(.+?)(dır|dir|dur|dır|tür|tir|tur|tür)$/i;
+    // -dÄ±r/-dir ekli ?ok kelimeli y?klem: "doÃ„Å¸ru d?nme y?ntemidir"
+    const tirMulti = /^(.+?)(dÄ±r|dir|dur|dÄ±r|tÃ¼r|tir|tur|tÃ¼r)$/i;
     const mMatch = predicate.match(tirMulti);
     if (mMatch && mMatch[1].includes(' ')) {
-      return { object: mMatch[1].trim(), relation: 'tür' };
+      return { object: mMatch[1].trim(), relation: 'tÃ¼r' };
     }
 
     const explicitRelation = this._parseExplicitRelationPredicate(predicate);
@@ -985,7 +990,7 @@ class Kernel {
     }
 
     // Fiil ekleri ? yapabilir ili?kisi
-    const verbSuffix = /(ar|er|ır|ir|ur|ür|yor|acak|ecek|mak|mek)$/i;
+    const verbSuffix = /(ar|er|Ä±r|ir|ur|Ã¼r|yor|acak|ecek|mak|mek)$/i;
 if (verbSuffix.test(predicate)) {
       return { object: predicate, relation: 'yapabilir' };
     }
@@ -995,8 +1000,8 @@ if (verbSuffix.test(predicate)) {
       return { object: predicate, relation: 'yapabilir' };
     }
 
-    // Ã‡ok kelimeli y?klem ? özellik
-    return { object: predicate, relation: 'özellik' };
+    // Ãƒâ€¡ok kelimeli y?klem ? Ã¶zellik
+    return { object: predicate, relation: 'Ã¶zellik' };
   }
 
   _crossLink(subject, object, relation, workspaceId = 'default') {
@@ -1045,7 +1050,7 @@ if (verbSuffix.test(predicate)) {
         .replace(/s\u00fcn$/, '')
         .replace(/yorsun$/, '')
         .replace(/yor$/, '');
-      // "s?rekli ?ÄŸrenmeliyim" ? "s?rekli ?ÄŸrenme"
+      // "s?rekli ?Ã„Å¸renmeliyim" ? "s?rekli ?Ã„Å¸renme"
       if (kok.endsWith('meliyim')) kok = kok.slice(0, -7);
       return kok.trim();
     };
@@ -1060,13 +1065,13 @@ if (verbSuffix.test(predicate)) {
       if (this.graph.getNode(normalized)) {
         return { subject: normalized, verb: parts.slice(1).join(' ') };
       }
-      // Åah?s eki var m?? (?ÄŸrenmezsem, ?ÄŸrenmeliyim, bilmiyorum, yapabilirim...)
+      // Ã…Âah?s eki var m?? (?Ã„Å¸renmezsem, ?Ã„Å¸renmeliyim, bilmiyorum, yapabilirim...)
       const fiilKok = _kokeIndirge(ilk);
       const normKok = this.normalizeWord(fiilKok);
       if (this.graph.getNode(normKok)) {
         return { subject: 'axiom', verb: normKok };
       }
-      // Son kelimeye bak (s?rekli ?ÄŸrenmeliyim ? "s?rekli" değil "?ÄŸrenme")
+      // Son kelimeye bak (s?rekli ?Ã„Å¸renmeliyim ? "s?rekli" deÄŸil "?Ã„Å¸renme")
       if (parts.length > 1) {
         const son = parts[parts.length - 1];
         const sonKok = _kokeIndirge(son);
@@ -1105,7 +1110,7 @@ if (verbSuffix.test(predicate)) {
     const subject = detected;
     const node = this.graph.getNode(subject);
 
-    // EÄŸer ?zne grafikte yoksa ama ?ah?s eki varsa, axiom'a y?nlendir
+    // EÃ„Å¸er ?zne grafikte yoksa ama ?ah?s eki varsa, axiom'a y?nlendir
     const finalSubject = node ? subject : 'axiom';
     const finalNode = this.graph.getNode(finalSubject);
 
@@ -1131,7 +1136,7 @@ if (verbSuffix.test(predicate)) {
     for (const edge of sorted) {
       if (kistlamaVar && edge.relation === 'yapabilir' && !allowedYapabilir.has(edge.to)) continue;
       evidence.push(this._edgeEvidence(edge));
-      if (edge.relation === 'tür') {
+      if (edge.relation === 'tÃ¼r') {
         if (!results.includes(edge.to)) results.push(edge.to);
         const transitive = this._walkTransitive(edge.to, [], 2);
         for (const t of transitive) {
@@ -1162,7 +1167,7 @@ if (verbSuffix.test(predicate)) {
     const edges = this.graph.getEdges(nodeId);
     const results = [];
     for (const e of edges) {
-      if (e.relation === 'tür' && !visited.includes(e.to)) {
+      if (e.relation === 'tÃ¼r' && !visited.includes(e.to)) {
         results.push(e.to);
         results.push(...this._walkTransitive(e.to, visited, depth - 1));
       }
@@ -1177,9 +1182,9 @@ if (verbSuffix.test(predicate)) {
       return this._ok('alternatives', { subject: normalized, answer: 'Bilmiyorum', paths: [] }, []);
     }
 
-    // 1. DoÄŸrudan kenarlardan alternatif gruplar? olu?tur
+    // 1. DoÃ„Å¸rudan kenarlardan alternatif gruplar? olu?tur
     const edges = this.graph.getEdges(normalized, workspaceId);
-    const groups = { 'tür': [], yapabilir: [], 'özellik': [], benzer: [], hipotez: [] };
+    const groups = { 'tÃ¼r': [], yapabilir: [], 'Ã¶zellik': [], benzer: [], hipotez: [] };
     for (const e of edges) {
       const g = groups[e.relation];
       if (g) g.push(e.to);
@@ -1189,15 +1194,15 @@ if (verbSuffix.test(predicate)) {
     const paths = [];
     const usedNodes = new Set([normalized]);
 
-    // ?li?ki ?nceliÄŸi: tür > yapabilir > özellik > benzer > hipotez
-    const relOrder = ['tür', 'yapabilir', 'özellik', 'benzer', 'hipotez'];
+    // ?li?ki ?nceliÃ„Å¸i: tÃ¼r > yapabilir > Ã¶zellik > benzer > hipotez
+    const relOrder = ['tÃ¼r', 'yapabilir', 'Ã¶zellik', 'benzer', 'hipotez'];
 
     for (const rel of relOrder) {
       if (paths.length >= maxPaths) break;
       const targets = groups[rel] || [];
       if (targets.length === 0) continue;
 
-      // G?vene g?re s?rala (y?ksekten d?ÄŸe)
+      // G?vene g?re s?rala (y?ksekten d?Ã„Å¸e)
       const sorted = targets
         .map(t => ({ target: t, weight: edges.find(e => e.to === t && e.relation === rel)?.weight || 0.5 }))
         .sort((a, b) => b.weight - a.weight);
@@ -1217,7 +1222,7 @@ if (verbSuffix.test(predicate)) {
       usedNodes.add(best.target);
     }
 
-    // 3. Alternatif ??z?m olarak deÄŸerlendir
+    // 3. Alternatif ??z?m olarak deÃ„Å¸erlendir
     let answer = normalized + ' i?in alternatif ??z?mler:\n';
     for (const p of paths) {
       answer += `  [${p.type}] ${p.from} ? ${p.to}`;
@@ -1330,7 +1335,7 @@ if (verbSuffix.test(predicate)) {
     if (ileri.length > 0) answer += '\n  neden olur: ' + ileri.map(e => e.to + ' [' + e.relation + ']').join(', ');
     if (geri.length > 0) answer += '\n  nedeni: ' + geri.map(e => e.from + ' [' + e.relation + ']').join(', ');
     if (cycle) {
-      answer += '\n  ? döngü tespit edildi: ' + cycle.join(' ? ');
+      answer += '\n  ? dÃ¶ngÃ¼ tespit edildi: ' + cycle.join(' ? ');
       evidence.push(this._pathEvidence(cycle, 'path', 0.4, workspaceId));
       const nedenOnce = this._resolveCycleOrder(cycle, workspaceId);
       if (nedenOnce) answer += '\n  ? ilk neden: ' + nedenOnce;
@@ -1455,14 +1460,14 @@ if (verbSuffix.test(predicate)) {
     for (let i = 0; i < cycle.length - 1; i++) {
       const edges = this.graph.getEdges(cycle[i], workspaceId);
       for (const e of edges) {
-        if (e.to === cycle[i + 1] && e.relation === 'tür') {
+        if (e.to === cycle[i + 1] && e.relation === 'tÃ¼r') {
           cikan.add(cycle[i]);
           giren.add(cycle[i + 1]);
         }
       }
     }
     for (const n of cycle) {
-      if (cikan.has(n) && !giren.has(n)) return n + ' (temel tür)';
+      if (cikan.has(n) && !giren.has(n)) return n + ' (temel tÃ¼r)';
     }
     return null;
   }
@@ -1559,7 +1564,7 @@ if (verbSuffix.test(predicate)) {
 
     const isBilinclikTick = this._dreamCount > 0; // t?m tick'ler art?k bilin?li
 
-    // ADIM 1: R?ya g?r + ?ÄŸren (recursion)
+    // ADIM 1: R?ya g?r + ?Ã„Å¸ren (recursion)
     const hips = this._dreamer.dream();
     let eklenen = 0;
     if (hips.length > 0) {
@@ -1568,9 +1573,9 @@ if (verbSuffix.test(predicate)) {
           const existing = this.graph.hasAnyEdge(h.from, h.to);
           if (!existing && this.graph.getNode(h.from) && this.graph.getNode(h.to)) {
             const rel = h.type === 'zincir' ? 'benzer' : (h.type === 'benzerlik' ? 'benzer'
-                      : h.relation === 'tür' ? 'tür'
+                      : h.relation === 'tÃ¼r' ? 'tÃ¼r'
                       : h.relation === 'yapabilir' ? 'yapabilir'
-                      : h.relation === 'özellik' ? 'özellik'
+                      : h.relation === 'Ã¶zellik' ? 'Ã¶zellik'
                       : 'hipotez');
             this.graph.addEdge(h.from, h.to, rel);
             eklenen++;
@@ -1579,7 +1584,7 @@ if (verbSuffix.test(predicate)) {
       }
     }
 
-    // ADIM 2: ??g?zlem (her tick'te değil, bilgi b?y?d?k?e)
+    // ADIM 2: ??g?zlem (her tick'te deÄŸil, bilgi b?y?d?k?e)
     let celiskiSayisi = 0;
     let metaGuven = 0.5;
     if (isBilinclikTick && this._dreamCount % 3 === 0) {
@@ -1593,9 +1598,9 @@ if (verbSuffix.test(predicate)) {
       }
     }
 
-    // ADIM 3: S?rekli ?ÄŸrenme dırt?s? (bilin? tikleri)
+    // ADIM 3: S?rekli ?Ã„Å¸renme dÄ±rt?s? (bilin? tikleri)
     if (eklenen > 0) {
-      this._autoThinkLog(eklenen + ' yeni baÄŸlant? - toplam ' + Object.keys(this.graph._nodes).length + ' d?ÄŸ?m');
+      this._autoThinkLog(eklenen + ' yeni baÃ„Å¸lant? - toplam ' + Object.keys(this.graph._nodes).length + ' d?Ã„Å¸?m');
     } else if (this._dreamCount % 5 === 0) {
       // Bo? r?ya -> daha fazla girdi laz?m
       this._autoThinkLog('bo? r?ya, daha fazla bilgi laz?m');
@@ -1603,11 +1608,11 @@ if (verbSuffix.test(predicate)) {
   }
 
   _autoThinkLog(msg) {
-    console.log('\n[ğŸ§  ' + new Date().toLocaleTimeString() + '] ' + msg);
+    console.log('\n[ÄŸÅ¸Â§Â  ' + new Date().toLocaleTimeString() + '] ' + msg);
   }
 
   /**
-   * Bir ifadeyi bilgi grafiÄŸiyle doÄŸrula.
+   * Bir ifadeyi bilgi grafiÃ„Å¸iyle doÃ„Å¸rula.
    * "kedi bal?k yer" ? ?zne=kedi, nesne=bal?k yer ? kenar var m??
    * r1: Use verifyAsync() for concurrent safety with locks
    */
@@ -1648,7 +1653,7 @@ if (verbSuffix.test(predicate)) {
       };
     });
 
-    // Geribesleme: hipotezleri grafiÄŸe ekle
+    // Geribesleme: hipotezleri grafiÃ„Å¸e ekle
     const learned = [];
     if (opts.learnFromDream) {
       const threshold = opts.dreamLearnThreshold ?? 0.1;
@@ -1656,9 +1661,9 @@ if (verbSuffix.test(predicate)) {
         if (h.confidence > threshold && h.from && h.to) {
           const existing = this.graph.hasAnyEdge(h.from, h.to);
           if (!existing && this.graph.getNode(h.from) && this.graph.getNode(h.to)) {
-            const rel = (h.relation === 'tür' || h.via === 'tür') ? 'tür'
+            const rel = (h.relation === 'tÃ¼r' || h.via === 'tÃ¼r') ? 'tÃ¼r'
                       : (h.relation === 'yapabilir') ? 'yapabilir'
-                      : (h.relation === 'özellik') ? 'özellik'
+                      : (h.relation === 'Ã¶zellik') ? 'Ã¶zellik'
                       : (h.type === 'zincir' || h.relation === 'benzer') ? 'benzer'
                       : 'hipotez';
             this.graph.addEdge(h.from, h.to, rel);
@@ -1668,7 +1673,7 @@ if (verbSuffix.test(predicate)) {
       }
     }
 
-    // R?ya döngü sayac?
+    // R?ya dÃ¶ngÃ¼ sayac?
     if (!this._dreamCount) this._dreamCount = 0;
     this._dreamCount++;
 
@@ -1681,7 +1686,7 @@ if (verbSuffix.test(predicate)) {
     let count = 0;
     const admissions = [];
     for (const line of lines) {
-      const cleaned = line.replace(/^[\s-â€“â€”*â€¢]+/, '').trim();
+      const cleaned = line.replace(/^[\s-Ã¢â‚¬â€œÃ¢â‚¬â€*Ã¢â‚¬Â¢]+/, '').trim();
       const words = cleaned.split(/\s+/);
       if (words.length >= 2) {
         const result = this.learn(cleaned, opts);
@@ -1696,12 +1701,12 @@ if (verbSuffix.test(predicate)) {
   }
 
   /**
-   * LLM yan?t?ndan bilgi ?ÄŸren.
-   * Ã‡eli?kili c?mleleri atlar, yeni bilgileri grafiÄŸe ekler.
+   * LLM yan?t?ndan bilgi ?Ã„Å¸ren.
+   * Ãƒâ€¡eli?kili c?mleleri atlar, yeni bilgileri grafiÃ„Å¸e ekler.
    *
    * @param {string} text - LLM'den gelen ham metin
    * @param {object} [opts]
-   * @param {boolean} [opts.skipConflicts=true]  - çelişkili c?mleleri atla
+   * @param {boolean} [opts.skipConflicts=true]  - Ã§eliÅŸkili c?mleleri atla
    * @param {number}  [opts.minWords=2]           - minimum kelime say?s?
    * @param {number}  [opts.maxSentences=20]      - max c?mle say?s?
    * @returns {{ learned: number, skipped: number, conflicts: string[] }}
@@ -1717,7 +1722,7 @@ if (verbSuffix.test(predicate)) {
         ok: false,
         error: {
           code: AXIOM_ERROR.LLM_DISABLED,
-          message: 'Paranoid mode aktif: d?? LLM ?aÄŸr?lar? ve otomatik ?ÄŸrenme engellendi.',
+          message: 'Paranoid mode aktif: d?? LLM ?aÃ„Å¸r?lar? ve otomatik ?Ã„Å¸renme engellendi.',
         },
         meta: {
           contractVersion: this.contractVersion,
@@ -1730,7 +1735,7 @@ if (verbSuffix.test(predicate)) {
     const minWords     = opts.minWords     || 2;
     const maxSentences = opts.maxSentences || 20;
 
-    // Metni c?mlelere b?l: nokta, ?nlem, soru i?areti veya satür sonu
+    // Metni c?mlelere b?l: nokta, ?nlem, soru i?areti veya satÃ¼r sonu
     const sentences = text
       .split(/[.!?\n]+/)
       .map(s => s.trim())
@@ -1742,7 +1747,7 @@ if (verbSuffix.test(predicate)) {
     for (const sentence of sentences.slice(0, maxSentences)) {
       // Markdown i?aretlerini temizle
       const cleaned = sentence
-        .replace(/^[\s#*\-â€“â€”â€¢>]+/, '')
+        .replace(/^[\s#*\-Ã¢â‚¬â€œÃ¢â‚¬â€Ã¢â‚¬Â¢>]+/, '')
         .replace(/\*\*(.+?)\*\*/g, '$1')
         .replace(/`(.+?)`/g, '$1')
         .trim();
@@ -1750,7 +1755,7 @@ if (verbSuffix.test(predicate)) {
       const words = cleaned.split(/\s+/).filter(Boolean);
       if (words.length < minWords) { skipped++; continue; }
 
-      // Ã‡eli?ki kontrol?
+      // Ãƒâ€¡eli?ki kontrol?
       if (skipConflicts) {
         const workspaceId = normalizeWorkspaceId(opts.workspaceId || opts.provenance?.workspaceId || 'default');
         const check = this.verify(cleaned, { workspaceId });
@@ -1810,31 +1815,31 @@ if (verbSuffix.test(predicate)) {
     // Temel istatistikler
     const nodeCount = allNodes.length;
     const edgeCount = allEdges.length;
-    const typeEdges = allEdges.filter(e => e.relation === 'tür').length;
+    const typeEdges = allEdges.filter(e => e.relation === 'tÃ¼r').length;
     const canEdges  = allEdges.filter(e => e.relation === 'yapabilir').length;
-    const ozellikEdges = allEdges.filter(e => e.relation === 'özellik').length;
+    const ozellikEdges = allEdges.filter(e => e.relation === 'Ã¶zellik').length;
     const benzerEdges  = allEdges.filter(e => e.relation === 'benzer').length;
     const hipotezEdges = allEdges.filter(e => e.relation === 'hipotez').length;
 
-    // Yal?t?lm?? d?ÄŸ?mler
+    // Yal?t?lm?? d?Ã„Å¸?mler
     const yalitilmis = allNodes.filter(n => {
       const out = this.graph.getEdges(n.id, workspaceId);
       const inn = this.graph.getInEdges(n.id, workspaceId);
       return out.length === 0 && inn.length === 0;
     }).map(n => n.id);
 
-    // Ã‡eli?kiler
+    // Ãƒâ€¡eli?kiler
     const celiskiler = this.detectContradictions();
 
     // Bo?luklar (hi? kenar? olmayan)
     const bosluklar = this.detectGaps(workspaceId);
 
-    // Kenar aÄŸ?rl?k daÄŸ?l?m?
+    // Kenar aÃ„Å¸?rl?k daÃ„Å¸?l?m?
     const agirliklar = allEdges.map(e => e.weight || 0.5);
     const ortAgirlik = agirliklar.length > 0 ? agirliklar.reduce((s, w) => s + w, 0) / agirliklar.length : 0;
     const dusukAgirlik = agirliklar.filter(w => w < 0.3).length;
 
-    // Ã–z-bilgi: graph kendisi hakk?nda ne biliyor?
+    // Ãƒâ€“z-bilgi: graph kendisi hakk?nda ne biliyor?
     const selfNodes = ['axiom', 'kernel', 'dream', 'r?ya', 'hipotez'];
     const selfBilgi = {};
     for (const n of selfNodes) {
@@ -1847,10 +1852,10 @@ if (verbSuffix.test(predicate)) {
       }
     }
 
-    // R?ya döngüs?
+    // R?ya dÃ¶ngÃ¼s?
     const dreamCycle = this._dreamCount || 0;
 
-    // Entropi (bilgi ?e?itliliÄŸi)
+    // Entropi (bilgi ?e?itliliÃ„Å¸i)
     const entropi = this.entropy(workspaceId);
 
     // Meta-g?ven skoru
@@ -1865,17 +1870,17 @@ if (verbSuffix.test(predicate)) {
 
     // Zay?f noktalar
     const zayifNoktalar = [];
-    if (yalitilmis.length > 0) zayifNoktalar.push(`${yalitilmis.length} yal?t?lm?? d?ÄŸ?m`);
-    if (celiskiler.length > 0) zayifNoktalar.push(`${celiskiler.length} çelişki`);
+    if (yalitilmis.length > 0) zayifNoktalar.push(`${yalitilmis.length} yal?t?lm?? d?Ã„Å¸?m`);
+    if (celiskiler.length > 0) zayifNoktalar.push(`${celiskiler.length} Ã§eliÅŸki`);
     if (dusukAgirlik > edgeCount * 0.3) zayifNoktalar.push(`${dusukAgirlik} d?k g?venli kenar`);
     if (nodeCount < 5) zayifNoktalar.push('?ok az bilgi');
 
     // G??l? noktalar
     const gucluNoktalar = [];
-    if (nodeCount > 50) gucluNoktalar.push('geni? bilgi grafiÄŸi');
-    if (typeEdges > 10) gucluNoktalar.push('g??l? tür hiyerar?isi');
-    if (benzerEdges > 5) gucluNoktalar.push('aktif benzerlik aÄŸ?');
-    if (dreamCycle > 0) gucluNoktalar.push(`${dreamCycle} r?ya döngüs? tamamland?`);
+    if (nodeCount > 50) gucluNoktalar.push('geni? bilgi grafiÃ„Å¸i');
+    if (typeEdges > 10) gucluNoktalar.push('g??l? tÃ¼r hiyerar?isi');
+    if (benzerEdges > 5) gucluNoktalar.push('aktif benzerlik aÃ„Å¸?');
+    if (dreamCycle > 0) gucluNoktalar.push(`${dreamCycle} r?ya dÃ¶ngÃ¼s? tamamland?`);
 
     const result = {
       bilgi: {
@@ -1911,7 +1916,7 @@ if (verbSuffix.test(predicate)) {
     const removed = [];
     const marked = new Set();
 
-    // 1. Ayn? (from, to) i?in d?k weight kenarlar? temizle (tür vs değil gibi)
+    // 1. Ayn? (from, to) i?in d?k weight kenarlar? temizle (tÃ¼r vs deÄŸil gibi)
     const byPair = {};
     for (let i = 0; i < edges.length; i++) {
       if (edges[i].kistlama) continue;
@@ -1948,7 +1953,7 @@ if (verbSuffix.test(predicate)) {
       for (const li of low) {
         if (high.length > 0 && !marked.has(li)) {
           removed.push({ idx: li, edge: edges[li],
-            reason: `low-weight restriction (${edges[li].weight}) â€” subject already has high-weight '${edges[li].relation}'` });
+            reason: `low-weight restriction (${edges[li].weight}) Ã¢â‚¬â€ subject already has high-weight '${edges[li].relation}'` });
           marked.add(li);
         }
       }
@@ -1958,7 +1963,7 @@ if (verbSuffix.test(predicate)) {
     if (!dryRun && removed.length > 0) {
       this.graph._edges = edges.filter((_, i) => !marked.has(i));
       this.graph._rebuildIndex();
-      try { this.graph.save(); } catch (e) { console.error("[Kernel] Graph save hatası:", e.message); }
+      try { this.graph.save(); } catch (e) { console.error("[Kernel] Graph save hatasÄ±:", e.message); }
     }
 
     return {
@@ -1971,11 +1976,11 @@ if (verbSuffix.test(predicate)) {
   }
 
   /**
-   * Kendi kendine evrimle?me döngüs?.
+   * Kendi kendine evrimle?me dÃ¶ngÃ¼s?.
    * 1. R?ya g?r (hipotez ?ret)
-   * 2. Y?ksek g?venli hipotezleri bilgiye d?n??tür
-   * 3. GrafiÄŸi temizle (birle?tir + optimize et)
-   * 4. Kaydet, rapor d?ndır
+   * 2. Y?ksek g?venli hipotezleri bilgiye d?n??tÃ¼r
+   * 3. GrafiÃ„Å¸i temizle (birle?tir + optimize et)
+   * 4. Kaydet, rapor d?ndÄ±r
    */
   selfEvolve(opts = {}) {
     const Dream = require('./dream');
@@ -1989,8 +1994,8 @@ if (verbSuffix.test(predicate)) {
       if (h.confidence < defaultMin) continue;
 
       const rel = h.relation || (
-        h.type === 'benzerlik' || h.type === 'vektür-benzerlik' ? 'benzer' :
-        h.type === 'baÄŸlant?-?nerisi' ? 'hipotez' : 'hipotez'
+        h.type === 'benzerlik' || h.type === 'vektÃ¼r-benzerlik' ? 'benzer' :
+        h.type === 'baÃ„Å¸lant?-?nerisi' ? 'hipotez' : 'hipotez'
       );
 
       const existing = this.graph.getEdge(h.from, h.to, rel);
@@ -2005,7 +2010,7 @@ if (verbSuffix.test(predicate)) {
     const opt = this.graph.optimize();
 
     if (added.length > 0 || cons.removed > 0) {
-      try { this.graph.save(); } catch (e) { console.error("[Kernel] Graph save hatası:", e.message); }
+      try { this.graph.save(); } catch (e) { console.error("[Kernel] Graph save hatasÄ±:", e.message); }
     }
 
     this._dreamCount = (this._dreamCount || 0) + 1;
@@ -2020,8 +2025,8 @@ if (verbSuffix.test(predicate)) {
   }
 
   /**
-   * Kendi kendine ?ÄŸrenme â€” bo?luklar? tespit edip doldurur.
-   * Bilinmeyen kavramlar? bulur ve LLM'den ?ÄŸrenir.
+   * Kendi kendine ?Ã„Å¸renme Ã¢â‚¬â€ bo?luklar? tespit edip doldurur.
+   * Bilinmeyen kavramlar? bulur ve LLM'den ?Ã„Å¸renir.
    */
   selfLearn(opts = {}) {
     const gaps = this.detectGaps();
@@ -2042,7 +2047,7 @@ if (verbSuffix.test(predicate)) {
   }
 
   /**
-   * Periyodik bak?m â€” ?ÄŸrenme sayac?n? takip eder, e?ik a??l?nca selfEvolve ?al??tür?r.
+   * Periyodik bak?m Ã¢â‚¬â€ ?Ã„Å¸renme sayac?n? takip eder, e?ik a??l?nca selfEvolve ?al??tÃ¼r?r.
    */
   _learnCount = 0;
   maintenanceEvery = 5;
@@ -2060,4 +2065,3 @@ module.exports = Kernel;
 module.exports.AXIOM_ERROR = AXIOM_ERROR;
 module.exports.CONTRACT_VERSION = CONTRACT_VERSION;
 module.exports.ProvenanceError = ProvenanceError;
-

@@ -59,14 +59,14 @@ function classifyFinding(result, expectedRelation, options = {}) {
   });
 
   if (options.neutral) {
-    return relation === 'tür' || relation === 'özellik'
+    return relation === 'tÃ¼r' || relation === 'Ã¶zellik'
       ? 'neutral_correctly_not_causal'
       : 'false_causal_relation';
   }
 
   if (cleanRelation && cleanObject) return 'clean_relation_extracted';
   if (cleanRelation && !cleanObject) return 'object_swallowed_into_predicate';
-  if (!cleanRelation && relation === 'tür') return 'relation_drift';
+  if (!cleanRelation && relation === 'tÃ¼r') return 'relation_drift';
   if (!cleanRelation && cleanObject && extraTokensBeyondHint) return 'object_swallowed_into_predicate';
   if (!cleanRelation && expectedObjectHints.some((hint) => object.includes(hint))) return 'relation_drift';
   if (!cleanRelation && relation && object) return 'object_swallowed_into_predicate';
@@ -134,7 +134,13 @@ test('relation extraction audit keeps explicit marker fixes while broad gaps sta
       text: 'Deployment testlerin gecmesine baglidir',
       expectedRelation: 'DEPENDS_ON',
       expectedObjectHints: ['test'],
-      expectedClassification: 'relation_drift',
+      expectedClassification: 'clean_relation_extracted',
+    },
+    {
+      text: 'Sistem veritabanina baglidir',
+      expectedRelation: 'DEPENDS_ON',
+      expectedObjectHints: ['veritabani'],
+      expectedClassification: 'clean_relation_extracted',
     },
     {
       text: 'Deployment requires passing tests',
