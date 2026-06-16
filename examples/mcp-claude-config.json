@@ -1,0 +1,43 @@
+{
+  "//": "HUQAN MCP server için Claude Desktop / Cursor config örneği",
+  "//usage": "Bu dosyayı olduğu gibi kopyalayın ve /path/to/axiom/mcpServer.js yolunu kendi kurulumunuza göre değiştirin",
+  "//claude-desktop": "macOS: ~/Library/Application Support/Claude/claude_desktop_config.json",
+  "//claude-desktop-windows": "Windows: %APPDATA%\\Claude\\claude_desktop_config.json",
+  "//cursor": "Cursor: Settings > MCP > Add new MCP server",
+  "//linux": "Linux: ~/.config/Claude/claude_desktop_config.json",
+
+  "mcpServers": {
+    "huqan": {
+      "command": "node",
+      "args": ["/absolute/path/to/axiom/mcpServer.js"],
+      "env": {
+        "AXIOM_MEMORY_PATH": "/absolute/path/to/axiom/memory.json",
+        "AXIOM_DB_PATH": "/absolute/path/to/axiom/memory.db",
+        "AXIOM_USE_SQLITE": "true",
+        "AXIOM_LANG": "tr"
+      }
+    }
+  },
+
+  "//notes": [
+    "1. /absolute/path/to/axiom/ kısmını kendi kurulum yolunuzla değiştirin",
+    "2. Claude Desktop'ı tamamen kapatıp yeniden açın (Cmd+Q sonrasında)",
+    "3. İlk kurulumda 'node egitim.js' çalıştırın ki memory.json oluşsun",
+    "4. AXIOM_LANG: 'tr' (default), 'en', 'de', 'ar' veya 'auto' olabilir",
+    "5. MCP server stdio üzerinden konuşur, ayrı port açmaz",
+    "6. Hata alırsanız: node examples/mcp-self-test.js ile test edin"
+  ],
+
+  "//tools": [
+    "axiom.ask     - Graph'tan soru sor",
+    "axiom.verify  - İddia doğrula (dogrulandi/celiski/bilinmiyor)",
+    "axiom.reason  - Nedensel akıl yürüt",
+    "axiom.compare - İki kavramı karşılaştır",
+    "axiom.dream   - Hipotez üret",
+    "axiom.learn   - Graph'a bilgi ekle (default: review gerekir)",
+    "axiom.plan    - Hedef için plan üret",
+    "axiom.agent   - Agent runtime çalıştır",
+    "axiom.policy  - Tool policy incele",
+    "axiom.approvals - Pending onayları listele"
+  ]
+}

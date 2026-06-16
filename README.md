@@ -191,26 +191,76 @@ Ask "why?" and Huqan traces the full causal chain — step by step, with evidenc
 
 ## MCP Server (Claude / Cursor)
 
-Connect Huqan as a local MCP server to give your AI assistant a deterministic verification layer:
+Connect Huqan as a local MCP server to give your AI assistant a deterministic verification layer.
+
+### ⚡ 60-second setup
 
 ```bash
-node mcpServer.js
+# 1. Clone + install + load graph
+git clone https://github.com/agiulucom42-del/axiom.git
+cd axiom
+npm ci --include=optional          # ~1 sec, zero runtime deps
+node egitim.js                      # ~5 sec, loads 77 Turkish facts
+
+# 2. Verify MCP server works
+node examples/mcp-self-test.js      # 20/20 assertions should pass
 ```
 
-**Claude Desktop config** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+### 3. Add to Claude Desktop
+
+**Config location:**
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+- Linux: `~/.config/Claude/claude_desktop_config.json`
+- Cursor: Settings → MCP → Add new MCP server
 
 ```json
 {
   "mcpServers": {
     "huqan": {
       "command": "node",
-      "args": ["/path/to/axiom/mcpServer.js"]
+      "args": ["/absolute/path/to/axiom/mcpServer.js"],
+      "env": {
+        "AXIOM_MEMORY_PATH": "/absolute/path/to/axiom/memory.json",
+        "AXIOM_DB_PATH": "/absolute/path/to/axiom/memory.db",
+        "AXIOM_USE_SQLITE": "true"
+      }
     }
   }
 }
 ```
 
-Your AI assistant now verifies its own outputs against Huqan's knowledge graph before answering.
+See [`examples/mcp-claude-config.json`](./examples/mcp-claude-config.json) for a full template.
+
+### 4. Restart Claude Desktop and try
+
+Fully quit Claude (Cmd+Q on macOS) and reopen. Then ask:
+
+> "felsefe bilgelik sevgisidir mi? HUQAN ile doğrula."
+
+Claude will call `axiom.verify` and return:
+> ✅ **Doğrulandı** (confidence: 0.90) — Evidence: `felsefe --[tür]--> bilgelik sevgisi`
+
+### 🛠 Available MCP tools (10)
+
+| Tool | What it does |
+|------|--------------|
+| `axiom.ask` | Query the knowledge graph |
+| `axiom.verify` | Verify a claim (dogrulandi / celiski / bilinmiyor) |
+| `axiom.reason` | Forward + backward causal reasoning |
+| `axiom.compare` | Compare two concepts |
+| `axiom.dream` | Generate hypotheses |
+| `axiom.learn` | Add new fact to graph (default: review required) |
+| `axiom.plan` | Build multi-step plan for a goal |
+| `axiom.agent` | Run agent loop |
+| `axiom.policy` | Inspect tool policy |
+| `axiom.approvals` | List pending approvals |
+
+### 📚 Documentation
+
+- **[MCP Quick Start (detailed guide)](./docs/mcp-quickstart.md)** — full setup, env vars, troubleshooting
+- **[Self-test script](./examples/mcp-self-test.js)** — verify your MCP install works
+- **[Config template](./examples/mcp-claude-config.json)** — ready-to-edit Claude Desktop config
 
 ---
 
