@@ -74,31 +74,31 @@ function classifyFinding(result, expectedRelation, options = {}) {
   return 'relation_drift';
 }
 
-test('relation extraction audit captures current raw-text causal extraction gaps', () => {
+test('relation extraction audit keeps explicit marker fixes while broad gaps stay visible', () => {
   const cases = [
     {
       text: 'Sigara kanser yapar',
       expectedRelation: 'CAUSES',
       expectedObjectHints: ['kanser'],
-      expectedClassification: 'object_swallowed_into_predicate',
+      expectedClassification: 'clean_relation_extracted',
     },
     {
       text: 'Sigara kansere neden olur',
       expectedRelation: 'CAUSES',
       expectedObjectHints: ['kanser'],
-      expectedClassification: 'object_swallowed_into_predicate',
+      expectedClassification: 'clean_relation_extracted',
     },
     {
       text: 'Smoking causes cancer',
       expectedRelation: 'CAUSES',
       expectedObjectHints: ['cancer'],
-      expectedClassification: 'object_swallowed_into_predicate',
+      expectedClassification: 'clean_relation_extracted',
     },
     {
       text: 'Stress causes insomnia',
       expectedRelation: 'CAUSES',
       expectedObjectHints: ['insomnia'],
-      expectedClassification: 'object_swallowed_into_predicate',
+      expectedClassification: 'clean_relation_extracted',
     },
     {
       text: 'Yuksek sicaklik basinci artirir',
@@ -110,25 +110,25 @@ test('relation extraction audit captures current raw-text causal extraction gaps
       text: 'Asilama hastaligi onler',
       expectedRelation: 'PREVENTS',
       expectedObjectHints: ['hastalik'],
-      expectedClassification: 'object_swallowed_into_predicate',
+      expectedClassification: 'clean_relation_extracted',
     },
     {
       text: 'Asilama hastaligi engeller',
       expectedRelation: 'PREVENTS',
       expectedObjectHints: ['hastalik'],
-      expectedClassification: 'object_swallowed_into_predicate',
+      expectedClassification: 'clean_relation_extracted',
     },
     {
       text: 'Vaccination prevents disease',
       expectedRelation: 'PREVENTS',
       expectedObjectHints: ['disease'],
-      expectedClassification: 'object_swallowed_into_predicate',
+      expectedClassification: 'clean_relation_extracted',
     },
     {
       text: 'Firewall blocks unauthorized access',
       expectedRelation: 'PREVENTS',
       expectedObjectHints: ['unauthorized access'],
-      expectedClassification: 'object_swallowed_into_predicate',
+      expectedClassification: 'clean_relation_extracted',
     },
     {
       text: 'Deployment testlerin gecmesine baglidir',
@@ -140,25 +140,25 @@ test('relation extraction audit captures current raw-text causal extraction gaps
       text: 'Deployment requires passing tests',
       expectedRelation: 'DEPENDS_ON',
       expectedObjectHints: ['passing tests'],
-      expectedClassification: 'object_swallowed_into_predicate',
+      expectedClassification: 'clean_relation_extracted',
     },
     {
       text: 'Build depends on dependencies',
       expectedRelation: 'DEPENDS_ON',
       expectedObjectHints: ['dependencies'],
-      expectedClassification: 'object_swallowed_into_predicate',
+      expectedClassification: 'clean_relation_extracted',
     },
     {
       text: 'API anahtari erisimi mumkun kilar',
       expectedRelation: 'ENABLES',
       expectedObjectHints: ['erisim'],
-      expectedClassification: 'object_swallowed_into_predicate',
+      expectedClassification: 'clean_relation_extracted',
     },
     {
       text: 'Authentication enables secure access',
       expectedRelation: 'ENABLES',
       expectedObjectHints: ['secure access'],
-      expectedClassification: 'object_swallowed_into_predicate',
+      expectedClassification: 'clean_relation_extracted',
     },
     {
       text: 'Aspirin beyaz tablettir',
@@ -206,18 +206,11 @@ test('relation extraction audit captures current raw-text causal extraction gaps
     );
   }
 
-  const cleanCausalExtractions = findings.filter((finding) => finding.classification === 'clean_relation_extracted');
-  assert.strictEqual(cleanCausalExtractions.length, 0, 'raw-text audit should show no clean causal relation extraction for the tested patterns');
-
   const preventsAudit = auditStatement('Asilama hastaligi onler');
   const contradictionVerify = preventsAudit.kernel.verify('Asilama hastaliga neden olur', { workspaceId: 'default' });
-  assert.strictEqual(preventsAudit.graphEdgeRelation, 'yapabilir');
-  assert.strictEqual(preventsAudit.graphEdgeObject, 'hastaligi onler');
+  assert.strictEqual(preventsAudit.graphEdgeRelation, 'PREVENTS');
+  assert.ok(preventsAudit.graphEdgeObject.includes('hastalik'));
   assert.strictEqual(contradictionVerify.data.status, 'celiski');
-  assert.ok(
-    contradictionVerify.meta?.semanticTrust?.warnings?.includes('CAUSE_PREVENT_OPPOSITION'),
-    'contradiction currently depends on semantic opposition fallback rather than a clean PREVENTS graph edge'
-  );
 
   const summary = {
     causes: findings.filter((finding) => finding.statement.includes('causes') || finding.statement.includes('neden olur') || finding.statement.includes('yapar') || finding.statement.includes('artirir')),
@@ -227,9 +220,10 @@ test('relation extraction audit captures current raw-text causal extraction gaps
     neutral: findings.filter((finding) => finding.expectedClassification === 'neutral_correctly_not_causal'),
   };
 
-  assert.ok(summary.causes.every((finding) => finding.classification !== 'clean_relation_extracted'));
-  assert.ok(summary.prevents.every((finding) => finding.classification !== 'clean_relation_extracted'));
-  assert.ok(summary.dependsOn.every((finding) => finding.classification !== 'clean_relation_extracted'));
-  assert.ok(summary.enables.every((finding) => finding.classification !== 'clean_relation_extracted'));
+  assert.ok(summary.causes.filter((finding) => finding.classification === 'clean_relation_extracted').length >= 2);
+  assert.ok(summary.prevents.filter((finding) => finding.classification === 'clean_relation_extracted').length >= 2);
+  assert.ok(summary.dependsOn.filter((finding) => finding.classification === 'clean_relation_extracted').length >= 2);
+  assert.ok(summary.enables.filter((finding) => finding.classification === 'clean_relation_extracted').length >= 2);
+  assert.ok(summary.causes.some((finding) => finding.classification !== 'clean_relation_extracted'));
   assert.ok(summary.neutral.every((finding) => finding.classification === 'neutral_correctly_not_causal'));
 });

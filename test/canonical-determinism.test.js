@@ -205,8 +205,8 @@ test('canonical verdict hash stays stable across fresh kernels even when raw pay
     assert.deepStrictEqual(run.canonical.graph.edges, [
       {
         from: 'asilama',
-        to: 'hastaligi onler',
-        relation: 'yapabilir',
+        to: 'hastalik',
+        relation: 'PREVENTS',
         confidence: 0.5,
         weight: 0.5,
         workspaceId: 'default',

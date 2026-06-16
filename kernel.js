@@ -759,6 +759,7 @@ class Kernel {
           const edgeOptions = this._learnEdgeOptions({ source: 'learn', weight: 0.2, evidence: [text] }, metadata, text);
           if (provenance) edgeOptions.provenance = provenance;
           edgeOptions.workspaceId = workspaceId;
+          if (['CAUSES', 'PREVENTS', 'DEPENDS_ON', 'ENABLES'].includes(relation)) edgeOptions.strength = edgeOptions.strength ?? 0.8;
           const edge = this.graph.addEdge(
             subject,
             object,
@@ -788,6 +789,7 @@ class Kernel {
           const edgeOptions = this._learnEdgeOptions({ source: 'learn', evidence: [text] }, metadata, text);
           if (provenance) edgeOptions.provenance = provenance;
           edgeOptions.workspaceId = workspaceId;
+          if (['CAUSES', 'PREVENTS', 'DEPENDS_ON', 'ENABLES'].includes(relation)) edgeOptions.strength = edgeOptions.strength ?? 0.8;
           const hadExisting = existingEdges.some(e => e.to === object && e.relation === relation);
           const edge = this.graph.addEdge(
             subject,
@@ -864,6 +866,62 @@ class Kernel {
     return routeCandidateClaim(this, input, opts);
   }
 
+  _normalizeExplicitRelationObject(rawObject, opts = {}) {
+    const text = String(rawObject || '').trim();
+    if (!text) return '';
+
+    const words = text.split(/\s+/).filter(Boolean);
+    if (words.length === 0) return '';
+
+    const last = words[words.length - 1];
+    let cleaned = last;
+    if (opts.trimCaseSuffixes !== false) {
+      cleaned = cleaned.replace(/(y[iıuü]|[iıuü]|[ae])$/i, '');
+    }
+    if (!cleaned) cleaned = last;
+    if (opts.trimCaseSuffixes !== false) {
+      cleaned = cleaned.replace(/([gGdDbB])$/, (match) => ({
+        g: 'k',
+        G: 'K',
+        d: 't',
+        D: 'T',
+        b: 'p',
+        B: 'P',
+      }[match] || match));
+    }
+    words[words.length - 1] = this.normalizeWord(cleaned);
+    return words.join(' ').trim();
+  }
+
+  _parseExplicitRelationPredicate(predicate) {
+    const normalized = String(predicate || '').trim();
+    if (!normalized) return null;
+
+    const patterns = [
+      { relation: 'CAUSES', mode: 'suffix', trimCaseSuffixes: true, marker: /^(.*?)\s+(neden olur|yol acar|yol açar|sebep olur|tetikler|yapar)$/i },
+      { relation: 'CAUSES', mode: 'prefix', trimCaseSuffixes: false, marker: /^(causes|cause|leads to|triggers)\s+(.+)$/i },
+      { relation: 'PREVENTS', mode: 'suffix', trimCaseSuffixes: true, marker: /^(.*?)\s+(onler|önler|engeller|durdurur|onune gecer|önüne geçer)$/i },
+      { relation: 'PREVENTS', mode: 'prefix', trimCaseSuffixes: false, marker: /^(prevents|prevent|blocks|stops)\s+(.+)$/i },
+      { relation: 'DEPENDS_ON', mode: 'suffix', trimCaseSuffixes: true, marker: /^(.*?)\s+(baglidir|bağlıdır|gerektirir|dayanir|dayanır|olmadan)$/i },
+      { relation: 'DEPENDS_ON', mode: 'prefix', trimCaseSuffixes: false, marker: /^(requires|depends on)\s+(.+)$/i },
+      { relation: 'ENABLES', mode: 'suffix', trimCaseSuffixes: true, marker: /^(.*?)\s+(saglar|sağlar|mumkun kilar|mümkün kılar|olanak verir|etkinlestirir|etkinleştirir)$/i },
+      { relation: 'ENABLES', mode: 'prefix', trimCaseSuffixes: false, marker: /^(enables|enable)\s+(.+)$/i },
+    ];
+
+    for (const pattern of patterns) {
+      const match = normalized.match(pattern.marker);
+      if (!match) continue;
+      const objectText = pattern.mode === 'prefix' ? match[2] : match[1];
+      const object = this._normalizeExplicitRelationObject(objectText, {
+        trimCaseSuffixes: pattern.trimCaseSuffixes !== false,
+      });
+      if (!object) continue;
+      return { object, relation: pattern.relation };
+    }
+
+    return null;
+  }
+
   _parsePredicate(predicate) {
     // "bir" gibi belirsiz artikelleri temizle
     predicate = predicate.replace(/^bir\s+/, '').trim();
@@ -919,6 +977,11 @@ class Kernel {
     const mMatch = predicate.match(tirMulti);
     if (mMatch && mMatch[1].includes(' ')) {
       return { object: mMatch[1].trim(), relation: 'tür' };
+    }
+
+    const explicitRelation = this._parseExplicitRelationPredicate(predicate);
+    if (explicitRelation) {
+      return explicitRelation;
     }
 
     // Fiil ekleri ? yapabilir ili?kisi
