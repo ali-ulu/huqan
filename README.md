@@ -96,6 +96,12 @@ node mcpServer.js
 
 See [docs/product-surfaces.md](./docs/product-surfaces.md) for the explicit surface policy.
 
+## Competitive Positioning
+
+- AXIOM is a local-first reasoning and verification layer, not another model or chat wrapper.
+- The public story should stay centered on deterministic judgment, receipts, and safe decision support.
+- Product messaging, demo framing, and pitch language live in [docs/competitive-positioning.md](./docs/competitive-positioning.md), [docs/demo-positioning.md](./docs/demo-positioning.md), and [docs/pitch-v0.md](./docs/pitch-v0.md).
+
 ## Scale Truth
 
 - Current benchmark fixtures cover small-to-medium graphs only.
