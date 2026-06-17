@@ -1220,8 +1220,8 @@ node server.js                 # opens http://localhost:3000</pre>
       <section class="section" id="askme" aria-labelledby="askme-title">
         <div class="section-header">
           <div>
-            <h2 id="askme-title">Ask me a question</h2>
-            <small>Curious about HUQAN? Want to integrate it, contribute, or just chat? Send a question — I read every email.</small>
+            <h2 id="askme-title">Ask me a question · Give feedback</h2>
+            <small>Curious about HUQAN? Want to integrate it, contribute, or just chat? Send a question — I read every email. Or just rate this demo below.</small>
           </div>
         </div>
 
@@ -1254,42 +1254,106 @@ node server.js                 # opens http://localhost:3000</pre>
           </form>
 
           <div id="askme-success" style="display:none; margin-top:18px; padding:14px 16px; border-radius:12px; background:rgba(23,138,79,0.08); border:1px solid rgba(23,138,79,0.18); color:var(--good);">
-            <strong>Mail client opened.</strong> If it didn't, copy this address: <code style="background:#fff; padding:2px 8px; border-radius:6px; border:1px solid var(--border-soft);">huqan.ai@gmail.com</code>
+            <strong>Mail client opened.</strong> If it didn't, copy this address: <code style="background:#fff; padding:2px 8px; border-radius:6px; border:1px solid var(--border-soft);">agi.ulu.com.42@gmail.com</code>
           </div>
 
           <hr style="margin:22px 0; border:0; border-top:1px solid var(--border-soft);">
 
-          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px;">
-            <a href="https://github.com/agiulucom42-del/axiom" target="_blank" rel="noreferrer" style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; border:1px solid var(--border); background:#fff; text-decoration:none; color:var(--text);">
-              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="width:22px; height:22px; color:var(--text);">
-                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
-              </svg>
-              <div>
-                <strong style="font-size:14px; display:block; line-height:1.3;">GitHub Repository</strong>
-                <span style="font-size:12px; color:var(--muted);">Source, issues, discussions</span>
+          <div style="display:grid; gap:18px;">
+            <div>
+              <h3 style="margin:0 0 12px; font-size:16px; display:flex; align-items:center; gap:10px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:18px; height:18px; color:var(--warn);">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                </svg>
+                Quick feedback — rate this demo
+              </h3>
+              <form id="feedback-form" style="display:grid; gap:14px;">
+                <div style="display:flex; align-items:center; gap:18px; flex-wrap:wrap;">
+                  <span style="font-size:13px; color:var(--muted);">Your rating:</span>
+                  <div id="feedback-stars" style="display:inline-flex; gap:6px;" role="radiogroup" aria-label="Star rating">
+                    <button type="button" class="star-btn" data-value="1" aria-label="1 star" style="background:none; border:none; cursor:pointer; padding:0; line-height:1;">
+                      <svg class="star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:30px; height:30px; color:var(--muted-2); transition:color 150ms ease, transform 150ms ease;">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                      </svg>
+                    </button>
+                    <button type="button" class="star-btn" data-value="2" aria-label="2 stars" style="background:none; border:none; cursor:pointer; padding:0; line-height:1;">
+                      <svg class="star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:30px; height:30px; color:var(--muted-2); transition:color 150ms ease, transform 150ms ease;">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                      </svg>
+                    </button>
+                    <button type="button" class="star-btn" data-value="3" aria-label="3 stars" style="background:none; border:none; cursor:pointer; padding:0; line-height:1;">
+                      <svg class="star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:30px; height:30px; color:var(--muted-2); transition:color 150ms ease, transform 150ms ease;">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                      </svg>
+                    </button>
+                    <button type="button" class="star-btn" data-value="4" aria-label="4 stars" style="background:none; border:none; cursor:pointer; padding:0; line-height:1;">
+                      <svg class="star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:30px; height:30px; color:var(--muted-2); transition:color 150ms ease, transform 150ms ease;">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                      </svg>
+                    </button>
+                    <button type="button" class="star-btn" data-value="5" aria-label="5 stars" style="background:none; border:none; cursor:pointer; padding:0; line-height:1;">
+                      <svg class="star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:30px; height:30px; color:var(--muted-2); transition:color 150ms ease, transform 150ms ease;">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                      </svg>
+                    </button>
+                  </div>
+                  <span id="feedback-rating-text" style="font-size:13px; color:var(--muted); min-width:80px;">Not rated yet</span>
+                </div>
+                <input type="hidden" id="feedback-rating" value="0">
+                <label style="display:grid; gap:6px;">
+                  <span style="font-size:13px; color:var(--muted);">Your comment (optional, but appreciated)</span>
+                  <textarea id="feedback-comment" rows="3" placeholder="What did you think? What could be better? Would you use this?" style="padding:11px 14px; border:1px solid var(--border); border-radius:10px; font-size:14px; font-family:var(--sans); background:#fff; color:var(--text); resize:vertical;"></textarea>
+                </label>
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;">
+                  <small style="color:var(--muted); font-size:12px;">Anonymous — opens your mail client. No tracking, no server.</small>
+                  <button type="submit" class="button primary" style="font-size:14px; padding:11px 18px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:15px; height:15px;">
+                      <path d="M22 2L11 13"></path>
+                      <path d="M22 2l-7 20-4-9-9-4 20-7z"></path>
+                    </svg>
+                    Send Feedback
+                  </button>
+                </div>
+              </form>
+              <div id="feedback-success" style="display:none; margin-top:14px; padding:12px 16px; border-radius:12px; background:rgba(23,138,79,0.08); border:1px solid rgba(23,138,79,0.18); color:var(--good);">
+                <strong>Thanks for your feedback!</strong> Your mail client should have opened. If not, send to <code style="background:#fff; padding:2px 8px; border-radius:6px; border:1px solid var(--border-soft);">agi.ulu.com.42@gmail.com</code>
               </div>
-            </a>
-            <a href="mailto:huqan.ai@gmail.com?subject=HUQAN%20Question" style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; border:1px solid var(--border); background:#fff; text-decoration:none; color:var(--text);">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:22px; height:22px; color:var(--accent);">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                <polyline points="22,6 12,13 2,6"></polyline>
-              </svg>
-              <div>
-                <strong style="font-size:14px; display:block; line-height:1.3;">Email Direct</strong>
-                <span style="font-size:12px; color:var(--muted);">huqan.ai@gmail.com</span>
-              </div>
-            </a>
-            <a href="https://github.com/agiulucom42-del/axiom/issues/new" target="_blank" rel="noreferrer" style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; border:1px solid var(--border); background:#fff; text-decoration:none; color:var(--text);">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:22px; height:22px; color:var(--warn);">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="8" x2="12" y2="12"></line>
-                <line x1="12" y1="16" x2="12.01" y2="16"></line>
-              </svg>
-              <div>
-                <strong style="font-size:14px; display:block; line-height:1.3;">Report an Issue</strong>
-                <span style="font-size:12px; color:var(--muted);">Bug, feature request, security</span>
-              </div>
-            </a>
+            </div>
+
+            <hr style="margin:6px 0; border:0; border-top:1px solid var(--border-soft);">
+
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px;">
+              <a href="https://github.com/agiulucom42-del/axiom" target="_blank" rel="noreferrer" style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; border:1px solid var(--border); background:#fff; text-decoration:none; color:var(--text);">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="width:22px; height:22px; color:var(--text);">
+                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                </svg>
+                <div>
+                  <strong style="font-size:14px; display:block; line-height:1.3;">GitHub Repository</strong>
+                  <span style="font-size:12px; color:var(--muted);">Source, issues, discussions</span>
+                </div>
+              </a>
+              <a href="mailto:agi.ulu.com.42@gmail.com?subject=HUQAN%20Question" style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; border:1px solid var(--border); background:#fff; text-decoration:none; color:var(--text);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:22px; height:22px; color:var(--accent);">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                  <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+                <div>
+                  <strong style="font-size:14px; display:block; line-height:1.3;">Email Direct</strong>
+                  <span style="font-size:12px; color:var(--muted);">agi.ulu.com.42@gmail.com</span>
+                </div>
+              </a>
+              <a href="https://github.com/agiulucom42-del/axiom/issues/new" target="_blank" rel="noreferrer" style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; border:1px solid var(--border); background:#fff; text-decoration:none; color:var(--text);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:22px; height:22px; color:var(--warn);">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <div>
+                  <strong style="font-size:14px; display:block; line-height:1.3;">Report an Issue</strong>
+                  <span style="font-size:12px; color:var(--muted);">Bug, feature request, security</span>
+                </div>
+              </a>
+            </div>
           </div>
         </div>
       </section>
@@ -1334,7 +1398,7 @@ node server.js                 # opens http://localhost:3000</pre>
         <div style="display:flex; gap:18px; flex-wrap:wrap; align-items:center; font-size:13px;">
           <a href="https://github.com/agiulucom42-del/axiom" target="_blank" rel="noreferrer" style="color:var(--accent); text-decoration:none;">GitHub Repository</a>
           <span style="color:var(--border);">·</span>
-          <a href="mailto:huqan.ai@gmail.com" style="color:var(--accent); text-decoration:none;">huqan.ai@gmail.com</a>
+          <a href="mailto:agi.ulu.com.42@gmail.com" style="color:var(--accent); text-decoration:none;">agi.ulu.com.42@gmail.com</a>
           <span style="color:var(--border);">·</span>
           <span style="color:var(--muted);">Apache License 2.0 · No tracking, no cookies, no analytics</span>
         </div>
@@ -1430,9 +1494,88 @@ node server.js                 # opens http://localhost:3000</pre>
           '---\n' +
           'Sent from huqan demo page'
         );
-        const mailto = 'mailto:huqan.ai@gmail.com?subject=' + subject + '&body=' + body;
+        const mailto = 'mailto:agi.ulu.com.42@gmail.com?subject=' + subject + '&body=' + body;
         window.location.href = mailto;
         if (askmeSuccess) askmeSuccess.style.display = 'block';
+      });
+    }
+
+    // Feedback — star rating + comment
+    const ratingLabels = {
+      0: 'Not rated yet',
+      1: '1 / 5 — Needs work',
+      2: '2 / 5 — Below expectations',
+      3: '3 / 5 — Decent',
+      4: '4 / 5 — Good',
+      5: '5 / 5 — Excellent',
+    };
+
+    const starsContainer = document.getElementById('feedback-stars');
+    const ratingText = document.getElementById('feedback-rating-text');
+    const ratingInput = document.getElementById('feedback-rating');
+    const starButtons = starsContainer ? Array.from(starsContainer.querySelectorAll('.star-btn')) : [];
+
+    function paintStars(value) {
+      starButtons.forEach((btn) => {
+        const star = btn.querySelector('.star');
+        const v = parseInt(btn.dataset.value, 10);
+        if (v <= value) {
+          star.style.color = '#f5a623';
+          star.style.fill = '#f5a623';
+          star.style.transform = 'scale(1.08)';
+        } else {
+          star.style.color = '';
+          star.style.fill = '';
+          star.style.transform = '';
+        }
+      });
+      if (ratingText) ratingText.textContent = ratingLabels[value] || ratingLabels[0];
+    }
+
+    starButtons.forEach((btn) => {
+      btn.addEventListener('mouseenter', () => {
+        paintStars(parseInt(btn.dataset.value, 10));
+      });
+      btn.addEventListener('click', () => {
+        const v = parseInt(btn.dataset.value, 10);
+        ratingInput.value = v;
+        paintStars(v);
+      });
+    });
+
+    if (starsContainer) {
+      starsContainer.addEventListener('mouseleave', () => {
+        paintStars(parseInt(ratingInput.value, 10) || 0);
+      });
+    }
+
+    // Feedback form submit
+    const feedbackForm = document.getElementById('feedback-form');
+    const feedbackSuccess = document.getElementById('feedback-success');
+    if (feedbackForm) {
+      feedbackForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const rating = parseInt(ratingInput.value, 10) || 0;
+        const comment = (document.getElementById('feedback-comment').value || '').trim();
+
+        if (rating === 0 && !comment) {
+          if (ratingText) {
+            ratingText.textContent = 'Please pick a star or write a comment first.';
+            ratingText.style.color = 'var(--bad)';
+          }
+          return;
+        }
+
+        const subject = encodeURIComponent('HUQAN Demo Feedback - ' + rating + '/5 stars');
+        const body = encodeURIComponent(
+          'Rating: ' + rating + ' / 5 (' + (ratingLabels[rating] || '').split(' - ')[1] + ')\n' +
+          'Comment:\n' + (comment || '(no comment)') + '\n\n' +
+          '---\n' +
+          'Sent from huqan demo page'
+        );
+        const mailto = 'mailto:agi.ulu.com.42@gmail.com?subject=' + subject + '&body=' + body;
+        window.location.href = mailto;
+        if (feedbackSuccess) feedbackSuccess.style.display = 'block';
       });
     }
   </script>
