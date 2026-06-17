@@ -10,6 +10,10 @@ const {
 } = require('../lib/self-healer/audit-runner');
 const { validateFinding } = require('../lib/self-healer/finding-schema');
 
+const safeRepoRoot = process.platform === 'win32'
+  ? 'C:/safe/repo'
+  : '/safe/repo';
+
 function baseCheck(overrides = {}) {
   return {
     kind: 'security',
@@ -29,7 +33,7 @@ function baseCheck(overrides = {}) {
 function baseInput(overrides = {}) {
   return {
     workspaceId: 'default',
-    repoRoot: 'C:/safe/repo',
+    repoRoot: safeRepoRoot,
     mode: 'audit_only',
     checks: [baseCheck()],
     ...overrides,
@@ -118,7 +122,7 @@ describe('self-healer audit runner dry run', () => {
 
   it('defaults workspaceId to default', () => {
     const report = runSelfHealerAudit({
-      repoRoot: 'C:/safe/repo',
+      repoRoot: safeRepoRoot,
       mode: 'audit_only',
       checks: [baseCheck()],
     });
@@ -192,7 +196,7 @@ describe('self-healer audit runner dry run', () => {
   it('security finding fixture validates with SH-1 schema', () => {
     const report = createAuditReport([baseCheck()], {
       workspaceId: 'default',
-      repoRoot: 'C:/safe/repo',
+      repoRoot: safeRepoRoot,
       mode: 'audit_only',
     });
     assert.ok(report.reportId.startsWith('audit_'));
