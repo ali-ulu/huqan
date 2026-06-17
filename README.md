@@ -1,30 +1,25 @@
-<div align="center">
-
 # Huqan
 
-### Think Without Hallucinating
+### Models generate. Agents act. Memory stores. HUQAN judges.
 
-**A deterministic causal reasoning engine that verifies claims — no LLM, no GPU, no cloud.**
+**A local-first, deterministic judgment and verification layer for AI claims, memory, and actions.**
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
-
 [![Node](https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js)](https://nodejs.org)
 
 [Quick Start](#quick-start) · [Architecture](#architecture) · [Safety Gates](#safety-gates) · [MCP Server](#mcp-server-claude--cursor) · [API](#rest-api) · [Roadmap](#roadmap)
-
-</div>
 
 ---
 
 ## The Problem
 
-LLMs hallucinate. In regulated industries — healthcare, finance, legal, engineering — a confident wrong answer isn't just annoying. It's **dangerous** and **expensive**.
+LLMs can produce unsupported or contradictory answers. In regulated industries - healthcare, finance, legal, engineering - a confident wrong answer is dangerous and expensive.
 
-Existing guardrails are probabilistic: they use another LLM to check the first LLM. That's using fire to fight fire.
+Many guardrail systems are probabilistic: they use another model to inspect the first one. That can help, but it does not create a deterministic trust boundary by itself.
 
-**Huqan takes a different approach: deterministic verification.**
+**HUQAN takes a different approach: repeatable judgments with receipts, graph evidence, and action gates.**
 
-Same input → same output. Every time. No probability, no guessing, no hallucination.
+For tested current-main paths, the core verdict flow does not rely on LLM-as-judge behavior.
 
 ---
 
@@ -32,61 +27,46 @@ Same input → same output. Every time. No probability, no guessing, no hallucin
 
 | Capability | How It Works |
 |---|---|
-| **Claim Verification** | Checks claims against a causal knowledge graph — deterministic, reproducible |
-| **Contradiction Detection** | Finds logical conflicts between claims using causal relation analysis |
-| **Safety Gating** | AB1–AB6 gates intercept dangerous LLM outputs before they reach users |
-| **Audit Trail** | Every operation is logged with provenance — who, what, when, why |
-| **MCP Integration** | Plug into Claude Desktop, Cursor, or any MCP-compatible client |
-| **Offline First** | No API keys, no cloud, no cost per query — runs entirely local |
+| **Judges Claims** | Produces deterministic verification results from graph-backed evidence and current trust rules |
+| **Checks Memory Writes** | Admission and workspace boundaries protect canonical memory writes from silent drift |
+| **Gates Risky Actions** | Policy and trust gates classify review, block, and dry-run-only paths before execution |
+| **Emits Receipts** | Trust Receipt and reasoning metadata preserve why a result was allowed, blocked, or downgraded |
+| **Supports Local Integrations** | MCP, CLI, and local server flows can run against the same local trust boundary |
+| **Runs Local-First** | No cloud dependency is required for the core local graph, verification, and gate paths |
 
 ---
 
 ## Comparison
 
-| Feature | Huqan | LLM-only | Guardrails AI |
+| Feature | HUQAN | LLM-only | Guardrail-only stack |
 |---|---|---|---|
-| Deterministic answers | ✅ Always | ❌ Never | ⚠️ Partial |
-| Contradiction detection | ✅ Built-in | ❌ No | ⚠️ Heuristic |
-| Runs fully offline | ✅ Yes | ❌ Needs API | ❌ Needs API |
-| GPU required | ❌ No | ✅ Yes | ❌ No |
-| Cost per query | **$0** | $/query | $/query |
-| Explainable reasoning | ✅ Full trace | ❌ Black box | ⚠️ Limited |
-| Causal chains | ✅ CAUSES, PREVENTS, ENABLES… | ❌ No | ❌ No |
-| Provenance / Audit | ✅ Append-only | ❌ No | ❌ No |
+| Core verdict path | Deterministic for tested current-main paths | Model-dependent | Usually policy or model-dependent |
+| Contradiction handling | Graph and verifier backed | Not inherent | Varies by implementation |
+| Local-first operation | Supported | Usually API-backed | Varies by implementation |
+| Receipts / audit trail | Built into trust flows | Usually absent | Often partial |
+| Risky action gating | Explicit review / block / dry-run paths | Usually external | Policy-oriented |
+| Relation extraction | Explicit marker extraction, not full NLP | Model inference | Usually not primary focus |
+| Current limits | Partial trust layer, documented checkpoints | Model variance | Coverage varies by product |
 
 ---
 
 ## Quick Start
 
 ```bash
-# Clone and install
 git clone https://github.com/agiulucom42-del/axiom.git
 cd axiom
 npm ci --include=optional
 
-# Verify local runtime
-node -e "require('better-sqlite3'); console.log('better-sqlite3 ok')"
+node -e "const Database=require('better-sqlite3'); const db=new Database(':memory:'); db.close(); console.log('better-sqlite3 db ok')"
 npm test
 
-# Load initial knowledge base
 node egitim.js
-
-# Interactive CLI
 node cli.js
-
-# English-first CLI examples
-# learn: cats are animals
-# ask: cat nedir
-# verify: kedi bitkidir
-
-# Web UI (http://localhost:3000)
 node server.js
-
-# MCP Server for Claude Desktop / Cursor
 node mcpServer.js
 ```
 
-> **Requirements:** Node.js >= 18. Use `npm ci --include=optional` for deterministic installs with the local SQLite path enabled.
+> Requirements: Node.js >= 18. Use `npm ci --include=optional` for deterministic installs with the local SQLite path enabled.
 
 ## Product Surfaces
 
@@ -98,7 +78,7 @@ See [docs/product-surfaces.md](./docs/product-surfaces.md) for the explicit surf
 
 ## Competitive Positioning
 
-- AXIOM is a local-first reasoning and verification layer, not another model or chat wrapper.
+- HUQAN is a local-first judgment and verification layer, not another model or chat wrapper.
 - The public story should stay centered on deterministic judgment, receipts, and safe decision support.
 - Product messaging, demo framing, and pitch language live in [docs/competitive-positioning.md](./docs/competitive-positioning.md), [docs/demo-positioning.md](./docs/demo-positioning.md), and [docs/pitch-v0.md](./docs/pitch-v0.md).
 
@@ -123,42 +103,35 @@ See [docs/product-surfaces.md](./docs/product-surfaces.md) for the explicit surf
 - It is not a full Turkish NLP engine and should not be presented as general semantic understanding.
 - Parser limits, safe examples, and the optional adapter strategy are documented in [docs/nlp-boundary.md](./docs/nlp-boundary.md).
 
+## Current Verified State
+
+- Explicit marker relation extraction is checkpointed for `CAUSES`, `PREVENTS`, `DEPENDS_ON`, and `ENABLES`, including Turkish `DEPENDS_ON` variants.
+- Shield now verifies the full LLM response window instead of only the first 300 characters.
+- Memory lookup now fails closed when `workspaceId` is missing instead of scanning across workspaces.
+- Self-Healer contract and safety matrix docs exist, but runtime Self-Healer implementation remains planned.
+- Recent hardening and relation extraction checkpoints are documented under [docs/audits](./docs/audits).
+
 ---
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────┐
-│                  Surface Layer                   │
-│            (CLI, REST API, Web UI)               │
-├─────────────────────────────────────────────────┤
-│                  Agent Layer                      │
-│          (Query routing, task dispatch)           │
-├─────────────────────────────────────────────────┤
-│                 Safety Layer                      │
-│          AB1–AB6 gates, risk classification       │
-├─────────────────────────────────────────────────┤
-│                 Kernel Layer                      │
-│      Verify, learn, causal graph engine           │
-├─────────────────────────────────────────────────┤
-│                 Trust Layer                       │
-│       ATP protocol, provenance receipts           │
-├─────────────────────────────────────────────────┤
-│                Causal Layer                       │
-│   CAUSES / PREVENTS / ENABLES / DEPENDS_ON        │
-├─────────────────────────────────────────────────┤
-│            Memory + Data Layer                    │
-│     SQLite store, append-only audit trail         │
-└─────────────────────────────────────────────────┘
+```text
+Surface Layer      -> CLI, REST API, Web UI
+Agent Layer        -> query routing, task dispatch
+Safety Layer       -> AB1-AB6 gates, risk classification
+Kernel Layer       -> verify, learn, graph-backed reasoning
+Trust Layer        -> provenance, receipts, admission
+Relation Layer     -> explicit CAUSES / PREVENTS / ENABLES / DEPENDS_ON markers
+Memory/Data Layer  -> SQLite store, append-only audit trail
 ```
 
-Each layer is independent and testable. The **Safety Layer** and **Kernel** can operate standalone — no need to run the full stack.
+Each layer is independently testable. The Safety Layer and Kernel can run without the full stack.
 
 ---
 
 ## Safety Gates
 
-Huqan's safety system intercepts and classifies LLM outputs through six deterministic gates:
+HUQAN classifies risky behavior through deterministic gates:
 
 | Gate | Function | Example Catch |
 |---|---|---|
@@ -169,29 +142,28 @@ Huqan's safety system intercepts and classifies LLM outputs through six determin
 | **AB5** | Tool-call gating | Unauthorized API calls |
 | **AB6** | Cross-gate risk aggregation | Combined risk scoring |
 
-Every gate produces a **deterministic verdict**: `ALLOW`, `BLOCK`, or `ESCALATE`. No probability, no ambiguity.
+Core gate outcomes are deterministic policy judgments such as `ALLOW`, `BLOCK`, or `ESCALATE`.
 
 ---
 
-## Causal Reasoning
+## Relation Reasoning
 
-Huqan understands and reasons about causal relationships:
+HUQAN supports explicit relation extraction and graph reasoning for patterns such as:
 
-```
+```text
 CAUSES      - Smoking causes lung cancer
 PREVENTS    - Vaccination prevents disease
-ENABLES     - Education enables opportunity
+ENABLES     - Authentication enables secure access
 DEPENDS_ON  - Growth depends on investment
-LEADS_TO    - Neglect leads to failure
 ```
 
-Ask "why?" and Huqan traces the full causal chain — step by step, with evidence at every link.
+For explicit supported markers, HUQAN can trace relation paths step by step with evidence at each link. This is explicit marker extraction, not a general-purpose NLP engine.
 
 ---
 
 ## MCP Server (Claude / Cursor)
 
-Connect Huqan as a local MCP server to give your AI assistant a deterministic verification layer:
+Connect HUQAN as a local MCP server to give your AI assistant a deterministic verification layer:
 
 ```bash
 node mcpServer.js
@@ -210,7 +182,7 @@ node mcpServer.js
 }
 ```
 
-Your AI assistant now verifies its own outputs against Huqan's knowledge graph before answering.
+Tested local MCP paths use the same gate semantics for read, review, block, and dry-run decisions.
 
 ---
 
@@ -233,29 +205,19 @@ node server.js  # Starts at http://localhost:3000
 | `/dogrula` | POST | Required | Guarded verification endpoint |
 | `/v2/verify` | POST | Required | Guarded structured verification endpoint |
 | `/upload` | POST | Required | English alias for guarded load endpoint |
-| `/yukle` | POST | Required | Load knowledge base |
+| `/yukle` | POST | Required | Guarded load endpoint |
 
 **Auth:** Mutation endpoints require `AXIOM_API_KEY` on the server and `X-API-Key` or `Authorization: Bearer <key>` header.
 
 **Public surface note:** `demo/index.html` is the canonical static public demo. `public/index.html` is the canonical local backend-connected UI served by `node server.js`. `docs/index.html` is a chooser page, not a third product surface.
 
-**Response format:**
-```json
-{
-  "status": "verified" | "contradiction" | "unknown",
-  "confidence": 0.9,
-  "evidence": ["..."],
-  "provenance": { "source": "...", "timestamp": "..." }
-}
-```
-
 ---
 
 ## Obsidian Plugin
 
-Use Huqan directly inside Obsidian to verify your notes and build a local knowledge graph from your vault.
+Use HUQAN inside Obsidian to verify notes and build a local knowledge graph from a vault.
 
-📁 See [`/obsidian-plugin`](./obsidian-plugin)
+See [`/obsidian-plugin`](./obsidian-plugin).
 
 ---
 
@@ -266,20 +228,16 @@ Use Huqan directly inside Obsidian to verify your notes and build a local knowle
 | **Healthcare** | Verify drug interaction claims against known causal data |
 | **Finance** | Gate LLM outputs that could trigger unauthorized transactions |
 | **Legal** | Detect contradictions in contract analysis outputs |
-| **Engineering** | Validate safety-critical claims with deterministic reasoning |
-| **Compliance** | Full audit trail for every AI-assisted decision (GDPR, SOX, HIPAA) |
+| **Engineering** | Validate safety-critical claims with deterministic judgments and receipts |
+| **Compliance** | Preserve audit evidence for AI-assisted decisions |
 
 ---
 
-## v0.9.1 — Memory Core
+## Verified Runtime Notes
 
-AXIOM v0.9.1 ships from `main` with Memory Core compatibility aligned through PR #42.
-
-- Deterministic memory behavior preserved
-- Normalized SQLite `MemoryStore` architecture
-- Memory Core compatibility aliases on `kernel.memory`
-- Provenance, audit, and workspace invariants in place
-- Test suite: **1277 pass / 0 fail / 16 skipped**
+- Memory Core compatibility and workspace invariants remain part of the current mainline.
+- Relation extraction and security hardening closures are tracked in dated audit checkpoints.
+- For the latest validated state, prefer the checkpoint docs over stale README snapshots.
 
 ---
 
@@ -290,22 +248,22 @@ AXIOM v0.9.1 ships from `main` with Memory Core compatibility aligned through PR
 - [x] MCP server (Claude / Cursor)
 - [x] Obsidian plugin
 - [x] Trust Receipts (ATP v0.1)
-- [x] Safety gates AB1–AB6
+- [x] Safety gates AB1-AB6
 - [ ] Standalone Safety Gate package (`@huqan/safety-gate`)
 - [ ] npm package distribution
 - [ ] A2A Internal Exchange (agent-to-agent task economy)
 - [ ] Distributed trust layer
-- [ ] Self-healer audit loop (v0.9.2)
+- [ ] Self-Healer audit loop (planned)
 - [ ] Public API with rate limiting
 
 ---
 
 ## Philosophy
 
-Most AI tools try to make LLMs remember more.  
-We're building something that **doesn't need to guess**.
+Most AI tools try to make models answer more.
+We're building a layer that judges claims, memory writes, and risky actions before they become trusted state.
 
-> *"While everyone is building better memory for LLMs, we removed the LLM."*
+> *"Models generate. Agents act. Memory stores. HUQAN judges."*
 
 ---
 
@@ -328,11 +286,9 @@ Contributions are welcome. Please open an issue first to discuss what you'd like
 - Static demo surface: `demo/index.html`
 - Local UI surface: `public/index.html`
 
----
-
 ## License
 
-Apache License 2.0 — see [LICENSE](./LICENSE) and [NOTICE](./NOTICE)
+Apache License 2.0 - see [LICENSE](./LICENSE) and [NOTICE](./NOTICE)
 
 This project was previously licensed under AGPL-3.0. The license was changed to Apache 2.0
 to enable broader adoption, including enterprise use and proprietary integration.
@@ -340,8 +296,4 @@ For commercial licensing inquiries, please open an issue.
 
 ---
 
-<div align="center">
-
 **huqan.ai** · [Issues](https://github.com/agiulucom42-del/axiom/issues) · [Discussions](https://github.com/agiulucom42-del/axiom/discussions)
-
-</div>
