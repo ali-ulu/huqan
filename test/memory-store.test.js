@@ -280,6 +280,20 @@ describe('memory-store', () => {
     assert.strictEqual(result.error.code, 'NOT_FOUND');
   });
 
+  it('_findMemory requires an explicit workspace and does not scan across workspaces', () => {
+    const store = createStore();
+    const r1 = store.store({ content: 'workspace-a fact', workspaceId: 'ws-a' });
+    const r2 = store.store({ content: 'workspace-b fact', workspaceId: 'ws-b' });
+
+    const explicitA = store._findMemory(r1.memory.memoryId, 'ws-a');
+    const explicitB = store._findMemory(r2.memory.memoryId, 'ws-b');
+    const missingWorkspace = store._findMemory(r1.memory.memoryId);
+
+    assert.strictEqual(explicitA.workspaceId, 'ws-a');
+    assert.strictEqual(explicitB.workspaceId, 'ws-b');
+    assert.strictEqual(missingWorkspace, undefined);
+  });
+
   // ── events and links ────────────────────────────────────
   it('getEvents returns events for a memory', () => {
     const store = createStore();
