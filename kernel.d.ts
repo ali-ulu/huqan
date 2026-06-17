@@ -80,6 +80,9 @@ export interface KernelOptions {
   memoryPath?: string;
   dbPath?: string;
   useSQLite?: boolean;
+  memoryStorePath?: string;
+  memoryStoreDbPath?: string;
+  memoryStoreUseSQLite?: boolean;
   paranoidMode?: boolean;
   lang?: string;
   loadPlugins?: boolean;

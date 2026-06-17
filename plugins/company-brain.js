@@ -109,10 +109,11 @@ function extractTokens(text) {
     .filter(item => item.length >= 3);
 }
 
-function rankGraphMatches(kernel, tokens) {
+function rankGraphMatches(kernel, tokens, workspaceId = null) {
   const nodes = Object.values(kernel.graph?._nodes || {});
   const scored = [];
   for (const node of nodes) {
+    if (workspaceId && (node.workspaceId || 'default') !== workspaceId) continue;
     const hay = `${node.id} ${node.label}`.toLowerCase();
     let score = 0;
     for (const token of tokens) {
@@ -127,18 +128,36 @@ function rankGraphMatches(kernel, tokens) {
 function collectEvidenceFromMatches(kernel, matches) {
   const evidence = [];
   const sourceRefs = new Set();
+  const seen = new Set();
   for (const match of matches) {
-    const edges = kernel.graph.getEdges(match.node.id) || [];
-    for (const edge of edges.slice(0, 4)) {
+    const workspaceId = match.node?.workspaceId || 'default';
+    const outgoing = kernel.graph.getEdges(match.node.id, workspaceId) || [];
+    const incoming = kernel.graph.getInEdges(match.node.id, workspaceId) || [];
+    for (const edge of [...outgoing.slice(0, 4), ...incoming.slice(0, 4)]) {
+      const sourceRef = edge.source_ref || edge.sourceRef || '';
+      const sourceType = edge.source_type || edge.sourceType || '';
+      const confidence = edge.confidence ?? edge.weight ?? 0.5;
+      const evidenceKey = [
+        edge.from,
+        edge.relation,
+        edge.to,
+        sourceRef,
+        sourceType,
+        edge.workspaceId || workspaceId,
+      ].join('|');
+      if (seen.has(evidenceKey)) continue;
+      seen.add(evidenceKey);
       evidence.push({
         from: edge.from,
         relation: edge.relation,
         to: edge.to,
-        source_ref: edge.source_ref || '',
-        source_type: edge.source_type || '',
-        confidence: edge.confidence ?? edge.weight ?? 0.5,
+        source_ref: sourceRef,
+        source_type: sourceType,
+        confidence,
+        workspaceId: edge.workspaceId || workspaceId,
+        provenance: edge.provenance || null,
       });
-      if (edge.source_ref) sourceRefs.add(edge.source_ref);
+      if (sourceRef) sourceRefs.add(sourceRef);
     }
   }
   return {
@@ -162,7 +181,8 @@ async function queryCompanyBrain(kernel, plugin, input = {}) {
   }
 
   const tokens = extractTokens(question);
-  const matches = rankGraphMatches(kernel, tokens);
+  const workspaceId = String(input.workspaceId || 'default').trim() || 'default';
+  const matches = rankGraphMatches(kernel, tokens, workspaceId);
   const collected = collectEvidenceFromMatches(kernel, matches);
 
   if (collected.evidence.length > 0) {

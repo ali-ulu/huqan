@@ -1,0 +1,37 @@
+{
+  "_meta": {
+    "title": "HUQAN Demo Verify Results",
+    "description": "Sample verify() outputs from the demo graph. Each entry shows claim, deterministic verdict (dogrulandi/celiski/bilinmiyor), confidence, and evidence trail.",
+    "note": "Same input → same output. Every time. No probability, no guessing, no hallucination."
+  },
+  "verifications": [
+    {
+      "claim": "kedi hayvandir",
+      "status": "dogrulandi",
+      "confidence": 0.9,
+      "evidence": "direct_edge: kedi --[tür]--> hayvan",
+      "note": "Supported by graph edge with confidence 0.90."
+    },
+    {
+      "claim": "kedi bitkidir",
+      "status": "celiski",
+      "confidence": 0.95,
+      "evidence": "type_conflict: kedi --[tür]--> hayvan contradicts claim that kedi is plant (hayvan != bitki)",
+      "note": "Type-lattice conflict detected. The graph knows kedi is animal, so claiming it is plant is a contradiction."
+    },
+    {
+      "claim": "mars ucagini tastir",
+      "status": "bilinmiyor",
+      "confidence": 0,
+      "evidence": "no_matching_edge: no edge from mars or ucak to tastir found",
+      "note": "No graph evidence found. Deterministic unknown verdict — does not hallucinate."
+    },
+    {
+      "claim": "mantik doğru düşünme yöntemidir",
+      "status": "dogrulandi",
+      "confidence": 0.9,
+      "evidence": "direct_edge: mantik --[tür]--> doğru düşünme yöntemi",
+      "note": "Turkish-language graph edge directly supports the claim."
+    }
+  ]
+}

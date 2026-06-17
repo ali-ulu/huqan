@@ -2,7 +2,6 @@ const crypto = require('crypto');
 const http = require('http');
 const path = require('path');
 const { readFileSync } = require('fs');
-const { execSync } = require('child_process');
 const CLI = require('./cli');
 const { evaluateLlmSor } = require('./lib/shield');
 const { handleIngest } = require('./lib/ingest');
@@ -13,7 +12,6 @@ const {
   queryProvenance,
 } = require('./lib/provenance-query');
 const pkg = require('./package.json');
-const { inspectPersistence, resolvePersistencePaths } = require('./persistencePaths');
 const {
   DEFAULT_MAX_UPLOAD_BODY,
   DEFAULT_MAX_JSON_BODY,
@@ -26,17 +24,6 @@ const {
   requireApiKey,
   sanitizeInput,
 } = require('./requestGuards');
-
-function computeTestStatus() {
-  if (computeTestStatus.cached) return computeTestStatus.cached;
-  const status = process.env.AXIOM_TEST_STATUS || pkg.axiom?.testStatus || pkg.axiom?.test_status;
-  if (typeof status === 'string' && status.trim()) {
-    computeTestStatus.cached = status.trim();
-    return computeTestStatus.cached;
-  }
-  computeTestStatus.cached = 'unknown';
-  return computeTestStatus.cached;
-}
 
 const kernelOpts = {};
 if (process.env.AXIOM_MEMORY_PATH) kernelOpts.memoryPath = process.env.AXIOM_MEMORY_PATH;
@@ -61,7 +48,66 @@ function legacyVerify(result) {
   };
 }
 
+function runPublicApiCommand(command, args) {
+  const normalizedCommand = String(command || '')
+    .replace(/\uFEFF/g, '')
+    .toLowerCase()
+    .replace(/[ç]/g, 'c')
+    .replace(/[ğ]/g, 'g')
+    .replace(/[ı]/g, 'i')
+    .replace(/[ö]/g, 'o')
+    .replace(/[ş]/g, 's')
+    .replace(/[ü]/g, 'u')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  switch (normalizedCommand) {
+    case 'selam':
+      return 'Merhaba! Bana bir sey ogretebilir veya soru sorabilirsin.';
+    case 'yardim':
+      return [
+        'AXIOM komutlari:',
+        '  "kedi balik yer"          -> bilgi ogrenirim',
+        '  "kedi nedir"              -> soruyu cevaplarim',
+        '  "neden tavuk"             -> sebep analizi',
+        '  "tavuk mu yumurta mi"     -> karsilastirma',
+        '  "durum"                   -> sistem durumu',
+        '  "ruya"                    -> hipotez uretirim',
+        '  "plan: hedef"             -> ajan plani uretirim',
+        '  "ajan: hedef"             -> cok adimli ajan calistiririm',
+        '  "backup"                  -> calisma durumunu yedeklerim',
+        '  "restore[: yol]"          -> en son veya secili yedekten geri yuklerim',
+        '  "kaydet"                  -> hafizayi kaydederim',
+        '  "llm-sor: soru"           -> LLM tavsiyesi hazirlarim',
+        '  "yukle: dosya.txt"        -> dosyadan ogrenirim',
+        '  "cikis"                   -> cikis',
+      ].join('\n');
+    case 'anlamadim':
+      return 'Anlamadim. Daha uzun bir cumle yaz veya "yardim" yaz.';
+    case 'sor': {
+      const result = cli.kernel.ask(args);
+      const answer = result.data.answer;
+      return answer === 'Bilmiyorum' ? `X ${answer}` : `Cevap: ${answer}`;
+    }
+    case 'durum': {
+      const stats = cli.kernel.graph.getStats();
+      const gaps = cli.kernel.detectGaps();
+      const contradictions = cli.kernel.detectContradictions();
+      let out = `Durum: ${stats.nodes} düğüm, ${stats.edges} kenar, entropi: ${cli.kernel.entropy().toFixed(3)}`;
+      if (gaps.length > 0) out += `\n  ${gaps.length} baglantisiz dugum: ${gaps.slice(0, 10).join(', ')}${gaps.length > 10 ? '...' : ''}`;
+      for (const item of contradictions.slice(0, 5)) {
+        out += `\n  Celiski [${item.type}]: ${item.node} -> ${item.targets.join(', ')}`;
+      }
+      return out;
+    }
+    default:
+      return null;
+  }
+}
+
 const ALLOWED_CORS_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
+const JSON_CONTENT_TYPE = 'application/json; charset=utf-8';
 
 function isSafeOrigin(origin) {
   if (typeof origin !== 'string' || !origin) return '';
@@ -92,7 +138,7 @@ function buildCorsHeaders(req, preflight = false) {
 
 function writeJson(req, res, statusCode, payload, headers = {}) {
   res.writeHead(statusCode, {
-    'Content-Type': 'application/json',
+    'Content-Type': JSON_CONTENT_TYPE,
     ...buildCorsHeaders(req),
     ...headers,
   });
@@ -341,12 +387,6 @@ function getGraphData(workspaceId = 'default') {
 
 function getHealthData() {
   const stats = cli.kernel.graph.getStats();
-  const persistence = inspectPersistence({
-    rootDir: __dirname,
-    memoryPath: process.env.AXIOM_MEMORY_PATH,
-    dbPath: process.env.AXIOM_DB_PATH,
-    backupBaseDir: process.env.AXIOM_BACKUP_DIR,
-  });
   return {
     ok: true,
     service: 'axiom',
@@ -356,30 +396,11 @@ function getHealthData() {
     edges: stats.edges,
     uptimeSec: Math.floor(process.uptime()),
     timestamp: new Date().toISOString(),
-    persistence,
   };
-}
-
-function getLastCommit() {
-  try {
-    return execSync('git rev-parse --short HEAD', {
-      cwd: __dirname,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim();
-  } catch (_) {
-    return 'unknown';
-  }
 }
 
 function getV2StatusData() {
   const stats = cli.kernel.graph.getStats();
-  const persistence = resolvePersistencePaths({
-    rootDir: __dirname,
-    memoryPath: process.env.AXIOM_MEMORY_PATH,
-    dbPath: process.env.AXIOM_DB_PATH,
-    backupBaseDir: process.env.AXIOM_BACKUP_DIR,
-  });
   const activeKernel = process.env.AXIOM_KERNEL_VERSION === 'v2' ? 'v2' : 'v1';
   const agentRuntime = String(process.env.AXIOM_AGENT_VERSION || 'v2').toLowerCase();
   const agentRuntimeMode = String(process.env.AXIOM_AGENT_RUNTIME || '').toLowerCase() || agentRuntime;
@@ -535,8 +556,6 @@ function getV2StatusData() {
     backend: stats.backend,
     nodes: stats.nodes,
     edges: stats.edges,
-    testStatus: computeTestStatus(),
-    lastCommit: getLastCommit(),
     updatedAt: new Date().toISOString(),
     counts,
     progressPercent,
@@ -547,19 +566,7 @@ function getV2StatusData() {
     agentRuntime,
     agentRuntimeMode,
     checkpointBackend,
-    agentV3Status: agentRuntime === 'v3' ? getAgentV3Status() : null,
-    agentCheckpointPath: agentRuntime === 'v3' ? persistence.dbPath : 'agent.memory.json',
-    persistencePaths: persistence,
   };
-}
-
-function getAgentV3Status() {
-  try {
-    if (cli.agent && typeof cli.agent.getStatus === 'function') {
-      return cli.agent.getStatus();
-    }
-  } catch (_) {}
-  return null;
 }
 
 function ensureCompanyRuntime() {
@@ -591,7 +598,7 @@ const server = http.createServer(async (req, res) => {
   const rateKey = getRateLimitKey(req);
 
   if (!checkRateLimit(rateKey)) {
-    res.writeHead(429, { 'Content-Type': 'application/json' });
+    res.writeHead(429, { 'Content-Type': JSON_CONTENT_TYPE });
     res.end(JSON.stringify({ error: 'Too many requests' }));
     return;
   }
@@ -606,7 +613,7 @@ const server = http.createServer(async (req, res) => {
     const workspaceId = reqUrl.searchParams.get('workspaceId') || 'default';
     const data = getGraphData(workspaceId);
     res.writeHead(200, {
-      'Content-Type': 'application/json',
+      'Content-Type': JSON_CONTENT_TYPE,
       ...buildCorsHeaders(req),
       'Cache-Control': 'no-cache',
     });
@@ -616,13 +623,13 @@ const server = http.createServer(async (req, res) => {
 
   if (reqUrl.pathname === '/v2-status') {
     if (req.method !== 'GET') {
-      res.writeHead(405, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
+      res.writeHead(405, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
       res.end(JSON.stringify({ error: 'Method not allowed' }));
       return;
     }
     const data = getV2StatusData();
     res.writeHead(200, {
-      'Content-Type': 'application/json',
+      'Content-Type': JSON_CONTENT_TYPE,
       ...buildCorsHeaders(req),
       'Cache-Control': 'no-cache',
     });
@@ -632,12 +639,12 @@ const server = http.createServer(async (req, res) => {
 
   if (reqUrl.pathname === '/health') {
     if (req.method !== 'GET') {
-      res.writeHead(405, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
+      res.writeHead(405, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
       res.end(JSON.stringify({ error: 'Method not allowed' }));
       return;
     }
     res.writeHead(200, {
-      'Content-Type': 'application/json',
+      'Content-Type': JSON_CONTENT_TYPE,
       ...buildCorsHeaders(req),
       'Cache-Control': 'no-cache',
     });
@@ -672,14 +679,14 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    sendVerifyResult(reqUrl.searchParams.get('statement') || '', reqUrl.searchParams.get('workspaceId') || '');
+    writeJson(req, res, 405, { error: 'Method not allowed' });
     return;
   }
 
   // --- /llm-sor ---
   if (reqUrl.pathname === '/llm-sor') {
     if (req.method !== 'POST') {
-      res.writeHead(405, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
+      res.writeHead(405, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
       res.end(JSON.stringify({ error: 'Method not allowed' }));
       return;
     }
@@ -690,7 +697,7 @@ const server = http.createServer(async (req, res) => {
     const autoLearn = data.autoLearn === true;
     const workspaceId = sanitizeInput(data.workspaceId || reqUrl.searchParams.get('workspaceId') || '');
     if (!question) {
-      res.writeHead(400, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
+      res.writeHead(400, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
       res.end(JSON.stringify({ error: 'question gerekli' }));
       return;
     }
@@ -704,7 +711,7 @@ const server = http.createServer(async (req, res) => {
     const llmRes = await llm.ask(question);
 
     if (!llmRes.ok) {
-      res.writeHead(200, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
+      res.writeHead(200, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
       res.end(JSON.stringify({
         ok: false,
         error: llmRes.error,
@@ -729,7 +736,7 @@ const server = http.createServer(async (req, res) => {
       workspaceId,
     });
 
-    res.writeHead(200, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
+    res.writeHead(200, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
     res.end(JSON.stringify({
       ok: true,
       question,
@@ -745,7 +752,7 @@ const server = http.createServer(async (req, res) => {
   }
   if (reqUrl.pathname === '/dogrula' || reqUrl.pathname === '/verify') {
     if (req.method !== 'POST' && req.method !== 'GET') {
-      res.writeHead(405, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
+      res.writeHead(405, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
       res.end(JSON.stringify({ error: 'Method not allowed' }));
       return;
     }
@@ -756,37 +763,28 @@ const server = http.createServer(async (req, res) => {
       const text = sanitizeInput(data.statement || data.text || '');
       const workspaceId = sanitizeInput(data.workspaceId || reqUrl.searchParams.get('workspaceId') || '');
       if (!text) {
-        res.writeHead(400, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
+        res.writeHead(400, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
         res.end(JSON.stringify({ error: 'statement veya text gerekli' }));
         return;
       }
       const result = legacyVerify(cli.kernel.verify(text, workspaceId ? { workspaceId } : {}));
-      res.writeHead(200, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
+      res.writeHead(200, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
       res.end(JSON.stringify(result));
       return;
     }
-    const text = sanitizeInput(reqUrl.searchParams.get('statement') || '');
-    const workspaceId = sanitizeInput(reqUrl.searchParams.get('workspaceId') || '');
-    if (!text) {
-      res.writeHead(400, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ error: 'statement parametresi gerekli' }));
-      return;
-    }
-    const result = legacyVerify(cli.kernel.verify(text, workspaceId ? { workspaceId } : {}));
-    res.writeHead(200, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
-    res.end(JSON.stringify(result));
+    writeJson(req, res, 405, { error: 'Method not allowed' });
     return;
   }
   if (reqUrl.pathname === '/yukle' || reqUrl.pathname === '/upload') {
     if (req.method !== 'POST') {
-      res.writeHead(405, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
+      res.writeHead(405, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
       res.end(JSON.stringify({ error: 'Method not allowed' }));
       return;
     }
     if (!denyIfUnauthorized(req, res)) return;
     const contentLength = Number(req.headers['content-length'] || 0);
     if (Number.isFinite(contentLength) && contentLength > DEFAULT_MAX_UPLOAD_BODY) {
-      res.writeHead(413, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
+      res.writeHead(413, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
       res.end(JSON.stringify({ error: 'İçerik çok büyük (max 1MB)' }));
       return;
     }
@@ -794,20 +792,32 @@ const server = http.createServer(async (req, res) => {
     if (!data) return;
     const text = data.text || data.content || '';
     if (!text) {
-      res.writeHead(400, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
+      res.writeHead(400, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
       res.end(JSON.stringify({ error: 'text veya content gerekli' }));
       return;
     }
-    const count = cli.kernel.learnDocument(text);
-    cli.kernel.graph.save();
-    res.writeHead(200, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
-    res.end(JSON.stringify({ ok: true, learned: count }));
+    const workspaceId = sanitizeInput(data.workspaceId || reqUrl.searchParams.get('workspaceId') || '');
+    const learnResult = cli.kernel.learnDocument(text, {
+      returnDetails: true,
+      workspaceId,
+      sourceType: sanitizeInput(data.sourceType || '') || 'upload',
+      sourceRef: sanitizeInput(data.sourceRef || '') || reqUrl.pathname,
+      sourceTitle: sanitizeInput(data.sourceTitle || '') || 'HTTP upload',
+      actor: sanitizeInput(data.actor || '') || 'http-api',
+      approvalRequired: data.approvalRequired === undefined ? true : data.approvalRequired === true,
+      approvalStatus: sanitizeInput(data.approvalStatus || ''),
+      approvalId: sanitizeInput(data.approvalId || ''),
+      provenance: data.provenance && typeof data.provenance === 'object' ? data.provenance : undefined,
+    });
+    const admission = Array.isArray(learnResult.admissions) ? (learnResult.admissions.find(Boolean) || null) : null;
+    res.writeHead(200, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
+    res.end(JSON.stringify({ ok: true, learned: learnResult.learned, admission }));
     return;
   }
 
   if (reqUrl.pathname === '/api/ingest/status') {
     if (req.method !== 'GET') {
-      res.writeHead(405, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
+      res.writeHead(405, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
       res.end(JSON.stringify({ error: 'Method not allowed' }));
       return;
     }
@@ -899,7 +909,7 @@ const server = http.createServer(async (req, res) => {
 
   if (reqUrl.pathname === '/api/ingest') {
     if (req.method !== 'POST') {
-      res.writeHead(405, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
+      res.writeHead(405, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
       res.end(JSON.stringify({ error: 'Method not allowed' }));
       return;
     }
@@ -926,14 +936,14 @@ const server = http.createServer(async (req, res) => {
 
   if (reqUrl.pathname === '/api') {
     if (req.method !== 'GET') {
-      res.writeHead(405, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
+      res.writeHead(405, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
       res.end(JSON.stringify({ error: 'Method not allowed' }));
       return;
     }
     const raw = reqUrl.searchParams.get('q') || '';
     const q = sanitizeInput(raw);
     if (!q) {
-      res.writeHead(400, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
+      res.writeHead(400, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
       res.end(JSON.stringify({ result: 'HATA: Boş girdi.' }));
       return;
     }
@@ -964,17 +974,19 @@ const server = http.createServer(async (req, res) => {
     } else if (p.command === 'kaydet') {
       result = '⚠️ Kaydet komutu sadece CLI\'dan kullanılabilir.';
     } else {
-      try {
-        // Some commands may be sync today and async tomorrow.
-        // Normalize here so API never leaks "[object Promise]".
-        result = await Promise.resolve(cli.execute(p.command, p.args));
-      } catch (err) {
-        console.error('[API hata]', err.code || err.name || 'internal');
-        result = 'HATA: İşlem sırasında hata oluştu.';
+      result = runPublicApiCommand(p.command, p.args);
+      if (result === null) {
+        res.writeHead(403, {
+          'Content-Type': 'application/json; charset=utf-8',
+          ...buildCorsHeaders(req),
+          'X-Content-Type-Options': 'nosniff',
+        });
+        res.end(JSON.stringify({ result: 'Bu komut web API üzerinden çalıştırılamaz.' }));
+        return;
       }
     }
     res.writeHead(200, {
-      'Content-Type': 'application/json',
+      'Content-Type': JSON_CONTENT_TYPE,
       ...buildCorsHeaders(req),
       'X-Content-Type-Options': 'nosniff',
     });
@@ -989,7 +1001,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  res.writeHead(404, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
+  res.writeHead(404, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
   res.end(JSON.stringify({ error: 'Not found' }));
 });
 

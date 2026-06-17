@@ -46,7 +46,7 @@ The result: an AI can *read* from Huqan freely, but it can never *write* without
 - Deterministic causal reasoning engine (Turkish + English)
 - Contradiction detection with evidence trails
 - MCP server with Agent Brake Layer (private alpha)
-- 1226 passing tests, 0 failures, 16 skipped
+- 1242 total tests, 1226 passing, 0 failures, 16 skipped
 - Runs locally, no cloud dependency
 
 **What's not done:**

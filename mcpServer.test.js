@@ -165,7 +165,7 @@ describe('MCP Server', () => {
     assert.strictEqual(learn.result.structuredContent.ok, false);
     assert.strictEqual(learn.result.structuredContent.gate.decision, 'review');
     assert.strictEqual(learn.result.structuredContent.gate.canExecute, false);
-    assert.ok(learn.result.structuredContent.message.includes('blocked by gate'));
+    assert.ok(learn.result.structuredContent.message.includes('queued for review'));
 
     const ask = await request('tools/call', {
       name: 'axiom.ask',
@@ -216,12 +216,14 @@ describe('MCP Server', () => {
       name: 'axiom.agent',
       arguments: { goal: 'kedi hayvandir' },
     });
-    assert.strictEqual(agent.result.isError, true);
-    assert.strictEqual(agent.result.structuredContent.ok, false);
+    assert.strictEqual(agent.result.isError, false);
+    assert.strictEqual(agent.result.structuredContent.ok, true);
+    assert.strictEqual(agent.result.structuredContent.dryRun, true);
     assert.strictEqual(agent.result.structuredContent.gate.decision, 'dry_run_only');
     assert.strictEqual(agent.result.structuredContent.gate.canExecute, false);
+    assert.strictEqual(agent.result.structuredContent.gate.canDryRun, true);
     assert.strictEqual(agent.result.structuredContent.gate.reason, 'agent_loop_dry_run_only');
-    assert.ok(agent.result.structuredContent.message.includes('blocked by gate'));
+    assert.ok(agent.result.structuredContent.message.includes('dry-run'));
   });
 
   it('exposes external tool policy decisions through MCP', async () => {
@@ -252,6 +254,31 @@ describe('MCP Server', () => {
     assert.strictEqual(approvals.result.structuredContent.pendingCount >= 1, true);
     assert.ok(Array.isArray(approvals.result.structuredContent.approvals));
     assert.ok(approvals.result.structuredContent.approvals.some(item => item.tool === 'browser.open'));
+  });
+
+  it('blocks unknown external tools through MCP policy without creating pending approval', async () => {
+    const policy = await request('tools/call', {
+      name: 'axiom.policy',
+      arguments: { tool: 'unknown.tool', input: 'do something', goal: 'test fail closed' },
+    });
+
+    assert.strictEqual(policy.result.isError, false);
+    assert.strictEqual(policy.result.structuredContent.type, 'policy');
+    assert.strictEqual(policy.result.structuredContent.data.category, 'external');
+    assert.strictEqual(policy.result.structuredContent.data.action, 'block');
+    assert.strictEqual(policy.result.structuredContent.data.approval, 'blocked');
+    assert.strictEqual(policy.result.structuredContent.data.blocked, true);
+    assert.strictEqual(policy.result.structuredContent.data.requiresApproval, false);
+    assert.strictEqual(policy.result.structuredContent.data.approvalStatus, 'blocked');
+    assert.ok(policy.result.structuredContent.data.labels.includes('unknown-tool-blocked'));
+
+    const approvals = await request('tools/call', {
+      name: 'axiom.approvals',
+      arguments: { limit: 20 },
+    });
+    assert.strictEqual(approvals.result.isError, false);
+    assert.ok(Array.isArray(approvals.result.structuredContent.approvals));
+    assert.ok(!approvals.result.structuredContent.approvals.some(item => item.tool === 'unknown.tool' && item.status === 'pending'));
   });
 });
 

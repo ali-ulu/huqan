@@ -1,0 +1,58 @@
+{
+  "_meta": {
+    "title": "HUQAN Causal Demo — What breaks if autoLearn defaults to true?",
+    "description": "Deterministic causal simulation: change autoLearn default from false to true, observe downstream consequences.",
+    "command": "node demo-causal-autolearn.js",
+    "note": "This is the canonical \"what-if\" demo for HUQAN causal reasoning."
+  },
+  "input": {
+    "action": "modify",
+    "nodeId": "autoLearn_default_true",
+    "changeType": "toggle default from false to true",
+    "question": "autoLearn default true olursa ne bozulur?"
+  },
+  "causalChain": [
+    {
+      "from": "autoLearn default true",
+      "relation": "CAUSES",
+      "to": "unsupported LLM output can enter graph",
+      "strength": 0.95
+    },
+    {
+      "from": "unsupported LLM output can enter graph",
+      "relation": "CAUSES",
+      "to": "graph trust degradation",
+      "strength": 0.92
+    },
+    {
+      "from": "graph trust degradation",
+      "relation": "CAUSES",
+      "to": "Shield claim weakens",
+      "strength": 0.88
+    },
+    {
+      "from": "Shield claim weakens",
+      "relation": "PREVENTS",
+      "to": "AXIOM reliability promise is damaged",
+      "strength": 0.85
+    }
+  ],
+  "relationProfile": "CAUSES → CAUSES → CAUSES → PREVENTS",
+  "riskLevel": "critical",
+  "recommendation": "Change is not recommended.",
+  "confidence": 0.84,
+  "nextQuestions": [
+    "Bu riski azaltmak için hangi alternatifler var?",
+    "İnsan onayı veya ek kanıt gerekiyor mu?"
+  ],
+  "evidence": [
+    "autoLearn-policy",
+    "graph-pollution",
+    "unsupported-output",
+    "trust-degradation",
+    "shield-claim",
+    "trust-loss",
+    "reliability-promise",
+    "safety-guard"
+  ]
+}

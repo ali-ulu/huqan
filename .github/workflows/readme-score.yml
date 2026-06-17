@@ -1,0 +1,10 @@
+name: README Score
+on: [push]
+
+jobs:
+  score:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: agiulucom42-del/readme-score-action@main
+        continue-on-error: true

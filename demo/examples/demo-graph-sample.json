@@ -1,0 +1,414 @@
+{
+  "_meta": {
+    "title": "HUQAN Demo Graph Sample",
+    "description": "Representative subset of the egitim.js Turkish knowledge base. Generated from a fresh clone via \"node egitim.js\" (5 seconds, 77 facts → 141 nodes / 86 edges). This subset shows the highest-degree concept hubs and their connections.",
+    "generatedAt": "2026-06-17",
+    "generatedBy": "node egitim.js (sandbox)",
+    "fullGraph": {
+      "nodes": 141,
+      "edges": 86
+    },
+    "subsetGraph": {
+      "nodes": 27,
+      "edges": 29
+    },
+    "license": "Apache-2.0 (same as repo)",
+    "note": "Static showcase sample. Run \"node egitim.js\" locally to generate the full graph. This file is documentation, not runtime storage."
+  },
+  "nodes": [
+    {
+      "id": "sebep",
+      "label": "sebep",
+      "weight": 0.6,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "sonuç ilişkisine neden denir",
+      "label": "sonuç ilişkisine neden denir",
+      "weight": 0.5,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "a",
+      "label": "a",
+      "weight": 0.6,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "ise b ve a doğruysa b doğru",
+      "label": "ise b ve a doğruysa b doğru",
+      "weight": 0.5,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "ise b ve b yanlışsa a yanlıştır",
+      "label": "ise b ve b yanlışsa a yanlıştır",
+      "weight": 0.5,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "bilgi",
+      "label": "bilgi",
+      "weight": 0.6,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "güç",
+      "label": "güç",
+      "weight": 0.5,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "bilinmezlik",
+      "label": "bilinmezlik",
+      "weight": 0.5,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "öğrenme firsati",
+      "label": "öğrenme firsati",
+      "weight": 0.6,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "veri",
+      "label": "veri",
+      "weight": 0.6,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "ham bilgi",
+      "label": "ham bilgi",
+      "weight": 0.5,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "işlenmiş veri",
+      "label": "işlenmiş veri",
+      "weight": 0.5,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "hata",
+      "label": "hata",
+      "weight": 0.5,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "benzerlik",
+      "label": "benzerlik",
+      "weight": 0.6,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "yeni kavramları anlamayı kolaylaştırır",
+      "label": "yeni kavramları anlamayı kolaylaştırır",
+      "weight": 0.5,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "deney",
+      "label": "deney",
+      "weight": 0.5,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "hipotezi test eder",
+      "label": "hipotezi test eder",
+      "weight": 0.6,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "analizi pattern bulur",
+      "label": "analizi pattern bulur",
+      "weight": 0.5,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "simülasyon",
+      "label": "simülasyon",
+      "weight": 0.6,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "modelin çaliştirilmasi",
+      "label": "modelin çaliştirilmasi",
+      "weight": 0.5,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "sonuca neden olur",
+      "label": "sonuca neden olur",
+      "weight": 0.5,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "doğruluk",
+      "label": "doğruluk",
+      "weight": 0.5,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "hipotezleri karşılaştırır",
+      "label": "hipotezleri karşılaştırır",
+      "weight": 0.5,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "vektörler arasi açi",
+      "label": "vektörler arasi açi",
+      "weight": 0.5,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "bilmiyorum",
+      "label": "bilmiyorum",
+      "weight": 0.5,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "bilinmeyeni kabul etmek",
+      "label": "bilinmeyeni kabul etmek",
+      "weight": 0.6,
+      "type": "concept",
+      "language": "tr"
+    },
+    {
+      "id": "öğrenmenin başlangici",
+      "label": "öğrenmenin başlangici",
+      "weight": 0.5,
+      "type": "concept",
+      "language": "tr"
+    }
+  ],
+  "edges": [
+    {
+      "from": "sebep",
+      "to": "sonuç ilişkisine neden denir",
+      "relation": "yapabilir",
+      "weight": 0.5,
+      "confidence": 0.5
+    },
+    {
+      "from": "a",
+      "to": "ise b ve a doğruysa b doğru",
+      "relation": "tür",
+      "weight": 0.5,
+      "confidence": 0.5
+    },
+    {
+      "from": "a",
+      "to": "ise b ve b yanlışsa a yanlıştır",
+      "relation": "yapabilir",
+      "weight": 0.5,
+      "confidence": 0.5
+    },
+    {
+      "from": "bilgi",
+      "to": "güç",
+      "relation": "tür",
+      "weight": 0.5,
+      "confidence": 0.5
+    },
+    {
+      "from": "bilinmezlik",
+      "to": "öğrenme firsati",
+      "relation": "tür",
+      "weight": 0.5,
+      "confidence": 0.5
+    },
+    {
+      "from": "veri",
+      "to": "ham bilgi",
+      "relation": "tür",
+      "weight": 0.5,
+      "confidence": 0.5
+    },
+    {
+      "from": "bilgi",
+      "to": "işlenmiş veri",
+      "relation": "benzer",
+      "weight": 0.15,
+      "confidence": 0.15
+    },
+    {
+      "from": "hata",
+      "to": "öğrenme firsati",
+      "relation": "tür",
+      "weight": 0.5,
+      "confidence": 0.5
+    },
+    {
+      "from": "benzerlik",
+      "to": "yeni kavramları anlamayı kolaylaştırır",
+      "relation": "yapabilir",
+      "weight": 0.5,
+      "confidence": 0.5
+    },
+    {
+      "from": "deney",
+      "to": "hipotezi test eder",
+      "relation": "yapabilir",
+      "weight": 0.5,
+      "confidence": 0.5
+    },
+    {
+      "from": "veri",
+      "to": "analizi pattern bulur",
+      "relation": "yapabilir",
+      "weight": 0.5,
+      "confidence": 0.5
+    },
+    {
+      "from": "simülasyon",
+      "to": "modelin çaliştirilmasi",
+      "relation": "tür",
+      "weight": 0.5,
+      "confidence": 0.5
+    },
+    {
+      "from": "sebep",
+      "to": "sonuca neden olur",
+      "relation": "yapabilir",
+      "weight": 0.5,
+      "confidence": 0.5
+    },
+    {
+      "from": "doğruluk",
+      "to": "hipotezi test eder",
+      "relation": "yapabilir",
+      "weight": 0.5,
+      "confidence": 0.5
+    },
+    {
+      "from": "simülasyon",
+      "to": "hipotezleri karşılaştırır",
+      "relation": "yapabilir",
+      "weight": 0.5,
+      "confidence": 0.5
+    },
+    {
+      "from": "benzerlik",
+      "to": "vektörler arasi açi",
+      "relation": "tür",
+      "weight": 0.5,
+      "confidence": 0.5
+    },
+    {
+      "from": "bilmiyorum",
+      "to": "bilinmeyeni kabul etmek",
+      "relation": "tür",
+      "weight": 0.5,
+      "confidence": 0.5
+    },
+    {
+      "from": "bilinmeyeni kabul etmek",
+      "to": "öğrenmenin başlangici",
+      "relation": "tür",
+      "weight": 0.5,
+      "confidence": 0.5
+    },
+    {
+      "from": "bilmiyorum",
+      "to": "öğrenmenin başlangici",
+      "relation": "tür",
+      "weight": 0.4,
+      "confidence": 0.4
+    },
+    {
+      "from": "bilinmezlik",
+      "to": "hata",
+      "relation": "hipotez",
+      "weight": 0.4,
+      "confidence": 0.4
+    },
+    {
+      "from": "deney",
+      "to": "doğruluk",
+      "relation": "hipotez",
+      "weight": 0.4,
+      "confidence": 0.4
+    },
+    {
+      "from": "bilinmezlik",
+      "to": "hata",
+      "relation": "benzer",
+      "weight": 0.32000000000000006,
+      "confidence": 0.32000000000000006
+    },
+    {
+      "from": "deney",
+      "to": "doğruluk",
+      "relation": "benzer",
+      "weight": 0.32000000000000006,
+      "confidence": 0.32000000000000006
+    },
+    {
+      "from": "bilinmezlik",
+      "to": "öğrenme firsati",
+      "relation": "hipotez",
+      "weight": 0.4,
+      "confidence": 0.4
+    },
+    {
+      "from": "deney",
+      "to": "hipotezi test eder",
+      "relation": "hipotez",
+      "weight": 0.4,
+      "confidence": 0.4
+    },
+    {
+      "from": "bilinmezlik",
+      "to": "öğrenme firsati",
+      "relation": "benzer",
+      "weight": 0.3840000000000001,
+      "confidence": 0.3840000000000001
+    },
+    {
+      "from": "deney",
+      "to": "hipotezi test eder",
+      "relation": "benzer",
+      "weight": 0.3840000000000001,
+      "confidence": 0.3840000000000001
+    },
+    {
+      "from": "bilmiyorum",
+      "to": "bilinmeyeni kabul etmek",
+      "relation": "benzer",
+      "weight": 0.30400000000000005,
+      "confidence": 0.30400000000000005
+    },
+    {
+      "from": "bilmiyorum",
+      "to": "öğrenmenin başlangici",
+      "relation": "benzer",
+      "weight": 0.36480000000000007,
+      "confidence": 0.36480000000000007
+    }
+  ]
+}

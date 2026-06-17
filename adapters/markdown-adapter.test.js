@@ -30,8 +30,8 @@ test('markdown-adapter: listMarkdownFiles and ingestMarkdown work recursively', 
   fs.writeFileSync(f2, '# Guide\nguide text', 'utf8');
   fs.writeFileSync(f3, 'not markdown', 'utf8');
 
-  const files = listMarkdownFiles(dir);
-  const result = ingestMarkdown(dir);
+  const files = listMarkdownFiles(dir, { rootPath: dir });
+  const result = ingestMarkdown(dir, { rootPath: dir });
 
   try {
     assert.equal(files.length, 2);
@@ -39,5 +39,52 @@ test('markdown-adapter: listMarkdownFiles and ingestMarkdown work recursively', 
     assert.equal(result.sections.length >= 2, true);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('markdown-adapter: rejects traversal and absolute paths outside root', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-md-root-'));
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-md-outside-'));
+  const inside = path.join(dir, 'inside.md');
+  const outside = path.join(outsideDir, 'outside.md');
+  fs.writeFileSync(inside, '# Inside\nsafe text', 'utf8');
+  fs.writeFileSync(outside, '# Outside\nsecret text', 'utf8');
+
+  try {
+    assert.deepEqual(listMarkdownFiles(inside, { rootPath: dir }), [path.resolve(inside)]);
+    assert.throws(
+      () => listMarkdownFiles(path.join(dir, '..', path.basename(outside)), { rootPath: dir }),
+      /allowed root/i
+    );
+    assert.throws(
+      () => listMarkdownFiles(outside, { rootPath: dir }),
+      /allowed root/i
+    );
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(outsideDir, { recursive: true, force: true });
+  }
+});
+
+test('markdown-adapter: rejects symlink escape when supported', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-md-link-'));
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-md-link-out-'));
+  const outside = path.join(outsideDir, 'escape.md');
+  const linkPath = path.join(dir, 'escape.md');
+  fs.writeFileSync(outside, '# Outside\nsecret text', 'utf8');
+
+  try {
+    try {
+      fs.symlinkSync(outside, linkPath);
+    } catch (err) {
+      return;
+    }
+    assert.throws(
+      () => listMarkdownFiles(linkPath, { rootPath: dir }),
+      /allowed root/i
+    );
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(outsideDir, { recursive: true, force: true });
   }
 });

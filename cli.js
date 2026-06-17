@@ -1,4 +1,4 @@
-﻿const fs = require('fs');
+const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
 const Kernel = require('./kernel');
@@ -8,6 +8,7 @@ const LLMAdapter = require('./llmAdapter');
 const { createAgent } = require('./agentRuntime');
 const { createBackup, restoreBackup } = require('./backupRestore');
 const { resolvePersistencePaths } = require('./persistencePaths');
+const { evaluateMcpGate } = require('./lib/mcp-gate-adapter');
 
 /**
  * @param {object} [opts]
@@ -66,6 +67,16 @@ function normalizeCommandText(input) {
     .replace(/[ü]/g, 'u');
 }
 
+function normalizeCompareArgs(raw) {
+  const text = String(raw || '').trim();
+  if (!text) return '';
+  const pipeParts = text.split('|').map(part => part.trim()).filter(Boolean);
+  if (pipeParts.length === 2) return `${pipeParts[0]}|${pipeParts[1]}`;
+  const vsParts = text.split(/\s+vs\s+/i).map(part => part.trim()).filter(Boolean);
+  if (vsParts.length === 2) return `${vsParts[0]}|${vsParts[1]}`;
+  return text;
+}
+
 function isWorkflowRuntime(agent) {
   return Boolean(agent && (agent.kind === 'workflow' || agent.runtime === 'workflow'));
 }
@@ -75,6 +86,30 @@ function unwrapAgentPayload(result) {
     return result.data;
   }
   return result;
+}
+
+function mapCliCommandToMcpTool(command) {
+  const normalized = normalizeCommandText(command);
+  switch (normalized) {
+    case 'ogret':
+    case 'yukle':
+    case 'company-ingest':
+    case 'company ingest':
+      return 'axiom.learn';
+    case 'ajan':
+    case 'plan':
+      return 'axiom.agent';
+    case 'sor':
+      return 'axiom.ask';
+    case 'verify':
+      return 'axiom.verify';
+    case 'neden':
+      return 'axiom.reason';
+    case 'karsilastir':
+      return 'axiom.compare';
+    default:
+      return null;
+  }
 }
 
 class CLI {
@@ -107,6 +142,14 @@ class CLI {
     }
     if (trimmed.startsWith('sirket-sor:')) return { command: 'company-query', args: raw.slice(11).trim() };
     if (trimmed === 'ingest-durum') return { command: 'ingest-status', args: '' };
+    if (trimmed.startsWith('learn:')) return { command: '\u00f6\u011fret', args: raw.slice(6).trim() };
+    if (trimmed.startsWith('teach:')) return { command: '\u00f6\u011fret', args: raw.slice(6).trim() };
+    if (trimmed.startsWith('ask:')) return { command: 'sor', args: raw.slice(4).trim() };
+    if (trimmed.startsWith('why:')) return { command: 'neden', args: raw.slice(4).trim() };
+    if (trimmed.startsWith('compare:')) return { command: 'kar\u015f\u0131la\u015ft\u0131r', args: normalizeCompareArgs(raw.slice(8).trim()) };
+    if (trimmed.startsWith('verify:')) return { command: 'verify', args: raw.slice(7).trim() };
+    if (trimmed.startsWith('dogrula:')) return { command: 'verify', args: raw.slice(8).trim() };
+    if (trimmed.startsWith('upload:')) return { command: 'y\u00fckle', args: raw.slice(7).trim() };
 
     if (plain.startsWith('mri:') || plain.startsWith('mr:') || plain.startsWith('tartis:') || plain.startsWith('celiski:')) {
       const sep = raw.indexOf(':');
@@ -202,11 +245,23 @@ class CLI {
     }
   }
   execute(command, args) {
+    const gateResult = this._evaluateCliGate(command, args);
+    if (gateResult && !gateResult.canExecute) {
+      return this._formatCliGateMessage(command, gateResult);
+    }
     switch (command) {
       case 'öğret': {
         this.kernel.learn(args);
         const subject = String(args || '').toLowerCase().split(/\s+/)[0];
         return `OK "${subject}" öğrendim.`;
+      }
+      case 'verify': {
+        const result = this.kernel.verify(args);
+        const data = result.data || {};
+        const evidence = Array.isArray(result.evidence) ? result.evidence : [];
+        let out = `Verify: ${data.status || 'unknown'} (confidence: ${typeof data.confidence === 'number' ? data.confidence.toFixed(2) : 'n/a'})`;
+        if (evidence.length > 0 && evidence[0] && evidence[0].text) out += `\nEvidence: ${evidence[0].text}`;
+        return out;
       }
       case 'sor': {
         const result = this.kernel.ask(args);
@@ -470,6 +525,14 @@ class CLI {
           '  "kaydet"                  -> hafizayi kaydederim',
           '  "llm-sor: soru"           -> LLM tavsiyesi hazirlarim',
           '  "yükle: dosya.txt"        -> dosyadan ogrenirim',
+          '  English-first aliases:',
+          '  "learn: cats are animals" -> teach alias',
+          '  "ask: cat nedir"          -> ask alias',
+          '  "why: tavuk"              -> why alias',
+          '  "compare: tavuk | yumurta"-> compare alias',
+          '  "verify: kedi bitkidir"   -> guarded verify alias',
+          '  "upload: notes.txt"       -> upload alias',
+          '  Turkish compatibility aliases: \u00f6\u011fret, sor, neden, kar\u015f\u0131la\u015ft\u0131r, do\u011frula, y\u00fckle',
           '  "çıkış"                   -> cikis',
         ].join('\n');
       case 'anlamadım':
@@ -489,6 +552,9 @@ class CLI {
     console.log('AXIOM - dogal dil ile konus, ogret, sor');
     console.log('  "kedi balik yer"       | Bilgi ogret');
     console.log('  "kedi nedir"           | Soru sor');
+    console.log('  "learn: cats are animals" | English-first teach alias');
+    console.log('  "ask: cat nedir"          | English-first ask alias');
+    console.log('  "verify: kedi bitkidir"   | English-first verify alias');
     console.log('  "plan: hedef"          | Ajan plani');
     console.log('  "ajan: hedef"          | Ajan calistir');
     console.log('  "backup"               | Durumu yedekle');
@@ -517,9 +583,68 @@ class CLI {
     });
     rl.on('close', () => process.exit(0));
   }
+
+  _evaluateCliGate(command, args) {
+    const tool = mapCliCommandToMcpTool(command);
+    if (!tool) return null;
+
+    const metadata = {
+      source: 'cli',
+      actor: 'cli-user',
+      runner: 'cli',
+      sourceTrust: 'local',
+    };
+
+    let gateArgs = {};
+    switch (tool) {
+      case 'axiom.learn':
+        gateArgs = { text: typeof args === 'string' ? args : JSON.stringify(args || {}) };
+        break;
+      case 'axiom.agent':
+        gateArgs = { goal: typeof args === 'string' ? args : JSON.stringify(args || {}) };
+        break;
+      case 'axiom.ask':
+        gateArgs = { question: String(args || '') };
+        break;
+      case 'axiom.verify':
+        gateArgs = { statement: String(args || '') };
+        break;
+      case 'axiom.reason':
+        gateArgs = { subject: String(args || '') };
+        break;
+      case 'axiom.compare': {
+        const [left = '', right = ''] = String(args || '').split('|');
+        gateArgs = { left: left.trim(), right: right.trim() };
+        break;
+      }
+      default:
+        gateArgs = {};
+    }
+
+    return evaluateMcpGate({ tool, args: gateArgs, metadata });
+  }
+
+  _formatCliGateMessage(command, gate) {
+    const decision = gate?.decision || 'block';
+    const reason = gate?.reason || 'gate_blocked';
+    const commandLabel = String(command || '');
+    if (decision === 'dry_run_only') {
+      return `Gate: ${commandLabel} dry-run-only. Calisma baslatilmadi. Karar: ${decision}. Sebep: ${reason}.`;
+    }
+    if (decision === 'review') {
+      return `Gate: ${commandLabel} review gerektiriyor. Sessiz mutation/calistirma yapilmadi. Karar: ${decision}. Sebep: ${reason}.`;
+    }
+    return `Gate: ${commandLabel} engellendi. Karar: ${decision}. Sebep: ${reason}.`;
+  }
 }
 
 if (require.main === module) {
+  if (process.argv.includes('--help') || process.argv.includes('-h')) {
+    const cli = new CLI({ kernel: { noLoad: true, loadPlugins: false } });
+    console.log(cli.execute('yardım', ''));
+    process.exit(0);
+  }
+
   const cli = new CLI();
   cli.kernel.graph.load();
   cli.start();

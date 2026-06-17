@@ -118,6 +118,92 @@ test('deploy or publish action returns dry_run_only', () => {
   assert.equal(result.canDryRun, true);
 });
 
+test('read-only network inspection can still allow', () => {
+  const result = evaluateToolCall({
+    action: 'fetch',
+    toolName: 'status-check',
+    input: 'GET https://example.com/health',
+    classifier: makeClassifier({
+      risk: { level: 'low', score: 0.1, category: 'read' },
+    }),
+  });
+
+  assert.equal(result.decision, TOOL_GATE_DECISIONS.ALLOW);
+  assert.equal(result.allowed, true);
+  assert.equal(result.reason, TOOL_GATE_REASONS.LOW_RISK_ACTION);
+});
+
+test('network mutation tool does not allow', () => {
+  const result = evaluateToolCall({
+    action: 'fetch',
+    toolName: 'mutation-client',
+    input: 'POST https://example.com/api/update',
+    classifier: makeClassifier({
+      risk: { level: 'high', score: 0.9, category: 'network' },
+    }),
+  });
+
+  assert.notEqual(result.decision, TOOL_GATE_DECISIONS.ALLOW);
+  assert.equal(result.allowed, false);
+  assert.equal(result.canExecute, false);
+  assert.ok([TOOL_GATE_DECISIONS.REVIEW, TOOL_GATE_DECISIONS.DRY_RUN_ONLY, TOOL_GATE_DECISIONS.BLOCK].includes(result.decision));
+  assert.equal(result.reason, TOOL_GATE_REASONS.EXTERNAL_SIDE_EFFECT_REVIEW_REQUIRED);
+});
+
+test('webhook mutation does not allow', () => {
+  const result = evaluateToolCall({
+    action: 'send',
+    toolName: 'webhook-dispatcher',
+    input: {
+      method: 'POST',
+      url: 'https://hooks.example.com/incoming',
+    },
+    classifier: makeClassifier({
+      risk: { level: 'high', score: 0.9, category: 'network' },
+    }),
+  });
+
+  assert.notEqual(result.decision, TOOL_GATE_DECISIONS.ALLOW);
+  assert.equal(result.allowed, false);
+  assert.equal(result.reason, TOOL_GATE_REASONS.EXTERNAL_SIDE_EFFECT_REVIEW_REQUIRED);
+});
+
+test('external api write does not allow', () => {
+  const result = evaluateToolCall({
+    action: 'fetch',
+    toolName: 'api-client',
+    input: 'PUT https://api.example.com/v1/items/42',
+    classifier: makeClassifier({
+      risk: { level: 'high', score: 0.95, category: 'network' },
+    }),
+  });
+
+  assert.notEqual(result.decision, TOOL_GATE_DECISIONS.ALLOW);
+  assert.equal(result.allowed, false);
+  assert.equal(result.canExecute, false);
+});
+
+test('network call with token does not leak token in warnings', () => {
+  const token = 'sk-test-abcdef1234567890';
+  const result = evaluateToolCall({
+    action: 'fetch',
+    toolName: 'api-client',
+    input: {
+      method: 'POST',
+      url: 'https://api.example.com/v1/items',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    },
+    classifier: makeClassifier({
+      risk: { level: 'high', score: 0.95, category: 'network' },
+    }),
+  });
+
+  assert.ok(result.warnings.every(warning => !warning.includes(token)));
+  assert.ok(result.warnings.every(warning => !warning.toLowerCase().includes('authorization')));
+});
+
 test('secret-looking args trigger review or block', () => {
   const result = evaluateToolCall({
     action: 'read',

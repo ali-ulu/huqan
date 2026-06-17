@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AXIOM — Productization & Shield</title>
-<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'">
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
 <style>
 :root{
   --bg:#080a12;
@@ -60,9 +61,29 @@ body{display:flex;flex-direction:column}
 .msg.highlight{border-left:3px solid var(--accent-2)}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .input-bar{display:flex;gap:10px;padding-top:10px;flex-shrink:0}
-.input-bar input{flex:1;min-width:0;background:rgba(9,12,20,.92);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13px;outline:none}
-.input-bar input:focus{border-color:rgba(105,215,255,.55);box-shadow:0 0 0 3px rgba(105,215,255,.08)}
-.input-bar button{border:none;border-radius:12px;padding:0 18px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#fff;font-weight:700;cursor:pointer}
+.composer{display:flex;flex-direction:column;gap:10px;padding-top:10px;flex-shrink:0}
+.composer textarea{width:100%;min-height:120px;resize:vertical;background:rgba(9,12,20,.92);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.55;outline:none;white-space:pre-wrap}
+.composer textarea:focus{border-color:rgba(105,215,255,.55);box-shadow:0 0 0 3px rgba(105,215,255,.08)}
+.composer-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.composer-toolbar button{border:none;border-radius:12px;padding:0 18px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#fff;font-weight:700;cursor:pointer;min-height:42px}
+.composer-toolbar button.secondary{background:rgba(15,18,30,.92);color:var(--text);border:1px solid var(--line)}
+.composer-toolbar button:hover{filter:brightness(1.06)}
+.composer-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--muted);min-height:20px}
+.composer-meta strong{color:var(--text);font-weight:600}
+.composer-note{font-size:12px;color:var(--muted);line-height:1.5}
+.quick-actions{display:flex;flex-wrap:wrap;gap:8px}
+.quick-actions .chip{padding:7px 11px}
+.teach-flow{display:none;flex-direction:column;gap:10px;margin-top:10px;padding:14px;border:1px solid rgba(105,215,255,.18);border-radius:14px;background:rgba(8,11,18,.92)}
+.teach-flow.visible{display:flex}
+.teach-flow h3{margin:0;font-size:14px;line-height:1.35}
+.teach-flow p{margin:0;color:var(--muted);font-size:12px;line-height:1.5}
+.teach-flow textarea{width:100%;min-height:112px;resize:vertical;background:rgba(9,12,20,.96);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:12px;line-height:1.5;outline:none;white-space:pre-wrap}
+.teach-flow textarea:focus{border-color:rgba(105,215,255,.55);box-shadow:0 0 0 3px rgba(105,215,255,.08)}
+.teach-flow-actions{display:flex;flex-wrap:wrap;gap:8px}
+.teach-flow-actions button{border:none;border-radius:10px;padding:0 14px;background:rgba(15,18,30,.92);color:var(--text);border:1px solid var(--line);min-height:38px;font-size:12px;cursor:pointer}
+.teach-flow-actions button.primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#fff;border:none}
+.input-bar{display:none}
+.input-bar button:hover{filter:brightness(1.06)}
 .input-bar button:hover{filter:brightness(1.06)}
 .stack{display:flex;flex-direction:column;gap:14px;min-height:0}
 .split{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,.8fr);gap:14px}
@@ -165,15 +186,38 @@ body{display:flex;flex-direction:column}
           <button class="chip" data-preset="öğret: kedi hayvandır">Öğret</button>
           <button class="chip" data-preset="sor: kedi nedir">Sor</button>
           <button class="chip" data-preset="llm-sor: kedi neden uyur?">LLM sor</button>
-          <button class="chip" data-preset="yukle: notlar.md">Yükle</button>
         </div>
       </div>
       <div class="dashboard" id="judge-dashboard"></div>
       <div class="card">
         <div class="chat" id="judge-chat"></div>
-        <div class="input-bar">
-          <input id="judge-input" placeholder="öğret:, sor:, llm-sor:, yükle: ..." maxlength="500" />
-          <button id="judge-send">Gönder</button>
+        <div class="composer">
+          <textarea id="judge-input" placeholder="Bir iddia yaz: ‘React Native production için iyi bir seçimdir’" maxlength="4000"></textarea>
+          <div class="composer-toolbar">
+            <button id="judge-send">Yargılat</button>
+            <button id="judge-file-button" type="button" class="secondary">Dosya seç</button>
+            <input id="judge-file-input" type="file" accept=".txt,.md,text/plain,text/markdown" hidden />
+          </div>
+          <div class="composer-meta" id="judge-file-meta">Dosya tarayıcıda okunur; otomatik olarak sunucuya yüklenmez.</div>
+          <div class="quick-actions" id="judge-quick-actions" hidden>
+            <button class="chip" data-quick-action="judge">Yargılat</button>
+            <button class="chip" data-quick-action="devil">Şeytan'ın Avukatı</button>
+            <button class="chip" data-quick-action="search">Hafızada ara</button>
+          </div>
+          <div class="composer-note">Kısa not: `.txt` veya `.md` dosyasını seç, içerik alana gelsin; sonra mevcut akışla yargılat.</div>
+          <section class="teach-flow" id="teach-flow" hidden>
+            <div>
+              <h3>Bilmiyorum - öğretme taslağı</h3>
+              <p>Bilmiyorum - uydurmuyorum. Bu bilgi AXIOM’un graph'ında yok. İstersen öğretme taslağı oluşturabilirsin.</p>
+            </div>
+            <textarea id="teach-draft-input" aria-label="Öğretme taslağı"></textarea>
+            <p>Bu taslak henüz AXIOM hafızasına yazılmadı. Kalıcı öğrenme için review / approval gerekir.</p>
+            <div class="teach-flow-actions">
+              <button type="button" class="primary" id="teach-draft-copy">Taslağı kopyala</button>
+              <button type="button" id="teach-draft-reset">Sıfırla</button>
+              <button type="button" id="teach-draft-hide">Kapat</button>
+            </div>
+          </section>
         </div>
       </div>
     </div>
@@ -327,6 +371,17 @@ let g = null;
 let showLabels = true;
 let currentTransform = d3.zoomIdentity;
 let trustReceiptState = null;
+const judgeInput = document.getElementById('judge-input');
+const judgeFileInput = document.getElementById('judge-file-input');
+const judgeFileButton = document.getElementById('judge-file-button');
+const judgeFileMeta = document.getElementById('judge-file-meta');
+const judgeQuickActions = document.getElementById('judge-quick-actions');
+const teachFlow = document.getElementById('teach-flow');
+const teachDraftInput = document.getElementById('teach-draft-input');
+const teachDraftCopy = document.getElementById('teach-draft-copy');
+const teachDraftReset = document.getElementById('teach-draft-reset');
+const teachDraftHide = document.getElementById('teach-draft-hide');
+let lastPromptText = '';
 
 function normalizeText(value) {
   return String(value || '')
@@ -372,63 +427,203 @@ function addMessage(text, kind = 'system') {
   chat.scrollTop = chat.scrollHeight;
 }
 
+function setFileMeta(fileName, textLength) {
+  if (!judgeFileMeta) return;
+  if (!fileName) {
+    judgeFileMeta.textContent = 'Dosya tarayıcıda okunur; otomatik olarak sunucuya yüklenmez.';
+    return;
+  }
+  const chars = Number(textLength || 0).toLocaleString('tr-TR');
+  judgeFileMeta.innerHTML = `<strong>${escapeHtml(fileName)}</strong> · ${chars} karakter · Dosya tarayıcıda okunur; otomatik olarak sunucuya yüklenmez.`;
+}
+
+function showQuickActions(visible) {
+  if (!judgeQuickActions) return;
+  judgeQuickActions.hidden = !visible;
+}
+
+function showTeachFlow(promptText, resultText) {
+  if (!teachFlow || !teachDraftInput) return;
+  const source = String(promptText || '').trim() || 'Bu bilgi';
+  const draft = [
+    `İddia: ${source}`,
+    'Durum: Bilmiyorum - uydurmuyorum.',
+    'Açıklama: Bu bilgi AXIOM’un graph’ında yok.',
+    'Not: Bu taslak henüz AXIOM hafızasına yazılmadı. Kalıcı öğrenme için review / approval gerekir.',
+    'Öneri: Kaynak, gerekçe ve kısa tanımı ekleyerek öğretme taslağı oluşturabilirsin.',
+  ].join('\n');
+  teachDraftInput.value = draft;
+  teachFlow.hidden = false;
+  teachFlow.classList.add('visible');
+}
+
+function hideTeachFlow(clear = false) {
+  if (!teachFlow || !teachDraftInput) return;
+  if (clear) teachDraftInput.value = '';
+  teachFlow.classList.remove('visible');
+  teachFlow.hidden = true;
+}
+
+function isUnknownResultText(text) {
+  return /\b(bilmiyorum|bilinmiyor|doğrulayamıyor|doğrulayamıyorum)\b/i.test(String(text || ''));
+}
+
+function friendlyServerMessage(status) {
+  if (status === 401 || status === 403) {
+    return 'Bu işlem yetki gerektiriyor. Local demo’da önce metni alana aktarabilir ve yargılatabilirsin.';
+  }
+  if (status === 400) {
+    return 'AXIOM bu bilgiyi güvenli biçimde doğrulayamıyor.';
+  }
+  if (status === 413) {
+    return 'Dosya çok büyük. Şimdilik daha küçük bir `.txt` veya `.md` dosyası seç.';
+  }
+  if (status === 429) {
+    return 'Çok fazla istek. Biraz bekleyip tekrar dene.';
+  }
+  return 'Sunucuya ulaşılamadı. Local server çalışıyor mu kontrol et: `node server.js`';
+}
+
+function normalizeResultText(resultText) {
+  const text = String(resultText || '');
+  if (/Boş girdi/i.test(text)) return 'Önce bir metin gir veya bir dosya seç.';
+  if (/Anlamadım/i.test(text)) return 'Bilmiyorum - uydurmuyorum. Bu bilgiyi güvenli biçimde doğrulayamıyorum.';
+  return text;
+}
+
+function importFileToInput(file) {
+  if (!file) return;
+  const name = String(file.name || '');
+  if (!/\.(txt|md)$/i.test(name)) {
+    addMessage('Şimdilik sadece `.txt` ve `.md` dosyaları destekleniyor.', 'system warn');
+    setFileMeta('', 0);
+    showQuickActions(false);
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const text = String(reader.result || '');
+    if (judgeInput) {
+      judgeInput.value = text;
+      judgeInput.focus();
+    }
+    setFileMeta(name, text.length);
+    showQuickActions(true);
+    addMessage(`Dosya alındı: ${name}`, 'system ok');
+  };
+  reader.onerror = () => {
+    addMessage('Dosya okunamadı. Lütfen tekrar dene.', 'system warn');
+    setFileMeta('', 0);
+    showQuickActions(false);
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
 function queuePrompt(prompt) {
-  const input = document.getElementById('judge-input');
-  if (!input) return;
-  input.value = prompt;
+  if (!judgeInput) return;
+  judgeInput.value = prompt;
   switchTab('judge');
-  input.focus();
+  judgeInput.focus();
 }
 
 async function runPrompt(value) {
-  const input = document.getElementById('judge-input');
-  const btn = document.getElementById('judge-send');
-  const raw = typeof value === 'string' ? value : input.value.trim();
-  if (!raw) return;
-  if (btn && btn.disabled) return;
-  if (input) input.value = '';
-  addMessage(raw, 'user');
-  
-  const originalBtnText = btn ? btn.textContent : 'Gönder';
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = 'Yargılanıyor...';
-    btn.style.opacity = '0.7';
-    btn.style.cursor = 'wait';
+  const raw = typeof value === 'string' ? value : String(judgeInput?.value || '').trim();
+  if (!raw) {
+    addMessage('Önce bir metin gir veya bir dosya seç.', 'system warn');
+    return;
   }
-  
+  if (/^(yukle|yükle)\s*:/i.test(raw)) {
+    addMessage('Dosya adını yazmak yetmez. Lütfen “Dosya seç” ile dosyayı tarayıcıdan seç.', 'system warn');
+    return;
+  }
+  if (judgeInput) judgeInput.value = '';
+  lastPromptText = raw;
+  addMessage(raw, 'user');
   try {
     const res = await fetch('/api?' + new URLSearchParams({ q: raw }));
     if (res.status === 429) {
-      addMessage('Çok fazla istek.', 'system warn');
+      addMessage(friendlyServerMessage(429), 'system warn');
       return;
     }
     if (!res.ok) {
-      addMessage('Sunucu hatası.', 'system warn');
+      addMessage(friendlyServerMessage(res.status), 'system warn');
       return;
     }
     const data = await res.json();
-    let cls = 'system';
-    if (typeof data.result === 'string' && data.result.startsWith('✅')) cls = 'system ok';
-    else if (typeof data.result === 'string' && data.result.startsWith('⚠')) cls = 'system warn';
-    else if (typeof data.result === 'string' && (data.result.startsWith('❗') || data.result.startsWith('❌'))) cls = 'system highlight';
-    addMessage(String(data.result || ''), cls);
+    const resultText = normalizeResultText(data.result);
+    let cls = isUnknownResultText(resultText) ? 'system warn' : 'system';
+    if (typeof resultText === 'string' && resultText.startsWith('✅')) cls = 'system ok';
+    else if (typeof resultText === 'string' && resultText.startsWith('⚠')) cls = 'system warn';
+    else if (typeof resultText === 'string' && (resultText.startsWith('❗') || resultText.startsWith('❌'))) cls = 'system highlight';
+    addMessage(resultText, cls);
+    if (isUnknownResultText(resultText)) showTeachFlow(raw, resultText);
+    else hideTeachFlow(false);
     await updateHeaderStats();
   } catch (err) {
-    addMessage('Bağlantı hatası.', 'system warn');
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = originalBtnText;
-      btn.style.opacity = '1';
-      btn.style.cursor = 'pointer';
-    }
+    hideTeachFlow(false);
+    addMessage(friendlyServerMessage(0), 'system warn');
   }
 }
 
 document.getElementById('judge-send').addEventListener('click', () => runPrompt());
-document.getElementById('judge-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') runPrompt();
+judgeInput?.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    runPrompt();
+  }
+});
+judgeFileButton?.addEventListener('click', () => judgeFileInput?.click());
+judgeFileInput?.addEventListener('change', e => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) {
+    setFileMeta('', 0);
+    showQuickActions(false);
+    return;
+  }
+  importFileToInput(file);
+  e.target.value = '';
+});
+teachDraftCopy?.addEventListener('click', async () => {
+  if (!teachDraftInput) return;
+  const text = teachDraftInput.value.trim();
+  if (!text) {
+    addMessage('Önce bir metin gir veya bir sorgu çalıştır.', 'system warn');
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    addMessage('Öğretme taslağı kopyalandı.', 'system ok');
+  } catch (_) {
+    teachDraftInput.focus();
+    teachDraftInput.select?.();
+    addMessage('Öğretme taslağı seçildi. Kopyalamak için Ctrl+C kullanabilirsin.', 'system warn');
+  }
+});
+teachDraftReset?.addEventListener('click', () => {
+  if (!teachDraftInput) return;
+  teachDraftInput.value = lastPromptText
+    ? `İddia: ${lastPromptText}\nDurum: Bilmiyorum - uydurmuyorum.\nAçıklama: Bu bilgi AXIOM’un graph’ında yok.\nNot: Bu taslak henüz AXIOM hafızasına yazılmadı. Kalıcı öğrenme için review / approval gerekir.\nÖneri: Kaynak, gerekçe ve kısa tanımı ekleyerek öğretme taslağı oluşturabilirsin.`
+    : '';
+  addMessage('Öğretme taslağı sıfırlandı.', 'system');
+});
+teachDraftHide?.addEventListener('click', () => hideTeachFlow(true));
+document.querySelectorAll('[data-quick-action]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const action = btn.dataset.quickAction;
+    if (action === 'judge') {
+      runPrompt();
+      return;
+    }
+    if (action === 'devil') {
+      const text = String(judgeInput?.value || '').trim();
+      queuePrompt(text ? `tartış: ${text.slice(0, 220)}` : 'tartış: bu fikri zorla');
+      switchTab('advocate');
+      return;
+    }
+    if (action === 'search') {
+      switchTab('graph');
+    }
+  });
 });
 document.querySelectorAll('[data-preset]').forEach(btn => {
   btn.addEventListener('click', () => queuePrompt(btn.dataset.preset));
@@ -447,7 +642,7 @@ document.getElementById('trust-workspace').addEventListener('keydown', e => {
   if (e.key === 'Enter') loadTrustReceipt();
 });
 
-addMessage('Hoş geldin. Fikrini yaz veya bir hazır sorgu seç.', 'system');
+addMessage('Hoş geldin. Bir iddia yaz ya da Dosya seç ile yerel metni alana aktar.', 'system');
 
 async function updateHeaderStats() {
   try {

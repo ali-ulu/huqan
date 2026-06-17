@@ -40,6 +40,12 @@ Risk level: critical
 Recommendation: Change is not recommended.
 ```
 
+## Public Positioning
+
+Use the language in [docs/competitive-positioning.md](./competitive-positioning.md) and [docs/pitch-v0.md](./pitch-v0.md) for outward-facing copy.
+
+For demo framing, follow [docs/demo-positioning.md](./demo-positioning.md) so the static demo does not overclaim live capabilities.
+
 ## Core Differentiation
 
 AXIOM does not just answer.

@@ -1,0 +1,2 @@
+HUQAN Static Demo Landing
+Deployed via GitHub Actions Pages

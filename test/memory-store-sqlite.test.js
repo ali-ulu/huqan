@@ -566,7 +566,8 @@ describe('memory-store-sqlite', () => {
         trustPolicyVersion: '1.0.0',
         confidence: 1.0,
       };
-      store1.patchMetadata(mid1, { status: 'edited' }, { provenance: provPatch });
+      const patchRes = store1.patchMetadata(mid1, { note: 'edited' }, { workspaceId: 'ws-a', provenance: provPatch });
+      assert.strictEqual(patchRes.ok, true);
 
       const provSupersede = {
         provenanceId: 'prov-super',
@@ -579,7 +580,8 @@ describe('memory-store-sqlite', () => {
         trustPolicyVersion: '1.0.0',
         confidence: 1.0,
       };
-      const superRes = store1.supersede(mid1, 'v2', { provenance: provSupersede });
+      const superRes = store1.supersede(mid1, 'v2', { workspaceId: 'ws-a', provenance: provSupersede });
+      assert.strictEqual(superRes.ok, true);
       const mid2 = superRes.newMemory.memoryId;
 
       const provTombstone = {
@@ -593,7 +595,8 @@ describe('memory-store-sqlite', () => {
         trustPolicyVersion: '1.0.0',
         confidence: 1.0,
       };
-      store1.tombstone(mid2, { provenance: provTombstone });
+      const tombstoneRes = store1.tombstone(mid2, { workspaceId: 'ws-a', provenance: provTombstone });
+      assert.strictEqual(tombstoneRes.ok, true);
 
       store1.close();
 

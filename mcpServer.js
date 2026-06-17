@@ -666,6 +666,8 @@ function createServer() {
   };
 }
 
+const _pendingApprovals = [];
+
 function callTool(kernel, params = {}) {
   const name = params.name;
   const args = params.arguments || {};
@@ -673,6 +675,54 @@ function callTool(kernel, params = {}) {
   const gate = evaluateMcpGate({ tool: name, args, metadata: {} });
 
   if (!gate.canExecute) {
+    if (gate.decision === 'review' || gate.requiredReview) {
+      const approval = {
+        id: `approval-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
+        approvalKey: `mcp.${name}`,
+        tool: name,
+        input: JSON.stringify(args).slice(0, 1000),
+        status: 'pending',
+        decision: 'review',
+        reason: gate.reason,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        policy: {},
+        context: {},
+      };
+      _pendingApprovals.push(approval);
+      return {
+        ok: false,
+        gate: {
+          decision: gate.decision,
+          allowed: gate.allowed,
+          canExecute: gate.canExecute,
+          canDryRun: gate.canDryRun,
+          requiredReview: gate.requiredReview,
+          reason: gate.reason,
+          metadata: { policyVersion: gate.metadata?.adapterVersion || 'V2.6-PR2' },
+        },
+        approval,
+        message: `Tool call queued for review: ${gate.reason}`,
+      };
+    }
+    if (gate.canDryRun) {
+      const dryRunResult = executeReadOnlyDryRun(kernel, name, args);
+      return {
+        ok: true,
+        dryRun: true,
+        gate: {
+          decision: gate.decision,
+          allowed: gate.allowed,
+          canExecute: gate.canExecute,
+          canDryRun: gate.canDryRun,
+          requiredReview: gate.requiredReview,
+          reason: gate.reason,
+          metadata: { policyVersion: gate.metadata?.adapterVersion || 'V2.6-PR2' },
+        },
+        result: dryRunResult,
+        message: `Tool dry-run: ${gate.reason}`,
+      };
+    }
     return {
       ok: false,
       gate: {
@@ -713,20 +763,23 @@ function callTool(kernel, params = {}) {
       });
     case 'axiom.approvals':
       return {
-        pendingCount: agent.countPendingToolApprovals ? agent.countPendingToolApprovals() : 0,
-        approvals: (agent.listPendingToolApprovals ? agent.listPendingToolApprovals(args.limit || 20) : []).map(item => ({
-          id: item.id,
-          approvalKey: item.approval_key || item.approvalKey || '',
-          tool: item.tool,
-          input: item.input || '',
-          status: item.status || 'pending',
-          decision: item.decision || '',
-          reason: item.reason || '',
-          createdAt: Number(item.created_at || 0),
-          updatedAt: Number(item.updated_at || 0),
-          policy: item.policy || {},
-          context: item.context || {},
-        })),
+        pendingCount: _pendingApprovals.length + (agent.countPendingToolApprovals ? agent.countPendingToolApprovals() : 0),
+        approvals: [
+          ..._pendingApprovals,
+          ...(agent.listPendingToolApprovals ? agent.listPendingToolApprovals(args.limit || 20) : []).map(item => ({
+            id: item.id,
+            approvalKey: item.approval_key || item.approvalKey || '',
+            tool: item.tool,
+            input: item.input || '',
+            status: item.status || 'pending',
+            decision: item.decision || '',
+            reason: item.reason || '',
+            createdAt: Number(item.created_at || 0),
+            updatedAt: Number(item.updated_at || 0),
+            policy: item.policy || {},
+            context: item.context || {},
+          })),
+        ].slice(0, args.limit || 50),
       };
     case 'axiom.reason':
       return kernel.reason(args.subject);
@@ -736,6 +789,21 @@ function callTool(kernel, params = {}) {
       return kernel.dream({ depth: args.depth });
     default:
       throw new Error(`Unknown tool: ${name}`);
+  }
+}
+
+function executeReadOnlyDryRun(kernel, name, args) {
+  const agent = createAgent({
+    kernel,
+    version: process.env.AXIOM_AGENT_VERSION,
+  });
+  switch (name) {
+    case 'axiom.learn':
+      return kernel.ask(`What would be learned from: ${(args.text || '').slice(0, 200)}`);
+    case 'axiom.agent':
+      return agent.plan ? agent.plan(args.goal || '', { maxSteps: args.maxSteps || 1 }) : { dryRun: true, goal: args.goal };
+    default:
+      return { dryRun: true, tool: name, args };
   }
 }
 

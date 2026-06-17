@@ -19,7 +19,7 @@ function mockKernel() {
 
 // ─── Gate blocks review tools (axiom.learn) ─────────────────────────────────
 
-test('callTool: axiom.learn blocked by gate (review)', () => {
+test('callTool: axiom.learn queued for review (gate)', () => {
   const kernel = mockKernel();
   const result = callTool(kernel, { name: 'axiom.learn', arguments: { text: 'test fact' } });
 
@@ -30,23 +30,26 @@ test('callTool: axiom.learn blocked by gate (review)', () => {
   assert.equal(result.gate.canDryRun, true);
   assert.equal(result.gate.requiredReview, true);
   assert.equal(result.gate.reason, 'mutating_requires_review');
-  assert.ok(result.message.includes('blocked by gate'));
+  assert.ok(result.approval, 'review tool must return approval object');
+  assert.ok(result.message.includes('queued for review'));
 });
 
-// ─── Gate blocks dry_run_only tools (axiom.agent) ───────────────────────────
+// ─── Gate returns dry-run for dry_run_only tools (axiom.agent) ─────────────
 
-test('callTool: axiom.agent blocked by gate (dry_run_only)', () => {
+test('callTool: axiom.agent returns dry-run (gate)', () => {
   const kernel = mockKernel();
   const result = callTool(kernel, { name: 'axiom.agent', arguments: { goal: 'test' } });
 
-  assert.equal(result.ok, false);
+  assert.equal(result.ok, true);
+  assert.equal(result.dryRun, true);
   assert.equal(result.gate.decision, 'dry_run_only');
   assert.equal(result.gate.allowed, false);
   assert.equal(result.gate.canExecute, false);
   assert.equal(result.gate.canDryRun, true);
   assert.equal(result.gate.requiredReview, false);
   assert.equal(result.gate.reason, 'agent_loop_dry_run_only');
-  assert.ok(result.message.includes('blocked by gate'));
+  assert.ok(result.message.includes('Tool dry-run'));
+  assert.ok(result.result, 'dry-run must include result');
 });
 
 // ─── Gate allows read-only tools ─────────────────────────────────────────────

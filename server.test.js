@@ -62,6 +62,20 @@ async function getGraphCounts() {
   };
 }
 
+function admittedUploadBody(text, overrides = {}) {
+  return JSON.stringify({
+    text,
+    approvalStatus: 'approved',
+    provenance: {
+      sourceType: 'upload',
+      sourceRef: 'test:upload',
+      actor: 'server-test',
+      workspaceId: 'default',
+    },
+    ...overrides,
+  });
+}
+
 let server;
 let tempDir;
 before(async () => {
@@ -147,33 +161,23 @@ describe('Server - API', () => {
     assert.strictEqual(j.result, 'Bu komut web API üzerinden çalıştırılamaz.');
   });
 
-  it('GET /dogrula?statement=... ÃƒÂ§alÃ„Â±Ã…Å¸Ã„Â±r', async () => {
-    const r = await request(`${BASE}/dogrula?statement=kedi+balÃ„Â±k+yer`);
-    assert.strictEqual(r.status, 200);
+  it('GET /dogrula?statement=... method not allowed', async () => {
+    const r = await request(`${BASE}/dogrula?statement=kedi+balik+yer`);
+    assert.strictEqual(r.status, 405);
     const j = await r.json();
-    assert.ok('status' in j);
-    assert.ok(!('ok' in j));
-    assert.notStrictEqual(r.headers.get('access-control-allow-origin'), '*');
+    assert.strictEqual(j.error, 'Method not allowed');
   });
 
-  it('GET /dogrula boÃ…Å¸ statement hata dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {
+  it('GET /dogrula bos statement da method not allowed kalir', async () => {
     const r = await request(`${BASE}/dogrula?statement=`);
-    assert.strictEqual(r.status, 400);
+    assert.strictEqual(r.status, 405);
   });
 
-  it('GET /v2/verify returns structured envelope', async () => {
+  it('GET /v2/verify returns method not allowed', async () => {
     const r = await request(`${BASE}/v2/verify?statement=kedi+balik+yer`);
-    assert.strictEqual(r.status, 200);
+    assert.strictEqual(r.status, 405);
     const j = await r.json();
-    assert.strictEqual(j.ok, true);
-    assert.strictEqual(j.type, 'verify');
-    assert.ok(j.data);
-    assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(j.data.status));
-    assert.ok(Array.isArray(j.evidence));
-    assert.strictEqual(j.error, null);
-    assert.ok(j.meta.contractVersion);
-    assert.notStrictEqual(r.headers.get('access-control-allow-origin'), '*');
-    assert.strictEqual(r.headers.get('cache-control'), 'no-cache');
+    assert.strictEqual(j.error, 'Method not allowed');
   });
 
   it('OPTIONS preflight returns safe CORS headers', async () => {
@@ -207,7 +211,7 @@ describe('Server - API', () => {
     const learn = await request(`${BASE}/yukle`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: 'kus ucmaz' }),
+      body: admittedUploadBody('kus ucmaz'),
     });
     assert.strictEqual(learn.status, 200);
 
@@ -230,7 +234,7 @@ describe('Server - API', () => {
     const learn = await request(`${BASE}/yukle`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: 'kedi hayvandir' }),
+      body: admittedUploadBody('kedi hayvandir'),
     });
     assert.strictEqual(learn.status, 200);
 
@@ -270,6 +274,7 @@ describe('Server - API', () => {
   });
 
   it('POST /yukle metin ÃƒÂ¶Ã„Å¸renir', async () => {
+    const before = await getGraphCounts();
     const r = await request(`${BASE}/yukle`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -278,7 +283,25 @@ describe('Server - API', () => {
     assert.strictEqual(r.status, 200);
     const j = await r.json();
     assert.strictEqual(j.ok, true);
+    assert.strictEqual(j.learned, 0);
+    assert.ok(j.admission);
+    assert.strictEqual(j.admission.outcome, 'review');
+    const after = await getGraphCounts();
+    assert.deepStrictEqual(after, before);
+  });
+
+  it('POST /yukle explicit admitted context ile ogrenir', async () => {
+    const r = await request(`${BASE}/yukle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: admittedUploadBody('test-node test-edge-eder'),
+    });
+    assert.strictEqual(r.status, 200);
+    const j = await r.json();
+    assert.strictEqual(j.ok, true);
     assert.ok(j.learned > 0);
+    assert.ok(j.admission);
+    assert.strictEqual(j.admission.outcome, 'allow');
   });
 
   it('POST /yukle boÃ…Å¸ body hata dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {
@@ -338,6 +361,7 @@ describe('Server - API', () => {
       body: JSON.stringify({
         sourceType: 'markdown',
         path: mdDir,
+        rootPath: mdDir,
       }),
     });
     assert.strictEqual(r.status, 200);
@@ -364,7 +388,7 @@ describe('Server - API', () => {
     const learn = await request(`${BASE}/yukle`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: 'kedi hayvandir' }),
+      body: admittedUploadBody('kedi hayvandir'),
     });
     assert.strictEqual(learn.status, 200);
 
@@ -529,13 +553,7 @@ describe('Server - API', () => {
     assert.ok(Number.isInteger(j.edges));
     assert.ok(Number.isInteger(j.uptimeSec));
     assert.ok(typeof j.timestamp === 'string');
-    assert.ok(j.persistence);
-    assert.strictEqual(j.persistence.memoryPath, process.env.AXIOM_MEMORY_PATH);
-    assert.strictEqual(j.persistence.dbPath, process.env.AXIOM_DB_PATH);
-    assert.strictEqual(j.persistence.backupBaseDir, process.env.AXIOM_BACKUP_DIR);
-    assert.strictEqual(typeof j.persistence.memoryWritable, 'boolean');
-    assert.strictEqual(typeof j.persistence.dbWritable, 'boolean');
-    assert.strictEqual(typeof j.persistence.backupDirWritable, 'boolean');
+    assert.strictEqual('persistence' in j, false);
   });
 
   it('GET /v2-status durum ekranÃ„Â± bilgisini dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {
@@ -551,19 +569,16 @@ describe('Server - API', () => {
     assert.strictEqual(j.currentFocus, 'v3.0 Agent Workflow');
     assert.strictEqual(j.agentRuntime, 'v2');
     assert.strictEqual(j.checkpointBackend, 'json');
-    assert.strictEqual(typeof j.agentCheckpointPath, 'string');
-    assert.strictEqual(j.agentV3Status, null);
     assert.strictEqual(j.activeKernel, 'v2');
-    assert.strictEqual(j.testStatus, 'static-test-status');
     assert.ok(['sqlite', 'json'].includes(j.backend));
     assert.ok(Number.isInteger(j.nodes));
     assert.ok(Number.isInteger(j.edges));
-    assert.strictEqual(typeof j.lastCommit, 'string');
     assert.strictEqual(typeof j.updatedAt, 'string');
-    assert.ok(j.persistencePaths);
-    assert.strictEqual(j.persistencePaths.memoryPath, process.env.AXIOM_MEMORY_PATH);
-    assert.strictEqual(j.persistencePaths.dbPath, process.env.AXIOM_DB_PATH);
-    assert.strictEqual(j.persistencePaths.backupBaseDir, process.env.AXIOM_BACKUP_DIR);
+    assert.strictEqual('agentCheckpointPath' in j, false);
+    assert.strictEqual('agentV3Status' in j, false);
+    assert.strictEqual('testStatus' in j, false);
+    assert.strictEqual('lastCommit' in j, false);
+    assert.strictEqual('persistencePaths' in j, false);
   });
 
   it('Method not allowed: POST /health', async () => {
@@ -576,7 +591,9 @@ describe('Server - API', () => {
     assert.strictEqual(r.status, 200);
     const html = await r.text();
     assert.ok(html.includes('AXIOM'));
-    assert.ok(html.includes('d3@7'));
+    assert.ok(html.includes('d3@7.9.0'));
+    assert.ok(html.includes('integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i"'));
+    assert.ok(html.includes('Content-Security-Policy'));
     assert.ok(html.includes('forceSimulation'));
     assert.ok(html.includes('Trust Dashboard'));
   });
@@ -596,15 +613,20 @@ describe('Server - API', () => {
     assert.strictEqual(r.status, 405);
   });
 
-  it('GET /api async komutlarda Promise sÃ„Â±zdÃ„Â±rmaz', async () => {
-    const originalExecute = server && require('./cli').prototype.execute;
+  it('GET /api public allowlist does not invoke cli.execute', async () => {
     const CLI = require('./cli');
-    CLI.prototype.execute = () => Promise.resolve('async-ok');
+    const originalExecute = CLI.prototype.execute;
+    let called = false;
+    CLI.prototype.execute = () => {
+      called = true;
+      return Promise.resolve('async-ok');
+    };
     try {
       const r = await request(`${BASE}/api?q=merhaba`);
       assert.strictEqual(r.status, 200);
       const j = await r.json();
-      assert.strictEqual(j.result, 'async-ok');
+      assert.ok(typeof j.result === 'string' && j.result.length > 0);
+      assert.strictEqual(called, false);
     } finally {
       CLI.prototype.execute = originalExecute;
     }

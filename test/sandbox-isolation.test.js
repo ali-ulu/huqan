@@ -113,6 +113,102 @@ describe('AB6 sandbox isolation core decisions', () => {
     assert.equal(result.reason, SANDBOX_ISOLATION_REASONS.EXTERNAL_NETWORK_QUARANTINE);
   });
 
+  it('temp artifact inside sandbox can allow', () => {
+    const result = evaluate({
+      source: 'write tmp artifact',
+      sourceTrust: SOURCE_TRUST_LEVELS.VALIDATED,
+      runner: RUNNER_TYPES.NODE_VM,
+      context: {
+        tempArtifactPath: 'C:\\sandbox\\tmp\\artifact.json',
+        sandboxRoot: 'C:\\sandbox',
+      },
+    });
+
+    assert.equal(result.decision, SANDBOX_ISOLATION_DECISIONS.ALLOW);
+    assert.equal(result.allowed, true);
+  });
+
+  it('temp artifact outside sandbox returns quarantine', () => {
+    const result = evaluate({
+      source: 'write tmp artifact',
+      sourceTrust: SOURCE_TRUST_LEVELS.VALIDATED,
+      runner: RUNNER_TYPES.NODE_VM,
+      context: {
+        tempOutsideSandbox: true,
+        tempArtifactPath: 'C:\\Users\\sonfi\\AppData\\Local\\Temp\\artifact.json',
+        sandboxRoot: 'C:\\sandbox',
+      },
+    });
+
+    assert.equal(result.decision, SANDBOX_ISOLATION_DECISIONS.QUARANTINE);
+    assert.equal(result.allowed, false);
+    assert.equal(result.requiredReview, true);
+    assert.equal(result.reason, SANDBOX_ISOLATION_REASONS.TEMP_ARTIFACT_OUTSIDE_SANDBOX_QUARANTINE);
+  });
+
+  it('destructive cleanup outside sandbox blocks', () => {
+    const result = evaluate({
+      source: 'wipe temp artifacts',
+      sourceTrust: SOURCE_TRUST_LEVELS.VALIDATED,
+      runner: RUNNER_TYPES.NODE_VM,
+      context: {
+        tempOutsideSandbox: true,
+        tempArtifactPath: 'C:\\Users\\sonfi\\AppData\\Local\\Temp\\artifact.json',
+        sandboxRoot: 'C:\\sandbox',
+      },
+    });
+
+    assert.equal(result.decision, SANDBOX_ISOLATION_DECISIONS.BLOCK);
+    assert.equal(result.allowed, false);
+    assert.equal(result.reason, SANDBOX_ISOLATION_REASONS.DESTRUCTIVE_CLEANUP_OUTSIDE_SANDBOX_BLOCK);
+  });
+
+  it('missing sandbox root with temp artifacts does not allow', () => {
+    const result = evaluate({
+      source: 'write tmp artifact',
+      sourceTrust: SOURCE_TRUST_LEVELS.VALIDATED,
+      runner: RUNNER_TYPES.NODE_VM,
+      context: {
+        tempArtifactPath: 'C:\\Users\\sonfi\\AppData\\Local\\Temp\\artifact.json',
+      },
+    });
+
+    assert.equal(result.decision, SANDBOX_ISOLATION_DECISIONS.QUARANTINE);
+    assert.equal(result.allowed, false);
+    assert.equal(result.reason, SANDBOX_ISOLATION_REASONS.TEMP_ARTIFACT_MISSING_SANDBOX_ROOT_QUARANTINE);
+  });
+
+  it('path traversal temp artifact does not allow', () => {
+    const result = evaluate({
+      source: 'write tmp artifact',
+      sourceTrust: SOURCE_TRUST_LEVELS.VALIDATED,
+      runner: RUNNER_TYPES.NODE_VM,
+      context: {
+        tempArtifactPath: 'C:\\sandbox\\..\\outside\\artifact.json',
+        sandboxRoot: 'C:\\sandbox',
+      },
+    });
+
+    assert.equal(result.decision, SANDBOX_ISOLATION_DECISIONS.BLOCK);
+    assert.equal(result.allowed, false);
+    assert.equal(result.reason, SANDBOX_ISOLATION_REASONS.TEMP_ARTIFACT_PATH_TRAVERSAL_BLOCK);
+  });
+
+  it('Windows-style temp path outside sandbox does not allow', () => {
+    const result = evaluate({
+      source: 'write tmp artifact',
+      sourceTrust: SOURCE_TRUST_LEVELS.VALIDATED,
+      runner: RUNNER_TYPES.NODE_VM,
+      context: {
+        tempArtifactPath: 'C:\\Users\\sonfi\\AppData\\Local\\Temp\\artifact.json',
+        sandboxRoot: 'C:\\sandbox',
+      },
+    });
+
+    assert.notEqual(result.decision, SANDBOX_ISOLATION_DECISIONS.ALLOW);
+    assert.equal(result.allowed, false);
+  });
+
   it('timeout exceeding threshold returns block', () => {
     const result = evaluate({
       source: '({ total: input.a })',

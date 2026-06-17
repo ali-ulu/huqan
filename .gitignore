@@ -2,6 +2,7 @@ node_modules/
 memory.json
 memory.db
 memory.embeddings.json
+agent.memory.json
 *.agent.json
 memory.db-shm
 memory.db-wal

@@ -123,8 +123,31 @@ async function fetchRepoFiles(repoUrl, opts = {}) {
   return files;
 }
 
+async function fetchAndLearn(repoUrl, kernel, opts = {}) {
+  const files = await fetchRepoFiles(repoUrl, opts);
+  const results = [];
+  for (const file of files) {
+    const provenance = {
+      provenanceId: `github-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
+      source: 'github-adapter',
+      sourceRef: `${file.owner}/${file.repo}/${file.path}@${file.branch}`,
+      sourceType: 'markdown',
+      actor: opts.actor || 'github-adapter',
+      timestamp: new Date().toISOString(),
+    };
+    try {
+      const r = kernel.learn(file.content, { provenance, sourceType: 'markdown', sourceRef: provenance.sourceRef });
+      results.push({ path: file.path, learned: r.data.learned, ok: true });
+    } catch (e) {
+      results.push({ path: file.path, error: e.message, ok: false });
+    }
+  }
+  return { files, learned: results };
+}
+
 module.exports = {
   fetchRepoFiles,
+  fetchAndLearn,
   parseRepoUrl,
   includePath,
 };

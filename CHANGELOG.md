@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.9.1 - Memory Core Final Release
+
+Released 2026-06-12.
+
+### Added
+- Memory Core compatibility aligned on `main` after PR #42.
+- Main `MemoryStore` now exposes the Memory Core compatibility surface without replacing the normalized SQLite architecture.
+- Release smoke now reflects the final verified full suite result: `1277 pass / 0 fail / 16 skipped`.
+
+### Highlights
+- Main MemoryStore architecture preserved.
+- Memory Core API compatibility aligned.
+- SQLite and normalized persistence compatibility preserved.
+- Deterministic memory behavior preserved.
+- Provenance, audit, and workspace invariants preserved.
+- Package schema and roundtrip coverage preserved.
+
+### Out of scope
+- Self-Healer
+- MCP tool surface expansion
+- UI changes
+- embeddings
+- summary / cluster plugin
+- runtime import/export expansion beyond the existing MemoryStore behavior
+
 ## v0.9.1 — AB1 Action Risk Classifier
 
 Released 2026-06-07.

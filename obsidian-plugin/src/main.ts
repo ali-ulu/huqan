@@ -1,5 +1,7 @@
 import { App, Plugin, PluginSettingTab, Setting, Notice, parseYaml, stringifyYaml } from 'obsidian';
+import * as path from 'path';
 import Kernel from '../../kernel';
+import { resolvePathWithinRoot } from '../../lib/path-safety';
 
 interface AxiomPluginSettings {
   memoryPath: string;
@@ -11,6 +13,20 @@ const DEFAULT_SETTINGS: AxiomPluginSettings = {
   lang: 'tr',
 };
 
+function resolveVaultMemoryPath(vaultPath: string, memoryPath: string): string {
+  const resolvedCandidate = path.resolve(vaultPath, memoryPath || DEFAULT_SETTINGS.memoryPath);
+  try {
+    return resolvePathWithinRoot(vaultPath, resolvedCandidate, { allowMissing: true });
+  } catch (_) {
+    new Notice('Hafiza yolu vault disina cikamaz; varsayilan yol kullanildi');
+    return resolvePathWithinRoot(
+      vaultPath,
+      path.resolve(vaultPath, DEFAULT_SETTINGS.memoryPath),
+      { allowMissing: true }
+    );
+  }
+}
+
 export default class AxiomPlugin extends Plugin {
   kernel: Kernel;
   settings: AxiomPluginSettings;
@@ -19,7 +35,7 @@ export default class AxiomPlugin extends Plugin {
     await this.loadSettings();
 
     const vaultPath = this.app.vault.getRoot().path;
-    const memoryPath = `${vaultPath}${this.settings.memoryPath}`;
+    const memoryPath = resolveVaultMemoryPath(vaultPath, this.settings.memoryPath);
     this.kernel = new Kernel({
       memoryPath,
       lang: this.settings.lang,

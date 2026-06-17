@@ -1,0 +1,111 @@
+/*
+ * CODEOWNERS for AXIOM / HUQAN repository.
+ *
+ * This file defines the primary owners and approvers for different
+ * components of the project. Changes to these components require
+ * review by the listed owners.
+ *
+ * Owners are GitHub usernames and can be teams (e.g., @owner/team-name).
+ * Use a slash to indicate a team within an organization.
+ *
+ * For more information, see:
+ * https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/
+ *    naming-conventions-for-protecting-sensitive-repository-information
+ */
+
+# Code and Runtime
+* @agiulucom42-del
+
+# Kernel, Graph, and Core Logic
+*.js
+*.json
+*.yaml
+*.yml
+
+# Sandbox and Security
+lib/sandbox-isolation.js
+lib/tool-call-gate.js
+lib/action-risk-classifier.js
+lib/memory-mutation-gate.js
+lib/automation-safety-gate.js
+lib/audit-log.js
+lib/provenance*.js
+lib/conflict-detector.js
+lib/semantic*.js
+lib/contradiction-rules.js
+lib/risk-rules.js
+
+# Memory and Trust
+lib/memory-package.js
+lib/memory-store*.js
+lib/trust-manager.js
+lib/trust-kernel.js
+
+# API and REST
+/server.js
+mcpServer.js
+
+# CI/CD Pipeline
+.github/workflows/
+
+# Governance and Security
+SECURITY.md
+THREAT_MODEL.md
+CODEOWNERS
+README.md
+
+# Documentation and Specs
+docs/
+*.md
+
+# Package Distribution
+*.tar.gz
+*.zip
+
+# Any other critical files
+*.md
+*.rst
+*.txt
+
+# Exclude the following from CODEOWNERS checks
+.artifacts/
+components/
+node_modules/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Designated reviewers for specific files
+# Package changes
+package.json
+  - @agiulucom42-del
+
+# Core agent functionality
+lib/tool-call-gate.js
+lib/action-risk-classifier.js
+  - @agiulucom42-del
+
+# Memory management
+lib/memory-package.js
+  - @agiulucom42-del
+
+# Sandbox security
+lib/sandbox-isolation.js
+  - @agiulucom42-del
+
+# Trust and verification
+lib/trust-kernel.js
+lib/trust-manager.js
+lib/verify.js
+  - @agiulucom42-del
+
+# Policy and governance
+SECURITY.md
+THREAT_MODEL.md
+CODEOWNERS
+  - @agiulucom42-del
+
+# Documentation
+README.md
+docs/
+  - @agiulucom42-del

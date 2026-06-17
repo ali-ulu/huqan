@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>HUQAN / AXIOM - Surface Chooser</title>
+  <meta name="description" content="Chooser page for the HUQAN static demo, local AXIOM UI, and developer documentation.">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b1020;
+      --panel: #121935;
+      --panel-soft: #172142;
+      --border: #2b3868;
+      --text: #eef3ff;
+      --muted: #a7b4d6;
+      --accent: #6dd3ff;
+      --accent-2: #7d7cff;
+      --good: #7ce0ac;
+      --shadow: 0 16px 40px rgba(0, 0, 0, 0.32);
+      --sans: Inter, "Segoe UI", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--sans);
+      background:
+        radial-gradient(circle at top, rgba(125, 124, 255, 0.20), transparent 30%),
+        radial-gradient(circle at right, rgba(109, 211, 255, 0.16), transparent 25%),
+        linear-gradient(180deg, #0c1328 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+
+    .shell {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 36px 24px 56px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(109, 211, 255, 0.24);
+      background: rgba(18, 25, 53, 0.72);
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 18px 0 14px;
+      font-size: clamp(38px, 6vw, 62px);
+      line-height: 0.98;
+      letter-spacing: -0.03em;
+      max-width: 11ch;
+    }
+
+    .intro {
+      max-width: 68ch;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.65;
+      margin: 0 0 28px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(18, 25, 53, 0.96), rgba(14, 20, 42, 0.96));
+      box-shadow: var(--shadow);
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 320px;
+    }
+
+    .card strong {
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    .card h2 {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.1;
+    }
+
+    .card p,
+    .card li {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .card ul {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .actions {
+      margin-top: auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 0 16px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .button.primary {
+      border-color: transparent;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #08101f;
+      font-weight: 700;
+    }
+
+    .meta {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .meta-card {
+      border-radius: 16px;
+      border: 1px solid rgba(124, 224, 172, 0.16);
+      background: rgba(18, 25, 53, 0.58);
+      padding: 16px;
+    }
+
+    .meta-card strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--good);
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .meta-card span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 960px) {
+      .grid,
+      .meta {
+        grid-template-columns: 1fr;
+      }
+
+      .card {
+        min-height: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="eyebrow">HUQAN / AXIOM surface policy</div>
+    <h1>Choose the right surface.</h1>
+    <p class="intro">
+      AXIOM ships with one static public demo, one local backend-connected developer UI, and one docs entry page.
+      This page exists only to route visitors to the right surface without creating a competing third product demo.
+    </p>
+
+    <section class="grid">
+      <article class="card">
+        <strong>Public demo</strong>
+        <h2>`demo/index.html`</h2>
+        <p>Canonical backend-free concept landing. Safe for static hosting and investor/demo sharing.</p>
+        <ul>
+          <li>Static simulation only</li>
+          <li>No API keys or live verification</li>
+          <li>Use for Pages/Vercel/Cloudflare static deploys</li>
+        </ul>
+        <div class="actions">
+          <a class="button primary" href="../demo/">Open static demo</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <strong>Local product UI</strong>
+        <h2>`public/index.html`</h2>
+        <p>Canonical backend-connected developer surface served by `node server.js` on localhost.</p>
+        <ul>
+          <li>Real graph, trust, and verification flows</li>
+          <li>Requires local server</li>
+          <li>Not intended as static public landing</li>
+        </ul>
+        <div class="actions">
+          <a class="button" href="./local-install.md">Local install guide</a>
+          <a class="button" href="../README.md">README</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <strong>Docs entry</strong>
+        <h2>`docs/index.html`</h2>
+        <p>Lightweight chooser only. It points to the demo and the install/docs path instead of acting like another product page.</p>
+        <ul>
+          <li>Not a third UI mode</li>
+          <li>Not a second static demo</li>
+          <li>Not a backend-connected app</li>
+        </ul>
+        <div class="actions">
+          <a class="button" href="./product-surfaces.md">Surface policy</a>
+        </div>
+      </article>
+    </section>
+
+    <section class="meta">
+      <div class="meta-card">
+        <strong>Deploy target</strong>
+        <span>Use `demo/index.html` for static public previews and shares.</span>
+      </div>
+      <div class="meta-card">
+        <strong>Developer target</strong>
+        <span>Use `public/index.html` via `node server.js` for the local connected UI.</span>
+      </div>
+      <div class="meta-card">
+        <strong>Policy result</strong>
+        <span>PTD-2 removes surface ambiguity without starting a UI rewrite.</span>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

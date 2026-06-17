@@ -1,0 +1,1583 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>HUQAN - Static Demo Landing</title>
+  <meta name="description" content="HUQAN static demo landing page — local-first deterministic causal reasoning engine for verifying AI claims."><meta name="author" content="Huqan AI"><meta name="theme-color" content="#276ef1">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --bg-soft: #eef3f9;
+      --panel: #ffffff;
+      --panel-soft: #f8fbff;
+      --border: #dbe3ef;
+      --border-soft: #e8eef6;
+      --text: #0e1726;
+      --muted: #5f6c80;
+      --muted-2: #768396;
+      --accent: #276ef1;
+      --accent-2: #1f9d78;
+      --good: #178a4f;
+      --warn: #c58308;
+      --bad: #c73b2f;
+      --shadow: 0 12px 40px rgba(16, 24, 40, 0.08);
+      --radius: 18px;
+      --radius-sm: 12px;
+      --max: 1240px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      background:
+        radial-gradient(1100px 500px at 50% -10%, rgba(39, 110, 241, 0.10), transparent 44%),
+        linear-gradient(180deg, #f8fbff 0%, #f6f8fc 40%, #eff4fa 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    button, input {
+      font: inherit;
+    }
+
+    .shell {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 20px 24px 48px;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 16px;
+      padding: 4px 0 22px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(39, 110, 241, 0.12), rgba(39, 110, 241, 0.04));
+      border: 1px solid rgba(39, 110, 241, 0.20);
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      box-shadow: 0 6px 20px rgba(39, 110, 241, 0.10);
+    }
+
+    .mark svg {
+      width: 22px;
+      height: 22px;
+      color: var(--accent);
+    }
+
+    .brand-text {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .brand-text strong {
+      font-size: 15px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .brand-text span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .page-nav {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      justify-self: center;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .page-nav a {
+      transition: color 160ms ease;
+    }
+
+    .page-nav a:hover {
+      color: var(--text);
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .button {
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.92);
+      color: var(--text);
+      padding: 11px 16px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 6px 18px rgba(16, 24, 40, 0.05);
+      transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+      cursor: pointer;
+      white-space: nowrap;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(39, 110, 241, 0.35);
+      box-shadow: 0 8px 24px rgba(16, 24, 40, 0.08);
+    }
+
+    .button.primary {
+      background: linear-gradient(135deg, #2c7df7, #1f62db);
+      color: #fff;
+      border-color: #2c7df7;
+    }
+
+    .button svg {
+      width: 15px;
+      height: 15px;
+      flex: 0 0 auto;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 18px;
+      align-items: stretch;
+      margin-top: 10px;
+    }
+
+    .hero-copy, .panel, .section, .receipt, .demo-box, .mini-card, .demo-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-copy {
+      padding: 34px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 520px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-copy::after {
+      content: "";
+      position: absolute;
+      inset: auto -12% -25% auto;
+      width: 320px;
+      height: 320px;
+      background: radial-gradient(circle, rgba(39, 110, 241, 0.12), transparent 68%);
+      pointer-events: none;
+    }
+
+    .kicker {
+      color: var(--accent);
+      font-size: 13px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-size: clamp(44px, 5vw, 72px);
+      line-height: 0.96;
+      margin: 0;
+      max-width: 12ch;
+      letter-spacing: -0.04em;
+    }
+
+    .hero-copy p {
+      max-width: 62ch;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.6;
+      margin: 18px 0 0;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 26px;
+    }
+
+    .hero-meta {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 28px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .meta-card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(245, 248, 253, 0.9);
+      padding: 14px;
+      min-height: 92px;
+    }
+
+    .meta-card strong {
+      display: block;
+      font-size: 22px;
+      margin-bottom: 6px;
+    }
+
+    .meta-card span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .hero-side {
+      display: grid;
+      gap: 16px;
+    }
+
+    .panel {
+      padding: 20px;
+    }
+
+    .panel h2,
+    .section h2 {
+      font-size: 24px;
+      line-height: 1.1;
+      margin: 0 0 10px;
+      letter-spacing: -0.02em;
+    }
+
+    .panel p,
+    .section p,
+    .note-list {
+      color: var(--muted);
+      line-height: 1.6;
+      margin: 0;
+      font-size: 15px;
+    }
+
+    .receipt {
+      padding: 18px;
+      background: linear-gradient(180deg, #fff, #f9fbff);
+    }
+
+    .receipt .tagline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .receipt pre {
+      margin: 0;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.65;
+      color: #132033;
+      white-space: pre-wrap;
+      background: #f5f8fc;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      overflow: auto;
+    }
+
+    .section {
+      margin-top: 22px;
+      padding: 28px;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: end;
+      margin-bottom: 18px;
+    }
+
+    .section-header small {
+      color: var(--muted-2);
+      font-size: 13px;
+      line-height: 1.5;
+      max-width: 66ch;
+    }
+
+    .problem-grid {
+      display: grid;
+      grid-template-columns: 0.95fr 1.05fr;
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .problem-card {
+      padding: 22px;
+    }
+
+    .problem-left {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    .problem-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      border: 1px solid rgba(199, 59, 47, 0.25);
+      background: rgba(199, 59, 47, 0.07);
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      color: var(--bad);
+    }
+
+    .problem-icon svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .bullet-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 16px;
+    }
+
+    .bullet-list li {
+      display: grid;
+      grid-template-columns: 12px 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .bullet-list span {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--bad);
+      margin-top: 6px;
+      box-shadow: 0 0 0 4px rgba(199, 59, 47, 0.08);
+    }
+
+    .bullet-list strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 15px;
+    }
+
+    .bullet-list p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .mini-card {
+      padding: 18px;
+      min-height: 140px;
+      background: linear-gradient(180deg, #fff, #f8fbff);
+    }
+
+    .mini-card h3 {
+      margin: 0 0 10px;
+      font-size: 16px;
+      line-height: 1.25;
+    }
+
+    .mini-card p {
+      font-size: 14px;
+      color: var(--muted);
+      margin: 0;
+      line-height: 1.55;
+    }
+
+    .demo-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 12px;
+    }
+
+    .demo-card {
+      padding: 18px;
+      cursor: pointer;
+      transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+      background: linear-gradient(180deg, #fff, #f8fbff);
+    }
+
+    .demo-card:hover {
+      transform: translateY(-1px);
+      border-color: rgba(39, 110, 241, 0.35);
+    }
+
+    .demo-card.selected {
+      border-color: rgba(39, 110, 241, 0.58);
+      box-shadow: 0 0 0 1px rgba(39, 110, 241, 0.08), var(--shadow);
+    }
+
+    .demo-card .select-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      color: var(--muted);
+    }
+
+    .radio {
+      width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      border: 2px solid rgba(118, 131, 150, 0.5);
+      display: inline-grid;
+      place-items: center;
+      flex: 0 0 auto;
+    }
+
+    .demo-card.selected .radio {
+      border-color: var(--accent);
+    }
+
+    .radio::after {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--accent);
+      transform: scale(0);
+      transition: transform 140ms ease;
+    }
+
+    .demo-card.selected .radio::after {
+      transform: scale(1);
+    }
+
+    .demo-card h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .demo-card p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .verdict-box {
+      border-radius: 14px;
+      padding: 14px;
+      background: #f5f8fc;
+      border: 1px solid var(--border);
+    }
+
+    .verdict-box .verdict-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .verdict-box .verdict-main {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .verdict-box .verdict-support {
+      font-size: 13px;
+      color: var(--muted);
+      margin: 0;
+    }
+
+    .demo-layout {
+      display: grid;
+      grid-template-columns: 0.95fr 1.05fr;
+      gap: 16px;
+      align-items: start;
+      margin-top: 16px;
+    }
+
+    .demo-box {
+      padding: 18px;
+    }
+
+    .demo-outcome {
+      display: grid;
+      gap: 10px;
+    }
+
+    .outcome-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      border: 1px solid transparent;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .outcome-pill strong {
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .outcome-pill[data-tone="good"] { color: var(--good); border-color: rgba(23, 138, 79, 0.18); background: rgba(23, 138, 79, 0.07); }
+    .outcome-pill[data-tone="warn"] { color: var(--warn); border-color: rgba(197, 131, 8, 0.18); background: rgba(197, 131, 8, 0.07); }
+    .outcome-pill[data-tone="bad"] { color: var(--bad); border-color: rgba(199, 59, 47, 0.18); background: rgba(199, 59, 47, 0.07); }
+
+    .demo-result {
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: #f5f8fc;
+    }
+
+    .demo-result h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .demo-result p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .receipt-layout {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .receipt-summary {
+      padding: 16px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: #fff;
+      display: grid;
+      gap: 10px;
+      font-size: 14px;
+    }
+
+    .receipt-summary dl {
+      margin: 0;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px 16px;
+    }
+
+    .receipt-summary dt {
+      color: var(--muted);
+    }
+
+    .receipt-summary dd {
+      margin: 0;
+      text-align: right;
+      color: #132033;
+    }
+
+    .next-strip {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .next-card {
+      padding: 20px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .next-list {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .next-item {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: #f8fbff;
+      padding: 14px;
+      display: grid;
+      gap: 8px;
+      min-height: 108px;
+    }
+
+    .next-item strong {
+      font-size: 14px;
+      line-height: 1.3;
+    }
+
+    .next-item span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .note-list {
+      display: grid;
+      gap: 10px;
+      padding-left: 18px;
+    }
+
+    .note-list li {
+      margin: 0;
+    }
+
+    .footer {
+      margin-top: 22px;
+      color: var(--muted-2);
+      font-size: 13px;
+      line-height: 1.6;
+      padding: 10px 2px 0;
+    }
+
+    @media (max-width: 1020px) {
+      .hero, .problem-grid, .demo-grid, .demo-layout, .receipt-layout, .next-strip, .next-list, .grid-3 {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-copy {
+        min-height: auto;
+      }
+
+      .hero-meta {
+        grid-template-columns: 1fr;
+      }
+
+      .page-nav {
+        justify-content: start;
+      }
+
+      .section-header {
+        flex-direction: column;
+        align-items: start;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .shell {
+        padding: 16px 14px 32px;
+      }
+
+      .topbar {
+        grid-template-columns: 1fr;
+      }
+
+      .page-nav {
+        flex-direction: column;
+        align-items: start;
+      }
+
+      .hero-copy, .panel, .section, .receipt, .demo-box {
+        padding: 18px;
+      }
+
+      h1 {
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3l7 4v10l-7 4-7-4V7l7-4z"></path>
+            <path d="M12 7v10"></path>
+            <path d="M8.5 9.5l3.5 2 3.5-2"></path>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <strong>HUQAN</strong>
+          <span>Static demo landing</span>
+        </div>
+      </div>
+      <nav class="page-nav" aria-label="Sections">
+        <a href="#problem">Problem</a>
+        <a href="#what">Features</a>
+        <a href="#demo">Demo</a>
+        <a href="#receipt">Trust Receipt</a>
+        <a href="#next">What’s next</a>
+        <a href="#not">About</a>
+      </nav>
+      <nav class="top-actions" aria-label="Primary">
+        <a class="button" href="https://github.com/agiulucom42-del/axiom" target="_blank" rel="noreferrer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M14 3h7v7"></path>
+            <path d="M10 14L21 3"></path>
+            <path d="M21 14v7h-7"></path>
+            <path d="M3 10v11h11"></path>
+          </svg>
+          View GitHub
+        </a>
+        <a class="button primary" href="#askme">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+          </svg>
+          Ask Me
+        </a>
+        <a class="button" href="#demo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8 5l11 7-11 7V5z"></path>
+          </svg>
+          See Static Demo
+        </a>
+        <a class="button" href="#receipt">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z"></path>
+            <path d="M8 8h8"></path>
+            <path d="M8 12h8"></path>
+          </svg>
+          Read Trust Receipt Concept
+        </a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <div>
+            <div class="kicker">Static interactive demo</div>
+            <h1 id="hero-title">Trust boundary for AI agents</h1>
+            <p>
+              Models generate. Agents act. Memory stores. HUQAN judges.
+            </p>
+            <p>
+              HUQAN is a local-first trust and memory layer for AI systems. It judges claims, memory changes, and risky agent actions before they become trusted or executed.
+            </p>
+            <div class="hero-actions">
+              <a class="button primary" href="https://github.com/agiulucom42-del/axiom" target="_blank" rel="noreferrer">View GitHub</a>
+              <a class="button" href="#demo">See Static Demo</a>
+              <a class="button" href="#askme">Ask Me a Question</a>
+              <a class="button" href="#receipt">Read Trust Receipt Concept</a>
+            </div>
+          </div>
+
+          <div class="hero-meta" aria-label="Product summary">
+            <div class="meta-card">
+              <strong>Local-first</strong>
+              <span>Repo-based trust boundary, not browser-only simulation.</span>
+            </div>
+            <div class="meta-card">
+              <strong>Auditable</strong>
+              <span>Every trust receipt is explainable and reviewable.</span>
+            </div>
+            <div class="meta-card">
+              <strong>Deterministic</strong>
+              <span>Claims and risky actions are judged before execution.</span>
+            </div>
+          </div>
+        </div>
+
+                <aside class="hero-side">
+          <div class="panel" style="padding:0; overflow:hidden;">
+            <div style="padding:16px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid var(--border-soft); background:#f8fbff;">
+              <div style="display:grid; gap:4px;">
+                <strong style="font-size:15px;">Claim Review</strong>
+                <span style="color:var(--muted); font-size:12px;">Queue - approval gate</span>
+              </div>
+              <div style="padding:7px 11px; border-radius:999px; font-size:12px; letter-spacing:0.04em; text-transform:uppercase; color:var(--good); background:rgba(23,138,79,0.08); border:1px solid rgba(23,138,79,0.16); white-space:nowrap;">ALLOW</div>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; padding:14px 18px 0;">
+              <span style="display:inline-flex; align-items:center; gap:6px; padding:7px 10px; border-radius:999px; border:1px solid rgba(39,110,241,0.25); background:rgba(39,110,241,0.06); color:var(--text); font-size:12px; line-height:1;">Queue</span>
+              <span style="display:inline-flex; align-items:center; gap:6px; padding:7px 10px; border-radius:999px; border:1px solid var(--border); background:#fff; color:var(--muted); font-size:12px; line-height:1;">Evidence</span>
+              <span style="display:inline-flex; align-items:center; gap:6px; padding:7px 10px; border-radius:999px; border:1px solid var(--border); background:#fff; color:var(--muted); font-size:12px; line-height:1;">Receipt</span>
+            </div>
+            <div style="display:grid; gap:10px; padding:14px 18px 18px;">
+              <div style="border:1px solid rgba(39,110,241,0.40); border-radius:14px; background:#fff; padding:14px; display:grid; gap:8px; box-shadow:0 0 0 1px rgba(39,110,241,0.08);">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                  <strong style="font-size:15px;">The Earth orbits the Sun.</strong>
+                  <span style="color:var(--muted); font-size:12px; white-space:nowrap;">3 / 3 verified</span>
+                </div>
+                <p style="margin:0; color:var(--muted); font-size:13px; line-height:1.5;">Supported by known memory. No contradictions. Read-only action allowed.</p>
+                <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:4px;">
+                  <div style="border-radius:12px; border:1px solid var(--border-soft); background:var(--panel-soft); padding:10px; display:grid; gap:4px; min-height:66px;"><span style="color:var(--muted); font-size:12px;">Memory</span><strong style="font-size:14px;">Intact</strong></div>
+                  <div style="border-radius:12px; border:1px solid var(--border-soft); background:var(--panel-soft); padding:10px; display:grid; gap:4px; min-height:66px;"><span style="color:var(--muted); font-size:12px;">Risk</span><strong style="font-size:14px;">Low</strong></div>
+                  <div style="border-radius:12px; border:1px solid var(--border-soft); background:var(--panel-soft); padding:10px; display:grid; gap:4px; min-height:66px;"><span style="color:var(--muted); font-size:12px;">Receipt</span><strong style="font-size:14px;">TR-2025-05-24-7F3A</strong></div>
+                </div>
+              </div>
+              <div style="border:1px solid var(--border); border-radius:14px; background:#fff; padding:14px; display:grid; gap:8px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                  <strong style="font-size:15px;">Draft response for a tool call</strong>
+                  <span style="color:var(--muted); font-size:12px; white-space:nowrap;">Review</span>
+                </div>
+                <p style="margin:0; color:var(--muted); font-size:13px; line-height:1.5;">Pending evidence confirmation before an action can leave the gate.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="receipt" id="receipt">
+            <div class="tagline">
+              <span>Trust Receipt mock</span>
+              <span>Static simulation</span>
+            </div>
+            <pre>{
+  "verdict": "review",
+  "reason": "claim conflicts with known memory",
+  "evidence": ["known fact: aspirin is a blood thinner"],
+  "riskFlags": ["contradiction", "medical-domain"],
+  "timestamp": "demo"
+}</pre>
+          </div>
+        </aside>
+      </section>
+
+      <section class="section" id="problem" aria-labelledby="problem-title">
+        <div class="section-header">
+          <div>
+            <h2 id="problem-title">The problem</h2>
+            <small>LLMs generate plausible output. Agents can act with tools. Memory can store wrong state. Teams need a deterministic judge before execution.</small>
+          </div>
+        </div>
+        <div class="problem-grid">
+          <div class="panel problem-card">
+            <div class="problem-left">
+              <div class="problem-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 9v4"></path>
+                  <path d="M12 17h.01"></path>
+                  <path d="M10.3 4.8 2.8 19a1.8 1.8 0 0 0 1.6 2.6h15.2a1.8 1.8 0 0 0 1.6-2.6L13.7 4.8a2 2 0 0 0-3.4 0Z"></path>
+                </svg>
+              </div>
+              <div>
+                <h3 style="margin:0 0 8px;font-size:22px;">1. Problem</h3>
+                <p>AI agents can be persuasive and wrong. They can contradict themselves, forget context, or act on weak or unverifiable claims. Without a trust boundary, errors scale and actions have consequences.</p>
+              </div>
+            </div>
+          </div>
+          <div class="panel problem-card">
+            <ul class="bullet-list">
+              <li><span></span><div><strong>Unverifiable claims</strong><p>Agents cite sources that don't exist or can't be checked.</p></div></li>
+              <li><span></span><div><strong>Contradictions</strong><p>New information conflicts with what was previously accepted.</p></div></li>
+              <li><span></span><div><strong>Memory drift</strong><p>Long contexts and updates corrupt or overwrite facts.</p></div></li>
+              <li><span></span><div><strong>Unsafe actions</strong><p>Agents act before trust is established.</p></div></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="what" aria-labelledby="what-title">
+        <div class="section-header">
+          <div>
+            <h2 id="what-title">What HUQAN does</h2>
+            <small>A small set of trust primitives that keep the product boundary clear.</small>
+          </div>
+        </div>
+        <div class="grid-3">
+          <div class="mini-card"><h3>Claim verification</h3><p>Checks whether a claim is supported, contradicted, or needs review.</p></div>
+          <div class="mini-card"><h3>Contradiction detection</h3><p>Flags conflicts between new input and known memory or provenance.</p></div>
+          <div class="mini-card"><h3>Memory integrity</h3><p>Preserves auditable state instead of letting convenience overwrite truth.</p></div>
+          <div class="mini-card"><h3>Action gate</h3><p>Blocks risky agent actions until the trust boundary is satisfied.</p></div>
+          <div class="mini-card"><h3>Approval runtime</h3><p>Supports human-gated workflows without collapsing into a black box.</p></div>
+          <div class="mini-card"><h3>Trust Receipt</h3><p>Emits a compact, reviewable receipt for each judgment or gate decision.</p></div>
+        </div>
+      </section>
+
+      <section class="section" id="demo" aria-labelledby="demo-title">
+        <div class="section-header">
+          <div>
+            <h2 id="demo-title">Interactive static demo</h2>
+            <small>Static simulation — not live engine output. Click an example to see the simulated verdict.</small>
+          </div>
+        </div>
+        <div class="demo-grid">
+          <div class="demo-card selected" data-example="supported">
+            <div class="select-row"><span class="radio"></span><strong>Example A: Factual claim</strong></div>
+            <h3>Claim: The Earth orbits the Sun.</h3>
+            <p>Supported by known memory and verified sources.</p>
+            <div class="verdict-box">
+              <div class="verdict-label"><span>ALLOW</span><span>Low risk · Verified · 0 contradictions</span></div>
+              <div class="verdict-main" style="color:var(--good);">ALLOW</div>
+              <p class="verdict-support">sources verified · Read-only action</p>
+            </div>
+          </div>
+          <div class="demo-card" data-example="contradiction">
+            <div class="select-row"><span class="radio"></span><strong>Example B: Contradiction</strong></div>
+            <h3>Claim: The Earth is flat.</h3>
+            <p>Conflicts with trusted memory and must go to review.</p>
+            <div class="verdict-box">
+              <div class="verdict-label"><span>BLOCK</span><span>High risk · 2 contradictions</span></div>
+              <div class="verdict-main" style="color:var(--bad);">BLOCK</div>
+              <p class="verdict-support">0 sources verified · Action blocked</p>
+            </div>
+          </div>
+          <div class="demo-card" data-example="blocked">
+            <div class="select-row"><span class="radio"></span><strong>Example C: Memory drift</strong></div>
+            <h3>Claim: My birthday is 1990.</h3>
+            <p>Medium risk memory conflict that needs approval.</p>
+            <div class="verdict-box">
+              <div class="verdict-label"><span>REVIEW</span><span>Medium risk · Memory conflict</span></div>
+              <div class="verdict-main" style="color:var(--warn);">REVIEW</div>
+              <p class="verdict-support">1 source verified · Approval required</p>
+            </div>
+          </div>
+        </div>
+        <div class="demo-layout">
+          <div class="demo-box">
+            <div class="demo-outcome">
+              <div class="outcome-pill" id="verdict-pill" data-tone="good"><strong>SUPPORTED</strong></div>
+              <div class="demo-result">
+                <h3 id="verdict-title">Aspirin is a blood thinner</h3>
+                <p id="verdict-body">Supported by known memory. No intervention required.</p>
+              </div>
+            </div>
+          </div>
+          <div class="demo-box">
+            <h3 style="margin:0 0 10px;font-size:18px;">How the static simulation works</h3>
+            <p style="margin:0 0 12px;color:var(--muted);font-size:14px;line-height:1.6;">A frontend-only state switch updates the verdict mockup. No browser engine, API call, or hidden backend is involved.</p>
+            <div class="mini-card" style="min-height:auto;">
+              <h3>Deployment note</h3>
+              <p>The page is intentionally backend-free. It can be deployed to Vercel, GitHub Pages, or Cloudflare Pages.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="receipt-panel" aria-labelledby="receipt-title-2">
+        <div class="section-header">
+          <div>
+            <h2 id="receipt-title-2">Trust Receipt (simulated)</h2>
+            <small>Portable record of the decision for auditing and transparency.</small>
+          </div>
+        </div>
+        <div class="receipt-layout">
+          <div class="receipt">
+            <div class="tagline">
+              <span>Receipt payload</span>
+              <span>Portable and reviewable</span>
+            </div>
+            <pre>{
+  "trust_receipt_id": "TR-2025-05-24-7F3A",
+  "engine": "HUQAN v0.9.0",
+  "mode": "local",
+  "timestamp": "2025-05-24T10:24:31Z",
+  "claim": "The Earth orbits the Sun.",
+  "verdict": "ALLOW",
+  "risk_level": "LOW",
+  "contradictions": 0,
+  "sources_verified": 3,
+  "memory_integrity": "INTACT",
+  "action": "READ_ONLY",
+  "policy": "default-strict",
+  "approvals": [],
+  "notes": "All assertions align with authoritative sources.",
+  "signature": "ed25519:MEUCIQD3...7F3A",
+  "hash": "sha256:8b4f9c2f3a1e...d9c7"
+}</pre>
+            <div class="footer" style="margin-top:10px;padding:0;color:var(--muted);">All data stays on your device. Receipts are exportable and verifiable.</div>
+          </div>
+          <aside class="receipt-summary">
+            <div class="tagline" style="margin-bottom:0;">
+              <span>Receipt summary</span>
+              <span>Simulated</span>
+            </div>
+            <dl>
+              <dt>Receipt ID</dt><dd>TR-2025-05-24-7F3A</dd>
+              <dt>Verdict</dt><dd style="color:var(--good)">ALLOW</dd>
+              <dt>Risk level</dt><dd>LOW</dd>
+              <dt>Contradictions</dt><dd>0</dd>
+              <dt>Sources verified</dt><dd>3</dd>
+              <dt>Action</dt><dd>READ_ONLY</dd>
+              <dt>Memory integrity</dt><dd>INTACT</dd>
+              <dt>Policy</dt><dd>default-strict</dd>
+              <dt>Timestamp</dt><dd>2025-05-24T10:24:31Z</dd>
+              <dt>Signature</dt><dd>ed25519:MEUCIQ...7F3A</dd>
+            </dl>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section" id="live-demo-output" aria-labelledby="live-demo-title">
+        <div class="section-header">
+          <div>
+            <h2 id="live-demo-title">Live demo output — actual screenshots from a fresh clone</h2>
+            <small>Generated on 2026-06-17 from a clean clone via <code>node egitim.js</code> + <code>node server.js</code>. No filters, no edits.</small>
+          </div>
+        </div>
+
+        <div style="display:grid; gap:18px; margin-top:8px;">
+
+          <!-- Screenshot 1: Verify contradiction -->
+          <div class="panel" style="padding:18px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
+              <div>
+                <strong style="font-size:16px;">1. Verify a contradiction</strong>
+                <p style="margin:4px 0 0; color:var(--muted); font-size:13px;">Input: <code>verify: kedi bitkidir</code> · Output: <strong style="color:var(--bad);">celiski</strong> (contradicted) · Confidence: 0.95</p>
+              </div>
+              <span style="padding:6px 10px; border-radius:999px; font-size:12px; color:var(--bad); background:rgba(199,59,47,0.08); border:1px solid rgba(199,59,47,0.16); white-space:nowrap;">CONTRADICTION DETECTED</span>
+            </div>
+            <img src="examples/demo-screenshot-verify-contradiction.png" alt="HUQAN dashboard — verify contradiction" style="width:100%; height:auto; border-radius:12px; border:1px solid var(--border); display:block;" loading="lazy">
+            <p style="margin:10px 0 0; color:var(--muted); font-size:12px;">The dashboard shows the full evidence trail: <code>kedi --[tür]--> hayvan</code> conflicts with the claim that kedi is plant, because <code>hayvan</code> and <code>bitki</code> are disjoint types in the type lattice.</p>
+          </div>
+
+          <!-- Screenshot 2: Knowledge graph -->
+          <div class="panel" style="padding:18px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
+              <div>
+                <strong style="font-size:16px;">2. The live knowledge graph</strong>
+                <p style="margin:4px 0 0; color:var(--muted); font-size:13px;">D3 force-directed view · 158 nodes · 94 edges · Turkish-language concepts · typed relations</p>
+              </div>
+              <span style="padding:6px 10px; border-radius:999px; font-size:12px; color:var(--accent); background:rgba(39,110,241,0.08); border:1px solid rgba(39,110,241,0.18); white-space:nowrap;">D3 VISUALIZATION</span>
+            </div>
+            <img src="examples/demo-screenshot-graph.png" alt="HUQAN knowledge graph D3 visualization" style="width:100%; height:auto; border-radius:12px; border:1px solid var(--border); display:block;" loading="lazy">
+            <p style="margin:10px 0 0; color:var(--muted); font-size:12px;">Every node is a concept learned from natural language. Every edge is a typed relation: <code>tür</code> (is-a), <code>yapabilir</code> (can-do), <code>özellik</code> (property), <code>benzer</code> (similar-to), plus causal relations <code>CAUSES</code>, <code>PREVENTS</code>, <code>ENABLES</code>, <code>DEPENDS_ON</code>, <code>LEADS_TO</code>.</p>
+          </div>
+
+          <!-- Screenshot 3: Dashboard -->
+          <div class="panel" style="padding:18px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
+              <div>
+                <strong style="font-size:16px;">3. The local developer dashboard</strong>
+                <p style="margin:4px 0 0; color:var(--muted); font-size:13px;">5 tabs: Yargıç · Şeytan'ın Avukatı · Çelişkiler · Graph · Güven (Trust)</p>
+              </div>
+              <span style="padding:6px 10px; border-radius:999px; font-size:12px; color:var(--accent-2); background:rgba(31,157,120,0.08); border:1px solid rgba(31,157,120,0.18); white-space:nowrap;">LOCAL-FIRST</span>
+            </div>
+            <img src="examples/demo-screenshot-dashboard.png" alt="HUQAN local developer dashboard" style="width:100%; height:auto; border-radius:12px; border:1px solid var(--border); display:block;" loading="lazy">
+          </div>
+
+          <!-- Real verify JSON -->
+          <div class="panel" style="padding:18px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
+              <div>
+                <strong style="font-size:16px;">4. Real <code>verify()</code> output (JSON)</strong>
+                <p style="margin:4px 0 0; color:var(--muted); font-size:13px;">From <code>POST /v2/verify</code> with <code>{"statement":"kedi hayvandir"}</code> · Same input → same output, every time</p>
+              </div>
+              <span style="padding:6px 10px; border-radius:999px; font-size:12px; color:var(--good); background:rgba(23,138,79,0.08); border:1px solid rgba(23,138,79,0.16); white-space:nowrap;">DETERMINISTIC</span>
+            </div>
+            <pre style="margin:0; padding:14px; background:#0e1726; color:#cbd6e3; border-radius:10px; font-family:var(--mono); font-size:12px; line-height:1.55; overflow-x:auto;">{
+  "ok": true,
+  "type": "verify",
+  "data": {
+    "status": "dogrulandi",
+    "confidence": 0.9
+  },
+  "evidence": [
+    {
+      "kind": "direct_edge",
+      "text": "kedi --[tür]--> hayvan (relation=tür, source=learn, confidence=0.90)",
+      "confidence": 0.9,
+      "nodes": ["kedi", "hayvan"],
+      "edges": [{ "from": "kedi", "to": "hayvan", "relation": "tür" }]
+    }
+  ],
+  "meta": {
+    "contractVersion": "1.0.0",
+    "backend": "sqlite",
+    "paranoidMode": false,
+    "semanticTrust": {
+      "status": "dogrulandi",
+      "classification": "verified",
+      "supportScore": 0.9,
+      "contradictionScore": 0,
+      "riskScore": 0,
+      "matchType": "direct_edge"
+    },
+    "reasoningTrace": {
+      "traceId": "6061e030cae45f62",
+      "claim": "kedi hayvandir",
+      "status": "dogrulandi",
+      "confidence": 0.9,
+      "mode": "semantic-trace",
+      "summary": { "supported": 1, "contradicted": 0, "unknown": 0, "total": 1 }
+    },
+    "trustReceiptPreview": {
+      "originalClaim": "kedi hayvandir",
+      "finalStatus": "dogrulandi",
+      "confidence": 0.9,
+      "canonical": true
+    }
+  }
+}</pre>
+          </div>
+
+          <!-- Causal demo -->
+          <div class="panel" style="padding:18px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
+              <div>
+                <strong style="font-size:16px;">5. Causal "what-if" simulation</strong>
+                <p style="margin:4px 0 0; color:var(--muted); font-size:13px;">Question: <em>"autoLearn default true olursa ne bozulur?"</em> · Risk: critical · Recommendation: not recommended</p>
+              </div>
+              <span style="padding:6px 10px; border-radius:999px; font-size:12px; color:var(--bad); background:rgba(199,59,47,0.08); border:1px solid rgba(199,59,47,0.16); white-space:nowrap;">CRITICAL RISK</span>
+            </div>
+            <pre style="margin:0; padding:14px; background:#0e1726; color:#cbd6e3; border-radius:10px; font-family:var(--mono); font-size:12px; line-height:1.55; overflow-x:auto;">Causal chain:
+  autoLearn default true
+    ──CAUSES──▶ unsupported LLM output can enter graph
+    ──CAUSES──▶ graph trust degradation
+    ──CAUSES──▶ Shield claim weakens
+    ──PREVENTS──▶ HUQAN reliability promise is damaged
+
+Relation profile: CAUSES → CAUSES → CAUSES → PREVENTS
+Risk level: critical
+Confidence: 0.84
+Recommendation: Change is not recommended.
+
+Next questions:
+  - Bu riski azaltmak için hangi alternatifler var?
+  - İnsan onayı veya ek kanıt gerekiyor mu?</pre>
+          </div>
+
+        </div>
+
+        <div class="mini-card" style="margin-top:18px; min-height:auto; background:var(--panel-soft);">
+          <h3 style="margin:0 0 6px; font-size:14px;">Reproduce in 5 seconds</h3>
+          <pre style="margin:0; padding:10px; background:#fff; border:1px solid var(--border-soft); border-radius:8px; font-family:var(--mono); font-size:12px; overflow-x:auto;">git clone https://github.com/agiulucom42-del/axiom.git
+cd axiom
+npm ci --include=optional     # ~1 second, zero runtime deps
+node egitim.js                 # ~5 seconds, loads 77 Turkish facts
+node server.js                 # opens http://localhost:3000</pre>
+        </div>
+      </section>
+
+            <section class="section" id="next" aria-labelledby="next-title">
+        <div class="section-header">
+          <div>
+            <h2 id="next-title">What's next</h2>
+            <small>Product is still developing; new features are coming soon.</small>
+          </div>
+        </div>
+        <div class="next-strip">
+          <div class="next-card">
+            <h3 style="margin:0;font-size:18px;">Development continues</h3>
+            <p>HUQAN is already shipped as a security and memory core. This demo stays compact while the product line keeps moving forward.</p>
+          </div>
+          <div class="next-card">
+            <h3 style="margin:0;font-size:18px;">New features are coming soon</h3>
+            <p>We are still developing the product. The next pass will add a tighter beta surface, more integrations, and a cleaner story for real users.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="not" aria-labelledby="not-title">
+        <div class="section-header">
+          <div>
+            <h2 id="not-title">What this demo is not</h2>
+            <small>Clear boundaries are part of the product story.</small>
+          </div>
+        </div>
+        <ul class="note-list">
+          <li>not a live verifier</li>
+          <li>not a replacement for human review</li>
+          <li>not a guarantee of truth</li>
+          <li>not a medical/legal/compliance product</li>
+          <li>not an LLM wrapper</li>
+        </ul>
+      </section>
+
+      <section class="section" id="askme" aria-labelledby="askme-title">
+        <div class="section-header">
+          <div>
+            <h2 id="askme-title">Ask me a question · Give feedback</h2>
+            <small>Curious about HUQAN? Want to integrate it, contribute, or just chat? Send a question — I read every email. Or just rate this demo below.</small>
+          </div>
+        </div>
+
+        <div class="panel" style="padding:22px;">
+          <form id="askme-form" style="display:grid; gap:14px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+              <label style="display:grid; gap:6px;">
+                <span style="font-size:13px; color:var(--muted);">Your name (optional)</span>
+                <input type="text" id="askme-name" placeholder="John Doe" style="padding:11px 14px; border:1px solid var(--border); border-radius:10px; font-size:14px; background:#fff; color:var(--text);">
+              </label>
+              <label style="display:grid; gap:6px;">
+                <span style="font-size:13px; color:var(--muted);">Your email (so I can reply)</span>
+                <input type="email" id="askme-email" placeholder="you@example.com" required style="padding:11px 14px; border:1px solid var(--border); border-radius:10px; font-size:14px; background:#fff; color:var(--text);">
+              </label>
+            </div>
+            <label style="display:grid; gap:6px;">
+              <span style="font-size:13px; color:var(--muted);">Your question</span>
+              <textarea id="askme-message" rows="5" placeholder="What would you like to know about HUQAN? Integration, use cases, technical details, partnership..." required style="padding:11px 14px; border:1px solid var(--border); border-radius:10px; font-size:14px; font-family:var(--sans); background:#fff; color:var(--text); resize:vertical;"></textarea>
+            </label>
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;">
+              <small style="color:var(--muted); font-size:12px;">Your email opens your mail client. No data is sent to any server — this is a static page.</small>
+              <button type="submit" class="button primary" style="font-size:15px; padding:13px 22px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:16px; height:16px;">
+                  <path d="M22 2L11 13"></path>
+                  <path d="M22 2l-7 20-4-9-9-4 20-7z"></path>
+                </svg>
+                Send Question
+              </button>
+            </div>
+          </form>
+
+          <div id="askme-success" style="display:none; margin-top:18px; padding:14px 16px; border-radius:12px; background:rgba(23,138,79,0.08); border:1px solid rgba(23,138,79,0.18); color:var(--good);">
+            <strong>Mail client opened.</strong> If it didn't, copy this address: <code style="background:#fff; padding:2px 8px; border-radius:6px; border:1px solid var(--border-soft);">agi.ulu.com.42@gmail.com</code>
+          </div>
+
+          <hr style="margin:22px 0; border:0; border-top:1px solid var(--border-soft);">
+
+          <div style="display:grid; gap:18px;">
+            <div>
+              <h3 style="margin:0 0 12px; font-size:16px; display:flex; align-items:center; gap:10px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:18px; height:18px; color:var(--warn);">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                </svg>
+                Quick feedback — rate this demo
+              </h3>
+              <form id="feedback-form" style="display:grid; gap:14px;">
+                <div style="display:flex; align-items:center; gap:18px; flex-wrap:wrap;">
+                  <span style="font-size:13px; color:var(--muted);">Your rating:</span>
+                  <div id="feedback-stars" style="display:inline-flex; gap:6px;" role="radiogroup" aria-label="Star rating">
+                    <button type="button" class="star-btn" data-value="1" aria-label="1 star" style="background:none; border:none; cursor:pointer; padding:0; line-height:1;">
+                      <svg class="star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:30px; height:30px; color:var(--muted-2); transition:color 150ms ease, transform 150ms ease;">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                      </svg>
+                    </button>
+                    <button type="button" class="star-btn" data-value="2" aria-label="2 stars" style="background:none; border:none; cursor:pointer; padding:0; line-height:1;">
+                      <svg class="star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:30px; height:30px; color:var(--muted-2); transition:color 150ms ease, transform 150ms ease;">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                      </svg>
+                    </button>
+                    <button type="button" class="star-btn" data-value="3" aria-label="3 stars" style="background:none; border:none; cursor:pointer; padding:0; line-height:1;">
+                      <svg class="star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:30px; height:30px; color:var(--muted-2); transition:color 150ms ease, transform 150ms ease;">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                      </svg>
+                    </button>
+                    <button type="button" class="star-btn" data-value="4" aria-label="4 stars" style="background:none; border:none; cursor:pointer; padding:0; line-height:1;">
+                      <svg class="star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:30px; height:30px; color:var(--muted-2); transition:color 150ms ease, transform 150ms ease;">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                      </svg>
+                    </button>
+                    <button type="button" class="star-btn" data-value="5" aria-label="5 stars" style="background:none; border:none; cursor:pointer; padding:0; line-height:1;">
+                      <svg class="star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:30px; height:30px; color:var(--muted-2); transition:color 150ms ease, transform 150ms ease;">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                      </svg>
+                    </button>
+                  </div>
+                  <span id="feedback-rating-text" style="font-size:13px; color:var(--muted); min-width:80px;">Not rated yet</span>
+                </div>
+                <input type="hidden" id="feedback-rating" value="0">
+                <label style="display:grid; gap:6px;">
+                  <span style="font-size:13px; color:var(--muted);">Your comment (optional, but appreciated)</span>
+                  <textarea id="feedback-comment" rows="3" placeholder="What did you think? What could be better? Would you use this?" style="padding:11px 14px; border:1px solid var(--border); border-radius:10px; font-size:14px; font-family:var(--sans); background:#fff; color:var(--text); resize:vertical;"></textarea>
+                </label>
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;">
+                  <small style="color:var(--muted); font-size:12px;">Anonymous — opens your mail client. No tracking, no server.</small>
+                  <button type="submit" class="button primary" style="font-size:14px; padding:11px 18px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:15px; height:15px;">
+                      <path d="M22 2L11 13"></path>
+                      <path d="M22 2l-7 20-4-9-9-4 20-7z"></path>
+                    </svg>
+                    Send Feedback
+                  </button>
+                </div>
+              </form>
+              <div id="feedback-success" style="display:none; margin-top:14px; padding:12px 16px; border-radius:12px; background:rgba(23,138,79,0.08); border:1px solid rgba(23,138,79,0.18); color:var(--good);">
+                <strong>Thanks for your feedback!</strong> Your mail client should have opened. If not, send to <code style="background:#fff; padding:2px 8px; border-radius:6px; border:1px solid var(--border-soft);">agi.ulu.com.42@gmail.com</code>
+              </div>
+            </div>
+
+            <hr style="margin:6px 0; border:0; border-top:1px solid var(--border-soft);">
+
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px;">
+              <a href="https://github.com/agiulucom42-del/axiom" target="_blank" rel="noreferrer" style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; border:1px solid var(--border); background:#fff; text-decoration:none; color:var(--text);">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="width:22px; height:22px; color:var(--text);">
+                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                </svg>
+                <div>
+                  <strong style="font-size:14px; display:block; line-height:1.3;">GitHub Repository</strong>
+                  <span style="font-size:12px; color:var(--muted);">Source, issues, discussions</span>
+                </div>
+              </a>
+              <a href="mailto:agi.ulu.com.42@gmail.com?subject=HUQAN%20Question" style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; border:1px solid var(--border); background:#fff; text-decoration:none; color:var(--text);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:22px; height:22px; color:var(--accent);">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                  <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+                <div>
+                  <strong style="font-size:14px; display:block; line-height:1.3;">Email Direct</strong>
+                  <span style="font-size:12px; color:var(--muted);">agi.ulu.com.42@gmail.com</span>
+                </div>
+              </a>
+              <a href="https://github.com/agiulucom42-del/axiom/issues/new" target="_blank" rel="noreferrer" style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; border:1px solid var(--border); background:#fff; text-decoration:none; color:var(--text);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:22px; height:22px; color:var(--warn);">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <div>
+                  <strong style="font-size:14px; display:block; line-height:1.3;">Report an Issue</strong>
+                  <span style="font-size:12px; color:var(--muted);">Bug, feature request, security</span>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="surfaces" aria-labelledby="surfaces-title">
+        <div class="section-header">
+          <div>
+            <h2 id="surfaces-title">Other HUQAN surfaces</h2>
+            <small>This static demo is one of three canonical HUQAN surfaces. Pick the one that fits your need.</small>
+          </div>
+        </div>
+        <div class="grid-3" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;">
+          <a class="mini-card" href="./index.html" style="text-decoration:none;color:inherit;cursor:pointer;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <span style="padding:3px 9px;border-radius:999px;font-size:11px;color:var(--accent);background:rgba(39,110,241,0.08);border:1px solid rgba(39,110,241,0.18);">YOU ARE HERE</span>
+            </div>
+            <h3 style="margin:0 0 6px;font-size:16px;">Public static demo</h3>
+            <p style="margin:0;color:var(--muted);font-size:13px;line-height:1.55;">Backend-free concept landing. Deploy to Vercel / GitHub Pages / Cloudflare Pages. No API keys, no telemetry, no live engine.</p>
+            <p style="margin:8px 0 0;font-size:12px;color:var(--muted);"><code>demo/index.html</code> · target: <strong>demo.huqan.com</strong></p>
+          </a>
+          <a class="mini-card" href="https://github.com/agiulucom42-del/axiom/blob/main/docs/local-install.md" target="_blank" rel="noreferrer" style="text-decoration:none;color:inherit;cursor:pointer;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <span style="padding:3px 9px;border-radius:999px;font-size:11px;color:var(--accent-2);background:rgba(31,157,120,0.08);border:1px solid rgba(31,157,120,0.18);">INTERACTIVE</span>
+            </div>
+            <h3 style="margin:0 0 6px;font-size:16px;">Local product UI</h3>
+            <p style="margin:0;color:var(--muted);font-size:13px;line-height:1.55;">Backend-connected developer surface via <code>node server.js</code>. Full verify / dream / graph / trust-receipt functionality. Opens at <code>http://localhost:3000</code>.</p>
+            <p style="margin:8px 0 0;font-size:12px;color:var(--muted);"><code>public/index.html</code> · 5 tabs · live engine</p>
+          </a>
+          <a class="mini-card" href="https://github.com/agiulucom42-del/axiom" target="_blank" rel="noreferrer" style="text-decoration:none;color:inherit;cursor:pointer;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <span style="padding:3px 9px;border-radius:999px;font-size:11px;color:var(--muted-2);background:rgba(95,108,128,0.08);border:1px solid rgba(95,108,128,0.18);">REFERENCE</span>
+            </div>
+            <h3 style="margin:0 0 6px;font-size:16px;">Docs & GitHub</h3>
+            <p style="margin:0;color:var(--muted);font-size:13px;line-height:1.55;">Chooser page, ADRs, audits, release notes, install guide, and the full source. For developers and reviewers.</p>
+            <p style="margin:8px 0 0;font-size:12px;color:var(--muted);"><code>docs/index.html</code> · <code>README.md</code></p>
+          </a>
+        </div>
+      </section>
+
+      <div class="footer" style="display:flex; flex-direction:column; gap:8px; align-items:flex-start;">
+        <div>Recommended deploy target: Vercel preview. Stable domain later: <strong>demo.huqan.com</strong>.</div>
+        <div style="display:flex; gap:18px; flex-wrap:wrap; align-items:center; font-size:13px;">
+          <a href="https://github.com/agiulucom42-del/axiom" target="_blank" rel="noreferrer" style="color:var(--accent); text-decoration:none;">GitHub Repository</a>
+          <span style="color:var(--border);">·</span>
+          <a href="mailto:agi.ulu.com.42@gmail.com" style="color:var(--accent); text-decoration:none;">agi.ulu.com.42@gmail.com</a>
+          <span style="color:var(--border);">·</span>
+          <span style="color:var(--muted);">Apache License 2.0 · No tracking, no cookies, no analytics</span>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const pill = document.getElementById('verdict-pill');
+    const verdictTitle = document.getElementById('verdict-title');
+    const verdictBody = document.getElementById('verdict-body');
+    const receipt = document.querySelector('#receipt pre');
+    const demoCards = Array.from(document.querySelectorAll('.demo-card'));
+
+    const examples = {
+      supported: {
+        text: 'Aspirin is a blood thinner',
+        tone: 'good',
+        verdict: 'SUPPORTED',
+        body: 'Supported by known memory. No intervention required.',
+        receipt: {
+          verdict: 'review',
+          reason: 'claim aligns with known memory',
+          evidence: ['known fact: aspirin is a blood thinner'],
+          riskFlags: ['none'],
+          timestamp: 'demo'
+        }
+      },
+      contradiction: {
+        text: 'Aspirin thickens blood',
+        tone: 'warn',
+        verdict: 'CONTRADICTION / REVIEW',
+        body: 'Known memory conflicts with the claim. Send to review.',
+        receipt: {
+          verdict: 'review',
+          reason: 'claim conflicts with known memory',
+          evidence: ['known fact: aspirin is a blood thinner'],
+          riskFlags: ['contradiction', 'medical-domain'],
+          timestamp: 'demo'
+        }
+      },
+      blocked: {
+        text: 'Run unknown deployment command',
+        tone: 'bad',
+        verdict: 'BLOCKED',
+        body: 'Unsafe action request. The action gate blocks unknown execution.',
+        receipt: {
+          verdict: 'blocked',
+          reason: 'unsafe action request',
+          evidence: ['tool action not allowlisted'],
+          riskFlags: ['destructive-action', 'review-required'],
+          timestamp: 'demo'
+        }
+      }
+    };
+
+    function renderReceipt(data) {
+      if (receipt) receipt.textContent = JSON.stringify(data, null, 2);
+    }
+
+    function applyExample(key) {
+      const item = examples[key];
+      pill.dataset.tone = item.tone;
+      pill.innerHTML = `<strong>${item.verdict}</strong>`;
+      verdictTitle.textContent = item.text;
+      verdictBody.textContent = item.body;
+      renderReceipt(item.receipt);
+      demoCards.forEach(card => card.classList.toggle('selected', card.dataset.example === key));
+    }
+
+    demoCards.forEach((card) => {
+      card.addEventListener('click', () => applyExample(card.dataset.example));
+    });
+
+    applyExample('supported');
+
+    // Ask Me form — mailto handler
+    const askmeForm = document.getElementById('askme-form');
+    const askmeSuccess = document.getElementById('askme-success');
+    if (askmeForm) {
+      askmeForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = (document.getElementById('askme-name').value || 'Anonymous').trim();
+        const email = (document.getElementById('askme-email').value || '').trim();
+        const message = (document.getElementById('askme-message').value || '').trim();
+        if (!email || !message) return;
+
+        const subject = encodeURIComponent('HUQAN Question from ' + name);
+        const body = encodeURIComponent(
+          'Name: ' + name + '\n' +
+          'Email: ' + email + '\n' +
+          'Question:\n' + message + '\n\n' +
+          '---\n' +
+          'Sent from huqan demo page'
+        );
+        const mailto = 'mailto:agi.ulu.com.42@gmail.com?subject=' + subject + '&body=' + body;
+        window.location.href = mailto;
+        if (askmeSuccess) askmeSuccess.style.display = 'block';
+      });
+    }
+
+    // Feedback — star rating + comment
+    const ratingLabels = {
+      0: 'Not rated yet',
+      1: '1 / 5 — Needs work',
+      2: '2 / 5 — Below expectations',
+      3: '3 / 5 — Decent',
+      4: '4 / 5 — Good',
+      5: '5 / 5 — Excellent',
+    };
+
+    const starsContainer = document.getElementById('feedback-stars');
+    const ratingText = document.getElementById('feedback-rating-text');
+    const ratingInput = document.getElementById('feedback-rating');
+    const starButtons = starsContainer ? Array.from(starsContainer.querySelectorAll('.star-btn')) : [];
+
+    function paintStars(value) {
+      starButtons.forEach((btn) => {
+        const star = btn.querySelector('.star');
+        const v = parseInt(btn.dataset.value, 10);
+        if (v <= value) {
+          star.style.color = '#f5a623';
+          star.style.fill = '#f5a623';
+          star.style.transform = 'scale(1.08)';
+        } else {
+          star.style.color = '';
+          star.style.fill = '';
+          star.style.transform = '';
+        }
+      });
+      if (ratingText) ratingText.textContent = ratingLabels[value] || ratingLabels[0];
+    }
+
+    starButtons.forEach((btn) => {
+      btn.addEventListener('mouseenter', () => {
+        paintStars(parseInt(btn.dataset.value, 10));
+      });
+      btn.addEventListener('click', () => {
+        const v = parseInt(btn.dataset.value, 10);
+        ratingInput.value = v;
+        paintStars(v);
+      });
+    });
+
+    if (starsContainer) {
+      starsContainer.addEventListener('mouseleave', () => {
+        paintStars(parseInt(ratingInput.value, 10) || 0);
+      });
+    }
+
+    // Feedback form submit
+    const feedbackForm = document.getElementById('feedback-form');
+    const feedbackSuccess = document.getElementById('feedback-success');
+    if (feedbackForm) {
+      feedbackForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const rating = parseInt(ratingInput.value, 10) || 0;
+        const comment = (document.getElementById('feedback-comment').value || '').trim();
+
+        if (rating === 0 && !comment) {
+          if (ratingText) {
+            ratingText.textContent = 'Please pick a star or write a comment first.';
+            ratingText.style.color = 'var(--bad)';
+          }
+          return;
+        }
+
+        const subject = encodeURIComponent('HUQAN Demo Feedback - ' + rating + '/5 stars');
+        const body = encodeURIComponent(
+          'Rating: ' + rating + ' / 5 (' + (ratingLabels[rating] || '').split(' - ')[1] + ')\n' +
+          'Comment:\n' + (comment || '(no comment)') + '\n\n' +
+          '---\n' +
+          'Sent from huqan demo page'
+        );
+        const mailto = 'mailto:agi.ulu.com.42@gmail.com?subject=' + subject + '&body=' + body;
+        window.location.href = mailto;
+        if (feedbackSuccess) feedbackSuccess.style.display = 'block';
+      });
+    }
+  </script>
+</body>
+</html>

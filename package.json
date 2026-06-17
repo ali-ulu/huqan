@@ -1,64 +1,64 @@
 {
-  "name": "axiom",
-  "version": "0.9.0",
-  "description": "Deterministic symbolic AI reasoning engine — verifies LLM outputs, detects contradictions, learns from natural language. Zero external LLM/GPU/cloud dependencies.",
-  "main": "kernel.js",
-  "types": "kernel.d.ts",
-  "bin": {
-    "axiom": "./cli.js"
-  },
-  "scripts": {
-    "start": "node cli.js",
-    "server": "node server.js",
-    "mcp": "node mcpServer.js",
-    "backup": "node scripts/backup.js",
-    "restore": "node scripts/restore.js",
-    "bench": "node benchmarks/bench.js",
-    "bench:verify": "node benchmarks/verifBench.js",
-    "train": "node egitim.js",
-    "test": "node --test --test-concurrency=1",
-    "test:watch": "node --test --watch",
-    "test:graph": "node --test graph.test.js",
-    "test:kernel": "node --test kernel.test.js",
-    "test:cli": "node --test cli.test.js",
-    "test:dream": "node --test dream.test.js",
-    "test:plugin": "node --test plugin.test.js",
-    "test:backup": "node --test backupRestore.test.js",
-    "test:rust": "node --test rustGraph.test.js",
-    "test:server": "node --test server.test.js"
-  },
-  "keywords": [
-    "symbolic-ai",
-    "neuro-symbolic",
-    "knowledge-graph",
-    "llm-verification",
-    "hallucination-detection",
-    "contradiction-detection",
-    "reasoning-engine",
-    "truth-layer",
-    "deterministic-ai",
-    "turkish-nlp",
-    "graph-reasoning",
-    "explainable-ai"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/agiulucom42-del/axiom.git"
-  },
-  "bugs": {
-    "url": "https://github.com/agiulucom42-del/axiom/issues"
-  },
-  "homepage": "https://github.com/agiulucom42-del/axiom#readme",
-  "author": "AXIOM Contributors",
-  "license": "MIT",
-  "axiom": {
-    "testStatus": "592/592"
-  },
-  "engines": {
-    "node": ">=18.0.0"
-  },
-  "dependencies": {},
-  "optionalDependencies": {
-    "better-sqlite3": "^12.10.0"
-  }
+    "name": "huqan",
+    "version":  "0.9.1",
+    "description": "Deterministic causal reasoning engine. Verifies LLM outputs, detects contradictions, learns from natural language. Zero external LLM/GPU/cloud dependencies.",
+    "main":  "kernel.js",
+    "types":  "kernel.d.ts",
+    "bin": { "huqan": "./cli.js" },
+    "scripts":  {
+                    "start":  "node cli.js",
+                    "server":  "node server.js",
+                    "mcp":  "node mcpServer.js",
+                    "backup":  "node scripts/backup.js",
+                    "restore":  "node scripts/restore.js",
+                    "bench":  "node benchmarks/bench.js",
+                    "bench:verify":  "node benchmarks/verifBench.js",
+                    "train":  "node egitim.js",
+                    "test":  "node --test --test-concurrency=1",
+                    "test:watch":  "node --test --watch",
+                    "test:graph":  "node --test graph.test.js",
+                    "test:kernel":  "node --test kernel.test.js",
+                    "test:cli":  "node --test cli.test.js",
+                    "test:dream":  "node --test dream.test.js",
+                    "test:plugin":  "node --test plugin.test.js",
+                    "test:backup":  "node --test backupRestore.test.js",
+                    "test:rust":  "node --test rustGraph.test.js",
+                    "test:server":  "node --test server.test.js"
+                },
+    "keywords":  [
+                     "symbolic-ai",
+                     "neuro-symbolic",
+                     "knowledge-graph",
+                     "llm-verification",
+                     "hallucination-detection",
+                     "contradiction-detection",
+                     "reasoning-engine",
+                     "truth-layer",
+                     "deterministic-ai",
+                     "turkish-nlp",
+                     "graph-reasoning",
+                     "explainable-ai"
+                 ],
+    "repository":  {
+                       "type":  "git",
+                       "url":  "git+https://github.com/agiulucom42-del/axiom.git"
+                   },
+    "bugs":  {
+                 "url":  "https://github.com/agiulucom42-del/axiom/issues"
+             },
+    "homepage":  "https://github.com/agiulucom42-del/axiom#readme",
+    "author": "Huqan Contributors",
+    "license": "Apache-2.0",
+    "huqan": {
+                  "testStatus":  "1277 pass / 0 fail / 16 skipped"
+              },
+    "engines":  {
+                    "node":  "\u003e=18.0.0"
+                },
+    "optionalDependencies":  {
+                                 "better-sqlite3":  "^12.10.0"
+                             },
+    "dependencies":  {
+                         "better-sqlite3":  "^11.0.0"
+                     }
 }

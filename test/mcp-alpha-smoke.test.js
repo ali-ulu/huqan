@@ -48,11 +48,12 @@ test('PR3 smoke: axiom.learn blocked at gate (review)', () => {
   assert.equal(result.gate.canDryRun, true);
 });
 
-test('PR3 smoke: axiom.agent blocked at gate (dry_run_only)', () => {
+test('PR3 smoke: axiom.agent returns dry-run (gate)', () => {
   const kernel = mockKernel();
   const result = callTool(kernel, { name: 'axiom.agent', arguments: { goal: 'kedi hakkinda bilgi topla' } });
 
-  assert.equal(result.ok, false);
+  assert.equal(result.ok, true);
+  assert.equal(result.dryRun, true);
   assert.equal(result.gate.decision, 'dry_run_only');
   assert.equal(result.gate.canExecute, false);
   assert.equal(result.gate.canDryRun, true);

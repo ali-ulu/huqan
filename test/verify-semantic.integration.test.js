@@ -170,7 +170,95 @@ describe('verify semantic integration', () => {
     );
   });
 
-  it('keeps high-risk weak claims as bilinmiyor with risk flags', () => {
+  it('promotes cause/prevent opposition to celiski', () => {
+    const kernel = makeKernel('cause-prevent-opposition');
+    kernel.learn('asilama hastaligi onler', { workspaceId: 'default' });
+
+    const raw = kernel.verify('Asilama hastaliga neden olur', { workspaceId: 'default' });
+    const result = unwrap(raw);
+    const semanticTrust = raw.meta.semanticTrust;
+
+    assert.strictEqual(result.status, 'celiski');
+    assert.strictEqual(semanticTrust.status, 'celiski');
+    assert.ok(semanticTrust.contradictionScore >= semanticTrust.thresholds.contradictionConflict);
+    assert.ok(
+      semanticTrust.warnings.includes('CAUSE_PREVENT_OPPOSITION') ||
+      semanticTrust.warnings.includes('SEMANTIC_OPPOSITION'),
+      'cause/prevent opposition should surface in semantic warnings',
+    );
+  });
+
+  it('promotes reverse cause/prevent opposition to celiski', () => {
+    const kernel = makeKernel('prevent-cause-opposition');
+    kernel.learn('sigara hastaliga neden olur', { workspaceId: 'default' });
+
+    const raw = kernel.verify('Sigara hastaligi onler', { workspaceId: 'default' });
+    const result = unwrap(raw);
+    const semanticTrust = raw.meta.semanticTrust;
+
+    assert.strictEqual(result.status, 'celiski');
+    assert.strictEqual(semanticTrust.status, 'celiski');
+    assert.ok(semanticTrust.contradictionScore >= semanticTrust.thresholds.contradictionConflict);
+  });
+
+  it('fails closed when direct support coexists with opposition evidence', () => {
+    const kernel = makeKernel('direct-support-opposition');
+    kernel.graph.addNode('sigara', 'sigara', null, { workspaceId: 'default' });
+    kernel.graph.addNode('sagliklidir', 'sagliklidir', null, { workspaceId: 'default' });
+    kernel.graph.addNode('sagligi', 'sagligi', null, { workspaceId: 'default' });
+    kernel.graph.addEdge('sigara', 'sagliklidir', 'ifade', {
+      workspaceId: 'default',
+      confidence: 0.5,
+      weight: 0.5,
+    });
+    kernel.graph.addEdge('sigara', 'sagligi', 'PREVENTS', {
+      workspaceId: 'default',
+      confidence: 0.9,
+      weight: 0.9,
+      strength: 0.9,
+    });
+
+    const raw = kernel.verify('sigara sagliklidir', { workspaceId: 'default' });
+    const result = unwrap(raw);
+    const semanticTrust = raw.meta.semanticTrust;
+
+    assert.notStrictEqual(result.status, 'dogrulandi');
+    assert.strictEqual(result.status, 'celiski');
+    assert.ok(semanticTrust.contradictionScore >= semanticTrust.thresholds.contradictionConflict);
+    assert.ok(
+      semanticTrust.warnings.includes('CAUSE_PREVENT_OPPOSITION') ||
+      semanticTrust.warnings.includes('SEMANTIC_OPPOSITION'),
+      'direct support contradiction should surface as semantic opposition',
+    );
+  });
+
+  it('keeps direct support verified when no contradiction evidence exists', () => {
+    const kernel = makeKernel('direct-support-clean');
+    kernel.graph.addNode('sigara', 'sigara', null, { workspaceId: 'default' });
+    kernel.graph.addNode('sagliklidir', 'sagliklidir', null, { workspaceId: 'default' });
+    kernel.graph.addEdge('sigara', 'sagliklidir', 'ifade', {
+      workspaceId: 'default',
+      confidence: 0.5,
+      weight: 0.5,
+    });
+
+    const raw = kernel.verify('sigara sagliklidir', { workspaceId: 'default' });
+    const result = unwrap(raw);
+
+    assert.strictEqual(result.status, 'dogrulandi');
+  });
+
+  it('marks benign unrelated drift as celiski in current semantics', () => {
+    const kernel = makeKernel('benign-relation-drift');
+    kernel.learn('aspirin kan inceltici olarak etki eder', { workspaceId: 'default' });
+
+    const raw = kernel.verify('aspirin beyaz tablettir', { workspaceId: 'default' });
+    const result = unwrap(raw);
+
+    assert.strictEqual(result.status, 'celiski');
+  });
+
+  it('marks high-risk weak claims as celiski with risk flags', () => {
     const kernel = makeKernel('high-risk');
     seedFacts(kernel);
 
@@ -179,10 +267,10 @@ describe('verify semantic integration', () => {
     const semanticTrust = raw.meta.semanticTrust;
 
     assert.ok(result && typeof result === 'object', 'verify result should be an object');
-    assert.strictEqual(result.status, 'bilinmiyor');
+    assert.strictEqual(result.status, 'celiski');
     assert.ok(semanticTrust && typeof semanticTrust === 'object', 'semantic trust meta should be attached');
-    assert.strictEqual(semanticTrust.status, 'bilinmiyor');
-    assert.ok(['needs_review', 'weak_match', 'unsupported'].includes(semanticTrust.classification), 'high-risk weak claim should not be verified');
+    assert.strictEqual(semanticTrust.status, 'celiski');
+    assert.strictEqual(semanticTrust.classification, 'contradicted');
     assert.ok(Array.isArray(semanticTrust.warnings), 'warnings should be an array');
     assert.ok(
       semanticTrust.risk.flags.includes('HIGH_RISK_DOMAIN') ||
@@ -190,4 +278,15 @@ describe('verify semantic integration', () => {
       'high-risk weak claim should carry risk flags',
     );
   });
+
+  it('keeps unsupported claims fail closed for unrelated statements', () => {
+    const kernel = makeKernel('mars-cheese');
+    seedFacts(kernel);
+
+    const raw = kernel.verify('Mars peynirdendir', { workspaceId: 'default' });
+    const result = unwrap(raw);
+
+    assert.strictEqual(result.status, 'bilinmiyor');
+  });
+
 });
