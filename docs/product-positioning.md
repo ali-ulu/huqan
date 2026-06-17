@@ -6,7 +6,7 @@ AXIOM tells you what breaks before you ship a decision.
 
 ## Product Category
 
-AXIOM is a local-first reasoning and verification layer for LLM-assisted builders, agents, tools, and graph memory.
+AXIOM is a local-first judgment and verification layer for LLM-assisted builders, agents, tools, and graph memory.
 
 It is not another model. It sits around models and memory, then classifies what is known, unknown, contradicted, or risky.
 
@@ -75,9 +75,9 @@ Avoid overstating:
 - enterprise governance suite
 - probabilistic prediction engine
 
-## Near-term Direction
+## Current Direction
 
-v0.8 shifts AXIOM from causal reasoning to accountable reasoning:
+Current mainline shifts AXIOM from causal reasoning alone to accountable judgment:
 
 - Trust Kernel
 - AXIOM Trust Protocol (`ATP`) and AXIOM Verify Protocol (`AVP`)
