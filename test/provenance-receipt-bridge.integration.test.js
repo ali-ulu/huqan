@@ -140,3 +140,74 @@ test('non-strict learn without provenance remains allowed and documents current 
     closeKernel(kernel);
   }
 });
+
+test('non-strict learn with invalid sourceType remains allowed as compatibility provenance', () => {
+  const kernel = new Kernel({
+    noLoad: true,
+    useSQLite: false,
+    ...makePaths('invalid-source-type-compat'),
+  });
+
+  try {
+    const learn = kernel.learn('serce kustur', {
+      provenance: makeProvenance({
+        provenanceId: 'prov-bridge-invalid-type',
+        sourceType: 'bogus',
+      }),
+    });
+    assert.equal(learn.ok, true);
+
+    const node = kernel.graph.getNode('serce', 'workspace-a');
+    const edge = kernel.graph.getEdges('serce', 'workspace-a')[0];
+
+    assert.ok(node);
+    assert.ok(edge);
+    assert.equal(node.provenance.sourceType, 'system');
+    assert.equal(edge.provenance.sourceType, 'system');
+  } finally {
+    closeKernel(kernel);
+  }
+});
+
+test('strict provenance fails closed when provenance is missing', () => {
+  const kernel = new Kernel({
+    noLoad: true,
+    useSQLite: false,
+    strictProvenance: true,
+    ...makePaths('strict-missing-provenance'),
+  });
+
+  try {
+    assert.throws(() => kernel.learn('serce kustur', {
+      workspaceId: 'workspace-a',
+    }), {
+      name: 'ProvenanceError',
+      code: 'PROVENANCE_REQUIRED',
+    });
+  } finally {
+    closeKernel(kernel);
+  }
+});
+
+test('strict provenance fails closed when sourceType is invalid', () => {
+  const kernel = new Kernel({
+    noLoad: true,
+    useSQLite: false,
+    strictProvenance: true,
+    ...makePaths('strict-invalid-source-type'),
+  });
+
+  try {
+    assert.throws(() => kernel.learn('serce kustur', {
+      provenance: makeProvenance({
+        provenanceId: 'prov-bridge-strict-invalid-type',
+        sourceType: 'bogus',
+      }),
+    }), {
+      name: 'ProvenanceError',
+      code: 'PROVENANCE_REQUIRED',
+    });
+  } finally {
+    closeKernel(kernel);
+  }
+});

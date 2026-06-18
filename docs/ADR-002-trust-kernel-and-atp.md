@@ -77,6 +77,22 @@ Backward-compatible mode.
 - warnings are acceptable
 - default source metadata may be added by future ingestion policy
 
+This mode exists to preserve older learn/ingest paths while the system is moved
+toward accountable provenance. It produces **compatibility provenance**, not
+ATP-grade accountable provenance.
+
+Compatibility provenance means:
+
+- missing fields may be auto-filled so older flows keep working
+- warnings are part of the contract
+- invalid `sourceType` may be normalized to `system`
+- the result is usable for backward-compatible runtime continuity
+- the result must not be described as strong, explicit, or fully accountable provenance
+
+Compatibility provenance is therefore allowed, but it is a weaker contract than
+strict provenance. It keeps runtime continuity without claiming that missing
+metadata is equal to fully declared source metadata.
+
 ### `strictProvenance = true`
 
 Governance mode.
@@ -85,6 +101,49 @@ Governance mode.
 - the claim should not be canonically accepted
 - boundaries should surface a provenance-specific error
 - this mode is intended for accountable ingestion paths
+
+Strict provenance is the accountable path for ATP-grade ingestion and
+conformance-sensitive flows.
+
+Strict provenance means:
+
+- required provenance fields must be explicit
+- invalid `sourceType` must fail closed
+- boundaries must reject missing or malformed provenance instead of normalizing it
+- callers are expected to provide accountable source metadata up front
+
+This distinction is intentional:
+
+- non-strict mode preserves backward compatibility
+- strict mode preserves accountable trust semantics
+
+The two modes are not equally strong, and documentation, tests, and future
+changes must keep that boundary visible.
+
+## Provenance Contract Boundary
+
+The provenance contract has two intentionally different levels:
+
+1. **Compatibility provenance**
+   - used by backward-compatible non-strict paths
+   - may auto-fill missing fields
+   - may normalize invalid `sourceType` to `system`
+   - carries warnings
+   - is acceptable for continuity, migration, and legacy learn flows
+
+2. **Accountable provenance**
+   - required by strict provenance paths
+   - required by ATP/conformance-sensitive validation
+   - requires explicit provenance fields such as `sourceType`, `sourceRef`,
+     `sourceTitle`, `actor`, `timestamp`, and `workspaceId`
+   - must fail closed on invalid or missing metadata
+
+The system must not present compatibility provenance as if it were accountable
+provenance. Missing metadata that was auto-filled for compatibility is not the
+same thing as explicitly supplied provenance.
+
+This is why invalid `sourceType -> system` normalization is acceptable only in
+non-strict compatibility mode. In strict mode, the same input must fail closed.
 
 ## Conflict Routing
 
