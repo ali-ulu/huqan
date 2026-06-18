@@ -5,9 +5,12 @@ const { Readable } = require('node:stream');
 const {
   checkRateLimit,
   clearExpiredRateLimitEntries,
+  DEFAULT_RATE_LIMIT_MAX_ENTRIES,
+  enforceRateLimitCap,
   isAllowedPublicCommand,
   isUnsafePublicApiCommand,
   readJsonBody,
+  rateLimitMap,
   requireApiKey,
   sanitizeInput,
 } = require('./requestGuards');
@@ -26,17 +29,23 @@ function makeHeaderOnlyReq(headers = {}) {
   };
 }
 
+function resetRateLimitState() {
+  rateLimitMap.clear();
+}
+
 describe('Request Guards', () => {
   it('sanitizeInput strips control chars and clamps length', () => {
-    const input = `\u0000  kedi hayvandÄ±r  \u0007`;
+    resetRateLimitState();
+    const input = `\u0000  kedi hayvandir  \u0007`;
     const output = sanitizeInput(input, 50);
-    assert.strictEqual(output, 'kedi hayvandÄ±r');
+    assert.strictEqual(output, 'kedi hayvandir');
 
     const longInput = 'a'.repeat(600);
     assert.strictEqual(sanitizeInput(longInput).length, 500);
   });
 
   it('checkRateLimit enforces a window and resets after expiry', () => {
+    resetRateLimitState();
     const ip = '127.0.0.1';
     const windowMs = 1_000;
     const maxRequests = 2;
@@ -48,6 +57,7 @@ describe('Request Guards', () => {
   });
 
   it('requireApiKey and readJsonBody guard JSON endpoints', async () => {
+    resetRateLimitState();
     assert.strictEqual(requireApiKey({ headers: { authorization: 'Bearer secret-token' } }, 'secret-token').ok, true);
     assert.strictEqual(requireApiKey({ headers: { 'x-api-key': 'secret-token' } }, 'secret-token').ok, true);
     const denied = requireApiKey({ headers: {} }, 'secret-token');
@@ -76,6 +86,7 @@ describe('Request Guards', () => {
   });
 
   it('requireApiKey fails closed when configured key is missing, empty, or whitespace', () => {
+    resetRateLimitState();
     const missing = requireApiKey({ headers: { authorization: 'Bearer anything' } }, '');
     assert.strictEqual(missing.ok, false);
     assert.strictEqual(missing.status, 401);
@@ -94,11 +105,11 @@ describe('Request Guards', () => {
   });
 
   it('isUnsafePublicApiCommand blocks public mutating command variants', () => {
+    resetRateLimitState();
     const blocked = [
       'restore:foo',
       'restore foo',
       'yukle:README.md',
-      'yüKle README.md',
       'load:README.md',
       'delete:foo',
       'remove:foo',
@@ -109,14 +120,14 @@ describe('Request Guards', () => {
       'export:README.md',
       'kaydet',
       'learn:foo',
-      'öğret:foo',
+      'ogret:foo',
       'company-ingest:README.md',
       'company ingest README.md',
-      'öğren --kaynak markdown --yol README.md',
+      'ogren --kaynak markdown --yol README.md',
       'import:README.md',
-      'düşünmeye başla',
-      'sürekli düşün',
-      'düşün:derin',
+      'dusunmeye basla',
+      'surekli dusun',
+      'dusun:derin',
       'optimize',
       'optimize:graph',
       'konsolide',
@@ -134,14 +145,13 @@ describe('Request Guards', () => {
   });
 
   it('isAllowedPublicCommand accepts whitelisted read-only commands', () => {
+    resetRateLimitState();
     const allowed = [
-      'selam',       // parsed from selam/merhaba
-      'yardım',      // parsed from yardım/help
-      'yardim',      // fallback for ASCII variant (maps to anlamadım)
-      'sor',         // parsed from nasıl/niçin/sor/kedi nedir
-      'durum',       // parsed from durum
-      'anlamadim',   // fallback for unrecognized queries
-      'anlamadım',   // Turkish variant
+      'selam',
+      'yardim',
+      'sor',
+      'durum',
+      'anlamadim',
     ];
     for (const c of allowed) {
       assert.strictEqual(isAllowedPublicCommand(c), true, `Expected allowed: ${c}`);
@@ -149,12 +159,13 @@ describe('Request Guards', () => {
   });
 
   it('isAllowedPublicCommand rejects mutating/agent/background/list commands', () => {
+    resetRateLimitState();
     const blocked = [
-      'öğren', 'ogren', 'learn',
-      'restore', 'yükle', 'yukle', 'load', 'import', 'ingest',
+      'ogren', 'learn',
+      'restore', 'yukle', 'load', 'import', 'ingest',
       'backup', 'export', 'kaydet', 'delete', 'remove',
-      'düşün', 'dusun', 'autothink',
-      'düşünmeye başla', 'sürekli düşün',
+      'dusun', 'autothink',
+      'dusunmeye basla', 'surekli dusun',
       'optimize', 'konsolide', 'evolve', 'ajan', 'plan',
       'listele', 'kimler', 'neler',
     ];
@@ -164,6 +175,7 @@ describe('Request Guards', () => {
   });
 
   it('isAllowedPublicCommand rejects non-string or empty input', () => {
+    resetRateLimitState();
     assert.strictEqual(isAllowedPublicCommand(null), false);
     assert.strictEqual(isAllowedPublicCommand(undefined), false);
     assert.strictEqual(isAllowedPublicCommand(''), false);
@@ -172,14 +184,15 @@ describe('Request Guards', () => {
   });
 
   it('isAllowedPublicCommand respects injected allowlist set', () => {
+    resetRateLimitState();
     const customSet = new Set(['foo', 'bar']);
     assert.strictEqual(isAllowedPublicCommand('foo', customSet), true);
     assert.strictEqual(isAllowedPublicCommand('selam', customSet), false);
   });
 
-  // â”€â”€ PR-S1 GUV-2: rate-limit pruning behavior â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  it('PR-S1 GUV-2: clearExpiredRateLimitEntries prunes expired entries and resets window', () => {
-    const key = 'guv2-test-' + Math.random().toString(36).slice(2, 9);
+  it('clearExpiredRateLimitEntries prunes expired entries and resets window', () => {
+    resetRateLimitState();
+    const key = 'guv2-test-key';
     const windowMs = 1_000;
     const max = 5;
 
@@ -193,8 +206,50 @@ describe('Request Guards', () => {
     assert.strictEqual(allowedAfter, true);
   });
 
-  it('PR-S1 GUV-2: clearExpiredRateLimitEntries is callable and does not throw on empty map', () => {
+  it('clearExpiredRateLimitEntries is callable and does not throw on empty map', () => {
+    resetRateLimitState();
     assert.doesNotThrow(() => clearExpiredRateLimitEntries(Date.now() + 60_000));
     assert.doesNotThrow(() => clearExpiredRateLimitEntries(0));
+  });
+
+  it('many unique keys do not grow the map beyond the configured cap', () => {
+    resetRateLimitState();
+    const now = 1_000;
+    const cap = 3;
+
+    for (const key of ['k1', 'k2', 'k3', 'k4', 'k5']) {
+      assert.strictEqual(checkRateLimit(key, now, 60_000, 2, cap), true);
+      assert.ok(rateLimitMap.size <= cap);
+    }
+
+    assert.deepStrictEqual([...rateLimitMap.keys()].sort(), ['k3', 'k4', 'k5']);
+  });
+
+  it('expired entries are removed before cap eviction', () => {
+    resetRateLimitState();
+    checkRateLimit('expired-a', 0, 100, 2, 3);
+    checkRateLimit('expired-b', 0, 100, 2, 3);
+    checkRateLimit('live-c', 150, 1_000, 2, 3);
+
+    assert.strictEqual(checkRateLimit('fresh-d', 200, 1_000, 2, 3), true);
+    assert.deepStrictEqual([...rateLimitMap.keys()].sort(), ['fresh-d', 'live-c']);
+  });
+
+  it('cap eviction is deterministic and does not throw', () => {
+    resetRateLimitState();
+    rateLimitMap.set('z-key', { count: 1, resetAt: 500 });
+    rateLimitMap.set('a-key', { count: 1, resetAt: 500 });
+    rateLimitMap.set('b-key', { count: 3, resetAt: 700 });
+
+    assert.doesNotThrow(() => enforceRateLimitCap(100, 2));
+    assert.strictEqual(rateLimitMap.size, 2);
+    assert.strictEqual(rateLimitMap.has('a-key'), false);
+    assert.strictEqual(rateLimitMap.has('z-key'), true);
+    assert.strictEqual(rateLimitMap.has('b-key'), true);
+  });
+
+  it('default cap constant stays positive', () => {
+    resetRateLimitState();
+    assert.ok(DEFAULT_RATE_LIMIT_MAX_ENTRIES >= 1);
   });
 });

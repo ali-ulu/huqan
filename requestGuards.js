@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const DEFAULT_MAX_INPUT_LENGTH = 500;
 const DEFAULT_RATE_LIMIT_WINDOW = 60_000;
 const DEFAULT_RATE_LIMIT_MAX = 120;
+const DEFAULT_RATE_LIMIT_MAX_ENTRIES = 2_048;
 const DEFAULT_MAX_JSON_BODY = 4_096;
 const DEFAULT_MAX_UPLOAD_BODY = 1_048_576;
 
@@ -87,10 +88,40 @@ function isAllowedPublicCommand(command, allowedSet = DEFAULT_ALLOWED_PUBLIC_COM
   return allowedSet.has(normalized);
 }
 
-function checkRateLimit(ip, now = Date.now(), windowMs = DEFAULT_RATE_LIMIT_WINDOW, maxRequests = DEFAULT_RATE_LIMIT_MAX) {
+function sortRateLimitEntriesForEviction(entries = []) {
+  return entries.sort((left, right) => {
+    const resetComparison = Number(left[1]?.resetAt || 0) - Number(right[1]?.resetAt || 0);
+    if (resetComparison !== 0) return resetComparison;
+    const countComparison = Number(left[1]?.count || 0) - Number(right[1]?.count || 0);
+    if (countComparison !== 0) return countComparison;
+    return String(left[0] || '').localeCompare(String(right[0] || ''));
+  });
+}
+
+function enforceRateLimitCap(now = Date.now(), maxEntries = DEFAULT_RATE_LIMIT_MAX_ENTRIES) {
+  const cap = Number.isFinite(maxEntries) ? Math.max(0, Math.floor(maxEntries)) : DEFAULT_RATE_LIMIT_MAX_ENTRIES;
+  clearExpiredRateLimitEntries(now);
+  if (rateLimitMap.size <= cap) return;
+
+  const entries = sortRateLimitEntriesForEviction([...rateLimitMap.entries()]);
+  const overflow = rateLimitMap.size - cap;
+  for (let index = 0; index < overflow && index < entries.length; index += 1) {
+    rateLimitMap.delete(entries[index][0]);
+  }
+}
+
+function checkRateLimit(
+  ip,
+  now = Date.now(),
+  windowMs = DEFAULT_RATE_LIMIT_WINDOW,
+  maxRequests = DEFAULT_RATE_LIMIT_MAX,
+  maxEntries = DEFAULT_RATE_LIMIT_MAX_ENTRIES,
+) {
   const key = String(ip || 'unknown');
   let entry = rateLimitMap.get(key);
   if (!entry || now > entry.resetAt) {
+    const insertionCap = Number.isFinite(maxEntries) ? Math.max(0, Math.floor(maxEntries) - 1) : DEFAULT_RATE_LIMIT_MAX_ENTRIES - 1;
+    enforceRateLimitCap(now, insertionCap);
     entry = { count: 0, resetAt: now + windowMs };
     rateLimitMap.set(key, entry);
   }
@@ -209,10 +240,12 @@ module.exports = {
   DEFAULT_MAX_JSON_BODY,
   DEFAULT_MAX_UPLOAD_BODY,
   DEFAULT_RATE_LIMIT_MAX,
+  DEFAULT_RATE_LIMIT_MAX_ENTRIES,
   DEFAULT_RATE_LIMIT_WINDOW,
   DEFAULT_ALLOWED_PUBLIC_COMMANDS,
   clearExpiredRateLimitEntries,
   checkRateLimit,
+  enforceRateLimitCap,
   extractApiKey,
   isAllowedPublicCommand,
   isUnsafePublicApiCommand,
