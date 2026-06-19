@@ -592,6 +592,228 @@ button{cursor:pointer}
   font-size:12px;
   line-height:1.6;
 }
+.demo-console{
+  display:grid;
+  grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr) minmax(0,.95fr);
+  gap:16px;
+  margin-top:12px;
+}
+.demo-card{
+  border:1px solid var(--line);
+  border-radius:20px;
+  background:linear-gradient(180deg, rgba(14,17,23,.96), rgba(10,12,16,.96));
+  padding:16px;
+  box-shadow:var(--shadow);
+}
+.demo-card .panel-title{
+  font-size:16px;
+}
+.demo-card .panel-subtitle{
+  line-height:1.55;
+}
+.demo-stack{
+  display:grid;
+  gap:12px;
+}
+.demo-helper{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+  padding:10px 12px;
+  border-radius:14px;
+  border:1px solid rgba(100,212,255,.16);
+  background:linear-gradient(180deg, rgba(100,212,255,.06), rgba(100,212,255,.03));
+}
+.demo-helper strong{
+  font-size:12px;
+}
+.demo-helper span{
+  color:var(--muted);
+  font-size:12px;
+}
+.sample-grid{
+  display:grid;
+  grid-template-columns:repeat(3, minmax(0,1fr));
+  gap:10px;
+}
+.sample-btn{
+  min-height:54px;
+  padding:10px 12px;
+  border-radius:16px;
+  border:1px solid var(--line);
+  background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.012));
+  color:var(--text);
+  text-align:left;
+}
+.sample-btn strong{
+  display:block;
+  font-size:12px;
+  margin-bottom:4px;
+}
+.sample-btn span{
+  display:block;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.45;
+}
+.sample-btn:hover{
+  border-color:rgba(255,255,255,.14);
+  transform:translateY(-1px);
+}
+.demo-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.demo-actions .primary-btn,
+.demo-actions .neutral-btn{
+  min-height:44px;
+}
+.judgment-shell{
+  display:grid;
+  gap:12px;
+}
+.judgment-summary{
+  display:grid;
+  gap:10px;
+}
+.judgment-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.verdict-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  min-height:34px;
+  padding:0 14px;
+  border-radius:999px;
+  border:1px solid transparent;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.03em;
+}
+.verdict-chip.supported{background:rgba(105,211,141,.12);border-color:rgba(105,211,141,.3);color:#b0f0c7}
+.verdict-chip.contradicted{background:rgba(255,90,102,.12);border-color:rgba(255,90,102,.32);color:#ffaba6}
+.verdict-chip.unknown{background:rgba(255,187,77,.12);border-color:rgba(255,187,77,.3);color:#ffd28d}
+.verdict-chip.offline{background:rgba(100,212,255,.1);border-color:rgba(100,212,255,.24);color:#9be4ff}
+.judgment-stats{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0,1fr));
+  gap:10px;
+}
+.mini-stat{
+  padding:12px;
+  border-radius:16px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.02);
+}
+.mini-stat small{
+  display:block;
+  color:var(--muted);
+  font-size:10px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  margin-bottom:4px;
+}
+.mini-stat strong{
+  font-size:14px;
+}
+.demo-list{
+  display:grid;
+  gap:10px;
+}
+.demo-item{
+  padding:12px;
+  border-radius:16px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.02);
+}
+.demo-item strong{
+  display:block;
+  margin-bottom:4px;
+  font-size:12px;
+}
+.demo-item p,
+.demo-item li,
+.demo-item span{
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.55;
+}
+.demo-item ul{
+  margin:6px 0 0 16px;
+  padding:0;
+}
+.trace-list{
+  display:grid;
+  gap:10px;
+}
+.trace-item{
+  padding:12px;
+  border-radius:16px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.02);
+}
+.trace-item-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:6px;
+}
+.trace-item-header strong{
+  font-size:12px;
+}
+.trace-item-header span{
+  color:var(--muted);
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+.trace-item p{
+  margin:0;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.55;
+}
+.receipt-meta{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0,1fr));
+  gap:10px;
+}
+.receipt-card{
+  display:grid;
+  gap:12px;
+}
+.receipt-note{
+  padding:12px;
+  border-radius:16px;
+  border:1px dashed rgba(100,212,255,.24);
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.6;
+}
+.local-notice{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  min-height:30px;
+  padding:0 12px;
+  border-radius:999px;
+  border:1px solid rgba(100,212,255,.2);
+  background:rgba(100,212,255,.08);
+  color:#9be4ff;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
 .content-grid{
   display:grid;
   grid-template-columns:minmax(0,1.55fr) 376px;
@@ -1451,6 +1673,7 @@ body[data-theme="avant"] .theme-switcher button.active{
   .content-grid{grid-template-columns:minmax(0,1fr) 340px}
   .metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
   .bottom-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .demo-console{grid-template-columns:1fr}
 }
 @media (max-width: 1120px){
   body{overflow:auto}
@@ -1478,6 +1701,9 @@ body[data-theme="avant"] .theme-switcher button.active{
   .hero{grid-template-columns:1fr}
   .hero-meta{justify-items:start}
   .command-grid{grid-template-columns:1fr}
+  .sample-grid,
+  .receipt-meta,
+  .judgment-stats{grid-template-columns:1fr}
   .queue-table{min-width:760px}
   .chart-body{grid-template-columns:1fr}
   .detail-actions{grid-template-columns:1fr}
@@ -1578,27 +1804,28 @@ body[data-theme="avant"] .theme-switcher button.active{
 
     <section class="hero" id="overview-section">
       <div>
-        <h1>Trust Control Center</h1>
-        <p>HUQAN judges actions before execution. <strong>You stay in control.</strong> Powered by the AXIOM trust engine, the layout is tuned for fast scanning, strong hierarchy, and obvious review states.</p>
+        <h1>HUQAN Demo Console</h1>
+        <p>Paste an AI answer. <strong>HUQAN judges whether it is supported, contradicted, or unknown</strong> before it becomes trusted memory or action.</p>
         <div class="hero-actions">
-          <button class="ghost-btn" type="button" data-preset="review: show pending SQL actions"><i class="ri-filter-3-line"></i>Review queue</button>
-          <button class="ghost-btn" type="button" data-preset="search memory for policy contradictions"><i class="ri-brain-line"></i>Search memory</button>
-          <button class="ghost-btn" type="button" data-preset="challenge the current policy set"><i class="ri-git-branch-line"></i>Devil's advocate</button>
+          <button class="ghost-btn" type="button" data-demo-sample="supported"><i class="ri-checkbox-circle-line"></i>Supported Claim</button>
+          <button class="ghost-btn" type="button" data-demo-sample="contradiction"><i class="ri-close-circle-line"></i>Contradiction</button>
+          <button class="ghost-btn" type="button" data-demo-sample="unknown"><i class="ri-question-line"></i>Unknown Claim</button>
         </div>
       </div>
       <div class="hero-meta">
         <select class="control" id="policy-set">
-          <option>Acme Default</option>
+          <option>Investor Demo</option>
           <option>Research Safety</option>
-          <option>Production Lockdown</option>
+          <option>Production Guardrail</option>
         </select>
-        <div class="status-badge"><i class="ri-shield-star-line"></i><span>Policy Status</span> Enforced</div>
+        <div class="status-badge"><i class="ri-shield-star-line"></i><span>AI Trust Boundary</span> Live</div>
         <div class="theme-switcher" id="theme-switcher" aria-label="Theme selector">
           <button type="button" data-theme-choice="dark"><small>Theme 01</small>Dark</button>
           <button type="button" data-theme-choice="architectural" class="active"><small>Theme 02</small>Architectural</button>
           <button type="button" data-theme-choice="fluid"><small>Theme 03</small>Fluid</button>
           <button type="button" data-theme-choice="avant"><small>Theme 04</small>Avant-Garde</button>
         </div>
+        <div class="local-notice"><i class="ri-lock-2-line"></i>Powered by the AXIOM Trust Engine</div>
       </div>
     </section>
 
@@ -1607,25 +1834,92 @@ body[data-theme="avant"] .theme-switcher button.active{
     <section class="command-panel" id="command-section">
       <div class="panel-header">
         <div>
-          <h2 class="panel-title">Quick Review</h2>
-          <div class="panel-subtitle">Run a statement through the verifier without leaving the dashboard.</div>
+          <h2 class="panel-title">Models generate. Agents act. Memory stores. HUQAN judges.</h2>
+          <div class="panel-subtitle">Local-first demo mode. No external LLM calls. Paste an LLM answer or claim and send it to the existing HUQAN verifier.</div>
         </div>
         <div class="panel-actions">
-          <button class="small-btn neutral-btn" id="load-example" type="button"><i class="ri-sparkling-2-line"></i>Load example</button>
-          <button class="small-btn ghost-btn" id="clear-review" type="button"><i class="ri-eraser-line"></i>Clear</button>
+          <button class="small-btn neutral-btn" id="load-example" type="button"><i class="ri-sparkling-2-line"></i>Load demo sample</button>
+
         </div>
       </div>
-      <div class="command-grid">
-        <textarea class="command-input" id="review-input" placeholder="Type a claim or instruction to review..."></textarea>
-        <div class="command-actions">
-          <button class="primary-btn" id="review-button" type="button"><i class="ri-shield-check-fill"></i>Review</button>
-          <button class="neutral-btn" id="advocate-button" type="button"><i class="ri-sword-line"></i>Devil's Advocate</button>
-          <button class="neutral-btn" id="memory-button" type="button"><i class="ri-brain-line"></i>Search Memory</button>
+      <div class="demo-console">
+        <article class="demo-card">
+          <div class="panel-header" style="padding:0;border:0;margin-bottom:12px">
+            <div>
+              <h3 class="panel-title">Paste LLM Output</h3>
+              <div class="panel-subtitle">Paste only the answer or claim you want judged. Full vault or note content is not sent.</div>
+            </div>
+          </div>
+          <div class="demo-stack">
+            <div class="demo-helper">
+              <strong>Primary demo flow</strong>
+              <span>Paste LLM Output -> HUQAN Judge -> Verdict + Trace + Trust Receipt Preview</span>
+            </div>
+            <textarea class="command-input" id="review-input" placeholder="Paste an LLM answer or a single claim to judge..."></textarea>
+            <div class="sample-grid">
+              <button class="sample-btn" type="button" data-demo-sample="supported">
+                <strong>Supported Claim</strong>
+                <span>Demo sample for a likely supported-style statement.</span>
+              </button>
+              <button class="sample-btn" type="button" data-demo-sample="contradiction">
+                <strong>Contradiction</strong>
+                <span>Demo sample for a direct conflict-style statement.</span>
+              </button>
+              <button class="sample-btn" type="button" data-demo-sample="unknown">
+                <strong>Unknown Claim</strong>
+                <span>Demo sample for a weak or unsupported statement.</span>
+              </button>
+            </div>
+            <div class="demo-actions">
+              <button class="primary-btn" id="review-button" type="button"><i class="ri-shield-check-fill"></i>Judge with HUQAN</button>
+              <button class="neutral-btn" id="clear-review" type="button"><i class="ri-eraser-line"></i>Clear</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="demo-card judgment-shell">
+          <div>
+            <h3 class="panel-title">HUQAN Judgment</h3>
+            <div class="panel-subtitle">Existing `/v2/verify` output rendered as verdict, confidence, decomposition, and trace.</div>
+          </div>
+          <div class="command-result judgment-summary" id="review-result">
+            <strong>Ready.</strong>
+            <p>Paste a claim, click <em>Judge with HUQAN</em>, and the live judgment will appear here.</p>
+          </div>
+          <div class="judgment-stats" id="judgment-stats">
+            <div class="mini-stat"><small>Classification</small><strong>Waiting</strong></div>
+            <div class="mini-stat"><small>Risk Flags</small><strong>0</strong></div>
+          </div>
+          <div class="demo-list" id="subclaims-list">
+            <div class="demo-item">
+              <strong>Subclaims</strong>
+              <p>Claim decomposition will appear here when available.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="demo-card receipt-card">
+          <div>
+            <h3 class="panel-title">Trust Receipt Preview</h3>
+            <div class="panel-subtitle">Receipt summary, reasoning trace, and local-first notice from the current verifier response.</div>
+          </div>
+          <div class="receipt-meta" id="receipt-preview">
+            <div class="mini-stat"><small>Receipt</small><strong>Waiting</strong></div>
+            <div class="mini-stat"><small>Evidence</small><strong>0</strong></div>
+            <div class="mini-stat"><small>Provenance</small><strong>Local</strong></div>
+            <div class="mini-stat"><small>Timestamp</small><strong>--</strong></div>
+          </div>
+          <div class="trace-list" id="reasoning-trace-list">
+            <div class="trace-item">
+              <div class="trace-item-header">
+                <strong>Reasoning trace</strong>
+                <span>waiting</span>
+              </div>
+              <p>Trace steps will render here when the local verifier returns a result.</p>
+            </div>
+          </div>
+          <div class="receipt-note" id="local-first-note">Local-first demo mode. No external LLM calls. If the local server is unavailable, the UI shows a safe connection error instead of faking a live verdict.</div>
         </div>
-      </div>
-      <div class="command-result" id="review-result">
-        <strong>Ready.</strong>
-        <p>Pick a queue row or write a claim above. The result will appear here.</p>
       </div>
     </section>
 
@@ -2094,7 +2388,7 @@ function renderMetrics(status, graph, queue) {
       </div>
       <div class="metric-value">${escapeHtml(card.value)}</div>
       <div class="metric-label">${escapeHtml(card.label)}</div>
-      <div class="metric-delta"><strong>${card.delta.startsWith('-') ? '' : '↑'}</strong><span>${escapeHtml(card.delta)}</span></div>
+      <div class="metric-delta"><strong>${card.delta.startsWith('-') ? '' : '+'}</strong><span>${escapeHtml(card.delta)}</span></div>
       <div class="metric-spark" id="spark-${index}"></div>
     </article>
   `).join('');
@@ -2205,7 +2499,7 @@ function renderSelection() {
   if (!item) return;
 
   document.getElementById('detail-name').textContent = item.action;
-  document.getElementById('detail-meta').textContent = `${item.agent} · ${item.time}`;
+  document.getElementById('detail-meta').textContent = `${item.agent} - ${item.time}`;
   document.getElementById('detail-callout').innerHTML = `
     <strong><i class="ri-time-line"></i>${item.verdict === 'REVIEW' ? 'Verdict (Pending)' : item.verdict === 'SAFE' ? 'Verdict (Safe)' : 'Verdict (Blocked)'}</strong>
     <p>${item.verdict === 'REVIEW'
@@ -2241,7 +2535,7 @@ function renderSelection() {
     </div>
   `).join('');
 
-  document.getElementById('detail-meta').textContent = `${item.agent} · ${item.time}`;
+  document.getElementById('detail-meta').textContent = `${item.agent} - ${item.time}`;
   document.getElementById('reject-button').disabled = item.verdict === 'BLOCKED';
   document.getElementById('approve-button').textContent = item.verdict === 'SAFE' ? 'Approved' : 'Approve';
   document.getElementById('approve-button').disabled = item.verdict === 'SAFE';
@@ -2249,61 +2543,198 @@ function renderSelection() {
   document.getElementById('approve-button').style.opacity = item.verdict === 'SAFE' ? '.72' : '1';
 
   document.getElementById('runtime-label').textContent = state.status
-    ? `${state.status.activeKernel || 'v1'} · ${state.status.backend || 'memory'}`
+    ? `${state.status.activeKernel || 'v1'} - ${state.status.backend || 'memory'}`
     : 'Loading...';
   document.getElementById('version-label').textContent = state.status
-    ? `${state.status.version || '0.0.0'} · commit ${state.status.lastCommit || 'unknown'}`
+    ? `${state.status.version || '0.0.0'} - commit ${state.status.lastCommit || 'unknown'}`
     : 'Loading...';
   document.getElementById('focus-label').textContent = state.status
-    ? `${state.status.currentFocus || 'Overview'} · ${state.status.nextAction || 'Awaiting action'}`
+    ? `${state.status.currentFocus || 'Overview'} - ${state.status.nextAction || 'Awaiting action'}`
     : 'Loading...';
 }
 
 function renderReviewResult(payload, fallbackText) {
   reviewResultState = payload || null;
   const target = document.getElementById('review-result');
+  const stats = document.getElementById('judgment-stats');
+  const subclaims = document.getElementById('subclaims-list');
+  const trace = document.getElementById('reasoning-trace-list');
+  const receipt = document.getElementById('receipt-preview');
+  const localNotice = document.getElementById('local-first-note');
   if (!payload) {
     target.innerHTML = `
       <strong>Ready.</strong>
-      <p>${escapeHtml(fallbackText || 'Pick a queue row or write a claim above. The result will appear here.')}</p>
+      <p>${escapeHtml(fallbackText || 'Paste an LLM answer, then click Judge with HUQAN.')}</p>
     `;
+    stats.innerHTML = `
+      <div class="mini-stat"><small>Classification</small><strong>Waiting</strong></div>
+      <div class="mini-stat"><small>Risk Flags</small><strong>0</strong></div>
+    `;
+    subclaims.innerHTML = `
+      <div class="demo-item">
+        <strong>Subclaims</strong>
+        <p>Claim decomposition will appear here when available.</p>
+      </div>
+    `;
+    trace.innerHTML = `
+      <div class="trace-item">
+        <div class="trace-item-header">
+          <strong>Reasoning trace</strong>
+          <span>waiting</span>
+        </div>
+        <p>Trace steps will render here when the local verifier returns a result.</p>
+      </div>
+    `;
+    receipt.innerHTML = `
+      <div class="mini-stat"><small>Receipt</small><strong>Waiting</strong></div>
+      <div class="mini-stat"><small>Evidence</small><strong>0</strong></div>
+      <div class="mini-stat"><small>Provenance</small><strong>Local</strong></div>
+      <div class="mini-stat"><small>Timestamp</small><strong>--</strong></div>
+    `;
+    localNotice.textContent = 'Local-first demo mode. No external LLM calls. If the local server is unavailable, the UI shows a safe connection error instead of faking a live verdict.';
     return;
   }
-  const status = payload.status || payload.label || payload.result?.status || 'unknown';
-  const confidence = payload.confidence ?? payload.result?.confidence ?? payload.axiomCheck?.confidence ?? 0;
-  const evidenceCount = Array.isArray(payload.evidence) ? payload.evidence.length : Array.isArray(payload.result?.evidence) ? payload.result.evidence.length : 0;
+  const status = payload.status || 'bilinmiyor';
+  const verdictMap = {
+    dogrulandi: { chip: 'supported', label: 'Supported / dogrulandi', icon: 'ri-checkbox-circle-fill' },
+    celiski: { chip: 'contradicted', label: 'Contradicted / celiski', icon: 'ri-close-circle-fill' },
+    bilinmiyor: { chip: 'unknown', label: 'Unknown / bilinmiyor', icon: 'ri-question-fill' },
+    offline: { chip: 'offline', label: 'Offline / local server not connected', icon: 'ri-wifi-off-line' },
+    error: { chip: 'offline', label: 'Error', icon: 'ri-error-warning-fill' },
+  };
+  const verdict = verdictMap[status] || verdictMap.bilinmiyor;
+  const confidence = Number(payload.confidence || 0);
+  const evidenceCount = Array.isArray(payload.evidence) ? payload.evidence.length : 0;
+  const classification = payload.classification || 'not provided';
+  const warnings = Array.isArray(payload.warnings) ? payload.warnings : [];
+  const riskFlags = Array.isArray(payload.riskFlags) ? payload.riskFlags : [];
+  const subclaimItems = Array.isArray(payload.subclaims) ? payload.subclaims : [];
+  const traceItems = Array.isArray(payload.traceSteps) ? payload.traceSteps : [];
+  const receiptPreview = payload.trustReceiptPreview || {};
+  const timestamp = payload.timestamp || '--';
   target.innerHTML = `
-    <strong>${escapeHtml(String(status).toUpperCase())} · ${formatPercent(confidence * (confidence <= 1 ? 100 : 1))}</strong>
-    <p>${escapeHtml(payload.message || payload.summary || payload.explanation || 'Review completed.')}${evidenceCount ? ` Evidence items: ${evidenceCount}.` : ''}</p>
+    <div class="judgment-head">
+      <span class="verdict-chip ${verdict.chip}"><i class="${verdict.icon}"></i>${verdict.label}</span>
+      <span class="local-notice"><i class="ri-home-gear-line"></i>Local /v2/verify</span>
+    </div>
+    <strong>${escapeHtml(payload.summary || 'HUQAN returned a judgment.')}</strong>
+    <p>${escapeHtml(payload.detail || payload.message || 'The live verifier response was rendered below.')}</p>
   `;
+  stats.innerHTML = `
+    <div class="mini-stat"><small>Confidence</small><strong>${escapeHtml(formatPercent(confidence * 100))}</strong></div>
+    <div class="mini-stat"><small>Classification</small><strong>${escapeHtml(classification)}</strong></div>
+    <div class="mini-stat"><small>Risk Flags</small><strong>${escapeHtml(String(riskFlags.length))}</strong></div>
+    <div class="mini-stat"><small>Warnings</small><strong>${escapeHtml(String(warnings.length))}</strong></div>
+  `;
+  subclaims.innerHTML = subclaimItems.length
+    ? subclaimItems.map((item) => `
+      <div class="demo-item">
+        <strong>${escapeHtml(item.id || 'subclaim')}</strong>
+        <p>${escapeHtml(item.claim || '')}</p>
+        <span>${escapeHtml([item.subject, item.predicate, item.object].filter(Boolean).join(' ? '))}</span>
+      </div>
+    `).join('')
+    : `
+      <div class="demo-item">
+        <strong>Subclaims</strong>
+        <p>No structured subclaims were returned for this input.</p>
+      </div>
+    `;
+  trace.innerHTML = traceItems.length
+    ? traceItems.map((item, index) => `
+      <div class="trace-item">
+        <div class="trace-item-header">
+          <strong>${escapeHtml(item.type || `step_${index + 1}`)}</strong>
+          <span>${escapeHtml(item.status || item.rule || 'trace')}</span>
+        </div>
+        <p>${escapeHtml(item.claim || item.input || (item.reasons || []).join(', ') || 'Trace step rendered.')}</p>
+      </div>
+    `).join('')
+    : `
+      <div class="trace-item">
+        <div class="trace-item-header">
+          <strong>Reasoning trace</strong>
+          <span>not provided</span>
+        </div>
+        <p>No reasoning trace steps were returned.</p>
+      </div>
+    `;
+  receipt.innerHTML = `
+    <div class="mini-stat"><small>Receipt</small><strong>${escapeHtml(receiptPreview.receiptId || receiptPreview.originalClaim ? 'Preview' : 'Waiting')}</strong></div>
+    <div class="mini-stat"><small>Evidence</small><strong>${escapeHtml(String(receiptPreview.evidenceCount ?? evidenceCount))}</strong></div>
+    <div class="mini-stat"><small>Provenance</small><strong>${escapeHtml(payload.provenance || 'Local verifier')}</strong></div>
+    <div class="mini-stat"><small>Timestamp</small><strong>${escapeHtml(timestamp)}</strong></div>
+    <div class="mini-stat"><small>Contradictions</small><strong>${escapeHtml(String(receiptPreview.contradictionCount ?? 0))}</strong></div>
+    <div class="mini-stat"><small>Canonical</small><strong>${receiptPreview.canonical ? 'Yes' : 'No'}</strong></div>
+  `;
+  localNotice.textContent = payload.localNotice || 'Local-first demo mode. No external LLM calls.';
+}
+
+function loadDemoSample(kind) {
+  const samples = {
+    supported: 'HUQAN verifies claims before they become trusted memory or action.',
+    contradiction: 'HUQAN never judges AI output before action execution.',
+    unknown: 'The next AXIOM protocol release will include a universal truth score.',
+  };
+  const input = document.getElementById('review-input');
+  input.value = samples[kind] || samples.supported;
+  renderReviewResult(null, 'Demo sample loaded. Click Judge with HUQAN to run the live local verifier.');
+  input.focus();
 }
 
 async function runReview(mode) {
   const input = document.getElementById('review-input');
   const raw = input.value.trim();
-  const text = raw || (getSelectedItem()?.tool || '');
+  const text = raw;
   if (!text) {
-    renderReviewResult(null, 'Type a claim first.');
+    renderReviewResult(null, 'Paste an LLM answer or claim first.');
     return;
   }
   try {
     const res = await fetch(`/v2/verify?statement=${encodeURIComponent(text)}`);
     const data = await res.json();
     if (!res.ok) {
-      renderReviewResult({ status: 'error', message: data?.error || 'Review failed.' });
+      renderReviewResult({ status: 'error', message: data?.error || 'HUQAN verify failed.', localNotice: 'Local-first demo mode. The local verifier returned an error.' });
       return;
     }
+    const semanticTrust = data.meta?.semanticTrust || {};
+    const reasoningTrace = data.meta?.reasoningTrace || {};
+    const decomposition = reasoningTrace.steps?.find((step) => step.type === 'decomposition')?.output;
     renderReviewResult({
-      status: data.status || data.result?.status || 'verified',
-      confidence: data.confidence ?? data.result?.confidence ?? 0.5,
-      summary: data.explanation || data.result?.summary || 'Verifier returned a result.',
-      evidence: data.evidence || data.result?.evidence || [],
+      status: data.data?.status || data.status || 'bilinmiyor',
+      confidence: data.data?.confidence ?? data.confidence ?? semanticTrust.confidence ?? 0,
+      summary: data.type === 'verify'
+        ? 'HUQAN judged the pasted output using the local verification route.'
+        : 'Verifier returned a result.',
+      detail: semanticTrust.matchType
+        ? `Classification: ${semanticTrust.classification || 'not provided'} / Match type: ${semanticTrust.matchType}.`
+        : 'Trust evidence, decomposition, and reasoning trace are shown below when available.',
+      classification: semanticTrust.classification || 'not provided',
+      warnings: semanticTrust.warnings || [],
+      riskFlags: semanticTrust.risk?.flags || [],
+      subclaims: decomposition?.subclaims || [],
+      traceSteps: reasoningTrace.steps || [],
+      trustReceiptPreview: data.meta?.trustReceiptPreview || reasoningTrace.trustReceiptPreview || {},
+      evidence: data.evidence || [],
+      provenance: data.meta?.backend || 'Local verifier',
+      timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+      localNotice: 'Live local verifier connected. No external LLM calls were made.',
     });
   } catch (err) {
-    renderReviewResult({ status: 'error', message: err.message || 'Review failed.' });
+    renderReviewResult({
+      status: 'offline',
+      confidence: 0,
+      summary: 'Demo sample - local server not connected',
+      detail: err.message || 'Could not reach the local verifier on /v2/verify.',
+      subclaims: [],
+      traceSteps: [],
+      trustReceiptPreview: {},
+      provenance: 'Unavailable',
+      timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+      localNotice: 'Local server not connected. The UI did not fake a live verdict.',
+    });
   }
 }
-
 function buildAlerts(graph) {
   const alerts = [];
   const now = Date.now();
@@ -2427,7 +2858,7 @@ function renderInsights(status, graph, queue) {
     <div class="receipt-item">
       <div>
         <strong><i class="${escapeHtml(item.icon)}" style="margin-right:8px;color:#9fb0d7"></i>${escapeHtml(item.action)}</strong>
-        <p>${escapeHtml(item.agent)} · ${escapeHtml(item.time)}</p>
+        <p>${escapeHtml(item.agent)} - ${escapeHtml(item.time)}</p>
       </div>
       <span class="badge ${item.verdict === 'SAFE' ? 'safe' : 'review'}">${escapeHtml(item.verdict)}</span>
     </div>
@@ -2516,7 +2947,7 @@ function renderGraph(graph) {
     .attr('stroke-width', (d) => (d.__stale ? 1.1 : 1.4));
 
   labelsLayer = node.append('text')
-    .text((d) => (String(d.label || '').length > 12 ? `${String(d.label).slice(0, 11)}…` : d.label))
+    .text((d) => (String(d.label || '').length > 12 ? `${String(d.label).slice(0, 11)}...` : d.label))
     .attr('dy', (d) => radius(d) + 10)
     .style('display', state.labelsVisible ? 'block' : 'none');
 
@@ -2545,7 +2976,7 @@ function showNodeTip(node) {
   const edges = state.graph.links.filter((link) => String(link.source?.id || link.source) === node.id || String(link.target?.id || link.target) === node.id);
   const totalEvidence = edges.reduce((sum, link) => sum + (link.evidenceCount || 0), 0);
   document.getElementById('graph-tip-title').textContent = node.label;
-  document.getElementById('graph-tip-copy').textContent = `Weight ${Number(node.weight || 0).toFixed(2)} · Confidence ${Number(node.confidence || node.weight || 0).toFixed(2)} · ${edges.length} connected edges · ${totalEvidence} evidence items.`;
+  document.getElementById('graph-tip-copy').textContent = `Weight ${Number(node.weight || 0).toFixed(2)} - Confidence ${Number(node.confidence || node.weight || 0).toFixed(2)} - ${edges.length} connected edges - ${totalEvidence} evidence items.`;
   tip.classList.add('visible');
 }
 
@@ -2578,11 +3009,11 @@ async function loadStatus() {
     state.queue = buildQueue(status);
     state.queue.forEach((item, index) => { item.order = index; });
     state.selectedId = state.queue[0]?.id || null;
-    document.getElementById('system-status-copy').textContent = `${status.backend || 'memory'} backend · ${formatNumber(status.nodes || 0)} nodes · ${formatNumber(status.edges || 0)} edges`;
+    document.getElementById('system-status-copy').textContent = `${status.backend || 'memory'} backend - ${formatNumber(status.nodes || 0)} nodes - ${formatNumber(status.edges || 0)} edges`;
     document.getElementById('footer-version').innerHTML = `HUQAN v${escapeHtml(status.version || '0.0.0')}<br>Powered by AXIOM`;
-    document.getElementById('runtime-label').textContent = `${status.activeKernel || 'v1'} · ${status.backend || 'memory'}`;
-    document.getElementById('version-label').textContent = `${status.version || '0.0.0'} · commit ${status.lastCommit || 'unknown'}`;
-    document.getElementById('focus-label').textContent = `${status.currentFocus || 'Overview'} · ${status.nextAction || 'Awaiting action'}`;
+    document.getElementById('runtime-label').textContent = `${status.activeKernel || 'v1'} - ${status.backend || 'memory'}`;
+    document.getElementById('version-label').textContent = `${status.version || '0.0.0'} - commit ${status.lastCommit || 'unknown'}`;
+    document.getElementById('focus-label').textContent = `${status.currentFocus || 'Overview'} - ${status.nextAction || 'Awaiting action'}`;
     document.getElementById('workspace-name').textContent = 'Acme Research';
     document.getElementById('sidebar-workspace').textContent = 'Acme Research';
     document.getElementById('queue-count').textContent = formatNumber(state.queue.length);
@@ -2597,9 +3028,7 @@ async function loadStatus() {
 }
 
 function loadExample() {
-  const input = document.getElementById('review-input');
-  input.value = 'The current policy set is too permissive for production SQL actions.';
-  renderReviewResult(null, 'Example loaded. Click Review to run it.');
+  loadDemoSample('supported');
 }
 
 function bindEvents() {
@@ -2622,22 +3051,13 @@ function bindEvents() {
     document.getElementById('policy-match').textContent = 'MATCH';
   });
   document.getElementById('review-button').addEventListener('click', () => runReview('review'));
-  document.getElementById('advocate-button').addEventListener('click', () => {
-    const input = document.getElementById('review-input');
-    input.value = input.value || 'Why might this action fail under production policy?';
-    renderReviewResult({ status: 'analysis', message: 'Devil\'s advocate prompt prepared.' });
-  });
-  document.getElementById('memory-button').addEventListener('click', () => {
-    const value = document.getElementById('review-input').value.trim().toLowerCase();
-    if (value) state.search = value;
-    document.getElementById('search-input').value = state.search;
-    applyFilters();
-    renderReviewResult({ status: 'memory', message: 'Search filter updated to focus the queue.' });
-  });
   document.getElementById('load-example').addEventListener('click', loadExample);
   document.getElementById('clear-review').addEventListener('click', () => {
     document.getElementById('review-input').value = '';
     renderReviewResult(null);
+  });
+  document.querySelectorAll('[data-demo-sample]').forEach((button) => {
+    button.addEventListener('click', () => loadDemoSample(button.dataset.demoSample));
   });
   document.getElementById('toggle-rows').addEventListener('click', (event) => {
     state.selectedOnly = !state.selectedOnly;
