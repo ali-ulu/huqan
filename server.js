@@ -13,7 +13,6 @@ const {
   queryProvenance,
 } = require('./lib/provenance-query');
 const pkg = require('./package.json');
-const { inspectPersistence, resolvePersistencePaths } = require('./persistencePaths');
 const {
   DEFAULT_MAX_UPLOAD_BODY,
   DEFAULT_MAX_JSON_BODY,
@@ -339,23 +338,8 @@ function getGraphData(workspaceId = 'default') {
 }
 
 function getHealthData() {
-  const stats = cli.kernel.graph.getStats();
-  const persistence = inspectPersistence({
-    rootDir: __dirname,
-    memoryPath: process.env.AXIOM_MEMORY_PATH,
-    dbPath: process.env.AXIOM_DB_PATH,
-    backupBaseDir: process.env.AXIOM_BACKUP_DIR,
-  });
   return {
     ok: true,
-    service: 'axiom',
-    kernelVersion: process.env.AXIOM_KERNEL_VERSION === 'v2' ? 'v2' : 'v1',
-    backend: stats.backend,
-    nodes: stats.nodes,
-    edges: stats.edges,
-    uptimeSec: Math.floor(process.uptime()),
-    timestamp: new Date().toISOString(),
-    persistence,
   };
 }
 
@@ -372,183 +356,11 @@ function getLastCommit() {
 }
 
 function getV2StatusData() {
-  const stats = cli.kernel.graph.getStats();
-  const persistence = resolvePersistencePaths({
-    rootDir: __dirname,
-    memoryPath: process.env.AXIOM_MEMORY_PATH,
-    dbPath: process.env.AXIOM_DB_PATH,
-    backupBaseDir: process.env.AXIOM_BACKUP_DIR,
-  });
-  const activeKernel = process.env.AXIOM_KERNEL_VERSION === 'v2' ? 'v2' : 'v1';
-  const agentRuntime = String(process.env.AXIOM_AGENT_VERSION || 'v2').toLowerCase();
-  const agentRuntimeMode = String(process.env.AXIOM_AGENT_RUNTIME || '').toLowerCase() || agentRuntime;
-  const checkpointBackend = agentRuntime === 'v3' ? 'sqlite' : 'json';
-  const phases = [
-    {
-      id: 'v2.0',
-      title: 'v2.0 Core / Release',
-      status: 'done',
-      summary: 'Core contract, paranoid mode, MCP, benchmarks, release notes, and v2.0.0 tag are shipped.',
-      items: [
-        'Core envelope contract',
-        'paranoidMode + AXIOM_ERROR + contractVersion',
-        'MCP stdio adapter',
-        'Deterministic benchmark fixtures',
-        'Release docs + v2.0.0 tag',
-      ],
-    },
-    {
-      id: 'v2.1',
-      title: 'v2.1 Verify Reasoning',
-      status: 'done',
-      summary: 'KernelV2 verify now supports multi-hop type inference, contradiction reasons, and richer evidence.',
-      items: [
-        'Multi-hop type-chain inference',
-        'Negated known fact conflict',
-        'Opposite predicate conflict',
-        'Known type mismatch conflict',
-      ],
-    },
-    {
-      id: 'v2.2',
-      title: 'v2.2 Ecosystem',
-      status: 'done',
-      summary: 'MCP schema reflects v2 verify fields and can opt into KernelV2 runtime.',
-      items: [
-        'Richer verify output schema',
-        'Optional AXIOM_KERNEL_VERSION=v2 runtime',
-        'Schema tests',
-      ],
-    },
-    {
-      id: 'v2.3',
-      title: 'v2.3 CLI/REST Runtime',
-      status: process.env.AXIOM_KERNEL_VERSION === 'v2' ? 'done' : 'in_progress',
-      summary: 'CLI, REST, and MCP can run the v2 kernel behind an explicit environment flag.',
-      items: [
-        'CLI KernelV2 opt-in',
-        'REST KernelV2 opt-in',
-        'Health/status kernel visibility',
-      ],
-    },
-    {
-      id: 'v2.4',
-      title: 'v2.4 Status Dashboard',
-      status: 'done',
-      summary: 'The web UI and /v2-status endpoint show phase, runtime, test, and commit state in one place.',
-      items: [
-        'Single status endpoint',
-        'Runtime kernel/backend cards',
-        'Phase progress cards',
-        'Last commit visibility',
-      ],
-    },
-    {
-      id: 'v2.5',
-      title: 'v2.5 REST Structured Verify',
-      status: 'done',
-      summary: 'New /v2/verify endpoint returns the full core envelope while legacy /dogrula stays stable.',
-      items: [
-        'GET /v2/verify',
-        'POST /v2/verify',
-        'Legacy /dogrula compatibility',
-        'Structured REST tests',
-      ],
-    },
-    {
-      id: 'v2.6',
-      title: 'v2.6 MCP Schema Polish',
-      status: 'done',
-      summary: 'MCP tool descriptions and output schemas now mirror the real payload shapes more closely.',
-      items: [
-        'Concrete tool descriptions',
-        'Per-tool output schemas',
-        'Evidence and meta schema details',
-        'Developer-friendly MCP docs',
-      ],
-    },
-    {
-      id: 'v2.7',
-      title: 'v2.7 Manipulation Guard',
-      status: 'done',
-      summary: 'KernelV2 now flags manipulative, coercive, or injection-style text with additive risk metadata.',
-      items: [
-        'Prompt-injection detection',
-        'Coercive and overclaim risk labels',
-        'Risk-aware learnFromLLM filtering',
-        'Structured verify risk metadata',
-      ],
-    },
-    {
-      id: 'v2.8',
-      title: 'v2.8 Status Dashboard Polish',
-      status: 'done',
-      summary: 'The dashboard now makes progress, remaining phases, and current focus easier to scan at a glance.',
-      items: [
-        'Progress percentage',
-        'Remaining phase count',
-        'Current focus clarity',
-        'Dashboard readability polish',
-      ],
-    },
-    {
-      id: 'v2.9',
-      title: 'v2.9 Evidence Polish',
-      status: 'done',
-      summary: 'KernelV2 verify now adds compact explanation and evidence summary fields for clearer reasoning traces.',
-      items: [
-        'Verify explanation text',
-        'Compact evidence summary',
-        'Risk-aware reasoning polish',
-        'MCP schema exposure',
-      ],
-    },
-    {
-      id: 'v3.0',
-      title: 'v3.0 Agent Workflow',
-      status: 'in_progress',
-      summary: 'AXIOM now has a lightweight multi-step agent planner with persistent goal memory, tool selection policy, and execution reports.',
-      items: [
-        'Goal planner',
-        'Persistent goal memory',
-        'Multi-step execution loop',
-        'Tool selection policy',
-        'CLI agent commands',
-      ],
-    },
-  ];
-
-  const counts = phases.reduce((acc, phase) => {
-    acc.total += 1;
-    acc[phase.status] += 1;
-    return acc;
-  }, { total: 0, done: 0, in_progress: 0, pending: 0 });
-  const progressPercent = counts.total ? Math.round((counts.done / counts.total) * 100) : 0;
-  const remainingPhases = Math.max(0, counts.total - counts.done);
-
   return {
     ok: true,
+    service: 'axiom',
     version: pkg.version,
-    contractVersion: cli.kernel.contractVersion || '1.0.0',
-    activeKernel,
-    backend: stats.backend,
-    nodes: stats.nodes,
-    edges: stats.edges,
-    testStatus: computeTestStatus(),
-    lastCommit: getLastCommit(),
-    updatedAt: new Date().toISOString(),
-    counts,
-    progressPercent,
-    remainingPhases,
-    phases,
-    currentFocus: 'v3.0 Agent Workflow',
-    nextAction: 'Use the planner to run goal-driven multi-step tasks, persist the goal history, and report each tool decision clearly.',
-    agentRuntime,
-    agentRuntimeMode,
-    checkpointBackend,
-    agentV3Status: agentRuntime === 'v3' ? getAgentV3Status() : null,
-    agentCheckpointPath: agentRuntime === 'v3' ? persistence.dbPath : 'agent.memory.json',
-    persistencePaths: persistence,
+    status: 'running',
   };
 }
 
@@ -646,8 +458,11 @@ const server = http.createServer(async (req, res) => {
 
   // Structured v2 contract endpoint. Legacy /dogrula stays unchanged below.
   if (reqUrl.pathname === '/v2/verify') {
-    if (req.method !== 'POST' && req.method !== 'GET') {
-      writeJson(req, res, 405, { error: 'Method not allowed' });
+    if (req.method !== 'POST') {
+      writeJson(req, res, 405, {
+        error: 'Method not allowed',
+        message: 'Use POST /v2/verify',
+      }, { 'Cache-Control': 'no-cache' });
       return;
     }
 
@@ -663,15 +478,9 @@ const server = http.createServer(async (req, res) => {
       writeJson(req, res, 200, result, { 'Cache-Control': 'no-cache' });
     };
 
-    if (req.method === 'POST') {
-      if (!denyIfUnauthorized(req, res)) return;
-      const data = await parseJsonRequest(req, res, { maxBytes: 4_096 });
-      if (!data) return;
-      sendVerifyResult(data.statement || data.text || '', data.workspaceId || '');
-      return;
-    }
-
-    sendVerifyResult(reqUrl.searchParams.get('statement') || '', reqUrl.searchParams.get('workspaceId') || '');
+    const data = await parseJsonRequest(req, res, { maxBytes: 4_096 });
+    if (!data) return;
+    sendVerifyResult(data.statement || data.text || '', data.workspaceId || '');
     return;
   }
 
@@ -743,32 +552,22 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   if (reqUrl.pathname === '/dogrula' || reqUrl.pathname === '/verify') {
-    if (req.method !== 'POST' && req.method !== 'GET') {
+    if (req.method !== 'POST') {
       res.writeHead(405, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ error: 'Method not allowed' }));
+      res.end(JSON.stringify({
+        error: 'Method not allowed',
+        message: 'Use POST /v2/verify',
+      }));
       return;
     }
-    if (req.method === 'POST') {
-      if (!denyIfUnauthorized(req, res)) return;
-      const data = await parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_JSON_BODY });
-      if (!data) return;
-      const text = sanitizeInput(data.statement || data.text || '');
-      const workspaceId = sanitizeInput(data.workspaceId || reqUrl.searchParams.get('workspaceId') || '');
-      if (!text) {
-        res.writeHead(400, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
-        res.end(JSON.stringify({ error: 'statement veya text gerekli' }));
-        return;
-      }
-      const result = legacyVerify(cli.kernel.verify(text, workspaceId ? { workspaceId } : {}));
-      res.writeHead(200, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
-      res.end(JSON.stringify(result));
-      return;
-    }
-    const text = sanitizeInput(reqUrl.searchParams.get('statement') || '');
-    const workspaceId = sanitizeInput(reqUrl.searchParams.get('workspaceId') || '');
+    if (!denyIfUnauthorized(req, res)) return;
+    const data = await parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_JSON_BODY });
+    if (!data) return;
+    const text = sanitizeInput(data.statement || data.text || '');
+    const workspaceId = sanitizeInput(data.workspaceId || reqUrl.searchParams.get('workspaceId') || '');
     if (!text) {
       res.writeHead(400, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ error: 'statement parametresi gerekli' }));
+      res.end(JSON.stringify({ error: 'statement veya text gerekli' }));
       return;
     }
     const result = legacyVerify(cli.kernel.verify(text, workspaceId ? { workspaceId } : {}));

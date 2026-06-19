@@ -2691,7 +2691,13 @@ async function runReview(mode) {
     return;
   }
   try {
-    const res = await fetch(`/v2/verify?statement=${encodeURIComponent(text)}`);
+    const res = await fetch('/v2/verify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ statement: text }),
+    });
     const data = await res.json();
     if (!res.ok) {
       renderReviewResult({ status: 'error', message: data?.error || 'HUQAN verify failed.', localNotice: 'Local-first demo mode. The local verifier returned an error.' });

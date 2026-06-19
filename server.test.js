@@ -147,31 +147,28 @@ describe('Server - API', () => {
     assert.strictEqual(j.result, 'Bu komut web API üzerinden çalıştırılamaz.');
   });
 
-  it('GET /dogrula?statement=... ÃƒÂ§alÃ„Â±Ã…Å¸Ã„Â±r', async () => {
-    const r = await request(`${BASE}/dogrula?statement=kedi+balÃ„Â±k+yer`);
-    assert.strictEqual(r.status, 200);
+  it('GET /dogrula is blocked for verify claims', async () => {
+    const r = await request(`${BASE}/dogrula?statement=kedi+balik+yer`);
+    assert.strictEqual(r.status, 405);
     const j = await r.json();
-    assert.ok('status' in j);
-    assert.ok(!('ok' in j));
-    assert.notStrictEqual(r.headers.get('access-control-allow-origin'), '*');
+    assert.strictEqual(j.error, 'Method not allowed');
+    assert.strictEqual(j.message, 'Use POST /v2/verify');
   });
 
-  it('GET /dogrula boÃ…Å¸ statement hata dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {
-    const r = await request(`${BASE}/dogrula?statement=`);
-    assert.strictEqual(r.status, 400);
+  it('GET /verify is blocked for verify claims', async () => {
+    const r = await request(`${BASE}/verify?statement=kedi+balik+yer`);
+    assert.strictEqual(r.status, 405);
+    const j = await r.json();
+    assert.strictEqual(j.error, 'Method not allowed');
+    assert.strictEqual(j.message, 'Use POST /v2/verify');
   });
 
-  it('GET /v2/verify returns structured envelope', async () => {
+  it('GET /v2/verify is blocked for verify claims', async () => {
     const r = await request(`${BASE}/v2/verify?statement=kedi+balik+yer`);
-    assert.strictEqual(r.status, 200);
+    assert.strictEqual(r.status, 405);
     const j = await r.json();
-    assert.strictEqual(j.ok, true);
-    assert.strictEqual(j.type, 'verify');
-    assert.ok(j.data);
-    assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(j.data.status));
-    assert.ok(Array.isArray(j.evidence));
-    assert.strictEqual(j.error, null);
-    assert.ok(j.meta.contractVersion);
+    assert.strictEqual(j.error, 'Method not allowed');
+    assert.strictEqual(j.message, 'Use POST /v2/verify');
     assert.notStrictEqual(r.headers.get('access-control-allow-origin'), '*');
     assert.strictEqual(r.headers.get('cache-control'), 'no-cache');
   });
@@ -517,68 +514,39 @@ describe('Server - API', () => {
     assert.strictEqual(typeof j.metadata.memory.enabled, 'boolean', 'metadata.memory.enabled must be a boolean');
   });
 
-  it('GET /health servis bilgisini dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {
+  it('GET /health returns minimal public status', async () => {
     const r = await request(`${BASE}/health`);
     assert.strictEqual(r.status, 200);
     const j = await r.json();
-    assert.strictEqual(j.ok, true);
-    assert.strictEqual(j.service, 'axiom');
-    assert.strictEqual(j.kernelVersion, 'v2');
-    assert.ok(['sqlite', 'json'].includes(j.backend));
-    assert.ok(Number.isInteger(j.nodes));
-    assert.ok(Number.isInteger(j.edges));
-    assert.ok(Number.isInteger(j.uptimeSec));
-    assert.ok(typeof j.timestamp === 'string');
-    assert.ok(j.persistence);
-    assert.strictEqual(j.persistence.memoryPath, process.env.AXIOM_MEMORY_PATH);
-    assert.strictEqual(j.persistence.dbPath, process.env.AXIOM_DB_PATH);
-    assert.strictEqual(j.persistence.backupBaseDir, process.env.AXIOM_BACKUP_DIR);
-    assert.strictEqual(typeof j.persistence.memoryWritable, 'boolean');
-    assert.strictEqual(typeof j.persistence.dbWritable, 'boolean');
-    assert.strictEqual(typeof j.persistence.backupDirWritable, 'boolean');
+    assert.deepStrictEqual(j, { ok: true });
   });
 
-  it('GET /v2-status durum ekranÃ„Â± bilgisini dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {
+  it('GET /v2-status returns minimal running status', async () => {
     const r = await request(`${BASE}/v2-status`);
     assert.strictEqual(r.status, 200);
     const j = await r.json();
     assert.strictEqual(j.ok, true);
-    assert.ok(Array.isArray(j.phases));
-    assert.ok(j.counts.total >= 1);
-    assert.strictEqual(j.progressPercent, 91);
-    assert.strictEqual(j.remainingPhases, 1);
-    assert.strictEqual(typeof j.currentFocus, 'string');
-    assert.strictEqual(j.currentFocus, 'v3.0 Agent Workflow');
-    assert.strictEqual(j.agentRuntime, 'v2');
-    assert.strictEqual(j.checkpointBackend, 'json');
-    assert.strictEqual(typeof j.agentCheckpointPath, 'string');
-    assert.strictEqual(j.agentV3Status, null);
-    assert.strictEqual(j.activeKernel, 'v2');
-    assert.strictEqual(j.testStatus, 'static-test-status');
-    assert.ok(['sqlite', 'json'].includes(j.backend));
-    assert.ok(Number.isInteger(j.nodes));
-    assert.ok(Number.isInteger(j.edges));
-    assert.strictEqual(typeof j.lastCommit, 'string');
-    assert.strictEqual(typeof j.updatedAt, 'string');
-    assert.ok(j.persistencePaths);
-    assert.strictEqual(j.persistencePaths.memoryPath, process.env.AXIOM_MEMORY_PATH);
-    assert.strictEqual(j.persistencePaths.dbPath, process.env.AXIOM_DB_PATH);
-    assert.strictEqual(j.persistencePaths.backupBaseDir, process.env.AXIOM_BACKUP_DIR);
+    assert.strictEqual(j.service, 'axiom');
+    assert.strictEqual(j.status, 'running');
+    assert.strictEqual(typeof j.version, 'string');
+    assert.deepStrictEqual(Object.keys(j).sort(), ['ok', 'service', 'status', 'version']);
   });
+
 
   it('Method not allowed: POST /health', async () => {
     const r = await request(`${BASE}/health`, { method: 'POST' });
     assert.strictEqual(r.status, 405);
   });
 
-  it('GET / HTML dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {
+  it('GET / HTML renders HUQAN demo console copy', async () => {
     const r = await request(`${BASE}`);
     assert.strictEqual(r.status, 200);
     const html = await r.text();
-    assert.ok(html.includes('AXIOM'));
-    assert.ok(html.includes('d3@7'));
-    assert.ok(html.includes('forceSimulation'));
-    assert.ok(html.includes('Trust Dashboard'));
+    assert.ok(html.includes('HUQAN'));
+    assert.ok(html.includes('AI Trust Boundary'));
+    assert.ok(html.includes('Powered by the AXIOM Trust Engine'));
+    assert.ok(html.includes('Judge with HUQAN'));
+    assert.ok(html.includes('Trust Receipt Preview'));
   });
 
   it('bilinmeyen rota 404 dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {
