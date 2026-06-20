@@ -146,4 +146,31 @@ describe('Security baseline hardening', () => {
     assert.ok(html.includes("method: 'POST'"));
     assert.ok(!html.includes('/v2/verify?statement='));
   });
+
+  it('public index is local-first and free of CDN, provider, and browser secret storage patterns', async () => {
+    const html = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
+    const forbiddenPatterns = [
+      'fonts.googleapis.com',
+      'fonts.gstatic.com',
+      'cdn.jsdelivr.net',
+      'unpkg.com',
+      'cdnjs',
+      'd3.min.js',
+      'remixicon',
+      'openai.com',
+      'anthropic.com',
+      'openrouter.ai',
+      'api_key',
+      'apikey',
+      'sk-',
+      'localStorage.setItem',
+      'sessionStorage.setItem',
+    ];
+    for (const pattern of forbiddenPatterns) {
+      assert.ok(!html.includes(pattern), `public/index.html must not include ${pattern}`);
+    }
+    assert.ok(!html.includes('/llm-sor'));
+    assert.ok(html.includes("fetch('/v2/verify', {"));
+    assert.ok(html.includes("method: 'POST'"));
+  });
 });

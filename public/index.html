@@ -4,11 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HUQAN - Trust Control Center</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <style>
 :root{
   --bg:#050608;
@@ -40,7 +35,7 @@ body{
     radial-gradient(circle at 82% 20%, rgba(181,116,255,.15), transparent 20%),
     radial-gradient(circle at 68% 85%, rgba(100,212,255,.08), transparent 22%),
     linear-gradient(180deg,#050608 0%, #07090d 58%, #040506 100%);
-  font-family:"Manrope", system-ui, sans-serif;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
   overflow:hidden;
 }
 body::before{
@@ -49,9 +44,9 @@ body::before{
   inset:0;
   pointer-events:none;
   background:
+    radial-gradient(circle at center, transparent 0 58%, rgba(5,6,8,.86) 82%),
     linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px) 0 0 / 88px 88px,
     linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px) 0 0 / 88px 88px;
-  mask-image:radial-gradient(circle at center, rgba(0,0,0,.56), transparent 82%);
   opacity:.35;
 }
 button,input,select,textarea{font:inherit}
@@ -91,7 +86,7 @@ button{cursor:pointer}
 }
 .brand-title{
   margin:0;
-  font-family:"Space Grotesk", sans-serif;
+  font-family:"Segoe UI Semibold","Segoe UI",system-ui,sans-serif;
   font-size:25px;
   line-height:1;
   letter-spacing:.1em;
@@ -122,6 +117,60 @@ button{cursor:pointer}
   transition:transform .16s ease, background .16s ease, border-color .16s ease, color .16s ease;
 }
 .nav-button i{font-size:18px;color:#b9c2dd}
+.icon-font,
+i[class^="ri-"],
+i[class*=" ri-"]{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:1em;
+  font-style:normal;
+  line-height:1;
+}
+i[class^="ri-"]::before,
+i[class*=" ri-"]::before{
+  content:"•";
+}
+.ri-arrow-down-s-line::before{content:"↓"}
+.ri-arrow-right-s-line::before{content:"→"}
+.ri-brain-line::before{content:"◌"}
+.ri-building-4-line::before{content:"▦"}
+.ri-checkbox-circle-fill::before,
+.ri-checkbox-circle-line::before,
+.ri-shield-check-fill::before,
+.ri-shield-check-line::before{content:"✓"}
+.ri-close-circle-fill::before,
+.ri-close-circle-line::before,
+.ri-close-line::before,
+.ri-shield-cross-line::before{content:"✕"}
+.ri-database-2-line::before,
+.ri-stack-line::before{content:"▤"}
+.ri-eraser-line::before{content:"⌫"}
+.ri-error-warning-fill::before,
+.ri-notification-3-line::before{content:"⚠"}
+.ri-eye-line::before{content:"◉"}
+.ri-eye-off-line::before{content:"⊘"}
+.ri-file-chart-line::before{content:"▥"}
+.ri-file-code-line::before{content:"⌘"}
+.ri-focus-2-line::before{content:"◎"}
+.ri-home-gear-line::before,
+.ri-settings-3-line::before{content:"⚙"}
+.ri-layout-grid-line::before{content:"▣"}
+.ri-lock-2-line::before{content:"🔒"}
+.ri-mail-send-line::before{content:"✉"}
+.ri-node-tree::before{content:"⎇"}
+.ri-price-tag-3-line::before{content:"🏷"}
+.ri-question-fill::before,
+.ri-question-line::before{content:"?"}
+.ri-radar-line::before{content:"◔"}
+.ri-receipt-line::before{content:"🧾"}
+.ri-search-line::before{content:"⌕"}
+.ri-shield-keyhole-fill::before,
+.ri-shield-star-line::before{content:"⛨"}
+.ri-sparkling-2-line::before{content:"✦"}
+.ri-terminal-box-line::before{content:">_"}
+.ri-time-line::before{content:"⏱"}
+.ri-wifi-off-line::before{content:"⌁"}
 .nav-button span{font-size:14px;font-weight:600}
 .nav-button small{
   margin-left:auto;
@@ -336,7 +385,7 @@ button{cursor:pointer}
 }
 .hero h1{
   margin:0;
-  font-family:"Space Grotesk", sans-serif;
+  font-family:"Segoe UI Semibold","Segoe UI",system-ui,sans-serif;
   font-size:34px;
   line-height:1.05;
   letter-spacing:-.03em;
@@ -447,7 +496,7 @@ button{cursor:pointer}
 .metric-icon.cyan{background:rgba(100,212,255,.12);color:var(--cyan)}
 .metric-value{
   margin-top:10px;
-  font-family:"Space Grotesk", sans-serif;
+  font-family:"Segoe UI Semibold","Segoe UI",system-ui,sans-serif;
   font-size:28px;
   line-height:1;
   letter-spacing:-.04em;
@@ -491,7 +540,7 @@ button{cursor:pointer}
 }
 .panel-title{
   margin:0;
-  font-family:"Space Grotesk", sans-serif;
+  font-family:"Segoe UI Semibold","Segoe UI",system-ui,sans-serif;
   font-size:18px;
   letter-spacing:-.02em;
 }
@@ -985,7 +1034,7 @@ button{cursor:pointer}
 }
 .detail-name{
   margin:0;
-  font-family:"Space Grotesk", sans-serif;
+  font-family:"Segoe UI Semibold","Segoe UI",system-ui,sans-serif;
   font-size:18px;
   line-height:1.1;
 }
@@ -1500,14 +1549,14 @@ body[data-theme="avant"] .hero{
   border-color:rgba(255,255,255,.88) !important;
 }
 body[data-theme="architectural"] .hero h1{
-  font-family:"Playfair Display", serif !important;
+  font-family:Georgia,"Times New Roman",serif !important;
   font-size:38px;
   color:#111 !important;
 }
 body[data-theme="architectural"] .panel-title,
 body[data-theme="architectural"] .detail-name,
 body[data-theme="architectural"] .brand-title{
-  font-family:"Playfair Display", serif !important;
+  font-family:Georgia,"Times New Roman",serif !important;
   color:#111 !important;
 }
 body[data-theme="architectural"] .topbar-chip,
@@ -1982,8 +2031,8 @@ body[data-theme="avant"] .theme-switcher button.active{
               </div>
             </div>
             <div class="chart-body">
-              <div id="risk-chart"></div>
-              <div class="chart-legend" id="risk-legend"></div>
+              <div id="riskchart"></div>
+              <div class="chart-legend" id="risklegend"></div>
             </div>
           </article>
 
@@ -2257,11 +2306,9 @@ const baseQueue = [
   },
 ];
 
-let graphSimulation = null;
-let graphZoom = null;
-let graphSvg = null;
 let labelsLayer = null;
 let reviewResultState = null;
+let graphRenderState = { nodes: [], links: [] };
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -2276,11 +2323,18 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
+function createSvgNode(tag, attrs = {}) {
+  const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [key, value] of Object.entries(attrs)) {
+    node.setAttribute(key, String(value));
+  }
+  return node;
+}
+
 function setTheme(theme) {
   const safeTheme = ['dark', 'fluid', 'architectural', 'avant'].includes(theme) ? theme : 'dark';
   state.theme = safeTheme;
   document.body.dataset.theme = safeTheme;
-  localStorage.setItem('axiom-theme', safeTheme);
   document.querySelectorAll('[data-theme-choice]').forEach((button) => {
     button.classList.toggle('active', button.dataset.themeChoice === safeTheme);
   });
@@ -2795,7 +2849,7 @@ function renderInsights(status, graph, queue) {
   const medium = queue.filter((item) => item.risk === 'MEDIUM').length;
   const low = queue.filter((item) => item.risk === 'LOW').length;
   const total = Math.max(1, high + medium + low);
-  const donut = document.getElementById('risk-chart');
+  const donut = document.getElementById('riskchart');
   const radius = 58;
   const circumference = 2 * Math.PI * radius;
   const portions = [
@@ -2825,11 +2879,11 @@ function renderInsights(status, graph, queue) {
           return segment;
         }).join('')}
       </g>
-      <text x="80" y="76" text-anchor="middle" fill="#eef2ff" font-family="Space Grotesk, sans-serif" font-size="22" font-weight="700">${formatNumber(status?.nodes || graph.nodes.length)}</text>
+      <text x="80" y="76" text-anchor="middle" fill="#eef2ff" font-family="Segoe UI Semibold, Segoe UI, sans-serif" font-size="22" font-weight="700">${formatNumber(status?.nodes || graph.nodes.length)}</text>
       <text x="80" y="94" text-anchor="middle" fill="#94a0bf" font-size="10" font-weight="700" letter-spacing="0.12em">TOTAL</text>
     </svg>
   `;
-  document.getElementById('risk-legend').innerHTML = portions.map((portion) => `
+  document.getElementById('risklegend').innerHTML = portions.map((portion) => `
     <div class="legend-row">
       <div class="legend-left">
         <span class="legend-swatch" style="background:${portion.color}"></span>
@@ -2877,22 +2931,8 @@ function renderGraph(graph) {
   const width = container.clientWidth || 900;
   const height = container.clientHeight || 420;
   svgNode.innerHTML = '';
-
-  const svg = d3.select(svgNode)
-    .attr('viewBox', `0 0 ${width} ${height}`)
-    .attr('preserveAspectRatio', 'xMidYMid slice');
-
-  svg.selectAll('*').remove();
-  const g = svg.append('g');
-  graphSvg = svg;
-
-  graphZoom = d3.zoom()
-    .scaleExtent([0.12, 4])
-    .on('zoom', (event) => {
-      g.attr('transform', event.transform);
-    });
-
-  svg.call(graphZoom);
+  svgNode.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  svgNode.setAttribute('preserveAspectRatio', 'xMidYMid meet');
 
   const nodes = graph.nodes.slice(0, 120).map((node) => ({ ...node }));
   const nodeIds = new Set(nodes.map((node) => String(node.id)));
@@ -2906,71 +2946,78 @@ function renderGraph(graph) {
     });
   const maxEdge = Math.max(1, ...nodes.map((node) => node.edgeCount || 0));
   const radius = (node) => 4 + ((node.edgeCount || 0) / maxEdge) * 12;
-
-  const link = g.append('g')
-    .attr('stroke-linecap', 'round')
-    .selectAll('line')
-    .data(links)
-    .join('line')
-    .attr('class', (d) => `link ${relationKey(d.relation)}`)
-    .attr('stroke-width', (d) => 0.7 + ((d.confidence ?? d.weight ?? 0.5) * 1.3));
-
-  const node = g.append('g')
-    .selectAll('g')
-    .data(nodes)
-    .join('g')
-    .attr('class', 'node')
-    .call(
-      d3.drag()
-        .on('start', (event, d) => {
-          if (!event.active) graphSimulation.alphaTarget(0.3).restart();
-          d.fx = d.x;
-          d.fy = d.y;
-        })
-        .on('drag', (event, d) => {
-          d.fx = event.x;
-          d.fy = event.y;
-        })
-        .on('end', (event, d) => {
-          if (!event.active) graphSimulation.alphaTarget(0);
-          d.fx = null;
-          d.fy = null;
-        }),
-    )
-    .on('click', (_, d) => showNodeTip(d));
-
-  node.append('circle')
-    .attr('r', (d) => radius(d))
-    .attr('fill', (d) => {
-      if ((d.confidence ?? d.weight ?? 0.5) < 0.35) return 'rgba(255,187,77,.14)';
-      if (d.__stale) return 'rgba(120,126,160,.15)';
-      return 'rgba(17,21,27,.98)';
-    })
-    .attr('stroke', (d) => {
-      if ((d.confidence ?? d.weight ?? 0.5) > 0.7) return 'rgba(100,212,255,.8)';
-      return '#33405c';
-    })
-    .attr('stroke-width', (d) => (d.__stale ? 1.1 : 1.4));
-
-  labelsLayer = node.append('text')
-    .text((d) => (String(d.label || '').length > 12 ? `${String(d.label).slice(0, 11)}...` : d.label))
-    .attr('dy', (d) => radius(d) + 10)
-    .style('display', state.labelsVisible ? 'block' : 'none');
-
-  graphSimulation = d3.forceSimulation(nodes)
-    .force('link', d3.forceLink(links).id((d) => d.id).distance(82).strength(0.26))
-    .force('charge', d3.forceManyBody().strength(-130))
-    .force('center', d3.forceCenter(width / 2, height / 2))
-    .force('collision', d3.forceCollide().radius((d) => radius(d) + 4));
-
-  graphSimulation.on('tick', () => {
-    link
-      .attr('x1', (d) => d.source.x)
-      .attr('y1', (d) => d.source.y)
-      .attr('x2', (d) => d.target.x)
-      .attr('y2', (d) => d.target.y);
-    node.attr('transform', (d) => `translate(${d.x},${d.y})`);
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const ringRadius = Math.max(120, Math.min(width, height) * 0.32);
+  const innerRadius = ringRadius * 0.54;
+  graphRenderState.nodes = nodes.map((node, index) => {
+    const angle = (Math.PI * 2 * index) / Math.max(nodes.length, 1);
+    const orbit = index % 4 === 0 ? innerRadius : ringRadius + ((index % 3) - 1) * 22;
+    return {
+      ...node,
+      x: centerX + Math.cos(angle) * orbit,
+      y: centerY + Math.sin(angle) * orbit,
+      radius: radius(node),
+      shortLabel: String(node.label || '').length > 12 ? `${String(node.label).slice(0, 11)}...` : String(node.label || ''),
+    };
   });
+  const nodeById = new Map(graphRenderState.nodes.map((node) => [String(node.id), node]));
+  graphRenderState.links = links
+    .map((link) => {
+      const sourceId = String(link.source?.id || link.source || '');
+      const targetId = String(link.target?.id || link.target || '');
+      return {
+        ...link,
+        sourceNode: nodeById.get(sourceId),
+        targetNode: nodeById.get(targetId),
+      };
+    })
+    .filter((link) => link.sourceNode && link.targetNode);
+
+  const linkLayer = createSvgNode('g', { 'stroke-linecap': 'round' });
+  for (const edge of graphRenderState.links) {
+    const line = createSvgNode('line', {
+      x1: edge.sourceNode.x,
+      y1: edge.sourceNode.y,
+      x2: edge.targetNode.x,
+      y2: edge.targetNode.y,
+      class: `link ${relationKey(edge.relation)}`,
+      'stroke-width': (0.7 + ((edge.confidence ?? edge.weight ?? 0.5) * 1.3)).toFixed(2),
+    });
+    linkLayer.appendChild(line);
+  }
+  svgNode.appendChild(linkLayer);
+
+  const nodeLayer = createSvgNode('g');
+  labelsLayer = [];
+  for (const node of graphRenderState.nodes) {
+    const group = createSvgNode('g', { class: 'node', transform: `translate(${node.x},${node.y})`, tabindex: '0', role: 'button' });
+    const circle = createSvgNode('circle', {
+      r: node.radius,
+      fill: (node.confidence ?? node.weight ?? 0.5) < 0.35 ? 'rgba(255,187,77,.14)' : node.__stale ? 'rgba(120,126,160,.15)' : 'rgba(17,21,27,.98)',
+      stroke: (node.confidence ?? node.weight ?? 0.5) > 0.7 ? 'rgba(100,212,255,.8)' : '#33405c',
+      'stroke-width': node.__stale ? '1.1' : '1.4',
+    });
+    const label = createSvgNode('text', {
+      x: '0',
+      y: String(node.radius + 10),
+      display: state.labelsVisible ? 'block' : 'none',
+    });
+    label.textContent = node.shortLabel;
+    labelsLayer.push(label);
+    group.appendChild(circle);
+    group.appendChild(label);
+    const openTip = () => showNodeTip(node);
+    group.addEventListener('click', openTip);
+    group.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        openTip();
+      }
+    });
+    nodeLayer.appendChild(group);
+  }
+  svgNode.appendChild(nodeLayer);
 
   document.getElementById('graph-node-count').textContent = `${graph.nodes.length} nodes`;
   document.getElementById('graph-edge-count').textContent = `${graph.links.length} edges`;
@@ -2987,14 +3034,18 @@ function showNodeTip(node) {
 }
 
 function resetGraphZoom() {
-  if (graphSvg && graphZoom) {
-    graphSvg.transition().duration(320).call(graphZoom.transform, d3.zoomIdentity);
+  if (state.graph.nodes.length) {
+    renderGraph(state.graph);
   }
 }
 
 function toggleGraphLabels() {
   state.labelsVisible = !state.labelsVisible;
-  if (labelsLayer) labelsLayer.style('display', state.labelsVisible ? 'block' : 'none');
+  if (labelsLayer) {
+    labelsLayer.forEach((label) => {
+      label.setAttribute('display', state.labelsVisible ? 'block' : 'none');
+    });
+  }
 }
 
 function selectNav(targetId) {
@@ -3038,8 +3089,7 @@ function loadExample() {
 }
 
 function bindEvents() {
-  const savedTheme = localStorage.getItem('axiom-theme') || 'architectural';
-  setTheme(savedTheme);
+  setTheme('architectural');
   document.getElementById('search-input').addEventListener('input', (event) => {
     state.search = event.target.value;
     applyFilters();
