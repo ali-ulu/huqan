@@ -1,10 +1,18 @@
 const path = require('path');
 let Database;
 
-try {
-  Database = require('better-sqlite3');
-} catch (_) {
-  Database = null;
+function loadDatabaseOrThrow() {
+  if (Database) {
+    return Database;
+  }
+  try {
+    Database = require('better-sqlite3');
+    return Database;
+  } catch (error) {
+    const wrapped = new Error('better-sqlite3 is required for v3 storage');
+    wrapped.cause = error;
+    throw wrapped;
+  }
 }
 
 function normalizeGoal(goal) {
@@ -30,10 +38,8 @@ class AxiomStorage {
   constructor(opts = {}) {
     this.kernel = opts.kernel;
     this.dbPath = resolveDbPath(opts, this.kernel);
-    if (!Database) {
-      throw new Error('better-sqlite3 is required for v3 storage');
-    }
-    this.db = new Database(this.dbPath);
+    const SQLiteDatabase = loadDatabaseOrThrow();
+    this.db = new SQLiteDatabase(this.dbPath);
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('synchronous = NORMAL');
     this._init();
