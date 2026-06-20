@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AXIOM - Trust Control Center</title>
+<title>AXIOM - Güven Kontrol Merkezi</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
@@ -1504,7 +1504,7 @@ body[data-theme="avant"] .theme-switcher button.active{
     </div>
 
     <nav class="nav" id="nav">
-      <button class="nav-button active" data-target="overview-section"><i class="ri-layout-grid-line"></i><span>Overview</span><small>01</small></button>
+      <button class="nav-button active" data-target="overview-section"><i class="ri-layout-grid-line"></i><span>Genel bakış</span><small>01</small></button>
       <button class="nav-button" data-target="queue-section"><i class="ri-stack-line"></i><span>Actions</span><small>27</small></button>
       <button class="nav-button" data-target="memory-section"><i class="ri-brain-line"></i><span>Memory</span><small>04</small></button>
       <button class="nav-button" data-target="policy-section"><i class="ri-shield-check-line"></i><span>Policies</span><small>12</small></button>
@@ -1517,12 +1517,12 @@ body[data-theme="avant"] .theme-switcher button.active{
       <div class="status-card">
         <div class="status-dot"></div>
         <div>
-          <p class="status-title">System Status</p>
-          <p class="status-copy" id="system-status-copy">Loading status...</p>
+          <p class="status-title">Sistem Durumu</p>
+          <p class="status-copy" id="system-status-copy">Durum yükleniyor...</p>
         </div>
       </div>
       <button class="status-link" type="button">
-        <span>All systems operational</span>
+        <span>Tüm sistemler çalışıyor</span>
         <i class="ri-arrow-right-s-line"></i>
       </button>
     </div>
@@ -1531,12 +1531,12 @@ body[data-theme="avant"] .theme-switcher button.active{
       <div class="status-card">
         <div class="status-dot" style="background:var(--cyan);box-shadow:0 0 0 6px rgba(100,212,255,.12)"></div>
         <div>
-          <p class="status-title">Local-First Mode</p>
-          <p class="status-copy">No external calls. Everything stays on this machine.</p>
+          <p class="status-title">Yerel Mod</p>
+          <p class="status-copy">Harici çağrı yok. Her şey bu makinede kalır.</p>
         </div>
       </div>
       <button class="status-link" type="button">
-        <span>View privacy contract</span>
+        <span>Gizlilik sözleşmesini aç</span>
         <i class="ri-arrow-right-s-line"></i>
       </button>
     </div>
@@ -1559,16 +1559,16 @@ body[data-theme="avant"] .theme-switcher button.active{
 
       <div class="topbar-search">
         <i class="ri-search-line"></i>
-        <input id="search-input" type="search" placeholder="Search agents, actions, tools, policies..." autocomplete="off">
+        <input id="search-input" type="search" placeholder="Ajan, eylem, araç, politika ara..." autocomplete="off">
       </div>
 
       <div class="topbar-meta">
-        <div class="pill good"><i class="ri-shield-check-line"></i><div><small>Local-First</small><strong>Enabled</strong></div></div>
+        <div class="pill good"><i class="ri-shield-check-line"></i><div><small>Yerel-öncelikli</small><strong>Etkin</strong></div></div>
         <button class="pill badge" type="button" aria-label="Notifications"><i class="ri-notification-3-line"></i><span class="count">3</span></button>
         <button class="topbar-chip compact" type="button">
           <div class="avatar">AM</div>
           <div>
-            <small>Administrator</small>
+            <small>Yönetici</small>
             <strong>Alex Morgan</strong>
           </div>
           <i class="ri-arrow-down-s-line"></i>
@@ -1578,26 +1578,26 @@ body[data-theme="avant"] .theme-switcher button.active{
 
     <section class="hero" id="overview-section">
       <div>
-        <h1>Trust Control Center</h1>
-        <p>AXIOM judges actions before execution. <strong>You stay in control.</strong> The layout is tuned for fast scanning, strong hierarchy, and obvious review states.</p>
+        <h1>Güven Kontrol Merkezi</h1>
+        <p>AXIOM, eylemleri çalıştırmadan önce değerlendirir. <strong>Kontrol sende kalır.</strong> Yerleşim; hızlı tarama, net hiyerarşi ve açık inceleme durumları için tasarlandı.</p>
         <div class="hero-actions">
-          <button class="ghost-btn" type="button" data-preset="review: show pending SQL actions"><i class="ri-filter-3-line"></i>Review queue</button>
-          <button class="ghost-btn" type="button" data-preset="search memory for policy contradictions"><i class="ri-brain-line"></i>Search memory</button>
-          <button class="ghost-btn" type="button" data-preset="challenge the current policy set"><i class="ri-git-branch-line"></i>Devil's advocate</button>
+          <button class="ghost-btn" type="button" data-preset="review: show pending SQL actions"><i class="ri-filter-3-line"></i>İnceleme kuyruğu</button>
+          <button class="ghost-btn" type="button" data-preset="search memory for policy contradictions"><i class="ri-brain-line"></i>Bellekte ara</button>
+          <button class="ghost-btn" type="button" data-preset="challenge the current policy set"><i class="ri-git-branch-line"></i>Karşı görüş</button>
         </div>
       </div>
       <div class="hero-meta">
         <select class="control" id="policy-set">
-          <option>Acme Default</option>
-          <option>Research Safety</option>
-          <option>Production Lockdown</option>
+          <option>Acme Varsayılan</option>
+          <option>Araştırma Güvenliği</option>
+          <option>Üretim Kilidi</option>
         </select>
-        <div class="status-badge"><i class="ri-shield-star-line"></i><span>Policy Status</span> Enforced</div>
-        <div class="theme-switcher" id="theme-switcher" aria-label="Theme selector">
-          <button type="button" data-theme-choice="dark"><small>Theme 01</small>Dark</button>
-          <button type="button" data-theme-choice="architectural" class="active"><small>Theme 02</small>Architectural</button>
-          <button type="button" data-theme-choice="fluid"><small>Theme 03</small>Fluid</button>
-          <button type="button" data-theme-choice="avant"><small>Theme 04</small>Avant-Garde</button>
+        <div class="status-badge"><i class="ri-shield-star-line"></i><span>Politika Durumu</span> Uygulandı</div>
+        <div class="theme-switcher" id="theme-switcher" aria-label="Tema seçici">
+          <button type="button" data-theme-choice="dark"><small>Tema 01</small>Koyu</button>
+          <button type="button" data-theme-choice="architectural" class="active"><small>Tema 02</small>Mimari</button>
+          <button type="button" data-theme-choice="fluid"><small>Tema 03</small>Akışkan</button>
+          <button type="button" data-theme-choice="avant"><small>Tema 04</small>Avangart</button>
         </div>
       </div>
     </section>
@@ -1607,25 +1607,25 @@ body[data-theme="avant"] .theme-switcher button.active{
     <section class="command-panel" id="command-section">
       <div class="panel-header">
         <div>
-          <h2 class="panel-title">Quick Review</h2>
-          <div class="panel-subtitle">Run a statement through the verifier without leaving the dashboard.</div>
+          <h2 class="panel-title">Hızlı İnceleme</h2>
+          <div class="panel-subtitle">Gösterge panelinden çıkmadan bir ifadeyi doğrulat.</div>
         </div>
         <div class="panel-actions">
-          <button class="small-btn neutral-btn" id="load-example" type="button"><i class="ri-sparkling-2-line"></i>Load example</button>
-          <button class="small-btn ghost-btn" id="clear-review" type="button"><i class="ri-eraser-line"></i>Clear</button>
+          <button class="small-btn neutral-btn" id="load-example" type="button"><i class="ri-sparkling-2-line"></i>Örnek yükle</button>
+          <button class="small-btn ghost-btn" id="clear-review" type="button"><i class="ri-eraser-line"></i>Temizle</button>
         </div>
       </div>
       <div class="command-grid">
-        <textarea class="command-input" id="review-input" placeholder="Type a claim or instruction to review..."></textarea>
+        <textarea class="command-input" id="review-input" placeholder="İncelemek için bir iddia veya talimat yaz..."></textarea>
         <div class="command-actions">
-          <button class="primary-btn" id="review-button" type="button"><i class="ri-shield-check-fill"></i>Review</button>
-          <button class="neutral-btn" id="advocate-button" type="button"><i class="ri-sword-line"></i>Devil's Advocate</button>
-          <button class="neutral-btn" id="memory-button" type="button"><i class="ri-brain-line"></i>Search Memory</button>
+          <button class="primary-btn" id="review-button" type="button"><i class="ri-shield-check-fill"></i>İncele</button>
+          <button class="neutral-btn" id="advocate-button" type="button"><i class="ri-sword-line"></i>Karşı Görüş</button>
+          <button class="neutral-btn" id="memory-button" type="button"><i class="ri-brain-line"></i>Bellekte Ara</button>
         </div>
       </div>
       <div class="command-result" id="review-result">
-        <strong>Ready.</strong>
-        <p>Pick a queue row or write a claim above. The result will appear here.</p>
+        <strong>Hazır.</strong>
+        <p>Bir kuyruk satırı seç ya da yukarıya bir iddia yaz. Sonuç burada görünecek.</p>
       </div>
     </section>
 
@@ -1634,39 +1634,39 @@ body[data-theme="avant"] .theme-switcher button.active{
         <section class="panel queue-card" id="queue-section">
           <div class="panel-header">
             <div>
-              <h2 class="panel-title">Action Review Queue</h2>
-              <div class="panel-subtitle"><span class="badge review" id="queue-count">27</span> Pending actions waiting for a verdict.</div>
+              <h2 class="panel-title">Eylem İnceleme Kuyruğu</h2>
+              <div class="panel-subtitle"><span class="badge review" id="queue-count">27</span> Bekleyen eylemler karar bekliyor.</div>
             </div>
             <div class="panel-actions">
-              <button class="small-btn neutral-btn" id="toggle-rows" type="button"><i class="ri-eye-line"></i>Show selected only</button>
+              <button class="small-btn neutral-btn" id="toggle-rows" type="button"><i class="ri-eye-line"></i>Sadece seçiliyi göster</button>
             </div>
           </div>
 
           <div class="queue-toolbar">
             <select class="select" id="verdict-filter">
-              <option value="all">All verdicts</option>
-              <option value="REVIEW">Review</option>
-              <option value="SAFE">Safe</option>
-              <option value="BLOCKED">Blocked</option>
+              <option value="all">Tüm kararlar</option>
+              <option value="REVIEW">İnceleme</option>
+              <option value="SAFE">Güvenli</option>
+              <option value="BLOCKED">Engelli</option>
             </select>
             <select class="select" id="sort-select">
-              <option value="newest">Sort: Newest</option>
-              <option value="risk">Sort: Highest risk</option>
-              <option value="confidence">Sort: Confidence</option>
+              <option value="newest">Sırala: En yeni</option>
+              <option value="risk">Sırala: En yüksek risk</option>
+              <option value="confidence">Sırala: Güven</option>
             </select>
-            <div class="stat-chip" id="queue-status">Showing 5 of 27 results</div>
+            <div class="stat-chip" id="queue-status">27 sonucun 5'i gösteriliyor</div>
           </div>
 
           <div class="queue-wrap">
             <table class="queue-table">
               <thead>
                 <tr>
-                  <th style="width:126px">Time</th>
-                  <th style="width:180px">Agent</th>
-                  <th>Action / Requested Tool</th>
-                  <th style="width:210px">Target / Context</th>
+                  <th style="width:126px">Saat</th>
+                  <th style="width:180px">Ajan</th>
+                  <th>Eylem / İstenen araç</th>
+                  <th style="width:210px">Hedef / Bağlam</th>
                   <th style="width:112px">Risk</th>
-                  <th style="width:126px">Verdict</th>
+                  <th style="width:126px">Karar</th>
                 </tr>
               </thead>
               <tbody id="queue-body"></tbody>
@@ -1674,8 +1674,8 @@ body[data-theme="avant"] .theme-switcher button.active{
           </div>
 
           <div class="queue-footer">
-            <span id="queue-footer-left">Showing 1 to 5 of 27 results</span>
-            <span>Keyboard: click row to inspect, use filters above to narrow results.</span>
+            <span id="queue-footer-left">27 sonucun 1 ile 5'i gösteriliyor</span>
+            <span>Klavye: incelemek için satıra tıkla, filtrelerle daralt.</span>
           </div>
         </section>
 
@@ -1683,8 +1683,8 @@ body[data-theme="avant"] .theme-switcher button.active{
           <article class="chart-card panel">
             <div class="chart-header">
               <div>
-                <h3 class="panel-title" style="font-size:16px">Risk Distribution</h3>
-                <div class="panel-subtitle">Current queue by severity.</div>
+                <h3 class="panel-title" style="font-size:16px">Risk Dağılımı</h3>
+                <div class="panel-subtitle">Mevcut kuyruk, ciddiyet seviyesine göre.</div>
               </div>
             </div>
             <div class="chart-body">
@@ -1696,8 +1696,8 @@ body[data-theme="avant"] .theme-switcher button.active{
           <article class="chart-card panel" id="memory-card">
             <div class="chart-header">
               <div>
-                <h3 class="panel-title" style="font-size:16px">Memory Provenance</h3>
-                <div class="panel-subtitle">Timeline from status phases and recent checks.</div>
+                <h3 class="panel-title" style="font-size:16px">Bellek Kökeni</h3>
+                <div class="panel-subtitle">Durum aşamaları ve son kontrollerin zaman çizgisi.</div>
               </div>
             </div>
             <div class="timeline" id="timeline-list"></div>
@@ -1706,8 +1706,8 @@ body[data-theme="avant"] .theme-switcher button.active{
           <article class="chart-card panel">
             <div class="chart-header">
               <div>
-                <h3 class="panel-title" style="font-size:16px">Contradiction Alerts</h3>
-                <div class="panel-subtitle">Low confidence and conflicting graph edges.</div>
+                <h3 class="panel-title" style="font-size:16px">Çelişki Uyarıları</h3>
+                <div class="panel-subtitle">Düşük güven ve çelişen grafik kenarları.</div>
               </div>
               <span class="badge review" id="alert-count">2</span>
             </div>
@@ -1717,8 +1717,8 @@ body[data-theme="avant"] .theme-switcher button.active{
           <article class="chart-card panel" id="receipts-section">
             <div class="chart-header">
               <div>
-                <h3 class="panel-title" style="font-size:16px">Recent Trust Receipts</h3>
-                <div class="panel-subtitle">Approved, verified, and pending actions.</div>
+                <h3 class="panel-title" style="font-size:16px">Son Güven Kayıtları</h3>
+                <div class="panel-subtitle">Onaylanan, doğrulanan ve bekleyen eylemler.</div>
               </div>
             </div>
             <div class="receipt-list" id="receipt-list"></div>
@@ -1727,20 +1727,20 @@ body[data-theme="avant"] .theme-switcher button.active{
 
         <section class="graph-card panel" id="graph-section">
           <div class="graph-toolbar">
-            <button class="small-btn neutral-btn" id="graph-reset" type="button"><i class="ri-focus-2-line"></i>Reset</button>
-            <button class="small-btn neutral-btn" id="graph-labels" type="button"><i class="ri-price-tag-3-line"></i>Labels</button>
+            <button class="small-btn neutral-btn" id="graph-reset" type="button"><i class="ri-focus-2-line"></i>Sıfırla</button>
+            <button class="small-btn neutral-btn" id="graph-labels" type="button"><i class="ri-price-tag-3-line"></i>Etiketler</button>
           </div>
           <div class="graph-stats">
-            <div class="graph-stat" id="graph-node-count">0 nodes</div>
-            <div class="graph-stat" id="graph-edge-count">0 edges</div>
-            <div class="graph-stat" id="graph-focus">Graph loading...</div>
+            <div class="graph-stat" id="graph-node-count">0 düğüm</div>
+            <div class="graph-stat" id="graph-edge-count">0 kenar</div>
+            <div class="graph-stat" id="graph-focus">Grafik yükleniyor...</div>
           </div>
           <div class="graph-surface">
-            <svg id="graph-svg" aria-label="Knowledge graph"></svg>
+            <svg id="graph-svg" aria-label="Bilgi grafiği"></svg>
           </div>
           <div class="graph-tip" id="graph-tip">
-            <strong id="graph-tip-title">Select a node</strong>
-            <p id="graph-tip-copy">Click a graph node to inspect its evidence, confidence, and connected edges.</p>
+            <strong id="graph-tip-title">Bir düğüm seç</strong>
+            <p id="graph-tip-copy">Kanıtı, güveni ve bağlı kenarları görmek için bir grafik düğümüne tıkla.</p>
           </div>
         </section>
       </div>
@@ -1751,70 +1751,70 @@ body[data-theme="avant"] .theme-switcher button.active{
             <div class="detail-title">
               <div class="detail-icon"><i class="ri-file-code-line"></i></div>
               <div>
-                <h2 class="detail-name" id="detail-name">Loading...</h2>
-                <div class="detail-meta" id="detail-meta">Waiting for queue data</div>
+                <h2 class="detail-name" id="detail-name">Yükleniyor...</h2>
+                <div class="detail-meta" id="detail-meta">Kuyruk verisi bekleniyor</div>
               </div>
             </div>
-            <button class="close-btn" id="detail-reset" type="button" aria-label="Reset selection"><i class="ri-close-line"></i></button>
+            <button class="close-btn" id="detail-reset" type="button" aria-label="Seçimi sıfırla"><i class="ri-close-line"></i></button>
           </div>
 
           <div class="detail-stack">
             <div class="detail-callout" id="detail-callout">
-              <strong><i class="ri-time-line"></i>Verdict (Pending)</strong>
-              <p>This action is waiting for your review. It will not execute until approved.</p>
+              <strong><i class="ri-time-line"></i>Karar (Beklemede)</strong>
+              <p>Bu eylem incelemeni bekliyor. Onaylanana kadar çalıştırılmayacak.</p>
             </div>
 
             <div>
               <div class="evidence-title">
-                <span class="section-label">Evidence Trail</span>
-                <span class="badge muted" id="evidence-count">0 items</span>
+                <span class="section-label">Kanıt Kaydı</span>
+                <span class="badge muted" id="evidence-count">0 öğe</span>
               </div>
               <div class="detail-list" id="evidence-list"></div>
             </div>
 
             <div>
               <div class="evidence-title">
-                <span class="section-label">Policy Match</span>
-                <span class="badge match" id="policy-match">MATCH</span>
+                <span class="section-label">Politika Eşleşmesi</span>
+                <span class="badge match" id="policy-match">Uyumlu</span>
               </div>
               <div class="policy-grid" id="policy-list"></div>
             </div>
 
             <div>
               <div class="policy-row">
-                <strong>Confidence</strong>
-                <span id="confidence-label">High</span>
+                <strong>Güven</strong>
+                <span id="confidence-label">Yüksek</span>
               </div>
               <div class="confidence"><span id="confidence-bar" style="width:0%"></span></div>
             </div>
 
             <div class="detail-actions">
-              <button class="danger-btn" id="reject-button" type="button"><i class="ri-shield-cross-line"></i>Reject</button>
-              <button class="primary-btn" id="approve-button" type="button"><i class="ri-shield-check-fill"></i>Approve</button>
+              <button class="danger-btn" id="reject-button" type="button"><i class="ri-shield-cross-line"></i>Reddet</button>
+              <button class="primary-btn" id="approve-button" type="button"><i class="ri-shield-check-fill"></i>Onayla</button>
             </div>
-            <div class="detail-note">Action will be executed after approval.</div>
+            <div class="detail-note">Eylem, onaydan sonra çalıştırılır.</div>
           </div>
         </section>
 
         <section class="detail-card" id="settings-section">
           <div class="panel-header" style="margin-bottom:10px">
             <div>
-              <h2 class="panel-title" style="font-size:16px">Settings Snapshot</h2>
-              <div class="panel-subtitle">Current runtime and policy context.</div>
+              <h2 class="panel-title" style="font-size:16px">Ayarlar Özeti</h2>
+              <div class="panel-subtitle">Geçerli çalışma zamanı ve politika bağlamı.</div>
             </div>
           </div>
           <div class="detail-list">
             <div class="detail-item">
-              <strong>Runtime</strong>
-              <p id="runtime-label">Loading...</p>
+              <strong>Çalışma Zamanı</strong>
+              <p id="runtime-label">Yükleniyor...</p>
             </div>
             <div class="detail-item">
-              <strong>Version</strong>
-              <p id="version-label">Loading...</p>
+              <strong>Sürüm</strong>
+              <p id="version-label">Yükleniyor...</p>
             </div>
             <div class="detail-item">
-              <strong>Focus</strong>
-              <p id="focus-label">Loading...</p>
+              <strong>Odak</strong>
+              <p id="focus-label">Yükleniyor...</p>
             </div>
           </div>
         </section>
@@ -1853,20 +1853,20 @@ const baseQueue = [
     action: 'execute_sql',
     tool: 'SELECT * FROM patients',
     target: 'acme://prod/healthdb',
-    context: 'Production read path',
+    context: 'Üretim okuma yolu',
     risk: 'HIGH',
     verdict: 'REVIEW',
-    status: 'Awaiting review',
+    status: 'İnceleme bekliyor',
     confidence: 87,
     icon: 'ri-database-2-line',
     evidence: [
-      { title: 'Agent reasoning', body: 'Query touches a sensitive production dataset.' },
-      { title: 'Policy checks', body: 'SQL Safety Policy requires manual approval.' },
-      { title: 'Context snapshot', body: 'Read-only path detected, but scope is broad.' },
+      { title: 'Ajan gerekçesi', body: 'Sorgu, hassas bir üretim veri kümesine dokunuyor.' },
+      { title: 'Politika kontrolleri', body: 'SQL Güvenlik Politikası manuel onay gerektiriyor.' },
+      { title: 'Bağlam anlık görüntüsü', body: 'Salt okunur yol algılandı, ancak kapsam geniş.' },
     ],
     policies: [
-      { name: 'Data Access Policy', note: 'Allow read-only on healthdb', verdict: 'MATCH' },
-      { name: 'SQL Safety Policy', note: 'Query is read-only', verdict: 'MATCH' },
+      { name: 'Veri Erişim Politikası', note: 'Healthdb üzerinde salt okunur erişime izin ver', verdict: 'MATCH' },
+      { name: 'SQL Güvenlik Politikası', note: 'Sorgu salt okunur', verdict: 'MATCH' },
     ],
   },
   {
@@ -1876,20 +1876,20 @@ const baseQueue = [
     action: 'write_file',
     tool: '/reports/q2_forecast.xlsx',
     target: 'acme://files/reports/',
-    context: 'Forecast export',
+    context: 'Tahmin dışa aktarma',
     risk: 'MEDIUM',
     verdict: 'REVIEW',
-    status: 'Awaiting review',
+    status: 'İnceleme bekliyor',
     confidence: 73,
     icon: 'ri-file-chart-line',
     evidence: [
-      { title: 'Retrieved memory', body: 'Historical forecast template detected.' },
-      { title: 'Policy checks', body: 'File writes are allowed, but destination needs review.' },
-      { title: 'Context snapshot', body: 'Report export requested by analyst flow.' },
+      { title: 'Alınan bellek', body: 'Geçmiş tahmin şablonu algılandı.' },
+      { title: 'Politika kontrolleri', body: 'Dosya yazmaya izin var, ancak hedefin incelenmesi gerekiyor.' },
+      { title: 'Bağlam anlık görüntüsü', body: 'Rapor dışa aktarma analist akışı tarafından istendi.' },
     ],
     policies: [
-      { name: 'File Write Policy', note: 'Approved folders only', verdict: 'MATCH' },
-      { name: 'Report Export Policy', note: 'Review output path', verdict: 'MATCH' },
+      { name: 'Dosya Yazma Politikası', note: 'Yalnızca onaylı klasörler', verdict: 'MATCH' },
+      { name: 'Rapor Dışa Aktarma Politikası', note: 'Çıkış yolunu incele', verdict: 'MATCH' },
     ],
   },
   {
@@ -1899,20 +1899,20 @@ const baseQueue = [
     action: 'web_search',
     tool: 'market sentiment AI',
     target: 'DuckDuckGo',
-    context: 'Research query',
+    context: 'Araştırma sorgusu',
     risk: 'LOW',
     verdict: 'SAFE',
-    status: 'Auto-approved',
+    status: 'Otomatik onaylandı',
     confidence: 94,
     icon: 'ri-search-line',
     evidence: [
-      { title: 'Agent reasoning', body: 'Public web search only, no sensitive scope.' },
-      { title: 'Policy checks', body: 'Low risk informational action.' },
-      { title: 'Context snapshot', body: 'Summarization intent detected.' },
+      { title: 'Ajan gerekçesi', body: 'Yalnızca açık web araması, hassas kapsam yok.' },
+      { title: 'Politika kontrolleri', body: 'Düşük riskli bilgilendirme eylemi.' },
+      { title: 'Bağlam anlık görüntüsü', body: 'Özetleme niyeti algılandı.' },
     ],
     policies: [
-      { name: 'Web Search Policy', note: 'Public sources only', verdict: 'MATCH' },
-      { name: 'Content Safety Policy', note: 'No sensitive targeting', verdict: 'MATCH' },
+      { name: 'Web Arama Politikası', note: 'Yalnızca açık kaynaklar', verdict: 'MATCH' },
+      { name: 'İçerik Güvenlik Politikası', note: 'Hassas hedefleme yok', verdict: 'MATCH' },
     ],
   },
   {
@@ -1922,20 +1922,20 @@ const baseQueue = [
     action: 'run_command',
     tool: 'kubectl get pods --all-namespaces',
     target: 'acme://k8s/cluster-01',
-    context: 'Cluster status',
+    context: 'Küme durumu',
     risk: 'HIGH',
     verdict: 'REVIEW',
-    status: 'Awaiting review',
+    status: 'İnceleme bekliyor',
     confidence: 80,
     icon: 'ri-terminal-box-line',
     evidence: [
-      { title: 'Agent reasoning', body: 'Command may expose broad operational state.' },
-      { title: 'Policy checks', body: 'Cluster access requires explicit approval.' },
-      { title: 'Context snapshot', body: 'Ops task appears time-sensitive.' },
+      { title: 'Ajan gerekçesi', body: 'Komut geniş operasyonel durumu açığa çıkarabilir.' },
+      { title: 'Politika kontrolleri', body: 'Küme erişimi açık onay gerektirir.' },
+      { title: 'Bağlam anlık görüntüsü', body: 'Operasyon görevi zaman açısından hassas görünüyor.' },
     ],
     policies: [
-      { name: 'Ops Command Policy', note: 'Restricted cluster scope', verdict: 'MATCH' },
-      { name: 'Risk Policy', note: 'High-privilege command pattern', verdict: 'MATCH' },
+      { name: 'Operasyon Komut Politikası', note: 'Küme kapsamı kısıtlı', verdict: 'MATCH' },
+      { name: 'Risk Politikası', note: 'Yüksek yetkili komut deseni', verdict: 'MATCH' },
     ],
   },
   {
@@ -1945,20 +1945,20 @@ const baseQueue = [
     action: 'send_email',
     tool: 'Q2 Update to stakeholders',
     target: 'smtps://acme.internal',
-    context: 'Internal update',
+    context: 'Dahili güncelleme',
     risk: 'LOW',
     verdict: 'SAFE',
-    status: 'Auto-approved',
+    status: 'Otomatik onaylandı',
     confidence: 91,
     icon: 'ri-mail-send-line',
     evidence: [
-      { title: 'Retrieved memory', body: 'Stakeholder update template is present.' },
-      { title: 'Policy checks', body: 'Internal recipients only.' },
-      { title: 'Context snapshot', body: 'No external call required.' },
+      { title: 'Alınan bellek', body: 'Paydaş güncelleme şablonu mevcut.' },
+      { title: 'Politika kontrolleri', body: 'Yalnızca dahili alıcılar.' },
+      { title: 'Bağlam anlık görüntüsü', body: 'Harici çağrı gerekmiyor.' },
     ],
     policies: [
-      { name: 'Email Policy', note: 'Internal delivery allowed', verdict: 'MATCH' },
-      { name: 'Privacy Policy', note: 'No external recipients', verdict: 'MATCH' },
+      { name: 'E-posta Politikası', note: 'Dahili teslimata izin verilir', verdict: 'MATCH' },
+      { name: 'Gizlilik Politikası', note: 'Harici alıcı yok', verdict: 'MATCH' },
     ],
   },
 ];
@@ -2044,41 +2044,41 @@ function renderMetrics(status, graph, queue) {
 
   const cards = [
     {
-      label: 'Approved Actions',
+      label: 'Onaylanan Eylemler',
       value: approved,
-      delta: '18% vs yesterday',
+      delta: 'Düne göre %18',
       icon: 'ri-shield-check-line green',
       series: [42, 44, 43, 48, 51, 53, 58],
       color: '#69d38d',
     },
     {
-      label: 'Blocked Actions',
+      label: 'Engellenen Eylemler',
       value: blocked,
-      delta: '7% vs yesterday',
+      delta: 'Düne göre %7',
       icon: 'ri-shield-cross-line red',
       series: [22, 21, 23, 24, 26, 25, 27],
       color: '#ff5a66',
     },
     {
-      label: 'Pending Reviews',
+      label: 'Bekleyen İncelemeler',
       value: pending,
-      delta: '12% vs yesterday',
+      delta: 'Düne göre %12',
       icon: 'ri-time-line amber',
       series: [18, 19, 18, 20, 21, 22, 23],
       color: '#ffbb4d',
     },
     {
-      label: 'Memory Events',
+      label: 'Bellek Olayları',
       value: memory,
-      delta: '22% vs yesterday',
+      delta: 'Düne göre %22',
       icon: 'ri-database-2-line violet',
       series: [58, 60, 63, 67, 69, 72, 75],
       color: '#b574ff',
     },
     {
-      label: 'Risk Score',
+      label: 'Risk Puanı',
       value: `${risk}/100`,
-      delta: 'Low risk',
+      delta: 'Düşük risk',
       icon: 'ri-radar-line cyan',
       series: [34, 33, 31, 29, 28, 26, 25],
       color: '#64d4ff',
@@ -2094,7 +2094,7 @@ function renderMetrics(status, graph, queue) {
       </div>
       <div class="metric-value">${escapeHtml(card.value)}</div>
       <div class="metric-label">${escapeHtml(card.label)}</div>
-      <div class="metric-delta"><strong>${card.delta.startsWith('-') ? '' : '↑'}</strong><span>${escapeHtml(card.delta)}</span></div>
+      <div class="metric-delta"><strong>${card.delta.startsWith('-') ? '' : 'â†‘'}</strong><span>${escapeHtml(card.delta)}</span></div>
       <div class="metric-spark" id="spark-${index}"></div>
     </article>
   `).join('');
@@ -2151,18 +2151,18 @@ function renderQueue() {
   if (!visible.length) {
     body.innerHTML = `
       <tr>
-        <td colspan="6" style="padding:24px 14px;color:var(--muted)">No actions match the current filters.</td>
+        <td colspan="6" style="padding:24px 14px;color:var(--muted)">Mevcut filtrelerle eşleşen eylem yok.</td>
       </tr>
     `;
-    document.getElementById('queue-status').textContent = 'No matching results';
-    document.getElementById('queue-footer-left').textContent = 'No results';
+    document.getElementById('queue-status').textContent = 'Eşleşen sonuç yok';
+    document.getElementById('queue-footer-left').textContent = 'Sonuç yok';
     return;
   }
 
   const start = state.selectedOnly ? 1 : 1;
   const end = visible.length;
-  document.getElementById('queue-status').textContent = `Showing ${end} of ${state.queue.length} results`;
-  document.getElementById('queue-footer-left').textContent = `Showing ${start} to ${end} of ${state.queue.length} results`;
+  document.getElementById('queue-status').textContent = `${state.queue.length} sonucun ${end}'i gösteriliyor`;
+  document.getElementById('queue-footer-left').textContent = `${state.queue.length} sonucun ${start} ile ${end}'i gösteriliyor`;
 
   body.innerHTML = visible.map((item) => `
     <tr class="queue-row ${item.id === state.selectedId ? 'active' : ''}" data-id="${escapeHtml(item.id)}">
@@ -2183,7 +2183,7 @@ function renderQueue() {
         <div class="queue-context">${escapeHtml(item.target)}<br>${escapeHtml(item.context)}</div>
       </td>
       <td><span class="badge ${item.risk.toLowerCase()}">${escapeHtml(item.risk)}</span></td>
-      <td><span class="badge ${item.verdict === 'REVIEW' ? 'review' : item.verdict === 'SAFE' ? 'safe' : 'high'}">${escapeHtml(item.verdict)}</span></td>
+      <td><span class="badge ${item.verdict === 'REVIEW' ? 'review' : item.verdict === 'SAFE' ? 'safe' : 'high'}">${item.verdict === 'REVIEW' ? 'İnceleme' : item.verdict === 'SAFE' ? 'Güvenli' : 'Engelli'}</span></td>
     </tr>
   `).join('');
 
@@ -2207,17 +2207,17 @@ function renderSelection() {
   document.getElementById('detail-name').textContent = item.action;
   document.getElementById('detail-meta').textContent = `${item.agent} · ${item.time}`;
   document.getElementById('detail-callout').innerHTML = `
-    <strong><i class="ri-time-line"></i>${item.verdict === 'REVIEW' ? 'Verdict (Pending)' : item.verdict === 'SAFE' ? 'Verdict (Safe)' : 'Verdict (Blocked)'}</strong>
+    <strong><i class="ri-time-line"></i>${item.verdict === 'REVIEW' ? 'Karar (Beklemede)' : item.verdict === 'SAFE' ? 'Karar (Güvenli)' : 'Karar (Engelli)'}</strong>
     <p>${item.verdict === 'REVIEW'
-      ? 'This action is awaiting your review.'
+      ? 'Bu eylem incelemeni bekliyor.'
       : item.verdict === 'SAFE'
-        ? 'This action is approved and ready to execute.'
-        : 'This action is blocked and will not execute.'}</p>
+        ? 'Bu eylem onaylandı ve çalıştırılmaya hazır.'
+        : 'Bu eylem engellendi ve çalıştırılmayacak.'}</p>
   `;
 
-  document.getElementById('evidence-count').textContent = `${item.evidence.length} items`;
-  document.getElementById('policy-match').textContent = item.policies.every((policy) => policy.verdict === 'MATCH') ? 'MATCH' : 'REVIEW';
-  document.getElementById('confidence-label').textContent = item.confidence >= 85 ? 'High' : item.confidence >= 65 ? 'Medium' : 'Low';
+  document.getElementById('evidence-count').textContent = `${item.evidence.length} öğe`;
+  document.getElementById('policy-match').textContent = item.policies.every((policy) => policy.verdict === 'MATCH') ? 'Uyumlu' : 'İnceleme';
+  document.getElementById('confidence-label').textContent = item.confidence >= 85 ? 'Yüksek' : item.confidence >= 65 ? 'Orta' : 'Düşük';
   document.getElementById('confidence-bar').style.width = `${clamp(item.confidence, 5, 100)}%`;
 
   const evidenceList = document.getElementById('evidence-list');
@@ -2235,7 +2235,7 @@ function renderSelection() {
         <div>
           <strong>${escapeHtml(policy.name)}</strong>
         </div>
-        <span class="badge match">${escapeHtml(policy.verdict)}</span>
+        <span class="badge match">${policy.verdict === 'MATCH' ? 'Uyumlu' : 'İnceleme'}</span>
       </div>
       <p>${escapeHtml(policy.note)}</p>
     </div>
@@ -2243,20 +2243,20 @@ function renderSelection() {
 
   document.getElementById('detail-meta').textContent = `${item.agent} · ${item.time}`;
   document.getElementById('reject-button').disabled = item.verdict === 'BLOCKED';
-  document.getElementById('approve-button').textContent = item.verdict === 'SAFE' ? 'Approved' : 'Approve';
+  document.getElementById('approve-button').textContent = item.verdict === 'SAFE' ? 'Onaylandı' : 'Onayla';
   document.getElementById('approve-button').disabled = item.verdict === 'SAFE';
   document.getElementById('reject-button').style.opacity = item.verdict === 'BLOCKED' ? '.6' : '1';
   document.getElementById('approve-button').style.opacity = item.verdict === 'SAFE' ? '.72' : '1';
 
   document.getElementById('runtime-label').textContent = state.status
     ? `${state.status.activeKernel || 'v1'} · ${state.status.backend || 'memory'}`
-    : 'Loading...';
+    : 'Yükleniyor...';
   document.getElementById('version-label').textContent = state.status
     ? `${state.status.version || '0.0.0'} · commit ${state.status.lastCommit || 'unknown'}`
-    : 'Loading...';
+    : 'Yükleniyor...';
   document.getElementById('focus-label').textContent = state.status
-    ? `${state.status.currentFocus || 'Overview'} · ${state.status.nextAction || 'Awaiting action'}`
-    : 'Loading...';
+    ? `${state.status.currentFocus || 'Genel bakış'} · ${state.status.nextAction || 'Eylem bekleniyor'}`
+    : 'Yükleniyor...';
 }
 
 function renderReviewResult(payload, fallbackText) {
@@ -2264,8 +2264,8 @@ function renderReviewResult(payload, fallbackText) {
   const target = document.getElementById('review-result');
   if (!payload) {
     target.innerHTML = `
-      <strong>Ready.</strong>
-      <p>${escapeHtml(fallbackText || 'Pick a queue row or write a claim above. The result will appear here.')}</p>
+      <strong>Hazır.</strong>
+      <p>${escapeHtml(fallbackText || 'Bir kuyruk satırı seç ya da yukarıya bir iddia yaz. Sonuç burada görünecek.')}</p>
     `;
     return;
   }
@@ -2274,7 +2274,7 @@ function renderReviewResult(payload, fallbackText) {
   const evidenceCount = Array.isArray(payload.evidence) ? payload.evidence.length : Array.isArray(payload.result?.evidence) ? payload.result.evidence.length : 0;
   target.innerHTML = `
     <strong>${escapeHtml(String(status).toUpperCase())} · ${formatPercent(confidence * (confidence <= 1 ? 100 : 1))}</strong>
-    <p>${escapeHtml(payload.message || payload.summary || payload.explanation || 'Review completed.')}${evidenceCount ? ` Evidence items: ${evidenceCount}.` : ''}</p>
+    <p>${escapeHtml(payload.message || payload.summary || payload.explanation || 'İnceleme tamamlandı.')}${evidenceCount ? ` Kanıt öğesi: ${evidenceCount}.` : ''}</p>
   `;
 }
 
@@ -2283,24 +2283,24 @@ async function runReview(mode) {
   const raw = input.value.trim();
   const text = raw || (getSelectedItem()?.tool || '');
   if (!text) {
-    renderReviewResult(null, 'Type a claim first.');
+    renderReviewResult(null, 'Önce bir iddia yaz.');
     return;
   }
   try {
     const res = await fetch(`/v2/verify?statement=${encodeURIComponent(text)}`);
     const data = await res.json();
     if (!res.ok) {
-      renderReviewResult({ status: 'error', message: data?.error || 'Review failed.' });
+      renderReviewResult({ status: 'error', message: data?.error || 'İnceleme başarısız.' });
       return;
     }
     renderReviewResult({
       status: data.status || data.result?.status || 'verified',
       confidence: data.confidence ?? data.result?.confidence ?? 0.5,
-      summary: data.explanation || data.result?.summary || 'Verifier returned a result.',
+      summary: data.explanation || data.result?.summary || 'Doğrulayıcı bir sonuç döndürdü.',
       evidence: data.evidence || data.result?.evidence || [],
     });
   } catch (err) {
-    renderReviewResult({ status: 'error', message: err.message || 'Review failed.' });
+    renderReviewResult({ status: 'error', message: err.message || 'İnceleme başarısız.' });
   }
 }
 
@@ -2324,29 +2324,29 @@ function buildAlerts(graph) {
     if (typeEdges.length > 1) {
       alerts.push({
         level: 'high',
-        title: `${node.label} has a multi-type conflict`,
-        body: 'Multiple type edges are pointing to the same node. This should stay visible in the UI.',
+        title: `${node.label} için çoklu tür çakışması`,
+        body: 'Birden fazla tür kenarı aynı düğüme işaret ediyor. Bu durum arayüzde görünür kalmalı.',
       });
     }
     if (negEdges.length > 0 && nodeLinks.some((link) => relationKey(link.relation) !== 'degil')) {
       alerts.push({
         level: 'medium',
-        title: `${node.label} has a negation conflict`,
-        body: 'Negative and positive relations are mixed around the same subject.',
+        title: `${node.label} için olumsuzlama çakışması`,
+        body: 'Olumsuz ve olumlu ilişkiler aynı konu etrafında karışıyor.',
       });
     }
     if (lowConfidence) {
       alerts.push({
         level: 'low',
-        title: `${node.label} is in a low-confidence zone`,
-        body: 'This node or one of its edges needs a lighter visual treatment.',
+        title: `${node.label} düşük güven alanında`,
+        body: 'Bu düğüm ya da kenarlarından biri daha hafif bir görsel işlem gerektiriyor.',
       });
     }
     if (stale) {
       alerts.push({
         level: 'low',
-        title: `${node.label} is stale`,
-        body: 'Last seen is older than 30 days.',
+        title: `${node.label} eski`,
+        body: 'Son görülme zamanı 30 günden eski.',
       });
     }
   }
@@ -2362,9 +2362,9 @@ function renderInsights(status, graph, queue) {
   const radius = 58;
   const circumference = 2 * Math.PI * radius;
   const portions = [
-    { label: 'High', value: high, color: riskColors.HIGH },
-    { label: 'Medium', value: medium, color: riskColors.MEDIUM },
-    { label: 'Low', value: low, color: riskColors.LOW },
+    { label: 'Yüksek', value: high, color: riskColors.HIGH },
+    { label: 'Orta', value: medium, color: riskColors.MEDIUM },
+    { label: 'Düşük', value: low, color: riskColors.LOW },
   ];
   let offset = 0;
   donut.innerHTML = `
@@ -2410,7 +2410,7 @@ function renderInsights(status, graph, queue) {
         <strong>${escapeHtml(phase.title)}</strong>
         <p>${escapeHtml(phase.summary)}</p>
       </div>
-      <div class="state">${escapeHtml(phase.status.replace('_', ' '))}</div>
+      <div class="state">${escapeHtml(phase.status === 'done' ? 'tamamlandı' : phase.status === 'in_progress' ? 'sürüyor' : 'beklemede')}</div>
     </div>
   `).join('');
 
@@ -2420,7 +2420,7 @@ function renderInsights(status, graph, queue) {
       <strong>${escapeHtml(alert.title)}</strong>
       <p>${escapeHtml(alert.body)}</p>
     </div>
-  `).join('') : `<div class="alert-item low"><strong>No contradictions</strong><p>No strong conflict signals in the current graph snapshot.</p></div>`;
+  `).join('') : `<div class="alert-item low"><strong>Çelişki yok</strong><p>Mevcut grafik anlık görüntüsünde güçlü bir çatışma sinyali yok.</p></div>`;
 
   const recent = queue.slice(0, 3);
   document.getElementById('receipt-list').innerHTML = recent.map((item) => `
@@ -2535,9 +2535,9 @@ function renderGraph(graph) {
     node.attr('transform', (d) => `translate(${d.x},${d.y})`);
   });
 
-  document.getElementById('graph-node-count').textContent = `${graph.nodes.length} nodes`;
-  document.getElementById('graph-edge-count').textContent = `${graph.links.length} edges`;
-  document.getElementById('graph-focus').textContent = state.status?.currentFocus || 'Graph ready';
+  document.getElementById('graph-node-count').textContent = `${graph.nodes.length} düğüm`;
+  document.getElementById('graph-edge-count').textContent = `${graph.links.length} kenar`;
+  document.getElementById('graph-focus').textContent = state.status?.currentFocus || 'Grafik hazır';
 }
 
 function showNodeTip(node) {
@@ -2545,7 +2545,7 @@ function showNodeTip(node) {
   const edges = state.graph.links.filter((link) => String(link.source?.id || link.source) === node.id || String(link.target?.id || link.target) === node.id);
   const totalEvidence = edges.reduce((sum, link) => sum + (link.evidenceCount || 0), 0);
   document.getElementById('graph-tip-title').textContent = node.label;
-  document.getElementById('graph-tip-copy').textContent = `Weight ${Number(node.weight || 0).toFixed(2)} · Confidence ${Number(node.confidence || node.weight || 0).toFixed(2)} · ${edges.length} connected edges · ${totalEvidence} evidence items.`;
+  document.getElementById('graph-tip-copy').textContent = `Ağırlık ${Number(node.weight || 0).toFixed(2)} · Güven ${Number(node.confidence || node.weight || 0).toFixed(2)} · ${edges.length} bağlı kenar · ${totalEvidence} kanıt öğesi.`;
   tip.classList.add('visible');
 }
 
@@ -2578,11 +2578,11 @@ async function loadStatus() {
     state.queue = buildQueue(status);
     state.queue.forEach((item, index) => { item.order = index; });
     state.selectedId = state.queue[0]?.id || null;
-    document.getElementById('system-status-copy').textContent = `${status.backend || 'memory'} backend · ${formatNumber(status.nodes || 0)} nodes · ${formatNumber(status.edges || 0)} edges`;
+    document.getElementById('system-status-copy').textContent = `${status.backend || 'memory'} arka ucu · ${formatNumber(status.nodes || 0)} düğüm · ${formatNumber(status.edges || 0)} kenar`;
     document.getElementById('footer-version').innerHTML = `AXIOM v${escapeHtml(status.version || '0.0.0')}<br>© 2025 AXIOM Labs`;
     document.getElementById('runtime-label').textContent = `${status.activeKernel || 'v1'} · ${status.backend || 'memory'}`;
     document.getElementById('version-label').textContent = `${status.version || '0.0.0'} · commit ${status.lastCommit || 'unknown'}`;
-    document.getElementById('focus-label').textContent = `${status.currentFocus || 'Overview'} · ${status.nextAction || 'Awaiting action'}`;
+    document.getElementById('focus-label').textContent = `${status.currentFocus || 'Genel bakış'} · ${status.nextAction || 'Eylem bekleniyor'}`;
     document.getElementById('workspace-name').textContent = 'Acme Research';
     document.getElementById('sidebar-workspace').textContent = 'Acme Research';
     document.getElementById('queue-count').textContent = formatNumber(state.queue.length);
@@ -2591,15 +2591,15 @@ async function loadStatus() {
     renderInsights(status, graph, state.queue);
     renderGraph(graph);
   } catch (error) {
-    document.getElementById('system-status-copy').textContent = 'Offline - UI loaded without live data.';
-    document.getElementById('review-result').innerHTML = `<strong>Offline.</strong><p>${escapeHtml(error.message || 'Failed to load dashboard data.')}</p>`;
+    document.getElementById('system-status-copy').textContent = 'Çevrimdışı - arayüz canlı veri olmadan yüklendi.';
+    document.getElementById('review-result').innerHTML = `<strong>Çevrimdışı.</strong><p>${escapeHtml(error.message || 'Gösterge paneli verileri yüklenemedi.')}</p>`;
   }
 }
 
 function loadExample() {
   const input = document.getElementById('review-input');
-  input.value = 'The current policy set is too permissive for production SQL actions.';
-  renderReviewResult(null, 'Example loaded. Click Review to run it.');
+  input.value = 'Geçerli politika seti, üretim SQL eylemleri için fazla izin veriyor.';
+  renderReviewResult(null, 'Örnek yüklendi. Çalıştırmak için İncele tıkla.');
 }
 
 function bindEvents() {
@@ -2619,20 +2619,20 @@ function bindEvents() {
   });
   document.getElementById('policy-set').addEventListener('change', (event) => {
     state.policySet = event.target.value;
-    document.getElementById('policy-match').textContent = 'MATCH';
+    document.getElementById('policy-match').textContent = 'Uyumlu';
   });
   document.getElementById('review-button').addEventListener('click', () => runReview('review'));
   document.getElementById('advocate-button').addEventListener('click', () => {
     const input = document.getElementById('review-input');
-    input.value = input.value || 'Why might this action fail under production policy?';
-    renderReviewResult({ status: 'analysis', message: 'Devil\'s advocate prompt prepared.' });
+    input.value = input.value || 'Bu eylem üretim politikasında neden başarısız olabilir?';
+    renderReviewResult({ status: 'analysis', message: 'Karşı görüş istemi hazırlandı.' });
   });
   document.getElementById('memory-button').addEventListener('click', () => {
     const value = document.getElementById('review-input').value.trim().toLowerCase();
     if (value) state.search = value;
     document.getElementById('search-input').value = state.search;
     applyFilters();
-    renderReviewResult({ status: 'memory', message: 'Search filter updated to focus the queue.' });
+    renderReviewResult({ status: 'memory', message: 'Kuyruğu odaklamak için arama filtresi güncellendi.' });
   });
   document.getElementById('load-example').addEventListener('click', loadExample);
   document.getElementById('clear-review').addEventListener('click', () => {
@@ -2642,29 +2642,29 @@ function bindEvents() {
   document.getElementById('toggle-rows').addEventListener('click', (event) => {
     state.selectedOnly = !state.selectedOnly;
     event.currentTarget.innerHTML = state.selectedOnly
-      ? '<i class="ri-eye-off-line"></i>Show all rows'
-      : '<i class="ri-eye-line"></i>Show selected only';
+      ? '<i class="ri-eye-off-line"></i>Tüm satırları göster'
+      : '<i class="ri-eye-line"></i>Sadece seçiliyi göster';
     renderQueue();
   });
   document.getElementById('reject-button').addEventListener('click', () => {
     const item = getSelectedItem();
     if (!item) return;
     item.verdict = 'BLOCKED';
-    item.status = 'Rejected by operator';
+    item.status = 'Operatör tarafından reddedildi';
     item.risk = 'HIGH';
     renderQueue();
     renderSelection();
-    renderReviewResult({ status: 'blocked', message: `${item.action} has been rejected.` });
+    renderReviewResult({ status: 'blocked', message: `${item.action} reddedildi.` });
   });
   document.getElementById('approve-button').addEventListener('click', () => {
     const item = getSelectedItem();
     if (!item) return;
     item.verdict = 'SAFE';
-    item.status = 'Approved by operator';
+    item.status = 'Operatör tarafından onaylandı';
     item.risk = 'LOW';
     renderQueue();
     renderSelection();
-    renderReviewResult({ status: 'approved', message: `${item.action} has been approved.` });
+    renderReviewResult({ status: 'approved', message: `${item.action} onaylandı.` });
   });
   document.getElementById('detail-reset').addEventListener('click', () => {
     state.selectedId = state.filteredQueue[0]?.id || state.queue[0]?.id || null;
@@ -2695,3 +2695,4 @@ loadStatus();
 </script>
 </body>
 </html>
+

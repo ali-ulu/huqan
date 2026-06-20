@@ -506,9 +506,9 @@ function getV2StatusData() {
     },
     {
       id: 'v3.0',
-      title: 'v3.0 Agent Workflow',
+      title: 'v3.0 Ajan İş Akışı',
       status: 'in_progress',
-      summary: 'AXIOM now has a lightweight multi-step agent planner with persistent goal memory, tool selection policy, and execution reports.',
+      summary: 'AXIOM artık kalıcı hedef belleği, araç seçimi politikası ve yürütme raporları olan hafif bir çok adımlı ajan planlayıcısına sahip.',
       items: [
         'Goal planner',
         'Persistent goal memory',
@@ -542,8 +542,8 @@ function getV2StatusData() {
     progressPercent,
     remainingPhases,
     phases,
-    currentFocus: 'v3.0 Agent Workflow',
-    nextAction: 'Use the planner to run goal-driven multi-step tasks, persist the goal history, and report each tool decision clearly.',
+    currentFocus: 'v3.0 Ajan İş Akışı',
+    nextAction: 'Planlayıcıyı hedef odaklı çok adımlı görevler için kullan, hedef geçmişini sakla ve her araç kararını açıkça raporla.',
     agentRuntime,
     agentRuntimeMode,
     checkpointBackend,
@@ -1019,5 +1019,6 @@ server.closeAxiom = () => {
 
 server.startServer = startServer;
 module.exports = server;
+
 
 
