@@ -162,8 +162,12 @@ class CLI {
 
   _backupOptions(extra = {}) {
     const memoryPath = this.kernel?.graph?.memoryPath || 'memory.json';
+    const workspaceRoot = path.isAbsolute(memoryPath)
+      ? path.dirname(memoryPath)
+      : process.cwd();
     const resolved = resolvePersistencePaths({
-      rootDir: process.cwd(),
+      rootDir: workspaceRoot,
+      workspaceRoot,
       memoryPath,
       dbPath: normalizeDbPath(memoryPath),
       ...extra,
