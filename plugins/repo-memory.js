@@ -1,5 +1,6 @@
 const { fetchRepoFiles, parseRepoUrl } = require('../adapters/github-adapter');
 const { parseMarkdown, ingestMarkdown } = require('../adapters/markdown-adapter');
+const { admitConnectorEdge } = require('../lib/connector-admission');
 
 function nowIso() {
   return new Date().toISOString();
@@ -34,18 +35,26 @@ function trackIngestError(kernel, sourceType, message) {
 }
 
 function addCompanyEdge(kernel, fromId, toId, relation, opts = {}) {
-  kernel.graph.addNode(fromId, fromId);
-  kernel.graph.addNode(toId, toId);
-  return kernel.graph.addEdge(fromId, toId, relation, {
+  return admitConnectorEdge(kernel, {
+    from: fromId,
+    to: toId,
+    relation,
+    provenance: opts.provenance,
+    provenanceId: opts.provenanceId,
     source: opts.source || 'repo',
     sourceRef: opts.sourceRef || '',
+    sourceTitle: opts.sourceTitle || '',
+    sourceType: opts.sourceType || '',
+    sourceSubType: opts.sourceSubType || '',
+    actor: opts.actor || '',
+    timestamp: opts.timestamp || opts.createdAt || '',
+    workspaceId: opts.workspaceId || 'default',
     sessionId: opts.sessionId || '',
-    sourceType: opts.sourceType || 'repo',
-    companyMode: true,
     evidenceType: opts.evidenceType || 'docs',
+    companyMode: true,
+    createdAt: opts.createdAt || '',
     evidence: Array.isArray(opts.evidence) ? opts.evidence : [],
     confidence: typeof opts.confidence === 'number' ? opts.confidence : 0.75,
-    createdAt: opts.createdAt || '',
   });
 }
 
@@ -65,51 +74,71 @@ async function ingestGithubRepo(kernel, input = {}) {
 
   const { owner, repo } = parseRepoUrl(repoUrl);
   const repoNode = `repo:${owner}/${repo}`;
-  kernel.graph.addNode(repoNode, repoNode);
+  const workspaceId = String(input.workspaceId || 'default').trim() || 'default';
 
   let added = 0;
+  let pending = 0;
+  let rejected = 0;
   for (const file of files) {
     const fileRef = `repo:${owner}/${repo}:${file.path}`;
     const useTemporalCreatedAt = kernel.hasCapability && kernel.hasCapability('temporal');
     const createdAt = useTemporalCreatedAt ? String(file.lastModified || nowIso()) : nowIso();
-    addCompanyEdge(kernel, repoNode, fileRef, 'içerir', {
+    const fileAdmission = addCompanyEdge(kernel, repoNode, fileRef, 'içerir', {
       source: 'repo',
       sourceRef: fileRef,
+      sourceTitle: file.path,
+      sourceType: 'github',
+      sourceSubType: 'repository_document',
+      actor: 'connector:repo-memory',
       sessionId,
-      sourceType: 'repo',
+      workspaceId,
       evidence: [file.path],
       confidence: 0.8,
       createdAt,
     });
+    if (!fileAdmission.ok) {
+      throw Object.assign(new Error(fileAdmission.error.message), { code: fileAdmission.error.code });
+    }
+    if (fileAdmission.admitted) added += 1;
+    else if (fileAdmission.candidate.status === 'rejected') rejected += 1;
+    else pending += 1;
 
     const sections = parseMarkdown(file.content, `${owner}/${repo}/${file.path}`);
-    if (sections.length === 0) {
-      added += 1;
-      continue;
-    }
+    if (sections.length === 0) continue;
 
     for (const section of sections) {
       const sectionNode = buildSectionNodeId(`${owner}/${repo}/${file.path}`, section.sectionTitle);
-      addCompanyEdge(kernel, fileRef, sectionNode, 'özellik', {
+      const sectionAdmission = addCompanyEdge(kernel, fileRef, sectionNode, 'özellik', {
         source: 'repo',
         sourceRef: fileRef,
+        sourceTitle: `${file.path}#${section.sectionTitle}`,
+        sourceType: 'github',
+        sourceSubType: 'repository_section',
+        actor: 'connector:repo-memory',
         sessionId,
-        sourceType: 'repo',
+        workspaceId,
         evidence: [section.sectionTitle],
         confidence: 0.72,
         createdAt,
       });
-      added += 1;
+      if (!sectionAdmission.ok) {
+        throw Object.assign(new Error(sectionAdmission.error.message), { code: sectionAdmission.error.code });
+      }
+      if (sectionAdmission.admitted) added += 1;
+      else if (sectionAdmission.candidate.status === 'rejected') rejected += 1;
+      else pending += 1;
     }
   }
 
-  trackIngestSuccess(kernel, 'repo', added || files.length);
+  trackIngestSuccess(kernel, 'repo', added + pending + rejected);
   return {
     ok: true,
     sourceType: 'repo',
     repoUrl,
     files: files.length,
     added,
+    pending,
+    rejected,
   };
 }
 
@@ -120,30 +149,45 @@ async function ingestMarkdownPath(kernel, input = {}) {
   }
 
   const sessionId = input.sessionId || '';
+  const workspaceId = String(input.workspaceId || 'default').trim() || 'default';
   const ingested = ingestMarkdown(targetPath);
   let added = 0;
+  let pending = 0;
+  let rejected = 0;
 
   for (const section of ingested.sections) {
     const fileRef = `file:${section.filePath}`;
     const sourceRef = `file:${section.filePath}:${section.sectionTitle}`;
     const sectionNode = buildSectionNodeId(section.filePath, section.sectionTitle);
-    addCompanyEdge(kernel, fileRef, sectionNode, 'özellik', {
+    const admission = addCompanyEdge(kernel, fileRef, sectionNode, 'özellik', {
       source: 'markdown',
       sourceRef,
+      sourceTitle: section.sectionTitle,
+      sourceType: 'document',
+      sourceSubType: 'markdown_section',
+      actor: 'connector:repo-memory',
       sessionId,
-      sourceType: 'markdown',
+      timestamp: nowIso(),
+      workspaceId,
       evidence: [section.sectionTitle],
       confidence: 0.68,
     });
-    added += 1;
+    if (!admission.ok) {
+      throw Object.assign(new Error(admission.error.message), { code: admission.error.code });
+    }
+    if (admission.admitted) added += 1;
+    else if (admission.candidate.status === 'rejected') rejected += 1;
+    else pending += 1;
   }
 
-  trackIngestSuccess(kernel, 'markdown', added || ingested.files.length);
+  trackIngestSuccess(kernel, 'markdown', added + pending + rejected);
   return {
     ok: true,
     sourceType: 'markdown',
     files: ingested.files.length,
     added,
+    pending,
+    rejected,
   };
 }
 
