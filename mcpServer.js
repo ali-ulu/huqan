@@ -692,6 +692,8 @@ const ALLOWED_MCP_TOOLS = new Set([
 ]);
 
 function callTool(kernel, params = {}) {
+  // null guard: default = {} only covers undefined; null must be coerced to {} for fail-closed behavior.
+  if (params === null || params === undefined) params = {};
   const name = params.name;
   const args = params.arguments || {};
 
