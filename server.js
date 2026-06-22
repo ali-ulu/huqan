@@ -647,8 +647,8 @@ const server = http.createServer(async (req, res) => {
 
   // Structured v2 contract endpoint. Legacy /dogrula stays unchanged below.
   if (reqUrl.pathname === '/v2/verify') {
-    if (req.method !== 'POST' && req.method !== 'GET') {
-      writeJson(req, res, 405, { error: 'Method not allowed' });
+    if (req.method !== 'POST') {
+      writeJson(req, res, 405, { error: 'Method not allowed', message: 'Use POST /v2/verify' }, { 'Cache-Control': 'no-cache' });
       return;
     }
 
@@ -664,15 +664,10 @@ const server = http.createServer(async (req, res) => {
       writeJson(req, res, 200, result, { 'Cache-Control': 'no-cache' });
     };
 
-    if (req.method === 'POST') {
-      if (!denyIfUnauthorized(req, res)) return;
-      const data = await parseJsonRequest(req, res, { maxBytes: 4_096 });
-      if (!data) return;
-      sendVerifyResult(data.statement || data.text || '', data.workspaceId || '');
-      return;
-    }
-
-    sendVerifyResult(reqUrl.searchParams.get('statement') || '', reqUrl.searchParams.get('workspaceId') || '');
+    if (!denyIfUnauthorized(req, res)) return;
+    const data = await parseJsonRequest(req, res, { maxBytes: 4_096 });
+    if (!data) return;
+    sendVerifyResult(data.statement || data.text || '', data.workspaceId || '');
     return;
   }
 
@@ -744,32 +739,19 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   if (reqUrl.pathname === '/dogrula' || reqUrl.pathname === '/verify') {
-    if (req.method !== 'POST' && req.method !== 'GET') {
+    if (req.method !== 'POST') {
       res.writeHead(405, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ error: 'Method not allowed' }));
+      res.end(JSON.stringify({ error: 'Method not allowed', message: 'Use POST /v2/verify' }));
       return;
     }
-    if (req.method === 'POST') {
-      if (!denyIfUnauthorized(req, res)) return;
-      const data = await parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_JSON_BODY });
-      if (!data) return;
-      const text = sanitizeInput(data.statement || data.text || '');
-      const workspaceId = sanitizeInput(data.workspaceId || reqUrl.searchParams.get('workspaceId') || '');
-      if (!text) {
-        res.writeHead(400, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
-        res.end(JSON.stringify({ error: 'statement veya text gerekli' }));
-        return;
-      }
-      const result = legacyVerify(cli.kernel.verify(text, workspaceId ? { workspaceId } : {}));
-      res.writeHead(200, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
-      res.end(JSON.stringify(result));
-      return;
-    }
-    const text = sanitizeInput(reqUrl.searchParams.get('statement') || '');
-    const workspaceId = sanitizeInput(reqUrl.searchParams.get('workspaceId') || '');
+    if (!denyIfUnauthorized(req, res)) return;
+    const data = await parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_JSON_BODY });
+    if (!data) return;
+    const text = sanitizeInput(data.statement || data.text || '');
+    const workspaceId = sanitizeInput(data.workspaceId || reqUrl.searchParams.get('workspaceId') || '');
     if (!text) {
       res.writeHead(400, { 'Content-Type': 'application/json', ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ error: 'statement parametresi gerekli' }));
+      res.end(JSON.stringify({ error: 'statement veya text gerekli' }));
       return;
     }
     const result = legacyVerify(cli.kernel.verify(text, workspaceId ? { workspaceId } : {}));

@@ -7,6 +7,15 @@ const DEFAULT_MAX_JSON_BODY = 4_096;
 const DEFAULT_MAX_UPLOAD_BODY = 1_048_576;
 
 const rateLimitMap = new Map();
+const ALLOWED_PUBLIC_API_COMMANDS = Object.freeze(new Set([
+  'anlamadim',
+  'durum',
+  'karsilastir',
+  'neden',
+  'selam',
+  'sor',
+  'yardim',
+]));
 const UNSAFE_PUBLIC_API_COMMANDS = Object.freeze([
   'restore',
   'geri yukle',
@@ -58,6 +67,12 @@ function isUnsafePublicApiCommand(input) {
   return UNSAFE_PUBLIC_API_COMMANDS.some((command) => {
     return text === command || text.startsWith(`${command}:`) || text.startsWith(`${command} `);
   });
+}
+
+function isAllowedPublicCommand(input) {
+  const text = normalizePublicApiCommandText(input);
+  if (!text) return false;
+  return ALLOWED_PUBLIC_API_COMMANDS.has(text);
 }
 
 function checkRateLimit(ip, now = Date.now(), windowMs = DEFAULT_RATE_LIMIT_WINDOW, maxRequests = DEFAULT_RATE_LIMIT_MAX) {
@@ -186,6 +201,7 @@ module.exports = {
   clearExpiredRateLimitEntries,
   checkRateLimit,
   extractApiKey,
+  isAllowedPublicCommand,
   isUnsafePublicApiCommand,
   readJsonBody,
   rateLimitMap,

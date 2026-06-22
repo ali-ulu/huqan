@@ -5,6 +5,7 @@ const { Readable } = require('node:stream');
 const {
   checkRateLimit,
   clearExpiredRateLimitEntries,
+  isAllowedPublicCommand,
   isUnsafePublicApiCommand,
   readJsonBody,
   requireApiKey,
@@ -121,6 +122,39 @@ describe('Request Guards', () => {
 
     assert.strictEqual(isUnsafePublicApiCommand('merhaba'), false);
     assert.strictEqual(isUnsafePublicApiCommand('kedi nedir'), false);
+  });
+
+  it('isAllowedPublicCommand only permits explicit read-only public commands', () => {
+    const allowed = [
+      'selam',
+      'yardim',
+      'yardım',
+      'durum',
+      'sor',
+      'neden',
+      'karsilastir',
+      'karşılaştır',
+      'anlamadim',
+      'anlamadım',
+    ];
+    for (const input of allowed) {
+      assert.strictEqual(isAllowedPublicCommand(input), true, `Expected allowed: ${input}`);
+    }
+
+    const blocked = [
+      '',
+      'öğret',
+      'yukle',
+      'restore',
+      'plan',
+      'ajan',
+      'llm-sor',
+      'company-query',
+      'bilinmeyen-komut',
+    ];
+    for (const input of blocked) {
+      assert.strictEqual(isAllowedPublicCommand(input), false, `Expected blocked: ${input}`);
+    }
   });
 
   // â”€â”€ PR-S1 GUV-2: rate-limit pruning behavior â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
