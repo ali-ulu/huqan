@@ -664,7 +664,7 @@ const server = http.createServer(async (req, res) => {
       writeJson(req, res, 200, result, { 'Cache-Control': 'no-cache' });
     };
 
-    if (!denyIfUnauthorized(req, res)) return;
+    // /v2/verify is a read-only local-first endpoint; no API key required.
     const data = await parseJsonRequest(req, res, { maxBytes: 4_096 });
     if (!data) return;
     sendVerifyResult(data.statement || data.text || '', data.workspaceId || '');
