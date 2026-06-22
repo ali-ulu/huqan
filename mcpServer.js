@@ -728,6 +728,7 @@ function callTool(kernel, params = {}) {
 
   const agent = createAgent({
     kernel,
+    dbPath: process.env.AXIOM_DB_PATH,
     version: process.env.AXIOM_AGENT_VERSION,
   });
 

@@ -75,7 +75,10 @@ async function stopServer(ctx) {
   if (!ctx) return;
   ctx.server.closeAllConnections?.();
   ctx.server.closeIdleConnections?.();
+  ctx.server.closeAxiom?.();
   await new Promise((resolve) => ctx.server.close(() => resolve()));
+  ctx.server.closeAllConnections?.();
+  ctx.server.closeIdleConnections?.();
   if (ctx.tempDir) fs.rmSync(ctx.tempDir, { recursive: true, force: true });
 }
 
