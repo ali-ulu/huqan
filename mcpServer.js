@@ -665,28 +665,77 @@ function createServer() {
   };
 }
 
+// SEC-1A: MCP direct tool safety matrix.
+// Tools that mutate memory or run an autonomous agent loop must never execute
+// directly over the MCP boundary. They return a fail-closed gate envelope
+// instead of calling kernel.learn() / agent.run(). Unknown tools are blocked.
+function gateEnvelope(type, code, message, decision, tool) {
+  return {
+    ok: false,
+    type,
+    data: { decision, tool },
+    evidence: [],
+    error: { code, message },
+    meta: { gate: decision },
+  };
+}
+
+const ALLOWED_MCP_TOOLS = new Set([
+  'axiom.ask',
+  'axiom.verify',
+  'axiom.plan',
+  'axiom.policy',
+  'axiom.approvals',
+  'axiom.reason',
+  'axiom.compare',
+  'axiom.dream',
+]);
+
 function callTool(kernel, params = {}) {
   const name = params.name;
   const args = params.arguments || {};
+
+  // Enforce the safety matrix before instantiating an agent or touching the kernel.
+  if (name === 'axiom.learn') {
+    return gateEnvelope(
+      'learn',
+      'MUTATING_REQUIRES_REVIEW',
+      'axiom.learn is gated over MCP; direct memory mutation requires review/approval.',
+      'review',
+      name,
+    );
+  }
+  if (name === 'axiom.agent') {
+    return gateEnvelope(
+      'agent',
+      'AGENT_LOOP_DRY_RUN_ONLY',
+      'axiom.agent is gated over MCP; autonomous execution is dry_run_only and requires approval.',
+      'dry_run_only',
+      name,
+    );
+  }
+  if (!ALLOWED_MCP_TOOLS.has(name)) {
+    return gateEnvelope(
+      'error',
+      'UNKNOWN_TOOL_BLOCKED',
+      `Unknown tool blocked: ${name}`,
+      'block',
+      name,
+    );
+  }
+
   const agent = createAgent({
     kernel,
     version: process.env.AXIOM_AGENT_VERSION,
   });
 
   switch (name) {
-    case 'axiom.learn':
-      return kernel.learn(args.text, {
-        skipConflicts: args.skipConflicts !== false,
-        maxSentences: args.maxSentences,
-      });
     case 'axiom.ask':
       return kernel.ask(args.question);
     case 'axiom.verify':
       return kernel.verify(args.statement);
     case 'axiom.plan':
       return agent.plan(args.goal, { maxSteps: args.maxSteps });
-    case 'axiom.agent':
-      return agent.run(args.goal, { maxSteps: args.maxSteps });
     case 'axiom.policy':
       return agent.inspectToolPolicy(args.tool, args.input || '', {
         goal: args.goal,
@@ -715,7 +764,8 @@ function callTool(kernel, params = {}) {
     case 'axiom.dream':
       return kernel.dream({ depth: args.depth });
     default:
-      throw new Error(`Unknown tool: ${name}`);
+      // Defensive fail-closed: unreachable because unknown tools are blocked above.
+      return gateEnvelope('error', 'UNKNOWN_TOOL_BLOCKED', `Unknown tool blocked: ${name}`, 'block', name);
   }
 }
 
