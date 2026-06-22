@@ -620,13 +620,12 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ error: 'Method not allowed' }));
       return;
     }
-    const data = getV2StatusData();
     res.writeHead(200, {
       'Content-Type': 'application/json',
       ...buildCorsHeaders(req),
       'Cache-Control': 'no-cache',
     });
-    res.end(JSON.stringify(data));
+    res.end(JSON.stringify({ ok: true, service: 'axiom', status: 'running', version: pkg.version }));
     return;
   }
 
@@ -636,12 +635,20 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ error: 'Method not allowed' }));
       return;
     }
-    res.writeHead(200, {
+    let healthData;
+    let healthStatus = 200;
+    try {
+      healthData = getHealthData();
+    } catch (_) {
+      healthData = { ok: false, error: 'HEALTH_CHECK_FAILED' };
+      healthStatus = 500;
+    }
+    res.writeHead(healthStatus, {
       'Content-Type': 'application/json',
       ...buildCorsHeaders(req),
       'Cache-Control': 'no-cache',
     });
-    res.end(JSON.stringify(getHealthData()));
+    res.end(JSON.stringify(healthData));
     return;
   }
 
