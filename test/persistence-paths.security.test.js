@@ -5,9 +5,16 @@ const os = require('os');
 const path = require('path');
 
 const { resolvePersistencePaths } = require('../persistencePaths');
+const { resolveDbPath: resolveMemoryStoreDbPath } = require('../lib/memory-store-utils');
+const AxiomStorage = require('../storage');
 
 function makeWorkspace() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-paths-'));
+}
+
+function cleanupPath(targetPath) {
+  if (!targetPath) return;
+  fs.rmSync(targetPath, { force: true, recursive: true });
 }
 
 function expectEscape(fn) {
@@ -116,5 +123,57 @@ describe('persistencePaths security confinement', () => {
     const outsideMemory = path.join(outsideRoot, 'memory.json');
     expectEscape(() => resolvePersistencePaths({ rootDir, memoryPath: outsideMemory }));
     assert.strictEqual(fs.existsSync(outsideMemory), false);
+  });
+
+  it('confines memory-store SQLite fallback to explicit workspace root', () => {
+    const workspaceRoot = makeWorkspace();
+    const resolved = resolveMemoryStoreDbPath({
+      rootDir: process.cwd(),
+      workspaceRoot,
+    });
+    assert.strictEqual(resolved, path.join(workspaceRoot, 'memory.db'));
+  });
+
+  it('rejects memory-store explicit SQLite path outside explicit workspace root', () => {
+    const workspaceRoot = makeWorkspace();
+    const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-db-outside-'));
+    expectEscape(() => resolveMemoryStoreDbPath({
+      rootDir: process.cwd(),
+      workspaceRoot,
+      dbPath: path.join(outsideRoot, 'memory.db'),
+    }));
+  });
+
+  it('confines storage SQLite fallback to explicit workspace root', () => {
+    const workspaceRoot = makeWorkspace();
+    const storage = new AxiomStorage({
+      rootDir: process.cwd(),
+      workspaceRoot,
+    });
+    try {
+      assert.strictEqual(storage.dbPath, path.join(workspaceRoot, 'memory.db'));
+      assert.ok(fs.existsSync(storage.dbPath));
+    } finally {
+      storage.close();
+      cleanupPath(storage.dbPath);
+      cleanupPath(storage.dbPath + '-shm');
+      cleanupPath(storage.dbPath + '-wal');
+      cleanupPath(workspaceRoot);
+    }
+  });
+
+  it('rejects storage explicit SQLite path outside explicit workspace root', () => {
+    const workspaceRoot = makeWorkspace();
+    const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-storage-outside-'));
+    try {
+      expectEscape(() => new AxiomStorage({
+        rootDir: process.cwd(),
+        workspaceRoot,
+        dbPath: path.join(outsideRoot, 'memory.db'),
+      }));
+    } finally {
+      cleanupPath(workspaceRoot);
+      cleanupPath(outsideRoot);
+    }
   });
 });

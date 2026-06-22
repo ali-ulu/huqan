@@ -1,4 +1,5 @@
 const path = require('path');
+const { resolvePersistencePaths } = require('./persistencePaths');
 let Database;
 
 function loadDatabaseOrThrow() {
@@ -24,10 +25,16 @@ function lower(goal) {
 }
 
 function resolveDbPath(opts = {}, kernel) {
+  const graphMemoryPath = kernel?.graph?.memoryPath;
+  if (opts.rootDir || opts.workspaceRoot) {
+    return resolvePersistencePaths({
+      ...opts,
+      memoryPath: opts.memoryPath || graphMemoryPath,
+    }).dbPath;
+  }
   if (Object.prototype.hasOwnProperty.call(opts, 'dbPath') && opts.dbPath) {
     return opts.dbPath;
   }
-  const graphMemoryPath = kernel?.graph?.memoryPath;
   if (typeof graphMemoryPath === 'string' && graphMemoryPath.endsWith('.json')) {
     return graphMemoryPath.replace(/\.json$/, '.db');
   }
