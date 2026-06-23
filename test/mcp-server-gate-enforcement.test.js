@@ -1,8 +1,13 @@
 'use strict';
 
-const { describe, it } = require('node:test');
+const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { callTool } = require('../mcpServer');
+
+const repoRoot = path.resolve(__dirname, '..');
 
 // Spy kernel: records calls so we can prove gated tools never reach the kernel.
 function makeSpyKernel() {
@@ -19,6 +24,27 @@ function makeSpyKernel() {
 }
 
 describe('SEC-1A MCP direct tool safety matrix', () => {
+  let tempDir;
+
+  before(() => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-gate-test-'));
+    process.env.AXIOM_DB_PATH = path.join(tempDir, 'memory.db');
+    process.env.AXIOM_MEMORY_PATH = path.join(tempDir, 'memory.json');
+  });
+
+  after(() => {
+    delete process.env.AXIOM_DB_PATH;
+    delete process.env.AXIOM_MEMORY_PATH;
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    for (const name of ['memory.db', 'memory.json', 'memory.agent.json', 'memory.embeddings.json']) {
+      assert.equal(
+        fs.existsSync(path.join(repoRoot, name)),
+        false,
+        `storage artifact must not leak to repo root: ${name}`,
+      );
+    }
+  });
+
   it('axiom.learn returns a review envelope and never calls kernel.learn()', () => {
     const kernel = makeSpyKernel();
     const res = callTool(kernel, { name: 'axiom.learn', arguments: { text: 'kedi hayvandir' } });
