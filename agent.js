@@ -338,6 +338,8 @@ class Agent {
       notes: cloneValue(state.notes || []),
       plan: state.plan ? cloneValue(state.plan) : null,
       status: state.status,
+      stopReason: state.stopReason || null,
+      limitReached: Boolean(state.limitReached),
       finalAnswer: state.finalAnswer,
       completedSteps: state.completedSteps || 0,
       remainingSteps: state.remainingSteps || 0,
@@ -629,18 +631,18 @@ class Agent {
         reason: 'Blocked execution detected; refine the request and use only allowed tools.',
       };
     }
-    if (stalledCount >= 2) {
-      return {
-        action: 'reframe',
-        tool: 'dream',
-        reason: 'Progress stalled; reframe the target or add new context.',
-      };
-    }
     if (state.status === 'paused') {
       return {
         action: 'resume',
         tool: selectedTools[0] || 'ask',
         reason: 'Run paused before completion; continue from the checkpoint.',
+      };
+    }
+    if (stalledCount >= 2) {
+      return {
+        action: 'reframe',
+        tool: 'dream',
+        reason: 'Progress stalled; reframe the target or add new context.',
       };
     }
     if (lastPolicy && lastPolicy.category === 'external' && lastPolicy.action === 'review') {
@@ -982,7 +984,10 @@ class Agent {
     const finalStep = state.steps[state.steps.length - 1];
     const finalSummary = finalStep ? this._extractAgentSummary(finalStep.result) : { text: '' };
     const finalAnswer = finalSummary.text || 'Ajan görevi tamamladı ancak kısa özet üretilemedi.';
-    state.status = finalStep && finalStep.result && finalStep.result.ok === false ? 'blocked' : 'completed';
+    const blocked = Boolean(finalStep && finalStep.result && finalStep.result.ok === false);
+    state.limitReached = !blocked && queued.length > 0 && state.steps.length >= activePlan.maxSteps;
+    state.stopReason = state.limitReached ? 'max_steps' : null;
+    state.status = blocked ? 'blocked' : state.limitReached ? 'paused' : 'completed';
     state.finalSummary = buildFinalSummary({
       goal: state.goal,
       objective: activePlan.objective,
