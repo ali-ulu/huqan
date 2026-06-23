@@ -11,6 +11,58 @@ function freshAgent(memoryPath) {
   return new Agent({ kernel, memoryPath });
 }
 
+function limitedPlanAgent(maxSteps, plannedSteps) {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-agent-limit-'));
+  const memoryPath = path.join(tmpDir, 'agent.memory.json');
+  const agent = new Agent({ kernel: { plugins: null }, memoryPath, maxSteps });
+  const steps = Array.from({ length: plannedSteps }, (_, index) => ({
+    id: `loop-${index + 1}`,
+    action: 'ask',
+    tool: 'ask',
+    input: `repeat-${index + 1}`,
+    rationale: 'maxSteps observability test',
+  }));
+
+  agent.plan = () => ({
+    ok: true,
+    type: 'plan',
+    data: {
+      goal: 'repeat work safely',
+      objective: 'verify',
+      shortGoal: 'repeat work safely',
+      steps,
+      selectedTools: ['ask'],
+      maxSteps,
+      status: 'planned',
+      confidence: 1,
+      policy: { signals: [] },
+      memory: { knownGoals: 0, previousRuns: 0, resumed: false },
+      rationale: 'test',
+    },
+    evidence: [],
+    error: null,
+    meta: {},
+  });
+  agent._executeStepWithRetry = step => ({
+    id: step.id,
+    action: step.action,
+    tool: step.tool,
+    status: 'done',
+    summary: 'same result',
+    result: {
+      ok: true,
+      type: 'ask',
+      data: { answer: 'same result' },
+      evidence: [],
+      error: null,
+      meta: {},
+    },
+    policy: { category: 'internal', action: 'allow' },
+  });
+
+  return { agent, tmpDir };
+}
+
 describe('Agent', () => {
   it('plans a multi-step verify workflow', () => {
     const agent = freshAgent();
@@ -43,6 +95,42 @@ describe('Agent', () => {
     assert.ok(runResult.data.report.includes('Hedef:'));
     assert.ok(runResult.data.report.includes('Yargı özeti:'));
     assert.ok(runResult.data.report.includes('Sonuç:'));
+    assert.strictEqual(runResult.data.limitReached, false);
+    assert.strictEqual(runResult.data.stopReason, null);
+  });
+
+  it('reports an observable max_steps pause when work remains after one step', () => {
+    const { agent, tmpDir } = limitedPlanAgent(1, 3);
+    try {
+      const runResult = agent.run('repeat work safely', { resume: false });
+
+      assert.strictEqual(runResult.ok, true);
+      assert.strictEqual(runResult.data.status, 'paused');
+      assert.strictEqual(runResult.data.stopReason, 'max_steps');
+      assert.strictEqual(runResult.data.limitReached, true);
+      assert.strictEqual(runResult.data.completedSteps, 1);
+      assert.strictEqual(runResult.data.remainingSteps, 2);
+      assert.strictEqual(runResult.data.nextAction.action, 'resume');
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('does not exceed maxSteps for a repeating plan and preserves remaining work', () => {
+    const { agent, tmpDir } = limitedPlanAgent(3, 10);
+    try {
+      const runResult = agent.run('repeat work safely', { resume: false });
+
+      assert.strictEqual(runResult.ok, true);
+      assert.strictEqual(runResult.data.status, 'paused');
+      assert.strictEqual(runResult.data.stopReason, 'max_steps');
+      assert.strictEqual(runResult.data.limitReached, true);
+      assert.strictEqual(runResult.data.completedSteps, 3);
+      assert.ok(runResult.data.remainingSteps > 0);
+      assert.strictEqual(runResult.data.nextAction.action, 'resume');
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 
   it('persists goal history and can resume an unfinished run', () => {
