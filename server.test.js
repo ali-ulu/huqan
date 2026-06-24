@@ -538,15 +538,22 @@ describe('Server - API', () => {
     assert.strictEqual(r.status, 405);
   });
 
-  it('GET / HTML renders HUQAN demo console copy', async () => {
+  it('GET / HTML renders HUQAN product console copy', async () => {
     const r = await request(`${BASE}`);
     assert.strictEqual(r.status, 200);
     const html = await r.text();
-    assert.ok(html.includes('HUQAN'));
-    assert.ok(html.includes('AI Trust Boundary'));
-    assert.ok(html.includes('Powered by the AXIOM Trust Engine'));
-    assert.ok(html.includes('Judge with HUQAN'));
-    assert.ok(html.includes('Trust Receipt Preview'));
+    assert.ok(html.includes('HUQAN Product Console'));
+    assert.ok(html.includes('HUQAN’a sor'));
+    assert.ok(html.includes('Gate → Step → MaxSteps'));
+    assert.ok(html.includes('Trust Receipt'));
+    assert.ok(html.includes('Hangi testler bunu kanıtlıyor'));
+    assert.ok(!html.includes('Å'));
+    assert.ok(!html.includes('Ä'));
+    assert.ok(!html.includes('Ã'));
+    assert.ok(!html.includes('Â'));
+    assert.ok(!html.includes('â†’'));
+    assert.ok(!html.includes('kanÄ'));
+    assert.ok(!html.toLowerCase().includes('demo'));
   });
 
   it('bilinmeyen rota 404 dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {
