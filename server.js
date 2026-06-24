@@ -192,8 +192,10 @@ function getRateLimitKey(req) {
     return 'key:' + crypto.createHash('sha256').update(apiKey).digest('hex').slice(0, 16);
   }
   if (process.env.AXIOM_TRUST_PROXY === '1') {
-    const forwarded = String(req.headers?.['x-forwarded-for'] || '').split(',')[0].trim();
-    if (forwarded) return 'ip:' + forwarded;
+    const xffList = String(req.headers?.['x-forwarded-for'] || '').split(',');
+    const forwarded = xffList[xffList.length - 1].trim();
+    // Validate looks like an IP before trusting it for rate-limit keying
+    if (forwarded && /^[\d.:a-fA-F]+$/.test(forwarded)) return 'ip:' + forwarded;
   }
   return 'ip:' + String(req.socket?.remoteAddress || 'unknown');
 }
@@ -253,8 +255,13 @@ function getSafeMemoryLabel(content) {
     str = String(content);
   }
 
-  // HTML injection guard
-  str = str.replace(/<\/?[^>]+(>|$)/g, '');
+  // Encode HTML entities so content is safe in both textContent and innerHTML contexts
+  str = str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
 
   if (str.length > 100) {
     str = str.substring(0, 97) + '...';

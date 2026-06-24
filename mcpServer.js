@@ -9,6 +9,15 @@ const pkg = require('./package.json');
 const PROTOCOL_VERSION = '2025-06-18';
 const SERVER_NAME = 'axiom';
 const SERVER_VERSION = pkg.version;
+
+const MCP_MAX_TEXT = 2_000;
+const MCP_MAX_GOAL = 500;
+const MCP_MAX_SHORT = 256;
+
+function sanitizeMcpString(val, maxLen = MCP_MAX_SHORT) {
+  if (typeof val !== 'string') return '';
+  return val.slice(0, maxLen).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim();
+}
 const VERIFY_STATUS = ['dogrulandi', 'celiski', 'bilinmiyor'];
 const CONTRADICTION_REASONS = [
   'negated_statement_conflicts_with_known_fact',
@@ -745,22 +754,28 @@ function callTool(kernel, params = {}) {
 
   switch (name) {
     case 'axiom.learn':
-      return kernel.learn(args.text, {
+      return kernel.learn(sanitizeMcpString(args.text, MCP_MAX_TEXT), {
         skipConflicts: args.skipConflicts !== false,
         maxSentences: args.maxSentences,
       });
     case 'axiom.ask':
-      return kernel.ask(args.question);
+      return kernel.ask(sanitizeMcpString(args.question));
     case 'axiom.verify':
-      return kernel.verify(args.statement);
+      return kernel.verify(sanitizeMcpString(args.statement));
     case 'axiom.plan':
-      return agent.plan(args.goal, { maxSteps: args.maxSteps });
-    case 'axiom.agent':
-      return agent.run(args.goal, { maxSteps: args.maxSteps });
-    case 'axiom.policy':
-      return agent.inspectToolPolicy(args.tool, args.input || '', {
-        goal: args.goal,
+      return agent.plan(sanitizeMcpString(args.goal, MCP_MAX_GOAL), {
+        maxSteps: Math.min(Math.max(1, Number(args.maxSteps) || 10), 50),
       });
+    case 'axiom.agent':
+      return agent.run(sanitizeMcpString(args.goal, MCP_MAX_GOAL), {
+        maxSteps: Math.min(Math.max(1, Number(args.maxSteps) || 10), 50),
+      });
+    case 'axiom.policy':
+      return agent.inspectToolPolicy(
+        sanitizeMcpString(args.tool),
+        sanitizeMcpString(args.input || '', MCP_MAX_TEXT),
+        { goal: sanitizeMcpString(args.goal, MCP_MAX_GOAL) },
+      );
     case 'axiom.approvals':
       return {
         pendingCount: _pendingApprovals.length + (agent.countPendingToolApprovals ? agent.countPendingToolApprovals() : 0),
