@@ -157,17 +157,12 @@ function constantTimeEqual(left, right) {
 
 function requireApiKey(req, configuredKey = process.env.AXIOM_API_KEY || '') {
   const apiKey = sanitizeInput(configuredKey, 256);
-  if (!apiKey) {
-    return {
-      ok: false,
-      status: 401,
-      headers: { 'WWW-Authenticate': 'Bearer' },
-      error: { error: 'API key not configured' },
-    };
-  }
-
   const provided = extractApiKey(req.headers || {});
-  if (!provided || !constantTimeEqual(provided, apiKey)) {
+
+  if (!apiKey || !provided || !constantTimeEqual(provided, apiKey)) {
+    if (!apiKey) {
+      console.error('[auth] AXIOM_API_KEY is not configured; rejecting request');
+    }
     return {
       ok: false,
       status: 401,

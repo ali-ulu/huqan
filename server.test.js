@@ -464,7 +464,9 @@ describe('Server - API', () => {
       });
       assert.strictEqual(res.status, 401);
       const body = await res.json();
-      assert.strictEqual(body.error, 'API key not configured');
+      // Hardened: server no longer leaks 'API key not configured' state.
+      // Same 'Unauthorized' message regardless of config posture.
+      assert.strictEqual(body.error, 'Unauthorized');
       assert.strictEqual(res.headers.get('WWW-Authenticate'), 'Bearer');
     } finally {
       if (previousApiKey === undefined) delete process.env.AXIOM_API_KEY;
@@ -514,6 +516,16 @@ describe('Server - API', () => {
     });
     assert.strictEqual(r.status, 400);
   });
+  it('SEC: GET /graph-data with non-default workspaceId requires auth', async () => {
+    const r = await request(`${BASE}/graph-data?workspaceId=tenant-x`, { skipAuth: true });
+    assert.strictEqual(r.status, 401);
+  });
+
+  it('SEC: GET /graph-data with default workspaceId works without auth (public scope)', async () => {
+    const r = await request(`${BASE}/graph-data?workspaceId=default`, { skipAuth: true });
+    assert.strictEqual(r.status, 200);
+  });
+
   it('GET /graph-data dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {
     const r = await request(`${BASE}/graph-data?workspaceId=default`);
     assert.strictEqual(r.status, 200);

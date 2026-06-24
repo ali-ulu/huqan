@@ -87,21 +87,28 @@ describe('Request Guards', () => {
 
   it('requireApiKey fails closed when configured key is missing, empty, or whitespace', () => {
     resetRateLimitState();
+    // Hardened: error message MUST be the same generic 'Unauthorized' regardless
+    // of whether the server has no key configured or the caller mismatched.
+    // Leaking configuration state ('API key not configured') let attackers
+    // enumerate deployment posture.
     const missing = requireApiKey({ headers: { authorization: 'Bearer anything' } }, '');
     assert.strictEqual(missing.ok, false);
     assert.strictEqual(missing.status, 401);
     assert.strictEqual(missing.headers['WWW-Authenticate'], 'Bearer');
-    assert.strictEqual(missing.error.error, 'API key not configured');
+    assert.strictEqual(missing.error.error, 'Unauthorized');
 
     const undefinedKey = requireApiKey({ headers: { 'x-api-key': 'anything' } }, undefined);
     assert.strictEqual(undefinedKey.ok, false);
     assert.strictEqual(undefinedKey.status, 401);
-    assert.strictEqual(undefinedKey.error.error, 'API key not configured');
+    assert.strictEqual(undefinedKey.error.error, 'Unauthorized');
 
     const whitespace = requireApiKey({ headers: { authorization: 'Bearer anything' } }, '   \t\n  ');
     assert.strictEqual(whitespace.ok, false);
     assert.strictEqual(whitespace.status, 401);
-    assert.strictEqual(whitespace.error.error, 'API key not configured');
+    assert.strictEqual(whitespace.error.error, 'Unauthorized');
+
+    const mismatched = requireApiKey({ headers: { authorization: 'Bearer wrong' } }, 'secret');
+    assert.strictEqual(mismatched.error.error, 'Unauthorized');
   });
 
   it('isUnsafePublicApiCommand blocks public mutating command variants', () => {

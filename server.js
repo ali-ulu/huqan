@@ -368,7 +368,8 @@ function getGraphData(workspaceId = 'default') {
         memoryMetadata.reason = 'kernel.memory list failed';
       }
     } catch (err) {
-      memoryMetadata.reason = 'kernel.memory access error: ' + err.message;
+      console.error('[graph-data] kernel.memory access error:', err);
+      memoryMetadata.reason = 'kernel.memory access error';
     }
   } else {
     memoryMetadata.reason = 'kernel.memory unavailable';
@@ -610,7 +611,11 @@ const server = http.createServer(async (req, res) => {
     if (req.method !== 'GET') {
       res.writeHead(405); res.end(); return;
     }
-    const workspaceId = reqUrl.searchParams.get('workspaceId') || 'default';
+    const rawWorkspaceId = reqUrl.searchParams.get('workspaceId') || '';
+    const requestedWorkspaceId = sanitizeInput(rawWorkspaceId);
+    const isDefaultScope = !requestedWorkspaceId || requestedWorkspaceId === 'default';
+    if (!isDefaultScope && !denyIfUnauthorized(req, res)) return;
+    const workspaceId = requestedWorkspaceId || 'default';
     const data = getGraphData(workspaceId);
     res.writeHead(200, {
       'Content-Type': JSON_CONTENT_TYPE,
@@ -826,7 +831,8 @@ const server = http.createServer(async (req, res) => {
       const status = await cli.kernel.runCapability('ingestStatus', {});
       writeJson(req, res, 200, status, { 'Cache-Control': 'no-cache' });
     } catch (err) {
-      writeJson(req, res, 500, { error: err.message || 'ingest status failed' });
+      console.error('[ingest-status] failed:', err);
+      writeJson(req, res, 500, { error: 'ingest status failed' });
     }
     return;
   }
@@ -902,7 +908,8 @@ const server = http.createServer(async (req, res) => {
         data: receipt,
       }, { 'Cache-Control': 'no-cache' });
     } catch (err) {
-      writeApiError(req, res, 500, 'TRUST_QUERY_FAILED', err.message || 'trust query failed');
+      console.error('[trust-query] failed:', err);
+      writeApiError(req, res, 500, 'TRUST_QUERY_FAILED', 'trust query failed');
     }
     return;
   }
@@ -929,7 +936,8 @@ const server = http.createServer(async (req, res) => {
       }
       writeJson(req, res, 200, result, { 'Cache-Control': 'no-cache' });
     } catch (err) {
-      writeJson(req, res, 500, { error: err.message || 'ingest failed' });
+      console.error('[ingest] failed:', err);
+      writeJson(req, res, 500, { error: 'ingest failed' });
     }
     return;
   }
