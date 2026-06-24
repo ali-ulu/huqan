@@ -116,7 +116,7 @@ class PluginManager {
     this.kernel = kernel;
     this.plugins = [];
     this._handlers = {};
-    this.strictPlugins = process.env.AXIOM_PLUGIN_STRICT === '1';
+    this.strictPlugins = process.env.AXIOM_PLUGIN_STRICT !== '0';
     this.pluginSigningKey = process.env.AXIOM_PLUGIN_SIGNING_KEY || '';
     for (const e of EVENTS) this._handlers[e] = [];
   }

@@ -156,23 +156,29 @@ function writeApiError(req, res, statusCode, code, message, details = {}) {
   }, { 'Cache-Control': 'no-cache' });
 }
 
+const TRUST_FILTER_MAX_ID = 128;
+const TRUST_FILTER_MAX_REF = 256;
+const TRUST_FILTER_MAX_ENUM = 32;
+
 function readTrustFilters(reqUrl) {
   const params = reqUrl.searchParams;
-  const read = (name) => sanitizeInput(params.get(name) || '');
+  const readId = (name) => sanitizeInput(params.get(name) || '', TRUST_FILTER_MAX_ID);
+  const readRef = (name) => sanitizeInput(params.get(name) || '', TRUST_FILTER_MAX_REF);
+  const readEnum = (name) => sanitizeInput(params.get(name) || '', TRUST_FILTER_MAX_ENUM);
   return {
-    workspaceId: read('workspaceId'),
-    targetId: read('targetId'),
-    provenanceId: read('provenanceId'),
-    sourceRef: read('sourceRef'),
-    sourceType: read('sourceType'),
-    sourceSubType: read('sourceSubType'),
-    actor: read('actor'),
-    eventType: read('eventType'),
-    candidateId: read('candidateId'),
-    status: read('status'),
-    recommendation: read('recommendation'),
-    order: read('order'),
-    targetType: read('targetType'),
+    workspaceId: readId('workspaceId'),
+    targetId: readId('targetId'),
+    provenanceId: readId('provenanceId'),
+    sourceRef: readRef('sourceRef'),
+    sourceType: readEnum('sourceType'),
+    sourceSubType: readEnum('sourceSubType'),
+    actor: readId('actor'),
+    eventType: readEnum('eventType'),
+    candidateId: readId('candidateId'),
+    status: readEnum('status'),
+    recommendation: readEnum('recommendation'),
+    order: readEnum('order'),
+    targetType: readEnum('targetType'),
   };
 }
 
@@ -335,7 +341,12 @@ function getGraphData(workspaceId = 'default') {
           workspaceId: m.workspaceId || scope,
           status: m.status || 'active',
           weight: typeof m.metadata?.weight === 'number' ? m.metadata.weight : 1.0,
-          metadata: m.metadata || {}
+          metadata: {
+            weight: typeof m.metadata?.weight === 'number' ? m.metadata.weight : undefined,
+            tags: Array.isArray(m.metadata?.tags)
+              ? m.metadata.tags.slice(0, 10).map(t => String(t || '').slice(0, 64))
+              : undefined,
+          },
         }));
 
         const memoryNodeIds = new Set(memoryNodes.map(n => n.id));
