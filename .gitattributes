@@ -1,0 +1,7 @@
+# Signed plugin source and manifest files must have stable working-tree bytes
+# across platforms. Plugin manifest verification hashes the raw file bytes
+# (sha256 of fs.readFileSync), so a CRLF checkout (e.g. Windows with
+# core.autocrlf=true) would change the bytes and break hash verification,
+# causing plugins to be rejected at load. Force LF for these signed files.
+plugins/**/*.js text eol=lf
+plugins/**/*.json text eol=lf
