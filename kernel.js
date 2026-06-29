@@ -389,6 +389,124 @@ class Kernel {
     }
   }
 
+  /**
+   * FAZ2-PR3 (F-001): Background-source synthetic provenance for autonomous
+   * mutation paths (_autoThinkTick, dream(learnFromDream), selfEvolve,
+   * _crossLink).  Background mutations MUST carry a source/actor/provenanceId
+   * so admission and audit can attribute them.  This is NOT a bypass — the
+   * synthetic provenance is fed into the same admission gate as user writes,
+   * which by default returns 'review' for low-trust background actors and
+   * therefore prevents silent canonical writes.
+   */
+  _backgroundProvenance(source, workspaceId = 'default', extra = {}) {
+    const now = new Date().toISOString();
+    return {
+      provenanceId: `prov_bg_${source}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      timestamp: now,
+      source: `background:${source}`,
+      sourceType: 'background_inference',
+      sourceRef: `kernel.${source}`,
+      actor: `kernel-background:${source}`,
+      workspaceId,
+      trustPolicyVersion: this.contractVersion,
+      ...extra,
+    };
+  }
+
+  /**
+   * FAZ2-PR3 (F-001): Admission-gated background edge commit.
+   *
+   * - Builds synthetic provenance describing the background source.
+   * - Routes the proposed edge through _evaluateLearnAdmission (same gate the
+   *   user-facing learn path uses).
+   * - On 'allow' decision: writes the edge with source/provenance metadata and
+   *   emits a LEARN audit event tagged background:<source>.
+   * - On 'review' or 'reject' (the default for synthetic background
+   *   provenance): does NOT write the canonical edge and emits a
+   *   REVIEW/REJECT audit event so the attempt is recorded.
+   *
+   * @returns {{decision: string, edge: object|null, audit: object|null, admission: object|null}}
+   */
+  _commitBackgroundEdge(from, to, relation, source, opts = {}) {
+    const workspaceId = normalizeWorkspaceId(opts.workspaceId || 'default');
+    const provenance = this._backgroundProvenance(source, workspaceId, opts.provenanceExtra || {});
+    const proposalText = `${from} ${relation} ${to}`;
+    const admissionOpts = {
+      ...(opts.admissionOpts || {}),
+      workspaceId,
+      provenanceId: provenance.provenanceId,
+      actor: provenance.actor,
+      agentId: provenance.actor,
+      sourceType: provenance.sourceType,
+      sourceRef: provenance.sourceRef,
+      admissionReason: `background_${source}_edge_write`,
+      admissionContext: {
+        ...(opts.admissionOpts && opts.admissionOpts.admissionContext) || {},
+        backgroundSource: source,
+      },
+    };
+    const admission = this._evaluateLearnAdmission(proposalText, admissionOpts, provenance, workspaceId);
+
+    // Admission missing (shouldn't happen for background paths) — treat as review for safety.
+    if (!admission) {
+      const audit = this._appendAuditEvent({
+        eventType: 'REVIEW',
+        targetType: 'background_edge',
+        targetId: `${from}|${relation}|${to}`,
+        details: {
+          backgroundSource: source,
+          reason: 'admission_unavailable',
+          from,
+          to,
+          relation,
+        },
+      }, provenance, workspaceId);
+      return { decision: 'review', edge: null, audit, admission: null };
+    }
+
+    if (admission.outcome !== 'allow') {
+      const audit = this._appendAuditEvent({
+        eventType: admission.outcome === 'reject' ? 'REJECT' : 'REVIEW',
+        targetType: 'background_edge',
+        targetId: `${from}|${relation}|${to}`,
+        details: {
+          backgroundSource: source,
+          reason: admission.reason,
+          admissionOutcome: admission.outcome,
+          approvalStatus: admission.approvalStatus,
+          from,
+          to,
+          relation,
+        },
+      }, provenance, workspaceId);
+      return { decision: admission.outcome, edge: null, audit, admission };
+    }
+
+    // Allowed — write the canonical edge with provenance + source metadata.
+    const edgeOptions = {
+      ...(opts.edgeOptions || {}),
+      workspaceId,
+      provenance,
+      source: opts.edgeOptions && opts.edgeOptions.source
+        ? opts.edgeOptions.source
+        : `background:${source}`,
+    };
+    const edge = this.graph.addEdge(from, to, relation, edgeOptions);
+    const audit = this._appendAuditEvent({
+      eventType: 'LEARN',
+      targetType: 'background_edge',
+      targetId: edge ? `${edge.from}|${edge.relation}|${edge.to}` : `${from}|${relation}|${to}`,
+      details: {
+        backgroundSource: source,
+        from,
+        to,
+        relation,
+        admissionOutcome: 'allow',
+      },
+    }, provenance, workspaceId);
+    return { decision: 'allow', edge, audit, admission };
+  }
+
   _isLearnAdmissionBypass(opts = {}) {
     return opts.admissionRequired === false &&
       typeof opts.admissionBypassReason === 'string' &&
@@ -798,7 +916,14 @@ class Kernel {
             edgeOptions
           );
           this.graph.addTag(subject, object, 0.3, workspaceId);
-          this._crossLink(subject, object, relation, workspaceId);
+          // FAZ2-PR3: derived cross-link writes inherit parent learn admission +
+          // provenance.  This is NOT a background bypass — the parent admission
+          // already evaluated this user-initiated write.
+          this._crossLink(subject, object, relation, workspaceId, {
+            parentAdmissionAllowed: true,
+            parentProvenance: provenance,
+            derivedSource: 'learn',
+          });
           learned++;
           if (edge) evidence.push(this._edgeEvidence(edge));
           if (edge) {
@@ -1006,19 +1131,79 @@ if (verbSuffix.test(predicate)) {
     return { object: predicate, relation: 'özellik' };
   }
 
-  _crossLink(subject, object, relation, workspaceId = 'default') {
+  /**
+   * FAZ2-PR3 (F-001-d): Derive "benzer" (similarity) edges from shared tags.
+   *
+   * Two entry modes:
+   *  - Parent-allowed (context.parentAdmissionAllowed === true):
+   *      Invoked from the main learn path AFTER user admission allowed the
+   *      parent write.  Derived "benzer" edges inherit parent provenance and
+   *      are audited as derived writes; no background admission round-trip
+   *      so the derived chain does not deadlock on review-by-default.  This
+   *      mirrors the parent admission decision rather than introducing a
+   *      separate background gate for a write the user already authorized.
+   *  - Background (no context):
+   *      Invoked externally (e.g. inference/maintenance).  Routed through
+   *      _commitBackgroundEdge so the synthetic provenance is admission-gated.
+   *      Default decision is 'review' → no canonical write.
+   *
+   * Either path produces an audit event so the attempt is observable.
+   */
+  _crossLink(subject, object, relation, workspaceId = 'default', context = {}) {
     const subjNode = this.graph.getNode(subject, workspaceId);
     const objNode = this.graph.getNode(object, workspaceId);
-    if (!subjNode || !objNode) return;
+    if (!subjNode || !objNode) return { written: 0, audits: 0, skipped: 0 };
+
+    const parentAllowed = Boolean(context && context.parentAdmissionAllowed);
+    const parentProvenance = context && context.parentProvenance ? context.parentProvenance : null;
+
+    let written = 0;
+    let audits = 0;
+    let skipped = 0;
 
     for (const tag of Object.keys(subjNode.vector)) {
       if (tag !== object && this.graph.getNode(tag, workspaceId) && objNode.vector[tag]) {
         const existing = this.graph.getEdge(subject, object, 'benzer', workspaceId);
         if (!existing) {
-          this.graph.addEdge(subject, object, 'benzer', { workspaceId });
+          if (parentAllowed) {
+            // Parent learn admission already permitted the canonical write
+            // that triggered this derivation.  Carry parent provenance + audit.
+            const edgeOptions = { workspaceId };
+            if (parentProvenance) edgeOptions.provenance = parentProvenance;
+            edgeOptions.source = (context && context.derivedSource) || 'cross-link';
+            const edge = this.graph.addEdge(subject, object, 'benzer', edgeOptions);
+            if (edge) {
+              written++;
+              this._appendAuditEvent({
+                eventType: 'LEARN',
+                targetType: 'derived_edge',
+                targetId: `${edge.from}|${edge.relation}|${edge.to}`,
+                details: {
+                  derivation: 'cross_link',
+                  triggerSubject: subject,
+                  triggerObject: object,
+                  triggerRelation: relation,
+                  via: tag,
+                },
+              }, parentProvenance, workspaceId);
+              audits++;
+            }
+          } else {
+            // Background invocation — route through admission gate.
+            const result = this._commitBackgroundEdge(subject, object, 'benzer', '_crossLink', {
+              workspaceId,
+              edgeOptions: { source: 'cross-link' },
+              provenanceExtra: { derivation: 'cross_link', via: tag },
+            });
+            if (result.audit) audits++;
+            if (result.decision === 'allow' && result.edge) written++;
+            else skipped++;
+          }
         }
       }
     }
+
+    return { written, audits, skipped };
   }
 
   ask(question) {
@@ -1567,8 +1752,12 @@ if (verbSuffix.test(predicate)) {
     const isBilinclikTick = this._dreamCount > 0; // t?m tick'ler art?k bilin?li
 
     // ADIM 1: R?ya g?r + ?ÄŸren (recursion)
+    // FAZ2-PR3 (F-001-a): autonomous edge proposals route through
+    // _commitBackgroundEdge so they receive synthetic provenance, admission
+    // evaluation, and audit instead of writing directly to the graph.
     const hips = this._dreamer.dream();
     let eklenen = 0;
+    let bekleyen = 0;
     if (hips.length > 0) {
       for (const h of hips.slice(0, 5)) {
         if (h.confidence > 0.25) {
@@ -1579,8 +1768,14 @@ if (verbSuffix.test(predicate)) {
                       : h.relation === 'yapabilir' ? 'yapabilir'
                       : h.relation === 'özellik' ? 'özellik'
                       : 'hipotez');
-            this.graph.addEdge(h.from, h.to, rel);
-            eklenen++;
+            const result = this._commitBackgroundEdge(h.from, h.to, rel, '_autoThinkTick', {
+              provenanceExtra: {
+                hypothesisType: h.type,
+                hypothesisConfidence: h.confidence,
+              },
+            });
+            if (result.decision === 'allow' && result.edge) eklenen++;
+            else bekleyen++;
           }
         }
       }
@@ -1656,7 +1851,11 @@ if (verbSuffix.test(predicate)) {
     });
 
     // Geribesleme: hipotezleri grafiÄŸe ekle
+    // FAZ2-PR3 (F-001-b): when learnFromDream is set, hypotheses are
+    // background-derived candidate writes — route through admission +
+    // audit instead of silent canonical writes.
     const learned = [];
+    const pending = [];
     if (opts.learnFromDream) {
       const threshold = opts.dreamLearnThreshold ?? 0.1;
       for (const h of hypotheses) {
@@ -1668,8 +1867,18 @@ if (verbSuffix.test(predicate)) {
                       : (h.relation === 'özellik') ? 'özellik'
                       : (h.type === 'zincir' || h.relation === 'benzer') ? 'benzer'
                       : 'hipotez';
-            this.graph.addEdge(h.from, h.to, rel);
-            learned.push({ from: h.from, to: h.to, confidence: h.confidence, relation: rel });
+            const result = this._commitBackgroundEdge(h.from, h.to, rel, 'dream', {
+              provenanceExtra: {
+                hypothesisType: h.type,
+                hypothesisConfidence: h.confidence,
+                via: h.via || null,
+              },
+            });
+            if (result.decision === 'allow' && result.edge) {
+              learned.push({ from: h.from, to: h.to, confidence: h.confidence, relation: rel });
+            } else {
+              pending.push({ from: h.from, to: h.to, confidence: h.confidence, relation: rel, decision: result.decision });
+            }
           }
         }
       }
@@ -1680,7 +1889,7 @@ if (verbSuffix.test(predicate)) {
     this._dreamCount++;
 
     const evidence = hypotheses.map(h => h._evidence);
-    return this._ok('dream', { hypotheses, learned, cycle: this._dreamCount }, evidence);
+    return this._ok('dream', { hypotheses, learned, pending, cycle: this._dreamCount }, evidence);
   }
 
   learnDocument(text, opts = {}) {
@@ -1989,7 +2198,14 @@ if (verbSuffix.test(predicate)) {
     const dreamer = new Dream(this);
     const dreams = dreamer.dream();
 
+    // FAZ2-PR3 (F-001-c): self-evolution converts autonomous hypotheses into
+    // canonical edges.  Each proposed edge now passes through
+    // _commitBackgroundEdge so synthetic provenance is attached, admission is
+    // evaluated, and the attempt is audited.  By default the admission gate
+    // returns 'review' for background-derived writes, so canonical writes only
+    // happen when the operator has wired a higher-trust background policy.
     const added = [];
+    const deferred = [];
     for (const h of dreams) {
       if (opts.minConfidence && h.confidence < opts.minConfidence) continue;
       const defaultMin = h.type === 'zincir' ? 0.25 : 0.3;
@@ -2004,8 +2220,19 @@ if (verbSuffix.test(predicate)) {
       if (existing) continue;
 
       const weight = Math.min(0.4, h.confidence * 0.8);
-      this.graph.addEdge(h.from, h.to, rel, { weight, source: 'kendilik' });
-      added.push({ from: h.from, to: h.to, relation: rel, confidence: h.confidence, type: h.type });
+      const result = this._commitBackgroundEdge(h.from, h.to, rel, 'selfEvolve', {
+        edgeOptions: { weight, source: 'kendilik' },
+        provenanceExtra: {
+          hypothesisType: h.type,
+          hypothesisConfidence: h.confidence,
+          weight,
+        },
+      });
+      if (result.decision === 'allow' && result.edge) {
+        added.push({ from: h.from, to: h.to, relation: rel, confidence: h.confidence, type: h.type });
+      } else {
+        deferred.push({ from: h.from, to: h.to, relation: rel, confidence: h.confidence, type: h.type, decision: result.decision });
+      }
     }
 
     const cons = this.consolidate(false);
@@ -2021,6 +2248,8 @@ if (verbSuffix.test(predicate)) {
       dreams: dreams.length,
       added: added.length,
       addedDetails: added,
+      deferred: deferred.length,
+      deferredDetails: deferred,
       consolidated: cons.removed,
       optimized: opt.pruned,
     };
