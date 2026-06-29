@@ -222,6 +222,33 @@ class Kernel {
     return this.plugins.runCapability(name, input, opts);
   }
 
+  // F-003: Plugin-facing admission-gated edge write.
+  // Replaces direct kernel.graph.addEdge() calls in plugins.
+  proposeEdge(from, to, relation, opts = {}) {
+    return this._commitBackgroundEdge(from, to, relation, 'plugin', {
+      workspaceId: opts.workspaceId || 'default',
+      edgeOptions: opts,
+      provenanceExtra: {
+        sourceType: opts.sourceType || 'plugin',
+        sourceRef: opts.sourceRef || '',
+        actor: opts.actor || opts.sessionId || 'plugin',
+      },
+      admissionOpts: {
+        approvalRequired: false,
+        sourceType: opts.sourceType || 'plugin',
+        sourceRef: opts.sourceRef || '',
+        actor: opts.actor || opts.sessionId || 'plugin',
+        agentId: opts.sessionId || 'plugin',
+      },
+    });
+  }
+
+  // F-003: Thin wrapper so plugins avoid direct kernel.graph.addNode access.
+  proposeNode(id, label, provenance, opts = {}) {
+    if (!this.graph || typeof this.graph.addNode !== 'function') return null;
+    return this.graph.addNode(id, label, provenance, opts);
+  }
+
   _ok(type, data = null, evidence = [], meta = {}) {
     const stats = this.graph && typeof this.graph.getStats === 'function' ? this.graph.getStats() : {};
     return this._validateResult({

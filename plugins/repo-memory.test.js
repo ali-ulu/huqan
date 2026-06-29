@@ -22,6 +22,15 @@ function makeKernel() {
         return edge;
       },
     },
+    proposeNode(id, label, provenance, opts) {
+      nodes.push({ id, label, provenance, opts });
+      return { id };
+    },
+    proposeEdge(from, to, relation, opts) {
+      const edge = { from, to, relation, meta: opts };
+      edges.push(edge);
+      return { decision: 'allow', edge, audit: { eventType: 'LEARN' } };
+    },
     hasCapability(name) {
       return name === 'temporal' ? false : true;
     },

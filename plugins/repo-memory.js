@@ -39,9 +39,9 @@ function addCompanyEdge(kernel, fromId, toId, relation, opts = {}) {
   const workspaceId = opts.workspaceId || provenance?.workspaceId || 'default';
   const fromProvenance = opts.fromProvenance && typeof opts.fromProvenance === 'object' ? opts.fromProvenance : provenance;
   const toProvenance = opts.toProvenance && typeof opts.toProvenance === 'object' ? opts.toProvenance : provenance;
-  kernel.graph.addNode(fromId, opts.fromLabel || fromId, fromProvenance, { workspaceId });
-  kernel.graph.addNode(toId, opts.toLabel || toId, toProvenance, { workspaceId });
-  return kernel.graph.addEdge(fromId, toId, relation, {
+  kernel.proposeNode(fromId, opts.fromLabel || fromId, fromProvenance, { workspaceId });
+  kernel.proposeNode(toId, opts.toLabel || toId, toProvenance, { workspaceId });
+  const result = kernel.proposeEdge(fromId, toId, relation, {
     source: opts.source || 'repo',
     sourceRef: opts.sourceRef || provenance?.sourceRef || '',
     sessionId: opts.sessionId || '',
@@ -54,6 +54,7 @@ function addCompanyEdge(kernel, fromId, toId, relation, opts = {}) {
     provenance,
     workspaceId,
   });
+  return result && result.edge ? result.edge : null;
 }
 
 function buildConnectorProvenance({
@@ -156,7 +157,7 @@ async function ingestGithubRepo(kernel, input = {}) {
     confidence: 0.8,
     timestamp: input.timestamp || nowIso(),
   });
-  kernel.graph.addNode(repoNode, repoNode, repoProvenance, { workspaceId });
+  kernel.proposeNode(repoNode, repoNode, repoProvenance, { workspaceId });
   admissions.push(buildGraphAdmissionRecord({
     kind: 'node',
     targetType: 'graph_node',
@@ -336,7 +337,7 @@ async function ingestMarkdownPath(kernel, input = {}) {
       confidence: 0.68,
       timestamp: input.timestamp || nowIso(),
     });
-    kernel.graph.addNode(fileRef, section.filePath, fileProvenance, { workspaceId });
+    kernel.proposeNode(fileRef, section.filePath, fileProvenance, { workspaceId });
     admissions.push(buildGraphAdmissionRecord({
       kind: 'node',
       targetType: 'graph_node',
@@ -347,7 +348,7 @@ async function ingestMarkdownPath(kernel, input = {}) {
         filePath: section.filePath,
       },
     }));
-    kernel.graph.addNode(sectionNode, section.sectionTitle, sectionProvenance, { workspaceId });
+    kernel.proposeNode(sectionNode, section.sectionTitle, sectionProvenance, { workspaceId });
     admissions.push(buildGraphAdmissionRecord({
       kind: 'node',
       targetType: 'graph_node',
