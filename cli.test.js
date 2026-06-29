@@ -9,6 +9,11 @@ const KernelV2 = require('./kernel.v2');
 const Dream = require('./dream');
 const { createAgent } = require('./agentRuntime');
 
+const TEST_FIXTURE_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'test_fixture_seed',
+};
+
 function freshCLI(kernelOpts = {}) {
   const cli = new CLI();
   cli.kernel = new Kernel({ noLoad: true, ...kernelOpts });
@@ -81,7 +86,7 @@ describe('CLI - Komut Çalıştırma', () => {
 
   it('execute: sor komutu cevap döndürür', () => {
     const cli = freshCLI();
-    cli.kernel.learn('Köpek hayvandır');
+    cli.kernel.learn('Köpek hayvandır', TEST_FIXTURE_LEARN_BYPASS);
     const result = cli.execute('sor', 'Köpek nedir');
     assert.ok(result.includes('köpek'));
   });
@@ -237,7 +242,7 @@ describe('CLI - Komut Çalıştırma', () => {
 
   it('execute: "llm-sor:" AXIOM cevabı döndürür', () => {
     const cli = freshCLI();
-    cli.kernel.learn('Kedi hayvandır');
+    cli.kernel.learn('Kedi hayvandır', TEST_FIXTURE_LEARN_BYPASS);
     const result = cli.execute('llm-sor', 'Kedi nedir');
     assert.ok(result.includes('AXIOM'));
     assert.ok(result.includes('kedi'));
@@ -246,7 +251,7 @@ describe('CLI - Komut Çalıştırma', () => {
   it('constructor: v2 kernel flag opens KernelV2 without breaking CLI flow', () => {
     const cli = new CLI({ kernel: { noLoad: true, useSQLite: false, version: 'v2' } });
     assert.ok(cli.kernel instanceof KernelV2);
-    cli.kernel.learn('kus ucmaz');
+    cli.kernel.learn('kus ucmaz', TEST_FIXTURE_LEARN_BYPASS);
     const result = cli.kernel.verify('kus ucar');
     assert.strictEqual(result.data.status, 'celiski');
     assert.strictEqual(result.data.contradictionReason, 'opposite_predicate_conflict');
@@ -297,7 +302,7 @@ describe('CLI - Komut Çalıştırma', () => {
 
   it('execute: verify remains read-only and still works', () => {
     const cli = freshCLI();
-    cli.kernel.learn('kedi hayvandir');
+    cli.kernel.learn('kedi hayvandir', TEST_FIXTURE_LEARN_BYPASS);
     const result = cli.execute('verify', 'kedi hayvandir');
     assert.ok(result.includes('Verify: dogrulandi'));
   });

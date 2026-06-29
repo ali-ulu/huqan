@@ -6,6 +6,10 @@ const path = require('path');
 const Kernel = require('../kernel');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-verify-canonical-lookup-'));
+const TEST_FIXTURE_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'test_fixture_seed',
+};
 
 after(() => {
   fs.rmSync(tempDir, { recursive: true, force: true });
@@ -46,10 +50,10 @@ function withMutedConsole(fn) {
 
 function seedCanonicalEvidence(kernel) {
   withMutedConsole(() => {
-    kernel.learn('boeing_737 güvenlidir', { workspaceId: 'default' });
-    kernel.learn('air_india güvenlidir', { workspaceId: 'default' });
-    kernel.learn('artificial_intelligence güçlüdür', { workspaceId: 'default' });
-    kernel.learn('adobe_illustrator kullanılır', { workspaceId: 'default' });
+    kernel.learn('boeing_737 güvenlidir', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
+    kernel.learn('air_india güvenlidir', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
+    kernel.learn('artificial_intelligence güçlüdür', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
+    kernel.learn('adobe_illustrator kullanılır', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
   });
 }
 

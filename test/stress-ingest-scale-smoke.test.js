@@ -6,6 +6,10 @@ const path = require('path');
 const Kernel = require('../kernel');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-stress-ingest-'));
+const TEST_FIXTURE_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'test_fixture_seed',
+};
 
 after(() => {
   fs.rmSync(tempDir, { recursive: true, force: true });
@@ -53,9 +57,9 @@ describe('Stress Ingest Scale Smoke', () => {
     withMutedConsole(() => {
       for (let i = 1; i <= 250; i++) {
         const id = String(i).padStart(4, '0');
-        kernel.learn(`Aircraft_${id} is aircraft`, { workspaceId: 'default' });
-        kernel.learn(`Aircraft_${id} has 2 engines`, { workspaceId: 'default' });
-        kernel.learn(`Airport_${id} is in City_${id}`, { workspaceId: 'default' });
+        kernel.learn(`Aircraft_${id} is aircraft`, { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
+        kernel.learn(`Aircraft_${id} has 2 engines`, { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
+        kernel.learn(`Airport_${id} is in City_${id}`, { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
       }
     });
 

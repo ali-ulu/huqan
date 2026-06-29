@@ -9,6 +9,10 @@ const { after, test } = require('node:test');
 const Kernel = require('../kernel');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-kernel-persistence-roundtrip-'));
+const TEST_FIXTURE_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'test_fixture_seed',
+};
 
 after(() => {
   try {
@@ -40,7 +44,7 @@ test('kernel.learn auto-saves and fresh Kernel auto-loads with JSON backend', ()
   });
 
   try {
-    const learn = writer.learn('ankara baskenttir', { workspaceId: 'default' });
+    const learn = writer.learn('ankara baskenttir', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
     assert.equal(learn.ok, true);
 
     const persistedJson = JSON.parse(fs.readFileSync(paths.memoryPath, 'utf8'));
@@ -97,7 +101,7 @@ test('kernel.learn auto-saves and fresh Kernel auto-loads with SQLite backend wh
     closeKernel(reader);
   });
 
-  const learn = writer.learn('izmir sehirdir', { workspaceId: 'default' });
+  const learn = writer.learn('izmir sehirdir', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
   assert.equal(learn.ok, true);
 
   reader.graph.load();

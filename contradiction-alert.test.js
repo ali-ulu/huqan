@@ -4,9 +4,14 @@ const assert = require('node:assert/strict');
 const Kernel = require('./kernel');
 const createContradictionAlertPlugin = require('./plugins/contradiction-alert').create;
 
+const TEST_FIXTURE_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'test_fixture_seed',
+};
+
 test('contradiction-alert: detects direct contradiction and returns conflict details', async () => {
   const k = new Kernel({ noLoad: true, loadPlugins: false, capabilities: { temporal: true } });
-  k.learn('kedi hayvandir');
+  k.learn('kedi hayvandir', TEST_FIXTURE_LEARN_BYPASS);
   k.usePlugin(createContradictionAlertPlugin());
 
   const result = await k.plugins.runCapability('contradictionAlert', { text: 'kedi hayvan degildir' });
@@ -19,7 +24,7 @@ test('contradiction-alert: detects direct contradiction and returns conflict det
 
 test('contradiction-alert: returns empty list and null conflictType when no conflict', async () => {
   const k = new Kernel({ noLoad: true, loadPlugins: false, capabilities: { temporal: true } });
-  k.learn('kedi hayvandir');
+  k.learn('kedi hayvandir', TEST_FIXTURE_LEARN_BYPASS);
   k.usePlugin(createContradictionAlertPlugin());
 
   const result = await k.plugins.runCapability('contradictionAlert', { text: 'kedi sevimlidir' });
@@ -35,7 +40,7 @@ test('contradiction-alert: includes temporal metadata and evidence quality when 
     capabilities: { temporal: true, evidenceRanking: true },
   });
 
-  k.learn('kus ucar');
+  k.learn('kus ucar', TEST_FIXTURE_LEARN_BYPASS);
   k.usePlugin(createContradictionAlertPlugin());
 
   const result = await k.plugins.runCapability('contradictionAlert', { text: 'kus ucmaz' });

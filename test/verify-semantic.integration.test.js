@@ -6,6 +6,10 @@ const path = require('path');
 const Kernel = require('../kernel');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-verify-semantic-'));
+const TEST_FIXTURE_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'test_fixture_seed',
+};
 
 after(() => {
   fs.rmSync(tempDir, { recursive: true, force: true });
@@ -61,7 +65,7 @@ function seedFacts(kernel) {
 
   withMutedConsole(() => {
     for (const seed of seeds) {
-      kernel.learn(seed, { workspaceId: 'default' });
+      kernel.learn(seed, { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
     }
   });
 }
@@ -172,7 +176,7 @@ describe('verify semantic integration', () => {
 
   it('promotes cause/prevent opposition to celiski', () => {
     const kernel = makeKernel('cause-prevent-opposition');
-    kernel.learn('asilama hastaligi onler', { workspaceId: 'default' });
+    kernel.learn('asilama hastaligi onler', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
 
     const raw = kernel.verify('Asilama hastaliga neden olur', { workspaceId: 'default' });
     const result = unwrap(raw);
@@ -190,7 +194,7 @@ describe('verify semantic integration', () => {
 
   it('promotes reverse cause/prevent opposition to celiski', () => {
     const kernel = makeKernel('prevent-cause-opposition');
-    kernel.learn('sigara hastaliga neden olur', { workspaceId: 'default' });
+    kernel.learn('sigara hastaliga neden olur', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
 
     const raw = kernel.verify('Sigara hastaligi onler', { workspaceId: 'default' });
     const result = unwrap(raw);
@@ -250,7 +254,7 @@ describe('verify semantic integration', () => {
 
   it('marks benign unrelated drift as celiski in current semantics', () => {
     const kernel = makeKernel('benign-relation-drift');
-    kernel.learn('aspirin kan inceltici olarak etki eder', { workspaceId: 'default' });
+    kernel.learn('aspirin kan inceltici olarak etki eder', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
 
     const raw = kernel.verify('aspirin beyaz tablettir', { workspaceId: 'default' });
     const result = unwrap(raw);

@@ -7,6 +7,15 @@ const PluginManager = require('./plugin');
 const createIdeaMriPlugin = require('./plugins/idea-mri').create;
 const createDevilAdvocatePlugin = require('./plugins/devil-advocate').create;
 
+const TEST_FIXTURE_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'test_fixture_seed',
+};
+
+function learnFixture(kernel, text, opts = {}) {
+  return kernel.learn(text, { ...opts, ...TEST_FIXTURE_LEARN_BYPASS });
+}
+
 function writePluginWithManifest(pluginPath, contents, opts = {}) {
   const manifestPath = pluginPath.replace(/\.js$/i, '.manifest.json');
   fs.writeFileSync(pluginPath, contents);
@@ -25,7 +34,7 @@ describe('Plugin - Yonetici', () => {
   it('usePlugin: eklenti kaydeder', () => {
     const k = new Kernel({ noLoad: true });
     k.usePlugin({ name: 'test', beforeLearn(k2, data) { data.text = 'plugin test'; } });
-    k.learn('kedi balik yer');
+    learnFixture(k, 'kedi balik yer');
     assert.ok(k.graph.getNode('plugin'));
   });
 
@@ -37,7 +46,7 @@ describe('Plugin - Yonetici', () => {
         if (data.text === 'cat eats fish') data.text = 'kedi balik yer';
       }
     });
-    k.learn('cat eats fish');
+    learnFixture(k, 'cat eats fish');
     assert.ok(k.graph.getNode('kedi'));
     assert.strictEqual(k.graph.getNode('cat'), null);
   });
@@ -49,13 +58,13 @@ describe('Plugin - Yonetici', () => {
       name: 'logger',
       afterLearn(k2, data) { triggered = true; assert.strictEqual(data.text, 'kedi balik yer'); }
     });
-    k.learn('kedi balik yer');
+    learnFixture(k, 'kedi balik yer');
     assert.strictEqual(triggered, true);
   });
 
   it('beforeAsk: soruyu degistirebilir', () => {
     const k = new Kernel({ noLoad: true });
-    k.learn('kedi balik yer');
+    learnFixture(k, 'kedi balik yer');
     k.usePlugin({
       name: 'alias',
       beforeAsk(k2, data) { data.question = data.question.replace('cat', 'kedi'); }
@@ -71,7 +80,7 @@ describe('Plugin - Yonetici', () => {
       name: 'qaLog',
       afterAsk(k2, data) { log = data; }
     });
-    k.learn('kedi balik yer');
+    learnFixture(k, 'kedi balik yer');
     const answer = k.ask('kedi nedir').data.answer;
     assert.strictEqual(log.question, 'kedi nedir');
     assert.strictEqual(log.answer, answer);
@@ -82,7 +91,7 @@ describe('Plugin - Yonetici', () => {
     const k = new Kernel({ noLoad: true });
     k.usePlugin({ name: 'a', beforeLearn(k2, d) { order.push('a'); } });
     k.usePlugin({ name: 'b', beforeLearn(k2, d) { order.push('b'); } });
-    k.learn('kedi balik yer');
+    learnFixture(k, 'kedi balik yer');
     assert.deepStrictEqual(order, ['a', 'b']);
   });
 
@@ -116,9 +125,9 @@ describe('Plugin - Yonetici', () => {
       name: 'dreamLog',
       afterDream(k2, data) { hypotheses = data.hypotheses; }
     });
-    k.learn('kedi balik yer');
-    k.learn('kedi fare yer');
-    k.learn('balik suda yasar');
+    learnFixture(k, 'kedi balik yer');
+    learnFixture(k, 'kedi fare yer');
+    learnFixture(k, 'balik suda yasar');
     const dream = new (require('./dream'))(k);
     dream.dream();
     assert.ok(Array.isArray(hypotheses));
@@ -130,10 +139,10 @@ describe('Plugin - Yonetici', () => {
       name: 'dimOverride',
       beforeEmbedding(k2, opts) { opts.dimensions = 128; }
     });
-    k.learn('kedi balik yer');
-    k.learn('kedi fare yer');
-    k.learn('balik suda yasar');
-    k.learn('fare peynir yer');
+    learnFixture(k, 'kedi balik yer');
+    learnFixture(k, 'kedi fare yer');
+    learnFixture(k, 'balik suda yasar');
+    learnFixture(k, 'fare peynir yer');
     const dream = new (require('./dream'))(k);
     dream.embedding({ dimensions: 64 });
     const node = k.graph.getNode('kedi');
@@ -144,7 +153,7 @@ describe('Plugin - Yonetici', () => {
     let flag = false;
     const k = new Kernel({ noLoad: true });
     k.usePlugin({ name: 'd', beforeDream() { flag = true; } });
-    k.learn('kedi balik yer');
+    learnFixture(k, 'kedi balik yer');
     const dream = new (require('./dream'))(k);
     dream.dream();
     assert.strictEqual(flag, true);
@@ -287,8 +296,8 @@ describe('Plugin - Yonetici', () => {
 
   it('devil-advocate: uses graph-backed output when subject has graph evidence', async () => {
     const k = new Kernel({ noLoad: true, loadPlugins: false });
-    k.learn('axiom motordur');
-    k.learn('axiom dogrulama yapar');
+    learnFixture(k, 'axiom motordur');
+    learnFixture(k, 'axiom dogrulama yapar');
     k.usePlugin(createDevilAdvocatePlugin());
     const result = await k.plugins.runCapability('devilAdvocate', {
       text: 'axiom ana urun olmali',
@@ -340,7 +349,7 @@ describe('Plugin - Yonetici', () => {
       loadPlugins: false,
       capabilities: { evidenceRanking: true },
     });
-    k.learn('axiom dogrulama yapar');
+    learnFixture(k, 'axiom dogrulama yapar');
     const plugin = createDevilAdvocatePlugin();
     k.usePlugin(plugin);
     const result = await k.plugins.runCapability('devilAdvocate', { text: 'axiom hizli buyur' });

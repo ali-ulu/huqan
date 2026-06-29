@@ -9,6 +9,10 @@ const identitySeed = JSON.parse(fs.readFileSync(identitySeedPath, 'utf8'));
 // Egitim: temiz baslat, mevcut hafizayi karistirma.
 const k = new Kernel({ noLoad: true, useSQLite: true });
 const d = new Dream(k);
+const DEMO_SEED_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'demo_seed_fixture',
+};
 
 const identityFacts = Array.isArray(identitySeed.facts) ? identitySeed.facts.filter(Boolean) : [];
 
@@ -118,7 +122,9 @@ for (let i = 0; i < veriler.length; i += 1) {
         workspaceId: identitySeed.workspaceId || 'default',
       }
     : null;
-  k.learn(v, provenance ? { provenance, workspaceId: provenance.workspaceId } : undefined);
+  k.learn(v, provenance
+    ? { provenance, workspaceId: provenance.workspaceId, ...DEMO_SEED_LEARN_BYPASS }
+    : DEMO_SEED_LEARN_BYPASS);
 }
 
 console.log(`Istatistik: ${Object.keys(k.graph._nodes).length} dugum, ${k.graph._edges.length} kenar`);

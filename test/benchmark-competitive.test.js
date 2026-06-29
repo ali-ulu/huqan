@@ -25,6 +25,11 @@ const { performance } = require('perf_hooks');
 const Kernel = require('../kernel');
 const { callTool } = require('../mcpServer');
 
+const TEST_FIXTURE_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'test_fixture_seed',
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const TEMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-benchmark-'));
@@ -80,16 +85,16 @@ function unwrap(result) {
 function seedMedicalDomain(kernel) {
   withMutedConsole(() => {
     // Factual medical knowledge
-    kernel.learn('Aspirin ağrı kesicidir');
-    kernel.learn('Aspirin kan sulandırıcıdır');
-    kernel.learn('İnsülin şeker hastalığını tedavi eder');
-    kernel.learn('Antibiyotik bakteriyel enfeksiyonu tedavi eder');
-    kernel.learn('Aşılama hastalığı önler');
-    kernel.learn('Kemoterapi kanser tedavisidir');
-    kernel.learn('Kemoterapi yan etkilere neden olur');
-    kernel.learn('Sigara akciğer kanserine neden olur');
-    kernel.learn('Egzersiz sağlığı güçlendirir');
-    kernel.learn('Uyku dinlenmeyi sağlar');
+    kernel.learn('Aspirin ağrı kesicidir', TEST_FIXTURE_LEARN_BYPASS);
+    kernel.learn('Aspirin kan sulandırıcıdır', TEST_FIXTURE_LEARN_BYPASS);
+    kernel.learn('İnsülin şeker hastalığını tedavi eder', TEST_FIXTURE_LEARN_BYPASS);
+    kernel.learn('Antibiyotik bakteriyel enfeksiyonu tedavi eder', TEST_FIXTURE_LEARN_BYPASS);
+    kernel.learn('Aşılama hastalığı önler', TEST_FIXTURE_LEARN_BYPASS);
+    kernel.learn('Kemoterapi kanser tedavisidir', TEST_FIXTURE_LEARN_BYPASS);
+    kernel.learn('Kemoterapi yan etkilere neden olur', TEST_FIXTURE_LEARN_BYPASS);
+    kernel.learn('Sigara akciğer kanserine neden olur', TEST_FIXTURE_LEARN_BYPASS);
+    kernel.learn('Egzersiz sağlığı güçlendirir', TEST_FIXTURE_LEARN_BYPASS);
+    kernel.learn('Uyku dinlenmeyi sağlar', TEST_FIXTURE_LEARN_BYPASS);
 
     // Causal relations
     kernel.graph.addNode('sigara', 'sigara', null, { workspaceId: 'default' });
@@ -332,7 +337,7 @@ describe('Benchmark: Latency (local vs API-dependent competitors)', () => {
     const start = performance.now();
     for (let i = 0; i < ITERATIONS; i++) {
       withMutedConsole(() => {
-        kernel.learn(`Bench fact ${i} test${i} özelliğidir`);
+        kernel.learn(`Bench fact ${i} test${i} özelliğidir`, TEST_FIXTURE_LEARN_BYPASS);
       });
     }
     const elapsed = performance.now() - start;

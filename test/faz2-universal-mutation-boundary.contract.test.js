@@ -155,33 +155,24 @@ describe('FAZ2-PR1 contract: F-001 background write paths', () => {
 });
 
 // ---------------------------------------------------------------------------
-// SECTION 3: Admission gate opt-in gap (F-002)
+// SECTION 3: Admission gate default-on (F-002)
 // ---------------------------------------------------------------------------
-describe('FAZ2-PR1 contract: F-002 admission gate opt-in', () => {
-  it('kernel.learn accepts opts.admissionRequired today (gate is opt-in, not default-on)', () => {
+describe('FAZ2-PR1 contract: F-002 admission gate default-on', () => {
+  it('[FAZ2-2] kernel.learn defaults admission on without explicit override', () => {
     const k = makeKernel();
-    // Without admissionRequired:true the learn path bypasses admission.
-    // This test confirms the current (unsafe) default: gate is opt-in.
     const result = k.learn('test fakt', { workspaceId: 'default' });
     assert.ok(result.ok, 'learn should succeed without admissionRequired');
-    // No assertion on admission outcome — we are not blessing the bypass.
+    assert.strictEqual(result.data.learned, 0, 'default admission review must not write graph');
+    assert.strictEqual(result.data.admission?.outcome, 'review');
   });
 
-  // CONTRACT: after FAZ2-3, admissionRequired must default to true for all
-  // kernel.learn calls, and the MCP execution path must not bypass it.
+  // MCP execution stays as a later integration contract because this PR only
+  // hardens kernel.learn; it does not change MCP approval execution/persistence.
   it.skip(
-    '[FAZ2-3] kernel.learn must default admissionRequired:true without explicit override',
-    // Source evidence: kernel.js:394 — admissionRequired opt-in only.
-    () => {
-      throw new Error('FAZ2-3 not yet merged');
-    }
-  );
-
-  it.skip(
-    '[FAZ2-3] MCP axiom.learn execution must pass admissionRequired:true to kernel.learn',
+    '[FAZ2-5] MCP axiom.learn execution must not bypass default admission',
     // Source evidence: mcpServer.js:757 — kernel.learn called without admissionRequired.
     () => {
-      throw new Error('FAZ2-3 not yet merged');
+      throw new Error('FAZ2-5 not yet merged');
     }
   );
 });

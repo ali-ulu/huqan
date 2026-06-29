@@ -389,14 +389,14 @@ class Kernel {
     }
   }
 
+  _isLearnAdmissionBypass(opts = {}) {
+    return opts.admissionRequired === false &&
+      typeof opts.admissionBypassReason === 'string' &&
+      opts.admissionBypassReason.trim().length > 0;
+  }
+
   _evaluateLearnAdmission(text, opts = {}, provenance = null, workspaceId = 'default') {
-    const requiresAdmission = Boolean(
-      opts.admissionRequired ||
-      opts.requiresAdmission ||
-      opts.approvalRequired ||
-      isPlainObject(opts.admissionContext)
-    );
-    if (!requiresAdmission) return null;
+    if (this._isLearnAdmissionBypass(opts)) return null;
 
     const admissionContext = isPlainObject(opts.admissionContext) ? opts.admissionContext : {};
     const createdAt =

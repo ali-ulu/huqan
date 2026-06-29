@@ -6,6 +6,10 @@ const path = require('path');
 const Kernel = require('../kernel');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-adversarial-self-'));
+const TEST_FIXTURE_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'test_fixture_seed',
+};
 
 after(() => {
   fs.rmSync(tempDir, { recursive: true, force: true });
@@ -39,7 +43,7 @@ function seed(kernel) {
     'aspirin kan inceltici olarak etki eder',
     'sigara kanser yapar',
   ]) {
-    kernel.learn(statement, { workspaceId: 'default' });
+    kernel.learn(statement, { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
   }
 }
 

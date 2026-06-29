@@ -40,6 +40,13 @@ function makeProvenance(overrides = {}) {
   };
 }
 
+const APPROVED_TEST_ADMISSION = {
+  admissionRequired: true,
+  approvalRequired: true,
+  approvalStatus: 'approved',
+  approvalId: 'apr-provenance-ingest-test',
+};
+
 test('ingestWithProvenance returns explicit graph admission for learned facts', async () => {
   const kernel = new Kernel({
     noLoad: true,
@@ -51,7 +58,7 @@ test('ingestWithProvenance returns explicit graph admission for learned facts', 
     const result = await ingestWithProvenance(kernel, {
       text: 'kedi hayvandir',
       provenance: makeProvenance(),
-    });
+    }, APPROVED_TEST_ADMISSION);
 
     assert.equal(result.ok, true);
     assert.equal(result.admission.outcome, 'admitted');
@@ -81,7 +88,7 @@ test('ingestWithProvenance keeps admission explicit when provenance is auto-fill
     const result = await ingestWithProvenance(kernel, {
       text: 'balik yüzer',
       workspaceId: 'workspace-b',
-    });
+    }, APPROVED_TEST_ADMISSION);
 
     assert.equal(result.ok, true);
     assert.equal(result.admission.outcome, 'admitted');

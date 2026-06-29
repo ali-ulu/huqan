@@ -3,6 +3,11 @@ const assert = require('node:assert/strict');
 
 const Kernel = require('./kernel');
 
+const TEST_FIXTURE_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'test_fixture_seed',
+};
+
 test('company-mode: learn attaches company metadata when capability is enabled', () => {
   const k = new Kernel({
     noLoad: true,
@@ -16,6 +21,7 @@ test('company-mode: learn attaches company metadata when capability is enabled',
     sourceRef: 'manual:sonfi:2026-05-31',
     sessionId: 'session-1',
     companyMode: true,
+    ...TEST_FIXTURE_LEARN_BYPASS,
   });
 
   const edges = k.graph.getEdges('kedi');
@@ -39,6 +45,7 @@ test('company-mode: learn ignores company metadata when company capability is di
     sourceType: 'manual',
     sourceRef: 'manual:sonfi:2026-05-31',
     companyMode: true,
+    ...TEST_FIXTURE_LEARN_BYPASS,
   });
 
   const edges = k.graph.getEdges('kopek');

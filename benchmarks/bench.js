@@ -2,6 +2,11 @@ const fs = require('fs');
 const path = require('path');
 const Kernel = require('../kernel');
 
+const TEST_FIXTURE_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'test_fixture_seed',
+};
+
 function loadFixture(name) {
   const file = path.join(__dirname, 'fixtures', `${name}.json`);
   const data = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -62,13 +67,13 @@ function benchFixture(label, statements, options = {}) {
   const learn = measure(`${label}:learn`, () => {
     const learnKernel = createKernel();
     for (const statement of statements) {
-      learnKernel.learn(statement);
+      learnKernel.learn(statement, TEST_FIXTURE_LEARN_BYPASS);
     }
     return learnKernel.graph.getStats();
   }, iterations);
 
   for (const statement of statements) {
-    queryKernel.learn(statement);
+    queryKernel.learn(statement, TEST_FIXTURE_LEARN_BYPASS);
   }
 
   const sample = statements[0];

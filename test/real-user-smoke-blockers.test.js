@@ -7,9 +7,23 @@ const path = require('node:path');
 const Kernel = require('../kernel');
 
 const repoRoot = path.resolve(__dirname, '..');
+const TEST_FIXTURE_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'test_fixture_seed',
+};
 
 function makeTempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+}
+
+function removeTempDir(dir) {
+  try {
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  } catch (err) {
+    if (!['EPERM', 'EBUSY'].includes(err?.code)) {
+      throw err;
+    }
+  }
 }
 
 describe('real user smoke blockers', () => {
@@ -27,7 +41,7 @@ describe('real user smoke blockers', () => {
       assert.doesNotMatch(result.stderr, /Load error/i);
       assert.strictEqual(fs.existsSync(path.join(cwd, 'memory.json')), false);
     } finally {
-      fs.rmSync(cwd, { recursive: true, force: true });
+      removeTempDir(cwd);
     }
   });
 
@@ -58,14 +72,14 @@ describe('real user smoke blockers', () => {
       assert.strictEqual(kernel.verify('AXIOM bilgi grafigi motorudur').data.status, 'dogrulandi');
       kernel.graph.close?.();
     } finally {
-      fs.rmSync(cwd, { recursive: true, force: true });
+      removeTempDir(cwd);
     }
   });
 
   it('verifies seeded Turkish facts with natural Turkish and ASCII variants', () => {
     const kernel = new Kernel({ noLoad: true, useSQLite: false });
-    kernel.learn('mant\u0131k do\u011fru d\u00fc\u015f\u00fcnme y\u00f6ntemidir');
-    kernel.learn('AXIOM bilgi grafi\u011fi motorudur');
+    kernel.learn('mant\u0131k do\u011fru d\u00fc\u015f\u00fcnme y\u00f6ntemidir', TEST_FIXTURE_LEARN_BYPASS);
+    kernel.learn('AXIOM bilgi grafi\u011fi motorudur', TEST_FIXTURE_LEARN_BYPASS);
 
     const turkish = kernel.verify('mant\u0131k do\u011fru d\u00fc\u015f\u00fcnme y\u00f6ntemidir');
     const ascii = kernel.verify('mantik dogru dusunme yontemidir');

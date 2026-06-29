@@ -14,6 +14,10 @@ const {
 } = require('../lib/provenance-query');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-provenance-receipt-bridge-'));
+const TEST_FIXTURE_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'test_fixture_seed',
+};
 
 after(() => {
   try {
@@ -45,6 +49,16 @@ function makeProvenance(overrides = {}) {
   };
 }
 
+function makeApprovedAdmission(overrides = {}) {
+  return {
+    admissionRequired: true,
+    approvalRequired: true,
+    approvalStatus: 'approved',
+    approvalId: 'apr-provenance-bridge-test',
+    ...overrides,
+  };
+}
+
 function closeKernel(kernel) {
   if (kernel && kernel.graph && typeof kernel.graph.close === 'function') {
     kernel.graph.close();
@@ -65,7 +79,10 @@ test('provenance-backed learned fact is queryable through graph, receipt, and au
 
   try {
     const provenance = makeProvenance();
-    const learn = kernel.learn('kedi hayvandir', { provenance });
+    const learn = kernel.learn('kedi hayvandir', {
+      provenance,
+      ...makeApprovedAdmission(),
+    });
     assert.equal(learn.ok, true);
 
     const node = kernel.graph.getNode('kedi', 'workspace-a');
@@ -114,7 +131,7 @@ test('provenance-backed learned fact is queryable through graph, receipt, and au
   }
 });
 
-test('non-strict learn without provenance remains allowed and documents current policy', () => {
+test('explicit fixture bypass without provenance remains allowed and documents compatibility provenance', () => {
   const kernel = new Kernel({
     noLoad: true,
     useSQLite: false,
@@ -122,7 +139,7 @@ test('non-strict learn without provenance remains allowed and documents current 
   });
 
   try {
-    const learn = kernel.learn('balik yüzer', { workspaceId: 'default' });
+    const learn = kernel.learn('balik yüzer', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
     assert.equal(learn.ok, true);
 
     const node = kernel.graph.getNode('balik', 'default');
@@ -153,6 +170,9 @@ test('non-strict learn with invalid sourceType remains allowed as compatibility 
       provenance: makeProvenance({
         provenanceId: 'prov-bridge-invalid-type',
         sourceType: 'bogus',
+      }),
+      ...makeApprovedAdmission({
+        approvalId: 'apr-provenance-bridge-invalid-type',
       }),
     });
     assert.equal(learn.ok, true);

@@ -8,6 +8,10 @@ const path = require('node:path');
 const Kernel = require('../kernel');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-canonical-determinism-'));
+const TEST_FIXTURE_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'test_fixture_seed',
+};
 
 test.after(() => {
   fs.rmSync(tempDir, { recursive: true, force: true });
@@ -169,7 +173,7 @@ function normalizeVerifyResult(raw, kernel, subject) {
 
 function runScenario(iteration) {
   const kernel = makeKernel(`scenario-${iteration}`);
-  const learnRaw = kernel.learn('Asilama hastaligi onler', { workspaceId: 'default' });
+  const learnRaw = kernel.learn('Asilama hastaligi onler', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
   const verifyRaw = kernel.verify('Asilama hastaliga neden olur', { workspaceId: 'default' });
 
   return {

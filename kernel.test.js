@@ -2,9 +2,17 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const Kernel = require('./kernel');
 
+const TEST_FIXTURE_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'test_fixture_seed',
+};
+
 // Test için temiz kernel — memory.json yüklemez
 function freshKernel(opts = {}) {
-  return new Kernel({ noLoad: true, ...opts });
+  const kernel = new Kernel({ noLoad: true, ...opts });
+  const learn = kernel.learn.bind(kernel);
+  kernel.learn = (text, learnOpts = {}) => learn(text, { ...learnOpts, ...TEST_FIXTURE_LEARN_BYPASS });
+  return kernel;
 }
 
 describe('Kernel - Öğrenme', () => {

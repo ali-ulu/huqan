@@ -6,6 +6,10 @@ const path = require('path');
 const Kernel = require('../kernel');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-semantic-hardening-'));
+const TEST_FIXTURE_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'test_fixture_seed',
+};
 
 after(() => {
   fs.rmSync(tempDir, { recursive: true, force: true });
@@ -49,7 +53,7 @@ function seedAviation(kernel) {
     'V1 is decision speed',
     'VR is rotation speed',
   ]) {
-    kernel.learn(seed, { workspaceId: 'default' });
+    kernel.learn(seed, { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
   }
 }
 
@@ -59,7 +63,7 @@ function seedPharma(kernel) {
     'aşı bazı hastalıkları önlemeye yardımcı olabilir',
     'sigara kanser yapar',
   ]) {
-    kernel.learn(seed, { workspaceId: 'default' });
+    kernel.learn(seed, { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
   }
 }
 
@@ -111,7 +115,7 @@ describe('semantic false-positive hardening', () => {
 
   it('keeps value-conflict claims out of verified truth', () => {
     const kernel = makeKernel('value-conflict');
-    kernel.learn('EDDF is in Frankfurt', { workspaceId: 'default' });
+    kernel.learn('EDDF is in Frankfurt', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
 
     const raw = kernel.verify('EDDF is in Paris', { workspaceId: 'default' });
     const result = unwrap(raw);

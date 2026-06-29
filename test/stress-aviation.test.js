@@ -6,6 +6,10 @@ const path = require('path');
 const Kernel = require('../kernel');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-stress-aviation-'));
+const TEST_FIXTURE_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'test_fixture_seed',
+};
 
 after(() => {
   fs.rmSync(tempDir, { recursive: true, force: true });
@@ -86,7 +90,7 @@ describe('Stress Aviation Regression', () => {
     const kernel = makeKernel('aviation-smoke');
     withMutedConsole(() => {
       for (const seed of seeds) {
-        kernel.learn(seed, { workspaceId: 'default' });
+        kernel.learn(seed, { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
       }
     });
 
@@ -101,7 +105,7 @@ describe('Stress Aviation Regression', () => {
       const kernel = makeKernel(`aviation-${index + 1}`);
       withMutedConsole(() => {
         for (const seed of seeds) {
-          kernel.learn(seed, { workspaceId: 'default' });
+          kernel.learn(seed, { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
         }
       });
 

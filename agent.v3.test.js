@@ -6,9 +6,14 @@ const path = require('path');
 const KernelV2 = require('./kernel.v2');
 const AgentV3 = require('./agent.v3');
 
+const TEST_FIXTURE_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'test_fixture_seed',
+};
+
 function freshAgent(dbPath) {
   const kernel = new KernelV2({ noLoad: true, useSQLite: false, loadPlugins: false });
-  kernel.learn('kedi hayvandir');
+  kernel.learn('kedi hayvandir', TEST_FIXTURE_LEARN_BYPASS);
   return new AgentV3({ kernel, dbPath, maxSteps: 4, maxIterations: 50, timeBudgetMs: 2000 });
 }
 

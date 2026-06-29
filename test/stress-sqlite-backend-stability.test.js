@@ -6,6 +6,10 @@ const path = require('path');
 const Kernel = require('../kernel');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-stress-sqlite-'));
+const TEST_FIXTURE_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'test_fixture_seed',
+};
 
 after(() => {
   fs.rmSync(tempDir, { recursive: true, force: true });
@@ -68,10 +72,10 @@ describe('Stress SQLite Backend Stability', () => {
     t.after(() => kernel.graph.close());
 
     withMutedConsole(() => {
-      kernel.learn('B737 is aircraft', { workspaceId: 'default' });
-      kernel.learn('B737 has 2 engines', { workspaceId: 'default' });
-      kernel.learn('EDDF is in Frankfurt', { workspaceId: 'default' });
-      kernel.learn('TCAS detects traffic', { workspaceId: 'default' });
+      kernel.learn('B737 is aircraft', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
+      kernel.learn('B737 has 2 engines', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
+      kernel.learn('EDDF is in Frankfurt', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
+      kernel.learn('TCAS detects traffic', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
       kernel.graph.save();
     });
 
@@ -107,8 +111,8 @@ describe('Stress SQLite Backend Stability', () => {
     t.after(() => kernel.graph.close());
 
     withMutedConsole(() => {
-      kernel.learn('B737 is aircraft', { workspaceId: 'default' });
-      kernel.learn('B737 has 2 engines', { workspaceId: 'default' });
+      kernel.learn('B737 is aircraft', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
+      kernel.learn('B737 has 2 engines', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
       kernel.graph.save();
     });
 
@@ -128,7 +132,7 @@ describe('Stress SQLite Backend Stability', () => {
     t.after(() => kernel.graph.close());
 
     withMutedConsole(() => {
-      kernel.learn('EDDF is in Frankfurt', { workspaceId: 'default' });
+      kernel.learn('EDDF is in Frankfurt', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
       kernel.graph.save();
     });
 
@@ -148,7 +152,7 @@ describe('Stress SQLite Backend Stability', () => {
     t.after(() => kernel.graph.close());
 
     withMutedConsole(() => {
-      kernel.learn('TCAS detects traffic', { workspaceId: 'default' });
+      kernel.learn('TCAS detects traffic', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
       kernel.graph.save();
     });
 

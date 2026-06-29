@@ -29,13 +29,20 @@ function makeProvenance(overrides = {}) {
   };
 }
 
+const APPROVED_TEST_ADMISSION = {
+  admissionRequired: true,
+  approvalRequired: true,
+  approvalStatus: 'approved',
+  approvalId: 'apr-causal-receipt-test',
+};
+
 function makeKernel() {
   const kernel = new Kernel({
     noLoad: true,
     useSQLite: false,
     memoryPath: path.join(tempDir, `memory-${Math.random().toString(16).slice(2)}.json`),
   });
-  kernel.learn('kedi hayvandir', { provenance: makeProvenance() });
+  kernel.learn('kedi hayvandir', { provenance: makeProvenance(), ...APPROVED_TEST_ADMISSION });
   return kernel;
 }
 

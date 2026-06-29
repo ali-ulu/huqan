@@ -3,6 +3,11 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createServer, createKernelFromEnv } = require('../mcpServer');
 
+const TEST_FIXTURE_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'test_fixture_seed',
+};
+
 // Dogfood integration test: agent routes decisions through MCP gate
 // This simulates a real AI agent calling HUQAN before acting.
 
@@ -47,7 +52,7 @@ test('dogfood: MCP tools/list returns 10 tools', () => {
 
 test('dogfood: agent verifies claim through MCP gate (read = allow)', () => {
   const kernel = createKernelFromEnv();
-  kernel.learn('Deniz tuzludur');
+  kernel.learn('Deniz tuzludur', TEST_FIXTURE_LEARN_BYPASS);
   const server = createServer(kernel);
   const client = createDogfoodClient(server);
 

@@ -34,12 +34,19 @@ function makeProvenance(overrides = {}) {
   };
 }
 
+const APPROVED_TEST_ADMISSION = {
+  admissionRequired: true,
+  approvalRequired: true,
+  approvalStatus: 'approved',
+  approvalId: 'apr-provenance-test',
+};
+
 describe('Provenance System', () => {
   it('stores provenance on node and edge in memory mode', () => {
     const kernel = new Kernel({ noLoad: true, useSQLite: false, ...makePaths('memory') });
     const provenance = makeProvenance();
 
-    kernel.learn('kedi hayvandir', { provenance });
+    kernel.learn('kedi hayvandir', { provenance, ...APPROVED_TEST_ADMISSION });
 
     const node = kernel.graph.getNode('kedi');
     const edge = kernel.graph.getEdge('kedi', 'hayvan', 'tür');
@@ -65,7 +72,7 @@ describe('Provenance System', () => {
     const kernel = new Kernel({ noLoad: true, useSQLite: false, ...makePaths('preserve-null') });
     const provenance = makeProvenance({ provenanceId: 'prov-preserve-null' });
 
-    kernel.learn('kedi hayvandir', { provenance });
+    kernel.learn('kedi hayvandir', { provenance, ...APPROVED_TEST_ADMISSION });
 
     kernel.graph.addNode('kedi', 'kedi', null, { workspaceId: 'default' });
     kernel.graph.addEdge('kedi', 'hayvan', 'tür', { provenance: null, workspaceId: 'default' });
@@ -91,7 +98,7 @@ describe('Provenance System', () => {
 
     t.after(() => kernel.graph.close());
 
-    kernel.learn('kedi hayvandir', { provenance });
+    kernel.learn('kedi hayvandir', { provenance, ...APPROVED_TEST_ADMISSION });
     kernel.graph.addNode('kedi', 'kedi', null, { workspaceId: 'default' });
     kernel.graph.addEdge('kedi', 'hayvan', 'tür', { provenance: null, workspaceId: 'default' });
     kernel.graph.save();
@@ -117,7 +124,7 @@ describe('Provenance System', () => {
     const kernel = new Kernel({ noLoad: true, useSQLite: false, ...makePaths('workspace-scope') });
     const provenance = makeProvenance({ provenanceId: 'prov-workspace', workspaceId: 'workspace-a' });
 
-    kernel.learn('kedi hayvandir', { provenance });
+    kernel.learn('kedi hayvandir', { provenance, ...APPROVED_TEST_ADMISSION });
 
     const scopedNode = kernel.graph.getNode('kedi', 'workspace-a');
     const defaultNode = kernel.graph.getNode('kedi', 'default');
@@ -141,8 +148,8 @@ describe('Provenance System', () => {
     const provenanceA = makeProvenance({ provenanceId: 'prov-workspace-a', workspaceId: 'workspace-a' });
     const provenanceB = makeProvenance({ provenanceId: 'prov-workspace-b', workspaceId: 'workspace-b' });
 
-    kernel.learn('kedi hayvandir', { provenance: provenanceA });
-    kernel.learn('kedi canlidir', { provenance: provenanceB });
+    kernel.learn('kedi hayvandir', { provenance: provenanceA, ...APPROVED_TEST_ADMISSION });
+    kernel.learn('kedi canlidir', { provenance: provenanceB, ...APPROVED_TEST_ADMISSION });
 
     const nodeA = kernel.graph.getNode('kedi', 'workspace-a');
     const nodeB = kernel.graph.getNode('kedi', 'workspace-b');
@@ -168,7 +175,7 @@ describe('Provenance System', () => {
     const provenance = makeProvenance({ provenanceId: 'prov-json' });
     const writer = new Kernel({ noLoad: true, useSQLite: false, ...paths });
 
-    writer.learn('kedi hayvandir', { provenance });
+    writer.learn('kedi hayvandir', { provenance, ...APPROVED_TEST_ADMISSION });
     writer.graph.save();
 
     const reader = new Kernel({ noLoad: true, useSQLite: false, ...paths });
@@ -194,7 +201,7 @@ describe('Provenance System', () => {
     const provenance = makeProvenance({ provenanceId: 'prov-legacy' });
     const writer = new Kernel({ noLoad: true, useSQLite: false, ...paths });
 
-    writer.learn('kedi hayvandir', { provenance });
+    writer.learn('kedi hayvandir', { provenance, ...APPROVED_TEST_ADMISSION });
     writer.graph.save();
 
     const raw = JSON.parse(fs.readFileSync(paths.memoryPath, 'utf-8'));
@@ -228,7 +235,7 @@ describe('Provenance System', () => {
       reader.graph.close();
     });
 
-    writer.learn('kedi hayvandir', { provenance });
+    writer.learn('kedi hayvandir', { provenance, ...APPROVED_TEST_ADMISSION });
     writer.graph.save();
     reader.graph.load();
 
@@ -252,7 +259,7 @@ describe('Provenance System', () => {
     const kernel = new Kernel({ noLoad: true, useSQLite: false, strictProvenance: true });
 
     assert.throws(
-      () => kernel.learn('aslan hayvandir'),
+      () => kernel.learn('aslan hayvandir', APPROVED_TEST_ADMISSION),
       (error) => error instanceof Kernel.ProvenanceError
         && error.code === 'PROVENANCE_REQUIRED'
         && /provenance is required/i.test(error.message),
@@ -267,7 +274,7 @@ describe('Provenance System', () => {
     const provenance = makeProvenance({ provenanceId: 'prov-v2' });
     const kernel = new KernelV2({ noLoad: true, useSQLite: false, ...makePaths('kernel-v2') });
 
-    kernel.learn('kedi hayvandir', { provenance });
+    kernel.learn('kedi hayvandir', { provenance, ...APPROVED_TEST_ADMISSION });
 
     const node = kernel.graph.getNode('kedi');
     const edge = kernel.graph.getEdge('kedi', 'hayvan', 'tür');

@@ -6,6 +6,10 @@ const path = require('path');
 const Kernel = require('../kernel');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-kernel-concurrency-'));
+const TEST_FIXTURE_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'test_fixture_seed',
+};
 
 after(() => {
   fs.rmSync(tempDir, { recursive: true, force: true });
@@ -33,7 +37,7 @@ function unwrap(result) {
 
 function seed(kernel, statements) {
   for (const statement of statements) {
-    kernel.learn(statement, { workspaceId: 'default' });
+    kernel.learn(statement, { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
   }
 }
 
@@ -54,7 +58,7 @@ describe('kernel concurrency and path safety', () => {
       return originalAddEdge(...args);
     };
 
-    kernel.learn('B737 is aircraft', { workspaceId: 'default' });
+    kernel.learn('B737 is aircraft', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
 
     assert.ok(kernel.graph.getNode(kernel.normalizeWord('B737'), 'default'));
   });
@@ -76,7 +80,7 @@ describe('kernel concurrency and path safety', () => {
       if (!injected) {
         injected = true;
         assert.throws(
-          () => kernel.learn('gadget is device', { workspaceId: 'default' }),
+          () => kernel.learn('gadget is device', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS }),
           error => error && error.code === 'LOCK_BUSY',
         );
       }
@@ -87,7 +91,7 @@ describe('kernel concurrency and path safety', () => {
     const result = unwrap(raw);
 
     assert.strictEqual(result.status, 'dogrulandi');
-    kernel.learn('gadget is device', { workspaceId: 'default' });
+    kernel.learn('gadget is device', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
     assert.ok(kernel.graph.getNode(kernel.normalizeWord('gadget'), 'default'));
   });
 
@@ -106,11 +110,11 @@ describe('kernel concurrency and path safety', () => {
       },
     });
 
-    assert.throws(() => kernel.learn('B737 is aircraft', { workspaceId: 'default' }), /boom/);
+    assert.throws(() => kernel.learn('B737 is aircraft', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS }), /boom/);
     assert.ok(!kernel.graph.getNode(kernel.normalizeWord('B737'), 'default'));
     assert.ok(!kernel.graph.getNode(kernel.normalizeWord('aircraft'), 'default'));
 
-    kernel.learn('B737 is aircraft', { workspaceId: 'default' });
+    kernel.learn('B737 is aircraft', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
     assert.ok(kernel.graph.getNode(kernel.normalizeWord('B737'), 'default'));
     assert.ok(Object.keys(kernel.graph.getNodes('default')).length > 0);
   });

@@ -7,6 +7,11 @@ const readline = require('readline');
 const { spawn } = require('child_process');
 const { TOOL_SCHEMAS, createKernelFromEnv } = require('./mcpServer');
 
+const TEST_FIXTURE_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'test_fixture_seed',
+};
+
 let proc;
 let rl;
 let nextId = 1;
@@ -42,7 +47,7 @@ before(() => {
   const savedEnv = { AXIOM_MEMORY_PATH: process.env.AXIOM_MEMORY_PATH, AXIOM_DB_PATH: process.env.AXIOM_DB_PATH, AXIOM_KERNEL_VERSION: process.env.AXIOM_KERNEL_VERSION };
   Object.assign(process.env, seedEnv);
   const seedKernel = createKernelFromEnv();
-  seedKernel.learn('kedi hayvandir');
+  seedKernel.learn('kedi hayvandir', TEST_FIXTURE_LEARN_BYPASS);
   Object.assign(process.env, savedEnv);
 
   proc = spawn(process.execPath, ['mcpServer.js'], {

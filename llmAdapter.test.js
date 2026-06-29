@@ -3,6 +3,15 @@ const assert = require('node:assert');
 const LLMAdapter = require('./llmAdapter');
 const Kernel = require('./kernel');
 
+const TEST_FIXTURE_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'test_fixture_seed',
+};
+
+function learnFixture(kernel, text, opts = {}) {
+  return kernel.learn(text, { ...opts, ...TEST_FIXTURE_LEARN_BYPASS });
+}
+
 let adapter;
 
 global.fetch = async (url, opts) => {
@@ -102,7 +111,7 @@ describe('kernel.verify()', () => {
 
   it('returns dogrulandi for known statement', () => {
     const k = freshK();
-    k.learn('kedi balık yer');
+    learnFixture(k, 'kedi balık yer');
     const res = k.verify('kedi balık yer');
     assert(res.data.status === 'dogrulandi', `Beklenen dogrulandi, gelen: ${res.data.status}`);
     assert(res.data.confidence > 0);
@@ -118,15 +127,15 @@ describe('kernel.verify()', () => {
 
   it('returns bilinmiyor for unknown subject', () => {
     const k = freshK();
-    k.learn('kedi balık yer');
+    learnFixture(k, 'kedi balık yer');
     const res = k.verify('robot düşünür');
     assert.strictEqual(res.data.status, 'bilinmiyor');
   });
 
   it('finds path-based evidence', () => {
     const k = freshK();
-    k.learn('kedi hayvandır');
-    k.learn('hayvan canlıdır');
+    learnFixture(k, 'kedi hayvandır');
+    learnFixture(k, 'hayvan canlıdır');
     const res = k.verify('kedi canlıdır');
     assert(res.data.status === 'dogrulandi', `Beklenen dogrulandi, gelen: ${res.data.status}`);
     assert(res.evidence.length > 0);
@@ -159,7 +168,7 @@ describe('kernel.learnDocument()', () => {
   it('learns from plain text lines', () => {
     const k = freshK();
     const text = 'kedi balık yer\nköpek kemik sever\nkuş uçar';
-    const count = k.learnDocument(text);
+    const count = k.learnDocument(text, TEST_FIXTURE_LEARN_BYPASS);
     assert(count === 3);
     assert(k.ask('kedi balık yer').data.answer !== 'Bilmiyorum');
     assert(k.ask('kuş uçar').data.answer !== 'Bilmiyorum');
@@ -168,14 +177,14 @@ describe('kernel.learnDocument()', () => {
   it('skips comments and short lines', () => {
     const k = freshK();
     const text = '# bu bir yorum\n// bu da yorum\nkedi balık yer\na\nb';
-    const count = k.learnDocument(text);
+    const count = k.learnDocument(text, TEST_FIXTURE_LEARN_BYPASS);
     assert(count === 1);
   });
 
   it('handles markdown with list markers', () => {
     const k = freshK();
     const text = '- kedi balık yer\n* köpek kemik sever\n- kuş uçar';
-    const count = k.learnDocument(text);
+    const count = k.learnDocument(text, TEST_FIXTURE_LEARN_BYPASS);
     assert(count === 3);
   });
 

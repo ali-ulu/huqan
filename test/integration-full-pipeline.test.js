@@ -24,6 +24,18 @@ const http = require('http');
 const Kernel = require('../kernel');
 const { callTool } = require('../mcpServer');
 
+const TEST_FIXTURE_LEARN_BYPASS = {
+  admissionRequired: false,
+  admissionBypassReason: 'test_fixture_seed',
+};
+
+const APPROVED_TEST_ADMISSION = {
+  admissionRequired: true,
+  approvalRequired: true,
+  approvalStatus: 'approved',
+  approvalId: 'apr-integration-test',
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const TEMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-integration-'));
@@ -74,12 +86,16 @@ function withMutedConsole(fn) {
   }
 }
 
+function learnFixture(kernel, text, opts = {}) {
+  return kernel.learn(text, { ...opts, ...TEST_FIXTURE_LEARN_BYPASS });
+}
+
 function seedBasicFacts(kernel) {
   withMutedConsole(() => {
-    kernel.learn('Kedi hayvandır');
-    kernel.learn('Köpek hayvandır');
-    kernel.learn('Su içmek susuzluğu giderir');
-    kernel.learn('Aşırı sıcaklık dehidrasyona neden olur');
+    learnFixture(kernel, 'Kedi hayvandır');
+    learnFixture(kernel, 'Köpek hayvandır');
+    learnFixture(kernel, 'Su içmek susuzluğu giderir');
+    learnFixture(kernel, 'Aşırı sıcaklık dehidrasyona neden olur');
   });
 }
 
@@ -108,7 +124,7 @@ describe('Integration: Kernel + Graph + Verify (learn→verify roundtrip)', () =
   it('learns a fact and then verifies it as dogrulandi', () => {
     const kernel = makeKernel('learn-verify-1');
     withMutedConsole(() => {
-      kernel.learn('Ankara Türkiye\'nin başkentidir');
+      learnFixture(kernel, 'Ankara Türkiye\'nin başkentidir');
     });
 
     const result = unwrap(kernel.verify('Ankara Türkiye\'nin başkentidir'));
@@ -119,7 +135,7 @@ describe('Integration: Kernel + Graph + Verify (learn→verify roundtrip)', () =
   it('learns a fact and verifies a contradictory statement as celiski', () => {
     const kernel = makeKernel('learn-verify-2');
     withMutedConsole(() => {
-      kernel.learn('Su 100 derecede kaynar');
+      learnFixture(kernel, 'Su 100 derecede kaynar');
     });
 
     // Verify something that contradicts known fact
@@ -142,7 +158,7 @@ describe('Integration: Kernel + Graph + Verify (learn→verify roundtrip)', () =
   it('learn→verify roundtrip preserves evidence chain', () => {
     const kernel = makeKernel('learn-verify-4');
     withMutedConsole(() => {
-      kernel.learn('Kedi memelidir');
+      learnFixture(kernel, 'Kedi memelidir');
     });
 
     const raw = kernel.verify('Kedi memelidir');
@@ -163,7 +179,7 @@ describe('Integration: Kernel + Graph + Verify (learn→verify roundtrip)', () =
   it('graph persists nodes after learn', () => {
     const kernel = makeKernel('learn-verify-6');
     withMutedConsole(() => {
-      kernel.learn('Elma meyvedir');
+      learnFixture(kernel, 'Elma meyvedir');
     });
 
     const node = kernel.graph.getNode('elma');
@@ -173,7 +189,7 @@ describe('Integration: Kernel + Graph + Verify (learn→verify roundtrip)', () =
   it('graph persists edges after learn', () => {
     const kernel = makeKernel('learn-verify-7');
     withMutedConsole(() => {
-      kernel.learn('Elma meyvedir');
+      learnFixture(kernel, 'Elma meyvedir');
     });
 
     const edges = kernel.graph.getEdges('elma');
@@ -479,8 +495,8 @@ describe('Integration: Server REST API', () => {
     // Create a test kernel with seed data
     kernel = makeKernel('server-api', { loadPlugins: false });
     withMutedConsole(() => {
-      kernel.learn('İstanbul büyük şehirdir');
-      kernel.learn('Ankara başkenttir');
+      learnFixture(kernel, 'İstanbul büyük şehirdir');
+      learnFixture(kernel, 'Ankara başkenttir');
     });
 
     // Start a lightweight test server
@@ -620,6 +636,7 @@ describe('Integration: Provenance + Audit Trail', () => {
       return kernel.learn('Aşılama hastalığı önler', {
         provenance: { source: 'WHO', actor: 'integration-test', confidence: 0.95 },
         workspaceId: 'default',
+        ...APPROVED_TEST_ADMISSION,
       });
     });
     assert.ok(result, 'learn should return a result');
@@ -629,7 +646,7 @@ describe('Integration: Provenance + Audit Trail', () => {
   it('verify result includes meta with contract version', () => {
     const kernel = makeKernel('provenance-2');
     withMutedConsole(() => {
-      kernel.learn('Güneş yıldızdır');
+      learnFixture(kernel, 'Güneş yıldızdır');
     });
 
     const raw = kernel.verify('Güneş yıldızdır');
@@ -657,7 +674,7 @@ describe('Integration: Graph Persistence (save/load cycle)', () => {
     const memPath = path.join(TEMP_DIR, 'persist-test.json');
     const kernel1 = makeKernel('persist-1a', { memoryPath: memPath });
     withMutedConsole(() => {
-      kernel1.learn('Ankara başkenttir');
+      learnFixture(kernel1, 'Ankara başkenttir');
     });
     // Force save
     kernel1.graph.save();
@@ -684,7 +701,7 @@ describe('Integration: Graph Persistence (save/load cycle)', () => {
   it('graph nodeCount reflects learned facts', () => {
     const kernel = makeKernel('persist-2');
     withMutedConsole(() => {
-      kernel.learn('Dünya yuvarlaktır');
+      learnFixture(kernel, 'Dünya yuvarlaktır');
     });
 
     // Count nodes — check internal structure
@@ -715,7 +732,7 @@ describe('Integration: Kernel + Shield (LLM output verification)', () => {
   it('evaluateLlmSor classifies a safe statement', () => {
     const kernel = makeKernel('shield-1');
     withMutedConsole(() => {
-      kernel.learn('Dünya güneş etrafında döner');
+      learnFixture(kernel, 'Dünya güneş etrafında döner');
     });
 
     const shield = require('../lib/shield');
@@ -731,7 +748,7 @@ describe('Integration: Kernel + Shield (LLM output verification)', () => {
   it('evaluateLlmSor detects contradictions in LLM output', () => {
     const kernel = makeKernel('shield-2');
     withMutedConsole(() => {
-      kernel.learn('Su 100 derecede kaynar');
+      learnFixture(kernel, 'Su 100 derecede kaynar');
     });
 
     const shield = require('../lib/shield');
