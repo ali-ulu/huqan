@@ -1,32 +1,26 @@
 'use strict';
 /**
- * FAZ2-PR1 — CLI Gate Parity Contract Tests (F-004)
+ * FAZ2-PR6 — CLI Gate Parity Contract Tests (F-004)
  *
- * Documents the gap where CLI mutation commands bypass the MCP admission gate
- * because mapCliCommandToMcpTool() returns null for mutation-bearing commands.
+ * F-004 closed: every CLI command that can mutate persistence, the canonical
+ * graph, or background automation now runs through a gate. _evaluateCliGate no
+ * longer returns null for mutation-bearing commands — it returns either a
+ * review decision (canonical/automation mutations, execute() short-circuits) or
+ * an audited allow decision (local persistence/recovery ops that must still
+ * run). This mirrors the REST surface, where requestGuards
+ * UNSAFE_PUBLIC_API_COMMANDS blocks the same commands on the public API.
  *
- * Current confirmed ungated mutation commands (normalizeCommandText applied):
- *   kaydet, backup, restore, rüya, evolve, düşün, optimize, konsolide
- *   öğren (normalizes to 'ogren' — not in switch; 'ogret' IS mapped but is
- *          the imperative form meaning "teach"; 'öğren' meaning "learn" is not)
+ * Mechanism:
+ *   cli.js mapCliCommandToMcpTool  — maps öğret/öğren/yükle/company-ingest to
+ *                                    axiom.learn (gated via the MCP gate).
+ *   cli.js CLI_MUTATION_GATE       — classifies kaydet/backup/restore/evolve/
+ *                                    optimize/konsolide/düşün/rüya so
+ *                                    _evaluateCliGate never short-circuits to
+ *                                    null for a mutation command.
  *
- * Note: yükle (normalizes to 'yukle') IS mapped to axiom.learn, so it IS gated.
- * That is an existing partial fix, documented here for completeness.
- *
- * Current behaviour (UNSAFE for ungated set, NOT BLESSED):
- *   _evaluateCliGate(command) → calls mapCliCommandToMcpTool(command)
- *   → returns null for ungated commands → gate branch short-circuits → no gate run
- *
- * Future invariant (FAZ2-5):
- *   Every CLI command that can mutate graph state must be mapped to an MCP tool
- *   (or a synthetic gate key) so that _evaluateCliGate never returns null for
- *   mutation-bearing commands.
- *
- * Evidence:
- *   cli.js:55-68  — normalizeCommandText (Turkish char folding)
- *   cli.js:91-113 — mapCliCommandToMcpTool switch (missing kaydet, backup,
- *                   restore, rüya, evolve, düşün, optimize, konsolide, öğren)
- *   cli.js:587-589 — _evaluateCliGate early-return when tool===null
+ * Historical note: prior revisions of this file asserted the RED gap
+ * (_evaluateCliGate returning null). Those assertions are intentionally
+ * inverted here now that FAZ2-6 has closed F-004.
  */
 
 const { describe, it } = require('node:test');
@@ -45,15 +39,10 @@ function makeCLI() {
 }
 
 /**
- * Mutation-bearing CLI commands confirmed to return null from _evaluateCliGate
- * today (verified against live codebase 2026-06-28, commit c8e2237).
- *
- * Normalization note: Turkish chars folded via normalizeCommandText.
- *   'öğren' → 'ogren' — NOT in switch (only 'ogret' = öğret is mapped)
- *   'rüya'  → 'ruya'  — NOT in switch
- *   'düşün' → 'dusun' — NOT in switch
+ * Mutation-bearing CLI commands that previously bypassed the gate (returned
+ * null). After FAZ2-6 each must return a non-null gate decision.
  */
-const UNGATED_MUTATION_COMMANDS = [
+const MUTATION_COMMANDS = [
   'kaydet',
   'backup',
   'restore',
@@ -65,12 +54,13 @@ const UNGATED_MUTATION_COMMANDS = [
 ];
 
 /**
- * Commands that ARE mapped today (mapCliCommandToMcpTool returns non-null).
+ * Commands mapped to an MCP tool (mapCliCommandToMcpTool returns non-null).
  * These must stay gated.
  */
 const GATED_COMMANDS = [
-  { command: 'öğret',  expectedTool: 'axiom.learn' }, // normalizes to 'ogret'
-  { command: 'yükle',  expectedTool: 'axiom.learn' }, // normalizes to 'yukle'
+  { command: 'öğret',  expectedTool: 'axiom.learn' },
+  { command: 'öğren',  expectedTool: 'axiom.learn' }, // FAZ2-6: learn alias now mapped
+  { command: 'yükle',  expectedTool: 'axiom.learn' },
   { command: 'sor',    expectedTool: 'axiom.ask'   },
   { command: 'verify', expectedTool: 'axiom.verify' },
 ];
@@ -97,40 +87,34 @@ describe('FAZ2-PR1 contract: F-004 CLI gate parity — harness', () => {
     );
   });
 
-  it('normalisation folds Turkish chars (oğren vs öğret parity gap confirmation)', () => {
-    // öğren → ogren (NOT in switch) vs öğret → ogret (IS in switch)
-    // This confirms the F-004 gap: the learn-alias 'öğren' is unmapped.
+  it('both öğren (learn alias) and öğret (teach) are now gated (F-004 closed)', () => {
+    // Previously 'öğren' (→ ogren) was unmapped and returned null. FAZ2-6 maps
+    // it to axiom.learn so the learn alias is gated like öğret.
     const cli = makeCLI();
-    const learnAlias   = cli._evaluateCliGate('öğren', '');   // ogren → null
-    const teachCommand = cli._evaluateCliGate('öğret', '');   // ogret → axiom.learn
-    assert.strictEqual(learnAlias, null,
-      "'öğren' (learn alias) must return null — unmapped in switch (F-004 gap)");
+    const learnAlias   = cli._evaluateCliGate('öğren', '');
+    const teachCommand = cli._evaluateCliGate('öğret', '');
+    assert.notStrictEqual(learnAlias, null,
+      "'öğren' (learn alias) must be gated — no longer returns null");
     assert.notStrictEqual(teachCommand, null,
       "'öğret' (teach command) must be gated — mapped to axiom.learn");
   });
 });
 
 // ---------------------------------------------------------------------------
-// SECTION 2: Current gap inventory — document null returns (not blessing them)
+// SECTION 2: Mutation commands are gated (F-004 closed)
 // ---------------------------------------------------------------------------
-describe('FAZ2-PR1 contract: F-004 ungated mutation command inventory', () => {
-  /**
-   * For each mutation-bearing command confirmed ungated, assert that
-   * _evaluateCliGate currently returns null.  These tests are RED evidence;
-   * they document the gap without asserting it is desired.
-   *
-   * When FAZ2-5 maps these commands, these assertions will need to be REMOVED
-   * and replaced with the skip-lifted tests in SECTION 4.
-   */
-  for (const cmd of UNGATED_MUTATION_COMMANDS) {
-    it(`current gap: _evaluateCliGate('${cmd}') returns null (no gate runs today)`, () => {
+describe('FAZ2-PR6 contract: F-004 mutation commands are gated', () => {
+  for (const cmd of MUTATION_COMMANDS) {
+    it(`_evaluateCliGate('${cmd}') returns a gate decision (never null)`, () => {
       const cli = makeCLI();
       const result = cli._evaluateCliGate(cmd, '');
-      assert.strictEqual(
+      assert.notStrictEqual(
         result,
         null,
-        `_evaluateCliGate('${cmd}') must return null today — confirming F-004 gap`
+        `_evaluateCliGate('${cmd}') must not return null — the gate must run`
       );
+      assert.ok(result && typeof result.decision === 'string',
+        `_evaluateCliGate('${cmd}') must produce a decision`);
     });
   }
 });
@@ -153,40 +137,45 @@ describe('FAZ2-PR1 contract: F-004 currently gated commands stay gated', () => {
 });
 
 // ---------------------------------------------------------------------------
-// SECTION 4: Future contract — mutation commands must be gated (FAZ2-5)
+// SECTION 4: Mutation gate decisions are correct (no silent canonical write)
 // ---------------------------------------------------------------------------
-describe('FAZ2-PR1 contract: F-004 future — mutation commands gated', () => {
-  for (const cmd of UNGATED_MUTATION_COMMANDS) {
-    it.skip(
-      `[FAZ2-5] _evaluateCliGate('${cmd}') must return a gate result, not null`,
-      // Reason: mapCliCommandToMcpTool returns null for this command today.
-      // FAZ2-5 will add mappings or synthetic gate keys for all mutation-bearing
-      // CLI commands so that _evaluateCliGate never short-circuits.
-      () => {
-        const cli = makeCLI();
-        const result = cli._evaluateCliGate(cmd, '');
-        assert.notStrictEqual(result, null,
-          `gate must run for mutation command '${cmd}' after FAZ2-5`);
-      }
-    );
+describe('FAZ2-PR6 contract: F-004 mutation gate decisions', () => {
+  // Canonical-graph / automation mutations must be reviewed (execute() blocks).
+  for (const cmd of ['evolve', 'optimize', 'konsolide', 'düşün']) {
+    it(`'${cmd}' is reviewed and cannot execute silently`, () => {
+      const cli = makeCLI();
+      const result = cli._evaluateCliGate(cmd, '');
+      assert.notStrictEqual(result, null, `gate must run for '${cmd}'`);
+      assert.strictEqual(result.decision, 'review', `'${cmd}' must be reviewed`);
+      assert.strictEqual(result.canExecute, false, `'${cmd}' must not execute under review`);
+    });
   }
 
-  it.skip(
-    "[FAZ2-5] 'öğren' alias must be mapped so _evaluateCliGate returns a gate result",
-    // Source evidence: cli.js:93-112 — 'ogret' is mapped but 'ogren' is not.
-    // 'öğren' (the user-facing learn alias) normalizes to 'ogren' → returns null.
-    () => {
+  // Local persistence/recovery ops are allowed but audited (must still run).
+  for (const cmd of ['kaydet', 'backup', 'restore']) {
+    it(`'${cmd}' is allowed (local) and audited`, () => {
       const cli = makeCLI();
-      const result = cli._evaluateCliGate('öğren', '');
-      assert.notStrictEqual(result, null, "'öğren' alias must be gated after FAZ2-5");
-    }
-  );
+      const before = (cli.kernel.graph._auditEvents || []).length;
+      const result = cli._evaluateCliGate(cmd, '');
+      assert.notStrictEqual(result, null, `gate must run for '${cmd}'`);
+      assert.strictEqual(result.canExecute, true, `'${cmd}' must remain executable locally`);
+      const after = (cli.kernel.graph._auditEvents || []).length;
+      assert.ok(after > before, `'${cmd}' must emit an audit event (no silent mutation)`);
+    });
+  }
 
-  it.skip(
-    '[FAZ2-5] mapCliCommandToMcpTool must return a non-null key for all mutation commands',
-    // Source evidence: cli.js:110-112 — default: return null.
-    () => {
-      throw new Error('FAZ2-5 not yet merged');
+  it("'öğren' alias is mapped so _evaluateCliGate returns a gate result", () => {
+    const cli = makeCLI();
+    const result = cli._evaluateCliGate('öğren', '');
+    assert.notStrictEqual(result, null, "'öğren' alias must be gated");
+  });
+
+  it('_evaluateCliGate returns a non-null decision for every mutation command', () => {
+    const cli = makeCLI();
+    for (const cmd of MUTATION_COMMANDS) {
+      const result = cli._evaluateCliGate(cmd, '');
+      assert.notStrictEqual(result, null,
+        `mutation command '${cmd}' must be gated (no null short-circuit)`);
     }
-  );
+  });
 });

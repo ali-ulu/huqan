@@ -92,6 +92,7 @@ function mapCliCommandToMcpTool(command) {
   const normalized = normalizeCommandText(command);
   switch (normalized) {
     case 'ogret':
+    case 'ogren':
     case 'yukle':
     case 'company-ingest':
     case 'company ingest':
@@ -111,6 +112,29 @@ function mapCliCommandToMcpTool(command) {
       return null;
   }
 }
+
+// F-004: CLI mutation/maintenance commands that have no axiom.* MCP tool
+// mapping but still affect persistence, canonical graph, or background
+// automation. Every command here is REST-blocked via requestGuards
+// UNSAFE_PUBLIC_API_COMMANDS; the CLI must likewise never silently bypass the
+// gate. _evaluateCliGate consults this table (instead of returning null) so a
+// gate decision + audit event is always produced for these commands.
+//   - decision 'allow'  → local recovery/persistence ops that must still run
+//                         (test-covered) but are audited (no silent mutation).
+//   - decision 'review' → canonical-graph / automation mutations: gated like
+//                         axiom.learn so execute() short-circuits (no write).
+//   - mutationType 'none' → read-only/control aliases that are merely
+//                           classified (not audited, not blocked).
+const CLI_MUTATION_GATE = Object.freeze({
+  kaydet:    { decision: 'allow',  reason: 'cli_persist_local',                 mutationType: 'persistence',   auditEvent: 'UPDATE' },
+  backup:    { decision: 'allow',  reason: 'cli_backup_export_local',           mutationType: 'export',        auditEvent: 'EXPORTED' },
+  restore:   { decision: 'allow',  reason: 'cli_restore_state_replace_local',   mutationType: 'state_replace', auditEvent: 'IMPORTED' },
+  evolve:    { decision: 'review', reason: 'cli_canonical_mutation_requires_review', mutationType: 'canonical',  auditEvent: 'REVIEW' },
+  optimize:  { decision: 'review', reason: 'cli_canonical_mutation_requires_review', mutationType: 'canonical',  auditEvent: 'REVIEW' },
+  konsolide: { decision: 'review', reason: 'cli_canonical_mutation_requires_review', mutationType: 'canonical',  auditEvent: 'REVIEW' },
+  dusun:     { decision: 'review', reason: 'cli_automation_requires_review',     mutationType: 'automation',    auditEvent: 'REVIEW' },
+  ruya:      { decision: 'allow',  reason: 'cli_read_only_inference',            mutationType: 'none' },
+});
 
 class CLI {
   /**
@@ -586,7 +610,13 @@ class CLI {
 
   _evaluateCliGate(command, args) {
     const tool = mapCliCommandToMcpTool(command);
-    if (!tool) return null;
+    if (!tool) {
+      // F-004: commands without an MCP tool mapping may still mutate. Route
+      // them through the CLI mutation gate so they are never silently
+      // bypassed. Genuinely read-only commands (durum, sor, selam, yardım…)
+      // are absent from CLI_MUTATION_GATE and return null (no gate runs).
+      return this._evaluateCliMutationGate(command, args);
+    }
 
     const metadata = {
       source: 'cli',
@@ -635,6 +665,62 @@ class CLI {
       return `Gate: ${commandLabel} review gerektiriyor. Sessiz mutation/calistirma yapilmadi. Karar: ${decision}. Sebep: ${reason}.`;
     }
     return `Gate: ${commandLabel} engellendi. Karar: ${decision}. Sebep: ${reason}.`;
+  }
+
+  // F-004: synthetic gate decision for CLI mutation/maintenance commands that
+  // have no axiom.* MCP tool. Returns null for unknown/read-only commands so
+  // they proceed ungated. Every real mutation attempt is audited (allow OR
+  // review) so nothing mutates silently.
+  _evaluateCliMutationGate(command, args) {
+    const normalized = normalizeCommandText(command);
+    let classification = CLI_MUTATION_GATE[normalized];
+    // 'düşün dur' stops the auto-think loop — a control action, not a mutation.
+    if (normalized === 'dusun' && String(args || '').trim() === 'dur') {
+      classification = { decision: 'allow', reason: 'cli_automation_stop', mutationType: 'none' };
+    }
+    if (!classification) return null;
+
+    const decision = classification.decision;
+    const canExecute = decision === 'allow';
+    if (classification.mutationType !== 'none') {
+      this._auditCliMutation(normalized, classification, decision, canExecute);
+    }
+    return {
+      ok: true,
+      allowed: canExecute,
+      canExecute,
+      canDryRun: decision === 'review',
+      decision,
+      reason: classification.reason,
+      requiredReview: decision === 'review',
+      dryRunOnly: false,
+      findings: [{ gate: 'CLI', command: normalized, mutationType: classification.mutationType, decision }],
+      warnings: [],
+      metadata: { source: 'cli', command: normalized, mutationType: classification.mutationType },
+    };
+  }
+
+  _auditCliMutation(command, classification, decision, executed) {
+    try {
+      const graph = this.kernel && this.kernel.graph;
+      if (!graph || typeof graph.appendAuditEvent !== 'function') return;
+      graph.appendAuditEvent({
+        eventType: classification.auditEvent || (decision === 'allow' ? 'UPDATE' : 'REVIEW'),
+        targetType: 'cli_mutation',
+        targetId: command,
+        actor: 'cli-user',
+        details: {
+          source: 'cli',
+          command,
+          mutationType: classification.mutationType,
+          decision,
+          executed,
+          reason: classification.reason,
+        },
+      }, {});
+    } catch (_) {
+      // Audit must never break command execution.
+    }
   }
 }
 
