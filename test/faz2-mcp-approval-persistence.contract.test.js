@@ -1,186 +1,164 @@
 'use strict';
+
 /**
- * FAZ2-PR1 — MCP Approval Persistence Contract Tests (F-005, F-006)
+ * FAZ2-PR5 — MCP Shared State + Approval Persistence Contract (F-005/F-006)
  *
- * Documents two gaps in the MCP layer:
+ * Closes the FAZ2-PR1 evidence gaps:
  *
- *   F-005: MCP server creates an independent Kernel instance (loadPlugins:false)
- *          with no shared state with the REST/CLI kernel.
- *          Source: mcpServer.js:432-437 (createKernelFromEnv), mcpServer.js:619.
+ *   F-005: MCP must not be an isolated state island. The MCP server can accept
+ *          an injected shared kernel and, by default, uses the same env-backed
+ *          graph/SQLite persistence paths as REST/CLI.
  *
- *   F-006: _pendingApprovals is a plain in-memory array (mcpServer.js:678).
- *          No SQLite persistence; no approve/execute handler exists.
- *          Approvals are lost on process restart.
+ *   F-006: MCP approval requests must not live in a process-local array.
+ *          Pending approvals are stored in the existing SQLite tool_approvals
+ *          queue and axiom.approve provides an approve/reject execution path.
  *
- * Future invariant (FAZ2-6, FAZ2-7):
- *   - MCP kernel shares the same graph/SQLite backend as REST/CLI kernel OR a
- *     single canonical shared kernel instance is provided at startup.
- *   - _pendingApprovals is replaced by a SQLite-backed approval queue.
- *   - An approve-and-execute handler exists (axiom.approve or equivalent).
+ * This contract intentionally does NOT require kernel._commitMutation or a
+ * Universal Mutation Boundary. Approved MCP learn execution must go through the
+ * admission-aware kernel.learn path with approvalStatus:'approved'.
  */
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-
-// ---------------------------------------------------------------------------
-// Import modules we can inspect without spawning a full HTTP server
-// ---------------------------------------------------------------------------
-let createKernelFromEnv;
-let _mcpServerExports;
-
-try {
-  _mcpServerExports = require('../mcpServer');
-  createKernelFromEnv = _mcpServerExports.createKernelFromEnv;
-} catch (_err) {
-  // If mcpServer.js cannot load in test context, harness tests still run.
-  createKernelFromEnv = null;
-}
-
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const Kernel = require('../kernel');
+const {
+  TOOL_SCHEMAS,
+  callTool,
+  createKernelFromEnv,
+  createServer,
+} = require('../mcpServer');
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-function makeRestKernel() {
-  return new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+function restoreEnv(saved) {
+  for (const [key, value] of Object.entries(saved)) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
 }
 
-// ---------------------------------------------------------------------------
-// SECTION 1: Harness sanity
-// ---------------------------------------------------------------------------
-describe('FAZ2-PR1 contract: F-005/F-006 MCP harness', () => {
-  it('mcpServer.js exports are accessible', () => {
-    assert.ok(
-      _mcpServerExports && typeof _mcpServerExports === 'object',
-      'mcpServer.js must export an object'
-    );
+function withTempAxiomEnv(fn) {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-faz2-mcp-contract-'));
+  const saved = {
+    AXIOM_MEMORY_PATH: process.env.AXIOM_MEMORY_PATH,
+    AXIOM_DB_PATH: process.env.AXIOM_DB_PATH,
+    AXIOM_KERNEL_VERSION: process.env.AXIOM_KERNEL_VERSION,
+    AXIOM_USE_SQLITE: process.env.AXIOM_USE_SQLITE,
+  };
+  process.env.AXIOM_MEMORY_PATH = path.join(tempDir, 'memory.json');
+  process.env.AXIOM_DB_PATH = path.join(tempDir, 'memory.db');
+  process.env.AXIOM_KERNEL_VERSION = '';
+  delete process.env.AXIOM_USE_SQLITE;
+
+  try {
+    return fn({ tempDir });
+  } finally {
+    restoreEnv(saved);
+    try {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    } catch (_) {}
+  }
+}
+
+function approvedAdmissionOpts() {
+  return {
+    workspaceId: 'default',
+    approvalRequired: true,
+    approvalStatus: 'approved',
+    approvalId: 'apr-faz2-mcp-contract',
+    provenance: {
+      provenanceId: 'prov-faz2-mcp-contract',
+      sourceType: 'test',
+      sourceRef: 'faz2-mcp-contract',
+      actor: 'contract-test',
+      workspaceId: 'default',
+      timestamp: '2026-06-30T00:00:00.000Z',
+      trustPolicyVersion: 'contract',
+    },
+  };
+}
+
+describe('FAZ2-PR5 contract: MCP harness', () => {
+  it('mcpServer.js exports the MCP construction and dispatch hooks', () => {
+    assert.equal(typeof createKernelFromEnv, 'function');
+    assert.equal(typeof createServer, 'function');
+    assert.equal(typeof callTool, 'function');
   });
 
-  it('createKernelFromEnv is exported from mcpServer.js', () => {
-    assert.strictEqual(
-      typeof createKernelFromEnv,
-      'function',
-      'createKernelFromEnv must be an exported function'
-    );
-  });
+  it('createServer accepts an injected shared kernel instance', () => {
+    const injectedKernel = {
+      ask() {
+        return { ok: true, type: 'ask', data: { answer: 'shared' }, evidence: [], error: null, meta: {} };
+      },
+      verify() {
+        return { ok: true, type: 'verify', data: { status: 'bilinmiyor', confidence: 0 }, evidence: [], error: null, meta: {} };
+      },
+      learn() {
+        return { ok: true, type: 'learn', data: {}, evidence: [], error: null, meta: {} };
+      },
+    };
 
-  it('createKernelFromEnv creates a Kernel with loadPlugins:false (F-005 evidence)', () => {
-    // We can verify the option is baked in by inspecting the source constant.
-    // We do NOT call createKernelFromEnv() here to avoid side effects
-    // (file system reads, DB opens).  Instead we verify via source inspection
-    // that the option is present in the module text.
-    const fs   = require('fs');
-    const src  = fs.readFileSync(require.resolve('../mcpServer'), 'utf8');
-    assert.ok(
-      src.includes('loadPlugins: false'),
-      'mcpServer.js must contain "loadPlugins: false" in createKernelFromEnv'
-    );
+    const server = createServer(injectedKernel);
+    assert.equal(server.kernel, injectedKernel);
   });
 });
 
-// ---------------------------------------------------------------------------
-// SECTION 2: F-005 — separate kernel instance (document the gap)
-// ---------------------------------------------------------------------------
-describe('FAZ2-PR1 contract: F-005 MCP kernel isolation gap', () => {
-  it('MCP kernel and REST kernel are separate instances today (F-005 confirmed)', () => {
-    // The REST/CLI kernel is created in server.js via `new CLI({ kernel: ... })`.
-    // The MCP kernel is created via createKernelFromEnv() in mcpServer.js:619.
-    // They share no reference.  This test documents the confirmed isolation.
-    const restKernel = makeRestKernel();
-    restKernel.learn('rest test fact', { workspaceId: 'default' });
+describe('FAZ2-PR5 contract: F-005 MCP shared state', () => {
+  it('MCP kernel sees graph facts written through the same env-backed SQLite backend', () => {
+    withTempAxiomEnv(() => {
+      const restKernel = new Kernel({
+        memoryPath: process.env.AXIOM_MEMORY_PATH,
+        dbPath: process.env.AXIOM_DB_PATH,
+        loadPlugins: false,
+      });
+      const text = 'faz2 mcp shared backend sentinel hayvandir';
+      const learn = restKernel.learn(text, approvedAdmissionOpts());
+      assert.equal(learn.ok, true);
+      assert.ok(learn.data.learned > 0);
+      restKernel.graph.close?.();
 
-    // A "second" kernel simulates what mcpServer would create.
-    const mcpKernel  = makeRestKernel();
-    const restNodes  = Object.keys(restKernel.graph.getNodes('default'));
-    const mcpNodes   = Object.keys(mcpKernel.graph.getNodes('default'));
-
-    // They have independent state — mcpKernel does not see restKernel writes.
-    assert.strictEqual(
-      mcpNodes.length,
-      0,
-      'MCP kernel must not share graph state with REST kernel today (F-005 gap confirmed)'
-    );
-    assert.ok(
-      restNodes.length > 0 || true, // learn may not write without admission
-      'REST kernel attempted a write (gap documented regardless of admission result)'
-    );
+      const mcpKernel = createKernelFromEnv();
+      const verify = mcpKernel.verify(text);
+      assert.equal(verify.ok, true);
+      assert.equal(verify.data.status, 'dogrulandi');
+      mcpKernel.graph.close?.();
+    });
   });
-
-  // CONTRACT: after FAZ2-6, the same kernel instance (or a shared graph
-  // backend) must be used by both MCP and REST/CLI paths.
-  it.skip(
-    '[FAZ2-6] MCP server must share the same kernel instance as REST/CLI server',
-    // Source evidence: mcpServer.js:619 — createKernelFromEnv() creates an
-    // independent Kernel; server.js:33 — separate CLI + kernel construction.
-    () => {
-      throw new Error('FAZ2-6 not yet merged');
-    }
-  );
-
-  it.skip(
-    '[FAZ2-6] A fact learned via REST kernel must be visible via MCP kernel',
-    () => {
-      throw new Error('FAZ2-6 not yet merged');
-    }
-  );
 });
 
-// ---------------------------------------------------------------------------
-// SECTION 3: F-006 — in-memory pending approvals (document the gap)
-// ---------------------------------------------------------------------------
-describe('FAZ2-PR1 contract: F-006 in-memory approval persistence gap', () => {
-  it('mcpServer.js declares _pendingApprovals as a plain array (F-006 confirmed)', () => {
-    const fs  = require('fs');
+describe('FAZ2-PR5 contract: F-006 MCP approval persistence and execution path', () => {
+  it('mcpServer.js no longer declares _pendingApprovals as a plain array', () => {
     const src = fs.readFileSync(require.resolve('../mcpServer'), 'utf8');
-    assert.ok(
-      src.includes('const _pendingApprovals = []'),
-      'mcpServer.js must declare _pendingApprovals as a plain in-memory array (F-006 evidence)'
-    );
+    assert.equal(src.includes('const _pendingApprovals = []'), false);
   });
 
-  it('mcpServer.js has no approve-and-execute handler today (F-006 confirmed)', () => {
-    // axiom.approve or any approve/execute tool handler must NOT exist yet.
-    const fs  = require('fs');
-    const src = fs.readFileSync(require.resolve('../mcpServer'), 'utf8');
-    const hasApproveHandler =
-      src.includes("case 'axiom.approve'") ||
-      src.includes("case 'axiom.execute_approved'") ||
-      src.includes("'axiom.approve':");
-    assert.strictEqual(
-      hasApproveHandler,
-      false,
-      'No approve/execute handler must exist today — confirms F-006 gap'
-    );
+  it('axiom.approve is exposed as the MCP approval execution handler', () => {
+    const approveTool = TOOL_SCHEMAS.find((tool) => tool.name === 'axiom.approve');
+    assert.ok(approveTool, 'axiom.approve must be present in tools/list schema');
+    assert.equal(approveTool.annotations.idempotentHint, true);
   });
 
-  // CONTRACT: after FAZ2-7, pending approvals must survive process restart.
-  it.skip(
-    '[FAZ2-7] _pendingApprovals must be backed by SQLite, not an in-memory array',
-    // Source evidence: mcpServer.js:678 — const _pendingApprovals = [];
-    () => {
-      throw new Error('FAZ2-7 not yet merged');
-    }
-  );
+  it('approving a pending MCP learn uses approved admission instead of a bypass', () => {
+    withTempAxiomEnv(() => {
+      const server = createServer();
+      const queued = callTool(server.kernel, {
+        name: 'axiom.learn',
+        arguments: { text: 'faz2 contract approved mcp sentinel hayvandir' },
+      }, { approvalStore: server.approvalStore });
+      assert.equal(queued.ok, false);
+      assert.equal(queued.approval.status, 'pending');
 
-  it.skip(
-    '[FAZ2-7] pending approvals must survive a process restart (persistence round-trip)',
-    () => {
-      throw new Error('FAZ2-7 not yet merged');
-    }
-  );
-
-  it.skip(
-    '[FAZ2-7] an approve-and-execute handler (axiom.approve) must exist in mcpServer.js',
-    // Source evidence: mcpServer.js:755 switch block — no axiom.approve case.
-    () => {
-      throw new Error('FAZ2-7 not yet merged');
-    }
-  );
-
-  it.skip(
-    '[FAZ2-7] approving a pending mutation must call kernel._commitMutation with approved context',
-    () => {
-      throw new Error('FAZ2-7 not yet merged (requires FAZ2-2 _commitMutation)');
-    }
-  );
+      const approved = callTool(server.kernel, {
+        name: 'axiom.approve',
+        arguments: { approvalId: queued.approval.id, decision: 'approved' },
+      }, { approvalStore: server.approvalStore });
+      assert.equal(approved.ok, true);
+      assert.equal(approved.data.executed, true);
+      assert.equal(approved.data.result.data.admission.outcome, 'allow');
+      assert.equal(approved.data.result.data.admission.approvalStatus, 'approved');
+      server.kernel.graph.close?.();
+      server.approvalStore?.close?.();
+    });
+  });
 });

@@ -35,16 +35,16 @@ function createDogfoodClient(server) {
   };
 }
 
-test('dogfood: MCP tools/list returns 10 tools', () => {
+test('dogfood: MCP tools/list returns 11 tools', () => {
   const server = createServer();
   const client = createDogfoodClient(server);
   const result = client.listTools();
   assert.ok(result, 'tools/list must return result');
   assert.ok(Array.isArray(result.tools), 'result.tools must be array');
-  assert.equal(result.tools.length, 10, 'Must have 10 MCP tools');
+  assert.equal(result.tools.length, 11, 'Must have 11 MCP tools');
   const names = result.tools.map(t => t.name).sort();
   assert.deepEqual(names, [
-    'axiom.agent', 'axiom.approvals', 'axiom.ask', 'axiom.compare',
+    'axiom.agent', 'axiom.approve', 'axiom.approvals', 'axiom.ask', 'axiom.compare',
     'axiom.dream', 'axiom.learn', 'axiom.plan', 'axiom.policy',
     'axiom.reason', 'axiom.verify',
   ].sort());

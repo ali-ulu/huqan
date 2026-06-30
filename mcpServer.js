@@ -1,9 +1,11 @@
 const fs = require('fs');
 const readline = require('readline');
+const crypto = require('crypto');
 const Kernel = require('./kernel');
 const KernelV2 = require('./kernel.v2');
 const { createAgent } = require('./agentRuntime');
 const { evaluateMcpGate, MCP_GATE_DECISIONS } = require('./lib/mcp-gate-adapter');
+const AxiomStorage = require('./storage');
 const pkg = require('./package.json');
 
 const PROTOCOL_VERSION = '2025-06-18';
@@ -17,6 +19,50 @@ const MCP_MAX_SHORT = 256;
 function sanitizeMcpString(val, maxLen = MCP_MAX_SHORT) {
   if (typeof val !== 'string') return '';
   return val.slice(0, maxLen).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim();
+}
+
+function sanitizeMcpApprovalDecision(value) {
+  const decision = sanitizeMcpString(value, 16).toLowerCase();
+  if (decision === 'approve') return 'approved';
+  if (decision === 'reject') return 'rejected';
+  if (decision === 'approved' || decision === 'rejected') return decision;
+  return 'approved';
+}
+
+function sanitizeToolArgsForStorage(name, args = {}) {
+  if (name === 'axiom.learn') {
+    const clean = {
+      text: sanitizeMcpString(args.text, MCP_MAX_TEXT),
+      skipConflicts: args.skipConflicts !== false,
+    };
+    if (args.maxSentences !== undefined) clean.maxSentences = args.maxSentences;
+    return clean;
+  }
+  const clean = {};
+  for (const [key, value] of Object.entries(args || {})) {
+    if (typeof value === 'string') clean[key] = sanitizeMcpString(value, MCP_MAX_TEXT);
+    else if (value === null || ['boolean', 'number'].includes(typeof value)) clean[key] = value;
+  }
+  return clean;
+}
+
+function nowMs() {
+  return Date.now();
+}
+
+function newApprovalId() {
+  if (typeof crypto.randomUUID === 'function') return `approval-${crypto.randomUUID()}`;
+  return `approval-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function parseJsonObject(value, fallback = {}) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(String(value || '{}'));
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : fallback;
+  } catch (_) {
+    return fallback;
+  }
 }
 const VERIFY_STATUS = ['dogrulandi', 'celiski', 'bilinmiyor'];
 const CONTRADICTION_REASONS = [
@@ -383,6 +429,19 @@ const TOOL_APPROVAL_SCHEMA = {
   additionalProperties: true,
 };
 
+const APPROVAL_DECISION_DATA_SCHEMA = {
+  type: 'object',
+  properties: {
+    approval: { type: 'object' },
+    decision: { type: 'string' },
+    executed: { type: 'boolean' },
+    idempotent: { type: 'boolean' },
+    result: { type: 'object' },
+  },
+  required: ['approval', 'decision', 'executed', 'idempotent'],
+  additionalProperties: true,
+};
+
 const VERIFY_DATA_SCHEMA = {
   type: 'object',
   properties: {
@@ -435,6 +494,94 @@ function createKernelFromEnv() {
     return new KernelV2(opts);
   }
   return new Kernel(opts);
+}
+
+function createApprovalStoreFromKernel(kernel, opts = {}) {
+  if (opts.approvalStore !== undefined) return opts.approvalStore;
+  if (!opts.dbPath && !opts.memoryPath && !kernel?.graph?.memoryPath) return null;
+  try {
+    const storageOpts = { kernel };
+    if (opts.dbPath) storageOpts.dbPath = opts.dbPath;
+    if (opts.memoryPath) storageOpts.memoryPath = opts.memoryPath;
+    return new AxiomStorage(storageOpts);
+  } catch (_) {
+    return null;
+  }
+}
+
+function formatApprovalRecord(record) {
+  if (!record || typeof record !== 'object') return null;
+  return {
+    id: record.id || '',
+    approvalKey: record.approval_key || record.approvalKey || '',
+    tool: record.tool || '',
+    input: record.input || '',
+    status: record.status || 'pending',
+    decision: record.decision || '',
+    reason: record.reason || '',
+    createdAt: Number(record.created_at || record.createdAt || 0),
+    updatedAt: Number(record.updated_at || record.updatedAt || 0),
+    policy: record.policy && typeof record.policy === 'object'
+      ? record.policy
+      : parseJsonObject(record.policy_json, {}),
+    context: record.context && typeof record.context === 'object'
+      ? record.context
+      : parseJsonObject(record.context_json, {}),
+  };
+}
+
+function listPersistentApprovals(approvalStore, limit = 50) {
+  if (!approvalStore || typeof approvalStore.listPendingToolApprovals !== 'function') return [];
+  return approvalStore
+    .listPendingToolApprovals(limit)
+    .map(formatApprovalRecord)
+    .filter(Boolean);
+}
+
+function countPersistentApprovals(approvalStore) {
+  if (!approvalStore || typeof approvalStore.countPendingToolApprovals !== 'function') return 0;
+  return approvalStore.countPendingToolApprovals();
+}
+
+function saveMcpApproval(approvalStore, name, args, gate) {
+  const createdAt = nowMs();
+  const id = newApprovalId();
+  const approvalKey = `mcp.${name}.${id}`;
+  const cleanArgs = sanitizeToolArgsForStorage(name, args);
+  const approval = {
+    id,
+    approvalKey,
+    tool: name,
+    input: JSON.stringify(cleanArgs),
+    status: 'pending',
+    decision: 'review',
+    reason: gate.reason,
+    createdAt,
+    updatedAt: createdAt,
+    policy: {
+      gate: {
+        decision: gate.decision,
+        allowed: gate.allowed,
+        canExecute: gate.canExecute,
+        canDryRun: gate.canDryRun,
+        requiredReview: gate.requiredReview,
+        reason: gate.reason,
+        metadata: gate.metadata || {},
+      },
+    },
+    context: {
+      source: 'mcp',
+      queuedForExecution: name === 'axiom.learn',
+      args: cleanArgs,
+    },
+  };
+
+  if (!approvalStore || typeof approvalStore.saveToolApproval !== 'function') {
+    return { ...approval, persisted: false };
+  }
+
+  const saved = approvalStore.saveToolApproval(approval);
+  return formatApprovalRecord(saved) || { ...approval, persisted: true };
 }
 
 const TOOL_SCHEMAS = [
@@ -553,6 +700,23 @@ const TOOL_SCHEMAS = [
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   {
+    name: 'axiom.approve',
+    title: 'Axiom Approve',
+    description: 'Approve or reject a pending MCP tool approval. Approved MCP learn requests execute once through the normal admission-aware kernel.learn path.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        approvalId: { type: 'string', description: 'Pending approval id returned by axiom.learn or axiom.approvals.' },
+        decision: { type: 'string', enum: ['approved', 'rejected'], description: 'Approval decision. Defaults to approved.' },
+        reason: { type: 'string', description: 'Optional human-readable decision reason.' },
+      },
+      required: ['approvalId'],
+      additionalProperties: false,
+    },
+    outputSchema: buildEnvelopeSchema(APPROVAL_DECISION_DATA_SCHEMA),
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+  {
     name: 'axiom.reason',
     title: 'Axiom Reason',
     description: 'Return forward and backward reasoning traces for a subject with stable evidence references and cycle detection.',
@@ -615,10 +779,16 @@ function toToolResult(result) {
   };
 }
 
-function createServer() {
-  const kernel = createKernelFromEnv();
+function createServer(kernelOrOptions = {}) {
+  const options = kernelOrOptions && typeof kernelOrOptions === 'object' && typeof kernelOrOptions.learn === 'function'
+    ? { kernel: kernelOrOptions }
+    : (kernelOrOptions || {});
+  const envKernelOpts = options.kernel ? {} : buildKernelOptsFromEnv();
+  const kernel = options.kernel || createKernelFromEnv();
+  const approvalStore = createApprovalStoreFromKernel(kernel, { ...envKernelOpts, ...options });
   return {
     kernel,
+    approvalStore,
     handleRequest(message) {
       if (!message || typeof message !== 'object') {
         return { jsonrpc: '2.0', error: { code: -32600, message: 'Invalid Request' } };
@@ -652,7 +822,7 @@ function createServer() {
 
       if (method === 'tools/call') {
         try {
-          const result = callTool(kernel, params);
+          const result = callTool(kernel, params, { approvalStore });
           return { jsonrpc: '2.0', id, result: toToolResult(result) };
         } catch (err) {
           return {
@@ -675,30 +845,127 @@ function createServer() {
   };
 }
 
-const _pendingApprovals = [];
+function buildApprovalAdmissionOptions(approval, args = {}) {
+  const approvalKey = approval.approvalKey || approval.approval_key || approval.id;
+  return {
+    skipConflicts: args.skipConflicts !== false,
+    maxSentences: args.maxSentences,
+    workspaceId: 'default',
+    approvalRequired: true,
+    approvalStatus: 'approved',
+    approvalId: approval.id,
+    sourceType: 'mcp_approval',
+    sourceRef: approvalKey,
+    actor: 'mcp-approval',
+    provenance: {
+      provenanceId: `prov_mcp_${approval.id}`,
+      sourceType: 'mcp_approval',
+      sourceRef: approvalKey,
+      actor: 'mcp-approval',
+      workspaceId: 'default',
+      timestamp: new Date().toISOString(),
+      trustPolicyVersion: kernelContractVersion(approval),
+    },
+  };
+}
 
-function callTool(kernel, params = {}) {
+function kernelContractVersion(approval) {
+  return approval?.policy?.gate?.metadata?.contractVersion || 'mcp-approval';
+}
+
+function failApprovalDecision(code, message, meta = {}) {
+  return {
+    ok: false,
+    type: 'approval',
+    data: null,
+    evidence: [],
+    error: { code, message },
+    meta,
+  };
+}
+
+function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
+  const approvalStore = runtime.approvalStore || createApprovalStoreFromKernel(kernel, runtime);
+  if (!approvalStore || typeof approvalStore.getToolApprovalById !== 'function') {
+    return failApprovalDecision('APPROVAL_STORE_UNAVAILABLE', 'Persistent MCP approval store is unavailable.');
+  }
+
+  const approvalId = sanitizeMcpString(args.approvalId, MCP_MAX_SHORT);
+  if (!approvalId) {
+    return failApprovalDecision('APPROVAL_ID_REQUIRED', 'approvalId is required.');
+  }
+
+  const decision = sanitizeMcpApprovalDecision(args.decision || 'approved');
+  const reason = sanitizeMcpString(args.reason || `mcp_${decision}`, MCP_MAX_TEXT);
+  const existing = formatApprovalRecord(approvalStore.getToolApprovalById(approvalId));
+  if (!existing) {
+    return failApprovalDecision('APPROVAL_NOT_FOUND', `Approval not found: ${approvalId}`);
+  }
+
+  if (existing.status === 'approved' || existing.status === 'rejected') {
+    if (existing.status !== decision) {
+      return failApprovalDecision('APPROVAL_ALREADY_FINAL', `Approval is already ${existing.status}.`, { approval: existing });
+    }
+    return {
+      ok: true,
+      type: 'approval',
+      data: { approval: existing, decision, executed: false, idempotent: true, result: null },
+      evidence: [],
+      error: null,
+      meta: { idempotent: true },
+    };
+  }
+
+  if (decision === 'rejected') {
+    const rejected = formatApprovalRecord(approvalStore.resolveToolApproval(approvalId, 'rejected', reason));
+    return {
+      ok: true,
+      type: 'approval',
+      data: { approval: rejected, decision, executed: false, idempotent: false, result: null },
+      evidence: [],
+      error: null,
+      meta: {},
+    };
+  }
+
+  if (existing.tool !== 'axiom.learn') {
+    return failApprovalDecision('APPROVAL_EXECUTION_UNSUPPORTED', `Approval execution is only supported for axiom.learn, got ${existing.tool}.`, { approval: existing });
+  }
+
+  const storedArgs = existing.context?.args && typeof existing.context.args === 'object'
+    ? existing.context.args
+    : parseJsonObject(existing.input, {});
+  const cleanArgs = sanitizeToolArgsForStorage(existing.tool, storedArgs);
+  const result = kernel.learn(cleanArgs.text, buildApprovalAdmissionOptions(existing, cleanArgs));
+  if (!result || result.ok === false) {
+    return failApprovalDecision('APPROVAL_EXECUTION_FAILED', 'Approved MCP action failed to execute.', { approval: existing, result });
+  }
+
+  const approved = formatApprovalRecord(approvalStore.resolveToolApproval(approvalId, 'approved', reason));
+  return {
+    ok: true,
+    type: 'approval',
+    data: { approval: approved, decision, executed: true, idempotent: false, result },
+    evidence: result.evidence || [],
+    error: null,
+    meta: { admissionAware: true },
+  };
+}
+
+function callTool(kernel, params = {}, runtime = {}) {
   const name = params.name;
   const args = params.arguments || {};
+
+  if (name === 'axiom.approve') {
+    return handleMcpApprovalDecision(kernel, args, runtime);
+  }
 
   const gate = evaluateMcpGate({ tool: name, args, metadata: {} });
 
   if (!gate.canExecute) {
     if (gate.decision === 'review' || gate.requiredReview) {
-      const approval = {
-        id: `approval-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
-        approvalKey: `mcp.${name}`,
-        tool: name,
-        input: JSON.stringify(args).slice(0, 1000),
-        status: 'pending',
-        decision: 'review',
-        reason: gate.reason,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        policy: {},
-        context: {},
-      };
-      _pendingApprovals.push(approval);
+      const approvalStore = runtime.approvalStore || createApprovalStoreFromKernel(kernel, runtime);
+      const approval = saveMcpApproval(approvalStore, name, args, gate);
       return {
         ok: false,
         gate: {
@@ -777,24 +1044,11 @@ function callTool(kernel, params = {}) {
         { goal: sanitizeMcpString(args.goal, MCP_MAX_GOAL) },
       );
     case 'axiom.approvals':
+      const approvalStore = runtime.approvalStore || createApprovalStoreFromKernel(kernel, runtime);
+      const storedApprovals = listPersistentApprovals(approvalStore, args.limit || 50);
       return {
-        pendingCount: _pendingApprovals.length + (agent.countPendingToolApprovals ? agent.countPendingToolApprovals() : 0),
-        approvals: [
-          ..._pendingApprovals,
-          ...(agent.listPendingToolApprovals ? agent.listPendingToolApprovals(args.limit || 20) : []).map(item => ({
-            id: item.id,
-            approvalKey: item.approval_key || item.approvalKey || '',
-            tool: item.tool,
-            input: item.input || '',
-            status: item.status || 'pending',
-            decision: item.decision || '',
-            reason: item.reason || '',
-            createdAt: Number(item.created_at || 0),
-            updatedAt: Number(item.updated_at || 0),
-            policy: item.policy || {},
-            context: item.context || {},
-          })),
-        ].slice(0, args.limit || 50),
+        pendingCount: countPersistentApprovals(approvalStore),
+        approvals: storedApprovals.slice(0, args.limit || 50),
       };
     case 'axiom.reason':
       return kernel.reason(args.subject);
