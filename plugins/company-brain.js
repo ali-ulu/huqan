@@ -43,9 +43,9 @@ function trackError(kernel, sourceType, message) {
 }
 
 function addCompanyEdge(kernel, fromId, toId, relation, opts = {}) {
-  kernel.graph.addNode(fromId, fromId);
-  kernel.graph.addNode(toId, toId);
-  return kernel.graph.addEdge(fromId, toId, relation, {
+  kernel.proposeNode(fromId, fromId);
+  kernel.proposeNode(toId, toId);
+  const result = kernel.proposeEdge(fromId, toId, relation, {
     source: opts.source || 'manual',
     sourceRef: opts.sourceRef || '',
     sessionId: opts.sessionId || '',
@@ -56,6 +56,7 @@ function addCompanyEdge(kernel, fromId, toId, relation, opts = {}) {
     confidence: typeof opts.confidence === 'number' ? opts.confidence : 0.65,
     meta: opts.meta,
   });
+  return result && result.edge ? result.edge : null;
 }
 
 function extractOriginalLiteral(text, normalizedSubject) {
@@ -240,7 +241,7 @@ function ingestManual(kernel, input = {}) {
   const sourceRef = `manual:${author}:${date}`;
   const noteNode = `manual-note:${author}:${date}:${slug(text.slice(0, 24))}`;
 
-  kernel.graph.addNode(noteNode, noteNode);
+  kernel.proposeNode(noteNode, noteNode);
   const facts = typeof kernel.extractFacts === 'function'
     ? (kernel.extractFacts(text, kernel.graph?._nodes) || [])
     : [];
