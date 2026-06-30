@@ -2,6 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
+const VERIFIED_PLUGIN = Symbol('axiom.verifiedPlugin');
+
 const EVENTS = [
   'beforeLearn',
   'afterLearn',
@@ -126,6 +128,9 @@ class PluginManager {
     this._handlers = {};
     this.strictPlugins = process.env.AXIOM_PLUGIN_STRICT !== '0';
     this.pluginSigningKey = process.env.AXIOM_PLUGIN_SIGNING_KEY || '';
+    this.productionPluginEnforcement =
+      process.env.AXIOM_PLUGIN_PRODUCTION_ENFORCEMENT === '1' ||
+      process.env.NODE_ENV === 'production';
     for (const e of EVENTS) this._handlers[e] = [];
   }
 
@@ -147,6 +152,16 @@ class PluginManager {
         }
         const plugin = require(filePath);
         plugin.__verification = verification;
+        if (Object.prototype.hasOwnProperty.call(plugin, VERIFIED_PLUGIN)) {
+          plugin[VERIFIED_PLUGIN] = verification;
+        } else {
+          Object.defineProperty(plugin, VERIFIED_PLUGIN, {
+            value: verification,
+            enumerable: false,
+            configurable: true,
+            writable: true,
+          });
+        }
         this.register(plugin);
         count++;
       } catch (err) {
@@ -159,6 +174,11 @@ class PluginManager {
   register(plugin) {
     if (!plugin || !plugin.name) return;
     if (this.plugins.some(existing => existing.name === plugin.name)) return;
+    if (this.productionPluginEnforcement && !this._hasVerifiedProvenance(plugin)) {
+      const error = new Error(`Plugin "${plugin.name}" cannot register without verified production manifest.`);
+      error.code = 'PLUGIN_UNVERIFIED_REGISTRATION';
+      throw error;
+    }
     const dependencyCheck = this._validatePluginDependencies(plugin);
     if (!dependencyCheck.ok) {
       throw new Error(dependencyCheck.reason);
@@ -178,6 +198,11 @@ class PluginManager {
         this._handlers[event].push(plugin);
       }
     }
+  }
+
+  _hasVerifiedProvenance(plugin) {
+    const verification = plugin && plugin[VERIFIED_PLUGIN];
+    return Boolean(verification && verification.ok === true);
   }
 
   emit(event, data) {
