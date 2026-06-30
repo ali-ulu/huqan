@@ -105,6 +105,38 @@ describe('FAZ2-7: production plugin signing/hash enforcement', () => {
     assert.strictEqual(manager.getCapability('missingCap'), null);
   }));
 
+  it('production/enforced mode ignores AXIOM_PLUGIN_STRICT=0 for missing manifest', async () => withPluginDir(async (dir) => {
+    writePlugin(dir, 'strictOverrideMissingPlugin', {
+      manifest: 'missing',
+      capabilityName: 'strictOverrideMissingCap',
+    });
+
+    await withEnv(
+      {
+        NODE_ENV: 'production',
+        AXIOM_PLUGIN_PRODUCTION_ENFORCEMENT: '1',
+        AXIOM_PLUGIN_STRICT: '0',
+        AXIOM_PLUGIN_SIGNING_KEY: undefined,
+      },
+      async () => {
+        const kernel = new Kernel({
+          noLoad: true,
+          useSQLite: false,
+          loadPlugins: false,
+          capabilities: { pluginCapabilities: true },
+        });
+        const count = kernel.plugins.load(dir);
+
+        assert.strictEqual(count, 0);
+        assert.strictEqual(kernel.getCapability('strictOverrideMissingCap'), null);
+        await assert.rejects(
+          () => kernel.runCapability('strictOverrideMissingCap', {}),
+          /Unknown plugin capability: strictOverrideMissingCap/
+        );
+      }
+    );
+  }));
+
   it('production/enforced mode rejects plugin with malformed manifest', () => withPluginDir((dir) => {
     writePlugin(dir, 'malformedPlugin', { manifest: 'malformed', capabilityName: 'malformedCap' });
     const { manager, count } = loadFixture(dir);
@@ -124,6 +156,17 @@ describe('FAZ2-7: production plugin signing/hash enforcement', () => {
     assert.strictEqual(manager.getCapability('hashMismatchCap'), null);
   }));
 
+  it('production/enforced mode ignores AXIOM_PLUGIN_STRICT=0 for hash mismatch', () => withPluginDir((dir) => {
+    writePlugin(dir, 'strictOverrideHashPlugin', {
+      manifest: { sha256: 'not-the-real-hash' },
+      capabilityName: 'strictOverrideHashCap',
+    });
+    const { manager, count } = loadFixture(dir, { AXIOM_PLUGIN_STRICT: '0' });
+
+    assert.strictEqual(count, 0);
+    assert.strictEqual(manager.getCapability('strictOverrideHashCap'), null);
+  }));
+
   it('tampered plugin source does not register capability', () => withPluginDir((dir) => {
     writePlugin(dir, 'tamperedPlugin', {
       capabilityName: 'tamperedCap',
@@ -133,6 +176,17 @@ describe('FAZ2-7: production plugin signing/hash enforcement', () => {
 
     assert.strictEqual(count, 0);
     assert.strictEqual(manager.getCapability('tamperedCap'), null);
+  }));
+
+  it('production/enforced mode ignores AXIOM_PLUGIN_STRICT=0 for tampered source', () => withPluginDir((dir) => {
+    writePlugin(dir, 'strictOverrideTamperedPlugin', {
+      capabilityName: 'strictOverrideTamperedCap',
+      tamperAfterManifest: true,
+    });
+    const { manager, count } = loadFixture(dir, { AXIOM_PLUGIN_STRICT: '0' });
+
+    assert.strictEqual(count, 0);
+    assert.strictEqual(manager.getCapability('strictOverrideTamperedCap'), null);
   }));
 
   it('invalid plugin cannot execute through kernel.runCapability', async () => withPluginDir(async (dir) => {
