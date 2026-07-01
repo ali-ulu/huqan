@@ -19,6 +19,7 @@ const { evaluateMemoryAdmission } = require('../lib/memory-admission-gate');
 const { fromAdmissionDecision } = require('../lib/verdict/action-verdict');
 const {
   CANONICAL_RECEIPT_SCHEMA_VERSION,
+  REQUIRED_RECEIPT_FIELDS,
   buildCanonicalReceiptPayload,
   hashCanonicalReceiptPayload,
   stableStringify,
@@ -65,6 +66,46 @@ describe('V4-PR2.5: canonical receipt payload', () => {
     });
     assert.throws(() => buildCanonicalReceiptPayload(result.receipt, {}), TypeError);
     assert.throws(() => buildCanonicalReceiptPayload(result.receipt, { verdict: 'not-a-real-verdict' }), TypeError);
+  });
+
+  it('fails closed for an empty receipt object', () => {
+    assert.throws(
+      () => buildCanonicalReceiptPayload({}, { verdict: 'allow' }),
+      /receipt\.receiptId/
+    );
+  });
+
+  it('fails closed when any required receipt field is missing', () => {
+    const result = evaluateMemoryAdmission({
+      workspaceId: 'default', actor: 'tester', agentId: 'tester',
+      memoryDraftId: 'd', trustPolicyVersion: '1.0.0', reason: 'r',
+      provenanceId: 'p', proposedMemory: { content: 'fact', edges: [] },
+    });
+    for (const field of REQUIRED_RECEIPT_FIELDS) {
+      const incompleteReceipt = { ...result.receipt };
+      delete incompleteReceipt[field];
+      assert.throws(
+        () => buildCanonicalReceiptPayload(incompleteReceipt, { verdict: 'allow' }),
+        new RegExp(`receipt\\.${field}`),
+        `missing ${field} must fail closed`
+      );
+    }
+  });
+
+  it('fails closed when any required receipt field is an empty string', () => {
+    const result = evaluateMemoryAdmission({
+      workspaceId: 'default', actor: 'tester', agentId: 'tester',
+      memoryDraftId: 'd', trustPolicyVersion: '1.0.0', reason: 'r',
+      provenanceId: 'p', proposedMemory: { content: 'fact', edges: [] },
+    });
+    for (const field of REQUIRED_RECEIPT_FIELDS) {
+      const incompleteReceipt = { ...result.receipt, [field]: '  ' };
+      assert.throws(
+        () => buildCanonicalReceiptPayload(incompleteReceipt, { verdict: 'allow' }),
+        new RegExp(`receipt\\.${field}`),
+        `empty ${field} must fail closed`
+      );
+    }
   });
 
   it('deterministic serialization: the same payload always hashes identically, regardless of key order', () => {
