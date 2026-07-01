@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://huqan.local/schemas/verdict/action-verdict.schema.json",
+  "title": "HUQAN V4 Action Verdict",
+  "description": "Canonical, reconciled verdict projection produced by lib/verdict/action-verdict.js from either the admission gate (lib/memory-admission-gate.js) or the MCP gate (lib/mcp-gate-adapter.js). This schema does not define a new runtime decision vocabulary; it documents the single canonical projection both existing vocabularies map onto. See docs/v4/verdict-reconciliation.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdict", "sourceLayer", "sourceDecision"],
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "description": "The single canonical product verdict. `require_approval` is intentionally absent -- it is a UI-facing classification of `review`, not a runtime verdict value.",
+      "enum": ["allow", "review", "block", "dry_run_only", "quarantine", "disabled"]
+    },
+    "sourceLayer": {
+      "type": "string",
+      "description": "Which existing gate produced the original decision.",
+      "enum": ["admission", "mcp"]
+    },
+    "sourceDecision": {
+      "type": "string",
+      "description": "The original, un-reconciled decision string from the source layer (e.g. 'reject' from the admission gate, projected here as 'block').",
+      "minLength": 1
+    },
+    "reason": {
+      "type": "string",
+      "description": "Human/audit-readable reason carried over from the source decision, unmodified."
+    },
+    "risk": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "level": { "type": "string" },
+        "score": { "type": "number" }
+      }
+    },
+    "actor": {
+      "type": "string",
+      "description": "Actor identity as supplied to the source gate, carried through unmodified (verdict input, not a HUQAN-issued identity)."
+    },
+    "workspaceId": {
+      "type": "string"
+    },
+    "receiptId": {
+      "type": "string",
+      "description": "Receipt identifier from the source decision, if any. Presence here does not imply tamper-evidence or export capability -- see docs/v4/no-mock-contract-and-claim-boundaries.md and V4-PR2.5."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Opaque metadata carried over from the source decision, unmodified."
+    }
+  }
+}
