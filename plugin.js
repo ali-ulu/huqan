@@ -37,10 +37,19 @@ function getManifestPath(filePath) {
 function readManifest(filePath) {
   const manifestPath = getManifestPath(filePath);
   if (!fs.existsSync(manifestPath)) return null;
-  return {
-    manifestPath,
-    manifest: JSON.parse(fs.readFileSync(manifestPath, 'utf8')),
-  };
+  let raw;
+  try {
+    raw = fs.readFileSync(manifestPath, 'utf8');
+  } catch (err) {
+    return { manifestPath, manifest: null, malformed: true, error: err.message };
+  }
+  try {
+    return { manifestPath, manifest: JSON.parse(raw) };
+  } catch (err) {
+    // A corrupt / unparseable manifest is never trustworthy. Signal malformed
+    // so verifyPluginFile can fail closed instead of throwing.
+    return { manifestPath, manifest: null, malformed: true, error: err.message };
+  }
 }
 
 function verifyPluginFile(filePath, opts = {}) {
@@ -59,8 +68,21 @@ function verifyPluginFile(filePath, opts = {}) {
     };
   }
 
+  // A malformed (unparseable) manifest is never acceptable — fail closed in
+  // every mode (production AND dev/test). A corrupt signature file must never
+  // resolve to a trusted, loadable plugin.
+  if (manifestRecord.malformed) {
+    return {
+      ok: false,
+      status: 'rejected',
+      sha256: currentHash,
+      manifestPath: manifestRecord.manifestPath,
+      reason: 'Plugin manifest is malformed.',
+    };
+  }
+
   const { manifest, manifestPath } = manifestRecord;
-  if (!manifest || typeof manifest !== 'object') {
+  if (!manifest || typeof manifest !== 'object' || typeof manifest.sha256 !== 'string') {
     return {
       ok: false,
       status: 'rejected',
