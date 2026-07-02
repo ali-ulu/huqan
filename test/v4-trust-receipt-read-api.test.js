@@ -109,6 +109,35 @@ describe('V4-PR3: read-only Trust Receipt API surface', () => {
     assert.deepEqual(response.body.receipt, receipt);
   });
 
+  it('finds a non-default workspace receipt by receiptId when no workspaceId filter is supplied', async () => {
+    const workspaceId = 'v4-pr3-api-no-query';
+    const receipt = await seedReceipt(port, 'saka kustur', workspaceId, { provenanceId: 'prov-v4-pr3-no-query' });
+
+    const response = await requestJson(
+      port,
+      `/api/trust-receipt/${encodeURIComponent(receipt.receiptId)}`,
+    );
+
+    assert.equal(response.status, 200);
+    assert.equal(response.body.ok, true);
+    assert.deepEqual(response.body.receipt, receipt);
+  });
+
+  it('fails closed when an explicit workspaceId does not match the stored receipt workspace', async () => {
+    const workspaceId = 'v4-pr3-api-right-workspace';
+    const receipt = await seedReceipt(port, 'kumru kustur', workspaceId, { provenanceId: 'prov-v4-pr3-wrong-query' });
+
+    const response = await requestJson(
+      port,
+      `/api/trust-receipt/${encodeURIComponent(receipt.receiptId)}?workspaceId=v4-pr3-api-wrong-workspace`,
+    );
+
+    assert.equal(response.status, 404);
+    assert.equal(response.body.ok, false);
+    assert.equal(response.body.error.code, 'receipt_not_found');
+    assert.equal(response.body.receipt, undefined);
+  });
+
   it('fails closed for unknown receiptId without synthesizing a receipt', async () => {
     const workspaceId = 'v4-pr3-api-unknown';
     await seedReceipt(port, 'pelikan kustur', workspaceId, { provenanceId: 'prov-v4-pr3-unknown' });

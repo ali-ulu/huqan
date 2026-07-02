@@ -926,9 +926,8 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     const filters = readTrustFilters(reqUrl);
-    const read = readReceiptById(cli.kernel.graph, receiptReadRequest.receiptId, {
-      workspaceId: filters.workspaceId || 'default',
-    });
+    const readFilters = filters.workspaceId ? { workspaceId: filters.workspaceId } : {};
+    const read = readReceiptById(cli.kernel.graph, receiptReadRequest.receiptId, readFilters);
     if (!read.ok) {
       const code = read.status === 'not_found' ? 'receipt_not_found' : 'invalid_receipt_id';
       writeJson(req, res, read.status === 'not_found' ? 404 : 400, {
