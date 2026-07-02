@@ -299,6 +299,7 @@ class Kernel {
           reason: admission.reason,
           admissionOutcome: admission.outcome,
           approvalStatus: admission.approvalStatus,
+          ...this._admissionReceiptDetails(admission),
           nodeId: id,
           label: label || id,
         },
@@ -316,6 +317,7 @@ class Kernel {
         nodeId: id,
         label: label || id,
         admissionOutcome: 'allow',
+        ...this._admissionReceiptDetails(admission),
       },
     }, pluginProvenance, workspaceId);
     return { decision: 'allow', node, audit, admission };
@@ -573,6 +575,7 @@ class Kernel {
           reason: admission.reason,
           admissionOutcome: admission.outcome,
           approvalStatus: admission.approvalStatus,
+          ...this._admissionReceiptDetails(admission),
           from,
           to,
           relation,
@@ -601,6 +604,7 @@ class Kernel {
         to,
         relation,
         admissionOutcome: 'allow',
+        ...this._admissionReceiptDetails(admission),
       },
     }, provenance, workspaceId);
     return { decision: 'allow', edge, audit, admission };
@@ -688,8 +692,19 @@ class Kernel {
       approvalStatus: evaluated.decision.approvalStatus,
       provenanceId: evaluated.decision.provenanceId,
       receiptId: evaluated.decision.receiptId,
+      receipt: evaluated.decision.receipt,
       trustPolicyVersion: evaluated.decision.trustPolicyVersion,
     };
+  }
+
+  _admissionReceiptDetails(admission) {
+    if (!admission || typeof admission !== 'object') return {};
+    const details = {};
+    if (admission.receiptId) details.receiptId = admission.receiptId;
+    if (admission.receipt && typeof admission.receipt === 'object') {
+      details.receipt = JSON.parse(JSON.stringify(admission.receipt));
+    }
+    return details;
   }
 
   // r1: Wrapper with lock for concurrent safety (async version)
@@ -762,6 +777,7 @@ class Kernel {
           reason: admission.reason,
           admissionOutcome: admission.outcome,
           approvalStatus: admission.approvalStatus,
+          ...this._admissionReceiptDetails(admission),
         },
       }, provenance, workspaceId);
       return this._ok('learn', {
@@ -939,6 +955,7 @@ class Kernel {
                 relation: edge.relation,
                 object: edge.to,
                 conflict: true,
+                ...this._admissionReceiptDetails(admission),
               },
             }, provenance, workspaceId);
           }
@@ -968,6 +985,7 @@ class Kernel {
                 originalObject: object,
                 conflict: celiskiBulundu,
                 reaffirmed: hadExisting,
+                ...this._admissionReceiptDetails(admission),
               },
             }, provenance, workspaceId);
           }
@@ -998,6 +1016,7 @@ class Kernel {
                 object,
                 conflict: true,
                 reaffirmed: hadExisting,
+                ...this._admissionReceiptDetails(admission),
               },
             }, provenance, workspaceId);
           }
@@ -1036,6 +1055,7 @@ class Kernel {
                 relation,
                 object,
                 reaffirmed: hadExisting,
+                ...this._admissionReceiptDetails(admission),
               },
             }, provenance, workspaceId);
           }
