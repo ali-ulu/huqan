@@ -71,6 +71,25 @@ describe('V4-WB1: read-only Trust Receipt / Verdict Inspector helper', () => {
     assert.equal(result.source.readOnly, true);
   });
 
+  it('throwing read source returns structured read_error without fake receipt data', () => {
+    const result = inspectTrustReceipt({
+      source: {
+        getAuditEvents() {
+          throw new Error('boom');
+        },
+      },
+      receiptId: 'receipt-1',
+    });
+
+    assert.equal(result.ok, false);
+    assert.equal(result.status, 'read_error');
+    assert.equal(result.reason, 'boom');
+    assert.equal(result.receiptId, 'receipt-1');
+    assert.equal(result.receipt, undefined);
+    assert.equal(result.verdict, undefined);
+    assert.equal(result.source.readOnly, true);
+  });
+
   it('inspects a real materialized receipt through the receipt read index', () => {
     const kernel = makeKernel();
     const receipt = learnApproved(kernel, 'atmaca hayvandir', 'wb1-real', { provenanceId: 'prov-wb1-real' });
