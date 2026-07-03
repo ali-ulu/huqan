@@ -5,6 +5,7 @@ const Kernel = require('./kernel');
 const KernelV2 = require('./kernel.v2');
 const { createAgent } = require('./agentRuntime');
 const { evaluateMcpGate, MCP_GATE_DECISIONS } = require('./lib/mcp-gate-adapter');
+const { toCanonicalVerdict } = require('./lib/verdict/action-verdict');
 const AxiomStorage = require('./storage');
 const pkg = require('./package.json');
 
@@ -63,6 +64,62 @@ function parseJsonObject(value, fallback = {}) {
   } catch (_) {
     return fallback;
   }
+}
+
+function readNestedString(value, keys, depth = 0) {
+  if (!value || typeof value !== 'object' || depth > 4) return '';
+  for (const key of keys) {
+    if (typeof value[key] === 'string' && value[key].trim()) return value[key].trim();
+  }
+  for (const child of Object.values(value)) {
+    const found = readNestedString(child, keys, depth + 1);
+    if (found) return found;
+  }
+  return '';
+}
+
+function normalizeMcpToolVerdict(gate) {
+  try {
+    return toCanonicalVerdict('mcp', gate?.decision || MCP_GATE_DECISIONS.block);
+  } catch (_) {
+    return MCP_GATE_DECISIONS.block;
+  }
+}
+
+function buildMcpToolVerdictSurface(name, args, gate, result) {
+  const safeArgs = args && typeof args === 'object' ? args : {};
+  const receiptId = readNestedString(result, ['receiptId', 'receipt_id']);
+  const traceId = readNestedString(result, ['traceId', 'trace_id', 'requestId', 'request_id']);
+  const workspaceId = sanitizeMcpString(
+    safeArgs.workspaceId
+      || gate?.metadata?.workspaceId
+      || readNestedString(result, ['workspaceId', 'workspace_id']),
+    MCP_MAX_SHORT,
+  );
+  return {
+    ok: Boolean(result && result.ok !== false),
+    verdict: normalizeMcpToolVerdict(gate),
+    reason: sanitizeMcpString(gate?.reason || result?.error?.code || 'mcp_tool_decision', MCP_MAX_SHORT),
+    tool: sanitizeMcpString(name, MCP_MAX_SHORT) || 'unknown',
+    receiptId: receiptId || null,
+    traceId: traceId || null,
+    workspaceId: workspaceId || null,
+  };
+}
+
+function withMcpToolVerdictSurface(result, name, args, gate) {
+  const safeResult = result && typeof result === 'object'
+    ? { ...result }
+    : { ok: false, error: { code: 'INVALID_TOOL_RESULT', message: 'MCP tool returned a non-object result.' } };
+  const toolVerdict = buildMcpToolVerdictSurface(name, args, gate, safeResult);
+  return {
+    ...safeResult,
+    verdict: toolVerdict.verdict,
+    toolVerdict,
+    meta: safeResult.meta && typeof safeResult.meta === 'object'
+      ? { ...safeResult.meta, toolVerdict }
+      : { toolVerdict },
+  };
 }
 const VERIFY_STATUS = ['dogrulandi', 'celiski', 'bilinmiyor'];
 const CONTRADICTION_REASONS = [
@@ -953,8 +1010,9 @@ function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
 }
 
 function callTool(kernel, params = {}, runtime = {}) {
-  const name = params.name;
-  const args = params.arguments || {};
+  const safeParams = params && typeof params === 'object' ? params : {};
+  const name = sanitizeMcpString(safeParams.name, MCP_MAX_SHORT);
+  const args = parseJsonObject(safeParams.arguments, {});
 
   if (name === 'axiom.approve') {
     return handleMcpApprovalDecision(kernel, args, runtime);
@@ -966,7 +1024,7 @@ function callTool(kernel, params = {}, runtime = {}) {
     if (gate.decision === 'review' || gate.requiredReview) {
       const approvalStore = runtime.approvalStore || createApprovalStoreFromKernel(kernel, runtime);
       const approval = saveMcpApproval(approvalStore, name, args, gate);
-      return {
+      return withMcpToolVerdictSurface({
         ok: false,
         gate: {
           decision: gate.decision,
@@ -979,11 +1037,11 @@ function callTool(kernel, params = {}, runtime = {}) {
         },
         approval,
         message: `Tool call queued for review: ${gate.reason}`,
-      };
+      }, name, args, gate);
     }
     if (gate.canDryRun) {
       const dryRunResult = executeReadOnlyDryRun(kernel, name, args);
-      return {
+      return withMcpToolVerdictSurface({
         ok: true,
         dryRun: true,
         gate: {
@@ -997,9 +1055,9 @@ function callTool(kernel, params = {}, runtime = {}) {
         },
         result: dryRunResult,
         message: `Tool dry-run: ${gate.reason}`,
-      };
+      }, name, args, gate);
     }
-    return {
+    return withMcpToolVerdictSurface({
       ok: false,
       gate: {
         decision: gate.decision,
@@ -1011,7 +1069,7 @@ function callTool(kernel, params = {}, runtime = {}) {
         metadata: { policyVersion: gate.metadata?.adapterVersion || 'V2.6-PR2' },
       },
       message: `Tool call blocked by gate: ${gate.reason}`,
-    };
+    }, name, args, gate);
   }
 
   const agent = createAgent({
@@ -1021,41 +1079,41 @@ function callTool(kernel, params = {}, runtime = {}) {
 
   switch (name) {
     case 'axiom.learn':
-      return kernel.learn(sanitizeMcpString(args.text, MCP_MAX_TEXT), {
+      return withMcpToolVerdictSurface(kernel.learn(sanitizeMcpString(args.text, MCP_MAX_TEXT), {
         skipConflicts: args.skipConflicts !== false,
         maxSentences: args.maxSentences,
-      });
+      }), name, args, gate);
     case 'axiom.ask':
-      return kernel.ask(sanitizeMcpString(args.question));
+      return withMcpToolVerdictSurface(kernel.ask(sanitizeMcpString(args.question)), name, args, gate);
     case 'axiom.verify':
-      return kernel.verify(sanitizeMcpString(args.statement));
+      return withMcpToolVerdictSurface(kernel.verify(sanitizeMcpString(args.statement)), name, args, gate);
     case 'axiom.plan':
-      return agent.plan(sanitizeMcpString(args.goal, MCP_MAX_GOAL), {
+      return withMcpToolVerdictSurface(agent.plan(sanitizeMcpString(args.goal, MCP_MAX_GOAL), {
         maxSteps: Math.min(Math.max(1, Number(args.maxSteps) || 10), 50),
-      });
+      }), name, args, gate);
     case 'axiom.agent':
-      return agent.run(sanitizeMcpString(args.goal, MCP_MAX_GOAL), {
+      return withMcpToolVerdictSurface(agent.run(sanitizeMcpString(args.goal, MCP_MAX_GOAL), {
         maxSteps: Math.min(Math.max(1, Number(args.maxSteps) || 10), 50),
-      });
+      }), name, args, gate);
     case 'axiom.policy':
-      return agent.inspectToolPolicy(
+      return withMcpToolVerdictSurface(agent.inspectToolPolicy(
         sanitizeMcpString(args.tool),
         sanitizeMcpString(args.input || '', MCP_MAX_TEXT),
         { goal: sanitizeMcpString(args.goal, MCP_MAX_GOAL) },
-      );
+      ), name, args, gate);
     case 'axiom.approvals':
       const approvalStore = runtime.approvalStore || createApprovalStoreFromKernel(kernel, runtime);
       const storedApprovals = listPersistentApprovals(approvalStore, args.limit || 50);
-      return {
+      return withMcpToolVerdictSurface({
         pendingCount: countPersistentApprovals(approvalStore),
         approvals: storedApprovals.slice(0, args.limit || 50),
-      };
+      }, name, args, gate);
     case 'axiom.reason':
-      return kernel.reason(args.subject);
+      return withMcpToolVerdictSurface(kernel.reason(args.subject), name, args, gate);
     case 'axiom.compare':
-      return kernel.compare(args.left, args.right);
+      return withMcpToolVerdictSurface(kernel.compare(args.left, args.right), name, args, gate);
     case 'axiom.dream':
-      return kernel.dream({ depth: args.depth });
+      return withMcpToolVerdictSurface(kernel.dream({ depth: args.depth }), name, args, gate);
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
