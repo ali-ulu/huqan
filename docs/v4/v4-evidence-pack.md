@@ -10,13 +10,13 @@ Base HEAD: b544d08e7a25226d7a0f4aa7fe9c27cc7ebb55a6
 
 ## Raw Evidence Files
 
-- [evidence/v4-pr6/README.md](C:/tmp/huqan-refactor1a-postmerge-smoke/evidence/v4-pr6/README.md)
-- [trust-receipt-inspector-found.json](C:/tmp/huqan-refactor1a-postmerge-smoke/evidence/v4-pr6/trust-receipt-inspector-found.json)
-- [trust-receipt-inspector-invalid-request.json](C:/tmp/huqan-refactor1a-postmerge-smoke/evidence/v4-pr6/trust-receipt-inspector-invalid-request.json)
-- [memory-context-inspector-found.json](C:/tmp/huqan-refactor1a-postmerge-smoke/evidence/v4-pr6/memory-context-inspector-found.json)
-- [memory-context-inspector-read-error.json](C:/tmp/huqan-refactor1a-postmerge-smoke/evidence/v4-pr6/memory-context-inspector-read-error.json)
-- [mcp-tool-verdict-review.json](C:/tmp/huqan-refactor1a-postmerge-smoke/evidence/v4-pr6/mcp-tool-verdict-review.json)
-- [mcp-tool-verdict-block.json](C:/tmp/huqan-refactor1a-postmerge-smoke/evidence/v4-pr6/mcp-tool-verdict-block.json)
+- [evidence/v4-pr6/README.md](../../evidence/v4-pr6/README.md)
+- [trust-receipt-inspector-found.json](../../evidence/v4-pr6/trust-receipt-inspector-found.json)
+- [trust-receipt-inspector-invalid-request.json](../../evidence/v4-pr6/trust-receipt-inspector-invalid-request.json)
+- [memory-context-inspector-found.json](../../evidence/v4-pr6/memory-context-inspector-found.json)
+- [memory-context-inspector-read-error.json](../../evidence/v4-pr6/memory-context-inspector-read-error.json)
+- [mcp-tool-verdict-review.json](../../evidence/v4-pr6/mcp-tool-verdict-review.json)
+- [mcp-tool-verdict-block.json](../../evidence/v4-pr6/mcp-tool-verdict-block.json)
 
 ## Validation Commands
 

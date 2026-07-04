@@ -57,7 +57,7 @@ E6 - Regression Evidence
 E7 - Non-claim / Boundary Evidence
 ```
 
-Each evidence class is backed by files under `evidence/v4-pr6/` plus the validation commands recorded in [v4-evidence-pack.md](C:/tmp/huqan-refactor1a-postmerge-smoke/docs/v4/v4-evidence-pack.md).
+Each evidence class is backed by files under `evidence/v4-pr6/` plus the validation commands recorded in [v4-evidence-pack.md](./v4-evidence-pack.md).
 
 ## Demo Path
 
@@ -66,8 +66,8 @@ Each evidence class is backed by files under `evidence/v4-pr6/` plus the validat
 - Input / action: approved `kernel.learn(...)` with provenance in workspace `pr6-wb1`
 - Expected verdict: `allow`
 - Read surface: `lib/workbench/trust-receipt-inspector.js`
-- Evidence output: [trust-receipt-inspector-found.json](C:/tmp/huqan-refactor1a-postmerge-smoke/evidence/v4-pr6/trust-receipt-inspector-found.json)
-- Fail-closed pair: [trust-receipt-inspector-invalid-request.json](C:/tmp/huqan-refactor1a-postmerge-smoke/evidence/v4-pr6/trust-receipt-inspector-invalid-request.json)
+- Evidence output: [trust-receipt-inspector-found.json](../../evidence/v4-pr6/trust-receipt-inspector-found.json)
+- Fail-closed pair: [trust-receipt-inspector-invalid-request.json](../../evidence/v4-pr6/trust-receipt-inspector-invalid-request.json)
 - Tests proving behavior:
   - `test/v4-wb1-trust-receipt-inspector.test.js`
   - `test/v4-trust-receipt-read-api.test.js`
@@ -78,8 +78,8 @@ Each evidence class is backed by files under `evidence/v4-pr6/` plus the validat
 - Input / action: `callTool(kernel, { name: 'axiom.learn', ... })` in workspace `pr6-wb2`
 - Expected verdict family: `review` with memory admission review metadata
 - Read surface: `lib/workbench/memory-context-inspector.js`
-- Evidence output: [memory-context-inspector-found.json](C:/tmp/huqan-refactor1a-postmerge-smoke/evidence/v4-pr6/memory-context-inspector-found.json)
-- Fail-closed pair: [memory-context-inspector-read-error.json](C:/tmp/huqan-refactor1a-postmerge-smoke/evidence/v4-pr6/memory-context-inspector-read-error.json)
+- Evidence output: [memory-context-inspector-found.json](../../evidence/v4-pr6/memory-context-inspector-found.json)
+- Fail-closed pair: [memory-context-inspector-read-error.json](../../evidence/v4-pr6/memory-context-inspector-read-error.json)
 - Tests proving behavior:
   - `test/v4-wb2-memory-context-inspector.test.js`
   - `test/v4-memory-admission-context-integrity-surface.test.js`
@@ -92,8 +92,8 @@ Each evidence class is backed by files under `evidence/v4-pr6/` plus the validat
   - `axiom.unknown` -> `block`
 - Read surface: existing MCP tool verdict envelope from `mcpServer.js`
 - Evidence output:
-  - [mcp-tool-verdict-review.json](C:/tmp/huqan-refactor1a-postmerge-smoke/evidence/v4-pr6/mcp-tool-verdict-review.json)
-  - [mcp-tool-verdict-block.json](C:/tmp/huqan-refactor1a-postmerge-smoke/evidence/v4-pr6/mcp-tool-verdict-block.json)
+  - [mcp-tool-verdict-review.json](../../evidence/v4-pr6/mcp-tool-verdict-review.json)
+  - [mcp-tool-verdict-block.json](../../evidence/v4-pr6/mcp-tool-verdict-block.json)
 - Tests proving behavior:
   - `test/v4-mcp-tool-verdict-surface.test.js`
   - `test/mcp-server-gate-enforcement.test.js`
@@ -129,6 +129,6 @@ This pack does not claim:
 ## File Guide
 
 - Overview and proof boundary: this file
-- Operator/demo walkthrough: [v4-demo-script.md](C:/tmp/huqan-refactor1a-postmerge-smoke/docs/v4/v4-demo-script.md)
-- Validation and test evidence: [v4-evidence-pack.md](C:/tmp/huqan-refactor1a-postmerge-smoke/docs/v4/v4-evidence-pack.md)
-- Raw evidence files: [README.md](C:/tmp/huqan-refactor1a-postmerge-smoke/evidence/v4-pr6/README.md)
+- Operator/demo walkthrough: [v4-demo-script.md](./v4-demo-script.md)
+- Validation and test evidence: [v4-evidence-pack.md](./v4-evidence-pack.md)
+- Raw evidence files: [README.md](../../evidence/v4-pr6/README.md)

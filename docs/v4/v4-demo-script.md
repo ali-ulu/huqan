@@ -21,7 +21,7 @@ Input summary:
 
 Show:
 
-- [trust-receipt-inspector-found.json](C:/tmp/huqan-refactor1a-postmerge-smoke/evidence/v4-pr6/trust-receipt-inspector-found.json)
+- [trust-receipt-inspector-found.json](../../evidence/v4-pr6/trust-receipt-inspector-found.json)
 
 Call out:
 
@@ -32,7 +32,7 @@ Call out:
 
 Then show fail-closed:
 
-- [trust-receipt-inspector-invalid-request.json](C:/tmp/huqan-refactor1a-postmerge-smoke/evidence/v4-pr6/trust-receipt-inspector-invalid-request.json)
+- [trust-receipt-inspector-invalid-request.json](../../evidence/v4-pr6/trust-receipt-inspector-invalid-request.json)
 
 Call out:
 
@@ -49,7 +49,7 @@ Input summary:
 
 Show:
 
-- [memory-context-inspector-found.json](C:/tmp/huqan-refactor1a-postmerge-smoke/evidence/v4-pr6/memory-context-inspector-found.json)
+- [memory-context-inspector-found.json](../../evidence/v4-pr6/memory-context-inspector-found.json)
 
 Call out:
 
@@ -60,7 +60,7 @@ Call out:
 
 Then show fail-closed:
 
-- [memory-context-inspector-read-error.json](C:/tmp/huqan-refactor1a-postmerge-smoke/evidence/v4-pr6/memory-context-inspector-read-error.json)
+- [memory-context-inspector-read-error.json](../../evidence/v4-pr6/memory-context-inspector-read-error.json)
 
 Call out:
 
@@ -71,8 +71,8 @@ Call out:
 
 Show:
 
-- [mcp-tool-verdict-review.json](C:/tmp/huqan-refactor1a-postmerge-smoke/evidence/v4-pr6/mcp-tool-verdict-review.json)
-- [mcp-tool-verdict-block.json](C:/tmp/huqan-refactor1a-postmerge-smoke/evidence/v4-pr6/mcp-tool-verdict-block.json)
+- [mcp-tool-verdict-review.json](../../evidence/v4-pr6/mcp-tool-verdict-review.json)
+- [mcp-tool-verdict-block.json](../../evidence/v4-pr6/mcp-tool-verdict-block.json)
 
 Call out:
 
@@ -82,7 +82,7 @@ Call out:
 
 ## Regression Proof
 
-Run and show exact test lines from [v4-evidence-pack.md](C:/tmp/huqan-refactor1a-postmerge-smoke/docs/v4/v4-evidence-pack.md):
+Run and show exact test lines from [v4-evidence-pack.md](./v4-evidence-pack.md):
 
 - `test/v4-mcp-tool-verdict-surface.test.js`
 - `test/v4-memory-admission-context-integrity-surface.test.js`
