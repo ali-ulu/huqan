@@ -1,0 +1,23 @@
+{
+  "ok": false,
+  "verdict": "block",
+  "toolVerdict": {
+    "ok": false,
+    "verdict": "block",
+    "reason": "unknown_tool_blocked",
+    "tool": "axiom.unknown",
+    "receiptId": null,
+    "traceId": null,
+    "workspaceId": null
+  },
+  "memoryAdmission": {
+    "ok": false,
+    "status": "not_applicable",
+    "verdict": "block",
+    "reason": "unknown_tool_blocked",
+    "memoryId": null,
+    "receiptId": null,
+    "traceId": null,
+    "workspaceId": "default"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "ok": false,
+  "status": "invalid_request",
+  "reason": "receiptId_required",
+  "receiptId": null,
+  "missingFields": [
+    "receiptId"
+  ],
+  "source": {
+    "kind": "trust_receipt_read_index",
+    "readOnly": true
+  }
+}

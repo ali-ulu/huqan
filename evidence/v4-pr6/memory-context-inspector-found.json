@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "status": "ok",
+  "memoryAdmission": {
+    "status": "review_required",
+    "decision": "review",
+    "reason": "mutating_requires_review"
+  },
+  "contextIntegrity": {
+    "status": "present",
+    "flags": [
+      "workspace_scoped"
+    ]
+  },
+  "provenance": {
+    "traceId": null,
+    "workspaceId": "pr6-wb2",
+    "receiptId": null
+  },
+  "source": {
+    "readOnly": true
+  },
+  "missingFields": []
+}

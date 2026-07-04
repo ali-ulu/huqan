@@ -1,0 +1,21 @@
+{
+  "ok": false,
+  "status": "read_error",
+  "memoryAdmission": {
+    "status": null,
+    "decision": null,
+    "reason": null
+  },
+  "contextIntegrity": {
+    "status": null,
+    "flags": null
+  },
+  "provenance": {
+    "traceId": null,
+    "workspaceId": null,
+    "receiptId": null
+  },
+  "source": {
+    "readOnly": true
+  }
+}

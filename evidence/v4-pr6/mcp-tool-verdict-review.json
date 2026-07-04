@@ -1,0 +1,23 @@
+{
+  "ok": false,
+  "verdict": "review",
+  "toolVerdict": {
+    "ok": false,
+    "verdict": "review",
+    "reason": "mutating_requires_review",
+    "tool": "axiom.learn",
+    "receiptId": null,
+    "traceId": null,
+    "workspaceId": "pr6-mcp"
+  },
+  "memoryAdmission": {
+    "ok": false,
+    "status": "review_required",
+    "verdict": "review",
+    "reason": "mutating_requires_review",
+    "memoryId": null,
+    "receiptId": null,
+    "traceId": null,
+    "workspaceId": "pr6-mcp"
+  }
+}

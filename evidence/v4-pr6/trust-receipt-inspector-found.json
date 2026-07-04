@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "status": "found",
+  "receiptId": "madm_receipt_1b306c39ac079c51",
+  "workspaceId": "pr6-wb1",
+  "verdict": "allow",
+  "reason": "provenance_present_low_risk",
+  "actor": "pr6-demo",
+  "action": "",
+  "tool": "",
+  "claim": "",
+  "traceId": "",
+  "timestamp": "2026-07-05T00:00:00.000Z",
+  "chainStatus": "valid",
+  "missingFields": [
+    "action",
+    "tool",
+    "claim",
+    "traceId"
+  ],
+  "source": {
+    "kind": "trust_receipt_read_index",
+    "readOnly": true,
+    "chainValidated": true
+  }
+}
