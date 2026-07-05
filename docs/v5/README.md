@@ -22,6 +22,7 @@ behavior, or Workbench UI.
 - [Marketplace Security Boundary](./v5-marketplace-security-boundary.md)
 - [Connector Coverage Matrix](./v5-connector-coverage-matrix.md)
 - [Trust-tier Routing Plan](./v5-trust-tier-routing-plan.md)
+- [A2A / Distributed Trust Research Note](./v5-a2a-distributed-trust-research-note.md)
 
 ## Non-Claims
 
