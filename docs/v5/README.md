@@ -21,6 +21,7 @@ behavior, or Workbench UI.
 - [Conformance Suite Plan](./v5-conformance-suite-plan.md)
 - [Marketplace Security Boundary](./v5-marketplace-security-boundary.md)
 - [Connector Coverage Matrix](./v5-connector-coverage-matrix.md)
+- [Trust-tier Routing Plan](./v5-trust-tier-routing-plan.md)
 
 ## Non-Claims
 
