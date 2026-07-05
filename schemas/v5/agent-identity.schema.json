@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://huqan.local/schemas/v5/agent-identity.schema.json",
+  "title": "HUQAN V5 Agent Identity Fixture Contract",
+  "description": "Static schema contract for V5 Agent Identity fixtures. This schema does not implement runtime identity enforcement, connector authority validation, trust-tier routing, revocation propagation, marketplace identity, or A2A identity exchange.",
+  "type": "object",
+  "additionalProperties": false,
+  "$comment": "Schema-only V5-IMPL-1B contract. Runtime enforcement, reusable validators, connector enforcement, marketplace behavior, A2A behavior, Trust Package writer/reader, and AgentAction policy engine are intentionally out of scope.",
+  "required": [
+    "agent_id",
+    "agent_type",
+    "display_name",
+    "owner_actor_id",
+    "workspace_id",
+    "delegation_scope",
+    "allowed_tools",
+    "allowed_memory_scopes",
+    "allowed_connectors",
+    "risk_tier",
+    "trust_tier",
+    "policy_version",
+    "issued_at",
+    "expires_at",
+    "revoked_at",
+    "revocation_reason",
+    "parent_agent_id",
+    "delegation_chain",
+    "receipt_refs",
+    "provenance_refs",
+    "audit_requirements",
+    "verification_status",
+    "expected_status",
+    "expected_reason_code"
+  ],
+  "properties": {
+    "agent_id": {
+      "type": ["string", "null"],
+      "description": "Stable agent identifier. Null is allowed only for intentionally invalid fixture scenarios."
+    },
+    "agent_type": {
+      "type": "string",
+      "description": "Planned agent category such as local, remote, delegated, internal, or ecosystem-facing."
+    },
+    "display_name": {
+      "type": "string"
+    },
+    "owner_actor_id": {
+      "type": "string"
+    },
+    "workspace_id": {
+      "type": "string"
+    },
+    "requested_workspace_id": {
+      "type": "string",
+      "description": "Optional fixture expectation field used by workspace mismatch scenarios."
+    },
+    "delegation_scope": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "allowed_tools": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "allowed_memory_scopes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "allowed_connectors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "risk_tier": {
+      "type": "string",
+      "description": "Fixture-level risk tier label. Runtime risk semantics are not enforced by this schema."
+    },
+    "trust_tier": {
+      "type": "string",
+      "enum": [
+        "unverified",
+        "probationary",
+        "trusted",
+        "privileged",
+        "root"
+      ]
+    },
+    "policy_version": {
+      "type": "string"
+    },
+    "issued_at": {
+      "type": ["string", "null"]
+    },
+    "expires_at": {
+      "type": ["string", "null"]
+    },
+    "revoked_at": {
+      "type": ["string", "null"]
+    },
+    "revocation_reason": {
+      "type": ["string", "null"]
+    },
+    "parent_agent_id": {
+      "type": ["string", "null"]
+    },
+    "delegation_chain": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "receipt_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "provenance_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "audit_requirements": {
+      "type": ["array", "object"],
+      "items": {
+        "type": "string"
+      }
+    },
+    "verification_status": {
+      "type": "string",
+      "enum": [
+        "unverified",
+        "registered",
+        "valid",
+        "invalid",
+        "revoked",
+        "expired",
+        "rejected"
+      ]
+    },
+    "expected_status": {
+      "type": "string"
+    },
+    "expected_reason_code": {
+      "type": ["string", "null"]
+    }
+  }
+}
