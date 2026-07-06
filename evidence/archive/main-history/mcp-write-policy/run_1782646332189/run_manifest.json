@@ -1,0 +1,32 @@
+{
+  "repo_path": "C:/Users/sonfi/Desktop/huqan/axiom-main-clean",
+  "commit_hash": "fb68c27f16fd7ab302e95b28e4e7598441ae7cb0",
+  "run_id": "run_1782646332189",
+  "mcp_server_command": "node mcpServer.js",
+  "db_path": "C:\\Users\\sonfi\\Desktop\\huqan\\axiom-main-clean\\memory.db",
+  "created_files": [
+    "demos/mcp_write_policy_audit.js",
+    "evidence/mcp-write-policy/run_1782646332189/00_db_before.json",
+    "evidence/mcp-write-policy/run_1782646332189/01_tools_list.raw.json",
+    "evidence/mcp-write-policy/run_1782646332189/02_axiom_learn.raw.json",
+    "evidence/mcp-write-policy/run_1782646332189/03_approval.raw.json",
+    "evidence/mcp-write-policy/run_1782646332189/04_verify.raw.json",
+    "evidence/mcp-write-policy/run_1782646332189/05_db_after.json",
+    "evidence/mcp-write-policy/run_1782646332189/transcript.ndjson",
+    "evidence/mcp-write-policy/run_1782646332189/run_manifest.json"
+  ],
+  "deleted_files": [],
+  "mcp_tools_found": [
+    "axiom.learn",
+    "axiom.ask",
+    "axiom.verify",
+    "axiom.plan",
+    "axiom.agent",
+    "axiom.policy",
+    "axiom.approvals",
+    "axiom.reason",
+    "axiom.compare",
+    "axiom.dream"
+  ],
+  "verdict": "MCP_WRITE_REVIEW_REQUIRED"
+}

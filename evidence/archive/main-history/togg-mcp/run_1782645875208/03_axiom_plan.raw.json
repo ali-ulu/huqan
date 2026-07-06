@@ -1,0 +1,122 @@
+{
+  "jsonrpc": "2.0",
+  "id": 8,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"ok\": true,\n  \"type\": \"plan\",\n  \"data\": {\n    \"goal\": \"Huqan ve StackMemory entegrasyonu için bir yol haritası hazırla.\",\n    \"objective\": \"investigate\",\n    \"shortGoal\": \"Huqan ve StackMemory entegrasyonu için\",\n    \"steps\": [\n      {\n        \"id\": \"context\",\n        \"action\": \"ask\",\n        \"tool\": \"ask\",\n        \"input\": \"Huqan ve StackMemory entegrasyonu için bir yol haritası hazırla.\",\n        \"rationale\": \"Genel bağlam toplanır.\"\n      },\n      {\n        \"id\": \"verify\",\n        \"action\": \"verify\",\n        \"tool\": \"verify\",\n        \"input\": \"Huqan ve StackMemory entegrasyonu için bir yol haritası hazırla.\",\n        \"rationale\": \"Mevcut iddia destekleniyor mu kontrol edilir.\"\n      },\n      {\n        \"id\": \"dream\",\n        \"action\": \"dream\",\n        \"tool\": \"dream\",\n        \"input\": {},\n        \"rationale\": \"Eksik alanlar için hipotez üretilir.\"\n      }\n    ],\n    \"selectedTools\": [\n      \"ask\",\n      \"dream\",\n      \"verify\",\n      \"reason\"\n    ],\n    \"maxSteps\": 5,\n    \"status\": \"planned\",\n    \"confidence\": 0.58,\n    \"policy\": {\n      \"objective\": \"investigate\",\n      \"selectedTools\": [\n        \"ask\",\n        \"dream\",\n        \"verify\",\n        \"reason\"\n      ],\n      \"baseTools\": [\n        \"ask\",\n        \"verify\",\n        \"reason\",\n        \"dream\"\n      ],\n      \"signals\": [\n        \"known-goal\"\n      ],\n      \"failureHits\": [],\n      \"toolScores\": [\n        {\n          \"tool\": \"ask\",\n          \"score\": 110,\n          \"reasons\": [\n            \"objective-default\",\n            \"tool-health-positive\",\n            \"known-goal\"\n          ]\n        },\n        {\n          \"tool\": \"dream\",\n          \"score\": 110,\n          \"reasons\": [\n            \"objective-default\",\n            \"tool-health-positive\"\n          ]\n        },\n        {\n          \"tool\": \"verify\",\n          \"score\": 94,\n          \"reasons\": [\n            \"objective-default\",\n            \"tool-health-positive\"\n          ]\n        },\n        {\n          \"tool\": \"reason\",\n          \"score\": 80,\n          \"reasons\": [\n            \"objective-default\"\n          ]\n        }\n      ],\n      \"rationale\": \"Known goal found in memory, so the planner keeps a slightly stronger ask/verify mix.\"\n    },\n    \"memory\": {\n      \"knownGoals\": 51,\n      \"previousRuns\": 0,\n      \"resumed\": false\n    },\n    \"rationale\": \"Genel amaç belirsiz; önce bağlam topla, sonra karar ver.\"\n  },\n  \"evidence\": [],\n  \"error\": null,\n  \"meta\": {\n    \"contractVersion\": \"1.0.0\",\n    \"backend\": \"sqlite\",\n    \"paranoidMode\": false,\n    \"objective\": \"investigate\"\n  }\n}"
+      }
+    ],
+    "structuredContent": {
+      "ok": true,
+      "type": "plan",
+      "data": {
+        "goal": "Huqan ve StackMemory entegrasyonu için bir yol haritası hazırla.",
+        "objective": "investigate",
+        "shortGoal": "Huqan ve StackMemory entegrasyonu için",
+        "steps": [
+          {
+            "id": "context",
+            "action": "ask",
+            "tool": "ask",
+            "input": "Huqan ve StackMemory entegrasyonu için bir yol haritası hazırla.",
+            "rationale": "Genel bağlam toplanır."
+          },
+          {
+            "id": "verify",
+            "action": "verify",
+            "tool": "verify",
+            "input": "Huqan ve StackMemory entegrasyonu için bir yol haritası hazırla.",
+            "rationale": "Mevcut iddia destekleniyor mu kontrol edilir."
+          },
+          {
+            "id": "dream",
+            "action": "dream",
+            "tool": "dream",
+            "input": {},
+            "rationale": "Eksik alanlar için hipotez üretilir."
+          }
+        ],
+        "selectedTools": [
+          "ask",
+          "dream",
+          "verify",
+          "reason"
+        ],
+        "maxSteps": 5,
+        "status": "planned",
+        "confidence": 0.58,
+        "policy": {
+          "objective": "investigate",
+          "selectedTools": [
+            "ask",
+            "dream",
+            "verify",
+            "reason"
+          ],
+          "baseTools": [
+            "ask",
+            "verify",
+            "reason",
+            "dream"
+          ],
+          "signals": [
+            "known-goal"
+          ],
+          "failureHits": [],
+          "toolScores": [
+            {
+              "tool": "ask",
+              "score": 110,
+              "reasons": [
+                "objective-default",
+                "tool-health-positive",
+                "known-goal"
+              ]
+            },
+            {
+              "tool": "dream",
+              "score": 110,
+              "reasons": [
+                "objective-default",
+                "tool-health-positive"
+              ]
+            },
+            {
+              "tool": "verify",
+              "score": 94,
+              "reasons": [
+                "objective-default",
+                "tool-health-positive"
+              ]
+            },
+            {
+              "tool": "reason",
+              "score": 80,
+              "reasons": [
+                "objective-default"
+              ]
+            }
+          ],
+          "rationale": "Known goal found in memory, so the planner keeps a slightly stronger ask/verify mix."
+        },
+        "memory": {
+          "knownGoals": 51,
+          "previousRuns": 0,
+          "resumed": false
+        },
+        "rationale": "Genel amaç belirsiz; önce bağlam topla, sonra karar ver."
+      },
+      "evidence": [],
+      "error": null,
+      "meta": {
+        "contractVersion": "1.0.0",
+        "backend": "sqlite",
+        "paranoidMode": false,
+        "objective": "investigate"
+      }
+    },
+    "isError": false
+  }
+}
