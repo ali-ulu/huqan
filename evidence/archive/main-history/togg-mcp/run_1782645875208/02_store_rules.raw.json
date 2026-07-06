@@ -1,0 +1,232 @@
+[
+  {
+    "request": {
+      "text": "buzlu yol tehlikelidir"
+    },
+    "response": {
+      "jsonrpc": "2.0",
+      "id": 3,
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\n  \"ok\": false,\n  \"gate\": {\n    \"decision\": \"review\",\n    \"allowed\": false,\n    \"canExecute\": false,\n    \"canDryRun\": true,\n    \"requiredReview\": true,\n    \"reason\": \"mutating_requires_review\",\n    \"metadata\": {\n      \"policyVersion\": \"V2.6-PR1-v0.1.0\"\n    }\n  },\n  \"approval\": {\n    \"id\": \"approval-1782645879660-73weft\",\n    \"approvalKey\": \"mcp.axiom.learn\",\n    \"tool\": \"axiom.learn\",\n    \"input\": \"{\\\"text\\\":\\\"buzlu yol tehlikelidir\\\"}\",\n    \"status\": \"pending\",\n    \"decision\": \"review\",\n    \"reason\": \"mutating_requires_review\",\n    \"createdAt\": 1782645879660,\n    \"updatedAt\": 1782645879660,\n    \"policy\": {},\n    \"context\": {}\n  },\n  \"message\": \"Tool call queued for review: mutating_requires_review\"\n}"
+          }
+        ],
+        "structuredContent": {
+          "ok": false,
+          "gate": {
+            "decision": "review",
+            "allowed": false,
+            "canExecute": false,
+            "canDryRun": true,
+            "requiredReview": true,
+            "reason": "mutating_requires_review",
+            "metadata": {
+              "policyVersion": "V2.6-PR1-v0.1.0"
+            }
+          },
+          "approval": {
+            "id": "approval-1782645879660-73weft",
+            "approvalKey": "mcp.axiom.learn",
+            "tool": "axiom.learn",
+            "input": "{\"text\":\"buzlu yol tehlikelidir\"}",
+            "status": "pending",
+            "decision": "review",
+            "reason": "mutating_requires_review",
+            "createdAt": 1782645879660,
+            "updatedAt": 1782645879660,
+            "policy": {},
+            "context": {}
+          },
+          "message": "Tool call queued for review: mutating_requires_review"
+        },
+        "isError": true
+      }
+    }
+  },
+  {
+    "request": {
+      "text": "tehlikeli durumda azami hiz ellidir"
+    },
+    "response": {
+      "jsonrpc": "2.0",
+      "id": 4,
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\n  \"ok\": false,\n  \"gate\": {\n    \"decision\": \"review\",\n    \"allowed\": false,\n    \"canExecute\": false,\n    \"canDryRun\": true,\n    \"requiredReview\": true,\n    \"reason\": \"mutating_requires_review\",\n    \"metadata\": {\n      \"policyVersion\": \"V2.6-PR1-v0.1.0\"\n    }\n  },\n  \"approval\": {\n    \"id\": \"approval-1782645879667-tvlxg1\",\n    \"approvalKey\": \"mcp.axiom.learn\",\n    \"tool\": \"axiom.learn\",\n    \"input\": \"{\\\"text\\\":\\\"tehlikeli durumda azami hiz ellidir\\\"}\",\n    \"status\": \"pending\",\n    \"decision\": \"review\",\n    \"reason\": \"mutating_requires_review\",\n    \"createdAt\": 1782645879667,\n    \"updatedAt\": 1782645879667,\n    \"policy\": {},\n    \"context\": {}\n  },\n  \"message\": \"Tool call queued for review: mutating_requires_review\"\n}"
+          }
+        ],
+        "structuredContent": {
+          "ok": false,
+          "gate": {
+            "decision": "review",
+            "allowed": false,
+            "canExecute": false,
+            "canDryRun": true,
+            "requiredReview": true,
+            "reason": "mutating_requires_review",
+            "metadata": {
+              "policyVersion": "V2.6-PR1-v0.1.0"
+            }
+          },
+          "approval": {
+            "id": "approval-1782645879667-tvlxg1",
+            "approvalKey": "mcp.axiom.learn",
+            "tool": "axiom.learn",
+            "input": "{\"text\":\"tehlikeli durumda azami hiz ellidir\"}",
+            "status": "pending",
+            "decision": "review",
+            "reason": "mutating_requires_review",
+            "createdAt": 1782645879667,
+            "updatedAt": 1782645879667,
+            "policy": {},
+            "context": {}
+          },
+          "message": "Tool call queued for review: mutating_requires_review"
+        },
+        "isError": true
+      }
+    }
+  },
+  {
+    "request": {
+      "text": "mevcut hiz yetmistir"
+    },
+    "response": {
+      "jsonrpc": "2.0",
+      "id": 5,
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\n  \"ok\": false,\n  \"gate\": {\n    \"decision\": \"review\",\n    \"allowed\": false,\n    \"canExecute\": false,\n    \"canDryRun\": true,\n    \"requiredReview\": true,\n    \"reason\": \"mutating_requires_review\",\n    \"metadata\": {\n      \"policyVersion\": \"V2.6-PR1-v0.1.0\"\n    }\n  },\n  \"approval\": {\n    \"id\": \"approval-1782645879684-xn1x1d\",\n    \"approvalKey\": \"mcp.axiom.learn\",\n    \"tool\": \"axiom.learn\",\n    \"input\": \"{\\\"text\\\":\\\"mevcut hiz yetmistir\\\"}\",\n    \"status\": \"pending\",\n    \"decision\": \"review\",\n    \"reason\": \"mutating_requires_review\",\n    \"createdAt\": 1782645879684,\n    \"updatedAt\": 1782645879684,\n    \"policy\": {},\n    \"context\": {}\n  },\n  \"message\": \"Tool call queued for review: mutating_requires_review\"\n}"
+          }
+        ],
+        "structuredContent": {
+          "ok": false,
+          "gate": {
+            "decision": "review",
+            "allowed": false,
+            "canExecute": false,
+            "canDryRun": true,
+            "requiredReview": true,
+            "reason": "mutating_requires_review",
+            "metadata": {
+              "policyVersion": "V2.6-PR1-v0.1.0"
+            }
+          },
+          "approval": {
+            "id": "approval-1782645879684-xn1x1d",
+            "approvalKey": "mcp.axiom.learn",
+            "tool": "axiom.learn",
+            "input": "{\"text\":\"mevcut hiz yetmistir\"}",
+            "status": "pending",
+            "decision": "review",
+            "reason": "mutating_requires_review",
+            "createdAt": 1782645879684,
+            "updatedAt": 1782645879684,
+            "policy": {},
+            "context": {}
+          },
+          "message": "Tool call queued for review: mutating_requires_review"
+        },
+        "isError": true
+      }
+    }
+  },
+  {
+    "request": {
+      "text": "hiz yetmis ise azami hiz asilmisir"
+    },
+    "response": {
+      "jsonrpc": "2.0",
+      "id": 6,
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\n  \"ok\": false,\n  \"gate\": {\n    \"decision\": \"review\",\n    \"allowed\": false,\n    \"canExecute\": false,\n    \"canDryRun\": true,\n    \"requiredReview\": true,\n    \"reason\": \"mutating_requires_review\",\n    \"metadata\": {\n      \"policyVersion\": \"V2.6-PR1-v0.1.0\"\n    }\n  },\n  \"approval\": {\n    \"id\": \"approval-1782645879688-p043tw\",\n    \"approvalKey\": \"mcp.axiom.learn\",\n    \"tool\": \"axiom.learn\",\n    \"input\": \"{\\\"text\\\":\\\"hiz yetmis ise azami hiz asilmisir\\\"}\",\n    \"status\": \"pending\",\n    \"decision\": \"review\",\n    \"reason\": \"mutating_requires_review\",\n    \"createdAt\": 1782645879688,\n    \"updatedAt\": 1782645879688,\n    \"policy\": {},\n    \"context\": {}\n  },\n  \"message\": \"Tool call queued for review: mutating_requires_review\"\n}"
+          }
+        ],
+        "structuredContent": {
+          "ok": false,
+          "gate": {
+            "decision": "review",
+            "allowed": false,
+            "canExecute": false,
+            "canDryRun": true,
+            "requiredReview": true,
+            "reason": "mutating_requires_review",
+            "metadata": {
+              "policyVersion": "V2.6-PR1-v0.1.0"
+            }
+          },
+          "approval": {
+            "id": "approval-1782645879688-p043tw",
+            "approvalKey": "mcp.axiom.learn",
+            "tool": "axiom.learn",
+            "input": "{\"text\":\"hiz yetmis ise azami hiz asilmisir\"}",
+            "status": "pending",
+            "decision": "review",
+            "reason": "mutating_requires_review",
+            "createdAt": 1782645879688,
+            "updatedAt": 1782645879688,
+            "policy": {},
+            "context": {}
+          },
+          "message": "Tool call queued for review: mutating_requires_review"
+        },
+        "isError": true
+      }
+    }
+  },
+  {
+    "request": {
+      "text": "azami hiz asilmasi guvenlik ihlalidir"
+    },
+    "response": {
+      "jsonrpc": "2.0",
+      "id": 7,
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\n  \"ok\": false,\n  \"gate\": {\n    \"decision\": \"review\",\n    \"allowed\": false,\n    \"canExecute\": false,\n    \"canDryRun\": true,\n    \"requiredReview\": true,\n    \"reason\": \"mutating_requires_review\",\n    \"metadata\": {\n      \"policyVersion\": \"V2.6-PR1-v0.1.0\"\n    }\n  },\n  \"approval\": {\n    \"id\": \"approval-1782645879698-h4whko\",\n    \"approvalKey\": \"mcp.axiom.learn\",\n    \"tool\": \"axiom.learn\",\n    \"input\": \"{\\\"text\\\":\\\"azami hiz asilmasi guvenlik ihlalidir\\\"}\",\n    \"status\": \"pending\",\n    \"decision\": \"review\",\n    \"reason\": \"mutating_requires_review\",\n    \"createdAt\": 1782645879698,\n    \"updatedAt\": 1782645879698,\n    \"policy\": {},\n    \"context\": {}\n  },\n  \"message\": \"Tool call queued for review: mutating_requires_review\"\n}"
+          }
+        ],
+        "structuredContent": {
+          "ok": false,
+          "gate": {
+            "decision": "review",
+            "allowed": false,
+            "canExecute": false,
+            "canDryRun": true,
+            "requiredReview": true,
+            "reason": "mutating_requires_review",
+            "metadata": {
+              "policyVersion": "V2.6-PR1-v0.1.0"
+            }
+          },
+          "approval": {
+            "id": "approval-1782645879698-h4whko",
+            "approvalKey": "mcp.axiom.learn",
+            "tool": "axiom.learn",
+            "input": "{\"text\":\"azami hiz asilmasi guvenlik ihlalidir\"}",
+            "status": "pending",
+            "decision": "review",
+            "reason": "mutating_requires_review",
+            "createdAt": 1782645879698,
+            "updatedAt": 1782645879698,
+            "policy": {},
+            "context": {}
+          },
+          "message": "Tool call queued for review: mutating_requires_review"
+        },
+        "isError": true
+      }
+    }
+  }
+]

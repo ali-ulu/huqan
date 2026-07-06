@@ -1,0 +1,41 @@
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"ok\": false,\n  \"gate\": {\n    \"decision\": \"review\",\n    \"allowed\": false,\n    \"canExecute\": false,\n    \"canDryRun\": true,\n    \"requiredReview\": true,\n    \"reason\": \"mutating_requires_review\",\n    \"metadata\": {\n      \"policyVersion\": \"V2.6-PR1-v0.1.0\"\n    }\n  },\n  \"approval\": {\n    \"id\": \"approval-1782646332527-izxw67\",\n    \"approvalKey\": \"mcp.axiom.learn\",\n    \"tool\": \"axiom.learn\",\n    \"input\": \"{\\\"text\\\":\\\"azami hiz asilmasi guvenlik ihlalidir\\\"}\",\n    \"status\": \"pending\",\n    \"decision\": \"review\",\n    \"reason\": \"mutating_requires_review\",\n    \"createdAt\": 1782646332527,\n    \"updatedAt\": 1782646332527,\n    \"policy\": {},\n    \"context\": {}\n  },\n  \"message\": \"Tool call queued for review: mutating_requires_review\"\n}"
+      }
+    ],
+    "structuredContent": {
+      "ok": false,
+      "gate": {
+        "decision": "review",
+        "allowed": false,
+        "canExecute": false,
+        "canDryRun": true,
+        "requiredReview": true,
+        "reason": "mutating_requires_review",
+        "metadata": {
+          "policyVersion": "V2.6-PR1-v0.1.0"
+        }
+      },
+      "approval": {
+        "id": "approval-1782646332527-izxw67",
+        "approvalKey": "mcp.axiom.learn",
+        "tool": "axiom.learn",
+        "input": "{\"text\":\"azami hiz asilmasi guvenlik ihlalidir\"}",
+        "status": "pending",
+        "decision": "review",
+        "reason": "mutating_requires_review",
+        "createdAt": 1782646332527,
+        "updatedAt": 1782646332527,
+        "policy": {},
+        "context": {}
+      },
+      "message": "Tool call queued for review: mutating_requires_review"
+    },
+    "isError": true
+  }
+}

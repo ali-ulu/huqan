@@ -1,0 +1,34 @@
+{
+  "repo_path": "C:/Users/sonfi/Desktop/huqan/axiom-main-clean",
+  "commit_hash": "fb68c27f16fd7ab302e95b28e4e7598441ae7cb0",
+  "run_id": "run_1782645875208",
+  "mcp_server_command": "node mcpServer.js",
+  "db_path": "C:\\Users\\sonfi\\Desktop\\huqan\\axiom-main-clean\\memory.db",
+  "created_files": [
+    "demos/mcp_persistent_togg_safety_demo.js",
+    "evidence/togg-mcp/run_1782645875208/00_db_before.json",
+    "evidence/togg-mcp/run_1782645875208/01_tools_list.raw.json",
+    "evidence/togg-mcp/run_1782645875208/02_store_rules.raw.json",
+    "evidence/togg-mcp/run_1782645875208/03_axiom_plan.raw.json",
+    "evidence/togg-mcp/run_1782645875208/04_axiom_verify_togg.raw.json",
+    "evidence/togg-mcp/run_1782645875208/05_db_after.json",
+    "evidence/togg-mcp/run_1782645875208/transcript.ndjson",
+    "evidence/togg-mcp/run_1782645875208/run_manifest.json",
+    "tests/mcp_togg_safety_persistence.test.js"
+  ],
+  "deleted_files": [],
+  "mcp_tools_found": [
+    "axiom.learn",
+    "axiom.ask",
+    "axiom.verify",
+    "axiom.plan",
+    "axiom.agent",
+    "axiom.policy",
+    "axiom.approvals",
+    "axiom.reason",
+    "axiom.compare",
+    "axiom.dream"
+  ],
+  "persistence_tool_found": true,
+  "verdict": "MCP_VERIFY_ONLY_PROVEN"
+}

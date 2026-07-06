@@ -1,0 +1,533 @@
+{
+  "jsonrpc": "2.0",
+  "id": 9,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"ok\": true,\n  \"type\": \"verify\",\n  \"data\": {\n    \"status\": \"celiski\",\n    \"confidence\": 0.9\n  },\n  \"evidence\": [\n    {\n      \"kind\": \"contradiction\",\n      \"text\": \"azami --[tür]--> hiz asilmasi guvenlik ihlali var ama ifade olumsuz: \\\"hiz asilmasi guvenlik ihlali degildir\\\"\",\n      \"confidence\": 0.85,\n      \"nodes\": [\n        \"azami\",\n        \"hiz asilmasi guvenlik ihlali\"\n      ],\n      \"edges\": [\n        {\n          \"from\": \"azami\",\n          \"to\": \"hiz asilmasi guvenlik ihlali\",\n          \"relation\": \"tür\"\n        }\n      ]\n    }\n  ],\n  \"error\": null,\n  \"meta\": {\n    \"contractVersion\": \"1.0.0\",\n    \"backend\": \"sqlite\",\n    \"paranoidMode\": false,\n    \"semanticTrust\": {\n      \"status\": \"celiski\",\n      \"classification\": \"contradicted\",\n      \"supportScore\": 0,\n      \"contradictionScore\": 0.9,\n      \"riskScore\": 0.9,\n      \"matchType\": \"contradiction\",\n      \"warnings\": [\n        \"NEGATION_CONFLICT\",\n        \"SEMANTIC_OPPOSITION\",\n        \"PREDICATE_DRIFT\",\n        \"RELATION_DRIFT\",\n        \"WEAK_PARTIAL_MATCH\",\n        \"HIGH_RISK_DOMAIN\"\n      ],\n      \"risk\": {\n        \"score\": 0.9,\n        \"flags\": [\n          \"NEGATION_CONFLICT\",\n          \"SEMANTIC_OPPOSITION\",\n          \"PREDICATE_DRIFT\",\n          \"RELATION_DRIFT\",\n          \"WEAK_PARTIAL_MATCH\",\n          \"HIGH_RISK_DOMAIN\"\n        ],\n        \"domain\": \"security\",\n        \"manipulation\": false,\n        \"absoluteClaim\": false,\n        \"relationDrift\": true,\n        \"highRisk\": true\n      },\n      \"signals\": [\n        {\n          \"rule\": \"NEGATION_CONFLICT\",\n          \"kind\": \"contradiction\",\n          \"severity\": 0.85,\n          \"confidence\": 0.9,\n          \"flags\": [\n            \"NEGATION_CONFLICT\",\n            \"SEMANTIC_OPPOSITION\"\n          ],\n          \"detail\": \"One claim is negated while the other is affirmative.\",\n          \"evidence\": [\n            {\n              \"text\": \"azami tur hiz asilmasi guvenlik ihlali\",\n              \"role\": \"stored\"\n            },\n            {\n              \"text\": \"azami hiz asilmasi guvenlik ihlali degildir\",\n              \"role\": \"incoming\"\n            }\n          ],\n          \"meta\": {\n            \"storedNeg\": false,\n            \"incomingNeg\": true\n          }\n        },\n        {\n          \"rule\": \"PREDICATE_DRIFT\",\n          \"kind\": \"contradiction\",\n          \"severity\": 0.55,\n          \"confidence\": 0.6,\n          \"flags\": [\n            \"PREDICATE_DRIFT\",\n            \"RELATION_DRIFT\"\n          ],\n          \"detail\": \"Predicate meaning drift detected between stored and incoming claims.\",\n          \"evidence\": [\n            {\n              \"text\": \"azami tur hiz asilmasi guvenlik ihlali\",\n              \"role\": \"stored\"\n            },\n            {\n              \"text\": \"azami hiz asilmasi guvenlik ihlali degildir\",\n              \"role\": \"incoming\"\n            }\n          ],\n          \"meta\": {\n            \"storedRelation\": \"tur\",\n            \"incomingRelation\": \"hiz asilmasi guvenlik ihlali degildir\",\n            \"relationMismatch\": true,\n            \"overlap\": [\n              \"azami\",\n              \"hiz\",\n              \"asilmasi\",\n              \"guvenlik\",\n              \"ihlali\"\n            ]\n          }\n        },\n        {\n          \"rule\": \"WEAK_PARTIAL_MATCH\",\n          \"kind\": \"risk\",\n          \"severity\": 0.4,\n          \"confidence\": 0.7,\n          \"flags\": [\n            \"WEAK_PARTIAL_MATCH\"\n          ],\n          \"detail\": \"Lexical overlap is weak and should not be treated as verified truth.\",\n          \"evidence\": [\n            {\n              \"kind\": \"contradiction\",\n              \"text\": \"azami --[tür]--> hiz asilmasi guvenlik ihlali var ama ifade olumsuz: \\\"hiz asilmasi guvenlik ihlali degildir\\\"\",\n              \"confidence\": 0.85,\n              \"nodes\": [\n                \"azami\",\n                \"hiz asilmasi guvenlik ihlali\"\n              ],\n              \"edges\": [\n                {\n                  \"from\": \"azami\",\n                  \"to\": \"hiz asilmasi guvenlik ihlali\",\n                  \"relation\": \"tür\"\n                }\n              ]\n            }\n          ],\n          \"meta\": {\n            \"confidence\": 0\n          }\n        },\n        {\n          \"rule\": \"HIGH_RISK_DOMAIN\",\n          \"kind\": \"risk\",\n          \"severity\": 0.8,\n          \"confidence\": 0.9,\n          \"flags\": [\n            \"HIGH_RISK_DOMAIN\"\n          ],\n          \"detail\": \"High-risk domain detected: security.\",\n          \"evidence\": [\n            {\n              \"text\": \"azami hiz asilmasi guvenlik ihlali degildir\",\n              \"role\": \"input\"\n            }\n          ],\n          \"meta\": {\n            \"domain\": \"security\"\n          }\n        }\n      ],\n      \"meta\": {\n        \"statement\": \"azami hiz asilmasi guvenlik ihlali degildir\",\n        \"subject\": \"azami\",\n        \"predicate\": \"hiz asilmasi guvenlik ihlali degildir\",\n        \"workspaceId\": \"default\",\n        \"evidenceKinds\": [\n          \"contradiction\"\n        ],\n        \"pathSearch\": null,\n        \"fuzzy\": null,\n        \"thresholds\": {\n          \"supportVerified\": 0.75,\n          \"contradictionConflict\": 0.5,\n          \"riskHigh\": 0.4\n        }\n      },\n      \"confidence\": 0.9,\n      \"thresholds\": {\n        \"supportVerified\": 0.75,\n        \"contradictionConflict\": 0.5,\n        \"riskHigh\": 0.4\n      }\n    },\n    \"reasoningTrace\": {\n      \"traceId\": \"379abb152c690743\",\n      \"claim\": \"azami hiz asilmasi guvenlik ihlali degildir\",\n      \"status\": \"celiski\",\n      \"confidence\": 0.9,\n      \"mode\": \"semantic-trace\",\n      \"steps\": [\n        {\n          \"type\": \"decomposition\",\n          \"input\": \"azami hiz asilmasi guvenlik ihlali degildir\",\n          \"output\": {\n            \"originalClaim\": \"azami hiz asilmasi guvenlik ihlali degildir\",\n            \"compound\": false,\n            \"subclaims\": [\n              {\n                \"id\": \"claim_1\",\n                \"claim\": \"azami hiz asilmasi guvenlik ihlali degildir\",\n                \"subject\": \"azami\",\n                \"predicate\": \"hiz asilmasi guvenlik ihlali degildir\",\n                \"object\": \"hiz asilmasi guvenlik ihlali degildir\",\n                \"required\": true,\n                \"source\": \"deterministic\"\n              }\n            ]\n          },\n          \"subclaimId\": null,\n          \"claim\": \"\",\n          \"status\": \"bilinmiyor\",\n          \"confidence\": 0,\n          \"rule\": \"\",\n          \"reasons\": [],\n          \"warnings\": [],\n          \"evidence\": [],\n          \"rejectedEvidence\": [],\n          \"downgradeReasons\": [],\n          \"semanticTrust\": {},\n          \"risk\": {}\n        },\n        {\n          \"type\": \"subclaim_verification\",\n          \"subclaimId\": \"claim_1\",\n          \"claim\": \"azami hiz asilmasi guvenlik ihlali degildir\",\n          \"status\": \"celiski\",\n          \"confidence\": 0.9,\n          \"rule\": \"\",\n          \"reasons\": [],\n          \"warnings\": [],\n          \"evidence\": [\n            {\n              \"kind\": \"contradiction\",\n              \"text\": \"azami --[tür]--> hiz asilmasi guvenlik ihlali var ama ifade olumsuz: \\\"hiz asilmasi guvenlik ihlali degildir\\\"\",\n              \"confidence\": 0.85,\n              \"nodes\": [\n                \"azami\",\n                \"hiz asilmasi guvenlik ihlali\"\n              ],\n              \"edges\": [\n                {\n                  \"from\": \"azami\",\n                  \"to\": \"hiz asilmasi guvenlik ihlali\",\n                  \"relation\": \"tür\"\n                }\n              ]\n            }\n          ],\n          \"rejectedEvidence\": [],\n          \"downgradeReasons\": [],\n          \"semanticTrust\": {\n            \"status\": \"celiski\",\n            \"classification\": \"contradicted\",\n            \"supportScore\": 0,\n            \"contradictionScore\": 0.9,\n            \"riskScore\": 0.9,\n            \"matchType\": \"contradiction\",\n            \"warnings\": [\n              \"NEGATION_CONFLICT\",\n              \"SEMANTIC_OPPOSITION\",\n              \"PREDICATE_DRIFT\",\n              \"RELATION_DRIFT\",\n              \"WEAK_PARTIAL_MATCH\",\n              \"HIGH_RISK_DOMAIN\"\n            ],\n            \"risk\": {\n              \"score\": 0.9,\n              \"flags\": [\n                \"NEGATION_CONFLICT\",\n                \"SEMANTIC_OPPOSITION\",\n                \"PREDICATE_DRIFT\",\n                \"RELATION_DRIFT\",\n                \"WEAK_PARTIAL_MATCH\",\n                \"HIGH_RISK_DOMAIN\"\n              ],\n              \"domain\": \"security\",\n              \"manipulation\": false,\n              \"absoluteClaim\": false,\n              \"relationDrift\": true,\n              \"highRisk\": true\n            },\n            \"signals\": [\n              {\n                \"rule\": \"NEGATION_CONFLICT\",\n                \"kind\": \"contradiction\",\n                \"severity\": 0.85,\n                \"confidence\": 0.9,\n                \"flags\": [\n                  \"NEGATION_CONFLICT\",\n                  \"SEMANTIC_OPPOSITION\"\n                ],\n                \"detail\": \"One claim is negated while the other is affirmative.\",\n                \"evidence\": [\n                  {\n                    \"text\": \"azami tur hiz asilmasi guvenlik ihlali\",\n                    \"role\": \"stored\"\n                  },\n                  {\n                    \"text\": \"azami hiz asilmasi guvenlik ihlali degildir\",\n                    \"role\": \"incoming\"\n                  }\n                ],\n                \"meta\": {\n                  \"storedNeg\": false,\n                  \"incomingNeg\": true\n                }\n              },\n              {\n                \"rule\": \"PREDICATE_DRIFT\",\n                \"kind\": \"contradiction\",\n                \"severity\": 0.55,\n                \"confidence\": 0.6,\n                \"flags\": [\n                  \"PREDICATE_DRIFT\",\n                  \"RELATION_DRIFT\"\n                ],\n                \"detail\": \"Predicate meaning drift detected between stored and incoming claims.\",\n                \"evidence\": [\n                  {\n                    \"text\": \"azami tur hiz asilmasi guvenlik ihlali\",\n                    \"role\": \"stored\"\n                  },\n                  {\n                    \"text\": \"azami hiz asilmasi guvenlik ihlali degildir\",\n                    \"role\": \"incoming\"\n                  }\n                ],\n                \"meta\": {\n                  \"storedRelation\": \"tur\",\n                  \"incomingRelation\": \"hiz asilmasi guvenlik ihlali degildir\",\n                  \"relationMismatch\": true,\n                  \"overlap\": [\n                    \"azami\",\n                    \"hiz\",\n                    \"asilmasi\",\n                    \"guvenlik\",\n                    \"ihlali\"\n                  ]\n                }\n              },\n              {\n                \"rule\": \"WEAK_PARTIAL_MATCH\",\n                \"kind\": \"risk\",\n                \"severity\": 0.4,\n                \"confidence\": 0.7,\n                \"flags\": [\n                  \"WEAK_PARTIAL_MATCH\"\n                ],\n                \"detail\": \"Lexical overlap is weak and should not be treated as verified truth.\",\n                \"evidence\": [\n                  {\n                    \"kind\": \"contradiction\",\n                    \"text\": \"azami --[tür]--> hiz asilmasi guvenlik ihlali var ama ifade olumsuz: \\\"hiz asilmasi guvenlik ihlali degildir\\\"\",\n                    \"confidence\": 0.85,\n                    \"nodes\": [\n                      \"azami\",\n                      \"hiz asilmasi guvenlik ihlali\"\n                    ],\n                    \"edges\": [\n                      {\n                        \"from\": \"azami\",\n                        \"to\": \"hiz asilmasi guvenlik ihlali\",\n                        \"relation\": \"tür\"\n                      }\n                    ]\n                  }\n                ],\n                \"meta\": {\n                  \"confidence\": 0\n                }\n              },\n              {\n                \"rule\": \"HIGH_RISK_DOMAIN\",\n                \"kind\": \"risk\",\n                \"severity\": 0.8,\n                \"confidence\": 0.9,\n                \"flags\": [\n                  \"HIGH_RISK_DOMAIN\"\n                ],\n                \"detail\": \"High-risk domain detected: security.\",\n                \"evidence\": [\n                  {\n                    \"text\": \"azami hiz asilmasi guvenlik ihlali degildir\",\n                    \"role\": \"input\"\n                  }\n                ],\n                \"meta\": {\n                  \"domain\": \"security\"\n                }\n              }\n            ],\n            \"meta\": {\n              \"statement\": \"azami hiz asilmasi guvenlik ihlali degildir\",\n              \"subject\": \"azami\",\n              \"predicate\": \"hiz asilmasi guvenlik ihlali degildir\",\n              \"workspaceId\": \"default\",\n              \"evidenceKinds\": [\n                \"contradiction\"\n              ],\n              \"pathSearch\": null,\n              \"fuzzy\": null,\n              \"thresholds\": {\n                \"supportVerified\": 0.75,\n                \"contradictionConflict\": 0.5,\n                \"riskHigh\": 0.4\n              }\n            },\n            \"confidence\": 0.9,\n            \"thresholds\": {\n              \"supportVerified\": 0.75,\n              \"contradictionConflict\": 0.5,\n              \"riskHigh\": 0.4\n            }\n          },\n          \"risk\": {\n            \"score\": 0.9,\n            \"flags\": [\n              \"NEGATION_CONFLICT\",\n              \"SEMANTIC_OPPOSITION\",\n              \"PREDICATE_DRIFT\",\n              \"RELATION_DRIFT\",\n              \"WEAK_PARTIAL_MATCH\",\n              \"HIGH_RISK_DOMAIN\"\n            ],\n            \"domain\": \"security\",\n            \"manipulation\": false,\n            \"absoluteClaim\": false,\n            \"relationDrift\": true,\n            \"highRisk\": true\n          }\n        },\n        {\n          \"type\": \"aggregation\",\n          \"subclaimId\": null,\n          \"claim\": \"\",\n          \"status\": \"celiski\",\n          \"confidence\": 0.9,\n          \"rule\": \"ANY_REQUIRED_CONTRADICTED\",\n          \"reasons\": [\n            \"CONTRADICTION_SUBCLAIM\"\n          ],\n          \"warnings\": [],\n          \"evidence\": [],\n          \"rejectedEvidence\": [],\n          \"downgradeReasons\": [],\n          \"semanticTrust\": {},\n          \"risk\": {}\n        }\n      ],\n      \"summary\": {\n        \"supported\": 0,\n        \"contradicted\": 1,\n        \"unknown\": 0,\n        \"total\": 1,\n        \"finalRule\": \"ANY_REQUIRED_CONTRADICTED\"\n      },\n      \"trustReceiptPreview\": {\n        \"originalClaim\": \"azami hiz asilmasi guvenlik ihlali degildir\",\n        \"finalStatus\": \"celiski\",\n        \"confidence\": 0.9,\n        \"subclaimCount\": 1,\n        \"evidenceCount\": 1,\n        \"contradictionCount\": 1,\n        \"downgradeReasons\": [\n          \"CONTRADICTION_SUBCLAIM\"\n        ],\n        \"semanticFlags\": [\n          \"NEGATION_CONFLICT\",\n          \"SEMANTIC_OPPOSITION\",\n          \"PREDICATE_DRIFT\",\n          \"RELATION_DRIFT\",\n          \"WEAK_PARTIAL_MATCH\",\n          \"HIGH_RISK_DOMAIN\",\n          \"CONTRADICTION_SUBCLAIM\"\n        ],\n        \"canonical\": false\n      }\n    },\n    \"trustReceiptPreview\": {\n      \"originalClaim\": \"azami hiz asilmasi guvenlik ihlali degildir\",\n      \"finalStatus\": \"celiski\",\n      \"confidence\": 0.9,\n      \"subclaimCount\": 1,\n      \"evidenceCount\": 1,\n      \"contradictionCount\": 1,\n      \"downgradeReasons\": [\n        \"CONTRADICTION_SUBCLAIM\"\n      ],\n      \"semanticFlags\": [\n        \"NEGATION_CONFLICT\",\n        \"SEMANTIC_OPPOSITION\",\n        \"PREDICATE_DRIFT\",\n        \"RELATION_DRIFT\",\n        \"WEAK_PARTIAL_MATCH\",\n        \"HIGH_RISK_DOMAIN\",\n        \"CONTRADICTION_SUBCLAIM\"\n      ],\n      \"canonical\": false\n    },\n    \"entityResolution\": {\n      \"subject\": {\n        \"original\": \"azami\",\n        \"matched\": false,\n        \"reason\": \"unknown_alias\",\n        \"usedForLookup\": false\n      }\n    }\n  }\n}"
+      }
+    ],
+    "structuredContent": {
+      "ok": true,
+      "type": "verify",
+      "data": {
+        "status": "celiski",
+        "confidence": 0.9
+      },
+      "evidence": [
+        {
+          "kind": "contradiction",
+          "text": "azami --[tür]--> hiz asilmasi guvenlik ihlali var ama ifade olumsuz: \"hiz asilmasi guvenlik ihlali degildir\"",
+          "confidence": 0.85,
+          "nodes": [
+            "azami",
+            "hiz asilmasi guvenlik ihlali"
+          ],
+          "edges": [
+            {
+              "from": "azami",
+              "to": "hiz asilmasi guvenlik ihlali",
+              "relation": "tür"
+            }
+          ]
+        }
+      ],
+      "error": null,
+      "meta": {
+        "contractVersion": "1.0.0",
+        "backend": "sqlite",
+        "paranoidMode": false,
+        "semanticTrust": {
+          "status": "celiski",
+          "classification": "contradicted",
+          "supportScore": 0,
+          "contradictionScore": 0.9,
+          "riskScore": 0.9,
+          "matchType": "contradiction",
+          "warnings": [
+            "NEGATION_CONFLICT",
+            "SEMANTIC_OPPOSITION",
+            "PREDICATE_DRIFT",
+            "RELATION_DRIFT",
+            "WEAK_PARTIAL_MATCH",
+            "HIGH_RISK_DOMAIN"
+          ],
+          "risk": {
+            "score": 0.9,
+            "flags": [
+              "NEGATION_CONFLICT",
+              "SEMANTIC_OPPOSITION",
+              "PREDICATE_DRIFT",
+              "RELATION_DRIFT",
+              "WEAK_PARTIAL_MATCH",
+              "HIGH_RISK_DOMAIN"
+            ],
+            "domain": "security",
+            "manipulation": false,
+            "absoluteClaim": false,
+            "relationDrift": true,
+            "highRisk": true
+          },
+          "signals": [
+            {
+              "rule": "NEGATION_CONFLICT",
+              "kind": "contradiction",
+              "severity": 0.85,
+              "confidence": 0.9,
+              "flags": [
+                "NEGATION_CONFLICT",
+                "SEMANTIC_OPPOSITION"
+              ],
+              "detail": "One claim is negated while the other is affirmative.",
+              "evidence": [
+                {
+                  "text": "azami tur hiz asilmasi guvenlik ihlali",
+                  "role": "stored"
+                },
+                {
+                  "text": "azami hiz asilmasi guvenlik ihlali degildir",
+                  "role": "incoming"
+                }
+              ],
+              "meta": {
+                "storedNeg": false,
+                "incomingNeg": true
+              }
+            },
+            {
+              "rule": "PREDICATE_DRIFT",
+              "kind": "contradiction",
+              "severity": 0.55,
+              "confidence": 0.6,
+              "flags": [
+                "PREDICATE_DRIFT",
+                "RELATION_DRIFT"
+              ],
+              "detail": "Predicate meaning drift detected between stored and incoming claims.",
+              "evidence": [
+                {
+                  "text": "azami tur hiz asilmasi guvenlik ihlali",
+                  "role": "stored"
+                },
+                {
+                  "text": "azami hiz asilmasi guvenlik ihlali degildir",
+                  "role": "incoming"
+                }
+              ],
+              "meta": {
+                "storedRelation": "tur",
+                "incomingRelation": "hiz asilmasi guvenlik ihlali degildir",
+                "relationMismatch": true,
+                "overlap": [
+                  "azami",
+                  "hiz",
+                  "asilmasi",
+                  "guvenlik",
+                  "ihlali"
+                ]
+              }
+            },
+            {
+              "rule": "WEAK_PARTIAL_MATCH",
+              "kind": "risk",
+              "severity": 0.4,
+              "confidence": 0.7,
+              "flags": [
+                "WEAK_PARTIAL_MATCH"
+              ],
+              "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+              "evidence": [
+                {
+                  "kind": "contradiction",
+                  "text": "azami --[tür]--> hiz asilmasi guvenlik ihlali var ama ifade olumsuz: \"hiz asilmasi guvenlik ihlali degildir\"",
+                  "confidence": 0.85,
+                  "nodes": [
+                    "azami",
+                    "hiz asilmasi guvenlik ihlali"
+                  ],
+                  "edges": [
+                    {
+                      "from": "azami",
+                      "to": "hiz asilmasi guvenlik ihlali",
+                      "relation": "tür"
+                    }
+                  ]
+                }
+              ],
+              "meta": {
+                "confidence": 0
+              }
+            },
+            {
+              "rule": "HIGH_RISK_DOMAIN",
+              "kind": "risk",
+              "severity": 0.8,
+              "confidence": 0.9,
+              "flags": [
+                "HIGH_RISK_DOMAIN"
+              ],
+              "detail": "High-risk domain detected: security.",
+              "evidence": [
+                {
+                  "text": "azami hiz asilmasi guvenlik ihlali degildir",
+                  "role": "input"
+                }
+              ],
+              "meta": {
+                "domain": "security"
+              }
+            }
+          ],
+          "meta": {
+            "statement": "azami hiz asilmasi guvenlik ihlali degildir",
+            "subject": "azami",
+            "predicate": "hiz asilmasi guvenlik ihlali degildir",
+            "workspaceId": "default",
+            "evidenceKinds": [
+              "contradiction"
+            ],
+            "pathSearch": null,
+            "fuzzy": null,
+            "thresholds": {
+              "supportVerified": 0.75,
+              "contradictionConflict": 0.5,
+              "riskHigh": 0.4
+            }
+          },
+          "confidence": 0.9,
+          "thresholds": {
+            "supportVerified": 0.75,
+            "contradictionConflict": 0.5,
+            "riskHigh": 0.4
+          }
+        },
+        "reasoningTrace": {
+          "traceId": "379abb152c690743",
+          "claim": "azami hiz asilmasi guvenlik ihlali degildir",
+          "status": "celiski",
+          "confidence": 0.9,
+          "mode": "semantic-trace",
+          "steps": [
+            {
+              "type": "decomposition",
+              "input": "azami hiz asilmasi guvenlik ihlali degildir",
+              "output": {
+                "originalClaim": "azami hiz asilmasi guvenlik ihlali degildir",
+                "compound": false,
+                "subclaims": [
+                  {
+                    "id": "claim_1",
+                    "claim": "azami hiz asilmasi guvenlik ihlali degildir",
+                    "subject": "azami",
+                    "predicate": "hiz asilmasi guvenlik ihlali degildir",
+                    "object": "hiz asilmasi guvenlik ihlali degildir",
+                    "required": true,
+                    "source": "deterministic"
+                  }
+                ]
+              },
+              "subclaimId": null,
+              "claim": "",
+              "status": "bilinmiyor",
+              "confidence": 0,
+              "rule": "",
+              "reasons": [],
+              "warnings": [],
+              "evidence": [],
+              "rejectedEvidence": [],
+              "downgradeReasons": [],
+              "semanticTrust": {},
+              "risk": {}
+            },
+            {
+              "type": "subclaim_verification",
+              "subclaimId": "claim_1",
+              "claim": "azami hiz asilmasi guvenlik ihlali degildir",
+              "status": "celiski",
+              "confidence": 0.9,
+              "rule": "",
+              "reasons": [],
+              "warnings": [],
+              "evidence": [
+                {
+                  "kind": "contradiction",
+                  "text": "azami --[tür]--> hiz asilmasi guvenlik ihlali var ama ifade olumsuz: \"hiz asilmasi guvenlik ihlali degildir\"",
+                  "confidence": 0.85,
+                  "nodes": [
+                    "azami",
+                    "hiz asilmasi guvenlik ihlali"
+                  ],
+                  "edges": [
+                    {
+                      "from": "azami",
+                      "to": "hiz asilmasi guvenlik ihlali",
+                      "relation": "tür"
+                    }
+                  ]
+                }
+              ],
+              "rejectedEvidence": [],
+              "downgradeReasons": [],
+              "semanticTrust": {
+                "status": "celiski",
+                "classification": "contradicted",
+                "supportScore": 0,
+                "contradictionScore": 0.9,
+                "riskScore": 0.9,
+                "matchType": "contradiction",
+                "warnings": [
+                  "NEGATION_CONFLICT",
+                  "SEMANTIC_OPPOSITION",
+                  "PREDICATE_DRIFT",
+                  "RELATION_DRIFT",
+                  "WEAK_PARTIAL_MATCH",
+                  "HIGH_RISK_DOMAIN"
+                ],
+                "risk": {
+                  "score": 0.9,
+                  "flags": [
+                    "NEGATION_CONFLICT",
+                    "SEMANTIC_OPPOSITION",
+                    "PREDICATE_DRIFT",
+                    "RELATION_DRIFT",
+                    "WEAK_PARTIAL_MATCH",
+                    "HIGH_RISK_DOMAIN"
+                  ],
+                  "domain": "security",
+                  "manipulation": false,
+                  "absoluteClaim": false,
+                  "relationDrift": true,
+                  "highRisk": true
+                },
+                "signals": [
+                  {
+                    "rule": "NEGATION_CONFLICT",
+                    "kind": "contradiction",
+                    "severity": 0.85,
+                    "confidence": 0.9,
+                    "flags": [
+                      "NEGATION_CONFLICT",
+                      "SEMANTIC_OPPOSITION"
+                    ],
+                    "detail": "One claim is negated while the other is affirmative.",
+                    "evidence": [
+                      {
+                        "text": "azami tur hiz asilmasi guvenlik ihlali",
+                        "role": "stored"
+                      },
+                      {
+                        "text": "azami hiz asilmasi guvenlik ihlali degildir",
+                        "role": "incoming"
+                      }
+                    ],
+                    "meta": {
+                      "storedNeg": false,
+                      "incomingNeg": true
+                    }
+                  },
+                  {
+                    "rule": "PREDICATE_DRIFT",
+                    "kind": "contradiction",
+                    "severity": 0.55,
+                    "confidence": 0.6,
+                    "flags": [
+                      "PREDICATE_DRIFT",
+                      "RELATION_DRIFT"
+                    ],
+                    "detail": "Predicate meaning drift detected between stored and incoming claims.",
+                    "evidence": [
+                      {
+                        "text": "azami tur hiz asilmasi guvenlik ihlali",
+                        "role": "stored"
+                      },
+                      {
+                        "text": "azami hiz asilmasi guvenlik ihlali degildir",
+                        "role": "incoming"
+                      }
+                    ],
+                    "meta": {
+                      "storedRelation": "tur",
+                      "incomingRelation": "hiz asilmasi guvenlik ihlali degildir",
+                      "relationMismatch": true,
+                      "overlap": [
+                        "azami",
+                        "hiz",
+                        "asilmasi",
+                        "guvenlik",
+                        "ihlali"
+                      ]
+                    }
+                  },
+                  {
+                    "rule": "WEAK_PARTIAL_MATCH",
+                    "kind": "risk",
+                    "severity": 0.4,
+                    "confidence": 0.7,
+                    "flags": [
+                      "WEAK_PARTIAL_MATCH"
+                    ],
+                    "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+                    "evidence": [
+                      {
+                        "kind": "contradiction",
+                        "text": "azami --[tür]--> hiz asilmasi guvenlik ihlali var ama ifade olumsuz: \"hiz asilmasi guvenlik ihlali degildir\"",
+                        "confidence": 0.85,
+                        "nodes": [
+                          "azami",
+                          "hiz asilmasi guvenlik ihlali"
+                        ],
+                        "edges": [
+                          {
+                            "from": "azami",
+                            "to": "hiz asilmasi guvenlik ihlali",
+                            "relation": "tür"
+                          }
+                        ]
+                      }
+                    ],
+                    "meta": {
+                      "confidence": 0
+                    }
+                  },
+                  {
+                    "rule": "HIGH_RISK_DOMAIN",
+                    "kind": "risk",
+                    "severity": 0.8,
+                    "confidence": 0.9,
+                    "flags": [
+                      "HIGH_RISK_DOMAIN"
+                    ],
+                    "detail": "High-risk domain detected: security.",
+                    "evidence": [
+                      {
+                        "text": "azami hiz asilmasi guvenlik ihlali degildir",
+                        "role": "input"
+                      }
+                    ],
+                    "meta": {
+                      "domain": "security"
+                    }
+                  }
+                ],
+                "meta": {
+                  "statement": "azami hiz asilmasi guvenlik ihlali degildir",
+                  "subject": "azami",
+                  "predicate": "hiz asilmasi guvenlik ihlali degildir",
+                  "workspaceId": "default",
+                  "evidenceKinds": [
+                    "contradiction"
+                  ],
+                  "pathSearch": null,
+                  "fuzzy": null,
+                  "thresholds": {
+                    "supportVerified": 0.75,
+                    "contradictionConflict": 0.5,
+                    "riskHigh": 0.4
+                  }
+                },
+                "confidence": 0.9,
+                "thresholds": {
+                  "supportVerified": 0.75,
+                  "contradictionConflict": 0.5,
+                  "riskHigh": 0.4
+                }
+              },
+              "risk": {
+                "score": 0.9,
+                "flags": [
+                  "NEGATION_CONFLICT",
+                  "SEMANTIC_OPPOSITION",
+                  "PREDICATE_DRIFT",
+                  "RELATION_DRIFT",
+                  "WEAK_PARTIAL_MATCH",
+                  "HIGH_RISK_DOMAIN"
+                ],
+                "domain": "security",
+                "manipulation": false,
+                "absoluteClaim": false,
+                "relationDrift": true,
+                "highRisk": true
+              }
+            },
+            {
+              "type": "aggregation",
+              "subclaimId": null,
+              "claim": "",
+              "status": "celiski",
+              "confidence": 0.9,
+              "rule": "ANY_REQUIRED_CONTRADICTED",
+              "reasons": [
+                "CONTRADICTION_SUBCLAIM"
+              ],
+              "warnings": [],
+              "evidence": [],
+              "rejectedEvidence": [],
+              "downgradeReasons": [],
+              "semanticTrust": {},
+              "risk": {}
+            }
+          ],
+          "summary": {
+            "supported": 0,
+            "contradicted": 1,
+            "unknown": 0,
+            "total": 1,
+            "finalRule": "ANY_REQUIRED_CONTRADICTED"
+          },
+          "trustReceiptPreview": {
+            "originalClaim": "azami hiz asilmasi guvenlik ihlali degildir",
+            "finalStatus": "celiski",
+            "confidence": 0.9,
+            "subclaimCount": 1,
+            "evidenceCount": 1,
+            "contradictionCount": 1,
+            "downgradeReasons": [
+              "CONTRADICTION_SUBCLAIM"
+            ],
+            "semanticFlags": [
+              "NEGATION_CONFLICT",
+              "SEMANTIC_OPPOSITION",
+              "PREDICATE_DRIFT",
+              "RELATION_DRIFT",
+              "WEAK_PARTIAL_MATCH",
+              "HIGH_RISK_DOMAIN",
+              "CONTRADICTION_SUBCLAIM"
+            ],
+            "canonical": false
+          }
+        },
+        "trustReceiptPreview": {
+          "originalClaim": "azami hiz asilmasi guvenlik ihlali degildir",
+          "finalStatus": "celiski",
+          "confidence": 0.9,
+          "subclaimCount": 1,
+          "evidenceCount": 1,
+          "contradictionCount": 1,
+          "downgradeReasons": [
+            "CONTRADICTION_SUBCLAIM"
+          ],
+          "semanticFlags": [
+            "NEGATION_CONFLICT",
+            "SEMANTIC_OPPOSITION",
+            "PREDICATE_DRIFT",
+            "RELATION_DRIFT",
+            "WEAK_PARTIAL_MATCH",
+            "HIGH_RISK_DOMAIN",
+            "CONTRADICTION_SUBCLAIM"
+          ],
+          "canonical": false
+        },
+        "entityResolution": {
+          "subject": {
+            "original": "azami",
+            "matched": false,
+            "reason": "unknown_alias",
+            "usedForLookup": false
+          }
+        }
+      }
+    },
+    "isError": false
+  }
+}

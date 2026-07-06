@@ -1,0 +1,56 @@
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"ok\": true,\n  \"type\": \"policy\",\n  \"data\": {\n    \"tool\": \"\",\n    \"category\": \"external\",\n    \"action\": \"block\",\n    \"approval\": \"blocked\",\n    \"blocked\": true,\n    \"requiresApproval\": false,\n    \"review\": false,\n    \"riskScore\": 70,\n    \"confidence\": 0.96,\n    \"labels\": [\n      \"external-tool\",\n      \"blocked\",\n      \"unknown-tool-blocked\"\n    ],\n    \"reasons\": [\n      \"External tool request: unknown.\",\n      \"Unknown external tools are fail-closed by default.\"\n    ],\n    \"suggestedNextStep\": \"Refine the request or use a safe internal AXIOM tool.\",\n    \"source\": \"toolPolicy\",\n    \"context\": {},\n    \"executionMode\": \"blocked\",\n    \"sandbox\": null,\n    \"approvalId\": \"approval-1781220701684\",\n    \"approvalStatus\": \"blocked\"\n  },\n  \"evidence\": [],\n  \"error\": null,\n  \"meta\": {\n    \"contractVersion\": \"1.0.0\",\n    \"backend\": \"sqlite\",\n    \"paranoidMode\": false,\n    \"tool\": \"\",\n    \"category\": \"external\",\n    \"action\": \"block\",\n    \"approvalId\": \"approval-1781220701684\",\n    \"approvalStatus\": \"blocked\"\n  }\n}"
+      }
+    ],
+    "structuredContent": {
+      "ok": true,
+      "type": "policy",
+      "data": {
+        "tool": "",
+        "category": "external",
+        "action": "block",
+        "approval": "blocked",
+        "blocked": true,
+        "requiresApproval": false,
+        "review": false,
+        "riskScore": 70,
+        "confidence": 0.96,
+        "labels": [
+          "external-tool",
+          "blocked",
+          "unknown-tool-blocked"
+        ],
+        "reasons": [
+          "External tool request: unknown.",
+          "Unknown external tools are fail-closed by default."
+        ],
+        "suggestedNextStep": "Refine the request or use a safe internal AXIOM tool.",
+        "source": "toolPolicy",
+        "context": {},
+        "executionMode": "blocked",
+        "sandbox": null,
+        "approvalId": "approval-1781220701684",
+        "approvalStatus": "blocked"
+      },
+      "evidence": [],
+      "error": null,
+      "meta": {
+        "contractVersion": "1.0.0",
+        "backend": "sqlite",
+        "paranoidMode": false,
+        "tool": "",
+        "category": "external",
+        "action": "block",
+        "approvalId": "approval-1781220701684",
+        "approvalStatus": "blocked"
+      }
+    },
+    "isError": false
+  }
+}
