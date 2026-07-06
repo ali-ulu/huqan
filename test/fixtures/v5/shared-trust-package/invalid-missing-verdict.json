@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "v5-shared-trust-package/v0.1",
+  "packageId": "stp_invalid_missing_verdict",
+  "issuer": {
+    "agentId": "agent.example.writer",
+    "workspaceId": "workspace.example"
+  },
+  "subject": {
+    "type": "agent_action",
+    "id": "action.example.002"
+  },
+  "verdict": {
+    "reason": "missing_status"
+  },
+  "receipt": {
+    "receiptId": "receipt.example.002",
+    "issuedAt": "2026-01-01T00:02:00.000Z"
+  },
+  "evidence": [],
+  "nonClaims": [
+    "This invalid fixture is missing verdict.status."
+  ]
+}

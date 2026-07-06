@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "v5-shared-trust-package/v0.1",
+  "packageId": "stp_example_001",
+  "issuer": {
+    "agentId": "agent.example.writer",
+    "workspaceId": "workspace.example"
+  },
+  "subject": {
+    "type": "agent_action",
+    "id": "action.example.001"
+  },
+  "verdict": {
+    "status": "review",
+    "reason": "requires_human_approval"
+  },
+  "receipt": {
+    "receiptId": "receipt.example.001",
+    "issuedAt": "2026-01-01T00:00:00.000Z"
+  },
+  "evidence": [],
+  "nonClaims": [
+    "This package is a fixture/schema contract only.",
+    "This package does not prove runtime writer support.",
+    "This package does not prove runtime reader support.",
+    "This package does not prove signing or verification runtime.",
+    "This package does not prove A2A transport.",
+    "This package does not prove marketplace distribution."
+  ]
+}

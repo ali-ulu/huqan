@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "v5-shared-trust-package/v0.1",
+  "packageId": "stp_example_route_001",
+  "issuer": {
+    "agentId": "agent.example.route-writer",
+    "workspaceId": "workspace.route"
+  },
+  "subject": {
+    "type": "route_receipt",
+    "id": "route.example.001"
+  },
+  "verdict": {
+    "status": "allow",
+    "reason": "route_receipt_fixture"
+  },
+  "receipt": {
+    "receiptId": "receipt.route.001",
+    "issuedAt": "2026-01-01T00:01:00.000Z",
+    "routeReceipt": {
+      "routeId": "route.example.001",
+      "hopCount": 2,
+      "metadata": {
+        "fixtureOnly": true,
+        "transport": "not_implemented"
+      }
+    }
+  },
+  "evidence": [
+    {
+      "type": "agent_identity_fixture",
+      "ref": "test/fixtures/v5/agent-identity/valid-minimal.json"
+    }
+  ],
+  "nonClaims": [
+    "This route receipt is fixture metadata only.",
+    "This package does not prove route exchange runtime.",
+    "This package does not prove signing or verification runtime.",
+    "This package does not prove A2A transport.",
+    "This package does not prove marketplace distribution."
+  ]
+}

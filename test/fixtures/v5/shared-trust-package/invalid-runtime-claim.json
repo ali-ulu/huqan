@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "v5-shared-trust-package/v0.1",
+  "packageId": "stp_invalid_runtime_claim",
+  "issuer": {
+    "agentId": "agent.example.writer",
+    "workspaceId": "workspace.example"
+  },
+  "subject": {
+    "type": "agent_action",
+    "id": "action.example.003"
+  },
+  "verdict": {
+    "status": "allow",
+    "reason": "invalid_runtime_claim_fixture"
+  },
+  "receipt": {
+    "receiptId": "receipt.example.003",
+    "issuedAt": "2026-01-01T00:03:00.000Z"
+  },
+  "evidence": [],
+  "nonClaims": [
+    "This invalid fixture includes forbidden runtime implementation claims."
+  ],
+  "writerImplemented": true,
+  "readerImplemented": true,
+  "runtimeEnforced": true,
+  "a2aTransportEnabled": true,
+  "marketplaceReady": true,
+  "agentActionPolicyEngineEnabled": true
+}

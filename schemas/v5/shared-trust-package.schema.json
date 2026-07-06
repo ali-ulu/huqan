@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://huqan.local/schemas/v5/shared-trust-package.schema.json",
+  "title": "HUQAN V5 Shared Trust Package Fixture Contract",
+  "description": "Static schema contract for V5 Shared Trust Package fixtures. This schema does not implement runtime writer support, runtime reader support, signing, verification runtime, A2A transport, marketplace distribution, connector enforcement, or AgentAction policy enforcement.",
+  "type": "object",
+  "additionalProperties": false,
+  "$comment": "Schema-only V5-IMPL-2A contract. Runtime Trust Package writer/reader, signing, verification runtime, A2A transport, marketplace distribution, connector enforcement, runtime identity enforcement, and AgentAction policy engine are intentionally out of scope.",
+  "required": [
+    "schemaVersion",
+    "packageId",
+    "issuer",
+    "subject",
+    "verdict",
+    "receipt",
+    "evidence",
+    "nonClaims"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "v5-shared-trust-package/v0.1"
+    },
+    "packageId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "issuer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "agentId",
+        "workspaceId"
+      ],
+      "properties": {
+        "agentId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workspaceId": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "id"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "allow",
+            "review",
+            "dry_run_only",
+            "block"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "receiptId",
+        "issuedAt"
+      ],
+      "properties": {
+        "receiptId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "issuedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "routeReceipt": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "routeId",
+            "hopCount"
+          ],
+          "properties": {
+            "routeId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "hopCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "metadata": {
+              "type": "object",
+              "additionalProperties": {
+                "type": [
+                  "string",
+                  "number",
+                  "boolean",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "ref"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "nonClaims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}
