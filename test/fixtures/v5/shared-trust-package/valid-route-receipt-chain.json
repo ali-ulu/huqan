@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "v5-shared-trust-package/v0.1",
+  "packageId": "stp_route_chain_001",
+  "issuer": {
+    "agentId": "agent.example.route-packager",
+    "workspaceId": "workspace.route-chain"
+  },
+  "subject": {
+    "type": "route_receipt_chain",
+    "id": "route.chain.example.001"
+  },
+  "verdict": {
+    "status": "review",
+    "reason": "route_chain_fixture"
+  },
+  "receipt": {
+    "receiptId": "receipt.route-chain.001",
+    "issuedAt": "2026-01-01T00:04:00.000Z"
+  },
+  "routeReceipt": {
+    "routeId": "route.example.001",
+    "hops": [
+      {
+        "hopId": "hop.example.001",
+        "agentId": "agent.example.source",
+        "workspaceId": "workspace.route-chain",
+        "verdictStatus": "review",
+        "receiptId": "receipt.route-hop.001"
+      },
+      {
+        "hopId": "hop.example.002",
+        "agentId": "agent.example.reviewer",
+        "workspaceId": "workspace.route-chain",
+        "verdictStatus": "allow",
+        "receiptId": "receipt.route-hop.002"
+      }
+    ]
+  },
+  "evidence": [
+    {
+      "type": "route_receipt_fixture",
+      "ref": "test/fixtures/v5/shared-trust-package/valid-with-route-receipt.json"
+    }
+  ],
+  "nonClaims": [
+    "This route receipt chain is fixture/schema metadata only.",
+    "This package does not prove route exchange runtime.",
+    "This package does not prove A2A transport.",
+    "This package does not prove signing or verification runtime.",
+    "This package does not prove marketplace distribution."
+  ]
+}

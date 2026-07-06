@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "v5-shared-trust-package/v0.1",
+  "packageId": "stp_invalid_reasoning_runtime_claim",
+  "issuer": {
+    "agentId": "agent.example.reasoning-packager",
+    "workspaceId": "workspace.reasoning"
+  },
+  "subject": {
+    "type": "reasoning_metadata",
+    "id": "trace.example.invalid"
+  },
+  "verdict": {
+    "status": "review",
+    "reason": "invalid_reasoning_runtime_claim"
+  },
+  "receipt": {
+    "receiptId": "receipt.reasoning.invalid",
+    "issuedAt": "2026-01-01T00:07:00.000Z"
+  },
+  "reasoningMetadata": {
+    "traceId": "trace.example.invalid",
+    "summary": "Invalid fixture with forbidden runtime claim.",
+    "steps": [
+      {
+        "stepId": "step.example.invalid",
+        "type": "runtime_claim",
+        "status": "review"
+      }
+    ],
+    "reasoningEngineImplemented": true
+  },
+  "evidence": [],
+  "nonClaims": [
+    "This invalid fixture includes a forbidden reasoning runtime claim."
+  ],
+  "routeRuntimeEnabled": true,
+  "packageWriterEnabled": true,
+  "packageReaderEnabled": true,
+  "a2aTransportEnabled": true,
+  "marketplaceReady": true
+}

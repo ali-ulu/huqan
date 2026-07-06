@@ -150,6 +150,108 @@
         }
       }
     },
+    "routeReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "routeId"
+      ],
+      "properties": {
+        "routeId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "hops": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "hopId",
+              "agentId",
+              "workspaceId",
+              "verdictStatus",
+              "receiptId"
+            ],
+            "properties": {
+              "hopId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "agentId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "workspaceId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "verdictStatus": {
+                "type": "string",
+                "enum": [
+                  "allow",
+                  "review",
+                  "dry_run_only",
+                  "block"
+                ]
+              },
+              "receiptId": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "reasoningMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "traceId"
+      ],
+      "properties": {
+        "traceId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "summary": {
+          "type": "string"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "stepId",
+              "type",
+              "status"
+            ],
+            "properties": {
+              "stepId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "minLength": 1
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "allow",
+                  "review",
+                  "dry_run_only",
+                  "block",
+                  "unknown"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
     "nonClaims": {
       "type": "array",
       "minItems": 1,

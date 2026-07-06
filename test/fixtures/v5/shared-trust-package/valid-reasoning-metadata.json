@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "v5-shared-trust-package/v0.1",
+  "packageId": "stp_reasoning_metadata_001",
+  "issuer": {
+    "agentId": "agent.example.reasoning-packager",
+    "workspaceId": "workspace.reasoning"
+  },
+  "subject": {
+    "type": "reasoning_metadata",
+    "id": "trace.example.001"
+  },
+  "verdict": {
+    "status": "review",
+    "reason": "reasoning_metadata_fixture"
+  },
+  "receipt": {
+    "receiptId": "receipt.reasoning.001",
+    "issuedAt": "2026-01-01T00:05:00.000Z"
+  },
+  "reasoningMetadata": {
+    "traceId": "trace.example.001",
+    "summary": "Structured reasoning metadata fixture only.",
+    "steps": [
+      {
+        "stepId": "step.example.001",
+        "type": "evidence_check",
+        "status": "review"
+      },
+      {
+        "stepId": "step.example.002",
+        "type": "boundary_check",
+        "status": "unknown"
+      }
+    ]
+  },
+  "evidence": [
+    {
+      "type": "reasoning_trace_fixture",
+      "ref": "trace.example.001"
+    }
+  ],
+  "nonClaims": [
+    "This reasoning metadata is fixture/schema metadata only.",
+    "This package does not prove reasoning engine implementation.",
+    "This package does not prove runtime writer support.",
+    "This package does not prove runtime reader support.",
+    "This package does not prove signing or verification runtime."
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "v5-shared-trust-package/v0.1",
+  "packageId": "stp_invalid_route_hop_missing_agent",
+  "issuer": {
+    "agentId": "agent.example.route-packager",
+    "workspaceId": "workspace.route-chain"
+  },
+  "subject": {
+    "type": "route_receipt_chain",
+    "id": "route.chain.example.invalid"
+  },
+  "verdict": {
+    "status": "review",
+    "reason": "invalid_route_hop_missing_agent_id"
+  },
+  "receipt": {
+    "receiptId": "receipt.route-chain.invalid",
+    "issuedAt": "2026-01-01T00:06:00.000Z"
+  },
+  "routeReceipt": {
+    "routeId": "route.example.invalid",
+    "hops": [
+      {
+        "hopId": "hop.example.invalid",
+        "workspaceId": "workspace.route-chain",
+        "verdictStatus": "review",
+        "receiptId": "receipt.route-hop.invalid"
+      }
+    ]
+  },
+  "evidence": [],
+  "nonClaims": [
+    "This invalid fixture is missing routeReceipt.hops[0].agentId."
+  ]
+}
