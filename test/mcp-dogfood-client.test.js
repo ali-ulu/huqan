@@ -3,15 +3,17 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const cp = require('node:child_process');
+const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const readline = require('node:readline');
 const { once } = require('node:events');
 
 const MCP_SERVER_PATH = path.resolve(__dirname, '..', 'mcpServer.js');
 
-function createDogfoodClient() {
+function createDogfoodClient(envOverrides = {}) {
   const proc = cp.spawn(process.execPath, [MCP_SERVER_PATH], {
-    env: { ...process.env },
+    env: { ...process.env, ...envOverrides },
     stdio: ['pipe', 'pipe', 'pipe'],
     windowsHide: true,
   });
@@ -105,7 +107,11 @@ function parseToolCallResponse(response) {
 }
 
 test('MCP dogfood client harness exercises allow, review, dry-run and block decisions through stdio', async () => {
-  const client = createDogfoodClient();
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-mcp-dogfood-'));
+  const client = createDogfoodClient({
+    AXIOM_DB_PATH: path.join(tempDir, 'memory.db'),
+    AXIOM_MEMORY_PATH: path.join(tempDir, 'memory.json'),
+  });
   try {
     const init = await client.request('initialize', {});
     assert.equal(init.jsonrpc, '2.0');
@@ -185,5 +191,6 @@ test('MCP dogfood client harness exercises allow, review, dry-run and block deci
     assert.equal(approvalsAfter.structuredContent.approvals.length, approvalsBefore.structuredContent.approvals.length + 1);
   } finally {
     await client.close();
+    fs.rmSync(tempDir, { recursive: true, force: true });
   }
 });
