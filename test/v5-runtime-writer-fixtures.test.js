@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
+const { writeRuntimePackage } = require('../lib/v5/runtime-writer');
+
 const fixtureRoot = path.join(__dirname, '..', 'fixtures', 'v5', 'runtime-writer');
 
 const validFixtures = [
@@ -53,6 +55,29 @@ function assertWriterInputShape(fixture, relativePath) {
   assert.equal(fixture.writerInput.schemaVersion, 'v5.shared_trust_package.writer_input.v1');
 }
 
+function assertWriterResultMatchesFixture(fixture, relativePath) {
+  const firstResult = writeRuntimePackage(fixture.writerInput);
+  const secondResult = writeRuntimePackage(fixture.writerInput);
+
+  assert.deepEqual(secondResult, firstResult, `${relativePath} writer output should be deterministic`);
+  assert.equal(firstResult.verdict, fixture.expected.verdict, `${relativePath} writer verdict should match fixture`);
+  assert.equal(firstResult.reason_category, fixture.expected.reason_category, `${relativePath} reason category should match fixture`);
+
+  if (fixture.expected.verdict === 'ACCEPT') {
+    assert.equal(firstResult.ok, true, `${relativePath} accepted writer output should be ok`);
+    assert.equal(typeof firstResult.package, 'object', `${relativePath} accepted writer output should include package`);
+    assert.equal(firstResult.package.packageId, fixture.writerInput.packageId, `${relativePath} packageId should be preserved`);
+    assert.deepEqual(firstResult.package.issuer, fixture.writerInput.issuer, `${relativePath} issuer should be preserved`);
+    assert.deepEqual(firstResult.package.subject, fixture.writerInput.subject, `${relativePath} subject should be preserved`);
+    assert.deepEqual(firstResult.package.verdict, fixture.writerInput.verdict, `${relativePath} verdict metadata should be preserved`);
+    assert.deepEqual(firstResult.package.nonClaims, fixture.writerInput.nonClaims, `${relativePath} nonClaims should be preserved`);
+    return;
+  }
+
+  assert.equal(firstResult.ok, false, `${relativePath} blocked writer output should not be ok`);
+  assert.equal(Object.hasOwn(firstResult, 'package'), false, `${relativePath} blocked writer output must not emit package`);
+}
+
 test('V5 runtime writer fixtures expose exactly the expected 14 JSON files', () => {
   assert.deepEqual(listFixtureFiles(), [...allFixtures].sort());
 });
@@ -69,6 +94,7 @@ test('V5 runtime writer valid fixtures stay deterministic and accepted', () => {
     assert.equal(forbiddenContentPattern.test(text), false, `${relativePath} should not include forbidden content`);
     assert.equal(JSON.stringify(fixture).includes('runtimeWriterImplemented'), false, `${relativePath} must not claim runtime writer implementation`);
     assert.equal(JSON.stringify(fixture).includes('runtimeReaderImplemented'), false, `${relativePath} must not claim runtime reader implementation`);
+    assertWriterResultMatchesFixture(fixture, relativePath);
   }
 });
 
@@ -82,6 +108,7 @@ test('V5 runtime writer invalid fixtures stay fail-closed and deterministic', ()
     assert.equal(typeof fixture.expected.reason_category, 'string');
     assert.notEqual(fixture.expected.reason_category.trim(), '');
     assert.equal(forbiddenContentPattern.test(text), false, `${relativePath} should not include forbidden content`);
+    assertWriterResultMatchesFixture(fixture, relativePath);
   }
 });
 
