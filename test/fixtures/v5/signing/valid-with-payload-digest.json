@@ -1,0 +1,28 @@
+{
+  "fixtureType": "valid_signing_candidate",
+  "caseId": "signing-valid-payload-digest-001",
+  "description": "Structural envelope with deterministic placeholder payload digest metadata.",
+  "signingInput": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "packageId": "signing-package-digest-001",
+    "payload": {
+      "canonicalization": "json-stable-v1",
+      "contentRef": "local-contract-package-003",
+      "payloadDigest": "DIGEST_PLACEHOLDER_NOT_COMPUTED"
+    },
+    "keyId": "test-key-placeholder-003",
+    "algorithm": "test-structural-v1",
+    "signature": "STRUCTURAL_PLACEHOLDER_NOT_CRYPTOGRAPHIC"
+  },
+  "expected": {
+    "status": "structural_only",
+    "reasonCategory": "valid_signing_payload_metadata"
+  },
+  "nonClaims": [
+    "does_not_prove_digest_computation",
+    "does_not_prove_signature_creation",
+    "does_not_prove_verification",
+    "does_not_prove_trust",
+    "does_not_prove_transport"
+  ]
+}

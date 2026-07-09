@@ -1,0 +1,13 @@
+{
+  "fixtureType": "invalid_signing_candidate",
+  "caseId": "signing-invalid-missing-input-001",
+  "description": "Signing envelope without signingInput must fail closed.",
+  "expected": {
+    "status": "missing_required_field",
+    "reasonCategory": "missing_signing_input"
+  },
+  "nonClaims": [
+    "fixture_only",
+    "does_not_prove_signing"
+  ]
+}

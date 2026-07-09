@@ -1,0 +1,25 @@
+{
+  "fixtureType": "invalid_signing_candidate",
+  "caseId": "signing-invalid-malformed-signature-001",
+  "description": "Malformed structural signature metadata must fail closed.",
+  "signingInput": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "packageId": "signing-package-invalid-signature-001",
+    "payload": {
+      "canonicalization": "json-stable-v1",
+      "contentRef": "local-contract-package-005"
+    },
+    "keyId": "test-key-placeholder-005",
+    "algorithm": "test-structural-v1",
+    "signature": ""
+  },
+  "expected": {
+    "status": "malformed",
+    "reasonCategory": "malformed_signature_metadata"
+  },
+  "nonClaims": [
+    "fixture_only",
+    "does_not_prove_signature_creation",
+    "does_not_prove_verification"
+  ]
+}

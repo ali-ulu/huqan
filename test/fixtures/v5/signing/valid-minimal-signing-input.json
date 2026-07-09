@@ -1,0 +1,27 @@
+{
+  "fixtureType": "valid_signing_candidate",
+  "caseId": "signing-valid-minimal-001",
+  "description": "Minimal structural signing envelope without cryptographic material.",
+  "signingInput": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "packageId": "signing-package-minimal-001",
+    "payload": {
+      "canonicalization": "json-stable-v1",
+      "contentRef": "local-contract-package-001"
+    },
+    "keyId": "test-key-placeholder-001",
+    "algorithm": "test-structural-v1",
+    "signature": "STRUCTURAL_PLACEHOLDER_NOT_CRYPTOGRAPHIC"
+  },
+  "expected": {
+    "status": "structural_only",
+    "reasonCategory": "valid_signing_shape"
+  },
+  "nonClaims": [
+    "does_not_prove_signature_creation",
+    "does_not_prove_verification",
+    "does_not_prove_trust",
+    "does_not_prove_authorization",
+    "does_not_prove_transport"
+  ]
+}

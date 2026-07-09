@@ -1,0 +1,25 @@
+{
+  "fixtureType": "invalid_signing_candidate",
+  "caseId": "signing-invalid-algorithm-001",
+  "description": "Unsupported algorithm metadata must fail closed.",
+  "signingInput": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "packageId": "signing-package-invalid-algorithm-001",
+    "payload": {
+      "canonicalization": "json-stable-v1",
+      "contentRef": "local-contract-package-004"
+    },
+    "keyId": "test-key-placeholder-004",
+    "algorithm": "unsupported-structural-algorithm",
+    "signature": "STRUCTURAL_PLACEHOLDER_NOT_CRYPTOGRAPHIC"
+  },
+  "expected": {
+    "status": "unsupported_algorithm",
+    "reasonCategory": "unsupported_signing_algorithm"
+  },
+  "nonClaims": [
+    "fixture_only",
+    "does_not_prove_signature_creation",
+    "does_not_prove_verification"
+  ]
+}

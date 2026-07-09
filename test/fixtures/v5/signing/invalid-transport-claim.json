@@ -1,0 +1,29 @@
+{
+  "fixtureType": "invalid_signing_candidate",
+  "caseId": "signing-invalid-transport-claim-001",
+  "description": "Signing-shaped metadata that claims exchange must fail closed.",
+  "signingInput": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "packageId": "signing-package-transport-claim-001",
+    "payload": {
+      "canonicalization": "json-stable-v1",
+      "contentRef": "local-contract-package-009"
+    },
+    "keyId": "test-key-placeholder-009",
+    "algorithm": "test-structural-v1",
+    "signature": "STRUCTURAL_PLACEHOLDER_NOT_CRYPTOGRAPHIC"
+  },
+  "claims": {
+    "transportEnabled": true
+  },
+  "expected": {
+    "status": "unsupported_claim",
+    "reasonCategory": "transport_claim"
+  },
+  "nonClaims": [
+    "fixture_only",
+    "does_not_prove_transport",
+    "does_not_prove_a2a",
+    "does_not_prove_connector_enforcement"
+  ]
+}

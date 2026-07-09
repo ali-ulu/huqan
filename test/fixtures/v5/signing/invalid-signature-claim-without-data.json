@@ -1,0 +1,27 @@
+{
+  "fixtureType": "invalid_signing_candidate",
+  "caseId": "signing-invalid-claim-without-data-001",
+  "description": "A signing claim without signature data must fail closed.",
+  "signingInput": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "packageId": "signing-package-claim-only-001",
+    "payload": {
+      "canonicalization": "json-stable-v1",
+      "contentRef": "local-contract-package-006"
+    },
+    "keyId": "test-key-placeholder-006",
+    "algorithm": "test-structural-v1"
+  },
+  "claims": {
+    "signed": true
+  },
+  "expected": {
+    "status": "unsupported_claim",
+    "reasonCategory": "signature_claim_without_data"
+  },
+  "nonClaims": [
+    "fixture_only",
+    "does_not_prove_signature_creation",
+    "does_not_prove_verification"
+  ]
+}

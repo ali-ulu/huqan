@@ -1,0 +1,28 @@
+{
+  "fixtureType": "invalid_signing_candidate",
+  "caseId": "signing-invalid-verification-claim-001",
+  "description": "Signing metadata that claims verification must fail closed.",
+  "signingInput": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "packageId": "signing-package-verification-claim-001",
+    "payload": {
+      "canonicalization": "json-stable-v1",
+      "contentRef": "local-contract-package-007"
+    },
+    "keyId": "test-key-placeholder-007",
+    "algorithm": "test-structural-v1",
+    "signature": "STRUCTURAL_PLACEHOLDER_NOT_CRYPTOGRAPHIC"
+  },
+  "claims": {
+    "verificationRuntime": true
+  },
+  "expected": {
+    "status": "unsupported_claim",
+    "reasonCategory": "verification_claim"
+  },
+  "nonClaims": [
+    "fixture_only",
+    "does_not_prove_verification",
+    "does_not_prove_trust"
+  ]
+}
