@@ -1,0 +1,19 @@
+{
+  "fixtureType": "invalid_reader_candidate",
+  "expected": {
+    "status": "missing_required_field",
+    "reasonCategory": "missing_issuer_identity"
+  },
+  "candidate": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "packageId": "reader_fixture_invalid_issuer_001",
+    "subject": {
+      "type": "agent_action",
+      "id": "action.reader.invalid.003"
+    },
+    "verdict": {
+      "status": "review"
+    },
+    "nonClaims": ["invalid_fixture"]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "fixtureType": "invalid_reader_candidate",
+  "expected": {
+    "status": "malformed",
+    "reasonCategory": "malformed_reasoning_metadata"
+  },
+  "candidate": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "packageId": "reader_fixture_invalid_reasoning_001",
+    "issuer": {
+      "agentId": "agent.reader.fixture",
+      "workspaceId": "workspace.reader.fixture"
+    },
+    "subject": {
+      "type": "agent_action",
+      "id": "action.reader.invalid.007"
+    },
+    "verdict": {
+      "status": "review"
+    },
+    "reasoning": {
+      "summary": "",
+      "inputsReviewed": "not-an-array"
+    },
+    "nonClaims": ["invalid_fixture"]
+  }
+}

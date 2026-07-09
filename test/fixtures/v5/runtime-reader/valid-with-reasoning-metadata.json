@@ -1,0 +1,32 @@
+{
+  "fixtureType": "valid_reader_candidate",
+  "expected": {
+    "status": "readable",
+    "reasonCategory": "valid_reasoning_metadata"
+  },
+  "candidate": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "packageId": "reader_fixture_reasoning_001",
+    "issuer": {
+      "agentId": "agent.reader.fixture",
+      "workspaceId": "workspace.reader.fixture"
+    },
+    "subject": {
+      "type": "agent_action",
+      "id": "action.reader.fixture.004"
+    },
+    "verdict": {
+      "status": "review",
+      "reason": "reasoning_fixture"
+    },
+    "reasoning": {
+      "summary": "Fixture reasoning metadata for local read semantics.",
+      "inputsReviewed": ["policy.fixture", "context.fixture"],
+      "modelGenerated": false
+    },
+    "nonClaims": [
+      "reasoning_metadata_only",
+      "no_trust_decision"
+    ]
+  }
+}

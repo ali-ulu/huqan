@@ -1,0 +1,30 @@
+{
+  "fixtureType": "valid_reader_candidate",
+  "expected": {
+    "status": "readable",
+    "reasonCategory": "valid_package_candidate"
+  },
+  "candidate": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "packageId": "reader_fixture_valid_minimal_001",
+    "issuer": {
+      "agentId": "agent.reader.fixture",
+      "workspaceId": "workspace.reader.fixture"
+    },
+    "subject": {
+      "type": "agent_action",
+      "id": "action.reader.fixture.001"
+    },
+    "verdict": {
+      "status": "allow",
+      "reason": "fixture_candidate"
+    },
+    "nonClaims": [
+      "fixture_only",
+      "not_trusted",
+      "not_signed",
+      "not_verified",
+      "not_transported"
+    ]
+  }
+}

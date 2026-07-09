@@ -1,0 +1,23 @@
+{
+  "fixtureType": "invalid_reader_candidate",
+  "expected": {
+    "status": "unsupported_claim",
+    "reasonCategory": "trust_verification_status_claim"
+  },
+  "candidate": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "packageId": "reader_fixture_invalid_trust_status_001",
+    "issuer": {
+      "agentId": "agent.reader.fixture",
+      "workspaceId": "workspace.reader.fixture"
+    },
+    "subject": {
+      "type": "agent_action",
+      "id": "action.reader.invalid.010"
+    },
+    "verdict": {
+      "status": "verified"
+    },
+    "nonClaims": ["invalid_fixture"]
+  }
+}

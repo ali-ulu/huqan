@@ -1,0 +1,32 @@
+{
+  "fixtureType": "valid_reader_candidate",
+  "expected": {
+    "status": "readable",
+    "reasonCategory": "valid_provenance_metadata"
+  },
+  "candidate": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "packageId": "reader_fixture_provenance_001",
+    "issuer": {
+      "agentId": "agent.reader.fixture",
+      "workspaceId": "workspace.reader.fixture"
+    },
+    "subject": {
+      "type": "agent_action",
+      "id": "action.reader.fixture.005"
+    },
+    "verdict": {
+      "status": "dry_run_only",
+      "reason": "provenance_fixture"
+    },
+    "provenance": {
+      "traceId": "trace.reader.fixture.001",
+      "receiptId": "receipt.reader.fixture.001",
+      "source": "local_fixture"
+    },
+    "nonClaims": [
+      "provenance_metadata_only",
+      "no_cryptographic_verification"
+    ]
+  }
+}

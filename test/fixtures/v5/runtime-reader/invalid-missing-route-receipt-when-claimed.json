@@ -1,0 +1,26 @@
+{
+  "fixtureType": "invalid_reader_candidate",
+  "expected": {
+    "status": "missing_required_field",
+    "reasonCategory": "missing_route_receipt_metadata"
+  },
+  "candidate": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "packageId": "reader_fixture_invalid_route_receipt_001",
+    "issuer": {
+      "agentId": "agent.reader.fixture",
+      "workspaceId": "workspace.reader.fixture"
+    },
+    "subject": {
+      "type": "agent_action",
+      "id": "action.reader.invalid.006"
+    },
+    "verdict": {
+      "status": "review"
+    },
+    "claims": {
+      "routeReceiptSupport": true
+    },
+    "nonClaims": ["invalid_fixture"]
+  }
+}

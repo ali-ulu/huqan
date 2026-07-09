@@ -1,0 +1,22 @@
+{
+  "fixtureType": "invalid_reader_candidate",
+  "expected": {
+    "status": "missing_required_field",
+    "reasonCategory": "missing_trust_package_identity"
+  },
+  "candidate": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "issuer": {
+      "agentId": "agent.reader.fixture",
+      "workspaceId": "workspace.reader.fixture"
+    },
+    "subject": {
+      "type": "agent_action",
+      "id": "action.reader.invalid.001"
+    },
+    "verdict": {
+      "status": "block"
+    },
+    "nonClaims": ["invalid_fixture"]
+  }
+}

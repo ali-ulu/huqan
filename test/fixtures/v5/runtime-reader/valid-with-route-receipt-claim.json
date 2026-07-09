@@ -1,0 +1,36 @@
+{
+  "fixtureType": "valid_reader_candidate",
+  "expected": {
+    "status": "readable",
+    "reasonCategory": "valid_route_receipt_metadata"
+  },
+  "candidate": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "packageId": "reader_fixture_route_receipt_001",
+    "issuer": {
+      "agentId": "agent.reader.fixture",
+      "workspaceId": "workspace.reader.fixture"
+    },
+    "subject": {
+      "type": "agent_action",
+      "id": "action.reader.fixture.002"
+    },
+    "verdict": {
+      "status": "review",
+      "reason": "route_receipt_fixture"
+    },
+    "routeReceipt": {
+      "routeId": "route.reader.fixture.001",
+      "decisionPath": ["kernel", "review_gate"],
+      "handoff": {
+        "from": "agent.reader.fixture",
+        "to": "human.review.fixture"
+      }
+    },
+    "nonClaims": [
+      "route_receipt_metadata_only",
+      "no_runtime_exchange",
+      "no_transport"
+    ]
+  }
+}

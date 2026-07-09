@@ -1,0 +1,33 @@
+{
+  "fixtureType": "valid_reader_candidate",
+  "expected": {
+    "status": "readable",
+    "reasonCategory": "valid_nonclaims_preserved"
+  },
+  "candidate": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "packageId": "reader_fixture_nonclaims_001",
+    "issuer": {
+      "agentId": "agent.reader.fixture",
+      "workspaceId": "workspace.reader.fixture"
+    },
+    "subject": {
+      "type": "agent_action",
+      "id": "action.reader.fixture.003"
+    },
+    "verdict": {
+      "status": "block",
+      "reason": "fixture_boundary"
+    },
+    "nonClaims": [
+      "does_not_prove_runtime_reader",
+      "does_not_prove_runtime_writer",
+      "does_not_prove_signing",
+      "does_not_prove_verification",
+      "does_not_prove_a2a",
+      "does_not_prove_connector_enforcement",
+      "does_not_prove_marketplace",
+      "does_not_prove_agentaction_policy"
+    ]
+  }
+}
