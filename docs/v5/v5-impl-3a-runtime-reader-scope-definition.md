@@ -53,8 +53,9 @@ The reader responsibility may include:
 - parsing the package envelope without mutating it
 - normalizing known package fields into a read result
 - checking required package identity fields are present
-- checking issuer, subject, verdict, route receipt, reasoning metadata, and
-  provenance references are readable
+- checking issuer, subject, verdict, reasoning metadata, provenance references,
+  and explicit non-claims are readable
+- checking route receipt metadata when the package claims route receipt support
 - preserving explicit `nonClaims`
 - returning deterministic success or failure output
 - returning structured reason codes for malformed input
@@ -86,6 +87,9 @@ The reader must not accept network locations, remote package URLs, connector
 payloads, marketplace records, A2A messages, or signed envelopes unless later
 gates explicitly authorize those surfaces.
 
+The reader must also not accept persistent package stores or runtime exchange
+payloads unless a later gate explicitly authorizes those surfaces.
+
 ## Reader Output Boundary
 
 A future reader output may include:
@@ -109,6 +113,25 @@ The output must be deterministic for the same input.
 The output must not claim that a package is trusted, signed, verified,
 transported, connector-authorized, marketplace-ready, or policy-enforced unless
 separate later gates implement and validate those capabilities.
+
+Allowed reader status language should stay in the read, parse, and shape domain,
+such as:
+
+- `readable`
+- `malformed`
+- `missing_required_field`
+- `unsupported_version`
+- `unsupported_claim`
+- `blocked`
+
+Reader output must not use trust-verification status language, such as:
+
+- `trusted`
+- `verified`
+- `signed`
+- `authorized`
+- `enforced`
+- `marketplace_ready`
 
 ## Fail-Closed Boundary
 
@@ -201,7 +224,8 @@ implements, tests, reviews, merges, and closes that capability.
 
 This docs-only PR may close only if:
 
-- the only changed file is this document
+- the only changed file is
+  `docs/v5/v5-impl-3a-runtime-reader-scope-definition.md`
 - `git diff --check` passes
 - no implementation files changed
 - no schema, fixture, test, package, runtime, MCP, server, kernel, graph, or CLI
