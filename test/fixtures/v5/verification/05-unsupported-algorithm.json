@@ -1,0 +1,15 @@
+{
+  "caseId": "unsupported-algorithm",
+  "description": "Unsupported synthetic algorithm fails closed.",
+  "input": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "algorithm": "synthetic-unsupported-algorithm:v1",
+    "payload": { "canonicalization": "json-stable-v1", "payloadId": "fixture:payload:unsupported-algorithm-05", "contentRef": "fixture:content:unsupported-algorithm-05", "payloadDigest": "fixture-digest:unsupported-algorithm-05" },
+    "signature": "synthetic-signature-placeholder:v1:case-05",
+    "keyReference": "test-key:active-05",
+    "trustedKeyMetadata": { "status": "active", "keyReference": "test-key:active-05" },
+    "evaluationTime": "2026-01-15T12:00:00.000Z"
+  },
+  "expected": { "verificationStatus": "not_verified", "reasonCategory": "unsupported_algorithm" },
+  "nonClaims": ["package_trust_not_established", "action_authorization_not_established", "production_crypto_not_claimed"]
+}

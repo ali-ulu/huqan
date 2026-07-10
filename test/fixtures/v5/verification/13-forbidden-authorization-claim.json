@@ -1,0 +1,16 @@
+{
+  "caseId": "forbidden-authorization-claim",
+  "description": "Embedded synthetic authorization claim is rejected by the future contract.",
+  "input": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "algorithm": "test-structural-v1",
+    "payload": { "canonicalization": "json-stable-v1", "payloadId": "fixture:payload:authorization-claim-13", "contentRef": "fixture:content:authorization-claim-13", "payloadDigest": "fixture-digest:authorization-claim-13" },
+    "signature": "synthetic-signature-placeholder:v1:case-13",
+    "keyReference": "test-key:active-13",
+    "trustedKeyMetadata": { "status": "active", "keyReference": "test-key:active-13" },
+    "claims": { "actionAuthorization": "synthetic-claim-only" },
+    "evaluationTime": "2026-01-15T12:00:00.000Z"
+  },
+  "expected": { "verificationStatus": "not_verified", "reasonCategory": "forbidden_authorization_claim" },
+  "nonClaims": ["package_trust_not_established", "action_authorization_not_established", "production_crypto_not_claimed"]
+}

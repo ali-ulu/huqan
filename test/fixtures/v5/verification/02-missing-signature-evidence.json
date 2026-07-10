@@ -1,0 +1,19 @@
+{
+  "caseId": "missing-signature-evidence",
+  "description": "Missing signature evidence fails closed.",
+  "input": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "algorithm": "test-structural-v1",
+    "payload": {
+      "canonicalization": "json-stable-v1",
+      "payloadId": "fixture:payload:missing-signature-02",
+      "contentRef": "fixture:content:missing-signature-02",
+      "payloadDigest": "fixture-digest:missing-signature-02"
+    },
+    "keyReference": "test-key:active-02",
+    "trustedKeyMetadata": { "status": "active", "keyReference": "test-key:active-02" },
+    "evaluationTime": "2026-01-15T12:00:00.000Z"
+  },
+  "expected": { "verificationStatus": "not_verified", "reasonCategory": "missing_signature_evidence" },
+  "nonClaims": ["package_trust_not_established", "action_authorization_not_established", "production_crypto_not_claimed"]
+}

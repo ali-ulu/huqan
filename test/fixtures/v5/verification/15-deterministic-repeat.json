@@ -1,0 +1,29 @@
+{
+  "caseId": "deterministic-repeat",
+  "description": "Two byte-equivalent bounded inputs must share the same future result contract.",
+  "input": {
+    "evaluationCount": 2,
+    "equivalentInputs": [
+      {
+        "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+        "algorithm": "test-structural-v1",
+        "payload": { "canonicalization": "json-stable-v1", "payloadId": "fixture:payload:repeat-15", "contentRef": "fixture:content:repeat-15", "payloadDigest": "fixture-digest:repeat-15" },
+        "signature": "synthetic-signature-placeholder:v1:case-15",
+        "keyReference": "test-key:active-15",
+        "trustedKeyMetadata": { "status": "active", "keyReference": "test-key:active-15" },
+        "evaluationTime": "2026-01-15T12:00:00.000Z"
+      },
+      {
+        "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+        "algorithm": "test-structural-v1",
+        "payload": { "canonicalization": "json-stable-v1", "payloadId": "fixture:payload:repeat-15", "contentRef": "fixture:content:repeat-15", "payloadDigest": "fixture-digest:repeat-15" },
+        "signature": "synthetic-signature-placeholder:v1:case-15",
+        "keyReference": "test-key:active-15",
+        "trustedKeyMetadata": { "status": "active", "keyReference": "test-key:active-15" },
+        "evaluationTime": "2026-01-15T12:00:00.000Z"
+      }
+    ]
+  },
+  "expected": { "verificationStatus": "verified", "reasonCategory": "signature_valid" },
+  "nonClaims": ["package_trust_not_established", "action_authorization_not_established", "identity_verification_not_established", "external_exchange_not_established", "production_crypto_not_claimed"]
+}

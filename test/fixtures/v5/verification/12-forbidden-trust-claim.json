@@ -1,0 +1,16 @@
+{
+  "caseId": "forbidden-trust-claim",
+  "description": "Embedded synthetic trust claim is rejected by the future contract.",
+  "input": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "algorithm": "test-structural-v1",
+    "payload": { "canonicalization": "json-stable-v1", "payloadId": "fixture:payload:trust-claim-12", "contentRef": "fixture:content:trust-claim-12", "payloadDigest": "fixture-digest:trust-claim-12" },
+    "signature": "synthetic-signature-placeholder:v1:case-12",
+    "keyReference": "test-key:active-12",
+    "trustedKeyMetadata": { "status": "active", "keyReference": "test-key:active-12" },
+    "claims": { "packageTrust": "synthetic-claim-only" },
+    "evaluationTime": "2026-01-15T12:00:00.000Z"
+  },
+  "expected": { "verificationStatus": "not_verified", "reasonCategory": "forbidden_trust_claim" },
+  "nonClaims": ["package_trust_not_established", "action_authorization_not_established", "production_crypto_not_claimed"]
+}

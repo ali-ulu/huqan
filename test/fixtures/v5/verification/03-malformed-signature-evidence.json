@@ -1,0 +1,15 @@
+{
+  "caseId": "malformed-signature-evidence",
+  "description": "Malformed synthetic signature evidence fails closed.",
+  "input": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "algorithm": "test-structural-v1",
+    "payload": { "canonicalization": "json-stable-v1", "payloadId": "fixture:payload:malformed-signature-03", "contentRef": "fixture:content:malformed-signature-03", "payloadDigest": "fixture-digest:malformed-signature-03" },
+    "signature": "synthetic-signature-malformed:v1:case-03",
+    "keyReference": "test-key:active-03",
+    "trustedKeyMetadata": { "status": "active", "keyReference": "test-key:active-03" },
+    "evaluationTime": "2026-01-15T12:00:00.000Z"
+  },
+  "expected": { "verificationStatus": "not_verified", "reasonCategory": "malformed_signature_evidence" },
+  "nonClaims": ["package_trust_not_established", "action_authorization_not_established", "production_crypto_not_claimed"]
+}
