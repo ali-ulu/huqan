@@ -449,4 +449,3 @@ Also required:
 - no trust, authorization, or V5-complete claim exists
 
 No next gate is opened automatically.
-
