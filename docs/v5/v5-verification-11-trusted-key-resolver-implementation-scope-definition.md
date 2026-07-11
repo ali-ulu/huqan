@@ -131,6 +131,25 @@ The future implementation must evaluate in this stable fail-closed order:
 The order is part of the future test contract. No failure may fall through to
 `active`.
 
+## Normative Expiry Boundary
+
+The resolver must compare parsed timestamp instants, not timestamp strings.
+The comparison uses only the explicitly supplied `evaluationTime`:
+
+```txt
+expiresAt <= evaluationTime -> expired
+expiresAt > evaluationTime  -> eligible for continued active evaluation
+```
+
+Therefore, exact equality (`expiresAt == evaluationTime`) resolves to
+`expired`. Validity ends at the expiry instant; it does not continue through
+that boundary. This rule preserves fail-closed behavior and introduces no new
+state, reason category, or output field.
+
+The resolver must not use the system clock, `Date.now()`, an implicit current
+time, or a local-time default. Malformed timestamps remain subject to the
+existing fail-closed malformed handling.
+
 ## Active Result Boundary
 
 `active` is allowed only when all of these conditions hold:
@@ -140,7 +159,7 @@ The order is part of the future test contract. No failure may fall through to
 - exactly one matching record exists
 - the record contains only approved bounded metadata
 - the record explicitly declares `active`
-- the record is not expired at the supplied fixed evaluation time
+- the record has `expiresAt > evaluationTime` when expiry metadata is present
 - no forbidden material or ambiguity exists
 
 The absence of `revoked` does not imply `active`. A missing, unknown,
