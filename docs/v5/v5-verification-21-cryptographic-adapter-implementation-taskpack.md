@@ -158,4 +158,3 @@ V22 does not add key resolution, key store, certificate-chain validation, key
 generation, signing, receipt signing, network/database provider, resolver
 composition, package trust, authorization, A2A, connector enforcement, or a
 V5-complete claim.
-
