@@ -6,7 +6,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const {
-  evaluateBoundedVerification
+  evaluateBoundedVerification,
+  normalizeCryptographicVerificationEvidence
 } = require('../lib/v5/verification-core');
 
 const fixtureRoot = path.join(__dirname, 'fixtures', 'v5', 'verification');
@@ -170,4 +171,94 @@ test('verification core source contains no resolver, runtime, or crypto dependen
   assert.equal(source.includes('runtime-reader'), false);
   assert.equal(source.includes('runtime-writer'), false);
   assert.equal(source.includes('better-sqlite3'), false);
+});
+
+test('cryptographic evidence handoff normalizes every canonical adapter result', () => {
+  const cases = [
+    [{ cryptographicState: 'valid' }, { cryptographicState: 'valid' }],
+    [
+      { cryptographicState: 'invalid', reasonCategory: 'signature_invalid' },
+      { cryptographicState: 'invalid', reasonCategory: 'signature_invalid' }
+    ],
+    [
+      { cryptographicState: 'malformed', reasonCategory: 'message_malformed' },
+      { cryptographicState: 'malformed', reasonCategory: 'message_malformed' }
+    ],
+    [
+      { cryptographicState: 'unsupported', reasonCategory: 'algorithm_unsupported' },
+      { cryptographicState: 'unsupported', reasonCategory: 'algorithm_unsupported' }
+    ]
+  ];
+
+  for (const [input, expected] of cases) {
+    assert.deepEqual(normalizeCryptographicVerificationEvidence(input), expected);
+  }
+});
+
+test('cryptographic evidence handoff fails closed for invalid state and reason pairings', () => {
+  const invalidInputs = [
+    { cryptographicState: 'invalid' },
+    { cryptographicState: 'valid', reasonCategory: 'signature_invalid' },
+    { cryptographicState: 'invalid', reasonCategory: 'message_malformed' },
+    { cryptographicState: 'malformed', reasonCategory: 'signature_invalid' },
+    { cryptographicState: 'unsupported', reasonCategory: 'unknown_key' },
+    { cryptographicState: 'unknown', reasonCategory: 'signature_invalid' },
+    { cryptographicState: 'valid', extra: true },
+    null,
+    [],
+    'invalid'
+  ];
+
+  for (const input of invalidInputs) {
+    assert.deepEqual(normalizeCryptographicVerificationEvidence(input), {
+      cryptographicState: 'malformed',
+      reasonCategory: 'input_malformed'
+    });
+  }
+});
+
+test('cryptographic evidence handoff rejects inherited and accessor-bearing inputs without execution', () => {
+  const inherited = Object.create({ cryptographicState: 'valid' });
+  let getterCalls = 0;
+  const accessor = {};
+  Object.defineProperty(accessor, 'cryptographicState', {
+    enumerable: true,
+    get() {
+      getterCalls += 1;
+      return 'valid';
+    }
+  });
+
+  for (const input of [inherited, accessor]) {
+    assert.deepEqual(normalizeCryptographicVerificationEvidence(input), {
+      cryptographicState: 'malformed',
+      reasonCategory: 'input_malformed'
+    });
+  }
+  assert.equal(getterCalls, 0);
+});
+
+test('cryptographic evidence handoff is deterministic, fresh, and does not mutate frozen input', () => {
+  const input = Object.freeze({
+    cryptographicState: 'malformed',
+    reasonCategory: 'signature_malformed'
+  });
+  const first = normalizeCryptographicVerificationEvidence(input);
+  const second = normalizeCryptographicVerificationEvidence(input);
+
+  assert.deepEqual(first, second);
+  assert.notStrictEqual(first, second);
+  assert.notStrictEqual(first, input);
+  assert.deepEqual(input, {
+    cryptographicState: 'malformed',
+    reasonCategory: 'signature_malformed'
+  });
+});
+
+test('cryptographic evidence handoff is separate from bounded verification evaluation', () => {
+  const fixture = readFixtures().find(({ caseId }) => caseId === 'verified-supported-algorithm');
+  assert.deepEqual(evaluateBoundedVerification(fixture.input), fixture.expected);
+  assert.deepEqual(normalizeCryptographicVerificationEvidence({
+    cryptographicState: 'valid'
+  }), { cryptographicState: 'valid' });
 });
