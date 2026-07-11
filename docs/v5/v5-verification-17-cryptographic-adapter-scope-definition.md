@@ -90,6 +90,34 @@ crypto.verify(
 It must use no digest mode, fallback, PEM/JWK/raw-key decoding, key resolution,
 network access, persistence, package trust decision, or authorization decision.
 
+## Crypto Verification Exception Mapping
+
+The adapter invokes `crypto.verify` only after root input, exact-field,
+algorithm, message, public-key, and signature validation have succeeded, the
+public key has imported as DER/SPKI, and its asymmetric key type is Ed25519.
+
+- `crypto.verify` returning `true` returns `{ cryptographicState: "valid" }`.
+- `crypto.verify` returning `false` returns `{ cryptographicState: "invalid", reasonCategory: "signature_invalid" }`.
+- A `crypto.verify` exception after those successful checks returns `{ cryptographicState: "malformed", reasonCategory: "input_malformed" }`.
+
+The exception path is fail closed. It never throws through the public adapter
+API and never leaks an exception name, message, stack trace, Node/OpenSSL
+detail, input byte, or key material. It is not `signature_invalid` because no
+normal verification result was returned, and it is not a field-specific
+malformed reason because message, key, and signature structural validation
+already succeeded.
+
+Field-specific mappings remain unchanged: malformed message is
+`message_malformed`; key length, DER import, and non-Ed25519 key failures are
+`public_key_malformed`; malformed signature type or length is
+`signature_malformed`; and an unsupported algorithm is
+`algorithm_unsupported`.
+
+A future V22 adapter test must force this post-validation exception path and
+assert the exact two-key `malformed/input_malformed` result, no exception
+leakage, no public API throw, and unchanged caller-owned buffers. This
+synthetic test does not add or alter a JSON fixture.
+
 ## Non-Claims
 
 This scope definition does not add real crypto, signature verification, key
