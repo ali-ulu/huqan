@@ -289,15 +289,16 @@ Every existing fixture appears exactly once:
 | 04-expired-key-metadata-boundary.json | 11 | expired | expired_key_metadata | expiry before fixed time |
 | 05-lookup-unavailable.json | 9 | unavailable | key_lookup_unavailable | unavailable match |
 | 06-malformed-key-reference.json | 2 | malformed | malformed_trusted_key_record | empty reference |
-| 07-unknown-top-level-metadata.json | 3 or 6 | malformed | malformed_trusted_key_record | unknown record field |
+| 07-unknown-top-level-metadata.json | 6 | malformed | malformed_trusted_key_record | unknown record field |
 | 08-nested-secret-private-key-material.json | 4 | malformed | malformed_trusted_key_record | recursive private material |
 | 09-nested-network-provider-metadata.json | 5 | malformed | malformed_trusted_key_record | recursive network field |
 | 10-unsafe-key-material-alias.json | 4 | malformed | malformed_trusted_key_record | array alias rejection |
 | 11-ambiguous-duplicate-record.json | 7 | malformed | malformed_trusted_key_record | duplicate rejection |
 | 12-deterministic-repeat.json | 12 | active | omitted | repeated active result |
 
-The 07 fixture may be asserted at step 3 or step 6, but its final bounded
-result remains identical. Additional synthetic cases are planned only for
+The 07 fixture is a record-structure failure at step 6 because its unknown
+field is inside the matching record. Its final bounded result remains
+malformed. Additional synthetic cases are planned only for
 expiry equality, immutability, record-order independence, repeated execution,
 and malformed timestamp behavior. The fixture corpus remains unchanged.
 
