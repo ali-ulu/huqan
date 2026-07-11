@@ -1,0 +1,21 @@
+{
+  "caseId": "invalid-different-ed25519-public-key",
+  "description": "RFC 8032 section 7.1 TEST 3 public key with the RFC TEST 2 message and signature.",
+  "input": {
+    "algorithm": "ed25519-v1",
+    "messageBytesHex": "72",
+    "publicKeySpkiDerHex": "302a300506032b6570032100fc51cd8e6218a1a38da47ed00230f0580816ed13ba3303ac5deb911548908025",
+    "signatureBytesHex": "92a009a9f0d4cab8720e820b5f642540a2b27b5416503f8fb3762223ebdb69da085ac1e43e15996e458f3613d0f11d8c387b2eaeb4302aeeb00d291612bb0c00"
+  },
+  "expected": {
+    "cryptographicState": "invalid",
+    "reasonCategory": "signature_invalid"
+  },
+  "nonClaims": [
+    "package_trust_not_established",
+    "action_authorization_not_established",
+    "identity_verification_not_established",
+    "external_exchange_not_established",
+    "production_crypto_not_claimed"
+  ]
+}

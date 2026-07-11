@@ -1,0 +1,21 @@
+{
+  "caseId": "malformed-public-key-invalid-spki",
+  "description": "Parent valid-rfc8032-one-octet; SPKI DER byte index 0 changes from 30 to 31 while length remains 44.",
+  "input": {
+    "algorithm": "ed25519-v1",
+    "messageBytesHex": "72",
+    "publicKeySpkiDerHex": "312a300506032b65700321003d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c",
+    "signatureBytesHex": "92a009a9f0d4cab8720e820b5f642540a2b27b5416503f8fb3762223ebdb69da085ac1e43e15996e458f3613d0f11d8c387b2eaeb4302aeeb00d291612bb0c00"
+  },
+  "expected": {
+    "cryptographicState": "malformed",
+    "reasonCategory": "public_key_malformed"
+  },
+  "nonClaims": [
+    "package_trust_not_established",
+    "action_authorization_not_established",
+    "identity_verification_not_established",
+    "external_exchange_not_established",
+    "production_crypto_not_claimed"
+  ]
+}
