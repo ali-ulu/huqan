@@ -183,4 +183,3 @@ test('rejects over-limit canonical messages without mutating the input', () => {
   assert.throws(() => encodeJsonStableV1(value), RangeError);
   assert.equal(value.message, original);
 });
-
