@@ -273,14 +273,19 @@ describe('AB6 sandbox isolation core decisions', () => {
     assert.equal(result.reason, SANDBOX_ISOLATION_REASONS.SNAPSHOT_ABUSE_BLOCK);
   });
 
-  it('unknown source trust defaults to quarantine-safe evaluation', () => {
+  it('unknown source trust requires quarantine before execution', () => {
     const result = evaluate({
       source: '({ total: input.a })',
       sourceTrust: SOURCE_TRUST_LEVELS.UNKNOWN,
       runner: RUNNER_TYPES.NODE_VM,
     });
 
-    assert.equal(result.decision, SANDBOX_ISOLATION_DECISIONS.ALLOW);
+    assert.equal(result.decision, SANDBOX_ISOLATION_DECISIONS.QUARANTINE);
+    assert.equal(result.allowed, false);
+    assert.equal(result.canExecute, false);
+    assert.equal(result.canDryRun, true);
+    assert.equal(result.requiredReview, true);
+    assert.equal(result.reason, SANDBOX_ISOLATION_REASONS.UNKNOWN_SOURCE_TRUST_QUARANTINE);
     assert.ok(result.warnings.length > 0);
     assert.ok(result.warnings.some(w => w.includes('unknown')));
   });
