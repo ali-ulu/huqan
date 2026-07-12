@@ -503,7 +503,7 @@ class Graph {
           reviewed_by = excluded.reviewed_by,
           warnings = excluded.warnings
       `),
-      pruneEdges: this._db.prepare('DELETE FROM edges WHERE weight < ?'),
+      pruneEdges: this._db.prepare('DELETE FROM edges WHERE weight < ? AND workspace_id = ?'),
       countNodes: this._db.prepare('SELECT COUNT(*) as c FROM nodes'),
       countEdges: this._db.prepare('SELECT COUNT(*) as c FROM edges'),
       allNodes: this._db.prepare('SELECT * FROM nodes'),
@@ -940,22 +940,25 @@ class Graph {
     return mag === 0 ? 0 : dot / mag;
   }
 
-  prune(threshold) {
+  prune(threshold, workspaceId = 'default') {
     if (threshold === undefined) threshold = this._pruneThreshold;
-    const before = this._edges.length;
-    this._edges = this._edges.filter(e => e.weight >= threshold);
+    const scope = normalizeWorkspaceId(workspaceId);
+    const before = this._edges.filter(e => normalizeWorkspaceId(e.workspaceId) === scope).length;
+    this._edges = this._edges.filter(e => normalizeWorkspaceId(e.workspaceId) !== scope || e.weight >= threshold);
     this._rebuildIndex();
-    const pruned = before - this._edges.length;
+    const after = this._edges.filter(e => normalizeWorkspaceId(e.workspaceId) === scope).length;
+    const pruned = before - after;
     if (this._db && pruned > 0) {
-      this._stmts.pruneEdges.run(threshold);
+      this._stmts.pruneEdges.run(threshold, scope);
     }
     return pruned;
   }
 
-  optimize() {
+  optimize(workspaceId = 'default') {
+    const scope = normalizeWorkspaceId(workspaceId);
     const now = Date.now();
-    let pruned = this.prune();
-    const nodeIds = Object.keys(this._nodes);
+    let pruned = this.prune(undefined, scope);
+    const nodeIds = Object.keys(this._nodes).filter(id => normalizeWorkspaceId(this._nodes[id].workspaceId) === scope);
     let removedNodes = 0;
     for (const id of nodeIds) {
       const node = this._nodes[id];

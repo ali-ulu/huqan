@@ -250,6 +250,20 @@ describe('Graph - Optimize', () => {
     const result = g.optimize();
     assert.ok(result.pruned > 0);
   });
+
+  it('optimize scopes pruning to the requested workspace', () => {
+    g = new Graph({ pruneThreshold: 0.3, useSQLite: false });
+    for (const workspaceId of ['one', 'two']) {
+      g.addNode('a', 'a', null, { workspaceId });
+      g.addNode('b', 'b', null, { workspaceId });
+      g.addEdge('a', 'b', 'bag', { workspaceId, weight: 0.1 });
+    }
+
+    const result = g.optimize('one');
+    assert.strictEqual(result.pruned, 1);
+    assert.strictEqual(g.getEdge('a', 'b', 'bag', 'one'), null);
+    assert.ok(g.getEdge('a', 'b', 'bag', 'two'));
+  });
 });
 
 describe('Graph - Prune (Budama)', () => {
@@ -264,6 +278,19 @@ describe('Graph - Prune (Budama)', () => {
     const pruned = g.prune(0.3);
     assert.strictEqual(pruned, 1);
     assert.strictEqual(g.getEdge('a', 'c', 'zayif'), null);
+  });
+
+  it('prune keeps edges outside the default workspace', () => {
+    g = new Graph({ useSQLite: false });
+    for (const workspaceId of ['default', 'other']) {
+      g.addNode('a', 'a', null, { workspaceId });
+      g.addNode('b', 'b', null, { workspaceId });
+      g.addEdge('a', 'b', 'bag', { workspaceId, weight: 0.1 });
+    }
+
+    assert.strictEqual(g.prune(0.3), 1);
+    assert.strictEqual(g.getEdge('a', 'b', 'bag', 'default'), null);
+    assert.ok(g.getEdge('a', 'b', 'bag', 'other'));
   });
 });
 
@@ -328,6 +355,25 @@ describe('Graph - Save/Load', { concurrency: false }, () => {
     assert.strictEqual(edge.confidence, 0.82);
     assert.strictEqual(edge.source, 'test');
     assert.deepStrictEqual(edge.evidence, ['kedi hayvandır']);
+
+    try { fs.unlinkSync(testDb); } catch (_) {}
+    try { fs.unlinkSync(testFile); } catch (_) {}
+  });
+
+  it('SQLite: prune does not delete another workspace edge', () => {
+    try { fs.unlinkSync(testDb); } catch (_) {}
+    const g = new Graph({ memoryPath: testFile, dbPath: testDb, useSQLite: true });
+    for (const workspaceId of ['one', 'two']) {
+      g.addNode('a', 'a', null, { workspaceId });
+      g.addNode('b', 'b', null, { workspaceId });
+      g.addEdge('a', 'b', 'bag', { workspaceId, weight: 0.1 });
+    }
+
+    assert.strictEqual(g.prune(0.3, 'one'), 1);
+    const reloaded = new Graph({ memoryPath: testFile, dbPath: testDb, useSQLite: true });
+    reloaded.load();
+    assert.strictEqual(reloaded.getEdge('a', 'b', 'bag', 'one'), null);
+    assert.ok(reloaded.getEdge('a', 'b', 'bag', 'two'));
 
     try { fs.unlinkSync(testDb); } catch (_) {}
     try { fs.unlinkSync(testFile); } catch (_) {}
