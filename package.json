@@ -50,7 +50,7 @@
     "author": "Huqan Contributors",
     "license": "Apache-2.0",
     "huqan": {
-                  "testStatus":  "1773 tests / 1744 pass / 0 fail / 29 skipped"
+                  "testStatus":  "1893 tests / 1864 pass / 0 fail / 29 skipped"
               },
     "engines":  {
                     "node":  "\u003e=18.0.0"
