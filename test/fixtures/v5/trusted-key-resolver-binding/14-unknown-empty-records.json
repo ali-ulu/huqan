@@ -1,0 +1,17 @@
+{
+  "caseId": "14-unknown-empty-records",
+  "description": "An empty record set produces the existing unknown result.",
+  "input": {
+    "keyReference": "test-key:binding-unknown-empty",
+    "evaluationTime": "2026-02-01T12:00:00.000Z",
+    "records": []
+  },
+  "expected": { "keyState": "unknown", "reasonCategory": "unknown_key" },
+  "nonClaims": [
+    "package_trust_not_established",
+    "action_authorization_not_established",
+    "identity_verification_not_established",
+    "external_exchange_not_established",
+    "production_crypto_not_claimed"
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "caseId": "03-active-opaque-44-byte-key",
+  "description": "Active record owns an opaque bounded 44-byte value without claiming cryptographic validity.",
+  "input": {
+    "keyReference": "test-key:binding-active-opaque",
+    "evaluationTime": "2026-02-01T12:00:00.000Z",
+    "records": [{
+      "keyReference": "test-key:binding-active-opaque",
+      "status": "active",
+      "expiresAt": "2026-12-31T23:59:59.000Z",
+      "publicKeySpkiDer": {
+        "kind": "buffer-hex",
+        "hex": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }]
+  },
+  "expected": {
+    "keyState": "active",
+    "keyReference": "test-key:binding-active-opaque",
+    "publicKeySpkiDerHex": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "nonClaims": [
+    "package_trust_not_established",
+    "action_authorization_not_established",
+    "identity_verification_not_established",
+    "external_exchange_not_established",
+    "production_crypto_not_claimed"
+  ]
+}

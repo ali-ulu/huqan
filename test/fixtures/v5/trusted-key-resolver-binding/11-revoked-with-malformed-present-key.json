@@ -1,0 +1,21 @@
+{
+  "caseId": "11-revoked-with-malformed-present-key",
+  "description": "Whole-record validation rejects malformed key material before lifecycle selection.",
+  "input": {
+    "keyReference": "test-key:binding-revoked-malformed",
+    "evaluationTime": "2026-02-01T12:00:00.000Z",
+    "records": [{
+      "keyReference": "test-key:binding-revoked-malformed",
+      "status": "revoked",
+      "publicKeySpkiDer": { "kind": "raw-json", "value": null }
+    }]
+  },
+  "expected": { "keyState": "malformed", "reasonCategory": "malformed_trusted_key_record" },
+  "nonClaims": [
+    "package_trust_not_established",
+    "action_authorization_not_established",
+    "identity_verification_not_established",
+    "external_exchange_not_established",
+    "production_crypto_not_claimed"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "caseId": "09-revoked-without-key",
+  "description": "A revoked record remains non-active without public key material.",
+  "input": {
+    "keyReference": "test-key:binding-revoked-empty",
+    "evaluationTime": "2026-02-01T12:00:00.000Z",
+    "records": [{
+      "keyReference": "test-key:binding-revoked-empty",
+      "status": "revoked"
+    }]
+  },
+  "expected": { "keyState": "revoked", "reasonCategory": "revoked_key" },
+  "nonClaims": [
+    "package_trust_not_established",
+    "action_authorization_not_established",
+    "identity_verification_not_established",
+    "external_exchange_not_established",
+    "production_crypto_not_claimed"
+  ]
+}
