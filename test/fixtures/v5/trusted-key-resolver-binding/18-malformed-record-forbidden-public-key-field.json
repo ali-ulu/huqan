@@ -1,0 +1,22 @@
+{
+  "caseId": "18-malformed-record-forbidden-public-key-field",
+  "description": "An unauthorized publicKeyPem record field fails closed without PEM material.",
+  "input": {
+    "keyReference": "test-key:binding-forbidden-record-field",
+    "evaluationTime": "2026-02-01T12:00:00.000Z",
+    "records": [{
+      "keyReference": "test-key:binding-forbidden-record-field",
+      "status": "active",
+      "expiresAt": "2026-12-31T23:59:59.000Z",
+      "publicKeyPem": "forbidden-test-value"
+    }]
+  },
+  "expected": { "keyState": "malformed", "reasonCategory": "malformed_trusted_key_record" },
+  "nonClaims": [
+    "package_trust_not_established",
+    "action_authorization_not_established",
+    "identity_verification_not_established",
+    "external_exchange_not_established",
+    "production_crypto_not_claimed"
+  ]
+}
