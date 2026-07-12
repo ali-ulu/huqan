@@ -2170,7 +2170,7 @@ if (verbSuffix.test(predicate)) {
     const dusukAgirlik = agirliklar.filter(w => w < 0.3).length;
 
     // Ã–z-bilgi: graph kendisi hakk?nda ne biliyor?
-    const selfNodes = ['axiom', 'kernel', 'dream', 'r?ya', 'hipotez'];
+    const selfNodes = ['axiom', 'kernel', 'dream', 'rüya', 'hipotez'];
     const selfBilgi = {};
     for (const n of selfNodes) {
       const node = this.graph.getNode(n, workspaceId);
@@ -2331,8 +2331,9 @@ if (verbSuffix.test(predicate)) {
       if (h.confidence < defaultMin) continue;
 
       const rel = h.relation || (
-        h.type === 'benzerlik' || h.type === 'vektür-benzerlik' ? 'benzer' :
-        h.type === 'baÄŸlant?-?nerisi' ? 'hipotez' : 'hipotez'
+        h.type === 'benzerlik' || h.type === 'vektör-benzerlik'
+          ? 'benzer'
+          : 'hipotez'
       );
 
       const existing = this.graph.getEdge(h.from, h.to, rel);

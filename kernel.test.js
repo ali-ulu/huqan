@@ -345,3 +345,51 @@ describe('Kernel - Capability System', () => {
     assert.strictEqual(k.requireCapability('temporal'), true);
   });
 });
+
+describe('Kernel - Dream hypothesis regressions', () => {
+  it('selfEvolve maps vektör-benzerlik to benzer without a relation field', () => {
+    const kernel = freshKernel({ useSQLite: false, loadPlugins: false });
+    const Dream = require('./dream');
+    const originalDream = Dream.prototype.dream;
+    const originalCommit = kernel._commitBackgroundEdge;
+    const proposedRelations = [];
+
+    Dream.prototype.dream = function () {
+      return [{
+        from: 'kaynak',
+        to: 'hedef',
+        type: 'vektör-benzerlik',
+        confidence: 0.9,
+      }];
+    };
+    kernel._commitBackgroundEdge = function (from, to, relation) {
+      proposedRelations.push({ from, to, relation });
+      return { decision: 'review', edge: null };
+    };
+
+    try {
+      const result = kernel.selfEvolve();
+      assert.deepStrictEqual(proposedRelations, [{
+        from: 'kaynak',
+        to: 'hedef',
+        relation: 'benzer',
+      }]);
+      assert.strictEqual(result.deferred, 1);
+      assert.strictEqual(result.deferredDetails[0].relation, 'benzer');
+    } finally {
+      Dream.prototype.dream = originalDream;
+      kernel._commitBackgroundEdge = originalCommit;
+    }
+  });
+
+  it('introspect recognizes the canonical rüya self node', () => {
+    const kernel = freshKernel({ useSQLite: false, loadPlugins: false });
+    kernel.graph.addNode('rüya', null, 'default');
+
+    const result = kernel.introspect();
+
+    assert.strictEqual(result.ok, true);
+    assert.deepStrictEqual(result.data.ozBilgi.rüya, { var: true, kenar: 0 });
+    assert.strictEqual(Object.hasOwn(result.data.ozBilgi, 'r?ya'), false);
+  });
+});
