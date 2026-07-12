@@ -4,6 +4,8 @@
 **Status:** Ready for private alpha
 **Depends on:** V2.5 Agent Brake Layer (sealed)
 
+**Current runtime correction (2026-07-12):** AB6 is a policy classifier for sandboxed code execution. Current typed MCP tools do not execute untrusted code, so `callTool()` does not invoke AB6. Any future MCP code-execution surface must add an AB6 integration gate before execution.
+
 ---
 
 ## What Is MCP Private Alpha
@@ -23,7 +25,7 @@ Private alpha is **not** public beta. Access is invite-only. The surface area is
 | AB3 — Code Change Gate | ✅ Safe | Verification only, no mutations |
 | AB4 — Memory Mutation Gate | ✅ Safe | Approval only, never writes |
 | AB5 — Automation Safety Gate | ✅ Safe | Review only, no automation |
-| AB6 — Sandbox Isolation Gate | ✅ Safe | Classification only, no execution |
+| AB6 — Sandbox Isolation Gate | ✅ Safe | Classification only; not invoked by current typed MCP dispatch because no MCP tool executes untrusted code |
 | Risk classification API | ✅ Safe | Stateless, deterministic |
 | Decision summary API | ✅ Safe | Read-only aggregation |
 
@@ -37,7 +39,7 @@ Private alpha is **not** public beta. Access is invite-only. The surface area is
 | Auto-merge | Safety policy violation | Never unless repo policy |
 | Direct memory writes from MCP | AB4 must gate all writes | V2.6 runtime integration |
 | Tool execution from MCP | AB2 must gate all execution | V2.6 runtime integration |
-| Sandbox execution from MCP | AB6 must gate all execution | V2.6 runtime integration |
+| Sandbox execution from MCP | No executor exists; AB6 integration is required before one can be added | Future code-execution gate |
 | Recursive automation | Blocked by AB5 | Never |
 | Unscoped permissions | Blocked by AB1+AB2 | Never |
 
@@ -116,14 +118,14 @@ External Action Requested
           │
           ▼
    ┌─────────────┐
-   │   AB6       │  Evaluate sandbox isolation
+   │   AB6       │  Required only for sandboxed code execution
    │   Sandbox   │  (allow/quarantine/rollback/block)
    │   Isolation │
    └──────┬──────┘
           │
           ▼
-   EXECUTION ALLOWED
-   (only if all gates pass)
+   TYPED MCP DISPATCH
+   (AB6 is not applicable until code execution is added)
 ```
 
 **Key principle:** No gate executes runtime operations. All gates classify, authorize, verify, or advise. Execution happens downstream, only after all gates pass.
@@ -146,7 +148,8 @@ External Action Requested
 - [x] All enums frozen
 - [x] Fail-safe behavior confirmed (unknown → block)
 - [x] Documentation complete
-- [x] MCP server runtime integration (V2.6-PR0 inventory, PR1 adapter, PR2 enforcement)
+- [x] MCP server runtime integration for the currently applicable AB1, AB2, and AB4 gates
+- [ ] AB6 runtime integration (not applicable until an MCP sandbox/code executor exists)
 - [x] Config validation for MCP tools (V2.6 adapter classifies all 10 tools)
 - [x] Limited tool surface for alpha testers (8 allow, 1 review, 1 dry_run_only)
 - [ ] Monitoring/logging for alpha usage (post-alpha)
@@ -187,8 +190,8 @@ External Action Requested
 1. Show tool call without brake layer → unsafe action allowed
 2. Enable AB1 → risk classification blocks critical action
 3. Enable AB1+AB2 → unauthorized tool call blocked
-4. Enable full chain → all six gates active
-5. Attempt untrusted code execution → AB6 blocks (unknown runner)
+4. Show the current typed MCP dispatch gates
+5. Demonstrate AB6 classification separately; no MCP code executor exists
 6. Attempt memory mutation → AB4 blocks (unauthorized)
 7. Show summary: "6 gates, 0 bypass, all safe"
 ```
@@ -204,8 +207,8 @@ External Action Requested
 | Tool call gating | None | AB2 authorizes all tool calls | AB2 wired at MCP boundary |
 | Code change verification | None | AB3 verifies all code changes | — |
 | Memory mutation approval | None | AB4 approves all memory writes | AB4 wired at MCP boundary |
-| Automation safety review | None | AB5 reviews all automation | AB5 wired at MCP boundary |
-| Sandbox isolation | None | AB6 evaluates all sandbox execution | AB6 wired at MCP boundary |
+| Automation safety review | None | AB5 reviews all automation | Not wired to typed MCP dispatch; no current MCP automation surface invokes it |
+| Sandbox isolation | None | AB6 evaluates sandbox execution policy | Not wired to typed MCP dispatch; required before future code execution |
 | MCP dispatch gating | None | None | **callTool() gate intercept** |
 | Unknown tool handling | Crash | Crash | **Block with structured response** |
 | Test coverage | Baseline | +181 gate-specific tests | +26 MCP gate tests |

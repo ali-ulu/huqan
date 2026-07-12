@@ -101,9 +101,9 @@ Behind the scenes:
 
 ---
 
-## The 6 gates
+## Gate applicability
 
-Every MCP tool call passes through these gates in order:
+Typed MCP dispatch applies the gates listed for each tool. AB6 applies only if a future MCP operation executes untrusted code; no current MCP tool has that capability.
 
 | Gate | Module | What it checks |
 |------|--------|----------------|
@@ -112,9 +112,9 @@ Every MCP tool call passes through these gates in order:
 | AB3 | `code-change-gate.js` | Code change verification (if applicable) |
 | AB4 | `memory-mutation-gate.js` | Memory/knowledge write authorization |
 | AB5 | `automation-safety-gate.js` | Automation safety review (if applicable) |
-| AB6 | `sandbox-isolation.js` | Sandbox isolation enforcement |
+| AB6 | `sandbox-isolation.js` | Sandbox isolation policy for future code execution |
 
-If any gate returns `block` or `review`, the action stops immediately.
+If an applicable gate returns `block` or `review`, the action stops immediately.
 
 ---
 

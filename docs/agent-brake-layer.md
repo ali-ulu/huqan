@@ -95,6 +95,6 @@ The Agent Brake Layer is delivered incrementally. Each future PR is gated by `do
 - **PR-AB3** — Code Change Gate (block agent-initiated code mutations without `HUMAN_REVIEW`).
 - **PR-AB4** — Memory Mutation Gate (block direct production memory writes; route through Memory Core admission).
 - **PR-AB5** — No Auto-Merge / No Auto-Deploy Enforcement (server / policy-level guard).
-- **PR-AB6** — Sandbox / Rollback Isolation (deterministic sandbox execution with rollback semantics).
+- **PR-AB6** — Sandbox / Rollback Isolation policy (deterministic classification and rollback semantics; not a sandbox executor).
 
 Each PR in this roadmap ships its own tests and its own SECURITY-GATE pass.

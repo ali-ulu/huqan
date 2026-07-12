@@ -100,7 +100,7 @@ This document defines the primary security threats to AXIOM / HUQAN, categorized
 **Impact**: Exposure of proprietary algorithms, sensitive content, and user interactions.
 
 **Existing Mitigations**:
-- In-memory sandbox isolation with `vm` module.
+- AB6 sandbox isolation policy classification; no production MCP sandbox executor is currently wired.
 - Limited metadata logging.
 - Internal tools output filtering for sensitive content.
 
@@ -228,7 +228,7 @@ The AXIOM / HUQAN ecosystem will face evolving threats as it scales:
 
 #### Risk Mitigation Philosophy
 
-1. **Least Privilege Execution**: All external tools operate in restricted sandbox environments.
+1. **Least Privilege Execution**: External tool requests are classified and blocked or queued for review; no production sandbox executor is currently claimed.
 2. **Defense in Depth**: Multiple layers of security controls (network, sandbox, trust gates, audit).
 3. **Continuous Validation**: Ongoing monitoring and validation of security controls.
 4. **Fail Secure**: Default deny for unknown tools, explicit allow for known tools.
