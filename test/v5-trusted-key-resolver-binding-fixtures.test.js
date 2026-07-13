@@ -47,6 +47,10 @@ const expectedResolverFiles = [
   '11-ambiguous-duplicate-record.json',
   '12-deterministic-repeat.json'
 ];
+const legacyDescriptorMigrationExceptions = new Map([
+  ['01-active-key-reference.json', 'resolver-active-key-reference'],
+  ['12-deterministic-repeat.json', 'resolver-deterministic-repeat']
+]);
 
 const nonClaims = [
   'package_trust_not_established',
@@ -535,25 +539,52 @@ test('secret-material scan is precise and nonClaims remain exact', () => {
   }
 });
 
-test('original resolver corpus remains unchanged and descriptor-free', () => {
+test('legacy resolver corpus permits only the two reconciled descriptor migrations', () => {
   const before = new Map(expectedResolverFiles.map((file) => [file, fixtureHash(resolverRoot, file)]));
-  const fixtures = expectedResolverFiles.map((file) => loadFixture(resolverRoot, file));
+  const fixtures = expectedResolverFiles.map((file) => ({ file, fixture: loadFixture(resolverRoot, file) }));
   const bindingCaseIds = new Set(loadBindingCorpus().map(({ fixture }) => fixture.caseId));
+  const exceptionFiles = new Set(legacyDescriptorMigrationExceptions.keys());
   assert.equal(fixtures.length, 12);
-  assert.equal(new Set(fixtures.map((fixture) => fixture.caseId)).size, 12);
-  assert.equal(fixtures.some((fixture) => bindingCaseIds.has(fixture.caseId)), false);
+  assert.equal(legacyDescriptorMigrationExceptions.size, 2);
+  assert.equal(exceptionFiles.size, 2);
+  assert.equal(new Set(fixtures.map(({ fixture }) => fixture.caseId)).size, 12);
+  assert.equal(fixtures.some(({ fixture }) => bindingCaseIds.has(fixture.caseId)), false);
 
-  function assertNoBindingField(value, label) {
+  function assertNoFixtureOnlyExpectedField(value, label) {
     if (Array.isArray(value)) {
-      value.forEach((child) => assertNoBindingField(child, label));
+      value.forEach((child) => assertNoFixtureOnlyExpectedField(child, label));
       return;
     }
     if (!value || typeof value !== 'object') return;
-    assert.equal(Object.hasOwn(value, 'publicKeySpkiDer'), false, `${label}: no binding field`);
-    for (const child of Object.values(value)) assertNoBindingField(child, label);
+    assert.equal(Object.hasOwn(value, 'publicKeySpkiDerHex'), false, `${label}: no fixture-only expected field in input`);
+    for (const child of Object.values(value)) assertNoFixtureOnlyExpectedField(child, label);
   }
 
-  fixtures.forEach((fixture) => assertNoBindingField(fixture, fixture.caseId));
+  for (const { file, fixture } of fixtures) {
+    const expectedCaseId = legacyDescriptorMigrationExceptions.get(file);
+    const locations = collectDescriptorLocations(fixture.input);
+    assertNoFixtureOnlyExpectedField(fixture.input, fixture.caseId);
+
+    if (expectedCaseId === undefined) {
+      assert.equal(locations.length, 0, `${fixture.caseId}: no unreviewed descriptor migration`);
+      continue;
+    }
+
+    assert.equal(fixture.caseId, expectedCaseId, `${file}: fixed migration identity`);
+    assert.equal(fixture.expected.keyState, 'active', `${fixture.caseId}: active lifecycle path`);
+    assert.ok(locations.length > 0, `${fixture.caseId}: canonical descriptor required`);
+    for (const { descriptor, trail } of locations) {
+      assert.equal(trail.at(-1), 'publicKeySpkiDer', `${fixture.caseId}: descriptor field`);
+      assert.equal(trail.at(-2), 'trustedKeyRecord', `${fixture.caseId}: descriptor record owner`);
+      validateDescriptor(descriptor, `${fixture.caseId}:${trail.join('.')}`);
+    }
+  }
+
+  assert.equal(
+    fixtures.filter(({ file }) => exceptionFiles.has(file)).length,
+    2,
+    'both exact migration exceptions exist'
+  );
   const after = new Map(expectedResolverFiles.map((file) => [file, fixtureHash(resolverRoot, file)]));
   assert.deepEqual(after, before);
 });

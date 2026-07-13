@@ -51,6 +51,16 @@ const expectedOutcomes = new Map([
   ['resolver-ambiguous-duplicate-record', ['malformed', 'malformed_trusted_key_record']],
   ['resolver-deterministic-repeat', ['active', undefined]]
 ]);
+const activeExpected = new Map([
+  ['resolver-active-key-reference', [
+    'test-key:resolver-active-01',
+    '302a300506032b65700321003d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c'
+  ]],
+  ['resolver-deterministic-repeat', [
+    'test-key:resolver-repeat-12',
+    '302a300506032b65700321003d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c'
+  ]]
+]);
 const forbiddenMaterialKeys = /^(privateKey|private_key|secret|credential|token|password|networkEndpoint|network_endpoint|url|uri|endpoint|certificate|pem|jwk|keyMaterial|key_material)$/i;
 
 function fixtureFiles() {
@@ -126,6 +136,27 @@ test('trusted-key resolver fixtures expose only bounded contract values', () => 
       true,
       `${file} nonClaims`
     );
+
+    if (fixture.expected.keyState === 'active') {
+      const [keyReference, publicKeySpkiDerHex] = activeExpected.get(fixture.caseId);
+      const inputs = Array.isArray(fixture.input.equivalentInputs)
+        ? fixture.input.equivalentInputs
+        : [fixture.input];
+      assert.deepEqual(Object.keys(fixture.expected).sort(), [
+        'keyReference',
+        'keyState',
+        'publicKeySpkiDerHex'
+      ]);
+      assert.equal(fixture.expected.keyReference, keyReference, `${file} active key reference`);
+      assert.equal(fixture.expected.publicKeySpkiDerHex, publicKeySpkiDerHex, `${file} active key bytes`);
+      assert.match(fixture.expected.publicKeySpkiDerHex, /^[0-9a-f]{88}$/);
+      for (const input of inputs) {
+        const descriptor = input.trustedKeyRecord.publicKeySpkiDer;
+        assert.deepEqual(Object.keys(descriptor).sort(), ['hex', 'kind']);
+        assert.equal(descriptor.kind, 'buffer-hex');
+        assert.equal(descriptor.hex, publicKeySpkiDerHex);
+      }
+    }
   }
 });
 
@@ -136,6 +167,11 @@ test('trusted-key resolver fixture outcomes match the merged state contract', ()
     const fixture = fixtureByCaseId(fixtures, caseId);
     assert.equal(fixture.expected.keyState, expectedState, `${caseId} keyState`);
     assert.equal(fixture.expected.reasonCategory, expectedReason, `${caseId} reasonCategory`);
+    if (expectedState === 'active') {
+      const [keyReference, publicKeySpkiDerHex] = activeExpected.get(caseId);
+      assert.equal(fixture.expected.keyReference, keyReference, `${caseId} keyReference`);
+      assert.equal(fixture.expected.publicKeySpkiDerHex, publicKeySpkiDerHex, `${caseId} key bytes`);
+    }
   }
 });
 
