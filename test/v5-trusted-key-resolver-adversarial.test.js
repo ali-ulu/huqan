@@ -8,6 +8,7 @@ const path = require('node:path');
 const { resolveTrustedKeyState } = require('../lib/v5/trusted-key-resolver');
 
 const FIXED_TIME = '2026-02-01T12:00:00.000Z';
+const PUBLIC_KEY_SPKI_DER_HEX = '302a300506032b65700321003d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c';
 const MALFORMED = {
   keyState: 'malformed',
   reasonCategory: 'malformed_trusted_key_record'
@@ -21,10 +22,23 @@ function validInput(overrides = {}) {
     records: [{
       keyReference,
       status: 'active',
-      expiresAt: '2026-12-31T23:59:59.000Z'
+      expiresAt: '2026-12-31T23:59:59.000Z',
+      publicKeySpkiDer: publicKey()
     }],
     evaluationTime: FIXED_TIME,
     ...overrides
+  };
+}
+
+function publicKey() {
+  return Buffer.from(PUBLIC_KEY_SPKI_DER_HEX, 'hex');
+}
+
+function activeResult(keyReference = 'test-key:adversarial-active') {
+  return {
+    keyState: 'active',
+    keyReference,
+    publicKeySpkiDer: publicKey()
   };
 }
 
@@ -40,6 +54,18 @@ function assertMalformed(input) {
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function snapshotInput(input) {
+  return {
+    ...input,
+    records: input.records.map((record) => ({
+      ...record,
+      ...(Buffer.isBuffer(record.publicKeySpkiDer)
+        ? { publicKeySpkiDer: Buffer.from(record.publicKeySpkiDer) }
+        : {})
+    }))
+  };
 }
 
 test('exports only the bounded resolver API', () => {
@@ -74,7 +100,7 @@ test('null-prototype and frozen valid inputs remain bounded and usable', () => {
   Object.freeze(input.records);
   Object.freeze(input);
 
-  exact(resolveTrustedKeyState(input), { keyState: 'active' });
+  exact(resolveTrustedKeyState(input), activeResult());
 });
 
 test('inherited root fields and prototype-pollution-shaped fields fail closed', () => {
@@ -133,17 +159,19 @@ test('strict timestamps reject normalization and accept a real leap day', () => 
       records: [{
         keyReference: 'test-key:adversarial-active',
         status: 'active',
-        expiresAt: '2028-02-29T00:00:00.000Z'
+        expiresAt: '2028-02-29T00:00:00.000Z',
+        publicKeySpkiDer: publicKey()
       }]
     })),
-    { keyState: 'active' }
+    activeResult()
   );
 });
 
 test('expiry remains instant-based at before, equal, and after boundaries', () => {
   const record = {
     keyReference: 'test-key:adversarial-active',
-    status: 'active'
+    status: 'active',
+    publicKeySpkiDer: publicKey()
   };
 
   exact(
@@ -162,7 +190,7 @@ test('expiry remains instant-based at before, equal, and after boundaries', () =
     resolveTrustedKeyState(validInput({
       records: [{ ...record, expiresAt: '2026-02-01T12:00:00.001Z' }]
     })),
-    { keyState: 'active' }
+    activeResult()
   );
 });
 
@@ -196,17 +224,18 @@ test('keyReference validation is consistent for input and records', () => {
     }));
   }
 
-  exact(resolveTrustedKeyState(validInput()), { keyState: 'active' });
+  exact(resolveTrustedKeyState(validInput()), activeResult());
   exact(
     resolveTrustedKeyState(validInput({
       keyReference: 'a'.repeat(256),
       records: [{
         keyReference: 'a'.repeat(256),
         status: 'active',
-        expiresAt: '2026-12-31T23:59:59.000Z'
+        expiresAt: '2026-12-31T23:59:59.000Z',
+        publicKeySpkiDer: publicKey()
       }]
     })),
-    { keyState: 'active' }
+    activeResult('a'.repeat(256))
   );
 });
 
@@ -287,14 +316,15 @@ test('repeated references remain deterministic and inputs remain unchanged', () 
   const nested = {
     keyReference: 'test-key:adversarial-active',
     status: 'active',
-    expiresAt: '2026-12-31T23:59:59.000Z'
+    expiresAt: '2026-12-31T23:59:59.000Z',
+    publicKeySpkiDer: publicKey()
   };
   const input = validInput({ records: [nested] });
-  const snapshot = clone(input);
+  const snapshot = snapshotInput(input);
   const first = resolveTrustedKeyState(input);
   const second = resolveTrustedKeyState(input);
 
-  exact(first, { keyState: 'active' });
+  exact(first, activeResult());
   assert.deepEqual(second, first);
   assert.deepEqual(input, snapshot);
   assert.equal(input.records[0], nested);
@@ -306,7 +336,8 @@ test('insertion order and host globals do not alter semantic output', () => {
     records: [{
       keyReference: 'test-key:adversarial-active',
       status: 'active',
-      expiresAt: '2026-12-31T23:59:59.000Z'
+      expiresAt: '2026-12-31T23:59:59.000Z',
+      publicKeySpkiDer: publicKey()
     }],
     evaluationTime: FIXED_TIME
   };
@@ -315,7 +346,8 @@ test('insertion order and host globals do not alter semantic output', () => {
     records: [{
       expiresAt: '2026-12-31T23:59:59.000Z',
       status: 'active',
-      keyReference: 'test-key:adversarial-active'
+      keyReference: 'test-key:adversarial-active',
+      publicKeySpkiDer: publicKey()
     }],
     keyReference: 'test-key:adversarial-active'
   };
@@ -332,8 +364,8 @@ test('insertion order and host globals do not alter semantic output', () => {
   process.env.TZ = 'Pacific/Honolulu';
 
   try {
-    exact(resolveTrustedKeyState(first), { keyState: 'active' });
-    exact(resolveTrustedKeyState(second), { keyState: 'active' });
+    exact(resolveTrustedKeyState(first), activeResult());
+    exact(resolveTrustedKeyState(second), activeResult());
     assert.deepEqual(resolveTrustedKeyState(first), resolveTrustedKeyState(second));
   } finally {
     Date.now = originalDateNow;
@@ -359,10 +391,10 @@ test('bounded output excludes explanations and operational claims', () => {
       JSON.stringify(output) === JSON.stringify(output),
       'output must be serializable'
     );
-    assert.deepEqual(
-      Object.keys(output).sort(),
-      Object.keys(output).filter((key) => key === 'keyState' || key === 'reasonCategory').sort()
-    );
+    const expectedKeys = output.keyState === 'active'
+      ? ['keyReference', 'keyState', 'publicKeySpkiDer']
+      : ['keyState', 'reasonCategory'];
+    assert.deepEqual(Object.keys(output).sort(), expectedKeys.sort());
     assert.equal(Object.prototype.hasOwnProperty.call(output, 'trust'), false);
     assert.equal(Object.prototype.hasOwnProperty.call(output, 'authorized'), false);
     assert.equal(Object.prototype.hasOwnProperty.call(output, 'explanation'), false);

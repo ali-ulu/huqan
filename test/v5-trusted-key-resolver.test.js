@@ -24,6 +24,7 @@ const expectedFiles = [
   '12-deterministic-repeat.json'
 ];
 const fixedTime = '2026-02-01T12:00:00.000Z';
+const publicKeySpkiDerHex = '302a300506032b65700321003d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c';
 const malformed = {
   keyState: 'malformed',
   reasonCategory: 'malformed_trusted_key_record'
@@ -58,17 +59,38 @@ function fixtureInput(fixture, repeatIndex = 0) {
 
   return {
     keyReference: source.keyReference,
-    records,
+    records: records.map((record) => ({
+      ...record,
+      ...(record.publicKeySpkiDer === undefined ? {} : {
+        publicKeySpkiDer: Buffer.from(record.publicKeySpkiDer.hex, 'hex')
+      })
+    })),
     evaluationTime: source.evaluationTime
   };
 }
 
 function expectedResult(fixture) {
   const result = { keyState: fixture.expected.keyState };
+  if (fixture.expected.keyState === 'active') {
+    result.keyReference = fixture.expected.keyReference;
+    result.publicKeySpkiDer = Buffer.from(fixture.expected.publicKeySpkiDerHex, 'hex');
+  }
   if (fixture.expected.reasonCategory !== undefined) {
     result.reasonCategory = fixture.expected.reasonCategory;
   }
   return result;
+}
+
+function publicKey() {
+  return Buffer.from(publicKeySpkiDerHex, 'hex');
+}
+
+function activeResult(keyReference = 'test-key:unit-active') {
+  return {
+    keyState: 'active',
+    keyReference,
+    publicKeySpkiDer: publicKey()
+  };
 }
 
 function validInput(overrides = {}) {
@@ -77,7 +99,8 @@ function validInput(overrides = {}) {
     records: [{
       keyReference: 'test-key:unit-active',
       status: 'active',
-      expiresAt: '2026-12-31T23:59:59.000Z'
+      expiresAt: '2026-12-31T23:59:59.000Z',
+      publicKeySpkiDer: publicKey()
     }],
     evaluationTime: fixedTime,
     ...overrides
@@ -86,6 +109,18 @@ function validInput(overrides = {}) {
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function snapshotInput(input) {
+  return {
+    ...input,
+    records: input.records.map((record) => ({
+      ...record,
+      ...(Buffer.isBuffer(record.publicKeySpkiDer)
+        ? { publicKeySpkiDer: Buffer.from(record.publicKeySpkiDer) }
+        : {})
+    }))
+  };
 }
 
 function assertExactOutput(result, expected) {
@@ -149,7 +184,7 @@ test('rejects impossible calendar dates without normalizing them', () => {
     resolveTrustedKeyState(validInput({
       records: [{ ...validInput().records[0], expiresAt: '2028-02-29T00:00:00.000Z' }]
     })),
-    { keyState: 'active' }
+    activeResult()
   );
 });
 
@@ -184,7 +219,7 @@ test('rejects sparse and non-object record arrays before record selection', () =
   }
 
   assertExactOutput(resolveTrustedKeyState(validInput({ records: [record] })), {
-    keyState: 'active'
+    ...activeResult()
   });
 });
 
@@ -254,7 +289,7 @@ test('handles zero, one, and multiple exact matches without precedence', () => {
     keyState: 'unknown',
     reasonCategory: stateReasons.unknown
   });
-  assertExactOutput(resolveTrustedKeyState(one), { keyState: 'active' });
+  assertExactOutput(resolveTrustedKeyState(one), activeResult());
   assertExactOutput(resolveTrustedKeyState(two), malformed);
   assertExactOutput(resolveTrustedKeyState(reversed), malformed);
 });
@@ -290,16 +325,16 @@ test('applies parsed expiry semantics for less, equal, and greater instants', ()
     keyState: 'expired',
     reasonCategory: stateReasons.expired
   });
-  assertExactOutput(resolveTrustedKeyState(after), { keyState: 'active' });
+  assertExactOutput(resolveTrustedKeyState(after), activeResult());
 });
 
 test('preserves inputs and produces deterministic bounded output', () => {
   const input = validInput();
-  const snapshot = clone(input);
+  const snapshot = snapshotInput(input);
   const first = resolveTrustedKeyState(input);
   const second = resolveTrustedKeyState(input);
 
-  assertExactOutput(first, { keyState: 'active' });
+  assertExactOutput(first, activeResult());
   assert.deepEqual(second, first);
   assert.deepEqual(input, snapshot);
   assert.deepEqual(input.records, snapshot.records);
@@ -342,8 +377,8 @@ test('does not read the system clock or return forbidden output claims', () => {
 
   try {
     const result = resolveTrustedKeyState(validInput());
-    assertExactOutput(result, { keyState: 'active' });
-    assert.deepEqual(Object.keys(result), ['keyState']);
+    assertExactOutput(result, activeResult());
+    assert.deepEqual(Object.keys(result).sort(), ['keyReference', 'keyState', 'publicKeySpkiDer']);
     assert.equal(Object.hasOwn(result, 'trusted'), false);
     assert.equal(Object.hasOwn(result, 'authorized'), false);
     assert.equal(Object.hasOwn(result, 'explanation'), false);
@@ -361,7 +396,7 @@ test('does not mutate fixture objects and keeps handoff output bounded', () => {
     assert.deepEqual(fixture, before, file);
     const expectedKeys = fixture.expected.reasonCategory
       ? ['keyState', 'reasonCategory']
-      : ['keyState'];
+      : ['keyState', 'keyReference', 'publicKeySpkiDer'];
     assert.deepEqual(Object.keys(result).sort(), expectedKeys.sort());
     assert.equal(
       Object.keys(result).some((key) =>
