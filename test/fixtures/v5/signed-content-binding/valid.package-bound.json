@@ -1,0 +1,54 @@
+{
+  "caseId": "valid-package-bound",
+  "description": "Payload digest bound to package context.",
+  "contractVersion": "v5.verification.25b1.signed_content_binding.fixture.v1",
+  "input": {
+    "domainLabel": "HUQAN/V5/SIGNED-CONTENT/v1",
+    "canonicalization": "huqan-signed-content-json-v1",
+    "underlyingSerialization": "json-stable-v1",
+    "digestAlgorithm": "sha-256",
+    "contentVersion": "v1",
+    "issuedAt": "2026-07-14T13:45:30.123Z",
+    "contentType": "application/vnd.huqan.package+json",
+    "payloadEncoding": "utf-8",
+    "payload": "{\"package\":\"alpha\",\"version\":1}",
+    "keyReference": "test-key:signed-content:package",
+    "contextBinding": {
+      "packageId": "pkg_25b1_alpha"
+    }
+  },
+  "canonicalPayloadObjectV1": {
+    "contentType": "application/vnd.huqan.package+json",
+    "payloadEncoding": "utf-8",
+    "payload": "{\"package\":\"alpha\",\"version\":1}"
+  },
+  "canonicalPayloadJson": "{\"contentType\":\"application/vnd.huqan.package+json\",\"payload\":\"{\\\"package\\\":\\\"alpha\\\",\\\"version\\\":1}\",\"payloadEncoding\":\"utf-8\"}",
+  "canonicalPayloadUtf8Hex": "7b22636f6e74656e7454797065223a226170706c69636174696f6e2f766e642e687571616e2e7061636b6167652b6a736f6e222c227061796c6f6164223a227b5c227061636b6167655c223a5c22616c7068615c222c5c2276657273696f6e5c223a317d222c227061796c6f6164456e636f64696e67223a227574662d38227d",
+  "payloadDigest": "07c8efd5ed27f4f49fa0c79e22daaea65903923121a7c4691fa6930b1ad4ec8a",
+  "signedContentEnvelopeV1": {
+    "canonicalization": "huqan-signed-content-json-v1",
+    "contentType": "application/vnd.huqan.package+json",
+    "contentVersion": "v1",
+    "contextBinding": {
+      "packageId": "pkg_25b1_alpha"
+    },
+    "digestAlgorithm": "sha-256",
+    "domainLabel": "HUQAN/V5/SIGNED-CONTENT/v1",
+    "issuedAt": "2026-07-14T13:45:30.123Z",
+    "keyReference": "test-key:signed-content:package",
+    "payloadDigest": "07c8efd5ed27f4f49fa0c79e22daaea65903923121a7c4691fa6930b1ad4ec8a",
+    "payloadEncoding": "utf-8"
+  },
+  "canonicalSignedContentJson": "{\"canonicalization\":\"huqan-signed-content-json-v1\",\"contentType\":\"application/vnd.huqan.package+json\",\"contentVersion\":\"v1\",\"contextBinding\":{\"packageId\":\"pkg_25b1_alpha\"},\"digestAlgorithm\":\"sha-256\",\"domainLabel\":\"HUQAN/V5/SIGNED-CONTENT/v1\",\"issuedAt\":\"2026-07-14T13:45:30.123Z\",\"keyReference\":\"test-key:signed-content:package\",\"payloadDigest\":\"07c8efd5ed27f4f49fa0c79e22daaea65903923121a7c4691fa6930b1ad4ec8a\",\"payloadEncoding\":\"utf-8\"}",
+  "canonicalSignedContentUtf8Hex": "7b2263616e6f6e6963616c697a6174696f6e223a22687571616e2d7369676e65642d636f6e74656e742d6a736f6e2d7631222c22636f6e74656e7454797065223a226170706c69636174696f6e2f766e642e687571616e2e7061636b6167652b6a736f6e222c22636f6e74656e7456657273696f6e223a227631222c22636f6e7465787442696e64696e67223a7b227061636b6167654964223a22706b675f323562315f616c706861227d2c22646967657374416c676f726974686d223a227368612d323536222c22646f6d61696e4c6162656c223a22485551414e2f56352f5349474e45442d434f4e54454e542f7631222c226973737565644174223a22323032362d30372d31345431333a34353a33302e3132335a222c226b65795265666572656e6365223a22746573742d6b65793a7369676e65642d636f6e74656e743a7061636b616765222c227061796c6f6164446967657374223a2230376338656664356564323766346634396661306337396532326461616561363539303339323331323161376334363931666136393330623161643465633861222c227061796c6f6164456e636f64696e67223a227574662d38227d",
+  "expected": {
+    "valid": true
+  },
+  "nonClaims": [
+    "signature_not_verified",
+    "package_trust_not_established",
+    "action_authorization_not_established",
+    "transport_or_exchange_not_established",
+    "v5_complete_not_claimed"
+  ]
+}

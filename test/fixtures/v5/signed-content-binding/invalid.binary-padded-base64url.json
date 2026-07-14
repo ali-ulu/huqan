@@ -1,0 +1,32 @@
+{
+  "caseId": "invalid-binary-padded-base64url",
+  "description": "Padded base64url is not canonical V1 binary representation.",
+  "contractVersion": "v5.verification.25b1.signed_content_binding.fixture.v1",
+  "input": {
+    "domainLabel": "HUQAN/V5/SIGNED-CONTENT/v1",
+    "canonicalization": "huqan-signed-content-json-v1",
+    "underlyingSerialization": "json-stable-v1",
+    "digestAlgorithm": "sha-256",
+    "contentVersion": "v1",
+    "issuedAt": "2026-07-14T13:45:30.123Z",
+    "contentType": "application/octet-stream",
+    "payloadEncoding": "base64url",
+    "payload": "aGk=",
+    "keyReference": "test-key:signed-content:invalid-base",
+    "contextBinding": {
+      "packageId": "pkg_25b1_invalid_base",
+      "receiptId": "rcpt_25b1_invalid_base"
+    }
+  },
+  "expected": {
+    "valid": false,
+    "provisionalError": "malformed_signed_content"
+  },
+  "nonClaims": [
+    "signature_not_verified",
+    "package_trust_not_established",
+    "action_authorization_not_established",
+    "transport_or_exchange_not_established",
+    "v5_complete_not_claimed"
+  ]
+}

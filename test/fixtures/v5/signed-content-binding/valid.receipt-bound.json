@@ -1,0 +1,56 @@
+{
+  "caseId": "valid-receipt-bound",
+  "description": "Payload digest bound to receipt and route context.",
+  "contractVersion": "v5.verification.25b1.signed_content_binding.fixture.v1",
+  "input": {
+    "domainLabel": "HUQAN/V5/SIGNED-CONTENT/v1",
+    "canonicalization": "huqan-signed-content-json-v1",
+    "underlyingSerialization": "json-stable-v1",
+    "digestAlgorithm": "sha-256",
+    "contentVersion": "v1",
+    "issuedAt": "2026-07-14T13:45:30.123Z",
+    "contentType": "application/vnd.huqan.receipt+json",
+    "payloadEncoding": "utf-8",
+    "payload": "{\"receipt\":\"r1\"}",
+    "keyReference": "test-key:signed-content:receipt",
+    "contextBinding": {
+      "receiptId": "rcpt_25b1_001",
+      "routeReceiptId": "route_25b1_001"
+    }
+  },
+  "canonicalPayloadObjectV1": {
+    "contentType": "application/vnd.huqan.receipt+json",
+    "payloadEncoding": "utf-8",
+    "payload": "{\"receipt\":\"r1\"}"
+  },
+  "canonicalPayloadJson": "{\"contentType\":\"application/vnd.huqan.receipt+json\",\"payload\":\"{\\\"receipt\\\":\\\"r1\\\"}\",\"payloadEncoding\":\"utf-8\"}",
+  "canonicalPayloadUtf8Hex": "7b22636f6e74656e7454797065223a226170706c69636174696f6e2f766e642e687571616e2e726563656970742b6a736f6e222c227061796c6f6164223a227b5c22726563656970745c223a5c2272315c227d222c227061796c6f6164456e636f64696e67223a227574662d38227d",
+  "payloadDigest": "24502c0af24120be8bdce787701d61ecc0ef861c5c9f551763b16b7a7d8c7764",
+  "signedContentEnvelopeV1": {
+    "canonicalization": "huqan-signed-content-json-v1",
+    "contentType": "application/vnd.huqan.receipt+json",
+    "contentVersion": "v1",
+    "contextBinding": {
+      "receiptId": "rcpt_25b1_001",
+      "routeReceiptId": "route_25b1_001"
+    },
+    "digestAlgorithm": "sha-256",
+    "domainLabel": "HUQAN/V5/SIGNED-CONTENT/v1",
+    "issuedAt": "2026-07-14T13:45:30.123Z",
+    "keyReference": "test-key:signed-content:receipt",
+    "payloadDigest": "24502c0af24120be8bdce787701d61ecc0ef861c5c9f551763b16b7a7d8c7764",
+    "payloadEncoding": "utf-8"
+  },
+  "canonicalSignedContentJson": "{\"canonicalization\":\"huqan-signed-content-json-v1\",\"contentType\":\"application/vnd.huqan.receipt+json\",\"contentVersion\":\"v1\",\"contextBinding\":{\"receiptId\":\"rcpt_25b1_001\",\"routeReceiptId\":\"route_25b1_001\"},\"digestAlgorithm\":\"sha-256\",\"domainLabel\":\"HUQAN/V5/SIGNED-CONTENT/v1\",\"issuedAt\":\"2026-07-14T13:45:30.123Z\",\"keyReference\":\"test-key:signed-content:receipt\",\"payloadDigest\":\"24502c0af24120be8bdce787701d61ecc0ef861c5c9f551763b16b7a7d8c7764\",\"payloadEncoding\":\"utf-8\"}",
+  "canonicalSignedContentUtf8Hex": "7b2263616e6f6e6963616c697a6174696f6e223a22687571616e2d7369676e65642d636f6e74656e742d6a736f6e2d7631222c22636f6e74656e7454797065223a226170706c69636174696f6e2f766e642e687571616e2e726563656970742b6a736f6e222c22636f6e74656e7456657273696f6e223a227631222c22636f6e7465787442696e64696e67223a7b22726563656970744964223a22726370745f323562315f303031222c22726f757465526563656970744964223a22726f7574655f323562315f303031227d2c22646967657374416c676f726974686d223a227368612d323536222c22646f6d61696e4c6162656c223a22485551414e2f56352f5349474e45442d434f4e54454e542f7631222c226973737565644174223a22323032362d30372d31345431333a34353a33302e3132335a222c226b65795265666572656e6365223a22746573742d6b65793a7369676e65642d636f6e74656e743a72656365697074222c227061796c6f6164446967657374223a2232343530326330616632343132306265386264636537383737303164363165636330656638363163356339663535313736336231366237613764386337373634222c227061796c6f6164456e636f64696e67223a227574662d38227d",
+  "expected": {
+    "valid": true
+  },
+  "nonClaims": [
+    "signature_not_verified",
+    "package_trust_not_established",
+    "action_authorization_not_established",
+    "transport_or_exchange_not_established",
+    "v5_complete_not_claimed"
+  ]
+}

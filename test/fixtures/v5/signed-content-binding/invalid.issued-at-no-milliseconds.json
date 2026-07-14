@@ -1,0 +1,57 @@
+{
+  "caseId": "invalid-issued-at-no-milliseconds",
+  "description": "Missing millisecond precision is rejected.",
+  "contractVersion": "v5.verification.25b1.signed_content_binding.fixture.v1",
+  "input": {
+    "domainLabel": "HUQAN/V5/SIGNED-CONTENT/v1",
+    "canonicalization": "huqan-signed-content-json-v1",
+    "underlyingSerialization": "json-stable-v1",
+    "digestAlgorithm": "sha-256",
+    "contentVersion": "v1",
+    "issuedAt": "2026-07-14T13:45:30Z",
+    "contentType": "application/json",
+    "payloadEncoding": "utf-8",
+    "payload": "{\"claim\":\"base\"}",
+    "keyReference": "test-key:signed-content:invalid-base",
+    "contextBinding": {
+      "packageId": "pkg_25b1_invalid_base",
+      "receiptId": "rcpt_25b1_invalid_base"
+    }
+  },
+  "canonicalPayloadObjectV1": {
+    "contentType": "application/json",
+    "payloadEncoding": "utf-8",
+    "payload": "{\"claim\":\"base\"}"
+  },
+  "canonicalPayloadJson": "{\"contentType\":\"application/json\",\"payload\":\"{\\\"claim\\\":\\\"base\\\"}\",\"payloadEncoding\":\"utf-8\"}",
+  "canonicalPayloadUtf8Hex": "7b22636f6e74656e7454797065223a226170706c69636174696f6e2f6a736f6e222c227061796c6f6164223a227b5c22636c61696d5c223a5c22626173655c227d222c227061796c6f6164456e636f64696e67223a227574662d38227d",
+  "payloadDigest": "d6633781517494dac172a505e9a51e1b62e480f6e90509f504a01719cb52d45e",
+  "signedContentEnvelopeV1": {
+    "canonicalization": "huqan-signed-content-json-v1",
+    "contentType": "application/json",
+    "contentVersion": "v1",
+    "contextBinding": {
+      "packageId": "pkg_25b1_invalid_base",
+      "receiptId": "rcpt_25b1_invalid_base"
+    },
+    "digestAlgorithm": "sha-256",
+    "domainLabel": "HUQAN/V5/SIGNED-CONTENT/v1",
+    "issuedAt": "2026-07-14T13:45:30.123Z",
+    "keyReference": "test-key:signed-content:invalid-base",
+    "payloadDigest": "d6633781517494dac172a505e9a51e1b62e480f6e90509f504a01719cb52d45e",
+    "payloadEncoding": "utf-8"
+  },
+  "canonicalSignedContentJson": "{\"canonicalization\":\"huqan-signed-content-json-v1\",\"contentType\":\"application/json\",\"contentVersion\":\"v1\",\"contextBinding\":{\"packageId\":\"pkg_25b1_invalid_base\",\"receiptId\":\"rcpt_25b1_invalid_base\"},\"digestAlgorithm\":\"sha-256\",\"domainLabel\":\"HUQAN/V5/SIGNED-CONTENT/v1\",\"issuedAt\":\"2026-07-14T13:45:30.123Z\",\"keyReference\":\"test-key:signed-content:invalid-base\",\"payloadDigest\":\"d6633781517494dac172a505e9a51e1b62e480f6e90509f504a01719cb52d45e\",\"payloadEncoding\":\"utf-8\"}",
+  "canonicalSignedContentUtf8Hex": "7b2263616e6f6e6963616c697a6174696f6e223a22687571616e2d7369676e65642d636f6e74656e742d6a736f6e2d7631222c22636f6e74656e7454797065223a226170706c69636174696f6e2f6a736f6e222c22636f6e74656e7456657273696f6e223a227631222c22636f6e7465787442696e64696e67223a7b227061636b6167654964223a22706b675f323562315f696e76616c69645f62617365222c22726563656970744964223a22726370745f323562315f696e76616c69645f62617365227d2c22646967657374416c676f726974686d223a227368612d323536222c22646f6d61696e4c6162656c223a22485551414e2f56352f5349474e45442d434f4e54454e542f7631222c226973737565644174223a22323032362d30372d31345431333a34353a33302e3132335a222c226b65795265666572656e6365223a22746573742d6b65793a7369676e65642d636f6e74656e743a696e76616c69642d62617365222c227061796c6f6164446967657374223a2264363633333738313531373439346461633137326135303565396135316531623632653438306636653930353039663530346130313731396362353264343565222c227061796c6f6164456e636f64696e67223a227574662d38227d",
+  "expected": {
+    "valid": false,
+    "provisionalError": "malformed_signed_content"
+  },
+  "nonClaims": [
+    "signature_not_verified",
+    "package_trust_not_established",
+    "action_authorization_not_established",
+    "transport_or_exchange_not_established",
+    "v5_complete_not_claimed"
+  ]
+}
