@@ -37,7 +37,13 @@ The implementation gate may make only these byte-preserving moves:
 | `docs/demo-script-v1.md` | `docs/archive/demos/demo-script-v1.md` |
 | `.kiro/specs/llm-memory-layer/.config.kiro` | `docs/archive/tooling/kiro/llm-memory-layer/config.kiro` |
 
-The only permitted new file is `docs/archive/README.md`.
+The six approved legacy artifacts must be moved byte-for-byte.
+
+The only permitted non-move content change is a minimal update to the existing
+tracked file `docs/archive/README.md` so that it satisfies the Archive Index
+Contract. The existing archive index must not be deleted or recreated as an
+unrelated new document. Accurate existing historical context should be
+preserved where compatible with the contract.
 
 ## Archive Index Contract
 
@@ -46,10 +52,14 @@ The only permitted new file is `docs/archive/README.md`.
 - Archived documents are not the current-main source of truth.
 - Version numbers, SHAs, and test counts inside archived documents are historical
   context.
-- Archived content is not a runtime, build, or test input.
+- Archived content is not a runtime, build, workflow, or test input.
 - The current demo document is `docs/v4/v4-demo-script.md`.
 - Canonical current state is defined by `main` and active roadmap documents.
 - Historical release documents must be interpreted together with their Git tags.
+
+`docs/archive/README.md` is an existing tracked file and is intentionally
+modified in the 1B implementation. It is not part of the byte-preserving hash
+set applied to the six moved legacy artifacts.
 
 ## Explicit Exclusions
 
@@ -74,6 +84,11 @@ The following paths are outside the 1B implementation gate:
   `config.kiro` rename.
 - Before and after each move, compare SHA-256 hashes. On Windows, use
   `Get-FileHash -Algorithm SHA256`.
+- SHA-256 equality is mandatory for the six approved source-to-destination
+  moves. `docs/archive/README.md` is intentionally updated and is excluded from
+  the pre/post move hash-equality requirement.
+- Do not unnecessarily rewrite the existing archive index. Limit its update to
+  the content required by the Archive Index Contract.
 - Historical repository URLs are not replaced in this gate. Record that work as
   `DEFER_TO_GITHUB-MIGRATION-3A`.
 
@@ -95,8 +110,8 @@ If an active build, runtime, workflow, or test reference is found, stop with
 
 ## Expected Diff
 
-The future implementation diff is limited to six renames and one new archive
-index:
+The future implementation diff is limited to six renames and one minimal update
+to the existing archive index:
 
 ```text
 R  PUBLIC_RELEASE_POST.md
@@ -111,7 +126,7 @@ R  docs/demo-script-v1.md
    docs/archive/demos/demo-script-v1.md
 R  .kiro/specs/llm-memory-layer/.config.kiro
    docs/archive/tooling/kiro/llm-memory-layer/config.kiro
-A  docs/archive/README.md
+M  docs/archive/README.md
 ```
 
 Any additional changed file is `BLOCKED_BY_SCOPE_DRIFT`.
@@ -141,7 +156,9 @@ run, the reference baseline is `1936 total / 1907 pass / 0 fail / 29 skipped`.
 
 This task-pack does not authorize:
 
-- changes to README, `docs/launch-uat.md`, or repository URLs;
+- changes to README files other than the minimal
+  `docs/archive/README.md` update;
+- changes to `docs/launch-uat.md` or repository URLs;
 - ADR-006/007 resolution or `.kiro` requirements disposition;
 - runtime, test, fixture, schema, package, or V5 changes;
 - branch/tag cleanup or repository settings changes;
