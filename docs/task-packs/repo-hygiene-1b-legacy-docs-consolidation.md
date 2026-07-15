@@ -156,8 +156,9 @@ run, the reference baseline is `1936 total / 1907 pass / 0 fail / 29 skipped`.
 
 This task-pack does not authorize:
 
-- README changes other than the minimal `docs/archive/README.md` update,
-  `docs/launch-uat.md`, or repository URLs;
+- changes to README files other than the minimal
+  `docs/archive/README.md` update;
+- changes to `docs/launch-uat.md` or repository URLs;
 - ADR-006/007 resolution or `.kiro` requirements disposition;
 - runtime, test, fixture, schema, package, or V5 changes;
 - branch/tag cleanup or repository settings changes;
