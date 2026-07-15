@@ -282,7 +282,7 @@ Contributions are welcome. Please open an issue first to discuss what you'd like
 ## Launch UAT and Demo
 
 - [Launch UAT](./docs/launch-uat.md)
-- [Demo Script](./docs/demo-script.md)
+- [Demo Script](./docs/v4/v4-demo-script.md)
 - Static demo surface: `demo/index.html`
 - Local UI surface: `public/index.html`
 
