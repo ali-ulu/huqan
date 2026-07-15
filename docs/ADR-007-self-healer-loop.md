@@ -183,9 +183,9 @@ The following namespaces are distinct and must not be treated as aliases:
 Self-Healer runs in constrained modes:
 
 - `audit_only` (IMPLEMENTED)
-  - read repo
   - accept caller-provided checks
   - produce validated findings and an audit report
+  - does not read or scan repository contents autonomously
   - no write
 
 - `proposal_only` (PLANNED)

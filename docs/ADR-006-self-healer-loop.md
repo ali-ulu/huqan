@@ -11,7 +11,7 @@
 
 ## Durum
 
-Önerildi / review bekliyor.
+Superseded by `ADR-007`. Historical record only.
 
 ## Bağlam
 
