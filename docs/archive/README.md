@@ -7,6 +7,16 @@ These files are **not canonical specifications**. They are kept for traceability
 of decisions made during past reviews, sandbox experiments, and strategy
 discussions. Do not treat any document here as the current source of truth.
 
+## Archive Contract
+
+- Archived documents are not the current-main source of truth.
+- Version numbers, SHAs, and test counts inside archived documents are
+  historical context.
+- Archived content is not a runtime, build, workflow, or test input.
+- The current demo document is `docs/v4/v4-demo-script.md`.
+- Canonical current state is defined by `main` and active roadmap documents.
+- Historical release documents must be interpreted together with their Git tags.
+
 ## Canonical Process Documentation
 
 Current canonical documents live in `docs/` at the repository root:
