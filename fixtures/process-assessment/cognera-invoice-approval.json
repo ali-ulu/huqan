@@ -1,0 +1,14 @@
+{
+  "profile": "cognera",
+  "name": "Fatura onayı ve ERP kayıt süreci",
+  "sourceRef": "cognera:synthetic:invoice-approval-v1",
+  "workspaceId": "cognera-pilot",
+  "now": "2026-07-15T20:00:00.000Z",
+  "monthlyVolume": 100,
+  "minutesPerCase": 30,
+  "allowlistedPaths": ["invoices/sample.pdf"],
+  "steps": [
+    { "description": "Faturayı oku", "actionType": "READ_ONLY", "target": { "path": "invoices/sample.pdf" }, "automationType": "DOCUMENT_UNDERSTANDING", "suggestedTechnology": "UiPath Document Understanding" },
+    { "description": "ERP fatura kaydı oluştur", "actionType": "PRODUCTION_MUTATION", "target": { "system": "erp" }, "automationType": "RPA", "suggestedTechnology": "UiPath Robot + Action Center", "humanApproval": true }
+  ]
+}

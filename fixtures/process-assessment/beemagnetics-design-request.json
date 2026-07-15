@@ -1,0 +1,12 @@
+{
+  "profile": "beemagnetics",
+  "name": "Güç dönüştürücü tasarım talebi",
+  "sourceRef": "beemagnetics:synthetic:converter-design-v1",
+  "workspaceId": "beemagnetics-pilot",
+  "now": "2026-07-15T20:00:00.000Z",
+  "allowlistedPaths": ["requests/converter-42.json"],
+  "steps": [
+    { "description": "Teknik müşteri talebini sınıflandır", "actionType": "READ_ONLY", "target": { "path": "requests/converter-42.json" }, "automationType": "AI_AGENT", "suggestedTechnology": "Request Router", "engineering": { "requiredInputs": ["inputVoltage", "outputVoltage", "switchingFrequency"], "suppliedInputs": ["inputVoltage", "outputVoltage"] } },
+    { "description": "System Level, Magnetic ve EMI çıktılarından müşteri raporu hazırla", "actionType": "TOOL_CHAIN_EXECUTION", "automationType": "AI_AGENT", "suggestedTechnology": "Engineering Report Composer", "humanApproval": true, "engineering": { "requiredInputs": [], "suppliedInputs": [], "combinesToolOutputs": true, "customerFacing": true, "sourceRefs": ["system-level:run-7", "magnetic:run-7", "emi:run-7"] } }
+  ]
+}
