@@ -41,12 +41,12 @@
                  ],
     "repository":  {
                        "type":  "git",
-                       "url":  "git+https://github.com/agiulucom42-del/huqan.git"
+                       "url":  "git+https://github.com/ali-ulu/huqan.git"
                    },
     "bugs":  {
-                 "url":  "https://github.com/agiulucom42-del/huqan/issues"
+                 "url":  "https://github.com/ali-ulu/huqan/issues"
              },
-    "homepage":  "https://github.com/agiulucom42-del/huqan#readme",
+    "homepage":  "https://github.com/ali-ulu/huqan#readme",
     "author": "Huqan Contributors",
     "license": "Apache-2.0",
     "huqan": {
