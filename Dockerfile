@@ -1,4 +1,16 @@
-FROM node:20-bookworm-slim
+FROM node:20-bookworm-slim AS dependencies
+
+WORKDIR /app
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY package*.json ./
+RUN npm ci --omit=dev --no-audit --no-fund
+
+
+FROM node:20-bookworm-slim AS runtime
 
 WORKDIR /app
 
@@ -10,8 +22,9 @@ ENV AXIOM_DB_PATH=/app/data/memory.db
 ENV AXIOM_BACKUP_DIR=/app/data/backups
 
 COPY package*.json ./
-RUN npm ci --omit=dev --no-audit --no-fund
-
+COPY --from=dependencies /app/node_modules ./node_modules
+RUN node -e "require('better-sqlite3')"
+RUN ! command -v python3 && ! command -v g++
 COPY . .
 
 RUN mkdir -p /app/data/backups
