@@ -60,7 +60,7 @@ jobs:
             echo "Semgrep not available"
           fi
 
-      - nameapp check for sensitive files
+      - name: Check for sensitive files
         run: |
           if [[ -f SECURITY.md ]]; then
             echo "SECURITY.md exists - checking structure"
