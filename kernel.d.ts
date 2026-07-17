@@ -100,6 +100,10 @@ declare class Kernel {
     save(): void;
   };
 
+  memory: {
+    close(): void;
+  };
+
   lang: string;
   contractVersion: string;
   paranoidMode: boolean;
