@@ -121,8 +121,8 @@ The strengthened status test must:
 - retain the current entropy field and avoid asserting a fabricated constant
   entropy value;
 - avoid reading `_nodes` or `_edges` in the test itself;
-- close resources and remove temporary files using the existing test
-  lifecycle pattern.
+- close the CLI agent storage plus Kernel graph/memory resources and remove
+  temporary files using the explicit lifecycle order below.
 
 The test must not introduce workspace filtering. The command currently reports
 global totals.
@@ -204,14 +204,26 @@ Future tests must:
 - construct new persistence cases through `new CLI({ kernel: ... })` or an
   explicitly supplied managed Kernel instance rather than create a default
   Kernel and replace it afterward;
-- avoid SQLite unless a case explicitly requires the existing DB path file;
+- pass both `useSQLite: false` and `memoryStoreUseSQLite: false` to disable
+  Kernel Graph and MemoryStore SQLite for these cases;
+- recognize that `new CLI(...)` still creates an agent `AxiomStorage` SQLite
+  connection at the database path derived from the Kernel graph memory path;
+- close `cli.agent.storage` immediately after CLI construction and before
+  inspecting, writing, backing up, restoring, or deleting the derived DB file;
 - disable plugin loading and production persistence;
 - save and exactly restore `process.cwd()` and relevant environment variables;
 - use `try/finally` for resource and filesystem cleanup;
 - avoid concurrent tests that mutate process-wide cwd or environment state;
-- close graph and memory resources through the existing lifecycle path;
+- clean up in this order: close agent storage, close graph/memory through the
+  existing Kernel lifecycle path, restore cwd and environment, then remove the
+  temporary directory;
 - not alter require cache, monkey-patch production modules, or start CLI
   interactive mode, MCP transport, HTTP server, or network listeners.
+
+Closing the agent storage is test isolation, not a runtime lifecycle change.
+The read-contract cases do not exercise agent persistence. If agent storage
+cannot be observed and closed through the current CLI instance, stop instead
+of adding a runtime injection seam in this test-only gate.
 
 Managed-instance partial-construction cleanup remains a separate
 `TEST-HARDENING` backlog item. This gate must not broaden into a general
