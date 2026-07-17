@@ -29,6 +29,9 @@ function closeManagedCLI(cli) {
   if (cli?.kernel?.graph && typeof cli.kernel.graph.close === 'function') {
     cli.kernel.graph.close();
   }
+  if (cli?.kernel?.memory && typeof cli.kernel.memory.close === 'function') {
+    cli.kernel.memory.close();
+  }
 }
 
 describe('CLI - Komut Çözümleme', () => {
