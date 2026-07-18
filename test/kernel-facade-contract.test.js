@@ -16,6 +16,10 @@ const FACADE_METHODS = Object.freeze([
   'dream',
   'detectGaps',
   'detectContradictions',
+  'getPersistenceDescriptor',
+  'reload',
+  'persist',
+  'optimize',
   'entropy',
   'consolidate',
   'selfEvolve',
@@ -93,4 +97,30 @@ test('kernel.d.ts remains aligned with observable graph and memory surfaces', ()
     kernelDeclaration,
     /\bmemory\s*:\s*\{[\s\S]*?\bclose\(\)\s*:\s*void\s*;[\s\S]*?\}\s*;/,
   );
+  assert.match(
+    kernelDeclaration,
+    /\bgetPersistenceDescriptor\(\)\s*:\s*Readonly<\{\s*memoryPath\s*:\s*string\s*;\s*dbPath\s*:\s*string\s*;\s*\}>\s*;/,
+  );
+  assert.match(
+    kernelDeclaration,
+    /\breload\(\)\s*:\s*void\s*;/,
+  );
+  assert.match(
+    kernelDeclaration,
+    /\bpersist\(\)\s*:\s*void\s*;/,
+  );
+  assert.match(
+    kernelDeclaration,
+    /\boptimize\(\)\s*:\s*\{\s*pruned\s*:\s*number\s*;\s*removedNodes\s*:\s*number\s*;\s*\}\s*;/,
+  );
+
+  const seamDeclarations = kernelDeclaration.slice(
+    kernelDeclaration.indexOf('getPersistenceDescriptor'),
+    kernelDeclaration.indexOf('paranoidMode'),
+  );
+  assert.doesNotMatch(
+    seamDeclarations,
+    /\bPromise\b|\bany\b|\bRecord\s*</,
+  );
+  assert.doesNotMatch(seamDeclarations, /\w+\?\s*\(/);
 });
