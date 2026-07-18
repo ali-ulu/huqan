@@ -585,9 +585,13 @@ class CLI {
     rl.on('line', async (line) => {
       const parsed = this.parse(line);
       if (parsed.command === 'kaydet') {
+        this._auditCliMutation('kaydet', CLI_MUTATION_GATE.kaydet, 'allow', true);
         this.kernel.persist();
         console.log('Hafiza kaydedildi.');
       } else if (parsed.command === 'çıkış' || parsed.command === 'exit') {
+        const rawCommand = String(line || '').trim().toLowerCase();
+        const sourceCommand = rawCommand === 'exit' || rawCommand === 'quit' ? 'exit' : 'cikis';
+        this._auditCliMutation(sourceCommand, CLI_MUTATION_GATE.kaydet, 'allow', true);
         this.kernel.persist();
         console.log('Hafiza kaydedildi. Gule gule.');
         rl.close();
@@ -697,22 +701,16 @@ class CLI {
 
   _auditCliMutation(command, classification, decision, executed) {
     try {
-      const graph = this.kernel && this.kernel.graph;
-      if (!graph || typeof graph.appendAuditEvent !== 'function') return;
-      graph.appendAuditEvent({
+      if (!this.kernel || typeof this.kernel.recordCliMutationAudit !== 'function') return;
+      this.kernel.recordCliMutationAudit({
+        sourceCommand: command,
+        mutationType: classification.mutationType,
         eventType: classification.auditEvent || (decision === 'allow' ? 'UPDATE' : 'REVIEW'),
-        targetType: 'cli_mutation',
-        targetId: command,
+        decision,
+        executionEligible: executed,
+        reason: classification.reason,
         actor: 'cli-user',
-        details: {
-          source: 'cli',
-          command,
-          mutationType: classification.mutationType,
-          decision,
-          executed,
-          reason: classification.reason,
-        },
-      }, {});
+      });
     } catch (_) {
       // Audit must never break command execution.
     }
