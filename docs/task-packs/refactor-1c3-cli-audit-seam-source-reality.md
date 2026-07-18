@@ -50,6 +50,138 @@ implementation authorization.
 - `docs/task-packs/refactor-1c-cli-graph-internal-coupling-scope.md`
 - `docs/task-packs/refactor-1c2-kernel-lifecycle-maintenance-seam-scope.md`
 
+## Competitive register rows consulted
+
+The governing register is HUQAN Master Roadmap v3.2,
+`Competitive Reverse-Engineering Evidence & Design-Option Register`.
+
+This source-reality gate consults the following directly relevant records. It
+produces source evidence for them but does not close them, authorize their
+implementation, or change the roadmap sequence.
+
+### RTG-006
+
+```text
+REGISTER ENTRY:
+RTG-006
+
+EVIDENCE SOURCE / SHA:
+HUQAN_Competitive_Reverse_Engineering_Cumulative_2026-07-18_v3.zip
+d1630dac532d4566c50cc8ca8dbdbaeaeba8ad2b24457a886263a510f4f8ca8b
+
+CURRENT HUQAN SOURCE / SHA:
+ali-ulu/huqan
+0dbf34bec86696db228b5057834c4602aba0b4a4
+
+DECISION:
+ADAPT AS SOURCE-REALITY INPUT; CLOSURE DEFERRED
+
+MAPPED ROADMAP GATE:
+REFACTOR-4 / PRODUCTIZATION H0
+
+REASON:
+The current source distinguishes interactive command visibility, direct
+execute invocation, mutation-gate coverage, audit invocation, and startup-path
+bypasses. These surfaces must not be treated as equivalent.
+
+REQUIRED TEST / EVIDENCE:
+Separate visibility, invocation, startup, and mutation-coverage contracts plus
+bypass-negative tests.
+
+REVISIT TRIGGER:
+REFACTOR-4 surface-parity scope definition or PRODUCTIZATION H0 gateway scope.
+
+OWNER:
+Future REFACTOR-4 / H0 gate owner.
+
+STATUS:
+OBSERVED / OPEN
+```
+
+### RTG-009
+
+```text
+REGISTER ENTRY:
+RTG-009
+
+EVIDENCE SOURCE / SHA:
+HUQAN_Competitive_Reverse_Engineering_Cumulative_2026-07-18_v3.zip
+d1630dac532d4566c50cc8ca8dbdbaeaeba8ad2b24457a886263a510f4f8ca8b
+
+CURRENT HUQAN SOURCE / SHA:
+ali-ulu/huqan
+0dbf34bec86696db228b5057834c4602aba0b4a4
+
+DECISION:
+ADAPT AS SOURCE-REALITY INPUT; CLOSURE DEFERRED
+
+MAPPED ROADMAP GATE:
+ACTION INTEGRITY F5 / MEMORY + PROVENANCE J3
+
+REASON:
+The current CLI appends audit evidence before allowed mutations execute, audit
+failure is isolated from command execution, and mutation plus audit durability
+is not proven within one atomic boundary.
+
+REQUIRED TEST / EVIDENCE:
+Fault injection, crash/recovery evidence, and explicit durability/atomicity
+boundary tests.
+
+REVISIT TRIGGER:
+REFACTOR-1C3B contract definition and later F5/J3 implementation scope.
+
+OWNER:
+Future F5 / J3 gate owner.
+
+STATUS:
+OBSERVED / OPEN
+```
+
+### CE-010
+
+```text
+REGISTER ENTRY:
+CE-010
+
+EVIDENCE SOURCE / SHA:
+HUQAN_Competitive_Reverse_Engineering_Cumulative_2026-07-18_v3.zip
+d1630dac532d4566c50cc8ca8dbdbaeaeba8ad2b24457a886263a510f4f8ca8b
+
+CURRENT HUQAN SOURCE / SHA:
+ali-ulu/huqan
+0dbf34bec86696db228b5057834c4602aba0b4a4
+
+DECISION:
+ADAPT
+
+MAPPED ROADMAP GATE:
+ACTION INTEGRITY F5 / J3 PROVENANCE LEDGER / ENTERPRISE AUDIT EXPORT
+
+REASON:
+The source-reality evidence confirms that an audit append and the associated
+mutation do not currently share a proven safe durability boundary. The future
+contract must preserve this limitation and must not invent atomicity or
+durability claims.
+
+REQUIRED TEST / EVIDENCE:
+Explicit append/durability contract, fault injection, recovery evidence, and
+negative tests proving that audit presence is not treated as mutation success.
+
+REVISIT TRIGGER:
+REFACTOR-1C3B contract review, ACTION INTEGRITY F5, or J3 Provenance Ledger
+scope definition.
+
+OWNER:
+REFACTOR-1C3B contract owner, then future F5 / J3 gate owner.
+
+STATUS:
+CONTRACT INPUT / OPEN
+```
+
+`CE-009` is not listed as a directly consulted row in this gate. It concerns
+approval execution atomicity/idempotency and crash/replay side effects. The
+direct audit-durability design-option record for this task-pack is `CE-010`.
+
 ## Governing Invariants
 
 The following invariants remain binding:
@@ -478,6 +610,9 @@ It may inspect repository sources and existing tests read-only.
 8. Test ownership and missing evidence are explicit.
 9. Successor gates remain independently authorized.
 10. `git diff --check` passes and worktree scope is exact.
+11. The mandatory `Competitive register rows consulted` field evaluates
+    RTG-006, RTG-009, and CE-010, preserves their OPEN status, and does not
+    substitute CE-009 for the audit-durability record.
 
 ## Stop Conditions
 
