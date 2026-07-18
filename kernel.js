@@ -2241,6 +2241,26 @@ if (verbSuffix.test(predicate)) {
     return this._ok('introspect', result);
   }
 
+  getPersistenceDescriptor() {
+    const memoryPath = this.graph?.memoryPath || 'memory.json';
+
+    return Object.freeze({
+      memoryPath,
+      dbPath: String(memoryPath).replace(/\.json$/i, '.db'),
+    });
+  }
+
+  reload() {
+    return this.graph.load();
+  }
+
+  persist() {
+    return this.graph.save();
+  }
+
+  optimize() {
+    return this.graph.optimize();
+  }
   consolidate(dryRun = true) {
     const edges = this.graph._edges;
     const removed = [];

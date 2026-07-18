@@ -106,6 +106,20 @@ declare class Kernel {
 
   lang: string;
   contractVersion: string;
+  getPersistenceDescriptor(): Readonly<{
+    memoryPath: string;
+    dbPath: string;
+  }>;
+
+  reload(): void;
+
+  persist(): void;
+
+  optimize(): {
+    pruned: number;
+    removedNodes: number;
+  };
+
   paranoidMode: boolean;
 
   learn(text: string): Envelope<'learn', LearnData>;

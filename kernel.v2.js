@@ -112,6 +112,22 @@ class KernelV2 {
     return this.kernel.contractVersion;
   }
 
+  getPersistenceDescriptor() {
+    return this.kernel.getPersistenceDescriptor();
+  }
+
+  reload() {
+    return this.kernel.reload();
+  }
+
+  persist() {
+    return this.kernel.persist();
+  }
+
+  optimize() {
+    return this.kernel.optimize();
+  }
+
   hasCapability(name) {
     if (!this.kernel || typeof this.kernel.hasCapability !== 'function') return false;
     return this.kernel.hasCapability(name);
