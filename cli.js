@@ -21,10 +21,6 @@ function createKernel(opts = {}) {
   return selected === 'v2' ? new KernelV2(kernelOpts) : new Kernel(kernelOpts);
 }
 
-function normalizeDbPath(memoryPath = 'memory.json') {
-  return String(memoryPath).replace(/\.json$/i, '.db');
-}
-
 function extractQuoted(raw) {
   const quoted = String(raw || '').match(/"([^"]+)"/g) || [];
   return quoted.map(item => item.slice(1, -1));
@@ -228,11 +224,10 @@ class CLI {
   }
 
   _backupOptions(extra = {}) {
-    const memoryPath = this.kernel?.graph?.memoryPath || 'memory.json';
+    const descriptor = this.kernel.getPersistenceDescriptor();
     const resolved = resolvePersistencePaths({
       rootDir: process.cwd(),
-      memoryPath,
-      dbPath: normalizeDbPath(memoryPath),
+      ...descriptor,
       ...extra,
     });
     return { ...resolved, ...extra };
@@ -483,7 +478,7 @@ class CLI {
       }
       case 'restore': {
         const result = restoreBackup(this._backupOptions({ backupDir: args || undefined }));
-        this.kernel.graph.load();
+        this.kernel.reload();
         return `Restore tamamlandi: ${result.restored.length} dosya geri yüklendi. Guvenlik yedegi: ${result.safetyBackupDir}`;
       }
       case 'düşün': {
@@ -495,7 +490,7 @@ class CLI {
         return 'Arka planda dusunmeye basladim.';
       }
       case 'optimize': {
-        const result = this.kernel.graph.optimize();
+        const result = this.kernel.optimize();
         return `Optimize: ${result.pruned} kenar budandi, ${result.removedNodes} dugum silindi.`;
       }
       case 'konsolide': {
@@ -590,10 +585,10 @@ class CLI {
     rl.on('line', async (line) => {
       const parsed = this.parse(line);
       if (parsed.command === 'kaydet') {
-        this.kernel.graph.save();
+        this.kernel.persist();
         console.log('Hafiza kaydedildi.');
       } else if (parsed.command === 'çıkış' || parsed.command === 'exit') {
-        this.kernel.graph.save();
+        this.kernel.persist();
         console.log('Hafiza kaydedildi. Gule gule.');
         rl.close();
         return;
@@ -732,7 +727,7 @@ if (require.main === module) {
   }
 
   const cli = new CLI();
-  cli.kernel.graph.load();
+  cli.kernel.reload();
   cli.start();
 }
 

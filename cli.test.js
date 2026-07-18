@@ -34,11 +34,12 @@ function closeManagedCLI(cli) {
     cli.kernel.memory.close();
   }
 }
-function createInteractiveHarness(cli, saveImpl = () => undefined) {
+function createInteractiveHarness(cli, persistImpl = () => undefined) {
   const events = [];
   const originalCreateInterface = readline.createInterface;
   const originalLog = console.log;
   const originalExit = process.exit;
+  const originalPersist = cli.kernel.persist;
   const originalSave = cli.kernel.graph.save;
   const originalGraphClose = cli.kernel.graph.close;
   const originalMemoryClose = cli.kernel.memory.close;
@@ -52,6 +53,7 @@ function createInteractiveHarness(cli, saveImpl = () => undefined) {
     readline.createInterface = originalCreateInterface;
     console.log = originalLog;
     process.exit = originalExit;
+    cli.kernel.persist = originalPersist;
     cli.kernel.graph.save = originalSave;
     cli.kernel.graph.close = originalGraphClose;
     cli.kernel.memory.close = originalMemoryClose;
@@ -74,9 +76,12 @@ function createInteractiveHarness(cli, saveImpl = () => undefined) {
     readline.createInterface = () => rl;
     console.log = message => events.push(`log:${message}`);
     process.exit = code => events.push(`exit:${code}`);
+    cli.kernel.persist = () => {
+      events.push('persist');
+      return persistImpl();
+    };
     cli.kernel.graph.save = () => {
-      events.push('save');
-      return saveImpl();
+      throw new Error('CLI accessed Graph.save directly');
     };
     cli.kernel.graph.close = function closeGraphSpy() {
       events.push('graph-close');
@@ -327,7 +332,7 @@ describe('CLI - Komut Çalıştırma', () => {
     assert.ok(output.includes('Ingest durum'));
   });
 
-  it('execute: backup ve restore komutlari memory dosyasini geri yukler', () => {
+  it('execute: backup ve restore komutlari Kernel persistence seamlerini kullanir', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-cli-backup-'));
     const memoryPath = path.join(tmpDir, 'custom-state.json');
     const derivedDbPath = path.join(tmpDir, 'custom-state.db');
@@ -344,25 +349,56 @@ describe('CLI - Komut Çalıştırma', () => {
     });
     cli.agent.storage.close();
 
+    const originalDescriptor = cli.kernel.getPersistenceDescriptor;
+    const descriptorCalls = [];
+    cli.kernel.getPersistenceDescriptor = (...args) => {
+      descriptorCalls.push(args);
+      return originalDescriptor.apply(cli.kernel, args);
+    };
+
     try {
       fs.writeFileSync(memoryPath, JSON.stringify({ nodes: {}, edges: [] }), 'utf8');
       fs.writeFileSync(derivedDbPath, 'db-v1', 'utf8');
       const options = cli._backupOptions();
 
+      assert.deepStrictEqual(descriptorCalls, [[]]);
       assert.strictEqual(options.memoryPath, memoryPath);
       assert.strictEqual(options.dbPath, derivedDbPath);
       assert.notStrictEqual(options.dbPath, independentDbPath);
 
+      cli.kernel.getPersistenceDescriptor = originalDescriptor;
+
       const backupResult = cli.execute('backup', '');
       assert.ok(backupResult.includes('Backup tamamlandi'));
 
-      fs.writeFileSync(memoryPath, JSON.stringify({ nodes: { bozuldu: true }, edges: [] }), 'utf8');
-      const restoreResult = cli.execute('restore', '');
-      assert.ok(restoreResult.includes('Restore tamamlandi'));
+      const originalReload = cli.kernel.reload;
+      const originalGraphLoad = cli.kernel.graph.load;
+      const reloadCalls = [];
+      const graphLoadCalls = [];
+      cli.kernel.reload = (...args) => {
+        reloadCalls.push(args);
+        return originalReload.apply(cli.kernel, args);
+      };
+      cli.kernel.graph.load = (...args) => {
+        graphLoadCalls.push(args);
+        return originalGraphLoad.apply(cli.kernel.graph, args);
+      };
 
-      const restored = JSON.parse(fs.readFileSync(memoryPath, 'utf8'));
-      assert.deepStrictEqual(restored, { nodes: {}, edges: [] });
+      try {
+        fs.writeFileSync(memoryPath, JSON.stringify({ nodes: { bozuldu: true }, edges: [] }), 'utf8');
+        const restoreResult = cli.execute('restore', '');
+        assert.ok(restoreResult.includes('Restore tamamlandi'));
+        assert.deepStrictEqual(reloadCalls, [[]]);
+        assert.deepStrictEqual(graphLoadCalls, [[]]);
+
+        const restored = JSON.parse(fs.readFileSync(memoryPath, 'utf8'));
+        assert.deepStrictEqual(restored, { nodes: {}, edges: [] });
+      } finally {
+        cli.kernel.reload = originalReload;
+        cli.kernel.graph.load = originalGraphLoad;
+      }
     } finally {
+      cli.kernel.getPersistenceDescriptor = originalDescriptor;
       closeManagedCLI(cli);
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -407,6 +443,95 @@ describe('CLI - Komut Çalıştırma', () => {
     }
   });
 
+  it('backup options use only the Kernel persistence descriptor', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-cli-descriptor-'));
+    const cli = new CLI({
+      kernel: {
+        noLoad: true,
+        useSQLite: false,
+        memoryStoreUseSQLite: false,
+        loadPlugins: false,
+      },
+    });
+    cli.agent.storage.close();
+
+    const originalDescriptor = cli.kernel.getPersistenceDescriptor;
+    const originalMemoryPath = Object.getOwnPropertyDescriptor(cli.kernel.graph, 'memoryPath');
+    const calls = [];
+    const memoryPath = path.join(tmpDir, 'sentinel-state.json');
+    const dbPath = path.join(tmpDir, 'sentinel-state.db');
+    const backupDir = path.join(tmpDir, 'custom-backups');
+
+    try {
+      cli.kernel.getPersistenceDescriptor = (...args) => {
+        calls.push(args);
+        return Object.freeze({ memoryPath, dbPath });
+      };
+      Object.defineProperty(cli.kernel.graph, 'memoryPath', {
+        configurable: true,
+        get() {
+          throw new Error('CLI accessed Graph.memoryPath directly');
+        },
+      });
+
+      const options = cli._backupOptions({ backupDir });
+      assert.deepStrictEqual(calls, [[]]);
+      assert.strictEqual(options.memoryPath, memoryPath);
+      assert.strictEqual(options.dbPath, dbPath);
+      assert.strictEqual(options.backupDir, backupDir);
+    } finally {
+      cli.kernel.getPersistenceDescriptor = originalDescriptor;
+      Object.defineProperty(cli.kernel.graph, 'memoryPath', originalMemoryPath);
+      closeManagedCLI(cli);
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('restore propagates the exact Kernel reload error without direct Graph access', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-cli-restore-error-'));
+    const memoryPath = path.join(tmpDir, 'memory.json');
+    const cli = new CLI({
+      kernel: {
+        memoryPath,
+        noLoad: true,
+        useSQLite: false,
+        memoryStoreUseSQLite: false,
+        loadPlugins: false,
+      },
+    });
+    cli.agent.storage.close();
+
+    try {
+      fs.writeFileSync(memoryPath, JSON.stringify({ nodes: {}, edges: [] }), 'utf8');
+      cli.execute('backup', '');
+
+      const expected = new Error('reload failed');
+      const originalReload = cli.kernel.reload;
+      const originalGraphLoad = cli.kernel.graph.load;
+      const reloadCalls = [];
+      cli.kernel.reload = (...args) => {
+        reloadCalls.push(args);
+        throw expected;
+      };
+      cli.kernel.graph.load = () => {
+        throw new Error('CLI accessed Graph.load directly');
+      };
+
+      try {
+        assert.throws(
+          () => cli.execute('restore', ''),
+          error => error === expected,
+        );
+        assert.deepStrictEqual(reloadCalls, [[]]);
+      } finally {
+        cli.kernel.reload = originalReload;
+        cli.kernel.graph.load = originalGraphLoad;
+      }
+    } finally {
+      closeManagedCLI(cli);
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
   it('execute: "llm-sor:" AXIOM cevabı döndürür', () => {
     const cli = freshCLI();
     cli.kernel.learn('Kedi hayvandır', TEST_FIXTURE_LEARN_BYPASS);
@@ -515,7 +640,7 @@ describe('CLI - Lifecycle and maintenance baseline contracts', { concurrency: fa
       try {
         await harness.line('kaydet');
         assert.deepStrictEqual(harness.events, [
-          'save',
+          'persist',
           'log:Hafiza kaydedildi.',
           'prompt',
         ]);
@@ -531,7 +656,7 @@ describe('CLI - Lifecycle and maintenance baseline contracts', { concurrency: fa
       try {
         await harness.line('exit');
         assert.deepStrictEqual(harness.events, [
-          'save',
+          'persist',
           'log:Hafiza kaydedildi. Gule gule.',
           'close',
           'exit:0',
@@ -548,22 +673,26 @@ describe('CLI - Lifecycle and maintenance baseline contracts', { concurrency: fa
       const harness = createInteractiveHarness(cli, () => { throw expected; });
       try {
         await assert.rejects(harness.line('kaydet'), error => error === expected);
-        assert.deepStrictEqual(harness.events, ['save']);
+        assert.deepStrictEqual(harness.events, ['persist']);
       } finally {
         harness.restore();
       }
     });
   });
 
-  it('optimize preserves graph return formatting and calls the graph once', async () => {
+  it('optimize preserves formatting and calls only the Kernel seam once', async () => {
     await withIsolatedInteractiveCLI(async cli => {
       const originalGate = cli._evaluateCliGate;
-      const originalOptimize = cli.kernel.graph.optimize;
+      const originalOptimize = cli.kernel.optimize;
+      const originalGraphOptimize = cli.kernel.graph.optimize;
       const calls = [];
       cli._evaluateCliGate = () => null;
-      cli.kernel.graph.optimize = (...args) => {
+      cli.kernel.optimize = (...args) => {
         calls.push(args);
         return { pruned: 3, removedNodes: 2 };
+      };
+      cli.kernel.graph.optimize = () => {
+        throw new Error('CLI accessed Graph.optimize directly');
       };
       try {
         assert.strictEqual(
@@ -573,7 +702,8 @@ describe('CLI - Lifecycle and maintenance baseline contracts', { concurrency: fa
         assert.deepStrictEqual(calls, [[]]);
       } finally {
         cli._evaluateCliGate = originalGate;
-        cli.kernel.graph.optimize = originalOptimize;
+        cli.kernel.optimize = originalOptimize;
+        cli.kernel.graph.optimize = originalGraphOptimize;
       }
     });
   });
@@ -583,6 +713,7 @@ describe('CLI - Lifecycle and maintenance baseline contracts', { concurrency: fa
       const originalCreateInterface = readline.createInterface;
       const originalLog = console.log;
       const originalExit = process.exit;
+      const originalPersist = cli.kernel.persist;
       const originalSave = cli.kernel.graph.save;
       const originalGraphClose = cli.kernel.graph.close;
       const originalMemoryClose = cli.kernel.memory.close;
@@ -600,6 +731,7 @@ describe('CLI - Lifecycle and maintenance baseline contracts', { concurrency: fa
         assert.strictEqual(readline.createInterface, originalCreateInterface);
         assert.strictEqual(console.log, originalLog);
         assert.strictEqual(process.exit, originalExit);
+        assert.strictEqual(cli.kernel.persist, originalPersist);
         assert.strictEqual(cli.kernel.graph.save, originalSave);
         assert.strictEqual(cli.kernel.graph.close, originalGraphClose);
         assert.strictEqual(cli.kernel.memory.close, originalMemoryClose);
