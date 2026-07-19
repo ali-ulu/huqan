@@ -507,8 +507,9 @@ class CLI {
         return text;
       }
       case 'durum': {
-        const nodes = Object.keys(this.kernel.graph._nodes).length;
-        const edges = this.kernel.graph._edges.length;
+        const stats = this.kernel.graph.getStats();
+        const nodes = stats.nodes;
+        const edges = stats.edges;
         const entropy = this.kernel.entropy();
         const gaps = this.kernel.detectGaps();
         const contradictions = this.kernel.detectContradictions();

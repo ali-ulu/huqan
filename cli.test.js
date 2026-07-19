@@ -192,10 +192,30 @@ describe('CLI - Komut Çalıştırma', () => {
     });
     cli.agent.storage.close();
 
+    const originalGetStats = cli.kernel.graph.getStats.bind(cli.kernel.graph);
+    let getStatsCalls = 0;
+    cli.kernel.graph.getStats = () => {
+      getStatsCalls += 1;
+      return originalGetStats();
+    };
+
     try {
+      const emptyStats = originalGetStats();
+      const emptyResult = cli.execute('durum', '');
+      assert.strictEqual(
+        emptyResult.split(/\r?\n/)[0],
+        'Durum: ' + emptyStats.nodes + ' düğüm, ' + emptyStats.edges +
+          ' kenar, entropi: ' + cli.kernel.entropy().toFixed(3),
+      );
+      assert.strictEqual(getStatsCalls, 1);
+
       cli.kernel.learn('Köpek hayvandır', TEST_FIXTURE_LEARN_BYPASS);
       cli.kernel.learn('Kedi hayvandır', TEST_FIXTURE_LEARN_BYPASS);
-      const expected = cli.kernel.graph.getStats();
+      cli.kernel.graph.addNode('workspace-b-only', 'workspace-b-only', null, {
+        workspaceId: 'workspace-b',
+      });
+      const expected = originalGetStats();
+      getStatsCalls = 0;
       const result = cli.execute('durum', '');
       const firstLine = result.split(/\r?\n/)[0];
 
@@ -205,7 +225,9 @@ describe('CLI - Komut Çalıştırma', () => {
         ),
       );
       assert.match(firstLine, /entropi: -?\d+\.\d{3}$/);
+      assert.strictEqual(getStatsCalls, 1);
     } finally {
+      cli.kernel.graph.getStats = originalGetStats;
       closeManagedCLI(cli);
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
