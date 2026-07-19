@@ -159,7 +159,19 @@ class Kernel {
       graphOpts.useSQLite = false;
     }
     this.graph = new Graph(graphOpts);
-    this._readUseCases = createKernelReadUseCases({ getGraph: () => this.graph });
+    this._readUseCases = createKernelReadUseCases({
+      getGraph: () => this.graph,
+      normalizeWord: word => this.normalizeWord(word),
+      ok: (...args) => this._ok(...args),
+      forwardChain: (...args) => this._forwardChain(...args),
+      backwardChain: (...args) => this._backwardChain(...args),
+      detectCycle: (...args) => this._detectCycle(...args),
+      resolveCycleOrder: (...args) => this._resolveCycleOrder(...args),
+      findPath: (...args) => this._findPath(...args),
+      edgeEvidence: (...args) => this._edgeEvidence(...args),
+      pathEvidence: (...args) => this._pathEvidence(...args),
+      edgeRef: (...args) => this._edgeRef(...args),
+    });
     if (!opts.noLoad) this.graph.load();
     this.paranoidMode = opts.paranoidMode === true || process.env.AXIOM_PARANOID === '1';
     this.contractVersion = CONTRACT_VERSION;
@@ -1718,94 +1730,11 @@ if (verbSuffix.test(predicate)) {
   }
 
   reason(subject, workspaceId = 'default') {
-    const normalized = this.normalizeWord(subject);
-    const node = this.graph.getNode(normalized, workspaceId);
-    if (!node) {
-      return this._ok('reason', {
-        subject: normalized,
-        answer: 'Bilmiyorum',
-        forward: [],
-        backward: [],
-        cycles: [],
-      }, []);
-    }
-
-    const ileri = this._forwardChain(normalized, [], new Set(), 4, workspaceId);
-    const geri = this._backwardChain(normalized, [], new Set(), 4, workspaceId);
-    const cycle = this._detectCycle(normalized, new Set(), [], workspaceId);
-    const evidence = [
-      ...ileri.map(edge => this._edgeEvidence(edge, 'path', 0.5)),
-      ...geri.map(edge => this._edgeEvidence(edge, 'path', 0.5)),
-    ];
-
-    let answer = normalized + ':';
-    if (ileri.length > 0) answer += '\n  neden olur: ' + ileri.map(e => e.to + ' [' + e.relation + ']').join(', ');
-    if (geri.length > 0) answer += '\n  nedeni: ' + geri.map(e => e.from + ' [' + e.relation + ']').join(', ');
-    if (cycle) {
-      answer += '\n  ? döngü tespit edildi: ' + cycle.join(' ? ');
-      evidence.push(this._pathEvidence(cycle, 'path', 0.4, workspaceId));
-      const nedenOnce = this._resolveCycleOrder(cycle, workspaceId);
-      if (nedenOnce) answer += '\n  ? ilk neden: ' + nedenOnce;
-    }
-
-    return this._ok('reason', {
-      subject: normalized,
-      answer: answer || 'Bilmiyorum',
-      forward: ileri.map(edge => this._edgeRef(edge)),
-      backward: geri.map(edge => this._edgeRef(edge)),
-      cycles: cycle ? [cycle] : [],
-    }, evidence);
+    return this._readUseCases.reason(subject, workspaceId);
   }
 
   compare(a, b, workspaceId = 'default') {
-    const na = this.graph.getNode(this.normalizeWord(a), workspaceId);
-    const nb = this.graph.getNode(this.normalizeWord(b), workspaceId);
-    if (!na || !nb) {
-      return this._ok('compare', {
-        a: this.normalizeWord(a),
-        b: this.normalizeWord(b),
-        answer: 'Bilmiyorum',
-        common: [],
-        onlyA: [],
-        onlyB: [],
-        paths: [],
-      }, []);
-    }
-
-    const aN = na.id;
-    const bN = nb.id;
-    const aEdges = this.graph.getEdges(aN, workspaceId);
-    const bEdges = this.graph.getEdges(bN, workspaceId);
-    const aSet = new Set(aEdges.map(e => e.to + '|' + e.relation));
-    const bSet = new Set(bEdges.map(e => e.to + '|' + e.relation));
-
-    const ortak = aEdges.filter(e => bSet.has(e.to + '|' + e.relation));
-    const aFark = aEdges.filter(e => !bSet.has(e.to + '|' + e.relation));
-    const bFark = bEdges.filter(e => !aSet.has(e.to + '|' + e.relation));
-    const foundPath = this._findPath(aN, bN, new Set(), [], 5, workspaceId);
-
-    const evidence = [
-      ...ortak.map(edge => this._edgeEvidence(edge)),
-      ...aFark.map(edge => this._edgeEvidence(edge, 'partial_match', 0.35)),
-      ...bFark.map(edge => this._edgeEvidence(edge, 'partial_match', 0.35)),
-    ];
-    if (foundPath) evidence.push(this._pathEvidence(foundPath, 'path', 0.5, workspaceId));
-
-    let answer = '?? ' + aN + ' vs ' + bN + ':';
-    if (ortak.length > 0) answer += '\n  ortak: ' + ortak.map(e => e.to + ' [' + e.relation + ']').join(', ');
-    if (aFark.length > 0) answer += '\n  sadece ' + aN + ': ' + aFark.map(e => e.to + ' [' + e.relation + ']').join(', ');
-    if (bFark.length > 0) answer += '\n  sadece ' + bN + ': ' + bFark.map(e => e.to + ' [' + e.relation + ']').join(', ');
-    if (foundPath) answer += '\n  ba?lant?: ' + foundPath.join(' ? ');
-
-    return this._ok('compare', {
-      a: aN,
-      b: bN,
-      answer,
-      common: ortak.map(edge => this._edgeRef(edge)),
-      onlyA: aFark.map(edge => this._edgeRef(edge)),
-      onlyB: bFark.map(edge => this._edgeRef(edge)),
-      paths: foundPath ? [foundPath] : [],
-    }, evidence);
+    return this._readUseCases.compare(a, b, workspaceId);
   }
 
   _parseNumericComparison(text) {
