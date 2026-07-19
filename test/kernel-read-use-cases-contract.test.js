@@ -30,6 +30,7 @@ test('Kernel delegates entropy and gap inspection through read use cases', () =>
   const kernel = makeKernel('delegation');
   const calls = [];
   const originalAsk = kernel._readUseCases.ask;
+  const originalGetPersistenceDescriptor = kernel._readUseCases.getPersistenceDescriptor;
   const originalEntropy = kernel._readUseCases.entropy;
   const originalDetectGaps = kernel._readUseCases.detectGaps;
   const originalReason = kernel._readUseCases.reason;
@@ -39,6 +40,10 @@ test('Kernel delegates entropy and gap inspection through read use cases', () =>
     ask(question) {
       calls.push(['ask', question]);
       return originalAsk(question);
+    },
+    getPersistenceDescriptor() {
+      calls.push(['getPersistenceDescriptor']);
+      return originalGetPersistenceDescriptor();
     },
     entropy(workspaceId) {
       calls.push(['entropy', workspaceId]);
@@ -60,17 +65,35 @@ test('Kernel delegates entropy and gap inspection through read use cases', () =>
 
   try {
     assert.equal(kernel.ask('bilinmeyen nedir').type, 'ask');
+    assert.equal(kernel.getPersistenceDescriptor().memoryPath.endsWith('memory.json'), true);
     assert.equal(kernel.entropy('workspace-a'), 0);
     assert.deepEqual(kernel.detectGaps('workspace-a'), []);
     assert.equal(kernel.reason('subject-a', 'workspace-a').type, 'reason');
     assert.equal(kernel.compare('subject-a', 'subject-b', 'workspace-a').type, 'compare');
     assert.deepEqual(calls, [
       ['ask', 'bilinmeyen nedir'],
+      ['getPersistenceDescriptor'],
       ['entropy', 'workspace-a'],
       ['detectGaps', 'workspace-a'],
       ['reason', 'subject-a', 'workspace-a'],
       ['compare', 'subject-a', 'subject-b', 'workspace-a'],
     ]);
+  } finally {
+    closeKernel(kernel);
+  }
+});
+
+test('read use cases preserve persistence descriptor observable results', () => {
+  const kernel = makeKernel('persistence-descriptor');
+
+  try {
+    const descriptor = kernel.getPersistenceDescriptor();
+
+    assert.deepEqual(descriptor, {
+      memoryPath: path.join(os.tmpdir(), `huqan-read-use-cases-${process.pid}-persistence-descriptor`, 'memory.json'),
+      dbPath: path.join(os.tmpdir(), `huqan-read-use-cases-${process.pid}-persistence-descriptor`, 'memory.db'),
+    });
+    assert.equal(Object.isFrozen(descriptor), true);
   } finally {
     closeKernel(kernel);
   }

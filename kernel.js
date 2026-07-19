@@ -2123,12 +2123,7 @@ if (verbSuffix.test(predicate)) {
   }
 
   getPersistenceDescriptor() {
-    const memoryPath = this.graph?.memoryPath || 'memory.json';
-
-    return Object.freeze({
-      memoryPath,
-      dbPath: String(memoryPath).replace(/\.json$/i, '.db'),
-    });
+    return this._readUseCases.getPersistenceDescriptor();
   }
 
   reload() {
