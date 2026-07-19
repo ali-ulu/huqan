@@ -29,12 +29,17 @@ function closeKernel(kernel) {
 test('Kernel delegates entropy and gap inspection through read use cases', () => {
   const kernel = makeKernel('delegation');
   const calls = [];
+  const originalAsk = kernel._readUseCases.ask;
   const originalEntropy = kernel._readUseCases.entropy;
   const originalDetectGaps = kernel._readUseCases.detectGaps;
   const originalReason = kernel._readUseCases.reason;
   const originalCompare = kernel._readUseCases.compare;
 
   kernel._readUseCases = {
+    ask(question) {
+      calls.push(['ask', question]);
+      return originalAsk(question);
+    },
     entropy(workspaceId) {
       calls.push(['entropy', workspaceId]);
       return originalEntropy(workspaceId);
@@ -54,11 +59,13 @@ test('Kernel delegates entropy and gap inspection through read use cases', () =>
   };
 
   try {
+    assert.equal(kernel.ask('bilinmeyen nedir').type, 'ask');
     assert.equal(kernel.entropy('workspace-a'), 0);
     assert.deepEqual(kernel.detectGaps('workspace-a'), []);
     assert.equal(kernel.reason('subject-a', 'workspace-a').type, 'reason');
     assert.equal(kernel.compare('subject-a', 'subject-b', 'workspace-a').type, 'compare');
     assert.deepEqual(calls, [
+      ['ask', 'bilinmeyen nedir'],
       ['entropy', 'workspace-a'],
       ['detectGaps', 'workspace-a'],
       ['reason', 'subject-a', 'workspace-a'],
@@ -137,6 +144,43 @@ test('read use cases preserve reason and compare observable results', () => {
       onlyB: [],
       paths: [],
     });
+  } finally {
+    closeKernel(kernel);
+  }
+});
+
+test('read use cases preserve ask observable results', () => {
+  const kernel = makeKernel('ask');
+
+  try {
+    kernel.graph.addNode('dog', 'dog', null, { workspaceId: 'default' });
+    kernel.graph.addNode('mammal', 'mammal', null, { workspaceId: 'default' });
+    kernel.graph.addNode('animal', 'animal', null, { workspaceId: 'default' });
+    kernel.graph.addNode('friend', 'friend', null, { workspaceId: 'default' });
+    kernel.graph.addEdge('dog', 'mammal', 'tür', { weight: 0.9, workspaceId: 'default' });
+    kernel.graph.addEdge('mammal', 'animal', 'tür', { weight: 0.8, workspaceId: 'default' });
+    kernel.graph.addEdge('dog', 'friend', 'yapabilir', { weight: 0.5, workspaceId: 'default' });
+
+    const answer = kernel.ask('dog nedir');
+    assert.equal(answer.type, 'ask');
+    assert.equal(answer.data.subject, 'dog');
+    assert.equal(answer.data.unknown, false);
+    assert.match(answer.data.answer, /dog/);
+    assert.match(answer.data.answer, /mammal/);
+    assert.match(answer.data.answer, /animal/);
+    assert.match(answer.data.answer, /friend/);
+    assert.ok(answer.evidence.length >= 2);
+
+    const unknown = kernel.ask('missing nedir');
+    assert.deepEqual(unknown.data, {
+      answer: 'Bilmiyorum',
+      subject: 'axiom',
+      unknown: true,
+    });
+
+    const why = kernel.ask('neden dog');
+    assert.equal(why.type, 'reason');
+    assert.equal(why.data.subject, 'dog');
   } finally {
     closeKernel(kernel);
   }

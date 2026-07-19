@@ -161,8 +161,11 @@ class Kernel {
     this.graph = new Graph(graphOpts);
     this._readUseCases = createKernelReadUseCases({
       getGraph: () => this.graph,
+      emitPlugin: (...args) => this.plugins.emit(...args),
       normalizeWord: word => this.normalizeWord(word),
       ok: (...args) => this._ok(...args),
+      reason: (...args) => this.reason(...args),
+      alternatives: (...args) => this.alternatives(...args),
       forwardChain: (...args) => this._forwardChain(...args),
       backwardChain: (...args) => this._backwardChain(...args),
       detectCycle: (...args) => this._detectCycle(...args),
@@ -1464,159 +1467,7 @@ if (verbSuffix.test(predicate)) {
   }
 
   ask(question) {
-    const ev = this.plugins.emit('beforeAsk', { question });
-    question = ev.question;
-    const workspaceId = 'default';
-
-    const raw = question.toLowerCase().trim();
-    const cleaned = raw
-      .replace(/\b(nedir|kimdir|nas\u0131l|nerede|nereden|nereye|ka\u00e7|hangi)\b/gi, '')
-      .trim();
-
-    // YARDIM: ?ah?s eklerini k?ke indirge
-    const _kokeIndirge = (s) => {
-      let kok = s
-        .replace(/mezsem$/, 'me')
-        .replace(/mazsam$/, 'ma')
-        .replace(/sem$/, '')
-        .replace(/sam$/, '')
-        .replace(/meliyim$/, 'me')
-        .replace(/mal\u0131y\u0131m$/, 'ma')
-        .replace(/yim$/, '')
-        .replace(/y\u0131m$/, '')
-        .replace(/yum$/, '')
-        .replace(/y\u00fcm$/, '')
-        .replace(/m$/, '')
-        .replace(/im$/, '')
-        .replace(/s\u0131n$/, '')
-        .replace(/sin$/, '')
-        .replace(/sun$/, '')
-        .replace(/s\u00fcn$/, '')
-        .replace(/yorsun$/, '')
-        .replace(/yor$/, '');
-      // "s?rekli ?ÄŸrenmeliyim" ? "s?rekli ?ÄŸrenme"
-      if (kok.endsWith('meliyim')) kok = kok.slice(0, -7);
-      return kok.trim();
-    };
-
-    // YARDIM: ?zneyi bul (ben kipi varsa axiom'a y?nlendir)
-    const _ozneBul = (s) => {
-      const parts = s.split(/\s+/).filter(Boolean);
-      if (parts.length === 0) return { subject: 'axiom', verb: '' };
-      const ilk = parts[0];
-      const normalized = this.normalizeWord(ilk);
-      // ?lk kelime grafikte var m??
-      if (this.graph.getNode(normalized)) {
-        return { subject: normalized, verb: parts.slice(1).join(' ') };
-      }
-      // Åah?s eki var m?? (?ÄŸrenmezsem, ?ÄŸrenmeliyim, bilmiyorum, yapabilirim...)
-      const fiilKok = _kokeIndirge(ilk);
-      const normKok = this.normalizeWord(fiilKok);
-      if (this.graph.getNode(normKok)) {
-        return { subject: 'axiom', verb: normKok };
-      }
-      // Son kelimeye bak (s?rekli ?ÄŸrenmeliyim ? "s?rekli" değil "?ÄŸrenme")
-      if (parts.length > 1) {
-        const son = parts[parts.length - 1];
-        const sonKok = _kokeIndirge(son);
-        const normSon = this.normalizeWord(sonKok);
-        // "s?rekli"yi s?fat olarak ata
-        const sifati = parts.slice(0, -1).join(' ') + ' ' + sonKok;
-        if (this.graph.getNode(normSon)) {
-          return { subject: 'axiom', verb: sifati, sifat: parts.slice(0, -1).join(' ') };
-        }
-        // Hi?biri yoksa axiom dene
-        return { subject: 'axiom', verb: s };
-      }
-      return { subject: normalized, verb: '' };
-    };
-
-    // PATTERN 1: Neden/ni?in/niye sorusu ? reason() kullan
-    if (/^(neden|ni?in|niye)\b/.test(raw)) {
-      const action = raw.replace(/^(neden|ni?in|niye)\s+/, '');
-      const { subject } = _ozneBul(action);
-      const subj = this.normalizeWord(subject);
-      return this.reason(subj || 'axiom');
-    }
-
-    // PATTERN 2: "ne olur" / "olursa" sorusu ? forward chain
-    if (/ne olur/.test(raw) || /\w+sa\b/.test(raw) || /\w+se\b/.test(raw)) {
-      const action = raw.replace(/\s+ne olur.*$/, '').replace(/\s+olursa.*$/, '').trim();
-      const { subject, verb } = _ozneBul(action);
-      const subj = this.graph.getNode(verb && this.normalizeWord(verb)) ? this.normalizeWord(verb) : this.normalizeWord(subject);
-      if (this.graph.getNode(subj)) {
-        return this.reason(subj);
-      }
-    }
-
-    const parts = cleaned.split(/\s+/).filter(Boolean);
-    const { subject: detected } = _ozneBul(parts[0] || '');
-    const subject = detected;
-    const node = this.graph.getNode(subject);
-
-    // EÄŸer ?zne grafikte yoksa ama ?ah?s eki varsa, axiom'a y?nlendir
-    const finalSubject = node ? subject : 'axiom';
-    const finalNode = this.graph.getNode(finalSubject);
-
-    if (!finalNode) {
-      return this._ok('ask', { answer: 'Bilmiyorum', subject: finalSubject, unknown: true }, []);
-    }
-
-    const edges = this.graph.getEdges(finalSubject);
-    if (edges.length === 0) {
-      return this._ok('ask', { answer: 'Bilmiyorum', subject: finalSubject, unknown: true }, []);
-    }
-
-    // KISITLAMA: sadece x yapar ? filter yapabilir edges
-    const kistlamaVar = edges.some(e => e.kistlama && e.relation === 'yapabilir');
-    const allowedYapabilir = kistlamaVar
-      ? new Set(edges.filter(e => e.kistlama && e.relation === 'yapabilir').map(e => e.to))
-      : null;
-
-    const sorted = [...edges].sort((a, b) => b.weight - a.weight);
-    const evidence = [];
-    const results = [];
-
-    for (const edge of sorted) {
-      if (kistlamaVar && edge.relation === 'yapabilir' && !allowedYapabilir.has(edge.to)) continue;
-      evidence.push(this._edgeEvidence(edge));
-      if (edge.relation === 'tür') {
-        if (!results.includes(edge.to)) results.push(edge.to);
-        const transitive = this._walkTransitive(edge.to, [], 2);
-        for (const t of transitive) {
-          if (!results.includes(t)) results.push(t);
-        }
-      } else if (edge.relation === 'yapabilir') {
-        if (!results.includes(edge.to)) results.push(edge.to);
-      } else if (!results.includes(edge.to)) {
-        results.push(edge.to);
-      }
-    }
-
-    // Alternatif ??z?m ?nerileri
-    const altResult = this.alternatives(finalSubject, 2, workspaceId);
-    const altPaths = altResult.data.paths || [];
-    const altText = altPaths.length > 1
-      ? `\n  alternatif: ${altPaths.map(p => `[${p.type}] ${p.to}`).join(', ')}`
-      : '';
-
-    const answer = results.length === 0 ? 'Bilmiyorum' : `${finalSubject} ${results.join(', ')}${altText}`;
-    this.plugins.emit('afterAsk', { question, answer, alternatives: altPaths.length });
-    return this._ok('ask', { answer, subject: finalSubject, unknown: false, alternatives: altPaths.length }, evidence);
-  }
-
-  _walkTransitive(nodeId, visited, depth) {
-    if (depth <= 0 || visited.includes(nodeId)) return [];
-    visited.push(nodeId);
-    const edges = this.graph.getEdges(nodeId);
-    const results = [];
-    for (const e of edges) {
-      if (e.relation === 'tür' && !visited.includes(e.to)) {
-        results.push(e.to);
-        results.push(...this._walkTransitive(e.to, visited, depth - 1));
-      }
-    }
-    return results;
+    return this._readUseCases.ask(question);
   }
 
   alternatives(subject, maxPaths = 3, workspaceId = 'default') {
