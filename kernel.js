@@ -8,6 +8,7 @@ const VerifyService = require('./lib/verify');
 const { buildProvenance } = require('./lib/provenance-ingest');
 const { evaluateMemoryAdmission } = require('./lib/memory-admission-gate');
 const { detectClaimConflict, routeCandidateClaim } = require('./lib/conflict-detector');
+const { createKernelReadUseCases } = require('./lib/kernel-read-use-cases');
 const MemoryStore = require('./lib/memory-store');
 
 let RustGraph;
@@ -158,6 +159,7 @@ class Kernel {
       graphOpts.useSQLite = false;
     }
     this.graph = new Graph(graphOpts);
+    this._readUseCases = createKernelReadUseCases({ getGraph: () => this.graph });
     if (!opts.noLoad) this.graph.load();
     this.paranoidMode = opts.paranoidMode === true || process.env.AXIOM_PARANOID === '1';
     this.contractVersion = CONTRACT_VERSION;
@@ -1708,36 +1710,11 @@ if (verbSuffix.test(predicate)) {
   }
 
   entropy(workspaceId = 'default') {
-    const allNodes = Object.values(this.graph.getNodes(workspaceId));
-    if (allNodes.length === 0) return 0;
-    let totalWeight = 0;
-    const weights = [];
-    for (const node of allNodes) {
-      const edges = this.graph.getEdges(node.id, workspaceId);
-      for (const e of edges) {
-        weights.push(e.weight);
-        totalWeight += e.weight;
-      }
-    }
-    if (totalWeight === 0) return 0;
-    let s = 0;
-    for (const w of weights) {
-      const p = w / totalWeight;
-      s -= p * Math.log(p);
-    }
-    return s;
+    return this._readUseCases.entropy(workspaceId);
   }
 
   detectGaps(workspaceId = 'default') {
-    const allNodes = Object.values(this.graph.getNodes(workspaceId));
-    const gaps = [];
-    for (const node of allNodes) {
-      const edges = this.graph.getEdges(node.id, workspaceId);
-      if (edges.length === 0) {
-        gaps.push(node.id);
-      }
-    }
-    return gaps;
+    return this._readUseCases.detectGaps(workspaceId);
   }
 
   reason(subject, workspaceId = 'default') {
