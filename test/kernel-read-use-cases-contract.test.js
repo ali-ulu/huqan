@@ -7,7 +7,7 @@ const test = require('node:test');
 
 const Kernel = require('../kernel');
 
-function makeKernel(label) {
+function makeKernel(label, overrides = {}) {
   const root = path.join(os.tmpdir(), `huqan-read-use-cases-${process.pid}-${label}`);
   return new Kernel({
     noLoad: true,
@@ -18,6 +18,7 @@ function makeKernel(label) {
     dbPath: path.join(root, 'memory.db'),
     memoryStorePath: path.join(root, 'memory-store.json'),
     memoryStoreDbPath: path.join(root, 'memory-store.db'),
+    ...overrides,
   });
 }
 
@@ -84,14 +85,17 @@ test('Kernel delegates entropy and gap inspection through read use cases', () =>
 });
 
 test('read use cases preserve persistence descriptor observable results', () => {
-  const kernel = makeKernel('persistence-descriptor');
+  const root = path.join(os.tmpdir(), `huqan-read-use-cases-${process.pid}-persistence-descriptor`);
+  const kernel = makeKernel('persistence-descriptor', {
+    dbPath: path.join(root, 'independent.db'),
+  });
 
   try {
     const descriptor = kernel.getPersistenceDescriptor();
 
     assert.deepEqual(descriptor, {
-      memoryPath: path.join(os.tmpdir(), `huqan-read-use-cases-${process.pid}-persistence-descriptor`, 'memory.json'),
-      dbPath: path.join(os.tmpdir(), `huqan-read-use-cases-${process.pid}-persistence-descriptor`, 'memory.db'),
+      memoryPath: path.join(root, 'memory.json'),
+      dbPath: path.join(root, 'memory.db'),
     });
     assert.equal(Object.isFrozen(descriptor), true);
   } finally {
