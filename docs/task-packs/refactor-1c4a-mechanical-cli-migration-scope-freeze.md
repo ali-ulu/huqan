@@ -214,4 +214,3 @@ This gate does not claim that:
 - Graph, Memory, or Persistence decomposition is complete;
 - surface parity or mutation-entrypoint coverage is complete;
 - Policy Auditor or any post-refactor program is authorized.
-
