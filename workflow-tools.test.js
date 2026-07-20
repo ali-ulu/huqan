@@ -208,6 +208,46 @@ describe('workflow-tools', () => {
     assert.ok(result.evidence.length >= 1);
   });
 
+  it('runCapability prefers the governed Kernel facade over PluginManager', async () => {
+    const calls = [];
+    const kernel = createKernel({
+      async runCapability() {
+        calls.push('kernel');
+        return { ok: true, data: { owner: 'kernel' } };
+      },
+      plugins: {
+        async runCapability() {
+          calls.push('plugins');
+          return { ok: true, data: { owner: 'plugins' } };
+        },
+      },
+    });
+    const tool = createWorkflowTools(kernel).find(item => item.name === 'runCapability');
+
+    const result = await tool.run({}, { name: 'demo' });
+
+    assert.deepStrictEqual(calls, ['kernel']);
+    assert.strictEqual(result.data.owner, 'kernel');
+    assert.strictEqual(result.meta.source, 'kernel.runCapability');
+  });
+
+  it('runCapability labels the bounded PluginManager compatibility fallback', async () => {
+    const kernel = createKernel({
+      runCapability: undefined,
+      plugins: {
+        async runCapability() {
+          return { ok: true, data: { owner: 'plugins' } };
+        },
+      },
+    });
+    const tool = createWorkflowTools(kernel).find(item => item.name === 'runCapability');
+
+    const result = await tool.run({}, { name: 'demo' });
+
+    assert.strictEqual(result.data.owner, 'plugins');
+    assert.strictEqual(result.meta.source, 'plugin-manager');
+  });
+
   it('repoMemory calls kernel.runCapability and forwards repo ingest input', async () => {
     const tool = createWorkflowTools(createKernel()).find(item => item.name === 'repoMemory');
     const result = await tool.run({}, {

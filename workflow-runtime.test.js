@@ -330,6 +330,7 @@ describe('workflow-runtime', () => {
 
   it('lists and runs the discovery skeleton through the real plugin manager', async () => {
     const kernel = new Kernel({ noLoad: true, loadPlugins: false });
+    kernel.enableCapability('pluginCapabilities');
     kernel.usePlugin(require('./plugins/discovery-engine'));
     kernel.usePlugin(require('./plugins/experiment-planner'));
     kernel.usePlugin(require('./plugins/result-analyzer'));

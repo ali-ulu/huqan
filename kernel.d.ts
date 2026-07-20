@@ -1,5 +1,16 @@
 export type VerifyStatus = 'dogrulandi' | 'celiski' | 'bilinmiyor';
 
+export type KernelCapabilityName =
+  | 'graph'
+  | 'temporal'
+  | 'pluginCapabilities'
+  | 'llm'
+  | 'contradictionDetection'
+  | 'evidenceRanking'
+  | 'agentApi'
+  | 'companyMode'
+  | 'discoveryLoop';
+
 export interface EvidenceEdgeRef {
   from: string;
   to: string;
@@ -139,6 +150,7 @@ export interface KernelOptions {
   paranoidMode?: boolean;
   lang?: string;
   loadPlugins?: boolean;
+  capabilities?: Partial<Record<KernelCapabilityName, boolean>>;
 }
 
 declare class Kernel {
@@ -176,6 +188,17 @@ declare class Kernel {
   recordCliMutationAudit(intent: CliMutationAuditIntent): CliMutationAuditResult;
 
   paranoidMode: boolean;
+
+  hasCapability(name: KernelCapabilityName): boolean;
+  enableCapability(name: KernelCapabilityName): boolean;
+  requireCapability(name: KernelCapabilityName): true;
+  listCapabilities(): Array<Record<string, unknown>>;
+  getCapability(name: string): Record<string, unknown> | null;
+  runCapability(
+    name: string,
+    input: unknown,
+    opts?: Record<string, unknown>
+  ): Promise<unknown>;
 
   learn(text: string): Envelope<'learn', LearnData>;
   learnDocument(text: string, opts?: Record<string, unknown>): LearnData;

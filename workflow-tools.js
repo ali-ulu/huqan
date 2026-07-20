@@ -76,16 +76,16 @@ function resultFromKernel(tool, kernelResult, fallbackData = null, meta = {}) {
 }
 
 function resolveCapabilityRunner(kernel) {
-  if (kernel && kernel.plugins && typeof kernel.plugins.runCapability === 'function') {
-    return {
-      source: 'plugin-manager',
-      run: kernel.plugins.runCapability.bind(kernel.plugins),
-    };
-  }
   if (kernel && typeof kernel.runCapability === 'function') {
     return {
       source: 'kernel.runCapability',
       run: kernel.runCapability.bind(kernel),
+    };
+  }
+  if (kernel && kernel.plugins && typeof kernel.plugins.runCapability === 'function') {
+    return {
+      source: 'plugin-manager',
+      run: kernel.plugins.runCapability.bind(kernel.plugins),
     };
   }
   return null;
@@ -301,7 +301,7 @@ function createWorkflowTools(kernel) {
           sourceType,
           action,
         }, {
-          source: 'kernel.runCapability',
+          source: runner.source,
           capability: 'repoMemory',
         });
       } catch (error) {
@@ -316,7 +316,7 @@ function createWorkflowTools(kernel) {
           error,
           confidence: 0,
           meta: {
-            source: 'kernel.runCapability',
+            source: runner.source,
             capability: 'repoMemory',
           },
         });
@@ -833,7 +833,7 @@ function createWorkflowTools(kernel) {
           capability: capabilityName,
           input: capabilityInput,
         }, {
-          source: 'kernel.runCapability',
+          source: runner.source,
         });
       } catch (error) {
         return buildEnvelope({
@@ -846,7 +846,7 @@ function createWorkflowTools(kernel) {
           error,
           confidence: 0,
           meta: {
-            source: 'kernel.runCapability',
+            source: runner.source,
           },
         });
       }
