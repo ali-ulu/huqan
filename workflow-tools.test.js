@@ -208,6 +208,81 @@ describe('workflow-tools', () => {
     assert.ok(result.evidence.length >= 1);
   });
 
+  it('runCapability prefers the governed Kernel facade over PluginManager', async () => {
+    const calls = [];
+    const kernel = createKernel({
+      async runCapability() {
+        calls.push('kernel');
+        return { ok: true, data: { owner: 'kernel' } };
+      },
+      plugins: {
+        async runCapability() {
+          calls.push('plugins');
+          return { ok: true, data: { owner: 'plugins' } };
+        },
+      },
+    });
+    const tool = createWorkflowTools(kernel).find(item => item.name === 'runCapability');
+
+    const result = await tool.run({}, { name: 'demo' });
+
+    assert.deepStrictEqual(calls, ['kernel']);
+    assert.strictEqual(result.data.owner, 'kernel');
+    assert.strictEqual(result.meta.source, 'kernel.runCapability');
+  });
+
+  it('runCapability labels the bounded PluginManager compatibility fallback', async () => {
+    const kernel = createKernel({
+      runCapability: undefined,
+      plugins: {
+        async runCapability() {
+          return { ok: true, data: { owner: 'plugins' } };
+        },
+      },
+    });
+    const tool = createWorkflowTools(kernel).find(item => item.name === 'runCapability');
+
+    const result = await tool.run({}, { name: 'demo' });
+
+    assert.strictEqual(result.data.owner, 'plugins');
+    assert.strictEqual(result.meta.source, 'plugin-manager');
+  });
+
+  it('specialized capability tools report the governed runner without replacing domain source', async () => {
+    const tools = createWorkflowTools(createKernel());
+    const cases = [
+      ['companyBrain', { question: 'why' }, 'company-brain'],
+      ['discoveryEngine', { goal: 'discover' }, 'discovery-engine'],
+      ['experimentPlanner', { hypothesis: 'test' }, 'experiment-planner'],
+      ['resultAnalyzer', { result: 'support' }, 'result-analyzer'],
+      ['replicationChecker', { runs: [] }, 'replication-checker'],
+    ];
+
+    for (const [name, input, source] of cases) {
+      const result = await tools.find(item => item.name === name).run({}, input);
+      assert.strictEqual(result.meta.source, source);
+      assert.strictEqual(result.meta.runnerSource, 'kernel.runCapability');
+    }
+  });
+
+  it('specialized capability errors report the selected compatibility runner', async () => {
+    const kernel = createKernel({
+      runCapability: undefined,
+      plugins: {
+        async runCapability() {
+          throw new Error('runner failed');
+        },
+      },
+    });
+    const tool = createWorkflowTools(kernel).find(item => item.name === 'companyBrain');
+
+    const result = await tool.run({}, { question: 'why' });
+
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.meta.source, 'company-brain');
+    assert.strictEqual(result.meta.runnerSource, 'plugin-manager');
+  });
+
   it('repoMemory calls kernel.runCapability and forwards repo ingest input', async () => {
     const tool = createWorkflowTools(createKernel()).find(item => item.name === 'repoMemory');
     const result = await tool.run({}, {

@@ -139,6 +139,7 @@ export interface KernelOptions {
   paranoidMode?: boolean;
   lang?: string;
   loadPlugins?: boolean;
+  capabilities?: Record<string, boolean>;
 }
 
 declare class Kernel {
@@ -176,6 +177,17 @@ declare class Kernel {
   recordCliMutationAudit(intent: CliMutationAuditIntent): CliMutationAuditResult;
 
   paranoidMode: boolean;
+
+  hasCapability(name: string): boolean;
+  enableCapability(name: string): boolean;
+  requireCapability(name: string): true;
+  listCapabilities(): Array<Record<string, unknown>>;
+  getCapability(name: string): Record<string, unknown> | null;
+  runCapability(
+    name: string,
+    input: unknown,
+    opts?: Record<string, unknown>
+  ): Promise<unknown>;
 
   learn(text: string): Envelope<'learn', LearnData>;
   learnDocument(text: string, opts?: Record<string, unknown>): LearnData;

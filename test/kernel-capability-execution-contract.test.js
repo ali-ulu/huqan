@@ -1,9 +1,12 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
 
 const Kernel = require('../kernel');
 const KernelV2 = require('../kernel.v2');
 const { createAxiomClient } = require('../lib/sdk');
+const { createWorkflowTools } = require('../workflow-tools');
 
 test('Kernel capability execution fails closed before PluginManager delegation', async () => {
   let pluginCalls = 0;
@@ -131,4 +134,64 @@ test('SDK prefers governed Kernel runner and uses PluginManager only as compatib
   delete kernel.runCapability;
   assert.deepEqual(await createAxiomClient(kernel).runCapability('demo', { a: 2 }), { owner: 'plugins' });
   assert.deepEqual(calls.map((call) => call[0]), ['kernel', 'plugins']);
+});
+
+test('workflow capability execution fails closed through the governed Kernel facade', async () => {
+  let pluginCalls = 0;
+  const kernel = Object.create(Kernel.prototype);
+  kernel.capabilities = { pluginCapabilities: false };
+  kernel.plugins = {
+    async runCapability() {
+      pluginCalls += 1;
+    },
+  };
+  const tool = createWorkflowTools(kernel).find(candidate => candidate.name === 'runCapability');
+
+  const result = await tool.run({}, { name: 'demo', input: { value: 1 } });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, 'CAPABILITY_REQUIRED');
+  assert.equal(pluginCalls, 0);
+  assert.equal(result.meta.source, 'kernel.runCapability');
+});
+
+test('capability declarations match the existing Kernel and KernelV2 runtime facade', () => {
+  const kernelDeclaration = fs.readFileSync(path.join(__dirname, '..', 'kernel.d.ts'), 'utf8');
+  const kernelV2Declaration = fs.readFileSync(path.join(__dirname, '..', 'kernel.v2.d.ts'), 'utf8');
+  const methods = [
+    'hasCapability',
+    'enableCapability',
+    'requireCapability',
+    'listCapabilities',
+    'getCapability',
+    'runCapability',
+  ];
+
+  assert.match(kernelDeclaration, /capabilities\?: Record<string, boolean>/);
+  for (const method of methods) {
+    assert.match(kernelDeclaration, new RegExp(`\\b${method}\\s*\\(`));
+    assert.match(kernelV2Declaration, new RegExp(`\\b${method}\\s*\\(`));
+  }
+  assert.doesNotMatch(kernelV2Declaration, /\bplugins\s*:/);
+});
+
+test('KernelV2 workflow execution preserves wrapped Kernel fail-closed policy', async () => {
+  let pluginCalls = 0;
+  const wrapped = Object.create(Kernel.prototype);
+  wrapped.capabilities = { pluginCapabilities: false };
+  wrapped.plugins = {
+    async runCapability() {
+      pluginCalls += 1;
+    },
+  };
+  const kernelV2 = Object.create(KernelV2.prototype);
+  kernelV2.kernel = wrapped;
+  const tool = createWorkflowTools(kernelV2).find(candidate => candidate.name === 'runCapability');
+
+  const result = await tool.run({}, { name: 'demo' });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, 'CAPABILITY_REQUIRED');
+  assert.equal(pluginCalls, 0);
+  assert.equal(result.meta.source, 'kernel.runCapability');
 });

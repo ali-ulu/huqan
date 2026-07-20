@@ -6,6 +6,24 @@ declare class KernelV2 {
   recordCliMutationAudit(
     intent: Parameters<Kernel['recordCliMutationAudit']>[0]
   ): ReturnType<Kernel['recordCliMutationAudit']>;
+  hasCapability(
+    name: Parameters<Kernel['hasCapability']>[0]
+  ): ReturnType<Kernel['hasCapability']>;
+  enableCapability(
+    name: Parameters<Kernel['enableCapability']>[0]
+  ): ReturnType<Kernel['enableCapability']>;
+  requireCapability(
+    name: Parameters<Kernel['requireCapability']>[0]
+  ): ReturnType<Kernel['requireCapability']>;
+  listCapabilities(): ReturnType<Kernel['listCapabilities']>;
+  getCapability(
+    name: Parameters<Kernel['getCapability']>[0]
+  ): ReturnType<Kernel['getCapability']>;
+  runCapability(
+    name: Parameters<Kernel['runCapability']>[0],
+    input: Parameters<Kernel['runCapability']>[1],
+    opts?: Parameters<Kernel['runCapability']>[2]
+  ): ReturnType<Kernel['runCapability']>;
   learn(text: string, opts?: Record<string, unknown>): ReturnType<Kernel['learn']>;
   learnDocument(text: string, opts?: Record<string, unknown>): any;
   learnFromLLM(text: string, opts?: Record<string, unknown>): any;
