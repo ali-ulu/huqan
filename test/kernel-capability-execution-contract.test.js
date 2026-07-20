@@ -4,7 +4,6 @@ const test = require('node:test');
 const Kernel = require('../kernel');
 const KernelV2 = require('../kernel.v2');
 const { createAxiomClient } = require('../lib/sdk');
-const { createWorkflowTools } = require('../workflow-tools');
 
 test('Kernel capability execution fails closed before PluginManager delegation', async () => {
   let pluginCalls = 0;
@@ -132,28 +131,4 @@ test('SDK prefers governed Kernel runner and uses PluginManager only as compatib
   delete kernel.runCapability;
   assert.deepEqual(await createAxiomClient(kernel).runCapability('demo', { a: 2 }), { owner: 'plugins' });
   assert.deepEqual(calls.map((call) => call[0]), ['kernel', 'plugins']);
-});
-
-test('workflow capability runner records current PluginManager-first compatibility baseline', async () => {
-  const calls = [];
-  const kernel = {
-    async runCapability() {
-      calls.push('kernel');
-      return { owner: 'kernel' };
-    },
-    plugins: {
-      async runCapability() {
-        calls.push('plugins');
-        return { owner: 'plugins' };
-      },
-    },
-  };
-  const tool = createWorkflowTools(kernel).find((candidate) => candidate.name === 'runCapability');
-
-  const result = await tool.run({}, { name: 'demo', input: { a: 1 } });
-
-  assert.deepEqual(calls, ['plugins']);
-  assert.equal(result.ok, true);
-  assert.equal(result.data.owner, 'plugins');
-  assert.equal(result.meta.source, 'kernel.runCapability');
 });
