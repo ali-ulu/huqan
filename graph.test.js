@@ -518,4 +518,32 @@ describe('Graph - Lifecycle and maintenance baseline contracts', { concurrency: 
     assert.ok(graph.getEdge('source', 'target', 'relates', 'other'));
     assert.strictEqual(saveCalls, 0);
   }));
+
+  it('assignEmbedding stores the exact vector on the exact existing storage key', () => {
+    const graph = new Graph({ useSQLite: false });
+    graph.addNode('shared', 'one', null, { workspaceId: 'one' });
+    graph.addNode('shared', 'two', null, { workspaceId: 'two' });
+    const storageKeys = Object.keys(graph._nodes);
+    const target = new Float64Array([1, 2, 3]);
+    const other = new Float64Array([4, 5]);
+    graph._nodes[storageKeys[1]].embedding = other;
+    const targetNode = graph._nodes[storageKeys[0]];
+    let getNodeCalls = 0;
+    let saveCalls = 0;
+    graph.getNode = (...args) => {
+      getNodeCalls += 1;
+      return null;
+    };
+    graph.save = () => {
+      saveCalls += 1;
+    };
+
+    graph._assignEmbedding(storageKeys[0], target);
+
+    assert.strictEqual(graph._nodes[storageKeys[0]], targetNode);
+    assert.strictEqual(graph._nodes[storageKeys[0]].embedding, target);
+    assert.strictEqual(graph._nodes[storageKeys[1]].embedding, other);
+    assert.strictEqual(getNodeCalls, 0);
+    assert.strictEqual(saveCalls, 0);
+  });
 });
