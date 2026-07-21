@@ -526,6 +526,25 @@ class Graph {
     this._nodes[storageKey].embedding = embedding;
   }
 
+  _captureTemporalEdgeKeys() {
+    return new Set(this._edges.map(edge => `${edge.from}|${edge.relation}|${edge.to}`));
+  }
+
+  _applyTemporalEdgeMetadata(source, learnedAt, beforeEdgeKeys) {
+    const timestamp = learnedAt || nowIso();
+    for (const edge of this._edges) {
+      const key = `${edge.from}|${edge.relation}|${edge.to}`;
+      if (!beforeEdgeKeys.has(key) && !edge.createdAt) edge.createdAt = timestamp;
+      edge.updatedAt = timestamp;
+      if (source) edge.source = source;
+
+      if (!Array.isArray(edge.evidence)) edge.evidence = [];
+      if (source && !edge.evidence.includes(`source:${source}`)) {
+        edge.evidence.push(`source:${source}`);
+      }
+    }
+  }
+
   getNodes(workspaceId = 'default') {
     const scope = normalizeWorkspaceId(workspaceId);
     const nodes = {};

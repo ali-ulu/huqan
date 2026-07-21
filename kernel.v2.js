@@ -202,33 +202,12 @@ class KernelV2 {
     };
   }
 
-  _edgeKey(edge) {
-    return `${edge.from}|${edge.relation}|${edge.to}`;
-  }
-
-  _markTemporalMetadata(source, learnedAt, beforeEdgeMap) {
-    const ts = learnedAt || nowIso();
-    for (const edge of this.kernel.graph._edges) {
-      const key = this._edgeKey(edge);
-      const existed = beforeEdgeMap.has(key);
-
-      if (!existed && !edge.createdAt) edge.createdAt = ts;
-      edge.updatedAt = ts;
-      if (source) edge.source = source;
-
-      if (!Array.isArray(edge.evidence)) edge.evidence = [];
-      if (source && !edge.evidence.includes(`source:${source}`)) {
-        edge.evidence.push(`source:${source}`);
-      }
-    }
-  }
-
   learn(text, opts = {}) {
     const source = opts.source || 'user';
     const learnedAt = opts.learnedAt || nowIso();
-    const beforeEdgeMap = new Set(this.kernel.graph._edges.map(e => this._edgeKey(e)));
+    const beforeEdgeMap = this.kernel.graph._captureTemporalEdgeKeys();
     const result = this.kernel.learn(text, opts);
-    this._markTemporalMetadata(source, learnedAt, beforeEdgeMap);
+    this.kernel.graph._applyTemporalEdgeMetadata(source, learnedAt, beforeEdgeMap);
     return this._ok('learn', result.data, result.evidence, {
       ...result.meta,
       source,

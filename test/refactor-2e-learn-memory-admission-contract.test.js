@@ -462,6 +462,59 @@ test('KernelV2 uses the current workspace-blind edge key for new-edge metadata',
   }
 });
 
+test('KernelV2 delegates temporal metadata around wrapped learn in exact synchronous order', () => {
+  const fixture = makeKernel('v2-temporal-delegation');
+  const v2 = new KernelV2({ kernel: fixture.kernel });
+  const calls = [];
+  const beforeKeys = new Set(['existing|relates|target']);
+  try {
+    fixture.kernel.graph._captureTemporalEdgeKeys = () => {
+      calls.push('capture');
+      return beforeKeys;
+    };
+    const originalLearn = fixture.kernel.learn.bind(fixture.kernel);
+    fixture.kernel.learn = (...args) => {
+      calls.push('learn');
+      return originalLearn(...args);
+    };
+    fixture.kernel.graph._applyTemporalEdgeMetadata = (...args) => {
+      calls.push('metadata');
+      assert.strictEqual(args[0], 'delegated');
+      assert.strictEqual(args[1], FIXED_TIME);
+      assert.strictEqual(args[2], beforeKeys);
+    };
+
+    v2.learn('kedi hayvandir', {
+      ...bypass(),
+      source: 'delegated',
+      learnedAt: FIXED_TIME,
+    });
+
+    assert.deepStrictEqual(calls, ['capture', 'learn', 'metadata']);
+  } finally {
+    closeFixture(fixture);
+  }
+});
+
+test('KernelV2 propagates metadata failure without rolling back wrapped learn', () => {
+  const fixture = makeKernel('v2-temporal-failure');
+  const v2 = new KernelV2({ kernel: fixture.kernel });
+  const failure = new Error('metadata failure');
+  try {
+    fixture.kernel.graph._applyTemporalEdgeMetadata = () => {
+      throw failure;
+    };
+
+    assert.throws(() => v2.learn('kedi hayvandir', {
+      ...bypass(),
+      learnedAt: FIXED_TIME,
+    }), error => error === failure);
+    assert.strictEqual(fixture.kernel.graph.edgeCount('default'), 1);
+  } finally {
+    closeFixture(fixture);
+  }
+});
+
 test('Markdown adapter and Shield preserve review-only learn compatibility', () => {
   const adapter = makeKernel('adapter-review');
   const shield = makeKernel('shield-review');

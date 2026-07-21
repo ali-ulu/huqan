@@ -546,4 +546,34 @@ describe('Graph - Lifecycle and maintenance baseline contracts', { concurrency: 
     assert.strictEqual(getNodeCalls, 0);
     assert.strictEqual(saveCalls, 0);
   });
+
+  it('temporal edge metadata preserves workspace-blind keys, identity, order, and no-save behavior', () => {
+    const graph = new Graph({ useSQLite: false });
+    for (const workspaceId of ['one', 'two']) {
+      graph.addNode('source', 'source', null, { workspaceId });
+      graph.addNode('target', 'target', null, { workspaceId });
+      graph.addEdge('source', 'target', 'relates', { workspaceId });
+    }
+    const beforeKeys = graph._captureTemporalEdgeKeys();
+    const originalEdges = graph._edges.slice();
+    originalEdges[0].createdAt = '2020-01-01T00:00:00.000Z';
+    originalEdges[0].evidence = 'legacy';
+    originalEdges[1].evidence = ['source:contract'];
+    let saveCalls = 0;
+    graph.save = () => { saveCalls += 1; };
+
+    assert.deepStrictEqual([...beforeKeys], ['source|relates|target']);
+    graph._applyTemporalEdgeMetadata('contract', '2026-07-21T00:00:00.000Z', beforeKeys);
+
+    assert.strictEqual(graph._edges[0], originalEdges[0]);
+    assert.strictEqual(graph._edges[1], originalEdges[1]);
+    assert.deepStrictEqual(graph._edges, originalEdges);
+    assert.strictEqual(originalEdges[0].createdAt, '2020-01-01T00:00:00.000Z');
+    assert.strictEqual(originalEdges[1].createdAt, undefined);
+    assert.deepStrictEqual(originalEdges[0].evidence, ['source:contract']);
+    assert.deepStrictEqual(originalEdges[1].evidence, ['source:contract']);
+    assert.strictEqual(originalEdges[0].updatedAt, '2026-07-21T00:00:00.000Z');
+    assert.strictEqual(originalEdges[1].updatedAt, '2026-07-21T00:00:00.000Z');
+    assert.strictEqual(saveCalls, 0);
+  });
 });
