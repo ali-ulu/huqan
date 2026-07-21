@@ -159,3 +159,51 @@ test('companyBrain decision query keeps outgoing evidence and dedupes repeated m
   ].join('|')));
   assert.equal(uniqueKeys.size, result.evidence.length);
 });
+
+test('companyBrain ranking preserves normalized default scope and insertion order without node touches', async () => {
+  const kernel = makeKernel('ranking-read-baseline');
+  kernel.usePlugin(createCompanyBrainPlugin());
+
+  try {
+    for (let index = 0; index < 9; index += 1) {
+      const nodeId = `match-${index}`;
+      const targetId = `target-${index}`;
+      kernel.graph.addNode(nodeId, `shared match ${index}`);
+      kernel.graph.addNode(targetId, `target ${index}`);
+      kernel.graph.addEdge(nodeId, targetId, 'supports', {
+        evidence: [`evidence-${index}`],
+      });
+    }
+    kernel.graph.addNode('match-0', 'shared tenant match', null, { workspaceId: 'tenant-a' });
+    kernel.graph.addNode('tenant-target', 'tenant target', null, { workspaceId: 'tenant-a' });
+    kernel.graph.addEdge('match-0', 'tenant-target', 'supports', {
+      workspaceId: 'tenant-a',
+      evidence: ['tenant-evidence'],
+    });
+
+    let accessValue = 100;
+    for (const node of Object.values(kernel.graph._nodes)) {
+      node.lastAccessed = accessValue;
+      accessValue += 1;
+    }
+    const before = JSON.parse(JSON.stringify(kernel.graph._nodes));
+
+    const result = await kernel.runCapability('companyBrain', {
+      question: 'shared',
+      workspaceId: '   ',
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.mode, 'graph');
+    assert.deepEqual(
+      result.evidence.map(edge => edge.from),
+      Array.from({ length: 8 }, (_value, index) => `match-${index}`),
+    );
+    assert.equal(result.evidence.some(edge => edge.workspaceId === 'tenant-a'), false);
+    assert.ok(kernel.graph._nodes['tenant-a::match-0']);
+    assert.deepEqual(kernel.graph._nodes, before);
+  } finally {
+    kernel.graph.close?.();
+    kernel.memory.close?.();
+  }
+});

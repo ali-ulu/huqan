@@ -65,6 +65,9 @@ describe('Causal Simulator - v0.7', () => {
   it('simulateChange olmayan node için güvenli hata döndürür', () => {
     const graph = new Graph({ noLoad: true });
     const simulator = new CausalSimulator(graph);
+    graph.getNode = () => {
+      throw new Error('missing-node path must return before traversal');
+    };
 
     const result = simulator.simulateChange({ nodeId: 'nonexistent' });
     assert.strictEqual(result.ok, false);
@@ -225,5 +228,45 @@ describe('Causal Simulator - v0.7', () => {
     assert.ok(result.outcomes[0].description.includes('A'));
     assert.ok(result.outcomes[0].description.includes('B'));
     assert.deepStrictEqual(result.evidence, ['a-b']);
+  });
+
+  it('simulateChange preserves direct reads around the existing traversal touches', () => {
+    const graph = buildBranchingGraph();
+    const simulator = new CausalSimulator(graph);
+    graph._nodes.A.lastAccessed = 101;
+    graph._nodes.B.lastAccessed = 102;
+    const getNodeCalls = [];
+    let touchCalls = 0;
+    const originalGetNode = graph.getNode.bind(graph);
+    const previousDb = graph._db;
+    const previousStatements = graph._stmts;
+    graph.getNode = (...args) => {
+      getNodeCalls.push(args);
+      return originalGetNode(...args);
+    };
+    graph._db = {};
+    graph._stmts = {
+      touchNode: {
+        run() {
+          touchCalls += 1;
+        },
+      },
+    };
+
+    try {
+      const result = simulator.simulateChange({ nodeId: 'A' });
+      assert.strictEqual(result.ok, true);
+      assert.deepStrictEqual(getNodeCalls, [
+        ['A', 'default'],
+        ['A', 'default'],
+      ]);
+      assert.ok(graph._nodes.A.lastAccessed > 101);
+      assert.strictEqual(graph._nodes.B.lastAccessed, 102);
+      assert.strictEqual(touchCalls, 2);
+    } finally {
+      graph.getNode = originalGetNode;
+      graph._db = previousDb;
+      graph._stmts = previousStatements;
+    }
   });
 });

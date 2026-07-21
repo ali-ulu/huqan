@@ -4,6 +4,7 @@ const http = require('http');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const Graph = require('./graph');
 
 let PORT;
 let BASE;
@@ -551,6 +552,84 @@ describe('Server - API', () => {
     assert.ok(typeof j.metadata === 'object' && j.metadata !== null, 'metadata must be an object');
     assert.ok(typeof j.metadata.memory === 'object' && j.metadata.memory !== null, 'metadata.memory must be an object');
     assert.strictEqual(typeof j.metadata.memory.enabled, 'boolean', 'metadata.memory.enabled must be a boolean');
+  });
+
+  it('GET /graph-data preserves workspace filtering, ordering, projection and read-only output', async () => {
+    const workspaceId = 'graph-read-tenant';
+    const originalGetNodes = Graph.prototype.getNodes;
+    const originalGetNode = Graph.prototype.getNode;
+    let graph;
+    let getNodeCalls = 0;
+
+    Graph.prototype.getNodes = function captureGraph(...args) {
+      if (args[0] === workspaceId) graph = this;
+      return originalGetNodes.apply(this, args);
+    };
+    try {
+      const captureResponse = await request(`${BASE}/graph-data?workspaceId=${workspaceId}`);
+      assert.strictEqual(captureResponse.status, 200);
+    } finally {
+      Graph.prototype.getNodes = originalGetNodes;
+    }
+    assert.ok(graph);
+
+    for (let index = 0; index < 151; index += 1) {
+      graph.addNode(`graphread-${index}`, `Graph read ${index}`, null, { workspaceId });
+    }
+    graph.addEdge('graphread-150', 'graphread-0', 'supports', {
+      workspaceId,
+      confidence: 0.91,
+      source: 'first-source',
+      evidence: ['first', 'second', 'third'],
+    });
+    graph.addEdge('graphread-148', 'graphread-1', 'supports', {
+      workspaceId,
+      confidence: 0.82,
+      source: 'second-source',
+      evidence: ['fourth'],
+    });
+
+    Graph.prototype.getNode = function countAccessTouches(...args) {
+      getNodeCalls += 1;
+      return originalGetNode.apply(this, args);
+    };
+    try {
+      const firstResponse = await request(`${BASE}/graph-data?workspaceId=${workspaceId}`);
+      assert.strictEqual(firstResponse.status, 200);
+      const first = await firstResponse.json();
+      const secondResponse = await request(`${BASE}/graph-data?workspaceId=${workspaceId}`);
+      assert.strictEqual(secondResponse.status, 200);
+      const second = await secondResponse.json();
+
+      assert.deepStrictEqual(second.nodes, first.nodes);
+      assert.deepStrictEqual(second.links, first.links);
+      assert.strictEqual(getNodeCalls, 0);
+      assert.strictEqual(first.nodes.length, 150);
+      assert.equal(first.nodes.some(node => node.id === 'graphread-150'), true);
+      assert.equal(first.nodes.some(node => node.id === 'graphread-149'), false);
+      assert.ok(first.nodes.every(node => node.workspaceId === workspaceId));
+      assert.ok(first.links.every(link => link.workspaceId === workspaceId));
+      const nodeIds = new Set(first.nodes.map(node => node.id));
+      assert.ok(first.links.every(link => nodeIds.has(link.source) && nodeIds.has(link.target)));
+      for (let index = 1; index < first.nodes.length; index += 1) {
+        const previous = first.nodes[index - 1].weight + first.nodes[index - 1].edgeCount * 0.2;
+        const current = first.nodes[index].weight + first.nodes[index].edgeCount * 0.2;
+        assert.ok(previous >= current);
+      }
+      assert.deepStrictEqual(first.links.map(link => link.source), ['graphread-150', 'graphread-148']);
+      assert.deepStrictEqual(first.links[0].evidence, ['first', 'second']);
+      assert.strictEqual(first.links[0].evidenceCount, 3);
+      assert.strictEqual(first.links[0].confidence, 0.91);
+      assert.strictEqual(first.links[0].evidenceSource, 'first-source');
+
+      const defaultResponse = await request(`${BASE}/graph-data?workspaceId=default`);
+      assert.strictEqual(defaultResponse.status, 200);
+      const defaultGraph = await defaultResponse.json();
+      assert.equal(defaultGraph.nodes.some(node => node.id.startsWith('graphread-')), false);
+      assert.equal(defaultGraph.links.some(link => link.source.startsWith('graphread-')), false);
+    } finally {
+      Graph.prototype.getNode = originalGetNode;
+    }
   });
 
   it('GET /health servis bilgisini dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {

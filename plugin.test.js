@@ -4,6 +4,9 @@ const path = require('path');
 const fs = require('fs');
 const Kernel = require('./kernel');
 const PluginManager = require('./plugin');
+const createCompanyBrainPlugin = require('./plugins/company-brain').create;
+const createContradictionAlertPlugin = require('./plugins/contradiction-alert').create;
+const createDiscoveryEnginePlugin = require('./plugins/discovery-engine').create;
 const createIdeaMriPlugin = require('./plugins/idea-mri').create;
 const createDevilAdvocatePlugin = require('./plugins/devil-advocate').create;
 
@@ -31,6 +34,49 @@ function writePluginWithManifest(pluginPath, contents, opts = {}) {
 }
 
 describe('Plugin - Yonetici', () => {
+  it('fact-extraction plugins receive the unchanged global known-node object', async () => {
+    const defaultNode = { id: 'shared', label: 'Default shared', workspaceId: 'default' };
+    const tenantNode = { id: 'shared', label: 'Tenant shared', workspaceId: 'tenant-a' };
+    const knownNodes = {
+      shared: defaultNode,
+      'tenant-a::shared': tenantNode,
+    };
+    const before = JSON.parse(JSON.stringify(knownNodes));
+    const received = [];
+    const kernel = {
+      graph: {
+        _nodes: knownNodes,
+        getEdges: () => [],
+        getInEdges: () => [],
+      },
+      extractFacts(_text, nodes) {
+        received.push(nodes);
+        return [];
+      },
+      hasCapability: () => false,
+      proposeNode: () => ({ ok: true }),
+      proposeEdge: () => ({ edge: null }),
+    };
+    const cases = [
+      [createCompanyBrainPlugin(), { sourceType: 'manual', text: 'shared relation' }, 'companyBrain'],
+      [createContradictionAlertPlugin(), { text: 'shared relation' }, 'contradictionAlert'],
+      [createDevilAdvocatePlugin(), { text: 'shared relation' }, 'devilAdvocate'],
+      [createDiscoveryEnginePlugin(), { text: 'shared relation' }, 'discoveryEngine'],
+      [createIdeaMriPlugin(), { text: 'shared relation' }, 'ideaMri'],
+    ];
+
+    for (const [plugin, input, capability] of cases) {
+      await plugin.run(kernel, input, { capability: { name: capability } });
+    }
+
+    assert.strictEqual(received.length, cases.length);
+    assert.ok(received.every(nodes => nodes === knownNodes));
+    assert.deepStrictEqual(Object.keys(knownNodes), ['shared', 'tenant-a::shared']);
+    assert.strictEqual(knownNodes.shared, defaultNode);
+    assert.strictEqual(knownNodes['tenant-a::shared'], tenantNode);
+    assert.deepStrictEqual(knownNodes, before);
+  });
+
   it('usePlugin: eklenti kaydeder', () => {
     const k = new Kernel({ noLoad: true });
     k.usePlugin({ name: 'test', beforeLearn(k2, data) { data.text = 'plugin test'; } });
