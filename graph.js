@@ -522,6 +522,10 @@ class Graph {
 
   // ─── Node işlemleri ───────────────────────────────────────────────────────
 
+  _assignEmbedding(storageKey, embedding) {
+    this._nodes[storageKey].embedding = embedding;
+  }
+
   getNodes(workspaceId = 'default') {
     const scope = normalizeWorkspaceId(workspaceId);
     const nodes = {};

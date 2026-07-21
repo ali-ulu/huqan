@@ -336,6 +336,27 @@ describe('Dream - Node2Vec Gömmeler', () => {
     assert.strictEqual(d.graph._nodes[storageOrder[2]].embedding, previousEmbeddings[storageOrder[2]]);
     assert.deepStrictEqual(events, ['beforeEmbedding']);
   });
+
+  it('embedding: delegates each computed vector once in storage-key order', () => {
+    const { d } = fresh();
+    d.graph.addNode('shared', 'first', null, { workspaceId: 'one' });
+    d.graph.addNode('shared', 'second', null, { workspaceId: 'two' });
+    const storageOrder = Object.keys(d.graph._nodes);
+    const assignments = [];
+    d.graph._assignEmbedding = (storageKey, embedding) => {
+      assignments.push({ storageKey, embedding });
+    };
+
+    const result = d.embedding({ dimensions: 4, walksPerNode: 1, walkLength: 1 });
+
+    assert.deepStrictEqual(assignments.map(({ storageKey }) => storageKey), storageOrder);
+    assert.strictEqual(assignments.length, storageOrder.length);
+    for (const { embedding } of assignments) {
+      assert.ok(embedding instanceof Float64Array);
+      assert.strictEqual(embedding.length, 4);
+    }
+    assert.deepStrictEqual(result, { dimensions: 4, nodes: storageOrder.length });
+  });
 });
 
 describe('Dream - Gelişmiş Skorlama ve Sıralama', () => {
