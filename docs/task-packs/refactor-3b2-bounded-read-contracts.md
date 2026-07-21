@@ -21,7 +21,8 @@ workspace, ordering, identity, projection, and access-touch contracts.
 Reuse these existing methods where they are already exact:
 
 - `getCandidateClaims()` for unfiltered cross-workspace candidate iteration;
-- `getNodes(workspaceId)` for the explicit-workspace branch of company-brain;
+- `getNodes(workspaceId)` for company-brain ranking because its only active
+  caller always supplies an explicit or normalized `default` workspace;
 - existing scoped `getEdges()` and `getInEdges()` where a caller needs only
   node-specific edges.
 
@@ -104,7 +105,8 @@ Lock current behavior for:
 
 - the exact known-node object shape passed to `extractFacts()`;
 - global visibility for the five fact-extraction plugin callers;
-- explicit-workspace filtering and all-workspace fallback in company-brain;
+- explicit-workspace and normalized default-workspace filtering in
+  company-brain; no all-workspace ranking behavior is claimed;
 - storage-key identity where non-default workspaces are present;
 - insertion order supplied to company-brain ranking;
 - no mutation of Graph nodes by plugin input preparation.
@@ -133,8 +135,8 @@ devil-advocate, discovery-engine, and idea-mri.
 2. `REFACTOR-3B2B_BOUNDED_READ_SEAMS_AND_CALLERS`
    - choose the minimum intent-specific seam from the executable evidence;
    - migrate only callers whose behavior is exactly preserved;
-   - reuse `getCandidateClaims()` and explicit-workspace `getNodes()` before
-     adding any method;
+   - reuse `getCandidateClaims()` and company-brain's existing-workspace
+     `getNodes(workspaceId)` before adding any method;
    - keep causal, provenance, server, and plugin changes independently
      reviewable even if they share one PR.
 3. `REFACTOR-3B2C_READ_BOUNDARY_CLOSEOUT`
