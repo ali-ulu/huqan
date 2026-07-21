@@ -63,9 +63,10 @@ not a CLI backup-selection contract. Changing that is the separate
 ## Existing Graph Read Semantics
 
 `Graph.getNodes()`, `getNode()`, `getEdges()`, and `getInEdges()` return
-defensive records. Direct collection access may observe or mutate different
-state. It is therefore unsafe to replace every internal access mechanically
-with getters without caller-specific contract evidence.
+defensive records. `getNode()` is not a pure read: it updates `lastAccessed`
+and, with SQLite enabled, persists that touch. Direct collection access may
+therefore observe or mutate different state. It is unsafe to replace internal
+access mechanically with getters without caller-specific contract evidence.
 
 `getCandidateClaims()` has different reference behavior and must not be
 silently upgraded to a defensive-copy contract in this program.
@@ -74,7 +75,8 @@ silently upgraded to a defensive-copy contract in this program.
 
 Active runtime callers include:
 
-- `kernel.js`: node count reads and mutable consolidation over `_edges`;
+- `kernel.js`: node count reads, `selfLearn()` edge-count reads, and mutable
+  consolidation over `_edges`;
 - `kernel.v2.js`: temporal edge reads;
 - `dream.js`: whole-node scans and embedding mutation;
 - `causalSimulator.js`: node existence and label reads;
@@ -116,15 +118,13 @@ caller-specific migration exposes an untested observable contract.
    - run and inspect the existing Graph lifecycle/persistence contracts;
    - add no test if current evidence is sufficient;
    - document a precise gap before any new assertion.
-2. `REFACTOR-3A2_CAUSAL_SIMULATOR_GRAPH_READ_MIGRATION`
-   - use existing `Graph.getNode()` only where it is behavior-equivalent;
-   - allowed runtime/test files are `causalSimulator.js` and
-     `causalSimulator.test.js` only.
-3. `REFACTOR-3B_GRAPH_INTERNAL_CALLER_RECONCILIATION`
+2. `REFACTOR-3B_GRAPH_INTERNAL_CALLER_RECONCILIATION`
    - split mutable Dream/Kernel paths from read-only KernelV2,
-     provenance/server, and plugin paths;
+     causal-simulator, provenance/server, and plugin paths;
+   - do not migrate causal-simulator reads to `getNode()` because its
+     last-access and SQLite-touch effects are absent from the current caller;
    - do not design one broad collection API for all callers.
-4. `REFACTOR-3C_MEMORY_AND_PERSISTENCE_OWNERSHIP_CLOSEOUT`
+3. `REFACTOR-3C_MEMORY_AND_PERSISTENCE_OWNERSHIP_CLOSEOUT`
    - confirm MemoryStore and existing persistence helpers already have bounded
      ownership;
    - implement only a source-proven gap.
@@ -149,6 +149,8 @@ Stop and rescope if:
 
 - a caller relies on mutable collection identity that an existing getter does
   not preserve;
+- an existing getter adds last-access, persistence, or other observable side
+  effects absent from the direct access being replaced;
 - a proposed change can lose Graph, MemoryStore, or AxiomStorage data;
 - independent `dbPath` support is required;
 - backend selection, load precedence, migration, or backup ownership changes;
