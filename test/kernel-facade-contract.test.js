@@ -143,3 +143,28 @@ test('kernel.d.ts remains aligned with observable graph and memory surfaces', ()
   );
   assert.doesNotMatch(seamDeclarations, /\w+\?\s*\(/);
 });
+
+test('Kernel declarations preserve synchronous learn return variants without any', () => {
+  const kernelDeclaration = fs.readFileSync(path.join(__dirname, '..', 'kernel.d.ts'), 'utf8');
+  const v2Declaration = fs.readFileSync(path.join(__dirname, '..', 'kernel.v2.d.ts'), 'utf8');
+
+  assert.match(kernelDeclaration, /export interface LearnDocumentResult\s*\{/);
+  assert.match(kernelDeclaration, /export interface LearnFromLLMResult\s*\{/);
+  assert.match(
+    kernelDeclaration,
+    /learnDocument\(text:\s*string,\s*opts:\s*LearnOptions\s*&\s*\{\s*returnDetails:\s*true\s*\}\):\s*LearnDocumentResult;/,
+  );
+  assert.match(
+    kernelDeclaration,
+    /learnDocument\(text:\s*string,\s*opts\?:\s*LearnOptions\):\s*number\s*\|\s*LearnDocumentResult;/,
+  );
+  assert.match(
+    kernelDeclaration,
+    /learnFromLLM\(text:\s*string,\s*opts\?:\s*LearnOptions\):\s*LearnFromLLMResult;/,
+  );
+  assert.doesNotMatch(kernelDeclaration, /learn(?:Document|FromLLM)[^;]*\bPromise\b/);
+
+  assert.match(v2Declaration, /type KernelV2LearnFromLLMResult\s*=/);
+  assert.match(v2Declaration, /returnDetails:\s*true/);
+  assert.doesNotMatch(v2Declaration, /learn(?:Document|FromLLM)[\s\S]*?\):\s*any;/);
+});

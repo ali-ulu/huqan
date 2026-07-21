@@ -27,6 +27,27 @@ export interface LearnData {
   learned: number;
   skipped?: number;
   conflicts?: unknown[];
+  alternatives?: unknown[];
+  provenanceWarnings?: unknown[];
+  admission?: Record<string, unknown> | null;
+}
+
+export interface LearnOptions extends Record<string, unknown> {
+  returnDetails?: boolean;
+}
+
+export interface LearnDocumentResult {
+  learned: number;
+  admissions: Array<Record<string, unknown>>;
+}
+
+export interface LearnFromLLMResult {
+  learned: number;
+  skipped: number;
+  conflicts: string[];
+  ok?: boolean;
+  error?: { code: string; message: string };
+  meta?: Record<string, unknown>;
 }
 
 export interface AskData {
@@ -189,9 +210,10 @@ declare class Kernel {
     opts?: Record<string, unknown>
   ): Promise<unknown>;
 
-  learn(text: string): Envelope<'learn', LearnData>;
-  learnDocument(text: string, opts?: Record<string, unknown>): LearnData;
-  learnFromLLM(text: string, opts?: Record<string, unknown>): Envelope<'learn', LearnData> | Record<string, unknown>;
+  learn(text: string, opts?: LearnOptions): Envelope<'learn', LearnData>;
+  learnDocument(text: string, opts: LearnOptions & { returnDetails: true }): LearnDocumentResult;
+  learnDocument(text: string, opts?: LearnOptions): number | LearnDocumentResult;
+  learnFromLLM(text: string, opts?: LearnOptions): LearnFromLLMResult;
   ask(question: string, opts?: Record<string, unknown>): Envelope<'ask', AskData>;
   verify(statement: string, opts?: Record<string, unknown>): Envelope<'verify', VerifyData>;
   reason(subject: string, opts?: Record<string, unknown>): Envelope<'reason', ReasonData>;
