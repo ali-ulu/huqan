@@ -208,6 +208,134 @@ describe('Dream - Node2Vec Gömmeler', () => {
     assert.notDeepStrictEqual(kopek, aslan);
     assert.notDeepStrictEqual(kedi, aslan);
   });
+
+  it('embedding: before hook always, after hook only on success', () => {
+    const { d } = fresh();
+    const events = [];
+    d.kernel.plugins.emit = event => events.push(event);
+
+    assert.strictEqual(d.embedding(), null);
+    assert.deepStrictEqual(events, ['beforeEmbedding']);
+
+    d.graph.addNode('a', 'a');
+    d.graph.addNode('b', 'b');
+    assert.ok(d.embedding({ dimensions: 4, walksPerNode: 1, walkLength: 1 }));
+    assert.deepStrictEqual(events, [
+      'beforeEmbedding',
+      'beforeEmbedding',
+      'afterEmbedding',
+    ]);
+  });
+
+  it('embedding: processes all workspace nodes in global storage insertion order', () => {
+    const { d } = fresh();
+    d.graph.addNode('shared', 'first', null, { workspaceId: 'one' });
+    d.graph.addNode('shared', 'second', null, { workspaceId: 'two' });
+    const storageOrder = Object.keys(d.graph._nodes);
+    const walkStarts = [];
+    d._biasedWalk = start => {
+      walkStarts.push(start);
+      return [start];
+    };
+
+    const result = d.embedding({ dimensions: 4, walksPerNode: 1, walkLength: 1 });
+
+    assert.strictEqual(result.nodes, 2);
+    assert.deepStrictEqual(walkStarts, storageOrder);
+    for (const storageKey of storageOrder) {
+      assert.ok(d.graph._nodes[storageKey].embedding instanceof Float64Array);
+    }
+  });
+
+  it('embedding: preserves node identity, replaces embedding, and avoids graph access', () => {
+    const { d } = fresh();
+    d.graph.addNode('a', 'a');
+    d.graph.addNode('b', 'b');
+    const storageOrder = Object.keys(d.graph._nodes);
+    const nodeRefs = Object.fromEntries(storageOrder.map(key => [key, d.graph._nodes[key]]));
+    const previousEmbeddings = Object.fromEntries(storageOrder.map(key => {
+      const embedding = new Float64Array([1, 2]);
+      d.graph._nodes[key].embedding = embedding;
+      return [key, embedding];
+    }));
+    let getNodeCalls = 0;
+    let saveCalls = 0;
+    d.graph.getNode = () => {
+      getNodeCalls++;
+      return null;
+    };
+    d.graph.save = () => {
+      saveCalls++;
+    };
+
+    d.embedding({ dimensions: 4, walksPerNode: 1, walkLength: 1 });
+
+    assert.strictEqual(getNodeCalls, 0);
+    assert.strictEqual(saveCalls, 0);
+    for (const storageKey of storageOrder) {
+      const node = d.graph._nodes[storageKey];
+      assert.strictEqual(node, nodeRefs[storageKey]);
+      assert.notStrictEqual(node.embedding, previousEmbeddings[storageKey]);
+      assert.ok(node.embedding instanceof Float64Array);
+      assert.strictEqual(node.embedding.length, 4);
+    }
+  });
+
+  it('embedding: after hook failure leaves assigned embeddings without rollback', () => {
+    const { d } = fresh();
+    d.graph.addNode('a', 'a');
+    d.graph.addNode('b', 'b');
+    const storageOrder = Object.keys(d.graph._nodes);
+    const previousEmbeddings = Object.fromEntries(storageOrder.map(key => {
+      const embedding = new Float64Array([3, 4]);
+      d.graph._nodes[key].embedding = embedding;
+      return [key, embedding];
+    }));
+    d.kernel.plugins.emit = event => {
+      if (event === 'afterEmbedding') throw new Error('afterEmbedding failed');
+    };
+
+    assert.throws(
+      () => d.embedding({ dimensions: 4, walksPerNode: 1, walkLength: 1 }),
+      /afterEmbedding failed/
+    );
+    for (const storageKey of storageOrder) {
+      const embedding = d.graph._nodes[storageKey].embedding;
+      assert.notStrictEqual(embedding, previousEmbeddings[storageKey]);
+      assert.ok(embedding instanceof Float64Array);
+      assert.strictEqual(embedding.length, 4);
+    }
+  });
+
+  it('embedding: computation failure keeps earlier assignments without rollback', () => {
+    const { d } = fresh();
+    d.graph.addNode('a', 'a');
+    d.graph.addNode('b', 'b');
+    d.graph.addNode('c', 'c');
+    const storageOrder = Object.keys(d.graph._nodes);
+    const previousEmbeddings = Object.fromEntries(storageOrder.map(key => {
+      const embedding = new Float64Array([5, 6]);
+      d.graph._nodes[key].embedding = embedding;
+      return [key, embedding];
+    }));
+    const secondNode = d.graph._nodes[storageOrder[1]];
+    const originalSignature = d._nodeSignatureWeight.bind(d);
+    const events = [];
+    d.kernel.plugins.emit = event => events.push(event);
+    d._nodeSignatureWeight = (node, ...args) => {
+      if (node === secondNode) throw new Error('projection failed');
+      return originalSignature(node, ...args);
+    };
+
+    assert.throws(
+      () => d.embedding({ dimensions: 4, walksPerNode: 1, walkLength: 1 }),
+      /projection failed/
+    );
+    assert.notStrictEqual(d.graph._nodes[storageOrder[0]].embedding, previousEmbeddings[storageOrder[0]]);
+    assert.strictEqual(d.graph._nodes[storageOrder[1]].embedding, previousEmbeddings[storageOrder[1]]);
+    assert.strictEqual(d.graph._nodes[storageOrder[2]].embedding, previousEmbeddings[storageOrder[2]]);
+    assert.deepStrictEqual(events, ['beforeEmbedding']);
+  });
 });
 
 describe('Dream - Gelişmiş Skorlama ve Sıralama', () => {
