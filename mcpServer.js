@@ -954,6 +954,18 @@ function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
   };
 }
 
+function withTransientAgent(kernel, callback) {
+  const agent = createAgent({
+    kernel,
+    version: process.env.AXIOM_AGENT_VERSION,
+  });
+  try {
+    return callback(agent);
+  } finally {
+    try { agent?.storage?.close?.(); } catch (_) {}
+  }
+}
+
 function callTool(kernel, params = {}, runtime = {}) {
   const safeParams = params && typeof params === 'object' ? params : {};
   const name = sanitizeMcpString(safeParams.name, MCP_MAX_SHORT);
@@ -1017,11 +1029,6 @@ function callTool(kernel, params = {}, runtime = {}) {
     }, name, args, gate);
   }
 
-  const agent = createAgent({
-    kernel,
-    version: process.env.AXIOM_AGENT_VERSION,
-  });
-
   switch (name) {
     case 'axiom.learn':
       return withMcpToolVerdictSurface(kernel.learn(sanitizeMcpString(args.text, MCP_MAX_TEXT), {
@@ -1033,19 +1040,34 @@ function callTool(kernel, params = {}, runtime = {}) {
     case 'axiom.verify':
       return withMcpToolVerdictSurface(kernel.verify(sanitizeMcpString(args.statement)), name, args, gate);
     case 'axiom.plan':
-      return withMcpToolVerdictSurface(agent.plan(sanitizeMcpString(args.goal, MCP_MAX_GOAL), {
-        maxSteps: Math.min(Math.max(1, Number(args.maxSteps) || 10), 50),
-      }), name, args, gate);
+      return withTransientAgent(kernel, (agent) => withMcpToolVerdictSurface(
+        agent.plan(sanitizeMcpString(args.goal, MCP_MAX_GOAL), {
+          maxSteps: Math.min(Math.max(1, Number(args.maxSteps) || 10), 50),
+        }),
+        name,
+        args,
+        gate,
+      ));
     case 'axiom.agent':
-      return withMcpToolVerdictSurface(agent.run(sanitizeMcpString(args.goal, MCP_MAX_GOAL), {
-        maxSteps: Math.min(Math.max(1, Number(args.maxSteps) || 10), 50),
-      }), name, args, gate);
+      return withTransientAgent(kernel, (agent) => withMcpToolVerdictSurface(
+        agent.run(sanitizeMcpString(args.goal, MCP_MAX_GOAL), {
+          maxSteps: Math.min(Math.max(1, Number(args.maxSteps) || 10), 50),
+        }),
+        name,
+        args,
+        gate,
+      ));
     case 'axiom.policy':
-      return withMcpToolVerdictSurface(agent.inspectToolPolicy(
-        sanitizeMcpString(args.tool),
-        sanitizeMcpString(args.input || '', MCP_MAX_TEXT),
-        { goal: sanitizeMcpString(args.goal, MCP_MAX_GOAL) },
-      ), name, args, gate);
+      return withTransientAgent(kernel, (agent) => withMcpToolVerdictSurface(
+        agent.inspectToolPolicy(
+          sanitizeMcpString(args.tool),
+          sanitizeMcpString(args.input || '', MCP_MAX_TEXT),
+          { goal: sanitizeMcpString(args.goal, MCP_MAX_GOAL) },
+        ),
+        name,
+        args,
+        gate,
+      ));
     case 'axiom.approvals':
       const approvalStore = runtime.approvalStore || createApprovalStoreFromKernel(kernel, runtime);
       const storedApprovals = listPersistentApprovals(approvalStore, args.limit || 50);
@@ -1065,15 +1087,15 @@ function callTool(kernel, params = {}, runtime = {}) {
 }
 
 function executeReadOnlyDryRun(kernel, name, args) {
-  const agent = createAgent({
-    kernel,
-    version: process.env.AXIOM_AGENT_VERSION,
-  });
   switch (name) {
     case 'axiom.learn':
       return kernel.ask(`What would be learned from: ${(args.text || '').slice(0, 200)}`);
     case 'axiom.agent':
-      return agent.plan ? agent.plan(args.goal || '', { maxSteps: args.maxSteps || 1 }) : { dryRun: true, goal: args.goal };
+      return withTransientAgent(kernel, (agent) => (
+        agent.plan
+          ? agent.plan(args.goal || '', { maxSteps: args.maxSteps || 1 })
+          : { dryRun: true, goal: args.goal }
+      ));
     default:
       return { dryRun: true, tool: name, args };
   }
