@@ -63,18 +63,39 @@ async function getGraphCounts() {
   };
 }
 
-function admittedUploadBody(text, overrides = {}) {
-  return JSON.stringify({
-    text,
-    approvalStatus: 'approved',
-    provenance: {
-      sourceType: 'upload',
-      sourceRef: 'test:upload',
-      actor: 'server-test',
-      workspaceId: 'default',
-    },
-    ...overrides,
+async function ingestManualFact(text) {
+  const response = await request(`${BASE}/api/ingest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sourceType: 'manual',
+      author: 'server-test',
+      date: '2026-07-22',
+      text,
+    }),
   });
+  assert.strictEqual(response.status, 200);
+  const body = await response.json();
+  assert.strictEqual(body.ok, true);
+  return body;
+}
+
+async function assertUploadReviewOnly(pathname, payload) {
+  const before = await getGraphCounts();
+  const response = await request(`${BASE}${pathname}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  assert.strictEqual(response.status, 200);
+  const body = await response.json();
+  assert.strictEqual(body.ok, true);
+  assert.strictEqual(body.learned, 0);
+  assert.ok(body.admission);
+  assert.strictEqual(body.admission.outcome, 'review');
+  assert.strictEqual(body.admission.approvalStatus, 'pending');
+  assert.deepStrictEqual(await getGraphCounts(), before);
+  return body;
 }
 
 let server;
@@ -209,12 +230,7 @@ describe('Server - API', () => {
   });
 
   it('POST /v2/verify keeps KernelV2 contradiction details', async () => {
-    const learn = await request(`${BASE}/yukle`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: admittedUploadBody('kus ucmaz'),
-    });
-    assert.strictEqual(learn.status, 200);
+    await ingestManualFact('kus ucmaz');
 
     const r = await request(`${BASE}/v2/verify`, {
       method: 'POST',
@@ -232,12 +248,7 @@ describe('Server - API', () => {
   });
 
   it('POST /v2/verify exposes manipulation risk without changing the verdict', async () => {
-    const learn = await request(`${BASE}/yukle`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: admittedUploadBody('kedi hayvandir'),
-    });
-    assert.strictEqual(learn.status, 200);
+    await ingestManualFact('kedi hayvandir');
 
     const r = await request(`${BASE}/v2/verify`, {
       method: 'POST',
@@ -291,40 +302,72 @@ describe('Server - API', () => {
     assert.deepStrictEqual(after, before);
   });
 
-  it('POST /yukle caller-controlled admission bypass fields cannot enable a write', async () => {
-    const before = await getGraphCounts();
-    const r = await request(`${BASE}/yukle`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: 'rest bypass sentinel hayvandir',
+  it('POST /yukle caller-controlled approval and bypass fields cannot enable a write', async () => {
+    const attacks = [
+      { approvalStatus: 'approved' },
+      { approvalStatus: 'approved', approvalId: 'caller-controlled' },
+      { approvalRequired: false },
+      {
+        approvalRequired: false,
+        approvalStatus: 'approved',
+        approvalId: 'caller-controlled',
         admissionRequired: false,
         admissionBypassReason: 'caller-controlled',
-      }),
-    });
+      },
+    ];
 
-    assert.strictEqual(r.status, 200);
-    const body = await r.json();
-    assert.strictEqual(body.ok, true);
-    assert.strictEqual(body.learned, 0);
-    assert.strictEqual(body.admission.outcome, 'review');
-    assert.deepStrictEqual(await getGraphCounts(), before);
+    for (const [index, attack] of attacks.entries()) {
+      await assertUploadReviewOnly('/yukle', {
+        text: `rest bypass sentinel ${index} hayvandir`,
+        ...attack,
+      });
+    }
+  });
+  it('POST /yukle keeps valid provenance metadata without accepting nested approval authority', async () => {
+    const body = await assertUploadReviewOnly('/yukle', {
+      text: 'nested approval sentinel hayvandir',
+      provenance: {
+        sourceType: 'upload',
+        sourceRef: 'test:nested-approval',
+        actor: 'rest-review-actor',
+        workspaceId: 'rest-review-workspace',
+        approvalRequired: false,
+        approvalStatus: 'approved',
+        approvalId: 'nested-caller-controlled',
+        admissionRequired: false,
+        admissionBypassReason: 'nested-caller-controlled',
+      },
+    });
+    assert.strictEqual(body.admission.workspaceId, 'rest-review-workspace');
+    assert.strictEqual(body.admission.receipt.actor, 'rest-review-actor');
+    assert.strictEqual(body.admission.receipt.approvalId, '');
   });
 
-  it('POST /yukle explicit admitted context ile ogrenir', async () => {
-    const r = await request(`${BASE}/yukle`, {
+  it('POST /upload alias enforces the same review-only boundary', async () => {
+    await assertUploadReviewOnly('/upload', {
+      text: 'upload alias bypass sentinel hayvandir',
+      approvalRequired: false,
+      approvalStatus: 'approved',
+      approvalId: 'caller-controlled',
+      admissionRequired: false,
+      admissionBypassReason: 'caller-controlled',
+    });
+  });
+  it('POST /upload alias preserves empty and malformed request errors', async () => {
+    const empty = await request(`${BASE}/upload`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: admittedUploadBody('test-node test-edge-eder'),
+      body: JSON.stringify({}),
     });
-    assert.strictEqual(r.status, 200);
-    const j = await r.json();
-    assert.strictEqual(j.ok, true);
-    assert.ok(j.learned > 0);
-    assert.ok(j.admission);
-    assert.strictEqual(j.admission.outcome, 'allow');
-  });
+    assert.strictEqual(empty.status, 400);
 
+    const malformed = await request(`${BASE}/upload`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{invalid',
+    });
+    assert.strictEqual(malformed.status, 400);
+  });
   it('POST /yukle boÃ…Å¸ body hata dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {
     const r = await request(`${BASE}/yukle`, {
       method: 'POST',
@@ -406,12 +449,7 @@ describe('Server - API', () => {
   });
 
   it('GET /api/provenance, /api/audit, /api/candidate-claims and /api/trust-receipt return trust envelopes', async () => {
-    const learn = await request(`${BASE}/yukle`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: admittedUploadBody('kedi hayvandir'),
-    });
-    assert.strictEqual(learn.status, 200);
+    await ingestManualFact('kedi hayvandir');
 
     const provenanceRes = await request(`${BASE}/api/provenance?targetId=kedi&workspaceId=default`);
     assert.strictEqual(provenanceRes.status, 200);

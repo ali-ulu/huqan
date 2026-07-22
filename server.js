@@ -874,9 +874,7 @@ const server = http.createServer(async (req, res) => {
         sourceRef: sanitizeInput(data.sourceRef || '') || reqUrl.pathname,
         sourceTitle: sanitizeInput(data.sourceTitle || '') || 'HTTP upload',
         actor: sanitizeInput(data.actor || '') || 'http-api',
-        approvalRequired: data.approvalRequired === undefined ? true : data.approvalRequired === true,
-        approvalStatus: sanitizeInput(data.approvalStatus || ''),
-        approvalId: sanitizeInput(data.approvalId || ''),
+        approvalRequired: true,
         provenance: data.provenance && typeof data.provenance === 'object' ? data.provenance : undefined,
       });
       const admission = Array.isArray(learnResult.admissions) ? (learnResult.admissions.find(Boolean) || null) : null;
