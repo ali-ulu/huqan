@@ -291,6 +291,26 @@ describe('Server - API', () => {
     assert.deepStrictEqual(after, before);
   });
 
+  it('POST /yukle caller-controlled admission bypass fields cannot enable a write', async () => {
+    const before = await getGraphCounts();
+    const r = await request(`${BASE}/yukle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: 'rest bypass sentinel hayvandir',
+        admissionRequired: false,
+        admissionBypassReason: 'caller-controlled',
+      }),
+    });
+
+    assert.strictEqual(r.status, 200);
+    const body = await r.json();
+    assert.strictEqual(body.ok, true);
+    assert.strictEqual(body.learned, 0);
+    assert.strictEqual(body.admission.outcome, 'review');
+    assert.deepStrictEqual(await getGraphCounts(), before);
+  });
+
   it('POST /yukle explicit admitted context ile ogrenir', async () => {
     const r = await request(`${BASE}/yukle`, {
       method: 'POST',
