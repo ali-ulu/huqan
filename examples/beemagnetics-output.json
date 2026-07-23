@@ -1,0 +1,11 @@
+{
+  "product": "HUQAN",
+  "engine": "AXIOM",
+  "assessmentType": "Governed Automation Assessment",
+  "profile": { "id": "beemagnetics", "policyPack": "beemagnetics-engineering-v1" },
+  "trace": { "assessmentId": "b3acf0c2b014931872811844", "workspaceId": "beemagnetics-pilot", "sourceRef": "beemagnetics:synthetic:converter-design-v1", "policyVersion": "AB1-v2.0.0", "evaluatedAt": "2026-07-15T20:00:00.000Z" },
+  "verdict": "REVIEW",
+  "summary": { "steps": 2, "allowed": 0, "reviewRequired": 2, "dryRunOnly": 0, "blocked": 0, "estimatedPotentialMonthlyHoursSaved": 0 },
+  "generatedFrom": "fixtures/process-assessment/beemagnetics-design-request.json",
+  "note": "Missing engineering inputs and customer-facing combined output require engineer review."
+}

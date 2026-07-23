@@ -23,7 +23,12 @@
                     "test:plugin":  "node --test plugin.test.js",
                     "test:backup":  "node --test backupRestore.test.js",
                     "test:rust":  "node --test rustGraph.test.js",
-                    "test:server":  "node --test server.test.js"
+                    "test:server":  "node --test server.test.js",
+                    "assess":  "node tools/process-assessment.js",
+                    "assess:governed":  "node tools/process-assessment.js",
+                    "assess:cognera":  "node tools/process-assessment.js --profile cognera",
+                    "assess:beemagnetics":  "node tools/process-assessment.js --profile beemagnetics",
+                    "test:assessment":  "node --test tools/process-assessment.test.js"
                 },
     "keywords":  [
                      "symbolic-ai",

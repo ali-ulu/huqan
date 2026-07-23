@@ -1,0 +1,11 @@
+{
+  "product": "HUQAN",
+  "engine": "AXIOM",
+  "assessmentType": "Governed Automation Assessment",
+  "profile": { "id": "cognera", "policyPack": "cognera-automation-v1" },
+  "trace": { "assessmentId": "78808d458c04d9142fb55b20", "workspaceId": "cognera-pilot", "sourceRef": "cognera:synthetic:invoice-approval-v1", "policyVersion": "AB1-v2.0.0", "evaluatedAt": "2026-07-15T20:00:00.000Z" },
+  "verdict": "BLOCK",
+  "summary": { "steps": 2, "allowed": 1, "reviewRequired": 0, "dryRunOnly": 0, "blocked": 1, "estimatedPotentialMonthlyHoursSaved": 25 },
+  "generatedFrom": "fixtures/process-assessment/cognera-invoice-approval.json",
+  "note": "PRODUCTION_MUTATION remains BLOCK in the core classifier even when humanApproval is requested."
+}
