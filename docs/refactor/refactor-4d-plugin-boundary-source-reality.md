@@ -1,7 +1,7 @@
 # REFACTOR-4D: Plugin Boundary Source Reality
 
 > **Gate:** REFACTOR-4D_PLUGIN_BOUNDARY_SOURCE_REALITY
-> **Durum:** Read-only inventory (düzeltme v3)
+> **Durum:** Read-only inventory (düzeltme v4)
 > **Önceki gate:** REFACTOR-4C1_PACKAGE_TYPE_SURFACE_GREEN
 > **Canonical main SHA:** `c76a6417a0fd4e06fd43d768a925fd82faace751`
 > **Branch:** `docs/refactor-4d-plugin-inventory`
@@ -129,7 +129,7 @@ if (opts.loadPlugins !== false) {
 | `listCapabilities()` | Public — pluginManager'a delege eder |
 | `getCapability(name)` | Public — pluginManager'a delege eder |
 | `runCapability(name, input, opts)` | Public — `requireCapability('pluginCapabilities')` gate'li |
-| `proposeNode(label, opts)` | Public — plugin'ler için admission-gated node yazımı |
+| `proposeNode(id, label, provenance, opts)` | Public — plugin'ler için admission-gated node yazımı |
 | `proposeEdge(from, to, relation, opts)` | Public — plugin'ler için admission-gated edge yazımı |
 | `hasCapability(name)` | Public |
 | `enableCapability(name)` | Public |
@@ -163,7 +163,7 @@ if (opts.loadPlugins !== false) {
 | `devil-advocate` | `kernel.graph.getEdges()`, `kernel.extractFacts()` | Graph okuma |
 | `discovery-engine` | `kernel.extractFacts()` | Fact çıkarma |
 | `idea-mri` | `kernel.extractFacts()` | Fact çıkarma |
-| `llm-memory-plugin` | `kernel.learnFromLLM()`, `kernel.graph.getStats()` | Öğrenme + istatistik |
+| `llm-memory (llm-memory-plugin.js)` | `kernel.learnFromLLM()`, `kernel.graph.getStats()` | Öğrenme + istatistik |
 | `experiment-planner` | `kernel.hasCapability()` | Capability kontrolü |
 | `replication-checker` | `kernel.hasCapability('evidenceRanking')` | Capability kontrolü |
 | `result-analyzer` | `kernel.hasCapability('evidenceRanking')` | Capability kontrolü |
@@ -182,7 +182,7 @@ if (opts.loadPlugins !== false) {
 | 4 | `discovery-engine` | Yok | Yok | Hayır | Evet | Yok | `graph._nodes` |
 | 5 | `experiment-planner` | Yok | Yok | Hayır | Evet | Yok | Yok |
 | 6 | `idea-mri` | `[]` | `['llm', 'graph', 'evidenceRanking']` | Hayır | Evet | Yok | `graph._nodes` |
-| 7 | `llm-memory-plugin` | Yok | Yok | Evet | Hayır | `afterAsk`, `afterLearn` | Yok |
+| 7 | `llm-memory (llm-memory-plugin.js)` | Yok | Yok | Evet | Hayır | `afterAsk`, `afterLearn` | Yok |
 | 8 | `replication-checker` | Yok | Yok | Hayır | Evet | Yok | Yok |
 | 9 | `repo-memory` | `['graph', 'companyMode']` | `['llm', 'temporal', 'evidenceRanking']` | Hayır | Evet | Yok | `_companyIngestState` |
 | 10 | `result-analyzer` | Yok | Yok | Hayır | Evet | Yok | Yok |
@@ -202,9 +202,9 @@ Tüm 10 `.manifest.json` dosyası **sadece `sha256`** içerir. Hook, capability,
 | Hook | Kullanan Plugin Sayısı | Plugin'ler |
 |------|----------------------|------------|
 | `beforeLearn` | 0 | — |
-| `afterLearn` | 1 | `llm-memory-plugin` |
+| `afterLearn` | 1 | `llm-memory (llm-memory-plugin.js)` |
 | `beforeAsk` | 0 | — |
-| `afterAsk` | 1 | `llm-memory-plugin` |
+| `afterAsk` | 1 | `llm-memory (llm-memory-plugin.js)` |
 | `beforeDream` | 0 | — |
 | `afterDream` | 0 | — |
 | `beforeEmbedding` | 0 | — |
@@ -298,7 +298,7 @@ Default Kernel capabilities'te `companyMode: false` ve `temporal: false` olduğu
 1. **Manifest vs Runtime kopukluğu:** Manifest dosyaları sadece SHA256 içerir, tüm metadata plugin JS dosyasındadır. Manifest'ten bağımsız doğrulama yapılamaz.
 2. **Fail-open ağırlıklı sistem:** `emit()`, `load()` hataları, opsiyonel capability eksikliği — hepsi fail-open. Sadece `register()` aşamasındaki dependency check ve production enforcement fail-closed.
 3. **Kernel internal API erişimi geniş kapsamlı:** 6 plugin (`company-brain`, `repo-memory`, `contradiction-alert`, `devil-advocate`, `discovery-engine`, `idea-mri`) `kernel._` veya `kernel.graph?._nodes` gibi private alanlara erişiyor.
-4. **14 kullanılmayan hook:** 16 hook'tan 14'ü hiçbir plugin tarafından kullanılmaz. Sadece `afterLearn` ve `afterAsk` kullanılıyor (ikisi de `llm-memory-plugin` tarafından).
+4. **14 kullanılmayan hook:** 16 hook'tan 14'ü hiçbir plugin tarafından kullanılmaz. Sadece `afterLearn` ve `afterAsk` kullanılıyor (ikisi de `llm-memory (llm-memory-plugin.js)` tarafından).
 5. **`afterVerify` hook sözleşmesi yok:** Hook EVENTS listesinde tanımlı değil, "declared but unused" değil "not declared" durumundadır.
 6. **3 plugin default'ta yüklenemez:** `company-brain`, `contradiction-alert`, `repo-memory` (missing required capability). `idea-mri` yüklenir (`requires: []`).
 7. **Plugin bağımlılıkları:** Plugin'ler arasında runtime capability çağrısı zinciri yoktur. Her plugin bağımsız çalışır.
