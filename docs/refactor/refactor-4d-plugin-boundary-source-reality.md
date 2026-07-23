@@ -1,7 +1,7 @@
 # REFACTOR-4D: Plugin Boundary Source Reality
 
 > **Gate:** REFACTOR-4D_PLUGIN_BOUNDARY_SOURCE_REALITY  
-> **Durum:** Read-only inventory  
+> **Durum:** Read-only inventory (düzeltme v2)
 > **Önceki gate:** REFACTOR-4C1_PACKAGE_TYPE_SURFACE_GREEN  
 > **Canonical main SHA:** `c76a6417a0fd4e06fd43d768a925fd82faace751`  
 > **Branch:** `docs/refactor-4d-plugin-inventory`
@@ -33,28 +33,31 @@ this.strictPlugins = productionPluginEnforcement OR env AXIOM_PLUGIN_STRICT !== 
 
 Tüm 16 EVENTS hook'u için boş array initialize edilir.
 
-### 1.3 16 Declared Hook
+### 1.3 16 Declared Hook (canonical `plugin.js` satır 7-24)
 
 ```js
 const EVENTS = [
-  'init',                 // Plugin yüklendiğinde çağrılır
-  'beforeLearn',          // Öğrenme öncesi (pipeline, emitStrict)
-  'afterLearn',           // Öğrenme sonrası
-  'beforeVerify',         // Doğrulama öncesi
-  'afterVerify',          // Doğrulama sonrası — HİÇBİR PLUGIN'DE YOK
-  'beforeIntrospect',     // İç gözlem öncesi
-  'afterIntrospect',      // İç gözlem sonrası
-  'beforeBackup',         // Yedekleme öncesi
-  'afterBackup',          // Yedekleme sonrası
-  'beforeRestore',        // Geri yükleme öncesi
-  'afterRestore',         // Geri yükleme sonrası
-  'onEdgeAdded',          // Kenar eklendiğinde
-  'onContradiction',      // Çelişki tespit edildiğinde
-  'onConflict',           // Çakışma durumunda
-  'capability:enabled',   // Yetenek etkinleştirildiğinde
-  'beforeCapabilityRun',  // Yetenek çalıştırılmadan önce
+  'beforeLearn',
+  'afterLearn',
+  'beforeAsk',
+  'afterAsk',
+  'beforeDream',
+  'afterDream',
+  'beforeEmbedding',
+  'afterEmbedding',
+  'beforeIntrospect',
+  'afterIntrospect',
+  'beforePlan',
+  'afterPlan',
+  'beforeTask',
+  'afterTask',
+  'beforeAgentRun',
+  'afterAgentRun',
 ];
 ```
+
+**Not:** `init` EVENTS listesinde değildir. `register()` sırasında ayrı çağrılır (canonical `plugin.js` @ `c76a641`).
+**Not:** `beforeVerify`, `afterVerify`, `beforeBackup`, `afterBackup`, `beforeRestore`, `afterRestore`, `onEdgeAdded`, `onContradiction`, `onConflict`, `capability:enabled`, `beforeCapabilityRun` — hiçbiri EVENTS listesinde yoktur.
 
 ### 1.4 Plugin Yükleme Akışı (`load(dir)`)
 
@@ -71,7 +74,7 @@ const EVENTS = [
 1. `!plugin || !plugin.name` → erken dönüş, hata yok
 2. Aynı isimli plugin zaten kayıtlıysa → sessizce skip
 3. Production enforcement aktifse → `_hasVerifiedProvenance` kontrolü, başarısızsa **throw** (fail-closed: registration durur)
-4. `_validatePluginDependencies` → eksik capability varsa **throw** (fail-closed)
+4. `_validatePluginDependencies` → eksik required capability varsa **throw** (fail-closed)
 5. Opsiyonel capability'ler kontrol edilir, eksikse `console.warn`
 6. `plugin.init(kernel, this)` çağrılır (varsa)
 7. Her EVENTS hook'u için plugin'de o isimde fonksiyon varsa `_handlers[event]`'e eklenir
@@ -81,7 +84,7 @@ const EVENTS = [
 | Metod | Desen | Hata Davranışı |
 |-------|-------|----------------|
 | `emit(event, data)` | Her handler'a `plugin[event](kernel, data)` | **Fail-open**: hata `console.error` ile loglanır, sonraki handler'lar çalışır, orijinal `data` döner |
-| `emitStrict(event, data)` | Pipeline: her handler'ın dönüş değeri sonrakine `nextData` olarak geçer | **Fail-closed değil**: handler throw ederse `emitStrict` patlar. `undefined` dönerse değişiklik olmaz. |
+| `emitStrict(event, data)` | Pipeline: her handler'ın dönüş değeri sonrakine `nextData` olarak geçer | Handler throw ederse `emitStrict` patlar. `undefined` dönerse değişiklik olmaz. |
 
 ### 1.7 Plugin Dependencies Kontrolü
 
@@ -113,11 +116,10 @@ if (opts.loadPlugins !== false) {
 
 | Kernel Metodu | Hook | Mekanizma |
 |---------------|------|-----------|
-| `enableCapability()` | `capability:enabled` | `emit()` |
 | `learn()` | `beforeLearn` | `emitStrict()` → pipeline, dönüş değeri payload'u modifiye eder |
 | `introspect()` | `beforeIntrospect`, `afterIntrospect` | `emit()` |
-| `proposeNode()` | Yok (kernel iç callback) | Plugin'ler doğrudan `kernel.proposeNode()` çağırır |
-| `proposeEdge()` | Yok (kernel iç callback) | Plugin'ler doğrudan `kernel.proposeEdge()` çağırır |
+
+**Not:** `enableCapability()` → `capability:enabled` emit'i `kernel.js`'de bulunur ama bu hook EVENTS listesinde olmadığı için `_handlers`'da karşılığı yoktur; hiçbir plugin tetiklenmez.
 
 ### 2.3 Kernel'ın Plugin'lere Açtığı Yüzey
 
@@ -132,84 +134,124 @@ if (opts.loadPlugins !== false) {
 | `hasCapability(name)` | Public |
 | `enableCapability(name)` | Public |
 | `graph` | Public (doğrudan erişim) |
+| `extractFacts(text, nodes)` | Public |
+| `learnFromLLM(text, opts)` | Public |
 
 ### 2.4 Plugin'lerin Kernel'a Erişim Desenleri
 
 **DOĞRUDAN ERİŞİM (private/internal API):**
-- `kernel._companyIngestState` — `company-brain` tarafından okunur/yazılır
-- `kernel._parsePredicate()` — `company-brain` tarafından çağrılır
-- `kernel.extractFacts()` — `company-brain`, `llm-memory-plugin` tarafından çağrılır
-- `kernel.graph._nodes` — `company-brain` tarafından doğrudan okunur
-- `kernel.graph.getEdges()`, `kernel.graph.getInEdges()`, `kernel.graph.getStats()` — public API
+
+| Plugin | Private Alan/Metod | Erişim Türü |
+|--------|-------------------|-------------|
+| `company-brain` | `kernel._companyIngestState` | Oku + Yaz |
+| `company-brain` | `kernel._parsePredicate()` | Çağrı |
+| `company-brain` | `kernel.graph?._nodes` | Oku |
+| `repo-memory` | `kernel._companyIngestState` | Oku + Yaz |
+| `contradiction-alert` | `kernel._parsePredicate()` | Çağrı |
+| `contradiction-alert` | `kernel.graph?._nodes` | Oku |
+| `devil-advocate` | `kernel.graph?._nodes` | Oku |
+| `discovery-engine` | `kernel.graph?._nodes` | Oku |
+| `idea-mri` | `kernel.graph?._nodes` | Oku |
 
 **DELEGE ERİŞİM (public API):**
-- `kernel.runCapability()` — `llm-memory-plugin` içinde `companyBrain` capability'sini çağırmak için
-- `kernel.learn()`, `kernel.verify()` — plugin'ler kernel'a geri çağrı yapar
+
+| Plugin | Public Metod | Kullanım |
+|--------|-------------|----------|
+| `company-brain` | `kernel.proposeNode()`, `kernel.proposeEdge()`, `kernel.graph.getEdges()`, `kernel.graph.getInEdges()`, `kernel.graph.getStats()`, `kernel.extractFacts()` | Graph yazma + okuma |
+| `repo-memory` | `kernel.proposeNode()`, `kernel.proposeEdge()` | Graph yazma |
+| `contradiction-alert` | `kernel.proposeNode()`, `kernel.graph.getEdges()`, `kernel.extractFacts()` | Graph yazma + okuma |
+| `devil-advocate` | `kernel.graph.getEdges()`, `kernel.extractFacts()` | Graph okuma |
+| `discovery-engine` | `kernel.extractFacts()` | Fact çıkarma |
+| `idea-mri` | `kernel.extractFacts()` | Fact çıkarma |
+| `llm-memory-plugin` | `kernel.learnFromLLM()`, `kernel.graph.getStats()` | Öğrenme + istatistik |
+| `experiment-planner` | `kernel.hasCapability()` | Capability kontrolü |
+| `replication-checker` | `kernel.graph` (read-only) | Graph okuma |
+| `result-analyzer` | `kernel.graph` (read-only) | Graph okuma |
 
 ---
 
-## 3. Plugin Envanteri (11 Plugin)
+## 3. Plugin Envanteri (10 PluginManager-managed + 1 ayrı)
 
-| # | Plugin | Dosya | Gereksinimler | Opsiyonel | Kernel Erişimi | `afterVerify` |
-|---|--------|-------|---------------|-----------|----------------|---------------|
-| 1 | `company-brain` | `company-brain.js` | `graph`, `companyMode` | `llm`, `temporal`, `evidenceRanking`, `contradictionDetection` | Ağır (internal API) | Yok |
-| 2 | `contradiction-alert` | `contradiction-alert.js` | `temporal`, `graph` | — | `kernel.graph` read-only | Yok |
-| 3 | `devil-advocate` | `devil-advocate.js` | `graph` | `evidenceRanking` | `kernel.graph` read-only | Yok |
-| 4 | `discovery-engine` | `discovery-engine.js` | `graph` | — | `kernel.graph` read-only | Yok |
-| 5 | `experiment-planner` | `experiment-planner.js` | `graph` | — | `kernel.graph` read-only | Yok |
-| 6 | `idea-mri` | `idea-mri.js` | `graph` | `evidenceRanking` | **Test-only** (runtime'da kullanılmıyor) | Yok |
-| 7 | `llm-memory-plugin` | `llm-memory-plugin.js` | `llm`, `graph` | — | `kernel.learn()`, `kernel.runCapability()`, `kernel.extractFacts()` | Yok |
-| 8 | `replication-checker` | `replication-checker.js` | `graph` | — | `kernel.graph`, `kernel.runCapability()` | Yok |
-| 9 | `repo-memory` | `repo-memory.js` | `companyMode` | `graph`, `github` | `kernel._companyIngestState` | Yok |
-| 10 | `result-analyzer` | `result-analyzer.js` | `graph` | — | `kernel.graph` read-only | Yok |
-| 11 | `sandbox-runner` | `plugins/` içinde değil, `sandboxRunner.js` root'ta, PluginManager üzerinden değil | N/A | N/A | N/A | Yok |
+### 3.1 Plugin Tablosu
 
-### 3.1 Manifest Dosyaları
+| # | Plugin | `requires` | `optional` | `init()` | `run()` | Hook'lar | Kernel Internal API |
+|---|--------|------------|------------|----------|---------|----------|---------------------|
+| 1 | `company-brain` | `['graph', 'companyMode']` | `['llm', 'temporal', 'evidenceRanking', 'contradictionDetection']` | Evet | Evet | Yok | `_companyIngestState`, `_parsePredicate()`, `graph._nodes` |
+| 2 | `contradiction-alert` | `['graph', 'temporal']` | `['llm', 'evidenceRanking']` | Hayır | Evet | Yok | `_parsePredicate()`, `graph._nodes` |
+| 3 | `devil-advocate` | `['graph']` | `['llm', 'evidenceRanking']` | Evet | Evet | Yok | `graph._nodes` |
+| 4 | `discovery-engine` | Yok | `['llm', 'evidenceRanking']` | Hayır | Evet | Yok | `graph._nodes` |
+| 5 | `experiment-planner` | Yok | Yok | Hayır | Evet | Yok | Yok |
+| 6 | `idea-mri` | `[]` | `['llm', 'graph', 'evidenceRanking']` | Hayır | Evet | Yok | `graph._nodes` |
+| 7 | `llm-memory-plugin` | Yok | Yok | Evet | Evet | `afterAsk`, `afterLearn` | Yok |
+| 8 | `replication-checker` | Yok | `['llm', 'graph', 'evidenceRanking']` | Hayır | Evet | Yok | Yok |
+| 9 | `repo-memory` | `['graph', 'companyMode']` | `['llm', 'temporal', 'evidenceRanking']` | Hayır | Evet | Yok | `_companyIngestState` |
+| 10 | `result-analyzer` | Yok | `['llm', 'temporal', 'evidenceRanking']` | Hayır | Evet | Yok | Yok |
 
-Tüm 11 `.manifest.json` dosyası **sadece `sha256`** içerir. Hook, capability, veya metadata manifest'te değil, doğrudan `.js` dosyasında inline olarak tanımlanır.
+**Ayrı bileşen (PluginManager dışında):**
 
-### 3.2 Hook Kullanım Dağılımı
+| Bileşen | Dosya | PluginManager ile İlişki |
+|---------|-------|--------------------------|
+| Sandbox runtime | `sandboxRunner.js` (root) | PluginManager üzerinden yüklenmez, ayrı mimari |
+
+### 3.2 Manifest Dosyaları
+
+Tüm 10 `.manifest.json` dosyası **sadece `sha256`** içerir. Hook, capability, veya metadata manifest'te değil, doğrudan `.js` dosyasında inline olarak tanımlanır.
+
+### 3.3 Hook Kullanım Dağılımı
 
 | Hook | Kullanan Plugin Sayısı | Plugin'ler |
 |------|----------------------|------------|
-| `init` | 2 | `company-brain`, `llm-memory-plugin` |
-| `beforeLearn` | 1 | `company-brain` |
-| `afterLearn` | 1 | `contradiction-alert` |
-| `beforeVerify` | 1 | `devil-advocate` |
-| `afterVerify` | **0** | **HİÇBİR PLUGIN'DE YOK** |
-| `beforeBackup` | 0 | — |
-| `afterBackup` | 0 | — |
-| `beforeRestore` | 0 | — |
-| `afterRestore` | 0 | — |
+| `beforeLearn` | 0 | — |
+| `afterLearn` | 1 | `llm-memory-plugin` |
+| `beforeAsk` | 0 | — |
+| `afterAsk` | 1 | `llm-memory-plugin` |
+| `beforeDream` | 0 | — |
+| `afterDream` | 0 | — |
+| `beforeEmbedding` | 0 | — |
+| `afterEmbedding` | 0 | — |
 | `beforeIntrospect` | 0 | — |
 | `afterIntrospect` | 0 | — |
-| `onEdgeAdded` | 0 | — |
-| `onContradiction` | 0 | — |
-| `onConflict` | 0 | — |
-| `capability:enabled` | 0 | — |
-| `beforeCapabilityRun` | 0 | — |
+| `beforePlan` | 0 | — |
+| `afterPlan` | 0 | — |
+| `beforeTask` | 0 | — |
+| `afterTask` | 0 | — |
+| `beforeAgentRun` | 0 | — |
+| `afterAgentRun` | 0 | — |
 
-**Kullanılmayan 10 hook** mevcut: `afterVerify`, `beforeBackup`, `afterBackup`, `beforeRestore`, `afterRestore`, `beforeIntrospect`, `afterIntrospect`, `onEdgeAdded`, `onContradiction`, `onConflict`, `capability:enabled`, `beforeCapabilityRun`.
+**Kullanılmayan 14 hook:** `beforeLearn`, `beforeAsk`, `beforeDream`, `afterDream`, `beforeEmbedding`, `afterEmbedding`, `beforeIntrospect`, `afterIntrospect`, `beforePlan`, `afterPlan`, `beforeTask`, `afterTask`, `beforeAgentRun`, `afterAgentRun`.
 
-### 3.3 Plugin Capability'leri
+### 3.4 Plugin Capability'leri
 
-| Plugin | Capability Adı | Komut | Açıklama |
-|--------|---------------|-------|----------|
-| `company-brain` | `companyBrain` | `company-brain` | Şirket hafızası sorgulama |
-| `company-brain` | `ingestStatus` | `ingest-status` | Ingestion durumu |
-| `devil-advocate` | `devilsAdvocate` | — | Karşıt görüş analizi |
-| `discovery-engine` | `discoveryEngine` | — | Keşif motoru |
-| `idea-mri` | `ideaMri` | — | Fikir MRI analizi (test-only) |
-| `replication-checker` | `replicationChecker` | — | Tekrarlanabilirlik kontrolü |
-| `result-analyzer` | `resultAnalyzer` | — | Sonuç analizi |
-| `sandbox-runner` | `sandboxRunner` | — | Sandbox çalıştırıcı (root'ta) |
+| Plugin | Capability Adı | Komut |
+|--------|---------------|-------|
+| `company-brain` | `companyBrain` | `company-brain` |
+| `company-brain` | `ingestStatus` | `ingest-status` |
+| `contradiction-alert` | `contradictionAlert` | `celiski` |
+| `devil-advocate` | `devilAdvocate` | `tartis` |
+| `discovery-engine` | `discoveryEngine` | `discover` |
+| `experiment-planner` | `experimentPlanner` | `plan-experiment` |
+| `idea-mri` | `ideaMri` | `mri` |
+| `replication-checker` | `replicationChecker` | `check-replication` |
+| `repo-memory` | `repoMemory` | `repo-memory` |
+| `result-analyzer` | `resultAnalyzer` | `analyze-result` |
 
-### 3.4 Ulaşılamayan/Kullanılmayan Plugin Yüzeyleri
+### 3.5 Default Capability Setinde Yüklenemeyen Plugin'ler
 
-1. **`idea-mri`**: Runtime'da yüklenmez — `evidenceRanking` optional capability'si devre dışı, plugin test-only durumda
-2. **10 adet hook** hiçbir plugin tarafından kullanılmaz
-3. **`experiment-planner`**: `requires: ['graph']` ama sadece test'te görünür, runtime kullanımı belirsiz
-4. **4 manifest.json dosyasına karşılık gelen plugin'ler** (`company-brain`, `contradiction-alert`, `repo-memory`) `companyMode` veya `temporal` capability eksikliğinden yüklenemez durumda (CI loglarında görüldü: "Plugin yuklenemedi")
+Default Kernel capabilities'te `companyMode: false` ve `temporal: false` olduğu için:
+
+| Plugin | Eksik Required Capability | Sonuç |
+|--------|--------------------------|-------|
+| `company-brain` | `companyMode` | Yüklenemez (throw) |
+| `contradiction-alert` | `temporal` | Yüklenemez (throw) |
+| `repo-memory` | `companyMode` | Yüklenemez (throw) |
+
+**Not:** `idea-mri` `requires: []` olduğu için default'ta yüklenir. Opsiyonel capability eksikliği registration'ı engellemez, yalnız `console.warn` üretir.
+
+### 3.6 Ulaşılamayan/Kullanılmayan Plugin Yüzeyleri
+
+1. **14 kullanılmayan hook:** 16 hook'tan 14'ü hiçbir plugin tarafından kullanılmaz
+2. **3 plugin default'ta yüklenemez:** `company-brain`, `contradiction-alert`, `repo-memory` (missing required capability)
+3. **`kernel.enableCapability()` → `capability:enabled` emit'i:** EVENTS listesinde olmadığı için hiçbir plugin tetiklenmez
 
 ---
 
@@ -232,17 +274,19 @@ Tüm 11 `.manifest.json` dosyası **sadece `sha256`** içerir. Hook, capability,
 ## 5. `PLUGIN_VERIFY_CORRECTION_LOOP_CANDIDATE` Altyapı Sınırı
 
 **Mevcut durum:**
-- `afterVerify` hook'u `plugin.js`'de tanımlı (EVENTS array'inde) ama **hiçbir plugin'de implementasyonu yok**
-- `devil-advocate` plugin'i `beforeVerify` hook'unu kullanır (verify öncesi karşıt görüş enjekte eder)
-- `emit()` fail-open olduğu için `afterVerify`'da bir plugin hatası verify sonucunu etkilemez
+- `afterVerify` hook'u **EVENTS listesinde tanımlı değil** (canonical `plugin.js` satır 7-24)
+- `beforeVerify` hook'u da **tanımlı değil**
+- `devil-advocate` plugin'i `beforeVerify` kullanmıyor; sadece `init()` ve `run()` var
+- Mevcut hook sözleşmesinde verify öncesi/sonrası plugin müdahalesi için hook yoktur
 
 **Düzeltme döngüsü için eksikler:**
-1. `afterVerify` hook'unu kullanacak plugin yok
+1. `afterVerify`/`beforeVerify` hook'u sözleşmede yok — önce EVENTS listesine eklenmesi gerekir
 2. `emit()` fail-open — düzeltme döngüsünde hata yutulursa verify sonucu değişmez
 3. `emitStrict()` pipeline — dönüş değeri manipülasyonu mümkün ama verify sonrası feedback loop için yetersiz (verify sonucu değiştikten sonra tekrar verify çağrısı yapacak mekanizma yok)
 4. Plugin'lerin verify sonucunu değiştirip kernel'a geri beslemesi için `kernel.verify()` çağrısı yapması gerekir → döngüsel çağrı riski
 
-**Sonuç:** Mevcut altyapı `afterVerify` hook'unu teknik olarak destekler, ancak bunu gerçek bir düzeltme döngüsüne dönüştürmek için:
+**Sonuç:** Mevcut altyapı `afterVerify` hook'unu **teknik olarak desteklemiyor** — hook sözleşmesinin kendisi bulunmuyor. Düzeltme döngüsü için:
+- EVENTS listesine `afterVerify`/`beforeVerify` eklenmesi gerekir
 - `emitStrict` pipeline modeline geçiş veya yeni bir `emitCorrective` mekanizması gerekir
 - Döngü koruması (max iterasyon, çağrı derinliği limiti) eklenmelidir
 - Plugin'lerin verify sonucu üzerinde yazma yetkisi olup olmadığı netleştirilmelidir
@@ -253,12 +297,13 @@ Tüm 11 `.manifest.json` dosyası **sadece `sha256`** içerir. Hook, capability,
 
 1. **Manifest vs Runtime kopukluğu:** Manifest dosyaları sadece SHA256 içerir, tüm metadata plugin JS dosyasındadır. Manifest'ten bağımsız doğrulama yapılamaz.
 2. **Fail-open ağırlıklı sistem:** `emit()`, `load()` hataları, opsiyonel capability eksikliği — hepsi fail-open. Sadece `register()` aşamasındaki dependency check ve production enforcement fail-closed.
-3. **Kernel internal API erişimi:** 2 plugin (`company-brain`, `repo-memory`) `kernel._companyIngestState` gibi private alanlara yazıyor. `company-brain` ayrıca `kernel._parsePredicate()` private metodunu çağırıyor.
-4. **10 kullanılmayan hook:** 16 hook'tan 10'u hiçbir plugin tarafından kullanılmaz.
-5. **`afterVerify` yok:** Hook tanımlı ama implementasyon yok.
-6. **4 plugin production'da yüklenemez durumda:** `company-brain`, `contradiction-alert`, `repo-memory` (missing capability), `idea-mri` (test-only).
-7. **Plugin bağımlılıkları zincirleme:** `llm-memory-plugin` → `kernel.runCapability('companyBrain')` → `company-brain` plugin'i. İkisi de yüklü değilse sessizce başarısız olur.
+3. **Kernel internal API erişimi geniş kapsamlı:** 5 plugin (`company-brain`, `repo-memory`, `contradiction-alert`, `devil-advocate`, `discovery-engine`, `idea-mri`) `kernel._` veya `kernel.graph?._nodes` gibi private alanlara erişiyor.
+4. **14 kullanılmayan hook:** 16 hook'tan 14'ü hiçbir plugin tarafından kullanılmaz. Sadece `afterLearn` ve `afterAsk` kullanılıyor (ikisi de `llm-memory-plugin` tarafından).
+5. **`afterVerify` hook sözleşmesi yok:** Hook EVENTS listesinde tanımlı değil, "declared but unused" değil "not declared" durumundadır.
+6. **3 plugin default'ta yüklenemez:** `company-brain`, `contradiction-alert`, `repo-memory` (missing required capability). `idea-mri` yüklenir (`requires: []`).
+7. **Plugin bağımlılıkları:** Plugin'ler arasında runtime capability çağrısı zinciri yoktur. Her plugin bağımsız çalışır.
 8. **Sandbox ayrı konumda:** `sandboxRunner.js` root'ta, PluginManager üzerinden değil; plugin sisteminin parçası değil.
+9. **`capability:enabled` emit'i boşa çalışıyor:** `kernel.js`'de `emit('capability:enabled', ...)` çağrılıyor ama bu event EVENTS listesinde olmadığı için hiçbir handler tetiklenmez.
 
 ---
 
@@ -284,4 +329,4 @@ Tüm 11 `.manifest.json` dosyası **sadece `sha256`** içerir. Hook, capability,
 [YASAK]   Plugin refactorı, yeni hook, afterVerify implementasyonu,
           4E4 işleri, LLM feedback loop
 [SÜRÜM]   docs/refactor/refactor-4d-plugin-boundary-source-reality.md
-          SHA256: 70d108b4c73ebc855f5d305cba001dc3d9fc27580c1afc42be0e44e6befd9256
+          SHA256: (commit sonrası doldurulacak)
