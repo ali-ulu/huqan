@@ -695,4 +695,138 @@ describe('Plugin - Yonetici', () => {
     // (it surfaces as a claim containing 'kedi').
     assert.ok(resultPublic.data.claims.some(c => typeof c.text === 'string' && c.text.includes('kedi')));
   });
+
+  // -------------------------------------------------------------------------
+  // REFACTOR-4D AC-5.3 parity tests for devil-advocate `_nodes` migration.
+  // Plugin should use the public `graph.getNodes('default')` API when present,
+  // and fall back to `_nodes` only when `getNodes` is absent. Both paths must
+  // produce identical observable behavior (fact extraction against the same
+  // default-workspace node ID set).
+  // -------------------------------------------------------------------------
+
+  it('devil-advocate uses public graph.getNodes("default") when available (4D migration)', async () => {
+    const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
+    const tenantNode = { id: 'kedi', label: 'Tenant Kedi', workspaceId: 'tenant-a' };
+    const knownNodes = {
+      kedi: defaultNode,
+      'tenant-a::kedi': tenantNode,
+    };
+    const publicSnapshot = { kedi: { ...defaultNode } };
+
+    let capturedArg = null;
+    let getNodesCalls = [];
+    const kernel = {
+      graph: {
+        _nodes: knownNodes,
+        getNodes(workspaceId) {
+          getNodesCalls.push(workspaceId);
+          return workspaceId === 'default' ? publicSnapshot : {};
+        },
+        getEdges: () => [],
+        getInEdges: () => [],
+      },
+      extractFacts(_text, nodes) {
+        capturedArg = nodes;
+        return [{ subject: 'kedi', predicate: 'hayvan' }];
+      },
+      hasCapability: () => false,
+      proposeNode: () => ({ ok: true }),
+      proposeEdge: () => ({ edge: null }),
+    };
+
+    const plugin = createDevilAdvocatePlugin();
+    plugin.init();
+    const result = await plugin.run(kernel, { text: 'kedi hayvan' }, { capability: { name: 'devilAdvocate' } });
+
+    // AC-5.3 (a): plugin called the public API with default workspace
+    assert.deepStrictEqual(getNodesCalls, ['default']);
+
+    // AC-5.3 (b): plugin did NOT touch `_nodes` when `getNodes` is present.
+    assert.strictEqual(capturedArg, publicSnapshot);
+    assert.notStrictEqual(capturedArg, knownNodes);
+    assert.deepStrictEqual(Object.keys(capturedArg), ['kedi']);
+
+    // AC-5.3 (c): observable behavior — plugin produced a graph-backed
+    // counter-argument or question-list output (no edges here → falls
+    // through to no-graph branch).
+    assert.strictEqual(result.ok, true);
+    assert.ok(typeof result.data === 'object' && result.data !== null);
+  });
+
+  it('devil-advocate falls back to _nodes when graph.getNodes is absent (backward compat)', async () => {
+    const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
+    const knownNodes = { kedi: defaultNode };
+
+    let capturedArg = null;
+    const kernel = {
+      graph: {
+        _nodes: knownNodes,
+        getEdges: () => [],
+        getInEdges: () => [],
+      },
+      extractFacts(_text, nodes) {
+        capturedArg = nodes;
+        return [{ subject: 'kedi', predicate: 'hayvan' }];
+      },
+      hasCapability: () => false,
+      proposeNode: () => ({ ok: true }),
+      proposeEdge: () => ({ edge: null }),
+    };
+
+    const plugin = createDevilAdvocatePlugin();
+    plugin.init();
+    const result = await plugin.run(kernel, { text: 'kedi hayvan' }, { capability: { name: 'devilAdvocate' } });
+
+    // Fallback used `_nodes` directly
+    assert.strictEqual(capturedArg, knownNodes);
+    assert.strictEqual(result.ok, true);
+  });
+
+  it('devil-advocate parity: getNodes("default") yields same fact extraction as _nodes for default workspace (AC-5.3)', async () => {
+    // AC-5.3 requires parity tests proving observable behavior is unchanged.
+    // Build a real graph via the canonical Graph class so we exercise the
+    // actual public API contract, then run devil-advocate against both the
+    // private `_nodes` map (pre-migration) and the public `getNodes('default')`
+    // (post-migration) and assert identical counter-argument output.
+    const Graph = require('./graph');
+    const createNlp = require('./nlp');
+    const nlp = createNlp('tr');
+    const graph = new Graph({ workspaceId: 'default' });
+    graph.addNode('kedi', 'Kedi', { source: 'fixture' });
+    graph.addNode('balik', 'Balik', { source: 'fixture' });
+    graph.addNode('kedi', 'Tenant Kedi', { source: 'fixture' }, { workspaceId: 'tenant-a' });
+
+    function buildKernel() {
+      return {
+        graph,
+        nlp,
+        extractFacts(text, knownNodes) {
+          return nlp.extractFacts(text, knownNodes);
+        },
+        hasCapability: () => false,
+        proposeNode: () => ({ ok: true }),
+        proposeEdge: () => ({ edge: null }),
+      };
+    }
+
+    const plugin = createDevilAdvocatePlugin();
+    plugin.init();
+
+    const kernelPublic = buildKernel();
+    const resultPublic = await plugin.run(kernelPublic, { text: 'kedi hayvan' }, { capability: { name: 'devilAdvocate' } });
+
+    const kernelLegacy = buildKernel();
+    const originalGetNodes = kernelLegacy.graph.getNodes;
+    delete kernelLegacy.graph.getNodes;
+    const resultLegacy = await plugin.run(kernelLegacy, { text: 'kedi hayvan' }, { capability: { name: 'devilAdvocate' } });
+    kernelLegacy.graph.getNodes = originalGetNodes;
+
+    // Parity: output must match for the default-workspace subject 'kedi'.
+    assert.deepStrictEqual(resultPublic.data, resultLegacy.data);
+    assert.strictEqual(resultPublic.ok, resultLegacy.ok);
+
+    // The default-workspace 'kedi' subject must be reachable in both paths
+    // (it surfaces as the subject of the counter-argument or question list).
+    assert.strictEqual(resultPublic.data.subject, 'kedi');
+  });
 });

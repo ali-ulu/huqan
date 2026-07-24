@@ -32,6 +32,21 @@ function enrichEvidence(kernel, items, defaultType = 'chat_memory') {
   });
 }
 
+// REFACTOR-4D: migrate private `kernel.graph?._nodes` access to the public
+// `graph.getNodes(workspaceId)` API. `extractFacts` accepts either an object
+// (uses Object.keys) or an array; both `_nodes` and `getNodes('default')`
+// return `{id: node}` for the default workspace, so the observable behavior
+// (which node IDs are considered "known" during fact extraction) is
+// preserved. Using the public API keeps devil-advocate off private graph
+// state. See docs/refactor/refactor-4d-contract-acceptance.md AC-5.5.
+function devilAdvocateKnownNodes(kernel) {
+  if (!kernel) return {};
+  if (kernel.graph && typeof kernel.graph.getNodes === 'function') {
+    return kernel.graph.getNodes('default');
+  }
+  return kernel.graph?._nodes || {};
+}
+
 function createDevilAdvocatePlugin() {
   return {
     name: 'devil-advocate',
@@ -54,7 +69,9 @@ function createDevilAdvocatePlugin() {
 
     async run(kernel, input, opts = {}) {
       const text = normalizeInput(input);
-      const facts = typeof kernel.extractFacts === 'function' ? kernel.extractFacts(text, kernel.graph?._nodes) || [] : [];
+      const facts = typeof kernel.extractFacts === 'function'
+        ? kernel.extractFacts(text, devilAdvocateKnownNodes(kernel)) || []
+        : [];
       const primary = facts[0] || null;
       const subject = primary?.subject || text.split(/\s+/)[0] || 'bu fikir';
       const graphEdges = kernel.graph && typeof kernel.graph.getEdges === 'function'
