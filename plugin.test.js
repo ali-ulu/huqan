@@ -404,4 +404,158 @@ describe('Plugin - Yonetici', () => {
     assert.ok(result.data.evidence.length >= 1);
     assert.ok(result.data.evidence.every(item => typeof item.adjustedConfidence === 'number'));
   });
+
+  // -------------------------------------------------------------------------
+  // REFACTOR-4D AC-5.3 parity tests for discovery-engine `_nodes` migration.
+  // Plugin should use the public `graph.getNodes('default')` API when present,
+  // and fall back to `_nodes` only when `getNodes` is absent. Both paths must
+  // produce identical observable behavior (fact extraction against the same
+  // default-workspace node ID set).
+  // -------------------------------------------------------------------------
+
+  it('discovery-engine uses public graph.getNodes("default") when available (4D migration)', async () => {
+    const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
+    const tenantNode = { id: 'kedi', label: 'Tenant Kedi', workspaceId: 'tenant-a' };
+    const knownNodes = {
+      kedi: defaultNode,
+      'tenant-a::kedi': tenantNode,
+    };
+    // Public API contract: `getNodes('default')` returns a snapshot object
+    // (NOT the live `_nodes` map) restricted to the default workspace.
+    const publicSnapshot = { kedi: { ...defaultNode } };
+
+    let capturedArg = null;
+    let getNodesCalls = [];
+    const kernel = {
+      graph: {
+        _nodes: knownNodes,
+        getNodes(workspaceId) {
+          getNodesCalls.push(workspaceId);
+          return workspaceId === 'default' ? publicSnapshot : {};
+        },
+        getEdges: () => [],
+        getInEdges: () => [],
+      },
+      extractFacts(_text, nodes) {
+        capturedArg = nodes;
+        return [{ subject: 'kedi', predicate: 'hayvan' }];
+      },
+      hasCapability: () => false,
+      proposeNode: () => ({ ok: true }),
+      proposeEdge: () => ({ edge: null }),
+    };
+
+    const plugin = createDiscoveryEnginePlugin();
+    const result = await plugin.run(kernel, { text: 'kedi hayvan' }, { capability: { name: 'discoveryEngine' } });
+
+    // AC-5.3 (a): plugin called the public API with default workspace
+    assert.deepStrictEqual(getNodesCalls, ['default']);
+
+    // AC-5.3 (b): plugin did NOT touch `_nodes` when `getNodes` is present.
+    // The captured argument must be the snapshot returned by `getNodes`, NOT
+    // the raw `_nodes` map (which would include the tenant-a entry).
+    assert.strictEqual(capturedArg, publicSnapshot);
+    assert.notStrictEqual(capturedArg, knownNodes);
+    assert.deepStrictEqual(Object.keys(capturedArg), ['kedi']);
+
+    // AC-5.3 (c): observable behavior — plugin produced facts from the
+    // extracted facts list and returned the expected structure.
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.data.output.hypotheses.length, 1);
+    assert.strictEqual(result.data.output.hypotheses[0].subject, 'kedi');
+  });
+
+  it('discovery-engine falls back to _nodes when graph.getNodes is absent (backward compat)', async () => {
+    // Some test harnesses and older code paths construct mock graphs that only
+    // expose `_nodes`. The migration must not break them — the fallback must
+    // preserve the pre-migration behavior exactly.
+    const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
+    const knownNodes = { kedi: defaultNode };
+
+    let capturedArg = null;
+    const kernel = {
+      graph: {
+        _nodes: knownNodes,
+        // No getNodes() at all
+        getEdges: () => [],
+        getInEdges: () => [],
+      },
+      extractFacts(_text, nodes) {
+        capturedArg = nodes;
+        return [{ subject: 'kedi', predicate: 'hayvan' }];
+      },
+      hasCapability: () => false,
+      proposeNode: () => ({ ok: true }),
+      proposeEdge: () => ({ edge: null }),
+    };
+
+    const plugin = createDiscoveryEnginePlugin();
+    const result = await plugin.run(kernel, { text: 'kedi hayvan' }, { capability: { name: 'discoveryEngine' } });
+
+    // Fallback used `_nodes` directly
+    assert.strictEqual(capturedArg, knownNodes);
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.data.output.hypotheses.length, 1);
+  });
+
+  it('discovery-engine parity: getNodes("default") yields same fact extraction as _nodes for default workspace (AC-5.3)', async () => {
+    // AC-5.3 requires parity tests proving observable behavior is unchanged.
+    // Build a real graph via the canonical Graph class so we exercise the
+    // actual public API contract, then run discovery-engine against both the
+    // private `_nodes` map (pre-migration) and the public `getNodes('default')`
+    // (post-migration) and assert identical fact-extraction output.
+    const Graph = require('./graph');
+    const createNlp = require('./nlp');
+    const nlp = createNlp('tr');
+    const graph = new Graph({ workspaceId: 'default' });
+    graph.addNode('kedi', 'Kedi', { source: 'fixture' });
+    graph.addNode('balik', 'Balik', { source: 'fixture' });
+    // Add a tenant-a node — it should NOT leak into default-workspace fact
+    // extraction via `getNodes('default')`, AND it would have leaked via
+    // `_nodes` because `Object.keys(_nodes)` returns both storage keys. This
+    // is the parity subtlety the migration preserves: pre-migration behavior
+    // already mixed scopes, post-migration behavior is more correct. Either
+    // way, the default-workspace IDs the plugin cares about are present in
+    // both, so the observable fact-extraction result for default-workspace
+    // subjects is identical.
+    graph.addNode('kedi', 'Tenant Kedi', { source: 'fixture' }, { workspaceId: 'tenant-a' });
+
+    // Build a real kernel-like object backed by the real graph.
+    function buildKernel() {
+      return {
+        graph,
+        nlp,
+        extractFacts(text, knownNodes) {
+          return nlp.extractFacts(text, knownNodes);
+        },
+        hasCapability: () => false,
+        proposeNode: () => ({ ok: true }),
+        proposeEdge: () => ({ edge: null }),
+      };
+    }
+
+    const plugin = createDiscoveryEnginePlugin();
+
+    // Run with the public-API path (post-migration):
+    const kernelPublic = buildKernel();
+    const resultPublic = await plugin.run(kernelPublic, { text: 'kedi hayvan' }, { capability: { name: 'discoveryEngine' } });
+
+    // Forcibly exercise the pre-migration path by stubbing getNodes away so
+    // the fallback hits `_nodes`. We compare the resulting hypotheses.
+    const kernelLegacy = buildKernel();
+    const originalGetNodes = kernelLegacy.graph.getNodes;
+    delete kernelLegacy.graph.getNodes;
+    const resultLegacy = await plugin.run(kernelLegacy, { text: 'kedi hayvan' }, { capability: { name: 'discoveryEngine' } });
+    kernelLegacy.graph.getNodes = originalGetNodes;
+
+    // Parity: hypotheses shape and content must match for the default-workspace
+    // subject 'kedi'.
+    assert.deepStrictEqual(resultPublic.data.output.hypotheses, resultLegacy.data.output.hypotheses);
+    assert.deepStrictEqual(resultPublic.data.evidence, resultLegacy.data.evidence);
+    assert.strictEqual(resultPublic.data.confidence, resultLegacy.data.confidence);
+    assert.strictEqual(resultPublic.ok, resultLegacy.ok);
+
+    // The default-workspace 'kedi' node must be reachable in both paths.
+    assert.ok(resultPublic.data.output.hypotheses.some(h => h.subject === 'kedi'));
+  });
 });
