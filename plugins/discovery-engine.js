@@ -10,7 +10,17 @@ function normalizeInput(input) {
 
 function toFacts(kernel, text) {
   if (!kernel || typeof kernel.extractFacts !== 'function') return [];
-  return kernel.extractFacts(text, kernel.graph?._nodes || {}) || [];
+  // REFACTOR-4D: migrate private `kernel.graph?._nodes` access to the public
+  // `graph.getNodes(workspaceId)` API. `extractFacts` accepts either an object
+  // (uses Object.keys) or an array; both `_nodes` and `getNodes('default')`
+  // return `{id: node}` for the default workspace, so the observable behavior
+  // (which node IDs are considered "known" during fact extraction) is
+  // preserved. Using the public API keeps discovery-engine off private graph
+  // state. See docs/refactor/refactor-4d-contract-acceptance.md AC-5.5.
+  const knownNodes = kernel.graph && typeof kernel.graph.getNodes === 'function'
+    ? kernel.graph.getNodes('default')
+    : (kernel.graph?._nodes || {});
+  return kernel.extractFacts(text, knownNodes) || [];
 }
 
 function toEvidence(facts, source) {
