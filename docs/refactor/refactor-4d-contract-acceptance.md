@@ -74,7 +74,7 @@ Her kriter PASS/FAIL olarak ölçülür. Belirsiz bırakılmış kriter kabul ed
 | 5.2 | Public seam ekleme | yalnızca mevcut public API yetersizse, **en küçük** seam eklenir | geniş yeni API yüzeyi açılır |
 | 5.3 | Davranış kanıtı | parity testleri gözlemlenebilir davranışın değişmediğini kanıtlar | parity testi yok |
 | 5.4 | Toplu migration | **yasaktır** | tek PR'da toplu `_nodes`/`_` erişim değişimi |
-| 5.5 | Kapsanan private erişimler | `graph._nodes` (plugin #1, #2, #3, #4, #6), `_companyIngestState` (#1, #9), `_parsePredicate()` (#1, #2) — her biri ayrı PR'da | envanter dışı erişim sessizce değiştirilir |
+| 5.5 | Kapsanan private erişimler | `graph._nodes` (company-brain, contradiction-alert, devil-advocate, discovery-engine, idea-mri), `_companyIngestState` (company-brain, repo-memory), `_parsePredicate()` (company-brain, contradiction-alert) — her biri ayrı PR'da | envanter dışı erişim sessizce değiştirilir |
 
 ### AC-6: Manifest / runtime compatibility
 
@@ -89,7 +89,9 @@ Her kriter PASS/FAIL olarak ölçülür. Belirsiz bırakılmış kriter kabul ed
 
 | # | Şart | PASS | FAIL |
 |---|------|------|------|
-| 7.1 | PluginManager-managed 10 plugin | `company-brain`, `contradiction-alert`, `devil-advocate`, `discovery-engine`, `experiment-planner`, `idea-mri`, `llm-memory`, `replication-checker`, `repo-memory`, `result-analyzer` — onunun tamamı load + register uyumlu kalır | herhangi biri yüklenemez veya kayıt olamaz |
+| 7.1 | PluginManager-managed 10 plugin | `company-brain`, `contradiction-alert`, `devil-advocate`, `discovery-engine`, `experiment-planner`, `idea-mri`, `llm-memory`, `replication-checker`, `repo-memory`, `result-analyzer` — her biri mevcut `requires`/`optional` capability önkoşulları altında mevcut load/register davranışını korur | mevcut davranış değişir |
+| 7.1a | Default capability setinde yüklenemeyen plugin'ler | `company-brain`, `contradiction-alert`, `repo-memory` — default sette yüklenememeleri beklenen davranıştır, regresyon sayılmaz | bu davranış "bozuk" olarak işaretlenir veya değiştirilir |
+| 7.1b | `idea-mri` | `requires: []` olduğu için yüklenir | yüklenemez duruma düşer |
 | 7.2 | `llm-memory` | `afterAsk` / `afterLearn` davranışı uyumlu kalır | davranış değişir |
 | 7.3 | `sandboxRunner` | PluginManager kapsamı **dışında** kalır | PluginManager'a bağlanır |
 | 7.4 | Compatibility inventory | açıklanamayan regresyon yok | açıklamasız fark var |
@@ -111,8 +113,26 @@ Her kriter PASS/FAIL olarak ölçülür. Belirsiz bırakılmış kriter kabul ed
 **tamamı** sağlandığında GREEN olur:
 
 1. Bölüm 2'deki her acceptance kriteri, bir veya daha fazla **adlandırılmış
-   test** ile eşleştirilmiştir (kriter → test adı haritası PR açıklamasında
-   yer alır).
+   evidence** ile eşleştirilmiştir (kriter → evidence haritası PR açıklamasında
+   yer alır). Evidence türleri:
+   - automated contract test
+   - targeted regression test
+   - compatibility test
+   - changed-files scope review
+   - diff inspection
+   - source-reality verification
+   - CI/security/benchmark result
+
+   Runtime davranış kriterleri automated test ile eşleştirilmelidir.
+   Process ve scope-protection kriterleri explicit review evidence ile
+   eşleştirilebilir.
+
+   Örnekler:
+   - AC-2.1 → automated fail-open test
+   - AC-3.1 → automated required-capability test
+   - AC-5.1 → single-consumer changed-files review
+   - AC-8.2 → forbidden-scope diff review
+   - AC-8.3 → package/lockfile absence review
 2. Hedefli contract testler geçer.
 3. Tam test suite (`npm test`) geçer.
 4. Security Checks başarılıdır.
