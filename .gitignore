@@ -1,15 +1,1 @@
-node_modules/
-memory.json
-memory.db
-memory.embeddings.json
-agent.memory.json
-*.agent.json
-memory.db-shm
-memory.db-wal
-test_memory.db
-*.log
-.env
-demo-sonuc.json
-tbk-demo.js
-tbk-kira.js
-backups/
+(plugin-contract.test.js and plugin.js are JavaScript source files, which should not be added to .gitignore according to rule 7)

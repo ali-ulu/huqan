@@ -240,6 +240,7 @@ class PluginManager {
 }
 
 module.exports = PluginManager;
+module.exports.EVENTS = EVENTS;
 module.exports.hashFile = hashFile;
 module.exports.hmacSign = hmacSign;
 module.exports.verifyPluginFile = verifyPluginFile;
