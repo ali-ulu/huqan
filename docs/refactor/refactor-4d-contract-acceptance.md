@@ -37,12 +37,50 @@
 - `hasCapability()` public API üzerinden kontrol edilir.
 - plugin içi capability çağrıları `kernel.hasCapability()` ile yapılır.
 
-### AC-5: Implementation
-- TBD — Lead Engineer.
+### AC-5: Hook scope protection
+- afterVerify ve beforeVerify eklenmez.
+- 4D kapsamında yeni hook tanımlanmaz.
+
+### AC-6: Private access migration
+- Her private erişim migration’u tek sınırlı consumer per PR yapılır.
+- En küçük public seam sadece mevcut public API yetersizse eklenir.
+- Parity testleri gözlemlenebilir davranışın değişmediğini kanıtlar.
+- Toplu migration yasaktır.
+
+### AC-7: Manifest/runtime compatibility
+- Mevcut SHA-only manifest uyumluluğu korunur.
+- Legacy inline runtime metadata uyumluluğu korunur.
+- Shared-key imzalı manifest doğrulama kapsamda kalır.
+- Yeni manifest platformu veya permission sistemi eklenmez.
+
+### AC-8: Plugin compatibility
+- 10 PluginManager-managed plugin load/register uyumluluğu korunur.
+- llm-memory afterAsk/afterLearn davranışı uyumlu kalır.
+- sandboxRunner PluginManager kapsamı dışında kalır.
+
+### AC-9: Scope protection
+- afterVerify/beforeVerify eklenmez.
+- 4E1, 4E2, 4E3, 4E4 işleri yapılmaz.
+- Dependency, package, release veya ilişkisiz refactor değişikliği girilmez.
 
 ---
 
-## 3. Test Requirements
+## 3. Gate Completion
+
+REFACTOR-4D_PLUGIN_BOUNDARY_CONTRACT_TESTS yalnızca şu şartlar sağlanınca GREEN olur:
+
+- Her acceptance kriteri bir veya daha fazla adlandırılmış test tarafından kapsanır.
+- Hedefli contract testler geçer.
+- Tam test suite geçer.
+- Security Checks başarılıdır.
+- Benchmark Regression başarılıdır.
+- Compatibility inventory’de açıklanamaz regresyon yoktur.
+
+---
+
+
+</parameter>
+<parameter3_name>content</parameter3_name>
 
 - targeted contract tests
 - plugin tests
