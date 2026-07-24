@@ -558,4 +558,141 @@ describe('Plugin - Yonetici', () => {
     // The default-workspace 'kedi' node must be reachable in both paths.
     assert.ok(resultPublic.data.output.hypotheses.some(h => h.subject === 'kedi'));
   });
+
+  // -------------------------------------------------------------------------
+  // REFACTOR-4D AC-5.3 parity tests for idea-mri `_nodes` migration.
+  // Plugin should use the public `graph.getNodes('default')` API when present,
+  // and fall back to `_nodes` only when `getNodes` is absent. Both paths must
+  // produce identical observable behavior (fact extraction against the same
+  // default-workspace node ID set).
+  // -------------------------------------------------------------------------
+
+  it('idea-mri uses public graph.getNodes("default") when available (4D migration)', async () => {
+    const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
+    const tenantNode = { id: 'kedi', label: 'Tenant Kedi', workspaceId: 'tenant-a' };
+    const knownNodes = {
+      kedi: defaultNode,
+      'tenant-a::kedi': tenantNode,
+    };
+    const publicSnapshot = { kedi: { ...defaultNode } };
+
+    let capturedArg = null;
+    let getNodesCalls = [];
+    const kernel = {
+      graph: {
+        _nodes: knownNodes,
+        getNodes(workspaceId) {
+          getNodesCalls.push(workspaceId);
+          return workspaceId === 'default' ? publicSnapshot : {};
+        },
+        getEdges: () => [],
+        getInEdges: () => [],
+      },
+      extractFacts(_text, nodes) {
+        capturedArg = nodes;
+        return [{ subject: 'kedi', predicate: 'hayvan' }];
+      },
+      hasCapability: () => false,
+      proposeNode: () => ({ ok: true }),
+      proposeEdge: () => ({ edge: null }),
+    };
+
+    const plugin = createIdeaMriPlugin();
+    const result = await plugin.run(kernel, { text: 'kedi hayvan' }, { capability: { name: 'ideaMri' } });
+
+    // AC-5.3 (a): plugin called the public API with default workspace
+    assert.deepStrictEqual(getNodesCalls, ['default']);
+
+    // AC-5.3 (b): plugin did NOT touch `_nodes` when `getNodes` is present.
+    assert.strictEqual(capturedArg, publicSnapshot);
+    assert.notStrictEqual(capturedArg, knownNodes);
+    assert.deepStrictEqual(Object.keys(capturedArg), ['kedi']);
+
+    // AC-5.3 (c): observable behavior — plugin produced structured analysis.
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.data.mode, 'structured-analysis');
+    assert.ok(result.data.claims.length >= 1);
+  });
+
+  it('idea-mri falls back to _nodes when graph.getNodes is absent (backward compat)', async () => {
+    const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
+    const knownNodes = { kedi: defaultNode };
+
+    let capturedArg = null;
+    const kernel = {
+      graph: {
+        _nodes: knownNodes,
+        getEdges: () => [],
+        getInEdges: () => [],
+      },
+      extractFacts(_text, nodes) {
+        capturedArg = nodes;
+        return [{ subject: 'kedi', predicate: 'hayvan' }];
+      },
+      hasCapability: () => false,
+      proposeNode: () => ({ ok: true }),
+      proposeEdge: () => ({ edge: null }),
+    };
+
+    const plugin = createIdeaMriPlugin();
+    const result = await plugin.run(kernel, { text: 'kedi hayvan' }, { capability: { name: 'ideaMri' } });
+
+    // Fallback used `_nodes` directly
+    assert.strictEqual(capturedArg, knownNodes);
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.data.mode, 'structured-analysis');
+  });
+
+  it('idea-mri parity: getNodes("default") yields same fact extraction as _nodes for default workspace (AC-5.3)', async () => {
+    // AC-5.3 requires parity tests proving observable behavior is unchanged.
+    // Build a real graph via the canonical Graph class so we exercise the
+    // actual public API contract, then run idea-mri against both the private
+    // `_nodes` map (pre-migration) and the public `getNodes('default')`
+    // (post-migration) and assert identical structured-analysis output.
+    const Graph = require('./graph');
+    const createNlp = require('./nlp');
+    const nlp = createNlp('tr');
+    const graph = new Graph({ workspaceId: 'default' });
+    graph.addNode('kedi', 'Kedi', { source: 'fixture' });
+    graph.addNode('balik', 'Balik', { source: 'fixture' });
+    graph.addNode('kedi', 'Tenant Kedi', { source: 'fixture' }, { workspaceId: 'tenant-a' });
+
+    function buildKernel() {
+      return {
+        graph,
+        nlp,
+        extractFacts(text, knownNodes) {
+          return nlp.extractFacts(text, knownNodes);
+        },
+        hasCapability: () => false,
+        proposeNode: () => ({ ok: true }),
+        proposeEdge: () => ({ edge: null }),
+      };
+    }
+
+    const plugin = createIdeaMriPlugin();
+
+    const kernelPublic = buildKernel();
+    const resultPublic = await plugin.run(kernelPublic, { text: 'kedi hayvan' }, { capability: { name: 'ideaMri' } });
+
+    const kernelLegacy = buildKernel();
+    const originalGetNodes = kernelLegacy.graph.getNodes;
+    delete kernelLegacy.graph.getNodes;
+    const resultLegacy = await plugin.run(kernelLegacy, { text: 'kedi hayvan' }, { capability: { name: 'ideaMri' } });
+    kernelLegacy.graph.getNodes = originalGetNodes;
+
+    // Parity: structured analysis output must match for the default-workspace
+    // subject 'kedi'.
+    assert.deepStrictEqual(resultPublic.data.claims, resultLegacy.data.claims);
+    assert.deepStrictEqual(resultPublic.data.assumptions, resultLegacy.data.assumptions);
+    assert.deepStrictEqual(resultPublic.data.risks, resultLegacy.data.risks);
+    assert.deepStrictEqual(resultPublic.data.missingEvidence, resultLegacy.data.missingEvidence);
+    assert.deepStrictEqual(resultPublic.data.strengths, resultLegacy.data.strengths);
+    assert.strictEqual(resultPublic.data.mainClaim, resultLegacy.data.mainClaim);
+    assert.strictEqual(resultPublic.ok, resultLegacy.ok);
+
+    // The default-workspace 'kedi' subject must be reachable in both paths
+    // (it surfaces as a claim containing 'kedi').
+    assert.ok(resultPublic.data.claims.some(c => typeof c.text === 'string' && c.text.includes('kedi')));
+  });
 });
