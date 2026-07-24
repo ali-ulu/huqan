@@ -424,11 +424,16 @@ describe('Plugin - Yonetici', () => {
     // (NOT the live `_nodes` map) restricted to the default workspace.
     const publicSnapshot = { kedi: { ...defaultNode } };
 
+    // Spy: track _nodes reads (must stay 0 in the public path).
+    const accessLog = { _nodesReads: 0 };
     let capturedArg = null;
     let getNodesCalls = [];
     const kernel = {
       graph: {
-        _nodes: knownNodes,
+        get _nodes() {
+          accessLog._nodesReads++;
+          return knownNodes;
+        },
         getNodes(workspaceId) {
           getNodesCalls.push(workspaceId);
           return workspaceId === 'default' ? publicSnapshot : {};
@@ -457,6 +462,8 @@ describe('Plugin - Yonetici', () => {
     assert.strictEqual(capturedArg, publicSnapshot);
     assert.notStrictEqual(capturedArg, knownNodes);
     assert.deepStrictEqual(Object.keys(capturedArg), ['kedi']);
+    // The getter spy proves no read reached the private map.
+    assert.strictEqual(accessLog._nodesReads, 0);
 
     // AC-5.3 (c): observable behavior — plugin produced facts from the
     // extracted facts list and returned the expected structure.
@@ -472,10 +479,15 @@ describe('Plugin - Yonetici', () => {
     const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
     const knownNodes = { kedi: defaultNode };
 
+    // Spy: track _nodes reads (must be >= 1 in the legacy fallback path).
+    const accessLog = { _nodesReads: 0 };
     let capturedArg = null;
     const kernel = {
       graph: {
-        _nodes: knownNodes,
+        get _nodes() {
+          accessLog._nodesReads++;
+          return knownNodes;
+        },
         // No getNodes() at all
         getEdges: () => [],
         getInEdges: () => [],
@@ -492,6 +504,11 @@ describe('Plugin - Yonetici', () => {
     const plugin = createDiscoveryEnginePlugin();
     const result = await plugin.run(kernel, { text: 'kedi hayvan' }, { capability: { name: 'discoveryEngine' } });
 
+    // A4: legacy path actually read `_nodes` at least once.
+    assert.ok(
+      accessLog._nodesReads >= 1,
+      `expected _nodes read >= 1 in legacy fallback, got ${accessLog._nodesReads}`
+    );
     // Fallback used `_nodes` directly
     assert.strictEqual(capturedArg, knownNodes);
     assert.strictEqual(result.ok, true);
@@ -504,59 +521,88 @@ describe('Plugin - Yonetici', () => {
     // actual public API contract, then run discovery-engine against both the
     // private `_nodes` map (pre-migration) and the public `getNodes('default')`
     // (post-migration) and assert identical fact-extraction output.
+    //
+    // Remediation note: the previous version attempted to remove `getNodes`
+    // from the legacy graph instance via `delete` to force the fallback path.
+    // `getNodes` lives on `Graph.prototype`, so that deletion was a no-op and
+    // both scenarios ran the public path. The legacy scenario now uses a plain
+    // legacy-shaped double with NO `getNodes`, and a getter spy proves `_nodes`
+    // was actually read.
     const Graph = require('./graph');
     const createNlp = require('./nlp');
+    const os = require('os');
     const nlp = createNlp('tr');
-    const graph = new Graph({ workspaceId: 'default' });
-    graph.addNode('kedi', 'Kedi', { source: 'fixture' });
-    graph.addNode('balik', 'Balik', { source: 'fixture' });
-    // Add a tenant-a node — it should NOT leak into default-workspace fact
-    // extraction via `getNodes('default')`, AND it would have leaked via
-    // `_nodes` because `Object.keys(_nodes)` returns both storage keys. This
-    // is the parity subtlety the migration preserves: pre-migration behavior
-    // already mixed scopes, post-migration behavior is more correct. Either
-    // way, the default-workspace IDs the plugin cares about are present in
-    // both, so the observable fact-extraction result for default-workspace
-    // subjects is identical.
-    graph.addNode('kedi', 'Tenant Kedi', { source: 'fixture' }, { workspaceId: 'tenant-a' });
+    const tmpPath = path.join(os.tmpdir(), `discovery-engine-parity-${Date.now()}-${process.pid}.json`);
+    const graph = new Graph({ useSQLite: false, memoryPath: tmpPath });
+    try {
+      graph.addNode('kedi', 'Kedi', { source: 'fixture' });
+      graph.addNode('balik', 'Balik', { source: 'fixture' });
+      // Add a tenant-a node — it should NOT leak into default-workspace fact
+      // extraction via `getNodes('default')`, AND it would have leaked via
+      // `_nodes` because `Object.keys(_nodes)` returns both storage keys. This
+      // is the parity subtlety the migration preserves: pre-migration behavior
+      // already mixed scopes, post-migration behavior is more correct. Either
+      // way, the default-workspace IDs the plugin cares about are present in
+      // both, so the observable fact-extraction result for default-workspace
+      // subjects is identical.
+      graph.addNode('kedi', 'Tenant Kedi', { source: 'fixture' }, { workspaceId: 'tenant-a' });
 
-    // Build a real kernel-like object backed by the real graph.
-    function buildKernel() {
-      return {
-        graph,
-        nlp,
-        extractFacts(text, knownNodes) {
-          return nlp.extractFacts(text, knownNodes);
+      // Build a kernel-like object backed by the supplied graph argument.
+      function buildKernel(graphArg) {
+        return {
+          graph: graphArg,
+          nlp,
+          extractFacts(text, knownNodes) {
+            return nlp.extractFacts(text, knownNodes);
+          },
+          hasCapability: () => false,
+          proposeNode: () => ({ ok: true }),
+          proposeEdge: () => ({ edge: null }),
+        };
+      }
+
+      const plugin = createDiscoveryEnginePlugin();
+
+      // Run with the public-API path (post-migration):
+      const kernelPublic = buildKernel(graph);
+      const resultPublic = await plugin.run(kernelPublic, { text: 'kedi hayvan' }, { capability: { name: 'discoveryEngine' } });
+
+      // Legacy scenario: legacy-shaped double with NO getNodes. `_nodes`
+      // mirrors the full pre-migration internal map (includes tenant-a
+      // entries). The spy proves the legacy fallback branch was actually
+      // taken — without this assertion, the parity test is trivially true
+      // if the plugin silently used the public path on both sides.
+      const legacyAccessLog = { _nodesReads: 0 };
+      const legacyGraph = {
+        get _nodes() {
+          legacyAccessLog._nodesReads++;
+          return graph._nodes;
         },
-        hasCapability: () => false,
-        proposeNode: () => ({ ok: true }),
-        proposeEdge: () => ({ edge: null }),
+        getEdges: (nodeId) => graph.getEdges(nodeId),
+        getInEdges: (nodeId) => graph.getInEdges(nodeId),
       };
+      const kernelLegacy = buildKernel(legacyGraph);
+      const resultLegacy = await plugin.run(kernelLegacy, { text: 'kedi hayvan' }, { capability: { name: 'discoveryEngine' } });
+
+      // Parity: hypotheses shape and content must match for the default-workspace
+      // subject 'kedi'.
+      assert.deepStrictEqual(resultPublic.data.output.hypotheses, resultLegacy.data.output.hypotheses);
+      assert.deepStrictEqual(resultPublic.data.evidence, resultLegacy.data.evidence);
+      assert.strictEqual(resultPublic.data.confidence, resultLegacy.data.confidence);
+      assert.strictEqual(resultPublic.ok, resultLegacy.ok);
+
+      // The default-workspace 'kedi' node must be reachable in both paths.
+      assert.ok(resultPublic.data.output.hypotheses.some(h => h.subject === 'kedi'));
+
+      // A4: the legacy scenario actually read `_nodes` at least once.
+      assert.ok(
+        legacyAccessLog._nodesReads >= 1,
+        `expected _nodes read >= 1 in legacy scenario, got ${legacyAccessLog._nodesReads}`
+      );
+    } finally {
+      try { fs.unlinkSync(tmpPath); } catch (_) {}
+      try { fs.unlinkSync(tmpPath.replace(/\.json$/, '.embeddings.json')); } catch (_) {}
     }
-
-    const plugin = createDiscoveryEnginePlugin();
-
-    // Run with the public-API path (post-migration):
-    const kernelPublic = buildKernel();
-    const resultPublic = await plugin.run(kernelPublic, { text: 'kedi hayvan' }, { capability: { name: 'discoveryEngine' } });
-
-    // Forcibly exercise the pre-migration path by stubbing getNodes away so
-    // the fallback hits `_nodes`. We compare the resulting hypotheses.
-    const kernelLegacy = buildKernel();
-    const originalGetNodes = kernelLegacy.graph.getNodes;
-    delete kernelLegacy.graph.getNodes;
-    const resultLegacy = await plugin.run(kernelLegacy, { text: 'kedi hayvan' }, { capability: { name: 'discoveryEngine' } });
-    kernelLegacy.graph.getNodes = originalGetNodes;
-
-    // Parity: hypotheses shape and content must match for the default-workspace
-    // subject 'kedi'.
-    assert.deepStrictEqual(resultPublic.data.output.hypotheses, resultLegacy.data.output.hypotheses);
-    assert.deepStrictEqual(resultPublic.data.evidence, resultLegacy.data.evidence);
-    assert.strictEqual(resultPublic.data.confidence, resultLegacy.data.confidence);
-    assert.strictEqual(resultPublic.ok, resultLegacy.ok);
-
-    // The default-workspace 'kedi' node must be reachable in both paths.
-    assert.ok(resultPublic.data.output.hypotheses.some(h => h.subject === 'kedi'));
   });
 
   // -------------------------------------------------------------------------
@@ -576,11 +622,16 @@ describe('Plugin - Yonetici', () => {
     };
     const publicSnapshot = { kedi: { ...defaultNode } };
 
+    // Spy: track _nodes reads (must stay 0 in the public path).
+    const accessLog = { _nodesReads: 0 };
     let capturedArg = null;
     let getNodesCalls = [];
     const kernel = {
       graph: {
-        _nodes: knownNodes,
+        get _nodes() {
+          accessLog._nodesReads++;
+          return knownNodes;
+        },
         getNodes(workspaceId) {
           getNodesCalls.push(workspaceId);
           return workspaceId === 'default' ? publicSnapshot : {};
@@ -607,6 +658,8 @@ describe('Plugin - Yonetici', () => {
     assert.strictEqual(capturedArg, publicSnapshot);
     assert.notStrictEqual(capturedArg, knownNodes);
     assert.deepStrictEqual(Object.keys(capturedArg), ['kedi']);
+    // The getter spy proves no read reached the private map.
+    assert.strictEqual(accessLog._nodesReads, 0);
 
     // AC-5.3 (c): observable behavior — plugin produced structured analysis.
     assert.strictEqual(result.ok, true);
@@ -618,10 +671,15 @@ describe('Plugin - Yonetici', () => {
     const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
     const knownNodes = { kedi: defaultNode };
 
+    // Spy: track _nodes reads (must be >= 1 in the legacy fallback path).
+    const accessLog = { _nodesReads: 0 };
     let capturedArg = null;
     const kernel = {
       graph: {
-        _nodes: knownNodes,
+        get _nodes() {
+          accessLog._nodesReads++;
+          return knownNodes;
+        },
         getEdges: () => [],
         getInEdges: () => [],
       },
@@ -637,6 +695,11 @@ describe('Plugin - Yonetici', () => {
     const plugin = createIdeaMriPlugin();
     const result = await plugin.run(kernel, { text: 'kedi hayvan' }, { capability: { name: 'ideaMri' } });
 
+    // A4: legacy path actually read `_nodes` at least once.
+    assert.ok(
+      accessLog._nodesReads >= 1,
+      `expected _nodes read >= 1 in legacy fallback, got ${accessLog._nodesReads}`
+    );
     // Fallback used `_nodes` directly
     assert.strictEqual(capturedArg, knownNodes);
     assert.strictEqual(result.ok, true);
@@ -649,51 +712,82 @@ describe('Plugin - Yonetici', () => {
     // actual public API contract, then run idea-mri against both the private
     // `_nodes` map (pre-migration) and the public `getNodes('default')`
     // (post-migration) and assert identical structured-analysis output.
+    //
+    // Remediation note: the previous version attempted to remove `getNodes`
+    // from the legacy graph instance via `delete` to force the fallback path.
+    // `getNodes` lives on `Graph.prototype`, so that deletion was a no-op and
+    // both scenarios ran the public path. The legacy scenario now uses a plain
+    // legacy-shaped double with NO `getNodes`, and a getter spy proves `_nodes`
+    // was actually read.
     const Graph = require('./graph');
     const createNlp = require('./nlp');
+    const os = require('os');
     const nlp = createNlp('tr');
-    const graph = new Graph({ workspaceId: 'default' });
-    graph.addNode('kedi', 'Kedi', { source: 'fixture' });
-    graph.addNode('balik', 'Balik', { source: 'fixture' });
-    graph.addNode('kedi', 'Tenant Kedi', { source: 'fixture' }, { workspaceId: 'tenant-a' });
+    const tmpPath = path.join(os.tmpdir(), `idea-mri-parity-${Date.now()}-${process.pid}.json`);
+    const graph = new Graph({ useSQLite: false, memoryPath: tmpPath });
+    try {
+      graph.addNode('kedi', 'Kedi', { source: 'fixture' });
+      graph.addNode('balik', 'Balik', { source: 'fixture' });
+      graph.addNode('kedi', 'Tenant Kedi', { source: 'fixture' }, { workspaceId: 'tenant-a' });
 
-    function buildKernel() {
-      return {
-        graph,
-        nlp,
-        extractFacts(text, knownNodes) {
-          return nlp.extractFacts(text, knownNodes);
+      function buildKernel(graphArg) {
+        return {
+          graph: graphArg,
+          nlp,
+          extractFacts(text, knownNodes) {
+            return nlp.extractFacts(text, knownNodes);
+          },
+          hasCapability: () => false,
+          proposeNode: () => ({ ok: true }),
+          proposeEdge: () => ({ edge: null }),
+        };
+      }
+
+      const plugin = createIdeaMriPlugin();
+
+      const kernelPublic = buildKernel(graph);
+      const resultPublic = await plugin.run(kernelPublic, { text: 'kedi hayvan' }, { capability: { name: 'ideaMri' } });
+
+      // Legacy scenario: legacy-shaped double with NO getNodes. `_nodes`
+      // mirrors the full pre-migration internal map (includes tenant-a
+      // entries). The spy proves the legacy fallback branch was actually
+      // taken — without this assertion, the parity test is trivially true
+      // if the plugin silently used the public path on both sides.
+      const legacyAccessLog = { _nodesReads: 0 };
+      const legacyGraph = {
+        get _nodes() {
+          legacyAccessLog._nodesReads++;
+          return graph._nodes;
         },
-        hasCapability: () => false,
-        proposeNode: () => ({ ok: true }),
-        proposeEdge: () => ({ edge: null }),
+        getEdges: (nodeId) => graph.getEdges(nodeId),
+        getInEdges: (nodeId) => graph.getInEdges(nodeId),
       };
+      const kernelLegacy = buildKernel(legacyGraph);
+      const resultLegacy = await plugin.run(kernelLegacy, { text: 'kedi hayvan' }, { capability: { name: 'ideaMri' } });
+
+      // Parity: structured analysis output must match for the default-workspace
+      // subject 'kedi'.
+      assert.deepStrictEqual(resultPublic.data.claims, resultLegacy.data.claims);
+      assert.deepStrictEqual(resultPublic.data.assumptions, resultLegacy.data.assumptions);
+      assert.deepStrictEqual(resultPublic.data.risks, resultLegacy.data.risks);
+      assert.deepStrictEqual(resultPublic.data.missingEvidence, resultLegacy.data.missingEvidence);
+      assert.deepStrictEqual(resultPublic.data.strengths, resultLegacy.data.strengths);
+      assert.strictEqual(resultPublic.data.mainClaim, resultLegacy.data.mainClaim);
+      assert.strictEqual(resultPublic.ok, resultLegacy.ok);
+
+      // The default-workspace 'kedi' subject must be reachable in both paths
+      // (it surfaces as a claim containing 'kedi').
+      assert.ok(resultPublic.data.claims.some(c => typeof c.text === 'string' && c.text.includes('kedi')));
+
+      // A4: the legacy scenario actually read `_nodes` at least once.
+      assert.ok(
+        legacyAccessLog._nodesReads >= 1,
+        `expected _nodes read >= 1 in legacy scenario, got ${legacyAccessLog._nodesReads}`
+      );
+    } finally {
+      try { fs.unlinkSync(tmpPath); } catch (_) {}
+      try { fs.unlinkSync(tmpPath.replace(/\.json$/, '.embeddings.json')); } catch (_) {}
     }
-
-    const plugin = createIdeaMriPlugin();
-
-    const kernelPublic = buildKernel();
-    const resultPublic = await plugin.run(kernelPublic, { text: 'kedi hayvan' }, { capability: { name: 'ideaMri' } });
-
-    const kernelLegacy = buildKernel();
-    const originalGetNodes = kernelLegacy.graph.getNodes;
-    delete kernelLegacy.graph.getNodes;
-    const resultLegacy = await plugin.run(kernelLegacy, { text: 'kedi hayvan' }, { capability: { name: 'ideaMri' } });
-    kernelLegacy.graph.getNodes = originalGetNodes;
-
-    // Parity: structured analysis output must match for the default-workspace
-    // subject 'kedi'.
-    assert.deepStrictEqual(resultPublic.data.claims, resultLegacy.data.claims);
-    assert.deepStrictEqual(resultPublic.data.assumptions, resultLegacy.data.assumptions);
-    assert.deepStrictEqual(resultPublic.data.risks, resultLegacy.data.risks);
-    assert.deepStrictEqual(resultPublic.data.missingEvidence, resultLegacy.data.missingEvidence);
-    assert.deepStrictEqual(resultPublic.data.strengths, resultLegacy.data.strengths);
-    assert.strictEqual(resultPublic.data.mainClaim, resultLegacy.data.mainClaim);
-    assert.strictEqual(resultPublic.ok, resultLegacy.ok);
-
-    // The default-workspace 'kedi' subject must be reachable in both paths
-    // (it surfaces as a claim containing 'kedi').
-    assert.ok(resultPublic.data.claims.some(c => typeof c.text === 'string' && c.text.includes('kedi')));
   });
 
   // -------------------------------------------------------------------------
@@ -704,129 +798,199 @@ describe('Plugin - Yonetici', () => {
   // default-workspace node ID set).
   // -------------------------------------------------------------------------
 
+  // -------------------------------------------------------------------------
+  // REFACTOR-4D AC-5.3 parity tests for devil-advocate `_nodes` migration
+  // (remediation: PR #81 post-merge evidence defect).
+  //
+  // Defect fixed: the previous parity test attempted to remove `getNodes`
+  // from the legacy graph instance via `delete` to force the fallback path.
+  // `getNodes` lives on `Graph.prototype`, not on the instance, so that
+  // deletion was a no-op and the plugin still resolved `getNodes` via the
+  // prototype chain. Both "public" and "legacy" scenarios therefore ran the
+  // public path and the parity assertion was trivially true.
+  //
+  // Fix (per remediation spec A3/A4/B1):
+  //   - Real-Graph scenarios construct `new Graph({ useSQLite: false,
+  //     memoryPath: <os.tmpdir()/uniq> })` so no `memory.db`/`memory.json`
+  //     artifacts are written to the cwd.
+  //   - Legacy scenarios use a plain legacy-shaped double `{ _nodes: <map> }`
+  //     with NO `getNodes` method — the plugin's `typeof getNodes === 'function'`
+  //     check returns false and the `_nodes` fallback branch is genuinely taken.
+  //   - `_nodes` reads are counted via a getter spy; the legacy tests assert
+  //     `_nodesReads >= 1` to prove the legacy branch actually read `_nodes`
+  //     (result equality alone is insufficient).
+  //   - All cleanup is test-local try/finally (no global afterEach).
+  // -------------------------------------------------------------------------
+
   it('devil-advocate uses public graph.getNodes("default") when available (4D migration)', async () => {
-    const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
-    const tenantNode = { id: 'kedi', label: 'Tenant Kedi', workspaceId: 'tenant-a' };
-    const knownNodes = {
-      kedi: defaultNode,
-      'tenant-a::kedi': tenantNode,
-    };
-    const publicSnapshot = { kedi: { ...defaultNode } };
-
-    let capturedArg = null;
-    let getNodesCalls = [];
-    const kernel = {
-      graph: {
-        _nodes: knownNodes,
-        getNodes(workspaceId) {
-          getNodesCalls.push(workspaceId);
-          return workspaceId === 'default' ? publicSnapshot : {};
-        },
-        getEdges: () => [],
-        getInEdges: () => [],
-      },
-      extractFacts(_text, nodes) {
-        capturedArg = nodes;
-        return [{ subject: 'kedi', predicate: 'hayvan' }];
-      },
-      hasCapability: () => false,
-      proposeNode: () => ({ ok: true }),
-      proposeEdge: () => ({ edge: null }),
-    };
-
-    const plugin = createDevilAdvocatePlugin();
-    plugin.init();
-    const result = await plugin.run(kernel, { text: 'kedi hayvan' }, { capability: { name: 'devilAdvocate' } });
-
-    // AC-5.3 (a): plugin called the public API with default workspace
-    assert.deepStrictEqual(getNodesCalls, ['default']);
-
-    // AC-5.3 (b): plugin did NOT touch `_nodes` when `getNodes` is present.
-    assert.strictEqual(capturedArg, publicSnapshot);
-    assert.notStrictEqual(capturedArg, knownNodes);
-    assert.deepStrictEqual(Object.keys(capturedArg), ['kedi']);
-
-    // AC-5.3 (c): observable behavior — plugin produced a graph-backed
-    // counter-argument or question-list output (no edges here → falls
-    // through to no-graph branch).
-    assert.strictEqual(result.ok, true);
-    assert.ok(typeof result.data === 'object' && result.data !== null);
-  });
-
-  it('devil-advocate falls back to _nodes when graph.getNodes is absent (backward compat)', async () => {
-    const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
-    const knownNodes = { kedi: defaultNode };
-
-    let capturedArg = null;
-    const kernel = {
-      graph: {
-        _nodes: knownNodes,
-        getEdges: () => [],
-        getInEdges: () => [],
-      },
-      extractFacts(_text, nodes) {
-        capturedArg = nodes;
-        return [{ subject: 'kedi', predicate: 'hayvan' }];
-      },
-      hasCapability: () => false,
-      proposeNode: () => ({ ok: true }),
-      proposeEdge: () => ({ edge: null }),
-    };
-
-    const plugin = createDevilAdvocatePlugin();
-    plugin.init();
-    const result = await plugin.run(kernel, { text: 'kedi hayvan' }, { capability: { name: 'devilAdvocate' } });
-
-    // Fallback used `_nodes` directly
-    assert.strictEqual(capturedArg, knownNodes);
-    assert.strictEqual(result.ok, true);
-  });
-
-  it('devil-advocate parity: getNodes("default") yields same fact extraction as _nodes for default workspace (AC-5.3)', async () => {
-    // AC-5.3 requires parity tests proving observable behavior is unchanged.
-    // Build a real graph via the canonical Graph class so we exercise the
-    // actual public API contract, then run devil-advocate against both the
-    // private `_nodes` map (pre-migration) and the public `getNodes('default')`
-    // (post-migration) and assert identical counter-argument output.
     const Graph = require('./graph');
     const createNlp = require('./nlp');
+    const os = require('os');
     const nlp = createNlp('tr');
-    const graph = new Graph({ workspaceId: 'default' });
-    graph.addNode('kedi', 'Kedi', { source: 'fixture' });
-    graph.addNode('balik', 'Balik', { source: 'fixture' });
-    graph.addNode('kedi', 'Tenant Kedi', { source: 'fixture' }, { workspaceId: 'tenant-a' });
+    const tmpPath = path.join(os.tmpdir(), `devil-advocate-public-${Date.now()}-${process.pid}.json`);
+    const graph = new Graph({ useSQLite: false, memoryPath: tmpPath });
+    try {
+      graph.addNode('kedi', 'Kedi', { source: 'fixture' });
+      graph.addNode('balik', 'Balik', { source: 'fixture' });
+      graph.addNode('kedi', 'Tenant Kedi', { source: 'fixture' }, { workspaceId: 'tenant-a' });
 
-    function buildKernel() {
-      return {
-        graph,
-        nlp,
-        extractFacts(text, knownNodes) {
-          return nlp.extractFacts(text, knownNodes);
+      // Spy: track _nodes reads (must stay 0 in the public path) and
+      // getNodes calls (must be exactly ['default']).
+      const accessLog = { _nodesReads: 0, getNodesCalls: [] };
+      const trackedGraph = {
+        get _nodes() {
+          accessLog._nodesReads++;
+          return graph._nodes;
         },
+        getNodes(workspaceId) {
+          accessLog.getNodesCalls.push(workspaceId);
+          return graph.getNodes(workspaceId);
+        },
+        getEdges: (nodeId) => graph.getEdges(nodeId),
+        getInEdges: (nodeId) => graph.getInEdges(nodeId),
+      };
+
+      const kernel = {
+        graph: trackedGraph,
+        nlp,
+        extractFacts: (text, knownNodes) => nlp.extractFacts(text, knownNodes),
         hasCapability: () => false,
         proposeNode: () => ({ ok: true }),
         proposeEdge: () => ({ edge: null }),
       };
+
+      const plugin = createDevilAdvocatePlugin();
+      plugin.init();
+      const result = await plugin.run(kernel, { text: 'kedi hayvan' }, { capability: { name: 'devilAdvocate' } });
+
+      // AC-5.3 (a): plugin called the public API with the default workspace.
+      assert.deepStrictEqual(accessLog.getNodesCalls, ['default']);
+
+      // AC-5.3 (b): plugin did NOT touch `_nodes` when `getNodes` is present.
+      // The getter spy proves no read reached the private map.
+      assert.strictEqual(accessLog._nodesReads, 0);
+
+      // AC-5.3 (c): observable behavior — subject resolved to default-workspace 'kedi'.
+      assert.strictEqual(result.ok, true);
+      assert.strictEqual(result.data.subject, 'kedi');
+    } finally {
+      try { fs.unlinkSync(tmpPath); } catch (_) {}
+      try { fs.unlinkSync(tmpPath.replace(/\.json$/, '.embeddings.json')); } catch (_) {}
     }
+  });
+
+  it('devil-advocate falls back to _nodes when graph.getNodes is absent (backward compat)', async () => {
+    // Legacy-shaped double: NO getNodes method at all. The plugin's
+    // `typeof kernel.graph.getNodes === 'function'` check returns false and
+    // the `_nodes` fallback branch is genuinely taken.
+    const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
+    const legacyNodeMap = { kedi: defaultNode };
+
+    const accessLog = { _nodesReads: 0 };
+    let capturedArg = null;
+    const legacyGraph = {
+      get _nodes() {
+        accessLog._nodesReads++;
+        return legacyNodeMap;
+      },
+      getEdges: () => [],
+      getInEdges: () => [],
+    };
+
+    const kernel = {
+      graph: legacyGraph,
+      extractFacts(_text, nodes) {
+        capturedArg = nodes;
+        return [{ subject: 'kedi', predicate: 'hayvan' }];
+      },
+      hasCapability: () => false,
+      proposeNode: () => ({ ok: true }),
+      proposeEdge: () => ({ edge: null }),
+    };
 
     const plugin = createDevilAdvocatePlugin();
     plugin.init();
+    const result = await plugin.run(kernel, { text: 'kedi hayvan' }, { capability: { name: 'devilAdvocate' } });
 
-    const kernelPublic = buildKernel();
-    const resultPublic = await plugin.run(kernelPublic, { text: 'kedi hayvan' }, { capability: { name: 'devilAdvocate' } });
+    // A4: legacy path actually read `_nodes` at least once. Result equality
+    // alone is insufficient — the spy proves the private map was touched.
+    assert.ok(
+      accessLog._nodesReads >= 1,
+      `expected _nodes read >= 1 in legacy fallback, got ${accessLog._nodesReads}`
+    );
 
-    const kernelLegacy = buildKernel();
-    const originalGetNodes = kernelLegacy.graph.getNodes;
-    delete kernelLegacy.graph.getNodes;
-    const resultLegacy = await plugin.run(kernelLegacy, { text: 'kedi hayvan' }, { capability: { name: 'devilAdvocate' } });
-    kernelLegacy.graph.getNodes = originalGetNodes;
+    // extractFacts received the `_nodes` map directly (legacy behavior).
+    assert.strictEqual(capturedArg, legacyNodeMap);
 
-    // Parity: output must match for the default-workspace subject 'kedi'.
-    assert.deepStrictEqual(resultPublic.data, resultLegacy.data);
-    assert.strictEqual(resultPublic.ok, resultLegacy.ok);
+    // Observable behavior.
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.data.subject, 'kedi');
+  });
 
-    // The default-workspace 'kedi' subject must be reachable in both paths
-    // (it surfaces as the subject of the counter-argument or question list).
-    assert.strictEqual(resultPublic.data.subject, 'kedi');
+  it('devil-advocate parity: getNodes("default") yields same observable output as _nodes for default workspace (AC-5.3)', async () => {
+    const Graph = require('./graph');
+    const createNlp = require('./nlp');
+    const os = require('os');
+    const nlp = createNlp('tr');
+    const tmpPath = path.join(os.tmpdir(), `devil-advocate-parity-${Date.now()}-${process.pid}.json`);
+    const graph = new Graph({ useSQLite: false, memoryPath: tmpPath });
+    try {
+      graph.addNode('kedi', 'Kedi', { source: 'fixture' });
+      graph.addNode('balik', 'Balik', { source: 'fixture' });
+      graph.addNode('kedi', 'Tenant Kedi', { source: 'fixture' }, { workspaceId: 'tenant-a' });
+
+      function buildKernel(graphArg) {
+        return {
+          graph: graphArg,
+          nlp,
+          extractFacts: (text, knownNodes) => nlp.extractFacts(text, knownNodes),
+          hasCapability: () => false,
+          proposeNode: () => ({ ok: true }),
+          proposeEdge: () => ({ edge: null }),
+        };
+      }
+
+      const plugin = createDevilAdvocatePlugin();
+      plugin.init();
+
+      // Public scenario: real Graph, getNodes resolved via prototype.
+      const kernelPublic = buildKernel(graph);
+      const resultPublic = await plugin.run(kernelPublic, { text: 'kedi hayvan' }, { capability: { name: 'devilAdvocate' } });
+
+      // Legacy scenario: legacy-shaped double with NO getNodes. `_nodes`
+      // mirrors the full pre-migration internal map (includes tenant-a
+      // entries). The spy proves the legacy fallback branch was actually
+      // taken — without this assertion, the parity test is trivially true
+      // if the plugin silently used the public path on both sides.
+      const legacyAccessLog = { _nodesReads: 0 };
+      const legacyGraph = {
+        get _nodes() {
+          legacyAccessLog._nodesReads++;
+          return graph._nodes;
+        },
+        getEdges: (nodeId) => graph.getEdges(nodeId),
+        getInEdges: (nodeId) => graph.getInEdges(nodeId),
+      };
+      const kernelLegacy = buildKernel(legacyGraph);
+      const resultLegacy = await plugin.run(kernelLegacy, { text: 'kedi hayvan' }, { capability: { name: 'devilAdvocate' } });
+
+      // Parity: observable output must match for the default-workspace subject 'kedi'.
+      assert.deepStrictEqual(resultPublic.data, resultLegacy.data);
+      assert.strictEqual(resultPublic.ok, resultLegacy.ok);
+
+      // The default-workspace 'kedi' subject must be reachable in both paths.
+      assert.strictEqual(resultPublic.data.subject, 'kedi');
+
+      // A4: the legacy scenario actually read `_nodes` at least once. This
+      // proves the parity comparison exercised the legacy branch, not the
+      // public branch twice.
+      assert.ok(
+        legacyAccessLog._nodesReads >= 1,
+        `expected _nodes read >= 1 in legacy scenario, got ${legacyAccessLog._nodesReads}`
+      );
+    } finally {
+      try { fs.unlinkSync(tmpPath); } catch (_) {}
+      try { fs.unlinkSync(tmpPath.replace(/\.json$/, '.embeddings.json')); } catch (_) {}
+    }
   });
 });
