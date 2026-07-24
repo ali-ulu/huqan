@@ -1,29 +1,194 @@
 name: Benchmark Regression
 
+# Conditional CI gate policy — see
+# docs/refactor/refactor-4d-contract-acceptance.md §3 and §4.
+#
+# Three independent surfaces, each with its own (run | skip) job pair so the
+# status check always appears on every PR and reports either a real result
+# or NOT_APPLICABLE. Branch protection can require "npm test (runtime/test)",
+# "Benchmark", and "Docker build" without blocking docs-only or
+# performance-neutral PRs.
+#
+#   runtime/test change  →  npm test runs            (mandatory)
+#   perf-sensitive       →  npm test + benchmark     (mandatory on runtime)
+#   docker/package       →  docker build runs        (mandatory on docker)
+#   docs-only / nothing  →  all three NOT_APPLICABLE
+#
+# Security Checks (security.yml) stays mandatory on every PR and is
+# intentionally NOT conditionalized here.
+
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  bench:
+  # ---------------------------------------------------------------------
+  # Classify which surfaces changed. Always runs. Outputs three boolean
+  # strings ("yes" / "no") consumed by downstream jobs' if: conditions.
+  # ---------------------------------------------------------------------
+  classify:
+    name: Classify changes
+    runs-on: ubuntu-latest
+    outputs:
+      runtime_or_test: ${{ steps.classify.outputs.runtime_or_test }}
+      perf: ${{ steps.classify.outputs.perf }}
+      docker: ${{ steps.classify.outputs.docker }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Classify changed files
+        id: classify
+        run: |
+          set -euo pipefail
+
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+            CHANGED=$(git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" || true)
+          else
+            # push to main: compare against the parent commit
+            CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git ls-files)
+          fi
+
+          # Trim and de-duplicate
+          CHANGED=$(echo "${CHANGED}" | sed '/^[[:space:]]*$/d' | sort -u)
+
+          is_runtime_file() {
+            # Files whose change requires `npm test` AND triggers benchmark.
+            # Includes runtime entry points, plugin/, lib/, nlp/, packages/,
+            # migrations/, schemas/, and plugin manifests (manifest sha change
+            # implies plugin source change).
+            echo "$1" | grep -qE '^(\
+              kernel\.js|kernel\.v2\.js|\
+              graph\.js|storage\.js|plugin\.js|\
+              cli\.js|server\.js|mcpServer\.js|\
+              agent\.js|agent\.v3\.js|agentRuntime\.js|\
+              workflow-agent\.js|workflow-runtime\.js|workflow-tools\.js|\
+              finalizer\.js|dream\.js|llmAdapter\.js|\
+              causalSimulator\.js|rustGraph\.js|sandboxRunner\.js|\
+              requestGuards\.js|toolPolicy\.js|\
+              persistencePaths\.js|backupRestore\.js|evidence-ranker\.js|\
+              plugins/.*|lib/.*|nlp/.*|packages/.*|migrations/.*|schemas/.*\
+            )$' || return 1
+          }
+
+          is_test_file() {
+            # Test files themselves — must run npm test to verify new tests
+            # pass, but do NOT trigger benchmark (test-only PRs are
+            # performance-neutral by policy).
+            echo "$1" | grep -qE '^(test/.*|.*\.test\.js|.*\.spec\.js)$' || return 1
+          }
+
+          is_perf_file() {
+            # Strict subset of runtime files whose change is performance-
+            # sensitive and must trigger the benchmark regression check.
+            echo "$1" | grep -qE '^(\
+              benchmarks/(bench|check-regression|bench-memory-scale|snapshot-memory|verifBench)\.js|\
+              benchmarks/results\.json|\
+              benchmarks/fixtures/.*|\
+              graph\.js|kernel\.js|kernel\.v2\.js|storage\.js|\
+              causalSimulator\.js|finalizer\.js|rustGraph\.js|\
+              lib/memory-store\.js|lib/ingest\.js|lib/causal/.*|lib/provenance-.*\.js|lib/receipt/.*\
+            )$' || return 1
+          }
+
+          is_docker_file() {
+            echo "$1" | grep -qE '^(\
+              Dockerfile|docker-compose\.yml|\.dockerignore|\
+              package\.json|package-lock\.json\
+            )$' || return 1
+          }
+
+          runtime_or_test=no
+          perf=no
+          docker=no
+
+          while IFS= read -r f; do
+            [ -z "${f}" ] && continue
+            if is_runtime_file "${f}"; then runtime_or_test=yes; fi
+            if is_test_file     "${f}"; then runtime_or_test=yes; fi
+            if is_perf_file     "${f}"; then perf=yes; fi
+            if is_docker_file   "${f}"; then docker=yes; fi
+          done <<< "${CHANGED}"
+
+          echo "runtime_or_test=${runtime_or_test}" >> "${GITHUB_OUTPUT}"
+          echo "perf=${perf}"                         >> "${GITHUB_OUTPUT}"
+          echo "docker=${docker}"                     >> "${GITHUB_OUTPUT}"
+
+          {
+            echo "## CI change classification"
+            echo ""
+            echo "Changed files:"
+            echo ""
+            echo '```'
+            echo "${CHANGED}"
+            echo '```'
+            echo ""
+            echo "| Surface | Triggered |"
+            echo "|---|---|"
+            echo "| runtime/test (npm test) | ${runtime_or_test} |"
+            echo "| perf-sensitive (benchmark) | ${perf} |"
+            echo "| docker/package (docker build) | ${docker} |"
+            echo ""
+            echo "Security Checks always runs (separate workflow, not conditionalized)."
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  # ---------------------------------------------------------------------
+  # npm test — mandatory on runtime OR test changes.
+  # ---------------------------------------------------------------------
+  runtime-test:
+    name: npm test (runtime/test)
+    needs: classify
+    if: needs.classify.outputs.runtime_or_test == 'yes'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run test suite
+      - run: npm ci --include=optional
+      - name: Run full test suite
         run: npm test
+
+  runtime-test-skip:
+    name: npm test (runtime/test)
+    needs: classify
+    if: needs.classify.outputs.runtime_or_test != 'yes'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report NOT_APPLICABLE
+        run: |
+          echo "## npm test: NOT_APPLICABLE" >> "${GITHUB_STEP_SUMMARY}"
+          echo "" >> "${GITHUB_STEP_SUMMARY}"
+          echo "No runtime or test files changed in this PR." >> "${GITHUB_STEP_SUMMARY}"
+          echo "Full npm test suite skipped (NOT_APPLICABLE)." >> "${GITHUB_STEP_SUMMARY}"
+          echo "" >> "${GITHUB_STEP_SUMMARY}"
+          echo "If your change intentionally touches a runtime surface" >> "${GITHUB_STEP_SUMMARY}"
+          echo "(kernel.js, graph.js, plugins/**, lib/**, nlp/**, test/**, etc.)," >> "${GITHUB_STEP_SUMMARY}"
+          echo "rerun the workflow manually or push the change to a runtime-classified path." >> "${GITHUB_STEP_SUMMARY}"
+
+  # ---------------------------------------------------------------------
+  # Benchmark regression — only on performance-sensitive changes.
+  # ---------------------------------------------------------------------
+  benchmark:
+    name: Benchmark
+    needs: classify
+    if: needs.classify.outputs.perf == 'yes'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --include=optional
 
       - name: Run benchmark
         run: node benchmarks/bench.js --json --quick > benchmarks/current-results.json
@@ -34,8 +199,58 @@ jobs:
       - name: Publish benchmark summary
         if: always()
         run: |
-          echo "## Benchmark Summary" >> $GITHUB_STEP_SUMMARY
-          node benchmarks/check-regression.js benchmarks/results.json benchmarks/current-results.json --multiplier=2.5 >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## Benchmark Summary"
+            echo ""
+            node benchmarks/check-regression.js benchmarks/results.json benchmarks/current-results.json --multiplier=2.5
+          } >> "${GITHUB_STEP_SUMMARY}"
 
+  benchmark-skip:
+    name: Benchmark
+    needs: classify
+    if: needs.classify.outputs.perf != 'yes'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report NOT_APPLICABLE
+        run: |
+          echo "## Benchmark: NOT_APPLICABLE" >> "${GITHUB_STEP_SUMMARY}"
+          echo "" >> "${GITHUB_STEP_SUMMARY}"
+          echo "No performance-sensitive files changed in this PR." >> "${GITHUB_STEP_SUMMARY}"
+          echo "Benchmark regression check skipped (NOT_APPLICABLE)." >> "${GITHUB_STEP_SUMMARY}"
+          echo "" >> "${GITHUB_STEP_SUMMARY}"
+          echo "Perf-sensitive file groups:" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- benchmarks/** (bench, check-regression, fixtures, results.json)" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- graph.js, kernel.js, kernel.v2.js, storage.js" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- causalSimulator.js, finalizer.js, rustGraph.js" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- lib/memory-store.js, lib/ingest.js, lib/causal/*, lib/provenance-*.js, lib/receipt/*" >> "${GITHUB_STEP_SUMMARY}"
+          echo "" >> "${GITHUB_STEP_SUMMARY}"
+          echo "If you intentionally touched a perf-sensitive surface and need benchmark validation," >> "${GITHUB_STEP_SUMMARY}"
+          echo "rerun the Benchmark workflow manually from the Actions tab." >> "${GITHUB_STEP_SUMMARY}"
+
+  # ---------------------------------------------------------------------
+  # Docker build — only when Docker / package / deploy surfaces change.
+  # Separated from the benchmark job so that benchmark-only PRs do not pay
+  # the Docker build cost, and Docker/package PRs do not require benchmark.
+  # ---------------------------------------------------------------------
+  docker-build:
+    name: Docker build
+    needs: classify
+    if: needs.classify.outputs.docker == 'yes'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
       - name: Build Docker image
-        run: docker build -t axiom:test .
+        run: docker build -t huqan:test .
+
+  docker-build-skip:
+    name: Docker build
+    needs: classify
+    if: needs.classify.outputs.docker != 'yes'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report NOT_APPLICABLE
+        run: |
+          echo "## Docker build: NOT_APPLICABLE" >> "${GITHUB_STEP_SUMMARY}"
+          echo "" >> "${GITHUB_STEP_SUMMARY}"
+          echo "No Dockerfile / docker-compose / .dockerignore / package.json / package-lock.json changes." >> "${GITHUB_STEP_SUMMARY}"
+          echo "Docker build skipped (NOT_APPLICABLE)." >> "${GITHUB_STEP_SUMMARY}"

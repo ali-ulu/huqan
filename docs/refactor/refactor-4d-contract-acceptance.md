@@ -136,7 +136,54 @@ Her kriter PASS/FAIL olarak ölçülür. Belirsiz bırakılmış kriter kabul ed
 2. Hedefli contract testler geçer.
 3. Tam test suite (`npm test`) geçer.
 4. Security Checks başarılıdır.
-5. Benchmark Regression başarılıdır.
+5. Benchmark Regression başarılıdır **(koşullu)** — bkz. Bölüm 4. Yalnızca
+   performance-sensitive değişiklikler için gerçek benchmark çalışması
+   gerekir; diğer PR'larda `NOT_APPLICABLE` kabul edilir.
 6. Compatibility inventory'de açıklanamayan regresyon yoktur.
 
 Bu altı şarttan biri eksikse gate GREEN sayılmaz.
+
+---
+
+## 4. Conditional CI Gate Policy
+
+`Benchmark Regression` gate'i her PR'da blocking kontrol olarak çalışmaz.
+`docs/refactor/refactor-4d-contract-acceptance.md` ile birlikte
+`.github/workflows/benchmark.yml` aşağıdaki koşullu politikayı uygular:
+
+| Yüzey | Tetiklenen CI | Zorunlu mu? |
+|---|---|---|
+| Runtime değişiklikleri (`kernel.js`, `graph.js`, `plugin.js`, `plugins/**`, `lib/**`, `nlp/**`, `packages/**`, `migrations/**`, `schemas/**`, vb.) | `npm test` + `Benchmark` | Her ikisi de zorunlu |
+| Test dosyaları (`test/**`, `*.test.js`, `*.spec.js`) | `npm test` | Zorunlu; benchmark `NOT_APPLICABLE` |
+| Performance-sensitive alt küme (`benchmarks/**`, `graph.js`, `kernel.js`, `storage.js`, `causalSimulator.js`, `finalizer.js`, `rustGraph.js`, `lib/memory-store.js`, `lib/ingest.js`, `lib/causal/*`, `lib/provenance-*.js`, `lib/receipt/*`) | `npm test` + `Benchmark` | Her ikisi de zorunlu |
+| Docker / package / deploy (`Dockerfile`, `docker-compose.yml`, `.dockerignore`, `package.json`, `package-lock.json`) | `Docker build` | Zorunlu; benchmark `NOT_APPLICABLE` |
+| Docs-only (README, `docs/**`, COMMENTS, vb.) | Hiçbiri | Tüm gate'ler `NOT_APPLICABLE` |
+| Karma değişiklikler | En az bir yüzey için tetiklenen gate'ler | Tetiklenen gate'ler zorunlu |
+
+### 4.1 Status check surface'ları
+
+Her üç gate (`npm test (runtime/test)`, `Benchmark`, `Docker build`) her
+PR'da görünür durumdadır. Bir yüzey için değişiklik yoksa, ilgili job
+`-skip` varyantı çalışır ve `NOT_APPLICABLE` summary'si yayınlar. Bu
+sayede branch protection required status checks listesi sabit kalır;
+docs-only PR'lar "skipped" yüzünden blocklanmaz.
+
+### 4.2 Security Checks
+
+`Security Checks` (`.github/workflows/security.yml`) bu koşullu politikaya
+tabi değildir. Her PR'da ve her `main` push'unda zorunlu olarak çalışır.
+
+### 4.3 Manual rerun
+
+Bir PR'da `NOT_APPLICABLE` olarak işaretlenen bir gate'i manuel olarak
+çalıştırmak için Actions sekmesinden `Benchmark Regression` workflow'unu
+`Run workflow` ile tetiklemek yeterlidir. Bu, özellikle docs-only görünümlü
+ama dolaylı olarak performansı etkileyebilecek değişiklikler için
+güvenlik ağı sağlar.
+
+### 4.4 Policy değişiklikleri
+
+Bu politika `.github/workflows/benchmark.yml` ve bu dokümanla birlikte
+sürdürülür. İki dosya senkron kalır; birinde yapılan değişiklik diğerinde
+de yansıtılmalıdır. Politika değişikliği ayrı bir `chore/ci-*` branch'inde
+yapılır ve runtime/migration koduyla aynı PR'a karıştırılmaz.
