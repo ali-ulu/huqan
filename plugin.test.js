@@ -1190,11 +1190,11 @@ describe('Plugin - Yonetici', () => {
       const kernelLegacy = buildKernel(legacyGraph);
       const resultLegacy = await plugin.run(kernelLegacy, { text: 'kara kedi hayvan degildir' }, { capability: { name: 'contradictionAlert' } });
 
-      // Parity: observable output must match for the default-workspace subject 'kedi'.
+      // Parity: observable output must match for the default-workspace subject 'kara kedi'.
       assert.deepStrictEqual(resultPublic.data, resultLegacy.data);
       assert.strictEqual(resultPublic.ok, resultLegacy.ok);
 
-      // The default-workspace 'kedi' subject must be reachable in both paths.
+      // The default-workspace 'kara kedi' subject must be reachable in both paths.
       assert.strictEqual(resultPublic.data.newThought, 'kara kedi hayvan degildir');
 
       // Non-vacuity: the fixture must actually exercise the conflict-detection
