@@ -49,6 +49,25 @@ function parseIncoming(kernel, predicate) {
   return null;
 }
 
+// REFACTOR-4D: migrate private `kernel.graph?._nodes` access to the public
+// `graph.getNodes(workspaceId)` API. `extractFacts` accepts either an object
+// (uses Object.keys) or an array; both `_nodes` and `getNodes('default')`
+// return `{id: node}` for the default workspace, so the observable behavior
+// (which node IDs are considered "known" during fact extraction) is
+// preserved. Using the public API keeps contradiction-alert off private
+// graph state. See docs/refactor/refactor-4d-contract-acceptance.md AC-5.5
+// and docs/refactor/decision-4d-graph-workspace-contract.md (Bölüm 4.2.3
+// — contradiction-alert graph snapshot target, AUDIT_PENDING resolved:
+// pre-migration behavior was default-workspace via `getEdges(subject)`
+// default-arg, so the migration target is `getNodes('default')`).
+function contradictionAlertKnownNodes(kernel) {
+  if (!kernel) return {};
+  if (kernel.graph && typeof kernel.graph.getNodes === 'function') {
+    return kernel.graph.getNodes('default');
+  }
+  return kernel.graph?._nodes || {};
+}
+
 function createContradictionAlertPlugin() {
   return {
     name: 'contradiction-alert',
@@ -65,7 +84,7 @@ function createContradictionAlertPlugin() {
 
     async run(kernel, input, opts = {}) {
       const text = normalizeInput(input);
-      const facts = typeof kernel.extractFacts === 'function' ? kernel.extractFacts(text, kernel.graph?._nodes) || [] : [];
+      const facts = typeof kernel.extractFacts === 'function' ? kernel.extractFacts(text, contradictionAlertKnownNodes(kernel)) || [] : [];
 
       const conflicts = [];
       for (const fact of facts) {

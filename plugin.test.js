@@ -993,4 +993,233 @@ describe('Plugin - Yonetici', () => {
       try { fs.unlinkSync(tmpPath.replace(/\.json$/, '.embeddings.json')); } catch (_) {}
     }
   });
+
+  // -------------------------------------------------------------------------
+  // REFACTOR-4D AC-5.3 parity tests for contradiction-alert `_nodes` migration.
+  // Plugin should use the public `graph.getNodes('default')` API when present,
+  // and fall back to `_nodes` only when `getNodes` is absent. Both paths must
+  // produce identical observable behavior (fact extraction against the same
+  // default-workspace node ID set).
+  // -------------------------------------------------------------------------
+
+  it('contradiction-alert uses public graph.getNodes("default") when available (4D migration)', async () => {
+    const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
+    const tenantNode = { id: 'kedi', label: 'Tenant Kedi', workspaceId: 'tenant-a' };
+    const knownNodes = {
+      kedi: defaultNode,
+      'tenant-a::kedi': tenantNode,
+    };
+    // Public API contract: `getNodes('default')` returns a snapshot object
+    // (NOT the live `_nodes` map) restricted to the default workspace.
+    const publicSnapshot = { kedi: { ...defaultNode } };
+
+    // Spy: track _nodes reads (must stay 0 in the public path).
+    const accessLog = { _nodesReads: 0 };
+    let capturedArg = null;
+    let getNodesCalls = [];
+    const kernel = {
+      graph: {
+        get _nodes() {
+          accessLog._nodesReads++;
+          return knownNodes;
+        },
+        getNodes(workspaceId) {
+          getNodesCalls.push(workspaceId);
+          return workspaceId === 'default' ? publicSnapshot : {};
+        },
+        getEdges: () => [],
+        getInEdges: () => [],
+      },
+      extractFacts(_text, nodes) {
+        capturedArg = nodes;
+        return [{ subject: 'kedi', predicate: 'hayvan' }];
+      },
+      _parsePredicate(predicate) {
+        const parts = String(predicate || '').split(/\s+/);
+        return { relation: parts[0] || '', object: parts.slice(1).join(' ') };
+      },
+      hasCapability: () => false,
+    };
+
+    const plugin = createContradictionAlertPlugin();
+    const result = await plugin.run(kernel, { text: 'kedi hayvan' }, { capability: { name: 'contradictionAlert' } });
+
+    // AC-5.3 (a): plugin called the public API with default workspace
+    assert.deepStrictEqual(getNodesCalls, ['default']);
+
+    // AC-5.3 (b): plugin did NOT touch `_nodes` when `getNodes` is present.
+    // The captured argument must be the snapshot returned by `getNodes`, NOT
+    // the raw `_nodes` map (which would include the tenant-a entry).
+    assert.strictEqual(capturedArg, publicSnapshot);
+    assert.notStrictEqual(capturedArg, knownNodes);
+    assert.deepStrictEqual(Object.keys(capturedArg), ['kedi']);
+    // The getter spy proves no read reached the private map.
+    assert.strictEqual(accessLog._nodesReads, 0);
+
+    // AC-5.3 (c): observable behavior — plugin ran the conflict-detection
+    // loop over extracted facts and returned the expected structure.
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.plugin, 'contradiction-alert');
+    assert.strictEqual(result.data.newThought, 'kedi hayvan');
+  });
+
+  it('contradiction-alert falls back to _nodes when graph.getNodes is absent (backward compat)', async () => {
+    // Some test harnesses and older code paths construct mock graphs that only
+    // expose `_nodes`. The migration must not break them — the fallback must
+    // preserve the pre-migration behavior exactly.
+    const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
+    const knownNodes = { kedi: defaultNode };
+
+    // Spy: track _nodes reads (must be >= 1 in the legacy fallback path).
+    const accessLog = { _nodesReads: 0 };
+    let capturedArg = null;
+    const kernel = {
+      graph: {
+        get _nodes() {
+          accessLog._nodesReads++;
+          return knownNodes;
+        },
+        // No getNodes() at all
+        getEdges: () => [],
+        getInEdges: () => [],
+      },
+      extractFacts(_text, nodes) {
+        capturedArg = nodes;
+        return [{ subject: 'kedi', predicate: 'hayvan' }];
+      },
+      _parsePredicate(predicate) {
+        const parts = String(predicate || '').split(/\s+/);
+        return { relation: parts[0] || '', object: parts.slice(1).join(' ') };
+      },
+      hasCapability: () => false,
+    };
+
+    const plugin = createContradictionAlertPlugin();
+    const result = await plugin.run(kernel, { text: 'kedi hayvan' }, { capability: { name: 'contradictionAlert' } });
+
+    // A4: legacy path actually read `_nodes` at least once.
+    assert.ok(
+      accessLog._nodesReads >= 1,
+      `expected _nodes read >= 1 in legacy fallback, got ${accessLog._nodesReads}`
+    );
+    // Fallback used `_nodes` directly
+    assert.strictEqual(capturedArg, knownNodes);
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.plugin, 'contradiction-alert');
+  });
+
+  it('contradiction-alert parity: getNodes("default") yields same fact extraction as _nodes for default workspace (AC-5.3)', async () => {
+    // AC-5.3 requires parity tests proving observable behavior is unchanged.
+    // Build a real graph via the canonical Graph class so we exercise the
+    // actual public API contract, then run contradiction-alert against both
+    // the private `_nodes` map (pre-migration) and the public
+    // `getNodes('default')` (post-migration) and assert identical
+    // conflict-detection output.
+    //
+    // Note: this test follows the same pattern as the devil-advocate parity
+    // test below. The legacy scenario uses a plain legacy-shaped double with
+    // NO getNodes, and a getter spy proves `_nodes` was actually read.
+    const Graph = require('./graph');
+    const createNlp = require('./nlp');
+    const os = require('os');
+    const nlp = createNlp('tr');
+    const tmpPath = path.join(os.tmpdir(), `contradiction-alert-parity-${Date.now()}-${process.pid}.json`);
+    const graph = new Graph({ useSQLite: false, memoryPath: tmpPath });
+    try {
+      // Use a two-word subject node id ('kara kedi'). The Turkish NLP pack
+      // (nlp/lang-tr.js) only matches a multi-word subject candidate against
+      // the known-nodes id set passed in; a single-word subject like plain
+      // 'kedi' would fall back to the same first-token subject regardless of
+      // which node snapshot was supplied, which is exactly why the original
+      // fixture stayed vacuous even with edges present. With 'kara kedi' as
+      // the node id, the extracted subject (and therefore which edges are
+      // looked up and whether a conflict is found) depends on whether the
+      // known-nodes snapshot actually contains 'kara kedi' — i.e. it depends
+      // on getting the *default* workspace, not some other workspace.
+      graph.addNode('kara kedi', 'Kara Kedi', { source: 'fixture' });
+      graph.addNode('hayvan', 'Hayvan', { source: 'fixture' });
+      // Default-workspace edge 'kara kedi' -[tür]-> hayvan. The incoming
+      // statement "kara kedi hayvan degildir" ("kara kedi" değil "hayvan")
+      // directly contradicts it, so the plugin's conflict-detection loop
+      // produces a non-empty result — but only when the subject resolves to
+      // 'kara kedi', which requires the correct (default) node snapshot.
+      graph.addEdge('kara kedi', 'hayvan', 'tür', { source: 'fixture' });
+      // Wrong-workspace node sharing no id with the default snapshot. If the
+      // plugin were changed to read the wrong workspace's snapshot (e.g.
+      // getNodes('tenant-a') instead of getNodes('default')), the two-word
+      // candidate 'kara kedi' would not be found in it, the subject would
+      // fall back to the single token 'kara', and the conflict lookup
+      // (getEdges('kara')) would find nothing — an empty result, differing
+      // from the legacy/expected non-empty one.
+      graph.addNode('kedi', 'Tenant marker', { source: 'fixture' }, { workspaceId: 'tenant-a' });
+
+      function buildKernel(graphArg) {
+        return {
+          graph: graphArg,
+          nlp,
+          extractFacts(text, knownNodes) {
+            return nlp.extractFacts(text, knownNodes);
+          },
+          _parsePredicate(predicate) {
+            const parts = String(predicate || '').split(/\s+/);
+            return { relation: parts[0] || '', object: parts.slice(1).join(' ') };
+          },
+          hasCapability: () => false,
+        };
+      }
+
+      const plugin = createContradictionAlertPlugin();
+
+      const kernelPublic = buildKernel(graph);
+      const resultPublic = await plugin.run(kernelPublic, { text: 'kara kedi hayvan degildir' }, { capability: { name: 'contradictionAlert' } });
+
+      // Legacy scenario: legacy-shaped double with NO getNodes. `_nodes`
+      // mirrors the full pre-migration internal map (includes tenant-a
+      // entries). The spy proves the legacy fallback branch was actually
+      // taken — without this assertion, the parity test is trivially true
+      // if the plugin silently used the public path on both sides.
+      const legacyAccessLog = { _nodesReads: 0 };
+      const legacyGraph = {
+        get _nodes() {
+          legacyAccessLog._nodesReads++;
+          return graph._nodes;
+        },
+        getEdges: (nodeId) => graph.getEdges(nodeId),
+        getInEdges: (nodeId) => graph.getInEdges(nodeId),
+      };
+      const kernelLegacy = buildKernel(legacyGraph);
+      const resultLegacy = await plugin.run(kernelLegacy, { text: 'kara kedi hayvan degildir' }, { capability: { name: 'contradictionAlert' } });
+
+      // Parity: observable output must match for the default-workspace subject 'kara kedi'.
+      assert.deepStrictEqual(resultPublic.data, resultLegacy.data);
+      assert.strictEqual(resultPublic.ok, resultLegacy.ok);
+
+      // The default-workspace 'kara kedi' subject must be reachable in both paths.
+      assert.strictEqual(resultPublic.data.newThought, 'kara kedi hayvan degildir');
+
+      // Non-vacuity: the fixture must actually exercise the conflict-detection
+      // loop. Without the kedi -[tür]-> hayvan edge above, both sides would
+      // return an empty conflictingThoughts array regardless of which node
+      // snapshot (default-workspace vs. wrong-workspace) was passed to
+      // extractFacts, which would make the deepStrictEqual comparison above
+      // trivially true. Asserting a populated, correctly-typed result proves
+      // the comparison is capable of detecting a wrong node snapshot.
+      assert.ok(
+        resultPublic.data.conflictingThoughts.length > 0,
+        'expected a non-empty conflict list; the fixture must produce a real conflict'
+      );
+      assert.strictEqual(resultPublic.data.conflictType, 'direct');
+
+      // A4: the legacy scenario actually read `_nodes` at least once. This
+      // proves the parity comparison exercised the legacy branch, not the
+      // public branch twice.
+      assert.ok(
+        legacyAccessLog._nodesReads >= 1,
+        `expected _nodes read >= 1 in legacy scenario, got ${legacyAccessLog._nodesReads}`
+      );
+    } finally {
+      try { fs.unlinkSync(tmpPath); } catch (_) {}
+      try { fs.unlinkSync(tmpPath.replace(/\.json$/, '.embeddings.json')); } catch (_) {}
+    }
+  });
 });
