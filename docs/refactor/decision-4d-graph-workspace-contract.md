@@ -205,8 +205,12 @@ tutarlı şekilde `'default'` workspace ile sınırlar.
 
 ### 4.2 Migration bekleyen (hâlâ doğrudan `_nodes`) — use-case bazında sınıflandırma
 
-`company-brain` migration bekliyor (`queryCompanyBrain` ve `ingestManual`
-use-case'leri). `contradiction-alert` migration'ı PR #83 ile tamamlanmıştır
+`company-brain` migration'ı **BLOCKED — pending acceptance amendment**
+durumundadır. İki use-case'in gerekçesi farklıdır: `queryCompanyBrain`
+(Bölüm 4.2.1) contract'ı BINDING ve teknik olarak güvenlidir, fakat
+`ingestManual` (Bölüm 4.2.2) mevcut AC-5.3 altında BLOCKED olduğu için
+Paket 03 yarım uygulanmaz ve paket bütün olarak bekler.
+`contradiction-alert` migration'ı PR #83 ile tamamlanmıştır
 (bkz. Bölüm 4.2.3) ve Bölüm 4.1 tablosuna da eklenmiştir; audit trail'in
 bütünlüğü için Bölüm 4.2.3 alt bölümü burada tutulur. Bu plugin'lerin her
 biri **ayrı use-case**'lere sahiptir ve tek bir global workspace kararı
@@ -231,7 +235,7 @@ yoksa `'default'` fallback korunur.
 > argümanıyla çağrılırsa, mevcut `queryCompanyBrain` workspace-routing
 > yeteneği kırılır. Bu bir parity fix değil, davranış regresyonudur.
 
-#### 4.2.2 `company-brain` / `ingestManual` — AYRI USE-CASE
+#### 4.2.2 `company-brain` / `ingestManual` — CROSS_WORKSPACE_INPUT_REACHABLE / BLOCKED
 
 **Source reality:**
 
@@ -239,17 +243,63 @@ yoksa `'default'` fallback korunur.
 - Bu çağrı, `queryCompanyBrain` ile aynı `_nodes` map'ini kullanır ama
   farklı amaçla: `extractFacts` için known-node enumeration. Workspace
   filtrelemesi yapılmaz.
+- `ingestManual` `input.workspaceId` **okumaz**. Okuduğu alanlar:
+  `input.text`, `input.author`, `input.date`, `input.domain`,
+  `input.sessionId`.
+- Yazma yolu `addCompanyEdge` (`plugins/company-brain.js:45-48`) →
+  `kernel.proposeNode` / `kernel.proposeEdge`, workspace argümanı geçmez;
+  yazımlar konstrüksiyon gereği **default** workspace'e gider.
 
-**Binding contract:** Bu use-case için workspace contract **ayrıca**
-sınıflandırılmalıdır. `queryCompanyBrain` ile aynı varsayımı yapma. İki
-olası contract adayı:
+**Call-site audit sonucu (2026-07-25):** Bu use-case'e workspace geçiren
+hiçbir girdi yolu yoktur. Dolayısıyla 4.2.1'deki dinamik-workspace adayı
+(`getNodes(input.workspaceId || 'default')`) bu use-case için **ölüdür** —
+onu tetikleyecek bir girdi bulunmuyor.
 
-1. `default` workspace (mevcut davranışın parity'si için) — `getNodes('default')` ile.
-2. `input.workspaceId` üzerinden dinamik (kullanıcı ingest sırasında
-   workspace belirtiyorsa) — `getNodes(input.workspaceId || 'default')` ile.
+**Önceki taslaktaki hatalı varsayımın düzeltmesi:** Bu bölümün önceki hali
+`getNodes('default')` adayını "mevcut davranışın parity'si" olarak
+tanımlıyordu. **Bu ifade yanlıştı ve kaldırılmıştır.** Kaynak gerçekliği:
 
-Bu PR'da bu contract **sabitlenmez**; migration PR'ında call-site audit
-ile kararlaştırılır. future consumer contract candidate olarak işaretlenir.
+- `Graph._nodes` düz bir map'tir ve **bütün workspace'lerin** node'larını
+  taşır (`graph.js:620` — `Object.entries(this._nodes)` üzerinde
+  workspace ayrımı yapılmadan gezilir).
+- `Graph.getNodes(workspaceId)` ise `node.workspaceId` üzerinden filtreler
+  ve yalnız o workspace'i döndürür (`graph.js:617-626`).
+
+Bugün `ingestManual`, `extractFacts`'e **bütün workspace'lerin** node
+kümesini known-nodes olarak veriyor. `getNodes('default')`'a geçmek bu
+kümeyi daraltır. Bu bir parity düzeltmesi değil, **bilinçli davranış
+daraltmasıdır** (intentional behavior narrowing).
+
+> Karşılaştırma: `contradiction-alert` (Bölüm 4.2.3) için durum tersineydi.
+> Oradaki komşu `getEdges(subject)` çağrısı zaten `Graph.getEdges`'in
+> `'default'` varsayılanına düşüyordu, bu yüzden migration gerçek
+> parity'ydi. Burada öyle değildir. İki use-case'e aynı hüküm uygulanamaz.
+
+**Sınıflandırma:**
+
+```txt
+company-brain / ingestManual
+→ CROSS_WORKSPACE_INPUT_REACHABLE
+→ getNodes('default') requires intentional behavior narrowing
+→ BLOCKED under current AC-5.3
+→ runtime change requires explicit acceptance amendment
+```
+
+**Binding contract:** Bu use-case için bağlayıcı bir migration contract'ı
+**yoktur**. Mevcut AC-5.3 gözlemlenebilir davranışın değişmemesini zorunlu
+kıldığı sürece, `getNodes('default')` migration'ı bu kabul kriteri altında
+yapılamaz.
+
+Migration'ın açılabilmesi için önce ayrı bir **acceptance amendment**
+kararı gerekir: daraltmanın kabul edildiği, gerekçesinin (default'a yazan
+bir use-case'in başka workspace'lerin node'larıyla fact extraction yapması
+çapraz-workspace erişimidir) kayda geçtiği ve karakterizasyon testinin
+daraltmayı açıkça ölçtüğü bir karar. Bu karar insan onayı ister ve bu
+dokümanda verilmez.
+
+**Paket 03 sonucu:** `queryCompanyBrain` (4.2.1) teknik olarak güvenli
+olsa da, Paket 03 yarım uygulanmaz. `ingestManual` blocker'ı çözülmeden
+paketin runtime implementasyonu başlamaz.
 
 #### 4.2.3 `contradiction-alert` — AUDIT TAMAMLANDI (PR #83)
 
@@ -293,7 +343,7 @@ tıpkı `devil-advocate`, `discovery-engine`, `idea-mri` için olduğu gibi
 | `discovery-engine` | default workspace | `getNodes('default')` (PR #78 done) | BINDING |
 | `idea-mri` | default workspace | `getNodes('default')` (PR #79 done) | BINDING |
 | `company-brain` / `queryCompanyBrain` | dynamic `input.workspaceId` | `getNodes(input.workspaceId \|\| 'default')` | BINDING (dinamik korunur) |
-| `company-brain` / `ingestManual` | `_nodes` doğrudan, workspace filtre yok | call-site audit gerek | CANDIDATE — bu PR'da sabitlenmez |
+| `company-brain` / `ingestManual` | `_nodes` doğrudan (tüm workspace'ler), workspace filtre yok | `getNodes('default')` = davranış daraltması, parity değil | **BLOCKED** — CROSS_WORKSPACE_INPUT_REACHABLE; acceptance amendment gerekir (Bölüm 4.2.2) |
 | `contradiction-alert` | `_nodes` doğrudan + `getEdges(subject)` (workspace yok) | `getNodes('default')` (PR #83 done) | BINDING |
 
 ---
@@ -399,7 +449,8 @@ Kalan kaynak kod durumu:
 - `plugins/company-brain.js:113-127,185-186` — Dinamik workspace davranışı.
   Bölüm 4.2.1 contract ile uyumlu (migration dinamik workspace'i korur).
 - `plugins/company-brain.js:245-247` — `ingestManual` use-case'i. Bölüm 4.2.2
-  contract ile uyumlu (audit pending).
+  ile uyumlu: bağlayıcı migration contract'ı yoktur, durum BLOCKED
+  (CROSS_WORKSPACE_INPUT_REACHABLE).
 - `plugins/contradiction-alert.js:66-80` — `getNodes('default')` sabit
   argümanıyla çağrı (PR #83). Bölüm 4.2.3 contract ile uyumlu (audit
   tamamlandı, BINDING).
@@ -425,7 +476,12 @@ değişirse, paketler yeniden üretilmelidir. Özellikle:
 
 - `company-brain` / `queryCompanyBrain` migration'ı dinamik workspace'i
   korumazsa, Paket 02/03 yeniden üretilmelidir.
-- `company-brain` / `ingestManual` migration'ı sırasında call-site audit
-  yeni bir contract ortaya koyarsa, bu doküman güncellenmeli ve paketler
-  yeniden üretilmelidir. (`contradiction-alert` audit'i PR #83 ile
-  tamamlanmış ve Bölüm 4.2.3/4.3'e BINDING olarak işlenmiştir.)
+- `company-brain` / `ingestManual` call-site audit'i tamamlanmıştır
+  (Bölüm 4.2.2) ve sonuç **BLOCKED**'dır: `getNodes('default')` mevcut AC-5.3
+  altında yapılamaz çünkü davranış daraltması getirir. Bu durum değişirse —
+  yani ayrı bir acceptance amendment kararı daraltmayı kabul ederse — bu
+  doküman güncellenmeli ve paketler yeniden üretilmelidir.
+- Paket 03, `ingestManual` blocker'ı çözülmeden üretilmez. `queryCompanyBrain`
+  tek başına uygulanıp paket yarım bırakılmaz.
+- (`contradiction-alert` audit'i PR #83 ile tamamlanmış ve Bölüm 4.2.3/4.3'e
+  BINDING olarak işlenmiştir.)
