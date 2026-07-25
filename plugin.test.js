@@ -1222,4 +1222,567 @@ describe('Plugin - Yonetici', () => {
       try { fs.unlinkSync(tmpPath.replace(/\.json$/, '.embeddings.json')); } catch (_) {}
     }
   });
+
+  // -------------------------------------------------------------------------
+  // REFACTOR-4D AC-5.5 Package 03 — 03A queryCompanyBrain `_nodes` migration.
+  // Plugin should use the public `graph.getNodes(workspaceId)` API when
+  // present (dynamic workspace: input.workspaceId || 'default'), and fall
+  // back to `_nodes` only when `getNodes` is absent. AC-5.3 parity must be
+  // preserved for both default and tenant-a callers — the public API
+  // applies the same workspace filter the inline loop previously applied,
+  // so the observable set of ranked matches is unchanged for every
+  // workspace value. See docs/refactor/decision-4d-graph-workspace-contract.md
+  // Bölüm 4.2.1 (BINDING contract: dynamic workspace preserved).
+  // -------------------------------------------------------------------------
+
+  it('company-brain queryCompanyBrain uses public graph.getNodes(workspaceId) when available (4D migration 03A)', async () => {
+    const defaultNode = { id: 'axiom', label: 'Axiom Motor', workspaceId: 'default' };
+    const tenantNode = { id: 'axiom', label: 'Tenant Axiom', workspaceId: 'tenant-a' };
+    const knownNodes = {
+      axiom: defaultNode,
+      'tenant-a::axiom': tenantNode,
+    };
+    // Public API contract: `getNodes('default')` returns only the default
+    // workspace snapshot; `getNodes('tenant-a')` returns only tenant-a.
+    const publicSnapshots = {
+      default: { axiom: { ...defaultNode } },
+      'tenant-a': { axiom: { ...tenantNode } },
+    };
+
+    // Spy: track _nodes reads (must stay 0 in the public path).
+    const accessLog = { _nodesReads: 0 };
+    let capturedArg = null;
+    let getNodesCalls = [];
+    const kernel = {
+      graph: {
+        get _nodes() {
+          accessLog._nodesReads++;
+          return knownNodes;
+        },
+        getNodes(workspaceId) {
+          getNodesCalls.push(workspaceId);
+          return publicSnapshots[workspaceId] || {};
+        },
+        getEdges: () => [],
+        getInEdges: () => [],
+      },
+      hasCapability: () => false,
+      proposeNode: () => {},
+      proposeEdge: () => ({ edge: {} }),
+    };
+
+    const plugin = createCompanyBrainPlugin();
+    // Tenant-a query: must call getNodes('tenant-a')
+    const resultTenant = await plugin.run(kernel, {
+      question: 'axiom ne',
+      workspaceId: 'tenant-a',
+    }, { capability: { name: 'companyBrain' } });
+
+    // AC-5.3 (a): plugin called the public API with the requested workspace
+    assert.deepStrictEqual(getNodesCalls, ['tenant-a']);
+    // AC-5.3 (b): plugin did NOT touch `_nodes` when `getNodes` is present.
+    assert.strictEqual(accessLog._nodesReads, 0);
+    // The captured argument (when applicable) is the public snapshot, not
+    // the raw `_nodes` map. queryCompanyBrain does not expose capturedArg
+    // directly, but the getNodes call sequence proves the workspace filter
+    // was routed through the public API.
+
+    // Reset spies for the default-workspace call.
+    getNodesCalls = [];
+    accessLog._nodesReads = 0;
+    const resultDefault = await plugin.run(kernel, {
+      question: 'axiom ne',
+      workspaceId: 'default',
+    }, { capability: { name: 'companyBrain' } });
+
+    assert.deepStrictEqual(getNodesCalls, ['default']);
+    assert.strictEqual(accessLog._nodesReads, 0);
+    assert.strictEqual(resultTenant.ok, true);
+    assert.strictEqual(resultDefault.ok, true);
+  });
+
+  it('company-brain queryCompanyBrain falls back to _nodes when graph.getNodes is absent (backward compat 03A)', async () => {
+    // Some test harnesses and older code paths construct mock graphs that
+    // only expose `_nodes`. The migration must not break them — the
+    // fallback must preserve the pre-migration behavior exactly.
+    const defaultNode = { id: 'axiom', label: 'Axiom Motor', workspaceId: 'default' };
+    const knownNodes = { axiom: defaultNode };
+
+    // Spy: track _nodes reads (must be >= 1 in the legacy fallback path).
+    const accessLog = { _nodesReads: 0 };
+    const kernel = {
+      graph: {
+        get _nodes() {
+          accessLog._nodesReads++;
+          return knownNodes;
+        },
+        // No getNodes() at all
+        getEdges: () => [],
+        getInEdges: () => [],
+      },
+      hasCapability: () => false,
+      proposeNode: () => {},
+      proposeEdge: () => ({ edge: {} }),
+    };
+
+    const plugin = createCompanyBrainPlugin();
+    const result = await plugin.run(kernel, {
+      question: 'axiom ne',
+      workspaceId: 'default',
+    }, { capability: { name: 'companyBrain' } });
+
+    // Legacy path actually read `_nodes` at least once.
+    assert.ok(
+      accessLog._nodesReads >= 1,
+      `expected _nodes read >= 1 in legacy fallback, got ${accessLog._nodesReads}`
+    );
+    assert.strictEqual(result.ok, true);
+  });
+
+  it('company-brain queryCompanyBrain parity: getNodes(workspaceId) yields same ranked matches as _nodes filter for default and tenant-a (AC-5.3 03A)', async () => {
+    // AC-5.3 requires parity tests proving observable behavior is unchanged.
+    // Build a real graph via the canonical Graph class so we exercise the
+    // actual public API contract. Run queryCompanyBrain against the public
+    // `getNodes(workspaceId)` (post-migration) and against a legacy double
+    // with NO `getNodes` whose `_nodes` mirrors the full pre-migration
+    // internal map (includes tenant-a entries). The observable `evidence`
+    // output must match for both default and tenant-a workspaces.
+    const Graph = require('./graph');
+    const os = require('os');
+    const tmpPath = path.join(os.tmpdir(), `company-brain-parity-03a-${Date.now()}-${process.pid}.json`);
+    const graph = new Graph({ useSQLite: false, memoryPath: tmpPath });
+    try {
+      graph.addNode('axiom', 'Axiom Motor', { source: 'fixture' });
+      graph.addNode('motor', 'Motor', { source: 'fixture' });
+      graph.addEdge('axiom', 'motor', 'tur', { source: 'fixture' });
+      graph.addNode('axiom', 'Tenant Axiom Motor', { source: 'fixture' }, { workspaceId: 'tenant-a' });
+      graph.addNode('motor', 'Tenant Motor', { source: 'fixture' }, { workspaceId: 'tenant-a' });
+      graph.addEdge('axiom', 'motor', 'tur', { source: 'fixture' }, { workspaceId: 'tenant-a' });
+
+      function buildKernel(graphArg) {
+        return {
+          graph: graphArg,
+          hasCapability: () => false,
+          proposeNode: () => {},
+          proposeEdge: () => ({ edge: {} }),
+        };
+      }
+
+      const plugin = createCompanyBrainPlugin();
+
+      // Public path: real Graph (has getNodes)
+      const kernelPublic = buildKernel(graph);
+      const resultPublicDefault = await plugin.run(kernelPublic, {
+        question: 'axiom ne',
+        workspaceId: 'default',
+      }, { capability: { name: 'companyBrain' } });
+      const resultPublicTenant = await plugin.run(kernelPublic, {
+        question: 'axiom ne',
+        workspaceId: 'tenant-a',
+      }, { capability: { name: 'companyBrain' } });
+
+      // Legacy scenario: legacy-shaped double with NO getNodes. `_nodes`
+      // mirrors the full pre-migration internal map. The spy proves the
+      // legacy fallback branch was actually taken.
+      const legacyAccessLog = { _nodesReads: 0 };
+      const legacyGraph = {
+        get _nodes() {
+          legacyAccessLog._nodesReads++;
+          return graph._nodes;
+        },
+        getEdges: (nodeId, ws) => graph.getEdges(nodeId, ws),
+        getInEdges: (nodeId, ws) => graph.getInEdges(nodeId, ws),
+      };
+      const kernelLegacy = buildKernel(legacyGraph);
+      const resultLegacyDefault = await plugin.run(kernelLegacy, {
+        question: 'axiom ne',
+        workspaceId: 'default',
+      }, { capability: { name: 'companyBrain' } });
+      const resultLegacyTenant = await plugin.run(kernelLegacy, {
+        question: 'axiom ne',
+        workspaceId: 'tenant-a',
+      }, { capability: { name: 'companyBrain' } });
+
+      // Parity: observable evidence output must match between public and
+      // legacy paths for both default and tenant-a workspaces.
+      assert.deepStrictEqual(resultPublicDefault.evidence, resultLegacyDefault.evidence);
+      assert.deepStrictEqual(resultPublicTenant.evidence, resultLegacyTenant.evidence);
+      assert.strictEqual(resultPublicDefault.ok, resultLegacyDefault.ok);
+      assert.strictEqual(resultPublicTenant.ok, resultLegacyTenant.ok);
+
+      // A4: the legacy scenario actually read `_nodes` at least once.
+      assert.ok(
+        legacyAccessLog._nodesReads >= 1,
+        `expected _nodes read >= 1 in legacy scenario, got ${legacyAccessLog._nodesReads}`
+      );
+    } finally {
+      try { fs.unlinkSync(tmpPath); } catch (_) {}
+      try { fs.unlinkSync(tmpPath.replace(/\.json$/, '.embeddings.json')); } catch (_) {}
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // REFACTOR-4D AC-5.3a Package 03 — 03B ingestManual intentional narrowing.
+  // `ingestManual` does NOT read `input.workspaceId` (Bölüm 4.2.2 of
+  // decision-4d-graph-workspace-contract.md). Pre-migration it passed the
+  // raw `_nodes` map (all workspaces) to `extractFacts`. Post-migration it
+  // passes `getNodes('default')` — an INTENTIONAL DEFAULT-WORKSPACE
+  // NARROWING, not parity. Authorized by
+  // docs/refactor/acceptance-amendment-4d-ingestmanual-narrowing.md under
+  // the AC-5.3a narrow exception (8 conditions). Three mutation guards
+  // (raw `_nodes` restored, `getNodes('tenant-a')` used, workspace filter
+  // removed) must all RED per Bölüm 5.4 / Bölüm 9.1 koşul 6 of the
+  // amendment. The legacy fallback is covered by a SEPARATE compatibility
+  // test (NOT part of the narrowing assertion) per Bölüm 5.5.
+  // -------------------------------------------------------------------------
+
+  it('company-brain ingestManual characterization: intentional default-workspace narrowing (AC-5.3a 03B)', async () => {
+    // Fixture: a default-workspace node 'kedi' and a tenant-a node 'kedi'
+    // (different label). With pre-migration `_nodes`, the multi-word
+    // subject lookup in extractFacts could match EITHER 'kedi' depending
+    // on insertion order. With `getNodes('default')`, only the default
+    // 'kedi' is reachable as a known node for fact extraction.
+    //
+    // Five assertions (Bölüm 5.4 of the amendment):
+    //   (1) default node 'kedi' is in knownNodes
+    //   (2) tenant-a node 'kedi' is NOT in knownNodes
+    //   (3) getNodes('default') was called (NOT 'tenant-a', NOT raw _nodes)
+    //   (4) public path did NOT read raw `_nodes`
+    //   (5) tenant-a identifier cannot affect extraction result
+    //
+    // Three mutation guards (Bölüm 5.4 / Bölüm 9.1 koşul 6) — verified
+    // in the next three tests, all three MUST RED.
+
+    const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
+    const tenantNode = { id: 'kedi', label: 'Farkli Kedi', workspaceId: 'tenant-a' };
+    const knownNodes = {
+      kedi: defaultNode,
+      'tenant-a::kedi': tenantNode,
+    };
+    const publicSnapshot = { kedi: { ...defaultNode } };
+
+    const accessLog = { _nodesReads: 0 };
+    let getNodesCalls = [];
+    let capturedArg = null;
+    const kernel = {
+      graph: {
+        get _nodes() {
+          accessLog._nodesReads++;
+          return knownNodes;
+        },
+        getNodes(workspaceId) {
+          getNodesCalls.push(workspaceId);
+          return workspaceId === 'default' ? publicSnapshot : {};
+        },
+        getEdges: () => [],
+        getInEdges: () => [],
+      },
+      extractFacts(_text, nodes) {
+        capturedArg = nodes;
+        // Use the exact same multi-word subject lookup as nlp/lang-tr.js
+        // extractFacts: if 'kedi' is in Object.keys(nodes), return a fact
+        // whose subject is 'kedi'. Otherwise fall back to first token.
+        const nodeIds = typeof nodes === 'object' && nodes !== null && !Array.isArray(nodes)
+          ? Object.keys(nodes)
+          : (Array.isArray(nodes) ? nodes : []);
+        if (nodeIds.includes('kedi')) {
+          return [{ subject: 'kedi', predicate: 'hayvandir' }];
+        }
+        return [{ subject: 'unknown', predicate: 'hayvandir' }];
+      },
+      _parsePredicate(predicate) {
+        const parts = String(predicate || '').split(/\s+/);
+        return { relation: parts[0] || '', object: parts.slice(1).join(' ') };
+      },
+      hasCapability: () => false,
+      proposeNode: () => {},
+      proposeEdge: () => ({ edge: {} }),
+    };
+
+    const plugin = createCompanyBrainPlugin();
+    // input.workspaceId is intentionally NOT passed — ingestManual does
+    // not read it. If a caller passes workspaceId: 'tenant-a', it is
+    // ignored by the helper (which always uses 'default').
+    const result = await plugin.run(kernel, {
+      action: 'manual',
+      sourceType: 'manual',
+      text: 'kedi hayvandir',
+      author: 'test',
+      date: '2026-07-25',
+    }, { capability: { name: 'companyBrain' } });
+
+    // Assertion (1): default node 'kedi' is in knownNodes (capturedArg)
+    assert.ok(
+      capturedArg && Object.keys(capturedArg).includes('kedi'),
+      'expected default node "kedi" in knownNodes snapshot'
+    );
+
+    // Assertion (2): tenant-a node 'kedi' is NOT in knownNodes.
+    // capturedArg must equal publicSnapshot (only default 'kedi').
+    assert.strictEqual(capturedArg, publicSnapshot);
+    assert.deepStrictEqual(Object.keys(capturedArg), ['kedi']);
+
+    // Assertion (3): getNodes('default') was called exactly once.
+    assert.deepStrictEqual(getNodesCalls, ['default']);
+
+    // Assertion (4): public path did NOT read raw `_nodes`.
+    assert.strictEqual(accessLog._nodesReads, 0);
+
+    // Assertion (5): tenant-a identifier cannot affect extraction result.
+    // Even if we pass workspaceId: 'tenant-a' in the input, ingestManual
+    // still calls getNodes('default') — the helper is constant.
+    getNodesCalls = [];
+    const resultTenantInput = await plugin.run(kernel, {
+      action: 'manual',
+      sourceType: 'manual',
+      text: 'kedi hayvandir',
+      author: 'test',
+      date: '2026-07-25',
+      workspaceId: 'tenant-a',  // must be IGNORED
+    }, { capability: { name: 'companyBrain' } });
+    assert.deepStrictEqual(getNodesCalls, ['default']);
+    assert.strictEqual(resultTenantInput.ok, true);
+    assert.strictEqual(result.ok, true);
+  });
+
+  it('company-brain ingestManual mutation guard 1: restoring raw _nodes makes this test RED (AC-5.3a 03B)', async () => {
+    // MUTATION: if the ingestManualKnownNodes helper is mutated to return
+    // `kernel.graph?._nodes` (raw map) instead of `getNodes('default')`,
+    // then capturedArg would include the tenant-a 'kedi' node ID. This
+    // test asserts capturedArg does NOT contain the tenant-a storage key,
+    // which would FAIL under the raw-_nodes mutation. Verified manually
+    // by temporarily reverting the helper — this test goes RED.
+    //
+    // NOTE: this test runs against the UNMODIFIED helper. To verify the
+    // mutation guard, run a separate mutation trial (see commit body).
+    const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
+    const tenantNode = { id: 'kedi', label: 'Farkli Kedi', workspaceId: 'tenant-a' };
+    const knownNodes = {
+      kedi: defaultNode,
+      'tenant-a::kedi': tenantNode,
+    };
+    const publicSnapshot = { kedi: { ...defaultNode } };
+
+    let capturedArg = null;
+    const kernel = {
+      graph: {
+        _nodes: knownNodes,
+        getNodes(workspaceId) {
+          return workspaceId === 'default' ? publicSnapshot : {};
+        },
+        getEdges: () => [],
+        getInEdges: () => [],
+      },
+      extractFacts(_text, nodes) {
+        capturedArg = nodes;
+        return [{ subject: 'kedi', predicate: 'hayvandir' }];
+      },
+      _parsePredicate(predicate) {
+        const parts = String(predicate || '').split(/\s+/);
+        return { relation: parts[0] || '', object: parts.slice(1).join(' ') };
+      },
+      hasCapability: () => false,
+      proposeNode: () => {},
+      proposeEdge: () => ({ edge: {} }),
+    };
+
+    const plugin = createCompanyBrainPlugin();
+    await plugin.run(kernel, {
+      action: 'manual',
+      sourceType: 'manual',
+      text: 'kedi hayvandir',
+      author: 'test',
+      date: '2026-07-25',
+    }, { capability: { name: 'companyBrain' } });
+
+    // Under unmodified helper: capturedArg === publicSnapshot (1 key, 'kedi').
+    // Under raw-_nodes mutation: capturedArg === knownNodes (2 keys including
+    //   'tenant-a::kedi'). This assertion would FAIL under the mutation.
+    assert.strictEqual(capturedArg, publicSnapshot);
+    assert.strictEqual(Object.keys(capturedArg).includes('tenant-a::kedi'), false);
+  });
+
+  it('company-brain ingestManual mutation guard 2: using getNodes(tenant-a) makes this test RED (AC-5.3a 03B)', async () => {
+    // MUTATION: if the ingestManualKnownNodes helper is mutated to call
+    // `getNodes('tenant-a')` instead of `getNodes('default')`, then
+    // capturedArg would be the tenant-a snapshot (empty in this fixture)
+    // and the default 'kedi' would NOT be reachable. This test asserts
+    // getNodes was called with 'default', NOT 'tenant-a'. Verified
+    // manually by temporarily mutating the helper to 'tenant-a' — this
+    // test goes RED.
+    const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
+    const knownNodes = { kedi: defaultNode };
+    const publicSnapshot = { kedi: { ...defaultNode } };
+    const tenantSnapshot = {};
+
+    let getNodesCalls = [];
+    const kernel = {
+      graph: {
+        _nodes: knownNodes,
+        getNodes(workspaceId) {
+          getNodesCalls.push(workspaceId);
+          return workspaceId === 'default' ? publicSnapshot : tenantSnapshot;
+        },
+        getEdges: () => [],
+        getInEdges: () => [],
+      },
+      extractFacts(_text, nodes) {
+        return [{ subject: 'kedi', predicate: 'hayvandir' }];
+      },
+      _parsePredicate(predicate) {
+        const parts = String(predicate || '').split(/\s+/);
+        return { relation: parts[0] || '', object: parts.slice(1).join(' ') };
+      },
+      hasCapability: () => false,
+      proposeNode: () => {},
+      proposeEdge: () => ({ edge: {} }),
+    };
+
+    const plugin = createCompanyBrainPlugin();
+    await plugin.run(kernel, {
+      action: 'manual',
+      sourceType: 'manual',
+      text: 'kedi hayvandir',
+      author: 'test',
+      date: '2026-07-25',
+    }, { capability: { name: 'companyBrain' } });
+
+    // Under unmodified helper: getNodesCalls === ['default'].
+    // Under 'tenant-a' mutation: getNodesCalls === ['tenant-a'].
+    // This assertion would FAIL under the mutation.
+    assert.deepStrictEqual(getNodesCalls, ['default']);
+  });
+
+  it('company-brain ingestManual mutation guard 3: removing workspace filter makes this test RED (AC-5.3a 03B)', async () => {
+    // MUTATION: if the helper is mutated to call `getNodes()` with no
+    // argument (or `getNodes(undefined)`), the Graph implementation
+    // defaults to 'default' (graph.js:617 `workspaceId = 'default'`).
+    // To make this guard robust, we use a custom getNodes that returns
+    // the FULL map when called with no/undefined argument, simulating
+    // a hypothetical "no filter" mutation. This test asserts getNodes
+    // was called with the literal string 'default', NOT undefined or
+    // empty. Verified manually by mutating the helper to call
+    // `getNodes()` (no arg) — this test goes RED.
+    const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
+    const tenantNode = { id: 'kedi', label: 'Farkli Kedi', workspaceId: 'tenant-a' };
+    const knownNodes = {
+      kedi: defaultNode,
+      'tenant-a::kedi': tenantNode,
+    };
+
+    let getNodesCalls = [];
+    let capturedArg = null;
+    const kernel = {
+      graph: {
+        _nodes: knownNodes,
+        getNodes(workspaceId) {
+          getNodesCalls.push(workspaceId);
+          // Mutation-simulating shape: when called with no/undefined arg,
+          // return the FULL map (this is what "removing workspace filter"
+          // would produce). When called with 'default', return only default.
+          if (workspaceId === undefined || workspaceId === null || workspaceId === '') {
+            return knownNodes;
+          }
+          if (workspaceId === 'default') {
+            return { kedi: { ...defaultNode } };
+          }
+          return {};
+        },
+        getEdges: () => [],
+        getInEdges: () => [],
+      },
+      extractFacts(_text, nodes) {
+        capturedArg = nodes;
+        return [{ subject: 'kedi', predicate: 'hayvandir' }];
+      },
+      _parsePredicate(predicate) {
+        const parts = String(predicate || '').split(/\s+/);
+        return { relation: parts[0] || '', object: parts.slice(1).join(' ') };
+      },
+      hasCapability: () => false,
+      proposeNode: () => {},
+      proposeEdge: () => ({ edge: {} }),
+    };
+
+    const plugin = createCompanyBrainPlugin();
+    await plugin.run(kernel, {
+      action: 'manual',
+      sourceType: 'manual',
+      text: 'kedi hayvandir',
+      author: 'test',
+      date: '2026-07-25',
+    }, { capability: { name: 'companyBrain' } });
+
+    // Under unmodified helper: getNodesCalls === ['default'] and
+    // capturedArg does NOT include 'tenant-a::kedi'.
+    // Under no-filter mutation: getNodesCalls === [undefined] (or [''])
+    // and capturedArg === knownNodes (includes 'tenant-a::kedi').
+    assert.deepStrictEqual(getNodesCalls, ['default']);
+    assert.strictEqual(
+      Object.keys(capturedArg).includes('tenant-a::kedi'),
+      false,
+      'capturedArg must NOT include tenant-a storage key — workspace filter must be applied'
+    );
+  });
+
+  it('company-brain ingestManual legacy fallback compatibility: _nodes used when getNodes absent (AC-6 03B)', async () => {
+    // Per Bölüm 5.5 of the amendment: the legacy fallback (kernel.graph._nodes)
+    // is retained for test harnesses that construct mock graphs without
+    // getNodes. This is a SEPARATE compatibility test, NOT part of the
+    // narrowing assertion. AC-6 requires plugin/manifest compatibility proof.
+    // The fallback must preserve the pre-migration behavior exactly: the
+    // raw _nodes map (all workspaces) is passed to extractFacts.
+    const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
+    const tenantNode = { id: 'kedi', label: 'Farkli Kedi', workspaceId: 'tenant-a' };
+    const knownNodes = {
+      kedi: defaultNode,
+      'tenant-a::kedi': tenantNode,
+    };
+
+    const accessLog = { _nodesReads: 0 };
+    let capturedArg = null;
+    const kernel = {
+      graph: {
+        get _nodes() {
+          accessLog._nodesReads++;
+          return knownNodes;
+        },
+        // No getNodes() at all — forces legacy fallback
+        getEdges: () => [],
+        getInEdges: () => [],
+      },
+      extractFacts(_text, nodes) {
+        capturedArg = nodes;
+        return [{ subject: 'kedi', predicate: 'hayvandir' }];
+      },
+      _parsePredicate(predicate) {
+        const parts = String(predicate || '').split(/\s+/);
+        return { relation: parts[0] || '', object: parts.slice(1).join(' ') };
+      },
+      hasCapability: () => false,
+      proposeNode: () => {},
+      proposeEdge: () => ({ edge: {} }),
+    };
+
+    const plugin = createCompanyBrainPlugin();
+    const result = await plugin.run(kernel, {
+      action: 'manual',
+      sourceType: 'manual',
+      text: 'kedi hayvandir',
+      author: 'test',
+      date: '2026-07-25',
+    }, { capability: { name: 'companyBrain' } });
+
+    // AC-6 (a): legacy path actually read `_nodes` at least once.
+    assert.ok(
+      accessLog._nodesReads >= 1,
+      `expected _nodes read >= 1 in legacy fallback, got ${accessLog._nodesReads}`
+    );
+    // AC-6 (b): captured arg is the raw _nodes map (NOT a snapshot).
+    assert.strictEqual(capturedArg, knownNodes);
+    // AC-6 (c): plugin still produces a valid ingest result.
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.sourceType, 'manual');
+    assert.ok(result.added >= 1);
+  });
 });
