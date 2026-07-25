@@ -1126,9 +1126,32 @@ describe('Plugin - Yonetici', () => {
     const tmpPath = path.join(os.tmpdir(), `contradiction-alert-parity-${Date.now()}-${process.pid}.json`);
     const graph = new Graph({ useSQLite: false, memoryPath: tmpPath });
     try {
-      graph.addNode('kedi', 'Kedi', { source: 'fixture' });
-      graph.addNode('balik', 'Balik', { source: 'fixture' });
-      graph.addNode('kedi', 'Tenant Kedi', { source: 'fixture' }, { workspaceId: 'tenant-a' });
+      // Use a two-word subject node id ('kara kedi'). The Turkish NLP pack
+      // (nlp/lang-tr.js) only matches a multi-word subject candidate against
+      // the known-nodes id set passed in; a single-word subject like plain
+      // 'kedi' would fall back to the same first-token subject regardless of
+      // which node snapshot was supplied, which is exactly why the original
+      // fixture stayed vacuous even with edges present. With 'kara kedi' as
+      // the node id, the extracted subject (and therefore which edges are
+      // looked up and whether a conflict is found) depends on whether the
+      // known-nodes snapshot actually contains 'kara kedi' — i.e. it depends
+      // on getting the *default* workspace, not some other workspace.
+      graph.addNode('kara kedi', 'Kara Kedi', { source: 'fixture' });
+      graph.addNode('hayvan', 'Hayvan', { source: 'fixture' });
+      // Default-workspace edge 'kara kedi' -[tür]-> hayvan. The incoming
+      // statement "kara kedi hayvan degildir" ("kara kedi" değil "hayvan")
+      // directly contradicts it, so the plugin's conflict-detection loop
+      // produces a non-empty result — but only when the subject resolves to
+      // 'kara kedi', which requires the correct (default) node snapshot.
+      graph.addEdge('kara kedi', 'hayvan', 'tür', { source: 'fixture' });
+      // Wrong-workspace node sharing no id with the default snapshot. If the
+      // plugin were changed to read the wrong workspace's snapshot (e.g.
+      // getNodes('tenant-a') instead of getNodes('default')), the two-word
+      // candidate 'kara kedi' would not be found in it, the subject would
+      // fall back to the single token 'kara', and the conflict lookup
+      // (getEdges('kara')) would find nothing — an empty result, differing
+      // from the legacy/expected non-empty one.
+      graph.addNode('kedi', 'Tenant marker', { source: 'fixture' }, { workspaceId: 'tenant-a' });
 
       function buildKernel(graphArg) {
         return {
@@ -1148,7 +1171,7 @@ describe('Plugin - Yonetici', () => {
       const plugin = createContradictionAlertPlugin();
 
       const kernelPublic = buildKernel(graph);
-      const resultPublic = await plugin.run(kernelPublic, { text: 'kedi hayvan' }, { capability: { name: 'contradictionAlert' } });
+      const resultPublic = await plugin.run(kernelPublic, { text: 'kara kedi hayvan degildir' }, { capability: { name: 'contradictionAlert' } });
 
       // Legacy scenario: legacy-shaped double with NO getNodes. `_nodes`
       // mirrors the full pre-migration internal map (includes tenant-a
@@ -1165,14 +1188,27 @@ describe('Plugin - Yonetici', () => {
         getInEdges: (nodeId) => graph.getInEdges(nodeId),
       };
       const kernelLegacy = buildKernel(legacyGraph);
-      const resultLegacy = await plugin.run(kernelLegacy, { text: 'kedi hayvan' }, { capability: { name: 'contradictionAlert' } });
+      const resultLegacy = await plugin.run(kernelLegacy, { text: 'kara kedi hayvan degildir' }, { capability: { name: 'contradictionAlert' } });
 
       // Parity: observable output must match for the default-workspace subject 'kedi'.
       assert.deepStrictEqual(resultPublic.data, resultLegacy.data);
       assert.strictEqual(resultPublic.ok, resultLegacy.ok);
 
       // The default-workspace 'kedi' subject must be reachable in both paths.
-      assert.strictEqual(resultPublic.data.newThought, 'kedi hayvan');
+      assert.strictEqual(resultPublic.data.newThought, 'kara kedi hayvan degildir');
+
+      // Non-vacuity: the fixture must actually exercise the conflict-detection
+      // loop. Without the kedi -[tür]-> hayvan edge above, both sides would
+      // return an empty conflictingThoughts array regardless of which node
+      // snapshot (default-workspace vs. wrong-workspace) was passed to
+      // extractFacts, which would make the deepStrictEqual comparison above
+      // trivially true. Asserting a populated, correctly-typed result proves
+      // the comparison is capable of detecting a wrong node snapshot.
+      assert.ok(
+        resultPublic.data.conflictingThoughts.length > 0,
+        'expected a non-empty conflict list; the fixture must produce a real conflict'
+      );
+      assert.strictEqual(resultPublic.data.conflictType, 'direct');
 
       // A4: the legacy scenario actually read `_nodes` at least once. This
       // proves the parity comparison exercised the legacy branch, not the
