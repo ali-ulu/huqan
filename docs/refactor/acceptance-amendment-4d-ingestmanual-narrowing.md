@@ -53,19 +53,24 @@ Bu amendment, `docs/refactor/decision-4d-graph-workspace-contract.md` Bölüm
 4.2.2'de tespit edilen ve Bölüm 4.3 matrisinde `BLOCKED` olarak işaretlenen
 `company-brain` / `ingestManual` use-case'inin migration contract'ını
 saptar. `decision-4d-graph-workspace-contract.md` Bölüm 4.2.2 bu
-amendment'ı işaret eder; bu amendment `decision-4d-graph-workspace-contract.md`'i
-**değiştirmez**, yalnızca `ingestManual` use-case'i için binding contract verir.
+amendment'ı işaret eder; bu PR amendment dosyasını **ve** aynı PR'da
+`decision-4d-graph-workspace-contract.md`'nin `BLOCKED` hükmünü
+amendment-authorized contract ile hizalar ve `refactor-4d-contract-acceptance.md`
+acceptance matrix'ine `AC-5.3a` satırını ekler. Üç dosya birlikte merge
+edilir; ayrı açılmaz.
 
 Dayanak noktaları (her biri `decision-4d-graph-workspace-contract.md`'de
 kayda geçmiştir):
 
+- `plugins/company-brain.js:235-300` (`ingestManual` fonksiyon aralığı) —
+  `input.text` (`:236`), `input.author` (`:239`), `input.date` (`:240`),
+  `input.domain` (`:256`), `input.sessionId` (`:264`, `:274`, `:288`).
+  Fonksiyon `input.workspaceId`'yi **okumaz**.
 - `plugins/company-brain.js:245-247` — `kernel.graph?._nodes` doğrudan
   `extractFacts`'a geçirilir, workspace filtresi yoktur.
-- `plugins/company-brain.js:246` — `ingestManual` `input.workspaceId`
-  okumaz; okunan alanlar `input.text`, `input.author`, `input.date`,
-  `input.domain`, `input.sessionId`'dir.
-- `plugins/company-brain.js:45-48` — `addCompanyEdge` workspace argümanı
-  geçmez; `proposeNode` / `proposeEdge` default workspace'e düşer.
+- `plugins/company-brain.js:45-60` — `addCompanyEdge` fonksiyon aralığı;
+  `:46-47` `proposeNode`, `:48-58` `proposeEdge`. Workspace argümanı
+  geçmez; yazımlar konstrüksiyon gereği **default** workspace'e gider.
 - `graph.js:617-626` — `Graph.getNodes(workspaceId)` `node.workspaceId`
   üzerinden filtreler, yalnız o workspace'in node'larını döndürür.
 - `graph.js:620` — `Graph._nodes` düz bir map'tir, **bütün workspace'lerin**
@@ -90,8 +95,9 @@ Bölüm 4.2.1'de belirtilen dinamik workspace adayı
 audit (`decision-4d-graph-workspace-contract.md` Bölüm 4.2.2, 2026-07-25)
 `ingestManual`'a workspace geçiren girdi yolu olmadığını kanıtlamıştır.
 
-Migration hedefi tek bir sabit argümandır: `'default'`. Bu, kullanıcının PR #84
-review'unda (`APPROVED_FOR_MERGE` verdict) doğruladığı teknik hükümdür.
+Migration hedefi tek bir sabit argümandır: `'default'`. Bu, PR #84 ile
+merge edilen source-reality kararı ve belirtilen kaynak satırları tarafından
+desteklenir.
 
 ---
 
@@ -138,10 +144,18 @@ sızıntısı değil.
 - `extractFacts`'in ürettiği fact'lerin observable output'a (kullanıcıya
   dönen response, log, REST/MCP yanıtı) nasıl yansıdığı bu amendment'ın
   kapsamı dışındadır.
-- Mevcut test fixture'ları altında bir observable output leak
-  **reproduce edilememiştir** (PR #82 Tour 2'de `OBSERVABLE_OUTPUT_LEAK_NOT_REPRODUCED`
-  olarak kayda geçmiştir).
+- Bu use-case (`company-brain` / `ingestManual`) için observable leak'i
+  **kanıtlayan veya çürüten case-specific test henüz yürütülmemiştir**.
+  PR #82 Tour 2 kaydındaki `OBSERVABLE_OUTPUT_LEAK_NOT_REPRODUCED` hükmü
+  yalnızca **test edilen identifier şekilleri** için verilmişti ve
+  `devil-advocate` / `discovery-engine` / `idea-mri` workspace
+  kontratı bağlamındaydı; `company-brain` / `ingestManual` için
+  yürütülmüş bir leak testi değildir. Bu nedenle o kayıt `ingestManual`
+  için dayanak olarak kullanılamaz.
 - Bu nedenle "veri sızdırdı" demek, eldeki kanıtın önünde bir ifadedir.
+  Aynı şekilde "kesinlikle sızdırmaz" demek de kanıtın önünde bir ifadedir;
+  bu nedenle `NOT_PROVEN` etiketi kullanılır, `CONFIRMED` veya `IMPOSSIBLE`
+  etiketleri kullanılmaz.
 
 Bu etiketin amacı **sızıntıyı inkâr etmek değil**, kanıtlanmamış bir iddiayı
 belgelemektir. Narrowing, sızıntı kanıtına dayanmaz; **workspace izolasyon
@@ -208,7 +222,7 @@ workspace isolation regression test
 ```
 
 Bu adlandırma, AC-5.3'ün "parity" kelimesiyle çelişmeyi önler ve testin
-nilgün (negative) karakterini açıkça belirtir.
+negatif karakterini açıkça belirtir.
 
 ---
 
@@ -263,27 +277,46 @@ neden işe yaradığını gösterir; "daraltma yapıldı"nın ötesine geçer.
 
 ### 5.4 Mutation guard
 
-Aşağıdaki mutation'lardan herhangi biri testi **FAIL** etmek zorundadır:
+Aşağıdaki **üç mutation'ın tümü** testi **FAIL** etmek zorundadır:
 
 ```text
-Helper yeniden raw _nodes kullanırsa → FAIL
-getNodes('tenant-a') kullanırsa → FAIL
-Workspace filtresi kaldırılırsa → FAIL
+Helper yeniden raw _nodes kullanırsa → RED (zorunlu)
+getNodes('tenant-a') kullanırsa → RED (zorunlu)
+Workspace filtresi kaldırılırsa → RED (zorunlu)
 ```
 
-Bu üç mutation, yanlış implementation'ı otomatik olarak kırmalıdır. Test
-yalnızca doğru implementation'da GREEN olmamalı; en sıkı dönüş yollarını da
-RED yapmalıdır. Bu, characterization testinin "negatif fixture" niteliğidir
-(Bölüm 4.2).
+Üçünün tümü RED olmak zorundadır; "en az ikisi" yeterli değildir. Her
+mutation characterization testinin ayrı bir senaryosunu çalıştırır ve
+üçü de yanlış implementation'ı ayrı ayrı kırmak zorundadır. Bu, characterization
+testinin "negatif fixture" niteliğidir (Bölüm 4.2).
 
-### 5.5 Legacy fallback kapsamı dışında
+### 5.5 Legacy fallback — ayrı compatibility testi zorunlu
 
 `getNodes` metodunun bulunmadığı eski test harness'ler için `kernel.graph?._nodes`
 fallback kolu, tıpkı `contradiction-alert` (PR #83), `devil-advocate`
 (PR #81), `discovery-engine` (PR #78), `idea-mri` (PR #79) migration'larında
-olduğu gibi korunur. Bu fallback, characterization testinde **test
-edilmez**; fallback yalnızca public-path coverage'sı olmayan legacy
-fixture'lar içindir ve Bölüm 5.4 mutation guard'ına tabi değildir.
+olduğu gibi korunur. Bu fallback bir **compatibility contract**'tır ve
+**ayrı bir compatibility testi** olmadan bırakılamaz.
+
+Package 03 test seti en az şunları içermelidir:
+
+```text
+03A (queryCompanyBrain):
+- public dynamic-workspace parity test
+- legacy fallback branch proof (ayrı compatibility testi)
+
+03B (ingestManual):
+- public default-workspace narrowing characterization test (Bölüm 5.1–5.4)
+- legacy fallback branch proof (ayrı compatibility testi)
+- üç mutation guard (Bölüm 5.4 — üçü de RED zorunlu)
+```
+
+Legacy fallback compatibility testi **narrowing assertion'ına tabi değildir**;
+ amacı yalnızca fallback branch'inin çalıştığını, doğru `_nodes` map'ini
+okuduğunu ve managed-plugin compatibility'nin (AC-6) bozulmadığını
+kanıtlamaktır. Bu test `getNodes` metodunun bulunmadığı legacy mock kernel
+üzerinde çalışır; `accessLog` spy'ı fallback branch'inin `_nodes` okuduğunu
+doğrular.
 
 ---
 
@@ -294,7 +327,8 @@ workspace-aware ingest API **eklenmez**.
 
 ### 6.1 Gerekçe
 
-- `plugins/company-brain.js:45-48` — `addCompanyEdge` workspace argümanı
+- `plugins/company-brain.js:45-60` (`addCompanyEdge` fonksiyon aralığı;
+  `:46-47` `proposeNode`, `:48-58` `proposeEdge`) — workspace argümanı
   geçmez.
 - `kernel.proposeNode` / `kernel.proposeEdge` workspace verilmezse default'a
   düşer.
@@ -379,8 +413,10 @@ same compatibility review
 İki use-case'i bölmek aşağıdaki sorunları yaratır:
 
 - Aynı plugin dosyası iki kez art arda değiştirilir → review bütünlüğü bozulur.
-- Aynı manifest hash iki kez yenilenir → intermediate state hash'in geçici
-  olarak eski plugin source ile uyumsuz hale gelmesine yol açar.
+- Aynı manifest hash iki kez yeniden hesaplanır → iki ayrı
+  compatibility/CI döngüsüne neden olur; bu gereksiz churn'dür. Her PR
+  kendi hash'ini doğru hesaplasa bile, iki ayrı PR iki ayrı doğrulama
+  yükü ve iki ayrı intermediate state yaratır.
 - Geçici mixed public/private state oluşur: 03A migrate edildiğinde
   `queryCompanyBrain` public API kullanırken `ingestManual` hâlâ raw
   `_nodes` okur. Bu intermediate state Bölüm 3'teki sınıflandırmayı
@@ -419,7 +455,7 @@ yalnızca aşağıdaki **sekiz koşulun tümü** sağlandığında:
 5. Değişimin kapsamı characterization testiyle ölçülmeli. (Bölüm 5'teki
    tarzda fixture + assertions.)
 6. Negative fixture/mutation yanlış implementation'ı kırmalı. (Bölüm 5.4'teki
-   üç mutation'dan en az ikisi RED olmalı.)
+   üç mutation'ın üçü de RED olmak zorundadır; "en az ikisi" yeterli değildir.)
 7. İnsan onayı bulunmalı. (Amendment PR'ı bağımsız review ile merge
    edilmeli; builder kendi başına yetki veremez.)
 8. PR açıklamasında "parity" değil "intentional narrowing" denmeli. (Test
@@ -507,17 +543,22 @@ amendment PR'ını merge edemez.
 - `docs/refactor/refactor-4d-contract-acceptance.md` — AC-5.3 (parity
   şartı), AC-5.1 (single-consumer granülarite), AC-5.5 (private surface
   envanteri)
-- `plugins/company-brain.js:45-48` — `addCompanyEdge` default workspace
+- `plugins/company-brain.js:45-60` — `addCompanyEdge` fonksiyon aralığı
+  (`:46-47` `proposeNode`, `:48-58` `proposeEdge`) — default workspace
 - `plugins/company-brain.js:178-233` — `queryCompanyBrain` (dinamik
   workspace, Bölüm 4.2.1 contract)
+- `plugins/company-brain.js:235-300` — `ingestManual` fonksiyon aralığı;
+  `input.*` okunan alanlar (`:236`, `:239`, `:240`, `:256`, `:264`, `:274`, `:288`)
 - `plugins/company-brain.js:245-247` — `ingestManual` raw `_nodes` erişimi
-- `plugins/company-brain.js:246` — `ingestManual` okunan `input.*` alanları
 - `graph.js:617-626` — `Graph.getNodes(workspaceId)` public API
 - `graph.js:620` — `Object.entries(this._nodes)` workspace filtresiz gezim
 - `graph.js:37-40` — `normalizeWorkspaceId` (yalnız `.trim()`)
 - `graph.js:42-44` — `nodeStorageKey` (storage key formatı)
 - PR #82 — Tour 2: workspace contract consumer/use-case matrisine
-  indirgendi, `OBSERVABLE_OUTPUT_LEAK_NOT_REPRODUCED` kayda geçti
+  indirgendi; `OBSERVABLE_OUTPUT_LEAK_NOT_REPRODUCED` kaydı yalnızca
+  `devil-advocate`/`discovery-engine`/`idea-mri` workspace kontratı
+  bağlamında, test edilen identifier şekilleri için verilmiştir
+  (`ingestManual` için dayanak olarak kullanılamaz; bkz. Bölüm 3.3)
 - PR #83 — `contradiction-alert` migration (gerçek parity örneği; daraltma
   değil, çünkü `getEdges(subject)` zaten default'a düşüyordu)
 - PR #84 — `ingestManual` contract correction, Package 03 BLOCKED hükmü

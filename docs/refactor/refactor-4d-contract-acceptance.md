@@ -73,8 +73,17 @@ Her kriter PASS/FAIL olarak ölçülür. Belirsiz bırakılmış kriter kabul ed
 | 5.1 | Migration granülaritesi | her PR'da **tek sınırlı consumer** | birden fazla consumer aynı PR'da |
 | 5.2 | Public seam ekleme | yalnızca mevcut public API yetersizse, **en küçük** seam eklenir | geniş yeni API yüzeyi açılır |
 | 5.3 | Davranış kanıtı | parity testleri gözlemlenebilir davranışın değişmediğini kanıtlar | parity testi yok |
+| 5.3a | Explicitly Approved Isolation Narrowing | yalnızca `docs/refactor/acceptance-amendment-4d-ingestmanual-narrowing.md` (PR #85) ile yetkilendirilen `ingestManual` use-case'inde: (1) mevcut davranış source audit ile kanıtlanmış, (2) davranışın public/binding contract olmadığı kanıtlanmış, (3) narrowing güvenlik veya tenant/workspace izolasyonunu güçlendiriyor, (4) yeni geniş public API açılmıyor, (5) characterization testiyle daraltma kapsamı ölçülüyor, (6) üç mutation guard'ın üçü de RED, (7) insan onayı (amendment PR bağımsız review) var, (8) PR açıklamasında "parity" değil "intentional narrowing" deniyor | koşullardan herhangi biri eksik |
 | 5.4 | Toplu migration | **yasaktır** | tek PR'da toplu `_nodes`/`_` erişim değişimi |
 | 5.5 | Kapsanan private erişimler | `graph._nodes` (company-brain, contradiction-alert, devil-advocate, discovery-engine, idea-mri), `_companyIngestState` (company-brain, repo-memory), `_parsePredicate()` (company-brain, contradiction-alert) — her biri ayrı PR'da | envanter dışı erişim sessizce değiştirilir |
+
+> **AC-5.3a açıklaması:** AC-5.3 unchanged'dır; AC-5.3a onun yanına eklenen
+> dar bir istisnadır. AC-5.3'ü gevşetmez. İstisna yalnızca `ingestManual`
+> use-case'i için yetkilendirilmiştir; gelecekteki narrowing durumları için
+> precedent olarak kullanılabilir, ama her seferinde ayrı bir amendment
+> kararı gerekir. Detaylı koşullar ve characterization test tasarımı
+> `docs/refactor/acceptance-amendment-4d-ingestmanual-narrowing.md`
+> Bölüm 4 ve Bölüm 9'da verilmiştir.
 
 ### AC-6: Manifest / runtime compatibility
 
@@ -131,6 +140,8 @@ Her kriter PASS/FAIL olarak ölçülür. Belirsiz bırakılmış kriter kabul ed
    - AC-2.1 → automated fail-open test
    - AC-3.1 → automated required-capability test
    - AC-5.1 → single-consumer changed-files review
+   - AC-5.3 → automated parity test (gözlemlenebilir davranış değişimi yok)
+   - AC-5.3a → intentional narrowing characterization test + üç mutation guard + legacy fallback compatibility testi (yalnızca `ingestManual` use-case'i için, amendment PR #85 yetkisiyle)
    - AC-8.2 → forbidden-scope diff review
    - AC-8.3 → package/lockfile absence review
 2. Hedefli contract testler geçer.
