@@ -205,7 +205,7 @@ tutarlı şekilde `'default'` workspace ile sınırlar.
 
 ### 4.2 Migration bekleyen (hâlâ doğrudan `_nodes`) — use-case bazında sınıflandırma
 
-`company-brain` migration'ı **AMENDMENT APPROVED — pending merge**
+`company-brain` migration'ı **AMENDMENT APPROVED — EFFECTIVE ON MERGE**
 durumundadır. İki use-case'in gerekçesi farklıdır: `queryCompanyBrain`
 (Bölüm 4.2.1) contract'ı BINDING ve teknik olarak güvenlidir. `ingestManual`
 (Bölüm 4.2.2) mevcut AC-5.3 altında parity yapılamaz, fakat
@@ -239,7 +239,7 @@ yoksa `'default'` fallback korunur.
 > argümanıyla çağrılırsa, mevcut `queryCompanyBrain` workspace-routing
 > yeteneği kırılır. Bu bir parity fix değil, davranış regresyonudur.
 
-#### 4.2.2 `company-brain` / `ingestManual` — CROSS_WORKSPACE_INPUT_REACHABLE / AMENDMENT APPROVED (pending merge)
+#### 4.2.2 `company-brain` / `ingestManual` — CROSS_WORKSPACE_INPUT_REACHABLE / AMENDMENT APPROVED — EFFECTIVE ON MERGE
 
 **Source reality:**
 
@@ -467,9 +467,10 @@ Kalan kaynak kod durumu:
 - `plugins/company-brain.js:235-300` — `ingestManual` fonksiyon aralığı;
   raw `_nodes` erişimi `:245-247`. Bölüm 4.2.2 ile uyumlu: bağlayıcı
   migration contract'ı `docs/refactor/acceptance-amendment-4d-ingestmanual-narrowing.md`
-  (PR #85) tarafından verilmiştir; durum AMENDMENT APPROVED (pending merge),
+  (PR #85) tarafından verilmiştir; durum AMENDMENT APPROVED — EFFECTIVE ON MERGE,
   runtime authority PR #85 merge sonrası (CROSS_WORKSPACE_INPUT_REACHABLE,
-  AC-5.3a istisnası).
+  AC-5.3a istisnası). Runtime authority activates only when PR #85 is merged
+  and these documents are present on canonical main.
 - `plugins/contradiction-alert.js:66-80` — `getNodes('default')` sabit
   argümanıyla çağrı (PR #83). Bölüm 4.2.3 contract ile uyumlu (audit
   tamamlandı, BINDING).
