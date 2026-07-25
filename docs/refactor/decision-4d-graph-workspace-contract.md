@@ -196,17 +196,21 @@ göre ayrı** workspace contract tanımlar. Tek bir global hüküm verilmez.
 | `devil-advocate` | PR #81 | `getNodes('default')` (`plugins/devil-advocate.js:45`) | `kernel.graph?._nodes` (`plugins/devil-advocate.js:47`) | **default workspace** (sabit argüman) |
 | `discovery-engine` | PR #78 | `getNodes('default')` (`plugins/discovery-engine.js:21`) | `kernel.graph?._nodes` (`plugins/discovery-engine.js:22`) | **default workspace** (sabit argüman) |
 | `idea-mri` | PR #79 | `getNodes('default')` (`plugins/idea-mri.js:33`) | `kernel.graph?._nodes` (`plugins/idea-mri.js:35`) | **default workspace** (sabit argüman) |
+| `contradiction-alert` | PR #83 | `getNodes('default')` (`plugins/contradiction-alert.js:66`) | `kernel.graph?._nodes` (`plugins/contradiction-alert.js:68`) | **default workspace** (sabit argüman) |
 
-Bu üç plugin'in fallback kolu, yalnızca `getNodes` metodunun bulunmadığı
+Bu dört plugin'in fallback kolu, yalnızca `getNodes` metodunun bulunmadığı
 eski test harness'ler ve mock kernel'ler için çalışır. Üretim `Graph`
 instance'ı her zaman `getNodes`'a sahiptir; bu durumda public API yolu
 tutarlı şekilde `'default'` workspace ile sınırlar.
 
 ### 4.2 Migration bekleyen (hâlâ doğrudan `_nodes`) — use-case bazında sınıflandırma
 
-`company-brain` ve `contradiction-alert` plugin'leri migration bekliyor.
-Ancak bu plugin'lerin her biri **ayrı use-case**'lere sahiptir ve tek bir
-global workspace kararı verilemez.
+`company-brain` migration bekliyor (`queryCompanyBrain` ve `ingestManual`
+use-case'leri). `contradiction-alert` migration'ı PR #83 ile tamamlanmıştır
+(bkz. Bölüm 4.2.3) ve Bölüm 4.1 tablosuna da eklenmiştir; audit trail'in
+bütünlüğü için Bölüm 4.2.3 alt bölümü burada tutulur. Bu plugin'lerin her
+biri **ayrı use-case**'lere sahiptir ve tek bir global workspace kararı
+verilemez.
 
 #### 4.2.1 `company-brain` / `queryCompanyBrain` — DİNAMİK WORKSPACE
 
@@ -247,27 +251,39 @@ olası contract adayı:
 Bu PR'da bu contract **sabitlenmez**; migration PR'ında call-site audit
 ile kararlaştırılır. future consumer contract candidate olarak işaretlenir.
 
-#### 4.2.3 `contradiction-alert` — AUDIT PENDING
+#### 4.2.3 `contradiction-alert` — AUDIT TAMAMLANDI (PR #83)
 
 **Source reality:**
 
-- `plugins/contradiction-alert.js:68`: `const facts = typeof kernel.extractFacts === 'function' ? kernel.extractFacts(text, kernel.graph?._nodes) || [] : [];`
-- `plugins/contradiction-alert.js:78-80`: `kernel.graph.getEdges(subject)`
-  çağrısı `workspaceId` argümanı olmadan yapılır. `Graph.getEdges` default
-  olarak `'default'` workspace'i kullanır.
+- `plugins/contradiction-alert.js`: `workspaceId` string'i dosyada hiç
+  okunmaz; tek geçtiği yer bir yorum satırıdır (`plugins/contradiction-alert.js:53`).
+  Plugin, konstrüksiyon olarak yalnızca default workspace ile çalışır.
+- `cli.js:328`: `this.kernel.runCapability('contradictionAlert', { text: String(args || '').trim() })`
+  — yalnızca `text` geçirilir, workspace geçirilmez.
+- `lib/sdk.js:92`: `'contradiction'`/`'contradictionalert'` alias'ları
+  `'contradictionAlert'` capability adına eşlenir; workspace geçirilmez.
+- `server.js` (REST) ve `mcpServer.js` (MCP) adaptörlerinde bu capability'ye
+  workspace geçiren hiçbir çağıran yoktur.
+- `plugins/contradiction-alert.js:78-80`'deki `kernel.graph.getEdges(subject)`
+  çağrısı `workspaceId` argümanı olmadan yapılır; `Graph.getEdges`
+  (`graph.js:995`) default olarak `'default'` workspace'i kullanır
+  (`getEdges(nodeId, workspaceId = 'default')`).
 
-**Binding contract:** Bu plugin için workspace context açık değildir.
-Call-site/source-reality audit tamamlanmadan **binding default kararı
-verilmez**. Migration PR'ında aşağıdakiler incelenmelidir:
+**Audit sonucu:** Bu plugin'e ulaşan hiçbir public/CLI/REST/MCP çağıran
+`workspaceId` geçirmiyor. Pre-migration `_nodes` erişimi bu nedenle
+**default workspace'e konstrüksiyon gereği sabitti** — dinamik workspace
+davranışı hiçbir zaman var olmadı, çünkü onu tetikleyecek bir girdi yolu
+hiç bulunmuyordu. `company-brain`/`queryCompanyBrain`'in aksine (Bölüm
+4.2.1), burada korunması gereken bir dinamik davranış yoktur.
 
-- Tüm çağırıcılar (`server.js`, CLI, MCP adapter) `input.workspaceId`
-  geçiriyor mu?
-- `getEdges(subject)` çağrısında `workspaceId` argümanı eksikliği
-  kasıtlı mıdır (default confinement) yoksa oversight mı?
-- Migration sırasında `getNodes(input.workspaceId || 'default')` mi yoksa
-  `getNodes('default')` mi?
-
-Audit tamamlanana kadar: **AUDIT_PENDING — NO BINDING DECISION.**
+**Binding contract:** Migration hedefi `getNodes('default')`'tur
+(`plugins/contradiction-alert.js:66`, PR #83). Bu, mevcut davranışı
+**aynen korur** — dar bir davranışa sabitleme (narrowing) değil, tam
+davranış parity'sidir, çünkü sabitlenecek bir dinamik davranış zaten
+yoktu. `getNodes` metodunun bulunmadığı eski test harness'ler için
+`kernel.graph?._nodes` fallback kolu korunur (`plugins/contradiction-alert.js:68`),
+tıpkı `devil-advocate`, `discovery-engine`, `idea-mri` için olduğu gibi
+(Bölüm 4.1).
 
 ### 4.3 Matris özeti
 
@@ -278,7 +294,7 @@ Audit tamamlanana kadar: **AUDIT_PENDING — NO BINDING DECISION.**
 | `idea-mri` | default workspace | `getNodes('default')` (PR #79 done) | BINDING |
 | `company-brain` / `queryCompanyBrain` | dynamic `input.workspaceId` | `getNodes(input.workspaceId \|\| 'default')` | BINDING (dinamik korunur) |
 | `company-brain` / `ingestManual` | `_nodes` doğrudan, workspace filtre yok | call-site audit gerek | CANDIDATE — bu PR'da sabitlenmez |
-| `contradiction-alert` | `_nodes` doğrudan + `getEdges(subject)` (workspace yok) | call-site audit gerek | AUDIT_PENDING — bu PR'da sabitlenmez |
+| `contradiction-alert` | `_nodes` doğrudan + `getEdges(subject)` (workspace yok) | `getNodes('default')` (PR #83 done) | BINDING |
 
 ---
 
@@ -384,8 +400,9 @@ Kalan kaynak kod durumu:
   Bölüm 4.2.1 contract ile uyumlu (migration dinamik workspace'i korur).
 - `plugins/company-brain.js:245-247` — `ingestManual` use-case'i. Bölüm 4.2.2
   contract ile uyumlu (audit pending).
-- `plugins/contradiction-alert.js:66-80` — Workspace context açık değil.
-  Bölüm 4.2.3 contract ile uyumlu (audit pending).
+- `plugins/contradiction-alert.js:66-80` — `getNodes('default')` sabit
+  argümanıyla çağrı (PR #83). Bölüm 4.2.3 contract ile uyumlu (audit
+  tamamlandı, BINDING).
 
 Kararla çelişen yeni bir kaynak kod bulgusu yoktur. Bulunursa, bu PR blocker
 olarak durdurulur ve karar yeniden değerlendirilir (C5 kuralı).
@@ -408,6 +425,7 @@ değişirse, paketler yeniden üretilmelidir. Özellikle:
 
 - `company-brain` / `queryCompanyBrain` migration'ı dinamik workspace'i
   korumazsa, Paket 02/03 yeniden üretilmelidir.
-- `company-brain` / `ingestManual` veya `contradiction-alert` migration'ı
-  sırasında call-site audit yeni bir contract ortaya koyarsa, bu doküman
-  güncellenmeli ve paketler yeniden üretilmelidir.
+- `company-brain` / `ingestManual` migration'ı sırasında call-site audit
+  yeni bir contract ortaya koyarsa, bu doküman güncellenmeli ve paketler
+  yeniden üretilmelidir. (`contradiction-alert` audit'i PR #83 ile
+  tamamlanmış ve Bölüm 4.2.3/4.3'e BINDING olarak işlenmiştir.)
