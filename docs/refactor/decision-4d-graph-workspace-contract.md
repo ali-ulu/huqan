@@ -205,11 +205,15 @@ tutarlı şekilde `'default'` workspace ile sınırlar.
 
 ### 4.2 Migration bekleyen (hâlâ doğrudan `_nodes`) — use-case bazında sınıflandırma
 
-`company-brain` migration'ı **BLOCKED — pending acceptance amendment**
+`company-brain` migration'ı **AMENDMENT APPROVED — EFFECTIVE ON MERGE**
 durumundadır. İki use-case'in gerekçesi farklıdır: `queryCompanyBrain`
-(Bölüm 4.2.1) contract'ı BINDING ve teknik olarak güvenlidir, fakat
-`ingestManual` (Bölüm 4.2.2) mevcut AC-5.3 altında BLOCKED olduğu için
-Paket 03 yarım uygulanmaz ve paket bütün olarak bekler.
+(Bölüm 4.2.1) contract'ı BINDING ve teknik olarak güvenlidir. `ingestManual`
+(Bölüm 4.2.2) mevcut AC-5.3 altında parity yapılamaz, fakat
+`docs/refactor/acceptance-amendment-4d-ingestmanual-narrowing.md`
+amendment'i bu use-case için **intentional default-workspace narrowing**
+çerçevesinde AC-5.3a istisnasını yetkilendirmektedir. Amendment PR #85
+merge edilene kadar runtime implementasyonu için yetki **yoktur**;
+merge sonrası her iki use-case atomik olarak Package 03'te uygulanır.
 `contradiction-alert` migration'ı PR #83 ile tamamlanmıştır
 (bkz. Bölüm 4.2.3) ve Bölüm 4.1 tablosuna da eklenmiştir; audit trail'in
 bütünlüğü için Bölüm 4.2.3 alt bölümü burada tutulur. Bu plugin'lerin her
@@ -235,7 +239,7 @@ yoksa `'default'` fallback korunur.
 > argümanıyla çağrılırsa, mevcut `queryCompanyBrain` workspace-routing
 > yeteneği kırılır. Bu bir parity fix değil, davranış regresyonudur.
 
-#### 4.2.2 `company-brain` / `ingestManual` — CROSS_WORKSPACE_INPUT_REACHABLE / BLOCKED
+#### 4.2.2 `company-brain` / `ingestManual` — CROSS_WORKSPACE_INPUT_REACHABLE / AMENDMENT APPROVED — EFFECTIVE ON MERGE
 
 **Source reality:**
 
@@ -244,11 +248,11 @@ yoksa `'default'` fallback korunur.
   farklı amaçla: `extractFacts` için known-node enumeration. Workspace
   filtrelemesi yapılmaz.
 - `ingestManual` `input.workspaceId` **okumaz**. Okuduğu alanlar:
-  `input.text`, `input.author`, `input.date`, `input.domain`,
-  `input.sessionId`.
-- Yazma yolu `addCompanyEdge` (`plugins/company-brain.js:45-48`) →
-  `kernel.proposeNode` / `kernel.proposeEdge`, workspace argümanı geçmez;
-  yazımlar konstrüksiyon gereği **default** workspace'e gider.
+  `input.text` (`:236`), `input.author` (`:239`), `input.date` (`:240`),
+  `input.domain` (`:256`), `input.sessionId` (`:264`, `:274`, `:288`).
+- Yazma yolu `addCompanyEdge` (`plugins/company-brain.js:45-60`;
+  `:46-47` `proposeNode`, `:48-58` `proposeEdge`) → workspace argümanı
+  geçmez; yazımlar konstrüksiyon gereği **default** workspace'e gider.
 
 **Call-site audit sonucu (2026-07-25):** Bu use-case'e workspace geçiren
 hiçbir girdi yolu yoktur. Dolayısıyla 4.2.1'deki dinamik-workspace adayı
@@ -282,24 +286,36 @@ company-brain / ingestManual
 → CROSS_WORKSPACE_INPUT_REACHABLE
 → getNodes('default') requires intentional behavior narrowing
 → BLOCKED under current AC-5.3
-→ runtime change requires explicit acceptance amendment
+→ AC-5.3a istisnası: ACCEPT (amendment PR #85 ile)
+→ runtime change authorized AFTER PR #85 merge
 ```
 
-**Binding contract:** Bu use-case için bağlayıcı bir migration contract'ı
-**yoktur**. Mevcut AC-5.3 gözlemlenebilir davranışın değişmemesini zorunlu
-kıldığı sürece, `getNodes('default')` migration'ı bu kabul kriteri altında
-yapılamaz.
+**Binding contract:** Bu use-case için bağlayıcı migration contract'ı
+`docs/refactor/acceptance-amendment-4d-ingestmanual-narrowing.md` (PR #85)
+tarafından verilmiştir. Amendment merge edilene kadar runtime
+implementasyonu için yetki **yoktur**; merge sonrası contract aşağıdaki
+şekilde bağlayıcıdır:
 
-Migration'ın açılabilmesi için önce ayrı bir **acceptance amendment**
-kararı gerekir: daraltmanın kabul edildiği, gerekçesinin (default'a yazan
-bir use-case'in başka workspace'lerin node'larıyla fact extraction yapması
-çapraz-workspace erişimidir) kayda geçtiği ve karakterizasyon testinin
-daraltmayı açıkça ölçtüğü bir karar. Bu karar insan onayı ister ve bu
-dokümanda verilmez.
+```text
+READ CONTRACT: kernel.graph.getNodes('default')
+WRITE CONTRACT: default workspace (addCompanyEdge default-bound kalır)
+TEST REQUIREMENTS:
+  - intentional narrowing characterization test
+  - workspace isolation regression test
+  - üç mutation guard (üçü de RED zorunlu)
+  - legacy fallback compatibility testi (ayrı)
+```
 
-**Paket 03 sonucu:** `queryCompanyBrain` (4.2.1) teknik olarak güvenli
-olsa da, Paket 03 yarım uygulanmaz. `ingestManual` blocker'ı çözülmeden
-paketin runtime implementasyonu başlamaz.
+Mevcut AC-5.3 gözlemlenebilir davranışın değişmemesini zorunlu kıldığı
+için, `getNodes('default')` migration'ı yalnızca AC-5.3a istisnası
+altında yapılabilir. AC-5.3a istisnası `docs/refactor/refactor-4d-contract-acceptance.md`
+acceptance matrix'ine bu PR ile eklenmiştir.
+
+**Paket 03 sonucu:** `queryCompanyBrain` (4.2.1) ve `ingestManual` (4.2.2)
+Package 03'te atomik olarak uygulanır. Amendment PR #85 merge edildikten
+sonra her iki use-case için runtime implementation branch'i açılabilir.
+Amendment merge öncesi herhangi bir runtime implementation girişimi
+yetkisizdir.
 
 #### 4.2.3 `contradiction-alert` — AUDIT TAMAMLANDI (PR #83)
 
@@ -343,7 +359,7 @@ tıpkı `devil-advocate`, `discovery-engine`, `idea-mri` için olduğu gibi
 | `discovery-engine` | default workspace | `getNodes('default')` (PR #78 done) | BINDING |
 | `idea-mri` | default workspace | `getNodes('default')` (PR #79 done) | BINDING |
 | `company-brain` / `queryCompanyBrain` | dynamic `input.workspaceId` | `getNodes(input.workspaceId \|\| 'default')` | BINDING (dinamik korunur) |
-| `company-brain` / `ingestManual` | `_nodes` doğrudan (tüm workspace'ler), workspace filtre yok | `getNodes('default')` = davranış daraltması, parity değil | **BLOCKED** — CROSS_WORKSPACE_INPUT_REACHABLE; acceptance amendment gerekir (Bölüm 4.2.2) |
+| `company-brain` / `ingestManual` | `_nodes` doğrudan (tüm workspace'ler), workspace filtre yok | `getNodes('default')` = intentional narrowing (AC-5.3a) | **AMENDMENT APPROVED** — CROSS_WORKSPACE_INPUT_REACHABLE; runtime authorized after PR #85 merge (Bölüm 4.2.2) |
 | `contradiction-alert` | `_nodes` doğrudan + `getEdges(subject)` (workspace yok) | `getNodes('default')` (PR #83 done) | BINDING |
 
 ---
@@ -448,9 +464,13 @@ Kalan kaynak kod durumu:
   çağrı. Bölüm 4.1 contract ile uyumlu.
 - `plugins/company-brain.js:113-127,185-186` — Dinamik workspace davranışı.
   Bölüm 4.2.1 contract ile uyumlu (migration dinamik workspace'i korur).
-- `plugins/company-brain.js:245-247` — `ingestManual` use-case'i. Bölüm 4.2.2
-  ile uyumlu: bağlayıcı migration contract'ı yoktur, durum BLOCKED
-  (CROSS_WORKSPACE_INPUT_REACHABLE).
+- `plugins/company-brain.js:235-300` — `ingestManual` fonksiyon aralığı;
+  raw `_nodes` erişimi `:245-247`. Bölüm 4.2.2 ile uyumlu: bağlayıcı
+  migration contract'ı `docs/refactor/acceptance-amendment-4d-ingestmanual-narrowing.md`
+  (PR #85) tarafından verilmiştir; durum AMENDMENT APPROVED — EFFECTIVE ON MERGE,
+  runtime authority PR #85 merge sonrası (CROSS_WORKSPACE_INPUT_REACHABLE,
+  AC-5.3a istisnası). Runtime authority activates only when PR #85 is merged
+  and these documents are present on canonical main.
 - `plugins/contradiction-alert.js:66-80` — `getNodes('default')` sabit
   argümanıyla çağrı (PR #83). Bölüm 4.2.3 contract ile uyumlu (audit
   tamamlandı, BINDING).
@@ -466,22 +486,30 @@ Bu doküman, offline paket üretim sırasındaki Paket 02 ve 03'ün zorunlu
 predecessor'ıdır:
 
 ```
-PR #82 (bu düzeltme turu) merge
+PR #82 (workspace contract remediation) merge
+  + PR #83 (contradiction-alert migration) merge
+  + PR #84 (ingestManual contract correction) merge
+  + PR #85 (acceptance amendment) merge
   + docs/refactor/decision-4d-graph-workspace-contract.md (bu doküman)
-  → Paket 02 ve 03 üretilebilir
+  + docs/refactor/acceptance-amendment-4d-ingestmanual-narrowing.md (amendment)
+  + docs/refactor/refactor-4d-contract-acceptance.md (AC-5.3a satırı)
+  → Paket 02 tamamlandı (PR #83), Paket 03 üretilebilir
 ```
 
 Paket üretimi, bu dokümandaki consumer/use-case matrisine dayanır. Matris
 değişirse, paketler yeniden üretilmelidir. Özellikle:
 
 - `company-brain` / `queryCompanyBrain` migration'ı dinamik workspace'i
-  korumazsa, Paket 02/03 yeniden üretilmelidir.
+  korumazsa, Paket 03 yeniden üretilmelidir.
 - `company-brain` / `ingestManual` call-site audit'i tamamlanmıştır
-  (Bölüm 4.2.2) ve sonuç **BLOCKED**'dır: `getNodes('default')` mevcut AC-5.3
-  altında yapılamaz çünkü davranış daraltması getirir. Bu durum değişirse —
-  yani ayrı bir acceptance amendment kararı daraltmayı kabul ederse — bu
-  doküman güncellenmeli ve paketler yeniden üretilmelidir.
-- Paket 03, `ingestManual` blocker'ı çözülmeden üretilmez. `queryCompanyBrain`
-  tek başına uygulanıp paket yarım bırakılmaz.
+  (Bölüm 4.2.2) ve amendment kararı `docs/refactor/acceptance-amendment-4d-ingestmanual-narrowing.md`
+  (PR #85) ile verilmiştir: `getNodes('default')` intentional narrowing
+  olarak AC-5.3a istisnası altında kabul edilmiştir. PR #85 merge
+  edilene kadar runtime implementation yetkisizdir; merge sonrası her
+  iki use-case atomik olarak Package 03'te uygulanır. Amendment'da
+  tanımlanan contract veya test gereksinimleri değişirse, bu doküman ve
+  paketler yeniden üretilmelidir.
+- Paket 03, `queryCompanyBrain` ve `ingestManual` use-case'leri atomik
+  olarak içerir; yarım uygulama yapılmaz.
 - (`contradiction-alert` audit'i PR #83 ile tamamlanmış ve Bölüm 4.2.3/4.3'e
   BINDING olarak işlenmiştir.)
