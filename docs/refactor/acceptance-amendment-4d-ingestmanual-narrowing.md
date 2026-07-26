@@ -266,14 +266,32 @@ assertion'larının temelidir.
 2. tenant-a node knownNodes içinde mevcut değil
 3. kernel.graph.getNodes('default') çağrılmış
 4. raw _nodes okunmamış (access spy count = 0)
-5. tenant-a node'u extraction sonucunu etkileyemiyor
-   (default-only knownNodes ile üretilen fact'ler,
-    tenant-a identifier'ına referans içermiyor)
+5. tenant-a node'unun **tam storage key'i** extraction sonucuna ve
+   üretilen edge'lere giremiyor
+   (default-only knownNodes ile üretilen hiçbir fact'in subject'i ve
+    hiçbir proposeEdge çağrısının `from`'u tenant storage key'ine
+    — `nodeStorageKey(id, 'tenant-a')` çıktısına — eşit değil)
 ```
 
 Assertion 5, daraltmanın **kapsamını** ölçer: yalnızca "tenant-a listede
-yok" değil, "tenant-a extraction'a etki edemiyor". Bu, daraltmanın
-neden işe yaradığını gösterir; "daraltma yapıldı"nın ötesine geçer.
+yok" değil, "tenant-a node'u known-node eşleşmesi üzerinden extraction
+sonucuna giremiyor". Bu, daraltmanın neden işe yaradığını gösterir;
+"daraltma yapıldı"nın ötesine geçer.
+
+**Kaynak gerçekliği sınırı (bağlayıcı):** `nodeStorageKey`
+(`graph.js:42-44`) tenant node'unu `tenant-a::<id>` biçiminde saklar; bu
+key'in `tenant-a::` öneki bir **prefix**tir, atomik bir token değildir.
+`extractFacts` known-node eşleşmesini yaparken default-only snapshot
+altında bu key'i **bulamaz**, ancak serbest metin girdisinin kendisi
+`tenant-a::` alt dizesini taşıyorsa, üretilen fact'in subject'i bu alt
+dizeyi içeren **kısmi** bir parça olabilir (örn. girdi
+`tenant-a::gizli kedi hayvandir` için default-only sonuç
+`subject = 'tenant-a::gizli'`). Bu, kullanıcı metninin kendi içeriğidir;
+daraltmanın kaçırdığı bir graph okuması değildir. Bu nedenle assertion 5
+şartı **"çıktıda `tenant-a` alt dizesi hiç geçmez"** değil, **"tenant
+node'unun tam storage key'i extraction/edge sonucuna giremez"**
+şeklindedir. Daha geniş bir "hiçbir tenant-a referansı yok" şartı
+kaynakta karşılanamaz ve bu amendment tarafından **konmamaktadır**.
 
 ### 5.4 Mutation guard
 
@@ -282,13 +300,32 @@ Aşağıdaki **üç mutation'ın tümü** testi **FAIL** etmek zorundadır:
 ```text
 Helper yeniden raw _nodes kullanırsa → RED (zorunlu)
 getNodes('tenant-a') kullanırsa → RED (zorunlu)
-Workspace filtresi kaldırılırsa → RED (zorunlu)
+getNodes() — explicit 'default' argümanı düşerse → RED (zorunlu)
 ```
 
 Üçünün tümü RED olmak zorundadır; "en az ikisi" yeterli değildir. Her
 mutation characterization testinin ayrı bir senaryosunu çalıştırır ve
 üçü de yanlış implementation'ı ayrı ayrı kırmak zorundadır. Bu, characterization
 testinin "negatif fixture" niteliğidir (Bölüm 4.2).
+
+**Mutation 3'ün dürüst tanımı (bağlayıcı):** Üçüncü mutation
+**"workspace filtresinin kaldırılması" değildir**. `Graph.getNodes`
+imzası `getNodes(workspaceId = 'default')`'tır (`graph.js:617`); argüman
+düşürüldüğünde runtime workspace filtresi **kaldırılmaz**, `'default'`
+scope'una düşer ve gözlemlenebilir davranış değişmez. Kaybolan tek şey,
+call-site'ta daraltmanın **açıkça yazılmış** olmasıdır. Mutation 3
+bu nedenle bir **explicit default argument omission** guard'ıdır: amacı
+audit görünürlüğünü ve niyet beyanını korumaktır — implicit default'a
+sessizce kayan bir call-site, bu amendment'ın kasıtlı daraltma kaydını
+okunamaz kılar. Bu guard, `getNodes` çağrı listesinde literal `'default'`
+argümanının geçtiğini doğrular.
+
+`getNodes` üzerinde workspace filtresini gerçekten kaldıran bir mutation
+bu amendment kapsamında **talep edilmez**: böyle bir mutation
+`graph.js`'i (production public API'yi) değiştirmeyi gerektirir, oysa
+Bölüm 5.4 guard'ları `company-brain` helper call-site'ının mutation'larıdır.
+Filtresiz okumanın yasaklanması Bölüm 2'de ("yeni public API açılmaz")
+ve mutation 1'de (raw `_nodes` → RED) zaten karşılanmıştır.
 
 ### 5.5 Legacy fallback — ayrı compatibility testi zorunlu
 
@@ -455,7 +492,10 @@ yalnızca aşağıdaki **sekiz koşulun tümü** sağlandığında:
 5. Değişimin kapsamı characterization testiyle ölçülmeli. (Bölüm 5'teki
    tarzda fixture + assertions.)
 6. Negative fixture/mutation yanlış implementation'ı kırmalı. (Bölüm 5.4'teki
-   üç mutation'ın üçü de RED olmak zorundadır; "en az ikisi" yeterli değildir.)
+   üç mutation'ın üçü de RED olmak zorundadır; "en az ikisi" yeterli değildir.
+   Üçüncü mutation, Bölüm 5.4'te tanımlandığı gibi **explicit default
+   argument omission** guard'ıdır; "workspace filtresinin kaldırılması"
+   olarak okunamaz.)
 7. İnsan onayı bulunmalı. (Amendment PR'ı bağımsız review ile merge
    edilmeli; builder kendi başına yetki veremez.)
 8. PR açıklamasında "parity" değil "intentional narrowing" denmeli. (Test
@@ -562,3 +602,53 @@ amendment PR'ını merge edemez.
 - PR #83 — `contradiction-alert` migration (gerçek parity örneği; daraltma
   değil, çünkü `getEdges(subject)` zaten default'a düşüyordu)
 - PR #84 — `ingestManual` contract correction, Package 03 BLOCKED hükmü
+
+---
+
+## 12. Correction Record
+
+### 12.1 Bu düzeltmenin kapsamı
+
+Bu bölüm, amendment merge edildikten (PR #85, `092d3a82`) sonra yapılan
+**tek** düzeltme turunu kayda geçirir. Düzeltme yalnızca Bölüm 5.3
+(assertion 5) ve Bölüm 5.4 (mutation 3) metinlerini kaynak gerçekliğine
+hizalar. Aşağıdakiler **değişmemiştir**:
+
+```text
+DECISION: değişmedi
+CLASSIFICATION (üç etiket): değişmedi
+AC-5.3: UNCHANGED (değişmedi)
+AC-5.3a istisnasının varlığı ve sekiz koşulu: değişmedi
+WRITE/READ CONTRACT: default workspace (değişmedi)
+PACKAGE 03: ATOMIC (değişmedi)
+Runtime yetkisi: PR #85 merge ile açıldı (değişmedi)
+```
+
+Runtime kodu bu düzeltmeyle **değişmez**; düzeltme docs-only'dir.
+
+### 12.2 Neden gerekli oldu
+
+Package 03 runtime PR'ı (#86) review'unda, test suite'inin iki bağlayıcı
+şartı sessizce yeniden yorumladığı tespit edildi:
+
+| Şart | Amendment'ın eski metni | Testin yaptığı | Karar |
+|---|---|---|---|
+| Mutation 3 | "Workspace filtresi kaldırılırsa → RED" | `getNodes()` çağrısında literal `'default'` argümanının yazılmadığını yakalar | Amendment metni yanlıştı: `getNodes(workspaceId = 'default')` argüman düşünce filtreyi kaldırmaz. Şart, gerçekte test edilebilir olan **explicit default argument omission** olarak yeniden yazıldı. |
+| Assertion 5 | "üretilen fact'ler tenant-a identifier'ına referans içermiyor" | Tenant **tam storage key**'inin fact subject'ine ve edge `from`'una girmediğini yakalar | Amendment metni kaynakta karşılanamayacak kadar genişti: `tenant-a::` bir prefix'tir ve kullanıcı metninin kendisinden gelen kısmi alt dizeler default-only sonuçta da görünebilir. Şart, **tam storage key** düzeyinde yeniden yazıldı. |
+
+Sözleşme, testi metne uydurmak yerine metni kaynağa uydurarak düzeltilmiştir.
+Alternatif — testi eski metne uydurmak — kaynakta imkânsızdı: filtresiz
+`getNodes` mutation'ı `graph.js` public API'sini değiştirmeyi gerektirirdi
+ve "hiç `tenant-a` alt dizesi yok" şartı serbest metin girdisi nedeniyle
+sağlanamazdı.
+
+### 12.3 Sıra
+
+```text
+1. [BU PR] Amendment correction (docs-only, dar kapsam)
+2. [SONRAKİ] Bağımsız review → merge → yeni main SHA
+3. [SONRAKİ] PR #86 yeni main'e güncellenir, full CI yeniden koşar
+4. [SONRAKİ] PR #86 bağımsız review → merge
+```
+
+PR #86, bu düzeltme merge edilmeden onaylanamaz.
