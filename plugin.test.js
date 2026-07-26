@@ -1222,4 +1222,847 @@ describe('Plugin - Yonetici', () => {
       try { fs.unlinkSync(tmpPath.replace(/\.json$/, '.embeddings.json')); } catch (_) {}
     }
   });
+
+  // -------------------------------------------------------------------------
+  // REFACTOR-4D AC-5.5 Package 03 — 03A queryCompanyBrain `_nodes` migration.
+  // Plugin should use the public `graph.getNodes(workspaceId)` API when
+  // present (dynamic workspace: input.workspaceId || 'default'), and fall
+  // back to `_nodes` only when `getNodes` is absent. AC-5.3 parity must be
+  // preserved for both default and tenant-a callers — the public API
+  // applies the same workspace filter the inline loop previously applied,
+  // so the observable set of ranked matches is unchanged for every
+  // workspace value. See docs/refactor/decision-4d-graph-workspace-contract.md
+  // Bölüm 4.2.1 (BINDING contract: dynamic workspace preserved).
+  // -------------------------------------------------------------------------
+
+  it('company-brain queryCompanyBrain uses public graph.getNodes(workspaceId) when available (4D migration 03A)', async () => {
+    const defaultNode = { id: 'axiom', label: 'Axiom Motor', workspaceId: 'default' };
+    const tenantNode = { id: 'axiom', label: 'Tenant Axiom', workspaceId: 'tenant-a' };
+    const knownNodes = {
+      axiom: defaultNode,
+      'tenant-a::axiom': tenantNode,
+    };
+    // Public API contract: `getNodes('default')` returns only the default
+    // workspace snapshot; `getNodes('tenant-a')` returns only tenant-a.
+    const publicSnapshots = {
+      default: { axiom: { ...defaultNode } },
+      'tenant-a': { axiom: { ...tenantNode } },
+    };
+
+    // Spy: track _nodes reads (must stay 0 in the public path).
+    const accessLog = { _nodesReads: 0 };
+    let capturedArg = null;
+    let getNodesCalls = [];
+    const kernel = {
+      graph: {
+        get _nodes() {
+          accessLog._nodesReads++;
+          return knownNodes;
+        },
+        getNodes(workspaceId) {
+          getNodesCalls.push(workspaceId);
+          return publicSnapshots[workspaceId] || {};
+        },
+        getEdges: () => [],
+        getInEdges: () => [],
+      },
+      hasCapability: () => false,
+      proposeNode: () => {},
+      proposeEdge: () => ({ edge: {} }),
+    };
+
+    const plugin = createCompanyBrainPlugin();
+    // Tenant-a query: must call getNodes('tenant-a')
+    const resultTenant = await plugin.run(kernel, {
+      question: 'axiom ne',
+      workspaceId: 'tenant-a',
+    }, { capability: { name: 'companyBrain' } });
+
+    // AC-5.3 (a): plugin called the public API with the requested workspace
+    assert.deepStrictEqual(getNodesCalls, ['tenant-a']);
+    // AC-5.3 (b): plugin did NOT touch `_nodes` when `getNodes` is present.
+    assert.strictEqual(accessLog._nodesReads, 0);
+    // The captured argument (when applicable) is the public snapshot, not
+    // the raw `_nodes` map. queryCompanyBrain does not expose capturedArg
+    // directly, but the getNodes call sequence proves the workspace filter
+    // was routed through the public API.
+
+    // Reset spies for the default-workspace call.
+    getNodesCalls = [];
+    accessLog._nodesReads = 0;
+    const resultDefault = await plugin.run(kernel, {
+      question: 'axiom ne',
+      workspaceId: 'default',
+    }, { capability: { name: 'companyBrain' } });
+
+    assert.deepStrictEqual(getNodesCalls, ['default']);
+    assert.strictEqual(accessLog._nodesReads, 0);
+    assert.strictEqual(resultTenant.ok, true);
+    assert.strictEqual(resultDefault.ok, true);
+  });
+
+  it('company-brain queryCompanyBrain falls back to _nodes when graph.getNodes is absent (backward compat 03A)', async () => {
+    // Some test harnesses and older code paths construct mock graphs that
+    // only expose `_nodes`. The migration must not break them — the
+    // fallback must preserve the pre-migration behavior exactly.
+    const defaultNode = { id: 'axiom', label: 'Axiom Motor', workspaceId: 'default' };
+    const knownNodes = { axiom: defaultNode };
+
+    // Spy: track _nodes reads (must be >= 1 in the legacy fallback path).
+    const accessLog = { _nodesReads: 0 };
+    const kernel = {
+      graph: {
+        get _nodes() {
+          accessLog._nodesReads++;
+          return knownNodes;
+        },
+        // No getNodes() at all
+        getEdges: () => [],
+        getInEdges: () => [],
+      },
+      hasCapability: () => false,
+      proposeNode: () => {},
+      proposeEdge: () => ({ edge: {} }),
+    };
+
+    const plugin = createCompanyBrainPlugin();
+    const result = await plugin.run(kernel, {
+      question: 'axiom ne',
+      workspaceId: 'default',
+    }, { capability: { name: 'companyBrain' } });
+
+    // Legacy path actually read `_nodes` at least once.
+    assert.ok(
+      accessLog._nodesReads >= 1,
+      `expected _nodes read >= 1 in legacy fallback, got ${accessLog._nodesReads}`
+    );
+    assert.strictEqual(result.ok, true);
+  });
+
+  it('company-brain queryCompanyBrain parity: getNodes(workspaceId) yields same ranked matches as _nodes filter for default and tenant-a (AC-5.3 03A)', async () => {
+    // AC-5.3 requires parity tests proving observable behavior is unchanged.
+    // Build a real graph via the canonical Graph class so we exercise the
+    // actual public API contract. Run queryCompanyBrain against the public
+    // `getNodes(workspaceId)` (post-migration) and against a legacy double
+    // with NO `getNodes` whose `_nodes` mirrors the full pre-migration
+    // internal map (includes tenant-a entries). The observable `evidence`
+    // output must match for both default and tenant-a workspaces.
+    const Graph = require('./graph');
+    const os = require('os');
+    const tmpPath = path.join(os.tmpdir(), `company-brain-parity-03a-${Date.now()}-${process.pid}.json`);
+    const graph = new Graph({ useSQLite: false, memoryPath: tmpPath });
+    try {
+      graph.addNode('axiom', 'Axiom Motor', { source: 'fixture' });
+      graph.addNode('motor', 'Motor', { source: 'fixture' });
+      graph.addEdge('axiom', 'motor', 'tur', { source: 'fixture' });
+      graph.addNode('axiom', 'Tenant Axiom Motor', { source: 'fixture' }, { workspaceId: 'tenant-a' });
+      graph.addNode('motor', 'Tenant Motor', { source: 'fixture' }, { workspaceId: 'tenant-a' });
+      // Graph.addEdge signature is (fromId, toId, relation, opts) — four args.
+      // The workspace must be carried inside `opts.workspaceId`; a fifth
+      // positional argument is silently dropped and the edge would land in
+      // the default workspace, making the tenant-a evidence array vacuously
+      // empty and the parity assertion trivially true.
+      graph.addEdge('axiom', 'motor', 'tur', { source: 'fixture', workspaceId: 'tenant-a' });
+
+      function buildKernel(graphArg) {
+        return {
+          graph: graphArg,
+          hasCapability: () => false,
+          proposeNode: () => {},
+          proposeEdge: () => ({ edge: {} }),
+        };
+      }
+
+      const plugin = createCompanyBrainPlugin();
+
+      // Public path: real Graph (has getNodes)
+      const kernelPublic = buildKernel(graph);
+      const resultPublicDefault = await plugin.run(kernelPublic, {
+        question: 'axiom ne',
+        workspaceId: 'default',
+      }, { capability: { name: 'companyBrain' } });
+      const resultPublicTenant = await plugin.run(kernelPublic, {
+        question: 'axiom ne',
+        workspaceId: 'tenant-a',
+      }, { capability: { name: 'companyBrain' } });
+
+      // Legacy scenario: legacy-shaped double with NO getNodes. `_nodes`
+      // mirrors the full pre-migration internal map. The spy proves the
+      // legacy fallback branch was actually taken.
+      const legacyAccessLog = { _nodesReads: 0 };
+      const legacyGraph = {
+        get _nodes() {
+          legacyAccessLog._nodesReads++;
+          return graph._nodes;
+        },
+        getEdges: (nodeId, ws) => graph.getEdges(nodeId, ws),
+        getInEdges: (nodeId, ws) => graph.getInEdges(nodeId, ws),
+      };
+      const kernelLegacy = buildKernel(legacyGraph);
+      const resultLegacyDefault = await plugin.run(kernelLegacy, {
+        question: 'axiom ne',
+        workspaceId: 'default',
+      }, { capability: { name: 'companyBrain' } });
+      const resultLegacyTenant = await plugin.run(kernelLegacy, {
+        question: 'axiom ne',
+        workspaceId: 'tenant-a',
+      }, { capability: { name: 'companyBrain' } });
+
+      // Parity: observable evidence output must match between public and
+      // legacy paths for both default and tenant-a workspaces.
+      assert.deepStrictEqual(resultPublicDefault.evidence, resultLegacyDefault.evidence);
+      assert.deepStrictEqual(resultPublicTenant.evidence, resultLegacyTenant.evidence);
+      assert.strictEqual(resultPublicDefault.ok, resultLegacyDefault.ok);
+      assert.strictEqual(resultPublicTenant.ok, resultLegacyTenant.ok);
+
+      // Non-vacuity: the fixture must actually exercise the evidence
+      // collection loop. Without edges in each workspace, both sides would
+      // return empty evidence arrays and the deepStrictEqual comparison
+      // above would be trivially true. The 4-arg addEdge form (with
+      // `workspaceId` carried inside `opts`) is what makes the tenant-a
+      // edge actually land in the tenant-a workspace — a 5-arg form would
+      // silently drop the workspace and leave tenant-a evidence empty.
+      assert.ok(
+        resultPublicDefault.evidence.length > 0,
+        'expected non-empty evidence for default workspace; the fixture must produce real default edges'
+      );
+      assert.ok(
+        resultPublicTenant.evidence.length > 0,
+        'expected non-empty evidence for tenant-a workspace; the fixture must produce real tenant-a edges (4-arg addEdge form required)'
+      );
+
+      // Workspace isolation: every evidence item must carry the requesting
+      // workspace. default query -> all evidence workspaceId === 'default'.
+      // tenant-a query -> all evidence workspaceId === 'tenant-a'. This
+      // catches the defect where a 5-arg addEdge form silently lands the
+      // tenant-a edge in the default workspace and the tenant-a query
+      // returns an empty (or wrong-workspace) evidence array.
+      assert.ok(
+        resultPublicDefault.evidence.every(item => item.workspaceId === 'default'),
+        'default-workspace evidence must NOT include tenant-a edges'
+      );
+      assert.ok(
+        resultPublicTenant.evidence.every(item => item.workspaceId === 'tenant-a'),
+        'tenant-a evidence must NOT include default edges'
+      );
+
+      // A4: the legacy scenario actually read `_nodes` at least once.
+      assert.ok(
+        legacyAccessLog._nodesReads >= 1,
+        `expected _nodes read >= 1 in legacy scenario, got ${legacyAccessLog._nodesReads}`
+      );
+    } finally {
+      try { fs.unlinkSync(tmpPath); } catch (_) {}
+      try { fs.unlinkSync(tmpPath.replace(/\.json$/, '.embeddings.json')); } catch (_) {}
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // REFACTOR-4D AC-5.3a Package 03 — 03B ingestManual intentional narrowing.
+  // `ingestManual` does NOT read `input.workspaceId` (Bölüm 4.2.2 of
+  // decision-4d-graph-workspace-contract.md). Pre-migration it passed the
+  // raw `_nodes` map (all workspaces) to `extractFacts`. Post-migration it
+  // passes `getNodes('default')` — an INTENTIONAL DEFAULT-WORKSPACE
+  // NARROWING, not parity. Authorized by
+  // docs/refactor/acceptance-amendment-4d-ingestmanual-narrowing.md under
+  // the AC-5.3a narrow exception (8 conditions). Three mutation guards
+  // (raw `_nodes` restored, `getNodes('tenant-a')` used, explicit default
+  // argument omitted) must all RED per Bölüm 5.4 / Bölüm 9.1 koşul 6 of
+  // the amendment. The legacy fallback is covered by a SEPARATE
+  // compatibility test (NOT part of the narrowing assertion) per Bölüm 5.5.
+  //
+  // Review turu 1 (this commit): the characterization test and all three
+  // mutation guards now use the REAL `nlp/lang-tr.js#extractFacts` and the
+  // REAL `Kernel#_parsePredicate` (instantiated via a real Kernel) instead
+  // of a fake extractor. The fixture uses the real non-default storage-key
+  // format `tenant-a::gizli kedi` (single key with embedded space, per
+  // `nodeStorageKey` in graph.js). The input `'tenant-a::gizli kedi
+  // hayvandir'` exercises the multi-word subject candidate matching in
+  // `extractFacts` (nlp/lang-tr.js): only 2–3 word candidates are tried
+  // against the known-nodes id set, so a real cross-workspace storage key
+  // like `tenant-a::gizli kedi` is reachable as a subject IFF the raw
+  // multi-workspace `_nodes` map is supplied. The observable difference is
+  // measured not only on the extracted fact (subject + predicate) but also
+  // on the `proposeEdge` call sequence: under the raw path an edge whose
+  // `from` is the tenant-a storage key is created; under the default-only
+  // path no such edge is created.
+  // -------------------------------------------------------------------------
+
+  it('company-brain ingestManual characterization: intentional default-workspace narrowing (AC-5.3a 03B)', async () => {
+    // Source-realistic fixture per review turu 1.
+    //
+    // Real non-default storage key format (graph.js#nodeStorageKey):
+    //   `${workspaceId}::${id}`
+    // For workspaceId='tenant-a' and id='gizli kedi' the storage key is
+    // the SINGLE string 'tenant-a::gizli kedi' (with embedded space).
+    // extractFacts (nlp/lang-tr.js) only tries 2–3 word subject candidates
+    // against `Object.keys(knownNodes)`, so a real cross-workspace storage
+    // key like 'tenant-a::gizli kedi' is reachable as a subject IFF the
+    // raw multi-workspace `_nodes` map is supplied.
+    //
+    // Input 'tenant-a::gizli kedi hayvandir' produces, via REAL extractFacts:
+    //   - raw multi-workspace map: subject='tenant-a::gizli kedi',
+    //     predicate='hayvandir' (the 2-word candidate 'tenant-a::gizli kedi'
+    //     matches the tenant storage key in knownNodes).
+    //   - default-only snapshot: subject='tenant-a::gizli' (first filtered
+    //     token — the 2-word candidate 'tenant-a::gizli kedi' is NOT in the
+    //     default snapshot, so extractFacts falls back to first-token
+    //     subject), predicate='kedi hayvandir'.
+    //
+    // REAL _parsePredicate (kernel.js) then produces:
+    //   - 'hayvandir'           -> { object: 'hayvan',      relation: 'tür' }
+    //   - 'kedi hayvandir'      -> { object: 'kedi hayvan', relation: 'tür' }
+    //
+    // The observable edge-difference (measured via a proposeEdge spy):
+    //   - raw path:        proposeEdge('tenant-a::gizli kedi', 'hayvan', 'tür', ...)
+    //   - default-only:    proposeEdge('tenant-a::gizli', 'kedi hayvan', 'tür', ...)
+    //   - default-only:    NO proposeEdge call has from='tenant-a::gizli kedi'
+    //                     (the cross-workspace tenant subject edge does NOT
+    //                     form under the narrowed helper).
+    //
+    // Five assertions (Bölüm 5.4 of the amendment):
+    //   (1) default node 'kedi' is in knownNodes
+    //   (2) tenant-a storage key 'tenant-a::gizli kedi' is NOT in knownNodes
+    //   (3) getNodes('default') was called (NOT 'tenant-a', NOT raw _nodes)
+    //   (4) public path did NOT read raw `_nodes`
+    //   (5) tenant-a identifier cannot affect extraction result
+    //   (6) [NEW] no proposeEdge call has from='tenant-a::gizli kedi' under
+    //       the narrowed helper (cross-workspace subject edge does NOT form)
+    //
+    // Three mutation guards (Bölüm 5.4 / Bölüm 9.1 koşul 6) — verified
+    // in the next three tests, all three MUST RED.
+
+    const createNlp = require('./nlp');
+    const nlp = createNlp('tr');
+    // Instantiate a real Kernel purely to obtain the production
+    // `_parsePredicate` (it depends on `this.nlp` and
+    // `this._normalizeExplicitRelationObject`). No graph state is shared
+    // with the spy kernel below — we only borrow the bound method.
+    const os = require('os');
+    const tmpKernelPath = path.join(os.tmpdir(), `p03-characterization-kernel-${Date.now()}-${process.pid}.json`);
+    const realKernelForParser = new Kernel({ useSQLite: false, memoryPath: tmpKernelPath });
+    try {
+      const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
+      const tenantNode = { id: 'tenant-a::gizli kedi', label: 'Gizli Kedi', workspaceId: 'tenant-a' };
+      const knownNodesRaw = {
+        'kedi': defaultNode,
+        'tenant-a::gizli kedi': tenantNode,
+      };
+      const publicSnapshotDefault = { 'kedi': { ...defaultNode } };
+
+      const accessLog = { _nodesReads: 0 };
+      const getNodesCalls = [];
+      const extractFactsCalls = [];
+      const proposeEdgeCalls = [];
+      let capturedArg = null;
+      const kernel = {
+        graph: {
+          get _nodes() {
+            accessLog._nodesReads++;
+            return knownNodesRaw;
+          },
+          getNodes(workspaceId) {
+            getNodesCalls.push(workspaceId);
+            return workspaceId === 'default' ? publicSnapshotDefault : {};
+          },
+          getEdges: () => [],
+          getInEdges: () => [],
+        },
+        // REAL extractFacts (delegates to the production turkish NLP pack).
+        extractFacts(text, knownNodes) {
+          extractFactsCalls.push({ text, knownNodeKeys: knownNodes ? Object.keys(knownNodes) : [] });
+          capturedArg = knownNodes;
+          return nlp.extractFacts(text, knownNodes);
+        },
+        // REAL _parsePredicate (bound to the production Kernel instance).
+        _parsePredicate(predicate) {
+          return realKernelForParser._parsePredicate(predicate);
+        },
+        hasCapability: () => false,
+        proposeNode: () => {},
+        proposeEdge: (from, to, relation, opts) => {
+          proposeEdgeCalls.push({ from, to, relation, opts });
+          return { edge: { from, to, relation } };
+        },
+      };
+
+      const plugin = createCompanyBrainPlugin();
+      // input.workspaceId is intentionally NOT passed — ingestManual does
+      // not read it. If a caller passes workspaceId: 'tenant-a', it is
+      // ignored by the helper (which always uses 'default').
+      const result = await plugin.run(kernel, {
+        action: 'manual',
+        sourceType: 'manual',
+        text: 'tenant-a::gizli kedi hayvandir',
+        author: 'test',
+        date: '2026-07-25',
+      }, { capability: { name: 'companyBrain' } });
+
+      // Assertion (1): default node 'kedi' is in knownNodes (capturedArg).
+      assert.ok(
+        capturedArg && Object.keys(capturedArg).includes('kedi'),
+        'expected default node "kedi" in knownNodes snapshot'
+      );
+
+      // Assertion (2): tenant-a storage key 'tenant-a::gizli kedi' is NOT
+      // in knownNodes. capturedArg must equal publicSnapshotDefault (only
+      // the default 'kedi' key).
+      assert.strictEqual(capturedArg, publicSnapshotDefault);
+      assert.deepStrictEqual(Object.keys(capturedArg), ['kedi']);
+
+      // Assertion (3): getNodes('default') was called exactly once.
+      assert.deepStrictEqual(getNodesCalls, ['default']);
+
+      // Assertion (4): public path did NOT read raw `_nodes`.
+      assert.strictEqual(accessLog._nodesReads, 0);
+
+      // Source-realistic fact extraction proof: with the default-only
+      // snapshot, REAL extractFacts cannot match the 2-word candidate
+      // 'tenant-a::gizli kedi' and falls back to the first-token subject
+      // 'tenant-a::gizli'. The predicate becomes 'kedi hayvandir', which
+      // REAL _parsePredicate then resolves to
+      // { object: 'kedi hayvan', relation: 'tür' } (the -dır suffix is
+      // stripped from 'hayvandir' and the remaining stem 'kedi hayvan'
+      // is preserved as the object because it contains a space — see
+      // kernel.js _parsePredicate multi-suffix branch).
+      assert.ok(
+        extractFactsCalls.length >= 1,
+        'expected extractFacts to be called at least once on the public path'
+      );
+      assert.deepStrictEqual(extractFactsCalls[0].knownNodeKeys, ['kedi']);
+      // The fact produced by REAL extractFacts on the default-only snapshot.
+      // This is the source-grounded proof that the narrowing changes the
+      // observable subject: the tenant storage key does NOT appear here.
+      const facts = nlp.extractFacts('tenant-a::gizli kedi hayvandir', publicSnapshotDefault);
+      assert.strictEqual(facts.length, 1);
+      assert.strictEqual(facts[0].subject, 'tenant-a::gizli');
+      assert.strictEqual(facts[0].predicate, 'kedi hayvandir');
+
+      // Assertion (5): tenant-a identifier cannot affect extraction result.
+      // Even if we pass workspaceId: 'tenant-a' in the input, ingestManual
+      // still calls getNodes('default') — the helper is constant.
+      getNodesCalls.length = 0;
+      const resultTenantInput = await plugin.run(kernel, {
+        action: 'manual',
+        sourceType: 'manual',
+        text: 'tenant-a::gizli kedi hayvandir',
+        author: 'test',
+        date: '2026-07-25',
+        workspaceId: 'tenant-a',  // must be IGNORED
+      }, { capability: { name: 'companyBrain' } });
+      assert.deepStrictEqual(getNodesCalls, ['default']);
+      assert.strictEqual(resultTenantInput.ok, true);
+      assert.strictEqual(result.ok, true);
+
+      // Assertion (6) [NEW — review turu 1]: no proposeEdge call under
+      // the narrowed (default-only) helper has from === 'tenant-a::gizli
+      // kedi'. Under the raw-_nodes mutation (guard 1) an edge with
+      // from='tenant-a::gizli kedi' WOULD form — that is the observable
+      // cross-workspace subject contamination the narrowing prevents.
+      const tenantSubjectEdges = proposeEdgeCalls.filter(call => call.from === 'tenant-a::gizli kedi');
+      assert.strictEqual(
+        tenantSubjectEdges.length,
+        0,
+        'narrowed helper must NOT produce any edge whose `from` is the tenant-a storage key; ' +
+        `saw ${tenantSubjectEdges.length} such edge(s) in proposeEdgeCalls: ${JSON.stringify(tenantSubjectEdges)}`
+      );
+
+      // Source-realistic contrast: under the raw-_nodes mutation, REAL
+      // extractFacts WOULD produce subject='tenant-a::gizli kedi'. This
+      // is computed directly (not via the helper) to prove the narrowing
+      // is what prevents the cross-workspace subject edge — not a quirk
+      // of the spy kernel.
+      const factsRaw = nlp.extractFacts('tenant-a::gizli kedi hayvandir', knownNodesRaw);
+      assert.strictEqual(factsRaw.length, 1);
+      assert.strictEqual(factsRaw[0].subject, 'tenant-a::gizli kedi');
+      assert.strictEqual(factsRaw[0].predicate, 'hayvandir');
+      // And REAL _parsePredicate on the raw-path predicate:
+      const parsedRaw = realKernelForParser._parsePredicate(factsRaw[0].predicate);
+      assert.strictEqual(parsedRaw.relation, 'tür');
+      assert.strictEqual(parsedRaw.object, 'hayvan');
+      // So under the raw path, proposeEdge WOULD be called with
+      //   from='tenant-a::gizli kedi', to='hayvan', relation='tür'
+      // — which is exactly what assertion (6) above says the narrowed
+      // helper must NOT produce.
+    } finally {
+      try { fs.unlinkSync(tmpKernelPath); } catch (_) {}
+      try { fs.unlinkSync(tmpKernelPath.replace(/\.json$/, '.embeddings.json')); } catch (_) {}
+    }
+  });
+
+  it('company-brain ingestManual mutation guard 1: restoring raw _nodes makes this test RED (AC-5.3a 03B)', async () => {
+    // MUTATION: if the ingestManualKnownNodes helper is mutated to return
+    // `kernel.graph?._nodes` (raw map) instead of `getNodes('default')`,
+    // then REAL extractFacts would receive the raw multi-workspace map
+    // and produce a fact whose subject is the tenant-a storage key
+    // 'tenant-a::gizli kedi'. This test asserts (a) the helper did NOT
+    // pass the raw map (capturedArg === publicSnapshotDefault), (b) REAL
+    // extractFacts on the public snapshot does NOT produce a fact whose
+    // subject is the tenant-a storage key, and (c) no proposeEdge call
+    // has from === 'tenant-a::gizli kedi'. Verified manually by
+    // temporarily reverting the helper — this test goes RED.
+    //
+    // NOTE: this test runs against the UNMODIFIED helper. To verify the
+    // mutation guard, run a separate mutation trial (see commit body).
+    const createNlp = require('./nlp');
+    const nlp = createNlp('tr');
+    const os = require('os');
+    const tmpKernelPath = path.join(os.tmpdir(), `p03-guard1-kernel-${Date.now()}-${process.pid}.json`);
+    const realKernelForParser = new Kernel({ useSQLite: false, memoryPath: tmpKernelPath });
+    try {
+      const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
+      const tenantNode = { id: 'tenant-a::gizli kedi', label: 'Gizli Kedi', workspaceId: 'tenant-a' };
+      const knownNodesRaw = {
+        'kedi': defaultNode,
+        'tenant-a::gizli kedi': tenantNode,
+      };
+      const publicSnapshotDefault = { 'kedi': { ...defaultNode } };
+
+      let capturedArg = null;
+      const proposeEdgeCalls = [];
+      const kernel = {
+        graph: {
+          _nodes: knownNodesRaw,
+          getNodes(workspaceId) {
+            return workspaceId === 'default' ? publicSnapshotDefault : {};
+          },
+          getEdges: () => [],
+          getInEdges: () => [],
+        },
+        extractFacts(text, knownNodes) {
+          capturedArg = knownNodes;
+          return nlp.extractFacts(text, knownNodes);
+        },
+        _parsePredicate(predicate) {
+          return realKernelForParser._parsePredicate(predicate);
+        },
+        hasCapability: () => false,
+        proposeNode: () => {},
+        proposeEdge: (from, to, relation, opts) => {
+          proposeEdgeCalls.push({ from, to, relation, opts });
+          return { edge: { from, to, relation } };
+        },
+      };
+
+      const plugin = createCompanyBrainPlugin();
+      await plugin.run(kernel, {
+        action: 'manual',
+        sourceType: 'manual',
+        text: 'tenant-a::gizli kedi hayvandir',
+        author: 'test',
+        date: '2026-07-25',
+      }, { capability: { name: 'companyBrain' } });
+
+      // Under unmodified helper: capturedArg === publicSnapshotDefault
+      //   (1 key, 'kedi'). REAL extractFacts produces subject='tenant-a::gizli'
+      //   (first-token fallback) and predicate='kedi hayvandir'.
+      // Under raw-_nodes mutation: capturedArg === knownNodesRaw
+      //   (2 keys including 'tenant-a::gizli kedi'). REAL extractFacts
+      //   produces subject='tenant-a::gizli kedi' and predicate='hayvandir'.
+      // These three assertions would ALL FAIL under the mutation.
+      assert.strictEqual(capturedArg, publicSnapshotDefault);
+      assert.strictEqual(
+        Object.keys(capturedArg).includes('tenant-a::gizli kedi'),
+        false,
+        'capturedArg must NOT include tenant-a storage key — raw-_nodes mutation would leak it'
+      );
+      // No proposeEdge call may have from === 'tenant-a::gizli kedi'.
+      // Under the raw-_nodes mutation, REAL extractFacts would produce
+      // subject='tenant-a::gizli kedi' and the plugin would call
+      // proposeEdge('tenant-a::gizli kedi', 'hayvan', 'tür', ...).
+      const tenantSubjectEdges = proposeEdgeCalls.filter(call => call.from === 'tenant-a::gizli kedi');
+      assert.strictEqual(
+        tenantSubjectEdges.length,
+        0,
+        'narrowed helper must NOT call proposeEdge with tenant-a storage key as `from`; ' +
+        `saw ${tenantSubjectEdges.length} such call(s): ${JSON.stringify(tenantSubjectEdges)}`
+      );
+    } finally {
+      try { fs.unlinkSync(tmpKernelPath); } catch (_) {}
+      try { fs.unlinkSync(tmpKernelPath.replace(/\.json$/, '.embeddings.json')); } catch (_) {}
+    }
+  });
+
+  it('company-brain ingestManual mutation guard 2: using getNodes(tenant-a) makes this test RED (AC-5.3a 03B)', async () => {
+    // MUTATION: if the ingestManualKnownNodes helper is mutated to call
+    // `getNodes('tenant-a')` instead of `getNodes('default')`, then the
+    // default 'kedi' would NOT be reachable (tenant-a snapshot is empty
+    // in this fixture). REAL extractFacts would receive an empty
+    // knownNodes map and fall back to first-token subject
+    // 'tenant-a::gizli' with predicate 'kedi hayvandir' (same as the
+    // characterization test, but for the wrong reason — the helper
+    // bypassed the default workspace). This test asserts (a) getNodes
+    // was called with the literal string 'default' (NOT 'tenant-a'),
+    // and (b) the default 'kedi' WAS reachable in the captured
+    // knownNodes snapshot. Verified manually by temporarily mutating
+    // the helper to 'tenant-a' — this test goes RED.
+    const createNlp = require('./nlp');
+    const nlp = createNlp('tr');
+    const os = require('os');
+    const tmpKernelPath = path.join(os.tmpdir(), `p03-guard2-kernel-${Date.now()}-${process.pid}.json`);
+    const realKernelForParser = new Kernel({ useSQLite: false, memoryPath: tmpKernelPath });
+    try {
+      const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
+      const tenantNode = { id: 'tenant-a::gizli kedi', label: 'Gizli Kedi', workspaceId: 'tenant-a' };
+      const knownNodesRaw = {
+        'kedi': defaultNode,
+        'tenant-a::gizli kedi': tenantNode,
+      };
+      const publicSnapshotDefault = { 'kedi': { ...defaultNode } };
+      const tenantSnapshot = {};
+
+      const getNodesCalls = [];
+      let capturedArg = null;
+      const kernel = {
+        graph: {
+          _nodes: knownNodesRaw,
+          getNodes(workspaceId) {
+            getNodesCalls.push(workspaceId);
+            return workspaceId === 'default' ? publicSnapshotDefault : tenantSnapshot;
+          },
+          getEdges: () => [],
+          getInEdges: () => [],
+        },
+        extractFacts(text, knownNodes) {
+          capturedArg = knownNodes;
+          return nlp.extractFacts(text, knownNodes);
+        },
+        _parsePredicate(predicate) {
+          return realKernelForParser._parsePredicate(predicate);
+        },
+        hasCapability: () => false,
+        proposeNode: () => {},
+        proposeEdge: () => ({ edge: {} }),
+      };
+
+      const plugin = createCompanyBrainPlugin();
+      await plugin.run(kernel, {
+        action: 'manual',
+        sourceType: 'manual',
+        text: 'tenant-a::gizli kedi hayvandir',
+        author: 'test',
+        date: '2026-07-25',
+      }, { capability: { name: 'companyBrain' } });
+
+      // Under unmodified helper: getNodesCalls === ['default'] and the
+      //   captured arg is the default snapshot (1 key 'kedi').
+      // Under 'tenant-a' mutation: getNodesCalls === ['tenant-a'] and
+      //   the captured arg is the empty tenant snapshot (0 keys).
+      // Both assertions would FAIL under the mutation.
+      assert.deepStrictEqual(getNodesCalls, ['default']);
+      assert.strictEqual(capturedArg, publicSnapshotDefault);
+      assert.deepStrictEqual(Object.keys(capturedArg), ['kedi']);
+    } finally {
+      try { fs.unlinkSync(tmpKernelPath); } catch (_) {}
+      try { fs.unlinkSync(tmpKernelPath.replace(/\.json$/, '.embeddings.json')); } catch (_) {}
+    }
+  });
+
+  it('company-brain ingestManual mutation guard 3: explicit default argument omission makes this test RED (AC-5.3a 03B)', async () => {
+    // MUTATION: if the helper is mutated to call `getNodes()` with no
+    // argument (or `getNodes(undefined)`), the production Graph
+    // implementation defaults to 'default' (graph.js:617
+    // `workspaceId = 'default'`), so the observable behavior in
+    // production would be unchanged. The defect this guard catches is
+    // therefore NOT a runtime leak — it is a code-review smell: the
+    // narrowing contract requires the helper to pass the LITERAL STRING
+    // 'default' explicitly so reviewers and grep-based audits can verify
+    // the workspace is pinned. Omitting the argument relies on a default
+    // value defined elsewhere and makes the narrowing intent invisible
+    // at the call site.
+    //
+    // This test uses a custom getNodes that distinguishes between
+    // `getNodes('default')` (literal string) and `getNodes()` /
+    // `getNodes(undefined)` (omitted argument). Under the unmodified
+    // helper, getNodes is called with the literal 'default'. Under the
+    // omission mutation, getNodes is called with `undefined`. The
+    // assertion `getNodesCalls === ['default']` catches this mutation
+    // regardless of whether the production Graph would silently default
+    // the omitted argument.
+    //
+    // Verified manually by mutating the helper to call `getNodes()` (no
+    // arg) — this test goes RED. The previous "workspace filter removed"
+    // framing was retired in review turu 1: the production Graph default
+    // already pins 'default', so a no-arg call does NOT actually remove
+    // the workspace filter — it only obscures the narrowing intent at
+    // the call site. The renamed guard reflects what the mutation
+    // actually breaks (explicit-ness) rather than what it does not
+    // break (the runtime filter).
+    const createNlp = require('./nlp');
+    const nlp = createNlp('tr');
+    const os = require('os');
+    const tmpKernelPath = path.join(os.tmpdir(), `p03-guard3-kernel-${Date.now()}-${process.pid}.json`);
+    const realKernelForParser = new Kernel({ useSQLite: false, memoryPath: tmpKernelPath });
+    try {
+      const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
+      const tenantNode = { id: 'tenant-a::gizli kedi', label: 'Gizli Kedi', workspaceId: 'tenant-a' };
+      const knownNodesRaw = {
+        'kedi': defaultNode,
+        'tenant-a::gizli kedi': tenantNode,
+      };
+      const publicSnapshotDefault = { 'kedi': { ...defaultNode } };
+
+      const getNodesCalls = [];
+      const kernel = {
+        graph: {
+          _nodes: knownNodesRaw,
+          getNodes(workspaceId) {
+            getNodesCalls.push(workspaceId);
+            // Distinguish between literal 'default' and omitted (undefined)
+            // argument. Both fall through to the default snapshot here —
+            // the assertion is on the captured ARGUMENT, not on the
+            // returned snapshot, because the production Graph would also
+            // default an omitted argument to 'default' and the runtime
+            // behavior would be identical. The narrowing contract
+            // requires the literal 'default' string at the call site.
+            if (workspaceId === 'default' || workspaceId === undefined || workspaceId === null || workspaceId === '') {
+              return publicSnapshotDefault;
+            }
+            return {};
+          },
+          getEdges: () => [],
+          getInEdges: () => [],
+        },
+        extractFacts(text, knownNodes) {
+          return nlp.extractFacts(text, knownNodes);
+        },
+        _parsePredicate(predicate) {
+          return realKernelForParser._parsePredicate(predicate);
+        },
+        hasCapability: () => false,
+        proposeNode: () => {},
+        proposeEdge: () => ({ edge: {} }),
+      };
+
+      const plugin = createCompanyBrainPlugin();
+      await plugin.run(kernel, {
+        action: 'manual',
+        sourceType: 'manual',
+        text: 'tenant-a::gizli kedi hayvandir',
+        author: 'test',
+        date: '2026-07-25',
+      }, { capability: { name: 'companyBrain' } });
+
+      // Under unmodified helper: getNodesCalls === ['default'] (literal
+      //   string). The narrowing intent is visible at the call site.
+      // Under omission mutation: getNodesCalls === [undefined] (or
+      //   [null] / [''] depending on how the helper is mutated). The
+      //   production Graph would still default to 'default' and the
+      //   runtime behavior would be identical, but the narrowing intent
+      //   is no longer visible at the call site.
+      // This assertion catches the omission mutation by requiring the
+      // literal string 'default' to be passed explicitly.
+      assert.deepStrictEqual(
+        getNodesCalls,
+        ['default'],
+        'narrowed helper must pass the literal string "default" to getNodes; ' +
+        `saw getNodesCalls=${JSON.stringify(getNodesCalls)} — explicit default argument omission would produce [undefined] or [""]`
+      );
+    } finally {
+      try { fs.unlinkSync(tmpKernelPath); } catch (_) {}
+      try { fs.unlinkSync(tmpKernelPath.replace(/\.json$/, '.embeddings.json')); } catch (_) {}
+    }
+  });
+
+  it('company-brain ingestManual legacy fallback compatibility: _nodes used when getNodes absent (AC-6 03B)', async () => {
+    // Per Bölüm 5.5 of the amendment: the legacy fallback (kernel.graph._nodes)
+    // is retained for test harnesses that construct mock graphs without
+    // getNodes. This is a SEPARATE compatibility test, NOT part of the
+    // narrowing assertion. AC-6 requires plugin/manifest compatibility proof.
+    // The fallback must preserve the pre-migration behavior exactly: the
+    // raw _nodes map (all workspaces) is passed to REAL extractFacts.
+    //
+    // Review turu 1: extractFacts and _parsePredicate upgraded from fake
+    // implementations to the REAL production code paths (nlp/lang-tr.js
+    // and Kernel#_parsePredicate respectively). The fixture uses the
+    // real tenant storage key format 'tenant-a::gizli kedi'. Under the
+    // legacy fallback the raw multi-workspace map IS supplied to
+    // extractFacts, so the 2-word candidate 'tenant-a::gizli kedi'
+    // matches and REAL extractFacts produces subject='tenant-a::gizli
+    // kedi'. This is the source-grounded proof that the legacy fallback
+    // preserves the pre-migration (raw-map, multi-workspace) behavior.
+    const createNlp = require('./nlp');
+    const nlp = createNlp('tr');
+    const os = require('os');
+    const tmpKernelPath = path.join(os.tmpdir(), `p03-legacy-kernel-${Date.now()}-${process.pid}.json`);
+    const realKernelForParser = new Kernel({ useSQLite: false, memoryPath: tmpKernelPath });
+    try {
+      const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
+      const tenantNode = { id: 'tenant-a::gizli kedi', label: 'Gizli Kedi', workspaceId: 'tenant-a' };
+      const knownNodesRaw = {
+        'kedi': defaultNode,
+        'tenant-a::gizli kedi': tenantNode,
+      };
+
+      const accessLog = { _nodesReads: 0 };
+      let capturedArg = null;
+      let capturedFacts = null;
+      const kernel = {
+        graph: {
+          get _nodes() {
+            accessLog._nodesReads++;
+            return knownNodesRaw;
+          },
+          // No getNodes() at all — forces legacy fallback
+          getEdges: () => [],
+          getInEdges: () => [],
+        },
+        extractFacts(text, knownNodes) {
+          capturedArg = knownNodes;
+          const facts = nlp.extractFacts(text, knownNodes);
+          capturedFacts = facts;
+          return facts;
+        },
+        _parsePredicate(predicate) {
+          return realKernelForParser._parsePredicate(predicate);
+        },
+        hasCapability: () => false,
+        proposeNode: () => {},
+        proposeEdge: () => ({ edge: {} }),
+      };
+
+      const plugin = createCompanyBrainPlugin();
+      const result = await plugin.run(kernel, {
+        action: 'manual',
+        sourceType: 'manual',
+        text: 'tenant-a::gizli kedi hayvandir',
+        author: 'test',
+        date: '2026-07-25',
+      }, { capability: { name: 'companyBrain' } });
+
+      // AC-6 (a): legacy path actually read `_nodes` at least once.
+      assert.ok(
+        accessLog._nodesReads >= 1,
+        `expected _nodes read >= 1 in legacy fallback, got ${accessLog._nodesReads}`
+      );
+      // AC-6 (b): captured arg is the raw _nodes map (NOT a snapshot).
+      // The raw multi-workspace map includes the tenant-a storage key.
+      assert.strictEqual(capturedArg, knownNodesRaw);
+      assert.ok(
+        Object.keys(capturedArg).includes('tenant-a::gizli kedi'),
+        'legacy fallback must supply the raw multi-workspace map (incl. tenant storage key) to extractFacts'
+      );
+      // AC-6 (c): REAL extractFacts on the raw map produces a fact whose
+      // subject IS the tenant-a storage key. This is the source-grounded
+      // proof that the legacy fallback preserves the pre-migration
+      // (multi-workspace, raw-map) behavior — and the exact reason the
+      // post-migration narrowing is a behavior change, not parity.
+      assert.ok(capturedFacts && capturedFacts.length >= 1);
+      assert.strictEqual(capturedFacts[0].subject, 'tenant-a::gizli kedi');
+      assert.strictEqual(capturedFacts[0].predicate, 'hayvandir');
+      // AC-6 (d): REAL _parsePredicate on 'hayvandir' returns the
+      // expected relation/object shape — proving the legacy path is
+      // source-realistic end-to-end (not a fake).
+      const parsed = realKernelForParser._parsePredicate(capturedFacts[0].predicate);
+      assert.strictEqual(parsed.relation, 'tür');
+      assert.strictEqual(parsed.object, 'hayvan');
+      // AC-6 (e): plugin still produces a valid ingest result.
+      assert.strictEqual(result.ok, true);
+      assert.strictEqual(result.sourceType, 'manual');
+      assert.ok(result.added >= 1);
+    } finally {
+      try { fs.unlinkSync(tmpKernelPath); } catch (_) {}
+      try { fs.unlinkSync(tmpKernelPath.replace(/\.json$/, '.embeddings.json')); } catch (_) {}
+    }
+  });
 });

@@ -110,8 +110,58 @@ function extractTokens(text) {
     .filter(item => item.length >= 3);
 }
 
+// REFACTOR-4D AC-5.5 (Package 03 — 03A queryCompanyBrain):
+// Migrate private `kernel.graph?._nodes` access to the public
+// `graph.getNodes(workspaceId)` API. `queryCompanyBrain` is a dynamic-
+// workspace use case (Bölüm 4.2.1 of decision-4d-graph-workspace-contract.md):
+// `input.workspaceId || 'default'` is forwarded to `getNodes`, so tenant
+// callers see tenant nodes and default callers see default nodes. AC-5.3
+// parity is preserved — the public API applies the same workspace filter
+// the inline loop previously applied, so the observable set of ranked
+// matches is unchanged for every workspace value.
+//
+// `extractFacts` (used by 03B below) accepts either an object (uses
+// `Object.keys`) or an array; both `_nodes` and `getNodes(<ws>)` return
+// `{id: node}` maps, so the observable behavior is preserved.
+//
+// Fallback to `kernel.graph?._nodes` is retained ONLY for legacy test
+// harnesses and mock kernels that construct a graph without `getNodes`.
+// Real `Graph` instances always expose `getNodes`, so the fallback never
+// runs in production. See docs/refactor/refactor-4d-contract-acceptance.md
+// AC-5.3 + AC-5.5 and docs/refactor/decision-4d-graph-workspace-contract.md
+// (Bölüm 4.2.1 — queryCompanyBrain dynamic-workspace target, BINDING).
+function queryCompanyBrainKnownNodes(kernel, workspaceId = 'default') {
+  if (!kernel) return {};
+  if (kernel.graph && typeof kernel.graph.getNodes === 'function') {
+    return kernel.graph.getNodes(workspaceId);
+  }
+  return kernel.graph?._nodes || {};
+}
+
+// REFACTOR-4D AC-5.5 (Package 03 — 03B ingestManual):
+// `ingestManual` does NOT read `input.workspaceId` (Bölüm 4.2.2 of
+// decision-4d-graph-workspace-contract.md). Pre-migration it passed the
+// raw `_nodes` map (all workspaces) to `extractFacts`. Post-migration it
+// passes `getNodes('default')` — an INTENTIONAL DEFAULT-WORKSPACE
+// NARROWING, not parity. This narrowing is authorized by
+// docs/refactor/acceptance-amendment-4d-ingestmanual-narrowing.md under
+// the AC-5.3a narrow exception (8 conditions). Three mutation guards
+// (raw `_nodes` restored, `getNodes('tenant-a')` used, workspace filter
+// removed) must all RED — see Bölüm 5.4 / Bölüm 9.1 koşul 6 of the
+// amendment. Fallback to `_nodes` retained for legacy test harnesses
+// only; the legacy fallback is covered by a SEPARATE compatibility test
+// (NOT part of the narrowing assertion) per Bölüm 5.5 of the amendment.
+function ingestManualKnownNodes(kernel) {
+  if (!kernel) return {};
+  if (kernel.graph && typeof kernel.graph.getNodes === 'function') {
+    return kernel.graph.getNodes('default');
+  }
+  return kernel.graph?._nodes || {};
+}
+
 function rankGraphMatches(kernel, tokens, workspaceId = null) {
-  const nodes = Object.values(kernel.graph?._nodes || {});
+  const knownNodes = queryCompanyBrainKnownNodes(kernel, workspaceId || 'default');
+  const nodes = Object.values(knownNodes);
   const scored = [];
   for (const node of nodes) {
     if (workspaceId && (node.workspaceId || 'default') !== workspaceId) continue;
@@ -243,7 +293,7 @@ function ingestManual(kernel, input = {}) {
 
   kernel.proposeNode(noteNode, noteNode);
   const facts = typeof kernel.extractFacts === 'function'
-    ? (kernel.extractFacts(text, kernel.graph?._nodes) || [])
+    ? (kernel.extractFacts(text, ingestManualKnownNodes(kernel)) || [])
     : [];
 
   let added = 0;
