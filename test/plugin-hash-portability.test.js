@@ -10,16 +10,17 @@ const Kernel = require('../kernel');
 // file bytes (crypto.createHash('sha256').update(fs.readFileSync(filePath))).
 // That hash is byte-sensitive: on a CRLF checkout (e.g. Windows with
 // core.autocrlf=true) the working-tree bytes of plugins/*.js change, the
-// sha256 no longer matches plugins/*.manifest.json, idea-mri / company-brain
+// sha256 no longer matches plugins/*.manifest.json, affected plugins
 // are rejected at load, and getCapability('ideaMri') / getCapability(
-// 'ingestStatus') return null -> CLI "Unknown plugin capability" + ingest 500.
+// 'ingestStatus') / getCapability('discoveryEngine') return null -> runtime
+// capability calls fail even though the plugin source itself is present.
 //
 // The fix is to enforce LF working-tree bytes for signed plugin files via
 // .gitattributes (eol=lf). These tests guard that the signed bytes stay stable
 // and that the affected capabilities remain available after loading. They do
 // NOT weaken manifest verification or normalize line endings in the hash.
 const PLUGINS_DIR = path.join(__dirname, '..', 'plugins');
-const SIGNED_PLUGINS = ['idea-mri', 'company-brain'];
+const SIGNED_PLUGINS = ['idea-mri', 'company-brain', 'discovery-engine'];
 
 describe('Plugin hash portability (FAZ2-0C)', () => {
   for (const base of SIGNED_PLUGINS) {
@@ -44,7 +45,7 @@ describe('Plugin hash portability (FAZ2-0C)', () => {
     });
   }
 
-  it('idea-mri and company-brain capabilities load and verify', () => {
+  it('affected plugin capabilities load and verify', () => {
     // Mirror the CLI/server harness: company-brain requires the graph and
     // companyMode capabilities, so it only registers under a real kernel.
     const cli = new CLI();
@@ -60,5 +61,8 @@ describe('Plugin hash portability (FAZ2-0C)', () => {
 
     const ingestStatus = cli.kernel.plugins.getCapability('ingestStatus');
     assert.ok(ingestStatus, 'getCapability("ingestStatus") must be available after loading');
+
+    const discoveryEngine = cli.kernel.plugins.getCapability('discoveryEngine');
+    assert.ok(discoveryEngine, 'getCapability("discoveryEngine") must be available after loading');
   });
 });
