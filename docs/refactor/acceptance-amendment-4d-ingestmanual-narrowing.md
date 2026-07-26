@@ -87,9 +87,12 @@ known nodes:
 kernel.graph.getNodes('default')
 ```
 
-**Yeni public API açılmaz.** Özellikle, workspace filtresiz yeni bir public
-seam (`getNodes()` argümansız varyantı, `getAllNodes()` benzeri) bu
-amendment'la **yetkilendirilmez**. `decision-4d-graph-workspace-contract.md`
+**Yeni public API açılmaz.** Özellikle, tüm workspace'lerin node'larını
+filtresiz döndüren yeni bir public seam (`getAllNodes()` benzeri) bu
+amendment'la **yetkilendirilmez**. (Not: `getNodes()`'in argümansız
+çağrılması bu kategoriye girmez — `Graph.getNodes(workspaceId = 'default')`
+argüman düşünce filtresiz hale gelmez, `'default'` scope'una düşer;
+bkz. Bölüm 5.4 mutation 3 tanımı.) `decision-4d-graph-workspace-contract.md`
 Bölüm 4.2.1'de belirtilen dinamik workspace adayı
 (`getNodes(input.workspaceId || 'default')`) bu use-case için ölüdür; call-site
 audit (`decision-4d-graph-workspace-contract.md` Bölüm 4.2.2, 2026-07-25)
