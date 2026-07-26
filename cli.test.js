@@ -38,6 +38,7 @@ function createInteractiveHarness(cli, persistImpl = () => undefined) {
   const events = [];
   const originalCreateInterface = readline.createInterface;
   const originalLog = console.log;
+  const originalError = console.error;
   const originalExit = process.exit;
   const originalPersist = cli.kernel.persist;
   const originalSave = cli.kernel.graph.save;
@@ -45,6 +46,7 @@ function createInteractiveHarness(cli, persistImpl = () => undefined) {
   const originalMemoryClose = cli.kernel.memory.close;
   let lineHandler;
   let closeHandler;
+  let closePromise;
   let restored = false;
 
   function restore() {
@@ -52,6 +54,7 @@ function createInteractiveHarness(cli, persistImpl = () => undefined) {
     restored = true;
     readline.createInterface = originalCreateInterface;
     console.log = originalLog;
+    console.error = originalError;
     process.exit = originalExit;
     cli.kernel.persist = originalPersist;
     cli.kernel.graph.save = originalSave;
@@ -68,13 +71,15 @@ function createInteractiveHarness(cli, persistImpl = () => undefined) {
     prompt() { events.push('prompt'); },
     close() {
       events.push('close');
-      closeHandler?.();
+      closePromise = closeHandler?.();
+      return this;
     },
   };
 
   try {
     readline.createInterface = () => rl;
     console.log = message => events.push(`log:${message}`);
+    console.error = error => events.push(`error:${error?.message || error}`);
     process.exit = code => events.push(`exit:${code}`);
     cli.kernel.persist = () => {
       events.push('persist');
@@ -101,6 +106,11 @@ function createInteractiveHarness(cli, persistImpl = () => undefined) {
     return {
       events,
       line: input => lineHandler(input),
+      eof() {
+        closePromise = closeHandler();
+        return closePromise;
+      },
+      waitForClose: () => closePromise || Promise.resolve(),
       restore,
     };
   } catch (error) {
@@ -677,6 +687,7 @@ describe('CLI - Lifecycle and maintenance baseline contracts', { concurrency: fa
       const harness = createInteractiveHarness(cli);
       try {
         await harness.line('exit');
+        await harness.waitForClose();
         assert.deepStrictEqual(harness.events, [
           'persist',
           'log:Hafiza kaydedildi. Gule gule.',
@@ -689,13 +700,85 @@ describe('CLI - Lifecycle and maintenance baseline contracts', { concurrency: fa
     });
   });
 
+  it('queues piped lines so EOF waits for earlier async command output', async () => {
+    await withIsolatedInteractiveCLI(async cli => {
+      const originalExecute = cli.execute;
+      let resolveFirst;
+      const firstResult = new Promise(resolve => {
+        resolveFirst = resolve;
+      });
+      cli.execute = command => {
+        if (command === 'durum') return firstResult;
+        return originalExecute.call(cli, command);
+      };
+
+      const harness = createInteractiveHarness(cli);
+      try {
+        const firstLine = harness.line('durum');
+        const saveLine = harness.line('kaydet');
+        const eof = harness.eof();
+        await new Promise(resolve => setImmediate(resolve));
+
+        assert.deepStrictEqual(harness.events, []);
+
+        resolveFirst('durum-output');
+        await firstLine;
+        await saveLine;
+        await eof;
+        assert.deepStrictEqual(harness.events, [
+          'log:durum-output',
+          'prompt',
+          'persist',
+          'log:Hafiza kaydedildi.',
+          'prompt',
+          'exit:0',
+        ]);
+      } finally {
+        cli.execute = originalExecute;
+        harness.restore();
+      }
+    });
+  });
+
+  it('continues queued line processing after propagating an earlier command error', async () => {
+    await withIsolatedInteractiveCLI(async cli => {
+      const originalExecute = cli.execute;
+      const expected = new Error('command failed');
+      cli.execute = command => {
+        if (command === 'durum') return Promise.reject(expected);
+        return originalExecute.call(cli, command);
+      };
+
+      const harness = createInteractiveHarness(cli);
+      try {
+        const failedLine = harness.line('durum');
+        const saveLine = harness.line('kaydet');
+
+        await assert.rejects(failedLine, error => error === expected);
+        await saveLine;
+        assert.deepStrictEqual(harness.events, [
+          'error:command failed',
+          'persist',
+          'log:Hafiza kaydedildi.',
+          'prompt',
+        ]);
+      } finally {
+        cli.execute = originalExecute;
+        harness.restore();
+      }
+    });
+  });
+
   it('interactive persistence errors propagate without success output or prompt', async () => {
     await withIsolatedInteractiveCLI(async cli => {
       const expected = new Error('persist failed');
       const harness = createInteractiveHarness(cli, () => { throw expected; });
       try {
         await assert.rejects(harness.line('kaydet'), error => error === expected);
-        assert.deepStrictEqual(harness.events, ['persist']);
+        assert.deepStrictEqual(harness.events, [
+          'persist',
+          'error:persist failed',
+        ]);
       } finally {
         harness.restore();
       }
@@ -734,6 +817,7 @@ describe('CLI - Lifecycle and maintenance baseline contracts', { concurrency: fa
       const originalStart = cli.start;
       const originalCreateInterface = readline.createInterface;
       const originalLog = console.log;
+      const originalError = console.error;
       const originalExit = process.exit;
       const originalPersist = cli.kernel.persist;
       const originalSave = cli.kernel.graph.save;
@@ -752,6 +836,7 @@ describe('CLI - Lifecycle and maintenance baseline contracts', { concurrency: fa
         );
         assert.strictEqual(readline.createInterface, originalCreateInterface);
         assert.strictEqual(console.log, originalLog);
+        assert.strictEqual(console.error, originalError);
         assert.strictEqual(process.exit, originalExit);
         assert.strictEqual(cli.kernel.persist, originalPersist);
         assert.strictEqual(cli.kernel.graph.save, originalSave);

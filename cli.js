@@ -582,8 +582,7 @@ class CLI {
     console.log('  "yardım"               | Komutlar');
     console.log('  "çıkış"                | Cikis\n');
 
-    rl.prompt();
-    rl.on('line', async (line) => {
+    const handleLine = async (line) => {
       const parsed = this.parse(line);
       if (parsed.command === 'kaydet') {
         this._auditCliMutation('kaydet', CLI_MUTATION_GATE.kaydet, 'allow', true);
@@ -604,8 +603,24 @@ class CLI {
         console.log(output);
       }
       rl.prompt();
+    };
+
+    let lineQueue = Promise.resolve();
+    let closeExit = null;
+    rl.prompt();
+    rl.on('line', (line) => {
+      const current = lineQueue.then(() => handleLine(line));
+      lineQueue = current.catch(error => {
+        console.error(error);
+      });
+      return current;
     });
-    rl.on('close', () => process.exit(0));
+    rl.on('close', () => {
+      if (!closeExit) {
+        closeExit = lineQueue.then(() => process.exit(0));
+      }
+      return closeExit;
+    });
   }
 
   _evaluateCliGate(command, args) {
