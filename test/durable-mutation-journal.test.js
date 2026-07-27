@@ -7,6 +7,7 @@ const path = require('node:path');
 const { after, test } = require('node:test');
 
 const Graph = require('../graph');
+const { buildCanonicalReceiptPayload } = require('../lib/receipt/canonical-receipt');
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-durable-journal-'));
 
@@ -66,6 +67,37 @@ test('durable journal restores in-memory state when callback rolls back', () => 
   assert.equal(graph.getAuditEvents({ workspaceId: 'w' }).length, 0);
   const retry = graph.runMutationOnce('approval-rollback', () => ({ learned: 0 }));
   assert.equal(retry.replayed, false);
+});
+
+test('durable journal persists one hash-chained canonical receipt with the operation', () => {
+  const graph = makeGraph('receipt');
+  const makePayload = (receiptId) => buildCanonicalReceiptPayload({
+    receiptId,
+    receiptKind: 'memory_admission_receipt',
+    decision: 'allow',
+    status: 'admitted',
+    admissionId: `admission-${receiptId}`,
+    workspaceId: 'w',
+    provenanceId: `prov-${receiptId}`,
+    trustPolicyVersion: 'test',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  }, { verdict: 'allow' });
+
+  const first = graph.runMutationOnce('receipt-operation-1', () => ({ learned: 1 }), {
+    buildCanonicalReceipt: () => makePayload('receipt-1'),
+  });
+  const second = graph.runMutationOnce('receipt-operation-2', () => ({ learned: 1 }), {
+    buildCanonicalReceipt: () => makePayload('receipt-2'),
+  });
+  const replay = graph.runMutationOnce('receipt-operation-1', () => {
+    throw new Error('must not replay mutation');
+  }, { buildCanonicalReceipt: () => makePayload('receipt-1') });
+
+  assert.equal(first.receipt.receiptId, 'receipt-1');
+  assert.equal(second.receipt.previousReceiptHash, first.receipt.receiptHash);
+  assert.equal(replay.replayed, true);
+  assert.equal(replay.receipt.receiptHash, first.receipt.receiptHash);
+  assert.deepEqual(graph.getCommittedMutationReceiptById('receipt-2'), second.receipt);
 });
 
 test('durable journal fails closed without SQLite', () => {

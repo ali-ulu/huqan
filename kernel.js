@@ -11,6 +11,8 @@ const { detectClaimConflict, routeCandidateClaim } = require('./lib/conflict-det
 const { createKernelReadUseCases } = require('./lib/kernel-read-use-cases');
 const { runLearnUseCase } = require('./lib/learn-use-case');
 const MemoryStore = require('./lib/memory-store');
+const { buildCanonicalReceiptPayload } = require('./lib/receipt/canonical-receipt');
+const { toCanonicalVerdict } = require('./lib/verdict/action-verdict');
 
 let RustGraph;
 try { RustGraph = require('./rustGraph'); } catch {}
@@ -879,10 +881,34 @@ class Kernel {
         }, {
           normalizeWorkspaceId,
           ProvenanceError,
-        }));
+        }), {
+          buildCanonicalReceipt: (learnResult) => {
+            const receipt = learnResult?.data?.admission?.receipt;
+            if (!receipt || typeof receipt !== 'object') {
+              throw new Error('approved durable learn did not produce an admission receipt');
+            }
+            const committedAt = new Date().toISOString();
+            return buildCanonicalReceiptPayload({
+              ...receipt,
+              metadata: {
+                ...(receipt.metadata || {}),
+                mutationOperationId: operationId,
+                committedAt,
+              },
+            }, {
+              verdict: toCanonicalVerdict('admission', receipt.decision),
+            });
+          },
+        });
         const result = outcome.result;
         if (result && typeof result === 'object') {
-          result.meta = { ...(result.meta || {}), durableMutation: true, replayed: outcome.replayed === true };
+          result.meta = {
+            ...(result.meta || {}),
+            durableMutation: true,
+            replayed: outcome.replayed === true,
+            committedReceiptId: outcome.receipt?.receiptId || null,
+            committedReceiptHash: outcome.receipt?.receiptHash || null,
+          };
         }
         if (!outcome.replayed) {
           try { this.graph.save(); } catch (error) { console.error('[Kernel] Graph save error:', error.message); }

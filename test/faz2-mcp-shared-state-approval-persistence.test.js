@@ -141,6 +141,8 @@ test('FAZ2-5: approving a persisted MCP approval executes once through admission
     assert.equal(approved.data.result.data.admission.approvalStatus, 'approved');
     assert.equal(approved.data.result.meta.durableMutation, true);
     assert.equal(approved.data.result.meta.replayed, false);
+    assert.ok(approved.data.result.meta.committedReceiptId);
+    assert.ok(approved.data.result.meta.committedReceiptHash);
 
     const auditCountAfterApprove = learnAuditCount(server, text);
     assert.ok(auditCountAfterApprove >= 1, 'approved execution must emit LEARN audit');
