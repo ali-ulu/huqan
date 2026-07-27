@@ -348,6 +348,12 @@ class Graph {
         warnings TEXT NOT NULL DEFAULT '[]',
         UNIQUE(workspace_id, candidate_id)
       );
+      CREATE TABLE IF NOT EXISTS mutation_journal (
+        operation_id TEXT PRIMARY KEY,
+        status TEXT NOT NULL CHECK(status IN ('completed')),
+        result TEXT NOT NULL,
+        completed_at TEXT NOT NULL
+      );
       CREATE TRIGGER IF NOT EXISTS audit_log_no_update
       BEFORE UPDATE ON audit_log
       BEGIN
@@ -442,6 +448,7 @@ class Graph {
       CREATE INDEX IF NOT EXISTS idx_audit_workspace_timestamp ON audit_log(workspace_id, timestamp);
       CREATE INDEX IF NOT EXISTS idx_candidates_workspace_status ON candidate_claims(workspace_id, status, recommendation);
       CREATE INDEX IF NOT EXISTS idx_candidates_workspace_created ON candidate_claims(workspace_id, created_at);
+      CREATE INDEX IF NOT EXISTS idx_mutation_journal_completed ON mutation_journal(completed_at);
     `);
 
     // Prepared statements
@@ -517,7 +524,54 @@ class Graph {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `),
       allAuditEvents: this._db.prepare('SELECT * FROM audit_log ORDER BY timestamp ASC, audit_id ASC'),
+      getMutationJournal: this._db.prepare('SELECT operation_id, status, result, completed_at FROM mutation_journal WHERE operation_id = ?'),
+      insertMutationJournal: this._db.prepare('INSERT INTO mutation_journal (operation_id, status, result, completed_at) VALUES (?, ?, ?, ?)'),
     };
+  }
+
+  runMutationOnce(operationId, mutate) {
+    const id = typeof operationId === 'string' ? operationId.trim() : '';
+    if (!id) throw new Error('mutation operationId is required');
+    if (typeof mutate !== 'function') throw new TypeError('mutation callback is required');
+    if (!this._db || !this._stmts) {
+      const error = new Error('durable mutation journal requires the SQLite Graph backend');
+      error.code = 'DURABLE_MUTATION_JOURNAL_UNAVAILABLE';
+      throw error;
+    }
+
+    const readStored = () => {
+      const row = this._stmts.getMutationJournal.get(id);
+      return row && row.status === 'completed' ? JSON.parse(row.result) : null;
+    };
+    const stored = readStored();
+    if (stored !== null) return { replayed: true, result: stored };
+
+    const snapshot = {
+      nodes: deepClone(this._nodes), edges: deepClone(this._edges),
+      candidateClaims: deepClone(this._candidateClaims), auditEvents: deepClone(this._auditEvents),
+    };
+    try {
+      const execute = this._db.transaction(() => {
+        const alreadyCompleted = readStored();
+        if (alreadyCompleted !== null) return { replayed: true, result: alreadyCompleted };
+        const result = mutate();
+        this._stmts.insertMutationJournal.run(id, 'completed', JSON.stringify(result), nowIso());
+        return { replayed: false, result };
+      });
+      return execute();
+    } catch (error) {
+      // SQLite rolls back, but Graph also keeps mutable in-memory indexes.
+      this._nodes = snapshot.nodes;
+      this._edges = snapshot.edges;
+      this._candidateClaims = snapshot.candidateClaims;
+      this._auditEvents = snapshot.auditEvents;
+      this._outIndex.clear();
+      this._inIndex.clear();
+      this._rebuildIndex();
+      const completed = readStored();
+      if (completed !== null) return { replayed: true, result: completed };
+      throw error;
+    }
   }
 
   // ─── Node işlemleri ───────────────────────────────────────────────────────

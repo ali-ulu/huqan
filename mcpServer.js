@@ -868,6 +868,7 @@ function buildApprovalAdmissionOptions(approval, args = {}) {
     approvalRequired: true,
     approvalStatus: 'approved',
     approvalId: approval.id,
+    mutationOperationId: approval.id,
     sourceType: 'mcp_approval',
     sourceRef: approvalKey,
     actor: 'mcp-approval',

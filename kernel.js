@@ -862,6 +862,36 @@ class Kernel {
     const nextOpts = ev.opts || opts;
     this._enterCriticalSection('learn');
     try {
+      const operationId = typeof nextOpts.mutationOperationId === 'string'
+        ? nextOpts.mutationOperationId.trim()
+        : '';
+      if (operationId) {
+        if (!this.graph || typeof this.graph.runMutationOnce !== 'function') {
+          const error = new Error('durable mutation journal is unavailable');
+          error.code = 'DURABLE_MUTATION_JOURNAL_UNAVAILABLE';
+          throw error;
+        }
+        const postCommitEffects = [];
+        const outcome = this.graph.runMutationOnce(operationId, () => runLearnUseCase(this, nextText, {
+          ...nextOpts,
+          _durableMutationTransaction: true,
+          _postCommitEffects: postCommitEffects,
+        }, {
+          normalizeWorkspaceId,
+          ProvenanceError,
+        }));
+        const result = outcome.result;
+        if (result && typeof result === 'object') {
+          result.meta = { ...(result.meta || {}), durableMutation: true, replayed: outcome.replayed === true };
+        }
+        if (!outcome.replayed) {
+          try { this.graph.save(); } catch (error) { console.error('[Kernel] Graph save error:', error.message); }
+          for (const effect of postCommitEffects) {
+            try { effect(); } catch (error) { console.error('[Kernel] post-commit effect error:', error.message); }
+          }
+        }
+        return result;
+      }
       return runLearnUseCase(this, nextText, nextOpts, {
         normalizeWorkspaceId,
         ProvenanceError,
