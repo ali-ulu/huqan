@@ -11,6 +11,11 @@ const { createAgent } = require('./agentRuntime');
 const { createBackup, restoreBackup } = require('./backupRestore');
 const { resolvePersistencePaths } = require('./persistencePaths');
 const { evaluateMcpGate } = require('./lib/mcp-gate-adapter');
+const {
+  callTool: callMcpTool,
+  buildKernelOptsFromEnv,
+  createApprovalStoreFromKernel,
+} = require('./mcpServer');
 
 /**
  * @param {object} [opts]
@@ -20,7 +25,8 @@ const { evaluateMcpGate } = require('./lib/mcp-gate-adapter');
 function createKernel(opts = {}) {
   const { version, ...kernelOpts } = opts || {};
   const selected = version || process.env.AXIOM_KERNEL_VERSION;
-  return selected === 'v2' ? new KernelV2(kernelOpts) : new Kernel(kernelOpts);
+  const persistenceOpts = { ...buildKernelOptsFromEnv(), ...kernelOpts };
+  return selected === 'v2' ? new KernelV2(persistenceOpts) : new Kernel(persistenceOpts);
 }
 
 function extractQuoted(raw) {
@@ -75,6 +81,17 @@ function normalizeCompareArgs(raw) {
   return text;
 }
 
+function parseApprovalDecisionArgs(raw) {
+  const [approvalId = '', requestedDecision = 'approved'] = String(raw || '').trim().split(/\s+/, 2);
+  const decision = requestedDecision.toLowerCase();
+  const valid = ['approved', 'approve', 'rejected', 'reject'];
+  return {
+    approvalId,
+    decision,
+    invalidDecision: Boolean(decision) && !valid.includes(decision),
+  };
+}
+
 function isWorkflowRuntime(agent) {
   return Boolean(agent && (agent.kind === 'workflow' || agent.runtime === 'workflow'));
 }
@@ -98,6 +115,8 @@ function mapCliCommandToMcpTool(command) {
     case 'ajan':
     case 'plan':
       return 'axiom.agent';
+    case 'onaylar':
+      return 'axiom.approvals';
     case 'sor':
       return 'axiom.ask';
     case 'verify':
@@ -159,6 +178,7 @@ class CLI {
       version: opts.agentVersion || process.env.AXIOM_AGENT_VERSION,
     });
     this.llm = new LLMAdapter();
+    this.approvalStore = null;
   }
 
   parse(input) {
@@ -182,6 +202,8 @@ class CLI {
     if (trimmed.startsWith('dogrula:')) return { command: 'verify', args: raw.slice(8).trim() };
     if (trimmed.startsWith('upload:')) return { command: 'y\u00fckle', args: raw.slice(7).trim() };
 
+    if (trimmed.startsWith('onayla:')) return { command: 'onayla', args: parseApprovalDecisionArgs(raw.slice(7).trim()) };
+
     if (plain.startsWith('mri:') || plain.startsWith('mr:') || plain.startsWith('tartis:') || plain.startsWith('celiski:')) {
       const sep = raw.indexOf(':');
       const payload = sep >= 0 ? raw.slice(sep + 1).trim() : '';
@@ -204,6 +226,7 @@ class CLI {
     if (['rüya', 'rüya gör', 'hayal kur', 'ne düşünüyorsun'].includes(trimmed)) return { command: 'rüya', args: '' };
     if (['kaydet', 'hafızayı kaydet'].includes(trimmed)) return { command: 'kaydet', args: '' };
     if (['backup', 'yedek', 'yedekle'].includes(trimmed)) return { command: 'backup', args: '' };
+    if (['onaylar', 'approvals'].includes(trimmed)) return { command: 'onaylar', args: '' };
     if (['restore', 'geri yükle', 'geri yukle'].includes(trimmed)) return { command: 'restore', args: '' };
     if (['açık düşün', 'sürekli düşün', 'otomatik düşün', 'auto think', 'düşünmeye başla'].includes(trimmed)) return { command: 'düşün', args: 'başla' };
     if (['dur düşünme', 'düşünmeyi durdur', 'sus', 'sakin ol'].includes(trimmed)) return { command: 'düşün', args: 'dur' };
@@ -213,6 +236,9 @@ class CLI {
     if (['optimize', 'temizle', 'hafızayı optimize et'].includes(trimmed)) return { command: 'optimize', args: '' };
     if (['birleştir', 'konsolide et', 'toparla'].includes(trimmed)) return { command: 'konsolide', args: '' };
     if (['evolve', 'evrim', 'geliş', 'kendini geliştir', 'kendilik'].includes(trimmed)) return { command: 'evolve', args: '' };
+
+    const approvalMatch = trimmed.match(/^(onayla|approve)\s+(.+)/i);
+    if (approvalMatch) return { command: 'onayla', args: parseApprovalDecisionArgs(approvalMatch[2]) };
 
     const nedenMatch = trimmed.match(/^neden\s+(.+)/i);
     if (nedenMatch) return { command: 'neden', args: nedenMatch[1] };
@@ -242,6 +268,11 @@ class CLI {
       ...extra,
     });
     return { ...resolved, ...extra };
+  }
+
+  _approvalRuntime() {
+    if (!this.approvalStore) this.approvalStore = createApprovalStoreFromKernel(this.kernel);
+    return { approvalStore: this.approvalStore };
   }
 
   _ensureCompanyCapabilities() {
@@ -526,6 +557,43 @@ class CLI {
       case 'kaydet':
         this.kernel.persist();
         return 'Hafiza kaydedildi.';
+      case 'onaylar': {
+        const result = callMcpTool(
+          this.kernel,
+          { name: 'axiom.approvals', arguments: { limit: 50 } },
+          this._approvalRuntime()
+        );
+        if (!result || result.ok === false) {
+          return commandFailure(`Onay listesi hatasi: ${result?.error?.message || 'bilinmeyen hata'}`, opts);
+        }
+        const approvals = Array.isArray(result.approvals) ? result.approvals : [];
+        if (approvals.length === 0) return 'Bekleyen onay yok.';
+        const lines = approvals.map(item => `${item.id} | ${item.tool} | ${item.reason || 'review'}`);
+        return `Bekleyen onaylar (${result.pendingCount || approvals.length}):\n${lines.join('\n')}`;
+      }
+      case 'onayla': {
+        const approval = args && typeof args === 'object' ? args : parseApprovalDecisionArgs(args);
+        if (!approval.approvalId || approval.invalidDecision) {
+          return commandFailure(
+            'Kullanim: onayla <approvalId> [approved|rejected]',
+            opts,
+            2
+          );
+        }
+        const result = callMcpTool(this.kernel, {
+          name: 'axiom.approve',
+          arguments: { approvalId: approval.approvalId, decision: approval.decision },
+        }, this._approvalRuntime());
+        if (!result || result.ok === false) {
+          const error = result?.error;
+          return commandFailure(`Onay hatasi: ${error?.code || 'APPROVAL_FAILED'}: ${error?.message || 'bilinmeyen hata'}`, opts);
+        }
+        const data = result.data || {};
+        const approvalId = data.approval?.id || approval.approvalId;
+        if (data.idempotent) return `Onay zaten ${data.decision}: ${approvalId}.`;
+        if (data.decision === 'rejected') return `Onay reddedildi: ${approvalId}.`;
+        return `Onay uygulandi: ${approvalId}. Ogrenme canonical state'e yazildi.`;
+      }
       case 'restore': {
         const result = restoreBackup(this._backupOptions({ backupDir: args || undefined }));
         this.kernel.reload();
@@ -593,6 +661,8 @@ class CLI {
           '  "backup"                  -> calisma durumunu yedeklerim',
           '  "restore[: yol]"          -> en son veya secili yedekten geri yuklerim',
           '  "kaydet"                  -> hafizayi kaydederim',
+          '  "onaylar"                 -> bekleyen ogrenme onaylarini listelerim',
+          '  "onayla <id> [karar]"     -> pending ogrenmeyi approved/rejected ile karara baglarim',
           '  "llm-sor: soru"           -> LLM tavsiyesi hazirlarim',
           '  "yükle: dosya.txt"        -> dosyadan ogrenirim',
           '  English-first aliases:',
@@ -667,13 +737,20 @@ class CLI {
     });
     rl.on('close', () => {
       if (!closeExit) {
-        closeExit = lineQueue.then(() => process.exit(0));
+        closeExit = lineQueue.then(() => {
+          try { this.approvalStore?.close?.(); } catch (_) {}
+          process.exit(0);
+        });
       }
       return closeExit;
     });
   }
 
   _evaluateCliGate(command, args) {
+    // Approval execution is delegated to the MCP approval handler. It validates
+    // the persisted id and runs the admission-aware learn path, so a synthetic
+    // CLI allow decision must not bypass that authority.
+    if (normalizeCommandText(command) === 'onayla') return null;
     const tool = mapCliCommandToMcpTool(command);
     if (!tool) {
       // F-004: commands without an MCP tool mapping may still mutate. Route
