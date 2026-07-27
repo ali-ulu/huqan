@@ -43,9 +43,11 @@ function trackError(kernel, sourceType, message) {
 }
 
 function addCompanyEdge(kernel, fromId, toId, relation, opts = {}) {
-  kernel.proposeNode(fromId, fromId);
-  kernel.proposeNode(toId, toId);
-  const result = kernel.proposeEdge(fromId, toId, relation, {
+  const proposals = [
+    kernel.proposeNode(fromId, fromId),
+    kernel.proposeNode(toId, toId),
+  ];
+  const edgeResult = kernel.proposeEdge(fromId, toId, relation, {
     source: opts.source || 'manual',
     sourceRef: opts.sourceRef || '',
     sessionId: opts.sessionId || '',
@@ -56,7 +58,33 @@ function addCompanyEdge(kernel, fromId, toId, relation, opts = {}) {
     confidence: typeof opts.confidence === 'number' ? opts.confidence : 0.65,
     meta: opts.meta,
   });
-  return result && result.edge ? result.edge : null;
+  proposals.push(edgeResult);
+  return {
+    edge: edgeResult && edgeResult.edge ? edgeResult.edge : null,
+    proposals,
+  };
+}
+
+function summarizeProposals(proposals = []) {
+  const list = proposals.flat().filter(Boolean);
+  const counts = list.reduce((acc, proposal) => {
+    const decision = proposal.decision || 'unknown';
+    acc[decision] = (acc[decision] || 0) + 1;
+    return acc;
+  }, {});
+  const outcome = counts.reject > 0
+    ? 'reject'
+    : counts.review > 0
+      ? 'review'
+      : counts.allow > 0
+        ? 'allow'
+        : 'unknown';
+  return {
+    outcome,
+    graphWrite: list.some(proposal => Boolean(proposal.node || proposal.edge)),
+    counts,
+    total: list.length,
+  };
 }
 
 function extractOriginalLiteral(text, normalizedSubject) {
@@ -291,20 +319,22 @@ function ingestManual(kernel, input = {}) {
   const sourceRef = `manual:${author}:${date}`;
   const noteNode = `manual-note:${author}:${date}:${slug(text.slice(0, 24))}`;
 
-  kernel.proposeNode(noteNode, noteNode);
+  const proposals = [kernel.proposeNode(noteNode, noteNode)];
   const facts = typeof kernel.extractFacts === 'function'
     ? (kernel.extractFacts(text, ingestManualKnownNodes(kernel)) || [])
     : [];
 
   let added = 0;
+  let matchedFacts = 0;
   const rankingEnabled = kernel.hasCapability && kernel.hasCapability('evidenceRanking');
   for (const fact of facts) {
     const parsed = typeof kernel._parsePredicate === 'function' ? kernel._parsePredicate(fact.predicate) : null;
     if (!parsed || !fact.subject || !parsed.object) continue;
+    matchedFacts += 1;
     const base = 0.6;
     const confidence = rankingEnabled ? adjustedConfidence(base, 'user_experience') : base;
     const entityMeta = buildEntityResolutionMeta(text, fact.subject, input.domain);
-    addCompanyEdge(kernel, fact.subject, parsed.object, parsed.relation, {
+    const factEdge = addCompanyEdge(kernel, fact.subject, parsed.object, parsed.relation, {
       source: 'manual',
       sourceRef,
       sourceType: 'manual',
@@ -314,7 +344,7 @@ function ingestManual(kernel, input = {}) {
       sessionId: input.sessionId || '',
       meta: entityMeta,
     });
-    addCompanyEdge(kernel, noteNode, fact.subject, 'destekler', {
+    const evidenceEdge = addCompanyEdge(kernel, noteNode, fact.subject, 'destekler', {
       source: 'manual',
       sourceRef,
       sourceType: 'manual',
@@ -324,11 +354,12 @@ function ingestManual(kernel, input = {}) {
       sessionId: input.sessionId || '',
       meta: entityMeta,
     });
-    added += 1;
+    proposals.push(...factEdge.proposals, ...evidenceEdge.proposals);
+    if (factEdge.edge) added += 1;
   }
 
-  if (added === 0) {
-    addCompanyEdge(kernel, noteNode, text.slice(0, 96), 'not', {
+  if (matchedFacts === 0) {
+    const fallbackEdge = addCompanyEdge(kernel, noteNode, text.slice(0, 96), 'not', {
       source: 'manual',
       sourceRef,
       sourceType: 'manual',
@@ -337,7 +368,8 @@ function ingestManual(kernel, input = {}) {
       confidence: rankingEnabled ? adjustedConfidence(0.45, 'user_experience') : 0.45,
       sessionId: input.sessionId || '',
     });
-    added = 1;
+    proposals.push(...fallbackEdge.proposals);
+    if (fallbackEdge.edge) added = 1;
   }
 
   trackSuccess(kernel, 'manual', added);
@@ -346,6 +378,7 @@ function ingestManual(kernel, input = {}) {
     sourceType: 'manual',
     sourceRef,
     added,
+    admission: summarizeProposals(proposals),
   };
 }
 
@@ -362,7 +395,8 @@ function ingestDecision(kernel, input = {}) {
   const decisionId = `decision:${slug(title)}:${date}`;
   const rationaleId = `decision-rationale:${slug(title)}:${date}`;
 
-  addCompanyEdge(kernel, decisionId, rationaleId, 'açıklar', {
+  const proposals = [];
+  const rationaleEdge = addCompanyEdge(kernel, decisionId, rationaleId, 'açıklar', {
     source: 'manual',
     sourceRef,
     sourceType: 'manual',
@@ -371,11 +405,12 @@ function ingestDecision(kernel, input = {}) {
     confidence: 0.78,
     sessionId: input.sessionId || '',
   });
+  proposals.push(...rationaleEdge.proposals);
 
   const alternatives = Array.isArray(input.alternatives) ? input.alternatives : [];
   for (const alt of alternatives) {
     const altId = `alternative:${slug(alt)}:${date}`;
-    addCompanyEdge(kernel, decisionId, altId, 'alternatif', {
+    const alternativeEdge = addCompanyEdge(kernel, decisionId, altId, 'alternatif', {
       source: 'manual',
       sourceRef,
       sourceType: 'manual',
@@ -384,11 +419,12 @@ function ingestDecision(kernel, input = {}) {
       confidence: 0.62,
       sessionId: input.sessionId || '',
     });
+    proposals.push(...alternativeEdge.proposals);
   }
 
   const links = Array.isArray(input.links) ? input.links : [];
   for (const link of links) {
-    addCompanyEdge(kernel, decisionId, String(link), 'decides', {
+    const linkEdge = addCompanyEdge(kernel, decisionId, String(link), 'decides', {
       source: 'manual',
       sourceRef,
       sourceType: 'manual',
@@ -397,15 +433,18 @@ function ingestDecision(kernel, input = {}) {
       confidence: 0.8,
       sessionId: input.sessionId || '',
     });
+    proposals.push(...linkEdge.proposals);
   }
 
-  trackSuccess(kernel, 'manual', 1);
+  const added = rationaleEdge.edge ? 1 : 0;
+  trackSuccess(kernel, 'manual', added);
   return {
     ok: true,
     sourceType: 'decision',
     decisionId,
     sourceRef,
-    added: 1,
+    added,
+    admission: summarizeProposals(proposals),
   };
 }
 
