@@ -13,5 +13,18 @@ declare class CLI {
 }
 
 export function createKernel(opts?: Record<string, unknown>): any;
+export function runCliArgv(
+  argv?: unknown[],
+  io?: {
+    stdout?: (value: string) => void;
+    stderr?: (value: string) => void;
+    cli?: CLI;
+  }
+): Promise<{
+  interactive: boolean;
+  exitCode: number;
+  command?: string;
+  decision?: string;
+}>;
 
 export = CLI;

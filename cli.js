@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
@@ -132,6 +134,15 @@ const CLI_MUTATION_GATE = Object.freeze({
   ruya:      { decision: 'allow',  reason: 'cli_read_only_inference',            mutationType: 'none' },
 });
 
+function commandFailure(message, opts = {}, exitCode = 1) {
+  if (opts.throwOnError === true) {
+    const error = new Error(message);
+    error.exitCode = exitCode;
+    throw error;
+  }
+  return message;
+}
+
 class CLI {
   /**
    * @param {object} [opts]
@@ -263,8 +274,10 @@ class CLI {
       this.kernel.plugins.load(path.join(__dirname, 'plugins'));
     }
   }
-  execute(command, args) {
-    const gateResult = this._evaluateCliGate(command, args);
+  execute(command, args, opts = {}) {
+    const gateResult = Object.prototype.hasOwnProperty.call(opts, 'gateResult')
+      ? opts.gateResult
+      : this._evaluateCliGate(command, args);
     if (gateResult && !gateResult.canExecute) {
       return this._formatCliGateMessage(command, gateResult);
     }
@@ -302,7 +315,9 @@ class CLI {
         this._ensureProductCapabilities();
         const run = this.kernel.runCapability('ideaMri', { text: String(args || '').trim() });
         return Promise.resolve(run).then(result => {
-          if (!result || result.ok === false) return `MRI hatasi: ${result?.error || 'bilinmeyen hata'}`;
+          if (!result || result.ok === false) {
+            return commandFailure(`MRI hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
+          }
           const data = result.data || {};
           const claim = data.mainClaim || String(args || '').trim();
           const risks = Array.isArray(data.risks)
@@ -318,7 +333,9 @@ class CLI {
         this._ensureProductCapabilities();
         const run = this.kernel.runCapability('devilAdvocate', { text: String(args || '').trim() });
         return Promise.resolve(run).then(result => {
-          if (!result || result.ok === false) return `Tartisma hatasi: ${result?.error || 'bilinmeyen hata'}`;
+          if (!result || result.ok === false) {
+            return commandFailure(`Tartisma hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
+          }
           const data = result.data || {};
           return `Seytanin Avukati (${data.mode || 'unknown'}): ${data.counterArgument || 'cikti yok'}`;
         });
@@ -327,7 +344,9 @@ class CLI {
         this._ensureProductCapabilities();
         const run = this.kernel.runCapability('contradictionAlert', { text: String(args || '').trim() });
         return Promise.resolve(run).then(result => {
-          if (!result || result.ok === false) return `Celiski hatasi: ${result?.error || 'bilinmeyen hata'}`;
+          if (!result || result.ok === false) {
+            return commandFailure(`Celiski hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
+          }
           const data = result.data || {};
           const count = Array.isArray(data.conflictingThoughts) ? data.conflictingThoughts.length : 0;
           return `Celiski Analizi: ${count} bulgu${data.conflictType ? ` (${data.conflictType})` : ''}`;
@@ -401,7 +420,7 @@ class CLI {
           const count = this.kernel.learnDocument(text);
           return `"${args}" dosyasından ${count} bilgi öğrenildi.`;
         } catch (error) {
-          return `Dosya okunamadı: ${error.message}`;
+          return commandFailure(`Dosya okunamadı: ${error.message}`, opts);
         }
       }
       case 'company-ingest': {
@@ -417,7 +436,12 @@ class CLI {
             author: payload.author,
             date: payload.date,
           });
-          return Promise.resolve(run).then(result => `Manual ingest: ${result.ok ? 'ok' : 'hata'} (${result.added || 0})`);
+          return Promise.resolve(run).then(result => {
+            if (!result || result.ok === false) {
+              return commandFailure(`Manual ingest hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
+            }
+            return `Manual ingest: ok (${result.added || 0})`;
+          });
         }
 
         if (source === 'karar' || source === 'decision') {
@@ -429,7 +453,12 @@ class CLI {
             decidedBy: payload.author,
             date: payload.date,
           });
-          return Promise.resolve(run).then(result => `Decision ingest: ${result.ok ? 'ok' : 'hata'} (${result.decisionId || '-'})`);
+          return Promise.resolve(run).then(result => {
+            if (!result || result.ok === false) {
+              return commandFailure(`Decision ingest hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
+            }
+            return `Decision ingest: ok (${result.decisionId || '-'})`;
+          });
         }
 
         if (source === 'github' || source === 'repo') {
@@ -438,7 +467,12 @@ class CLI {
             sourceType: 'github',
             repoUrl: payload.repoUrl,
           });
-          return Promise.resolve(run).then(result => `Repo ingest: ${result.ok ? 'ok' : 'hata'} (files=${result.files || 0}, added=${result.added || 0})`);
+          return Promise.resolve(run).then(result => {
+            if (!result || result.ok === false) {
+              return commandFailure(`Repo ingest hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
+            }
+            return `Repo ingest: ok (files=${result.files || 0}, added=${result.added || 0})`;
+          });
         }
 
         if (source === 'markdown' || source === 'md') {
@@ -447,10 +481,19 @@ class CLI {
             sourceType: 'markdown',
             path: payload.targetPath,
           });
-          return Promise.resolve(run).then(result => `Markdown ingest: ${result.ok ? 'ok' : 'hata'} (files=${result.files || 0}, added=${result.added || 0})`);
+          return Promise.resolve(run).then(result => {
+            if (!result || result.ok === false) {
+              return commandFailure(`Markdown ingest hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
+            }
+            return `Markdown ingest: ok (files=${result.files || 0}, added=${result.added || 0})`;
+          });
         }
 
-        return 'Desteklenmeyen kaynak. Kullanim: ogren --kaynak manuel|karar|github|markdown ...';
+        return commandFailure(
+          'Desteklenmeyen kaynak. Kullanim: ogren --kaynak manuel|karar|github|markdown ...',
+          opts,
+          2
+        );
       }
       case 'company-query': {
         this._ensureCompanyCapabilities();
@@ -459,7 +502,9 @@ class CLI {
           question: String(args || '').trim(),
         });
         return Promise.resolve(run).then(result => {
-          if (!result.ok) return `Sorgu hatasi: ${result.error || 'bilinmeyen hata'}`;
+          if (!result || result.ok === false) {
+            return commandFailure(`Sorgu hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
+          }
           return `Company Brain: ${result.answer}\nKaynak: ${result.source}\nRefs: ${(result.sourceRefs || []).join(', ') || 'yok'}`;
         });
       }
@@ -467,7 +512,9 @@ class CLI {
         this._ensureCompanyCapabilities();
         const run = this.kernel.runCapability('ingestStatus', {});
         return Promise.resolve(run).then(result => {
-          if (!result.ok) return `Ingest durum hatasi: ${result.error || 'bilinmeyen hata'}`;
+          if (!result || result.ok === false) {
+            return commandFailure(`Ingest durum hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
+          }
           const dist = result.distribution || {};
           return `Ingest durum -> node:${result.totalNodes} repo:${dist.repo || 0} markdown:${dist.markdown || 0} manual:${dist.manual || 0}`;
         });
@@ -476,6 +523,9 @@ class CLI {
         const result = createBackup(this._backupOptions());
         return `Backup tamamlandi: ${result.backupDir} (${result.copied.length} dosya)`;
       }
+      case 'kaydet':
+        this.kernel.persist();
+        return 'Hafiza kaydedildi.';
       case 'restore': {
         const result = restoreBackup(this._backupOptions({ backupDir: args || undefined }));
         this.kernel.reload();
@@ -733,17 +783,87 @@ class CLI {
   }
 }
 
-if (require.main === module) {
-  if (process.argv.includes('--help') || process.argv.includes('-h')) {
-    const cli = new CLI({ kernel: { noLoad: true, loadPlugins: false } });
-    console.log(cli.execute('yardım', ''));
-    process.exit(0);
+async function runCliArgv(argv = [], io = {}) {
+  const args = Array.from(argv || [], value => String(value));
+  const stdout = typeof io.stdout === 'function' ? io.stdout : console.log;
+  const stderr = typeof io.stderr === 'function' ? io.stderr : console.error;
+
+  if (args.length === 0) {
+    return { interactive: true, exitCode: 0 };
   }
 
-  const cli = new CLI();
-  cli.kernel.reload();
-  cli.start();
+  if (args.length === 1 && ['--help', '-h'].includes(args[0])) {
+    const cli = new CLI({ kernel: { noLoad: true, loadPlugins: false } });
+    stdout(cli.execute('yardım', ''));
+    return { interactive: false, exitCode: 0 };
+  }
+
+  if (args.length === 1 && ['--version', '-v'].includes(args[0])) {
+    stdout(require('./package.json').version);
+    return { interactive: false, exitCode: 0 };
+  }
+
+  if (args[0].startsWith('-')) {
+    stderr(`Bilinmeyen secenek: ${args[0]}`);
+    return { interactive: false, exitCode: 2 };
+  }
+
+  const cli = io.cli || new CLI();
+  try {
+    if (!io.cli && cli.kernel && typeof cli.kernel.reload === 'function') {
+      cli.kernel.reload();
+    }
+    const parsed = cli.parse(args.join(' '));
+    if (!parsed || parsed.command === 'anlamadım' || parsed.command === 'exit') {
+      stderr(`Bilinmeyen komut: ${args.join(' ')}`);
+      return { interactive: false, exitCode: 2 };
+    }
+
+    const gateResult = cli._evaluateCliGate(parsed.command, parsed.args);
+    if (gateResult && !gateResult.canExecute) {
+      stdout(cli._formatCliGateMessage(parsed.command, gateResult));
+      return {
+        interactive: false,
+        exitCode: 3,
+        command: parsed.command,
+        decision: gateResult.decision,
+      };
+    }
+
+    const output = await cli.execute(parsed.command, parsed.args, {
+      gateResult,
+      throwOnError: true,
+    });
+    stdout(typeof output === 'string' ? output : JSON.stringify(output));
+    return {
+      interactive: false,
+      exitCode: 0,
+      command: parsed.command,
+    };
+  } catch (error) {
+    stderr(`Komut hatasi: ${error?.message || error}`);
+    return { interactive: false, exitCode: error?.exitCode || 1 };
+  }
+}
+
+async function main(argv = process.argv.slice(2)) {
+  const result = await runCliArgv(argv);
+  if (result.interactive) {
+    const cli = new CLI();
+    cli.kernel.reload();
+    cli.start();
+    return;
+  }
+  process.exitCode = result.exitCode;
+}
+
+if (require.main === module) {
+  main().catch(error => {
+    console.error(`CLI hatasi: ${error?.message || error}`);
+    process.exitCode = 1;
+  });
 }
 
 module.exports = CLI;
 module.exports.createKernel = createKernel;
+module.exports.runCliArgv = runCliArgv;
