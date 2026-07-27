@@ -4,7 +4,9 @@ const path = require('path');
 const { readFileSync } = require('fs');
 const CLI = require('./cli');
 const { evaluateLlmSor } = require('./lib/shield');
-const { handleIngest } = require('./lib/ingest');
+const { handleIngest, buildIngestApprovalSnapshot, sha256 } = require('./lib/ingest');
+const AxiomStorage = require('./storage');
+const { buildReviewedActionReceipt, buildBlockedActionReceipt } = require('./lib/approval-flow');
 const {
   buildTrustReceipt,
   queryAuditTrail,
@@ -34,6 +36,51 @@ if (process.env.AXIOM_USE_SQLITE === 'false') kernelOpts.useSQLite = false;
 const cli = new CLI({ kernel: kernelOpts });
 cli.kernel.graph.load();
 let companyRuntimeReady = false;
+let ingestApprovalStore = null;
+
+function getIngestApprovalStore() {
+  if (ingestApprovalStore) return ingestApprovalStore;
+  ingestApprovalStore = new AxiomStorage({ kernel: cli.kernel });
+  return ingestApprovalStore;
+}
+
+function newIngestApprovalId() {
+  return `ingest-approval-${crypto.randomUUID()}`;
+}
+
+function publicIngestApproval(record) {
+  if (!record) return null;
+  const context = record.context && typeof record.context === 'object' ? record.context : {};
+  return {
+    id: record.id,
+    status: record.status,
+    decision: record.decision,
+    reason: record.reason,
+    createdAt: Number(record.created_at || record.createdAt || 0),
+    updatedAt: Number(record.updated_at || record.updatedAt || 0),
+    snapshotHash: context.snapshot?.snapshotHash || '',
+    sourceType: context.snapshot?.sourceType || '',
+    sourceRef: context.snapshot?.sourceRef || '',
+    idempotencyKey: context.snapshot?.idempotencyKey || '',
+    receipt: context.receipt || null,
+  };
+}
+
+function recordIngestApprovalAudit(approval, receipt, result = null) {
+  const snapshot = approval.context?.snapshot || {};
+  const resultRef = result ? sha256(result) : '';
+  return cli.kernel.graph.appendAuditEvent({
+    eventType: receipt.decision === 'approved' ? 'APPROVAL_APPROVED' : 'APPROVAL_REJECTED',
+    targetType: 'ingest_approval',
+    targetId: approval.id,
+    details: {
+      receipt,
+      snapshotHash: snapshot.snapshotHash || '',
+      pluginResultRef: resultRef,
+      executionGuarantee: 'approval_lifecycle_only',
+    },
+  }, { workspaceId: 'default' });
+}
 
 // --- Güvenlik sabitleri ---
 const rateLimitCleanupTimer = setInterval(() => {
@@ -1021,6 +1068,115 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (reqUrl.pathname === '/api/ingest/approvals') {
+    if (req.method !== 'GET') {
+      writeApiError(req, res, 405, 'METHOD_NOT_ALLOWED', 'Method not allowed');
+      return;
+    }
+    if (!denyIfUnauthorized(req, res)) return;
+    try {
+      const limit = Math.min(100, Math.max(1, Number(reqUrl.searchParams.get('limit')) || 50));
+      const approvals = getIngestApprovalStore().listUnresolvedToolApprovals(limit)
+        .filter(item => item.tool === 'http.ingest')
+        .map(publicIngestApproval);
+      writeJson(req, res, 200, { ok: true, approvals }, { 'Cache-Control': 'no-cache' });
+    } catch (error) {
+      writeApiError(req, res, 503, 'APPROVAL_STORE_UNAVAILABLE', 'Persistent ingest approval store is unavailable.');
+    }
+    return;
+  }
+
+  const ingestApprovalMatch = reqUrl.pathname.match(/^\/api\/ingest\/approvals\/([^/]+)$/);
+  if (ingestApprovalMatch) {
+    if (req.method !== 'POST') {
+      writeApiError(req, res, 405, 'METHOD_NOT_ALLOWED', 'Method not allowed');
+      return;
+    }
+    if (!denyIfUnauthorized(req, res)) return;
+    const body = await parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_JSON_BODY });
+    if (!body) return;
+    const approvalId = sanitizeInput(decodeURIComponent(ingestApprovalMatch[1]), 256);
+    const decision = String(body.decision || '').trim().toLowerCase();
+    if (!approvalId || !['approved', 'rejected'].includes(decision)) {
+      writeApiError(req, res, 400, 'INVALID_APPROVAL_DECISION', 'approval id and decision approved|rejected are required.');
+      return;
+    }
+    try {
+      const store = getIngestApprovalStore();
+      const approval = store.getToolApprovalById(approvalId);
+      if (!approval || approval.tool !== 'http.ingest') {
+        writeApiError(req, res, 404, 'APPROVAL_NOT_FOUND', 'Ingest approval was not found.');
+        return;
+      }
+      if (approval.status === 'approved' || approval.status === 'rejected') {
+        writeJson(req, res, 200, { ok: true, idempotent: true, approval: publicIngestApproval(approval) }, { 'Cache-Control': 'no-cache' });
+        return;
+      }
+      if (decision === 'rejected') {
+        const receipt = buildBlockedActionReceipt({
+          approvalId, workspaceId: 'default', actor: 'http-api', actionType: 'ingest', toolName: 'http.ingest',
+          requestedVerdict: 'review', reason: 'http_ingest_rejected', createdAt: new Date().toISOString(),
+        }, { metadata: { snapshotHash: approval.context?.snapshot?.snapshotHash || '', reviewer: 'http-api', auditRefs: [] } });
+        const rejected = store.finalizeToolApprovalWithReceipt(approvalId, {
+          expectedStatus: 'pending', decision: 'rejected', reason: 'http_ingest_rejected', receipt,
+        });
+        if (!rejected.finalized) {
+          writeApiError(req, res, 409, 'APPROVAL_DECISION_CONFLICT', 'Approval is no longer pending.');
+          return;
+        }
+        const finalApproval = rejected.approval;
+        let auditRef = '';
+        try { auditRef = recordIngestApprovalAudit(finalApproval, receipt).auditId; } catch (error) { console.error('[ingest-approval-audit] failed:', error); }
+        writeJson(req, res, 200, { ok: true, approval: publicIngestApproval(finalApproval), receipt, auditRef }, { 'Cache-Control': 'no-cache' });
+        return;
+      }
+      const claim = store.claimToolApproval(approvalId, 'http_ingest_execution_claimed');
+      if (!claim.claimed) {
+        writeApiError(req, res, 409, 'APPROVAL_EXECUTION_IN_PROGRESS', 'Approval is already claimed or not pending.');
+        return;
+      }
+      const executing = claim.approval;
+      const snapshot = executing.context?.snapshot;
+      if (!snapshot || sha256(snapshot.payload) !== snapshot.snapshotHash) {
+        store.failToolApproval(approvalId, 'snapshot_integrity_mismatch');
+        writeApiError(req, res, 409, 'SNAPSHOT_INTEGRITY_MISMATCH', 'Queued ingest snapshot no longer validates.');
+        return;
+      }
+      let result;
+      try {
+        result = await handleIngest({ kernel: cli.kernel, data: snapshot.payload, ensureRuntime: ensureCompanyRuntime });
+      } catch (error) {
+        store.failToolApproval(approvalId, `execution_outcome_unknown:${error.code || error.name || 'error'}`);
+        throw error;
+      }
+      if (!result || result.ok === false) {
+        store.failToolApproval(approvalId, 'execution_outcome_unknown:result_not_ok');
+        writeApiError(req, res, 409, 'INGEST_EXECUTION_FAILED', 'Approved ingest did not complete; manual reconciliation is required.');
+        return;
+      }
+      const receipt = buildReviewedActionReceipt({
+        approvalId, workspaceId: 'default', actor: 'http-api', actionType: 'ingest', toolName: 'http.ingest',
+        requestedVerdict: 'review', reason: 'http_ingest_executed', createdAt: new Date().toISOString(),
+      }, { metadata: { snapshotHash: snapshot.snapshotHash, reviewer: 'http-api', pluginResultRef: sha256(result), auditRefs: [] } });
+      receipt.actionExecution = 'plugin_execution_returned';
+      receipt.actionOutcome = 'state_transition_not_asserted';
+      const finalized = store.finalizeToolApprovalWithReceipt(approvalId, {
+        expectedStatus: 'executing', decision: 'approved', reason: 'http_ingest_executed', receipt,
+      });
+      if (!finalized.finalized) {
+        writeApiError(req, res, 409, 'APPROVAL_FINALIZATION_CONFLICT', 'Plugin execution returned, but approval finalization requires reconciliation.');
+        return;
+      }
+      let auditRef = '';
+      try { auditRef = recordIngestApprovalAudit(finalized.approval, receipt, result).auditId; } catch (error) { console.error('[ingest-approval-audit] failed:', error); }
+      writeJson(req, res, 200, { ok: true, approval: publicIngestApproval(finalized.approval), result, receipt, auditRef }, { 'Cache-Control': 'no-cache' });
+    } catch (error) {
+      console.error('[ingest-approval] failed:', error);
+      writeApiError(req, res, 500, 'INGEST_APPROVAL_FAILED', 'Ingest approval failed; inspect unresolved approvals.');
+    }
+    return;
+  }
+
   if (reqUrl.pathname === '/api/ingest') {
     if (req.method !== 'POST') {
       res.writeHead(405, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
@@ -1031,20 +1187,26 @@ const server = http.createServer(async (req, res) => {
     const data = await parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_UPLOAD_BODY });
     if (!data) return;
     try {
-      const result = await handleIngest({
-        kernel: cli.kernel,
-        data,
-        ensureRuntime: ensureCompanyRuntime,
-      });
-
-      if (!result || result.ok === false) {
-        writeJson(req, res, 400, result || { error: 'ingest failed' });
+      const snapshot = buildIngestApprovalSnapshot(data);
+      if (!snapshot.ok) {
+        writeApiError(req, res, 409, snapshot.code || 'INGEST_SNAPSHOT_REQUIRED', snapshot.error || 'Ingest cannot be queued safely.');
         return;
       }
-      writeJson(req, res, 200, result, { 'Cache-Control': 'no-cache' });
+      const store = getIngestApprovalStore();
+      const approvalKey = `http.ingest.${snapshot.sourceType}.${snapshot.idempotencyKey}.${snapshot.snapshotHash}`;
+      const saved = store.saveToolApprovalIfAbsent({
+        id: newIngestApprovalId(), approvalKey, tool: 'http.ingest', input: JSON.stringify(snapshot.payload),
+        status: 'pending', decision: 'review', reason: 'http_ingest_requires_review',
+        context: { source: 'http-ingest', snapshot },
+        policy: { action: 'ingest', approval: 'review', snapshotIntegrity: 'sha256' },
+      });
+      const approval = publicIngestApproval(saved.approval);
+      writeJson(req, res, saved.approval.status === 'pending' ? 202 : 200, {
+        ok: true, status: saved.approval.status, idempotent: !saved.inserted, approval,
+      }, { 'Cache-Control': 'no-cache' });
     } catch (err) {
       console.error('[ingest] failed:', err);
-      writeJson(req, res, 500, { error: 'ingest failed' });
+      writeApiError(req, res, 503, 'APPROVAL_STORE_UNAVAILABLE', 'Persistent ingest approval store is unavailable.');
     }
     return;
   }
@@ -1152,6 +1314,10 @@ if (require.main === module && process.env.AXIOM_DISABLE_AUTO_LISTEN !== '1') {
 }
 
 server.closeAxiom = () => {
+  if (ingestApprovalStore && typeof ingestApprovalStore.close === 'function') {
+    try { ingestApprovalStore.close(); } catch (_) {}
+    ingestApprovalStore = null;
+  }
   if (cli.agent?.baseAgent?.storage && typeof cli.agent.baseAgent.storage.close === 'function') {
     try { cli.agent.baseAgent.storage.close(); } catch (_) {}
   }

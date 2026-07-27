@@ -214,6 +214,15 @@ class AxiomStorage {
           updated_at = excluded.updated_at,
           decided_at = excluded.decided_at
       `),
+      insertToolApprovalIfAbsent: this.db.prepare(`
+        INSERT INTO tool_approvals (
+          id, approval_key, tool, input, context_json, policy_json,
+          status, decision, reason, created_at, updated_at, decided_at
+        ) VALUES (
+          @id, @approval_key, @tool, @input, @context_json, @policy_json,
+          @status, @decision, @reason, @created_at, @updated_at, @decided_at
+        ) ON CONFLICT(approval_key) DO NOTHING
+      `),
       getToolApprovalByKey: this.db.prepare('SELECT * FROM tool_approvals WHERE approval_key = ? LIMIT 1'),
       getToolApprovalById: this.db.prepare('SELECT * FROM tool_approvals WHERE id = ? LIMIT 1'),
       listPendingToolApprovals: this.db.prepare(`
@@ -277,6 +286,17 @@ class AxiomStorage {
             decided_at = @decided_at,
             updated_at = @updated_at
         WHERE id = @id
+      `),
+      finalizeToolApprovalWithReceipt: this.db.prepare(`
+        UPDATE tool_approvals
+        SET status = @status,
+            decision = @decision,
+            reason = @reason,
+            context_json = @context_json,
+            decided_at = @decided_at,
+            updated_at = @updated_at
+        WHERE id = @id
+          AND status = @expected_status
       `),
     };
   }
@@ -435,6 +455,28 @@ class AxiomStorage {
     return this.getToolApprovalByKey(approvalKey);
   }
 
+  saveToolApprovalIfAbsent(record = {}) {
+    const id = String(record.id || `approval-${this._now()}`);
+    const approvalKey = String(record.approvalKey || `${lower(record.tool)}:${lower(record.input)}`);
+    const now = this._now();
+    const payload = {
+      id,
+      approval_key: approvalKey,
+      tool: String(record.tool || ''),
+      input: String(record.input || ''),
+      context_json: JSON.stringify(record.context && typeof record.context === 'object' ? record.context : {}),
+      policy_json: JSON.stringify(record.policy && typeof record.policy === 'object' ? record.policy : {}),
+      status: String(record.status || 'pending'),
+      decision: String(record.decision || ''),
+      reason: String(record.reason || ''),
+      created_at: Number(record.createdAt || now),
+      updated_at: now,
+      decided_at: Number(record.decidedAt || 0),
+    };
+    const inserted = this._stmts.insertToolApprovalIfAbsent.run(payload).changes === 1;
+    return { inserted, approval: this.getToolApprovalByKey(approvalKey) };
+  }
+
   getToolApprovalByKey(approvalKey) {
     const row = this._stmts.getToolApprovalByKey.get(String(approvalKey || ''));
     return row ? this._hydrateToolApproval(row) : null;
@@ -521,6 +563,26 @@ class AxiomStorage {
       updated_at: now,
     });
     return this.getToolApprovalById(id);
+  }
+
+  finalizeToolApprovalWithReceipt(id, {
+    expectedStatus = 'executing', decision = 'approved', reason = '', receipt = null,
+  } = {}) {
+    if (!id || !receipt || typeof receipt !== 'object') return { finalized: false, approval: null };
+    const existing = this.getToolApprovalById(id);
+    if (!existing || existing.status !== expectedStatus) return { finalized: false, approval: existing };
+    const status = decision === 'approved' ? 'approved' : decision === 'rejected' ? 'rejected' : '';
+    if (!status) return { finalized: false, approval: existing };
+    const now = this._now();
+    const context = { ...(existing.context || {}), receipt };
+    const result = this._stmts.finalizeToolApprovalWithReceipt.run({
+      id: String(id), expected_status: String(expectedStatus), status, decision: String(decision),
+      reason: String(reason || ''), context_json: JSON.stringify(context), decided_at: now, updated_at: now,
+    });
+    return {
+      finalized: Number(result.changes || 0) === 1,
+      approval: this.getToolApprovalById(id),
+    };
   }
 
   _hydrateToolApproval(row) {
