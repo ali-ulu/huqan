@@ -173,6 +173,51 @@ describe('FAZ2-PR4: plugin write isolation (F-003)', () => {
     assert.ok(edgeCalls.length > 0, 'company-brain path must invoke proposeEdge');
   });
 
+  it('company-brain reports zero added when admission defers every proposal', async () => {
+    const kernel = makeKernel();
+    kernel._evaluateLearnAdmission = () => ({
+      outcome: 'review',
+      reason: 'forced_review_test',
+      graphWrite: false,
+      approvalStatus: 'pending',
+      receiptId: 'forced-review-receipt',
+      receipt: { receiptId: 'forced-review-receipt' },
+    });
+
+    const beforeNodes = kernel.graph.nodeCount();
+    const beforeEdges = kernel.graph.edgeCount();
+    const result = await kernel.runCapability('companyBrain', {
+      action: 'manual',
+      text: 'AXIOM bir sistemdir',
+      author: 'tester',
+      sourceType: 'manual',
+    });
+
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.added, 0, 'deferred proposals must not be counted as graph writes');
+    assert.strictEqual(result.admission.outcome, 'review');
+    assert.strictEqual(result.admission.graphWrite, false);
+    assert.strictEqual(kernel.graph.nodeCount(), beforeNodes);
+    assert.strictEqual(kernel.graph.edgeCount(), beforeEdges);
+  });
+
+  it('company-brain does not infer graphWrite from an allow decision without a mutation', async () => {
+    const kernel = makeKernel();
+    kernel.proposeNode = () => ({ decision: 'review', node: null, admission: { reason: 'mixed_test' } });
+    kernel.proposeEdge = () => ({ decision: 'allow', edge: null, admission: { reason: 'mixed_test' } });
+
+    const result = await kernel.runCapability('companyBrain', {
+      action: 'manual',
+      text: 'AXIOM bir sistemdir',
+      author: 'tester',
+      sourceType: 'manual',
+    });
+
+    assert.strictEqual(result.added, 0);
+    assert.strictEqual(result.admission.outcome, 'review');
+    assert.strictEqual(result.admission.graphWrite, false);
+  });
+
   it('repo-memory ingest path uses proposeNode and proposeEdge', async () => {
     const kernel = makeKernel();
     const nodeCalls = [];
@@ -202,6 +247,62 @@ describe('FAZ2-PR4: plugin write isolation (F-003)', () => {
     assert.strictEqual(result.ok, true);
     assert.ok(nodeCalls.length > 0, 'repo-memory path must invoke proposeNode');
     assert.ok(edgeCalls.length > 0, 'repo-memory path must invoke proposeEdge');
+  });
+
+  it('repo-memory reports candidate and zero added when admission defers every proposal', async () => {
+    const kernel = makeKernel();
+    kernel._evaluateLearnAdmission = () => ({
+      outcome: 'review',
+      reason: 'forced_review_test',
+      graphWrite: false,
+      approvalStatus: 'pending',
+      receiptId: 'forced-review-receipt',
+      receipt: { receiptId: 'forced-review-receipt' },
+    });
+
+    const beforeNodes = kernel.graph.nodeCount();
+    const beforeEdges = kernel.graph.edgeCount();
+    const result = await kernel.runCapability('repoMemory', {
+      action: 'ingest',
+      sourceType: 'github',
+      repoUrl: 'https://github.com/acme/demo',
+      branch: 'main',
+      fetchRepoFiles: async () => ([
+        { path: 'README.md', content: '# Intro\n\n## Setup\nInstall it.', lastModified: '2026-06-30T00:00:00.000Z' },
+      ]),
+      parseRepoUrl: () => ({ owner: 'acme', repo: 'demo' }),
+    });
+
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.added, 0, 'deferred proposals must not be counted as graph writes');
+    assert.strictEqual(result.admission.outcome, 'candidate');
+    assert.ok(result.admission.counts.candidate > 0);
+    assert.ok(result.admissions.every(entry => entry.graphWrite === false));
+    assert.strictEqual(kernel.graph.nodeCount(), beforeNodes);
+    assert.strictEqual(kernel.graph.edgeCount(), beforeEdges);
+  });
+
+  it('repo-memory marks allow-without-edge as skipped instead of admitted', async () => {
+    const kernel = makeKernel();
+    kernel.proposeNode = () => ({ decision: 'review', node: null, admission: { reason: 'mixed_test' } });
+    kernel.proposeEdge = () => ({ decision: 'allow', edge: null, admission: { reason: 'mixed_test' } });
+
+    const result = await kernel.runCapability('repoMemory', {
+      action: 'ingest',
+      sourceType: 'github',
+      repoUrl: 'https://github.com/acme/demo',
+      branch: 'main',
+      fetchRepoFiles: async () => ([
+        { path: 'README.md', content: '# Intro', lastModified: '2026-06-30T00:00:00.000Z' },
+      ]),
+      parseRepoUrl: () => ({ owner: 'acme', repo: 'demo' }),
+    });
+
+    const edgeAdmissions = result.admissions.filter(entry => entry.kind === 'edge');
+    assert.strictEqual(result.added, 0);
+    assert.ok(edgeAdmissions.length > 0);
+    assert.ok(edgeAdmissions.every(entry => entry.outcome === 'skipped'));
+    assert.ok(result.admissions.every(entry => entry.graphWrite === false));
   });
 
   it('forbidden plugin bypass pattern is absent from proposeEdge and proposeNode', () => {

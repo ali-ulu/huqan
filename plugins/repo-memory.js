@@ -39,9 +39,9 @@ function addCompanyEdge(kernel, fromId, toId, relation, opts = {}) {
   const workspaceId = opts.workspaceId || provenance?.workspaceId || 'default';
   const fromProvenance = opts.fromProvenance && typeof opts.fromProvenance === 'object' ? opts.fromProvenance : provenance;
   const toProvenance = opts.toProvenance && typeof opts.toProvenance === 'object' ? opts.toProvenance : provenance;
-  kernel.proposeNode(fromId, opts.fromLabel || fromId, fromProvenance, { workspaceId });
-  kernel.proposeNode(toId, opts.toLabel || toId, toProvenance, { workspaceId });
-  const result = kernel.proposeEdge(fromId, toId, relation, {
+  const fromResult = kernel.proposeNode(fromId, opts.fromLabel || fromId, fromProvenance, { workspaceId });
+  const toResult = kernel.proposeNode(toId, opts.toLabel || toId, toProvenance, { workspaceId });
+  const edgeResult = kernel.proposeEdge(fromId, toId, relation, {
     source: opts.source || 'repo',
     sourceRef: opts.sourceRef || provenance?.sourceRef || '',
     sessionId: opts.sessionId || '',
@@ -54,7 +54,7 @@ function addCompanyEdge(kernel, fromId, toId, relation, opts = {}) {
     provenance,
     workspaceId,
   });
-  return result && result.edge ? result.edge : null;
+  return { fromResult, toResult, edgeResult, edge: edgeResult?.edge || null };
 }
 
 function buildConnectorProvenance({
@@ -85,12 +85,22 @@ function buildGraphAdmissionRecord({
   targetType,
   targetId,
   provenance = null,
+  proposal = null,
   workspaceId = 'default',
   details = {},
 }) {
+  const decision = proposal?.decision || '';
+  const graphWrite = Boolean(proposal?.node || proposal?.edge);
+  const resolvedOutcome = decision === 'allow'
+    ? (graphWrite ? 'admitted' : 'skipped')
+    : decision === 'reject'
+      ? 'rejected'
+      : decision === 'review'
+        ? 'candidate'
+        : outcome;
   return {
     kind,
-    outcome,
+    outcome: resolvedOutcome,
     targetType,
     targetId,
     workspaceId,
@@ -99,8 +109,11 @@ function buildGraphAdmissionRecord({
     actor: provenance?.actor || '',
     provenanceId: provenance?.provenanceId || '',
     trustPolicyVersion: provenance?.trustPolicyVersion || '',
-    graphWrite: outcome === 'admitted',
+    graphWrite,
     provenance: provenance || null,
+    decision: decision || undefined,
+    reason: proposal?.admission?.reason || undefined,
+    receiptId: proposal?.admission?.receiptId || undefined,
     ...details,
   };
 }
@@ -157,12 +170,13 @@ async function ingestGithubRepo(kernel, input = {}) {
     confidence: 0.8,
     timestamp: input.timestamp || nowIso(),
   });
-  kernel.proposeNode(repoNode, repoNode, repoProvenance, { workspaceId });
+  const repoNodeResult = kernel.proposeNode(repoNode, repoNode, repoProvenance, { workspaceId });
   admissions.push(buildGraphAdmissionRecord({
     kind: 'node',
     targetType: 'graph_node',
     targetId: repoNode,
     provenance: repoProvenance,
+    proposal: repoNodeResult,
     workspaceId,
   }));
 
@@ -181,7 +195,7 @@ async function ingestGithubRepo(kernel, input = {}) {
     });
     const useTemporalCreatedAt = kernel.hasCapability && kernel.hasCapability('temporal');
     const createdAt = useTemporalCreatedAt ? String(file.lastModified || nowIso()) : nowIso();
-    const fileEdge = addCompanyEdge(kernel, repoNode, fileRef, 'içerir', {
+    const fileProposal = addCompanyEdge(kernel, repoNode, fileRef, 'içerir', {
       source: 'repo',
       sourceRef: fileRef,
       sessionId,
@@ -199,31 +213,43 @@ async function ingestGithubRepo(kernel, input = {}) {
     admissions.push(buildGraphAdmissionRecord({
       kind: 'node',
       targetType: 'graph_node',
+      targetId: repoNode,
+      provenance: repoProvenance,
+      proposal: fileProposal.fromResult,
+      workspaceId,
+      details: {
+        repeatedProposal: true,
+        childId: fileRef,
+      },
+    }));
+    admissions.push(buildGraphAdmissionRecord({
+      kind: 'node',
+      targetType: 'graph_node',
       targetId: fileRef,
       provenance: fileProvenance,
+      proposal: fileProposal.toResult,
       workspaceId,
       details: {
         parentId: repoNode,
         filePath: file.path,
       },
     }));
-    if (fileEdge) {
-      admissions.push(buildGraphAdmissionRecord({
-        kind: 'edge',
-        targetType: 'graph_edge',
-        targetId: `${fileEdge.from}|${fileEdge.relation}|${fileEdge.to}`,
-        provenance: fileProvenance,
-        workspaceId,
-        details: {
-          relation: fileEdge.relation,
-          sourceRef: fileProvenance.sourceRef,
-        },
-      }));
-    }
+    admissions.push(buildGraphAdmissionRecord({
+      kind: 'edge',
+      targetType: 'graph_edge',
+      targetId: `${repoNode}|içerir|${fileRef}`,
+      provenance: fileProvenance,
+      proposal: fileProposal.edgeResult,
+      workspaceId,
+      details: {
+        relation: 'içerir',
+        sourceRef: fileProvenance.sourceRef,
+      },
+    }));
 
     const sections = parseMarkdown(file.content, `${owner}/${repo}/${file.path}`);
     if (sections.length === 0) {
-      added += 1;
+      if (fileProposal.edge) added += 1;
       continue;
     }
 
@@ -239,7 +265,7 @@ async function ingestGithubRepo(kernel, input = {}) {
         confidence: 0.72,
         timestamp: file.lastModified || nowIso(),
       });
-      const sectionEdge = addCompanyEdge(kernel, fileRef, sectionNode, 'özellik', {
+      const sectionProposal = addCompanyEdge(kernel, fileRef, sectionNode, 'özellik', {
         source: 'repo',
         sourceRef: sectionProvenance.sourceRef,
         sessionId,
@@ -257,32 +283,44 @@ async function ingestGithubRepo(kernel, input = {}) {
       admissions.push(buildGraphAdmissionRecord({
         kind: 'node',
         targetType: 'graph_node',
+        targetId: fileRef,
+        provenance: fileProvenance,
+        proposal: sectionProposal.fromResult,
+        workspaceId,
+        details: {
+          repeatedProposal: true,
+          childId: sectionNode,
+        },
+      }));
+      admissions.push(buildGraphAdmissionRecord({
+        kind: 'node',
+        targetType: 'graph_node',
         targetId: sectionNode,
         provenance: sectionProvenance,
+        proposal: sectionProposal.toResult,
         workspaceId,
         details: {
           parentId: fileRef,
           sectionTitle: section.sectionTitle,
         },
       }));
-      if (sectionEdge) {
-        admissions.push(buildGraphAdmissionRecord({
-          kind: 'edge',
-          targetType: 'graph_edge',
-          targetId: `${sectionEdge.from}|${sectionEdge.relation}|${sectionEdge.to}`,
-          provenance: sectionProvenance,
-          workspaceId,
-          details: {
-            relation: sectionEdge.relation,
-            sourceRef: sectionProvenance.sourceRef,
-          },
-        }));
-      }
-      added += 1;
+      admissions.push(buildGraphAdmissionRecord({
+        kind: 'edge',
+        targetType: 'graph_edge',
+        targetId: `${fileRef}|özellik|${sectionNode}`,
+        provenance: sectionProvenance,
+        proposal: sectionProposal.edgeResult,
+        workspaceId,
+        details: {
+          relation: 'özellik',
+          sourceRef: sectionProvenance.sourceRef,
+        },
+      }));
+      if (sectionProposal.edge) added += 1;
     }
   }
 
-  trackIngestSuccess(kernel, 'repo', added || files.length);
+  trackIngestSuccess(kernel, 'repo', added);
   return {
     ok: true,
     sourceType: 'repo',
@@ -337,30 +375,32 @@ async function ingestMarkdownPath(kernel, input = {}) {
       confidence: 0.68,
       timestamp: input.timestamp || nowIso(),
     });
-    kernel.proposeNode(fileRef, section.filePath, fileProvenance, { workspaceId });
+    const fileNodeResult = kernel.proposeNode(fileRef, section.filePath, fileProvenance, { workspaceId });
     admissions.push(buildGraphAdmissionRecord({
       kind: 'node',
       targetType: 'graph_node',
       targetId: fileRef,
       provenance: fileProvenance,
+      proposal: fileNodeResult,
       workspaceId,
       details: {
         filePath: section.filePath,
       },
     }));
-    kernel.proposeNode(sectionNode, section.sectionTitle, sectionProvenance, { workspaceId });
+    const sectionNodeResult = kernel.proposeNode(sectionNode, section.sectionTitle, sectionProvenance, { workspaceId });
     admissions.push(buildGraphAdmissionRecord({
       kind: 'node',
       targetType: 'graph_node',
       targetId: sectionNode,
       provenance: sectionProvenance,
+      proposal: sectionNodeResult,
       workspaceId,
       details: {
         parentId: fileRef,
         sectionTitle: section.sectionTitle,
       },
     }));
-    const sectionEdge = addCompanyEdge(kernel, fileRef, sectionNode, 'özellik', {
+    const sectionProposal = addCompanyEdge(kernel, fileRef, sectionNode, 'özellik', {
       source: 'markdown',
       sourceRef,
       sessionId,
@@ -374,23 +414,46 @@ async function ingestMarkdownPath(kernel, input = {}) {
       fromLabel: section.filePath,
       toLabel: section.sectionTitle,
     });
-    if (sectionEdge) {
-      admissions.push(buildGraphAdmissionRecord({
-        kind: 'edge',
-        targetType: 'graph_edge',
-        targetId: `${sectionEdge.from}|${sectionEdge.relation}|${sectionEdge.to}`,
-        provenance: sectionProvenance,
-        workspaceId,
-        details: {
-          relation: sectionEdge.relation,
-          sourceRef,
-        },
-      }));
-    }
-    added += 1;
+    admissions.push(buildGraphAdmissionRecord({
+      kind: 'node',
+      targetType: 'graph_node',
+      targetId: fileRef,
+      provenance: fileProvenance,
+      proposal: sectionProposal.fromResult,
+      workspaceId,
+      details: {
+        repeatedProposal: true,
+        childId: sectionNode,
+      },
+    }));
+    admissions.push(buildGraphAdmissionRecord({
+      kind: 'node',
+      targetType: 'graph_node',
+      targetId: sectionNode,
+      provenance: sectionProvenance,
+      proposal: sectionProposal.toResult,
+      workspaceId,
+      details: {
+        repeatedProposal: true,
+        parentId: fileRef,
+      },
+    }));
+    admissions.push(buildGraphAdmissionRecord({
+      kind: 'edge',
+      targetType: 'graph_edge',
+      targetId: `${fileRef}|özellik|${sectionNode}`,
+      provenance: sectionProvenance,
+      proposal: sectionProposal.edgeResult,
+      workspaceId,
+      details: {
+        relation: 'özellik',
+        sourceRef,
+      },
+    }));
+    if (sectionProposal.edge) added += 1;
   }
 
-  trackIngestSuccess(kernel, 'markdown', added || ingested.files.length);
+  trackIngestSuccess(kernel, 'markdown', added);
   return {
     ok: true,
     sourceType: 'markdown',
