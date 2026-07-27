@@ -228,6 +228,47 @@ class AxiomStorage {
         FROM tool_approvals
         WHERE status = 'pending'
       `),
+      listUnresolvedToolApprovals: this.db.prepare(`
+        SELECT *
+        FROM tool_approvals
+        WHERE status IN ('pending', 'executing', 'failed')
+        ORDER BY updated_at DESC
+        LIMIT ?
+      `),
+      countUnresolvedToolApprovals: this.db.prepare(`
+        SELECT COUNT(*) AS c
+        FROM tool_approvals
+        WHERE status IN ('pending', 'executing', 'failed')
+      `),
+      claimToolApproval: this.db.prepare(`
+        UPDATE tool_approvals
+        SET status = 'executing',
+            decision = 'approved',
+            reason = @reason,
+            updated_at = @updated_at
+        WHERE id = @id
+          AND status = 'pending'
+      `),
+      rejectToolApproval: this.db.prepare(`
+        UPDATE tool_approvals
+        SET status = 'rejected',
+            decision = 'rejected',
+            reason = @reason,
+            decided_at = @decided_at,
+            updated_at = @updated_at
+        WHERE id = @id
+          AND status = 'pending'
+      `),
+      failToolApproval: this.db.prepare(`
+        UPDATE tool_approvals
+        SET status = 'failed',
+            decision = 'execution_outcome_unknown',
+            reason = @reason,
+            decided_at = @decided_at,
+            updated_at = @updated_at
+        WHERE id = @id
+          AND status = 'executing'
+      `),
       resolveToolApproval: this.db.prepare(`
         UPDATE tool_approvals
         SET status = @status,
@@ -411,6 +452,58 @@ class AxiomStorage {
 
   countPendingToolApprovals() {
     return Number(this._stmts.countPendingToolApprovals.get()?.c || 0);
+  }
+
+  listUnresolvedToolApprovals(limit = 20) {
+    const rows = this._stmts.listUnresolvedToolApprovals.all(Math.max(1, Number(limit) || 20));
+    return rows.map(row => this._hydrateToolApproval(row));
+  }
+
+  countUnresolvedToolApprovals() {
+    return Number(this._stmts.countUnresolvedToolApprovals.get()?.c || 0);
+  }
+
+  claimToolApproval(id, reason = 'approval_execution_claimed') {
+    if (!id) return { claimed: false, approval: null };
+    const result = this._stmts.claimToolApproval.run({
+      id: String(id),
+      reason: String(reason || ''),
+      updated_at: this._now(),
+    });
+    return {
+      claimed: Number(result.changes || 0) === 1,
+      approval: this.getToolApprovalById(id),
+    };
+  }
+
+  rejectToolApproval(id, reason = 'approval_rejected') {
+    if (!id) return { rejected: false, approval: null };
+    const now = this._now();
+    const result = this._stmts.rejectToolApproval.run({
+      id: String(id),
+      reason: String(reason || ''),
+      decided_at: now,
+      updated_at: now,
+    });
+    return {
+      rejected: Number(result.changes || 0) === 1,
+      approval: this.getToolApprovalById(id),
+    };
+  }
+
+  failToolApproval(id, reason = 'approval_execution_failed') {
+    if (!id) return { failed: false, approval: null };
+    const now = this._now();
+    const result = this._stmts.failToolApproval.run({
+      id: String(id),
+      reason: String(reason || ''),
+      decided_at: now,
+      updated_at: now,
+    });
+    return {
+      failed: Number(result.changes || 0) === 1,
+      approval: this.getToolApprovalById(id),
+    };
   }
 
   resolveToolApproval(id, decision = 'approved', reason = '') {
