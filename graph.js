@@ -356,7 +356,8 @@ class Graph {
         completed_at TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS mutation_receipts (
-        operation_id TEXT PRIMARY KEY,
+        sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+        operation_id TEXT NOT NULL UNIQUE,
         receipt_id TEXT NOT NULL UNIQUE,
         workspace_id TEXT NOT NULL,
         canonical_payload TEXT NOT NULL,
@@ -459,7 +460,7 @@ class Graph {
       CREATE INDEX IF NOT EXISTS idx_candidates_workspace_status ON candidate_claims(workspace_id, status, recommendation);
       CREATE INDEX IF NOT EXISTS idx_candidates_workspace_created ON candidate_claims(workspace_id, created_at);
       CREATE INDEX IF NOT EXISTS idx_mutation_journal_completed ON mutation_journal(completed_at);
-      CREATE INDEX IF NOT EXISTS idx_mutation_receipts_workspace_committed ON mutation_receipts(workspace_id, committed_at, receipt_hash);
+      CREATE INDEX IF NOT EXISTS idx_mutation_receipts_workspace_sequence ON mutation_receipts(workspace_id, sequence DESC);
     `);
 
     // Prepared statements
@@ -539,7 +540,7 @@ class Graph {
       insertMutationJournal: this._db.prepare('INSERT INTO mutation_journal (operation_id, status, result, completed_at) VALUES (?, ?, ?, ?)'),
       getMutationReceiptByOperation: this._db.prepare('SELECT * FROM mutation_receipts WHERE operation_id = ?'),
       getMutationReceiptById: this._db.prepare('SELECT * FROM mutation_receipts WHERE receipt_id = ?'),
-      getLatestMutationReceiptHash: this._db.prepare('SELECT receipt_hash FROM mutation_receipts WHERE workspace_id = ? ORDER BY committed_at DESC, receipt_hash DESC LIMIT 1'),
+      getLatestMutationReceiptHash: this._db.prepare('SELECT receipt_hash FROM mutation_receipts WHERE workspace_id = ? ORDER BY sequence DESC LIMIT 1'),
       insertMutationReceipt: this._db.prepare('INSERT INTO mutation_receipts (operation_id, receipt_id, workspace_id, canonical_payload, previous_receipt_hash, receipt_hash, committed_at) VALUES (?, ?, ?, ?, ?, ?, ?)'),
     };
   }
