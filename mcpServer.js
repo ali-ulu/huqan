@@ -1147,6 +1147,7 @@ module.exports = {
   VERIFY_STATUS,
   buildKernelOptsFromEnv,
   createKernelFromEnv,
+  createApprovalStoreFromKernel,
   callTool,
   createServer,
   runStdio,
