@@ -5,6 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const Graph = require('./graph');
+const { rateLimitMap } = require('./requestGuards');
 
 let PORT;
 let BASE;
@@ -74,10 +75,22 @@ async function ingestManualFact(text) {
       text,
     }),
   });
-  assert.strictEqual(response.status, 200);
-  const body = await response.json();
+  assert.ok([200, 202].includes(response.status));
+  const queued = await response.json();
+  assert.strictEqual(queued.ok, true);
+  if (response.status === 200) {
+    assert.strictEqual(queued.status, 'approved');
+    return queued;
+  }
+  const approved = await request(`${BASE}/api/ingest/approvals/${encodeURIComponent(queued.approval.id)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ decision: 'approved' }),
+  });
+  assert.strictEqual(approved.status, 200);
+  const body = await approved.json();
   assert.strictEqual(body.ok, true);
-  return body;
+  return body.result;
 }
 
 async function assertUploadReviewOnly(pathname, payload) {
@@ -388,10 +401,68 @@ describe('Server - API', () => {
         text: 'axiom motordur',
       }),
     });
-    assert.strictEqual(r.status, 200);
+    assert.strictEqual(r.status, 202);
     const j = await r.json();
     assert.strictEqual(j.ok, true);
-    assert.strictEqual(j.sourceType, 'manual');
+    assert.strictEqual(j.approval.sourceType, 'manual');
+  });
+
+  it('POST /api/ingest queues immutable manual snapshots and reject emits an approval receipt', async () => {
+    const payload = {
+      sourceType: 'manual', author: 'queue-test', date: '2026-07-28',
+      text: 'queue reject sentinel hayvandir', idempotencyKey: 'queue-reject-sentinel',
+    };
+    const queued = await request(`${BASE}/api/ingest`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    });
+    assert.strictEqual(queued.status, 202);
+    const queuedJson = await queued.json();
+    assert.match(queuedJson.approval.snapshotHash, /^sha256:/);
+
+    const listed = await request(`${BASE}/api/ingest/approvals`);
+    assert.strictEqual(listed.status, 200);
+    const listedJson = await listed.json();
+    assert.ok(listedJson.approvals.some((item) => item.id === queuedJson.approval.id && item.status === 'pending'));
+
+    const rejected = await request(`${BASE}/api/ingest/approvals/${encodeURIComponent(queuedJson.approval.id)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decision: 'rejected' }),
+    });
+    assert.strictEqual(rejected.status, 200);
+    const rejectedJson = await rejected.json();
+    assert.equal(rejectedJson.approval.status, 'rejected');
+    assert.equal(rejectedJson.receipt.receiptKind, 'blocked_action_receipt');
+    assert.equal(rejectedJson.receipt.metadata.snapshotHash, queuedJson.approval.snapshotHash);
+    assert.ok(rejectedJson.auditRef);
+  });
+
+  it('POST /api/ingest persists an approved receipt without asserting graph state persistence', async () => {
+    const payload = {
+      sourceType: 'manual', author: 'queue-test', date: '2026-07-28',
+      text: 'queue approved sentinel hayvandir', idempotencyKey: 'queue-approved-sentinel',
+    };
+    const queued = await request(`${BASE}/api/ingest`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    });
+    assert.strictEqual(queued.status, 202);
+    const queuedJson = await queued.json();
+    const approved = await request(`${BASE}/api/ingest/approvals/${encodeURIComponent(queuedJson.approval.id)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decision: 'approved' }),
+    });
+    assert.strictEqual(approved.status, 200);
+    const approvedJson = await approved.json();
+    assert.equal(approvedJson.receipt.receiptKind, 'reviewed_action_receipt');
+    assert.equal(approvedJson.receipt.actionExecution, 'plugin_execution_returned');
+    assert.equal(approvedJson.receipt.actionOutcome, 'state_transition_not_asserted');
+    assert.equal(approvedJson.receipt.metadata.snapshotHash, queuedJson.approval.snapshotHash);
+    assert.match(approvedJson.receipt.metadata.pluginResultRef, /^sha256:/);
+
+    const replay = await request(`${BASE}/api/ingest`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    });
+    assert.strictEqual(replay.status, 200);
+    const replayJson = await replay.json();
+    assert.equal(replayJson.idempotent, true);
+    assert.equal(replayJson.approval.receipt.receiptId, approvedJson.receipt.receiptId);
   });
 
   it('POST /api/ingest decision writes decision log payload', async () => {
@@ -407,13 +478,13 @@ describe('Server - API', () => {
         links: ['repo:ai-ulu/axiom:README.md'],
       }),
     });
-    assert.strictEqual(r.status, 200);
+    assert.strictEqual(r.status, 202);
     const j = await r.json();
     assert.strictEqual(j.ok, true);
-    assert.strictEqual(typeof j.decisionId, 'string');
+    assert.strictEqual(j.approval.sourceType, 'decision');
   });
 
-  it('POST /api/ingest markdown ingests local markdown recursively', async () => {
+  it('POST /api/ingest fails closed for markdown until INGEST-SNAPSHOT-0 exists', async () => {
     const mdDir = path.join(tempDir, 'md-source');
     fs.mkdirSync(mdDir, { recursive: true });
     const mdFile = path.join(mdDir, 'notes.md');
@@ -428,11 +499,26 @@ describe('Server - API', () => {
         rootPath: mdDir,
       }),
     });
-    assert.strictEqual(r.status, 200);
+    assert.strictEqual(r.status, 409);
     const j = await r.json();
-    assert.strictEqual(j.ok, true);
-    assert.strictEqual(j.sourceType, 'markdown');
-    assert.ok(j.files >= 1);
+    assert.strictEqual(j.ok, false);
+    assert.strictEqual(j.error.code, 'INGEST_SNAPSHOT_REQUIRED');
+  });
+
+  it('POST /api/ingest fails closed for github until INGEST-SNAPSHOT-0 exists', async () => {
+    const r = await request(`${BASE}/api/ingest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourceType: 'github',
+        repository: 'ali-ulu/huqan',
+        ref: 'main',
+      }),
+    });
+    assert.strictEqual(r.status, 409);
+    const j = await r.json();
+    assert.strictEqual(j.ok, false);
+    assert.strictEqual(j.error.code, 'INGEST_SNAPSHOT_REQUIRED');
   });
 
   it('GET /api/ingest/status returns ingest distribution and errors list', async () => {
@@ -903,6 +989,7 @@ describe('Server - Public API Allowlist Lockdown', () => {
   });
 
   it('fallback queries (hello, hi, ?) preserve existing behavior (200 + Anlamadım)', async () => {
+    rateLimitMap.clear();
     const fallbackQueries = ['hello', 'hi', 'selamlar', '?', 'h', 'sor', 'neden', 'kim', 'ne', 'yardim', 'nasil', 'nicin'];
     for (const query of fallbackQueries) {
       const r = await request(`${BASE}/api?q=${encodeURIComponent(query)}`);
