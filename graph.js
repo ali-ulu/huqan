@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { buildAuditEvent, getAuditEvents: filterAuditEvents, normalizeAuditEvent } = require('./lib/audit-log');
 const { normalizeCandidateClaim } = require('./lib/conflict-detector');
+const { appendReceiptToChain } = require('./lib/receipt/receipt-chain');
 
 // SQLite opsiyonel — yoksa JSON fallback
 let Database;
@@ -348,6 +349,22 @@ class Graph {
         warnings TEXT NOT NULL DEFAULT '[]',
         UNIQUE(workspace_id, candidate_id)
       );
+      CREATE TABLE IF NOT EXISTS mutation_journal (
+        operation_id TEXT PRIMARY KEY,
+        status TEXT NOT NULL CHECK(status IN ('completed')),
+        result TEXT NOT NULL,
+        completed_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS mutation_receipts (
+        sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+        operation_id TEXT NOT NULL UNIQUE,
+        receipt_id TEXT NOT NULL UNIQUE,
+        workspace_id TEXT NOT NULL,
+        canonical_payload TEXT NOT NULL,
+        previous_receipt_hash TEXT NOT NULL,
+        receipt_hash TEXT NOT NULL UNIQUE,
+        committed_at TEXT NOT NULL
+      );
       CREATE TRIGGER IF NOT EXISTS audit_log_no_update
       BEFORE UPDATE ON audit_log
       BEGIN
@@ -442,6 +459,8 @@ class Graph {
       CREATE INDEX IF NOT EXISTS idx_audit_workspace_timestamp ON audit_log(workspace_id, timestamp);
       CREATE INDEX IF NOT EXISTS idx_candidates_workspace_status ON candidate_claims(workspace_id, status, recommendation);
       CREATE INDEX IF NOT EXISTS idx_candidates_workspace_created ON candidate_claims(workspace_id, created_at);
+      CREATE INDEX IF NOT EXISTS idx_mutation_journal_completed ON mutation_journal(completed_at);
+      CREATE INDEX IF NOT EXISTS idx_mutation_receipts_workspace_sequence ON mutation_receipts(workspace_id, sequence DESC);
     `);
 
     // Prepared statements
@@ -517,7 +536,96 @@ class Graph {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `),
       allAuditEvents: this._db.prepare('SELECT * FROM audit_log ORDER BY timestamp ASC, audit_id ASC'),
+      getMutationJournal: this._db.prepare('SELECT operation_id, status, result, completed_at FROM mutation_journal WHERE operation_id = ?'),
+      insertMutationJournal: this._db.prepare('INSERT INTO mutation_journal (operation_id, status, result, completed_at) VALUES (?, ?, ?, ?)'),
+      getMutationReceiptByOperation: this._db.prepare('SELECT * FROM mutation_receipts WHERE operation_id = ?'),
+      getMutationReceiptById: this._db.prepare('SELECT * FROM mutation_receipts WHERE receipt_id = ?'),
+      getLatestMutationReceiptHash: this._db.prepare('SELECT receipt_hash FROM mutation_receipts WHERE workspace_id = ? ORDER BY sequence DESC LIMIT 1'),
+      insertMutationReceipt: this._db.prepare('INSERT INTO mutation_receipts (operation_id, receipt_id, workspace_id, canonical_payload, previous_receipt_hash, receipt_hash, committed_at) VALUES (?, ?, ?, ?, ?, ?, ?)'),
     };
+  }
+
+  _readMutationReceipt(row) {
+    if (!row) return null;
+    return {
+      operationId: row.operation_id,
+      receiptId: row.receipt_id,
+      workspaceId: row.workspace_id,
+      canonicalPayload: JSON.parse(row.canonical_payload),
+      previousReceiptHash: row.previous_receipt_hash,
+      receiptHash: row.receipt_hash,
+      committedAt: row.committed_at,
+    };
+  }
+
+  getCommittedMutationReceiptByOperation(operationId) {
+    if (!this._db || !this._stmts) return null;
+    return this._readMutationReceipt(this._stmts.getMutationReceiptByOperation.get(operationId));
+  }
+
+  getCommittedMutationReceiptById(receiptId) {
+    if (!this._db || !this._stmts) return null;
+    return this._readMutationReceipt(this._stmts.getMutationReceiptById.get(receiptId));
+  }
+
+  runMutationOnce(operationId, mutate, opts = {}) {
+    const id = typeof operationId === 'string' ? operationId.trim() : '';
+    if (!id) throw new Error('mutation operationId is required');
+    if (typeof mutate !== 'function') throw new TypeError('mutation callback is required');
+    if (!this._db || !this._stmts) {
+      const error = new Error('durable mutation journal requires the SQLite Graph backend');
+      error.code = 'DURABLE_MUTATION_JOURNAL_UNAVAILABLE';
+      throw error;
+    }
+
+    const readStored = () => {
+      const row = this._stmts.getMutationJournal.get(id);
+      return row && row.status === 'completed' ? JSON.parse(row.result) : null;
+    };
+    const stored = readStored();
+    if (stored !== null) return { replayed: true, result: stored, receipt: this.getCommittedMutationReceiptByOperation(id) };
+
+    const snapshot = {
+      nodes: deepClone(this._nodes), edges: deepClone(this._edges),
+      candidateClaims: deepClone(this._candidateClaims), auditEvents: deepClone(this._auditEvents),
+    };
+    try {
+      const execute = this._db.transaction(() => {
+        const alreadyCompleted = readStored();
+        if (alreadyCompleted !== null) return { replayed: true, result: alreadyCompleted, receipt: this.getCommittedMutationReceiptByOperation(id) };
+        const result = mutate();
+        let receipt = null;
+        if (typeof opts.buildCanonicalReceipt === 'function') {
+          const payload = opts.buildCanonicalReceipt(result);
+          if (!payload || typeof payload !== 'object' || !payload.receiptId || !payload.workspaceId) {
+            throw new Error('durable mutation receipt payload is invalid');
+          }
+          const previous = this._stmts.getLatestMutationReceiptHash.get(payload.workspaceId);
+          const chained = appendReceiptToChain(payload, previous?.receipt_hash);
+          const committedAt = nowIso();
+          this._stmts.insertMutationReceipt.run(
+            id, chained.receiptId, payload.workspaceId, JSON.stringify(payload),
+            chained.previousReceiptHash, chained.receiptHash, committedAt,
+          );
+          receipt = this._readMutationReceipt(this._stmts.getMutationReceiptByOperation.get(id));
+        }
+        this._stmts.insertMutationJournal.run(id, 'completed', JSON.stringify(result), nowIso());
+        return { replayed: false, result, receipt };
+      });
+      return execute();
+    } catch (error) {
+      // SQLite rolls back, but Graph also keeps mutable in-memory indexes.
+      this._nodes = snapshot.nodes;
+      this._edges = snapshot.edges;
+      this._candidateClaims = snapshot.candidateClaims;
+      this._auditEvents = snapshot.auditEvents;
+      this._outIndex.clear();
+      this._inIndex.clear();
+      this._rebuildIndex();
+      const completed = readStored();
+      if (completed !== null) return { replayed: true, result: completed };
+      throw error;
+    }
   }
 
   // ─── Node işlemleri ───────────────────────────────────────────────────────
