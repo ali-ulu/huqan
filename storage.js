@@ -258,6 +258,35 @@ class AxiomStorage {
         WHERE id = @id
           AND status = 'pending'
       `),
+      claimToolApprovalWithLease: this.db.prepare(`
+        UPDATE tool_approvals
+        SET status = 'executing',
+            decision = 'approved',
+            reason = @reason,
+            context_json = @context_json,
+            updated_at = @updated_at
+        WHERE id = @id
+          AND status = 'pending'
+      `),
+      renewToolApprovalLease: this.db.prepare(`
+        UPDATE tool_approvals
+        SET context_json = @context_json,
+            updated_at = @updated_at
+        WHERE id = @id
+          AND status = 'executing'
+          AND context_json = @expected_context_json
+      `),
+      failExpiredToolApproval: this.db.prepare(`
+        UPDATE tool_approvals
+        SET status = 'failed',
+            decision = 'execution_outcome_unknown',
+            reason = @reason,
+            decided_at = @decided_at,
+            updated_at = @updated_at
+        WHERE id = @id
+          AND status = 'executing'
+          AND context_json = @expected_context_json
+      `),
       rejectToolApproval: this.db.prepare(`
         UPDATE tool_approvals
         SET status = 'rejected',
@@ -563,6 +592,82 @@ class AxiomStorage {
       updated_at: now,
     });
     return this.getToolApprovalById(id);
+  }
+
+  claimToolApprovalWithLease(id, {
+    owner = '',
+    leaseMs = 60_000,
+    reason = 'approval_execution_claimed',
+  } = {}) {
+    if (!id || !String(owner).trim()) return { claimed: false, approval: null };
+    const existing = this.getToolApprovalById(id);
+    if (!existing || existing.status !== 'pending') return { claimed: false, approval: existing };
+    const now = this._now();
+    const safeLeaseMs = Math.max(1_000, Math.min(900_000, Number(leaseMs) || 60_000));
+    const context = {
+      ...(existing.context || {}),
+      executionClaim: {
+        owner: String(owner),
+        claimedAt: now,
+        leaseExpiresAt: now + safeLeaseMs,
+      },
+    };
+    const result = this._stmts.claimToolApprovalWithLease.run({
+      id: String(id),
+      reason: String(reason || ''),
+      context_json: JSON.stringify(context),
+      updated_at: now,
+    });
+    return {
+      claimed: Number(result.changes || 0) === 1,
+      approval: this.getToolApprovalById(id),
+    };
+  }
+
+  renewToolApprovalLease(id, owner, leaseMs = 60_000) {
+    if (!id || !String(owner).trim()) return { renewed: false, approval: null };
+    const existing = this.getToolApprovalById(id);
+    const claim = existing?.context?.executionClaim;
+    if (!existing || existing.status !== 'executing' || claim?.owner !== String(owner)) {
+      return { renewed: false, approval: existing || null };
+    }
+    const now = this._now();
+    const safeLeaseMs = Math.max(1_000, Math.min(900_000, Number(leaseMs) || 60_000));
+    const context = {
+      ...(existing.context || {}),
+      executionClaim: {
+        ...claim,
+        leaseExpiresAt: now + safeLeaseMs,
+      },
+    };
+    const result = this._stmts.renewToolApprovalLease.run({
+      id: String(id),
+      context_json: JSON.stringify(context),
+      expected_context_json: existing.context_json,
+      updated_at: now,
+    });
+    return {
+      renewed: Number(result.changes || 0) === 1,
+      approval: this.getToolApprovalById(id),
+    };
+  }
+
+  recoverExpiredToolApprovals({ tool = '', now = this._now(), reason = 'execution_lease_expired' } = {}) {
+    const recovered = [];
+    for (const approval of this.listUnresolvedToolApprovals(10_000)) {
+      if (approval.status !== 'executing' || (tool && approval.tool !== tool)) continue;
+      const expiresAt = Number(approval.context?.executionClaim?.leaseExpiresAt || 0);
+      if (!Number.isFinite(expiresAt) || expiresAt <= 0 || expiresAt > now) continue;
+      const result = this._stmts.failExpiredToolApproval.run({
+        id: String(approval.id),
+        reason: String(reason || 'execution_lease_expired'),
+        expected_context_json: approval.context_json,
+        decided_at: now,
+        updated_at: now,
+      });
+      if (Number(result.changes || 0) === 1) recovered.push(this.getToolApprovalById(approval.id));
+    }
+    return recovered;
   }
 
   finalizeToolApprovalWithReceipt(id, {

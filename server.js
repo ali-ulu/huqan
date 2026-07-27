@@ -37,11 +37,22 @@ const cli = new CLI({ kernel: kernelOpts });
 cli.kernel.graph.load();
 let companyRuntimeReady = false;
 let ingestApprovalStore = null;
+const INGEST_APPROVAL_WORKER_ID = `http-ingest-${crypto.randomUUID()}`;
+const INGEST_APPROVAL_LEASE_MS = Math.max(30_000, Math.min(900_000, Number(process.env.AXIOM_INGEST_APPROVAL_LEASE_MS) || 120_000));
 
 function getIngestApprovalStore() {
   if (ingestApprovalStore) return ingestApprovalStore;
   ingestApprovalStore = new AxiomStorage({ kernel: cli.kernel });
+  recoverExpiredIngestApprovals(ingestApprovalStore);
   return ingestApprovalStore;
+}
+
+function recoverExpiredIngestApprovals(store = ingestApprovalStore) {
+  if (!store || typeof store.recoverExpiredToolApprovals !== 'function') return [];
+  return store.recoverExpiredToolApprovals({
+    tool: 'http.ingest',
+    reason: 'execution_outcome_unknown:lease_expired',
+  });
 }
 
 function newIngestApprovalId() {
@@ -62,6 +73,7 @@ function publicIngestApproval(record) {
     sourceType: context.snapshot?.sourceType || '',
     sourceRef: context.snapshot?.sourceRef || '',
     idempotencyKey: context.snapshot?.idempotencyKey || '',
+    leaseExpiresAt: Number(context.executionClaim?.leaseExpiresAt || 0),
     receipt: context.receipt || null,
   };
 }
@@ -87,6 +99,10 @@ const rateLimitCleanupTimer = setInterval(() => {
   clearExpiredRateLimitEntries();
 }, 60_000);
 rateLimitCleanupTimer.unref?.();
+const ingestApprovalRecoveryTimer = setInterval(() => {
+  try { recoverExpiredIngestApprovals(); } catch (error) { console.error('[ingest-approval-recovery] failed:', error); }
+}, Math.max(5_000, Math.floor(INGEST_APPROVAL_LEASE_MS / 2)));
+ingestApprovalRecoveryTimer.unref?.();
 
 function legacyVerify(result) {
   return {
@@ -1075,6 +1091,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (!denyIfUnauthorized(req, res)) return;
     try {
+      recoverExpiredIngestApprovals();
       const limit = Math.min(100, Math.max(1, Number(reqUrl.searchParams.get('limit')) || 50));
       const approvals = getIngestApprovalStore().listUnresolvedToolApprovals(limit)
         .filter(item => item.tool === 'http.ingest')
@@ -1103,6 +1120,7 @@ const server = http.createServer(async (req, res) => {
     }
     try {
       const store = getIngestApprovalStore();
+      recoverExpiredIngestApprovals(store);
       const approval = store.getToolApprovalById(approvalId);
       if (!approval || approval.tool !== 'http.ingest') {
         writeApiError(req, res, 404, 'APPROVAL_NOT_FOUND', 'Ingest approval was not found.');
@@ -1130,7 +1148,11 @@ const server = http.createServer(async (req, res) => {
         writeJson(req, res, 200, { ok: true, approval: publicIngestApproval(finalApproval), receipt, auditRef }, { 'Cache-Control': 'no-cache' });
         return;
       }
-      const claim = store.claimToolApproval(approvalId, 'http_ingest_execution_claimed');
+      const claim = store.claimToolApprovalWithLease(approvalId, {
+        owner: INGEST_APPROVAL_WORKER_ID,
+        leaseMs: INGEST_APPROVAL_LEASE_MS,
+        reason: 'http_ingest_execution_claimed',
+      });
       if (!claim.claimed) {
         writeApiError(req, res, 409, 'APPROVAL_EXECUTION_IN_PROGRESS', 'Approval is already claimed or not pending.');
         return;
@@ -1143,11 +1165,27 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       let result;
+      let leaseLost = false;
+      const leaseHeartbeat = setInterval(() => {
+        try {
+          const renewal = store.renewToolApprovalLease(approvalId, INGEST_APPROVAL_WORKER_ID, INGEST_APPROVAL_LEASE_MS);
+          if (!renewal.renewed) leaseLost = true;
+        } catch (_) {
+          leaseLost = true;
+        }
+      }, Math.max(5_000, Math.floor(INGEST_APPROVAL_LEASE_MS / 2)));
+      leaseHeartbeat.unref?.();
       try {
         result = await handleIngest({ kernel: cli.kernel, data: snapshot.payload, ensureRuntime: ensureCompanyRuntime });
       } catch (error) {
         store.failToolApproval(approvalId, `execution_outcome_unknown:${error.code || error.name || 'error'}`);
         throw error;
+      } finally {
+        clearInterval(leaseHeartbeat);
+      }
+      if (leaseLost) {
+        writeApiError(req, res, 409, 'APPROVAL_LEASE_LOST', 'Plugin execution returned after its approval lease was lost; manual reconciliation is required.');
+        return;
       }
       if (!result || result.ok === false) {
         store.failToolApproval(approvalId, 'execution_outcome_unknown:result_not_ok');
@@ -1314,6 +1352,7 @@ if (require.main === module && process.env.AXIOM_DISABLE_AUTO_LISTEN !== '1') {
 }
 
 server.closeAxiom = () => {
+  clearInterval(ingestApprovalRecoveryTimer);
   if (ingestApprovalStore && typeof ingestApprovalStore.close === 'function') {
     try { ingestApprovalStore.close(); } catch (_) {}
     ingestApprovalStore = null;
