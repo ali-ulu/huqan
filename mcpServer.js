@@ -405,6 +405,7 @@ const TOOL_APPROVAL_SCHEMA = {
   type: 'object',
   properties: {
     pendingCount: { type: 'integer', minimum: 0 },
+    unresolvedCount: { type: 'integer', minimum: 0 },
     approvals: {
       type: 'array',
       items: {
@@ -533,9 +534,13 @@ function formatApprovalRecord(record) {
 }
 
 function listPersistentApprovals(approvalStore, limit = 50) {
-  if (!approvalStore || typeof approvalStore.listPendingToolApprovals !== 'function') return [];
-  return approvalStore
-    .listPendingToolApprovals(limit)
+  if (!approvalStore) return [];
+  const list = typeof approvalStore.listUnresolvedToolApprovals === 'function'
+    ? approvalStore.listUnresolvedToolApprovals(limit)
+    : typeof approvalStore.listPendingToolApprovals === 'function'
+      ? approvalStore.listPendingToolApprovals(limit)
+      : [];
+  return list
     .map(formatApprovalRecord)
     .filter(Boolean);
 }
@@ -543,6 +548,13 @@ function listPersistentApprovals(approvalStore, limit = 50) {
 function countPersistentApprovals(approvalStore) {
   if (!approvalStore || typeof approvalStore.countPendingToolApprovals !== 'function') return 0;
   return approvalStore.countPendingToolApprovals();
+}
+
+function countUnresolvedApprovals(approvalStore) {
+  if (!approvalStore || typeof approvalStore.countUnresolvedToolApprovals !== 'function') {
+    return countPersistentApprovals(approvalStore);
+  }
+  return approvalStore.countUnresolvedToolApprovals();
 }
 
 function saveMcpApproval(approvalStore, name, args, gate) {
@@ -888,7 +900,12 @@ function failApprovalDecision(code, message, meta = {}) {
 
 function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
   const approvalStore = runtime.approvalStore || createApprovalStoreFromKernel(kernel, runtime);
-  if (!approvalStore || typeof approvalStore.getToolApprovalById !== 'function') {
+  if (!approvalStore ||
+      typeof approvalStore.getToolApprovalById !== 'function' ||
+      typeof approvalStore.claimToolApproval !== 'function' ||
+      typeof approvalStore.rejectToolApproval !== 'function' ||
+      typeof approvalStore.failToolApproval !== 'function' ||
+      typeof approvalStore.resolveToolApproval !== 'function') {
     return failApprovalDecision('APPROVAL_STORE_UNAVAILABLE', 'Persistent MCP approval store is unavailable.');
   }
 
@@ -919,7 +936,16 @@ function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
   }
 
   if (decision === 'rejected') {
-    const rejected = formatApprovalRecord(approvalStore.resolveToolApproval(approvalId, 'rejected', reason));
+    const rejection = approvalStore.rejectToolApproval(approvalId, reason);
+    if (!rejection || rejection.rejected !== true) {
+      const current = formatApprovalRecord(rejection?.approval || approvalStore.getToolApprovalById(approvalId));
+      return failApprovalDecision(
+        'APPROVAL_DECISION_CONFLICT',
+        'Approval is already claimed or is not pending.',
+        { approval: current, retrySafe: false },
+      );
+    }
+    const rejected = formatApprovalRecord(rejection.approval);
     return {
       ok: true,
       type: 'approval',
@@ -934,16 +960,84 @@ function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
     return failApprovalDecision('APPROVAL_EXECUTION_UNSUPPORTED', `Approval execution is only supported for axiom.learn, got ${existing.tool}.`, { approval: existing });
   }
 
+  const claim = approvalStore.claimToolApproval(approvalId, reason);
+  if (!claim || claim.claimed !== true) {
+    const current = formatApprovalRecord(claim?.approval || approvalStore.getToolApprovalById(approvalId));
+    if (current?.status === 'approved') {
+      return {
+        ok: true,
+        type: 'approval',
+        data: { approval: current, decision, executed: false, idempotent: true, result: null },
+        evidence: [],
+        error: null,
+        meta: { idempotent: true },
+      };
+    }
+    const code = current?.status === 'failed'
+      ? 'APPROVAL_RECONCILIATION_REQUIRED'
+      : current?.status === 'executing'
+        ? 'APPROVAL_EXECUTION_IN_PROGRESS'
+        : 'APPROVAL_DECISION_CONFLICT';
+    return failApprovalDecision(
+      code,
+      current?.status === 'failed'
+        ? 'Approval execution outcome is unknown and requires manual reconciliation.'
+        : 'Approval execution is already claimed or is not pending.',
+      { approval: current, retrySafe: false },
+    );
+  }
+
   const storedArgs = existing.context?.args && typeof existing.context.args === 'object'
     ? existing.context.args
     : parseJsonObject(existing.input, {});
   const cleanArgs = sanitizeToolArgsForStorage(existing.tool, storedArgs);
-  const result = kernel.learn(cleanArgs.text, buildApprovalAdmissionOptions(existing, cleanArgs));
+  let result;
+  try {
+    result = kernel.learn(cleanArgs.text, buildApprovalAdmissionOptions(existing, cleanArgs));
+  } catch (error) {
+    const failure = approvalStore.failToolApproval(
+      approvalId,
+      `execution_outcome_unknown:${error?.code || error?.name || 'error'}`
+    );
+    const failed = formatApprovalRecord(failure?.approval || approvalStore.getToolApprovalById(approvalId));
+    return failApprovalDecision(
+      'APPROVAL_EXECUTION_FAILED',
+      'Approved MCP action threw during execution; outcome requires manual reconciliation.',
+      { approval: failed, retrySafe: false },
+    );
+  }
   if (!result || result.ok === false) {
-    return failApprovalDecision('APPROVAL_EXECUTION_FAILED', 'Approved MCP action failed to execute.', { approval: existing, result });
+    const failure = approvalStore.failToolApproval(approvalId, 'execution_outcome_unknown:result_not_ok');
+    const failed = formatApprovalRecord(failure?.approval || approvalStore.getToolApprovalById(approvalId));
+    return failApprovalDecision(
+      'APPROVAL_EXECUTION_FAILED',
+      'Approved MCP action failed; outcome requires manual reconciliation.',
+      { approval: failed, result, retrySafe: false },
+    );
   }
 
-  const approved = formatApprovalRecord(approvalStore.resolveToolApproval(approvalId, 'approved', reason));
+  let approved;
+  try {
+    approved = formatApprovalRecord(approvalStore.resolveToolApproval(approvalId, 'approved', reason));
+  } catch (error) {
+    return failApprovalDecision(
+      'APPROVAL_FINALIZATION_FAILED',
+      'Approved MCP action executed but finalizing the approval record threw an error.',
+      {
+        approval: formatApprovalRecord(approvalStore.getToolApprovalById(approvalId)),
+        result,
+        retrySafe: false,
+        finalizationError: error?.code || error?.name || 'error',
+      },
+    );
+  }
+  if (!approved || approved.status !== 'approved') {
+    return failApprovalDecision(
+      'APPROVAL_FINALIZATION_FAILED',
+      'Approved MCP action executed but the approval record could not be finalized.',
+      { approval: approved || formatApprovalRecord(approvalStore.getToolApprovalById(approvalId)), result, retrySafe: false },
+    );
+  }
   return {
     ok: true,
     type: 'approval',
@@ -1073,6 +1167,7 @@ function callTool(kernel, params = {}, runtime = {}) {
       const storedApprovals = listPersistentApprovals(approvalStore, args.limit || 50);
       return withMcpToolVerdictSurface({
         pendingCount: countPersistentApprovals(approvalStore),
+        unresolvedCount: countUnresolvedApprovals(approvalStore),
         approvals: storedApprovals.slice(0, args.limit || 50),
       }, name, args, gate);
     case 'axiom.reason':
