@@ -243,6 +243,8 @@ See [`/obsidian-plugin`](./obsidian-plugin).
 
 ## Roadmap
 
+Current execution order and runtime boundaries: [Current Operating Roadmap](./docs/current-operating-roadmap.md).
+
 - [x] Causal graph engine
 - [x] Contradiction detection
 - [x] MCP server (Claude / Cursor)
