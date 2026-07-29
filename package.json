@@ -51,9 +51,6 @@
     "homepage": "https://github.com/ali-ulu/huqan#readme",
     "author": "Huqan Contributors",
     "license": "Apache-2.0",
-    "huqan": {
-        "testStatus": "1893 tests / 1864 pass / 0 fail / 29 skipped"
-    },
     "engines": {
         "node": ">=18.0.0"
     },
