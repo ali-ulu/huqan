@@ -1,5 +1,8 @@
 ﻿# AXIOM Vision Next
 
+> This is a product-direction note. For the live runtime execution order and
+> evidence boundaries, see [Current Operating Roadmap](./current-operating-roadmap.md).
+
 ## v0.9 Semantic Trust Gate
 
 AXIOM v0.9 hardens the verifier so weak lexical overlap, contradictions, scope expansion, and adversarial framing do not become verified truth.
