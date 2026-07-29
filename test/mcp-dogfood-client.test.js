@@ -106,6 +106,13 @@ function parseToolCallResponse(response) {
   return response.result;
 }
 
+async function callTool(client, name, args = {}) {
+  return parseToolCallResponse(await client.request('tools/call', {
+    name,
+    arguments: args,
+  }));
+}
+
 test('MCP dogfood client harness exercises allow, review, dry-run and block decisions through stdio', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-mcp-dogfood-'));
   const client = createDogfoodClient({
@@ -191,6 +198,68 @@ test('MCP dogfood client harness exercises allow, review, dry-run and block deci
     assert.equal(approvalsAfter.structuredContent.approvals.length, approvalsBefore.structuredContent.approvals.length + 1);
   } finally {
     await client.close();
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('MCP dogfood client persists approval, receipt, and idempotent replay across restarts', async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-mcp-approval-dogfood-'));
+  const env = {
+    AXIOM_DB_PATH: path.join(tempDir, 'memory.db'),
+    AXIOM_MEMORY_PATH: path.join(tempDir, 'memory.json'),
+  };
+  const text = 'mcp dogfood approval restart replay sentinel hayvandir';
+  let client;
+
+  try {
+    client = createDogfoodClient(env);
+    assert.ok((await client.request('initialize', {})).result);
+    const queued = await callTool(client, 'axiom.learn', { text });
+    assert.equal(queued.isError, true);
+    const queuedPayload = JSON.parse(queued.content[0].text);
+    assert.equal(queuedPayload.gate.decision, 'review');
+    assert.equal(queuedPayload.approval.status, 'pending');
+    const approvalId = queuedPayload.approval.id;
+    await client.close();
+
+    client = createDogfoodClient(env);
+    assert.ok((await client.request('initialize', {})).result);
+    const afterRestart = await callTool(client, 'axiom.approvals', { limit: 20 });
+    assert.ok(
+      afterRestart.structuredContent.approvals.some((approval) => approval.id === approvalId && approval.status === 'pending'),
+      'a pending approval must be visible to a new MCP server process'
+    );
+
+    const approved = await callTool(client, 'axiom.approve', {
+      approvalId,
+      decision: 'approved',
+      reason: 'dogfood approval',
+    });
+    assert.equal(approved.isError, false);
+    assert.equal(approved.structuredContent.ok, true);
+    assert.equal(approved.structuredContent.data.executed, true);
+    assert.equal(approved.structuredContent.data.idempotent, false);
+    assert.equal(approved.structuredContent.data.approval.status, 'approved');
+    assert.ok(approved.structuredContent.data.result.meta.committedReceiptId);
+    assert.ok(approved.structuredContent.data.result.meta.committedReceiptHash);
+    await client.close();
+
+    client = createDogfoodClient(env);
+    assert.ok((await client.request('initialize', {})).result);
+    const persisted = await callTool(client, 'axiom.verify', { statement: text });
+    assert.equal(persisted.isError, false);
+    assert.equal(persisted.structuredContent.data.status, 'dogrulandi');
+    const replay = await callTool(client, 'axiom.approve', {
+      approvalId,
+      decision: 'approved',
+      reason: 'dogfood replay must not re-execute',
+    });
+    assert.equal(replay.isError, false);
+    assert.equal(replay.structuredContent.ok, true);
+    assert.equal(replay.structuredContent.data.executed, false);
+    assert.equal(replay.structuredContent.data.idempotent, true);
+  } finally {
+    if (client) await client.close();
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
 });
