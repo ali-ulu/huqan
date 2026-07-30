@@ -18,7 +18,7 @@ Hey HN,
 
 I've been working on something that started as a frustration: every time I use an LLM, I have to second-guess it. "Did it make that up? Is that actually true?"
 
-So I built [Huqan](https://github.com/agiulucom42-del/axiom) — a deterministic causal reasoning engine. No LLM, no GPU, no API key. Runs fully local on your machine.
+So I built [Huqan](https://github.com/ali-ulu/huqan) — a deterministic causal reasoning engine. No LLM, no GPU, no API key. Runs fully local on your machine.
 
 **How it works:**
 
@@ -62,7 +62,7 @@ I'm looking for:
 - People who'd want to try the MCP private alpha
 - Thoughts on whether this is useful as an LLM verification layer vs. standalone
 
-GitHub: https://github.com/agiulucom42-del/axiom
+GitHub: https://github.com/ali-ulu/huqan
 
 Happy to answer any questions.
 

@@ -22,8 +22,8 @@ No hallucination. No data corruption. The agent never reaches the filesystem.
 ### 1. Install & load knowledge base
 
 ```bash
-git clone https://github.com/agiulucom42-del/axiom.git
-cd axiom
+git clone https://github.com/ali-ulu/huqan.git
+cd huqan
 npm install
 node egitim.js   # loads initial knowledge base (~5 seconds)
 ```
@@ -37,7 +37,7 @@ node egitim.js   # loads initial knowledge base (~5 seconds)
   "mcpServers": {
     "axiom": {
       "command": "node",
-      "args": ["/path/to/axiom/mcpServer.js"]
+      "args": ["/path/to/huqan/mcpServer.js"]
     }
   }
 }
@@ -50,7 +50,7 @@ node egitim.js   # loads initial knowledge base (~5 seconds)
   "mcpServers": {
     "axiom": {
       "command": "node",
-      "args": ["/path/to/axiom/mcpServer.js"]
+      "args": ["/path/to/huqan/mcpServer.js"]
     }
   }
 }
@@ -150,7 +150,7 @@ Unknown tools → **blocked** by default.
 
 **"Server not found" in Claude Desktop:**
 - Check the path in `claude_desktop_config.json` is absolute
-- Run `node /path/to/axiom/mcpServer.js` manually to verify it starts
+- Run `node /path/to/huqan/mcpServer.js` manually to verify it starts
 
 **Tests fail after pulling:**
 ```bash

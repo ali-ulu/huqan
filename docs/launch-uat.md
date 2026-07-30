@@ -1,12 +1,12 @@
-﻿# Launch UAT
+# Launch UAT
 
-Bu kontrol listesi, yeni bir geliÅŸtiricinin, yatÄ±rÄ±mcÄ±nÄ±n veya deÄŸerlendiricinin AXIOM / HUQAN'Ä± temiz bir klon Ã¼zerinden gÃ¼venli biÃ§imde deneyebilmesi iÃ§in hazÄ±rlanmÄ±ÅŸtÄ±r.
+Bu kontrol listesi, yeni bir geliştiricinin, yatırımcının veya değerlendiricinin AXIOM / HUQAN'ı temiz bir klon üzerinden güvenli biçimde deneyebilmesi için hazırlanmıştır.
 
 ## 1. Fresh clone testi
 
 ```bash
-git clone https://github.com/agiulucom42-del/axiom.git
-cd axiom
+git clone https://github.com/ali-ulu/huqan.git
+cd huqan
 git branch --show-current
 git status --short
 ```
@@ -14,7 +14,7 @@ git status --short
 Beklenen:
 
 - branch `main`
-- Ã§alÄ±ÅŸma aÄŸacÄ± temiz
+- çalışma ağacı temiz
 
 ## 2. Install komutu
 
@@ -25,8 +25,8 @@ node -e "require('better-sqlite3'); console.log('better-sqlite3 ok')"
 
 Beklenen:
 
-- baÄŸÄ±mlÄ±lÄ±klar temiz kurulur
-- `better-sqlite3 ok` Ã§Ä±ktÄ±sÄ± alÄ±nÄ±r
+- bağımlılıklar temiz kurulur
+- `better-sqlite3 ok` çıktısı alınır
 
 ## 3. Test komutu
 
@@ -36,7 +36,7 @@ npm test
 
 Beklenen:
 
-- testler geÃ§er
+- testler geçer
 - zero-fail hedefi korunur
 
 ## 4. CLI smoke
@@ -46,7 +46,7 @@ node egitim.js
 node cli.js
 ```
 
-Ã–rnek akÄ±ÅŸ:
+Örnek akış:
 
 - `learn: cats are animals`
 - `ask: cat nedir`
@@ -54,9 +54,9 @@ node cli.js
 
 Beklenen:
 
-- CLI aÃ§Ä±lÄ±r
-- TÃ¼rkÃ§e ve Ä°ngilizce uyumlu Ã¶rnekler Ã§alÄ±ÅŸÄ±r
-- hiÃ§bir komut runtime dÄ±ÅŸÄ±na taÅŸmaz
+- CLI açılır
+- Türkçe ve İngilizce uyumlu örnekler çalışır
+- hiçbir komut runtime dışına taşmaz
 
 ## 5. Local UI smoke
 
@@ -66,25 +66,25 @@ node server.js
 
 Beklenen:
 
-- yerel backend-connected UI aÃ§Ä±lÄ±r
-- `public/index.html` yÃ¼zeyi gÃ¶rÃ¼lÃ¼r
-- demo sayfasÄ± ile karÄ±ÅŸmaz
+- yerel backend-connected UI açılır
+- `public/index.html` yüzeyi görülür
+- demo sayfası ile karışmaz
 
 ## 6. Static demo smoke
 
-Beklenen static demo yÃ¼zeyi:
+Beklenen static demo yüzeyi:
 
 - `demo/index.html`
 
 Beklenen:
 
-- backend baÄŸÄ±mlÄ±lÄ±ÄŸÄ± yok
-- demo yÃ¼zeyi yalnÄ±zca statik sunumdur
-- public UI ile karÄ±ÅŸtÄ±rÄ±lmaz
+- backend bağımlılığı yok
+- demo yüzeyi yalnızca statik sunumdur
+- public UI ile karıştırılmaz
 
 ## 7. API smoke
 
-Ã–rnek gÃ¼venli uÃ§lar:
+Örnek güvenli uçlar:
 
 - `GET /api?q=...`
 - `POST /verify`
@@ -93,7 +93,7 @@ Beklenen:
 - `POST /upload`
 - `POST /yukle`
 
-Beklenen gÃ¼venli baÅŸarÄ±sÄ±zlÄ±klar:
+Beklenen güvenli başarısızlıklar:
 
 - `GET /verify` -> `405 Method Not Allowed`
 - `GET /dogrula` -> `405 Method Not Allowed`
@@ -101,28 +101,28 @@ Beklenen gÃ¼venli baÅŸarÄ±sÄ±zlÄ±klar:
 
 ## 8. Expected safe failures
 
-Åunlar blokÃ¶r sayÄ±lmaz:
+Şunlar blokör sayılmaz:
 
-- `GET` Ã¼zerinden guarded verify denemelerinin `405` dÃ¶nmesi
-- demo yÃ¼zeyinde backend Ã§aÄŸrÄ±sÄ± olmamasÄ±
-- read-only allowlist dÄ±ÅŸÄ±ndaki tehlikeli query'lerin reddedilmesi
+- `GET` üzerinden guarded verify denemelerinin `405` dönmesi
+- demo yüzeyinde backend çağrısı olmaması
+- read-only allowlist dışındaki tehlikeli query'lerin reddedilmesi
 
 ## 9. What counts as blocker
 
-Åunlar blokÃ¶rdÃ¼r:
+Şunlar blokördür:
 
 - testlerde fail
-- `better-sqlite3` yÃ¼klenmemesi
-- public GET yÃ¼zeyinin guard bypass etmesi
+- `better-sqlite3` yüklenmemesi
+- public GET yüzeyinin guard bypass etmesi
 - runtime code drift
 - package drift
-- dirty root veya runtime artifact oluÅŸmasÄ±
+- dirty root veya runtime artifact oluşması
 
 ## 10. What does not count as blocker
 
-Åunlar blokÃ¶r deÄŸildir:
+Şunlar blokör değildir:
 
-- docs-only PR iÃ§in full UI revizyonu olmamasÄ±
-- statik demo ile local UI'nin ayrÄ± olmasÄ±
-- gÃ¼venli GET isteklerinin `405` dÃ¶nmesi
-- demo script'in kÄ±sa ve kontrollÃ¼ olmasÄ±
+- docs-only PR için full UI revizyonu olmaması
+- statik demo ile local UI'nin ayrı olması
+- güvenli GET isteklerinin `405` dönmesi
+- demo script'in kısa ve kontrollü olması

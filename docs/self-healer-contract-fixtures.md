@@ -7,7 +7,7 @@ Bu belge, Self-Healer contract paketindeki kayıt tipleri için örnek JSON fixt
 ```json
 {
   "scanRunId": "scan_20260612_0001",
-  "workspaceId": "repo:agiulucom42-del/axiom",
+  "workspaceId": "repo:ali-ulu/huqan",
   "branch": "main",
   "commit": "26d73e9",
   "actor": "huqan.self_healer",

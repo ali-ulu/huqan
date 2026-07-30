@@ -53,8 +53,8 @@ For tested current-main paths, the core verdict flow does not rely on LLM-as-jud
 ## Quick Start
 
 ```bash
-git clone https://github.com/agiulucom42-del/axiom.git
-cd axiom
+git clone https://github.com/ali-ulu/huqan.git
+cd huqan
 npm ci --include=optional
 
 node -e "const Database=require('better-sqlite3'); const db=new Database(':memory:'); db.close(); console.log('better-sqlite3 db ok')"
@@ -176,7 +176,7 @@ node mcpServer.js
   "mcpServers": {
     "huqan": {
       "command": "node",
-      "args": ["/path/to/axiom/mcpServer.js"]
+      "args": ["/path/to/huqan/mcpServer.js"]
     }
   }
 }
@@ -298,4 +298,4 @@ For commercial licensing inquiries, please open an issue.
 
 ---
 
-**huqan.ai** · [Issues](https://github.com/agiulucom42-del/axiom/issues) · [Discussions](https://github.com/agiulucom42-del/axiom/discussions)
+**huqan.ai** · [Issues](https://github.com/ali-ulu/huqan/issues) · [Discussions](https://github.com/ali-ulu/huqan/discussions)
