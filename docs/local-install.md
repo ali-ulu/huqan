@@ -14,8 +14,8 @@
 ## Quick install
 
 ```bash
-git clone https://github.com/agiulucom42-del/axiom.git
-cd axiom
+git clone https://github.com/ali-ulu/huqan.git
+cd huqan
 npm ci --include=optional
 ```
 
