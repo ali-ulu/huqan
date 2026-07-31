@@ -48,11 +48,19 @@ test('mutable checkpoint changes do not alter the stable cache prefix', () => {
 test('live Git validation accepts the canonical clone and reports worktree state', () => {
   const checkpoint = require('../docs/current-agent-checkpoint.json');
   const gitState = inspectGitState(checkpoint);
+  const originMain = require('node:child_process').execFileSync(
+    'git',
+    ['rev-parse', 'origin/main'],
+    { encoding: 'utf8' },
+  ).trim();
 
   assert.equal(gitState.repository, checkpoint.repository);
-  assert.equal(gitState.originMain, checkpoint.canonicalMain);
+  assert.equal(gitState.originMain, originMain);
   assert.equal(gitState.checkpointMain, checkpoint.canonicalMain);
-  assert.equal(gitState.checkpointDrift, 'CURRENT');
+  assert.equal(
+    gitState.checkpointDrift,
+    originMain === checkpoint.canonicalMain ? 'CURRENT' : 'STALE_ANCESTOR',
+  );
   assert.match(gitState.worktree, /^(CLEAN|DIRTY_REPORTED)$/);
 });
 
