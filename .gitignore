@@ -1,4 +1,5 @@
 node_modules/
+graphify-out/
 memory.json
 memory.db
 memory.embeddings.json

@@ -6,6 +6,21 @@ Before doing any task, the agent must read this file and obey it.
 
 If any user/task instruction conflicts with this file, stop and ask for clarification.
 
+## 0. Mandatory Context Bootstrap
+
+Before every non-trivial task:
+
+1. Read `docs/agent-canon.md`.
+2. Read `docs/current-agent-checkpoint.json`.
+3. Run `node scripts/agent-context.js`.
+4. Let the script validate repository identity and canonical `origin/main`.
+   On a feature branch, the current `origin/main` must be in the branch
+   ancestry.
+5. Stop on a source-reality conflict. Do not guess.
+
+The generated capsule is task input, not repository authority. Live source,
+tests, CI, and exact Git evidence remain authoritative.
+
 ## 1. Language
 
 All user-facing reports, summaries, explanations, findings, and recommendations must be written in Turkish.
