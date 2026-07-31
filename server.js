@@ -14,6 +14,8 @@ const {
   queryProvenance,
 } = require('./lib/provenance-query');
 const { readReceiptById } = require('./lib/receipt/receipt-read-index');
+const { createSessionStore } = require('./lib/viewer/session-store');
+const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
 const pkg = require('./package.json');
 const {
   DEFAULT_MAX_UPLOAD_BODY,
@@ -99,6 +101,10 @@ const rateLimitCleanupTimer = setInterval(() => {
   clearExpiredRateLimitEntries();
 }, 60_000);
 rateLimitCleanupTimer.unref?.();
+const VIEWER_RATE_LIMIT_WINDOW_MS = 60_000;
+const VIEWER_RATE_LIMIT_MAX = 120;
+const VIEWER_RATE_LIMIT_MAX_ENTRIES = 2048;
+const viewerRateLimits = new Map();
 const ingestApprovalRecoveryTimer = setInterval(() => {
   try { recoverExpiredIngestApprovals(); } catch (error) { console.error('[ingest-approval-recovery] failed:', error); }
 }, Math.max(5_000, Math.floor(INGEST_APPROVAL_LEASE_MS / 2)));
@@ -293,6 +299,32 @@ function sendOptions(req, res) {
   res.end();
 }
 
+function checkViewerRateLimit(req, timestamp = Date.now()) {
+  const key = String(req.socket?.remoteAddress || 'unknown');
+  let record = viewerRateLimits.get(key);
+  if (record && timestamp >= record.resetAt) {
+    viewerRateLimits.delete(key);
+    record = null;
+  }
+  if (!record) {
+    if (viewerRateLimits.size >= VIEWER_RATE_LIMIT_MAX_ENTRIES) {
+      for (const [candidate, entry] of viewerRateLimits) {
+        if (timestamp >= entry.resetAt) viewerRateLimits.delete(candidate);
+      }
+    }
+    if (viewerRateLimits.size >= VIEWER_RATE_LIMIT_MAX_ENTRIES) return false;
+    record = { count: 0, resetAt: timestamp + VIEWER_RATE_LIMIT_WINDOW_MS };
+    viewerRateLimits.set(key, record);
+  }
+  record.count += 1;
+  return record.count <= VIEWER_RATE_LIMIT_MAX;
+}
+
+const viewerSessionStore = createSessionStore();
+const viewerGateway = createViewerGateway({
+  sessionStore: viewerSessionStore,
+  readReceipt: (receiptId, filters) => readReceiptById(cli.kernel.graph, receiptId, filters),
+});
 
 
 function denyIfUnauthorized(req, res) {
@@ -689,6 +721,17 @@ function getHtmlPage() {
 const server = http.createServer(async (req, res) => {
   try {
   res.setHeader('Connection', 'close');
+  const rawPath = String(req.url || '').split('?', 1)[0].split('#', 1)[0];
+  if (viewerGateway.isViewerPath(rawPath)) {
+    if (!checkViewerRateLimit(req)) {
+      res.writeHead(429, { 'Content-Type': JSON_CONTENT_TYPE, 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({ ok: false, error: { code: 'rate_limited', message: 'Too many requests' } }));
+      return;
+    }
+    const viewerUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    await viewerGateway.handle(req, res, viewerUrl);
+    return;
+  }
   if (req.method === 'OPTIONS') {
     sendOptions(req, res);
     return;
@@ -1353,6 +1396,8 @@ if (require.main === module && process.env.AXIOM_DISABLE_AUTO_LISTEN !== '1') {
 
 server.closeAxiom = () => {
   clearInterval(ingestApprovalRecoveryTimer);
+  viewerRateLimits.clear();
+  viewerSessionStore.reset();
   if (ingestApprovalStore && typeof ingestApprovalStore.close === 'function') {
     try { ingestApprovalStore.close(); } catch (_) {}
     ingestApprovalStore = null;
