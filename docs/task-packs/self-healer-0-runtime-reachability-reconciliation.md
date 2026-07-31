@@ -150,4 +150,3 @@ This decision does not claim:
 - auto-fix or auto-merge;
 - Self-Healer product readiness;
 - V4, Rust, V5, or ecosystem completion.
-
