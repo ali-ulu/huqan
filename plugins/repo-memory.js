@@ -1,6 +1,7 @@
 const { fetchRepoFiles, parseRepoUrl } = require('../adapters/github-adapter');
 const { parseMarkdown, ingestMarkdown } = require('../adapters/markdown-adapter');
 const { buildProvenance } = require('../lib/provenance-ingest');
+const { canonicalizeGitHubRepoUrl } = require('../lib/github-url');
 
 function nowIso() {
   return new Date().toISOString();
@@ -145,7 +146,9 @@ function buildSectionNodeId(prefix, sectionTitle) {
 }
 
 async function ingestGithubRepo(kernel, input = {}) {
-  const repoUrl = input.repoUrl || input.url || '';
+  const rawRepoUrl = input.repoUrl || input.url || '';
+  const canonicalRepo = canonicalizeGitHubRepoUrl(rawRepoUrl);
+  const repoUrl = canonicalRepo.repoUrl;
   const sessionId = input.sessionId || '';
   const fetchRepoFilesImpl = typeof input.fetchRepoFiles === 'function' ? input.fetchRepoFiles : fetchRepoFiles;
   const parseRepoUrlImpl = typeof input.parseRepoUrl === 'function' ? input.parseRepoUrl : parseRepoUrl;

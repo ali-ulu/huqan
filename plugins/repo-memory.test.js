@@ -135,6 +135,26 @@ test('repo-memory github ingest preserves provenance on nodes and edges', async 
   assert.ok(kernel.edges.some((edge) => /repo:owner\/repo:docs\/claim\.md/.test(edge.meta?.provenance?.sourceRef || '')));
 });
 
+test('repo-memory does not persist GitHub URL credentials or selectors', async () => {
+  const kernel = makeKernel();
+  const result = await repoMemory.run(kernel, {
+    action: 'ingest',
+    sourceType: 'github',
+    repoUrl: 'https://github.com/owner/repo.git?token=secret#fragment',
+    fetchRepoFiles: async () => [{
+      owner: 'owner', repo: 'repo', branch: 'main', path: 'README.md', content: '# Safe',
+      lastModified: '2026-07-31T00:00:00.000Z',
+    }],
+    parseRepoUrl: () => ({ owner: 'owner', repo: 'repo' }),
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.repoUrl, 'https://github.com/owner/repo');
+  const stored = JSON.stringify({ result, nodes: kernel.nodes, edges: kernel.edges });
+  assert.equal(stored.includes('token=secret'), false);
+  assert.equal(stored.includes('#fragment'), false);
+});
+
 test('repo-memory forwards proposal receipts without generating connector audit or operation ids', async () => {
   const kernel = makeKernel();
   let receiptSequence = 0;
