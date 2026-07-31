@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "repository": "ali-ulu/huqan",
+  "baselineBranch": "main",
+  "canonicalMain": "047f80b02c999aa5a6fd41e27cfb212424cf2df4",
+  "worktreePolicy": "REPORT_ONLY",
+  "observedAt": "2026-07-31T02:38:28+03:00",
+  "program": "V5 trust-boundary hardening",
+  "completedEvidence": [
+    "INGEST-SNAPSHOT-0 boundary locked",
+    "MCP dogfood approval and replay proof merged",
+    "graph durability capability contract locked"
+  ],
+  "nextGate": "CONNECTOR_PROVENANCE_COVERAGE",
+  "followingGate": "MUTATION_JOURNAL_DECISION",
+  "status": "NOT_STARTED",
+  "forbiddenClaims": [
+    "V5 complete",
+    "universal connector coverage",
+    "all plugin mutations are durable or transactional",
+    "external-source ingest without immutable source binding"
+  ],
+  "notes": [
+    "docs/current-operating-roadmap.md contains an older baseline SHA; live Git evidence wins.",
+    "Do not start deployment work unless separately authorized."
+  ]
+}
