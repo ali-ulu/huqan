@@ -35,7 +35,7 @@ These terms are not interchangeable.
 | `plugins/repo-memory.js` → `ingestMarkdownPath()` | File and section provenance | Same proposal admission summary | No connector-level audit contract observed | Governed node and edge proposals | No connector-generated operation id or connector-local `runMutationOnce()` contract observed | Proposal admission `receiptId` is propagated when present; presence is not guaranteed |
 | `adapters/markdown-adapter.js` → `ingestAndLearn()` | The adapter builds its own provenance object. Its current `provenanceId` uses `Date.now()` and `Math.random()`, and `sourceType: markdown` does not pass through `buildProvenance()` normalization. | Learn result only | No adapter-owned audit contract observed | Depends on `kernel.learn()` | No adapter-generated mutation operation id observed | No adapter-owned receipt guarantee observed |
 | `lib/provenance-ingest.js` → `ingestWithProvenance()` | Builds and validates provenance, including strict mode | Explicit learn admission summary | No module-owned audit contract observed | Delegates to `kernel.learn()` | The module does not generate an operation id, but a caller-supplied `mutationOperationId` remains in `learnOpts` and may activate the Kernel journal path | Any receipt belongs to the delegated learn result; the module does not guarantee one |
-| `lib/ingest.js` → `runIngest()` | Delegated to the selected capability | Capability result | Delegated | GitHub and markdown can reach the `repoMemory` capability through this non-queue helper | No additional journal contract observed in this helper | No helper-owned receipt guarantee observed |
+| `lib/ingest.js` → `handleIngest()` | Delegated to the selected capability | Capability result | Delegated | GitHub and markdown can reach the `repoMemory` capability through this non-queue helper | No additional journal contract observed in this helper | No helper-owned receipt guarantee observed |
 | `lib/ingest.js` → `buildIngestApprovalSnapshot()` | Requires an immutable bounded snapshot for queue admission | Rejects unsupported external snapshot sources | Queue-owned | No graph mutation in the rejected GitHub/markdown case | Not applicable to the rejected case | Not applicable to the rejected case |
 
 ## Source-Reality Findings
@@ -59,8 +59,8 @@ These terms are not interchangeable.
    truth.
 6. Provenance metadata, audit events, graph admission results, durable journal
    entries, and receipt references are distinct evidence layers.
-7. `runIngest()` and approval-queue snapshot construction are different
-   boundaries. `runIngest()` can delegate GitHub and markdown to `repoMemory`;
+7. `handleIngest()` and approval-queue snapshot construction are different
+   boundaries. `handleIngest()` can delegate GitHub and markdown to `repoMemory`;
    `buildIngestApprovalSnapshot()` rejects those source types without an
    immutable snapshot.
 
