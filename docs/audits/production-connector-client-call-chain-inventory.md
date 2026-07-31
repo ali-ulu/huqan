@@ -4,7 +4,7 @@
 
 - Task: `TB-A1`
 - Repository: `ali-ulu/huqan`
-- Source base: `main @ e683dbc2e40d255fb9f9db4916938403705cca24`
+- Source base: `main @ 3969f141a668fb6084d45e9730102f7e7b2c02e3`
 - Mode: source inventory only
 - Runtime changes: none
 - Classification: production-reachable, library-only, test-only, or documentation-only
