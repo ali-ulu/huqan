@@ -30,7 +30,7 @@ These terms are not interchangeable.
 | Path | Provenance | Admission | Audit | Graph mutation | Durable journal | Receipt reference |
 | --- | --- | --- | --- | --- | --- | --- |
 | `adapters/github-adapter.js` → `fetchRepoFiles()` | None; this is a remote read adapter | Not applicable | None | None | None | None |
-| `lib/github-connector.js` → `ingestGitHubItem()` | `buildGitHubProvenance()` | Explicit candidate, admitted, rejected, or skipped result. The accepted route currently reports `canonical: true` and `graphWrite: true` as unconditional connector fields rather than deriving them from the route result. | `appendAudit()` records import/conflict decisions when an audit surface exists | Candidate routing; the accepted route delegates to the governed candidate path | No connector-generated operation id or connector-local `runMutationOnce()` contract observed | No connector-owned receipt guarantee observed |
+| `lib/github-connector.js` → `ingestGitHubItem()` | `buildGitHubProvenance()` | Public-path tests observe candidate, admitted, and skipped outcomes plus flagged conflict handling. Invalid strict input throws. Although the internal pending-route helper contains a rejected branch, no reachable public connector input producing that result was proven. The accepted route currently reports `canonical: true` and `graphWrite: true` as unconditional connector fields rather than deriving them from the route result. | `appendAudit()` records import/conflict decisions when an audit surface exists | Candidate routing; the accepted route delegates to the governed candidate path | No connector-generated operation id or connector-local `runMutationOnce()` contract observed | No connector-owned receipt guarantee observed |
 | `plugins/repo-memory.js` → `ingestGithubRepo()` | `buildConnectorProvenance()` for repository, file, and section records | `buildGraphAdmissionRecord()` summarizes `proposeNode()` / `proposeEdge()` results | No connector-level audit contract observed | Governed node and edge proposals | No connector-generated operation id or connector-local `runMutationOnce()` contract observed | Proposal admission `receiptId` is propagated when present; presence is not guaranteed |
 | `plugins/repo-memory.js` → `ingestMarkdownPath()` | File and section provenance | Same proposal admission summary | No connector-level audit contract observed | Governed node and edge proposals | No connector-generated operation id or connector-local `runMutationOnce()` contract observed | Proposal admission `receiptId` is propagated when present; presence is not guaranteed |
 | `adapters/markdown-adapter.js` → `ingestAndLearn()` | The adapter builds its own provenance object. Its current `provenanceId` uses `Date.now()` and `Math.random()`, and `sourceType: markdown` does not pass through `buildProvenance()` normalization. | Learn result only | No adapter-owned audit contract observed | Depends on `kernel.learn()` | No adapter-generated mutation operation id observed | No adapter-owned receipt guarantee observed |
@@ -73,8 +73,9 @@ The tests must lock:
 
 1. the exact connector-path matrix above;
 2. provenance and workspace propagation for each path;
-3. admission truth for admitted, candidate, rejected, and skipped outcomes
-   where the path supports them;
+3. admission truth for admitted, candidate, and skipped outcomes plus flagged
+   conflict handling; the internal rejected branch remains unverified until a
+   reachable public input or a separate contract decision proves it;
 4. the presence or absence of connector-owned audit events;
 5. whether each module generates, forwards, or omits a mutation operation id;
 6. the distinction between candidate routing and direct graph proposals;

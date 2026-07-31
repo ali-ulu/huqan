@@ -18,7 +18,7 @@ migration. It reuses existing test owners and adds no new test file.
 | Runtime path | Existing test owner | Successor coverage |
 | --- | --- | --- |
 | `adapters/github-adapter.js` -> `fetchRepoFiles()` | `adapters/github-adapter.test.js` | Preserve remote-read-only behavior and confirm no provenance, admission, audit, journal, or receipt result is invented. |
-| `lib/github-connector.js` -> `ingestGitHubItem()` | `lib/github-connector.test.js` | Lock candidate, admitted, rejected, skipped/conflict outcomes; audit presence; workspace propagation; absent connector-generated operation id; and the current unconditional accepted-route `canonical` / `graphWrite` report. |
+| `lib/github-connector.js` -> `ingestGitHubItem()` | `lib/github-connector.test.js` | Lock reachable candidate, admitted, and skipped outcomes, flagged conflict handling, invalid strict-input throw behavior, audit presence, workspace propagation, absent connector-generated operation id, and the current unconditional accepted-route `canonical` / `graphWrite` report. Do not fabricate a rejected public-path case. |
 | `plugins/repo-memory.js` -> `ingestGithubRepo()` | `plugins/repo-memory.test.js` | Lock connector provenance, governed proposal admission, optional proposal `receiptId` propagation, and absence of connector-owned audit or generated operation id. |
 | `plugins/repo-memory.js` -> `ingestMarkdownPath()` | `plugins/repo-memory.test.js` | Lock file/section provenance, workspace propagation, governed proposal admission, optional proposal `receiptId`, and the same audit/journal boundaries. |
 | `adapters/markdown-adapter.js` -> `ingestAndLearn()` | `adapters/markdown-adapter.test.js` | Lock structural provenance shape, volatile identifier behavior without exact-value assertions, learn delegation, and absence of adapter-generated operation id or receipt guarantee. |
@@ -62,6 +62,9 @@ decision is approved.
    GitHub repository, externally persistent database, or hidden global state
    is allowed. Existing temporary-directory SQLite roundtrip coverage remains
    permitted and must clean up after itself.
+9. Treat the internal rejected branch as unverified reachability. Testing it
+   requires a separate contract decision if no public connector input can
+   produce it without private injection or runtime modification.
 
 ## Validation
 
