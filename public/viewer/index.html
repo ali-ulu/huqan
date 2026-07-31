@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HUQAN Receipt Terminal</title>
+  <link rel="stylesheet" href="/viewer/viewer.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="masthead">
+      <p class="eyebrow">HUQAN / TRUST LAYER</p>
+      <h1>Receipt<br>Terminal</h1>
+      <p class="lede">Inspect one canonical trust receipt without exposing operator credentials.</p>
+    </header>
+
+    <section class="control-panel" aria-labelledby="access-title">
+      <div class="panel-heading">
+        <span>01</span>
+        <h2 id="access-title">Session access</h2>
+      </div>
+      <form id="login-form">
+        <label for="api-key">Operator API key</label>
+        <div class="input-row">
+          <input id="api-key" name="apiKey" type="password" autocomplete="current-password" required>
+          <button type="submit">Open session</button>
+        </div>
+      </form>
+      <button id="logout-button" class="quiet-action" type="button">Close session</button>
+    </section>
+
+    <section class="control-panel" aria-labelledby="lookup-title">
+      <div class="panel-heading">
+        <span>02</span>
+        <h2 id="lookup-title">Receipt lookup</h2>
+      </div>
+      <form id="receipt-form">
+        <label for="receipt-id">Receipt ID</label>
+        <input id="receipt-id" name="receiptId" autocomplete="off" required>
+        <label for="workspace-id">Workspace ID <small>optional</small></label>
+        <input id="workspace-id" name="workspaceId" autocomplete="off">
+        <button type="submit">Inspect evidence</button>
+      </form>
+    </section>
+
+    <section class="result-panel" aria-live="polite" aria-labelledby="result-title">
+      <div class="panel-heading">
+        <span>03</span>
+        <h2 id="result-title">Observed state</h2>
+      </div>
+      <p id="status" class="status">Ready for a bounded lookup.</p>
+      <dl id="receipt-details" class="receipt-grid"></dl>
+    </section>
+  </main>
+  <script type="module" src="/viewer/app.mjs"></script>
+</body>
+</html>
