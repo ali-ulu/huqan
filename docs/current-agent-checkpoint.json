@@ -2,20 +2,23 @@
   "schemaVersion": 1,
   "repository": "ali-ulu/huqan",
   "baselineBranch": "main",
-  "canonicalMain": "6b62b5e7df376cdc9316e12f8b809fdbaf77ed69",
+  "canonicalMain": "11d1f8a3d1e49325c2d7847ccb21d9cd26c7e6cf",
   "worktreePolicy": "REPORT_ONLY",
-  "observedAt": "2026-07-31T10:36:41+03:00",
-  "program": "Post-trust-boundary source-reality reconciliation",
+  "observedAt": "2026-07-31T11:05:42+03:00",
+  "program": "Post-reconciliation product workflow selection",
   "completedEvidence": [
     "INGEST-SNAPSHOT-0 boundary locked",
     "MCP dogfood approval and replay proof merged",
     "graph durability capability contract locked",
     "connector provenance coverage source reality and contract tests merged",
-    "mutation journal migration decision merged with plugin migration deferred"
+    "mutation journal migration decision merged with plugin migration deferred",
+    "Self-Healer runtime reachability reconciled and production entry point deferred",
+    "V4 primitives and product UI status reconciled",
+    "Rust integration source reality reconciled with Rust deferred"
   ],
-  "nextGate": "SELF-HEALER-0_RUNTIME_REACHABILITY_RECONCILIATION",
-  "followingGate": "V4_SOURCE_REALITY_RECONCILIATION",
-  "status": "NOT_STARTED",
+  "nextGate": "PRODUCT_WORKFLOW_SELECTION",
+  "followingGate": null,
+  "status": "BLOCKED_BY_PRODUCT_DECISION",
   "forbiddenClaims": [
     "V5 complete",
     "universal connector coverage",
@@ -26,9 +29,10 @@
     "Rust production offload or parity"
   ],
   "notes": [
-    "Self-Healer audit-only modules are test-reachable but have no production caller.",
-    "V4 inspector helpers do not establish a kernel-connected Workbench UI or browser smoke.",
-    "RustGraph is optional and does not establish a reachable production Kernel offload.",
+    "Self-Healer production reachability remains deferred until a concrete caller workflow is selected.",
+    "V4 product UI remains open; receipt and memory inspectors are library building blocks.",
+    "Rust is non-authoritative and deferred until a measured bottleneck and parity contract exist.",
+    "No successor runtime gate is automatically authorized.",
     "Do not start deployment work unless separately authorized."
   ]
 }

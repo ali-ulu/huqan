@@ -1,7 +1,7 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`6b62b5e7df376cdc9316e12f8b809fdbaf77ed69` (PR #114 merge).
+`11d1f8a3d1e49325c2d7847ccb21d9cd26c7e6cf` (PR #119 merge).
 
 This is the execution-order source for current runtime work. It is not a
 release claim and it does not replace architecture ADRs. When this file
@@ -28,6 +28,10 @@ inline trust control plane for every client, connector, or mutation path.
 | #104 / #105 | Graph durability capability and ingest snapshot gate contracts | Contracts do not enable external-source ingest |
 | #109-#113 | Connector provenance source reality and bounded contract tests | Does not prove universal connector provenance or journal coverage |
 | #114 | Mutation-journal migration decision | Plugin batch migration is deferred; proposal admission is not transactionality |
+| #115 | Post-trust-boundary roadmap reconciliation | Does not authorize a successor runtime |
+| #116 / #117 | Self-Healer reachability decision and README reconciliation | Audit-only primitives remain library-only |
+| #118 | V4 source-reality reconciliation | Primitives are green; Workbench UI remains open |
+| #119 | Rust integration source reality | Rust remains non-authoritative and deferred |
 
 ## Active product boundary
 
@@ -52,19 +56,31 @@ They must not be enabled through a permissive fallback.
    a retry-safe product path owns the operation ID, transaction unit, receipt,
    and backend semantics.
 
-## Ordered next gates
+## Closed source-reality reconciliations
 
-1. **SELF-HEALER-0_RUNTIME_REACHABILITY_RECONCILIATION** - reconcile the
-   implemented audit-only helper with its lack of a production caller. Decide
-   whether an explicit caller-supplied audit API is needed before any scanner,
-   proposal, patch, or PR work.
-2. **V4 source-reality reconciliation** - separately reconcile historical
-   runtime/read closeout language with the absence of a kernel-connected
-   Workbench UI and browser smoke. Existing receipt and memory inspectors are
-   building blocks, not a product UI claim.
-3. **Rust integration source reality** - remains deferred. The tracked Rust
-   binary and wrapper do not currently establish a reachable Kernel offload,
-   parity, persistence, distribution, or performance claim.
+1. **SELF-HEALER-0_RUNTIME_REACHABILITY_RECONCILIATION** - the tested
+   audit-only library has no production caller. Production reachability is
+   deferred until a concrete caller workflow exists.
+2. **V4 source-reality reconciliation** - verdict, receipt, read-index, and
+   inspector building blocks are green. A Workbench UI and browser smoke do
+   not exist.
+3. **Rust integration source reality** - successful learn may be mirrored
+   asynchronously, but Rust is not the authoritative Kernel graph. Build,
+   distribution, parity, and production offload remain unproven.
+
+## Next decision
+
+No successor runtime gate is automatically authorized.
+
+The next implementation requires an explicit product workflow selection. The
+current bounded candidates are:
+
+1. a caller-supplied, audit-only Self-Healer entry point;
+2. a read-only V4 Trust Receipt viewer reusing the existing transport and
+   inspector.
+
+Rust is not a candidate until a measured JavaScript bottleneck and a bounded
+parity/distribution contract exist.
 
 ## Explicit non-goals
 
