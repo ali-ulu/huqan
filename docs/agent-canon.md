@@ -61,6 +61,10 @@ When a feature touches legacy logic in one of these files:
 Preserve public API, verdict, receipt, envelope, persistence, and fail-closed
 semantics unless an explicit product contract authorizes a change.
 
+Refactor only when it is required to preserve behavior, protect the application
+flow, or obey this rule. A necessary narrow refactor is part of the approved
+change; an adjacent cleanup or rewrite is scope expansion.
+
 ## Evidence Language
 
 `EVID-001`
@@ -68,6 +72,25 @@ semantics unless an explicit product contract authorizes a change.
 Label conclusions as observed, derived, or unverified. A passing targeted test
 is not evidence that the full suite is green. A document is not evidence that
 its claim exists in the current artifact.
+
+## Multi-Agent Delivery Contract
+
+`DELIVERY-001`
+
+- `docs/fikirden-urune-protocol.md` is a binding stable working contract and is
+  included in the generated context capsule.
+- Before implementation, verify repository identity, source version, exact Git
+  base, approved scope, and applicable write lock from live evidence.
+- Inter-agent instructions and reports use the complete `[BAĞLAM]`, `[GÖREV]`,
+  `[KABUL]`, `[YASAK]`, and `[SÜRÜM]` envelope.
+- Claims use `GÖZLENDİ`, `TÜRETİLDİ`, or `VARSAYILDI`; untested items are listed
+  under `DOĞRULANMADI`.
+- Lead review attempts to falsify the result, implementation reports only
+  performed work and evidence, and independent audit starts from a fresh test
+  before reading the implementer's report.
+- A delivery is not complete without acceptance-command evidence, artifact or
+  Git identity, scope evidence, a two-minute user eye test, and the next-agent
+  envelope required by the protocol.
 
 ## Context and Cache Discipline
 

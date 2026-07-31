@@ -115,6 +115,88 @@ Future connector coverage rows should track:
 | Workbench read-only inspector path | existing | future | no V5 identity contract | yes | partial local read-only context | future | no | no | no | future | partial via WB1/WB2 helpers | yes | partial | yes | no | partial | Workbench helpers are read-only and not package connectors | Workbench/V5 boundary audit | safe_as_partial |
 | Workbench future action path | planned | yes | no | yes | no | yes | no | yes | no | yes | no | yes | no | yes | no | docs_only | Future action path not implemented | future Workbench implementation gate | do_not_claim |
 
+## TB-A2 Production Source-Reality Reconciliation
+
+This section reconciles the production entry points inventoried by `TB-A1` at
+`main @ 3969f141a668fb6084d45e9730102f7e7b2c02e3` against canonical `main @
+34ffd1928d9705c2e2f17fe587a553a99bcc65c4`. It is the authoritative
+current-runtime view for `TB-A2`. The planning rows above remain a future
+coverage register and must not override the path-specific evidence below.
+
+`none` means that the production invocation does not provide the named trust
+property. `partial` means that a local mechanism exists but is not the V5
+identity, package, or route-receipt contract.
+
+Three dimensions are reported independently:
+
+- `production_reachability`: `production-reachable`, `conditional-production`,
+  `library-only`, or `operator-only`
+- `implementation_state`: `implemented`, `partial`, or `planned`
+- `v5_enforcement_state`: `absent`, `partial-local`, or `enforced`
+
+| path | production_reachability | implementation_state | v5_enforcement_state | note |
+| --- | --- | --- | --- | --- |
+| CLI GitHub ingest | production-reachable | implemented | absent | Live repository-read and proposal path. |
+| CLI Markdown ingest | production-reachable | partial | absent | Invocable, but the caller omits the required root binding and receives `MARKDOWN_ROOT_REQUIRED`. |
+| Workflow GitHub `repoMemory` | conditional-production | implemented | absent | Enabled only by explicit workflow-runtime configuration. |
+| Workflow Markdown `repoMemory` | conditional-production | partial | absent | Invocable when workflow runtime is enabled, but the request omits the required root binding. |
+| HTTP ingest approval queue | production-reachable | partial | partial-local | Manual/decision approval is implemented; external sources are rejected. |
+| MCP mutation / approval | production-reachable | implemented | partial-local |
+| Viewer receipt gateway | production-reachable | implemented | absent | Local read-only authentication is not V5 enforcement. |
+| Programmatic SDK | production-reachable | implemented | absent |
+| Package Kernel API | production-reachable | implemented | absent |
+| V5 runtime writer / reader | library-only | implemented | absent | No production connector caller. |
+| `packages/axiom-verify` | library-only | implemented | absent | Structural verification only; no production connector caller. |
+| Backup/restore and training | operator-only | implemented | absent |
+
+| production path | identity coverage | workspace binding | package validation | provenance and audit | receipt production / read | mutation owner | failure behavior | open blocker |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| CLI GitHub repository ingest | No V5 identity. The plugin uses the local `github` actor default. | No caller-bound workspace reaches the plugin; it uses `default`. | None. | `repo-memory` builds provenance. Allowed Kernel proposals append Graph audit, but audit is not an atomic journal. | Proposal admission may return a local `receiptId`; no V5 Route Receipt is written or read. | `Kernel.runCapability()` -> `PluginManager` -> `repo-memory` -> `Kernel.proposeNode()` / `proposeEdge()` -> Graph. | Connector and capability errors return failure. Audit append failure does not roll back an admitted mutation. | Caller identity/workspace binding and durable route-receipt ownership are absent. |
+| CLI Markdown ingest | No V5 identity. The plugin would use the local `markdown` actor default. | No caller-bound workspace reaches the plugin; it uses `default`. | None. | The downstream plugin can build file provenance, but the current CLI invocation does not reach proposals because it omits the required root binding. | No receipt is produced on the blocked current invocation. | Intended chain is `Kernel.runCapability()` -> `PluginManager` -> `repo-memory` -> markdown adapter -> Kernel proposal -> Graph. | Current invocation fails with `MARKDOWN_ROOT_REQUIRED`; invalid roots also fail closed. | Required root binding, caller identity/workspace binding, and durable route-receipt ownership are absent. |
+| Workflow `repoMemory` tool | No V5 identity. Workflow `author` is not propagated as the plugin's `actor`. | The request schema does not carry `workspaceId`; the plugin uses `default`. | None. | GitHub uses the `repo-memory` provenance and Kernel proposal audit path. Markdown is blocked before proposal because the request omits the required root binding. | GitHub may return the same local proposal result as CLI; blocked Markdown produces no receipt. No V5 Route Receipt contract exists. | Workflow tool -> capability runner -> Kernel -> plugin -> Graph for admitted GitHub proposals. | Capability failures return a workflow tool failure envelope; current Markdown invocation returns `MARKDOWN_ROOT_REQUIRED`. | Effective actor identity and caller workspace are lost, and Markdown root binding is absent. |
+| HTTP ingest approval queue | Local `http-api` actor only; not V5 Agent Identity. | Approval receipts use the local `default` workspace. | None. | Approval state is persisted and audit is appended after finalization. This is not connector provenance for rejected external sources. | Writes and reads local approval receipts; these are not V5 Route Receipts. | Approval queue/store owns review state; approved manual/decision execution reaches the Kernel capability. | GitHub and Markdown queue admission fail closed with `INGEST_SNAPSHOT_REQUIRED`. | Immutable GitHub/Markdown snapshot support is absent, so external connector queueing is intentionally unavailable. |
+| MCP mutation and approval paths | Local MCP tool and approval context only; not V5 Agent Identity. | Local/default workspace behavior; no connector-scoped V5 binding. | None. | Tool verdict and approval evidence are partial local audit evidence. | Persists local approval records; no V5 Route Receipt writer. | MCP gate/approval store, then Kernel for approved execution. | Mutation is gate-controlled and rejected or queued according to policy. | No GitHub connector MCP tool and no V5 identity/package enforcement. |
+| Viewer receipt HTTP gateway | Session/API-key authentication; not V5 Agent Identity. | An optional workspace filter constrains reads; it does not bind an execution. | None. | Read-only; it does not append execution audit. | Reads already materialized local receipts and does not synthesize or write receipts. | None beyond the bounded in-process session store. | Missing authentication, invalid filters, and unknown receipts fail closed. | This is a receipt consumer, not connector execution or route-receipt enforcement. |
+| Programmatic SDK | Caller-controlled local library context; no V5 identity binding. | Only caller-provided command options; no enforced connector workspace contract. | None on command dispatch. | Depends on the selected Kernel read, learn, shield, or capability path. | No SDK-wide V5 Route Receipt contract. | The selected Kernel method or plugin owns mutation. | Failure behavior is method-specific; the SDK is not an external transport boundary. | A caller can select behavior without an identity/package enforcement layer. |
+| Package Kernel API | Caller-controlled process identity only. | Caller-controlled constructor and method inputs. | No automatic package validation at the Kernel entry point. | Method-specific provenance and Graph audit; neither is universal identity evidence. | Method-specific local receipts only; no public approval or V5 Route Receipt method. | Kernel, plugin, Graph, or persistence helper according to the invoked method. | Method-specific; direct consumers bypass HTTP/MCP approval ownership. | The canonical library surface is intentionally not a governed connector transport. |
+| V5 runtime writer / reader | Validates bounded Agent Identity fields in package data; it does not authenticate a live connector caller. | Validates package workspace fields; no production connector binds them to an authenticated actor. | Bounded Shared Trust Package and Route Receipt validation is implemented. | Validates package provenance/reasoning fields; it does not observe live connector execution. | Validates and returns bounded in-memory package data, including optional Route Receipt metadata; it performs no serialization or durable receipt I/O, and no production connector caller was found. | Writer/reader only; no Graph, memory, plugin, or connector mutation. | Invalid bounded input returns structured fail-closed results. | Implemented library contract is not wired to a production import/export boundary. |
+| `packages/axiom-verify` | Not applicable to connector invocation. | Not applicable. | Existing library-only structural Axiom package validation; no proven production caller. | None. | Can validate receipt-shaped package fields structurally; it does not observe or write live route execution. | None. | Invalid packages return validation errors to the library caller. | Structural library validation is not production Shared Trust Package import enforcement. |
+| Backup/restore and training utilities | Local process identity only. | Configuration/path scoped; no V5 workspace identity binding. | None. | No connector provenance contract. | No V5 Route Receipt contract. | Backup/restore helpers own persistence; training uses Kernel/Graph. | Script and persistence errors propagate to the operator. | These are operator utilities, not connector transports. |
+
+### Source Anchors
+
+- CLI connector calls: `cli.js:495-520`
+- Workflow request construction: `workflow-tools.js:246-305`
+- Connector actor/workspace defaults: `plugins/repo-memory.js:147-180`
+- Kernel capability and proposal ownership: `kernel.js:326-432`
+- HTTP immutable-snapshot rejection: `lib/ingest.js:149-167`
+- HTTP approval persistence and execution: `server.js:1149-1292`
+- Receipt read boundary: `lib/receipt/receipt-read-index.js:122-177`
+- V5 bounded package writer/reader: `lib/v5/runtime-writer.js:160-279` and
+  `lib/v5/runtime-reader.js:67-293`
+- Structural package validation: `packages/axiom-verify/index.js` and
+  `lib/axiom-package-format.js:276-337`
+- Non-atomic Graph audit boundary: `kernel.js:592-598`
+- Full production call chains: `docs/audits/production-connector-client-call-chain-inventory.md`
+
+### Unknowns and Blocking Gaps
+
+1. No production connector invocation binds V5 Agent Identity end to end.
+2. CLI and workflow connector calls do not preserve caller workspace identity.
+3. No production connector invokes Shared Trust Package validation.
+4. Connector provenance may be default-filled and is not identity proof.
+5. Direct connector paths do not own a V5 Route Receipt write contract.
+6. Graph mutation and audit append do not share an atomic durability boundary.
+7. HTTP GitHub/Markdown queueing remains unavailable until immutable snapshot
+   semantics are defined and implemented.
+8. Direct `handleIngest()` dispatch capability means the HTTP queue's
+   fail-closed snapshot rule must not be generalized to every caller.
+
+Existing local approval receipts and receipt reads are local mechanisms;
+they are not V5 Route Receipt enforcement. Existing Axiom package validation
+is a library-only structural boundary; it is not production Shared Trust
+Package import enforcement.
+
 ## Gap Discipline
 
 This matrix distinguishes:

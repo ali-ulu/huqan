@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
+const { canonicalizeGitHubRepoUrl } = require('../lib/github-url');
 const { fetchRepoFiles, parseRepoUrl, includePath } = require('./github-adapter');
 
 function makeResponse({ ok = true, status = 200, json, text, headers = {} }) {
@@ -21,6 +22,19 @@ test('github-adapter: parseRepoUrl parses owner/repo from url', () => {
   const parsed = parseRepoUrl('https://github.com/ai-ulu/axiom');
   assert.equal(parsed.owner, 'ai-ulu');
   assert.equal(parsed.repo, 'axiom');
+});
+
+test('github-adapter: canonicalizes GitHub repository URLs before use', () => {
+  const parsed = parseRepoUrl('https://github.com/ai-ulu/axiom.git?token=secret#fragment');
+  assert.deepEqual(parsed, { owner: 'ai-ulu', repo: 'axiom' });
+  assert.equal(
+    canonicalizeGitHubRepoUrl('https://github.com/ai-ulu/axiom.git?token=secret#fragment').repoUrl,
+    'https://github.com/ai-ulu/axiom',
+  );
+  assert.throws(
+    () => parseRepoUrl('https://user:secret@github.com/ai-ulu/axiom'),
+    { code: 'REPO_URL_INVALID' },
+  );
 });
 
 test('github-adapter: includePath keeps root md and .github docs', () => {

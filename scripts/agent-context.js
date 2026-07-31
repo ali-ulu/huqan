@@ -7,6 +7,7 @@ const path = require('node:path');
 
 const repoRoot = path.resolve(__dirname, '..');
 const canonPath = path.join(repoRoot, 'docs', 'agent-canon.md');
+const deliveryProtocolPath = path.join(repoRoot, 'docs', 'fikirden-urune-protocol.md');
 const checkpointPath = path.join(repoRoot, 'docs', 'current-agent-checkpoint.json');
 
 function readUtf8(filePath) {
@@ -113,7 +114,7 @@ function inspectGitState(checkpoint) {
   return validateGitState(checkpoint, evidence, isAncestor);
 }
 
-function formatContextCapsule(canon, checkpoint, gitState) {
+function formatContextCapsule(canon, checkpoint, gitState, deliveryProtocol = '') {
   const normalizedCheckpoint = JSON.stringify(checkpoint, null, 2);
   const normalizedGitState = JSON.stringify(gitState, null, 2);
 
@@ -121,10 +122,15 @@ function formatContextCapsule(canon, checkpoint, gitState) {
     '# HUQAN Agent Context Capsule',
     '',
     `CANON_SHA256: ${sha256(canon)}`,
+    `PROTOCOL_SHA256: ${sha256(deliveryProtocol)}`,
     '',
     '## Stable Canon',
     '',
     canon,
+    '',
+    '## Stable Delivery Protocol',
+    '',
+    deliveryProtocol,
     '',
     '## Mutable Checkpoint',
     '',
@@ -145,11 +151,12 @@ function formatContextCapsule(canon, checkpoint, gitState) {
 
 function buildContextCapsule(options = {}) {
   const canon = options.canon || readUtf8(canonPath);
+  const deliveryProtocol = options.deliveryProtocol || readUtf8(deliveryProtocolPath);
   const checkpoint = options.checkpoint
     || JSON.parse(readUtf8(checkpointPath));
   const gitState = options.gitState || inspectGitState(checkpoint);
 
-  return formatContextCapsule(canon, checkpoint, gitState);
+  return formatContextCapsule(canon, checkpoint, gitState, deliveryProtocol);
 }
 
 if (require.main === module) {
