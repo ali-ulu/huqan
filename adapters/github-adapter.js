@@ -1,3 +1,5 @@
+const { canonicalizeGitHubRepoUrl } = require('../lib/github-url');
+
 function toError(message, code, status) {
   const err = new Error(message);
   if (code) err.code = code;
@@ -6,20 +8,8 @@ function toError(message, code, status) {
 }
 
 function parseRepoUrl(repoUrl) {
-  const raw = String(repoUrl || '').trim();
-  if (!raw) {
-    throw toError('repoUrl is required', 'REPO_URL_REQUIRED');
-  }
-
-  const match = raw.match(/^https:\/\/github\.com\/([^\/]+)\/([^\/?#]+?)(?:\.git)?(?:[\/?#].*)?$/i);
-  if (!match) {
-    throw toError('Invalid GitHub repository URL', 'REPO_URL_INVALID');
-  }
-
-  return {
-    owner: decodeURIComponent(match[1]),
-    repo: decodeURIComponent(match[2].replace(/\.git$/i, '')),
-  };
+  const { owner, repo } = canonicalizeGitHubRepoUrl(repoUrl);
+  return { owner, repo };
 }
 
 function buildHeaders(token) {
@@ -149,5 +139,6 @@ module.exports = {
   fetchRepoFiles,
   fetchAndLearn,
   parseRepoUrl,
+  canonicalizeGitHubRepoUrl,
   includePath,
 };
