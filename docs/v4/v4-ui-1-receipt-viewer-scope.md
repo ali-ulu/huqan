@@ -3,6 +3,7 @@
 **Mode:** docs-only product and implementation-boundary contract.
 **Canonical source base:** `main @ b556ff7ea99a34e29524df8196766af701e45d11`
 **UI-2S amendment base:** `main @ 937ee4e105216b0bbb8672931c933b13c490a4a4`
+**UI-2S1 style-asset amendment base:** `main @ 833d41950bf12d1263b8773a9b1cd13feb9eac9e`
 **Implementation status:** not authorized by this document.
 
 ## Source Reality
@@ -27,6 +28,7 @@ Each successor remains an exact-base, separately reviewed gate:
 V4-UI-1S  receipt viewer scope (this document)
 V4-UI-1   pure receipt view-model plus passing contract tests
 V4-UI-2S  exact static-asset and browser-module scope amendment
+V4-UI-2S1 exact external stylesheet scope amendment
 V4-UI-2   viewer HTML/modules, exact static routes, and rendering tests
 V4-UI-3   no-mock authenticated browser smoke
 V4-UI-P   product closeout audit
@@ -106,28 +108,33 @@ the viewer CSP. UI-2 may therefore own only:
 ```text
 public/viewer/index.html
 public/viewer/app.mjs
-lib/viewer/viewer-gateway.js (three exact static GET routes only)
+public/viewer/viewer.css
+lib/viewer/viewer-gateway.js (four exact static GET routes only)
 test/v4-ui-2-receipt-viewer-render.test.js
 test/v4-ui-2-viewer-asset-nonexposure.test.js
 package.json (files allowlist entries only)
 ```
 
-The three bounded static routes are:
+The four bounded static routes are:
 
 ```text
 GET /viewer                         -> public/viewer/index.html
 GET /viewer/app.mjs                 -> public/viewer/app.mjs
 GET /viewer/receipt-view-model.mjs -> public/viewer/receipt-view-model.mjs
+GET /viewer/viewer.css             -> public/viewer/viewer.css
 ```
 
-Both `.mjs` routes use an explicit JavaScript MIME type. No request path may be
-joined to a filesystem path. Unknown assets, traversal attempts, and other
-methods fail closed. `public/index.html` remains unchanged.
+Both `.mjs` routes use an explicit JavaScript MIME type. The CSS route uses
+`text/css; charset=utf-8`. No request path may be joined to a filesystem path.
+Unknown assets, traversal attempts, and other methods fail closed.
+`public/index.html` remains unchanged.
 
-The HTML loads only `/viewer/app.mjs` as an external module. `app.mjs` imports
-the existing mapper module, uses relative same-origin requests, renders only
-with DOM node creation and `textContent`, and never uses browser storage,
-`innerHTML`, server error text, or remote assets. Static responses must set
+The HTML loads only `/viewer/app.mjs` as an external module and
+`/viewer/viewer.css` as an external stylesheet. It contains no inline script or
+style. `app.mjs` imports the existing mapper module, uses relative same-origin
+requests, renders only with DOM node creation and `textContent`, and never uses
+browser storage, `innerHTML`, server error text, or remote assets. Static
+responses must set
 `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, and
 `Referrer-Policy: no-referrer`. The HTML response also sets a restrictive CSP
 with `default-src 'none'`, `script-src 'self'`, `connect-src 'self'`,
@@ -146,8 +153,8 @@ This sequence does not authorize:
 - changes to canonical API authentication or session primitives;
 - V4-complete, production-ready, or public-release claims.
 
-UI-2's separately reviewed page route and two exact `.mjs` assets are the only
-new static paths permitted by this scope.
+UI-2's separately reviewed page route, two exact `.mjs` assets, and one exact
+CSS asset are the only new static paths permitted by this scope.
 
 ## Acceptance Criteria
 
@@ -187,6 +194,7 @@ V4-UI-0_AUTH_BOUNDARY_SCOPE
 -> V4-UI-1S_RECEIPT_VIEWER_SCOPE (this document)
 -> V4-UI-1_RECEIPT_VIEW_MODEL_CONTRACT_TESTS
 -> V4-UI-2S_STATIC_ASSET_SCOPE_AMENDMENT
+-> V4-UI-2S1_STYLE_ASSET_SCOPE_AMENDMENT
 -> V4-UI-2_RECEIPT_VIEWER_IMPLEMENTATION
 -> V4-UI-3_NO_MOCK_BROWSER_SMOKE
 -> V4_UI_PRODUCT_CLOSEOUT
