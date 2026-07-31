@@ -65,6 +65,7 @@ test('ingestWithProvenance returns explicit graph admission for learned facts', 
     assert.equal(result.admission.graphWrite, true);
     assert.equal(result.admission.targetType, 'learn');
     assert.equal(result.admission.provenanceId, 'prov-ingest-001');
+    assert.equal(result.admission.sourceRef, 'docs/ingest.md#fact');
     assert.ok(result.admission.learned > 0);
     assert.ok(result.provenance);
     assert.equal(result.provenance.provenanceId, 'prov-ingest-001');

@@ -4,7 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { parseMarkdown, listMarkdownFiles, ingestMarkdown } = require('./markdown-adapter');
+const { parseMarkdown, listMarkdownFiles, ingestMarkdown, ingestAndLearn } = require('./markdown-adapter');
 
 test('markdown-adapter: parseMarkdown splits by headings', () => {
   const sections = parseMarkdown(
@@ -86,5 +86,44 @@ test('markdown-adapter: rejects symlink escape when supported', () => {
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
     fs.rmSync(outsideDir, { recursive: true, force: true });
+  }
+});
+
+test('markdown-adapter: ingestAndLearn forwards structural volatile provenance without connector evidence', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-md-learn-'));
+  const file = path.join(dir, 'note.md');
+  const calls = [];
+  fs.writeFileSync(file, '# Claim\nA bounded claim', 'utf8');
+
+  try {
+    const result = ingestAndLearn(file, {
+      learn(text, opts) {
+        calls.push({ text, opts });
+        return {
+          data: { learned: 1 },
+          receipt: { receiptId: 'delegated-receipt' },
+        };
+      },
+    }, {
+      rootPath: dir,
+      actor: 'markdown-test',
+    });
+
+    assert.equal(result.learned.length, 1);
+    assert.equal(result.learned[0].ok, true);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].opts.sourceType, 'markdown');
+    assert.equal(calls[0].opts.provenance.source, 'markdown-adapter');
+    assert.equal(calls[0].opts.provenance.sourceType, 'markdown');
+    assert.equal(calls[0].opts.provenance.actor, 'markdown-test');
+    assert.match(calls[0].opts.provenance.provenanceId, /^markdown-\d+-[a-z0-9]{6}$/);
+    assert.match(calls[0].opts.provenance.timestamp, /^\d{4}-\d{2}-\d{2}T/);
+    assert.equal(calls[0].opts.provenance.sourceRef, calls[0].opts.sourceRef);
+    assert.equal(Object.hasOwn(calls[0].opts, 'mutationOperationId'), false);
+    assert.equal(Object.hasOwn(result, 'receiptId'), false);
+    assert.equal(Object.hasOwn(result, 'receipt'), false);
+    assert.equal(Object.hasOwn(result.learned[0], 'receipt'), false);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
   }
 });

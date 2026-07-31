@@ -503,6 +503,8 @@ describe('Server - API', () => {
     const j = await r.json();
     assert.strictEqual(j.ok, false);
     assert.strictEqual(j.error.code, 'INGEST_SNAPSHOT_REQUIRED');
+    assert.strictEqual(j.approval, undefined);
+    assert.strictEqual(j.result, undefined);
   });
 
   it('POST /api/ingest fails closed for github until INGEST-SNAPSHOT-0 exists', async () => {
@@ -519,6 +521,8 @@ describe('Server - API', () => {
     const j = await r.json();
     assert.strictEqual(j.ok, false);
     assert.strictEqual(j.error.code, 'INGEST_SNAPSHOT_REQUIRED');
+    assert.strictEqual(j.approval, undefined);
+    assert.strictEqual(j.result, undefined);
   });
 
   it('GET /api/ingest/status returns ingest distribution and errors list', async () => {
