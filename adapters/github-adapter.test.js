@@ -1,12 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const {
-  canonicalizeGitHubRepoUrl,
-  fetchRepoFiles,
-  parseRepoUrl,
-  includePath,
-} = require('./github-adapter');
+const { canonicalizeGitHubRepoUrl } = require('../lib/github-url');
+const { fetchRepoFiles, parseRepoUrl, includePath } = require('./github-adapter');
 
 function makeResponse({ ok = true, status = 200, json, text, headers = {} }) {
   return {

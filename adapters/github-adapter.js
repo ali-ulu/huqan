@@ -139,6 +139,5 @@ module.exports = {
   fetchRepoFiles,
   fetchAndLearn,
   parseRepoUrl,
-  canonicalizeGitHubRepoUrl,
   includePath,
 };
