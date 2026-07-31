@@ -17,16 +17,24 @@ test('agent context capsule is deterministic and ordered stable-first', () => {
   assert.equal(first, second);
   assert.match(first, /^# HUQAN Agent Context Capsule\n/);
   assert.match(first, /CANON_SHA256: [a-f0-9]{64}/);
+  assert.match(first, /PROTOCOL_SHA256: [a-f0-9]{64}/);
   assert.match(first, /CHECKPOINT_SHA256: [a-f0-9]{64}/);
-  assert.ok(first.indexOf('## Stable Canon') < first.indexOf('## Mutable Checkpoint'));
+  assert.ok(first.indexOf('## Stable Canon') < first.indexOf('## Stable Delivery Protocol'));
+  assert.ok(first.indexOf('## Stable Delivery Protocol') < first.indexOf('## Mutable Checkpoint'));
   assert.ok(first.indexOf('## Mutable Checkpoint') < first.indexOf('CHECKPOINT_SHA256'));
 });
 
-test('agent context capsule exposes the exact Ponytail and Graphify rules', () => {
+test('agent context capsule exposes the exact Ponytail, delivery, and Graphify rules', () => {
   const capsule = buildContextCapsule();
 
   assert.match(capsule, /Does this need to exist\? If no, skip it\./);
   assert.match(capsule, /Is it already in this codebase\? Reuse it; do not rewrite it\./);
+  assert.match(capsule, /\[BAĞLAM\].*\[GÖREV\].*\[KABUL\]/s);
+  assert.match(capsule, /\[YASAK\].*\[SÜRÜM\]/s);
+  assert.match(capsule, /GÖZLENDİ.*TÜRETİLDİ.*VARSAYILDI/s);
+  assert.match(capsule, /DOĞRULANMADI/);
+  assert.match(capsule, /2 dakikalık göz testi/);
+  assert.match(capsule, /7\/7 değilse teslim etme/);
   assert.match(capsule, /graphify-out\/GRAPH_REPORT\.md/);
   assert.match(capsule, /graphify-out\/wiki\/index\.md/);
   assert.match(capsule, /graphify update \./);
@@ -36,9 +44,20 @@ test('agent context capsule exposes the exact Ponytail and Graphify rules', () =
 
 test('mutable checkpoint changes do not alter the stable cache prefix', () => {
   const canon = '# Stable rule';
+  const deliveryProtocol = '# Stable delivery rule';
   const gitState = { repository: 'ali-ulu/huqan', worktree: 'CLEAN' };
-  const first = formatContextCapsule(canon, { canonicalMain: 'a' }, gitState);
-  const second = formatContextCapsule(canon, { canonicalMain: 'b' }, gitState);
+  const first = formatContextCapsule(
+    canon,
+    { canonicalMain: 'a' },
+    gitState,
+    deliveryProtocol,
+  );
+  const second = formatContextCapsule(
+    canon,
+    { canonicalMain: 'b' },
+    gitState,
+    deliveryProtocol,
+  );
   const stableEnd = first.indexOf('## Mutable Checkpoint');
 
   assert.equal(first.slice(0, stableEnd), second.slice(0, stableEnd));
