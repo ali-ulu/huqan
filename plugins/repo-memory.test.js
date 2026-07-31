@@ -134,3 +134,75 @@ test('repo-memory github ingest preserves provenance on nodes and edges', async 
     && edge.meta.provenance.workspaceId === 'workspace-b'));
   assert.ok(kernel.edges.some((edge) => /repo:owner\/repo:docs\/claim\.md/.test(edge.meta?.provenance?.sourceRef || '')));
 });
+
+test('repo-memory forwards proposal receipts without generating connector audit or operation ids', async () => {
+  const kernel = makeKernel();
+  let receiptSequence = 0;
+  let auditCalls = 0;
+  kernel.appendAuditEvent = () => {
+    auditCalls += 1;
+  };
+  kernel._appendAuditEvent = () => {
+    auditCalls += 1;
+  };
+  kernel.proposeNode = (id, label, provenance, opts) => {
+    kernel.nodes.push({ id, label, provenance, opts });
+    receiptSequence += 1;
+    return {
+      decision: 'allow',
+      node: { id },
+      admission: { receiptId: `receipt-node-${receiptSequence}` },
+    };
+  };
+  kernel.proposeEdge = (from, to, relation, opts) => {
+    const edge = { from, to, relation, meta: opts };
+    kernel.edges.push(edge);
+    return {
+      decision: 'allow',
+      edge,
+      admission: { receiptId: 'receipt-edge-1' },
+    };
+  };
+
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-repo-receipt-'));
+  const file = path.join(rootDir, 'claim.md');
+  fs.writeFileSync(file, '# Claim\nreceipt forwarding', 'utf8');
+
+  try {
+    const result = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'markdown',
+      path: file,
+      rootPath: rootDir,
+      workspaceId: 'workspace-receipt',
+      timestamp: '2026-07-31T00:00:00.000Z',
+    });
+    const githubResult = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'github',
+      repoUrl: 'https://github.com/owner/repo',
+      workspaceId: 'workspace-receipt',
+      actor: 'connector-test',
+      fetchRepoFiles: async () => [{
+        path: 'README.md',
+        content: '# Repository\nreceipt forwarding',
+        lastModified: '2026-07-31T00:00:00.000Z',
+      }],
+      parseRepoUrl: () => ({ owner: 'owner', repo: 'repo' }),
+    });
+
+    assert.equal(result.admission.outcome, 'admitted');
+    assert.equal(githubResult.admission.outcome, 'admitted');
+    assert.ok(result.admissions.some((entry) => /^receipt-node-/.test(entry.receiptId || '')));
+    assert.ok(result.admissions.some((entry) => entry.receiptId === 'receipt-edge-1'));
+    assert.ok(githubResult.admissions.some((entry) => /^receipt-node-/.test(entry.receiptId || '')));
+    assert.ok(githubResult.admissions.some((entry) => entry.receiptId === 'receipt-edge-1'));
+    assert.ok([...result.admissions, ...githubResult.admissions]
+      .every((entry) => !Object.hasOwn(entry, 'mutationOperationId')));
+    assert.equal(Object.hasOwn(result, 'mutationOperationId'), false);
+    assert.equal(Object.hasOwn(githubResult, 'mutationOperationId'), false);
+    assert.equal(auditCalls, 0);
+  } finally {
+    fs.rmSync(rootDir, { recursive: true, force: true });
+  }
+});

@@ -147,7 +147,7 @@ test('snapshot hash is repeatable and content-sensitive', () => {
   );
 });
 
-test('handleIngest does not re-enforce the gate - the asymmetry is deliberate', async () => {
+test('handleIngest delegates github and markdown without re-enforcing the snapshot gate', async () => {
   // Documented boundary, not an endorsement: handleIngest accepts all four
   // source types. It is safe today only because its single runtime caller
   // invokes it after buildIngestApprovalSnapshot has already passed.
@@ -163,16 +163,25 @@ test('handleIngest does not re-enforce the gate - the asymmetry is deliberate', 
     },
   };
 
-  const result = await handleIngest({
-    kernel,
-    data: { sourceType: 'github', repoUrl: 'https://github.com/ali-ulu/huqan', branch: 'main' },
-    ensureRuntime: () => {},
-  });
+  for (const data of [
+    { sourceType: 'github', repoUrl: 'https://github.com/ali-ulu/huqan', branch: 'main' },
+    { sourceType: 'markdown', path: 'docs/claim.md', rootPath: 'docs' },
+  ]) {
+    const result = await handleIngest({
+      kernel,
+      data,
+      ensureRuntime: () => {},
+    });
 
-  assert.notStrictEqual(
-    result.code,
-    'INGEST_SNAPSHOT_REQUIRED',
-    'handleIngest is not the gate; the gate is buildIngestApprovalSnapshot'
-  );
-  assert.strictEqual(result.ingestMeta.sourceType, 'github');
+    assert.notStrictEqual(
+      result.code,
+      'INGEST_SNAPSHOT_REQUIRED',
+      'handleIngest is not the gate; the gate is buildIngestApprovalSnapshot'
+    );
+    assert.strictEqual(result.echo, 'repoMemory');
+    assert.strictEqual(result.sourceType, data.sourceType);
+    assert.strictEqual(result.ingestMeta.sourceType, data.sourceType);
+    assert.equal(typeof result.ingestMeta.sourceRef, 'string');
+    assert.ok(result.ingestMeta.sourceRef.length > 0);
+  }
 });

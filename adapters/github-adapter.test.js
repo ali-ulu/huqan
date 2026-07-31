@@ -64,6 +64,16 @@ test('github-adapter: fetchRepoFiles returns filtered markdown files', async () 
     'CONTRIBUTING.md',
     'README.md',
   ]);
+  for (const item of files) {
+    assert.deepEqual(Object.keys(item).sort(), [
+      'branch',
+      'content',
+      'lastModified',
+      'owner',
+      'path',
+      'repo',
+    ]);
+  }
   assert.equal(calls.some(url => url.includes('docs/overview.md')), false);
 });
 
