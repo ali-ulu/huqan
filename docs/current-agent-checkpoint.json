@@ -2,26 +2,33 @@
   "schemaVersion": 1,
   "repository": "ali-ulu/huqan",
   "baselineBranch": "main",
-  "canonicalMain": "047f80b02c999aa5a6fd41e27cfb212424cf2df4",
+  "canonicalMain": "6b62b5e7df376cdc9316e12f8b809fdbaf77ed69",
   "worktreePolicy": "REPORT_ONLY",
-  "observedAt": "2026-07-31T02:38:28+03:00",
-  "program": "V5 trust-boundary hardening",
+  "observedAt": "2026-07-31T10:36:41+03:00",
+  "program": "Post-trust-boundary source-reality reconciliation",
   "completedEvidence": [
     "INGEST-SNAPSHOT-0 boundary locked",
     "MCP dogfood approval and replay proof merged",
-    "graph durability capability contract locked"
+    "graph durability capability contract locked",
+    "connector provenance coverage source reality and contract tests merged",
+    "mutation journal migration decision merged with plugin migration deferred"
   ],
-  "nextGate": "CONNECTOR_PROVENANCE_COVERAGE",
-  "followingGate": "MUTATION_JOURNAL_DECISION",
+  "nextGate": "SELF-HEALER-0_RUNTIME_REACHABILITY_RECONCILIATION",
+  "followingGate": "V4_SOURCE_REALITY_RECONCILIATION",
   "status": "NOT_STARTED",
   "forbiddenClaims": [
     "V5 complete",
     "universal connector coverage",
     "all plugin mutations are durable or transactional",
-    "external-source ingest without immutable source binding"
+    "external-source ingest without immutable source binding",
+    "Self-Healer production reachability",
+    "V4 Workbench UI complete",
+    "Rust production offload or parity"
   ],
   "notes": [
-    "docs/current-operating-roadmap.md contains an older baseline SHA; live Git evidence wins.",
+    "Self-Healer audit-only modules are test-reachable but have no production caller.",
+    "V4 inspector helpers do not establish a kernel-connected Workbench UI or browser smoke.",
+    "RustGraph is optional and does not establish a reachable production Kernel offload.",
     "Do not start deployment work unless separately authorized."
   ]
 }
