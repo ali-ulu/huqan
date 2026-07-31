@@ -108,7 +108,7 @@ See [docs/product-surfaces.md](./docs/product-surfaces.md) for the explicit surf
 - Explicit marker relation extraction is checkpointed for `CAUSES`, `PREVENTS`, `DEPENDS_ON`, and `ENABLES`, including Turkish `DEPENDS_ON` variants.
 - Shield now verifies the full LLM response window instead of only the first 300 characters.
 - Memory lookup now fails closed when `workspaceId` is missing instead of scanning across workspaces.
-- Self-Healer contract and safety matrix docs exist, but runtime Self-Healer implementation remains planned.
+- Self-Healer finding, classifier, and audit-only library primitives are tested; no production entry point or autonomous scanner exists.
 - Recent hardening and relation extraction checkpoints are documented under [docs/audits](./docs/audits).
 
 ---
