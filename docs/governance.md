@@ -1,12 +1,16 @@
-﻿# Governance
+# Governance
 
-AXIOM / HUQAN is currently maintainer-led.
+HUQAN is currently maintainer-led.
+
+Canonical repository: `https://github.com/ali-ulu/huqan`
+
+Some internal files and compatibility identifiers retain the historical AXIOM name. The public project and repository identity is HUQAN.
 
 This is the honest operating model:
 
 - A human maintainer reviews and approves merges.
-- AI-assisted code and docs are allowed, but they are not self-approved.
-- Scoped PRs are preferred over broad branch rewrites.
+- AI-assisted code and documentation are allowed, but they are not self-approved.
+- Scoped pull requests are preferred over broad branch rewrites.
 - Security-sensitive changes require explicit approval.
 - Release tags require clean test and smoke gates.
 - Auto-merge is not part of the canonical release path.
@@ -21,11 +25,12 @@ This is the honest operating model:
 
 ## Contribution workflow
 
-1. Open a scoped branch.
-2. Make one clear change set.
-3. Run the relevant tests.
-4. Include the test result in the PR.
-5. Wait for human review.
+1. Clone `https://github.com/ali-ulu/huqan.git`.
+2. Open a scoped branch.
+3. Make one clear change set.
+4. Run the relevant tests and checks.
+5. Include exact evidence in the pull request.
+6. Wait for human review.
 
 ## Security and release
 

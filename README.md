@@ -2,15 +2,19 @@
 
 ### Models generate. Agents act. Memory stores. **HUQAN judges.**
 
-HUQAN is a **local-first judgment and verification layer** for AI claims, memory writes, and risky actions. It connects decisions to evidence, scope, policy, approval, and auditable Trust Receipts.
+HUQAN is a **local-first AI governance, agent-safety, and verification layer** for claims, memory writes, and risky actions. It connects AI-assisted work to evidence, provenance, scope, policy, approval, and auditable Trust Receipts.
 
 [![Version](https://img.shields.io/badge/version-v0.9.1-2563eb.svg)](./package.json)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D18-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D20-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-22c55e.svg)](./LICENSE)
-[![Runtime](https://img.shields.io/badge/runtime-local--first-0f766e.svg)](#why-huqan)
-[![Core](https://img.shields.io/badge/core-deterministic-5b21b6.svg)](#how-it-works)
+[![GitHub stars](https://img.shields.io/github/stars/ali-ulu/huqan?style=flat&logo=github)](https://github.com/ali-ulu/huqan/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/ali-ulu/huqan?style=flat&logo=github)](https://github.com/ali-ulu/huqan/forks)
+[![Open issues](https://img.shields.io/github/issues/ali-ulu/huqan?style=flat&logo=github)](https://github.com/ali-ulu/huqan/issues)
+[![Last commit](https://img.shields.io/github/last-commit/ali-ulu/huqan?style=flat&logo=github)](https://github.com/ali-ulu/huqan/commits/main)
 
 [Quick start](#quick-start) · [Why HUQAN](#why-huqan) · [How it works](#how-it-works) · [Ways to run](#ways-to-run) · [Current scope](#current-scope)
+
+**Canonical repository:** `https://github.com/ali-ulu/huqan`
 
 <p align="center">
   <img src="./docs/assets/huqan-agent-evidence-receipt-flow.svg" alt="HUQAN Agent–Evidence–Receipt flow" width="100%">
@@ -26,21 +30,21 @@ AI systems can produce useful outputs without showing:
 - what changed later,
 - or why a result was allowed, blocked, or escalated.
 
-HUQAN adds a trust boundary around those decisions.
+HUQAN adds a deterministic, auditable trust boundary around those decisions on its tested local paths.
 
 ```text
 claim or action
       ↓
-evidence + scope + policy
+evidence + provenance + scope + policy
       ↓
-verification + risk gates
+verification + contradiction + risk gates
       ↓
 ALLOW / BLOCK / ESCALATE
       ↓
 Trust Receipt + audit context
 ```
 
-HUQAN is not another LLM and does not require a cloud model for its tested core local paths.
+HUQAN is not another LLM. Its core local graph, verification, gate, and receipt paths do not require a hosted model or cloud service.
 
 ## Why HUQAN?
 
@@ -48,29 +52,70 @@ HUQAN is not another LLM and does not require a cloud model for its tested core 
 |---|---|
 | **Repeatable decisions** | Deterministic verification and policy outcomes on tested paths |
 | **Evidence traceability** | Provenance, graph evidence, reasoning context, and receipt links |
-| **Safer actions** | Explicit review, block, escalation, and dry-run boundaries |
+| **Safer AI agents** | Explicit review, block, escalation, and dry-run boundaries |
 | **Protected memory** | Admission and workspace checks before canonical memory writes |
 | **Auditability** | Trust Receipts and append-oriented audit records |
 | **Local operation** | CLI, local server, and MCP flows without a required cloud dependency |
+
+HUQAN is designed for AI governance, agent safety, LLM-output verification, approval workflows, provenance tracking, MCP integrations, and audit-ready AI-assisted work.
 
 ## Quick start
 
 ### Requirements
 
-- Node.js **18 or newer**
+- Git
 - npm
+- **Node.js 20 or newer**
+- Node.js 20 LTS or 22 LTS is recommended
 - A compiler toolchain may be required if your platform cannot use a prebuilt `better-sqlite3` binary
 
-### Install and verify
+> The current `better-sqlite3` dependency does not support Node.js 18. Earlier README text that advertised Node.js 18 was stale.
+
+### Install from the canonical repository
+
+Using HTTPS:
 
 ```bash
 git clone https://github.com/ali-ulu/huqan.git
 cd huqan
-npm ci --include=optional
+npm ci
+```
+
+Using GitHub CLI:
+
+```bash
+gh repo clone ali-ulu/huqan
+cd huqan
+npm ci
+```
+
+### Fix an existing clone that still points to an old repository name
+
+```bash
+git remote set-url origin https://github.com/ali-ulu/huqan.git
+git remote -v
+```
+
+The `origin` fetch and push URLs should both be:
+
+```text
+https://github.com/ali-ulu/huqan.git
+```
+
+### Verify the local SQLite dependency and test suite
+
+```bash
+node -e "const Database=require('better-sqlite3'); const db=new Database(':memory:'); db.close(); console.log('SQLite OK')"
 npm test
 ```
 
 ### Start the CLI
+
+```bash
+npm start
+```
+
+Direct invocation remains available:
 
 ```bash
 node cli.js
@@ -121,7 +166,7 @@ SQLite-backed local state and audit records
 ### Local CLI
 
 ```bash
-node cli.js
+npm start
 ```
 
 ### Local REST server
@@ -129,8 +174,10 @@ node cli.js
 Mutation endpoints require an API key.
 
 ```bash
-AXIOM_API_KEY=replace-with-a-secret node server.js
+AXIOM_API_KEY=replace-with-a-secret npm run server
 ```
+
+`AXIOM_API_KEY` is the current compatibility environment-variable name used by the runtime. It is not the repository name.
 
 The server starts at `http://localhost:3000`.
 
@@ -150,7 +197,7 @@ Authenticated mutation requests use `X-API-Key` or `Authorization: Bearer <key>`
 ### MCP server for Claude or Cursor
 
 ```bash
-node mcpServer.js
+npm run mcp
 ```
 
 Claude Desktop configuration:
@@ -225,7 +272,7 @@ npm run bench:verify
 
 Focused test commands are available in [`package.json`](./package.json).
 
-## Documentation
+## Documentation and support
 
 - [Current operating roadmap](./docs/current-operating-roadmap.md)
 - [Product surfaces](./docs/product-surfaces.md)
@@ -235,6 +282,8 @@ Focused test commands are available in [`package.json`](./package.json).
 - [Governance](./docs/governance.md)
 - [Security policy](./SECURITY.md)
 - [Contributing](./CONTRIBUTING.md)
+- [Issues](https://github.com/ali-ulu/huqan/issues)
+- [Discussions](https://github.com/ali-ulu/huqan/discussions)
 
 ## License
 

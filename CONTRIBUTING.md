@@ -1,6 +1,8 @@
-﻿# Contributing to AXIOM / HUQAN
+# Contributing to HUQAN
 
-AXIOM is a maintainer-led repository. Pull requests are reviewed by a human before merge.
+HUQAN is a maintainer-led repository. Pull requests are reviewed by a human before merge.
+
+**Canonical repository:** `https://github.com/ali-ulu/huqan`
 
 ## Before you open a PR
 
@@ -11,29 +13,38 @@ AXIOM is a maintainer-led repository. Pull requests are reviewed by a human befo
 - Do not change package version or dependencies unless the scoped task requires it.
 - AI-assisted contributions are allowed, but they must be reviewed by a human before merge.
 
-## Local verification
+## Local setup
 
-Use the standard local checks for the area you touched:
+HUQAN currently requires **Node.js 20 or newer**. Node.js 20 LTS or 22 LTS is recommended.
 
 ```bash
-npm ci --include=optional
-node -e "require('better-sqlite3'); console.log('better-sqlite3 ok')"
+git clone https://github.com/ali-ulu/huqan.git
+cd huqan
+npm ci
+node -e "const Database=require('better-sqlite3'); const db=new Database(':memory:'); db.close(); console.log('SQLite OK')"
 npm test
 ```
 
-If you only changed docs, `npm test` may be optional when the PR scope clearly does not touch runtime behavior.
+For an existing clone that still points to an older repository name:
+
+```bash
+git remote set-url origin https://github.com/ali-ulu/huqan.git
+git remote -v
+```
+
+If you only changed documentation, the full runtime suite may be classified as not applicable by CI when the changed-file policy allows it. Report exactly what did and did not run.
 
 ## PR expectations
 
 Include a short summary with:
 
 - branch name
-- commit hash
+- base and head commit hashes
 - files changed
-- tests run
-- test result
+- tests and checks run
+- exact results
 - anything intentionally not touched
-- blockers, if any
+- blockers or unverified items
 
 ## Review and release gates
 
