@@ -3,6 +3,7 @@ const path = require('path');
 const { buildAuditEvent, getAuditEvents: filterAuditEvents, normalizeAuditEvent } = require('./lib/audit-log');
 const { normalizeCandidateClaim } = require('./lib/conflict-detector');
 const { appendReceiptToChain } = require('./lib/receipt/receipt-chain');
+const { assertDurableV4WriteAllowed } = require('./lib/receipt/v4-receipt-family');
 
 // SQLite opsiyonel — yoksa JSON fallback
 let Database;
@@ -600,6 +601,7 @@ class Graph {
           if (!payload || typeof payload !== 'object' || !payload.receiptId || !payload.workspaceId) {
             throw new Error('durable mutation receipt payload is invalid');
           }
+          assertDurableV4WriteAllowed(payload);
           const previous = this._stmts.getLatestMutationReceiptHash.get(payload.workspaceId);
           const chained = appendReceiptToChain(payload, previous?.receipt_hash);
           const committedAt = nowIso();
