@@ -1,7 +1,7 @@
 {
     "name": "huqan",
     "version": "0.9.1",
-    "description": "Deterministic causal reasoning engine. Verifies LLM outputs, detects contradictions, learns from natural language. Zero external LLM/GPU/cloud dependencies.",
+    "description": "Local-first AI governance and verification layer for claims, agent actions, memory writes, provenance, approvals, and Trust Receipts.",
     "main": "kernel.js",
     "types": "kernel.d.ts",
     "bin": {
@@ -28,18 +28,22 @@
         "test:server": "node --test server.test.js"
     },
     "keywords": [
-        "symbolic-ai",
-        "neuro-symbolic",
-        "knowledge-graph",
+        "ai-governance",
+        "agent-safety",
         "llm-verification",
-        "hallucination-detection",
-        "contradiction-detection",
-        "reasoning-engine",
-        "truth-layer",
+        "trust-receipts",
+        "provenance",
+        "audit-trail",
+        "approval-workflow",
+        "mcp-server",
+        "local-first",
         "deterministic-ai",
-        "turkish-nlp",
+        "knowledge-graph",
+        "contradiction-detection",
         "graph-reasoning",
-        "explainable-ai"
+        "explainable-ai",
+        "symbolic-ai",
+        "neuro-symbolic"
     ],
     "repository": {
         "type": "git",
@@ -52,7 +56,7 @@
     "author": "Huqan Contributors",
     "license": "Apache-2.0",
     "engines": {
-        "node": ">=18.0.0"
+        "node": ">=20.0.0"
     },
     "files": [
         "LICENSE",
