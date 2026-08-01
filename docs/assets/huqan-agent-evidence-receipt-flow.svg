@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1536" height="900" viewBox="0 0 1536 900" role="img" aria-labelledby="title desc">
+  <title id="title">HUQAN Agent–Evidence–Receipt Flow</title>
+  <desc id="desc">An isometric overview of the HUQAN flow from agent input and evidence collection through verification, approval, Trust Receipt generation, and package sharing.</desc>
+  <defs>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#0f3b82"/>
+    </linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14b8a6"/>
+      <stop offset="1" stop-color="#0f766e"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22c55e"/>
+      <stop offset="1" stop-color="#15803d"/>
+    </linearGradient>
+    <linearGradient id="purple" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8b5cf6"/>
+      <stop offset="1" stop-color="#5b21b6"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="12" stdDeviation="10" flood-color="#0f172a" flood-opacity="0.14"/>
+    </filter>
+    <style>
+      .sans{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+      .navy{fill:#0b1f3a}.muted{fill:#52627a}.line{stroke:#2563eb;stroke-width:4;fill:none}
+      .card{fill:#fff;stroke:#d7e1ef;stroke-width:2}.small{font-size:18px}.body{font-size:20px}.label{font-size:22px;font-weight:700}.title{font-size:56px;font-weight:800}.subtitle{font-size:28px;font-weight:600}
+    </style>
+  </defs>
+
+  <rect width="1536" height="900" fill="#f8fbff"/>
+  <circle cx="1430" cy="40" r="230" fill="#e7f0ff"/>
+  <circle cx="80" cy="850" r="210" fill="#eef8ff"/>
+
+  <g class="sans">
+    <g transform="translate(58 48)">
+      <polygon points="44,0 88,25 88,76 44,102 0,76 0,25" fill="url(#blue)"/>
+      <path d="M22 71V31l22-13 22 13v40l-12 7V54H35v24z" fill="#fff"/>
+      <text x="114" y="52" class="navy title">HUQAN</text>
+      <text x="116" y="91" fill="#2563eb" class="subtitle">Agent–Evidence–Receipt Flow</text>
+      <text x="116" y="126" class="muted body">From claim to verifiable receipt.</text>
+    </g>
+
+    <g transform="translate(990 50)">
+      <rect width="480" height="142" rx="22" class="card"/>
+      <text x="28" y="42" fill="#1557c0" class="label">What is HUQAN?</text>
+      <text x="28" y="76" class="navy body">A local-first judgment and verification layer</text>
+      <text x="28" y="105" class="navy body">for claims, memory writes, and risky actions.</text>
+      <path d="M410 38l28 15v34c0 24-15 38-28 45-13-7-28-21-28-45V53z" fill="url(#blue)"/>
+      <path d="M396 82l10 10 20-25" stroke="#fff" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+
+    <g transform="translate(60 184)">
+      <g><rect width="138" height="52" rx="9" fill="#111827"/><rect y="27" width="138" height="25" rx="0 0 9 9" fill="#22c55e"/><text x="69" y="21" text-anchor="middle" fill="#fff" class="small">version</text><text x="69" y="46" text-anchor="middle" fill="#fff" class="small">v0.9.1</text></g>
+      <g transform="translate(150)"><rect width="138" height="52" rx="9" fill="#111827"/><rect y="27" width="138" height="25" fill="#2563eb"/><text x="69" y="21" text-anchor="middle" fill="#fff" class="small">node</text><text x="69" y="46" text-anchor="middle" fill="#fff" class="small">≥ 18</text></g>
+      <g transform="translate(300)"><rect width="138" height="52" rx="9" fill="#111827"/><rect y="27" width="138" height="25" fill="#2563eb"/><text x="69" y="21" text-anchor="middle" fill="#fff" class="small">license</text><text x="69" y="46" text-anchor="middle" fill="#fff" class="small">Apache 2.0</text></g>
+      <g transform="translate(450)"><rect width="138" height="52" rx="9" fill="#111827"/><rect y="27" width="138" height="25" fill="#14b8a6"/><text x="69" y="21" text-anchor="middle" fill="#fff" class="small">runtime</text><text x="69" y="46" text-anchor="middle" fill="#fff" class="small">local-first</text></g>
+    </g>
+
+    <g transform="translate(45 290)">
+      <path d="M195 155H270M445 155H520M695 155H770M945 155H1020M1195 155H1270" class="line"/>
+      <path d="M258 145l14 10-14 10M508 145l14 10-14 10M758 145l14 10-14 10M1008 145l14 10-14 10M1258 145l14 10-14 10" class="line"/>
+
+      <g transform="translate(0)" filter="url(#shadow)">
+        <polygon points="85,38 165,82 85,126 5,82" fill="#e5efff"/>
+        <polygon points="5,82 85,126 85,212 5,168" fill="#d6e4fb"/>
+        <polygon points="165,82 85,126 85,212 165,168" fill="#bcd3f6"/>
+        <circle cx="85" cy="90" r="44" fill="#fff" stroke="#2563eb" stroke-width="5"/>
+        <circle cx="70" cy="82" r="6" fill="#2563eb"/><circle cx="100" cy="82" r="6" fill="#2563eb"/>
+        <path d="M65 103q20 18 40 0" stroke="#2563eb" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <text x="85" y="250" text-anchor="middle" class="navy label">1. Agent / Actor</text>
+        <text x="85" y="280" text-anchor="middle" class="muted small">Creates a claim</text>
+        <text x="85" y="305" text-anchor="middle" class="muted small">or requests an action.</text>
+      </g>
+
+      <g transform="translate(250)" filter="url(#shadow)">
+        <polygon points="85,38 165,82 85,126 5,82" fill="#e8f3ff"/>
+        <polygon points="5,82 85,126 85,212 5,168" fill="#d9eafa"/>
+        <polygon points="165,82 85,126 85,212 165,168" fill="#c4dbf3"/>
+        <rect x="42" y="52" width="62" height="82" rx="8" fill="#fff" stroke="#5b7ca8" stroke-width="3"/>
+        <path d="M55 72h34M55 87h34M55 102h24" stroke="#9cb2cf" stroke-width="5" stroke-linecap="round"/>
+        <ellipse cx="117" cy="115" rx="30" ry="13" fill="#2563eb"/>
+        <rect x="87" y="115" width="60" height="32" fill="#174ea6"/>
+        <ellipse cx="117" cy="147" rx="30" ry="13" fill="#0f3b82"/>
+        <text x="85" y="250" text-anchor="middle" class="navy label">2. Evidence</text>
+        <text x="85" y="280" text-anchor="middle" class="muted small">Sources, data, tools,</text>
+        <text x="85" y="305" text-anchor="middle" class="muted small">outputs, and timestamps.</text>
+      </g>
+
+      <g transform="translate(500)" filter="url(#shadow)">
+        <polygon points="85,38 165,82 85,126 5,82" fill="#e9fbf8"/>
+        <polygon points="5,82 85,126 85,212 5,168" fill="#d6f5ef"/>
+        <polygon points="165,82 85,126 85,212 165,168" fill="#bce9e1"/>
+        <circle cx="68" cy="94" r="38" fill="#fff" stroke="#0f766e" stroke-width="7"/>
+        <path d="M95 121l30 30" stroke="#0f766e" stroke-width="10" stroke-linecap="round"/>
+        <rect x="104" y="62" width="48" height="76" rx="7" fill="#fff" stroke="#94a3b8" stroke-width="3"/>
+        <path d="M115 81l6 6 12-14M115 104l6 6 12-14" stroke="#22c55e" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <text x="85" y="250" text-anchor="middle" class="navy label">3. Verify &amp; Risk</text>
+        <text x="85" y="280" text-anchor="middle" class="muted small">Scope, integrity, policy,</text>
+        <text x="85" y="305" text-anchor="middle" class="muted small">risk, and consistency.</text>
+      </g>
+
+      <g transform="translate(750)" filter="url(#shadow)">
+        <polygon points="85,38 165,82 85,126 5,82" fill="#ecfdf3"/>
+        <polygon points="5,82 85,126 85,212 5,168" fill="#d8f7e4"/>
+        <polygon points="165,82 85,126 85,212 165,168" fill="#bdeccf"/>
+        <path d="M85 52l44 22v42c0 34-22 54-44 64-22-10-44-30-44-64V74z" fill="url(#green)"/>
+        <path d="M62 112l15 15 31-38" stroke="#fff" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="85" y="250" text-anchor="middle" class="navy label">4. Approval / Gate</text>
+        <text x="85" y="280" text-anchor="middle" class="muted small">Human or policy review</text>
+        <text x="85" y="305" text-anchor="middle" class="muted small">before finalization.</text>
+      </g>
+
+      <g transform="translate(1000)" filter="url(#shadow)">
+        <polygon points="85,38 165,82 85,126 5,82" fill="#eef2ff"/>
+        <polygon points="5,82 85,126 85,212 5,168" fill="#e1e8ff"/>
+        <polygon points="165,82 85,126 85,212 165,168" fill="#cad5fb"/>
+        <rect x="42" y="48" width="86" height="116" rx="10" fill="#fff" stroke="#506aa2" stroke-width="4"/>
+        <path d="M57 75h56M57 94h56M57 113h40" stroke="#9aaaca" stroke-width="6" stroke-linecap="round"/>
+        <circle cx="122" cy="143" r="25" fill="url(#teal)"/>
+        <path d="M109 143l9 9 17-20" stroke="#fff" stroke-width="6" fill="none" stroke-linecap="round"/>
+        <text x="85" y="250" text-anchor="middle" class="navy label">5. Trust Receipt</text>
+        <text x="85" y="280" text-anchor="middle" class="muted small">Decision, evidence, scope,</text>
+        <text x="85" y="305" text-anchor="middle" class="muted small">hashes, and audit context.</text>
+      </g>
+
+      <g transform="translate(1250)" filter="url(#shadow)">
+        <polygon points="85,38 165,82 85,126 5,82" fill="#f3efff"/>
+        <polygon points="5,82 85,126 85,212 5,168" fill="#e8ddff"/>
+        <polygon points="165,82 85,126 85,212 165,168" fill="#d8c8fb"/>
+        <path d="M38 86l47-24 47 24-47 24z" fill="#fff" stroke="#5b21b6" stroke-width="4"/>
+        <path d="M38 86v58l47 25 47-25V86M85 110v59" fill="#ede9fe" stroke="#5b21b6" stroke-width="4"/>
+        <circle cx="132" cy="143" r="26" fill="url(#purple)"/>
+        <rect x="122" y="139" width="20" height="17" rx="3" fill="#fff"/>
+        <path d="M126 139v-6a6 6 0 0112 0v6" stroke="#fff" stroke-width="4" fill="none"/>
+        <text x="85" y="250" text-anchor="middle" class="navy label">6. Package &amp; Share</text>
+        <text x="85" y="280" text-anchor="middle" class="muted small">Export receipt, audit trail,</text>
+        <text x="85" y="305" text-anchor="middle" class="muted small">or portable .axiom package.</text>
+      </g>
+    </g>
+
+    <g transform="translate(60 690)">
+      <rect width="1416" height="150" rx="24" class="card"/>
+      <text x="30" y="42" fill="#1557c0" class="label">End-to-end properties</text>
+      <g transform="translate(30 70)"><circle cx="22" cy="22" r="20" fill="#e8f0ff"/><path d="M13 23l7 7 13-16" stroke="#2563eb" stroke-width="5" fill="none"/><text x="54" y="18" class="navy label">Integrity</text><text x="54" y="44" class="muted small">Evidence-bound decisions</text></g>
+      <g transform="translate(340 70)"><circle cx="22" cy="22" r="20" fill="#e8f0ff"/><path d="M22 8v28M8 22h28" stroke="#2563eb" stroke-width="4"/><text x="54" y="18" class="navy label">Scope-bound</text><text x="54" y="44" class="muted small">Only what is authorized</text></g>
+      <g transform="translate(680 70)"><circle cx="22" cy="22" r="20" fill="#e8f0ff"/><rect x="14" y="19" width="16" height="14" rx="2" fill="#2563eb"/><path d="M17 19v-5a5 5 0 0110 0v5" stroke="#2563eb" stroke-width="3" fill="none"/><text x="54" y="18" class="navy label">Tamper-evident</text><text x="54" y="44" class="muted small">Hashes and receipts</text></g>
+      <g transform="translate(1010 70)"><circle cx="22" cy="22" r="20" fill="#e8f0ff"/><path d="M10 29h24M14 29V16l8-5 8 5v13" stroke="#2563eb" stroke-width="3" fill="none"/><text x="54" y="18" class="navy label">Auditable</text><text x="54" y="44" class="muted small">Traceable and exportable</text></g>
+    </g>
+  </g>
+</svg>
