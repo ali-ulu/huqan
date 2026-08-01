@@ -1,0 +1,1 @@
+{"caseId":"RTR-028-EXPORT-V2-VERSION-SELECTION","description":"Any V2 record selects bundle V2","input":{"receiptVersions":["v4-receipt-v1","v4-receipt-v2"]},"expected":{"mode":"futureV2Structural","schemaVersion":"v4-receipt-bundle-v2"},"nonClaims":["runtime exporter"]}

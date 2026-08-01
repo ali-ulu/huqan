@@ -1,0 +1,1 @@
+{"caseId":"RTR-032-EXPORT-CROSS-FAMILY-OUT-OF-SCOPE","description":"Cross-family global export is excluded","input":{"families":["v4","reviewed-external-graph"]},"expected":{"mode":"futureV2Structural","outOfScope":true},"nonClaims":["global journal export"]}

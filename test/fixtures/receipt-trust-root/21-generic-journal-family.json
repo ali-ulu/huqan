@@ -1,0 +1,1 @@
+{"caseId":"RTR-021-GENERIC-JOURNAL-NON-V4-VALID","description":"Existing non-V4 journal family remains valid","input":{"family":"reviewed-external-graph","genericChainValid":true},"expected":{"mode":"futureV2Structural","preserved":true},"nonClaims":["V4 classification"]}

@@ -1,0 +1,1 @@
+{"caseId":"RTR-029-EXPORT-V2-VERIFY-STRUCTURE","description":"Bundle V2 verifies envelope records hash and links","input":{"checks":["outerVersion","receiptVersions","receiptArrayHash","chainLinkage"]},"expected":{"mode":"futureV2Structural","allRequired":true},"nonClaims":["cross-family export"]}

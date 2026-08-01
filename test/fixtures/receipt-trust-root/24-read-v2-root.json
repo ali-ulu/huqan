@@ -1,0 +1,1 @@
+{"caseId":"RTR-024-READ-V2-PRESERVES-ROOT","description":"V2 read preserves committed root","input":{"canonicalReceiptSchemaVersion":"v4-receipt-v2","trustRoot":"external_verified_client"},"expected":{"mode":"futureV2Structural","trustRoot":"external_verified_client"},"nonClaims":["runtime reader"]}
