@@ -39,7 +39,7 @@ function createFixture() {
 function markdownRequest(root, overrides = {}) {
   return {
     sourceType: 'markdown',
-    rootPath: root,
+    rootPath: path.join(root, 'untrusted-caller-root'),
     path: 'docs/claim.md',
     requester: 'user:alice',
     workspaceId: 'tenant-a',
@@ -51,13 +51,17 @@ function markdownRequest(root, overrides = {}) {
   };
 }
 
+function queueOptions(root, now) {
+  return { now, markdownRootPath: root };
+}
+
 test('reviewed Markdown bytes are queued once with server-owned validity times and a public-safe response', { skip: !HAS_SQLITE }, async () => {
   const fixture = createFixture();
   try {
     const first = await queueReviewedExternalIngest(
       fixture.store,
       markdownRequest(fixture.root),
-      { now: '2026-08-01T01:00:00.000Z' },
+      queueOptions(fixture.root, '2026-08-01T01:00:00.000Z'),
     );
 
     assert.equal(first.ok, true);
@@ -90,12 +94,12 @@ test('same reviewed request within its window is idempotent and reuses the origi
     const first = await queueReviewedExternalIngest(
       fixture.store,
       markdownRequest(fixture.root),
-      { now: '2026-08-01T01:00:00.000Z' },
+      queueOptions(fixture.root, '2026-08-01T01:00:00.000Z'),
     );
     const retry = await queueReviewedExternalIngest(
       fixture.store,
       markdownRequest(fixture.root),
-      { now: '2026-08-01T01:05:00.000Z' },
+      queueOptions(fixture.root, '2026-08-01T01:05:00.000Z'),
     );
 
     assert.equal(first.ok, true);
@@ -118,7 +122,7 @@ test('same request identity with changed reviewed bytes returns conflict and pre
     const first = await queueReviewedExternalIngest(
       fixture.store,
       markdownRequest(fixture.root),
-      { now: '2026-08-01T01:00:00.000Z' },
+      queueOptions(fixture.root, '2026-08-01T01:00:00.000Z'),
     );
     assert.equal(first.ok, true);
     const before = fixture.store.listPendingToolApprovals(10)[0];
@@ -127,7 +131,7 @@ test('same request identity with changed reviewed bytes returns conflict and pre
     const conflict = await queueReviewedExternalIngest(
       fixture.store,
       markdownRequest(fixture.root),
-      { now: '2026-08-01T01:05:00.000Z' },
+      queueOptions(fixture.root, '2026-08-01T01:05:00.000Z'),
     );
 
     assert.equal(conflict.ok, false);
@@ -152,12 +156,12 @@ test('a distinct idempotency key creates an independent reviewed approval', { sk
     const first = await queueReviewedExternalIngest(
       fixture.store,
       markdownRequest(fixture.root),
-      { now: '2026-08-01T01:00:00.000Z' },
+      queueOptions(fixture.root, '2026-08-01T01:00:00.000Z'),
     );
     const second = await queueReviewedExternalIngest(
       fixture.store,
       markdownRequest(fixture.root, { idempotencyKey: 'request-2' }),
-      { now: '2026-08-01T01:01:00.000Z' },
+      queueOptions(fixture.root, '2026-08-01T01:01:00.000Z'),
     );
 
     assert.equal(first.ok, true);
