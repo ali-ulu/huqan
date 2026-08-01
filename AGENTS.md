@@ -1,6 +1,6 @@
-# AXIOM Agent Rules — Mandatory
+# HUQAN Agent Rules — Mandatory
 
-This file is mandatory for every coding agent working on AXIOM.
+This file is mandatory for every coding agent working on HUQAN.
 
 Before doing any task, the agent must read this file and obey it.
 
