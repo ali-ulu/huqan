@@ -70,6 +70,10 @@ test('status, tool, context, and policy mismatches fail closed', { skip: !HAS_SQ
     pending.status = 'pending';
     cases.push([pending, 'REVIEWED_EXECUTION_STATUS_INVALID']);
 
+    const tamperedDecision = structuredClone(fixture.record);
+    tamperedDecision.decision = 'execution_outcome_unknown';
+    cases.push([tamperedDecision, 'REVIEWED_EXECUTION_STATUS_INVALID']);
+
     const wrongTool = structuredClone(fixture.record);
     wrongTool.tool = 'other.tool';
     cases.push([wrongTool, 'REVIEWED_EXECUTION_TOOL_MISMATCH']);
