@@ -8,14 +8,10 @@ const os = require('os');
 const path = require('path');
 
 const {
-  buildExternalIngestApprovalFromResolution,
   resolveExternalIngestApproval,
   verifyExternalIngestApproval,
 } = require('../lib/external-ingest-approval');
-const {
-  buildImmutableExternalSourceSnapshot,
-  buildIngestApprovalSnapshot,
-} = require('../lib/ingest');
+const { buildIngestApprovalSnapshot } = require('../lib/ingest');
 
 const REQUESTED_AT = '2026-08-01T01:00:00.000Z';
 const EXPIRES_AT = '2026-08-01T01:15:00.000Z';
@@ -37,15 +33,15 @@ function response(payload, status = 200) {
   };
 }
 
-function githubFetchFor(bytes, commitSha = COMMIT_SHA) {
+function githubFetchFor(bytes, commitSha = COMMIT_SHA, treeSha = TREE_SHA) {
   const blobSha = gitBlobSha(bytes);
   return async (url) => {
     if (url.endsWith(`/git/commits/${commitSha}`)) {
-      return response({ sha: commitSha, tree: { sha: TREE_SHA } });
+      return response({ sha: commitSha, tree: { sha: treeSha } });
     }
-    if (url.includes(`/git/trees/${TREE_SHA}?recursive=1`)) {
+    if (url.includes(`/git/trees/${treeSha}?recursive=1`)) {
       return response({
-        sha: TREE_SHA,
+        sha: treeSha,
         truncated: false,
         tree: [{ type: 'blob', mode: '100644', path: 'README.md', sha: blobSha }],
       });
@@ -92,6 +88,7 @@ test('trusted GitHub resolution builds a bounded approval from reviewed immutabl
   assert.equal(approval.workspaceId, 'tenant-a');
   assert.equal(approval.payload.action, 'ingest_reviewed_external_snapshot');
   assert.equal(approval.payload.reviewedSource.files[0].content, '# HUQAN\n');
+  assert.match(approval.payload.reviewedSource.files[0].blobSha, /^[0-9a-f]{40}$/);
   assert.match(approval.requestIdentityHash, /^sha256:[0-9a-f]{64}$/);
   assert.match(approval.snapshotHash, /^sha256:[0-9a-f]{64}$/);
   assert.match(approval.approvalKey, /^http\.ingest\.external\.[0-9a-f]{64}$/);
@@ -102,22 +99,13 @@ test('trusted GitHub resolution builds a bounded approval from reviewed immutabl
   assert.deepEqual(verified.approval, approval);
 });
 
-test('request identity is independent of content so changed content can conflict instead of opening a silent second request', () => {
-  const firstSnapshot = buildImmutableExternalSourceSnapshot({
-    sourceType: 'github',
-    repoUrl: 'https://github.com/ali-ulu/huqan',
-    commitSha: 'a'.repeat(40),
-    files: [{ path: 'README.md', content: '# First' }],
+test('request identity is independent of content so changed content can conflict instead of opening a silent second request', async () => {
+  const first = await resolveExternalIngestApproval(request(), {
+    fetchImpl: githubFetchFor(Buffer.from('# First\n', 'utf8'), 'a'.repeat(40), 'b'.repeat(40)),
   });
-  const secondSnapshot = buildImmutableExternalSourceSnapshot({
-    sourceType: 'github',
-    repoUrl: 'https://github.com/ali-ulu/huqan',
-    commitSha: 'c'.repeat(40),
-    files: [{ path: 'README.md', content: '# Changed' }],
+  const second = await resolveExternalIngestApproval(request({ commitSha: 'c'.repeat(40) }), {
+    fetchImpl: githubFetchFor(Buffer.from('# Changed\n', 'utf8'), 'c'.repeat(40), 'd'.repeat(40)),
   });
-
-  const first = buildExternalIngestApprovalFromResolution(request(), firstSnapshot);
-  const second = buildExternalIngestApprovalFromResolution(request({ commitSha: 'c'.repeat(40) }), secondSnapshot);
 
   assert.equal(first.ok, true);
   assert.equal(second.ok, true);
@@ -160,6 +148,10 @@ test('approval verification rejects snapshot, identity, hash, and unknown-field 
   const contentTamper = structuredClone(built.approval);
   contentTamper.payload.reviewedSource.files[0].content = '# attacker';
   cases.push(contentTamper);
+
+  const blobIdentityRemoved = structuredClone(built.approval);
+  delete blobIdentityRemoved.payload.reviewedSource.files[0].blobSha;
+  cases.push(blobIdentityRemoved);
 
   const requesterTamper = structuredClone(built.approval);
   requesterTamper.payload.requester = 'user:mallory';
