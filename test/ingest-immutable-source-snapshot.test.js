@@ -23,11 +23,6 @@ function githubInput(files) {
 }
 
 test('GitHub immutable snapshots require a canonical repository and full commit SHA', () => {
-  const missingSha = buildImmutableExternalSourceSnapshot(githubInput([
-    { path: 'README.md', content: '# HUQAN' },
-  ]));
-  missingSha.ok = missingSha.ok;
-
   const withoutSha = buildImmutableExternalSourceSnapshot({
     sourceType: 'github',
     repoUrl: 'https://github.com/ali-ulu/huqan',
@@ -69,7 +64,10 @@ test('GitHub snapshot manifest is deterministic, content-bound, and branch-free'
   assert.equal(first.snapshot.immutableSourceId, COMMIT_SHA);
   assert.equal(first.snapshot.sourceRef, `https://github.com/ali-ulu/huqan@${COMMIT_SHA}`);
   assert.equal(first.snapshot.sourceRef.includes('main'), false);
-  assert.deepEqual(first.snapshot.files.map(file => file.path), ['docs/roadmap.md', 'README.md'].sort());
+  assert.deepEqual(
+    first.snapshot.files.map(file => file.path),
+    ['docs/roadmap.md', 'README.md'].sort((left, right) => left.localeCompare(right))
+  );
   assert.match(first.snapshot.files[0].contentHash, /^sha256:[0-9a-f]{64}$/);
   assert.match(first.snapshot.manifestHash, /^sha256:[0-9a-f]{64}$/);
   assert.equal(first.snapshot.manifestHash, second.snapshot.manifestHash);
