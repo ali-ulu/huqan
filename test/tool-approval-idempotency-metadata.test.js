@@ -80,6 +80,24 @@ test('policy or non-reserved context differences are conflicts and do not expose
   }
 });
 
+test('inserted records are independently verified before success', () => {
+  const store = {
+    saveToolApprovalIfAbsent() {
+      return {
+        inserted: true,
+        approval: existingApproval({ input: '{"snapshot":"wrong"}' }),
+      };
+    },
+  };
+
+  const result = saveToolApprovalWithIdempotencyConflict(store, record(), FINGERPRINT);
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'APPROVAL_STORE_RESULT_INVALID');
+  assert.equal(result.inserted, true);
+  assert.equal(result.approval, undefined);
+  assert.equal(result.existingApprovalId, 'persisted-id');
+});
+
 test('non-JSON policy and cyclic context fail before persistence', () => {
   let calls = 0;
   const store = {
