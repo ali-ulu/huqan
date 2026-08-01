@@ -1,0 +1,1 @@
+{"caseId":"RTR-020-V2-INVALID-SCHEMA-OR-ROOT","description":"Generic hash validity is insufficient","input":{"schemaVersion":"v4-receipt-v99","trustRoot":"unknown","genericHashValid":true},"expected":{"mode":"futureV2Structural","valid":false},"nonClaims":["shared validator narrowing"]}

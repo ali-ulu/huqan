@@ -1,0 +1,1 @@
+{"caseId":"RTR-017-V1-V2-CHAIN-TRANSITION","description":"Chronological V1 to V2 transition","input":{"versions":["v4-receipt-v1","v4-receipt-v2","v4-receipt-v2"],"trustRoots":[null,"local_operator","external_verified_client"]},"expected":{"mode":"futureV2Structural","valid":true},"nonClaims":["runtime chain dispatcher"]}

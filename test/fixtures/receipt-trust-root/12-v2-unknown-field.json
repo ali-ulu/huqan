@@ -1,0 +1,1 @@
+{"caseId":"RTR-012-V2-UNKNOWN-TOP-LEVEL","description":"Unknown top-level field fails closed","input":{"schemaVersion":"v4-receipt-v2","trustRoot":"local_operator","unexpected":true},"expected":{"mode":"futureV2Structural","valid":false},"nonClaims":["permissive schema"]}

@@ -1,0 +1,1 @@
+{"caseId":"RTR-030-EXPORT-V2-TAMPER-VARIANTS","description":"Bundle V2 tampering fails closed","input":{"variants":["versionMismatch","invalidTrustRoot","arrayTamper","reorder","v1Rewrite"]},"expected":{"mode":"futureV2Structural","allInvalid":true},"nonClaims":["runtime verifier"]}

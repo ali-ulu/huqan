@@ -1,0 +1,1 @@
+{"caseId":"RTR-026-READ-UNSUPPORTED-VERSION","description":"Unsupported declared version is bounded invalid","input":{"canonicalReceiptSchemaVersion":"v4-receipt-v99"},"expected":{"mode":"futureV2Structural","valid":false},"nonClaims":["new runtime status"]}

@@ -1,0 +1,1 @@
+{"caseId":"RTR-033-V2-DETERMINISM","description":"Same bounded V2 input is deterministic","input":{"schemaVersion":"v4-receipt-v2","trustRoot":"local_operator","fixedTime":"2026-01-01T00:00:00.000Z","previousHash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},"expected":{"mode":"futureV2Structural","deterministic":true},"nonClaims":["runtime builder"]}
