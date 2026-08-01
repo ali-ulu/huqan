@@ -54,7 +54,7 @@ function policy() {
 function sourceRequest(root) {
   return {
     sourceType: 'markdown',
-    rootPath: root,
+    rootPath: path.join(root, 'untrusted-caller-root'),
     path: 'docs/claim.md',
     requester: 'user:alice',
     workspaceId: 'tenant-a',
@@ -71,6 +71,7 @@ test('persisted input is a bounded summary while reviewed bytes have one authori
 
     const result = await queueReviewedExternalIngest(store, sourceRequest(root), {
       now: '2026-08-01T01:00:00.000Z',
+      markdownRootPath: root,
     });
     assert.equal(result.ok, true);
 
@@ -94,6 +95,7 @@ test('a concurrent insert with different server timestamps is recovered as a tru
 
     const concurrent = await resolveExternalIngestApproval({
       ...data,
+      rootPath: root,
       requestedAt: '2026-08-01T00:59:59.900Z',
       expiresAt: '2026-08-01T01:14:59.900Z',
     });
@@ -135,6 +137,7 @@ test('a concurrent insert with different server timestamps is recovered as a tru
 
     const result = await queueReviewedExternalIngest(store, data, {
       now: '2026-08-01T01:00:00.000Z',
+      markdownRootPath: root,
     });
 
     assert.equal(result.ok, true);
