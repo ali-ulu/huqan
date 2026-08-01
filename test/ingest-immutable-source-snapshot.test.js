@@ -64,10 +64,7 @@ test('GitHub snapshot manifest is deterministic, content-bound, and branch-free'
   assert.equal(first.snapshot.immutableSourceId, COMMIT_SHA);
   assert.equal(first.snapshot.sourceRef, `https://github.com/ali-ulu/huqan@${COMMIT_SHA}`);
   assert.equal(first.snapshot.sourceRef.includes('main'), false);
-  assert.deepEqual(
-    first.snapshot.files.map(file => file.path),
-    ['docs/roadmap.md', 'README.md'].sort((left, right) => left.localeCompare(right))
-  );
+  assert.deepEqual(first.snapshot.files.map(file => file.path), ['README.md', 'docs/roadmap.md']);
   assert.match(first.snapshot.files[0].contentHash, /^sha256:[0-9a-f]{64}$/);
   assert.match(first.snapshot.manifestHash, /^sha256:[0-9a-f]{64}$/);
   assert.equal(first.snapshot.manifestHash, second.snapshot.manifestHash);
@@ -81,18 +78,26 @@ test('GitHub snapshot manifest is deterministic, content-bound, and branch-free'
   assert.notEqual(changed.snapshot.manifestHash, first.snapshot.manifestHash);
 });
 
-test('snapshot verification fails closed on content, commit, or manifest tampering', () => {
+test('snapshot verification fails closed on content, metadata, commit, or manifest tampering', () => {
   const built = buildImmutableExternalSourceSnapshot(githubInput([
     { path: 'README.md', content: '# HUQAN', blobSha: BLOB_SHA },
   ]));
   assert.equal(built.ok, true);
-  assert.equal(verifyImmutableExternalSourceSnapshot(built.snapshot).ok, true);
+  const verified = verifyImmutableExternalSourceSnapshot(built.snapshot);
+  assert.equal(verified.ok, true);
+  assert.deepEqual(verified.snapshot, built.snapshot);
 
   const contentTamper = structuredClone(built.snapshot);
   contentTamper.files[0].content = '# attacker content';
   const contentVerdict = verifyImmutableExternalSourceSnapshot(contentTamper);
   assert.equal(contentVerdict.ok, false);
   assert.equal(contentVerdict.code, 'SOURCE_SNAPSHOT_CONTENT_HASH_MISMATCH');
+
+  const sizeTamper = structuredClone(built.snapshot);
+  sizeTamper.files[0].sizeBytes += 1;
+  const sizeVerdict = verifyImmutableExternalSourceSnapshot(sizeTamper);
+  assert.equal(sizeVerdict.ok, false);
+  assert.equal(sizeVerdict.code, 'SOURCE_SNAPSHOT_INTEGRITY_MISMATCH');
 
   const commitTamper = structuredClone(built.snapshot);
   commitTamper.commitSha = 'c'.repeat(40);
@@ -107,12 +112,42 @@ test('snapshot verification fails closed on content, commit, or manifest tamperi
   assert.equal(manifestVerdict.code, 'SOURCE_SNAPSHOT_INTEGRITY_MISMATCH');
 });
 
-test('snapshot paths reject traversal, absolute paths, and case-insensitive duplicates', () => {
-  for (const unsafePath of ['../secret.md', '/etc/passwd', 'C:/secret.md', 'docs//claim.md']) {
+test('snapshot verification rejects unknown top-level and file fields', () => {
+  const built = buildImmutableExternalSourceSnapshot(githubInput([
+    { path: 'README.md', content: '# HUQAN' },
+  ]));
+  assert.equal(built.ok, true);
+
+  const topLevelSecret = structuredClone(built.snapshot);
+  topLevelSecret.token = 'ghp_SECRET';
+  const topLevelVerdict = verifyImmutableExternalSourceSnapshot(topLevelSecret);
+  assert.equal(topLevelVerdict.ok, false);
+  assert.equal(topLevelVerdict.code, 'SOURCE_SNAPSHOT_FIELD_UNSUPPORTED');
+
+  const fileSecret = structuredClone(built.snapshot);
+  fileSecret.files[0].authorization = 'Bearer secret';
+  const fileVerdict = verifyImmutableExternalSourceSnapshot(fileSecret);
+  assert.equal(fileVerdict.ok, false);
+  assert.equal(fileVerdict.code, 'SOURCE_SNAPSHOT_FIELD_UNSUPPORTED');
+});
+
+test('snapshot paths reject traversal, encoding, absolute paths, controls, and duplicates', () => {
+  const unsafePaths = [
+    '../secret.md',
+    '/etc/passwd',
+    'C:/secret.md',
+    'docs//claim.md',
+    '%2e%2e/secret.md',
+    'docs/%2fsecret.md',
+    'docs/claim.md\u0000.txt',
+    'docs/trailing. ',
+  ];
+
+  for (const unsafePath of unsafePaths) {
     const result = buildImmutableExternalSourceSnapshot(githubInput([
       { path: unsafePath, content: 'secret' },
     ]));
-    assert.equal(result.ok, false, unsafePath);
+    assert.equal(result.ok, false, JSON.stringify(unsafePath));
     assert.equal(result.code, 'SOURCE_SNAPSHOT_PATH_INVALID');
   }
 
@@ -122,16 +157,23 @@ test('snapshot paths reject traversal, absolute paths, and case-insensitive dupl
   ]));
   assert.equal(duplicate.ok, false);
   assert.equal(duplicate.code, 'SOURCE_SNAPSHOT_PATH_DUPLICATE');
+
+  const unicodeDuplicate = buildImmutableExternalSourceSnapshot(githubInput([
+    { path: 'docs/café.md', content: 'one' },
+    { path: 'docs/cafe\u0301.md', content: 'two' },
+  ]));
+  assert.equal(unicodeDuplicate.ok, false);
+  assert.equal(unicodeDuplicate.code, 'SOURCE_SNAPSHOT_PATH_DUPLICATE');
 });
 
-test('Markdown snapshot binds bounded paths to an aggregate content identity', () => {
+test('Markdown snapshot binds only markdown files inside the reviewed target', () => {
   const built = buildImmutableExternalSourceSnapshot({
     sourceType: 'markdown',
     rootPath: '/workspace/docs',
     path: 'decisions',
     files: [
       { path: 'decisions/a.md', content: '# A' },
-      { path: 'decisions/b.md', content: '# B' },
+      { path: 'decisions/b.markdown', content: '# B' },
     ],
   });
 
@@ -140,6 +182,42 @@ test('Markdown snapshot binds bounded paths to an aggregate content identity', (
   assert.match(built.snapshot.immutableSourceId, /^sha256:[0-9a-f]{64}$/);
   assert.equal(built.snapshot.sourceRef, `file:decisions@${built.snapshot.immutableSourceId}`);
   assert.equal(verifyImmutableExternalSourceSnapshot(built.snapshot).ok, true);
+
+  const singleFile = buildImmutableExternalSourceSnapshot({
+    sourceType: 'markdown',
+    rootPath: '/workspace/docs',
+    path: 'claim.md',
+    content: '# Claim',
+  });
+  assert.equal(singleFile.ok, true);
+  assert.equal(singleFile.snapshot.files[0].path, 'claim.md');
+
+  const outsideTarget = buildImmutableExternalSourceSnapshot({
+    sourceType: 'markdown',
+    rootPath: '/workspace/docs',
+    path: 'decisions',
+    files: [{ path: 'other/claim.md', content: '# Outside' }],
+  });
+  assert.equal(outsideTarget.ok, false);
+  assert.equal(outsideTarget.code, 'SOURCE_SNAPSHOT_SCOPE_MISMATCH');
+
+  const nonMarkdown = buildImmutableExternalSourceSnapshot({
+    sourceType: 'markdown',
+    rootPath: '/workspace/docs',
+    path: 'decisions',
+    files: [{ path: 'decisions/secret.txt', content: 'secret' }],
+  });
+  assert.equal(nonMarkdown.ok, false);
+  assert.equal(nonMarkdown.code, 'SOURCE_SNAPSHOT_MARKDOWN_REQUIRED');
+
+  const blobSha = buildImmutableExternalSourceSnapshot({
+    sourceType: 'markdown',
+    rootPath: '/workspace/docs',
+    path: 'decisions',
+    files: [{ path: 'decisions/a.md', content: '# A', blobSha: BLOB_SHA }],
+  });
+  assert.equal(blobSha.ok, false);
+  assert.equal(blobSha.code, 'SOURCE_SNAPSHOT_BLOB_SHA_UNEXPECTED');
 
   const noRoot = buildImmutableExternalSourceSnapshot({
     sourceType: 'markdown',
