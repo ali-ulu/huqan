@@ -94,8 +94,8 @@ test('a concurrent insert with different server timestamps is recovered as a tru
 
     const concurrent = await resolveExternalIngestApproval({
       ...data,
-      requestedAt: '2026-08-01T01:00:00.100Z',
-      expiresAt: '2026-08-01T01:15:00.100Z',
+      requestedAt: '2026-08-01T00:59:59.900Z',
+      expiresAt: '2026-08-01T01:14:59.900Z',
     });
     assert.equal(concurrent.ok, true);
     const envelope = concurrent.approval;
@@ -141,7 +141,7 @@ test('a concurrent insert with different server timestamps is recovered as a tru
     assert.equal(result.inserted, false);
     assert.equal(result.idempotent, true);
     assert.equal(result.approval.id, 'concurrent-approval');
-    assert.equal(result.approval.requestedAt, '2026-08-01T01:00:00.100Z');
+    assert.equal(result.approval.requestedAt, '2026-08-01T00:59:59.900Z');
     assert.equal(store.getCalls, 2);
     assert.equal(store.saveCalls, 2);
   } finally {
