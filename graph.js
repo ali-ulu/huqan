@@ -3,7 +3,10 @@ const path = require('path');
 const { buildAuditEvent, getAuditEvents: filterAuditEvents, normalizeAuditEvent } = require('./lib/audit-log');
 const { normalizeCandidateClaim } = require('./lib/conflict-detector');
 const { appendReceiptToChain } = require('./lib/receipt/receipt-chain');
-const { assertDurableV4WriteAllowed } = require('./lib/receipt/v4-receipt-family');
+const {
+  assertDurableV4WriteAllowed,
+  classifyReceiptFamily,
+} = require('./lib/receipt/v4-receipt-family');
 
 // SQLite opsiyonel — yoksa JSON fallback
 let Database;
@@ -27,6 +30,8 @@ const STANDARD_RELATIONS = Object.freeze([
 
 const EDGE_META_NAMESPACE = 'entityResolution';
 const EDGE_META_MAX_BYTES = 4096;
+const RECEIPT_FAMILY_MIGRATION_ERROR_CODE = 'RECEIPT_FAMILY_MIGRATION_FAILED';
+const RECEIPT_FAMILIES = new Set(['v4', 'non-v4']);
 
 const CAUSAL_RELATION_PRIORITY = Object.freeze({
   CAUSES: 0,
@@ -35,6 +40,13 @@ const CAUSAL_RELATION_PRIORITY = Object.freeze({
   DEPENDS_ON: 3,
   PREVENTS: 4,
 });
+
+function receiptFamilyMigrationError(cause) {
+  const error = new Error('mutation receipt family migration failed');
+  error.code = RECEIPT_FAMILY_MIGRATION_ERROR_CODE;
+  if (cause !== undefined) error.cause = cause;
+  return error;
+}
 
 function normalizeWorkspaceId(value, fallback = 'default') {
   if (typeof value === 'string' && value.trim()) return value.trim();
@@ -270,9 +282,11 @@ class Graph {
         this._db = new Database(dbPath);
         this._initDB();
       } catch (e) {
-        console.error('[Graph] SQLite başlatılamadı, JSON fallback:', e.message);
+        try { this._db?.close(); } catch (_) {}
         this._db = null;
-        this._stmts = null; // Hata durumunda da null yap
+        this._stmts = null;
+        if (e?.code === RECEIPT_FAMILY_MIGRATION_ERROR_CODE) throw e;
+        console.error('[Graph] SQLite başlatılamadı, JSON fallback:', e.message);
       }
     }
   }
@@ -361,6 +375,7 @@ class Graph {
         operation_id TEXT NOT NULL UNIQUE,
         receipt_id TEXT NOT NULL UNIQUE,
         workspace_id TEXT NOT NULL,
+        receipt_family TEXT NOT NULL CHECK(receipt_family IN ('v4', 'non-v4')),
         canonical_payload TEXT NOT NULL,
         previous_receipt_hash TEXT NOT NULL,
         receipt_hash TEXT NOT NULL UNIQUE,
@@ -450,6 +465,8 @@ class Graph {
     if (!candidateColumns.includes('reviewed_by')) this._db.exec("ALTER TABLE candidate_claims ADD COLUMN reviewed_by TEXT NOT NULL DEFAULT ''");
     if (!candidateColumns.includes('warnings')) this._db.exec("ALTER TABLE candidate_claims ADD COLUMN warnings TEXT NOT NULL DEFAULT '[]'");
 
+    this._ensureMutationReceiptFamilySchema();
+
     this._db.exec(`
       CREATE INDEX IF NOT EXISTS idx_nodes_workspace_label ON nodes(workspace_id, label);
       CREATE INDEX IF NOT EXISTS idx_edges_workspace_from ON edges(workspace_id, from_id);
@@ -484,22 +501,13 @@ class Graph {
       upsertEdge: this._db.prepare(`
         INSERT INTO edges (workspace_id, from_id, to_id, relation, weight, confidence, source, source_ref, session_id, evidence, evidence_type, confidence_history, company_mode, source_type, updated_at, created_at, provenance, meta, created, strength)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(workspace_id, from_id, to_id, relation) DO UPDATE SET
+        ON CONFLICT(workspace_id, id) DO UPDATE SET
           workspace_id = excluded.workspace_id,
-          weight = excluded.weight,
-          confidence = excluded.confidence,
-          source = excluded.source,
-          source_ref = excluded.source_ref,
-          session_id = excluded.session_id,
-          evidence = excluded.evidence,
-          evidence_type = excluded.evidence_type,
-          confidence_history = excluded.confidence_history,
-          company_mode = excluded.company_mode,
-          source_type = excluded.source_type,
-          updated_at = excluded.updated_at,
-          provenance = excluded.provenance,
-          meta = excluded.meta,
-          strength = excluded.strength
+          label = excluded.label,
+          weight = MIN(1.0, weight + 0.1),
+          last_accessed = excluded.last_accessed,
+          last_seen = excluded.last_seen,
+          provenance = excluded.provenance
       `),
       getEdge: this._db.prepare('SELECT * FROM edges WHERE from_id = ? AND to_id = ? AND relation = ? AND workspace_id = ?'),
       getEdges: this._db.prepare('SELECT * FROM edges WHERE from_id = ? AND workspace_id = ?'),
@@ -541,9 +549,82 @@ class Graph {
       insertMutationJournal: this._db.prepare('INSERT INTO mutation_journal (operation_id, status, result, completed_at) VALUES (?, ?, ?, ?)'),
       getMutationReceiptByOperation: this._db.prepare('SELECT * FROM mutation_receipts WHERE operation_id = ?'),
       getMutationReceiptById: this._db.prepare('SELECT * FROM mutation_receipts WHERE receipt_id = ?'),
-      getLatestMutationReceiptHash: this._db.prepare('SELECT receipt_hash FROM mutation_receipts WHERE workspace_id = ? ORDER BY sequence DESC LIMIT 1'),
-      insertMutationReceipt: this._db.prepare('INSERT INTO mutation_receipts (operation_id, receipt_id, workspace_id, canonical_payload, previous_receipt_hash, receipt_hash, committed_at) VALUES (?, ?, ?, ?, ?, ?, ?)'),
+      getLatestMutationReceiptHash: this._db.prepare('SELECT receipt_hash FROM mutation_receipts WHERE workspace_id = ? AND receipt_family = ? ORDER BY sequence DESC LIMIT 1'),
+      insertMutationReceipt: this._db.prepare('INSERT INTO mutation_receipts (operation_id, receipt_id, workspace_id, receipt_family, canonical_payload, previous_receipt_hash, receipt_hash, committed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'),
     };
+  }
+
+  _ensureMutationReceiptFamilySchema() {
+    const validateRows = () => {
+      const rows = this._db.prepare(`
+        SELECT sequence, canonical_payload, receipt_family
+        FROM mutation_receipts
+        ORDER BY sequence ASC
+      `).all();
+      for (const row of rows) {
+        const payload = JSON.parse(row.canonical_payload);
+        const derived = classifyReceiptFamily(payload);
+        if (!RECEIPT_FAMILIES.has(row.receipt_family) || row.receipt_family !== derived) {
+          throw new Error(`invalid mutation receipt family at sequence ${row.sequence}`);
+        }
+      }
+      return rows.length;
+    };
+    const verifyIndex = () => {
+      const columns = this._db.prepare("PRAGMA index_info('idx_mutation_receipts_workspace_family_sequence')")
+        .all().map(row => row.name);
+      if (columns.length !== 3
+        || columns[0] !== 'workspace_id'
+        || columns[1] !== 'receipt_family'
+        || columns[2] !== 'sequence') {
+        throw new Error('mutation receipt family index is incomplete');
+      }
+    };
+
+    const columns = this._db.prepare('PRAGMA table_info(mutation_receipts)').all();
+    const familyColumn = columns.find(column => column.name === 'receipt_family');
+    try {
+      if (!familyColumn) {
+        this._db.transaction(() => {
+          this._db.exec("ALTER TABLE mutation_receipts ADD COLUMN receipt_family TEXT NOT NULL DEFAULT 'non-v4' CHECK(receipt_family IN ('v4', 'non-v4'))");
+          const rows = this._db.prepare('SELECT sequence, canonical_payload FROM mutation_receipts ORDER BY sequence ASC').all();
+          const updateFamily = this._db.prepare('UPDATE mutation_receipts SET receipt_family = ? WHERE sequence = ?');
+          let updated = 0;
+          for (const row of rows) {
+            const family = classifyReceiptFamily(JSON.parse(row.canonical_payload));
+            if (!RECEIPT_FAMILIES.has(family)) {
+              throw new Error(`unsupported mutation receipt family at sequence ${row.sequence}`);
+            }
+            const result = updateFamily.run(family, row.sequence);
+            if (Number(result?.changes || 0) !== 1) {
+              throw new Error(`mutation receipt family backfill mismatch at sequence ${row.sequence}`);
+            }
+            updated += 1;
+          }
+          if (updated !== rows.length || validateRows() !== rows.length) {
+            throw new Error('mutation receipt family backfill is incomplete');
+          }
+          this._db.exec(`
+            CREATE INDEX IF NOT EXISTS idx_mutation_receipts_workspace_family_sequence
+            ON mutation_receipts(workspace_id, receipt_family, sequence DESC)
+          `);
+          verifyIndex();
+        })();
+        return;
+      }
+
+      if (Number(familyColumn.notnull) !== 1) {
+        throw new Error('mutation receipt family column must be NOT NULL');
+      }
+      validateRows();
+      this._db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_mutation_receipts_workspace_family_sequence
+        ON mutation_receipts(workspace_id, receipt_family, sequence DESC)
+      `);
+      verifyIndex();
+    } catch (cause) {
+      throw receiptFamilyMigrationError(cause);
+    }
   }
 
   _readMutationReceipt(row) {
@@ -602,11 +683,12 @@ class Graph {
             throw new Error('durable mutation receipt payload is invalid');
           }
           assertDurableV4WriteAllowed(payload);
-          const previous = this._stmts.getLatestMutationReceiptHash.get(payload.workspaceId);
+          const receiptFamily = classifyReceiptFamily(payload);
+          const previous = this._stmts.getLatestMutationReceiptHash.get(payload.workspaceId, receiptFamily);
           const chained = appendReceiptToChain(payload, previous?.receipt_hash);
           const committedAt = nowIso();
           this._stmts.insertMutationReceipt.run(
-            id, chained.receiptId, payload.workspaceId, JSON.stringify(payload),
+            id, chained.receiptId, payload.workspaceId, receiptFamily, JSON.stringify(payload),
             chained.previousReceiptHash, chained.receiptHash, committedAt,
           );
           receipt = this._readMutationReceipt(this._stmts.getMutationReceiptByOperation.get(id));
