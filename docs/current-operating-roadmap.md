@@ -99,7 +99,8 @@ Authority-0 now provides an unreachable in-process admission boundary that:
 - snapshots exact client identity, authoritative workspace scope, permissions
   and trusted-key authority;
 - binds the reviewed signed-package bytes and expected trusted-key scope;
-- enforces fixed-time request and key freshness;
+- enforces signed-package freshness against a trusted clock and trusted-key
+  validity;
 - requires atomic replay reservation before handler execution;
 - keeps SDK package admission fail-closed when authority configuration is
   absent, malformed or incomplete;

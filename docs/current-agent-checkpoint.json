@@ -44,7 +44,7 @@
     "Endpoint-0 adds only a pure, unreachable endpoint descriptor and explicit configuration parser; server.js remains unaware of the route.",
     "Configuration state requested never means route reachability, identity authority, workspace authority, freshness, replay protection, mutation permission or receipt-writer readiness.",
     "Production V4 V2 durable writes remain fail-closed through V4_RECEIPT_V2_WRITE_NOT_ENABLED and no authoritative production V2 trust-root writer has been selected.",
-    "Authority-0 now provides an unreachable in-process admission boundary for exact client identity, authoritative workspace scope, signed package and trusted-key scope, explicit permissions, fixed-time freshness and atomic replay reservation.",
+    "Authority-0 now provides an unreachable in-process admission boundary for exact client identity, authoritative workspace scope, signed package and trusted-key scope, explicit permissions, signed-package freshness against a trusted clock, trusted-key validity and atomic replay reservation.",
     "Authority-0 does not register a reachable route, extract HTTP transport identity, provide a concrete durable replay store, mutate Graph or enable a production receipt writer.",
     "Only a separate exact-base External Client Adversarial-0 authorization task-pack may start after this reconciliation merges; adversarial implementation is not automatically authorized.",
     "External Client Enablement-0, V4 closeout, V5 ecosystem, deployment and release work remain downstream and closed."
