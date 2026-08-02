@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "repository": "ali-ulu/huqan",
   "baselineBranch": "main",
-  "canonicalMain": "167e6c0bcf41687f3df547e060068315b98bf0f6",
+  "canonicalMain": "e5bc2b0f2208bea3732971f22340a5f675b65406",
   "worktreePolicy": "REPORT_ONLY",
-  "observedAt": "2026-08-02T03:47:22+03:00",
+  "observedAt": "2026-08-02T14:40:00+03:00",
   "program": "Receipt trust-root migration and compatibility hardening",
   "completedEvidence": [
     "Trust-boundary production call-chain, coverage, mutation inventory and journal-ownership reconciliations merged",
@@ -15,10 +15,12 @@
     "RTR-3 deterministic V2 builder, bounded reader/export and mixed-family fail-closed foundation merged",
     "RTR-3A bounded receipt_family migration and workspace-plus-family predecessor selection merged",
     "RTR-3A adversarial real-SQLite migration, isolation, replay, rollback and V2-guard coverage merged",
-    "RTR-3A exact merge main 167e6c0bcf41687f3df547e060068315b98bf0f6 verified"
+    "RTR-4 exact-base migration and compatibility authorization merged",
+    "RTR-4 adversarial migration, historical V1 evidence, chronology, reader/export and durable V2 refusal coverage merged",
+    "RTR-4 exact merge main e5bc2b0f2208bea3732971f22340a5f675b65406 verified"
   ],
-  "nextGate": "RECEIPT_TRUST_ROOT_4_AUTHORIZATION",
-  "followingGate": "RECEIPT_TRUST_ROOT_4_IMPLEMENTATION",
+  "nextGate": "RECEIPT_TRUST_ROOT_5_AUTHORIZATION",
+  "followingGate": "RECEIPT_TRUST_ROOT_5_IMPLEMENTATION",
   "status": "READY_FOR_EXACT_BASE_GATE_AUTHORIZATION",
   "forbiddenClaims": [
     "production V2 receipt writer enabled",
@@ -31,10 +33,11 @@
     "universal connector or receipt coverage"
   ],
   "notes": [
-    "RTR-3A separates durable V4 and non-V4 predecessor lineages with internal SQLite metadata; the public committed-receipt shape remains unchanged.",
-    "RTR-3A does not enable a production V2 writer and does not classify historical V1 receipts as local_operator.",
-    "Only a separate exact-base RTR-4 authorization task-pack may start after this reconciliation merges; RTR-4 implementation is not automatically authorized.",
-    "RTR-4 must harden migration, chain, reader and export compatibility while preserving historical V1 bytes and hashes and fail-closed downgrade behavior.",
+    "RTR-4 closes the bounded adversarial migration and compatibility hardening gate without changing production runtime ownership.",
+    "Historical V1 canonical payload, hash, chain and export evidence remain immutable; V1 to V2 chronology is validated without predecessor rewrite.",
+    "Production V4 V2 durable writes remain fail-closed and no authoritative production V2 trust-root writer has been selected.",
+    "Only a separate exact-base RTR-5 authorization task-pack may start after this reconciliation merges; RTR-5 implementation is not automatically authorized.",
+    "RTR-5 must audit the complete receipt trust-root source, tests and CI line and record exact-main non-claims and remaining blockers.",
     "External Client Endpoint-0, V4 closeout and V5 ecosystem work remain downstream and closed.",
     "Do not start deployment or release work unless separately authorized."
   ]
