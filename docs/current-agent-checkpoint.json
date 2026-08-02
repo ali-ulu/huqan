@@ -2,37 +2,37 @@
   "schemaVersion": 1,
   "repository": "ali-ulu/huqan",
   "baselineBranch": "main",
-  "canonicalMain": "11d1f8a3d1e49325c2d7847ccb21d9cd26c7e6cf",
+  "canonicalMain": "79e6ebddbcd5c676217a54cd8a4157d83fd4363b",
   "worktreePolicy": "REPORT_ONLY",
-  "observedAt": "2026-07-31T11:05:42+03:00",
-  "program": "Post-reconciliation product workflow selection",
+  "observedAt": "2026-08-02T03:09:00+03:00",
+  "program": "Receipt trust-root durable chain sequencing",
   "completedEvidence": [
-    "INGEST-SNAPSHOT-0 boundary locked",
-    "MCP dogfood approval and replay proof merged",
-    "graph durability capability contract locked",
-    "connector provenance coverage source reality and contract tests merged",
-    "mutation journal migration decision merged with plugin migration deferred",
-    "Self-Healer runtime reachability reconciled and production entry point deferred",
-    "V4 primitives and product UI status reconciled",
-    "Rust integration source reality reconciled with Rust deferred"
+    "Trust-boundary production call-chain, coverage, mutation inventory and journal-ownership reconciliations merged",
+    "Immutable external-source binding and reviewed-byte graph execution chain merged",
+    "External-client signed package gate and SDK admission boundary merged",
+    "Receipt trust-root schema evolution ADR and contract-test scope merged",
+    "Receipt trust-root fixture corpus merged with historical V1 byte/hash locks",
+    "RTR-3 deterministic V2 builder, bounded reader/export and mixed-family fail-closed foundation merged",
+    "RTR-3 exact merge main 79e6ebddbcd5c676217a54cd8a4157d83fd4363b verified"
   ],
-  "nextGate": "PRODUCT_WORKFLOW_SELECTION",
-  "followingGate": null,
-  "status": "BLOCKED_BY_PRODUCT_DECISION",
+  "nextGate": "RECEIPT_TRUST_ROOT_3A_AUTHORIZATION",
+  "followingGate": "RECEIPT_TRUST_ROOT_3A_IMPLEMENTATION",
+  "status": "READY_FOR_EXACT_BASE_GATE_AUTHORIZATION",
   "forbiddenClaims": [
-    "V5 complete",
-    "universal connector coverage",
-    "all plugin mutations are durable or transactional",
-    "external-source ingest without immutable source binding",
-    "Self-Healer production reachability",
-    "V4 Workbench UI complete",
-    "Rust production offload or parity"
+    "production V2 receipt writer enabled",
+    "durable family-scoped V4 predecessor selection complete",
+    "database migration for V2 receipt families approved",
+    "external client endpoint enabled",
+    "external client freshness and replay enforcement complete",
+    "V4 Workbench runtime complete",
+    "V5 ecosystem complete",
+    "universal connector or receipt coverage"
   ],
   "notes": [
-    "Self-Healer production reachability remains deferred until a concrete caller workflow is selected.",
-    "V4 product UI remains open; receipt and memory inspectors are library building blocks.",
-    "Rust is non-authoritative and deferred until a measured bottleneck and parity contract exist.",
-    "No successor runtime gate is automatically authorized.",
-    "Do not start deployment work unless separately authorized."
+    "RTR-3 is a pure/version-aware foundation; durable production V2 writes remain fail-closed.",
+    "RTR-3A must separately decide family-scoped predecessor semantics, database migration, authoritative writer ownership and adversarial SQLite coverage.",
+    "After this reconciliation merges, only a separate exact-base RTR-3A authorization task-pack may start; RTR-3A implementation is not automatically authorized.",
+    "External Client Endpoint-0, V4 closeout and V5 ecosystem work remain downstream and closed.",
+    "Do not start deployment or release work unless separately authorized."
   ]
 }

@@ -1,7 +1,7 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`11d1f8a3d1e49325c2d7847ccb21d9cd26c7e6cf` (PR #119 merge).
+`79e6ebddbcd5c676217a54cd8a4157d83fd4363b` (PR #162 merge).
 
 This is the execution-order source for current runtime work. It is not a
 release claim and it does not replace architecture ADRs. When this file
@@ -11,90 +11,149 @@ wins.
 ## Current classification
 
 HUQAN is a **local-first partial trust layer** with real graph, verification,
-gate, provenance, audit, approval, and receipt primitives. It is not yet a fully
-inline trust control plane for every client, connector, or mutation path.
+gate, provenance, approval, audit, receipt, immutable-source and signed-package
+primitives. It is not yet a fully inline trust control plane for every client,
+connector, receipt family, or mutation path.
 
-## Completed hardening sequence
+## Reconciled sequence through RTR-3
 
-| Merged PR | Completed boundary | Deliberate limit |
+| Merged PR(s) | Closed boundary | Deliberate limit |
 | --- | --- | --- |
-| #90 / #91 | CLI one-shot and persisted approval workflow | Does not prove every external client path |
-| #92 | Plugin ingest status reports admission truthfully | Status is not a universal ingest proof |
-| #93 | Atomic approval claim for persisted MCP approvals | Claim alone is not durable mutation evidence |
-| #94 | Durable mutation journal and hash-chained canonical receipts on its integrated path | Not every plugin mutation uses this path |
-| #95 | HTTP ingest approval queue for manual and decision snapshots | GitHub and markdown ingest remain fail-closed |
-| #96 | Expiring HTTP ingest execution leases with visible failed recovery | Failure means execution outcome is unknown, not rollback or transactionality |
-| #100 | Real stdio MCP approval, restart, receipt, and replay proof | Does not prove every external MCP host integration |
-| #104 / #105 | Graph durability capability and ingest snapshot gate contracts | Contracts do not enable external-source ingest |
-| #109-#113 | Connector provenance source reality and bounded contract tests | Does not prove universal connector provenance or journal coverage |
-| #114 | Mutation-journal migration decision | Plugin batch migration is deferred; proposal admission is not transactionality |
-| #115 | Post-trust-boundary roadmap reconciliation | Does not authorize a successor runtime |
-| #116 / #117 | Self-Healer reachability decision and README reconciliation | Audit-only primitives remain library-only |
-| #118 | V4 source-reality reconciliation | Primitives are green; Workbench UI remains open |
-| #119 | Rust integration source reality | Rust remains non-authoritative and deferred |
+| #132 | Production trust coverage matrix | Documentation and tests do not prove universal connector enforcement |
+| #133 | Direct mutation ownership inventory | Inventory is not migration or transactionality |
+| #134 | Durable mutation-journal ownership decision | Universal plugin journal migration remains deferred |
+| #135 / #139 | GitHub source credential and fail-closed sourceRef redaction | Redaction does not authorize external ingest |
+| #140-#151 | Immutable external-source resolution, reviewed approval, replay-safe execution and canonical receipt chain | No public external-source route or automatic approval policy |
+| #153 / #154 | Signed external-client package gate and SDK admission boundary | No default-open production endpoint or caller authority mapping |
+| #157 | Receipt trust-root schema evolution ADR | Contract only; no writer |
+| #158 / #160 | Receipt trust-root test scope and fixture corpus | Structural fixtures do not enable V2 writes |
+| #161 / #162 | Version-aware receipt foundation and runtime implementation | Production V2 durable writes remain fail-closed |
 
-## Active product boundary
+## Current receipt boundary
 
-`/api/ingest` currently accepts only `manual` and `decision` into the approval
-queue. Each accepted request has a content snapshot hash and idempotency key;
-review/approve/reject is persisted. A reviewed-action receipt records the
-review decision, snapshot, and plugin-result reference. It does **not** claim
-that graph state was transactionally committed.
+RTR-3 provides:
 
-GitHub and markdown requests deliberately return `INGEST_SNAPSHOT_REQUIRED`.
-They must not be enabled through a permissive fallback.
+- deterministic canonical V2 construction and validation;
+- explicit `local_operator` and `external_verified_client` trust roots;
+- version-aware materialized reads and export verification;
+- historical V1 byte/hash preservation;
+- V1 to V2 chronology validation and V2 to V1 downgrade rejection;
+- mixed-family V4 export refusal;
+- a durable-write guard that rejects production V2 writes.
 
-## Closed trust-boundary gates
+RTR-3 does **not** provide:
 
-1. **INGEST-SNAPSHOT-0** - external-source snapshot and refusal boundaries are
-   locked; GitHub and Markdown remain fail-closed on the HTTP queue path.
-2. **MCP dogfood proof** - real stdio queue, decision, receipt, restart, and
-   replay evidence is merged.
-3. **Connector provenance coverage** - reachable connector boundaries are
-   documented and tested without a universal-coverage claim.
-4. **Mutation-journal decision** - universal plugin migration is deferred until
-   a retry-safe product path owns the operation ID, transaction unit, receipt,
-   and backend semantics.
+- family-scoped durable predecessor selection;
+- a database migration for receipt-family lineage;
+- authoritative production writer ownership;
+- adversarial SQLite proof for V2 durable writes;
+- a production external-client endpoint.
 
-## Closed source-reality reconciliations
+## Current authorization state
 
-1. **SELF-HEALER-0_RUNTIME_REACHABILITY_RECONCILIATION** - the tested
-   audit-only library has no production caller. Production reachability is
-   deferred until a concrete caller workflow exists.
-2. **V4 source-reality reconciliation** - verdict, receipt, read-index, and
-   inspector building blocks are green. A Workbench UI and browser smoke do
-   not exist.
-3. **Rust integration source reality** - successful learn may be mirrored
-   asynchronously, but Rust is not the authoritative Kernel graph. Build,
-   distribution, parity, and production offload remain unproven.
+The checkpoint and this roadmap were stale at `11d1f8a3...` and are being
+reconciled to the exact RTR-3 merge base above. This reconciliation is docs-only
+and does not authorize runtime work.
 
-## Next decision
+After the reconciliation merges and canonical `main` is re-read, the only next
+candidate is a **separate exact-base RTR-3A authorization task-pack**. That
+task-pack may define scope, acceptance tests and forbidden files. RTR-3A runtime
+implementation must not start before that authorization merges.
 
-No successor runtime gate is automatically authorized.
+## Remaining execution order
 
-The next implementation requires an explicit product workflow selection. The
-current bounded candidates are:
+### 1. RTR-3A — Durable family-scoped receipt chain
 
-1. a caller-supplied, audit-only Self-Healer entry point;
-2. a read-only V4 Trust Receipt viewer reusing the existing transport and
-   inspector.
+Required decisions and evidence:
 
-Rust is not a candidate until a measured JavaScript bottleneck and a bounded
-parity/distribution contract exist.
+1. family-scoped predecessor semantics;
+2. database migration or explicit no-migration decision;
+3. authoritative production writer ownership;
+4. adversarial real-SQLite tests for insert, replay, rollback, conflict and
+   cross-family isolation.
+
+### 2. RTR-4 — Migration and compatibility hardening
+
+Required evidence:
+
+1. migration, chain, reader and export adversarial tests;
+2. historical V1 bytes and hashes remain unchanged;
+3. V1 to V2 transition works without predecessor rehash;
+4. downgrade and unsupported-version paths fail closed.
+
+### 3. RTR-5 — Receipt trust-root closeout audit
+
+Required evidence:
+
+1. source/test/CI audit over the complete receipt trust-root line;
+2. every V2 production-writer claim is traced to an authoritative call path;
+3. non-claims and remaining blockers are recorded against an exact main SHA.
+
+### 4. External Client Endpoint-0
+
+Define a default-closed endpoint contract and explicit opt-in configuration.
+This gate does not add a reachable route or mutation path.
+
+### 5. External Client Authority-0
+
+Bind production endpoint admission to client identity, workspace, signed
+package, trusted-key authority and bounded freshness/replay semantics. Existing
+SDK/package primitives are foundations, not production endpoint proof.
+
+### 6. External Client Adversarial-0
+
+Prove fail-closed behavior for unsigned packages, wrong/revoked/expired keys,
+replay, malformed input and mutation isolation.
+
+### 7. External Client Enablement-0
+
+Only after the preceding contracts and adversarial evidence pass:
+
+1. add separate explicit enablement;
+2. make the route reachable;
+3. prove the production call chain from admission to mutation and receipt.
+
+### 8. V4 open items
+
+1. Workbench runtime evidence;
+2. bounded approval/action surface;
+3. receipt inspection and export/import user-flow smoke;
+4. V4 source/test/CI/release closeout.
+
+### 9. V5 ecosystem items
+
+1. bounded A2A exchange;
+2. external conformance runner;
+3. one real external-client integration;
+4. GitHub App beta before Streaming Trust;
+5. Certified Node and TrustBench drafts without public-launch or truth claims.
+
+## Permanent ordering rules
+
+- RTR-4 does not start before RTR-3A closes.
+- RTR-5 does not start before RTR-4 closes.
+- External Client Enablement-0 does not start before endpoint, authority and
+  adversarial gates close.
+- V4 is not complete without real runtime and user-flow evidence.
+- V5 implementation is not complete without V4 closeout and external
+  interoperability evidence.
+- Marketplace, badge and public reputation surfaces remain closed.
 
 ## Explicit non-goals
 
-- No automatic retry of an approval whose execution outcome is unknown.
+- No production V2 writer in checkpoint reconciliation or RTR-3A authorization.
+- No historical receipt rewrite or backfill without a separately approved plan.
+- No permissive fallback for external-source or external-client admission.
+- No automatic retry when a mutation outcome is unknown.
 - No claim that every plugin mutation is durable or transactional.
-- No external-source ingest without immutable source binding.
-- No Self-Healer autonomous scan, write, receipt, patch, or PR claim.
-- No V4 Workbench UI or browser-smoke completion claim.
-- No Rust production offload, parity, persistence, or performance claim.
-- No auto-fix, auto-merge, or release/deploy expansion.
+- No V4-complete, V5-complete, universal-truth or universal-coverage claim.
+- No release, deployment, package-version or dependency change.
 
 ## Operating discipline
 
-One PR has one purpose. Each runtime PR must carry exact base/head, targeted
-tests, review evidence, merge SHA, and post-merge smoke. Expensive full-suite,
-benchmark, and Docker validation are run only when the active gate requires
-them. Update this file only when evidence changes the current execution order.
+One PR has one purpose. Every non-trivial task starts from `AGENTS.md`,
+`docs/agent-canon.md`, the mutable checkpoint and `node scripts/agent-context.js`.
+Each runtime PR must carry exact base/head, targeted tests, full-regression and
+CI evidence when applicable, scope evidence, worktree status and a two-minute
+eye test. Update this file only when exact source evidence changes the execution
+order.
