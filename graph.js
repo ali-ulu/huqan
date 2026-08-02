@@ -501,13 +501,22 @@ class Graph {
       upsertEdge: this._db.prepare(`
         INSERT INTO edges (workspace_id, from_id, to_id, relation, weight, confidence, source, source_ref, session_id, evidence, evidence_type, confidence_history, company_mode, source_type, updated_at, created_at, provenance, meta, created, strength)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(workspace_id, id) DO UPDATE SET
+        ON CONFLICT(workspace_id, from_id, to_id, relation) DO UPDATE SET
           workspace_id = excluded.workspace_id,
-          label = excluded.label,
-          weight = MIN(1.0, weight + 0.1),
-          last_accessed = excluded.last_accessed,
-          last_seen = excluded.last_seen,
-          provenance = excluded.provenance
+          weight = excluded.weight,
+          confidence = excluded.confidence,
+          source = excluded.source,
+          source_ref = excluded.source_ref,
+          session_id = excluded.session_id,
+          evidence = excluded.evidence,
+          evidence_type = excluded.evidence_type,
+          confidence_history = excluded.confidence_history,
+          company_mode = excluded.company_mode,
+          source_type = excluded.source_type,
+          updated_at = excluded.updated_at,
+          provenance = excluded.provenance,
+          meta = excluded.meta,
+          strength = excluded.strength
       `),
       getEdge: this._db.prepare('SELECT * FROM edges WHERE from_id = ? AND to_id = ? AND relation = ? AND workspace_id = ?'),
       getEdges: this._db.prepare('SELECT * FROM edges WHERE from_id = ? AND workspace_id = ?'),
