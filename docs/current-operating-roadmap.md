@@ -1,7 +1,7 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`f633e7375ec5287bacfb22b01b13a4cdefacbc1e` (PR #174 merge).
+`732573d110b73ca5014637a17b01a098dc210538` (PR #177 merge).
 
 This is the execution-order source for current runtime work. It is not a
 release claim and it does not replace architecture ADRs. When this file
@@ -15,7 +15,7 @@ gate, provenance, approval, audit, receipt, immutable-source, signed-package and
 default-closed endpoint-contract primitives. It is not yet a fully inline trust
 control plane for every client, connector, receipt family or mutation path.
 
-## Reconciled sequence through Endpoint-0
+## Reconciled sequence through Authority-0
 
 | Merged PR(s) | Closed boundary | Deliberate limit |
 | --- | --- | --- |
@@ -32,6 +32,7 @@ control plane for every client, connector, receipt family or mutation path.
 | #167 / #168 | RTR-4 authorization and adversarial migration/compatibility proof | Test-only hardening does not select a production writer or change runtime ownership |
 | #170 / #171 | RTR-5 authorization and exact-main closeout audit | Bounded foundation closes; production issuance and endpoint authority remain blocked |
 | #173 / #174 | Endpoint-0 authorization and pure default-closed contract | Configuration may be requested, but no HTTP route, authority, mutation or writer is enabled |
+| #175 / #178 / #177 | Authority-0 authorization, package-surface recovery and bounded implementation | In-process admission authority is enforced; no reachable route, HTTP identity extraction, concrete durable replay store, mutation or production receipt writer is enabled |
 
 ## Closed receipt trust-root foundation
 
@@ -91,36 +92,44 @@ Endpoint-0 deliberately does **not** provide:
 A `requested` configuration state leaves every route, authority, freshness,
 replay, mutation and writer-readiness bit false.
 
+## Closed Authority-0 boundary
+
+Authority-0 now provides an unreachable in-process admission boundary that:
+
+- snapshots exact client identity, authoritative workspace scope, permissions
+  and trusted-key authority;
+- binds the reviewed signed-package bytes and expected trusted-key scope;
+- enforces signed-package freshness against a trusted clock and trusted-key
+  validity;
+- requires atomic replay reservation before handler execution;
+- keeps SDK package admission fail-closed when authority configuration is
+  absent, malformed or incomplete;
+- preserves thin SDK orchestration and adds no server route.
+
+Authority-0 deliberately does **not** provide:
+
+- a reachable external-client endpoint or HTTP identity extraction;
+- a concrete durable replay-store implementation;
+- Graph, Kernel, memory, approval, audit or receipt mutation;
+- production V2 receipt writing or trust-root ownership;
+- public configuration rollout or external interoperability proof.
+
 ## Current authorization state
 
-Endpoint-0 merged at the exact baseline above with the two authorized files.
-Exact-head Security Checks and the full `npm test` job passed. The production
-server remains unaware of the reserved route and no runtime owner changed.
+Authority-0 merged at the exact baseline above after its package-surface
+recovery amendment. Exact-head Security Checks, runtime tests, package smoke,
+Benchmark Regression and Docker build passed. Post-merge targeted and package
+smoke evidence also passed. The production server remains unaware of the
+reserved route and no mutation or receipt-writer owner changed.
 
 This post-merge checkpoint reconciliation is docs-only. It does not authorize
-authority implementation. After it merges and canonical `main` is re-read, the
-only next candidate is a **separate exact-base External Client Authority-0
+adversarial implementation. After it merges and canonical `main` is re-read,
+the only next candidate is a **separate exact-base External Client Adversarial-0
 authorization task-pack**.
 
 ## Remaining execution order
 
-### 1. External Client Authority-0
-
-Define and prove an unreachable production admission-authority boundary that
-binds:
-
-1. trusted client identity;
-2. authoritative workspace mapping;
-3. signed package and trusted-key scope;
-4. explicit caller permissions;
-5. bounded freshness semantics;
-6. durable replay refusal ownership.
-
-Authority-0 must remain separate from route registration and production
-mutation. Existing SDK/package primitives and the Endpoint-0 descriptor are
-foundations, not production authority proof.
-
-### 2. External Client Adversarial-0
+### 1. External Client Adversarial-0
 
 Prove fail-closed behavior for:
 
@@ -131,7 +140,7 @@ Prove fail-closed behavior for:
 - malformed input and unknown fields;
 - mutation, approval and receipt isolation before authorization succeeds.
 
-### 3. External Client Enablement-0
+### 2. External Client Enablement-0
 
 Only after endpoint, authority and adversarial gates close:
 
@@ -141,14 +150,14 @@ Only after endpoint, authority and adversarial gates close:
 4. reconcile the selected trust-root writer and durable receipt behavior;
 5. keep default configuration closed.
 
-### 4. V4 open items
+### 3. V4 open items
 
 1. Workbench runtime evidence;
 2. bounded approval/action surface;
 3. receipt inspection and export/import user-flow smoke;
 4. V4 source/test/CI/release closeout.
 
-### 5. V5 ecosystem items
+### 4. V5 ecosystem items
 
 1. bounded A2A exchange;
 2. external conformance runner;
@@ -158,7 +167,7 @@ Only after endpoint, authority and adversarial gates close:
 
 ## Permanent ordering rules
 
-- External Client Authority-0 implementation does not start before its
+- External Client Adversarial-0 implementation does not start before its
   exact-base authorization closes.
 - External Client Enablement-0 does not start before endpoint, authority and
   adversarial gates close.

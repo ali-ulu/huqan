@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "repository": "ali-ulu/huqan",
   "baselineBranch": "main",
-  "canonicalMain": "f633e7375ec5287bacfb22b01b13a4cdefacbc1e",
+  "canonicalMain": "732573d110b73ca5014637a17b01a098dc210538",
   "worktreePolicy": "REPORT_ONLY",
-  "observedAt": "2026-08-02T15:21:05+03:00",
+  "observedAt": "2026-08-03T01:41:41+03:00",
   "program": "External client authority hardening",
   "completedEvidence": [
     "Trust-boundary production call-chain, coverage, mutation inventory and journal-ownership reconciliations merged",
@@ -20,17 +20,20 @@
     "RTR-5 bounded receipt trust-root foundation closeout report merged",
     "External Client Endpoint-0 default-closed contract authorization merged",
     "Endpoint-0 pure descriptor, exact configuration parser and adversarial static server-isolation tests merged",
-    "Endpoint-0 exact merge main f633e7375ec5287bacfb22b01b13a4cdefacbc1e verified"
+    "Endpoint-0 exact merge main f633e7375ec5287bacfb22b01b13a4cdefacbc1e verified",
+    "External Client Authority-0 exact-base authorization task-pack merged",
+    "Authority-0 package-surface recovery scope amendment merged",
+    "Authority-0 bounded identity, workspace, permission, trusted-key, freshness and atomic replay enforcement merged",
+    "Authority-0 exact-head review, CI, package smoke and post-merge smoke verified at main 732573d110b73ca5014637a17b01a098dc210538"
   ],
-  "nextGate": "EXTERNAL_CLIENT_AUTHORITY_0_AUTHORIZATION",
-  "followingGate": "EXTERNAL_CLIENT_AUTHORITY_0_IMPLEMENTATION",
+  "nextGate": "EXTERNAL_CLIENT_ADVERSARIAL_0_AUTHORIZATION",
   "status": "READY_FOR_EXACT_BASE_GATE_AUTHORIZATION",
   "forbiddenClaims": [
     "production V2 receipt writer enabled",
     "authoritative production V2 trust-root writer selected",
     "historical V1 receipt rewritten or backfilled",
     "external client endpoint reachable or enabled",
-    "external client identity, workspace, trusted-key, freshness and replay enforcement complete",
+    "external client HTTP identity extraction or route-level authority enforcement complete",
     "external client mutation or receipt path enabled",
     "V4 Workbench runtime complete",
     "V5 ecosystem complete",
@@ -41,8 +44,9 @@
     "Endpoint-0 adds only a pure, unreachable endpoint descriptor and explicit configuration parser; server.js remains unaware of the route.",
     "Configuration state requested never means route reachability, identity authority, workspace authority, freshness, replay protection, mutation permission or receipt-writer readiness.",
     "Production V4 V2 durable writes remain fail-closed through V4_RECEIPT_V2_WRITE_NOT_ENABLED and no authoritative production V2 trust-root writer has been selected.",
-    "Only a separate exact-base External Client Authority-0 authorization task-pack may start after this reconciliation merges; authority implementation is not automatically authorized.",
-    "Authority-0 must bind trusted client identity, authoritative workspace scope, signed package and trusted-key scope, explicit permissions, freshness and replay semantics without registering a reachable route.",
-    "External Client Adversarial-0, Enablement-0, V4 closeout, V5 ecosystem, deployment and release work remain downstream and closed."
+    "Authority-0 now provides an unreachable in-process admission boundary for exact client identity, authoritative workspace scope, signed package and trusted-key scope, explicit permissions, signed-package freshness against a trusted clock, trusted-key validity and atomic replay reservation.",
+    "Authority-0 does not register a reachable route, extract HTTP transport identity, provide a concrete durable replay store, mutate Graph or enable a production receipt writer.",
+    "Only a separate exact-base External Client Adversarial-0 authorization task-pack may start after this reconciliation merges; adversarial implementation is not automatically authorized.",
+    "External Client Enablement-0, V4 closeout, V5 ecosystem, deployment and release work remain downstream and closed."
   ]
 }
