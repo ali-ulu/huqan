@@ -1,7 +1,7 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`5132c36a09b7b158053e78823cda185459840593` (PR #171 merge).
+`f633e7375ec5287bacfb22b01b13a4cdefacbc1e` (PR #174 merge).
 
 This is the execution-order source for current runtime work. It is not a
 release claim and it does not replace architecture ADRs. When this file
@@ -11,11 +11,11 @@ wins.
 ## Current classification
 
 HUQAN is a **local-first partial trust layer** with real graph, verification,
-gate, provenance, approval, audit, receipt, immutable-source and signed-package
-primitives. It is not yet a fully inline trust control plane for every client,
-connector, receipt family or mutation path.
+gate, provenance, approval, audit, receipt, immutable-source, signed-package and
+default-closed endpoint-contract primitives. It is not yet a fully inline trust
+control plane for every client, connector, receipt family or mutation path.
 
-## Reconciled sequence through RTR-5
+## Reconciled sequence through Endpoint-0
 
 | Merged PR(s) | Closed boundary | Deliberate limit |
 | --- | --- | --- |
@@ -24,17 +24,18 @@ connector, receipt family or mutation path.
 | #134 | Durable mutation-journal ownership decision | Universal plugin journal migration remains deferred |
 | #135 / #139 | GitHub source credential and fail-closed sourceRef redaction | Redaction does not authorize external ingest |
 | #140-#151 | Immutable external-source resolution, reviewed approval, replay-safe execution and canonical receipt chain | No public external-source route or automatic approval policy |
-| #153 / #154 | Signed external-client package gate and SDK admission boundary | No default-open production endpoint or caller authority mapping |
+| #153 / #154 | Signed external-client package gate and SDK admission boundary | No production endpoint or caller authority mapping |
 | #156 / #157 | Trust-root boundaries and receipt schema evolution | Contracts only; no production V2 writer |
 | #158 / #160 | Receipt trust-root test scope and fixture corpus | Structural fixtures do not enable V2 writes |
 | #161 / #162 | Version-aware receipt foundation and runtime implementation | Production V2 durable writes remain fail-closed |
 | #164 / #165 | RTR-3A authorization and durable family-scoped SQLite lineage | Internal family metadata does not select or enable a production V2 writer |
 | #167 / #168 | RTR-4 authorization and adversarial migration/compatibility proof | Test-only hardening does not select a production writer or change runtime ownership |
 | #170 / #171 | RTR-5 authorization and exact-main closeout audit | Bounded foundation closes; production issuance and endpoint authority remain blocked |
+| #173 / #174 | Endpoint-0 authorization and pure default-closed contract | Configuration may be requested, but no HTTP route, authority, mutation or writer is enabled |
 
 ## Closed receipt trust-root foundation
 
-RTR-3, RTR-3A, RTR-4 and RTR-5 now establish:
+RTR-3, RTR-3A, RTR-4 and RTR-5 establish:
 
 - deterministic canonical V2 construction and exact validation;
 - exactly `local_operator` and `external_verified_client` trust roots;
@@ -48,8 +49,8 @@ RTR-3, RTR-3A, RTR-4 and RTR-5 now establish:
 - atomic legacy SQLite family backfill from stored canonical payloads;
 - typed fail-closed migration integrity errors without silent JSON fallback;
 - predecessor selection scoped by both workspace and derived family;
-- adversarial real-SQLite evidence for migration, malformed metadata,
-  cross-family isolation, replay, rollback and continued V2 refusal;
+- adversarial real-SQLite migration, malformed-metadata, isolation, replay,
+  rollback and continued-V2-refusal evidence;
 - fail-closed materialized readers and V1/V2 export verification without partial
   evidence or input mutation;
 - an exact-main source/test/CI closeout report with separate foundation and
@@ -61,54 +62,65 @@ The closed foundation still does **not** provide:
 - an authoritative production V2 trust-root writer;
 - durable production V2 receipt creation;
 - historical V1 trust-root classification or backfill;
-- a universal receipt-family or trust-root registry;
-- a production external-client endpoint;
-- production external-client identity, workspace authority, freshness or replay
-  proof.
+- a universal receipt-family or trust-root registry.
+
+## Closed Endpoint-0 contract
+
+Endpoint-0 now provides:
+
+- immutable contract version `external-client-endpoint-0-v1`;
+- reserved method and path `POST /api/external-client/packages/admit`;
+- explicit configuration key `AXIOM_EXTERNAL_CLIENT_ENDPOINT_ENABLED`;
+- exact `disabled | requested` configuration parsing;
+- fail-closed `EXTERNAL_CLIENT_ENDPOINT_CONFIG_INVALID` handling;
+- inherited, accessor-backed and malformed configuration resistance;
+- a frozen null-prototype descriptor;
+- static proof that `server.js` has no route, contract import, package-gate
+  import or `admitExternalPackage` call.
+
+Endpoint-0 deliberately does **not** provide:
+
+- a reachable or enabled external-client route;
+- production client identity or authentication;
+- authoritative workspace mapping;
+- trusted-key loading, revocation or route-level package admission;
+- freshness or replay enforcement;
+- mutation, approval, audit or receipt effects;
+- production V2 writer ownership.
+
+A `requested` configuration state leaves every route, authority, freshness,
+replay, mutation and writer-readiness bit false.
 
 ## Current authorization state
 
-RTR-5 merged at the exact baseline above as one authorized documentation report.
-It reconciles exact source, named tests and RTR-4 CI evidence and closes the
-bounded receipt trust-root foundation. Production V2 writer ownership and
-external-client production endpoint authority remain explicitly `BLOCKED`.
+Endpoint-0 merged at the exact baseline above with the two authorized files.
+Exact-head Security Checks and the full `npm test` job passed. The production
+server remains unaware of the reserved route and no runtime owner changed.
 
 This post-merge checkpoint reconciliation is docs-only. It does not authorize
-an endpoint implementation. After it merges and canonical `main` is re-read,
-the only next candidate is a **separate exact-base External Client Endpoint-0
+authority implementation. After it merges and canonical `main` is re-read, the
+only next candidate is a **separate exact-base External Client Authority-0
 authorization task-pack**.
 
 ## Remaining execution order
 
-### 1. External Client Endpoint-0
+### 1. External Client Authority-0
 
-Define a default-closed endpoint contract and explicit opt-in configuration.
-The initial authorization must not add a reachable route, select a production
-V2 trust-root writer or create a mutation path.
-
-Required contract evidence:
-
-1. exact server/router ownership and current external-client reachability;
-2. default-closed configuration semantics with no permissive fallback;
-3. bounded request and response vocabulary;
-4. explicit separation between endpoint shape and caller authority;
-5. no mutation, receipt or approval side effect before later gates close;
-6. exact stop conditions for identity, workspace, key, freshness and replay
-   work that belongs to successor gates.
-
-### 2. External Client Authority-0
-
-Bind production endpoint admission to:
+Define and prove an unreachable production admission-authority boundary that
+binds:
 
 1. trusted client identity;
 2. authoritative workspace mapping;
 3. signed package and trusted-key scope;
 4. explicit caller permissions;
-5. bounded freshness and replay semantics.
+5. bounded freshness semantics;
+6. durable replay refusal ownership.
 
-Existing SDK/package primitives are foundations, not production endpoint proof.
+Authority-0 must remain separate from route registration and production
+mutation. Existing SDK/package primitives and the Endpoint-0 descriptor are
+foundations, not production authority proof.
 
-### 3. External Client Adversarial-0
+### 2. External Client Adversarial-0
 
 Prove fail-closed behavior for:
 
@@ -119,7 +131,7 @@ Prove fail-closed behavior for:
 - malformed input and unknown fields;
 - mutation, approval and receipt isolation before authorization succeeds.
 
-### 4. External Client Enablement-0
+### 3. External Client Enablement-0
 
 Only after endpoint, authority and adversarial gates close:
 
@@ -129,14 +141,14 @@ Only after endpoint, authority and adversarial gates close:
 4. reconcile the selected trust-root writer and durable receipt behavior;
 5. keep default configuration closed.
 
-### 5. V4 open items
+### 4. V4 open items
 
 1. Workbench runtime evidence;
 2. bounded approval/action surface;
 3. receipt inspection and export/import user-flow smoke;
 4. V4 source/test/CI/release closeout.
 
-### 6. V5 ecosystem items
+### 5. V5 ecosystem items
 
 1. bounded A2A exchange;
 2. external conformance runner;
@@ -146,8 +158,8 @@ Only after endpoint, authority and adversarial gates close:
 
 ## Permanent ordering rules
 
-- External Client Endpoint-0 implementation does not start before its exact-base
-  authorization closes.
+- External Client Authority-0 implementation does not start before its
+  exact-base authorization closes.
 - External Client Enablement-0 does not start before endpoint, authority and
   adversarial gates close.
 - Production V2 writer ownership is not inferred from endpoint, SDK, transport,
@@ -159,12 +171,13 @@ Only after endpoint, authority and adversarial gates close:
 
 ## Explicit non-goals
 
-- No production V2 writer in reconciliation or Endpoint-0 authorization.
+- No reachable external-client route in reconciliation or Authority-0
+  authorization.
+- No production V2 writer or trust-root owner selection.
 - No historical receipt rewrite, rehash or trust-root backfill.
 - No caller-controlled receipt-family or trust-root metadata.
 - No permissive fallback for receipt migration, external-source or
   external-client admission.
-- No reachable external-client route before explicit Enablement-0.
 - No automatic retry when a mutation outcome is unknown.
 - No claim that every plugin mutation is durable or transactional.
 - No universal receipt-family or trust-root registry.
