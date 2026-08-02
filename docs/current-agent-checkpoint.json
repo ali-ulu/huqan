@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "repository": "ali-ulu/huqan",
   "baselineBranch": "main",
-  "canonicalMain": "e5bc2b0f2208bea3732971f22340a5f675b65406",
+  "canonicalMain": "5132c36a09b7b158053e78823cda185459840593",
   "worktreePolicy": "REPORT_ONLY",
-  "observedAt": "2026-08-02T14:40:00+03:00",
-  "program": "Receipt trust-root migration and compatibility hardening",
+  "observedAt": "2026-08-02T15:01:04+03:00",
+  "program": "External client endpoint and authority hardening",
   "completedEvidence": [
     "Trust-boundary production call-chain, coverage, mutation inventory and journal-ownership reconciliations merged",
     "Immutable external-source binding and reviewed-byte graph execution chain merged",
@@ -15,30 +15,31 @@
     "RTR-3 deterministic V2 builder, bounded reader/export and mixed-family fail-closed foundation merged",
     "RTR-3A bounded receipt_family migration and workspace-plus-family predecessor selection merged",
     "RTR-3A adversarial real-SQLite migration, isolation, replay, rollback and V2-guard coverage merged",
-    "RTR-4 exact-base migration and compatibility authorization merged",
-    "RTR-4 adversarial migration, historical V1 evidence, chronology, reader/export and durable V2 refusal coverage merged",
-    "RTR-4 exact merge main e5bc2b0f2208bea3732971f22340a5f675b65406 verified"
+    "RTR-4 migration and compatibility authorization plus adversarial suite merged",
+    "RTR-5 exact-main source/test/CI closeout audit authorization merged",
+    "RTR-5 bounded receipt trust-root foundation closeout report merged",
+    "RTR-5 exact merge main 5132c36a09b7b158053e78823cda185459840593 verified"
   ],
-  "nextGate": "RECEIPT_TRUST_ROOT_5_AUTHORIZATION",
-  "followingGate": "RECEIPT_TRUST_ROOT_5_IMPLEMENTATION",
+  "nextGate": "EXTERNAL_CLIENT_ENDPOINT_0_AUTHORIZATION",
+  "followingGate": "EXTERNAL_CLIENT_ENDPOINT_0_IMPLEMENTATION",
   "status": "READY_FOR_EXACT_BASE_GATE_AUTHORIZATION",
   "forbiddenClaims": [
     "production V2 receipt writer enabled",
     "authoritative production V2 trust-root writer selected",
     "historical V1 receipt rewritten or backfilled",
     "external client endpoint enabled",
-    "external client freshness and replay enforcement complete",
+    "external client identity, workspace, freshness and replay enforcement complete",
     "V4 Workbench runtime complete",
     "V5 ecosystem complete",
     "universal connector or receipt coverage"
   ],
   "notes": [
-    "RTR-4 closes the bounded adversarial migration and compatibility hardening gate without changing production runtime ownership.",
-    "Historical V1 canonical payload, hash, chain and export evidence remain immutable; V1 to V2 chronology is validated without predecessor rewrite.",
-    "Production V4 V2 durable writes remain fail-closed and no authoritative production V2 trust-root writer has been selected.",
-    "Only a separate exact-base RTR-5 authorization task-pack may start after this reconciliation merges; RTR-5 implementation is not automatically authorized.",
-    "RTR-5 must audit the complete receipt trust-root source, tests and CI line and record exact-main non-claims and remaining blockers.",
-    "External Client Endpoint-0, V4 closeout and V5 ecosystem work remain downstream and closed.",
-    "Do not start deployment or release work unless separately authorized."
+    "RTR-5 closes the bounded receipt trust-root foundation while production V2 issuance remains blocked.",
+    "Historical V1 canonical payload, hash, chain and export evidence remain immutable; no trust-root backfill or rehash is authorized.",
+    "Production V4 V2 durable writes remain fail-closed through V4_RECEIPT_V2_WRITE_NOT_ENABLED and no authoritative production V2 trust-root writer has been selected.",
+    "Only a separate exact-base External Client Endpoint-0 authorization task-pack may start after this reconciliation merges; endpoint implementation is not automatically authorized.",
+    "Endpoint-0 must define a default-closed contract and explicit opt-in configuration without adding a reachable route or mutation path.",
+    "Client identity, workspace authority, trusted-key/package scope, freshness, replay and adversarial enforcement remain downstream gates.",
+    "V4 closeout, V5 ecosystem, deployment and release work remain closed unless separately authorized."
   ]
 }
