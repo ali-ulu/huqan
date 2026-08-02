@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "repository": "ali-ulu/huqan",
   "baselineBranch": "main",
-  "canonicalMain": "79e6ebddbcd5c676217a54cd8a4157d83fd4363b",
+  "canonicalMain": "167e6c0bcf41687f3df547e060068315b98bf0f6",
   "worktreePolicy": "REPORT_ONLY",
-  "observedAt": "2026-08-02T03:09:00+03:00",
-  "program": "Receipt trust-root durable chain sequencing",
+  "observedAt": "2026-08-02T03:47:22+03:00",
+  "program": "Receipt trust-root migration and compatibility hardening",
   "completedEvidence": [
     "Trust-boundary production call-chain, coverage, mutation inventory and journal-ownership reconciliations merged",
     "Immutable external-source binding and reviewed-byte graph execution chain merged",
@@ -13,15 +13,17 @@
     "Receipt trust-root schema evolution ADR and contract-test scope merged",
     "Receipt trust-root fixture corpus merged with historical V1 byte/hash locks",
     "RTR-3 deterministic V2 builder, bounded reader/export and mixed-family fail-closed foundation merged",
-    "RTR-3 exact merge main 79e6ebddbcd5c676217a54cd8a4157d83fd4363b verified"
+    "RTR-3A bounded receipt_family migration and workspace-plus-family predecessor selection merged",
+    "RTR-3A adversarial real-SQLite migration, isolation, replay, rollback and V2-guard coverage merged",
+    "RTR-3A exact merge main 167e6c0bcf41687f3df547e060068315b98bf0f6 verified"
   ],
-  "nextGate": "RECEIPT_TRUST_ROOT_3A_AUTHORIZATION",
-  "followingGate": "RECEIPT_TRUST_ROOT_3A_IMPLEMENTATION",
+  "nextGate": "RECEIPT_TRUST_ROOT_4_AUTHORIZATION",
+  "followingGate": "RECEIPT_TRUST_ROOT_4_IMPLEMENTATION",
   "status": "READY_FOR_EXACT_BASE_GATE_AUTHORIZATION",
   "forbiddenClaims": [
     "production V2 receipt writer enabled",
-    "durable family-scoped V4 predecessor selection complete",
-    "database migration for V2 receipt families approved",
+    "authoritative production V2 trust-root writer selected",
+    "historical V1 receipt rewritten or backfilled",
     "external client endpoint enabled",
     "external client freshness and replay enforcement complete",
     "V4 Workbench runtime complete",
@@ -29,9 +31,10 @@
     "universal connector or receipt coverage"
   ],
   "notes": [
-    "RTR-3 is a pure/version-aware foundation; durable production V2 writes remain fail-closed.",
-    "RTR-3A must separately decide family-scoped predecessor semantics, database migration, authoritative writer ownership and adversarial SQLite coverage.",
-    "After this reconciliation merges, only a separate exact-base RTR-3A authorization task-pack may start; RTR-3A implementation is not automatically authorized.",
+    "RTR-3A separates durable V4 and non-V4 predecessor lineages with internal SQLite metadata; the public committed-receipt shape remains unchanged.",
+    "RTR-3A does not enable a production V2 writer and does not classify historical V1 receipts as local_operator.",
+    "Only a separate exact-base RTR-4 authorization task-pack may start after this reconciliation merges; RTR-4 implementation is not automatically authorized.",
+    "RTR-4 must harden migration, chain, reader and export compatibility while preserving historical V1 bytes and hashes and fail-closed downgrade behavior.",
     "External Client Endpoint-0, V4 closeout and V5 ecosystem work remain downstream and closed.",
     "Do not start deployment or release work unless separately authorized."
   ]
