@@ -110,6 +110,7 @@
         "lib/conflict-detector.js",
         "lib/contradiction-rules.js",
         "lib/entity-resolution.js",
+        "lib/external-client-authority.js",
         "lib/external-client-package-gate.js",
         "lib/fuzzy-normalization.js",
         "lib/github-connector.js",
