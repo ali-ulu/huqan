@@ -1,7 +1,7 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`a6d4ec423a77d9b15dd50144e19d246785d6fd1c` (PR #190 merge).
+`fe0a1a460f4ca9b55d948777c2eb0dab4b0a6dc2` (PR #192 merge).
 
 This is the execution-order source for current runtime work. It is not a
 release claim and it does not replace architecture ADRs. When this file
@@ -16,7 +16,7 @@ default-closed endpoint-contract and bounded external-client trust-profile
 materialization primitives. It is not yet a fully inline trust control plane for
 every client, connector, receipt family or mutation path.
 
-## Reconciled sequence through Identity/Trust Config-0 implementation
+## Reconciled sequence through Durable Replay-0 authorization
 
 | Merged PR(s) | Closed boundary | Deliberate limit |
 | --- | --- | --- |
@@ -40,6 +40,7 @@ every client, connector, receipt family or mutation path.
 | #185 / #186 | Enablement-0 use-case decision and staged authorization | Mandatory successor order is fixed; no runtime gate is collapsed or implemented |
 | #187 / #188 | Identity/Trust Config-0 scope and trusted-key roster recovery | Contract only; no materializer, server loader, route, replay, mutation or receipt writer exists |
 | #189 / #190 | Identity/Trust Config-0 checkpoint reconciliation and pure bounded materializer | Internal materialization exists; no server wiring, deployment source, durable replay, route, mutation, receipt or package exposure |
+| #191 / #192 | Identity/Trust Config-0 implementation reconciliation and Durable Replay-0 authorization | Dedicated SQLite ownership contract is locked; no replay runtime, wiring, route, mutation or receipt effect exists |
 
 ## Closed receipt trust-root foundation
 
@@ -191,42 +192,61 @@ Two candidate defects were caught and corrected before merge: output fields
 that violated Authority-0's exact trusted-key shape and a module-level mutable
 error-classification registry.
 
+## Closed Durable Replay-0 authorization
+
+The authorization binds one dedicated internal SQLite owner with:
+
+- the exact Authority-supplied replay record and trusted `reservedAt` and
+  `expiresAt` values;
+- a dedicated `external_client_replay_reservations` table and expiry index;
+- WAL mode, `synchronous = FULL`, foreign keys and bounded busy timeout;
+- one immediate SQLite write transaction before same-key inspection;
+- exact frozen `{ reserved: true }` and `{ reserved: false }` results;
+- expiry replacement when `existing.expiresAt <= incoming.reservedAt`;
+- reuse only of the existing bounded `SQLITE_BUSY` / `SQLITE_LOCKED` helpers;
+- restart, exact-expiry, rollback, same-process and cross-process evidence;
+- fail-closed incompatible schema, corrupt database and closed-owner behavior;
+- no existing-row evidence leak and no read/list/export API; and
+- an exact two-file implementation scope.
+
+The authorization rejects Graph journal, MemoryStore, viewer sessions, JSON and
+process-memory replay ownership. It authorizes no system time, route, mutation,
+receipt, package or deployment behavior.
+
 ## Current authorization state
 
-Identity/Trust Config-0 is merged at the exact baseline above. This
-post-implementation reconciliation is docs-only and authorizes no replay
-runtime change.
-
-The only next candidate is a separate exact-base docs-only authorization:
+PR #192 merged the docs-only Durable Replay-0 authorization at the exact
+baseline above. This reconciliation authorizes no runtime change by itself.
+After it merges and canonical `main` is re-read, the only next gate is:
 
 ```text
-EXTERNAL_CLIENT_DURABLE_REPLAY_0_AUTHORIZATION
+EXTERNAL_CLIENT_DURABLE_REPLAY_0_IMPLEMENTATION
 ```
 
-That authorization must inventory the current SQLite owners and transaction
-primitives, select an exact replay schema and ownership boundary, define atomic
-reservation and TTL semantics, lock exact implementation and test files, and
-preserve the absent HTTP route. No implementation starts from this
-reconciliation alone.
+The exact implementation scope is:
+
+```text
+lib/external-client-replay-store.js
+lib/external-client-replay-store.test.js
+```
+
+No existing runtime file may change. Authority, SDK, server, endpoint, Graph,
+MemoryStore, mutation, receipt, package metadata and public schemas remain
+closed.
 
 ## Remaining execution order
 
-### 1. External Client Durable Replay-0 authorization
+### 1. External Client Durable Replay-0 implementation
 
-Create one exact-base task-pack that defines:
+Implement and adversarially prove the dedicated SQLite atomic replay owner.
+Required evidence includes persistence across reopen, trusted-time expiry,
+one-process and cross-process exactly-once reservation, bounded lock retry,
+rollback, incompatible-schema refusal and exact Authority result compatibility.
 
-- the authoritative SQLite replay-reservation owner;
-- exact key, reservation, expiry and duplicate semantics;
-- transaction and cross-process atomicity requirements;
-- restart and cleanup behavior;
-- bounded errors and no JSON or memory fallback;
-- exact implementation and adversarial test scope;
-- explicit exclusion of route, mutation and receipt behavior.
+### 2. Durable Replay-0 post-merge reconciliation
 
-### 2. External Client Durable Replay-0 implementation
-
-Implement the authorized SQLite-backed atomic replay owner and prove restart,
-expiry, concurrency and cross-process behavior without registering the route.
+Record exact source, targeted test, full-regression, CI and post-merge evidence
+before opening mutation and receipt ownership.
 
 ### 3. External Client Mutation and Receipt Owner-0
 
@@ -266,9 +286,10 @@ before any completion statement.
 
 ## Permanent ordering rules
 
-- Durable Replay-0 implementation does not start before its exact-base
-  authorization and Identity/Trust Config-0 closeout evidence are green.
-- Mutation and receipt ownership do not start before Durable Replay-0 closes.
+- Durable Replay-0 implementation does not start before this exact-main
+  authorization reconciliation closes.
+- Mutation and receipt ownership do not start before Durable Replay-0
+  implementation and post-merge evidence close.
 - Mutation and receipt ownership precede any reachable HTTP adapter.
 - Route registration remains last and requires every predecessor to close.
 - Production V2 writer ownership is not inferred from endpoint, SDK, transport,
@@ -281,20 +302,18 @@ before any completion statement.
 ## Explicit non-goals
 
 - No reachable external-client route in this reconciliation or Durable Replay-0
-  authorization.
-- No environment, file or network configuration loader for the first trust
-  profile materializer.
+  implementation.
 - No process-memory or JSON replay fallback.
+- No Graph journal, MemoryStore or viewer-session replay ownership.
+- No system-time-derived replay TTL or expiry.
 - No mutation or receipt ownership inside Durable Replay-0.
 - No production V2 writer or trust-root owner selection.
 - No historical receipt rewrite, rehash or trust-root backfill.
-- No caller-controlled receipt-family, trust-root, identity, workspace,
-  permission or key-roster metadata.
-- No permissive fallback for receipt migration, external-source or
-  external-client admission.
-- No automatic retry when a mutation outcome is unknown.
-- No claim that every plugin mutation is durable or transactional.
-- No universal receipt-family, trust-root or external-client registry.
+- No caller-controlled replay table, TTL, cleanup policy, identity, workspace,
+  permission, key roster, receipt family or trust root.
+- No public replay read/list/export API.
+- No automatic retry after an unknown transaction outcome.
+- No universal external-client registry or distributed-database claim.
 - No V4-complete, V5-complete, universal-truth or universal-coverage claim.
 - No release, deployment, package-version or dependency change.
 
