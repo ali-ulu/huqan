@@ -691,7 +691,7 @@ class Graph {
           if (!payload || typeof payload !== 'object' || !payload.receiptId || !payload.workspaceId) {
             throw new Error('durable mutation receipt payload is invalid');
           }
-          assertDurableV4WriteAllowed(payload);
+          assertDurableV4WriteAllowed(payload, { operationId: id });
           const receiptFamily = classifyReceiptFamily(payload);
           const previous = this._stmts.getLatestMutationReceiptHash.get(payload.workspaceId, receiptFamily);
           const chained = appendReceiptToChain(payload, previous?.receipt_hash);
