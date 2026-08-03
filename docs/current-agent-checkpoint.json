@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "repository": "ali-ulu/huqan",
   "baselineBranch": "main",
-  "canonicalMain": "fe0a1a460f4ca9b55d948777c2eb0dab4b0a6dc2",
+  "canonicalMain": "8b37716655a6516dfe834696f8f6793cc63ed78c",
   "worktreePolicy": "REPORT_ONLY",
-  "observedAt": "2026-08-03T20:55:55+03:00",
+  "observedAt": "2026-08-03T21:26:55+03:00",
   "program": "External client enablement hardening",
   "completedEvidence": [
     "Trust-boundary production call-chain, coverage, mutation inventory and journal-ownership reconciliations merged",
@@ -27,20 +27,23 @@
     "External Client Identity/Trust Config-0 scope, roster recovery, reconciliation and implementation merged",
     "Identity/Trust Config-0 targeted 17/17, full runtime 377/377, Security, Benchmark and Docker evidence verified",
     "Identity/Trust Config-0 implementation post-merge reconciliation merged",
-    "External Client Durable Replay-0 exact-base authorization merged at main fe0a1a460f4ca9b55d948777c2eb0dab4b0a6dc2"
+    "External Client Durable Replay-0 exact-base authorization and authorization reconciliation merged",
+    "Dedicated SQLite Durable Replay-0 owner and adversarial test owner merged at main 8b37716655a6516dfe834696f8f6793cc63ed78c",
+    "Durable Replay-0 exact-head npm test, Security, Benchmark and Docker jobs verified green"
   ],
-  "nextGate": "EXTERNAL_CLIENT_DURABLE_REPLAY_0_IMPLEMENTATION",
-  "status": "READY_FOR_EXACT_BASE_IMPLEMENTATION",
+  "nextGate": "EXTERNAL_CLIENT_MUTATION_RECEIPT_OWNER_0_AUTHORIZATION",
+  "status": "READY_FOR_EXACT_BASE_GATE_AUTHORIZATION",
   "forbiddenClaims": [
     "production V2 receipt writer enabled",
     "authoritative production V2 trust-root writer selected",
     "historical V1 receipt rewritten or backfilled",
     "external-client trust profile materializer wired to a production server caller",
     "server-owned external-client deployment configuration source implemented",
-    "external client durable replay owner implemented",
     "external client replay store wired to Authority or server composition",
     "external client endpoint reachable or enabled",
     "external client HTTP identity extraction or route-level authority enforcement complete",
+    "external client admitted mutation owner selected",
+    "external client receipt owner selected or enabled",
     "external client mutation or receipt path enabled",
     "V4 Workbench runtime complete",
     "V5 ecosystem complete",
@@ -49,16 +52,16 @@
   "notes": [
     "RTR-5 closes the bounded receipt trust-root foundation while production V2 issuance remains blocked.",
     "Endpoint-0 adds only a pure, unreachable endpoint descriptor and explicit configuration parser; server.js remains unaware of the route.",
-    "Authority-0 provides an unreachable in-process admission boundary but no concrete durable replay store, route, mutation or production receipt writer.",
+    "Authority-0 provides an unreachable in-process admission boundary and now has compatible trust-profile and durable replay primitives, but no production composition or route.",
     "Adversarial-0 proves exact fail-closed time, scope, side-effect, replay-result and concurrent duplicate boundaries without adding production effects.",
     "Enablement-0 locks the mandatory sequence: identity/trust configuration, durable replay, mutation and receipt ownership, thin HTTP adapter, route adversarial proof and closeout audit.",
     "Identity/Trust Config-0 provides a pure internal materializer that composes with Authority-0 but remains unwired and outside the npm package surface.",
-    "Durable Replay-0 authorization selects a dedicated SQLite table and forbids Graph journal, MemoryStore, JSON and process-memory replay ownership.",
-    "The replay owner must use Authority-supplied trusted reservedAt and expiresAt values, an immediate atomic write transaction and exact frozen reserve or duplicate results.",
-    "The exact implementation scope is lib/external-client-replay-store.js plus lib/external-client-replay-store.test.js; no existing runtime file may change.",
-    "The implementation must prove restart, exact-expiry, same-process concurrency, cross-process concurrency, rollback, bounded lock retry and incompatible-schema refusal.",
-    "The HTTP route, mutation and receipt owners remain downstream and closed.",
+    "Durable Replay-0 now provides a dedicated SQLite owner isolated from Graph journal, MemoryStore, JSON and process memory.",
+    "The replay owner consumes Authority-supplied trusted reservedAt and expiresAt values, uses an immediate write transaction and returns exact frozen reserve or duplicate results.",
+    "Restart, exact-expiry, same-process and cross-process contention, rollback, bounded lock retry, incompatible schema, corrupt database and closed-owner boundaries are test-owned.",
+    "The replay owner is not wired to Authority or server composition and is not exported in the npm package surface.",
+    "The next gate is a separate docs-only exact-base EXTERNAL_CLIENT_MUTATION_RECEIPT_OWNER_0_AUTHORIZATION; no mutation or receipt implementation begins from this checkpoint alone.",
     "Production V4 V2 durable writes remain fail-closed through V4_RECEIPT_V2_WRITE_NOT_ENABLED and no authoritative production V2 trust-root writer has been selected.",
-    "V4 closeout, V5 ecosystem, deployment and release work remain downstream and closed."
+    "The HTTP route, adapter, production mutation path, receipt writer, V4 closeout and V5 ecosystem remain downstream and closed."
   ]
 }
