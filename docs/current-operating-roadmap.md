@@ -1,7 +1,7 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`3abb006a0c800577cdd8d4f0970eaed0a09b8319` (PR #183 merge).
+`2085c674b308b47a7ed1ee7956654f7c6556e3c0` (PR #188 merge).
 
 This is the execution-order source for current runtime work. It is not a
 release claim and it does not replace architecture ADRs. When this file
@@ -15,7 +15,7 @@ gate, provenance, approval, audit, receipt, immutable-source, signed-package and
 default-closed endpoint-contract primitives. It is not yet a fully inline trust
 control plane for every client, connector, receipt family or mutation path.
 
-## Reconciled sequence through Adversarial-0
+## Reconciled sequence through Identity/Trust Config-0 authorization
 
 | Merged PR(s) | Closed boundary | Deliberate limit |
 | --- | --- | --- |
@@ -35,7 +35,9 @@ control plane for every client, connector, receipt family or mutation path.
 | #175 / #178 / #177 | Authority-0 authorization, package-surface recovery and bounded implementation | In-process admission authority is enforced; no reachable route, HTTP identity extraction, concrete durable replay store, mutation or production receipt writer is enabled |
 | #179 / #180 | Authority-0 checkpoint reconciliation and Adversarial-0 authorization | Documentation and authorization do not enable a route or alter runtime behavior |
 | #181 / #182 | Adversarial-0 replay-result recovery authorization and bounded runtime recovery | Exact replay-result validation closes the discovered bypass without adding storage, mutation or writer ownership |
-| #183 | Adversarial-0 test-only matrix | Fail-closed boundaries are proven; no reachable endpoint, durable replay store or production effect is enabled |
+| #183 / #184 | Adversarial-0 test-only matrix and checkpoint reconciliation | Fail-closed boundaries are proven; no reachable endpoint, durable replay store or production effect is enabled |
+| #185 / #186 | Enablement-0 use-case decision and staged authorization | Mandatory successor order is fixed; no runtime gate is collapsed or implemented |
+| #187 / #188 | Identity/Trust Config-0 scope and trusted-key roster recovery | Contract only; no materializer, server loader, route, replay, mutation or receipt writer exists |
 
 ## Closed receipt trust-root foundation
 
@@ -138,40 +140,111 @@ durable replay store, distributed locking, Graph or Kernel mutation, approval,
 audit, receipt writing, production V2 writer ownership or external
 interoperability.
 
+## Closed Enablement-0 authorization sequence
+
+Enablement-0 fixes the following mandatory order and forbids collapsing it:
+
+1. Identity/Trust Config-0;
+2. Durable Replay-0;
+3. Mutation and Receipt Owner-0;
+4. thin HTTP Adapter-0;
+5. Route Adversarial-0;
+6. Enablement-0 closeout audit.
+
+The route remains absent until every required predecessor closes green. A
+requested configuration value does not imply reachability, authority, replay
+protection, mutation permission or receipt-writer readiness.
+
+## Closed Identity/Trust Config-0 contract
+
+The merged contract and roster recovery define the first configuration
+materializer as:
+
+- one exact, internal, explicitly injected server-composition profile;
+- exact profile version `external-client-trust-config-0-v1`;
+- exact identity subject and kind, workspace, package and the single
+  `package:admit` permission;
+- Ed25519 public SPKI DER key material copied from exact visible bytes;
+- exact singleton key scopes matching the profile root;
+- canonical validity intervals and `revoked: false` only;
+- one steady-state active key or exactly two old/new restart-rotation keys;
+- fail-closed zero-key, three-or-more-key, malformed, inherited,
+  accessor-backed, non-enumerable, symbol and Proxy-hostile rosters;
+- immutable, deterministic and secret-free output without input aliasing;
+- no environment, filesystem, network, system-clock or global mutable state.
+
+The contract deliberately does **not** provide:
+
+- the runtime materializer itself;
+- a public configuration schema or deployment source;
+- server wiring, hot reload or a multi-client registry;
+- Authority-0 construction, trusted clock or replay ownership;
+- a route, mutation, receipt writer or package export surface;
+- a universal Authority-0 roster limit.
+
 ## Current authorization state
 
-Adversarial-0 merged at the exact baseline above after its separately reviewed
-replay-result recovery. Exact-head Security Checks and full runtime tests
-passed. The test-only classifier reported Benchmark and Docker as not
-applicable. Post-merge related smoke passed `65/65`. The production server
-remains unaware of the reserved route and no mutation or receipt-writer owner
-changed.
+PR #187 merged the docs-only Identity/Trust Config-0 scope. PR #188 then closed
+the discovered trusted-key roster cardinality gap at the exact live baseline
+above. Exact-head Security Checks and the docs-only change classifier passed;
+runtime tests, benchmark execution and Docker build were correctly classified
+as not applicable.
 
-This post-merge checkpoint reconciliation is docs-only. It does not authorize
-endpoint implementation or enablement. After it merges and canonical `main` is
-re-read, the only next candidate is a **separate exact-base External Client
-Enablement-0 authorization task-pack**.
+This checkpoint reconciliation is docs-only. It authorizes no runtime change.
+After it merges and canonical `main` is re-read, the only next gate is the
+exact-base `EXTERNAL_CLIENT_IDENTITY_TRUST_CONFIG_0_IMPLEMENTATION` limited to:
+
+```text
+lib/external-client-trust-config.js
+lib/external-client-trust-config.test.js
+```
+
+That implementation must remain a pure bounded materializer and must not change
+Authority-0, SDK, server, endpoint, replay, mutation, receipt, package metadata,
+dependencies or public schemas.
 
 ## Remaining execution order
 
-### 1. External Client Enablement-0
+### 1. Identity/Trust Config-0 implementation
 
-Only after endpoint, authority and adversarial gates close:
+Implement and adversarially test the pure internal profile materializer within
+the exact two-file scope above. No server composition or public configuration
+source is included.
 
-1. add separate explicit enablement;
-2. make the route reachable;
-3. prove the production call chain from admission to mutation and receipt;
-4. reconcile the selected trust-root writer and durable receipt behavior;
-5. keep default configuration closed.
+### 2. External Client Durable Replay-0
 
-### 2. V4 open items
+Implement a SQLite-backed atomic replay-reservation owner and prove restart,
+expiry, concurrency and cross-process behavior without registering the route.
+
+### 3. External Client Mutation and Receipt Owner-0
+
+Select the exact bounded mutation, durable owner, receipt owner and unknown
+outcome behavior. Production V2 writing remains disabled unless separately
+authorized.
+
+### 4. External Client HTTP Adapter-0
+
+Add only a thin HTTP adapter after the preceding gates close. The adapter does
+not own trust, replay, mutation or receipt semantics.
+
+### 5. External Client Route Adversarial-0
+
+Prove default-closed absence, spoofing and malformed-input rejection, replay
+across restart and concurrency, no-retry behavior and mutation/receipt evidence.
+
+### 6. External Client Enablement-0 closeout
+
+Audit lineage, scopes, route behavior, CI, fail-closed boundaries and non-claims
+before any completion statement.
+
+### 7. V4 open items
 
 1. Workbench runtime evidence;
 2. bounded approval/action surface;
 3. receipt inspection and export/import user-flow smoke;
 4. V4 source/test/CI/release closeout.
 
-### 3. V5 ecosystem items
+### 8. V5 ecosystem items
 
 1. bounded A2A exchange;
 2. external conformance runner;
@@ -181,8 +254,12 @@ Only after endpoint, authority and adversarial gates close:
 
 ## Permanent ordering rules
 
-- External Client Enablement-0 does not start before endpoint, authority and
-  adversarial gates close.
+- Identity/Trust Config-0 implementation does not start before this exact-main
+  checkpoint reconciliation closes.
+- Durable Replay-0 does not start before Identity/Trust Config-0 implementation
+  and closeout evidence are green.
+- Mutation and receipt ownership precede any reachable HTTP adapter.
+- Route registration remains last and requires every predecessor to close.
 - Production V2 writer ownership is not inferred from endpoint, SDK, transport,
   actor labels, local reachability, signatures or fixture values.
 - V4 is not complete without real runtime and user-flow evidence.
@@ -192,16 +269,20 @@ Only after endpoint, authority and adversarial gates close:
 
 ## Explicit non-goals
 
-- No reachable external-client route in reconciliation or Authority-0
-  authorization.
+- No reachable external-client route in this reconciliation or Identity/Trust
+  Config-0 implementation.
+- No environment, file or network configuration loader in the first
+  materializer.
+- No durable external-client replay owner before Durable Replay-0.
 - No production V2 writer or trust-root owner selection.
 - No historical receipt rewrite, rehash or trust-root backfill.
-- No caller-controlled receipt-family or trust-root metadata.
+- No caller-controlled receipt-family, trust-root, identity, workspace,
+  permission or key-roster metadata.
 - No permissive fallback for receipt migration, external-source or
   external-client admission.
 - No automatic retry when a mutation outcome is unknown.
 - No claim that every plugin mutation is durable or transactional.
-- No universal receipt-family or trust-root registry.
+- No universal receipt-family, trust-root or external-client registry.
 - No V4-complete, V5-complete, universal-truth or universal-coverage claim.
 - No release, deployment, package-version or dependency change.
 
