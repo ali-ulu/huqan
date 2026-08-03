@@ -3,23 +3,26 @@
 ## Gate Identity
 
 - Repository: `ali-ulu/huqan`
-- Mode: docs-only scope definition
+- Mode: docs-only scope definition and bounded-roster recovery
 - Scope-definition base: `main` at
   `a3557dde9022c2d238caad170dfe19645b3b8200`
+- Recovery amendment base: `main` at
+  `453d7bff53037c57fc43b554675106902e7c640a`
 - Governing predecessor:
   `docs/task-packs/external-client-enablement-0-authorization.md`
 - Required predecessor checkpoint:
   `EXTERNAL_CLIENT_ENABLEMENT_0_AUTHORIZATION_CLOSEOUT_AUDIT_GREEN`
-- Authorized successor after this gate closes:
+- Authorized successor after this amended gate closes:
   `EXTERNAL_CLIENT_IDENTITY_TRUST_CONFIG_0_IMPLEMENTATION`
 
 The scope-definition base records the source state used to define this gate. It
-is not the implementation base. Implementation requires a separately
-authorized exact post-merge `main` SHA.
+is not the implementation base. The recovery amendment closes the missing
+trusted-key roster cardinality contract discovered after PR #187 merged.
+Implementation requires a separately authorized exact post-merge `main` SHA.
 
 ## Allowed Change
 
-This gate may add only:
+This gate may add or amend only:
 
 ```text
 docs/task-packs/external-client-identity-trust-config-0.md
@@ -30,7 +33,7 @@ receipt, deployment or public configuration change.
 
 ## Source Reality
 
-At the scope-definition base:
+At the scope-definition base and recovery amendment base:
 
 1. `snapshotExternalClientAuthority()` already accepts a complete injected
    authority object and creates an immutable in-process snapshot;
@@ -39,8 +42,8 @@ At the scope-definition base:
    trusted clock and atomic replay owner;
 3. trusted-key entries accept only bounded own data properties and reject
    revoked, malformed, inherited, accessor-backed, symbol and unknown data;
-4. more than one active key ID is already supported, but no maximum roster
-   size is defined;
+4. more than one active key ID is already supported, but the Authority-0 source
+   defines no maximum roster size;
 5. a `revoked: true` entry rejects the complete authority snapshot rather than
    filtering only that key;
 6. the supported package signature algorithm is `ed25519`;
@@ -48,9 +51,16 @@ At the scope-definition base:
    file schema, watcher, network resolver or hot-reload owner exists;
 8. `server.js` has no external-client authority import or route;
 9. the V5 trusted-key resolver is a separate bounded verification contract and
-   is not an external-client configuration or lifecycle owner; and
+   is not an external-client configuration or lifecycle owner;
 10. the route, durable replay-reservation owner, admitted mutation and
-    production receipt writer remain absent.
+    production receipt writer remain absent; and
+11. PR #187 merged the original task-pack unchanged, but its phrase “bounded
+    overlap period” remained unenforceable because no roster cardinality bound
+    was specified.
+
+The recovery decision is limited to the new configuration materializer: one
+steady-state key or two overlapping rotation keys. It does not change or claim
+a new universal Authority-0 roster contract.
 
 ## Binding Carrier Decision
 
@@ -90,7 +100,18 @@ The profile must require:
 - non-empty exact identity subject and kind;
 - non-empty exact workspace and package IDs;
 - exactly one permission, `package:admit`; and
-- at least one active trusted-key entry.
+- exactly one or two active trusted-key entries.
+
+The `trustedKeys` roster is bounded as follows:
+
+- one active key is the normal steady-state profile;
+- two active keys are allowed only as the old/new restart-rotation overlap;
+- zero keys or more than two keys fail the complete profile closed;
+- the cardinality limit is an implementation-owned constant and is not
+  request-controlled, configurable or inferred from input;
+- cardinality is evaluated from exact own string data properties only; and
+- symbol, inherited, accessor-backed, non-enumerable or Proxy-hostile roster
+  properties fail closed without returning a partial snapshot.
 
 Each trusted-key entry must contain only:
 
@@ -135,17 +156,21 @@ fields fail closed. The complete profile fails if any entry is malformed.
 The first implementation is restart-only:
 
 - no watcher, reload callback or mutable live registry exists;
+- steady state contains exactly one active key ID;
 - rotation is represented by constructing a new profile snapshot containing
-  both old and new active key IDs for a bounded overlap period;
-- this gate does not invent a maximum key count because current source defines
-  none;
+  exactly the old and new active key IDs;
+- a third active key is rejected rather than retained, filtered or normalized;
+- removing the old key from a later profile returns the roster to one active
+  key without mutating the previous snapshot;
 - revocation is activated by removing the old key from a new profile and
   restarting composition; and
 - retaining `revoked: true` in a profile remains a fail-closed configuration
   error, matching current authority behavior.
 
-The snapshot primitive does not read a clock. Trusted evaluation time remains
-an explicitly injected dependency of the later authority/replay composition.
+This materializer bounds rotation by roster cardinality, not elapsed time. It
+does not read a clock or enforce an overlap duration. Trusted evaluation time
+and any later operational rotation deadline remain separately injected
+composition responsibilities.
 
 ## Future Implementation Scope
 
@@ -159,7 +184,8 @@ lib/external-client-trust-config.test.js
 The implementation must be a pure bounded materializer. It may use only
 `node:crypto` and existing internal constants or errors. It must not construct
 an Authority-0 snapshot because clock and replay ownership are not part of this
-gate.
+gate. It must enforce the exact one-or-two trusted-key roster without changing
+`lib/external-client-authority.js`.
 
 Package allowlist and tarball changes are deferred until a production runtime
 caller needs the module. That later gate must add the module to `package.json`
@@ -170,6 +196,13 @@ and prove packed-install behavior before any published runtime imports it.
 The implementation test owner must prove:
 
 - one valid profile produces a frozen, secret-free, deterministic snapshot;
+- a one-key steady-state roster is accepted;
+- an exact two-key old/new overlap roster is accepted and preserved
+  deterministically;
+- zero-key and three-or-more-key rosters fail closed without a partial output;
+- the roster bound cannot be overridden, widened or supplied by the profile;
+- hostile third entries and hostile roster descriptors fail with a bounded
+  configuration error rather than raw attacker exceptions;
 - Buffer and offset `Uint8Array` inputs use only visible bytes and are copied;
 - later mutation of every input level and key bytes cannot change output;
 - exact root and key-entry allowlists reject unknown and hostile properties;
@@ -182,7 +215,6 @@ The implementation test owner must prove:
 - reversed, equal and non-canonical validity intervals fail closed;
 - `revoked: true`, missing revoked state and malformed roster entries fail the
   complete profile;
-- multiple active key IDs are preserved for restart-only rotation;
 - removing an old key from a new snapshot makes it absent without mutating the
   old snapshot;
 - no environment, filesystem, network, system-clock or global-state access;
@@ -200,7 +232,8 @@ implementation requires:
 - environment names, a file schema or network/key-store lookup;
 - request-controlled identity, scope, permission, keys or trust root;
 - hot reload, live mutation or multi-client registry behavior;
-- a maximum active-key count not already defined by source;
+- accepting zero, more than two or dynamically configured active keys;
+- changing Authority-0 runtime to enforce the materializer-only roster bound;
 - filtering `revoked: true` entries instead of rejecting the profile;
 - the V5 trusted-key resolver or its test-key semantics;
 - a new dependency, public API, public error vocabulary, version or package
@@ -212,20 +245,23 @@ implementation requires:
 
 ## Acceptance Criteria
 
-This docs-only gate closes only when:
+This docs-only amended gate closes only when:
 
 1. exactly this task-pack changes;
 2. the internal injected-object carrier decision is unambiguous;
-3. key material and lifecycle behavior are bounded and fail closed;
-4. implementation and forbidden file scopes are exact;
-5. route, replay, mutation, receipt and deployment remain downstream;
-6. no public schema, error vocabulary or dependency is invented; and
-7. `git diff --check`, independent review, exact-head CI, merge and clean
+3. the trusted-key roster is exactly bounded to one steady-state key or two
+   restart-rotation overlap keys;
+4. oversized and hostile rosters are required to fail closed;
+5. key material and lifecycle behavior are bounded and fail closed;
+6. implementation and forbidden file scopes are exact;
+7. route, replay, mutation, receipt and deployment remain downstream;
+8. no public schema, error vocabulary or dependency is invented; and
+9. `git diff --check`, independent review, exact-head CI, merge and clean
    post-merge docs smoke pass.
 
 ## Non-Claims
 
-This scope definition does not provide or authorize:
+This scope definition and recovery amendment do not provide or authorize:
 
 - a production profile source or deployment configuration;
 - a server-owned loader or server composition;
@@ -233,5 +269,6 @@ This scope definition does not provide or authorize:
 - a durable replay-reservation store;
 - an admitted mutation or receipt writer;
 - hot reload, dynamic rotation or network key resolution;
+- a universal Authority-0 key-roster limit;
 - a public config schema, public API or package surface; or
 - V4 or V5 completion.
