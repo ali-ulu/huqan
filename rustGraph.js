@@ -71,6 +71,7 @@ class RustGraph {
         this._pending.delete(reqId);
       }
     }
+    this._unrefIfIdle();
   }
 
   _rejectAll() {
@@ -87,9 +88,25 @@ class RustGraph {
       }
       const reqId = this._nextId++;
       cmd._reqId = reqId;
+      // The process/streams are unref()'d at spawn time so an idle bridge
+      // never keeps a long-running host process (e.g. a server) alive. But
+      // that also means a caller `await`-ing a response can have the event
+      // loop close out from under them before the reply arrives. Ref while
+      // a request is in flight; _onData/_rejectAll unref again once idle.
+      this._proc.ref();
+      this._proc.stdin.ref();
+      this._proc.stdout.ref();
       this._pending.set(reqId, resolve);
       this._proc.stdin.write(JSON.stringify(cmd) + '\n');
     });
+  }
+
+  _unrefIfIdle() {
+    if (this._pending.size === 0 && this._proc) {
+      this._proc.unref();
+      this._proc.stdin.unref();
+      this._proc.stdout.unref();
+    }
   }
 
   async addNode(id, label) {
