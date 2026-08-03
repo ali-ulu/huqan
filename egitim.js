@@ -7,7 +7,7 @@ const identitySeedPath = path.join(__dirname, 'docs', 'seed', 'axiom-identity.se
 const identitySeed = JSON.parse(fs.readFileSync(identitySeedPath, 'utf8'));
 
 // Egitim: temiz baslat, mevcut hafizayi karistirma.
-const k = new Kernel({ noLoad: true, useSQLite: true });
+const k = new Kernel({ noLoad: true });
 const d = new Dream(k);
 const DEMO_SEED_LEARN_BYPASS = {
   admissionRequired: false,
@@ -149,11 +149,11 @@ else for (const x of h.slice(0, 10)) {
 console.log('\nOrnek Cikarimlar:');
 const sorular = ['HUQAN nedir', 'mantik nedir', 'felsefe nedir', '\u00f6\u011frenmek nedir', 'bilim nedir', 'hipotez nedir', 'AXIOM nedir'];
 for (const s of sorular) {
-  console.log(`  sor: "${s}" -> ${k.ask(s)}`);
+  console.log(`  sor: "${s}" -> ${k.ask(s)?.data?.answer}`);
 }
 
 console.log('\nTest: bilinmeyen kavram:');
-console.log(`  sor: "u\u00e7an fil nedir" -> ${k.ask('u\u00e7an fil nedir')}`);
+console.log(`  sor: "u\u00e7an fil nedir" -> ${k.ask('u\u00e7an fil nedir')?.data?.answer}`);
 
 const emb = d.embedding({ dimensions: 64, walksPerNode: 8, walkLength: 15 });
 if (emb) console.log(`\nGomme: ${emb.dimensions} boyut, ${emb.nodes} dugum`);
