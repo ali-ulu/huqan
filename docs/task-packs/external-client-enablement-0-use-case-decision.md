@@ -30,7 +30,10 @@ At the scope-definition base:
    root;
 4. Authority-0 accepts only explicitly injected authority, trusted clock and
    atomic replay-owner dependencies;
-5. no production trusted-key loader or concrete durable replay owner exists;
+5. no production trusted-key loader or external-client-compatible durable
+   replay-reservation owner exists; the existing Graph SQLite mutation journal
+   is not an Authority-0 replay-reservation implementation and does not prove
+   pre-mutation reservation, TTL expiry or external-client ownership;
 6. no production admission handler maps an accepted package to a bounded
    mutation;
 7. production V2 receipt writing remains deliberately disabled and no
