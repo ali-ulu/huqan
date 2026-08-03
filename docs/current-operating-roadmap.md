@@ -1,7 +1,7 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`732573d110b73ca5014637a17b01a098dc210538` (PR #177 merge).
+`3abb006a0c800577cdd8d4f0970eaed0a09b8319` (PR #183 merge).
 
 This is the execution-order source for current runtime work. It is not a
 release claim and it does not replace architecture ADRs. When this file
@@ -15,7 +15,7 @@ gate, provenance, approval, audit, receipt, immutable-source, signed-package and
 default-closed endpoint-contract primitives. It is not yet a fully inline trust
 control plane for every client, connector, receipt family or mutation path.
 
-## Reconciled sequence through Authority-0
+## Reconciled sequence through Adversarial-0
 
 | Merged PR(s) | Closed boundary | Deliberate limit |
 | --- | --- | --- |
@@ -33,6 +33,9 @@ control plane for every client, connector, receipt family or mutation path.
 | #170 / #171 | RTR-5 authorization and exact-main closeout audit | Bounded foundation closes; production issuance and endpoint authority remain blocked |
 | #173 / #174 | Endpoint-0 authorization and pure default-closed contract | Configuration may be requested, but no HTTP route, authority, mutation or writer is enabled |
 | #175 / #178 / #177 | Authority-0 authorization, package-surface recovery and bounded implementation | In-process admission authority is enforced; no reachable route, HTTP identity extraction, concrete durable replay store, mutation or production receipt writer is enabled |
+| #179 / #180 | Authority-0 checkpoint reconciliation and Adversarial-0 authorization | Documentation and authorization do not enable a route or alter runtime behavior |
+| #181 / #182 | Adversarial-0 replay-result recovery authorization and bounded runtime recovery | Exact replay-result validation closes the discovered bypass without adding storage, mutation or writer ownership |
+| #183 | Adversarial-0 test-only matrix | Fail-closed boundaries are proven; no reachable endpoint, durable replay store or production effect is enabled |
 
 ## Closed receipt trust-root foundation
 
@@ -114,33 +117,44 @@ Authority-0 deliberately does **not** provide:
 - production V2 receipt writing or trust-root ownership;
 - public configuration rollout or external interoperability proof.
 
+## Closed Adversarial-0 boundary
+
+Adversarial-0 now proves:
+
+- rejected package, identity, workspace, key-scope, key-validity and freshness
+  cases do not reach replay reservation, admission handlers or Kernel fallback;
+- exact key-validity and signed-package freshness boundaries remain inclusive,
+  with one-millisecond freshness overruns rejected;
+- hostile replay-owner results use bounded errors and cannot invoke downstream
+  admission;
+- two concurrent admissions for identical signed evidence produce exactly one
+  allow and one replay rejection under the existing atomic-owner contract;
+- replay evidence is deterministic, frozen, secret-free and limited to the
+  existing Authority-0 fields;
+- Endpoint-0 `requested` configuration does not infer package authority.
+
+Adversarial-0 deliberately does **not** provide a reachable route, concrete
+durable replay store, distributed locking, Graph or Kernel mutation, approval,
+audit, receipt writing, production V2 writer ownership or external
+interoperability.
+
 ## Current authorization state
 
-Authority-0 merged at the exact baseline above after its package-surface
-recovery amendment. Exact-head Security Checks, runtime tests, package smoke,
-Benchmark Regression and Docker build passed. Post-merge targeted and package
-smoke evidence also passed. The production server remains unaware of the
-reserved route and no mutation or receipt-writer owner changed.
+Adversarial-0 merged at the exact baseline above after its separately reviewed
+replay-result recovery. Exact-head Security Checks and full runtime tests
+passed. The test-only classifier reported Benchmark and Docker as not
+applicable. Post-merge related smoke passed `65/65`. The production server
+remains unaware of the reserved route and no mutation or receipt-writer owner
+changed.
 
 This post-merge checkpoint reconciliation is docs-only. It does not authorize
-adversarial implementation. After it merges and canonical `main` is re-read,
-the only next candidate is a **separate exact-base External Client Adversarial-0
-authorization task-pack**.
+endpoint implementation or enablement. After it merges and canonical `main` is
+re-read, the only next candidate is a **separate exact-base External Client
+Enablement-0 authorization task-pack**.
 
 ## Remaining execution order
 
-### 1. External Client Adversarial-0
-
-Prove fail-closed behavior for:
-
-- unsigned or tampered packages;
-- wrong, revoked or expired keys;
-- identity and workspace mismatch;
-- stale or replayed requests;
-- malformed input and unknown fields;
-- mutation, approval and receipt isolation before authorization succeeds.
-
-### 2. External Client Enablement-0
+### 1. External Client Enablement-0
 
 Only after endpoint, authority and adversarial gates close:
 
@@ -150,14 +164,14 @@ Only after endpoint, authority and adversarial gates close:
 4. reconcile the selected trust-root writer and durable receipt behavior;
 5. keep default configuration closed.
 
-### 3. V4 open items
+### 2. V4 open items
 
 1. Workbench runtime evidence;
 2. bounded approval/action surface;
 3. receipt inspection and export/import user-flow smoke;
 4. V4 source/test/CI/release closeout.
 
-### 4. V5 ecosystem items
+### 3. V5 ecosystem items
 
 1. bounded A2A exchange;
 2. external conformance runner;
@@ -167,8 +181,6 @@ Only after endpoint, authority and adversarial gates close:
 
 ## Permanent ordering rules
 
-- External Client Adversarial-0 implementation does not start before its
-  exact-base authorization closes.
 - External Client Enablement-0 does not start before endpoint, authority and
   adversarial gates close.
 - Production V2 writer ownership is not inferred from endpoint, SDK, transport,

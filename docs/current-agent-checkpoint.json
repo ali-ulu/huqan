@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "repository": "ali-ulu/huqan",
   "baselineBranch": "main",
-  "canonicalMain": "732573d110b73ca5014637a17b01a098dc210538",
+  "canonicalMain": "3abb006a0c800577cdd8d4f0970eaed0a09b8319",
   "worktreePolicy": "REPORT_ONLY",
-  "observedAt": "2026-08-03T01:41:41+03:00",
+  "observedAt": "2026-08-03T02:58:38+03:00",
   "program": "External client authority hardening",
   "completedEvidence": [
     "Trust-boundary production call-chain, coverage, mutation inventory and journal-ownership reconciliations merged",
@@ -24,9 +24,12 @@
     "External Client Authority-0 exact-base authorization task-pack merged",
     "Authority-0 package-surface recovery scope amendment merged",
     "Authority-0 bounded identity, workspace, permission, trusted-key, freshness and atomic replay enforcement merged",
-    "Authority-0 exact-head review, CI, package smoke and post-merge smoke verified at main 732573d110b73ca5014637a17b01a098dc210538"
+    "Authority-0 exact-head review, CI, package smoke and post-merge smoke verified",
+    "Adversarial-0 authorization and separate replay-result recovery scopes merged",
+    "Adversarial-0 exact time-boundary, side-effect isolation, hostile replay-result and concurrent replay matrix merged",
+    "Adversarial-0 exact-head review, CI and post-merge 65-test smoke verified at main 3abb006a0c800577cdd8d4f0970eaed0a09b8319"
   ],
-  "nextGate": "EXTERNAL_CLIENT_ADVERSARIAL_0_AUTHORIZATION",
+  "nextGate": "EXTERNAL_CLIENT_ENABLEMENT_0_AUTHORIZATION",
   "status": "READY_FOR_EXACT_BASE_GATE_AUTHORIZATION",
   "forbiddenClaims": [
     "production V2 receipt writer enabled",
@@ -46,7 +49,8 @@
     "Production V4 V2 durable writes remain fail-closed through V4_RECEIPT_V2_WRITE_NOT_ENABLED and no authoritative production V2 trust-root writer has been selected.",
     "Authority-0 now provides an unreachable in-process admission boundary for exact client identity, authoritative workspace scope, signed package and trusted-key scope, explicit permissions, signed-package freshness against a trusted clock, trusted-key validity and atomic replay reservation.",
     "Authority-0 does not register a reachable route, extract HTTP transport identity, provide a concrete durable replay store, mutate Graph or enable a production receipt writer.",
-    "Only a separate exact-base External Client Adversarial-0 authorization task-pack may start after this reconciliation merges; adversarial implementation is not automatically authorized.",
-    "External Client Enablement-0, V4 closeout, V5 ecosystem, deployment and release work remain downstream and closed."
+    "Adversarial-0 now proves exact fail-closed time, scope, side-effect, replay-result and concurrent duplicate boundaries without adding a route, durable replay store, mutation or writer.",
+    "Only a separate exact-base External Client Enablement-0 authorization task-pack may start after this reconciliation merges; enablement implementation is not automatically authorized.",
+    "V4 closeout, V5 ecosystem, deployment and release work remain downstream and closed."
   ]
 }
