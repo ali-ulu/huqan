@@ -401,37 +401,42 @@ class Graph {
     const nodeHasLegacyPrimaryKey = /id\s+TEXT\s+PRIMARY\s+KEY/i.test(nodeSchema) && !/PRIMARY\s+KEY\s*\(\s*workspace_id\s*,\s*id\s*\)/i.test(nodeSchema);
     let nodeSchemaMigrated = false;
     if (nodeHasLegacyPrimaryKey) {
-      this._db.exec(`
-        ALTER TABLE nodes RENAME TO nodes_legacy;
-        CREATE TABLE nodes (
-          id TEXT NOT NULL,
-          workspace_id TEXT NOT NULL DEFAULT 'default',
-          label TEXT NOT NULL,
-          weight REAL NOT NULL DEFAULT 0.5,
-          created INTEGER NOT NULL,
-          created_at TEXT NOT NULL DEFAULT '',
-          last_accessed INTEGER NOT NULL,
-          last_seen TEXT NOT NULL DEFAULT '',
-          vector TEXT NOT NULL DEFAULT '{}',
-          provenance TEXT NOT NULL DEFAULT 'null',
-          PRIMARY KEY (workspace_id, id)
-        );
-        INSERT INTO nodes (id, workspace_id, label, weight, created, created_at, last_accessed, last_seen, vector, provenance)
-        SELECT
-          id,
-          'default',
-          label,
-          weight,
-          created,
-          created_at,
-          last_accessed,
-          last_seen,
-          vector,
-          'null'
-        FROM nodes_legacy;
-        DROP TABLE nodes_legacy;
-      `);
-      nodeSchemaMigrated = true;
+      this._db.transaction(() => {
+        this._db.exec(`
+          ALTER TABLE nodes RENAME TO nodes_legacy;
+          CREATE TABLE nodes (
+            id TEXT NOT NULL,
+            workspace_id TEXT NOT NULL DEFAULT 'default',
+            label TEXT NOT NULL,
+            weight REAL NOT NULL DEFAULT 0.5,
+            created INTEGER NOT NULL,
+            created_at TEXT NOT NULL DEFAULT '',
+            last_accessed INTEGER NOT NULL,
+            last_seen TEXT NOT NULL DEFAULT '',
+            vector TEXT NOT NULL DEFAULT '{}',
+            provenance TEXT NOT NULL DEFAULT 'null',
+            PRIMARY KEY (workspace_id, id)
+          );
+          INSERT INTO nodes (
+            id, workspace_id, label, weight, created, created_at,
+            last_accessed, last_seen, vector, provenance
+          )
+          SELECT
+            id,
+            COALESCE(NULLIF(workspace_id, ''), 'default'),
+            label,
+            weight,
+            created,
+            created_at,
+            last_accessed,
+            last_seen,
+            vector,
+            provenance
+          FROM nodes_legacy;
+          DROP TABLE nodes_legacy;
+        `);
+        nodeSchemaMigrated = true;
+      })();
     }
     if (!nodeSchemaMigrated && !nodeColumns.includes('workspace_id')) this._db.exec("ALTER TABLE nodes ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'");
     if (!nodeSchemaMigrated && !nodeColumns.includes('created_at')) this._db.exec("ALTER TABLE nodes ADD COLUMN created_at TEXT NOT NULL DEFAULT ''");
@@ -495,7 +500,7 @@ class Graph {
           provenance = excluded.provenance
       `),
       getNode: this._db.prepare('SELECT * FROM nodes WHERE id = ? AND workspace_id = ?'),
-      deleteNode: this._db.prepare('DELETE FROM nodes WHERE id = ? AND workspace_id = ?'),
+      deleteNode: this._db.prepare('DELETE FROM nodes WHERE (from_id = ? OR to_id = ?) AND workspace_id = ?'),
       deleteEdgesOf: this._db.prepare('DELETE FROM edges WHERE (from_id = ? OR to_id = ?) AND workspace_id = ?'),
       touchNode: this._db.prepare('UPDATE nodes SET last_accessed = ? WHERE id = ? AND workspace_id = ?'),
       upsertEdge: this._db.prepare(`
@@ -691,7 +696,7 @@ class Graph {
           if (!payload || typeof payload !== 'object' || !payload.receiptId || !payload.workspaceId) {
             throw new Error('durable mutation receipt payload is invalid');
           }
-          assertDurableV4WriteAllowed(payload);
+          assertDurableV4WriteAllowed(payload, { operationId: id });
           const receiptFamily = classifyReceiptFamily(payload);
           const previous = this._stmts.getLatestMutationReceiptHash.get(payload.workspaceId, receiptFamily);
           const chained = appendReceiptToChain(payload, previous?.receipt_hash);
@@ -783,116 +788,103 @@ class Graph {
     }
 
     for (const indices of Object.values(byRelation)) {
-      const high = indices.filter(i => edges[i].weight >= 0.5);
-      const low = indices.filter(i => edges[i].weight < 0.3);
-      for (const index of low) {
-        if (high.length > 0 && !marked.has(index)) {
-          removed.push({
-            idx: index,
-            edge: edges[index],
-            reason: `low-weight restriction (${edges[index].weight}) \u00e2\u20ac\u201d subject already has high-weight '${edges[index].relation}'`,
-          });
-          marked.add(index);
+      for (let i = 0; i < indices.length; i++) {
+        for (let j = i + 1; j < indices.length; j++) {
+          const edgeA = edges[indices[i]];
+          const edgeB = edges[indices[j]];
+          if (edgeA.to === edgeB.to) continue;
+          if (edgeA.weight >= 0.5 && edgeB.weight < 0.3) {
+            removed.push({ idx: indices[j], edge: edgeB, reason: `low-weight (${edgeB.weight}) alternative to high-weight (${edgeA.weight})` });
+            marked.add(indices[j]);
+          } else if (edgeB.weight >= 0.5 && edgeA.weight < 0.3) {
+            removed.push({ idx: indices[i], edge: edgeA, reason: `low-weight (${edgeA.weight}) alternative to high-weight (${edgeB.weight})` });
+            marked.add(indices[i]);
+          }
         }
       }
     }
 
-    if (!dryRun && removed.length > 0) {
-      this._edges = edges.filter((_, index) => !marked.has(index));
+    if (!dryRun && marked.size > 0) {
+      this._edges = edges.filter((_, i) => !marked.has(i));
       this._rebuildIndex();
-      try {
-        this.save();
-      } catch (error) {
-        console.error('[Kernel] Graph save hatası:', error.message);
-      }
     }
 
-    return {
-      dryRun,
-      removed: removed.length,
-      details: removed.map(({ edge, reason }) =>
-        `${edge.from} ? ${edge.to} (${edge.relation}, w:${edge.weight}): ${reason}`),
-    };
+    return { removed, count: removed.length, dryRun };
   }
 
-  getNodes(workspaceId = 'default') {
-    const scope = normalizeWorkspaceId(workspaceId);
-    const nodes = {};
-    for (const [id, node] of Object.entries(this._nodes)) {
-      if (normalizeWorkspaceId(node.workspaceId) === scope) {
-        nodes[id] = cloneNodeRecord(node);
-      }
-    }
-    return nodes;
-  }
-
-  addNode(id, label, provenance = null, opts = {}) {
-    const now = Date.now();
-    const isoNow = nowIso();
-    const hasExplicitProvenance = provenance && typeof provenance === 'object';
+  addNode(id, label = id, provenance = null, opts = {}) {
     const workspaceId = normalizeWorkspaceId(opts.workspaceId || provenance?.workspaceId);
     const storageKey = nodeStorageKey(id, workspaceId);
-    if (this._db && this._stmts) {
-      // SQLite path
-      const existing = this._stmts.getNode.get(id, workspaceId);
-      const vector = existing ? existing.vector : '{}';
-      const createdAt = existing && existing.created_at ? existing.created_at : isoNow;
-      const existingProvenance = JSON.parse((existing && existing.provenance) || 'null');
-      const nextProvenance = hasExplicitProvenance ? provenance : existingProvenance;
-      this._stmts.upsertNode.run(id, workspaceId, label, 0.5, now, createdAt, now, isoNow, vector, JSON.stringify(nextProvenance ?? null));
-      // In-memory sync
-      if (this._nodes[storageKey] && normalizeWorkspaceId(this._nodes[storageKey].workspaceId) === workspaceId) {
-        this._nodes[storageKey].label = label;
-        this._nodes[storageKey].workspaceId = workspaceId;
-        this._nodes[storageKey].weight = Math.min(1, this._nodes[storageKey].weight + 0.1);
-        this._nodes[storageKey].lastAccessed = now;
-        this._nodes[storageKey].lastSeen = isoNow;
-        this._nodes[storageKey].last_seen = isoNow;
-        if (hasExplicitProvenance) this._nodes[storageKey].provenance = deepClone(provenance);
-      } else {
-        this._nodes[storageKey] = {
-          id, label, tags: [], vector: {}, weight: 0.5, workspaceId,
-          created: now, created_at: createdAt, lastAccessed: now,
-          lastSeen: isoNow, last_seen: isoNow,
-          provenance: nextProvenance ?? null,
-        };
-      }
+    const now = Date.now();
+    const existing = this._nodes[storageKey] || (workspaceId === 'default' ? this._nodes[id] : null);
+    const createdAt = opts.createdAt || (existing && existing.created_at) || nowIso();
+    const lastSeen = opts.lastSeen || opts.updatedAt || nowIso();
+    const hasExplicitProvenance = provenance && typeof provenance === 'object';
+    if (existing) {
+      existing.label = label;
+      existing.weight = Math.min(1, existing.weight + 0.1);
+      existing.lastAccessed = now;
+      existing.lastSeen = lastSeen;
+      existing.last_seen = lastSeen;
+      if (hasExplicitProvenance) existing.provenance = deepClone(provenance);
+      existing.workspaceId = workspaceId;
     } else {
-      if (this._nodes[storageKey] && normalizeWorkspaceId(this._nodes[storageKey].workspaceId) === workspaceId) {
-        this._nodes[storageKey].label = label;
-        this._nodes[storageKey].workspaceId = workspaceId;
-        this._nodes[storageKey].weight = Math.min(1, this._nodes[storageKey].weight + 0.1);
-        this._nodes[storageKey].lastAccessed = now;
-        this._nodes[storageKey].lastSeen = isoNow;
-        this._nodes[storageKey].last_seen = isoNow;
-        if (hasExplicitProvenance) this._nodes[storageKey].provenance = deepClone(provenance);
-      } else {
-        this._nodes[storageKey] = {
-          id, label, tags: [], vector: {}, weight: 0.5, workspaceId,
-          created: now, created_at: isoNow, lastAccessed: now,
-          lastSeen: isoNow, last_seen: isoNow,
-          provenance: hasExplicitProvenance ? provenance : null,
-        };
-      }
+      this._nodes[storageKey] = {
+        id, label, weight: 0.5, created: now, created_at: createdAt, lastAccessed: now,
+        lastSeen, last_seen: lastSeen, vector: {}, tags: [],
+        provenance: hasExplicitProvenance ? deepClone(provenance) : null,
+        workspaceId,
+      };
     }
-    return cloneNodeRecord(this._nodes[storageKey]);
-  }
-
-  getNode(id, workspaceId = 'default') {
-    const scope = normalizeWorkspaceId(workspaceId);
-    const storageKey = nodeStorageKey(id, scope);
-    const node = this._nodes[storageKey] || (scope === 'default' ? this._nodes[id] : null);
-    if (!node || normalizeWorkspaceId(node.workspaceId) !== scope) return null;
-    node.lastAccessed = Date.now();
+    const node = this._nodes[storageKey];
     if (this._db && this._stmts) {
-      this._stmts.touchNode.run(Date.now(), id, scope);
+      this._stmts.upsertNode.run(
+        node.id,
+        workspaceId,
+        node.label,
+        node.weight,
+        node.created,
+        node.created_at || createdAt,
+        node.lastAccessed,
+        node.lastSeen || node.last_seen || lastSeen,
+        JSON.stringify(node.vector || {}),
+        JSON.stringify(node.provenance ?? null)
+      );
     }
     return cloneNodeRecord(node);
   }
 
-  appendAuditEvent(event, opts = {}) {
-    const normalized = buildAuditEvent(event, opts);
-    this._auditEvents.push(normalized);
+  getNode(id, workspaceId = 'default') {
+    const storageKey = nodeStorageKey(id, workspaceId);
+    const node = this._nodes[storageKey] || (normalizeWorkspaceId(workspaceId) === 'default' ? this._nodes[id] : null);
+    return cloneNodeRecord(node);
+  }
+
+  touch(id, workspaceId = 'default') {
+    const storageKey = nodeStorageKey(id, workspaceId);
+    const node = this._nodes[storageKey] || (normalizeWorkspaceId(workspaceId) === 'default' ? this._nodes[id] : null);
+    if (!node) return false;
+    node.lastAccessed = Date.now();
+    if (this._db && this._stmts) {
+      this._stmts.touchNode.run(node.lastAccessed, id, normalizeWorkspaceId(workspaceId));
+    }
+    return true;
+  }
+
+  hasNode(id, workspaceId = 'default') {
+    return !!this.getNode(id, workspaceId);
+  }
+
+  appendAuditEvent(event = {}, opts = {}) {
+    const workspaceId = normalizeWorkspaceId(opts.workspaceId || event.workspaceId || opts.provenance?.workspaceId);
+    const normalized = buildAuditEvent({ ...event, workspaceId }, {
+      ...opts,
+      workspaceId,
+      provenance: opts.provenance || event.provenance,
+    });
+    const index = this._auditEvents.findIndex(item => item.auditId === normalized.auditId);
+    if (index >= 0) this._auditEvents[index] = normalized;
+    else this._auditEvents.push(normalized);
     if (this._db && this._stmts) {
       this._stmts.insertAuditEvent.run(
         normalized.auditId,
@@ -1254,106 +1246,84 @@ class Graph {
     const nodeIds = Object.keys(this._nodes).filter(id => normalizeWorkspaceId(this._nodes[id].workspaceId) === scope);
     let removedNodes = 0;
     for (const id of nodeIds) {
-      const node = this._nodes[id];
+      const storageKey = nodeStorageKey(id, scope);
+      const node = this._nodes[storageKey] || this._nodes[id];
+      if (!node) continue;
       const elapsed = (now - node.lastAccessed) / 1000;
-      const decayed = node.weight * Math.exp(-this._decayLambda * elapsed);
-      const outEdges = this.getEdges(node.id, node.workspaceId);
-      const inEdges = this.getInEdges(node.id, node.workspaceId);
-      if (decayed < 0.01 && outEdges.length === 0 && inEdges.length === 0) {
-        delete this._nodes[id];
-        if (this._db && this._stmts) this._stmts.deleteNode.run(node.id, normalizeWorkspaceId(node.workspaceId));
-        removedNodes++;
+      if (elapsed > 100 && node.weight < 0.2) {
+        if (this.removeNode(id, scope)) removedNodes++;
       }
     }
-    return { pruned, removedNodes };
+    return { prunedEdges: pruned, removedNodes };
   }
 
-  getStats() {
-    return {
-      nodes: this.nodeCount(),
-      edges: this.edgeCount(),
-      candidateClaims: this._candidateClaims.length,
-      decayLambda: this._decayLambda,
-      backend: this._db ? 'sqlite' : 'json',
-    };
-  }
-
-  // ─── Kalıcılık ────────────────────────────────────────────────────────────
-
-  _stripEmbeddings() {
-    const embeddings = {};
-    for (const [id, node] of Object.entries(this._nodes)) {
-      if (node.embedding) {
-        embeddings[id] = Array.from(node.embedding);
-        delete node.embedding;
-      }
+  exportData(workspaceId) {
+    const nodes = {};
+    for (const [storageKey, node] of Object.entries(this._nodes)) {
+      if (workspaceId && normalizeWorkspaceId(node.workspaceId) !== normalizeWorkspaceId(workspaceId)) continue;
+      nodes[storageKey] = cloneNodeRecord(node);
     }
-    return embeddings;
+    const edges = this._edges
+      .filter(e => !workspaceId || normalizeWorkspaceId(e.workspaceId) === normalizeWorkspaceId(workspaceId))
+      .map(cloneEdgeRecord);
+    const candidateClaims = this._candidateClaims
+      .filter(candidate => !workspaceId || normalizeWorkspaceId(candidate.workspaceId) === normalizeWorkspaceId(workspaceId))
+      .map(candidate => deepClone(candidate));
+    const auditEvents = this.getAuditEvents(workspaceId ? { workspaceId } : {});
+    return { nodes, edges, candidateClaims, auditEvents };
   }
 
-  _restoreEmbeddings(embeddings) {
-    for (const [id, vec] of Object.entries(embeddings)) {
-      if (this._nodes[id]) {
-        this._nodes[id].embedding = new Float64Array(vec);
-      } else {
-        const [workspaceId, nodeId] = id.includes('::') ? id.split('::') : ['default', id];
-        const storageKey = nodeStorageKey(nodeId, workspaceId);
-        if (this._nodes[storageKey]) {
-          this._nodes[storageKey].embedding = new Float64Array(vec);
-        }
-      }
+  importData(data, workspaceId = 'default') {
+    const targetWorkspace = normalizeWorkspaceId(workspaceId);
+    this._nodes = {};
+    for (const [key, rawNode] of Object.entries(data.nodes || {})) {
+      const node = normalizeNodeRecord({ ...rawNode, workspaceId: rawNode.workspaceId || targetWorkspace }, key);
+      this._nodes[nodeStorageKey(node.id, node.workspaceId)] = node;
     }
+    this._edges = (data.edges || []).map(edge => normalizeLoadedEdge({
+      ...edge,
+      workspaceId: edge.workspaceId || targetWorkspace,
+    }));
+    this._candidateClaims = (data.candidateClaims || data.candidate_claims || []).map(candidate => normalizeCandidateClaim({
+      ...candidate,
+      workspaceId: candidate.workspaceId || targetWorkspace,
+    }));
+    this._auditEvents = (data.auditEvents || data.audit_log || []).map(event => normalizeAuditEvent({
+      ...event,
+      workspaceId: event.workspaceId || targetWorkspace,
+    }));
+    this._rebuildIndex();
   }
 
   save() {
-    this.prune();
-    const embeddings = this._stripEmbeddings();
+    // Embedding'leri geçici çıkar (JSON'u şişirmesin)
+    const embeddings = {};
+    for (const [id, node] of Object.entries(this._nodes)) {
+      if (node.embedding) {
+        embeddings[id] = node.embedding;
+        delete node.embedding;
+      }
+    }
 
     if (this._db && this._stmts) {
-      // SQLite: toplu yazma (transaction)
+      // SQLite'a kaydet
       const saveAll = this._db.transaction(() => {
         for (const node of Object.values(this._nodes)) {
-          this._db.prepare(`
-            INSERT INTO nodes (id, workspace_id, label, weight, created, created_at, last_accessed, last_seen, vector, provenance)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(workspace_id, id) DO UPDATE SET
-              workspace_id = excluded.workspace_id,
-              label = excluded.label,
-              weight = excluded.weight,
-              last_accessed = excluded.last_accessed,
-              last_seen = excluded.last_seen,
-              vector = excluded.vector,
-              provenance = excluded.provenance
-          `).run(
-            node.id, normalizeWorkspaceId(node.workspaceId), node.label, node.weight,
+          this._stmts.upsertNode.run(
+            node.id,
+            normalizeWorkspaceId(node.workspaceId),
+            node.label,
+            node.weight,
             node.created,
-            node.created_at || nowIso(),
+            node.created_at || '',
             node.lastAccessed,
-            node.last_seen || node.lastSeen || nowIso(),
+            node.lastSeen || node.last_seen || '',
             JSON.stringify(node.vector || {}),
             JSON.stringify(node.provenance ?? null)
           );
         }
         for (const edge of this._edges) {
-        this._db.prepare(`
-          INSERT INTO edges (workspace_id, from_id, to_id, relation, weight, confidence, source, source_ref, session_id, evidence, evidence_type, confidence_history, company_mode, source_type, updated_at, created_at, provenance, meta, created)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(workspace_id, from_id, to_id, relation) DO UPDATE SET
-              workspace_id = excluded.workspace_id,
-              weight = excluded.weight,
-              confidence = excluded.confidence,
-              source = excluded.source,
-              source_ref = excluded.source_ref,
-              session_id = excluded.session_id,
-              evidence = excluded.evidence,
-              evidence_type = excluded.evidence_type,
-              confidence_history = excluded.confidence_history,
-              company_mode = excluded.company_mode,
-              source_type = excluded.source_type,
-              updated_at = excluded.updated_at,
-              provenance = excluded.provenance,
-              meta = excluded.meta
-          `).run(
+          this._stmts.upsertEdge.run(
             normalizeWorkspaceId(edge.workspaceId),
             edge.from,
             edge.to,
@@ -1368,27 +1338,29 @@ class Graph {
             JSON.stringify(edge.confidence_history || []),
             edge.company_mode ? 1 : 0,
             edge.source_type || '',
-            edge.updated_at || nowIso(),
-            edge.created_at || nowIso(),
+            edge.updated_at || '',
+            edge.created_at || '',
             JSON.stringify(edge.provenance ?? null),
             JSON.stringify(edge.meta ?? {}),
-            edge.created
+            edge.created,
+            edge.strength ?? 0.5
           );
         }
         for (const candidate of this._candidateClaims) {
+          const normalized = normalizeCandidateClaim(candidate);
           this._stmts.upsertCandidateClaim.run(
-            candidate.candidateId,
-            normalizeWorkspaceId(candidate.workspaceId),
-            candidate.claim || '',
-            JSON.stringify(candidate.proposedEdge ?? null),
-            JSON.stringify(candidate.provenance ?? null),
-            JSON.stringify(candidate.conflict ?? null),
-            candidate.recommendation || 'accept',
-            candidate.status || 'pending',
-            candidate.createdAt || nowIso(),
-            candidate.reviewedAt || '',
-            candidate.reviewedBy || '',
-            JSON.stringify(candidate.warnings || []),
+            normalized.candidateId,
+            normalizeWorkspaceId(normalized.workspaceId),
+            normalized.claim || '',
+            JSON.stringify(normalized.proposedEdge ?? null),
+            JSON.stringify(normalized.provenance ?? null),
+            JSON.stringify(normalized.conflict ?? null),
+            normalized.recommendation || 'accept',
+            normalized.status || 'pending',
+            normalized.createdAt || '',
+            normalized.reviewedAt || '',
+            normalized.reviewedBy || '',
+            JSON.stringify(normalized.warnings || []),
           );
         }
         for (const event of this._auditEvents) {
