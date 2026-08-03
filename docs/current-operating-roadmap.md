@@ -182,6 +182,7 @@ The implementation deliberately does **not** provide:
 
 - a public configuration schema or deployment source;
 - server composition, hot reload or a multi-client registry;
+- trusted clock or durable replay ownership;
 - a registered route, mutation or receipt writer;
 - package allowlist or published npm exposure;
 - a universal Authority-0 roster limit.
