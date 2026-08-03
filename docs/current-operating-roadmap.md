@@ -40,82 +40,178 @@ every client, connector, receipt family or mutation path.
 | #185 / #186 | Enablement-0 use-case decision and staged authorization | Mandatory successor order is fixed; no runtime gate is collapsed or implemented |
 | #187 / #188 | Identity/Trust Config-0 scope and trusted-key roster recovery | Contract only; no materializer, server loader, route, replay, mutation or receipt writer exists |
 | #189 / #190 | Identity/Trust Config-0 checkpoint reconciliation and pure bounded materializer | Internal materialization exists; no server wiring, deployment source, durable replay, route, mutation, receipt or package exposure |
-| #191 / #192 | Identity/Trust Config-0 implementation reconciliation and Durable Replay-0 authorization | Dedicated SQLite contract is locked; no replay runtime, wiring, route, mutation or receipt effect exists |
+| #191 / #192 | Identity/Trust Config-0 implementation reconciliation and Durable Replay-0 authorization | Dedicated SQLite ownership contract is locked; no replay runtime, wiring, route, mutation or receipt effect exists |
 
 ## Closed receipt trust-root foundation
 
-RTR-3, RTR-3A, RTR-4 and RTR-5 establish deterministic V2 construction,
-version-aware reads and export, historical V1 byte/hash preservation,
-family-scoped SQLite lineage, adversarial migration proof and a production V2
-write guard. The closed foundation still does **not** provide an authoritative
-production V2 writer, durable production V2 issuance, historical V1 trust-root
-backfill or a universal receipt-family registry.
+RTR-3, RTR-3A, RTR-4 and RTR-5 establish:
+
+- deterministic canonical V2 construction and exact validation;
+- exactly `local_operator` and `external_verified_client` trust roots;
+- version-aware materialized reads and export verification;
+- historical V1 canonical payload, byte, hash, chain and bundle preservation;
+- V1 to V2 chronology validation without predecessor rewrite or rehash;
+- V2 to V1 downgrade, unsupported schema and invalid trust-root rejection;
+- mixed-family V4 export refusal;
+- a durable-write guard that rejects production V2 writes;
+- bounded internal `receipt_family` metadata with exactly `v4` and `non-v4`;
+- atomic legacy SQLite family backfill from stored canonical payloads;
+- typed fail-closed migration integrity errors without silent JSON fallback;
+- predecessor selection scoped by both workspace and derived family;
+- adversarial real-SQLite migration, malformed-metadata, isolation, replay,
+  rollback and continued-V2-refusal evidence;
+- fail-closed materialized readers and V1/V2 export verification without partial
+  evidence or input mutation;
+- an exact-main source/test/CI closeout report with separate foundation and
+  production-readiness verdicts;
+- unchanged public committed-receipt shape.
+
+The closed foundation still does **not** provide:
+
+- an authoritative production V2 trust-root writer;
+- durable production V2 receipt creation;
+- historical V1 trust-root classification or backfill;
+- a universal receipt-family or trust-root registry.
 
 ## Closed Endpoint-0 contract
 
-Endpoint-0 reserves `POST /api/external-client/packages/admit`, parses exact
-`disabled | requested` configuration and proves `server.js` remains unaware of
-the route. It deliberately provides no reachable endpoint, transport identity,
-trusted-key loading, replay owner, mutation, receipt effect or V2 writer.
+Endpoint-0 now provides:
 
-## Closed Authority-0 and Adversarial-0 boundary
+- immutable contract version `external-client-endpoint-0-v1`;
+- reserved method and path `POST /api/external-client/packages/admit`;
+- explicit configuration key `AXIOM_EXTERNAL_CLIENT_ENDPOINT_ENABLED`;
+- exact `disabled | requested` configuration parsing;
+- fail-closed `EXTERNAL_CLIENT_ENDPOINT_CONFIG_INVALID` handling;
+- inherited, accessor-backed and malformed configuration resistance;
+- a frozen null-prototype descriptor;
+- static proof that `server.js` has no route, contract import, package-gate
+  import or `admitExternalPackage` call.
 
-Authority-0 snapshots exact client identity, workspace, permission and key
-scope, verifies signed-package freshness against a trusted clock and requires an
-atomic replay reservation before downstream handling. Adversarial-0 proves
-fail-closed scope, time, side-effect, hostile replay-result and concurrent
-duplicate boundaries. Neither gate provides a reachable route, concrete durable
-replay store, mutation, receipt writer or external interoperability.
+Endpoint-0 deliberately does **not** provide:
+
+- a reachable or enabled external-client route;
+- production client identity or authentication;
+- authoritative workspace mapping;
+- trusted-key loading, revocation or route-level package admission;
+- freshness or replay enforcement;
+- mutation, approval, audit or receipt effects;
+- production V2 writer ownership.
+
+A `requested` configuration state leaves every route, authority, freshness,
+replay, mutation and writer-readiness bit false.
+
+## Closed Authority-0 boundary
+
+Authority-0 now provides an unreachable in-process admission boundary that:
+
+- snapshots exact client identity, authoritative workspace scope, permissions
+  and trusted-key authority;
+- binds the reviewed signed-package bytes and expected trusted-key scope;
+- enforces signed-package freshness against a trusted clock and trusted-key
+  validity;
+- requires atomic replay reservation before handler execution;
+- keeps SDK package admission fail-closed when authority configuration is
+  absent, malformed or incomplete;
+- preserves thin SDK orchestration and adds no server route.
+
+Authority-0 deliberately does **not** provide:
+
+- a reachable external-client endpoint or HTTP identity extraction;
+- a concrete durable replay-store implementation;
+- Graph, Kernel, memory, approval, audit or receipt mutation;
+- production V2 receipt writing or trust-root ownership;
+- public configuration rollout or external interoperability proof.
+
+## Closed Adversarial-0 boundary
+
+Adversarial-0 now proves:
+
+- rejected package, identity, workspace, key-scope, key-validity and freshness
+  cases do not reach replay reservation, admission handlers or Kernel fallback;
+- exact key-validity and signed-package freshness boundaries remain inclusive,
+  with one-millisecond freshness overruns rejected;
+- hostile replay-owner results use bounded errors and cannot invoke downstream
+  admission;
+- two concurrent admissions for identical signed evidence produce exactly one
+  allow and one replay rejection under the existing atomic-owner contract;
+- replay evidence is deterministic, frozen, secret-free and limited to the
+  existing Authority-0 fields;
+- Endpoint-0 `requested` configuration does not infer package authority.
+
+Adversarial-0 deliberately does **not** provide a reachable route, concrete
+durable replay store, distributed locking, Graph or Kernel mutation, approval,
+audit, receipt writing, production V2 writer ownership or external
+interoperability.
 
 ## Closed Enablement-0 authorization sequence
 
 Enablement-0 fixes the following mandatory order and forbids collapsing it:
 
-1. `EXTERNAL_CLIENT_IDENTITY_TRUST_CONFIG_0`;
-2. `EXTERNAL_CLIENT_DURABLE_REPLAY_0`;
-3. `EXTERNAL_CLIENT_MUTATION_RECEIPT_OWNER_0`;
-4. `EXTERNAL_CLIENT_HTTP_ADAPTER_0`;
-5. `EXTERNAL_CLIENT_ROUTE_ADVERSARIAL_0`;
-6. `EXTERNAL_CLIENT_ENABLEMENT_0_CLOSEOUT_AUDIT`.
+1. Identity/Trust Config-0;
+2. Durable Replay-0;
+3. Mutation and Receipt Owner-0;
+4. thin HTTP Adapter-0;
+5. Route Adversarial-0;
+6. Enablement-0 closeout audit.
 
-The route remains absent until every predecessor closes green. Requested
-configuration never implies reachability, authority, replay protection,
-mutation permission or writer readiness.
+The route remains absent until every required predecessor closes green. A
+requested configuration value does not imply reachability, authority, replay
+protection, mutation permission or receipt-writer readiness.
 
 ## Closed Identity/Trust Config-0 implementation
 
-The merged materializer provides:
+The merged materializer now provides:
 
-- exact profile version, identity, workspace, package and `package:admit` scope;
-- exact 44-byte Ed25519 public SPKI DER loading with visible-byte copying;
-- frozen public KeyObjects and immutable secret-free output;
-- exact singleton key scopes and canonical validity intervals;
-- one steady-state key or exactly two restart-rotation keys;
-- fail-closed malformed, hostile, zero-key and three-or-more-key input;
-- compatibility with the existing Authority-0 snapshot boundary; and
-- no environment, filesystem, network, clock or module-global mutable registry.
+- one exact internal profile version `external-client-trust-config-0-v1`;
+- exact identity subject and kind, workspace, package and the single
+  `package:admit` permission;
+- exact 44-byte `Buffer` or `Uint8Array` Ed25519 public SPKI DER loading;
+- defensive visible-byte copying and a frozen public Ed25519 `crypto.KeyObject`;
+- exact singleton key scopes matching the profile root;
+- canonical validity intervals and `revoked: false` only;
+- one steady-state active key or exactly two old/new restart-rotation keys;
+- fail-closed zero-key, three-or-more-key, malformed, inherited,
+  accessor-backed, non-enumerable, symbol and Proxy-hostile input;
+- immutable, deterministic and secret-free output without input aliasing;
+- compatibility with the existing Authority-0 snapshot boundary;
+- no environment, filesystem, network, system-clock or module-global mutable
+  registry.
 
-It deliberately provides no public configuration source, server composition,
-durable replay owner, route, mutation, receipt writer or package export.
+The implementation deliberately does **not** provide:
+
+- a public configuration schema or deployment source;
+- server composition, hot reload or a multi-client registry;
+- trusted clock or durable replay ownership;
+- a registered route, mutation or receipt writer;
+- package allowlist or published npm exposure;
+- a universal Authority-0 roster limit.
+
+PR #190 passed the isolated `17/17` materializer matrix and the complete runtime
+suite with `377/377` tests. Security Checks, benchmark and Docker jobs passed.
+Two candidate defects were caught and corrected before merge: output fields
+that violated Authority-0's exact trusted-key shape and a module-level mutable
+error-classification registry.
 
 ## Closed Durable Replay-0 authorization
 
-The authorization selects one dedicated internal SQLite owner and binds:
+The authorization binds one dedicated internal SQLite owner with:
 
-- exact Authority-supplied replay records and trusted `reservedAt` / `expiresAt`;
-- one dedicated `external_client_replay_reservations` table and expiry index;
-- an immediate atomic write transaction before same-key inspection;
+- the exact Authority-supplied replay record and trusted `reservedAt` and
+  `expiresAt` values;
+- a dedicated `external_client_replay_reservations` table and expiry index;
+- WAL mode, `synchronous = FULL`, foreign keys and bounded busy timeout;
+- one immediate SQLite write transaction before same-key inspection;
 - exact frozen `{ reserved: true }` and `{ reserved: false }` results;
-- expiry replacement at `existing.expiresAt <= incoming.reservedAt`;
-- WAL, `synchronous = FULL`, bounded busy timeout and existing bounded
-  `SQLITE_BUSY` / `SQLITE_LOCKED` retry helpers;
-- restart, exact-expiry, same-process and cross-process concurrency evidence;
-- incompatible-schema, corrupt-database, rollback and close-state refusal; and
+- expiry replacement when `existing.expiresAt <= incoming.reservedAt`;
+- reuse only of the existing bounded `SQLITE_BUSY` / `SQLITE_LOCKED` helpers;
+- restart, exact-expiry, rollback, same-process and cross-process evidence;
+- fail-closed incompatible schema, corrupt database and closed-owner behavior;
+- no existing-row evidence leak and no read/list/export API; and
 - an exact two-file implementation scope.
 
-The owner must not reuse Graph journal, MemoryStore, viewer sessions, JSON or
-process memory. It reads no system time, returns no existing-row evidence and
-adds no read/list/export API.
+The authorization rejects Graph journal, MemoryStore, viewer sessions, JSON and
+process-memory replay ownership. It authorizes no system time, route, mutation,
+receipt, package or deployment behavior.
 
 ## Current authorization state
 
@@ -145,12 +241,12 @@ closed.
 Implement and adversarially prove the dedicated SQLite atomic replay owner.
 Required evidence includes persistence across reopen, trusted-time expiry,
 one-process and cross-process exactly-once reservation, bounded lock retry,
-rollback and incompatible-schema refusal.
+rollback, incompatible-schema refusal and exact Authority result compatibility.
 
 ### 2. Durable Replay-0 post-merge reconciliation
 
-Record exact source, test and CI evidence before opening mutation and receipt
-ownership.
+Record exact source, targeted test, full-regression, CI and post-merge evidence
+before opening mutation and receipt ownership.
 
 ### 3. External Client Mutation and Receipt Owner-0
 
@@ -205,17 +301,19 @@ before any completion statement.
 
 ## Explicit non-goals
 
-- No reachable external-client route in this reconciliation or replay gate.
+- No reachable external-client route in this reconciliation or Durable Replay-0
+  implementation.
 - No process-memory or JSON replay fallback.
-- No Graph journal or MemoryStore replay ownership.
+- No Graph journal, MemoryStore or viewer-session replay ownership.
+- No system-time-derived replay TTL or expiry.
 - No mutation or receipt ownership inside Durable Replay-0.
 - No production V2 writer or trust-root owner selection.
 - No historical receipt rewrite, rehash or trust-root backfill.
 - No caller-controlled replay table, TTL, cleanup policy, identity, workspace,
   permission, key roster, receipt family or trust root.
-- No automatic retry after an unknown transaction outcome.
 - No public replay read/list/export API.
-- No universal external-client registry or distributed database claim.
+- No automatic retry after an unknown transaction outcome.
+- No universal external-client registry or distributed-database claim.
 - No V4-complete, V5-complete, universal-truth or universal-coverage claim.
 - No release, deployment, package-version or dependency change.
 
