@@ -44,6 +44,9 @@ start from the exact post-merge `main` produced by this authorization PR.
 11. Durable Replay-0 is an independent reservation owner. Replay reservation
     does not select a mutation, receipt writer or successful application
     outcome.
+12. `lib/receipt/v4-receipt-family.js` is included in the published package.
+    It must not gain a dependency on an implementation-only file that is absent
+    from the package artifact.
 
 ## Binding First Mutation Decision
 
@@ -156,21 +159,29 @@ review state, not committed mutation.
 
 ## Narrow V2 Durable-Write Authorization
 
-Global V2 production writing remains closed. The implementation may add one
-internal, unexported capability that authorizes only the receipt contract above.
+Global V2 production writing remains closed. The existing V4 durable-write
+guard may recognize only the exact structural contract above when it receives
+the authoritative mutation operation ID from `Graph.runMutationOnce()`.
 
-The capability must:
+The narrow authorization must require all of these simultaneously:
 
-- be created only after exact package, authority, candidate and receipt
-  validation;
-- be bound to the exact operation ID, receipt ID, workspace, package hash,
-  receipt kind, V2 schema and `external_verified_client` trust root;
-- use a private immutable marker rather than a mutable global registry;
-- be consumed by the existing V4 durable-write guard immediately before chain
-  append/database insertion;
-- fail closed when absent, copied, malformed, mismatched or reused for another
-  payload;
-- remain outside the npm package files list and public API.
+- operation ID has the exact
+  `external-client-candidate-claim:external-client-authority-0-v1:` lineage;
+- payload schema is exactly `v4-receipt-v2`;
+- trust root is exactly `external_verified_client`;
+- receipt kind, verdict, decision and status equal the exact contract above;
+- payload `admissionId` and metadata operation ID equal the transaction
+  operation ID;
+- workspace, package hash, receipt ID, mutation kind and local candidate ID are
+  non-empty and internally consistent;
+- payload passes the existing exact canonical V2 validator;
+- unknown, inherited, accessor-backed, symbol or extra fields fail closed.
+
+This is not a caller-supplied bypass flag or a generic capability. It is one
+fixed source-level policy recognized by the already-published guard module.
+`graph.js` may pass only the existing normalized operation ID to the guard.
+No new helper module, package-file entry, module export or public API is
+permitted.
 
 All other V2-or-later V4 writes must continue to fail with
 `V4_RECEIPT_V2_WRITE_NOT_ENABLED`.
@@ -208,17 +219,17 @@ Only these files are authorized:
 ```text
 lib/external-client-mutation-receipt-owner.js
 lib/external-client-mutation-receipt-owner.test.js
-lib/external-client-v2-write-authorization.js
 lib/receipt/v4-receipt-family.js
 graph.js
 ```
 
-`graph.js` may receive only minimal capability pass-through at the existing
+`graph.js` may receive only minimal operation-ID pass-through at the existing
 receipt-guard call. It must not receive package, identity, candidate, receipt
-construction or error-mapping business logic.
+construction, structural authorization or error-mapping business logic.
 
 The new owner remains internal and must not be added to `package.json` files,
-SDK exports or any public entry point.
+SDK exports or any public entry point. No published module may import an
+unpublished implementation-only module.
 
 ## Required Adversarial Evidence
 
@@ -240,7 +251,8 @@ The implementation test owner must prove at least:
 13. external conflict, audit, receipt and recommendation authority are not
     imported;
 14. V2 receipt has exact `external_verified_client` bindings;
-15. capability absence, copying, shape mutation and payload mismatch reject;
+15. operation/payload lineage absence, mutation, mismatch and hostile shape
+    reject;
 16. unrelated V2 durable writes still return
     `V4_RECEIPT_V2_WRITE_NOT_ENABLED`;
 17. V1 and historical chain behavior remain byte/hash compatible;
@@ -248,10 +260,12 @@ The implementation test owner must prove at least:
 19. post-entry failures produce bounded unknown outcome and no automatic retry;
 20. hostile inherited, accessor, symbol, Proxy and mutation-after-call inputs
     fail closed;
-21. no server route, SDK export, package file, deployment or dependency change.
+21. npm package dry-run still contains every previously published runtime file
+    and no new owner/helper export;
+22. no server route, SDK export, package file, deployment or dependency change.
 
-Targeted tests, full `npm test`, Security Checks, Benchmark and Docker evidence
-are mandatory on the exact reviewed head.
+Targeted tests, full `npm test`, Security Checks, Benchmark, Docker and package
+dry-run evidence are mandatory on the exact reviewed head.
 
 ## Stop Conditions
 
@@ -264,9 +278,10 @@ Stop rather than widen scope if implementation requires:
 - caller-controlled local candidate, operation or receipt IDs;
 - MemoryStore, JSON or process-memory persistence;
 - a second mutation or receipt transaction;
-- a public V2 writer switch or generic caller-supplied bypass flag;
-- a mutable global capability registry;
-- package metadata or public API changes;
+- a public V2 writer switch, generic caller-supplied bypass flag or generic V2
+  capability factory;
+- a new helper dependency from a published module to an unpublished file;
+- package metadata, module exports or public API changes;
 - server, HTTP adapter, route, SDK composition or deployment changes;
 - automatic retry or compensation after unknown outcome;
 - historical V1 rewrite, rehash or trust-root backfill;
@@ -281,7 +296,8 @@ This docs gate closes only when:
 3. source inventory distinguishes package evidence, mutation authority,
    transaction ownership and receipt ownership;
 4. the one-candidate quarantine decision and rejected alternatives are explicit;
-5. the narrow V2 capability cannot be interpreted as global V2 enablement;
+5. the narrow structural V2 policy cannot be interpreted as global V2
+   enablement or a package-surface change;
 6. unknown-outcome and no-retry semantics are explicit;
 7. implementation and test files are exact;
 8. `git diff --check` and repository-required CI pass;
