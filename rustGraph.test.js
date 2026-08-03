@@ -5,8 +5,12 @@ const path = require('path');
 const fs = require('fs');
 const Graph = require('./graph');
 
-const RUST_BIN = path.join(__dirname, 'axiom-core', 'target', 'x86_64-pc-windows-gnu', 'release', 'axiom-core.exe');
-const hasRust = fs.existsSync(RUST_BIN);
+const RUST_BIN_CANDIDATES = [
+  path.join(__dirname, 'axiom-core', 'target', 'release', process.platform === 'win32' ? 'axiom-core.exe' : 'axiom-core'),
+  path.join(__dirname, 'axiom-core', 'target', 'x86_64-pc-windows-gnu', 'release', 'axiom-core.exe'),
+];
+const RUST_BIN = RUST_BIN_CANDIDATES.find(p => fs.existsSync(p));
+const hasRust = !!RUST_BIN;
 
 function rustExec(cmds) {
   return new Promise((resolve, reject) => {

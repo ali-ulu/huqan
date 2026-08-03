@@ -42,6 +42,13 @@ fn js_obj(entries: Vec<(&str, String)>) -> String {
     s
 }
 
+fn with_req_id(json: String, req_id: Option<&str>) -> String {
+    match req_id {
+        Some(rid) => format!("{{\"_reqId\":{},{}", rid, &json[1..]),
+        None => json,
+    }
+}
+
 fn js_arr(items: Vec<String>) -> String {
     let mut s = String::from('[');
     for (i, v) in items.iter().enumerate() {
@@ -327,6 +334,12 @@ fn main() {
             Some(m) => m,
             None => { println!("{}", js_obj(vec![("ok", js_bool(false)), ("error", js_string("parse_error"))])); continue; }
         };
+        let req_id = cmd.get("_reqId").cloned();
+        macro_rules! emit {
+            ($json:expr) => {
+                println!("{}", with_req_id($json, req_id.as_deref()));
+            };
+        }
 
         let result = match cmd.get("cmd").map(|s| s.as_str()).unwrap_or("") {
             "add_node" => {
@@ -420,7 +433,7 @@ fn main() {
             }
             "get_weight" => {
                 let id = cmd.get("id").cloned().unwrap_or_default();
-                let n = match nodes.get(&id) { Some(n) => n, None => { println!("{}", js_obj(vec![("ok", js_bool(false))])); continue; } };
+                let n = match nodes.get(&id) { Some(n) => n, None => { emit!(js_obj(vec![("ok", js_bool(false))])); continue; } };
                 let elapsed = (now_ms() - n.last_accessed) as f64 / 1000.0;
                 let decayed = n.weight * (-decay_lambda * elapsed).exp();
                 js_obj(vec![("ok", js_bool(true)), ("weight", js_num(decayed))])
@@ -428,8 +441,8 @@ fn main() {
             "cosine_similarity" => {
                 let a = cmd.get("a").cloned().unwrap_or_default();
                 let b = cmd.get("b").cloned().unwrap_or_default();
-                let an = match nodes.get(&a) { Some(n) => n, None => { println!("{}", js_obj(vec![("ok", js_bool(false))])); continue; } };
-                let bn = match nodes.get(&b) { Some(n) => n, None => { println!("{}", js_obj(vec![("ok", js_bool(false))])); continue; } };
+                let an = match nodes.get(&a) { Some(n) => n, None => { emit!(js_obj(vec![("ok", js_bool(false))])); continue; } };
+                let bn = match nodes.get(&b) { Some(n) => n, None => { emit!(js_obj(vec![("ok", js_bool(false))])); continue; } };
                 let dims: HashSet<&String> = an.vector.keys().chain(bn.vector.keys()).collect();
                 let (mut dot, mut ma, mut mb) = (0.0, 0.0, 0.0);
                 for d in dims {
@@ -494,12 +507,12 @@ fn main() {
                 let question = cmd.get("question").cloned().unwrap_or_default();
                 let parts: Vec<&str> = question.trim().split_whitespace().collect();
                 let subject = if parts.is_empty() { String::new() } else { parts[0].to_string() };
-                if !nodes.contains_key(&subject) { println!("{}", js_obj(vec![("ok", js_bool(true)), ("answer", js_string("Bilmiyorum"))])); continue; }
+                if !nodes.contains_key(&subject) { emit!(js_obj(vec![("ok", js_bool(true)), ("answer", js_string("Bilmiyorum"))])); continue; }
                 let mut edge_list = Vec::new();
                 if let Some(indices) = out_index.get(&subject) {
                     for &idx in indices { edge_list.push(&edges[idx]); }
                 }
-                if edge_list.is_empty() { println!("{}", js_obj(vec![("ok", js_bool(true)), ("answer", js_string("Bilmiyorum"))])); continue; }
+                if edge_list.is_empty() { emit!(js_obj(vec![("ok", js_bool(true)), ("answer", js_string("Bilmiyorum"))])); continue; }
                 edge_list.sort_by(|a, b| b.weight.partial_cmp(&a.weight).unwrap_or(std::cmp::Ordering::Equal));
                 let mut results: Vec<String> = Vec::new();
                 for e in &edge_list {
@@ -511,8 +524,8 @@ fn main() {
                         results.push(e.to.clone());
                     }
                 }
-                if results.is_empty() { println!("{}", js_obj(vec![("ok", js_bool(true)), ("answer", js_string("Bilmiyorum"))])); continue; }
-                println!("{}", js_obj(vec![("ok", js_bool(true)), ("answer", js_string(&format!("{} {}", subject, results.join(", "))))]));
+                if results.is_empty() { emit!(js_obj(vec![("ok", js_bool(true)), ("answer", js_string("Bilmiyorum"))])); continue; }
+                emit!(js_obj(vec![("ok", js_bool(true)), ("answer", js_string(&format!("{} {}", subject, results.join(", "))))]));
                 continue;
             }
             "stats" => {
@@ -528,6 +541,6 @@ fn main() {
             _ => js_obj(vec![("ok", js_bool(false)), ("error", js_string("unknown_command"))]),
         };
 
-        println!("{}", result);
+        emit!(result);
     }
 }
