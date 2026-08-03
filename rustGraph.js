@@ -3,7 +3,22 @@ const path = require('path');
 const fs = require('fs');
 const Graph = require('./graph');
 
-const RUST_BIN = path.join(__dirname, 'axiom-core', 'target', 'x86_64-pc-windows-gnu', 'release', 'axiom-core.exe');
+function resolveRustBin() {
+  const isWin = process.platform === 'win32';
+  const exeName = isWin ? 'axiom-core.exe' : 'axiom-core';
+  const candidates = [
+    // Native build (cargo build --release, no explicit --target).
+    path.join(__dirname, 'axiom-core', 'target', 'release', exeName),
+    // Windows cross/GNU-toolchain build (see axiom-core/build.ps1).
+    path.join(__dirname, 'axiom-core', 'target', 'x86_64-pc-windows-gnu', 'release', 'axiom-core.exe'),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return candidates[0];
+}
+
+const RUST_BIN = resolveRustBin();
 
 class RustGraph {
   constructor(opts) {
@@ -50,16 +65,16 @@ class RustGraph {
       if (!line.trim()) continue;
       let parsed;
       try { parsed = JSON.parse(line); } catch { continue; }
-      const id = parsed.id;
-      if (id != null && this._pending.has(id)) {
-        this._pending.get(id)(parsed);
-        this._pending.delete(id);
+      const reqId = parsed._reqId;
+      if (reqId != null && this._pending.has(reqId)) {
+        this._pending.get(reqId)(parsed);
+        this._pending.delete(reqId);
       }
     }
   }
 
   _rejectAll() {
-    for (const [id, cb] of this._pending) { cb({ ok: false, error: 'process_exited' }); }
+    for (const [reqId, cb] of this._pending) { cb({ ok: false, error: 'process_exited' }); }
     this._pending.clear();
   }
 
@@ -70,9 +85,9 @@ class RustGraph {
         resolve(this._fallback);
         return;
       }
-      const id = this._nextId++;
-      cmd.id = id;
-      this._pending.set(id, resolve);
+      const reqId = this._nextId++;
+      cmd._reqId = reqId;
+      this._pending.set(reqId, resolve);
       this._proc.stdin.write(JSON.stringify(cmd) + '\n');
     });
   }
@@ -185,12 +200,16 @@ class RustGraph {
     return res.answer;
   }
 
-  save() {
+  async save(memPath) {
     if (this._fallback) { this._fallback.save(); return; }
+    const res = await this._send({ cmd: 'save', path: memPath || this.memoryPath });
+    return res && res.ok;
   }
 
-  load() {
+  async load(memPath) {
     if (this._fallback) { this._fallback.load(); return; }
+    const res = await this._send({ cmd: 'load', path: memPath || this.memoryPath });
+    return res && res.ok;
   }
 
   destroy() {
@@ -204,3 +223,4 @@ class RustGraph {
 }
 
 module.exports = RustGraph;
+module.exports.resolveRustBin = resolveRustBin;

@@ -5,8 +5,12 @@ const path = require('path');
 const fs = require('fs');
 const Graph = require('./graph');
 
-const RUST_BIN = path.join(__dirname, 'axiom-core', 'target', 'x86_64-pc-windows-gnu', 'release', 'axiom-core.exe');
-const hasRust = fs.existsSync(RUST_BIN);
+const RUST_BIN_CANDIDATES = [
+  path.join(__dirname, 'axiom-core', 'target', 'release', process.platform === 'win32' ? 'axiom-core.exe' : 'axiom-core'),
+  path.join(__dirname, 'axiom-core', 'target', 'x86_64-pc-windows-gnu', 'release', 'axiom-core.exe'),
+];
+const RUST_BIN = RUST_BIN_CANDIDATES.find(p => fs.existsSync(p));
+const hasRust = !!RUST_BIN;
 
 function rustExec(cmds) {
   return new Promise((resolve, reject) => {
@@ -154,5 +158,51 @@ describe('RustGraph - JS ile Karşılaştırma', { skip: !hasRust }, () => {
     ]);
     assert.strictEqual(res[0].ok, true);
     assert.strictEqual(res[0].answer, 'Bilmiyorum');
+  });
+
+  it('batch: birden fazla komutu tek seferde çalıştırır', async () => {
+    const res = await rustExec([
+      { cmd: 'add_node', id: 'toplu1', label: 'toplu1' },
+      {
+        cmd: 'batch',
+        commands: [
+          { cmd: 'add_node', id: 'toplu2', label: 'toplu2' },
+          { cmd: 'add_edge', from: 'toplu1', to: 'toplu2', relation: 'tür' },
+          { cmd: 'get_edges', id: 'toplu1' },
+        ],
+      },
+    ]);
+    assert.strictEqual(res[0].ok, true);
+    assert.strictEqual(res[1].ok, true);
+    assert.strictEqual(res[1].results.length, 3);
+    assert.strictEqual(res[1].results[0].ok, true);
+    assert.strictEqual(res[1].results[1].ok, true);
+    assert.strictEqual(res[1].results[2].edges.length, 1);
+  });
+
+  it('save + load: kalıcılık aynı süreç dışında korunur', async () => {
+    const tmpPath = path.join(__dirname, `.rustgraph-test-${Date.now()}.json`);
+    try {
+      const saveRes = await rustExec([
+        { cmd: 'add_node', id: 'kalici', label: 'kalici' },
+        { cmd: 'add_node', id: 'hedef', label: 'hedef' },
+        { cmd: 'add_edge', from: 'kalici', to: 'hedef', relation: 'tür' },
+        { cmd: 'save', path: tmpPath },
+      ]);
+      assert.strictEqual(saveRes[3].ok, true);
+      assert.ok(fs.existsSync(tmpPath));
+
+      const loadRes = await rustExec([
+        { cmd: 'load', path: tmpPath },
+        { cmd: 'stats' },
+        { cmd: 'get_edges', id: 'kalici' },
+      ]);
+      assert.strictEqual(loadRes[0].ok, true);
+      assert.strictEqual(loadRes[1].stats.nodes, 2);
+      assert.strictEqual(loadRes[1].stats.edges, 1);
+      assert.strictEqual(loadRes[2].edges[0].to, 'hedef');
+    } finally {
+      fs.rmSync(tmpPath, { force: true });
+    }
   });
 });
