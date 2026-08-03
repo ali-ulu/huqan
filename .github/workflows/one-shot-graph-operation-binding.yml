@@ -1,0 +1,54 @@
+name: One-shot graph operation binding
+
+on:
+  push:
+    branches:
+      - feat/external-client-mutation-receipt-owner-0
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/external-client-mutation-receipt-owner-0
+          fetch-depth: 0
+      - name: Verify and apply exact patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_blob='4d212818c081a3959d1a97bb3d8fec91d7e54979'
+          actual_blob="$(git hash-object graph.js)"
+          test "$actual_blob" = "$expected_blob"
+          python <<'PY'
+          from pathlib import Path
+          path = Path('graph.js')
+          text = path.read_text(encoding='utf-8')
+          old = '          assertDurableV4WriteAllowed(payload);'
+          new = '          assertDurableV4WriteAllowed(payload, { operationId: id });'
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one exact guard call, found {text.count(old)}')
+          if new in text:
+              raise SystemExit('bounded guard call already present')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+          rm -f .github/workflows/one-shot-graph-operation-binding.yml
+          rm -f .github/one-shot-graph-operation-binding.trigger
+          test "$(git diff --numstat -- graph.js)" = $'1\t1\tgraph.js'
+          git diff --check
+      - name: Commit exact tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'huqan-automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add graph.js .github/workflows/one-shot-graph-operation-binding.yml
+          if test -e .github/one-shot-graph-operation-binding.trigger || git ls-files --error-unmatch .github/one-shot-graph-operation-binding.trigger >/dev/null 2>&1; then
+            git add -A .github/one-shot-graph-operation-binding.trigger
+          fi
+          git commit -m 'feat: bind receipt guard to mutation operation'
+          git push origin HEAD:feat/external-client-mutation-receipt-owner-0
