@@ -1,7 +1,7 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`8b37716655a6516dfe834696f8f6793cc63ed78c` (PR #194 merge).
+`a8901e0c77b9c40754b4ea031ea33d2917a193d7` (PR #196 merge).
 
 This is the execution-order source for current runtime work. It is not a
 release claim and it does not replace architecture ADRs. When this file
@@ -13,11 +13,12 @@ wins.
 HUQAN is a **local-first partial trust layer** with real graph, verification,
 gate, provenance, approval, audit, receipt, immutable-source, signed-package,
 default-closed endpoint-contract, bounded external-client trust-profile
-materialization and a dedicated durable replay-reservation primitive. It is not
-yet a fully inline trust control plane for every client, connector, receipt
-family or mutation path.
+materialization and a dedicated durable replay-reservation primitive. A bounded
+external-client candidate-quarantine mutation and receipt contract is now
+authorized but not implemented. HUQAN is not yet a fully inline trust control
+plane for every client, connector, receipt family or mutation path.
 
-## Reconciled sequence through Durable Replay-0 implementation
+## Reconciled sequence through Mutation/Receipt Owner-0 authorization
 
 | Merged PR(s) | Closed boundary | Deliberate limit |
 | --- | --- | --- |
@@ -29,7 +30,7 @@ family or mutation path.
 | #153 / #154 | Signed external-client package gate and SDK admission boundary | No production endpoint or caller authority mapping |
 | #156 / #157 | Trust-root boundaries and receipt schema evolution | Contracts only; no production V2 writer |
 | #158 / #160 | Receipt trust-root test scope and fixture corpus | Structural fixtures do not enable V2 writes |
-| #161 / #162 | Version-aware receipt foundation and runtime implementation | Production V2 durable writes remain fail-closed |
+| #161 / #162 | Version-aware receipt foundation and runtime implementation | Global production V2 durable writes remain fail-closed |
 | #164 / #165 | RTR-3A authorization and durable family-scoped SQLite lineage | Internal family metadata does not select or enable a production V2 writer |
 | #167 / #168 | RTR-4 authorization and adversarial migration/compatibility proof | Test-only hardening does not select a production writer or change runtime ownership |
 | #170 / #171 | RTR-5 authorization and exact-main closeout audit | Bounded foundation closes; production issuance and endpoint authority remain blocked |
@@ -43,6 +44,7 @@ family or mutation path.
 | #189 / #190 | Identity/Trust Config-0 checkpoint reconciliation and pure bounded materializer | Internal materialization exists; no server wiring, deployment source, durable replay, route, mutation, receipt or package exposure |
 | #191 / #192 | Identity/Trust Config-0 implementation reconciliation and Durable Replay-0 authorization | Dedicated SQLite ownership contract is locked; no replay runtime, wiring, route, mutation or receipt effect exists |
 | #193 / #194 | Durable Replay-0 authorization reconciliation and dedicated SQLite implementation | Durable replay exists as an internal owner; no Authority/server wiring, route, mutation, receipt or package exposure |
+| #195 / #196 | Durable Replay post-merge reconciliation and Mutation/Receipt Owner-0 authorization | One candidate-quarantine mutation and exact V2 receipt policy are selected; no runtime owner, route, global V2 writer or package exposure exists |
 
 ## Closed receipt trust-root foundation
 
@@ -70,8 +72,8 @@ RTR-3, RTR-3A, RTR-4 and RTR-5 establish:
 
 The closed foundation still does **not** provide:
 
-- an authoritative production V2 trust-root writer;
-- durable production V2 receipt creation;
+- a global authoritative production V2 trust-root writer;
+- general durable production V2 receipt creation;
 - historical V1 trust-root classification or backfill;
 - a universal receipt-family or trust-root registry.
 
@@ -234,74 +236,102 @@ count, so this roadmap records only the observed successful jobs and does not
 invent a number. A source-first review also caught and fixed raw SQLite
 initialization-error escape before merge.
 
+## Closed Mutation/Receipt Owner-0 authorization
+
+The merged exact-base authorization selects:
+
+- exactly one verified signed package containing exactly one pending candidate
+  claim and no other embedded object collection;
+- one local workspace-scoped candidate quarantine projection with a derived
+  local ID, forced `pending` status, forced `flag` recommendation and no
+  imported external conflict authority;
+- no direct Graph node or edge mutation;
+- the existing SQLite `Graph.runMutationOnce()` boundary as the atomic owner of
+  candidate persistence, canonical receipt and completed mutation journal;
+- the operation ID
+  `external-client-candidate-claim:<Authority-0 replayKey>`;
+- a canonical `v4-receipt-v2` receipt with
+  `trustRoot: external_verified_client`, `verdict: review`,
+  `decision: review` and `status: pending`;
+- trusted `createdAt` derived from Authority-0 `reservedAt`;
+- one exact structural V2 write policy recognized by the existing published
+  V4 guard, without a generic bypass flag, new helper dependency, module export
+  or package-file change;
+- fail-closed unknown-outcome behavior with no automatic retry, second replay
+  reservation, compensation or success response.
+
+The authorization deliberately does **not** implement any of those behaviors.
+It does not enable a route, server composition, SDK export, global V2 writer,
+approval completion, direct canonical mutation, package change or public API.
+
+A source-first review rejected the first helper-capability design because the
+published V4 guard could have depended on an unpublished helper and broken the
+npm artifact. The final contract keeps package reachability unchanged and adds
+package dry-run evidence to the implementation gate.
+
 ## Current authorization state
 
-Durable Replay-0 is merged at the exact baseline above. This post-implementation
-reconciliation is docs-only and authorizes no mutation or receipt runtime
-change.
+PR #196 merged the docs-only Mutation/Receipt Owner-0 authorization at the
+exact baseline above. This reconciliation authorizes no runtime change by
+itself.
 
-After it merges and canonical `main` is re-read, the only next gate is a
-separate exact-base docs-only authorization:
+After this reconciliation merges and canonical `main` is re-read, the only
+next gate is:
 
 ```text
-EXTERNAL_CLIENT_MUTATION_RECEIPT_OWNER_0_AUTHORIZATION
+EXTERNAL_CLIENT_MUTATION_RECEIPT_OWNER_0_IMPLEMENTATION
 ```
 
-That authorization must inventory every live mutation and receipt path before
-selecting any owner. It must distinguish admitted mutation authority, durable
-transaction ownership, approval/audit effects, receipt schema/family/trust-root
-selection, unknown-outcome behavior and compensation boundaries. No production
-V2 writer, route or adapter may be inferred from replay completion.
+The exact implementation scope is:
+
+```text
+lib/external-client-mutation-receipt-owner.js
+lib/external-client-mutation-receipt-owner.test.js
+lib/receipt/v4-receipt-family.js
+graph.js
+```
+
+`graph.js` is limited to normalized operation-ID pass-through at the existing
+receipt guard. Server, SDK, endpoint, trust-config composition, replay
+composition, package metadata, dependencies and public schemas remain closed.
 
 ## Remaining execution order
 
-### 1. External Client Mutation and Receipt Owner-0 authorization
+### 1. External Client Mutation and Receipt Owner-0 implementation
 
-Create one exact-base task-pack that:
+Implement and adversarially prove only the authorized one-candidate quarantine,
+atomic Graph journal/receipt ownership, exact V2 external trust-root policy and
+unknown-outcome contract. Preserve all unrelated V2 refusal and historical V1
+byte/hash behavior. Package dry-run evidence is mandatory.
 
-- inventories live Graph, Kernel, MemoryStore, approval, audit and receipt
-  writers reachable from candidate external admission flows;
-- selects or rejects one exact admitted mutation use case;
-- identifies the authoritative durable transaction owner;
-- identifies the exact receipt owner, schema version, family and trust-root
-  policy without enabling production V2 writes implicitly;
-- defines failure, unknown-outcome, compensation and no-retry behavior;
-- locks exact implementation and adversarial test files; and
-- preserves the absent HTTP route and package surface.
+### 2. Mutation/Receipt Owner-0 post-merge reconciliation
 
-### 2. External Client Mutation and Receipt Owner-0 implementation
+Record exact source, targeted test, full-regression, CI, package dry-run and
+post-merge evidence before opening the HTTP adapter.
 
-Implement only the separately authorized owner contract. Do not combine it with
-HTTP transport or route registration.
-
-### 3. Mutation/Receipt Owner-0 post-merge reconciliation
-
-Record exact source, targeted test, full-regression, CI and post-merge evidence
-before opening the HTTP adapter.
-
-### 4. External Client HTTP Adapter-0
+### 3. External Client HTTP Adapter-0
 
 Add only a thin HTTP adapter after the preceding gates close. The adapter does
 not own trust, replay, mutation or receipt semantics.
 
-### 5. External Client Route Adversarial-0
+### 4. External Client Route Adversarial-0
 
 Prove default-closed absence, spoofing and malformed-input rejection, replay
 across restart and concurrency, no-retry behavior and mutation/receipt evidence.
 
-### 6. External Client Enablement-0 closeout
+### 5. External Client Enablement-0 closeout
 
 Audit lineage, scopes, route behavior, CI, fail-closed boundaries and non-claims
 before any completion statement.
 
-### 7. V4 open items
+### 6. V4 open items
 
 1. Workbench runtime evidence;
 2. bounded approval/action surface;
 3. receipt inspection and export/import user-flow smoke;
 4. V4 source/test/CI/release closeout.
 
-### 8. V5 ecosystem items
+### 7. V5 ecosystem items
 
 1. bounded A2A exchange;
 2. external conformance runner;
@@ -311,8 +341,10 @@ before any completion statement.
 
 ## Permanent ordering rules
 
-- Mutation and Receipt Owner-0 implementation does not start before its
-  exact-base authorization and Durable Replay-0 post-merge evidence close.
+- Mutation and Receipt Owner-0 implementation does not start before this exact
+  authorization reconciliation closes.
+- The narrow exact external candidate V2 policy must not become a generic V2
+  switch, capability factory or caller-controlled bypass.
 - Mutation and receipt ownership precede any reachable HTTP adapter.
 - Route registration remains last and requires every predecessor to close.
 - Production V2 writer ownership is not inferred from endpoint, SDK, transport,
@@ -327,20 +359,21 @@ before any completion statement.
 ## Explicit non-goals
 
 - No reachable external-client route in this reconciliation or owner
-  authorization.
-- No server composition wiring for trust config or replay in this
-  reconciliation.
-- No caller-controlled replay table, TTL, cleanup policy, identity, workspace,
-  permission, key roster, receipt family or trust root.
-- No mutation or receipt owner inferred from replay durability.
-- No production V2 writer or trust-root owner selection without an explicit
-  separately reviewed contract.
+  implementation.
+- No server composition wiring for trust config, replay or mutation owner.
+- No package containing multiple candidate claims or non-candidate embedded
+  objects in this first mutation gate.
+- No direct node/edge import or external audit, receipt, approval or conflict
+  authority import.
+- No caller-controlled local candidate, operation or receipt IDs.
+- No MemoryStore, JSON or process-memory mutation persistence.
+- No global production V2 switch, generic capability factory or public V2
+  writer API.
+- No package metadata, module export, dependency or release change.
+- No automatic retry or compensation after an unknown transaction outcome.
 - No historical receipt rewrite, rehash or trust-root backfill.
-- No automatic retry after an unknown transaction outcome.
-- No public replay read/list/export API.
 - No universal external-client registry or distributed-database claim.
 - No V4-complete, V5-complete, universal-truth or universal-coverage claim.
-- No release, deployment, package-version or dependency change.
 
 ## Operating discipline
 
