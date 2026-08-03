@@ -200,12 +200,16 @@ class RustGraph {
     return res.answer;
   }
 
-  save() {
+  async save(memPath) {
     if (this._fallback) { this._fallback.save(); return; }
+    const res = await this._send({ cmd: 'save', path: memPath || this.memoryPath });
+    return res && res.ok;
   }
 
-  load() {
+  async load(memPath) {
     if (this._fallback) { this._fallback.load(); return; }
+    const res = await this._send({ cmd: 'load', path: memPath || this.memoryPath });
+    return res && res.ok;
   }
 
   destroy() {
@@ -219,3 +223,4 @@ class RustGraph {
 }
 
 module.exports = RustGraph;
+module.exports.resolveRustBin = resolveRustBin;

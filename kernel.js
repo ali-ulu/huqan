@@ -16,8 +16,8 @@ const { toCanonicalVerdict } = require('./lib/verdict/action-verdict');
 
 let RustGraph;
 try { RustGraph = require('./rustGraph'); } catch {}
-const RUST_BIN = process.env.AXIOM_RUST_BIN || path.join(__dirname, 'axiom-core', 'target', 'x86_64-pc-windows-gnu', 'release', 'axiom-core.exe');
-const hasRust = fs.existsSync(RUST_BIN) && typeof RustGraph !== 'undefined';
+const RUST_BIN = process.env.AXIOM_RUST_BIN || (RustGraph && RustGraph.resolveRustBin ? RustGraph.resolveRustBin() : undefined);
+const hasRust = !!RUST_BIN && fs.existsSync(RUST_BIN) && typeof RustGraph !== 'undefined';
 
 const AXIOM_ERROR = Object.freeze({
   INVALID_INPUT: 'INVALID_INPUT',
