@@ -65,10 +65,6 @@ function benchJs(n) {
 }
 
 (async () => {
-  // rustGraph.js unref()s the spawned process's streams so it never keeps a
-  // long-running server process alive; in a short-lived script that means
-  // nothing holds the event loop open across an await. Keep it alive here.
-  const keepalive = setInterval(() => {}, 1000);
   console.log(`Graph benchmark: ${N} nodes, ${N - 1} edges, per-command round trips vs batched vs pure JS.\n`);
 
   const js = benchJs(N);
@@ -90,5 +86,4 @@ function benchJs(n) {
     'in-process JS graph for typical sizes — the process-spawn + stdin/stdout\n' +
     'overhead dominates. Batching commands (cmd: "batch") amortizes that\n' +
     'overhead and is the only path where the Rust engine is worth using.');
-  clearInterval(keepalive);
 })();

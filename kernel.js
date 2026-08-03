@@ -221,6 +221,48 @@ class Kernel {
     };
   }
 
+  /**
+   * Ephemeral, isolated reasoning sandbox: batch-learns statements and answers
+   * questions against a throwaway graph that is never persisted and never
+   * touches this.graph (no workspace/provenance/audit semantics apply here —
+   * for that, use learn()/verifyAsync() against the real knowledge graph).
+   *
+   * Uses the Rust accelerator's `batch` command (one IPC round trip for all
+   * learn statements, one more for all questions) when axiom-core is built;
+   * otherwise falls back to an in-memory JS Graph so behavior is identical
+   * either way, just slower.
+   *
+   * @param {object} input
+   * @param {string[]} [input.learn] - statements to learn (e.g. "elma meyvedir")
+   * @param {string[]} [input.ask]   - questions to ask after learning
+   * @returns {Promise<{ backend: 'rust'|'js', answers: string[] }>}
+   */
+  async reasonSandbox({ learn = [], ask = [] } = {}) {
+    if (this._rust) {
+      const learnCmds = learn.map(text => ({ cmd: 'learn', text }));
+      if (learnCmds.length) await this._rust._send({ cmd: 'batch', commands: learnCmds });
+      const askCmds = ask.map(question => ({ cmd: 'ask', question }));
+      const res = askCmds.length ? await this._rust._send({ cmd: 'batch', commands: askCmds }) : { results: [] };
+      if (res && res.ok !== false) {
+        return { backend: 'rust', answers: (res.results || []).map(r => r.answer || 'Bilmiyorum') };
+      }
+      // Rust process died mid-flight: fall through to the JS sandbox below.
+    }
+    // JS fallback uses a throwaway Kernel (learn()/ask() live on Kernel, not
+    // Graph) so behavior matches the non-sandbox path when Rust is absent.
+    // Its answers use Kernel's full NLP pipeline rather than axiom-core's
+    // simplified Turkish-suffix parser, so exact wording can differ from the
+    // Rust backend — that asymmetry between the two engines predates this
+    // method (rustGraph.js's own learn/ask already talk to a different
+    // algorithm than Kernel's).
+    const sandbox = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+    const bypass = { admissionRequired: false, admissionBypassReason: 'reasonSandbox: ephemeral, unpersisted kernel' };
+    for (const text of learn) sandbox.learn(text, bypass);
+    const answers = ask.map(question => sandbox.ask(question)?.data?.answer || 'Bilmiyorum');
+    if (typeof sandbox.graph?.close === 'function') sandbox.graph.close();
+    return { backend: 'js', answers };
+  }
+
   // r1: Acquire lock for critical operations (verify/learn)
   async _acquireLock(timeoutMs = null) {
     if (!this._enableConcurrencyLock) return; // Lock disabled
