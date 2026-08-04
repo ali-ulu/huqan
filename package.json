@@ -154,6 +154,7 @@
         "lib/viewer/viewer-gateway.js",
         "lib/workbench/memory-context-inspector.js",
         "lib/workbench/trust-receipt-inspector.js",
+        "lib/workbench/trust-receipt-route.js",
         "llmAdapter.js",
         "mcpServer.js",
         "nlp/index.js",
