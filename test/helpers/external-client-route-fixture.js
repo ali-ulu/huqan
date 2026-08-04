@@ -51,6 +51,18 @@ function sign(pkg, privateKey, keyId = IDS.keyId) {
   return { algorithm: 'ed25519', keyId,
     value: crypto.sign(null, Buffer.from(stableStringify(pkg), 'utf8'), privateKey).toString('base64') };
 }
+function profileInput(keys, overrides = {}) {
+  return {
+    profileVersion: EXTERNAL_CLIENT_TRUST_CONFIG_VERSION,
+    expectedIdentitySubject: IDS.identitySubject, expectedIdentityKind: IDS.identityKind,
+    expectedWorkspaceId: IDS.workspaceId, expectedPackageId: IDS.packageId,
+    permissions: ['package:admit'],
+    trustedKeys: { [IDS.keyId]: { publicKeySpkiDer: keys.publicKey.export({ format: 'der', type: 'spki' }),
+      workspaceId: IDS.workspaceId, packageIds: [IDS.packageId], identitySubjects: [IDS.identitySubject],
+      identityKinds: [IDS.identityKind], notBefore: '2026-08-04T17:00:00.000Z',
+      notAfter: '2026-08-04T19:00:00.000Z', revoked: false, ...overrides } },
+  };
+}
 function frozenSdkResult(admission) {
   return Object.freeze({ ok: true, gate: Object.freeze({ decision: 'allow' }),
     authority: Object.freeze({ decision: 'allow' }), admission });
@@ -61,24 +73,20 @@ function createRouteFixture(t, options = {}) {
   const replayPath = path.join(directory, 'replay.db');
   const graph = new Graph({ useSQLite: true, dbPath: graphPath, memoryPath: path.join(directory, 'graph.json') });
   const keys = crypto.generateKeyPairSync('ed25519');
-  const profile = materializeExternalClientTrustConfig({
-    profileVersion: EXTERNAL_CLIENT_TRUST_CONFIG_VERSION,
-    expectedIdentitySubject: IDS.identitySubject, expectedIdentityKind: IDS.identityKind,
-    expectedWorkspaceId: IDS.workspaceId, expectedPackageId: IDS.packageId,
-    permissions: ['package:admit'],
-    trustedKeys: { [IDS.keyId]: { publicKeySpkiDer: keys.publicKey.export({ format: 'der', type: 'spki' }),
-      workspaceId: IDS.workspaceId, packageIds: [IDS.packageId], identitySubjects: [IDS.identitySubject],
-      identityKinds: [IDS.identityKind], notBefore: '2026-08-04T17:00:00.000Z',
-      notAfter: '2026-08-04T19:00:00.000Z', revoked: false } },
-  });
+  const materializeProfile = (overrides = {}) => materializeExternalClientTrustConfig(profileInput(keys, overrides));
+  const profile = materializeProfile();
   let replayStore;
   let client;
   let adapter;
   let handlerCalls = 0;
+  let replayCalls = 0;
   const contexts = [];
   const build = () => {
     replayStore = createExternalClientReplayStore({ dbPath: replayPath });
-    client = createAxiomClient({}, { ...profile, clock: () => NOW, replayStore,
+    const replayOwner = options.replayReserve
+      ? { reserve: async (record) => { replayCalls += 1; return options.replayReserve(record); } }
+      : replayStore;
+    client = createAxiomClient({}, { ...profile, clock: () => NOW, replayStore: replayOwner,
       packageAdmissionHandler: (pkg, context) => {
         handlerCalls += 1; contexts.push(context);
         if (options.handlerError) throw options.handlerError;
@@ -111,7 +119,8 @@ function createRouteFixture(t, options = {}) {
   return {
     IDS, NOW, directory, graph, replayPath, profile, keys, packageValue, sign, envelope, state,
     get adapter() { return adapter; }, get handlerCalls() { return handlerCalls; },
-    get contexts() { return contexts; }, restartReplay, journalReplayAdapter, cleanup,
+    get replayCalls() { return replayCalls; }, get contexts() { return contexts; },
+    restartReplay, journalReplayAdapter, materializeProfile, cleanup,
   };
 }
 module.exports = { IDS, NOW, packageValue, sign, createRouteFixture };
