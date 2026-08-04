@@ -14,6 +14,10 @@ const {
   queryProvenance,
 } = require('./lib/provenance-query');
 const { readReceiptById } = require('./lib/receipt/receipt-read-index');
+const {
+  parseWorkbenchTrustReceiptPath,
+  handleWorkbenchTrustReceiptRequest,
+} = require('./lib/workbench/trust-receipt-route');
 const { createSessionStore } = require('./lib/viewer/session-store');
 const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
 const pkg = require('./package.json');
@@ -1047,6 +1051,37 @@ const server = http.createServer(async (req, res) => {
       ok: true,
       receipt: read.receipt,
     }, { 'Cache-Control': 'no-cache' });
+    return;
+  }
+
+  const workbenchTrustReceiptRequest = parseWorkbenchTrustReceiptPath(reqUrl.pathname);
+  if (workbenchTrustReceiptRequest) {
+    if (req.method !== 'GET') {
+      writeApiError(req, res, 405, 'method_not_allowed', 'Method not allowed');
+      return;
+    }
+    if (!denyIfUnauthorized(req, res)) return;
+    if (!workbenchTrustReceiptRequest.ok) {
+      writeJson(req, res, 400, {
+        ok: false,
+        status: 'invalid_request',
+        error: {
+          code: workbenchTrustReceiptRequest.code,
+          message: workbenchTrustReceiptRequest.code === 'missing_receipt_id'
+            ? 'receiptId is required'
+            : 'receiptId must be a non-empty string',
+        },
+      }, { 'Cache-Control': 'no-cache' });
+      return;
+    }
+    const filters = readTrustFilters(reqUrl);
+    const { statusCode, body } = handleWorkbenchTrustReceiptRequest({
+      receiptId: workbenchTrustReceiptRequest.receiptId,
+      workspaceId: filters.workspaceId,
+      source: cli.kernel.graph,
+      readReceipt: (source, receiptId, readFilters) => readReceiptById(source, receiptId, readFilters),
+    });
+    writeJson(req, res, statusCode, body, { 'Cache-Control': 'no-cache' });
     return;
   }
 
