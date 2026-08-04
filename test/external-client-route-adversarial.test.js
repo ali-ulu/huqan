@@ -207,6 +207,7 @@ test('transport headers, observed bytes, depth and value bounds fail before muta
     chunks: [Buffer.alloc(600000), Buffer.alloc(600000)] })).statusCode, 413);
   assert.equal((await harness.raw(['Content-Type: application/json', 'Content-Type: text/plain',
     'Content-Length: 2'], '{}')).statusCode, 415);
+  assert.equal((await harness.raw(['Content-Type: application/json', 'Content-Length: nope'], '{}')).statusCode, 400);
   assert.equal((await harness.raw(['Content-Type: application/json', 'Content-Length: 2',
     'Content-Length: 3'], '{}')).statusCode, 400);
   assert.deepEqual(stateCounts(fixture), [0, 0, 0]);
