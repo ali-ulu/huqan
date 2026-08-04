@@ -1,5 +1,6 @@
 'use strict';
 const http = require('node:http');
+const net = require('node:net');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { randomUUID } = require('node:crypto');
@@ -15,6 +16,27 @@ function close(server) {
   return new Promise((resolve) => {
     if (!server.listening) return resolve();
     server.close(() => resolve());
+  });
+}
+function parseRawHttp(raw) {
+  const [head, ...parts] = raw.split('\r\n\r\n');
+  const statusCode = Number(head.match(/^HTTP\/1\.[01]\s+(\d+)/)?.[1] || 0);
+  const headers = {};
+  for (const line of head.split('\r\n').slice(1)) {
+    const index = line.indexOf(':');
+    if (index > 0) headers[line.slice(0, index).toLowerCase()] = line.slice(index + 1).trim();
+  }
+  return { statusCode, headers, raw, body: parts.join('\r\n\r\n') };
+}
+function sendRawHttp(port, requestText) {
+  return new Promise((resolve, reject) => {
+    const socket = net.createConnection({ host: '127.0.0.1', port });
+    const chunks = [];
+    socket.setTimeout(3000, () => socket.destroy(new Error('raw HTTP timeout')));
+    socket.on('connect', () => socket.end(requestText));
+    socket.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+    socket.once('error', reject);
+    socket.once('end', () => resolve(parseRawHttp(Buffer.concat(chunks).toString('utf8'))));
   });
 }
 function sendHttp({ port, method = 'POST', route = EXTERNAL_CLIENT_ENDPOINT_PATH, headers = {}, body = '', chunks }) {
@@ -33,6 +55,23 @@ function sendHttp({ port, method = 'POST', route = EXTERNAL_CLIENT_ENDPOINT_PATH
     if (chunks) { for (const chunk of chunks) request.write(chunk); }
     else if (body) request.write(body);
     request.end();
+  });
+}
+function abortHttp({ port, apiKey, body = '{"package":' }) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      setTimeout(resolve, 40);
+    };
+    const request = http.request({ hostname: '127.0.0.1', port, path: EXTERNAL_CLIENT_ENDPOINT_PATH,
+      method: 'POST', headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json',
+        'content-length': String(Buffer.byteLength(body) + 100) } });
+    request.once('response', (response) => { response.resume(); response.once('end', finish); });
+    request.once('error', finish);
+    request.write(body);
+    setImmediate(() => request.destroy());
   });
 }
 async function createRouteHarness({ adapter, apiKey = 'route-api-key', maxRequests = 120, now = Date.now() }) {
@@ -74,6 +113,12 @@ async function createRouteHarness({ adapter, apiKey = 'route-api-key', maxReques
       }
       return sendHttp({ port, method: options.method, route: options.route, headers, body, chunks: options.chunks });
     },
+    raw(headerLines, body = '') {
+      const request = [`POST ${EXTERNAL_CLIENT_ENDPOINT_PATH} HTTP/1.1`, 'Host: 127.0.0.1',
+        `Authorization: Bearer ${apiKey}`, ...headerLines, 'Connection: close', '', body].join('\r\n');
+      return sendRawHttp(port, request);
+    },
+    abort(body) { return abortHttp({ port, apiKey, body }); },
     async close() { await close(server); rateLimitMap.delete(rateKey); },
   };
 }
