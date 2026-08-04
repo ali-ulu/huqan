@@ -118,7 +118,7 @@ test('mutation-journal replay is distinct and maps to exact 200', async (t) => {
 test('caller authority, malformed transport and package failures create no domain rows', async (t) => {
   const cases = [
     { body: '{"package":{},"signature":{"algorithm":"ed25519","keyId":"x","value":"y"},"identity":"spoof"}' },
-    { body: '{' }, { body: '[]' },
+    { body: '{' }, { body: '[]' }, { body: '{"package":{}}' },
     { body: '{"package":{"__proto__":{"polluted":true}},"signature":{"algorithm":"a","keyId":"b","value":"c"}}' },
     { method: 'GET', body: '' }, { headers: {}, body: '{}' },
     { headers: { 'content-type': 'text/plain' }, body: '{}' },
