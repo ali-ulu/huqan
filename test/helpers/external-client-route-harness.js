@@ -70,6 +70,7 @@ function abortHttp({ port, apiKey, body = '{"package":' }) {
         'content-length': String(Buffer.byteLength(body) + 100) } });
     request.once('response', (response) => { response.resume(); response.once('end', finish); });
     request.once('error', finish);
+    request.once('close', finish);
     request.write(body);
     setImmediate(() => request.destroy());
   });
