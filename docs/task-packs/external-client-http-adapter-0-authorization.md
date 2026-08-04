@@ -14,9 +14,9 @@
 - Production deployment configuration: forbidden
 
 The exact base is the PR #202 reconciliation merge and current canonical
-`main`. This authorization does not implement the adapter. The implementation
-requires a separate exact post-merge base and may change only the files listed
-below.
+`main`. This document authorizes no implementation by itself. A later
+implementation must start from the exact post-merge `main` SHA and may change
+only the two files named below.
 
 ## Source-Reality Findings
 
@@ -26,47 +26,46 @@ The exact base contains the required domain owners but no transport composition:
    `POST /api/external-client/packages/admit`. Its configuration is only
    `disabled | requested`; every reachability and readiness bit remains false.
 2. `lib/external-client-trust-config.js` materializes one bounded server-owned
-   client profile. It does not read environment, filesystem or network state.
+   profile and does not read environment, filesystem or network state.
 3. `lib/external-client-replay-store.js` owns durable SQLite replay reservation
    and remains internal and unwired.
 4. `lib/external-client-authority.js` verifies identity, workspace, permission,
    trusted-key validity, signed-package freshness and replay reservation before
    handler execution.
 5. `lib/sdk.js` exposes the in-process `admitExternalPackage()` orchestration.
-   Its call still receives identity and workspace, so an HTTP request must never
-   call it directly with caller-selected authority fields.
-6. `lib/external-client-mutation-receipt-owner.js` owns the exact synchronous
-   candidate-quarantine mutation and canonical V2 receipt result with
+   Its input still contains identity and workspace, so an HTTP request must
+   never call it directly with caller-selected authority fields.
+6. `lib/external-client-mutation-receipt-owner.js` owns the synchronous
+   candidate-quarantine mutation and V2 receipt result with
    `outcome: pending_review`.
-7. `requestGuards.js` already defines the reusable upload bound
-   `DEFAULT_MAX_UPLOAD_BODY = 1_048_576`, generic API-key guard and server rate
-   limiter.
-8. `server.js` does not register the reserved external-client route and does
-   not import the endpoint contract, authority, replay owner, mutation owner or
-   SDK admission path.
+7. `requestGuards.js` already defines
+   `DEFAULT_MAX_UPLOAD_BODY = 1_048_576`, the generic API-key guard and the
+   server rate limiter.
+8. `server.js` does not register the reserved route and does not import the
+   endpoint contract, authority, replay owner, mutation owner or SDK admission
+   path.
 9. `package.json` does not publish the endpoint contract, trust materializer,
-   replay owner or mutation/receipt owner. The future adapter must remain
-   internal as well.
+   replay owner or mutation/receipt owner. The adapter must remain internal.
 
-Graphify output is not available in the connector-only execution environment.
-Live source, exact Git ancestry, tests and CI therefore control this contract.
+Graphify output is unavailable in the connector-only environment. Live source,
+exact Git ancestry, tests and CI therefore control this contract.
 
 ## Decision
 
 HTTP Adapter-0 is one internal, unreachable transport boundary. It may:
 
-- accept a Node-compatible request stream only after a future route has applied
-  the existing outer API-key and rate-limit guards;
-- enforce the exact method, media type, declared and observed body-byte limit,
-  read timeout and top-level JSON shape;
+- accept a Node-compatible request stream after a future route has applied the
+  existing outer API-key and rate-limit guards;
+- enforce exact method, media type, declared and observed body-byte limits,
+  a fixed read timeout and exact JSON envelope shape;
 - call exactly one injected, pre-bound package-admission use case once;
 - map the existing bounded admission result or error to a frozen HTTP response
   descriptor.
 
 It may not own or reconstruct client identity, workspace, package scope,
 permission, trusted keys, clock, freshness, replay, mutation or receipt
-semantics. Those values must be captured by future server composition inside
-an injected function that accepts only `{ package, signature }`.
+semantics. Future server composition must capture those dependencies behind an
+injected function that accepts only `{ package, signature }`.
 
 The adapter returns a response descriptor. It does not write to a socket,
 register a route, read deployment configuration or make the endpoint reachable.
@@ -105,9 +104,8 @@ EXTERNAL_CLIENT_HTTP_READ_TIMEOUT_MS = 5_000
 ```
 
 The implementation must reuse the reserved endpoint method from
-`lib/external-client-endpoint-contract.js` and must keep the max-body value
-identical to `requestGuards.DEFAULT_MAX_UPLOAD_BODY`. Neither bound is caller
-configurable in Adapter-0.
+`lib/external-client-endpoint-contract.js` and keep the body limit identical to
+`requestGuards.DEFAULT_MAX_UPLOAD_BODY`. Neither bound is caller-configurable.
 
 ### Factory and dependency shape
 
@@ -117,20 +115,19 @@ The module must expose one factory equivalent to:
 createExternalClientHttpAdapter({ admitPackage })
 ```
 
-The options object must be a plain exact-shape object with one enumerable own
-data property, `admitPackage`, whose value is a function. Unknown, inherited,
-accessor-backed, non-enumerable or symbol properties fail before an adapter is
-returned.
+The options value must be a plain exact-shape object with one enumerable own
+data property named `admitPackage`, and that value must be a function. Unknown,
+inherited, accessor-backed, non-enumerable and symbol properties fail before an
+adapter is returned.
 
-The returned adapter must be frozen and expose one callable boundary equivalent
-to:
+The returned adapter is frozen and exposes one callable boundary equivalent to:
 
 ```text
 handle(request) -> Promise<responseDescriptor>
 ```
 
-`admitPackage` is a trusted, pre-bound application use case supplied by later
-server composition. Its only input is a deeply frozen exact-shape object:
+`admitPackage` is a trusted, pre-bound application use case supplied by future
+server composition. Its only argument is a deeply frozen exact-shape object:
 
 ```text
 {
@@ -149,14 +146,8 @@ of Adapter-0 implementation.
 
 ### Method and media type
 
-The adapter accepts only:
-
-```text
-POST
-```
-
-Any other method returns a `405` descriptor with `Allow: POST` before body
-consumption and without calling `admitPackage`.
+The adapter accepts only `POST`. Any other method returns `405` with
+`Allow: POST` before body consumption and without calling `admitPackage`.
 
 The only accepted media types are case-insensitive equivalents of:
 
@@ -165,42 +156,46 @@ application/json
 application/json; charset=utf-8
 ```
 
-Whitespace around the single charset parameter may be normalized. Duplicate,
-array-valued, missing, malformed, wildcard, suffix-only or additional media
-parameters return `415` before JSON parsing and without calling the use case.
+Whitespace around the single charset parameter may be normalized. Missing,
+array-valued, malformed, wildcard, suffix-only, duplicated or additional media
+parameters return `415` before JSON parsing and delegation.
 
 ### Body reading
 
-The adapter owns one bounded read of the request stream:
+The adapter owns exactly one bounded read of the supplied request stream:
 
 - reject a valid declared `Content-Length` greater than `1_048_576` before
   attaching data listeners;
 - reject negative, fractional, conflicting/array-valued or malformed declared
   lengths;
-- count observed bytes from `Buffer`, `Uint8Array` or string chunks;
-- stop, detach listeners and fail with `413` when observed bytes exceed the
-  fixed bound;
-- stop, detach listeners and fail with `408` after `5_000` milliseconds;
-- map stream abort/error to a bounded `400` descriptor;
-- consume the stream at most once;
-- do not retry a failed or timed-out read;
-- do not include parser, stream or system error text in the response.
+- count observed bytes from `Buffer`, `Uint8Array` and string chunks;
+- accept at most `1_048_576` observed bytes and return `413` one byte over;
+- decode with a fatal UTF-8 decoder so invalid byte sequences return `400`;
+- stop, detach listeners and settle once on overflow, abort, error or timeout;
+- return `408` after `5_000` milliseconds;
+- consume the stream at most once and never retry;
+- never include parser, stream or system error text in a response.
 
-An empty body and invalid UTF-8/JSON return `400`. The adapter must not accept a
-pre-parsed caller object as a substitute for the bounded byte stream.
+An empty body and malformed JSON return `400`. A pre-parsed object is not an
+accepted substitute for the bounded byte stream.
 
-### Exact request body
+### Exact JSON envelope
 
-After JSON parsing, the top-level body must be a plain object with exactly two
-enumerable own data properties in any order:
+`JSON.parse` is the only decoder. It is not injectable. Therefore accessor,
+symbol, Proxy, cycle and non-enumerable object shapes cannot be introduced by
+an attacker at this boundary. The implementation must not add a reviver or a
+caller-supplied parser.
+
+After parsing, the top-level value must be a plain object with exactly two
+enumerable own data properties, in any order:
 
 ```text
 package
 signature
 ```
 
-Unknown, inherited, accessor-backed, non-enumerable, symbol or `__proto__`
-properties fail closed. The body may not include:
+A JSON key named `__proto__` or any unknown authority/control key returns `400`.
+The request may not include:
 
 ```text
 identity
@@ -229,55 +224,53 @@ value
 ```
 
 All deeper package, signature, authority, replay and candidate semantics remain
-owned by the existing gate and owners. The adapter must not duplicate their
-validation or canonicalization.
+owned by the existing package gate and domain owners. The adapter must not
+reimplement their canonical validation.
 
-Before delegation, the adapter must snapshot the parsed package and signature
-as bounded deterministic JSON, reject cycles/hostile shapes without executing
-getters and deeply freeze the injected use-case input. The snapshot may use a
-maximum depth of `32` and one shared aggregate budget of `10_000` values for the
-complete request body. This transport snapshot is a defensive boundary, not a
-replacement for the existing package and mutation-owner validation.
+Before delegation, the adapter must iteratively walk the parser-created JSON,
+reject any depth above `32` or more than `10_000` aggregate values, create a
+detached copy and deeply freeze the exact `{ package, signature }` input. The
+walk must use one shared aggregate budget for the complete request envelope.
+This transport bound is defensive and does not replace existing domain
+validation.
 
 ### Outer authentication and rate-limit ownership
 
-The existing generic server API key is only an outer transport-access guard. It
+The current generic server API key is only an outer transport-access guard. It
 must never become external-client identity, workspace, permission or trust-root
 authority.
 
 Adapter-0 does not import or call `requireApiKey`, `extractApiKey`,
 `checkRateLimit` or the module-global rate-limit map. A future route must invoke
-the existing outer API-key and rate-limit guards before calling the adapter.
-Route registration and proof of that ordering belong to
-`EXTERNAL_CLIENT_ROUTE_ADVERSARIAL_0`.
+those existing outer guards before calling the adapter. Registration and proof
+of that order belong to `EXTERNAL_CLIENT_ROUTE_ADVERSARIAL_0`.
 
 ### Delegation and unknown outcomes
 
-For a valid request, `admitPackage` is invoked exactly once. The adapter must
-await that single call and must never retry, compensate, reserve again or call a
-second handler after any rejection, timeout or unknown result.
+For a valid request, `admitPackage` is invoked exactly once. The adapter awaits
+that call and never retries, compensates, reserves again or invokes a second
+handler after rejection, timeout or an unknown result.
 
-A successful dependency result must be the existing SDK result with `ok: true`
-and one bounded Mutation/Receipt Owner-0 `admission` result. The admission must
-contain the existing exact values required for a successful quarantine,
-including:
+A successful dependency result must be the existing frozen SDK result with an
+own data property `ok: true` and a frozen `admission` result containing own data
+properties equivalent to:
 
 ```text
 ok: true
 outcome: pending_review
 replayed: boolean
-operationId
-localCandidateId
-receiptId
+operationId: non-empty bounded string
+localCandidateId: non-empty bounded string
+receiptId: non-empty bounded string
 ```
 
-A missing, malformed, accessor-backed, mutable or semantically inconsistent
-success result is an internal failure. The adapter must not infer success from
-an HTTP-like status, truthy value, gate result or authority result alone.
+The adapter must not infer success from a truthy value, HTTP-like status, gate
+result or authority result alone. Missing, accessor-backed, mutable, partial or
+semantically inconsistent success data is an unknown dependency outcome.
 
 ### Response descriptors
 
-Every returned descriptor must be deeply frozen and contain exactly:
+Every returned descriptor is deeply frozen and contains exactly:
 
 ```text
 statusCode
@@ -292,7 +285,10 @@ Content-Type: application/json; charset=utf-8
 Cache-Control: no-store
 ```
 
-Successful synchronous quarantine returns `201`, never `202`, with exactly:
+A new synchronous quarantine returns `201`. An existing exact mutation-journal
+result with `replayed: true` returns `200`. Neither path returns `202`.
+
+The success body contains exactly six fields:
 
 ```text
 {
@@ -307,90 +303,87 @@ Successful synchronous quarantine returns `201`, never `202`, with exactly:
 
 The adapter must not expose package bytes, signatures, API keys, trusted-key
 material, identity subjects, workspace configuration, package hash, replay key,
-Authority receipt, gate receipt, receipt payload, database path, internal stack,
-error details or injected dependencies.
+Authority receipt, gate receipt, receipt payload, database path, stack, error
+details or injected dependencies.
 
-Failure bodies contain exactly:
+Every failure body is exactly:
 
 ```text
 { ok: false }
 ```
 
-No new public error vocabulary is introduced by Adapter-0. Exact status mapping:
+No new public error vocabulary is introduced. Existing internal error codes may
+be used only for status classification and are never returned.
 
 | Condition | Status |
 | --- | ---: |
 | Wrong method | 405 |
-| Unsupported/malformed media type | 415 |
+| Unsupported or malformed media type | 415 |
 | Declared or observed body too large | 413 |
 | Read timeout | 408 |
-| Empty, malformed or hostile JSON/body shape | 400 |
-| Existing signature, identity, workspace, package-scope, permission, key-validity or freshness rejection | 403 |
-| Existing replay-detected result | 409 |
-| Existing candidate/package semantic rejection | 422 |
-| Existing mutation `OUTCOME_UNKNOWN`, dependency throw/rejection or malformed success result | 503 |
-| Any unclassified internal failure | 500 |
+| Empty, malformed, invalid UTF-8 or invalid envelope | 400 |
+| Existing identity/workspace/signature/permission/key/freshness rejection | 403 |
+| Existing replay detection or local candidate collision | 409 |
+| Existing package/candidate semantic rejection | 422 |
+| Missing server composition, replay reservation failure, mutation `OUTCOME_UNKNOWN`, dependency rejection or malformed success result | 503 |
+| Any adapter-internal unclassified failure | 500 |
 
-Only the status code is exposed. Existing internal error codes may be used for
-classification but must not be returned in the response body or headers.
+### Required ordering
 
-## Required Ordering
+One invocation runs in this exact order:
 
-For one invocation, ordering is exactly:
-
-1. validate request object and method;
+1. check method;
 2. validate exact content type and declared length;
-3. read the stream once under byte and timeout bounds;
-4. parse JSON and enforce the exact top-level/signature shape;
-5. create the bounded frozen `{ package, signature }` snapshot;
-6. call the injected `admitPackage` once;
-7. validate the existing bounded success result or classify the failure;
-8. return one frozen response descriptor.
+3. read once under byte and timeout bounds;
+4. fatally decode UTF-8 and parse with non-injectable `JSON.parse`;
+5. enforce exact envelope/signature shape and iterative depth/value bounds;
+6. create the detached frozen `{ package, signature }` snapshot;
+7. call `admitPackage` once;
+8. validate the existing success result or classify the failure;
+9. return one frozen response descriptor.
 
-No API-key decision, rate-limit mutation, identity selection, replay reservation,
-Graph mutation or receipt construction occurs inside the adapter itself.
+No API-key decision, rate-limit mutation, identity selection, replay
+reservation, Graph mutation or receipt construction occurs inside the adapter.
 
 ## Required Adversarial Tests
 
 The implementation test must prove at least:
 
-1. exact `POST` plus accepted JSON media type delegates once and maps a valid
-   existing admission result to the exact frozen `201` descriptor;
-2. wrong method returns `405` and does not attach body listeners or delegate;
-3. missing, duplicate, array-valued, malformed and parameter-expanded content
-   types return `415` before delegation;
-4. declared length above the bound or malformed declared length fails before
-   body consumption;
-5. observed body size at the exact bound is accepted and one byte over returns
+1. valid `POST` JSON delegates once and maps an exact existing admission result
+   to frozen `201` and replayed `200` descriptors;
+2. wrong method returns `405`, sets `Allow: POST`, attaches no body listeners
+   and does not delegate;
+3. missing, array-valued, malformed and parameter-expanded media types return
+   `415` before delegation;
+4. oversized or malformed declared length fails before body consumption;
+5. observed size at the exact bound is accepted and one byte over returns
    `413` without delegation;
-6. empty, invalid UTF-8, malformed JSON, primitive, array and unknown top-level
-   shapes return `400`;
-7. body-level identity, workspace, permission, key, trust-root, replay and retry
-   fields are rejected;
-8. inherited, accessor-backed, non-enumerable, symbol and `__proto__` shapes do
-   not execute attacker code and fail closed where representable;
-9. dense-array, depth-33, 10,001-value, cycle and Proxy-hostile snapshots fail
-   before delegation;
-10. the injected input is exact-shape, deeply frozen and detached from request
-    chunks and parsed-body mutation;
-11. stream error, abort and timeout detach listeners, settle once and never
+6. empty body, invalid UTF-8, malformed JSON, primitive, array and unknown
+   top-level envelopes return `400`;
+7. caller identity, workspace, permission, trusted-key, trust-root, replay and
+   retry fields are rejected;
+8. a literal `__proto__` JSON key is rejected and no parser/reviver dependency
+   can be injected;
+9. exact depth `32` and aggregate value `10_000` boundaries pass while depth
+   `33` and value `10_001` fail before delegation;
+10. the delegated input is exact-shape, deeply frozen and detached from request
+    chunks;
+11. stream abort, error and timeout detach listeners, settle once and never
     delegate or retry;
-12. dependency rejection groups map to the exact statuses without code,
+12. exact known failure groups map to the required status without code,
     message, details or stack leakage;
-13. mutation `OUTCOME_UNKNOWN`, thrown/rejected dependency and malformed success
-    result map to `503` and never retry;
-14. success cannot be inferred from truthy, partial, gate-only or authority-only
-    results;
-15. success exposes only the six approved body fields and no gate, authority,
-    signature, replay or receipt internals;
-16. all descriptors, headers and bodies are immutable and exact-shape;
-17. static source proof shows the adapter does not import `server.js`, SDK,
-    authority, trust config, replay store, mutation owner, Graph, Kernel,
-    storage or package metadata;
-18. static source proof shows `server.js` still lacks the reserved route,
-    endpoint-contract import and adapter import;
-19. package dry-run proves the new internal adapter and test are not published;
-20. exact implementation diff contains only the two authorized files.
+13. mutation `OUTCOME_UNKNOWN`, dependency rejection and malformed success map
+    to `503` and never retry;
+14. success cannot be inferred from truthy, partial, gate-only or
+    authority-only values;
+15. success exposes only the six approved body fields;
+16. response descriptors, headers and bodies are immutable and exact-shape;
+17. static source proof shows no direct SDK, Authority, trust-config, replay,
+    mutation-owner, Graph, Kernel, storage or server import;
+18. static source proof shows `server.js` still lacks the reserved route and
+    adapter import;
+19. package dry-run proves the adapter and test are not published;
+20. the exact implementation diff contains only the two authorized files.
 
 ## Required Validation Evidence
 
@@ -425,7 +418,7 @@ package.json does not publish external-client-http-adapter.js
 
 ## Stop Conditions
 
-Stop and return `EXTERNAL_CLIENT_HTTP_ADAPTER_0_BLOCKED_CONTRACT_CONFLICT` if
+Stop with `EXTERNAL_CLIENT_HTTP_ADAPTER_0_BLOCKED_CONTRACT_CONFLICT` if the
 implementation requires:
 
 - any file outside the exact two-file scope;
@@ -434,34 +427,31 @@ implementation requires:
   key, trust root, clock, replay state, mutation or receipt fields;
 - direct SDK, Authority, trust-config, replay-store, mutation-owner, Graph,
   Kernel or storage imports;
-- an adapter-owned API-key store, client registry, rate-limit map, replay store,
-  queue, database, clock or handler registry;
-- a memory-only pending queue or `202 Accepted` response;
-- a new dependency, public npm export, package version, public schema or public
-  error code;
-- error details, stack, package bytes, signature, trusted-key, replay or receipt
-  payload leakage;
+- an adapter-owned API-key store, registry, rate-limit map, replay store, queue,
+  database, clock or handler registry;
+- a memory-only pending queue or `202 Accepted`;
+- a new dependency, npm export, package version, public schema or public error
+  code;
+- leakage of internal codes, messages, details, stack, package bytes,
+  signatures, trusted-key, replay or receipt payloads;
 - retry or compensation after stream, dependency, mutation or receipt unknown
   outcomes;
-- production route reachability or a global V2 writer claim;
-- weakening existing Endpoint-0, Authority-0, replay, mutation or package-gate
-  fail-closed behavior.
+- production route reachability or global V2 writer claims;
+- weakening any existing fail-closed boundary.
 
-Any such need requires a separate exact-base amendment. It is not implicitly
-authorized.
+Any such need requires a separate exact-base amendment.
 
 ## Definition of Done
 
-HTTP Adapter-0 authorization closes only when:
+Authorization closes only when:
 
 1. exactly this task-pack changes;
 2. exact base and two-file implementation scope are unambiguous;
-3. request authority is limited to package and signature bytes while identity,
-   workspace and all trust decisions remain server-owned behind injection;
-4. method, media type, byte, timeout, shape and snapshot bounds are fixed;
-5. outer API-key and rate-limit ownership remain future route concerns and do
-   not imply external-client authority;
-6. the use case is called exactly once and unknown outcomes never retry;
+3. request authority is limited to package and signature bytes while all trust
+   decisions remain server-owned behind injection;
+4. method, media type, byte, timeout, envelope, depth and value bounds are fixed;
+5. outer API-key and rate-limit ownership remain future route concerns;
+6. delegation occurs exactly once and unknown outcomes never retry;
 7. success and failure descriptors are exact, bounded and secret-free;
 8. route registration, server composition and package exposure remain absent;
 9. exact-head CI, source-first falsification review, merge and post-merge smoke
@@ -475,12 +465,11 @@ This authorization does not provide or authorize:
 
 - a registered, reachable or enabled external-client route;
 - server composition of trust config, replay store, SDK or mutation owner;
-- a production configuration source or database-path source;
-- transport credentials as client identity or authority;
+- a production configuration or database-path source;
+- transport credentials as external-client identity or authority;
 - multi-client, multi-workspace, multi-instance or public deployment behavior;
 - mutation or receipt semantics inside the adapter;
 - a pending queue, asynchronous workflow or automatic retry;
 - public npm exposure, dependency, package, version or release changes;
 - production V2 writing beyond the already bounded internal owner;
-- External Client Route Adversarial-0 or Enablement-0 closeout;
-- V4 or V5 completion.
+- Route Adversarial-0, Enablement-0 closeout, V4 or V5 completion.
