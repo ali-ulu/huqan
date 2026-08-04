@@ -1,7 +1,7 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`35307fa74293933a7c33dc279a2e13b5d79bf9a0` (PR #223 merge; PR #198 remains the Mutation/Receipt Owner-0 implementation merge).
+`62b2c04f9d0ad25147053014c12960799f42c5e2` (PR #225 HTTP Adapter-0 authorization merge; PR #198 remains the Mutation/Receipt Owner-0 implementation merge).
 
 This is the execution-order source for current runtime work. It is not a
 release claim and it does not replace architecture ADRs. When this file
@@ -14,14 +14,14 @@ HUQAN is a **local-first partial trust layer** with real graph, verification,
 gate, provenance, approval, audit, receipt, immutable-source, signed-package,
 default-closed endpoint-contract, bounded external-client trust-profile
 materialization, a dedicated durable replay-reservation primitive and one
-internal candidate-quarantine mutation/receipt owner. The owner is not wired to
-a reachable route or production server composition. A later test-only inline
-enforcement matrix is present on current main, but it does not alter the
-external-client gate order or create reachability. HUQAN is not yet a fully
-inline trust control plane for every client, connector, receipt family or
-mutation path.
+internal candidate-quarantine mutation/receipt owner. A thin internal HTTP
+adapter contract is now authorized, but no adapter implementation, route or
+production server composition exists. A test-only inline-enforcement matrix is
+also present and does not alter the external-client gate order or create
+reachability. HUQAN is not yet a fully inline trust control plane for every
+client, connector, receipt family or mutation path.
 
-## Reconciled sequence through Mutation/Receipt Owner-0 implementation
+## Reconciled sequence through HTTP Adapter-0 authorization
 
 | Merged PR(s) | Closed boundary | Deliberate limit |
 | --- | --- | --- |
@@ -50,6 +50,7 @@ mutation path.
 | #195 / #196 | Durable Replay post-merge reconciliation and Mutation/Receipt Owner-0 authorization | One candidate-quarantine mutation and exact V2 receipt policy are selected; no runtime owner, route, global V2 writer or package exposure exists |
 | #197 / #198 | Mutation/Receipt Owner-0 authorization reconciliation and bounded implementation | Internal owner is real and exact-scope; no HTTP adapter, route, server composition, global V2 writer or package exposure exists |
 | #223 | Test-only inline enforcement matrix for tool, memory and MCP gates | Adds fail-closed coverage only; it does not change the external-client authorization sequence, route reachability or runtime ownership |
+| #202 / #225 | Mutation/Receipt Owner-0 post-merge reconciliation and HTTP Adapter-0 authorization | Thin transport contract is locked; no adapter runtime, route, server composition, deployment source or package exposure exists |
 
 ## Closed receipt trust-root foundation
 
@@ -297,69 +298,115 @@ tests, `2468` passing, `0` failing and `29` skipped; both green totals are
 recorded rather than silently reconciled. Package dry-run boundary proof passed
 inside the full runtime suite.
 
+## Closed HTTP Adapter-0 authorization
+
+The merged authorization fixes one internal transport boundary with:
+
+- exact future implementation scope limited to
+  `lib/external-client-http-adapter.js` and
+  `lib/external-client-http-adapter.test.js`;
+- the reserved `POST /api/external-client/packages/admit` method while route
+  registration remains forbidden;
+- a Node-compatible raw request stream and non-injectable `JSON.parse` decoder;
+- exactly `package` and `signature` as caller-controlled envelope fields;
+- a fixed `1_048_576` byte body limit, `5_000` millisecond read timeout, fatal
+  UTF-8 decoding, depth `32` and one shared `10_000`-value aggregate budget;
+- exactly one injected, pre-bound `admitPackage({ package, signature })` use case;
+- no caller-controlled identity, workspace, permission, trusted key, trust root,
+  clock, replay, mutation or receipt authority;
+- no direct SDK, Authority, trust-config, replay-store, mutation-owner, Graph,
+  Kernel, storage or server import;
+- exact frozen response descriptors with secret-free success and failure bodies;
+- `201` for a new synchronous quarantine, `200` for an exact journal replay and
+  no `202`, pending queue or retry behavior;
+- bounded status classification without exposing internal error codes, details,
+  stack, package bytes, signatures, replay evidence or receipt payloads;
+- generic API key and rate limiting retained only as future outer route guards;
+- static route absence and npm package-surface exclusion requirements.
+
+Source-first review corrected an invalid first-draft assumption: accessor,
+Proxy, cycle and non-enumerable shapes are not representable after a fixed raw
+JSON parser. The final contract instead forbids parser injection, rejects a
+literal `__proto__` key and tests representable raw JSON depth and aggregate
+value boundaries.
+
+The authorization deliberately does **not** provide:
+
+- adapter runtime code;
+- route registration or socket response writing;
+- server composition of trust profile, durable replay, SDK or mutation owner;
+- a production configuration or database-path source;
+- transport credentials as external-client identity or authority;
+- public npm exposure, package, dependency, version, deployment or release
+  changes;
+- route adversarial proof, external interoperability or production reachability.
+
+PR #225 merged as
+`62b2c04f9d0ad25147053014c12960799f42c5e2` with exactly one task-pack.
+Exact-head Security Checks run `30920069018` and Benchmark Regression run
+`30920069028` completed successfully. Runtime, Benchmark workload and Docker
+execution are not claimed for the docs-only authorization scope.
+
 ## Current authorization state
 
-Mutation/Receipt Owner-0 is merged at predecessor
-`3eb5dfe4592188827b5f2627fce886b64ef55fc6`. Current canonical main is the
-later test-only PR #223 merge shown at the top of this document. PR #223 does
-not alter adapter ownership, route reachability or the mandatory gate sequence.
-This post-implementation reconciliation is docs-only and authorizes no adapter,
-route or production composition by itself.
+HTTP Adapter-0 authorization is merged at the exact baseline above. This
+post-authorization reconciliation is docs-only and authorizes no adapter,
+route, server composition or deployment source by itself.
 
-No HTTP Adapter-0 task-pack exists on the current exact baseline. After this
-reconciliation merges and canonical `main` is re-read, the only next gate is a
-separate exact-base docs-only authorization:
+After this reconciliation merges and canonical `main` is re-read, the only
+next gate is:
 
 ```text
-EXTERNAL_CLIENT_HTTP_ADAPTER_0_AUTHORIZATION
+EXTERNAL_CLIENT_HTTP_ADAPTER_0_IMPLEMENTATION
 ```
 
-That authorization must identify the exact thin adapter boundary, request and
-response contract, trusted dependency injection, error mapping, body and
-timeout bounds, package-surface decision and test owner. It may not move trust,
-signature, workspace, freshness, replay, mutation or receipt semantics into the
-adapter. `server.js`, route registration and deployment configuration remain
-closed until the adapter gate and its implementation close separately.
+The implementation scope is exactly:
+
+```text
+lib/external-client-http-adapter.js
+lib/external-client-http-adapter.test.js
+```
+
+No existing runtime file may change. The implementation may import only the
+reserved endpoint method and existing transport-size constant required by the
+authorization. It must not register a route or import SDK, Authority, trust
+config, replay store, mutation owner, Graph, Kernel, storage or server modules.
 
 ## Remaining execution order
 
-### 1. Mutation/Receipt Owner-0 post-merge reconciliation
+### 1. External Client HTTP Adapter-0 implementation
 
-Record exact source, targeted test, full-regression, CI, package dry-run and
-post-merge evidence before opening the HTTP adapter. This document is that
-docs-only gate.
+Implement and adversarially prove the authorized thin internal adapter only.
+Required evidence includes exact method/media-type behavior, declared and
+observed byte limits, read timeout, fatal UTF-8 parsing, exact envelope,
+depth/value boundaries, frozen detached delegation input, exactly-once
+invocation, bounded error mapping, no retry, static route absence and npm
+package dry-run exclusion.
 
-### 2. External Client HTTP Adapter-0 authorization
+### 2. HTTP Adapter-0 post-merge reconciliation
 
-Create one exact-base task-pack that locks a thin, internal adapter contract and
-an exact implementation/test scope. Do not register a route or change server
-composition.
+Record exact source, targeted tests, full regression, CI, package dry-run and
+post-merge evidence before opening route work.
 
-### 3. External Client HTTP Adapter-0 implementation
+### 3. External Client Route Adversarial-0
 
-Implement only the authorized adapter after its reconciliation closes. The
-adapter delegates to existing authority, replay and mutation/receipt owners and
-does not own their semantics.
+Prove default-closed absence, spoofing and malformed-input rejection, outer
+authentication and rate-limit ordering, replay across restart and concurrency,
+no-retry behavior and mutation/receipt evidence before any reachability claim.
 
-### 4. External Client Route Adversarial-0
-
-Prove default-closed absence, spoofing and malformed-input rejection, replay
-across restart and concurrency, no-retry behavior and mutation/receipt evidence
-before any reachability claim.
-
-### 5. External Client Enablement-0 closeout
+### 4. External Client Enablement-0 closeout
 
 Audit lineage, scopes, route behavior, CI, fail-closed boundaries and non-claims
 before any completion statement.
 
-### 6. V4 open items
+### 5. V4 open items
 
 1. Workbench runtime evidence;
 2. bounded approval/action surface;
 3. receipt inspection and export/import user-flow smoke;
 4. V4 source/test/CI/release closeout.
 
-### 7. V5 ecosystem items
+### 6. V5 ecosystem items
 
 1. bounded A2A exchange;
 2. external conformance runner;
@@ -369,18 +416,23 @@ before any completion statement.
 
 ## Permanent ordering rules
 
-- HTTP Adapter-0 implementation does not start before this exact
-  post-implementation reconciliation and a separate exact-base adapter
-  authorization close.
-- The adapter remains thin and may not reimplement trust-profile, signature,
-  workspace, freshness, replay, mutation or receipt ownership.
+- HTTP Adapter-0 implementation does not start before this exact-main
+  authorization reconciliation closes.
+- Adapter implementation remains exactly two files and may not register a route
+  or change server composition.
+- The adapter remains thin and may not reimplement identity, trust-profile,
+  signature, workspace, freshness, replay, mutation or receipt ownership.
+- Request data is limited to package and signature bytes; transport credentials
+  and caller labels never establish external-client authority.
 - The narrow exact external candidate V2 policy must not become a generic V2
   switch, capability factory or caller-controlled bypass.
-- Route registration remains last and requires every predecessor to close.
+- Route registration remains downstream and requires adapter implementation and
+  its post-merge evidence to close first.
 - Production V2 writer ownership is not inferred from endpoint, SDK, transport,
   actor labels, local reachability, signatures, replay durability or fixture
   values.
-- Unknown or incomplete mutation outcomes are never automatically retried.
+- Unknown or incomplete read, admission or mutation outcomes are never
+  automatically retried or compensated.
 - V4 is not complete without real runtime and user-flow evidence.
 - V5 implementation is not complete without V4 closeout and external
   interoperability evidence.
@@ -388,19 +440,22 @@ before any completion statement.
 
 ## Explicit non-goals
 
-- No reachable external-client route in this reconciliation.
-- No server composition wiring for trust config, replay or mutation owner.
-- No HTTP Adapter-0 runtime implementation before its exact authorization.
-- No package containing multiple candidate claims or non-candidate embedded
-  objects in the first mutation gate.
+- No reachable external-client route in this reconciliation or Adapter-0
+  implementation.
+- No server composition wiring for trust config, replay, SDK or mutation owner.
+- No deployment configuration or replay-database path source.
+- No request-controlled identity, workspace, permission, trusted key, trust
+  root, clock, replay state, mutation or receipt metadata.
 - No direct node/edge import or external audit, receipt, approval or conflict
   authority import.
-- No caller-controlled local candidate, operation or receipt IDs.
-- No MemoryStore, JSON or process-memory mutation persistence.
+- No MemoryStore, JSON or process-memory replay or mutation persistence.
+- No adapter-owned API-key store, rate-limit map, registry, queue, database,
+  clock or handler registry.
+- No `202 Accepted`, memory-only pending queue, automatic retry or compensation.
 - No global production V2 switch, generic capability factory or public V2
   writer API.
-- No package metadata, module export, dependency or release change.
-- No automatic retry or compensation after an unknown transaction outcome.
+- No package metadata, module export, dependency, version, deployment or release
+  change.
 - No historical receipt rewrite, rehash or trust-root backfill.
 - No universal external-client registry or distributed-database claim.
 - No V4-complete, V5-complete, universal-truth or universal-coverage claim.
