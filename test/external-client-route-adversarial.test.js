@@ -39,12 +39,11 @@ test('real server remains generic 404 for disabled and requested configuration',
 
 test('rate limit then API key reject before adapter, body, replay or mutation', async (t) => {
   const fixture = createRouteFixture(t);
-  const harness = await createRouteHarness({ adapter: fixture.adapter, maxRequests: 1, now: 1000 });
+  const harness = await createRouteHarness({ adapter: fixture.adapter, maxRequests: 2, now: 1000 });
   t.after(() => harness.close());
-  const unauthorized = await harness.send({ authorized: false, body: body(fixture) });
-  assert.equal(unauthorized.statusCode, 401);
-  const limited = await harness.send({ body: body(fixture) });
-  assert.equal(limited.statusCode, 429);
+  assert.equal((await harness.send({ authorized: false, body: body(fixture) })).statusCode, 401);
+  assert.equal((await harness.send({ key: 'wrong-key', body: body(fixture) })).statusCode, 401);
+  assert.equal((await harness.send({ body: body(fixture) })).statusCode, 429);
   assert.equal(harness.adapterCalls, 0);
   assert.equal(fixture.handlerCalls, 0);
   assert.deepEqual(stateCounts(fixture), [0, 0, 0]);
@@ -107,19 +106,18 @@ test('mutation-journal replay is distinct and maps to exact 200', async (t) => {
   await harness.close();
   harness = await createRouteHarness({ adapter: fixture.journalReplayAdapter() });
   t.after(() => harness.close());
-  const replay = await harness.send({ headers: { 'content-type': 'application/json' }, body: raw });
-  exactSuccess(replay, true);
+  exactSuccess(await harness.send({ headers: { 'content-type': 'application/json' }, body: raw }), true);
   assert.deepEqual(stateCounts(fixture), [1, 1, 1]);
 });
 
 test('caller authority, malformed transport and package failures create no domain rows', async (t) => {
   const cases = [
     { body: '{"package":{},"signature":{"algorithm":"ed25519","keyId":"x","value":"y"},"identity":"spoof"}' },
-    { body: '{' },
-    { body: '[]' },
+    { body: '{' }, { body: '[]' },
     { body: '{"package":{"__proto__":{"polluted":true}},"signature":{"algorithm":"a","keyId":"b","value":"c"}}' },
-    { method: 'GET', body: '' },
+    { method: 'GET', body: '' }, { headers: {}, body: '{}' },
     { headers: { 'content-type': 'text/plain' }, body: '{}' },
+    { headers: { 'content-type': 'application/json; profile=x' }, body: '{}' },
   ];
   for (const item of cases) {
     const fixture = createRouteFixture(t);
@@ -132,7 +130,7 @@ test('caller authority, malformed transport and package failures create no domai
   }
 });
 
-test('signature, key, freshness and workspace failures are bounded and mutation-free', async (t) => {
+test('signature, key, freshness, identity and package scope failures are mutation-free', async (t) => {
   const crypto = require('node:crypto');
   const cases = [
     (fixture) => { const pkg = fixture.packageValue(); return { pkg,
@@ -145,6 +143,10 @@ test('signature, key, freshness and workspace failures are bounded and mutation-
       return { pkg, signature: fixture.sign(pkg, fixture.keys.privateKey) }; },
     (fixture) => { const pkg = fixture.packageValue({ manifest: { workspaceId: 'workspace-other' } });
       return { pkg, signature: fixture.sign(pkg, fixture.keys.privateKey) }; },
+    (fixture) => { const pkg = fixture.packageValue({ manifest: { packageId: 'pkg.other' } });
+      return { pkg, signature: fixture.sign(pkg, fixture.keys.privateKey) }; },
+    (fixture) => { const pkg = fixture.packageValue({ manifest: { createdBy: 'connector:other' } });
+      return { pkg, signature: fixture.sign(pkg, fixture.keys.privateKey) }; },
   ];
   for (const makeCase of cases) {
     const fixture = createRouteFixture(t); const { pkg, signature } = makeCase(fixture);
@@ -156,9 +158,13 @@ test('signature, key, freshness and workspace failures are bounded and mutation-
     assert.equal(JSON.stringify(response).includes(signature.value), false);
     await harness.close();
   }
+  const fixture = createRouteFixture(t);
+  assert.throws(() => fixture.materializeProfile({ revoked: true }),
+    (error) => error?.code === 'EXTERNAL_CLIENT_AUTHORITY_KEY_REVOKED');
+  assert.deepEqual(stateCounts(fixture), [0, 0, 0]);
 });
 
-test('transport bounds reject before domain mutation', async (t) => {
+test('transport headers, observed bytes, depth and value bounds fail before mutation', async (t) => {
   const fixture = createRouteFixture(t);
   const harness = await createRouteHarness({ adapter: fixture.adapter });
   t.after(() => harness.close());
@@ -168,14 +174,42 @@ test('transport bounds reject before domain mutation', async (t) => {
     JSON.stringify({ package: nested, signature: { algorithm: 'a', keyId: 'b', value: 'c' } }),
     JSON.stringify({ package: { values: Array(9994).fill(0) }, signature: { algorithm: 'a', keyId: 'b', value: 'c' } })];
   for (const raw of raws) {
-    const response = await harness.send({ headers: { 'content-type': 'application/json' }, body: raw });
-    assert.equal(response.statusCode, 400);
+    assert.equal((await harness.send({ headers: { 'content-type': 'application/json' }, body: raw })).statusCode, 400);
   }
-  const declared = await harness.send({ headers: { 'content-type': 'application/json',
-    'content-length': '1048577' }, contentLength: false, body: '' });
-  assert.equal(declared.statusCode, 413);
+  assert.equal((await harness.send({ headers: { 'content-type': 'application/json', 'content-length': '1048577' },
+    contentLength: false, body: '' })).statusCode, 413);
+  assert.equal((await harness.send({ headers: { 'content-type': 'application/json' }, contentLength: false,
+    chunks: [Buffer.alloc(600000), Buffer.alloc(600000)] })).statusCode, 413);
+  assert.equal((await harness.raw(['Content-Type: application/json', 'Content-Type: text/plain',
+    'Content-Length: 2'], '{}')).statusCode, 415);
+  assert.equal((await harness.raw(['Content-Type: application/json', 'Content-Length: 2',
+    'Content-Length: 3'], '{}')).statusCode, 400);
   assert.deepEqual(stateCounts(fixture), [0, 0, 0]);
   assert.equal(fixture.handlerCalls, 0);
+});
+
+test('client abort settles before delegation and leaves no durable evidence', async (t) => {
+  const fixture = createRouteFixture(t);
+  const harness = await createRouteHarness({ adapter: fixture.adapter });
+  t.after(() => harness.close());
+  await harness.abort('{"package":');
+  assert.equal(fixture.handlerCalls, 0);
+  assert.deepEqual(stateCounts(fixture), [0, 0, 0]);
+});
+
+test('replay reservation failure and hostile result fail once before handler', async (t) => {
+  for (const replayReserve of [
+    () => { throw new Error('private replay failure'); },
+    () => ({ reserved: 'yes' }),
+  ]) {
+    const fixture = createRouteFixture(t, { replayReserve });
+    const harness = await createRouteHarness({ adapter: fixture.adapter });
+    const response = await harness.send({ headers: { 'content-type': 'application/json' }, body: body(fixture) });
+    assert.equal(response.statusCode, 503);
+    assert.equal(fixture.replayCalls, 1); assert.equal(fixture.handlerCalls, 0);
+    assert.deepEqual(stateCounts(fixture), [0, 0, 0]);
+    await harness.close();
+  }
 });
 
 test('real handler failure and mutation uncertainty do not retry', async (t) => {
@@ -200,12 +234,19 @@ test('real handler failure and mutation uncertainty do not retry', async (t) => 
   await harness.close();
 });
 
-test('handler and unknown dependency outcomes settle once without secret leakage or retry', async () => {
-  for (const code of ['EXTERNAL_CLIENT_MUTATION_OUTCOME_UNKNOWN', 'PRIVATE_UNKNOWN']) {
+test('dependency errors and malformed success settle once without secret leakage', async () => {
+  const failures = [
+    async () => { const error = new Error('secret-message'); error.code = 'EXTERNAL_CLIENT_MUTATION_OUTCOME_UNKNOWN'; throw error; },
+    async () => { const error = new Error('secret-message'); error.code = 'PRIVATE_UNKNOWN'; throw error; },
+    async () => ({ ok: true, gate: Object.freeze({}), authority: Object.freeze({}), admission: Object.freeze({}) }),
+    async () => Object.freeze({ ok: true }),
+    async () => Object.freeze({ ok: true, gate: Object.freeze({}), authority: Object.freeze({}),
+      admission: Object.freeze({ ok: true, outcome: 'pending_review', replayed: 'yes',
+        operationId: 'op', localCandidateId: 'candidate', receiptId: 'receipt' }) }),
+  ];
+  for (const failure of failures) {
     let calls = 0;
-    const adapter = createExternalClientHttpAdapter({ admitPackage: async () => {
-      calls += 1; const error = new Error('secret-message'); error.code = code; error.details = { secret: true }; throw error;
-    } });
+    const adapter = createExternalClientHttpAdapter({ admitPackage: async () => { calls += 1; return failure(); } });
     const harness = await createRouteHarness({ adapter });
     const response = await harness.send({ headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ package: {}, signature: { algorithm: 'ed25519', keyId: 'x', value: 'secret-signature' } }) });
