@@ -62,9 +62,14 @@ test('valid loopback request returns exact 201 and durable candidate, journal an
   assert.equal(state.candidates[0].recommendation, 'flag');
   assert.equal(state.journals[0].operation_id, response.body.operationId);
   assert.equal(state.journals[0].status, 'completed');
+  const journalResult = JSON.parse(state.journals[0].result);
+  assert.equal(journalResult.operationId, response.body.operationId);
+  assert.equal(journalResult.localCandidateId, response.body.localCandidateId);
+  assert.equal(journalResult.receiptId, response.body.receiptId);
   assert.equal(state.receipts[0].receipt_id, response.body.receiptId);
   assert.equal(state.receipts[0].canonicalPayload.trustRoot, 'external_verified_client');
   assert.equal(state.receipts[0].canonicalPayload.verdict, 'review');
+  assert.equal(state.receipts[0].canonicalPayload.decision, 'review');
   assert.equal(state.receipts[0].canonicalPayload.status, 'pending');
 });
 
@@ -130,6 +135,22 @@ test('caller authority, malformed transport and package failures create no domai
   }
 });
 
+test('primitive envelopes and every caller authority field fail before delegation', async (t) => {
+  const fixture = createRouteFixture(t);
+  const harness = await createRouteHarness({ adapter: fixture.adapter });
+  t.after(() => harness.close());
+  for (const raw of ['', 'null', '1', '"text"']) {
+    assert.equal((await harness.send({ headers: { 'content-type': 'application/json' }, body: raw })).statusCode, 400);
+  }
+  for (const key of ['identity','workspaceId','packageId','permissions','trustedKeys','trustRoot','clock','replayStore','handler','retry']) {
+    const envelope = fixture.envelope(); envelope[key] = 'caller-controlled';
+    assert.equal((await harness.send({ headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(envelope) })).statusCode, 400);
+  }
+  assert.equal(fixture.handlerCalls, 0);
+  assert.deepEqual(stateCounts(fixture), [0, 0, 0]);
+});
+
 test('signature, key, freshness, identity and package scope failures are mutation-free', async (t) => {
   const crypto = require('node:crypto');
   const cases = [
@@ -137,6 +158,10 @@ test('signature, key, freshness, identity and package scope failures are mutatio
       signature: fixture.sign(pkg, crypto.generateKeyPairSync('ed25519').privateKey) }; },
     (fixture) => { const pkg = fixture.packageValue(); return { pkg,
       signature: { ...fixture.sign(pkg, fixture.keys.privateKey), keyId: 'unknown-key' } }; },
+    (fixture) => { const pkg = fixture.packageValue(); return { pkg,
+      signature: { algorithm: 'rsa', keyId: fixture.IDS.keyId, value: 'malformed' } }; },
+    (fixture) => { const pkg = fixture.packageValue({ manifest: { format: 'invalid-format' } });
+      return { pkg, signature: fixture.sign(pkg, fixture.keys.privateKey) }; },
     (fixture) => { const pkg = fixture.packageValue({ manifest: { createdAt: '2020-01-01T00:00:00.000Z' } });
       return { pkg, signature: fixture.sign(pkg, fixture.keys.privateKey) }; },
     (fixture) => { const pkg = fixture.packageValue({ manifest: { createdAt: '2030-01-01T00:00:00.000Z' } });
