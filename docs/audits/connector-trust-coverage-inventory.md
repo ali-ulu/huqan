@@ -10,10 +10,11 @@ This document is a point-in-time inventory of connector, client, and trust-path 
 
 | Classification | Count |
 | --- | ---: |
-| `trust-connected` | 11 |
+| `trust-connected` | 10 |
 | `partially-trust-connected` | 1 |
 | `logged-wrapper` | 1 |
 | `api-wrapper` | 1 |
+| `library-only` | 1 |
 | `unknown` | 0 |
 
 ## Contract
@@ -41,7 +42,7 @@ If any of these are not proven for the tested path, the path remains partial.
 | `adapters/github-adapter.js` | `parseRepoUrl`, `includePath`, `fetchRepoFiles` | `api_wrapper` | no | yes | no | no | no | no | no | no | `adapters/github-adapter.test.js` | `api-wrapper` | Fetching remote repo files is only a source wrapper; trust attachment happens later |
 | `adapters/markdown-adapter.js` | `parseMarkdown`, `listMarkdownFiles`, `ingestMarkdown` | `filesystem_wrapper` | no | no | no | no | no | no | no | no | `adapters/markdown-adapter.test.js`, `plugins/repo-memory.test.js` | `logged-wrapper` | Root confinement is proven, but the adapter itself does not attach provenance |
 | `plugins/repo-memory.js` | `ingestGithubRepo`, `ingestMarkdownPath`, `run` | `connector_ingest` | yes | yes for GitHub, no for markdown | yes on tested paths | yes | yes on tested paths | yes on tested paths | no | yes on tested paths | `plugins/repo-memory.test.js`, `lib/provenance-query.test.js`, `lib/provenance-ingest.test.js` | `trust-connected` | Tested current-main paths now return explicit admission records |
-| `lib/github-connector.js` | `buildGitHubProvenance`, `routeAsPendingCandidate`, `ingestGitHubItem`, `ingestGitHubItems` | `connector_ingest` | yes | no | yes on tested paths | yes | yes | yes | yes on tested paths | yes for stored candidate/audit paths | `lib/github-connector.test.js`, `lib/provenance-query.test.js`, `lib/provenance-ingest.test.js` | `trust-connected` | Candidate routing and explicit admission are proven on tested paths |
+| `lib/github-connector.js` | `buildGitHubProvenance`, `routeAsPendingCandidate`, `ingestGitHubItem`, `ingestGitHubItems` | `connector_ingest` | yes | no | yes on tested paths | yes | yes | yes | yes on tested paths | yes for stored candidate/audit paths | `lib/github-connector.test.js`, `lib/provenance-query.test.js`, `lib/provenance-ingest.test.js` | `library-only` | No production or internal caller found (`grep -rl "require(.*github-connector" --include="*.js"` outside its own test file returns nothing); the real GitHub ingest path used by `plugins/repo-memory.js` is the separate `adapters/github-adapter.js`. Trust behavior is proven only inside this file's own tests, not reachable from `cli.js`, `server.js`, `mcpServer.js`, or any plugin |
 | `lib/provenance-ingest.js` | `buildProvenance`, `ingestWithProvenance` | `provenance_ingest` | yes | no | yes | yes | yes | yes | partial | yes | `lib/provenance-ingest.test.js` | `trust-connected` | Strict provenance policy is caller-controlled |
 | `lib/provenance-query.js` | `queryProvenance`, `queryTrustGraph`, `buildTrustReceipt` | `provenance_query` | no | no | n/a | no | no | no | yes | n/a | `lib/provenance-query.test.js`, `test/provenance-receipt-bridge.integration.test.js`, `test/causal-receipt-bridge.test.js` | `trust-connected` | Trust receipt generation remains tested on current-main paths |
 | `lib/approval-flow.js` | `buildApprovalDecision`, `approveRequest`, `rejectRequest` | `approval_flow` | yes | no | yes | no | yes | yes | yes | yes | `test/approval-flow.test.js`, `test/approval-queue.test.js`, `test/v3-core-smoke.test.js` | `trust-connected` | Approval queue is proven in tests; external client proof is still missing |
@@ -62,7 +63,8 @@ If any of these are not proven for the tested path, the path remains partial.
 - Connector provenance is still partial across the full connector set.
 - Connector-to-graph admission is still partial across the full connector set.
 - The inline trust boundary is not yet mandatory across every connector and client path.
-- `repo-memory` and `github-connector` are trust-connected on the tested current-main paths, but the overall system is still only a partial trust layer because the inline boundary is not mandatory everywhere.
+- `repo-memory` is trust-connected on the tested current-main paths, but the overall system is still only a partial trust layer because the inline boundary is not mandatory everywhere.
+- `lib/github-connector.js` is reclassified `library-only`: its trust behavior is proven only within its own tests. No production or internal caller was found; `repo-memory`'s real GitHub ingest path goes through `adapters/github-adapter.js` instead.
 
 ## Stale or non-issues
 
