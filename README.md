@@ -287,7 +287,7 @@ Focused test commands are available in [`package.json`](./package.json).
 
 ## License
 
-Apache License 2.0. See [LICENSE](./LICENSE) and [NOTICE](./NOTICE).
+GNU Affero General Public License v3.0 (AGPL-3.0). See [LICENSE](./LICENSE) and [NOTICE](./NOTICE).
 
 ---
 
