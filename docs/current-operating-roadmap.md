@@ -1,7 +1,7 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`a8901e0c77b9c40754b4ea031ea33d2917a193d7` (PR #196 merge).
+`35307fa74293933a7c33dc279a2e13b5d79bf9a0` (PR #223 merge; PR #198 remains the Mutation/Receipt Owner-0 implementation merge).
 
 This is the execution-order source for current runtime work. It is not a
 release claim and it does not replace architecture ADRs. When this file
@@ -13,12 +13,15 @@ wins.
 HUQAN is a **local-first partial trust layer** with real graph, verification,
 gate, provenance, approval, audit, receipt, immutable-source, signed-package,
 default-closed endpoint-contract, bounded external-client trust-profile
-materialization and a dedicated durable replay-reservation primitive. A bounded
-external-client candidate-quarantine mutation and receipt contract is now
-authorized but not implemented. HUQAN is not yet a fully inline trust control
-plane for every client, connector, receipt family or mutation path.
+materialization, a dedicated durable replay-reservation primitive and one
+internal candidate-quarantine mutation/receipt owner. The owner is not wired to
+a reachable route or production server composition. A later test-only inline
+enforcement matrix is present on current main, but it does not alter the
+external-client gate order or create reachability. HUQAN is not yet a fully
+inline trust control plane for every client, connector, receipt family or
+mutation path.
 
-## Reconciled sequence through Mutation/Receipt Owner-0 authorization
+## Reconciled sequence through Mutation/Receipt Owner-0 implementation
 
 | Merged PR(s) | Closed boundary | Deliberate limit |
 | --- | --- | --- |
@@ -45,6 +48,8 @@ plane for every client, connector, receipt family or mutation path.
 | #191 / #192 | Identity/Trust Config-0 implementation reconciliation and Durable Replay-0 authorization | Dedicated SQLite ownership contract is locked; no replay runtime, wiring, route, mutation or receipt effect exists |
 | #193 / #194 | Durable Replay-0 authorization reconciliation and dedicated SQLite implementation | Durable replay exists as an internal owner; no Authority/server wiring, route, mutation, receipt or package exposure |
 | #195 / #196 | Durable Replay post-merge reconciliation and Mutation/Receipt Owner-0 authorization | One candidate-quarantine mutation and exact V2 receipt policy are selected; no runtime owner, route, global V2 writer or package exposure exists |
+| #197 / #198 | Mutation/Receipt Owner-0 authorization reconciliation and bounded implementation | Internal owner is real and exact-scope; no HTTP adapter, route, server composition, global V2 writer or package exposure exists |
+| #223 | Test-only inline enforcement matrix for tool, memory and MCP gates | Adds fail-closed coverage only; it does not change the external-client authorization sequence, route reachability or runtime ownership |
 
 ## Closed receipt trust-root foundation
 
@@ -236,16 +241,18 @@ count, so this roadmap records only the observed successful jobs and does not
 invent a number. A source-first review also caught and fixed raw SQLite
 initialization-error escape before merge.
 
-## Closed Mutation/Receipt Owner-0 authorization
+## Closed Mutation/Receipt Owner-0 implementation
 
-The merged exact-base authorization selects:
+The merged internal owner now provides:
 
 - exactly one verified signed package containing exactly one pending candidate
   claim and no other embedded object collection;
 - one local workspace-scoped candidate quarantine projection with a derived
   local ID, forced `pending` status, forced `flag` recommendation and no
-  imported external conflict authority;
+  imported external conflict or review authority;
 - no direct Graph node or edge mutation;
+- deterministic operation and receipt IDs derived from the authoritative
+  package, workspace and replay context;
 - the existing SQLite `Graph.runMutationOnce()` boundary as the atomic owner of
   candidate persistence, canonical receipt and completed mutation journal;
 - the operation ID
@@ -255,69 +262,90 @@ The merged exact-base authorization selects:
   `decision: review` and `status: pending`;
 - trusted `createdAt` derived from Authority-0 `reservedAt`;
 - one exact structural V2 write policy recognized by the existing published
-  V4 guard, without a generic bypass flag, new helper dependency, module export
-  or package-file change;
+  V4 guard while unrelated V2 writes remain fail-closed;
+- one shared aggregate 10,000-value JSON budget within each complete package
+  or authority snapshot traversal;
 - fail-closed unknown-outcome behavior with no automatic retry, second replay
-  reservation, compensation or success response.
+  reservation, compensation or success response; and
+- an internal-only owner excluded from the npm package surface.
 
-The authorization deliberately does **not** implement any of those behaviors.
-It does not enable a route, server composition, SDK export, global V2 writer,
-approval completion, direct canonical mutation, package change or public API.
+Source-first review found and closed a real bounded-input defect before merge:
+the original numeric visit counter was copied across sibling recursion branches.
+The final shared budget rejects a package containing 10,001 sibling values
+before transaction entry and proves zero candidate, mutation-journal and
+mutation-receipt rows.
 
-A source-first review rejected the first helper-capability design because the
-published V4 guard could have depended on an unpublished helper and broken the
-npm artifact. The final contract keeps package reachability unchanged and adds
-package dry-run evidence to the implementation gate.
+The implementation deliberately does **not** provide:
+
+- a reachable external-client route or HTTP adapter;
+- server or SDK composition of trust config, durable replay and mutation owner;
+- HTTP identity extraction or route-level authority enforcement;
+- approval completion, direct canonical node/edge import or external conflict
+  authority;
+- a global production V2 switch, generic capability factory or public writer;
+- package metadata, module export, dependency or release changes; or
+- external interoperability evidence.
+
+PR #198 merged as
+`3eb5dfe4592188827b5f2627fce886b64ef55fc6` with exactly four authorized
+files. Exact-head GitHub Actions recorded Security Checks run `30861285186`
+as successful and Benchmark Regression workflow run `30861285269` as
+successful. Its runtime job reported `2499` tests, `2470` passing, `0` failing
+and `29` skipped across `224` suites. Benchmark and Docker workloads were
+`NOT_APPLICABLE` for that run. A separate fresh lead run reported `2497`
+tests, `2468` passing, `0` failing and `29` skipped; both green totals are
+recorded rather than silently reconciled. Package dry-run boundary proof passed
+inside the full runtime suite.
 
 ## Current authorization state
 
-PR #196 merged the docs-only Mutation/Receipt Owner-0 authorization at the
-exact baseline above. This reconciliation authorizes no runtime change by
-itself.
+Mutation/Receipt Owner-0 is merged at predecessor
+`3eb5dfe4592188827b5f2627fce886b64ef55fc6`. Current canonical main is the
+later test-only PR #223 merge shown at the top of this document. PR #223 does
+not alter adapter ownership, route reachability or the mandatory gate sequence.
+This post-implementation reconciliation is docs-only and authorizes no adapter,
+route or production composition by itself.
 
-After this reconciliation merges and canonical `main` is re-read, the only
-next gate is:
-
-```text
-EXTERNAL_CLIENT_MUTATION_RECEIPT_OWNER_0_IMPLEMENTATION
-```
-
-The exact implementation scope is:
+No HTTP Adapter-0 task-pack exists on the current exact baseline. After this
+reconciliation merges and canonical `main` is re-read, the only next gate is a
+separate exact-base docs-only authorization:
 
 ```text
-lib/external-client-mutation-receipt-owner.js
-lib/external-client-mutation-receipt-owner.test.js
-lib/receipt/v4-receipt-family.js
-graph.js
+EXTERNAL_CLIENT_HTTP_ADAPTER_0_AUTHORIZATION
 ```
 
-`graph.js` is limited to normalized operation-ID pass-through at the existing
-receipt guard. Server, SDK, endpoint, trust-config composition, replay
-composition, package metadata, dependencies and public schemas remain closed.
+That authorization must identify the exact thin adapter boundary, request and
+response contract, trusted dependency injection, error mapping, body and
+timeout bounds, package-surface decision and test owner. It may not move trust,
+signature, workspace, freshness, replay, mutation or receipt semantics into the
+adapter. `server.js`, route registration and deployment configuration remain
+closed until the adapter gate and its implementation close separately.
 
 ## Remaining execution order
 
-### 1. External Client Mutation and Receipt Owner-0 implementation
-
-Implement and adversarially prove only the authorized one-candidate quarantine,
-atomic Graph journal/receipt ownership, exact V2 external trust-root policy and
-unknown-outcome contract. Preserve all unrelated V2 refusal and historical V1
-byte/hash behavior. Package dry-run evidence is mandatory.
-
-### 2. Mutation/Receipt Owner-0 post-merge reconciliation
+### 1. Mutation/Receipt Owner-0 post-merge reconciliation
 
 Record exact source, targeted test, full-regression, CI, package dry-run and
-post-merge evidence before opening the HTTP adapter.
+post-merge evidence before opening the HTTP adapter. This document is that
+docs-only gate.
 
-### 3. External Client HTTP Adapter-0
+### 2. External Client HTTP Adapter-0 authorization
 
-Add only a thin HTTP adapter after the preceding gates close. The adapter does
-not own trust, replay, mutation or receipt semantics.
+Create one exact-base task-pack that locks a thin, internal adapter contract and
+an exact implementation/test scope. Do not register a route or change server
+composition.
+
+### 3. External Client HTTP Adapter-0 implementation
+
+Implement only the authorized adapter after its reconciliation closes. The
+adapter delegates to existing authority, replay and mutation/receipt owners and
+does not own their semantics.
 
 ### 4. External Client Route Adversarial-0
 
 Prove default-closed absence, spoofing and malformed-input rejection, replay
-across restart and concurrency, no-retry behavior and mutation/receipt evidence.
+across restart and concurrency, no-retry behavior and mutation/receipt evidence
+before any reachability claim.
 
 ### 5. External Client Enablement-0 closeout
 
@@ -341,11 +369,13 @@ before any completion statement.
 
 ## Permanent ordering rules
 
-- Mutation and Receipt Owner-0 implementation does not start before this exact
-  authorization reconciliation closes.
+- HTTP Adapter-0 implementation does not start before this exact
+  post-implementation reconciliation and a separate exact-base adapter
+  authorization close.
+- The adapter remains thin and may not reimplement trust-profile, signature,
+  workspace, freshness, replay, mutation or receipt ownership.
 - The narrow exact external candidate V2 policy must not become a generic V2
   switch, capability factory or caller-controlled bypass.
-- Mutation and receipt ownership precede any reachable HTTP adapter.
 - Route registration remains last and requires every predecessor to close.
 - Production V2 writer ownership is not inferred from endpoint, SDK, transport,
   actor labels, local reachability, signatures, replay durability or fixture
@@ -358,11 +388,11 @@ before any completion statement.
 
 ## Explicit non-goals
 
-- No reachable external-client route in this reconciliation or owner
-  implementation.
+- No reachable external-client route in this reconciliation.
 - No server composition wiring for trust config, replay or mutation owner.
+- No HTTP Adapter-0 runtime implementation before its exact authorization.
 - No package containing multiple candidate claims or non-candidate embedded
-  objects in this first mutation gate.
+  objects in the first mutation gate.
 - No direct node/edge import or external audit, receipt, approval or conflict
   authority import.
 - No caller-controlled local candidate, operation or receipt IDs.
