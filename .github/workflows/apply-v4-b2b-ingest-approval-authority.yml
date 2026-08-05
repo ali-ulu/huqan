@@ -1,0 +1,218 @@
+name: Apply V4 B2B ingest approval authority repair
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'fix/v4-b2b-ingest-approval-authority'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Apply, validate, and rewrite exact-parent candidate
+        env:
+          BASE_SHA: 3e4a63d6b4fd059435483b4bfb5345e40394aad1
+          BRANCH_NAME: fix/v4-b2b-ingest-approval-authority
+        run: |
+          cat > /tmp/apply_v4_b2b.py <<'PY'
+          from pathlib import Path
+          import json
+
+          BASE_SHA = "3e4a63d6b4fd059435483b4bfb5345e40394aad1"
+
+          for required in ['lib/workbench/ingest-approval-action.js', 'test/v4-b2b-ingest-approval-authority-gap.test.js']:
+              if not Path(required).is_file():
+                  raise SystemExit(f'missing pre-created file: {required}')
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected one match, found {count}")
+              return text.replace(old, new, 1)
+
+          ingest_path = Path('lib/ingest.js')
+          ingest = ingest_path.read_text()
+          helper = '''function canonicalIngestWorkspace(data = {}, sourceType = '') {
+            if (!['manual', 'decision'].includes(sourceType)) return { ok: true, workspaceId: '' };
+            const values = [];
+            for (const key of ['workspaceId', 'workspace_id']) {
+              if (Object.prototype.hasOwnProperty.call(data, key)) values.push(data[key]);
+            }
+            if (values.length === 0) return { ok: true, workspaceId: 'default' };
+            if (values.every(value => typeof value === 'string' && value === 'default')) {
+              return { ok: true, workspaceId: 'default' };
+            }
+            return {
+              ok: false,
+              code: 'INGEST_WORKSPACE_NOT_AUTHORIZED',
+              error: 'HTTP ingest approval is bounded to the canonical default workspace.',
+            };
+          }
+
+          '''
+          ingest = replace_once(
+              ingest,
+              'function buildCapabilityPayload(data, sourceType, sourceRef, idempotencyKey) {\n',
+              helper + 'function buildCapabilityPayload(data, sourceType, sourceRef, idempotencyKey) {\n',
+              'insert canonical workspace helper',
+          )
+          ingest = replace_once(
+              ingest,
+              "function buildCapabilityPayload(data, sourceType, sourceRef, idempotencyKey) {\n  const base = {\n    action: 'ingest',\n    sourceType,\n    sourceRef,\n    idempotencyKey,\n  };",
+              "function buildCapabilityPayload(data, sourceType, sourceRef, idempotencyKey) {\n  const workspace = canonicalIngestWorkspace(data, sourceType);\n  if (!workspace.ok) return null;\n  const base = {\n    action: 'ingest',\n    sourceType,\n    sourceRef,\n    idempotencyKey,\n    ...(workspace.workspaceId ? { workspaceId: workspace.workspaceId } : {}),\n  };",
+              'bind workspace to capability payload',
+          )
+          ingest = replace_once(
+              ingest,
+              "  if (!allowed.has(normalizedType)) {\n    return { ok: false, error: 'sourceType must be one of github|markdown|manual|decision' };\n  }\n\n  const sourceRef = buildSourceRef(data || {}, normalizedType);",
+              "  if (!allowed.has(normalizedType)) {\n    return { ok: false, error: 'sourceType must be one of github|markdown|manual|decision' };\n  }\n\n  const workspace = canonicalIngestWorkspace(data || {}, normalizedType);\n  if (!workspace.ok) return workspace;\n\n  const sourceRef = buildSourceRef(data || {}, normalizedType);",
+              'validate handleIngest workspace',
+          )
+          ingest = replace_once(
+              ingest,
+              "  if (!['manual', 'decision'].includes(sourceType)) {\n    return { ok: false, code: 'INGEST_SNAPSHOT_REQUIRED', error: 'github and markdown ingest require INGEST-SNAPSHOT-0 before approval queueing' };\n  }\n  const sourceRef = buildSourceRef(data, sourceType);",
+              "  if (!['manual', 'decision'].includes(sourceType)) {\n    return { ok: false, code: 'INGEST_SNAPSHOT_REQUIRED', error: 'github and markdown ingest require INGEST-SNAPSHOT-0 before approval queueing' };\n  }\n  const workspace = canonicalIngestWorkspace(data, sourceType);\n  if (!workspace.ok) return workspace;\n  const sourceRef = buildSourceRef(data, sourceType);",
+              'validate snapshot workspace',
+          )
+          ingest = replace_once(
+              ingest,
+              "  buildIdempotencyKey,\n  buildSourceRef,\n  buildCapabilityPayload,",
+              "  buildIdempotencyKey,\n  buildSourceRef,\n  canonicalIngestWorkspace,\n  buildCapabilityPayload,",
+              'export canonical workspace helper',
+          )
+          ingest_path.write_text(ingest)
+
+          server_path = Path('server.js')
+          server = server_path.read_text()
+          server = replace_once(
+              server,
+              "const { handleIngest, buildIngestApprovalSnapshot, sha256 } = require('./lib/ingest');\nconst AxiomStorage = require('./storage');\nconst { buildReviewedActionReceipt, buildBlockedActionReceipt } = require('./lib/approval-flow');",
+              "const { buildIngestApprovalSnapshot } = require('./lib/ingest');\nconst AxiomStorage = require('./storage');\nconst { decideIngestApproval, publicIngestApproval } = require('./lib/workbench/ingest-approval-action');",
+              'server imports',
+          )
+          start = server.index('function publicIngestApproval(record) {')
+          end = server.index('// --- Güvenlik sabitleri ---', start)
+          server = server[:start] + server[end:]
+          route_start = server.index("    try {\n      const store = getIngestApprovalStore();", server.index('const ingestApprovalMatch'))
+          route_end_marker = "    } catch (error) {\n      console.error('[ingest-approval] failed:', error);\n      writeApiError(req, res, 500, 'INGEST_APPROVAL_FAILED', 'Ingest approval failed; inspect unresolved approvals.');\n    }\n"
+          route_end = server.index(route_end_marker, route_start) + len(route_end_marker)
+          replacement = '''    try {
+                const outcome = await decideIngestApproval({
+                  approvalId,
+                  decision,
+                  store: getIngestApprovalStore(),
+                  kernel: cli.kernel,
+                  ensureRuntime: ensureCompanyRuntime,
+                  workerId: INGEST_APPROVAL_WORKER_ID,
+                  leaseMs: INGEST_APPROVAL_LEASE_MS,
+                });
+                writeJson(req, res, outcome.statusCode, outcome.body, { 'Cache-Control': 'no-cache' });
+              } catch (error) {
+                console.error('[ingest-approval] failed:', error);
+                writeApiError(req, res, 500, 'INGEST_APPROVAL_FAILED', 'Ingest approval failed; inspect unresolved approvals.');
+              }
+          '''
+          server = server[:route_start] + replacement + server[route_end:]
+          server_path.write_text(server)
+
+          pkg_path = Path('package.json')
+          pkg = pkg_path.read_text()
+          pkg = replace_once(
+              pkg,
+              '        "lib/workbench/memory-context-audit-source.js",',
+              '        "lib/workbench/ingest-approval-action.js",\n        "lib/workbench/memory-context-audit-source.js",',
+              'package files allowlist',
+          )
+          pkg_path.write_text(pkg)
+
+          old_test_path = Path('test/v4-b2a-ingest-approval-runtime-contract.test.js')
+          old_test = old_test_path.read_text()
+          old_test = replace_once(old_test,
+              "const VERDICT = 'V4_B2_EXISTING_RUNTIME_CONTRACT_BLOCKED_GAP';",
+              "const VERDICT = 'V4_B2_INGEST_APPROVAL_AUTHORITY_REPAIR_SUFFICIENT';",
+              'B2A verdict')
+          old_test = replace_once(old_test,
+              '    workspaceId: `caller-workspace-${suffix}`,',
+              "    workspaceId: 'default',",
+              'B2A canonical workspace payload')
+          old_test = replace_once(old_test,
+              '    assert.equal(record.context.snapshot.payload.workspaceId, undefined);',
+              "    assert.equal(record.context.snapshot.payload.workspaceId, 'default');",
+              'B2A persisted workspace')
+          old_test = replace_once(old_test,
+              "    assert.equal(approved.body.receipt.actionExecution, 'plugin_execution_returned');\n    assert.equal(approved.body.receipt.actionOutcome, 'state_transition_not_asserted');",
+              "    assert.equal(approved.body.receipt.actionExecution, 'bounded_ingest_action_returned');\n    assert.ok([\n      'admission_allow_graph_write_observed',\n      'admission_allow_no_graph_write_observed',\n      'admission_review_no_graph_write_observed',\n      'admission_reject_no_graph_write_observed',\n    ].includes(approved.body.receipt.actionOutcome));",
+              'B2A truthful bounded outcome')
+          old_test = replace_once(old_test,
+              "    assert.match(approved.body.receipt.metadata.pluginResultRef, /^sha256:/);",
+              "    assert.match(approved.body.receipt.metadata.resultRef, /^sha256:/);\n    assert.equal(approved.body.receipt.metadata.actionOwner, 'workbench.ingest-approval-action');\n    assert.equal(approved.body.receipt.metadata.auditRefs[0], approved.body.auditRef);",
+              'B2A receipt evidence metadata')
+          old_test = replace_once(old_test,
+              "    assert.match(source, /result = await handleIngest\\(/);\n    assert.doesNotMatch(source, /executeReviewedExternalGraphMutation/);\n    assert.equal(VERDICT, 'V4_B2_EXISTING_RUNTIME_CONTRACT_BLOCKED_GAP');",
+              "    assert.match(source, /decideIngestApproval\\(/);\n    assert.doesNotMatch(source, /result = await handleIngest\\(/);\n    assert.doesNotMatch(source, /executeReviewedExternalGraphMutation/);\n    assert.equal(VERDICT, 'V4_B2_INGEST_APPROVAL_AUTHORITY_REPAIR_SUFFICIENT');",
+              'B2A thin server source assertion')
+          old_test_path.write_text(old_test)
+
+          json.loads(pkg_path.read_text())
+          if len(Path('lib/workbench/ingest-approval-action.js').read_text().splitlines()) > 300:
+              raise SystemExit('bounded action owner exceeds 300 lines')
+          if 'executeReviewedExternalGraphMutation' in Path('lib/workbench/ingest-approval-action.js').read_text():
+              raise SystemExit('reviewed external owner imported into bounded action owner')
+          if 'result = await handleIngest(' in server_path.read_text():
+              raise SystemExit('server still owns direct ingest execution')
+          PY
+          python3 /tmp/apply_v4_b2b.py
+          node --check lib/ingest.js
+          node --check lib/workbench/ingest-approval-action.js
+          node --check server.js
+          node --check test/v4-b2b-ingest-approval-authority-gap.test.js
+          node --check test/v4-b2a-ingest-approval-runtime-contract.test.js
+          node scripts/agent-context.js > /tmp/huqan-agent-context.txt
+          node --test test/v4-b2b-ingest-approval-authority-gap.test.js
+          node --test test/v4-b2a-ingest-approval-runtime-contract.test.js
+          npm test
+          npm pack --dry-run --json --ignore-scripts > /tmp/huqan-pack.json
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const result = JSON.parse(fs.readFileSync('/tmp/huqan-pack.json', 'utf8'));
+          const files = new Set(result[0].files.map((entry) => entry.path));
+          if (!files.has('lib/workbench/ingest-approval-action.js')) throw new Error('bounded owner missing from package');
+          NODE
+          test "$(wc -l < lib/workbench/ingest-approval-action.js)" -le 300
+          base_server_lines="$(git show "$BASE_SHA:server.js" | wc -l)"
+          current_server_lines="$(wc -l < server.js)"
+          test "$current_server_lines" -le "$base_server_lines"
+          ! grep -R "executeReviewedExternalGraphMutation" lib/workbench/ingest-approval-action.js server.js
+          git diff --check
+          command -v graphify || true
+          rm .github/workflows/apply-v4-b2b-ingest-approval-authority.yml
+          actual="$(git diff --name-only "$BASE_SHA" | sort)"
+          expected="$(printf '%s\n' \
+            lib/ingest.js \
+            lib/workbench/ingest-approval-action.js \
+            package.json \
+            server.js \
+            test/v4-b2a-ingest-approval-runtime-contract.test.js \
+            test/v4-b2b-ingest-approval-authority-gap.test.js | sort)"
+          test "$actual" = "$expected"
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          tree="$(git write-tree)"
+          commit="$(printf '%s\n' 'fix: bind V4 B2 ingest approval authority' | git commit-tree "$tree" -p "$BASE_SHA")"
+          git push --force origin "$commit:refs/heads/$BRANCH_NAME"
