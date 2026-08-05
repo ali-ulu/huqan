@@ -1,8 +1,8 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`4e681a5caec2d91ead9c1298da91c991c293dee0` (PR #241 Route
-Adversarial-0 reconstruction merge).
+`cdc8d9e49a52d2d130823240238d54fa75e2d00e` (PR #243 External Client
+Enablement-0 closeout audit authorization merge).
 
 Live source, exact Git SHA, tests and CI outrank this compact execution source.
 Detailed history remains in merged PRs, task-packs and audit evidence.
@@ -34,9 +34,10 @@ clock, replay path, SDK or mutation/receipt-owner composition.
 | #202 / #225 / #226 / #228 / #230 | Adapter-0 authorization, implementation and reconciliation | Thin internal adapter only; no server registration |
 | #231 / #232 | Route Adversarial-0 authorization and reconciliation | Exactly three test-owned files; production route forbidden |
 | #235 / #236 / #239 / #240 | Observed-overflow correction and reconciliation | Native drain with bounded destroy fallback; no route or package change |
-| #241 | Route Adversarial-0 reconstruction | Real-loopback evidence only; no production composition |
+| #241 / #242 | Route Adversarial-0 reconstruction and reconciliation | Real-loopback evidence only; no production composition |
+| #243 | Enablement-0 closeout audit authorization | Future implementation may add one audit report only |
 
-## Closed Route Adversarial-0 reconstruction
+## Closed Route Adversarial-0 evidence
 
 PR #241 rebuilt the already-authorized real-loopback evidence from exact base
 `cea7714bb0768890c1e9ec380e4ff116e357e4ff` using only:
@@ -48,14 +49,13 @@ test/helpers/external-client-route-fixture.js
 ```
 
 The first candidate head `d025ec5dd801c0e7b4990ffd6f36857e7d6b5c98`
-failed one exact assertion. The declared-overflow fixture advertised
-`Content-Length: 1048577` but sent an empty request body, so the real Node HTTP
-transport returned `400` before the intended application-level `413` evidence
-could be observed.
+sent an internally inconsistent declared-overflow request: it advertised
+`Content-Length: 1048577` but sent an empty body. The real transport returned
+`400` before the intended application-level `413` could be observed.
 
-Recovery head `a458ae995311125e17ef2ec5c530938bfddc87c5` did not weaken
-the contract. It sent the truthful `1048577`-byte body and retained exact
-`413` before delegation or durable mutation.
+Recovery head `a458ae995311125e17ef2ec5c530938bfddc87c5` sent the truthful
+`1048577`-byte body and retained exact `413` before delegation or durable
+mutation. It did not modify runtime or weaken the assertion.
 
 Exact-head evidence:
 
@@ -64,12 +64,15 @@ Exact-head evidence:
 - full `npm test` job `92336329914`: `SUCCESS`
 - open inline review threads: `0`
 - exact three-file test-owned scope preserved
-- production runtime, route, server, package, dependency and deployment source
-  unchanged
 
 PR #241 merged at exact reviewed head
-`a458ae995311125e17ef2ec5c530938bfddc87c5`; merge/live main is
+`a458ae995311125e17ef2ec5c530938bfddc87c5`; merge main was
 `4e681a5caec2d91ead9c1298da91c991c293dee0`.
+
+PR #242 reconciled that merge using only the mutable checkpoint and operating
+roadmap. It merged at exact reviewed head
+`d09962a89480526d03e636f405c7d22e1fb55551`; merge main was
+`1e733f57e333cd02e221d8e819eecd936bdfbca0`.
 
 Observed boundaries remain:
 
@@ -87,57 +90,101 @@ Observed boundaries remain:
   trust, freshness, replay and mutation inputs fail closed; and
 - abort and unknown-outcome paths do not retry.
 
+## Closed closeout-audit authorization
+
+PR #243 authorized one docs-only External Client Enablement-0 closeout audit
+from exact base `1e733f57e333cd02e221d8e819eecd936bdfbca0`.
+
+Exact changed file:
+
+```text
+docs/task-packs/external-client-enablement-0-closeout-audit-authorization.md
+```
+
+Exact reviewed head:
+
+```text
+cc225f4a306f7f5bad2d585a768583a5a2b18bf4
+```
+
+Exact-head evidence:
+
+- Security Checks run `31016859987`: `SUCCESS`
+- Benchmark Regression run `31016859560`: `SUCCESS`
+- docs-only runtime test, Docker and benchmark jobs: `NOT_APPLICABLE` with
+  successful workflow conclusions
+- exact one-file scope and zero open review threads
+
+PR #243 merge/live main is
+`cdc8d9e49a52d2d130823240238d54fa75e2d00e`.
+
+The authorization permits only:
+
+```text
+docs/reports/external-client-enablement-0-closeout-audit.md
+```
+
+The audit may classify evidence and blockers. It may not repair runtime,
+register the route, wire production composition or inflate readiness claims.
+
 ## Current gate
 
 This reconciliation opens only:
 
 ```text
-EXTERNAL_CLIENT_ENABLEMENT_0_CLOSEOUT_AUDIT_AUTHORIZATION
+EXTERNAL_CLIENT_ENABLEMENT_0_CLOSEOUT_AUDIT
 ```
 
-The authorization must start from exact canonical `main`
-`4e681a5caec2d91ead9c1298da91c991c293dee0` and define a docs-only audit
-scope before any closeout work begins.
+The audit must start from exact canonical `main`
+`cdc8d9e49a52d2d130823240238d54fa75e2d00e` and add exactly the authorized
+report file.
 
-The closeout audit must attempt to falsify:
+The report must attempt to falsify:
 
-- complete predecessor lineage and exact merge identities;
-- exact scopes and negative scopes for every enablement successor;
-- route absence and default-closed production behavior;
-- request-independent identity, workspace, permissions, trusted keys, clock,
+- complete predecessor Git lineage and exact merge identities;
+- exact changed-file and negative scopes for every successor;
+- live production route absence and default-closed behavior;
+- request-independent identity, workspace, permission, trusted-key, clock,
   replay, mutation and receipt authority;
-- fail-closed transport, replay, concurrency and unknown-outcome behavior;
-- npm package surface and deployment non-expansion;
-- bounded production V2 receipt ownership and historical V1 byte/hash
-  preservation; and
-- all Enablement-complete, V4-complete and V5-complete non-claims.
+- durable SQLite replay, concurrency and restart behavior;
+- distinct Authority replay and mutation-journal replay ownership;
+- bounded mutation and canonical receipt ownership without retry inflation;
+- exact `413`, malformed transport, abort and unknown-outcome behavior;
+- npm package, dependency and deployment non-expansion;
+- historical V1 byte/hash preservation and bounded V2 ownership; and
+- all production enablement, V4 and V5 non-claims.
 
-No runtime, route, `server.js`, package, dependency, deployment or release
-change is authorized by this reconciliation.
+Required verdict values:
+
+```text
+CLOSED
+BLOCKED
+NOT_APPLICABLE
+UNVERIFIED
+```
+
+The bounded evidence program may close while production route enablement stays
+blocked or not applicable. Those conclusions must remain separate.
 
 ## Remaining execution order
 
-### 1. Enablement-0 closeout audit authorization
+### 1. Enablement-0 closeout audit
 
-Create one exact-base docs-only authorization with acceptance criteria,
-forbidden claims and an explicit write lock.
-
-### 2. Enablement-0 closeout audit
-
-Audit live source, exact Git lineage, tests, CI, package surface and production
+Create exactly the authorized report from exact current `main`. Audit live
+source, exact Git lineage, named tests, exact CI, package surface and production
 route absence. A document-only claim is not evidence.
 
-### 3. Closeout reconciliation
+### 2. Closeout reconciliation
 
-Record the exact reviewed head, merge identity, scope and audit result before
-moving to V4 successors.
+After the audit merges, record its exact head, merge identity, scope, verdicts
+and remaining blockers before moving to V4 successors.
 
-### 4. V4 Workbench successors
+### 3. V4 Workbench successors
 
 Complete remaining read-only inspector, bounded action/approval,
 receipt-export user-flow and V4 source/test/CI/release closeout evidence.
 
-### 5. V5 successors
+### 4. V5 successors
 
 Only after V4 closeout: bounded A2A exchange, public-safe receipt policy,
 external conformance and one real external integration.
