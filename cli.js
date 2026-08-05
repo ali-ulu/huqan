@@ -257,6 +257,13 @@ class CLI {
     if (questionPattern.test(trimmed)) return { command: 'sor', args: trimmed };
 
     if (trimmed.split(/\s+/).filter(Boolean).length >= 2) return { command: 'öğret', args: trimmed };
+
+    if (trimmed) {
+      const wordNode = typeof this.kernel?.normalizeWord === 'function' ? this.kernel.normalizeWord(trimmed) : trimmed;
+      if (typeof this.kernel?.graph?.getNode === 'function' && this.kernel.graph.getNode(wordNode)) {
+        return { command: 'sor', args: trimmed };
+      }
+    }
     return { command: 'anlamadım', args: '' };
   }
 
