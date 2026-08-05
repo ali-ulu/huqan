@@ -1,8 +1,8 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`cdc8d9e49a52d2d130823240238d54fa75e2d00e` (PR #243 External Client
-Enablement-0 closeout audit authorization merge).
+`9e8feaa0df803a81a5ffde80a765f20bb4b90942` (PR #245 External Client
+Enablement-0 closeout audit merge).
 
 Live source, exact Git SHA, tests and CI outrank this compact execution source.
 Detailed history remains in merged PRs, task-packs and audit evidence.
@@ -13,10 +13,11 @@ HUQAN is a **local-first partial trust layer** with real graph, verification,
 gates, provenance, approvals, audit, signed package admission, canonical
 receipts and bounded external-client trust/replay/mutation/transport owners.
 
-The external-client HTTP adapter exists but remains production-unreachable.
-The real `server.js` does not register
-`POST /api/external-client/packages/admit` and has no production trust profile,
-clock, replay path, SDK or mutation/receipt-owner composition.
+The bounded External Client Enablement-0 evidence program is closed. The
+external-client HTTP adapter still remains production-unreachable. The real
+`server.js` does not register `POST /api/external-client/packages/admit` and has
+no production trust profile, clock, replay path, SDK or mutation/receipt-owner
+composition.
 
 ## Reconciled sequence
 
@@ -35,7 +36,8 @@ clock, replay path, SDK or mutation/receipt-owner composition.
 | #231 / #232 | Route Adversarial-0 authorization and reconciliation | Exactly three test-owned files; production route forbidden |
 | #235 / #236 / #239 / #240 | Observed-overflow correction and reconciliation | Native drain with bounded destroy fallback; no route or package change |
 | #241 / #242 | Route Adversarial-0 reconstruction and reconciliation | Real-loopback evidence only; no production composition |
-| #243 | Enablement-0 closeout audit authorization | Future implementation may add one audit report only |
+| #243 / #244 | Enablement-0 closeout audit authorization and reconciliation | Exact one-file docs audit only |
+| #245 | Enablement-0 closeout audit | Bounded evidence closed; production route enablement remains blocked |
 
 ## Closed Route Adversarial-0 evidence
 
@@ -90,101 +92,99 @@ Observed boundaries remain:
   trust, freshness, replay and mutation inputs fail closed; and
 - abort and unknown-outcome paths do not retry.
 
-## Closed closeout-audit authorization
+## Closed External Client Enablement-0 audit
 
-PR #243 authorized one docs-only External Client Enablement-0 closeout audit
-from exact base `1e733f57e333cd02e221d8e819eecd936bdfbca0`.
+PR #243 authorized one docs-only External Client Enablement-0 closeout audit.
+PR #244 reconciled that authorization and established exact audit base
+`f05305bad2097d4025ac691648dbe32a77abf04d`.
 
-Exact changed file:
-
-```text
-docs/task-packs/external-client-enablement-0-closeout-audit-authorization.md
-```
-
-Exact reviewed head:
-
-```text
-cc225f4a306f7f5bad2d585a768583a5a2b18bf4
-```
-
-Exact-head evidence:
-
-- Security Checks run `31016859987`: `SUCCESS`
-- Benchmark Regression run `31016859560`: `SUCCESS`
-- docs-only runtime test, Docker and benchmark jobs: `NOT_APPLICABLE` with
-  successful workflow conclusions
-- exact one-file scope and zero open review threads
-
-PR #243 merge/live main is
-`cdc8d9e49a52d2d130823240238d54fa75e2d00e`.
-
-The authorization permits only:
+PR #245 added exactly:
 
 ```text
 docs/reports/external-client-enablement-0-closeout-audit.md
 ```
 
-The audit may classify evidence and blockers. It may not repair runtime,
-register the route, wire production composition or inflate readiness claims.
+Exact reviewed head:
+
+```text
+06983105ea79488bf996c7db8c13d6533274dec0
+```
+
+Exact-head evidence:
+
+- Security Checks run `31018291572`: `SUCCESS`
+- Benchmark Regression run `31018291601`: `SUCCESS`
+- docs-only runtime test, Docker and benchmark classifications completed as
+  `SUCCESS` / `NOT_APPLICABLE`
+- exact one-file authorized scope
+- zero open review threads
+
+PR #245 merge/live main is
+`9e8feaa0df803a81a5ffde80a765f20bb4b90942`.
+
+The audit closed these bounded evidence boundaries:
+
+- static identity and trusted-key authority;
+- durable SQLite replay ownership;
+- bounded quarantine mutation and canonical V2 receipt ownership;
+- thin HTTP adapter and fail-closed transport;
+- real-loopback adversarial evidence;
+- production route absence; and
+- package, dependency and deployment non-expansion.
+
+The audit did not authorize production enablement. These remain blocked:
+
+- production route registration and reachability;
+- production profile, trusted clock, replay path, SDK and mutation/receipt
+  composition;
+- global production V2 writer expansion;
+- V4 Workbench completion; and
+- V5 ecosystem implementation or completion.
+
+Connector-only limits remain explicit: local clone bootstrap,
+`node scripts/agent-context.js`, local worktree state, local `git diff --check`,
+local package dry-run and Graphify refresh were not re-run by the connector.
 
 ## Current gate
 
 This reconciliation opens only:
 
 ```text
-EXTERNAL_CLIENT_ENABLEMENT_0_CLOSEOUT_AUDIT
+V4_WORKBENCH_RUNTIME_EVIDENCE_0_AUTHORIZATION
 ```
 
-The audit must start from exact canonical `main`
-`cdc8d9e49a52d2d130823240238d54fa75e2d00e` and add exactly the authorized
-report file.
+The next task must start from the exact post-merge canonical `main` produced by
+this reconciliation and authorize one narrow V4 Workbench runtime-evidence
+slice. It may not implement runtime, UI, action, approval or receipt-export
+behavior in the authorization PR.
 
-The report must attempt to falsify:
+The authorization must first select and bound one existing V4 evidence gap:
 
-- complete predecessor Git lineage and exact merge identities;
-- exact changed-file and negative scopes for every successor;
-- live production route absence and default-closed behavior;
-- request-independent identity, workspace, permission, trusted-key, clock,
-  replay, mutation and receipt authority;
-- durable SQLite replay, concurrency and restart behavior;
-- distinct Authority replay and mutation-journal replay ownership;
-- bounded mutation and canonical receipt ownership without retry inflation;
-- exact `413`, malformed transport, abort and unknown-outcome behavior;
-- npm package, dependency and deployment non-expansion;
-- historical V1 byte/hash preservation and bounded V2 ownership; and
-- all production enablement, V4 and V5 non-claims.
+- proving the read-only Workbench inspectors through a real product runtime
+  path;
+- binding one bounded fail-closed action/approval surface;
+- proving receipt inspection/export through a real user flow; or
+- closing V4 source, test, CI and release evidence after predecessor slices are
+  complete.
 
-Required verdict values:
-
-```text
-CLOSED
-BLOCKED
-NOT_APPLICABLE
-UNVERIFIED
-```
-
-The bounded evidence program may close while production route enablement stays
-blocked or not applicable. Those conclusions must remain separate.
+The first slice should prefer the smallest prerequisite-complete boundary and
+must identify exact production/test owners, acceptance commands, negative
+scope, no-mock smoke requirements and the later reconciliation step.
 
 ## Remaining execution order
 
-### 1. Enablement-0 closeout audit
+### 1. V4 Workbench runtime-evidence authorization
 
-Create exactly the authorized report from exact current `main`. Audit live
-source, exact Git lineage, named tests, exact CI, package surface and production
-route absence. A document-only claim is not evidence.
+Authorize one exact-base, narrow V4 evidence slice. The authorization is docs
+only and may not combine implementation with product decisions or closeout.
 
-### 2. Closeout reconciliation
+### 2. V4 Workbench successors
 
-After the audit merges, record its exact head, merge identity, scope, verdicts
-and remaining blockers before moving to V4 successors.
+Implement and reconcile the authorized read-only inspector, bounded
+action/approval, receipt-export user-flow and final V4 source/test/CI/release
+evidence in dependency order.
 
-### 3. V4 Workbench successors
-
-Complete remaining read-only inspector, bounded action/approval,
-receipt-export user-flow and V4 source/test/CI/release closeout evidence.
-
-### 4. V5 successors
+### 3. V5 successors
 
 Only after V4 closeout: bounded A2A exchange, public-safe receipt policy,
 external conformance and one real external integration.
@@ -221,7 +221,7 @@ external conformance and one real external integration.
 - No package, dependency, version, release or deployment change.
 - No global V2 switch or historical V1 rewrite.
 - No multi-client, internet, TLS or reverse-proxy claim.
-- No Enablement-complete, V4-complete or V5-complete claim before their gates.
+- No V4-complete or V5-complete claim before their gates.
 
 ## Operating discipline
 
