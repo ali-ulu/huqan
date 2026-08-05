@@ -93,6 +93,7 @@
         "kernel.v2.js",
         "lib/action-risk-classifier.js",
         "lib/adversarial-signals.js",
+        "lib/agent-loop-budget-gate.js",
         "lib/approval-flow.js",
         "lib/approval-queue.js",
         "lib/approval-schema.js",

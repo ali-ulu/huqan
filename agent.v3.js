@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const path = require('path');
 const Agent = require('./agent');
 const AxiomStorage = require('./storage');
+const { evaluateAgentLoopBudget, DEFAULT_MAX_ITERATIONS_PER_WINDOW, DEFAULT_WINDOW_MS } = require('./lib/agent-loop-budget-gate');
 
 function cloneValue(value) {
   if (value === undefined) return undefined;
@@ -45,8 +46,26 @@ class AgentV3 {
     this.maxSteps = opts.maxSteps || this.baseAgent.maxSteps || 4;
     this.maxIterations = Number.isInteger(opts.maxIterations) ? opts.maxIterations : 50;
     this.timeBudgetMs = Number.isInteger(opts.timeBudgetMs) ? opts.timeBudgetMs : 30000;
+    // AB10: durable per-workspace ceiling, separate from the single-call
+    // maxIterations/timeBudgetMs above.
+    this.maxIterationsPerWindow = Number.isInteger(opts.maxIterationsPerWindow) ? opts.maxIterationsPerWindow : DEFAULT_MAX_ITERATIONS_PER_WINDOW;
+    this.agentLoopBudgetWindowMs = Number.isInteger(opts.agentLoopBudgetWindowMs) ? opts.agentLoopBudgetWindowMs : DEFAULT_WINDOW_MS;
     this.lastPlan = null;
     this.lastRun = null;
+  }
+
+  /** AB10: looks up durable per-workspace usage and evaluates it against the budget gate. */
+  _checkAgentLoopBudget(workspaceId, opts = {}) {
+    const maxIterationsPerWindow = Number.isInteger(opts.maxIterationsPerWindow) ? opts.maxIterationsPerWindow : this.maxIterationsPerWindow;
+    const windowMs = Number.isInteger(opts.agentLoopBudgetWindowMs) ? opts.agentLoopBudgetWindowMs : this.agentLoopBudgetWindowMs;
+    const iterationsUsed = typeof this.storage?.sumAgentIterationsSince === 'function'
+      ? this.storage.sumAgentIterationsSince(workspaceId, Date.now() - windowMs)
+      : 0;
+    const requestedIterations = Number.isInteger(opts.maxIterations) ? opts.maxIterations : this.maxIterations;
+    return evaluateAgentLoopBudget(
+      { iterationsUsed, requestedIterations },
+      { maxIterationsPerWindow },
+    );
   }
 
   _ok(type, data = null, evidence = [], meta = {}) {
@@ -221,6 +240,42 @@ class AgentV3 {
     const queued = Array.isArray(state.queuedSteps) ? [...state.queuedSteps] : [];
     const deadline = Date.now() + Math.max(0, Number.isInteger(opts.timeBudgetMs) ? opts.timeBudgetMs : this.timeBudgetMs);
     const maxIterations = Number.isInteger(opts.maxIterations) ? opts.maxIterations : this.maxIterations;
+    const workspaceId = String(opts.workspaceId || 'default').trim() || 'default';
+    state.workspaceId = workspaceId;
+
+    // AB10: durable, workspace-scoped ceiling on top of this call's own
+    // maxIterations/timeBudgetMs (which only bound a single run()). Checked
+    // BEFORE the loop starts so a workspace that already exhausted its
+    // window's budget cannot spend a single further iteration by calling
+    // run() again. REVIEW and BLOCK are both fail-closed here: agent.v3.js
+    // has no approval-resume flow of its own (unlike the MCP-level gates),
+    // so a caller must raise the budget or wait for the window to roll over
+    // rather than silently proceeding.
+    const budgetCheck = this._checkAgentLoopBudget(workspaceId, opts);
+    if (budgetCheck.decision !== 'allow') {
+      // Call graph.appendAuditEvent() directly rather than kernel._appendAuditEvent():
+      // KernelV2 is a facade over an internal Kernel instance and does not
+      // proxy that private method, but both Kernel and KernelV2 expose
+      // .graph identically (kernel._appendAuditEvent itself is a thin
+      // wrapper around graph.appendAuditEvent), so calling it directly here
+      // works for either kernel implementation passed into AgentV3.
+      if (this.kernel?.graph && typeof this.kernel.graph.appendAuditEvent === 'function') {
+        this.kernel.graph.appendAuditEvent({
+          eventType: budgetCheck.decision === 'block' ? 'REJECT' : 'REVIEW',
+          targetType: 'agent_loop_budget',
+          targetId: goal,
+          details: {
+            gate: 'AB10',
+            reason: budgetCheck.reason,
+            iterationsUsed: budgetCheck.iterationsUsed,
+            maxIterationsPerWindow: budgetCheck.maxIterationsPerWindow,
+          },
+        }, { workspaceId });
+      }
+      return this._fail('agent', 'AGENT_LOOP_BUDGET_EXCEEDED',
+        `Agent loop budget ${budgetCheck.decision} for workspace "${workspaceId}": ${budgetCheck.reason} (${budgetCheck.iterationsUsed}/${budgetCheck.maxIterationsPerWindow} iterations used this window).`,
+        [], { gate: 'AB10', budget: budgetCheck });
+    }
 
     this._saveCheckpoint(state);
 

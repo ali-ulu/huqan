@@ -120,6 +120,19 @@ class AxiomStorage {
         ON tool_approvals(status, updated_at DESC);
     `);
 
+    // AB10: additive migration on the existing agent_runs table (same
+    // PRAGMA table_info + conditional ALTER TABLE idiom already used in
+    // graph.js) so cumulative per-workspace iteration usage can be queried
+    // without a new table.
+    const agentRunsColumns = this.db.prepare('PRAGMA table_info(agent_runs)').all().map(c => c.name);
+    if (!agentRunsColumns.includes('workspace_id')) {
+      this.db.exec("ALTER TABLE agent_runs ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'");
+    }
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_agent_runs_workspace_created
+        ON agent_runs(workspace_id, created_at DESC);
+    `);
+
     this._stmts = {
       upsertCheckpoint: this.db.prepare(`
         INSERT INTO checkpoints (
@@ -172,11 +185,11 @@ class AxiomStorage {
         INSERT INTO agent_runs (
           id, goal_key, goal, objective, status, report, state_json,
           iterations, completed_steps, budget_remaining, resumed, checkpoint_id,
-          created_at, updated_at
+          workspace_id, created_at, updated_at
         ) VALUES (
           @id, @goal_key, @goal, @objective, @status, @report, @state_json,
           @iterations, @completed_steps, @budget_remaining, @resumed, @checkpoint_id,
-          @created_at, @updated_at
+          @workspace_id, @created_at, @updated_at
         )
         ON CONFLICT(id) DO UPDATE SET
           goal_key = excluded.goal_key,
@@ -190,7 +203,13 @@ class AxiomStorage {
           budget_remaining = excluded.budget_remaining,
           resumed = excluded.resumed,
           checkpoint_id = excluded.checkpoint_id,
+          workspace_id = excluded.workspace_id,
           updated_at = excluded.updated_at
+      `),
+      sumAgentIterationsSince: this.db.prepare(`
+        SELECT COALESCE(SUM(iterations), 0) AS total
+        FROM agent_runs
+        WHERE workspace_id = ? AND created_at >= ?
       `),
       countRuns: this.db.prepare('SELECT COUNT(*) AS c FROM agent_runs'),
       countGoals: this.db.prepare('SELECT COUNT(*) AS c FROM goal_memory'),
@@ -436,11 +455,18 @@ class AxiomStorage {
       budget_remaining: Number(state.budgetRemaining || 0),
       resumed: state.resumed ? 1 : 0,
       checkpoint_id: String(state.checkpointId || state.resumeToken || ''),
+      workspace_id: String(state.workspaceId || 'default'),
       created_at: Number(state.startedAtMs || this._now()),
       updated_at: this._now(),
     };
     this._stmts.upsertRun.run(payload);
     return id;
+  }
+
+  /** AB10: cumulative iterations already spent by `workspaceId` since `sinceMs`. */
+  sumAgentIterationsSince(workspaceId, sinceMs) {
+    const row = this._stmts.sumAgentIterationsSince.get(String(workspaceId || 'default'), Number(sinceMs) || 0);
+    return Number(row?.total || 0);
   }
 
   countRuns() {
