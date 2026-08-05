@@ -1,8 +1,8 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`f765ddd687e06823c45dba5d498ec6543234eed8` (PR #298 V4-B2B authority-gap
-authorization merge).
+`725dbba334a786f051d5753764088e3b5338c54c` (PR #301 WB2 exact-identifier
+repair merge).
 
 Live source, exact Git SHA, tests and CI outrank this compact execution source.
 Detailed history remains in merged PRs, task-packs and audit evidence.
@@ -17,153 +17,101 @@ The External Client Enablement-0 evidence program is closed, but its HTTP
 adapter remains production-unreachable. V4 Workbench runtime-evidence work is
 active.
 
-V4-B1 read-only inspector runtime evidence is closed. V4-B2 action/approval
-evidence is open and now has an exact-base implementation authorization. V4-B3
-receipt-export user flow and V4-B5 final closeout remain open.
+V4-B1 read-only inspector runtime evidence is closed, including the repaired
+exact-identifier authority boundary. V4-B2 action/approval evidence is open.
+V4-B3 receipt-export user flow and V4-B5 final closeout remain open.
 
 ## Reconciled sequence
 
 | Merged PR(s) | Closed boundary | Deliberate limit |
 | --- | --- | --- |
 | #132-#246 | Trust-boundary, receipt-root and bounded external-client evidence | No production external-client route |
-| #247-#250 | WB2 durable-source authorization, proof and reconciliation | Source sufficient; no adapter or route |
-| #251-#255 | WB2 adapter authorization, implementation and reconciliation | Internal read-only adapter; no route |
-| #256-#259 | WB2 pure route contract and reconciliation | Helper merged; route unreachable |
-| #260-#264 | WB2 server wiring, package reachability, smoke and reconciliation | V4-B1 closed; no action/approval |
-| #265-#267 | B2 existing-runtime authorization and real-server/SQLite characterization | Existing lifecycle bounded but insufficient |
-| #297 | B2A blocked-gap reconciliation | Opened only exact authority-gap authorization |
-| #298 | B2B authority-gap authorization | No runtime change; exact five-file successor only |
+| #247-#264 | WB2 source, adapter, route and server evidence | V4-B1 closed; no action/approval |
+| #265-#267 | B2 existing-runtime characterization | Existing lifecycle bounded but insufficient |
+| #297-#299 | B2B authority-gap authorization and reconciliation | Exact five-file successor only |
+| #301 | WB2 exact-identifier repair | No B2 action-path change |
 
 ## Closed V4-B1 evidence
 
-PR #249 proved:
+PR #249 proved `V4_WB2_RUNTIME_SOURCE_SUFFICIENT` using real Kernel, SQLite
+Graph and close/reopen evidence.
 
-```text
-V4_WB2_RUNTIME_SOURCE_SUFFICIENT
-```
+Verified exact-head evidence:
 
-PR #254 implemented the internal read-only audit adapter. PR #258 implemented
-the pure route contract. PR #262 registered the bounded Workbench route and
-proved it with real Kernel, SQLite Graph and loopback HTTP. PR #264 reconciled
-V4-B1 closure.
+- PR #249 head `59942569d327249d9319e9228f79be17feeb80ae`:
+  Security Checks `31022648513`, Benchmark Regression `31022647907`, full
+  `npm test` job `92363082880`, all `SUCCESS`;
+- PR #254 head `d662f6e545e5be12d5f7937d45599f1f6c33c989`:
+  Security Checks `31025724234`, Benchmark Regression `31025724138`, full
+  `npm test` job `92373576698`, all `SUCCESS`;
+- PR #262 head `fb77b175cf3a44d05ca0cc13b9f172c9ea1d241b`:
+  Security Checks `31031154969`, Benchmark Regression `31031154766`, full
+  `npm test` job `92391978739`, all `SUCCESS`.
 
-Controlling exact-head evidence for PR #262:
+PR #254 implemented the internal audit adapter, PR #258 the pure route contract,
+PR #262 the bounded authenticated server route and real SQLite/HTTP smoke, and
+PR #264 the V4-B1 reconciliation.
 
-- head `fb77b175cf3a44d05ca0cc13b9f172c9ea1d241b`;
-- Security Checks run `31031154969`: `SUCCESS`;
-- Benchmark Regression run `31031154766`: `SUCCESS`;
-- full `npm test` job `92391978739`: `SUCCESS`;
-- exact four-file scope and zero unresolved review threads.
+A later source audit found that the adapter normalized caller identity with
+`String(...).trim()` even though its authorization required exact, non-coerced
+`recordId` and `workspaceId` values. PR #301 repaired that boundary:
+
+- head `2c02879f8076e07678c4a5f0610f3a329e382900`;
+- exactly the adapter and its test owner;
+- padded and non-string identities fail before any audit-owner read;
+- Security Checks `31040031226`: `SUCCESS`;
+- Benchmark Regression `31040031538`: `SUCCESS`;
+- full `npm test` job `92421841117`: `SUCCESS`;
+- zero unresolved review threads;
+- merge/live main `725dbba334a786f051d5753764088e3b5338c54c`.
+
+No server, route, Graph, Kernel, storage, package or B2 action-path behavior was
+changed by PR #301.
 
 ## V4-B2A observed source contract
 
-Current source owns a durable action/approval lifecycle through SQLite
-`tool_approvals`:
+Current source owns durable SQLite `tool_approvals` state, claim/finalization
+CAS, execution leases, expired-lease recovery, reviewed/blocked receipts,
+approval audit emission and these HTTP routes:
 
-- pending, executing, approved, rejected and failed states;
-- compare-and-swap execution claims and receipt-bound finalization;
-- execution leases and expired-lease recovery;
-- reviewed and blocked action receipts;
-- approval audit event emission;
-- `POST /api/ingest` queueing;
-- `GET /api/ingest/approvals` unresolved reads; and
-- `POST /api/ingest/approvals/:approvalId` decisions/execution.
+```text
+POST /api/ingest
+GET /api/ingest/approvals
+POST /api/ingest/approvals/:approvalId
+```
 
-PR #267 exact reviewed head
-`5b2d8d06f38c224503c2e0db69013383eb6ca43b` passed Security Checks run
-`31033964276` and Benchmark Regression run `31033964056`. It added exactly one
-277-line test file and proved the existing lifecycle using real `server.js`,
-Kernel, SQLite Graph, AxiomStorage and loopback HTTP.
-
-Its controlling verdict is:
+PR #267 used real `server.js`, Kernel, SQLite Graph, AxiomStorage and loopback
+HTTP and produced the controlling verdict:
 
 ```text
 V4_B2_EXISTING_RUNTIME_CONTRACT_BLOCKED_GAP
 ```
 
-PR #267 merged as
-`c3218bb75ff6ad2ec6c4a69c497fb06f9135c8b2`.
+Proven gaps:
 
-## Proven B2 gaps
+1. queued manual/decision snapshots do not durably bind caller workspace;
+2. approval calls generic `handleIngest()` and records
+   `state_transition_not_asserted`, not a bounded final action outcome;
+3. the current snapshot is not the complete reviewed-external graph chain, so
+   substituting `executeReviewedExternalGraphMutation()` would manufacture
+   authority.
 
-### 1. Workspace authority is not durably bound
+## Authorized V4-B2B product contract
 
-The request may contain `workspaceId`, but `buildIngestApprovalSnapshot()`
-builds its persisted payload through `buildCapabilityPayload()` and the
-manual/decision payload shape omits workspace identity. The queued snapshot
-therefore cannot bind the original workspace.
-
-The approval route constructs rejection/approval receipts and audit events with
-hard-coded `default`. Decision-request workspace bytes are ignored, which
-prevents late replacement but does not establish the authoritative workspace.
-
-### 2. Successful plugin return is not a bounded final action outcome
-
-The approval route calls:
-
-```text
-handleIngest({ kernel, data: snapshot.payload, ... })
-```
-
-The reviewed receipt explicitly reports:
-
-```text
-actionExecution: plugin_execution_returned
-actionOutcome: state_transition_not_asserted
-```
-
-That is honest lifecycle evidence, not proof of an exact action outcome.
-
-### 3. Reviewed external graph execution is a different contract
-
-`executeReviewedExternalGraphMutation()` requires the complete reviewed source
-envelope, execution plan, candidate plan, admission ticket, reservation,
-trusted workspace/requester/reviewer identities and exact SQLite state. The
-current manual/decision `/api/ingest` snapshot does not contain that chain.
-Direct substitution or renaming would manufacture authority.
-
-## Authorized product contract
-
-PR #298 added the controlling task-pack:
+PR #298 added:
 
 ```text
 docs/task-packs/v4-b2b-ingest-approval-authority-gap-authorization.md
 ```
 
-Exact reviewed head:
+The shared API-key surface is bounded to canonical workspace `default`.
+Non-default workspace fails before persistence. Manual and decision ingest are
+the only action kinds. A bounded Workbench owner must validate the immutable
+snapshot, exact `handleIngest()` result and observed Graph evidence. Unknown,
+malformed or contradictory outcomes persist as `execution_outcome_unknown` and
+are never retried automatically. `server.js` remains a thin orchestrator.
 
-```text
-71019bc0faa9171372e0461b330d8ec70bf74c77
-```
-
-Exact-head evidence:
-
-- Security Checks run `31039238175`: `SUCCESS`;
-- Benchmark Regression run `31039236945`: `SUCCESS`;
-- one commit ahead, zero behind at review time;
-- exactly one 266-line task-pack;
-- zero unresolved review threads.
-
-PR #298 merged as live main
-`f765ddd687e06823c45dba5d498ec6543234eed8`.
-
-The authorized product decisions are:
-
-1. the shared API-key HTTP surface supports only canonical workspace `default`;
-2. omitted or exact `default` is accepted; every other supplied workspace fails
-   closed before queue persistence;
-3. the canonical workspace is persisted in the immutable snapshot and is the
-   sole source for receipt and audit workspace binding;
-4. manual and decision ingest remain the only action kinds;
-5. a bounded Workbench action owner validates the exact `handleIngest()` result
-   against observed Graph evidence;
-6. generic plugin completion is never described as reviewed-external graph
-   execution;
-7. malformed, contradictory, partial or uncertain outcomes persist as
-   `execution_outcome_unknown` and are never retried automatically; and
-8. `server.js` remains a thin orchestrator.
-
-Permitted action outcomes are limited to:
+Permitted outcomes are exactly:
 
 ```text
 admission_allow_graph_write_observed
@@ -173,16 +121,28 @@ admission_reject_no_graph_write_observed
 execution_outcome_unknown
 ```
 
+## Exact-base refresh
+
+Exact compare
+`f765ddd687e06823c45dba5d498ec6543234eed8..725dbba334a786f051d5753764088e3b5338c54c`
+is ten commits ahead and zero behind. The intervening changes affect mutable
+execution docs, `cli.js`, `lib/contradiction-rules.js`, ADR relocation and the
+WB2 adapter/test repair. They affect none of the five authorized V4-B2B
+implementation files.
+
+The product decision, scope and acceptance contract remain unchanged. The
+controlling task-pack records the refreshed implementation base.
+
 ## Current gate
 
-Only this implementation gate is open:
+Only this gate is open:
 
 ```text
 V4_B2B_INGEST_APPROVAL_AUTHORITY_REPAIR
 ```
 
 The successor must start from exact canonical main
-`f765ddd687e06823c45dba5d498ec6543234eed8` and may change exactly:
+`725dbba334a786f051d5753764088e3b5338c54c` and may change exactly:
 
 ```text
 lib/ingest.js
@@ -192,21 +152,18 @@ package.json
 test/v4-b2b-ingest-approval-authority-gap.test.js
 ```
 
-Required implementation constraints:
+Required constraints:
 
-- `lib/ingest.js` binds canonical `default` workspace into the hashed snapshot
-  and rejects non-default workspace before persistence;
-- `lib/workbench/ingest-approval-action.js` owns exact snapshot validation,
-  durable approval execution, truthful result/Graph evidence mapping,
-  receipt/audit binding and fail-closed finalization;
-- the new module remains at or below 300 physical lines;
-- `server.js` only parses/authenticates/routes/wires and delegates, with net
-  physical-line growth non-positive;
-- `package.json` changes only the runtime `files` allowlist;
-- the new real-server/SQLite test proves positive and adversarial behavior;
-- the successor does not import or call
-  `executeReviewedExternalGraphMutation()`;
-- no Graph, Kernel, storage, approval-flow, plugin, schema or dependency change.
+- canonical `default` workspace is hashed into the immutable snapshot;
+- non-default workspace fails before persistence;
+- the bounded action owner derives truthful outcomes from exact result and
+  observed Graph evidence;
+- unknown outcomes fail closed without retry;
+- the new module stays at or below 300 physical lines;
+- `server.js` net physical-line growth is non-positive;
+- package metadata changes only the runtime `files` allowlist;
+- no Graph, Kernel, storage, approval-flow, plugin, schema or dependency change;
+- no call to `executeReviewedExternalGraphMutation()`.
 
 The implementation must emit exactly one verdict:
 
@@ -215,14 +172,10 @@ V4_B2_INGEST_APPROVAL_AUTHORITY_REPAIR_SUFFICIENT
 V4_B2_INGEST_APPROVAL_AUTHORITY_REPAIR_BLOCKED_GAP
 ```
 
-A blocked verdict is acceptable evidence. It must not be hidden by weakening
-assertions or by labelling a plugin return as a committed mutation.
-
 ## Remaining execution order
 
 1. Implement and falsify the exact five-file B2B repair.
-2. Reconcile the result and close V4-B2 only if exact-head runtime, receipt,
-   audit, package and smoke evidence is sufficient.
+2. Reconcile and close V4-B2 only with sufficient exact-head evidence.
 3. Complete V4-B3 receipt inspection/export through a real user flow.
 4. Complete V4-B5 source/test/CI/package/release closeout.
 5. Begin V5 only after V4 closeout and external interoperability entry gates.
@@ -230,16 +183,10 @@ assertions or by labelling a plugin return as a committed mutation.
 ## Permanent ordering rules
 
 - One active task and exact post-merge main ancestry.
-- Approval state comes from the existing durable canonical owner.
-- No Graph mutation occurs before exact valid approval.
+- No Graph mutation before exact valid approval.
 - Missing, rejected, expired and unknown outcomes fail closed.
-- Unknown outcomes are not automatically retried or compensated.
-- Decision-request bytes do not control workspace, snapshot or receipt meaning.
-- Non-default workspace fails before approval persistence.
+- Decision bytes do not replace workspace, snapshot or receipt meaning.
 - Generic plugin completion is not a canonical action outcome.
-- The reviewed external graph owner is used only with its complete validated
-  input chain.
-- New domain logic does not accumulate in `server.js`.
 - Historical V1 receipt bytes/hashes are never rewritten.
 - V4 and V5 completion claims remain forbidden before their gates.
 
@@ -247,10 +194,7 @@ assertions or by labelling a plugin return as a committed mutation.
 
 - No production external-client route.
 - No non-default or caller-selected HTTP workspace authority.
-- No new API key, identity provider or tenant mapping.
 - No new approval database, queue, status, schema, migration or dependency.
-- No direct replacement of `handleIngest()` with
-  `executeReviewedExternalGraphMutation()`.
 - No automatic retry, repair or compensation.
 - No Workbench UI, MCP, CLI, release or deployment change.
 - No V4-complete or V5-complete claim.
@@ -259,6 +203,4 @@ assertions or by labelling a plugin return as a committed mutation.
 
 Clone-based agents read `AGENTS.md`, `docs/agent-canon.md`, the mutable
 checkpoint and run `node scripts/agent-context.js`. Connector-only work records
-local bootstrap, package dry-run and Graphify as unverified. Every delivery
-carries exact base/head, scope, tests, CI, review, merge identity, non-claims
-and the next-agent envelope.
+local bootstrap, package dry-run and Graphify as unverified.
