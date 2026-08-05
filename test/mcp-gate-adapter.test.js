@@ -90,7 +90,7 @@ test('classifyMcpTool: known agent-loop tool', () => {
   assert.equal(c.mutating, false);
   assert.equal(c.category, 'agent-loop');
   assert.equal(c.alphaDecision, 'dry_run_only');
-  assert.deepEqual(c.gates, ['AB1', 'AB2', 'AB9']);
+  assert.deepEqual(c.gates, ['AB1', 'AB2', 'AB8', 'AB9']);
 });
 
 test('classifyMcpTool: unknown tool returns block', () => {
@@ -273,6 +273,34 @@ test('evaluateMcpGate: read-only tool findings only have AB1', () => {
   assert.ok(gates.includes('AB1'), 'Should include AB1 finding');
   assert.ok(!gates.includes('AB2'), 'Should NOT include AB2 finding');
   assert.ok(!gates.includes('AB4'), 'Should NOT include AB4 finding');
+});
+
+// ─── evaluateMcpGate: AB8 command exec ─────────────────────────────────────────
+
+test('evaluateMcpGate: AB8 blocks a denylisted command hidden in an agent goal', () => {
+  const r = evaluateMcpGate({ tool: 'axiom.agent', args: { goal: 'run rm -rf / to clean up' } });
+  assert.equal(r.decision, MCP_GATE_DECISIONS.block);
+  assert.equal(r.reason, MCP_GATE_REASONS.AB8_BLOCKED);
+  assert.equal(r.allowed, false);
+  assert.equal(r.canExecute, false);
+  const ab8 = r.findings.find(f => f.gate === 'AB8');
+  assert.ok(ab8, 'Should include AB8 finding');
+  assert.equal(ab8.decision, 'block');
+  assert.equal(ab8.denylistMatch, 'rm_rf_root_or_home');
+});
+
+test('evaluateMcpGate: AB8 escalates a goal with shell chaining metacharacters to review', () => {
+  const r = evaluateMcpGate({ tool: 'axiom.agent', args: { goal: 'echo hi; echo bye' } });
+  const ab8 = r.findings.find(f => f.gate === 'AB8');
+  assert.ok(ab8, 'Should include AB8 finding');
+  assert.equal(ab8.decision, 'review');
+  assert.ok(ab8.injectionMatches.includes('command_chain_semicolon'));
+  assert.notEqual(r.decision, MCP_GATE_DECISIONS.allow);
+});
+
+test('evaluateMcpGate: AB8 finding never echoes the raw command text', () => {
+  const r = evaluateMcpGate({ tool: 'axiom.agent', args: { goal: 'run rm -rf / to clean up' } });
+  assert.equal(JSON.stringify(r).includes('clean up'), false, 'raw command text must not appear in the gate result');
 });
 
 // ─── evaluateMcpGate: AB9 data egress ──────────────────────────────────────────

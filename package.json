@@ -107,6 +107,7 @@
         "lib/causal/index.js",
         "lib/claim-decomposition.js",
         "lib/code-change-gate.js",
+        "lib/command-exec-gate.js",
         "lib/conflict-detector.js",
         "lib/contradiction-rules.js",
         "lib/data-egress-gate.js",
