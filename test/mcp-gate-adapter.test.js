@@ -90,7 +90,7 @@ test('classifyMcpTool: known agent-loop tool', () => {
   assert.equal(c.mutating, false);
   assert.equal(c.category, 'agent-loop');
   assert.equal(c.alphaDecision, 'dry_run_only');
-  assert.deepEqual(c.gates, ['AB1', 'AB2']);
+  assert.deepEqual(c.gates, ['AB1', 'AB2', 'AB9']);
 });
 
 test('classifyMcpTool: unknown tool returns block', () => {
@@ -273,4 +273,23 @@ test('evaluateMcpGate: read-only tool findings only have AB1', () => {
   assert.ok(gates.includes('AB1'), 'Should include AB1 finding');
   assert.ok(!gates.includes('AB2'), 'Should NOT include AB2 finding');
   assert.ok(!gates.includes('AB4'), 'Should NOT include AB4 finding');
+});
+
+// ─── evaluateMcpGate: AB9 data egress ──────────────────────────────────────────
+
+test('evaluateMcpGate: AB9 flags PII in agent-loop args without leaking the matched value', () => {
+  const r = evaluateMcpGate({ tool: 'axiom.agent', args: { goal: 'email ali@example.com the report' } });
+  const ab9 = r.findings.find(f => f.gate === 'AB9');
+  assert.ok(ab9, 'Should include AB9 finding');
+  assert.equal(ab9.piiDetected, true);
+  assert.deepEqual(ab9.piiTypes, ['email']);
+  assert.equal(JSON.stringify(r).includes('ali@example.com'), false, 'raw PII value must not appear anywhere in the gate result');
+});
+
+test('evaluateMcpGate: AB9 reports no PII/secret for a clean agent-loop goal', () => {
+  const r = evaluateMcpGate({ tool: 'axiom.agent', args: { goal: 'kedi hayvandir mi kontrol et' } });
+  const ab9 = r.findings.find(f => f.gate === 'AB9');
+  assert.ok(ab9, 'Should include AB9 finding');
+  assert.equal(ab9.piiDetected, false);
+  assert.equal(ab9.secretDetected, false);
 });
