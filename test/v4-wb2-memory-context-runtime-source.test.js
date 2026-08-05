@@ -106,11 +106,11 @@ function memoryContextRecordFromAudit(event) {
       reason: String(details.reason || receipt?.reason || '').trim(),
       workspaceId: event.workspaceId,
       receiptId,
-    },
-    contextIntegrity: {
-      workspaceScoped: Boolean(event.workspaceId),
-      canonicalMutation,
-      mutationAllowed: canonicalMutation && decision === 'allow',
+      contextIntegrity: {
+        workspaceScoped: Boolean(event.workspaceId),
+        canonicalMutation,
+        mutationAllowed: canonicalMutation && decision === 'allow',
+      },
     },
     provenance: {
       workspaceId: event.workspaceId,
