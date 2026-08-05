@@ -109,6 +109,7 @@
         "lib/code-change-gate.js",
         "lib/conflict-detector.js",
         "lib/contradiction-rules.js",
+        "lib/data-egress-gate.js",
         "lib/entity-resolution.js",
         "lib/external-client-authority.js",
         "lib/external-client-package-gate.js",
