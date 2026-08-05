@@ -1,8 +1,8 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`f765ddd687e06823c45dba5d498ec6543234eed8` (PR #298 V4-B2B authority-gap
-authorization merge).
+`725dbba334a786f051d5753764088e3b5338c54c` (PR #301 exact-identifier
+hardening merge after the V4-B2B authorization).
 
 Live source, exact Git SHA, tests and CI outrank this compact execution source.
 Detailed history remains in merged PRs, task-packs and audit evidence.
@@ -18,7 +18,7 @@ adapter remains production-unreachable. V4 Workbench runtime-evidence work is
 active.
 
 V4-B1 read-only inspector runtime evidence is closed. V4-B2 action/approval
-evidence is open and now has an exact-base implementation authorization. V4-B3
+evidence is open and has an exact-base implementation authorization. V4-B3
 receipt-export user flow and V4-B5 final closeout remain open.
 
 ## Reconciled sequence
@@ -32,7 +32,8 @@ receipt-export user flow and V4-B5 final closeout remain open.
 | #260-#264 | WB2 server wiring, package reachability, smoke and reconciliation | V4-B1 closed; no action/approval |
 | #265-#267 | B2 existing-runtime authorization and real-server/SQLite characterization | Existing lifecycle bounded but insufficient |
 | #297 | B2A blocked-gap reconciliation | Opened only exact authority-gap authorization |
-| #298 | B2B authority-gap authorization | No runtime change; exact five-file successor only |
+| #298-#299 | B2B authority-gap authorization and reconciliation | No runtime change; exact five-file successor only |
+| #300, #302, #301 | Unrelated issue fixes and ADR cleanup | No authorized V4-B2B implementation file changed |
 
 ## Closed V4-B1 evidence
 
@@ -144,8 +145,9 @@ Exact-head evidence:
 - exactly one 266-line task-pack;
 - zero unresolved review threads.
 
-PR #298 merged as live main
-`f765ddd687e06823c45dba5d498ec6543234eed8`.
+PR #298 merged as
+`f765ddd687e06823c45dba5d498ec6543234eed8`; PR #299 reconciled it as
+`d8f8a54a1e364c89c30f36da0643e908751f0762`.
 
 The authorized product decisions are:
 
@@ -173,6 +175,26 @@ admission_reject_no_graph_write_observed
 execution_outcome_unknown
 ```
 
+## Exact-base refresh
+
+The authorization was compared with every intervening merge before advancing
+its implementation base:
+
+- PR #300 changed only `cli.js` and `lib/contradiction-rules.js` and merged as
+  `9a9e7a545be806b395a38f0152c584fdb282b577`;
+- PR #302 changed ADR documentation paths/redirects only and merged as
+  `eb05e9ee0e7b2cf3bdecbf6d2fa404e71f386328`;
+- PR #301 changed only
+  `lib/workbench/memory-context-audit-source.js` and its existing test, passed
+  Security Checks run `31040031226` and Benchmark Regression run
+  `31040031538`, and merged as
+  `725dbba334a786f051d5753764088e3b5338c54c`.
+
+None changes `lib/ingest.js`, `server.js`, `package.json`, the authorized new
+action-owner path or the authorized new test path. The B2B contract and file
+scope therefore remain source-compatible; only the exact implementation base is
+advanced.
+
 ## Current gate
 
 Only this implementation gate is open:
@@ -182,7 +204,7 @@ V4_B2B_INGEST_APPROVAL_AUTHORITY_REPAIR
 ```
 
 The successor must start from exact canonical main
-`f765ddd687e06823c45dba5d498ec6543234eed8` and may change exactly:
+`725dbba334a786f051d5753764088e3b5338c54c` and may change exactly:
 
 ```text
 lib/ingest.js
