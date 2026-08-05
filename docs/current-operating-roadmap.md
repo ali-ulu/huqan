@@ -1,8 +1,8 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`22377e4c276117271d67af4ad4ef7ab489c01e39` (PR #239 observed-overflow
-correction merge).
+`4e681a5caec2d91ead9c1298da91c991c293dee0` (PR #241 Route
+Adversarial-0 reconstruction merge).
 
 Live source, exact Git SHA, tests and CI outrank this compact execution source.
 Detailed history remains in merged PRs, task-packs and audit evidence.
@@ -13,10 +13,10 @@ HUQAN is a **local-first partial trust layer** with real graph, verification,
 gates, provenance, approvals, audit, signed package admission, canonical
 receipts and bounded external-client trust/replay/mutation/transport owners.
 
-The external-client HTTP adapter is implemented but production-unreachable.
-The real `server.js` still does not register
-`POST /api/external-client/packages/admit` and has no production profile, clock,
-replay-path, SDK or mutation-owner composition.
+The external-client HTTP adapter exists but remains production-unreachable.
+The real `server.js` does not register
+`POST /api/external-client/packages/admit` and has no production trust profile,
+clock, replay path, SDK or mutation/receipt-owner composition.
 
 ## Reconciled sequence
 
@@ -33,66 +33,13 @@ replay-path, SDK or mutation-owner composition.
 | #196-#198 | Mutation/Receipt Owner-0 | One exact quarantine and V2 receipt owner; no route |
 | #202 / #225 / #226 / #228 / #230 | Adapter-0 authorization, implementation and reconciliation | Thin internal adapter only; no server registration |
 | #231 / #232 | Route Adversarial-0 authorization and reconciliation | Exactly three test-owned files; production route forbidden |
-| #234 | Unrelated V4-WB3 trust-receipt read surface | Baseline ancestry only; does not widen this gate |
-| #235 / #236 | Observed-overflow correction authorization and reconciliation | Exactly adapter plus existing unit-test owner |
-| #239 | Observed-overflow correction implementation | Native drain with bounded destroy fallback; no route or package change |
+| #235 / #236 / #239 / #240 | Observed-overflow correction and reconciliation | Native drain with bounded destroy fallback; no route or package change |
+| #241 | Route Adversarial-0 reconstruction | Real-loopback evidence only; no production composition |
 
-## Closed observed-overflow correction
+## Closed Route Adversarial-0 reconstruction
 
-Route Adversarial-0 PR #233 exposed one real transport conflict at
-`test/external-client-route-adversarial.test.js:206`: the adapter selected
-`413`, then reset the socket and the real loopback client observed `400`.
-The assertion was not weakened.
-
-PR #239 replaced the stale implementation branch and merged from exact head
-`9acf1d598d55b8a858664165e359e3d69f9c30fb` at live main
-`22377e4c276117271d67af4ad4ef7ab489c01e39`.
-
-Exact changed files:
-
-```text
-lib/external-client-http-adapter.js
-lib/external-client-http-adapter.test.js
-```
-
-Observed behavior:
-
-- observed bytes above one MiB still select exact `413` before parsing or
-  delegation;
-- adapter listeners are detached before cleanup;
-- native Node-compatible streams use `request.resume()` to drain unread bytes
-  without resetting the socket before descriptor delivery;
-- hostile streams without `resume()` retain bounded `request.destroy()`
-  fallback;
-- both cleanup paths explicitly prove zero `admitPackage` calls;
-- malformed chunks, stream error/abort/close, timeout and declared-length
-  failures retain their bounded fail-closed behavior; and
-- no route, `server.js`, package, dependency, deployment, body-limit or timeout
-  source changed.
-
-Exact-head evidence:
-
-- Security Checks `30993672632`: `SUCCESS`
-- Benchmark Regression `30993672610`: `SUCCESS`
-- open inline review threads: `0`
-- exact two-file scope preserved
-
-The closed PR #237 is historical only; it was superseded because current main
-was not in its ancestry.
-
-## Current gate
-
-This reconciliation opens only:
-
-```text
-EXTERNAL_CLIENT_ROUTE_ADVERSARIAL_0_RECONSTRUCTION
-```
-
-Start from exact canonical `main`
-`22377e4c276117271d67af4ad4ef7ab489c01e39`.
-
-Create a fresh branch and reconstruct the already-authorized evidence using
-exactly:
+PR #241 rebuilt the already-authorized real-loopback evidence from exact base
+`cea7714bb0768890c1e9ec380e4ff116e357e4ff` using only:
 
 ```text
 test/external-client-route-adversarial.test.js
@@ -100,57 +47,94 @@ test/helpers/external-client-route-harness.js
 test/helpers/external-client-route-fixture.js
 ```
 
-The stale PR #233 branch is not current ancestry evidence. Its source-backed
-contract remains binding:
+The first candidate head `d025ec5dd801c0e7b4990ffd6f36857e7d6b5c98`
+failed one exact assertion. The declared-overflow fixture advertised
+`Content-Length: 1048577` but sent an empty request body, so the real Node HTTP
+transport returned `400` before the intended application-level `413` evidence
+could be observed.
 
-- real `server.js` remains generic `404` for disabled/requested endpoint states;
-- one test-local real-loopback route composes the existing rate limiter,
-  API-key guard, Adapter-0, pre-bound Authority/SDK, durable SQLite replay and
-  mutation/receipt owner;
-- observed and declared overflow both return exact `413` before mutation;
-- concurrent duplicate and close/reopen replay evidence produce one durable
-  outcome;
+Recovery head `a458ae995311125e17ef2ec5c530938bfddc87c5` did not weaken
+the contract. It sent the truthful `1048577`-byte body and retained exact
+`413` before delegation or durable mutation.
+
+Exact-head evidence:
+
+- Security Checks run `31014893750`: `SUCCESS`
+- Benchmark Regression run `31014894014`: `SUCCESS`
+- full `npm test` job `92336329914`: `SUCCESS`
+- open inline review threads: `0`
+- exact three-file test-owned scope preserved
+- production runtime, route, server, package, dependency and deployment source
+  unchanged
+
+PR #241 merged at exact reviewed head
+`a458ae995311125e17ef2ec5c530938bfddc87c5`; merge/live main is
+`4e681a5caec2d91ead9c1298da91c991c293dee0`.
+
+Observed boundaries remain:
+
+- the real server is generic `404` for disabled and requested endpoint states;
+- outer rate limiting and API-key guards reject before adapter, replay or
+  mutation;
+- one test-local route composes Adapter-0, pre-bound Authority/SDK, real SQLite
+  replay and mutation/receipt ownership;
+- valid admission returns exact `201` with matching response, candidate,
+  journal and canonical V2 receipt identifiers;
+- concurrent duplicates and close/reopen replay yield one durable mutation;
 - Authority replay and mutation-journal replay remain distinct;
-- response, durable candidate, journal result and canonical V2 receipt
-  identifiers must agree;
+- declared and observed byte overflow return exact `413` before delegation;
 - malformed transport, envelope, signature, package, identity, workspace,
-  trust, freshness, replay and mutation authority inputs fail closed; and
-- every authorized file remains at or below 300 physical lines.
+  trust, freshness, replay and mutation inputs fail closed; and
+- abort and unknown-outcome paths do not retry.
 
-Required validation:
+## Current gate
 
-```bash
-node --test test/external-client-route-adversarial.test.js
-npm test
-npm pack --dry-run
-git diff --check
-git status --short
+This reconciliation opens only:
+
+```text
+EXTERNAL_CLIENT_ENABLEMENT_0_CLOSEOUT_AUDIT_AUTHORIZATION
 ```
 
-Exact-head Security Checks, full regression, scope review and final
-source-first falsification are required before merge.
+The authorization must start from exact canonical `main`
+`4e681a5caec2d91ead9c1298da91c991c293dee0` and define a docs-only audit
+scope before any closeout work begins.
+
+The closeout audit must attempt to falsify:
+
+- complete predecessor lineage and exact merge identities;
+- exact scopes and negative scopes for every enablement successor;
+- route absence and default-closed production behavior;
+- request-independent identity, workspace, permissions, trusted keys, clock,
+  replay, mutation and receipt authority;
+- fail-closed transport, replay, concurrency and unknown-outcome behavior;
+- npm package surface and deployment non-expansion;
+- bounded production V2 receipt ownership and historical V1 byte/hash
+  preservation; and
+- all Enablement-complete, V4-complete and V5-complete non-claims.
+
+No runtime, route, `server.js`, package, dependency, deployment or release
+change is authorized by this reconciliation.
 
 ## Remaining execution order
 
-### 1. Route Adversarial-0 reconstruction
+### 1. Enablement-0 closeout audit authorization
 
-Rebuild the exact three-file test-only candidate from current canonical main.
-Do not change runtime or production composition.
+Create one exact-base docs-only authorization with acceptance criteria,
+forbidden claims and an explicit write lock.
 
-### 2. Route Adversarial-0 reconciliation
+### 2. Enablement-0 closeout audit
 
-After merge, record exact head, merge identity, scope, targeted/full-suite
-results, CI and unchanged route/package boundaries.
+Audit live source, exact Git lineage, tests, CI, package surface and production
+route absence. A document-only claim is not evidence.
 
-### 3. External Client Enablement-0 closeout audit
+### 3. Closeout reconciliation
 
-Audit complete lineage, exact scopes, fail-closed boundaries, route absence,
-package surface and non-claims. Production registration remains a later product
-decision.
+Record the exact reviewed head, merge identity, scope and audit result before
+moving to V4 successors.
 
 ### 4. V4 Workbench successors
 
-Complete the remaining read-only inspector, bounded action/approval,
+Complete remaining read-only inspector, bounded action/approval,
 receipt-export user-flow and V4 source/test/CI/release closeout evidence.
 
 ### 5. V5 successors
@@ -163,8 +147,8 @@ external conformance and one real external integration.
 - One active task; every successor starts from exact post-merge canonical
   `main` and receives narrow authorization, implementation evidence, review and
   reconciliation.
-- Route Adversarial-0 is evidence-only; `server.js` and production route
-  registration remain closed.
+- Production route registration remains closed unless separately authorized by
+  a later product decision.
 - Generic API key and rate limiting are transport guards, never external-client
   identity or authority.
 - Identity, workspace, permissions, trusted keys, clock, replay, mutation and
@@ -173,7 +157,6 @@ external conformance and one real external integration.
 - Authority replay and mutation-journal replay must not be conflated.
 - Unknown outcomes are never automatically retried or compensated.
 - No `202 Accepted` or memory-only pending queue is introduced.
-- Existing Authority/package-gate publication remains source reality.
 - Production V2 writer ownership is not inferred from transport or local test
   reachability.
 - Historical V1 receipt bytes/hashes are never rewritten or backfilled.
@@ -185,7 +168,7 @@ external conformance and one real external integration.
 - No production external-client route registration or reachability.
 - No `server.js`, deployment configuration or replay-path source change.
 - No request-controlled authority.
-- No weakening `413` to `400`, client reset or parser failure.
+- No weakening `413` to `400`, client reset or parser-failure evidence.
 - No new adapter status, header, response field or socket-control API.
 - No queue, retry or compensation.
 - No package, dependency, version, release or deployment change.
