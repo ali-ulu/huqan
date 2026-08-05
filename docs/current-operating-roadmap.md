@@ -1,8 +1,8 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`9e8feaa0df803a81a5ffde80a765f20bb4b90942` (PR #245 External Client
-Enablement-0 closeout audit merge).
+`e5277e03a6f846f4af540d827b672c656eb5afc7` (PR #247 V4-WB2 runtime-source
+authorization merge).
 
 Live source, exact Git SHA, tests and CI outrank this compact execution source.
 Detailed history remains in merged PRs, task-packs and audit evidence.
@@ -14,10 +14,15 @@ gates, provenance, approvals, audit, signed package admission, canonical
 receipts and bounded external-client trust/replay/mutation/transport owners.
 
 The bounded External Client Enablement-0 evidence program is closed. The
-external-client HTTP adapter still remains production-unreachable. The real
+external-client HTTP adapter remains production-unreachable. The real
 `server.js` does not register `POST /api/external-client/packages/admit` and has
 no production trust profile, clock, replay path, SDK or mutation/receipt-owner
 composition.
+
+V4 Workbench runtime-evidence work is active. The Trust Receipt Inspector has
+an authenticated product route and prior no-mock real-server evidence. The
+remaining V4-B1 gap is the Memory Admission / Context Integrity Inspector,
+which is currently a read-only helper proven only against supplied test data.
 
 ## Reconciled sequence
 
@@ -37,7 +42,8 @@ composition.
 | #235 / #236 / #239 / #240 | Observed-overflow correction and reconciliation | Native drain with bounded destroy fallback; no route or package change |
 | #241 / #242 | Route Adversarial-0 reconstruction and reconciliation | Real-loopback evidence only; no production composition |
 | #243 / #244 | Enablement-0 closeout audit authorization and reconciliation | Exact one-file docs audit only |
-| #245 | Enablement-0 closeout audit | Bounded evidence closed; production route enablement remains blocked |
+| #245 / #246 | Enablement-0 closeout audit and reconciliation | Bounded evidence closed; production route enablement remains blocked |
+| #247 | V4-WB2 runtime-source authorization | One future test-only source-reality gate; no runtime or persistence |
 
 ## Closed Route Adversarial-0 evidence
 
@@ -119,8 +125,13 @@ Exact-head evidence:
 - exact one-file authorized scope
 - zero open review threads
 
-PR #245 merge/live main is
+PR #245 merge/live main was
 `9e8feaa0df803a81a5ffde80a765f20bb4b90942`.
+
+PR #246 reconciled the closeout using exactly the mutable checkpoint and
+operating roadmap. Its reviewed head was
+`697db7394e0549c7893b320497ed9c9fdf228332`; merge/live main was
+`829e38f66c30ebe353cbab90b1d017fa68887c99`.
 
 The audit closed these bounded evidence boundaries:
 
@@ -132,59 +143,103 @@ The audit closed these bounded evidence boundaries:
 - production route absence; and
 - package, dependency and deployment non-expansion.
 
-The audit did not authorize production enablement. These remain blocked:
+The audit did not authorize production enablement. Production route
+registration, production profile/clock/replay/SDK/mutation composition, global
+V2 writer expansion, V4 completion and V5 implementation remain blocked.
 
-- production route registration and reachability;
-- production profile, trusted clock, replay path, SDK and mutation/receipt
-  composition;
-- global production V2 writer expansion;
-- V4 Workbench completion; and
-- V5 ecosystem implementation or completion.
+## Closed V4-WB2 runtime-source authorization
 
-Connector-only limits remain explicit: local clone bootstrap,
-`node scripts/agent-context.js`, local worktree state, local `git diff --check`,
-local package dry-run and Graphify refresh were not re-run by the connector.
+PR #247 selected the remaining V4-B1 Memory Admission / Context Integrity
+Inspector boundary and authorized a single test-only source-reality gate.
+
+Exact changed file:
+
+```text
+docs/task-packs/v4-wb2-memory-context-runtime-evidence-authorization.md
+```
+
+Exact reviewed head:
+
+```text
+c81aaa7b1a08691b7d6c0e7596919b43cf9acade
+```
+
+Exact-head evidence:
+
+- Security Checks run `31021754841`: `SUCCESS`
+- Benchmark Regression run `31021754924`: `SUCCESS`
+- exact one-file docs scope
+- one commit ahead, zero behind, exact merge base
+- zero open review threads
+
+PR #247 merge/live main is
+`e5277e03a6f846f4af540d827b672c656eb5afc7`.
+
+The authorization records these source facts:
+
+- `lib/workbench/memory-context-inspector.js` is read-only but not yet proven
+  through a durable product-runtime source;
+- its current WB2 test supplies a transient MCP result, artificial record ID
+  and in-memory source;
+- `Graph` owns an append-only SQLite-backed audit log;
+- the real learn path appends review/reject/admitted audit evidence and copies
+  existing admission receipts without fabricating them; and
+- current durable audit records have not yet been proven sufficient to feed
+  WB2 without inventing absent semantics.
+
+No runtime adapter, route, store, migration, dependency or public API was
+authorized by PR #247.
 
 ## Current gate
 
 This reconciliation opens only:
 
 ```text
-V4_WORKBENCH_RUNTIME_EVIDENCE_0_AUTHORIZATION
+V4_WB2A_MEMORY_CONTEXT_RUNTIME_SOURCE_CONTRACT_TESTS
 ```
 
-The next task must start from the exact post-merge canonical `main` produced by
-this reconciliation and authorize one narrow V4 Workbench runtime-evidence
-slice. It may not implement runtime, UI, action, approval or receipt-export
-behavior in the authorization PR.
+The implementation candidate must start from exact canonical `main`
+`e5277e03a6f846f4af540d827b672c656eb5afc7` and change exactly:
 
-The authorization must first select and bound one existing V4 evidence gap:
+```text
+test/v4-wb2-memory-context-runtime-source.test.js
+```
 
-- proving the read-only Workbench inspectors through a real product runtime
-  path;
-- binding one bounded fail-closed action/approval surface;
-- proving receipt inspection/export through a real user flow; or
-- closing V4 source, test, CI and release evidence after predecessor slices are
-  complete.
+The test-only gate must use real `Kernel`, `Graph` and SQLite owners to prove or
+falsify whether current durable audit records can feed the existing WB2 helper
+without synthetic context, mutation or provenance claims.
 
-The first slice should prefer the smallest prerequisite-complete boundary and
-must identify exact production/test owners, acceptance commands, negative
-scope, no-mock smoke requirements and the later reconciliation step.
+It must end with exactly one source-backed verdict:
+
+```text
+V4_WB2_RUNTIME_SOURCE_SUFFICIENT
+V4_WB2_RUNTIME_SOURCE_BLOCKED_GAP
+```
+
+If sufficient, the next task is post-merge reconciliation followed by a
+separate audit-source adapter authorization. If insufficient, the next task is
+post-merge reconciliation followed by a separate persistence product-decision
+authorization. The test PR may not repair runtime.
 
 ## Remaining execution order
 
-### 1. V4 Workbench runtime-evidence authorization
+### 1. WB2 durable source contract
 
-Authorize one exact-base, narrow V4 evidence slice. The authorization is docs
-only and may not combine implementation with product decisions or closeout.
+Implement the exact one-file test gate, review exact-head evidence, merge and
+reconcile its `SUFFICIENT` or `BLOCKED_GAP` verdict.
 
-### 2. V4 Workbench successors
+### 2. WB2 product-runtime surface
 
-Implement and reconcile the authorized read-only inspector, bounded
-action/approval, receipt-export user-flow and final V4 source/test/CI/release
-evidence in dependency order.
+Only after a sufficient source contract: separately authorize and implement a
+read-only source adapter, route contract, authenticated product wiring and
+no-mock real-server smoke.
 
-### 3. V5 successors
+### 3. Remaining V4 gates
+
+Complete bounded action/approval evidence, receipt inspection/export user-flow
+smoke and V4 source/test/CI/release closeout in dependency order.
+
+### 4. V5 successors
 
 Only after V4 closeout: bounded A2A exchange, public-safe receipt policy,
 external conformance and one real external integration.
@@ -207,20 +262,19 @@ external conformance and one real external integration.
 - Production V2 writer ownership is not inferred from transport or local test
   reachability.
 - Historical V1 receipt bytes/hashes are never rewritten or backfilled.
+- WB2 may not reconstruct missing context or provenance.
 - V4 is not complete without runtime and user-flow evidence.
 - V5 is not complete without V4 closeout and external interoperability.
 
 ## Explicit non-goals
 
 - No production external-client route registration or reachability.
-- No `server.js`, deployment configuration or replay-path source change.
-- No request-controlled authority.
-- No weakening `413` to `400`, client reset or parser-failure evidence.
-- No new adapter status, header, response field or socket-control API.
-- No queue, retry or compensation.
-- No package, dependency, version, release or deployment change.
+- No new WB2 persistence, schema, database table, migration or dependency.
+- No WB2 route, server, MCP, CLI or UI implementation in the test gate.
+- No caller-controlled admission, receipt, workspace or mutation authority.
+- No adding MemoryStore to the learn path.
 - No global V2 switch or historical V1 rewrite.
-- No multi-client, internet, TLS or reverse-proxy claim.
+- No package, dependency, version, release or deployment change.
 - No V4-complete or V5-complete claim before their gates.
 
 ## Operating discipline
