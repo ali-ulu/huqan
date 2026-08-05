@@ -116,4 +116,80 @@ describe('AgentV3', () => {
     assert.ok(status.lastRun);
     assert.strictEqual(status.lastRun.status, 'paused');
   });
+
+  describe('AB10 agent loop budget gate', () => {
+    it('blocks a run when the workspace already exhausted its window budget, without executing any step', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-ab10-block-'));
+      const dbPath = path.join(tmpDir, 'memory.db');
+      const agent = freshAgent(dbPath);
+      agent.maxIterationsPerWindow = 10;
+
+      // Pre-seed durable usage above the ceiling for this workspace.
+      agent.storage.saveRun({
+        goal: 'seed run',
+        status: 'completed',
+        iteration: 10,
+        workspaceId: 'ws-a',
+        startedAtMs: Date.now(),
+      });
+
+      const result = agent.run('kedi hayvandir mi?', {
+        resume: false,
+        maxIterations: 5,
+        timeBudgetMs: 5000,
+        workspaceId: 'ws-a',
+      });
+
+      assert.strictEqual(result.ok, false);
+      assert.strictEqual(result.error.code, 'AGENT_LOOP_BUDGET_EXCEEDED');
+      assert.strictEqual(result.meta.gate, 'AB10');
+      assert.strictEqual(result.meta.budget.decision, 'block');
+      // No checkpoint means the loop never started.
+      assert.strictEqual(agent.storage.loadLatestCheckpoint('kedi hayvandir mi?'), null);
+
+      const auditEvents = agent.kernel.graph.getAuditEvents({ workspaceId: 'ws-a' });
+      assert.ok(auditEvents.some(ev => ev.targetType === 'agent_loop_budget' && ev.details.gate === 'AB10'));
+    });
+
+    it('does not block a different workspace (isolation)', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-ab10-isolation-'));
+      const dbPath = path.join(tmpDir, 'memory.db');
+      const agent = freshAgent(dbPath);
+      agent.maxIterationsPerWindow = 10;
+
+      agent.storage.saveRun({
+        goal: 'seed run',
+        status: 'completed',
+        iteration: 10,
+        workspaceId: 'ws-a',
+        startedAtMs: Date.now(),
+      });
+
+      const result = agent.run('kedi hayvandir mi?', {
+        resume: false,
+        maxIterations: 1,
+        timeBudgetMs: 5000,
+        workspaceId: 'ws-b',
+      });
+
+      assert.strictEqual(result.ok, true);
+      assert.notStrictEqual(result.data.status, undefined);
+    });
+
+    it('allows a fresh workspace with no prior usage to run normally', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-ab10-fresh-'));
+      const dbPath = path.join(tmpDir, 'memory.db');
+      const agent = freshAgent(dbPath);
+
+      const result = agent.run('kedi hayvandir mi?', {
+        resume: false,
+        maxIterations: 1,
+        timeBudgetMs: 5000,
+        workspaceId: 'ws-fresh',
+      });
+
+      assert.strictEqual(result.ok, true);
+      assert.strictEqual(result.data.status, 'paused');
+    });
+  });
 });
