@@ -12,7 +12,7 @@ PR #267. It does not claim that V4-B2 is closed.
 ```text
 repository: ali-ulu/huqan
 base branch: main
-canonical main: fad9cad2f3b88530b78533d1dd268ed5ac9587f0
+canonical main: 6a16a40cd13bf69e125fa30726baa3e0ac085d2b
 source proof merge: PR #267 / c3218bb75ff6ad2ec6c4a69c497fb06f9135c8b2
 reconciliation merge: PR #297 / fad9cad2f3b88530b78533d1dd268ed5ac9587f0
 ```
@@ -138,6 +138,21 @@ The module must remain at or below 300 physical lines. It may reuse existing
 approval, storage, ingest, receipt and audit primitives; it must not duplicate
 their schemas or create a second approval owner.
 
+## Source-Reality Scope Amendment
+
+Live regression source contains an intentional characterization test that now
+conflicts with the authorized repair: `test/v4-b2a-ingest-approval-runtime-contract.test.js`
+currently requires caller-selected non-default workspace input to queue and
+requires the persisted snapshot to omit `workspaceId`. The authorized product
+contract requires the opposite. Full regression cannot pass while both contracts
+remain active.
+
+This is the necessary sixth owner anticipated by the original stop condition.
+The historical B2A test may be changed only to replace superseded gap assertions
+with regression assertions for canonical `default` binding and thin delegation.
+Its durable queue, idempotency, rejection, lease, unknown-state and no-preapproval-
+mutation coverage must remain. No production scope is widened.
+
 ## Authorized Implementation Files
 
 The successor may change exactly:
@@ -148,6 +163,7 @@ lib/workbench/ingest-approval-action.js
 server.js
 package.json
 test/v4-b2b-ingest-approval-authority-gap.test.js
+test/v4-b2a-ingest-approval-runtime-contract.test.js
 ```
 
 File purposes:
@@ -162,9 +178,11 @@ File purposes:
   allowlist; no other metadata changes.
 - `test/v4-b2b-ingest-approval-authority-gap.test.js`: real server, Kernel,
   SQLite Graph, AxiomStorage and loopback HTTP acceptance/adversarial evidence.
+- `test/v4-b2a-ingest-approval-runtime-contract.test.js`: update only the superseded workspace-omission/direct-inline-
+  execution assertions while preserving its durable lifecycle regression coverage.
 
-No other file is authorized. A necessary sixth owner is a stop condition and
-requires a scope amendment.
+No seventh file is authorized. Any further owner is a stop condition and
+requires another source-backed scope amendment.
 
 ## Required Acceptance Evidence
 
@@ -252,7 +270,7 @@ Graphify as unverified rather than inventing evidence.
 
 ## Definition of Done
 
-- exact five-file scope;
+- exact six-file scope;
 - new module at or below 300 physical lines;
 - `server.js` net line growth non-positive;
 - canonical default-workspace binding proven;
