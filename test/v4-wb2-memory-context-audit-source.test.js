@@ -73,7 +73,7 @@ function inspect(source, recordId, workspaceId) {
 function snapshot(kernel, workspaceId) {
   return JSON.stringify({
     nodes: kernel.graph.getNodes(workspaceId),
-    edges: kernel.graph.getEdges(undefined, workspaceId),
+    edgeCount: kernel.graph.edgeCount(workspaceId),
     audit: kernel.graph.getAuditEvents({ workspaceId }),
   });
 }
