@@ -1,8 +1,8 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`e5277e03a6f846f4af540d827b672c656eb5afc7` (PR #247 V4-WB2 runtime-source
-authorization merge).
+`fa906f8cd1bd983089bf842b42897ccf086f3975` (PR #249 V4-WB2 durable
+runtime-source contract merge).
 
 Live source, exact Git SHA, tests and CI outrank this compact execution source.
 Detailed history remains in merged PRs, task-packs and audit evidence.
@@ -21,8 +21,9 @@ composition.
 
 V4 Workbench runtime-evidence work is active. The Trust Receipt Inspector has
 an authenticated product route and prior no-mock real-server evidence. The
-remaining V4-B1 gap is the Memory Admission / Context Integrity Inspector,
-which is currently a read-only helper proven only against supplied test data.
+Memory Admission / Context Integrity Inspector now has a proven sufficient
+durable source contract through real Kernel, Graph, SQLite and learn-path
+evidence, but no product adapter or route is implemented yet.
 
 ## Reconciled sequence
 
@@ -43,12 +44,12 @@ which is currently a read-only helper proven only against supplied test data.
 | #241 / #242 | Route Adversarial-0 reconstruction and reconciliation | Real-loopback evidence only; no production composition |
 | #243 / #244 | Enablement-0 closeout audit authorization and reconciliation | Exact one-file docs audit only |
 | #245 / #246 | Enablement-0 closeout audit and reconciliation | Bounded evidence closed; production route enablement remains blocked |
-| #247 | V4-WB2 runtime-source authorization | One future test-only source-reality gate; no runtime or persistence |
+| #247 / #248 | V4-WB2 runtime-source authorization and reconciliation | One exact test-only source contract; no runtime or persistence |
+| #249 | V4-WB2 durable runtime-source proof | Source sufficient; no adapter, route or public API |
 
-## Closed Route Adversarial-0 evidence
+## Closed External Client Enablement-0 evidence
 
-PR #241 rebuilt the already-authorized real-loopback evidence from exact base
-`cea7714bb0768890c1e9ec380e4ff116e357e4ff` using only:
+PR #241 rebuilt the authorized real-loopback evidence using only:
 
 ```text
 test/external-client-route-adversarial.test.js
@@ -56,84 +57,27 @@ test/helpers/external-client-route-harness.js
 test/helpers/external-client-route-fixture.js
 ```
 
-The first candidate head `d025ec5dd801c0e7b4990ffd6f36857e7d6b5c98`
-sent an internally inconsistent declared-overflow request: it advertised
-`Content-Length: 1048577` but sent an empty body. The real transport returned
-`400` before the intended application-level `413` could be observed.
-
-Recovery head `a458ae995311125e17ef2ec5c530938bfddc87c5` sent the truthful
-`1048577`-byte body and retained exact `413` before delegation or durable
-mutation. It did not modify runtime or weaken the assertion.
-
-Exact-head evidence:
-
-- Security Checks run `31014893750`: `SUCCESS`
-- Benchmark Regression run `31014894014`: `SUCCESS`
-- full `npm test` job `92336329914`: `SUCCESS`
-- open inline review threads: `0`
-- exact three-file test-owned scope preserved
-
-PR #241 merged at exact reviewed head
-`a458ae995311125e17ef2ec5c530938bfddc87c5`; merge main was
-`4e681a5caec2d91ead9c1298da91c991c293dee0`.
-
-PR #242 reconciled that merge using only the mutable checkpoint and operating
-roadmap. It merged at exact reviewed head
-`d09962a89480526d03e636f405c7d22e1fb55551`; merge main was
+Its recovery head `a458ae995311125e17ef2ec5c530938bfddc87c5`
+sent a truthful `1048577`-byte declared-overflow body and retained exact `413`
+before delegation or durable mutation. Exact-head Security Checks run
+`31014893750`, Benchmark Regression run `31014894014` and full `npm test` job
+`92336329914` succeeded. PR #241 merged as
+`4e681a5caec2d91ead9c1298da91c991c293dee0`; PR #242 reconciled it as
 `1e733f57e333cd02e221d8e819eecd936bdfbca0`.
 
-Observed boundaries remain:
-
-- the real server is generic `404` for disabled and requested endpoint states;
-- outer rate limiting and API-key guards reject before adapter, replay or
-  mutation;
-- one test-local route composes Adapter-0, pre-bound Authority/SDK, real SQLite
-  replay and mutation/receipt ownership;
-- valid admission returns exact `201` with matching response, candidate,
-  journal and canonical V2 receipt identifiers;
-- concurrent duplicates and close/reopen replay yield one durable mutation;
-- Authority replay and mutation-journal replay remain distinct;
-- declared and observed byte overflow return exact `413` before delegation;
-- malformed transport, envelope, signature, package, identity, workspace,
-  trust, freshness, replay and mutation inputs fail closed; and
-- abort and unknown-outcome paths do not retry.
-
-## Closed External Client Enablement-0 audit
-
-PR #243 authorized one docs-only External Client Enablement-0 closeout audit.
-PR #244 reconciled that authorization and established exact audit base
-`f05305bad2097d4025ac691648dbe32a77abf04d`.
-
-PR #245 added exactly:
+PR #245 then added exactly:
 
 ```text
 docs/reports/external-client-enablement-0-closeout-audit.md
 ```
 
-Exact reviewed head:
+Its reviewed head `06983105ea79488bf996c7db8c13d6533274dec0`
+passed Security Checks run `31018291572` and Benchmark Regression run
+`31018291601`, then merged as
+`9e8feaa0df803a81a5ffde80a765f20bb4b90942`. PR #246 reconciled the
+closeout as `829e38f66c30ebe353cbab90b1d017fa68887c99`.
 
-```text
-06983105ea79488bf996c7db8c13d6533274dec0
-```
-
-Exact-head evidence:
-
-- Security Checks run `31018291572`: `SUCCESS`
-- Benchmark Regression run `31018291601`: `SUCCESS`
-- docs-only runtime test, Docker and benchmark classifications completed as
-  `SUCCESS` / `NOT_APPLICABLE`
-- exact one-file authorized scope
-- zero open review threads
-
-PR #245 merge/live main was
-`9e8feaa0df803a81a5ffde80a765f20bb4b90942`.
-
-PR #246 reconciled the closeout using exactly the mutable checkpoint and
-operating roadmap. Its reviewed head was
-`697db7394e0549c7893b320497ed9c9fdf228332`; merge/live main was
-`829e38f66c30ebe353cbab90b1d017fa68887c99`.
-
-The audit closed these bounded evidence boundaries:
+The bounded evidence program closed:
 
 - static identity and trusted-key authority;
 - durable SQLite replay ownership;
@@ -143,96 +87,104 @@ The audit closed these bounded evidence boundaries:
 - production route absence; and
 - package, dependency and deployment non-expansion.
 
-The audit did not authorize production enablement. Production route
-registration, production profile/clock/replay/SDK/mutation composition, global
-V2 writer expansion, V4 completion and V5 implementation remain blocked.
+It did not authorize production route registration, production
+profile/clock/replay/SDK/mutation composition, global V2 writer expansion, V4
+completion or V5 implementation.
 
-## Closed V4-WB2 runtime-source authorization
+## Closed V4-WB2 durable source contract
 
-PR #247 selected the remaining V4-B1 Memory Admission / Context Integrity
-Inspector boundary and authorized a single test-only source-reality gate.
+PR #247 authorized one test-only characterization of whether current durable
+audit records could feed the existing Memory Context Inspector without
+inventing context, mutation or provenance semantics. PR #248 reconciled that
+authorization and established exact implementation base
+`182cd6a00d88bc4418d981ece4e1c9f168492b12`.
 
-Exact changed file:
+PR #249 changed exactly:
 
 ```text
-docs/task-packs/v4-wb2-memory-context-runtime-evidence-authorization.md
+test/v4-wb2-memory-context-runtime-source.test.js
 ```
 
 Exact reviewed head:
 
 ```text
-c81aaa7b1a08691b7d6c0e7596919b43cf9acade
+59942569d327249d9319e9228f79be17feeb80ae
 ```
 
 Exact-head evidence:
 
-- Security Checks run `31021754841`: `SUCCESS`
-- Benchmark Regression run `31021754924`: `SUCCESS`
-- exact one-file docs scope
-- one commit ahead, zero behind, exact merge base
+- Security Checks run `31022647956`: `SUCCESS`
+- Benchmark Regression run `31022647907`: `SUCCESS`
+- full `npm test` job `92363082880`: `SUCCESS` in 262 seconds
+- exact one-file, 273-line test scope
+- two commits ahead, zero behind, exact merge base
 - zero open review threads
 
-PR #247 merge/live main is
-`e5277e03a6f846f4af540d827b672c656eb5afc7`.
+PR #249 merged as live main
+`fa906f8cd1bd983089bf842b42897ccf086f3975`.
 
-The authorization records these source facts:
+The source contract used real `Kernel`, real SQLite-backed `Graph`, real learn
+admission and real append-only audit records. It proved:
 
-- `lib/workbench/memory-context-inspector.js` is read-only but not yet proven
-  through a durable product-runtime source;
-- its current WB2 test supplies a transient MCP result, artificial record ID
-  and in-memory source;
-- `Graph` owns an append-only SQLite-backed audit log;
-- the real learn path appends review/reject/admitted audit evidence and copies
-  existing admission receipts without fabricating them; and
-- current durable audit records have not yet been proven sufficient to feed
-  WB2 without inventing absent semantics.
+- a real review-required admission is queryable by exact `auditId` after
+  SQLite close/reopen;
+- a real approved admission ties canonical mutation only to a durable
+  `LEARN`/`REAFFIRMED` edge audit and an existing canonical allow receipt;
+- exact workspace filtering prevents cross-workspace leakage;
+- unknown identifiers fail closed;
+- receipt and provenance links are copied only when present; and
+- lookup plus inspection do not mutate nodes, edges or audit rows.
 
-No runtime adapter, route, store, migration, dependency or public API was
-authorized by PR #247.
+The asserted verdict is:
+
+```text
+V4_WB2_RUNTIME_SOURCE_SUFFICIENT
+```
+
+This proves only that a bounded read-only adapter can be designed from current
+source. It does not prove product reachability, an HTTP route, authenticated
+wiring or no-mock user-flow smoke.
 
 ## Current gate
 
 This reconciliation opens only:
 
 ```text
-V4_WB2A_MEMORY_CONTEXT_RUNTIME_SOURCE_CONTRACT_TESTS
+V4_WB2B_AUDIT_SOURCE_ADAPTER_AUTHORIZATION
 ```
 
-The implementation candidate must start from exact canonical `main`
-`e5277e03a6f846f4af540d827b672c656eb5afc7` and change exactly:
+The next task must start from the exact post-merge canonical main produced by
+this reconciliation and authorize one narrow read-only adapter boundary. The
+authorization PR is docs-only and may not implement runtime.
 
-```text
-test/v4-wb2-memory-context-runtime-source.test.js
-```
+The future adapter authorization must bind:
 
-The test-only gate must use real `Kernel`, `Graph` and SQLite owners to prove or
-falsify whether current durable audit records can feed the existing WB2 helper
-without synthetic context, mutation or provenance claims.
+- one exact workspace and one exact audit ID;
+- a bounded read from the current Graph audit owner;
+- source-backed mapping of admission status, decision, reason, provenance,
+  receipt link and canonical-mutation evidence;
+- the existing `inspectMemoryContext()` helper as the sole output normalizer;
+- fail-closed behavior for missing, ambiguous, malformed and cross-workspace
+  records;
+- no mutation of graph, audit, receipt, approval or memory state; and
+- an exact implementation/test scope below the product route layer.
 
-It must end with exactly one source-backed verdict:
-
-```text
-V4_WB2_RUNTIME_SOURCE_SUFFICIENT
-V4_WB2_RUNTIME_SOURCE_BLOCKED_GAP
-```
-
-If sufficient, the next task is post-merge reconciliation followed by a
-separate audit-source adapter authorization. If insufficient, the next task is
-post-merge reconciliation followed by a separate persistence product-decision
-authorization. The test PR may not repair runtime.
+It must not authorize route registration, server wiring, new persistence,
+Graph or Kernel domain changes, MCP/CLI/UI work, package expansion or V4
+closeout. Route contract, authenticated product wiring and no-mock real-server
+smoke remain later separate gates.
 
 ## Remaining execution order
 
-### 1. WB2 durable source contract
+### 1. WB2 read-only audit-source adapter
 
-Implement the exact one-file test gate, review exact-head evidence, merge and
-reconcile its `SUFFICIENT` or `BLOCKED_GAP` verdict.
+Authorize, implement, independently review and reconcile a bounded adapter from
+current durable audit records into the existing inspector contract.
 
 ### 2. WB2 product-runtime surface
 
-Only after a sufficient source contract: separately authorize and implement a
-read-only source adapter, route contract, authenticated product wiring and
-no-mock real-server smoke.
+Separately authorize a route contract, authenticated server wiring and no-mock
+real-server smoke. No combined route-and-adapter shortcut.
 
 ### 3. Remaining V4 gates
 
@@ -263,6 +215,7 @@ external conformance and one real external integration.
   reachability.
 - Historical V1 receipt bytes/hashes are never rewritten or backfilled.
 - WB2 may not reconstruct missing context or provenance.
+- A sufficient source contract is not product-runtime evidence by itself.
 - V4 is not complete without runtime and user-flow evidence.
 - V5 is not complete without V4 closeout and external interoperability.
 
@@ -270,7 +223,8 @@ external conformance and one real external integration.
 
 - No production external-client route registration or reachability.
 - No new WB2 persistence, schema, database table, migration or dependency.
-- No WB2 route, server, MCP, CLI or UI implementation in the test gate.
+- No WB2 route, server, MCP, CLI or UI implementation in the adapter
+  authorization.
 - No caller-controlled admission, receipt, workspace or mutation authority.
 - No adding MemoryStore to the learn path.
 - No global V2 switch or historical V1 rewrite.
