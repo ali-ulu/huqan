@@ -5,6 +5,7 @@ const Kernel = require('./kernel');
 const KernelV2 = require('./kernel.v2');
 const { createAgent } = require('./agentRuntime');
 const { evaluateMcpGate, MCP_GATE_DECISIONS } = require('./lib/mcp-gate-adapter');
+const { scrubSecrets } = require('./lib/secret-scrub-gate');
 const { withMcpToolVerdictSurface } = require('./lib/mcp/response-builders');
 const AxiomStorage = require('./storage');
 const pkg = require('./package.json');
@@ -32,6 +33,9 @@ function sanitizeMcpApprovalDecision(value) {
 
 function sanitizeToolArgsForStorage(name, args = {}) {
   if (name === 'axiom.learn') {
+    // axiom.learn's `text` is user-authored knowledge content, not a
+    // credential transport — AB7 scrubbing does not apply here, matching
+    // the axiom.learn use case.
     const clean = {
       text: sanitizeMcpString(args.text, MCP_MAX_TEXT),
       skipConflicts: args.skipConflicts !== false,
@@ -44,7 +48,9 @@ function sanitizeToolArgsForStorage(name, args = {}) {
     if (typeof value === 'string') clean[key] = sanitizeMcpString(value, MCP_MAX_TEXT);
     else if (value === null || ['boolean', 'number'].includes(typeof value)) clean[key] = value;
   }
-  return clean;
+  // AB7: redact secret-looking values (by key name or value shape) before
+  // this ever reaches a persisted approval record or dry-run response.
+  return scrubSecrets(clean).scrubbed;
 }
 
 function nowMs() {
@@ -1200,7 +1206,7 @@ function executeReadOnlyDryRun(kernel, name, args) {
           : { dryRun: true, goal: args.goal }
       ));
     default:
-      return { dryRun: true, tool: name, args };
+      return { dryRun: true, tool: name, args: scrubSecrets(args).scrubbed };
   }
 }
 
@@ -1254,4 +1260,6 @@ module.exports = {
   callTool,
   createServer,
   runStdio,
+  sanitizeToolArgsForStorage,
+  executeReadOnlyDryRun,
 };
