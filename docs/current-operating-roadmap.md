@@ -1,8 +1,7 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`7304ed8622b706ffc662892948fb097dcebbaee8` (PR #303 derived-edge receipt
-traceability merge after the V4-B2B authorization).
+`6a16a40cd13bf69e125fa30726baa3e0ac085d2b` (PR #306 exact-base reconciliation merge).
 
 Live source, exact Git SHA, tests and CI outrank this compact execution source.
 Detailed history remains in merged PRs, task-packs and audit evidence.
@@ -217,6 +216,19 @@ action-owner path or the authorized new test path. The B2B contract and file
 scope therefore remain source-compatible; only the exact implementation base is
 advanced.
 
+## Source-reality scope amendment
+
+The existing `test/v4-b2a-ingest-approval-runtime-contract.test.js` still asserts the pre-repair gap: non-default caller
+workspace values queue successfully and the persisted snapshot omits
+`workspaceId`. The authorized repair requires non-default values to fail before
+persistence and canonical `default` to be hashed into the snapshot. Both cannot
+remain passing contracts.
+
+The implementation scope is therefore amended from five to six files. The old
+B2A characterization test may change only where its superseded gap assertions
+conflict; its queue, idempotency, rejection, lease, unknown-state and zero-
+mutation-before-approval coverage remains binding.
+
 ## Current gate
 
 Only this implementation gate is open:
@@ -226,7 +238,7 @@ V4_B2B_INGEST_APPROVAL_AUTHORITY_REPAIR
 ```
 
 The successor must start from exact canonical main
-`7304ed8622b706ffc662892948fb097dcebbaee8` and may change exactly:
+`6a16a40cd13bf69e125fa30726baa3e0ac085d2b` and may change exactly:
 
 ```text
 lib/ingest.js
@@ -234,6 +246,7 @@ lib/workbench/ingest-approval-action.js
 server.js
 package.json
 test/v4-b2b-ingest-approval-authority-gap.test.js
+test/v4-b2a-ingest-approval-runtime-contract.test.js
 ```
 
 Required implementation constraints:

@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "repository": "ali-ulu/huqan",
   "baselineBranch": "main",
-  "canonicalMain": "7304ed8622b706ffc662892948fb097dcebbaee8",
+  "canonicalMain": "6a16a40cd13bf69e125fa30726baa3e0ac085d2b",
   "worktreePolicy": "REPORT_ONLY",
-  "observedAt": "2026-08-05T22:51:00+03:00",
+  "observedAt": "2026-08-05T23:02:00+03:00",
   "program": "V4 Workbench runtime evidence",
   "completedEvidence": [
     "Receipt trust-root foundation and bounded external-client evidence program closed without production external-client route enablement",
@@ -36,7 +36,8 @@
     "PR #301 exact head 2c02879f8076e07678c4a5f0610f3a329e382900 passed Security Checks run 31040031226, Benchmark Regression run 31040031538 and full npm test job 92421841117; it changed only the WB2 audit-source adapter and its test so padded or non-string recordId/workspaceId values fail before any audit-owner read; it merged as main 725dbba334a786f051d5753764088e3b5338c54c",
     "PR #303 changed only kernel.js, lib/learn-use-case.js and test/derived-edge-receipt.test.js to attach the parent admission receipt to derived-edge audits, closed issue #214, and merged as main 7304ed8622b706ffc662892948fb097dcebbaee8 without touching the authorized V4-B2B implementation files",
     "The V4-B2B authorization remains source-compatible because PRs #300, #302, #301 and #303 do not modify lib/ingest.js, server.js, package.json or the authorized new module/test paths",
-    "V4-B2, V4-B3, V4-B5 and V5 completion remain open and unclaimed"
+    "V4-B2, V4-B3, V4-B5 and V5 completion remain open and unclaimed",
+    "Live source review found the existing V4-B2A characterization test requires non-default workspace queueing and omitted snapshot workspace, which directly conflicts with the authorized canonical-default repair; the necessary sixth test owner is therefore source-backed and explicitly authorized"
   ],
   "nextGate": "V4_B2B_INGEST_APPROVAL_AUTHORITY_REPAIR",
   "status": "AUTHORIZED_FOR_EXACT_BASE_IMPLEMENTATION",
@@ -53,8 +54,8 @@
   ],
   "notes": [
     "Live source, exact Git SHA, tests and CI outrank this checkpoint.",
-    "The implementation candidate must start from exact canonical main 7304ed8622b706ffc662892948fb097dcebbaee8.",
-    "The successor may change exactly lib/ingest.js, lib/workbench/ingest-approval-action.js, server.js, package.json and test/v4-b2b-ingest-approval-authority-gap.test.js.",
+    "The implementation candidate must start from exact canonical main 6a16a40cd13bf69e125fa30726baa3e0ac085d2b.",
+    "The successor may change exactly lib/ingest.js, lib/workbench/ingest-approval-action.js, server.js, package.json, test/v4-b2b-ingest-approval-authority-gap.test.js and test/v4-b2a-ingest-approval-runtime-contract.test.js.",
     "The shared API-key HTTP surface is bounded to canonical workspace default; every non-default caller workspace fails closed before persistence.",
     "The new bounded action owner must derive truthful outcomes from the immutable snapshot, exact handleIngest result and observed Graph evidence.",
     "Unknown, malformed, contradictory or partially observed outcomes persist as execution_outcome_unknown and are never retried automatically.",
