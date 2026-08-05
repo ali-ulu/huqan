@@ -14,10 +14,7 @@ const {
   queryProvenance,
 } = require('./lib/provenance-query');
 const { readReceiptById } = require('./lib/receipt/receipt-read-index');
-const {
-  parseWorkbenchTrustReceiptPath,
-  handleWorkbenchTrustReceiptRequest,
-} = require('./lib/workbench/trust-receipt-route');
+const { createWorkbenchReadHttpRouter } = require('./lib/workbench/workbench-read-http-router');
 const { createSessionStore } = require('./lib/viewer/session-store');
 const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
 const pkg = require('./package.json');
@@ -337,6 +334,14 @@ function denyIfUnauthorized(req, res) {
   writeJson(req, res, auth.status, auth.error, auth.headers);
   return false;
 }
+
+const handleWorkbenchRead = createWorkbenchReadHttpRouter({
+  writeJson,
+  writeApiError,
+  denyIfUnauthorized,
+  readTrustFilters,
+  readReceiptById,
+});
 
 async function parseJsonRequest(req, res, options = {}) {
   const result = await readJsonBody(req, options);
@@ -744,7 +749,10 @@ const server = http.createServer(async (req, res) => {
   const rateKey = getRateLimitKey(req);
 
   if (!checkRateLimit(rateKey)) {
-    res.writeHead(429, { 'Content-Type': JSON_CONTENT_TYPE });
+    const rateHeaders = rawPath.startsWith('/api/workbench/memory-context/')
+      ? { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }
+      : {};
+    res.writeHead(429, { 'Content-Type': JSON_CONTENT_TYPE, ...rateHeaders });
     res.end(JSON.stringify({ error: 'Too many requests' }));
     return;
   }
@@ -1054,36 +1062,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  const workbenchTrustReceiptRequest = parseWorkbenchTrustReceiptPath(reqUrl.pathname);
-  if (workbenchTrustReceiptRequest) {
-    if (req.method !== 'GET') {
-      writeApiError(req, res, 405, 'method_not_allowed', 'Method not allowed');
-      return;
-    }
-    if (!denyIfUnauthorized(req, res)) return;
-    if (!workbenchTrustReceiptRequest.ok) {
-      writeJson(req, res, 400, {
-        ok: false,
-        status: 'invalid_request',
-        error: {
-          code: workbenchTrustReceiptRequest.code,
-          message: workbenchTrustReceiptRequest.code === 'missing_receipt_id'
-            ? 'receiptId is required'
-            : 'receiptId must be a non-empty string',
-        },
-      }, { 'Cache-Control': 'no-cache' });
-      return;
-    }
-    const filters = readTrustFilters(reqUrl);
-    const { statusCode, body } = handleWorkbenchTrustReceiptRequest({
-      receiptId: workbenchTrustReceiptRequest.receiptId,
-      workspaceId: filters.workspaceId,
-      source: cli.kernel.graph,
-      readReceipt: (source, receiptId, readFilters) => readReceiptById(source, receiptId, readFilters),
-    });
-    writeJson(req, res, statusCode, body, { 'Cache-Control': 'no-cache' });
-    return;
-  }
+  if (handleWorkbenchRead(req, res, reqUrl, cli.kernel.graph)) return;
 
   if (reqUrl.pathname === '/api/provenance' || reqUrl.pathname === '/api/audit' || reqUrl.pathname === '/api/candidate-claims' || reqUrl.pathname === '/api/trust-receipt') {
     if (req.method !== 'GET') {
