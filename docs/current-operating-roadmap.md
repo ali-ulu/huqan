@@ -17,9 +17,10 @@ The External Client Enablement-0 evidence program is closed, but its HTTP
 adapter remains production-unreachable. V4 Workbench runtime-evidence work is
 active.
 
-V4-B1 read-only inspector runtime evidence is closed. V4-B2 action/approval
-evidence is open and has an exact-base implementation authorization. V4-B3
-receipt-export user flow and V4-B5 final closeout remain open.
+V4-B1 read-only inspector runtime evidence is closed, including the repaired
+exact-identifier authority boundary. V4-B2 action/approval evidence is open and
+has an exact-base implementation authorization. V4-B3 receipt-export user flow
+and V4-B5 final closeout remain open.
 
 ## Reconciled sequence
 
@@ -55,6 +56,23 @@ Controlling exact-head evidence for PR #262:
 - Benchmark Regression run `31031154766`: `SUCCESS`;
 - full `npm test` job `92391978739`: `SUCCESS`;
 - exact four-file scope and zero unresolved review threads.
+
+A later source audit found that the internal adapter normalized caller identity
+with `String(...).trim()` even though its authorization required exact,
+non-coerced `recordId` and `workspaceId` values. PR #301 repaired that boundary:
+
+- exact reviewed head `2c02879f8076e07678c4a5f0610f3a329e382900`;
+- exactly `lib/workbench/memory-context-audit-source.js` and
+  `test/v4-wb2-memory-context-audit-source.test.js`;
+- padded and non-string identities fail before any audit-owner read;
+- Security Checks run `31040031226`: `SUCCESS`;
+- Benchmark Regression run `31040031538`: `SUCCESS`;
+- full `npm test` job `92421841117`: `SUCCESS`;
+- zero unresolved review threads;
+- merge/live main `725dbba334a786f051d5753764088e3b5338c54c`.
+
+No server, route, Graph, Kernel, storage, package or B2 action-path behavior was
+changed by PR #301.
 
 ## V4-B2A observed source contract
 
@@ -186,8 +204,9 @@ its implementation base:
   `eb05e9ee0e7b2cf3bdecbf6d2fa404e71f386328`;
 - PR #301 changed only
   `lib/workbench/memory-context-audit-source.js` and its existing test, passed
-  Security Checks run `31040031226` and Benchmark Regression run
-  `31040031538`, and merged as
+  Security Checks run `31040031226`, Benchmark Regression run `31040031538`
+  and full `npm test` job `92421841117`; it rejects padded and non-string
+  identities before any audit-owner read and merged as
   `725dbba334a786f051d5753764088e3b5338c54c`;
 - PR #303 changed only `kernel.js`, `lib/learn-use-case.js` and
   `test/derived-edge-receipt.test.js`, closed issue #214, and merged as
