@@ -108,12 +108,25 @@ test('factory and input authority fail closed without fallback', () => {
     (error) => error?.code === 'INVALID_AUDIT_SCAN_LIMIT',
   );
 
-  const source = createMemoryContextAuditSource({ getAuditEvents() { return []; } });
+  let reads = 0;
+  const source = createMemoryContextAuditSource({
+    getAuditEvents() {
+      reads += 1;
+      return [];
+    },
+  });
   assert.deepEqual(Object.keys(source), ['readMemoryContext']);
   assert.equal(source.readMemoryContext(), null);
   assert.equal(source.readMemoryContext({ recordId: 'x' }), null);
   assert.equal(source.readMemoryContext({ workspaceId: 'x' }), null);
   assert.equal(source.readMemoryContext({ recordId: 'x', workspaceId: '   ' }), null);
+  assert.equal(source.readMemoryContext({ recordId: ' x', workspaceId: 'x' }), null);
+  assert.equal(source.readMemoryContext({ recordId: 'x ', workspaceId: 'x' }), null);
+  assert.equal(source.readMemoryContext({ recordId: 'x', workspaceId: ' x' }), null);
+  assert.equal(source.readMemoryContext({ recordId: 'x', workspaceId: 'x ' }), null);
+  assert.equal(source.readMemoryContext({ recordId: 1, workspaceId: 'x' }), null);
+  assert.equal(source.readMemoryContext({ recordId: 'x', workspaceId: 1 }), null);
+  assert.equal(reads, 0);
 });
 
 test('real review admission maps through the adapter after SQLite reopen', () => {
