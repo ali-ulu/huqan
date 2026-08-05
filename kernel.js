@@ -1157,6 +1157,7 @@ if (verbSuffix.test(predicate)) {
 
     const parentAllowed = Boolean(context && context.parentAdmissionAllowed);
     const parentProvenance = context && context.parentProvenance ? context.parentProvenance : null;
+    const parentAdmission = context && context.parentAdmission ? context.parentAdmission : null;
 
     let written = 0;
     let audits = 0;
@@ -1185,6 +1186,7 @@ if (verbSuffix.test(predicate)) {
                   triggerObject: object,
                   triggerRelation: relation,
                   via: tag,
+                  ...this._admissionReceiptDetails(parentAdmission),
                 },
               }, parentProvenance, workspaceId);
               audits++;
