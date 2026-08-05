@@ -59,51 +59,62 @@ jobs:
           # Trim and de-duplicate
           CHANGED=$(echo "${CHANGED}" | sed '/^[[:space:]]*$/d' | sort -u)
 
+          # CI_CLASSIFIER_FUNCTIONS_START
           is_runtime_file() {
-            # Files whose change requires `npm test` AND triggers benchmark.
-            # Includes runtime entry points, plugin/, lib/, nlp/, packages/,
-            # migrations/, schemas/, and plugin manifests (manifest sha change
-            # implies plugin source change).
-            echo "$1" | grep -qE '^(\
-              kernel\.js|kernel\.v2\.js|\
-              graph\.js|storage\.js|plugin\.js|\
-              cli\.js|server\.js|mcpServer\.js|\
-              agent\.js|agent\.v3\.js|agentRuntime\.js|\
-              workflow-agent\.js|workflow-runtime\.js|workflow-tools\.js|\
-              finalizer\.js|dream\.js|llmAdapter\.js|\
-              causalSimulator\.js|rustGraph\.js|sandboxRunner\.js|\
-              requestGuards\.js|toolPolicy\.js|\
-              persistencePaths\.js|backupRestore\.js|evidence-ranker\.js|\
-              plugins/.*|lib/.*|nlp/.*|packages/.*|migrations/.*|schemas/.*\
-            )$' || return 1
+            # Runtime files whose change requires the full npm test suite.
+            case "$1" in
+              kernel.js|kernel.v2.js|graph.js|storage.js|plugin.js|cli.js|server.js|mcpServer.js|\
+              agent.js|agent.v3.js|agentRuntime.js|workflow-agent.js|workflow-runtime.js|workflow-tools.js|\
+              finalizer.js|dream.js|llmAdapter.js|causalSimulator.js|rustGraph.js|sandboxRunner.js|\
+              requestGuards.js|toolPolicy.js|persistencePaths.js|backupRestore.js|evidence-ranker.js|\
+              plugins/*|lib/*|nlp/*|packages/*|migrations/*|schemas/*)
+                return 0
+                ;;
+              *)
+                return 1
+                ;;
+            esac
           }
 
           is_test_file() {
-            # Test files themselves — must run npm test to verify new tests
-            # pass, but do NOT trigger benchmark (test-only PRs are
-            # performance-neutral by policy).
-            echo "$1" | grep -qE '^(test/.*|.*\.test\.js|.*\.spec\.js)$' || return 1
+            # Test-only changes run npm test but do not trigger benchmark.
+            case "$1" in
+              test/*|*.test.js|*.spec.js)
+                return 0
+                ;;
+              *)
+                return 1
+                ;;
+            esac
           }
 
           is_perf_file() {
-            # Strict subset of runtime files whose change is performance-
-            # sensitive and must trigger the benchmark regression check.
-            echo "$1" | grep -qE '^(\
-              benchmarks/(bench|check-regression|bench-memory-scale|snapshot-memory|verifBench)\.js|\
-              benchmarks/results\.json|\
-              benchmarks/fixtures/.*|\
-              graph\.js|kernel\.js|kernel\.v2\.js|storage\.js|\
-              causalSimulator\.js|finalizer\.js|rustGraph\.js|\
-              lib/memory-store\.js|lib/ingest\.js|lib/causal/.*|lib/provenance-.*\.js|lib/receipt/.*\
-            )$' || return 1
+            # Performance-sensitive files trigger the benchmark regression gate.
+            case "$1" in
+              benchmarks/bench.js|benchmarks/check-regression.js|benchmarks/bench-memory-scale.js|\
+              benchmarks/snapshot-memory.js|benchmarks/verifBench.js|benchmarks/results.json|\
+              benchmarks/fixtures/*|graph.js|kernel.js|kernel.v2.js|storage.js|causalSimulator.js|\
+              finalizer.js|rustGraph.js|lib/memory-store.js|lib/ingest.js|lib/causal/*|\
+              lib/provenance-*.js|lib/receipt/*)
+                return 0
+                ;;
+              *)
+                return 1
+                ;;
+            esac
           }
 
           is_docker_file() {
-            echo "$1" | grep -qE '^(\
-              Dockerfile|docker-compose\.yml|\.dockerignore|\
-              package\.json|package-lock\.json\
-            )$' || return 1
+            case "$1" in
+              Dockerfile|docker-compose.yml|.dockerignore|package.json|package-lock.json)
+                return 0
+                ;;
+              *)
+                return 1
+                ;;
+            esac
           }
+          # CI_CLASSIFIER_FUNCTIONS_END
 
           runtime_or_test=no
           perf=no
