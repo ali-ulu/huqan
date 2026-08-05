@@ -1,8 +1,8 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`725dbba334a786f051d5753764088e3b5338c54c` (PR #301 exact-identifier
-hardening merge after the V4-B2B authorization).
+`7304ed8622b706ffc662892948fb097dcebbaee8` (PR #303 derived-edge receipt
+traceability merge after the V4-B2B authorization).
 
 Live source, exact Git SHA, tests and CI outrank this compact execution source.
 Detailed history remains in merged PRs, task-packs and audit evidence.
@@ -33,7 +33,7 @@ receipt-export user flow and V4-B5 final closeout remain open.
 | #265-#267 | B2 existing-runtime authorization and real-server/SQLite characterization | Existing lifecycle bounded but insufficient |
 | #297 | B2A blocked-gap reconciliation | Opened only exact authority-gap authorization |
 | #298-#299 | B2B authority-gap authorization and reconciliation | No runtime change; exact five-file successor only |
-| #300, #302, #301 | Unrelated issue fixes and ADR cleanup | No authorized V4-B2B implementation file changed |
+| #300, #302, #301, #303 | Unrelated issue fixes and ADR cleanup | No authorized V4-B2B implementation file changed |
 
 ## Closed V4-B1 evidence
 
@@ -188,7 +188,10 @@ its implementation base:
   `lib/workbench/memory-context-audit-source.js` and its existing test, passed
   Security Checks run `31040031226` and Benchmark Regression run
   `31040031538`, and merged as
-  `725dbba334a786f051d5753764088e3b5338c54c`.
+  `725dbba334a786f051d5753764088e3b5338c54c`;
+- PR #303 changed only `kernel.js`, `lib/learn-use-case.js` and
+  `test/derived-edge-receipt.test.js`, closed issue #214, and merged as
+  `7304ed8622b706ffc662892948fb097dcebbaee8`.
 
 None changes `lib/ingest.js`, `server.js`, `package.json`, the authorized new
 action-owner path or the authorized new test path. The B2B contract and file
@@ -204,7 +207,7 @@ V4_B2B_INGEST_APPROVAL_AUTHORITY_REPAIR
 ```
 
 The successor must start from exact canonical main
-`725dbba334a786f051d5753764088e3b5338c54c` and may change exactly:
+`7304ed8622b706ffc662892948fb097dcebbaee8` and may change exactly:
 
 ```text
 lib/ingest.js
