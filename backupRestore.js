@@ -87,46 +87,93 @@ function writeManifest(targetDir, manifest) {
   return manifestPath;
 }
 
+function newOperationId(prefix) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/**
+ * Builds a durable operation receipt distinguishing complete success from a
+ * partial/failed attempt. `status` is 'complete' only when every step of the
+ * operation finished; any thrown error is reported as 'failed' so callers
+ * never mistake a half-finished backup/restore for a successful one, and so
+ * partial/unknown outcomes are never silently retried.
+ */
+function buildOperationReceipt(operationId, kind, startedAt, status, extra = {}) {
+  return {
+    operationId,
+    kind,
+    status,
+    startedAt,
+    completedAt: new Date().toISOString(),
+    ...extra,
+  };
+}
+
 /**
  * Creates a timestamped backup directory for AXIOM state files.
  *
+ * Copies files into a staging directory first, then atomically renames the
+ * staging directory to its final `backupId` name. A crash or error mid-copy
+ * therefore never leaves a partial backup visible under its final name —
+ * either the fully-copied, manifest-complete directory appears, or nothing
+ * does. The staging directory is removed on failure and the error rethrown
+ * (no silent partial state, no automatic retry).
+ *
  * @param {object} [opts]
- * @returns {{ok: true, backupId: string, backupDir: string, copied: Array<{name: string, size: number}>, skipped: string[], pruned: string[], manifest: object}}
+ * @returns {{ok: true, backupId: string, backupDir: string, copied: Array<{name: string, size: number}>, skipped: string[], pruned: string[], manifest: object, receipt: object}}
  */
 function createBackup(opts = {}) {
   const runtime = resolveRuntimePaths(opts);
   ensureDir(runtime.backupBaseDir);
   const backupId = opts.backupId || timestamp();
-  const backupDir = ensureDir(path.join(runtime.backupBaseDir, backupId));
-  const copied = [];
-  const skipped = [];
+  const backupDir = path.join(runtime.backupBaseDir, backupId);
+  const stagingDir = path.join(runtime.backupBaseDir, `.staging-${backupId}-${Math.random().toString(36).slice(2, 8)}`);
+  const operationId = newOperationId('backupop');
+  const startedAt = new Date().toISOString();
 
-  for (const filePath of runtime.files) {
-    const result = copyIfExists(filePath, path.join(backupDir, path.basename(filePath)));
-    if (result) copied.push(result);
-    else skipped.push(path.basename(filePath));
+  ensureDir(stagingDir);
+  try {
+    const copied = [];
+    const skipped = [];
+
+    for (const filePath of runtime.files) {
+      const result = copyIfExists(filePath, path.join(stagingDir, path.basename(filePath)));
+      if (result) copied.push(result);
+      else skipped.push(path.basename(filePath));
+    }
+
+    const receipt = buildOperationReceipt(operationId, 'backup', startedAt, 'complete');
+    const manifest = {
+      backupId,
+      createdAt: receipt.completedAt,
+      rootDir: runtime.rootDir,
+      files: copied.map(item => item.name),
+      copied: copied.length,
+      skipped,
+      receipt,
+    };
+    writeManifest(stagingDir, manifest);
+    fs.renameSync(stagingDir, backupDir);
+    const pruned = pruneOldBackups(runtime.backupBaseDir, opts.keepLast);
+
+    return {
+      ok: true,
+      backupId,
+      backupDir,
+      copied,
+      skipped,
+      pruned,
+      manifest,
+      receipt,
+    };
+  } catch (error) {
+    fs.rmSync(stagingDir, { recursive: true, force: true });
+    error.receipt = buildOperationReceipt(operationId, 'backup', startedAt, 'failed', {
+      backupId,
+      message: error.message,
+    });
+    throw error;
   }
-
-  const manifest = {
-    backupId,
-    createdAt: new Date().toISOString(),
-    rootDir: runtime.rootDir,
-    files: copied.map(item => item.name),
-    copied: copied.length,
-    skipped,
-  };
-  writeManifest(backupDir, manifest);
-  const pruned = pruneOldBackups(runtime.backupBaseDir, opts.keepLast);
-
-  return {
-    ok: true,
-    backupId,
-    backupDir,
-    copied,
-    skipped,
-    pruned,
-    manifest,
-  };
 }
 
 /**
@@ -152,10 +199,36 @@ function resolveRestoreSource(opts = {}) {
 }
 
 /**
+ * Atomically replaces `destination` with `source`'s contents: copies into a
+ * sibling temp file in the same directory, then renames over the
+ * destination. `fs.renameSync` within one directory is atomic, so readers of
+ * `destination` never observe a partially-written file.
+ */
+function atomicReplaceFile(source, destination) {
+  const tmpDestination = `${destination}.tmp-${Math.random().toString(36).slice(2, 8)}`;
+  fs.copyFileSync(source, tmpDestination);
+  try {
+    fs.renameSync(tmpDestination, destination);
+  } catch (error) {
+    fs.rmSync(tmpDestination, { force: true });
+    throw error;
+  }
+}
+
+/**
  * Restores AXIOM state files from a selected or latest backup directory.
  *
+ * Each file is replaced atomically (temp-file + rename), so a crash never
+ * leaves a live file half-written. If a file fails partway through the
+ * restore loop, the loop stops immediately — already-restored files are not
+ * rolled back and remaining files are not attempted, matching the "no
+ * automatic retry of a partial/unknown outcome" rule; the pre-restore safety
+ * backup (`safetyBackupDir`) is the recovery path. The thrown error carries
+ * a `receipt` with `status: 'partial'` and the exact restored/skipped state
+ * so the caller can report precisely what happened.
+ *
  * @param {object} [opts]
- * @returns {{ok: true, sourceDir: string, restored: string[], skipped: string[], safetyBackupDir: string}}
+ * @returns {{ok: true, sourceDir: string, restored: string[], skipped: string[], safetyBackupDir: string, receipt: object}}
  */
 function restoreBackup(opts = {}) {
   const runtime = resolveRuntimePaths(opts);
@@ -163,6 +236,9 @@ function restoreBackup(opts = {}) {
   if (!sourceDir || !fs.existsSync(sourceDir)) {
     throw new Error(`Backup directory not found: ${sourceDir || runtime.backupBaseDir}`);
   }
+
+  const operationId = newOperationId('restoreop');
+  const startedAt = new Date().toISOString();
 
   const safety = createBackup({
     rootDir: runtime.rootDir,
@@ -177,15 +253,26 @@ function restoreBackup(opts = {}) {
 
   const restored = [];
   const skipped = [];
-  for (const destination of runtime.files) {
-    const fileName = path.basename(destination);
-    const source = path.join(sourceDir, fileName);
-    if (!fs.existsSync(source)) {
-      skipped.push(fileName);
-      continue;
+  try {
+    for (const destination of runtime.files) {
+      const fileName = path.basename(destination);
+      const source = path.join(sourceDir, fileName);
+      if (!fs.existsSync(source)) {
+        skipped.push(fileName);
+        continue;
+      }
+      atomicReplaceFile(source, destination);
+      restored.push(fileName);
     }
-    fs.copyFileSync(source, destination);
-    restored.push(fileName);
+  } catch (error) {
+    error.receipt = buildOperationReceipt(operationId, 'restore', startedAt, 'partial', {
+      sourceDir,
+      restored,
+      skipped,
+      safetyBackupDir: safety.backupDir,
+      message: error.message,
+    });
+    throw error;
   }
 
   for (const stale of [`${runtime.files[0]}-shm`, `${runtime.files[0]}-wal`]) {
@@ -194,12 +281,20 @@ function restoreBackup(opts = {}) {
     }
   }
 
+  const receipt = buildOperationReceipt(operationId, 'restore', startedAt, 'complete', {
+    sourceDir,
+    restored,
+    skipped,
+    safetyBackupDir: safety.backupDir,
+  });
+
   return {
     ok: true,
     sourceDir,
     restored,
     skipped,
     safetyBackupDir: safety.backupDir,
+    receipt,
   };
 }
 
