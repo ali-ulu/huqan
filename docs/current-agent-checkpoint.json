@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "repository": "ali-ulu/huqan",
   "baselineBranch": "main",
-  "canonicalMain": "f765ddd687e06823c45dba5d498ec6543234eed8",
+  "canonicalMain": "7304ed8622b706ffc662892948fb097dcebbaee8",
   "worktreePolicy": "REPORT_ONLY",
-  "observedAt": "2026-08-05T22:25:00+03:00",
+  "observedAt": "2026-08-05T22:51:00+03:00",
   "program": "V4 Workbench runtime evidence",
   "completedEvidence": [
     "Receipt trust-root foundation and bounded external-client evidence program closed without production external-client route enablement",
@@ -30,6 +30,12 @@
     "PR #298 authorized canonical default-workspace binding, bounded manual/decision outcomes, thin server delegation and exact five-file successor scope",
     "PR #298 exact reviewed head 71019bc0faa9171372e0461b330d8ec70bf74c77 passed Security Checks run 31039238175 and Benchmark Regression run 31039236945",
     "PR #298 merged as main f765ddd687e06823c45dba5d498ec6543234eed8",
+    "PR #299 reconciled the V4-B2B implementation authorization and merged as main d8f8a54a1e364c89c30f36da0643e908751f0762",
+    "PR #300 changed only cli.js and lib/contradiction-rules.js, closed issues #263 and #268, and merged as main 9a9e7a545be806b395a38f0152c584fdb282b577 without touching the authorized V4-B2B implementation files",
+    "PR #302 changed only ADR documentation paths and redirects, closed issue #221, and merged as main eb05e9ee0e7b2cf3bdecbf6d2fa404e71f386328 without touching the authorized V4-B2B implementation files",
+    "PR #301 exact head 2c02879f8076e07678c4a5f0610f3a329e382900 passed Security Checks run 31040031226, Benchmark Regression run 31040031538 and full npm test job 92421841117; it changed only the WB2 audit-source adapter and its test so padded or non-string recordId/workspaceId values fail before any audit-owner read; it merged as main 725dbba334a786f051d5753764088e3b5338c54c",
+    "PR #303 changed only kernel.js, lib/learn-use-case.js and test/derived-edge-receipt.test.js to attach the parent admission receipt to derived-edge audits, closed issue #214, and merged as main 7304ed8622b706ffc662892948fb097dcebbaee8 without touching the authorized V4-B2B implementation files",
+    "The V4-B2B authorization remains source-compatible because PRs #300, #302, #301 and #303 do not modify lib/ingest.js, server.js, package.json or the authorized new module/test paths",
     "V4-B2, V4-B3, V4-B5 and V5 completion remain open and unclaimed"
   ],
   "nextGate": "V4_B2B_INGEST_APPROVAL_AUTHORITY_REPAIR",
@@ -47,7 +53,7 @@
   ],
   "notes": [
     "Live source, exact Git SHA, tests and CI outrank this checkpoint.",
-    "The implementation candidate must start from exact canonical main f765ddd687e06823c45dba5d498ec6543234eed8.",
+    "The implementation candidate must start from exact canonical main 7304ed8622b706ffc662892948fb097dcebbaee8.",
     "The successor may change exactly lib/ingest.js, lib/workbench/ingest-approval-action.js, server.js, package.json and test/v4-b2b-ingest-approval-authority-gap.test.js.",
     "The shared API-key HTTP surface is bounded to canonical workspace default; every non-default caller workspace fails closed before persistence.",
     "The new bounded action owner must derive truthful outcomes from the immutable snapshot, exact handleIngest result and observed Graph evidence.",
