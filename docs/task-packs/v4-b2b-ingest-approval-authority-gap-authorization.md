@@ -17,8 +17,36 @@ source proof merge: PR #267 / c3218bb75ff6ad2ec6c4a69c497fb06f9135c8b2
 reconciliation merge: PR #297 / fad9cad2f3b88530b78533d1dd268ed5ac9587f0
 ```
 
-The implementation successor must start from this exact base. A different
-`origin/main` requires a new reconciliation before writing code.
+This was the reviewed source base when the authorization was written. The
+current implementation start is governed by the latest exact-base refresh
+below.
+
+## Exact-Base Refresh — 2026-08-05
+
+PR #298 merged this authorization as
+`f765ddd687e06823c45dba5d498ec6543234eed8`. Main then advanced through the
+reconciliation, unrelated CLI/contradiction and ADR changes, and the WB2
+exact-identifier repair.
+
+Exact compare:
+
+```text
+f765ddd687e06823c45dba5d498ec6543234eed8
+..
+725dbba334a786f051d5753764088e3b5338c54c
+```
+
+is ten commits ahead, zero behind. It changes none of the five authorized
+implementation files listed below. Therefore the product decisions, exact
+five-file scope, acceptance evidence, forbidden scope and stop conditions are
+unchanged, while the implementation start is refreshed to:
+
+```text
+canonical main: 725dbba334a786f051d5753764088e3b5338c54c
+```
+
+A different `origin/main` requires another exact-base reconciliation before
+writing code.
 
 ## Source-Reality Verdict
 
