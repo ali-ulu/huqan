@@ -2,26 +2,26 @@
   "schemaVersion": 1,
   "repository": "ali-ulu/huqan",
   "baselineBranch": "main",
-  "canonicalMain": "4e681a5caec2d91ead9c1298da91c991c293dee0",
+  "canonicalMain": "cdc8d9e49a52d2d130823240238d54fa75e2d00e",
   "worktreePolicy": "REPORT_ONLY",
-  "observedAt": "2026-08-05T17:35:00+03:00",
+  "observedAt": "2026-08-05T17:55:00+03:00",
   "program": "External client enablement hardening",
   "completedEvidence": [
     "Receipt trust-root foundation RTR-3, RTR-3A, RTR-4 and RTR-5 merged with historical V1 preservation and bounded V2 ownership",
     "External Client Endpoint-0, Authority-0, Identity/Trust Config-0, Durable Replay-0, Mutation/Receipt Owner-0 and HTTP Adapter-0 predecessor gates merged",
     "Route Adversarial-0 authorization and reconciliation merged as PR #231 and PR #232 with an exact three-file test-only implementation scope",
     "Observed-overflow correction PR #239 merged and preserved exact 413 selection through native request draining without production route expansion",
-    "Route Adversarial-0 reconstruction PR #241 started from exact canonical main cea7714bb0768890c1e9ec380e4ff116e357e4ff",
-    "PR #241 changed exactly test/external-client-route-adversarial.test.js, test/helpers/external-client-route-harness.js and test/helpers/external-client-route-fixture.js",
-    "The first exact-head run exposed an inconsistent declared-overflow fixture: Content-Length 1048577 was paired with an empty request body and the real transport returned 400",
-    "Recovery head a458ae995311125e17ef2ec5c530938bfddc87c5 kept the 413 contract unchanged and sent the truthful 1048577-byte request body",
+    "Route Adversarial-0 reconstruction PR #241 merged at exact reviewed head a458ae995311125e17ef2ec5c530938bfddc87c5 and live main 4e681a5caec2d91ead9c1298da91c991c293dee0",
     "PR #241 exact-head Security Checks run 31014893750 and Benchmark Regression run 31014894014 completed successfully; npm test job 92336329914 succeeded",
-    "PR #241 had zero open review threads and merged at exact reviewed head a458ae995311125e17ef2ec5c530938bfddc87c5",
-    "PR #241 merge/live main is 4e681a5caec2d91ead9c1298da91c991c293dee0",
-    "Production server registration, deployment composition, package surface and runtime ownership remained unchanged"
+    "PR #242 reconciled Route Adversarial-0 at exact reviewed head d09962a89480526d03e636f405c7d22e1fb55551 and merge/live main 1e733f57e333cd02e221d8e819eecd936bdfbca0",
+    "PR #243 authorized one docs-only External Client Enablement-0 closeout audit report from exact base 1e733f57e333cd02e221d8e819eecd936bdfbca0",
+    "PR #243 changed exactly docs/task-packs/external-client-enablement-0-closeout-audit-authorization.md",
+    "PR #243 exact-head Security Checks run 31016859987 and Benchmark Regression run 31016859560 completed successfully",
+    "PR #243 merged at exact reviewed head cc225f4a306f7f5bad2d585a768583a5a2b18bf4 and merge/live main cdc8d9e49a52d2d130823240238d54fa75e2d00e",
+    "Production server registration, deployment composition, package surface and runtime ownership remain unchanged"
   ],
-  "nextGate": "EXTERNAL_CLIENT_ENABLEMENT_0_CLOSEOUT_AUDIT_AUTHORIZATION",
-  "status": "READY_FOR_EXACT_BASE_AUTHORIZATION",
+  "nextGate": "EXTERNAL_CLIENT_ENABLEMENT_0_CLOSEOUT_AUDIT",
+  "status": "AUTHORIZED_FOR_EXACT_BASE_AUDIT",
   "forbiddenClaims": [
     "external client production route registered, reachable or enabled",
     "server.js modified for external-client admission",
@@ -30,16 +30,17 @@
     "production trust profile, trusted clock, replay path, SDK or mutation composition wired",
     "global production V2 receipt writer enabled",
     "historical V1 receipt rewritten, rehashed or backfilled",
-    "External Client Enablement-0 closeout complete before a separate exact-base audit and reconciliation",
+    "External Client Enablement-0 closeout complete before the exact audit and post-merge reconciliation",
     "V4 Workbench complete",
     "V5 ecosystem complete"
   ],
   "notes": [
     "Live source, exact Git SHA, tests and CI outrank this checkpoint.",
-    "The next candidate starts from exact canonical main 4e681a5caec2d91ead9c1298da91c991c293dee0.",
-    "Open only a separate docs-only exact-base authorization for the External Client Enablement-0 closeout audit.",
-    "The closeout audit must verify complete lineage, exact scopes, fail-closed transport and authority boundaries, route absence, package surface, receipt ownership and all non-claims.",
-    "No runtime, route, server, package, dependency, deployment or release change is authorized by this reconciliation.",
-    "Local clone bootstrap, node scripts/agent-context.js and Graphify refresh remain unverified in the connector-only environment."
+    "The audit candidate must start from exact canonical main cdc8d9e49a52d2d130823240238d54fa75e2d00e.",
+    "The authorized audit implementation scope is exactly docs/reports/external-client-enablement-0-closeout-audit.md.",
+    "The audit is evidence-only and may not repair a defect, modify runtime or enable the production route.",
+    "The audit must issue separate CLOSED, BLOCKED, NOT_APPLICABLE or UNVERIFIED verdicts for bounded enablement evidence and production readiness.",
+    "No runtime, test, fixture, workflow, package, route, server, dependency, deployment or release change is authorized.",
+    "Local clone bootstrap, node scripts/agent-context.js, worktree checks and Graphify refresh remain unverified in the connector-only environment."
   ]
 }
