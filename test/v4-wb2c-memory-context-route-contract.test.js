@@ -104,6 +104,27 @@ test('requires exact explicit workspace authority before reading', () => {
   assert.equal(reads, 0);
 });
 
+test('validates direct handler record identity before reading', () => {
+  let reads = 0;
+  const auditOwner = owner([], () => { reads += 1; });
+  const cases = [
+    ['', 'missing_record_id'],
+    [' audit-1', 'invalid_record_id'],
+    ['audit/1', 'invalid_record_id'],
+    ['a'.repeat(129), 'record_id_too_long'],
+  ];
+  for (const [recordId, code] of cases) {
+    const result = handleWorkbenchMemoryContextRequest({
+      recordId,
+      workspaceId: 'workspace-1',
+      auditOwner,
+    });
+    assert.equal(result.statusCode, 400);
+    assert.equal(result.body.error.code, code);
+  }
+  assert.equal(reads, 0);
+});
+
 test('maps a source-backed record through adapter and inspector to 200', () => {
   let seenFilters;
   const options = Object.freeze({
@@ -158,12 +179,7 @@ test('malformed and throwing read owners map through inspector to 502', () => {
   assert.equal(throwing.body.status, 'read_error');
 });
 
-test('missing record id maps to 400 and bounded adapter options cannot exceed 1024', () => {
-  const invalid = handleWorkbenchMemoryContextRequest({
-    recordId: '', workspaceId: 'workspace-1', auditOwner: owner([]),
-  });
-  assert.equal(invalid.statusCode, 400);
-  assert.equal(invalid.body.error.code, 'missing_record_id');
+test('bounded adapter options cannot exceed 1024', () => {
   assert.throws(
     () => handleWorkbenchMemoryContextRequest({
       recordId: 'audit-1',
