@@ -202,7 +202,7 @@ test('transport headers, observed bytes, depth and value bounds fail before muta
     assert.equal((await harness.send({ headers: { 'content-type': 'application/json' }, body: raw })).statusCode, 400);
   }
   assert.equal((await harness.send({ headers: { 'content-type': 'application/json', 'content-length': '1048577' },
-    contentLength: false, body: '' })).statusCode, 413);
+    contentLength: false, body: Buffer.alloc(1048577) })).statusCode, 413);
   assert.equal((await harness.send({ headers: { 'content-type': 'application/json' }, contentLength: false,
     chunks: [Buffer.alloc(600000), Buffer.alloc(600000)] })).statusCode, 413);
   assert.equal((await harness.raw(['Content-Type: application/json', 'Content-Type: text/plain',
@@ -237,7 +237,6 @@ test('replay reservation failure and hostile result fail once before handler', a
     await harness.close();
   }
 });
-
 test('real handler failure and mutation uncertainty do not retry', async (t) => {
   const handlerError = new Error('private handler failure'); handlerError.code = 'PRIVATE_HANDLER_FAILURE';
   const rejected = createRouteFixture(t, { handlerError });
