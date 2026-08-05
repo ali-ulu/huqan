@@ -1,8 +1,8 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`eed1d90a6c0f5b707ed25ff822265eb9b2038e43` (PR #258 V4-WB2 pure product
-route-contract implementation merge).
+`e0b863fc1486488c891a55a0f7aa603a88851cd6` (PR #260 V4-WB2 server-wiring
+authorization merge).
 
 Live source, exact Git SHA, tests and CI outrank this compact execution source.
 Detailed history remains in merged PRs, task-packs and audit evidence.
@@ -18,14 +18,14 @@ adapter remains production-unreachable. V4 Workbench runtime-evidence work is
 active. The Trust Receipt Inspector has an authenticated product route and
 prior no-mock real-server evidence.
 
-The Memory Admission / Context Integrity Inspector now has:
+The Memory Admission / Context Integrity Inspector has:
 
 - a proven durable source contract;
-- a merged internal read-only audit-source adapter; and
-- a merged pure product route-contract helper.
+- a merged internal read-only audit-source adapter;
+- a merged pure product route-contract helper; and
+- an authorized server-wiring implementation gate.
 
-WB2 still has no registered server route, no-mock product-runtime evidence or
-npm package reachability.
+WB2 is not yet registered or product-runtime proven.
 
 ## Reconciled sequence
 
@@ -34,30 +34,18 @@ npm package reachability.
 | #132-#246 | Trust-boundary, receipt-root and bounded external-client evidence | No production external-client route |
 | #247-#250 | WB2 durable-source authorization, proof and reconciliation | Source sufficient; no adapter or route |
 | #251-#255 | WB2 adapter authorization, implementation and reconciliation | Internal read-only adapter; no route |
-| #256 / #257 | WB2 pure route-contract authorization and reconciliation | No server or package wiring |
-| #258 | WB2 pure route-contract implementation | Helper merged; route still unreachable |
+| #256-#259 | WB2 pure route contract and reconciliation | Helper merged; route unreachable |
+| #260 | WB2 server-wiring authorization | Exact four-file implementation; no runtime change yet |
 
-## Closed WB2 durable-source evidence
+## Closed WB2 source and adapter evidence
 
-PR #249 changed exactly
-`test/v4-wb2-memory-context-runtime-source.test.js` at reviewed head
-`59942569d327249d9319e9228f79be17feeb80ae`.
+PR #249 proved `V4_WB2_RUNTIME_SOURCE_SUFFICIENT` at reviewed head
+`59942569d327249d9319e9228f79be17feeb80ae`. It passed Security Checks run
+`31022647956`, Benchmark Regression run `31022647907` and full `npm test` job
+`92363082880` using real `Kernel`, SQLite-backed `Graph`, real admission and
+close/reopen evidence.
 
-It passed Security Checks run `31022647956`, Benchmark Regression run
-`31022647907` and full `npm test` job `92363082880`. Real `Kernel`,
-SQLite-backed `Graph`, real learn admission and close/reopen evidence proved
-exact workspace isolation, unknown-ID fail-closed behavior, source-backed
-canonical mutation and read-only inspection.
-
-Verdict:
-
-```text
-V4_WB2_RUNTIME_SOURCE_SUFFICIENT
-```
-
-## Closed WB2 audit-source adapter
-
-PR #254 changed exactly:
+PR #254 implemented exactly:
 
 ```text
 lib/workbench/memory-context-audit-source.js
@@ -73,95 +61,105 @@ The adapter requires exact `auditId` plus workspace, enforces a maximum
 maps only source-backed fields, leaves `traceId` null and exposes no mutation,
 approval or action method.
 
-PR #255 reconciled it as live main
-`d0b789e2e74049c09a1ae2ede063ed2a271d2b22`.
-
 ## Closed WB2 pure route contract
 
-PR #256 authorized and PR #257 reconciled exactly:
+PR #258 implemented exactly:
 
 ```text
 lib/workbench/memory-context-route.js
 test/v4-wb2c-memory-context-route-contract.test.js
 ```
 
-PR #258 implemented those owners at exact reviewed head:
+Exact reviewed head `0156f0e0714dcf27c367a08d57a2cd4d38d18906`
+passed Security Checks run `31027924345`, Benchmark Regression run
+`31027925257` and full `npm test` job `92381072592`.
+
+The helper validates exact audit and workspace identity, rejects malformed or
+oversized values without truncation, delegates through the adapter and
+inspector, and maps bounded `200/400/404/502` responses. It remains pure and
+unregistered.
+
+PR #259 reconciled it as live main
+`d4055983ebe1ce3dfda45ae5f0342908e6d07835`.
+
+## Closed server-wiring authorization
+
+PR #260 added exactly:
 
 ```text
-0156f0e0714dcf27c367a08d57a2cd4d38d18906
+docs/task-packs/v4-wb2-server-wiring-authorization.md
+```
+
+Exact reviewed head:
+
+```text
+864c57c39fca61481f4001a05da7fac2d4842838
 ```
 
 Exact-head evidence:
 
-- Security Checks run `31027924345`: `SUCCESS`
-- Benchmark Regression run `31027925257`: `SUCCESS`
-- full `npm test` job `92381072592`: `SUCCESS`
-- exact two-file scope: 103-line helper and 192-line test owner
-- four commits ahead, zero behind, exact merge base
+- Security Checks run `31029445461`: `SUCCESS`
+- Benchmark Regression run `31029446391`: `SUCCESS`
+- exact one-file, 242-line docs scope
+- two commits ahead, zero behind, exact merge base
 - zero open review threads
 
-PR #258 merged as live main
-`eed1d90a6c0f5b707ed25ff822265eb9b2038e43`.
+PR #260 merged as live main
+`e0b863fc1486488c891a55a0f7aa603a88851cd6`.
 
-The helper:
-
-- exports only `ROUTE_PREFIX`, `parseWorkbenchMemoryContextPath` and
-  `handleWorkbenchMemoryContextRequest`;
-- reserves `/api/workbench/memory-context/`;
-- requires exact non-empty audit ID and explicit workspace identity;
-- rejects malformed, control-character, separator-bearing and oversized
-  identity rather than truncating it;
-- delegates through `createMemoryContextAuditSource()` and
-  `inspectMemoryContext()` only;
-- maps `ok`, `invalid_request`, `not_found` and `read_error` to `200`, `400`,
-  `404` and `502`; and
-- exposes no full receipt, arbitrary audit details, provenance, mutation,
-  approval or action surface.
-
-The helper remains pure. It is not required by `server.js`, and neither it nor
-the audit-source adapter is yet listed in the npm package allowlist.
+The authorization requires extraction of the existing inline WB3 route into a
+bounded Workbench read-router seam rather than adding another domain block to
+the oversized `server.js`.
 
 ## Current gate
 
 This reconciliation opens only:
 
 ```text
-V4_WB2D_SERVER_WIRING_AUTHORIZATION
+V4_WB2D_SERVER_WIRING_IMPLEMENTATION
 ```
 
-The next task must start from the exact post-reconciliation canonical `main`
-and authorize one docs-only server-wiring gate before runtime files change.
+The implementation must start from exact canonical main
+`e0b863fc1486488c891a55a0f7aa603a88851cd6` and change exactly:
 
-The authorization must bind:
+```text
+lib/workbench/workbench-read-http-router.js
+server.js
+package.json
+test/v4-wb2d-memory-context-route-smoke.test.js
+```
 
-- exact `server.js` insertion point after the existing outer rate limit and URL
-  parsing;
-- `GET`-only method behavior;
-- API-key rejection before adapter or inspector invocation;
-- exact path audit ID and mandatory `workspaceId` query authority;
-- `Cache-Control: no-store`, JSON content type, CORS and `nosniff` behavior on
-  every WB2 response, including errors;
-- exact status/body delegation from the pure route helper;
-- package allowlist additions for
-  `lib/workbench/memory-context-audit-source.js` and
-  `lib/workbench/memory-context-route.js`;
-- no-mock real-server smoke using real `Kernel` and SQLite-backed `Graph`;
-- valid review and approved reads, unauthenticated, wrong method, malformed,
-  oversized, unknown, cross-workspace and read-error paths;
-- before/after nodes, edges and audit snapshots;
-- WB3 and legacy receipt-route regressions; and
-- packed/installed tarball server smoke.
+Required boundaries:
 
-The authorization itself is docs-only and may not modify runtime, tests,
-package files, persistence, schema or dependencies.
+- new router at most `250` lines;
+- new smoke owner at most `300` lines where practical;
+- `server.js` net line growth non-positive;
+- existing WB3 route semantics unchanged;
+- WB2 exact raw workspace query with no sanitizing/truncating fallback;
+- `Cache-Control: no-store` and `X-Content-Type-Options: nosniff` on every WB2
+  response;
+- API-key rejection before Graph read;
+- real `server.js`, real `Kernel`, SQLite-backed `Graph` and loopback HTTP;
+- valid review and approved reads, malformed, oversized, unauthenticated,
+  wrong-method, unknown, cross-workspace and over-1024-row read-error evidence;
+- before/after nodes, edges and audit rows unchanged;
+- WB3 and legacy receipt-route regressions;
+- package allowlist additions only for the audit source, pure route and HTTP
+  router modules; and
+- installed-tarball server load evidence.
+
+No lockfile, dependency, request guard, Graph, Kernel, MemoryStore, adapter,
+inspector or pure route-contract change is authorized.
+
+After implementation merges, only
+`V4_WB2D_SERVER_WIRING_RECONCILIATION` may open the next gate.
 
 ## Remaining execution order
 
-1. Authorize server wiring, package reachability and no-mock evidence.
-2. Separately implement, review, merge and reconcile WB2 server wiring.
-3. Complete remaining V4 action/approval, receipt-export user-flow and closeout
+1. Implement, review, merge and reconcile WB2 server wiring.
+2. Complete remaining V4 action/approval, receipt-export user-flow and closeout
    gates.
-4. Begin V5 successors only after V4 closeout and external interoperability.
+3. Begin V5 successors only after V4 closeout and external interoperability.
 
 ## Permanent ordering rules
 
@@ -170,14 +168,12 @@ package files, persistence, schema or dependencies.
 - Identity and workspace authority remain pre-bound and explicit.
 - Missing context or provenance is never reconstructed.
 - `provenanceId` and `sourceRef` are not trace identifiers.
-- Internal helper existence is not product-runtime evidence.
 - Historical V1 receipt bytes/hashes are never rewritten.
 - V4 and V5 completion claims remain forbidden before their gates.
 
 ## Explicit non-goals
 
 - No external-client production route.
-- No WB2 server, MCP, CLI or UI wiring in this reconciliation.
 - No new persistence, schema, table, index, migration or dependency.
 - No default workspace or alternate audit identity.
 - No full receipt or arbitrary audit-details exposure.
