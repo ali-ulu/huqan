@@ -45,7 +45,7 @@ Responsibilities:
 
 Primary docs:
 
-- `docs/ADR-002-trust-kernel-and-atp.md`
+- `docs/adr/ADR-002-trust-kernel-and-atp.md`
 - `specs/axiom-trust-protocol/0.1/README.md`
 
 Responsibilities:
