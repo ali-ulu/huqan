@@ -97,10 +97,15 @@ function assertMemoryHeaders(response) {
 }
 
 function snapshot(workspaceId) {
+  const graph = serverCli.kernel.graph;
+  const nodes = graph.getNodes(workspaceId);
+  const edges = Object.keys(nodes)
+    .flatMap((nodeId) => graph.getEdges(nodeId, workspaceId))
+    .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
   return JSON.stringify({
-    nodes: serverCli.kernel.graph.getNodes(workspaceId),
-    edges: serverCli.kernel.graph.getEdges(null, workspaceId),
-    audit: serverCli.kernel.graph.getAuditEvents({ workspaceId }),
+    nodes,
+    edges,
+    audit: graph.getAuditEvents({ workspaceId }),
   });
 }
 
