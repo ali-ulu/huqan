@@ -3,8 +3,21 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { execFileSync } = require('child_process');
 
 const repoMemory = require('./repo-memory');
+
+function initGitRepo(dir) {
+  execFileSync('git', ['init', '-q'], { cwd: dir });
+  execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: dir });
+  execFileSync('git', ['config', 'user.name', 'Test User'], { cwd: dir });
+}
+
+function gitCommit(dir, fileName, content, message) {
+  fs.writeFileSync(path.join(dir, fileName), content, 'utf8');
+  execFileSync('git', ['add', fileName], { cwd: dir });
+  execFileSync('git', ['commit', '-q', '-m', message], { cwd: dir });
+}
 
 function makeKernel() {
   const edges = [];
@@ -197,6 +210,61 @@ test('repo-memory yaml ingest requires an explicit root and stays inside it', as
       action: 'ingest',
       sourceType: 'yaml',
       path: path.join(rootDir, '..', path.basename(outsideFile)),
+      rootPath: rootDir,
+    });
+    assert.equal(escaped.ok, false);
+    assert.equal(escaped.code, 'PATH_OUTSIDE_ALLOWED_ROOT');
+    assert.equal(kernel.edges.length, beforeEdges);
+  } finally {
+    fs.rmSync(rootDir, { recursive: true, force: true });
+    fs.rmSync(outsideDir, { recursive: true, force: true });
+  }
+});
+
+test('repo-memory git-log ingest requires an explicit root and stays inside it', async () => {
+  const kernel = makeKernel();
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-repo-gitlog-root-'));
+  const repoDir = path.join(rootDir, 'repo');
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-repo-gitlog-outside-'));
+  fs.mkdirSync(repoDir);
+
+  try {
+    initGitRepo(repoDir);
+    gitCommit(repoDir, 'claim.txt', 'x', 'A bounded claim');
+    initGitRepo(outsideDir);
+    gitCommit(outsideDir, 'secret.txt', 'x', 'Outside secret');
+
+    const missingRoot = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'git-log',
+      path: repoDir,
+    });
+    assert.equal(missingRoot.ok, false);
+    assert.equal(missingRoot.code, 'GIT_LOG_ROOT_REQUIRED');
+
+    const safe = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'git-log',
+      path: repoDir,
+      rootPath: rootDir,
+      workspaceId: 'workspace-a',
+      actor: 'repo-bot',
+    });
+    assert.equal(safe.ok, true);
+    assert.equal(safe.admission.outcome, 'admitted');
+    assert.ok(Array.isArray(safe.admission.entries));
+    assert.ok(safe.admission.entries.every((entry) => entry.outcome === 'admitted'));
+    assert.equal(safe.commits, 1);
+    assert.ok(safe.added >= 1);
+    assert.ok(kernel.nodes.some((node) => node.provenance
+      && node.provenance.sourceType === 'import'
+      && node.provenance.workspaceId === 'workspace-a'));
+
+    const beforeEdges = kernel.edges.length;
+    const escaped = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'git-log',
+      path: outsideDir,
       rootPath: rootDir,
     });
     assert.equal(escaped.ok, false);

@@ -559,8 +559,22 @@ class CLI {
           });
         }
 
+        if (source === 'git-log' || source === 'gitlog') {
+          const run = this.kernel.runCapability('repoMemory', {
+            action: 'ingest',
+            sourceType: 'git-log',
+            path: payload.targetPath,
+          });
+          return Promise.resolve(run).then(result => {
+            if (!result || result.ok === false) {
+              return commandFailure(`Git-log ingest hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
+            }
+            return `Git-log ingest: ok (commits=${result.commits || 0}, added=${result.added || 0})`;
+          });
+        }
+
         return commandFailure(
-          'Desteklenmeyen kaynak. Kullanim: ogren --kaynak manuel|karar|github|markdown|json|yaml ...',
+          'Desteklenmeyen kaynak. Kullanim: ogren --kaynak manuel|karar|github|markdown|json|yaml|git-log ...',
           opts,
           2
         );
@@ -586,7 +600,7 @@ class CLI {
             return commandFailure(`Ingest durum hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
           }
           const dist = result.distribution || {};
-          return `Ingest durum -> node:${result.totalNodes} repo:${dist.repo || 0} markdown:${dist.markdown || 0} json:${dist.json || 0} yaml:${dist.yaml || 0} manual:${dist.manual || 0}`;
+          return `Ingest durum -> node:${result.totalNodes} repo:${dist.repo || 0} markdown:${dist.markdown || 0} json:${dist.json || 0} yaml:${dist.yaml || 0} gitlog:${dist['git-log'] || 0} manual:${dist.manual || 0}`;
         });
       }
       case 'backup': {
