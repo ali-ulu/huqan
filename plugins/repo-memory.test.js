@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const http = require('http');
 const { execFileSync } = require('child_process');
 
 const repoMemory = require('./repo-memory');
@@ -357,6 +358,44 @@ test('repo-memory pdf ingest requires an explicit root and stays inside it', asy
   } finally {
     fs.rmSync(rootDir, { recursive: true, force: true });
     fs.rmSync(outsideDir, { recursive: true, force: true });
+  }
+});
+
+test('repo-memory http ingest requires a url', async () => {
+  const kernel = makeKernel();
+  const missing = await repoMemory.run(kernel, {
+    action: 'ingest',
+    sourceType: 'http',
+  });
+  assert.equal(missing.ok, false);
+  assert.equal(missing.code, 'HTTP_URL_REQUIRED');
+});
+
+test('repo-memory http ingest never exposes the SSRF test bypass through the plugin dispatch path', async () => {
+  // This is the integration-level version of the guarantee lib/ssrf-guard.js
+  // enforces at the unit level: even a real local server (necessarily a
+  // private address) must be rejected when reached through the ordinary
+  // repoMemory/CLI ingest path, because allowPrivateAddresses is
+  // deliberately never forwarded from plugin input into adapters/http-adapter.js.
+  const server = http.createServer((req, res) => { res.end('should never be reached'); });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const { port } = server.address();
+
+  try {
+    const kernel = makeKernel();
+    const result = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'http',
+      url: `http://127.0.0.1:${port}/`,
+      workspaceId: 'workspace-a',
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.added, 0);
+    assert.equal(result.fetchErrors.length, 1);
+    assert.equal(result.fetchErrors[0].code, 'SSRF_PRIVATE_ADDRESS_BLOCKED');
+    assert.equal(kernel.nodes.length, 0);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
   }
 });
 
