@@ -72,7 +72,7 @@ test('classifyMcpTool: known read-only tool', () => {
   assert.equal(c.mutating, false);
   assert.equal(c.category, 'read');
   assert.equal(c.alphaDecision, 'allow');
-  assert.deepEqual(c.gates, ['AB1']);
+  assert.deepEqual(c.gates, ['AB1', 'AB11']);
 });
 
 test('classifyMcpTool: known mutating tool', () => {
@@ -81,7 +81,7 @@ test('classifyMcpTool: known mutating tool', () => {
   assert.equal(c.mutating, true);
   assert.equal(c.category, 'write');
   assert.equal(c.alphaDecision, 'review');
-  assert.deepEqual(c.gates, ['AB1', 'AB2', 'AB4']);
+  assert.deepEqual(c.gates, ['AB1', 'AB2', 'AB4', 'AB11']);
 });
 
 test('classifyMcpTool: known agent-loop tool', () => {
@@ -90,7 +90,7 @@ test('classifyMcpTool: known agent-loop tool', () => {
   assert.equal(c.mutating, false);
   assert.equal(c.category, 'agent-loop');
   assert.equal(c.alphaDecision, 'dry_run_only');
-  assert.deepEqual(c.gates, ['AB1', 'AB2', 'AB8', 'AB9']);
+  assert.deepEqual(c.gates, ['AB1', 'AB2', 'AB8', 'AB9', 'AB11']);
 });
 
 test('classifyMcpTool: unknown tool returns block', () => {
@@ -320,4 +320,69 @@ test('evaluateMcpGate: AB9 reports no PII/secret for a clean agent-loop goal', (
   assert.ok(ab9, 'Should include AB9 finding');
   assert.equal(ab9.piiDetected, false);
   assert.equal(ab9.secretDetected, false);
+});
+
+// ─── evaluateMcpGate: AB11 cross-workspace access ─────────────────────────────
+
+test('evaluateMcpGate: AB11 blocks a tool call that reaches into another workspace', () => {
+  const r = evaluateMcpGate({
+    tool: 'axiom.ask',
+    args: { query: 'test', workspaceId: 'ws-b', operation: 'read' },
+    metadata: { workspaceId: 'ws-a' },
+  });
+  assert.equal(r.decision, MCP_GATE_DECISIONS.block);
+  assert.equal(r.reason, MCP_GATE_REASONS.AB11_CROSS_WORKSPACE_BLOCKED);
+  const ab11 = r.findings.find(f => f.gate === 'AB11');
+  assert.ok(ab11);
+  assert.equal(ab11.crossWorkspace, true);
+});
+
+test('evaluateMcpGate: AB11 allows a call that stays inside its own workspace', () => {
+  const r = evaluateMcpGate({
+    tool: 'axiom.ask',
+    args: { query: 'test', workspaceId: 'ws-a', operation: 'read' },
+    metadata: { workspaceId: 'ws-a' },
+  });
+  assert.equal(r.decision, MCP_GATE_DECISIONS.allow);
+  const ab11 = r.findings.find(f => f.gate === 'AB11');
+  assert.equal(ab11.crossWorkspace, false);
+});
+
+test('evaluateMcpGate: AB11 escalates a granted cross-workspace write to review', () => {
+  const r = evaluateMcpGate({
+    tool: 'axiom.ask',
+    args: { query: 'test', workspaceId: 'ws-b', operation: 'update' },
+    metadata: {
+      workspaceId: 'ws-a',
+      workspaceGrants: [{ fromWorkspaceId: 'ws-a', toWorkspaceId: 'ws-b', operations: ['write'] }],
+    },
+  });
+  assert.equal(r.decision, MCP_GATE_DECISIONS.review);
+  assert.equal(r.reason, MCP_GATE_REASONS.AB11_CROSS_WORKSPACE_REVIEW);
+});
+
+test('evaluateMcpGate: AB11 stays out of the way when no workspace is declared', () => {
+  const r = evaluateMcpGate({ tool: 'axiom.ask', args: { query: 'test' } });
+  assert.equal(r.decision, MCP_GATE_DECISIONS.allow,
+    'a call that declares no workspace is not making a cross-workspace claim');
+  assert.equal(r.findings.some(f => f.gate === 'AB11'), false,
+    'AB11 should record nothing when it has nothing to decide');
+});
+
+test('evaluateMcpGate: AB11 does not fire when only one side declares a workspace', () => {
+  const onlyArgs = evaluateMcpGate({ tool: 'axiom.ask', args: { query: 'x', workspaceId: 'ws-a' } });
+  const onlyMeta = evaluateMcpGate({ tool: 'axiom.ask', args: { query: 'x' }, metadata: { workspaceId: 'ws-a' } });
+  assert.equal(onlyArgs.decision, MCP_GATE_DECISIONS.allow);
+  assert.equal(onlyMeta.decision, MCP_GATE_DECISIONS.allow);
+});
+
+test('evaluateMcpGate: AB11 blocks a cross-workspace learn before it can mutate', () => {
+  const r = evaluateMcpGate({
+    tool: 'axiom.learn',
+    args: { text: 'kedi hayvandir', workspaceId: 'ws-b', operation: 'learn' },
+    metadata: { workspaceId: 'ws-a' },
+  });
+  assert.equal(r.decision, MCP_GATE_DECISIONS.block);
+  assert.equal(r.allowed, false);
+  assert.equal(r.canExecute, false);
 });
