@@ -245,8 +245,10 @@ describe('AgentV3', () => {
       assert.strictEqual(result.error.code, 'AGENT_LOOP_BUDGET_EXCEEDED');
       assert.strictEqual(result.meta.gate, 'AB10');
       assert.strictEqual(result.meta.budget.decision, 'block');
-      // No checkpoint means the loop never started.
-      assert.strictEqual(agent.storage.loadLatestCheckpoint('kedi hayvandir mi?'), null);
+      // No checkpoint means the loop never started. Look in the run's own
+      // workspace: checkpoints are workspace-scoped, so checking 'default'
+      // here would read null whether or not ws-a had written one.
+      assert.strictEqual(agent.storage.loadLatestCheckpoint('kedi hayvandir mi?', 'ws-a'), null);
 
       const auditEvents = agent.kernel.graph.getAuditEvents({ workspaceId: 'ws-a' });
       assert.ok(auditEvents.some(ev => ev.targetType === 'agent_loop_budget' && ev.details.gate === 'AB10'));

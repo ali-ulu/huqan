@@ -328,6 +328,11 @@ class AgentV3 {
       lastAction: state.lastAction || '',
       evidence: state.evidence || [],
       status: state.status || 'running',
+      // Must be carried explicitly: storage reads the workspace off this
+      // object, not off the nested `state`, so omitting it would file every
+      // checkpoint under 'default' and make workspace-scoped resume never
+      // find anything.
+      workspaceId: state.workspaceId,
       startedAtMs: Date.parse(state.startedAt || nowIso()) || Date.now(),
       state,
     });
