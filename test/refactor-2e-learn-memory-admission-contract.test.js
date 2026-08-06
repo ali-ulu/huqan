@@ -395,7 +395,14 @@ test('KernelV2 review-only learn retains the current existing-edge metadata side
     assert.equal(existing.updatedAt, FIXED_TIME);
     assert.equal(existing.source, 'review-attempt');
     assert.ok(existing.evidence.includes('source:review-attempt'));
-    assert.equal(saveCalls, 0);
+    // #216 part 3: every learn() call (including review-only outcomes) now
+    // goes through the durable mutation journal, which persists via save()
+    // once per completed (non-replayed) call -- including review outcomes,
+    // since the REVIEW audit event itself needs to survive a crash too.
+    // Previously review-only learns took a separate, unjournaled path that
+    // never called save() at all (gap 4: this exact unjournaled path is
+    // what #216 closed).
+    assert.equal(saveCalls, 1);
   } finally {
     closeFixture(fixture);
   }

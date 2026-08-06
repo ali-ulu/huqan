@@ -763,19 +763,25 @@ class Graph {
         let receipt = null;
         if (typeof opts.buildCanonicalReceipt === 'function') {
           const payload = opts.buildCanonicalReceipt(result);
-          if (!payload || typeof payload !== 'object' || !payload.receiptId || !payload.workspaceId) {
-            throw new Error('durable mutation receipt payload is invalid');
+          // null/undefined explicitly means "this mutation has no receipt"
+          // (e.g. a bypass-mode learn with no admission decision) -- the
+          // mutation still commits and journals, just without a receipt.
+          // Anything else must be a valid canonical payload, or fail.
+          if (payload !== null && payload !== undefined) {
+            if (typeof payload !== 'object' || !payload.receiptId || !payload.workspaceId) {
+              throw new Error('durable mutation receipt payload is invalid');
+            }
+            assertDurableV4WriteAllowed(payload, { operationId: id });
+            const receiptFamily = classifyReceiptFamily(payload);
+            const previous = this._stmts.getLatestMutationReceiptHash.get(payload.workspaceId, receiptFamily);
+            const chained = appendReceiptToChain(payload, previous?.receipt_hash);
+            const committedAt = nowIso();
+            this._stmts.insertMutationReceipt.run(
+              id, chained.receiptId, payload.workspaceId, receiptFamily, JSON.stringify(payload),
+              chained.previousReceiptHash, chained.receiptHash, committedAt,
+            );
+            receipt = this._readMutationReceipt(this._stmts.getMutationReceiptByOperation.get(id));
           }
-          assertDurableV4WriteAllowed(payload, { operationId: id });
-          const receiptFamily = classifyReceiptFamily(payload);
-          const previous = this._stmts.getLatestMutationReceiptHash.get(payload.workspaceId, receiptFamily);
-          const chained = appendReceiptToChain(payload, previous?.receipt_hash);
-          const committedAt = nowIso();
-          this._stmts.insertMutationReceipt.run(
-            id, chained.receiptId, payload.workspaceId, receiptFamily, JSON.stringify(payload),
-            chained.previousReceiptHash, chained.receiptHash, committedAt,
-          );
-          receipt = this._readMutationReceipt(this._stmts.getMutationReceiptByOperation.get(id));
         }
         this._stmts.insertMutationJournal.run(id, 'completed', JSON.stringify(result), nowIso());
         return { replayed: false, result, receipt };
@@ -842,27 +848,32 @@ class Graph {
 
       if (typeof opts.buildCanonicalReceipt === 'function') {
         const payload = opts.buildCanonicalReceipt(result);
-        if (!payload || typeof payload !== 'object' || !payload.receiptId || !payload.workspaceId) {
-          throw new Error('durable mutation receipt payload is invalid');
+        // null/undefined explicitly means "this mutation has no receipt"
+        // (e.g. a bypass-mode learn with no admission decision) -- the
+        // mutation still commits and journals, just without a receipt.
+        if (payload !== null && payload !== undefined) {
+          if (typeof payload !== 'object' || !payload.receiptId || !payload.workspaceId) {
+            throw new Error('durable mutation receipt payload is invalid');
+          }
+          assertDurableV4WriteAllowed(payload, { operationId: id });
+          const receiptFamily = classifyReceiptFamily(payload);
+          const chainKey = `${payload.workspaceId}::${receiptFamily}`;
+          const previousReceiptHash = journal.chainTips[chainKey] || null;
+          const chained = appendReceiptToChain(payload, previousReceiptHash);
+          const committedAt = nowIso();
+          journal.receipts[id] = {
+            receiptId: chained.receiptId,
+            workspaceId: payload.workspaceId,
+            receiptFamily,
+            canonicalPayload: payload,
+            previousReceiptHash: chained.previousReceiptHash,
+            receiptHash: chained.receiptHash,
+            committedAt,
+          };
+          journal.receiptsById[chained.receiptId] = id;
+          journal.chainTips[chainKey] = chained.receiptHash;
+          receipt = this._readMutationReceiptFromJsonJournal(journal, id);
         }
-        assertDurableV4WriteAllowed(payload, { operationId: id });
-        const receiptFamily = classifyReceiptFamily(payload);
-        const chainKey = `${payload.workspaceId}::${receiptFamily}`;
-        const previousReceiptHash = journal.chainTips[chainKey] || null;
-        const chained = appendReceiptToChain(payload, previousReceiptHash);
-        const committedAt = nowIso();
-        journal.receipts[id] = {
-          receiptId: chained.receiptId,
-          workspaceId: payload.workspaceId,
-          receiptFamily,
-          canonicalPayload: payload,
-          previousReceiptHash: chained.previousReceiptHash,
-          receiptHash: chained.receiptHash,
-          committedAt,
-        };
-        journal.receiptsById[chained.receiptId] = id;
-        journal.chainTips[chainKey] = chained.receiptHash;
-        receipt = this._readMutationReceiptFromJsonJournal(journal, id);
       }
 
       journal.operations[id] = { status: 'completed', result, receiptId: receipt?.receiptId || null, committedAt: nowIso() };
@@ -880,7 +891,13 @@ class Graph {
       this.save();
       this._writeJsonJournal(journal);
 
-      return { replayed: false, result, receipt };
+      // persisted: true tells the caller save() already happened as part of
+      // committing this mutation (unlike the SQLite path, where the DB
+      // transaction is the persistence and a caller-side save() afterward
+      // additionally syncs the JSON fallback export) -- so a caller that
+      // unconditionally saves after every non-replayed outcome can skip
+      // that redundant second save for the JSON backend specifically.
+      return { replayed: false, result, receipt, persisted: true };
     } catch (error) {
       this._nodes = snapshot.nodes;
       this._edges = snapshot.edges;
