@@ -1,5 +1,6 @@
 const path = require('path');
 const { resolveContainedPath } = require('./lib/memory-store-utils');
+const { applyStorageSchema } = require('./lib/storage/schema');
 let Database;
 
 try {
@@ -18,6 +19,24 @@ function lower(goal) {
 
 function normalizeWorkspaceId(workspaceId) {
   return String(workspaceId || 'default').trim() || 'default';
+}
+
+/**
+ * Iterations spent by *this* saveRun() call.
+ *
+ * `state.iteration` is cumulative across resumes, so writing it into a rolling
+ * window sum counts the same iterations again on every resume. Callers that
+ * track a run's starting point pass `iterationsDelta`; those that do not (a
+ * direct saveRun of a one-shot run, or a test seeding usage) fall back to the
+ * cumulative figure, which for a non-resumed run is the same number.
+ */
+function resolveIterationsDelta(state = {}) {
+  const explicit = Number(state.iterationsDelta);
+  if (state.iterationsDelta !== null && state.iterationsDelta !== undefined
+    && state.iterationsDelta !== '' && Number.isFinite(explicit)) {
+    return Math.max(0, explicit);
+  }
+  return Math.max(0, Number(state.iteration || state.completedSteps || 0));
 }
 
 function resolveDbPath(opts = {}, kernel) {
@@ -53,103 +72,7 @@ class AxiomStorage {
   }
 
   _init() {
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS checkpoints (
-        id TEXT PRIMARY KEY,
-        goal_key TEXT NOT NULL,
-        goal TEXT NOT NULL,
-        state_json TEXT NOT NULL,
-        iteration INTEGER NOT NULL,
-        budget_remaining INTEGER NOT NULL,
-        last_action TEXT NOT NULL DEFAULT '',
-        evidence_json TEXT NOT NULL DEFAULT '[]',
-        status TEXT NOT NULL DEFAULT 'running',
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_checkpoints_goal_key_updated
-        ON checkpoints(goal_key, updated_at DESC);
-
-      CREATE TABLE IF NOT EXISTS goal_memory (
-        key TEXT PRIMARY KEY,
-        goal TEXT NOT NULL,
-        objective TEXT NOT NULL DEFAULT 'investigate',
-        success_count INTEGER NOT NULL DEFAULT 0,
-        blocked_count INTEGER NOT NULL DEFAULT 0,
-        error_count INTEGER NOT NULL DEFAULT 0,
-        resumed_count INTEGER NOT NULL DEFAULT 0,
-        last_status TEXT NOT NULL DEFAULT 'unknown',
-        pattern_json TEXT NOT NULL DEFAULT '{}',
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS agent_runs (
-        id TEXT PRIMARY KEY,
-        goal_key TEXT NOT NULL,
-        goal TEXT NOT NULL,
-        objective TEXT NOT NULL DEFAULT 'investigate',
-        status TEXT NOT NULL DEFAULT 'running',
-        report TEXT NOT NULL DEFAULT '',
-        state_json TEXT NOT NULL DEFAULT '{}',
-        iterations INTEGER NOT NULL DEFAULT 0,
-        completed_steps INTEGER NOT NULL DEFAULT 0,
-        budget_remaining INTEGER NOT NULL DEFAULT 0,
-        resumed INTEGER NOT NULL DEFAULT 0,
-        checkpoint_id TEXT NOT NULL DEFAULT '',
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_agent_runs_goal_key_updated
-        ON agent_runs(goal_key, updated_at DESC);
-
-      CREATE TABLE IF NOT EXISTS tool_approvals (
-        id TEXT PRIMARY KEY,
-        approval_key TEXT NOT NULL UNIQUE,
-        tool TEXT NOT NULL,
-        input TEXT NOT NULL DEFAULT '',
-        context_json TEXT NOT NULL DEFAULT '{}',
-        policy_json TEXT NOT NULL DEFAULT '{}',
-        status TEXT NOT NULL DEFAULT 'pending',
-        decision TEXT NOT NULL DEFAULT '',
-        reason TEXT NOT NULL DEFAULT '',
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL,
-        decided_at INTEGER NOT NULL DEFAULT 0
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_tool_approvals_status_updated
-        ON tool_approvals(status, updated_at DESC);
-    `);
-
-    // AB10: additive migration on the existing agent_runs table (same
-    // PRAGMA table_info + conditional ALTER TABLE idiom already used in
-    // graph.js) so cumulative per-workspace iteration usage can be queried
-    // without a new table.
-    const agentRunsColumns = this.db.prepare('PRAGMA table_info(agent_runs)').all().map(c => c.name);
-    if (!agentRunsColumns.includes('workspace_id')) {
-      this.db.exec("ALTER TABLE agent_runs ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'");
-    }
-    this.db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_agent_runs_workspace_created
-        ON agent_runs(workspace_id, created_at DESC);
-    `);
-
-    // Same additive migration for checkpoints. Without a workspace column a
-    // checkpoint is keyed on goal alone, so a run in one workspace can
-    // resume another workspace's paused state -- inheriting its queued
-    // steps, evidence and progress. Existing rows adopt 'default', which is
-    // the workspace they were already implicitly written under.
-    const checkpointColumns = this.db.prepare('PRAGMA table_info(checkpoints)').all().map(c => c.name);
-    if (!checkpointColumns.includes('workspace_id')) {
-      this.db.exec("ALTER TABLE checkpoints ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'");
-    }
-    this.db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_checkpoints_workspace_goal_updated
-        ON checkpoints(workspace_id, goal_key, updated_at DESC);
-    `);
+    applyStorageSchema(this.db);
 
     this._stmts = {
       upsertCheckpoint: this.db.prepare(`
@@ -203,11 +126,11 @@ class AxiomStorage {
       upsertRun: this.db.prepare(`
         INSERT INTO agent_runs (
           id, goal_key, goal, objective, status, report, state_json,
-          iterations, completed_steps, budget_remaining, resumed, checkpoint_id,
+          iterations, iterations_delta, completed_steps, budget_remaining, resumed, checkpoint_id,
           workspace_id, created_at, updated_at
         ) VALUES (
           @id, @goal_key, @goal, @objective, @status, @report, @state_json,
-          @iterations, @completed_steps, @budget_remaining, @resumed, @checkpoint_id,
+          @iterations, @iterations_delta, @completed_steps, @budget_remaining, @resumed, @checkpoint_id,
           @workspace_id, @created_at, @updated_at
         )
         ON CONFLICT(id) DO UPDATE SET
@@ -218,6 +141,7 @@ class AxiomStorage {
           report = excluded.report,
           state_json = excluded.state_json,
           iterations = excluded.iterations,
+          iterations_delta = excluded.iterations_delta,
           completed_steps = excluded.completed_steps,
           budget_remaining = excluded.budget_remaining,
           resumed = excluded.resumed,
@@ -226,9 +150,9 @@ class AxiomStorage {
           updated_at = excluded.updated_at
       `),
       sumAgentIterationsSince: this.db.prepare(`
-        SELECT COALESCE(SUM(iterations), 0) AS total
+        SELECT COALESCE(SUM(iterations_delta), 0) AS total
         FROM agent_runs
-        WHERE workspace_id = ? AND created_at >= ?
+        WHERE workspace_id = ? AND updated_at >= ?
       `),
       countRuns: this.db.prepare('SELECT COUNT(*) AS c FROM agent_runs'),
       countGoals: this.db.prepare('SELECT COUNT(*) AS c FROM goal_memory'),
@@ -478,6 +402,7 @@ class AxiomStorage {
       report: state.report || '',
       state_json: JSON.stringify(state),
       iterations: Number(state.iteration || state.completedSteps || 0),
+      iterations_delta: resolveIterationsDelta(state),
       completed_steps: Number(state.completedSteps || 0),
       budget_remaining: Number(state.budgetRemaining || 0),
       resumed: state.resumed ? 1 : 0,
