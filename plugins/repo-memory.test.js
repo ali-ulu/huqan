@@ -19,6 +19,35 @@ function gitCommit(dir, fileName, content, message) {
   execFileSync('git', ['commit', '-q', '-m', message], { cwd: dir });
 }
 
+function writeMinimalPdf(filePath, text) {
+  const stream = `BT /F1 18 Tf 20 100 Td (${text.replace(/([()\\])/g, '\\$1')}) Tj ET`;
+  const pdf = `%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 4 0 R >> >> /MediaBox [0 0 300 144] /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Length ${stream.length} >>
+stream
+${stream}
+endstream
+endobj
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+0
+%%EOF`;
+  fs.writeFileSync(filePath, pdf, 'latin1');
+}
+
 function makeKernel() {
   const edges = [];
   const nodes = [];
@@ -265,6 +294,61 @@ test('repo-memory git-log ingest requires an explicit root and stays inside it',
       action: 'ingest',
       sourceType: 'git-log',
       path: outsideDir,
+      rootPath: rootDir,
+    });
+    assert.equal(escaped.ok, false);
+    assert.equal(escaped.code, 'PATH_OUTSIDE_ALLOWED_ROOT');
+    assert.equal(kernel.edges.length, beforeEdges);
+  } finally {
+    fs.rmSync(rootDir, { recursive: true, force: true });
+    fs.rmSync(outsideDir, { recursive: true, force: true });
+  }
+});
+
+test('repo-memory pdf ingest requires an explicit root and stays inside it', async () => {
+  const kernel = makeKernel();
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-repo-pdf-root-'));
+  const nestedDir = path.join(rootDir, 'docs');
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-repo-pdf-outside-'));
+  const insideFile = path.join(nestedDir, 'safe.pdf');
+  const outsideFile = path.join(outsideDir, 'secret.pdf');
+  fs.mkdirSync(nestedDir, { recursive: true });
+  writeMinimalPdf(insideFile, 'inside text');
+  writeMinimalPdf(outsideFile, 'outside text');
+
+  try {
+    const missingRoot = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'pdf',
+      path: insideFile,
+    });
+    assert.equal(missingRoot.ok, false);
+    assert.equal(missingRoot.code, 'PDF_ROOT_REQUIRED');
+
+    const safe = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'pdf',
+      path: insideFile,
+      rootPath: rootDir,
+      workspaceId: 'workspace-a',
+      actor: 'repo-bot',
+    });
+    assert.equal(safe.ok, true);
+    assert.equal(safe.admission.outcome, 'admitted');
+    assert.ok(Array.isArray(safe.admission.entries));
+    assert.ok(safe.admission.entries.every((entry) => entry.outcome === 'admitted'));
+    assert.equal(safe.files, 1);
+    assert.ok(safe.added >= 1);
+    assert.ok(kernel.nodes.some((node) => node.provenance
+      && node.provenance.sourceType === 'import'
+      && node.provenance.actor === 'repo-bot'
+      && node.provenance.workspaceId === 'workspace-a'));
+
+    const beforeEdges = kernel.edges.length;
+    const escaped = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'pdf',
+      path: path.join(rootDir, '..', path.basename(outsideFile)),
       rootPath: rootDir,
     });
     assert.equal(escaped.ok, false);
