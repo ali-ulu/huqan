@@ -93,6 +93,21 @@ describe('Kernel - Çıkarım', () => {
     assert.ok(cevap.includes('hayvan'));
   });
 
+  it('ask: bir afterAsk plugin\'inin cevabı yerinde değiştirmesi asıl yanıta yansır', () => {
+    const k = freshKernel();
+    k.learn('Köpek hayvandır');
+    k.plugins.register({
+      name: 'redactor-test',
+      requires: [],
+      optional: [],
+      afterAsk(_kernel, data) {
+        data.answer = 'REDACTED';
+      },
+    });
+    const cevap = k.ask('Köpek nedir').data.answer;
+    assert.strictEqual(cevap, 'REDACTED');
+  });
+
   it('verify: explicit negation conflicts with known fact', () => {
     const k = freshKernel();
     k.learn('Kedi hayvandır');
