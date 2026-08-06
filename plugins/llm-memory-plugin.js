@@ -13,10 +13,7 @@ module.exports = {
     if (data.answer === 'Bilmiyorum') {
       adapter.ask(data.question).then(res => {
         if (res.ok) {
-          const result = kernel.learnFromLLM(res.data.text, { skipConflicts: true, maxSentences: 5 });
-          if (result.learned > 0) {
-            kernel.graph.save();
-          }
+          kernel.learnFromLLM(res.data.text, { skipConflicts: true, maxSentences: 5 });
         }
       }).catch(() => {});
     }
