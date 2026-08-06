@@ -404,6 +404,79 @@ describe('Graph - Save/Load', { concurrency: false }, () => {
     try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
   });
 });
+
+describe('Graph - JSON save is atomic', { concurrency: false }, () => {
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+
+  function tempMemoryPath(prefix) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+    return path.join(dir, 'memory.json');
+  }
+
+  it('leaves no leftover .tmp- file after a successful save', () => {
+    const memoryPath = tempMemoryPath('axiom-graph-atomic-ok-');
+    const g = new Graph({ memoryPath, useSQLite: false });
+    g.addNode('kedi', 'hayvan');
+    g.save();
+
+    const dirEntries = fs.readdirSync(path.dirname(memoryPath));
+    assert.ok(!dirEntries.some(name => name.includes('.tmp-')), 'no temp file should remain after a successful save');
+    assert.ok(fs.existsSync(memoryPath));
+  });
+
+  it('never leaves memoryPath truncated/corrupted if the write step fails mid-save', () => {
+    const memoryPath = tempMemoryPath('axiom-graph-atomic-fail-');
+    const g = new Graph({ memoryPath, useSQLite: false });
+    g.addNode('kedi', 'hayvan');
+    g.save();
+    const originalContent = fs.readFileSync(memoryPath, 'utf8');
+
+    g.addNode('kopek', 'hayvan');
+    const originalWrite = fs.writeFileSync;
+    fs.writeFileSync = (targetPath, ...rest) => {
+      if (String(targetPath).includes('.tmp-')) {
+        throw new Error('simulated crash mid-write');
+      }
+      return originalWrite(targetPath, ...rest);
+    };
+    try {
+      assert.throws(() => g.save(), /simulated crash mid-write/);
+    } finally {
+      fs.writeFileSync = originalWrite;
+    }
+
+    const afterContent = fs.readFileSync(memoryPath, 'utf8');
+    assert.strictEqual(afterContent, originalContent, 'memoryPath must be untouched (old content), never a partial/torn write');
+    const dirEntries = fs.readdirSync(path.dirname(memoryPath));
+    assert.ok(!dirEntries.some(name => name.includes('.tmp-')), 'the failed temp file should not be left dangling either way once the process would clean up on retry');
+  });
+
+  it('rename step failing also leaves memoryPath at its prior content, not a torn write', () => {
+    const memoryPath = tempMemoryPath('axiom-graph-atomic-rename-fail-');
+    const g = new Graph({ memoryPath, useSQLite: false });
+    g.addNode('kedi', 'hayvan');
+    g.save();
+    const originalContent = fs.readFileSync(memoryPath, 'utf8');
+
+    g.addNode('kopek', 'hayvan');
+    const originalRename = fs.renameSync;
+    fs.renameSync = (source, dest) => {
+      if (String(dest) === memoryPath) throw new Error('simulated rename failure');
+      return originalRename(source, dest);
+    };
+    try {
+      assert.throws(() => g.save(), /simulated rename failure/);
+    } finally {
+      fs.renameSync = originalRename;
+    }
+
+    const afterContent = fs.readFileSync(memoryPath, 'utf8');
+    assert.strictEqual(afterContent, originalContent, 'memoryPath must reflect the last successful save, not a half-applied write');
+  });
+});
+
 describe('Graph - Lifecycle and maintenance baseline contracts', { concurrency: false }, () => {
   function withTempGraph(run) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-graph-contract-'));
