@@ -770,6 +770,15 @@ const server = http.createServer(async (req, res) => {
     workspaceId: sanitizeInput(reqUrl.searchParams.get('workspaceId') || ''),
   });
   if (routeAuthPolicy.authRequired && !denyIfUnauthorized(req, res)) return;
+  // An undeclared path must never reach a handler. If one is added without a
+  // policy entry it is answered as 404 here rather than executing
+  // unauthenticated, so the declaration is enforced at runtime and not only by
+  // test/route-auth-policy.test.js. 404 (not 401) preserves non-disclosure.
+  if (!routeAuthPolicy.known) {
+    res.writeHead(404, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
+    res.end(JSON.stringify({ error: 'Not found' }));
+    return;
+  }
 
   // --- /graph-data ---
   if (reqUrl.pathname === '/graph-data') {

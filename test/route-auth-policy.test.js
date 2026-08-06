@@ -121,6 +121,53 @@ test('every route handled by server.js is declared in the policy table', () => {
   );
 });
 
+
+test('prefix-dispatched route families are declared too', () => {
+  // These surfaces are not reached by `pathname === '/x'`; they are matched by
+  // prefix inside helper routers, so the scan above cannot see them. Pin them
+  // explicitly: a sample path under each family must resolve as known + authed.
+  const prefixFamilies = [
+    '/api/trust-receipt/abc123',
+    '/api/workbench/trust-receipt/abc123',
+    '/api/workbench/memory-context/abc123',
+  ];
+
+  for (const pathname of prefixFamilies) {
+    const decision = resolveRouteAuthPolicy(pathname, 'GET');
+    assert.equal(decision.known, true, `${pathname} must be declared`);
+    assert.equal(decision.authRequired, true, `${pathname} must require auth`);
+  }
+});
+
+test('prefix constants used by the routers are covered by the policy', () => {
+  // Discover the prefix literals the routers dispatch on, so that adding a new
+  // prefix-based family without declaring it is caught rather than assumed.
+  const sources = [
+    path.join(__dirname, '..', 'server.js'),
+    path.join(__dirname, '..', 'lib', 'workbench', 'trust-receipt-route.js'),
+    path.join(__dirname, '..', 'lib', 'workbench', 'memory-context-route.js'),
+  ];
+
+  const prefixes = new Set();
+  for (const file of sources) {
+    const source = fs.readFileSync(file, 'utf8');
+    for (const match of source.matchAll(/'(\/api\/[a-z0-9/-]*\/)'/gi)) {
+      prefixes.add(match[1]);
+    }
+  }
+
+  assert.ok(prefixes.size >= 3, `expected prefix constants, found ${prefixes.size}`);
+
+  const undeclared = [...prefixes].filter(
+    (prefix) => resolveRouteAuthPolicy(prefix + 'sample-id', 'GET').known !== true,
+  );
+
+  assert.deepEqual(
+    undeclared,
+    [],
+    'these prefix families are missing from lib/http/route-auth-policy.js: ' + undeclared.join(', '),
+  );
+});
 // --- runtime contract ---------------------------------------------------
 
 function request(port, pathname, headers = {}) {
@@ -148,6 +195,12 @@ test('runtime: undeclared route is denied without a key, declared public routes 
   const port = server.address().port;
   t.after(() => new Promise((resolve) => server.close(resolve)));
 
+  // The gate is enforced at runtime, not only by the static scan above: an
+  // undeclared path is answered before dispatch, so a handler added without a
+  // policy entry cannot execute unauthenticated.
+  const undeclaredUnderApi = await request(port, '/api/definitely-not-declared');
+  assert.equal(undeclaredUnderApi.status, 404, 'undeclared /api/ path must not leak existence');
+
   // An endpoint nobody declared stays a generic 404: it is neither served nor
   // confirmed to exist.
   const undeclared = await request(port, '/some-unreviewed-endpoint');
@@ -174,6 +227,16 @@ test('runtime: undeclared route is denied without a key, declared public routes 
     Authorization: `Bearer ${API_KEY}`,
   });
   assert.notEqual(scopedWithKey.status, 401);
+
+  // Prefix-dispatched families are challenged, not served, without a key.
+  for (const prefixed of [
+    '/api/trust-receipt/abc',
+    '/api/workbench/trust-receipt/abc',
+    '/api/workbench/memory-context/abc',
+  ]) {
+    const res = await request(port, prefixed);
+    assert.equal(res.status, 401, prefixed + ' must require a key');
+  }
 
   // Authenticated surface stays authenticated.
   const audit = await request(port, '/api/audit?targetId=x');
