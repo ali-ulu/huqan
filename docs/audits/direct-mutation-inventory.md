@@ -40,7 +40,7 @@ receipt boundary that would otherwise own the same intent.
 | HTTP ingest audit helper | `server.js:83-97` calls `cli.kernel.graph.appendAuditEvent()` | HTTP runtime / Graph audit store | `direct-bypass` of Kernel audit facade | Callers catch failures and continue with the already-finalized approval result. The returned audit ref is not a committed mutation receipt. |
 | HTTP startup | `new CLI()` constructs Kernel, whose constructor calls `graph.load()` at `kernel.js:181`; `server.js:39` then calls `cli.kernel.graph.load()` explicitly | HTTP bootstrap / Graph persistence | constructor-owned load followed by a `direct-bypass` of `Kernel.reload()` facade | The HTTP path performs two startup load attempts unless constructor options disable the first. Neither load has an audit or receipt; load behavior may fall back between persistence backends. |
 | MCP approval enqueue | `mcpServer.js:560-599` calls `AxiomStorage.saveToolApproval()` | MCP runtime / approval DB | `direct-owner` | No enqueue receipt or Graph audit. Unavailable storage returns `persisted: false`. |
-| MCP approved learn | `mcpServer.js:901-1057` resolves approval and calls `Kernel.learn()` | MCP approval runtime, Kernel, Graph | `conditional-journal` | SQLite Graph receives `mutationOperationId`; JSON Graph does not obtain the same crash-safe journal. Learn failure leaves or marks the approval unresolved/failed. Finalization is not a receipt-bearing Graph transaction. |
+| MCP approved learn | `mcpServer.js:901-1057` resolves approval and calls `Kernel.learn()` | MCP approval runtime, Kernel, Graph | `conditional-journal`, gap 3 closed | **Gap 3 closed (#216).** The JSON Graph backend now has its own durable mutation journal (`graph.js` `_runMutationOnceJson`, a sibling `*.mutations.json` file written atomically) with the same idempotent-replay, rollback-on-error, and hash-chained-receipt guarantees as SQLite (`test/durable-mutation-journal.test.js` proves parity across both backends). `mcpServer.js` no longer gates `mutationOperationId` binding on the backend name (`getStats().backend === 'sqlite'`); presence of `runMutationOnce` is now a genuine capability signal on both backends. Still open: learn failure resolution and approval finalization are unchanged by this fix; gap 4 (legacy learn without `mutationOperationId`, unjournaled) is separate and remains open. |
 | LLM memory plugin | `plugins/llm-memory-plugin.js:12-21` calls `learnFromLLM()` and then `kernel.graph.save()` | Plugin hook / Kernel learn plus Graph persistence | `direct-bypass` of `Kernel.persist()` for save | Learn uses Kernel behavior; the extra direct save has no persistence audit or receipt, and hook rejection is swallowed by the caller path. |
 | Shield auto-learn | `lib/shield.js:89-119` calls `learnFromLLM()` and direct `graph.save()` | SDK/server shield / Kernel learn plus Graph persistence | `direct-bypass` of `Kernel.persist()` for save | Learn errors are shaped. A save exception can escape; no save audit or receipt exists. |
 | CLI save, backup, and restore | `cli.js:553-600` and `707-715` call Kernel persistence and backup helpers | CLI / Kernel or filesystem persistence | `direct-owner` | Interactive gating/audit is pre-execution and best-effort; a direct `execute()` caller can skip the interactive mutation gate. Restore creates a safety backup but no durable mutation receipt. |
@@ -98,9 +98,10 @@ They must not be merged into one generic "memory mutation" claim.
    proposal admission or a durable mutation journal.
 2. HTTP approval receipt finalization, plugin mutation, and audit append do not
    share one atomic outcome boundary.
-3. MCP approved learn has backend-dependent journal strength: SQLite receives
+3. ~~MCP approved learn has backend-dependent journal strength: SQLite receives
    a mutation operation id while JSON does not provide the same crash-safe
-   guarantee.
+   guarantee.~~ **Closed (#216).** JSON now has its own durable mutation
+   journal with the same guarantees as SQLite; see the table row above.
 4. Kernel legacy learn without `mutationOperationId` remains unjournaled.
 5. Derived cross-links inherit the parent decision and conditional parent
    journal, but have no per-edge receipt.

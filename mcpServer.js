@@ -998,11 +998,11 @@ function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
     : parseJsonObject(existing.input, {});
   const cleanArgs = sanitizeToolArgsForStorage(existing.tool, storedArgs);
   const learnOptions = buildApprovalAdmissionOptions(existing, cleanArgs);
-  // JSON Graph mode remains supported for local/test deployments, but cannot
-  // provide a crash-safe operation journal. Bind the durable id only when the
-  // Graph confirms its own SQLite backend is active.
-  if (kernel.graph && typeof kernel.graph.runMutationOnce === 'function' &&
-      typeof kernel.graph.getStats === 'function' && kernel.graph.getStats().backend === 'sqlite') {
+  // #216: both the SQLite and JSON Graph backends now provide a crash-safe
+  // durable mutation journal (runMutationOnce), so binding the durable id no
+  // longer depends on which backend is active -- runMutationOnce's presence
+  // is itself the capability signal now that it is real on both.
+  if (kernel.graph && typeof kernel.graph.runMutationOnce === 'function') {
     learnOptions.mutationOperationId = approvalId;
   }
   let result;
