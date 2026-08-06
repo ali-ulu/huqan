@@ -87,6 +87,10 @@ must identify:
 No existing CLI, local adapter, or generic ingest route is selected as that
 endpoint by this ADR.
 
+That selection is made in `ADR-010-production-external-client-boundary.md`,
+which answers the list above. ADR-010 is a decision only; it does not make the
+endpoint reachable, and step 6 of the required sequence below still applies.
+
 ## Required Sequence
 
 1. `TRUST-ROOT-ADR-0` - this architecture decision.
