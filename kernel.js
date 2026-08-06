@@ -139,13 +139,10 @@ function validateCliMutationAuditIntent(intent) {
   return matchesMapping ? validated : null;
 }
 
-class ProvenanceError extends Error {
-  constructor(message = 'provenance is required when strictProvenance is true') {
-    super(message);
-    this.name = 'ProvenanceError';
-    this.code = 'PROVENANCE_REQUIRED';
-  }
-}
+// ProvenanceError is owned by lib/errors/provenance-error.js so that
+// lib/provenance-ingest.js can throw it without requiring kernel.js back
+// (issue #327). Re-exported below to preserve Kernel.ProvenanceError.
+const { ProvenanceError } = require('./lib/errors/provenance-error');
 
 class Kernel {
   /**
