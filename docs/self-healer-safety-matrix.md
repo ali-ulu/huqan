@@ -4,6 +4,11 @@
 
 Bu belge, Self-Healer için karar seviyelerini ve zorunlu güvenlik kurallarını tanımlar.
 
+> Runtime authority: bu matris `lib/self-healer/safety-decision.js` içinde
+> koda dökülmüştür ve testleri `test/self-healer-safety-decision.test.js`
+> altındadır. Belge ile kod arasında bir fark görürsen kod yetkilidir;
+> ikisini birlikte güncelle.
+
 ## Karar Seviyeleri
 
 - `observe`
