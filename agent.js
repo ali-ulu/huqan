@@ -940,6 +940,13 @@ class Agent {
     };
     state.completedSteps = state.steps.length;
     state.remainingSteps = Array.isArray(state.queuedSteps) ? state.queuedSteps.length : 0;
+    // agent.js (unlike agent.v3.js) has no workspace-scoping concept of its
+    // own; this only threads through what the caller explicitly passed, so
+    // plugins observing beforeAgentRun/afterAgentRun (workspace-sync.js,
+    // #213) have something real to read instead of guessing at a default.
+    state.workspaceId = typeof opts.workspaceId === 'string' && opts.workspaceId.trim()
+      ? opts.workspaceId.trim()
+      : (state.workspaceId || 'default');
     this._emit('beforeAgentRun', state);
 
     const queued = Array.isArray(state.queuedSteps) ? [...state.queuedSteps] : [];
