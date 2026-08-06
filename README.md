@@ -246,20 +246,6 @@ What this repository does **not** currently claim:
 - Wikipedia-scale graph performance,
 - a complete autonomous Self-Healer.
 
-### Shipped but not wired
-
-Part of this repository is implemented and unit-tested but is **not reached by
-any production entry point** (`cli.js`, `server.js`, `mcpServer.js`). Green
-tests for those modules mean the code behaves as specified in isolation — they
-are not evidence that the product runs it.
-
-That set is enumerated with a reason per module in
-[`lib/module-reachability.js`](./lib/module-reachability.js) and enforced by a
-test, so nothing can join it silently. The largest groups today are the
-external-client trust boundary (decided in ADR-010 but deliberately not
-enabled), the V5 track (its entry audit has not passed), the reviewed external
-ingest chain, and the Self-Healer (library-only by design).
-
 For the live execution order and exact limitations, read [docs/current-operating-roadmap.md](./docs/current-operating-roadmap.md).
 
 ## Repository map
