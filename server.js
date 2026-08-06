@@ -15,6 +15,7 @@ const {
 } = require('./lib/provenance-query');
 const { readReceiptById } = require('./lib/receipt/receipt-read-index');
 const { createWorkbenchReadHttpRouter } = require('./lib/workbench/workbench-read-http-router');
+const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
 const { createSessionStore } = require('./lib/viewer/session-store');
 const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
 const pkg = require('./package.json');
@@ -758,6 +759,17 @@ const server = http.createServer(async (req, res) => {
   }
 
   const reqUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+
+  // --- Central route authorization gate (issue #330) ---
+  // Authorization is decided by lib/http/route-auth-policy.js before any
+  // handler runs, so a newly added endpoint is authenticated by default
+  // instead of being silently public. Unknown paths are deliberately NOT
+  // challenged: they fall through to the generic 404 below, so a 401 never
+  // confirms the existence of an unrouted path.
+  const routeAuthPolicy = resolveRouteAuthPolicy(reqUrl.pathname, req.method, {
+    workspaceId: sanitizeInput(reqUrl.searchParams.get('workspaceId') || ''),
+  });
+  if (routeAuthPolicy.authRequired && !denyIfUnauthorized(req, res)) return;
 
   // --- /graph-data ---
   if (reqUrl.pathname === '/graph-data') {
