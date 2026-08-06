@@ -41,6 +41,19 @@ const CAUSAL_RELATION_PRIORITY = Object.freeze({
   PREVENTS: 4,
 });
 
+/**
+ * Writes `content` to `filePath` atomically: writes into a sibling temp
+ * file in the same directory, then renames over the destination.
+ * `fs.renameSync` within one directory is atomic, so a crash mid-write
+ * (or a concurrent reader) never observes a partially-written/truncated
+ * file — either the old content or the new content, never a torn mix.
+ */
+function atomicWriteFileSync(filePath, content) {
+  const tmpPath = `${filePath}.tmp-${process.pid}-${Math.random().toString(36).slice(2, 8)}`;
+  fs.writeFileSync(tmpPath, content, 'utf8');
+  fs.renameSync(tmpPath, filePath);
+}
+
 function receiptFamilyMigrationError(cause) {
   const error = new Error('mutation receipt family migration failed');
   error.code = RECEIPT_FAMILY_MIGRATION_ERROR_CODE;
@@ -1410,21 +1423,23 @@ class Graph {
       saveAll();
     }
 
-    // JSON de yaz (Rust katmanı ve fallback için)
+    // JSON de yaz (Rust katmanı ve fallback için) — atomik: crash mid-write
+    // memoryPath'i asla yarım/bozuk bırakmaz (eski içerik ya da yeni içerik,
+    // ikisinin karışımı asla).
     const data = {
       nodes: this._nodes,
       edges: this._edges,
       candidateClaims: this._candidateClaims,
       auditEvents: this._auditEvents,
     };
-    fs.writeFileSync(this.memoryPath, JSON.stringify(data), 'utf8');
+    atomicWriteFileSync(this.memoryPath, JSON.stringify(data));
 
     // Embedding'leri geri koy
     this._restoreEmbeddings(embeddings);
 
-    // Embedding'leri ayrı dosyaya yaz
+    // Embedding'leri ayrı dosyaya yaz (aynı atomik garanti)
     if (Object.keys(embeddings).length > 0) {
-      fs.writeFileSync(this._embeddingPath, JSON.stringify(embeddings), 'utf8');
+      atomicWriteFileSync(this._embeddingPath, JSON.stringify(embeddings));
     }
   }
 
