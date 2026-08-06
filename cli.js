@@ -321,7 +321,7 @@ class CLI {
     }
     switch (command) {
       case 'öğret': {
-        this.kernel.learn(args);
+        this.kernel.learn(args, { sourceType: 'cli', sourceRef: 'cli:öğret', actor: 'cli-user' });
         const subject = String(args || '').toLowerCase().split(/\s+/)[0];
         return `OK "${subject}" öğrendim.`;
       }
@@ -455,7 +455,11 @@ class CLI {
       case 'yükle': {
         try {
           const text = fs.readFileSync(args, 'utf8');
-          const count = this.kernel.learnDocument(text);
+          const count = this.kernel.learnDocument(text, {
+            sourceType: 'cli',
+            sourceRef: `cli:yükle:${args}`,
+            actor: 'cli-user',
+          });
           return `"${args}" dosyasından ${count} bilgi öğrenildi.`;
         } catch (error) {
           return commandFailure(`Dosya okunamadı: ${error.message}`, opts);

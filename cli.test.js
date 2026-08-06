@@ -182,6 +182,39 @@ describe('CLI - Komut Çalıştırma', () => {
     assert.ok(!node);
   });
 
+  it('execute: öğret komutu kernel.learn çağrısına cli provenance geçirir', () => {
+    const cli = freshCLI();
+    const calls = [];
+    const originalLearn = cli.kernel.learn.bind(cli.kernel);
+    cli.kernel.learn = (text, opts) => {
+      calls.push({ text, opts });
+      return originalLearn(text, { ...opts, ...TEST_FIXTURE_LEARN_BYPASS });
+    };
+    cli.execute('öğret', 'Köpek hayvandır', { gateResult: { canExecute: true } });
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(calls[0].opts.sourceType, 'cli');
+    assert.strictEqual(calls[0].opts.sourceRef, 'cli:öğret');
+    assert.strictEqual(calls[0].opts.actor, 'cli-user');
+  });
+
+  it('execute: yükle komutu learnDocument çağrısına cli provenance geçirir', () => {
+    const cli = freshCLI();
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-cli-upload-'));
+    const filePath = path.join(tmpDir, 'notes.txt');
+    fs.writeFileSync(filePath, 'Köpek hayvandır.\n');
+    const calls = [];
+    const originalLearnDocument = cli.kernel.learnDocument.bind(cli.kernel);
+    cli.kernel.learnDocument = (text, opts) => {
+      calls.push({ text, opts });
+      return originalLearnDocument(text, { ...opts, ...TEST_FIXTURE_LEARN_BYPASS });
+    };
+    cli.execute('yükle', filePath, { gateResult: { canExecute: true } });
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(calls[0].opts.sourceType, 'cli');
+    assert.strictEqual(calls[0].opts.sourceRef, `cli:yükle:${filePath}`);
+    assert.strictEqual(calls[0].opts.actor, 'cli-user');
+  });
+
   it('execute: sor komutu cevap döndürür', () => {
     const cli = freshCLI();
     cli.kernel.learn('Köpek hayvandır', TEST_FIXTURE_LEARN_BYPASS);
