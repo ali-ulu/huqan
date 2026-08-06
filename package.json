@@ -119,6 +119,7 @@
         "lib/fuzzy-normalization.js",
         "lib/github-connector.js",
         "lib/github-url.js",
+        "lib/http/route-auth-policy.js",
         "lib/ingest.js",
         "lib/kernel-read-use-cases.js",
         "lib/learn-use-case.js",
