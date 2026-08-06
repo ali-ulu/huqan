@@ -7,6 +7,7 @@ const createNlp = require('./nlp');
 const VerifyService = require('./lib/verify');
 const { buildProvenance } = require('./lib/provenance-ingest');
 const { evaluateMemoryAdmission } = require('./lib/memory-admission-gate');
+const { emitGateTelemetry } = require('./lib/gate-telemetry');
 const { detectClaimConflict, routeCandidateClaim } = require('./lib/conflict-detector');
 const { createKernelReadUseCases } = require('./lib/kernel-read-use-cases');
 const { runLearnUseCase } = require('./lib/learn-use-case');
@@ -859,6 +860,7 @@ class Kernel {
       approvalRequired: request.approvalRequired,
     });
     if (!evaluated || !evaluated.ok || !evaluated.decision) {
+      emitGateTelemetry(this, 'memory-admission', { decision: 'review', reason: 'memory_admission_evaluation_failed' });
       return {
         outcome: 'review',
         reason: 'memory_admission_evaluation_failed',
@@ -866,6 +868,8 @@ class Kernel {
         workspaceId,
       };
     }
+
+    emitGateTelemetry(this, 'memory-admission', evaluated.decision);
 
     return {
       outcome: evaluated.decision.decision,

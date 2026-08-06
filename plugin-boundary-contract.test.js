@@ -61,6 +61,7 @@ const CANONICAL_EVENT_NAMES = [
   'afterTask',
   'beforeAgentRun',
   'afterAgentRun',
+  'afterGateDecision',
 ];
 
 test('AC-1.0: EVENTS array is parseable from canonical plugin.js source', () => {
@@ -72,12 +73,12 @@ test('AC-1.0: EVENTS array is parseable from canonical plugin.js source', () => 
   );
 });
 
-test('AC-1.1: EVENTS array has exactly 16 entries (verified from plugin.js source)', () => {
+test('AC-1.1: EVENTS array has exactly 17 entries (verified from plugin.js source)', () => {
   assert.ok(Array.isArray(EVENTS_FROM_SOURCE), 'EVENTS must be parseable from plugin.js');
   assert.equal(
     EVENTS_FROM_SOURCE.length,
-    16,
-    `expected 16 events, got ${EVENTS_FROM_SOURCE.length}: ` +
+    17,
+    `expected 17 events, got ${EVENTS_FROM_SOURCE.length}: ` +
       JSON.stringify(EVENTS_FROM_SOURCE)
   );
 });
@@ -87,7 +88,7 @@ test('AC-1.2: EVENTS array matches the canonical hook name list in order', () =>
   assert.deepEqual(
     EVENTS_FROM_SOURCE,
     CANONICAL_EVENT_NAMES,
-    'EVENTS array in plugin.js must match the canonical 16-name list, in order. ' +
+    'EVENTS array in plugin.js must match the canonical 17-name list, in order. ' +
       'If you intentionally added or renamed a hook, update CANONICAL_EVENT_NAMES ' +
       'in this test AND any caller that depends on hook ordering.'
   );
