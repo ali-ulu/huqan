@@ -183,6 +183,20 @@ test('AC-2.3: emitStrict() propagates handler exception (fail-closed)', () => {
   assert.throws(() => k.plugins.emitStrict('afterAsk', { x: 1 }), /strict-boom/);
 });
 
+test('AC-2.3b: emitStrict() rejects a plugin returning a Promise instead of silently passing it through (#348)', () => {
+  const k = new Kernel({ noLoad: true, loadPlugins: false });
+  k.plugins.register({
+    name: 'async-offender',
+    requires: [],
+    optional: [],
+    beforeLearn: () => Promise.resolve({ text: 'should never flow through' }),
+  });
+  assert.throws(
+    () => k.plugins.emitStrict('beforeLearn', { text: 'original' }),
+    /async-offender.*Promise/
+  );
+});
+
 test('AC-2.4: emitStrict() chains non-undefined returns', () => {
   const k = new Kernel({ noLoad: true, loadPlugins: false });
   k.plugins.register({

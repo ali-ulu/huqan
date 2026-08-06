@@ -222,6 +222,20 @@ class PluginManager {
     for (const plugin of this._handlers[event]) {
       if (typeof plugin[event] !== 'function') continue;
       const result = plugin[event](this.kernel, nextData);
+      if (result && typeof result.then === 'function') {
+        // emitStrict callers (kernel.learn()'s beforeLearn, in particular)
+        // are synchronous: they read fields straight off whatever this
+        // returns. A plugin returning a Promise here would silently become
+        // `nextData`, and the caller would read e.g. `.text` off the
+        // Promise object itself (undefined) rather than the resolved
+        // value -- no error, just quietly wrong data flowing through the
+        // rest of the pipeline. See #348.
+        throw new TypeError(
+          `Plugin "${plugin.name}" returned a Promise from the synchronous "${event}" hook. `
+          + 'emitStrict-driven hooks (beforeLearn and others) run synchronously; '
+          + 'an async handler here would silently corrupt the pipeline instead of erroring.'
+        );
+      }
       if (result !== undefined) {
         nextData = result;
       }
