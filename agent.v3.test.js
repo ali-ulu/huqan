@@ -117,6 +117,50 @@ describe('AgentV3', () => {
     assert.strictEqual(status.lastRun.status, 'paused');
   });
 
+  describe('checkpoint workspace isolation', () => {
+    it('does not resume another workspace\'s paused checkpoint for the same goal', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-ckpt-ws-'));
+      const dbPath = path.join(tmpDir, 'memory.db');
+      const agent = freshAgent(dbPath);
+      const goal = 'kedi hayvandir mi?';
+
+      // Pause a run in ws-a so a checkpoint exists for this goal.
+      agent.run(goal, { resume: false, maxIterations: 1, timeBudgetMs: 5000, workspaceId: 'ws-a' });
+      const paused = agent.storage.loadLatestCheckpoint(goal, 'ws-a');
+      assert.ok(paused, 'ws-a should have a checkpoint for this goal');
+
+      // The same goal in ws-b must not see it.
+      assert.strictEqual(agent.storage.loadLatestCheckpoint(goal, 'ws-b'), null,
+        'a checkpoint must not be visible from another workspace');
+    });
+
+    it('scopes a saved checkpoint to the run workspace', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-ckpt-scope-'));
+      const dbPath = path.join(tmpDir, 'memory.db');
+      const agent = freshAgent(dbPath);
+      const goal = 'kedi hayvandir mi?';
+
+      agent.run(goal, { resume: false, maxIterations: 1, timeBudgetMs: 5000, workspaceId: 'ws-a' });
+
+      const row = agent.storage.loadLatestCheckpoint(goal, 'ws-a');
+      assert.ok(row);
+      assert.strictEqual(row.workspace_id, 'ws-a');
+    });
+
+    it('defaults an unscoped lookup to the default workspace', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-ckpt-default-'));
+      const dbPath = path.join(tmpDir, 'memory.db');
+      const agent = freshAgent(dbPath);
+      const goal = 'kedi hayvandir mi?';
+
+      agent.run(goal, { resume: false, maxIterations: 1, timeBudgetMs: 5000 });
+
+      assert.ok(agent.storage.loadLatestCheckpoint(goal), 'omitted workspace reads the default workspace');
+      assert.ok(agent.storage.loadLatestCheckpoint(goal, 'default'));
+      assert.strictEqual(agent.storage.loadLatestCheckpoint(goal, 'ws-a'), null);
+    });
+  });
+
   describe('AB10 agent loop budget gate', () => {
     it('blocks a run when the workspace already exhausted its window budget, without executing any step', () => {
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-ab10-block-'));

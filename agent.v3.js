@@ -112,6 +112,26 @@ class AgentV3 {
     };
   }
 
+  /**
+   * Returns `opts` with the run's workspace forced onto the per-tool option
+   * bags agent.js reads (`learnOpts`, `askOpts`, `verifyOpts`).
+   *
+   * The run-level workspace is authoritative and overrides a per-tool value
+   * on purpose: the alternative is a run whose budget and run record name one
+   * workspace while its steps mutate another, which makes the durable AB10
+   * accounting describe a workspace that was never touched.
+   */
+  _withWorkspaceScope(opts = {}, workspaceId) {
+    const scoped = { ...opts, workspaceId };
+    for (const key of ['learnOpts', 'askOpts', 'verifyOpts']) {
+      const existing = opts[key] && typeof opts[key] === 'object' && !Array.isArray(opts[key])
+        ? opts[key]
+        : {};
+      scoped[key] = { ...existing, workspaceId };
+    }
+    return scoped;
+  }
+
   _unavailableBudget(maxIterationsPerWindow, detail) {
     return {
       decision: 'block',
@@ -324,13 +344,23 @@ class AgentV3 {
     const planResult = this.plan(goal, opts);
     if (!planResult || planResult.ok === false) return planResult;
     const activePlan = planResult.data;
-    const resumeRecord = opts.resume === false ? null : this.storage.loadLatestCheckpoint(goal);
+    // Resolve the workspace before loading a checkpoint: checkpoints are
+    // workspace-scoped, and looking one up by goal alone would let a run in
+    // one workspace hydrate another workspace's paused state.
+    const workspaceId = String(opts.workspaceId || 'default').trim() || 'default';
+    const resumeRecord = opts.resume === false ? null : this.storage.loadLatestCheckpoint(goal, workspaceId);
     const state = this._hydrateState(activePlan, resumeRecord);
     const queued = Array.isArray(state.queuedSteps) ? [...state.queuedSteps] : [];
     const deadline = Date.now() + Math.max(0, Number.isInteger(opts.timeBudgetMs) ? opts.timeBudgetMs : this.timeBudgetMs);
     const maxIterations = Number.isInteger(opts.maxIterations) ? opts.maxIterations : this.maxIterations;
-    const workspaceId = String(opts.workspaceId || 'default').trim() || 'default';
     state.workspaceId = workspaceId;
+
+    // Force the run's workspace onto every tool call. agent.js reads
+    // opts.learnOpts / askOpts / verifyOpts straight through, so without this
+    // a run could be budgeted and recorded against one workspace while its
+    // steps actually read and mutate another -- making AB10's accounting
+    // describe a workspace that was never touched. One run, one workspace.
+    const scopedOpts = this._withWorkspaceScope(opts, workspaceId);
 
     // AB10: durable, workspace-scoped ceiling on top of this call's own
     // maxIterations/timeBudgetMs (which only bound a single run()). Checked
@@ -378,7 +408,7 @@ class AgentV3 {
       }
 
       const step = queued.shift();
-      const report = this.baseAgent._executeStepWithRetry(step, state, opts);
+      const report = this.baseAgent._executeStepWithRetry(step, state, scopedOpts);
       state.steps.push(report);
       state.evidence.push(...this.baseAgent._collectEvidence([report.result]));
       this.baseAgent._updateToolStats(report.tool, report.status);

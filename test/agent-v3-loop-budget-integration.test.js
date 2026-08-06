@@ -100,6 +100,39 @@ test('an invalid capacity figure falls back to the configured ceiling', () => {
   }
 });
 
+// ─── the run's workspace is forced onto every tool call ──────────────────────
+
+test('the run workspace is pushed into every per-tool option bag', () => {
+  const scoped = agentWith({})._withWorkspaceScope({}, 'ws-alpha');
+  assert.equal(scoped.workspaceId, 'ws-alpha');
+  assert.equal(scoped.learnOpts.workspaceId, 'ws-alpha');
+  assert.equal(scoped.askOpts.workspaceId, 'ws-alpha');
+  assert.equal(scoped.verifyOpts.workspaceId, 'ws-alpha');
+});
+
+test('a conflicting per-tool workspace is overridden by the run workspace', () => {
+  const scoped = agentWith({})._withWorkspaceScope(
+    { learnOpts: { workspaceId: 'default', provenance: 'keep-me' } },
+    'ws-alpha',
+  );
+  assert.equal(scoped.learnOpts.workspaceId, 'ws-alpha',
+    'budget accounting must not name a workspace the steps never touched');
+  assert.equal(scoped.learnOpts.provenance, 'keep-me',
+    'unrelated per-tool options must survive');
+});
+
+test('scoping does not mutate the caller\'s options', () => {
+  const original = { learnOpts: { workspaceId: 'default' } };
+  agentWith({})._withWorkspaceScope(original, 'ws-alpha');
+  assert.equal(original.learnOpts.workspaceId, 'default');
+});
+
+test('non-object per-tool options are replaced rather than spread', () => {
+  const scoped = agentWith({})._withWorkspaceScope({ askOpts: 'nope', verifyOpts: null }, 'ws-alpha');
+  assert.deepEqual(scoped.askOpts, { workspaceId: 'ws-alpha' });
+  assert.deepEqual(scoped.verifyOpts, { workspaceId: 'ws-alpha' });
+});
+
 // ─── audit write failures do not mask the refusal ────────────────────────────
 
 test('a throwing audit write does not turn a fail-closed refusal into an exception', () => {
