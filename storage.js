@@ -16,6 +16,10 @@ function lower(goal) {
   return normalizeGoal(goal).toLowerCase();
 }
 
+function normalizeWorkspaceId(workspaceId) {
+  return String(workspaceId || 'default').trim() || 'default';
+}
+
 function resolveDbPath(opts = {}, kernel) {
   const allowedRoots = [process.cwd()];
   if (typeof kernel?.graph?.memoryPath === 'string' && kernel.graph.memoryPath.trim()) {
@@ -133,14 +137,28 @@ class AxiomStorage {
         ON agent_runs(workspace_id, created_at DESC);
     `);
 
+    // Same additive migration for checkpoints. Without a workspace column a
+    // checkpoint is keyed on goal alone, so a run in one workspace can
+    // resume another workspace's paused state -- inheriting its queued
+    // steps, evidence and progress. Existing rows adopt 'default', which is
+    // the workspace they were already implicitly written under.
+    const checkpointColumns = this.db.prepare('PRAGMA table_info(checkpoints)').all().map(c => c.name);
+    if (!checkpointColumns.includes('workspace_id')) {
+      this.db.exec("ALTER TABLE checkpoints ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'");
+    }
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_checkpoints_workspace_goal_updated
+        ON checkpoints(workspace_id, goal_key, updated_at DESC);
+    `);
+
     this._stmts = {
       upsertCheckpoint: this.db.prepare(`
         INSERT INTO checkpoints (
           id, goal_key, goal, state_json, iteration, budget_remaining,
-          last_action, evidence_json, status, created_at, updated_at
+          last_action, evidence_json, status, workspace_id, created_at, updated_at
         ) VALUES (
           @id, @goal_key, @goal, @state_json, @iteration, @budget_remaining,
-          @last_action, @evidence_json, @status, @created_at, @updated_at
+          @last_action, @evidence_json, @status, @workspace_id, @created_at, @updated_at
         )
         ON CONFLICT(id) DO UPDATE SET
           goal_key = excluded.goal_key,
@@ -151,12 +169,13 @@ class AxiomStorage {
           last_action = excluded.last_action,
           evidence_json = excluded.evidence_json,
           status = excluded.status,
+          workspace_id = excluded.workspace_id,
           updated_at = excluded.updated_at
       `),
       getLatestCheckpoint: this.db.prepare(`
         SELECT *
         FROM checkpoints
-        WHERE goal_key = ? AND status != 'completed'
+        WHERE goal_key = ? AND workspace_id = ? AND status != 'completed'
         ORDER BY updated_at DESC
         LIMIT 1
       `),
@@ -366,6 +385,7 @@ class AxiomStorage {
       last_action: String(state.lastAction || ''),
       evidence_json: JSON.stringify(Array.isArray(state.evidence) ? state.evidence : []),
       status: String(state.status || 'running'),
+      workspace_id: normalizeWorkspaceId(state.workspaceId),
       created_at: Number(state.startedAtMs || this._now()),
       updated_at: this._now(),
     };
@@ -373,8 +393,15 @@ class AxiomStorage {
     return id;
   }
 
-  loadLatestCheckpoint(goal) {
-    const row = this._stmts.getLatestCheckpoint.get(lower(goal));
+  /**
+   * Checkpoints are workspace-scoped: a goal paused in one workspace must not
+   * be resumable from another, or the resuming run inherits that workspace's
+   * queued steps, evidence and progress. Callers that omit `workspaceId` get
+   * the 'default' workspace, which is where rows written before this column
+   * existed were implicitly stored.
+   */
+  loadLatestCheckpoint(goal, workspaceId) {
+    const row = this._stmts.getLatestCheckpoint.get(lower(goal), normalizeWorkspaceId(workspaceId));
     if (!row) return null;
     return {
       ...row,
@@ -455,7 +482,7 @@ class AxiomStorage {
       budget_remaining: Number(state.budgetRemaining || 0),
       resumed: state.resumed ? 1 : 0,
       checkpoint_id: String(state.checkpointId || state.resumeToken || ''),
-      workspace_id: String(state.workspaceId || 'default'),
+      workspace_id: normalizeWorkspaceId(state.workspaceId),
       created_at: Number(state.startedAtMs || this._now()),
       updated_at: this._now(),
     };

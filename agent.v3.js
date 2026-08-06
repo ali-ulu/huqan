@@ -54,18 +54,127 @@ class AgentV3 {
     this.lastRun = null;
   }
 
-  /** AB10: looks up durable per-workspace usage and evaluates it against the budget gate. */
-  _checkAgentLoopBudget(workspaceId, opts = {}) {
+  /**
+   * AB10: looks up durable per-workspace usage and evaluates it against the
+   * budget gate.
+   *
+   * Fail-closed on an unreadable counter. A storage that does not implement
+   * `sumAgentIterationsSince`, or one whose read throws, previously fell back
+   * to `iterationsUsed = 0`, which made every run look like a fresh workspace
+   * and silently disabled the durable ceiling entirely -- the failure mode
+   * least likely to be noticed, since it looks exactly like normal operation.
+   * Usage that cannot be measured is now reported as `usageKnown: false` and
+   * the caller refuses the run rather than proceeding unbudgeted.
+   *
+   * @param {string} workspaceId
+   * @param {object} [opts]
+   * @param {number} [requestedIterations] iterations this run can actually
+   *   perform; defaults to the configured per-call ceiling when not supplied.
+   */
+  _checkAgentLoopBudget(workspaceId, opts = {}, requestedIterations = null) {
     const maxIterationsPerWindow = Number.isInteger(opts.maxIterationsPerWindow) ? opts.maxIterationsPerWindow : this.maxIterationsPerWindow;
     const windowMs = Number.isInteger(opts.agentLoopBudgetWindowMs) ? opts.agentLoopBudgetWindowMs : this.agentLoopBudgetWindowMs;
-    const iterationsUsed = typeof this.storage?.sumAgentIterationsSince === 'function'
-      ? this.storage.sumAgentIterationsSince(workspaceId, Date.now() - windowMs)
-      : 0;
-    const requestedIterations = Number.isInteger(opts.maxIterations) ? opts.maxIterations : this.maxIterations;
-    return evaluateAgentLoopBudget(
-      { iterationsUsed, requestedIterations },
-      { maxIterationsPerWindow },
-    );
+
+    if (typeof this.storage?.sumAgentIterationsSince !== 'function') {
+      return this._unavailableBudget(maxIterationsPerWindow, 'storage does not implement sumAgentIterationsSince');
+    }
+
+    let iterationsUsed;
+    try {
+      iterationsUsed = this.storage.sumAgentIterationsSince(workspaceId, Date.now() - windowMs);
+    } catch (err) {
+      return this._unavailableBudget(maxIterationsPerWindow, `usage lookup failed: ${err && err.message ? err.message : 'unknown error'}`);
+    }
+
+    // `null`, `undefined` and `''` all coerce to 0 through Number(), which
+    // would read a missing counter as "nothing spent" -- the same fail-open
+    // this method exists to close. Reject them before coercing.
+    if (iterationsUsed === null || iterationsUsed === undefined || iterationsUsed === ''
+      || !Number.isFinite(Number(iterationsUsed))) {
+      return this._unavailableBudget(maxIterationsPerWindow, 'usage lookup returned a non-numeric value');
+    }
+
+    // Ask only for what this run can actually spend. Using the configured
+    // per-call ceiling instead would project a run that can execute at most a
+    // couple of steps as if it intended to spend all of them, tripping REVIEW
+    // while most of the window budget is genuinely free.
+    const requested = Number.isFinite(requestedIterations) && requestedIterations > 0
+      ? requestedIterations
+      : (Number.isInteger(opts.maxIterations) ? opts.maxIterations : this.maxIterations);
+
+    return {
+      ...evaluateAgentLoopBudget(
+        { iterationsUsed: Number(iterationsUsed), requestedIterations: requested },
+        { maxIterationsPerWindow },
+      ),
+      requestedIterations: requested,
+      usageKnown: true,
+    };
+  }
+
+  /**
+   * Returns `opts` with the run's workspace forced onto the per-tool option
+   * bags agent.js reads (`learnOpts`, `askOpts`, `verifyOpts`).
+   *
+   * The run-level workspace is authoritative and overrides a per-tool value
+   * on purpose: the alternative is a run whose budget and run record name one
+   * workspace while its steps mutate another, which makes the durable AB10
+   * accounting describe a workspace that was never touched.
+   */
+  _withWorkspaceScope(opts = {}, workspaceId) {
+    const scoped = { ...opts, workspaceId };
+    for (const key of ['learnOpts', 'askOpts', 'verifyOpts']) {
+      const existing = opts[key] && typeof opts[key] === 'object' && !Array.isArray(opts[key])
+        ? opts[key]
+        : {};
+      scoped[key] = { ...existing, workspaceId };
+    }
+    return scoped;
+  }
+
+  _unavailableBudget(maxIterationsPerWindow, detail) {
+    return {
+      decision: 'block',
+      reason: 'budget_usage_unavailable',
+      detail,
+      iterationsUsed: null,
+      maxIterationsPerWindow,
+      remaining: null,
+      usageKnown: false,
+    };
+  }
+
+  /**
+   * Records an AB10 gate outcome. Audit persistence must not convert a
+   * fail-closed refusal into a thrown exception, so a failing write is
+   * swallowed here -- the same protection `kernel._appendAuditEvent` gives,
+   * which this path bypasses by calling graph directly.
+   *
+   * graph.appendAuditEvent() is called directly rather than
+   * kernel._appendAuditEvent(): KernelV2 is a facade over an internal Kernel
+   * instance and does not proxy that private method, but both Kernel and
+   * KernelV2 expose .graph identically, so this works for either kernel
+   * implementation passed into AgentV3.
+   */
+  _recordBudgetAuditEvent(goal, workspaceId, budgetCheck) {
+    if (!this.kernel?.graph || typeof this.kernel.graph.appendAuditEvent !== 'function') return;
+    try {
+      this.kernel.graph.appendAuditEvent({
+        eventType: budgetCheck.decision === 'block' ? 'REJECT' : 'REVIEW',
+        targetType: 'agent_loop_budget',
+        targetId: goal,
+        details: {
+          gate: 'AB10',
+          reason: budgetCheck.reason,
+          iterationsUsed: budgetCheck.iterationsUsed,
+          maxIterationsPerWindow: budgetCheck.maxIterationsPerWindow,
+          usageKnown: budgetCheck.usageKnown !== false,
+        },
+      }, { workspaceId });
+    } catch (_) {
+      // Refusing the run is the safety behavior; losing its audit line must
+      // not escalate into an exception that hides the refusal.
+    }
   }
 
   _ok(type, data = null, evidence = [], meta = {}) {
@@ -235,13 +344,23 @@ class AgentV3 {
     const planResult = this.plan(goal, opts);
     if (!planResult || planResult.ok === false) return planResult;
     const activePlan = planResult.data;
-    const resumeRecord = opts.resume === false ? null : this.storage.loadLatestCheckpoint(goal);
+    // Resolve the workspace before loading a checkpoint: checkpoints are
+    // workspace-scoped, and looking one up by goal alone would let a run in
+    // one workspace hydrate another workspace's paused state.
+    const workspaceId = String(opts.workspaceId || 'default').trim() || 'default';
+    const resumeRecord = opts.resume === false ? null : this.storage.loadLatestCheckpoint(goal, workspaceId);
     const state = this._hydrateState(activePlan, resumeRecord);
     const queued = Array.isArray(state.queuedSteps) ? [...state.queuedSteps] : [];
     const deadline = Date.now() + Math.max(0, Number.isInteger(opts.timeBudgetMs) ? opts.timeBudgetMs : this.timeBudgetMs);
     const maxIterations = Number.isInteger(opts.maxIterations) ? opts.maxIterations : this.maxIterations;
-    const workspaceId = String(opts.workspaceId || 'default').trim() || 'default';
     state.workspaceId = workspaceId;
+
+    // Force the run's workspace onto every tool call. agent.js reads
+    // opts.learnOpts / askOpts / verifyOpts straight through, so without this
+    // a run could be budgeted and recorded against one workspace while its
+    // steps actually read and mutate another -- making AB10's accounting
+    // describe a workspace that was never touched. One run, one workspace.
+    const scopedOpts = this._withWorkspaceScope(opts, workspaceId);
 
     // AB10: durable, workspace-scoped ceiling on top of this call's own
     // maxIterations/timeBudgetMs (which only bound a single run()). Checked
@@ -251,27 +370,29 @@ class AgentV3 {
     // has no approval-resume flow of its own (unlike the MCP-level gates),
     // so a caller must raise the budget or wait for the window to roll over
     // rather than silently proceeding.
-    const budgetCheck = this._checkAgentLoopBudget(workspaceId, opts);
+    // Only ask the budget for the iterations this run can actually perform:
+    // the loop below stops at the first of queued exhaustion, the plan's step
+    // ceiling, or the per-call iteration ceiling.
+    const runCapacity = Math.max(0, Math.min(
+      queued.length,
+      activePlan.maxSteps - state.steps.length,
+      maxIterations - state.iteration,
+    ));
+
+    const budgetCheck = this._checkAgentLoopBudget(workspaceId, opts, runCapacity);
+
+    // An unreadable usage counter is not the same failure as an exhausted
+    // budget, and must not be reported as one -- the operator needs to know
+    // the ceiling could not be evaluated at all.
+    if (budgetCheck.usageKnown === false) {
+      this._recordBudgetAuditEvent(goal, workspaceId, budgetCheck);
+      return this._fail('agent', 'AGENT_LOOP_BUDGET_UNAVAILABLE',
+        `Agent loop budget could not be evaluated for workspace "${workspaceId}": ${budgetCheck.detail}. Refusing the run rather than proceeding unbudgeted.`,
+        [], { gate: 'AB10', budget: budgetCheck });
+    }
+
     if (budgetCheck.decision !== 'allow') {
-      // Call graph.appendAuditEvent() directly rather than kernel._appendAuditEvent():
-      // KernelV2 is a facade over an internal Kernel instance and does not
-      // proxy that private method, but both Kernel and KernelV2 expose
-      // .graph identically (kernel._appendAuditEvent itself is a thin
-      // wrapper around graph.appendAuditEvent), so calling it directly here
-      // works for either kernel implementation passed into AgentV3.
-      if (this.kernel?.graph && typeof this.kernel.graph.appendAuditEvent === 'function') {
-        this.kernel.graph.appendAuditEvent({
-          eventType: budgetCheck.decision === 'block' ? 'REJECT' : 'REVIEW',
-          targetType: 'agent_loop_budget',
-          targetId: goal,
-          details: {
-            gate: 'AB10',
-            reason: budgetCheck.reason,
-            iterationsUsed: budgetCheck.iterationsUsed,
-            maxIterationsPerWindow: budgetCheck.maxIterationsPerWindow,
-          },
-        }, { workspaceId });
-      }
+      this._recordBudgetAuditEvent(goal, workspaceId, budgetCheck);
       return this._fail('agent', 'AGENT_LOOP_BUDGET_EXCEEDED',
         `Agent loop budget ${budgetCheck.decision} for workspace "${workspaceId}": ${budgetCheck.reason} (${budgetCheck.iterationsUsed}/${budgetCheck.maxIterationsPerWindow} iterations used this window).`,
         [], { gate: 'AB10', budget: budgetCheck });
@@ -287,7 +408,7 @@ class AgentV3 {
       }
 
       const step = queued.shift();
-      const report = this.baseAgent._executeStepWithRetry(step, state, opts);
+      const report = this.baseAgent._executeStepWithRetry(step, state, scopedOpts);
       state.steps.push(report);
       state.evidence.push(...this.baseAgent._collectEvidence([report.result]));
       this.baseAgent._updateToolStats(report.tool, report.status);
