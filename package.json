@@ -132,6 +132,7 @@
         "lib/memory-schema.js",
         "lib/memory-store-utils.js",
         "lib/memory-store.js",
+        "lib/module-reachability.js",
         "lib/path-safety.js",
         "lib/provenance-ingest.js",
         "lib/provenance-query.js",
