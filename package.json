@@ -63,6 +63,7 @@
         "LICENSE",
         "NOTICE",
         "README.md",
+        "adapters/git-log-adapter.js",
         "adapters/github-adapter.js",
         "adapters/json-adapter.js",
         "adapters/markdown-adapter.js",
