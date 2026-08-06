@@ -900,70 +900,103 @@ class Kernel {
 
   // Original synchronous learn (backward compatible - no locks)
   // For concurrent access, use learnAsync() instead
+  //
+  // #216 (gap 4): every learn() call now goes through the durable mutation
+  // journal, not just callers that explicitly pass mutationOperationId. A
+  // caller-supplied id is used as-is (so MCP's approval-id-as-operation-id
+  // scheme is unchanged); otherwise one is generated internally so legacy
+  // callers (CLI, plugins, direct API use) get the same idempotent-replay
+  // and crash-safety guarantee, not just MCP-approved learns.
   learn(text, opts = {}) {
     const ev = this._runBeforeLearn(text, opts);
     const nextText = ev.text;
     const nextOpts = ev.opts || opts;
     this._enterCriticalSection('learn');
     try {
-      const operationId = typeof nextOpts.mutationOperationId === 'string'
+      const operationId = typeof nextOpts.mutationOperationId === 'string' && nextOpts.mutationOperationId.trim()
         ? nextOpts.mutationOperationId.trim()
-        : '';
-      if (operationId) {
-        if (!this.graph || typeof this.graph.runMutationOnce !== 'function') {
-          const error = new Error('durable mutation journal is unavailable');
-          error.code = 'DURABLE_MUTATION_JOURNAL_UNAVAILABLE';
-          throw error;
-        }
-        const postCommitEffects = [];
-        const outcome = this.graph.runMutationOnce(operationId, () => runLearnUseCase(this, nextText, {
+        : `auto-mut-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      if (!this.graph || typeof this.graph.runMutationOnce !== 'function') {
+        const error = new Error('durable mutation journal is unavailable');
+        error.code = 'DURABLE_MUTATION_JOURNAL_UNAVAILABLE';
+        throw error;
+      }
+      const postCommitEffects = [];
+      const runMutationOnceOpts = {
+        buildCanonicalReceipt: (learnResult) => {
+          const receipt = learnResult?.data?.admission?.receipt;
+          // Bypass-mode and admission-free learns produce no admission
+          // receipt at all -- that is expected (not every learn goes
+          // through the admission gate), so this mutation simply commits
+          // without a canonical receipt rather than failing the write.
+          if (!receipt || typeof receipt !== 'object') return null;
+          const committedAt = new Date().toISOString();
+          return buildCanonicalReceiptPayload({
+            ...receipt,
+            metadata: {
+              ...(receipt.metadata || {}),
+              mutationOperationId: operationId,
+              committedAt,
+            },
+          }, {
+            verdict: toCanonicalVerdict('admission', receipt.decision),
+          });
+        },
+      };
+      let outcome;
+      try {
+        outcome = this.graph.runMutationOnce(operationId, () => runLearnUseCase(this, nextText, {
           ...nextOpts,
           _durableMutationTransaction: true,
           _postCommitEffects: postCommitEffects,
         }, {
           normalizeWorkspaceId,
           ProvenanceError,
-        }), {
-          buildCanonicalReceipt: (learnResult) => {
-            const receipt = learnResult?.data?.admission?.receipt;
-            if (!receipt || typeof receipt !== 'object') {
-              throw new Error('approved durable learn did not produce an admission receipt');
-            }
-            const committedAt = new Date().toISOString();
-            return buildCanonicalReceiptPayload({
-              ...receipt,
-              metadata: {
-                ...(receipt.metadata || {}),
-                mutationOperationId: operationId,
-                committedAt,
-              },
-            }, {
-              verdict: toCanonicalVerdict('admission', receipt.decision),
-            });
-          },
-        });
-        const result = outcome.result;
-        if (result && typeof result === 'object') {
-          result.meta = {
-            ...(result.meta || {}),
-            durableMutation: true,
-            replayed: outcome.replayed === true,
-            committedReceiptId: outcome.receipt?.receiptId || null,
-            committedReceiptHash: outcome.receipt?.receiptHash || null,
-          };
+        }), runMutationOnceOpts);
+      } catch (error) {
+        // A strictProvenance rejection is an expected, final outcome (not a
+        // mid-transaction crash), and learn-use-case.js already appends a
+        // REJECT audit event for it before throwing -- but runMutationOnce's
+        // rollback-on-error restores in-memory state to the pre-mutation
+        // snapshot, which undoes that in-memory audit append along with
+        // everything else (correctly so for a genuine crash, where nothing
+        // should be left behind). Re-append it here so the rejection itself
+        // stays on the audit trail, matching the admission-reject path
+        // (which returns normally instead of throwing and is therefore
+        // unaffected by rollback).
+        if (error instanceof ProvenanceError || error?.code === 'PROVENANCE_REQUIRED') {
+          this._appendAuditEvent({
+            eventType: 'REJECT',
+            targetType: 'learn',
+            targetId: nextText,
+            details: { reason: error.code || 'PROVENANCE_REQUIRED', message: error.message, text: nextText },
+          }, nextOpts.provenance && typeof nextOpts.provenance === 'object' ? nextOpts.provenance : null, normalizeWorkspaceId(nextOpts.workspaceId));
         }
-        if (!outcome.replayed) {
-          try { this.graph.save(); } catch (error) { console.error('[Kernel] Graph save error:', error.message); }
-          for (const effect of postCommitEffects) {
-            try { effect(); } catch (error) { console.error('[Kernel] post-commit effect error:', error.message); }
-          }
-        }
-        return result;
+        throw error;
       }
-      return runLearnUseCase(this, nextText, nextOpts, {
-        normalizeWorkspaceId,
-        ProvenanceError,
-      });
+      const result = outcome.result;
+      if (result && typeof result === 'object') {
+        result.meta = {
+          ...(result.meta || {}),
+          durableMutation: true,
+          replayed: outcome.replayed === true,
+          committedReceiptId: outcome.receipt?.receiptId || null,
+          committedReceiptHash: outcome.receipt?.receiptHash || null,
+        };
+      }
+      if (!outcome.replayed) {
+        // The JSON backend's runMutationOnce already calls save() itself
+        // while committing (outcome.persisted === true); only the SQLite
+        // path still needs this call here, to sync its JSON fallback export
+        // (SQLite's own persistence is the DB transaction, already done).
+        if (!outcome.persisted) {
+          try { this.graph.save(); } catch (error) { console.error('[Kernel] Graph save error:', error.message); }
+        }
+        for (const effect of postCommitEffects) {
+          try { effect(); } catch (error) { console.error('[Kernel] post-commit effect error:', error.message); }
+        }
+      }
+      return result;
     } finally {
       this._exitCriticalSection();
     }

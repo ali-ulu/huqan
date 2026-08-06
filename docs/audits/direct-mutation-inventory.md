@@ -31,7 +31,7 @@ receipt boundary that would otherwise own the same intent.
 | --- | --- | --- | --- | --- |
 | Kernel candidate acceptance, reachable through exported `Kernel.ingestCandidateClaim()` | `lib/conflict-detector.js:356-410` calls `Graph.addCandidateClaim()`, `addNode()` twice, and `addEdge()` | Candidate review route / Graph | `direct-bypass` | Writes precede `CLAIM_ACCEPTED` audit. It does not call `Kernel.propose*()` or `Graph.runMutationOnce()` and produces no committed mutation receipt. No canonical in-repository transport caller was proven for the exported route. |
 | Public compatibility method | `kernel.js:931-935` calls `Graph.addCandidateClaim()` | Kernel API / Graph candidate store | `library-only` and direct if externally invoked | No admission, mutation journal, audit, or receipt in the method. No non-test in-repository caller was resolved. |
-| Kernel learn | `kernel.js:861-924` delegates to the learn use case; `lib/learn-use-case.js:201-359` calls `Graph.addNode()`, `addEdge()`, `addTag()`, and `save()` | Kernel learn / Graph | `conditional-journal` | A supplied `mutationOperationId` uses `Graph.runMutationOnce()` and a committed receipt. The legacy path has no durable mutation journal. Learn admission remains the parent boundary. |
+| Kernel learn | `kernel.js` `learn()` delegates to the learn use case; `lib/learn-use-case.js` calls `Graph.addNode()`, `addEdge()`, `addTag()`, and `save()` | Kernel learn / Graph | `canonical`, gap 4 closed | **Gap 4 closed (#216).** Every `learn()` call now goes through `Graph.runMutationOnce()`, not just calls that pass an explicit `mutationOperationId` -- one is generated internally when the caller doesn't supply one. A canonical receipt is attached when the call produced an admission receipt; bypass-mode/no-admission learns commit and journal without one (`buildCanonicalReceipt` returning `null` is now a supported "no receipt for this mutation" signal, not an error, on both backends). Learn admission remains the parent boundary; a `strictProvenance` rejection re-appends its `REJECT` audit event after the mutation-journal rollback restores it, so the rejection itself still survives on the audit trail even though nothing was journaled as completed. |
 | Kernel derived cross-link | `kernel.js:1093-1149` calls `Graph.addEdge()` | Kernel learn helper / Graph | `conditional-journal` through the parent learn | It runs only with `parentAdmissionAllowed: true`, is explicitly not a background admission bypass, and is inside the parent `runMutationOnce()` callback when `mutationOperationId` is supplied. It appends a `derived_edge` audit but has no per-edge receipt. |
 | Kernel proposal paths used by production plugins | `kernel.js:334-432` and `675-755` call Graph only after admission | Kernel / Graph | `canonical` | Non-allow results are audited. Allowed proposals write and return admission evidence. `repo-memory` and `company-brain` use these proposal methods rather than direct Graph writes. |
 | Kernel maintenance | `kernel.js:1836-1840` and `1850-1897` delegate optimize, consolidation, and save operations | Kernel maintenance facade / Graph | `direct-owner` | Maintenance mutations are not learn admission events and have no mutation journal or receipt. Save failures in consolidation are logged and swallowed after in-memory mutation. |
@@ -102,7 +102,10 @@ They must not be merged into one generic "memory mutation" claim.
    a mutation operation id while JSON does not provide the same crash-safe
    guarantee.~~ **Closed (#216).** JSON now has its own durable mutation
    journal with the same guarantees as SQLite; see the table row above.
-4. Kernel legacy learn without `mutationOperationId` remains unjournaled.
+4. ~~Kernel legacy learn without `mutationOperationId` remains unjournaled.~~
+   **Closed (#216).** Every `learn()` call now journals, with an
+   internally-generated operationId when the caller doesn't supply one; see
+   the table row above.
 5. Derived cross-links inherit the parent decision and conditional parent
    journal, but have no per-edge receipt.
 6. Plugin/shield direct Graph saves bypass the Kernel persistence facade and

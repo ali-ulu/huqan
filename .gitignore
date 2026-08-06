@@ -3,6 +3,7 @@ graphify-out/
 memory.json
 memory.db
 memory.embeddings.json
+memory.mutations.json
 agent.memory.json
 *.agent.json
 memory.db-shm
