@@ -50,6 +50,59 @@ describe('Agent', () => {
     assert.ok(runResult.data.report.includes('Sonuç:'));
   });
 
+  it('a beforeTask plugin setting blocked:true actually halts the step (not just observes it)', () => {
+    const agent = freshAgent();
+    agent.kernel.learn('kedi hayvandir', TEST_FIXTURE_LEARN_BYPASS);
+    let askToolInvoked = false;
+    const originalAsk = agent.kernel.ask.bind(agent.kernel);
+    agent.kernel.ask = (...args) => { askToolInvoked = true; return originalAsk(...args); };
+
+    agent.plugins.register({
+      name: 'watchdog-test',
+      requires: [],
+      optional: [],
+      beforeTask(_agent, data) {
+        data.blocked = true;
+        data.blockReason = 'policy locked';
+        data.blockedBy = 'watchdog-test';
+      },
+    });
+
+    const report = agent._executeStep(
+      { id: 's1', action: 'ask', tool: 'ask', input: 'kedi nedir', rationale: '' },
+      { goal: 'kedi nedir', objective: 'ask', steps: [] },
+      {}
+    );
+
+    assert.strictEqual(askToolInvoked, false, 'the underlying tool must not run once beforeTask blocks the step');
+    assert.strictEqual(report.status, 'blocked');
+    assert.strictEqual(report.result.ok, false);
+    assert.strictEqual(report.result.error.code, 'BEFORE_TASK_BLOCKED');
+    assert.strictEqual(report.result.error.message, 'policy locked');
+    assert.strictEqual(report.result.meta.blockedBy, 'watchdog-test');
+  });
+
+  it('a beforeTask plugin that does not block leaves the step to execute normally', () => {
+    const agent = freshAgent();
+    agent.kernel.learn('kedi hayvandir', TEST_FIXTURE_LEARN_BYPASS);
+    let observed = null;
+    agent.plugins.register({
+      name: 'observer-test',
+      requires: [],
+      optional: [],
+      beforeTask(_agent, data) { observed = data.step.tool; },
+    });
+
+    const report = agent._executeStep(
+      { id: 's1', action: 'ask', tool: 'ask', input: 'kedi nedir', rationale: '' },
+      { goal: 'kedi nedir', objective: 'ask', steps: [] },
+      {}
+    );
+
+    assert.strictEqual(observed, 'ask');
+    assert.strictEqual(report.status, 'done');
+  });
+
   it('persists goal history and can resume an unfinished run', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-agent-'));
     const memoryPath = path.join(tmpDir, 'agent.memory.json');

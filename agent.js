@@ -782,79 +782,106 @@ class Agent {
   }
 
   _executeStep(step, state, opts = {}) {
-    this._emit('beforeTask', { step, state, opts });
+    // beforeTask previously discarded _emit's return value outright (not
+    // even assigned to a variable), so a plugin mutating the payload had no
+    // way to influence what happens next -- the same "hook looks wired but
+    // its result is never read" shape as #346's afterAsk fix, just with
+    // nothing reading the result at all rather than reading the wrong
+    // thing. Capturing it and honoring `blocked: true` is what makes a
+    // beforeTask plugin (policy-watchdog.js, #213) able to actually halt a
+    // step instead of only observing it after the fact.
+    const beforeTaskData = this._emit('beforeTask', { step, state, opts });
     let result;
-    const toolPolicy = evaluateToolPolicy({
-      tool: step.tool,
-      input: step.input,
-      context: {
-        goal: state.goal,
-        objective: state.objective,
-        action: step.action,
-      },
-      internalTools: ALLOWED_TOOLS,
-    });
+    let toolPolicy = null;
 
-    if (toolPolicy.category !== 'internal') {
-      const code = toolPolicy.blocked ? 'EXTERNAL_TOOL_BLOCKED' : 'EXTERNAL_TOOL_REVIEW_REQUIRED';
+    if (beforeTaskData && beforeTaskData.blocked === true) {
       result = {
         ok: false,
         type: 'agent',
         data: null,
         evidence: [],
         error: {
-          code,
-          message: toolPolicy.reasons[0] || `External tool ${toolPolicy.action} required.`,
+          code: 'BEFORE_TASK_BLOCKED',
+          message: beforeTaskData.blockReason || 'A beforeTask plugin blocked this step.',
         },
         meta: {
           blocked: true,
-          allowedTools: [...ALLOWED_TOOLS],
-          policy: toolPolicy,
+          blockedBy: beforeTaskData.blockedBy || null,
         },
       };
     } else {
-      switch (step.tool) {
-        case 'learn':
-          result = this.kernel.learn(step.input, opts.learnOpts || {});
-          break;
-        case 'ask':
-          result = this.kernel.ask(step.input, opts.askOpts || {});
-          break;
-        case 'verify':
-          result = this.kernel.verify(step.input, opts.verifyOpts || {});
-          break;
-        case 'reason':
-          result = this.kernel.reason(stripQuestionMarks(step.input || state.goal), opts.reasonOpts || {});
-          break;
-        case 'compare': {
-          const text = String(step.input || state.goal);
-          const parts = text.split('|').map(s => s.trim()).filter(Boolean);
-          if (parts.length >= 2) {
-            result = this.kernel.compare(parts[0], parts[1], opts.compareOpts || {});
-          } else {
-            result = this.kernel.compare(firstWords(text, 2), firstWords(text.split(/\s+/).slice(2).join(' '), 2), opts.compareOpts || {});
+      toolPolicy = evaluateToolPolicy({
+        tool: step.tool,
+        input: step.input,
+        context: {
+          goal: state.goal,
+          objective: state.objective,
+          action: step.action,
+        },
+        internalTools: ALLOWED_TOOLS,
+      });
+
+      if (toolPolicy.category !== 'internal') {
+        const code = toolPolicy.blocked ? 'EXTERNAL_TOOL_BLOCKED' : 'EXTERNAL_TOOL_REVIEW_REQUIRED';
+        result = {
+          ok: false,
+          type: 'agent',
+          data: null,
+          evidence: [],
+          error: {
+            code,
+            message: toolPolicy.reasons[0] || `External tool ${toolPolicy.action} required.`,
+          },
+          meta: {
+            blocked: true,
+            allowedTools: [...ALLOWED_TOOLS],
+            policy: toolPolicy,
+          },
+        };
+      } else {
+        switch (step.tool) {
+          case 'learn':
+            result = this.kernel.learn(step.input, opts.learnOpts || {});
+            break;
+          case 'ask':
+            result = this.kernel.ask(step.input, opts.askOpts || {});
+            break;
+          case 'verify':
+            result = this.kernel.verify(step.input, opts.verifyOpts || {});
+            break;
+          case 'reason':
+            result = this.kernel.reason(stripQuestionMarks(step.input || state.goal), opts.reasonOpts || {});
+            break;
+          case 'compare': {
+            const text = String(step.input || state.goal);
+            const parts = text.split('|').map(s => s.trim()).filter(Boolean);
+            if (parts.length >= 2) {
+              result = this.kernel.compare(parts[0], parts[1], opts.compareOpts || {});
+            } else {
+              result = this.kernel.compare(firstWords(text, 2), firstWords(text.split(/\s+/).slice(2).join(' '), 2), opts.compareOpts || {});
+            }
+            break;
           }
-          break;
+          case 'dream':
+            result = this.dream ? this.dream.dream(opts.dreamOpts || {}) : this.kernel.dream(opts.dreamOpts || {});
+            break;
+          default:
+            result = {
+              ok: false,
+              type: 'agent',
+              data: null,
+              evidence: [],
+              error: {
+                code: 'UNSUPPORTED_TOOL',
+                message: `Unsupported tool: ${String(step.tool || 'unknown')}`,
+              },
+              meta: {
+                blocked: true,
+                allowedTools: [...ALLOWED_TOOLS],
+              },
+            };
+            break;
         }
-        case 'dream':
-          result = this.dream ? this.dream.dream(opts.dreamOpts || {}) : this.kernel.dream(opts.dreamOpts || {});
-          break;
-        default:
-          result = {
-            ok: false,
-            type: 'agent',
-            data: null,
-            evidence: [],
-            error: {
-              code: 'UNSUPPORTED_TOOL',
-              message: `Unsupported tool: ${String(step.tool || 'unknown')}`,
-            },
-            meta: {
-              blocked: true,
-              allowedTools: [...ALLOWED_TOOLS],
-            },
-          };
-          break;
       }
     }
 
