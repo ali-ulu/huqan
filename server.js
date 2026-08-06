@@ -16,6 +16,7 @@ const {
 const { readReceiptById } = require('./lib/receipt/receipt-read-index');
 const { createWorkbenchReadHttpRouter } = require('./lib/workbench/workbench-read-http-router');
 const { createSessionStore } = require('./lib/viewer/session-store');
+const { resolveRoutePolicy, AUTH_REQUIRED } = require('./lib/http-route-policy');
 const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
 const pkg = require('./package.json');
 const {
@@ -758,6 +759,15 @@ const server = http.createServer(async (req, res) => {
   }
 
   const reqUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+
+  // Central auth policy (see lib/http-route-policy.js). This runs before the
+  // route chain so a listed route marked `required` is protected even if its
+  // handler forgets the manual denyIfUnauthorized() call. Unlisted paths are
+  // deliberately left alone here: they must keep falling through to the
+  // generic 404 rather than answering 401, which would disclose which paths
+  // exist and would break the reserved-route tests that assert a plain 404.
+  const routePolicy = resolveRoutePolicy(reqUrl.pathname);
+  if (routePolicy.listed && routePolicy.auth === AUTH_REQUIRED && !denyIfUnauthorized(req, res)) return;
 
   // --- /graph-data ---
   if (reqUrl.pathname === '/graph-data') {
