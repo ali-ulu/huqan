@@ -21,6 +21,7 @@ const EVENTS = [
   'afterTask',
   'beforeAgentRun',
   'afterAgentRun',
+  'afterGateDecision',
 ];
 
 function hashFile(filePath) {

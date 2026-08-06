@@ -3,6 +3,7 @@ const path = require('path');
 const Agent = require('./agent');
 const AxiomStorage = require('./storage');
 const { evaluateAgentLoopBudget, DEFAULT_MAX_ITERATIONS_PER_WINDOW, DEFAULT_WINDOW_MS } = require('./lib/agent-loop-budget-gate');
+const { emitGateTelemetry } = require('./lib/gate-telemetry');
 
 function cloneValue(value) {
   if (value === undefined) return undefined;
@@ -102,11 +103,14 @@ class AgentV3 {
       ? requestedIterations
       : (Number.isInteger(opts.maxIterations) ? opts.maxIterations : this.maxIterations);
 
+    const budgetDecision = evaluateAgentLoopBudget(
+      { iterationsUsed: Number(iterationsUsed), requestedIterations: requested },
+      { maxIterationsPerWindow },
+    );
+    emitGateTelemetry(this.kernel, 'agent-loop-budget', budgetDecision);
+
     return {
-      ...evaluateAgentLoopBudget(
-        { iterationsUsed: Number(iterationsUsed), requestedIterations: requested },
-        { maxIterationsPerWindow },
-      ),
+      ...budgetDecision,
       requestedIterations: requested,
       usageKnown: true,
     };

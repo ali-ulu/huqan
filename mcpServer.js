@@ -5,6 +5,7 @@ const Kernel = require('./kernel');
 const KernelV2 = require('./kernel.v2');
 const { createAgent } = require('./agentRuntime');
 const { evaluateMcpGate, MCP_GATE_DECISIONS } = require('./lib/mcp-gate-adapter');
+const { emitGateTelemetry } = require('./lib/gate-telemetry');
 const { scrubSecrets } = require('./lib/secret-scrub-gate');
 const { withMcpToolVerdictSurface } = require('./lib/mcp/response-builders');
 const AxiomStorage = require('./storage');
@@ -1084,6 +1085,7 @@ function callTool(kernel, params = {}, runtime = {}) {
   }
 
   const gate = evaluateMcpGate({ tool: name, args, metadata: {} });
+  emitGateTelemetry(kernel, 'mcp-tool-call', { decision: gate.decision, reason: gate.reason, findings: gate.findings, metadata: gate.metadata });
 
   if (!gate.canExecute) {
     if (gate.decision === 'review' || gate.requiredReview) {
