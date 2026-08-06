@@ -282,6 +282,9 @@ class AgentV3 {
       state.completedSteps = Number(state.steps.length || 0);
       state.remainingSteps = Array.isArray(state.queuedSteps) ? state.queuedSteps.length : 0;
       state.iteration = Number(state.iteration || state.steps.length || 0);
+      // Remember where this run() picked up, so the durable run row can record
+      // what this call actually spent rather than the whole running total.
+      state.iterationsAtRunStart = state.iteration;
       state.budgetRemaining = Number(checkpoint.budget_remaining || this.timeBudgetMs);
       state.startedAt = state.startedAt || nowIso();
       return state;
@@ -306,6 +309,7 @@ class AgentV3 {
       completedSteps: 0,
       remainingSteps: Array.isArray(activePlan.steps) ? activePlan.steps.length : 0,
       iteration: 0,
+      iterationsAtRunStart: 0,
       budgetRemaining: this.timeBudgetMs,
     };
   }
@@ -506,6 +510,12 @@ class AgentV3 {
     };
     state.checkpointId = state.checkpointId || state.resumeToken || null;
     state.resumeToken = state.checkpointId;
+
+    // What this run() spent, not the goal's running total: summing the
+    // cumulative figure would count a resumed run's earlier iterations again
+    // on every resume, exhausting the window budget long before it was
+    // genuinely spent.
+    state.iterationsDelta = Math.max(0, Number(state.iteration || 0) - Number(state.iterationsAtRunStart || 0));
 
     this.storage.saveRun(state);
     this.storage.saveGoalMemory({

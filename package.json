@@ -147,6 +147,7 @@
         "lib/semantic-score.js",
         "lib/semantic-signals.js",
         "lib/shield.js",
+        "lib/storage/schema.js",
         "lib/text-utils.js",
         "lib/tool-call-gate.js",
         "lib/trust-policy.js",

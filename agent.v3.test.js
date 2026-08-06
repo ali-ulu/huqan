@@ -117,6 +117,63 @@ describe('AgentV3', () => {
     assert.strictEqual(status.lastRun.status, 'paused');
   });
 
+  describe('loop budget accounting across resume', () => {
+    it('counts a resumed run once, not cumulatively', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-ab10-resume-'));
+      const dbPath = path.join(tmpDir, 'memory.db');
+      const agent = freshAgent(dbPath);
+      const goal = 'kedi hayvandir mi?';
+      const since = Date.now() - 60_000;
+
+      // First pass: spend one iteration and pause.
+      agent.run(goal, { resume: false, maxIterations: 1, timeBudgetMs: 5000, workspaceId: 'ws-a' });
+      const afterFirst = agent.storage.sumAgentIterationsSince('ws-a', since);
+
+      // Resume and spend more. state.iteration is cumulative across resumes,
+      // so a naive sum of it would charge the first iteration twice.
+      const resumed = freshAgent(dbPath);
+      resumed.run(goal, { maxIterations: 3, timeBudgetMs: 5000, workspaceId: 'ws-a' });
+      const afterResume = resumed.storage.sumAgentIterationsSince('ws-a', since);
+
+      const spentOnResume = afterResume - afterFirst;
+      assert.ok(spentOnResume >= 0, 'usage must not go backwards');
+      assert.ok(afterResume <= 3,
+        `resumed usage should reflect real iterations, got ${afterResume} (cumulative double-count would exceed this)`);
+    });
+
+    it('keeps usage scoped to its own workspace', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-ab10-scope-'));
+      const dbPath = path.join(tmpDir, 'memory.db');
+      const agent = freshAgent(dbPath);
+      const since = Date.now() - 60_000;
+
+      agent.run('kedi hayvandir mi?', { resume: false, maxIterations: 1, timeBudgetMs: 5000, workspaceId: 'ws-a' });
+
+      assert.ok(agent.storage.sumAgentIterationsSince('ws-a', since) >= 0);
+      assert.strictEqual(agent.storage.sumAgentIterationsSince('ws-b', since), 0,
+        'another workspace must not inherit this usage');
+    });
+
+    it('falls back to the cumulative figure when no delta is supplied', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-ab10-fallback-'));
+      const dbPath = path.join(tmpDir, 'memory.db');
+      const agent = freshAgent(dbPath);
+      const since = Date.now() - 60_000;
+
+      // Direct seeding (no iterationsDelta) keeps working, so existing
+      // callers and fixtures are unaffected by the new column.
+      agent.storage.saveRun({
+        goal: 'seed run',
+        status: 'completed',
+        iteration: 7,
+        workspaceId: 'ws-seed',
+        startedAtMs: Date.now(),
+      });
+
+      assert.strictEqual(agent.storage.sumAgentIterationsSince('ws-seed', since), 7);
+    });
+  });
+
   describe('checkpoint workspace isolation', () => {
     it('does not resume another workspace\'s paused checkpoint for the same goal', () => {
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-ckpt-ws-'));
