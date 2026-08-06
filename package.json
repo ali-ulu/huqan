@@ -67,6 +67,7 @@
         "adapters/github-adapter.js",
         "adapters/json-adapter.js",
         "adapters/markdown-adapter.js",
+        "adapters/pdf-adapter.js",
         "adapters/yaml-adapter.js",
         "agent.js",
         "agent.v3.js",
@@ -222,6 +223,7 @@
     ],
     "dependencies": {
         "better-sqlite3": "^12.10.0",
-        "js-yaml": "^5.2.3"
+        "js-yaml": "^5.2.3",
+        "pdfjs-dist": "^6.2.108"
     }
 }
