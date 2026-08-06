@@ -77,6 +77,35 @@ test('an exhausted loop budget blocks the run and emits no proposals', () => {
   assert.equal(r.applied, false);
 });
 
+test('an omitted usage figure is reported, not silently treated as a fresh budget', () => {
+  const r = runSelfHealerDryRun({ findings: [docsFinding()] });
+  assert.equal(r.budgetUsageKnown, false,
+    'a missing measurement must be distinguishable from genuinely-zero usage');
+});
+
+test('values that coerce to zero do not count as a known usage figure', () => {
+  for (const iterationsUsed of [null, undefined, '', 'lots', NaN]) {
+    const r = runSelfHealerDryRun({ findings: [docsFinding()], iterationsUsed });
+    assert.equal(r.budgetUsageKnown, false, `${String(iterationsUsed)} must not read as measured usage`);
+  }
+});
+
+test('a supplied usage figure, including a real zero, is reported as known', () => {
+  for (const iterationsUsed of [0, 12, '7']) {
+    const r = runSelfHealerDryRun({ findings: [docsFinding()], iterationsUsed });
+    assert.equal(r.budgetUsageKnown, true, `${String(iterationsUsed)} is a real measurement`);
+  }
+});
+
+test('a budget-blocked run still reports whether usage was known', () => {
+  const r = runSelfHealerDryRun(
+    { findings: [docsFinding()], iterationsUsed: 500 },
+    { maxIterationsPerWindow: 2 },
+  );
+  assert.equal(r.blockedByBudget, true);
+  assert.equal(r.budgetUsageKnown, true);
+});
+
 test('a run within budget proceeds and reports the budget decision', () => {
   const r = runSelfHealerDryRun({ findings: [docsFinding()], iterationsUsed: 0 });
   assert.equal(r.blockedByBudget, false);
