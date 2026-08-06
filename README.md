@@ -6,7 +6,7 @@ HUQAN is a **local-first AI governance, agent-safety, and verification layer** f
 
 [![Version](https://img.shields.io/badge/version-v0.9.1-2563eb.svg)](./package.json)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![License](https://img.shields.io/badge/license-Apache--2.0-22c55e.svg)](./LICENSE)
+[![License](https://img.shields.io/badge/license-AGPL--3.0-22c55e.svg)](./LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/ali-ulu/huqan?style=flat&logo=github)](https://github.com/ali-ulu/huqan/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/ali-ulu/huqan?style=flat&logo=github)](https://github.com/ali-ulu/huqan/forks)
 [![Open issues](https://img.shields.io/github/issues/ali-ulu/huqan?style=flat&logo=github)](https://github.com/ali-ulu/huqan/issues)
