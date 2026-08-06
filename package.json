@@ -54,7 +54,7 @@
     },
     "homepage": "https://github.com/ali-ulu/huqan#readme",
     "author": "Huqan Contributors",
-    "license": "Apache-2.0",
+    "license": "AGPL-3.0-only",
     "engines": {
         "node": ">=20.0.0"
     },
