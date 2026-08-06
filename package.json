@@ -64,6 +64,7 @@
         "NOTICE",
         "README.md",
         "adapters/github-adapter.js",
+        "adapters/json-adapter.js",
         "adapters/markdown-adapter.js",
         "agent.js",
         "agent.v3.js",

@@ -98,6 +98,61 @@ test('repo-memory markdown ingest requires an explicit root and stays inside it'
   }
 });
 
+test('repo-memory json ingest requires an explicit root and stays inside it', async () => {
+  const kernel = makeKernel();
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-repo-json-root-'));
+  const nestedDir = path.join(rootDir, 'config');
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-repo-json-outside-'));
+  const insideFile = path.join(nestedDir, 'safe.json');
+  const outsideFile = path.join(outsideDir, 'secret.json');
+  fs.mkdirSync(nestedDir, { recursive: true });
+  fs.writeFileSync(insideFile, JSON.stringify({ claim: 'inside text' }), 'utf8');
+  fs.writeFileSync(outsideFile, JSON.stringify({ claim: 'outside text' }), 'utf8');
+
+  try {
+    const missingRoot = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'json',
+      path: insideFile,
+    });
+    assert.equal(missingRoot.ok, false);
+    assert.equal(missingRoot.code, 'JSON_ROOT_REQUIRED');
+
+    const safe = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'json',
+      path: insideFile,
+      rootPath: rootDir,
+      workspaceId: 'workspace-a',
+      actor: 'repo-bot',
+    });
+    assert.equal(safe.ok, true);
+    assert.equal(safe.admission.outcome, 'admitted');
+    assert.ok(Array.isArray(safe.admission.entries));
+    assert.ok(safe.admission.entries.every((entry) => entry.outcome === 'admitted'));
+    assert.equal(safe.files, 1);
+    assert.ok(safe.added >= 1);
+    assert.ok(kernel.nodes.some((node) => node.provenance
+      && node.provenance.sourceType === 'import'
+      && node.provenance.actor === 'repo-bot'
+      && node.provenance.workspaceId === 'workspace-a'));
+
+    const beforeEdges = kernel.edges.length;
+    const escaped = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'json',
+      path: path.join(rootDir, '..', path.basename(outsideFile)),
+      rootPath: rootDir,
+    });
+    assert.equal(escaped.ok, false);
+    assert.equal(escaped.code, 'PATH_OUTSIDE_ALLOWED_ROOT');
+    assert.equal(kernel.edges.length, beforeEdges);
+  } finally {
+    fs.rmSync(rootDir, { recursive: true, force: true });
+    fs.rmSync(outsideDir, { recursive: true, force: true });
+  }
+});
+
 test('repo-memory github ingest preserves provenance on nodes and edges', async () => {
   const kernel = makeKernel();
   const result = await repoMemory.run(kernel, {

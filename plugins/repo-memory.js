@@ -1,5 +1,6 @@
 const { fetchRepoFiles, parseRepoUrl } = require('../adapters/github-adapter');
 const { parseMarkdown, ingestMarkdown } = require('../adapters/markdown-adapter');
+const { ingestJson } = require('../adapters/json-adapter');
 const { buildProvenance } = require('../lib/provenance-ingest');
 const { canonicalizeGitHubRepoUrl } = require('../lib/github-url');
 
@@ -10,7 +11,7 @@ function nowIso() {
 function ensureCompanyState(kernel) {
   if (!kernel._companyIngestState) {
     kernel._companyIngestState = {
-      bySource: { repo: 0, markdown: 0, manual: 0 },
+      bySource: { repo: 0, markdown: 0, json: 0, manual: 0 },
       lastIngestAt: null,
       ingestErrors: [],
     };
@@ -467,6 +468,138 @@ async function ingestMarkdownPath(kernel, input = {}) {
   };
 }
 
+async function ingestJsonPath(kernel, input = {}) {
+  const targetPath = input.path || input.targetPath || '';
+  if (!targetPath) {
+    throw new Error('json path is required');
+  }
+
+  const rootPath = input.rootPath || input.workspaceRoot || input.allowedRoot || '';
+  if (!rootPath) {
+    const err = new Error('json rootPath is required');
+    err.code = 'JSON_ROOT_REQUIRED';
+    throw err;
+  }
+
+  const sessionId = input.sessionId || '';
+  const ingested = ingestJson(targetPath, { rootPath });
+  let added = 0;
+  const workspaceId = input.workspaceId || 'default';
+  const admissions = [];
+
+  for (const entry of ingested.entries) {
+    const fileRef = `file:${entry.filePath}`;
+    const sourceRef = entry.sourceRef;
+    const entryNode = buildSectionNodeId(entry.filePath, entry.entryKey);
+    const fileProvenance = buildConnectorProvenance({
+      sourceType: 'import',
+      sourceSubType: 'json_file',
+      sourceRef: fileRef,
+      sourceTitle: entry.filePath,
+      actor: input.actor || 'repo-memory',
+      workspaceId,
+      confidence: 0.68,
+      timestamp: input.timestamp || nowIso(),
+    });
+    const entryProvenance = buildConnectorProvenance({
+      sourceType: 'import',
+      sourceSubType: 'json_entry',
+      sourceRef,
+      sourceTitle: entry.entryKey,
+      actor: input.actor || 'repo-memory',
+      workspaceId,
+      confidence: 0.68,
+      timestamp: input.timestamp || nowIso(),
+    });
+    const fileNodeResult = kernel.proposeNode(fileRef, entry.filePath, fileProvenance, { workspaceId });
+    admissions.push(buildGraphAdmissionRecord({
+      kind: 'node',
+      targetType: 'graph_node',
+      targetId: fileRef,
+      provenance: fileProvenance,
+      proposal: fileNodeResult,
+      workspaceId,
+      details: {
+        filePath: entry.filePath,
+      },
+    }));
+    const entryNodeResult = kernel.proposeNode(entryNode, entry.entryKey, entryProvenance, { workspaceId });
+    admissions.push(buildGraphAdmissionRecord({
+      kind: 'node',
+      targetType: 'graph_node',
+      targetId: entryNode,
+      provenance: entryProvenance,
+      proposal: entryNodeResult,
+      workspaceId,
+      details: {
+        parentId: fileRef,
+        entryKey: entry.entryKey,
+      },
+    }));
+    const entryProposal = addCompanyEdge(kernel, fileRef, entryNode, 'özellik', {
+      source: 'json',
+      sourceRef,
+      sessionId,
+      sourceType: 'import',
+      evidence: [entry.entryKey],
+      confidence: 0.68,
+      workspaceId,
+      provenance: entryProvenance,
+      fromProvenance: fileProvenance,
+      toProvenance: entryProvenance,
+      fromLabel: entry.filePath,
+      toLabel: entry.entryKey,
+    });
+    admissions.push(buildGraphAdmissionRecord({
+      kind: 'node',
+      targetType: 'graph_node',
+      targetId: fileRef,
+      provenance: fileProvenance,
+      proposal: entryProposal.fromResult,
+      workspaceId,
+      details: {
+        repeatedProposal: true,
+        childId: entryNode,
+      },
+    }));
+    admissions.push(buildGraphAdmissionRecord({
+      kind: 'node',
+      targetType: 'graph_node',
+      targetId: entryNode,
+      provenance: entryProvenance,
+      proposal: entryProposal.toResult,
+      workspaceId,
+      details: {
+        repeatedProposal: true,
+        parentId: fileRef,
+      },
+    }));
+    admissions.push(buildGraphAdmissionRecord({
+      kind: 'edge',
+      targetType: 'graph_edge',
+      targetId: `${fileRef}|özellik|${entryNode}`,
+      provenance: entryProvenance,
+      proposal: entryProposal.edgeResult,
+      workspaceId,
+      details: {
+        relation: 'özellik',
+        sourceRef,
+      },
+    }));
+    if (entryProposal.edge) added += 1;
+  }
+
+  trackIngestSuccess(kernel, 'json', added);
+  return {
+    ok: true,
+    sourceType: 'json',
+    files: ingested.files.length,
+    added,
+    admission: summarizeGraphAdmissions(admissions),
+    admissions,
+  };
+}
+
 function createRepoMemoryPlugin() {
   return {
     name: 'repo-memory',
@@ -496,6 +629,9 @@ function createRepoMemoryPlugin() {
         }
         if (sourceType === 'markdown') {
           return await ingestMarkdownPath(kernel, input);
+        }
+        if (sourceType === 'json') {
+          return await ingestJsonPath(kernel, input);
         }
         return {
           ok: false,
