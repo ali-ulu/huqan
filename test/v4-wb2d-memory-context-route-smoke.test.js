@@ -166,6 +166,20 @@ describe('V4-WB2D: no-mock memory-context route smoke', () => {
     assertMemoryHeaders(admitted);
   });
 
+  it('hardens the unauthenticated 401 emitted by the central auth gate', async () => {
+    // The 401 is written by the central route-auth gate in server.js, which
+    // returns before the workbench router (and its own header setup) ever
+    // runs. Without the headers being carried at that gate, an unauthenticated
+    // response to a memory-context path is cacheable and sniffable.
+    const event = reviewEvent('wb2d-auth-headers');
+    const denied = await requestJson(port, memoryPath(event.auditId, 'wb2d-auth-headers'), { auth: false });
+
+    assert.equal(denied.status, 401);
+    assert.equal(denied.headers['www-authenticate'], 'Bearer');
+    assert.equal(denied.headers['cache-control'], 'no-store');
+    assert.equal(denied.headers['x-content-type-options'], 'nosniff');
+  });
+
   it('rejects authentication, method and malformed identity before any fallback', async () => {
     const event = reviewEvent('wb2d-guards');
     const cases = [
