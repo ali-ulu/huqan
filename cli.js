@@ -2,7 +2,9 @@
 
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const readline = require('readline');
+const { isPathWithinRoot } = require('./lib/path-safety');
 const Kernel = require('./kernel');
 const KernelV2 = require('./kernel.v2');
 const Dream = require('./dream');
@@ -33,6 +35,42 @@ const {
 function shellQuote(value) {
   const text = value == null ? '' : String(value);
   return `'${text.replace(/'/g, "'\\''")}'`;
+}
+
+function getCliReadRoots() {
+  const roots = [process.cwd(), os.tmpdir()];
+  const extra = String(process.env.AXIOM_CLI_READ_ROOTS || '')
+    .split(path.delimiter)
+    .map(entry => entry.trim())
+    .filter(Boolean)
+    .map(entry => path.resolve(entry));
+  return [...new Set([...roots.map(entry => path.resolve(entry)), ...extra])];
+}
+
+function resolveCliReadPath(candidate) {
+  const raw = String(candidate == null ? '' : candidate).trim();
+  if (!raw) {
+    const err = new Error('Dosya yolu bos olamaz');
+    err.code = 'CLI_PATH_NOT_ALLOWED';
+    throw err;
+  }
+
+  const resolved = path.resolve(process.cwd(), raw);
+  const roots = getCliReadRoots();
+  const candidates = [resolved];
+  try {
+    candidates.push(fs.realpathSync(resolved));
+  } catch (_) {
+    // Missing file: readFileSync below reports it.
+  }
+
+  const allowed = candidates.every(item => roots.some(root => isPathWithinRoot(root, item)));
+  if (!allowed) {
+    const err = new Error(`Dosya yolu izin verilen dizinlerin disinda: ${raw}`);
+    err.code = 'CLI_PATH_NOT_ALLOWED';
+    throw err;
+  }
+  return resolved;
 }
 
 function createKernel(opts = {}) {
@@ -467,7 +505,8 @@ class CLI {
       }
       case 'yükle': {
         try {
-          const text = fs.readFileSync(args, 'utf8');
+          const filePath = resolveCliReadPath(args);
+          const text = fs.readFileSync(filePath, 'utf8');
           const count = this.kernel.learnDocument(text, {
             sourceType: 'cli',
             sourceRef: `cli:yükle:${args}`,
@@ -751,7 +790,7 @@ class CLI {
           '  "durum"                   -> sistem durumu',
           '  "ruya"                    -> hipotez uretirim',
           '  "plan: hedef"             -> ajan plani uretirim',
-          '  "ajan: hedef"             -> cok adimli ajan calistiririm',
+          '  "ajan: hedef"             -> ajan calistiririm',
           '  "backup"                  -> calisma durumunu yedeklerim',
           '  "restore[: yol]"          -> en son veya secili yedekten geri yuklerim',
           '  "kaydet"                  -> hafizayi kaydederim',
