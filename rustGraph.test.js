@@ -1,9 +1,11 @@
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert');
 const { spawn } = require('child_process');
+const os = require('os');
 const path = require('path');
 const fs = require('fs');
 const Graph = require('./graph');
+const RustGraph = require('./rustGraph');
 
 const RUST_BIN_CANDIDATES = [
   path.join(__dirname, 'axiom-core', 'target', 'release', process.platform === 'win32' ? 'axiom-core.exe' : 'axiom-core'),
@@ -203,6 +205,60 @@ describe('RustGraph - JS ile Karşılaştırma', { skip: !hasRust }, () => {
       assert.strictEqual(loadRes[2].edges[0].to, 'hedef');
     } finally {
       fs.rmSync(tmpPath, { force: true });
+    }
+  });
+});
+
+// The suite above is skipped whenever the Rust binary is missing, which is the
+// case in CI and in a plain `npm install` checkout. That is exactly when the JS
+// fallback carries every RustGraph call, so it needs its own coverage.
+describe('RustGraph - JS fallback (Rust binary yok)', { skip: hasRust }, () => {
+
+  it('aynı instance üzerinde ardışık çağrılar state korur', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rustgraph-fallback-'));
+    const bridge = new RustGraph({ memoryPath: path.join(dir, 'memory.json') });
+    try {
+      for (const id of ['entry.js', 'middle.js', 'leaf.js']) {
+        assert.ok(await bridge.addNode(id, id), `addNode ${id} düğüm döndürmeli`);
+      }
+      assert.ok(await bridge.addEdge('entry.js', 'middle.js', 'requires'));
+      assert.ok(await bridge.addEdge('middle.js', 'leaf.js', 'requires'));
+
+      const before = await bridge.getStats();
+      assert.strictEqual(Number(before.nodes), 3);
+      assert.strictEqual(Number(before.edges), 2);
+
+      // Bir sonraki kenar, önceki çağrılarda eklenen düğümlere bağlı: fallback
+      // her _send()'te yeniden kurulursa Graph.addEdge null döner.
+      assert.ok(
+        await bridge.addEdge('entry.js', 'leaf.js', 'requires'),
+        'candidate edge reddedilmemeli',
+      );
+
+      const after = await bridge.getStats();
+      assert.strictEqual(Number(after.nodes), 3);
+      assert.strictEqual(Number(after.edges), 3);
+    } finally {
+      if (bridge._fallback && typeof bridge._fallback.close === 'function') bridge._fallback.close();
+      bridge.destroy();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('fallback Graph tek sefer kurulur', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rustgraph-fallback-'));
+    const bridge = new RustGraph({ memoryPath: path.join(dir, 'memory.json') });
+    try {
+      await bridge.addNode('a', 'a');
+      const first = bridge._fallback;
+      assert.ok(first instanceof Graph);
+      await bridge.addNode('b', 'b');
+      await bridge.getStats();
+      assert.strictEqual(bridge._fallback, first, 'fallback instance değişmemeli');
+    } finally {
+      if (bridge._fallback && typeof bridge._fallback.close === 'function') bridge._fallback.close();
+      bridge.destroy();
+      fs.rmSync(dir, { recursive: true, force: true });
     }
   });
 });

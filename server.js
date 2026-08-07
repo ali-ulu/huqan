@@ -2,7 +2,8 @@ const crypto = require('crypto');
 const http = require('http');
 const path = require('path');
 const { readFileSync } = require('fs');
-const CLI = require('./cli');
+const { createKernel } = require('./lib/kernel-factory');
+const { parseCommand } = require('./lib/command-parser');
 const { evaluateLlmSor } = require('./lib/shield');
 const { handleIngest, buildIngestApprovalSnapshot, sha256 } = require('./lib/ingest');
 const AxiomStorage = require('./storage');
@@ -37,8 +38,8 @@ if (process.env.AXIOM_MEMORY_PATH) kernelOpts.memoryPath = process.env.AXIOM_MEM
 if (process.env.AXIOM_DB_PATH) kernelOpts.dbPath = process.env.AXIOM_DB_PATH;
 if (process.env.AXIOM_USE_SQLITE === 'false') kernelOpts.useSQLite = false;
 
-const cli = new CLI({ kernel: kernelOpts });
-cli.kernel.graph.load();
+const kernel = createKernel(kernelOpts);
+kernel.graph.load();
 let companyRuntimeReady = false;
 let ingestApprovalStore = null;
 const INGEST_APPROVAL_WORKER_ID = `http-ingest-${crypto.randomUUID()}`;
@@ -46,7 +47,7 @@ const INGEST_APPROVAL_LEASE_MS = Math.max(30_000, Math.min(900_000, Number(proce
 
 function getIngestApprovalStore() {
   if (ingestApprovalStore) return ingestApprovalStore;
-  ingestApprovalStore = new AxiomStorage({ kernel: cli.kernel });
+  ingestApprovalStore = new AxiomStorage({ kernel });
   recoverExpiredIngestApprovals(ingestApprovalStore);
   return ingestApprovalStore;
 }
@@ -87,7 +88,7 @@ function publicIngestApproval(record) {
 function recordIngestApprovalAudit(approval, receipt, result = null) {
   const snapshot = approval.context?.snapshot || {};
   const resultRef = result ? sha256(result) : '';
-  return cli.kernel.graph.appendAuditEvent({
+  return kernel.graph.appendAuditEvent({
     eventType: receipt.decision === 'approved' ? 'APPROVAL_APPROVED' : 'APPROVAL_REJECTED',
     targetType: 'ingest_approval',
     targetId: approval.id,
@@ -161,15 +162,15 @@ function runPublicApiCommand(command, args) {
     case 'anlamadim':
       return 'Anlamadim. Daha uzun bir cumle yaz veya "yardim" yaz.';
     case 'sor': {
-      const result = cli.kernel.ask(args);
+      const result = kernel.ask(args);
       const answer = result.data.answer;
       return answer === 'Bilmiyorum' ? `X ${answer}` : `Cevap: ${answer}`;
     }
     case 'durum': {
-      const stats = cli.kernel.graph.getStats();
-      const gaps = cli.kernel.detectGaps();
-      const contradictions = cli.kernel.detectContradictions();
-      let out = `Durum: ${stats.nodes} düğüm, ${stats.edges} kenar, entropi: ${cli.kernel.entropy().toFixed(3)}`;
+      const stats = kernel.graph.getStats();
+      const gaps = kernel.detectGaps();
+      const contradictions = kernel.detectContradictions();
+      let out = `Durum: ${stats.nodes} düğüm, ${stats.edges} kenar, entropi: ${kernel.entropy().toFixed(3)}`;
       if (gaps.length > 0) out += `\n  ${gaps.length} baglantisiz dugum: ${gaps.slice(0, 10).join(', ')}${gaps.length > 10 ? '...' : ''}`;
       for (const item of contradictions.slice(0, 5)) {
         out += `\n  Celiski [${item.type}]: ${item.node} -> ${item.targets.join(', ')}`;
@@ -339,7 +340,7 @@ function checkViewerRateLimit(req, timestamp = Date.now()) {
 const viewerSessionStore = createSessionStore();
 const viewerGateway = createViewerGateway({
   sessionStore: viewerSessionStore,
-  readReceipt: (receiptId, filters) => readReceiptById(cli.kernel.graph, receiptId, filters),
+  readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters),
 });
 
 
@@ -405,12 +406,10 @@ function getSafeMemoryLabel(content) {
 }
 function getGraphData(workspaceId = 'default') {
   const scope = typeof workspaceId === 'string' && workspaceId.trim() ? workspaceId.trim() : 'default';
-  const nodesById = cli.kernel.graph.getNodes(scope);
+  const nodesById = kernel.graph.getNodes(scope);
+  const scopedEdges = kernel.graph.getAllEdges(scope);
   const nodeEdges = new Map();
-  for (const edge of cli.kernel.graph._edges.filter((edge) => {
-    const edgeScope = edge.workspaceId || 'default';
-    return edgeScope === scope;
-  })) {
+  for (const edge of scopedEdges) {
     if (!nodeEdges.has(edge.from)) nodeEdges.set(edge.from, []);
     if (!nodeEdges.has(edge.to)) nodeEdges.set(edge.to, []);
     nodeEdges.get(edge.from).push(edge);
@@ -428,7 +427,7 @@ function getGraphData(workspaceId = 'default') {
       id: n.id,
       label: n.label,
       weight: n.weight,
-      edgeCount: cli.kernel.graph.getEdges(n.id, scope).length,
+      edgeCount: kernel.graph.getEdges(n.id, scope).length,
       confidence,
       sources,
       evidenceCount,
@@ -444,8 +443,8 @@ function getGraphData(workspaceId = 'default') {
   const topNodes = sorted.slice(0, MAX_NODES);
   const nodeIds = new Set(topNodes.map(n => n.id));
 
-  const links = cli.kernel.graph._edges
-    .filter(e => nodeIds.has(e.from) && nodeIds.has(e.to) && (e.workspaceId || 'default') === scope)
+  const links = scopedEdges
+    .filter(e => nodeIds.has(e.from) && nodeIds.has(e.to))
     .map(e => ({
       source: e.from,
       target: e.to,
@@ -469,9 +468,9 @@ function getGraphData(workspaceId = 'default') {
     enabled: false
   };
 
-  if (cli.kernel && cli.kernel.memory && typeof cli.kernel.memory.list === 'function') {
+  if (kernel && kernel.memory && typeof kernel.memory.list === 'function') {
     try {
-      const listResult = cli.kernel.memory.list({ workspaceId: scope });
+      const listResult = kernel.memory.list({ workspaceId: scope });
       if (listResult && listResult.ok) {
         const activeMemories = listResult.memories || [];
         const topMemories = activeMemories.slice(0, 150);
@@ -493,10 +492,10 @@ function getGraphData(workspaceId = 'default') {
 
         const memoryNodeIds = new Set(memoryNodes.map(n => n.id));
 
-        let queryLinksAvailable = typeof cli.kernel.memory.queryLinks === 'function';
+        let queryLinksAvailable = typeof kernel.memory.queryLinks === 'function';
         let allLinks = [];
         if (queryLinksAvailable) {
-          const linksResult = cli.kernel.memory.queryLinks({ workspaceId: scope });
+          const linksResult = kernel.memory.queryLinks({ workspaceId: scope });
           if (linksResult && linksResult.ok) {
             allLinks = linksResult.links || [];
           }
@@ -540,7 +539,7 @@ function getGraphData(workspaceId = 'default') {
 }
 
 function getHealthData() {
-  const stats = cli.kernel.graph.getStats();
+  const stats = kernel.graph.getStats();
   return {
     ok: true,
     service: 'axiom',
@@ -554,7 +553,7 @@ function getHealthData() {
 }
 
 function getV2StatusData() {
-  const stats = cli.kernel.graph.getStats();
+  const stats = kernel.graph.getStats();
   const activeKernel = process.env.AXIOM_KERNEL_VERSION === 'v2' ? 'v2' : 'v1';
   const agentRuntime = String(process.env.AXIOM_AGENT_VERSION || 'v2').toLowerCase();
   const agentRuntimeMode = String(process.env.AXIOM_AGENT_RUNTIME || '').toLowerCase() || agentRuntime;
@@ -705,7 +704,7 @@ function getV2StatusData() {
   return {
     ok: true,
     version: pkg.version,
-    contractVersion: cli.kernel.contractVersion || '1.0.0',
+    contractVersion: kernel.contractVersion || '1.0.0',
     activeKernel,
     backend: stats.backend,
     nodes: stats.nodes,
@@ -724,14 +723,14 @@ function getV2StatusData() {
 }
 
 function ensureCompanyRuntime() {
-  if (typeof cli.kernel.hasCapability === 'function' && !cli.kernel.hasCapability('companyMode')) {
-    cli.kernel.enableCapability('companyMode');
+  if (typeof kernel.hasCapability === 'function' && !kernel.hasCapability('companyMode')) {
+    kernel.enableCapability('companyMode');
   }
-  if (typeof cli.kernel.hasCapability === 'function' && !cli.kernel.hasCapability('pluginCapabilities')) {
-    cli.kernel.enableCapability('pluginCapabilities');
+  if (typeof kernel.hasCapability === 'function' && !kernel.hasCapability('pluginCapabilities')) {
+    kernel.enableCapability('pluginCapabilities');
   }
-  if (!companyRuntimeReady && cli.kernel.plugins && typeof cli.kernel.plugins.load === 'function') {
-    cli.kernel.plugins.load(path.join(__dirname, 'plugins'));
+  if (!companyRuntimeReady && kernel.plugins && typeof kernel.plugins.load === 'function') {
+    kernel.plugins.load(path.join(__dirname, 'plugins'));
     companyRuntimeReady = true;
   }
 }
@@ -880,7 +879,7 @@ const server = http.createServer(async (req, res) => {
       }
       try {
         const normalizedWorkspaceId = sanitizeInput(workspaceId || reqUrl.searchParams.get('workspaceId') || '');
-        const result = cli.kernel.verify(text, normalizedWorkspaceId ? { workspaceId: normalizedWorkspaceId } : {});
+        const result = kernel.verify(text, normalizedWorkspaceId ? { workspaceId: normalizedWorkspaceId } : {});
         writeJson(req, res, 200, result, { 'Cache-Control': 'no-cache' });
       } catch (err) {
         console.error('[v2/verify]', err);
@@ -921,7 +920,7 @@ const server = http.createServer(async (req, res) => {
 
     try {
       // AXIOM ön doğrulama
-      const axiomCheck = legacyVerify(cli.kernel.verify(question, workspaceId ? { workspaceId } : {}));
+      const axiomCheck = legacyVerify(kernel.verify(question, workspaceId ? { workspaceId } : {}));
 
       // LLM'ye sor
       const LLMAdapter = require('./llmAdapter');
@@ -941,10 +940,10 @@ const server = http.createServer(async (req, res) => {
       const llmText = llmRes.data.text;
 
       // LLM yanıtını doğrula
-      const llmCheck = legacyVerify(cli.kernel.verify(llmText.slice(0, 300), workspaceId ? { workspaceId } : {}));
+      const llmCheck = legacyVerify(kernel.verify(llmText.slice(0, 300), workspaceId ? { workspaceId } : {}));
 
       const shield = evaluateLlmSor({
-        kernel: cli.kernel,
+        kernel: kernel,
         question,
         llmText,
         axiomCheck,
@@ -990,7 +989,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       try {
-        const result = legacyVerify(cli.kernel.verify(text, workspaceId ? { workspaceId } : {}));
+        const result = legacyVerify(kernel.verify(text, workspaceId ? { workspaceId } : {}));
         res.writeHead(200, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
         res.end(JSON.stringify(result));
       } catch (err) {
@@ -1025,7 +1024,7 @@ const server = http.createServer(async (req, res) => {
     }
     const workspaceId = sanitizeInput(data.workspaceId || reqUrl.searchParams.get('workspaceId') || '');
     try {
-      const learnResult = cli.kernel.learnDocument(text, {
+      const learnResult = kernel.learnDocument(text, {
         returnDetails: true,
         workspaceId,
         sourceType: sanitizeInput(data.sourceType || '') || 'upload',
@@ -1053,7 +1052,7 @@ const server = http.createServer(async (req, res) => {
     }
     try {
       ensureCompanyRuntime();
-      const status = await cli.kernel.runCapability('ingestStatus', {});
+      const status = await kernel.runCapability('ingestStatus', {});
       writeJson(req, res, 200, status, { 'Cache-Control': 'no-cache' });
     } catch (err) {
       console.error('[ingest-status] failed:', err);
@@ -1083,7 +1082,7 @@ const server = http.createServer(async (req, res) => {
     }
     const filters = readTrustFilters(reqUrl);
     const readFilters = filters.workspaceId ? { workspaceId: filters.workspaceId } : {};
-    const read = readReceiptById(cli.kernel.graph, receiptReadRequest.receiptId, readFilters);
+    const read = readReceiptById(kernel.graph, receiptReadRequest.receiptId, readFilters);
     if (!read.ok) {
       const code = read.status === 'not_found' ? 'receipt_not_found' : 'invalid_receipt_id';
       writeJson(req, res, read.status === 'not_found' ? 404 : 400, {
@@ -1102,7 +1101,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (handleWorkbenchRead(req, res, reqUrl, cli.kernel.graph)) return;
+  if (handleWorkbenchRead(req, res, reqUrl, kernel.graph)) return;
 
   if (reqUrl.pathname === '/api/provenance' || reqUrl.pathname === '/api/audit' || reqUrl.pathname === '/api/candidate-claims' || reqUrl.pathname === '/api/trust-receipt') {
     if (req.method !== 'GET') {
@@ -1112,7 +1111,7 @@ const server = http.createServer(async (req, res) => {
     if (!denyIfUnauthorized(req, res)) return;
     const filters = readTrustFilters(reqUrl);
     const workspaceId = filters.workspaceId || 'default';
-    const graph = cli.kernel.graph;
+    const graph = kernel.graph;
     try {
       if (reqUrl.pathname === '/api/provenance') {
         if (!hasTrustQuery(filters, ['targetId', 'provenanceId', 'sourceRef', 'sourceType', 'actor'])) {
@@ -1220,7 +1219,7 @@ const server = http.createServer(async (req, res) => {
       recoverExpiredIngestApprovals(store);
       const outcome = await decideIngestApproval({
         store,
-        kernel: cli.kernel,
+        kernel,
         approvalId,
         decision,
         handleIngest,
@@ -1299,7 +1298,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     try {
-      const p = cli.parse(q);
+      const p = parseCommand(q, kernel);
 
       if (p && (!isAllowedPublicCommand(p.command) || isUnsafePublicApiCommand(p.command))) {
         res.writeHead(403, {
@@ -1386,16 +1385,15 @@ server.closeAxiom = () => {
     try { ingestApprovalStore.close(); } catch (_) {}
     ingestApprovalStore = null;
   }
-  if (cli.agent?.baseAgent?.storage && typeof cli.agent.baseAgent.storage.close === 'function') {
-    try { cli.agent.baseAgent.storage.close(); } catch (_) {}
-  }
-  if (cli.agent?.storage && typeof cli.agent.storage.close === 'function') {
-    try { cli.agent.storage.close(); } catch (_) {}
-  }
-  cli.kernel.graph.close();
+  kernel.graph.close();
 };
 
 server.startServer = startServer;
+// Exposed for tests that need to assert against the same kernel/graph
+// instance the HTTP handlers use (e.g. checking audit events a request
+// produced). server.js owns this kernel directly now (#326); it is no
+// longer reachable by intercepting a CLI instance server.js used to build.
+server.kernel = kernel;
 module.exports = server;
 module.exports.getRateLimitKey = getRateLimitKey;
 

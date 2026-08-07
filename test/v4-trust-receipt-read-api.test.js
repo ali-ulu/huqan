@@ -13,25 +13,7 @@ process.env.AXIOM_API_KEY = 'v4-pr3-test-key';
 process.env.AXIOM_MEMORY_PATH = path.join(tempDir, 'memory.json');
 process.env.AXIOM_USE_SQLITE = 'false';
 
-const CLI = require('../cli');
-const cliModulePath = require.resolve('../cli');
-const originalCliExport = require.cache[cliModulePath].exports;
-let serverCli = null;
-let server = null;
-
-class ReceiptTestCLI extends CLI {
-  constructor(...args) {
-    super(...args);
-    serverCli = this;
-  }
-}
-
-try {
-  require.cache[cliModulePath].exports = ReceiptTestCLI;
-  server = require('../server');
-} finally {
-  require.cache[cliModulePath].exports = originalCliExport;
-}
+const server = require('../server');
 
 function approvedAdmissionOpts(workspaceId, overrides = {}) {
   return {
@@ -86,7 +68,7 @@ function requestJson(port, pathname, opts = {}) {
 }
 
 async function seedReceipt(_port, text, workspaceId, overrides = {}) {
-  const result = serverCli.kernel.learn(text, approvedAdmissionOpts(workspaceId, overrides));
+  const result = server.kernel.learn(text, approvedAdmissionOpts(workspaceId, overrides));
   assert.equal(result.data?.admission?.outcome, 'allow');
   assert.ok(result.data?.admission?.receipt);
   return result.data.admission.receipt;

@@ -12,13 +12,59 @@ not claim that V4-B3 is closed, and it does not open V4-B5 or V5.
 ```text
 repository: ali-ulu/huqan
 base branch: main
-canonical main: 9b6d41f801a918451e3e5142498204d86a549f59
-V4-B2 closure merge: PR #523 / 9b6d41f801a918451e3e5142498204d86a549f59
-V4-B2 implementation merge: PR #520 / e02eb03e79e10d6bc65e02322febe5eb2fd15055
+authorization artifact: 7446642 (docs: authorize the V4-B3 receipt export user flow)
+authorization merge:    PR #524 / 617040f6d95faf11eaaab736c507c3b11e0be9df
+V4-B2 closure merge:    PR #523 / 9b6d41f801a918451e3e5142498204d86a549f59
+V4-B2 implementation:   PR #520 / e02eb03e79e10d6bc65e02322febe5eb2fd15055
 ```
 
-The implementation successor must start from this exact base. A different
-`origin/main` requires a new reconciliation before writing code.
+### Base rule: authorization artifact ancestry, not a pinned main
+
+Earlier task-packs pinned a pre-merge `main` SHA as the implementation base.
+That rule stales itself by construction: merging the authorization PR advances
+`main` past the pin, so the pin is already wrong the moment it becomes
+effective, and every subsequent merge demands another reconciliation. V4-B3 hit
+this twice — once when PR #524 merged during its own review, and again while
+this refresh was in review.
+
+This task-pack therefore binds an **immutable authorization artifact** instead:
+
+1. The controlling artifact is commit `7446642`, which introduced this
+   task-pack. It is immutable and never advances.
+2. The implementation branch is opened from **live `origin/main` at the moment
+   work starts**, not from a recorded SHA.
+3. `7446642` must be an ancestor of that branch. If it is not, the branch is not
+   authorized.
+4. The successor then diffs the authorization artifact against its live base
+   over the six authorized implementation files:
+
+   ```bash
+   git merge-base --is-ancestor 7446642 HEAD
+   git diff --name-only 7446642..HEAD -- \
+     lib/workbench/receipt-bundle-exporter.js \
+     lib/workbench/receipt-bundle-export-route.js \
+     lib/workbench/workbench-read-http-router.js \
+     lib/http/route-auth-policy.js \
+     package.json \
+     test/v4-b3-receipt-bundle-export.test.js
+   ```
+
+   - **Empty output** — the contract is source-compatible. Record that proof in
+     the implementation PR and begin work. No reconciliation PR is required, and
+     unrelated merges to `main` never block implementation again.
+   - **Non-empty output** — a reconciliation is mandatory before code, because
+     an authorized file moved underneath the contract.
+
+5. Live source, exact Git SHA, tests and CI still outrank this document. The
+   change is only to which SHA is treated as controlling: the immutable artifact
+   rather than a mutable branch tip.
+
+Source-compatibility proof at the time of this refresh: between `7446642` and
+live `main` `d70c0a0`, the intervening work is PR #524 (this task-pack), PR #511
+non-root Dockerfile runtime and its test, PR #521 `kernel.d.ts` audit-seam
+typing, and PR #512 removing the dead GitHub Pages workflow. None touches any of
+the six authorized implementation files. The contract, the five product
+decisions, the ceilings and the status mapping are unchanged.
 
 ## Source-Reality Verdict
 
@@ -259,10 +305,26 @@ Stop without runtime implementation if:
 - `verifyExportedBundle()` cannot run before the response is written;
 - either ceiling cannot be enforced without returning a partial bundle;
 - enforcing the byte ceiling would require serializing more than
-  `MAX_SERIALIZED_BUNDLE_BYTES` into memory in an unbounded way;
+  `MAX_SERIALIZED_BUNDLE_BYTES` into memory in an unbounded way.
+
+  This is a named falsification target, not a hypothetical.
+  `collectMaterializedReceiptEntries()`
+  (`lib/receipt/receipt-read-index.js:80`) calls `getAuditEvents()` with no
+  limit and `clone()`s every matching receipt into memory;
+  `buildMaterializedReceiptChain()` then builds the whole chain before
+  `exportReceiptBundle()` serializes it. By the time actual serialized UTF-8
+  bytes can be measured, the full set has already been materialized.
+
+  The successor must establish whether both ceilings can be enforced within the
+  authorized files without that unbounded materialization. If they cannot, the
+  correct outcome is the `BLOCKED_GAP` verdict. It is **not** correct to widen
+  scope into `lib/receipt/*`, to add a limit parameter to the shared read index,
+  to approximate the byte ceiling from receipt count, or to enforce the ceiling
+  only after materialization while calling it bounded;
 - the route cannot be declared in the central auth policy;
 - an unlisted file must change;
-- exact base or scope changes.
+- the authorization artifact `7446642` is not an ancestor of the working base,
+  or the six-file source-compatibility diff against it is non-empty.
 
 ## Validation Commands
 
