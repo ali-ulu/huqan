@@ -1,8 +1,8 @@
-# AXIOM / HUQAN — Threat Model
+# HUQAN — Threat Model
 
 ## Strategic Threat Landscape
 
-This document defines the primary security threats to AXIOM / HUQAN, categorized using the STRIDE model (Spoofing, Tampering, Information disclosure, Denial of service, Elevation of privilege) with a focus on AI/ML runtime, memory, trust, and governance surfaces.
+This document defines the primary security threats to HUQAN, categorized using the STRIDE model (Spoofing, Tampering, Information disclosure, Denial of service, Elevation of privilege) with a focus on AI/ML runtime, memory, trust, and governance surfaces.
 
 ---
 
@@ -10,7 +10,7 @@ This document defines the primary security threats to AXIOM / HUQAN, categorized
 
 ### Trust Content Spoofing
 
-**Description**: An attacker creates malicious factual claims in the AXIOM knowledge base that appear legitimate, leveraging crafted prompts or falsifying attribution sources.
+**Description**: An attacker creates malicious factual claims in the HUQAN knowledge base that appear legitimate, leveraging crafted prompts or falsifying attribution sources.
 
 **Impact**: Propagation of false information through the system, damaging downstream reasoning.
 
@@ -36,8 +36,7 @@ This document defines the primary security threats to AXIOM / HUQAN, categorized
 **Impact**: Unauthorized execution of internal tools, potential system compromise.
 
 **Existing Mitigations**:
-- Hard-coded internal tool list (`INTERNAL_TOOLS` in `toolPolicy.js`).
-- Tools are trusted by default if in the internal set.
+- Hard-coded internal tool list with tools trusted by default if in the internal set.
 - API key-based authentication for REST endpoints.
 
 **Remaining Gaps**:
@@ -54,7 +53,7 @@ This document defines the primary security threats to AXIOM / HUQAN, categorized
 
 ### Memory Content Tampering
 
-**Description**: Modify existing factual records in the AXIOM knowledge base to spread misinformation or inject malicious content.
+**Description**: Modify existing factual records in the HUQAN knowledge base to spread misinformation or inject malicious content.
 
 **Impact**: System integrity compromised, downstream reasoning corrupted.
 
@@ -73,7 +72,7 @@ This document defines the primary security threats to AXIOM / HUQAN, categorized
 
 ### Governance Tampering
 
-**Description**: Unauthorized modification of AXIOM policies (e.g., `toolPolicy.js`, `action-risk-classifier.js`).
+**Description**: Unauthorized modification of HUQAN policies (e.g., tool policy and action risk classification).
 
 **Impact**: Policy bypass, privilege escalation, tool misuse.
 
@@ -114,7 +113,7 @@ This document defines the primary security threats to AXIOM / HUQAN, categorized
 
 ### Knowledge Base Exposure
 
-**Description**: Unauthorized access to the AXIOM knowledge base or queries revealing internal knowledge.
+**Description**: Unauthorized access to the HUQAN knowledge base or queries revealing internal knowledge.
 
 **Impact**: Privacy violations, competitive advantage loss.
 
@@ -154,7 +153,7 @@ This document defines the primary security threats to AXIOM / HUQAN, categorized
 
 ### Network Flood Attack
 
-**Description**: Flooding the AXIOM REST API with requests to exhaust resources.
+**Description**: Flooding the HUQAN REST API with requests to exhaust resources.
 
 **Impact**: Service degradation, denial of legitimate service.
 
@@ -181,7 +180,7 @@ This document defines the primary security threats to AXIOM / HUQAN, categorized
 **Impact**: Unauthorized access to high-privilege tools and capabilities.
 
 **Existing Mitigations**:
-- Hard-coded privilege levels in `toolPolicy.js`.
+- Hard-coded privilege levels for internal tools.
 - Role-based access control for external tools.
 
 **Remaining Gaps**:
@@ -216,7 +215,7 @@ This document defines the primary security threats to AXIOM / HUQAN, categorized
 
 ### Future Threat Landscape
 
-The AXIOM / HUQAN ecosystem will face evolving threats as it scales:
+The HUQAN ecosystem will face evolving threats as it scales:
 
 - **AI Model Poisoning**: Compromise of internal reasoning models through adversarial training data.
 - **Supply Chain Attacks**: Compromise of dependencies (packages, runtime components).
@@ -262,7 +261,7 @@ Security incidents will be responded to according to the following process:
 
 - Maintain a robust security program that evolves with emerging threats.
 - Be transparent about security issues and our response processes.
-- Engage with the security community to improve the security of the AXIOM / HUQAN ecosystem.
+- Engage with the security community to improve the security of the HUQAN ecosystem.
 
 **We will not:**
 
@@ -270,4 +269,4 @@ Security incidents will be responded to according to the following process:
 - Promise protection against all possible attacks.
 - Disclose vulnerabilities before patches are available.
 
-By using AXIOM / HUQAN, you acknowledge and accept these security commitments.
+By using HUQAN, you acknowledge and accept these security commitments.
