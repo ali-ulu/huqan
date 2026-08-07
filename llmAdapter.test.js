@@ -3,10 +3,7 @@ const assert = require('node:assert');
 const LLMAdapter = require('./llmAdapter');
 const Kernel = require('./kernel');
 
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 function learnFixture(kernel, text, opts = {}) {
   return kernel.learn(text, { ...opts, ...TEST_FIXTURE_LEARN_BYPASS });
@@ -186,6 +183,20 @@ describe('kernel.learnDocument()', () => {
     const text = '- kedi balık yer\n* köpek kemik sever\n- kuş uçar';
     const count = k.learnDocument(text, TEST_FIXTURE_LEARN_BYPASS);
     assert(count === 3);
+  });
+
+  it('strips en-dash, em-dash and bullet list markers, not just hyphen/asterisk (#436)', () => {
+    // The leading-marker regex's character class was corrupted by a mojibake
+    // encoding round-trip, so '–' (en dash), '—' (em dash) and '•' (bullet)
+    // were never actually stripped -- the marker stayed glued to the learned
+    // subject, so a lookup by the clean subject text found nothing.
+    const k = freshK();
+    const text = '• kedi balık yer\n– köpek kemik sever\n— kuş uçar';
+    const count = k.learnDocument(text, TEST_FIXTURE_LEARN_BYPASS);
+    assert(count === 3);
+    assert(k.ask('kedi balık yer').data.answer !== 'Bilmiyorum');
+    assert(k.ask('köpek kemik sever').data.answer !== 'Bilmiyorum');
+    assert(k.ask('kuş uçar').data.answer !== 'Bilmiyorum');
   });
 
   it('returns 0 for empty input', () => {

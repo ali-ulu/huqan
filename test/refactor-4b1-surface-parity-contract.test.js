@@ -54,14 +54,8 @@ test('verify classification stays aligned across Kernel, CLI, and SDK wrappers',
   cli.kernel = fixture.kernel;
   const sdk = createAxiomClient(fixture.kernel);
   try {
-    fixture.kernel.learn('kedi hayvandir', {
-      admissionRequired: false,
-      admissionBypassReason: 'test_fixture',
-    });
-    fixture.kernel.learn('kus ucmaz', {
-      admissionRequired: false,
-      admissionBypassReason: 'test_fixture',
-    });
+    fixture.kernel.learn('kedi hayvandir', Kernel.createAdmissionBypassOpts('test_fixture'));
+    fixture.kernel.learn('kus ucmaz', Kernel.createAdmissionBypassOpts('test_fixture'));
 
     const cases = [
       ['kedi hayvandir', 'dogrulandi'],

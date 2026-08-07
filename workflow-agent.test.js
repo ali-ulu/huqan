@@ -359,3 +359,53 @@ describe('workflow-agent', () => {
     assert.strictEqual(result.nextAction.action, 'none');
   });
 });
+
+describe('WorkflowAgent budget protection (#416)', () => {
+  it('defaults to a finite budget so the ceiling can actually fire', () => {
+    const agent = new WorkflowAgent();
+    assert.ok(Number.isFinite(agent.budget),
+      'an unlimited default means the budget check can never trigger for any caller');
+    assert.strictEqual(agent.budget, WorkflowAgent.DEFAULT_BUDGET);
+  });
+
+  it('leaves room for an ordinary run', () => {
+    // Tool cost defaults to 1 and maxSteps defaults to 4, so a normal run
+    // spends about 4. The default must not interfere with that.
+    const ordinarySpend = WorkflowAgent.DEFAULT_MAX_STEPS * 1;
+    assert.ok(WorkflowAgent.DEFAULT_BUDGET > ordinarySpend * 5,
+      'the default should bound runaway cost, not ordinary work');
+  });
+
+  it('stops a run whose step cost exceeds the remaining budget', () => {
+    const agent = new WorkflowAgent({ maxSteps: 4, budget: 2 });
+    agent.registerTool({
+      name: 'ask',
+      description: 'expensive step',
+      cost: 5,
+      run: () => ({ ok: true, data: { answer: 'x' }, confidence: 0.6 }),
+    });
+
+    const result = agent.run('kedi hayvandir mi?');
+    const steps = result?.data?.steps || [];
+    assert.strictEqual(steps.length, 0,
+      'a step costing more than the budget must not execute');
+  });
+
+  it('honours an explicit budget over the default', () => {
+    assert.strictEqual(new WorkflowAgent({ budget: 7 }).budget, 7);
+    assert.strictEqual(new WorkflowAgent({ budget: 0 }).budget, 0);
+  });
+
+  it('still allows an explicit opt-in to no ceiling', () => {
+    // Unlimited remains reachable, but only as a deliberate choice rather
+    // than as what every caller silently got before.
+    assert.strictEqual(WorkflowAgent.resolveBudget(undefined, null), Number.POSITIVE_INFINITY);
+  });
+
+  it('falls back to the default for an unusable budget value', () => {
+    for (const value of [undefined, NaN, -1, 'abc', {}]) {
+      assert.strictEqual(new WorkflowAgent({ budget: value }).budget, WorkflowAgent.DEFAULT_BUDGET,
+        `${String(value)} should fall back to the bounded default, not to unlimited`);
+    }
+  });
+});

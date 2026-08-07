@@ -105,6 +105,26 @@ describe('contradiction-rules', () => {
     assert.strictEqual(signal.rule, CONTRADICTION_RULES.UNIT_CONFLICT);
   });
 
+  it('does not flag meter vs metre with the same value as a unit conflict (regression)', () => {
+    // "meter" (US) and "metre" (UK/TR) are the same unit. Without canonical
+    // normalization these would be flagged as a unit conflict even when the
+    // numeric value is identical.
+    const signal = detectUnitConflict(
+      { text: 'wingspan is 10 meter', subject: 'wingspan' },
+      { text: 'wingspan is 10 metre', subject: 'wingspan' },
+    );
+    assert.strictEqual(signal, null);
+  });
+
+  it('still flags meter vs metre when the numeric value differs', () => {
+    const signal = detectUnitConflict(
+      { text: 'wingspan is 10 meter', subject: 'wingspan' },
+      { text: 'wingspan is 20 metre', subject: 'wingspan' },
+    );
+    assert.ok(signal);
+    assert.strictEqual(signal.rule, CONTRADICTION_RULES.UNIT_CONFLICT);
+  });
+
   it('supports relation inversion when opposition is known', () => {
     const signal = detectRelationInversion(
       { text: 'Mayday is distress call', subject: 'Mayday', relation: 'is' },
@@ -113,5 +133,29 @@ describe('contradiction-rules', () => {
 
     assert.ok(signal);
     assert.strictEqual(signal.rule, CONTRADICTION_RULES.RELATION_INVERSION);
+  });
+
+  it('does not false-positive on negation tokens inside other words (#434)', () => {
+    // "no" is a negation token, but it must not match inside "snow", "knowledge",
+    // or "nope" (substring match was the old buggy behavior).
+    // Two identical affirmative claims about "snow" must not be flagged.
+    const signal = detectNegationConflict(
+      { text: 'snow is white', subject: 'snow' },
+      { text: 'snow is white', subject: 'snow' },
+    );
+    assert.strictEqual(signal, null);
+  });
+
+  it('detects negation conflict when a Turkish subject carries a suffix (#434)', () => {
+    // stripSubject previously used \b which is ASCII-only and failed to match
+    // Turkish letters (ç, ğ, ı, ş, ü, ö). With Unicode-aware boundaries the
+    // subject "kuşun" (with Turkish ş) must be stripped correctly so the
+    // predicate overlap check can pass.
+    const signal = detectNegationConflict(
+      { text: 'kuşun yuvası yüksektedir', subject: 'kuşun' },
+      { text: 'kuşun yuvası yüksekte değildir', subject: 'kuşun' },
+    );
+    assert.ok(signal);
+    assert.strictEqual(signal.rule, CONTRADICTION_RULES.NEGATION_CONFLICT);
   });
 });

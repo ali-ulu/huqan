@@ -245,10 +245,14 @@ async function ingestUrl(urlString, options = {}) {
   const cache = options.responseCache || defaultResponseCache;
   const cacheTtlMs = options.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS;
   const cached = cache.get(urlString);
-  const result = cached && (Date.now() - cached.fetchedAt) < cacheTtlMs
+  const cacheFresh = cached && (Date.now() - cached.fetchedAt) < cacheTtlMs;
+  // Refresh the cache on a miss (no entry OR expired entry), not only when the
+  // entry was absent. Previously an expired entry was never replaced, so every
+  // subsequent request re-fetched forever.
+  const result = cacheFresh
     ? cached.result
     : await fetchUrl(urlString, fetchOptions);
-  if (!cached) cache.set(urlString, { fetchedAt: Date.now(), result });
+  if (!cacheFresh) cache.set(urlString, { fetchedAt: Date.now(), result });
 
   if (result.statusCode >= 400) {
     throw Object.assign(

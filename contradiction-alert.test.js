@@ -4,10 +4,7 @@ const assert = require('node:assert/strict');
 const Kernel = require('./kernel');
 const createContradictionAlertPlugin = require('./plugins/contradiction-alert').create;
 
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 test('contradiction-alert: detects direct contradiction and returns conflict details', async () => {
   const k = new Kernel({ noLoad: true, loadPlugins: false, capabilities: { temporal: true } });

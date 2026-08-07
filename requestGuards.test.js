@@ -1,10 +1,12 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const { Readable } = require('node:stream');
+const crypto = require('node:crypto');
 
 const {
   checkRateLimit,
   clearExpiredRateLimitEntries,
+  constantTimeEqual,
   DEFAULT_RATE_LIMIT_MAX_ENTRIES,
   enforceRateLimitCap,
   isAllowedPublicCommand,
@@ -258,5 +260,36 @@ describe('Request Guards', () => {
   it('default cap constant stays positive', () => {
     resetRateLimitState();
     assert.ok(DEFAULT_RATE_LIMIT_MAX_ENTRIES >= 1);
+  });
+
+  it('constantTimeEqual matches only on identical values', () => {
+    assert.strictEqual(constantTimeEqual('secret', 'secret'), true);
+    assert.strictEqual(constantTimeEqual('secret', 'secreT'), false);
+    assert.strictEqual(constantTimeEqual('', ''), true);
+    assert.strictEqual(constantTimeEqual(null, ''), true);
+    assert.strictEqual(constantTimeEqual('secret', 'much-longer-secret-value'), false);
+  });
+
+  it('constantTimeEqual does not short-circuit on length mismatch', () => {
+    // Regression for #384: a length check leaked the configured key length.
+    const original = crypto.timingSafeEqual;
+    let calls = 0;
+    crypto.timingSafeEqual = (a, b) => {
+      calls += 1;
+      assert.strictEqual(a.length, b.length);
+      return original(a, b);
+    };
+    try {
+      assert.strictEqual(constantTimeEqual('a', 'a'.repeat(64)), false);
+      assert.strictEqual(calls, 1, 'comparison must reach timingSafeEqual');
+    } finally {
+      crypto.timingSafeEqual = original;
+    }
+  });
+
+  it('requireApiKey rejects wrong-length keys without leaking timing', () => {
+    const res = requireApiKey({ headers: { authorization: 'Bearer x' } }, 'a-much-longer-configured-key');
+    assert.strictEqual(res.ok, false);
+    assert.strictEqual(res.status, 401);
   });
 });

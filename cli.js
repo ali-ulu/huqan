@@ -2,7 +2,9 @@
 
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const readline = require('readline');
+const { isPathWithinRoot } = require('./lib/path-safety');
 const Kernel = require('./kernel');
 const KernelV2 = require('./kernel.v2');
 const Dream = require('./dream');
@@ -22,6 +24,55 @@ const {
  * @param {'v2'} [opts.version]
  * @returns {Kernel|KernelV2}
  */
+/**
+ * POSIX single-quote escaping for text that is shown to the user inside a
+ * copy-pasteable shell command. Without this, a prompt containing `"; rm -rf /`
+ * turns the suggestion itself into a command injection payload (#387).
+ *
+ * @param {string} value
+ * @returns {string} a single shell word that always expands back to `value`
+ */
+function shellQuote(value) {
+  const text = value == null ? '' : String(value);
+  return `'${text.replace(/'/g, "'\\''")}'`;
+}
+
+function getCliReadRoots() {
+  const roots = [process.cwd(), os.tmpdir()];
+  const extra = String(process.env.AXIOM_CLI_READ_ROOTS || '')
+    .split(path.delimiter)
+    .map(entry => entry.trim())
+    .filter(Boolean)
+    .map(entry => path.resolve(entry));
+  return [...new Set([...roots.map(entry => path.resolve(entry)), ...extra])];
+}
+
+function resolveCliReadPath(candidate) {
+  const raw = String(candidate == null ? '' : candidate).trim();
+  if (!raw) {
+    const err = new Error('Dosya yolu bos olamaz');
+    err.code = 'CLI_PATH_NOT_ALLOWED';
+    throw err;
+  }
+
+  const resolved = path.resolve(process.cwd(), raw);
+  const roots = getCliReadRoots();
+  const candidates = [resolved];
+  try {
+    candidates.push(fs.realpathSync(resolved));
+  } catch (_) {
+    // Missing file: readFileSync below reports it.
+  }
+
+  const allowed = candidates.every(item => roots.some(root => isPathWithinRoot(root, item)));
+  if (!allowed) {
+    const err = new Error(`Dosya yolu izin verilen dizinlerin disinda: ${raw}`);
+    err.code = 'CLI_PATH_NOT_ALLOWED';
+    throw err;
+  }
+  return resolved;
+}
+
 function createKernel(opts = {}) {
   const { version, ...kernelOpts } = opts || {};
   const selected = version || process.env.AXIOM_KERNEL_VERSION;
@@ -402,7 +453,7 @@ class CLI {
           const labels = Array.isArray(verify.risk.labels) && verify.risk.labels.length > 0 ? verify.risk.labels.join(', ') : 'manipulation';
           out += `\nRisk: ${labels} (skor: ${verify.risk.score.toFixed(2)})`;
         }
-        out += `\nLLM yaniti icin: ollama run ${this.llm.model} "${args}"`;
+        out += `\nLLM yaniti icin: ollama run ${shellQuote(this.llm.model)} ${shellQuote(args)}`;
         return out;
       }
       case 'plan': {
@@ -454,7 +505,8 @@ class CLI {
       }
       case 'yükle': {
         try {
-          const text = fs.readFileSync(args, 'utf8');
+          const filePath = resolveCliReadPath(args);
+          const text = fs.readFileSync(filePath, 'utf8');
           const count = this.kernel.learnDocument(text, {
             sourceType: 'cli',
             sourceRef: `cli:yükle:${args}`,
@@ -738,7 +790,7 @@ class CLI {
           '  "durum"                   -> sistem durumu',
           '  "ruya"                    -> hipotez uretirim',
           '  "plan: hedef"             -> ajan plani uretirim',
-          '  "ajan: hedef"             -> cok adimli ajan calistiririm',
+          '  "ajan: hedef"             -> ajan calistiririm',
           '  "backup"                  -> calisma durumunu yedeklerim',
           '  "restore[: yol]"          -> en son veya secili yedekten geri yuklerim',
           '  "kaydet"                  -> hafizayi kaydederim',
@@ -1024,4 +1076,5 @@ if (require.main === module) {
 
 module.exports = CLI;
 module.exports.createKernel = createKernel;
+module.exports.shellQuote = shellQuote;
 module.exports.runCliArgv = runCliArgv;

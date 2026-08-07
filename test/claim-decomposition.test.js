@@ -55,4 +55,24 @@ describe('claim-decomposition', () => {
     assert.strictEqual(envelope.subclaims.length, 1);
     assert.deepStrictEqual(envelope.warnings, ['X']);
   });
+
+  it('marker matching is independent across repeated calls, even interleaved (#447)', () => {
+    // A shared RegExp with a global/sticky flag advances .lastIndex as a side
+    // effect of .test()/.match(), so a later call's result would silently
+    // depend on where a previous, unrelated call left off. Decomposition
+    // must not have that kind of cross-call state: the same claim must infer
+    // the same subject/predicate no matter what was decomposed just before
+    // it, and interleaving different claims must not perturb either one.
+    const claimA = 'React Native is used in production';
+    const claimB = 'Kubernetes kullanılır in every cluster';
+
+    const first = decomposeClaim(claimA);
+    for (let i = 0; i < 5; i += 1) {
+      decomposeClaim(claimB);
+      const repeat = decomposeClaim(claimA);
+      assert.deepStrictEqual(repeat.subclaims[0].claim, first.subclaims[0].claim);
+      assert.deepStrictEqual(repeat.subclaims[0].subject, first.subclaims[0].subject);
+      assert.deepStrictEqual(repeat.subclaims[0].predicate, first.subclaims[0].predicate);
+    }
+  });
 });

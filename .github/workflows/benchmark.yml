@@ -154,10 +154,16 @@ jobs:
   # npm test — mandatory on runtime OR test changes.
   # ---------------------------------------------------------------------
   runtime-test:
-    name: npm test (runtime/test)
+    name: npm test (runtime/test, Node ${{ matrix.node-version }})
     needs: classify
     if: needs.classify.outputs.runtime_or_test == 'yes'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # README advertises Node 20 LTS and 22 LTS as recommended runtimes.
+        # Test both so a regression on 22 is caught before it reaches users.
+        node-version: [20, 22]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -171,7 +177,7 @@ jobs:
         run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ matrix.node-version }}
           cache: npm
       - run: npm ci --include=optional
       - name: Run full test suite

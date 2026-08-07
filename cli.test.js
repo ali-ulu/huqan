@@ -10,10 +10,7 @@ const KernelV2 = require('./kernel.v2');
 const Dream = require('./dream');
 const { createAgent } = require('./agentRuntime');
 
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 function freshCLI(kernelOpts = {}) {
   const cli = new CLI();
@@ -612,6 +609,30 @@ describe('CLI - Komut Çalıştırma', () => {
     const result = cli.kernel.verify('kus ucar');
     assert.strictEqual(result.data.status, 'celiski');
     assert.strictEqual(result.data.contradictionReason, 'opposite_predicate_conflict');
+  });
+
+  it('execute: llm-sor suggestion is not shell-injectable (#387)', () => {
+    const cli = freshCLI();
+    const payload = 'kedi nedir"; rm -rf / #';
+    const result = cli.execute('llm-sor', payload);
+
+    const line = result.split('\n').find(item => item.includes('ollama run'));
+    assert.ok(line, 'llm-sor must still suggest an ollama command');
+    // The old double-quoted interpolation let the payload terminate the quoted
+    // argument and append its own command. The payload must now sit entirely
+    // inside one single-quoted shell word.
+    assert.ok(line.endsWith(`'${payload}'`), `payload must stay inside one quoted word: ${line}`);
+  });
+
+  it('shellQuote produces a single POSIX word for hostile input (#387)', () => {
+    const { shellQuote } = require('./cli');
+    assert.strictEqual(shellQuote('kedi'), "'kedi'");
+    assert.strictEqual(shellQuote('a"; rm -rf / #'), '\'a"; rm -rf / #\'');
+    assert.strictEqual(shellQuote("it's"), "'it'\\''s'");
+    assert.strictEqual(shellQuote(''), "''");
+    assert.strictEqual(shellQuote(null), "''");
+    assert.strictEqual(shellQuote('$(whoami)'), "'$(whoami)'");
+    assert.strictEqual(shellQuote('`id`'), "'`id`'");
   });
 
   it('execute: llm-sor shows manipulation risk in v2 output', () => {

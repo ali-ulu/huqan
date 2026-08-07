@@ -1,11 +1,12 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const KernelV2 = require('./kernel.v2');
+const Kernel = require('./kernel');
 
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+// KernelV2.learn() delegates straight to a wrapped v1 Kernel instance
+// (this.kernel.learn()), so it enforces the same admission gate and needs
+// the same bypass token (#357).
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 function learnFixture(kernel, text, opts = {}) {
   return kernel.learn(text, { ...opts, ...TEST_FIXTURE_LEARN_BYPASS });

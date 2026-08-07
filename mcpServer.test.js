@@ -6,11 +6,13 @@ const path = require('path');
 const readline = require('readline');
 const { spawn } = require('child_process');
 const { TOOL_SCHEMAS, createKernelFromEnv } = require('./mcpServer');
+const Kernel = require('./kernel');
 
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+// createKernelFromEnv() may return either Kernel or KernelV2 depending on
+// AXIOM_KERNEL_VERSION, but KernelV2.learn() delegates straight to a
+// wrapped v1 Kernel instance, so both enforce the same admission gate and
+// need the same bypass token (#357).
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 let proc;
 let rl;

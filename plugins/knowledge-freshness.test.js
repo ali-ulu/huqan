@@ -5,7 +5,7 @@ const knowledgeFreshness = require('./knowledge-freshness');
 const { isStaleTimestamp, findStaleEdgesForQuestion } = knowledgeFreshness._test;
 const Kernel = require('../kernel');
 
-const TEST_BYPASS = { admissionRequired: false, admissionBypassReason: 'test' };
+const TEST_BYPASS = Kernel.createAdmissionBypassOpts('test');
 
 // graph.getEdges() returns cloned records (cloneEdgeRecord), so mutating
 // what it returns is a no-op against stored state -- tests that need a
