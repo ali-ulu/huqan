@@ -1396,6 +1396,13 @@ class Graph {
     return out.filter(e => normalizeWorkspaceId(e.workspaceId) === normalizeWorkspaceId(workspaceId)).map(cloneEdgeRecord);
   }
 
+  /** All edges in a workspace, independent of any single node. */
+  getAllEdges(workspaceId = 'default') {
+    return this._edges
+      .filter(e => normalizeWorkspaceId(e.workspaceId) === normalizeWorkspaceId(workspaceId))
+      .map(cloneEdgeRecord);
+  }
+
   query(label, workspaceId = 'default') {
     return Object.values(this._nodes)
       .filter(n => n.label === label && normalizeWorkspaceId(n.workspaceId) === normalizeWorkspaceId(workspaceId))

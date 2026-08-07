@@ -34,27 +34,9 @@ process.env.AXIOM_MEMORY_PATH = path.join(tempDir, 'graph.json');
 process.env.AXIOM_DB_PATH = path.join(tempDir, 'graph.db');
 delete process.env.AXIOM_USE_SQLITE;
 
-const CLI = require('../cli');
-const cliModulePath = require.resolve('../cli');
-const originalCliExport = require.cache[cliModulePath].exports;
-let serverCli = null;
-let server = null;
+const server = require('../server');
 let store = null;
 let port = 0;
-
-class AuthorityTestCLI extends CLI {
-  constructor(...args) {
-    super(...args);
-    serverCli = this;
-  }
-}
-
-try {
-  require.cache[cliModulePath].exports = AuthorityTestCLI;
-  server = require('../server');
-} finally {
-  require.cache[cliModulePath].exports = originalCliExport;
-}
 
 function requestJson(pathname, options = {}) {
   const body = options.body === undefined ? null : JSON.stringify(options.body);
@@ -95,12 +77,12 @@ function manualPayload(suffix, overrides = {}) {
 }
 
 function graphCounts() {
-  const stats = serverCli.kernel.graph.getStats();
+  const stats = server.kernel.graph.getStats();
   return { nodes: stats.nodes, edges: stats.edges };
 }
 
 function approvalAudit(approvalId, eventType) {
-  return serverCli.kernel.graph
+  return server.kernel.graph
     .getAuditEvents({ targetType: 'ingest_approval', targetId: approvalId })
     .find((event) => event.eventType === eventType) || null;
 }
@@ -133,7 +115,7 @@ function ownerDeps({ result, store: injected, kernel, throws = false }) {
   const approval = injected.record;
   return {
     store: injected,
-    kernel: kernel || serverCli.kernel,
+    kernel: kernel || server.kernel,
     approvalId: approval.id,
     decision: 'approved',
     handleIngest: async () => { if (throws) throw new Error('hostile plugin failure'); return result; },
@@ -158,8 +140,8 @@ function pendingApproval(id, suffix) {
 }
 
 before(async () => {
-  assert.equal(serverCli.kernel.graph.getStats().backend, 'sqlite');
-  store = new AxiomStorage({ kernel: serverCli.kernel });
+  assert.equal(server.kernel.graph.getStats().backend, 'sqlite');
+  store = new AxiomStorage({ kernel: server.kernel });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   port = server.address().port;
 });
