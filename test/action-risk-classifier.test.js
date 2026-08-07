@@ -163,6 +163,13 @@ describe('AB1 v2 helper functions', () => {
     assert.strictEqual(isPathInList('docs\\sub\\file.md', ['docs/']), true);
     assert.strictEqual(isPathInList('lib/file.js', ['docs/']), false);
 
+    // `..` segments must be resolved before the allowlist prefix check, or a
+    // traversal like `/home/user/../../etc/passwd` slips past a `/home/user/`
+    // allowlist entry via a naive startsWith comparison (#375).
+    assert.strictEqual(isPathInList('/home/user/../../etc/passwd', ['/home/user/']), false);
+    assert.strictEqual(isPathInList('/home/user/docs/../file.md', ['/home/user/']), true);
+    assert.strictEqual(isPathInList('docs/../../etc/passwd', ['docs/']), false);
+
     assert.strictEqual(isPathSecuritySensitive('lib/trust-policy.js'), true);
     assert.strictEqual(isPathSecuritySensitive('src/random.js'), false);
 
