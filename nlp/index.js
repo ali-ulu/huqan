@@ -16,6 +16,13 @@ const PACKS = {
   arabi: ar,
 };
 
+// Hoisted out of detectLanguage() so repeated calls don't allocate four new
+// Sets each time (#443) -- the word lists never change per call.
+const AR_HINTS = new Set(['هو', 'هي', 'كان', 'تكون', 'يكون', 'وال', 'في', 'من', 'إلى', 'على']);
+const DE_HINTS = new Set(['der', 'die', 'das', 'ist', 'sind', 'war', 'waren', 'und', 'für', 'mit']);
+const EN_HINTS = new Set(['the', 'is', 'are', 'was', 'were', 'and', 'of', 'with', 'for']);
+const TR_HINTS = new Set(['ve', 'veya', 'bir', 'için', 'gibi', 'değil', 'dır', 'dir', 'dır', 'mi', 'mı']);
+
 function detectLanguage(text) {
   const sample = String(text || '').toLowerCase();
   if (!sample) return 'tr';
@@ -31,15 +38,10 @@ function detectLanguage(text) {
 
   const hasAny = (set) => words.some(word => set.has(word));
 
-  const arHints = new Set(['هو', 'هي', 'كان', 'تكون', 'يكون', 'وال', 'في', 'من', 'إلى', 'على']);
-  const deHints = new Set(['der', 'die', 'das', 'ist', 'sind', 'war', 'waren', 'und', 'für', 'mit']);
-  const enHints = new Set(['the', 'is', 'are', 'was', 'were', 'and', 'of', 'with', 'for']);
-  const trHints = new Set(['ve', 'veya', 'bir', 'için', 'gibi', 'değil', 'dır', 'dir', 'dır', 'mi', 'mı']);
-
-  if (hasAny(arHints)) return 'ar';
-  if (hasAny(deHints)) return 'de';
-  if (hasAny(trHints)) return 'tr';
-  if (hasAny(enHints)) return 'en';
+  if (hasAny(AR_HINTS)) return 'ar';
+  if (hasAny(DE_HINTS)) return 'de';
+  if (hasAny(TR_HINTS)) return 'tr';
+  if (hasAny(EN_HINTS)) return 'en';
 
   return 'tr';
 }
