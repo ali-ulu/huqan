@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "repository": "ali-ulu/huqan",
   "baselineBranch": "main",
-  "canonicalMain": "d70c0a0ed493212283ca54260829726cc9bb97f7",
+  "canonicalMain": "664acc0d57c247dd17a306341cfb62d4d8be1a55",
   "worktreePolicy": "REPORT_ONLY",
-  "observedAt": "2026-08-07T18:58:09+03:00",
+  "observedAt": "2026-08-08T01:41:33+03:00",
   "program": "V4 Workbench runtime evidence",
   "completedEvidence": [
     "Receipt trust-root foundation and bounded external-client evidence program closed without production external-client route enablement",
@@ -58,7 +58,10 @@
     "PR #521 restored graph.appendAuditEvent in kernel.d.ts and scoped the seam assertions to the Kernel own surface through the new test/helpers/kernel-declaration.js, superseding the PR #516 approach of removing the declaration; the invariant is now asserted both negatively on the Kernel surface and positively on the nested graph member",
     "The V4-B3 base rule was changed from a pinned pre-merge main SHA to an immutable authorization artifact: pinning a branch tip stales itself the moment the authorization merges, which forced two reconciliations on V4-B3 alone",
     "Authorization artifact 7446642 introduced the V4-B3 task-pack and never advances; implementation branches open from live origin/main, must carry 7446642 in ancestry, and must prove the six authorized files unchanged since it",
-    "Source-compatibility proof at refresh time: between 7446642 and live main d70c0a0 the intervening work is PR #524, PR #511 non-root Dockerfile runtime and its test, PR #521 kernel.d.ts audit-seam typing and PR #512 removing the dead GitHub Pages workflow, none of which touches any of the six authorized implementation files"
+    "Source-compatibility proof at refresh time: between 7446642 and live main d70c0a0 the intervening work is PR #524, PR #511 non-root Dockerfile runtime and its test, PR #521 kernel.d.ts audit-seam typing and PR #512 removing the dead GitHub Pages workflow, none of which touches any of the six authorized implementation files",
+    "At live main 664acc0 the six-file diff from 7446642 is no longer empty: it reports package.json, which is the task-pack's non-empty stop condition, so implementation stopped and a docs-only reconciliation was written before any code",
+    "The package.json drift was proved by parsing both revisions rather than by reading the diff hunk: files is the only differing top-level key, seven entries were added (lib/command-parser.js, lib/kernel-factory.js and five lib/self-healer/* modules from PR #521, PR #326 and the issue #224 self-healer dogfood work), none was removed and the relative order of every retained entry is preserved",
+    "Neither lib/workbench/receipt-bundle-exporter.js nor lib/workbench/receipt-bundle-export-route.js appears in the package.json files allowlist at 7446642 or at 664acc0, so the authorized B3 edit of inserting exactly those two modules into the sorted allowlist is untouched and still applies verbatim; the drift is source-compatible on the same judgement the V4-B2B exact-base refresh recorded when package.json moved only inside its files allowlist"
   ],
   "nextGate": "V4_B3_RECEIPT_EXPORT_USER_FLOW",
   "status": "AUTHORIZED_FOR_EXACT_BASE_IMPLEMENTATION",
@@ -77,6 +80,7 @@
     "V4-B2 is closed by PR #520 and PR #523; no V4-B3, V4-B5 or V4 completion claim follows from it.",
     "The hardened attestation of record for the V4-B2 runtime is Security Checks run 31186846627 at head b6bfd7cce2d8ca0753e75b02ffa7ca5c6b368bce; PR #520 own Security run 31181386576 executed the pre-#510 fail-open workflow and is lifecycle evidence only.",
     "The controlling document for the open gate is docs/task-packs/v4-b3-receipt-export-user-flow-authorization.md, bound to immutable authorization artifact 7446642 rather than to a main tip.",
+    "The recorded package.json reconciliation covers the drift observed at 664acc0 only; it is not a standing exemption. Re-run the six-file diff from the live base when work starts, and re-prove the files-only additive-only shape by parsing both revisions before relying on it. Any other path in the output, or any package.json change outside files, is an unreconciled stop condition.",
     "The successor may change exactly lib/workbench/receipt-bundle-exporter.js, lib/workbench/receipt-bundle-export-route.js, lib/workbench/workbench-read-http-router.js, lib/http/route-auth-policy.js, package.json and test/v4-b3-receipt-bundle-export.test.js.",
     "server.js is deliberately out of scope: the Workbench read router is already wired and lib/workbench/trust-receipt-inspector.js establishes that a Workbench owner may require lib/receipt/receipt-read-index directly.",
     "B3 exports an internal, full trust artifact. No redaction, masking or field stripping. Public-safe and redacted receipt formats are V5-C4 work (issue #276), because canonical receipt content including metadata participates in the hash semantics verifyExportedBundle checks.",

@@ -1,7 +1,7 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`d70c0a0` (PR #512 merge). This line is an observation, not a base pin — see the
+`664acc0` (PR #537 merge). This line is an observation, not a base pin — see the
 authorization-artifact rule under the current gate.
 
 Live source, exact Git SHA, tests and CI outrank this compact execution source.
@@ -318,6 +318,15 @@ ancestor of that base and that the six authorized files are unchanged since it.
 An empty six-file diff is a source-compatibility proof and implementation
 proceeds; a non-empty one makes reconciliation mandatory. See the task-pack's
 base rule for why a pre-merge `main` SHA is no longer pinned.
+
+At `664acc0` that diff reports `package.json`, so implementation stopped and the
+task-pack now carries a recorded reconciliation: the only differing top-level key
+is `files`, the change is additive with no removals and no reordering, and
+neither B3 module is present in the allowlist at either revision, so the
+authorized B3 edit still applies verbatim. The reconciliation covers the observed
+drift only — it is not a standing exemption, and any path other than
+`package.json`, or any `package.json` change outside `files`, remains an
+unreconciled stop condition.
 
 The successor may change exactly:
 
