@@ -79,6 +79,19 @@ test('CLI yükle still reads a normal file under the temp root (#386)', () => wi
   }
 }));
 
+test('CLI yükle accepts an operator-configured read root (#386)', () => withCleanCliRoots(() => {
+  const customDir = makeOutsideDir('.huqan-cli-custom-root-');
+  try {
+    const filePath = path.join(customDir, 'notes.txt');
+    fs.writeFileSync(filePath, 'kedi hayvandir');
+    process.env.AXIOM_CLI_READ_ROOTS = customDir;
+    const result = makeCli().execute('yükle', filePath, { gateResult: { canExecute: true } });
+    assert.match(result, /dosyasından \d+ bilgi öğrenildi/i);
+  } finally {
+    fs.rmSync(customDir, { recursive: true, force: true });
+  }
+}));
+
 test('restore rejects a backupDir outside the configured backup root (#386)', () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-restore-root-'));
   const rogueDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-restore-rogue-'));
