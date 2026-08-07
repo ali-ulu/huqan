@@ -288,10 +288,12 @@ function getRateLimitKey(req) {
     return 'key:' + crypto.createHash('sha256').update(apiKey).digest('hex').slice(0, 16);
   }
   if (process.env.AXIOM_TRUST_PROXY === '1') {
-    const xffList = String(req.headers?.['x-forwarded-for'] || '').split(',');
-    const forwarded = xffList[xffList.length - 1].trim();
-    // Validate looks like an IP before trusting it for rate-limit keying
-    if (forwarded && /^[\d.:a-fA-F]+$/.test(forwarded)) return 'ip:' + forwarded;
+    const xffList = String(req.headers?.['x-forwarded-for'] || '').split(',').map(s => s.trim());
+    // The FIRST entry in X-Forwarded-For is the original client IP.
+    // Only use it when we trust the proxy chain (AXIOM_TRUST_PROXY=1).
+    if (xffList.length > 0 && /^[\d.:a-fA-F]+$/.test(xffList[0])) {
+      return 'ip:' + xffList[0];
+    }
   }
   return 'ip:' + String(req.socket?.remoteAddress || 'unknown');
 }
@@ -1462,5 +1464,6 @@ server.closeAxiom = () => {
 
 server.startServer = startServer;
 module.exports = server;
+module.exports.getRateLimitKey = getRateLimitKey;
 
 

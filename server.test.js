@@ -1003,3 +1003,57 @@ describe('Server - Public API Allowlist Lockdown', () => {
     }
   });
 });
+
+describe('X-Forwarded-For rate limit keying (#390)', () => {
+  it('uses socket.remoteAddress when AXIOM_TRUST_PROXY is not set', async () => {
+    const original = process.env.AXIOM_TRUST_PROXY;
+    delete process.env.AXIOM_TRUST_PROXY;
+    try {
+      const { getRateLimitKey } = require('./server');
+      const req = { headers: { 'x-forwarded-for': '1.2.3.4, 5.6.7.8' }, socket: { remoteAddress: '10.0.0.1' } };
+      assert.strictEqual(getRateLimitKey(req), "ip:10.0.0.1");
+    } finally {
+      if (original) process.env.AXIOM_TRUST_PROXY = original;
+      else delete process.env.AXIOM_TRUST_PROXY;
+    }
+  });
+
+  it('uses FIRST XFF entry when AXIOM_TRUST_PROXY=1 (#390)', async () => {
+    const original = process.env.AXIOM_TRUST_PROXY;
+    process.env.AXIOM_TRUST_PROXY = "1";
+    try {
+      const { getRateLimitKey } = require('./server');
+      const req = { headers: { 'x-forwarded-for': '1.2.3.4, 5.6.7.8' }, socket: { remoteAddress: '10.0.0.1' } };
+      assert.strictEqual(getRateLimitKey(req), "ip:1.2.3.4");
+    } finally {
+      if (original) process.env.AXIOM_TRUST_PROXY = original;
+      else delete process.env.AXIOM_TRUST_PROXY;
+    }
+  });
+
+  it('ignores malformed first XFF entry and falls back to remoteAddress', async () => {
+    const original = process.env.AXIOM_TRUST_PROXY;
+    process.env.AXIOM_TRUST_PROXY = "1";
+    try {
+      const { getRateLimitKey } = require('./server');
+      const req = { headers: { 'x-forwarded-for': 'not-an-ip, 5.6.7.8' }, socket: { remoteAddress: '10.0.0.1' } };
+      assert.strictEqual(getRateLimitKey(req), "ip:10.0.0.1");
+    } finally {
+      if (original) process.env.AXIOM_TRUST_PROXY = original;
+      else delete process.env.AXIOM_TRUST_PROXY;
+    }
+  });
+
+  it('ignores XFF entirely when AXIOM_TRUST_PROXY is not set (spoofed last entry cannot bypass)', async () => {
+    const original = process.env.AXIOM_TRUST_PROXY;
+    delete process.env.AXIOM_TRUST_PROXY;
+    try {
+      const { getRateLimitKey } = require('./server');
+      const req = { headers: { 'x-forwarded-for': 'real-client, spoofed-attacker' }, socket: { remoteAddress: '10.0.0.1' } };
+      assert.strictEqual(getRateLimitKey(req), "ip:10.0.0.1");
+    } finally {
+      if (original) process.env.AXIOM_TRUST_PROXY = original;
+      else delete process.env.AXIOM_TRUST_PROXY;
+    }
+  });
+});
