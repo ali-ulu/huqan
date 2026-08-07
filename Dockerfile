@@ -21,13 +21,33 @@ ENV AXIOM_MEMORY_PATH=/app/data/memory.json
 ENV AXIOM_DB_PATH=/app/data/memory.db
 ENV AXIOM_BACKUP_DIR=/app/data/backups
 
-COPY package*.json ./
-COPY --from=dependencies /app/node_modules ./node_modules
+# node:20-bookworm-slim already ships an unprivileged `node` user (uid/gid 1000).
+# Everything the runtime touches is copied in owned by that user so the final
+# USER switch below does not need a costly `chown -R` over node_modules.
+COPY --chown=node:node package*.json ./
+COPY --from=dependencies --chown=node:node /app/node_modules ./node_modules
 RUN node -e "require('better-sqlite3')"
 RUN ! command -v python3 && ! command -v g++
-COPY . .
+COPY --chown=node:node . .
 
-RUN mkdir -p /app/data/backups
+# /app and /app/data are created by WORKDIR/mkdir as root. /app/data is the
+# mount point for the axiom-data volume; Docker seeds a *newly created* named
+# volume with the image directory's content and ownership, so chowning it here
+# is what makes the volume writable by the node user.
+RUN mkdir -p /app/data/backups \
+  && chown node:node /app /app/data /app/data/backups
+
+# Drop root before the process starts. An RCE in server.js now lands as an
+# unprivileged user instead of container root.
+USER node
+
+# Make the security property build-verifiable: the active runtime user must be
+# non-root and must be able to write the persistence mount point before the
+# image can pass CI's Docker build gate.
+RUN test "$(id -u)" -ne 0 \
+  && test -w /app/data \
+  && touch /app/data/.huqan-write-check \
+  && rm /app/data/.huqan-write-check
 
 EXPOSE 3000
 
