@@ -6,6 +6,7 @@ const test = require('node:test');
 
 const Kernel = require('../kernel');
 const KernelV2 = require('../kernel.v2');
+const { withoutNestedMember, kernelClassBody } = require('./helpers/kernel-declaration');
 
 const MAPPINGS = Object.freeze([
   ['kaydet', 'persistence', 'UPDATE', 'allow', true, 'cli_persist_local'],
@@ -399,11 +400,22 @@ test('does not expose a generic public audit append surface', () => {
   const v2Declaration = fs.readFileSync(path.join(__dirname, '..', 'kernel.v2.d.ts'), 'utf8');
 
   try {
+    // The runtime guarantee: the Kernel exposes no public append, only the
+    // private seam.
     assert.equal(managed.kernel.appendAuditEvent, undefined);
     assert.equal(typeof managed.kernel._appendAuditEvent, 'function');
-    assert.doesNotMatch(kernelDeclaration, /\bappendAuditEvent\s*\(/);
-    assert.doesNotMatch(kernelDeclaration, /\b_appendAuditEvent\s*\(/);
-    assert.doesNotMatch(v2Declaration, /\bappendAuditEvent\s*\(/);
+
+    // The declaration guarantee, stated per surface. kernel.graph
+    // .appendAuditEvent is a real method (graph.js defines it, agent.v3.js
+    // calls it), so the graph typing describes it on purpose; asserting over
+    // the whole file conflated the graph's surface with the Kernel's own.
+    const kernelOwnSurface = withoutNestedMember(kernelClassBody(kernelDeclaration), 'graph');
+    assert.doesNotMatch(kernelOwnSurface, /\bappendAuditEvent\s*\(/,
+      'Kernel itself must not declare a public audit append');
+    assert.doesNotMatch(kernelDeclaration, /\b_appendAuditEvent\s*\(/,
+      'the private seam must never be declared as API');
+    assert.doesNotMatch(withoutNestedMember(v2Declaration, 'graph'), /\bappendAuditEvent\s*\(/,
+      'KernelV2 must not declare one either');
   } finally {
     managed.dispose();
   }
