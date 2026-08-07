@@ -113,7 +113,7 @@ describe('FAZ2-PR6: REST/CLI mutation gate parity (F-004)', () => {
     }
     // 'rüya' is classified (non-null) but read-only: it must still execute and
     // must not mutate the canonical graph.
-    cli.kernel.learn('Köpek memelidir', { admissionRequired: false, admissionBypassReason: 'test_fixture' });
+    cli.kernel.learn('Köpek memelidir', Kernel.createAdmissionBypassOpts('test_fixture'));
     const edgesBefore = edgeCount(cli);
     const ruyaGate = cli._evaluateCliGate('rüya', '');
     assert.notStrictEqual(ruyaGate, null, 'rüya is classified');

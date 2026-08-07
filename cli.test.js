@@ -10,10 +10,7 @@ const KernelV2 = require('./kernel.v2');
 const Dream = require('./dream');
 const { createAgent } = require('./agentRuntime');
 
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 function freshCLI(kernelOpts = {}) {
   const cli = new CLI();

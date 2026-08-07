@@ -7,10 +7,7 @@ const path = require('node:path');
 const Kernel = require('../kernel');
 
 const repoRoot = path.resolve(__dirname, '..');
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 function makeTempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));

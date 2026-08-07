@@ -6,10 +6,7 @@ const path = require('path');
 const Kernel = require('../kernel');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-semantic-negation-'));
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 after(() => {
   fs.rmSync(tempDir, { recursive: true, force: true });

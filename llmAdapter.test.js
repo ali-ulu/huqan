@@ -3,10 +3,7 @@ const assert = require('node:assert');
 const LLMAdapter = require('./llmAdapter');
 const Kernel = require('./kernel');
 
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 function learnFixture(kernel, text, opts = {}) {
   return kernel.learn(text, { ...opts, ...TEST_FIXTURE_LEARN_BYPASS });

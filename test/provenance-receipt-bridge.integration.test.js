@@ -14,10 +14,7 @@ const {
 } = require('../lib/provenance-query');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-provenance-receipt-bridge-'));
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 after(() => {
   try {

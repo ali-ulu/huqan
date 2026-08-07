@@ -3,10 +3,7 @@ const assert = require('node:assert');
 const Kernel = require('./kernel');
 const Dream = require('./dream');
 
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 function fresh() {
   const k = new Kernel({ noLoad: true });

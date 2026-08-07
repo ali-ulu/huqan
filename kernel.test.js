@@ -2,10 +2,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const Kernel = require('./kernel');
 
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 // Test için temiz kernel — memory.json yüklemez
 function freshKernel(opts = {}) {
@@ -406,5 +403,87 @@ describe('Kernel - Dream hypothesis regressions', () => {
     assert.strictEqual(result.ok, true);
     assert.deepStrictEqual(result.data.ozBilgi.rüya, { var: true, kenar: 0 });
     assert.strictEqual(Object.hasOwn(result.data.ozBilgi, 'r?ya'), false);
+  });
+});
+
+describe('Kernel - admission bypass unforgeability (#357)', () => {
+  // The admission bypass used to be gated on two plain, string-keyed opts
+  // fields (`admissionRequired === false` + a non-empty
+  // `admissionBypassReason`). Any caller of the public learn() method --
+  // including code that spreads decoded, untrusted JSON straight into opts
+  // -- could produce that exact shape and walk past the memory-admission
+  // gate entirely. It is now gated on a module-private Symbol that only
+  // kernel.js can mint, exposed exclusively through
+  // Kernel.createAdmissionBypassOpts(reason).
+
+  it('the exact pre-fix literal shape no longer bypasses admission', () => {
+    const kernel = new Kernel({ noLoad: true, loadPlugins: false });
+    const result = kernel.learn('kopek hayvandir', {
+      workspaceId: 'default',
+      admissionRequired: false,
+      admissionBypassReason: 'anything, even a very convincing reason',
+    });
+
+    assert.strictEqual(result.data.learned, 0);
+    assert.strictEqual(result.data.admission.outcome, 'review');
+    assert.deepStrictEqual(Object.keys(kernel.graph.getNodes('default')), []);
+  });
+
+  it('an object claiming a different Symbol under the same key name does not bypass', () => {
+    // Guards against a caller trying to defeat the check by shipping its own
+    // Symbol('...') with a similar description string. Symbol identity, not
+    // description text, is what the check requires.
+    const kernel = new Kernel({ noLoad: true, loadPlugins: false });
+    const forgedToken = Symbol('axiom-kernel-internal-admission-bypass');
+    const result = kernel.learn('kus ucmaz', {
+      workspaceId: 'default',
+      [forgedToken]: true,
+      admissionBypassReason: 'forged',
+    });
+
+    assert.strictEqual(result.data.learned, 0);
+    assert.strictEqual(result.data.admission.outcome, 'review');
+  });
+
+  it('surviving a JSON round-trip strips the bypass authority', () => {
+    const kernel = new Kernel({ noLoad: true, loadPlugins: false });
+    const genuine = Kernel.createAdmissionBypassOpts('genuinely internal');
+    const overWire = JSON.parse(JSON.stringify({ workspaceId: 'default', ...genuine }));
+
+    const result = kernel.learn('balik yuzer', overWire);
+
+    assert.strictEqual(result.data.learned, 0);
+    assert.strictEqual(result.data.admission.outcome, 'review');
+  });
+
+  it('Object.assign/spread of a genuine bypass object still bypasses (own callers keep working)', () => {
+    const kernel = new Kernel({ noLoad: true, loadPlugins: false });
+    const genuine = Kernel.createAdmissionBypassOpts('legit internal caller');
+    const result = kernel.learn('deniz mavidir', { workspaceId: 'default', ...genuine });
+
+    assert.strictEqual(result.ok, true);
+    assert.ok(result.data.learned > 0);
+    assert.strictEqual(result.data.admission, null);
+  });
+
+  it('createAdmissionBypassOpts requires a non-empty string reason', () => {
+    assert.throws(() => Kernel.createAdmissionBypassOpts(), TypeError);
+    assert.throws(() => Kernel.createAdmissionBypassOpts(''), TypeError);
+    assert.throws(() => Kernel.createAdmissionBypassOpts('   '), TypeError);
+    assert.throws(() => Kernel.createAdmissionBypassOpts(42), TypeError);
+    assert.throws(() => Kernel.createAdmissionBypassOpts(null), TypeError);
+  });
+
+  it('reasonSandbox (the one legitimate internal-bootstrap bypass) still works', async () => {
+    const kernel = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+    const { backend, answers } = await kernel.reasonSandbox({
+      learn: ['kedi hayvandir'],
+      ask: ['kedi nedir'],
+    });
+    assert.ok(['rust', 'js'].includes(backend));
+    assert.strictEqual(answers.length, 1);
+    // The sandbox graph is ephemeral and never touches kernel.graph, so this
+    // only proves the bypass still functions for its one legitimate
+    // caller -- not that anything was written to the canonical graph.
   });
 });
