@@ -11,8 +11,8 @@ memory.db-wal
 test_memory.db
 *.log
 .env
-demo-sonuc.json
-tbk-demo.js
-tbk-kira.js
+# Local developer scratch files — use these prefixes for personal test output
+local-*.json
+local-*.js
 backups/
 obsidian-plugin/dist/
