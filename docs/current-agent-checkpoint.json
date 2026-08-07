@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "repository": "ali-ulu/huqan",
   "baselineBranch": "main",
-  "canonicalMain": "e02eb03e79e10d6bc65e02322febe5eb2fd15055",
+  "canonicalMain": "c6780ebef77a54511fc4906332f98958f50af9fc",
   "worktreePolicy": "REPORT_ONLY",
-  "observedAt": "2026-08-07T15:20:00+03:00",
+  "observedAt": "2026-08-07T17:15:00+03:00",
   "program": "V4 Workbench runtime evidence",
   "completedEvidence": [
     "Receipt trust-root foundation and bounded external-client evidence program closed without production external-client route enablement",
@@ -36,7 +36,6 @@
     "PR #301 exact head 2c02879f8076e07678c4a5f0610f3a329e382900 passed Security Checks run 31040031226, Benchmark Regression run 31040031538 and full npm test job 92421841117; it changed only the WB2 audit-source adapter and its test so padded or non-string recordId/workspaceId values fail before any audit-owner read; it merged as main 725dbba334a786f051d5753764088e3b5338c54c",
     "PR #303 changed only kernel.js, lib/learn-use-case.js and test/derived-edge-receipt.test.js to attach the parent admission receipt to derived-edge audits, closed issue #214, and merged as main 7304ed8622b706ffc662892948fb097dcebbaee8 without touching the authorized V4-B2B implementation files",
     "The V4-B2B authorization remains source-compatible because PRs #300, #302, #301 and #303 do not modify lib/ingest.js, server.js, package.json or the authorized new module/test paths",
-    "V4-B2, V4-B3, V4-B5 and V5 completion remain open and unclaimed",
     "Live source review found the existing V4-B2A characterization test requires non-default workspace queueing and omitted snapshot workspace, which directly conflicts with the authorized canonical-default repair; the necessary sixth test owner is therefore source-backed and explicitly authorized",
     "PR #520 implemented the authorized V4-B2B repair at exact head 99847901411128b1a0515ed5da23589206716f06 and emitted V4_B2_INGEST_APPROVAL_AUTHORITY_REPAIR_SUFFICIENT",
     "PR #520 exact-head Security Checks run 31181386576, Benchmark Regression run 31181386707 (full npm test on Node 20 and Node 22 plus Docker build) and Architecture Checks run 31181386832 all completed successfully",
@@ -48,7 +47,9 @@
     "The V4-B2B exact base was refreshed from 6a16a40 to live main after verifying lib/ingest.js, the B2A test and lib/workbench/ were unchanged, package.json moved only inside its files allowlist, and server.js changed only through route-auth centralization with ingest routes already declared",
     "server.test.js was added as an authorized seventh file under a source-backed scope amendment because two of its assertions pinned the superseded plugin_execution_returned and state_transition_not_asserted labels",
     "Source audit found exportMaterializedReceiptBundle in lib/receipt/receipt-read-index.js has zero production callers; its only caller is test/v4-receipt-materialization-read-index.test.js, which is the V4-B3 gap",
-    "V4-B3, V4-B5 and V5 completion remain open and unclaimed"
+    "V4-B3, V4-B5 and V5 completion remain open and unclaimed",
+    "PR #520 exact-head Security Checks run 31181386576 executed the pre-#510 workflow, which tolerated npm ci and npm audit failures and skipped scanning when no scanner was present; it is recorded as lifecycle evidence, not as hardened security evidence",
+    "PR #510 merged as main 30e7dc7 and replaced that workflow with fail-hard gitleaks and Semgrep enforcement; V4-B2 runtime evidence is re-attested only by a check run on or after that merge"
   ],
   "nextGate": "V4_B3_RECEIPT_EXPORT_USER_FLOW_AUTHORIZATION",
   "status": "AUTHORIZATION_REQUIRED_BEFORE_IMPLEMENTATION",
@@ -65,11 +66,14 @@
   "notes": [
     "Live source, exact Git SHA, tests and CI outrank this checkpoint.",
     "V4-B2 is closed by PR #520; no V4-B3, V4-B5 or V4 completion claim follows from it.",
+    "PR #520 Security Checks ran the pre-#510 fail-open workflow, so it is lifecycle evidence only; hardened attestation comes only from check runs on or after PR #510 merged as 30e7dc7.",
     "The next successor writes a V4-B3 authorization task-pack before any code.",
-    "That task-pack must decide the export surface and method, the bounded workspace authority, whether a bundle is verified before it is returned, the redaction policy for a bundle that may leave the local trust boundary, and the response size ceiling.",
-    "exportMaterializedReceiptBundle and verifyExportedBundle already exist and are proved by tests; V4-B3 is a reachability and product-decision gap, not a missing primitive.",
+    "The five B3 product decisions are already settled and the task-pack records them: one authenticated read-only Workbench HTTP route; canonical default workspace only; mandatory verifyExportedBundle before any response; NO redaction in B3; and mandatory count plus serialized-byte ceilings that fail closed rather than returning a partial bundle.",
+    "B3 exports an internal, full trust artifact. Public-safe and redacted receipt formats are V5-PR3 work (issue #276). Canonical receipt content including metadata participates in hash semantics, so stripping fields during a B3 export would break chain validation or amount to defining a new public receipt format.",
+    "The task-pack must justify its own ceiling numbers; the roadmap mandates that ceilings exist, not what they are.",
+    "exportMaterializedReceiptBundle and verifyExportedBundle already exist and are proved by tests; V4-B3 is a reachability gap, not a missing primitive.",
     "The user-reachable receipt surface today is read-only: GET /api/trust-receipt, GET /api/trust-receipt/:receiptId and GET /api/workbench/trust-receipt/:receiptId, plus a receipt-exporter plugin that writes single receipts to files rather than a chain-validated bundle.",
-    "No read-surface widening, dependency addition or V4 closure claim is authorized while writing that task-pack.",
+    "No read-surface widening, dependency addition, redaction design or V4 closure claim is authorized while writing that task-pack.",
     "Local bootstrap, node scripts/agent-context.js, worktree checks, local JSON parse, package dry-run and Graphify remain unverified in the connector-only environment."
   ]
 }

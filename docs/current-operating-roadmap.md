@@ -1,7 +1,7 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`e02eb03e79e10d6bc65e02322febe5eb2fd15055` (PR #520 V4-B2B implementation merge).
+`c6780ebef77a54511fc4906332f98958f50af9fc` (PR #522 merge).
 
 Live source, exact Git SHA, tests and CI outrank this compact execution source.
 Detailed history remains in merged PRs, task-packs and audit evidence.
@@ -240,12 +240,19 @@ V4_B2_INGEST_APPROVAL_AUTHORITY_REPAIR_SUFFICIENT
 Controlling exact-head evidence:
 
 - head `99847901411128b1a0515ed5da23589206716f06`;
-- Security Checks run `31181386576`: `SUCCESS`;
 - Benchmark Regression run `31181386707`: `SUCCESS`, including full `npm test`
   on Node 20 and Node 22 and the Docker build;
 - Architecture Checks run `31181386832`: `SUCCESS`;
 - zero unresolved review threads;
 - merge/live main `e02eb03e79e10d6bc65e02322febe5eb2fd15055`.
+
+Security-evidence limitation: PR #520's Security Checks run `31181386576`
+executed the pre-#510 workflow, which tolerated `npm ci` and `npm audit`
+failures and skipped scanning when no scanner was present. It is recorded as
+lifecycle evidence only and is deliberately not claimed as hardened security
+evidence. PR #510 merged as `30e7dc7` and replaced that workflow with fail-hard
+gitleaks and Semgrep enforcement, so hardened attestation of the V4-B2 runtime
+comes only from check runs on or after that merge.
 
 Both proved gaps are repaired:
 
@@ -298,13 +305,35 @@ The user-reachable receipt surface today is read-only:
   `afterLearn` rather than emitting a chain-validated bundle.
 
 This is the same shape V4-B1 resolved for WB2: a sufficient source owner with no
-route. V4-B3 therefore needs an authorization task-pack before code, deciding at
-minimum the export surface and method, the bounded workspace authority, whether
-export is verified before it is returned, the redaction policy for a bundle that
-may leave the local trust boundary, and the response size ceiling.
+route. V4-B3 therefore needs an authorization task-pack before code.
 
-A successor must not widen the read surface, add a dependency or claim V4
-closure while writing that task-pack.
+### Decided B3 product contract
+
+These five decisions are settled and the task-pack records rather than reopens
+them:
+
+1. **Surface.** One authenticated, read-only Workbench HTTP route. No CLI, MCP
+   or UI surface, because B3 is positioned as the Workbench real-user flow.
+2. **Workspace.** Canonical `default` only. This follows the permanent ordering
+   rule below: no non-default or caller-selected HTTP workspace authority.
+3. **Verification.** `verifyExportedBundle()` runs after
+   `exportMaterializedReceiptBundle()` and before any response is written. A
+   failed verification returns no bundle at all.
+4. **Redaction: none in B3.** The exported bundle stays an internal, full trust
+   artifact. Public-safe and redacted receipt formats are V5-PR3 work
+   (`[V5-C4] Public-safe Trust Receipt schema and redaction policy`, issue
+   #276). This boundary is not stylistic: canonical receipt content including
+   `metadata` participates in the hash semantics, so stripping fields during a
+   B3 export would either break chain validation or amount to defining a new
+   public receipt format — which is exactly the V5 deliverable.
+5. **Bounded response.** A receipt count ceiling and a serialized-byte ceiling
+   are both mandatory and must be fixed in the task-pack. Exceeding either fails
+   closed; a partial bundle is never returned. The roadmap does not mandate
+   specific numbers — whatever the task-pack fixes must carry its own
+   justification and must not be presented as a roadmap requirement.
+
+A successor must not widen the read surface, add a dependency, design a
+redaction policy or claim V4 closure while writing that task-pack.
 
 ## Remaining execution order
 
