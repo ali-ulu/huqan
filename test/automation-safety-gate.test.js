@@ -95,6 +95,53 @@ describe('AB5 automation safety gate core decisions', () => {
     assert.equal(result.reason, AUTOMATION_SAFETY_REASONS.LOW_RISK_CI_INSPECTION);
   });
 
+  it('an unclassified operation is not waved through as read-only merely because unrelated words contain "read" (#450)', () => {
+    // 'already' and 'ready' both contain the READ_ONLY hint 'read' as a
+    // substring, with no other hint word present anywhere in the text. A
+    // naive .includes() match would classify this unrecognized, potentially
+    // mutating operation as LOW_RISK_READ_ONLY / ALLOW purely from that
+    // incidental substring, instead of falling through to review.
+    const result = evaluate({
+      operationType: 'execute_task',
+      target: 'already indexed, ready to run script',
+    });
+
+    assert.notEqual(result.decision, AUTOMATION_SAFETY_DECISIONS.ALLOW);
+    assert.equal(result.reason, AUTOMATION_SAFETY_REASONS.UNKNOWN_OPERATION_REVIEW_REQUIRED);
+  });
+
+  it('an unclassified operation whose text contains "checkout" is not read as the "check" hint (#450)', () => {
+    // 'checkout' contains the READ_ONLY hint 'check' as a substring, with no
+    // other hint word present.
+    const result = evaluate({
+      operationType: 'execute_task',
+      target: 'run checkout script for staging environment',
+    });
+
+    assert.notEqual(result.decision, AUTOMATION_SAFETY_DECISIONS.ALLOW);
+    assert.equal(result.reason, AUTOMATION_SAFETY_REASONS.UNKNOWN_OPERATION_REVIEW_REQUIRED);
+  });
+
+  it('"bread crumbs" style substrings of a hint word do not trigger the hint', () => {
+    const result = evaluate({
+      operationType: 'status_check',
+      target: 'show bread crumbs navigation status',
+    });
+
+    assert.equal(result.decision, AUTOMATION_SAFETY_DECISIONS.ALLOW);
+    assert.equal(result.reason, AUTOMATION_SAFETY_REASONS.LOW_RISK_READ_ONLY);
+  });
+
+  it('a genuine read-only status check with the real word "read" still allows', () => {
+    const result = evaluate({
+      operationType: 'status_check',
+      target: 'read pull request status',
+    });
+
+    assert.equal(result.decision, AUTOMATION_SAFETY_DECISIONS.ALLOW);
+    assert.equal(result.reason, AUTOMATION_SAFETY_REASONS.LOW_RISK_READ_ONLY);
+  });
+
   it('unknown operation does not allow', () => {
     const result = evaluate({
       operationType: 'unknown',
