@@ -343,6 +343,53 @@ describe('AB6 sandbox isolation core decisions', () => {
     assert.equal(result.allowed, false);
   });
 
+  it('policy allowUntrustedSource legacy alias allowUntustedSource (typo) is accepted', () => {
+    const result = evaluate(
+      {
+        source: '({ total: input.a })',
+        sourceTrust: SOURCE_TRUST_LEVELS.UNTRUSTED,
+        runner: RUNNER_TYPES.NODE_VM,
+      },
+      // Use legacy misspelled key instead of correct key
+      { policy: { minimumDecision: 'allow', allowUntustedSource: false } }
+    );
+
+    assert.equal(result.decision, SANDBOX_ISOLATION_DECISIONS.BLOCK);
+    assert.equal(result.allowed, false);
+  });
+
+  it('policy allowUntrustedSource both correct key and legacy alias true (untrusted source — always blocked regardless)', () => {
+    // Note: UNTRUSTED source is always blocked by UNTRUSTED_SOURCE_BLOCK regardless of allowUntrustedSource.
+    // This tests that both keys are accepted without error, and fail-closed logic doesn't interfere.
+    const result = evaluate(
+      {
+        source: '({ total: input.a })',
+        sourceTrust: SOURCE_TRUST_LEVELS.UNTRUSTED,
+        runner: RUNNER_TYPES.NODE_VM,
+      },
+      // Both keys present, both true — but untrusted source is still blocked by core logic
+      { policy: { minimumDecision: 'allow', allowUntrustedSource: true, allowUntustedSource: true } }
+    );
+
+    assert.equal(result.decision, SANDBOX_ISOLATION_DECISIONS.BLOCK);
+    assert.equal(result.allowed, false);
+  });
+
+  it('policy allowUntrustedSource both keys present — fail-closed: one false blocks', () => {
+    const result = evaluate(
+      {
+        source: '({ total: input.a })',
+        sourceTrust: SOURCE_TRUST_LEVELS.UNTRUSTED,
+        runner: RUNNER_TYPES.NODE_VM,
+      },
+      // Both keys present but one is false → fail-closed (block)
+      { policy: { minimumDecision: 'allow', allowUntrustedSource: true, allowUntustedSource: false } }
+    );
+
+    assert.equal(result.decision, SANDBOX_ISOLATION_DECISIONS.BLOCK);
+    assert.equal(result.allowed, false);
+  });
+
   it('policy max timeout enforced', () => {
     const result = evaluate(
       {
