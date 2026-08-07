@@ -6,6 +6,7 @@ const os = require('os');
 const path = require('path');
 const Graph = require('./graph');
 const { rateLimitMap } = require('./requestGuards');
+const { ACTION_OUTCOMES } = require('./lib/workbench/ingest-approval-action');
 
 let PORT;
 let BASE;
@@ -435,7 +436,13 @@ describe('Server - API', () => {
     assert.ok(rejectedJson.auditRef);
   });
 
-  it('POST /api/ingest persists an approved receipt without asserting graph state persistence', async () => {
+  // V4-B2B scope amendment: this case previously pinned the superseded
+  // `plugin_execution_returned` / `state_transition_not_asserted` labels. The
+  // bounded action owner now derives a real outcome from the admission summary
+  // and observed Graph evidence, so only those two labels change here. The
+  // receipt-kind, snapshot-hash, result-ref and idempotent-replay coverage is
+  // unchanged.
+  it('POST /api/ingest persists an approved receipt with a bounded action outcome', async () => {
     const payload = {
       sourceType: 'manual', author: 'queue-test', date: '2026-07-28',
       text: 'queue approved sentinel hayvandir', idempotencyKey: 'queue-approved-sentinel',
@@ -451,8 +458,9 @@ describe('Server - API', () => {
     assert.strictEqual(approved.status, 200);
     const approvedJson = await approved.json();
     assert.equal(approvedJson.receipt.receiptKind, 'reviewed_action_receipt');
-    assert.equal(approvedJson.receipt.actionExecution, 'plugin_execution_returned');
-    assert.equal(approvedJson.receipt.actionOutcome, 'state_transition_not_asserted');
+    assert.equal(approvedJson.receipt.actionExecution, 'ingest_capability_executed');
+    assert.ok(ACTION_OUTCOMES.includes(approvedJson.receipt.actionOutcome));
+    assert.notEqual(approvedJson.receipt.actionOutcome, 'execution_outcome_unknown');
     assert.equal(approvedJson.receipt.metadata.snapshotHash, queuedJson.approval.snapshotHash);
     assert.match(approvedJson.receipt.metadata.pluginResultRef, /^sha256:/);
 

@@ -6,7 +6,7 @@ const CLI = require('./cli');
 const { evaluateLlmSor } = require('./lib/shield');
 const { handleIngest, buildIngestApprovalSnapshot, sha256 } = require('./lib/ingest');
 const AxiomStorage = require('./storage');
-const { buildReviewedActionReceipt, buildBlockedActionReceipt } = require('./lib/approval-flow');
+const { decideIngestApproval } = require('./lib/workbench/ingest-approval-action');
 const {
   buildTrustReceipt,
   queryAuditTrail,
@@ -82,6 +82,8 @@ function publicIngestApproval(record) {
   };
 }
 
+// The workspace comes from the immutable snapshot the action owner validated,
+// never from decision-request bytes and never from a hard-coded fallback.
 function recordIngestApprovalAudit(approval, receipt, result = null) {
   const snapshot = approval.context?.snapshot || {};
   const resultRef = result ? sha256(result) : '';
@@ -93,9 +95,10 @@ function recordIngestApprovalAudit(approval, receipt, result = null) {
       receipt,
       snapshotHash: snapshot.snapshotHash || '',
       pluginResultRef: resultRef,
-      executionGuarantee: 'approval_lifecycle_only',
+      actionOutcome: receipt.actionOutcome || '',
+      executionGuarantee: 'bounded_action_outcome',
     },
-  }, { workspaceId: 'default' });
+  }, { workspaceId: snapshot.workspaceId });
 }
 
 // --- Güvenlik sabitleri ---
@@ -1213,93 +1216,23 @@ const server = http.createServer(async (req, res) => {
     try {
       const store = getIngestApprovalStore();
       recoverExpiredIngestApprovals(store);
-      const approval = store.getToolApprovalById(approvalId);
-      if (!approval || approval.tool !== 'http.ingest') {
-        writeApiError(req, res, 404, 'APPROVAL_NOT_FOUND', 'Ingest approval was not found.');
-        return;
-      }
-      if (approval.status === 'approved' || approval.status === 'rejected') {
-        writeJson(req, res, 200, { ok: true, idempotent: true, approval: publicIngestApproval(approval) }, { 'Cache-Control': 'no-cache' });
-        return;
-      }
-      if (decision === 'rejected') {
-        const receipt = buildBlockedActionReceipt({
-          approvalId, workspaceId: 'default', actor: 'http-api', actionType: 'ingest', toolName: 'http.ingest',
-          requestedVerdict: 'review', reason: 'http_ingest_rejected', createdAt: new Date().toISOString(),
-        }, { metadata: { snapshotHash: approval.context?.snapshot?.snapshotHash || '', reviewer: 'http-api', auditRefs: [] } });
-        const rejected = store.finalizeToolApprovalWithReceipt(approvalId, {
-          expectedStatus: 'pending', decision: 'rejected', reason: 'http_ingest_rejected', receipt,
-        });
-        if (!rejected.finalized) {
-          writeApiError(req, res, 409, 'APPROVAL_DECISION_CONFLICT', 'Approval is no longer pending.');
-          return;
-        }
-        const finalApproval = rejected.approval;
-        let auditRef = '';
-        try { auditRef = recordIngestApprovalAudit(finalApproval, receipt).auditId; } catch (error) { console.error('[ingest-approval-audit] failed:', error); }
-        writeJson(req, res, 200, { ok: true, approval: publicIngestApproval(finalApproval), receipt, auditRef }, { 'Cache-Control': 'no-cache' });
-        return;
-      }
-      const claim = store.claimToolApprovalWithLease(approvalId, {
-        owner: INGEST_APPROVAL_WORKER_ID,
+      const outcome = await decideIngestApproval({
+        store,
+        kernel: cli.kernel,
+        approvalId,
+        decision,
+        handleIngest,
+        ensureRuntime: ensureCompanyRuntime,
+        recordAudit: recordIngestApprovalAudit,
+        toPublicApproval: publicIngestApproval,
+        workerId: INGEST_APPROVAL_WORKER_ID,
         leaseMs: INGEST_APPROVAL_LEASE_MS,
-        reason: 'http_ingest_execution_claimed',
       });
-      if (!claim.claimed) {
-        writeApiError(req, res, 409, 'APPROVAL_EXECUTION_IN_PROGRESS', 'Approval is already claimed or not pending.');
+      if (outcome.error) {
+        writeApiError(req, res, outcome.status, outcome.error.code, outcome.error.message);
         return;
       }
-      const executing = claim.approval;
-      const snapshot = executing.context?.snapshot;
-      if (!snapshot || sha256(snapshot.payload) !== snapshot.snapshotHash) {
-        store.failToolApproval(approvalId, 'snapshot_integrity_mismatch');
-        writeApiError(req, res, 409, 'SNAPSHOT_INTEGRITY_MISMATCH', 'Queued ingest snapshot no longer validates.');
-        return;
-      }
-      let result;
-      let leaseLost = false;
-      const leaseHeartbeat = setInterval(() => {
-        try {
-          const renewal = store.renewToolApprovalLease(approvalId, INGEST_APPROVAL_WORKER_ID, INGEST_APPROVAL_LEASE_MS);
-          if (!renewal.renewed) leaseLost = true;
-        } catch (_) {
-          leaseLost = true;
-        }
-      }, Math.max(5_000, Math.floor(INGEST_APPROVAL_LEASE_MS / 2)));
-      leaseHeartbeat.unref?.();
-      try {
-        result = await handleIngest({ kernel: cli.kernel, data: snapshot.payload, ensureRuntime: ensureCompanyRuntime });
-      } catch (error) {
-        store.failToolApproval(approvalId, `execution_outcome_unknown:${error.code || error.name || 'error'}`);
-        throw error;
-      } finally {
-        clearInterval(leaseHeartbeat);
-      }
-      if (leaseLost) {
-        writeApiError(req, res, 409, 'APPROVAL_LEASE_LOST', 'Plugin execution returned after its approval lease was lost; manual reconciliation is required.');
-        return;
-      }
-      if (!result || result.ok === false) {
-        store.failToolApproval(approvalId, 'execution_outcome_unknown:result_not_ok');
-        writeApiError(req, res, 409, 'INGEST_EXECUTION_FAILED', 'Approved ingest did not complete; manual reconciliation is required.');
-        return;
-      }
-      const receipt = buildReviewedActionReceipt({
-        approvalId, workspaceId: 'default', actor: 'http-api', actionType: 'ingest', toolName: 'http.ingest',
-        requestedVerdict: 'review', reason: 'http_ingest_executed', createdAt: new Date().toISOString(),
-      }, { metadata: { snapshotHash: snapshot.snapshotHash, reviewer: 'http-api', pluginResultRef: sha256(result), auditRefs: [] } });
-      receipt.actionExecution = 'plugin_execution_returned';
-      receipt.actionOutcome = 'state_transition_not_asserted';
-      const finalized = store.finalizeToolApprovalWithReceipt(approvalId, {
-        expectedStatus: 'executing', decision: 'approved', reason: 'http_ingest_executed', receipt,
-      });
-      if (!finalized.finalized) {
-        writeApiError(req, res, 409, 'APPROVAL_FINALIZATION_CONFLICT', 'Plugin execution returned, but approval finalization requires reconciliation.');
-        return;
-      }
-      let auditRef = '';
-      try { auditRef = recordIngestApprovalAudit(finalized.approval, receipt, result).auditId; } catch (error) { console.error('[ingest-approval-audit] failed:', error); }
-      writeJson(req, res, 200, { ok: true, approval: publicIngestApproval(finalized.approval), result, receipt, auditRef }, { 'Cache-Control': 'no-cache' });
+      writeJson(req, res, outcome.status, outcome.json, { 'Cache-Control': 'no-cache' });
     } catch (error) {
       console.error('[ingest-approval] failed:', error);
       writeApiError(req, res, 500, 'INGEST_APPROVAL_FAILED', 'Ingest approval failed; inspect unresolved approvals.');
@@ -1319,7 +1252,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const snapshot = buildIngestApprovalSnapshot(data);
       if (!snapshot.ok) {
-        writeApiError(req, res, 409, snapshot.code || 'INGEST_SNAPSHOT_REQUIRED', snapshot.error || 'Ingest cannot be queued safely.');
+        writeApiError(req, res, snapshot.code === 'INGEST_WORKSPACE_UNSUPPORTED' ? 400 : 409, snapshot.code || 'INGEST_SNAPSHOT_REQUIRED', snapshot.error || 'Ingest cannot be queued safely.');
         return;
       }
       const store = getIngestApprovalStore();
