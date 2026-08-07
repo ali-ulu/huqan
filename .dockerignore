@@ -1,14 +1,59 @@
+# Version control and CI
 .git
 .github
+.gitignore
+.gitattributes
+
+# Dependencies (installed inside the image)
 node_modules
-backups
+
+# Runtime data (mounted as volumes, never baked in)
 memory.json
 memory.db
 memory.db-shm
 memory.db-wal
 memory.embeddings.json
+memory.mutations.json
+agent.memory.json
+*.agent.json
 test_memory.db
+backups
+receipts
+
+# Tests and development-only artifacts
+test
+**/*.test.js
+benchmarks
+evidence
+
+# Documentation and design notes
+docs
+*.md
+!README.md
+NOTICE
+LICENSE
+THREAT_MODEL.md
+CHANGELOG.md
+CODEOWNERS
+CONTRIBUTING.md
+AGENTS.md
+
+# Sub-projects that are not part of the server runtime
+obsidian-plugin
+axiom-core
+demo
+
+# Editor / local tooling
+.kiro
+.editorconfig
+.eslintrc*
+.tsconfig.json
+*.log
+.env
+
+# Local developer scratch (see .gitignore)
+local-*.json
+local-*.js
 demo-sonuc.json
 tbk-demo.js
 tbk-kira.js
-.kiro
