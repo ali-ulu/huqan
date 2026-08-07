@@ -19,6 +19,7 @@ function resolveRustBin() {
 }
 
 const RUST_BIN = resolveRustBin();
+const RUST_REQUEST_TIMEOUT_MS = 10000;
 
 class RustGraph {
   constructor(opts) {
@@ -31,6 +32,9 @@ class RustGraph {
     this._nextId = 1;
     this._ready = false;
     this._buf = '';
+    this._requestTimeoutMs = Number.isFinite(opts.requestTimeoutMs) && opts.requestTimeoutMs > 0
+      ? opts.requestTimeoutMs
+      : RUST_REQUEST_TIMEOUT_MS;
   }
 
   _start() {
@@ -86,6 +90,12 @@ class RustGraph {
         resolve(this._fallback);
         return;
       }
+      if (!this._proc || !this._proc.stdin) {
+        // Process died between _start() and here (async 'exit'/'error');
+        // don't crash on a write to a torn-down stdin (#373).
+        resolve({ ok: false, error: 'process_unavailable' });
+        return;
+      }
       const reqId = this._nextId++;
       cmd._reqId = reqId;
       // The process/streams are unref()'d at spawn time so an idle bridge
@@ -96,7 +106,20 @@ class RustGraph {
       this._proc.ref();
       this._proc.stdin.ref();
       this._proc.stdout.ref();
-      this._pending.set(reqId, resolve);
+      // Guard against a Rust process that never replies (hang/deadlock): without
+      // this, a caller's await would block forever (#373).
+      const timer = setTimeout(() => {
+        if (this._pending.has(reqId)) {
+          this._pending.delete(reqId);
+          this._unrefIfIdle();
+          resolve({ ok: false, error: 'request_timeout' });
+        }
+      }, this._requestTimeoutMs);
+      if (typeof timer.unref === 'function') timer.unref();
+      this._pending.set(reqId, (parsed) => {
+        clearTimeout(timer);
+        resolve(parsed);
+      });
       this._proc.stdin.write(JSON.stringify(cmd) + '\n');
     });
   }
