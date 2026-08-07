@@ -36,3 +36,28 @@ for (const entry of cases) {
     assert.equal(nlp.normalize(entry.subject), entry.subject);
   });
 }
+
+// Regression for #433: Turkish words that only use ö/ü (shared with German)
+// must NOT be misdetected as German. German requires ä/ß or German hint words.
+test('auto-detect does not misclassify Turkish ö/ü words as German (#433)', () => {
+  const nlp = createNlp('auto');
+  const turkishSharedOu = ['güneş', 'göz', 'üzüm', 'öğretmen', 'gül', 'önce'];
+  for (const word of turkishSharedOu) {
+    assert.equal(nlp.detectLanguage(word), 'tr', `expected '${word}' to be tr`);
+  }
+});
+
+test('auto-detect still recognizes German via ä/ß and hint words', () => {
+  const nlp = createNlp('auto');
+  // ä and ß are German-specific
+  assert.equal(nlp.detectLanguage('der Mann ist groß'), 'de');
+  assert.equal(nlp.detectLanguage('über München älter'), 'de');
+  // German hint words without ä/ß/ö/ü
+  assert.equal(nlp.detectLanguage('der die das ist sind'), 'de');
+});
+
+test('auto-detect recognizes Turkish via ç/ğ/ı/ş and hint words', () => {
+  const nlp = createNlp('auto');
+  assert.equal(nlp.detectLanguage('çocuk şeker yiyor'), 'tr');
+  assert.equal(nlp.detectLanguage('ve bir için gibi'), 'tr');
+});

@@ -91,7 +91,20 @@ function getCommits(repoPath, options = {}) {
     `--pretty=format:%H${FIELD_SEP}%an${FIELD_SEP}%ae${FIELD_SEP}%aI${FIELD_SEP}%s${FIELD_SEP}%b${RECORD_SEP}`,
   ];
   if (options.since) args.push(`--since=${options.since}`);
-  if (options.branch) args.push(String(options.branch));
+  if (options.branch) {
+    // Guard against arg injection: a branch name that starts with '-' would be
+    // interpreted as a git flag (e.g. --system / -e). Reject anything that is
+    // not a plausible refname. This is intentionally permissive about slashes,
+    // dots, dashes and alphanumerics, but rejects leading dashes and shells.
+    const branch = String(options.branch);
+    if (!/^[A-Za-z0-9][A-Za-z0-9/._-]*$/.test(branch)) {
+      throw Object.assign(
+        new Error(`git-log-adapter: invalid branch name "${branch}" (must match /^[A-Za-z0-9][A-Za-z0-9/._-]*$/)`),
+        { code: 'GIT_LOG_INVALID_BRANCH' }
+      );
+    }
+    args.push(branch);
+  }
   if (options.pathFilter) args.push('--', String(options.pathFilter));
 
   const raw = execFileSync('git', args, { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
