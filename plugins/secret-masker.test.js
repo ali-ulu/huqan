@@ -17,6 +17,11 @@ test('secret-masker: finds a Bearer token', () => {
 });
 
 test('secret-masker: finds an AWS access key and a GitHub token', () => {
+  // The AKIA... string below is a deliberately fake fixture: it is the input
+  // that proves the aws_access_key detector fires. Semgrep's secret rules
+  // cannot distinguish a detector's own test vector from a real leak, so the
+  // rule is suppressed here specifically rather than repo-wide.
+  // nosemgrep: generic.secrets.security.detected-aws-access-key-id-value.detected-aws-access-key-id-value
   assert.equal(findSecretsInText('key AKIAABCDEFGHIJKLMNOP here').some((f) => f.type === 'aws_access_key'), true);
   assert.equal(findSecretsInText('token ghp_abcdefghijklmnopqrstuvwxyz0123').some((f) => f.type === 'github_token'), true);
 });
