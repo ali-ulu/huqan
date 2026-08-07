@@ -7,6 +7,7 @@ const test = require('node:test');
 
 const PackageKernel = require('..');
 const Kernel = require('../kernel');
+const { withoutNestedMember, nestedMemberBody } = require('./helpers/kernel-declaration');
 
 const FACADE_METHODS = Object.freeze([
   'learn', 'ask', 'verify', 'reason', 'compare', 'dream',
@@ -85,8 +86,19 @@ test('kernel.d.ts aligned with graph/memory surfaces', () => {
   assert.match(declaration, /export interface NormalizedAuditEvent\s*\{/);
   assert.match(declaration, /export type CliMutationAuditResult\s*=\s*Readonly<\{/);
   assert.match(kd, /\brecordCliMutationAudit\(intent\s*:\s*CliMutationAuditIntent\)\s*:\s*CliMutationAuditResult\s*;/);
-  assert.doesNotMatch(kd, /\bappendAuditEvent\s*\(/);
-  assert.doesNotMatch(kd, /\b_appendAuditEvent\s*\(/);
+
+  // The guarantee is about the Kernel's own surface. kernel.graph
+  // .appendAuditEvent is a real runtime method (graph.js defines it,
+  // agent.v3.js calls it), so the widened graph typing legitimately declares
+  // it; matching the bare substring over the whole class body conflated the
+  // two objects. Assert on each surface separately instead.
+  const kernelOwnSurface = withoutNestedMember(kd, 'graph');
+  assert.doesNotMatch(kernelOwnSurface, /\bappendAuditEvent\s*\(/,
+    'Kernel itself must not expose a public audit append');
+  assert.doesNotMatch(kd, /\b_appendAuditEvent\s*\(/,
+    'the private seam must not be declared as API anywhere');
+  assert.match(nestedMemberBody(kd, 'graph'), /\bappendAuditEvent\s*\(/,
+    'the graph surface must keep describing its real method, so narrowing the types back is caught');
   const seams = kd.slice(kd.indexOf('getPersistenceDescriptor'), kd.indexOf('paranoidMode'));
   assert.doesNotMatch(seams, /\bPromise\b|\bany\b|\bRecord\s*</);
   assert.doesNotMatch(seams, /\w+\?\s*\(/);

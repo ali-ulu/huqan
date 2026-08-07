@@ -217,6 +217,7 @@ declare class Kernel {
       mutate: () => unknown,
       opts?: Record<string, unknown>
     ): { replayed: boolean; result: unknown; receipt?: unknown };
+    appendAuditEvent(event: unknown, opts?: Record<string, unknown>): unknown;
     _consolidateEdges(dryRun?: boolean): unknown;
   };
 
