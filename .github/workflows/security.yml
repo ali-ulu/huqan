@@ -24,10 +24,16 @@ jobs:
     name: Security Checks
     runs-on: ubuntu-latest
 
+    # Every step below is load-bearing: a failure here must fail the job.
+    # This workflow previously ended each command with `|| echo "...continuing"`
+    # and probed for gitleaks/semgrep with `command -v`. Neither tool ships on
+    # ubuntu-latest, so secret scanning never actually ran and the job stayed
+    # green regardless of findings (#364, #365).
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          # gitleaks scans the pushed commit range, so it needs full history.
           fetch-depth: 0
 
       - name: Set up Node.js
@@ -36,31 +42,28 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Install dependencies
-        run: |
-          npm ci || echo "npm ci failed, continuing with partial dependencies"
+        run: npm ci
 
       - name: Run npm audit
-        run: |
-          npm audit --audit-level=high || echo "Audit checks failed, but continuing"
+        run: npm audit --audit-level=high
 
-      - name: Run security scanning tools
-        run: |
-          if command -v gitleaks >/dev/null 2>&1; then
-            gitleaks detect --source . --verbose
-          elif command -v trufflehog >/dev/null 2>&1; then
-            trufflehog filesystem . --no-verification
-          else
-            echo "No secret scanning tool available"
-          fi
+      # gitleaks-action is free for public repositories and needs no license
+      # key. If this repo ever goes private, GITLEAKS_LICENSE must be set or
+      # this step fails closed -- which is the intended behavior.
+      - name: Secret scanning (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run Semgrep (Security Grep)
+      - name: Static analysis (Semgrep)
         run: |
-          # Install semgrep if available
-          if command -v semgrep >/dev/null 2>&1; then
-            semgrep -i secret --severity critical
-          else
-            echo "Semgrep not available"
-          fi
+          python3 -m pip install --quiet --user 'semgrep>=1.60,<2'
+          "$(python3 -m site --user-base)/bin/semgrep" scan \
+            --config p/javascript \
+            --config p/secrets \
+            --error \
+            --quiet \
+            --metrics off
 
       - name: Check for sensitive files
         run: |
