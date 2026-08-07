@@ -46,3 +46,36 @@ test('redactSecretValues and hasSecretLookingValue agree on the same detection r
   assert.equal(hasSecretLookingValue(payload), true);
   assert.equal(redactSecretValues(payload).credential, '[REDACTED]');
 });
+
+test('hasSecretLookingValue does not stack overflow on a cyclic object (#382)', () => {
+  const cyclic = { safe: 'value' };
+  cyclic.self = cyclic;
+
+  assert.doesNotThrow(() => hasSecretLookingValue(cyclic));
+  assert.equal(hasSecretLookingValue(cyclic), false);
+});
+
+test('hasSecretLookingValue does not stack overflow on a cyclic array (#382)', () => {
+  const cyclic = ['a', 'apiKey:tok_live_abcdefgh'];
+  cyclic.push(cyclic);
+
+  assert.doesNotThrow(() => hasSecretLookingValue(cyclic));
+});
+
+test('redactSecretValues does not stack overflow on a cyclic object and marks the cycle (#382)', () => {
+  const cyclic = { password: 'hunter2', label: 'primary' };
+  cyclic.self = cyclic;
+
+  let result;
+  assert.doesNotThrow(() => { result = redactSecretValues(cyclic); });
+  assert.equal(result.password, '[REDACTED]');
+  assert.equal(result.label, 'primary');
+  assert.equal(result.self, '[CIRCULAR]');
+});
+
+test('scrubSecrets does not stack overflow on a cyclic payload (#382)', () => {
+  const cyclic = { token: 'tok_live_abcdefgh' };
+  cyclic.nested = cyclic;
+
+  assert.doesNotThrow(() => scrubSecrets(cyclic));
+});
