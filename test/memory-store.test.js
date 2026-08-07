@@ -158,6 +158,19 @@ describe('memory-store', () => {
     assert.strictEqual(result.event.eventType, 'UPDATED');
   });
 
+  it('patchMetadata ignores __proto__/constructor/prototype keys (#371)', () => {
+    const store = createStore();
+    const r = store.store({ content: 'test', metadata: { tag: 'old' } });
+    const patch = JSON.parse('{"__proto__":{"polluted":"yes"},"constructor":{"polluted":"yes"},"tag":"new"}');
+    const result = store.patchMetadata(r.memory.memoryId, patch);
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.memory.metadata.tag, 'new');
+    assert.strictEqual(Object.getPrototypeOf(result.memory.metadata), Object.prototype);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(result.memory.metadata, '__proto__'), false);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(result.memory.metadata, 'constructor'), false);
+    assert.strictEqual(({}).polluted, undefined);
+  });
+
   it('patchMetadata cannot overwrite content', () => {
     const store = createStore();
     const r = store.store({ content: 'immutable fact' });
