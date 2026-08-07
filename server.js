@@ -1368,8 +1368,8 @@ const HOST = process.env.AXIOM_HOST || '127.0.0.1';
 
 function startServer(port = PORT, host = HOST) {
   return server.listen(port, host, () => {
-    console.log(`?? AXIOM web aray?z?: http://${host}:${port}`);
-    console.log(`   Graf g?r?n?m?: http://${host}:${port} ? "Graf" sekmesi`);
+    console.log(`🧠 AXIOM web arayüzü: http://${host}:${port}`);
+    console.log(`   Graf görünümü: http://${host}:${port} → "Graf" sekmesi`);
   });
 }
 

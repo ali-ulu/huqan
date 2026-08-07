@@ -1290,14 +1290,14 @@ if (verbSuffix.test(predicate)) {
       usedNodes.add(best.target);
     }
 
-    // 3. Alternatif ??z?m olarak deÄŸerlendir
-    let answer = normalized + ' i?in alternatif ??z?mler:\n';
+    // 3. Alternatif çözüm olarak değerlendir
+    let answer = normalized + ' için alternatif çözümler:\n';
     for (const p of paths) {
-      answer += `  [${p.type}] ${p.from} ? ${p.to}`;
+      answer += `  [${p.type}] ${p.from} → ${p.to}`;
       if (p.chain.length > 0) {
-        answer += ` ? ${p.chain.map(c => c.node + '(' + c.rel + ')').join(', ')}`;
+        answer += ` → ${p.chain.map(c => c.node + '(' + c.rel + ')').join(', ')}`;
       }
-      answer += ` (g?ven: ${p.confidence.toFixed(2)})\n`;
+      answer += ` (güven: ${p.confidence.toFixed(2)})\n`;
     }
     if (paths.length === 0) answer = 'Bilmiyorum';
 
@@ -1572,17 +1572,17 @@ if (verbSuffix.test(predicate)) {
     if (eklenen > 0) {
       this._autoThinkLog(eklenen + ' yeni baÄŸlant? - toplam ' + this.graph.nodeCount() + ' d?ÄŸ?m');
     } else if (this._dreamCount % 5 === 0) {
-      // Bo? r?ya -> daha fazla girdi laz?m
-      this._autoThinkLog('bo? r?ya, daha fazla bilgi laz?m');
+      // Boş rüya -> daha fazla girdi lazım
+      this._autoThinkLog('boş rüya, daha fazla bilgi lazım');
     }
   }
 
   _autoThinkLog(msg) {
-    console.log('\n[ğŸ§  ' + new Date().toLocaleTimeString() + '] ' + msg);
+    console.log('\n[🧠 ' + new Date().toLocaleTimeString() + '] ' + msg);
   }
 
   /**
-   * Bir ifadeyi bilgi grafiÄŸiyle doÄŸrula.
+   * Bir ifadeyi bilgi grafiğiyle doğrula.
    * "kedi bal?k yer" ? ?zne=kedi, nesne=bal?k yer ? kenar var m??
    * r1: Use verifyAsync() for concurrent safety with locks
    */
@@ -1861,7 +1861,7 @@ if (verbSuffix.test(predicate)) {
 
     // G??l? noktalar
     const gucluNoktalar = [];
-    if (nodeCount > 50) gucluNoktalar.push('geni? bilgi grafiÄŸi');
+    if (nodeCount > 50) gucluNoktalar.push('geniş bilgi grafiği');
     if (typeEdges > 10) gucluNoktalar.push('g??l? tür hiyerar?isi');
     if (benzerEdges > 5) gucluNoktalar.push('aktif benzerlik aÄŸ?');
     if (dreamCycle > 0) gucluNoktalar.push(`${dreamCycle} r?ya döngüs? tamamland?`);
