@@ -105,6 +105,26 @@ describe('contradiction-rules', () => {
     assert.strictEqual(signal.rule, CONTRADICTION_RULES.UNIT_CONFLICT);
   });
 
+  it('does not flag meter vs metre with the same value as a unit conflict (regression)', () => {
+    // "meter" (US) and "metre" (UK/TR) are the same unit. Without canonical
+    // normalization these would be flagged as a unit conflict even when the
+    // numeric value is identical.
+    const signal = detectUnitConflict(
+      { text: 'wingspan is 10 meter', subject: 'wingspan' },
+      { text: 'wingspan is 10 metre', subject: 'wingspan' },
+    );
+    assert.strictEqual(signal, null);
+  });
+
+  it('still flags meter vs metre when the numeric value differs', () => {
+    const signal = detectUnitConflict(
+      { text: 'wingspan is 10 meter', subject: 'wingspan' },
+      { text: 'wingspan is 20 metre', subject: 'wingspan' },
+    );
+    assert.ok(signal);
+    assert.strictEqual(signal.rule, CONTRADICTION_RULES.UNIT_CONFLICT);
+  });
+
   it('supports relation inversion when opposition is known', () => {
     const signal = detectRelationInversion(
       { text: 'Mayday is distress call', subject: 'Mayday', relation: 'is' },
