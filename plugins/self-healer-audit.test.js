@@ -110,6 +110,32 @@ test('self-healer-audit: run() scan action end to end', () => {
   }
 });
 
+test('self-healer-audit: simulate routes a Dream candidate through approval and receipt without apply', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-selfheal-sim-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'entry.js'), "module.exports = require('./middle');\n");
+    fs.writeFileSync(path.join(dir, 'middle.js'), "module.exports = require('./leaf');\n");
+    fs.writeFileSync(path.join(dir, 'leaf.js'), 'module.exports = 1;\n');
+    const result = await selfHealerAudit.run(fakeKernel(), {
+      action: 'simulate',
+      root: dir,
+      targetPath: 'entry.js',
+      workspaceId: 'default',
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.applied, false);
+    assert.equal(result.findingCount, 1);
+    assert.equal(result.proposals.length, 1);
+    assert.equal(result.proposals[0].decision, 'require_review');
+    assert.equal(result.proposals[0].requiresApproval, true);
+    assert.ok(result.proposals[0].approvalRequest);
+    assert.ok(result.proposals[0].receiptSummary);
+    assert.equal(result.simulation.candidate.patchIncluded, false);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('self-healer-audit: run() rejects an unsupported action', () => {
   const kernel = fakeKernel();
   const result = selfHealerAudit.run(kernel, { action: 'nonsense' });
@@ -117,10 +143,6 @@ test('self-healer-audit: run() rejects an unsupported action', () => {
 });
 
 test('self-healer-audit: the real repo root does not throw and produces a well-formed result', () => {
-  // Exercises the plugin against the actual huqan codebase (no root
-  // override), the way it would run in production -- proves the wiring
-  // works end to end against real repo structure, not just a synthetic
-  // fixture.
   const kernel = fakeKernel();
   const result = selfHealerAudit.run(kernel, { action: 'scan' });
   assert.equal(result.ok, true);
