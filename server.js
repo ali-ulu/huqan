@@ -208,6 +208,15 @@ function buildCorsHeaders(req, preflight = false) {
   return headers;
 }
 
+// Responses for the workbench memory-context route must never be cached or
+// content-sniffed, including the ones produced by generic middleware (rate
+// limit, auth) that answers before the route handler runs.
+function memoryContextSecurityHeaders(rawPath) {
+  return String(rawPath || '').startsWith('/api/workbench/memory-context/')
+    ? { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }
+    : {};
+}
+
 function writeJson(req, res, statusCode, payload, headers = {}) {
   res.writeHead(statusCode, {
     'Content-Type': JSON_CONTENT_TYPE,
@@ -329,10 +338,10 @@ const viewerGateway = createViewerGateway({
 });
 
 
-function denyIfUnauthorized(req, res) {
+function denyIfUnauthorized(req, res, extraHeaders = {}) {
   const auth = requireApiKey(req);
   if (auth.ok) return true;
-  writeJson(req, res, auth.status, auth.error, auth.headers);
+  writeJson(req, res, auth.status, auth.error, { ...auth.headers, ...extraHeaders });
   return false;
 }
 
@@ -750,10 +759,10 @@ const server = http.createServer(async (req, res) => {
   const rateKey = getRateLimitKey(req);
 
   if (!checkRateLimit(rateKey)) {
-    const rateHeaders = rawPath.startsWith('/api/workbench/memory-context/')
-      ? { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }
-      : {};
-    res.writeHead(429, { 'Content-Type': JSON_CONTENT_TYPE, ...rateHeaders });
+    res.writeHead(429, {
+      'Content-Type': JSON_CONTENT_TYPE,
+      ...memoryContextSecurityHeaders(rawPath),
+    });
     res.end(JSON.stringify({ error: 'Too many requests' }));
     return;
   }
@@ -769,7 +778,12 @@ const server = http.createServer(async (req, res) => {
   const routeAuthPolicy = resolveRouteAuthPolicy(reqUrl.pathname, req.method, {
     workspaceId: sanitizeInput(reqUrl.searchParams.get('workspaceId') || ''),
   });
-  if (routeAuthPolicy.authRequired && !denyIfUnauthorized(req, res)) return;
+  // The memory-context route hardens every one of its own responses with
+  // no-store/nosniff, but this central gate answers 401 before that handler
+  // ever runs, so the headers have to be carried here too -- same reason the
+  // rate-limit branch above special-cases the prefix.
+  if (routeAuthPolicy.authRequired
+    && !denyIfUnauthorized(req, res, memoryContextSecurityHeaders(rawPath))) return;
   // An undeclared path must never reach a handler. If one is added without a
   // policy entry it is answered as 404 here rather than executing
   // unauthenticated, so the declaration is enforced at runtime and not only by
