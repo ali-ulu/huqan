@@ -13,8 +13,10 @@ const {
 } = require('../lib/self-healer/source-dependency-graph');
 const {
   simulateInSandbox,
+  buildFinding,
   simulateSourceCandidate,
 } = require('../lib/self-healer/source-dogfood-simulator');
+const { decideSelfHealerAction } = require('../lib/self-healer/safety-decision');
 
 function fixture(files) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-sh-source-'));
@@ -106,6 +108,26 @@ test('full source simulation compares graph structure and emits a review-only fi
   } finally {
     cleanup(root);
   }
+});
+
+test('a code-change gate block cannot be downgraded into a review approval', () => {
+  const candidate = {
+    candidateId: 'shc_blocked',
+    from: 'secret-release.js',
+    to: 'helper.js',
+    hypothesisType: 'zincir',
+    confidence: 0.8,
+  };
+  const finding = buildFinding(
+    candidate,
+    { closesCycle: false, beforeEdges: 1, afterEdges: 2 },
+    { backend: 'js-fallback', before: { edges: 1 }, after: { edges: 2 } },
+    { decision: 'block', reason: 'SECRET_CHANGE_BLOCKED' },
+  );
+  assert.equal(finding.riskFlags.includes('code_change_gate_block'), true);
+  const decision = decideSelfHealerAction(finding);
+  assert.equal(decision.decision, 'block');
+  assert.equal(decision.requiresApproval, false);
 });
 
 test('source simulation returns no candidate when there is no structural hypothesis', async () => {
