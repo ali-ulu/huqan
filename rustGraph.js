@@ -34,7 +34,12 @@ class RustGraph {
   }
 
   _start() {
-    if (this._proc) return;
+    // Both branches below are one-shot: once a Rust process is spawned OR the
+    // JS fallback Graph is built, _start must not run again. Guarding only on
+    // _proc meant every _send() rebuilt the fallback from scratch whenever the
+    // Rust binary was absent, so addNode/addEdge/getStats each ran against a
+    // different Graph instance and no state ever accumulated.
+    if (this._proc || this._fallback) return;
     if (!fs.existsSync(RUST_BIN)) {
       this._fallback = new Graph({ memoryPath: this.memoryPath });
       this._ready = true;
