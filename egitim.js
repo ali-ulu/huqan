@@ -9,10 +9,7 @@ const identitySeed = JSON.parse(fs.readFileSync(identitySeedPath, 'utf8'));
 // Egitim: temiz baslat, mevcut hafizayi karistirma.
 const k = new Kernel({ noLoad: true });
 const d = new Dream(k);
-const DEMO_SEED_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'demo_seed_fixture',
-};
+const DEMO_SEED_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('demo_seed_fixture');
 
 const identityFacts = Array.isArray(identitySeed.facts) ? identitySeed.facts.filter(Boolean) : [];
 

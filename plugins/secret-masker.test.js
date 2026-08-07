@@ -84,7 +84,7 @@ test('secret-masker: afterAsk end to end -- a leaked secret never reaches kernel
   const k2 = new Kernel({ noLoad: true, loadPlugins: false });
   k2.plugins.register(leaker);
   k2.plugins.register(secretMasker);
-  k2.learn('Köpek hayvandır', { admissionRequired: false, admissionBypassReason: 'test' });
+  k2.learn('Köpek hayvandır', Kernel.createAdmissionBypassOpts('test'));
   const answer = k2.ask('Köpek nedir').data.answer;
 
   assert.equal(answer.includes('sk-abcdef1234567890'), false);

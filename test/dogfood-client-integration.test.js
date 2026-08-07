@@ -2,11 +2,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createServer, createKernelFromEnv } = require('../mcpServer');
+const Kernel = require('../kernel');
 
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 // Dogfood integration test: agent routes decisions through MCP gate
 // This simulates a real AI agent calling HUQAN before acting.
