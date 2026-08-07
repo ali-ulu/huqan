@@ -128,6 +128,7 @@
         "lib/github-connector.js",
         "lib/github-url.js",
         "lib/http/route-auth-policy.js",
+        "lib/human-approval-toggle.js",
         "lib/ingest.js",
         "lib/kernel-read-use-cases.js",
         "lib/learn-use-case.js",

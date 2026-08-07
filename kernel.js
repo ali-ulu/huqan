@@ -8,6 +8,7 @@ const VerifyService = require('./lib/verify');
 const { buildProvenance } = require('./lib/provenance-ingest');
 const { evaluateMemoryAdmission } = require('./lib/memory-admission-gate');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
+const { defaultApprovalRequired } = require('./lib/human-approval-toggle');
 const { detectClaimConflict, routeCandidateClaim } = require('./lib/conflict-detector');
 const { createKernelReadUseCases } = require('./lib/kernel-read-use-cases');
 const { runLearnUseCase } = require('./lib/learn-use-case');
@@ -842,7 +843,7 @@ class Kernel {
         this.contractVersion,
       approvalId: opts.approvalId || admissionContext.approvalId || '',
       approvalStatus: opts.approvalStatus || admissionContext.approvalStatus || '',
-      approvalRequired: opts.approvalRequired ?? admissionContext.approvalRequired ?? true,
+      approvalRequired: opts.approvalRequired ?? admissionContext.approvalRequired ?? defaultApprovalRequired(),
       reason: opts.admissionReason || admissionContext.reason || 'kernel_learn_write',
       createdAt,
       proposedMemory: {
@@ -1773,7 +1774,7 @@ if (verbSuffix.test(predicate)) {
         provenance,
         workspaceId,
         admissionRequired: true,
-        approvalRequired: opts.approvalRequired ?? true,
+        approvalRequired: opts.approvalRequired ?? defaultApprovalRequired(),
       });
       if (Number(learnResult?.data?.learned || 0) > 0) learned++;
       else skipped++;
