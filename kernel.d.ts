@@ -203,7 +203,13 @@ declare class Kernel {
     hasAnyEdge(fromId: string, toId: string, workspaceId?: string): boolean;
     edgeCount(workspaceId?: string): number;
     cosineSimilarity(aId: string, bId: string, workspaceId?: string): number;
-    // Candidate claims / mutations / audit
+    // Candidate claims / mutations
+    // The audit-append seam is deliberately absent here. Graph does implement
+    // an audit-append method and kernel.js reaches it through its private
+    // wrapper, but declaring it would publish a generic audit-append surface on
+    // the typed Kernel facade. recordCliMutationAudit is the only supported
+    // public audit entry point; see
+    // test/kernel-cli-audit-seam-contract.test.js.
     addCandidateClaim(candidate: unknown, opts?: Record<string, unknown>): unknown;
     getCandidateClaims(filters?: Record<string, unknown>): unknown[];
     runMutationOnce(
@@ -211,7 +217,6 @@ declare class Kernel {
       mutate: () => unknown,
       opts?: Record<string, unknown>
     ): { replayed: boolean; result: unknown; receipt?: unknown };
-    appendAuditEvent(event: unknown, opts?: Record<string, unknown>): unknown;
     _consolidateEdges(dryRun?: boolean): unknown;
   };
 
