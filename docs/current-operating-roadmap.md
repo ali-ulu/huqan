@@ -254,6 +254,20 @@ evidence. PR #510 merged as `30e7dc7` and replaced that workflow with fail-hard
 gitleaks and Semgrep enforcement, so hardened attestation of the V4-B2 runtime
 comes only from check runs on or after that merge.
 
+Hardened attestation on record:
+
+- Security Checks run `31186846627`: `SUCCESS`;
+- workflow `.github/workflows/security.yml` at head
+  `b6bfd7cce2d8ca0753e75b02ffa7ca5c6b368bce`, which is this reconciliation
+  branch rebased onto `c6780ebe` and therefore contains #510's fail-hard
+  `gitleaks-action@v2` and Semgrep steps;
+- created `2026-08-07T14:17:34Z`.
+
+That run attests the post-#510 tree containing the merged V4-B2 runtime. It is
+the first hardened green on this branch; any later head on the same branch
+carries its own run, and the closure claim rests on this recorded ID rather than
+on whichever run happens to be latest.
+
 Both proved gaps are repaired:
 
 1. `lib/ingest.js` binds canonical `default` into the hashed snapshot. Absence
