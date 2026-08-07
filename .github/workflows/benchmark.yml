@@ -162,6 +162,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      # actions/checkout only creates a remote-tracking ref for the ref it
+      # checked out, so `origin/main` does not resolve here. The agent-context
+      # guard in test/agent-context.test.js validates live Git state against
+      # origin/main and fails closed without it, so fetch the baseline branch
+      # explicitly before running the suite.
+      - name: Fetch baseline branch for live Git validation
+        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
       - uses: actions/setup-node@v4
         with:
           node-version: 20
