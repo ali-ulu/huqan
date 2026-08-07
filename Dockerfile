@@ -41,6 +41,14 @@ RUN mkdir -p /app/data/backups \
 # unprivileged user instead of container root.
 USER node
 
+# Make the security property build-verifiable: the active runtime user must be
+# non-root and must be able to write the persistence mount point before the
+# image can pass CI's Docker build gate.
+RUN test "$(id -u)" -ne 0 \
+  && test -w /app/data \
+  && touch /app/data/.huqan-write-check \
+  && rm /app/data/.huqan-write-check
+
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
