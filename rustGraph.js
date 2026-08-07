@@ -147,11 +147,16 @@ class RustGraph {
     }
   }
 
-  async addNode(id, label) {
-    const res = await this._send({ cmd: 'add_node', id, label });
-    if (res === this._fallback) return this._fallback.addNode(id, label);
+  async addNode(id, label, opts = {}) {
+    // provenance/workspaceId are forwarded to the Rust process so they are
+    // not silently dropped when the Rust backend is active (#361).
+    const cmd = { cmd: 'add_node', id, label };
+    if (opts && opts.provenance !== undefined) cmd.provenance = opts.provenance;
+    if (opts && opts.workspaceId !== undefined) cmd.workspaceId = opts.workspaceId;
+    const res = await this._send(cmd);
+    if (res === this._fallback) return this._fallback.addNode(id, label, opts.provenance, opts);
     if (!res.ok) return null;
-    return { id, label, weight: 0.5 };
+    return { id, label, weight: 0.5, provenance: opts.provenance ?? null, workspaceId: opts.workspaceId };
   }
 
   async getNode(id) {
@@ -173,11 +178,31 @@ class RustGraph {
     return res.weight || 0;
   }
 
-  async addEdge(fromId, toId, relation) {
-    const res = await this._send({ cmd: 'add_edge', from: fromId, to: toId, relation });
-    if (res === this._fallback) return this._fallback.addEdge(fromId, toId, relation);
+  async addEdge(fromId, toId, relation, opts = {}) {
+    // provenance/workspaceId/weight/confidence/evidence/sourceRef are forwarded
+    // to the Rust process so they are not silently dropped when the Rust
+    // backend is active (#361).
+    const cmd = { cmd: 'add_edge', from: fromId, to: toId, relation };
+    if (opts && opts.provenance !== undefined) cmd.provenance = opts.provenance;
+    if (opts && opts.workspaceId !== undefined) cmd.workspaceId = opts.workspaceId;
+    if (opts && opts.weight !== undefined) cmd.weight = opts.weight;
+    if (opts && opts.confidence !== undefined) cmd.confidence = opts.confidence;
+    if (opts && opts.evidence !== undefined) cmd.evidence = opts.evidence;
+    if (opts && opts.sourceRef !== undefined) cmd.sourceRef = opts.sourceRef;
+    const res = await this._send(cmd);
+    if (res === this._fallback) return this._fallback.addEdge(fromId, toId, relation, opts);
     if (!res.ok) return null;
-    return { from: fromId, to: toId, relation, weight: 0.5 };
+    return {
+      from: fromId,
+      to: toId,
+      relation,
+      weight: opts.weight ?? 0.5,
+      confidence: opts.confidence,
+      evidence: opts.evidence,
+      sourceRef: opts.sourceRef,
+      provenance: opts.provenance ?? null,
+      workspaceId: opts.workspaceId,
+    };
   }
 
   async getEdge(fromId, toId, relation) {

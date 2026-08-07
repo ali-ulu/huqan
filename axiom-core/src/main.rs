@@ -18,6 +18,10 @@ struct Node {
     last_accessed: u64,
     #[serde(default)]
     vector: HashMap<String, f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    provenance: Option<Value>,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    workspace_id: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -27,6 +31,16 @@ struct Edge {
     relation: String,
     weight: f64,
     created: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    confidence: Option<f64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    evidence: Vec<String>,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    source_ref: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    provenance: Option<Value>,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    workspace_id: String,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -58,12 +72,20 @@ impl Graph {
         }
     }
 
-    fn add_node(&mut self, id: &str, label: &str) {
+    fn add_node(&mut self, id: &str, label: &str, opts: &Value) {
         let now = now_ms();
+        let provenance = opts.get("provenance").cloned();
+        let workspace_id = get_str(opts, "workspaceId");
         if let Some(n) = self.nodes.get_mut(id) {
             n.label = label.to_string();
             n.weight = (n.weight + 0.1).min(1.0);
             n.last_accessed = now;
+            if provenance.is_some() {
+                n.provenance = provenance;
+            }
+            if !workspace_id.is_empty() {
+                n.workspace_id = workspace_id;
+            }
         } else {
             self.nodes.insert(
                 id.to_string(),
@@ -74,6 +96,8 @@ impl Graph {
                     created: now,
                     last_accessed: now,
                     vector: HashMap::new(),
+                    provenance,
+                    workspace_id,
                 },
             );
         }
@@ -91,25 +115,55 @@ impl Graph {
         true
     }
 
-    fn add_edge(&mut self, from: &str, to: &str, relation: &str) -> bool {
+    fn add_edge(&mut self, from: &str, to: &str, relation: &str, opts: &Value) -> bool {
         if !self.nodes.contains_key(from) || !self.nodes.contains_key(to) {
             return false;
         }
+        let explicit_weight = get_f64_opt(opts, "weight");
+        let explicit_confidence = get_f64_opt(opts, "confidence");
+        let provenance = opts.get("provenance").cloned();
+        let workspace_id = get_str(opts, "workspaceId");
+        let source_ref = get_str(opts, "sourceRef");
+        let new_evidence = get_str_vec(opts, "evidence");
+
         if let Some(e) = self
             .edges
             .iter_mut()
             .find(|e| e.from == from && e.to == to && e.relation == relation)
         {
-            e.weight = (e.weight + 0.1).min(1.0);
+            e.weight = explicit_weight.unwrap_or_else(|| (e.weight + 0.1).min(1.0)).clamp(0.0, 1.0);
+            if explicit_confidence.is_some() {
+                e.confidence = explicit_confidence;
+            }
+            if provenance.is_some() {
+                e.provenance = provenance;
+            }
+            if !workspace_id.is_empty() {
+                e.workspace_id = workspace_id;
+            }
+            if !source_ref.is_empty() {
+                e.source_ref = source_ref;
+            }
+            for item in new_evidence {
+                if !e.evidence.contains(&item) {
+                    e.evidence.push(item);
+                }
+            }
             return true;
         }
         let idx = self.edges.len();
+        let weight = explicit_weight.unwrap_or(0.5).clamp(0.0, 1.0);
         self.edges.push(Edge {
             from: from.to_string(),
             to: to.to_string(),
             relation: relation.to_string(),
-            weight: 0.5,
+            weight,
             created: now_ms(),
+            confidence: explicit_confidence,
+            evidence: new_evidence,
+            source_ref,
+            provenance,
+            workspace_id,
         });
         self.index_edge(idx);
         true
@@ -245,6 +299,11 @@ fn edge_to_json(e: &Edge) -> Value {
         "to": e.to,
         "relation": e.relation,
         "weight": e.weight,
+        "confidence": e.confidence.unwrap_or(e.weight),
+        "evidence": e.evidence,
+        "sourceRef": e.source_ref,
+        "provenance": e.provenance,
+        "workspaceId": e.workspace_id,
     })
 }
 
@@ -302,6 +361,24 @@ fn get_f64(cmd: &Value, key: &str, default: f64) -> f64 {
     }
 }
 
+fn get_f64_opt(cmd: &Value, key: &str) -> Option<f64> {
+    match cmd.get(key) {
+        Some(Value::Number(n)) => n.as_f64(),
+        Some(Value::String(s)) => s.parse().ok(),
+        _ => None,
+    }
+}
+
+fn get_str_vec(cmd: &Value, key: &str) -> Vec<String> {
+    match cmd.get(key) {
+        Some(Value::Array(items)) => items
+            .iter()
+            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
 const DEFAULT_MEMORY_PATH: &str = "memory.json";
 
 fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
@@ -309,7 +386,7 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
         "add_node" => {
             let id = get_str(cmd, "id");
             let label = get_str(cmd, "label");
-            graph.add_node(&id, &label);
+            graph.add_node(&id, &label, cmd);
             json!({ "ok": true })
         }
         "get_node" => {
@@ -324,6 +401,8 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
                         "label": n.label,
                         "weight": n.weight,
                         "vector": { "tags": [], "dimensions": n.vector.len() },
+                        "provenance": n.provenance,
+                        "workspaceId": n.workspace_id,
                     }
                 })
             } else {
@@ -338,7 +417,7 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
             let from = get_str(cmd, "from");
             let to = get_str(cmd, "to");
             let relation = get_str(cmd, "relation");
-            json!({ "ok": graph.add_edge(&from, &to, &relation) })
+            json!({ "ok": graph.add_edge(&from, &to, &relation, cmd) })
         }
         "get_edges" => {
             let id = get_str(cmd, "id");
@@ -384,10 +463,10 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
             if parts.len() >= 2 {
                 let subject = parts[0].to_string();
                 let predicate = parts[1..].join(" ");
-                graph.add_node(&subject, &subject);
+                graph.add_node(&subject, &subject, cmd);
                 let parsed = parse_predicate(&predicate);
-                graph.add_node(&parsed.object, &parsed.object);
-                graph.add_edge(&subject, &parsed.object, &parsed.relation);
+                graph.add_node(&parsed.object, &parsed.object, cmd);
+                graph.add_edge(&subject, &parsed.object, &parsed.relation, cmd);
                 if let Some(n) = graph.nodes.get_mut(&subject) {
                     *n.vector.entry(parsed.object.clone()).or_insert(0.0) += 0.3;
                 }
