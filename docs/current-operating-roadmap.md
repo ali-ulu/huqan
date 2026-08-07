@@ -1,7 +1,7 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`6a16a40cd13bf69e125fa30726baa3e0ac085d2b` (PR #306 exact-base reconciliation merge).
+`c6780ebef77a54511fc4906332f98958f50af9fc` (PR #522 merge).
 
 Live source, exact Git SHA, tests and CI outrank this compact execution source.
 Detailed history remains in merged PRs, task-packs and audit evidence.
@@ -17,9 +17,9 @@ adapter remains production-unreachable. V4 Workbench runtime-evidence work is
 active.
 
 V4-B1 read-only inspector runtime evidence is closed, including the repaired
-exact-identifier authority boundary. V4-B2 action/approval evidence is open and
-has an exact-base implementation authorization. V4-B3 receipt-export user flow
-and V4-B5 final closeout remain open.
+exact-identifier authority boundary. V4-B2 action/approval evidence is now
+closed: the authorized authority repair is implemented and proved. V4-B3
+receipt-export user flow and V4-B5 final closeout remain open.
 
 ## Reconciled sequence
 
@@ -229,58 +229,132 @@ B2A characterization test may change only where its superseded gap assertions
 conflict; its queue, idempotency, rejection, lease, unknown-state and zero-
 mutation-before-approval coverage remains binding.
 
-## Current gate
+## Closed V4-B2 evidence
 
-Only this implementation gate is open:
-
-```text
-V4_B2B_INGEST_APPROVAL_AUTHORITY_REPAIR
-```
-
-The successor must start from exact canonical main
-`6a16a40cd13bf69e125fa30726baa3e0ac085d2b` and may change exactly:
-
-```text
-lib/ingest.js
-lib/workbench/ingest-approval-action.js
-server.js
-package.json
-test/v4-b2b-ingest-approval-authority-gap.test.js
-test/v4-b2a-ingest-approval-runtime-contract.test.js
-```
-
-Required implementation constraints:
-
-- `lib/ingest.js` binds canonical `default` workspace into the hashed snapshot
-  and rejects non-default workspace before persistence;
-- `lib/workbench/ingest-approval-action.js` owns exact snapshot validation,
-  durable approval execution, truthful result/Graph evidence mapping,
-  receipt/audit binding and fail-closed finalization;
-- the new module remains at or below 300 physical lines;
-- `server.js` only parses/authenticates/routes/wires and delegates, with net
-  physical-line growth non-positive;
-- `package.json` changes only the runtime `files` allowlist;
-- the new real-server/SQLite test proves positive and adversarial behavior;
-- the successor does not import or call
-  `executeReviewedExternalGraphMutation()`;
-- no Graph, Kernel, storage, approval-flow, plugin, schema or dependency change.
-
-The implementation must emit exactly one verdict:
+PR #520 implemented the authorized B2B repair and emitted:
 
 ```text
 V4_B2_INGEST_APPROVAL_AUTHORITY_REPAIR_SUFFICIENT
-V4_B2_INGEST_APPROVAL_AUTHORITY_REPAIR_BLOCKED_GAP
 ```
 
-A blocked verdict is acceptable evidence. It must not be hidden by weakening
-assertions or by labelling a plugin return as a committed mutation.
+Controlling exact-head evidence:
+
+- head `99847901411128b1a0515ed5da23589206716f06`;
+- Benchmark Regression run `31181386707`: `SUCCESS`, including full `npm test`
+  on Node 20 and Node 22 and the Docker build;
+- Architecture Checks run `31181386832`: `SUCCESS`;
+- zero unresolved review threads;
+- merge/live main `e02eb03e79e10d6bc65e02322febe5eb2fd15055`.
+
+Security-evidence limitation: PR #520's Security Checks run `31181386576`
+executed the pre-#510 workflow, which tolerated `npm ci` and `npm audit`
+failures and skipped scanning when no scanner was present. It is recorded as
+lifecycle evidence only and is deliberately not claimed as hardened security
+evidence. PR #510 merged as `30e7dc7` and replaced that workflow with fail-hard
+gitleaks and Semgrep enforcement, so hardened attestation of the V4-B2 runtime
+comes only from check runs on or after that merge.
+
+Hardened attestation on record:
+
+- Security Checks run `31186846627`: `SUCCESS`;
+- workflow `.github/workflows/security.yml` at head
+  `b6bfd7cce2d8ca0753e75b02ffa7ca5c6b368bce`, which is this reconciliation
+  branch rebased onto `c6780ebe` and therefore contains #510's fail-hard
+  `gitleaks-action@v2` and Semgrep steps;
+- created `2026-08-07T14:17:34Z`.
+
+That run attests the post-#510 tree containing the merged V4-B2 runtime. It is
+the first hardened green on this branch; any later head on the same branch
+carries its own run, and the closure claim rests on this recorded ID rather than
+on whichever run happens to be latest.
+
+Both proved gaps are repaired:
+
+1. `lib/ingest.js` binds canonical `default` into the hashed snapshot. Absence
+   means `default`; a supplied value must be the exact string `default`. Values
+   are not trimmed or coerced first, so padded and non-string identities fail
+   closed before persistence, matching the PR #301 boundary. The binding hash
+   now covers workspace, kind, source ref, idempotency and payload, so editing a
+   persisted snapshot's workspace no longer verifies.
+2. `lib/workbench/ingest-approval-action.js` (274 lines) owns snapshot
+   validation, the durable claim, execution, outcome derivation, receipt/audit
+   binding and fail-closed finalization. The outcome comes from the admission
+   summary and the observed Graph delta, with observed evidence authoritative.
+   `server.js` shrank from 1466 to 1399 physical lines.
+
+Exact-base note: the authorization pinned `6a16a40`, which live `main` had
+passed by 176 commits. Re-verification before implementation found `lib/ingest.js`,
+the B2A test and `lib/workbench/` unchanged since that base; `package.json` moved
+only inside its `files` allowlist; `server.js` changed only through route-auth
+centralization, and the ingest routes are already declared in
+`lib/http/route-auth-policy.js`. The contract stayed source-compatible, so only
+the base advanced.
+
+Scope amendment: the authorization named six files. `server.test.js` was added
+as a seventh under a source-backed amendment, because two of its assertions
+pinned the exact superseded `plugin_execution_returned` /
+`state_transition_not_asserted` labels. Only those two changed; its
+receipt-kind, snapshot-hash, result-ref and idempotent-replay coverage is
+unchanged.
+
+## Current gate
+
+Only this authorization gate is open:
+
+```text
+V4_B3_RECEIPT_EXPORT_USER_FLOW_AUTHORIZATION
+```
+
+Source-backed finding that opens it: `exportMaterializedReceiptBundle()`
+(`lib/receipt/receipt-read-index.js:212`) already builds a materialized receipt
+chain and returns a bundle that `verifyExportedBundle()` can validate, but its
+only caller in the tree is `test/v4-receipt-materialization-read-index.test.js`.
+Production callers number zero.
+
+The user-reachable receipt surface today is read-only:
+
+- `GET /api/trust-receipt` and `GET /api/trust-receipt/:receiptId`;
+- `GET /api/workbench/trust-receipt/:receiptId` (V4-B1, closed);
+- `plugins/receipt-exporter.js`, which writes single receipts to files on
+  `afterLearn` rather than emitting a chain-validated bundle.
+
+This is the same shape V4-B1 resolved for WB2: a sufficient source owner with no
+route. V4-B3 therefore needs an authorization task-pack before code.
+
+### Decided B3 product contract
+
+These five decisions are settled and the task-pack records rather than reopens
+them:
+
+1. **Surface.** One authenticated, read-only Workbench HTTP route. No CLI, MCP
+   or UI surface, because B3 is positioned as the Workbench real-user flow.
+2. **Workspace.** Canonical `default` only. This follows the permanent ordering
+   rule below: no non-default or caller-selected HTTP workspace authority.
+3. **Verification.** `verifyExportedBundle()` runs after
+   `exportMaterializedReceiptBundle()` and before any response is written. A
+   failed verification returns no bundle at all.
+4. **Redaction: none in B3.** The exported bundle stays an internal, full trust
+   artifact. Public-safe and redacted receipt formats are V5-PR3 work
+   (`[V5-C4] Public-safe Trust Receipt schema and redaction policy`, issue
+   #276). This boundary is not stylistic: canonical receipt content including
+   `metadata` participates in the hash semantics, so stripping fields during a
+   B3 export would either break chain validation or amount to defining a new
+   public receipt format — which is exactly the V5 deliverable.
+5. **Bounded response.** A receipt count ceiling and a serialized-byte ceiling
+   are both mandatory and must be fixed in the task-pack. Exceeding either fails
+   closed; a partial bundle is never returned. The roadmap does not mandate
+   specific numbers — whatever the task-pack fixes must carry its own
+   justification and must not be presented as a roadmap requirement.
+
+A successor must not widen the read surface, add a dependency, design a
+redaction policy or claim V4 closure while writing that task-pack.
 
 ## Remaining execution order
 
-1. Implement and falsify the exact five-file B2B repair.
-2. Reconcile the result and close V4-B2 only if exact-head runtime, receipt,
-   audit, package and smoke evidence is sufficient.
-3. Complete V4-B3 receipt inspection/export through a real user flow.
+1. Authorize V4-B3 through a source-backed task-pack.
+2. Implement and falsify the authorized V4-B3 receipt export user flow.
+3. Reconcile the result and close V4-B3 only if exact-head runtime, receipt,
+   package and smoke evidence is sufficient.
 4. Complete V4-B5 source/test/CI/package/release closeout.
 5. Begin V5 only after V4 closeout and external interoperability entry gates.
 
