@@ -130,7 +130,7 @@ test('V3 Core smoke: approval request to queue to decision flow', () => {
   assert.equal(fetched.ok, true);
   assert.equal(fetched.item.approvalId, approvalBuilt.request.approvalId);
 
-  const updated = updateApprovalRequestStatus(queue.queue, approvalBuilt.request.approvalId, 'approved');
+  const updated = updateApprovalRequestStatus(queue.queue, approvalBuilt.request.approvalId, 'approved', { workspaceId: 'default' });
   assert.equal(updated.ok, true);
   assert.equal(updated.item.status, 'approved');
 
