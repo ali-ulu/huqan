@@ -146,6 +146,27 @@ function validateCliMutationAuditIntent(intent) {
 // (issue #327). Re-exported below to preserve Kernel.ProvenanceError.
 const { ProvenanceError } = require('./lib/errors/provenance-error');
 
+// #357: the admission bypass used to be gated purely on two plain,
+// string-keyed opts fields (`admissionRequired === false` +
+// `admissionBypassReason` non-empty). ANY caller of the public learn()
+// method -- an SDK consumer, a plugin, a future HTTP route, or code that
+// carelessly spreads caller-supplied/JSON-decoded input into opts -- could
+// produce that exact shape and walk straight past the memory-admission
+// gate. There was no way to tell "kernel's own internal bootstrap" apart
+// from "whatever object someone handed to learn()".
+//
+// The bypass is now gated on this module-private Symbol instead. It is
+// never exported, so no code outside this file can reference it directly --
+// and critically, a Symbol-keyed property cannot survive JSON.stringify/
+// JSON.parse or object-literal spread of a plain object, so it cannot be
+// forged by decoding untrusted input (HTTP body, MCP tool args, CLI argv)
+// into an opts object, no matter how that decoding is written. The only
+// way to produce a valid bypass opts object is to call
+// Kernel.createAdmissionBypassOpts(reason), exported below, which requires
+// the caller to already have required('./kernel') -- i.e. be trusted code
+// running in this process, not data arriving over a wire.
+const ADMISSION_BYPASS_TOKEN = Symbol('axiom-kernel-internal-admission-bypass');
+
 class Kernel {
   /**
    * @param {object} [opts]
@@ -192,13 +213,11 @@ class Kernel {
     this._verifyService = new VerifyService(this);
     this.strictProvenance = opts.strictProvenance === true;
     
-    // r1: RwLock mutex for concurrent access safety
-    // Simple lock mechanism (no npm dependencies)
-    // Can be disabled with enableConcurrencyLock=false for backward compatibility
+    // r1: single-flight guard for critical operations (verify/learn), enforced
+    // synchronously by _enterCriticalSection()/_exitCriticalSection() below.
+    // Can be disabled with enableConcurrencyLock=false for backward compatibility.
     this._enableConcurrencyLock = opts.enableConcurrencyLock !== false;
-    this._lockQueue = [];
     this._lockAcquired = false;
-    this._lockTimeoutMs = opts.lockTimeoutMs || 5000;
 
     // v0.9.1: AXIOM Memory Core — kernel.memory API
     this.memory = new MemoryStore({
@@ -255,35 +274,11 @@ class Kernel {
     // method (rustGraph.js's own learn/ask already talk to a different
     // algorithm than Kernel's).
     const sandbox = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
-    const bypass = { admissionRequired: false, admissionBypassReason: 'reasonSandbox: ephemeral, unpersisted kernel' };
+    const bypass = { [ADMISSION_BYPASS_TOKEN]: true, admissionBypassReason: 'reasonSandbox: ephemeral, unpersisted kernel' };
     for (const text of learn) sandbox.learn(text, bypass);
     const answers = ask.map(question => sandbox.ask(question)?.data?.answer || 'Bilmiyorum');
     if (typeof sandbox.graph?.close === 'function') sandbox.graph.close();
     return { backend: 'js', answers };
-  }
-
-  // r1: Acquire lock for critical operations (verify/learn)
-  async _acquireLock(timeoutMs = null) {
-    if (!this._enableConcurrencyLock) return; // Lock disabled
-    
-    const timeout = timeoutMs !== null ? timeoutMs : this._lockTimeoutMs;
-    const startTime = Date.now();
-    
-    while (this._lockAcquired && Date.now() - startTime < timeout) {
-      await new Promise(resolve => setImmediate(resolve));
-    }
-    
-    if (this._lockAcquired) {
-      throw new Error(`Lock acquisition timeout after ${timeout}ms`);
-    }
-    
-    this._lockAcquired = true;
-  }
-
-  // r1: Release lock
-  _releaseLock() {
-    if (!this._enableConcurrencyLock) return; // Lock disabled
-    this._lockAcquired = false;
   }
 
   _enterCriticalSection(operation = 'operation') {
@@ -796,7 +791,7 @@ class Kernel {
   }
 
   _isLearnAdmissionBypass(opts = {}) {
-    return opts.admissionRequired === false &&
+    return opts[ADMISSION_BYPASS_TOKEN] === true &&
       typeof opts.admissionBypassReason === 'string' &&
       opts.admissionBypassReason.trim().length > 0;
   }
@@ -1675,7 +1670,7 @@ if (verbSuffix.test(predicate)) {
     let count = 0;
     const admissions = [];
     for (const line of lines) {
-      const cleaned = line.replace(/^[\s-â€“â€”*â€¢]+/, '').trim();
+      const cleaned = line.replace(/^[\s\-–—*•]+/, '').trim();
       const words = cleaned.split(/\s+/);
       if (words.length >= 2) {
         const result = this.learn(cleaned, opts);
@@ -1736,7 +1731,7 @@ if (verbSuffix.test(predicate)) {
     for (const sentence of sentences.slice(0, maxSentences)) {
       // Markdown i?aretlerini temizle
       const cleaned = sentence
-        .replace(/^[\s#*\-â€“â€”â€¢>]+/, '')
+        .replace(/^[\s#*\-–—•>]+/, '')
         .replace(/\*\*(.+?)\*\*/g, '$1')
         .replace(/`(.+?)`/g, '$1')
         .trim();
@@ -2030,4 +2025,20 @@ module.exports = Kernel;
 module.exports.AXIOM_ERROR = AXIOM_ERROR;
 module.exports.CONTRACT_VERSION = CONTRACT_VERSION;
 module.exports.ProvenanceError = ProvenanceError;
+
+// #357: the only way to construct a learn() opts object that bypasses the
+// memory-admission gate. Requires require()-ing this module, so it can only
+// be produced by trusted code running in this process -- never by decoding
+// untrusted input (HTTP body, MCP tool args, CLI argv, plugin-forwarded
+// input) into a plain object, since a Symbol-keyed property cannot survive
+// JSON.stringify/parse or plain-object spread. `reason` must be a non-empty
+// string; every bypass is expected to explain itself for the same reason
+// the old string-keyed convention did (audit readability), not because the
+// string carries any authority of its own -- the token does.
+module.exports.createAdmissionBypassOpts = function createAdmissionBypassOpts(reason) {
+  if (typeof reason !== 'string' || !reason.trim()) {
+    throw new TypeError('createAdmissionBypassOpts(reason): reason must be a non-empty string');
+  }
+  return { [ADMISSION_BYPASS_TOKEN]: true, admissionBypassReason: reason };
+};
 

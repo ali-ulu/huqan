@@ -170,6 +170,7 @@
         "lib/viewer/session-cookie.js",
         "lib/viewer/session-store.js",
         "lib/viewer/viewer-gateway.js",
+        "lib/workbench/ingest-approval-action.js",
         "lib/workbench/memory-context-audit-source.js",
         "lib/workbench/memory-context-inspector.js",
         "lib/workbench/memory-context-route.js",

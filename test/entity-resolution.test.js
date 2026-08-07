@@ -4,6 +4,7 @@ const {
   resolveEntity,
   listAliases,
   listDomains,
+  registerAlias,
   normalizeAlias,
 } = require('../lib/entity-resolution');
 
@@ -16,7 +17,12 @@ describe('Entity Resolution - normalizeAlias', () => {
 
   it('collapses whitespace', () => {
     assert.strictEqual(normalizeAlias('Boeing   737'), 'boeing 737');
-    assert.strictEqual(normalizeAlias('Türk   Hava\nYolları'), 'türk hava yolları');
+  });
+
+  it('folds Turkish characters to ASCII so diacritic and ASCII spellings match (#442)', () => {
+    assert.strictEqual(normalizeAlias('Türk   Hava\nYolları'), 'turk hava yollari');
+    assert.strictEqual(normalizeAlias('Turk Hava Yollari'), 'turk hava yollari');
+    assert.strictEqual(normalizeAlias('İĞÜŞÖÇ'), 'igusoc');
   });
 
   it('returns empty string for non-string or empty', () => {
@@ -269,5 +275,104 @@ describe('Entity Resolution - no runtime nondeterminism', () => {
         assert.strictEqual(r.domain, 'tech');
       }
     });
+  });
+});
+
+describe('Entity Resolution - ASCII/diacritic cross-matching (#442)', () => {
+  it('the ASCII spelling resolves the same entry as the diacritic spelling', () => {
+    const withDiacritics = resolveEntity('Türk Hava Yolları', { domain: 'aviation' });
+    const asciiOnly = resolveEntity('Turk Hava Yollari', { domain: 'aviation' });
+    assert.strictEqual(withDiacritics.matched, true);
+    assert.strictEqual(asciiOnly.matched, true);
+    assert.strictEqual(withDiacritics.canonical, asciiOnly.canonical);
+  });
+});
+
+describe('Entity Resolution - registerAlias (#442)', () => {
+  it('registers a new alias in an existing domain, resolvable immediately', () => {
+    assert.strictEqual(registerAlias('tech', 'a320', 'airbus_a320'), true);
+    const r = resolveEntity('A320', { domain: 'tech' });
+    assert.strictEqual(r.matched, true);
+    assert.strictEqual(r.canonical, 'airbus_a320');
+  });
+
+  it('creates a brand-new domain that becomes visible via listDomains', () => {
+    assert.strictEqual(registerAlias('finance', 'roi', 'return_on_investment'), true);
+    assert.ok(listDomains().includes('finance'));
+    const r = resolveEntity('ROI', { domain: 'finance' });
+    assert.strictEqual(r.matched, true);
+    assert.strictEqual(r.canonical, 'return_on_investment');
+  });
+
+  it('normalizes the registered alias the same way a lookup would, including Turkish folding', () => {
+    registerAlias('geo', 'İzmir Buyuksehir', 'izmir_metropolitan');
+    const r1 = resolveEntity('izmir buyuksehir', { domain: 'geo' });
+    const r2 = resolveEntity('İzmir Büyükşehir', { domain: 'geo' });
+    assert.strictEqual(r1.matched, true);
+    assert.strictEqual(r2.matched, true);
+    assert.strictEqual(r1.canonical, 'izmir_metropolitan');
+    assert.strictEqual(r2.canonical, 'izmir_metropolitan');
+  });
+
+  it('returns false and does not change state for malformed input', () => {
+    const before = listAliases('tech').length;
+    assert.strictEqual(registerAlias('', 'x', 'y'), false);
+    assert.strictEqual(registerAlias('tech', '', 'y'), false);
+    assert.strictEqual(registerAlias('tech', 'x', ''), false);
+    assert.strictEqual(listAliases('tech').length, before);
+  });
+
+  it('returns false when re-registering an identical existing mapping (idempotent)', () => {
+    registerAlias('tech', 'unique-alias-1', 'canon_1');
+    assert.strictEqual(registerAlias('tech', 'unique-alias-1', 'canon_1'), false);
+  });
+
+  it('overwrites and returns true when the canonical target actually changes', () => {
+    registerAlias('tech', 'unique-alias-2', 'canon_a');
+    assert.strictEqual(registerAlias('tech', 'unique-alias-2', 'canon_b'), true);
+    assert.strictEqual(resolveEntity('unique-alias-2', { domain: 'tech' }).canonical, 'canon_b');
+  });
+});
+
+describe('Entity Resolution - registerAlias (runtime extensibility)', () => {
+  // Use a unique domain name per describe block so registration does not
+  // interfere with the built-in aviation/tech/design registries.
+  const testDomain = 'test_runtime_ext';
+  const testAlias = 'rt_alias_' + process.pid;
+  const testCanonical = 'rt_canonical';
+
+  it('registers a new alias in a new domain and resolves it', () => {
+    const before = listDomains();
+    assert.ok(!before.includes(testDomain), 'test domain should not pre-exist');
+
+    const added = registerAlias(testDomain, testAlias, testCanonical);
+    assert.strictEqual(added, true);
+
+    const after = listDomains();
+    assert.ok(after.includes(testDomain));
+
+    const resolved = resolveEntity(testAlias, { domain: testDomain });
+    assert.strictEqual(resolved.matched, true);
+    assert.strictEqual(resolved.canonical, testCanonical);
+    assert.strictEqual(resolved.domain, testDomain);
+  });
+
+  it('returns false when re-registering the same alias+canonical (no-op)', () => {
+    registerAlias(testDomain, testAlias, testCanonical); // ensure exists
+    const reAdded = registerAlias(testDomain, testAlias, testCanonical);
+    assert.strictEqual(reAdded, false);
+  });
+
+  it('rejects empty domain, alias, or canonical', () => {
+    assert.strictEqual(registerAlias('', testAlias, testCanonical), false);
+    assert.strictEqual(registerAlias(testDomain, '', testCanonical), false);
+    assert.strictEqual(registerAlias(testDomain, testAlias, ''), false);
+  });
+
+  it('normalizeAlias is applied (case and whitespace insensitive)', () => {
+    const added = registerAlias(testDomain, '  MixedCase  Alias ', 'mixed_canonical');
+    assert.strictEqual(added, true);
+    const resolved = resolveEntity('mixedcase alias', { domain: testDomain });
+    assert.strictEqual(resolved.canonical, 'mixed_canonical');
   });
 });

@@ -6,7 +6,7 @@ const CLI = require('./cli');
 const { evaluateLlmSor } = require('./lib/shield');
 const { handleIngest, buildIngestApprovalSnapshot, sha256 } = require('./lib/ingest');
 const AxiomStorage = require('./storage');
-const { buildReviewedActionReceipt, buildBlockedActionReceipt } = require('./lib/approval-flow');
+const { decideIngestApproval } = require('./lib/workbench/ingest-approval-action');
 const {
   buildTrustReceipt,
   queryAuditTrail,
@@ -82,6 +82,8 @@ function publicIngestApproval(record) {
   };
 }
 
+// The workspace comes from the immutable snapshot the action owner validated,
+// never from decision-request bytes and never from a hard-coded fallback.
 function recordIngestApprovalAudit(approval, receipt, result = null) {
   const snapshot = approval.context?.snapshot || {};
   const resultRef = result ? sha256(result) : '';
@@ -93,9 +95,10 @@ function recordIngestApprovalAudit(approval, receipt, result = null) {
       receipt,
       snapshotHash: snapshot.snapshotHash || '',
       pluginResultRef: resultRef,
-      executionGuarantee: 'approval_lifecycle_only',
+      actionOutcome: receipt.actionOutcome || '',
+      executionGuarantee: 'bounded_action_outcome',
     },
-  }, { workspaceId: 'default' });
+  }, { workspaceId: snapshot.workspaceId });
 }
 
 // --- Güvenlik sabitleri ---
@@ -208,6 +211,15 @@ function buildCorsHeaders(req, preflight = false) {
   return headers;
 }
 
+// Responses for the workbench memory-context route must never be cached or
+// content-sniffed, including the ones produced by generic middleware (rate
+// limit, auth) that answers before the route handler runs.
+function memoryContextSecurityHeaders(rawPath) {
+  return String(rawPath || '').startsWith('/api/workbench/memory-context/')
+    ? { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }
+    : {};
+}
+
 function writeJson(req, res, statusCode, payload, headers = {}) {
   res.writeHead(statusCode, {
     'Content-Type': JSON_CONTENT_TYPE,
@@ -279,10 +291,12 @@ function getRateLimitKey(req) {
     return 'key:' + crypto.createHash('sha256').update(apiKey).digest('hex').slice(0, 16);
   }
   if (process.env.AXIOM_TRUST_PROXY === '1') {
-    const xffList = String(req.headers?.['x-forwarded-for'] || '').split(',');
-    const forwarded = xffList[xffList.length - 1].trim();
-    // Validate looks like an IP before trusting it for rate-limit keying
-    if (forwarded && /^[\d.:a-fA-F]+$/.test(forwarded)) return 'ip:' + forwarded;
+    const xffList = String(req.headers?.['x-forwarded-for'] || '').split(',').map(s => s.trim());
+    // The FIRST entry in X-Forwarded-For is the original client IP.
+    // Only use it when we trust the proxy chain (AXIOM_TRUST_PROXY=1).
+    if (xffList.length > 0 && /^[\d.:a-fA-F]+$/.test(xffList[0])) {
+      return 'ip:' + xffList[0];
+    }
   }
   return 'ip:' + String(req.socket?.remoteAddress || 'unknown');
 }
@@ -329,10 +343,10 @@ const viewerGateway = createViewerGateway({
 });
 
 
-function denyIfUnauthorized(req, res) {
+function denyIfUnauthorized(req, res, extraHeaders = {}) {
   const auth = requireApiKey(req);
   if (auth.ok) return true;
-  writeJson(req, res, auth.status, auth.error, auth.headers);
+  writeJson(req, res, auth.status, auth.error, { ...auth.headers, ...extraHeaders });
   return false;
 }
 
@@ -750,10 +764,10 @@ const server = http.createServer(async (req, res) => {
   const rateKey = getRateLimitKey(req);
 
   if (!checkRateLimit(rateKey)) {
-    const rateHeaders = rawPath.startsWith('/api/workbench/memory-context/')
-      ? { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }
-      : {};
-    res.writeHead(429, { 'Content-Type': JSON_CONTENT_TYPE, ...rateHeaders });
+    res.writeHead(429, {
+      'Content-Type': JSON_CONTENT_TYPE,
+      ...memoryContextSecurityHeaders(rawPath),
+    });
     res.end(JSON.stringify({ error: 'Too many requests' }));
     return;
   }
@@ -769,7 +783,12 @@ const server = http.createServer(async (req, res) => {
   const routeAuthPolicy = resolveRouteAuthPolicy(reqUrl.pathname, req.method, {
     workspaceId: sanitizeInput(reqUrl.searchParams.get('workspaceId') || ''),
   });
-  if (routeAuthPolicy.authRequired && !denyIfUnauthorized(req, res)) return;
+  // The memory-context route hardens every one of its own responses with
+  // no-store/nosniff, but this central gate answers 401 before that handler
+  // ever runs, so the headers have to be carried here too -- same reason the
+  // rate-limit branch above special-cases the prefix.
+  if (routeAuthPolicy.authRequired
+    && !denyIfUnauthorized(req, res, memoryContextSecurityHeaders(rawPath))) return;
   // An undeclared path must never reach a handler. If one is added without a
   // policy entry it is answered as 404 here rather than executing
   // unauthenticated, so the declaration is enforced at runtime and not only by
@@ -1199,93 +1218,23 @@ const server = http.createServer(async (req, res) => {
     try {
       const store = getIngestApprovalStore();
       recoverExpiredIngestApprovals(store);
-      const approval = store.getToolApprovalById(approvalId);
-      if (!approval || approval.tool !== 'http.ingest') {
-        writeApiError(req, res, 404, 'APPROVAL_NOT_FOUND', 'Ingest approval was not found.');
-        return;
-      }
-      if (approval.status === 'approved' || approval.status === 'rejected') {
-        writeJson(req, res, 200, { ok: true, idempotent: true, approval: publicIngestApproval(approval) }, { 'Cache-Control': 'no-cache' });
-        return;
-      }
-      if (decision === 'rejected') {
-        const receipt = buildBlockedActionReceipt({
-          approvalId, workspaceId: 'default', actor: 'http-api', actionType: 'ingest', toolName: 'http.ingest',
-          requestedVerdict: 'review', reason: 'http_ingest_rejected', createdAt: new Date().toISOString(),
-        }, { metadata: { snapshotHash: approval.context?.snapshot?.snapshotHash || '', reviewer: 'http-api', auditRefs: [] } });
-        const rejected = store.finalizeToolApprovalWithReceipt(approvalId, {
-          expectedStatus: 'pending', decision: 'rejected', reason: 'http_ingest_rejected', receipt,
-        });
-        if (!rejected.finalized) {
-          writeApiError(req, res, 409, 'APPROVAL_DECISION_CONFLICT', 'Approval is no longer pending.');
-          return;
-        }
-        const finalApproval = rejected.approval;
-        let auditRef = '';
-        try { auditRef = recordIngestApprovalAudit(finalApproval, receipt).auditId; } catch (error) { console.error('[ingest-approval-audit] failed:', error); }
-        writeJson(req, res, 200, { ok: true, approval: publicIngestApproval(finalApproval), receipt, auditRef }, { 'Cache-Control': 'no-cache' });
-        return;
-      }
-      const claim = store.claimToolApprovalWithLease(approvalId, {
-        owner: INGEST_APPROVAL_WORKER_ID,
+      const outcome = await decideIngestApproval({
+        store,
+        kernel: cli.kernel,
+        approvalId,
+        decision,
+        handleIngest,
+        ensureRuntime: ensureCompanyRuntime,
+        recordAudit: recordIngestApprovalAudit,
+        toPublicApproval: publicIngestApproval,
+        workerId: INGEST_APPROVAL_WORKER_ID,
         leaseMs: INGEST_APPROVAL_LEASE_MS,
-        reason: 'http_ingest_execution_claimed',
       });
-      if (!claim.claimed) {
-        writeApiError(req, res, 409, 'APPROVAL_EXECUTION_IN_PROGRESS', 'Approval is already claimed or not pending.');
+      if (outcome.error) {
+        writeApiError(req, res, outcome.status, outcome.error.code, outcome.error.message);
         return;
       }
-      const executing = claim.approval;
-      const snapshot = executing.context?.snapshot;
-      if (!snapshot || sha256(snapshot.payload) !== snapshot.snapshotHash) {
-        store.failToolApproval(approvalId, 'snapshot_integrity_mismatch');
-        writeApiError(req, res, 409, 'SNAPSHOT_INTEGRITY_MISMATCH', 'Queued ingest snapshot no longer validates.');
-        return;
-      }
-      let result;
-      let leaseLost = false;
-      const leaseHeartbeat = setInterval(() => {
-        try {
-          const renewal = store.renewToolApprovalLease(approvalId, INGEST_APPROVAL_WORKER_ID, INGEST_APPROVAL_LEASE_MS);
-          if (!renewal.renewed) leaseLost = true;
-        } catch (_) {
-          leaseLost = true;
-        }
-      }, Math.max(5_000, Math.floor(INGEST_APPROVAL_LEASE_MS / 2)));
-      leaseHeartbeat.unref?.();
-      try {
-        result = await handleIngest({ kernel: cli.kernel, data: snapshot.payload, ensureRuntime: ensureCompanyRuntime });
-      } catch (error) {
-        store.failToolApproval(approvalId, `execution_outcome_unknown:${error.code || error.name || 'error'}`);
-        throw error;
-      } finally {
-        clearInterval(leaseHeartbeat);
-      }
-      if (leaseLost) {
-        writeApiError(req, res, 409, 'APPROVAL_LEASE_LOST', 'Plugin execution returned after its approval lease was lost; manual reconciliation is required.');
-        return;
-      }
-      if (!result || result.ok === false) {
-        store.failToolApproval(approvalId, 'execution_outcome_unknown:result_not_ok');
-        writeApiError(req, res, 409, 'INGEST_EXECUTION_FAILED', 'Approved ingest did not complete; manual reconciliation is required.');
-        return;
-      }
-      const receipt = buildReviewedActionReceipt({
-        approvalId, workspaceId: 'default', actor: 'http-api', actionType: 'ingest', toolName: 'http.ingest',
-        requestedVerdict: 'review', reason: 'http_ingest_executed', createdAt: new Date().toISOString(),
-      }, { metadata: { snapshotHash: snapshot.snapshotHash, reviewer: 'http-api', pluginResultRef: sha256(result), auditRefs: [] } });
-      receipt.actionExecution = 'plugin_execution_returned';
-      receipt.actionOutcome = 'state_transition_not_asserted';
-      const finalized = store.finalizeToolApprovalWithReceipt(approvalId, {
-        expectedStatus: 'executing', decision: 'approved', reason: 'http_ingest_executed', receipt,
-      });
-      if (!finalized.finalized) {
-        writeApiError(req, res, 409, 'APPROVAL_FINALIZATION_CONFLICT', 'Plugin execution returned, but approval finalization requires reconciliation.');
-        return;
-      }
-      let auditRef = '';
-      try { auditRef = recordIngestApprovalAudit(finalized.approval, receipt, result).auditId; } catch (error) { console.error('[ingest-approval-audit] failed:', error); }
-      writeJson(req, res, 200, { ok: true, approval: publicIngestApproval(finalized.approval), result, receipt, auditRef }, { 'Cache-Control': 'no-cache' });
+      writeJson(req, res, outcome.status, outcome.json, { 'Cache-Control': 'no-cache' });
     } catch (error) {
       console.error('[ingest-approval] failed:', error);
       writeApiError(req, res, 500, 'INGEST_APPROVAL_FAILED', 'Ingest approval failed; inspect unresolved approvals.');
@@ -1305,7 +1254,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const snapshot = buildIngestApprovalSnapshot(data);
       if (!snapshot.ok) {
-        writeApiError(req, res, 409, snapshot.code || 'INGEST_SNAPSHOT_REQUIRED', snapshot.error || 'Ingest cannot be queued safely.');
+        writeApiError(req, res, snapshot.code === 'INGEST_WORKSPACE_UNSUPPORTED' ? 400 : 409, snapshot.code || 'INGEST_SNAPSHOT_REQUIRED', snapshot.error || 'Ingest cannot be queued safely.');
         return;
       }
       const store = getIngestApprovalStore();
@@ -1448,5 +1397,6 @@ server.closeAxiom = () => {
 
 server.startServer = startServer;
 module.exports = server;
+module.exports.getRateLimitKey = getRateLimitKey;
 
 

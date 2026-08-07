@@ -16,13 +16,24 @@ const PACKS = {
   arabi: ar,
 };
 
+// Hoisted out of detectLanguage() so repeated calls don't allocate four new
+// Sets each time (#443) -- the word lists never change per call.
+const AR_HINTS = new Set(['هو', 'هي', 'كان', 'تكون', 'يكون', 'وال', 'في', 'من', 'إلى', 'على']);
+const DE_HINTS = new Set(['der', 'die', 'das', 'ist', 'sind', 'war', 'waren', 'und', 'für', 'mit']);
+const EN_HINTS = new Set(['the', 'is', 'are', 'was', 'were', 'and', 'of', 'with', 'for']);
+const TR_HINTS = new Set(['ve', 'veya', 'bir', 'için', 'gibi', 'değil', 'dır', 'dir', 'dır', 'mi', 'mı']);
+
 function detectLanguage(text) {
   const sample = String(text || '').toLowerCase();
   if (!sample) return 'tr';
 
   if (/[\u0600-\u06ff]/.test(sample)) return 'ar';
-  if (/[äöüß]/.test(sample)) return 'de';
-  if (/[çğıöşü]/.test(sample)) return 'tr';
+  // German-specific characters (ä, ß) are a strong German signal. Note: ö and
+  // ü are shared with Turkish, so they are NOT enough to call a text German.
+  if (/[äß]/.test(sample)) return 'de';
+  // Turkish-specific characters (ç, ğ, ı, ş) are a strong Turkish signal and
+  // must be checked before falling back to shared ö/ü.
+  if (/[çğış]/.test(sample)) return 'tr';
 
   const words = sample
     .replace(/[^\p{L}\p{N}\s-]/gu, ' ')
@@ -31,15 +42,19 @@ function detectLanguage(text) {
 
   const hasAny = (set) => words.some(word => set.has(word));
 
-  const arHints = new Set(['هو', 'هي', 'كان', 'تكون', 'يكون', 'وال', 'في', 'من', 'إلى', 'على']);
-  const deHints = new Set(['der', 'die', 'das', 'ist', 'sind', 'war', 'waren', 'und', 'für', 'mit']);
-  const enHints = new Set(['the', 'is', 'are', 'was', 'were', 'and', 'of', 'with', 'for']);
-  const trHints = new Set(['ve', 'veya', 'bir', 'için', 'gibi', 'değil', 'dır', 'dir', 'dır', 'mi', 'mı']);
+  // Hint-word based detection for texts that only use shared ö/ü (e.g. Turkish
+  // "göz", "üzüm") or no special chars at all. Check Turkish before German
+  // because Turkish hint words are more distinctive in this codebase's default
+  // language.
+  if (hasAny(AR_HINTS)) return 'ar';
+  if (hasAny(TR_HINTS)) return 'tr';
+  if (hasAny(DE_HINTS)) return 'de';
+  if (hasAny(EN_HINTS)) return 'en';
 
-  if (hasAny(arHints)) return 'ar';
-  if (hasAny(deHints)) return 'de';
-  if (hasAny(trHints)) return 'tr';
-  if (hasAny(enHints)) return 'en';
+  // Last-resort: if the text only contains shared ö/ü (no ä/ß, no ç/ğ/ı/ş,
+  // no hint words), default to Turkish because this repo's default language is
+  // Turkish and German-only-with-ö/ü-and-no-other-signal is rare here.
+  if (/[öü]/.test(sample)) return 'tr';
 
   return 'tr';
 }

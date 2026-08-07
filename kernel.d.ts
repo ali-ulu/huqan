@@ -177,10 +177,48 @@ declare class Kernel {
 
   constructor(opts?: KernelOptions);
 
+  /**
+   * Graph surface used by the kernel. This is a structural subset of the real
+   * Graph class (graph.js) covering the methods kernel.js and plugins call at
+   * runtime. Method signatures are kept permissive (unknown for rich object
+   * shapes) because Graph is a live JS module, not a generated binding.
+   */
   graph: {
     memoryPath: string;
     load(): void;
     save(): void;
+    close(): void;
+    optimize(workspaceId?: string): { pruned: number; removedNodes: number };
+    getStats(): { nodes: number; edges: number; [key: string]: unknown };
+    // Node access
+    addNode(id: string, label?: string, provenance?: unknown, opts?: Record<string, unknown>): unknown;
+    getNode(id: string, workspaceId?: string): unknown | null;
+    getNodes(workspaceId?: string): Record<string, unknown>;
+    nodeCount(workspaceId?: string): number;
+    // Edge access
+    addEdge(fromId: string, toId: string, relation: string, opts?: Record<string, unknown>): unknown;
+    getEdge(fromId: string, toId: string, relation: string, workspaceId?: string): unknown | null;
+    getEdges(nodeId: string, workspaceId?: string): unknown[];
+    getInEdges(nodeId: string, workspaceId?: string): unknown[];
+    hasAnyEdge(fromId: string, toId: string, workspaceId?: string): boolean;
+    edgeCount(workspaceId?: string): number;
+    cosineSimilarity(aId: string, bId: string, workspaceId?: string): number;
+    // Candidate claims / mutations
+    // The audit-append seam is deliberately absent here. Graph does implement
+    // an audit-append method and kernel.js reaches it through its private
+    // wrapper, but declaring it would publish a generic audit-append surface on
+    // the typed Kernel facade. recordCliMutationAudit is the only supported
+    // public audit entry point; see
+    // test/kernel-cli-audit-seam-contract.test.js.
+    addCandidateClaim(candidate: unknown, opts?: Record<string, unknown>): unknown;
+    getCandidateClaims(filters?: Record<string, unknown>): unknown[];
+    runMutationOnce(
+      operationId: string,
+      mutate: () => unknown,
+      opts?: Record<string, unknown>
+    ): { replayed: boolean; result: unknown; receipt?: unknown };
+    appendAuditEvent(event: unknown, opts?: Record<string, unknown>): unknown;
+    _consolidateEdges(dryRun?: boolean): unknown;
   };
 
   memory: {

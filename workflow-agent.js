@@ -2,7 +2,24 @@
 const { buildFinalSummary } = require('./finalizer');
 
 const DEFAULT_MAX_STEPS = 4;
-const DEFAULT_BUDGET = null;
+
+/**
+ * Default cost ceiling for a run.
+ *
+ * This was `null`, which `resolveBudget` turns into `Infinity` -- so every
+ * caller that did not pass a budget got an unlimited one, and the budget
+ * check below (`stepCost > budgetRemaining`) could never fire. The protection
+ * existed but was off for everyone, which is the failure mode least likely to
+ * be noticed: nothing errors, runs just never stop for cost.
+ *
+ * The scale: a registered tool's cost defaults to 1 and `DEFAULT_MAX_STEPS` is
+ * 4, so an ordinary run spends about 4. 100 leaves roughly 25x headroom, so it
+ * only bites on a genuinely expensive tool or a runaway cost, not on normal
+ * work. A caller that needs more passes `budget` explicitly; a caller that
+ * genuinely wants no ceiling can still opt in via `resolveBudget(value, null)`,
+ * which remains an explicit choice rather than a silent default.
+ */
+const DEFAULT_BUDGET = 100;
 
 function cloneValue(value) {
   if (value === undefined) return undefined;
@@ -956,4 +973,7 @@ module.exports.ToolRegistry = ToolRegistry;
 module.exports.normalizeConfidence = normalizeConfidence;
 module.exports.normalizeEvidence = normalizeEvidence;
 module.exports.normalizeError = normalizeError;
+module.exports.DEFAULT_BUDGET = DEFAULT_BUDGET;
+module.exports.DEFAULT_MAX_STEPS = DEFAULT_MAX_STEPS;
+module.exports.resolveBudget = resolveBudget;
 

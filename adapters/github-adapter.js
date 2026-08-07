@@ -44,11 +44,16 @@ function parseRateLimitError(res, fallbackMessage) {
   return toError(fallbackMessage, 'GITHUB_REQUEST_FAILED', res.status);
 }
 
+const DEFAULT_FETCH_TIMEOUT_MS = 30000;
+
 async function defaultFetch(url, options) {
   if (typeof fetch !== 'function') {
     throw toError('Global fetch is not available', 'FETCH_UNAVAILABLE');
   }
-  return fetch(url, options);
+  const withTimeout = options && options.signal
+    ? options
+    : { ...options, signal: AbortSignal.timeout(DEFAULT_FETCH_TIMEOUT_MS) };
+  return fetch(url, withTimeout);
 }
 
 async function fetchRepoFiles(repoUrl, opts = {}) {

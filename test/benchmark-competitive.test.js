@@ -25,10 +25,7 @@ const { performance } = require('perf_hooks');
 const Kernel = require('../kernel');
 const { callTool } = require('../mcpServer');
 
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

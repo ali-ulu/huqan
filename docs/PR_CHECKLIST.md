@@ -3,7 +3,6 @@
 ## Before implementation
 
 - [ ] Read `AGENTS.md`
-- [ ] Read `GEMINI.md`
 - [ ] Confirm current branch is not `main`
 - [ ] Confirm `git status --short`
 - [ ] Declare intended files

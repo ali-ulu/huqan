@@ -5,6 +5,10 @@ const STOP_WORDS = new Set([
 
 function normalize(word) {
   let w = String(word || '').toLowerCase().trim();
+  // NFKD + strip diacritics turns accented Latin letters into their base
+  // form (café -> cafe) before the ASCII filter runs, instead of the filter
+  // silently deleting the accented letter outright (café -> caf, #443).
+  w = w.normalize('NFKD').replace(/\p{Diacritic}/gu, '');
   w = w.replace(/[^a-z0-9-]/g, '');
   for (const suf of ['ing', 'ed', 'es', 's']) {
     if (w.endsWith(suf) && w.length > suf.length + 2) {

@@ -252,6 +252,30 @@ test('http-adapter: ingestUrl caches the response and does not re-fetch within t
   });
 });
 
+test('http-adapter: ingestUrl refreshes the cache after the TTL expires (regression)', async () => {
+  let requests = 0;
+  await withServer((req, res) => {
+    if (req.url === '/robots.txt') { res.writeHead(404); res.end(); return; }
+    requests += 1;
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('fresh body');
+  }, async (baseUrl) => {
+    // TTL of 0 means the entry is already expired on the very next call.
+    // Previously the expired entry was never replaced, so every subsequent
+    // call re-fetched forever AND never updated the cache.
+    const opts = { allowPrivateAddresses: true, robotsCache: new Map(), responseCache: new Map(), cacheTtlMs: 0 };
+    await ingestUrl(`${baseUrl}/page`, opts); // first call: fetch + cache set
+    assert.equal(requests, 1, 'first call should fetch');
+    await ingestUrl(`${baseUrl}/page`, opts); // expired → should fetch AND refresh cache
+    assert.equal(requests, 2, 'expired cache should trigger a re-fetch');
+    // Confirm the cache entry was refreshed: a subsequent call with a long TTL
+    // should NOT re-fetch.
+    const freshOpts = { ...opts, cacheTtlMs: 60000 };
+    await ingestUrl(`${baseUrl}/page`, freshOpts);
+    assert.equal(requests, 2, 'refreshed cache entry should be reused within the new TTL');
+  });
+});
+
 test('http-adapter: ingestUrls collects per-URL errors without aborting the batch', async () => {
   await withServer((req, res) => {
     if (req.url === '/robots.txt') { res.writeHead(404); res.end(); return; }

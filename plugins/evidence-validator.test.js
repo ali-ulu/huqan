@@ -64,8 +64,7 @@ test('evidence-validator: beforeLearn end to end -- kernel.learn() itself reject
 
   assert.throws(
     () => k.learn('Köpek hayvandır', {
-      admissionRequired: false,
-      admissionBypassReason: 'test',
+      ...Kernel.createAdmissionBypassOpts('test'),
       sourceRef: 'https://accounts.google.com@evil.example/login',
     }),
     (err) => err.code === 'EVIDENCE_URL_USERINFO_SPOOF'
@@ -74,8 +73,7 @@ test('evidence-validator: beforeLearn end to end -- kernel.learn() itself reject
 
   // An ordinary, non-spoofed sourceRef still learns normally.
   k.learn('Kedi hayvandır', {
-    admissionRequired: false,
-    admissionBypassReason: 'test',
+    ...Kernel.createAdmissionBypassOpts('test'),
     sourceRef: 'https://example.com/report',
   });
   assert.ok(k.graph.getNode('kedi'), 'a legitimate sourceRef must still be learnable');

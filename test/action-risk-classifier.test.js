@@ -166,6 +166,13 @@ describe('AB1 v2 helper functions', () => {
     assert.strictEqual(isPathSecuritySensitive('lib/trust-policy.js'), true);
     assert.strictEqual(isPathSecuritySensitive('src/random.js'), false);
 
+    // Windows/macOS file systems are case-insensitive, so a differently-cased
+    // path must still be recognised as security sensitive (#449).
+    assert.strictEqual(isPathSecuritySensitive('lib/Trust-Policy.js'), true);
+    assert.strictEqual(isPathSecuritySensitive('LIB/TRUST-POLICY.JS'), true);
+    assert.strictEqual(isPathSecuritySensitive('lib\\Trust-Policy.js'), true);
+    assert.strictEqual(isPathSecuritySensitive('src/Random.js'), false);
+
     assert.strictEqual(isUrlInList('https://api.axiom.local/health', ['https://api.axiom.local']), true);
     assert.strictEqual(isUrlInList('https://example.com', ['https://api.axiom.local']), false);
   });

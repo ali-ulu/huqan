@@ -9,10 +9,13 @@ agent.memory.json
 memory.db-shm
 memory.db-wal
 test_memory.db
+# Trust Receipts written at runtime, and by the smoke tests that exercise the
+# receipt paths — generated output, not source.
+receipts/
 *.log
 .env
-demo-sonuc.json
-tbk-demo.js
-tbk-kira.js
+# Local developer scratch files — use these prefixes for personal test output
+local-*.json
+local-*.js
 backups/
 obsidian-plugin/dist/

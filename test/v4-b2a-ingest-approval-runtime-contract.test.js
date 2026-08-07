@@ -8,6 +8,7 @@ const path = require('node:path');
 const { after, before, describe, it } = require('node:test');
 
 const AxiomStorage = require('../storage');
+const { ACTION_OUTCOMES } = require('../lib/workbench/ingest-approval-action');
 
 const VERDICT = 'V4_B2_EXISTING_RUNTIME_CONTRACT_BLOCKED_GAP';
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-v4-b2a-'));
@@ -66,6 +67,9 @@ function requestJson(pathname, options = {}) {
   });
 }
 
+// V4-B2B superseded the original caller-selected workspace input: this surface
+// now binds canonical `default` and fails a non-default value closed before
+// persistence. The durable lifecycle coverage below is unchanged.
 function payload(suffix, overrides = {}) {
   return {
     sourceType: 'manual',
@@ -73,7 +77,6 @@ function payload(suffix, overrides = {}) {
     date: '2026-08-05',
     text: `v4 b2a ${suffix} hayvandir`,
     idempotencyKey: `v4-b2a-${suffix}`,
-    workspaceId: `caller-workspace-${suffix}`,
     ...overrides,
   };
 }
@@ -140,7 +143,7 @@ describe('V4-B2A: existing durable ingest approval runtime contract', () => {
     assert.equal(record.decision, 'review');
     assert.equal(record.context.snapshot.snapshotHash, first.approval.snapshotHash);
     assert.equal(record.context.snapshot.idempotencyKey, 'v4-b2a-queue');
-    assert.equal(record.context.snapshot.payload.workspaceId, undefined);
+    assert.equal(record.context.snapshot.workspaceId, 'default');
     assert.deepEqual(graphSnapshot(), before);
 
     const replay = await requestJson('/api/ingest', {
@@ -249,7 +252,7 @@ describe('V4-B2A: existing durable ingest approval runtime contract', () => {
     assert.equal(store.getToolApprovalById(id).status, 'failed');
   });
 
-  it('finalizes an approved route call with lifecycle receipt and names its actual caller limitation', async () => {
+  it('finalizes an approved route call with a bounded action outcome receipt', async () => {
     const queued = await queue('approved');
     const approved = await requestJson(`/api/ingest/approvals/${queued.approval.id}`, {
       method: 'POST', body: { decision: 'approved', workspaceId: 'ignored-decision-workspace' },
@@ -258,8 +261,11 @@ describe('V4-B2A: existing durable ingest approval runtime contract', () => {
     assert.equal(approved.body.ok, true);
     assert.equal(approved.body.approval.status, 'approved');
     assert.equal(approved.body.receipt.receiptKind, 'reviewed_action_receipt');
-    assert.equal(approved.body.receipt.actionExecution, 'plugin_execution_returned');
-    assert.equal(approved.body.receipt.actionOutcome, 'state_transition_not_asserted');
+    // V4-B2B replaced the generic plugin-return labels with a bounded outcome
+    // derived from the admission summary plus observed Graph evidence.
+    assert.equal(approved.body.receipt.actionExecution, 'ingest_capability_executed');
+    assert.ok(ACTION_OUTCOMES.includes(approved.body.receipt.actionOutcome));
+    assert.notEqual(approved.body.receipt.actionOutcome, 'execution_outcome_unknown');
     assert.equal(approved.body.receipt.workspaceId, 'default');
     assert.equal(approved.body.receipt.metadata.snapshotHash, queued.approval.snapshotHash);
     assert.match(approved.body.receipt.metadata.pluginResultRef, /^sha256:/);
@@ -269,8 +275,11 @@ describe('V4-B2A: existing durable ingest approval runtime contract', () => {
     assert.equal(durable.status, 'approved');
     assert.equal(durable.context.receipt.receiptId, approved.body.receipt.receiptId);
 
+    // Superseded: the route no longer executes ingest inline. server.js now
+    // delegates to the bounded action owner, which is the only caller.
     const source = fs.readFileSync(require.resolve('../server'), 'utf8');
-    assert.match(source, /result = await handleIngest\(/);
+    assert.doesNotMatch(source, /await handleIngest\(/);
+    assert.match(source, /await decideIngestApproval\(/);
     assert.doesNotMatch(source, /executeReviewedExternalGraphMutation/);
     assert.equal(VERDICT, 'V4_B2_EXISTING_RUNTIME_CONTRACT_BLOCKED_GAP');
   });

@@ -1,6 +1,13 @@
 {
   "version": "2.0.0",
   "iterations": 2,
+  "metadata": {
+    "capturedAt": "2026-06-12T00:00:00+03:00",
+    "nodeVersion": "unknown",
+    "machine": "unknown",
+    "commit": "unknown",
+    "note": "Baseline captured before metadata tracking was added. Treat timing values as advisory and only compare against runs from the same machine and Node major version (see benchmarks/WATCH.md)."
+  },
   "fixtures": {
     "small": {
       "nodes": 6,

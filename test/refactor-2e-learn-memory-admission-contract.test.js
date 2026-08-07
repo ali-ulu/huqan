@@ -62,8 +62,7 @@ function approved(id = 'approved') {
 function bypass() {
   return {
     workspaceId: 'default',
-    admissionRequired: false,
-    admissionBypassReason: 'characterization_fixture',
+    ...Kernel.createAdmissionBypassOpts('characterization_fixture'),
   };
 }
 

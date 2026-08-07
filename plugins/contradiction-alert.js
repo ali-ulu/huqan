@@ -1,4 +1,4 @@
-﻿const { adjustedConfidence } = require('../evidence-ranker');
+const { adjustedConfidence } = require('../evidence-ranker');
 
 function normalizeInput(input) {
   if (typeof input === 'string') return input.trim();

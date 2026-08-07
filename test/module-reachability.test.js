@@ -113,6 +113,23 @@ test('a file reached only through a nested require is still reachable', () => {
   }
 });
 
+test('a double-quoted require is followed too', () => {
+  // The walk used to only match single-quoted require() calls, so a file
+  // reached exclusively through require("./x") was reported unreachable (#445).
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'reach-'));
+  try {
+    fs.writeFileSync(path.join(root, 'cli.js'), 'require("./quoted");\n');
+    fs.writeFileSync(path.join(root, 'quoted.js'), 'module.exports = {};\n');
+
+    const { reachable, unreachable } = analyzeReachability({ root });
+
+    assert.ok(reachable.includes('quoted.js'), 'require("...") must be followed like require(\'...\')');
+    assert.equal(unreachable.includes('quoted.js'), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('a require cycle does not hang the walk', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'reach-'));
   try {

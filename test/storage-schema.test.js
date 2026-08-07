@@ -144,3 +144,68 @@ test('indexes over migrated columns are created after the migrations', () => {
   assert.ok(workspaceIndexAt > lastAlterAt,
     'an index on a migrated column must not run before that column exists');
 });
+
+// ─── migrations are atomic (#426) ────────────────────────────────────────────
+
+/** A fake handle that supports better-sqlite3's db.transaction(fn) idiom. */
+function transactionalFakeDb(existingColumns = {}, opts = {}) {
+  const db = fakeDb(existingColumns);
+  const committed = [];
+  db.committed = committed;
+  db.transaction = (work) => () => {
+    const mark = db.executed.length;
+    try {
+      work();
+      committed.push(...db.executed.slice(mark));
+    } catch (err) {
+      // Roll back: drop everything the failed unit executed.
+      db.executed.length = mark;
+      throw err;
+    }
+  };
+  if (opts.failOn) {
+    const realExec = db.exec.bind(db);
+    db.exec = (sql) => {
+      if (opts.failOn.test(String(sql))) throw new Error('simulated failure');
+      realExec(sql);
+    };
+  }
+  return db;
+}
+
+test('the migration set runs inside a transaction when the handle supports one', () => {
+  const db = transactionalFakeDb();
+  const { transactional, addedColumns } = applyStorageSchema(db);
+
+  assert.equal(transactional, true, 'a half-applied migration must not be possible');
+  assert.equal(addedColumns.length, ADDITIVE_COLUMNS.length);
+  assert.ok(db.committed.some((sql) => /ALTER TABLE/i.test(sql)),
+    'the ALTERs must run through the transaction wrapper, not around it');
+});
+
+test('a failed backfill rolls back its column instead of leaving it default-filled', () => {
+  // iterations_delta defaulting to 0 while its backfill is missing reads as
+  // "no budget spent" -- the exact fail-open the column exists to close.
+  const db = transactionalFakeDb({}, { failOn: /UPDATE agent_runs SET iterations_delta/ });
+
+  assert.throws(() => applyStorageSchema(db), /simulated failure/);
+  assert.equal(db.executed.some((sql) => /ADD COLUMN iterations_delta/.test(sql)), false,
+    'the column must not survive a rollback without its backfill');
+});
+
+test('a handle without transaction support still migrates, and says so', () => {
+  const db = fakeDb();
+  const { transactional, addedColumns } = applyStorageSchema(db);
+
+  assert.equal(transactional, false, 'callers must be able to tell it ran unwrapped');
+  assert.equal(addedColumns.length, ADDITIVE_COLUMNS.length, 'it should still migrate');
+});
+
+test('an already-migrated database opens no transaction at all', () => {
+  const db = transactionalFakeDb(ALL_PRESENT);
+  const { addedColumns, transactional } = applyStorageSchema(db);
+
+  assert.deepEqual(addedColumns, []);
+  assert.equal(transactional, true, 'no pending work means nothing to wrap, reported as clean');
+  assert.deepEqual(db.committed, [], 'no migration unit should have been committed');
+});
