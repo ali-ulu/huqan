@@ -192,13 +192,11 @@ class Kernel {
     this._verifyService = new VerifyService(this);
     this.strictProvenance = opts.strictProvenance === true;
     
-    // r1: RwLock mutex for concurrent access safety
-    // Simple lock mechanism (no npm dependencies)
-    // Can be disabled with enableConcurrencyLock=false for backward compatibility
+    // r1: single-flight guard for critical operations (verify/learn), enforced
+    // synchronously by _enterCriticalSection()/_exitCriticalSection() below.
+    // Can be disabled with enableConcurrencyLock=false for backward compatibility.
     this._enableConcurrencyLock = opts.enableConcurrencyLock !== false;
-    this._lockQueue = [];
     this._lockAcquired = false;
-    this._lockTimeoutMs = opts.lockTimeoutMs || 5000;
 
     // v0.9.1: AXIOM Memory Core — kernel.memory API
     this.memory = new MemoryStore({
@@ -260,30 +258,6 @@ class Kernel {
     const answers = ask.map(question => sandbox.ask(question)?.data?.answer || 'Bilmiyorum');
     if (typeof sandbox.graph?.close === 'function') sandbox.graph.close();
     return { backend: 'js', answers };
-  }
-
-  // r1: Acquire lock for critical operations (verify/learn)
-  async _acquireLock(timeoutMs = null) {
-    if (!this._enableConcurrencyLock) return; // Lock disabled
-    
-    const timeout = timeoutMs !== null ? timeoutMs : this._lockTimeoutMs;
-    const startTime = Date.now();
-    
-    while (this._lockAcquired && Date.now() - startTime < timeout) {
-      await new Promise(resolve => setImmediate(resolve));
-    }
-    
-    if (this._lockAcquired) {
-      throw new Error(`Lock acquisition timeout after ${timeout}ms`);
-    }
-    
-    this._lockAcquired = true;
-  }
-
-  // r1: Release lock
-  _releaseLock() {
-    if (!this._enableConcurrencyLock) return; // Lock disabled
-    this._lockAcquired = false;
   }
 
   _enterCriticalSection(operation = 'operation') {
