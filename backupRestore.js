@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { resolvePersistencePaths } = require('./persistencePaths');
+const { resolvePathWithinRoot } = require('./lib/path-safety');
 
 const DEFAULT_FILES = Object.freeze([
   'memory.db',
@@ -192,8 +193,26 @@ function listBackups(opts = {}) {
     .reverse();
 }
 
+/**
+ * Resolves a restore source inside the configured backup root.
+ * Existing symlinks are canonicalized by resolvePathWithinRoot, so an
+ * allowed-looking path cannot redirect restore to arbitrary filesystem state.
+ */
 function resolveRestoreSource(opts = {}) {
-  if (opts.backupDir) return path.resolve(opts.backupDir);
+  if (opts.backupDir) {
+    const runtime = resolveRuntimePaths(opts);
+    const resolved = path.resolve(opts.backupDir);
+    try {
+      return resolvePathWithinRoot(runtime.backupBaseDir, resolved, { allowMissing: true });
+    } catch (error) {
+      if (error?.code !== 'PATH_OUTSIDE_ALLOWED_ROOT') throw error;
+      const err = new Error(`Restore source is outside the backup directory: ${resolved}`);
+      err.code = 'RESTORE_SOURCE_NOT_ALLOWED';
+      err.backupBaseDir = runtime.backupBaseDir;
+      err.path = resolved;
+      throw err;
+    }
+  }
   const backups = listBackups(opts);
   return backups[0] || null;
 }
