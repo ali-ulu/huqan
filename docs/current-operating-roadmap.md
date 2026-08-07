@@ -1,7 +1,8 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`c6780ebef77a54511fc4906332f98958f50af9fc` (PR #522 merge).
+`d70c0a0` (PR #512 merge). This line is an observation, not a base pin — see the
+authorization-artifact rule under the current gate.
 
 Live source, exact Git SHA, tests and CI outrank this compact execution source.
 Detailed history remains in merged PRs, task-packs and audit evidence.
@@ -311,8 +312,14 @@ The controlling task-pack is:
 docs/task-packs/v4-b3-receipt-export-user-flow-authorization.md
 ```
 
-The successor must start from exact canonical main
-`9b6d41f801a918451e3e5142498204d86a549f59` and may change exactly:
+The successor opens its branch from live `origin/main` at the moment work
+starts, and must prove that the immutable authorization artifact `7446642` is an
+ancestor of that base and that the six authorized files are unchanged since it.
+An empty six-file diff is a source-compatibility proof and implementation
+proceeds; a non-empty one makes reconciliation mandatory. See the task-pack's
+base rule for why a pre-merge `main` SHA is no longer pinned.
+
+The successor may change exactly:
 
 ```text
 lib/workbench/receipt-bundle-exporter.js
@@ -398,6 +405,11 @@ redaction policy, define a new receipt format or claim V4 closure.
 ## Permanent ordering rules
 
 - One active task and exact post-merge main ancestry.
+- A task-pack binds an immutable authorization artifact SHA, never a pre-merge
+  `main` tip. Implementation branches open from live `origin/main`, must carry
+  that artifact in ancestry, and prove the authorized file scope unchanged since
+  it. Pinning a branch tip stales itself the moment the authorization merges and
+  turns every unrelated merge into a reconciliation.
 - Approval state comes from the existing durable canonical owner.
 - No Graph mutation occurs before exact valid approval.
 - Missing, rejected, expired and unknown outcomes fail closed.
