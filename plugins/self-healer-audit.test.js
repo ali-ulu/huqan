@@ -7,9 +7,7 @@ const path = require('path');
 const selfHealerAudit = require('./self-healer-audit');
 const { ensureAuditState, unclassifiedModuleFinding, runReachabilityAudit } = selfHealerAudit._test;
 
-function fakeKernel() {
-  return {};
-}
+function fakeKernel() { return {}; }
 
 test('self-healer-audit: unclassifiedModuleFinding produces a schema-valid finding', () => {
   const { validateFinding, normalizeFinding } = require('../lib/self-healer/finding-schema');
@@ -27,10 +25,7 @@ test('self-healer-audit: runReachabilityAudit against a fixture repo with one or
     fs.writeFileSync(path.join(dir, 'cli.js'), "require('./used');\n");
     fs.writeFileSync(path.join(dir, 'used.js'), 'module.exports = {};\n');
     fs.writeFileSync(path.join(dir, 'orphan.js'), 'module.exports = {};\n');
-
-    const kernel = fakeKernel();
-    const result = runReachabilityAudit(kernel, { root: dir, workspaceId: 'default' });
-
+    const result = runReachabilityAudit(fakeKernel(), { root: dir, workspaceId: 'default' });
     assert.equal(result.ok, true);
     assert.equal(result.unacknowledgedCount, 1);
     assert.equal(result.findingCount, 1);
@@ -38,9 +33,7 @@ test('self-healer-audit: runReachabilityAudit against a fixture repo with one or
     assert.equal(result.proposals.length, 1);
     assert.equal(result.proposals[0].applied, false);
     assert.ok(result.proposals[0].receiptSummary);
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('self-healer-audit: a fixture repo with no orphans produces zero findings and zero proposals', () => {
@@ -48,32 +41,21 @@ test('self-healer-audit: a fixture repo with no orphans produces zero findings a
   try {
     fs.writeFileSync(path.join(dir, 'cli.js'), "require('./used');\n");
     fs.writeFileSync(path.join(dir, 'used.js'), 'module.exports = {};\n');
-
-    const kernel = fakeKernel();
-    const result = runReachabilityAudit(kernel, { root: dir, workspaceId: 'default' });
+    const result = runReachabilityAudit(fakeKernel(), { root: dir, workspaceId: 'default' });
     assert.equal(result.unacknowledgedCount, 0);
     assert.equal(result.proposals.length, 0);
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('self-healer-audit: never applies anything, regardless of finding count', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-selfheal-noapply-'));
   try {
     fs.writeFileSync(path.join(dir, 'cli.js'), 'module.exports = {};\n');
-    for (let i = 0; i < 5; i += 1) {
-      fs.writeFileSync(path.join(dir, `orphan${i}.js`), 'module.exports = {};\n');
-    }
-    const kernel = fakeKernel();
-    const result = runReachabilityAudit(kernel, { root: dir, workspaceId: 'default' });
+    for (let i = 0; i < 5; i += 1) fs.writeFileSync(path.join(dir, `orphan${i}.js`), 'module.exports = {};\n');
+    const result = runReachabilityAudit(fakeKernel(), { root: dir, workspaceId: 'default' });
     assert.equal(result.applied, false);
-    for (const proposal of result.proposals) {
-      assert.equal(proposal.applied, false);
-    }
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
+    for (const proposal of result.proposals) assert.equal(proposal.applied, false);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('self-healer-audit: AB10 budget accumulates across calls and eventually blocks', () => {
@@ -81,19 +63,12 @@ test('self-healer-audit: AB10 budget accumulates across calls and eventually blo
   try {
     fs.writeFileSync(path.join(dir, 'cli.js'), 'module.exports = {};\n');
     fs.writeFileSync(path.join(dir, 'orphan.js'), 'module.exports = {};\n');
-
     const kernel = fakeKernel();
     const opts = { root: dir, workspaceId: 'default', maxIterationsPerWindow: 2 };
-    const first = runReachabilityAudit(kernel, opts);
-    const second = runReachabilityAudit(kernel, opts);
-    const third = runReachabilityAudit(kernel, opts);
-
-    assert.equal(first.blockedByBudget, false);
-    assert.equal(second.blockedByBudget, false);
-    assert.equal(third.blockedByBudget, true, 'the budget should eventually block repeated scans');
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
+    assert.equal(runReachabilityAudit(kernel, opts).blockedByBudget, false);
+    assert.equal(runReachabilityAudit(kernel, opts).blockedByBudget, false);
+    assert.equal(runReachabilityAudit(kernel, opts).blockedByBudget, true);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('self-healer-audit: run() scan action end to end', () => {
@@ -101,28 +76,37 @@ test('self-healer-audit: run() scan action end to end', () => {
   try {
     fs.writeFileSync(path.join(dir, 'cli.js'), 'module.exports = {};\n');
     fs.writeFileSync(path.join(dir, 'orphan.js'), 'module.exports = {};\n');
-    const kernel = fakeKernel();
-    const result = selfHealerAudit.run(kernel, { action: 'scan', root: dir });
+    const result = selfHealerAudit.run(fakeKernel(), { action: 'scan', root: dir });
     assert.equal(result.ok, true);
     assert.equal(result.unacknowledgedCount, 1);
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('self-healer-audit: simulate routes a Dream candidate through approval and receipt without apply', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-selfheal-sim-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'entry.js'), "module.exports = require('./middle');\n");
+    fs.writeFileSync(path.join(dir, 'middle.js'), "module.exports = require('./leaf');\n");
+    fs.writeFileSync(path.join(dir, 'leaf.js'), 'module.exports = 1;\n');
+    const result = await selfHealerAudit.run(fakeKernel(), { action: 'simulate', root: dir, targetPath: 'entry.js', workspaceId: 'default' });
+    assert.equal(result.ok, true);
+    assert.equal(result.applied, false);
+    assert.equal(result.findingCount, 1);
+    assert.equal(result.proposals.length, 1);
+    assert.equal(result.proposals[0].decision, 'require_review');
+    assert.equal(result.proposals[0].requiresApproval, true);
+    assert.ok(result.proposals[0].approvalRequest);
+    assert.ok(result.proposals[0].receiptSummary);
+    assert.equal(result.simulation.candidate.patchIncluded, false);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('self-healer-audit: run() rejects an unsupported action', () => {
-  const kernel = fakeKernel();
-  const result = selfHealerAudit.run(kernel, { action: 'nonsense' });
-  assert.equal(result.ok, false);
+  assert.equal(selfHealerAudit.run(fakeKernel(), { action: 'nonsense' }).ok, false);
 });
 
 test('self-healer-audit: the real repo root does not throw and produces a well-formed result', () => {
-  // Exercises the plugin against the actual huqan codebase (no root
-  // override), the way it would run in production -- proves the wiring
-  // works end to end against real repo structure, not just a synthetic
-  // fixture.
-  const kernel = fakeKernel();
-  const result = selfHealerAudit.run(kernel, { action: 'scan' });
+  const result = selfHealerAudit.run(fakeKernel(), { action: 'scan' });
   assert.equal(result.ok, true);
   assert.equal(typeof result.unacknowledgedCount, 'number');
   assert.equal(result.applied, false);
