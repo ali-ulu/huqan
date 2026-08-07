@@ -141,6 +141,57 @@ test('git-log-adapter: rejects traversal and absolute paths outside root', () =>
   }
 });
 
+test('git-log-adapter: rejects a branch name that looks like a git flag (#424)', () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'git-log-branch-'));
+  const repoDir = path.join(rootDir, 'repo');
+  fs.mkdirSync(repoDir, { recursive: true });
+  try {
+    initRepo(repoDir);
+    commit(repoDir, 'claim.txt', 'x', 'A bounded claim');
+
+    // A branch name starting with '-' would be interpreted as a git flag and
+    // must be rejected before execFileSync is called.
+    assert.throws(
+      () => getCommits(repoDir, { rootPath: rootDir, branch: '--system' }),
+      (err) => err.code === 'GIT_LOG_INVALID_BRANCH',
+    );
+    // Other injection attempts
+    assert.throws(
+      () => getCommits(repoDir, { rootPath: rootDir, branch: '-e' }),
+      (err) => err.code === 'GIT_LOG_INVALID_BRANCH',
+    );
+    // Shell metacharacters are also rejected
+    assert.throws(
+      () => getCommits(repoDir, { rootPath: rootDir, branch: 'main;rm -rf /' }),
+      (err) => err.code === 'GIT_LOG_INVALID_BRANCH',
+    );
+  } finally {
+    fs.rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('git-log-adapter: accepts a plausible branch name (#424)', () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'git-log-branch-ok-'));
+  const repoDir = path.join(rootDir, 'repo');
+  fs.mkdirSync(repoDir, { recursive: true });
+  try {
+    initRepo(repoDir);
+    commit(repoDir, 'claim.txt', 'x', 'A bounded claim');
+    // The default branch in this test repo is 'master'. The validation regex
+    // must accept it (it starts with a letter, contains only allowed chars).
+    // A GIT_LOG_INVALID_BRANCH error would mean the validation rejected it,
+    // which is wrong. Other errors (e.g. git log fails) are acceptable here.
+    try {
+      getCommits(repoDir, { rootPath: rootDir, branch: 'master' });
+    } catch (err) {
+      assert.notStrictEqual(err.code, 'GIT_LOG_INVALID_BRANCH',
+        'master must pass branch validation');
+    }
+  } finally {
+    fs.rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
 test('git-log-adapter: ingestAndLearn forwards provenance per commit', () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-gitlog-learn-'));
   const repoDir = path.join(rootDir, 'repo');
