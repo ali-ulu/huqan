@@ -299,10 +299,39 @@ unchanged.
 
 ## Current gate
 
-Only this authorization gate is open:
+Only this implementation gate is open:
 
 ```text
-V4_B3_RECEIPT_EXPORT_USER_FLOW_AUTHORIZATION
+V4_B3_RECEIPT_EXPORT_USER_FLOW
+```
+
+The controlling task-pack is:
+
+```text
+docs/task-packs/v4-b3-receipt-export-user-flow-authorization.md
+```
+
+The successor must start from exact canonical main
+`9b6d41f801a918451e3e5142498204d86a549f59` and may change exactly:
+
+```text
+lib/workbench/receipt-bundle-exporter.js
+lib/workbench/receipt-bundle-export-route.js
+lib/workbench/workbench-read-http-router.js
+lib/http/route-auth-policy.js
+package.json
+test/v4-b3-receipt-bundle-export.test.js
+```
+
+`server.js` is deliberately out of scope: the Workbench read router is already
+wired, and `lib/workbench/trust-receipt-inspector.js` establishes that a
+Workbench owner may require `lib/receipt/receipt-read-index` directly.
+
+The implementation must emit exactly one verdict:
+
+```text
+V4_B3_RECEIPT_EXPORT_USER_FLOW_SUFFICIENT
+V4_B3_RECEIPT_EXPORT_USER_FLOW_BLOCKED_GAP
 ```
 
 Source-backed finding that opens it: `exportMaterializedReceiptBundle()`
@@ -319,11 +348,12 @@ The user-reachable receipt surface today is read-only:
   `afterLearn` rather than emitting a chain-validated bundle.
 
 This is the same shape V4-B1 resolved for WB2: a sufficient source owner with no
-route. V4-B3 therefore needs an authorization task-pack before code.
+route. V4-B3 is therefore a reachability gap plus bounded product decisions, not
+a missing primitive.
 
 ### Decided B3 product contract
 
-These five decisions are settled and the task-pack records rather than reopens
+These five decisions are settled, and the task-pack records rather than reopens
 them:
 
 1. **Surface.** One authenticated, read-only Workbench HTTP route. No CLI, MCP
@@ -341,19 +371,26 @@ them:
    B3 export would either break chain validation or amount to defining a new
    public receipt format — which is exactly the V5 deliverable.
 5. **Bounded response.** A receipt count ceiling and a serialized-byte ceiling
-   are both mandatory and must be fixed in the task-pack. Exceeding either fails
-   closed; a partial bundle is never returned. The roadmap does not mandate
-   specific numbers — whatever the task-pack fixes must carry its own
-   justification and must not be presented as a roadmap requirement.
+   are both mandatory. Exceeding either fails closed with `413`; a partial
+   bundle is never returned. The roadmap does not mandate specific numbers. The
+   task-pack fixes `MAX_RECEIPTS = 1024` and
+   `MAX_SERIALIZED_BUNDLE_BYTES = 2 * 1024 * 1024` on its own justification:
+   1024 matches `MAX_AUDIT_EVENTS_LIMIT` in the sibling Workbench read owner,
+   2 MiB matches `MAX_EXTERNAL_SNAPSHOT_BYTES` in `lib/ingest.js`, and measured
+   canonical v4 receipts serialize at ~725 bytes each, so the count ceiling
+   binds in normal operation while the byte ceiling stays an independent
+   secondary guard. Byte accounting uses actual serialized UTF-8 bytes.
 
-A successor must not widen the read surface, add a dependency, design a
-redaction policy or claim V4 closure while writing that task-pack.
+A sixth constraint carried from issue #271: `Cache-Control: no-store` and
+`X-Content-Type-Options: nosniff` are preserved on every response.
+
+The successor must not widen the read surface, add a dependency, design a
+redaction policy, define a new receipt format or claim V4 closure.
 
 ## Remaining execution order
 
-1. Authorize V4-B3 through a source-backed task-pack.
-2. Implement and falsify the authorized V4-B3 receipt export user flow.
-3. Reconcile the result and close V4-B3 only if exact-head runtime, receipt,
+1. Implement and falsify the authorized V4-B3 receipt export user flow.
+2. Reconcile the result and close V4-B3 only if exact-head runtime, receipt,
    package and smoke evidence is sufficient.
 4. Complete V4-B5 source/test/CI/package/release closeout.
 5. Begin V5 only after V4 closeout and external interoperability entry gates.
