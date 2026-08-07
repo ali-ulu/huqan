@@ -20,6 +20,7 @@ function resolveRustBin() {
 
 const RUST_BIN = resolveRustBin();
 const RUST_REQUEST_TIMEOUT_MS = 10000;
+const RUST_MAX_LINE_BYTES = 10 * 1024 * 1024;
 
 class RustGraph {
   constructor(opts) {
@@ -68,6 +69,15 @@ class RustGraph {
 
   _onData(chunk) {
     this._buf += chunk.toString();
+    if (this._buf.length > RUST_MAX_LINE_BYTES) {
+      // A malicious/buggy Rust process streaming huge or newline-less output
+      // must not be allowed to grow this buffer without bound (OOM DoS, #372).
+      // Reset and fail every in-flight request; a well-behaved process would
+      // never produce a single reply line this large.
+      this._buf = '';
+      this._rejectAll('buffer_overflow');
+      return;
+    }
     const lines = this._buf.split('\n');
     this._buf = lines.pop() || '';
     for (const line of lines) {
@@ -83,8 +93,8 @@ class RustGraph {
     this._unrefIfIdle();
   }
 
-  _rejectAll() {
-    for (const [reqId, cb] of this._pending) { cb({ ok: false, error: 'process_exited' }); }
+  _rejectAll(error = 'process_exited') {
+    for (const [reqId, cb] of this._pending) { cb({ ok: false, error }); }
     this._pending.clear();
   }
 
