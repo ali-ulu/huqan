@@ -336,7 +336,7 @@ describe('AB6 sandbox isolation core decisions', () => {
         sourceTrust: SOURCE_TRUST_LEVELS.UNTRUSTED,
         runner: RUNNER_TYPES.NODE_VM,
       },
-      { policy: { minimumDecision: 'allow', allowUntustedSource: true } }
+      { policy: { minimumDecision: 'allow', allowUntrustedSource: true } }
     );
 
     assert.equal(result.decision, SANDBOX_ISOLATION_DECISIONS.BLOCK);
