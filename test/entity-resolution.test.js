@@ -4,6 +4,7 @@ const {
   resolveEntity,
   listAliases,
   listDomains,
+  registerAlias,
   normalizeAlias,
 } = require('../lib/entity-resolution');
 
@@ -269,5 +270,48 @@ describe('Entity Resolution - no runtime nondeterminism', () => {
         assert.strictEqual(r.domain, 'tech');
       }
     });
+  });
+});
+
+describe('Entity Resolution - registerAlias (runtime extensibility)', () => {
+  // Use a unique domain name per describe block so registration does not
+  // interfere with the built-in aviation/tech/design registries.
+  const testDomain = 'test_runtime_ext';
+  const testAlias = 'rt_alias_' + process.pid;
+  const testCanonical = 'rt_canonical';
+
+  it('registers a new alias in a new domain and resolves it', () => {
+    const before = listDomains();
+    assert.ok(!before.includes(testDomain), 'test domain should not pre-exist');
+
+    const added = registerAlias(testDomain, testAlias, testCanonical);
+    assert.strictEqual(added, true);
+
+    const after = listDomains();
+    assert.ok(after.includes(testDomain));
+
+    const resolved = resolveEntity(testAlias, { domain: testDomain });
+    assert.strictEqual(resolved.matched, true);
+    assert.strictEqual(resolved.canonical, testCanonical);
+    assert.strictEqual(resolved.domain, testDomain);
+  });
+
+  it('returns false when re-registering the same alias+canonical (no-op)', () => {
+    registerAlias(testDomain, testAlias, testCanonical); // ensure exists
+    const reAdded = registerAlias(testDomain, testAlias, testCanonical);
+    assert.strictEqual(reAdded, false);
+  });
+
+  it('rejects empty domain, alias, or canonical', () => {
+    assert.strictEqual(registerAlias('', testAlias, testCanonical), false);
+    assert.strictEqual(registerAlias(testDomain, '', testCanonical), false);
+    assert.strictEqual(registerAlias(testDomain, testAlias, ''), false);
+  });
+
+  it('normalizeAlias is applied (case and whitespace insensitive)', () => {
+    const added = registerAlias(testDomain, '  MixedCase  Alias ', 'mixed_canonical');
+    assert.strictEqual(added, true);
+    const resolved = resolveEntity('mixedcase alias', { domain: testDomain });
+    assert.strictEqual(resolved.canonical, 'mixed_canonical');
   });
 });
