@@ -10,10 +10,7 @@ const createDiscoveryEnginePlugin = require('./plugins/discovery-engine').create
 const createIdeaMriPlugin = require('./plugins/idea-mri').create;
 const createDevilAdvocatePlugin = require('./plugins/devil-advocate').create;
 
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 function learnFixture(kernel, text, opts = {}) {
   return kernel.learn(text, { ...opts, ...TEST_FIXTURE_LEARN_BYPASS });

@@ -46,8 +46,7 @@ function seed(kernel, statements) {
   for (const stmt of statements) {
     const r = kernel.learn(stmt, {
       workspaceId: 'default',
-      admissionRequired: false,
-      admissionBypassReason: 'test_fixture_seed',
+      ...Kernel.createAdmissionBypassOpts('test_fixture_seed'),
     });
     assert.equal(r.ok, true);
   }
