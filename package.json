@@ -222,6 +222,8 @@
         "plugins/result-analyzer.manifest.json",
         "plugins/secret-masker.js",
         "plugins/secret-masker.manifest.json",
+        "plugins/self-healer-audit.js",
+        "plugins/self-healer-audit.manifest.json",
         "plugins/workspace-sync.js",
         "plugins/workspace-sync.manifest.json",
         "public/index.html",
