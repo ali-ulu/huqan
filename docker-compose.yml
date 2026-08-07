@@ -14,11 +14,24 @@ services:
       AXIOM_BACKUP_DIR: /app/data/backups
       AXIOM_KERNEL_VERSION: ${AXIOM_KERNEL_VERSION:-v2}
       AXIOM_AGENT_VERSION: ${AXIOM_AGENT_VERSION:-v2}
-      AXIOM_API_KEY: ${AXIOM_API_KEY:-}
+      # Fail fast if the operator forgot to set an API key: docs/SECURITY-GATE.md PR-S0b
+      AXIOM_API_KEY: ${AXIOM_API_KEY:?AXIOM_API_KEY is required}
       AXIOM_TRUST_PROXY: ${AXIOM_TRUST_PROXY:-0}
     volumes:
       - axiom-data:/app/data
+      # Writable tmpfs for SQLite WAL and other transient files (read-only root fs)
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 65536
     restart: unless-stopped
+    # Container hardening
+    user: "1000:1000"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
       test: ["CMD", "node", "-e", "const http=require('http');const req=http.get('http://127.0.0.1:3000/health',res=>{process.exit(res.statusCode===200?0:1)});req.on('error',()=>process.exit(1));req.setTimeout(4000,()=>{req.destroy();process.exit(1);});"]
       interval: 30s
