@@ -386,3 +386,53 @@ test('evaluateMcpGate: AB11 blocks a cross-workspace learn before it can mutate'
   assert.equal(r.allowed, false);
   assert.equal(r.canExecute, false);
 });
+
+// ─── #358: gates must fail closed, not fail open, on a thrown error ──────────
+
+test('evaluateMcpGate: a gate that throws blocks the call instead of silently allowing it (#358)', () => {
+  // buildAb1Input calls JSON.stringify(args) to build AB1's context; a
+  // BigInt anywhere in args -- trivially craftable by any MCP client, not a
+  // contrived edge case -- makes that throw a TypeError. Pre-fix, the
+  // try/catch around every gate only pushed a warning string and left
+  // `decision` untouched, so a read-only tool (whose default is allow)
+  // silently reached the caller as an allowed call with the entire AB1
+  // check skipped.
+  const r = evaluateMcpGate({ tool: 'axiom.ask', args: { text: 10n } });
+
+  assert.equal(r.decision, MCP_GATE_DECISIONS.block);
+  assert.equal(r.allowed, false);
+  assert.equal(r.canExecute, false);
+  assert.equal(r.reason, MCP_GATE_REASONS.GATE_ERROR);
+});
+
+test('evaluateMcpGate: a gate throw is recorded in findings, not just as a warning string', () => {
+  const r = evaluateMcpGate({ tool: 'axiom.ask', args: { text: 10n } });
+  const failure = r.findings.find(f => f.gate === 'AB1');
+
+  assert.ok(failure, 'the gate failure must be visible in findings, not only in warnings');
+  assert.equal(failure.decision, MCP_GATE_DECISIONS.block);
+  assert.equal(failure.failClosed, true);
+  assert.ok(r.warnings.some(w => w.includes('AB1 error')));
+});
+
+test('evaluateMcpGate: a later gate cannot downgrade a fail-closed block back to allow', () => {
+  // axiom.learn runs AB1, AB2, AB4, AB11 in that order. Forcing AB1 to
+  // throw must leave the call blocked even though AB2/AB4/AB11 go on to
+  // evaluate normally afterward and might individually return allow/review.
+  const r = evaluateMcpGate({ tool: 'axiom.learn', args: { text: 10n } });
+
+  assert.equal(r.decision, MCP_GATE_DECISIONS.block);
+  assert.equal(r.allowed, false);
+});
+
+test('evaluateMcpGate: a gate throw on a normally-blocked-by-other-means call still blocks (no regression)', () => {
+  // Sanity check: an unrelated, definitely-blocking condition (cross-workspace
+  // write) combined with an unrelated gate throwing must still block --
+  // fail-closed composes with a real block, it does not fight it.
+  const r = evaluateMcpGate({
+    tool: 'axiom.learn',
+    args: { text: 10n, workspaceId: 'ws-b', operation: 'learn' },
+    metadata: { workspaceId: 'ws-a' },
+  });
+  assert.equal(r.decision, MCP_GATE_DECISIONS.block);
+});
