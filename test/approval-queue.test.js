@@ -177,6 +177,28 @@ describe('approval-queue', () => {
     assert.ok(notFound.errors.some((error) => error.code === 'APPROVAL_NOT_FOUND'));
   });
 
+  test('getApprovalRequest rejects cross-workspace access when workspaceId is omitted (#359)', () => {
+    const queue = [
+      {
+        approvalId: 'apr_secret',
+        workspaceId: 'workspace-victim',
+        status: 'pending',
+        queuedAt: '2026-06-11T12:01:00.000Z',
+        updatedAt: '2026-06-11T12:01:00.000Z',
+        approvalRequest: { ...baseRequest, approvalId: 'apr_secret', workspaceId: 'workspace-victim', createdAt: '2026-06-11T12:01:00.000Z' },
+      },
+    ];
+
+    const noWorkspace = getApprovalRequest(queue, 'apr_secret', {});
+    assert.strictEqual(noWorkspace.ok, false);
+    assert.ok(noWorkspace.errors.some((error) => error.code === 'WORKSPACE_ID_REQUIRED'));
+    assert.strictEqual(noWorkspace.item, null);
+
+    const wrongWorkspace = getApprovalRequest(queue, 'apr_secret', { workspaceId: 'workspace-attacker' });
+    assert.strictEqual(wrongWorkspace.ok, false);
+    assert.ok(wrongWorkspace.errors.some((error) => error.code === 'APPROVAL_NOT_FOUND'));
+  });
+
   test('updateApprovalRequestStatus updates the queue item and blocks invalid transitions', () => {
     const queue = [
       {
@@ -199,6 +221,29 @@ describe('approval-queue', () => {
     const blocked = updateApprovalRequestStatus(approved.queue, 'apr_001', 'rejected', { workspaceId: 'workspace-a' });
     assert.strictEqual(blocked.ok, false);
     assert.ok(blocked.errors.some((error) => error.code === 'INVALID_STATUS_TRANSITION'));
+  });
+
+  test('updateApprovalRequestStatus rejects cross-workspace writes when workspaceId is omitted (#359)', () => {
+    const queue = [
+      {
+        approvalId: 'apr_secret',
+        workspaceId: 'workspace-victim',
+        status: 'pending',
+        queuedAt: '2026-06-11T12:00:00.000Z',
+        updatedAt: '2026-06-11T12:00:00.000Z',
+        approvalRequest: clone(baseRequest),
+      },
+    ];
+
+    const noWorkspace = updateApprovalRequestStatus(queue, 'apr_secret', 'approved', {});
+    assert.strictEqual(noWorkspace.ok, false);
+    assert.ok(noWorkspace.errors.some((error) => error.code === 'WORKSPACE_ID_REQUIRED'));
+    assert.strictEqual(queue[0].status, 'pending');
+
+    const wrongWorkspace = updateApprovalRequestStatus(queue, 'apr_secret', 'approved', { workspaceId: 'workspace-attacker' });
+    assert.strictEqual(wrongWorkspace.ok, false);
+    assert.ok(wrongWorkspace.errors.some((error) => error.code === 'APPROVAL_NOT_FOUND'));
+    assert.strictEqual(queue[0].status, 'pending');
   });
 
   test('expireApprovalRequests expires only pending items with lapsed timestamps', () => {
