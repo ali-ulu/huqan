@@ -1649,7 +1649,7 @@ if (verbSuffix.test(predicate)) {
     let count = 0;
     const admissions = [];
     for (const line of lines) {
-      const cleaned = line.replace(/^[\s-â€“â€”*â€¢]+/, '').trim();
+      const cleaned = line.replace(/^[\s\-–—*•]+/, '').trim();
       const words = cleaned.split(/\s+/);
       if (words.length >= 2) {
         const result = this.learn(cleaned, opts);
@@ -1710,7 +1710,7 @@ if (verbSuffix.test(predicate)) {
     for (const sentence of sentences.slice(0, maxSentences)) {
       // Markdown i?aretlerini temizle
       const cleaned = sentence
-        .replace(/^[\s#*\-â€“â€”â€¢>]+/, '')
+        .replace(/^[\s#*\-–—•>]+/, '')
         .replace(/\*\*(.+?)\*\*/g, '$1')
         .replace(/`(.+?)`/g, '$1')
         .trim();
