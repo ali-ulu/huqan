@@ -149,9 +149,10 @@ function extractApiKey(headers = {}) {
 }
 
 function constantTimeEqual(left, right) {
-  const a = Buffer.from(String(left || ''), 'utf8');
-  const b = Buffer.from(String(right || ''), 'utf8');
-  if (a.length !== b.length) return false;
+  // Hash both operands so compared buffers always have identical length.
+  // A raw length check would leak the configured secret's length via timing.
+  const a = crypto.createHash('sha256').update(String(left == null ? '' : left), 'utf8').digest();
+  const b = crypto.createHash('sha256').update(String(right == null ? '' : right), 'utf8').digest();
   return crypto.timingSafeEqual(a, b);
 }
 
@@ -240,6 +241,7 @@ module.exports = {
   DEFAULT_ALLOWED_PUBLIC_COMMANDS,
   clearExpiredRateLimitEntries,
   checkRateLimit,
+  constantTimeEqual,
   enforceRateLimitCap,
   extractApiKey,
   isAllowedPublicCommand,
