@@ -14,25 +14,7 @@ process.env.AXIOM_MEMORY_PATH = path.join(tempDir, 'graph.json');
 process.env.AXIOM_DB_PATH = path.join(tempDir, 'graph.db');
 delete process.env.AXIOM_USE_SQLITE;
 
-const CLI = require('../cli');
-const cliModulePath = require.resolve('../cli');
-const originalCliExport = require.cache[cliModulePath].exports;
-let serverCli = null;
-let server = null;
-
-class WorkbenchTestCLI extends CLI {
-  constructor(...args) {
-    super(...args);
-    serverCli = this;
-  }
-}
-
-try {
-  require.cache[cliModulePath].exports = WorkbenchTestCLI;
-  server = require('../server');
-} finally {
-  require.cache[cliModulePath].exports = originalCliExport;
-}
+const server = require('../server');
 
 function admissionOptions(workspaceId, suffix, approved = false) {
   const options = {
@@ -97,7 +79,7 @@ function assertMemoryHeaders(response) {
 }
 
 function snapshot(workspaceId) {
-  const graph = serverCli.kernel.graph;
+  const graph = server.kernel.graph;
   const nodes = graph.getNodes(workspaceId);
   const edges = Object.keys(nodes)
     .flatMap((nodeId) => graph.getEdges(nodeId, workspaceId))
@@ -110,19 +92,19 @@ function snapshot(workspaceId) {
 }
 
 function reviewEvent(workspaceId) {
-  const result = serverCli.kernel.learn('kedi hayvandir', admissionOptions(workspaceId, workspaceId));
+  const result = server.kernel.learn('kedi hayvandir', admissionOptions(workspaceId, workspaceId));
   assert.equal(result.data.admission.outcome, 'review');
-  return serverCli.kernel.graph.getAuditEvents({ workspaceId })
+  return server.kernel.graph.getAuditEvents({ workspaceId })
     .find((event) => event.targetType === 'learn');
 }
 
 function approvedEvent(workspaceId) {
-  const result = serverCli.kernel.learn(
+  const result = server.kernel.learn(
     'kopek memelidir',
     admissionOptions(workspaceId, workspaceId, true),
   );
   assert.equal(result.data.admission.outcome, 'allow');
-  const event = serverCli.kernel.graph.getAuditEvents({ workspaceId })
+  const event = server.kernel.graph.getAuditEvents({ workspaceId })
     .find((candidate) => candidate.targetType === 'edge');
   return { event, receipt: result.data.admission.receipt };
 }
@@ -131,7 +113,7 @@ describe('V4-WB2D: no-mock memory-context route smoke', () => {
   let port;
 
   before(async () => {
-    assert.equal(serverCli.kernel.graph.getStats().backend, 'sqlite');
+    assert.equal(server.kernel.graph.getStats().backend, 'sqlite');
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
     port = server.address().port;
   });
@@ -221,7 +203,7 @@ describe('V4-WB2D: no-mock memory-context route smoke', () => {
     const workspaceId = 'wb2d-over-bound';
     let firstId = '';
     for (let index = 0; index < 1025; index += 1) {
-      const event = serverCli.kernel.graph.appendAuditEvent({
+      const event = server.kernel.graph.appendAuditEvent({
         eventType: 'REVIEW',
         targetType: 'learn',
         targetId: `target-${index}`,

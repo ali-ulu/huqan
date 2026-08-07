@@ -1,8 +1,7 @@
 const fs = require('fs');
 const readline = require('readline');
 const crypto = require('crypto');
-const Kernel = require('./kernel');
-const KernelV2 = require('./kernel.v2');
+const { createKernel, buildKernelOptsFromEnv } = require('./lib/kernel-factory');
 const { createAgent } = require('./agentRuntime');
 const { evaluateMcpGate, MCP_GATE_DECISIONS } = require('./lib/mcp-gate-adapter');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
@@ -490,21 +489,8 @@ const VERIFY_DATA_SCHEMA = {
 const ENVELOPE_OUTPUT_SCHEMA = buildEnvelopeSchema({ type: 'object' });
 const VERIFY_ENVELOPE_OUTPUT_SCHEMA = buildEnvelopeSchema(VERIFY_DATA_SCHEMA);
 
-function buildKernelOptsFromEnv() {
-  const kernelOpts = {};
-  if (process.env.AXIOM_MEMORY_PATH) kernelOpts.memoryPath = process.env.AXIOM_MEMORY_PATH;
-  if (process.env.AXIOM_DB_PATH) kernelOpts.dbPath = process.env.AXIOM_DB_PATH;
-  if (process.env.AXIOM_USE_SQLITE === 'false') kernelOpts.useSQLite = false;
-  if (process.env.AXIOM_PARANOID === '1') kernelOpts.paranoidMode = true;
-  return kernelOpts;
-}
-
 function createKernelFromEnv() {
-  const opts = { ...buildKernelOptsFromEnv(), loadPlugins: false };
-  if (process.env.AXIOM_KERNEL_VERSION === 'v2') {
-    return new KernelV2(opts);
-  }
-  return new Kernel(opts);
+  return createKernel({ loadPlugins: false });
 }
 
 function createApprovalStoreFromKernel(kernel, opts = {}) {
