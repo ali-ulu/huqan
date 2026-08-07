@@ -1,0 +1,145 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+const {
+  buildDependencyGraph,
+  dreamDependencyCandidates,
+  selectCandidate,
+} = require('../lib/self-healer/source-dependency-graph');
+const {
+  simulateInSandbox,
+  simulateSourceCandidate,
+} = require('../lib/self-healer/source-dogfood-simulator');
+
+function fixture(files) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-sh-source-'));
+  for (const [name, content] of Object.entries(files)) {
+    const filePath = path.join(root, name);
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, content, 'utf8');
+  }
+  return root;
+}
+
+function cleanup(root) {
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
+test('source dogfood builds a bounded transitive dependency graph', () => {
+  const root = fixture({
+    'entry.js': "module.exports = require('./middle');\n",
+    'middle.js': "module.exports = require('./leaf');\n",
+    'leaf.js': 'module.exports = 1;\n',
+  });
+  try {
+    const graph = buildDependencyGraph({ root, targetPath: 'entry.js' });
+    assert.deepEqual(graph.nodes, ['entry.js', 'leaf.js', 'middle.js']);
+    assert.deepEqual(graph.edges, [
+      { from: 'entry.js', to: 'middle.js' },
+      { from: 'middle.js', to: 'leaf.js' },
+    ]);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test('Dream turns a source-derived transitive path into a review candidate', () => {
+  const root = fixture({
+    'entry.js': "module.exports = require('./middle');\n",
+    'middle.js': "module.exports = require('./leaf');\n",
+    'leaf.js': 'module.exports = 1;\n',
+  });
+  try {
+    const graph = buildDependencyGraph({ root, targetPath: 'entry.js' });
+    const candidate = selectCandidate(graph, dreamDependencyCandidates(graph));
+    assert.ok(candidate);
+    assert.equal(candidate.from, 'entry.js');
+    assert.equal(candidate.to, 'leaf.js');
+    assert.equal(candidate.hypothesisType, 'zincir');
+    assert.equal(candidate.applied, false);
+    assert.equal(candidate.patchIncluded, false);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test('sandbox simulation stays data-only and reports whether an edge closes a cycle', () => {
+  const graph = {
+    nodes: ['entry.js', 'middle.js', 'leaf.js'],
+    edges: [
+      { from: 'entry.js', to: 'middle.js' },
+      { from: 'middle.js', to: 'leaf.js' },
+      { from: 'leaf.js', to: 'entry.js' },
+    ],
+  };
+  const result = simulateInSandbox(graph, { from: 'entry.js', to: 'leaf.js' });
+  assert.equal(result.ok, true);
+  assert.equal(result.closesCycle, true);
+  assert.equal(result.beforeEdges, 3);
+  assert.equal(result.afterEdges, 4);
+});
+
+test('full source simulation compares graph structure and emits a review-only finding', async () => {
+  const root = fixture({
+    'entry.js': "module.exports = require('./middle');\n",
+    'middle.js': "module.exports = require('./leaf');\n",
+    'leaf.js': 'module.exports = 1;\n',
+  });
+  try {
+    const result = await simulateSourceCandidate({ root, targetPath: 'entry.js', workspaceId: 'default' });
+    assert.equal(result.ok, true);
+    assert.equal(result.applied, false);
+    assert.equal(result.patchIncluded, false);
+    assert.equal(result.candidate.from, 'entry.js');
+    assert.equal(result.candidate.to, 'leaf.js');
+    assert.equal(result.sandbox.closesCycle, false);
+    assert.equal(result.rustComparison.after.edges, result.rustComparison.before.edges + 1);
+    assert.ok(['review', 'dry_run_only'].includes(result.codeChangeGate.decision));
+    assert.deepEqual(result.finding.riskFlags, ['runtime_mutation', 'dependency_setup']);
+    assert.equal(result.finding.suggestedFix.allowedFiles[0], 'entry.js');
+    assert.match(result.finding.summary, /No patch was generated or applied/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test('source simulation returns no candidate when there is no structural hypothesis', async () => {
+  const root = fixture({ 'entry.js': 'module.exports = 1;\n' });
+  try {
+    const result = await simulateSourceCandidate({ root, targetPath: 'entry.js' });
+    assert.equal(result.ok, true);
+    assert.equal(result.candidate, null);
+    assert.equal(result.applied, false);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test('source graph fails closed when target escapes root', () => {
+  const root = fixture({ 'entry.js': 'module.exports = 1;\n' });
+  try {
+    assert.throws(
+      () => buildDependencyGraph({ root, targetPath: '../outside.js' }),
+      (error) => error && error.code === 'SELF_HEALER_TARGET_OUTSIDE_ROOT',
+    );
+  } finally {
+    cleanup(root);
+  }
+});
+
+test('source graph enforces per-file byte bounds before reading', () => {
+  const root = fixture({ 'entry.js': 'x'.repeat(64) });
+  try {
+    assert.throws(
+      () => buildDependencyGraph({ root, targetPath: 'entry.js', maxFileBytes: 16 }),
+      (error) => error && error.code === 'SELF_HEALER_SOURCE_TOO_LARGE',
+    );
+  } finally {
+    cleanup(root);
+  }
+});
