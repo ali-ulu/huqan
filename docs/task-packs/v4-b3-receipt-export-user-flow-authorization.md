@@ -59,12 +59,58 @@ This task-pack therefore binds an **immutable authorization artifact** instead:
    change is only to which SHA is treated as controlling: the immutable artifact
    rather than a mutable branch tip.
 
-Source-compatibility proof at the time of this refresh: between `7446642` and
-live `main` `d70c0a0`, the intervening work is PR #524 (this task-pack), PR #511
-non-root Dockerfile runtime and its test, PR #521 `kernel.d.ts` audit-seam
-typing, and PR #512 removing the dead GitHub Pages workflow. None touches any of
-the six authorized implementation files. The contract, the five product
-decisions, the ceilings and the status mapping are unchanged.
+Source-compatibility proof at the time of the previous refresh: between
+`7446642` and live `main` `d70c0a0`, the intervening work is PR #524 (this
+task-pack), PR #511 non-root Dockerfile runtime and its test, PR #521
+`kernel.d.ts` audit-seam typing, and PR #512 removing the dead GitHub Pages
+workflow. None touches any of the six authorized implementation files. The
+contract, the five product decisions, the ceilings and the status mapping are
+unchanged.
+
+### Reconciliation: `package.json` allowlist drift at `664acc0`
+
+The six-file diff against live `main` `664acc0` is no longer empty. It reports
+exactly one path:
+
+```text
+$ git diff --name-only 7446642..664acc0 -- <the six authorized files>
+package.json
+```
+
+That is the non-empty case above, so implementation stopped and this
+reconciliation was written before any code.
+
+What actually moved, proved by parsing both revisions rather than by reading the
+diff hunk:
+
+- the only top-level `package.json` key that differs is `files`;
+- the change is purely additive — seven entries added, none removed, and the
+  relative order of every retained entry is preserved;
+- the added entries are `lib/command-parser.js`, `lib/kernel-factory.js` and the
+  five `lib/self-healer/*` modules, landed by PR #521, PR #326 (`fix(arch)`
+  HTTP/CLI layer violation) and the self-healer dogfood work for issue #224;
+- neither `lib/workbench/receipt-bundle-exporter.js` nor
+  `lib/workbench/receipt-bundle-export-route.js` appears in `files` at either
+  revision, so the authorized B3 edit — inserting exactly those two modules into
+  the sorted allowlist — is untouched and still applies verbatim.
+
+Verdict: **source-compatible**. The authorized change to `package.json` is an
+insertion into a sorted list; additive insertions elsewhere in that same list by
+unrelated PRs cannot conflict with it. This is the same judgement the V4-B2B
+exact-base refresh already recorded, where `package.json` likewise *"moved only
+inside its files allowlist"* and the base was refreshed without reopening any
+product decision.
+
+The five product decisions, both ceilings, the status mapping, the authorized
+six-file scope, the forbidden list and the stop conditions are unchanged by this
+reconciliation. Nothing about the receipt export contract is reopened.
+
+Scope note for the successor: this record reconciles the observed drift at
+`664acc0`; it does not grant a standing exemption. Re-run the six-file diff from
+the live base when work starts. If it again reports only `package.json`, prove
+the `files`-only, additive-only shape by the same parse before relying on this
+record. Any other path in the output, or any `package.json` change outside
+`files`, is an unreconciled stop condition.
 
 ## Source-Reality Verdict
 
