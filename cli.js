@@ -22,6 +22,19 @@ const {
  * @param {'v2'} [opts.version]
  * @returns {Kernel|KernelV2}
  */
+/**
+ * POSIX single-quote escaping for text that is shown to the user inside a
+ * copy-pasteable shell command. Without this, a prompt containing `"; rm -rf /`
+ * turns the suggestion itself into a command injection payload (#387).
+ *
+ * @param {string} value
+ * @returns {string} a single shell word that always expands back to `value`
+ */
+function shellQuote(value) {
+  const text = value == null ? '' : String(value);
+  return `'${text.replace(/'/g, "'\\''")}'`;
+}
+
 function createKernel(opts = {}) {
   const { version, ...kernelOpts } = opts || {};
   const selected = version || process.env.AXIOM_KERNEL_VERSION;
@@ -402,7 +415,7 @@ class CLI {
           const labels = Array.isArray(verify.risk.labels) && verify.risk.labels.length > 0 ? verify.risk.labels.join(', ') : 'manipulation';
           out += `\nRisk: ${labels} (skor: ${verify.risk.score.toFixed(2)})`;
         }
-        out += `\nLLM yaniti icin: ollama run ${this.llm.model} "${args}"`;
+        out += `\nLLM yaniti icin: ollama run ${shellQuote(this.llm.model)} ${shellQuote(args)}`;
         return out;
       }
       case 'plan': {
@@ -1024,4 +1037,5 @@ if (require.main === module) {
 
 module.exports = CLI;
 module.exports.createKernel = createKernel;
+module.exports.shellQuote = shellQuote;
 module.exports.runCliArgv = runCliArgv;
