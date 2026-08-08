@@ -170,8 +170,8 @@ const ADMISSION_BYPASS_TOKEN = Symbol('axiom-kernel-internal-admission-bypass');
 class Kernel {
   /**
    * @param {object} [opts]
-   * @param {boolean} [opts.noLoad=false] - true ise memory.json y?klenmez (test i?in)
-   * @param {string}  [opts.memoryPath]   - ?zel haf?za dosyas? yolu
+   * @param {boolean} [opts.noLoad=false] - true ise memory.json yüklenmez (test için)
+   * @param {string}  [opts.memoryPath]   - özel hafıza dosyası yolu
    */
   constructor(opts = {}) {
     const graphOpts = {};
@@ -1082,10 +1082,10 @@ class Kernel {
     // "bir" gibi belirsiz artikelleri temizle
     predicate = predicate.replace(/^bir\s+/, '').trim();
 
-    // KISITLAMA: "sadece x yapar" ? k?s?tlama i?areti
+    // KISITLAMA: "sadece x yapar" → kısıtlama işareti
     const kistlama = predicate.match(/^(sadece|yaln?zca|s?rf|ancak)\s+(.+)/i);
     if (kistlama) {
-      // K?s?tl? hali parse et, k?s?tlama bilgisini object'e g?m
+      // Kısıtlı hali parse et, kısıtlama bilgisini object'e göm
       const inner = kistlama[2];
       const parsed = this._parsePredicate(inner);
       if (parsed) {
@@ -1096,12 +1096,12 @@ class Kernel {
     }
 
     // -değil/-değildir ? olumsuzluk
-    // "fark?ndal?k değildir" ? değil ili?kisi
+    // "farkındalık değildir" → değil ilişkisi
     const degilMatch = predicate.match(/^(.+?)\s+değildir$/i);
     if (degilMatch) {
       return { object: degilMatch[1].trim(), relation: 'değil' };
     }
-    // tek kelime "değildir" biti?ik: "fark?ndal?kdeğildir"
+    // tek kelime "değildir" bitişik: "farkındalıkdeğildir"
     const degilSuffix = /^(.+?)değildir$/i;
     const dMatch = predicate.match(degilSuffix);
     if (dMatch && dMatch[1].trim()) {
@@ -1109,7 +1109,7 @@ class Kernel {
     }
 
     // -mez/-maz olumsuz fiil: "hissetmez", "anlamaz", "bilmez" ? değil
-    // "duyguyu hissetmez" gibi ?ok kelimeli i?in son kelimeyi kontrol et
+    // "duyguyu hissetmez" gibi çok kelimeli için son kelimeyi kontrol et
     const negVerbMatch = predicate.match(/^(.+?)\s+(.+)(mez|maz)$/i);
     if (negVerbMatch) {
       const verb = negVerbMatch[2] + negVerbMatch[3];
@@ -1128,14 +1128,14 @@ class Kernel {
     if (earlyDepends && earlyDepends.relation === 'DEPENDS_ON') {
       return earlyDepends;
     }
-    // -dır/-dir/-dur/-dır/-tür/-tir/-tur/-tür ? tür ili?kisi
+    // -dır/-dir/-dur/-dır/-tür/-tir/-tur/-tür → tür ilişkisi
     const tirSuffix = /(dır|dir|dur|dır|tür|tir|tur|tür)$/i;
     if (tirSuffix.test(predicate)) {
       const stem = this.normalizeWord(predicate.replace(tirSuffix, ''));
       return { object: stem, relation: 'tür' };
     }
 
-    // -dır/-dir ekli ?ok kelimeli y?klem: "doÄŸru d?nme y?ntemidir"
+    // -dır/-dir ekli çok kelimeli yüklem: "doğru dönme yöntemidir"
     const tirMulti = /^(.+?)(dır|dir|dur|dır|tür|tir|tur|tür)$/i;
     const mMatch = predicate.match(tirMulti);
     if (mMatch && mMatch[1].includes(' ')) {
@@ -1147,18 +1147,18 @@ class Kernel {
       return explicitRelation;
     }
 
-    // Fiil ekleri ? yapabilir ili?kisi
+    // Fiil ekleri → yapabilir ilişkisi
     const verbSuffix = /(ar|er|ır|ir|ur|ür|yor|acak|ecek|mak|mek)$/i;
 if (verbSuffix.test(predicate)) {
       return { object: predicate, relation: 'yapabilir' };
     }
 
-    // -r ile biten k?sa fiiller
+    // -r ile biten kısa fiiller
     if (/r$/i.test(predicate) && predicate.length > 2) {
       return { object: predicate, relation: 'yapabilir' };
     }
 
-    // Ã‡ok kelimeli y?klem ? özellik
+    // Çok kelimeli yüklem → özellik
     return { object: predicate, relation: 'özellik' };
   }
 
@@ -1250,7 +1250,7 @@ if (verbSuffix.test(predicate)) {
       return this._ok('alternatives', { subject: normalized, answer: 'Bilmiyorum', paths: [] }, []);
     }
 
-    // 1. DoÄŸrudan kenarlardan alternatif gruplar? olu?tur
+    // 1. Doğrudan kenarlardan alternatif grupları oluştur
     const edges = this.graph.getEdges(normalized, workspaceId);
     const groups = { 'tür': [], yapabilir: [], 'özellik': [], benzer: [], hipotez: [] };
     for (const e of edges) {
@@ -1258,11 +1258,11 @@ if (verbSuffix.test(predicate)) {
       if (g) g.push(e.to);
     }
 
-    // 2. En y?ksek g?venli hedefleri se?, her gruptan bir tane al
+    // 2. En yüksek güvenli hedefleri seç, her gruptan bir tane al
     const paths = [];
     const usedNodes = new Set([normalized]);
 
-    // ?li?ki ?nceliÄŸi: tür > yapabilir > özellik > benzer > hipotez
+    // İlişki önceliği: tür > yapabilir > özellik > benzer > hipotez
     const relOrder = ['tür', 'yapabilir', 'özellik', 'benzer', 'hipotez'];
 
     for (const rel of relOrder) {
@@ -1270,7 +1270,7 @@ if (verbSuffix.test(predicate)) {
       const targets = groups[rel] || [];
       if (targets.length === 0) continue;
 
-      // G?vene g?re s?rala (y?ksekten d?ÄŸe)
+      // Güvene göre sırala (yüksekten düşe)
       const sorted = targets
         .map(t => ({ target: t, weight: edges.find(e => e.to === t && e.relation === rel)?.weight || 0.5 }))
         .sort((a, b) => b.weight - a.weight);
@@ -1522,9 +1522,9 @@ if (verbSuffix.test(predicate)) {
     if (!this._dreamCount) this._dreamCount = 0;
     this._dreamCount++;
 
-    const isBilinclikTick = this._dreamCount > 0; // t?m tick'ler art?k bilin?li
+    const isBilinclikTick = this._dreamCount > 0; // tüm tick'ler artık bilinçli
 
-    // ADIM 1: R?ya g?r + ?ÄŸren (recursion)
+    // ADIM 1: Rüya gör + öğren (recursion)
     // FAZ2-PR3 (F-001-a): autonomous edge proposals route through
     // _commitBackgroundEdge so they receive synthetic provenance, admission
     // evaluation, and audit instead of writing directly to the graph.
@@ -1554,7 +1554,7 @@ if (verbSuffix.test(predicate)) {
       }
     }
 
-    // ADIM 2: ??g?zlem (her tick'te değil, bilgi b?y?d?k?e)
+    // ADIM 2: İçgözlem (her tick'te değil, bilgi büyüdükçe)
     let celiskiSayisi = 0;
     let metaGuven = 0.5;
     if (isBilinclikTick && this._dreamCount % 3 === 0) {
@@ -1562,13 +1562,13 @@ if (verbSuffix.test(predicate)) {
       celiskiSayisi = durum.saglik.celiski;
       metaGuven = durum.saglik.metaGuven;
 
-      // Zay?f noktalar? tespit et
+      // Zayıf noktaları tespit et
       if (celiskiSayisi > 5) {
         this._autoThinkLog(durum.zayifNoktalar.join('; '));
       }
     }
 
-    // ADIM 3: S?rekli ?ÄŸrenme dırt?s? (bilin? tikleri)
+    // ADIM 3: Sürekli öğrenme dürtüsü (bilinç tikleri)
     if (eklenen > 0) {
       this._autoThinkLog(eklenen + ' yeni baÄŸlant? - toplam ' + this.graph.nodeCount() + ' d?ÄŸ?m');
     } else if (this._dreamCount % 5 === 0) {
@@ -1583,7 +1583,7 @@ if (verbSuffix.test(predicate)) {
 
   /**
    * Bir ifadeyi bilgi grafiğiyle doğrula.
-   * "kedi bal?k yer" ? ?zne=kedi, nesne=bal?k yer ? kenar var m??
+   * "kedi balık yer" → özne=kedi, nesne=balık yer → kenar var mı?
    * r1: Use verifyAsync() for concurrent safety with locks
    */
   verify(statement, opts = {}) {
@@ -1623,7 +1623,7 @@ if (verbSuffix.test(predicate)) {
       };
     });
 
-    // Geribesleme: hipotezleri grafiÄŸe ekle
+    // Geribesleme: hipotezleri grafiğe ekle
     // FAZ2-PR3 (F-001-b): when learnFromDream is set, hypotheses are
     // background-derived candidate writes — route through admission +
     // audit instead of silent canonical writes.
@@ -1657,7 +1657,7 @@ if (verbSuffix.test(predicate)) {
       }
     }
 
-    // R?ya döngü sayac?
+    // Rüya döngü sayacı
     if (!this._dreamCount) this._dreamCount = 0;
     this._dreamCount++;
 
@@ -1685,14 +1685,14 @@ if (verbSuffix.test(predicate)) {
   }
 
   /**
-   * LLM yan?t?ndan bilgi ?ÄŸren.
-   * Ã‡eli?kili c?mleleri atlar, yeni bilgileri grafiÄŸe ekler.
+   * LLM yanıtından bilgi öğren.
+   * Çelişkili cümleleri atlar, yeni bilgileri grafiğe ekler.
    *
    * @param {string} text - LLM'den gelen ham metin
    * @param {object} [opts]
-   * @param {boolean} [opts.skipConflicts=true]  - çelişkili c?mleleri atla
-   * @param {number}  [opts.minWords=2]           - minimum kelime say?s?
-   * @param {number}  [opts.maxSentences=20]      - max c?mle say?s?
+   * @param {boolean} [opts.skipConflicts=true]  - çelişkili cümleleri atla
+   * @param {number}  [opts.minWords=2]           - minimum kelime sayısı
+   * @param {number}  [opts.maxSentences=20]      - max cümle sayısı
    * @returns {{ learned: number, skipped: number, conflicts: string[] }}
    */
   learnFromLLM(text, opts = {}) {
@@ -1719,7 +1719,7 @@ if (verbSuffix.test(predicate)) {
     const minWords     = opts.minWords     || 2;
     const maxSentences = opts.maxSentences || 20;
 
-    // Metni c?mlelere b?l: nokta, ?nlem, soru i?areti veya satür sonu
+    // Metni cümlelere böl: nokta, ünlem, soru işareti veya satır sonu
     const sentences = text
       .split(/[.!?\n]+/)
       .map(s => s.trim())
@@ -1729,7 +1729,7 @@ if (verbSuffix.test(predicate)) {
     const conflicts = [];
 
     for (const sentence of sentences.slice(0, maxSentences)) {
-      // Markdown i?aretlerini temizle
+      // Markdown işaretlerini temizle
       const cleaned = sentence
         .replace(/^[\s#*\-–—•>]+/, '')
         .replace(/\*\*(.+?)\*\*/g, '$1')
@@ -1739,7 +1739,7 @@ if (verbSuffix.test(predicate)) {
       const words = cleaned.split(/\s+/).filter(Boolean);
       if (words.length < minWords) { skipped++; continue; }
 
-      // Ã‡eli?ki kontrol?
+      // Çelişki kontrolü
       if (skipConflicts) {
         const workspaceId = normalizeWorkspaceId(opts.workspaceId || opts.provenance?.workspaceId || 'default');
         const check = this.verify(cleaned, { workspaceId });
@@ -1805,25 +1805,25 @@ if (verbSuffix.test(predicate)) {
     const benzerEdges  = allEdges.filter(e => e.relation === 'benzer').length;
     const hipotezEdges = allEdges.filter(e => e.relation === 'hipotez').length;
 
-    // Yal?t?lm?? d?ÄŸ?mler
+    // Yalıtılmış düğümler
     const yalitilmis = allNodes.filter(n => {
       const out = this.graph.getEdges(n.id, workspaceId);
       const inn = this.graph.getInEdges(n.id, workspaceId);
       return out.length === 0 && inn.length === 0;
     }).map(n => n.id);
 
-    // Ã‡eli?kiler
+    // Çelişkiler
     const celiskiler = this.detectContradictions();
 
-    // Bo?luklar (hi? kenar? olmayan)
+    // Boşluklar (hiç kenarı olmayan)
     const bosluklar = this.detectGaps(workspaceId);
 
-    // Kenar aÄŸ?rl?k daÄŸ?l?m?
+    // Kenar ağırlık dağılımı
     const agirliklar = allEdges.map(e => e.weight || 0.5);
     const ortAgirlik = agirliklar.length > 0 ? agirliklar.reduce((s, w) => s + w, 0) / agirliklar.length : 0;
     const dusukAgirlik = agirliklar.filter(w => w < 0.3).length;
 
-    // Ã–z-bilgi: graph kendisi hakk?nda ne biliyor?
+    // Öz-bilgi: graph kendisi hakkında ne biliyor?
     const selfNodes = ['axiom', 'kernel', 'dream', 'rüya', 'hipotez'];
     const selfBilgi = {};
     for (const n of selfNodes) {
@@ -1836,13 +1836,13 @@ if (verbSuffix.test(predicate)) {
       }
     }
 
-    // R?ya döngüs?
+    // Rüya döngüsü
     const dreamCycle = this._dreamCount || 0;
 
-    // Entropi (bilgi ?e?itliliÄŸi)
+    // Entropi (bilgi çeşitliliği)
     const entropi = this.entropy(workspaceId);
 
-    // Meta-g?ven skoru
+    // Meta-güven skoru
     let metaGuven = 0.5;
     if (nodeCount > 0) {
       metaGuven += Math.min(0.2, nodeCount * 0.001);
@@ -1852,14 +1852,14 @@ if (verbSuffix.test(predicate)) {
       metaGuven = Math.max(0, Math.min(1, metaGuven));
     }
 
-    // Zay?f noktalar
+    // Zayıf noktalar
     const zayifNoktalar = [];
     if (yalitilmis.length > 0) zayifNoktalar.push(`${yalitilmis.length} yal?t?lm?? d?ÄŸ?m`);
     if (celiskiler.length > 0) zayifNoktalar.push(`${celiskiler.length} çelişki`);
     if (dusukAgirlik > edgeCount * 0.3) zayifNoktalar.push(`${dusukAgirlik} d?k g?venli kenar`);
     if (nodeCount < 5) zayifNoktalar.push('?ok az bilgi');
 
-    // G??l? noktalar
+    // Güçlü noktalar
     const gucluNoktalar = [];
     if (nodeCount > 50) gucluNoktalar.push('geniş bilgi grafiği');
     if (typeEdges > 10) gucluNoktalar.push('g??l? tür hiyerar?isi');
@@ -1915,11 +1915,11 @@ if (verbSuffix.test(predicate)) {
   }
 
   /**
-   * Kendi kendine evrimle?me döngüs?.
-   * 1. R?ya g?r (hipotez ?ret)
-   * 2. Y?ksek g?venli hipotezleri bilgiye d?n??tür
-   * 3. GrafiÄŸi temizle (birle?tir + optimize et)
-   * 4. Kaydet, rapor d?ndır
+   * Kendi kendine evrimleşme döngüsü.
+   * 1. Rüya gör (hipotez üret)
+   * 2. Yüksek güvenli hipotezleri bilgiye dönüştür
+   * 3. Grafiği temizle (birleştir + optimize et)
+   * 4. Kaydet, rapor döndür
    */
   selfEvolve(opts = {}) {
     const Dream = require('./dream');
@@ -1985,8 +1985,8 @@ if (verbSuffix.test(predicate)) {
   }
 
   /**
-   * Kendi kendine ?ÄŸrenme â€” bo?luklar? tespit edip doldurur.
-   * Bilinmeyen kavramlar? bulur ve LLM'den ?ÄŸrenir.
+   * Kendi kendine öğrenme — boşlukları tespit edip doldurur.
+   * Bilinmeyen kavramları bulur ve LLM'den öğrenir.
    */
   selfLearn(opts = {}) {
     const gaps = this.detectGaps();
@@ -2007,7 +2007,7 @@ if (verbSuffix.test(predicate)) {
   }
 
   /**
-   * Periyodik bak?m â€” ?ÄŸrenme sayac?n? takip eder, e?ik a??l?nca selfEvolve ?al??tür?r.
+   * Periyodik bakım — öğrenme sayacını takip eder, eşik aşılınca selfEvolve çalıştırır.
    */
   _learnCount = 0;
   maintenanceEvery = 5;
