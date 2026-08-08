@@ -4,7 +4,16 @@ const crypto = require('crypto');
 
 const VERIFIED_PLUGIN = Symbol('axiom.verifiedPlugin');
 
+// preIngest is the one async-allowed hook: it runs via emitStrictAsync()
+// from kernel.learnAsync(), *before* the synchronous learn() pipeline
+// starts, precisely so a handler that needs I/O (network reachability of an
+// evidence URL, say) has somewhere to live that is not beforeLearn. See
+// #348 -- beforeLearn stays synchronous on purpose.
+//
+// Note: plugin-boundary-contract.test.js parses this array straight out of
+// the source and will not tolerate comments *inside* the literal.
 const EVENTS = [
+  'preIngest',
   'beforeLearn',
   'afterLearn',
   'beforeAsk',
@@ -237,6 +246,27 @@ class PluginManager {
           + 'an async handler here would silently corrupt the pipeline instead of erroring.'
         );
       }
+      if (result !== undefined) {
+        nextData = result;
+      }
+    }
+    return nextData;
+  }
+
+  /**
+   * emitStrict's async sibling: handlers may be sync or async, each is
+   * awaited in registration order, and a rejection propagates to the caller
+   * (fail-closed) rather than being swallowed the way emit() does.
+   *
+   * This is the *only* correct way to run a hook whose handlers do I/O.
+   * emitStrict() deliberately throws on a thenable result (#348), so an
+   * async handler has to be routed here instead.
+   */
+  async emitStrictAsync(event, data) {
+    let nextData = data;
+    for (const plugin of this._handlers[event]) {
+      if (typeof plugin[event] !== 'function') continue;
+      const result = await plugin[event](this.kernel, nextData);
       if (result !== undefined) {
         nextData = result;
       }

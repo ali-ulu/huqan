@@ -45,6 +45,7 @@ function extractEventsArrayFromSource(src) {
 const EVENTS_FROM_SOURCE = extractEventsArrayFromSource(PLUGIN_SOURCE);
 
 const CANONICAL_EVENT_NAMES = [
+  'preIngest',
   'beforeLearn',
   'afterLearn',
   'beforeAsk',
@@ -73,12 +74,12 @@ test('AC-1.0: EVENTS array is parseable from canonical plugin.js source', () => 
   );
 });
 
-test('AC-1.1: EVENTS array has exactly 17 entries (verified from plugin.js source)', () => {
+test('AC-1.1: EVENTS array has exactly 18 entries (verified from plugin.js source)', () => {
   assert.ok(Array.isArray(EVENTS_FROM_SOURCE), 'EVENTS must be parseable from plugin.js');
   assert.equal(
     EVENTS_FROM_SOURCE.length,
-    17,
-    `expected 17 events, got ${EVENTS_FROM_SOURCE.length}: ` +
+    18,
+    `expected 18 events, got ${EVENTS_FROM_SOURCE.length}: ` +
       JSON.stringify(EVENTS_FROM_SOURCE)
   );
 });
@@ -88,7 +89,7 @@ test('AC-1.2: EVENTS array matches the canonical hook name list in order', () =>
   assert.deepEqual(
     EVENTS_FROM_SOURCE,
     CANONICAL_EVENT_NAMES,
-    'EVENTS array in plugin.js must match the canonical 17-name list, in order. ' +
+    'EVENTS array in plugin.js must match the canonical 18-name list, in order. ' +
       'If you intentionally added or renamed a hook, update CANONICAL_EVENT_NAMES ' +
       'in this test AND any caller that depends on hook ordering.'
   );
@@ -325,4 +326,92 @@ test('AC-6.3b: signed manifest with wrong key is rejected', () => {
   assert.equal(v.ok, false);
   assert.equal(v.status, 'rejected');
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+// --- #348: the async-allowed preIngest escape hatch ---
+
+test('AC-2.4a: emitStrictAsync() awaits async handlers and threads the resolved value (#348)', async () => {
+  const k = new Kernel({ noLoad: true, loadPlugins: false });
+  k.plugins.register({
+    name: 'async-rewriter',
+    requires: [],
+    optional: [],
+    preIngest: async (kernel, data) => ({ ...data, text: `${data.text}!` }),
+  });
+  k.plugins.register({
+    name: 'sync-rewriter',
+    requires: [],
+    optional: [],
+    preIngest: (kernel, data) => ({ ...data, text: `${data.text}?` }),
+  });
+
+  const out = await k.plugins.emitStrictAsync('preIngest', { text: 'original' });
+  assert.equal(out.text, 'original!?', 'handlers must run in order, sync and async alike');
+});
+
+test('AC-2.4b: emitStrictAsync() is fail-closed -- a rejecting handler propagates (#348)', async () => {
+  const k = new Kernel({ noLoad: true, loadPlugins: false });
+  k.plugins.register({
+    name: 'async-thrower',
+    requires: [],
+    optional: [],
+    preIngest: async () => { throw Object.assign(new Error('async-boom'), { code: 'ASYNC_BOOM' }); },
+  });
+
+  await assert.rejects(
+    () => k.plugins.emitStrictAsync('preIngest', { text: 'x' }),
+    /async-boom/
+  );
+});
+
+test('AC-2.4c: learnAsync() runs preIngest before learn(), and a rejection blocks the write (#348)', async () => {
+  const k = new Kernel({ noLoad: true, loadPlugins: false });
+  const order = [];
+  k.plugins.register({
+    name: 'ordering-probe',
+    requires: [],
+    optional: [],
+    preIngest: async (kernel, data) => { order.push('preIngest'); return data; },
+    beforeLearn: (kernel, data) => { order.push('beforeLearn'); return data; },
+  });
+
+  await k.learnAsync('Kedi hayvandır', Kernel.createAdmissionBypassOpts('test'));
+  assert.deepEqual(order, ['preIngest', 'beforeLearn'], 'preIngest must run ahead of the sync pipeline');
+
+  const blocker = new Kernel({ noLoad: true, loadPlugins: false });
+  blocker.plugins.register({
+    name: 'ingest-blocker',
+    requires: [],
+    optional: [],
+    preIngest: async () => { throw Object.assign(new Error('blocked'), { code: 'INGEST_BLOCKED' }); },
+  });
+  await assert.rejects(
+    () => blocker.learnAsync('Köpek hayvandır', Kernel.createAdmissionBypassOpts('test')),
+    (err) => err.code === 'INGEST_BLOCKED'
+  );
+  assert.ok(!blocker.graph.getNode('köpek'), 'a blocked preIngest must not write to the graph');
+});
+
+test('AC-2.4d: learnAsync() rejects a preIngest handler that returns a non-payload value (#348)', async () => {
+  const k = new Kernel({ noLoad: true, loadPlugins: false });
+  k.plugins.register({
+    name: 'bad-shape',
+    requires: [],
+    optional: [],
+    // The #348 failure mode, one layer up: returning something learn()
+    // would read `.text` off as undefined must be loud, not silent.
+    preIngest: async () => 'not a payload',
+  });
+
+  await assert.rejects(
+    () => k.learnAsync('Kedi hayvandır', Kernel.createAdmissionBypassOpts('test')),
+    (err) => err.code === 'PRE_INGEST_INVALID_PAYLOAD'
+  );
+});
+
+test('AC-2.4e: learnAsync() stays a pass-through with no preIngest plugin registered (#348)', async () => {
+  const k = new Kernel({ noLoad: true, loadPlugins: false });
+  const result = await k.learnAsync('Kedi hayvandır', Kernel.createAdmissionBypassOpts('test'));
+  assert.ok(result?.data?.learned > 0);
+  assert.ok(k.graph.getNode('kedi'));
 });

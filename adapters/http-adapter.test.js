@@ -324,3 +324,29 @@ test('http-adapter: ingestAndLearn forwards provenance per entry', async () => {
     assert.equal(calls[0].opts.provenance.sourceRef, calls[0].opts.sourceRef);
   });
 });
+
+test('http-adapter: fetchUrl issues a HEAD request when asked, with no body (#348)', async () => {
+  const seen = [];
+  await withServer((req, res) => {
+    seen.push(req.method);
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end('<h1>a body a HEAD must not receive</h1>');
+  }, async (baseUrl) => {
+    const res = await fetchUrl(`${baseUrl}/`, { method: 'HEAD', allowPrivateAddresses: true });
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.length, 0, 'HEAD response must carry no body');
+  });
+  assert.deepEqual(seen, ['HEAD']);
+});
+
+test('http-adapter: an unrecognised method falls back to GET rather than being passed through (#348)', async () => {
+  const seen = [];
+  await withServer((req, res) => {
+    seen.push(req.method);
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('ok');
+  }, async (baseUrl) => {
+    await fetchUrl(`${baseUrl}/`, { method: 'DELETE', allowPrivateAddresses: true });
+  });
+  assert.deepEqual(seen, ['GET'], 'the adapter must never be turned into a write client');
+});

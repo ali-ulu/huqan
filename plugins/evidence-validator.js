@@ -6,21 +6,29 @@
  * beforeLearn gate: rejects a learn() call whose sourceRef is a malformed
  * or spoofed URL, before the claim is admitted to the graph.
  *
- * Scope note: this validates URL *shape* only -- well-formedness, userinfo-
- * based host spoofing (https://real.example@evil.example/), IDN/homograph
- * host confusion. It deliberately does NOT check reachability (403/404) as
- * originally scoped in #211, because that requires a network request and
- * beforeLearn/emitStrict is synchronous: a Promise-returning handler here
- * silently corrupted the learn() pipeline before the emitStrict fix landed,
- * and even with that fix (which turns the corruption into a loud throw
- * instead) it would just mean this gate is unusable rather than usable.
- * A real reachability check needs kernel.learn() to become async-capable,
- * which is a separate, larger decision -- tracked in #348.
+ * Two gates, deliberately split by what they cost:
  *
- * Only applies to sourceRef values that look like http(s) URLs; any other
- * shape (file:, git:, or no sourceRef at all) passes through untouched --
- * this gate has no opinion on non-URL provenance.
+ *   beforeLearn (sync, always on) validates URL *shape* only --
+ *   well-formedness, userinfo-based host spoofing
+ *   (https://real.example@evil.example/), IDN/homograph host confusion.
+ *   No I/O, so it is safe inside the synchronous learn() pipeline.
+ *
+ *   preIngest (async, opt-in) additionally checks that the URL actually
+ *   resolves, via a HEAD probe. This is the reachability half of #211 that
+ *   could not live in beforeLearn: emitStrict is synchronous and rejects a
+ *   Promise-returning handler outright (#348). It runs from
+ *   kernel.learnAsync() *before* learn() starts, and only when the
+ *   'evidenceReachability' capability is enabled -- reaching out to the
+ *   network is the wrong default for offline use.
+ *
+ * Both gates only apply to sourceRef values that look like http(s) URLs;
+ * any other shape (file:, git:, or no sourceRef at all) passes through
+ * untouched -- this gate has no opinion on non-URL provenance.
  */
+
+// Deliberately short: this is a liveness probe on the ingest path, not a
+// download, so waiting out a long server-side timeout buys nothing.
+const REACHABILITY_TIMEOUT_MS = 5000;
 
 function looksLikeHttpUrl(value) {
   return typeof value === 'string' && /^https?:\/\//i.test(value.trim());
@@ -73,6 +81,84 @@ function validateSourceUrl(value) {
   return { ok: true };
 }
 
+/**
+ * HEAD probe against a shape-validated URL.
+ *
+ * Fail-closed: a DNS failure, a timeout, or a refused connection is treated
+ * as "not reachable" and rejects the learn. The capability that turns this
+ * gate on was enabled deliberately, so quietly admitting a claim whose
+ * evidence could not be confirmed would recreate the fail-silent behaviour
+ * of #348 one level up.
+ *
+ * The one exception is a server that refuses HEAD outright (405/501): that
+ * says nothing about whether the resource exists, so it is inconclusive and
+ * passes rather than being read as a rejection.
+ *
+ * @param {string} value
+ * @param {{fetchUrl?: Function, timeoutMs?: number}} [deps]
+ * @returns {Promise<{ok: true} | {ok: false, reason: string, code: string}>}
+ */
+async function checkSourceReachable(value, deps = {}) {
+  // Required lazily so merely registering this plugin does not pull in
+  // http/https/dns, and so tests can inject a fetch without a live network.
+  const fetchUrl = deps.fetchUrl || require('../adapters/http-adapter').fetchUrl;
+  let response;
+  try {
+    response = await fetchUrl(String(value).trim(), {
+      method: 'HEAD',
+      timeoutMs: deps.timeoutMs || REACHABILITY_TIMEOUT_MS,
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      reason: `source could not be reached: ${error && error.message ? error.message : String(error)}`,
+      code: 'EVIDENCE_URL_UNREACHABLE',
+    };
+  }
+
+  const status = response && response.statusCode;
+  if (status === 405 || status === 501) return { ok: true };
+  if (typeof status !== 'number' || status >= 400) {
+    return {
+      ok: false,
+      reason: `source returned HTTP ${status}`,
+      code: 'EVIDENCE_URL_UNREACHABLE',
+    };
+  }
+  return { ok: true };
+}
+
+function reject(sourceRef, result) {
+  const err = new Error(`evidence-validator: rejected sourceRef "${sourceRef}": ${result.reason}`);
+  err.code = result.code;
+  throw err;
+}
+
+/**
+ * Builds the async preIngest handler. Exported as a factory so tests can
+ * supply a fetch implementation instead of hitting the network.
+ *
+ * @param {{fetchUrl?: Function, timeoutMs?: number}} [deps]
+ */
+function createPreIngest(deps = {}) {
+  return async function preIngest(kernel, data) {
+    if (!kernel || typeof kernel.hasCapability !== 'function' || !kernel.hasCapability('evidenceReachability')) {
+      return data;
+    }
+    const sourceRef = data && data.opts ? data.opts.sourceRef : undefined;
+    if (!looksLikeHttpUrl(sourceRef)) return data;
+
+    // Shape first: no point spending a network round-trip on a URL the
+    // synchronous gate is going to reject moments later anyway.
+    const shape = validateSourceUrl(sourceRef);
+    if (!shape.ok) reject(sourceRef, shape);
+
+    const reachable = await checkSourceReachable(sourceRef, deps);
+    if (!reachable.ok) reject(sourceRef, reachable);
+    return data;
+  };
+}
+
 module.exports = {
   name: 'evidence-validator',
   requires: [],
@@ -83,13 +169,13 @@ module.exports = {
     if (!looksLikeHttpUrl(sourceRef)) return data;
 
     const result = validateSourceUrl(sourceRef);
-    if (!result.ok) {
-      const err = new Error(`evidence-validator: rejected sourceRef "${sourceRef}": ${result.reason}`);
-      err.code = result.code;
-      throw err;
-    }
+    if (!result.ok) reject(sourceRef, result);
     return data;
   },
+
+  preIngest: createPreIngest(),
 };
 
 module.exports.validateSourceUrl = validateSourceUrl;
+module.exports.checkSourceReachable = checkSourceReachable;
+module.exports.createPreIngest = createPreIngest;
