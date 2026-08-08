@@ -363,7 +363,7 @@ describe('AB5 automation safety gate core decisions', () => {
     assert.equal(result.reason, AUTOMATION_SAFETY_REASONS.TOKEN_PERSISTENCE_BLOCKED);
   });
 
-  it('secret-looking metadata does not leak in warnings', () => {
+  it('secret-looking metadata escalates to block and does not leak in warnings (#402)', () => {
     const secret = 'sk-1234567890abcdef';
     const result = evaluate({
       operationType: 'repo_settings_change',
@@ -373,9 +373,28 @@ describe('AB5 automation safety gate core decisions', () => {
       },
     });
 
-    assert.equal(result.decision, AUTOMATION_SAFETY_DECISIONS.REVIEW);
+    // #402: a detected secret escalates all the way to BLOCK, not just
+    // ALLOW->REVIEW -- a secret in flight is not something to merely review.
+    assert.equal(result.decision, AUTOMATION_SAFETY_DECISIONS.BLOCK);
+    assert.equal(result.reason, AUTOMATION_SAFETY_REASONS.SECRET_DETECTED_BLOCKED);
     assert.ok(result.warnings.every(warning => !String(warning).includes(secret)));
     assert.ok(result.warnings.every(warning => !String(warning).toLowerCase().includes('sk-')));
+  });
+
+  it('secret detection never downgrades an operation that was already block (#402)', () => {
+    const secret = 'sk-1234567890abcdef';
+    const result = evaluate({
+      operationType: 'token_persistence',
+      metadata: {
+        workspaceId: 'default',
+        apiKey: secret,
+      },
+    });
+
+    assert.equal(result.decision, AUTOMATION_SAFETY_DECISIONS.BLOCK);
+    // The operation's own reason is preserved rather than overwritten by the
+    // secret-detection reason, since it was already at BLOCK on its own.
+    assert.equal(result.reason, AUTOMATION_SAFETY_REASONS.TOKEN_PERSISTENCE_BLOCKED);
   });
 
   it('push to main without approved context returns block', () => {
