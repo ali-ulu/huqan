@@ -382,12 +382,13 @@ describe('AB5 automation safety gate core decisions', () => {
   });
 
   it('secret detection never downgrades an operation that was already block (#402)', () => {
-    const secret = 'sk-1234567890abcdef';
+    // Detected by key name (apiKey is in SECRET_HINTS), not value shape --
+    // deliberately not a plausible-looking key/token value.
     const result = evaluate({
       operationType: 'token_persistence',
       metadata: {
         workspaceId: 'default',
-        apiKey: secret,
+        apiKey: 'placeholder-not-a-real-credential',
       },
     });
 
