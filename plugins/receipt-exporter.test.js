@@ -225,3 +225,112 @@ test('receipt-exporter: PDF round-trip -- a generated receipt PDF reads back its
   }
 });
 
+
+// --- #543: receiptId path traversal ---------------------------------------
+
+test('receipt-exporter: #543 traversal receiptId cannot escape the output dir (JSON)', () => {
+  const outputDir = path.join(__dirname, '..', `tmp-receipt-traversal-${process.pid}`);
+  const sentinel = path.join(__dirname, '..', `tmp-receipt-sentinel-${process.pid}.json`);
+  try {
+    fs.mkdirSync(outputDir, { recursive: true });
+    fs.writeFileSync(sentinel, 'sentinel');
+    const stem = `../tmp-receipt-sentinel-${process.pid}`;
+    assert.throws(
+      () => exportReceiptToFile({ receiptId: stem, pwned: true }, outputDir),
+      (e) => e.code === 'RECEIPT_EXPORT_INVALID_RECEIPT_ID',
+    );
+    assert.equal(fs.readFileSync(sentinel, 'utf8'), 'sentinel', 'sentinel file was not overwritten');
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+    fs.rmSync(sentinel, { force: true });
+  }
+});
+
+test('receipt-exporter: #543 traversal receiptId rejects on the PDF path too', async () => {
+  const outputDir = path.join(__dirname, '..', `tmp-receipt-traversal-pdf-${process.pid}`);
+  try {
+    fs.mkdirSync(outputDir, { recursive: true });
+    await assert.rejects(
+      () => exportReceiptToPdf({ receiptId: '../escaped' }, outputDir),
+      (e) => e.code === 'RECEIPT_EXPORT_INVALID_RECEIPT_ID',
+    );
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('receipt-exporter: #543 unsafe receiptId shapes all fail closed', () => {
+  const { resolveReceiptFileStem } = receiptExporter._test;
+  const unsafe = [
+    '../package', '..', '.', 'a/b', 'a\b', '/abs', 'C:\win',
+    'nul\u0000byte', 'has space', 'x'.repeat(129),
+  ];
+  for (const receiptId of unsafe) {
+    assert.throws(
+      () => resolveReceiptFileStem({ receiptId }),
+      (e) => e.code === 'RECEIPT_EXPORT_INVALID_RECEIPT_ID',
+      `expected ${JSON.stringify(receiptId)} to be rejected`,
+    );
+  }
+});
+
+test('receipt-exporter: #543 legitimate receiptId shapes still pass', () => {
+  const { resolveReceiptFileStem } = receiptExporter._test;
+  const safe = [
+    'apr_receipt_abc123', 'madm_receipt_0f9d', 'external_candidate_receipt_ff00',
+    'receipt-1754-ab12cd', 'r-run-json', 'v1.2.3',
+  ];
+  for (const receiptId of safe) {
+    assert.equal(resolveReceiptFileStem({ receiptId }), receiptId);
+  }
+  // A receipt with no id at all still gets a generated stem.
+  assert.match(resolveReceiptFileStem({}), /^receipt-\d+-[a-z0-9]+$/);
+});
+
+// --- #544: unknown format fail-closed --------------------------------------
+
+test('receipt-exporter: #544 unknown format fails closed instead of writing JSON', () => {
+  const kernel = fakeKernel();
+  const outputDir = path.join(__dirname, '..', `tmp-receipt-format-${process.pid}`);
+  try {
+    const result = receiptExporter.run(kernel, {
+      action: 'export',
+      format: 'yaml',
+      outputDir,
+      receipt: { receiptId: 'r-format-yaml', decision: 'approved' },
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 'RECEIPT_EXPORT_UNSUPPORTED_FORMAT');
+    assert.deepEqual(result.supportedFormats, ['json', 'pdf']);
+    assert.equal(fs.existsSync(path.join(outputDir, 'r-format-yaml.json')), false,
+      'no JSON artefact is written for an unsupported format');
+    assert.deepEqual(ensureExporterState(kernel).exported, [],
+      'a rejected export is not recorded in exporter state');
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('receipt-exporter: #544 supported formats still export and report honestly', async () => {
+  const kernel = fakeKernel();
+  const outputDir = path.join(__dirname, '..', `tmp-receipt-format-ok-${process.pid}`);
+  try {
+    const json = receiptExporter.run(kernel, {
+      action: 'export', format: 'JSON', outputDir,
+      receipt: { receiptId: 'r-ok-json' },
+    });
+    assert.equal(json.ok, true);
+    assert.equal(json.format, 'json');
+    assert.ok(json.filePath.endsWith('r-ok-json.json'));
+
+    const pdf = await receiptExporter.run(kernel, {
+      action: 'export', format: 'pdf', outputDir,
+      receipt: { receiptId: 'r-ok-pdf' },
+    });
+    assert.equal(pdf.ok, true);
+    assert.equal(pdf.format, 'pdf');
+    assert.ok(pdf.filePath.endsWith('r-ok-pdf.pdf'));
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
+});
