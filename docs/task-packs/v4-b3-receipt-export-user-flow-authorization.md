@@ -172,6 +172,22 @@ source-compatible. Any path other than `package.json` in the diff output, any
 removal or range change in either key, or a change to any other top-level
 `package.json` key remains an unreconciled stop condition.
 
+> **This reconciliation unblocks the base rule only — not implementation.**
+> The V4-B3A authorization (`docs/task-packs/`
+> `v4-b3a-bounded-receipt-export-source-serialization-authorization.md`, merged
+> by PR #551, scope-amended by PR #558) records the controlling parent verdict
+> for this task-pack as `V4_B3_RECEIPT_EXPORT_USER_FLOW_BLOCKED_GAP`: the
+> contract above "cannot be implemented truthfully inside its six-file scope",
+> because checking `MAX_RECEIPTS` after `getAuditEvents()` bounds the output but
+> not the read or materialization cost, which that pack calls "explicitly
+> insufficient for B3".
+>
+> Do not implement the six-file route contract above directly. The bounded
+> source seam authorized as V4-B3A is a prerequisite. A successor that satisfies
+> the base rule reconciled here and then ships the route over an unbounded
+> `getAuditEvents()` read has produced the outcome both packs forbid, even if it
+> documents the unbounded read honestly while doing so.
+
 ## Source-Reality Verdict
 
 `exportMaterializedReceiptBundle()` (`lib/receipt/receipt-read-index.js:212`)
