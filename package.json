@@ -131,6 +131,7 @@
         "lib/http/route-auth-policy.js",
         "lib/human-approval-toggle.js",
         "lib/ingest.js",
+        "lib/json-utf8-size.js",
         "lib/kernel-factory.js",
         "lib/kernel-read-use-cases.js",
         "lib/learn-use-case.js",
