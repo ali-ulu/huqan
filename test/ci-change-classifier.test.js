@@ -7,7 +7,12 @@ const { spawnSync } = require('node:child_process');
 const { test } = require('node:test');
 
 const workflowPath = path.join(__dirname, '..', '.github', 'workflows', 'benchmark.yml');
-const workflow = fs.readFileSync(workflowPath, 'utf8');
+// Normalize line endings before matching. .gitattributes pins this file to LF,
+// but a clone that already checked it out under core.autocrlf=true still has
+// CRLF on disk, and the marker regex below is LF-anchored. Normalizing here
+// also keeps stray CR bytes out of the extracted shell, where bash would treat
+// them as part of the command rather than as a line separator.
+const workflow = fs.readFileSync(workflowPath, 'utf8').replace(/\r\n/g, '\n');
 const marker = workflow.match(
   /^          # CI_CLASSIFIER_FUNCTIONS_START\n([\s\S]*?)^          # CI_CLASSIFIER_FUNCTIONS_END$/m,
 );

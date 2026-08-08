@@ -5,3 +5,10 @@
 # causing plugins to be rejected at load. Force LF for these signed files.
 plugins/**/*.js text eol=lf
 plugins/**/*.json text eol=lf
+
+# Workflow files carry embedded shell that test/ci-change-classifier.test.js
+# extracts between marker comments and executes with bash. A CRLF checkout both
+# breaks the LF-anchored marker regex and leaves stray CR bytes inside the
+# extracted function bodies, where bash treats them as part of the command.
+# Force LF for the same reason as the signed plugin files above.
+.github/workflows/*.yml text eol=lf
