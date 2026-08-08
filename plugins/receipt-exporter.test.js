@@ -5,7 +5,7 @@ const os = require('os');
 const path = require('path');
 
 const receiptExporter = require('./receipt-exporter');
-const { ensureExporterState, exportReceiptToFile, exportReceiptToPdf } = receiptExporter._test;
+const { ensureExporterState, exportReceiptToFile, exportReceiptToPdf, resolveSafeExportPath, safeReceiptBaseName } = receiptExporter._test;
 const Kernel = require('../kernel');
 
 // pdf.js (used to read a generated PDF back for the round-trip assertion)
@@ -75,6 +75,111 @@ test('receipt-exporter: exportReceiptToFile rejects an outputDir outside the rep
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('receipt-exporter: exportReceiptToFile rejects a traversal receiptId and never touches the target file', () => {
+  const outputDir = path.join(__dirname, '..', `tmp-receipt-export-test-${process.pid}`);
+  const targetName = `tmp-receipt-overwrite-${process.pid}.json`;
+  const target = path.join(__dirname, '..', targetName);
+  try {
+    fs.mkdirSync(outputDir, { recursive: true });
+    fs.writeFileSync(target, 'sentinel');
+    assert.throws(
+      () => exportReceiptToFile({ receiptId: `../${targetName.replace(/\.json$/, '')}`, pwned: true }, outputDir),
+      (err) => err.code === 'RECEIPT_EXPORT_UNSAFE_ID',
+      'path-traversal receiptId must reject the whole export'
+    );
+    assert.equal(fs.readFileSync(target, 'utf8'), 'sentinel', 'the traversal target must remain byte-for-byte untouched');
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+    fs.rmSync(target, { force: true });
+  }
+});
+
+test('receipt-exporter: exportReceiptToFile rejects every path-separator / traversal id variant', () => {
+  const outputDir = path.join(__dirname, '..', `tmp-receipt-export-test-${process.pid}`);
+  const variants = [
+    '../escape',
+    '..\\escape',
+    'a/../../escape',
+    'a\\..\\..\\escape',
+    'sub/up/../..',
+    '/abs/path',
+    'C:\\abs\\path',
+    '..',
+    './x',
+    '..//double',
+  ];
+  try {
+    fs.mkdirSync(outputDir, { recursive: true });
+    for (const receiptId of variants) {
+      assert.throws(
+        () => exportReceiptToFile({ receiptId }, outputDir),
+        (err) => err.code === 'RECEIPT_EXPORT_UNSAFE_ID',
+        `receiptId ${JSON.stringify(receiptId)} must be rejected`
+      );
+    }
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('receipt-exporter: exportReceiptToFile rejects over-long, Windows-reserved and control/space ids', () => {
+  const outputDir = path.join(__dirname, '..', `tmp-receipt-export-test-${process.pid}`);
+  const unsafeIds = [
+    'r'.repeat(129),
+    'CON',
+    'con',
+    'nul',
+    'COM5',
+    'com9',
+    'LPT1',
+    'aux',
+    'have space',
+    'colon:name',
+    'percent%name',
+    'tab\tname',
+    'newline\nname',
+  ];
+  try {
+    fs.mkdirSync(outputDir, { recursive: true });
+    for (const receiptId of unsafeIds) {
+      assert.throws(
+        () => exportReceiptToFile({ receiptId }, outputDir),
+        (err) => err.code === 'RECEIPT_EXPORT_UNSAFE_ID',
+        `receiptId ${JSON.stringify(receiptId)} must be rejected`
+      );
+    }
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('receipt-exporter: exportReceiptToFile writes under a generated fallback id when none is present', () => {
+  const outputDir = path.join(__dirname, '..', `tmp-receipt-export-test-${process.pid}`);
+  try {
+    const filePath = exportReceiptToFile({ decision: 'approved', sourceType: 'test' }, outputDir);
+    assert.match(path.basename(filePath), /^receipt-\d+-[a-z0-9]{6}\.json$/);
+    assert.ok(fs.existsSync(filePath));
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('receipt-exporter: resolveSafeExportPath rejects an unsupported extension', () => {
+  assert.throws(
+    () => resolveSafeExportPath(receiptExporter._test.DEFAULT_OUTPUT_DIR, 'r-1', 'html'),
+    (err) => err.code === 'RECEIPT_EXPORT_UNSUPPORTED_FORMAT' && err.extension === 'html'
+  );
+});
+
+test('receipt-exporter: safeReceiptBaseName preserves legitimate ids untouched', () => {
+  for (const id of ['r-123', 'apr_receipt_0a1b2c3d4e5f6071', 'external_candidate_receipt_abcd', 'receipt_bundle.v2-1', 'A-9.b_2']) {
+    assert.equal(safeReceiptBaseName(id), id, `legitimate id ${id} must pass through unchanged`);
+  }
+  assert.match(safeReceiptBaseName(''), /^receipt-\d+-[a-z0-9]{6}$/, 'empty id gets a generated fallback');
+  assert.match(safeReceiptBaseName(undefined), /^receipt-\d+-[a-z0-9]{6}$/, 'undefined id gets a generated fallback');
+  assert.match(safeReceiptBaseName(null), /^receipt-\d+-[a-z0-9]{6}$/, 'null id gets a generated fallback');
 });
 
 test('receipt-exporter: afterLearn does nothing when no receipt is present', () => {
@@ -158,6 +263,48 @@ test('receipt-exporter: exportReceiptToPdf rejects an outputDir outside the repo
     );
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('receipt-exporter: exportReceiptToPdf rejects a traversal receiptId and never touches the target file', async () => {
+  const outputDir = path.join(__dirname, '..', `tmp-receipt-export-test-${process.pid}`);
+  const targetName = `tmp-receipt-pdf-overwrite-${process.pid}.pdf`;
+  const target = path.join(__dirname, '..', targetName);
+  try {
+    fs.mkdirSync(outputDir, { recursive: true });
+    fs.writeFileSync(target, 'sentinel');
+    await assert.rejects(
+      () => exportReceiptToPdf({ receiptId: `../${targetName.replace(/\.pdf$/, '')}`, pwned: true }, outputDir),
+      (err) => err.code === 'RECEIPT_EXPORT_UNSAFE_ID',
+      'path-traversal receiptId must reject the PDF export'
+    );
+    assert.equal(fs.readFileSync(target, 'utf8'), 'sentinel', 'the PDF traversal target must remain byte-for-byte untouched');
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+    fs.rmSync(target, { force: true });
+  }
+});
+
+test('receipt-exporter: run() export refuses a traversal receiptId, writes nothing and records nothing', () => {
+  const kernel = fakeKernel();
+  const outputDir = path.join(__dirname, '..', `tmp-receipt-export-test-${process.pid}`);
+  const targetName = `tmp-receipt-run-overwrite-${process.pid}.json`;
+  const target = path.join(__dirname, '..', targetName);
+  try {
+    fs.writeFileSync(target, 'sentinel');
+    const result = receiptExporter.run(kernel, {
+      action: 'export',
+      outputDir,
+      receipt: { receiptId: `../${targetName.replace(/\.json$/, '')}`, pwned: true },
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 'RECEIPT_EXPORT_UNSAFE_ID');
+    assert.equal(result.filePath, undefined, 'must not report a file path for a rejected export');
+    assert.equal(fs.readFileSync(target, 'utf8'), 'sentinel', 'the run() traversal target must remain untouched');
+    assert.equal(ensureExporterState(kernel).exported.length, 0, 'rejected exports must not be recorded');
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+    fs.rmSync(target, { force: true });
   }
 });
 

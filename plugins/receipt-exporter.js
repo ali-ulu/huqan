@@ -38,10 +38,76 @@
 const fs = require('fs');
 const path = require('path');
 const PDFDocument = require('pdfkit');
-const { resolvePathWithinRoot } = require('../lib/path-safety');
+const { resolvePathWithinRoot, isPathWithinRoot } = require('../lib/path-safety');
 
 const REPO_ROOT = path.join(__dirname, '..');
 const DEFAULT_OUTPUT_DIR = path.join(REPO_ROOT, 'receipts');
+
+// Receipt ids are attacker-influenceable (a learn()'s admission receipt can
+// carry arbitrary fields), so an id is treated as untrusted until reduced to a
+// single safe file-name *segment*. Only an id that survives this contract is
+// allowed to become part of an export path; anything else rejects the whole
+// export instead of writing anywhere (the id never falls back to a generated
+// name when one was present-but-unsafe -- reject loudly, log loudly).
+const RECEIPT_ID_MAX_LENGTH = 128;
+const SAFE_RECEIPT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+// Windows refuses these as standalone base names (CON, PRN, AUX, NUL, COM1-9,
+// LPT1-9), so they are rejected regardless of the host platform to keep export
+// behaviour deterministic everywhere.
+const WINDOWS_RESERVED_BASE_NAMES = new Set([
+  'con', 'prn', 'aux', 'nul',
+  'com1', 'com2', 'com3', 'com4', 'com5', 'com6', 'com7', 'com8', 'com9',
+  'lpt1', 'lpt2', 'lpt3', 'lpt4', 'lpt5', 'lpt6', 'lpt7', 'lpt8', 'lpt9',
+]);
+const SAFE_EXPORT_EXTENSIONS = new Set(['json', 'pdf']);
+
+function createExportError(code, message, details) {
+  const err = new Error(message);
+  err.code = code;
+  return Object.assign(err, details);
+}
+
+function fallbackReceiptId() {
+  return `receipt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// Returns a safe file-name base for the given id, or null when the id cannot
+// be reduced to one. Returns a generated fallback for a missing/empty id
+// (preserving the exporter's original "always produce a file" behaviour for
+// absent ids); a present-but-unsafe id returns null so the caller can reject.
+function safeReceiptBaseName(receiptId) {
+  if (receiptId === undefined || receiptId === null || receiptId === '') {
+    return fallbackReceiptId();
+  }
+  const raw = String(receiptId);
+  if (raw.length > RECEIPT_ID_MAX_LENGTH || !SAFE_RECEIPT_ID_PATTERN.test(raw)) {
+    return null;
+  }
+  if (WINDOWS_RESERVED_BASE_NAMES.has(raw.toLowerCase())) {
+    return null;
+  }
+  return raw;
+}
+
+// Shared by the JSON and PDF export paths: turns an untrusted receiptId plus a
+// whitelisted format extension into a file path guaranteed to live inside
+// `resolvedDir` (which itself was already constrained to REPO_ROOT). Two
+// independent checks -- strict filename contract + path containment -- so a
+// regression in either still cannot escape the output directory.
+function resolveSafeExportPath(resolvedDir, receiptId, extension) {
+  if (!SAFE_EXPORT_EXTENSIONS.has(extension)) {
+    throw createExportError('RECEIPT_EXPORT_UNSUPPORTED_FORMAT', `Unsupported export format: ${extension}`, { extension });
+  }
+  const base = safeReceiptBaseName(receiptId);
+  if (base === null) {
+    throw createExportError('RECEIPT_EXPORT_UNSAFE_ID', `Receipt id "${String(receiptId)}" is not a safe file name`, { receiptId: String(receiptId) });
+  }
+  const filePath = path.join(resolvedDir, `${base}.${extension}`);
+  if (!isPathWithinRoot(resolvedDir, filePath)) {
+    throw createExportError('RECEIPT_EXPORT_PATH_ESCAPE', 'Receipt export path escapes output dir', { filePath });
+  }
+  return filePath;
+}
 
 function ensureExporterState(kernel) {
   if (!kernel._receiptExporterState) {
@@ -53,8 +119,8 @@ function ensureExporterState(kernel) {
 function exportReceiptToFile(receipt, outputDir) {
   const resolvedDir = resolvePathWithinRoot(REPO_ROOT, outputDir, { allowMissing: true });
   fs.mkdirSync(resolvedDir, { recursive: true });
-  const receiptId = receipt.receiptId || receipt.id || `receipt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const filePath = path.join(resolvedDir, `${receiptId}.json`);
+  const receiptId = receipt.receiptId || receipt.id;
+  const filePath = resolveSafeExportPath(resolvedDir, receiptId, 'json');
   fs.writeFileSync(filePath, JSON.stringify(receipt, null, 2));
   return filePath;
 }
@@ -127,8 +193,8 @@ function renderReceiptPdf(doc, receipt) {
 async function exportReceiptToPdf(receipt, outputDir) {
   const resolvedDir = resolvePathWithinRoot(REPO_ROOT, outputDir, { allowMissing: true });
   fs.mkdirSync(resolvedDir, { recursive: true });
-  const receiptId = receipt.receiptId || receipt.id || `receipt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const filePath = path.join(resolvedDir, `${receiptId}.pdf`);
+  const receiptId = receipt.receiptId || receipt.id;
+  const filePath = resolveSafeExportPath(resolvedDir, receiptId, 'pdf');
 
   const doc = new PDFDocument({
     size: 'A4',
@@ -218,4 +284,4 @@ module.exports = {
   },
 };
 
-module.exports._test = { ensureExporterState, exportReceiptToFile, exportReceiptToPdf, collectPdfFields, DEFAULT_OUTPUT_DIR };
+module.exports._test = { ensureExporterState, exportReceiptToFile, exportReceiptToPdf, collectPdfFields, resolveSafeExportPath, safeReceiptBaseName, DEFAULT_OUTPUT_DIR };
