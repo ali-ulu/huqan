@@ -38,10 +38,23 @@
 const fs = require('fs');
 const path = require('path');
 const PDFDocument = require('pdfkit');
-const { resolvePathWithinRoot } = require('../lib/path-safety');
+const { createPathError, isPathWithinRoot, resolvePathWithinRoot } = require('../lib/path-safety');
 
 const REPO_ROOT = path.join(__dirname, '..');
 const DEFAULT_OUTPUT_DIR = path.join(REPO_ROOT, 'receipts');
+
+// Formats this exporter can actually produce. Anything else fails closed
+// rather than silently falling through to the JSON writer while reporting
+// the requested format back to the caller (#544).
+const SUPPORTED_FORMATS = Object.freeze(['json', 'pdf']);
+
+// The receiptId doubles as the output file name, so it is constrained to a
+// single safe path segment. Real receipt ids are already generated from this
+// alphabet (`apr_receipt_<hash>`, `madm_receipt_<sha1>`,
+// `external_candidate_receipt_<sha256>`), so this rejects attacker-shaped
+// input without narrowing any legitimate id.
+const MAX_RECEIPT_ID_LEN = 128;
+const SAFE_RECEIPT_ID = /^[A-Za-z0-9._-]+$/;
 
 function ensureExporterState(kernel) {
   if (!kernel._receiptExporterState) {
@@ -50,11 +63,68 @@ function ensureExporterState(kernel) {
   return kernel._receiptExporterState;
 }
 
-function exportReceiptToFile(receipt, outputDir) {
+/**
+ * Resolve the file-name stem for a receipt, fail-closed (#543).
+ *
+ * `outputDir` is validated against REPO_ROOT, but the file name was previously
+ * interpolated straight from `receipt.receiptId || receipt.id`, so a value like
+ * `../package` escaped the receipts/ directory and overwrote unrelated repo
+ * files. The id is now required to be a single safe path segment; a missing id
+ * still falls back to a generated one, but a *present but unsafe* id is an
+ * error rather than something quietly rewritten to a different target.
+ */
+function resolveReceiptFileStem(receipt) {
+  const raw = receipt.receiptId || receipt.id;
+  if (raw === undefined || raw === null || raw === '') {
+    return `receipt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  const candidate = String(raw).trim();
+  const isSafeSegment = Boolean(candidate)
+    && candidate.length <= MAX_RECEIPT_ID_LEN
+    && SAFE_RECEIPT_ID.test(candidate)
+    // `.` and `..` match the alphabet above but are directory references.
+    && !/^\.+$/.test(candidate);
+
+  if (!isSafeSegment) {
+    throw createPathError(
+      'RECEIPT_EXPORT_INVALID_RECEIPT_ID',
+      'receiptId is not a safe file name segment',
+      REPO_ROOT,
+      candidate,
+    );
+  }
+  return candidate;
+}
+
+/**
+ * Resolve the output directory and the final file path together, so the
+ * REPO_ROOT boundary is enforced against the path actually written -- not just
+ * against the directory it was meant to land in.
+ */
+function resolveReceiptTarget(receipt, outputDir, extension) {
   const resolvedDir = resolvePathWithinRoot(REPO_ROOT, outputDir, { allowMissing: true });
+  const stem = resolveReceiptFileStem(receipt);
+  const filePath = path.join(resolvedDir, `${stem}.${extension}`);
+
+  // Defence in depth: the stem is already a validated single segment, so this
+  // should be unreachable -- it exists so any future loosening of the stem
+  // rules still cannot write outside the resolved directory.
+  if (path.dirname(filePath) !== resolvedDir || !isPathWithinRoot(REPO_ROOT, filePath)) {
+    throw createPathError(
+      'PATH_OUTSIDE_ALLOWED_ROOT',
+      'Path escapes allowed root',
+      REPO_ROOT,
+      filePath,
+    );
+  }
+
   fs.mkdirSync(resolvedDir, { recursive: true });
-  const receiptId = receipt.receiptId || receipt.id || `receipt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const filePath = path.join(resolvedDir, `${receiptId}.json`);
+  return filePath;
+}
+
+function exportReceiptToFile(receipt, outputDir) {
+  const filePath = resolveReceiptTarget(receipt, outputDir, 'json');
   fs.writeFileSync(filePath, JSON.stringify(receipt, null, 2));
   return filePath;
 }
@@ -125,10 +195,8 @@ function renderReceiptPdf(doc, receipt) {
 // Declared async so that even the synchronous path-resolution failure surfaces
 // as a clean rejection rather than a synchronous throw.
 async function exportReceiptToPdf(receipt, outputDir) {
-  const resolvedDir = resolvePathWithinRoot(REPO_ROOT, outputDir, { allowMissing: true });
-  fs.mkdirSync(resolvedDir, { recursive: true });
-  const receiptId = receipt.receiptId || receipt.id || `receipt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const filePath = path.join(resolvedDir, `${receiptId}.pdf`);
+  const filePath = resolveReceiptTarget(receipt, outputDir, 'pdf');
+  const receiptId = path.basename(filePath, '.pdf');
 
   const doc = new PDFDocument({
     size: 'A4',
@@ -189,6 +257,18 @@ module.exports = {
         return { ok: false, error: 'a receipt object is required', code: 'RECEIPT_EXPORT_MISSING_RECEIPT' };
       }
       const format = String(input.format || 'json').toLowerCase();
+      // Fail closed on unknown formats (#544). Previously every non-'pdf'
+      // value fell through to the JSON writer while `recordExport` echoed the
+      // requested format back, so `format: 'yaml'` reported ok:true with
+      // format 'yaml' next to a file that was actually JSON.
+      if (!SUPPORTED_FORMATS.includes(format)) {
+        return {
+          ok: false,
+          error: `Unsupported receipt-exporter format: ${format}`,
+          code: 'RECEIPT_EXPORT_UNSUPPORTED_FORMAT',
+          supportedFormats: [...SUPPORTED_FORMATS],
+        };
+      }
       const outputDir = input.outputDir || DEFAULT_OUTPUT_DIR;
       const recordExport = (filePath) => {
         state.exported.push({
@@ -218,4 +298,12 @@ module.exports = {
   },
 };
 
-module.exports._test = { ensureExporterState, exportReceiptToFile, exportReceiptToPdf, collectPdfFields, DEFAULT_OUTPUT_DIR };
+module.exports._test = {
+  ensureExporterState,
+  exportReceiptToFile,
+  exportReceiptToPdf,
+  collectPdfFields,
+  resolveReceiptFileStem,
+  DEFAULT_OUTPUT_DIR,
+  SUPPORTED_FORMATS,
+};
