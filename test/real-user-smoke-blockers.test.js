@@ -42,16 +42,18 @@ describe('real user smoke blockers', () => {
     }
   });
 
-  it('egitim.js persists seeded Turkish facts as UTF-8 without mojibake', () => {
+  it('scripts/egitim-demo.js (demo) persists seeded Turkish facts as UTF-8 without mojibake, isolated from production memory', () => {
     const cwd = makeTempDir('axiom-egitim-');
     try {
-      const result = spawnSync(process.execPath, [path.join(repoRoot, 'egitim.js')], {
-        cwd,
-        encoding: 'utf8',
-      });
+      const demoMemoryDir = path.join(cwd, 'demo-memory');
+      const result = spawnSync(
+        process.execPath,
+        [path.join(repoRoot, 'scripts', 'egitim-demo.js'), '--demo', '--persist-dir', demoMemoryDir],
+        { cwd, encoding: 'utf8' },
+      );
 
       assert.strictEqual(result.status, 0, result.stderr);
-      const memory = fs.readFileSync(path.join(cwd, 'memory.json'), 'utf8');
+      const memory = fs.readFileSync(path.join(demoMemoryDir, 'memory.json'), 'utf8');
       assert.match(memory, /HUQAN/);
       assert.match(memory, /dış marka ürün kimliğidir/);
       assert.match(memory, /mant\u0131k/);
@@ -59,9 +61,12 @@ describe('real user smoke blockers', () => {
       assert.match(memory, /bilgi grafi\u011fi motoru/);
       assert.doesNotMatch(memory, /Ã|Ä|Å/);
 
+      // #363: production memory (CWD memory.json) must never be touched.
+      assert.strictEqual(fs.existsSync(path.join(cwd, 'memory.json')), false);
+
       const kernel = new Kernel({
-        memoryPath: path.join(cwd, 'memory.json'),
-        dbPath: path.join(cwd, 'memory.db'),
+        memoryPath: path.join(demoMemoryDir, 'memory.json'),
+        dbPath: path.join(demoMemoryDir, 'memory.db'),
       });
       assert.strictEqual(kernel.ask('HUQAN nedir?').data.unknown, false);
       assert.match(kernel.ask('HUQAN nedir?').data.answer, /huqan/i);
