@@ -183,6 +183,8 @@
         "lib/workbench/memory-context-audit-source.js",
         "lib/workbench/memory-context-inspector.js",
         "lib/workbench/memory-context-route.js",
+        "lib/workbench/receipt-bundle-export-route.js",
+        "lib/workbench/receipt-bundle-exporter.js",
         "lib/workbench/trust-receipt-inspector.js",
         "lib/workbench/trust-receipt-route.js",
         "lib/workbench/workbench-read-http-router.js",
