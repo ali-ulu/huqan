@@ -86,7 +86,7 @@ test('V4-UI-2 builds only encoded same-origin receipt paths', async () => {
 test('V4-UI-2 keeps credentials same-origin and clears the API key after login', async () => {
   const { startViewer } = await import('../public/viewer/app.mjs');
   const nodes = Object.fromEntries([
-    'login-form', 'receipt-form', 'logout-button', 'api-key', 'receipt-id',
+    'login-form', 'receipt-form', 'logout-button', 'api-key', 'login-workspace-id', 'receipt-id',
     'workspace-id', 'status', 'receipt-details',
   ].map((id) => [id, new FakeNode(id)]));
   const documentRef = {
@@ -101,6 +101,7 @@ test('V4-UI-2 keeps credentials same-origin and clears the API key after login',
   startViewer(documentRef, fetchRef);
 
   nodes['api-key'].value = 'operator-secret';
+  nodes['login-workspace-id'].value = 'workspace-a';
   await nodes['login-form'].listeners.submit({ preventDefault() {} });
   assert.equal(nodes['api-key'].value, '');
   assert.equal(nodes.status.textContent, 'Viewer session opened. Enter a receipt identifier.');
@@ -110,7 +111,7 @@ test('V4-UI-2 keeps credentials same-origin and clears the API key after login',
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiKey: 'operator-secret' }),
+      body: JSON.stringify({ apiKey: 'operator-secret', workspaceId: 'workspace-a' }),
     },
   });
 

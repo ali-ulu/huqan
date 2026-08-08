@@ -23,8 +23,10 @@
         <label for="api-key">Operator API key</label>
         <div class="input-row">
           <input id="api-key" name="apiKey" type="password" autocomplete="current-password" required>
-          <button type="submit">Open session</button>
         </div>
+        <label for="login-workspace-id">Workspace ID <small>optional, defaults to "default"</small></label>
+        <input id="login-workspace-id" name="workspaceId" autocomplete="off">
+        <button type="submit">Open session</button>
       </form>
       <button id="logout-button" class="quiet-action" type="button">Close session</button>
     </section>
@@ -37,7 +39,7 @@
       <form id="receipt-form">
         <label for="receipt-id">Receipt ID</label>
         <input id="receipt-id" name="receiptId" autocomplete="off" required>
-        <label for="workspace-id">Workspace ID <small>optional</small></label>
+        <label for="workspace-id">Workspace ID <small>optional, must match the session's workspace</small></label>
         <input id="workspace-id" name="workspaceId" autocomplete="off">
         <button type="submit">Inspect evidence</button>
       </form>
