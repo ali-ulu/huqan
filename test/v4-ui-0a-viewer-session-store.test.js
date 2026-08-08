@@ -33,12 +33,17 @@ describe('V4-UI-0A viewer session store', () => {
       sessionId: created.sessionId,
       expiresAt: 28_800_010,
       maxAgeSeconds: 28_800,
+      // Defense in depth (#404): the workspace declared at login is bound to
+      // the session so a later request can't read a different workspace's
+      // receipt just by changing a query param.
+      workspaceId: 'default',
     });
     assert.deepEqual(store.validate(created.sessionId), {
       ok: true,
       createdAt: 10,
       lastSeenAt: 10,
       expiresAt: 28_800_010,
+      workspaceId: 'default',
     });
   });
 

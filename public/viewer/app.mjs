@@ -76,6 +76,7 @@ export function startViewer(documentRef, fetchRef) {
   const receiptForm = documentRef.getElementById('receipt-form');
   const logoutButton = documentRef.getElementById('logout-button');
   const apiKeyInput = documentRef.getElementById('api-key');
+  const loginWorkspaceIdInput = documentRef.getElementById('login-workspace-id');
   const receiptIdInput = documentRef.getElementById('receipt-id');
   const workspaceIdInput = documentRef.getElementById('workspace-id');
   const statusNode = documentRef.getElementById('status');
@@ -91,12 +92,15 @@ export function startViewer(documentRef, fetchRef) {
   loginForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const apiKey = apiKeyInput.value;
+    // The session is bound to whatever workspace is declared here (#404);
+    // it cannot be widened later by a per-lookup ?workspaceId= override.
+    const workspaceId = loginWorkspaceIdInput ? loginWorkspaceIdInput.value.trim() : '';
     try {
       const response = await fetchRef('/viewer/session', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey }),
+        body: JSON.stringify({ apiKey, workspaceId }),
       });
       if (response.ok) renderSessionReady();
       else render(mapReceiptResponse(await readJsonResponse(response)));

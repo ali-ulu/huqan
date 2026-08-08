@@ -143,6 +143,39 @@ test('V4-UI-0B viewer session gateway', async (t) => {
     assert.deepEqual(reads, [{ receiptId: 'receipt-1', filters: { workspaceId: 'default' } }]);
   });
 
+  await t.test('binds the session to the workspace declared at login and blocks cross-workspace reads (#404)', async () => {
+    const { gateway, reads } = makeGateway();
+    const session = await login(gateway, { body: JSON.stringify({ apiKey: API_KEY, workspaceId: 'workspace-a' }) });
+    assert.equal(JSON.parse(session.body).workspaceId, 'workspace-a');
+    const headers = { host: HOST, cookie: cookiePair(session.headers['set-cookie']) };
+
+    // A ?workspaceId= that matches the session's own workspace is fine.
+    const sameWorkspace = await invoke(gateway, {
+      path: '/viewer/api/trust-receipt/receipt-1?workspaceId=workspace-a', headers,
+    });
+    assert.equal(sameWorkspace.statusCode, 404); // fixture receipt only exists in 'default'
+    assert.deepEqual(reads[0], { receiptId: 'receipt-1', filters: { workspaceId: 'workspace-a' } });
+
+    // A ?workspaceId= naming a *different* workspace than the session's own
+    // must be rejected before the receipt source is ever queried -- this is
+    // the cross-workspace IDOR the session binding closes.
+    const crossWorkspace = await invoke(gateway, {
+      path: '/viewer/api/trust-receipt/receipt-1?workspaceId=workspace-b', headers,
+    });
+    assert.equal(crossWorkspace.statusCode, 403);
+    assert.deepEqual(JSON.parse(crossWorkspace.body), {
+      ok: false,
+      error: { code: 'cross_workspace', message: 'workspaceId does not match the authenticated session' },
+    });
+    assert.equal(reads.length, 1); // no second read call for the rejected cross-workspace attempt
+
+    // Omitting ?workspaceId= entirely falls back to the session's own
+    // workspace rather than an unscoped/default read.
+    const omitted = await invoke(gateway, { path: '/viewer/api/trust-receipt/receipt-1', headers });
+    assert.equal(omitted.statusCode, 404);
+    assert.deepEqual(reads[1], { receiptId: 'receipt-1', filters: { workspaceId: 'workspace-a' } });
+  });
+
   await t.test('maps malformed and unknown receipt identifiers fail-closed', async () => {
     const { gateway } = makeGateway();
     const session = await login(gateway);
