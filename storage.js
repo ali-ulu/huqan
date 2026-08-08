@@ -9,6 +9,9 @@ try {
   Database = null;
 }
 
+// Rows pulled per keyset page when recovering expired execution leases (#426).
+const RECOVERY_PAGE_SIZE = 500;
+
 function normalizeGoal(goal) {
   return String(goal || '').trim();
 }
@@ -210,6 +213,24 @@ class AxiomStorage {
         SELECT COUNT(*) AS c
         FROM tool_approvals
         WHERE status IN ('pending', 'executing', 'failed')
+      `),
+      // Keyset page for recoverExpiredToolApprovals (#426).
+      //
+      // Ordered by `id` rather than `updated_at`, and paged by cursor rather
+      // than OFFSET: recovery writes `updated_at` on every row it fails, so an
+      // updated_at-ordered OFFSET scan reorders rows mid-walk and silently
+      // skips approvals that shifted past the window. `id` is the PRIMARY KEY
+      // and recovery never rewrites it, so an id cursor stays stable.
+      //
+      // Narrowed to status = 'executing' because that is the only status the
+      // recovery loop acts on; pending/failed rows were fetched and discarded
+      // in JS before, which was the bulk of the scan.
+      listExecutingToolApprovalsAfter: this.db.prepare(`
+        SELECT *
+        FROM tool_approvals
+        WHERE status = 'executing' AND id > ?
+        ORDER BY id
+        LIMIT ?
       `),
       claimToolApproval: this.db.prepare(`
         UPDATE tool_approvals
@@ -632,18 +653,34 @@ class AxiomStorage {
 
   recoverExpiredToolApprovals({ tool = '', now = this._now(), reason = 'execution_lease_expired' } = {}) {
     const recovered = [];
-    for (const approval of this.listUnresolvedToolApprovals(10_000)) {
-      if (approval.status !== 'executing' || (tool && approval.tool !== tool)) continue;
-      const expiresAt = Number(approval.context?.executionClaim?.leaseExpiresAt || 0);
-      if (!Number.isFinite(expiresAt) || expiresAt <= 0 || expiresAt > now) continue;
-      const result = this._stmts.failExpiredToolApproval.run({
-        id: String(approval.id),
-        reason: String(reason || 'execution_lease_expired'),
-        expected_context_json: approval.context_json,
-        decided_at: now,
-        updated_at: now,
-      });
-      if (Number(result.changes || 0) === 1) recovered.push(this.getToolApprovalById(approval.id));
+    // Walk executing approvals in id order, a page at a time, instead of
+    // materialising a single 10k-row result set (#426). The old cap was not
+    // just a memory concern: with more than 10k unresolved approvals, the
+    // executing rows past the cap were never recovered at all, silently.
+    let cursor = '';
+    for (;;) {
+      const page = this._stmts.listExecutingToolApprovalsAfter.all(cursor, RECOVERY_PAGE_SIZE);
+      if (page.length === 0) break;
+      // Advance before filtering, so a page of non-expired rows still moves the
+      // cursor and the walk terminates.
+      cursor = String(page[page.length - 1].id);
+
+      for (const row of page) {
+        const approval = this._hydrateToolApproval(row);
+        if (tool && approval.tool !== tool) continue;
+        const expiresAt = Number(approval.context?.executionClaim?.leaseExpiresAt || 0);
+        if (!Number.isFinite(expiresAt) || expiresAt <= 0 || expiresAt > now) continue;
+        const result = this._stmts.failExpiredToolApproval.run({
+          id: String(approval.id),
+          reason: String(reason || 'execution_lease_expired'),
+          expected_context_json: approval.context_json,
+          decided_at: now,
+          updated_at: now,
+        });
+        if (Number(result.changes || 0) === 1) recovered.push(this.getToolApprovalById(approval.id));
+      }
+
+      if (page.length < RECOVERY_PAGE_SIZE) break;
     }
     return recovered;
   }
