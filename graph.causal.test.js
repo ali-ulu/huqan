@@ -218,6 +218,27 @@ describe('Causal Relations - v0.7', () => {
     assert.strictEqual(traversal.confidence, 0);
   });
 
+it('getCausalChain sonucu JSON-serializable; circular self-reference yok (#401)', () => {
+    const graph = new Graph({ noLoad: true });
+    graph.addNode('A', 'A');
+    graph.addNode('B', 'B');
+    graph.addNode('C', 'C');
+
+    graph.addEdge('A', 'B', 'CAUSES', { strength: 0.8 });
+    graph.addEdge('B', 'C', 'CAUSES', { strength: 0.7 });
+
+    const traversal = graph.getCausalChain('A');
+    assert.doesNotThrow(() => JSON.stringify(traversal), 'circular reference JSON crash');
+
+    const roundTripped = JSON.parse(JSON.stringify(traversal));
+    assert.equal(Array.isArray(roundTripped.chain), true);
+    assert.equal(roundTripped.chain.length, 2);
+    assert.equal(roundTripped.start, 'A');
+    assert.equal(roundTripped.stoppedReason, 'exhausted');
+    assert.equal(roundTripped.maxDepth, 10);
+    assert.deepEqual(roundTripped.visited, traversal.visited);
+    assert.deepEqual(roundTripped.loops, []);
+  });
   it('legacy JSON load keeps non-causal edges intact and defaults causal strength', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-graph-json-'));
     const memoryPath = path.join(tmpDir, 'memory.json');

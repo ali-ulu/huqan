@@ -117,6 +117,21 @@ describe('Causal Simulator - v0.7', () => {
     assert.deepStrictEqual(first.outcomes.map(item => item.effect), ['direct', 'enabling', 'dependency', 'blocking']);
   });
 
+it('simulateChange sonucu traversal dahil JSON-serializable (#401)', () => {
+    const graph = buildBranchingGraph();
+    const simulator = new CausalSimulator(graph);
+
+    const result = simulator.simulateChange({ nodeId: 'A', maxDepth: 5 });
+    assert.ok(result.traversal, 'traversal metadata resultta yer alır');
+    assert.doesNotThrow(
+      () => JSON.stringify(result),
+      'traversal.chain self-reference yüzünden JSON serialize crash olmamalı',
+    );
+
+    const roundTripped = JSON.parse(JSON.stringify(result));
+    assert.equal(Array.isArray(roundTripped.traversal.chain), true);
+    assert.equal(roundTripped.traversal.start, 'A');
+  });
   it('simulateChange relation semantiğini korur', () => {
     const graph = buildBranchingGraph();
     const simulator = new CausalSimulator(graph);
