@@ -1074,16 +1074,47 @@ function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
   };
 }
 
+/**
+ * Run `callback` with a throwaway agent and close that agent's storage
+ * afterwards.
+ *
+ * The close must wait for an async callback to settle (#409). A plain
+ * `finally` runs as soon as the callback *returns* -- for a callback that
+ * returns a promise that is the moment the promise is created, not the moment
+ * the work finishes, so storage was closed out from under the in-flight
+ * operation and any later use hit a closed handle.
+ *
+ * Every current callback (agent.plan / agent.run / agent.inspectToolPolicy) is
+ * synchronous, so this is a latent bug rather than an active one today. The
+ * thenable branch below keeps it latent: if any of those ever becomes async,
+ * the close follows the work instead of racing it.
+ */
 function withTransientAgent(kernel, callback) {
   const agent = createAgent({
     kernel,
     version: process.env.AXIOM_AGENT_VERSION,
   });
-  try {
-    return callback(agent);
-  } finally {
+  const closeStorage = () => {
     try { agent?.storage?.close?.(); } catch (_) {}
+  };
+
+  let result;
+  try {
+    result = callback(agent);
+  } catch (error) {
+    closeStorage();
+    throw error;
   }
+
+  if (result && typeof result.then === 'function') {
+    return result.then(
+      (value) => { closeStorage(); return value; },
+      (error) => { closeStorage(); throw error; },
+    );
+  }
+
+  closeStorage();
+  return result;
 }
 
 function callTool(kernel, params = {}, runtime = {}) {
@@ -1230,8 +1261,23 @@ function runStdio() {
     crlfDelay: Infinity,
   });
 
+  // Serializing the response can itself throw (a circular structure or a
+  // BigInt reaching JSON.stringify), and this runs inside a stdin event
+  // handler where an escaping throw is fatal. Fall back to a fixed,
+  // always-serializable envelope rather than taking the process down.
   function send(msg) {
-    process.stdout.write(`${JSON.stringify(msg)}\n`);
+    let payload;
+    try {
+      payload = JSON.stringify(msg);
+    } catch (err) {
+      const errorRef = recordInternalError('stdio/serialize', err);
+      payload = JSON.stringify({
+        jsonrpc: '2.0',
+        id: (msg && typeof msg === 'object' && msg.id !== undefined) ? msg.id : null,
+        error: { code: -32603, message: `Internal error (ref: ${errorRef})` },
+      });
+    }
+    process.stdout.write(`${payload}\n`);
   }
 
   rl.on('line', line => {
@@ -1246,8 +1292,21 @@ function runStdio() {
       return;
     }
 
-    const response = server.handleRequest(message);
-    if (response) send(response);
+    // `handleRequest` guards its own `tools/call` branch, but every other
+    // branch is unguarded and this is an event handler -- an escaping throw
+    // takes the whole MCP server down mid-session instead of failing the one
+    // request (#414). A malformed request must never be able to do that.
+    try {
+      const response = server.handleRequest(message);
+      if (response) send(response);
+    } catch (err) {
+      const errorRef = recordInternalError('stdio/handleRequest', err);
+      send({
+        jsonrpc: '2.0',
+        id: (message && typeof message === 'object' && message.id !== undefined) ? message.id : null,
+        error: { code: -32603, message: `Internal error (ref: ${errorRef})` },
+      });
+    }
 
     if (message && message.method === 'shutdown') {
       rl.close();
@@ -1276,4 +1335,5 @@ module.exports = {
   recordInternalError,
   sanitizeToolArgsForStorage,
   executeReadOnlyDryRun,
+  withTransientAgent,
 };
