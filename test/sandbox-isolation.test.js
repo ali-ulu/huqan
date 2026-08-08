@@ -101,6 +101,37 @@ describe('AB6 sandbox isolation core decisions', () => {
     assert.equal(result.reason, SANDBOX_ISOLATION_REASONS.FORBIDDEN_CAPABILITY_QUARANTINE);
   });
 
+  it('does not false-positive on words that merely contain a forbidden token as a substring (#380)', () => {
+    const result = evaluate({
+      source: 'const evaluation = summarize(offshore, transfer); return evaluation.score;',
+      sourceTrust: SOURCE_TRUST_LEVELS.VALIDATED,
+      runner: RUNNER_TYPES.NODE_VM,
+    });
+
+    // 'evaluation' contains 'eval', 'offshore' contains 'fs' -- neither is a
+    // real use of the forbidden capability and must not trip the gate.
+    assert.notEqual(result.reason, SANDBOX_ISOLATION_REASONS.FORBIDDEN_CAPABILITY_QUARANTINE);
+  });
+
+  it('still catches forbidden capabilities at real word boundaries, including punctuation-adjacent ones (#380)', () => {
+    const bracketAccess = evaluate({
+      source: 'globalThis["process"].exit(1)',
+      sourceTrust: SOURCE_TRUST_LEVELS.VALIDATED,
+      runner: RUNNER_TYPES.NODE_VM,
+    });
+    assert.equal(bracketAccess.reason, SANDBOX_ISOLATION_REASONS.FORBIDDEN_CAPABILITY_QUARANTINE);
+
+    // 'import(' ends in a non-word character, so a word character
+    // immediately following the '(' (no space/quote) must still match --
+    // the punctuation-adjacent side must not gain a boundary it never had.
+    const dynamicImport = evaluate({
+      source: 'import(moduleName).then(m => m.run())',
+      sourceTrust: SOURCE_TRUST_LEVELS.VALIDATED,
+      runner: RUNNER_TYPES.NODE_VM,
+    });
+    assert.equal(dynamicImport.reason, SANDBOX_ISOLATION_REASONS.FORBIDDEN_CAPABILITY_QUARANTINE);
+  });
+
   it('source with external network access returns quarantine', () => {
     const result = evaluate({
       source: 'fetch("https://evil.com/data")',
