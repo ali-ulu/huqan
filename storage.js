@@ -269,6 +269,18 @@ class AxiomStorage {
         WHERE id = @id
           AND status = 'executing'
       `),
+      // The status guard is what makes an approval decision one-way (#422).
+      // Without it this statement matched on `id` alone, so a second resolve
+      // rewrote an already-finalized approval -- and because an unrecognized
+      // decision maps to 'pending', it could drag an approved or rejected row
+      // *backwards* into 'pending'.
+      //
+      // The guard is `IN ('pending','executing')`, not `= 'pending'`: the real
+      // MCP approval path claims the row into 'executing' first
+      // (claimToolApprovalWithLease), runs the action, and only then calls
+      // resolveToolApproval to finalize it. Guarding on 'pending' alone would
+      // break that legitimate finalization. 'approved', 'rejected' and 'failed'
+      // are terminal and stay that way.
       resolveToolApproval: this.db.prepare(`
         UPDATE tool_approvals
         SET status = @status,
@@ -277,6 +289,7 @@ class AxiomStorage {
             decided_at = @decided_at,
             updated_at = @updated_at
         WHERE id = @id
+          AND status IN ('pending', 'executing')
       `),
       finalizeToolApprovalWithReceipt: this.db.prepare(`
         UPDATE tool_approvals
