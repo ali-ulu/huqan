@@ -269,6 +269,16 @@ class AxiomStorage {
         WHERE id = @id
           AND status = 'executing'
       `),
+      // Every other transition statement here guards on the status it expects;
+      // this one did not, so a finalized row could be resolved a second time
+      // and dragged backwards -- including to 'pending' with decided_at = 0,
+      // because an unrecognised decision falls through to that branch (#422).
+      //
+      // The guard is ('pending', 'executing') rather than 'pending' alone:
+      // mcpServer claims an approval (pending -> executing) before executing
+      // it and only then resolves it, so 'pending' alone would reject the one
+      // real caller. Both live source states stay allowed; the terminal states
+      // ('approved', 'rejected', 'failed') are the ones now refused.
       resolveToolApproval: this.db.prepare(`
         UPDATE tool_approvals
         SET status = @status,
@@ -277,6 +287,7 @@ class AxiomStorage {
             decided_at = @decided_at,
             updated_at = @updated_at
         WHERE id = @id
+          AND status IN ('pending', 'executing')
       `),
       finalizeToolApprovalWithReceipt: this.db.prepare(`
         UPDATE tool_approvals
