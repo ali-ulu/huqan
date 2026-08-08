@@ -155,6 +155,29 @@ after(async () => {
   if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
 });
 
+describe('Server - index page cache (#420)', () => {
+  it('reads public/index.html once and reuses the cached bytes', () => {
+    const first = server.getHtmlPage();
+    const second = server.getHtmlPage();
+    // Same object identity, so no second readFileSync happened.
+    assert.strictEqual(first, second);
+    assert.ok(Buffer.isBuffer(first));
+    assert.deepStrictEqual(first, fs.readFileSync(path.join(__dirname, 'public', 'index.html')));
+  });
+
+  it('GET / serves the cached page on repeated requests', async () => {
+    const first = await request(`${BASE}/`);
+    assert.strictEqual(first.status, 200);
+    assert.match(first.headers.get('content-type'), /text\/html/);
+    const firstBody = await first.text();
+
+    const second = await request(`${BASE}/`);
+    assert.strictEqual(second.status, 200);
+    assert.strictEqual(await second.text(), firstBody);
+    assert.strictEqual(firstBody, server.getHtmlPage().toString('utf8'));
+  });
+});
+
 describe('Server - API', () => {
   it('GET /api?q=... dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {
     const r = await request(`${BASE}/api?q=merhaba`);

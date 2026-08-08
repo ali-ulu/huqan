@@ -736,8 +736,19 @@ function ensureCompanyRuntime() {
 }
 
 const PUBLIC_INDEX_PATH = path.join(__dirname, 'public', 'index.html');
+// The index page is a static build artifact, so read it once and keep the bytes
+// in memory instead of doing sync I/O on every `/` request (#420).
+//
+// Cached lazily rather than at module load: server.js is required directly by
+// the test suite, and reading at load time would turn a missing/unreadable
+// public/index.html into a require-time crash instead of a 500 on `/`. A failed
+// read is not cached either, so fixing the file recovers without a restart.
+let cachedHtmlPage = null;
 function getHtmlPage() {
-  return readFileSync(PUBLIC_INDEX_PATH, 'utf8');
+  if (cachedHtmlPage === null) {
+    cachedHtmlPage = readFileSync(PUBLIC_INDEX_PATH);
+  }
+  return cachedHtmlPage;
 }
 
 
@@ -1396,5 +1407,8 @@ server.startServer = startServer;
 server.kernel = kernel;
 module.exports = server;
 module.exports.getRateLimitKey = getRateLimitKey;
+// Exposed so the index-page cache (#420) can be asserted directly, without
+// having to intercept fs from outside the module.
+module.exports.getHtmlPage = getHtmlPage;
 
 
