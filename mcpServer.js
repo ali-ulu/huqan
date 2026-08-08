@@ -1223,6 +1223,55 @@ function executeReadOnlyDryRun(kernel, name, args) {
   }
 }
 
+/**
+ * Handles one line of the stdio JSON-RPC framing.
+ *
+ * Extracted from runStdio() so the error path is reachable from a test without
+ * having to drive the real process.stdin.
+ *
+ * @param {string} line raw line as received
+ * @param {{server: object, send: function, onShutdown: function}} io collaborators
+ */
+function handleStdioLine(line, { server, send, onShutdown }) {
+  const trimmed = String(line ?? '').trim();
+  if (!trimmed) return;
+
+  let message;
+  try {
+    message = JSON.parse(trimmed);
+  } catch (err) {
+    send({ jsonrpc: '2.0', error: { code: -32700, message: 'Parse error' } });
+    return;
+  }
+
+  let response;
+  try {
+    response = server.handleRequest(message);
+  } catch (err) {
+    // A throw here used to escape the readline 'line' listener and take the
+    // whole process down (#414). MCP stdio is a long-lived session, so one
+    // request that throws must not kill every request that would follow it.
+    //
+    // Reported as a generic JSON-RPC internal error: the detail goes to
+    // stderr, never to the client, so an exception message cannot leak
+    // internals over the protocol channel. stdout *is* the protocol channel
+    // and has to stay pure JSON-RPC, which is why the log goes to stderr.
+    console.error(`[mcp-stdio] handleRequest threw: ${err?.message || err}`);
+    send({
+      jsonrpc: '2.0',
+      id: message && typeof message === 'object' && message.id !== undefined ? message.id : null,
+      error: { code: -32603, message: 'Internal error' },
+    });
+    return;
+  }
+
+  if (response) send(response);
+
+  if (message && message.method === 'shutdown') {
+    onShutdown();
+  }
+}
+
 function runStdio() {
   const server = createServer();
   const rl = readline.createInterface({
@@ -1234,26 +1283,14 @@ function runStdio() {
     process.stdout.write(`${JSON.stringify(msg)}\n`);
   }
 
-  rl.on('line', line => {
-    const trimmed = line.trim();
-    if (!trimmed) return;
-
-    let message;
-    try {
-      message = JSON.parse(trimmed);
-    } catch (err) {
-      send({ jsonrpc: '2.0', error: { code: -32700, message: 'Parse error' } });
-      return;
-    }
-
-    const response = server.handleRequest(message);
-    if (response) send(response);
-
-    if (message && message.method === 'shutdown') {
+  rl.on('line', line => handleStdioLine(line, {
+    server,
+    send,
+    onShutdown: () => {
       rl.close();
       setTimeout(() => process.exit(0), 0).unref?.();
-    }
-  });
+    },
+  }));
 
   process.stdin.on('end', () => rl.close());
 }
@@ -1273,6 +1310,7 @@ module.exports = {
   callTool,
   createServer,
   runStdio,
+  handleStdioLine,
   recordInternalError,
   sanitizeToolArgsForStorage,
   executeReadOnlyDryRun,
