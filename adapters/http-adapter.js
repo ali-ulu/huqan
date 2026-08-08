@@ -39,7 +39,9 @@ async function rawFetch(urlString, options = {}) {
       hostname: parsed.hostname,
       port: parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
       path: `${parsed.pathname}${parsed.search}`,
-      method: 'GET',
+      // HEAD is what a reachability probe wants (#348): same URL, same SSRF
+      // validation and redirect handling, no body to download or cap.
+      method: options.method === 'HEAD' ? 'HEAD' : 'GET',
       headers: {
         'User-Agent': options.userAgent || DEFAULT_USER_AGENT,
         Accept: 'text/html,text/plain;q=0.9,*/*;q=0.1',

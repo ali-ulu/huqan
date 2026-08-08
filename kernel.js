@@ -41,6 +41,10 @@ const DEFAULT_CAPABILITIES = Object.freeze({
   agentApi: false,
   companyMode: false,
   discoveryLoop: false,
+  // Off by default: turning this on makes learnAsync() reach out to the
+  // network to check that an http(s) sourceRef actually resolves, which is
+  // the wrong default for offline use and for the test suite. See #348.
+  evidenceReachability: false,
 });
 const CLI_MUTATION_AUDIT_FIELDS = new Set([
   'sourceCommand',
@@ -573,6 +577,33 @@ class Kernel {
     return payload;
   }
 
+  /**
+   * Async pre-ingest pass, run by learnAsync() before the synchronous
+   * learn() pipeline is entered. Handlers may do I/O; a rejection aborts
+   * the learn entirely (fail-closed), and the possibly-rewritten
+   * {text, opts} is what learn() then receives.
+   *
+   * This is the answer to #348 that does *not* require making the whole
+   * kernel API async: async validation happens here, ahead of learn(),
+   * rather than inside the synchronous beforeLearn hook.
+   */
+  async _runPreIngest(text, opts = {}) {
+    const payload = { text, opts: { ...opts } };
+    if (!this.plugins || typeof this.plugins.emitStrictAsync !== 'function') return payload;
+    if (!this.plugins._handlers || !this.plugins._handlers.preIngest || this.plugins._handlers.preIngest.length === 0) {
+      return payload;
+    }
+    const result = await this.plugins.emitStrictAsync('preIngest', payload);
+    // A handler that returns something non-payload-shaped would otherwise
+    // reproduce exactly the silent corruption #348 is about, one layer up.
+    if (!result || typeof result !== 'object' || typeof result.text !== 'string') {
+      const error = new Error('preIngest hook returned a value without a string "text" field; refusing to learn from it');
+      error.code = 'PRE_INGEST_INVALID_PAYLOAD';
+      throw error;
+    }
+    return result;
+  }
+
   _contradictionEvidence(contradiction) {
     return this._verifyService._contradictionEvidence(contradiction);
   }
@@ -891,8 +922,15 @@ class Kernel {
   }
 
   // r1: Wrapper with lock for concurrent safety (async version)
+  //
+  // #348: this is also the async pre-ingest entry point. Callers that can
+  // await (CLI, MCP, adapters) get preIngest hooks -- which are allowed to
+  // do network I/O -- run before the synchronous learn() pipeline starts.
+  // With no preIngest plugin registered this stays a pass-through, so the
+  // behaviour of every existing caller is unchanged.
   async learnAsync(text, opts = {}) {
-    return this.learn(text, opts);
+    const prepared = await this._runPreIngest(text, opts);
+    return this.learn(prepared.text, prepared.opts || opts);
   }
 
   // Original synchronous learn (backward compatible - no locks)

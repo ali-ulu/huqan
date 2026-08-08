@@ -78,3 +78,141 @@ test('evidence-validator: beforeLearn end to end -- kernel.learn() itself reject
   });
   assert.ok(k.graph.getNode('kedi'), 'a legitimate sourceRef must still be learnable');
 });
+
+// --- #348: async reachability gate (preIngest) ---
+
+const stubFetch = (result) => async () => {
+  if (result instanceof Error) throw result;
+  return result;
+};
+
+const reachabilityKernel = () => {
+  // loadPlugins:false so the on-disk evidence-validator does not claim the
+  // name first and make register() dedupe away the fetch-injected copy.
+  const k = new Kernel({ noLoad: true, loadPlugins: false });
+  k.enableCapability('evidenceReachability');
+  return k;
+};
+
+test('evidence-validator: checkSourceReachable accepts a 200 response', async () => {
+  const result = await evidenceValidator.checkSourceReachable('https://example.com/a', {
+    fetchUrl: stubFetch({ statusCode: 200 }),
+  });
+  assert.deepEqual(result, { ok: true });
+});
+
+test('evidence-validator: checkSourceReachable rejects 404 and 403', async () => {
+  for (const statusCode of [403, 404]) {
+    const result = await evidenceValidator.checkSourceReachable('https://example.com/a', {
+      fetchUrl: stubFetch({ statusCode }),
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 'EVIDENCE_URL_UNREACHABLE');
+    assert.match(result.reason, new RegExp(String(statusCode)));
+  }
+});
+
+test('evidence-validator: checkSourceReachable is fail-closed on a network error', async () => {
+  const result = await evidenceValidator.checkSourceReachable('https://example.com/a', {
+    fetchUrl: stubFetch(Object.assign(new Error('getaddrinfo ENOTFOUND'), { code: 'ENOTFOUND' })),
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'EVIDENCE_URL_UNREACHABLE');
+});
+
+test('evidence-validator: a server refusing HEAD (405/501) is inconclusive, not a rejection', async () => {
+  for (const statusCode of [405, 501]) {
+    const result = await evidenceValidator.checkSourceReachable('https://example.com/a', {
+      fetchUrl: stubFetch({ statusCode }),
+    });
+    assert.deepEqual(result, { ok: true }, `HTTP ${statusCode} must pass`);
+  }
+});
+
+test('evidence-validator: preIngest probes with HEAD and a bounded timeout', async () => {
+  const calls = [];
+  const preIngest = evidenceValidator.createPreIngest({
+    fetchUrl: async (url, options) => { calls.push({ url, options }); return { statusCode: 200 }; },
+  });
+  await preIngest(reachabilityKernel(), { text: 'x', opts: { sourceRef: 'https://example.com/a' } });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, 'https://example.com/a');
+  assert.equal(calls[0].options.method, 'HEAD');
+  assert.ok(calls[0].options.timeoutMs > 0, 'probe must be time-bounded');
+});
+
+test('evidence-validator: preIngest does not touch the network when the capability is off', async () => {
+  let called = false;
+  const preIngest = evidenceValidator.createPreIngest({
+    fetchUrl: async () => { called = true; return { statusCode: 200 }; },
+  });
+  const k = new Kernel({ noLoad: true, loadPlugins: false });
+  assert.equal(k.hasCapability('evidenceReachability'), false, 'gate must be off by default');
+
+  const passthrough = await preIngest(k, { text: 'x', opts: { sourceRef: 'https://example.com/a' } });
+  assert.equal(called, false);
+  assert.equal(passthrough.text, 'x');
+});
+
+test('evidence-validator: preIngest rejects a malformed URL without spending a request', async () => {
+  let called = false;
+  const preIngest = evidenceValidator.createPreIngest({
+    fetchUrl: async () => { called = true; return { statusCode: 200 }; },
+  });
+  await assert.rejects(
+    () => preIngest(reachabilityKernel(), { text: 'x', opts: { sourceRef: 'https://accounts.google.com@evil.example/' } }),
+    (err) => err.code === 'EVIDENCE_URL_USERINFO_SPOOF'
+  );
+  assert.equal(called, false, 'shape rejection must short-circuit before the probe');
+});
+
+test('evidence-validator: preIngest ignores non-http sourceRef shapes', async () => {
+  let called = false;
+  const preIngest = evidenceValidator.createPreIngest({
+    fetchUrl: async () => { called = true; return { statusCode: 200 }; },
+  });
+  const passthrough = await preIngest(reachabilityKernel(), { text: 'x', opts: { sourceRef: 'git:/repo:abc123' } });
+  assert.equal(called, false);
+  assert.equal(passthrough.opts.sourceRef, 'git:/repo:abc123');
+});
+
+test('evidence-validator: end to end -- learnAsync() rejects an unreachable sourceRef, learn() is unaffected', async () => {
+  const k = reachabilityKernel();
+  k.plugins.register({
+    ...evidenceValidator,
+    preIngest: evidenceValidator.createPreIngest({ fetchUrl: stubFetch({ statusCode: 404 }) }),
+  });
+
+  await assert.rejects(
+    () => k.learnAsync('Köpek hayvandır', {
+      ...Kernel.createAdmissionBypassOpts('test'),
+      sourceRef: 'https://example.com/gone',
+    }),
+    (err) => err.code === 'EVIDENCE_URL_UNREACHABLE'
+  );
+  assert.ok(!k.graph.getNode('köpek'), 'the unreachable-evidence claim must not reach the graph');
+
+  // The synchronous path has no opinion on reachability -- that is the
+  // whole point of keeping the async work out of beforeLearn (#348).
+  k.learn('Kedi hayvandır', {
+    ...Kernel.createAdmissionBypassOpts('test'),
+    sourceRef: 'https://example.com/gone',
+  });
+  assert.ok(k.graph.getNode('kedi'), 'sync learn() must stay reachability-agnostic');
+});
+
+test('evidence-validator: learnAsync() learns normally when the source is reachable', async () => {
+  const k = reachabilityKernel();
+  k.plugins.register({
+    ...evidenceValidator,
+    preIngest: evidenceValidator.createPreIngest({ fetchUrl: stubFetch({ statusCode: 200 }) }),
+  });
+
+  const result = await k.learnAsync('Kedi hayvandır', {
+    ...Kernel.createAdmissionBypassOpts('test'),
+    sourceRef: 'https://example.com/report',
+  });
+  assert.ok(result?.data?.learned > 0, 'a reachable source must learn');
+  assert.ok(k.graph.getNode('kedi'));
+});
