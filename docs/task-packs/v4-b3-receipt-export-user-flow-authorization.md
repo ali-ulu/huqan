@@ -112,6 +112,66 @@ the `files`-only, additive-only shape by the same parse before relying on this
 record. Any other path in the output, or any `package.json` change outside
 `files`, is an unreconciled stop condition.
 
+### Reconciliation: `package.json` dependency drift at `8b3227f`
+
+The scope note above was exercised as written. At live `main` `8b3227f` the
+six-file diff is still non-empty and still reports exactly one path:
+
+```text
+$ git diff --name-only 7446642..8b3227f -- <the six authorized files>
+package.json
+```
+
+Re-proving the shape by parsing both revisions — rather than relying on the
+`664acc0` record — found that the drift is **no longer `files`-only**. Two
+top-level keys now differ:
+
+```text
+differing top-level keys: [ 'files', 'dependencies' ]
+```
+
+`dependencies` changing is the "any `package.json` change outside `files`"
+condition named above, so implementation stopped a second time and this
+reconciliation was written before any code.
+
+What actually moved, proved by parsing both revisions:
+
+- `files` moved exactly as the `664acc0` record describes — the same seven
+  additive entries, none removed, relative order of every retained entry
+  preserved;
+- `dependencies` gained exactly one entry, `pdfkit@^0.19.1`. Nothing was removed
+  and no existing range was changed: `better-sqlite3@^12.10.0`,
+  `js-yaml@^5.2.3` and `pdfjs-dist@^6.2.108` are untouched;
+- `pdfkit` was landed by commit `87146c4`, `feat: add PDF export to
+  receipt-exporter (#352)`, which changed `package-lock.json`, `package.json`,
+  `plugins/receipt-exporter.js`, its manifest and its test. It touches no
+  authorized B3 file other than the `package.json` line itself;
+- `devDependencies`, `scripts` and `version` are byte-identical between the two
+  revisions;
+- neither `lib/workbench/receipt-bundle-exporter.js` nor
+  `lib/workbench/receipt-bundle-export-route.js` appears in `files` at either
+  revision, so the authorized B3 edit still applies verbatim.
+
+Verdict: **source-compatible**. The authorized B3 `package.json` edit is an
+insertion of two paths into the sorted `files` allowlist. An additive
+`dependencies` entry cannot collide with that insertion: the two keys are
+disjoint, the B3 edit does not read or depend on `dependencies`, and the added
+package is consumed only by `plugins/receipt-exporter.js`, which B3 does not
+touch and which the forbidden list already excludes from B3's scope.
+
+This does **not** relax B3's own "no new dependency" prohibition. `pdfkit`
+arrived on `main` through unrelated issue #352 work; the B3 implementation still
+adds no dependency, and its `package.json` change remains the two `files`
+entries and nothing else.
+
+Scope note for the successor, superseding the one above: re-run the six-file
+diff from the live base when work starts, and re-prove the shape by parsing both
+revisions every time rather than trusting either recorded verdict. Drift in
+`files` (additive) and in `dependencies` (additive) are both now reconciled as
+source-compatible. Any path other than `package.json` in the diff output, any
+removal or range change in either key, or a change to any other top-level
+`package.json` key remains an unreconciled stop condition.
+
 ## Source-Reality Verdict
 
 `exportMaterializedReceiptBundle()` (`lib/receipt/receipt-read-index.js:212`)

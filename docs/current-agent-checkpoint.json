@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "repository": "ali-ulu/huqan",
   "baselineBranch": "main",
-  "canonicalMain": "664acc0d57c247dd17a306341cfb62d4d8be1a55",
+  "canonicalMain": "8b3227fc41dfaffbb6f50ba183f86260d4aa11a4",
   "worktreePolicy": "REPORT_ONLY",
-  "observedAt": "2026-08-08T01:41:33+03:00",
+  "observedAt": "2026-08-08T00:00:00+03:00",
   "program": "V4 Workbench runtime evidence",
   "completedEvidence": [
     "Receipt trust-root foundation and bounded external-client evidence program closed without production external-client route enablement",
@@ -61,7 +61,11 @@
     "Source-compatibility proof at refresh time: between 7446642 and live main d70c0a0 the intervening work is PR #524, PR #511 non-root Dockerfile runtime and its test, PR #521 kernel.d.ts audit-seam typing and PR #512 removing the dead GitHub Pages workflow, none of which touches any of the six authorized implementation files",
     "At live main 664acc0 the six-file diff from 7446642 is no longer empty: it reports package.json, which is the task-pack's non-empty stop condition, so implementation stopped and a docs-only reconciliation was written before any code",
     "The package.json drift was proved by parsing both revisions rather than by reading the diff hunk: files is the only differing top-level key, seven entries were added (lib/command-parser.js, lib/kernel-factory.js and five lib/self-healer/* modules from PR #521, PR #326 and the issue #224 self-healer dogfood work), none was removed and the relative order of every retained entry is preserved",
-    "Neither lib/workbench/receipt-bundle-exporter.js nor lib/workbench/receipt-bundle-export-route.js appears in the package.json files allowlist at 7446642 or at 664acc0, so the authorized B3 edit of inserting exactly those two modules into the sorted allowlist is untouched and still applies verbatim; the drift is source-compatible on the same judgement the V4-B2B exact-base refresh recorded when package.json moved only inside its files allowlist"
+    "Neither lib/workbench/receipt-bundle-exporter.js nor lib/workbench/receipt-bundle-export-route.js appears in the package.json files allowlist at 7446642 or at 664acc0, so the authorized B3 edit of inserting exactly those two modules into the sorted allowlist is untouched and still applies verbatim; the drift is source-compatible on the same judgement the V4-B2B exact-base refresh recorded when package.json moved only inside its files allowlist",
+    "At live main 8b3227f the six-file diff from 7446642 still reports only package.json, but re-parsing both revisions found the drift is no longer files-only: dependencies also differs, which is the task-pack stop condition for any package.json change outside files, so implementation stopped a second time and a docs-only reconciliation was written before any code",
+    "The dependencies drift is exactly one additive entry, pdfkit@^0.19.1, landed by commit 87146c4 feat: add PDF export to receipt-exporter (#352); nothing was removed, no existing range changed, and devDependencies, scripts and version are byte-identical between 7446642 and 8b3227f",
+    "The dependencies drift is reconciled source-compatible because the authorized B3 package.json edit inserts two paths into the sorted files allowlist, files and dependencies are disjoint keys, and pdfkit is consumed only by plugins/receipt-exporter.js which B3 does not touch and which the forbidden list already excludes; B3 itself still adds no dependency",
+    "Issue #352 receipt-exporter PDF export is implemented on main as of 87146c4, resolving the PDF-writing dependency question that was previously deferred"
   ],
   "nextGate": "V4_B3_RECEIPT_EXPORT_USER_FLOW",
   "status": "AUTHORIZED_FOR_EXACT_BASE_IMPLEMENTATION",
@@ -91,7 +95,8 @@
     "No seventh file is authorized; a conflicting assertion in an unlisted file requires an explicit source-backed scope amendment, following the server.test.js precedent set by PR #520.",
     "Local bootstrap, node scripts/agent-context.js, worktree checks, local JSON parse, package dry-run and Graphify remain unverified in the connector-only environment.",
     "Named B3 falsification target: collectMaterializedReceiptEntries (lib/receipt/receipt-read-index.js:80) calls getAuditEvents with no limit and clones every matching receipt, and the chain is fully built before serialization, so actual serialized bytes are only measurable after the whole set is materialized. If both ceilings cannot be enforced within the authorized files without that unbounded materialization, the correct outcome is V4_B3_RECEIPT_EXPORT_USER_FLOW_BLOCKED_GAP.",
-    "Widening scope into lib/receipt/*, adding a limit parameter to the shared read index, approximating the byte ceiling from receipt count, or enforcing the ceiling only after materialization while calling it bounded are all explicitly incorrect resolutions."
+    "Widening scope into lib/receipt/*, adding a limit parameter to the shared read index, approximating the byte ceiling from receipt count, or enforcing the ceiling only after materialization while calling it bounded are all explicitly incorrect resolutions.",
+    "Re-prove the package.json drift shape by parsing both revisions on every implementation attempt rather than trusting a recorded verdict: the 664acc0 record said files-only and that had already stopped being true by 8b3227f. Additive drift in files and in dependencies are both reconciled; any other path in the six-file diff, any removal or range change, or any other top-level key change remains an unreconciled stop condition."
   ],
   "authorizationArtifact": "7446642"
 }
