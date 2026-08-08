@@ -33,26 +33,11 @@ process.env.AXIOM_MEMORY_PATH = path.join(tempDir, 'graph.json');
 process.env.AXIOM_DB_PATH = path.join(tempDir, 'graph.db');
 delete process.env.AXIOM_USE_SQLITE;
 
-const CLI = require('../cli');
-const cliModulePath = require.resolve('../cli');
-const originalCliExport = require.cache[cliModulePath].exports;
-let serverCli = null;
-let server = null;
+// server.js owns its kernel directly since #326; it is deliberately no longer
+// reachable by intercepting a CLI instance server.js used to build. Read it
+// through the published `server.kernel` seam, matching the sibling V4-B2B test.
+const server = require('../server');
 let port = 0;
-
-class ExportTestCLI extends CLI {
-  constructor(...args) {
-    super(...args);
-    serverCli = this;
-  }
-}
-
-try {
-  require.cache[cliModulePath].exports = ExportTestCLI;
-  server = require('../server');
-} finally {
-  require.cache[cliModulePath].exports = originalCliExport;
-}
 
 function request(pathname, options = {}) {
   return new Promise((resolve, reject) => {
@@ -77,7 +62,7 @@ function request(pathname, options = {}) {
 }
 
 function learnApproved(index) {
-  const result = serverCli.kernel.learn(`v4b3kedi${index} hayvandir`, {
+  const result = server.kernel.learn(`v4b3kedi${index} hayvandir`, {
     workspaceId: 'default',
     approvalRequired: true,
     approvalStatus: 'approved',
@@ -117,7 +102,7 @@ function oversizedSource(count) {
 }
 
 before(async () => {
-  assert.equal(serverCli.kernel.graph.getStats().backend, 'sqlite');
+  assert.equal(server.kernel.graph.getStats().backend, 'sqlite');
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   port = server.address().port;
 });
@@ -160,7 +145,7 @@ describe('V4-B3: receipt bundle export user flow', () => {
 
   it('returns the unredacted bundle byte for byte', async () => {
     const response = await request(ROUTE);
-    const direct = exportMaterializedReceiptBundle(serverCli.kernel.graph, { workspaceId: 'default' });
+    const direct = exportMaterializedReceiptBundle(server.kernel.graph, { workspaceId: 'default' });
     assert.equal(direct.ok, true);
 
     // Everything except the per-call exportedAt timestamp must match the
