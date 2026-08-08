@@ -303,7 +303,9 @@ test('http-adapter: ingestAndLearn forwards provenance per entry', async () => {
     res.end('A bounded claim');
   }, async (baseUrl) => {
     const result = await ingestAndLearn(`${baseUrl}/claim`, {
-      learn(text, opts) {
+      // learnAsync, not learn -- ingestAndLearn goes through the async
+      // pre-ingest path so preIngest gates can run on URL-sourced content.
+      async learnAsync(text, opts) {
         calls.push({ text, opts });
         return { data: { learned: 1 }, receipt: { receiptId: 'delegated-receipt' } };
       },
@@ -349,4 +351,60 @@ test('http-adapter: an unrecognised method falls back to GET rather than being p
     await fetchUrl(`${baseUrl}/`, { method: 'DELETE', allowPrivateAddresses: true });
   });
   assert.deepEqual(seen, ['GET'], 'the adapter must never be turned into a write client');
+});
+
+test('http-adapter: ingestAndLearn goes through learnAsync, so a preIngest rejection is reported per entry (#348)', async () => {
+  await withServer((req, res) => {
+    if (req.url === '/robots.txt') { res.writeHead(404); res.end(); return; }
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('A bounded claim');
+  }, async (baseUrl) => {
+    const result = await ingestAndLearn(`${baseUrl}/claim`, {
+      async learnAsync() {
+        throw Object.assign(new Error('source could not be reached'), { code: 'EVIDENCE_URL_UNREACHABLE' });
+      },
+      // Present but must never be reached: falling back to the sync path
+      // would skip the gate silently, which is the #348 failure shape.
+      learn() { throw new Error('ingestAndLearn must not fall back to synchronous learn()'); },
+    }, {
+      allowPrivateAddresses: true,
+      robotsCache: new Map(),
+      responseCache: new Map(),
+    });
+
+    assert.equal(result.learned.length, 1);
+    assert.equal(result.learned[0].ok, false);
+    assert.match(result.learned[0].error, /could not be reached/);
+  });
+});
+
+test('http-adapter: ingestAndLearn end to end -- a real kernel runs preIngest on URL-sourced content (#348)', async () => {
+  const Kernel = require('../kernel');
+  const k = new Kernel({ noLoad: true, loadPlugins: false });
+  const seen = [];
+  k.plugins.register({
+    name: 'ingest-probe',
+    requires: [],
+    optional: [],
+    preIngest: async (kernel, data) => { seen.push(data.opts.sourceRef); return data; },
+  });
+
+  await withServer((req, res) => {
+    if (req.url === '/robots.txt') { res.writeHead(404); res.end(); return; }
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Kedi hayvandır');
+  }, async (baseUrl) => {
+    const result = await ingestAndLearn(`${baseUrl}/claim`, k, {
+      allowPrivateAddresses: true,
+      robotsCache: new Map(),
+      responseCache: new Map(),
+    });
+
+    assert.equal(result.learned[0].ok, true, JSON.stringify(result.learned[0]));
+    // The point of the wiring: a real kernel's preIngest pass ran, and saw
+    // the http sourceRef an evidence gate would need to validate.
+    assert.equal(seen.length, 1);
+    // The adapter appends the section anchor to the sourceRef.
+    assert.equal(seen[0], `${baseUrl}/claim#root`);
+  });
 });

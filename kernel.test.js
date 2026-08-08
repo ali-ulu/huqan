@@ -487,3 +487,54 @@ describe('Kernel - admission bypass unforgeability (#357)', () => {
     // caller -- not that anything was written to the canonical graph.
   });
 });
+
+// ---------------------------------------------------------------------------
+// #368: the async wrappers are not the "concurrency-safe" variants
+// ---------------------------------------------------------------------------
+// learnAsync()/verifyAsync() were documented as adding a lock the synchronous
+// forms lacked. They never did -- learn() and verify() enter the critical
+// section themselves, and the wrappers just delegate. These tests pin the
+// real contract so the comments cannot drift back into the old claim.
+describe('Kernel - concurrency contract (#368)', () => {
+  it('learn() is guarded on its own, not only via learnAsync()', () => {
+    const kernel = freshKernel();
+    kernel._lockAcquired = true;
+    assert.throws(
+      () => kernel.learn('Kedi hayvandır'),
+      (err) => err.code === 'LOCK_BUSY'
+    );
+  });
+
+  it('learnAsync() offers exactly the same guard, no stronger', async () => {
+    const kernel = freshKernel();
+    kernel._lockAcquired = true;
+    await assert.rejects(
+      () => kernel.learnAsync('Kedi hayvandır', TEST_FIXTURE_LEARN_BYPASS),
+      (err) => err.code === 'LOCK_BUSY'
+    );
+  });
+
+  it('verify() and verifyAsync() are likewise equally guarded', async () => {
+    const kernel = freshKernel();
+    kernel._lockAcquired = true;
+    assert.throws(
+      () => kernel.verify('Kedi hayvandır'),
+      (err) => err.code === 'LOCK_BUSY'
+    );
+    await assert.rejects(
+      () => kernel.verifyAsync('Kedi hayvandır'),
+      (err) => err.code === 'LOCK_BUSY'
+    );
+  });
+
+  it('the busy-wait lock helpers #368 called dead are in fact gone', () => {
+    const kernel = freshKernel();
+    for (const symbol of ['_acquireLock', '_lockQueue', '_lockTimeoutMs']) {
+      assert.equal(
+        kernel[symbol],
+        undefined,
+        `${symbol} was removed as dead code; reintroducing it means there are two lock mechanisms again`
+      );
+    }
+  });
+});

@@ -315,7 +315,13 @@ async function ingestAndLearn(urls, kernel, options = {}) {
       timestamp: new Date().toISOString(),
     };
     try {
-      const r = kernel.learn(entry.content, { provenance, sourceType: 'http', sourceRef: provenance.sourceRef });
+      // learnAsync, not learn: this is the URL-sourced ingest path, so it is
+      // exactly where an async preIngest gate -- evidence-validator's
+      // reachability probe (#348) -- has to be able to run. Called without a
+      // `typeof kernel.learnAsync === 'function'` guard on purpose: quietly
+      // falling back to the synchronous learn() would skip the gate without
+      // saying so, which is the failure shape #348 was filed about.
+      const r = await kernel.learnAsync(entry.content, { provenance, sourceType: 'http', sourceRef: provenance.sourceRef });
       learned.push({ entryKey: entry.entryKey, learned: r.data.learned, ok: true });
     } catch (e) {
       learned.push({ entryKey: entry.entryKey, error: e.message, ok: false });

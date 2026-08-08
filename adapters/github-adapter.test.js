@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const { canonicalizeGitHubRepoUrl } = require('../lib/github-url');
-const { fetchRepoFiles, parseRepoUrl, includePath } = require('./github-adapter');
+const { fetchRepoFiles, fetchAndLearn, parseRepoUrl, includePath } = require('./github-adapter');
 
 function makeResponse({ ok = true, status = 200, json, text, headers = {} }) {
   return {
@@ -97,4 +97,48 @@ test('github-adapter: fetchRepoFiles surfaces rate-limit errors', async () => {
     () => fetchRepoFiles('https://github.com/ai-ulu/axiom', { fetchImpl }),
     (err) => err && err.code === 'GITHUB_RATE_LIMIT'
   );
+});
+
+// fetchAndLearn had no coverage at all before #348's wiring change; these
+// pin the contract it now depends on.
+
+function singleFileFetchImpl() {
+  return async (url) => {
+    if (url.includes('/git/trees/')) {
+      return makeResponse({ json: { tree: [{ type: 'blob', path: 'README.md' }] } });
+    }
+    return makeResponse({
+      text: 'Kedi hayvandır',
+      headers: { 'last-modified': 'Mon, 01 Jan 2024 00:00:00 GMT' },
+    });
+  };
+}
+
+test('github-adapter: fetchAndLearn ingests through learnAsync, not the sync path (#348)', async () => {
+  const calls = [];
+  const result = await fetchAndLearn('https://github.com/ai-ulu/axiom', {
+    async learnAsync(text, opts) {
+      calls.push({ text, opts });
+      return { data: { learned: 2 } };
+    },
+    learn() { throw new Error('fetchAndLearn must not fall back to synchronous learn()'); },
+  }, { branch: 'main', fetchImpl: singleFileFetchImpl(), paths: ['README.md'] });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].text, 'Kedi hayvandır');
+  assert.equal(calls[0].opts.provenance.source, 'github-adapter');
+  assert.equal(calls[0].opts.sourceRef, 'ai-ulu/axiom/README.md@main');
+  assert.deepEqual(result.learned, [{ path: 'README.md', learned: 2, ok: true }]);
+});
+
+test('github-adapter: fetchAndLearn reports a preIngest rejection per file instead of throwing (#348)', async () => {
+  const result = await fetchAndLearn('https://github.com/ai-ulu/axiom', {
+    async learnAsync() {
+      throw Object.assign(new Error('source could not be reached'), { code: 'EVIDENCE_URL_UNREACHABLE' });
+    },
+  }, { branch: 'main', fetchImpl: singleFileFetchImpl(), paths: ['README.md'] });
+
+  assert.equal(result.learned.length, 1);
+  assert.equal(result.learned[0].ok, false);
+  assert.match(result.learned[0].error, /could not be reached/);
 });

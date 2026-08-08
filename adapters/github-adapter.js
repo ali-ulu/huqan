@@ -131,7 +131,10 @@ async function fetchAndLearn(repoUrl, kernel, opts = {}) {
       timestamp: new Date().toISOString(),
     };
     try {
-      const r = kernel.learn(file.content, { provenance, sourceType: 'markdown', sourceRef: provenance.sourceRef });
+      // learnAsync: this is remote-sourced content too, so preIngest gates
+      // must get a look at it (#348). No `typeof` fallback to the sync path,
+      // for the same reason as http-adapter -- a silent skip is the bug.
+      const r = await kernel.learnAsync(file.content, { provenance, sourceType: 'markdown', sourceRef: provenance.sourceRef });
       results.push({ path: file.path, learned: r.data.learned, ok: true });
     } catch (e) {
       results.push({ path: file.path, error: e.message, ok: false });
