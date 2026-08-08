@@ -204,17 +204,27 @@ function sanitizeEdgeMeta(meta) {
   return {};
 }
 
+/**
+ * Return a causal chain together with its traversal metadata.
+ *
+ * #401 — the chain array used to carry a `.chain` property pointing at
+ * itself, turning the returned value into a circular structure. Any caller
+ * that serialized it (e.g. CausalSimulator puts the traversal into its
+ * result, and kernel/server callers JSON-encode that) died with
+ * "Converting circular structure to JSON". The metadata is now a plain
+ * object whose `chain` holds the array, so the result is JSON-safe while
+ * keeping the same property surface (`traversal.chain` / `.start` / etc.).
+ */
 function attachTraversalMeta(chain, meta) {
-  Object.defineProperties(chain, {
-    start: { value: meta.start, enumerable: true },
-    chain: { value: chain, enumerable: true },
-    visited: { value: meta.visited, enumerable: true },
-    loops: { value: meta.loops, enumerable: true },
-    stoppedReason: { value: meta.stoppedReason, enumerable: true },
-    maxDepth: { value: meta.maxDepth, enumerable: true },
-    confidence: { value: meta.confidence, enumerable: true },
-  });
-  return chain;
+  return {
+    chain,
+    start: meta.start,
+    visited: meta.visited,
+    loops: meta.loops,
+    stoppedReason: meta.stoppedReason,
+    maxDepth: meta.maxDepth,
+    confidence: meta.confidence,
+  };
 }
 
 function normalizeLoadedEdge(edge) {
