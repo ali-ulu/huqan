@@ -1,4 +1,5 @@
 const path = require('path');
+const crypto = require('crypto');
 const { resolveContainedPath } = require('./lib/memory-store-utils');
 const { applyStorageSchema } = require('./lib/storage/schema');
 let Database;
@@ -309,8 +310,19 @@ class AxiomStorage {
     return Date.now();
   }
 
+  // `id` is a PRIMARY KEY on every table here, and a bare `${prefix}-${now}`
+  // collides for any two records created within the same millisecond (#412).
+  // For tool_approvals that is not absorbed by the upsert: ON CONFLICT is
+  // declared on approval_key, so two *different* approvals landing on the same
+  // id raise SQLITE_CONSTRAINT_PRIMARYKEY instead. Keep the timestamp prefix so
+  // ids stay roughly time-ordered, and append randomness for uniqueness --
+  // the same shape agent.js already uses for its run ids.
+  _newId(prefix) {
+    return `${prefix}-${this._now()}-${crypto.randomBytes(6).toString('hex')}`;
+  }
+
   saveCheckpoint(state = {}) {
-    const id = String(state.checkpointId || state.id || `checkpoint-${this._now()}`);
+    const id = String(state.checkpointId || state.id || this._newId('checkpoint'));
     const goal = normalizeGoal(state.goal);
     const payload = {
       id,
@@ -404,7 +416,7 @@ class AxiomStorage {
   }
 
   saveRun(state = {}) {
-    const id = String(state.memoryId || state.runId || state.id || `run-${this._now()}`);
+    const id = String(state.memoryId || state.runId || state.id || this._newId('run'));
     const goal = normalizeGoal(state.goal);
     const payload = {
       id,
@@ -447,7 +459,7 @@ class AxiomStorage {
   }
 
   saveToolApproval(record = {}) {
-    const id = String(record.id || `approval-${this._now()}`);
+    const id = String(record.id || this._newId('approval'));
     const approvalKey = String(record.approvalKey || `${lower(record.tool)}:${lower(record.input)}:${lower(record.context?.goal || '')}:${String(record.policy?.action || '')}`);
     const tool = String(record.tool || '');
     const input = String(record.input || '');
@@ -476,7 +488,7 @@ class AxiomStorage {
   }
 
   saveToolApprovalIfAbsent(record = {}) {
-    const id = String(record.id || `approval-${this._now()}`);
+    const id = String(record.id || this._newId('approval'));
     const approvalKey = String(record.approvalKey || `${lower(record.tool)}:${lower(record.input)}`);
     const now = this._now();
     const payload = {
