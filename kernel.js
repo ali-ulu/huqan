@@ -247,7 +247,7 @@ class Kernel {
    * Ephemeral, isolated reasoning sandbox: batch-learns statements and answers
    * questions against a throwaway graph that is never persisted and never
    * touches this.graph (no workspace/provenance/audit semantics apply here —
-   * for that, use learn()/verifyAsync() against the real knowledge graph).
+   * for that, use learn()/verify() against the real knowledge graph).
    *
    * Uses the Rust accelerator's `batch` command (one IPC round trip for all
    * learn statements, one more for all questions) when axiom-core is built;
@@ -921,7 +921,11 @@ class Kernel {
     return details;
   }
 
-  // r1: Wrapper with lock for concurrent safety (async version)
+  // The async form of learn(). It does NOT add locking: the critical
+  // section is entered inside learn() itself, so learnAsync() is not the
+  // "concurrency-safe" variant of an unsafe learn() (#368).
+  //
+  // What it does add is the async pre-ingest pass.
   //
   // #348: this is also the async pre-ingest entry point. Callers that can
   // await (CLI, MCP, adapters) get preIngest hooks -- which are allowed to
@@ -933,8 +937,11 @@ class Kernel {
     return this.learn(prepared.text, prepared.opts || opts);
   }
 
-  // Original synchronous learn (backward compatible - no locks)
-  // For concurrent access, use learnAsync() instead
+  // The synchronous learn path. It takes the critical section itself
+  // (_enterCriticalSection below), so this is concurrency-guarded on its
+  // own; learnAsync() wraps it for the preIngest pass, not for safety
+  // (#368). What this path cannot do is run async preIngest hooks -- a
+  // caller that needs those must await learnAsync().
   //
   // #216 (gap 4): every learn() call now goes through the durable mutation
   // journal, not just callers that explicitly pass mutationOperationId. A
@@ -1622,7 +1629,9 @@ if (verbSuffix.test(predicate)) {
   /**
    * Bir ifadeyi bilgi grafiğiyle doğrula.
    * "kedi balık yer" → özne=kedi, nesne=balık yer → kenar var mı?
-   * r1: Use verifyAsync() for concurrent safety with locks
+   * Takes the critical section itself -- verifyAsync() adds no locking on
+   * top of this (#368), so calling verify() directly is not "the unlocked
+   * path"; it is the same path.
    */
   verify(statement, opts = {}) {
     this._enterCriticalSection('verify');
@@ -1633,12 +1642,18 @@ if (verbSuffix.test(predicate)) {
     }
   }
 
-  // r1: Async wrapper with lock for concurrent safety
+  // Promise-returning form of verify(), for callers in an async context.
+  // It is NOT a stronger concurrency guarantee: the lock lives in verify()
+  // itself and this adds nothing to it (#368). Unlike learnAsync() there is
+  // no async pre-pass here -- verify() does not mutate the graph, so it has
+  // no preIngest equivalent.
   async verifyAsync(statement, opts = {}) {
     return this.verify(statement, opts);
   }
 
-  // r1: Internal verify implementation (protected by lock if verifyAsync is called)
+  // r1: Internal verify implementation (the critical section is entered by
+  // verify(), not here -- call verify() unless you deliberately want the
+  // unlocked path)
   _verifyInternal(statement, opts = {}) {
     return this._verifyService.verify(statement, opts);
   }
