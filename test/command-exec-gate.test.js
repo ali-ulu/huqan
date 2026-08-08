@@ -208,3 +208,103 @@ test('evaluateCommandExec: gateVersion is present on every result', () => {
   assert.equal(typeof evaluateCommandExec('ls').gateVersion, 'string');
   assert.equal(typeof evaluateCommandExec('rm -rf /').gateVersion, 'string');
 });
+
+// ─── #379: denylist bypasses ────────────────────────────────────────────────
+
+const {
+  findDestructiveRm,
+  findRawDiskWrite,
+  isDangerousRemovalTarget,
+  splitCommandSegments,
+  tokenizeSegment,
+} = require('../lib/command-exec-gate');
+
+test('#379: the four reported bypasses are all blocked', () => {
+  for (const command of [
+    'rm -rf --no-preserve-root /',
+    'rm -rf $HOME',
+    'rm -rf $(pwd)',
+    'cp file /dev/sda',
+  ]) {
+    const result = evaluateCommandExec(command);
+    assert.equal(result.decision, COMMAND_EXEC_DECISIONS.BLOCK, `expected BLOCK for ${command}`);
+    assert.equal(result.reason, COMMAND_EXEC_REASONS.DENYLISTED_COMMAND_BLOCKED);
+    assert.ok(result.denylistMatch, `expected a denylistMatch for ${command}`);
+  }
+});
+
+test('#379: destructive rm is caught regardless of flag spelling or order', () => {
+  for (const command of [
+    'rm -rf /', 'rm -fr ~', 'rm -r -f /', 'rm -Rf /', 'rm --recursive --force /',
+    'rm --recursive /', 'rm -rf -- /', 'rm -rf /usr', 'rm -rf /etc/',
+    'rm -rf /*', 'rm -rf ~/', 'rm -rf .', 'rm -rf ..',
+    'rm -rf "$HOME"', "rm -rf '$HOME'", 'rm -rf ${HOME}', 'rm -rf `pwd`',
+    'rm -rf $PWD', 'rm -rf $BUILD_DIR',
+    '/usr/bin/rm -rf /', 'sudo rm -rf /', 'env FOO=1 rm -rf /',
+    'echo hi && rm -rf /', 'ls; rm -rf $HOME',
+  ]) {
+    assert.equal(findDestructiveRm(command), true, `expected destructive: ${command}`);
+  }
+});
+
+test('#379: --no-preserve-root alone is enough to block', () => {
+  // The flag exists only to defeat the guard that stops `rm -rf /`, so its
+  // presence is the signal -- no dangerous-looking target needed.
+  assert.equal(findDestructiveRm('rm -rf --no-preserve-root ./scratch'), true);
+});
+
+test('#379: scoped removals inside a workspace are still allowed', () => {
+  for (const command of [
+    'rm -rf ./build', 'rm -rf node_modules', 'rm -rf dist', 'rm file.txt',
+    'rm -rf ./tmp/cache', 'rm -rf src/generated', 'rm -f package-lock.json',
+    'rm -rf /workspace/project/build', 'rm -rf ~/projects/app/build',
+  ]) {
+    assert.equal(findDestructiveRm(command), false, `expected allowed: ${command}`);
+    assert.equal(findDenylistMatch(command), null, `expected no denylist hit: ${command}`);
+  }
+});
+
+test('#379: raw disk writes are caught for any write-capable command', () => {
+  for (const command of [
+    'cp file /dev/sda', 'dd if=/dev/zero of=/dev/sda', 'dd if=/dev/zero of=/dev/nvme0n1',
+    'mv img /dev/sdb', 'tee /dev/nvme0n1', 'cat img > /dev/sda', 'echo x > /dev/disk2',
+  ]) {
+    assert.equal(findRawDiskWrite(command), true, `expected raw disk write: ${command}`);
+  }
+});
+
+test('#379: ordinary /dev reads and normal copies are not raw disk writes', () => {
+  for (const command of [
+    'cp a.txt b.txt', 'cat README.md', 'dd if=/dev/urandom of=seed.bin',
+    'cp /dev/null placeholder.txt',
+  ]) {
+    assert.equal(findRawDiskWrite(command), false, `expected not a raw disk write: ${command}`);
+  }
+});
+
+test('#379: unresolvable expansions are treated as dangerous removal targets', () => {
+  // A gate that only sees literal text cannot prove where $HOME points, so it
+  // fails closed rather than guessing.
+  for (const target of ['$HOME', '${HOME}', '$(pwd)', '`pwd`', '$PWD', '/', '~', '.', '..', '*', '/*']) {
+    assert.equal(isDangerousRemovalTarget(target), true, `expected dangerous: ${target}`);
+  }
+  for (const target of ['./build', 'node_modules', 'src/gen', '/workspace/app/dist']) {
+    assert.equal(isDangerousRemovalTarget(target), false, `expected safe: ${target}`);
+  }
+});
+
+test('#379: segment splitting and tokenizing handle chaining and quoting', () => {
+  assert.deepEqual(splitCommandSegments('ls && rm -rf /; echo done'), ['ls', 'rm -rf /', 'echo done']);
+  assert.deepEqual(tokenizeSegment('rm -rf "$HOME"'), ['rm', '-rf', '$HOME']);
+  assert.deepEqual(tokenizeSegment("rm -rf 'a b'"), ['rm', '-rf', 'a b']);
+});
+
+test('#379: destructive commands stay caught when embedded in prose goals', () => {
+  // lib/mcp-gate-adapter runs this gate over free-form agent goals, so the
+  // command is not always the first token of its segment.
+  assert.equal(findDestructiveRm('run rm -rf / to clean up'), true);
+  assert.equal(findDestructiveRm('please rm -rf $HOME right now'), true);
+  assert.equal(findRawDiskWrite('just cp file /dev/sda quickly'), true);
+  // ...but prose mentioning a scoped removal is still not destructive.
+  assert.equal(findDestructiveRm('run rm -rf ./build to clean up'), false);
+});
