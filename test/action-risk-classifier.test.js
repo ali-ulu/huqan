@@ -311,6 +311,26 @@ describe('AB1 v2 classifier behavior', () => {
     assert.deepStrictEqual(a, b);
   });
 
+  it('DESCRIPTIVE is no longer aliased onto PRODUCTION_MUTATION (#377)', () => {
+    assert.strictEqual(normalizeActionType('DESCRIPTIVE'), null);
+    const r = classifyAgentAction({ category: 'DESCRIPTIVE' });
+    assert.strictEqual(r.category, null);
+    assert.notStrictEqual(r.decision, ACTION_DECISIONS.BLOCK);
+    assert.strictEqual(r.decision, ACTION_DECISIONS.HUMAN_REVIEW);
+    assert.strictEqual(r.hardBlocked, false);
+    assert.ok(r.flags.includes(FLAGS.UNKNOWN_ACTION_CATEGORY));
+  });
+
+  it('DESTRUCTIVE and its DESCTRUCTIVE misspelling still hard-block (#377)', () => {
+    for (const token of ['DESTRUCTIVE', 'DESCTRUCTIVE']) {
+      const r = classifyAgentAction({ category: token });
+      assert.strictEqual(r.category, ACTION_CATEGORIES.PRODUCTION_MUTATION, token);
+      assert.strictEqual(r.riskLevel, RISK_LEVELS.CRITICAL, token);
+      assert.strictEqual(r.decision, ACTION_DECISIONS.BLOCK, token);
+      assert.strictEqual(r.hardBlocked, true, token);
+    }
+  });
+
   it('normalizeActionDecision canonicalizes canonical objects', () => {
     const r = normalizeActionDecision({
       actionCategory: 'READ_ONLY',
