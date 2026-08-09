@@ -1,6 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
+const Kernel = require('../kernel');
+const evidenceValidator = require('../plugins/evidence-validator');
 const { canonicalizeGitHubRepoUrl } = require('../lib/github-url');
 const { fetchRepoFiles, fetchAndLearn, parseRepoUrl, includePath } = require('./github-adapter');
 
@@ -127,7 +129,8 @@ test('github-adapter: fetchAndLearn ingests through learnAsync, not the sync pat
   assert.equal(calls.length, 1);
   assert.equal(calls[0].text, 'Kedi hayvandır');
   assert.equal(calls[0].opts.provenance.source, 'github-adapter');
-  assert.equal(calls[0].opts.sourceRef, 'ai-ulu/axiom/README.md@main');
+  assert.equal(calls[0].opts.sourceRef, 'https://github.com/ai-ulu/axiom/blob/main/README.md');
+  assert.equal(calls[0].opts.provenance.sourceRef, calls[0].opts.sourceRef);
   assert.deepEqual(result.learned, [{ path: 'README.md', learned: 2, ok: true }]);
 });
 
@@ -141,4 +144,78 @@ test('github-adapter: fetchAndLearn reports a preIngest rejection per file inste
   assert.equal(result.learned.length, 1);
   assert.equal(result.learned[0].ok, false);
   assert.match(result.learned[0].error, /could not be reached/);
+});
+
+// --- #591: the reachability gate must actually see GitHub-sourced content ---
+//
+// The tests above use a stub kernel, which is why the compact
+// `owner/repo/path@branch` sourceRef could regress past CI: nothing there
+// exercises the real evidence-validator, and its reachability gate ignores any
+// sourceRef that is not an http(s) URL. These use a real Kernel with the real
+// plugin so the probe itself is the evidence.
+
+function reachabilityKernel(fetchUrl) {
+  // loadPlugins:false so the on-disk evidence-validator does not claim the
+  // name first and make register() dedupe away the fetch-injected copy.
+  const k = new Kernel({ noLoad: true, loadPlugins: false });
+  k.plugins.register({
+    ...evidenceValidator,
+    preIngest: evidenceValidator.createPreIngest({ fetchUrl }),
+  });
+  k.enableCapability('evidenceReachability');
+  return k;
+}
+
+test('github-adapter: fetchAndLearn runs the real evidenceReachability probe (#591)', async () => {
+  const probes = [];
+  const kernel = reachabilityKernel(async (url, options) => {
+    probes.push({ url, options });
+    return { statusCode: 200 };
+  });
+
+  await fetchAndLearn('https://github.com/ai-ulu/axiom', kernel, {
+    branch: 'main',
+    fetchImpl: singleFileFetchImpl(),
+    paths: ['README.md'],
+  });
+
+  assert.equal(probes.length, 1, 'remote GitHub content must be probed, not waved through');
+  assert.equal(probes[0].url, 'https://github.com/ai-ulu/axiom/blob/main/README.md');
+  assert.equal(probes[0].options.method, 'HEAD');
+});
+
+test('github-adapter: an unreachable GitHub source fails closed before mutation (#591)', async () => {
+  const kernel = reachabilityKernel(async () => ({ statusCode: 404 }));
+  let learnEntered = false;
+  const realLearn = kernel.learn.bind(kernel);
+  kernel.learn = (...args) => { learnEntered = true; return realLearn(...args); };
+
+  const result = await fetchAndLearn('https://github.com/ai-ulu/axiom', kernel, {
+    branch: 'main',
+    fetchImpl: singleFileFetchImpl(),
+    paths: ['README.md'],
+  });
+
+  assert.equal(result.learned[0].ok, false);
+  assert.match(result.learned[0].error, /HTTP 404/);
+  assert.equal(learnEntered, false, 'the mutation path must not be entered once the probe fails');
+});
+
+test('github-adapter: with the capability off the probe is never spent (#591)', async () => {
+  let probed = false;
+  const kernel = new Kernel({ noLoad: true, loadPlugins: false });
+  kernel.plugins.register({
+    ...evidenceValidator,
+    preIngest: evidenceValidator.createPreIngest({
+      fetchUrl: async () => { probed = true; return { statusCode: 200 }; },
+    }),
+  });
+
+  await fetchAndLearn('https://github.com/ai-ulu/axiom', kernel, {
+    branch: 'main',
+    fetchImpl: singleFileFetchImpl(),
+    paths: ['README.md'],
+  });
+
+  assert.equal(probed, false, 'offline default must stay offline');
 });
