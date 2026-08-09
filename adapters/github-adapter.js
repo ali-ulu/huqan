@@ -1,4 +1,4 @@
-const { canonicalizeGitHubRepoUrl } = require('../lib/github-url');
+const { canonicalizeGitHubRepoUrl, buildGitHubBlobUrl } = require('../lib/github-url');
 
 function toError(message, code, status) {
   const err = new Error(message);
@@ -122,10 +122,15 @@ async function fetchAndLearn(repoUrl, kernel, opts = {}) {
   const files = await fetchRepoFiles(repoUrl, opts);
   const results = [];
   for (const file of files) {
+    // Canonical https URL rather than a compact `owner/repo/path@branch`
+    // string: evidence-validator's reachability gate only inspects sourceRef
+    // values that look like http(s) URLs, so the compact form meant remote
+    // GitHub content slipped past preIngest untouched even with
+    // evidenceReachability on (#591). The URL carries the same four facts.
     const provenance = {
       provenanceId: `github-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
       source: 'github-adapter',
-      sourceRef: `${file.owner}/${file.repo}/${file.path}@${file.branch}`,
+      sourceRef: buildGitHubBlobUrl(file),
       sourceType: 'markdown',
       actor: opts.actor || 'github-adapter',
       timestamp: new Date().toISOString(),
