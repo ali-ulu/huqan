@@ -1675,9 +1675,13 @@ class Graph {
     // Embedding'leri ayrı dosyaya yaz (aynı atomik garanti). Geri koyma işi
     // save()'in finally'sinde: buradaki bir hata da embedding'leri bellekte
     // bırakmalı (#369).
-    if (Object.keys(embeddings).length > 0) {
-      atomicWriteFileSync(this._embeddingPath, JSON.stringify(embeddings));
-    }
+    //
+    // #609: koşulsuz yazılır. Eskiden yalnızca en az bir embedding varken
+    // yazılıyordu, dolayısıyla son embedding silindiğinde (ya da prune() node'u
+    // düşürdüğünde) eski sidecar diskte kalıyor ve bir sonraki load() silinmiş
+    // vektörü geri diriltiyordu. Sidecar memory.json'ın parçası gibi
+    // davranmalı: her save() onu son duruma eşitler, boş obje dahil.
+    atomicWriteFileSync(this._embeddingPath, JSON.stringify(embeddings));
   }
 
   load() {
