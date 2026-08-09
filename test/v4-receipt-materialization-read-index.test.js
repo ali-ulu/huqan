@@ -81,6 +81,24 @@ describe('V4-PR2.6: receipt materialization/read index', () => {
     assert.equal(read.chainedReceipt.receiptId, receipt.receiptId);
   });
 
+  it('materializes the audit source once when reading a receipt and its chain', () => {
+    const kernel = makeKernel();
+    const result = learnApproved(kernel, 'aslan hayvandir', { provenanceId: 'prov-single-scan-1' });
+    const receiptId = result.data.admission.receipt.receiptId;
+    const originalGetAuditEvents = kernel.graph.getAuditEvents.bind(kernel.graph);
+    let scans = 0;
+    kernel.graph.getAuditEvents = (filters) => {
+      scans += 1;
+      return originalGetAuditEvents(filters);
+    };
+
+    const read = readReceiptById(kernel.graph, receiptId, { workspaceId: 'default' });
+
+    assert.equal(read.ok, true);
+    assert.equal(read.chainStatus, 'valid');
+    assert.equal(scans, 1, 'receipt lookup and chain validation must share one materialization scan');
+  });
+
   it('unknown receiptId returns not_found and never creates a synthetic receipt', () => {
     const kernel = makeKernel();
     learnApproved(kernel, 'kus hayvandir', { provenanceId: 'prov-unknown-1' });
