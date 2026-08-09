@@ -31,7 +31,7 @@
     "receiptCount": {
       "type": "integer",
       "minimum": 0,
-      "description": "Must equal receipts.length; verifiers should check this."
+      "description": "Reported entry count. Informational: it is NOT one of the three verification checks, and neither the producer nor a conforming verifier rejects a bundle on it alone."
     },
     "bundleHash": {
       "type": "string",

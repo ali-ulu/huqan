@@ -132,8 +132,11 @@ def verify(bundle):
         findings.append("bundle_seal_mismatch")
     if bundle.get("schemaVersion") != expected_envelope_version(bundle["receipts"]):
         findings.append("envelope_version_mismatch")
-    if bundle.get("receiptCount") != len(bundle["receipts"]):
-        findings.append("receipt_count_mismatch")
+    # receiptCount is deliberately NOT checked. The specification defines exactly
+    # three checks, and the producer's verifyExportedBundle() likewise derives
+    # validity from bundle seal, envelope version and chain only. Rejecting a
+    # bundle on receiptCount would make this verifier stricter than the format it
+    # implements, which is a conformance defect even though it sounds safer.
     ok, broken_at, reason = validate_chain(bundle["receipts"])
     if not ok:
         findings.append("%s@%d" % (reason, broken_at))

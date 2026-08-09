@@ -106,13 +106,26 @@ not be folded together.
 
 Numbers use **ECMAScript `Number::toString`** semantics — what JavaScript's
 `JSON.stringify` emits. RFC 8259 does not define a canonical lexical form, so
-this must be stated explicitly. Two consequences differ from several other
-languages' defaults:
+this must be stated explicitly rather than left to each language's default.
 
-- **Plain decimal is used until the exponent falls below `1e-7`.** `0.00001`
-  serializes as `0.00001`, not `1e-05`.
-- **Exponents carry no zero padding.** `1e-7` serializes as `1e-7`, not
-  `1e-07`; `1e+21` as `1e+21`.
+**Choice of notation.** Zero serializes as `0`. For any other finite value,
+plain decimal is used when
+
+```text
+1e-6 <= abs(x) < 1e21
+```
+
+and scientific notation otherwise. The boundaries are inclusive below and
+exclusive above exactly as written: `1e-6` is `0.000001`, while `9.99e-7` is
+`9.99e-7`; `9.99e20` is `999000000000000000000`, while `1e21` is `1e+21`.
+
+**Exponent form.** Scientific notation carries a sign and **no zero padding**:
+`1e-7`, not `1e-07`; `1e+21`, not `1e+021`.
+
+Several languages differ on both points. Python's `repr` switches to scientific
+notation at `1e-5` rather than `1e-7` and pads single-digit exponents, so a
+value this format writes as `0.00001` becomes `1e-05` and `1e-7` becomes
+`1e-07` — different bytes, different hash.
 
 `-0` serializes as `0`. Integral values carry no fractional part: `1.0`
 serializes as `1`. Non-finite values (`NaN`, `Infinity`) cannot appear, since
@@ -220,6 +233,27 @@ A record that is not an object, or that is missing `receiptHash` or
 `previousReceiptHash`, is `content_tampered` at its index.
 
 Stop at the first failure and report the index. An empty array passes.
+
+### What is deliberately not checked
+
+**`receiptCount` is not a verification input.** It is informational. A bundle
+whose `receiptCount` disagrees with `receipts.length` is still valid if the
+three checks above pass, and a conforming verifier must not reject it on that
+basis.
+
+This is worth stating because rejecting it feels safer and is wrong. A verifier
+that adds the check is stricter than the format, so it will reject bundles the
+producer considers valid — which is a conformance defect, not extra safety. The
+seal already covers the receipts array, so `receiptCount` cannot be used to hide
+a modification: changing the array changes `bundleHash`.
+
+Use this as a portability test. Take a valid bundle, change only
+`receiptCount`, and verify it. A conforming implementation still reports valid.
+If yours reports invalid, it has this defect.
+
+**`exportedAt` is also not checked**, and is not covered by the seal, so two
+exports of the same receipts at different times are both valid and share a
+`bundleHash`.
 
 ## Worked example
 

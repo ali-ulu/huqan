@@ -4,21 +4,37 @@
  * V5-C5A — the published receipt bundle specification must match the shipped
  * fixtures.
  *
- * Everything below is implemented from `specs/axiom-trust-protocol/0.1/
- * RECEIPT-BUNDLE.md` alone. This file deliberately imports nothing from `lib/`:
- * if it reused the producer's serializer or hasher it would prove only that the
- * code agrees with itself, which is exactly the gap the V5-C5 entry audit
- * recorded.
+ * The canonicalization and verification helpers below are implemented from
+ * `specs/axiom-trust-protocol/0.1/RECEIPT-BUNDLE.md` alone. No producer code
+ * implements any of them: reusing the producer's serializer or hasher would
+ * prove only that the code agrees with itself, which is the gap the V5-C5 entry
+ * audit recorded.
  *
- * This is still a self-test — same repository, same author, same language. Its
- * job is to keep the document honest, not to stand in for an independent
- * implementation.
+ * There is exactly one producer import, `verifyExportedBundle`, and it is used
+ * only to assert that the producer and the clean-room probe reach the same
+ * verdict. It never supplies a value this file then checks against itself.
+ *
+ * Two evidence levels live in this file and should not be conflated:
+ *
+ *   - the JavaScript assertions below are a SELF-TEST. They keep the document
+ *     honest against fixtures this repository produced.
+ *   - the `clean-room implementation` block shells out to
+ *     conformance/verify_bundle.py, a second implementation written from the
+ *     specification that shares no code with the producer. That is
+ *     CROSS-IMPLEMENTATION CONFORMANCE.
+ *
+ * Neither is third-party verification: same author, same repository. See
+ * specs/axiom-trust-protocol/0.1/conformance/README.md for the four levels.
  */
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+// The only producer import in this file, used solely to assert that the
+// clean-room probe and the producer agree; never to implement the algorithm.
+const { verifyExportedBundle } = require('../lib/receipt/receipt-export');
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -180,7 +196,23 @@ describe('V5-C5A: the published spec reproduces the shipped fixtures', () => {
     assert.equal(checkBundleSeal(valid), true, 'bundle seal');
     assert.equal(valid.schemaVersion, expectedEnvelopeVersion(valid.receipts), 'envelope version');
     assert.deepEqual(validateChain(valid.receipts), { valid: true, brokenAt: null, reason: null });
+  });
+
+  it('receiptCount agrees with the array, as fixture sanity rather than a check', () => {
+    // Asserted about the fixture, not about verification: receiptCount is not
+    // one of the three checks, and the case below proves a verifier must not
+    // reject on it.
     assert.equal(valid.receiptCount, valid.receipts.length);
+  });
+
+  it('a bundle whose receiptCount alone is wrong stays valid', () => {
+    // The narrow rule this locks in: verifyExportedBundle() derives validity
+    // from seal, envelope version and chain only. A verifier that also rejects
+    // on receiptCount is stricter than the format and would reject bundles the
+    // producer considers valid.
+    const mutated = { ...valid, receiptCount: valid.receipts.length + 7 };
+    assert.equal(checkBundleSeal(mutated), true);
+    assert.deepEqual(validateChain(mutated.receipts), { valid: true, brokenAt: null, reason: null });
   });
 
   it('the chain links genesis through every record in order', () => {
@@ -308,6 +340,25 @@ describe('V5-C5A: a clean-room implementation agrees on the bytes', () => {
     assert.match(out, /receipt-bundle\.tampered-bundle-hash\.json\s+INVALID\s+bundle_seal_mismatch/);
     assert.match(out, /receipt-bundle\.broken-chain\.json\s+INVALID.*content_tampered@1/);
     assert.equal(result.status, 1, 'exit 1 because two fixtures are invalid by design');
+  });
+
+  it('the clean-room verifier does not reject on receiptCount either', { skip: !havePython && 'python3 unavailable' }, () => {
+    // The conformance trap this file exists to catch: an implementation that
+    // adds a plausible-sounding check becomes stricter than the format and
+    // disagrees with the producer. Both must call this bundle valid.
+    const mutated = { ...valid, receiptCount: valid.receipts.length + 7 };
+    const tmp = path.join(os.tmpdir(), `c5a-count-${process.pid}.json`);
+    fs.writeFileSync(tmp, JSON.stringify(mutated, null, 2));
+    try {
+      const result = runPython([tmp]);
+      assert.match(result.stdout, /VALID/);
+      assert.doesNotMatch(result.stdout, /INVALID|receipt_count/);
+      assert.equal(result.status, 0);
+      assert.equal(verifyExportedBundle(mutated).valid, true,
+        'the producer must agree, otherwise the spec is wrong rather than the probe');
+    } finally {
+      fs.rmSync(tmp, { force: true });
+    }
   });
 
   it('the clean-room verifier imports nothing but the Python standard library', () => {
