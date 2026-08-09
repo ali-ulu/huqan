@@ -1,0 +1,112 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://huqan.dev/specs/axiom-trust-protocol/0.1/schemas/trust-receipt-bundle.schema.json",
+  "title": "ATP v0.1 Trust Receipt Bundle",
+  "description": "Self-contained, hash-sealed export of a chained trust receipt sequence. Structural shape only: hash and chain correctness are defined by RECEIPT-BUNDLE.md and cannot be expressed in JSON Schema.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "workspaceId",
+    "exportedAt",
+    "receiptCount",
+    "bundleHash",
+    "receipts"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "enum": ["v4-receipt-bundle-v1", "v4-receipt-bundle-v2"],
+      "description": "v2 when any receipt declares v4-receipt-v2, otherwise v1."
+    },
+    "workspaceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "exportedAt": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ISO-8601 export timestamp. Deliberately NOT covered by bundleHash."
+    },
+    "receiptCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Must equal receipts.length; verifiers should check this."
+    },
+    "bundleHash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Lowercase hex SHA-256 over canonicalJson(receipts)."
+    },
+    "receipts": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/chainedReceipt" }
+    }
+  },
+  "definitions": {
+    "chainedReceipt": {
+      "type": "object",
+      "required": [
+        "schemaVersion",
+        "receiptId",
+        "receiptKind",
+        "decision",
+        "verdict",
+        "status",
+        "admissionId",
+        "workspaceId",
+        "actor",
+        "agentId",
+        "memoryDraftId",
+        "provenanceId",
+        "trustPolicyVersion",
+        "approvalId",
+        "approvalStatus",
+        "reason",
+        "riskScore",
+        "createdAt",
+        "metadata",
+        "previousReceiptHash",
+        "receiptHash"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "enum": ["v4-receipt-v1", "v4-receipt-v2"]
+        },
+        "receiptId": { "type": "string", "minLength": 1 },
+        "receiptKind": { "type": "string", "minLength": 1 },
+        "decision": { "type": "string", "minLength": 1 },
+        "verdict": { "type": "string", "minLength": 1 },
+        "status": { "type": "string", "minLength": 1 },
+        "admissionId": { "type": "string", "minLength": 1 },
+        "workspaceId": { "type": "string", "minLength": 1 },
+        "actor": { "type": "string" },
+        "agentId": { "type": "string" },
+        "memoryDraftId": { "type": "string" },
+        "provenanceId": { "type": "string", "minLength": 1 },
+        "trustPolicyVersion": { "type": "string", "minLength": 1 },
+        "approvalId": { "type": "string" },
+        "approvalStatus": { "type": "string" },
+        "reason": { "type": "string" },
+        "riskScore": { "type": "number" },
+        "createdAt": { "type": "string", "minLength": 1 },
+        "metadata": { "type": "object" },
+        "trustRoot": {
+          "type": "object",
+          "description": "Present only on v4-receipt-v2 records."
+        },
+        "previousReceiptHash": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Predecessor receiptHash, or the exact string genesis:v4-receipt-chain for the first record."
+        },
+        "receiptHash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}
