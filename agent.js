@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const Dream = require('./dream');
 const { INTERNAL_TOOLS, evaluateToolPolicy } = require('./toolPolicy');
 const { buildFinalSummary } = require('./finalizer');
+const { emitGateTelemetry } = require('./lib/gate-telemetry');
 
 const DEFAULT_MAX_STEPS = 4;
 const ALLOWED_TOOLS = INTERNAL_TOOLS;
@@ -822,6 +823,22 @@ class Agent {
       });
 
       if (toolPolicy.category !== 'internal') {
+        // #469: toolPolicy's block/review decisions for external tools were
+        // invisible to plugins (metric-collector.js, daily-digest.js) that
+        // already consume afterGateDecision for every other gate. This is
+        // observability only -- it does not change what toolPolicy decides.
+        emitGateTelemetry(this.kernel, 'agent-tool-policy', {
+          decision: toolPolicy.action,
+          reason: toolPolicy.reasons[0] || '',
+          metadata: {
+            tool: toolPolicy.tool,
+            category: toolPolicy.category,
+            riskScore: toolPolicy.riskScore,
+            blocked: toolPolicy.blocked,
+            review: toolPolicy.review,
+          },
+        });
+
         const code = toolPolicy.blocked ? 'EXTERNAL_TOOL_BLOCKED' : 'EXTERNAL_TOOL_REVIEW_REQUIRED';
         result = {
           ok: false,

@@ -384,4 +384,50 @@ describe('Agent', () => {
     assert.ok(runResult.data.report.includes('İlerleme:'));
     assert.ok(typeof runResult.data.progress.stalledCount === 'number');
   });
+
+  it('reports external toolPolicy decisions through afterGateDecision (#469)', () => {
+    const agent = freshAgent();
+    const observed = [];
+    agent.plugins.register({
+      name: 'gate-telemetry-observer',
+      requires: [],
+      optional: [],
+      afterGateDecision(_kernel, data) { observed.push(data); },
+    });
+
+    const report = agent._executeStep(
+      { id: 's1', action: 'call', tool: 'shell', input: 'run a shell command', rationale: '' },
+      { goal: 'run a shell command', objective: 'call', steps: [] },
+      {}
+    );
+
+    assert.strictEqual(report.status, 'blocked');
+    assert.strictEqual(observed.length, 1);
+    assert.strictEqual(observed[0].source, 'agent-tool-policy');
+    assert.strictEqual(observed[0].decision, 'block');
+    assert.strictEqual(observed[0].metadata.tool, 'shell');
+    assert.strictEqual(observed[0].metadata.category, 'external');
+    assert.strictEqual(observed[0].metadata.blocked, true);
+    assert.ok(typeof observed[0].reason === 'string' && observed[0].reason.length > 0);
+  });
+
+  it('does not emit toolPolicy telemetry for internal tools', () => {
+    const agent = freshAgent();
+    agent.kernel.learn('kedi hayvandir', TEST_FIXTURE_LEARN_BYPASS);
+    const observed = [];
+    agent.plugins.register({
+      name: 'gate-telemetry-observer-internal',
+      requires: [],
+      optional: [],
+      afterGateDecision(_kernel, data) { observed.push(data); },
+    });
+
+    agent._executeStep(
+      { id: 's1', action: 'ask', tool: 'ask', input: 'kedi nedir', rationale: '' },
+      { goal: 'kedi nedir', objective: 'ask', steps: [] },
+      {}
+    );
+
+    assert.strictEqual(observed.length, 0);
+  });
 });
