@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "v5-public-trust-receipt-v1",
+  "publicReceiptId": "e2f93e7c5bf148cf0da534ff5d78cfbd7d844509f22630db31272cf933eaaedd",
+  "issuedAt": "2026-03-01T00:00:00.000Z",
+  "disclosure": {
+    "receiptKind": "memory_admission_receipt",
+    "decision": "allow",
+    "verdict": "allow",
+    "status": "admitted",
+    "riskScore": 0,
+    "trustPolicyVersion": "0.8.0",
+    "createdAt": "2026-01-01T00:00:00.000Z"
+  },
+  "binding": {
+    "internalReceiptHash": "3c8bfe7d26e9ede5ca31d0e1398b7284ab8876e00cc67dbec67608b791922ac6",
+    "bundleHash": "be51f403d02405ccda37a6565180b88d662cdfe0f998b493ecfd77dabd317a84"
+  },
+  "integrity": {
+    "checksumAlgorithm": "sha256-canonical-json-v1",
+    "checksum": "21f10aa62df710f06cbd45878a4233b91d2dd24197eb9285fdaca91ad659d362",
+    "signed": true,
+    "signature": null
+  }
+}
