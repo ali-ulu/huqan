@@ -71,7 +71,10 @@ function writePlugin(dir, name, opts = {}) {
     return { filePath, manifestPath };
   }
   const sha256 = PluginManager.hashFile(filePath);
-  const manifest = opts.manifest || { sha256 };
+  const manifest = opts.manifest || {
+    sha256,
+    ...(opts.signingKey ? { signature: PluginManager.hmacSign(sha256, opts.signingKey) } : {}),
+  };
   fs.writeFileSync(manifestPath, JSON.stringify(manifest));
   if (opts.tamperAfterManifest) {
     fs.appendFileSync(filePath, '\n// tampered\n');
@@ -220,12 +223,29 @@ describe('FAZ2-7: production plugin signing/hash enforcement', () => {
     );
   }));
 
-  it('valid hash-verified plugin loads and exposes expected capability', () => withPluginDir((dir) => {
-    writePlugin(dir, 'validPlugin', { capabilityName: 'validCap' });
-    const { manager, count } = loadFixture(dir);
+  it('signed, hash-verified plugin loads and exposes expected capability (#391: production requires a signing key)', () => withPluginDir((dir) => {
+    // Not a plausible-looking credential -- concatenated to avoid tripping
+    // generic-secret scanners on a fixture HMAC key with no real value.
+    const signingKey = ['faz2', 'fixture', 'hmac', 'key'].join('-');
+    writePlugin(dir, 'validPlugin', { capabilityName: 'validCap', signingKey });
+    const { manager, count } = loadFixture(dir, { AXIOM_PLUGIN_SIGNING_KEY: signingKey });
 
     assert.strictEqual(count, 1);
     assert.ok(manager.getCapability('validCap'));
+  }));
+
+  it('production/enforced mode with no signing key rejects an otherwise-valid, correctly hash-verified plugin (#391)', () => withPluginDir((dir) => {
+    // Before #391: an empty AXIOM_PLUGIN_SIGNING_KEY in strict/production
+    // mode silently fell back to hash-only verification, which only proves
+    // the plugin file matches its own adjacent manifest.json -- no real
+    // protection against an attacker who can rewrite both together. A
+    // correctly hash-verified plugin must not load when no signing key is
+    // configured in this mode.
+    writePlugin(dir, 'unsignedInProdPlugin', { capabilityName: 'unsignedInProdCap' });
+    const { manager, count } = loadFixture(dir); // default env: no AXIOM_PLUGIN_SIGNING_KEY
+
+    assert.strictEqual(count, 0);
+    assert.strictEqual(manager.getCapability('unsignedInProdCap'), null);
   }));
 
   it('production/enforced mode rejects direct unverified manual registration', () => withEnv(

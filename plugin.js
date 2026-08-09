@@ -57,8 +57,28 @@ function readManifest(filePath) {
 
 function verifyPluginFile(filePath, opts = {}) {
   const strict = opts.strict === true;
+  const productionEnforcement = opts.productionEnforcement === true;
   const signatureKey = opts.signatureKey || process.env.AXIOM_PLUGIN_SIGNING_KEY || '';
   const currentHash = hashFile(filePath);
+
+  // #391: hash-only verification proves a plugin file matches its adjacent
+  // manifest.json -- nothing more. An attacker with filesystem write access
+  // can rewrite both together, so once production enforcement is active, a
+  // missing signing key must not silently fall back to that weaker
+  // guarantee. This is narrower than plain `strict` (which defaults on
+  // everywhere AXIOM_PLUGIN_STRICT isn't explicitly '0', including normal
+  // dev/test runs loading unsigned first-party plugins) -- only actual
+  // production enforcement requires a signing key to load anything at all.
+  if (productionEnforcement && !signatureKey) {
+    return {
+      ok: false,
+      status: 'rejected',
+      sha256: currentHash,
+      manifestPath: getManifestPath(filePath),
+      reason: 'Plugin signing key is required under production enforcement.',
+    };
+  }
+
   const manifestRecord = readManifest(filePath);
 
   if (!manifestRecord) {
@@ -155,6 +175,7 @@ class PluginManager {
       try {
         const verification = verifyPluginFile(filePath, {
           strict: this.strictPlugins,
+          productionEnforcement: this.productionPluginEnforcement,
           signatureKey: this.pluginSigningKey,
         });
         if (!verification.ok) {
