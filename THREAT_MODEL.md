@@ -191,6 +191,30 @@ This document defines the primary security threats to HUQAN, categorized using t
 - Implement role-based access control (RBAC) with audit logging.
 - Add dynamic privilege validation using policy decision points.
 
+### Plugin Code Execution
+
+**Description**: `plugin.js` loads plugins with `require(filePath)`, so a plugin executes as ordinary in-process Node code with the full privileges of the host process — `fs`, `child_process`, `net`, `https`, `process.env`, and direct kernel internals. Manifest hashing and HMAC signing verify that a plugin file is *authentic and unmodified*; they place no restriction on what it *does*. An attacker who can write to the plugins directory, or who gets a malicious plugin approved and signed, obtains arbitrary code execution on the host and can bypass every trust mechanism in this document from inside the process.
+
+**Impact**: Full host compromise: secret exfiltration, arbitrary graph writes without admission, audit and provenance bypass, action-gate bypass.
+
+**Existing Mitigations**:
+- Manifest `sha256` verification detects modification of a plugin file after its manifest was written (`plugin.js: verifyPluginFile`).
+- HMAC signature verification under `AXIOM_PLUGIN_SIGNING_KEY` binds an approved hash to a deployment key.
+- Production enforcement (`AXIOM_PLUGIN_PRODUCTION_ENFORCEMENT=1` / `NODE_ENV=production`) refuses to load anything without a signing key, and `PluginManager.register()` rejects registration without verified provenance (`PLUGIN_UNVERIFIED_REGISTRATION`).
+- The plugins directory is a deployment-controlled path; write access to it is treated as equivalent to code execution.
+
+**Remaining Gaps**:
+- **No runtime confinement of any kind.** Signed ≠ sandboxed: a verified plugin may call any Node module. This is a documented, accepted property of the current design, not an oversight — see `docs/core-plugin-boundary-contract.md`, "Enforcement Boundary: Signed Is Not Sandboxed".
+- An attacker with filesystem write access rewrites the plugin and its adjacent manifest together, defeating hash-only verification.
+- No declared capability surface, so plugin privilege cannot be reviewed without reading the source.
+- Node's `vm` module is not a security boundary and is deliberately **not** used here; a `vm`-based loader would imply confinement the runtime cannot deliver.
+
+**Planned Mitigation**:
+- Add a `permissions` manifest field declaring the modules a plugin may `require()`, enforced at load time — defense-in-depth and an audit aid, explicitly **not** a sandbox.
+- Evaluate a real isolation boundary (separate process with dropped privileges, container, or WASM isolate with an explicit host-call surface) if third-party or untrusted plugins ever become a supported scenario.
+
+---
+
 ### Memory Trust Level Escalation
 
 **Description**: Escalation of memory trust levels through exploitation of trust algorithm vulnerabilities.
