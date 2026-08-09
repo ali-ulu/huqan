@@ -2,10 +2,12 @@
   "policyId": "v5-public-receipt-redaction-v1",
   "description": "Construction rule for a public trust receipt. This is an ALLOWLIST, not a denylist: a canonical receipt field absent from disclosableFields is excluded, so an internal field added later cannot leak by default. This file is data, not documentation - the conformance test reads it rather than trusting prose.",
   "appliesTo": {
-    "internalSchemaVersions": ["v4-receipt-v1", "v4-receipt-v2"],
+    "internalSchemaVersions": [
+      "v4-receipt-v1",
+      "v4-receipt-v2"
+    ],
     "producesSchemaVersion": "v5-public-trust-receipt-v1"
   },
-
   "disclosableFields": [
     "receiptKind",
     "decision",
@@ -15,7 +17,6 @@
     "trustPolicyVersion",
     "createdAt"
   ],
-
   "withheldFields": {
     "workspaceId": "tenancy identifier; reveals whose receipt this is",
     "actor": "actor identity",
@@ -31,14 +32,12 @@
     "previousReceiptHash": "chain position; disclosing it would let a holder walk the internal chain",
     "receiptHash": "carried in binding.internalReceiptHash instead, where its role is explicit"
   },
-
   "receiptIdDecision": {
     "decision": "derive_stable",
     "rule": "publicReceiptId = sha256Hex(internal receiptId)",
     "justification": "The authorization pack required this choice to be made explicitly rather than silently. A stable identifier is correlatable across disclosures: two public receipts derived from the same internal receipt carry the same publicReceiptId. That is accepted here because binding.internalReceiptHash is ALREADY a stable correlator and is mandatory - a recipient needs it to check the receipt against a bundle they hold. Claiming unlinkability while shipping that hash would be incoherent. So this format does not offer unlinkability, and says so, rather than offering a weak version of it. A per-disclosure salted identifier would break the recipient's ability to recognise the same receipt twice and would still not deliver unlinkability while binding remains mandatory.",
     "notUnlinkable": true
   },
-
   "integrity": {
     "checksumRequired": true,
     "checksumAlgorithm": "sha256-canonical-json-v1",
@@ -46,6 +45,12 @@
     "checksumInput": "the public receipt with integrity.checksum removed, serialized by the canonicalJson rule of the source above",
     "signatureRequired": false,
     "signatureProfile": "ed25519-v1",
-    "signatureNote": "No signing implementation exists: lib/v5/verification-core.js accepts only algorithm test-structural-v1 and synthetic-signature-placeholder values, which issue #435 is open against. A checksum proves the document was not altered; only a signature would say who issued it. This format delivers the first and not the second."
+    "signatureNote": "No signing implementation exists: lib/v5/verification-core.js accepts only algorithm test-structural-v1 and synthetic-signature-placeholder values, which issue #435 is open against.",
+    "assuranceLevels": {
+      "checksum": "corruption and self-consistency detection. Keyless, so an editor who rewrites the document can recompute it. It does not prove the document was not altered.",
+      "signature": "issuer and authorship. Not delivered by this format today.",
+      "externalHashComparison": "independently anchored evidence: comparing binding.internalReceiptHash or binding.bundleHash against a receipt or bundle the recipient obtained separately. This is the only level here that survives a capable editor."
+    },
+    "signedSignatureCoupling": "signed false requires signature null; signed true requires an ed25519-v1 signature object. Enforced by oneOf in the schema, not by convention."
   }
 }

@@ -4,7 +4,14 @@
   "title": "V5-C4 Public-Safe Trust Receipt",
   "description": "A shareable summary of an internal trust receipt. It is a DISTINCT artifact that references an internal receipt by hash, not a redacted copy of one: canonical receipt content including metadata participates in the internal hash semantics, so a subset of an internal receipt would fail internal chain validation. Construction is governed by public-receipt-redaction-policy.json.",
   "type": "object",
-  "required": ["schemaVersion", "publicReceiptId", "issuedAt", "disclosure", "binding", "integrity"],
+  "required": [
+    "schemaVersion",
+    "publicReceiptId",
+    "issuedAt",
+    "disclosure",
+    "binding",
+    "integrity"
+  ],
   "additionalProperties": false,
   "properties": {
     "schemaVersion": {
@@ -16,78 +23,184 @@
       "$ref": "#/$defs/sha256Hex",
       "description": "sha256Hex of the internal receiptId. Stable and therefore correlatable across disclosures; see receiptIdDecision in the redaction policy. This format does not offer unlinkability."
     },
-    "issuedAt": { "$ref": "#/$defs/nonEmptyString" },
-
+    "issuedAt": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
     "disclosure": {
       "type": "object",
       "description": "The allowlisted fields. These carry decision shape rather than content. Any field not listed here is withheld by construction, so an internal field added later cannot leak by default.",
-      "required": ["receiptKind", "decision", "verdict", "status", "riskScore", "trustPolicyVersion", "createdAt"],
+      "required": [
+        "receiptKind",
+        "decision",
+        "verdict",
+        "status",
+        "riskScore",
+        "trustPolicyVersion",
+        "createdAt"
+      ],
       "additionalProperties": false,
       "properties": {
-        "receiptKind": { "$ref": "#/$defs/nonEmptyString" },
-        "decision": { "$ref": "#/$defs/nonEmptyString" },
+        "receiptKind": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "decision": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
         "verdict": {
           "type": "string",
-          "enum": ["allow", "review", "block", "dry_run_only", "quarantine", "disabled"]
+          "enum": [
+            "allow",
+            "review",
+            "block",
+            "dry_run_only",
+            "quarantine",
+            "disabled"
+          ]
         },
-        "status": { "$ref": "#/$defs/nonEmptyString" },
-        "riskScore": { "type": "number" },
-        "trustPolicyVersion": { "$ref": "#/$defs/nonEmptyString" },
-        "createdAt": { "$ref": "#/$defs/nonEmptyString" }
+        "status": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "riskScore": {
+          "type": "number"
+        },
+        "trustPolicyVersion": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "createdAt": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
       }
     },
-
     "binding": {
       "type": "object",
-      "description": "Minimum hashes proving this summarizes a real internal receipt. A recipient can match these against a bundle they already hold without learning the withheld content.",
-      "required": ["internalReceiptHash"],
+      "description": "Hashes binding this summary to an internal receipt. The receipt CLAIMS this correspondence; a hash carried inside the public artifact does not by itself prove the internal receipt exists. It becomes independently verifiable only when compared against a receipt or bundle hash the recipient obtained separately.",
+      "required": [
+        "internalReceiptHash"
+      ],
       "additionalProperties": false,
       "properties": {
-        "internalReceiptHash": { "$ref": "#/$defs/sha256Hex" },
+        "internalReceiptHash": {
+          "$ref": "#/$defs/sha256Hex"
+        },
         "bundleHash": {
           "$ref": "#/$defs/sha256Hex",
           "description": "bundleHash of a receipt bundle containing the internal receipt, when the discloser has one."
         }
       }
     },
-
     "integrity": {
       "type": "object",
-      "description": "Tamper-evidence for this document. The checksum is keyless and mandatory; a signature is optional and would answer a different question - who issued this - which this format does not currently deliver.",
-      "required": ["checksumAlgorithm", "checksum", "signed", "signature"],
+      "description": "Self-consistency for this document. The checksum is keyless: it detects corruption and accidental modification, and proves the document is internally consistent. It does NOT prove the document was not tampered with, because anyone who edits it can recompute the checksum. Authorship is a signature's job, and this format does not currently deliver one.",
+      "required": [
+        "checksumAlgorithm",
+        "checksum",
+        "signed",
+        "signature"
+      ],
       "additionalProperties": false,
       "properties": {
-        "checksumAlgorithm": { "type": "string", "const": "sha256-canonical-json-v1" },
+        "checksumAlgorithm": {
+          "type": "string",
+          "const": "sha256-canonical-json-v1"
+        },
         "checksum": {
           "$ref": "#/$defs/sha256Hex",
-          "description": "sha256Hex over this document with integrity.checksum removed, serialized by the canonicalJson rule in specs/axiom-trust-protocol/0.1/RECEIPT-BUNDLE.md. That rule is reused, never redefined."
+          "description": "sha256Hex over this document with integrity.checksum removed, serialized by the canonicalJson rule in specs/axiom-trust-protocol/0.1/RECEIPT-BUNDLE.md. That rule is reused, never redefined. Keyless: detects corruption and self-inconsistency, not a capable editor."
         },
         "signed": {
           "type": "boolean",
-          "description": "Structural, not inferred from absence. An unsigned receipt says so."
+          "description": "Structural, not inferred from absence, and coupled to signature by the oneOf below: signed false requires signature null, signed true requires an ed25519-v1 signature object. Neither combination can be expressed accidentally."
         },
         "signature": {
           "oneOf": [
-            { "type": "null" },
+            {
+              "type": "null"
+            },
             {
               "type": "object",
-              "required": ["profileId", "keyId", "value"],
+              "required": [
+                "profileId",
+                "keyId",
+                "value"
+              ],
               "additionalProperties": false,
               "properties": {
-                "profileId": { "type": "string", "const": "ed25519-v1" },
-                "keyId": { "$ref": "#/$defs/nonEmptyString" },
-                "value": { "$ref": "#/$defs/nonEmptyString" }
+                "profileId": {
+                  "type": "string",
+                  "const": "ed25519-v1"
+                },
+                "keyId": {
+                  "$ref": "#/$defs/nonEmptyString"
+                },
+                "value": {
+                  "$ref": "#/$defs/nonEmptyString"
+                }
               }
             }
           ],
           "description": "Null when signed is false. No signing implementation exists yet (see issue #435), so no fixture presents a real signature and no acceptance criterion is met by one."
         }
-      }
+      },
+      "oneOf": [
+        {
+          "title": "unsigned",
+          "properties": {
+            "signed": {
+              "const": false
+            },
+            "signature": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "signed",
+            "signature"
+          ]
+        },
+        {
+          "title": "signed",
+          "properties": {
+            "signed": {
+              "const": true
+            },
+            "signature": {
+              "type": "object",
+              "required": [
+                "profileId",
+                "keyId",
+                "value"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "profileId": {
+                  "type": "string",
+                  "const": "ed25519-v1"
+                },
+                "keyId": {
+                  "$ref": "#/$defs/nonEmptyString"
+                },
+                "value": {
+                  "$ref": "#/$defs/nonEmptyString"
+                }
+              }
+            }
+          },
+          "required": [
+            "signed",
+            "signature"
+          ]
+        }
+      ]
     }
   },
-
   "$defs": {
-    "nonEmptyString": { "type": "string", "minLength": 1 },
-    "sha256Hex": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
   }
 }

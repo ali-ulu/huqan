@@ -68,9 +68,13 @@ function validate(value, node, root, at = '') {
     const target = node.$ref.replace(/^#\//, '').split('/').reduce((n, k) => n[k], root);
     return validate(value, target, root, at);
   }
+  // oneOf must NOT short-circuit: in JSON Schema it is a sibling of required,
+  // properties and additionalProperties, all of which still apply. Returning
+  // here silently disabled parent validation the moment integrity gained its
+  // signed/signature coupling.
   if (node.oneOf) {
     const passed = node.oneOf.filter((sub) => validate(value, sub, root, at).length === 0);
-    return passed.length === 1 ? [] : [`${at}: matched ${passed.length} of oneOf`];
+    if (passed.length !== 1) errors.push(`${at}: matched ${passed.length} of oneOf`);
   }
   const types = Array.isArray(node.type) ? node.type : (node.type ? [node.type] : []);
   const matches = (t) => (
@@ -188,6 +192,54 @@ describe('V5-C4: integrity — checksum mandatory, signature contracted but abse
     assert.deepEqual(validatePublic(unsigned), []);
   });
 
+  it('signed and signature are coupled by the schema, not by convention', () => {
+    // Review finding: declaring both fields required left signed:true with a
+    // null signature, and signed:false with a signature object, both
+    // expressible. "Structurally distinguishable" was a claim the schema did
+    // not enforce until this oneOf existed.
+    const branches = schema.properties.integrity.oneOf;
+    assert.equal(branches.length, 2);
+    const unsignedBranch = branches.find((b) => b.properties.signed.const === false);
+    const signedBranch = branches.find((b) => b.properties.signed.const === true);
+    assert.equal(unsignedBranch.properties.signature.type, 'null');
+    assert.equal(signedBranch.properties.signature.type, 'object');
+    assert.equal(signedBranch.properties.signature.properties.profileId.const, 'ed25519-v1');
+  });
+
+  it('oneOf does not disable the sibling keywords on integrity', () => {
+    // Regression lock. Adding oneOf to integrity previously made the test
+    // harness skip required, properties and additionalProperties on that node,
+    // so the coupling was enforced while the rest of the block was not.
+    const missingAlgorithm = JSON.parse(JSON.stringify(fixture('valid.public-receipt.json')));
+    delete missingAlgorithm.integrity.checksumAlgorithm;
+    assert.notDeepEqual(validatePublic(missingAlgorithm), [],
+      'required must still apply beside oneOf');
+
+    const extraField = JSON.parse(JSON.stringify(fixture('valid.public-receipt.json')));
+    extraField.integrity.futureIntegrityField = 'added later';
+    assert.notDeepEqual(validatePublic(extraField), [],
+      'additionalProperties:false must still apply beside oneOf');
+
+    const badAlgorithm = JSON.parse(JSON.stringify(fixture('valid.public-receipt.json')));
+    badAlgorithm.integrity.checksumAlgorithm = 'sha1-whatever';
+    assert.notDeepEqual(validatePublic(badAlgorithm), [],
+      'the const on checksumAlgorithm must still apply beside oneOf');
+  });
+
+  it('signed:true with a null signature is rejected', () => {
+    const r = fixture('invalid.signed-true-null-signature.json');
+    assert.equal(computeChecksum(r), r.integrity.checksum,
+      'the checksum is intact, so only the coupling can reject this');
+    assert.notDeepEqual(validatePublic(r), []);
+  });
+
+  it('signed:false with a signature object is rejected', () => {
+    const r = fixture('invalid.signed-false-object-signature.json');
+    assert.equal(computeChecksum(r), r.integrity.checksum,
+      'the checksum is intact, so only the coupling can reject this');
+    assert.notDeepEqual(validatePublic(r), []);
+  });
+
   it('no fixture presents a placeholder as a real signature', () => {
     for (const name of fs.readdirSync(FIXTURES)) {
       const text = fs.readFileSync(path.join(FIXTURES, name), 'utf8');
@@ -205,9 +257,46 @@ describe('V5-C4: integrity — checksum mandatory, signature contracted but abse
   });
 });
 
+describe('V5-C4: the assurance claims match what a keyless checksum can do', () => {
+  it('nothing claims the checksum proves the document was not altered', () => {
+    const text = fs.readFileSync(path.join(V5, 'public-trust-receipt.schema.json'), 'utf8')
+      + fs.readFileSync(path.join(V5, 'public-receipt-redaction-policy.json'), 'utf8');
+    assert.doesNotMatch(text, /proves the document was not altered/i);
+    assert.doesNotMatch(text, /tamper-evidence/i);
+  });
+
+  it('a capable editor can rewrite the document and reseal it, and the policy says so', () => {
+    // The concrete reason the claim had to come down.
+    const forged = JSON.parse(JSON.stringify(fixture('valid.public-receipt.json')));
+    forged.disclosure.decision = 'block';
+    const { checksum, ...rest } = forged.integrity;
+    forged.integrity.checksum = sha256Hex(canonicalJson({ ...forged, integrity: rest }));
+    assert.deepEqual(validatePublic(forged), [], 'a resealed forgery is schema-valid');
+    assert.equal(computeChecksum(forged), forged.integrity.checksum, 'and its checksum verifies');
+    assert.notEqual(forged.disclosure.decision, fixture('valid.public-receipt.json').disclosure.decision);
+    assert.match(policy.integrity.assuranceLevels.checksum, /does not prove the document was not altered/i);
+  });
+
+  it('the three assurance levels are recorded separately', () => {
+    const levels = policy.integrity.assuranceLevels;
+    assert.match(levels.checksum, /corruption and self-consistency/i);
+    assert.match(levels.signature, /issuer and authorship/i);
+    assert.match(levels.externalHashComparison, /obtained separately/i);
+  });
+
+  it('binding claims correspondence rather than proving it', () => {
+    const description = schema.properties.binding.description;
+    assert.doesNotMatch(description, /proving this summarizes a real/i);
+    assert.match(description, /CLAIMS/);
+    assert.match(description, /obtained separately/i);
+  });
+});
+
 describe('V5-C4: every negative fixture fails closed', () => {
   const cases = [
     ['invalid.checksum-mismatch.json', 'checksum'],
+    ['invalid.signed-true-null-signature.json', 'coupling'],
+    ['invalid.signed-false-object-signature.json', 'coupling'],
     ['invalid.leak-workspace-id.json', 'workspaceId'],
     ['invalid.leak-metadata.json', 'metadata'],
     ['invalid.leak-reason.json', 'reason'],
