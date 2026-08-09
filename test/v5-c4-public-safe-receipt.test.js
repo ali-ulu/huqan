@@ -68,9 +68,13 @@ function validate(value, node, root, at = '') {
     const target = node.$ref.replace(/^#\//, '').split('/').reduce((n, k) => n[k], root);
     return validate(value, target, root, at);
   }
+  // oneOf must NOT short-circuit: in JSON Schema it is a sibling of required,
+  // properties and additionalProperties, all of which still apply. Returning
+  // here silently disabled parent validation the moment integrity gained its
+  // signed/signature coupling.
   if (node.oneOf) {
     const passed = node.oneOf.filter((sub) => validate(value, sub, root, at).length === 0);
-    return passed.length === 1 ? [] : [`${at}: matched ${passed.length} of oneOf`];
+    if (passed.length !== 1) errors.push(`${at}: matched ${passed.length} of oneOf`);
   }
   const types = Array.isArray(node.type) ? node.type : (node.type ? [node.type] : []);
   const matches = (t) => (
@@ -200,6 +204,26 @@ describe('V5-C4: integrity — checksum mandatory, signature contracted but abse
     assert.equal(unsignedBranch.properties.signature.type, 'null');
     assert.equal(signedBranch.properties.signature.type, 'object');
     assert.equal(signedBranch.properties.signature.properties.profileId.const, 'ed25519-v1');
+  });
+
+  it('oneOf does not disable the sibling keywords on integrity', () => {
+    // Regression lock. Adding oneOf to integrity previously made the test
+    // harness skip required, properties and additionalProperties on that node,
+    // so the coupling was enforced while the rest of the block was not.
+    const missingAlgorithm = JSON.parse(JSON.stringify(fixture('valid.public-receipt.json')));
+    delete missingAlgorithm.integrity.checksumAlgorithm;
+    assert.notDeepEqual(validatePublic(missingAlgorithm), [],
+      'required must still apply beside oneOf');
+
+    const extraField = JSON.parse(JSON.stringify(fixture('valid.public-receipt.json')));
+    extraField.integrity.futureIntegrityField = 'added later';
+    assert.notDeepEqual(validatePublic(extraField), [],
+      'additionalProperties:false must still apply beside oneOf');
+
+    const badAlgorithm = JSON.parse(JSON.stringify(fixture('valid.public-receipt.json')));
+    badAlgorithm.integrity.checksumAlgorithm = 'sha1-whatever';
+    assert.notDeepEqual(validatePublic(badAlgorithm), [],
+      'the const on checksumAlgorithm must still apply beside oneOf');
   });
 
   it('signed:true with a null signature is rejected', () => {
