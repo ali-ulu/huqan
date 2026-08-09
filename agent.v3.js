@@ -214,6 +214,13 @@ class AgentV3 {
     };
   }
 
+  _storageFailure(operation, err, state = null) {
+    const detail = err && err.message ? err.message : 'unknown error';
+    return this._fail('agent', 'AGENT_STORAGE_ERROR',
+      `Agent storage operation "${operation}" failed: ${detail}.`,
+      state?.evidence || [], { operation }, state);
+  }
+
   plan(goal, opts = {}) {
     const result = this.baseAgent.plan(goal, { ...opts, maxSteps: opts.maxSteps || this.maxSteps });
     if (!result || result.ok === false) return result;
@@ -361,7 +368,14 @@ class AgentV3 {
     // workspace-scoped, and looking one up by goal alone would let a run in
     // one workspace hydrate another workspace's paused state.
     const workspaceId = String(opts.workspaceId || 'default').trim() || 'default';
-    const resumeRecord = opts.resume === false ? null : this.storage.loadLatestCheckpoint(goal, workspaceId);
+    let resumeRecord = null;
+    if (opts.resume !== false) {
+      try {
+        resumeRecord = this.storage.loadLatestCheckpoint(goal, workspaceId);
+      } catch (err) {
+        return this._storageFailure('loadLatestCheckpoint', err);
+      }
+    }
     const state = this._hydrateState(activePlan, resumeRecord);
     const queued = Array.isArray(state.queuedSteps) ? [...state.queuedSteps] : [];
     const deadline = Date.now() + Math.max(0, Number.isInteger(opts.timeBudgetMs) ? opts.timeBudgetMs : this.timeBudgetMs);
@@ -411,7 +425,11 @@ class AgentV3 {
         [], { gate: 'AB10', budget: budgetCheck });
     }
 
-    this._saveCheckpoint(state);
+    try {
+      this._saveCheckpoint(state);
+    } catch (err) {
+      return this._storageFailure('saveCheckpoint', err, state);
+    }
 
     while (queued.length > 0 && state.steps.length < activePlan.maxSteps && state.iteration < maxIterations) {
       if (Date.now() >= deadline) {
@@ -491,7 +509,11 @@ class AgentV3 {
       state.completedSteps = state.steps.length;
       state.remainingSteps = queued.length;
       state.budgetRemaining = Math.max(0, deadline - Date.now());
-      this._saveCheckpoint(state);
+      try {
+        this._saveCheckpoint(state);
+      } catch (err) {
+        return this._storageFailure('saveCheckpoint', err, state);
+      }
     }
 
     if (state.status === 'running') {
@@ -512,11 +534,15 @@ class AgentV3 {
     state.recommendations = this.baseAgent._buildRunRecommendations(state);
     state.nextAction = this.baseAgent._suggestNextAction(state);
     state.report = this._renderReport(state);
-    state.memory = {
-      path: this.storage.dbPath,
-      goalMemory: this.storage.getGoalMemory(goal),
-      runs: this.storage.countRuns(),
-    };
+    let goalMemory;
+    let runs;
+    try {
+      goalMemory = this.storage.getGoalMemory(goal);
+      runs = this.storage.countRuns();
+    } catch (err) {
+      return this._storageFailure('readRunMemory', err, state);
+    }
+    state.memory = { path: this.storage.dbPath, goalMemory, runs };
     state.checkpointId = state.checkpointId || state.resumeToken || null;
     state.resumeToken = state.checkpointId;
 
@@ -526,21 +552,37 @@ class AgentV3 {
     // genuinely spent.
     state.iterationsDelta = Math.max(0, Number(state.iteration || 0) - Number(state.iterationsAtRunStart || 0));
 
-    this.storage.saveRun(state);
-    this.storage.saveGoalMemory({
-      goal,
-      objective: activePlan.objective,
-      status: state.status,
-      completedSteps: state.completedSteps,
-      finalAnswer: state.finalAnswer,
-      resumed: state.resumed,
-      selectedTools: activePlan.selectedTools,
-    });
+    try {
+      this.storage.saveRun(state);
+    } catch (err) {
+      return this._storageFailure('saveRun', err, state);
+    }
+    try {
+      this.storage.saveGoalMemory({
+        goal,
+        objective: activePlan.objective,
+        status: state.status,
+        completedSteps: state.completedSteps,
+        finalAnswer: state.finalAnswer,
+        resumed: state.resumed,
+        selectedTools: activePlan.selectedTools,
+      });
+    } catch (err) {
+      return this._storageFailure('saveGoalMemory', err, state);
+    }
 
     if (state.status === 'completed' || state.status === 'blocked') {
-      this.storage.deleteCheckpoint(state.checkpointId);
+      try {
+        this.storage.deleteCheckpoint(state.checkpointId);
+      } catch (err) {
+        return this._storageFailure('deleteCheckpoint', err, state);
+      }
     } else {
-      this._saveCheckpoint(state);
+      try {
+        this._saveCheckpoint(state);
+      } catch (err) {
+        return this._storageFailure('saveCheckpoint', err, state);
+      }
     }
 
     this.lastRun = state;
