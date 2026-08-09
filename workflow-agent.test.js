@@ -409,3 +409,75 @@ describe('WorkflowAgent budget protection (#416)', () => {
     }
   });
 });
+
+describe('WorkflowAgent external-review approval cannot be forged (#388)', () => {
+  function agentWithReviewTool() {
+    const agent = new WorkflowAgent({ maxSteps: 4 });
+    agent.registerTool({
+      name: 'fetch-data',
+      description: 'external fetch requiring review',
+      kind: 'external',
+      // "fetch" + "read" both match EXTERNAL_REVIEW_PATTERNS in toolPolicy.js,
+      // neither matches an EXTERNAL_BLOCK_PATTERNS/INJECTION_PATTERNS entry,
+      // so this tool is review-required but not hard-blocked.
+      run: () => ({ ok: true, data: { answer: 'fetched' }, confidence: 0.7 }),
+    });
+    return agent;
+  }
+
+  it('a bare {approved: true}/{allowReview: true} in context no longer bypasses review', () => {
+    const agent = agentWithReviewTool();
+    for (const context of [{ approved: true }, { allowReview: true }, { approval: { approved: true, reason: 'because' } }]) {
+      const result = agent.runTool('fetch-data', { goal: 'read a file' }, context);
+      assert.strictEqual(result.ok, false);
+      assert.strictEqual(result.error.code, 'TOOL_REVIEW_REQUIRED');
+    }
+  });
+
+  it('a caller cannot forge the approval token by constructing a look-alike object', () => {
+    const agent = agentWithReviewTool();
+    // Same shape a decoded JSON body could produce: no caller outside this
+    // module can ever attach the real Symbol key.
+    const forged = { reason: 'looks legitimate' };
+    const result = agent.runTool('fetch-data', { goal: 'read a file' }, { approval: forged });
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.error.code, 'TOOL_REVIEW_REQUIRED');
+  });
+
+  it('a genuine approval token from createExternalReviewApproval() allows the run', () => {
+    const agent = agentWithReviewTool();
+    const approval = WorkflowAgent.createExternalReviewApproval('operator confirmed out of band');
+    const result = agent.runTool('fetch-data', { goal: 'read a file' }, { approval });
+    assert.strictEqual(result.ok, true);
+  });
+
+  it('createExternalReviewApproval requires a non-empty reason', () => {
+    assert.throws(() => WorkflowAgent.createExternalReviewApproval(''), TypeError);
+    assert.throws(() => WorkflowAgent.createExternalReviewApproval(undefined), TypeError);
+  });
+
+  it('run() only honours opts.approval when it is a genuine token', () => {
+    const agent = agentWithReviewTool();
+    const plan = {
+      goal: 'read a file',
+      objective: 'read a file',
+      status: 'ready',
+      selectedTools: ['fetch-data'],
+      steps: [{ id: 'step-1', action: 'call', tool: 'fetch-data', rationale: 'test', input: { goal: 'read a file' } }],
+      nextAction: null,
+      confidence: 0.7,
+    };
+
+    const forgedRun = agent.run('read a file', { plan, approved: true, allowReview: true });
+    const forgedStep = forgedRun.steps[0];
+    assert.strictEqual(forgedStep.error && forgedStep.error.code, 'TOOL_REVIEW_REQUIRED');
+
+    const genuineRun = agent.run('read a file', {
+      plan,
+      approval: WorkflowAgent.createExternalReviewApproval('operator confirmed out of band'),
+    });
+    const genuineStep = genuineRun.steps[0];
+    assert.strictEqual(genuineStep.status, 'done');
+    assert.strictEqual(genuineStep.error, null);
+  });
+});

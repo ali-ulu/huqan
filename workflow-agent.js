@@ -1,6 +1,28 @@
 ﻿const { INTERNAL_TOOLS, evaluateToolPolicy } = require('./toolPolicy');
 const { buildFinalSummary } = require('./finalizer');
 
+// #388: an external-tool review gate must not be satisfiable by a bare
+// `{ approved: true }` in caller-supplied opts -- that's exactly the shape
+// untrusted JSON (an HTTP body, MCP tool args) can carry, so any future
+// caller that forwarded external input into run()/runTool() opts would
+// hand out review bypass for free. Approval must instead be an unforgeable
+// token keyed by this module-private Symbol, produced only by
+// WorkflowAgent.createExternalReviewApproval(reason) below. A Symbol key
+// cannot survive JSON.stringify/JSON.parse or be produced by spreading
+// decoded/untrusted data into a plain object -- the same technique used for
+// kernel.js's admission-bypass token (#357).
+const EXTERNAL_REVIEW_APPROVAL_TOKEN = Symbol('workflow-agent-external-review-approval');
+
+function isExternalReviewApproved(approval) {
+  return Boolean(
+    approval
+    && typeof approval === 'object'
+    && approval[EXTERNAL_REVIEW_APPROVAL_TOKEN] === true
+    && typeof approval.reason === 'string'
+    && approval.reason.trim().length > 0
+  );
+}
+
 const DEFAULT_MAX_STEPS = 4;
 
 /**
@@ -414,7 +436,7 @@ function normalizeToolOutput(result, tool, policy, meta = {}) {
     tool: tool.name,
     status: policy && policy.blocked
       ? 'blocked'
-      : policy && policy.review && !meta.approved
+      : policy && policy.review && !isExternalReviewApproved(meta.approval)
         ? 'review'
         : ok
           ? 'done'
@@ -556,7 +578,7 @@ class ToolRegistry {
       context,
       internalTools: this._policyInternalTools(),
     });
-    const approved = Boolean(context.approved || context.allowReview);
+    const approved = isExternalReviewApproved(context.approval);
 
     if (tool.kind === 'external' && policy.blocked) {
       return normalizeToolOutput({
@@ -852,7 +874,7 @@ class WorkflowAgent {
         stepIndex: index,
         maxSteps,
         budgetRemaining,
-        approved: Boolean(opts.approved),
+        approval: isExternalReviewApproved(opts.approval) ? opts.approval : null,
       };
       const result = this.runTool(plannedStep.tool, plannedStep.input, context);
       budgetRemaining -= stepCost;
@@ -976,4 +998,10 @@ module.exports.normalizeError = normalizeError;
 module.exports.DEFAULT_BUDGET = DEFAULT_BUDGET;
 module.exports.DEFAULT_MAX_STEPS = DEFAULT_MAX_STEPS;
 module.exports.resolveBudget = resolveBudget;
+module.exports.createExternalReviewApproval = function createExternalReviewApproval(reason) {
+  if (typeof reason !== 'string' || !reason.trim()) {
+    throw new TypeError('createExternalReviewApproval(reason): reason must be a non-empty string');
+  }
+  return { [EXTERNAL_REVIEW_APPROVAL_TOKEN]: true, reason };
+};
 
