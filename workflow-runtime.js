@@ -66,7 +66,9 @@ function createWorkflowRuntime(kernel, opts = {}) {
       });
 
   if (opts.registerDefaultTools !== false) {
-    registerDefaultWorkflowTools(registry, kernel);
+    registerDefaultWorkflowTools(registry, kernel, {
+      runCapabilityPolicy: opts.runCapabilityPolicy,
+    });
   }
 
   return {

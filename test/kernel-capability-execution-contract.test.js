@@ -145,7 +145,8 @@ test('workflow capability execution fails closed through the governed Kernel fac
       pluginCalls += 1;
     },
   };
-  const tool = createWorkflowTools(kernel).find(candidate => candidate.name === 'runCapability');
+  const tool = createWorkflowTools(kernel, { runCapabilityPolicy: () => true })
+    .find(candidate => candidate.name === 'runCapability');
 
   const result = await tool.run({}, { name: 'demo', input: { value: 1 } });
 
@@ -186,7 +187,8 @@ test('KernelV2 workflow execution preserves wrapped Kernel fail-closed policy', 
   };
   const kernelV2 = Object.create(KernelV2.prototype);
   kernelV2.kernel = wrapped;
-  const tool = createWorkflowTools(kernelV2).find(candidate => candidate.name === 'runCapability');
+  const tool = createWorkflowTools(kernelV2, { runCapabilityPolicy: () => true })
+    .find(candidate => candidate.name === 'runCapability');
 
   const result = await tool.run({}, { name: 'demo' });
 

@@ -129,6 +129,7 @@
         "lib/github-connector.js",
         "lib/github-url.js",
         "lib/http/route-auth-policy.js",
+        "lib/http/exact-workspace.js",
         "lib/human-approval-toggle.js",
         "lib/ingest.js",
         "lib/json-utf8-size.js",

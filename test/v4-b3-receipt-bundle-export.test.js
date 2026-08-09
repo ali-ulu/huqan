@@ -158,7 +158,7 @@ describe('V4-B3: receipt bundle export — route declaration', () => {
 
 describe('V4-B3: receipt bundle export — empty state before any receipt exists', () => {
   it('a caller with zero receipts receives 200 and an empty verified bundle, not 404', async () => {
-    const res = await request(ROUTE_PATHNAME);
+    const res = await request(`${ROUTE_PATHNAME}?workspaceId=default`);
     assert.equal(res.status, 200);
     assert.equal(res.body.ok, true);
     assert.equal(res.body.status, 'exported');
@@ -178,25 +178,17 @@ describe('V4-B3: receipt bundle export — authenticated happy path', () => {
     }
   });
 
-  it('omitted workspaceId returns 200 with a bundle verifyExportedBundle() accepts', async () => {
+  it('omitted workspaceId is rejected before reading receipts', async () => {
     const res = await request(ROUTE_PATHNAME);
-    assert.equal(res.status, 200);
-    assert.equal(res.body.status, 'exported');
-    assert.ok(res.body.receiptCount >= 4);
-    assert.equal(res.body.verified, true);
-    assert.equal(verifyExportedBundle(res.body.bundle).valid, true);
+    assert.equal(res.status, 400);
+    assert.equal(res.body.error.code, 'invalid_workspace_id');
   });
 
-  it('exact default workspaceId returns 200 and the identical bundle', async () => {
-    const omitted = await request(ROUTE_PATHNAME);
+  it('exact default workspaceId returns a verified bundle', async () => {
     const explicit = await request(`${ROUTE_PATHNAME}?workspaceId=default`);
     assert.equal(explicit.status, 200);
     assert.equal(verifyExportedBundle(explicit.body.bundle).valid, true);
-    assert.deepEqual(
-      explicit.body.bundle.receipts,
-      omitted.body.bundle.receipts,
-      'omitted and exact-default must read the same canonical workspace',
-    );
+    assert.ok(explicit.body.bundle.receipts.length >= 4);
   });
 
   it('the exported bundle is byte-identical to the unredacted source bundle', async () => {
@@ -364,7 +356,7 @@ describe('V4-B3: receipt bundle export — router header contract on every statu
     createWorkbenchReadHttpRouter,
   } = require('../lib/workbench/workbench-read-http-router');
 
-  function dispatch(graph, search = '') {
+  function dispatch(graph, search = '?workspaceId=default') {
     const captured = [];
     const router = createWorkbenchReadHttpRouter({
       writeJson: (_req, _res, statusCode, body, headers) => captured.push({ statusCode, body, headers }),

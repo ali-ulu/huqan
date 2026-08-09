@@ -101,7 +101,7 @@ describe('V4-PR3: read-only Trust Receipt API surface', () => {
     assert.deepEqual(response.body.receipt, receipt);
   });
 
-  it('finds a non-default workspace receipt by receiptId when no workspaceId filter is supplied', async () => {
+  it('rejects a receipt read when no exact workspaceId is supplied', async () => {
     const workspaceId = 'v4-pr3-api-no-query';
     const receipt = await seedReceipt(port, 'saka kustur', workspaceId, { provenanceId: 'prov-v4-pr3-no-query' });
 
@@ -110,9 +110,8 @@ describe('V4-PR3: read-only Trust Receipt API surface', () => {
       `/api/trust-receipt/${encodeURIComponent(receipt.receiptId)}`,
     );
 
-    assert.equal(response.status, 200);
-    assert.equal(response.body.ok, true);
-    assert.deepEqual(response.body.receipt, receipt);
+    assert.equal(response.status, 400);
+    assert.equal(response.body.error.code, 'MISSING_WORKSPACE_ID');
   });
 
   it('fails closed when an explicit workspaceId does not match the stored receipt workspace', async () => {
