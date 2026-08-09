@@ -650,3 +650,93 @@ describe('Graph - Lifecycle and maintenance baseline contracts', { concurrency: 
     assert.strictEqual(saveCalls, 0);
   });
 });
+
+// #369: embeddings live only in memory as Float64Array between the strip and
+// the restore in save(), and only as JSON-shaped data inside a rollback
+// snapshot. Both windows lost them, in different ways.
+describe('Graph - embedding survival across save failure and rollback (#369)', { concurrency: false }, () => {
+  function withTempRoot(run) {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-graph-369-'));
+    try {
+      return run(root);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }
+
+  it('keeps embeddings in memory when the JSON write throws mid-save', () => withTempRoot(root => {
+    const graph = new Graph({ memoryPath: path.join(root, 'memory.json'), useSQLite: false });
+    graph.addNode('kedi', 'hayvan');
+    const [storageKey] = Object.keys(graph._nodes);
+    const vector = new Float64Array([0.5, 0.25, 0.125]);
+    graph._assignEmbedding(storageKey, vector);
+
+    // Fail after _stripEmbeddings() has already deleted the live copies.
+    graph._writeStrippedState = () => { throw new Error('disk full'); };
+
+    assert.throws(() => graph.save(), /disk full/);
+
+    const restored = graph._nodes[storageKey].embedding;
+    assert.ok(restored instanceof Float64Array, 'a failed save must not erase the in-memory embedding');
+    assert.deepStrictEqual(Array.from(restored), [0.5, 0.25, 0.125]);
+  }));
+
+  it('restores embeddings as Float64Array after a successful save', () => withTempRoot(root => {
+    const graph = new Graph({ memoryPath: path.join(root, 'memory.json'), useSQLite: false });
+    graph.addNode('kedi', 'hayvan');
+    const [storageKey] = Object.keys(graph._nodes);
+    graph._assignEmbedding(storageKey, new Float64Array([1, 2]));
+
+    graph.save();
+
+    assert.ok(graph._nodes[storageKey].embedding instanceof Float64Array);
+    assert.deepStrictEqual(Array.from(graph._nodes[storageKey].embedding), [1, 2]);
+    // The serialized form still must not carry the vector inline.
+    const persisted = JSON.parse(fs.readFileSync(path.join(root, 'memory.json'), 'utf-8'));
+    assert.ok(!persisted.nodes[storageKey].embedding, 'embeddings belong in the sidecar file, not memory.json');
+  }));
+
+  it('rolls a failed mutation back to a real Float64Array, not a JSON-shaped object', () => withTempRoot(root => {
+    const graph = new Graph({ memoryPath: path.join(root, 'memory.json'), useSQLite: false });
+    graph.addNode('kedi', 'hayvan');
+    const [storageKey] = Object.keys(graph._nodes);
+    graph._assignEmbedding(storageKey, new Float64Array([0.5, 0.25]));
+
+    assert.throws(
+      () => graph.runMutationOnce('op-369', () => { throw new Error('mutation blew up'); }),
+      /mutation blew up/,
+    );
+
+    const rolledBack = graph._nodes[storageKey].embedding;
+    // Before the fix this was `{"0":0.5,"1":0.25}`: truthy, so every
+    // `if (node.embedding)` guard still passed, but `.length` was undefined.
+    assert.ok(rolledBack instanceof Float64Array, 'rollback must not downgrade the embedding to a plain object');
+    assert.strictEqual(rolledBack.length, 2);
+    assert.deepStrictEqual(Array.from(rolledBack), [0.5, 0.25]);
+  }));
+
+  it('keeps nodeSimilarity meaningful after a rolled-back mutation (#369 downstream effect)', () => withTempRoot(root => {
+    const Dream = require('./dream');
+    const graph = new Graph({ memoryPath: path.join(root, 'memory.json'), useSQLite: false });
+    graph.addNode('kedi', 'hayvan');
+    graph.addNode('köpek', 'hayvan');
+    const keys = Object.keys(graph._nodes);
+    graph._assignEmbedding(keys[0], new Float64Array([1, 0]));
+    graph._assignEmbedding(keys[1], new Float64Array([1, 0]));
+
+    const dream = new Dream({ graph });
+    const before = dream.nodeSimilarity(keys[0], keys[1]);
+    assert.ok(before > 0.99, 'identical vectors should score ~1 to begin with');
+
+    assert.throws(
+      () => graph.runMutationOnce('op-369-similarity', () => { throw new Error('boom'); }),
+      /boom/,
+    );
+
+    // The corrupted shape scored 0.0 here while looking perfectly healthy.
+    assert.ok(
+      dream.nodeSimilarity(keys[0], keys[1]) > 0.99,
+      'similarity must survive a rollback; a silent drop to 0 is the #369 symptom',
+    );
+  }));
+});
