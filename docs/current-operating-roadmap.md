@@ -1,7 +1,7 @@
 # Current Operating Roadmap
 
 **Live baseline:** `main` at
-`664acc0` (PR #537 merge). This line is an observation, not a base pin — see the
+`75821f6` (PR #588 merge). This line is an observation, not a base pin — see the
 authorization-artifact rule under the current gate.
 
 Live source, exact Git SHA, tests and CI outrank this compact execution source.
@@ -18,9 +18,11 @@ adapter remains production-unreachable. V4 Workbench runtime-evidence work is
 active.
 
 V4-B1 read-only inspector runtime evidence is closed, including the repaired
-exact-identifier authority boundary. V4-B2 action/approval evidence is now
-closed: the authorized authority repair is implemented and proved. V4-B3
-receipt-export user flow and V4-B5 final closeout remain open.
+exact-identifier authority boundary. V4-B2 action/approval evidence is closed:
+the authorized authority repair is implemented and proved. V4-B3 receipt-export
+user flow is now closed: the bounded, verified export route is implemented,
+reachable and proved. V4-B5 final closeout remains open, and V4 completion
+remains unclaimed.
 
 ## Reconciled sequence
 
@@ -298,118 +300,96 @@ pinned the exact superseded `plugin_execution_returned` /
 receipt-kind, snapshot-hash, result-ref and idempotent-replay coverage is
 unchanged.
 
-## Current gate
+## Closed V4-B3 evidence
 
-Only this implementation gate is open:
-
-```text
-V4_B3_RECEIPT_EXPORT_USER_FLOW
-```
-
-The controlling task-pack is:
-
-```text
-docs/task-packs/v4-b3-receipt-export-user-flow-authorization.md
-```
-
-The successor opens its branch from live `origin/main` at the moment work
-starts, and must prove that the immutable authorization artifact `7446642` is an
-ancestor of that base and that the six authorized files are unchanged since it.
-An empty six-file diff is a source-compatibility proof and implementation
-proceeds; a non-empty one makes reconciliation mandatory. See the task-pack's
-base rule for why a pre-merge `main` SHA is no longer pinned.
-
-At `664acc0` that diff reports `package.json`, so implementation stopped and the
-task-pack now carries a recorded reconciliation: the only differing top-level key
-is `files`, the change is additive with no removals and no reordering, and
-neither B3 module is present in the allowlist at either revision, so the
-authorized B3 edit still applies verbatim. The reconciliation covers the observed
-drift only — it is not a standing exemption, and any path other than
-`package.json`, or any `package.json` change outside `files`, remains an
-unreconciled stop condition.
-
-The successor may change exactly:
-
-```text
-lib/workbench/receipt-bundle-exporter.js
-lib/workbench/receipt-bundle-export-route.js
-lib/workbench/workbench-read-http-router.js
-lib/http/route-auth-policy.js
-package.json
-test/v4-b3-receipt-bundle-export.test.js
-```
-
-`server.js` is deliberately out of scope: the Workbench read router is already
-wired, and `lib/workbench/trust-receipt-inspector.js` establishes that a
-Workbench owner may require `lib/receipt/receipt-read-index` directly.
-
-The implementation must emit exactly one verdict:
+The V4-B3 gate is closed. PR #588 implemented the authorized receipt export user
+flow at exact head `5452a768` and emitted:
 
 ```text
 V4_B3_RECEIPT_EXPORT_USER_FLOW_SUFFICIENT
-V4_B3_RECEIPT_EXPORT_USER_FLOW_BLOCKED_GAP
 ```
 
-Source-backed finding that opens it: `exportMaterializedReceiptBundle()`
-(`lib/receipt/receipt-read-index.js:212`) already builds a materialized receipt
-chain and returns a bundle that `verifyExportedBundle()` can validate, but its
-only caller in the tree is `test/v4-receipt-materialization-read-index.test.js`.
-Production callers number zero.
+It merged as main `75821f6dd4fa2f0efb0fc8669acb9c733954e5c0`, and issue #271 is
+closed. The closure record with full evidence and its two recorded reservations
+is `docs/task-packs/v4-b3-receipt-export-closure-reconciliation.md`.
 
-The user-reachable receipt surface today is read-only:
+The gap the gate existed for is gone. `exportMaterializedReceiptBundle()` had a
+sufficient source owner and zero production callers; the bundle is now reachable
+from one authenticated, read-only Workbench route:
 
-- `GET /api/trust-receipt` and `GET /api/trust-receipt/:receiptId`;
-- `GET /api/workbench/trust-receipt/:receiptId` (V4-B1, closed);
-- `plugins/receipt-exporter.js`, which writes single receipts to files on
-  `afterLearn` rather than emitting a chain-validated bundle.
+```text
+GET /api/workbench/receipt-bundle
+```
 
-This is the same shape V4-B1 resolved for WB2: a sufficient source owner with no
-route. V4-B3 is therefore a reachability gap plus bounded product decisions, not
-a missing primitive.
+The five decided product decisions were built as recorded: single Workbench
+route with no CLI/MCP/UI surface; canonical `default` workspace bound before any
+read with exact string matching, so padded, cased, blank, numeric, boolean,
+array, object and traversal forms fail closed with `400`; mandatory
+`verifyExportedBundle()` before any body is written, with `409` and no bundle on
+failure; no redaction, proved byte-identical against a direct seam export; and
+both ceilings — `MAX_RECEIPTS = 1024`, `MAX_SERIALIZED_BUNDLE_BYTES = 2 MiB` —
+enforced during the read with `413` and no partial bundle. `Cache-Control:
+no-store` and `X-Content-Type-Options: nosniff` hold on `200`, `400`, `409` and
+`413`.
 
-### Decided B3 product contract
+The earlier `V4_B3_RECEIPT_EXPORT_USER_FLOW_BLOCKED_GAP` was cleared by building
+its prerequisite rather than by relaxing the contract. V4-B3A (issue #554, PR
+#562) supplied the bounded streaming source seam, and B3 consumes it by
+`require()`; no limit parameter was added to the shared read index, no ceiling
+was approximated from receipt count, and no ceiling was applied after
+materialization.
 
-These five decisions are settled, and the task-pack records rather than reopens
-them:
+Scope was seven files: the six the task-pack authorized plus
+`lib/module-reachability.js`, added under the PR #585 source-backed amendment so
+the three discharged B3A `NOT_YET_WIRED` acknowledgements could be removed once
+the exporter made those modules reachable. Two docs-only stop conditions were
+recorded before any code: the `package.json` exact-base reconciliation (PR #582)
+and that scope amendment.
 
-1. **Surface.** One authenticated, read-only Workbench HTTP route. No CLI, MCP
-   or UI surface, because B3 is positioned as the Workbench real-user flow.
-2. **Workspace.** Canonical `default` only. This follows the permanent ordering
-   rule below: no non-default or caller-selected HTTP workspace authority.
-3. **Verification.** `verifyExportedBundle()` runs after
-   `exportMaterializedReceiptBundle()` and before any response is written. A
-   failed verification returns no bundle at all.
-4. **Redaction: none in B3.** The exported bundle stays an internal, full trust
-   artifact. Public-safe and redacted receipt formats are V5-PR3 work
-   (`[V5-C4] Public-safe Trust Receipt schema and redaction policy`, issue
-   #276). This boundary is not stylistic: canonical receipt content including
-   `metadata` participates in the hash semantics, so stripping fields during a
-   B3 export would either break chain validation or amount to defining a new
-   public receipt format — which is exactly the V5 deliverable.
-5. **Bounded response.** A receipt count ceiling and a serialized-byte ceiling
-   are both mandatory. Exceeding either fails closed with `413`; a partial
-   bundle is never returned. The roadmap does not mandate specific numbers. The
-   task-pack fixes `MAX_RECEIPTS = 1024` and
-   `MAX_SERIALIZED_BUNDLE_BYTES = 2 * 1024 * 1024` on its own justification:
-   1024 matches `MAX_AUDIT_EVENTS_LIMIT` in the sibling Workbench read owner,
-   2 MiB matches `MAX_EXTERNAL_SNAPSHOT_BYTES` in `lib/ingest.js`, and measured
-   canonical v4 receipts serialize at ~725 bytes each, so the count ceiling
-   binds in normal operation while the byte ceiling stays an independent
-   secondary guard. Byte accounting uses actual serialized UTF-8 bytes.
+Two reservations are on record rather than smoothed over, and both are resolved.
+The single local `npm test` failure was environmental —
+`plugins/receipt-exporter.test.js` could not load `pdfkit`, which B3 neither uses
+nor touches — confirmed by CI passing the same test with dependencies installed.
+And the Node 20 leg of the full-suite matrix was still `in_progress` when the
+merge landed at `23:58:28Z`; it reported SUCCESS at `00:04:29Z`, six minutes
+later. The matrix is green on both versions, but the merge preceded its own
+required evidence, which is recorded because a gate that merges before its
+evidence reports is only accidentally correct.
 
-A sixth constraint carried from issue #271: `Cache-Control: no-store` and
-`X-Content-Type-Options: nosniff` are preserved on every response.
+## Current gate
 
-The successor must not widen the read surface, add a dependency, design a
-redaction policy, define a new receipt format or claim V4 closure.
+Only this gate is open:
+
+```text
+V4_B5_SOURCE_TEST_CI_RELEASE_CLOSEOUT
+```
+
+Tracking issue: #272, `[V4-B5] V4 source/test/CI/release closeout`.
+
+No authorization task-pack exists for it yet. The first step is therefore a
+source-backed authorization pack, not implementation: it must fix the closeout
+scope, the exact evidence that would justify a V4-complete claim, and the
+falsification conditions that would deny one. Opening runtime work, widening
+scope, adding a dependency or claiming V4 completion before that pack merges is
+a stop condition.
+
+The base rule that V4-B3 arrived at carries forward: bind an immutable
+authorization artifact rather than a pre-merge `main` SHA, open the
+implementation branch from live `origin/main` at the moment work starts, require
+the artifact in ancestry, and re-prove source compatibility over the authorized
+files by parsing both revisions every time — never by trusting a recorded
+verdict. V4-B3 needed three reconciliations before it could start; that cost is
+what the rule exists to avoid repeating.
 
 ## Remaining execution order
 
-1. Implement and falsify the authorized V4-B3 receipt export user flow.
-2. Reconcile the result and close V4-B3 only if exact-head runtime, receipt,
-   package and smoke evidence is sufficient.
-4. Complete V4-B5 source/test/CI/package/release closeout.
-5. Begin V5 only after V4 closeout and external interoperability entry gates.
+1. Authorize V4-B5 with a source-backed closeout task-pack before any
+   implementation: fix the closeout scope, the exact evidence that would justify
+   a V4-complete claim, and the falsification conditions that would deny one.
+2. Complete V4-B5 source/test/CI/package/release closeout against that pack.
+3. Reconcile the result and close V4 only if exact-head source, test, CI,
+   package and release evidence is sufficient.
+4. Begin V5 only after V4 closeout and external interoperability entry gates.
 
 ## Permanent ordering rules
 
