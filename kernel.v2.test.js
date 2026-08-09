@@ -98,6 +98,17 @@ describe('KernelV2', () => {
     assert.ok(res.evidence.length >= 1);
   });
 
+  it('keeps compatible multi-typing unknown instead of contradictory', () => {
+    const k = freshV2();
+    learnFixture(k, 'kedi memelidir');
+
+    const res = k.verify('kedi evcil hayvandir');
+
+    assert.strictEqual(res.ok, true);
+    assert.strictEqual(res.data.status, 'bilinmiyor');
+    assert.strictEqual(res.data.contradictionReason, undefined);
+  });
+
   it('returns contradiction for negated known fact', () => {
     const k = freshV2();
     learnFixture(k, 'kus ucar');
