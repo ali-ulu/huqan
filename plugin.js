@@ -55,6 +55,23 @@ function readManifest(filePath) {
   };
 }
 
+/**
+ * Verifies that a plugin file is the one the operator approved.
+ *
+ * #362: read the status names literally. 'verified' means the file matches its
+ * adjacent manifest hash; 'verified-signed' means that hash is HMAC-signed with
+ * the deployment key. Neither says anything about what the plugin *does* --
+ * there is no sandbox, and load() below hands the file straight to require(),
+ * so a perfectly signed plugin still runs in-process with full host privileges.
+ * Signing answers "is this the code we approved?", not "is this code allowed to
+ * do that?".
+ *
+ * That gap is documented on purpose -- docs/core-plugin-boundary-contract.md
+ * ("Enforcement Boundary: Signed Is Not Sandboxed") and THREAT_MODEL.md
+ * ("Plugin Code Execution"). Do not close it by wrapping require() in vm: the
+ * vm module is not a security boundary, so that would advertise confinement the
+ * runtime cannot deliver.
+ */
 function verifyPluginFile(filePath, opts = {}) {
   const strict = opts.strict === true;
   const productionEnforcement = opts.productionEnforcement === true;
@@ -182,6 +199,9 @@ class PluginManager {
           console.error(`Plugin yuklenemedi: ${file} - ${verification.reason}`);
           continue;
         }
+        // Verification passed, so this is the approved file -- and that is the
+        // whole of the guarantee. require() gives the plugin the host process's
+        // privileges (#362); see verifyPluginFile above.
         const plugin = require(filePath);
         plugin.__verification = verification;
         if (Object.prototype.hasOwnProperty.call(plugin, VERIFIED_PLUGIN)) {

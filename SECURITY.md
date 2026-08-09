@@ -35,14 +35,22 @@ This policy covers the HUQAN runtime and its security-critical components. Some 
 - **Trust Kernel:** `lib/verify.js`, `lib/risk-rules.js`, `lib/contradiction-rules.js`, `lib/semantic-score.js`, and `lib/reasoning-trace.js`
 - **Agent Brake Layer:** action-risk classification, tool-call gating, and AB1–AB6 gates
 - **Sandbox:** `sandboxRunner.js` and `lib/sandbox-isolation.js`
+- **Plugin loader:** `plugin.js` — manifest hash and signature verification, strict/production enforcement, and capability gating
 - **Package and receipt formats:** portable package, provenance, audit, and receipt code
 - **CI and security configuration:** `.github/workflows/`, `SECURITY.md`, `THREAT_MODEL.md`, and `CODEOWNERS`
+
+## Trust Assumptions
+
+Some properties are design decisions rather than defects. Reports that depend on them will be closed as working-as-documented.
+
+- **Plugins are trusted code, not sandboxed code.** `plugin.js` loads plugins with `require()`, so a plugin runs in-process with the full privileges of the host process. Manifest hashing and HMAC signing prove a plugin file is authentic and unmodified; they do not restrict its behavior. Installing a plugin grants that code full host privileges, and write access to the plugins directory is equivalent to code execution. See `docs/core-plugin-boundary-contract.md`, "Enforcement Boundary: Signed Is Not Sandboxed", and the "Plugin Code Execution" entry in `THREAT_MODEL.md`.
 
 ## Out of Scope
 
 - Third-party dependency vulnerabilities that should be reported upstream
 - Local-development issues that do not affect HUQAN behavior
 - Issues requiring physical access to the host machine
+- Demonstrating that a plugin can reach `fs`, `child_process`, or other host capabilities: this is the documented trust model, not a vulnerability. A *bypass of manifest hash or signature verification itself* is in scope.
 
 ## Disclosure
 

@@ -415,3 +415,55 @@ test('AC-2.4e: learnAsync() stays a pass-through with no preIngest plugin regist
   assert.ok(result?.data?.learned > 0);
   assert.ok(k.graph.getNode('kedi'));
 });
+
+// ---------------------------------------------------------------------------
+// AC-3: documented trust boundary — signed is not sandboxed (#362)
+// ---------------------------------------------------------------------------
+// #362 is closed by documentation rather than by confinement: plugins are
+// loaded with require() and run with full host privileges, and manifest
+// hashing/signing proves authenticity only. That resolution is only worth
+// anything while the statement is actually present and the loader still
+// matches it, so these tests pin both halves. They assert the *claim*, not
+// prose wording, and read the same canonical sources the rest of this file
+// does.
+// ---------------------------------------------------------------------------
+
+const REPO_ROOT = __dirname;
+
+function readRepoFile(relativePath) {
+  return fs.readFileSync(path.join(REPO_ROOT, relativePath), 'utf8');
+}
+
+test('AC-3.1: the trust boundary is documented wherever a reader would look (#362)', () => {
+  const sources = {
+    'docs/core-plugin-boundary-contract.md': /Signed Is Not Sandboxed/i,
+    'THREAT_MODEL.md': /Plugin Code Execution/i,
+    'SECURITY.md': /Plugins are trusted code, not sandboxed code/i,
+  };
+
+  for (const [relativePath, marker] of Object.entries(sources)) {
+    assert.match(
+      readRepoFile(relativePath),
+      marker,
+      `${relativePath} must keep the #362 plugin trust-boundary statement`,
+    );
+  }
+});
+
+test('AC-3.2: the loader keeps matching what the docs claim about it (#362)', () => {
+  // If plugin loading ever stops going through require(), or starts going
+  // through vm, the documented boundary is stale and must be revisited before
+  // this test is updated. vm specifically: it is not a security boundary, so
+  // routing plugins through it would advertise confinement the runtime cannot
+  // deliver -- see docs/core-plugin-boundary-contract.md.
+  assert.match(
+    PLUGIN_SOURCE,
+    /const plugin = require\(filePath\);/,
+    'plugin.js must still load plugins with require(); the #362 docs describe that loader',
+  );
+  assert.doesNotMatch(
+    PLUGIN_SOURCE,
+    /require\(\s*['"]vm['"]\s*\)/,
+    'plugin.js must not route plugin loading through vm: vm is not a security boundary (#362)',
+  );
+});
