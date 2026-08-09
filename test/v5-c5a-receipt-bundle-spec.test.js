@@ -4,20 +4,37 @@
  * V5-C5A — the published receipt bundle specification must match the shipped
  * fixtures.
  *
- * Everything below is implemented from `specs/axiom-trust-protocol/0.1/
- * RECEIPT-BUNDLE.md` alone. This file deliberately imports nothing from `lib/`:
- * if it reused the producer's serializer or hasher it would prove only that the
- * code agrees with itself, which is exactly the gap the V5-C5 entry audit
- * recorded.
+ * The canonicalization and verification helpers below are implemented from
+ * `specs/axiom-trust-protocol/0.1/RECEIPT-BUNDLE.md` alone. No producer code
+ * implements any of them: reusing the producer's serializer or hasher would
+ * prove only that the code agrees with itself, which is the gap the V5-C5 entry
+ * audit recorded.
  *
- * This is still a self-test — same repository, same author, same language. Its
- * job is to keep the document honest, not to stand in for an independent
- * implementation.
+ * There is exactly one producer import, `verifyExportedBundle`, and it is used
+ * only to assert that the producer and the clean-room probe reach the same
+ * verdict. It never supplies a value this file then checks against itself.
+ *
+ * Two evidence levels live in this file and should not be conflated:
+ *
+ *   - the JavaScript assertions below are a SELF-TEST. They keep the document
+ *     honest against fixtures this repository produced.
+ *   - the `clean-room implementation` block shells out to
+ *     conformance/verify_bundle.py, a second implementation written from the
+ *     specification that shares no code with the producer. That is
+ *     CROSS-IMPLEMENTATION CONFORMANCE.
+ *
+ * Neither is third-party verification: same author, same repository. See
+ * specs/axiom-trust-protocol/0.1/conformance/README.md for the four levels.
  */
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+// The only producer import in this file, used solely to assert that the
+// clean-room probe and the producer agree; never to implement the algorithm.
+const { verifyExportedBundle } = require('../lib/receipt/receipt-export');
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -153,10 +170,11 @@ const schema = readJson(SPEC_DIR, 'schemas', 'trust-receipt-bundle.schema.json')
 const valid = readJson(EXAMPLES, 'receipt-bundle.valid.json');
 const tamperedHash = readJson(EXAMPLES, 'receipt-bundle.tampered-bundle-hash.json');
 const brokenChain = readJson(EXAMPLES, 'receipt-bundle.broken-chain.json');
+const unicodeValid = readJson(EXAMPLES, 'receipt-bundle.unicode.valid.json');
 
 describe('V5-C5A: the published spec reproduces the shipped fixtures', () => {
   it('all three fixtures match the published schema', () => {
-    for (const [name, bundle] of Object.entries({ valid, tamperedHash, brokenChain })) {
+    for (const [name, bundle] of Object.entries({ valid, unicodeValid, tamperedHash, brokenChain })) {
       assert.deepEqual(validateAgainstSchema(bundle, schema, schema), [],
         `${name} must satisfy trust-receipt-bundle.schema.json`);
     }
@@ -178,7 +196,23 @@ describe('V5-C5A: the published spec reproduces the shipped fixtures', () => {
     assert.equal(checkBundleSeal(valid), true, 'bundle seal');
     assert.equal(valid.schemaVersion, expectedEnvelopeVersion(valid.receipts), 'envelope version');
     assert.deepEqual(validateChain(valid.receipts), { valid: true, brokenAt: null, reason: null });
+  });
+
+  it('receiptCount agrees with the array, as fixture sanity rather than a check', () => {
+    // Asserted about the fixture, not about verification: receiptCount is not
+    // one of the three checks, and the case below proves a verifier must not
+    // reject on it.
     assert.equal(valid.receiptCount, valid.receipts.length);
+  });
+
+  it('a bundle whose receiptCount alone is wrong stays valid', () => {
+    // The narrow rule this locks in: verifyExportedBundle() derives validity
+    // from seal, envelope version and chain only. A verifier that also rejects
+    // on receiptCount is stricter than the format and would reject bundles the
+    // producer considers valid.
+    const mutated = { ...valid, receiptCount: valid.receipts.length + 7 };
+    assert.equal(checkBundleSeal(mutated), true);
+    assert.deepEqual(validateChain(mutated.receipts), { valid: true, brokenAt: null, reason: null });
   });
 
   it('the chain links genesis through every record in order', () => {
@@ -240,6 +274,111 @@ describe('V5-C5A: each negative fixture fails exactly the rule it targets', () =
   });
 });
 
+
+describe('V5-C5A: the canonicalization rules survive non-ASCII and awkward numbers', () => {
+  // The ASCII fixture passes under three different WRONG canonicalizations, so
+  // it cannot defend the portability claim. This one was built to break them.
+  it('the unicode fixture verifies end to end', () => {
+    assert.equal(checkBundleSeal(unicodeValid), true);
+    assert.deepEqual(validateChain(unicodeValid.receipts),
+      { valid: true, brokenAt: null, reason: null });
+    assert.equal(unicodeValid.receiptCount, unicodeValid.receipts.length);
+  });
+
+  it('it actually contains the content the portability rules are about', () => {
+    const text = JSON.stringify(unicodeValid);
+    assert.match(text, /kullan\u0131c\u0131 onay\u0131 ge\u00e7ti|kullanıcı onayı geçti/);
+    const keys = unicodeValid.receipts.flatMap((r) => Object.keys(r.metadata || {}));
+    assert.ok(keys.includes('\uE000'), 'needs a BMP private-use key');
+    assert.ok(keys.includes('\u{1F600}'), 'needs a supplementary-plane key');
+  });
+
+  it('non-ASCII must stay literal: escaping it changes the hash', () => {
+    const escaped = JSON.stringify(unicodeValid.receipts)
+      .replace(/[\u0080-\uFFFF]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
+    assert.notEqual(sha256Hex(escaped), unicodeValid.bundleHash);
+  });
+
+  it('UTF-16 key order differs from code-point order, and the spec picks UTF-16', () => {
+    const keys = ['\uE000', '\u{1F600}'];
+    const utf16 = [...keys].sort();
+    const codePoint = [...keys].sort((a, b) => a.codePointAt(0) - b.codePointAt(0));
+    assert.notDeepEqual(utf16, codePoint, 'the two orderings must actually differ');
+    assert.deepEqual(utf16, ['\u{1F600}', '\uE000']);
+  });
+
+  it('numbers use ECMAScript form, not zero-padded exponents or early exponent switch', () => {
+    assert.equal(JSON.stringify(1e-7), '1e-7');
+    assert.equal(JSON.stringify(0.00001), '0.00001');
+    assert.equal(JSON.stringify(-0), '0');
+    assert.equal(JSON.stringify(1.0), '1');
+  });
+});
+
+describe('V5-C5A: a clean-room implementation agrees on the bytes', () => {
+  const probe = path.join(SPEC_DIR, 'conformance', 'verify_bundle.py');
+
+  function runPython(args) {
+    return spawnSync('python3', [probe, ...args], { encoding: 'utf8' });
+  }
+
+  const havePython = spawnSync('python3', ['--version'], { encoding: 'utf8' }).status === 0;
+
+  it('the Python verifier reaches the same verdict on every fixture', { skip: !havePython && 'python3 unavailable' }, () => {
+    const files = [
+      'receipt-bundle.valid.json',
+      'receipt-bundle.unicode.valid.json',
+      'receipt-bundle.tampered-bundle-hash.json',
+      'receipt-bundle.broken-chain.json',
+    ].map((name) => path.join(EXAMPLES, name));
+
+    const result = runPython(files);
+    assert.equal(result.error, undefined);
+    const out = result.stdout;
+    assert.match(out, /receipt-bundle\.valid\.json\s+VALID/);
+    assert.match(out, /receipt-bundle\.unicode\.valid\.json\s+VALID/);
+    assert.match(out, /receipt-bundle\.tampered-bundle-hash\.json\s+INVALID\s+bundle_seal_mismatch/);
+    assert.match(out, /receipt-bundle\.broken-chain\.json\s+INVALID.*content_tampered@1/);
+    assert.equal(result.status, 1, 'exit 1 because two fixtures are invalid by design');
+  });
+
+  it('the clean-room verifier does not reject on receiptCount either', { skip: !havePython && 'python3 unavailable' }, () => {
+    // The conformance trap this file exists to catch: an implementation that
+    // adds a plausible-sounding check becomes stricter than the format and
+    // disagrees with the producer. Both must call this bundle valid.
+    const mutated = { ...valid, receiptCount: valid.receipts.length + 7 };
+    const tmp = path.join(os.tmpdir(), `c5a-count-${process.pid}.json`);
+    fs.writeFileSync(tmp, JSON.stringify(mutated, null, 2));
+    try {
+      const result = runPython([tmp]);
+      assert.match(result.stdout, /VALID/);
+      assert.doesNotMatch(result.stdout, /INVALID|receipt_count/);
+      assert.equal(result.status, 0);
+      assert.equal(verifyExportedBundle(mutated).valid, true,
+        'the producer must agree, otherwise the spec is wrong rather than the probe');
+    } finally {
+      fs.rmSync(tmp, { force: true });
+    }
+  });
+
+  it('the clean-room verifier imports nothing but the Python standard library', () => {
+    // Checked against import statements, not prose: the docstring legitimately
+    // mentions HUQAN while importing none of it.
+    const source = fs.readFileSync(probe, 'utf8');
+    const imports = source.split('\n')
+      .map((line) => line.trim())
+      .filter((line) => /^(import|from)\s/.test(line));
+    assert.ok(imports.length > 0, 'the probe should import something');
+    const allowed = new Set(['hashlib', 'json', 'sys']);
+    for (const line of imports) {
+      const moduleName = line.replace(/^(import|from)\s+/, '').split(/[\s.]/)[0];
+      assert.ok(allowed.has(moduleName), `unexpected import: ${line}`);
+    }
+    assert.doesNotMatch(source, /\brequire\(|\.\.\/\.\.\/lib\//,
+      'no producer code may be pulled in');
+  });
+});
+
 describe('V5-C5A: the specification is distributed', () => {
   it('package files ship every ATP 0.1 spec file an external verifier needs', () => {
     const pkg = readJson(__dirname, '..', 'package.json');
@@ -247,6 +386,8 @@ describe('V5-C5A: the specification is distributed', () => {
       'specs/axiom-trust-protocol/0.1/RECEIPT-BUNDLE.md',
       'specs/axiom-trust-protocol/0.1/schemas/trust-receipt-bundle.schema.json',
       'specs/axiom-trust-protocol/0.1/examples/receipt-bundle.valid.json',
+      'specs/axiom-trust-protocol/0.1/examples/receipt-bundle.unicode.valid.json',
+      'specs/axiom-trust-protocol/0.1/conformance/verify_bundle.py',
       'specs/axiom-trust-protocol/0.1/examples/receipt-bundle.tampered-bundle-hash.json',
       'specs/axiom-trust-protocol/0.1/examples/receipt-bundle.broken-chain.json',
       'specs/axiom-trust-protocol/0.1/conformance/README.md',

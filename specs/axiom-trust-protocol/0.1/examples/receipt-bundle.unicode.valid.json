@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "v4-receipt-bundle-v1",
+  "workspaceId": "default",
+  "exportedAt": "2026-01-01T00:00:00.000Z",
+  "receiptCount": 3,
+  "bundleHash": "2c99919effcb1b4c3d3ae91f4114ee19683768e887792ee3de194c1d02560dee",
+  "receipts": [
+    {
+      "schemaVersion": "v4-receipt-v1",
+      "receiptId": "rcpt-unicode-000",
+      "receiptKind": "memory_admission_receipt",
+      "decision": "allow",
+      "verdict": "allow",
+      "status": "admitted",
+      "admissionId": "adm-unicode-0",
+      "workspaceId": "default",
+      "actor": "",
+      "agentId": "",
+      "memoryDraftId": "",
+      "provenanceId": "prov-unicode-0",
+      "trustPolicyVersion": "1.0.0",
+      "approvalId": "",
+      "approvalStatus": "",
+      "reason": "kullanıcı onayı geçti",
+      "riskScore": 0,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "metadata": {
+        "açıklama": "şüpheli değil",
+        "": "private-use",
+        "😀": "supplementary",
+        "riskDelta": 1e-7,
+        "ratio": 0.00001,
+        "whole": 1
+      },
+      "previousReceiptHash": "genesis:v4-receipt-chain",
+      "receiptHash": "12aee584039c8253748f594f5cbf0a8f4a2195c3367e888ee11b9a845988584d"
+    },
+    {
+      "schemaVersion": "v4-receipt-v1",
+      "receiptId": "rcpt-unicode-001",
+      "receiptKind": "memory_admission_receipt",
+      "decision": "allow",
+      "verdict": "allow",
+      "status": "admitted",
+      "admissionId": "adm-unicode-1",
+      "workspaceId": "default",
+      "actor": "",
+      "agentId": "",
+      "memoryDraftId": "",
+      "provenanceId": "prov-unicode-1",
+      "trustPolicyVersion": "1.0.0",
+      "approvalId": "",
+      "approvalStatus": "",
+      "reason": "kullanıcı onayı geçti",
+      "riskScore": 0,
+      "createdAt": "2026-01-01T00:00:01.000Z",
+      "metadata": {
+        "not": "ölçüm tamamlandı",
+        "😀": "ilk",
+        "": "ikinci",
+        "epsilon": 5e-7
+      },
+      "previousReceiptHash": "12aee584039c8253748f594f5cbf0a8f4a2195c3367e888ee11b9a845988584d",
+      "receiptHash": "dc72f13bd7b21f00810379fc616e6fd77c511f2ace6568a0cf27b732a4af67a3"
+    },
+    {
+      "schemaVersion": "v4-receipt-v1",
+      "receiptId": "rcpt-unicode-002",
+      "receiptKind": "memory_admission_receipt",
+      "decision": "allow",
+      "verdict": "allow",
+      "status": "admitted",
+      "admissionId": "adm-unicode-2",
+      "workspaceId": "default",
+      "actor": "",
+      "agentId": "",
+      "memoryDraftId": "",
+      "provenanceId": "prov-unicode-2",
+      "trustPolicyVersion": "1.0.0",
+      "approvalId": "",
+      "approvalStatus": "",
+      "reason": "kullanıcı onayı geçti",
+      "riskScore": 0,
+      "createdAt": "2026-01-01T00:00:02.000Z",
+      "metadata": {
+        "özet": "ğüşiöç",
+        "nested": {
+          "iç": {
+            "": 1e-9,
+            "değer": 0.000001
+          }
+        }
+      },
+      "previousReceiptHash": "dc72f13bd7b21f00810379fc616e6fd77c511f2ace6568a0cf27b732a4af67a3",
+      "receiptHash": "1a1097dbc4af5bb09e2c6eb20406e49d17e84ff1e92ec41d052e57528d945f98"
+    }
+  ]
+}

@@ -1,23 +1,30 @@
 # ATP v0.1 Conformance
 
-## What conformance means here, and what it does not
+## Four levels of evidence, and which one you are looking at
 
-This directory holds the conformance reference for AXIOM Trust Protocol v0.1.
+These get conflated constantly, and the difference decides what a green run is
+worth. In increasing order of strength:
 
-Read this first, because the distinction is load-bearing:
+| Level | What it means |
+| --- | --- |
+| **Self-test** | One implementation checks its own output with its own code. Proves internal consistency, nothing about the specification. |
+| **Cross-implementation conformance** | A second implementation, written from the specification and sharing no code with the producer, agrees on the same artifacts. The author may be the same person. Proves the specification is implementable and unambiguous. |
+| **Third-party verification** | An independent person or organisation writes a verifier from the specification, without our help or our code, and reaches the same verdicts. Proves the specification is followable by someone who cannot ask us what it meant. |
+| **Interoperability** | Two independent systems actually exchange trust artifacts, including fail-closed behaviour on invalid ones. Proves the format works in the field. |
 
-- **Self-test.** HUQAN's own test suite checking HUQAN's own objects with
-  HUQAN's own validators. It proves the implementation agrees with itself.
-- **Conformance evidence.** An independent implementation, sharing no code with
-  the producer, agreeing with the published specification on the same fixtures.
-- **Interoperability evidence.** A real external consumer or producer exchanging
-  trust objects with HUQAN, including fail-closed behaviour on invalid ones.
+Naming a third-party verifier "interoperability" overstates it; calling
+cross-implementation conformance "just a self-test" understates it. Both errors
+are easy, so state the level explicitly whenever citing a result.
 
-Everything in this repository today is the **first** kind. Nothing here is
-conformance or interoperability evidence, and no claim of either should be
-derived from a green in-repo test run.
+**Where this repository stands today:**
 
-That includes `packages/axiom-verify`, which re-exports
+- object shape checks — **self-test**;
+- receipt bundle — **cross-implementation conformance**, via the Python verifier
+  described below;
+- third-party verification — **none**;
+- interoperability — **none**.
+
+`packages/axiom-verify` is a self-test surface despite its name: it re-exports
 `lib/atp-conformance.js` and `lib/axiom-package-format.js` rather than
 implementing the specification independently, and reports `status: 'skeleton'`
 in its own exported surface.
@@ -33,12 +40,12 @@ node --test lib/atp-conformance.test.js
 ```
 
 The helper implementation lives in `lib/atp-conformance.js`. It is the producer's
-own validator; see the distinction above before citing its results.
+own validator; see the table above before citing its results.
 
-## Receipt bundle
+## Receipt bundle — cross-implementation conformance
 
-The receipt bundle is the one artifact in this specification that an outside
-party can verify end to end from the document alone:
+The receipt bundle is the one artifact here that an outside party can verify end
+to end from the document alone:
 
 - specification: [`../RECEIPT-BUNDLE.md`](../RECEIPT-BUNDLE.md)
 - schema: [`../schemas/trust-receipt-bundle.schema.json`](../schemas/trust-receipt-bundle.schema.json)
@@ -46,18 +53,40 @@ party can verify end to end from the document alone:
 
 ```text
 receipt-bundle.valid.json                  passes all three checks
+receipt-bundle.unicode.valid.json          passes, and exercises the portability rules
 receipt-bundle.tampered-bundle-hash.json   fails the bundle seal only
 receipt-bundle.broken-chain.json           fails chain self-consistency at index 1
 ```
 
-The fixtures are produced by the real export path, not written by hand, and each
-negative differs from the valid bundle by exactly one JSON leaf.
+All four come from the real export path, not from hand-editing. The two negatives
+differ from `receipt-bundle.valid.json` by exactly one JSON leaf.
 
-`test/v5-c5a-receipt-bundle-spec.test.js` checks that the published document and
-the shipped fixtures agree — that the documented algorithm reproduces the
-recorded `bundleHash`, and that each negative fixture fails the specific rule it
-targets. That test is still a self-test. Its purpose is to keep the specification
-honest, not to substitute for an independent implementation.
+`receipt-bundle.unicode.valid.json` is the one that matters for portability. The
+ASCII fixture passes under three different wrong canonicalizations; the Unicode
+one does not. It carries Turkish text, `U+E000` and `U+1F600` as keys in the same
+object, and numbers on both sides of the `1e-7` threshold.
+
+### The second implementation
+
+```bash
+python3 conformance/verify_bundle.py ../examples/receipt-bundle.valid.json
+```
+
+`verify_bundle.py` is written from `RECEIPT-BUNDLE.md` only. It imports no HUQAN
+code, needs no third-party package, and re-derives canonical serialization,
+UTF-16 key ordering, string escaping and ECMAScript number formatting from the
+document. It agrees with the JavaScript producer on all four fixtures.
+
+That agreement is the conformance evidence. It is also what caught the original
+specification's gaps: the first draft said only "RFC 8259, minified, sorted
+keys", and a Python implementation following it faithfully produced different
+bytes in three separate ways — escaped non-ASCII, code-point key ordering, and
+zero-padded exponents. The specification was corrected; the runtime was not
+touched, because the runtime was never wrong.
+
+`test/v5-c5a-receipt-bundle-spec.test.js` runs this probe when `python3` is
+available and skips it otherwise, so the agreement is checked continuously
+rather than claimed once.
 
 ## How to write an independent verifier
 
@@ -65,11 +94,12 @@ An implementation qualifies as independent when it imports nothing from `lib/`
 and follows `RECEIPT-BUNDLE.md` only. Sharing this repository is fine; sharing
 the producer's implementation is not.
 
-The minimum is roughly a hundred lines in most languages: deterministic JSON
-serialization with recursively sorted object keys, SHA-256 over UTF-8, and the
-three checks in the verification algorithm. Running it against the three fixtures
-above — one pass, two fails with the documented reason and index — is the first
-piece of real conformance evidence this project would have.
+The minimum is roughly a hundred lines in most languages. Start from
+`verify_bundle.py` if it helps, then run against all four fixtures — two pass,
+two fail with the documented reason and index. If your implementation disagrees
+with a fixture, that is worth reporting: either the specification is wrong or the
+fixture is, and both are defects.
 
-If your implementation disagrees with a fixture, that is worth reporting. Either
-the specification is wrong or the fixture is, and both are defects.
+Doing this **without contact with us** is the step that would turn this from
+cross-implementation conformance into third-party verification. Nothing in this
+repository can produce that evidence on its own.
