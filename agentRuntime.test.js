@@ -55,7 +55,7 @@ describe('agentRuntime', () => {
     assert.strictEqual(plan.ok, true);
     assert.ok(plan.steps.length >= 1);
 
-    const run = agent.run('verify graph and rank evidence', {
+    const run = await agent.run('verify graph and rank evidence', {
       plan: {
         goal: 'verify graph and rank evidence',
         objective: 'verify',

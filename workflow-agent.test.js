@@ -179,9 +179,9 @@ describe('workflow-agent', () => {
     assert.strictEqual(plan1.nextAction.action, 'run');
   });
 
-  it('run(goal) calls tools, collects evidence, and returns a report', () => {
+  it('run(goal) calls tools, collects evidence, and returns a report', async () => {
     const agent = createAgent();
-    const result = agent.run('kedi hayvandir mi?');
+    const result = await agent.run('kedi hayvandir mi?');
 
     assert.strictEqual(result.ok, true);
     assert.strictEqual(result.status, 'completed');
@@ -203,9 +203,9 @@ describe('workflow-agent', () => {
     assert.strictEqual(typeof result.finalSummary.mode, 'string');
   });
 
-  it('rejects unknown tools', () => {
+  it('rejects unknown tools', async () => {
     const agent = new WorkflowAgent();
-    const result = agent.run('unknown tool', {
+    const result = await agent.run('unknown tool', {
       plan: {
         goal: 'unknown tool',
         objective: 'inspect',
@@ -235,10 +235,10 @@ describe('workflow-agent', () => {
     assert.strictEqual(result.nextAction.action, 'revise');
   });
 
-  it('stops at maxSteps and reports a pause', () => {
+  it('stops at maxSteps and reports a pause', async () => {
     const agent = createAgent({ maxSteps: 4 });
     const plan = agent.plan('kedi hayvandir mi?', { maxSteps: 4 });
-    const result = agent.run('kedi hayvandir mi?', {
+    const result = await agent.run('kedi hayvandir mi?', {
       plan,
       maxSteps: 1,
       budget: 10,
@@ -251,7 +251,7 @@ describe('workflow-agent', () => {
     assert.ok(result.report.includes('Status: paused'));
   });
 
-  it('returns partial or failed when a tool throws', () => {
+  it('returns partial or failed when a tool throws', async () => {
     const agent = new WorkflowAgent({ maxSteps: 2 });
     agent.registerTool({
       name: 'boom',
@@ -262,7 +262,7 @@ describe('workflow-agent', () => {
       },
     });
 
-    const result = agent.run('boom now', {
+    const result = await agent.run('boom now', {
       plan: {
         goal: 'boom now',
         objective: 'inspect',
@@ -291,7 +291,7 @@ describe('workflow-agent', () => {
     assert.strictEqual(result.errors[0].code, 'TOOL_ERROR');
   });
 
-  it('normalizes evidence and confidence', () => {
+  it('normalizes evidence and confidence', async () => {
     const agent = new WorkflowAgent({ maxSteps: 1 });
     agent.registerTool({
       name: 'ask',
@@ -310,7 +310,7 @@ describe('workflow-agent', () => {
       },
     });
 
-    const result = agent.run('normalize this');
+    const result = await agent.run('normalize this');
     assert.strictEqual(result.ok, true);
     assert.strictEqual(result.status, 'completed');
     assert.strictEqual(result.confidence, 1);
@@ -321,9 +321,9 @@ describe('workflow-agent', () => {
     assert.strictEqual(result.finalAnswer, 'normalized answer');
   });
 
-  it('keeps trace entries for every executed step', () => {
+  it('keeps trace entries for every executed step', async () => {
     const agent = createAgent();
-    const result = agent.run('kedi hayvandir mi?');
+    const result = await agent.run('kedi hayvandir mi?');
 
     assert.ok(Array.isArray(result.trace));
     assert.ok(result.trace.some(item => item.phase === 'plan'));
@@ -333,10 +333,10 @@ describe('workflow-agent', () => {
     assert.ok(result.trace.filter(item => item.phase === 'run').length >= result.steps.length);
   });
 
-  it('plans and runs discovery goals with the discovery tool sequence', () => {
+  it('plans and runs discovery goals with the discovery tool sequence', async () => {
     const agent = registerDiscoveryTools(createAgent());
     const plan = agent.plan('discover a useful hypothesis and experiment plan');
-    const result = agent.run('discover a useful hypothesis and experiment plan');
+    const result = await agent.run('discover a useful hypothesis and experiment plan');
 
     assert.strictEqual(plan.objective, 'discover');
     assert.deepStrictEqual(plan.steps.map(step => step.tool), [
@@ -376,7 +376,7 @@ describe('WorkflowAgent budget protection (#416)', () => {
       'the default should bound runaway cost, not ordinary work');
   });
 
-  it('stops a run whose step cost exceeds the remaining budget', () => {
+  it('stops a run whose step cost exceeds the remaining budget', async () => {
     const agent = new WorkflowAgent({ maxSteps: 4, budget: 2 });
     agent.registerTool({
       name: 'ask',
@@ -385,7 +385,7 @@ describe('WorkflowAgent budget protection (#416)', () => {
       run: () => ({ ok: true, data: { answer: 'x' }, confidence: 0.6 }),
     });
 
-    const result = agent.run('kedi hayvandir mi?');
+    const result = await agent.run('kedi hayvandir mi?');
     const steps = result?.data?.steps || [];
     assert.strictEqual(steps.length, 0,
       'a step costing more than the budget must not execute');
@@ -425,29 +425,29 @@ describe('WorkflowAgent external-review approval cannot be forged (#388)', () =>
     return agent;
   }
 
-  it('a bare {approved: true}/{allowReview: true} in context no longer bypasses review', () => {
+  it('a bare {approved: true}/{allowReview: true} in context no longer bypasses review', async () => {
     const agent = agentWithReviewTool();
     for (const context of [{ approved: true }, { allowReview: true }, { approval: { approved: true, reason: 'because' } }]) {
-      const result = agent.runTool('fetch-data', { goal: 'read a file' }, context);
+      const result = await agent.runTool('fetch-data', { goal: 'read a file' }, context);
       assert.strictEqual(result.ok, false);
       assert.strictEqual(result.error.code, 'TOOL_REVIEW_REQUIRED');
     }
   });
 
-  it('a caller cannot forge the approval token by constructing a look-alike object', () => {
+  it('a caller cannot forge the approval token by constructing a look-alike object', async () => {
     const agent = agentWithReviewTool();
     // Same shape a decoded JSON body could produce: no caller outside this
     // module can ever attach the real Symbol key.
     const forged = { reason: 'looks legitimate' };
-    const result = agent.runTool('fetch-data', { goal: 'read a file' }, { approval: forged });
+    const result = await agent.runTool('fetch-data', { goal: 'read a file' }, { approval: forged });
     assert.strictEqual(result.ok, false);
     assert.strictEqual(result.error.code, 'TOOL_REVIEW_REQUIRED');
   });
 
-  it('a genuine approval token from createExternalReviewApproval() allows the run', () => {
+  it('a genuine approval token from createExternalReviewApproval() allows the run', async () => {
     const agent = agentWithReviewTool();
     const approval = WorkflowAgent.createExternalReviewApproval('operator confirmed out of band');
-    const result = agent.runTool('fetch-data', { goal: 'read a file' }, { approval });
+    const result = await agent.runTool('fetch-data', { goal: 'read a file' }, { approval });
     assert.strictEqual(result.ok, true);
   });
 
@@ -456,7 +456,7 @@ describe('WorkflowAgent external-review approval cannot be forged (#388)', () =>
     assert.throws(() => WorkflowAgent.createExternalReviewApproval(undefined), TypeError);
   });
 
-  it('run() only honours opts.approval when it is a genuine token', () => {
+  it('run() only honours opts.approval when it is a genuine token', async () => {
     const agent = agentWithReviewTool();
     const plan = {
       goal: 'read a file',
@@ -468,16 +468,46 @@ describe('WorkflowAgent external-review approval cannot be forged (#388)', () =>
       confidence: 0.7,
     };
 
-    const forgedRun = agent.run('read a file', { plan, approved: true, allowReview: true });
+    const forgedRun = await agent.run('read a file', { plan, approved: true, allowReview: true });
     const forgedStep = forgedRun.steps[0];
     assert.strictEqual(forgedStep.error && forgedStep.error.code, 'TOOL_REVIEW_REQUIRED');
 
-    const genuineRun = agent.run('read a file', {
+    const genuineRun = await agent.run('read a file', {
       plan,
       approval: WorkflowAgent.createExternalReviewApproval('operator confirmed out of band'),
     });
     const genuineStep = genuineRun.steps[0];
     assert.strictEqual(genuineStep.status, 'done');
     assert.strictEqual(genuineStep.error, null);
+  });
+});
+
+describe('WorkflowAgent async tool execution (#408)', () => {
+  it('awaits an async tool result before normalizing it', async () => {
+    const agent = new WorkflowAgent();
+    agent.registerTool({
+      name: 'async-result',
+      description: 'returns a result asynchronously',
+      run: async () => ({ ok: true, data: { answer: 'awaited' }, confidence: 0.8 }),
+    });
+
+    const result = await agent.runTool('async-result', {});
+
+    assert.deepStrictEqual(result.output, { answer: 'awaited' });
+    assert.strictEqual(result.confidence, 0.8);
+  });
+
+  it('keeps synchronous tool results compatible through the async API', async () => {
+    const agent = new WorkflowAgent();
+    agent.registerTool({
+      name: 'sync-result',
+      description: 'returns a result synchronously',
+      run: () => ({ ok: true, data: { answer: 'sync' }, confidence: 0.7 }),
+    });
+
+    const result = await agent.runTool('sync-result', {});
+
+    assert.deepStrictEqual(result.output, { answer: 'sync' });
+    assert.strictEqual(result.confidence, 0.7);
   });
 });

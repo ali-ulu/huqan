@@ -137,7 +137,7 @@ describe('workflow-runtime', () => {
     assert.strictEqual(plan.ok, true);
     assert.ok(plan.steps.length >= 1);
 
-    const run = runtime.run('verify graph and rank evidence', {
+    const run = await runtime.run('verify graph and rank evidence', {
       plan: {
         goal: 'verify graph and rank evidence',
         objective: 'verify',

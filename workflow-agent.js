@@ -545,7 +545,7 @@ class ToolRegistry {
     return names;
   }
 
-  runTool(name, input, context = {}) {
+  async runTool(name, input, context = {}) {
     const tool = this._getToolRecord(name);
     if (!tool) {
       const policy = evaluateToolPolicy({
@@ -605,7 +605,7 @@ class ToolRegistry {
     }
 
     try {
-      const result = tool.run(cloneValue(context), cloneValue(input));
+      const result = await Promise.resolve(tool.run(cloneValue(context), cloneValue(input)));
       return normalizeToolOutput(result, tool, policy, context);
     } catch (error) {
       return normalizeToolOutput({
@@ -647,7 +647,7 @@ class WorkflowAgent {
     return this.registry.getTool(name);
   }
 
-  runTool(name, input, context = {}) {
+  async runTool(name, input, context = {}) {
     return this.registry.runTool(name, input, context);
   }
 
@@ -834,7 +834,7 @@ class WorkflowAgent {
     return this.plan(goal, opts);
   }
 
-  run(goal, opts = {}) {
+  async run(goal, opts = {}) {
     const plan = this._normalizePlanInput(goal, opts);
     const maxSteps = normalizePositiveInteger(opts.maxSteps, plan.maxSteps || this.maxSteps);
     const budget = resolveBudget(opts.budget, plan.budget ?? this.budget);
@@ -876,7 +876,7 @@ class WorkflowAgent {
         budgetRemaining,
         approval: isExternalReviewApproved(opts.approval) ? opts.approval : null,
       };
-      const result = this.runTool(plannedStep.tool, plannedStep.input, context);
+      const result = await this.runTool(plannedStep.tool, plannedStep.input, context);
       budgetRemaining -= stepCost;
 
       const step = {
