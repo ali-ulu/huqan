@@ -103,6 +103,32 @@ function deepClone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+/**
+ * Snapshot clone for the node map, used by the mutation-rollback paths.
+ *
+ * #369: deepClone() is a JSON round-trip, and JSON has no typed arrays --
+ * a Float64Array embedding comes back as a plain `{"0":0.5,"1":0.25}` object.
+ * That object is still *truthy*, so every `if (node.embedding)` guard keeps
+ * passing while `.length` is undefined; dream.js's nodeSimilarity() then
+ * iterates zero times and scores every pair 0.0 instead of erroring. Rolling
+ * back a failed mutation must not quietly downgrade embeddings into that
+ * shape, so they are copied out as real typed arrays here.
+ */
+function cloneNodeMap(nodes) {
+  const cloned = {};
+  for (const [key, node] of Object.entries(nodes || {})) {
+    if (!node) {
+      cloned[key] = node;
+      continue;
+    }
+    const { embedding, ...rest } = node;
+    const copy = deepClone(rest);
+    if (embedding) copy.embedding = Float64Array.from(embedding);
+    cloned[key] = copy;
+  }
+  return cloned;
+}
+
 function cloneNodeRecord(node) {
   if (!node) return null;
   return {
@@ -762,7 +788,7 @@ class Graph {
     if (stored !== null) return { replayed: true, result: stored, receipt: this.getCommittedMutationReceiptByOperation(id) };
 
     const snapshot = {
-      nodes: deepClone(this._nodes), edges: deepClone(this._edges),
+      nodes: cloneNodeMap(this._nodes), edges: deepClone(this._edges),
       candidateClaims: deepClone(this._candidateClaims), auditEvents: deepClone(this._auditEvents),
     };
     try {
@@ -837,7 +863,7 @@ class Graph {
     }
 
     const snapshot = {
-      nodes: deepClone(this._nodes), edges: deepClone(this._edges),
+      nodes: cloneNodeMap(this._nodes), edges: deepClone(this._edges),
       candidateClaims: deepClone(this._candidateClaims), auditEvents: deepClone(this._auditEvents),
     };
     try {
@@ -1517,8 +1543,23 @@ class Graph {
 
   save() {
     this.prune();
+    // #369: strip -> write -> restore has to be crash-safe. _stripEmbeddings()
+    // deletes node.embedding from the *live* in-memory nodes so the serialized
+    // form stays JSON-clean, which means that between here and the restore the
+    // only copy of those vectors is the local `embeddings` map. Restoring in a
+    // finally makes a failed save() degrade to "not persisted" rather than
+    // "not persisted AND erased from memory".
     const embeddings = this._stripEmbeddings();
+    try {
+      this._writeStrippedState(embeddings);
+    } finally {
+      this._restoreEmbeddings(embeddings);
+    }
+  }
 
+  // Split out of save() purely so the restore above can live in a finally
+  // without reindenting the entire write path.
+  _writeStrippedState(embeddings) {
     if (this._db && this._stmts) {
       // SQLite: toplu yazma (transaction)
       const saveAll = this._db.transaction(() => {
@@ -1631,10 +1672,9 @@ class Graph {
     };
     atomicWriteFileSync(this.memoryPath, JSON.stringify(data));
 
-    // Embedding'leri geri koy
-    this._restoreEmbeddings(embeddings);
-
-    // Embedding'leri ayrı dosyaya yaz (aynı atomik garanti)
+    // Embedding'leri ayrı dosyaya yaz (aynı atomik garanti). Geri koyma işi
+    // save()'in finally'sinde: buradaki bir hata da embedding'leri bellekte
+    // bırakmalı (#369).
     if (Object.keys(embeddings).length > 0) {
       atomicWriteFileSync(this._embeddingPath, JSON.stringify(embeddings));
     }
