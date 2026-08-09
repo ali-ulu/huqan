@@ -18,6 +18,7 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -153,10 +154,11 @@ const schema = readJson(SPEC_DIR, 'schemas', 'trust-receipt-bundle.schema.json')
 const valid = readJson(EXAMPLES, 'receipt-bundle.valid.json');
 const tamperedHash = readJson(EXAMPLES, 'receipt-bundle.tampered-bundle-hash.json');
 const brokenChain = readJson(EXAMPLES, 'receipt-bundle.broken-chain.json');
+const unicodeValid = readJson(EXAMPLES, 'receipt-bundle.unicode.valid.json');
 
 describe('V5-C5A: the published spec reproduces the shipped fixtures', () => {
   it('all three fixtures match the published schema', () => {
-    for (const [name, bundle] of Object.entries({ valid, tamperedHash, brokenChain })) {
+    for (const [name, bundle] of Object.entries({ valid, unicodeValid, tamperedHash, brokenChain })) {
       assert.deepEqual(validateAgainstSchema(bundle, schema, schema), [],
         `${name} must satisfy trust-receipt-bundle.schema.json`);
     }
@@ -240,6 +242,92 @@ describe('V5-C5A: each negative fixture fails exactly the rule it targets', () =
   });
 });
 
+
+describe('V5-C5A: the canonicalization rules survive non-ASCII and awkward numbers', () => {
+  // The ASCII fixture passes under three different WRONG canonicalizations, so
+  // it cannot defend the portability claim. This one was built to break them.
+  it('the unicode fixture verifies end to end', () => {
+    assert.equal(checkBundleSeal(unicodeValid), true);
+    assert.deepEqual(validateChain(unicodeValid.receipts),
+      { valid: true, brokenAt: null, reason: null });
+    assert.equal(unicodeValid.receiptCount, unicodeValid.receipts.length);
+  });
+
+  it('it actually contains the content the portability rules are about', () => {
+    const text = JSON.stringify(unicodeValid);
+    assert.match(text, /kullan\u0131c\u0131 onay\u0131 ge\u00e7ti|kullanıcı onayı geçti/);
+    const keys = unicodeValid.receipts.flatMap((r) => Object.keys(r.metadata || {}));
+    assert.ok(keys.includes('\uE000'), 'needs a BMP private-use key');
+    assert.ok(keys.includes('\u{1F600}'), 'needs a supplementary-plane key');
+  });
+
+  it('non-ASCII must stay literal: escaping it changes the hash', () => {
+    const escaped = JSON.stringify(unicodeValid.receipts)
+      .replace(/[\u0080-\uFFFF]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
+    assert.notEqual(sha256Hex(escaped), unicodeValid.bundleHash);
+  });
+
+  it('UTF-16 key order differs from code-point order, and the spec picks UTF-16', () => {
+    const keys = ['\uE000', '\u{1F600}'];
+    const utf16 = [...keys].sort();
+    const codePoint = [...keys].sort((a, b) => a.codePointAt(0) - b.codePointAt(0));
+    assert.notDeepEqual(utf16, codePoint, 'the two orderings must actually differ');
+    assert.deepEqual(utf16, ['\u{1F600}', '\uE000']);
+  });
+
+  it('numbers use ECMAScript form, not zero-padded exponents or early exponent switch', () => {
+    assert.equal(JSON.stringify(1e-7), '1e-7');
+    assert.equal(JSON.stringify(0.00001), '0.00001');
+    assert.equal(JSON.stringify(-0), '0');
+    assert.equal(JSON.stringify(1.0), '1');
+  });
+});
+
+describe('V5-C5A: a clean-room implementation agrees on the bytes', () => {
+  const probe = path.join(SPEC_DIR, 'conformance', 'verify_bundle.py');
+
+  function runPython(args) {
+    return spawnSync('python3', [probe, ...args], { encoding: 'utf8' });
+  }
+
+  const havePython = spawnSync('python3', ['--version'], { encoding: 'utf8' }).status === 0;
+
+  it('the Python verifier reaches the same verdict on every fixture', { skip: !havePython && 'python3 unavailable' }, () => {
+    const files = [
+      'receipt-bundle.valid.json',
+      'receipt-bundle.unicode.valid.json',
+      'receipt-bundle.tampered-bundle-hash.json',
+      'receipt-bundle.broken-chain.json',
+    ].map((name) => path.join(EXAMPLES, name));
+
+    const result = runPython(files);
+    assert.equal(result.error, undefined);
+    const out = result.stdout;
+    assert.match(out, /receipt-bundle\.valid\.json\s+VALID/);
+    assert.match(out, /receipt-bundle\.unicode\.valid\.json\s+VALID/);
+    assert.match(out, /receipt-bundle\.tampered-bundle-hash\.json\s+INVALID\s+bundle_seal_mismatch/);
+    assert.match(out, /receipt-bundle\.broken-chain\.json\s+INVALID.*content_tampered@1/);
+    assert.equal(result.status, 1, 'exit 1 because two fixtures are invalid by design');
+  });
+
+  it('the clean-room verifier imports nothing but the Python standard library', () => {
+    // Checked against import statements, not prose: the docstring legitimately
+    // mentions HUQAN while importing none of it.
+    const source = fs.readFileSync(probe, 'utf8');
+    const imports = source.split('\n')
+      .map((line) => line.trim())
+      .filter((line) => /^(import|from)\s/.test(line));
+    assert.ok(imports.length > 0, 'the probe should import something');
+    const allowed = new Set(['hashlib', 'json', 'sys']);
+    for (const line of imports) {
+      const moduleName = line.replace(/^(import|from)\s+/, '').split(/[\s.]/)[0];
+      assert.ok(allowed.has(moduleName), `unexpected import: ${line}`);
+    }
+    assert.doesNotMatch(source, /\brequire\(|\.\.\/\.\.\/lib\//,
+      'no producer code may be pulled in');
+  });
+});
+
 describe('V5-C5A: the specification is distributed', () => {
   it('package files ship every ATP 0.1 spec file an external verifier needs', () => {
     const pkg = readJson(__dirname, '..', 'package.json');
@@ -247,6 +335,8 @@ describe('V5-C5A: the specification is distributed', () => {
       'specs/axiom-trust-protocol/0.1/RECEIPT-BUNDLE.md',
       'specs/axiom-trust-protocol/0.1/schemas/trust-receipt-bundle.schema.json',
       'specs/axiom-trust-protocol/0.1/examples/receipt-bundle.valid.json',
+      'specs/axiom-trust-protocol/0.1/examples/receipt-bundle.unicode.valid.json',
+      'specs/axiom-trust-protocol/0.1/conformance/verify_bundle.py',
       'specs/axiom-trust-protocol/0.1/examples/receipt-bundle.tampered-bundle-hash.json',
       'specs/axiom-trust-protocol/0.1/examples/receipt-bundle.broken-chain.json',
       'specs/axiom-trust-protocol/0.1/conformance/README.md',

@@ -50,21 +50,75 @@ Two primitives are used everywhere below. Implement these first.
 
 ### `canonicalJson(value)` — deterministic serialization
 
+RFC 8259 permits several byte sequences for the same logical value, so
+"RFC 8259, minified, sorted keys" is **not** sufficient to pin a hash input.
+Every rule below is load-bearing; each one has been observed to diverge between
+two conforming implementations.
+
 Serialize `value` as RFC 8259 JSON with:
 
-1. **no insignificant whitespace** — no spaces, no newlines, no indentation;
+1. **no insignificant whitespace** — no spaces, no newlines, no indentation, and
+   no space after `:` or `,`;
 2. **object keys sorted ascending**, recursively, at every level;
 3. **array order preserved** — order is semantically meaningful in arrays and
    must never be sorted.
 
-The sort is by **UTF-16 code unit**, ascending — the ordering JavaScript's
-`Array.prototype.sort()` applies to strings by default. For the key sets this
-format actually uses (ASCII field names) this is identical to byte-wise
-lexicographic ordering; the distinction only matters if an implementation ever
-introduces non-ASCII keys, which this format does not.
+#### Key ordering
 
-Numbers, strings, booleans and `null` serialize as ordinary JSON. Nested objects
-inside `metadata` are sorted by the same rule at every depth.
+Sort by **UTF-16 code unit**, ascending — the ordering JavaScript's
+`Array.prototype.sort()` applies to strings by default.
+
+This is not the same as sorting by Unicode code point, and the difference is
+observable. A supplementary character such as `U+1F600` is stored as the
+surrogate pair `D83D DE00`, so under UTF-16 ordering it sorts **before**
+`U+E000`, while code-point ordering puts `U+E000` first. Implementations whose
+native sort compares code points — Python's `sorted()`, for one — must convert
+to UTF-16 code units before comparing, or they will emit a different byte
+sequence and compute a different hash.
+
+`metadata` is an arbitrary object with no restriction on key content, so
+non-ASCII and supplementary keys are possible and this rule is reachable in
+practice.
+
+#### String serialization
+
+Emit strings as UTF-8 text. Specifically:
+
+- `"` and `\` are escaped as `\"` and `\\`;
+- `U+0008`, `U+0009`, `U+000A`, `U+000C`, `U+000D` use their short escapes
+  `\b`, `\t`, `\n`, `\f`, `\r`;
+- every other code point below `U+0020` uses `\u00XX` with **lowercase** hex
+  digits;
+- **every other character is emitted literally, never as `\uXXXX`** — a Turkish
+  `ş` is the two UTF-8 bytes `C5 9F`, not the six ASCII bytes `ş`;
+- an **unpaired UTF-16 surrogate** is emitted as `\uXXXX` with lowercase hex,
+  because it has no valid UTF-8 encoding.
+
+The literal-character rule is the one most implementations get wrong by default.
+Python's `json.dumps` escapes non-ASCII unless `ensure_ascii=False` is passed,
+which changes the bytes and therefore the hash.
+
+No Unicode normalization is applied at any point. `"é"` (`U+00E9`) and
+`"é"` (`U+0065 U+0301`) are different strings, hash differently, and must
+not be folded together.
+
+#### Number serialization
+
+Numbers use **ECMAScript `Number::toString`** semantics — what JavaScript's
+`JSON.stringify` emits. RFC 8259 does not define a canonical lexical form, so
+this must be stated explicitly. Two consequences differ from several other
+languages' defaults:
+
+- **Plain decimal is used until the exponent falls below `1e-7`.** `0.00001`
+  serializes as `0.00001`, not `1e-05`.
+- **Exponents carry no zero padding.** `1e-7` serializes as `1e-7`, not
+  `1e-07`; `1e+21` as `1e+21`.
+
+`-0` serializes as `0`. Integral values carry no fractional part: `1.0`
+serializes as `1`. Non-finite values (`NaN`, `Infinity`) cannot appear, since
+they are not representable in JSON.
+
+Booleans and `null` serialize as ordinary JSON.
 
 ### `sha256Hex(text)` — digest
 
@@ -180,6 +234,28 @@ chain       genesis:v4-receipt-chain -> 3c8bfe7d… -> c9a316f9… -> 2d672b6e�
 Recomputing `sha256Hex(canonicalJson(receipts))` over that file must reproduce
 the `bundleHash` above. If your implementation does not, the difference is almost
 always key ordering or stray whitespace in `canonicalJson`.
+
+That fixture is pure ASCII, so it cannot detect the serialization rules that
+actually break portability. **`examples/receipt-bundle.unicode.valid.json` is the
+one to test against:**
+
+```text
+bundleHash  2c99919effcb1b4c3d3ae91f4114ee19683768e887792ee3de194c1d02560dee
+```
+
+It is also produced by the real export path, and its `metadata` deliberately
+exercises every rule above:
+
+| Content | Rule it falsifies |
+| --- | --- |
+| Turkish text (`kullanıcı onayı geçti`, `şüpheli değil`) | non-ASCII must stay literal, not `\uXXXX` |
+| keys `U+E000` and `U+1F600` in one object | UTF-16 code-unit ordering, not code-point ordering |
+| `1e-7`, `5e-7`, `1e-9` | exponent without zero padding |
+| `0.00001`, `0.000001` | plain decimal above the `1e-7` threshold |
+
+An implementation that reproduces the ASCII fixture but not this one has all
+three of the common defects and would reject genuine bundles. Test against this
+file before claiming conformance.
 
 Two negative examples each differ from the valid one by exactly one JSON leaf:
 
