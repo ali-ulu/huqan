@@ -153,3 +153,32 @@ test('[json] durable journal no longer fails closed (JSON backend parity, #216)'
   assert.equal(result.replayed, false);
   assert.deepEqual(result.result, { learned: 1 });
 });
+
+test('[sqlite] concurrent replay recovered after rollback preserves the committed receipt', () => {
+  const graph = Object.create(Graph.prototype);
+  graph._nodes = {};
+  graph._edges = [];
+  graph._candidateClaims = [];
+  graph._auditEvents = [];
+  graph._outIndex = new Map();
+  graph._inIndex = new Map();
+  const result = { learned: 1 };
+  const receiptRow = {
+    operation_id: 'concurrent-operation', receipt_id: 'receipt-concurrent', workspace_id: 'w',
+    canonical_payload: '{}', previous_receipt_hash: null, receipt_hash: 'hash',
+    committed_at: '2026-01-01T00:00:00.000Z',
+  };
+  let reads = 0;
+  graph._stmts = {
+    getMutationJournal: { get: () => (++reads <= 2 ? undefined : { status: 'completed', result: JSON.stringify(result) }) },
+    getMutationReceiptByOperation: { get: () => receiptRow },
+  };
+  graph._db = { transaction: (callback) => () => callback() };
+
+  const replay = graph._runMutationOnceSqlite('concurrent-operation', () => {
+    throw new Error('must not execute');
+  }, {});
+  assert.equal(replay.replayed, true);
+  assert.deepEqual(replay.result, result);
+  assert.deepEqual(replay.receipt, graph._readMutationReceipt(receiptRow));
+});
