@@ -26,6 +26,7 @@ const {
   DEFAULT_MAX_JSON_BODY,
   checkRateLimit,
   clearExpiredRateLimitEntries,
+  constantTimeEqual,
   extractApiKey,
   isAllowedPublicCommand,
   isUnsafePublicApiCommand,
@@ -289,7 +290,8 @@ function readPathReceiptId(pathname) {
 
 function getRateLimitKey(req) {
   const apiKey = extractApiKey(req.headers || {});
-  if (apiKey) {
+  const configuredKey = sanitizeInput(process.env.AXIOM_API_KEY || '', 256);
+  if (apiKey && configuredKey && constantTimeEqual(apiKey, configuredKey)) {
     return 'key:' + crypto.createHash('sha256').update(apiKey).digest('hex').slice(0, 16);
   }
   if (process.env.AXIOM_TRUST_PROXY === '1') {
@@ -300,7 +302,8 @@ function getRateLimitKey(req) {
       return 'ip:' + xffList[0];
     }
   }
-  return 'ip:' + String(req.socket?.remoteAddress || 'unknown');
+  const remoteAddress = String(req.socket?.remoteAddress || '').trim();
+  return remoteAddress ? 'ip:' + remoteAddress : '';
 }
 
 function sendOptions(req, res) {

@@ -221,17 +221,42 @@ describe('Request Guards', () => {
     assert.doesNotThrow(() => clearExpiredRateLimitEntries(0));
   });
 
-  it('many unique keys do not grow the map beyond the configured cap', () => {
+  it('many unique keys do not evict live entries or grow beyond the configured cap', () => {
     resetRateLimitState();
     const now = 1_000;
     const cap = 3;
 
-    for (const key of ['k1', 'k2', 'k3', 'k4', 'k5']) {
+    for (const key of ['k1', 'k2', 'k3']) {
       assert.strictEqual(checkRateLimit(key, now, 60_000, 2, cap), true);
       assert.ok(rateLimitMap.size <= cap);
     }
 
-    assert.deepStrictEqual([...rateLimitMap.keys()].sort(), ['k3', 'k4', 'k5']);
+    for (const spoofedKey of ['k4', 'k5']) {
+      assert.strictEqual(checkRateLimit(spoofedKey, now, 60_000, 2, cap), false);
+      assert.ok(rateLimitMap.size <= cap);
+    }
+
+    assert.deepStrictEqual([...rateLimitMap.keys()].sort(), ['k1', 'k2', 'k3']);
+    assert.strictEqual(checkRateLimit('k1', now + 1, 60_000, 2, cap), true);
+    assert.strictEqual(checkRateLimit('k1', now + 2, 60_000, 2, cap), false);
+  });
+
+  it('missing identities fail closed without creating a shared unknown bucket', () => {
+    resetRateLimitState();
+
+    for (const missingIdentity of [undefined, null, '', 0, false]) {
+      assert.strictEqual(checkRateLimit(missingIdentity, 1_000, 60_000, 2, 3), false);
+    }
+
+    assert.strictEqual(rateLimitMap.size, 0);
+    assert.strictEqual(rateLimitMap.has('unknown'), false);
+  });
+
+  it('a zero entry cap rejects new identities without retaining state', () => {
+    resetRateLimitState();
+
+    assert.strictEqual(checkRateLimit('new-key', 1_000, 60_000, 2, 0), false);
+    assert.strictEqual(rateLimitMap.size, 0);
   });
 
   it('expired entries are removed before cap eviction', () => {

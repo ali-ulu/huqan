@@ -1036,6 +1036,41 @@ describe('Server - Public API Allowlist Lockdown', () => {
 });
 
 describe('X-Forwarded-For rate limit keying (#390)', () => {
+  it('only grants API-key rate-limit identity to the configured key', () => {
+    const originalKey = process.env.AXIOM_API_KEY;
+    process.env.AXIOM_API_KEY = 'legitimate-key';
+    try {
+      const { getRateLimitKey } = require('./server');
+      const legitimate = {
+        headers: { authorization: 'Bearer legitimate-key' },
+        socket: { remoteAddress: '10.0.0.1' },
+      };
+      const spoofed = {
+        headers: { authorization: 'Bearer attacker-controlled-key' },
+        socket: { remoteAddress: '10.0.0.2' },
+      };
+
+      assert.match(getRateLimitKey(legitimate), /^key:[a-f0-9]{16}$/);
+      assert.strictEqual(getRateLimitKey(spoofed), 'ip:10.0.0.2');
+    } finally {
+      if (originalKey === undefined) delete process.env.AXIOM_API_KEY;
+      else process.env.AXIOM_API_KEY = originalKey;
+    }
+  });
+
+  it('does not create a shared unknown rate-limit identity', () => {
+    const originalKey = process.env.AXIOM_API_KEY;
+    delete process.env.AXIOM_API_KEY;
+    try {
+      const { getRateLimitKey } = require('./server');
+      assert.strictEqual(getRateLimitKey({ headers: {}, socket: {} }), '');
+      assert.strictEqual(getRateLimitKey({ headers: {} }), '');
+    } finally {
+      if (originalKey === undefined) delete process.env.AXIOM_API_KEY;
+      else process.env.AXIOM_API_KEY = originalKey;
+    }
+  });
+
   it('uses socket.remoteAddress when AXIOM_TRUST_PROXY is not set', async () => {
     const original = process.env.AXIOM_TRUST_PROXY;
     delete process.env.AXIOM_TRUST_PROXY;
