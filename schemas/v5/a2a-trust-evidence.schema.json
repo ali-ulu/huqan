@@ -1,0 +1,245 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://huqan.local/schemas/v5/a2a-trust-evidence.schema.json",
+  "title": "V5-C3 Bounded A2A Trust Evidence Envelope",
+  "description": "Evidence for comparing delegated intent with observed execution. This is NOT an agent-to-agent communication protocol: it carries no discovery, routing, capability advertisement, task lifecycle or transport. It describes a delegation that happened by some other means, what was observed of its execution, what proves that observation, and whether the observed execution stayed inside the delegation.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "envelopeId",
+    "delegation",
+    "observation",
+    "evidence",
+    "reconciliation"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "v5-a2a-trust-evidence-v1"
+    },
+    "envelopeId": { "$ref": "#/$defs/nonEmptyString" },
+    "recordedAt": {
+      "type": "string",
+      "description": "When this envelope was assembled. Informational; not a verification input."
+    },
+
+    "delegation": {
+      "type": "object",
+      "description": "Section 1 - what was authorized. Identity, scope, chain and expiry are REFERENCED from agent-identity.schema.json and deliberately not re-modelled here.",
+      "required": [
+        "sourceAgent",
+        "targetAgent",
+        "workspaceId",
+        "delegationScope",
+        "requestedAction",
+        "requestedOutput",
+        "constraints",
+        "expiresAt",
+        "delegationChain"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "sourceAgent": { "$ref": "#/$defs/agentRef" },
+        "targetAgent": { "$ref": "#/$defs/agentRef" },
+        "workspaceId": { "$ref": "#/$defs/nonEmptyString" },
+        "delegationScope": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Mirrors agent-identity delegation_scope in shape. Authoritative values come from the referenced identity, not from this envelope."
+        },
+        "requestedAction": { "$ref": "#/$defs/actionDescriptor" },
+        "requestedOutput": {
+          "type": "object",
+          "description": "What the delegator asked to receive. NEVER merge this with observation.observedOutcome: a single 'output' field is how post-execution evidence collapses back into self-report.",
+          "required": ["kind", "expectedOutcome"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "$ref": "#/$defs/nonEmptyString" },
+            "expectedOutcome": { "$ref": "#/$defs/nonEmptyString" },
+            "expectedEffectSummary": { "type": "string" }
+          }
+        },
+        "constraints": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "maxRiskTier": { "type": "string" },
+            "allowedTools": { "type": "array", "items": { "type": "string" } },
+            "allowedConnectors": { "type": "array", "items": { "type": "string" } },
+            "notes": { "type": "string" }
+          }
+        },
+        "expiresAt": {
+          "type": ["string", "null"],
+          "description": "Delegation expiry. Null means the referenced identity governs expiry."
+        },
+        "delegationChain": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Ordered agent ids from the root delegator to targetAgent inclusive."
+        }
+      }
+    },
+
+    "observation": {
+      "type": "object",
+      "description": "Section 2 - what actually happened, as observed rather than as reported by the actor being described.",
+      "required": ["observedAction", "observedOutcome", "effectSummary", "observedAt", "observedBy"],
+      "additionalProperties": false,
+      "properties": {
+        "observedAction": { "$ref": "#/$defs/actionDescriptor" },
+        "observedOutcome": {
+          "type": "object",
+          "description": "The observed result. 'unknown' is a first-class, recordable state following execution_outcome_unknown: a contradictory or missing observation must never be forced into success or failure.",
+          "required": ["status", "detail"],
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": ["observed_completed", "observed_partial", "observed_failed", "observed_not_attempted", "unknown"]
+            },
+            "detail": { "type": "string" },
+            "unknownReason": {
+              "type": "string",
+              "enum": ["contradictory_evidence", "no_observation_available", "observer_unavailable", ""],
+              "description": "Required to be non-empty exactly when status is unknown."
+            }
+          }
+        },
+        "effectSummary": {
+          "type": "string",
+          "description": "Bounded, non-identifying description of the observed effect. Raw records never appear here."
+        },
+        "observedAt": { "$ref": "#/$defs/nonEmptyString" },
+        "observedBy": {
+          "type": "object",
+          "description": "Who made the observation. Recorded because an observation made by the executing agent is weaker evidence than one made by a party it does not control; this schema records that difference rather than resolving it.",
+          "required": ["observerRef", "observerRelation"],
+          "additionalProperties": false,
+          "properties": {
+            "observerRef": { "$ref": "#/$defs/nonEmptyString" },
+            "observerRelation": {
+              "type": "string",
+              "enum": ["self_reported", "delegator_observed", "third_party_observed"]
+            }
+          }
+        }
+      }
+    },
+
+    "evidence": {
+      "type": "object",
+      "description": "Section 3 - what proves the observation. An observation without evidence binding must be structurally distinguishable from one with it.",
+      "required": ["evidenceRefs", "trustReceipt"],
+      "additionalProperties": false,
+      "properties": {
+        "evidenceRefs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hashRef" },
+          "description": "May be empty, which is exactly the missing-evidence case reconciliation must fail closed on."
+        },
+        "trustReceipt": {
+          "type": ["object", "null"],
+          "description": "Reference to the HUQAN trust receipt backing this observation. Null is the unbacked case and must fail closed.",
+          "required": ["receiptId", "receiptHash"],
+          "additionalProperties": false,
+          "properties": {
+            "receiptId": { "$ref": "#/$defs/nonEmptyString" },
+            "receiptHash": { "$ref": "#/$defs/sha256Hex" },
+            "bundleHash": { "$ref": "#/$defs/sha256Hex" }
+          }
+        }
+      }
+    },
+
+    "reconciliation": {
+      "type": "object",
+      "description": "Section 4 - did observed execution stay inside the delegation. This is the verdict of the envelope and the reason it exists.",
+      "required": [
+        "scopeMatch",
+        "requestedVsObservedMatch",
+        "delegationChainValid",
+        "withinExpiry",
+        "evidenceSufficient",
+        "verdict",
+        "reasonCodes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "scopeMatch": { "$ref": "#/$defs/checkResult" },
+        "requestedVsObservedMatch": { "$ref": "#/$defs/checkResult" },
+        "delegationChainValid": { "$ref": "#/$defs/checkResult" },
+        "withinExpiry": { "$ref": "#/$defs/checkResult" },
+        "evidenceSufficient": { "$ref": "#/$defs/checkResult" },
+        "verdict": {
+          "type": "string",
+          "enum": ["allow", "review", "block", "dry_run_only", "quarantine", "disabled"],
+          "description": "Reuses the canonical set from lib/verdict/action-verdict.js. A parallel status vocabulary is forbidden."
+        },
+        "reasonCodes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "scope_exceeded",
+              "requested_output_mismatch",
+              "observation_unknown",
+              "evidence_missing",
+              "delegation_expired",
+              "delegation_chain_broken"
+            ]
+          },
+          "minItems": 1
+        }
+      }
+    }
+  },
+
+  "$defs": {
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "sha256Hex": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "checkResult": {
+      "type": "string",
+      "enum": ["pass", "fail", "unknown"],
+      "description": "unknown is never treated as pass."
+    },
+    "agentRef": {
+      "type": "object",
+      "description": "Reference into agent-identity.schema.json. Identity, scope, chain and expiry are authoritative THERE; this envelope only points at them.",
+      "required": ["agentId", "identityRef"],
+      "additionalProperties": false,
+      "properties": {
+        "agentId": { "$ref": "#/$defs/nonEmptyString" },
+        "identityRef": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Locator for the agent-identity record ($id https://huqan.local/schemas/v5/agent-identity.schema.json)."
+        },
+        "identityHash": { "$ref": "#/$defs/sha256Hex" }
+      }
+    },
+    "actionDescriptor": {
+      "type": "object",
+      "description": "What was asked for, or what was seen. Deliberately minimal: no task lifecycle state, no routing, no capability negotiation.",
+      "required": ["capability", "target"],
+      "additionalProperties": false,
+      "properties": {
+        "capability": { "$ref": "#/$defs/nonEmptyString" },
+        "target": { "$ref": "#/$defs/nonEmptyString" },
+        "parameters": { "type": "object" }
+      }
+    },
+    "hashRef": {
+      "type": "object",
+      "required": ["ref", "hash"],
+      "additionalProperties": false,
+      "properties": {
+        "ref": { "$ref": "#/$defs/nonEmptyString" },
+        "hash": { "$ref": "#/$defs/sha256Hex" },
+        "kind": { "type": "string" }
+      }
+    }
+  }
+}

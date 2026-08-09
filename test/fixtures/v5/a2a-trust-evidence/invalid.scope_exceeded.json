@@ -1,0 +1,94 @@
+{
+  "schemaVersion": "v5-a2a-trust-evidence-v1",
+  "envelopeId": "a2a-ev-0002",
+  "recordedAt": "2026-03-01T12:00:00.000Z",
+  "delegation": {
+    "sourceAgent": {
+      "agentId": "agent-buyer-01",
+      "identityRef": "identity://agent-buyer-01",
+      "identityHash": "c8547c49e7ed2254975fd90beaed7cdd62b8173e4f7efcc81be2b5de2eee7e25"
+    },
+    "targetAgent": {
+      "agentId": "agent-supplier-07",
+      "identityRef": "identity://agent-supplier-07",
+      "identityHash": "ebf1e29303542d0867afbb0d849b138e476d375ec8f1956ca67ec1d029e8d7b1"
+    },
+    "workspaceId": "default",
+    "delegationScope": [
+      "quote.collect",
+      "quote.read"
+    ],
+    "requestedAction": {
+      "capability": "quote.collect",
+      "target": "catalog://category-x",
+      "parameters": {
+        "count": 3
+      }
+    },
+    "requestedOutput": {
+      "kind": "quote_set",
+      "expectedOutcome": "three_quotes_collected",
+      "expectedEffectSummary": "3 quote records created in workspace default"
+    },
+    "constraints": {
+      "maxRiskTier": "medium",
+      "allowedTools": [
+        "quote.collect"
+      ],
+      "allowedConnectors": [
+        "catalog"
+      ],
+      "notes": "bounded to category X"
+    },
+    "expiresAt": "2026-03-02T00:00:00.000Z",
+    "delegationChain": [
+      "agent-buyer-01",
+      "agent-supplier-07"
+    ]
+  },
+  "observation": {
+    "observedAction": {
+      "capability": "payment.execute",
+      "target": "catalog://category-x",
+      "parameters": {
+        "count": 3
+      }
+    },
+    "observedOutcome": {
+      "status": "observed_completed",
+      "detail": "executed a payment, which was never delegated",
+      "unknownReason": ""
+    },
+    "effectSummary": "3 quote records created in workspace default",
+    "observedAt": "2026-03-01T11:59:00.000Z",
+    "observedBy": {
+      "observerRef": "observer://ledger-a",
+      "observerRelation": "third_party_observed"
+    }
+  },
+  "evidence": {
+    "evidenceRefs": [
+      {
+        "ref": "evidence://quote-set-001",
+        "hash": "27c3a5dcf3b87388d0d86fff7db1ae3499a359f9e7aa05d638d8a86e819923eb",
+        "kind": "effect_record"
+      }
+    ],
+    "trustReceipt": {
+      "receiptId": "rcpt-a2a-0001",
+      "receiptHash": "8e192908375b68f8566fe14f968fe926e5ff94d8db557024547b55e7613d7947",
+      "bundleHash": "007dafea5c8624d711ac5f4f5ed218add1fca1c50d751203a512d409c2367ef8"
+    }
+  },
+  "reconciliation": {
+    "scopeMatch": "fail",
+    "requestedVsObservedMatch": "fail",
+    "delegationChainValid": "pass",
+    "withinExpiry": "pass",
+    "evidenceSufficient": "pass",
+    "verdict": "block",
+    "reasonCodes": [
+      "scope_exceeded"
+    ]
+  }
+}
