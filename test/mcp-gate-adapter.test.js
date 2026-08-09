@@ -206,6 +206,16 @@ test('evaluateMcpGate: axiom.learn no args → review', () => {
   assert.equal(r.decision, MCP_GATE_DECISIONS.review);
 });
 
+test('evaluateMcpGate: AB4 derives a destructive action from learn args', () => {
+  const r = evaluateMcpGate({
+    tool: 'axiom.learn',
+    args: { text: 'obsolete fact', action: 'delete' },
+  });
+  assert.equal(r.decision, MCP_GATE_DECISIONS.block);
+  const ab4 = r.findings.find(f => f.gate === 'AB4');
+  assert.equal(ab4.action, 'delete');
+});
+
 // ─── evaluateMcpGate: axiom.agent (dry_run_only) ─────────────────────────────
 
 test('evaluateMcpGate: axiom.agent → dry_run_only', () => {
@@ -385,6 +395,19 @@ test('evaluateMcpGate: AB11 blocks a cross-workspace learn before it can mutate'
   assert.equal(r.decision, MCP_GATE_DECISIONS.block);
   assert.equal(r.allowed, false);
   assert.equal(r.canExecute, false);
+});
+
+test('evaluateMcpGate: AB11 uses the learn tool action without inventing a grant', () => {
+  const r = evaluateMcpGate({
+    tool: 'axiom.learn',
+    args: { text: 'kedi hayvandir', workspaceId: 'ws-b' },
+    metadata: { workspaceId: 'ws-a' },
+  });
+  assert.equal(r.decision, MCP_GATE_DECISIONS.block);
+  assert.equal(r.reason, MCP_GATE_REASONS.AB11_CROSS_WORKSPACE_BLOCKED);
+  const ab11 = r.findings.find(f => f.gate === 'AB11');
+  assert.equal(ab11.reason, 'cross_workspace_denied');
+  assert.equal(ab11.crossWorkspace, true);
 });
 
 // ─── #358: gates must fail closed, not fail open, on a thrown error ──────────

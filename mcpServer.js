@@ -24,6 +24,11 @@ function sanitizeMcpString(val, maxLen = MCP_MAX_SHORT) {
   return val.slice(0, maxLen).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim();
 }
 
+function boundedMcpInteger(value, fallback, minimum, maximum) {
+  const integer = Number.isInteger(value) ? value : fallback;
+  return Math.min(Math.max(minimum, integer), maximum);
+}
+
 function sanitizeMcpApprovalDecision(value) {
   const decision = sanitizeMcpString(value, 16).toLowerCase();
   if (decision === 'approve') return 'approved';
@@ -1194,7 +1199,7 @@ function callTool(kernel, params = {}, runtime = {}) {
     case 'axiom.plan':
       return withTransientAgent(kernel, (agent) => withMcpToolVerdictSurface(
         agent.plan(sanitizeMcpString(args.goal, MCP_MAX_GOAL), {
-          maxSteps: Math.min(Math.max(1, Number(args.maxSteps) || 10), 50),
+          maxSteps: boundedMcpInteger(args.maxSteps, 4, 1, 8),
         }),
         name,
         args,
@@ -1203,7 +1208,7 @@ function callTool(kernel, params = {}, runtime = {}) {
     case 'axiom.agent':
       return withTransientAgent(kernel, (agent) => withMcpToolVerdictSurface(
         agent.run(sanitizeMcpString(args.goal, MCP_MAX_GOAL), {
-          maxSteps: Math.min(Math.max(1, Number(args.maxSteps) || 10), 50),
+          maxSteps: boundedMcpInteger(args.maxSteps, 4, 1, 8),
         }),
         name,
         args,
@@ -1222,18 +1227,24 @@ function callTool(kernel, params = {}, runtime = {}) {
       ));
     case 'axiom.approvals':
       const approvalStore = runtime.approvalStore || createApprovalStoreFromKernel(kernel, runtime);
-      const storedApprovals = listPersistentApprovals(approvalStore, args.limit || 50);
+      const approvalLimit = boundedMcpInteger(args.limit, 50, 1, 50);
+      const storedApprovals = listPersistentApprovals(approvalStore, approvalLimit);
       return withMcpToolVerdictSurface({
         pendingCount: countPersistentApprovals(approvalStore),
         unresolvedCount: countUnresolvedApprovals(approvalStore),
-        approvals: storedApprovals.slice(0, args.limit || 50),
+        approvals: storedApprovals.slice(0, approvalLimit),
       }, name, args, gate);
     case 'axiom.reason':
-      return withMcpToolVerdictSurface(kernel.reason(args.subject), name, args, gate);
+      return withMcpToolVerdictSurface(kernel.reason(sanitizeMcpString(args.subject)), name, args, gate);
     case 'axiom.compare':
-      return withMcpToolVerdictSurface(kernel.compare(args.left, args.right), name, args, gate);
+      return withMcpToolVerdictSurface(kernel.compare(
+        sanitizeMcpString(args.left),
+        sanitizeMcpString(args.right),
+      ), name, args, gate);
     case 'axiom.dream':
-      return withMcpToolVerdictSurface(kernel.dream({ depth: args.depth }), name, args, gate);
+      return withMcpToolVerdictSurface(kernel.dream({
+        depth: boundedMcpInteger(args.depth, 2, 1, 5),
+      }), name, args, gate);
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -1246,7 +1257,9 @@ function executeReadOnlyDryRun(kernel, name, args) {
     case 'axiom.agent':
       return withTransientAgent(kernel, (agent) => (
         agent.plan
-          ? agent.plan(args.goal || '', { maxSteps: args.maxSteps || 1 })
+          ? agent.plan(sanitizeMcpString(args.goal, MCP_MAX_GOAL), {
+            maxSteps: boundedMcpInteger(args.maxSteps, 1, 1, 8),
+          })
           : { dryRun: true, goal: args.goal }
       ));
     default:
