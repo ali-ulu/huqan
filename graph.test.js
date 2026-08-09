@@ -696,6 +696,49 @@ describe('Graph - embedding survival across save failure and rollback (#369)', {
     assert.ok(!persisted.nodes[storageKey].embedding, 'embeddings belong in the sidecar file, not memory.json');
   }));
 
+  // #609: the sidecar is part of the saved state, so every save() has to bring
+  // it to the current truth -- including the truth "there are none left".
+  it('does not resurrect a deleted embedding from a stale sidecar on reload', () => withTempRoot(root => {
+    const memoryPath = path.join(root, 'memory.json');
+    const graph = new Graph({ memoryPath, useSQLite: false });
+    graph.addNode('kedi', 'hayvan');
+    const [storageKey] = Object.keys(graph._nodes);
+    graph._assignEmbedding(storageKey, new Float64Array([9, 9]));
+    graph.save();
+
+    delete graph._nodes[storageKey].embedding;
+    graph.save();
+
+    const reloaded = new Graph({ memoryPath, useSQLite: false });
+    reloaded.load();
+    assert.ok(
+      !reloaded._nodes[storageKey].embedding,
+      'a deleted embedding must stay deleted; the stale sidecar used to bring it back',
+    );
+  }));
+
+  it('clears the sidecar when prune() removes the last embedded node (#609)', () => withTempRoot(root => {
+    const memoryPath = path.join(root, 'memory.json');
+    const graph = new Graph({ memoryPath, useSQLite: false, pruneThreshold: 0.9 });
+    graph.addNode('kedi', 'hayvan');
+    const [storageKey] = Object.keys(graph._nodes);
+    graph._assignEmbedding(storageKey, new Float64Array([9, 9]));
+    graph.save();
+    assert.deepStrictEqual(
+      JSON.parse(fs.readFileSync(path.join(root, 'memory.embeddings.json'), 'utf-8')),
+      { [storageKey]: [9, 9] },
+    );
+
+    delete graph._nodes[storageKey];
+    graph.save();
+
+    assert.deepStrictEqual(
+      JSON.parse(fs.readFileSync(path.join(root, 'memory.embeddings.json'), 'utf-8')),
+      {},
+      'the sidecar must be emptied, not left holding the removed node',
+    );
+  }));
+
   it('rolls a failed mutation back to a real Float64Array, not a JSON-shaped object', () => withTempRoot(root => {
     const graph = new Graph({ memoryPath: path.join(root, 'memory.json'), useSQLite: false });
     graph.addNode('kedi', 'hayvan');
