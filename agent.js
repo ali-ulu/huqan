@@ -149,12 +149,17 @@ class Agent {
 
   _loadMemory() {
     if (!this.memoryPath) return defaultMemoryState();
+    if (!fs.existsSync(this.memoryPath)) return defaultMemoryState();
+    const serialized = fs.readFileSync(this.memoryPath, 'utf8');
     try {
-      if (!fs.existsSync(this.memoryPath)) return defaultMemoryState();
-      const parsed = JSON.parse(fs.readFileSync(this.memoryPath, 'utf8'));
+      const parsed = JSON.parse(serialized);
       return this._normalizeMemory(parsed);
-    } catch (_) {
-      return defaultMemoryState();
+    } catch (error) {
+      const backupPath = `${this.memoryPath}.corrupt-${crypto.randomUUID()}`;
+      fs.renameSync(this.memoryPath, backupPath);
+      const corruptError = new Error(`Agent memory is corrupt; original moved to ${backupPath}`);
+      corruptError.cause = error;
+      throw corruptError;
     }
   }
 
@@ -177,11 +182,17 @@ class Agent {
 
   _saveMemory() {
     if (!this.memoryPath) return;
+    let tempPath;
     try {
       const dir = path.dirname(this.memoryPath);
       if (dir && dir !== '.') fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(this.memoryPath, JSON.stringify(this.memory, null, 2));
+      tempPath = path.join(dir, `.${path.basename(this.memoryPath)}.${process.pid}.${crypto.randomUUID()}.tmp`);
+      fs.writeFileSync(tempPath, JSON.stringify(this.memory, null, 2));
+      fs.renameSync(tempPath, this.memoryPath);
     } catch (_) {
+      if (tempPath) {
+        try { fs.unlinkSync(tempPath); } catch (_) { /* best-effort cleanup */ }
+      }
       // Memory persistence is best-effort only.
     }
   }
