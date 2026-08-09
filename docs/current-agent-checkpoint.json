@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "repository": "ali-ulu/huqan",
   "baselineBranch": "main",
-  "canonicalMain": "0a1cc37011679e138e55a79ec47e2ebbd7503c14",
+  "canonicalMain": "0fef5948f644e611baa8b725f018249662bcdb5d",
   "worktreePolicy": "REPORT_ONLY",
-  "observedAt": "2026-08-09T03:44:00+03:00",
+  "observedAt": "2026-08-09T22:00:00+03:00",
   "program": "V4 Workbench runtime-evidence closeout / V5 ecosystem entry boundary",
   "completedEvidence": [
     "V4-B1 is closed PASS with authenticated real-server and SQLite Workbench read evidence; Notion candidate 262d357ef37a6d189dc29b1f255c90b7c6ccc745 / PR #264",
@@ -17,7 +17,15 @@
     "The V4-B5 closeout artifact docs/v4-b5-source-test-ci-release-closeout.md records V4_B5_SOURCE_TEST_CI_RELEASE_CLOSEOUT: PASS against canonical main 0a1cc37011679e138e55a79ec47e2ebbd7503c14",
     "Between the last V4 runtime merge 75821f6dd4fa2f0efb0fc8669acb9c733954e5c0 and closeout base 0a1cc37011679e138e55a79ec47e2ebbd7503c14 only docs/adr/ADR-010-v5-ecosystem-entry.md and docs/v5/README.md changed, so the exact green runtime/test/package tree remains controlling",
     "Package/release smoke is source-backed by test/kernel-facade-contract.test.js: npm pack, clean temporary consumer install, retained deep imports, installed CLI --help, better-sqlite3 dependency resolution and installed server require are part of the full npm test suite that passed at PR #588 exact head",
-    "ADR-010 records V5_IMPLEMENTATION_ENTRY: FAIL; closing V4-B5 removes only the V4 closeout blocker and does not satisfy external interoperability/conformance"
+    "ADR-010 records V5_IMPLEMENTATION_ENTRY: FAIL; closing V4-B5 removes only the V4 closeout blocker and does not satisfy external interoperability/conformance",
+    "V5-C2 (#274) was reframed by a source-backed naming-value audit: ATP appears 137 times against AXIOM 461 and axiom 2255, and the user-visible mismatch is AXIOM against an npm package already named huqan (29 AXIOM_* env vars, .axiom suffix, packages/axiom-verify, specs/axiom-*). An ATP to HTP rename resolves none of that surface",
+    "The falsification question for a technical rename was answered empirically: the clean-room Python verifier implemented RECEIPT-BUNDLE.md and agreed with the producer without ever needing the protocol name, because no wire field carries one. A technical rename buys nothing on the wire",
+    "RFC-001 fixes HUQAN as the canonical product, protocol and namespace identity; HTP as exactly the abbreviation of HUQAN Trust Protocol and not a successor protocol; ATP 0.1 as a frozen valid legacy lineage; and receipt/bundle schemaVersion values as never changing",
+    "The package wire format is deliberately excluded from V5-C2 because it carries the product name in required manifest fields: format \"axiom-package\", createdBy \"axiom\" and atpVersion \"0.1\", with format, formatVersion and atpVersion all listed in axiom-manifest.schema.json required. Emitting huqan-package would be a wire-format migration, which #274 forbids",
+    "Migration is split into four separately gated units M1 environment variables, M2 verifier package, M3 spec paths, M4 package format, each carrying its own backward-compatibility evidence rather than one rename PR",
+    "Environment variable precedence is fail-closed: HUQAN_X wins, AXIOM_X alone is accepted as compatibility, and both set with different values refuses startup with no silent precedence; the migration guide must state that consequence and never print either value",
+    "Legacy identifiers cannot be removed in a minor or patch release: removal requires an announced breaking release, a published migration guide, and reader support verified against retained fixtures of the old formats",
+    "RFC-001 is contract only. No runtime change, no rename, no wire-format change, no formatVersion reserved, and no migration gate authorized or scheduled by it"
   ],
   "nextGate": "V5_EXTERNAL_INTEROPERABILITY_CONFORMANCE_ENTRY",
   "status": "V4_B5_CLOSEOUT_PASS__V5_IMPLEMENTATION_ENTRY_FAIL",
@@ -31,7 +39,7 @@
     "public-safe receipt exchange complete",
     "GitHub App or Streaming Trust production-ready",
     "Certified Node, TrustBench, public badge, reputation economy or marketplace live",
-    "ATP renamed or migrated to HTP",
+    "HTP is a separate successor protocol to ATP, or HUQAN/AXIOM/ATP/HTP are four current identities. HUQAN Trust Protocol is the canonical current name and HTP is only its abbreviation; ATP 0.1 and AXIOM identifiers are legacy compatibility identifiers until explicitly migrated, and existing ATP receipts and AXIOM package artifacts remain valid",
     "non-default HTTP workspace authority supported",
     "registry publication or deployment proven by package-install smoke"
   ],
@@ -43,7 +51,8 @@
     "The exact runtime CI of record is PR #588 head 5452a7680a2b3e96e5a288c928c64669cbe57cc9 because all later source changes through the closeout base are documentation-only.",
     "Local bootstrap, node scripts/agent-context.js, local worktree checks and Graphify regeneration remain unverified in the connector-only environment and are not claimed.",
     "V5 implementation entry remains FAIL until a successor audit has source-backed real external consumer/verifier conformance evidence including invalid/tampered fail-closed cases; issue #277 is the current external conformance blocker.",
-    "V5 planning/spec work may continue only within its own accepted gates; this checkpoint does not authorize runtime ecosystem implementation."
+    "V5 planning/spec work may continue only within its own accepted gates; this checkpoint does not authorize runtime ecosystem implementation.",
+    "V5-C2 is answered by docs/rfcs/RFC-001-huqan-canonical-naming-and-legacy-compatibility.md. It fixes naming and compatibility contract only; the AXIOM to HUQAN wire/package migration is separate gated work and none of it is authorized yet."
   ],
   "authorizationArtifact": "docs/v4-b5-source-test-ci-release-closeout.md"
 }
