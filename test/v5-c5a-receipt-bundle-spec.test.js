@@ -1,0 +1,299 @@
+'use strict';
+
+/**
+ * V5-C5A — the published receipt bundle specification must match the shipped
+ * fixtures.
+ *
+ * Everything below is implemented from `specs/axiom-trust-protocol/0.1/
+ * RECEIPT-BUNDLE.md` alone. This file deliberately imports nothing from `lib/`:
+ * if it reused the producer's serializer or hasher it would prove only that the
+ * code agrees with itself, which is exactly the gap the V5-C5 entry audit
+ * recorded.
+ *
+ * This is still a self-test — same repository, same author, same language. Its
+ * job is to keep the document honest, not to stand in for an independent
+ * implementation.
+ */
+
+const crypto = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
+const { describe, it } = require('node:test');
+const assert = require('node:assert/strict');
+
+const SPEC_DIR = path.join(__dirname, '..', 'specs', 'axiom-trust-protocol', '0.1');
+const EXAMPLES = path.join(SPEC_DIR, 'examples');
+const GENESIS = 'genesis:v4-receipt-chain';
+
+function readJson(...parts) {
+  return JSON.parse(fs.readFileSync(path.join(...parts), 'utf8'));
+}
+
+// --- primitives, per the "Primitives" section of RECEIPT-BUNDLE.md ----------
+
+/** Sort object keys ascending at every depth; never reorder arrays. */
+function canonicalize(value) {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const key of Object.keys(value).sort()) out[key] = canonicalize(value[key]);
+    return out;
+  }
+  return value;
+}
+
+/** RFC 8259 JSON, no insignificant whitespace, keys sorted recursively. */
+function canonicalJson(value) {
+  return JSON.stringify(canonicalize(value));
+}
+
+/** SHA-256 over UTF-8 bytes, lowercase hex. */
+function sha256Hex(text) {
+  return crypto.createHash('sha256').update(text, 'utf8').digest('hex');
+}
+
+// --- verification algorithm, per the "Verification algorithm" section -------
+
+function expectedEnvelopeVersion(receipts) {
+  return receipts.some((r) => r?.schemaVersion === 'v4-receipt-v2')
+    ? 'v4-receipt-bundle-v2'
+    : 'v4-receipt-bundle-v1';
+}
+
+function checkBundleSeal(bundle) {
+  return sha256Hex(canonicalJson(bundle.receipts)) === bundle.bundleHash;
+}
+
+function validateChain(receipts) {
+  for (let i = 0; i < receipts.length; i += 1) {
+    const record = receipts[i];
+    if (!record || typeof record !== 'object'
+      || !record.receiptHash || !record.previousReceiptHash) {
+      return { valid: false, brokenAt: i, reason: 'content_tampered' };
+    }
+    const { receiptHash, ...rest } = record;
+    if (sha256Hex(canonicalJson(rest)) !== receiptHash) {
+      return { valid: false, brokenAt: i, reason: 'content_tampered' };
+    }
+    if (i === 0) {
+      if (record.previousReceiptHash !== GENESIS) {
+        return { valid: false, brokenAt: i, reason: 'genesis_mismatch' };
+      }
+    } else if (record.previousReceiptHash !== receipts[i - 1].receiptHash) {
+      return { valid: false, brokenAt: i, reason: 'chain_link_broken' };
+    }
+  }
+  return { valid: true, brokenAt: null, reason: null };
+}
+
+// --- a JSON Schema subset sufficient for the shipped schema ----------------
+// No validator dependency is added: the pack forbids one. This covers exactly
+// the keywords the bundle schema uses.
+
+function validateAgainstSchema(value, schema, root, at = '') {
+  const errors = [];
+  if (schema.$ref) {
+    const target = schema.$ref.replace(/^#\//, '').split('/')
+      .reduce((node, key) => node[key], root);
+    return validateAgainstSchema(value, target, root, at);
+  }
+  const type = schema.type;
+  const typeOk = type === undefined
+    || (type === 'object' && value && typeof value === 'object' && !Array.isArray(value))
+    || (type === 'array' && Array.isArray(value))
+    || (type === 'string' && typeof value === 'string')
+    || (type === 'number' && typeof value === 'number')
+    || (type === 'integer' && Number.isInteger(value));
+  if (!typeOk) return [`${at || '<root>'}: expected ${type}`];
+
+  if (type === 'string') {
+    if (schema.minLength !== undefined && value.length < schema.minLength) {
+      errors.push(`${at}: shorter than minLength ${schema.minLength}`);
+    }
+    if (schema.pattern && !new RegExp(schema.pattern).test(value)) {
+      errors.push(`${at}: does not match ${schema.pattern}`);
+    }
+    if (schema.enum && !schema.enum.includes(value)) {
+      errors.push(`${at}: ${JSON.stringify(value)} not in enum`);
+    }
+  }
+  if (type === 'integer' && schema.minimum !== undefined && value < schema.minimum) {
+    errors.push(`${at}: below minimum ${schema.minimum}`);
+  }
+  if (type === 'array' && schema.items) {
+    value.forEach((item, i) => {
+      errors.push(...validateAgainstSchema(item, schema.items, root, `${at}[${i}]`));
+    });
+  }
+  if (type === 'object') {
+    for (const required of schema.required || []) {
+      if (!Object.prototype.hasOwnProperty.call(value, required)) {
+        errors.push(`${at}: missing required "${required}"`);
+      }
+    }
+    if (schema.additionalProperties === false && schema.properties) {
+      for (const key of Object.keys(value)) {
+        if (!Object.prototype.hasOwnProperty.call(schema.properties, key)) {
+          errors.push(`${at}: unexpected property "${key}"`);
+        }
+      }
+    }
+    for (const [key, sub] of Object.entries(schema.properties || {})) {
+      if (Object.prototype.hasOwnProperty.call(value, key)) {
+        errors.push(...validateAgainstSchema(value[key], sub, root, at ? `${at}.${key}` : key));
+      }
+    }
+  }
+  return errors;
+}
+
+// --- tests -----------------------------------------------------------------
+
+const schema = readJson(SPEC_DIR, 'schemas', 'trust-receipt-bundle.schema.json');
+const valid = readJson(EXAMPLES, 'receipt-bundle.valid.json');
+const tamperedHash = readJson(EXAMPLES, 'receipt-bundle.tampered-bundle-hash.json');
+const brokenChain = readJson(EXAMPLES, 'receipt-bundle.broken-chain.json');
+
+describe('V5-C5A: the published spec reproduces the shipped fixtures', () => {
+  it('all three fixtures match the published schema', () => {
+    for (const [name, bundle] of Object.entries({ valid, tamperedHash, brokenChain })) {
+      assert.deepEqual(validateAgainstSchema(bundle, schema, schema), [],
+        `${name} must satisfy trust-receipt-bundle.schema.json`);
+    }
+  });
+
+  it('the documented algorithm reproduces the recorded bundleHash', () => {
+    assert.equal(sha256Hex(canonicalJson(valid.receipts)), valid.bundleHash);
+  });
+
+  it('the documented algorithm reproduces every recorded receiptHash', () => {
+    for (const [i, record] of valid.receipts.entries()) {
+      const { receiptHash, ...rest } = record;
+      assert.equal(sha256Hex(canonicalJson(rest)), receiptHash,
+        `receipts[${i}] hash must recompute from its own content`);
+    }
+  });
+
+  it('the valid fixture passes all three verification checks', () => {
+    assert.equal(checkBundleSeal(valid), true, 'bundle seal');
+    assert.equal(valid.schemaVersion, expectedEnvelopeVersion(valid.receipts), 'envelope version');
+    assert.deepEqual(validateChain(valid.receipts), { valid: true, brokenAt: null, reason: null });
+    assert.equal(valid.receiptCount, valid.receipts.length);
+  });
+
+  it('the chain links genesis through every record in order', () => {
+    assert.equal(valid.receipts[0].previousReceiptHash, GENESIS);
+    for (let i = 1; i < valid.receipts.length; i += 1) {
+      assert.equal(valid.receipts[i].previousReceiptHash, valid.receipts[i - 1].receiptHash);
+    }
+  });
+
+  it('exportedAt is outside the seal, so re-exporting does not change bundleHash', () => {
+    const later = { ...valid, exportedAt: '2030-06-01T12:00:00.000Z' };
+    assert.equal(sha256Hex(canonicalJson(later.receipts)), valid.bundleHash);
+  });
+
+  it('an empty bundle is verifiable rather than an error', () => {
+    const receipts = [];
+    assert.equal(sha256Hex(canonicalJson(receipts)), sha256Hex('[]'));
+    assert.deepEqual(validateChain(receipts), { valid: true, brokenAt: null, reason: null });
+  });
+});
+
+describe('V5-C5A: each negative fixture fails exactly the rule it targets', () => {
+  it('tampered-bundle-hash differs from valid by one leaf', () => {
+    assert.deepEqual(differingLeaves(valid, tamperedHash), ['bundleHash']);
+  });
+
+  it('tampered-bundle-hash fails the bundle seal while the chain still validates', () => {
+    assert.equal(checkBundleSeal(tamperedHash), false);
+    assert.deepEqual(validateChain(tamperedHash.receipts),
+      { valid: true, brokenAt: null, reason: null });
+  });
+
+  it('broken-chain differs from valid by one leaf', () => {
+    assert.deepEqual(differingLeaves(valid, brokenChain), ['receipts.1.decision']);
+  });
+
+  it('broken-chain fails chain self-consistency at index 1, and the seal as a consequence', () => {
+    assert.deepEqual(validateChain(brokenChain.receipts),
+      { valid: false, brokenAt: 1, reason: 'content_tampered' });
+    assert.equal(checkBundleSeal(brokenChain), false,
+      'the seal covers the receipts array, so content tampering breaks it too');
+  });
+
+  it('a repaired receipt hash still breaks the following link', () => {
+    // Why one mutation cannot be patched away: fixing the tampered record's own
+    // hash invalidates the link its successor already committed to.
+    const repaired = JSON.parse(JSON.stringify(brokenChain));
+    const { receiptHash: _drop, ...rest } = repaired.receipts[1];
+    repaired.receipts[1].receiptHash = sha256Hex(canonicalJson(rest));
+    assert.deepEqual(validateChain(repaired.receipts),
+      { valid: false, brokenAt: 2, reason: 'chain_link_broken' });
+  });
+
+  it('a genesis marker replacement is detected', () => {
+    const forged = JSON.parse(JSON.stringify(valid));
+    forged.receipts[0].previousReceiptHash = 'genesis:something-else';
+    assert.deepEqual(validateChain(forged.receipts),
+      { valid: false, brokenAt: 0, reason: 'content_tampered' });
+  });
+});
+
+describe('V5-C5A: the specification is distributed', () => {
+  it('package files ship every ATP 0.1 spec file an external verifier needs', () => {
+    const pkg = readJson(__dirname, '..', 'package.json');
+    for (const entry of [
+      'specs/axiom-trust-protocol/0.1/RECEIPT-BUNDLE.md',
+      'specs/axiom-trust-protocol/0.1/schemas/trust-receipt-bundle.schema.json',
+      'specs/axiom-trust-protocol/0.1/examples/receipt-bundle.valid.json',
+      'specs/axiom-trust-protocol/0.1/examples/receipt-bundle.tampered-bundle-hash.json',
+      'specs/axiom-trust-protocol/0.1/examples/receipt-bundle.broken-chain.json',
+      'specs/axiom-trust-protocol/0.1/conformance/README.md',
+    ]) {
+      assert.ok(pkg.files.includes(entry), `package files must include ${entry}`);
+    }
+  });
+
+  it('the allowlist stays literal, since the facade contract checks each entry on disk', () => {
+    const pkg = readJson(__dirname, '..', 'package.json');
+    assert.deepEqual(pkg.files.filter((entry) => entry.includes('*')), []);
+  });
+
+  it('shipping the spec does not smuggle in the deliberately unshipped top-level schemas/', () => {
+    // The bundle schema lives under specs/, so specs/** carries it. The
+    // top-level schemas/ tree is V5 agent-identity and verdict material that
+    // test/kernel-facade-contract.test.js forbids from the package, alongside
+    // lib/v5/. Distributing the bundle spec must not quietly reverse that.
+    const pkg = readJson(__dirname, '..', 'package.json');
+    assert.equal(pkg.files.some((entry) => entry.startsWith('schemas/')), false);
+    assert.ok(fs.existsSync(path.join(SPEC_DIR, 'schemas', 'trust-receipt-bundle.schema.json')));
+  });
+
+  it('the spec documents the algorithm without sending readers to lib/', () => {
+    const spec = fs.readFileSync(path.join(SPEC_DIR, 'RECEIPT-BUNDLE.md'), 'utf8');
+    for (const needed of ['canonicalJson', 'sha256Hex', GENESIS, 'bundleHash', 'previousReceiptHash']) {
+      assert.ok(spec.includes(needed), `RECEIPT-BUNDLE.md must define ${needed}`);
+    }
+    assert.doesNotMatch(spec, /read\s+`?lib\//i,
+      'the spec must not instruct readers to consult the implementation');
+  });
+});
+
+/** Paths of JSON leaves whose values differ between two documents. */
+function differingLeaves(a, b) {
+  const flatten = (value, prefix = '', acc = {}) => {
+    if (value && typeof value === 'object') {
+      for (const key of Object.keys(value)) {
+        flatten(value[key], prefix ? `${prefix}.${key}` : key, acc);
+      }
+    } else {
+      acc[prefix] = value;
+    }
+    return acc;
+  };
+  const left = flatten(a);
+  const right = flatten(b);
+  return [...new Set([...Object.keys(left), ...Object.keys(right)])]
+    .filter((key) => left[key] !== right[key]);
+}
