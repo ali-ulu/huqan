@@ -1025,7 +1025,7 @@ describe('Server - Public API Allowlist Lockdown', () => {
 
   it('fallback queries (hello, hi, ?) preserve existing behavior (200 + Anlamadım)', async () => {
     rateLimitMap.clear();
-    const fallbackQueries = ['hello', 'hi', 'selamlar', '?', 'h', 'sor', 'neden', 'kim', 'ne', 'yardim', 'nasil', 'nicin'];
+    const fallbackQueries = ['hello', 'hi', 'selamlar', 'unknown multi word text', '?', 'h', 'sor', 'neden', 'kim', 'ne', 'yardim', 'nasil', 'nicin'];
     for (const query of fallbackQueries) {
       const r = await request(`${BASE}/api?q=${encodeURIComponent(query)}`);
       assert.strictEqual(r.status, 200, `Expected 200 for fallback query: ${query}`);
