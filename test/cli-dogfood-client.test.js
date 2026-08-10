@@ -44,7 +44,7 @@ test('cli.js dogfood client routes öğret through the review gate as a real chi
     AXIOM_MEMORY_PATH: path.join(tempDir, 'memory.json'),
   };
   try {
-    const learnResult = runCli(['öğret', 'köpek dogfood-sentinel hayvandır'], env);
+    const learnResult = runCli(['learn:', 'kopek dogfood-sentinel hayvandir'], env);
     // Unapproved learn commands are review-gated (exit code 3) exactly like
     // the MCP dogfood harness's axiom.learn review-path assertion -- cli.js
     // is a real out-of-process client subject to the same trust boundary,
@@ -52,7 +52,7 @@ test('cli.js dogfood client routes öğret through the review gate as a real chi
     assert.equal(learnResult.status, 3);
     assert.match(learnResult.stdout, /review gerektiriyor/);
 
-    const askAfter = runCli(['sor', 'köpek nedir'], env);
+    const askAfter = runCli(['sor', 'kopek nedir'], env);
     assert.equal(askAfter.status, 0);
     assert.doesNotMatch(askAfter.stdout, /dogfood-sentinel/);
   } finally {
