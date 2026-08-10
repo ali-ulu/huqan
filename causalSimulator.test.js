@@ -282,7 +282,7 @@ it('simulateChange sonucu traversal dahil JSON-serializable (#401)', () => {
     assert.deepStrictEqual(result.evidence, ['a-b']);
   });
 
-  it('simulateChange preserves direct reads around the existing traversal touches', () => {
+  it('simulateChange keeps direct reads pure during traversal', () => {
     const graph = buildBranchingGraph();
     const simulator = new CausalSimulator(graph);
     graph._nodes.A.lastAccessed = 101;
@@ -312,9 +312,9 @@ it('simulateChange sonucu traversal dahil JSON-serializable (#401)', () => {
         ['A', 'default'],
         ['A', 'default'],
       ]);
-      assert.ok(graph._nodes.A.lastAccessed > 101);
+      assert.strictEqual(graph._nodes.A.lastAccessed, 101);
       assert.strictEqual(graph._nodes.B.lastAccessed, 102);
-      assert.strictEqual(touchCalls, 2);
+      assert.strictEqual(touchCalls, 0);
     } finally {
       graph.getNode = originalGetNode;
       graph._db = previousDb;

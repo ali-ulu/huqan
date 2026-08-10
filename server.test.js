@@ -366,7 +366,6 @@ describe('Server - API', () => {
       provenance: {
         sourceType: 'upload',
         sourceRef: 'test:nested-approval',
-        actor: 'rest-review-actor',
         workspaceId: 'rest-review-workspace',
         approvalRequired: false,
         approvalStatus: 'approved',
@@ -376,7 +375,7 @@ describe('Server - API', () => {
       },
     });
     assert.strictEqual(body.admission.workspaceId, 'rest-review-workspace');
-    assert.strictEqual(body.admission.receipt.actor, 'rest-review-actor');
+    assert.strictEqual(body.admission.receipt.actor, 'http-api');
     assert.strictEqual(body.admission.receipt.approvalId, '');
   });
 
@@ -609,7 +608,7 @@ describe('Server - API', () => {
     assert.strictEqual(provenanceJson.ok, false);
     assert.strictEqual(provenanceJson.error.code, 'INVALID_QUERY');
 
-    const trustRes = await request(`${BASE}/api/trust-receipt`);
+    const trustRes = await request(`${BASE}/api/trust-receipt?workspaceId=default`);
     assert.strictEqual(trustRes.status, 400);
     const trustJson = await trustRes.json();
     assert.strictEqual(trustJson.ok, false);

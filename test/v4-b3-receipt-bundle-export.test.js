@@ -132,7 +132,10 @@ after(async () => {
   if (httpServer && httpServer.listening) {
     await new Promise((resolve) => httpServer.close(resolve));
   }
-  fs.rmSync(tempDir, { recursive: true, force: true });
+  if (httpServer && typeof httpServer.closeAxiom === 'function') {
+    httpServer.closeAxiom();
+  }
+  fs.rmSync(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 });
 
 describe('V4-B3: receipt bundle export — route declaration', () => {

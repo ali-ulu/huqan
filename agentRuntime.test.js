@@ -45,7 +45,11 @@ describe('agentRuntime', () => {
   });
 
   it('selects workflow runtime when requested', async () => {
-    const agent = createAgent({ kernel: createKernel(), runtime: 'workflow' });
+    const agent = createAgent({
+      kernel: createKernel(),
+      runtime: 'workflow',
+      runCapabilityPolicy: ({ name }) => name === 'demo',
+    });
 
     assert.strictEqual(agent.kind, 'workflow');
     assert.ok(Array.isArray(agent.listTools()));
