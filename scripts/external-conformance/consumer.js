@@ -1,56 +1,52 @@
 #!/usr/bin/env node
 'use strict';
 
-/**
- * External conformance consumer for HUQAN trust objects.
- *
- * This file is executed inside a throwaway npm project that has exactly one
- * dependency: a tarball built by `npm pack` from this repository. It has no
- * access to the repository working tree, to `test/`, to `schemas/`, or to any
- * dev dependency. Every path it touches is under `node_modules/huqan/`.
- *
- * That restriction is the whole point. It answers one question: is the
- * published package, on its own, enough to validate a HUQAN trust object? If
- * validation needs anything the tarball does not carry, this script fails, and
- * that failure is the finding.
- *
- * Evidence level: this is *packaged-surface conformance* -- level 2 of the four
- * levels named in specs/axiom-trust-protocol/0.1/conformance/README.md. It is
- * not third-party verification and not interoperability. The consumer is
- * written by the same authors as the producer; what it establishes is that the
- * shipped artifact is self-sufficient, not that an unrelated party succeeded
- * with it.
- *
- * Output is a JSON report on stdout. Exit status is 0 when every case passes,
- * 1 otherwise. Recorded gaps do not fail the run -- they are observations, and
- * the run asserts they are still true.
- */
-
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const crypto = require('node:crypto');
 
 const PKG_ROOT = path.dirname(require.resolve('huqan/package.json'));
 const SPEC_ROOT = path.join(PKG_ROOT, 'specs', 'axiom-trust-protocol', '0.1');
 const EXAMPLES = path.join(SPEC_ROOT, 'examples');
 const GENESIS = 'genesis:v4-receipt-chain';
 
+const EVIDENCE_LEVELS = Object.freeze({
+  surface: 'packaged-surface-smoke',
+  objects: 'self-test',
+  'fail-closed': 'self-test',
+  bundles: 'cross-implementation-conformance',
+  gaps: 'blocked-gap',
+});
+
 const cases = [];
 
-function record(group, name, ok, detail) {
-  cases.push({ group, name, ok, detail });
+function record(group, name, status, detail = '') {
+  cases.push({
+    group,
+    name,
+    status,
+    ok: status === 'pass',
+    evidenceLevel: EVIDENCE_LEVELS[group],
+    detail,
+  });
+}
+
+function skipped(detail) {
+  return { skipped: true, detail };
 }
 
 function check(group, name, fn) {
-  let ok = false;
-  let detail = '';
   try {
-    detail = fn() || '';
-    ok = true;
+    const result = fn();
+    if (result && result.skipped === true) {
+      record(group, name, 'skip', result.detail || '');
+    } else {
+      record(group, name, 'pass', result || '');
+    }
   } catch (error) {
-    detail = error && error.message ? error.message : String(error);
+    record(group, name, 'fail', error && error.message ? error.message : String(error));
   }
-  record(group, name, ok, detail);
 }
 
 function assert(condition, message) {
@@ -60,17 +56,6 @@ function assert(condition, message) {
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
 }
-
-// ---------------------------------------------------------------------------
-// Canonical JSON and the three bundle checks, re-derived from the shipped
-// RECEIPT-BUNDLE.md rather than imported from the package. A consumer that
-// reuses the producer's serializer cannot detect a specification that only
-// works because both sides share one implementation.
-//
-// In JavaScript the spec's canonical form falls out of the language: sorting
-// keys with the default comparator is UTF-16 code-unit order, and
-// JSON.stringify already emits literal non-ASCII and Number::toString.
-// ---------------------------------------------------------------------------
 
 function canonicalize(value) {
   if (Array.isArray(value)) return value.map(canonicalize);
@@ -87,18 +72,65 @@ function canonicalJson(value) {
 }
 
 function sha256Hex(text) {
-  return require('node:crypto').createHash('sha256').update(text, 'utf8').digest('hex');
+  return crypto.createHash('sha256').update(text, 'utf8').digest('hex');
 }
 
 function expectedEnvelopeVersion(receipts) {
-  const v2 = receipts.some((r) => r && r.schemaVersion === 'v4-receipt-v2');
-  return v2 ? 'v4-receipt-bundle-v2' : 'v4-receipt-bundle-v1';
+  return receipts.some((r) => r && r.schemaVersion === 'v4-receipt-v2')
+    ? 'v4-receipt-bundle-v2'
+    : 'v4-receipt-bundle-v1';
 }
 
-/** Returns the findings array; empty means the bundle verifies. */
+const BUNDLE_FIELDS = new Set([
+  'schemaVersion',
+  'workspaceId',
+  'exportedAt',
+  'receiptCount',
+  'bundleHash',
+  'receipts',
+]);
+
+function validateBundleEnvelope(bundle) {
+  if (!bundle || typeof bundle !== 'object' || Array.isArray(bundle)) {
+    return 'invalid_bundle_envelope:object';
+  }
+
+  for (const field of BUNDLE_FIELDS) {
+    if (!Object.prototype.hasOwnProperty.call(bundle, field)) {
+      return `invalid_bundle_envelope:missing:${field}`;
+    }
+  }
+
+  const unknown = Object.keys(bundle).filter((field) => !BUNDLE_FIELDS.has(field));
+  if (unknown.length > 0) return `invalid_bundle_envelope:unknown:${unknown[0]}`;
+
+  if (!['v4-receipt-bundle-v1', 'v4-receipt-bundle-v2'].includes(bundle.schemaVersion)) {
+    return 'invalid_bundle_envelope:schemaVersion';
+  }
+  if (typeof bundle.workspaceId !== 'string' || !bundle.workspaceId.trim()) {
+    return 'invalid_bundle_envelope:workspaceId';
+  }
+  if (typeof bundle.exportedAt !== 'string' || !bundle.exportedAt.trim()) {
+    return 'invalid_bundle_envelope:exportedAt';
+  }
+  if (!Number.isInteger(bundle.receiptCount) || bundle.receiptCount < 0) {
+    return 'invalid_bundle_envelope:receiptCount';
+  }
+  if (typeof bundle.bundleHash !== 'string' || !/^[0-9a-f]{64}$/.test(bundle.bundleHash)) {
+    return 'invalid_bundle_envelope:bundleHash';
+  }
+  if (!Array.isArray(bundle.receipts)) {
+    return 'invalid_bundle_envelope:receipts';
+  }
+  return null;
+}
+
 function verifyBundle(bundle) {
+  const envelopeFinding = validateBundleEnvelope(bundle);
+  if (envelopeFinding) return [envelopeFinding];
+
   const findings = [];
-  const receipts = Array.isArray(bundle.receipts) ? bundle.receipts : [];
+  const { receipts } = bundle;
 
   if (sha256Hex(canonicalJson(receipts)) !== bundle.bundleHash) {
     findings.push('bundle_seal_mismatch');
@@ -134,10 +166,6 @@ function verifyBundle(bundle) {
   return findings;
 }
 
-// ---------------------------------------------------------------------------
-// Group 1 -- is the packaged surface reachable at all?
-// ---------------------------------------------------------------------------
-
 const REQUIRED_SURFACE = [
   'package.json',
   'lib/atp-conformance.js',
@@ -162,21 +190,12 @@ check('surface', 'every ATP schema parses as JSON', () => {
 });
 
 let atp = null;
-check('surface', 'lib/atp-conformance.js loads from the installed package', () => {
+check('surface', 'producer ATP validator loads from the installed package', () => {
   atp = require('huqan/lib/atp-conformance');
   assert(typeof atp.validateATPObject === 'function', 'validateATPObject missing');
   assert(typeof atp.runATPConformance === 'function', 'runATPConformance missing');
   return Object.keys(atp.ATP_OBJECT_TYPES).length + ' object types';
 });
-
-// ---------------------------------------------------------------------------
-// Group 2 -- every shipped example validates as its declared type.
-//
-// The type comes from the example's filename prefix, which the spec's examples
-// directory uses consistently. Deriving it rather than hardcoding a table means
-// a newly shipped example is covered without editing this file, and an example
-// whose name does not map is reported instead of skipped.
-// ---------------------------------------------------------------------------
 
 const PREFIX_TO_TYPE = {
   audit: 'audit-event',
@@ -210,21 +229,14 @@ for (const file of objectFiles) {
   });
 }
 
-check('objects', 'runATPConformance accepts the whole example set at once', () => {
-  const fixtures = objectFiles.map((file) => ({
+check('objects', 'producer runATPConformance accepts the whole example set', () => {
+  const report = atp.runATPConformance(objectFiles.map((file) => ({
     filePath: path.join(EXAMPLES, file),
     type: PREFIX_TO_TYPE[file.split('.')[0]],
-  }));
-  const report = atp.runATPConformance(fixtures);
+  })));
   assert(report.ok, `errors: ${JSON.stringify(report.errors)}`);
   return `${report.results.length} fixtures`;
 });
-
-// ---------------------------------------------------------------------------
-// Group 3 -- fail-closed. Each case starts from a valid example and breaks one
-// thing, so a rejection cannot be explained by the fixture being broken to
-// begin with.
-// ---------------------------------------------------------------------------
 
 check('fail-closed', 'unknown object type is rejected', () => {
   const result = atp.validateATPObject('not-a-real-type', { anything: true });
@@ -234,10 +246,10 @@ check('fail-closed', 'unknown object type is rejected', () => {
 });
 
 for (const scalar of [null, undefined, 42, 'text', [], true]) {
-  check('fail-closed', `trust-receipt rejects non-object input (${JSON.stringify(scalar) ?? 'undefined'})`, () => {
-    const result = atp.validateATPObject('trust-receipt', scalar);
-    assert(!result.ok, 'non-object input was accepted');
-  });
+  check('fail-closed',
+    `trust-receipt rejects non-object input (${JSON.stringify(scalar) ?? 'undefined'})`, () => {
+      assert(!atp.validateATPObject('trust-receipt', scalar).ok, 'non-object input was accepted');
+    });
 }
 
 check('fail-closed', 'trust-receipt with its id removed is rejected', () => {
@@ -245,50 +257,37 @@ check('fail-closed', 'trust-receipt with its id removed is rejected', () => {
   assert(atp.validateATPObject('trust-receipt', valid).ok, 'baseline fixture is not valid');
   const broken = { ...valid };
   delete broken.receiptId;
-  const result = atp.validateATPObject('trust-receipt', broken);
-  assert(!result.ok, 'missing receiptId was accepted');
-  return JSON.stringify(result.errors[0]);
+  assert(!atp.validateATPObject('trust-receipt', broken).ok, 'missing receiptId was accepted');
 });
 
 check('fail-closed', 'trust-receipt with an unsupported status is rejected', () => {
   const valid = readJson(path.join(EXAMPLES, 'trust-receipt.github_pr.json'));
-  const result = atp.validateATPObject('trust-receipt', { ...valid, status: 'definitely-not-a-status' });
-  assert(!result.ok, 'unsupported status was accepted');
-  return JSON.stringify(result.errors[0]);
+  assert(!atp.validateATPObject('trust-receipt', {
+    ...valid,
+    status: 'definitely-not-a-status',
+  }).ok, 'unsupported status was accepted');
 });
 
 check('fail-closed', 'error envelope with ok:true is rejected', () => {
   const valid = readJson(path.join(EXAMPLES, 'error.provenance_required.json'));
   assert(atp.validateATPObject('error', valid).ok, 'baseline fixture is not valid');
-  const result = atp.validateATPObject('error', { ...valid, ok: true });
-  assert(!result.ok, 'ok:true error envelope was accepted');
+  assert(!atp.validateATPObject('error', { ...valid, ok: true }).ok, 'ok:true error was accepted');
 });
 
 check('fail-closed', 'error envelope with an unsupported code is rejected', () => {
   const valid = readJson(path.join(EXAMPLES, 'error.provenance_required.json'));
-  const result = atp.validateATPObject('error', {
+  assert(!atp.validateATPObject('error', {
     ...valid,
     error: { ...valid.error, code: 'NOT_A_REAL_CODE' },
-  });
-  assert(!result.ok, 'unsupported error code was accepted');
+  }).ok, 'unsupported error code was accepted');
 });
 
 check('fail-closed', 'a fixture path that does not exist is reported, not thrown', () => {
   const result = atp.validateATPFixture('trust-receipt', path.join(EXAMPLES, 'no-such-file.json'));
-  assert(!result.ok, 'missing file was accepted');
-  assert(Array.isArray(result.errors) && result.errors.length > 0, 'no error recorded');
+  assert(!result.ok && Array.isArray(result.errors) && result.errors.length > 0,
+    'missing fixture was not reported as invalid');
 });
 
-// ---------------------------------------------------------------------------
-// Group 4 -- bundle verification, against the shipped fixtures.
-// ---------------------------------------------------------------------------
-
-// Taken from the table in RECEIPT-BUNDLE.md, not from the fixture filenames.
-// `receipt-bundle.broken-chain.json` mutates receipts[1].decision, which is
-// inside the hashed content, so check 3a reports content_tampered before the
-// linkage check is ever reached -- and the bundle seal fails as a consequence.
-// The filename suggests chain_link_broken; the specification says otherwise,
-// and the specification is what a consumer implements against.
 const BUNDLE_EXPECTATIONS = {
   'receipt-bundle.valid.json': [],
   'receipt-bundle.unicode.valid.json': [],
@@ -312,16 +311,40 @@ for (const file of bundleFiles) {
   });
 }
 
-/**
- * Parse one output line of the shipped verify_bundle.py into findings.
- *
- *   "name.json     VALID"                          -> []
- *   "name.json     INVALID  a, b"                  -> ['a', 'b']
- *
- * Comparing only VALID/INVALID would let the two implementations disagree on
- * *why* a bundle fails while still appearing to agree, which is the half of the
- * claim that actually matters for a conformance runner.
- */
+function emptyValidBundle() {
+  return {
+    schemaVersion: 'v4-receipt-bundle-v1',
+    workspaceId: 'default',
+    exportedAt: '2026-01-01T00:00:00.000Z',
+    receiptCount: 0,
+    bundleHash: sha256Hex(canonicalJson([])),
+    receipts: [],
+  };
+}
+
+check('bundles', 'bundle missing receipts fails closed before hash checks', () => {
+  const bundle = emptyValidBundle();
+  delete bundle.receipts;
+  assert(JSON.stringify(verifyBundle(bundle))
+    === JSON.stringify(['invalid_bundle_envelope:missing:receipts']),
+  `unexpected findings: ${JSON.stringify(verifyBundle(bundle))}`);
+});
+
+check('bundles', 'bundle with non-array receipts fails closed', () => {
+  const bundle = { ...emptyValidBundle(), receipts: {} };
+  assert(JSON.stringify(verifyBundle(bundle))
+    === JSON.stringify(['invalid_bundle_envelope:receipts']),
+  `unexpected findings: ${JSON.stringify(verifyBundle(bundle))}`);
+});
+
+check('bundles', 'bundle missing another required envelope field fails closed', () => {
+  const bundle = emptyValidBundle();
+  delete bundle.workspaceId;
+  assert(JSON.stringify(verifyBundle(bundle))
+    === JSON.stringify(['invalid_bundle_envelope:missing:workspaceId']),
+  `unexpected findings: ${JSON.stringify(verifyBundle(bundle))}`);
+});
+
 function parsePythonFindings(stdout) {
   const line = stdout.trim().split('\n').pop() || '';
   if (/\bVALID\b/.test(line) && !/\bINVALID\b/.test(line)) return [];
@@ -332,22 +355,21 @@ function parsePythonFindings(stdout) {
 
 check('bundles', 'the shipped Python verifier reports the same findings', () => {
   const probe = spawnSync('python3', ['--version'], { encoding: 'utf8' });
-  if (probe.error || probe.status !== 0) return 'skipped: python3 unavailable';
+  if (probe.error || probe.status !== 0) return skipped('python3 unavailable');
 
   const script = path.join(SPEC_ROOT, 'conformance', 'verify_bundle.py');
   const disagreements = [];
   for (const file of bundleFiles) {
-    const expected = BUNDLE_EXPECTATIONS[file];
-    if (expected === undefined) continue;
+    if (BUNDLE_EXPECTATIONS[file] === undefined) continue;
     const run = spawnSync('python3', [script, path.join(EXAMPLES, file)], { encoding: 'utf8' });
     const pythonFindings = parsePythonFindings(run.stdout || '');
     const consumerFindings = [...verifyBundle(readJson(path.join(EXAMPLES, file)))].sort();
-
     if (JSON.stringify(pythonFindings) !== JSON.stringify(consumerFindings)) {
-      disagreements.push(`${file}: python=${JSON.stringify(pythonFindings)} consumer=${JSON.stringify(consumerFindings)}`);
+      disagreements.push(
+        `${file}: python=${JSON.stringify(pythonFindings)} consumer=${JSON.stringify(consumerFindings)}`,
+      );
     }
-    const pythonSaysValid = run.status === 0;
-    if (pythonSaysValid !== (pythonFindings.length === 0)) {
+    if ((run.status === 0) !== (pythonFindings.length === 0)) {
       disagreements.push(`${file}: python exit status disagrees with its own findings`);
     }
   }
@@ -355,44 +377,28 @@ check('bundles', 'the shipped Python verifier reports the same findings', () => 
   return `${bundleFiles.length} fixtures, findings identical in both implementations`;
 });
 
-// ---------------------------------------------------------------------------
-// Group 5 -- recorded gaps.
-//
-// These acceptance criteria of V5-C5 cannot be met from the package as it is
-// published. Rather than describe that in prose, each gap is asserted: if a
-// future change ships the schema, the assertion fails and the gap has to be
-// closed here rather than quietly outliving its cause.
-// ---------------------------------------------------------------------------
-
 const GAPS = [
   {
     criterion: 'package validation',
     absent: 'schemas/v5/shared-trust-package.schema.json',
-    reason: 'schemas/ is excluded from the package by the facade contract '
-      + '(test/kernel-facade-contract.test.js forbids it in both the allowlist '
-      + 'check and the npm pack output check), so no consumer can reach it.',
+    reason: 'schemas/ is excluded from the package by the facade contract.',
   },
   {
     criterion: 'HTP (V5-C3/C4) compatibility',
     absent: 'schemas/v5/public-trust-receipt.schema.json',
-    reason: 'same exclusion. ATP v0.1 compatibility is covered above; the V5 '
-      + 'object schemas are not published anywhere a consumer can read.',
+    reason: 'ATP v0.1 is shipped; the V5 object schemas are not on a published surface.',
   },
   {
     criterion: 'missing scope / evidence / expiry negatives',
     absent: 'schemas/v5/a2a-trust-evidence.schema.json',
-    reason: 'those fields are defined by the V5-C3 evidence schema, which is '
-      + 'not in the package. The negatives cannot be written against a schema '
-      + 'the consumer cannot see.',
+    reason: 'the V5-C3 evidence schema that defines those fields is not published.',
   },
 ];
 
 for (const gap of GAPS) {
   check('gaps', `BLOCKED_GAP still holds: ${gap.criterion}`, () => {
-    const full = path.join(PKG_ROOT, gap.absent);
-    assert(!fs.existsSync(full),
-      `${gap.absent} is now in the package -- this gap is closable and must be `
-      + 'replaced with real conformance cases');
+    assert(!fs.existsSync(path.join(PKG_ROOT, gap.absent)),
+      `${gap.absent} is now shipped; replace this gap with real conformance cases`);
     return gap.reason;
   });
 }
@@ -402,19 +408,20 @@ check('gaps', 'no schemas/ directory reached the installed package', () => {
     'schemas/ is present in the installed package, which the facade contract forbids');
 });
 
-// ---------------------------------------------------------------------------
-
-const failed = cases.filter((c) => !c.ok);
+const failed = cases.filter((c) => c.status === 'fail');
+const skippedCases = cases.filter((c) => c.status === 'skip');
 const report = {
-  evidenceLevel: 'packaged-surface-conformance',
+  evidenceLevels: EVIDENCE_LEVELS,
   evidenceLevelNote:
-    'Level 2 of four (self-test, cross-implementation conformance, third-party '
-    + 'verification, interoperability). This run does not establish third-party '
-    + 'verification or interoperability.',
+    'Evidence is group-scoped: package reachability is a packaged-surface smoke; '
+    + 'ATP object checks reuse the producer validator and are self-test; bundle checks '
+    + 'use a clean-room verifier and are cross-implementation conformance. '
+    + 'This run does not establish third-party verification or interoperability.',
   packageRoot: PKG_ROOT,
   packageVersion: readJson(path.join(PKG_ROOT, 'package.json')).version,
   total: cases.length,
-  passed: cases.length - failed.length,
+  passed: cases.length - failed.length - skippedCases.length,
+  skipped: skippedCases.length,
   failed: failed.length,
   blockedGaps: GAPS.map((g) => ({ criterion: g.criterion, absent: g.absent, reason: g.reason })),
   cases,
