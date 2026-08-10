@@ -29,12 +29,19 @@ function boundedMcpInteger(value, fallback, minimum, maximum) {
   return Math.min(Math.max(minimum, integer), maximum);
 }
 
+// #615: this used to collapse ANY unrecognized value -- including a
+// raw/malicious client's explicit `decision: "banana"` -- to 'approved',
+// the most privileged branch. It now returns null for anything that isn't
+// approve/approved/reject/rejected (after trim+lowercase), so an invalid
+// but present value fails closed instead of silently approving. The caller
+// is responsible for supplying the 'approved' default when the field is
+// genuinely absent, not when it was provided and empty/invalid.
 function sanitizeMcpApprovalDecision(value) {
   const decision = sanitizeMcpString(value, 16).toLowerCase();
   if (decision === 'approve') return 'approved';
   if (decision === 'reject') return 'rejected';
   if (decision === 'approved' || decision === 'rejected') return decision;
-  return 'approved';
+  return null;
 }
 
 function sanitizeToolArgsForStorage(name, args = {}) {
@@ -937,7 +944,15 @@ function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
     return failApprovalDecision('APPROVAL_ID_REQUIRED', 'approvalId is required.');
   }
 
-  const decision = sanitizeMcpApprovalDecision(args.decision || 'approved');
+  // #615: only a genuinely absent decision field defaults to 'approved'.
+  // A present-but-invalid value (wrong enum, empty string, whitespace) must
+  // fail closed rather than silently falling into the most privileged
+  // branch -- args.decision || 'approved' could not tell those cases apart.
+  const decisionProvided = args.decision !== undefined && args.decision !== null;
+  const decision = sanitizeMcpApprovalDecision(decisionProvided ? args.decision : 'approved');
+  if (!decision) {
+    return failApprovalDecision('INVALID_APPROVAL_DECISION', 'decision must be "approved" or "rejected".');
+  }
   const reason = sanitizeMcpString(args.reason || `mcp_${decision}`, MCP_MAX_TEXT);
   const existing = formatApprovalRecord(approvalStore.getToolApprovalById(approvalId));
   if (!existing) {
