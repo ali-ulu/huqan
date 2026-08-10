@@ -833,7 +833,9 @@ class Graph {
       this._inIndex.clear();
       this._rebuildIndex();
       const completed = readStored();
-      if (completed !== null) return { replayed: true, result: completed };
+      if (completed !== null) {
+        return { replayed: true, result: completed, receipt: this.getCommittedMutationReceiptByOperation(id) };
+      }
       throw error;
     }
   }
@@ -1112,9 +1114,18 @@ class Graph {
     const storageKey = nodeStorageKey(id, scope);
     const node = this._nodes[storageKey] || (scope === 'default' ? this._nodes[id] : null);
     if (!node || normalizeWorkspaceId(node.workspaceId) !== scope) return null;
-    node.lastAccessed = Date.now();
+    return cloneNodeRecord(node);
+  }
+
+  touchNode(id, workspaceId = 'default') {
+    const scope = normalizeWorkspaceId(workspaceId);
+    const storageKey = nodeStorageKey(id, scope);
+    const node = this._nodes[storageKey] || (scope === 'default' ? this._nodes[id] : null);
+    if (!node || normalizeWorkspaceId(node.workspaceId) !== scope) return null;
+    const accessedAt = Date.now();
+    node.lastAccessed = accessedAt;
     if (this._db && this._stmts) {
-      this._stmts.touchNode.run(Date.now(), id, scope);
+      this._stmts.touchNode.run(accessedAt, id, scope);
     }
     return cloneNodeRecord(node);
   }
@@ -1277,6 +1288,8 @@ class Graph {
   addEdge(fromId, toId, relation, opts = {}) {
     const workspaceId = normalizeWorkspaceId(opts.workspaceId || opts.provenance?.workspaceId);
     if (!this.getNode(fromId, workspaceId) || !this.getNode(toId, workspaceId)) return null;
+    this.touchNode(fromId, workspaceId);
+    this.touchNode(toId, workspaceId);
     const hasExplicitProvenance = opts.provenance && typeof opts.provenance === 'object';
     const hasExplicitMeta = isPlainObject(opts.meta);
     const nextMeta = sanitizeEdgeMeta(opts.meta);
@@ -1542,7 +1555,6 @@ class Graph {
   }
 
   save() {
-    this.prune();
     // #369: strip -> write -> restore has to be crash-safe. _stripEmbeddings()
     // deletes node.embedding from the *live* in-memory nodes so the serialized
     // form stays JSON-clean, which means that between here and the restore the

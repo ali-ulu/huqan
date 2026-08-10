@@ -45,7 +45,11 @@ describe('agentRuntime', () => {
   });
 
   it('selects workflow runtime when requested', async () => {
-    const agent = createAgent({ kernel: createKernel(), runtime: 'workflow' });
+    const agent = createAgent({
+      kernel: createKernel(),
+      runtime: 'workflow',
+      runCapabilityPolicy: ({ name }) => name === 'demo',
+    });
 
     assert.strictEqual(agent.kind, 'workflow');
     assert.ok(Array.isArray(agent.listTools()));
@@ -55,7 +59,7 @@ describe('agentRuntime', () => {
     assert.strictEqual(plan.ok, true);
     assert.ok(plan.steps.length >= 1);
 
-    const run = agent.run('verify graph and rank evidence', {
+    const run = await agent.run('verify graph and rank evidence', {
       plan: {
         goal: 'verify graph and rank evidence',
         objective: 'verify',

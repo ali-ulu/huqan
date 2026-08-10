@@ -137,7 +137,7 @@ describe('workflow-runtime', () => {
     assert.strictEqual(plan.ok, true);
     assert.ok(plan.steps.length >= 1);
 
-    const run = runtime.run('verify graph and rank evidence', {
+    const run = await runtime.run('verify graph and rank evidence', {
       plan: {
         goal: 'verify graph and rank evidence',
         objective: 'verify',
@@ -186,7 +186,9 @@ describe('workflow-runtime', () => {
   });
 
   it('runs runCapability through the workflow tool adapter', async () => {
-    const runtime = createWorkflowRuntime(createKernel());
+    const runtime = createWorkflowRuntime(createKernel(), {
+      runCapabilityPolicy: ({ name }) => name === 'demo',
+    });
     const result = await runtime.runTool('runCapability', {
       name: 'demo',
       input: { foo: 'bar' },

@@ -117,6 +117,43 @@ describe('Causal Simulator - v0.7', () => {
     assert.deepStrictEqual(first.outcomes.map(item => item.effect), ['direct', 'enabling', 'dependency', 'blocking']);
   });
 
+  it('simulateChange defaults workspaceId and preserves descriptive input contract (#393)', () => {
+    const graph = buildBranchingGraph();
+    const simulator = new CausalSimulator(graph);
+    const newState = { enabled: true };
+
+    const result = simulator.simulateChange({
+      nodeId: 'A',
+      action: 'Enable A',
+      changeType: 'modify',
+      newState,
+    });
+
+    assert.strictEqual(result.workspaceId, 'default');
+    assert.strictEqual(result.input.workspaceId, 'default');
+    assert.strictEqual(result.action, 'Enable A');
+    assert.strictEqual(result.changeType, 'modify');
+    assert.deepStrictEqual(result.input.newState, newState);
+  });
+
+  it('simulateChange isolates the same node id across workspaces (#393)', () => {
+    const graph = new Graph({ noLoad: true });
+    graph.addNode('A', 'Default A', null, { workspaceId: 'default' });
+    graph.addNode('B', 'Default B', null, { workspaceId: 'default' });
+    graph.addEdge('A', 'B', 'CAUSES', { workspaceId: 'default', strength: 0.8, confidence: 0.8, evidence: ['default-edge'] });
+    graph.addNode('A', 'Tenant A', null, { workspaceId: 'tenant-b' });
+    graph.addNode('B', 'Tenant B', null, { workspaceId: 'tenant-b' });
+    graph.addEdge('A', 'B', 'CAUSES', { workspaceId: 'tenant-b', strength: 0.8, confidence: 0.8, evidence: ['tenant-edge'] });
+
+    const result = new CausalSimulator(graph).simulateChange({ nodeId: 'A', workspaceId: 'tenant-b' });
+
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.workspaceId, 'tenant-b');
+    assert.strictEqual(result.input.workspaceId, 'tenant-b');
+    assert.deepStrictEqual(result.evidence, ['tenant-edge']);
+    assert.deepStrictEqual(result.affectedNodes.map(item => item.label), ['Tenant B']);
+  });
+
 it('simulateChange sonucu traversal dahil JSON-serializable (#401)', () => {
     const graph = buildBranchingGraph();
     const simulator = new CausalSimulator(graph);
@@ -245,7 +282,7 @@ it('simulateChange sonucu traversal dahil JSON-serializable (#401)', () => {
     assert.deepStrictEqual(result.evidence, ['a-b']);
   });
 
-  it('simulateChange preserves direct reads around the existing traversal touches', () => {
+  it('simulateChange keeps direct reads pure during traversal', () => {
     const graph = buildBranchingGraph();
     const simulator = new CausalSimulator(graph);
     graph._nodes.A.lastAccessed = 101;
@@ -275,9 +312,9 @@ it('simulateChange sonucu traversal dahil JSON-serializable (#401)', () => {
         ['A', 'default'],
         ['A', 'default'],
       ]);
-      assert.ok(graph._nodes.A.lastAccessed > 101);
+      assert.strictEqual(graph._nodes.A.lastAccessed, 101);
       assert.strictEqual(graph._nodes.B.lastAccessed, 102);
-      assert.strictEqual(touchCalls, 2);
+      assert.strictEqual(touchCalls, 0);
     } finally {
       graph.getNode = originalGetNode;
       graph._db = previousDb;

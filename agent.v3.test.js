@@ -118,6 +118,99 @@ describe('AgentV3', () => {
     assert.strictEqual(status.lastRun.status, 'paused');
   });
 
+  describe('storage error boundaries', () => {
+    it('returns the agent error envelope when a resume checkpoint cannot be read', () => {
+      const agent = freshAgent(path.join(os.tmpdir(), `axiom-storage-resume-${Date.now()}.db`));
+      agent.storage.loadLatestCheckpoint = () => { throw new Error('sqlite resume unavailable'); };
+
+      const result = agent.run('kedi hayvandir mi?');
+
+      assert.strictEqual(result.ok, false);
+      assert.strictEqual(result.error.code, 'AGENT_STORAGE_ERROR');
+      assert.strictEqual(result.meta.operation, 'loadLatestCheckpoint');
+    });
+
+    it('returns the agent error envelope when the initial checkpoint cannot be saved', () => {
+      const agent = freshAgent(path.join(os.tmpdir(), `axiom-storage-checkpoint-${Date.now()}.db`));
+      agent.storage.saveCheckpoint = () => { throw new Error('sqlite checkpoint unavailable'); };
+
+      const result = agent.run('kedi hayvandir mi?', { resume: false, maxIterations: 1 });
+
+      assert.strictEqual(result.ok, false);
+      assert.strictEqual(result.type, 'agent');
+      assert.strictEqual(result.error.code, 'AGENT_STORAGE_ERROR');
+      assert.strictEqual(result.meta.operation, 'saveCheckpoint');
+      assert.ok(result.data);
+      assert.strictEqual(result.data.iteration, 0);
+    });
+
+    it('returns the agent error envelope when final memory cannot be read', () => {
+      const agent = freshAgent(path.join(os.tmpdir(), `axiom-storage-memory-${Date.now()}.db`));
+      const getGoalMemory = agent.storage.getGoalMemory.bind(agent.storage);
+      let calls = 0;
+      agent.storage.getGoalMemory = (...args) => {
+        calls += 1;
+        if (calls > 1) throw new Error('sqlite memory unavailable');
+        return getGoalMemory(...args);
+      };
+
+      const result = agent.run('kedi hayvandir mi?', { resume: false, maxIterations: 1 });
+
+      assert.strictEqual(result.ok, false);
+      assert.strictEqual(result.error.code, 'AGENT_STORAGE_ERROR');
+      assert.strictEqual(result.meta.operation, 'readRunMemory');
+      assert.ok(result.data);
+    });
+
+    it('returns the agent error envelope when the run cannot be persisted', () => {
+      const agent = freshAgent(path.join(os.tmpdir(), `axiom-storage-run-${Date.now()}.db`));
+      agent.storage.saveRun = () => { throw new Error('sqlite run unavailable'); };
+
+      const result = agent.run('kedi hayvandir mi?', { resume: false, maxIterations: 1 });
+
+      assert.strictEqual(result.ok, false);
+      assert.strictEqual(result.error.code, 'AGENT_STORAGE_ERROR');
+      assert.strictEqual(result.meta.operation, 'saveRun');
+      assert.ok(result.data);
+    });
+
+    it('returns the agent error envelope when goal memory cannot be persisted', () => {
+      const agent = freshAgent(path.join(os.tmpdir(), `axiom-storage-goal-${Date.now()}.db`));
+      agent.storage.saveGoalMemory = () => { throw new Error('sqlite goal unavailable'); };
+
+      const result = agent.run('kedi hayvandir mi?', { resume: false, maxIterations: 1 });
+
+      assert.strictEqual(result.ok, false);
+      assert.strictEqual(result.error.code, 'AGENT_STORAGE_ERROR');
+      assert.strictEqual(result.meta.operation, 'saveGoalMemory');
+      assert.ok(result.data);
+    });
+
+    it('keeps loop-budget storage failures fail-closed', () => {
+      const agent = freshAgent(path.join(os.tmpdir(), `axiom-storage-budget-${Date.now()}.db`));
+      agent.storage.sumAgentIterationsSince = () => { throw new Error('sqlite budget unavailable'); };
+
+      const result = agent.run('kedi hayvandir mi?', { resume: false, maxIterations: 1 });
+
+      assert.strictEqual(result.ok, false);
+      assert.strictEqual(result.error.code, 'AGENT_LOOP_BUDGET_UNAVAILABLE');
+      assert.strictEqual(result.meta.gate, 'AB10');
+      assert.strictEqual(result.meta.budget.usageKnown, false);
+    });
+
+    it('returns the agent error envelope when a completed checkpoint cannot be deleted', () => {
+      const agent = freshAgent(path.join(os.tmpdir(), `axiom-storage-delete-${Date.now()}.db`));
+      agent.storage.deleteCheckpoint = () => { throw new Error('sqlite cleanup unavailable'); };
+
+      const result = agent.run('kedi hayvandir mi?', { resume: false, maxIterations: 10 });
+
+      assert.strictEqual(result.ok, false);
+      assert.strictEqual(result.error.code, 'AGENT_STORAGE_ERROR');
+      assert.strictEqual(result.meta.operation, 'deleteCheckpoint');
+      assert.ok(result.data);
+    });
+  });
+
   describe('loop budget accounting across resume', () => {
     it('counts a resumed run once, not cumulatively', () => {
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-ab10-resume-'));

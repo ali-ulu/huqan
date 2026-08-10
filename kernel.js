@@ -1128,7 +1128,7 @@ class Kernel {
     predicate = predicate.replace(/^bir\s+/, '').trim();
 
     // KISITLAMA: "sadece x yapar" → kısıtlama işareti
-    const kistlama = predicate.match(/^(sadece|yaln?zca|s?rf|ancak)\s+(.+)/i);
+    const kistlama = predicate.match(/^(sadece|yalnızca|sırf|ancak)\s+(.+)/i);
     if (kistlama) {
       // Kısıtlı hali parse et, kısıtlama bilgisini object'e göm
       const inner = kistlama[2];
@@ -1615,7 +1615,7 @@ if (verbSuffix.test(predicate)) {
 
     // ADIM 3: Sürekli öğrenme dürtüsü (bilinç tikleri)
     if (eklenen > 0) {
-      this._autoThinkLog(eklenen + ' yeni baÄŸlant? - toplam ' + this.graph.nodeCount() + ' d?ÄŸ?m');
+      this._autoThinkLog(eklenen + ' yeni bağlantı - toplam ' + this.graph.nodeCount() + ' düğüm');
     } else if (this._dreamCount % 5 === 0) {
       // Boş rüya -> daha fazla girdi lazım
       this._autoThinkLog('boş rüya, daha fazla bilgi lazım');
@@ -1759,7 +1759,7 @@ if (verbSuffix.test(predicate)) {
         ok: false,
         error: {
           code: AXIOM_ERROR.LLM_DISABLED,
-          message: 'Paranoid mode aktif: d?? LLM ?aÄŸr?lar? ve otomatik ?ÄŸrenme engellendi.',
+          message: 'Paranoid mode aktif: dış LLM çağrıları ve otomatik öğrenme engellendi.',
         },
         meta: {
           contractVersion: this.contractVersion,
@@ -1907,17 +1907,17 @@ if (verbSuffix.test(predicate)) {
 
     // Zayıf noktalar
     const zayifNoktalar = [];
-    if (yalitilmis.length > 0) zayifNoktalar.push(`${yalitilmis.length} yal?t?lm?? d?ÄŸ?m`);
+    if (yalitilmis.length > 0) zayifNoktalar.push(`${yalitilmis.length} yalıtılmış düğüm`);
     if (celiskiler.length > 0) zayifNoktalar.push(`${celiskiler.length} çelişki`);
-    if (dusukAgirlik > edgeCount * 0.3) zayifNoktalar.push(`${dusukAgirlik} d?k g?venli kenar`);
-    if (nodeCount < 5) zayifNoktalar.push('?ok az bilgi');
+    if (dusukAgirlik > edgeCount * 0.3) zayifNoktalar.push(`${dusukAgirlik} düşük güvenli kenar`);
+    if (nodeCount < 5) zayifNoktalar.push('çok az bilgi');
 
     // Güçlü noktalar
     const gucluNoktalar = [];
     if (nodeCount > 50) gucluNoktalar.push('geniş bilgi grafiği');
-    if (typeEdges > 10) gucluNoktalar.push('g??l? tür hiyerar?isi');
-    if (benzerEdges > 5) gucluNoktalar.push('aktif benzerlik aÄŸ?');
-    if (dreamCycle > 0) gucluNoktalar.push(`${dreamCycle} r?ya döngüs? tamamland?`);
+    if (typeEdges > 10) gucluNoktalar.push('güçlü tür hiyerarşisi');
+    if (benzerEdges > 5) gucluNoktalar.push('aktif benzerlik ağı');
+    if (dreamCycle > 0) gucluNoktalar.push(`${dreamCycle} rüya döngüsü tamamlandı`);
 
     const result = {
       bilgi: {

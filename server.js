@@ -17,6 +17,7 @@ const {
 const { readReceiptById } = require('./lib/receipt/receipt-read-index');
 const { createWorkbenchReadHttpRouter } = require('./lib/workbench/workbench-read-http-router');
 const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
+const { readExactWorkspace } = require('./lib/http/exact-workspace');
 const { createSessionStore } = require('./lib/viewer/session-store');
 const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
 const pkg = require('./package.json');
@@ -25,6 +26,7 @@ const {
   DEFAULT_MAX_JSON_BODY,
   checkRateLimit,
   clearExpiredRateLimitEntries,
+  constantTimeEqual,
   extractApiKey,
   isAllowedPublicCommand,
   isUnsafePublicApiCommand,
@@ -288,7 +290,8 @@ function readPathReceiptId(pathname) {
 
 function getRateLimitKey(req) {
   const apiKey = extractApiKey(req.headers || {});
-  if (apiKey) {
+  const configuredKey = sanitizeInput(process.env.AXIOM_API_KEY || '', 256);
+  if (apiKey && configuredKey && constantTimeEqual(apiKey, configuredKey)) {
     return 'key:' + crypto.createHash('sha256').update(apiKey).digest('hex').slice(0, 16);
   }
   if (process.env.AXIOM_TRUST_PROXY === '1') {
@@ -299,7 +302,8 @@ function getRateLimitKey(req) {
       return 'ip:' + xffList[0];
     }
   }
-  return 'ip:' + String(req.socket?.remoteAddress || 'unknown');
+  const remoteAddress = String(req.socket?.remoteAddress || '').trim();
+  return remoteAddress ? 'ip:' + remoteAddress : '';
 }
 
 function sendOptions(req, res) {
@@ -1034,6 +1038,13 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     const workspaceId = sanitizeInput(data.workspaceId || reqUrl.searchParams.get('workspaceId') || '');
+    const suppliedActors = [data.actor, data.provenance?.actor]
+      .map(actor => sanitizeInput(actor || ''))
+      .filter(Boolean);
+    if (suppliedActors.some(actor => actor !== 'http-api')) {
+      writeApiError(req, res, 400, 'ACTOR_MISMATCH', 'actor is derived from the authenticated HTTP boundary.');
+      return;
+    }
     try {
       const learnResult = kernel.learnDocument(text, {
         returnDetails: true,
@@ -1041,7 +1052,7 @@ const server = http.createServer(async (req, res) => {
         sourceType: sanitizeInput(data.sourceType || '') || 'upload',
         sourceRef: sanitizeInput(data.sourceRef || '') || reqUrl.pathname,
         sourceTitle: sanitizeInput(data.sourceTitle || '') || 'HTTP upload',
-        actor: sanitizeInput(data.actor || '') || 'http-api',
+        actor: 'http-api',
         approvalRequired: true,
         provenance: data.provenance && typeof data.provenance === 'object' ? data.provenance : undefined,
       });
@@ -1091,8 +1102,13 @@ const server = http.createServer(async (req, res) => {
       }, { 'Cache-Control': 'no-cache' });
       return;
     }
+    const workspace = readExactWorkspace(reqUrl.searchParams);
+    if (!workspace.ok) {
+      writeApiError(req, res, 400, workspace.code, 'Exactly one non-empty workspaceId is required.');
+      return;
+    }
     const filters = readTrustFilters(reqUrl);
-    const readFilters = filters.workspaceId ? { workspaceId: filters.workspaceId } : {};
+    const readFilters = { workspaceId: workspace.workspaceId };
     const read = readReceiptById(kernel.graph, receiptReadRequest.receiptId, readFilters);
     if (!read.ok) {
       const code = read.status === 'not_found' ? 'receipt_not_found' : 'invalid_receipt_id';
@@ -1120,8 +1136,15 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (!denyIfUnauthorized(req, res)) return;
+    const exactWorkspaceRequired = reqUrl.pathname === '/api/audit'
+      || reqUrl.pathname === '/api/trust-receipt';
+    const workspace = exactWorkspaceRequired ? readExactWorkspace(reqUrl.searchParams) : null;
+    if (workspace && !workspace.ok) {
+      writeApiError(req, res, 400, workspace.code, 'Exactly one non-empty workspaceId is required.');
+      return;
+    }
     const filters = readTrustFilters(reqUrl);
-    const workspaceId = filters.workspaceId || 'default';
+    const workspaceId = workspace ? workspace.workspaceId : (filters.workspaceId || 'default');
     const graph = kernel.graph;
     try {
       if (reqUrl.pathname === '/api/provenance') {

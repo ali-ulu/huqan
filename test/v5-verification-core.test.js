@@ -80,6 +80,15 @@ test('bounded verification core fails closed for malformed inputs', () => {
   });
 });
 
+test('bounded verification core fails closed on synthetic signature placeholders', () => {
+  const fixture = readFixtures().find(({ caseId }) => caseId === 'verified-supported-algorithm');
+
+  assert.deepEqual(evaluateBoundedVerification(fixture.input), {
+    verificationStatus: 'not_verified',
+    reasonCategory: 'malformed_signature_evidence'
+  });
+});
+
 test('bounded verification core rejects unbounded trusted-key metadata', () => {
   const positive = readFixtures().find(({ caseId }) => caseId === 'verified-supported-algorithm');
   const cases = [

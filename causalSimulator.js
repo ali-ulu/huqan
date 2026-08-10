@@ -111,6 +111,12 @@ function collectEvidence(chain) {
   return uniqueStrings(chain.flatMap(step => (Array.isArray(step.evidence) ? step.evidence : [])));
 }
 
+function findScopedNode(nodes, nodeId) {
+  if (!nodes || typeof nodes !== 'object') return null;
+  if (nodes[nodeId]?.id === nodeId) return nodes[nodeId];
+  return Object.values(nodes).find(node => node?.id === nodeId) || null;
+}
+
 /**
  * Causal Simulator for v0.7
  * Simulates "what-if" scenarios using causal chains
@@ -131,21 +137,24 @@ class CausalSimulator {
    * @param {string} opts.changeType - Type of change (add, remove, modify)
    * @param {object} opts.newState - New state if modify
    * @param {number} opts.maxDepth - Maximum causal chain depth (default: 10)
+   * @param {string} opts.workspaceId - Workspace scope (default: default)
    * @returns {object} Simulation result
    */
   simulateChange(opts = {}) {
-    const { action, nodeId, changeType, newState, maxDepth = 10 } = opts;
+    const { action, nodeId, changeType, newState, maxDepth = 10, workspaceId = 'default' } = opts;
 
     if (!nodeId) {
       throw new Error('simulateChange requires nodeId');
     }
 
-    const node = this.graph._nodes[nodeId];
+    const scopedNodes = this.graph.getNodes(workspaceId);
+    const node = findScopedNode(scopedNodes, nodeId);
     if (!node) {
       return {
         ok: false,
         mode: 'missing-node',
         error: `Node '${nodeId}' not found in graph`,
+        workspaceId,
         action: action || `Simulate change on ${nodeId}`,
         input: {
           action: action || `Simulate change on ${nodeId}`,
@@ -153,6 +162,7 @@ class CausalSimulator {
           changeType: changeType || 'unknown',
           newState: typeof newState === 'undefined' ? null : newState,
           maxDepth,
+          workspaceId,
         },
         affectedNodes: [],
         evidence: [],
@@ -168,7 +178,7 @@ class CausalSimulator {
       };
     }
 
-    const traversal = this.graph.getCausalChain(nodeId, { maxDepth });
+    const traversal = this.graph.getCausalChain(nodeId, { maxDepth, workspaceId });
     const causalChains = Array.isArray(traversal)
       ? traversal
       : (traversal && Array.isArray(traversal.chain) ? traversal.chain : []);
@@ -227,7 +237,7 @@ class CausalSimulator {
 
       affectedNodes.push({
         nodeId: terminalNodeId,
-        label: this.graph._nodes[terminalNodeId]?.label || terminalNodeId,
+        label: findScopedNode(scopedNodes, terminalNodeId)?.label || terminalNodeId,
         relation: terminalEdge.relation,
         effect: profile.effect,
         impact,
@@ -295,12 +305,14 @@ class CausalSimulator {
       action: action || `Simulate change on ${nodeId}`,
       nodeId,
       changeType: changeType || 'unknown',
+      workspaceId,
       input: {
         action: action || `Simulate change on ${nodeId}`,
         nodeId,
         changeType: changeType || 'unknown',
         newState: typeof newState === 'undefined' ? null : newState,
         maxDepth: traversalMaxDepth,
+        workspaceId,
       },
       affectedNodes: dedupAffectedNodes,
       causalChains: causalChains.length,

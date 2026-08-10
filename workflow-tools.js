@@ -91,12 +91,29 @@ function resolveCapabilityRunner(kernel) {
   return null;
 }
 
+function getCapabilityMetadata(kernel, name) {
+  if (kernel && typeof kernel.getCapability === 'function') return kernel.getCapability(name);
+  if (kernel && kernel.plugins && typeof kernel.plugins.getCapability === 'function') {
+    return kernel.plugins.getCapability(name);
+  }
+  return null;
+}
+
+function isGenericCapabilityAllowed(policy, request) {
+  if (typeof policy !== 'function') return false;
+  try {
+    return policy(request) === true;
+  } catch (_error) {
+    return false;
+  }
+}
+
 function isUnavailableCapabilityError(error) {
   const message = String(error?.message || error || '');
   return /missing capability|unavailable|unknown plugin capability|unknown capability/i.test(message);
 }
 
-function createWorkflowTools(kernel) {
+function createWorkflowTools(kernel, options = {}) {
   const tools = [];
 
   tools.push({
@@ -842,6 +859,27 @@ function createWorkflowTools(kernel) {
       const capabilityInput = payload.input !== undefined ? payload.input : context.input;
       const opts = payload.opts && typeof payload.opts === 'object' ? payload.opts : context.opts || {};
 
+      const capability = getCapabilityMetadata(kernel, capabilityName);
+      const policy = options.runCapabilityPolicy;
+      const allowed = isGenericCapabilityAllowed(
+        policy,
+        { name: capabilityName, capability, input: capabilityInput, opts, context },
+      );
+      if (!allowed) {
+        return buildEnvelope({
+          ok: false,
+          tool: 'runCapability',
+          status: 'error',
+          data: { capability: capabilityName },
+          error: {
+            code: 'CAPABILITY_NOT_ALLOWED',
+            message: `Generic capability execution is not allowed: ${capabilityName}`,
+          },
+          confidence: 0,
+          meta: { source: runner.source },
+        });
+      }
+
       try {
         const result = await runner.run(capabilityName, capabilityInput, opts);
         return resultFromKernel('runCapability', result, {
@@ -907,11 +945,11 @@ function createWorkflowTools(kernel) {
   return tools;
 }
 
-function registerDefaultWorkflowTools(registry, kernel) {
+function registerDefaultWorkflowTools(registry, kernel, options = {}) {
   if (!registry || typeof registry.registerTool !== 'function') {
     throw new Error('Registry with registerTool() is required.');
   }
-  const tools = createWorkflowTools(kernel);
+  const tools = createWorkflowTools(kernel, options);
   for (const tool of tools) {
     registry.registerTool(tool);
   }

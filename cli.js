@@ -82,6 +82,35 @@ function unwrapAgentPayload(result) {
   return result;
 }
 
+function formatAgentRunResult(agent, result) {
+  const data = unwrapAgentPayload(result);
+  const agentStatus = typeof agent.getStatus === 'function' ? agent.getStatus() : null;
+  const lastPlan = agentStatus?.lastPlan || null;
+  const lastRun = agentStatus?.lastRun || null;
+  const steps = (data.steps || []).map((step, index) => {
+    const status = step.result?.ok === false ? 'hata' : 'tamam';
+    return `  ${index + 1}. ${step.action} -> ${status}${step.summary ? ` | ${step.summary}` : ''}`;
+  }).join('\n');
+  const nextAction = data.nextAction ? `${data.nextAction.action} -> ${data.nextAction.tool}` : 'yok';
+  const recommendations = Array.isArray(data.recommendations?.items) ? data.recommendations.items : [];
+  const runtimeLine = isWorkflowRuntime(agent) ? 'Runtime: workflow' : 'Runtime: legacy';
+  return [
+    `Ajan durumu: ${data.status}`,
+    `Hedef: ${data.goal}`,
+    `Amaç: ${data.objective}`,
+    runtimeLine,
+    data.checkpointId ? `Checkpoint: ${data.checkpointId}${data.resumed ? ' (resume)' : ''}` : 'Checkpoint: yok',
+    typeof data.budgetRemaining === 'number' ? `Kalan bütçe: ${data.budgetRemaining}` : 'Kalan bütçe: bilinmiyor',
+    lastPlan ? `Son plan: ${lastPlan.goal} (${lastPlan.steps} adım)` : 'Son plan: yok',
+    lastRun ? `Son çalışma: ${lastRun.status} · ${lastRun.goal}` : 'Son çalışma: yok',
+    `Araçlar: ${(data.selectedTools || []).join(', ') || 'yok'}`,
+    `Sonraki adım: ${nextAction}`,
+    `Öneriler: ${recommendations.length > 0 ? recommendations.join(' | ') : 'yok'}`,
+    `Adımlar:\n${steps || '  -'}`,
+    `Sonuç: ${data.finalAnswer}`,
+  ].join('\n');
+}
+
 function mapCliCommandToMcpTool(command) {
   const normalized = normalizeCommandText(command);
   switch (normalized) {
@@ -322,32 +351,9 @@ class CLI {
       }
       case 'ajan': {
         const result = this.agent.run(args);
-        const data = unwrapAgentPayload(result);
-        const agentStatus = typeof this.agent.getStatus === 'function' ? this.agent.getStatus() : null;
-        const lastPlan = agentStatus?.lastPlan || null;
-        const lastRun = agentStatus?.lastRun || null;
-        const steps = (data.steps || []).map((step, index) => {
-          const status = step.result?.ok === false ? 'hata' : 'tamam';
-          return `  ${index + 1}. ${step.action} -> ${status}${step.summary ? ` | ${step.summary}` : ''}`;
-        }).join('\n');
-        const nextAction = data.nextAction ? `${data.nextAction.action} -> ${data.nextAction.tool}` : 'yok';
-        const recommendations = Array.isArray(data.recommendations?.items) ? data.recommendations.items : [];
-        const runtimeLine = isWorkflowRuntime(this.agent) ? 'Runtime: workflow' : 'Runtime: legacy';
-        return [
-          `Ajan durumu: ${data.status}`,
-          `Hedef: ${data.goal}`,
-          `Amaç: ${data.objective}`,
-          runtimeLine,
-          data.checkpointId ? `Checkpoint: ${data.checkpointId}${data.resumed ? ' (resume)' : ''}` : 'Checkpoint: yok',
-          typeof data.budgetRemaining === 'number' ? `Kalan bütçe: ${data.budgetRemaining}` : 'Kalan bütçe: bilinmiyor',
-          lastPlan ? `Son plan: ${lastPlan.goal} (${lastPlan.steps} adım)` : 'Son plan: yok',
-          lastRun ? `Son çalışma: ${lastRun.status} · ${lastRun.goal}` : 'Son çalışma: yok',
-          `Araçlar: ${(data.selectedTools || []).join(', ') || 'yok'}`,
-          `Sonraki adım: ${nextAction}`,
-          `Öneriler: ${recommendations.length > 0 ? recommendations.join(' | ') : 'yok'}`,
-          `Adımlar:\n${steps || '  -'}`,
-          `Sonuç: ${data.finalAnswer}`,
-        ].join('\n');
+        return result && typeof result.then === 'function'
+          ? result.then(resolved => formatAgentRunResult(this.agent, resolved))
+          : formatAgentRunResult(this.agent, result);
       }
       case 'yükle': {
         try {

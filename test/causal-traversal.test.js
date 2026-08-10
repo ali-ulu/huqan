@@ -77,6 +77,52 @@ test('branch ordering is deterministic by relation priority and ids', () => {
   ]);
 });
 
+test('depth-first traversal exhausts each branch before visiting its sibling', () => {
+  const adapter = createAdapter(
+    [{ id: 'A' }, { id: 'B' }, { id: 'C' }, { id: 'D' }, { id: 'E' }],
+    [
+      edge('e1', 'A', 'B', 'CAUSES'),
+      edge('e2', 'A', 'C', 'CAUSES'),
+      edge('e3', 'B', 'D', 'CAUSES'),
+      edge('e4', 'D', 'E', 'CAUSES'),
+    ],
+  );
+
+  const result = traverseCausalGraph(adapter, 'A');
+
+  assert.deepEqual(traversalIds(result), [
+    'A->B:CAUSES:e1',
+    'B->D:CAUSES:e3',
+    'D->E:CAUSES:e4',
+    'A->C:CAUSES:e2',
+  ]);
+});
+
+test('deep chain traversal does not consume the JavaScript call stack', () => {
+  const edgeCount = 12_000;
+  const outgoing = new Map();
+  for (let index = 0; index < edgeCount; index += 1) {
+    outgoing.set(`N${index}`, [edge(`e${index}`, `N${index}`, `N${index + 1}`, 'CAUSES')]);
+  }
+
+  const adapter = {
+    getNode(id) {
+      const index = Number(id.slice(1));
+      return Number.isInteger(index) && index >= 0 && index <= edgeCount ? { id } : null;
+    },
+    getEdges(id) {
+      return outgoing.get(id) || [];
+    },
+  };
+
+  const result = traverseCausalGraph(adapter, 'N0');
+
+  assert.equal(result.traversal.completed, true);
+  assert.equal(result.traversal.visitedEdgeCount, edgeCount);
+  assert.equal(result.traversal.maxDepthReached, edgeCount);
+  assert.equal(result.traversal.traversalOrder.at(-1).to, `N${edgeCount}`);
+});
+
 test('maxDepth blocks deeper hops but keeps partial traversal', () => {
   const adapter = createAdapter(
     [{ id: 'A' }, { id: 'B' }, { id: 'C' }],

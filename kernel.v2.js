@@ -1,5 +1,7 @@
 ﻿const Kernel = require('./kernel');
 
+const { detectTypeLatticeConflict } = require('./lib/type-lattice');
+
 const TYPE_RELATIONS = new Set(['tür', 'tur']);
 const FACT_RELATIONS = new Set(['özellik', 'ozellik', 'yapabilir']);
 const OPPOSITE_PREDICATES = new Map();
@@ -672,16 +674,22 @@ class KernelV2 {
 
     if (!parsed.isNegated) {
       const knownTypes = this._collectTypeTargets(parsed.subject);
-      if (knownTypes.length > 0 && !knownTypes.includes(normalizedTarget)) {
+      const typeConflict = detectTypeLatticeConflict(
+        this.kernel.graph,
+        parsed.subject,
+        normalizedTarget,
+        'default',
+      );
+      if (typeConflict) {
         return {
           status: 'celiski',
-          confidence: 0.72,
+          confidence: typeConflict.confidence || 0.72,
           inferred: true,
           contradictionReason: 'type_mismatch_with_known_types',
           knownTypes,
           requestedType: normalizedTarget,
-          confidenceSource: 'known-type-conflict',
-          evidence: this._buildDirectTypeEvidence(parsed.subject),
+          confidenceSource: 'type-lattice-conflict',
+          evidence: typeConflict.evidence || this._buildDirectTypeEvidence(parsed.subject),
           meta: { inferredBy: 'type-conflict' },
         };
       }
@@ -765,7 +773,26 @@ class KernelV2 {
       opts
     );
 
-    if (!contradictionDetails) return this._withVerifyDetails(base, risk);
+    if (!contradictionDetails) {
+      const semanticSignals = base?.meta?.semanticTrust?.signals;
+      const typePredicateDriftOnly = !parsed.isNegated
+        && base?.data?.status === 'celiski'
+        && Array.isArray(semanticSignals)
+        && semanticSignals.length > 0
+        && semanticSignals.every(signal => (
+          signal?.rule === 'PREDICATE_DRIFT'
+          && this._isTypeRelation(signal?.meta?.storedRelation)
+        ));
+      if (typePredicateDriftOnly) {
+        return this._withVerifyDetails(this._ok(
+          'verify',
+          { status: 'bilinmiyor', confidence: 0 },
+          [],
+          base.meta,
+        ), risk);
+      }
+      return this._withVerifyDetails(base, risk);
+    }
 
     const { evidence, meta, ...data } = contradictionDetails;
     return this._withVerifyDetails(this._ok(

@@ -366,7 +366,6 @@ describe('Server - API', () => {
       provenance: {
         sourceType: 'upload',
         sourceRef: 'test:nested-approval',
-        actor: 'rest-review-actor',
         workspaceId: 'rest-review-workspace',
         approvalRequired: false,
         approvalStatus: 'approved',
@@ -376,7 +375,7 @@ describe('Server - API', () => {
       },
     });
     assert.strictEqual(body.admission.workspaceId, 'rest-review-workspace');
-    assert.strictEqual(body.admission.receipt.actor, 'rest-review-actor');
+    assert.strictEqual(body.admission.receipt.actor, 'http-api');
     assert.strictEqual(body.admission.receipt.approvalId, '');
   });
 
@@ -609,7 +608,7 @@ describe('Server - API', () => {
     assert.strictEqual(provenanceJson.ok, false);
     assert.strictEqual(provenanceJson.error.code, 'INVALID_QUERY');
 
-    const trustRes = await request(`${BASE}/api/trust-receipt`);
+    const trustRes = await request(`${BASE}/api/trust-receipt?workspaceId=default`);
     assert.strictEqual(trustRes.status, 400);
     const trustJson = await trustRes.json();
     assert.strictEqual(trustJson.ok, false);
@@ -1025,7 +1024,7 @@ describe('Server - Public API Allowlist Lockdown', () => {
 
   it('fallback queries (hello, hi, ?) preserve existing behavior (200 + Anlamadım)', async () => {
     rateLimitMap.clear();
-    const fallbackQueries = ['hello', 'hi', 'selamlar', '?', 'h', 'sor', 'neden', 'kim', 'ne', 'yardim', 'nasil', 'nicin'];
+    const fallbackQueries = ['hello', 'hi', 'selamlar', 'unknown multi word text', '?', 'h', 'sor', 'neden', 'kim', 'ne', 'yardim', 'nasil', 'nicin'];
     for (const query of fallbackQueries) {
       const r = await request(`${BASE}/api?q=${encodeURIComponent(query)}`);
       assert.strictEqual(r.status, 200, `Expected 200 for fallback query: ${query}`);
@@ -1036,6 +1035,41 @@ describe('Server - Public API Allowlist Lockdown', () => {
 });
 
 describe('X-Forwarded-For rate limit keying (#390)', () => {
+  it('only grants API-key rate-limit identity to the configured key', () => {
+    const originalKey = process.env.AXIOM_API_KEY;
+    process.env.AXIOM_API_KEY = 'legitimate-key';
+    try {
+      const { getRateLimitKey } = require('./server');
+      const legitimate = {
+        headers: { authorization: 'Bearer legitimate-key' },
+        socket: { remoteAddress: '10.0.0.1' },
+      };
+      const spoofed = {
+        headers: { authorization: 'Bearer attacker-controlled-key' },
+        socket: { remoteAddress: '10.0.0.2' },
+      };
+
+      assert.match(getRateLimitKey(legitimate), /^key:[a-f0-9]{16}$/);
+      assert.strictEqual(getRateLimitKey(spoofed), 'ip:10.0.0.2');
+    } finally {
+      if (originalKey === undefined) delete process.env.AXIOM_API_KEY;
+      else process.env.AXIOM_API_KEY = originalKey;
+    }
+  });
+
+  it('does not create a shared unknown rate-limit identity', () => {
+    const originalKey = process.env.AXIOM_API_KEY;
+    delete process.env.AXIOM_API_KEY;
+    try {
+      const { getRateLimitKey } = require('./server');
+      assert.strictEqual(getRateLimitKey({ headers: {}, socket: {} }), '');
+      assert.strictEqual(getRateLimitKey({ headers: {} }), '');
+    } finally {
+      if (originalKey === undefined) delete process.env.AXIOM_API_KEY;
+      else process.env.AXIOM_API_KEY = originalKey;
+    }
+  });
+
   it('uses socket.remoteAddress when AXIOM_TRUST_PROXY is not set', async () => {
     const original = process.env.AXIOM_TRUST_PROXY;
     delete process.env.AXIOM_TRUST_PROXY;

@@ -449,5 +449,41 @@ describe('Dream - Gelişmiş Skorlama ve Sıralama', () => {
     const results = d.dream();
     assert.strictEqual(results.length, 10);
   });
+
+  it('dream: adversarial empty comparisons stay within the fixed work budget', () => {
+    const { k, d } = fresh();
+    for (let i = 0; i < 500; i++) d.graph.addNode(`isolated-${i}`, `isolated-${i}`);
+
+    const calls = { getEdges: 0, getInEdges: 0, cosineSimilarity: 0 };
+    for (const method of Object.keys(calls)) {
+      const original = d.graph[method].bind(d.graph);
+      d.graph[method] = (...args) => {
+        calls[method]++;
+        return original(...args);
+      };
+    }
+    k.detectGaps = () => [];
+    k.detectContradictions = () => [];
+
+    assert.deepStrictEqual(d.dream(), []);
+    assert.ok(calls.cosineSimilarity <= 10_000, `cosine calls exceeded budget: ${calls.cosineSimilarity}`);
+    assert.ok(calls.getEdges <= 500, `out-edge reads were not pre-indexed: ${calls.getEdges}`);
+    assert.ok(calls.getInEdges <= 500, `in-edge reads were not pre-indexed: ${calls.getInEdges}`);
+  });
+
+  it('dream: indexed execution preserves deterministic hypothesis output', () => {
+    const { k, d } = fresh();
+    k.learn('a cdir');
+    k.learn('b cdir');
+    k.learn('a ddir');
+    k.learn('d edir');
+    k.detectGaps = () => [];
+    k.detectContradictions = () => [];
+
+    const first = d.dream();
+    const second = d.dream();
+
+    assert.deepStrictEqual(second, first);
+  });
 });
 

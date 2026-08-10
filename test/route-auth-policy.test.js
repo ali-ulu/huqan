@@ -185,6 +185,26 @@ function request(port, pathname, headers = {}) {
   });
 }
 
+function postJson(port, pathname, body, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const payload = JSON.stringify(body);
+    const req = http.request({
+      host: '127.0.0.1', port, path: pathname, method: 'POST',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload),
+      },
+    }, (res) => {
+      let responseBody = '';
+      res.on('data', (chunk) => { responseBody += chunk; });
+      res.on('end', () => resolve({ status: res.statusCode, body: responseBody }));
+    });
+    req.on('error', reject);
+    req.end(payload);
+  });
+}
+
 test('runtime: undeclared route is denied without a key, declared public routes still work', async (t) => {
   const server = require('../server');
   await new Promise((resolve, reject) => {
@@ -241,4 +261,40 @@ test('runtime: undeclared route is denied without a key, declared public routes 
   // Authenticated surface stays authenticated.
   const audit = await request(port, '/api/audit?targetId=x');
   assert.equal(audit.status, 401);
+
+  const auth = { Authorization: `Bearer ${API_KEY}` };
+  for (const pathname of [
+    '/api/audit?targetId=x',
+    '/api/trust-receipt?targetId=x',
+    '/api/trust-receipt/abc',
+    '/api/workbench/trust-receipt/abc',
+    '/api/workbench/receipt-bundle',
+  ]) {
+    const missingWorkspace = await request(port, pathname, auth);
+    assert.equal(missingWorkspace.status, 400, `${pathname} must require an exact workspace`);
+  }
+
+  const repeatedWorkspace = await request(
+    port,
+    '/api/audit?targetId=x&workspaceId=workspace-a&workspaceId=workspace-b',
+    auth,
+  );
+  assert.equal(repeatedWorkspace.status, 400);
+
+  const spoofedActor = await postJson(port, '/upload', {
+    text: 'actor spoof test',
+    workspaceId: 'workspace-a',
+    actor: 'admin',
+  }, auth);
+  assert.equal(spoofedActor.status, 400);
+  assert.equal(JSON.parse(spoofedActor.body).error.code, 'ACTOR_MISMATCH');
+
+  const spoofedProvenanceActor = await postJson(port, '/upload', {
+    text: 'provenance actor spoof test',
+    workspaceId: 'workspace-a',
+    actor: 'http-api',
+    provenance: { actor: 'admin' },
+  }, auth);
+  assert.equal(spoofedProvenanceActor.status, 400);
+  assert.equal(JSON.parse(spoofedProvenanceActor.body).error.code, 'ACTOR_MISMATCH');
 });

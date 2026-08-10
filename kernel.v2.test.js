@@ -98,6 +98,30 @@ describe('KernelV2', () => {
     assert.ok(res.evidence.length >= 1);
   });
 
+  it('keeps compatible multi-typing unknown instead of contradictory', () => {
+    const k = freshV2();
+    learnFixture(k, 'kedi memelidir');
+
+    const res = k.verify('kedi evcil hayvandir');
+
+    assert.strictEqual(res.ok, true);
+    assert.strictEqual(res.data.status, 'bilinmiyor');
+    assert.strictEqual(res.data.contradictionReason, undefined);
+  });
+
+  it('preserves non-type contradictions reported by the base verifier', () => {
+    const k = freshV2();
+    k.kernel.graph.addNode('sigara', 'sigara');
+    k.kernel.graph.addNode('sağlık', 'sağlık');
+    k.kernel.graph.addEdge('sigara', 'sağlık', 'PREVENTS', { strength: 0.8, confidence: 0.8 });
+
+    const res = k.verify('sigara sağlıklıdır');
+
+    assert.strictEqual(res.ok, true);
+    assert.strictEqual(res.data.status, 'celiski');
+    assert.ok(res.evidence.length > 0);
+  });
+
   it('returns contradiction for negated known fact', () => {
     const k = freshV2();
     learnFixture(k, 'kus ucar');

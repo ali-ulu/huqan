@@ -13,6 +13,15 @@ function freshKernel(opts = {}) {
 }
 
 describe('Kernel - Öğrenme', () => {
+  it('restriction words match exact Turkish forms without wildcard false positives', () => {
+    const k = freshKernel();
+
+    assert.strictEqual(k._parsePredicate('yalnızca süt içer').kistlama, true);
+    assert.strictEqual(k._parsePredicate('sırf süt içer').kistlama, true);
+    assert.strictEqual(k._parsePredicate('yalnXzca süt içer').kistlama, undefined);
+    assert.strictEqual(k._parsePredicate('sXrf süt içer').kistlama, undefined);
+  });
+
   it('learn: basit cümleyi parse edip grafiğe ekler', () => {
     const k = freshKernel();
     k.learn('Köpek hayvandır');
@@ -317,6 +326,10 @@ describe('Kernel - Core API Contract', () => {
   it('paranoidMode blocks learnFromLLM with a typed error', () => {
     const k = freshKernel({ paranoidMode: true });
     const result = k.learnFromLLM('kedi hayvandir');
+    assert.strictEqual(
+      result.error.message,
+      'Paranoid mode aktif: dış LLM çağrıları ve otomatik öğrenme engellendi.',
+    );
     assert.strictEqual(result.ok, false);
     assert.strictEqual(result.error.code, Kernel.AXIOM_ERROR.LLM_DISABLED);
     assert.strictEqual(result.learned, 0);
@@ -359,6 +372,22 @@ describe('Kernel - Capability System', () => {
 });
 
 describe('Kernel - Dream hypothesis regressions', () => {
+  it('auto-think reports the exact UTF-8 connection summary', () => {
+    const kernel = freshKernel({ useSQLite: false, loadPlugins: false });
+    const logs = [];
+    kernel.graph.addNode('kaynak', 'kaynak', null, { workspaceId: 'default' });
+    kernel.graph.addNode('hedef', 'hedef', null, { workspaceId: 'default' });
+    kernel._dreamer = {
+      dream: () => [{ from: 'kaynak', to: 'hedef', type: 'benzerlik', confidence: 0.9 }],
+    };
+    kernel._commitBackgroundEdge = () => ({ decision: 'allow', edge: {} });
+    kernel._autoThinkLog = message => logs.push(message);
+
+    kernel._autoThinkTick();
+
+    assert.deepStrictEqual(logs, ['1 yeni bağlantı - toplam 2 düğüm']);
+  });
+
   it('selfEvolve maps vektör-benzerlik to benzer without a relation field', () => {
     const kernel = freshKernel({ useSQLite: false, loadPlugins: false });
     const Dream = require('./dream');
@@ -403,6 +432,23 @@ describe('Kernel - Dream hypothesis regressions', () => {
     assert.strictEqual(result.ok, true);
     assert.deepStrictEqual(result.data.ozBilgi.rüya, { var: true, kenar: 0 });
     assert.strictEqual(Object.hasOwn(result.data.ozBilgi, 'r?ya'), false);
+  });
+
+  it('introspect returns exact UTF-8 weak and strong point strings', () => {
+    const isolatedKernel = freshKernel({ useSQLite: false, loadPlugins: false });
+    isolatedKernel.graph.addNode('yalnız', 'yalnız', null, { workspaceId: 'default' });
+    const isolated = isolatedKernel.introspect();
+    assert.ok(isolated.data.zayifNoktalar.includes('1 yalıtılmış düğüm'));
+
+    const connectedKernel = freshKernel({ useSQLite: false, loadPlugins: false });
+    for (let index = 0; index < 7; index++) {
+      connectedKernel.graph.addNode(`n${index}`, `n${index}`, null, { workspaceId: 'default' });
+    }
+    for (let index = 1; index < 7; index++) {
+      connectedKernel.graph.addEdge('n0', `n${index}`, 'benzer', { workspaceId: 'default' });
+    }
+    const connected = connectedKernel.introspect();
+    assert.ok(connected.data.gucluNoktalar.includes('aktif benzerlik ağı'));
   });
 });
 

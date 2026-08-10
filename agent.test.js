@@ -18,6 +18,66 @@ function freshAgent(memoryPath) {
 }
 
 describe('Agent', () => {
+  it('persists memory through a temporary file and atomic rename', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-agent-atomic-'));
+    const memoryPath = path.join(tmpDir, 'agent.memory.json');
+    const originalRenameSync = fs.renameSync;
+    let rename = null;
+
+    fs.renameSync = (source, destination) => {
+      rename = { source, destination };
+      assert.strictEqual(fs.existsSync(source), true);
+      originalRenameSync(source, destination);
+    };
+
+    try {
+      const agent = freshAgent(memoryPath);
+      agent._saveMemory();
+    } finally {
+      fs.renameSync = originalRenameSync;
+    }
+
+    assert.ok(rename);
+    assert.strictEqual(path.dirname(rename.source), tmpDir);
+    assert.notStrictEqual(rename.source, memoryPath);
+    assert.strictEqual(rename.destination, memoryPath);
+    assert.deepStrictEqual(JSON.parse(fs.readFileSync(memoryPath, 'utf8')).plans, []);
+    assert.deepStrictEqual(fs.readdirSync(tmpDir), ['agent.memory.json']);
+  });
+
+  it('preserves existing memory when atomic rename fails', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-agent-atomic-failure-'));
+    const memoryPath = path.join(tmpDir, 'agent.memory.json');
+    const existingMemory = '{"version":1,"plans":["preserve-me"]}';
+    fs.writeFileSync(memoryPath, existingMemory);
+    const agent = freshAgent(memoryPath);
+    const originalRenameSync = fs.renameSync;
+    fs.renameSync = () => { throw new Error('simulated rename failure'); };
+
+    try {
+      agent._saveMemory();
+    } finally {
+      fs.renameSync = originalRenameSync;
+    }
+
+    assert.strictEqual(fs.readFileSync(memoryPath, 'utf8'), existingMemory);
+    assert.deepStrictEqual(fs.readdirSync(tmpDir), ['agent.memory.json']);
+  });
+
+  it('backs up corrupt memory and throws instead of silently resetting it', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-agent-corrupt-'));
+    const memoryPath = path.join(tmpDir, 'agent.memory.json');
+    const corruptMemory = '{"plans": [broken';
+    fs.writeFileSync(memoryPath, corruptMemory);
+
+    assert.throws(() => freshAgent(memoryPath), /corrupt/i);
+
+    const files = fs.readdirSync(tmpDir);
+    const backup = files.find(file => file.startsWith('agent.memory.json.corrupt-'));
+    assert.ok(backup);
+    assert.strictEqual(fs.readFileSync(path.join(tmpDir, backup), 'utf8'), corruptMemory);
+  });
+
   it('plans a multi-step verify workflow', () => {
     const agent = freshAgent();
     const planResult = agent.plan('kedi hayvandir mi?');

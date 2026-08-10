@@ -117,11 +117,16 @@ function checkRateLimit(
   maxRequests = DEFAULT_RATE_LIMIT_MAX,
   maxEntries = DEFAULT_RATE_LIMIT_MAX_ENTRIES,
 ) {
-  const key = String(ip || 'unknown');
+  if (!ip) return false;
+
+  const key = String(ip);
   let entry = rateLimitMap.get(key);
   if (!entry || now > entry.resetAt) {
-    const insertionCap = Number.isFinite(maxEntries) ? Math.max(0, Math.floor(maxEntries) - 1) : DEFAULT_RATE_LIMIT_MAX_ENTRIES - 1;
-    enforceRateLimitCap(now, insertionCap);
+    const cap = Number.isFinite(maxEntries)
+      ? Math.max(0, Math.floor(maxEntries))
+      : DEFAULT_RATE_LIMIT_MAX_ENTRIES;
+    clearExpiredRateLimitEntries(now);
+    if (rateLimitMap.size >= cap) return false;
     entry = { count: 0, resetAt: now + windowMs };
     rateLimitMap.set(key, entry);
   }

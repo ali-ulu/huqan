@@ -5,7 +5,7 @@ const os = require('os');
 const path = require('path');
 const readline = require('readline');
 const { spawn } = require('child_process');
-const { TOOL_SCHEMAS, createKernelFromEnv } = require('./mcpServer');
+const { TOOL_SCHEMAS, createKernelFromEnv, callTool } = require('./mcpServer');
 const Kernel = require('./kernel');
 
 // createKernelFromEnv() may return either Kernel or KernelV2 depending on
@@ -286,6 +286,40 @@ describe('MCP Server', () => {
     assert.strictEqual(approvals.result.isError, false);
     assert.ok(Array.isArray(approvals.result.structuredContent.approvals));
     assert.ok(!approvals.result.structuredContent.approvals.some(item => item.tool === 'unknown.tool' && item.status === 'pending'));
+  });
+
+  it('bounds runtime integers to the limits advertised by MCP schemas', () => {
+    const captured = {};
+    const kernel = {
+      graph: {},
+      reason(subject) { captured.subject = subject; return { subject }; },
+      compare(left, right) { captured.compare = [left, right]; return { a: left, b: right }; },
+      dream(opts) { captured.depth = opts.depth; return { hypotheses: [], learned: [], cycle: 0 }; },
+    };
+    const approvalStore = {
+      listUnresolvedToolApprovals(limit) { captured.limit = limit; return []; },
+      countPendingToolApprovals() { return 0; },
+      countUnresolvedToolApprovals() { return 0; },
+    };
+
+    callTool(kernel, { name: 'axiom.approvals', arguments: { limit: 500 } }, { approvalStore });
+    callTool(kernel, { name: 'axiom.reason', arguments: { subject: '  kedi\u0000  ' } });
+    callTool(kernel, { name: 'axiom.compare', arguments: { left: '  kedi\u0000 ', right: ' kopek\u0007 ' } });
+    callTool(kernel, { name: 'axiom.dream', arguments: { depth: 500 } });
+
+    assert.equal(captured.limit, 50);
+    assert.equal(captured.subject, 'kedi');
+    assert.deepStrictEqual(captured.compare, ['kedi', 'kopek']);
+    assert.equal(captured.depth, 5);
+  });
+
+  it('keeps plan maxSteps within the declared maximum at runtime', async () => {
+    const plan = await request('tools/call', {
+      name: 'axiom.plan',
+      arguments: { goal: 'kedi hayvandir mi', maxSteps: 500 },
+    });
+    assert.strictEqual(plan.result.isError, false);
+    assert.ok(plan.result.structuredContent.data.maxSteps <= 8);
   });
 });
 

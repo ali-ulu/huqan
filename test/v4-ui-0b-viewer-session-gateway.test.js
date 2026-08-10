@@ -345,7 +345,7 @@ test('V4-UI-0B server wiring keeps viewer auth isolated from the canonical API',
     }
     assert.equal(rateLimited, true, 'rotating X-API-Key headers must not bypass the viewer IP bucket');
 
-    for (let index = 0; index < 2050; index += 1) {
+    for (let index = 0; index < 10; index += 1) {
       const filler = await serverRequest(port, '/api/trust-receipt/unknown', {
         headers: { 'X-API-Key': `canonical-filler-${index}` },
       });

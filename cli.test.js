@@ -144,10 +144,10 @@ describe('CLI - Komut Çözümleme', () => {
     assert.strictEqual(result.command, 'rüya');
   });
 
-  it('parse: bilinmeyen komut öğret varsayılır', () => {
+  it('parse: bilinmeyen çok kelimeli metin anlamadım döndürür', () => {
     const cli = freshCLI();
     const result = cli.parse('gecersiz komut');
-    assert.strictEqual(result.command, 'öğret');
+    assert.strictEqual(result.command, 'anlamadım');
   });
 
   it('parse: doğal dil soru tanır', () => {
@@ -156,10 +156,11 @@ describe('CLI - Komut Çözümleme', () => {
     assert.strictEqual(cli.parse('köpek nasıl hayvan').command, 'sor');
   });
 
-  it('parse: doğal dil öğret tanır', () => {
+  it('parse: yalnız açık öğret aliaslarını öğret olarak tanır', () => {
     const cli = freshCLI();
-    assert.strictEqual(cli.parse('kedi balık yer').command, 'öğret');
-    assert.strictEqual(cli.parse('köpek hayvandır').command, 'öğret');
+    assert.strictEqual(cli.parse('öğret: kedi balık yer').command, 'öğret');
+    assert.strictEqual(cli.parse('learn: cats eat fish').command, 'öğret');
+    assert.strictEqual(cli.parse('teach: dogs are animals').command, 'öğret');
   });
 
   it('parse: selam ve yardım', () => {
@@ -676,6 +677,27 @@ describe('CLI - Komut Çalıştırma', () => {
 
     assert.ok(plan.includes('dry-run-only'));
     assert.ok(run.includes('dry-run-only'));
+  });
+
+  it('execute: awaits an allowed workflow agent run before formatting', async () => {
+    const cli = freshCLI();
+    cli.agent = {
+      kind: 'workflow',
+      async run(goal) {
+        return {
+          status: 'completed', goal, objective: 'verify', steps: [],
+          selectedTools: [], finalAnswer: 'async-complete',
+        };
+      },
+      getStatus() { return {}; },
+    };
+
+    const result = await cli.execute('ajan', 'async goal', {
+      gateResult: { canExecute: true, decision: 'allow' },
+    });
+
+    assert.match(result, /Ajan durumu: completed/);
+    assert.match(result, /Sonuç: async-complete/);
   });
 
   it('execute: verify remains read-only and still works', () => {

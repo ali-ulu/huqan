@@ -170,13 +170,16 @@ describe('Graph - Seyrek Süperpozisyon', () => {
 describe('Graph - Unutma Eğrisi', () => {
   let g;
 
-  it('getNode: erişim lastAccessed günceller', () => {
+  it('getNode is a pure defensive read and touchNode owns access updates', () => {
     g = new Graph({ useSQLite: false });
     g.addNode('köpek', 'hayvan');
+    Object.values(g._nodes)[0].lastAccessed = 1;
     const once = g.getNode('köpek');
     const erisim1 = once.lastAccessed;
-    const iki = g.getNode('köpek');
-    assert.ok(iki.lastAccessed >= erisim1);
+    once.lastAccessed = 0;
+    assert.strictEqual(g.getNode('köpek').lastAccessed, erisim1);
+    g.touchNode('köpek');
+    assert.ok(g.getNode('köpek').lastAccessed > erisim1);
   });
 
   it('getNode returns a defensive copy', () => {
@@ -548,7 +551,7 @@ describe('Graph - Lifecycle and maintenance baseline contracts', { concurrency: 
     assert.strictEqual(reloaded.getEdges('source').length, 1);
   }));
 
-  it('save prunes only the default workspace before persistence', () => withTempGraph(root => {
+  it('save persists without implicitly pruning any workspace', () => withTempGraph(root => {
     const graph = new Graph({
       memoryPath: path.join(root, 'memory.json'),
       useSQLite: false,
@@ -560,8 +563,13 @@ describe('Graph - Lifecycle and maintenance baseline contracts', { concurrency: 
       graph.addEdge('source', 'target', 'relates', { workspaceId, weight: 0.1 });
     }
     graph.save();
-    assert.strictEqual(graph.getEdge('source', 'target', 'relates', 'default'), null);
+    assert.ok(graph.getEdge('source', 'target', 'relates', 'default'));
     assert.ok(graph.getEdge('source', 'target', 'relates', 'other'));
+
+    const reloaded = new Graph({ memoryPath: path.join(root, 'memory.json'), useSQLite: false });
+    reloaded.load();
+    assert.ok(reloaded.getEdge('source', 'target', 'relates', 'default'));
+    assert.ok(reloaded.getEdge('source', 'target', 'relates', 'other'));
   }));
 
   it('save propagates filesystem write errors', () => withTempGraph(root => {

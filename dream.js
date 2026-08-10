@@ -1,3 +1,6 @@
+const MAX_DREAM_COMPARISONS = 10_000;
+const MAX_DREAM_WORK = 50_000;
+
 class Dream {
   constructor(kernel) {
     this.kernel = kernel;
@@ -186,26 +189,29 @@ class Dream {
 
   // ─── Composite Skorlama ──────────────────────────────────────────────────
 
-  _calculateCompositeScore(hyp) {
+  _calculateCompositeScore(hyp, context = null) {
     const confidence = hyp.confidence || 0.3;
 
     let novelty = 0;
     if (hyp.type === 'çelişki') {
       novelty = 1.0;
     } else if (hyp.from && hyp.to) {
-      const exists = this.graph.getEdges(hyp.from).some(e => e.to === hyp.to)
-                  || this.graph.getEdges(hyp.to).some(e => e.to === hyp.from);
+      const exists = context
+        ? context.outTargets.get(hyp.from)?.has(hyp.to)
+          || context.outTargets.get(hyp.to)?.has(hyp.from)
+        : this.graph.getEdges(hyp.from).some(e => e.to === hyp.to)
+          || this.graph.getEdges(hyp.to).some(e => e.to === hyp.from);
       novelty = exists ? 0 : 1;
     }
 
     let usefulness = 0;
     const nodeId = hyp.from || hyp.node;
     if (nodeId) {
-      const outDeg = this.graph.getEdges(nodeId).length;
-      const inDeg = this.graph.getInEdges(nodeId).length;
+      const outDeg = context ? (context.outEdges.get(nodeId)?.length || 0) : this.graph.getEdges(nodeId).length;
+      const inDeg = context ? (context.inEdges.get(nodeId)?.length || 0) : this.graph.getInEdges(nodeId).length;
       const deg = outDeg + inDeg;
-      const nodes = Object.values(this.graph._nodes);
-      const avgDeg = nodes.reduce((s, n) => {
+      const nodes = context ? context.nodes : Object.values(this.graph._nodes);
+      const avgDeg = context ? context.avgDeg : nodes.reduce((s, n) => {
         return s + this.graph.getEdges(n.id).length + this.graph.getInEdges(n.id).length;
       }, 0) / Math.max(1, nodes.length);
       usefulness = avgDeg > 0 ? Math.min(1, deg / avgDeg) : 0;
@@ -229,16 +235,17 @@ class Dream {
       return [];
     }
 
+    const context = this._createDreamContext(nodes);
     const hypotheses = [];
-    this._findSimilarityHypotheses(nodes, hypotheses);
-    this._findTransitiveHypotheses(nodes, hypotheses);
-    this._findGapHypotheses(nodes, hypotheses);
-    this._findSymmetryHypotheses(nodes, hypotheses);
+    this._findSimilarityHypotheses(nodes, hypotheses, context);
+    this._findTransitiveHypotheses(nodes, hypotheses, context);
+    this._findGapHypotheses(nodes, hypotheses, context);
+    this._findSymmetryHypotheses(nodes, hypotheses, context);
     this._findContradictionHypotheses(nodes, hypotheses);
 
     const scored = hypotheses.map(h => ({
       ...h,
-      ...this._calculateCompositeScore(h),
+      ...this._calculateCompositeScore(h, context),
     }));
 
     const contradictions = scored.filter(h => h.type === 'çelişki');
@@ -253,29 +260,80 @@ class Dream {
     return result;
   }
 
-  _findSimilarityHypotheses(nodes, hypotheses) {
+  _createDreamContext(nodes) {
+    const outEdges = new Map();
+    const inEdges = new Map();
+    const outTargets = new Map();
+    const edgesByTarget = new Map();
+    const relationTargets = new Map();
+    let degreeTotal = 0;
+
+    for (const node of nodes) {
+      const outgoing = this.graph.getEdges(node.id);
+      const incoming = this.graph.getInEdges(node.id);
+      outEdges.set(node.id, outgoing);
+      inEdges.set(node.id, incoming);
+      outTargets.set(node.id, new Set(outgoing.map(edge => edge.to)));
+
+      const byTarget = new Map();
+      const byRelation = new Map();
+      for (const edge of outgoing) {
+        if (!byTarget.has(edge.to)) byTarget.set(edge.to, edge);
+        if (!byRelation.has(edge.relation)) byRelation.set(edge.relation, new Set());
+        byRelation.get(edge.relation).add(edge.to);
+      }
+      edgesByTarget.set(node.id, byTarget);
+      relationTargets.set(node.id, byRelation);
+      degreeTotal += outgoing.length + incoming.length;
+    }
+
+    return {
+      nodes,
+      outEdges,
+      inEdges,
+      outTargets,
+      edgesByTarget,
+      relationTargets,
+      avgDeg: degreeTotal / Math.max(1, nodes.length),
+      comparisonsRemaining: MAX_DREAM_COMPARISONS,
+      workRemaining: MAX_DREAM_WORK,
+    };
+  }
+
+  _consumeDreamWork(context, kind = 'work') {
+    if (context.workRemaining <= 0) return false;
+    if (kind === 'comparison') {
+      if (context.comparisonsRemaining <= 0) return false;
+      context.comparisonsRemaining--;
+    }
+    context.workRemaining--;
+    return true;
+  }
+
+  _findSimilarityHypotheses(nodes, hypotheses, context) {
     const checked = new Set();
     let added = 0;
     for (let i = 0; i < nodes.length && added < 50; i++) {
       for (let j = i + 1; j < nodes.length && added < 50; j++) {
+        if (!this._consumeDreamWork(context, 'comparison')) return;
         const a = nodes[i], b = nodes[j];
         const key = `${a.id}|${b.id}`;
         if (checked.has(key)) continue;
         checked.add(key);
 
-        const aEdges   = this.graph.getEdges(a.id);
-        const bEdges   = this.graph.getEdges(b.id);
-        const aTargets = new Set(aEdges.map(e => e.to));
-        const bTargets = new Set(bEdges.map(e => e.to));
+        const aEdges   = context.outEdges.get(a.id);
+        const bEdges   = context.outEdges.get(b.id);
+        const aTargets = context.outTargets.get(a.id);
+        const bTargets = context.outTargets.get(b.id);
         const common   = [...aTargets].filter(t => bTargets.has(t));
 
         if (common.length > 0) {
-          const existing = this.graph.getEdge(a.id, b.id, 'benzer')
-                        || this.graph.getEdge(b.id, a.id, 'benzer');
+          const existing = context.relationTargets.get(a.id)?.get('benzer')?.has(b.id)
+                        || context.relationTargets.get(b.id)?.get('benzer')?.has(a.id);
           if (!existing) {
             const avgWeight = common.reduce((s, t) => {
-              const ae = aEdges.find(e => e.to === t);
-              const be = bEdges.find(e => e.to === t);
+              const ae = context.edgesByTarget.get(a.id).get(t);
+              const be = context.edgesByTarget.get(b.id).get(t);
               return s + (ae ? ae.weight : 0) + (be ? be.weight : 0);
             }, 0) / (common.length * 2);
             hypotheses.push({
@@ -292,8 +350,8 @@ class Dream {
 
         const sim = this.graph.cosineSimilarity(a.id, b.id);
         if (sim > 0.5) {
-          const hasEdge = this.graph.hasAnyEdge(a.id, b.id)
-                       || this.graph.hasAnyEdge(b.id, a.id);
+          const hasEdge = context.outTargets.get(a.id).has(b.id)
+                       || context.outTargets.get(b.id).has(a.id);
           if (!hasEdge) {
             hypotheses.push({
               type: 'vektör-benzerlik',
@@ -309,18 +367,19 @@ class Dream {
     }
   }
 
-  _findTransitiveHypotheses(nodes, hypotheses) {
+  _findTransitiveHypotheses(nodes, hypotheses, context) {
     let added = 0;
     for (const node of nodes) {
       if (added >= 50) break;
-      const edges = this.graph.getEdges(node.id);
+      const edges = context.outEdges.get(node.id);
       for (const edge of edges) {
         if (added >= 50) break;
-        const transEdges = this.graph.getEdges(edge.to);
+        const transEdges = context.outEdges.get(edge.to) || [];
         for (const te of transEdges) {
           if (added >= 50) break;
+          if (!this._consumeDreamWork(context)) return;
           if (te.to === node.id) continue;
-          const existing = this.graph.getEdge(node.id, te.to, edge.relation);
+          const existing = context.relationTargets.get(node.id)?.get(edge.relation)?.has(te.to);
           if (!existing) {
             hypotheses.push({
               type: 'zincir',
@@ -337,7 +396,7 @@ class Dream {
     }
   }
 
-  _findGapHypotheses(nodes, hypotheses) {
+  _findGapHypotheses(nodes, hypotheses, context) {
     const gaps = this.kernel.detectGaps();
     if (gaps.length === 0 || nodes.length < 2) return;
 
@@ -350,6 +409,7 @@ class Dream {
       let best = null, bestSim = 0;
       for (const n of nodes) {
         if (n.id === gapId) continue;
+        if (!this._consumeDreamWork(context, 'comparison')) return;
         const sim = this.graph.cosineSimilarity(gapId, n.id);
         if (sim > bestSim) { bestSim = sim; best = n.id; }
       }
@@ -367,15 +427,16 @@ class Dream {
     }
   }
 
-  _findSymmetryHypotheses(nodes, hypotheses) {
+  _findSymmetryHypotheses(nodes, hypotheses, context) {
     let added = 0;
     for (const node of nodes) {
       if (added >= 50) break;
-      const edges = this.graph.getEdges(node.id);
+      const edges = context.outEdges.get(node.id);
       for (const edge of edges) {
         if (added >= 50) break;
-        const reverse    = this.graph.getEdge(edge.to, node.id, edge.relation);
-        const reverseAny = this.graph.hasAnyEdge(edge.to, node.id);
+        if (!this._consumeDreamWork(context)) return;
+        const reverse    = context.relationTargets.get(edge.to)?.get(edge.relation)?.has(node.id);
+        const reverseAny = context.outTargets.get(edge.to)?.has(node.id);
         if (!reverse && !reverseAny) {
           hypotheses.push({
             type: 'simetri',
