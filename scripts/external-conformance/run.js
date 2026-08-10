@@ -1,28 +1,6 @@
 #!/usr/bin/env node
 'use strict';
 
-/**
- * V5-C5 external conformance runner.
- *
- *   npm run conformance:external
- *
- * Builds the publishable tarball with `npm pack`, installs it into a throwaway
- * project outside this repository, copies consumer.js in, and runs it there.
- * The consumer sees the package and nothing else: no working tree, no `test/`,
- * no `schemas/`, no dev dependencies.
- *
- * Read scripts/external-conformance/consumer.js for what is actually checked
- * and for the limits of what a passing run establishes. In short: it shows the
- * published artifact is self-sufficient for ATP v0.1 trust objects. It is not
- * third-party verification, because the same authors wrote both sides.
- *
- * Flags:
- *   --keep    leave the sandbox on disk and print its path
- *   --json    print only the consumer's JSON report
- *
- * Exit status is the consumer's: 0 when every case passes, 1 otherwise.
- */
-
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -53,9 +31,6 @@ function npm(args, cwd) {
 }
 
 const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-external-conformance-'));
-
-// The sandbox must not sit inside the repository: a consumer that can walk up
-// into the working tree is not external in any useful sense.
 if (!path.relative(REPO_ROOT, sandbox).startsWith('..')) {
   fail(`sandbox ${sandbox} is inside the repository; refusing to run`);
 }
@@ -91,10 +66,10 @@ try {
   }, null, 2)}\n`);
 
   log('3/4  npm install the tarball');
-  // --ignore-scripts matters: huqan depends on better-sqlite3, which builds
-  // native code. The consumer never loads it, and requiring a toolchain here
-  // would make the runner test the environment instead of the package.
-  const installed = npm(['install', tarball, '--ignore-scripts', '--no-audit', '--no-fund'], project);
+  const installed = npm(
+    ['install', tarball, '--ignore-scripts', '--no-audit', '--no-fund'],
+    project,
+  );
   if (installed.status !== 0) {
     fail('npm install of the packed tarball failed', installed.stderr || installed.stdout);
   }
@@ -119,19 +94,29 @@ try {
   }
 
   if (JSON_ONLY) {
-    // consumerProject is only meaningful with --keep, and callers that want to
-    // re-run the consumer against the same install need it in machine form.
-    process.stdout.write(`${JSON.stringify({ ...report, consumerProject: KEEP ? project : null }, null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify({
+      ...report,
+      consumerProject: KEEP ? project : null,
+    }, null, 2)}\n`);
   } else {
     console.log('');
     for (const item of report.cases) {
-      const mark = item.ok ? 'ok  ' : 'FAIL';
-      console.log(`${mark} [${item.group}] ${item.name}${item.detail ? `  -- ${item.detail}` : ''}`);
+      const mark = item.status === 'pass' ? 'ok  ' : item.status === 'skip' ? 'SKIP' : 'FAIL';
+      console.log(
+        `${mark} [${item.group}/${item.evidenceLevel}] ${item.name}`
+        + `${item.detail ? `  -- ${item.detail}` : ''}`,
+      );
     }
     console.log('');
-    console.log(`evidence level : ${report.evidenceLevel}`);
+    console.log('evidence levels:');
+    for (const [group, level] of Object.entries(report.evidenceLevels)) {
+      console.log(`  ${group.padEnd(12)} ${level}`);
+    }
     console.log(`package        : huqan@${report.packageVersion}`);
-    console.log(`cases          : ${report.passed}/${report.total} passed, ${report.failed} failed`);
+    console.log(
+      `cases          : ${report.passed}/${report.total} passed, `
+      + `${report.skipped} skipped, ${report.failed} failed`,
+    );
     console.log(`blocked gaps   : ${report.blockedGaps.length}`);
     for (const gap of report.blockedGaps) {
       console.log(`  - ${gap.criterion} (needs ${gap.absent})`);
