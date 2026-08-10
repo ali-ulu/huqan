@@ -7,6 +7,18 @@ to be a second implementation: if it and the JavaScript producer agree on the
 bytes, the specification is portable; if they disagree, the specification is
 underspecified and that is a defect worth reporting.
 
+What a VALID verdict means, and what it does not:
+
+    VALID means the bundle is internally consistent under ATP v0.1's three
+    verification checks -- bundle seal, envelope version, chain validation.
+
+    Because the format is unsigned and self-contained, VALID does NOT prove the
+    bundle is authentic, nor that it is unchanged since export, against a party
+    able to recompute the receipt hashes, the chain links and bundleHash. Such a
+    party produces a bundle this tool reports as VALID. Establishing that a
+    bundle matches what its issuer holds requires comparing bundleHash against a
+    value obtained from the issuer through a separate channel.
+
 Usage:
     python3 verify_bundle.py <bundle.json> [...]
 

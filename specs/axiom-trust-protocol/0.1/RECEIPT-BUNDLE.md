@@ -181,10 +181,16 @@ receiptHash = sha256Hex(canonicalJson(hashable))
 ```
 
 `previousReceiptHash` is **part of what gets hashed**, not a sibling field
-alongside the hash. This is the property that makes the chain tamper-evident:
-altering any receipt's content changes its own recomputed hash, which breaks the
-link the *next* receipt already committed to. A tamper cannot be hidden by
-patching only the receipt that was altered.
+alongside the hash. This is what makes a *partial* edit detectable: altering any
+receipt's content changes its own recomputed hash, which breaks the link the
+*next* receipt already committed to. An edit cannot be hidden by patching only
+the receipt that was altered.
+
+It does not make the chain tamper-proof. An editor who recomputes the altered
+receipt's hash, every following link, and the bundle hash produces a chain that
+validates. The chain detects *unrecomputed* modification; it does not resist an
+editor willing to redo the work. See
+[What verifying a bundle does and does not prove](#what-verifying-a-bundle-does-and-does-not-prove).
 
 ## Bundle hash
 
@@ -208,7 +214,9 @@ if all three pass.
 sha256Hex(canonicalJson(bundle.receipts)) == bundle.bundleHash
 ```
 
-Detects any modification of the receipts array after export.
+Detects modification of the receipts array that was not accompanied by
+recomputing `bundleHash`. It does not detect an editor who rewrote the array and
+resealed it.
 
 ### 2. Envelope version
 
@@ -222,8 +230,13 @@ Walk `receipts` in order. For each record at index `i`:
 
 **a. Self-consistency.** Remove `receiptHash`, recompute
 `sha256Hex(canonicalJson(rest))`, and compare with the stored `receiptHash`. A
-mismatch means the record's content was altered — report `content_tampered` at
-`i`.
+mismatch means the record's stored hash does not match a recompute over its own
+content — report `content_tampered` at `i`.
+
+The label is the protocol's existing wire value and does not change. Read it as
+*stored hash disagrees with recomputed hash*. It is not evidence of adversarial
+tampering, and its absence is not evidence that the record is unchanged since
+export: a rewritten-and-resealed record agrees with itself and reports nothing.
 
 **b. Linkage.** For `i == 0`, `previousReceiptHash` must equal the genesis
 marker, else report `genesis_mismatch`. For `i > 0`, it must equal
@@ -300,21 +313,45 @@ Two negative examples each differ from the valid one by exactly one JSON leaf:
 
 The second is worth understanding rather than memorizing. Changing one canonical
 field breaks that receipt's own hash *and* the bundle seal, because the seal
-covers the receipts array. That redundancy is the tamper-evidence property, not
-an accident: an attacker who repairs one must still repair the other, and
-repairing the receipt hash breaks the link the following receipt committed to.
+covers the receipts array. That redundancy is deliberate, not an accident:
+whoever repairs one must still repair the other, and repairing the receipt hash
+breaks the link the following receipt committed to. What it buys is cost, not
+prevention — an editor who works through the whole chain produces a bundle that
+verifies.
 
 ## What verifying a bundle does and does not prove
 
-It proves the bundle is internally consistent and unmodified since export: the
-receipts are the ones that were exported, in the order they were exported, with
-the content they had.
+It proves the bundle is **internally consistent**: every receipt hashes to its
+recorded value, every link matches its predecessor, and `bundleHash` matches the
+receipts array as it stands. Equivalently, it detects any modification that was
+not accompanied by recomputing the affected hashes.
 
-It does **not** prove the receipts describe events that actually happened, that
-the exporting system was honest, or that the bundle came from any particular
-party. There are no signatures in this format — nothing binds a bundle to an
-issuer identity. A bundle is a tamper-evident transcript, not an attestation of
-authorship.
+It does **not** prove the bundle is unchanged since export. The format is
+unsigned and self-contained, and carries no externally anchored head, so nothing
+in it is beyond an editor's reach. Change a receipt, recompute its hash, recompute
+every following link, recompute `bundleHash`, and the result verifies. The three
+checks are satisfied because the document now agrees with itself — which is all
+they ever measured.
 
-Anyone building on this should hold that line explicitly. Treating hash-chain
-validity as proof of authenticity is the most likely way to misuse this format.
+Nor does it prove the receipts describe events that actually happened, that the
+exporting system was honest, or that the bundle came from any particular party.
+There are no signatures here; nothing binds a bundle to an issuer identity.
+
+What the assurance actually decomposes into:
+
+| Question | Answered by |
+| --- | --- |
+| Is this document self-consistent? | the three checks in this specification |
+| Was it modified without resealing? | the three checks |
+| Was it modified *and* resealed? | **nothing in this format** |
+| Who issued it? | **nothing in this format** |
+| Does it match what the issuer holds? | comparing `bundleHash` against a value obtained from the issuer through a separate channel |
+
+Only the last row survives an editor able to recompute, and it works because the
+comparison value comes from outside the document. A recipient who needs that
+guarantee must obtain the hash independently; a hash carried inside the artifact
+cannot supply it.
+
+Anyone building on this should hold that line explicitly. Treating chain validity
+as proof of authenticity, or as proof that nothing changed after export, is the
+most likely way to misuse this format.

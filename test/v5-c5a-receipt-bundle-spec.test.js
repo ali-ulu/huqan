@@ -166,6 +166,8 @@ function validateAgainstSchema(value, schema, root, at = '') {
 
 // --- tests -----------------------------------------------------------------
 
+const havePythonProbe = spawnSync('python3', ['--version'], { encoding: 'utf8' }).status === 0;
+
 const schema = readJson(SPEC_DIR, 'schemas', 'trust-receipt-bundle.schema.json');
 const valid = readJson(EXAMPLES, 'receipt-bundle.valid.json');
 const tamperedHash = readJson(EXAMPLES, 'receipt-bundle.tampered-bundle-hash.json');
@@ -376,6 +378,70 @@ describe('V5-C5A: a clean-room implementation agrees on the bytes', () => {
     }
     assert.doesNotMatch(source, /\brequire\(|\.\.\/\.\.\/lib\//,
       'no producer code may be pulled in');
+  });
+});
+
+describe('V5-C5A: what a VALID verdict does not prove', () => {
+  // The assurance erratum, demonstrated rather than described. Nothing is
+  // written to the fixture corpus: the forgery is built in memory so the
+  // shipped bytes stay exactly as published.
+  function forgeAndReseal(source) {
+    const forged = JSON.parse(JSON.stringify(source));
+    forged.receipts[1].decision = 'block';           // change the meaning
+    let previous = forged.receipts[0].receiptHash;   // then redo all the work
+    for (let i = 1; i < forged.receipts.length; i += 1) {
+      forged.receipts[i].previousReceiptHash = previous;
+      const { receiptHash: _drop, ...rest } = forged.receipts[i];
+      forged.receipts[i].receiptHash = sha256Hex(canonicalJson(rest));
+      previous = forged.receipts[i].receiptHash;
+    }
+    forged.bundleHash = sha256Hex(canonicalJson(forged.receipts));
+    return forged;
+  }
+
+  const forged = forgeAndReseal(valid);
+
+  it('the forgery really did change the content', () => {
+    assert.notEqual(forged.receipts[1].decision, valid.receipts[1].decision);
+    assert.notEqual(forged.bundleHash, valid.bundleHash);
+  });
+
+  it('all three checks accept it, so VALID does not mean unchanged since export', () => {
+    assert.equal(checkBundleSeal(forged), true, 'bundle seal');
+    assert.equal(forged.schemaVersion, expectedEnvelopeVersion(forged.receipts), 'envelope version');
+    assert.deepEqual(validateChain(forged.receipts), { valid: true, brokenAt: null, reason: null });
+  });
+
+  it('the clean-room implementation agrees, so the limit is the format not the code', { skip: !havePythonProbe && 'python3 unavailable' }, () => {
+    const tmp = path.join(os.tmpdir(), `c5a-forged-${process.pid}.json`);
+    fs.writeFileSync(tmp, JSON.stringify(forged, null, 2));
+    try {
+      const result = spawnSync('python3',
+        [path.join(SPEC_DIR, 'conformance', 'verify_bundle.py'), tmp], { encoding: 'utf8' });
+      assert.match(result.stdout, /VALID/);
+      assert.doesNotMatch(result.stdout, /INVALID/);
+      assert.equal(result.status, 0);
+    } finally {
+      fs.rmSync(tmp, { force: true });
+    }
+  });
+
+  it('what does catch it is a bundleHash obtained from outside the document', () => {
+    // The one row of the assurance table that survives a capable editor.
+    assert.notEqual(forged.bundleHash, valid.bundleHash,
+      'comparing against a separately obtained bundleHash detects the forgery');
+  });
+
+  it('the published documents no longer claim more than that', () => {
+    const spec = fs.readFileSync(path.join(SPEC_DIR, 'RECEIPT-BUNDLE.md'), 'utf8');
+    const readme = fs.readFileSync(path.join(SPEC_DIR, 'conformance', 'README.md'), 'utf8');
+    const probe = fs.readFileSync(path.join(SPEC_DIR, 'conformance', 'verify_bundle.py'), 'utf8');
+    for (const [name, text] of Object.entries({ spec, readme })) {
+      assert.doesNotMatch(text, /tamper-evident/i, `${name} must not claim tamper-evidence`);
+      assert.doesNotMatch(text, /unmodified since export/i, `${name} must not claim unmodified since export`);
+    }
+    assert.match(probe, /does NOT prove/, 'the probe states the limit at the point of use');
+    assert.match(readme, /does not establish issuer identity/i);
   });
 });
 
