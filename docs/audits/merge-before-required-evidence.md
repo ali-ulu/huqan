@@ -4,9 +4,16 @@
 
 Four merges, on 2026-08-08 and 2026-08-09, completed before evidence that the
 merging PR itself had declared binding, or recorded that evidence only
-afterwards. Both landed green, so no verdict on record is wrong and
-nothing here reopens a closed gate. The observation is about ordering, not
-outcome.
+afterwards.
+
+Their outcomes differ and should not be summarized together. #562, #588 and
+#613 merged correct code; the ordering was wrong, not the result. #588 also
+merged with one required CI leg still running, which reported green afterwards.
+#611 merged with CI green and shipped three real defects, found by review after
+the fact and fixed in #613.
+
+So nothing here reopens a closed gate, and no verdict on record is withdrawn —
+but "it was fine anyway" holds for three of the four, not all of them.
 
 This is recorded because the repository's central claim is that its gates and
 receipts bind. A gate that merges before its own required evidence reports is
@@ -87,8 +94,14 @@ Review of the merged code then found three real defects:
 
 Every one of these passed CI. None of them was a test-coverage gap in the usual
 sense — each claim *had* a test, and each test measured the easy half of the
-claim. That is the class of defect only review catches, and it is exactly the
-step the premature merge removed.
+claim. The existing tests and CI did not catch any of it; human review did.
+
+That is not the same as saying only review could have. A mutation test over the
+schema's keyword interactions would have caught the third, and inverse fixtures
+would have caught the first — which is precisely what remedy 5 below asks for.
+What review supplied here was the question those tests were missing, not a
+capability tests lack. The premature merge removed the step that was actually
+asking it.
 
 Fixed in PR #613.
 
@@ -164,12 +177,22 @@ control that would have caught defects CI cannot see.
 
 The gap is mechanical, so the fix should be too. Ordered by cost:
 
-1. **Branch protection: required checks *and* required reviews.** Requiring the
-   Node 20 and Node 22 `npm test` jobs plus Security Checks as protected status
-   checks makes occurrence 2 impossible. Requiring a review approval makes
-   occurrence 3 impossible, and that is the one that shipped real defects. Both
-   are repository settings, not documents, and neither can be satisfied by an
-   agent acting under the owner's token.
+1. **Branch protection: required checks *and* required reviews.** These are two
+   different controls and only one of them is agent-proof.
+
+   Requiring the Node 20 and Node 22 `npm test` jobs plus Security Checks as
+   protected status checks makes occurrence 2 impossible. It is not a control on
+   *who* acts: CI runs and passes on an agent's commits exactly as it does on
+   anyone's, which is the point — it gates evidence, not identity.
+
+   Requiring a review approval makes occurrence 3 impossible, and that is the
+   one that shipped real defects. This control an agent operating under the
+   owner's token cannot satisfy for itself, because GitHub refuses to let an
+   account approve its own pull request. That was confirmed the hard way while
+   reviewing PR #616: a formal `REQUEST_CHANGES` was refused for the same
+   reason, on a PR opened under the same identity.
+
+   Both are repository settings, not documents.
 2. **Treat a PR's own stated merge gate as blocking.** Occurrence 1 was not a CI
    problem and branch protection would not have caught it: the PR said in plain
    text that it must not be merged yet, and it was merged anyway. Where a
