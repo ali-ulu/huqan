@@ -26,7 +26,8 @@
         "test:plugin": "node --test plugin.test.js",
         "test:backup": "node --test backupRestore.test.js",
         "test:rust": "node --test rustGraph.test.js",
-        "test:server": "node --test server.test.js"
+        "test:server": "node --test server.test.js",
+        "conformance:external": "node scripts/external-conformance/run.js"
     },
     "keywords": [
         "ai-governance",
