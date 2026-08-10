@@ -161,4 +161,84 @@ describe('FAZ2-PR5 contract: F-006 MCP approval persistence and execution path',
       server.approvalStore?.close?.();
     });
   });
+
+  it('rejects an out-of-enum decision fail-closed and leaves the pending approval untouched (#615)', () => {
+    withTempAxiomEnv(() => {
+      const server = createServer();
+      const queued = callTool(server.kernel, {
+        name: 'axiom.learn',
+        arguments: { text: 'faz2 contract invalid decision mcp sentinel hayvandir' },
+      }, { approvalStore: server.approvalStore });
+      assert.equal(queued.ok, false);
+      assert.equal(queued.approval.status, 'pending');
+
+      const invalid = callTool(server.kernel, {
+        name: 'axiom.approve',
+        // Exactly the raw JSON-RPC repro from #615: a client that skips
+        // schema validation and sends an out-of-enum decision.
+        arguments: { approvalId: queued.approval.id, decision: 'banana', reason: 'invalid-decision-repro' },
+      }, { approvalStore: server.approvalStore });
+      assert.equal(invalid.ok, false);
+      assert.equal(invalid.error.code, 'INVALID_APPROVAL_DECISION');
+      assert.equal(invalid.data, null);
+
+      // Pending state must be completely unchanged -- not claimed, not
+      // resolved, not executed.
+      const stillPending = callTool(server.kernel, {
+        name: 'axiom.approve',
+        arguments: { approvalId: queued.approval.id, decision: 'approved' },
+      }, { approvalStore: server.approvalStore });
+      assert.equal(stillPending.ok, true);
+      assert.equal(stillPending.data.executed, true);
+      assert.equal(stillPending.data.idempotent, false);
+
+      server.kernel.graph.close?.();
+      server.approvalStore?.close?.();
+    });
+  });
+
+  it('rejects an empty or whitespace-only decision fail-closed (#615)', () => {
+    withTempAxiomEnv(() => {
+      const server = createServer();
+      const queued = callTool(server.kernel, {
+        name: 'axiom.learn',
+        arguments: { text: 'faz2 contract whitespace decision mcp sentinel hayvandir' },
+      }, { approvalStore: server.approvalStore });
+      assert.equal(queued.ok, false);
+
+      for (const decision of ['', '   ']) {
+        const result = callTool(server.kernel, {
+          name: 'axiom.approve',
+          arguments: { approvalId: queued.approval.id, decision },
+        }, { approvalStore: server.approvalStore });
+        assert.equal(result.ok, false);
+        assert.equal(result.error.code, 'INVALID_APPROVAL_DECISION');
+      }
+
+      server.kernel.graph.close?.();
+      server.approvalStore?.close?.();
+    });
+  });
+
+  it('still defaults a genuinely absent decision to approved (#615)', () => {
+    withTempAxiomEnv(() => {
+      const server = createServer();
+      const queued = callTool(server.kernel, {
+        name: 'axiom.learn',
+        arguments: { text: 'faz2 contract absent decision mcp sentinel hayvandir' },
+      }, { approvalStore: server.approvalStore });
+      assert.equal(queued.ok, false);
+
+      const result = callTool(server.kernel, {
+        name: 'axiom.approve',
+        arguments: { approvalId: queued.approval.id },
+      }, { approvalStore: server.approvalStore });
+      assert.equal(result.ok, true);
+      assert.equal(result.data.decision, 'approved');
+      assert.equal(result.data.executed, true);
+
+      server.kernel.graph.close?.();
+      server.approvalStore?.close?.();
+    });
+  });
 });
