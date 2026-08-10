@@ -15,7 +15,8 @@ const EVIDENCE_LEVELS = Object.freeze({
   surface: 'packaged-surface-smoke',
   objects: 'self-test',
   'fail-closed': 'self-test',
-  bundles: 'cross-implementation-conformance',
+  bundles: 'self-test',
+  'cross-implementation': 'cross-implementation-conformance',
   gaps: 'blocked-gap',
 });
 
@@ -353,15 +354,35 @@ function parsePythonFindings(stdout) {
   return tail.split(',').map((s) => s.trim()).filter(Boolean).sort();
 }
 
-check('bundles', 'the shipped Python verifier reports the same findings', () => {
-  const probe = spawnSync('python3', ['--version'], { encoding: 'utf8' });
-  if (probe.error || probe.status !== 0) return skipped('python3 unavailable');
+function findPython() {
+  const candidates = process.platform === 'win32'
+    ? [{ command: 'py', args: ['-3'] }, { command: 'python', args: [] }]
+    : [{ command: 'python3', args: [] }, { command: 'python', args: [] }];
+
+  for (const candidate of candidates) {
+    const probe = spawnSync(candidate.command, [
+      ...candidate.args,
+      '-c',
+      'import sys; raise SystemExit(0 if sys.version_info[0] == 3 else 1)',
+    ], { encoding: 'utf8' });
+    if (!probe.error && probe.status === 0) return candidate;
+  }
+  return null;
+}
+
+check('cross-implementation', 'the shipped Python verifier reports the same findings', () => {
+  const python = findPython();
+  if (!python) return skipped('no supported Python interpreter available');
 
   const script = path.join(SPEC_ROOT, 'conformance', 'verify_bundle.py');
   const disagreements = [];
   for (const file of bundleFiles) {
     if (BUNDLE_EXPECTATIONS[file] === undefined) continue;
-    const run = spawnSync('python3', [script, path.join(EXAMPLES, file)], { encoding: 'utf8' });
+    const run = spawnSync(
+      python.command,
+      [...python.args, script, path.join(EXAMPLES, file)],
+      { encoding: 'utf8' },
+    );
     const pythonFindings = parsePythonFindings(run.stdout || '');
     const consumerFindings = [...verifyBundle(readJson(path.join(EXAMPLES, file)))].sort();
     if (JSON.stringify(pythonFindings) !== JSON.stringify(consumerFindings)) {
@@ -374,7 +395,7 @@ check('bundles', 'the shipped Python verifier reports the same findings', () => 
     }
   }
   assert(disagreements.length === 0, disagreements.join('; '));
-  return `${bundleFiles.length} fixtures, findings identical in both implementations`;
+  return `${bundleFiles.length} fixtures, findings identical in JavaScript and Python`;
 });
 
 const GAPS = [
@@ -410,13 +431,15 @@ check('gaps', 'no schemas/ directory reached the installed package', () => {
 
 const failed = cases.filter((c) => c.status === 'fail');
 const skippedCases = cases.filter((c) => c.status === 'skip');
+const crossImplementationCase = cases.find((c) => c.group === 'cross-implementation');
 const report = {
   evidenceLevels: EVIDENCE_LEVELS,
   evidenceLevelNote:
     'Evidence is group-scoped: package reachability is a packaged-surface smoke; '
-    + 'ATP object checks reuse the producer validator and are self-test; bundle checks '
-    + 'use a clean-room verifier and are cross-implementation conformance. '
+    + 'ATP object and JavaScript bundle checks are self-test; the Python comparison is '
+    + 'cross-implementation conformance only when its case passes. '
     + 'This run does not establish third-party verification or interoperability.',
+  crossImplementationExecuted: crossImplementationCase?.status === 'pass',
   packageRoot: PKG_ROOT,
   packageVersion: readJson(path.join(PKG_ROOT, 'package.json')).version,
   total: cases.length,

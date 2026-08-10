@@ -121,9 +121,12 @@ test.describe('V5-C5: external conformance run', { concurrency: 1 }, () => {
       surface: 'packaged-surface-smoke',
       objects: 'self-test',
       'fail-closed': 'self-test',
-      bundles: 'cross-implementation-conformance',
+      bundles: 'self-test',
+      'cross-implementation': 'cross-implementation-conformance',
       gaps: 'blocked-gap',
     });
+    assert.equal(report.crossImplementationExecuted, true,
+      'installed Python must execute the cross-implementation comparison');
   });
 
   test('malformed bundle envelopes are exercised and fail closed', () => {
@@ -136,7 +139,7 @@ test.describe('V5-C5: external conformance run', { concurrency: 1 }, () => {
       const item = report.cases.find((c) => c.name === expectedName);
       assert.ok(item, `missing structural negative case: ${expectedName}`);
       assert.equal(item.status, 'pass', `${expectedName}: ${item && item.detail}`);
-      assert.equal(item.evidenceLevel, 'cross-implementation-conformance');
+      assert.equal(item.evidenceLevel, 'self-test');
     }
   });
 
@@ -181,10 +184,8 @@ test.describe('V5-C5: external conformance run', { concurrency: 1 }, () => {
     assert.ok(project && fs.existsSync(project), 'kept consumer project is missing');
 
     const source = fs.readFileSync(path.join(project, 'consumer.js'), 'utf8');
-    const mutated = source.replace(
-      "spawnSync('python3', ['--version']",
-      "spawnSync('huqan-python-intentionally-unavailable', ['--version']",
-    );
+    const mutated = source.replace('function findPython() {',
+      'function findPython() { return null;');
     assert.notEqual(mutated, source, 'python probe mutation did not apply');
 
     const mutantPath = path.join(project, 'consumer.no-python.js');
@@ -202,9 +203,47 @@ test.describe('V5-C5: external conformance run', { concurrency: 1 }, () => {
     );
     assert.ok(pythonCase, 'python comparison case missing');
     assert.equal(pythonCase.status, 'skip');
+    assert.equal(pythonCase.evidenceLevel, 'cross-implementation-conformance');
+    assert.equal(mutantReport.crossImplementationExecuted, false);
+    assert.match(mutantReport.evidenceLevelNote,
+      /cross-implementation conformance only when its case passes/);
     assert.equal(mutantReport.skipped, 1);
     assert.equal(mutantReport.failed, 0);
     assert.equal(mutantReport.passed, mutantReport.total - 1);
+  });
+
+  test('a non-Python-3 candidate is rejected, never cross-implementation evidence', () => {
+    assert.ok(project && fs.existsSync(project), 'kept consumer project is missing');
+
+    const source = fs.readFileSync(path.join(project, 'consumer.js'), 'utf8');
+    const candidateStart = "const candidates = process.platform === 'win32'";
+    const candidateEnd = ": [{ command: 'python3', args: [] }, { command: 'python', args: [] }];";
+    const start = source.indexOf(candidateStart);
+    const end = source.indexOf(candidateEnd, start);
+    assert.ok(start >= 0 && end >= 0, 'Python candidate table moved');
+    const simulatedNon3 = `const candidates = [{ command: ${JSON.stringify(process.execPath)}, args: [
+      '-e', 'process.exit(process.argv.some((arg) => arg.includes("sys.version_info")) ? 1 : 0)',
+    ] }];`;
+    const mutated = source.slice(0, start) + simulatedNon3
+      + source.slice(end + candidateEnd.length);
+
+    const mutantPath = path.join(project, 'consumer.non-python-3.js');
+    fs.writeFileSync(mutantPath, mutated);
+    const result = cp.spawnSync(process.execPath, [mutantPath], {
+      cwd: project,
+      encoding: 'utf8',
+      timeout: 300000,
+    });
+
+    assert.equal(result.status, 0, 'non-Python-3 candidate should skip only that comparison');
+    const mutantReport = JSON.parse(result.stdout);
+    const pythonCase = mutantReport.cases.find(
+      (c) => c.name === 'the shipped Python verifier reports the same findings',
+    );
+    assert.ok(pythonCase, 'python comparison case missing');
+    assert.equal(pythonCase.status, 'skip');
+    assert.equal(mutantReport.crossImplementationExecuted, false);
+    assert.equal(mutantReport.skipped, 1);
   });
 
   test.after(() => {
