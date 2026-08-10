@@ -77,9 +77,25 @@ code, needs no third-party package, and re-derives canonical serialization,
 UTF-16 key ordering, string escaping and ECMAScript number formatting from the
 document. It agrees with the JavaScript producer on all four fixtures.
 
-That agreement is the conformance evidence. It is also what caught the original
-specification's gaps: the first draft said only "RFC 8259, minified, sorted
-keys", and a Python implementation following it faithfully produced different
+That agreement is the conformance evidence — of *portability*. Two independent
+implementations reach the same bytes and the same verdict from the document
+alone, which is what makes the specification implementable rather than
+reverse-engineered.
+
+Do not read it as an assurance claim about any particular bundle:
+
+> A `VALID` verdict means the bundle satisfies the three specified consistency
+> checks. It does not establish issuer identity, and it does not prove that a
+> capable editor has not rewritten and resealed the bundle. See
+> [What verifying a bundle does and does not prove](../RECEIPT-BUNDLE.md#what-verifying-a-bundle-does-and-does-not-prove).
+
+Conformance level and assurance level are different axes. Agreement between
+implementations says the format is unambiguous; it says nothing about what a
+verified bundle guarantees.
+
+The agreement is also what caught the original specification's gaps: the first
+draft said only "RFC 8259, minified, sorted keys", and a Python implementation
+following it faithfully produced different
 bytes in three separate ways — escaped non-ASCII, code-point key ordering, and
 zero-padded exponents. The specification was corrected; the runtime was not
 touched, because the runtime was never wrong.
