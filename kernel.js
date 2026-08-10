@@ -1909,15 +1909,15 @@ if (verbSuffix.test(predicate)) {
     const zayifNoktalar = [];
     if (yalitilmis.length > 0) zayifNoktalar.push(`${yalitilmis.length} yalıtılmış düğüm`);
     if (celiskiler.length > 0) zayifNoktalar.push(`${celiskiler.length} çelişki`);
-    if (dusukAgirlik > edgeCount * 0.3) zayifNoktalar.push(`${dusukAgirlik} d?k g?venli kenar`);
-    if (nodeCount < 5) zayifNoktalar.push('?ok az bilgi');
+    if (dusukAgirlik > edgeCount * 0.3) zayifNoktalar.push(`${dusukAgirlik} düşük güvenli kenar`);
+    if (nodeCount < 5) zayifNoktalar.push('çok az bilgi');
 
     // Güçlü noktalar
     const gucluNoktalar = [];
     if (nodeCount > 50) gucluNoktalar.push('geniş bilgi grafiği');
-    if (typeEdges > 10) gucluNoktalar.push('g??l? tür hiyerar?isi');
+    if (typeEdges > 10) gucluNoktalar.push('güçlü tür hiyerarşisi');
     if (benzerEdges > 5) gucluNoktalar.push('aktif benzerlik ağı');
-    if (dreamCycle > 0) gucluNoktalar.push(`${dreamCycle} r?ya döngüs? tamamland?`);
+    if (dreamCycle > 0) gucluNoktalar.push(`${dreamCycle} rüya döngüsü tamamlandı`);
 
     const result = {
       bilgi: {

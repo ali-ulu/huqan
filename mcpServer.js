@@ -1206,8 +1206,8 @@ function callTool(kernel, params = {}, runtime = {}) {
         gate,
       ));
     case 'axiom.agent':
-      return withTransientAgent(kernel, (agent) => withMcpToolVerdictSurface(
-        agent.run(sanitizeMcpString(args.goal, MCP_MAX_GOAL), {
+      return withTransientAgent(kernel, async (agent) => withMcpToolVerdictSurface(
+        await agent.run(sanitizeMcpString(args.goal, MCP_MAX_GOAL), {
           maxSteps: boundedMcpInteger(args.maxSteps, 4, 1, 8),
         }),
         name,

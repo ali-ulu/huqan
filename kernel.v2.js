@@ -774,7 +774,16 @@ class KernelV2 {
     );
 
     if (!contradictionDetails) {
-      if (!parsed.isNegated && base?.data?.status === 'celiski' && !base.data.contradictionReason) {
+      const semanticSignals = base?.meta?.semanticTrust?.signals;
+      const typePredicateDriftOnly = !parsed.isNegated
+        && base?.data?.status === 'celiski'
+        && Array.isArray(semanticSignals)
+        && semanticSignals.length > 0
+        && semanticSignals.every(signal => (
+          signal?.rule === 'PREDICATE_DRIFT'
+          && this._isTypeRelation(signal?.meta?.storedRelation)
+        ));
+      if (typePredicateDriftOnly) {
         return this._withVerifyDetails(this._ok(
           'verify',
           { status: 'bilinmiyor', confidence: 0 },

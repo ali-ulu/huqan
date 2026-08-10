@@ -679,6 +679,27 @@ describe('CLI - Komut Çalıştırma', () => {
     assert.ok(run.includes('dry-run-only'));
   });
 
+  it('execute: awaits an allowed workflow agent run before formatting', async () => {
+    const cli = freshCLI();
+    cli.agent = {
+      kind: 'workflow',
+      async run(goal) {
+        return {
+          status: 'completed', goal, objective: 'verify', steps: [],
+          selectedTools: [], finalAnswer: 'async-complete',
+        };
+      },
+      getStatus() { return {}; },
+    };
+
+    const result = await cli.execute('ajan', 'async goal', {
+      gateResult: { canExecute: true, decision: 'allow' },
+    });
+
+    assert.match(result, /Ajan durumu: completed/);
+    assert.match(result, /Sonuç: async-complete/);
+  });
+
   it('execute: verify remains read-only and still works', () => {
     const cli = freshCLI();
     cli.kernel.learn('kedi hayvandir', TEST_FIXTURE_LEARN_BYPASS);
