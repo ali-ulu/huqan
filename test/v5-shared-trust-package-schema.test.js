@@ -237,7 +237,8 @@ test('V5 shared trust package schema parses and declares schema metadata', () =>
   const schema = readSchema();
 
   assert.equal(schema.$schema, 'https://json-schema.org/draft/2020-12/schema');
-  assert.equal(schema.$id, 'https://huqan.local/schemas/v5/shared-trust-package.schema.json');
+  assert.equal(schema.$id,
+    'https://huqan.dev/specs/huqan-trust-protocol/0.2/schemas/shared-trust-package.schema.json');
   assert.equal(schema.type, 'object');
   assert.equal(schema.additionalProperties, false);
 });
