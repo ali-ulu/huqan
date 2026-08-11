@@ -26,6 +26,9 @@ const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
 const { readExactWorkspace } = require('./lib/http/exact-workspace');
 const { createSessionStore } = require('./lib/viewer/session-store');
 const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
+const {
+  createExternalClientProductionBoundary,
+} = require('./lib/external-client-production-boundary');
 const pkg = require('./package.json');
 const {
   DEFAULT_MAX_UPLOAD_BODY,
@@ -50,6 +53,10 @@ if (readCompatibleEnvironmentVariable('USE_SQLITE') === 'false') kernelOpts.useS
 
 const kernel = createKernel(kernelOpts);
 kernel.graph.load();
+const externalClientBoundary = createExternalClientProductionBoundary({
+  environment: process.env,
+  graph: kernel.graph,
+});
 let companyRuntimeReady = false;
 let ingestApprovalStore = null;
 const INGEST_APPROVAL_WORKER_ID = `http-ingest-${crypto.randomUUID()}`;
@@ -804,6 +811,7 @@ const server = http.createServer(async (req, res) => {
   // confirms the existence of an unrouted path.
   const routeAuthPolicy = resolveRouteAuthPolicy(reqUrl.pathname, req.method, {
     workspaceId: sanitizeInput(reqUrl.searchParams.get('workspaceId') || ''),
+    externalClientRouteEnabled: externalClientBoundary !== null,
   });
   // The memory-context route hardens every one of its own responses with
   // no-store/nosniff, but this central gate answers 401 before that handler
@@ -818,6 +826,13 @@ const server = http.createServer(async (req, res) => {
   if (!routeAuthPolicy.known) {
     res.writeHead(404, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
     res.end(JSON.stringify({ error: 'Not found' }));
+    return;
+  }
+
+  if (externalClientBoundary && reqUrl.pathname === externalClientBoundary.path) {
+    const descriptor = await externalClientBoundary.handle(req);
+    res.writeHead(descriptor.statusCode, descriptor.headers);
+    res.end(JSON.stringify(descriptor.body));
     return;
   }
 
@@ -1427,6 +1442,7 @@ server.closeAxiom = () => {
     try { ingestApprovalStore.close(); } catch (_) {}
     ingestApprovalStore = null;
   }
+  try { externalClientBoundary?.close(); } catch (_) {}
   kernel.graph.close();
 };
 

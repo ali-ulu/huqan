@@ -34,7 +34,7 @@ test('real server remains generic 404 for disabled and requested configuration',
   }
   const source = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
   assert.equal(source.includes(EXTERNAL_CLIENT_ENDPOINT_PATH), false);
-  assert.equal(source.includes('external-client-http-adapter'), false);
+  assert.equal(source.includes('external-client-production-boundary'), true);
 });
 
 test('rate limit then API key reject before adapter, body, replay or mutation', async (t) => {
@@ -281,18 +281,19 @@ test('dependency errors and malformed success settle once without secret leakage
     await harness.close();
   }
 });
-
 test('static scope, line budgets and npm dry-run preserve package boundaries', () => {
   const root = path.join(__dirname, '..');
   const files = ['test/external-client-route-adversarial.test.js',
     'test/helpers/external-client-route-harness.js', 'test/helpers/external-client-route-fixture.js'];
   for (const file of files) assert.ok(fs.readFileSync(path.join(root, file), 'utf8').trimEnd().split(/\r?\n/).length <= 300);
-  const packed = JSON.parse(execFileSync(process.platform === 'win32' ? 'npm.cmd' : 'npm',
-    ['pack', '--dry-run', '--json', '--ignore-scripts'], { cwd: root, encoding: 'utf8' }));
+  const packed = JSON.parse(execFileSync(process.platform === 'win32' ? process.env.ComSpec : 'npm',
+    process.platform === 'win32' ? ['/d', '/s', '/c', 'npm pack --dry-run --json --ignore-scripts'] : ['pack', '--dry-run', '--json', '--ignore-scripts'], { cwd: root, encoding: 'utf8' }));
   const names = new Set(packed[0].files.map((entry) => entry.path));
-  for (const file of files.concat(['lib/external-client-endpoint-contract.js','lib/external-client-trust-config.js',
-    'lib/external-client-replay-store.js','lib/external-client-mutation-receipt-owner.js','lib/external-client-http-adapter.js'])) {
-    assert.equal(names.has(file), false, file);
+  for (const file of files) assert.equal(names.has(file), false, file);
+  for (const file of ['lib/external-client-endpoint-contract.js','lib/external-client-trust-config.js',
+    'lib/external-client-replay-store.js','lib/external-client-mutation-receipt-owner.js',
+    'lib/external-client-http-adapter.js','lib/external-client-production-boundary.js']) {
+    assert.equal(names.has(file), true, file);
   }
   assert.equal(names.has('lib/external-client-authority.js'), true);
   assert.equal(names.has('lib/external-client-package-gate.js'), true);

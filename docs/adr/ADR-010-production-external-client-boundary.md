@@ -4,7 +4,8 @@
 
 Accepted architecture decision
 
-Implementation status: Not implemented (decision only)
+Implementation status: implemented only for the opt-in HTTP transport described
+below. It is not universal connector enforcement.
 
 Supersedes nothing. Fills the open contract left by
 `ADR-008-trust-root-boundaries.md`, section "External Endpoint Boundary".
@@ -30,13 +31,36 @@ current tree shows the external-client stack is already built and fail-closed:
 | Transport envelope | `lib/external-client-http-adapter.js` | request body constrained to exactly `{package, signature}` |
 | Admission entry | `lib/sdk.js` | `snapshotPackageAdmissionAuthority` (`:71`), `admitExternalClientPackage` (`:97`) |
 
-Every one of these modules is reachable today only from its own tests and from
-`test/helpers/external-client-route-fixture.js`. No production surface calls
-them. Three tests currently assert that absence as an invariant
+At the time of this decision, every one of these modules was reachable only
+from its own tests and from `test/helpers/external-client-route-fixture.js`.
+The later D8 implementation wires only the selected route. It does not change
+GitHub, Markdown, MCP, CLI, SDK, or workflow connector authority.
 (`lib/external-client-authority.test.js`, `lib/external-client-endpoint-contract.test.js`,
 `test/external-client-route-adversarial.test.js`).
 
 This ADR selects the boundary. It does not build it.
+
+## Implemented D8 boundary
+
+`server.js` now creates one boundary only when
+`HUQAN_EXTERNAL_CLIENT_ENDPOINT_ENABLED=true` and both server-owned paths are
+configured:
+
+- `HUQAN_EXTERNAL_CLIENT_TRUST_PROFILE_PATH`
+- `HUQAN_EXTERNAL_CLIENT_REPLAY_DB_PATH`
+
+The legacy `AXIOM_` spellings are accepted only through the central
+compatibility resolver and conflicting dual values fail closed. With the
+feature disabled, or enabled with neither path, the route stays the generic
+`404`; exactly one path is partial configuration and prevents startup before a
+listener is opened, as does malformed complete configuration. The configured path is the exact
+`POST /api/external-client/packages/admit` transport: API-key guard, bounded
+adapter, server-selected profile identity/workspace, Authority-0, durable
+SQLite replay reservation, and the existing candidate-quarantine mutation and
+receipt owner.
+
+This is intentionally not evidence that all connectors, GitHub/Markdown
+ingestion, CLI, MCP, or arbitrary SDK calls are external-client enforced.
 
 ## Decision
 
@@ -120,22 +144,19 @@ result are all defined and proven. No memory-only pending queue is permitted.
 ### 8. Configuration exposure while disabled
 
 While disabled, the configuration exposes **no route at all**. The path returns
-the same generic `404 {error: 'Not found'}` as any unknown path, in both the
-`disabled` and `requested` configuration states, and is indistinguishable from
-a server that has no such feature.
-
-`configurationState: 'requested'` expresses intent only. It does not make the
-route reachable. Reachability requires the separate authorization named below.
+the same generic `404 {error: 'Not found'}` as any unknown path. A
+`configurationState: 'requested'` with neither path is also generic `404`.
+Exactly one path fails startup; only both a server-owned exact trust profile and
+absolute replay path form the complete D8 server composition that registers the
+named POST route. The Endpoint-0 descriptor remains deliberately non-claiming.
 
 ## What this ADR does not do
 
-This ADR performs no wiring. `server.js` is unchanged, the three tests
-asserting server ignorance of the route remain valid and unmodified, and the
-route remains unregistered.
+This ADR originally performed no wiring. D8 later added the narrow opt-in
+composition documented above; it does not make any other connector reachable.
 
-Making the route reachable is `EXTERNAL-CLIENT-ENABLEMENT-0` in ADR-008's
-required sequence and needs its own exact-base authorization, independent
-review, and closeout evidence. This ADR is its input, not its approval.
+The D8 route is the exact-base `EXTERNAL-CLIENT-ENABLEMENT-0` implementation;
+it remains subject to independent review and closeout evidence.
 
 Consequently this ADR **does not close `TB-A6`**. It removes `TB-A6`'s stated
 blocker ("production external-client boundary must be selected; authoritative
