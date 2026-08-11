@@ -24,7 +24,7 @@ current tree shows the external-client stack is already built and fail-closed:
 | Concern | Module | Evidence |
 | --- | --- | --- |
 | Authoritative admission | `lib/external-client-authority.js` | `EXTERNAL_CLIENT_AUTHORITY_VERSION = 'external-client-authority-0-v1'` (`:10`); two-phase snapshot/enforce (`:160`, `:281`) |
-| Package and signature gate | `lib/external-client-package-gate.js` | `EXTERNAL_CLIENT_PACKAGE_GATE_VERSION = 'tb-a6-v1'` (`:7`); `SUPPORTED_SIGNATURE_ALGORITHM = 'ed25519'` (`:8`) |
+| Package and signature gate | `lib/external-client-package-gate.js` | `EXTERNAL_CLIENT_PACKAGE_GATE_VERSION = 'tb-a6-v2'`; v2 adds the verified package format/version/protocol tuple to gate evidence while retaining legacy `atpVersion` evidence only for legacy input. `SUPPORTED_SIGNATURE_ALGORITHM = 'ed25519'`. |
 | Trusted-key materialization | `lib/external-client-trust-config.js` | `EXTERNAL_CLIENT_TRUST_CONFIG_VERSION = 'external-client-trust-config-0-v1'` (`:9`); `EXTERNAL_CLIENT_MAX_TRUSTED_KEYS = 2` (`:10`) |
 | Reserved endpoint shape | `lib/external-client-endpoint-contract.js` | `POST /api/external-client/packages/admit` (`:4-5`); opt-in key `HUQAN_EXTERNAL_CLIENT_ENDPOINT_ENABLED` (`:6`) |
 | Transport envelope | `lib/external-client-http-adapter.js` | request body constrained to exactly `{package, signature}` |

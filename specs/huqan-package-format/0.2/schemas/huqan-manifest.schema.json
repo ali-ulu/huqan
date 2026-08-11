@@ -1,0 +1,30 @@
+{
+  "title": "HUQAN Package Manifest",
+  "type": "object",
+  "required": [
+    "packageId",
+    "format",
+    "formatVersion",
+    "createdAt",
+    "createdBy",
+    "workspaceId",
+    "source",
+    "description",
+    "objectCounts",
+    "protocolVersion"
+  ],
+  "properties": {
+    "packageId": { "type": "string" },
+    "format": { "const": "huqan-package" },
+    "formatVersion": { "const": "0.2" },
+    "createdAt": { "type": "string" },
+    "createdBy": { "type": "string" },
+    "workspaceId": { "type": "string" },
+    "source": {},
+    "description": { "type": "string" },
+    "objectCounts": { "type": "object" },
+    "protocolVersion": { "const": "0.1" }
+  },
+  "not": { "required": ["atpVersion"] },
+  "additionalProperties": true
+}

@@ -9,6 +9,8 @@ const crypto = require('node:crypto');
 const PKG_ROOT = path.dirname(require.resolve('huqan/package.json'));
 const LEGACY_SPEC_ROOT = path.join(PKG_ROOT, 'specs', 'axiom-trust-protocol', '0.1');
 const CANONICAL_SPEC_ROOT = path.join(PKG_ROOT, 'specs', 'huqan-trust-protocol', '0.2');
+const LEGACY_PACKAGE_ROOT = path.join(PKG_ROOT, 'specs', 'axiom-package-format', '0.1');
+const CANONICAL_PACKAGE_ROOT = path.join(PKG_ROOT, 'specs', 'huqan-package-format', '0.2');
 const SPEC_ROOT = LEGACY_SPEC_ROOT;
 const EXAMPLES = path.join(SPEC_ROOT, 'examples');
 const GENESIS = 'genesis:v4-receipt-chain';
@@ -18,6 +20,7 @@ const EVIDENCE_LEVELS = Object.freeze({
   objects: 'self-test',
   'fail-closed': 'self-test',
   bundles: 'self-test',
+  'package-wire': 'installed-package-self-test',
   replay: 'self-test',
   v5: 'self-test',
   'cross-implementation': 'cross-implementation-conformance',
@@ -181,6 +184,12 @@ function verifyBundle(bundle) {
 const REQUIRED_SURFACE = [
   'package.json',
   'lib/atp-conformance.js',
+  'lib/axiom-package-format.js',
+  'lib/huqan-package-format.js',
+  'specs/axiom-package-format/0.1/examples/package.trust-receipt-bundle.axiom.json',
+  'specs/huqan-package-format/0.2/examples/package.empty.huqan.json',
+  'specs/huqan-package-format/0.2/schemas/huqan-manifest.schema.json',
+  'specs/huqan-package-format/0.2/schemas/huqan-package.schema.json',
   'specs/axiom-trust-protocol/0.1/README.md',
   'specs/axiom-trust-protocol/0.1/RECEIPT-BUNDLE.md',
   'specs/axiom-trust-protocol/0.1/conformance/README.md',
@@ -196,6 +205,61 @@ for (const rel of REQUIRED_SURFACE) {
     assert(fs.existsSync(path.join(PKG_ROOT, rel)), `absent from installed package: ${rel}`);
   });
 }
+
+let packageFormat = null;
+check('package-wire', 'dual-format package reader and canonical writer load', () => {
+  packageFormat = require('huqan/lib/huqan-package-format');
+  assert(typeof packageFormat.validateHuqanPackage === 'function', 'neutral reader missing');
+  assert(typeof packageFormat.createHuqanPackage === 'function', 'canonical writer missing');
+});
+
+const legacyPackagePath = path.join(
+  LEGACY_PACKAGE_ROOT, 'examples', 'package.trust-receipt-bundle.axiom.json',
+);
+const canonicalPackagePath = path.join(
+  CANONICAL_PACKAGE_ROOT, 'examples', 'package.empty.huqan.json',
+);
+
+check('package-wire', 'installed reader accepts retained legacy AXIOM package 0.1', () => {
+  const result = packageFormat.validateHuqanPackage(readJson(legacyPackagePath));
+  assert(result.ok, `legacy package rejected: ${JSON.stringify(result.errors)}`);
+});
+
+check('package-wire', 'installed reader accepts canonical HUQAN package 0.2', () => {
+  const result = packageFormat.validateHuqanPackage(readJson(canonicalPackagePath));
+  assert(result.ok, `canonical package rejected: ${JSON.stringify(result.errors)}`);
+});
+
+check('package-wire', 'installed writer emits canonical HUQAN identity and round-trips', () => {
+  const written = packageFormat.createHuqanPackage(readJson(legacyPackagePath));
+  assert(written.manifest.format === 'huqan-package', 'writer emitted legacy format');
+  assert(written.manifest.formatVersion === '0.2', 'writer emitted wrong formatVersion');
+  assert(written.manifest.protocolVersion === '0.1', 'writer omitted protocolVersion');
+  assert(!Object.prototype.hasOwnProperty.call(written.manifest, 'atpVersion'),
+    'writer retained atpVersion');
+  assert(packageFormat.validateHuqanPackage(JSON.parse(JSON.stringify(written))).ok,
+    'writer output failed JSON round-trip');
+});
+
+check('package-wire', 'installed reader rejects mixed legacy and canonical identity', () => {
+  const mixed = readJson(canonicalPackagePath);
+  mixed.manifest.atpVersion = '0.1';
+  assert(!packageFormat.validateHuqanPackage(mixed).ok, 'mixed manifest was accepted');
+});
+
+check('package-wire', 'canonical manifest schema fixes the same strict wire identity', () => {
+  const schema = readJson(path.join(
+    CANONICAL_PACKAGE_ROOT, 'schemas', 'huqan-manifest.schema.json',
+  ));
+  for (const field of ['format', 'formatVersion', 'protocolVersion', 'source']) {
+    assert(schema.required.includes(field), `schema does not require ${field}`);
+  }
+  assert(schema.properties.format.const === 'huqan-package', 'schema format drift');
+  assert(schema.properties.formatVersion.const === '0.2', 'schema formatVersion drift');
+  assert(schema.properties.protocolVersion.const === '0.1', 'schema protocolVersion drift');
+  assert(JSON.stringify(schema.not) === JSON.stringify({ required: ['atpVersion'] }),
+    'schema does not exclude mixed atpVersion');
+});
 
 check('surface', 'every ATP schema parses as JSON', () => {
   const dir = path.join(SPEC_ROOT, 'schemas');
@@ -707,16 +771,18 @@ function replayPackage(createdAt) {
     'verificationResults', 'trustReceipts', 'causalChains', 'simulationResults'];
   const objectCounts = {}; const objects = {};
   for (const name of collections) { objectCounts[name] = 0; objects[name] = []; }
-  return {
+  const legacy = {
     manifest: {
       packageId: 'pkg.external.conformance', format: 'axiom-package', formatVersion: '0.1',
       createdAt, createdBy: 'connector:external-conformance', workspaceId: 'workspace-conformance',
+      source: { type: 'test', sourceRef: 'huqan://external-conformance/replay' },
       description: 'Installed-package replay fixture', atpVersion: '0.1', objectCounts,
     },
     objects,
     index: { byId: {}, bySourceRef: {}, byWorkspaceId: {}, byType: {} },
     metadata: { warnings: [] },
   };
+  return packageFormat.createHuqanPackage(legacy);
 }
 
 checkAsync('replay', 'installed authority accepts once and rejects the identical signed package replay', async () => {
@@ -773,6 +839,12 @@ checkAsync('replay', 'installed authority accepts once and rejects the identical
   };
   const first = await enforceExternalClientAuthority(input, authority);
   assert(first.ok === true && first.decision === 'allow', 'first admission did not pass');
+  assert(first.gate.gateVersion === 'tb-a6-v2', 'canonical gate version mismatch');
+  assert(first.gate.receipt.packageFormat === 'huqan-package', 'gate receipt lost format');
+  assert(first.gate.receipt.packageFormatVersion === '0.2', 'gate receipt lost formatVersion');
+  assert(first.gate.receipt.packageProtocolVersion === '0.1',
+    'gate receipt lost protocolVersion');
+  assert(first.gate.receipt.atpVersion === null, 'canonical gate receipt exposed atpVersion');
   let replayError = null;
   try { await enforceExternalClientAuthority(input, authority); } catch (error) { replayError = error; }
   assert(replayError && replayError.code === EXTERNAL_CLIENT_AUTHORITY_ERRORS.REPLAY_DETECTED,
@@ -788,7 +860,7 @@ async function finish() {
     evidenceLevels: EVIDENCE_LEVELS,
     evidenceLevelNote:
       'Evidence is group-scoped: package reachability is a packaged-surface smoke; '
-      + 'ATP object, replay, and JavaScript bundle checks are self-test; the Python comparison is '
+      + 'ATP object, package-wire, replay, and JavaScript bundle checks are self-test; the Python comparison is '
       + 'cross-implementation conformance only when its case passes. '
       + 'This run does not establish third-party verification or interoperability.',
     crossImplementationExecuted: crossImplementationCase?.status === 'pass',

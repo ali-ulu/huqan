@@ -6,12 +6,22 @@ const {
   validateATPFixture,
   normalizeATPValidationError,
 } = require('../../lib/atp-conformance');
-const { validateAxiomPackage, validateAxiomPackageFile, AXIOM_PACKAGE_FORMAT_VERSION } = require('../../lib/axiom-package-format');
+const {
+  validateAxiomPackage,
+  validateAxiomPackageFile,
+  validateHuqanPackage,
+  validateHuqanPackageFile,
+  createHuqanPackage,
+  writeHuqanPackageFile,
+  AXIOM_PACKAGE_FORMAT_VERSION,
+  HUQAN_PACKAGE_FORMAT_VERSION,
+} = require('../../lib/huqan-package-format');
 
 const SUPPORTED_PROTOCOLS = Object.freeze({
   atp: '0.1',
   avp: '0.1',
   axiomPackageFormat: AXIOM_PACKAGE_FORMAT_VERSION,
+  huqanPackageFormat: HUQAN_PACKAGE_FORMAT_VERSION,
 });
 
 function isPlainObject(value) {
@@ -66,6 +76,15 @@ function verifyAxiomPackageFile(filePath, opts = {}) {
   return validateAxiomPackageFile(filePath, opts);
 }
 
+function verifyHuqanPackage(pkg, opts = {}) {
+  if (typeof pkg === 'string') return validateHuqanPackageFile(pkg, opts);
+  return validateHuqanPackage(pkg, opts);
+}
+
+function verifyHuqanPackageFile(filePath, opts = {}) {
+  return validateHuqanPackageFile(filePath, opts);
+}
+
 function getSupportedProtocols() {
   return { ...SUPPORTED_PROTOCOLS };
 }
@@ -85,6 +104,9 @@ function createVerifier(options = {}) {
     verifyVerificationResult: (result, validateOptions = {}) => verifyVerificationResult(result, { ...mergedOptions, ...validateOptions }),
     verifyAxiomPackage: (pkg, validateOptions = {}) => verifyAxiomPackage(pkg, { ...mergedOptions, ...validateOptions }),
     verifyAxiomPackageFile: (filePath, validateOptions = {}) => verifyAxiomPackageFile(filePath, { ...mergedOptions, ...validateOptions }),
+    verifyHuqanPackage: (pkg, validateOptions = {}) => verifyHuqanPackage(pkg, { ...mergedOptions, ...validateOptions }),
+    verifyHuqanPackageFile: (filePath, validateOptions = {}) => verifyHuqanPackageFile(filePath, { ...mergedOptions, ...validateOptions }),
+    createHuqanPackage: (pkg, validateOptions = {}) => createHuqanPackage(pkg, { ...mergedOptions, ...validateOptions }),
     validateATPFixture: (type, filePath, validateOptions = {}) => validateATPFixture(type, filePath, { ...mergedOptions, ...validateOptions }),
     normalizeATPValidationError,
   };
@@ -102,10 +124,16 @@ module.exports = {
   verifyVerificationResult,
   verifyAxiomPackage,
   verifyAxiomPackageFile,
+  verifyHuqanPackage,
+  verifyHuqanPackageFile,
   validateATPObject,
   validateATPFixture,
   validateAxiomPackage,
   validateAxiomPackageFile,
+  validateHuqanPackage,
+  validateHuqanPackageFile,
+  createHuqanPackage,
+  writeHuqanPackageFile,
   normalizeATPValidationError,
   createVerifier,
 };

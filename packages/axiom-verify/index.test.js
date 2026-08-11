@@ -8,6 +8,10 @@ const huqanVerify = require('../huqan-verify');
 
 const trustSpecDir = path.join(__dirname, '..', '..', 'specs', 'axiom-trust-protocol', '0.1', 'examples');
 const packageSpecDir = path.join(__dirname, '..', '..', 'specs', 'axiom-package-format', '0.1', 'examples');
+const huqanPackageFixture = path.join(
+  __dirname, '..', '..', 'specs', 'huqan-package-format', '0.2', 'examples',
+  'package.empty.huqan.json',
+);
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -22,6 +26,7 @@ test('legacy path re-exports canonical supported protocol metadata', () => {
   assert.equal(protocols.atp, '0.1');
   assert.equal(protocols.avp, '0.1');
   assert.equal(protocols.axiomPackageFormat, '0.1');
+  assert.equal(protocols.huqanPackageFormat, '0.2');
 });
 
 test('valid provenance fixture passes', () => {
@@ -73,6 +78,18 @@ test('axiom package file validation passes', () => {
   const filePath = path.join(packageSpecDir, 'package.github-pr-review.axiom.json');
   const result = axiomVerify.verifyAxiomPackageFile(filePath);
   assert.equal(result.ok, true);
+});
+
+test('canonical HUQAN package validation and writer are available through the legacy alias', () => {
+  const canonical = readJson(huqanPackageFixture);
+  assert.equal(axiomVerify.verifyHuqanPackage(canonical).ok, true);
+  assert.equal(axiomVerify.verifyAxiomPackage(canonical).ok, true);
+
+  const legacy = readJson(path.join(packageSpecDir, 'package.trust-receipt-bundle.axiom.json'));
+  const written = axiomVerify.createHuqanPackage(legacy);
+  assert.equal(written.manifest.format, 'huqan-package');
+  assert.equal(written.manifest.protocolVersion, '0.1');
+  assert.equal(Object.hasOwn(written.manifest, 'atpVersion'), false);
 });
 
 test('createVerifier binds helpers', () => {

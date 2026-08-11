@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const Graph = require('../../graph');
 const { stableStringify } = require('../../lib/receipt/canonical-receipt');
+const { createHuqanPackage } = require('../../lib/huqan-package-format');
 const { materializeExternalClientTrustConfig, EXTERNAL_CLIENT_TRUST_CONFIG_VERSION } = require('../../lib/external-client-trust-config');
 const { createExternalClientReplayStore } = require('../../lib/external-client-replay-store');
 const { createAxiomClient } = require('../../lib/sdk');
@@ -38,14 +39,15 @@ function packageValue(overrides = {}) {
   const value = {
     manifest: { packageId: IDS.packageId, format: 'axiom-package', formatVersion: '0.1',
       createdAt: '2026-08-04T17:59:00.000Z', createdBy: IDS.identitySubject,
-      workspaceId: IDS.workspaceId, description: 'Route adversarial candidate package',
+      workspaceId: IDS.workspaceId, source: { type: 'test', sourceRef: 'huqan://route/package' },
+      description: 'Route adversarial candidate package',
       atpVersion: '0.1', objectCounts },
     objects, index: { byId: {}, bySourceRef: {}, byWorkspaceId: {}, byType: {} },
     metadata: { warnings: [] },
   };
   if (overrides.manifest) Object.assign(value.manifest, overrides.manifest);
   if (overrides.candidate) Object.assign(value.objects.candidateClaims[0], overrides.candidate);
-  return value;
+  return overrides.canonical ? createHuqanPackage(value) : value;
 }
 function sign(pkg, privateKey, keyId = IDS.keyId) {
   return { algorithm: 'ed25519', keyId,

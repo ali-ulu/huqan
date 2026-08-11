@@ -1,0 +1,35 @@
+{
+  "manifest": {
+    "packageId": "pkg-huqan-empty-001",
+    "format": "huqan-package",
+    "formatVersion": "0.2",
+    "createdAt": "2026-08-11T00:00:00.000Z",
+    "createdBy": "huqan",
+    "workspaceId": "workspace-a",
+    "source": { "type": "export", "sourceRef": "huqan://demo/empty" },
+    "description": "Canonical empty HUQAN exchange package.",
+    "objectCounts": {
+      "provenanceRecords": 0,
+      "auditEvents": 0,
+      "candidateClaims": 0,
+      "conflictResults": 0,
+      "verificationResults": 0,
+      "trustReceipts": 0,
+      "causalChains": 0,
+      "simulationResults": 0
+    },
+    "protocolVersion": "0.1"
+  },
+  "objects": {
+    "provenanceRecords": [],
+    "auditEvents": [],
+    "candidateClaims": [],
+    "conflictResults": [],
+    "verificationResults": [],
+    "trustReceipts": [],
+    "causalChains": [],
+    "simulationResults": []
+  },
+  "index": { "byId": {}, "bySourceRef": {}, "byWorkspaceId": {}, "byType": {} },
+  "metadata": { "warnings": [] }
+}
