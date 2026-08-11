@@ -12,10 +12,11 @@
  *
  * These tests pin two different things, and the distinction matters:
  *
- *   1. SURFACE parity is total. Every Kernel public method must be reachable
- *      through KernelV2. This is the regression guard -- adding a method to
- *      Kernel without delegating it now fails here instead of at a user's
- *      call site.
+ *   1. PUBLIC-METHOD parity is total for prototype methods. Every Kernel
+ *      public prototype method must be reachable through KernelV2. This is
+ *      the regression guard -- adding a method to Kernel without delegating
+ *      it now fails here instead of at a user's call site. Instance fields,
+ *      getters and type declarations are intentionally outside this contract.
  *
  *   2. SEMANTIC parity is deliberately NOT total. v2 exists to add
  *      manipulation analysis and type-chain inference. The tests below pin
@@ -65,14 +66,14 @@ function fixture(t, label) {
   };
 }
 
-test('every Kernel public method is reachable through KernelV2', () => {
+test('every Kernel public prototype method is reachable through KernelV2', () => {
   const v1 = publicMethods(Kernel);
   const v2 = new Set(publicMethods(KernelV2));
   const missing = v1.filter((name) => !v2.has(name));
   assert.deepEqual(missing, [], `KernelV2 does not delegate: ${missing.join(', ')}`);
 });
 
-test('KernelV2 forwards a Kernel method with the same arity contract', () => {
+test('KernelV2 exposes every Kernel public prototype method as callable', () => {
   for (const name of publicMethods(Kernel)) {
     assert.equal(
       typeof KernelV2.prototype[name],
@@ -175,7 +176,7 @@ test('v2 adds manipulation metadata that v1 deliberately does not emit', (t) => 
   const v1Meta = Object.keys(v1.verify(statement).meta);
   const v2Meta = Object.keys(v2.verify(statement).meta);
 
-  // This asymmetry is the reason v2 exists. It is pinned so that "surface
+  // This asymmetry is the reason v2 exists. It is pinned so that "method
   // parity" is never mistaken for "the two versions are interchangeable".
   for (const key of ['manipulationLabels', 'manipulationScore']) {
     assert.equal(v2Meta.includes(key), true, `v2 must emit ${key}`);
