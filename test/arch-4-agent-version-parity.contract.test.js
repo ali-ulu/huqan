@@ -37,6 +37,7 @@ const Agent = require('../agent');
 const AgentV3 = require('../agent.v3');
 const AxiomStorage = require('../storage');
 const Kernel = require('../kernel');
+const { createAgent, CANONICAL_AGENT_VERSION } = require('../agentRuntime');
 
 const EXTERNAL_REVIEW_TOOL = 'http-fetch';
 const EXTERNAL_REVIEW_INPUT = 'https://example.com/data';
@@ -85,8 +86,99 @@ function fixture(t, label) {
       closeables.push(agent.storage);
       return agent;
     },
+    viaRuntime(opts = {}) {
+      const k = kernel(`runtime-${closeables.length}`);
+      const agent = createAgent({
+        kernel: k,
+        dbPath: path.join(root, `runtime-${closeables.length}.db`),
+        ...opts,
+      });
+      if (agent && agent.storage) closeables.push(agent.storage);
+      return agent;
+    },
   };
 }
+
+test('the agent runtime always builds the canonical agent', (t) => {
+  const f = fixture(t, 'canonical');
+  const implicit = f.viaRuntime({});
+  const explicit = f.viaRuntime({ version: CANONICAL_AGENT_VERSION });
+  const blank = f.viaRuntime({ version: '' });
+
+  for (const agent of [implicit, explicit, blank]) {
+    assert.equal(agent instanceof AgentV3, true);
+    assert.equal(agent instanceof Agent, false, 'AgentV3 wraps Agent, it does not extend it');
+  }
+});
+
+test('a legacy agent version request fails fast instead of selecting agent.js', (t) => {
+  const f = fixture(t, 'legacy-version');
+  for (const version of ['v1', 'v2', 'classic', 'V4']) {
+    assert.throws(
+      () => f.viaRuntime({ version }),
+      (error) => error.code === 'HUQAN_AGENT_VERSION_UNSUPPORTED' && error.requested === version,
+      `version=${version} must fail closed`,
+    );
+  }
+});
+
+test('a legacy agent version in the environment fails fast', (t) => {
+  const f = fixture(t, 'legacy-env');
+  const had = Object.prototype.hasOwnProperty.call(process.env, 'HUQAN_AGENT_VERSION');
+  const previous = process.env.HUQAN_AGENT_VERSION;
+  t.after(() => {
+    if (had) process.env.HUQAN_AGENT_VERSION = previous;
+    else delete process.env.HUQAN_AGENT_VERSION;
+  });
+
+  process.env.HUQAN_AGENT_VERSION = 'v2';
+  assert.throws(() => f.viaRuntime({}), { code: 'HUQAN_AGENT_VERSION_UNSUPPORTED' });
+
+  process.env.HUQAN_AGENT_VERSION = CANONICAL_AGENT_VERSION;
+  assert.equal(f.viaRuntime({}) instanceof AgentV3, true, 'the canonical value stays accepted');
+});
+
+test('the workflow runtime axis is untouched by the version decision', (t) => {
+  const f = fixture(t, 'workflow-axis');
+  const workflow = f.viaRuntime({ runtime: 'workflow' });
+
+  // runtime=workflow selects between the agent loop and the workflow runtime,
+  // which is a different question from which agent version runs. It must keep
+  // working, and it must still reject a removed version selector.
+  assert.equal(workflow instanceof AgentV3, false);
+  assert.notEqual(workflow, null);
+  assert.throws(
+    () => f.viaRuntime({ runtime: 'workflow', version: 'v2' }),
+    { code: 'HUQAN_AGENT_VERSION_UNSUPPORTED' },
+  );
+});
+
+/**
+ * KNOWN CONSEQUENCE of making AgentV3 canonical, pinned deliberately rather
+ * than left to be discovered in production.
+ *
+ * `afterAgentRun` is emitted in exactly one place -- agent.js's run() -- and
+ * AgentV3 runs its own loop instead of calling it, so the hook never fires
+ * under the canonical runtime. Two shipped plugins subscribe to it:
+ * plugins/daily-digest.js and plugins/workspace-sync.js. While agent.js was
+ * the default they fired on every run; they are now permanently silent.
+ *
+ * This test asserts the current fact so the regression is visible and any
+ * change to it is deliberate. It is NOT an endorsement: restoring the hook
+ * (by emitting it from AgentV3 with v3's run state) is a live decision, and
+ * v3's state carries a workspaceId that both plugins were written without.
+ */
+test('afterAgentRun does not fire under the canonical agent (known #329 follow-up)', () => {
+  const agentSource = fs.readFileSync(path.join(__dirname, '..', 'agent.js'), 'utf8');
+  const v3Source = fs.readFileSync(path.join(__dirname, '..', 'agent.v3.js'), 'utf8');
+
+  assert.match(agentSource, /_emit\('afterAgentRun'/, 'agent.js is the only emitter');
+  assert.doesNotMatch(
+    v3Source,
+    /_emit\('afterAgentRun'/,
+    'if AgentV3 starts emitting afterAgentRun, update this contract and the two subscribing plugins',
+  );
+});
 
 test('every Agent public prototype method is reachable through AgentV3', () => {
   const v1 = publicMethods(Agent);

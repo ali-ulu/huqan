@@ -31,7 +31,7 @@ const test = require('node:test');
 
 const Kernel = require('../kernel');
 const KernelV2 = require('../kernel.v2');
-const { createKernel } = require('../lib/kernel-factory');
+const { createKernel, CANONICAL_KERNEL_VERSION } = require('../lib/kernel-factory');
 
 function publicMethods(ctor) {
   return Object.getOwnPropertyNames(ctor.prototype)
@@ -83,20 +83,77 @@ test('KernelV2 exposes every Kernel public prototype method as callable', () => 
   }
 });
 
-test('the kernel factory selects v2 only for the exact version string', (t) => {
+test('the kernel factory always builds the canonical kernel', (t) => {
   const f = fixture(t, 'factory');
-  const fallback = createKernel({ ...f.opts, version: 'v3' });
-  const selected = createKernel({ ...f.opts, version: 'v2' });
-  const legacy = createKernel({ ...f.opts });
+  const implicit = createKernel({ ...f.opts });
+  const explicit = createKernel({ ...f.opts, version: CANONICAL_KERNEL_VERSION });
+  const blank = createKernel({ ...f.opts, version: '' });
   t.after(() => {
-    for (const kernel of [fallback, selected, legacy]) {
+    for (const kernel of [implicit, explicit, blank]) {
       try { kernel.graph?.close?.(); } catch (_) {}
       try { kernel.memory?.close?.(); } catch (_) {}
     }
   });
-  assert.equal(selected instanceof KernelV2, true);
-  assert.equal(fallback instanceof Kernel, true, 'an unknown version must not silently select v2');
-  assert.equal(legacy instanceof Kernel, true);
+  for (const kernel of [implicit, explicit, blank]) {
+    assert.equal(kernel instanceof KernelV2, true);
+    assert.equal(kernel instanceof Kernel, false, 'KernelV2 wraps Kernel, it does not extend it');
+  }
+});
+
+test('a legacy kernel version request fails fast instead of selecting v1', (t) => {
+  const f = fixture(t, 'factory-legacy');
+  for (const version of ['v1', 'legacy', '1', 'V3']) {
+    assert.throws(
+      () => createKernel({ ...f.opts, version }),
+      (error) => error.code === 'HUQAN_KERNEL_VERSION_UNSUPPORTED' && error.requested === version,
+      `version=${version} must fail closed`,
+    );
+  }
+});
+
+test('a legacy kernel version in the environment fails fast', (t) => {
+  const f = fixture(t, 'factory-env');
+  const had = Object.prototype.hasOwnProperty.call(process.env, 'HUQAN_KERNEL_VERSION');
+  const previous = process.env.HUQAN_KERNEL_VERSION;
+  t.after(() => {
+    if (had) process.env.HUQAN_KERNEL_VERSION = previous;
+    else delete process.env.HUQAN_KERNEL_VERSION;
+  });
+
+  process.env.HUQAN_KERNEL_VERSION = 'v1';
+  assert.throws(
+    () => createKernel({ ...f.opts }),
+    { code: 'HUQAN_KERNEL_VERSION_UNSUPPORTED' },
+  );
+
+  process.env.HUQAN_KERNEL_VERSION = CANONICAL_KERNEL_VERSION;
+  const canonical = createKernel({ ...f.opts });
+  t.after(() => {
+    try { canonical.graph?.close?.(); } catch (_) {}
+    try { canonical.memory?.close?.(); } catch (_) {}
+  });
+  assert.equal(canonical instanceof KernelV2, true, 'the canonical value stays accepted');
+});
+
+test('the canonical kernel exposes the instance data entry points read', (t) => {
+  const f = fixture(t, 'instance-data');
+  const kernel = f.make(KernelV2);
+
+  // server.js's graph-data endpoint reads these behind presence guards, so a
+  // missing field degrades silently rather than throwing.
+  assert.notEqual(kernel.memory, undefined, 'server.js reads kernel.memory');
+  assert.notEqual(kernel.graph, undefined);
+  assert.notEqual(kernel.plugins, undefined);
+  assert.equal(typeof kernel.contractVersion, typeof f.make(Kernel).contractVersion);
+});
+
+test('wrapping an already-canonical kernel reuses it instead of building a second', (t) => {
+  const f = fixture(t, 'rewrap');
+  const canonical = f.make(KernelV2);
+  const rewrapped = new KernelV2({ kernel: canonical });
+
+  assert.equal(rewrapped.kernel, canonical.kernel, 'the inner v1 kernel must be shared');
+  assert.equal(rewrapped.graph, canonical.graph);
 });
 
 test('maintenance commands the CLI calls do not throw under v2', (t) => {

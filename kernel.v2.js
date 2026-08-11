@@ -99,7 +99,15 @@ function parseSimpleTurkishStatement(statement) {
 
 class KernelV2 {
   constructor(opts = {}) {
-    this.kernel = opts.kernel instanceof Kernel ? opts.kernel : new Kernel(opts);
+    // #329: now that KernelV2 is the canonical runtime, an already-canonical
+    // kernel is what callers have on hand, so `opts.kernel` may well be a
+    // KernelV2. Unwrap it instead of falling through to `new Kernel(opts)` --
+    // that fallback would silently discard the caller's kernel and build a
+    // second, empty one, which is exactly the kind of quiet substitution this
+    // issue is about.
+    if (opts.kernel instanceof Kernel) this.kernel = opts.kernel;
+    else if (opts.kernel instanceof KernelV2) this.kernel = opts.kernel.kernel;
+    else this.kernel = new Kernel(opts);
   }
 
   get plugins() {
@@ -108,6 +116,15 @@ class KernelV2 {
 
   get graph() {
     return this.kernel.graph;
+  }
+
+  // #329: server.js's graph-data endpoint reads kernel.memory.list() and
+  // kernel.memory.queryLinks() behind a `kernel.memory && ...` guard. Before
+  // KernelV2 became the canonical runtime that guard simply never saw a v2
+  // kernel; afterwards it would have failed silently, reporting
+  // "kernel.memory unavailable" instead of the workspace's memory entries.
+  get memory() {
+    return this.kernel.memory;
   }
 
   get contractVersion() {

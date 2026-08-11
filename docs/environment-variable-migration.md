@@ -51,6 +51,18 @@ USE_SQLITE
 VIEWER_INSECURE_LOOPBACK
 ```
 
+`HUQAN_KERNEL_VERSION` and `HUQAN_AGENT_VERSION` are no longer runtime
+switches. KernelV2 and AgentV3 are the canonical runtimes; `kernel.js` and
+`agent.js` remain only as the internal implementations they wrap. Both
+variables are still read so that a stale deployment fails fast rather than
+silently running a different engine: the canonical values (`v2` and `v3`) are
+accepted, and any other value refuses startup with
+`HUQAN_KERNEL_VERSION_UNSUPPORTED` or `HUQAN_AGENT_VERSION_UNSUPPORTED`.
+Remove them from your configuration; they select nothing.
+
+`HUQAN_AGENT_RUNTIME` is unaffected — it chooses between the agent loop and
+the workflow runtime, not between two versions of the same agent.
+
 `HUQAN_PORT` configures the host-side Docker Compose port. The application
 inside the container continues to listen on generic `PORT=3000`. Generic
 provider and platform variables such as `NODE_ENV`, `OPENAI_API_KEY`, and
