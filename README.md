@@ -174,10 +174,12 @@ npm start
 Mutation endpoints require an API key.
 
 ```bash
-AXIOM_API_KEY=replace-with-a-secret npm run server
+HUQAN_API_KEY=replace-with-a-secret npm run server
 ```
 
-`AXIOM_API_KEY` is the current compatibility environment-variable name used by the runtime. It is not the repository name.
+`HUQAN_API_KEY` is the canonical environment-variable name used by the runtime.
+See [the environment-variable migration guide](docs/environment-variable-migration.md)
+before running canonical and legacy names together.
 
 The server starts at `http://localhost:3000`.
 

@@ -1,3 +1,9 @@
+const {
+  readCompatibleEnvironmentVariable,
+  validateEnvironmentCompatibility,
+} = require('./lib/environment-compat');
+validateEnvironmentCompatibility();
+
 const fs = require('fs');
 const readline = require('readline');
 const crypto = require('crypto');
@@ -1112,7 +1118,7 @@ function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
 function withTransientAgent(kernel, callback) {
   const agent = createAgent({
     kernel,
-    version: process.env.AXIOM_AGENT_VERSION,
+    version: readCompatibleEnvironmentVariable('AGENT_VERSION'),
   });
   const closeStorage = () => {
     try { agent?.storage?.close?.(); } catch (_) {}

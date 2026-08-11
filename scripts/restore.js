@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require('../lib/environment-compat').validateEnvironmentCompatibility();
 const { restoreBackup } = require('../backupRestore');
 
 try {

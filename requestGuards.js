@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
 
 const DEFAULT_MAX_INPUT_LENGTH = 500;
 const DEFAULT_RATE_LIMIT_WINDOW = 60_000;
@@ -161,13 +162,13 @@ function constantTimeEqual(left, right) {
   return crypto.timingSafeEqual(a, b);
 }
 
-function requireApiKey(req, configuredKey = process.env.AXIOM_API_KEY || '') {
+function requireApiKey(req, configuredKey = readCompatibleEnvironmentVariable('API_KEY') || '') {
   const apiKey = sanitizeInput(configuredKey, 256);
   const provided = extractApiKey(req.headers || {});
 
   if (!apiKey || !provided || !constantTimeEqual(provided, apiKey)) {
     if (!apiKey) {
-      console.error('[auth] AXIOM_API_KEY is not configured; rejecting request');
+      console.error('[auth] HUQAN_API_KEY is not configured; rejecting request');
     }
     return {
       ok: false,

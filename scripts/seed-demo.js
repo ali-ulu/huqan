@@ -1,5 +1,11 @@
 'use strict';
 
+const {
+  readCompatibleEnvironmentVariable,
+  validateEnvironmentCompatibility,
+} = require('../lib/environment-compat');
+validateEnvironmentCompatibility();
+
 /**
  * HUQAN BiGG Demo Seed Script
  *
@@ -7,9 +13,9 @@
  * direct addEdge so verify() returns reliable dogrulandi/celiski results.
  *
  * Usage:
- *   AXIOM_DB_PATH=/tmp/huqan-demo/memory.db \
- *   AXIOM_MEMORY_PATH=/tmp/huqan-demo/memory.json \
- *   AXIOM_KERNEL_VERSION=v2 \
+ *   HUQAN_DB_PATH=/tmp/huqan-demo/memory.db \
+ *   HUQAN_MEMORY_PATH=/tmp/huqan-demo/memory.json \
+ *   HUQAN_KERNEL_VERSION=v2 \
  *   node scripts/seed-demo.js
  */
 
@@ -17,8 +23,8 @@ const path = require('path');
 const fs = require('fs');
 const KernelV2 = require('../kernel.v2');
 
-const dbPath = process.env.AXIOM_DB_PATH || path.join(process.cwd(), 'memory.db');
-const memoryPath = process.env.AXIOM_MEMORY_PATH || path.join(process.cwd(), 'memory.json');
+const dbPath = readCompatibleEnvironmentVariable('DB_PATH') || path.join(process.cwd(), 'memory.db');
+const memoryPath = readCompatibleEnvironmentVariable('MEMORY_PATH') || path.join(process.cwd(), 'memory.json');
 
 // Ensure parent dir exists
 for (const p of [dbPath, memoryPath]) {

@@ -55,7 +55,7 @@ The implementation must export immutable constants:
 EXTERNAL_CLIENT_ENDPOINT_CONTRACT_VERSION = external-client-endpoint-0-v1
 EXTERNAL_CLIENT_ENDPOINT_PATH = /api/external-client/packages/admit
 EXTERNAL_CLIENT_ENDPOINT_METHOD = POST
-EXTERNAL_CLIENT_ENDPOINT_ENABLE_ENV = AXIOM_EXTERNAL_CLIENT_ENDPOINT_ENABLED
+EXTERNAL_CLIENT_ENDPOINT_ENABLE_ENV = HUQAN_EXTERNAL_CLIENT_ENDPOINT_ENABLED
 ```
 
 This path must not be registered in `server.js` under this gate.

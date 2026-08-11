@@ -1,3 +1,9 @@
+const {
+  readCompatibleEnvironmentVariable,
+  validateEnvironmentCompatibility,
+} = require('./lib/environment-compat');
+validateEnvironmentCompatibility();
+
 const crypto = require('crypto');
 const http = require('http');
 const path = require('path');
@@ -36,16 +42,18 @@ const {
 } = require('./requestGuards');
 
 const kernelOpts = {};
-if (process.env.AXIOM_MEMORY_PATH) kernelOpts.memoryPath = process.env.AXIOM_MEMORY_PATH;
-if (process.env.AXIOM_DB_PATH) kernelOpts.dbPath = process.env.AXIOM_DB_PATH;
-if (process.env.AXIOM_USE_SQLITE === 'false') kernelOpts.useSQLite = false;
+const configuredMemoryPath = readCompatibleEnvironmentVariable('MEMORY_PATH');
+const configuredDbPath = readCompatibleEnvironmentVariable('DB_PATH');
+if (configuredMemoryPath) kernelOpts.memoryPath = configuredMemoryPath;
+if (configuredDbPath) kernelOpts.dbPath = configuredDbPath;
+if (readCompatibleEnvironmentVariable('USE_SQLITE') === 'false') kernelOpts.useSQLite = false;
 
 const kernel = createKernel(kernelOpts);
 kernel.graph.load();
 let companyRuntimeReady = false;
 let ingestApprovalStore = null;
 const INGEST_APPROVAL_WORKER_ID = `http-ingest-${crypto.randomUUID()}`;
-const INGEST_APPROVAL_LEASE_MS = Math.max(30_000, Math.min(900_000, Number(process.env.AXIOM_INGEST_APPROVAL_LEASE_MS) || 120_000));
+const INGEST_APPROVAL_LEASE_MS = Math.max(30_000, Math.min(900_000, Number(readCompatibleEnvironmentVariable('INGEST_APPROVAL_LEASE_MS')) || 120_000));
 
 function getIngestApprovalStore() {
   if (ingestApprovalStore) return ingestApprovalStore;
@@ -290,14 +298,14 @@ function readPathReceiptId(pathname) {
 
 function getRateLimitKey(req) {
   const apiKey = extractApiKey(req.headers || {});
-  const configuredKey = sanitizeInput(process.env.AXIOM_API_KEY || '', 256);
+  const configuredKey = sanitizeInput(readCompatibleEnvironmentVariable('API_KEY') || '', 256);
   if (apiKey && configuredKey && constantTimeEqual(apiKey, configuredKey)) {
     return 'key:' + crypto.createHash('sha256').update(apiKey).digest('hex').slice(0, 16);
   }
-  if (process.env.AXIOM_TRUST_PROXY === '1') {
+  if (readCompatibleEnvironmentVariable('TRUST_PROXY') === '1') {
     const xffList = String(req.headers?.['x-forwarded-for'] || '').split(',').map(s => s.trim());
     // The FIRST entry in X-Forwarded-For is the original client IP.
-    // Only use it when we trust the proxy chain (AXIOM_TRUST_PROXY=1).
+    // Only use it when we trust the proxy chain (HUQAN_TRUST_PROXY=1).
     if (xffList.length > 0 && /^[\d.:a-fA-F]+$/.test(xffList[0])) {
       return 'ip:' + xffList[0];
     }
@@ -547,7 +555,7 @@ function getHealthData() {
   return {
     ok: true,
     service: 'axiom',
-    kernelVersion: process.env.AXIOM_KERNEL_VERSION === 'v2' ? 'v2' : 'v1',
+    kernelVersion: readCompatibleEnvironmentVariable('KERNEL_VERSION') === 'v2' ? 'v2' : 'v1',
     backend: stats.backend,
     nodes: stats.nodes,
     edges: stats.edges,
@@ -558,9 +566,9 @@ function getHealthData() {
 
 function getV2StatusData() {
   const stats = kernel.graph.getStats();
-  const activeKernel = process.env.AXIOM_KERNEL_VERSION === 'v2' ? 'v2' : 'v1';
-  const agentRuntime = String(process.env.AXIOM_AGENT_VERSION || 'v2').toLowerCase();
-  const agentRuntimeMode = String(process.env.AXIOM_AGENT_RUNTIME || '').toLowerCase() || agentRuntime;
+  const activeKernel = readCompatibleEnvironmentVariable('KERNEL_VERSION') === 'v2' ? 'v2' : 'v1';
+  const agentRuntime = String(readCompatibleEnvironmentVariable('AGENT_VERSION') || 'v2').toLowerCase();
+  const agentRuntimeMode = String(readCompatibleEnvironmentVariable('AGENT_RUNTIME') || '').toLowerCase() || agentRuntime;
   const checkpointBackend = agentRuntime === 'v3' ? 'sqlite' : 'json';
   const phases = [
     {
@@ -595,14 +603,14 @@ function getV2StatusData() {
       summary: 'MCP schema reflects v2 verify fields and can opt into KernelV2 runtime.',
       items: [
         'Richer verify output schema',
-        'Optional AXIOM_KERNEL_VERSION=v2 runtime',
+        'Optional HUQAN_KERNEL_VERSION=v2 runtime',
         'Schema tests',
       ],
     },
     {
       id: 'v2.3',
       title: 'v2.3 CLI/REST Runtime',
-      status: process.env.AXIOM_KERNEL_VERSION === 'v2' ? 'done' : 'in_progress',
+      status: readCompatibleEnvironmentVariable('KERNEL_VERSION') === 'v2' ? 'done' : 'in_progress',
       summary: 'CLI, REST, and MCP can run the v2 kernel behind an explicit environment flag.',
       items: [
         'CLI KernelV2 opt-in',
@@ -1398,7 +1406,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-const HOST = process.env.AXIOM_HOST || '127.0.0.1';
+const HOST = readCompatibleEnvironmentVariable('HOST') || '127.0.0.1';
 
 function startServer(port = PORT, host = HOST) {
   return server.listen(port, host, () => {
@@ -1407,7 +1415,7 @@ function startServer(port = PORT, host = HOST) {
   });
 }
 
-if (require.main === module && process.env.AXIOM_DISABLE_AUTO_LISTEN !== '1') {
+if (require.main === module && readCompatibleEnvironmentVariable('DISABLE_AUTO_LISTEN') !== '1') {
   startServer(PORT, HOST);
 }
 

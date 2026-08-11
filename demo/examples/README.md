@@ -59,7 +59,7 @@ Then try in the dashboard:
 Or via HTTP:
 ```bash
 curl -X POST http://localhost:3000/v2/verify \
-  -H "X-API-Key: $AXIOM_API_KEY" \
+  -H "X-API-Key: $HUQAN_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"statement":"kedi bitkidir"}'
 ```

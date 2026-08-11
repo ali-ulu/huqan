@@ -15,10 +15,11 @@ const { runLearnUseCase } = require('./lib/learn-use-case');
 const MemoryStore = require('./lib/memory-store');
 const { buildCanonicalReceiptPayload } = require('./lib/receipt/canonical-receipt');
 const { toCanonicalVerdict } = require('./lib/verdict/action-verdict');
+const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
 
 let RustGraph;
 try { RustGraph = require('./rustGraph'); } catch {}
-const RUST_BIN = process.env.AXIOM_RUST_BIN || (RustGraph && RustGraph.resolveRustBin ? RustGraph.resolveRustBin() : undefined);
+const RUST_BIN = readCompatibleEnvironmentVariable('RUST_BIN') || (RustGraph && RustGraph.resolveRustBin ? RustGraph.resolveRustBin() : undefined);
 const hasRust = !!RUST_BIN && fs.existsSync(RUST_BIN) && typeof RustGraph !== 'undefined';
 
 const AXIOM_ERROR = Object.freeze({
@@ -203,9 +204,9 @@ class Kernel {
       edgeRef: (...args) => this._edgeRef(...args),
     });
     if (!opts.noLoad) this.graph.load();
-    this.paranoidMode = opts.paranoidMode === true || process.env.AXIOM_PARANOID === '1';
+    this.paranoidMode = opts.paranoidMode === true || readCompatibleEnvironmentVariable('PARANOID') === '1';
     this.contractVersion = CONTRACT_VERSION;
-    this.lang = opts.lang || process.env.AXIOM_LANG || 'tr';
+    this.lang = opts.lang || readCompatibleEnvironmentVariable('LANG') || 'tr';
     this.nlp = createNlp(this.lang);
     this.capabilities = { ...DEFAULT_CAPABILITIES, ...(opts.capabilities || {}) };
     this._rust = hasRust ? new RustGraph() : null;
