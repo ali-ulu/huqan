@@ -255,6 +255,22 @@ function runPack() {
   return files;
 }
 
+test('4C1: verifier license metadata matches the packed root license', () => {
+  const root = require('../package.json');
+  const canonical = require('../packages/huqan-verify/package.json');
+  const legacy = require('../packages/axiom-verify/package.json');
+  assert.equal(root.license, 'AGPL-3.0-only');
+  assert.equal(canonical.license, root.license);
+  assert.equal(legacy.license, root.license);
+
+  const packedPaths = new Set(runPack().map(file => file.path));
+  assert.ok(packedPaths.has('LICENSE'), 'packed tarball must contain the root license text');
+  assert.ok(packedPaths.has('packages/huqan-verify/package.json'),
+    'packed tarball must contain canonical verifier metadata');
+  assert.ok(packedPaths.has('packages/axiom-verify/package.json'),
+    'packed tarball must contain legacy verifier metadata');
+});
+
 test('4C1: packed manifest — correct tarball structure', () => {
   const files = runPack();
   assert.ok(files.length > 0, 'packed files array must not be empty');
