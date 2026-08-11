@@ -1,6 +1,8 @@
-# axiom-verify
+# axiom-verify (legacy compatibility path)
 
-`axiom-verify` is the minimal AXIOM verification package skeleton for ATP / AVP objects.
+`packages/axiom-verify` re-exports the canonical `packages/huqan-verify`
+self-test skeleton. Existing imports remain valid, but new code should use the
+canonical path.
 
 ## What it does
 
@@ -8,7 +10,7 @@
 - verifies Trust Receipts
 - verifies AVP-style verification results
 - validates `.axiom` package drafts through the package format helper
-- exposes a small, portable verification surface for builders
+- exposes HUQAN's existing self-test verification surface
 
 ## Supported protocols
 
@@ -20,13 +22,14 @@
 
 Every serious answer should come with a receipt.
 
-That means `axiom-verify` should help callers check provenance, trust policy, audit trail, conflict state, and package validity without claiming absolute truth.
+This package reuses HUQAN's internal conformance modules. It is not an
+independent verifier or evidence of third-party interoperability.
 
 ## Example
 
 ```js
-const axiomVerify = require('axiom-verify');
-const receiptResult = axiomVerify.verifyTrustReceipt(receipt);
+const huqanVerify = require('huqan/packages/huqan-verify');
+const receiptResult = huqanVerify.verifyTrustReceipt(receipt);
 
 if (!receiptResult.ok) {
   console.error(receiptResult.errors);
@@ -37,7 +40,7 @@ if (!receiptResult.ok) {
 
 `.axiom` packages are exchange artifacts, not runtime storage.
 
-`axiom-verify` can validate a package object or a package file path using the package-format helper.
+`huqan-verify` can validate a package object or a package file path using the package-format helper.
 
 ## What it is not
 

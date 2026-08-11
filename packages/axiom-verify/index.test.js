@@ -4,6 +4,7 @@ const path = require('node:path');
 const test = require('node:test');
 
 const axiomVerify = require('./index');
+const huqanVerify = require('../huqan-verify');
 
 const trustSpecDir = path.join(__dirname, '..', '..', 'specs', 'axiom-trust-protocol', '0.1', 'examples');
 const packageSpecDir = path.join(__dirname, '..', '..', 'specs', 'axiom-package-format', '0.1', 'examples');
@@ -12,9 +13,10 @@ function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
-test('axiom-verify exposes supported protocol metadata', () => {
+test('legacy path re-exports canonical supported protocol metadata', () => {
   const protocols = axiomVerify.getSupportedProtocols();
-  assert.equal(axiomVerify.packageName, 'axiom-verify');
+  assert.strictEqual(axiomVerify, huqanVerify);
+  assert.equal(axiomVerify.packageName, 'huqan-verify');
   assert.equal(axiomVerify.packageVersion, '0.1.0');
   assert.equal(axiomVerify.status, 'skeleton');
   assert.equal(protocols.atp, '0.1');
@@ -75,7 +77,7 @@ test('axiom package file validation passes', () => {
 
 test('createVerifier binds helpers', () => {
   const verifier = axiomVerify.createVerifier({ strict: true });
-  assert.equal(verifier.packageName, 'axiom-verify');
+  assert.equal(verifier.packageName, 'huqan-verify');
   assert.equal(verifier.packageVersion, '0.1.0');
   assert.equal(verifier.status, 'skeleton');
   assert.equal(verifier.supportedProtocols.atp, '0.1');

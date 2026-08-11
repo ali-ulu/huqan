@@ -171,6 +171,7 @@ test('4C1: required closure paths in allowlist', () => {
     'graph.js', 'dream.js', 'plugin.js', 'nlp/index.js',
     'config/trust-policy.default.json',
     'packages/axiom-verify/index.js', 'packages/axiom-verify/package.json',
+    'packages/huqan-verify/index.js', 'packages/huqan-verify/package.json',
   ];
   for (const entry of required) assert.ok(fileSet.has(entry), `required: ${entry}`);
 });
@@ -262,6 +263,10 @@ test('4C1: packed manifest — correct tarball structure', () => {
   const packedPaths = new Set(files.map(f => f.path));
   assert.ok(packedPaths.has('kernel.js'), 'kernel.js must be in tarball');
   assert.ok(packedPaths.has('kernel.d.ts'), 'kernel.d.ts must be in tarball');
+  assert.ok(packedPaths.has('packages/huqan-verify/index.js'), 'canonical verifier must be in tarball');
+  assert.ok(packedPaths.has('packages/huqan-verify/package.json'), 'canonical verifier manifest must be in tarball');
+  assert.ok(packedPaths.has('packages/axiom-verify/index.js'), 'legacy verifier re-export must be in tarball');
+  assert.ok(packedPaths.has('packages/axiom-verify/package.json'), 'legacy verifier manifest must be in tarball');
 });
 
 test('4C1: packed manifest — zero forbidden entries', () => {
@@ -353,6 +358,7 @@ test('4C1: installed tarball smoke — all retained deep imports load', () => {
     'huqan/lib/sdk', 'huqan/lib/sdk.js',
     'huqan/mcpServer', 'huqan/mcpServer.js',
     'huqan/server', 'huqan/server.js',
+    'huqan/packages/huqan-verify', 'huqan/packages/axiom-verify',
   ];
 
   for (const imp of imports) {
@@ -365,6 +371,14 @@ test('4C1: installed tarball smoke — all retained deep imports load', () => {
     const result = runInstalledNode(code, { timeout: 20000 });
     assert.equal(result.status, 0, `deep import "${imp}" failed. stderr: ${result.stderr?.slice(0, 400)}`);
   }
+
+  const compatibility = runInstalledNode(`
+    const canonical = require('huqan/packages/huqan-verify');
+    const legacy = require('huqan/packages/axiom-verify');
+    if (canonical !== legacy || canonical.packageName !== 'huqan-verify' || canonical.status !== 'skeleton') process.exit(1);
+  `);
+  assert.equal(compatibility.status, 0,
+    `verifier compatibility failed. stderr: ${compatibility.stderr?.slice(0, 400)}`);
 
   cleanupTarballInstall();
 });
