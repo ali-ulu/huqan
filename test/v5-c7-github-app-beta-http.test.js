@@ -9,6 +9,9 @@ const path = require('node:path');
 const test = require('node:test');
 
 const {
+  MAX_WEBHOOK_BYTES,
+} = require('../lib/github-app-beta-handler');
+const {
   createGitHubAppBetaHttpBoundary,
 } = require('../lib/github-app-beta-http-boundary');
 const {
@@ -63,6 +66,19 @@ async function listen(t, boundary) {
   return server.address().port;
 }
 
+function collectResponse(res, resolve) {
+  const chunks = [];
+  res.on('data', (chunk) => chunks.push(chunk));
+  res.on('end', () => {
+    const text = Buffer.concat(chunks).toString('utf8');
+    resolve({
+      statusCode: res.statusCode,
+      headers: res.headers,
+      body: text ? JSON.parse(text) : null,
+    });
+  });
+}
+
 function request(port, { pathname = '/api/github-app/webhook', body = Buffer.from('{}'), headers = {} } = {}) {
   return new Promise((resolve, reject) => {
     const req = http.request({
@@ -75,20 +91,27 @@ function request(port, { pathname = '/api/github-app/webhook', body = Buffer.fro
         'content-length': String(body.length),
         ...headers,
       },
-    }, (res) => {
-      const chunks = [];
-      res.on('data', (chunk) => chunks.push(chunk));
-      res.on('end', () => {
-        const text = Buffer.concat(chunks).toString('utf8');
-        resolve({
-          statusCode: res.statusCode,
-          headers: res.headers,
-          body: text ? JSON.parse(text) : null,
-        });
-      });
-    });
+    }, (res) => collectResponse(res, resolve));
     req.once('error', reject);
     req.end(body);
+  });
+}
+
+function requestChunked(port, chunks) {
+  return new Promise((resolve, reject) => {
+    const req = http.request({
+      host: '127.0.0.1',
+      port,
+      path: '/api/github-app/webhook',
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'transfer-encoding': 'chunked',
+      },
+    }, (res) => collectResponse(res, resolve));
+    req.once('error', reject);
+    for (const chunk of chunks) req.write(chunk);
+    req.end();
   });
 }
 
@@ -181,6 +204,21 @@ test('invalid signature and unknown paths fail before receipt persistence', asyn
     headers: { 'x-hub-signature-256': signature(body) },
   });
   assert.equal(unknown.statusCode, 404);
+});
+
+test('chunked body crossing the stream bound returns 413 without persisting a receipt', async (t) => {
+  const root = tempRoot(t);
+  const boundary = createGitHubAppBetaHttpBoundary({ environment: environment(root) });
+  const port = await listen(t, boundary);
+
+  const result = await requestChunked(port, [
+    Buffer.alloc(MAX_WEBHOOK_BYTES, 0x61),
+    Buffer.from('b'),
+  ]);
+
+  assert.equal(result.statusCode, 413);
+  assert.equal(result.body.error.code, 'GITHUB_APP_PAYLOAD_TOO_LARGE');
+  assert.equal(fs.readdirSync(path.join(root, 'receipts')).length, 0);
 });
 
 test('GitHub ping is HMAC-authenticated but never creates a Trust Receipt', async (t) => {
