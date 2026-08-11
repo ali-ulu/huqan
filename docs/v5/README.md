@@ -64,6 +64,7 @@ Use the ADR-010 meanings consistently:
 - [Trust-tier Routing Plan](./v5-trust-tier-routing-plan.md)
 - [A2A / Distributed Trust Research Note](./v5-a2a-distributed-trust-research-note.md)
 - [TrustBench Draft](./v5-trustbench-draft.md)
+- [TrustBench Claim-Boundary Closeout (V5-D11)](./v5-d11-trustbench-claim-boundary-closeout.md)
 
 ## Naming Boundary
 
