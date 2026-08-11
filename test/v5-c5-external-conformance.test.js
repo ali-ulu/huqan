@@ -65,7 +65,6 @@ test.describe('V5-C5: evidence claims are group-scoped', () => {
       'packaged-surface-smoke',
       'self-test',
       'cross-implementation-conformance',
-      'blocked-gap',
     ]) {
       assert.match(consumerSource, new RegExp(level));
     }
@@ -122,8 +121,8 @@ test.describe('V5-C5: external conformance run', { concurrency: 1 }, () => {
       objects: 'self-test',
       'fail-closed': 'self-test',
       bundles: 'self-test',
+      v5: 'self-test',
       'cross-implementation': 'cross-implementation-conformance',
-      gaps: 'blocked-gap',
     });
     assert.equal(report.crossImplementationExecuted, true,
       'installed Python must execute the cross-implementation comparison');
@@ -143,14 +142,20 @@ test.describe('V5-C5: external conformance run', { concurrency: 1 }, () => {
     }
   });
 
-  test('the report records the blocked gaps rather than omitting them', () => {
+  test('real V5 cases replace every blocked gap and fail closed mechanically', () => {
     assert.ok(report, 'previous test did not produce a report');
-    const criteria = report.blockedGaps.map((g) => g.criterion);
-    assert.ok(criteria.some((c) => /package validation/.test(c)), 'package validation gap missing');
-    assert.ok(criteria.some((c) => /C3\/C4|HTP/.test(c)), 'V5 object compatibility gap missing');
-    assert.ok(criteria.some((c) => /scope/.test(c)), 'scope/evidence/expiry gap missing');
-    for (const gap of report.blockedGaps) {
-      assert.ok(gap.absent && gap.reason, `gap ${gap.criterion} lacks absent/reason`);
+    assert.deepStrictEqual(report.blockedGaps, []);
+    for (const fragment of [
+      'Shared Trust Package schema accepts',
+      'C3 and C4 schemas remain distinct',
+      'C3 scope absence',
+      'C3 evidence absence',
+      'C3 expiry absence',
+    ]) {
+      const item = report.cases.find((candidate) => candidate.name.includes(fragment));
+      assert.ok(item, `missing real V5 case: ${fragment}`);
+      assert.equal(item.status, 'pass', `${item.name}: ${item.detail}`);
+      assert.equal(item.evidenceLevel, 'self-test');
     }
   });
 
