@@ -5,18 +5,27 @@ services:
       dockerfile: Dockerfile
     container_name: axiom
     ports:
-      - "${AXIOM_PORT:-3000}:3000"
+      - "${HUQAN_PORT:-${AXIOM_PORT:-3000}}:3000"
     environment:
-      PORT: 3000
-      AXIOM_HOST: 0.0.0.0
-      AXIOM_MEMORY_PATH: /app/data/memory.json
-      AXIOM_DB_PATH: /app/data/memory.db
-      AXIOM_BACKUP_DIR: /app/data/backups
-      AXIOM_KERNEL_VERSION: ${AXIOM_KERNEL_VERSION:-v2}
-      AXIOM_AGENT_VERSION: ${AXIOM_AGENT_VERSION:-v2}
-      # Fail fast if the operator forgot to set an API key: docs/SECURITY-GATE.md PR-S0b
-      AXIOM_API_KEY: ${AXIOM_API_KEY:?AXIOM_API_KEY is required}
-      AXIOM_TRUST_PROXY: ${AXIOM_TRUST_PROXY:-0}
+      - PORT=3000
+      - HUQAN_PORT
+      - AXIOM_PORT
+      - HUQAN_HOST
+      - AXIOM_HOST
+      - HUQAN_MEMORY_PATH
+      - AXIOM_MEMORY_PATH
+      - HUQAN_DB_PATH
+      - AXIOM_DB_PATH
+      - HUQAN_BACKUP_DIR
+      - AXIOM_BACKUP_DIR
+      - HUQAN_KERNEL_VERSION
+      - AXIOM_KERNEL_VERSION
+      - HUQAN_AGENT_VERSION
+      - AXIOM_AGENT_VERSION
+      - HUQAN_API_KEY
+      - AXIOM_API_KEY
+      - HUQAN_TRUST_PROXY
+      - AXIOM_TRUST_PROXY
     volumes:
       - axiom-data:/app/data
       # Writable tmpfs for SQLite WAL and other transient files (read-only root fs)

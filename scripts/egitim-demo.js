@@ -9,11 +9,17 @@
 //
 // Şimdi:
 //   - scripts/ altında (npm "files" kapsamı dışında),
-//   - yalnızca AXIOM_DEMO_MODE=1 veya `--demo` ile opt-in,
+//   - yalnızca HUQAN_DEMO_MODE=1 veya `--demo` ile opt-in,
 //   - yalnızca giriş modülü olarak çalışıyor (require etmek yan etkisiz),
 //   - varsayılan olarak geçici/izole bir dizine yazar; production memory
-//     (CWD memory.json / AXIOM_MEMORY_PATH) asla hedeflenmez.
+//     (CWD memory.json / HUQAN_MEMORY_PATH) asla hedeflenmez.
 'use strict';
+
+const {
+  readCompatibleEnvironmentVariable,
+  validateEnvironmentCompatibility,
+} = require('../lib/environment-compat');
+validateEnvironmentCompatibility();
 
 const fs = require('node:fs');
 const os = require('node:os');
@@ -30,9 +36,9 @@ function defaultPersistDir() {
   return path.join(os.tmpdir(), 'huqan-egitim-demo', String(process.pid));
 }
 
-// Opt-in demo modu: AXIOM_DEMO_MODE=1 ortam değişkeni VEYA açık `--demo` flag'ı.
+// Opt-in demo modu: HUQAN_DEMO_MODE=1 ortam değişkeni VEYA açık `--demo` flag'ı.
 function isDemoRequested(argv = process.argv.slice(2), env = process.env) {
-  return env.AXIOM_DEMO_MODE === '1' || argv.includes('--demo');
+  return readCompatibleEnvironmentVariable('DEMO_MODE', env) === '1' || argv.includes('--demo');
 }
 
 function resolvePersistDir(argv = process.argv.slice(2), cwd = process.cwd()) {
@@ -147,7 +153,7 @@ function buildDemoCorpus(identitySeed) {
 
 function main(argv = process.argv.slice(2), env = process.env) {
   if (!isDemoRequested(argv, env)) {
-    console.error('egitim-demo: demo modu kapalı. Bilinçli demo için: AXIOM_DEMO_MODE=1 node scripts/egitim-demo.js');
+    console.error('egitim-demo: demo modu kapalı. Bilinçli demo için: HUQAN_DEMO_MODE=1 node scripts/egitim-demo.js');
     console.error("egitim-demo: (#363 güvenlik koruması) demo; production memory.json'a asla dokunmaz, varsayılan hedef izole geçici dizindir.");
     process.exitCode = 2;
     return;
@@ -222,7 +228,7 @@ function main(argv = process.argv.slice(2), env = process.env) {
   k.graph.save();
   if (typeof k.graph.close === 'function') k.graph.close();
   console.log(`\nHafiza kaydedildi: ${memoryPath}`);
-  console.log(`Demoyu konusmak icin: set AXIOM_MEMORY_PATH=${memoryPath} && node cli.js`);
+  console.log(`Demoyu konusmak icin: set HUQAN_MEMORY_PATH=${memoryPath} && node cli.js`);
   console.log('Egitim tamam.');
 }
 

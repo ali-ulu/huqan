@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 
+const {
+  readCompatibleEnvironmentVariable,
+  validateEnvironmentCompatibility,
+} = require('./lib/environment-compat');
+validateEnvironmentCompatibility();
+
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -37,7 +43,7 @@ function shellQuote(value) {
 
 function getCliReadRoots() {
   const roots = [process.cwd(), os.tmpdir()];
-  const extra = String(process.env.AXIOM_CLI_READ_ROOTS || '')
+  const extra = String(readCompatibleEnvironmentVariable('CLI_READ_ROOTS') || '')
     .split(path.delimiter)
     .map(entry => entry.trim())
     .filter(Boolean)
@@ -183,7 +189,7 @@ class CLI {
     this.agent = createAgent({
       kernel: this.kernel,
       dream: this.dream,
-      version: opts.agentVersion || process.env.AXIOM_AGENT_VERSION,
+      version: opts.agentVersion || readCompatibleEnvironmentVariable('AGENT_VERSION'),
     });
     this.llm = new LLMAdapter();
     this.approvalStore = null;

@@ -199,8 +199,8 @@ This document defines the primary security threats to HUQAN, categorized using t
 
 **Existing Mitigations**:
 - Manifest `sha256` verification detects modification of a plugin file after its manifest was written (`plugin.js: verifyPluginFile`).
-- HMAC signature verification under `AXIOM_PLUGIN_SIGNING_KEY` binds an approved hash to a deployment key.
-- Production enforcement (`AXIOM_PLUGIN_PRODUCTION_ENFORCEMENT=1` / `NODE_ENV=production`) refuses to load anything without a signing key, and `PluginManager.register()` rejects registration without verified provenance (`PLUGIN_UNVERIFIED_REGISTRATION`).
+- HMAC signature verification under `HUQAN_PLUGIN_SIGNING_KEY` binds an approved hash to a deployment key.
+- Production enforcement (`HUQAN_PLUGIN_PRODUCTION_ENFORCEMENT=1` / `NODE_ENV=production`) refuses to load anything without a signing key, and `PluginManager.register()` rejects registration without verified provenance (`PLUGIN_UNVERIFIED_REGISTRATION`).
 - The plugins directory is a deployment-controlled path; write access to it is treated as equivalent to code execution.
 
 **Remaining Gaps**:

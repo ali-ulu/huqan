@@ -2,13 +2,14 @@ const Agent = require('./agent');
 const AgentV3 = require('./agent.v3');
 const AxiomStorage = require('./storage');
 const { createWorkflowRuntime } = require('./workflow-runtime');
+const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
 
 function resolveAgentVersion(opts = {}) {
-  return String(opts.version || process.env.AXIOM_AGENT_VERSION || 'v2').toLowerCase();
+  return String(opts.version || readCompatibleEnvironmentVariable('AGENT_VERSION') || 'v2').toLowerCase();
 }
 
 function resolveAgentRuntime(opts = {}) {
-  return String(opts.runtime || process.env.AXIOM_AGENT_RUNTIME || 'classic').toLowerCase();
+  return String(opts.runtime || readCompatibleEnvironmentVariable('AGENT_RUNTIME') || 'classic').toLowerCase();
 }
 
 /**

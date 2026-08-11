@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
 
 const VERIFIED_PLUGIN = Symbol('axiom.verifiedPlugin');
 
@@ -75,7 +76,7 @@ function readManifest(filePath) {
 function verifyPluginFile(filePath, opts = {}) {
   const strict = opts.strict === true;
   const productionEnforcement = opts.productionEnforcement === true;
-  const signatureKey = opts.signatureKey || process.env.AXIOM_PLUGIN_SIGNING_KEY || '';
+  const signatureKey = opts.signatureKey || readCompatibleEnvironmentVariable('PLUGIN_SIGNING_KEY') || '';
   const currentHash = hashFile(filePath);
 
   // #391: hash-only verification proves a plugin file matches its adjacent
@@ -83,7 +84,7 @@ function verifyPluginFile(filePath, opts = {}) {
   // can rewrite both together, so once production enforcement is active, a
   // missing signing key must not silently fall back to that weaker
   // guarantee. This is narrower than plain `strict` (which defaults on
-  // everywhere AXIOM_PLUGIN_STRICT isn't explicitly '0', including normal
+  // everywhere HUQAN_PLUGIN_STRICT isn't explicitly '0', including normal
   // dev/test runs loading unsigned first-party plugins) -- only actual
   // production enforcement requires a signing key to load anything at all.
   if (productionEnforcement && !signatureKey) {
@@ -173,12 +174,12 @@ class PluginManager {
     this.kernel = kernel;
     this.plugins = [];
     this._handlers = {};
-    this.pluginSigningKey = process.env.AXIOM_PLUGIN_SIGNING_KEY || '';
+    this.pluginSigningKey = readCompatibleEnvironmentVariable('PLUGIN_SIGNING_KEY') || '';
     this.productionPluginEnforcement =
-      process.env.AXIOM_PLUGIN_PRODUCTION_ENFORCEMENT === '1' ||
+      readCompatibleEnvironmentVariable('PLUGIN_PRODUCTION_ENFORCEMENT') === '1' ||
       process.env.NODE_ENV === 'production';
     this.strictPlugins =
-      this.productionPluginEnforcement || process.env.AXIOM_PLUGIN_STRICT !== '0';
+      this.productionPluginEnforcement || readCompatibleEnvironmentVariable('PLUGIN_STRICT') !== '0';
     for (const e of EVENTS) this._handlers[e] = [];
   }
 

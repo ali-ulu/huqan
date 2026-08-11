@@ -2,20 +2,21 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { resolveContainedPath } = require('./lib/memory-store-utils');
+const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
 
 function resolvePersistencePaths(opts = {}) {
   const cwd = path.resolve(opts.rootDir || process.cwd());
   const allowedRoots = [cwd, os.tmpdir()];
   const memoryPath = resolveContainedPath(
-    path.resolve(cwd, opts.memoryPath || process.env.AXIOM_MEMORY_PATH || 'memory.json'),
+    path.resolve(cwd, opts.memoryPath || readCompatibleEnvironmentVariable('MEMORY_PATH') || 'memory.json'),
     allowedRoots,
   );
   const dbPath = resolveContainedPath(
-    path.resolve(cwd, opts.dbPath || process.env.AXIOM_DB_PATH || memoryPath.replace(/\.json$/i, '.db')),
+    path.resolve(cwd, opts.dbPath || readCompatibleEnvironmentVariable('DB_PATH') || memoryPath.replace(/\.json$/i, '.db')),
     [...allowedRoots, path.dirname(memoryPath)],
   );
   const backupBaseDir = resolveContainedPath(
-    path.resolve(cwd, opts.backupBaseDir || process.env.AXIOM_BACKUP_DIR || path.join(path.dirname(memoryPath), 'backups')),
+    path.resolve(cwd, opts.backupBaseDir || readCompatibleEnvironmentVariable('BACKUP_DIR') || path.join(path.dirname(memoryPath), 'backups')),
     [...allowedRoots, path.dirname(memoryPath)],
   );
 
