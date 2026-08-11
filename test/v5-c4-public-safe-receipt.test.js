@@ -169,7 +169,7 @@ describe('V5-C4: the redaction policy is machine-readable and default-deny', () 
   });
 });
 
-describe('V5-C4: integrity — checksum mandatory, signature contracted but absent', () => {
+describe('V5-C4: integrity — checksum mandatory, signed exchange separately gated', () => {
   const valid = fixture('valid.public-receipt.json');
 
   it('the checksum is mandatory and recomputes', () => {
@@ -248,12 +248,13 @@ describe('V5-C4: integrity — checksum mandatory, signature contracted but abse
     }
   });
 
-  it('the signature profile is contracted to ed25519-v1 and never satisfied by a placeholder', () => {
+  it('the signature profile is contracted to ed25519-v1 and D3 verification is explicit', () => {
     const signatureObject = schema.properties.integrity.properties.signature.oneOf
       .find((s) => s.type === 'object');
     assert.equal(signatureObject.properties.profileId.const, 'ed25519-v1');
     assert.equal(policy.integrity.signatureRequired, false);
-    assert.match(policy.integrity.signatureNote, /#435/);
+    assert.equal(policy.integrity.verifiedExchangeRequiresSignature, true);
+    assert.match(policy.integrity.signatureNote, /HUQAN\/V5\/PUBLIC-TRUST-RECEIPT\/v1/);
   });
 });
 

@@ -45,11 +45,12 @@
     "checksumInput": "the public receipt with integrity.checksum removed, serialized by the canonicalJson rule of the source above",
     "signatureRequired": false,
     "signatureProfile": "ed25519-v1",
-    "signatureNote": "No signing implementation exists: lib/v5/verification-core.js accepts only algorithm test-structural-v1 and synthetic-signature-placeholder values, which issue #435 is open against.",
+    "signatureNote": "D3 export signs the explicit HUQAN/V5/PUBLIC-TRUST-RECEIPT/v1 domain projection with an Ed25519 private KeyObject. D3 import verifies that signature only after checksum and independently supplied receipt/bundle binding checks.",
+    "verifiedExchangeRequiresSignature": true,
     "assuranceLevels": {
       "checksum": "corruption and self-consistency detection. Keyless, so an editor who rewrites the document can recompute it. It does not prove the document was not altered.",
-      "signature": "issuer and authorship. Not delivered by this format today.",
-      "externalHashComparison": "independently anchored evidence: comparing binding.internalReceiptHash or binding.bundleHash against a receipt or bundle the recipient obtained separately. This is the only level here that survives a capable editor."
+      "signature": "issuer and authorship for the explicit domain-separated projection. Delivered by D3 export/import only when the signing key is active and the receipt or bundle binding is independently matched.",
+      "externalHashComparison": "independently anchored source binding: comparing binding.internalReceiptHash or binding.bundleHash against a receipt or bundle the recipient obtained separately. This establishes what internal evidence the signed public receipt summarizes; it is distinct from signature authorship."
     },
     "signedSignatureCoupling": "signed false requires signature null; signed true requires an ed25519-v1 signature object. Enforced by oneOf in the schema, not by convention."
   }
