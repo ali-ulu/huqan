@@ -7,7 +7,9 @@ const { spawnSync } = require('node:child_process');
 const crypto = require('node:crypto');
 
 const PKG_ROOT = path.dirname(require.resolve('huqan/package.json'));
-const SPEC_ROOT = path.join(PKG_ROOT, 'specs', 'axiom-trust-protocol', '0.1');
+const LEGACY_SPEC_ROOT = path.join(PKG_ROOT, 'specs', 'axiom-trust-protocol', '0.1');
+const CANONICAL_SPEC_ROOT = path.join(PKG_ROOT, 'specs', 'huqan-trust-protocol', '0.2');
+const SPEC_ROOT = LEGACY_SPEC_ROOT;
 const EXAMPLES = path.join(SPEC_ROOT, 'examples');
 const GENESIS = 'genesis:v4-receipt-chain';
 
@@ -174,6 +176,10 @@ const REQUIRED_SURFACE = [
   'specs/axiom-trust-protocol/0.1/RECEIPT-BUNDLE.md',
   'specs/axiom-trust-protocol/0.1/conformance/README.md',
   'specs/axiom-trust-protocol/0.1/conformance/verify_bundle.py',
+  'specs/huqan-trust-protocol/0.2/README.md',
+  'specs/huqan-trust-protocol/0.2/RECEIPT-BUNDLE.md',
+  'specs/huqan-trust-protocol/0.2/conformance/README.md',
+  'specs/huqan-trust-protocol/0.2/conformance/verify_bundle.py',
 ];
 
 for (const rel of REQUIRED_SURFACE) {
@@ -188,6 +194,23 @@ check('surface', 'every ATP schema parses as JSON', () => {
   assert(files.length > 0, 'no schemas shipped');
   for (const file of files) readJson(path.join(dir, file));
   return `${files.length} schemas`;
+});
+
+const CANONICAL_JSON = [
+  'a2a-trust-evidence.schema.json',
+  'public-trust-receipt.schema.json',
+  'public-receipt-redaction-policy.json',
+  'shared-trust-package.schema.json',
+  'agent-identity.schema.json',
+];
+
+check('surface', 'canonical HTP 0.2 carries exactly the RFC-002 JSON manifest', () => {
+  const dir = path.join(CANONICAL_SPEC_ROOT, 'schemas');
+  const files = fs.readdirSync(dir).filter((file) => file.endsWith('.json')).sort();
+  assert(JSON.stringify(files) === JSON.stringify([...CANONICAL_JSON].sort()),
+    `unexpected canonical JSON manifest: ${files.join(', ')}`);
+  for (const file of files) readJson(path.join(dir, file));
+  return `${files.length} canonical artifacts`;
 });
 
 let atp = null;
@@ -374,52 +397,60 @@ check('cross-implementation', 'the shipped Python verifier reports the same find
   const python = findPython();
   if (!python) return skipped('no supported Python interpreter available');
 
-  const script = path.join(SPEC_ROOT, 'conformance', 'verify_bundle.py');
   const disagreements = [];
-  for (const file of bundleFiles) {
-    if (BUNDLE_EXPECTATIONS[file] === undefined) continue;
-    const run = spawnSync(
-      python.command,
-      [...python.args, script, path.join(EXAMPLES, file)],
-      { encoding: 'utf8' },
-    );
-    const pythonFindings = parsePythonFindings(run.stdout || '');
-    const consumerFindings = [...verifyBundle(readJson(path.join(EXAMPLES, file)))].sort();
-    if (JSON.stringify(pythonFindings) !== JSON.stringify(consumerFindings)) {
-      disagreements.push(
-        `${file}: python=${JSON.stringify(pythonFindings)} consumer=${JSON.stringify(consumerFindings)}`,
+  for (const [surface, root] of [
+    ['legacy ATP 0.1', LEGACY_SPEC_ROOT],
+    ['canonical HTP 0.2', CANONICAL_SPEC_ROOT],
+  ]) {
+    const script = path.join(root, 'conformance', 'verify_bundle.py');
+    for (const file of bundleFiles) {
+      if (BUNDLE_EXPECTATIONS[file] === undefined) continue;
+      const run = spawnSync(
+        python.command,
+        [...python.args, script, path.join(EXAMPLES, file)],
+        { encoding: 'utf8' },
       );
-    }
-    if ((run.status === 0) !== (pythonFindings.length === 0)) {
-      disagreements.push(`${file}: python exit status disagrees with its own findings`);
+      const pythonFindings = parsePythonFindings(run.stdout || '');
+      const consumerFindings = [...verifyBundle(readJson(path.join(EXAMPLES, file)))].sort();
+      if (JSON.stringify(pythonFindings) !== JSON.stringify(consumerFindings)) {
+        disagreements.push(
+          `${surface}/${file}: python=${JSON.stringify(pythonFindings)} consumer=${JSON.stringify(consumerFindings)}`,
+        );
+      }
+      if ((run.status === 0) !== (pythonFindings.length === 0)) {
+        disagreements.push(`${surface}/${file}: python exit status disagrees with its own findings`);
+      }
     }
   }
   assert(disagreements.length === 0, disagreements.join('; '));
-  return `${bundleFiles.length} fixtures, findings identical in JavaScript and Python`;
+  return `${bundleFiles.length} fixtures across canonical and legacy verifiers, findings identical`;
 });
 
 const GAPS = [
   {
     criterion: 'package validation',
-    absent: 'schemas/v5/shared-trust-package.schema.json',
-    reason: 'schemas/ is excluded from the package by the facade contract.',
+    absent: 'real packaged shared-trust-package validation cases',
+    published: 'specs/huqan-trust-protocol/0.2/schemas/shared-trust-package.schema.json',
+    reason: 'The schema is now published; #277 still owns real package validation cases.',
   },
   {
     criterion: 'HTP (V5-C3/C4) compatibility',
-    absent: 'schemas/v5/public-trust-receipt.schema.json',
-    reason: 'ATP v0.1 is shipped; the V5 object schemas are not on a published surface.',
+    absent: 'real HTP C3/C4 compatibility cases',
+    published: 'specs/huqan-trust-protocol/0.2/schemas/public-trust-receipt.schema.json',
+    reason: 'The C3/C4 schemas are now published; #277 still owns compatibility cases.',
   },
   {
     criterion: 'missing scope / evidence / expiry negatives',
-    absent: 'schemas/v5/a2a-trust-evidence.schema.json',
-    reason: 'the V5-C3 evidence schema that defines those fields is not published.',
+    absent: 'real missing scope/evidence/expiry negative cases',
+    published: 'specs/huqan-trust-protocol/0.2/schemas/a2a-trust-evidence.schema.json',
+    reason: 'The evidence schema is now published; #277 still owns the negative cases.',
   },
 ];
 
 for (const gap of GAPS) {
   check('gaps', `BLOCKED_GAP still holds: ${gap.criterion}`, () => {
-    assert(!fs.existsSync(path.join(PKG_ROOT, gap.absent)),
-      `${gap.absent} is now shipped; replace this gap with real conformance cases`);
+    assert(fs.existsSync(path.join(PKG_ROOT, gap.published)),
+      `${gap.published} must be shipped before #277 replaces this gap`);
     return gap.reason;
   });
 }
@@ -446,7 +477,9 @@ const report = {
   passed: cases.length - failed.length - skippedCases.length,
   skipped: skippedCases.length,
   failed: failed.length,
-  blockedGaps: GAPS.map((g) => ({ criterion: g.criterion, absent: g.absent, reason: g.reason })),
+  blockedGaps: GAPS.map((g) => ({
+    criterion: g.criterion, absent: g.absent, published: g.published, reason: g.reason,
+  })),
   cases,
 };
 

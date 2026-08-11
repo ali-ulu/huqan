@@ -179,7 +179,7 @@ describe('V5-C4: integrity — checksum mandatory, signature contracted but abse
 
   it('the checksum uses the RECEIPT-BUNDLE canonicalization, not a second rule', () => {
     assert.equal(policy.integrity.canonicalizationSource,
-      'specs/axiom-trust-protocol/0.1/RECEIPT-BUNDLE.md');
+      'specs/huqan-trust-protocol/0.2/RECEIPT-BUNDLE.md');
     assert.equal(valid.integrity.checksumAlgorithm, 'sha256-canonical-json-v1');
   });
 
