@@ -27,7 +27,8 @@
         "test:backup": "node --test backupRestore.test.js",
         "test:rust": "node --test rustGraph.test.js",
         "test:server": "node --test server.test.js",
-        "conformance:external": "node scripts/external-conformance/run.js"
+        "conformance:external": "node scripts/external-conformance/run.js",
+        "conformance:a2a": "node scripts/a2a-conformance/run.js"
     },
     "keywords": [
         "ai-governance",
