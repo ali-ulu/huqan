@@ -65,11 +65,17 @@ test('valid pull_request delivery binds immutable source identity and emits a bo
     nowMs: Date.parse('2026-08-11T14:30:00.000Z'),
   });
   assert.equal(result.duplicate, false);
-  assert.deepEqual(result.receipt.repository, { id: 1300995136, fullName: 'ali-ulu/huqan' });
-  assert.deepEqual(result.receipt.pullRequest, { number: 279, headSha: 'a'.repeat(40) });
-  assert.equal(result.receipt.installationId, 991);
+  assert.equal(result.receipt.schemaVersion, 'v4-receipt-v1');
+  assert.equal(result.receipt.receiptKind, 'github_app_beta_pull_request_observation');
+  assert.equal(result.receipt.workspaceId, 'default');
+  assert.equal(result.receipt.actor, 'github-app:991');
   assert.equal(result.receipt.verdict, 'review');
   assert.equal(result.receipt.decision, 'beta_observation_only');
+  assert.equal(result.receipt.metadata.repositoryId, 1300995136);
+  assert.equal(result.receipt.metadata.repositoryFullName, 'ali-ulu/huqan');
+  assert.equal(result.receipt.metadata.pullRequestNumber, 279);
+  assert.equal(result.receipt.metadata.headSha, 'a'.repeat(40));
+  assert.equal(result.receipt.previousReceiptHash, 'genesis:v4-receipt-chain');
   assert.match(result.receipt.receiptHash, /^[0-9a-f]{64}$/);
   const disk = fs.readFileSync(path.join(rootPath, 'receipts', `${DELIVERY}.json`), 'utf8');
   assert.doesNotMatch(disk, /secret-token|private-user-name|private@example|feature\/private-name|sensitive title/);
