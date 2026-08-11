@@ -116,6 +116,11 @@ test.describe('V5-C5: external conformance run', { concurrency: 1 }, () => {
     assert.equal(report.failed, 0);
     assert.ok(report.total >= 45, `expected at least 45 cases, got ${report.total}`);
     assert.equal(report.passed + report.skipped + report.failed, report.total);
+    assert.equal(report.skipped, 0, 'Certified Node criteria reject skipped cases');
+    assert.equal(report.passed, report.total, 'Certified Node criteria require every case to pass');
+    assert.equal(report.cases.length, report.total, 'case inventory must match the reported total');
+    assert.ok(report.cases.every((item) => item.status === 'pass'),
+      'Certified Node criteria require every reported case to pass');
     assert.deepStrictEqual(report.evidenceLevels, {
       surface: 'packaged-surface-smoke',
       objects: 'self-test',
@@ -126,6 +131,16 @@ test.describe('V5-C5: external conformance run', { concurrency: 1 }, () => {
       v5: 'self-test',
       'cross-implementation': 'cross-implementation-conformance',
     });
+    const crossImplementationCases = report.cases.filter(
+      (item) => item.group === 'cross-implementation',
+    );
+    assert.equal(crossImplementationCases.length, 1,
+      'exactly one cross-implementation case is required');
+    const [crossImplementationCase] = crossImplementationCases;
+    assert.equal(crossImplementationCase.name,
+      'the shipped Python verifier reports the same findings');
+    assert.equal(crossImplementationCase.status, 'pass');
+    assert.equal(crossImplementationCase.evidenceLevel, 'cross-implementation-conformance');
     assert.equal(report.crossImplementationExecuted, true,
       'installed Python must execute the cross-implementation comparison');
   });
