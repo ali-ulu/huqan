@@ -1,0 +1,10 @@
+{
+  "name": "huqan-verify",
+  "version": "0.1.0",
+  "description": "Minimal self-test helpers for legacy ATP / AVP trust objects.",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test ../axiom-verify/index.test.js"
+  }
+}

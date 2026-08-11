@@ -28,10 +28,11 @@ are easy, so state the level explicitly whenever citing a result.
 - third-party verification — **none**;
 - interoperability — **none**.
 
-`packages/axiom-verify` is a self-test surface despite its name: it re-exports
+`packages/huqan-verify` is a self-test surface: it reuses
 `lib/atp-conformance.js` and `lib/axiom-package-format.js` rather than
 implementing the specification independently, and reports `status: 'skeleton'`
-in its own exported surface.
+in its own exported surface. The legacy `packages/axiom-verify` path re-exports
+that canonical module.
 
 ## Object shape self-tests
 

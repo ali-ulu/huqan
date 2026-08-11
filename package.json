@@ -200,6 +200,8 @@
         "package.json",
         "packages/axiom-verify/index.js",
         "packages/axiom-verify/package.json",
+        "packages/huqan-verify/index.js",
+        "packages/huqan-verify/package.json",
         "persistencePaths.js",
         "plugin.js",
         "plugins/company-brain.js",
