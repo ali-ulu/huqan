@@ -90,7 +90,7 @@
     },
     "integrity": {
       "type": "object",
-      "description": "Self-consistency for this document. The checksum is keyless: it detects corruption and accidental modification, and proves the document is internally consistent. It does NOT prove the document was not tampered with, because anyone who edits it can recompute the checksum. Authorship is a signature's job, and this format does not currently deliver one.",
+      "description": "Self-consistency and authorship for this document. The checksum is keyless: it detects corruption and accidental modification, but anyone who edits the document can recompute it. A D3 Ed25519 signature authenticates the explicit domain-separated projection defined by the runtime; verified exchange additionally requires an independently supplied internal receipt or bundle hash.",
       "required": [
         "checksumAlgorithm",
         "checksum",
@@ -133,12 +133,12 @@
                   "$ref": "#/$defs/nonEmptyString"
                 },
                 "value": {
-                  "$ref": "#/$defs/nonEmptyString"
+                  "$ref": "#/$defs/ed25519Signature"
                 }
               }
             }
           ],
-          "description": "Null when signed is false. No signing implementation exists yet (see issue #435), so no fixture presents a real signature and no acceptance criterion is met by one."
+          "description": "Null when signed is false. D3 export emits a real Ed25519 signature; the signature covers a domain-separated canonical projection that excludes checksum and signature value but includes the signature profile and keyId. Unsigned C4 artifacts remain schema-valid but are not accepted as verified D3 exchange artifacts."
         }
       },
       "oneOf": [
@@ -180,7 +180,7 @@
                   "$ref": "#/$defs/nonEmptyString"
                 },
                 "value": {
-                  "$ref": "#/$defs/nonEmptyString"
+                  "$ref": "#/$defs/ed25519Signature"
                 }
               }
             }
@@ -201,6 +201,11 @@
     "sha256Hex": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
+    },
+    "ed25519Signature": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{86}$",
+      "description": "Canonical unpadded base64url encoding of exactly 64 Ed25519 signature bytes."
     }
   }
 }
