@@ -121,6 +121,7 @@ test.describe('V5-C5: external conformance run', { concurrency: 1 }, () => {
       objects: 'self-test',
       'fail-closed': 'self-test',
       bundles: 'self-test',
+      'package-wire': 'installed-package-self-test',
       replay: 'self-test',
       v5: 'self-test',
       'cross-implementation': 'cross-implementation-conformance',

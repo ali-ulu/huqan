@@ -1,0 +1,12 @@
+{
+  "title": "HUQAN Package",
+  "type": "object",
+  "required": ["manifest", "objects", "index", "metadata"],
+  "properties": {
+    "manifest": { "$ref": "./huqan-manifest.schema.json" },
+    "objects": { "type": "object" },
+    "index": { "$ref": "./huqan-bundle-index.schema.json" },
+    "metadata": { "type": "object" }
+  },
+  "additionalProperties": true
+}

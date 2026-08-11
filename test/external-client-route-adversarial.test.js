@@ -53,7 +53,8 @@ test('valid loopback request returns exact 201 and durable candidate, journal an
   const fixture = createRouteFixture(t);
   const harness = await createRouteHarness({ adapter: fixture.adapter });
   t.after(() => harness.close());
-  const response = await harness.send({ headers: { 'content-type': 'application/json' }, body: body(fixture) });
+  const response = await harness.send({ headers: { 'content-type': 'application/json' },
+    body: body(fixture, fixture.packageValue({ canonical: true })) });
   exactSuccess(response, false);
   const state = fixture.state();
   assert.deepEqual([state.candidates.length, state.journals.length, state.receipts.length], [1, 1, 1]);
