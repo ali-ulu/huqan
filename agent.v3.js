@@ -22,6 +22,30 @@ function lower(goal) {
   return normalizeGoal(goal).toLowerCase();
 }
 
+/**
+ * #329: the baseAgent below is built without storage on purpose -- plan() and
+ * the step executors share that instance, so a full storage object would
+ * switch on agent.js's own saveRun()/saveGoalMemory() paths underneath v3,
+ * which owns that persistence itself. But Agent.inspectToolPolicy() queues its
+ * approval record through this.storage.saveToolApproval(), so a storage-less
+ * baseAgent made the v3 approval gate record nothing at all.
+ *
+ * This is the narrowest seam that closes it: one capability, forwarded lazily
+ * to v3's storage (which is constructed after baseAgent). Every other v1
+ * persistence path stays disabled by its own
+ * `typeof this.storage.X === 'function'` guard, because those methods are
+ * simply absent here.
+ */
+function createToolApprovalSeam(getStorage) {
+  return {
+    saveToolApproval(record) {
+      const storage = getStorage();
+      if (!storage || typeof storage.saveToolApproval !== 'function') return null;
+      return storage.saveToolApproval(record);
+    },
+  };
+}
+
 function defaultDbPath(kernel) {
   const graphMemoryPath = kernel?.graph?.memoryPath;
   if (typeof graphMemoryPath === 'string' && graphMemoryPath.endsWith('.json')) {
@@ -39,6 +63,7 @@ class AgentV3 {
       dream: this.dream,
       memoryPath: null,
       maxSteps: opts.maxSteps || 4,
+      storage: createToolApprovalSeam(() => this.storage),
     });
     this.storage = opts.storage || new AxiomStorage({
       kernel: this.kernel,
@@ -269,6 +294,20 @@ class AgentV3 {
 
   inspectToolPolicy(tool, input = '', context = {}) {
     return this.baseAgent.inspectToolPolicy(tool, input, context);
+  }
+
+  // The read half of the approval surface. inspectToolPolicy() writes through
+  // the baseAgent seam above; these read straight from v3's storage, mirroring
+  // the guards agent.js uses so a storage without the approval tables degrades
+  // to empty rather than throwing.
+  listPendingToolApprovals(limit = 20) {
+    if (!this.storage || typeof this.storage.listPendingToolApprovals !== 'function') return [];
+    return this.storage.listPendingToolApprovals(limit);
+  }
+
+  countPendingToolApprovals() {
+    if (!this.storage || typeof this.storage.countPendingToolApprovals !== 'function') return 0;
+    return this.storage.countPendingToolApprovals();
   }
 
   _hydrateState(activePlan, checkpoint = null) {
@@ -586,6 +625,22 @@ class AgentV3 {
     }
 
     this.lastRun = state;
+
+    // #329: agent.js's run() emits afterAgentRun after the final state is
+    // built and the run is persisted, so the hook's contract is "an agent run
+    // reached a conclusion", not "a run() call returned". AgentV3 keeps that
+    // contract by emitting only on terminal states.
+    //
+    // `paused` is a real intermediate state here -- the run is checkpointed
+    // and resumable -- and must not emit. plugins/daily-digest.js counts only
+    // `blocked` separately and buckets everything else as runsCompleted, so a
+    // paused emit would quietly corrupt that statistic.
+    //
+    // baseAgent is built from the same kernel, so its plugin manager is
+    // already the live one; no new event plumbing is involved.
+    if (state.status === 'completed' || state.status === 'blocked') {
+      this.baseAgent._emit('afterAgentRun', state);
+    }
 
     if (state.status === 'blocked') {
       return this._fail('agent', 'AGENT_BLOCKED', state.finalAnswer, state.evidence, {
