@@ -121,6 +121,7 @@ test.describe('V5-C5: external conformance run', { concurrency: 1 }, () => {
       objects: 'self-test',
       'fail-closed': 'self-test',
       bundles: 'self-test',
+      replay: 'self-test',
       v5: 'self-test',
       'cross-implementation': 'cross-implementation-conformance',
     });
@@ -157,6 +158,37 @@ test.describe('V5-C5: external conformance run', { concurrency: 1 }, () => {
       assert.equal(item.status, 'pass', `${item.name}: ${item.detail}`);
       assert.equal(item.evidenceLevel, 'self-test');
     }
+  });
+
+  test('the installed authority rejects an identical signed package replay', () => {
+    assert.ok(report, 'previous test did not produce a report');
+    const item = report.cases.find((candidate) => candidate.name
+      === 'installed authority accepts once and rejects the identical signed package replay');
+    assert.ok(item, 'missing installed-package replay case');
+    assert.equal(item.status, 'pass', item.detail);
+    assert.equal(item.evidenceLevel, 'self-test');
+  });
+
+  test('the replay case fails if duplicate reservation is bypassed', () => {
+    assert.ok(project && fs.existsSync(project), 'kept consumer project is missing');
+    const source = fs.readFileSync(path.join(project, 'consumer.js'), 'utf8');
+    const mutated = source.replace(
+      'if (seen.has(record.replayKey)) return { reserved: false, existing:',
+      'if (false && seen.has(record.replayKey)) return { reserved: false, existing:',
+    );
+    assert.notEqual(mutated, source, 'replay-store mutation did not apply');
+    const mutantPath = path.join(project, 'consumer.replay-mutant.js');
+    fs.writeFileSync(mutantPath, mutated);
+    const result = cp.spawnSync(process.execPath, [mutantPath], {
+      cwd: project,
+      encoding: 'utf8',
+      timeout: 300000,
+    });
+    assert.equal(result.status, 1, 'replay bypass mutant passed');
+    const mutantReport = JSON.parse(result.stdout);
+    const failures = mutantReport.cases.filter((candidate) => candidate.status === 'fail');
+    assert.equal(failures.length, 1, `unexpected mutant failures: ${JSON.stringify(failures)}`);
+    assert.match(failures[0].name, /identical signed package replay/);
   });
 
   test('the consumer fails when an expectation no longer holds', () => {

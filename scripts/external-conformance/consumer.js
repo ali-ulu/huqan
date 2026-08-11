@@ -18,11 +18,13 @@ const EVIDENCE_LEVELS = Object.freeze({
   objects: 'self-test',
   'fail-closed': 'self-test',
   bundles: 'self-test',
+  replay: 'self-test',
   v5: 'self-test',
   'cross-implementation': 'cross-implementation-conformance',
 });
 
 const cases = [];
+const pendingCases = [];
 
 function record(group, name, status, detail = '') {
   cases.push({
@@ -50,6 +52,13 @@ function check(group, name, fn) {
   } catch (error) {
     record(group, name, 'fail', error && error.message ? error.message : String(error));
   }
+}
+
+function checkAsync(group, name, fn) {
+  pendingCases.push(Promise.resolve().then(fn).then(
+    (result) => record(group, name, 'pass', result || ''),
+    (error) => record(group, name, 'fail', error && error.message ? error.message : String(error)),
+  ));
 }
 
 function assert(condition, message) {
@@ -693,26 +702,108 @@ check('v5', 'no schemas/ directory reached the installed package', () => {
     'schemas/ is present in the installed package, which the facade contract forbids');
 });
 
-const failed = cases.filter((c) => c.status === 'fail');
-const skippedCases = cases.filter((c) => c.status === 'skip');
-const crossImplementationCase = cases.find((c) => c.group === 'cross-implementation');
-const report = {
-  evidenceLevels: EVIDENCE_LEVELS,
-  evidenceLevelNote:
-    'Evidence is group-scoped: package reachability is a packaged-surface smoke; '
-    + 'ATP object and JavaScript bundle checks are self-test; the Python comparison is '
-    + 'cross-implementation conformance only when its case passes. '
-    + 'This run does not establish third-party verification or interoperability.',
-  crossImplementationExecuted: crossImplementationCase?.status === 'pass',
-  packageRoot: PKG_ROOT,
-  packageVersion: readJson(path.join(PKG_ROOT, 'package.json')).version,
-  total: cases.length,
-  passed: cases.length - failed.length - skippedCases.length,
-  skipped: skippedCases.length,
-  failed: failed.length,
-  blockedGaps: [],
-  cases,
-};
+function replayPackage(createdAt) {
+  const collections = ['provenanceRecords', 'auditEvents', 'candidateClaims', 'conflictResults',
+    'verificationResults', 'trustReceipts', 'causalChains', 'simulationResults'];
+  const objectCounts = {}; const objects = {};
+  for (const name of collections) { objectCounts[name] = 0; objects[name] = []; }
+  return {
+    manifest: {
+      packageId: 'pkg.external.conformance', format: 'axiom-package', formatVersion: '0.1',
+      createdAt, createdBy: 'connector:external-conformance', workspaceId: 'workspace-conformance',
+      description: 'Installed-package replay fixture', atpVersion: '0.1', objectCounts,
+    },
+    objects,
+    index: { byId: {}, bySourceRef: {}, byWorkspaceId: {}, byType: {} },
+    metadata: { warnings: [] },
+  };
+}
 
-process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
-process.exit(failed.length === 0 ? 0 : 1);
+checkAsync('replay', 'installed authority accepts once and rejects the identical signed package replay', async () => {
+  const { stableStringify } = require('huqan/lib/receipt/canonical-receipt');
+  const {
+    EXTERNAL_CLIENT_ADMISSION_PERMISSION,
+    EXTERNAL_CLIENT_AUTHORITY_ERRORS,
+    enforceExternalClientAuthority,
+    snapshotExternalClientAuthority,
+  } = require('huqan/lib/external-client-authority');
+  const now = Date.parse('2026-08-02T12:00:00.000Z');
+  const createdAt = '2026-08-02T11:59:00.000Z';
+  const pkg = replayPackage(createdAt);
+  const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
+  const signature = {
+    algorithm: 'ed25519',
+    keyId: 'external-conformance-key',
+    value: crypto.sign(null, Buffer.from(stableStringify(pkg), 'utf8'), privateKey).toString('base64'),
+  };
+  const seen = new Set();
+  const replayStore = {
+    reserve(record) {
+      if (seen.has(record.replayKey)) return { reserved: false, existing: { replayKey: record.replayKey } };
+      seen.add(record.replayKey);
+      return { reserved: true };
+    },
+  };
+  const authority = snapshotExternalClientAuthority({
+    expectedIdentitySubject: 'connector:external-conformance',
+    expectedIdentityKind: 'connector',
+    expectedWorkspaceId: 'workspace-conformance',
+    expectedPackageId: 'pkg.external.conformance',
+    permissions: [EXTERNAL_CLIENT_ADMISSION_PERMISSION],
+    trustedKeys: {
+      'external-conformance-key': {
+        publicKey,
+        workspaceId: 'workspace-conformance',
+        packageIds: ['pkg.external.conformance'],
+        identitySubjects: ['connector:external-conformance'],
+        identityKinds: ['connector'],
+        notBefore: '2026-08-02T11:00:00.000Z',
+        notAfter: '2026-08-02T13:00:00.000Z',
+        revoked: false,
+      },
+    },
+    clock: () => now,
+    replayStore,
+  });
+  const input = {
+    identity: { subject: 'connector:external-conformance', kind: 'connector' },
+    workspaceId: 'workspace-conformance',
+    package: pkg,
+    signature,
+  };
+  const first = await enforceExternalClientAuthority(input, authority);
+  assert(first.ok === true && first.decision === 'allow', 'first admission did not pass');
+  let replayError = null;
+  try { await enforceExternalClientAuthority(input, authority); } catch (error) { replayError = error; }
+  assert(replayError && replayError.code === EXTERNAL_CLIENT_AUTHORITY_ERRORS.REPLAY_DETECTED,
+    `identical replay was not rejected with REPLAY_DETECTED: ${replayError && replayError.code}`);
+});
+
+async function finish() {
+  await Promise.all(pendingCases);
+  const failed = cases.filter((c) => c.status === 'fail');
+  const skippedCases = cases.filter((c) => c.status === 'skip');
+  const crossImplementationCase = cases.find((c) => c.group === 'cross-implementation');
+  const report = {
+    evidenceLevels: EVIDENCE_LEVELS,
+    evidenceLevelNote:
+      'Evidence is group-scoped: package reachability is a packaged-surface smoke; '
+      + 'ATP object, replay, and JavaScript bundle checks are self-test; the Python comparison is '
+      + 'cross-implementation conformance only when its case passes. '
+      + 'This run does not establish third-party verification or interoperability.',
+    crossImplementationExecuted: crossImplementationCase?.status === 'pass',
+    packageRoot: PKG_ROOT,
+    packageVersion: readJson(path.join(PKG_ROOT, 'package.json')).version,
+    total: cases.length,
+    passed: cases.length - failed.length - skippedCases.length,
+    skipped: skippedCases.length,
+    failed: failed.length,
+    blockedGaps: [],
+    cases,
+  };
+
+  process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+  process.exit(failed.length === 0 ? 0 : 1);
+}
+
+finish();
