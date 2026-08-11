@@ -626,6 +626,22 @@ class AgentV3 {
 
     this.lastRun = state;
 
+    // #329: agent.js's run() emits afterAgentRun after the final state is
+    // built and the run is persisted, so the hook's contract is "an agent run
+    // reached a conclusion", not "a run() call returned". AgentV3 keeps that
+    // contract by emitting only on terminal states.
+    //
+    // `paused` is a real intermediate state here -- the run is checkpointed
+    // and resumable -- and must not emit. plugins/daily-digest.js counts only
+    // `blocked` separately and buckets everything else as runsCompleted, so a
+    // paused emit would quietly corrupt that statistic.
+    //
+    // baseAgent is built from the same kernel, so its plugin manager is
+    // already the live one; no new event plumbing is involved.
+    if (state.status === 'completed' || state.status === 'blocked') {
+      this.baseAgent._emit('afterAgentRun', state);
+    }
+
     if (state.status === 'blocked') {
       return this._fail('agent', 'AGENT_BLOCKED', state.finalAnswer, state.evidence, {
         objective: activePlan.objective,

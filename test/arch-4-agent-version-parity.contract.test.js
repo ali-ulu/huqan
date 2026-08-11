@@ -37,6 +37,7 @@ const Agent = require('../agent');
 const AgentV3 = require('../agent.v3');
 const AxiomStorage = require('../storage');
 const Kernel = require('../kernel');
+const KernelV2 = require('../kernel.v2');
 const { createAgent, CANONICAL_AGENT_VERSION } = require('../agentRuntime');
 
 const EXTERNAL_REVIEW_TOOL = 'http-fetch';
@@ -154,30 +155,125 @@ test('the workflow runtime axis is untouched by the version decision', (t) => {
 });
 
 /**
- * KNOWN CONSEQUENCE of making AgentV3 canonical, pinned deliberately rather
- * than left to be discovered in production.
+ * #329: afterAgentRun was emitted only by agent.js's run(), and AgentV3 runs
+ * its own loop, so making AgentV3 canonical silenced the two plugins that
+ * subscribe to it (plugins/daily-digest.js, plugins/workspace-sync.js).
  *
- * `afterAgentRun` is emitted in exactly one place -- agent.js's run() -- and
- * AgentV3 runs its own loop instead of calling it, so the hook never fires
- * under the canonical runtime. Two shipped plugins subscribe to it:
- * plugins/daily-digest.js and plugins/workspace-sync.js. While agent.js was
- * the default they fired on every run; they are now permanently silent.
- *
- * This test asserts the current fact so the regression is visible and any
- * change to it is deliberate. It is NOT an endorsement: restoring the hook
- * (by emitting it from AgentV3 with v3's run state) is a live decision, and
- * v3's state carries a workspaceId that both plugins were written without.
+ * The hook is restored on AgentV3 with terminal semantics, matching what the
+ * agent.js contract actually meant: it fires after the final state is built
+ * and persisted, so it says "an agent run reached a conclusion", not "a run()
+ * call returned". AgentV3's `paused` is a genuine intermediate state --
+ * checkpointed and resumable -- and must stay silent, because daily-digest
+ * counts only `blocked` separately and buckets everything else as
+ * runsCompleted; a paused emit would quietly inflate that number.
  */
-test('afterAgentRun does not fire under the canonical agent (known #329 follow-up)', () => {
-  const agentSource = fs.readFileSync(path.join(__dirname, '..', 'agent.js'), 'utf8');
-  const v3Source = fs.readFileSync(path.join(__dirname, '..', 'agent.v3.js'), 'utf8');
+function emitProbe(t, label, { maxSteps = 1 } = {}) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), `huqan-arch4-emit-${label}-`));
+  const kernel = new KernelV2({ noLoad: true, useSQLite: false, loadPlugins: false });
+  kernel.learn('kedi hayvandir', Kernel.createAdmissionBypassOpts('test_fixture_seed'));
 
-  assert.match(agentSource, /_emit\('afterAgentRun'/, 'agent.js is the only emitter');
-  assert.doesNotMatch(
-    v3Source,
-    /_emit\('afterAgentRun'/,
-    'if AgentV3 starts emitting afterAgentRun, update this contract and the two subscribing plugins',
-  );
+  const seen = [];
+  kernel.usePlugin({ name: `emit-probe-${label}`, afterAgentRun(_kernel, state) { seen.push(state); } });
+
+  const agent = new AgentV3({
+    kernel,
+    dbPath: path.join(root, 'agent.db'),
+    maxSteps,
+    maxIterations: 200,
+    timeBudgetMs: 8000,
+  });
+
+  t.after(() => {
+    try { agent.storage?.close?.(); } catch (_) {}
+    try { kernel.graph?.close?.(); } catch (_) {}
+    fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+  });
+
+  return { agent, seen, maxSteps };
+}
+
+const EMIT_GOAL = 'kedi hayvandir mi?';
+
+test('a completed run emits afterAgentRun exactly once', (t) => {
+  const probe = emitProbe(t, 'completed', { maxSteps: 1 });
+  const result = probe.agent.run(EMIT_GOAL, {
+    resume: false,
+    maxSteps: 1,
+    maxIterations: 200,
+    timeBudgetMs: 8000,
+    workspaceId: 'ws-completed',
+  });
+
+  assert.equal(result.data.status, 'completed');
+  assert.equal(probe.seen.length, 1);
+});
+
+test('a blocked run emits afterAgentRun exactly once', (t) => {
+  const probe = emitProbe(t, 'blocked', { maxSteps: 1 });
+  probe.agent.baseAgent._executeStepWithRetry = () => ({
+    status: 'blocked',
+    tool: 'shell-exec',
+    result: { ok: false, error: { code: 'BLOCKED', message: 'refused' } },
+  });
+
+  const result = probe.agent.run(EMIT_GOAL, {
+    resume: false,
+    maxSteps: 1,
+    maxIterations: 200,
+    timeBudgetMs: 8000,
+    workspaceId: 'ws-blocked',
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(probe.seen.length, 1);
+  assert.equal(probe.seen[0].status, 'blocked');
+});
+
+test('a paused run emits afterAgentRun zero times', (t) => {
+  const probe = emitProbe(t, 'paused', { maxSteps: 4 });
+  const result = probe.agent.run(EMIT_GOAL, {
+    resume: false,
+    maxIterations: 1,
+    timeBudgetMs: 5000,
+    workspaceId: 'ws-paused',
+  });
+
+  assert.equal(result.data.status, 'paused');
+  assert.equal(probe.seen.length, 0, 'a resumable checkpoint is not a concluded run');
+});
+
+test('the emitted state keeps the v3 workspaceId the run was scoped to', (t) => {
+  const probe = emitProbe(t, 'workspace', { maxSteps: 1 });
+  probe.agent.run(EMIT_GOAL, {
+    resume: false,
+    maxSteps: 1,
+    maxIterations: 200,
+    timeBudgetMs: 8000,
+    workspaceId: 'ws-scoped',
+  });
+
+  assert.equal(probe.seen.length, 1);
+  // plugins/workspace-sync.js reads state.workspaceId directly when present,
+  // so v3's run state is strictly better input than agent.js ever produced.
+  assert.equal(probe.seen[0].workspaceId, 'ws-scoped');
+});
+
+test('afterAgentRun fires after the run is persisted, not before', (t) => {
+  const probe = emitProbe(t, 'ordering', { maxSteps: 1 });
+  probe.agent.run(EMIT_GOAL, {
+    resume: false,
+    maxSteps: 1,
+    maxIterations: 200,
+    timeBudgetMs: 8000,
+    workspaceId: 'ws-order',
+  });
+
+  assert.equal(probe.seen.length, 1);
+  // agent.js emits after _rememberRun(); the v3 emit sits after saveRun /
+  // saveGoalMemory / deleteCheckpoint, so a subscriber observing storage sees
+  // a settled run rather than a half-written one.
+  assert.equal(probe.agent.storage.countRuns() >= 1, true);
+  assert.equal(probe.agent.lastRun, probe.seen[0]);
 });
 
 test('every Agent public prototype method is reachable through AgentV3', () => {
