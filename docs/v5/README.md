@@ -63,6 +63,7 @@ Use the ADR-010 meanings consistently:
 - [Connector Coverage Matrix](./v5-connector-coverage-matrix.md)
 - [Trust-tier Routing Plan](./v5-trust-tier-routing-plan.md)
 - [A2A / Distributed Trust Research Note](./v5-a2a-distributed-trust-research-note.md)
+- [TrustBench Draft](./v5-trustbench-draft.md)
 
 ## Naming Boundary
 
