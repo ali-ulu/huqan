@@ -16,13 +16,22 @@ test('error prevention merge never downgrades a stricter upstream verdict', () =
 test('preflight preserves upstream block even when no prevention rule matches', () => {
   const memory = new MemoryStore({ useSQLite: false });
   const prevention = createErrorPrevention(memory);
-  const result = prevention.preflight({
-    operation: 'read_status',
-    workspaceId: 'huqan',
-  }, { upstreamVerdict: 'block' });
+  const result = prevention.preflight({ operation: 'read_status', workspaceId: 'huqan' }, { upstreamVerdict: 'block' });
 
   assert.equal(result.preventionDecision, 'allow');
   assert.equal(result.decision, 'block');
   assert.equal(result.blocked, true);
   assert.ok(result.reasonCodes.includes('STRICTER_UPSTREAM_VERDICT_PRESERVED'));
+});
+
+test('configured audit sink failure fails preflight closed to review', () => {
+  const memory = new MemoryStore({ useSQLite: false });
+  const prevention = createErrorPrevention(memory, { auditTarget: {} });
+  const result = prevention.preflight({ operation: 'read_status', workspaceId: 'huqan' });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.decision, 'review');
+  assert.equal(result.allowed, false);
+  assert.equal(result.receipt, null);
+  assert.ok(result.reasonCodes.includes('AUDIT_WRITE_FAILED'));
 });
