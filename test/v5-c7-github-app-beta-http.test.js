@@ -17,6 +17,7 @@ const {
 const {
   createGitHubAppBetaServer,
 } = require('../github-app-server');
+const { isValidWebhookSecret } = require('../lib/github-app-beta-auth');
 
 const SECRET = 'github-app-beta-http-secret';
 const DELIVERY = '72d3162e-cc78-11e3-81ab-4c9367dc0958';
@@ -128,6 +129,82 @@ test('production boundary is absent by default and partial opt-in fails closed',
     () => createGitHubAppBetaHttpBoundary({ environment: { HUQAN_GITHUB_APP_BETA_ENABLED: 'true' } }),
     (error) => error.code === 'GITHUB_APP_BETA_CONFIG_INVALID',
   );
+});
+
+/**
+ * #646: the boundary used to accept any non-empty string as a webhook secret
+ * while verifyWebhookSignature() additionally required it to be trimmed. A
+ * secret like '   ' or 'secret\n' therefore started a server that then
+ * rejected every genuine GitHub delivery with a 401 -- an invalid production
+ * config discovered by traffic rather than at startup.
+ */
+const UNUSABLE_SECRETS = Object.freeze([
+  ['whitespace only', '   '],
+  ['tab only', '\t'],
+  ['leading whitespace', ' secret'],
+  ['trailing whitespace', 'secret '],
+  ['trailing newline', 'secret\n'],
+  ['empty', ''],
+]);
+
+test('a webhook secret the auth layer would refuse fails at startup', (t) => {
+  const root = tempRoot(t);
+  for (const [label, secret] of UNUSABLE_SECRETS) {
+    assert.throws(
+      () => createGitHubAppBetaHttpBoundary({
+        environment: environment(root, { HUQAN_GITHUB_APP_WEBHOOK_SECRET: secret }),
+      }),
+      (error) => error.code === 'GITHUB_APP_BETA_CONFIG_INVALID',
+      `${label} must fail closed at config time`,
+    );
+  }
+});
+
+test('config validation and HMAC validation agree on every secret', (t) => {
+  const root = tempRoot(t);
+  // The anti-drift pin: whatever the auth layer will not authenticate with,
+  // the boundary must not start with -- checked against one table so the two
+  // rules cannot diverge again.
+  for (const [label, secret] of [...UNUSABLE_SECRETS, ['usable', SECRET]]) {
+    const authAccepts = isValidWebhookSecret(secret);
+    let configAccepts;
+    try {
+      configAccepts = Boolean(createGitHubAppBetaHttpBoundary({
+        environment: environment(root, { HUQAN_GITHUB_APP_WEBHOOK_SECRET: secret }),
+      }));
+    } catch (error) {
+      assert.equal(error.code, 'GITHUB_APP_BETA_CONFIG_INVALID', label);
+      configAccepts = false;
+    }
+    assert.equal(configAccepts, authAccepts, `${label}: config and auth must agree`);
+  }
+});
+
+test('a secret with stray whitespace is rejected, never silently trimmed', async (t) => {
+  const root = tempRoot(t);
+  // Trimming would make the service authenticate against a value the operator
+  // never configured, so the padded secret must not become a working one.
+  assert.throws(
+    () => createGitHubAppBetaHttpBoundary({
+      environment: environment(root, { HUQAN_GITHUB_APP_WEBHOOK_SECRET: ` ${SECRET} ` }),
+    }),
+    (error) => error.code === 'GITHUB_APP_BETA_CONFIG_INVALID',
+  );
+
+  // And the untouched secret still authenticates a real signed delivery.
+  const boundary = createGitHubAppBetaHttpBoundary({ environment: environment(root) });
+  const port = await listen(t, boundary);
+  const body = Buffer.from(JSON.stringify({ zen: 'unchanged' }), 'utf8');
+  const result = await request(port, {
+    body,
+    headers: {
+      'x-github-event': 'ping',
+      'x-github-delivery': DELIVERY,
+      'x-hub-signature-256': signature(body),
+    },
+  });
+  assert.equal(result.statusCode, 200);
+  assert.deepEqual(result.body, { ok: true, event: 'ping' });
 });
 
 test('real HTTP PR delivery emits one canonical receipt and redelivery is idempotent', async (t) => {

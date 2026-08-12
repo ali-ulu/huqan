@@ -298,6 +298,14 @@ class RustGraph {
       this._proc.kill();
       this._proc = null;
     }
+    if (this._fallback) {
+      // The JS-fallback Graph holds an open SQLite handle (and WAL/SHM files)
+      // once it is built. Leaving it open after destroy() is a genuine
+      // resource leak: on Windows it blocks removal of the directory the
+      // fallback's memoryPath lives in.
+      try { this._fallback.close(); } catch (_) {}
+      this._fallback = null;
+    }
     this._pending.clear();
   }
 }

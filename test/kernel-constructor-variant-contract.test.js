@@ -86,7 +86,12 @@ function createManagedCliKernel({ label, mode = 'options', options = {}, env = {
     else instance = CLI.createKernel(isolatedKernelOptions(root, options));
   } catch (error) {
     closeKernel(instance);
-    fs.rmSync(root, { recursive: true, force: true });
+    // The cwd must be restored off of `root` before it can be removed --
+    // Windows refuses to rmSync a directory that is still the process's
+    // current working directory (EPERM), which masked the real assertion
+    // this helper exists to let through.
+    process.chdir(cwdBefore);
+    fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
     throw error;
   } finally {
     process.chdir(cwdBefore);
@@ -98,7 +103,7 @@ function createManagedCliKernel({ label, mode = 'options', options = {}, env = {
     instance,
     dispose() {
       closeKernel(instance);
-      fs.rmSync(root, { recursive: true, force: true });
+      fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
     },
   };
 }
@@ -118,7 +123,7 @@ function createManagedMcpKernel({ label, version }) {
     instance = createKernelFromEnv();
   } catch (error) {
     closeKernel(instance);
-    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
     throw error;
   } finally {
     restoreEnv(envBefore);
@@ -129,17 +134,17 @@ function createManagedMcpKernel({ label, version }) {
     instance,
     dispose() {
       closeKernel(instance);
-      fs.rmSync(root, { recursive: true, force: true });
+      fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
     },
   };
 }
 
-test('the package entry point still exports the internal v1 implementation', { concurrency: false }, () => {
-  // #329 criterion 2 removed the *runtime* selection. The published package
-  // export is a separate, unresolved API decision: require('huqan') still
-  // hands out kernel.js. It is pinned here so that changing it is a deliberate
-  // act with its own review, not a side effect of this refactor.
-  assert.equal(PackageKernel, Kernel);
+test('the package entry point exports the canonical kernel', { concurrency: false }, () => {
+  // #329: runtime selection and the published root export now agree --
+  // require('huqan') hands out the same KernelV2 every entry point builds.
+  // The v1 implementation stays reachable only under a deprecated name.
+  assert.equal(PackageKernel, KernelV2);
+  assert.equal(PackageKernel.KernelV1, Kernel);
   assert.notEqual(KernelV2, Kernel);
   assert.equal(typeof PackageKernel, 'function');
 });
@@ -195,7 +200,7 @@ test('CLI accepts the canonical selector from options or environment', { concurr
   try {
     assert.ok(optionSelected.instance instanceof KernelV2);
     assert.ok(envSelected.instance instanceof KernelV2);
-    assert.equal(require('..'), Kernel);
+    assert.equal(require('..'), KernelV2);
   } finally {
     optionSelected.dispose();
     envSelected.dispose();
@@ -259,7 +264,7 @@ test('MCP builds the canonical kernel for absent and empty selectors', { concurr
       assert.ok(managed.instance instanceof KernelV2);
       assert.ok(!(managed.instance instanceof Kernel));
     }
-    assert.equal(require('..'), Kernel);
+    assert.equal(require('..'), KernelV2);
   } finally {
     absent.dispose();
     empty.dispose();

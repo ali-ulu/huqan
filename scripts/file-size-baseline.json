@@ -1,0 +1,30 @@
+{
+  "_comment": [
+    "Line-count debt ledger for scripts/check-file-size.js (issue #328).",
+    "Every entry is a file that already exceeded 800 lines when it was recorded.",
+    "Entries may only shrink. Lower them with `npm run check:file-size -- --update`",
+    "after a file gets smaller; raising one is a hand edit so it shows up in review.",
+    "An entry that reaches the threshold must be deleted, not set to the threshold."
+  ],
+  "threshold": 800,
+  "files": {
+    "agent.js": 1127,
+    "cli.js": 938,
+    "graph.js": 1953,
+    "kernel.js": 2098,
+    "kernel.v2.js": 975,
+    "lib/action-risk-classifier.js": 902,
+    "lib/automation-safety-gate.js": 1268,
+    "lib/code-change-gate.js": 891,
+    "lib/memory-mutation-gate.js": 1032,
+    "lib/memory-store.js": 2284,
+    "lib/sandbox-isolation.js": 855,
+    "lib/verify.js": 967,
+    "mcpServer.js": 1373,
+    "plugins/repo-memory.js": 1217,
+    "scripts/external-conformance/consumer.js": 881,
+    "server.js": 1461,
+    "workflow-agent.js": 1007,
+    "workflow-tools.js": 962
+  }
+}
