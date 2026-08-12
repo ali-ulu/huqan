@@ -44,7 +44,7 @@ function makeFakes(overrides = {}) {
   };
   const kernel = {
     graph: {},
-    verify: () => ({ data: { status: 'dogrulandi', confidence: 0.9 } }),
+    verify: () => ({ data: { status: 'verified', confidence: 0.9 } }),
   };
   const buildTrustReceipt = () => (overrides.emptyReceipt ? null : {
     receiptId: 'receipt-test-1',

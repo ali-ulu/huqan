@@ -217,7 +217,7 @@ test('relation extraction audit keeps explicit marker fixes while broad gaps sta
   const contradictionVerify = preventsAudit.kernel.verify('Asilama hastaliga neden olur', { workspaceId: 'default' });
   assert.strictEqual(preventsAudit.graphEdgeRelation, 'PREVENTS');
   assert.ok(preventsAudit.graphEdgeObject.includes('hastalik'));
-  assert.strictEqual(contradictionVerify.data.status, 'celiski');
+  assert.strictEqual(contradictionVerify.data.status, 'contradicted');
 
   const summary = {
     causes: findings.filter((finding) => finding.statement.includes('causes') || finding.statement.includes('neden olur') || finding.statement.includes('yapar') || finding.statement.includes('artirir')),

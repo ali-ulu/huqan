@@ -8,7 +8,7 @@ function createKernel() {
       return {
         ok: true,
         data: {
-          status: 'dogrulandi',
+          status: 'verified',
           confidence: 0.9,
           answer: `verified:${statement}`,
         },

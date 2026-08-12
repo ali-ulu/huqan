@@ -192,7 +192,7 @@ test('canonical verdict hash stays stable across fresh kernels even when raw pay
   assert.strictEqual(new Set(canonicalHashes).size, 1, 'canonical payload hash should be stable across repeated fresh kernels');
 
   for (const run of runs) {
-    assert.strictEqual(run.canonical.verdict.status, 'celiski');
+    assert.strictEqual(run.canonical.verdict.status, 'contradicted');
     assert.strictEqual(run.canonical.verdict.confidence, 0.95);
     assert.deepStrictEqual(run.canonical.semanticTrust.warnings, [
       'CAUSE_PREVENT_OPPOSITION',

@@ -87,7 +87,7 @@ describe('kernel concurrency and path safety', () => {
     const raw = kernel.verify('alpha is delta', { workspaceId: 'default' });
     const result = unwrap(raw);
 
-    assert.strictEqual(result.status, 'dogrulandi');
+    assert.strictEqual(result.status, 'verified');
     kernel.learn('gadget is device', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
     assert.ok(kernel.graph.getNode(kernel.normalizeWord('gadget'), 'default'));
   });
@@ -122,7 +122,7 @@ describe('kernel concurrency and path safety', () => {
     const raw = kernel.verify(undefined, { workspaceId: 'default' });
     const result = unwrap(raw);
 
-    assert.strictEqual(result.status, 'bilinmiyor');
+    assert.strictEqual(result.status, 'unknown');
     assert.ok(raw.meta && raw.meta.semanticTrust, 'semantic trust metadata should still be present');
   });
 
@@ -150,7 +150,7 @@ describe('kernel concurrency and path safety', () => {
     const result = unwrap(raw);
     const pathSearch = raw.meta && raw.meta.semanticTrust && raw.meta.semanticTrust.meta && raw.meta.semanticTrust.meta.pathSearch;
 
-    assert.strictEqual(result.status, 'dogrulandi');
+    assert.strictEqual(result.status, 'verified');
     assert.ok(pathSearch, 'verify should surface path search metadata');
     assert.ok(Array.isArray(pathSearch.path), 'path search should include the resolved path');
     assert.strictEqual(pathSearch.stoppedReason, null);

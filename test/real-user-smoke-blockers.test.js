@@ -70,8 +70,8 @@ describe('real user smoke blockers', () => {
       });
       assert.strictEqual(kernel.ask('HUQAN nedir?').data.unknown, false);
       assert.match(kernel.ask('HUQAN nedir?').data.answer, /huqan/i);
-      assert.strictEqual(kernel.verify('mantik dogru dusunme yontemidir').data.status, 'dogrulandi');
-      assert.strictEqual(kernel.verify('AXIOM bilgi grafigi motorudur').data.status, 'dogrulandi');
+      assert.strictEqual(kernel.verify('mantik dogru dusunme yontemidir').data.status, 'verified');
+      assert.strictEqual(kernel.verify('AXIOM bilgi grafigi motorudur').data.status, 'verified');
       kernel.graph.close?.();
     } finally {
       removeTempDir(cwd);
@@ -89,10 +89,10 @@ describe('real user smoke blockers', () => {
     const axiom = kernel.verify('AXIOM bilgi grafigi motorudur');
     const unknown = kernel.verify('mantik kahve makinesidir');
 
-    assert.strictEqual(turkish.data.status, 'dogrulandi');
-    assert.strictEqual(ascii.data.status, 'dogrulandi');
+    assert.strictEqual(turkish.data.status, 'verified');
+    assert.strictEqual(ascii.data.status, 'verified');
     assert.strictEqual(huqan.data.unknown, false);
-    assert.strictEqual(axiom.data.status, 'dogrulandi');
-    assert.strictEqual(unknown.data.status, 'celiski');
+    assert.strictEqual(axiom.data.status, 'verified');
+    assert.strictEqual(unknown.data.status, 'contradicted');
   });
 });

@@ -193,7 +193,7 @@ describe('public HTTP API answers in English', () => {
     assert.equal(response.body.error, 'claim, statement or text is required');
   });
 
-  it('a verified claim serializes as "verified", not "dogrulandi"', async () => {
+  it('a verified claim serializes as "verified", not "verified"', async () => {
     server.kernel.learn('aspirin reduces fever', {
       workspaceId: 'default',
       approvalRequired: true,
@@ -225,6 +225,6 @@ describe('public HTTP API answers in English', () => {
     // still speak the legacy vocabulary, so nothing already stored is
     // reinterpreted.
     const internal = server.kernel.verify('aspirin reduces fever', { workspaceId: 'default' });
-    assert.equal(internal.data.status, 'dogrulandi');
+    assert.equal(internal.data.status, 'verified');
   });
 });

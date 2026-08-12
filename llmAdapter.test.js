@@ -110,7 +110,7 @@ describe('kernel.verify()', () => {
     const k = freshK();
     learnFixture(k, 'kedi balık yer');
     const res = k.verify('kedi balık yer');
-    assert(res.data.status === 'dogrulandi', `Beklenen dogrulandi, gelen: ${res.data.status}`);
+    assert(res.data.status === 'verified', `Beklenen dogrulandi, gelen: ${res.data.status}`);
     assert(res.data.confidence > 0);
     assert(res.evidence.length > 0);
   });
@@ -118,7 +118,7 @@ describe('kernel.verify()', () => {
   it('returns bilinmiyor for unknown statement', () => {
     const k = freshK();
     const res = k.verify('uçan fil muz sever');
-    assert.strictEqual(res.data.status, 'bilinmiyor');
+    assert.strictEqual(res.data.status, 'unknown');
     assert.strictEqual(res.data.confidence, 0);
   });
 
@@ -126,7 +126,7 @@ describe('kernel.verify()', () => {
     const k = freshK();
     learnFixture(k, 'kedi balık yer');
     const res = k.verify('robot düşünür');
-    assert.strictEqual(res.data.status, 'bilinmiyor');
+    assert.strictEqual(res.data.status, 'unknown');
   });
 
   it('finds path-based evidence', () => {
@@ -134,7 +134,7 @@ describe('kernel.verify()', () => {
     learnFixture(k, 'kedi hayvandır');
     learnFixture(k, 'hayvan canlıdır');
     const res = k.verify('kedi canlıdır');
-    assert(res.data.status === 'dogrulandi', `Beklenen dogrulandi, gelen: ${res.data.status}`);
+    assert(res.data.status === 'verified', `Beklenen dogrulandi, gelen: ${res.data.status}`);
     assert(res.evidence.length > 0);
   });
 
@@ -147,7 +147,7 @@ describe('kernel.verify()', () => {
     k.graph.addEdge('kedi', 'bitki', 'tür'); // çoklu-tür çelişkisi
     const res = k.verify('kedi hayvan');
     // Çelişki varsa celiski, yoksa dogrulandi
-    assert(res.data.status === 'celiski' || res.data.status === 'dogrulandi');
+    assert(res.data.status === 'contradicted' || res.data.status === 'verified');
   });
 
   it('evidence array is always present', () => {
