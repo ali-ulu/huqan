@@ -116,3 +116,44 @@ VERDICT: V4_PLAN_READY_REFACTOR_NOT_STARTED
 ```
 
 No large-file refactor is required before V4-PR2 or V4-PR2.5. Refactor decisions for `mcpServer.js` and `lib/memory-store.js` are deferred to just-in-time audits at PR4 and PR5 respectively, and only if those PRs require heavy edits. `kernel.js` remains untouched pending a specific, justified runtime need.
+
+---
+
+## 6. Threshold enforcement (added for issue #328)
+
+Issue #328 asks for three things: every source file under 800 lines, behavior
+parity after splitting, and the threshold enforced in CI. Only the third is
+implemented, because the first two would violate section 1 of this document —
+a refactor happens just in time for the runtime PR that needs the file, not
+"for cleanliness", and `kernel.js` is `NEEDS_MANUAL_REVIEW` precisely so it is
+not split speculatively.
+
+`scripts/check-file-size.js` therefore enforces the threshold as a **ratchet**
+rather than a flat limit, and runs in the Architecture Checks workflow:
+
+- a file at or under 800 lines must stay at or under it;
+- a file already over it is recorded in `scripts/file-size-baseline.json` with
+  the size it had, and may not grow past that number;
+- when such a file shrinks the ledger must be lowered, so the gain is locked in;
+- when it reaches the threshold its entry is removed.
+
+A flat 800-line gate would have failed this repository against 18 existing
+files on the day it was added, and a gate that cannot pass gets switched off.
+The ratchet is enforceable immediately, converges on the same end state, and
+makes each future split visible as a ledger entry shrinking.
+
+`--update` lowers or seeds the ledger. It will not raise an existing ceiling:
+that requires a hand edit to the JSON, which is visible in review.
+
+This section changes none of the classifications in section 3. The ratchet
+stops the problem growing; it does not authorize any split, and the timing
+rule in section 1 still governs when one may happen.
+
+**Baseline at the time of writing** (18 files over threshold, largest first):
+`lib/memory-store.js` 2284, `kernel.js` 2098, `graph.js` 1953, `server.js`
+1461, `mcpServer.js` 1373, `lib/automation-safety-gate.js` 1268,
+`plugins/repo-memory.js` 1217, `agent.js` 1127, `lib/memory-mutation-gate.js`
+1032, `workflow-agent.js` 1007, `kernel.v2.js` 975, `lib/verify.js` 967,
+`workflow-tools.js` 962, `cli.js` 938, `lib/action-risk-classifier.js` 902,
+`lib/code-change-gate.js` 891, `scripts/external-conformance/consumer.js` 881,
+`lib/sandbox-isolation.js` 855.

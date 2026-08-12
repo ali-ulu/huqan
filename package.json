@@ -2,8 +2,8 @@
     "name": "huqan",
     "version": "0.9.1",
     "description": "Local-first AI governance and verification layer for claims, agent actions, memory writes, provenance, approvals, and Trust Receipts.",
-    "main": "kernel.js",
-    "types": "kernel.d.ts",
+    "main": "index.js",
+    "types": "index.d.ts",
     "bin": {
         "huqan": "./cli.js"
     },
@@ -15,6 +15,7 @@
         "restore": "node scripts/restore.js",
         "bench": "node benchmarks/bench.js",
         "check:cycles": "node scripts/check-import-cycles.js",
+        "check:file-size": "node scripts/check-file-size.js",
         "bench:verify": "node benchmarks/verifBench.js",
         "train": "node scripts/egitim-demo.js --demo",
         "test": "node --test --test-concurrency=1",
@@ -94,6 +95,8 @@
         "evidence-ranker.js",
         "finalizer.js",
         "graph.js",
+        "index.d.ts",
+        "index.js",
         "kernel.d.ts",
         "kernel.js",
         "kernel.v2.d.ts",
