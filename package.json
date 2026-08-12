@@ -15,6 +15,7 @@
         "restore": "node scripts/restore.js",
         "bench": "node benchmarks/bench.js",
         "check:cycles": "node scripts/check-import-cycles.js",
+        "check:file-size": "node scripts/check-file-size.js",
         "bench:verify": "node benchmarks/verifBench.js",
         "train": "node scripts/egitim-demo.js --demo",
         "test": "node --test --test-concurrency=1",
