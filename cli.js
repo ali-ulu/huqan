@@ -165,6 +165,11 @@ const CLI_MUTATION_GATE = Object.freeze({
   konsolide: { decision: 'review', reason: 'cli_canonical_mutation_requires_review', mutationType: 'canonical',  auditEvent: 'REVIEW' },
   dusun:     { decision: 'review', reason: 'cli_automation_requires_review',     mutationType: 'automation',    auditEvent: 'REVIEW' },
   ruya:      { decision: 'allow',  reason: 'cli_read_only_inference',            mutationType: 'none' },
+  // Quickstart mutates only a throwaway demo store it creates itself, never
+  // canonical user memory, so it is allowed rather than review-gated. It is
+  // still audited, and the canonical write it performs inside that store goes
+  // through the normal axiom.learn review + axiom.approve path.
+  quickstart: { decision: 'allow', reason: 'cli_quickstart_isolated_demo_store', mutationType: 'demo_sandbox', auditEvent: 'UPDATE' },
 });
 
 function commandFailure(message, opts = {}, exitCode = 1) {
@@ -615,6 +620,9 @@ class CLI {
         text += `, ${result.consolidated} celiski temizlendi, ${result.optimized} kenar budandi.`;
         return text;
       }
+      case 'quickstart': {
+        return this._runQuickstart();
+      }
       case 'durum': {
         const stats = this.kernel.graph.getStats();
         const nodes = stats.nodes;
@@ -641,6 +649,7 @@ class CLI {
       case 'yardım':
         return [
           'AXIOM komutlari:',
+          '  "quickstart"              -> ilk Trust Receipt (tek komut, API anahtari gerekmez)',
           '  "kedi balik yer"          -> bilgi ogrenirim',
           '  "kedi nedir"              -> soruyu cevaplarim',
           '  "neden tavuk"             -> sebep analizi',
@@ -735,6 +744,43 @@ class CLI {
       }
       return closeExit;
     });
+  }
+
+  /**
+   * Runs the first-run demo in a throwaway store so a brand-new user reaches a
+   * real Trust Receipt without an API key, a config edit, or any risk to their
+   * own memory. The kernel here is deliberately NOT `this.kernel`: quickstart
+   * must never write to canonical user memory.
+   */
+  _runQuickstart() {
+    const { runQuickstart, formatQuickstartResult } = require('./lib/quickstart');
+    const { buildTrustReceipt } = require('./lib/provenance-query');
+    const storeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-quickstart-'));
+    let demoKernel = null;
+    let demoStore = null;
+    try {
+      demoKernel = createKernel({
+        memoryPath: path.join(storeDir, 'memory.json'),
+        dbPath: path.join(storeDir, 'memory.db'),
+        loadPlugins: false,
+      });
+      demoStore = createApprovalStoreFromKernel(demoKernel);
+      const result = runQuickstart({
+        kernel: demoKernel,
+        callTool: callMcpTool,
+        approvalStore: demoStore,
+        buildTrustReceipt,
+      });
+      return formatQuickstartResult(result, { storePath: storeDir });
+    } catch (error) {
+      return formatQuickstartResult(
+        { ok: false, steps: [], error: { code: 'QUICKSTART_SETUP_FAILED', message: error?.message || String(error) } },
+        { storePath: storeDir },
+      );
+    } finally {
+      try { demoStore?.close?.(); } catch (_) { /* demo store cleanup must not mask the result */ }
+      try { demoKernel?.close?.(); } catch (_) { /* same */ }
+    }
   }
 
   _evaluateCliGate(command, args) {
