@@ -141,19 +141,19 @@ function deriveMode({ run, knownFacts, unknowns, steps }) {
 
 function deriveConclusion({ mode, knownFacts, unknowns, run }) {
   if (mode === 'contradicted') {
-    return 'Bu sonuç graf ile çelişiyor.';
+    return 'This result contradicts the graph.';
   }
   if (mode === 'llm-assisted') {
-    return 'LLM destekli çıktı graf ile kısmen desteklendi.';
+    return 'The LLM-assisted output is partially supported by the graph.';
   }
   if (!knownFacts.length && unknowns.length) {
     return 'Mevcut bilgi yetersiz.';
   }
   if (knownFacts.length && unknowns.length) {
-    return 'Bilinenler ayrıldı, ancak bazı sorular açık kaldı.';
+    return 'The known facts diverged, and some questions remain open.';
   }
   if (knownFacts.length) {
-    return 'Bilinenler graf tarafından destekleniyor.';
+    return 'The known facts are supported by the graph.';
   }
   if (run.finalAnswer) {
     return normalizeText(run.finalAnswer);
@@ -172,9 +172,9 @@ function deriveNextQuestions(unknowns, goal, objective) {
 
   if (!questionSet.length) {
     if (objective === 'compare' && goal) {
-      questionSet.push(`Karşılaştırma için eksik taraf nedir?`);
+      questionSet.push(`Which side of the comparison is missing?`);
     } else if (objective === 'reason' && goal) {
-      questionSet.push(`Bu sonuç için hangi ek kanıt gerekli?`);
+      questionSet.push(`What additional evidence does this result need?`);
     }
   }
 
@@ -382,13 +382,13 @@ function deriveCausalRiskLevel(risks, confidence = 0, causalChains = 0, evidence
 function causalRiskMessage(riskLevel) {
   switch (riskLevel) {
     case 'critical':
-      return 'Değişiklik önerilmiyor.';
+      return 'The change is not recommended.';
     case 'high':
-      return 'Yüksek risk; insan onayı gerekir.';
+      return 'High risk; human approval is required.';
     case 'medium':
-      return 'Dikkatli uygulanmalı.';
+      return 'Apply with care.';
     case 'low':
-      return 'Düşük risk.';
+      return 'Low risk.';
     default:
       return 'Yetersiz causal veri.';
   }
@@ -396,7 +396,7 @@ function causalRiskMessage(riskLevel) {
 
 function deriveCausalConclusion({ riskLevel, recommendation, confidence, causalChains }) {
   const head = `Karar: ${causalRiskMessage(riskLevel)}`;
-  const recommendationText = recommendation ? ` Öneri: ${normalizeText(recommendation)}` : '';
+  const recommendationText = recommendation ? ` Recommendation: ${normalizeText(recommendation)}` : '';
   const confidenceText = ` Confidence: ${(Math.max(0, Math.min(1, confidence || 0)) * 100).toFixed(1)}%.`;
   const chainText = causalChains > 0 ? ` Causal chain count: ${causalChains}.` : ' Causal chain yok.';
   return `${head}${recommendationText}${confidenceText}${chainText}`.trim();
@@ -411,16 +411,16 @@ function deriveCausalNextQuestions({ unknowns, riskLevel }) {
   }
 
   if (riskLevel === 'critical' || riskLevel === 'high') {
-    questionSet.push('Bu riski azaltmak için hangi alternatifler var?');
-    questionSet.push('İnsan onayı veya ek kanıt gerekiyor mu?');
+    questionSet.push('What alternatives are there for reducing this risk?');
+    questionSet.push('Is human approval or additional evidence required?');
   } else if (riskLevel === 'medium') {
-    questionSet.push('Bu kararı güvenli hale getirmek için hangi ek veri lazım?');
+    questionSet.push('What additional data would make this decision safe?');
   } else if (riskLevel === 'unknown' && questionSet.length === 0) {
-    questionSet.push('Bu causal zincir için hangi kanıt eksik?');
+    questionSet.push('What evidence is missing for this causal chain?');
   }
 
   if (questionSet.length === 0) {
-    questionSet.push('Bu sonuç hangi ek gözlemlerle doğrulanabilir?');
+    questionSet.push('Which further observations would confirm this result?');
   }
 
   return dedupeStable(questionSet);
@@ -538,22 +538,22 @@ function buildCausalSummary(simulationResult = {}) {
 function deriveCausalRecommendation(risks, confidence) {
   if (risks.length === 0) {
     if (confidence > 0.7) {
-      return 'Değişiklik güvenli görünüyor, yüksek confidence ile ilerlenebilir.';
+      return 'The change looks safe; you can proceed with high confidence.';
     }
-    return 'Risk yok ancak confidence düşük, daha fazla kanıt gerekli.';
+    return 'No risk found, but confidence is low; more evidence is needed.';
   }
 
   const criticalRisks = risks.filter(r => r.severity === 'critical');
   if (criticalRisks.length > 0) {
-    return `KRİTİK: ${criticalRisks.length} kritik risk tespit edildi. Değişiklik önerilmiyor.`;
+    return `CRITICAL: ${criticalRisks.length} critical risk(s) detected. The change is not recommended.`;
   }
 
   const highRisks = risks.filter(r => r.severity === 'high');
   if (highRisks.length > 0) {
-    return `YÜKSEK RİSK: ${highRisks.length} yüksek risk tespit edildi. Dikkatli ilerleyin veya alternatif değerlendirin.`;
+    return `HIGH RISK: ${highRisks.length} high risk(s) detected. Proceed carefully or consider an alternative.`;
   }
 
-  return `${risks.length} risk tespit edildi. Riskleri değerlendirip ilerleyin.`;
+  return `${risks.length} risk(s) detected. Assess them before proceeding.`;
 }
 
 module.exports = {

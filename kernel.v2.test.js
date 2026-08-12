@@ -66,7 +66,7 @@ describe('KernelV2', () => {
     assert.ok(Array.isArray(res.data.evidenceSummary));
     assert.ok(res.data.evidenceSummary.length >= 1);
     assert.strictEqual(typeof res.data.explanation, 'string');
-    assert.match(res.data.explanation, /kanıt|çıkarım|desteklendi/i);
+    assert.match(res.data.explanation, /evidence|supported|inference/i);
   });
 
   it('returns contradiction for negated statement when positive chain exists', () => {
@@ -162,7 +162,7 @@ describe('KernelV2', () => {
     assert.ok(Array.isArray(res.data.evidenceSummary));
     assert.ok(res.data.evidenceSummary.length >= 1);
     assert.strictEqual(typeof res.data.explanation, 'string');
-    assert.match(res.data.explanation, /çelişki|zıt|kanıt/i);
+    assert.match(res.data.explanation, /contradictory|evidence|path/i);
   });
 
   it('flags manipulative but truthful text without changing the verdict', () => {
@@ -190,7 +190,7 @@ describe('KernelV2', () => {
     assert.ok(res.data.risk);
     assert.strictEqual(res.data.risk.manipulation, true);
     assert.ok(res.data.risk.labels.includes('prompt_injection'));
-    assert.match(res.data.explanation, /çelişki/i);
+    assert.match(res.data.explanation, /contradictory/i);
   });
 
   it('blocks risky learnFromLLM input before memory ingestion', () => {

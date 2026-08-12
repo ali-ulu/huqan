@@ -110,38 +110,38 @@ describe('Causal Finalizer - v0.7', () => {
     const result = buildCausalSummary(simulation);
     assert.strictEqual(result.ok, true);
     assert.ok(result.recommendation);
-    assert.ok(result.recommendation.includes('güvenli'));
+    assert.ok(result.recommendation.includes('looks safe'));
   });
 
   it('deriveCausalRecommendation risk yoksa güvenli önerir', () => {
     const rec = deriveCausalRecommendation([], 0.8);
-    assert.ok(rec.includes('güvenli'));
+    assert.ok(rec.includes('looks safe'));
   });
 
   it('deriveCausalRecommendation düşük confidence ile uyarır', () => {
     const rec = deriveCausalRecommendation([], 0.5);
-    assert.ok(rec.includes('confidence düşük'));
+    assert.ok(rec.includes('confidence is low'));
   });
 
   it('deriveCausalRecommendation kritik risk için reddeder', () => {
     const risks = [{ severity: 'critical', description: 'Test' }];
     const rec = deriveCausalRecommendation(risks, 0.8);
-    assert.ok(rec.includes('KRİTİK'));
-    assert.ok(rec.includes('önerilmiyor'));
+    assert.ok(rec.includes('CRITICAL'));
+    assert.ok(rec.includes('not recommended'));
   });
 
   it('deriveCausalRecommendation yüksek risk için uyarır', () => {
     const risks = [{ severity: 'high', description: 'Test' }];
     const rec = deriveCausalRecommendation(risks, 0.8);
-    assert.ok(rec.includes('YÜKSEK RİSK'));
-    assert.ok(rec.includes('Dikkatli'));
+    assert.ok(rec.includes('HIGH RISK'));
+    assert.ok(rec.includes('Proceed carefully'));
   });
 
   it('deriveCausalRecommendation medium risk için değerlendirme önerir', () => {
     const risks = [{ severity: 'medium', description: 'Test' }];
     const rec = deriveCausalRecommendation(risks, 0.8);
-    assert.ok(rec.includes('risk tespit edildi'));
-    assert.ok(rec.includes('değerlendirip'));
+    assert.ok(rec.includes('risk(s) detected'));
+    assert.ok(rec.includes('Assess them before proceeding'));
   });
 
   it('buildCausalSummary null/undefined değerleri handle eder', () => {
@@ -239,7 +239,7 @@ describe('Causal Finalizer - v0.7', () => {
     assert.strictEqual(result.mode, 'causal');
     assert.strictEqual(result.sourceMode, 'causal-backed');
     assert.strictEqual(result.riskLevel, 'critical');
-    assert.ok(result.conclusion.includes('Değişiklik önerilmiyor'));
+    assert.ok(result.conclusion.includes('The change is not recommended'));
     assert.ok(result.conclusion.includes('Confidence'));
     assert.ok(result.recommendation.includes('Change is not recommended'));
     assert.strictEqual(result.affectedNodes.length, 1);
@@ -254,16 +254,16 @@ describe('Causal Finalizer - v0.7', () => {
     assert.ok(Array.isArray(result.traversal.chain));
     assert.strictEqual(result.traversal.chain.length, 1);
     assert.strictEqual(result.nextQuestions.length >= 2, true);
-    assert.ok(result.nextQuestions.some(q => q.toLowerCase().includes('onay')));
+    assert.ok(result.nextQuestions.some(q => q.toLowerCase().includes('approval')));
     assert.strictEqual(result.unknowns.length, 1);
   });
 
   it('buildCausalSummary risk seviyelerini insan okunur hükme çevirir', () => {
     const cases = [
-      { severity: 'critical', expected: 'Değişiklik önerilmiyor.' },
-      { severity: 'high', expected: 'Yüksek risk; insan onayı gerekir.' },
-      { severity: 'medium', expected: 'Dikkatli uygulanmalı.' },
-      { severity: 'low', expected: 'Düşük risk.' },
+      { severity: 'critical', expected: 'The change is not recommended.' },
+      { severity: 'high', expected: 'High risk; human approval is required.' },
+      { severity: 'medium', expected: 'Apply with care.' },
+      { severity: 'low', expected: 'Low risk.' },
       { severity: 'unknown', expected: 'Yetersiz causal veri.' },
     ];
 
@@ -300,7 +300,7 @@ describe('Causal Finalizer - v0.7', () => {
     assert.strictEqual(result.riskLevel, 'unknown');
     assert.ok(result.conclusion.includes('Yetersiz causal veri'));
     assert.ok(result.nextQuestions.length > 0);
-    assert.ok(result.nextQuestions[0].includes('causal zincir'));
+    assert.ok(result.nextQuestions[0].includes('causal chain'));
   });
 });
 
