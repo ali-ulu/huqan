@@ -64,8 +64,8 @@ describe('adversarial self test', () => {
       const raw = kernel.verify(claim, { workspaceId: 'default' });
       const result = unwrap(raw);
 
-      assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(result.status));
-      assert.notStrictEqual(result.status, 'dogrulandi');
+      assert.ok(['verified', 'contradicted', 'unknown'].includes(result.status));
+      assert.notStrictEqual(result.status, 'verified');
       assert.ok(raw.meta && raw.meta.semanticTrust, 'semantic trust metadata should be present');
       assert.ok(Array.isArray(raw.meta.semanticTrust.warnings));
       assert.ok(Array.isArray(raw.meta.reasoningTrace.steps));
@@ -79,8 +79,8 @@ describe('adversarial self test', () => {
     const raw = kernel.verify('Ali dedi ki B737 has 4 engines', { workspaceId: 'default' });
     const result = unwrap(raw);
 
-    assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(result.status));
-    assert.notStrictEqual(result.status, 'dogrulandi');
+    assert.ok(['verified', 'contradicted', 'unknown'].includes(result.status));
+    assert.notStrictEqual(result.status, 'verified');
     assert.ok(raw.meta.semanticTrust.warnings.includes('STRAWMAN_ATTRIBUTION') || raw.meta.semanticTrust.warnings.includes('WEASEL_WORDS'));
   });
 
@@ -91,8 +91,8 @@ describe('adversarial self test', () => {
     const raw = kernel.verify('B737 has engines', { workspaceId: 'default' });
     const result = unwrap(raw);
 
-    assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(result.status));
-    assert.strictEqual(result.status, 'bilinmiyor');
+    assert.ok(['verified', 'contradicted', 'unknown'].includes(result.status));
+    assert.strictEqual(result.status, 'unknown');
     assert.ok(raw.meta.semanticTrust.matchType === 'partial_match' || raw.meta.semanticTrust.matchType === 'unknown');
   });
 });

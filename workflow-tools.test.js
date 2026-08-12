@@ -9,7 +9,7 @@ function createKernel(overrides = {}) {
       return {
         ok: true,
         data: {
-          status: 'dogrulandi',
+          status: 'verified',
           confidence: 0.88,
           answer: `verified:${statement}`,
         },
@@ -155,7 +155,7 @@ describe('workflow-tools', () => {
 
     assert.strictEqual(result.ok, true);
     assert.strictEqual(result.status, 'done');
-    assert.strictEqual(result.data.status, 'dogrulandi');
+    assert.strictEqual(result.data.status, 'verified');
     assert.strictEqual(result.data.claim, 'kedi hayvandir');
     assert.strictEqual(result.confidence, 0.88);
     assert.ok(Array.isArray(result.evidence));

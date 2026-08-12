@@ -48,8 +48,8 @@ describe('semantic parser negation admission guard', () => {
     assert.ok(negationEdge, 'negated learn should still record a negation edge');
 
     const verify = unwrap(kernel.verify('AXIOM bir LLM dir', { workspaceId: 'default' }));
-    assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(verify.status), 'status contract must stay stable');
-    assert.notStrictEqual(verify.status, 'dogrulandi', 'positive claim must not become verified after negation');
+    assert.ok(['verified', 'contradicted', 'unknown'].includes(verify.status), 'status contract must stay stable');
+    assert.notStrictEqual(verify.status, 'verified', 'positive claim must not become verified after negation');
   });
 
   it('rejects malformed parsed facts before graph admission', () => {
@@ -74,7 +74,7 @@ describe('semantic parser negation admission guard', () => {
     assert.strictEqual(learn.learned, 1);
 
     const verify = unwrap(kernel.verify('Beta bir sistemdir', { workspaceId: 'default' }));
-    assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(verify.status), 'status contract must stay stable');
-    assert.strictEqual(verify.status, 'dogrulandi');
+    assert.ok(['verified', 'contradicted', 'unknown'].includes(verify.status), 'status contract must stay stable');
+    assert.strictEqual(verify.status, 'verified');
   });
 });

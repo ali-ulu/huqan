@@ -540,8 +540,8 @@ test('Markdown adapter and Shield preserve review-only learn compatibility', () 
       kernel: shield.kernel,
       question: 'kedi nedir',
       llmText: 'kedi hayvandir',
-      axiomCheck: { data: { status: 'dogrulandi', confidence: 0.95 } },
-      llmCheck: { data: { status: 'dogrulandi', confidence: 0.75 } },
+      axiomCheck: { data: { status: 'verified', confidence: 0.95 } },
+      llmCheck: { data: { status: 'verified', confidence: 0.75 } },
       autoLearn: true,
     });
     assert.equal(shieldResult.shield.shouldLearn, true);

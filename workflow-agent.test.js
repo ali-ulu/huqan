@@ -32,7 +32,7 @@ function createAgent(opts = {}) {
         ok: true,
         data: {
           finalAnswer: `verify:${input.goal}`,
-          status: 'dogrulandi',
+          status: 'verified',
           source: 'verify',
         },
         evidence: ['verify-evidence'],

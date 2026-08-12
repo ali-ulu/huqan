@@ -123,13 +123,13 @@ describe('Benchmark: Verification Accuracy (vs Guardrails AI / NeMo / Rainbird)'
 
   const testCases = [
     // [statement, expectedStatus, description]
-    ['Aspirin ağrı kesicidir', 'dogrulandi', 'Known fact should verify'],
-    ['İnsülin şeker hastalığını tedavi eder', 'dogrulandi', 'Known treatment should verify'],
-    ['Antibiyotik bakteriyel enfeksiyonu tedavi eder', 'dogrulandi', 'Known treatment should verify'],
-    ['Sigara sağlıklıdır', 'celiski', 'PREVENTS edge should flag contradiction'],
+    ['Aspirin ağrı kesicidir', 'verified', 'Known fact should verify'],
+    ['İnsülin şeker hastalığını tedavi eder', 'verified', 'Known treatment should verify'],
+    ['Antibiyotik bakteriyel enfeksiyonu tedavi eder', 'verified', 'Known treatment should verify'],
+    ['Sigara sağlıklıdır', 'contradicted', 'PREVENTS edge should flag contradiction'],
     ['Aşılama hastalığa neden olur', 'celiski_or_bilinmiyor', 'PREVENTS contradiction: aşılama prevents hastalık (aspirational)'],
-    ['Mars sebzelerle kaplıdır', 'bilinmiyor', 'Unknown claim should return bilinmiyor'],
-    ['Kuantum bilgisayarlar evrenseldir', 'bilinmiyor', 'Unknown claim should return bilinmiyor'],
+    ['Mars sebzelerle kaplıdır', 'unknown', 'Unknown claim should return bilinmiyor'],
+    ['Kuantum bilgisayarlar evrenseldir', 'unknown', 'Unknown claim should return bilinmiyor'],
   ];
 
   let correct = 0;
@@ -142,13 +142,13 @@ describe('Benchmark: Verification Accuracy (vs Guardrails AI / NeMo / Rainbird)'
       const result = unwrap(raw);
       const actual = result.status;
       const isCeliskiOrBilinmiyor = expected === 'celiski_or_bilinmiyor'
-        ? ['celiski', 'bilinmiyor'].includes(actual)
+        ? ['contradicted', 'unknown'].includes(actual)
         : actual === expected;
       if (isCeliskiOrBilinmiyor) correct++;
 
       results.push({ statement, expected: expected.replace('_or_bilinmiyor', ''), actual, pass: isCeliskiOrBilinmiyor, confidence: result.confidence });
       if (expected === 'celiski_or_bilinmiyor') {
-        assert.ok(['celiski', 'bilinmiyor'].includes(actual),
+        assert.ok(['contradicted', 'unknown'].includes(actual),
           `Expected celiski or bilinmiyor, got ${actual} for "${statement}" (confidence: ${result.confidence})`);
       } else {
         assert.strictEqual(actual, expected,
@@ -189,7 +189,7 @@ describe('Benchmark: Contradiction Detection (PREVENTS-aware vs competitors)', (
 
   it('PREVENTS contradiction: "Sigara sağlıklıdır" → celiski', () => {
     const result = unwrap(kernel.verify('Sigara sağlıklıdır'));
-    assert.strictEqual(result.status, 'celiski');
+    assert.strictEqual(result.status, 'contradicted');
     // Guardrails AI: cannot detect this without LLM call
     // NeMo Guardrails: cannot detect causal contradictions
     // Rainbird: could detect with explicit rule, but no PREVENTS concept
@@ -200,7 +200,7 @@ describe('Benchmark: Contradiction Detection (PREVENTS-aware vs competitors)', (
     const result = unwrap(kernel.verify('Aşılama hastalığa neden olur'));
     // Aşılama PREVENTS hastalık, so claiming it CAUSES should contradict
     assert.ok(
-      ['celiski', 'bilinmiyor'].includes(result.status),
+      ['contradicted', 'unknown'].includes(result.status),
       `Expected celiski or bilinmiyor, got ${result.status}`
     );
   });
@@ -209,7 +209,7 @@ describe('Benchmark: Contradiction Detection (PREVENTS-aware vs competitors)', (
     // Sigara CAUSES akciğer kanseri — "Sigara kansere neden olmaz" should contradict
     const result = unwrap(kernel.verify('Sigara kansere neden olmaz'));
     assert.ok(
-      ['celiski', 'bilinmiyor'].includes(result.status),
+      ['contradicted', 'unknown'].includes(result.status),
       `Expected celiski or bilinmiyor, got ${result.status}`
     );
   });
@@ -217,7 +217,7 @@ describe('Benchmark: Contradiction Detection (PREVENTS-aware vs competitors)', (
   it('no false positives: ENABLES is not a contradiction', () => {
     // Egzersiz ENABLES sağlık — "Egzersiz sağlığı güçlendirir" should verify
     const result = unwrap(kernel.verify('Egzersiz sağlığı güçlendirir'));
-    assert.strictEqual(result.status, 'dogrulandi');
+    assert.strictEqual(result.status, 'verified');
   });
 });
 
@@ -231,7 +231,7 @@ describe('Benchmark: Safety Gate Enforcement (AB1-AB6)', () => {
     return {
       learn() { return { ok: true, data: { learned: 1, skipped: 0, conflicts: [], alternatives: [] }, type: 'learn', evidence: [], error: null, meta: { contractVersion: '1.0', backend: 'sqlite', paranoidMode: false } }; },
       ask() { return { ok: true, data: { answer: 'mock', subject: 'x', unknown: false, alternatives: 0 }, type: 'ask', evidence: [], error: null, meta: { contractVersion: '1.0', backend: 'sqlite', paranoidMode: false } }; },
-      verify() { return { ok: true, data: { status: 'dogrulandi', confidence: 1 }, type: 'verify', evidence: [], error: null, meta: { contractVersion: '1.0', backend: 'sqlite', paranoidMode: false } }; },
+      verify() { return { ok: true, data: { status: 'verified', confidence: 1 }, type: 'verify', evidence: [], error: null, meta: { contractVersion: '1.0', backend: 'sqlite', paranoidMode: false } }; },
       reason() { return { ok: true, data: { subject: 'x', answer: 'y', forward: [], backward: [], cycles: [] }, type: 'reason', evidence: [], error: null, meta: { contractVersion: '1.0', backend: 'sqlite', paranoidMode: false } }; },
       compare() { return { ok: true, data: { a: 'x', b: 'y', answer: 'z', common: [], onlyA: [], onlyB: [], paths: [] }, type: 'compare', evidence: [], error: null, meta: { contractVersion: '1.0', backend: 'sqlite', paranoidMode: false } }; },
       dream() { return { ok: true, data: { hypotheses: [], learned: [], cycle: 0 }, type: 'dream', evidence: [], error: null, meta: { contractVersion: '1.0', backend: 'sqlite', paranoidMode: false } }; },
@@ -424,7 +424,7 @@ describe('Benchmark: Determinism (same input → same output, always)', () => {
     const mockKernel = {
       learn() { return { ok: true, data: { learned: 1 }, type: 'learn', evidence: [], error: null, meta: {} }; },
       ask() { return { ok: true, data: { answer: 'mock' }, type: 'ask', evidence: [], error: null, meta: {} }; },
-      verify() { return { ok: true, data: { status: 'dogrulandi', confidence: 1 }, type: 'verify', evidence: [], error: null, meta: {} }; },
+      verify() { return { ok: true, data: { status: 'verified', confidence: 1 }, type: 'verify', evidence: [], error: null, meta: {} }; },
       reason() { return { ok: true, data: { forward: [] }, type: 'reason', evidence: [], error: null, meta: {} }; },
       compare() { return { ok: true, data: {}, type: 'compare', evidence: [], error: null, meta: {} }; },
       dream() { return { ok: true, data: {}, type: 'dream', evidence: [], error: null, meta: {} }; },

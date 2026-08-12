@@ -93,8 +93,8 @@ describe('Stress Aviation Regression', () => {
 
     const result = unwrap(kernel.verify('B737 has 2 engines', { workspaceId: 'default' }));
     assert.ok(result && typeof result === 'object', 'verify result should be an object');
-    assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(result.status), 'status contract must stay stable');
-    assert.strictEqual(result.status, 'dogrulandi', 'seed fact should remain verified');
+    assert.ok(['verified', 'contradicted', 'unknown'].includes(result.status), 'status contract must stay stable');
+    assert.strictEqual(result.status, 'verified', 'seed fact should remain verified');
   });
 
   for (const [index, claim] of falseClaims.entries()) {
@@ -109,15 +109,15 @@ describe('Stress Aviation Regression', () => {
       const result = unwrap(kernel.verify(claim, { workspaceId: 'default' }));
 
       assert.ok(result && typeof result === 'object', 'verify result should be an object');
-      assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(result.status), 'status contract must stay stable');
+      assert.ok(['verified', 'contradicted', 'unknown'].includes(result.status), 'status contract must stay stable');
       assert.notStrictEqual(
         result.status,
-        'dogrulandi',
+        'verified',
         `aviation false claim was incorrectly verified: ${claim}`,
       );
 
       if (result.classification !== undefined) {
-        assert.notStrictEqual(result.classification, 'dogrulandi', 'classification must not replace core status');
+        assert.notStrictEqual(result.classification, 'verified', 'classification must not replace core status');
       }
     });
   }

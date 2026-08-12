@@ -49,7 +49,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
         service,
         'B737 güvenlidir',
         { domain: 'aviation' },
-        { status: 'bilinmiyor', confidence: 0 },
+        { status: 'unknown', confidence: 0 },
         [],
         ctx
       );
@@ -62,7 +62,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
       assert.ok(Array.isArray(er.aliases));
       assert.ok(er.aliases.includes('b737'));
       assert.ok(er.aliases.includes('boeing 737'));
-      assert.strictEqual(result.data.status, 'bilinmiyor');
+      assert.strictEqual(result.data.status, 'unknown');
       assert.strictEqual(result.data.confidence, 0);
     });
 
@@ -72,7 +72,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
         service,
         'Boeing 737 güvenlidir',
         { domain: 'aviation' },
-        { status: 'bilinmiyor', confidence: 0 },
+        { status: 'unknown', confidence: 0 },
         [],
         ctx
       );
@@ -89,7 +89,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
         service,
         'Boeing-737 güvenlidir',
         { domain: 'aviation' },
-        { status: 'bilinmiyor', confidence: 0 },
+        { status: 'unknown', confidence: 0 },
         [],
         ctx
       );
@@ -106,7 +106,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
         service,
         'AI tehlikelidir',
         {},
-        { status: 'bilinmiyor', confidence: 0 },
+        { status: 'unknown', confidence: 0 },
         [],
         ctx
       );
@@ -119,7 +119,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
       assert.ok(er.candidates.includes('artificial_intelligence'));
       assert.ok(er.candidates.includes('adobe_illustrator'));
       assert.strictEqual(er.reason, 'ambiguous_alias_requires_domain');
-      assert.strictEqual(result.data.status, 'bilinmiyor');
+      assert.strictEqual(result.data.status, 'unknown');
       assert.strictEqual(result.data.confidence, 0);
     });
   });
@@ -131,7 +131,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
         service,
         'AI güvenlidir',
         { domain: 'aviation' },
-        { status: 'bilinmiyor', confidence: 0 },
+        { status: 'unknown', confidence: 0 },
         [],
         ctx
       );
@@ -147,7 +147,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
         service,
         'AI güçlüdür',
         { domain: 'tech' },
-        { status: 'bilinmiyor', confidence: 0 },
+        { status: 'unknown', confidence: 0 },
         [],
         ctx
       );
@@ -163,7 +163,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
         service,
         'AI kullanılır',
         { domain: 'design' },
-        { status: 'bilinmiyor', confidence: 0 },
+        { status: 'unknown', confidence: 0 },
         [],
         ctx
       );
@@ -181,7 +181,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
         service,
         'XYZ999 tehlikelidir',
         { domain: 'aviation' },
-        { status: 'bilinmiyor', confidence: 0 },
+        { status: 'unknown', confidence: 0 },
         [],
         ctx
       );
@@ -190,7 +190,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
       assert.strictEqual(er.matched, false);
       assert.strictEqual(er.ambiguous, undefined);
       assert.strictEqual(er.reason, 'unknown_alias_in_domain');
-      assert.strictEqual(result.data.status, 'bilinmiyor');
+      assert.strictEqual(result.data.status, 'unknown');
       assert.strictEqual(result.data.confidence, 0);
     });
   });
@@ -202,7 +202,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
         service,
         'güvenlidir',
         { domain: 'aviation' },
-        { status: 'bilinmiyor', confidence: 0 },
+        { status: 'unknown', confidence: 0 },
         [],
         ctx
       );
@@ -218,7 +218,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
         service,
         'güvenlidir',
         { domain: 'aviation' },
-        { status: 'bilinmiyor', confidence: 0 },
+        { status: 'unknown', confidence: 0 },
         [],
         ctx
       );
@@ -234,7 +234,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
         service,
         'güvenlidir',
         { domain: 'aviation' },
-        { status: 'bilinmiyor', confidence: 0 },
+        { status: 'unknown', confidence: 0 },
         [],
         ctx
       );
@@ -251,7 +251,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
         service,
         'B737 güvenlidir',
         { domain: 'aviation' },
-        { status: 'dogrulandi', confidence: 0.85 },
+        { status: 'verified', confidence: 0.85 },
         [],
         ctx
       );
@@ -267,7 +267,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
         service,
         'AI tehlikelidir',
         {},
-        { status: 'bilinmiyor', confidence: 0 },
+        { status: 'unknown', confidence: 0 },
         [],
         ctx
       );
@@ -282,7 +282,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
         service,
         'XYZ999 çelişiyor',
         {},
-        { status: 'celiski', confidence: 0.7 },
+        { status: 'contradicted', confidence: 0.7 },
         [],
         ctx
       );
@@ -298,7 +298,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
         service,
         'test',
         { domain: 'aviation' },
-        { status: 'bilinmiyor', confidence: 0 },
+        { status: 'unknown', confidence: 0 },
         [],
         ctx
       );
@@ -317,7 +317,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
         service,
         'B737 güvenlidir',
         { domain: 'aviation' },
-        { status: 'bilinmiyor', confidence: 0 },
+        { status: 'unknown', confidence: 0 },
         [],
         ctx
       );
@@ -330,7 +330,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
         service,
         'Boeing 737 güvenlidir',
         { domain: 'aviation' },
-        { status: 'bilinmiyor', confidence: 0 },
+        { status: 'unknown', confidence: 0 },
         [],
         ctx
       );
@@ -345,7 +345,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
         service,
         'AI tehlikelidir',
         {},
-        { status: 'bilinmiyor', confidence: 0 },
+        { status: 'unknown', confidence: 0 },
         [],
         ctx
       );
@@ -359,7 +359,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
         service,
         'AI tehlikelidir',
         { domain: '' },
-        { status: 'bilinmiyor', confidence: 0 },
+        { status: 'unknown', confidence: 0 },
         [],
         ctx
       );
@@ -375,7 +375,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
         service,
         'B737 güvenlidir',
         { domain: 'aviation' },
-        { status: 'bilinmiyor', confidence: 0 },
+        { status: 'unknown', confidence: 0 },
         [],
         ctx
       );
@@ -383,7 +383,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
         service,
         'B737 güvenlidir',
         { domain: 'aviation' },
-        { status: 'bilinmiyor', confidence: 0 },
+        { status: 'unknown', confidence: 0 },
         [],
         ctx
       );
@@ -399,7 +399,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
         service,
         'B737 güvenlidir',
         { domain: 'aviation' },
-        { status: 'bilinmiyor', confidence: 0 },
+        { status: 'unknown', confidence: 0 },
         [],
         ctx
       );
@@ -427,7 +427,7 @@ describe('PR-ER2A - Verify Read-only Entity Resolution Probe', () => {
         trackedService,
         'B737 güvenlidir',
         { domain: 'aviation' },
-        { status: 'bilinmiyor', confidence: 0 },
+        { status: 'unknown', confidence: 0 },
         [],
         ctx
       );

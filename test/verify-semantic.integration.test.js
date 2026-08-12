@@ -77,13 +77,13 @@ describe('verify semantic integration', () => {
     const semanticTrust = raw.meta.semanticTrust;
 
     assert.ok(result && typeof result === 'object', 'verify result should be an object');
-    assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(result.status), 'status contract must remain stable');
-    assert.strictEqual(result.status, 'dogrulandi');
+    assert.ok(['verified', 'contradicted', 'unknown'].includes(result.status), 'status contract must remain stable');
+    assert.strictEqual(result.status, 'verified');
     assert.ok(semanticTrust && typeof semanticTrust === 'object', 'semantic trust meta should be attached');
     assert.ok(Array.isArray(semanticTrust.signals), 'semantic trust signals should be an array');
     assert.ok(semanticTrust.thresholds, 'semantic trust thresholds should be attached');
     assert.ok(semanticTrust.supportScore >= semanticTrust.thresholds.supportVerified, 'support score should be high for exact support');
-    assert.strictEqual(semanticTrust.status, 'dogrulandi');
+    assert.strictEqual(semanticTrust.status, 'verified');
     assert.strictEqual(semanticTrust.classification, 'verified');
   });
 
@@ -96,12 +96,12 @@ describe('verify semantic integration', () => {
     const semanticTrust = raw.meta.semanticTrust;
 
     assert.ok(result && typeof result === 'object', 'verify result should be an object');
-    assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(result.status), 'status contract must remain stable');
-    assert.notStrictEqual(result.status, 'dogrulandi');
+    assert.ok(['verified', 'contradicted', 'unknown'].includes(result.status), 'status contract must remain stable');
+    assert.notStrictEqual(result.status, 'verified');
     assert.ok(semanticTrust && typeof semanticTrust === 'object', 'semantic trust meta should be attached');
     assert.ok(semanticTrust.supportScore < semanticTrust.thresholds.supportVerified, 'weak partial support must stay below verification threshold');
     assert.ok(['weak_match', 'unsupported', 'needs_review', 'contradicted'].includes(semanticTrust.classification), 'weak partial should not be verified');
-    assert.notStrictEqual(semanticTrust.status, 'dogrulandi');
+    assert.notStrictEqual(semanticTrust.status, 'verified');
   });
 
   it('keeps unsupported claims as bilinmiyor', () => {
@@ -113,9 +113,9 @@ describe('verify semantic integration', () => {
     const semanticTrust = raw.meta.semanticTrust;
 
     assert.ok(result && typeof result === 'object', 'verify result should be an object');
-    assert.strictEqual(result.status, 'bilinmiyor');
+    assert.strictEqual(result.status, 'unknown');
     assert.ok(semanticTrust && typeof semanticTrust === 'object', 'semantic trust meta should be attached');
-    assert.strictEqual(semanticTrust.status, 'bilinmiyor');
+    assert.strictEqual(semanticTrust.status, 'unknown');
     assert.strictEqual(semanticTrust.classification, 'unsupported');
     assert.ok(Array.isArray(semanticTrust.signals), 'semantic trust signals should be an array');
     assert.ok(!['needs_review', 'weak_match', 'unsupported', 'llm-assisted'].includes(result.status), 'core status contract must remain unchanged');
@@ -130,9 +130,9 @@ describe('verify semantic integration', () => {
     const semanticTrust = raw.meta.semanticTrust;
 
     assert.ok(result && typeof result === 'object', 'verify result should be an object');
-    assert.strictEqual(result.status, 'celiski');
+    assert.strictEqual(result.status, 'contradicted');
     assert.ok(semanticTrust && typeof semanticTrust === 'object', 'semantic trust meta should be attached');
-    assert.strictEqual(semanticTrust.status, 'celiski');
+    assert.strictEqual(semanticTrust.status, 'contradicted');
     assert.strictEqual(semanticTrust.classification, 'contradicted');
     assert.ok(
       semanticTrust.signals.some(signal => Array.isArray(signal.flags) && (
@@ -161,9 +161,9 @@ describe('verify semantic integration', () => {
     const semanticTrust = raw.meta.semanticTrust;
 
     assert.ok(result && typeof result === 'object', 'verify result should be an object');
-    assert.strictEqual(result.status, 'celiski');
+    assert.strictEqual(result.status, 'contradicted');
     assert.ok(semanticTrust && typeof semanticTrust === 'object', 'semantic trust meta should be attached');
-    assert.strictEqual(semanticTrust.status, 'celiski');
+    assert.strictEqual(semanticTrust.status, 'contradicted');
     assert.ok(
       semanticTrust.warnings.includes('TYPE_CONFLICT') ||
       semanticTrust.warnings.includes('TYPE_LATTICE_CONFLICT'),
@@ -179,8 +179,8 @@ describe('verify semantic integration', () => {
     const result = unwrap(raw);
     const semanticTrust = raw.meta.semanticTrust;
 
-    assert.strictEqual(result.status, 'celiski');
-    assert.strictEqual(semanticTrust.status, 'celiski');
+    assert.strictEqual(result.status, 'contradicted');
+    assert.strictEqual(semanticTrust.status, 'contradicted');
     assert.ok(semanticTrust.contradictionScore >= semanticTrust.thresholds.contradictionConflict);
     assert.ok(
       semanticTrust.warnings.includes('CAUSE_PREVENT_OPPOSITION') ||
@@ -197,8 +197,8 @@ describe('verify semantic integration', () => {
     const result = unwrap(raw);
     const semanticTrust = raw.meta.semanticTrust;
 
-    assert.strictEqual(result.status, 'celiski');
-    assert.strictEqual(semanticTrust.status, 'celiski');
+    assert.strictEqual(result.status, 'contradicted');
+    assert.strictEqual(semanticTrust.status, 'contradicted');
     assert.ok(semanticTrust.contradictionScore >= semanticTrust.thresholds.contradictionConflict);
   });
 
@@ -223,8 +223,8 @@ describe('verify semantic integration', () => {
     const result = unwrap(raw);
     const semanticTrust = raw.meta.semanticTrust;
 
-    assert.notStrictEqual(result.status, 'dogrulandi');
-    assert.strictEqual(result.status, 'celiski');
+    assert.notStrictEqual(result.status, 'verified');
+    assert.strictEqual(result.status, 'contradicted');
     assert.ok(semanticTrust.contradictionScore >= semanticTrust.thresholds.contradictionConflict);
     assert.ok(
       semanticTrust.warnings.includes('CAUSE_PREVENT_OPPOSITION') ||
@@ -246,7 +246,7 @@ describe('verify semantic integration', () => {
     const raw = kernel.verify('sigara sagliklidir', { workspaceId: 'default' });
     const result = unwrap(raw);
 
-    assert.strictEqual(result.status, 'dogrulandi');
+    assert.strictEqual(result.status, 'verified');
   });
 
   it('marks benign unrelated drift as celiski in current semantics', () => {
@@ -256,7 +256,7 @@ describe('verify semantic integration', () => {
     const raw = kernel.verify('aspirin beyaz tablettir', { workspaceId: 'default' });
     const result = unwrap(raw);
 
-    assert.strictEqual(result.status, 'celiski');
+    assert.strictEqual(result.status, 'contradicted');
   });
 
   it('marks high-risk weak claims as celiski with risk flags', () => {
@@ -268,9 +268,9 @@ describe('verify semantic integration', () => {
     const semanticTrust = raw.meta.semanticTrust;
 
     assert.ok(result && typeof result === 'object', 'verify result should be an object');
-    assert.strictEqual(result.status, 'celiski');
+    assert.strictEqual(result.status, 'contradicted');
     assert.ok(semanticTrust && typeof semanticTrust === 'object', 'semantic trust meta should be attached');
-    assert.strictEqual(semanticTrust.status, 'celiski');
+    assert.strictEqual(semanticTrust.status, 'contradicted');
     assert.strictEqual(semanticTrust.classification, 'contradicted');
     assert.ok(Array.isArray(semanticTrust.warnings), 'warnings should be an array');
     assert.ok(
@@ -287,7 +287,7 @@ describe('verify semantic integration', () => {
     const raw = kernel.verify('Mars peynirdendir', { workspaceId: 'default' });
     const result = unwrap(raw);
 
-    assert.strictEqual(result.status, 'bilinmiyor');
+    assert.strictEqual(result.status, 'unknown');
   });
 
 });

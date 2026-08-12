@@ -419,9 +419,9 @@ class KernelV2 {
     const parts = [];
     const status = data && data.status;
 
-    if (status === 'dogrulandi') {
+    if (status === 'verified') {
       parts.push(data?.inferred ? 'İfade grafikteki bir çıkarım zinciriyle desteklendi.' : 'The statement is directly supported by the graph.');
-    } else if (status === 'celiski') {
+    } else if (status === 'contradicted') {
       const reason = data?.contradictionReason || 'çelişki';
       parts.push(`The statement was found contradictory (${reason}).`);
     } else {
@@ -629,7 +629,7 @@ class KernelV2 {
     const directOpposite = this._collectPredicateTargets(subject).find(item => item.target === opposite);
     if (directOpposite) {
       return {
-        status: 'celiski',
+        status: 'contradicted',
         confidence: Math.max(0.65, Math.min(0.9, directOpposite.weight || 0.72)),
         inferred: true,
         contradictionReason: 'opposite_predicate_conflict',
@@ -645,7 +645,7 @@ class KernelV2 {
     if (!oppositeChain) return null;
 
     return {
-      status: 'celiski',
+      status: 'contradicted',
       confidence: this._aggregatePathConfidence(oppositeChain),
       inferred: true,
       contradictionReason: 'opposite_predicate_conflict',
@@ -666,7 +666,7 @@ class KernelV2 {
       const directPositive = knownFacts.find(item => item.target === normalizedTargetToken);
       if (directPositive) {
         return {
-          status: 'celiski',
+          status: 'contradicted',
           confidence: Math.max(0.65, Math.min(0.9, directPositive.weight || 0.72)),
           inferred: true,
           contradictionReason: 'negated_statement_conflicts_with_known_fact',
@@ -699,7 +699,7 @@ class KernelV2 {
       );
       if (typeConflict) {
         return {
-          status: 'celiski',
+          status: 'contradicted',
           confidence: typeConflict.confidence || 0.72,
           inferred: true,
           contradictionReason: 'type_mismatch_with_known_types',
@@ -715,7 +715,7 @@ class KernelV2 {
     const chain = this._inferTypeChain(parsed.subject, normalizedTarget, maxDepth);
     if (chain && parsed.isNegated) {
       return {
-        status: 'celiski',
+        status: 'contradicted',
         confidence: this._aggregatePathConfidence(chain),
         inferred: true,
         contradictionReason: 'negated_statement_conflicts_with_type_chain',
@@ -729,7 +729,7 @@ class KernelV2 {
 
     if (chain && !parsed.isNegated) {
       return {
-        status: 'dogrulandi',
+        status: 'verified',
         confidence: this._aggregatePathConfidence(chain),
         inferred: true,
         reasoningPath: this._buildReasoningPath(chain),
@@ -760,7 +760,7 @@ class KernelV2 {
         return this._withVerifyDetails(this._ok(
           'verify',
           {
-            status: 'celiski',
+            status: 'contradicted',
             confidence: Math.max(0.65, Math.min(0.9, directPositive.weight || 0.72)),
             inferred: true,
             contradictionReason: 'negated_statement_conflicts_with_known_fact',
@@ -776,9 +776,9 @@ class KernelV2 {
     }
 
     const base = this.kernel.verify(verificationStatement, opts);
-    if (base?.data?.status !== 'bilinmiyor') {
+    if (base?.data?.status !== 'unknown') {
       const contradictionReason = base?.data?.contradictionReason;
-      if (base?.data?.status !== 'celiski' || contradictionReason) {
+      if (base?.data?.status !== 'contradicted' || contradictionReason) {
         return this._withVerifyDetails(base, risk);
       }
     }
@@ -793,7 +793,7 @@ class KernelV2 {
     if (!contradictionDetails) {
       const semanticSignals = base?.meta?.semanticTrust?.signals;
       const typePredicateDriftOnly = !parsed.isNegated
-        && base?.data?.status === 'celiski'
+        && base?.data?.status === 'contradicted'
         && Array.isArray(semanticSignals)
         && semanticSignals.length > 0
         && semanticSignals.every(signal => (
@@ -803,7 +803,7 @@ class KernelV2 {
       if (typePredicateDriftOnly) {
         return this._withVerifyDetails(this._ok(
           'verify',
-          { status: 'bilinmiyor', confidence: 0 },
+          { status: 'unknown', confidence: 0 },
           [],
           base.meta,
         ), risk);
