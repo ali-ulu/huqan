@@ -278,7 +278,9 @@ describe('Server - API', () => {
     const j = await r.json();
     assert.strictEqual(j.ok, true);
     assert.strictEqual(j.type, 'verify');
-    assert.strictEqual(j.data.status, 'celiski');
+    // The HTTP boundary emits the canonical English vocabulary; `celiski` is
+    // what KernelV2 still says internally. See docs/verify-status-vocabulary-migration.md.
+    assert.strictEqual(j.data.status, 'contradicted');
     assert.strictEqual(j.data.contradictionReason, 'opposite_predicate_conflict');
     assert.ok(Array.isArray(j.evidence));
     assert.ok(j.evidence.length >= 1);
