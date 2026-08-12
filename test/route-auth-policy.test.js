@@ -144,6 +144,11 @@ test('prefix constants used by the routers are covered by the policy', () => {
   // prefix-based family without declaring it is caught rather than assumed.
   const sources = [
     path.join(__dirname, '..', 'server.js'),
+    // TRUST_RECEIPT_READ_PREFIX lives here, not in server.js. If a prefix
+    // constant moves to a new module, add that module to this list -- the
+    // invariant is that every prefix the routers dispatch on is declared in
+    // the policy, and this scan is what enforces it.
+    path.join(__dirname, '..', 'lib', 'http-trust-query.js'),
     path.join(__dirname, '..', 'lib', 'workbench', 'trust-receipt-route.js'),
     path.join(__dirname, '..', 'lib', 'workbench', 'memory-context-route.js'),
   ];
