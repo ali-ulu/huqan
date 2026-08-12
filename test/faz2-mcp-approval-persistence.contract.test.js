@@ -11,7 +11,7 @@
  *
  *   F-006: MCP approval requests must not live in a process-local array.
  *          Pending approvals are stored in the existing SQLite tool_approvals
- *          queue and axiom.approve provides an approve/reject execution path.
+ *          queue and huqan.approve provides an approve/reject execution path.
  *
  * This contract intentionally does NOT require kernel._commitMutation or a
  * Universal Mutation Boundary. Approved MCP learn execution must go through the
@@ -133,9 +133,9 @@ describe('FAZ2-PR5 contract: F-006 MCP approval persistence and execution path',
     assert.equal(src.includes('const _pendingApprovals = []'), false);
   });
 
-  it('axiom.approve is exposed as the MCP approval execution handler', () => {
-    const approveTool = TOOL_SCHEMAS.find((tool) => tool.name === 'axiom.approve');
-    assert.ok(approveTool, 'axiom.approve must be present in tools/list schema');
+  it('huqan.approve is exposed as the MCP approval execution handler', () => {
+    const approveTool = TOOL_SCHEMAS.find((tool) => tool.name === 'huqan.approve');
+    assert.ok(approveTool, 'huqan.approve must be present in tools/list schema');
     assert.equal(approveTool.annotations.idempotentHint, true);
   });
 
@@ -143,14 +143,14 @@ describe('FAZ2-PR5 contract: F-006 MCP approval persistence and execution path',
     withTempAxiomEnv(() => {
       const server = createServer();
       const queued = callTool(server.kernel, {
-        name: 'axiom.learn',
+        name: 'huqan.learn',
         arguments: { text: 'faz2 contract approved mcp sentinel hayvandir' },
       }, { approvalStore: server.approvalStore });
       assert.equal(queued.ok, false);
       assert.equal(queued.approval.status, 'pending');
 
       const approved = callTool(server.kernel, {
-        name: 'axiom.approve',
+        name: 'huqan.approve',
         arguments: { approvalId: queued.approval.id, decision: 'approved' },
       }, { approvalStore: server.approvalStore });
       assert.equal(approved.ok, true);
@@ -166,14 +166,14 @@ describe('FAZ2-PR5 contract: F-006 MCP approval persistence and execution path',
     withTempAxiomEnv(() => {
       const server = createServer();
       const queued = callTool(server.kernel, {
-        name: 'axiom.learn',
+        name: 'huqan.learn',
         arguments: { text: 'faz2 contract invalid decision mcp sentinel hayvandir' },
       }, { approvalStore: server.approvalStore });
       assert.equal(queued.ok, false);
       assert.equal(queued.approval.status, 'pending');
 
       const invalid = callTool(server.kernel, {
-        name: 'axiom.approve',
+        name: 'huqan.approve',
         // Exactly the raw JSON-RPC repro from #615: a client that skips
         // schema validation and sends an out-of-enum decision.
         arguments: { approvalId: queued.approval.id, decision: 'banana', reason: 'invalid-decision-repro' },
@@ -185,7 +185,7 @@ describe('FAZ2-PR5 contract: F-006 MCP approval persistence and execution path',
       // Pending state must be completely unchanged -- not claimed, not
       // resolved, not executed.
       const stillPending = callTool(server.kernel, {
-        name: 'axiom.approve',
+        name: 'huqan.approve',
         arguments: { approvalId: queued.approval.id, decision: 'approved' },
       }, { approvalStore: server.approvalStore });
       assert.equal(stillPending.ok, true);
@@ -201,14 +201,14 @@ describe('FAZ2-PR5 contract: F-006 MCP approval persistence and execution path',
     withTempAxiomEnv(() => {
       const server = createServer();
       const queued = callTool(server.kernel, {
-        name: 'axiom.learn',
+        name: 'huqan.learn',
         arguments: { text: 'faz2 contract whitespace decision mcp sentinel hayvandir' },
       }, { approvalStore: server.approvalStore });
       assert.equal(queued.ok, false);
 
       for (const decision of ['', '   ']) {
         const result = callTool(server.kernel, {
-          name: 'axiom.approve',
+          name: 'huqan.approve',
           arguments: { approvalId: queued.approval.id, decision },
         }, { approvalStore: server.approvalStore });
         assert.equal(result.ok, false);
@@ -224,13 +224,13 @@ describe('FAZ2-PR5 contract: F-006 MCP approval persistence and execution path',
     withTempAxiomEnv(() => {
       const server = createServer();
       const queued = callTool(server.kernel, {
-        name: 'axiom.learn',
+        name: 'huqan.learn',
         arguments: { text: 'faz2 contract absent decision mcp sentinel hayvandir' },
       }, { approvalStore: server.approvalStore });
       assert.equal(queued.ok, false);
 
       const result = callTool(server.kernel, {
-        name: 'axiom.approve',
+        name: 'huqan.approve',
         arguments: { approvalId: queued.approval.id },
       }, { approvalStore: server.approvalStore });
       assert.equal(result.ok, true);

@@ -28,11 +28,11 @@ function freshKernel() {
 }
 
 describe('MCP human-approval toggle (#321)', () => {
-  it('without the toggle, axiom.learn is queued for review and nothing is written', () => {
+  it('without the toggle, huqan.learn is queued for review and nothing is written', () => {
     const { kernel, tempDir } = freshKernel();
     delete process.env.AXIOM_HUMAN_APPROVAL_DISABLED;
     try {
-      const result = callTool(kernel, { name: 'axiom.learn', arguments: { text: 'kedi hayvandir' } }, {});
+      const result = callTool(kernel, { name: 'huqan.learn', arguments: { text: 'kedi hayvandir' } }, {});
       assert.strictEqual(result.ok, false);
       assert.strictEqual(result.gate.decision, 'review');
       assert.strictEqual(result.gate.canExecute, false);
@@ -43,11 +43,11 @@ describe('MCP human-approval toggle (#321)', () => {
     }
   });
 
-  it('with the toggle enabled, axiom.learn executes immediately and the claim is admitted', () => {
+  it('with the toggle enabled, huqan.learn executes immediately and the claim is admitted', () => {
     const { kernel, tempDir } = freshKernel();
     process.env.AXIOM_HUMAN_APPROVAL_DISABLED = 'true';
     try {
-      const result = callTool(kernel, { name: 'axiom.learn', arguments: { text: 'köpek hayvandır' } }, {});
+      const result = callTool(kernel, { name: 'huqan.learn', arguments: { text: 'köpek hayvandır' } }, {});
       assert.strictEqual(result.ok, true);
       assert.strictEqual(result.data.learned, 1);
       assert.strictEqual(result.data.admission.outcome, 'allow');
