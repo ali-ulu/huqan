@@ -27,3 +27,22 @@ jobs:
       # No dependencies needed: the checker only reads the source tree.
       - name: Check for require cycles
         run: node scripts/check-import-cycles.js
+
+  file-size:
+    name: Enforce the large-file threshold
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      # Ratchet, not a flat limit (#328): files at or under the threshold must
+      # stay there, and the files already over it may not grow. Reads the
+      # source tree only, so no dependencies are needed.
+      - name: Check file sizes
+        run: node scripts/check-file-size.js
