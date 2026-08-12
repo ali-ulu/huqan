@@ -8,8 +8,9 @@ const Graph = require('../graph');
 
 test('rustGraph addNode/addEdge forward provenance/workspaceId/weight/confidence/evidence/sourceRef to the JS fallback graph (#361)', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rustgraph-provenance-'));
+  let rg;
   try {
-    const rg = new RustGraph({ memoryPath: path.join(tempDir, 'memory.json') });
+    rg = new RustGraph({ memoryPath: path.join(tempDir, 'memory.json') });
     // Force the JS-fallback path directly (this environment may or may not have
     // the compiled Rust binary) so this assertion always runs in CI.
     rg._fallback = new Graph({ memoryPath: path.join(tempDir, 'memory.json') });
@@ -41,7 +42,11 @@ test('rustGraph addNode/addEdge forward provenance/workspaceId/weight/confidence
     assert.equal(storedEdges[0].source_ref, 'src-1');
     assert.ok(storedEdges[0].evidence.includes('ev-1'));
   } finally {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    // rg._fallback holds an open SQLite handle; rg.destroy() closes it.
+    // Without this the directory removal below hits EPERM on Windows
+    // because a leaked handle keeps the temp dir's db file open.
+    rg?.destroy();
+    fs.rmSync(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
   }
 });
 
@@ -79,7 +84,7 @@ test(
       assert.ok(edges[0].evidence.includes('ev-ipc'));
     } finally {
       rg.destroy();
-      fs.rmSync(tempDir, { recursive: true, force: true });
+      fs.rmSync(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
     }
   },
 );

@@ -163,6 +163,18 @@ SQLite-backed local state and audit records
 
 ## Ways to run
 
+### As a library
+
+```js
+const Kernel = require('huqan'); // KernelV2, the canonical runtime
+const kernel = new Kernel();
+```
+
+`require('huqan')` resolves to `KernelV2`, the same runtime the CLI, REST
+server and MCP server build. The older `Kernel` implementation it wraps is
+still reachable as `require('huqan').KernelV1`, but it is deprecated, is not a
+runtime option, and will be removed in the next major release.
+
 ### Local CLI
 
 ```bash
