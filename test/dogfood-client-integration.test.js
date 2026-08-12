@@ -41,10 +41,13 @@ test('dogfood: MCP tools/list returns 11 tools', () => {
   assert.ok(Array.isArray(result.tools), 'result.tools must be array');
   assert.equal(result.tools.length, 11, 'Must have 11 MCP tools');
   const names = result.tools.map(t => t.name).sort();
+  // Canonical names only, and exactly 11 of them: the legacy aliases are
+  // callable (every callTool below still uses them) but must never appear
+  // here, or clients would see the tool count double.
   assert.deepEqual(names, [
-    'axiom.agent', 'axiom.approve', 'axiom.approvals', 'axiom.ask', 'axiom.compare',
-    'axiom.dream', 'axiom.learn', 'axiom.plan', 'axiom.policy',
-    'axiom.reason', 'axiom.verify',
+    'huqan.agent', 'huqan.approve', 'huqan.approvals', 'huqan.ask', 'huqan.compare',
+    'huqan.dream', 'huqan.learn', 'huqan.plan', 'huqan.policy',
+    'huqan.reason', 'huqan.verify',
   ].sort());
 });
 

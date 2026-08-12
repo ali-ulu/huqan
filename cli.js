@@ -125,26 +125,26 @@ function mapCliCommandToMcpTool(command) {
     case 'yukle':
     case 'company-ingest':
     case 'company ingest':
-      return 'axiom.learn';
+      return 'huqan.learn';
     case 'ajan':
     case 'plan':
-      return 'axiom.agent';
+      return 'huqan.agent';
     case 'onaylar':
-      return 'axiom.approvals';
+      return 'huqan.approvals';
     case 'sor':
-      return 'axiom.ask';
+      return 'huqan.ask';
     case 'verify':
-      return 'axiom.verify';
+      return 'huqan.verify';
     case 'neden':
-      return 'axiom.reason';
+      return 'huqan.reason';
     case 'karsilastir':
-      return 'axiom.compare';
+      return 'huqan.compare';
     default:
       return null;
   }
 }
 
-// F-004: CLI mutation/maintenance commands that have no axiom.* MCP tool
+// F-004: CLI mutation/maintenance commands that have no huqan.* MCP tool
 // mapping but still affect persistence, canonical graph, or background
 // automation. Every command here is REST-blocked via requestGuards
 // UNSAFE_PUBLIC_API_COMMANDS; the CLI must likewise never silently bypass the
@@ -153,7 +153,7 @@ function mapCliCommandToMcpTool(command) {
 //   - decision 'allow'  → local recovery/persistence ops that must still run
 //                         (test-covered) but are audited (no silent mutation).
 //   - decision 'review' → canonical-graph / automation mutations: gated like
-//                         axiom.learn so execute() short-circuits (no write).
+//                         huqan.learn so execute() short-circuits (no write).
 //   - mutationType 'none' → read-only/control aliases that are merely
 //                           classified (not audited, not blocked).
 const CLI_MUTATION_GATE = Object.freeze({
@@ -551,7 +551,7 @@ class CLI {
       case 'onaylar': {
         const result = callMcpTool(
           this.kernel,
-          { name: 'axiom.approvals', arguments: { limit: 50 } },
+          { name: 'huqan.approvals', arguments: { limit: 50 } },
           this._approvalRuntime()
         );
         if (!result || result.ok === false) {
@@ -572,7 +572,7 @@ class CLI {
           );
         }
         const result = callMcpTool(this.kernel, {
-          name: 'axiom.approve',
+          name: 'huqan.approve',
           arguments: { approvalId: approval.approvalId, decision: approval.decision },
         }, this._approvalRuntime());
         if (!result || result.ok === false) {
@@ -760,22 +760,22 @@ class CLI {
 
     let gateArgs = {};
     switch (tool) {
-      case 'axiom.learn':
+      case 'huqan.learn':
         gateArgs = { text: typeof args === 'string' ? args : JSON.stringify(args || {}) };
         break;
-      case 'axiom.agent':
+      case 'huqan.agent':
         gateArgs = { goal: typeof args === 'string' ? args : JSON.stringify(args || {}) };
         break;
-      case 'axiom.ask':
+      case 'huqan.ask':
         gateArgs = { question: String(args || '') };
         break;
-      case 'axiom.verify':
+      case 'huqan.verify':
         gateArgs = { statement: String(args || '') };
         break;
-      case 'axiom.reason':
+      case 'huqan.reason':
         gateArgs = { subject: String(args || '') };
         break;
-      case 'axiom.compare': {
+      case 'huqan.compare': {
         const [left = '', right = ''] = String(args || '').split('|');
         gateArgs = { left: left.trim(), right: right.trim() };
         break;
@@ -801,7 +801,7 @@ class CLI {
   }
 
   // F-004: synthetic gate decision for CLI mutation/maintenance commands that
-  // have no axiom.* MCP tool. Returns null for unknown/read-only commands so
+  // have no huqan.* MCP tool. Returns null for unknown/read-only commands so
   // they proceed ungated. Every real mutation attempt is audited (allow OR
   // review) so nothing mutates silently.
   _evaluateCliMutationGate(command, args) {
