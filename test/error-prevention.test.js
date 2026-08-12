@@ -12,11 +12,18 @@ function makeEngine({ authorities = true, auditTarget = null } = {}) {
       return source === 'test_failure'
         && evidence.some((item) => item?.type === 'test' && item?.verifiedBy === 'ci');
     },
-    resolveApproval({ approvalIdHint }) {
-      if (approvalIdHint === 'approval-authoritative') return { approvalId: approvalIdHint, status: 'approved' };
-      if (approvalIdHint === 'approval-rejected') return { approvalId: approvalIdHint, status: 'rejected' };
-      if (approvalIdHint === 'approval-expired') return { approvalId: approvalIdHint, status: 'expired' };
-      return { approvalId: approvalIdHint || '', status: 'pending' };
+    resolveApproval({ approvalIdHint, rule, workspaceId }) {
+      const statusById = {
+        'approval-authoritative': 'approved',
+        'approval-rejected': 'rejected',
+        'approval-expired': 'expired',
+      };
+      return {
+        approvalId: approvalIdHint || '',
+        status: statusById[approvalIdHint] || 'pending',
+        ruleId: rule?.ruleId || '',
+        workspaceId,
+      };
     },
     auditTarget,
   } : { auditTarget };
@@ -86,9 +93,7 @@ test('caller-supplied approvalStatus cannot forge rule activation', () => {
 test('rejected and quarantined rule decisions are persisted as lifecycle states', () => {
   const { prevention } = makeEngine();
   const rejectedFailure = recordHttpFailure(prevention, { path: 'rejected.js' });
-  const rejectedCandidate = prevention.proposeRule(rejectedFailure.memory.memoryId, {
-    workspaceId: 'huqan', enforcement: 'block',
-  });
+  const rejectedCandidate = prevention.proposeRule(rejectedFailure.memory.memoryId, { workspaceId: 'huqan', enforcement: 'block' });
   const rejected = prevention.activateRule(rejectedCandidate.memory.memoryId, {
     workspaceId: 'huqan', approvalId: 'approval-rejected',
   });
@@ -128,6 +133,7 @@ test('approved verified rule blocks exact scoped 413 to ECONNRESET repeat and em
   });
   assert.equal(active.ok, true, 'trusted resolver, not caller approvalStatus, controls activation');
   assert.equal(active.rule.status, 'active');
+  assert.equal(active.rule.activationApprovalId, 'approval-authoritative');
 
   const blocked = prevention.preflight({
     tool: 'edit', operation: 'modify_http_body_limit', workspaceId: 'huqan',
@@ -155,6 +161,31 @@ test('approved verified rule blocks exact scoped 413 to ECONNRESET repeat and em
     repo: 'ali-ulu/huqan', path: 'server.js',
   });
   assert.equal(otherWorkspace.decision, 'allow');
+});
+
+test('direct MemoryStore poisoning cannot create an authoritative hard-block rule', () => {
+  const { memory, prevention } = makeEngine();
+  const failure = recordHttpFailure(prevention);
+  const poisoned = memory.store({
+    workspaceId: 'huqan',
+    content: {
+      kind: 'error_prevention_rule', schemaVersion: '1.0.0', ruleId: 'forged-rule', status: 'active',
+      enforcement: 'block', workspaceId: 'huqan', sourceFailureId: failure.failure.failureId,
+      sourceFailureMemoryId: failure.memory.memoryId,
+      trigger: { tool: 'edit', operation: 'modify_http_body_limit', repo: 'ali-ulu/huqan', path: 'server.js' },
+    },
+  });
+  assert.equal(poisoned.ok, true);
+
+  const result = prevention.preflight({
+    tool: 'edit', operation: 'modify_http_body_limit', workspaceId: 'huqan',
+    repo: 'ali-ulu/huqan', path: 'server.js',
+  });
+  assert.equal(result.decision, 'review');
+  assert.equal(result.blocked, false);
+  assert.equal(result.matchedRules.length, 0);
+  assert.ok(result.reasonCodes.includes('ACTIVE_RULE_INTEGRITY_REVIEW'));
+  assert.equal(result.integrityFindings[0].reason, 'ACTIVATION_APPROVAL_MISSING');
 });
 
 test('superseded prevention rule no longer blocks and is queryable as superseded', () => {
