@@ -56,7 +56,7 @@ function getCliReadRoots() {
 function resolveCliReadPath(candidate) {
   const raw = String(candidate == null ? '' : candidate).trim();
   if (!raw) {
-    const err = new Error('Dosya yolu bos olamaz');
+    const err = new Error('File path cannot be empty');
     err.code = 'CLI_PATH_NOT_ALLOWED';
     throw err;
   }
@@ -72,7 +72,7 @@ function resolveCliReadPath(candidate) {
 
   const allowed = candidates.every(item => roots.some(root => isPathWithinRoot(root, item)));
   if (!allowed) {
-    const err = new Error(`Dosya yolu izin verilen dizinlerin disinda: ${raw}`);
+    const err = new Error(`File path is outside the allowed directories: ${raw}`);
     err.code = 'CLI_PATH_NOT_ALLOWED';
     throw err;
   }
@@ -96,26 +96,26 @@ function formatAgentRunResult(agent, result) {
   const lastPlan = agentStatus?.lastPlan || null;
   const lastRun = agentStatus?.lastRun || null;
   const steps = (data.steps || []).map((step, index) => {
-    const status = step.result?.ok === false ? 'hata' : 'tamam';
+    const status = step.result?.ok === false ? 'error' : 'done';
     return `  ${index + 1}. ${step.action} -> ${status}${step.summary ? ` | ${step.summary}` : ''}`;
   }).join('\n');
-  const nextAction = data.nextAction ? `${data.nextAction.action} -> ${data.nextAction.tool}` : 'yok';
+  const nextAction = data.nextAction ? `${data.nextAction.action} -> ${data.nextAction.tool}` : 'none';
   const recommendations = Array.isArray(data.recommendations?.items) ? data.recommendations.items : [];
   const runtimeLine = isWorkflowRuntime(agent) ? 'Runtime: workflow' : 'Runtime: legacy';
   return [
-    `Ajan durumu: ${data.status}`,
-    `Hedef: ${data.goal}`,
-    `Amaç: ${data.objective}`,
+    `Agent status: ${data.status}`,
+    `Goal: ${data.goal}`,
+    `Objective: ${data.objective}`,
     runtimeLine,
-    data.checkpointId ? `Checkpoint: ${data.checkpointId}${data.resumed ? ' (resume)' : ''}` : 'Checkpoint: yok',
-    typeof data.budgetRemaining === 'number' ? `Kalan bütçe: ${data.budgetRemaining}` : 'Kalan bütçe: bilinmiyor',
-    lastPlan ? `Son plan: ${lastPlan.goal} (${lastPlan.steps} adım)` : 'Son plan: yok',
-    lastRun ? `Son çalışma: ${lastRun.status} · ${lastRun.goal}` : 'Son çalışma: yok',
-    `Araçlar: ${(data.selectedTools || []).join(', ') || 'yok'}`,
-    `Sonraki adım: ${nextAction}`,
-    `Öneriler: ${recommendations.length > 0 ? recommendations.join(' | ') : 'yok'}`,
-    `Adımlar:\n${steps || '  -'}`,
-    `Sonuç: ${data.finalAnswer}`,
+    data.checkpointId ? `Checkpoint: ${data.checkpointId}${data.resumed ? ' (resume)' : ''}` : 'Checkpoint: none',
+    typeof data.budgetRemaining === 'number' ? `Budget remaining: ${data.budgetRemaining}` : 'Budget remaining: unknown',
+    lastPlan ? `Last plan: ${lastPlan.goal} (${lastPlan.steps} steps)` : 'Last plan: none',
+    lastRun ? `Last run: ${lastRun.status} · ${lastRun.goal}` : 'Last run: none',
+    `Tools: ${(data.selectedTools || []).join(', ') || 'none'}`,
+    `Next step: ${nextAction}`,
+    `Recommendations: ${recommendations.length > 0 ? recommendations.join(' | ') : 'none'}`,
+    `Steps:\n${steps || '  -'}`,
+    `Result: ${data.finalAnswer}`,
   ].join('\n');
 }
 
@@ -293,7 +293,7 @@ class CLI {
         const run = this.kernel.runCapability('ideaMri', { text: String(args || '').trim() });
         return Promise.resolve(run).then(result => {
           if (!result || result.ok === false) {
-            return commandFailure(`MRI hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
+            return commandFailure(`MRI error: ${result?.error || 'unknown error'}`, opts);
           }
           const data = result.data || {};
           const claim = data.mainClaim || String(args || '').trim();
@@ -311,10 +311,10 @@ class CLI {
         const run = this.kernel.runCapability('devilAdvocate', { text: String(args || '').trim() });
         return Promise.resolve(run).then(result => {
           if (!result || result.ok === false) {
-            return commandFailure(`Tartisma hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
+            return commandFailure(`Debate error: ${result?.error || 'unknown error'}`, opts);
           }
           const data = result.data || {};
-          return `Seytanin Avukati (${data.mode || 'unknown'}): ${data.counterArgument || 'cikti yok'}`;
+          return `Devil's advocate (${data.mode || 'unknown'}): ${data.counterArgument || 'no output'}`;
         });
       }
       case 'celiski': {
@@ -322,11 +322,11 @@ class CLI {
         const run = this.kernel.runCapability('contradictionAlert', { text: String(args || '').trim() });
         return Promise.resolve(run).then(result => {
           if (!result || result.ok === false) {
-            return commandFailure(`Celiski hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
+            return commandFailure(`Contradiction error: ${result?.error || 'unknown error'}`, opts);
           }
           const data = result.data || {};
           const count = Array.isArray(data.conflictingThoughts) ? data.conflictingThoughts.length : 0;
-          return `Celiski Analizi: ${count} bulgu${data.conflictType ? ` (${data.conflictType})` : ''}`;
+          return `Contradiction analysis: ${count} finding(s)${data.conflictType ? ` (${data.conflictType})` : ''}`;
         });
       }
 
@@ -348,7 +348,7 @@ class CLI {
         const result = this.agent.plan(args);
         const plan = unwrapAgentPayload(result);
         const steps = (plan.steps || []).map((step, index) => `  ${index + 1}. ${step.action} -> ${step.tool} | ${step.rationale}`).join('\n');
-        const nextAction = plan.nextAction ? `${plan.nextAction.action} -> ${plan.nextAction.tool}` : 'yok';
+        const nextAction = plan.nextAction ? `${plan.nextAction.action} -> ${plan.nextAction.tool}` : 'none';
         const recommendations = Array.isArray(plan.recommendations?.items) ? plan.recommendations.items : [];
         const runtimeLine = isWorkflowRuntime(this.agent) ? 'Runtime: workflow' : 'Runtime: legacy';
         return [
@@ -356,9 +356,9 @@ class CLI {
           `Hedef: ${plan.goal}`,
           runtimeLine,
           `Seçilen araçlar: ${(plan.selectedTools || []).join(', ') || 'yok'}`,
-          `Sonraki adım: ${nextAction}`,
-          `Öneriler: ${recommendations.length > 0 ? recommendations.join(' | ') : 'yok'}`,
-          `Adımlar:\n${steps || '  -'}`,
+          `Next step: ${nextAction}`,
+          `Recommendations: ${recommendations.length > 0 ? recommendations.join(' | ') : 'none'}`,
+    `Steps:\n${steps || '  -'}`,
           `Güven: ${plan.confidence.toFixed(2)}`,
         ].join('\n');
       }
@@ -377,9 +377,9 @@ class CLI {
             sourceRef: `cli:yükle:${args}`,
             actor: 'cli-user',
           });
-          return `"${args}" dosyasından ${count} bilgi öğrenildi.`;
+          return `Learned ${count} fact(s) from "${args}".`;
         } catch (error) {
-          return commandFailure(`Dosya okunamadı: ${error.message}`, opts);
+          return commandFailure(`Could not read file: ${error.message}`, opts);
         }
       }
       case 'company-ingest': {
@@ -397,7 +397,7 @@ class CLI {
           });
           return Promise.resolve(run).then(result => {
             if (!result || result.ok === false) {
-              return commandFailure(`Manual ingest hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
+              return commandFailure(`Manual ingest error: ${result?.error || 'unknown error'}`, opts);
             }
             return `Manual ingest: ok (${result.added || 0})`;
           });
@@ -414,7 +414,7 @@ class CLI {
           });
           return Promise.resolve(run).then(result => {
             if (!result || result.ok === false) {
-              return commandFailure(`Decision ingest hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
+              return commandFailure(`Decision ingest error: ${result?.error || 'unknown error'}`, opts);
             }
             return `Decision ingest: ok (${result.decisionId || '-'})`;
           });
@@ -428,7 +428,7 @@ class CLI {
           });
           return Promise.resolve(run).then(result => {
             if (!result || result.ok === false) {
-              return commandFailure(`Repo ingest hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
+              return commandFailure(`Repo ingest error: ${result?.error || 'unknown error'}`, opts);
             }
             return `Repo ingest: ok (files=${result.files || 0}, added=${result.added || 0})`;
           });
@@ -442,7 +442,7 @@ class CLI {
           });
           return Promise.resolve(run).then(result => {
             if (!result || result.ok === false) {
-              return commandFailure(`Markdown ingest hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
+              return commandFailure(`Markdown ingest error: ${result?.error || 'unknown error'}`, opts);
             }
             return `Markdown ingest: ok (files=${result.files || 0}, added=${result.added || 0})`;
           });
@@ -456,7 +456,7 @@ class CLI {
           });
           return Promise.resolve(run).then(result => {
             if (!result || result.ok === false) {
-              return commandFailure(`Json ingest hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
+              return commandFailure(`JSON ingest error: ${result?.error || 'unknown error'}`, opts);
             }
             return `Json ingest: ok (files=${result.files || 0}, added=${result.added || 0})`;
           });
@@ -470,7 +470,7 @@ class CLI {
           });
           return Promise.resolve(run).then(result => {
             if (!result || result.ok === false) {
-              return commandFailure(`Yaml ingest hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
+              return commandFailure(`YAML ingest error: ${result?.error || 'unknown error'}`, opts);
             }
             return `Yaml ingest: ok (files=${result.files || 0}, added=${result.added || 0})`;
           });
@@ -484,7 +484,7 @@ class CLI {
           });
           return Promise.resolve(run).then(result => {
             if (!result || result.ok === false) {
-              return commandFailure(`Git-log ingest hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
+              return commandFailure(`Git-log ingest error: ${result?.error || 'unknown error'}`, opts);
             }
             return `Git-log ingest: ok (commits=${result.commits || 0}, added=${result.added || 0})`;
           });
@@ -498,7 +498,7 @@ class CLI {
           });
           return Promise.resolve(run).then(result => {
             if (!result || result.ok === false) {
-              return commandFailure(`Pdf ingest hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
+              return commandFailure(`PDF ingest error: ${result?.error || 'unknown error'}`, opts);
             }
             return `Pdf ingest: ok (files=${result.files || 0}, added=${result.added || 0})`;
           });
@@ -512,7 +512,7 @@ class CLI {
           });
           return Promise.resolve(run).then(result => {
             if (!result || result.ok === false) {
-              return commandFailure(`Http ingest hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
+              return commandFailure(`HTTP ingest error: ${result?.error || 'unknown error'}`, opts);
             }
             return `Http ingest: ok (urls=${result.urls || 0}, added=${result.added || 0})`;
           });
@@ -532,7 +532,7 @@ class CLI {
         });
         return Promise.resolve(run).then(result => {
           if (!result || result.ok === false) {
-            return commandFailure(`Sorgu hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
+            return commandFailure(`Query error: ${result?.error || 'unknown error'}`, opts);
           }
           return `Company Brain: ${result.answer}\nKaynak: ${result.source}\nRefs: ${(result.sourceRefs || []).join(', ') || 'yok'}`;
         });
@@ -542,19 +542,19 @@ class CLI {
         const run = this.kernel.runCapability('ingestStatus', {});
         return Promise.resolve(run).then(result => {
           if (!result || result.ok === false) {
-            return commandFailure(`Ingest durum hatasi: ${result?.error || 'bilinmeyen hata'}`, opts);
+            return commandFailure(`Ingest status error: ${result?.error || 'unknown error'}`, opts);
           }
           const dist = result.distribution || {};
-          return `Ingest durum -> node:${result.totalNodes} repo:${dist.repo || 0} markdown:${dist.markdown || 0} json:${dist.json || 0} yaml:${dist.yaml || 0} gitlog:${dist['git-log'] || 0} pdf:${dist.pdf || 0} http:${dist.http || 0} manual:${dist.manual || 0}`;
+          return `Ingest status -> node:${result.totalNodes} repo:${dist.repo || 0} markdown:${dist.markdown || 0} json:${dist.json || 0} yaml:${dist.yaml || 0} gitlog:${dist['git-log'] || 0} pdf:${dist.pdf || 0} http:${dist.http || 0} manual:${dist.manual || 0}`;
         });
       }
       case 'backup': {
         const result = createBackup(this._backupOptions());
-        return `Backup tamamlandi: ${result.backupDir} (${result.copied.length} dosya)`;
+        return `Backup complete: ${result.backupDir} (${result.copied.length} files)`;
       }
       case 'kaydet':
         this.kernel.persist();
-        return 'Hafiza kaydedildi.';
+        return 'Memory saved.';
       case 'onaylar': {
         const result = callMcpTool(
           this.kernel,
@@ -562,18 +562,18 @@ class CLI {
           this._approvalRuntime()
         );
         if (!result || result.ok === false) {
-          return commandFailure(`Onay listesi hatasi: ${result?.error?.message || 'bilinmeyen hata'}`, opts);
+          return commandFailure(`Approval list error: ${result?.error?.message || 'unknown error'}`, opts);
         }
         const approvals = Array.isArray(result.approvals) ? result.approvals : [];
-        if (approvals.length === 0) return 'Bekleyen onay yok.';
+        if (approvals.length === 0) return 'No pending approvals.';
         const lines = approvals.map(item => `${item.id} | ${item.tool} | ${item.reason || 'review'}`);
-        return `Bekleyen onaylar (${result.pendingCount || approvals.length}):\n${lines.join('\n')}`;
+        return `Pending approvals (${result.pendingCount || approvals.length}):\n${lines.join('\n')}`;
       }
       case 'onayla': {
         const approval = args && typeof args === 'object' ? args : parseApprovalDecisionArgs(args);
         if (!approval.approvalId || approval.invalidDecision) {
           return commandFailure(
-            'Kullanim: onayla <approvalId> [approved|rejected]',
+            'Usage: onayla <approvalId> [approved|rejected]',
             opts,
             2
           );
@@ -584,13 +584,13 @@ class CLI {
         }, this._approvalRuntime());
         if (!result || result.ok === false) {
           const error = result?.error;
-          return commandFailure(`Onay hatasi: ${error?.code || 'APPROVAL_FAILED'}: ${error?.message || 'bilinmeyen hata'}`, opts);
+          return commandFailure(`Approval error: ${error?.code || 'APPROVAL_FAILED'}: ${error?.message || 'unknown error'}`, opts);
         }
         const data = result.data || {};
         const approvalId = data.approval?.id || approval.approvalId;
-        if (data.idempotent) return `Onay zaten ${data.decision}: ${approvalId}.`;
-        if (data.decision === 'rejected') return `Onay reddedildi: ${approvalId}.`;
-        return `Onay uygulandi: ${approvalId}. Ogrenme canonical state'e yazildi.`;
+        if (data.idempotent) return `Approval already ${data.decision}: ${approvalId}.`;
+        if (data.decision === 'rejected') return `Approval rejected: ${approvalId}.`;
+        return `Approval applied: ${approvalId}. The learned fact was written to canonical state.`;
       }
       case 'restore': {
         const result = restoreBackup(this._backupOptions({ backupDir: args || undefined }));
@@ -607,19 +607,19 @@ class CLI {
       }
       case 'optimize': {
         const result = this.kernel.optimize();
-        return `Optimize: ${result.pruned} kenar budandi, ${result.removedNodes} dugum silindi.`;
+        return `Optimize: pruned ${result.pruned} edges, removed ${result.removedNodes} nodes.`;
       }
       case 'konsolide': {
         const dryRun = this.kernel.consolidate(true);
-        if (dryRun.removed === 0) return 'Temizlenecek celiskili kenar bulunamadi.';
+        if (dryRun.removed === 0) return 'No contradictory edges to clean up.';
         const result = this.kernel.consolidate(false);
-        return `${result.removed} celiskili kenar temizlendi.`;
+        return `Cleaned up ${result.removed} contradictory edges.`;
       }
       case 'evolve': {
         const result = this.kernel.selfEvolve();
         let text = `Kendilik dongusu tamam: ${result.dreams} hipotez incelendi`;
-        if (result.added > 0) text += `, ${result.added} yeni bilgi eklendi`;
-        text += `, ${result.consolidated} celiski temizlendi, ${result.optimized} kenar budandi.`;
+        if (result.added > 0) text += `, added ${result.added} new facts`;
+        text += `, cleaned up ${result.consolidated} contradictions, pruned ${result.optimized} edges.`;
         return text;
       }
       case 'quickstart':
@@ -631,28 +631,28 @@ class CLI {
         const entropy = this.kernel.entropy();
         const gaps = this.kernel.detectGaps();
         const contradictions = this.kernel.detectContradictions();
-        let out = `Durum: ${nodes} düğüm, ${edges} kenar, entropi: ${entropy.toFixed(3)}`;
+        let out = `Status: ${nodes} nodes, ${edges} edges, entropy: ${entropy.toFixed(3)}`;
         if (isWorkflowRuntime(this.agent)) out += `\n  Agent runtime: workflow`;
         if (gaps.length > 0) out += `\n  ${gaps.length} baglantisiz dugum: ${gaps.slice(0, 10).join(', ')}${gaps.length > 10 ? '...' : ''}`;
         for (const item of contradictions.slice(0, 5)) {
-          out += `\n  Celiski [${item.type}]: ${item.node} -> ${item.targets.join(', ')}`;
+          out += `\n  Contradiction [${item.type}]: ${item.node} -> ${item.targets.join(', ')}`;
         }
         return out;
       }
       case 'rüya': {
         const hypotheses = this.dream.dream();
-        if (hypotheses.length === 0) return 'Hipotez uretemedim, daha fazla bilgiye ihtiyacim var.';
+        if (hypotheses.length === 0) return 'I could not produce a hypothesis; I need more information.';
         const lines = hypotheses.map(item => `  ${item.from} -> ${item.to} (${item.type}, guven: ${item.confidence.toFixed(2)})`);
         return `${hypotheses.length} hipotez:\n${lines.join('\n')}`;
       }
       case 'selam':
-        return 'Merhaba! Bana bir sey ogretebilir veya soru sorabilirsin.';
+        return 'Hello! You can teach me something or ask me a question.';
       case 'yardım':
         return cliHelpText();
       case 'anlamadım':
-        return 'Anlamadim. Daha uzun bir cumle yaz veya "yardım" yaz.';
+        return 'I did not understand. Write a longer sentence, or type "yardım" for help.';
       default:
-        return 'Bilinmeyen komut.';
+        return 'Unknown command.';
     }
   }
 
@@ -663,31 +663,31 @@ class CLI {
       prompt: 'axiom> ',
     });
 
-    console.log('AXIOM - dogal dil ile konus, ogret, sor');
-    console.log('  "kedi balik yer"       | Bilgi ogret');
-    console.log('  "kedi nedir"           | Soru sor');
+    console.log('HUQAN - talk, teach and ask in natural language');
+    console.log('  "kedi balik yer"       | Teach a fact');
+    console.log('  "kedi nedir"           | Ask a question');
     console.log('  "learn: cats are animals" | English-first teach alias');
     console.log('  "ask: cat nedir"          | English-first ask alias');
     console.log('  "verify: kedi bitkidir"   | English-first verify alias');
-    console.log('  "plan: hedef"          | Ajan plani');
-    console.log('  "ajan: hedef"          | Ajan calistir');
-    console.log('  "backup"               | Durumu yedekle');
-    console.log('  "restore[: yol]"       | Yedekten don');
-    console.log('  "yardım"               | Komutlar');
-    console.log('  "çıkış"                | Cikis\n');
+    console.log('  "plan: hedef"          | Agent plan');
+    console.log('  "ajan: hedef"          | Run the agent');
+    console.log('  "backup"               | Back up current state');
+    console.log('  "restore[: yol]"       | Restore from a backup');
+    console.log('  "yardım"               | Command reference');
+    console.log('  "çıkış"                | Exit\n');
 
     const handleLine = async (line) => {
       const parsed = this.parse(line);
       if (parsed.command === 'kaydet') {
         this._auditCliMutation('kaydet', CLI_MUTATION_GATE.kaydet, 'allow', true);
         this.kernel.persist();
-        console.log('Hafiza kaydedildi.');
+        console.log('Memory saved.');
       } else if (parsed.command === 'çıkış' || parsed.command === 'exit') {
         const rawCommand = String(line || '').trim().toLowerCase();
         const sourceCommand = rawCommand === 'exit' || rawCommand === 'quit' ? 'exit' : 'cikis';
         this._auditCliMutation(sourceCommand, CLI_MUTATION_GATE.kaydet, 'allow', true);
         this.kernel.persist();
-        console.log('Hafiza kaydedildi. Gule gule.');
+        console.log('Memory saved. Goodbye.');
         rl.close();
         return;
       } else if (parsed.command === 'llm-sor') {
@@ -855,7 +855,7 @@ async function runCliArgv(argv = [], io = {}) {
   }
 
   if (args[0].startsWith('-')) {
-    stderr(`Bilinmeyen secenek: ${args[0]}`);
+    stderr(`Unknown option: ${args[0]}`);
     return { interactive: false, exitCode: 2 };
   }
 
@@ -866,7 +866,7 @@ async function runCliArgv(argv = [], io = {}) {
     }
     const parsed = cli.parse(args.join(' '));
     if (!parsed || parsed.command === 'anlamadım' || parsed.command === 'exit') {
-      stderr(`Bilinmeyen komut: ${args.join(' ')}`);
+      stderr(`Unknown command: ${args.join(' ')}`);
       return { interactive: false, exitCode: 2 };
     }
 
@@ -892,7 +892,7 @@ async function runCliArgv(argv = [], io = {}) {
       command: parsed.command,
     };
   } catch (error) {
-    stderr(`Komut hatasi: ${error?.message || error}`);
+    stderr(`Command error: ${error?.message || error}`);
     return { interactive: false, exitCode: error?.exitCode || 1 };
   }
 }
@@ -910,7 +910,7 @@ async function main(argv = process.argv.slice(2)) {
 
 if (require.main === module) {
   main().catch(error => {
-    console.error(`CLI hatasi: ${error?.message || error}`);
+    console.error(`CLI error: ${error?.message || error}`);
     process.exitCode = 1;
   });
 }

@@ -115,7 +115,7 @@ test('CLI lists and resolves the same persisted MCP approval without a bypass', 
       const approvedOutput = [];
       const approved = await runCliArgv(['onayla', queued.approval.id], { cli, stdout: value => approvedOutput.push(value) });
       assert.equal(approved.exitCode, 0);
-      assert.match(approvedOutput.join('\n'), /Ogrenme canonical state'e yazildi/);
+      assert.match(approvedOutput.join('\n'), /The learned fact was written to canonical state/);
       assert.equal(cli.kernel.verify(text).data.status, 'dogrulandi');
 
       const invalidOutput = [];
@@ -124,12 +124,12 @@ test('CLI lists and resolves the same persisted MCP approval without a bypass', 
         stderr: value => invalidOutput.push(value),
       });
       assert.equal(invalid.exitCode, 2);
-      assert.match(invalidOutput.join('\n'), /Kullanim: onayla/);
+      assert.match(invalidOutput.join('\n'), /Usage: onayla/);
 
       const duplicateOutput = [];
       const duplicate = await runCliArgv(['onayla', queued.approval.id], { cli, stdout: value => duplicateOutput.push(value) });
       assert.equal(duplicate.exitCode, 0);
-      assert.match(duplicateOutput.join('\n'), /zaten approved/);
+      assert.match(duplicateOutput.join('\n'), /already approved/);
 
       const rejectedText = 'cli rejected approval workflow sentinel memelidir';
       const rejectedQueued = callTool(
@@ -143,7 +143,7 @@ test('CLI lists and resolves the same persisted MCP approval without a bypass', 
         stdout: value => rejectedOutput.push(value),
       });
       assert.equal(rejected.exitCode, 0);
-      assert.match(rejectedOutput.join('\n'), /Onay reddedildi/);
+      assert.match(rejectedOutput.join('\n'), /Approval rejected/);
       assert.notEqual(cli.kernel.verify(rejectedText).data.status, 'dogrulandi');
     } finally {
       closeCli(cli);

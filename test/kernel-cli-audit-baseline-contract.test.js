@@ -272,7 +272,7 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
         const gate = managed.cli._evaluateCliMutationGate('kaydet', '');
         assert.strictEqual(gate.decision, 'allow');
         assert.strictEqual(gate.canExecute, true);
-        assert.strictEqual(managed.cli.execute('kaydet', ''), 'Bilinmeyen komut.');
+        assert.strictEqual(managed.cli.execute('kaydet', ''), 'Unknown command.');
         assert.strictEqual(attempts, mode === 'throwing' ? 2 : 0);
       } finally {
         managed.cli.kernel.recordCliMutationAudit = original;
@@ -288,7 +288,7 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
     let persistCalls = 0;
     managed.cli.kernel.persist = () => { persistCalls += 1; };
     try {
-      assert.strictEqual(managed.cli.execute('kaydet', ''), 'Bilinmeyen komut.');
+      assert.strictEqual(managed.cli.execute('kaydet', ''), 'Unknown command.');
       assert.strictEqual(persistCalls, 0);
       assert.strictEqual(capture.calls.length, 1);
       assert.deepStrictEqual(capture.calls[0], expectedIntent({
@@ -343,7 +343,7 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
       assert.deepStrictEqual(harness.events, [
         'audit:kaydet',
         'persist',
-        'log:Hafiza kaydedildi.',
+        'log:Memory saved.',
         'prompt',
       ]);
     } finally {
@@ -366,7 +366,7 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
         assert.deepStrictEqual(harness.events, [
           `audit:${sourceCommand}`,
           'persist',
-          'log:Hafiza kaydedildi. Gule gule.',
+          'log:Memory saved. Goodbye.',
           'close',
           'exit:0',
         ]);
@@ -386,7 +386,7 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
         const nonAuditEvents = harness.events.filter(event => !event.startsWith('audit:'));
         assert.deepStrictEqual(nonAuditEvents, [
           'persist',
-          'log:Hafiza kaydedildi.',
+          'log:Memory saved.',
           'prompt',
         ]);
       } finally {
@@ -467,7 +467,7 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
       };
 
       const backupResult = managed.cli.execute('backup', '');
-      assert.match(backupResult, /^Backup tamamlandi:/);
+      assert.match(backupResult, /^Backup complete:/);
       assert.deepStrictEqual(stages, ['audit:backup', 'command:backup']);
 
       stages.length = 0;

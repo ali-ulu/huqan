@@ -218,6 +218,15 @@ class PluginManager {
         this.register(plugin);
         count++;
       } catch (err) {
+        if (err && err.code === 'PLUGIN_CAPABILITY_DISABLED') {
+          // Three of the bundled plugins (company-brain, repo-memory,
+          // contradiction-alert) require companyMode or temporal, both off by
+          // default in kernel.js DEFAULT_CAPABILITIES. Printing that as a load
+          // failure made a correct default configuration look broken on every
+          // single startup. It is a skip, and it reads like one.
+          console.warn(`[Plugin] ${err.pluginName || file}: skipped — needs capability '${err.capability}', which is disabled`);
+          continue;
+        }
         console.error(`Plugin failed to load: ${file} - ${err.message}`);
       }
     }
@@ -234,7 +243,15 @@ class PluginManager {
     }
     const dependencyCheck = this._validatePluginDependencies(plugin);
     if (!dependencyCheck.ok) {
-      throw new Error(dependencyCheck.reason);
+      // A required capability being switched off is a configuration state, not
+      // a broken plugin. The throw and its message are unchanged -- callers and
+      // the boundary contract test depend on both -- but the tag lets the
+      // loader report it as a skip instead of a failure.
+      const error = new Error(dependencyCheck.reason);
+      error.code = 'PLUGIN_CAPABILITY_DISABLED';
+      error.pluginName = plugin.name;
+      error.capability = dependencyCheck.capability;
+      throw error;
     }
     const optional = Array.isArray(plugin.optional) ? plugin.optional : [];
     for (const capability of optional) {
@@ -323,6 +340,7 @@ class PluginManager {
         return {
           ok: false,
           reason: `Plugin "${plugin.name}" requires missing capability: ${capability}`,
+          capability,
         };
       }
     }

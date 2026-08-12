@@ -53,7 +53,7 @@ describe('#363 egitim demo güvenliği', () => {
         env: { ...process.env, AXIOM_DEMO_MODE: '' },
       });
       assert.strictEqual(result.status, 2);
-      assert.match(result.stderr, /demo modu kapal/i);
+      assert.match(result.stderr, /demo mode is off/i);
       assert.strictEqual(fs.existsSync(path.join(cwd, 'memory.json')), false);
       assert.strictEqual(fs.existsSync(path.join(cwd, 'memory.db')), false);
     } finally {

@@ -245,8 +245,8 @@ describe('CLI - Komut Çalıştırma', () => {
       const emptyResult = cli.execute('durum', '');
       assert.strictEqual(
         emptyResult.split(/\r?\n/)[0],
-        'Durum: ' + emptyStats.nodes + ' düğüm, ' + emptyStats.edges +
-          ' kenar, entropi: ' + cli.kernel.entropy().toFixed(3),
+        'Status: ' + emptyStats.nodes + ' nodes, ' + emptyStats.edges +
+          ' edges, entropy: ' + cli.kernel.entropy().toFixed(3),
       );
       assert.strictEqual(getStatsCalls, 1);
 
@@ -262,10 +262,10 @@ describe('CLI - Komut Çalıştırma', () => {
 
       assert.ok(
         firstLine.startsWith(
-          `Durum: ${expected.nodes} düğüm, ${expected.edges} kenar, entropi: `,
+          `Status: ${expected.nodes} nodes, ${expected.edges} edges, entropy: `,
         ),
       );
-      assert.match(firstLine, /entropi: -?\d+\.\d{3}$/);
+      assert.match(firstLine, /entropy: -?\d+\.\d{3}$/);
       assert.strictEqual(getStatsCalls, 1);
     } finally {
       cli.kernel.graph.getStats = originalGetStats;
@@ -379,8 +379,8 @@ describe('CLI - Komut Çalıştırma', () => {
     const celiski = await cli.execute('celiski', 'AXIOM motor degil ana urun olmali');
 
     assert.ok(mri.includes('MRI:'));
-    assert.ok(tartis.includes('Seytanin Avukati'));
-    assert.ok(celiski.includes('Celiski Analizi'));
+    assert.ok(tartis.includes("Devil's advocate"));
+    assert.ok(celiski.includes('Contradiction analysis'));
   });
 
   it('execute: ingest-status returns distribution string', async () => {
@@ -392,7 +392,7 @@ describe('CLI - Komut Çalıştırma', () => {
       text: 'kopek hayvandir',
     });
     const output = await cli.execute('ingest-status', '');
-    assert.ok(output.includes('Ingest durum'));
+    assert.ok(output.includes('Ingest status'));
   });
 
   it('execute: backup ve restore komutlari Kernel persistence seamlerini kullanir', () => {
@@ -432,7 +432,7 @@ describe('CLI - Komut Çalıştırma', () => {
       cli.kernel.getPersistenceDescriptor = originalDescriptor;
 
       const backupResult = cli.execute('backup', '');
-      assert.ok(backupResult.includes('Backup tamamlandi'));
+      assert.ok(backupResult.includes('Backup complete'));
 
       const originalReload = cli.kernel.reload;
       const originalGraphLoad = cli.kernel.graph.load;
@@ -696,8 +696,8 @@ describe('CLI - Komut Çalıştırma', () => {
       gateResult: { canExecute: true, decision: 'allow' },
     });
 
-    assert.match(result, /Ajan durumu: completed/);
-    assert.match(result, /Sonuç: async-complete/);
+    assert.match(result, /Agent status: completed/);
+    assert.match(result, /Result: async-complete/);
   });
 
   it('execute: verify remains read-only and still works', () => {
@@ -749,7 +749,7 @@ describe('CLI - Lifecycle and maintenance baseline contracts', { concurrency: fa
         await harness.line('kaydet');
         assert.deepStrictEqual(harness.events, [
           'persist',
-          'log:Hafiza kaydedildi.',
+          'log:Memory saved.',
           'prompt',
         ]);
       } finally {
@@ -766,7 +766,7 @@ describe('CLI - Lifecycle and maintenance baseline contracts', { concurrency: fa
         await harness.waitForClose();
         assert.deepStrictEqual(harness.events, [
           'persist',
-          'log:Hafiza kaydedildi. Gule gule.',
+          'log:Memory saved. Goodbye.',
           'close',
           'exit:0',
         ]);
@@ -805,7 +805,7 @@ describe('CLI - Lifecycle and maintenance baseline contracts', { concurrency: fa
           'log:durum-output',
           'prompt',
           'persist',
-          'log:Hafiza kaydedildi.',
+          'log:Memory saved.',
           'prompt',
           'exit:0',
         ]);
@@ -835,7 +835,7 @@ describe('CLI - Lifecycle and maintenance baseline contracts', { concurrency: fa
         assert.deepStrictEqual(harness.events, [
           'error:command failed',
           'persist',
-          'log:Hafiza kaydedildi.',
+          'log:Memory saved.',
           'prompt',
         ]);
       } finally {
@@ -878,7 +878,7 @@ describe('CLI - Lifecycle and maintenance baseline contracts', { concurrency: fa
       try {
         assert.strictEqual(
           cli.execute('optimize', ''),
-          'Optimize: 3 kenar budandi, 2 dugum silindi.',
+          'Optimize: pruned 3 edges, removed 2 nodes.',
         );
         assert.deepStrictEqual(calls, [[]]);
       } finally {

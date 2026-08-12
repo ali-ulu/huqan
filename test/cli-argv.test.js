@@ -32,14 +32,14 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
   it('keeps the no-argument invocation as the interactive REPL', () => {
     const result = runCli([]);
     assert.strictEqual(result.status, 0);
-    assert.match(result.stdout, /AXIOM - dogal dil ile konus/);
+    assert.match(result.stdout, /HUQAN - talk, teach and ask in natural language/);
     assert.match(result.stdout, /axiom> /);
   });
 
   it('prints help without opening the REPL', () => {
     const result = runCli(['--help']);
     assert.strictEqual(result.status, 0);
-    assert.match(result.stdout, /AXIOM komutlari:/);
+    assert.match(result.stdout, /HUQAN commands:/);
     assert.doesNotMatch(result.stdout, /axiom> /);
   });
 
@@ -53,8 +53,8 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
   it('executes a synchronous read command once', () => {
     const result = runCli(['durum']);
     assert.strictEqual(result.status, 0);
-    assert.match(result.stdout, /Durum:/);
-    assert.doesNotMatch(result.stdout, /AXIOM - dogal dil ile konus/);
+    assert.match(result.stdout, /Status:/);
+    assert.doesNotMatch(result.stdout, /HUQAN - talk, teach and ask in natural language/);
   });
 
   it('joins argv and executes a parsed command once', () => {
@@ -67,11 +67,11 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
   it('uses exit 2 for an unknown command or option', () => {
     const command = runCli(['frobnicate']);
     assert.strictEqual(command.status, 2);
-    assert.match(command.stderr, /Bilinmeyen komut:/);
+    assert.match(command.stderr, /Unknown command:/);
 
     const option = runCli(['--frobnicate']);
     assert.strictEqual(option.status, 2);
-    assert.match(option.stderr, /Bilinmeyen secenek:/);
+    assert.match(option.stderr, /Unknown option:/);
   });
 
   it('uses exit 3 when the command requires review', () => {
@@ -83,8 +83,8 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
   it('persists through the one-shot kaydet command', () => {
     const result = runCli(['kaydet']);
     assert.strictEqual(result.status, 0);
-    assert.match(result.stdout, /Hafiza kaydedildi\./);
-    assert.doesNotMatch(result.stdout, /Bilinmeyen komut/);
+    assert.match(result.stdout, /Memory saved\./);
+    assert.doesNotMatch(result.stdout, /Unknown command/);
   });
 
   it('can surface friendly REPL failures as structured argv errors', () => {
@@ -99,7 +99,7 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
     try {
       assert.throws(
         () => cli.execute('yükle', 'missing-file.txt', { gateResult: null, throwOnError: true }),
-        /Dosya okunamad/
+        /Could not read file/
       );
     } finally {
       cli.agent?.storage?.close?.();
@@ -111,7 +111,7 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
   it('uses exit 1 when command execution throws', () => {
     const result = runCli(['restore:', 'missing-backup']);
     assert.strictEqual(result.status, 1);
-    assert.match(result.stderr, /Komut hatasi:/);
+    assert.match(result.stderr, /Command error:/);
   });
 
   it('awaits delayed async output before returning success', async () => {
@@ -154,7 +154,7 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
     });
 
     assert.strictEqual(result.exitCode, 1);
-    assert.deepStrictEqual(stderr, ['Komut hatasi: async failure']);
+    assert.deepStrictEqual(stderr, ['Command error: async failure']);
   });
 
   it('uses the structured gate decision instead of output wording', async () => {

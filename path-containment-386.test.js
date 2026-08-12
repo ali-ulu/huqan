@@ -44,7 +44,7 @@ test('CLI yükle rejects a path outside configured read roots (#386)', () => wit
     const secretPath = path.join(outsideDir, 'secret.txt');
     fs.writeFileSync(secretPath, 'gizli kedi bilgisi');
     const result = makeCli().execute('yükle', secretPath, { gateResult: { canExecute: true } });
-    assert.match(result, /izin verilen dizinlerin disinda/i);
+    assert.match(result, /outside the allowed directories/i);
   } finally {
     fs.rmSync(outsideDir, { recursive: true, force: true });
   }
@@ -60,7 +60,7 @@ test('CLI yükle rejects an allowed-root symlink whose target escapes (#386)', (
     if (!symlinkOrSkip(t, outsidePath, linkPath)) return;
 
     const result = makeCli().execute('yükle', linkPath, { gateResult: { canExecute: true } });
-    assert.match(result, /izin verilen dizinlerin disinda/i);
+    assert.match(result, /outside the allowed directories/i);
   } finally {
     fs.rmSync(allowedDir, { recursive: true, force: true });
     fs.rmSync(outsideDir, { recursive: true, force: true });
@@ -73,7 +73,7 @@ test('CLI yükle still reads a normal file under the temp root (#386)', () => wi
     const filePath = path.join(tempDir, 'notes.txt');
     fs.writeFileSync(filePath, 'kedi hayvandir');
     const result = makeCli().execute('yükle', filePath, { gateResult: { canExecute: true } });
-    assert.match(result, /dosyasından \d+ bilgi öğrenildi/i);
+    assert.match(result, /Learned \d+ fact\(s\) from/i);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
@@ -86,7 +86,7 @@ test('CLI yükle accepts an operator-configured read root (#386)', () => withCle
     fs.writeFileSync(filePath, 'kedi hayvandir');
     process.env.AXIOM_CLI_READ_ROOTS = customDir;
     const result = makeCli().execute('yükle', filePath, { gateResult: { canExecute: true } });
-    assert.match(result, /dosyasından \d+ bilgi öğrenildi/i);
+    assert.match(result, /Learned \d+ fact\(s\) from/i);
   } finally {
     fs.rmSync(customDir, { recursive: true, force: true });
   }
