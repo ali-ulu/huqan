@@ -294,7 +294,7 @@ describe('Server - API', () => {
     });
     assert.strictEqual(r.status, 200);
     const j = await r.json();
-    assert.ok(['dogrulandi', 'bilinmiyor', 'celiski'].includes(j.data.status));
+    assert.ok(['verified', 'unknown', 'contradicted'].includes(j.data.status));
   });
 
   it('PUT /v2/verify returns method not allowed', async () => {
@@ -815,7 +815,8 @@ describe('Server - API', () => {
     assert.strictEqual(r.status, 200);
     const j = await r.json();
     assert.strictEqual(j.ok, true);
-    assert.strictEqual(j.service, 'axiom');
+    assert.strictEqual(j.service, 'huqan');
+    assert.strictEqual(j.legacyService, 'axiom');
     assert.strictEqual(j.kernelVersion, 'v2');
     assert.ok(['sqlite', 'json'].includes(j.backend));
     assert.ok(Number.isInteger(j.nodes));
