@@ -14,11 +14,28 @@ const { emitGateTelemetry } = require('./lib/gate-telemetry');
 const { applyHumanApprovalToggle } = require('./lib/human-approval-toggle');
 const { scrubSecrets } = require('./lib/secret-scrub-gate');
 const { withMcpToolVerdictSurface } = require('./lib/mcp/response-builders');
+const {
+  CANONICAL_MCP_TOOL_NAMES,
+  LEGACY_MCP_TOOL_NAMES,
+  canonicalMcpToolName,
+  isLegacyMcpToolName,
+  mcpToolDeprecationNotice,
+  withMcpToolDeprecationSurface,
+} = require('./lib/mcp-tool-names');
+const { parseJsonObject } = require('./lib/json-object');
+const {
+  formatApprovalRecord,
+  listPersistentApprovals,
+  countPersistentApprovals,
+  countUnresolvedApprovals,
+} = require('./lib/mcp-approval-views');
 const AxiomStorage = require('./storage');
 const pkg = require('./package.json');
 
 const PROTOCOL_VERSION = '2025-06-18';
-const SERVER_NAME = 'axiom';
+// RFC-001 decision 1: HUQAN is the canonical product identity. This is the
+// name a Claude Desktop / Cursor user sees for the server itself.
+const SERVER_NAME = 'huqan';
 const SERVER_VERSION = pkg.version;
 
 const MCP_MAX_TEXT = 2_000;
@@ -51,10 +68,14 @@ function sanitizeMcpApprovalDecision(value) {
 }
 
 function sanitizeToolArgsForStorage(name, args = {}) {
-  if (name === 'axiom.learn') {
-    // axiom.learn's `text` is user-authored knowledge content, not a
+  // Resolved through RFC-001's alias table: a legacy `axiom.learn` call must
+  // get exactly the same argument handling as the canonical `huqan.learn`,
+  // and a stored approval written before the rename still carries the legacy
+  // spelling in `tool`.
+  if (canonicalMcpToolName(name) === 'huqan.learn') {
+    // huqan.learn's `text` is user-authored knowledge content, not a
     // credential transport — AB7 scrubbing does not apply here, matching
-    // the axiom.learn use case.
+    // the huqan.learn use case.
     const clean = {
       text: sanitizeMcpString(args.text, MCP_MAX_TEXT),
       skipConflicts: args.skipConflicts !== false,
@@ -79,16 +100,6 @@ function nowMs() {
 function newApprovalId() {
   if (typeof crypto.randomUUID === 'function') return `approval-${crypto.randomUUID()}`;
   return `approval-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function parseJsonObject(value, fallback = {}) {
-  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
-  try {
-    const parsed = JSON.parse(String(value || '{}'));
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : fallback;
-  } catch (_) {
-    return fallback;
-  }
 }
 
 const VERIFY_STATUS = ['dogrulandi', 'celiski', 'bilinmiyor'];
@@ -524,51 +535,6 @@ function createApprovalStoreFromKernel(kernel, opts = {}) {
   }
 }
 
-function formatApprovalRecord(record) {
-  if (!record || typeof record !== 'object') return null;
-  return {
-    id: record.id || '',
-    approvalKey: record.approval_key || record.approvalKey || '',
-    tool: record.tool || '',
-    input: record.input || '',
-    status: record.status || 'pending',
-    decision: record.decision || '',
-    reason: record.reason || '',
-    createdAt: Number(record.created_at || record.createdAt || 0),
-    updatedAt: Number(record.updated_at || record.updatedAt || 0),
-    policy: record.policy && typeof record.policy === 'object'
-      ? record.policy
-      : parseJsonObject(record.policy_json, {}),
-    context: record.context && typeof record.context === 'object'
-      ? record.context
-      : parseJsonObject(record.context_json, {}),
-  };
-}
-
-function listPersistentApprovals(approvalStore, limit = 50) {
-  if (!approvalStore) return [];
-  const list = typeof approvalStore.listUnresolvedToolApprovals === 'function'
-    ? approvalStore.listUnresolvedToolApprovals(limit)
-    : typeof approvalStore.listPendingToolApprovals === 'function'
-      ? approvalStore.listPendingToolApprovals(limit)
-      : [];
-  return list
-    .map(formatApprovalRecord)
-    .filter(Boolean);
-}
-
-function countPersistentApprovals(approvalStore) {
-  if (!approvalStore || typeof approvalStore.countPendingToolApprovals !== 'function') return 0;
-  return approvalStore.countPendingToolApprovals();
-}
-
-function countUnresolvedApprovals(approvalStore) {
-  if (!approvalStore || typeof approvalStore.countUnresolvedToolApprovals !== 'function') {
-    return countPersistentApprovals(approvalStore);
-  }
-  return approvalStore.countUnresolvedToolApprovals();
-}
-
 function saveMcpApproval(approvalStore, name, args, gate) {
   const createdAt = nowMs();
   const id = newApprovalId();
@@ -597,7 +563,7 @@ function saveMcpApproval(approvalStore, name, args, gate) {
     },
     context: {
       source: 'mcp',
-      queuedForExecution: name === 'axiom.learn',
+      queuedForExecution: canonicalMcpToolName(name) === 'huqan.learn',
       args: cleanArgs,
     },
   };
@@ -612,9 +578,9 @@ function saveMcpApproval(approvalStore, name, args, gate) {
 
 const TOOL_SCHEMAS = [
   {
-    name: 'axiom.learn',
-    title: 'Axiom Learn',
-    description: 'Learn a natural-language fact into the local symbolic knowledge graph. Returns a stable AXIOM envelope with learn counts, conflicts, alternatives, and evidence references.',
+    name: 'huqan.learn',
+    title: 'HUQAN Learn',
+    description: 'Learn a natural-language fact into the local symbolic knowledge graph. Returns a stable HUQAN envelope with learn counts, conflicts, alternatives, and evidence references.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -633,9 +599,9 @@ const TOOL_SCHEMAS = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   },
   {
-    name: 'axiom.ask',
-    title: 'Axiom Ask',
-    description: 'Ask a grounded question against the local knowledge graph and return a stable AXIOM envelope with subject, answer, and alternative count.',
+    name: 'huqan.ask',
+    title: 'HUQAN Ask',
+    description: 'Ask a grounded question against the local knowledge graph and return a stable HUQAN envelope with subject, answer, and alternative count.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -648,8 +614,8 @@ const TOOL_SCHEMAS = [
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   {
-    name: 'axiom.verify',
-    title: 'Axiom Verify',
+    name: 'huqan.verify',
+    title: 'HUQAN Verify',
     description: 'Verify whether a statement is supported, contradictory, or unknown and return a structured evidence trail, plus manipulation risk metadata when the text looks adversarial.',
     inputSchema: {
       type: 'object',
@@ -663,8 +629,8 @@ const TOOL_SCHEMAS = [
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   {
-    name: 'axiom.plan',
-    title: 'Axiom Plan',
+    name: 'huqan.plan',
+    title: 'HUQAN Plan',
     description: 'Build a lightweight multi-step plan for a goal, select tools, and return an execution-ready agent plan.',
     inputSchema: {
       type: 'object',
@@ -679,9 +645,9 @@ const TOOL_SCHEMAS = [
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   {
-    name: 'axiom.agent',
-    title: 'Axiom Agent',
-    description: 'Run AXIOMs lightweight multi-step agent loop for a goal and return the plan, steps, and a readable report.',
+    name: 'huqan.agent',
+    title: 'HUQAN Agent',
+    description: 'Run HUQANs lightweight multi-step agent loop for a goal and return the plan, steps, and a readable report.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -695,8 +661,8 @@ const TOOL_SCHEMAS = [
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   {
-    name: 'axiom.policy',
-    title: 'Axiom Tool Policy',
+    name: 'huqan.policy',
+    title: 'HUQAN Tool Policy',
     description: 'Inspect whether a requested tool is internal, review-only, or blocked, and return a safe execution policy summary.',
     inputSchema: {
       type: 'object',
@@ -712,8 +678,8 @@ const TOOL_SCHEMAS = [
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   {
-    name: 'axiom.approvals',
-    title: 'Axiom Approval Queue',
+    name: 'huqan.approvals',
+    title: 'HUQAN Approval Queue',
     description: 'List pending tool approvals and review queue items that were created by the tool policy layer.',
     inputSchema: {
       type: 'object',
@@ -726,13 +692,13 @@ const TOOL_SCHEMAS = [
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   {
-    name: 'axiom.approve',
-    title: 'Axiom Approve',
+    name: 'huqan.approve',
+    title: 'HUQAN Approve',
     description: 'Approve or reject a pending MCP tool approval. Approved MCP learn requests execute once through the normal admission-aware kernel.learn path.',
     inputSchema: {
       type: 'object',
       properties: {
-        approvalId: { type: 'string', description: 'Pending approval id returned by axiom.learn or axiom.approvals.' },
+        approvalId: { type: 'string', description: 'Pending approval id returned by huqan.learn or huqan.approvals.' },
         decision: { type: 'string', enum: ['approved', 'rejected'], description: 'Approval decision. Defaults to approved.' },
         reason: { type: 'string', description: 'Optional human-readable decision reason.' },
       },
@@ -743,8 +709,8 @@ const TOOL_SCHEMAS = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   {
-    name: 'axiom.reason',
-    title: 'Axiom Reason',
+    name: 'huqan.reason',
+    title: 'HUQAN Reason',
     description: 'Return forward and backward reasoning traces for a subject with stable evidence references and cycle detection.',
     inputSchema: {
       type: 'object',
@@ -758,8 +724,8 @@ const TOOL_SCHEMAS = [
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   {
-    name: 'axiom.compare',
-    title: 'Axiom Compare',
+    name: 'huqan.compare',
+    title: 'HUQAN Compare',
     description: 'Compare two concepts using the knowledge graph and return similarities, differences, and path evidence.',
     inputSchema: {
       type: 'object',
@@ -774,8 +740,8 @@ const TOOL_SCHEMAS = [
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   {
-    name: 'axiom.dream',
-    title: 'Axiom Dream',
+    name: 'huqan.dream',
+    title: 'HUQAN Dream',
     description: 'Generate hypotheses from the current graph and return ranked speculative links with evidence references.',
     inputSchema: {
       type: 'object',
@@ -1000,8 +966,12 @@ function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
     };
   }
 
-  if (existing.tool !== 'axiom.learn') {
-    return failApprovalDecision('APPROVAL_EXECUTION_UNSUPPORTED', `Approval execution is only supported for axiom.learn, got ${existing.tool}.`, { approval: existing });
+  // Canonicalized rather than compared literally: approvals persisted before
+  // the RFC-001 rename carry `tool: "axiom.learn"`, and those rows must stay
+  // executable. Comparing the raw string would have silently made every
+  // pre-rename pending approval permanently unapprovable.
+  if (canonicalMcpToolName(existing.tool) !== 'huqan.learn') {
+    return failApprovalDecision('APPROVAL_EXECUTION_UNSUPPORTED', `Approval execution is only supported for huqan.learn, got ${existing.tool}.`, { approval: existing });
   }
 
   const claim = approvalStore.claimToolApproval(approvalId, reason);
@@ -1143,12 +1113,30 @@ function withTransientAgent(kernel, callback) {
   return result;
 }
 
+/**
+ * RFC-001 reader half: accept both spellings, resolve to one handler.
+ *
+ * The requested name is canonicalized once, here, and every downstream
+ * consumer — gate evaluation, approval persistence, dispatch, dry-run — sees
+ * only the canonical `huqan.*` name. That is what makes "both names resolve to
+ * the same handler" structural rather than a pair of parallel switch arms that
+ * could drift.
+ */
 function callTool(kernel, params = {}, runtime = {}) {
   const safeParams = params && typeof params === 'object' ? params : {};
-  const name = sanitizeMcpString(safeParams.name, MCP_MAX_SHORT);
+  const requestedName = sanitizeMcpString(safeParams.name, MCP_MAX_SHORT);
+  const outcome = dispatchMcpTool(kernel, canonicalMcpToolName(requestedName), safeParams, runtime);
+  if (!isLegacyMcpToolName(requestedName)) return outcome;
+  if (outcome && typeof outcome.then === 'function') {
+    return outcome.then((value) => withMcpToolDeprecationSurface(value, requestedName));
+  }
+  return withMcpToolDeprecationSurface(outcome, requestedName);
+}
+
+function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
   const args = parseJsonObject(safeParams.arguments, {});
 
-  if (name === 'axiom.approve') {
+  if (name === 'huqan.approve') {
     return handleMcpApprovalDecision(kernel, args, runtime);
   }
 
@@ -1208,16 +1196,16 @@ function callTool(kernel, params = {}, runtime = {}) {
   }
 
   switch (name) {
-    case 'axiom.learn':
+    case 'huqan.learn':
       return withMcpToolVerdictSurface(kernel.learn(sanitizeMcpString(args.text, MCP_MAX_TEXT), {
         skipConflicts: args.skipConflicts !== false,
         maxSentences: args.maxSentences,
       }), name, args, gate);
-    case 'axiom.ask':
+    case 'huqan.ask':
       return withMcpToolVerdictSurface(kernel.ask(sanitizeMcpString(args.question)), name, args, gate);
-    case 'axiom.verify':
+    case 'huqan.verify':
       return withMcpToolVerdictSurface(kernel.verify(sanitizeMcpString(args.statement)), name, args, gate);
-    case 'axiom.plan':
+    case 'huqan.plan':
       return withTransientAgent(kernel, (agent) => withMcpToolVerdictSurface(
         agent.plan(sanitizeMcpString(args.goal, MCP_MAX_GOAL), {
           maxSteps: boundedMcpInteger(args.maxSteps, 4, 1, 8),
@@ -1226,7 +1214,7 @@ function callTool(kernel, params = {}, runtime = {}) {
         args,
         gate,
       ));
-    case 'axiom.agent':
+    case 'huqan.agent':
       return withTransientAgent(kernel, async (agent) => withMcpToolVerdictSurface(
         await agent.run(sanitizeMcpString(args.goal, MCP_MAX_GOAL), {
           maxSteps: boundedMcpInteger(args.maxSteps, 4, 1, 8),
@@ -1235,7 +1223,7 @@ function callTool(kernel, params = {}, runtime = {}) {
         args,
         gate,
       ));
-    case 'axiom.policy':
+    case 'huqan.policy':
       return withTransientAgent(kernel, (agent) => withMcpToolVerdictSurface(
         agent.inspectToolPolicy(
           sanitizeMcpString(args.tool),
@@ -1246,7 +1234,7 @@ function callTool(kernel, params = {}, runtime = {}) {
         args,
         gate,
       ));
-    case 'axiom.approvals':
+    case 'huqan.approvals':
       const approvalStore = runtime.approvalStore || createApprovalStoreFromKernel(kernel, runtime);
       const approvalLimit = boundedMcpInteger(args.limit, 50, 1, 50);
       const storedApprovals = listPersistentApprovals(approvalStore, approvalLimit);
@@ -1255,14 +1243,14 @@ function callTool(kernel, params = {}, runtime = {}) {
         unresolvedCount: countUnresolvedApprovals(approvalStore),
         approvals: storedApprovals.slice(0, approvalLimit),
       }, name, args, gate);
-    case 'axiom.reason':
+    case 'huqan.reason':
       return withMcpToolVerdictSurface(kernel.reason(sanitizeMcpString(args.subject)), name, args, gate);
-    case 'axiom.compare':
+    case 'huqan.compare':
       return withMcpToolVerdictSurface(kernel.compare(
         sanitizeMcpString(args.left),
         sanitizeMcpString(args.right),
       ), name, args, gate);
-    case 'axiom.dream':
+    case 'huqan.dream':
       return withMcpToolVerdictSurface(kernel.dream({
         depth: boundedMcpInteger(args.depth, 2, 1, 5),
       }), name, args, gate);
@@ -1271,11 +1259,15 @@ function callTool(kernel, params = {}, runtime = {}) {
   }
 }
 
-function executeReadOnlyDryRun(kernel, name, args) {
+function executeReadOnlyDryRun(kernel, requestedName, args) {
+  // callTool already canonicalizes, but this is exported and called directly by
+  // tests and tooling, so it resolves the alias itself rather than relying on
+  // its caller having done so.
+  const name = canonicalMcpToolName(requestedName);
   switch (name) {
-    case 'axiom.learn':
+    case 'huqan.learn':
       return kernel.ask(`What would be learned from: ${(args.text || '').slice(0, 200)}`);
-    case 'axiom.agent':
+    case 'huqan.agent':
       return withTransientAgent(kernel, (agent) => (
         agent.plan
           ? agent.plan(sanitizeMcpString(args.goal, MCP_MAX_GOAL), {
@@ -1359,6 +1351,8 @@ module.exports = {
   PROTOCOL_VERSION,
   SERVER_NAME,
   TOOL_SCHEMAS,
+  CANONICAL_MCP_TOOL_NAMES,
+  LEGACY_MCP_TOOL_NAMES,
   VERIFY_STATUS,
   buildKernelOptsFromEnv,
   createKernelFromEnv,

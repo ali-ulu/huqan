@@ -42,7 +42,10 @@ test('executeReadOnlyDryRun scrubs secrets from the raw-args echo for unmapped t
   });
 
   assert.equal(result.dryRun, true);
-  assert.equal(result.tool, 'axiom.compare');
+  // Called with the legacy spelling above; the dry-run echoes the canonical
+  // name it resolved to. The redaction assertion below is what this test is
+  // actually for, and it is unaffected by the rename.
+  assert.equal(result.tool, 'huqan.compare');
   assert.equal(result.args.left, 'kedi');
   assert.equal(result.args.token, '[REDACTED]');
 });

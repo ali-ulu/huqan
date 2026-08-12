@@ -31,7 +31,7 @@ This document defines the primary security threats to HUQAN, categorized using t
 
 ### Identity Spoofing
 
-**Description**: Compromise of internal tool identities (e.g., `axiom.ask`, `axiom.learn`) to execute privileged actions.
+**Description**: Compromise of internal tool identities (e.g., `huqan.ask`, `huqan.learn`) to execute privileged actions.
 
 **Impact**: Unauthorized execution of internal tools, potential system compromise.
 
@@ -104,7 +104,7 @@ This document defines the primary security threats to HUQAN, categorized using t
 - Internal tools output filtering for sensitive content.
 
 **Remaining Gaps**:
-- Limited visibility into exported agent state via `axiom.agent`.
+- Limited visibility into exported agent state via `huqan.agent`.
 - Trace data may contain sensitive user information.
 
 **Planned Mitigation**:

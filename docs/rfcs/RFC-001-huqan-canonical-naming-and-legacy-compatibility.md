@@ -118,6 +118,7 @@ is deferred to its own gate.
 | Protocol | `HUQAN Trust Protocol` (`HTP`) | `ATP 0.1` frozen valid lineage | this RFC |
 | Receipt / bundle `schemaVersion` | unchanged | — | no change ever |
 | Environment variables | `HUQAN_*` | `AXIOM_*` accepted | gate M1 |
+| MCP tool names | `huqan.*` | `axiom.*` accepted | gate M5 |
 | Verifier package | `huqan-verify` | `axiom-verify` compatibility surface | gate M2 |
 | Spec paths | `huqan-trust-protocol` | ATP path retained as historical | gate M3 |
 | Package suffix | `.huqan` | `.axiom` still read | gate M4 |
@@ -166,6 +167,33 @@ artifacts reference it.
   replacement of the ATP-named manifest field are designed together, not
   piecemeal;
 - legacy `.axiom` artifacts and `atpVersion`-bearing manifests remain readable.
+
+**M5 — MCP tool names.** Advertise `huqan.*`, keep accepting `axiom.*`.
+
+The original naming-value audit measured environment variables, the package
+suffix, the verifier package and the spec paths, and missed the MCP tool
+namespace. That omission mattered more than any surface the audit did measure:
+the MCP server is the distribution channel a user actually installs, so a user
+who installs `huqan` was left typing `axiom.learn` in Claude Desktop or Cursor —
+the same `AXIOM`-against-`HUQAN` mismatch, on the most visible surface. This
+gate closes it.
+
+Following decision 7 and M1's precedent:
+
+- `tools/list` advertises the canonical `huqan.*` names only, exactly as M1's
+  documentation shows only `HUQAN_*`;
+- `tools/call` accepts either spelling and resolves both to the same handler,
+  with the same gate decision;
+- only the eleven declared aliases resolve; any other `axiom.`-prefixed name is
+  still blocked as an unknown tool;
+- a legacy call carries a `meta.deprecation` notice and one stderr warning per
+  name per process;
+- approvals are written under the canonical name, and approval rows persisted
+  before this gate — which carry `tool: "axiom.learn"` — remain executable.
+
+M1's fail-closed conflict rule has no analogue here: a `tools/call` carries
+exactly one name, so there is no dual-configuration case to arbitrate and none
+is invented. Migration guide: `docs/mcp-tool-name-migration.md`.
 
 ## Compatibility removal
 

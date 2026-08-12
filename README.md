@@ -252,6 +252,27 @@ Claude Desktop configuration:
 }
 ```
 
+The server advertises eleven tools:
+
+| Tool | What it does | Gate |
+| --- | --- | --- |
+| `huqan.learn` | Learn a natural-language fact into the local graph | review |
+| `huqan.ask` | Ask a grounded question against the graph | allow |
+| `huqan.verify` | Verify a statement and return its evidence trail | allow |
+| `huqan.plan` | Build a multi-step plan for a goal | allow |
+| `huqan.agent` | Run the multi-step agent loop | dry-run only |
+| `huqan.policy` | Inspect the execution policy for a requested tool | allow |
+| `huqan.approvals` | List pending tool approvals | allow |
+| `huqan.approve` | Approve or reject a pending approval | — |
+| `huqan.reason` | Return forward and backward reasoning traces | allow |
+| `huqan.compare` | Compare two concepts across the graph | allow |
+| `huqan.dream` | Generate ranked hypotheses from the graph | allow |
+
+The legacy `axiom.*` names from before the HUQAN rename are still accepted, so
+existing installs keep working; they are no longer advertised, and a call using
+one returns a `meta.deprecation` notice. See
+[docs/mcp-tool-name-migration.md](docs/mcp-tool-name-migration.md).
+
 ## Core capabilities
 
 - Graph-backed claim verification

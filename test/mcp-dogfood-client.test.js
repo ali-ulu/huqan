@@ -122,12 +122,17 @@ test('MCP dogfood client harness exercises allow, review, dry-run and block deci
   try {
     const init = await client.request('initialize', {});
     assert.equal(init.jsonrpc, '2.0');
-    assert.equal(init.result.serverInfo.name, 'axiom');
+    assert.equal(init.result.serverInfo.name, 'huqan');
 
+    // tools/list advertises canonical names only (RFC-001 writer rule). Every
+    // tools/call below still uses the legacy `axiom.*` spelling on purpose:
+    // that is what proves the aliases stay callable after they stop being
+    // advertised.
     const toolsList = await client.request('tools/list', {});
     assert.ok(Array.isArray(toolsList.result.tools));
-    assert.ok(toolsList.result.tools.some((tool) => tool.name === 'axiom.learn'));
-    assert.ok(toolsList.result.tools.some((tool) => tool.name === 'axiom.agent'));
+    assert.ok(toolsList.result.tools.some((tool) => tool.name === 'huqan.learn'));
+    assert.ok(toolsList.result.tools.some((tool) => tool.name === 'huqan.agent'));
+    assert.ok(!toolsList.result.tools.some((tool) => tool.name.startsWith('axiom.')));
 
     const askResp = parseToolCallResponse(await client.request('tools/call', {
       name: 'axiom.ask',

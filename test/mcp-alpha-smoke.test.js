@@ -75,11 +75,19 @@ test('PR3 smoke: server initialize + tools/list', () => {
   const server = createServer();
   const initResp = server.handleRequest({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
   assert.equal(initResp.result.protocolVersion, '2025-06-18');
-  assert.equal(initResp.result.serverInfo.name, 'axiom');
+  // RFC-001: the server identifies itself by the canonical product name. No
+  // legacy alias is carried alongside it — MCP's serverInfo is a spec-defined
+  // shape and strict clients should not meet unexpected fields there. The
+  // legacy compatibility surface is the tool names, not the server identity.
+  assert.equal(initResp.result.serverInfo.name, 'huqan');
 
   const listResp = server.handleRequest({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} });
   assert.ok(Array.isArray(listResp.result.tools));
   assert.ok(listResp.result.tools.length >= 10);
+  // tools/list is a writer: it advertises canonical names only. Legacy names
+  // stay callable (see the tools/call smoke below) but stop being advertised.
+  const advertised = listResp.result.tools.map(tool => tool.name);
+  assert.ok(advertised.every(name => name.startsWith('huqan.')), `unexpected advertised names: ${advertised.join(', ')}`);
 });
 
 test('PR3 smoke: server callTool via tools/call for axiom.ask', () => {

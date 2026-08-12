@@ -106,7 +106,11 @@ test('CLI lists and resolves the same persisted MCP approval without a bypass', 
       const listed = await runCliArgv(['onaylar'], { cli, stdout: value => listedOutput.push(value) });
       assert.equal(listed.exitCode, 0);
       assert.match(listedOutput.join('\n'), new RegExp(queued.approval.id));
-      assert.match(listedOutput.join('\n'), /axiom\.learn/);
+      // The approval above was queued through the legacy `axiom.learn` spelling and
+      // the row persists that string, but the listing is a writer, so per RFC-001 it
+      // renders the canonical name. That the legacy row stays *executable* is what
+      // the `onayla` assertions below prove.
+      assert.match(listedOutput.join('\n'), /huqan\.learn/);
 
       const approvedOutput = [];
       const approved = await runCliArgv(['onayla', queued.approval.id], { cli, stdout: value => approvedOutput.push(value) });
