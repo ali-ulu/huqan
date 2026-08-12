@@ -128,6 +128,7 @@
         "lib/cross-workspace-access-gate.js",
         "lib/data-egress-gate.js",
         "lib/entity-resolution.js",
+        "lib/error-prevention",
         "lib/environment-compat.js",
         "lib/errors/provenance-error.js",
         "lib/external-client-authority.js",
