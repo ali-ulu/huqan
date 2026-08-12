@@ -20,7 +20,7 @@
     "lib/memory-store.js": 2284,
     "lib/sandbox-isolation.js": 855,
     "lib/verify.js": 967,
-    "mcpServer.js": 1373,
+    "mcpServer.js": 1367,
     "plugins/repo-memory.js": 1217,
     "scripts/external-conformance/consumer.js": 881,
     "server.js": 1461,

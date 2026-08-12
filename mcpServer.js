@@ -20,7 +20,15 @@ const {
   canonicalMcpToolName,
   isLegacyMcpToolName,
   mcpToolDeprecationNotice,
+  withMcpToolDeprecationSurface,
 } = require('./lib/mcp-tool-names');
+const { parseJsonObject } = require('./lib/json-object');
+const {
+  formatApprovalRecord,
+  listPersistentApprovals,
+  countPersistentApprovals,
+  countUnresolvedApprovals,
+} = require('./lib/mcp-approval-views');
 const AxiomStorage = require('./storage');
 const pkg = require('./package.json');
 
@@ -92,16 +100,6 @@ function nowMs() {
 function newApprovalId() {
   if (typeof crypto.randomUUID === 'function') return `approval-${crypto.randomUUID()}`;
   return `approval-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function parseJsonObject(value, fallback = {}) {
-  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
-  try {
-    const parsed = JSON.parse(String(value || '{}'));
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : fallback;
-  } catch (_) {
-    return fallback;
-  }
 }
 
 const VERIFY_STATUS = ['dogrulandi', 'celiski', 'bilinmiyor'];
@@ -535,51 +533,6 @@ function createApprovalStoreFromKernel(kernel, opts = {}) {
   } catch (_) {
     return null;
   }
-}
-
-function formatApprovalRecord(record) {
-  if (!record || typeof record !== 'object') return null;
-  return {
-    id: record.id || '',
-    approvalKey: record.approval_key || record.approvalKey || '',
-    tool: record.tool || '',
-    input: record.input || '',
-    status: record.status || 'pending',
-    decision: record.decision || '',
-    reason: record.reason || '',
-    createdAt: Number(record.created_at || record.createdAt || 0),
-    updatedAt: Number(record.updated_at || record.updatedAt || 0),
-    policy: record.policy && typeof record.policy === 'object'
-      ? record.policy
-      : parseJsonObject(record.policy_json, {}),
-    context: record.context && typeof record.context === 'object'
-      ? record.context
-      : parseJsonObject(record.context_json, {}),
-  };
-}
-
-function listPersistentApprovals(approvalStore, limit = 50) {
-  if (!approvalStore) return [];
-  const list = typeof approvalStore.listUnresolvedToolApprovals === 'function'
-    ? approvalStore.listUnresolvedToolApprovals(limit)
-    : typeof approvalStore.listPendingToolApprovals === 'function'
-      ? approvalStore.listPendingToolApprovals(limit)
-      : [];
-  return list
-    .map(formatApprovalRecord)
-    .filter(Boolean);
-}
-
-function countPersistentApprovals(approvalStore) {
-  if (!approvalStore || typeof approvalStore.countPendingToolApprovals !== 'function') return 0;
-  return approvalStore.countPendingToolApprovals();
-}
-
-function countUnresolvedApprovals(approvalStore) {
-  if (!approvalStore || typeof approvalStore.countUnresolvedToolApprovals !== 'function') {
-    return countPersistentApprovals(approvalStore);
-  }
-  return approvalStore.countUnresolvedToolApprovals();
 }
 
 function saveMcpApproval(approvalStore, name, args, gate) {
@@ -1158,44 +1111,6 @@ function withTransientAgent(kernel, callback) {
 
   closeStorage();
   return result;
-}
-
-const warnedLegacyMcpToolNames = new Set();
-
-/**
- * Emit the once-per-name stderr deprecation warning for a legacy tool call.
- *
- * stderr, not stdout: the MCP stdio transport owns stdout, so anything written
- * there corrupts the protocol stream. Once per name rather than per call so a
- * client that has not migrated does not turn its own logs into noise.
- */
-function warnLegacyMcpToolName(notice) {
-  if (warnedLegacyMcpToolNames.has(notice.requestedName)) return;
-  warnedLegacyMcpToolNames.add(notice.requestedName);
-  try {
-    process.stderr.write(`[huqan] DEPRECATION: ${notice.message}\n`);
-  } catch (_) {
-    // A failed warning must never replace the result the caller is waiting for.
-  }
-}
-
-/**
- * Attach the RFC-001 deprecation notice to a result produced from a legacy
- * `axiom.*` call.
- *
- * The notice rides in `meta.deprecation` rather than replacing any part of the
- * response, so a legacy caller observes exactly the result it observed before
- * plus one additive field. Non-object results are returned untouched.
- */
-function withMcpToolDeprecationSurface(result, requestedName) {
-  const deprecation = mcpToolDeprecationNotice(requestedName);
-  if (!deprecation) return result;
-  warnLegacyMcpToolName(deprecation);
-  if (!result || typeof result !== 'object' || Array.isArray(result)) return result;
-  const meta = result.meta && typeof result.meta === 'object' && !Array.isArray(result.meta)
-    ? result.meta
-    : {};
-  return { ...result, meta: { ...meta, deprecation } };
 }
 
 /**
