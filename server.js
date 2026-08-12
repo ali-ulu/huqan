@@ -11,6 +11,11 @@ const { readFileSync } = require('fs');
 const { createKernel } = require('./lib/kernel-factory');
 const { parseCommand } = require('./lib/command-parser');
 const { evaluateLlmSor } = require('./lib/shield');
+const {
+  toCanonicalVerifyStatus,
+  toPublicVerifyPayload,
+  toPublicVerifyEnvelope,
+} = require('./lib/verify-status-vocabulary');
 const { handleIngest, buildIngestApprovalSnapshot, sha256 } = require('./lib/ingest');
 const AxiomStorage = require('./storage');
 const { decideIngestApproval } = require('./lib/workbench/ingest-approval-action');
@@ -133,9 +138,14 @@ const ingestApprovalRecoveryTimer = setInterval(() => {
 }, Math.max(5_000, Math.floor(INGEST_APPROVAL_LEASE_MS / 2)));
 ingestApprovalRecoveryTimer.unref?.();
 
+// HTTP API boundary adapter. The kernel's internal status vocabulary is left
+// untouched; only the serialized public form is canonical English. Readers
+// that consume this shape (lib/shield.js) accept both vocabularies. See
+// lib/verify-status-vocabulary.js and
+// docs/verify-status-vocabulary-migration.md.
 function legacyVerify(result) {
   return {
-    status: result.data.status,
+    status: toCanonicalVerifyStatus(result.data.status),
     confidence: result.data.confidence,
     evidence: result.evidence.map(e => e.text),
   };
@@ -258,50 +268,15 @@ function writeApiError(req, res, statusCode, code, message, details = {}) {
   }, { 'Cache-Control': 'no-cache' });
 }
 
-const TRUST_FILTER_MAX_ID = 128;
-const TRUST_FILTER_MAX_REF = 256;
-const TRUST_FILTER_MAX_ENUM = 32;
-const TRUST_RECEIPT_READ_PREFIX = '/api/trust-receipt/';
-
-function readTrustFilters(reqUrl) {
-  const params = reqUrl.searchParams;
-  const readId = (name) => sanitizeInput(params.get(name) || '', TRUST_FILTER_MAX_ID);
-  const readRef = (name) => sanitizeInput(params.get(name) || '', TRUST_FILTER_MAX_REF);
-  const readEnum = (name) => sanitizeInput(params.get(name) || '', TRUST_FILTER_MAX_ENUM);
-  return {
-    workspaceId: readId('workspaceId'),
-    targetId: readId('targetId'),
-    provenanceId: readId('provenanceId'),
-    sourceRef: readRef('sourceRef'),
-    sourceType: readEnum('sourceType'),
-    sourceSubType: readEnum('sourceSubType'),
-    actor: readId('actor'),
-    eventType: readEnum('eventType'),
-    candidateId: readId('candidateId'),
-    status: readEnum('status'),
-    recommendation: readEnum('recommendation'),
-    order: readEnum('order'),
-    targetType: readEnum('targetType'),
-  };
-}
-
-function hasTrustQuery(filters, keys) {
-  return keys.some((key) => Boolean(filters[key]));
-}
-
-function readPathReceiptId(pathname) {
-  if (!pathname.startsWith(TRUST_RECEIPT_READ_PREFIX)) return null;
-  const rawReceiptId = pathname.slice(TRUST_RECEIPT_READ_PREFIX.length);
-  if (!rawReceiptId) return { ok: false, code: 'missing_receipt_id', receiptId: '' };
-  try {
-    const decoded = decodeURIComponent(rawReceiptId);
-    const receiptId = sanitizeInput(decoded, TRUST_FILTER_MAX_ID);
-    if (!receiptId) return { ok: false, code: 'invalid_receipt_id', receiptId: '' };
-    return { ok: true, receiptId };
-  } catch (_) {
-    return { ok: false, code: 'invalid_receipt_id', receiptId: '' };
-  }
-}
+const {
+  TRUST_FILTER_MAX_ID,
+  TRUST_FILTER_MAX_REF,
+  TRUST_FILTER_MAX_ENUM,
+  TRUST_RECEIPT_READ_PREFIX,
+  readTrustFilters,
+  hasTrustQuery,
+  readPathReceiptId,
+} = require('./lib/http-trust-query');
 
 function getRateLimitKey(req) {
   const apiKey = extractApiKey(req.headers || {});
@@ -561,7 +536,11 @@ function getHealthData() {
   const stats = kernel.graph.getStats();
   return {
     ok: true,
-    service: 'axiom',
+    // Canonical product identity (RFC-001). `legacyService` keeps the AXIOM
+    // spelling readable for existing health probes during the compatibility
+    // window; it is not a second product identity.
+    service: 'huqan',
+    legacyService: 'axiom',
     kernelVersion: readCompatibleEnvironmentVariable('KERNEL_VERSION') === 'v2' ? 'v2' : 'v1',
     backend: stats.backend,
     nodes: stats.nodes,
@@ -912,13 +891,14 @@ const server = http.createServer(async (req, res) => {
     const sendVerifyResult = (statement, workspaceId = '') => {
       const text = sanitizeInput(statement || '');
       if (!text) {
-        writeJson(req, res, 400, { error: 'statement required' });
+        writeJson(req, res, 400, { error: 'claim, statement or text is required' });
         return;
       }
       try {
         const normalizedWorkspaceId = sanitizeInput(workspaceId || reqUrl.searchParams.get('workspaceId') || '');
         const result = kernel.verify(text, normalizedWorkspaceId ? { workspaceId: normalizedWorkspaceId } : {});
-        writeJson(req, res, 200, result, { 'Cache-Control': 'no-cache' });
+        // Boundary projection only — the kernel envelope itself is unchanged.
+        writeJson(req, res, 200, toPublicVerifyEnvelope(result), { 'Cache-Control': 'no-cache' });
       } catch (err) {
         console.error('[v2/verify]', err);
         writeJson(req, res, 500, { error: 'Internal server error' });
@@ -929,7 +909,7 @@ const server = http.createServer(async (req, res) => {
       if (!denyIfUnauthorized(req, res)) return;
       const data = await parseJsonRequest(req, res, { maxBytes: 4_096 });
       if (!data) return;
-      sendVerifyResult(data.statement || data.text || '', data.workspaceId || '');
+      sendVerifyResult(data.claim || data.statement || data.text || '', data.workspaceId || '');
       return;
     }
 
@@ -952,7 +932,7 @@ const server = http.createServer(async (req, res) => {
     const workspaceId = sanitizeInput(data.workspaceId || reqUrl.searchParams.get('workspaceId') || '');
     if (!question) {
       res.writeHead(400, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ error: 'question gerekli' }));
+      res.end(JSON.stringify({ error: 'question is required' }));
       return;
     }
 
@@ -998,7 +978,9 @@ const server = http.createServer(async (req, res) => {
         llmAnswer: llmText,
         model: llmRes.data.model,
         axiomCheck,
-        llmCheck: shield.llmCheck,
+        // shield.llmCheck is an internal normalizeCheck() shape and still
+        // carries the legacy status; project it at the boundary.
+        llmCheck: toPublicVerifyPayload(shield.llmCheck),
         label: shield.label,
         shield: shield.shield,
         learnResult: shield.learnResult,
@@ -1019,11 +1001,13 @@ const server = http.createServer(async (req, res) => {
       if (!denyIfUnauthorized(req, res)) return;
       const data = await parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_JSON_BODY });
       if (!data) return;
-      const text = sanitizeInput(data.statement || data.text || '');
+      // `claim` is the canonical English input field. `statement` and `text`
+      // remain accepted as compatibility spellings (RFC-001 reader rule).
+      const text = sanitizeInput(data.claim || data.statement || data.text || '');
       const workspaceId = sanitizeInput(data.workspaceId || reqUrl.searchParams.get('workspaceId') || '');
       if (!text) {
         res.writeHead(400, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-        res.end(JSON.stringify({ error: 'statement veya text gerekli' }));
+        res.end(JSON.stringify({ error: 'claim, statement or text is required' }));
         return;
       }
       try {
@@ -1049,7 +1033,7 @@ const server = http.createServer(async (req, res) => {
     const contentLength = Number(req.headers['content-length'] || 0);
     if (Number.isFinite(contentLength) && contentLength > DEFAULT_MAX_UPLOAD_BODY) {
       res.writeHead(413, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ error: 'İçerik çok büyük (max 1MB)' }));
+      res.end(JSON.stringify({ error: 'Payload too large (max 1MB)' }));
       return;
     }
     const data = await parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_UPLOAD_BODY });
@@ -1057,7 +1041,7 @@ const server = http.createServer(async (req, res) => {
     const text = data.text || data.content || '';
     if (!text) {
       res.writeHead(400, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ error: 'text veya content gerekli' }));
+      res.end(JSON.stringify({ error: 'text or content is required' }));
       return;
     }
     const workspaceId = sanitizeInput(data.workspaceId || reqUrl.searchParams.get('workspaceId') || '');
@@ -1425,8 +1409,8 @@ const HOST = readCompatibleEnvironmentVariable('HOST') || '127.0.0.1';
 
 function startServer(port = PORT, host = HOST) {
   return server.listen(port, host, () => {
-    console.log(`🧠 AXIOM web arayüzü: http://${host}:${port}`);
-    console.log(`   Graf görünümü: http://${host}:${port} → "Graf" sekmesi`);
+    console.log(`🧠 HUQAN web interface: http://${host}:${port}`);
+    console.log(`   Graph view: http://${host}:${port} → "Graph" tab`);
   });
 }
 

@@ -197,7 +197,7 @@ describe('V4-PR3: read-only Trust Receipt API surface', () => {
     const health = await requestJson(port, '/health', { headers: {} });
     assert.equal(health.status, 200);
     assert.equal(health.body.ok, true);
-    assert.equal(health.body.service, 'axiom');
+    assert.equal(health.body.service, 'huqan');
 
     const status = await requestJson(port, '/v2-status', { headers: {} });
     assert.equal(status.status, 200);

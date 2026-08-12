@@ -278,7 +278,9 @@ describe('Server - API', () => {
     const j = await r.json();
     assert.strictEqual(j.ok, true);
     assert.strictEqual(j.type, 'verify');
-    assert.strictEqual(j.data.status, 'celiski');
+    // The HTTP boundary emits the canonical English vocabulary; `celiski` is
+    // what KernelV2 still says internally. See docs/verify-status-vocabulary-migration.md.
+    assert.strictEqual(j.data.status, 'contradicted');
     assert.strictEqual(j.data.contradictionReason, 'opposite_predicate_conflict');
     assert.ok(Array.isArray(j.evidence));
     assert.ok(j.evidence.length >= 1);
@@ -294,7 +296,7 @@ describe('Server - API', () => {
     });
     assert.strictEqual(r.status, 200);
     const j = await r.json();
-    assert.ok(['dogrulandi', 'bilinmiyor', 'celiski'].includes(j.data.status));
+    assert.ok(['verified', 'unknown', 'contradicted'].includes(j.data.status));
   });
 
   it('PUT /v2/verify returns method not allowed', async () => {
@@ -815,7 +817,8 @@ describe('Server - API', () => {
     assert.strictEqual(r.status, 200);
     const j = await r.json();
     assert.strictEqual(j.ok, true);
-    assert.strictEqual(j.service, 'axiom');
+    assert.strictEqual(j.service, 'huqan');
+    assert.strictEqual(j.legacyService, 'axiom');
     assert.strictEqual(j.kernelVersion, 'v2');
     assert.ok(['sqlite', 'json'].includes(j.backend));
     assert.ok(Number.isInteger(j.nodes));

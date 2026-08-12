@@ -197,7 +197,7 @@ class PluginManager {
           signatureKey: this.pluginSigningKey,
         });
         if (!verification.ok) {
-          console.error(`Plugin yuklenemedi: ${file} - ${verification.reason}`);
+          console.error(`Plugin failed to load: ${file} - ${verification.reason}`);
           continue;
         }
         // Verification passed, so this is the approved file -- and that is the
@@ -218,7 +218,7 @@ class PluginManager {
         this.register(plugin);
         count++;
       } catch (err) {
-        console.error(`Plugin yuklenemedi: ${file} - ${err.message}`);
+        console.error(`Plugin failed to load: ${file} - ${err.message}`);
       }
     }
     return count;
