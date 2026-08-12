@@ -2,8 +2,8 @@
     "name": "huqan",
     "version": "0.9.1",
     "description": "Local-first AI governance and verification layer for claims, agent actions, memory writes, provenance, approvals, and Trust Receipts.",
-    "main": "kernel.js",
-    "types": "kernel.d.ts",
+    "main": "index.js",
+    "types": "index.d.ts",
     "bin": {
         "huqan": "./cli.js"
     },
@@ -94,6 +94,8 @@
         "evidence-ranker.js",
         "finalizer.js",
         "graph.js",
+        "index.d.ts",
+        "index.js",
         "kernel.d.ts",
         "kernel.js",
         "kernel.v2.d.ts",

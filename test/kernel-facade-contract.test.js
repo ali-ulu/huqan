@@ -6,6 +6,7 @@ const path = require('node:path');
 const test = require('node:test');
 
 const PackageKernel = require('..');
+const KernelV2 = require('../kernel.v2');
 const Kernel = require('../kernel');
 const { withoutNestedMember, nestedMemberBody } = require('./helpers/kernel-declaration');
 
@@ -33,10 +34,30 @@ function makeKernel() {
 // Existing facade contract tests
 // =========================================================================
 
-test('package entry resolves to the canonical Kernel constructor', () => {
-  assert.equal(PackageKernel, Kernel);
+test('package entry resolves to the canonical kernel constructor', () => {
+  // #329: the canonical runtime is KernelV2, and the package root export now
+  // matches it. Before this, every entry point built a KernelV2 while
+  // require('huqan') handed out the v1 Kernel -- one runtime, two public
+  // kernel surfaces.
+  assert.equal(PackageKernel, KernelV2);
+  assert.notEqual(PackageKernel, Kernel);
   assert.equal(typeof PackageKernel, 'function');
-  assert.equal(PackageKernel.name, 'Kernel');
+  assert.equal(PackageKernel.name, 'KernelV2');
+});
+
+test('the v1 kernel stays reachable under an explicitly deprecated name', () => {
+  assert.equal(PackageKernel.KernelV2, KernelV2);
+  assert.equal(PackageKernel.KernelV1, Kernel, 'v1 must not disappear abruptly');
+});
+
+test('the package entry keeps the static contract markers it published as v1', () => {
+  // These were reachable as require('huqan').X while main pointed at
+  // kernel.js. Forwarding the same objects keeps `err instanceof
+  // require('huqan').ProvenanceError` true for errors the kernel throws.
+  assert.equal(PackageKernel.ProvenanceError, Kernel.ProvenanceError);
+  assert.equal(PackageKernel.createAdmissionBypassOpts, Kernel.createAdmissionBypassOpts);
+  assert.equal(PackageKernel.AXIOM_ERROR, Kernel.AXIOM_ERROR);
+  assert.equal(PackageKernel.CONTRACT_VERSION, Kernel.CONTRACT_VERSION);
 });
 
 test('Kernel exposes the documented static contract markers', () => {
@@ -123,8 +144,13 @@ test('Kernel declarations preserve sync learn return variants', () => {
 
 test('4C1: package.json manifest', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8'));
-  assert.equal(pkg.main, 'kernel.js');
-  assert.equal(pkg.types, 'kernel.d.ts');
+  // #329: main/types point at the root export module, which resolves to the
+  // canonical KernelV2 rather than the internal v1 implementation.
+  assert.equal(pkg.main, 'index.js');
+  assert.equal(pkg.types, 'index.d.ts');
+  assert.ok(pkg.files.includes('index.js'), 'the root export must ship');
+  assert.ok(pkg.files.includes('index.d.ts'), 'the root declaration must ship');
+  assert.ok(pkg.files.includes('kernel.js'), 'the deprecated v1 export must still resolve');
   assert.equal(typeof pkg.bin, 'object');
   assert.equal(pkg.bin.huqan, './cli.js');
   assert.ok(Array.isArray(pkg.files), 'files allowlist must be present');
