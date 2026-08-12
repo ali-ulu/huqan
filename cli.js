@@ -12,6 +12,8 @@ const os = require('os');
 const readline = require('readline');
 const { isPathWithinRoot } = require('./lib/path-safety');
 const { createKernel } = require('./lib/kernel-factory');
+const { cliHelpText } = require('./lib/cli-help');
+const { runQuickstartCommand } = require('./lib/quickstart-cli');
 const {
   parseCommand,
   normalizeCommandText,
@@ -620,9 +622,8 @@ class CLI {
         text += `, ${result.consolidated} celiski temizlendi, ${result.optimized} kenar budandi.`;
         return text;
       }
-      case 'quickstart': {
-        return this._runQuickstart();
-      }
+      case 'quickstart':
+        return runQuickstartCommand({ callTool: callMcpTool, createApprovalStore: createApprovalStoreFromKernel });
       case 'durum': {
         const stats = this.kernel.graph.getStats();
         const nodes = stats.nodes;
@@ -647,34 +648,7 @@ class CLI {
       case 'selam':
         return 'Merhaba! Bana bir sey ogretebilir veya soru sorabilirsin.';
       case 'yardım':
-        return [
-          'AXIOM komutlari:',
-          '  "quickstart"              -> ilk Trust Receipt (tek komut, API anahtari gerekmez)',
-          '  "kedi balik yer"          -> bilgi ogrenirim',
-          '  "kedi nedir"              -> soruyu cevaplarim',
-          '  "neden tavuk"             -> sebep analizi',
-          '  "tavuk mu yumurta mi"     -> karsilastirma',
-          '  "durum"                   -> sistem durumu',
-          '  "ruya"                    -> hipotez uretirim',
-          '  "plan: hedef"             -> ajan plani uretirim',
-          '  "ajan: hedef"             -> ajan calistiririm',
-          '  "backup"                  -> calisma durumunu yedeklerim',
-          '  "restore[: yol]"          -> en son veya secili yedekten geri yuklerim',
-          '  "kaydet"                  -> hafizayi kaydederim',
-          '  "onaylar"                 -> bekleyen ogrenme onaylarini listelerim',
-          '  "onayla <id> [karar]"     -> pending ogrenmeyi approved/rejected ile karara baglarim',
-          '  "llm-sor: soru"           -> LLM tavsiyesi hazirlarim',
-          '  "yükle: dosya.txt"        -> dosyadan ogrenirim',
-          '  English-first aliases:',
-          '  "learn: cats are animals" -> teach alias',
-          '  "ask: cat nedir"          -> ask alias',
-          '  "why: tavuk"              -> why alias',
-          '  "compare: tavuk | yumurta"-> compare alias',
-          '  "verify: kedi bitkidir"   -> guarded verify alias',
-          '  "upload: notes.txt"       -> upload alias',
-          '  Turkish compatibility aliases: \u00f6\u011fret, sor, neden, kar\u015f\u0131la\u015ft\u0131r, do\u011frula, y\u00fckle',
-          '  "çıkış"                   -> cikis',
-        ].join('\n');
+        return cliHelpText();
       case 'anlamadım':
         return 'Anlamadim. Daha uzun bir cumle yaz veya "yardım" yaz.';
       default:
@@ -744,43 +718,6 @@ class CLI {
       }
       return closeExit;
     });
-  }
-
-  /**
-   * Runs the first-run demo in a throwaway store so a brand-new user reaches a
-   * real Trust Receipt without an API key, a config edit, or any risk to their
-   * own memory. The kernel here is deliberately NOT `this.kernel`: quickstart
-   * must never write to canonical user memory.
-   */
-  _runQuickstart() {
-    const { runQuickstart, formatQuickstartResult } = require('./lib/quickstart');
-    const { buildTrustReceipt } = require('./lib/provenance-query');
-    const storeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-quickstart-'));
-    let demoKernel = null;
-    let demoStore = null;
-    try {
-      demoKernel = createKernel({
-        memoryPath: path.join(storeDir, 'memory.json'),
-        dbPath: path.join(storeDir, 'memory.db'),
-        loadPlugins: false,
-      });
-      demoStore = createApprovalStoreFromKernel(demoKernel);
-      const result = runQuickstart({
-        kernel: demoKernel,
-        callTool: callMcpTool,
-        approvalStore: demoStore,
-        buildTrustReceipt,
-      });
-      return formatQuickstartResult(result, { storePath: storeDir });
-    } catch (error) {
-      return formatQuickstartResult(
-        { ok: false, steps: [], error: { code: 'QUICKSTART_SETUP_FAILED', message: error?.message || String(error) } },
-        { storePath: storeDir },
-      );
-    } finally {
-      try { demoStore?.close?.(); } catch (_) { /* demo store cleanup must not mask the result */ }
-      try { demoKernel?.close?.(); } catch (_) { /* same */ }
-    }
   }
 
   _evaluateCliGate(command, args) {
