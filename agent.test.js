@@ -415,7 +415,7 @@ describe('Agent', () => {
         return this._ok('reason', { subject: 'axiom', answer: 'Aynı cevap', forward: [], backward: [], cycles: [] }, []);
       },
       verify() {
-        return this._ok('verify', { status: 'bilinmiyor', confidence: 0.5, evidence: [] }, []);
+        return this._ok('verify', { status: 'unknown', confidence: 0.5, evidence: [] }, []);
       },
     };
 

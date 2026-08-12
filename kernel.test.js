@@ -118,7 +118,7 @@ describe('Kernel - Çıkarım', () => {
     const k = freshKernel();
     k.learn('Kedi hayvandır');
     const result = k.verify('Kedi hayvan değildir');
-    assert.strictEqual(result.data.status, 'celiski');
+    assert.strictEqual(result.data.status, 'contradicted');
     assert.ok(result.evidence.length > 0);
   });
 
@@ -127,9 +127,9 @@ describe('Kernel - Çıkarım', () => {
     const trueComparison = k.verify('9 != 8');
     const falseComparison = k.verify('9 = 8');
 
-    assert.strictEqual(trueComparison.data.status, 'dogrulandi');
+    assert.strictEqual(trueComparison.data.status, 'verified');
     assert.ok(trueComparison.evidence.length > 0);
-    assert.strictEqual(falseComparison.data.status, 'celiski');
+    assert.strictEqual(falseComparison.data.status, 'contradicted');
     assert.ok(falseComparison.evidence.length > 0);
   });
 
@@ -297,7 +297,7 @@ describe('Kernel - Core API Contract', () => {
     assert.throws(() => k._validateResult({ ok: 'yes', evidence: [] }), /ok must be boolean/);
     assert.throws(() => k._validateResult({ ok: true, evidence: null }), /evidence must be array/);
     assert.throws(() => k._validateResult({ ok: true, type: 'verify', data: { status: 'bad', confidence: 0 }, evidence: [] }), /Invalid verify status/);
-    assert.throws(() => k._validateResult({ ok: true, type: 'verify', data: { status: 'dogrulandi', confidence: 2 }, evidence: [] }), /Invalid confidence/);
+    assert.throws(() => k._validateResult({ ok: true, type: 'verify', data: { status: 'verified', confidence: 2 }, evidence: [] }), /Invalid confidence/);
   });
 
   it('normalizes Istanbul dotted and dotless variants to one node', () => {

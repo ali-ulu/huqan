@@ -72,7 +72,7 @@ describe('PR-ER2B - canonical lookup fallback in verify', () => {
       edges: kernel.graph.edgeCount('default'),
     };
 
-    assert.strictEqual(result.status, 'dogrulandi');
+    assert.strictEqual(result.status, 'verified');
     assert.strictEqual(er.original, 'B737');
     assert.strictEqual(er.canonical, 'boeing_737');
     assert.strictEqual(er.domain, 'aviation');
@@ -89,8 +89,8 @@ describe('PR-ER2B - canonical lookup fallback in verify', () => {
     const a = kernel.verify('Boeing-737 güvenlidir', { workspaceId: 'default', domain: 'aviation' });
     const b = kernel.verify('Boeing 737 güvenlidir', { workspaceId: 'default', domain: 'aviation' });
 
-    assert.strictEqual(unwrap(a).status, 'dogrulandi');
-    assert.strictEqual(unwrap(b).status, 'dogrulandi');
+    assert.strictEqual(unwrap(a).status, 'verified');
+    assert.strictEqual(unwrap(b).status, 'verified');
     assert.strictEqual(a.meta.entityResolution.subject.canonical, 'boeing_737');
     assert.strictEqual(b.meta.entityResolution.subject.canonical, 'boeing_737');
     assert.strictEqual(a.meta.entityResolution.subject.usedForLookup, true);
@@ -104,7 +104,7 @@ describe('PR-ER2B - canonical lookup fallback in verify', () => {
     const result = unwrap(raw);
     const er = raw.meta.entityResolution.subject;
 
-    assert.strictEqual(result.status, 'bilinmiyor');
+    assert.strictEqual(result.status, 'unknown');
     assert.strictEqual(er.original, 'B737');
     assert.strictEqual(er.canonical, 'boeing_737');
     assert.strictEqual(er.matched, true);
@@ -119,7 +119,7 @@ describe('PR-ER2B - canonical lookup fallback in verify', () => {
     const result = unwrap(raw);
     const er = raw.meta.entityResolution.subject;
 
-    assert.strictEqual(result.status, 'bilinmiyor');
+    assert.strictEqual(result.status, 'unknown');
     assert.strictEqual(er.original, 'AI');
     assert.strictEqual(er.ambiguous, true);
     assert.strictEqual(er.usedForLookup, false);
@@ -133,9 +133,9 @@ describe('PR-ER2B - canonical lookup fallback in verify', () => {
     const tech = kernel.verify('AI güçlüdür', { workspaceId: 'default', domain: 'tech' });
     const design = kernel.verify('AI kullanılır', { workspaceId: 'default', domain: 'design' });
 
-    assert.strictEqual(unwrap(aviation).status, 'dogrulandi');
-    assert.strictEqual(unwrap(tech).status, 'dogrulandi');
-    assert.strictEqual(unwrap(design).status, 'dogrulandi');
+    assert.strictEqual(unwrap(aviation).status, 'verified');
+    assert.strictEqual(unwrap(tech).status, 'verified');
+    assert.strictEqual(unwrap(design).status, 'verified');
     assert.strictEqual(aviation.meta.entityResolution.subject.canonical, 'air_india');
     assert.strictEqual(tech.meta.entityResolution.subject.canonical, 'artificial_intelligence');
     assert.strictEqual(design.meta.entityResolution.subject.canonical, 'adobe_illustrator');
@@ -152,7 +152,7 @@ describe('PR-ER2B - canonical lookup fallback in verify', () => {
     const result = unwrap(raw);
     const er = raw.meta.entityResolution.subject;
 
-    assert.strictEqual(result.status, 'bilinmiyor');
+    assert.strictEqual(result.status, 'unknown');
     assert.strictEqual(er.original, 'XYZ999');
     assert.strictEqual(er.matched, false);
     assert.strictEqual(er.reason, 'unknown_alias_in_domain');
@@ -175,7 +175,7 @@ describe('PR-ER2B - canonical lookup fallback in verify', () => {
       edges: kernel.graph.edgeCount('default'),
     };
 
-    assert.strictEqual(result.status, 'dogrulandi');
+    assert.strictEqual(result.status, 'verified');
     assert.deepStrictEqual(after, before);
   });
 
@@ -187,7 +187,7 @@ describe('PR-ER2B - canonical lookup fallback in verify', () => {
     const result = unwrap(raw);
     const er = raw.meta.entityResolution.subject;
 
-    assert.strictEqual(result.status, 'dogrulandi');
+    assert.strictEqual(result.status, 'verified');
     assert.strictEqual(er.original, 'boeing_737');
     assert.strictEqual(er.matched, false);
     assert.strictEqual(er.usedForLookup, false);

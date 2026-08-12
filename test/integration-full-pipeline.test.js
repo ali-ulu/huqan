@@ -125,7 +125,7 @@ describe('Integration: Kernel + Graph + Verify (learn→verify roundtrip)', () =
     });
 
     const result = unwrap(kernel.verify('Ankara Türkiye\'nin başkentidir'));
-    assert.strictEqual(result.status, 'dogrulandi');
+    assert.strictEqual(result.status, 'verified');
     assert.ok(result.confidence > 0, 'confidence should be positive');
   });
 
@@ -139,7 +139,7 @@ describe('Integration: Kernel + Graph + Verify (learn→verify roundtrip)', () =
     const result = unwrap(kernel.verify('Su 50 derecede kaynar'));
     // The verify result should indicate contradiction or unknown
     assert.ok(
-      ['celiski', 'bilinmiyor'].includes(result.status),
+      ['contradicted', 'unknown'].includes(result.status),
       `Expected celiski or bilinmiyor, got ${result.status}`
     );
   });
@@ -149,7 +149,7 @@ describe('Integration: Kernel + Graph + Verify (learn→verify roundtrip)', () =
     seedBasicFacts(kernel);
 
     const result = unwrap(kernel.verify('Mars kırmızı bir gezegendir'));
-    assert.strictEqual(result.status, 'bilinmiyor');
+    assert.strictEqual(result.status, 'unknown');
   });
 
   it('learn→verify roundtrip preserves evidence chain', () => {
@@ -229,7 +229,7 @@ describe('Integration: Kernel + Causal Traversal', () => {
     // Sigara PREVENTS sağlık — "Sigara sağlıklıdır" should now be contradicted
     const raw = kernel.verify('Sigara sağlıklıdır');
     const result = unwrap(raw);
-    assert.strictEqual(result.status, 'celiski',
+    assert.strictEqual(result.status, 'contradicted',
       `Expected celiski for "Sigara sağlıklıdır" (PREVENTS edge exists), got ${result.status}`);
     assert.ok(result.confidence > 0, 'contradiction should have positive confidence');
     // Evidence should mention PREVENTS
@@ -386,7 +386,7 @@ describe('Integration: MCP Gate + Safety (AB1–AB6 enforcement)', () => {
     return {
       learn() { return { ok: true, data: { learned: 1, skipped: 0, conflicts: [], alternatives: [] }, type: 'learn', evidence: [], error: null, meta: { contractVersion: '1.0', backend: 'sqlite', paranoidMode: false } }; },
       ask() { return { ok: true, data: { answer: 'mock answer', subject: 'x', unknown: false, alternatives: 0 }, type: 'ask', evidence: [], error: null, meta: { contractVersion: '1.0', backend: 'sqlite', paranoidMode: false } }; },
-      verify() { return { ok: true, data: { status: 'dogrulandi', confidence: 1 }, type: 'verify', evidence: [], error: null, meta: { contractVersion: '1.0', backend: 'sqlite', paranoidMode: false } }; },
+      verify() { return { ok: true, data: { status: 'verified', confidence: 1 }, type: 'verify', evidence: [], error: null, meta: { contractVersion: '1.0', backend: 'sqlite', paranoidMode: false } }; },
       reason() { return { ok: true, data: { subject: 'x', answer: 'y', forward: [], backward: [], cycles: [] }, type: 'reason', evidence: [], error: null, meta: { contractVersion: '1.0', backend: 'sqlite', paranoidMode: false } }; },
       compare() { return { ok: true, data: { a: 'x', b: 'y', answer: 'z', common: [], onlyA: [], onlyB: [], paths: [] }, type: 'compare', evidence: [], error: null, meta: { contractVersion: '1.0', backend: 'sqlite', paranoidMode: false } }; },
       dream() { return { ok: true, data: { hypotheses: [], learned: [], cycle: 0 }, type: 'dream', evidence: [], error: null, meta: { contractVersion: '1.0', backend: 'sqlite', paranoidMode: false } }; },

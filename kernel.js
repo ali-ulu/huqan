@@ -509,7 +509,7 @@ class Kernel {
     if (!result || typeof result.ok !== 'boolean') throw new Error('Invalid result: ok must be boolean');
     if (!Array.isArray(result.evidence)) throw new Error('Invalid result: evidence must be array');
     if (result.type === 'verify' && result.data) {
-      const statuses = new Set(['dogrulandi', 'celiski', 'bilinmiyor']);
+      const statuses = new Set(['verified', 'contradicted', 'unknown']);
       if (!statuses.has(result.data.status)) throw new Error('Invalid verify status: ' + result.data.status);
       if (typeof result.data.confidence !== 'number' || result.data.confidence < 0 || result.data.confidence > 1) {
         throw new Error('Invalid confidence: must be between 0 and 1');
@@ -1797,7 +1797,7 @@ if (verbSuffix.test(predicate)) {
       if (skipConflicts) {
         const workspaceId = normalizeWorkspaceId(opts.workspaceId || opts.provenance?.workspaceId || 'default');
         const check = this.verify(cleaned, { workspaceId });
-        if (check.data.status === 'celiski') {
+        if (check.data.status === 'contradicted') {
           conflicts.push(cleaned);
           skipped++;
           continue;

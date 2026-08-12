@@ -116,7 +116,7 @@ test('CLI lists and resolves the same persisted MCP approval without a bypass', 
       const approved = await runCliArgv(['onayla', queued.approval.id], { cli, stdout: value => approvedOutput.push(value) });
       assert.equal(approved.exitCode, 0);
       assert.match(approvedOutput.join('\n'), /The learned fact was written to canonical state/);
-      assert.equal(cli.kernel.verify(text).data.status, 'dogrulandi');
+      assert.equal(cli.kernel.verify(text).data.status, 'verified');
 
       const invalidOutput = [];
       const invalid = await runCliArgv(['onayla', queued.approval.id, 'maybe'], {
@@ -144,7 +144,7 @@ test('CLI lists and resolves the same persisted MCP approval without a bypass', 
       });
       assert.equal(rejected.exitCode, 0);
       assert.match(rejectedOutput.join('\n'), /Approval rejected/);
-      assert.notEqual(cli.kernel.verify(rejectedText).data.status, 'dogrulandi');
+      assert.notEqual(cli.kernel.verify(rejectedText).data.status, 'verified');
     } finally {
       closeCli(cli);
     }

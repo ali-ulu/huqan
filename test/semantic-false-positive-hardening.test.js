@@ -86,8 +86,8 @@ describe('semantic false-positive hardening', () => {
       const raw = kernel.verify(claim, { workspaceId: 'default' });
       const result = unwrap(raw);
 
-      assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(result.status), 'status contract must stay stable');
-      assert.notStrictEqual(result.status, 'dogrulandi', `aviation false claim was incorrectly verified: ${claim}`);
+      assert.ok(['verified', 'contradicted', 'unknown'].includes(result.status), 'status contract must stay stable');
+      assert.notStrictEqual(result.status, 'verified', `aviation false claim was incorrectly verified: ${claim}`);
       assert.ok(raw.meta && raw.meta.semanticTrust, 'semantic trust metadata should be present');
     }
   });
@@ -105,8 +105,8 @@ describe('semantic false-positive hardening', () => {
       const raw = kernel.verify(claim, { workspaceId: 'default' });
       const result = unwrap(raw);
 
-      assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(result.status), 'status contract must stay stable');
-      assert.notStrictEqual(result.status, 'dogrulandi', `pharma/negation claim was incorrectly verified: ${claim}`);
+      assert.ok(['verified', 'contradicted', 'unknown'].includes(result.status), 'status contract must stay stable');
+      assert.notStrictEqual(result.status, 'verified', `pharma/negation claim was incorrectly verified: ${claim}`);
     }
   });
 
@@ -117,8 +117,8 @@ describe('semantic false-positive hardening', () => {
     const raw = kernel.verify('EDDF is in Paris', { workspaceId: 'default' });
     const result = unwrap(raw);
 
-    assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(result.status), 'status contract must stay stable');
-    assert.notStrictEqual(result.status, 'dogrulandi', 'location conflict must not be verified');
+    assert.ok(['verified', 'contradicted', 'unknown'].includes(result.status), 'status contract must stay stable');
+    assert.notStrictEqual(result.status, 'verified', 'location conflict must not be verified');
     assert.ok(raw.meta && raw.meta.semanticTrust && raw.meta.semanticTrust.meta.fuzzy, 'fuzzy metadata should be attached');
     assert.strictEqual(raw.meta.semanticTrust.meta.fuzzy.isWeak, true);
   });
@@ -137,8 +137,8 @@ describe('semantic false-positive hardening', () => {
       'sigara her zaman kanser yapar',
     ]) {
       const result = unwrap(kernel.verify(claim, { workspaceId: 'default' }));
-      assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(result.status), 'status contract must stay stable');
-      assert.notStrictEqual(result.status, 'dogrulandi', `adversarial claim was incorrectly verified: ${claim}`);
+      assert.ok(['verified', 'contradicted', 'unknown'].includes(result.status), 'status contract must stay stable');
+      assert.notStrictEqual(result.status, 'verified', `adversarial claim was incorrectly verified: ${claim}`);
     }
   });
 });

@@ -89,7 +89,7 @@ function runVerificationBench() {
   for (const stmt of TRUE_STATEMENTS) {
     const raw = kernel.verify(stmt);
     const result = raw.data || raw;
-    const isVerified = result && result.status === 'dogrulandi';
+    const isVerified = result && result.status === 'verified';
     if (isVerified) {
       results.truePositives++;
       results.truths.push({ stmt, status: 'correct', confidence: result.confidence });
@@ -102,7 +102,7 @@ function runVerificationBench() {
   for (const stmt of FALSE_STATEMENTS) {
     const raw = kernel.verify(stmt);
     const result = raw.data || raw;
-    const isRejected = result && (result.status === 'celiski' || result.status === 'bilinmiyor');
+    const isRejected = result && (result.status === 'contradicted' || result.status === 'unknown');
     if (isRejected) {
       results.trueNegatives++;
       results.falsehoods.push({ stmt, status: 'correct', confidence: result.confidence || 0 });

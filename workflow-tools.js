@@ -133,7 +133,7 @@ function createWorkflowTools(kernel, options = {}) {
           ok: false,
           tool: 'verifyClaim',
           status: 'error',
-          data: { status: 'bilinmiyor' },
+          data: { status: 'unknown' },
           error: { code: 'MISSING_METHOD', message: 'kernel.verify is unavailable.' },
           confidence: 0,
         });

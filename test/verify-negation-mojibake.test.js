@@ -40,7 +40,7 @@ describe('verify Turkish negation predicate matching (#360)', () => {
     const raw = kernel.verify('kedi evcil değil', { workspaceId: 'default' });
     const result = unwrap(raw);
 
-    assert.strictEqual(result.status, 'celiski');
+    assert.strictEqual(result.status, 'contradicted');
   });
 
   it('detects a contradiction for "değildir" negation of an existing edge', () => {
@@ -52,6 +52,6 @@ describe('verify Turkish negation predicate matching (#360)', () => {
     const raw = kernel.verify('kedi evcil değildir', { workspaceId: 'default' });
     const result = unwrap(raw);
 
-    assert.strictEqual(result.status, 'celiski');
+    assert.strictEqual(result.status, 'contradicted');
   });
 });

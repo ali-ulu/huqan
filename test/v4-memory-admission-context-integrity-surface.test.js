@@ -30,7 +30,7 @@ function mockKernel() {
       return {
         ok: true,
         type: 'verify',
-        data: { status: 'bilinmiyor', confidence: 0 },
+        data: { status: 'unknown', confidence: 0 },
         evidence: [],
         error: null,
         meta: { contractVersion: '1.0', backend: 'memory', paranoidMode: false },

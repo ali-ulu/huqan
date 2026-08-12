@@ -142,7 +142,7 @@ class Agent {
     const prev = normalizeSummaryText(previousSummary);
     const curr = normalizeSummaryText(currentSummary);
     if (!curr) return true;
-    if (curr === 'bilmiyorum' || curr === 'bilinmiyor' || curr === 'unknown') return true;
+    if (curr === 'bilmiyorum' || curr === 'unknown' || curr === 'unknown') return true;
     if (!prev) return false;
     return curr === prev;
   }
@@ -749,7 +749,7 @@ class Agent {
 
   _chooseFollowUp(step, summary, state) {
     if (step.action === 'verify') {
-      if (summary.status === 'bilinmiyor') return { action: 'dream', tool: 'dream', input: {} };
+      if (summary.status === 'unknown') return { action: 'dream', tool: 'dream', input: {} };
       return null;
     }
     if (step.action === 'ask') {

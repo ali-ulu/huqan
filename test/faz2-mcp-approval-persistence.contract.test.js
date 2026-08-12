@@ -121,7 +121,7 @@ describe('FAZ2-PR5 contract: F-005 MCP shared state', () => {
       const mcpKernel = createKernelFromEnv();
       const verify = mcpKernel.verify(text);
       assert.equal(verify.ok, true);
-      assert.equal(verify.data.status, 'dogrulandi');
+      assert.equal(verify.data.status, 'verified');
       mcpKernel.graph.close?.();
     });
   });

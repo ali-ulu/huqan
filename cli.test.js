@@ -608,7 +608,7 @@ describe('CLI - Komut Çalıştırma', () => {
     assert.ok(cli.kernel instanceof KernelV2);
     cli.kernel.learn('kus ucmaz', TEST_FIXTURE_LEARN_BYPASS);
     const result = cli.kernel.verify('kus ucar');
-    assert.strictEqual(result.data.status, 'celiski');
+    assert.strictEqual(result.data.status, 'contradicted');
     assert.strictEqual(result.data.contradictionReason, 'opposite_predicate_conflict');
   });
 
@@ -704,7 +704,7 @@ describe('CLI - Komut Çalıştırma', () => {
     const cli = freshCLI();
     cli.kernel.learn('kedi hayvandir', TEST_FIXTURE_LEARN_BYPASS);
     const result = cli.execute('verify', 'kedi hayvandir');
-    assert.ok(result.includes('Verify: dogrulandi'));
+    assert.ok(result.includes('Verify: verified'));
   });
 
   it('execute: english learn alias is gated and does not mutate silently', () => {

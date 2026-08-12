@@ -165,9 +165,9 @@ test('shield reads both vocabularies so boundary ordering cannot change a verdic
   // The same logical result, expressed in each vocabulary, must classify
   // identically. This is what makes the API-boundary adapter safe to apply
   // before or after lib/shield.js sees the value.
-  assert.equal(normalizeCheck({ status: 'verified' }).status, 'dogrulandi');
-  assert.equal(normalizeCheck({ status: 'contradicted' }).status, 'celiski');
-  assert.equal(normalizeCheck({ status: 'unknown' }).status, 'bilinmiyor');
+  assert.equal(normalizeCheck({ status: 'verified' }).status, 'verified');
+  assert.equal(normalizeCheck({ status: 'contradicted' }).status, 'contradicted');
+  assert.equal(normalizeCheck({ status: 'unknown' }).status, 'unknown');
 
   const pairs = [
     [{ status: 'dogrulandi' }, { status: 'verified' }],

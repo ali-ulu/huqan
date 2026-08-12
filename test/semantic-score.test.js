@@ -22,7 +22,7 @@ describe('semantic-score', () => {
       evidence: [{ text: 'B737 has 2 engines' }],
     });
 
-    assert.strictEqual(result.status, 'dogrulandi');
+    assert.strictEqual(result.status, 'verified');
     assert.strictEqual(result.classification, 'verified');
     assert.ok(Array.isArray(result.warnings));
     assert.ok(Array.isArray(result.risk.flags));
@@ -42,7 +42,7 @@ describe('semantic-score', () => {
       signals,
     });
 
-    assert.strictEqual(result.status, 'celiski');
+    assert.strictEqual(result.status, 'contradicted');
     assert.strictEqual(result.classification, 'contradicted');
     assert.ok(result.risk.flags.length >= 1);
   });
@@ -55,7 +55,7 @@ describe('semantic-score', () => {
       signals: [],
     });
 
-    assert.strictEqual(result.status, 'bilinmiyor');
+    assert.strictEqual(result.status, 'unknown');
     assert.ok(['weak_match', 'unsupported', 'needs_review'].includes(result.classification));
   });
 
@@ -75,7 +75,7 @@ describe('semantic-score', () => {
       risk: { domain: 'aviation', flags: ['HIGH_RISK_DOMAIN', 'WEAK_PARTIAL_MATCH'] },
     });
 
-    assert.strictEqual(result.status, 'bilinmiyor');
+    assert.strictEqual(result.status, 'unknown');
     assert.ok(['needs_review', 'weak_match'].includes(result.classification));
     assert.ok(result.risk.flags.includes('HIGH_RISK_DOMAIN'));
   });
@@ -88,7 +88,7 @@ describe('semantic-score', () => {
       signals: [],
     });
 
-    assert.strictEqual(result.status, 'bilinmiyor');
+    assert.strictEqual(result.status, 'unknown');
     assert.strictEqual(result.classification, 'unsupported');
   });
 
@@ -104,8 +104,8 @@ describe('semantic-score', () => {
       signals,
     });
 
-    assert.notStrictEqual(result.status, 'celiski');
-    assert.strictEqual(result.status, 'bilinmiyor');
+    assert.notStrictEqual(result.status, 'contradicted');
+    assert.strictEqual(result.status, 'unknown');
   });
 
   it('risk flags remain secondary metadata and status contract stays stable', () => {
@@ -123,7 +123,7 @@ describe('semantic-score', () => {
 
     assert.ok(Array.isArray(result.warnings));
     assert.ok(Array.isArray(result.risk.flags));
-    assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(result.status));
+    assert.ok(['verified', 'contradicted', 'unknown'].includes(result.status));
     assert.ok(!['needs_review', 'weak_match', 'unsupported', 'llm-assisted', 'high_risk'].includes(result.status));
   });
 
@@ -148,7 +148,7 @@ describe('semantic-score', () => {
 
   it('normalizes classification envelopes without changing status contract', () => {
     const normalized = normalizeSemanticClassification({
-      status: 'dogrulandi',
+      status: 'verified',
       supportScore: 0.9,
       contradictionScore: 0,
       riskScore: 0.1,
@@ -158,7 +158,7 @@ describe('semantic-score', () => {
       meta: { z: 1 },
     });
 
-    assert.strictEqual(normalized.status, 'dogrulandi');
+    assert.strictEqual(normalized.status, 'verified');
     assert.ok(Array.isArray(normalized.warnings));
     assert.ok(Array.isArray(normalized.risk.flags));
     assert.ok(normalized.meta && typeof normalized.meta === 'object');
@@ -166,7 +166,7 @@ describe('semantic-score', () => {
 
   it('can attach semantic meta to an envelope without mutating status', () => {
     const envelope = attachSemanticMeta(
-      { status: 'bilinmiyor', meta: { existing: true } },
+      { status: 'unknown', meta: { existing: true } },
       {
         supportScore: 0.35,
         contradictionScore: 0,
@@ -175,7 +175,7 @@ describe('semantic-score', () => {
       },
     );
 
-    assert.strictEqual(envelope.status, 'bilinmiyor');
+    assert.strictEqual(envelope.status, 'unknown');
     assert.ok(envelope.meta.semantic);
     assert.ok(envelope.meta.existing);
   });
