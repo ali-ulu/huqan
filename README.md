@@ -102,6 +102,31 @@ The `origin` fetch and push URLs should both be:
 https://github.com/ali-ulu/huqan.git
 ```
 
+### Your first Trust Receipt
+
+One command, no API key, no config file to edit:
+
+```bash
+npm ci
+node cli.js quickstart
+```
+
+This runs the real pipeline end to end — `axiom.learn` is proposed, the
+mutation gate answers `review`, an approval is persisted, `axiom.approve`
+performs the canonical write, the claim is verified against the graph, and the
+resulting Trust Receipt is printed:
+
+```text
+HUQAN quickstart — learn -> review -> approve -> verify -> Trust Receipt
+  1. OK   propose: axiom.learn -> review (mutating_requires_review), approval approval-…
+  2. OK   approve: axiom.approve -> approved (actor cli-quickstart)
+  3. OK   verify: dogrulandi (confidence 0.90)
+  4. OK   receipt: receiptId … (status canonical)
+```
+
+Quickstart runs in a throwaway store in your temp directory; it does not write
+to your own memory, and it does not relax any gate.
+
 ### Verify the local SQLite dependency and test suite
 
 ```bash

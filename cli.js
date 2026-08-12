@@ -12,6 +12,8 @@ const os = require('os');
 const readline = require('readline');
 const { isPathWithinRoot } = require('./lib/path-safety');
 const { createKernel } = require('./lib/kernel-factory');
+const { cliHelpText } = require('./lib/cli-help');
+const { runQuickstartCommand } = require('./lib/quickstart-cli');
 const {
   parseCommand,
   normalizeCommandText,
@@ -165,6 +167,11 @@ const CLI_MUTATION_GATE = Object.freeze({
   konsolide: { decision: 'review', reason: 'cli_canonical_mutation_requires_review', mutationType: 'canonical',  auditEvent: 'REVIEW' },
   dusun:     { decision: 'review', reason: 'cli_automation_requires_review',     mutationType: 'automation',    auditEvent: 'REVIEW' },
   ruya:      { decision: 'allow',  reason: 'cli_read_only_inference',            mutationType: 'none' },
+  // Quickstart mutates only a throwaway demo store it creates itself, never
+  // canonical user memory, so it is allowed rather than review-gated. It is
+  // still audited, and the canonical write it performs inside that store goes
+  // through the normal axiom.learn review + axiom.approve path.
+  quickstart: { decision: 'allow', reason: 'cli_quickstart_isolated_demo_store', mutationType: 'demo_sandbox', auditEvent: 'UPDATE' },
 });
 
 function commandFailure(message, opts = {}, exitCode = 1) {
@@ -615,6 +622,8 @@ class CLI {
         text += `, ${result.consolidated} celiski temizlendi, ${result.optimized} kenar budandi.`;
         return text;
       }
+      case 'quickstart':
+        return runQuickstartCommand({ callTool: callMcpTool, createApprovalStore: createApprovalStoreFromKernel });
       case 'durum': {
         const stats = this.kernel.graph.getStats();
         const nodes = stats.nodes;
@@ -639,33 +648,7 @@ class CLI {
       case 'selam':
         return 'Merhaba! Bana bir sey ogretebilir veya soru sorabilirsin.';
       case 'yardım':
-        return [
-          'AXIOM komutlari:',
-          '  "kedi balik yer"          -> bilgi ogrenirim',
-          '  "kedi nedir"              -> soruyu cevaplarim',
-          '  "neden tavuk"             -> sebep analizi',
-          '  "tavuk mu yumurta mi"     -> karsilastirma',
-          '  "durum"                   -> sistem durumu',
-          '  "ruya"                    -> hipotez uretirim',
-          '  "plan: hedef"             -> ajan plani uretirim',
-          '  "ajan: hedef"             -> ajan calistiririm',
-          '  "backup"                  -> calisma durumunu yedeklerim',
-          '  "restore[: yol]"          -> en son veya secili yedekten geri yuklerim',
-          '  "kaydet"                  -> hafizayi kaydederim',
-          '  "onaylar"                 -> bekleyen ogrenme onaylarini listelerim',
-          '  "onayla <id> [karar]"     -> pending ogrenmeyi approved/rejected ile karara baglarim',
-          '  "llm-sor: soru"           -> LLM tavsiyesi hazirlarim',
-          '  "yükle: dosya.txt"        -> dosyadan ogrenirim',
-          '  English-first aliases:',
-          '  "learn: cats are animals" -> teach alias',
-          '  "ask: cat nedir"          -> ask alias',
-          '  "why: tavuk"              -> why alias',
-          '  "compare: tavuk | yumurta"-> compare alias',
-          '  "verify: kedi bitkidir"   -> guarded verify alias',
-          '  "upload: notes.txt"       -> upload alias',
-          '  Turkish compatibility aliases: \u00f6\u011fret, sor, neden, kar\u015f\u0131la\u015ft\u0131r, do\u011frula, y\u00fckle',
-          '  "çıkış"                   -> cikis',
-        ].join('\n');
+        return cliHelpText();
       case 'anlamadım':
         return 'Anlamadim. Daha uzun bir cumle yaz veya "yardım" yaz.';
       default:

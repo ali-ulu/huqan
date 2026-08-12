@@ -2,13 +2,12 @@ const path = require('path');
 const crypto = require('crypto');
 const { resolveContainedPath } = require('./lib/memory-store-utils');
 const { applyStorageSchema } = require('./lib/storage/schema');
-let Database;
+const { loadSqliteDriver, sqliteUnavailableError } = require('./lib/sqlite-availability');
 
-try {
-  Database = require('better-sqlite3');
-} catch (_) {
-  Database = null;
-}
+// The load error is retained (not discarded as before) so the throw site can
+// tell "not installed" from "installed but built for a different Node ABI" —
+// two failures with different fixes that used to look identical to the user.
+const { Database, loadError: sqliteLoadError } = loadSqliteDriver();
 
 // Rows pulled per keyset page when recovering expired execution leases (#426).
 const RECOVERY_PAGE_SIZE = 500;
@@ -67,7 +66,7 @@ class AxiomStorage {
     this.kernel = opts.kernel;
     this.dbPath = resolveDbPath(opts, this.kernel);
     if (!Database) {
-      throw new Error('better-sqlite3 is required for v3 storage');
+      throw sqliteUnavailableError('better-sqlite3 is required for v3 storage.', sqliteLoadError);
     }
     this.db = new Database(this.dbPath);
     this.db.pragma('journal_mode = WAL');
