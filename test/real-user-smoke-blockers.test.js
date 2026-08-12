@@ -33,7 +33,7 @@ describe('real user smoke blockers', () => {
       });
 
       assert.strictEqual(result.status, 0, result.stderr);
-      assert.match(result.stdout, /AXIOM komutlari:/);
+      assert.match(result.stdout, /HUQAN commands:/);
       assert.doesNotMatch(result.stdout, /axiom>/);
       assert.doesNotMatch(result.stderr, /Load error/i);
       assert.strictEqual(fs.existsSync(path.join(cwd, 'memory.json')), false);
