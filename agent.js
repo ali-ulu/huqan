@@ -515,29 +515,29 @@ class Agent {
     };
 
     if (objective === 'learn') {
-      pushStep('ingest', 'learn', 'learn', cleanedGoal, 'İstek bilgi eklemeye dönük.');
-      pushStep('confirm', 'verify', 'verify', cleanedGoal, 'Yeni bilgi mümkünse doğrulanır.');
+      pushStep('ingest', 'learn', 'learn', cleanedGoal, 'The request is oriented towards adding knowledge.');
+      pushStep('confirm', 'verify', 'verify', cleanedGoal, 'New knowledge is verified where possible.');
     } else if (objective === 'compare') {
-      pushStep('context', 'ask', 'ask', cleanedGoal, 'Karşılaştırma için bağlam toplanır.');
-      pushStep('compare', 'compare', 'compare', cleanedGoal, 'İki varlık arasındaki farklar çıkarılır.');
+      pushStep('context', 'ask', 'ask', cleanedGoal, 'Context is gathered for the comparison.');
+      pushStep('compare', 'compare', 'compare', cleanedGoal, 'Differences between the two entities are extracted.');
     } else if (objective === 'reason') {
-      pushStep('context', 'ask', 'ask', cleanedGoal, 'Sebep analizi için bağlam alınır.');
-      pushStep('reason', 'reason', 'reason', cleanedGoal, 'Neden-sonuç zinciri oluşturulur.');
+      pushStep('context', 'ask', 'ask', cleanedGoal, 'Context is gathered for the cause analysis.');
+      pushStep('reason', 'reason', 'reason', cleanedGoal, 'A cause-and-effect chain is built.');
     } else if (objective === 'verify') {
-      pushStep('context', 'ask', 'ask', cleanedGoal, 'İddianın grafikteki durumu kontrol edilir.');
-      pushStep('verify', 'verify', 'verify', cleanedGoal, 'Doğruluk ve çelişki denetlenir.');
-      pushStep('fallback', 'dream', 'dream', {}, 'Sonuç bilinmiyorsa hipotez üretip boşluğu işaretler.');
+      pushStep('context', 'ask', 'ask', cleanedGoal, 'The claim is checked against the graph.');
+      pushStep('verify', 'verify', 'verify', cleanedGoal, 'Correctness and contradictions are audited.');
+      pushStep('fallback', 'dream', 'dream', {}, 'If the result is unknown, a hypothesis is generated and the gap is flagged.');
     } else if (objective === 'dream') {
-      pushStep('dream', 'dream', 'dream', {}, 'Hipotez ve bağlamsal öneri üretilir.');
-      pushStep('context', 'ask', 'ask', cleanedGoal, 'Hipotez sonrası bağlam açılır.');
+      pushStep('dream', 'dream', 'dream', {}, 'A hypothesis and a contextual recommendation are produced.');
+      pushStep('context', 'ask', 'ask', cleanedGoal, 'Context is expanded after the hypothesis.');
     } else if (objective === 'plan') {
-      pushStep('context', 'ask', 'ask', cleanedGoal, 'Görevin kapsamı netleştirilir.');
-      pushStep('verify', 'verify', 'verify', cleanedGoal, 'Kritik iddia veya kısıtlar doğrulanır.');
-      pushStep('dream', 'dream', 'dream', {}, 'Alternatif yol ve riskler keşfedilir.');
+      pushStep('context', 'ask', 'ask', cleanedGoal, 'The scope of the task is clarified.');
+      pushStep('verify', 'verify', 'verify', cleanedGoal, 'Critical claims or constraints are verified.');
+      pushStep('dream', 'dream', 'dream', {}, 'Alternative paths and risks are explored.');
     } else {
-      pushStep('context', 'ask', 'ask', cleanedGoal, 'Genel bağlam toplanır.');
+      pushStep('context', 'ask', 'ask', cleanedGoal, 'General context is gathered.');
       pushStep('verify', 'verify', 'verify', cleanedGoal, 'Mevcut iddia destekleniyor mu kontrol edilir.');
-      pushStep('dream', 'dream', 'dream', {}, 'Eksik alanlar için hipotez üretilir.');
+      pushStep('dream', 'dream', 'dream', {}, 'Hypotheses are generated for the missing areas.');
     }
 
     const limitedSteps = steps.slice(0, Math.max(1, opts.maxSteps || this.maxSteps));
@@ -558,8 +558,8 @@ class Agent {
       policy,
       memory: memorySummary,
       rationale: objective === 'investigate'
-        ? 'Genel amaç belirsiz; önce bağlam topla, sonra karar ver.'
-        : 'Amaç sinyali açık; ilgili araçlar sıralandı.',
+        ? 'The overall objective is unclear; gather context first, then decide.'
+        : 'The objective signal is clear; the relevant tools were ordered.',
     };
 
     this.lastPlan = plan;
@@ -600,14 +600,14 @@ class Agent {
     const stalledCount = Number(state.progress?.stalledCount || 0);
     const policySignals = Array.isArray(state.plan?.policy?.signals) ? state.plan.policy.signals : [];
 
-    if (blocked) recommendations.add('Sadece izinli tool setiyle devam et ve istegi daralt.');
-    if (state.status === 'paused') recommendations.add('Hedefi degistirmeden once checkpoint uzerinden devam et.');
-    if (stalledCount >= 2) recommendations.add('Ayni toolu tekrar etmeden once hedefi yeniden ifade et veya baglam ekle.');
-    if (policySignals.includes('recent-failure')) recommendations.add('Yakin gecmiste hata veren tool imzasini tekrar etme; ask veya dream fallback kullan.');
-    if (policySignals.includes('tool-health-risk')) recommendations.add('Zayif tool yolunu tekrar denemeden once hedefi daralt.');
-    if (state.objective === 'verify') recommendations.add('Once ask ile baglam topla, sonra odakli ifadeyi verify ile denetle.');
-    if (state.objective === 'reason') recommendations.add('Sebep ve kanit zincirini ara olgularla guclendir.');
-    if (!recommendations.size) recommendations.add('Secili tool karisimi ile devam et.');
+    if (blocked) recommendations.add('Continue with the permitted tool set only, and narrow the request.');
+    if (state.status === 'paused') recommendations.add('Resume from the checkpoint before changing the goal.');
+    if (stalledCount >= 2) recommendations.add('Restate the goal or add context before repeating the same tool.');
+    if (policySignals.includes('recent-failure')) recommendations.add('Do not repeat a tool signature that failed recently; fall back to ask or dream.');
+    if (policySignals.includes('tool-health-risk')) recommendations.add('Narrow the goal before retrying a weak tool path.');
+    if (state.objective === 'verify') recommendations.add('Gather context with ask first, then audit the focused statement with verify.');
+    if (state.objective === 'reason') recommendations.add('Strengthen the cause and evidence chain with intermediate facts.');
+    if (!recommendations.size) recommendations.add('Continue with the selected tool mix.');
 
     const toolHealth = Object.entries(this.memory?.stats?.tools || {})
       .map(([tool, stat]) => ({
@@ -1015,7 +1015,7 @@ class Agent {
       } else if (followUp && state.steps.length < activePlan.maxSteps) {
         const nextSignature = this._stepSignature(followUp, state);
         if (this._findRecentFailure(nextSignature)) {
-          const fallback = followUp.action === 'dream' ? null : { action: 'dream', tool: 'dream', input: {}, rationale: 'Önceki aynı hata tekrarlandığı için güvenli fallback seçildi.' };
+          const fallback = followUp.action === 'dream' ? null : { action: 'dream', tool: 'dream', input: {}, rationale: 'The same error repeated, so a safe fallback was chosen.' };
           if (fallback && !this._findRecentFailure(this._stepSignature(fallback, state))) {
             queued.unshift({
               id: `${fallback.action}-${state.steps.length + 1}`,
@@ -1031,7 +1031,7 @@ class Agent {
             action: followUp.action,
             tool: followUp.tool,
             input: followUp.input,
-            rationale: 'Önceki adımın sonucu ek adım gerektirdi.',
+            rationale: 'The result of the previous step required an additional step.',
           });
         }
       }
@@ -1043,7 +1043,7 @@ class Agent {
 
     const finalStep = state.steps[state.steps.length - 1];
     const finalSummary = finalStep ? this._extractAgentSummary(finalStep.result) : { text: '' };
-    const finalAnswer = finalSummary.text || 'Ajan görevi tamamladı ancak kısa özet üretilemedi.';
+    const finalAnswer = finalSummary.text || 'The agent completed the task but could not produce a short summary.';
     state.status = finalStep && finalStep.result && finalStep.result.ok === false ? 'blocked' : 'completed';
     state.finalSummary = buildFinalSummary({
       goal: state.goal,
@@ -1097,29 +1097,29 @@ class Agent {
     const nextActionLine = `${nextAction.action} -> ${nextAction.tool}: ${nextAction.reason}`;
     const toolHealthLines = recommendations.toolHealth.length
       ? recommendations.toolHealth.map(item => `- ${item.tool}: success=${item.success}, blocked=${item.blocked}, error=${item.error}`)
-      : ['- henüz kullanım verisi yok'];
+      : ['- no usage data yet'];
     return [
-      `Hedef: ${state.goal}`,
-      `Amaç: ${state.objective}`,
-      `Durum: ${state.status}`,
-      `Adım sayısı: ${state.completedSteps}`,
-      `İlerleme: ${(state.progress && typeof state.progress.stalledCount === 'number') ? `stalled=${state.progress.stalledCount}` : 'unknown'}`,
-      `Sonraki adim: ${nextActionLine}`,
-      'Yargı özeti:',
-      `- Mod: ${finalSummary.mode}`,
-      'Bilinenler:',
-      ...(finalSummary.knownFacts.length ? finalSummary.knownFacts.map(item => `- ${item}`) : ['- yok']),
-      'Bilinmeyenler:',
-      ...(finalSummary.unknowns.length ? finalSummary.unknowns.map(item => `- ${item}`) : ['- yok']),
-      `- Sonuç: ${finalSummary.conclusion}`,
-      'Takip soruları:',
-      ...(finalSummary.nextQuestions.length ? finalSummary.nextQuestions.map(item => `- ${item}`) : ['- yok']),
-      'Öneri:',
+      `Goal: ${state.goal}`,
+      `Objective: ${state.objective}`,
+      `Status: ${state.status}`,
+      `Steps completed: ${state.completedSteps}`,
+      `Progress: ${(state.progress && typeof state.progress.stalledCount === 'number') ? `stalled=${state.progress.stalledCount}` : 'unknown'}`,
+      `Next step: ${nextActionLine}`,
+      'Judgement summary:',
+      `- Mode: ${finalSummary.mode}`,
+      'Known:',
+      ...(finalSummary.knownFacts.length ? finalSummary.knownFacts.map(item => `- ${item}`) : ['- none']),
+      'Unknown:',
+      ...(finalSummary.unknowns.length ? finalSummary.unknowns.map(item => `- ${item}`) : ['- none']),
+      `- Conclusion: ${finalSummary.conclusion}`,
+      'Follow-up questions:',
+      ...(finalSummary.nextQuestions.length ? finalSummary.nextQuestions.map(item => `- ${item}`) : ['- none']),
+      'Recommendation:',
       ...recommendationLines,
-      'Araç sağlığı:',
+      'Tool health:',
       ...toolHealthLines,
       ...stepLines,
-      `Sonuç: ${state.finalAnswer}`,
+      `Result: ${state.finalAnswer}`,
     ].join('\n');
   }
 }

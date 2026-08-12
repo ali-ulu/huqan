@@ -106,9 +106,9 @@ describe('Agent', () => {
     assert.ok(typeof runResult.data.finalAnswer === 'string');
     assert.ok(runResult.data.finalSummary);
     assert.ok(typeof runResult.data.finalSummary.mode === 'string');
-    assert.ok(runResult.data.report.includes('Hedef:'));
-    assert.ok(runResult.data.report.includes('Yargı özeti:'));
-    assert.ok(runResult.data.report.includes('Sonuç:'));
+    assert.ok(runResult.data.report.includes('Goal:'));
+    assert.ok(runResult.data.report.includes('Judgement summary:'));
+    assert.ok(runResult.data.report.includes('Result:'));
   });
 
   it('a beforeTask plugin setting blocked:true actually halts the step (not just observes it)', () => {
@@ -284,7 +284,7 @@ describe('Agent', () => {
     assert.ok(plan.data.policy.signals.includes('recent-failure'));
     assert.ok(Array.isArray(plan.data.policy.failureHits));
     assert.ok(plan.data.policy.failureHits.length >= 1);
-    assert.ok(plan.data.rationale.includes('Amaç sinyali açık') || plan.data.rationale.includes('Default'));
+    assert.ok(plan.data.rationale.includes('The objective signal is clear') || plan.data.rationale.includes('Default'));
   });
 
   it('surfaces policy scores and demotes unhealthy tools', () => {
@@ -361,10 +361,10 @@ describe('Agent', () => {
     assert.strictEqual(runResult.type, 'agent');
     assert.strictEqual(runResult.data.status, 'blocked');
     assert.ok(runResult.data.steps.some(step => step.status === 'blocked'));
-    assert.ok(runResult.data.report.includes('Durum: blocked'));
-    assert.ok(runResult.data.report.includes('Sonraki ad'));
-    assert.ok(runResult.data.report.includes('Öneri:'));
-    assert.ok(runResult.data.report.includes('Araç sağlığı:'));
+    assert.ok(runResult.data.report.includes('Status: blocked'));
+    assert.ok(runResult.data.report.includes('Next step'));
+    assert.ok(runResult.data.report.includes('Recommendation:'));
+    assert.ok(runResult.data.report.includes('Tool health:'));
     assert.ok(runResult.data.recommendations);
     assert.ok(runResult.data.nextAction);
     assert.strictEqual(runResult.data.nextAction.action, 'revise');
@@ -441,7 +441,7 @@ describe('Agent', () => {
     assert.strictEqual(runResult.ok, true);
     assert.strictEqual(runResult.type, 'agent');
     assert.ok(runResult.data.steps.some(step => step.tool === 'dream'));
-    assert.ok(runResult.data.report.includes('İlerleme:'));
+    assert.ok(runResult.data.report.includes('Progress:'));
     assert.ok(typeof runResult.data.progress.stalledCount === 'number');
   });
 

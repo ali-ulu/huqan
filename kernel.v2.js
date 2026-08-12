@@ -9,25 +9,25 @@ const MANIPULATION_RULES = [
   {
     label: 'prompt_injection',
     regex: /(?:ignore(?:\s+all)?(?:\s+previous)?(?:\s+instructions?)?|önceki talimatları yok say|sistem mesajını yok say|sistem talimatlarını yok say|system prompt(?:unu)?(?:\s+yok say)?|role:\s*system|developer message|gizli komut|talimatları atla)/i,
-    reason: 'Metin sistem talimatlarını atlatmaya çalışıyor.',
+    reason: 'The text is trying to bypass system instructions.',
     weight: 0.72,
   },
   {
     label: 'coercive_pressure',
     regex: /(?:hemen|acilen|derhal|zorundasın|zorundasınız|mecbursun|mecbursunuz|bir an önce|şimdi|vakit kaybetmeden|itiraz etme|sorgulama|sadece bunu yap|tek yapman gereken)/i,
-    reason: 'Metin baskı ve acelecilik dili kullanıyor.',
+    reason: 'The text uses pressure and urgency language.',
     weight: 0.24,
   },
   {
     label: 'unsupported_authority',
     regex: /(?:resmi olarak|yetkiliyim|yetkiliyiz|uzmanım|uzmanız|CEO|admin|yönetici|sistem yöneticisi|kurum adına|otorite olarak|openai|chatgpt|claude|gpt-4|gpt-5)/i,
-    reason: 'Metin desteklenmemiş otorite iddiası taşıyor.',
+    reason: 'The text makes an unsupported claim of authority.',
     weight: 0.22,
   },
   {
     label: 'false_certainty',
     regex: /(?:% ?100|kesinlikle|garanti(?:lidir|dir)?|mutlak(?:tır|tır)?|asla yanılmaz|şüphesiz|tartışmasız|her zaman|hiçbir zaman|tamamen eminim)/i,
-    reason: 'Metin aşırı kesinlik iddia ediyor.',
+    reason: 'The text claims excessive certainty.',
     weight: 0.18,
   },
 ];
@@ -420,28 +420,28 @@ class KernelV2 {
     const status = data && data.status;
 
     if (status === 'dogrulandi') {
-      parts.push(data?.inferred ? 'İfade grafikteki bir çıkarım zinciriyle desteklendi.' : 'İfade doğrudan grafikte desteklendi.');
+      parts.push(data?.inferred ? 'İfade grafikteki bir çıkarım zinciriyle desteklendi.' : 'The statement is directly supported by the graph.');
     } else if (status === 'celiski') {
       const reason = data?.contradictionReason || 'çelişki';
-      parts.push(`İfade çelişkili bulundu (${reason}).`);
+      parts.push(`The statement was found contradictory (${reason}).`);
     } else {
-      parts.push('İfade için yeterli kanıt bulunamadı.');
+      parts.push('Not enough evidence was found for the statement.');
     }
 
     if (Array.isArray(data?.reasoningPath) && data.reasoningPath.length > 0) {
       const pathText = data.reasoningPath
         .map(step => `${step.from} -> ${step.relation} -> ${step.to}`)
         .join(' | ');
-      parts.push(`İzlenen yol: ${pathText}.`);
+      parts.push(`Path followed: ${pathText}.`);
     } else if (evidenceSummary.length > 0) {
-      parts.push(`Kanıt özeti: ${evidenceSummary.join(' | ')}.`);
+      parts.push(`Evidence summary: ${evidenceSummary.join(' | ')}.`);
     }
 
     if (risk?.manipulation) {
       const labels = Array.isArray(risk.labels) && risk.labels.length > 0
         ? risk.labels.join(', ')
         : 'manipulation';
-      parts.push(`Risk işaretleri: ${labels}.`);
+      parts.push(`Risk markers: ${labels}.`);
     }
 
     return parts.join(' ');
@@ -585,11 +585,11 @@ class KernelV2 {
 
     const extractedStatement = this._extractVerificationStatement(raw);
     if (labels.length > 0 && extractedStatement && extractedStatement !== raw) {
-      addHit('mixed_intent', 'Metin içinde hem manipülatif talimat hem de doğrulanacak içerik var.', 0.18);
+      addHit('mixed_intent', 'The text contains both a manipulative instruction and content to verify.', 0.18);
     }
 
     if (/[:;,-]\s*(?:ignore|önceki|sistem|talimat|prompt|komut|instruction)/i.test(lower)) {
-      addHit('hidden_instruction', 'Metin ayraçların arkasına gizlenmiş bir talimat içeriyor.', 0.2);
+      addHit('hidden_instruction', 'The text hides an instruction behind delimiters.', 0.2);
     }
 
     score = Math.max(0, Math.min(1, score));
