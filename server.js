@@ -978,8 +978,8 @@ const server = http.createServer(async (req, res) => {
         llmAnswer: llmText,
         model: llmRes.data.model,
         axiomCheck,
-        // shield.llmCheck is an internal normalizeCheck() shape and still
-        // carries the legacy status; project it at the boundary.
+        // normalizeCheck() now yields canonical status, so this projection is
+        // a no-op for it; kept because the guard also accepts legacy input.
         llmCheck: toPublicVerifyPayload(shield.llmCheck),
         label: shield.label,
         shield: shield.shield,
