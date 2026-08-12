@@ -58,9 +58,9 @@ test('verify classification stays aligned across Kernel, CLI, and SDK wrappers',
     fixture.kernel.learn('kus ucmaz', Kernel.createAdmissionBypassOpts('test_fixture'));
 
     const cases = [
-      ['kedi hayvandir', 'dogrulandi'],
-      ['kus ucar', 'celiski'],
-      ['balik ucabilir', 'bilinmiyor'],
+      ['kedi hayvandir', 'verified'],
+      ['kus ucar', 'contradicted'],
+      ['balik ucabilir', 'unknown'],
     ];
 
     for (const [statement, expected] of cases) {

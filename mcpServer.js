@@ -23,7 +23,6 @@ const {
   withMcpToolDeprecationSurface,
 } = require('./lib/mcp-tool-names');
 const { parseJsonObject } = require('./lib/json-object');
-const { toLegacyVerifyEnvelope } = require('./lib/verify-status-vocabulary');
 const {
   formatApprovalRecord,
   listPersistentApprovals,
@@ -1205,19 +1204,7 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
     case 'huqan.ask':
       return withMcpToolVerdictSurface(kernel.ask(sanitizeMcpString(args.question)), name, args, gate);
     case 'huqan.verify':
-      // Projected back to the legacy vocabulary on the way out. The kernel now
-      // speaks canonical English internally, but this tool's declared output
-      // schema (VERIFY_STATUS) is a wire contract with external MCP clients
-      // and still names dogrulandi/celiski/bilinmiyor. Emitting canonical here
-      // would silently break the schema this server advertises. Flipping that
-      // enum is its own compatibility gate -- see
-      // docs/verify-status-vocabulary-migration.md.
-      return withMcpToolVerdictSurface(
-        toLegacyVerifyEnvelope(kernel.verify(sanitizeMcpString(args.statement))),
-        name,
-        args,
-        gate,
-      );
+      return withMcpToolVerdictSurface(kernel.verify(sanitizeMcpString(args.statement)), name, args, gate);
     case 'huqan.plan':
       return withTransientAgent(kernel, (agent) => withMcpToolVerdictSurface(
         agent.plan(sanitizeMcpString(args.goal, MCP_MAX_GOAL), {
