@@ -662,7 +662,7 @@ class Kernel {
     try {
       return this.graph.appendAuditEvent(event, provenance ? { provenance, workspaceId } : { workspaceId });
     } catch (error) {
-      console.error('[Kernel] Audit log hatası:', error.message);
+      console.error('[Kernel] Audit log error:', error.message);
       return null;
     }
   }
@@ -1337,13 +1337,13 @@ if (verbSuffix.test(predicate)) {
     }
 
     // 3. Alternatif çözüm olarak değerlendir
-    let answer = normalized + ' için alternatif çözümler:\n';
+    let answer = normalized + ': alternative paths:\n';
     for (const p of paths) {
       answer += `  [${p.type}] ${p.from} → ${p.to}`;
       if (p.chain.length > 0) {
         answer += ` → ${p.chain.map(c => c.node + '(' + c.rel + ')').join(', ')}`;
       }
-      answer += ` (güven: ${p.confidence.toFixed(2)})\n`;
+      answer += ` (confidence: ${p.confidence.toFixed(2)})\n`;
     }
     if (paths.length === 0) answer = 'Bilmiyorum';
 
@@ -1473,7 +1473,7 @@ if (verbSuffix.test(predicate)) {
       }
     }
     for (const n of cycle) {
-      if (cikan.has(n) && !giren.has(n)) return n + ' (temel tür)';
+      if (cikan.has(n) && !giren.has(n)) return n + ' (root type)';
     }
     return null;
   }
@@ -1616,10 +1616,10 @@ if (verbSuffix.test(predicate)) {
 
     // ADIM 3: Sürekli öğrenme dürtüsü (bilinç tikleri)
     if (eklenen > 0) {
-      this._autoThinkLog(eklenen + ' yeni bağlantı - toplam ' + this.graph.nodeCount() + ' düğüm');
+      this._autoThinkLog(eklenen + ' new connections - ' + this.graph.nodeCount() + ' nodes total');
     } else if (this._dreamCount % 5 === 0) {
       // Boş rüya -> daha fazla girdi lazım
-      this._autoThinkLog('boş rüya, daha fazla bilgi lazım');
+      this._autoThinkLog('empty dream, more input needed');
     }
   }
 
@@ -1760,7 +1760,7 @@ if (verbSuffix.test(predicate)) {
         ok: false,
         error: {
           code: AXIOM_ERROR.LLM_DISABLED,
-          message: 'Paranoid mode aktif: dış LLM çağrıları ve otomatik öğrenme engellendi.',
+          message: 'Paranoid mode is active: outbound LLM calls and automatic learning are blocked.',
         },
         meta: {
           contractVersion: this.contractVersion,
@@ -1908,17 +1908,17 @@ if (verbSuffix.test(predicate)) {
 
     // Zayıf noktalar
     const zayifNoktalar = [];
-    if (yalitilmis.length > 0) zayifNoktalar.push(`${yalitilmis.length} yalıtılmış düğüm`);
-    if (celiskiler.length > 0) zayifNoktalar.push(`${celiskiler.length} çelişki`);
-    if (dusukAgirlik > edgeCount * 0.3) zayifNoktalar.push(`${dusukAgirlik} düşük güvenli kenar`);
-    if (nodeCount < 5) zayifNoktalar.push('çok az bilgi');
+    if (yalitilmis.length > 0) zayifNoktalar.push(`${yalitilmis.length} isolated nodes`);
+    if (celiskiler.length > 0) zayifNoktalar.push(`${celiskiler.length} contradictions`);
+    if (dusukAgirlik > edgeCount * 0.3) zayifNoktalar.push(`${dusukAgirlik} low-confidence edges`);
+    if (nodeCount < 5) zayifNoktalar.push('very little knowledge');
 
     // Güçlü noktalar
     const gucluNoktalar = [];
-    if (nodeCount > 50) gucluNoktalar.push('geniş bilgi grafiği');
-    if (typeEdges > 10) gucluNoktalar.push('güçlü tür hiyerarşisi');
-    if (benzerEdges > 5) gucluNoktalar.push('aktif benzerlik ağı');
-    if (dreamCycle > 0) gucluNoktalar.push(`${dreamCycle} rüya döngüsü tamamlandı`);
+    if (nodeCount > 50) gucluNoktalar.push('a large knowledge graph');
+    if (typeEdges > 10) gucluNoktalar.push('a strong type hierarchy');
+    if (benzerEdges > 5) gucluNoktalar.push('an active similarity network');
+    if (dreamCycle > 0) gucluNoktalar.push(`${dreamCycle} dream cycles completed`);
 
     const result = {
       bilgi: {

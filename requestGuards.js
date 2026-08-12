@@ -196,7 +196,7 @@ async function readJsonBody(req, { maxBytes = DEFAULT_MAX_JSON_BODY, requireJson
     return {
       ok: false,
       status: 413,
-      error: { error: 'İçerik çok büyük' },
+      error: { error: 'Payload too large' },
     };
   }
 
@@ -215,7 +215,7 @@ async function readJsonBody(req, { maxBytes = DEFAULT_MAX_JSON_BODY, requireJson
       size += chunk.length;
       if (size > maxBytes) {
         req.destroy();
-        finish({ ok: false, status: 413, error: { error: 'İçerik çok büyük' } });
+        finish({ ok: false, status: 413, error: { error: 'Payload too large' } });
         return;
       }
       body += chunk;

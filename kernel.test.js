@@ -328,7 +328,7 @@ describe('Kernel - Core API Contract', () => {
     const result = k.learnFromLLM('kedi hayvandir');
     assert.strictEqual(
       result.error.message,
-      'Paranoid mode aktif: dış LLM çağrıları ve otomatik öğrenme engellendi.',
+      'Paranoid mode is active: outbound LLM calls and automatic learning are blocked.',
     );
     assert.strictEqual(result.ok, false);
     assert.strictEqual(result.error.code, Kernel.AXIOM_ERROR.LLM_DISABLED);
@@ -385,7 +385,7 @@ describe('Kernel - Dream hypothesis regressions', () => {
 
     kernel._autoThinkTick();
 
-    assert.deepStrictEqual(logs, ['1 yeni bağlantı - toplam 2 düğüm']);
+    assert.deepStrictEqual(logs, ['1 new connections - 2 nodes total']);
   });
 
   it('selfEvolve maps vektör-benzerlik to benzer without a relation field', () => {
@@ -438,7 +438,7 @@ describe('Kernel - Dream hypothesis regressions', () => {
     const isolatedKernel = freshKernel({ useSQLite: false, loadPlugins: false });
     isolatedKernel.graph.addNode('yalnız', 'yalnız', null, { workspaceId: 'default' });
     const isolated = isolatedKernel.introspect();
-    assert.ok(isolated.data.zayifNoktalar.includes('1 yalıtılmış düğüm'));
+    assert.ok(isolated.data.zayifNoktalar.includes('1 isolated nodes'));
 
     const connectedKernel = freshKernel({ useSQLite: false, loadPlugins: false });
     for (let index = 0; index < 7; index++) {
@@ -448,7 +448,7 @@ describe('Kernel - Dream hypothesis regressions', () => {
       connectedKernel.graph.addEdge('n0', `n${index}`, 'benzer', { workspaceId: 'default' });
     }
     const connected = connectedKernel.introspect();
-    assert.ok(connected.data.gucluNoktalar.includes('aktif benzerlik ağı'));
+    assert.ok(connected.data.gucluNoktalar.includes('an active similarity network'));
   });
 });
 
