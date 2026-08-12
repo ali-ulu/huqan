@@ -1,9 +1,9 @@
 'use strict';
-// #363 (security): egitim demo script'i scripts/egitim-demo.js altına taşındı,
-// npm "files" kapsamından çıkarıldı ve yalnızca demo modunda (HUQAN_DEMO_MODE=1
-// veya --demo) çalışacak biçimde güvenlikleştirildi. Bu eski kök konum artık
-// production memory'ye dokunan hiçbir iş yapmaz; yalnızca kullanıcıyı yönlendirir.
-console.error('egitim.js taşındı ve güvenlikleştirildi (#363). Yeni kullanım:');
+// #363 (security): the egitim demo script moved to scripts/egitim-demo.js, was
+// dropped from the npm "files" allowlist, and was hardened to run only in demo
+// mode (HUQAN_DEMO_MODE=1 or --demo). This old root location no longer does any
+// work that touches production memory; it only redirects the caller.
+console.error('egitim.js has moved and been hardened (#363). New usage:');
 console.error('  HUQAN_DEMO_MODE=1 node scripts/egitim-demo.js --demo');
-console.error('Demo yalnızca izole/geçici bir dizine yazar; production memory.json\'a asla dokunmaz.');
+console.error('The demo only ever writes to an isolated temporary directory; it never touches production memory.json.');
 process.exitCode = 2;

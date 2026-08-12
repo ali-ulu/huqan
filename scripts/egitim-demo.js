@@ -153,8 +153,8 @@ function buildDemoCorpus(identitySeed) {
 
 function main(argv = process.argv.slice(2), env = process.env) {
   if (!isDemoRequested(argv, env)) {
-    console.error('egitim-demo: demo modu kapalı. Bilinçli demo için: HUQAN_DEMO_MODE=1 node scripts/egitim-demo.js');
-    console.error("egitim-demo: (#363 güvenlik koruması) demo; production memory.json'a asla dokunmaz, varsayılan hedef izole geçici dizindir.");
+    console.error('egitim-demo: demo mode is off. To run it deliberately: HUQAN_DEMO_MODE=1 node scripts/egitim-demo.js');
+    console.error('egitim-demo: (#363 safety guard) the demo never touches production memory.json; its default target is an isolated temporary directory.');
     process.exitCode = 2;
     return;
   }
@@ -169,7 +169,7 @@ function main(argv = process.argv.slice(2), env = process.env) {
   const d = new Dream(k);
   const DEMO_SEED_LEARN_BYPASS = Kernel.createAdmissionBypassOpts(DEMO_BYPASS_REASON);
 
-  console.log(`AXIOM Egitim Basladi: ${veriler.length} bilgi (izole dizin: ${persistDir})`);
+  console.log(`HUQAN training demo started: ${veriler.length} facts (isolated directory: ${persistDir})`);
   for (let i = 0; i < veriler.length; i += 1) {
     const v = veriler[i];
     const provenance = i < identityFacts.length
@@ -188,48 +188,48 @@ function main(argv = process.argv.slice(2), env = process.env) {
       : DEMO_SEED_LEARN_BYPASS);
   }
 
-  console.log(`Istatistik: ${Object.keys(k.graph._nodes).length} dugum, ${k.graph._edges.length} kenar`);
-  console.log(`Entropi: ${k.entropy().toFixed(3)}`);
+  console.log(`Stats: ${Object.keys(k.graph._nodes).length} nodes, ${k.graph._edges.length} edges`);
+  console.log(`Entropy: ${k.entropy().toFixed(3)}`);
 
   const gaps = k.detectGaps();
-  if (gaps.length > 0) console.log(`Baglantisiz: ${gaps.join(', ')}`);
+  if (gaps.length > 0) console.log(`Disconnected: ${gaps.join(', ')}`);
 
   const cons = k.detectContradictions();
   if (cons.length > 0) {
-    console.log('Celiskiler:');
+    console.log('Contradictions:');
     for (const c of cons) console.log(`  ${c.node}: ${c.targets.join(', ')}`);
   }
 
-  console.log('\nRuya (Hipotezler):');
+  console.log('\nDream (hypotheses):');
   const h = d.dream();
-  if (h.length === 0) console.log('  Hipotez yok.');
+  if (h.length === 0) console.log('  No hypotheses.');
   else for (const x of h.slice(0, 10)) {
-    console.log(`  ${x.from} -> ${x.to} (${x.type}, guven: ${x.confidence.toFixed(3)})`);
+    console.log(`  ${x.from} -> ${x.to} (${x.type}, confidence: ${x.confidence.toFixed(3)})`);
   }
 
-  console.log('\nOrnek Cikarimlar:');
+  console.log('\nSample inferences:');
   const sorular = ['HUQAN nedir', 'mantik nedir', 'felsefe nedir', 'öğrenmek nedir', 'bilim nedir', 'hipotez nedir', 'AXIOM nedir'];
   for (const s of sorular) {
-    console.log(`  sor: "${s}" -> ${k.ask(s)?.data?.answer}`);
+    console.log(`  ask: "${s}" -> ${k.ask(s)?.data?.answer}`);
   }
 
-  console.log('\nTest: bilinmeyen kavram:');
-  console.log(`  sor: "uçan fil nedir" -> ${k.ask('uçan fil nedir')?.data?.answer}`);
+  console.log('\nTest: unknown concept:');
+  console.log(`  ask: "uçan fil nedir" -> ${k.ask('uçan fil nedir')?.data?.answer}`);
 
   const emb = d.embedding({ dimensions: 64, walksPerNode: 8, walkLength: 15 });
-  if (emb) console.log(`\nGomme: ${emb.dimensions} boyut, ${emb.nodes} dugum`);
+  if (emb) console.log(`\nEmbedding: ${emb.dimensions} dimensions, ${emb.nodes} nodes`);
 
   const similars = d.findSimilar('öğrenmek', 5);
   if (similars.length > 0) {
-    console.log(`\n"öğrenmek"e en yakin kavramlar:`);
+    console.log(`\nConcepts closest to öğrenmek:`);
     for (const s of similars) console.log(`  ${s.id}: ${s.score.toFixed(3)}`);
   }
 
   k.graph.save();
   if (typeof k.graph.close === 'function') k.graph.close();
-  console.log(`\nHafiza kaydedildi: ${memoryPath}`);
-  console.log(`Demoyu konusmak icin: set HUQAN_MEMORY_PATH=${memoryPath} && node cli.js`);
-  console.log('Egitim tamam.');
+  console.log(`\nMemory saved: ${memoryPath}`);
+  console.log(`To talk to the demo: set HUQAN_MEMORY_PATH=${memoryPath} && node cli.js`);
+  console.log('Training demo complete.');
 }
 
 module.exports = {
