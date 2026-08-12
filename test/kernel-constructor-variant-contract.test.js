@@ -86,7 +86,12 @@ function createManagedCliKernel({ label, mode = 'options', options = {}, env = {
     else instance = CLI.createKernel(isolatedKernelOptions(root, options));
   } catch (error) {
     closeKernel(instance);
-    fs.rmSync(root, { recursive: true, force: true });
+    // The cwd must be restored off of `root` before it can be removed --
+    // Windows refuses to rmSync a directory that is still the process's
+    // current working directory (EPERM), which masked the real assertion
+    // this helper exists to let through.
+    process.chdir(cwdBefore);
+    fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
     throw error;
   } finally {
     process.chdir(cwdBefore);
@@ -98,7 +103,7 @@ function createManagedCliKernel({ label, mode = 'options', options = {}, env = {
     instance,
     dispose() {
       closeKernel(instance);
-      fs.rmSync(root, { recursive: true, force: true });
+      fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
     },
   };
 }
@@ -118,7 +123,7 @@ function createManagedMcpKernel({ label, version }) {
     instance = createKernelFromEnv();
   } catch (error) {
     closeKernel(instance);
-    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
     throw error;
   } finally {
     restoreEnv(envBefore);
@@ -129,7 +134,7 @@ function createManagedMcpKernel({ label, version }) {
     instance,
     dispose() {
       closeKernel(instance);
-      fs.rmSync(root, { recursive: true, force: true });
+      fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
     },
   };
 }

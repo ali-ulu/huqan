@@ -371,6 +371,17 @@ test('an injected baseAgent is left exactly as the caller built it', (t) => {
   const injected = new Agent({ kernel: agent.kernel });
   const custom = new AgentV3({ kernel: agent.kernel, baseAgent: injected, dbPath: agent.storage.dbPath });
 
-  assert.equal(custom.baseAgent, injected);
-  assert.equal(custom.baseAgent.storage, null);
+  try {
+    assert.equal(custom.baseAgent, injected);
+    assert.equal(custom.baseAgent.storage, null);
+  } finally {
+    // custom.storage opens its own SQLite handle on the same dbPath as
+    // agent.storage. It must be closed here, synchronously, before
+    // returning: fixture()'s t.after was registered during setup (before
+    // this test body ran) and Node runs `after` hooks in registration
+    // order (FIFO), so it fires -- and rmSync's the temp dir -- before any
+    // `t.after` this test registers now. Left open, it is a leaked handle
+    // that blocks that cleanup on Windows (EPERM).
+    try { custom.storage?.close?.(); } catch (_) {}
+  }
 });
