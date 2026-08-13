@@ -120,7 +120,7 @@ resulting Trust Receipt is printed:
 HUQAN quickstart — learn -> review -> approve -> verify -> Trust Receipt
   1. OK   propose: axiom.learn -> review (mutating_requires_review), approval approval-…
   2. OK   approve: axiom.approve -> approved (actor cli-quickstart)
-  3. OK   verify: dogrulandi (confidence 0.90)
+  3. OK   verify: verified (confidence 0.90)
   4. OK   receipt: receiptId … (status canonical)
 ```
 
@@ -199,6 +199,20 @@ const kernel = new Kernel();
 server and MCP server build. The older `Kernel` implementation it wraps is
 still reachable as `require('huqan').KernelV1`, but it is deprecated, is not a
 runtime option, and will be removed in the next major release.
+
+The package root also exposes the general Error Prevention core:
+
+```js
+const { createErrorPrevention } = require('huqan');
+const prevention = createErrorPrevention(kernel.memory, {
+  verifyEvidence,
+  resolveApproval,
+});
+```
+
+This is a package/library surface for verified failure memory, governed rule
+lifecycle, and deterministic preflight decisions. It is not one of the eleven
+MCP tools advertised below.
 
 ### Local CLI
 
@@ -283,7 +297,8 @@ one returns a `meta.deprecation` notice. See
 - Approval flows for guarded actions
 - Provenance and audit records
 - Canonical Trust Receipts and receipt chains
-- Portable `.axiom` package primitives
+- Verified failure memory and deterministic Error Prevention preflight
+- Portable `.huqan` package primitives with legacy `.axiom.json` reader compatibility
 - CLI, REST, MCP, and local UI surfaces
 
 ## Current scope
@@ -293,9 +308,10 @@ HUQAN is currently a **local-first partial trust layer**.
 What is real today:
 
 - verification, graph, provenance, approval, audit, and receipt primitives,
+- verified-failure Error Prevention core exposed through the package root,
 - local CLI, REST, MCP, and UI surfaces,
 - bounded memory and action gates,
-- package and cryptographic foundations.
+- canonical HUQAN package and cryptographic foundations.
 
 What this repository does **not** currently claim:
 
@@ -309,9 +325,12 @@ What this repository does **not** currently claim:
 ### Shipped but not wired
 
 Part of this repository is implemented and unit-tested but is **not reached by
-any production entry point** (`cli.js`, `server.js`, `mcpServer.js`). Green
-tests for those modules mean the code behaves as specified in isolation — they
-are not evidence that the product runs it.
+the production entry-point graph** declared in
+[`lib/module-reachability.js`](./lib/module-reachability.js): `cli.js`,
+`server.js`, `mcpServer.js`, `index.js`, `kernel.js`, and
+`github-app-server.js` (plus dynamically loaded plugin entry points). Green
+tests for those unreached modules mean the code behaves as specified in
+isolation — they are not evidence that the product runs it.
 
 That set is enumerated with a reason per module in
 [`lib/module-reachability.js`](./lib/module-reachability.js) and enforced by a
@@ -319,6 +338,10 @@ test, so nothing can join it silently. The largest groups today are the
 external-client trust boundary (decided in ADR-010 but deliberately not
 enabled), the V5 track (its entry audit has not passed), the reviewed external
 ingest chain, and the Self-Healer (library-only by design).
+
+The Error Prevention core is not in that unwired set: `index.js` reaches and
+exports it as a package/library surface. No Error Prevention MCP tool is
+currently advertised.
 
 For the live execution order and exact limitations, read [docs/current-operating-roadmap.md](./docs/current-operating-roadmap.md).
 
