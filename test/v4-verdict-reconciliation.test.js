@@ -117,6 +117,8 @@ describe('V4-PR2: schema round-trip', () => {
 // ---------------------------------------------------------------------------
 
 describe('V4-PR2: real admission-gate decisions project correctly (no gate behavior change)', () => {
+  // buildMemoryAdmissionRequest requires memoryDraftId, trustPolicyVersion,
+  // and reason (verified against lib/memory-admission-gate.js validation).
   const baseInput = {
     workspaceId: 'default',
     actor: 'tester',
@@ -206,6 +208,10 @@ describe('V4-PR2: real MCP-gate decisions project correctly (no gate behavior ch
     assert.strictEqual(envelope.verdict, 'block');
   });
 
+  // The MCP gate's 'disabled' decision is a defined-but-not-yet-produced state
+  // in evaluateMcpGate today (reserved for a future capability-availability
+  // path). It is tested at the mapping level, not end-to-end, since no real
+  // input currently triggers it.
   it('mcp "disabled" (not yet producible end-to-end) still maps correctly at the object level', () => {
     const fabricatedDisabledDecision = {
       ok: true,
