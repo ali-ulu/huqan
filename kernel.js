@@ -48,104 +48,28 @@ const DEFAULT_CAPABILITIES = Object.freeze({
   // the wrong default for offline use and for the test suite. See #348.
   evidenceReachability: false,
 });
-const CLI_MUTATION_AUDIT_FIELDS = new Set([
-  'sourceCommand',
-  'mutationType',
-  'eventType',
-  'decision',
-  'executionEligible',
-  'reason',
-  'actor',
-  'workspaceId',
-  'approvalState',
-  'receiptReference',
-]);
-const CLI_MUTATION_AUDIT_REQUIRED_FIELDS = Object.freeze([
-  'sourceCommand',
-  'mutationType',
-  'eventType',
-  'decision',
-  'executionEligible',
-  'reason',
-]);
-const CLI_MUTATION_AUDIT_APPROVAL_STATES = new Set([
-  'pending',
-  'approved',
-  'rejected',
-  'expired',
-  'cancelled',
-]);
-const CLI_MUTATION_AUDIT_MAPPINGS = Object.freeze([
-  ['kaydet', 'persistence', 'UPDATE', 'allow', true, 'cli_persist_local'],
-  ['exit', 'persistence', 'UPDATE', 'allow', true, 'cli_persist_local'],
-  ['cikis', 'persistence', 'UPDATE', 'allow', true, 'cli_persist_local'],
-  ['backup', 'export', 'EXPORTED', 'allow', true, 'cli_backup_export_local'],
-  ['restore', 'state_replace', 'IMPORTED', 'allow', true, 'cli_restore_state_replace_local'],
-  ['optimize', 'canonical', 'REVIEW', 'review', false, 'cli_canonical_mutation_requires_review'],
-  ['evolve', 'canonical', 'REVIEW', 'review', false, 'cli_canonical_mutation_requires_review'],
-  ['konsolide', 'canonical', 'REVIEW', 'review', false, 'cli_canonical_mutation_requires_review'],
-  ['dusun', 'automation', 'REVIEW', 'review', false, 'cli_automation_requires_review'],
-]);
-
-function normalizeWorkspaceId(value, fallback = 'default') {
-  if (typeof value === 'string' && value.trim()) return value.trim();
-  return fallback;
-}
-
-function isPlainObject(value) {
-  return Boolean(value) && Object.prototype.toString.call(value) === '[object Object]';
-}
-function validateCliMutationAuditIntent(intent) {
-  if (!isPlainObject(intent)) return null;
-
-  const ownKeys = Reflect.ownKeys(intent);
-  if (ownKeys.some((key) => typeof key !== 'string' || !CLI_MUTATION_AUDIT_FIELDS.has(key))) {
-    return null;
-  }
-  if (CLI_MUTATION_AUDIT_REQUIRED_FIELDS.some(
-    (field) => !Object.prototype.hasOwnProperty.call(intent, field),
-  )) {
-    return null;
-  }
-
-  for (const field of CLI_MUTATION_AUDIT_REQUIRED_FIELDS) {
-    if (field === 'executionEligible') {
-      if (typeof intent[field] !== 'boolean') return null;
-    } else if (typeof intent[field] !== 'string' || !intent[field]) {
-      return null;
-    }
-  }
-
-  const validated = {
-    sourceCommand: intent.sourceCommand,
-    mutationType: intent.mutationType,
-    eventType: intent.eventType,
-    decision: intent.decision,
-    executionEligible: intent.executionEligible,
-    reason: intent.reason,
-  };
-
-  for (const field of ['actor', 'workspaceId', 'receiptReference']) {
-    if (!Object.prototype.hasOwnProperty.call(intent, field)) continue;
-    if (typeof intent[field] !== 'string' || !intent[field].trim()) return null;
-    validated[field] = intent[field].trim();
-  }
-
-  if (Object.prototype.hasOwnProperty.call(intent, 'approvalState')) {
-    if (!CLI_MUTATION_AUDIT_APPROVAL_STATES.has(intent.approvalState)) return null;
-    validated.approvalState = intent.approvalState;
-  }
-
-  const matchesMapping = CLI_MUTATION_AUDIT_MAPPINGS.some((mapping) => (
-    mapping[0] === validated.sourceCommand
-    && mapping[1] === validated.mutationType
-    && mapping[2] === validated.eventType
-    && mapping[3] === validated.decision
-    && mapping[4] === validated.executionEligible
-    && mapping[5] === validated.reason
-  ));
-  return matchesMapping ? validated : null;
-}
+const {
+  CLI_MUTATION_AUDIT_FIELDS,
+  CLI_MUTATION_AUDIT_REQUIRED_FIELDS,
+  CLI_MUTATION_AUDIT_APPROVAL_STATES,
+  CLI_MUTATION_AUDIT_MAPPINGS,
+  normalizeWorkspaceId,
+  isPlainObject,
+  validateCliMutationAuditIntent,
+} = require('./lib/cli-mutation-audit-intent');
+const {
+  normalizeExplicitRelationObject,
+  parseExplicitRelationPredicate,
+  parsePredicate,
+} = require('./lib/predicate-parser');
+const {
+  forwardChain,
+  backwardChain,
+  detectCycle,
+  resolveCycleOrder,
+  findPath,
+  findPathWithTimeout,
+} = require('./lib/graph-traversal');
 
 // ProvenanceError is owned by lib/errors/provenance-error.js so that
 // lib/provenance-ingest.js can throw it without requiring kernel.js back
@@ -1061,144 +985,19 @@ class Kernel {
     return routeCandidateClaim(this, input, opts);
   }
 
+  // Implementations live in lib/predicate-parser.js. These stay as methods
+  // because plugins (contradiction-alert, company-brain), lib/learn-use-case.js
+  // and the test suite call them off a kernel instance.
   _normalizeExplicitRelationObject(rawObject, opts = {}) {
-    const text = String(rawObject || '').trim();
-    if (!text) return '';
-
-    const words = text.split(/\s+/).filter(Boolean);
-    if (words.length === 0) return '';
-
-    const last = words[words.length - 1];
-    let cleaned = last;
-    if (opts.trimCaseSuffixes !== false) {
-      cleaned = cleaned.replace(/(y[iıuü]|[iıuü]|[ae])$/i, '');
-    }
-    if (!cleaned) cleaned = last;
-    if (opts.trimCaseSuffixes !== false) {
-      cleaned = cleaned.replace(/([gGdDbB])$/, (match) => ({
-        g: 'k',
-        G: 'K',
-        d: 't',
-        D: 'T',
-        b: 'p',
-        B: 'P',
-      }[match] || match));
-    }
-    words[words.length - 1] = this.normalizeWord(cleaned);
-    return words.join(' ').trim();
+    return normalizeExplicitRelationObject(rawObject, opts, (word) => this.normalizeWord(word));
   }
 
   _parseExplicitRelationPredicate(predicate) {
-    const normalized = String(predicate || '').trim();
-    if (!normalized) return null;
-
-    const patterns = [
-      { relation: 'CAUSES', mode: 'suffix', trimCaseSuffixes: true, marker: /^(.*?)\s+(neden olur|yol acar|yol açar|sebep olur|tetikler|yapar)$/i },
-      { relation: 'CAUSES', mode: 'prefix', trimCaseSuffixes: false, marker: /^(causes|cause|leads to|triggers)\s+(.+)$/i },
-      { relation: 'PREVENTS', mode: 'suffix', trimCaseSuffixes: true, marker: /^(.*?)\s+(onler|önler|engeller|durdurur|onune gecer|önüne geçer)$/i },
-      { relation: 'PREVENTS', mode: 'prefix', trimCaseSuffixes: false, marker: /^(prevents|prevent|blocks|stops)\s+(.+)$/i },
-      { relation: 'DEPENDS_ON', mode: 'suffix', trimCaseSuffixes: true, marker: /^(.*?)\s+(bagli|baglı|bağlı|baglidir|baglıdır|bağlıdır|gerektirir|dayanir|dayanır|olmadan)$/i },
-      { relation: 'DEPENDS_ON', mode: 'prefix', trimCaseSuffixes: false, marker: /^(requires|depends on)\s+(.+)$/i },
-      { relation: 'ENABLES', mode: 'suffix', trimCaseSuffixes: true, marker: /^(.*?)\s+(saglar|sağlar|mumkun kilar|mümkün kılar|olanak verir|etkinlestirir|etkinleştirir)$/i },
-      { relation: 'ENABLES', mode: 'prefix', trimCaseSuffixes: false, marker: /^(enables|enable)\s+(.+)$/i },
-    ];
-
-    for (const pattern of patterns) {
-      const match = normalized.match(pattern.marker);
-      if (!match) continue;
-      const objectText = pattern.mode === 'prefix' ? match[2] : match[1];
-      const object = this._normalizeExplicitRelationObject(objectText, {
-        trimCaseSuffixes: pattern.trimCaseSuffixes !== false,
-      });
-      if (!object) continue;
-      return { object, relation: pattern.relation };
-    }
-
-    return null;
+    return parseExplicitRelationPredicate(predicate, (word) => this.normalizeWord(word));
   }
 
   _parsePredicate(predicate) {
-    // "bir" gibi belirsiz artikelleri temizle
-    predicate = predicate.replace(/^bir\s+/, '').trim();
-
-    // KISITLAMA: "sadece x yapar" → kısıtlama işareti
-    const kistlama = predicate.match(/^(sadece|yalnızca|sırf|ancak)\s+(.+)/i);
-    if (kistlama) {
-      // Kısıtlı hali parse et, kısıtlama bilgisini object'e göm
-      const inner = kistlama[2];
-      const parsed = this._parsePredicate(inner);
-      if (parsed) {
-        parsed.kistlama = true;
-        parsed.object = inner;
-        return parsed;
-      }
-    }
-
-    // -değil/-değildir ? olumsuzluk
-    // "farkındalık değildir" → değil ilişkisi
-    const degilMatch = predicate.match(/^(.+?)\s+değildir$/i);
-    if (degilMatch) {
-      return { object: degilMatch[1].trim(), relation: 'değil' };
-    }
-    // tek kelime "değildir" bitişik: "farkındalıkdeğildir"
-    const degilSuffix = /^(.+?)değildir$/i;
-    const dMatch = predicate.match(degilSuffix);
-    if (dMatch && dMatch[1].trim()) {
-      return { object: dMatch[1].trim(), relation: 'değil' };
-    }
-
-    // -mez/-maz olumsuz fiil: "hissetmez", "anlamaz", "bilmez" ? değil
-    // "duyguyu hissetmez" gibi çok kelimeli için son kelimeyi kontrol et
-    const negVerbMatch = predicate.match(/^(.+?)\s+(.+)(mez|maz)$/i);
-    if (negVerbMatch) {
-      const verb = negVerbMatch[2] + negVerbMatch[3];
-      return { object: (negVerbMatch[1] + ' ' + verb).trim(), relation: 'değil' };
-    }
-    // tek kelimeli: "hissetmez"
-    const negSingle = predicate.match(/^(.+?)(mez|maz)$/i);
-    if (negSingle && predicate.indexOf(' ') === -1) {
-      return { object: predicate, relation: 'değil' };
-    }
-
-    // Explicit DEPENDS_ON check before -dır suffix catch-all.
-    // Prevents "baglidir" / "bağlıdır" / "bagli" / "bağlı" from
-    // being swallowed by the generic -dir/-dır tür pattern.
-    const earlyDepends = this._parseExplicitRelationPredicate(predicate);
-    if (earlyDepends && earlyDepends.relation === 'DEPENDS_ON') {
-      return earlyDepends;
-    }
-    // -dır/-dir/-dur/-dır/-tür/-tir/-tur/-tür → tür ilişkisi
-    const tirSuffix = /(dır|dir|dur|dır|tür|tir|tur|tür)$/i;
-    if (tirSuffix.test(predicate)) {
-      const stem = this.normalizeWord(predicate.replace(tirSuffix, ''));
-      return { object: stem, relation: 'tür' };
-    }
-
-    // -dır/-dir ekli çok kelimeli yüklem: "doğru dönme yöntemidir"
-    const tirMulti = /^(.+?)(dır|dir|dur|dır|tür|tir|tur|tür)$/i;
-    const mMatch = predicate.match(tirMulti);
-    if (mMatch && mMatch[1].includes(' ')) {
-      return { object: mMatch[1].trim(), relation: 'tür' };
-    }
-
-    const explicitRelation = this._parseExplicitRelationPredicate(predicate);
-    if (explicitRelation) {
-      return explicitRelation;
-    }
-
-    // Fiil ekleri → yapabilir ilişkisi
-    const verbSuffix = /(ar|er|ır|ir|ur|ür|yor|acak|ecek|mak|mek)$/i;
-if (verbSuffix.test(predicate)) {
-      return { object: predicate, relation: 'yapabilir' };
-    }
-
-    // -r ile biten kısa fiiller
-    if (/r$/i.test(predicate) && predicate.length > 2) {
-      return { object: predicate, relation: 'yapabilir' };
-    }
-
-    // Çok kelimeli yüklem → özellik
-    return { object: predicate, relation: 'özellik' };
+    return parsePredicate(predicate, (word) => this.normalizeWord(word));
   }
 
   /**
@@ -1404,135 +1203,32 @@ if (verbSuffix.test(predicate)) {
     return this._verifyService._parseNumericComparison(text);
   }
 
+  // Implementations live in lib/graph-traversal.js. These stay as methods
+  // because lib/kernel-read-use-cases.js takes them as injected callbacks,
+  // lib/verify.js calls _findPathWithTimeout off the kernel, and the test
+  // suite calls them off a kernel instance.
   _forwardChain(id, chain, visited, depth, workspaceId = 'default') {
-    if (depth <= 0 || visited.has(id)) return chain;
-    visited.add(id);
-    const edges = this.graph.getEdges(id, workspaceId);
-    for (const e of edges) {
-      if (!visited.has(e.to) && !chain.some(c => c.to === e.to)) {
-        chain.push(e);
-        this._forwardChain(e.to, chain, visited, depth - 1, workspaceId);
-      }
-    }
-    return chain;
+    return forwardChain(this.graph, id, chain, visited, depth, workspaceId);
   }
 
   _backwardChain(id, chain, visited, depth, workspaceId = 'default') {
-    if (depth <= 0 || visited.has(id)) return chain;
-    visited.add(id);
-    const inEdges = this.graph.getInEdges(id, workspaceId);
-    for (const e of inEdges) {
-      if (!visited.has(e.from) && !chain.some(c => c.from === e.from)) {
-        chain.push(e);
-        this._backwardChain(e.from, chain, visited, depth - 1, workspaceId);
-      }
-    }
-    return chain;
+    return backwardChain(this.graph, id, chain, visited, depth, workspaceId);
   }
 
   _detectCycle(start, visited, pathArr, workspaceId = 'default') {
-    if (visited.has(start)) {
-      const idx = pathArr.indexOf(start);
-      if (idx >= 0) return pathArr.slice(idx).concat(start);
-      return null;
-    }
-    visited.add(start);
-    pathArr.push(start);
-    const edges = this.graph.getEdges(start, workspaceId);
-    for (const e of edges) {
-      const result = this._detectCycle(e.to, visited, [...pathArr], workspaceId);
-      if (result) return result;
-    }
-    const inEdges = this.graph.getInEdges(start, workspaceId);
-    for (const e of inEdges) {
-      if (!visited.has(e.from)) {
-        const result = this._detectCycle(e.from, visited, [...pathArr], workspaceId);
-        if (result) return result;
-      }
-    }
-    return null;
+    return detectCycle(this.graph, start, visited, pathArr, workspaceId);
   }
 
   _resolveCycleOrder(cycle, workspaceId = 'default') {
-    const giren = new Set();
-    const cikan = new Set();
-    for (let i = 0; i < cycle.length - 1; i++) {
-      const edges = this.graph.getEdges(cycle[i], workspaceId);
-      for (const e of edges) {
-        if (e.to === cycle[i + 1] && e.relation === 'tür') {
-          cikan.add(cycle[i]);
-          giren.add(cycle[i + 1]);
-        }
-      }
-    }
-    for (const n of cycle) {
-      if (cikan.has(n) && !giren.has(n)) return n + ' (root type)';
-    }
-    return null;
+    return resolveCycleOrder(this.graph, cycle, workspaceId);
   }
 
   _findPath(from, to, visited, pathArr, depth, workspaceId = 'default') {
-    return this._findPathWithTimeout(from, to, 100, workspaceId, depth).path;
+    return findPath(this.graph, from, to, visited, pathArr, depth, workspaceId);
   }
 
-  // r3: findPathWithTimeout - DFS path finding with timeout protection
-  // Prevents infinite recursion or excessive backtracking in cyclic graphs
   _findPathWithTimeout(from, to, timeoutMs = 100, workspaceId = 'default', maxDepth = 5) {
-    const startTime = Date.now();
-    const visited = new Set();
-    const pathArr = [];
-    let stoppedReason = null;
-    
-    const search = (current, depth) => {
-      // r3: Check timeout on each recursion step
-      if (Date.now() - startTime > timeoutMs) {
-        stoppedReason = 'timeout';
-        return null; // Timeout - abort search
-      }
-      
-      if (depth <= 0) {
-        stoppedReason = stoppedReason || 'maxDepth';
-        return null;
-      }
-
-      if (visited.has(current)) {
-        stoppedReason = stoppedReason || 'cycle';
-        return null;
-      }
-      
-      visited.add(current);
-      pathArr.push(current);
-      
-      if (current === to) return [...pathArr];
-      
-      // Forward search
-      const edges = this.graph.getEdges(current, workspaceId);
-      for (const e of edges) {
-        const result = search(e.to, depth - 1);
-        if (result) return result;
-      }
-      
-      // Backward search
-      const inEdges = this.graph.getInEdges(current, workspaceId);
-      for (const e of inEdges) {
-        const result = search(e.from, depth - 1);
-        if (result) return result;
-      }
-      
-      pathArr.pop();
-      return null;
-    };
-    
-    const path = search(from, maxDepth);
-    if (!path && !stoppedReason) stoppedReason = 'not_found';
-    return {
-      path,
-      stoppedReason,
-      maxDepth,
-      timeoutMs,
-      workspaceId,
-      visitedCount: visited.size,
-    };
+    return findPathWithTimeout(this.graph, from, to, timeoutMs, workspaceId, maxDepth);
   }
 
   // --- Background auto-think ---
