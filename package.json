@@ -211,6 +211,7 @@
         "lib/self-test-oracle.js",
         "lib/semantic-score.js",
         "lib/semantic-signals.js",
+        "lib/server-response-helpers.js",
         "lib/shield.js",
         "lib/sqlite-availability.js",
         "lib/ssrf-guard.js",
