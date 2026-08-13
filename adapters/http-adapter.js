@@ -281,6 +281,17 @@ async function ingestUrl(urlString, options = {}) {
     );
   }
 
+  // A URL is a location, and locations keep resolving after the thing behind
+  // them changes. Where the server offers a validator, record it: an ETag is the
+  // one version identifier HTTP actually gives us. These headers were already
+  // being read off the response and thrown away.
+  const etag = String(result.headers.etag || result.headers.ETag || '').trim();
+  const lastModified = String(result.headers['last-modified'] || '').trim();
+  for (const entry of entries) {
+    if (etag) entry.etag = etag;
+    if (lastModified) entry.lastModified = lastModified;
+  }
+
   return { url: urlString, finalUrl, statusCode: result.statusCode, entries };
 }
 
@@ -303,8 +314,14 @@ async function ingestUrls(urls, options = {}) {
   };
 }
 
-async function ingestAndLearn(urls, kernel, options = {}) {
-  const result = await ingestUrls(urls, options);
+/**
+ * Learns a set of already-fetched entries.
+ *
+ * Split out of ingestAndLearn so the provenance it builds can be exercised
+ * without standing up a server: the version-recording behaviour is the part
+ * worth testing, and it should not be reachable only through a live fetch.
+ */
+async function learnEntries(result, kernel, options = {}) {
   const learned = [];
   for (const entry of result.entries) {
     const provenance = {
@@ -318,6 +335,18 @@ async function ingestAndLearn(urls, kernel, options = {}) {
       actor: options.actor || 'http-adapter',
       timestamp: new Date().toISOString(),
     };
+
+    // Only when the server actually offered one. An empty sourceVersion would
+    // read as "pinned, to nothing" -- a claim where none was made. With no
+    // validator the content hash is the only version signal, and it is always
+    // present.
+    if (entry.etag) {
+      provenance.sourceVersion = entry.etag;
+      provenance.sourceVersionKind = 'etag';
+    } else if (entry.lastModified) {
+      provenance.sourceVersion = entry.lastModified;
+      provenance.sourceVersionKind = 'last_modified';
+    }
     try {
       // learnAsync, not learn: this is the URL-sourced ingest path, so it is
       // exactly where an async preIngest gate -- evidence-validator's
@@ -334,6 +363,10 @@ async function ingestAndLearn(urls, kernel, options = {}) {
   return { ...result, learned };
 }
 
+async function ingestAndLearn(urls, kernel, options = {}) {
+  return learnEntries(await ingestUrls(urls, options), kernel, options);
+}
+
 module.exports = {
   fetchUrl,
   parseRobotsDisallow,
@@ -341,5 +374,6 @@ module.exports = {
   parseHtml,
   ingestUrl,
   ingestUrls,
+  learnEntries,
   ingestAndLearn,
 };

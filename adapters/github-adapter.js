@@ -57,6 +57,32 @@ async function defaultFetch(url, options) {
   return fetch(url, withTimeout);
 }
 
+/**
+ * Resolve a branch (or tag, or SHA) to the commit it names right now.
+ *
+ * Everything downstream addresses content by this SHA rather than by the branch.
+ * A branch is a moving target: recording `blob/main/README.md` produces a
+ * reference that keeps resolving after the content behind it changes, so a
+ * reader following the receipt gets today's file and compares it against a hash
+ * taken from a different one. Costs one API call, and buys a reference that
+ * still means what it meant.
+ */
+async function resolveCommitSha(owner, repo, ref, token, fetchImpl) {
+  const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/commits/${encodeURIComponent(ref)}`;
+  const res = await fetchImpl(url, { method: 'GET', headers: buildHeaders(token) });
+  if (!res.ok) {
+    throw parseRateLimitError(res, `Failed to resolve ref to a commit (${res.status}): ${ref}`);
+  }
+  const payload = await res.json();
+  const sha = payload && typeof payload.sha === 'string' ? payload.sha.trim() : '';
+  if (!/^[0-9a-f]{40}$/i.test(sha)) {
+    // Fail rather than fall back to the branch name: a silent fallback is how a
+    // record ends up naming a version it never read.
+    throw toError(`GitHub did not return a commit SHA for ref: ${ref}`, 'GITHUB_REF_UNRESOLVED');
+  }
+  return sha;
+}
+
 async function fetchRepoFiles(repoUrl, opts = {}) {
   const { owner, repo } = parseRepoUrl(repoUrl);
   const branch = String(opts.branch || 'main');
@@ -64,7 +90,9 @@ async function fetchRepoFiles(repoUrl, opts = {}) {
   const fetchImpl = opts.fetchImpl || defaultFetch;
   const explicitPaths = Array.isArray(opts.paths) ? opts.paths.map(normalizePath).filter(Boolean) : null;
 
-  const treeUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${encodeURIComponent(branch)}?recursive=1`;
+  const commitSha = await resolveCommitSha(owner, repo, branch, token, fetchImpl);
+
+  const treeUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${encodeURIComponent(commitSha)}?recursive=1`;
   const treeRes = await fetchImpl(treeUrl, {
     method: 'GET',
     headers: buildHeaders(token),
@@ -90,7 +118,7 @@ async function fetchRepoFiles(repoUrl, opts = {}) {
   const dedupedPaths = [...new Set(paths)];
   const files = [];
   for (const filePath of dedupedPaths) {
-    const rawUrl = `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(branch)}/${filePath}`;
+    const rawUrl = `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(commitSha)}/${filePath}`;
     const fileRes = await fetchImpl(rawUrl, {
       method: 'GET',
       headers: buildHeaders(token),
@@ -110,6 +138,7 @@ async function fetchRepoFiles(repoUrl, opts = {}) {
       owner,
       repo,
       branch,
+      commitSha,
       path: filePath,
       content,
       lastModified: lastModified || new Date().toISOString(),
@@ -131,9 +160,12 @@ async function fetchAndLearn(repoUrl, kernel, opts = {}) {
     const provenance = {
       provenanceId: `github-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
       source: 'github-adapter',
-      sourceRef: buildGitHubBlobUrl(file),
+      // Built from the resolved commit, not the branch the caller asked for.
+      sourceRef: buildGitHubBlobUrl({ ...file, branch: file.commitSha || file.branch }),
       sourceType: 'github',
       sourceSubType: 'blob',
+      sourceVersion: file.commitSha || '',
+      sourceVersionKind: file.commitSha ? 'commit_sha' : '',
       contentHash: contentHash(file.content),
       contentHashAlgorithm: CONTENT_HASH_ALGORITHM,
       actor: opts.actor || 'github-adapter',

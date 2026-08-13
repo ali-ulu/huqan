@@ -1,6 +1,7 @@
 const LLMAdapter = require('../llmAdapter');
 const { adjustedConfidence } = require('../evidence-ranker');
 const { normalizeAlias, resolveEntity } = require('../lib/entity-resolution');
+const { gateCompanyIngest } = require('../lib/company-ingest-gate');
 
 function nowIso() {
   return new Date().toISOString();
@@ -52,6 +53,11 @@ function addCompanyEdge(kernel, fromId, toId, relation, opts = {}) {
     sourceRef: opts.sourceRef || '',
     sessionId: opts.sessionId || '',
     sourceType: opts.sourceType || 'manual',
+    // Forwarded so a pinned ingest keeps its pin: proposeEdge picks these up
+    // through provenanceFieldsFrom and they land on the edge's provenance.
+    sourceVersion: opts.sourceVersion || '',
+    sourceVersionKind: opts.sourceVersionKind || '',
+    contentHash: opts.contentHash || '',
     companyMode: true,
     evidenceType: opts.evidenceType || 'user_experience',
     evidence: Array.isArray(opts.evidence) ? opts.evidence : [],
@@ -448,6 +454,82 @@ function ingestDecision(kernel, input = {}) {
   };
 }
 
+
+/**
+ * Ingest content pulled from an external system on the company's behalf.
+ *
+ * Separate from ingestManual because the trust situation is different, not
+ * because the storage is. A person typing a note has read what they are typing;
+ * an API pull has not been read by anyone, so whatever the other system happens
+ * to hold -- a token pasted into a wiki page, a customer ID in a ticket --
+ * arrives with it. Everything here goes through gateCompanyIngest first, and
+ * only the scrubbed text continues.
+ *
+ * The caller supplies the content. Fetching is the adapters' job; this is the
+ * seam where fetched content becomes company memory.
+ */
+function ingestApi(kernel, input = {}) {
+  const sourceRef = String(input.sourceRef || '').trim();
+  if (!sourceRef) {
+    const err = new Error('API ingest requires a sourceRef naming what was read');
+    err.code = 'COMPANY_BRAIN_SOURCE_REF_REQUIRED';
+    throw err;
+  }
+
+  const gate = gateCompanyIngest(String(input.text || ''));
+
+  // `gate.text`, never `input.text`. Reaching past the gate here is the whole
+  // failure mode, and it would still pass a test that only counted gate calls.
+  const text = gate.text;
+  if (!text.trim()) {
+    return {
+      ok: true,
+      sourceType: 'api',
+      sourceRef,
+      added: 0,
+      reason: 'nothing_left_after_gates',
+      gates: gate.gateVersions,
+      secretDetected: gate.secretDetected,
+      piiDetected: gate.piiDetected,
+      piiTypes: gate.piiTypes,
+      admission: summarizeProposals([]),
+    };
+  }
+
+  const date = String(input.date || new Date().toISOString().slice(0, 10));
+  const noteNode = `api-note:${slug(sourceRef)}:${date}`;
+  const proposals = [];
+
+  const edge = addCompanyEdge(kernel, noteNode, text.slice(0, 96), 'not', {
+    source: 'api',
+    sourceRef,
+    sourceType: 'api',
+    evidenceType: 'docs',
+    evidence: [text.slice(0, 240)],
+    sessionId: input.sessionId || '',
+    // Provenance fields, not edge meta: edge meta is namespaced to
+    // entityResolution by contract, and where a claim came from is provenance's
+    // job anyway. proposeEdge forwards these through provenanceFieldsFrom.
+    sourceVersion: input.sourceVersion || '',
+    sourceVersionKind: input.sourceVersionKind || '',
+    contentHash: input.contentHash || '',
+  });
+  proposals.push(...edge.proposals);
+
+  trackSuccess(kernel, 'api', edge.edge ? 1 : 0);
+  return {
+    ok: true,
+    sourceType: 'api',
+    sourceRef,
+    added: edge.edge ? 1 : 0,
+    gates: gate.gateVersions,
+    secretDetected: gate.secretDetected,
+    piiDetected: gate.piiDetected,
+    piiTypes: gate.piiTypes,
+    admission: summarizeProposals(proposals),
+  };
+}
+
 function getIngestStatus(kernel) {
   const state = ensureCompanyState(kernel);
   const stats = kernel.graph && typeof kernel.graph.getStats === 'function'
@@ -503,6 +585,9 @@ function createCompanyBrainPlugin() {
         if (action === 'decision' || action === 'logdecision' || input.sourceType === 'decision') {
           return ingestDecision(kernel, input);
         }
+        if (action === 'ingestapi' || action === 'api' || input.sourceType === 'api') {
+          return ingestApi(kernel, input);
+        }
         return await queryCompanyBrain(kernel, this, input);
       } catch (err) {
         trackError(kernel, input.sourceType || action || 'manual', err.message || String(err));
@@ -522,5 +607,6 @@ module.exports._test = {
   ensureCompanyState,
   ingestManual,
   ingestDecision,
+  ingestApi,
   getIngestStatus,
 };
