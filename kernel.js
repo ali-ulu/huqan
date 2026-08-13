@@ -70,6 +70,16 @@ const {
   findPath,
   findPathWithTimeout,
 } = require('./lib/graph-traversal');
+const {
+  ok: envelopeOk,
+  fail: envelopeFail,
+  validateResult,
+  edgeRef,
+  rankEvidence,
+  edgeEvidence,
+  pathEvidence,
+} = require('./lib/kernel-envelope');
+const { buildIntrospectReport } = require('./lib/kernel-introspect-report');
 
 // ProvenanceError is owned by lib/errors/provenance-error.js so that
 // lib/provenance-ingest.js can throw it without requiring kernel.js back
@@ -398,98 +408,39 @@ class Kernel {
     return { decision: 'allow', node, audit, admission };
   }
 
+  // Implementations live in lib/kernel-envelope.js. These stay as methods
+  // because lib/verify.js, lib/learn-use-case.js, lib/kernel-read-use-cases.js,
+  // plugins and the test suite all call them off a kernel instance.
+  get _envelopeContext() {
+    return { graph: this.graph, contractVersion: this.contractVersion, paranoidMode: this.paranoidMode };
+  }
+
   _ok(type, data = null, evidence = [], meta = {}) {
-    const stats = this.graph && typeof this.graph.getStats === 'function' ? this.graph.getStats() : {};
-    return this._validateResult({
-      ok: true,
-      type,
-      data,
-      evidence: this._rankEvidence(Array.isArray(evidence) ? evidence : []),
-      error: null,
-      meta: {
-        contractVersion: this.contractVersion,
-        backend: stats.backend || 'unknown',
-        paranoidMode: this.paranoidMode,
-        ...meta,
-      },
-    });
+    return envelopeOk(this._envelopeContext, type, data, evidence, meta);
   }
 
   _fail(type, code, message, meta = {}) {
-    return this._validateResult({
-      ok: false,
-      type,
-      data: null,
-      evidence: [],
-      error: { code, message },
-      meta: {
-        contractVersion: this.contractVersion,
-        paranoidMode: this.paranoidMode,
-        ...meta,
-      },
-    });
+    return envelopeFail(this._envelopeContext, type, code, message, meta);
   }
 
   _validateResult(result) {
-    if (!result || typeof result.ok !== 'boolean') throw new Error('Invalid result: ok must be boolean');
-    if (!Array.isArray(result.evidence)) throw new Error('Invalid result: evidence must be array');
-    if (result.type === 'verify' && result.data) {
-      const statuses = new Set(['verified', 'contradicted', 'unknown']);
-      if (!statuses.has(result.data.status)) throw new Error('Invalid verify status: ' + result.data.status);
-      if (typeof result.data.confidence !== 'number' || result.data.confidence < 0 || result.data.confidence > 1) {
-        throw new Error('Invalid confidence: must be between 0 and 1');
-      }
-    }
-    return result;
+    return validateResult(result);
   }
 
   _edgeRef(edge) {
-    return { from: edge.from, to: edge.to, relation: edge.relation };
+    return edgeRef(edge);
   }
 
   _rankEvidence(evidence = []) {
-    const seen = new Set();
-    return evidence
-      .filter(Boolean)
-      .sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))
-      .filter(item => {
-        const key = `${item.kind || 'evidence'}|${item.text || ''}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
+    return rankEvidence(evidence);
   }
 
   _edgeEvidence(edge, kind = 'direct_edge', confidence) {
-    const score = Math.max(0, Math.min(1, confidence ?? edge.confidence ?? edge.weight ?? 0));
-    const details = [];
-    if (edge.relation) details.push(`relation=${edge.relation}`);
-    if (edge.source) details.push(`source=${edge.source}`);
-    details.push(`confidence=${score.toFixed(2)}`);
-    return {
-      kind,
-      text: `${edge.from} --[${edge.relation}]--> ${edge.to} (${details.join(', ')})`,
-      confidence: score,
-      nodes: [edge.from, edge.to],
-      edges: [this._edgeRef(edge)],
-    };
+    return edgeEvidence(edge, kind, confidence);
   }
 
   _pathEvidence(pathArr, kind = 'path', confidence = 0.5, workspaceId = 'default') {
-    const edges = [];
-    for (let i = 0; i < pathArr.length - 1; i++) {
-      const direct = this.graph.getEdges(pathArr[i], workspaceId).find(e => e.to === pathArr[i + 1]);
-      const reverse = this.graph.getInEdges(pathArr[i], workspaceId).find(e => e.from === pathArr[i + 1]);
-      const edge = direct || reverse;
-      if (edge) edges.push(this._edgeRef(edge));
-    }
-    return {
-      kind,
-      text: pathArr.join(' -> '),
-      confidence: Math.max(0, Math.min(1, confidence)),
-      nodes: [...pathArr],
-      edges,
-    };
+    return pathEvidence(this.graph, pathArr, kind, confidence, workspaceId);
   }
 
   _runBeforeLearn(text, opts = {}) {
@@ -1535,105 +1486,16 @@ class Kernel {
 
   introspect(workspaceId = 'default') {
     this.plugins.emit('beforeIntrospect', {});
-    const allNodes = Object.values(this.graph.getNodes(workspaceId));
-    const allEdges = allNodes.flatMap(n => this.graph.getEdges(n.id, workspaceId));
-    const inEdges  = allNodes.flatMap(n => this.graph.getInEdges(n.id, workspaceId));
-
-    // Temel istatistikler
-    const nodeCount = allNodes.length;
-    const edgeCount = allEdges.length;
-    const typeEdges = allEdges.filter(e => e.relation === 'tür').length;
-    const canEdges  = allEdges.filter(e => e.relation === 'yapabilir').length;
-    const ozellikEdges = allEdges.filter(e => e.relation === 'özellik').length;
-    const benzerEdges  = allEdges.filter(e => e.relation === 'benzer').length;
-    const hipotezEdges = allEdges.filter(e => e.relation === 'hipotez').length;
-
-    // Yalıtılmış düğümler
-    const yalitilmis = allNodes.filter(n => {
-      const out = this.graph.getEdges(n.id, workspaceId);
-      const inn = this.graph.getInEdges(n.id, workspaceId);
-      return out.length === 0 && inn.length === 0;
-    }).map(n => n.id);
-
-    // Çelişkiler
-    const celiskiler = this.detectContradictions();
-
-    // Boşluklar (hiç kenarı olmayan)
-    const bosluklar = this.detectGaps(workspaceId);
-
-    // Kenar ağırlık dağılımı
-    const agirliklar = allEdges.map(e => e.weight || 0.5);
-    const ortAgirlik = agirliklar.length > 0 ? agirliklar.reduce((s, w) => s + w, 0) / agirliklar.length : 0;
-    const dusukAgirlik = agirliklar.filter(w => w < 0.3).length;
-
-    // Öz-bilgi: graph kendisi hakkında ne biliyor?
-    const selfNodes = ['axiom', 'kernel', 'dream', 'rüya', 'hipotez'];
-    const selfBilgi = {};
-    for (const n of selfNodes) {
-      const node = this.graph.getNode(n, workspaceId);
-      if (node) {
-        const edges = this.graph.getEdges(n, workspaceId);
-        selfBilgi[n] = { var: true, kenar: edges.length };
-      } else {
-        selfBilgi[n] = { var: false, kenar: 0 };
-      }
-    }
-
-    // Rüya döngüsü
-    const dreamCycle = this._dreamCount || 0;
-
-    // Entropi (bilgi çeşitliliği)
-    const entropi = this.entropy(workspaceId);
-
-    // Meta-güven skoru
-    let metaGuven = 0.5;
-    if (nodeCount > 0) {
-      metaGuven += Math.min(0.2, nodeCount * 0.001);
-      metaGuven -= Math.min(0.3, celiskiler.length * 0.05);
-      metaGuven += Math.min(0.1, ortAgirlik * 0.1);
-      metaGuven -= Math.min(0.1, yalitilmis.length * 0.02);
-      metaGuven = Math.max(0, Math.min(1, metaGuven));
-    }
-
-    // Zayıf noktalar
-    const zayifNoktalar = [];
-    if (yalitilmis.length > 0) zayifNoktalar.push(`${yalitilmis.length} isolated nodes`);
-    if (celiskiler.length > 0) zayifNoktalar.push(`${celiskiler.length} contradictions`);
-    if (dusukAgirlik > edgeCount * 0.3) zayifNoktalar.push(`${dusukAgirlik} low-confidence edges`);
-    if (nodeCount < 5) zayifNoktalar.push('very little knowledge');
-
-    // Güçlü noktalar
-    const gucluNoktalar = [];
-    if (nodeCount > 50) gucluNoktalar.push('a large knowledge graph');
-    if (typeEdges > 10) gucluNoktalar.push('a strong type hierarchy');
-    if (benzerEdges > 5) gucluNoktalar.push('an active similarity network');
-    if (dreamCycle > 0) gucluNoktalar.push(`${dreamCycle} dream cycles completed`);
-
-    const result = {
-      bilgi: {
-        dugum: nodeCount,
-        kenar: edgeCount,
-        tur: typeEdges,
-        yapabilir: canEdges,
-        ozellik: ozellikEdges,
-        benzer: benzerEdges,
-        hipotez: hipotezEdges,
-        yalitilmis: yalitilmis.length,
-        entropi: entropi.toFixed(3),
-      },
-      saglik: {
-        metaGuven: parseFloat(metaGuven.toFixed(3)),
-        celiski: celiskiler.length,
-        bosluk: bosluklar.length,
-        ortalamaAgirlik: parseFloat(ortAgirlik.toFixed(3)),
-        dusukGuvenliKenar: dusukAgirlik,
-      },
-      ozBilgi: selfBilgi,
-      zayifNoktalar,
-      gucluNoktalar,
-      dreamCycle,
-    };
-
+    // Report body lives in lib/kernel-introspect-report.js; the plugin
+    // lifecycle events and the envelope wrap stay here.
+    const result = buildIntrospectReport({
+      graph: this.graph,
+      workspaceId,
+      contradictions: this.detectContradictions(),
+      gaps: this.detectGaps(workspaceId),
+      entropy: this.entropy(workspaceId),
+      dreamCount: this._dreamCount || 0,
+    });
     this.plugins.emit('afterIntrospect', result);
     return this._ok('introspect', result);
   }
