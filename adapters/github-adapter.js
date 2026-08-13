@@ -1,3 +1,4 @@
+const { contentHash, CONTENT_HASH_ALGORITHM } = require('../lib/content-hash');
 const { canonicalizeGitHubRepoUrl, buildGitHubBlobUrl } = require('../lib/github-url');
 
 function toError(message, code, status) {
@@ -133,6 +134,8 @@ async function fetchAndLearn(repoUrl, kernel, opts = {}) {
       sourceRef: buildGitHubBlobUrl(file),
       sourceType: 'github',
       sourceSubType: 'blob',
+      contentHash: contentHash(file.content),
+      contentHashAlgorithm: CONTENT_HASH_ALGORITHM,
       actor: opts.actor || 'github-adapter',
       timestamp: new Date().toISOString(),
     };

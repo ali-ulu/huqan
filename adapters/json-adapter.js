@@ -1,3 +1,4 @@
+const { contentHash, CONTENT_HASH_ALGORITHM } = require('../lib/content-hash');
 const fs = require('fs');
 const path = require('path');
 const { resolvePathWithinRoot } = require('../lib/path-safety');
@@ -143,6 +144,8 @@ function ingestAndLearn(targetPath, kernel, options = {}) {
       sourceRef: entry.sourceRef,
       sourceType: 'document',
       sourceSubType: 'json',
+      contentHash: contentHash(entry.content),
+      contentHashAlgorithm: CONTENT_HASH_ALGORITHM,
       actor: options.actor || 'json-adapter',
       timestamp: new Date().toISOString(),
     };

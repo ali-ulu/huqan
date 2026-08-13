@@ -1,3 +1,4 @@
+const { contentHash, CONTENT_HASH_ALGORITHM } = require('../lib/content-hash');
 const fs = require('fs');
 const path = require('path');
 const { resolvePathWithinRoot } = require('../lib/path-safety');
@@ -172,6 +173,8 @@ async function ingestAndLearn(targetPath, kernel, options = {}) {
       sourceRef: entry.sourceRef,
       sourceType: 'document',
       sourceSubType: 'pdf',
+      contentHash: contentHash(entry.content),
+      contentHashAlgorithm: CONTENT_HASH_ALGORITHM,
       actor: options.actor || 'pdf-adapter',
       timestamp: new Date().toISOString(),
     };

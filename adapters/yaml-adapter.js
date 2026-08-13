@@ -1,3 +1,4 @@
+const { contentHash, CONTENT_HASH_ALGORITHM } = require('../lib/content-hash');
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
@@ -144,6 +145,8 @@ function ingestAndLearn(targetPath, kernel, options = {}) {
       sourceRef: entry.sourceRef,
       sourceType: 'document',
       sourceSubType: 'yaml',
+      contentHash: contentHash(entry.content),
+      contentHashAlgorithm: CONTENT_HASH_ALGORITHM,
       actor: options.actor || 'yaml-adapter',
       timestamp: new Date().toISOString(),
     };

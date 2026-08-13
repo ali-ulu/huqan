@@ -131,6 +131,7 @@
         "lib/cli-help.js",
         "lib/command-parser.js",
         "lib/conflict-detector.js",
+        "lib/content-hash.js",
         "lib/contradiction-rules.js",
         "lib/cross-workspace-access-gate.js",
         "lib/data-egress-gate.js",
