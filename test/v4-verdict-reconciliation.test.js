@@ -16,6 +16,7 @@ const {
   CANONICAL_VERDICTS,
   ADMISSION_TO_CANONICAL,
   MCP_TO_CANONICAL,
+  GITHUB_APP_BETA_TO_CANONICAL,
   UnknownVerdictSourceError,
   toCanonicalVerdict,
   fromAdmissionDecision,
@@ -59,6 +60,18 @@ describe('V4-PR2: canonical verdict set and no fourth vocabulary', () => {
     for (const [source, canonical] of Object.entries(expected)) {
       assert.strictEqual(toCanonicalVerdict('mcp', source), canonical);
     }
+  });
+
+  it('GitHub App beta maps only the bounded observation decision to canonical review', () => {
+    assert.deepStrictEqual(GITHUB_APP_BETA_TO_CANONICAL, { beta_observation_only: 'review' });
+    assert.strictEqual(toCanonicalVerdict('github_app_beta', 'beta_observation_only'), 'review');
+  });
+
+  it('unknown GitHub App beta decisions fail closed rather than falling back', () => {
+    assert.throws(
+      () => toCanonicalVerdict('github_app_beta', 'attacker_supplied_allow'),
+      UnknownVerdictSourceError,
+    );
   });
 
   it('an unrecognized decision value fails closed (throws), never silently resolves to allow', () => {
