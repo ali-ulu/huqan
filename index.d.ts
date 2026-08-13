@@ -27,6 +27,7 @@ declare const huqan: typeof KernelV2 & {
     createErrorPrevention: (memoryStore: any, options?: Record<string, unknown>) => any;
     buildActionFingerprint: (input?: Record<string, unknown>) => string;
     buildFailureFingerprint: (input?: Record<string, unknown>) => string;
+    buildRuleSubjectHash: (rule?: Record<string, unknown>) => string;
     classifyFailureTrust: (source: string, evidence?: unknown[]) => Record<string, unknown>;
     mergeWithUpstreamVerdict: (upstreamVerdict?: string, preventionVerdict?: string) => string;
     normalizeAction: (input?: Record<string, unknown>) => Record<string, string>;
