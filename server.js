@@ -12,7 +12,6 @@ const { createKernel } = require('./lib/kernel-factory');
 const { parseCommand } = require('./lib/command-parser');
 const { evaluateLlmSor } = require('./lib/shield');
 const {
-  toCanonicalVerifyStatus,
   toPublicVerifyPayload,
   toPublicVerifyEnvelope,
 } = require('./lib/verify-status-vocabulary');
@@ -40,8 +39,6 @@ const {
   DEFAULT_MAX_JSON_BODY,
   checkRateLimit,
   clearExpiredRateLimitEntries,
-  constantTimeEqual,
-  extractApiKey,
   isAllowedPublicCommand,
   isUnsafePublicApiCommand,
   readJsonBody,
@@ -82,29 +79,6 @@ function recoverExpiredIngestApprovals(store = ingestApprovalStore) {
   });
 }
 
-function newIngestApprovalId() {
-  return `ingest-approval-${crypto.randomUUID()}`;
-}
-
-function publicIngestApproval(record) {
-  if (!record) return null;
-  const context = record.context && typeof record.context === 'object' ? record.context : {};
-  return {
-    id: record.id,
-    status: record.status,
-    decision: record.decision,
-    reason: record.reason,
-    createdAt: Number(record.created_at || record.createdAt || 0),
-    updatedAt: Number(record.updated_at || record.updatedAt || 0),
-    snapshotHash: context.snapshot?.snapshotHash || '',
-    sourceType: context.snapshot?.sourceType || '',
-    sourceRef: context.snapshot?.sourceRef || '',
-    idempotencyKey: context.snapshot?.idempotencyKey || '',
-    leaseExpiresAt: Number(context.executionClaim?.leaseExpiresAt || 0),
-    receipt: context.receipt || null,
-  };
-}
-
 // The workspace comes from the immutable snapshot the action owner validated,
 // never from decision-request bytes and never from a hard-coded fallback.
 function recordIngestApprovalAudit(approval, receipt, result = null) {
@@ -137,19 +111,6 @@ const ingestApprovalRecoveryTimer = setInterval(() => {
   try { recoverExpiredIngestApprovals(); } catch (error) { console.error('[ingest-approval-recovery] failed:', error); }
 }, Math.max(5_000, Math.floor(INGEST_APPROVAL_LEASE_MS / 2)));
 ingestApprovalRecoveryTimer.unref?.();
-
-// HTTP API boundary adapter. The kernel's internal status vocabulary is left
-// untouched; only the serialized public form is canonical English. Readers
-// that consume this shape (lib/shield.js) accept both vocabularies. See
-// lib/verify-status-vocabulary.js and
-// docs/verify-status-vocabulary-migration.md.
-function legacyVerify(result) {
-  return {
-    status: toCanonicalVerifyStatus(result.data.status),
-    confidence: result.data.confidence,
-    evidence: result.evidence.map(e => e.text),
-  };
-}
 
 function runPublicApiCommand(command, args) {
   const normalizedCommand = String(command || '')
@@ -209,64 +170,21 @@ function runPublicApiCommand(command, args) {
   }
 }
 
-const ALLOWED_CORS_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
-const JSON_CONTENT_TYPE = 'application/json; charset=utf-8';
-
-function isSafeOrigin(origin) {
-  if (typeof origin !== 'string' || !origin) return '';
-  try {
-    const url = new URL(origin);
-    if (!['http:', 'https:'].includes(url.protocol)) return '';
-    if (!ALLOWED_CORS_HOSTS.has(url.hostname)) return '';
-    return url.origin;
-  } catch (_) {
-    return '';
-  }
-}
-
-function buildCorsHeaders(req, preflight = false) {
-  const origin = isSafeOrigin(req.headers?.origin || '');
-  if (!origin) return {};
-  const headers = {
-    'Access-Control-Allow-Origin': origin,
-    Vary: 'Origin',
-  };
-  if (preflight) {
-    headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS';
-    headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-API-Key';
-    headers['Access-Control-Max-Age'] = '600';
-  }
-  return headers;
-}
-
-// Responses for the workbench memory-context route must never be cached or
-// content-sniffed, including the ones produced by generic middleware (rate
-// limit, auth) that answers before the route handler runs.
-function memoryContextSecurityHeaders(rawPath) {
-  return String(rawPath || '').startsWith('/api/workbench/memory-context/')
-    ? { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }
-    : {};
-}
-
-function writeJson(req, res, statusCode, payload, headers = {}) {
-  res.writeHead(statusCode, {
-    'Content-Type': JSON_CONTENT_TYPE,
-    ...buildCorsHeaders(req),
-    ...headers,
-  });
-  res.end(JSON.stringify(payload));
-}
-
-function writeApiError(req, res, statusCode, code, message, details = {}) {
-  writeJson(req, res, statusCode, {
-    ok: false,
-    error: {
-      code,
-      message,
-      details,
-    },
-  }, { 'Cache-Control': 'no-cache' });
-}
+const {
+  ALLOWED_CORS_HOSTS,
+  JSON_CONTENT_TYPE,
+  isSafeOrigin,
+  buildCorsHeaders,
+  memoryContextSecurityHeaders,
+  writeJson,
+  writeApiError,
+  sendOptions,
+  getRateLimitKey,
+  getSafeMemoryLabel,
+  newIngestApprovalId,
+  publicIngestApproval,
+  legacyVerify,
+} = require('./lib/server-response-helpers');
 
 const {
   TRUST_FILTER_MAX_ID,
@@ -277,38 +195,6 @@ const {
   hasTrustQuery,
   readPathReceiptId,
 } = require('./lib/http-trust-query');
-
-function getRateLimitKey(req) {
-  const apiKey = extractApiKey(req.headers || {});
-  const configuredKey = sanitizeInput(readCompatibleEnvironmentVariable('API_KEY') || '', 256);
-  if (apiKey && configuredKey && constantTimeEqual(apiKey, configuredKey)) {
-    return 'key:' + crypto.createHash('sha256').update(apiKey).digest('hex').slice(0, 16);
-  }
-  if (readCompatibleEnvironmentVariable('TRUST_PROXY') === '1') {
-    const xffList = String(req.headers?.['x-forwarded-for'] || '').split(',').map(s => s.trim());
-    // The FIRST entry in X-Forwarded-For is the original client IP.
-    // Only use it when we trust the proxy chain (HUQAN_TRUST_PROXY=1).
-    if (xffList.length > 0 && /^[\d.:a-fA-F]+$/.test(xffList[0])) {
-      return 'ip:' + xffList[0];
-    }
-  }
-  const remoteAddress = String(req.socket?.remoteAddress || '').trim();
-  return remoteAddress ? 'ip:' + remoteAddress : '';
-}
-
-function sendOptions(req, res) {
-  const corsHeaders = buildCorsHeaders(req, true);
-  if (!Object.keys(corsHeaders).length) {
-    res.writeHead(204);
-    res.end();
-    return;
-  }
-  res.writeHead(204, {
-    ...corsHeaders,
-    'Content-Length': '0',
-  });
-  res.end();
-}
 
 function checkViewerRateLimit(req, timestamp = Date.now()) {
   const key = String(req.socket?.remoteAddress || 'unknown');
@@ -361,43 +247,6 @@ async function parseJsonRequest(req, res, options = {}) {
 }
 
 
-// Graf verisini D3 formatına dönüştür
-function getSafeMemoryLabel(content) {
-  if (content === null || content === undefined) return '';
-  let str = '';
-  if (typeof content === 'string') {
-    str = content;
-  } else if (typeof content === 'object') {
-    if (content.text && typeof content.text === 'string') {
-      str = content.text;
-    } else if (content.statement && typeof content.statement === 'string') {
-      str = content.statement;
-    } else if (content.content && typeof content.content === 'string') {
-      str = content.content;
-    } else {
-      try {
-        str = JSON.stringify(content);
-      } catch (_) {
-        str = String(content);
-      }
-    }
-  } else {
-    str = String(content);
-  }
-
-  // Encode HTML entities so content is safe in both textContent and innerHTML contexts
-  str = str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;');
-
-  if (str.length > 100) {
-    str = str.substring(0, 97) + '...';
-  }
-  return str;
-}
 function getGraphData(workspaceId = 'default') {
   const scope = typeof workspaceId === 'string' && workspaceId.trim() ? workspaceId.trim() : 'default';
   const nodesById = kernel.graph.getNodes(scope);

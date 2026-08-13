@@ -20,7 +20,7 @@
     "lib/verify.js": 967,
     "plugins/repo-memory.js": 1217,
     "scripts/external-conformance/consumer.js": 881,
-    "server.js": 1445,
+    "server.js": 1294,
     "workflow-agent.js": 1007,
     "workflow-tools.js": 962
   }
