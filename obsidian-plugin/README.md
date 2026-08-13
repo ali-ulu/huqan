@@ -1,46 +1,92 @@
-# HUQAN Trust Panel (Obsidian plugin)
+# HUQAN Evidence & Trust for Obsidian
 
-> **MOCK — does not verify against the real HUQAN kernel. Generates local
-> heuristic receipts only.** See `manifest.json`.
+Verify statements in an Obsidian note against a **real local HUQAN runtime**.
+The plugin does not use a mock verifier and does not send note text or API keys
+to a remote service.
 
-This is the Obsidian plugin surface for the HUQAN trust panel demo. It is a
-local-only mock that produces heuristic receipts and does not call the real
-HUQAN runtime.
+## What it does
 
-## Files
+- **Verify current note** — scans a bounded number of Markdown statements and
+  checks each one with HUQAN `/v2/verify`.
+- **Verify selected text** — checks the selected passage against HUQAN.
+- Shows HUQAN's canonical `verified`, `contradicted`, and `unknown` statuses.
+- Shows confidence, explanation, evidence summaries, and manipulation-risk
+  labels returned by the HUQAN runtime.
+- Keeps the configured endpoint loopback-only (`127.0.0.1`, `localhost`, or
+  `::1`) so a saved API key cannot be sent to an arbitrary host.
+- Bounds full-note scans to 1–40 statements (20 by default).
 
-- `src/main.ts` — TypeScript source
-- `main.js` — bundled output (produced by `esbuild.config.mjs`)
-- `manifest.json` — Obsidian plugin manifest
-- `versions.json` — release → minAppVersion map consumed by Obsidian
-- `version-bump.mjs` — version bump helper (see below)
-- `styles.css` — panel styles
-- `esbuild.config.mjs` — bundler config
-- `tsconfig.json` — TypeScript config
+## Requirements
 
-## Version bump process
+- Obsidian desktop 1.5.0 or newer.
+- A local HUQAN server from this repository.
+- A `HUQAN_API_KEY` configured on that local server.
 
-Obsidian requires every released plugin version to be registered in
-`versions.json` as `"version": "minAppVersion"`. The
-`version-bump.mjs` script updates both `manifest.json` and `versions.json`
-atomically.
+## Run HUQAN locally
+
+From a HUQAN checkout:
+
+```bash
+npm ci
+HUQAN_API_KEY="replace-with-a-long-random-key" npm run server
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:HUQAN_API_KEY="replace-with-a-long-random-key"
+npm run server
+```
+
+The server listens on `http://127.0.0.1:3000` by default.
+
+## Configure the plugin
+
+Open **Settings → Community plugins → HUQAN Trust Panel** and set:
+
+1. Local HUQAN endpoint (default: `http://127.0.0.1:3000`)
+2. The same HUQAN API key used to start the server
+3. HUQAN workspace (default: `default`)
+4. Maximum statements to check per note
+
+Use **Test HUQAN** before the first verification.
+
+## Commands
+
+- `HUQAN: Verify current note`
+- `HUQAN: Verify selected text`
+- `HUQAN: Test connection`
+
+The shield ribbon icon runs **Verify current note**.
+
+## Privacy and security boundary
+
+The plugin stores its settings in Obsidian's local plugin data. The API key is
+therefore a local secret, not an encrypted credential store. To reduce its
+blast radius, the plugin refuses to send the key to non-loopback hosts.
+
+Verification is read-only. This plugin does not call HUQAN ingest, learn,
+approval, mutation, or action endpoints.
+
+## What a result means
+
+HUQAN verifies a statement against the evidence available in the configured
+HUQAN workspace. `unknown` means HUQAN did not have enough evidence. It is not
+a claim that the statement is false. Likewise, this plugin is not a universal
+fact checker and does not promise truth or hallucination elimination.
+
+## Development
 
 ```bash
 cd obsidian-plugin
-node version-bump.mjs 1.1.0
+npm ci
+npm run build
 ```
 
-This will:
+Release artifacts are:
 
-1. Set `manifest.json` `version` to the given value.
-2. Add a new entry to `versions.json` mapping the new version to the current
-   `minAppVersion` from `manifest.json`.
+- `main.js`
+- `manifest.json`
+- `styles.css`
 
-After running it, commit both files together and tag the release.
-
-### Why only one version is registered
-
-`versions.json` currently contains a single entry (`"1.0.0": "1.5.0"`) because
-the plugin has only had one release so far. Each subsequent release must run
-`version-bump.mjs` so the new version is registered before publishing to the
-Obsidian community plugin directory.
+For each release, update the plugin version and `versions.json` together.
