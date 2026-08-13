@@ -141,12 +141,13 @@ function ingestAndLearn(targetPath, kernel, options = {}) {
       provenanceId: `json-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       source: 'json-adapter',
       sourceRef: entry.sourceRef,
-      sourceType: 'json',
+      sourceType: 'document',
+      sourceSubType: 'json',
       actor: options.actor || 'json-adapter',
       timestamp: new Date().toISOString(),
     };
     try {
-      const r = kernel.learn(entry.content, { provenance, sourceType: 'json', sourceRef: provenance.sourceRef });
+      const r = kernel.learn(entry.content, { provenance, sourceType: 'document', sourceSubType: 'json', sourceRef: provenance.sourceRef });
       learned.push({ entryKey: entry.entryKey, learned: r.data.learned, ok: true });
     } catch (e) {
       learned.push({ entryKey: entry.entryKey, error: e.message, ok: false });

@@ -51,7 +51,8 @@ function addCompanyEdge(kernel, fromId, toId, relation, opts = {}) {
     source: opts.source || 'manual',
     sourceRef: opts.sourceRef || '',
     sessionId: opts.sessionId || '',
-    sourceType: opts.sourceType || 'manual',
+    sourceType: opts.sourceType || 'user',
+    sourceSubType: opts.sourceSubType || 'manual',
     companyMode: true,
     evidenceType: opts.evidenceType || 'user_experience',
     evidence: Array.isArray(opts.evidence) ? opts.evidence : [],
@@ -337,7 +338,8 @@ function ingestManual(kernel, input = {}) {
     const factEdge = addCompanyEdge(kernel, fact.subject, parsed.object, parsed.relation, {
       source: 'manual',
       sourceRef,
-      sourceType: 'manual',
+      sourceType: 'user',
+      sourceSubType: 'manual',
       evidenceType: 'user_experience',
       evidence: [text],
       confidence,
@@ -347,7 +349,8 @@ function ingestManual(kernel, input = {}) {
     const evidenceEdge = addCompanyEdge(kernel, noteNode, fact.subject, 'destekler', {
       source: 'manual',
       sourceRef,
-      sourceType: 'manual',
+      sourceType: 'user',
+      sourceSubType: 'manual',
       evidenceType: 'user_experience',
       evidence: [text],
       confidence,
@@ -362,7 +365,8 @@ function ingestManual(kernel, input = {}) {
     const fallbackEdge = addCompanyEdge(kernel, noteNode, text.slice(0, 96), 'not', {
       source: 'manual',
       sourceRef,
-      sourceType: 'manual',
+      sourceType: 'user',
+      sourceSubType: 'manual',
       evidenceType: 'user_experience',
       evidence: [text],
       confidence: rankingEnabled ? adjustedConfidence(0.45, 'user_experience') : 0.45,
@@ -375,7 +379,8 @@ function ingestManual(kernel, input = {}) {
   trackSuccess(kernel, 'manual', added);
   return {
     ok: true,
-    sourceType: 'manual',
+    sourceType: 'user',
+    sourceSubType: 'manual',
     sourceRef,
     added,
     admission: summarizeProposals(proposals),
@@ -399,7 +404,8 @@ function ingestDecision(kernel, input = {}) {
   const rationaleEdge = addCompanyEdge(kernel, decisionId, rationaleId, 'açıklar', {
     source: 'manual',
     sourceRef,
-    sourceType: 'manual',
+    sourceType: 'user',
+    sourceSubType: 'manual',
     evidenceType: 'docs',
     evidence: [rationale],
     confidence: 0.78,
@@ -413,7 +419,8 @@ function ingestDecision(kernel, input = {}) {
     const alternativeEdge = addCompanyEdge(kernel, decisionId, altId, 'alternatif', {
       source: 'manual',
       sourceRef,
-      sourceType: 'manual',
+      sourceType: 'user',
+      sourceSubType: 'manual',
       evidenceType: 'docs',
       evidence: [alt],
       confidence: 0.62,
@@ -427,7 +434,8 @@ function ingestDecision(kernel, input = {}) {
     const linkEdge = addCompanyEdge(kernel, decisionId, String(link), 'decides', {
       source: 'manual',
       sourceRef,
-      sourceType: 'manual',
+      sourceType: 'user',
+      sourceSubType: 'manual',
       evidenceType: 'docs',
       evidence: [title],
       confidence: 0.8,
@@ -440,7 +448,8 @@ function ingestDecision(kernel, input = {}) {
   trackSuccess(kernel, 'manual', added);
   return {
     ok: true,
-    sourceType: 'decision',
+    sourceType: 'user',
+    sourceSubType: 'decision',
     decisionId,
     sourceRef,
     added,

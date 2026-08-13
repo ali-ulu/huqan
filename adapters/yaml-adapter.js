@@ -142,12 +142,13 @@ function ingestAndLearn(targetPath, kernel, options = {}) {
       provenanceId: `yaml-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       source: 'yaml-adapter',
       sourceRef: entry.sourceRef,
-      sourceType: 'yaml',
+      sourceType: 'document',
+      sourceSubType: 'yaml',
       actor: options.actor || 'yaml-adapter',
       timestamp: new Date().toISOString(),
     };
     try {
-      const r = kernel.learn(entry.content, { provenance, sourceType: 'yaml', sourceRef: provenance.sourceRef });
+      const r = kernel.learn(entry.content, { provenance, sourceType: 'document', sourceSubType: 'yaml', sourceRef: provenance.sourceRef });
       learned.push({ entryKey: entry.entryKey, learned: r.data.learned, ok: true });
     } catch (e) {
       learned.push({ entryKey: entry.entryKey, error: e.message, ok: false });

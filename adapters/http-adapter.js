@@ -310,7 +310,8 @@ async function ingestAndLearn(urls, kernel, options = {}) {
       provenanceId: `http-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       source: 'http-adapter',
       sourceRef: entry.sourceRef,
-      sourceType: 'http',
+      sourceType: 'api',
+      sourceSubType: 'http',
       actor: options.actor || 'http-adapter',
       timestamp: new Date().toISOString(),
     };
@@ -321,7 +322,7 @@ async function ingestAndLearn(urls, kernel, options = {}) {
       // `typeof kernel.learnAsync === 'function'` guard on purpose: quietly
       // falling back to the synchronous learn() would skip the gate without
       // saying so, which is the failure shape #348 was filed about.
-      const r = await kernel.learnAsync(entry.content, { provenance, sourceType: 'http', sourceRef: provenance.sourceRef });
+      const r = await kernel.learnAsync(entry.content, { provenance, sourceType: 'api', sourceSubType: 'http', sourceRef: provenance.sourceRef });
       learned.push({ entryKey: entry.entryKey, learned: r.data.learned, ok: true });
     } catch (e) {
       learned.push({ entryKey: entry.entryKey, error: e.message, ok: false });

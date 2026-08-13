@@ -174,7 +174,8 @@ test('pdf-adapter: ingestAndLearn forwards provenance per page', async () => {
     assert.equal(result.learned.length, 1);
     assert.equal(result.learned[0].ok, true);
     assert.equal(calls.length, 1);
-    assert.equal(calls[0].opts.sourceType, 'pdf');
+    assert.equal(calls[0].opts.sourceType, 'document');
+    assert.equal(calls[0].opts.sourceSubType, 'pdf');
     assert.equal(calls[0].opts.provenance.source, 'pdf-adapter');
     assert.equal(calls[0].opts.provenance.actor, 'pdf-test');
     assert.match(calls[0].opts.provenance.provenanceId, /^pdf-\d+-[a-z0-9]{6}$/);
