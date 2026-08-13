@@ -12,9 +12,9 @@
 
 ## [GÖREV]
 
-Wire the existing authenticated GitHub pull-request event boundary to the existing `evaluateCodeChange()` gate, bind the result to the exact repository/PR/head SHA, emit a canonical C8 receipt, and update a GitHub check run through a bounded installation-token client.
+Wire the existing authenticated GitHub pull-request event handler to the existing `evaluateCodeChange()` gate, bind the result to the exact repository/PR/head SHA, emit a canonical C8 receipt, and update a GitHub check run through a bounded installation-token client.
 
-The C8 path must reuse C7 HMAC/event/replay binding and the existing code-change gate. It must not invent a second risk engine or a new canonical verdict vocabulary.
+The C8 path must reuse C7 HMAC/event/replay binding and the existing code-change gate. It must not invent a second risk engine or a new canonical verdict vocabulary. Hosted/public HTTPS route deployment remains the explicitly deferred #279 item; this task delivers the raw-webhook-to-check runtime loop that the hosted boundary can call later.
 
 ## Failing evidence before implementation
 
@@ -69,17 +69,21 @@ npm test
 
 ## Allowed implementation files
 
-- `lib/github-app-beta-auth.js` — minimum token permission expansion for bounded PR read + check write.
 - `lib/verdict/action-verdict.js` — identity projection table for existing code-change decisions only.
+- `lib/github-app-streaming-auth.js` — C8-only installation-token request scoped exactly to `checks: write` + `pull_requests: read`; C7 auth behavior remains unchanged.
 - `lib/github-app-streaming-trust-store.js` — C8 durable replay/writeback state.
 - `lib/github-app-streaming-trust.js` — bounded exact-head evidence fetch, gate, receipt, check writeback orchestration.
-- `lib/github-app-beta-http-boundary.js` — opt-in C8 wiring behind explicit configuration; C7 path remains the default.
+- `lib/github-app-streaming-trust-handler.js` — thin composition of C7 authenticated raw-webhook ingest and C8 loop.
 - `test/v5-c8-streaming-trust.test.js` — acceptance/falsification tests.
 - This task-pack.
 
+## Negative scope / deferred wiring
+
+`github-app-server.js` and `lib/github-app-beta-http-boundary.js` are intentionally unchanged here. They remain the hosted/public HTTPS boundary that #279 will finish later. C8 is not permitted to claim hosted production reachability until that deferred proof/wiring is completed.
+
 ## Stop conditions
 
-Stop rather than weaken a guard if exact-head identity cannot be proven, changed-file evidence exceeds bounds, installation credentials are unavailable in C8-enabled mode, a source decision cannot be mapped canonically, or writeback state is ambiguous.
+Stop rather than weaken a guard if exact-head identity cannot be proven, changed-file evidence exceeds bounds, installation credentials are unavailable, a source decision cannot be mapped canonically, or writeback state is ambiguous.
 
 ## [SÜRÜM]
 
