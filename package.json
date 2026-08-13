@@ -180,6 +180,7 @@
         "lib/memory-mutation-gate/memory-mutation-findings-summary.js",
         "lib/memory-mutation-gate/memory-mutation-normalizer.js",
         "lib/memory-mutation-gate/memory-mutation-vocabulary.js",
+        "lib/memory-record-utils.js",
         "lib/memory-schema.js",
         "lib/memory-store-utils.js",
         "lib/memory-store.js",
