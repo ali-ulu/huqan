@@ -4,11 +4,13 @@
 
 - Repository: `ali-ulu/huqan`
 - Issue: #280
-- Exact base: `main @ 9e34ee560fe831790a2f04c4281c68c29f425be4`
+- Authorization base: `main @ 9e34ee560fe831790a2f04c4281c68c29f425be4`
+- Reconciled current main: `0c7bf515e0447d9fef36e5946a3dc9cdd3154e58`
 - Branch: `work/280`
+- Main reconciliation evidence: the intervening main delta touches only `obsidian-plugin/**` and `test/obsidian-plugin-live-verifier.test.js`; it does not overlap the C8 files in this task pack.
 - Predecessor: C7 webhook/auth/store primitives are already on `main`.
 - Owner override recorded on #280 (2026-08-14): hosted/public HTTPS proof from #279 is deferred; C8 implementation may proceed now. This does not convert #279 to PASS and does not authorize production/general coverage claims.
-- `graphify-out/GRAPH_REPORT.md` is absent at this base; live source is the fallback evidence path per `GRAPHIFY-001`.
+- `graphify-out/GRAPH_REPORT.md` is absent at the authorization base; live source is the fallback evidence path per `GRAPHIFY-001`.
 
 ## [GÖREV]
 
@@ -18,7 +20,7 @@ The C8 path must reuse C7 HMAC/event/replay binding and the existing code-change
 
 ## Failing evidence before implementation
 
-At the exact base:
+At the authorization base:
 
 1. `lib/github-app-beta-handler.js` authenticates/binds a PR delivery and emits only the C7 `beta_observation_only` receipt; it never calls `evaluateCodeChange()`.
 2. `lib/github-app-writeback-contract.js` hardcodes `writebackReachable: false`; no reachable GitHub check-run writeback exists.
@@ -87,4 +89,5 @@ Stop rather than weaken a guard if exact-head identity cannot be proven, changed
 
 ## [SÜRÜM]
 
-Base artifact: Git commit `9e34ee560fe831790a2f04c4281c68c29f425be4`.
+Authorization artifact: Git commit `9e34ee560fe831790a2f04c4281c68c29f425be4`.
+Current reconciled baseline: Git commit `0c7bf515e0447d9fef36e5946a3dc9cdd3154e58`.
