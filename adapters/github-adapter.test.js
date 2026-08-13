@@ -6,6 +6,8 @@ const evidenceValidator = require('../plugins/evidence-validator');
 const { canonicalizeGitHubRepoUrl } = require('../lib/github-url');
 const { fetchRepoFiles, fetchAndLearn, parseRepoUrl, includePath } = require('./github-adapter');
 
+const TEST_COMMIT_SHA = 'c'.repeat(40);
+
 function makeResponse({ ok = true, status = 200, json, text, headers = {} }) {
   return {
     ok,
@@ -50,6 +52,11 @@ test('github-adapter: fetchRepoFiles returns filtered markdown files', async () 
   const calls = [];
   const fetchImpl = async (url) => {
     calls.push(url);
+    if (/\/commits\/[^/?]+$/.test(url)) {
+      // The adapter resolves the ref to a commit before reading anything, so a
+      // stub that does not answer this is not standing in for GitHub.
+      return makeResponse({ json: { sha: TEST_COMMIT_SHA } });
+    }
     if (url.includes('/git/trees/')) {
       return makeResponse({
         json: {
@@ -83,12 +90,14 @@ test('github-adapter: fetchRepoFiles returns filtered markdown files', async () 
   for (const item of files) {
     assert.deepEqual(Object.keys(item).sort(), [
       'branch',
+      'commitSha',
       'content',
       'lastModified',
       'owner',
       'path',
       'repo',
     ]);
+    assert.equal(item.commitSha, TEST_COMMIT_SHA);
   }
   assert.equal(calls.some(url => url.includes('docs/overview.md')), false);
 });
@@ -106,6 +115,11 @@ test('github-adapter: fetchRepoFiles surfaces rate-limit errors', async () => {
 
 function singleFileFetchImpl() {
   return async (url) => {
+    if (/\/commits\/[^/?]+$/.test(url)) {
+      // The adapter resolves the ref to a commit before reading anything, so a
+      // stub that does not answer this is not standing in for GitHub.
+      return makeResponse({ json: { sha: TEST_COMMIT_SHA } });
+    }
     if (url.includes('/git/trees/')) {
       return makeResponse({ json: { tree: [{ type: 'blob', path: 'README.md' }] } });
     }
@@ -129,7 +143,7 @@ test('github-adapter: fetchAndLearn ingests through learnAsync, not the sync pat
   assert.equal(calls.length, 1);
   assert.equal(calls[0].text, 'Kedi hayvandır');
   assert.equal(calls[0].opts.provenance.source, 'github-adapter');
-  assert.equal(calls[0].opts.sourceRef, 'https://github.com/ai-ulu/axiom/blob/main/README.md');
+  assert.equal(calls[0].opts.sourceRef, `https://github.com/ai-ulu/axiom/blob/${TEST_COMMIT_SHA}/README.md`);
   assert.equal(calls[0].opts.provenance.sourceRef, calls[0].opts.sourceRef);
   assert.deepEqual(result.learned, [{ path: 'README.md', learned: 2, ok: true }]);
 });
@@ -180,7 +194,7 @@ test('github-adapter: fetchAndLearn runs the real evidenceReachability probe (#5
   });
 
   assert.equal(probes.length, 1, 'remote GitHub content must be probed, not waved through');
-  assert.equal(probes[0].url, 'https://github.com/ai-ulu/axiom/blob/main/README.md');
+  assert.equal(probes[0].url, `https://github.com/ai-ulu/axiom/blob/${TEST_COMMIT_SHA}/README.md`);
   assert.equal(probes[0].options.method, 'HEAD');
 });
 

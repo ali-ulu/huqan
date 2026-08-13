@@ -6,7 +6,7 @@ const PluginManager = require('./plugin');
 const createNlp = require('./nlp');
 const VerifyService = require('./lib/verify');
 const { buildProvenance } = require('./lib/provenance-ingest');
-const { buildBackgroundProvenance } = require('./lib/background-provenance');
+const { buildBackgroundProvenance, provenanceFieldsFrom } = require('./lib/background-provenance');
 const { evaluateMemoryAdmission } = require('./lib/memory-admission-gate');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
 const { defaultApprovalRequired } = require('./lib/human-approval-toggle');
@@ -303,11 +303,7 @@ class Kernel {
     return this._commitBackgroundEdge(from, to, relation, 'plugin', {
       workspaceId: opts.workspaceId || 'default',
       edgeOptions: opts,
-      provenanceExtra: {
-        sourceType: opts.sourceType || 'plugin',
-        sourceRef: opts.sourceRef || '',
-        actor: opts.actor || opts.sessionId || 'plugin',
-      },
+      provenanceExtra: provenanceFieldsFrom(opts),
       admissionOpts: {
         approvalRequired: false,
         sourceType: opts.sourceType || 'plugin',
