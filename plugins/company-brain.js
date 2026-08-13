@@ -379,8 +379,7 @@ function ingestManual(kernel, input = {}) {
   trackSuccess(kernel, 'manual', added);
   return {
     ok: true,
-    sourceType: 'user',
-    sourceSubType: 'manual',
+    sourceType: 'manual',
     sourceRef,
     added,
     admission: summarizeProposals(proposals),
@@ -448,8 +447,7 @@ function ingestDecision(kernel, input = {}) {
   trackSuccess(kernel, 'manual', added);
   return {
     ok: true,
-    sourceType: 'user',
-    sourceSubType: 'decision',
+    sourceType: 'decision',
     decisionId,
     sourceRef,
     added,

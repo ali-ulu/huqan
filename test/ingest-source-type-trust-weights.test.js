@@ -55,6 +55,26 @@ const EMITTERS = [
   'plugins/company-brain.js',
 ];
 
+/**
+ * A result envelope is not an ingest.
+ *
+ * `plugins/company-brain.js` returns `{ ok: true, sourceType: 'manual', ... }`
+ * to its caller, naming the ingest action that ran. That is the plugin's public
+ * output contract, read by MCP and CLI consumers; it never reaches the trust
+ * policy and must not be rewritten to satisfy this test. Only object literals
+ * that feed provenance count.
+ *
+ * The distinguishing property is `ok`: an outcome envelope reports success, an
+ * ingest options object does not.
+ */
+function isResultEnvelope(lines, index) {
+  for (let i = index; i >= Math.max(0, index - 10); i -= 1) {
+    if (/\b(addCompanyEdge|learnAsync|learn)\s*\(|provenance\s*=\s*\{/.test(lines[i])) return false;
+    if (/return\s*\{/.test(lines[i]) || /\bok:\s*true\b/.test(lines[i])) return true;
+  }
+  return false;
+}
+
 function emittedSourceTypes() {
   const found = new Map(); // sourceType -> [file:line]
   for (const rel of EMITTERS) {
@@ -62,6 +82,7 @@ function emittedSourceTypes() {
     if (!fs.existsSync(full)) continue;
     const lines = fs.readFileSync(full, 'utf8').split('\n');
     lines.forEach((line, index) => {
+      if (isResultEnvelope(lines, index)) return;
       // sourceType: 'x'   and   sourceType: opts.sourceType || 'x'
       for (const match of line.matchAll(/sourceType:\s*(?:[^,'"]*\|\|\s*)?'([a-z0-9_-]+)'/gi)) {
         const value = match[1];
