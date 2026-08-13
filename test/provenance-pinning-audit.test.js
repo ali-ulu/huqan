@@ -35,6 +35,7 @@ const PROVENANCE_PATHS = [
   'lib/github-connector.js',
   'lib/reviewed-external-graph-execution.js',
   'plugins/repo-memory.js',
+  'lib/repo-file-pin.js',
 ];
 
 /**
@@ -48,6 +49,14 @@ const PINNED = new Set([
   'adapters/markdown-adapter.js',
   'adapters/pdf-adapter.js',
   'adapters/yaml-adapter.js',
+  // Closed after #671, each for a different reason -- see the notes that used to
+  // sit in NOT_PINNED and are preserved in the commit that moved them.
+  'lib/github-connector.js',
+  'plugins/repo-memory.js',
+  // Where repo-memory's pinning lives, after the file-size ratchet required it
+  // to move out of the plugin. It computes the hash, so it is classified here
+  // rather than excused as "nothing to pin".
+  'lib/repo-file-pin.js',
 ]);
 
 /**
@@ -70,27 +79,30 @@ const NOT_PINNED = {
   'lib/reviewed-external-graph-execution.js':
     'executes a graph operation that was already reviewed; the provenance '
     + 'describes the review, not a fetched document.',
-  'lib/github-connector.js':
-    'OPEN GAP. Its own fetch path resolves repository content by branch and '
-    + 'records no commit or content hash on the provenance it builds.',
-  'plugins/repo-memory.js':
-    'OPEN GAP, and narrower than it first looks. It fetches through '
-    + 'adapters/github-adapter.js, so the bytes it reads are already pinned to a '
-    + 'resolved commit and each file it receives carries commitSha. What is '
-    + 'missing is that it records none of that: its provenance is '
-    + '"repo:<owner>/<repo>:<path>" with no commit and no content hash, so the '
-    + 'pin exists at fetch time and is thrown away before storage. So "company '
-    + 'ingest is pinned" is true of company-brain and false of this one -- not '
-    + 'because it reads a moving target, but because it does not write down '
-    + 'which one it read.',
 };
 
 function sourceOf(rel) {
   return fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8');
 }
 
+/**
+ * Whether a path records a content hash, following one level of local require.
+ *
+ * A path that extracts its pinning into a module still pins -- repo-memory does
+ * exactly that, because the file-size ratchet required it. Reading only the file
+ * itself would report that as an open gap and be wrong.
+ */
 function recordsContentHash(rel) {
-  return /contentHash/.test(sourceOf(rel));
+  const source = sourceOf(rel);
+  if (/contentHash/.test(source)) return true;
+
+  for (const match of source.matchAll(/require\('(\.[^']+)'\)/g)) {
+    const target = path.resolve(path.dirname(path.join(REPO_ROOT, rel)), match[1]);
+    const candidate = target.endsWith('.js') ? target : `${target}.js`;
+    if (!fs.existsSync(candidate)) continue;
+    if (/contentHash/.test(fs.readFileSync(candidate, 'utf8'))) return true;
+  }
+  return false;
 }
 
 test.describe('provenance pinning coverage', () => {
@@ -136,15 +148,33 @@ test.describe('provenance pinning coverage', () => {
       `listed as pinned but records no content hash:\n  ${claimedButNot.join('\n  ')}`);
   });
 
-  test('KNOWN GAP: repo-memory and the GitHub connector still do not pin', () => {
-    // Held as an assertion so that pinning them breaks this test and forces the
-    // classification above to be updated in the same change, rather than the
-    // gap note outliving its cause.
+  test('the two paths that were open gaps now pin, each in its own way', () => {
+    // This case was the KNOWN GAP guard. It fired the moment both paths were
+    // pinned, which is what it was for, and is now the positive assertion in its
+    // place -- the classification and the code moved in the same change.
+    //
+    // The two fixes are not the same fix, and asserting them together would hide
+    // that. repo-memory records a commit it already held; the connector records
+    // a version its caller states, because it fetches nothing and cannot resolve
+    // one itself.
     for (const rel of ['plugins/repo-memory.js', 'lib/github-connector.js']) {
-      assert.ok(!recordsContentHash(rel),
-        `${rel} now records a content hash. Move it into PINNED above and delete `
-        + 'its NOT_PINNED entry -- the gap is closed and the note is now false.');
+      assert.ok(recordsContentHash(rel), `${rel} records no content hash`);
+      assert.ok(PINNED.has(rel), `${rel} is not classified as pinned`);
+      assert.ok(!Object.prototype.hasOwnProperty.call(NOT_PINNED, rel),
+        `${rel} is both pinned and excused; it must be one or the other`);
     }
+
+    const repoMemory = sourceOf('plugins/repo-memory.js');
+    assert.match(repoMemory, /pinnedRepoFile/,
+      'repo-memory does not build a pinned reference for the files it was handed');
+    assert.ok(!/resolveCommitSha|git\/trees|raw\.githubusercontent/.test(repoMemory),
+      'repo-memory grew its own fetch path; it was meant to record what it already had');
+
+    const connector = sourceOf('lib/github-connector.js');
+    assert.match(connector, /sourceVersionKind/,
+      'the connector does not record which kind of version it was given');
+    assert.ok(!/fetch\(|api\.github\.com/.test(connector),
+      'the connector grew a fetch path; it normalises items it is handed');
   });
 
   test('every unpinned path states why, and open gaps say so in those words', () => {
@@ -154,8 +184,11 @@ test.describe('provenance pinning coverage', () => {
     // The two classes must stay distinguishable: "nothing to pin" is finished
     // work, "OPEN GAP" is not, and collapsing them is how the second becomes
     // invisible.
-    assert.match(NOT_PINNED['plugins/repo-memory.js'], /OPEN GAP/);
-    assert.match(NOT_PINNED['lib/github-connector.js'], /OPEN GAP/);
+    // No OPEN GAP entries remain. The distinction still has to hold if one is
+    // added later, so it is asserted rather than deleted along with the entries.
+    const openGaps = Object.entries(NOT_PINNED).filter(([, reason]) => /OPEN GAP/.test(reason));
+    assert.deepStrictEqual(openGaps.map(([rel]) => rel), [],
+      'an open gap is recorded here; it belongs in a tracked issue as well');
     assert.ok(!/OPEN GAP/.test(NOT_PINNED['lib/conflict-detector.js']));
   });
 });
