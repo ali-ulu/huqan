@@ -131,7 +131,8 @@ async function fetchAndLearn(repoUrl, kernel, opts = {}) {
       provenanceId: `github-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
       source: 'github-adapter',
       sourceRef: buildGitHubBlobUrl(file),
-      sourceType: 'markdown',
+      sourceType: 'github',
+      sourceSubType: 'blob',
       actor: opts.actor || 'github-adapter',
       timestamp: new Date().toISOString(),
     };
@@ -139,7 +140,7 @@ async function fetchAndLearn(repoUrl, kernel, opts = {}) {
       // learnAsync: this is remote-sourced content too, so preIngest gates
       // must get a look at it (#348). No `typeof` fallback to the sync path,
       // for the same reason as http-adapter -- a silent skip is the bug.
-      const r = await kernel.learnAsync(file.content, { provenance, sourceType: 'markdown', sourceRef: provenance.sourceRef });
+      const r = await kernel.learnAsync(file.content, { provenance, sourceType: 'github', sourceSubType: 'blob', sourceRef: provenance.sourceRef });
       results.push({ path: file.path, learned: r.data.learned, ok: true });
     } catch (e) {
       results.push({ path: file.path, error: e.message, ok: false });

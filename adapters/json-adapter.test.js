@@ -143,9 +143,11 @@ test('json-adapter: ingestAndLearn forwards provenance per entry', () => {
     assert.equal(result.learned.length, 1);
     assert.equal(result.learned[0].ok, true);
     assert.equal(calls.length, 1);
-    assert.equal(calls[0].opts.sourceType, 'json');
+    assert.equal(calls[0].opts.sourceType, 'document');
+    assert.equal(calls[0].opts.sourceSubType, 'json');
     assert.equal(calls[0].opts.provenance.source, 'json-adapter');
-    assert.equal(calls[0].opts.provenance.sourceType, 'json');
+    assert.equal(calls[0].opts.provenance.sourceType, 'document');
+    assert.equal(calls[0].opts.provenance.sourceSubType, 'json');
     assert.equal(calls[0].opts.provenance.actor, 'json-test');
     assert.match(calls[0].opts.provenance.provenanceId, /^json-\d+-[a-z0-9]{6}$/);
     assert.match(calls[0].opts.provenance.timestamp, /^\d{4}-\d{2}-\d{2}T/);

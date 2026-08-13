@@ -217,7 +217,8 @@ test('git-log-adapter: ingestAndLearn forwards provenance per commit', () => {
     assert.equal(result.learned.length, 1);
     assert.equal(result.learned[0].ok, true);
     assert.equal(calls.length, 1);
-    assert.equal(calls[0].opts.sourceType, 'git-log');
+    assert.equal(calls[0].opts.sourceType, 'import');
+    assert.equal(calls[0].opts.sourceSubType, 'git-log');
     assert.equal(calls[0].opts.provenance.source, 'git-log-adapter');
     assert.equal(calls[0].opts.provenance.actor, 'git-log-test');
     assert.match(calls[0].opts.provenance.provenanceId, /^git-log-\d+-[a-z0-9]{6}$/);

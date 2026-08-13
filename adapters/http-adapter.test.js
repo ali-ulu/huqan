@@ -319,7 +319,8 @@ test('http-adapter: ingestAndLearn forwards provenance per entry', async () => {
     assert.equal(result.learned.length, 1);
     assert.equal(result.learned[0].ok, true);
     assert.equal(calls.length, 1);
-    assert.equal(calls[0].opts.sourceType, 'http');
+    assert.equal(calls[0].opts.sourceType, 'api');
+    assert.equal(calls[0].opts.sourceSubType, 'http');
     assert.equal(calls[0].opts.provenance.source, 'http-adapter');
     assert.equal(calls[0].opts.provenance.actor, 'http-test');
     assert.match(calls[0].opts.provenance.provenanceId, /^http-\d+-[a-z0-9]{6}$/);

@@ -112,9 +112,11 @@ test('markdown-adapter: ingestAndLearn forwards structural volatile provenance w
     assert.equal(result.learned.length, 1);
     assert.equal(result.learned[0].ok, true);
     assert.equal(calls.length, 1);
-    assert.equal(calls[0].opts.sourceType, 'markdown');
+    assert.equal(calls[0].opts.sourceType, 'document');
+    assert.equal(calls[0].opts.sourceSubType, 'markdown');
     assert.equal(calls[0].opts.provenance.source, 'markdown-adapter');
-    assert.equal(calls[0].opts.provenance.sourceType, 'markdown');
+    assert.equal(calls[0].opts.provenance.sourceType, 'document');
+    assert.equal(calls[0].opts.provenance.sourceSubType, 'markdown');
     assert.equal(calls[0].opts.provenance.actor, 'markdown-test');
     assert.match(calls[0].opts.provenance.provenanceId, /^markdown-\d+-[a-z0-9]{6}$/);
     assert.match(calls[0].opts.provenance.timestamp, /^\d{4}-\d{2}-\d{2}T/);

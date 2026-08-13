@@ -139,12 +139,13 @@ function ingestAndLearn(repoPath, kernel, options = {}) {
       provenanceId: `git-log-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       source: 'git-log-adapter',
       sourceRef: entry.sourceRef,
-      sourceType: 'git-log',
+      sourceType: 'import',
+      sourceSubType: 'git-log',
       actor: options.actor || 'git-log-adapter',
       timestamp: entry.commit.date || new Date().toISOString(),
     };
     try {
-      const r = kernel.learn(entry.content, { provenance, sourceType: 'git-log', sourceRef: provenance.sourceRef });
+      const r = kernel.learn(entry.content, { provenance, sourceType: 'import', sourceSubType: 'git-log', sourceRef: provenance.sourceRef });
       learned.push({ entryKey: entry.entryKey, learned: r.data.learned, ok: true });
     } catch (e) {
       learned.push({ entryKey: entry.entryKey, error: e.message, ok: false });
