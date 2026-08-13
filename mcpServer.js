@@ -7,7 +7,7 @@ validateEnvironmentCompatibility();
 const fs = require('fs');
 const readline = require('readline');
 const crypto = require('crypto');
-const { createKernel, buildKernelOptsFromEnv } = require('./lib/kernel-factory');
+const { buildKernelOptsFromEnv } = require('./lib/kernel-factory');
 const { createAgent } = require('./agentRuntime');
 const { evaluateMcpGate, MCP_GATE_DECISIONS } = require('./lib/mcp-gate-adapter');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
@@ -29,7 +29,6 @@ const {
   countPersistentApprovals,
   countUnresolvedApprovals,
 } = require('./lib/mcp-approval-views');
-const AxiomStorage = require('./storage');
 const pkg = require('./package.json');
 const { VERIFY_STATUS } = require('./lib/mcp-envelope-schema');
 const { VERIFY_ENVELOPE_OUTPUT_SCHEMA } = require('./lib/mcp-tool-data-schemas');
@@ -41,166 +40,24 @@ const PROTOCOL_VERSION = '2025-06-18';
 const SERVER_NAME = 'huqan';
 const SERVER_VERSION = pkg.version;
 
-const MCP_MAX_TEXT = 2_000;
-const MCP_MAX_GOAL = 500;
-const MCP_MAX_SHORT = 256;
-
-function sanitizeMcpString(val, maxLen = MCP_MAX_SHORT) {
-  if (typeof val !== 'string') return '';
-  return val.slice(0, maxLen).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim();
-}
-
-function boundedMcpInteger(value, fallback, minimum, maximum) {
-  const integer = Number.isInteger(value) ? value : fallback;
-  return Math.min(Math.max(minimum, integer), maximum);
-}
-
-// #615: this used to collapse ANY unrecognized value -- including a
-// raw/malicious client's explicit `decision: "banana"` -- to 'approved',
-// the most privileged branch. It now returns null for anything that isn't
-// approve/approved/reject/rejected (after trim+lowercase), so an invalid
-// but present value fails closed instead of silently approving. The caller
-// is responsible for supplying the 'approved' default when the field is
-// genuinely absent, not when it was provided and empty/invalid.
-function sanitizeMcpApprovalDecision(value) {
-  const decision = sanitizeMcpString(value, 16).toLowerCase();
-  if (decision === 'approve') return 'approved';
-  if (decision === 'reject') return 'rejected';
-  if (decision === 'approved' || decision === 'rejected') return decision;
-  return null;
-}
-
-function sanitizeToolArgsForStorage(name, args = {}) {
-  // Resolved through RFC-001's alias table: a legacy `axiom.learn` call must
-  // get exactly the same argument handling as the canonical `huqan.learn`,
-  // and a stored approval written before the rename still carries the legacy
-  // spelling in `tool`.
-  if (canonicalMcpToolName(name) === 'huqan.learn') {
-    // huqan.learn's `text` is user-authored knowledge content, not a
-    // credential transport — AB7 scrubbing does not apply here, matching
-    // the huqan.learn use case.
-    const clean = {
-      text: sanitizeMcpString(args.text, MCP_MAX_TEXT),
-      skipConflicts: args.skipConflicts !== false,
-    };
-    if (args.maxSentences !== undefined) clean.maxSentences = args.maxSentences;
-    return clean;
-  }
-  const clean = {};
-  for (const [key, value] of Object.entries(args || {})) {
-    if (typeof value === 'string') clean[key] = sanitizeMcpString(value, MCP_MAX_TEXT);
-    else if (value === null || ['boolean', 'number'].includes(typeof value)) clean[key] = value;
-  }
-  // AB7: redact secret-looking values (by key name or value shape) before
-  // this ever reaches a persisted approval record or dry-run response.
-  return scrubSecrets(clean).scrubbed;
-}
-
-function nowMs() {
-  return Date.now();
-}
-
-function newApprovalId() {
-  if (typeof crypto.randomUUID === 'function') return `approval-${crypto.randomUUID()}`;
-  return `approval-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function createKernelFromEnv() {
-  return createKernel({ loadPlugins: false });
-}
-
-function createApprovalStoreFromKernel(kernel, opts = {}) {
-  if (opts.approvalStore !== undefined) return opts.approvalStore;
-  if (!opts.dbPath && !opts.memoryPath && !kernel?.graph?.memoryPath) return null;
-  try {
-    const storageOpts = { kernel };
-    if (opts.dbPath) storageOpts.dbPath = opts.dbPath;
-    if (opts.memoryPath) storageOpts.memoryPath = opts.memoryPath;
-    return new AxiomStorage(storageOpts);
-  } catch (_) {
-    return null;
-  }
-}
-
-function saveMcpApproval(approvalStore, name, args, gate) {
-  const createdAt = nowMs();
-  const id = newApprovalId();
-  const approvalKey = `mcp.${name}.${id}`;
-  const cleanArgs = sanitizeToolArgsForStorage(name, args);
-  const approval = {
-    id,
-    approvalKey,
-    tool: name,
-    input: JSON.stringify(cleanArgs),
-    status: 'pending',
-    decision: 'review',
-    reason: gate.reason,
-    createdAt,
-    updatedAt: createdAt,
-    policy: {
-      gate: {
-        decision: gate.decision,
-        allowed: gate.allowed,
-        canExecute: gate.canExecute,
-        canDryRun: gate.canDryRun,
-        requiredReview: gate.requiredReview,
-        reason: gate.reason,
-        metadata: gate.metadata || {},
-      },
-    },
-    context: {
-      source: 'mcp',
-      queuedForExecution: canonicalMcpToolName(name) === 'huqan.learn',
-      args: cleanArgs,
-    },
-  };
-
-  if (!approvalStore || typeof approvalStore.saveToolApproval !== 'function') {
-    return { ...approval, persisted: false };
-  }
-
-  const saved = approvalStore.saveToolApproval(approval);
-  return formatApprovalRecord(saved) || { ...approval, persisted: true };
-}
-
-function prettyEnvelope(result) {
-  if (!result) return 'No result.';
-  if (result.ok === false && result.error) {
-    return `${result.error.code}: ${result.error.message}`;
-  }
-  return JSON.stringify(result, null, 2);
-}
-
-function toToolResult(result) {
-  return {
-    content: [{ type: 'text', text: prettyEnvelope(result) }],
-    structuredContent: result,
-    isError: Boolean(result && result.ok === false),
-  };
-}
-
-/**
- * Records an unexpected exception and returns a short reference for it.
- *
- * The client gets the reference, never the exception. `err.message` on an
- * uncaught throw carries whatever the failing layer happened to say --
- * filesystem paths, SQLite errors, internal identifiers -- and an MCP client
- * is not a trusted operator console.
- *
- * The detail goes to stderr, which is the right sink for a stdio server: the
- * protocol owns stdout, so diagnostics cannot be written there without
- * corrupting the stream. Logging is itself wrapped, because a failure while
- * reporting a failure must not replace the response the caller is waiting for.
- */
-function recordInternalError(scope, err) {
-  const errorRef = crypto.randomBytes(4).toString('hex');
-  try {
-    console.error(`[mcp][${scope}] internal error ref=${errorRef}`, err);
-  } catch (_) {
-    // Diagnostics are best-effort; the bounded response below is not.
-  }
-  return errorRef;
-}
+const {
+  MCP_MAX_TEXT,
+  MCP_MAX_GOAL,
+  MCP_MAX_SHORT,
+  sanitizeMcpString,
+  boundedMcpInteger,
+  sanitizeMcpApprovalDecision,
+  sanitizeToolArgsForStorage,
+} = require('./lib/mcp-input-sanitizers');
+const {
+  createKernelFromEnv,
+  createApprovalStoreFromKernel,
+  saveMcpApproval,
+} = require('./lib/mcp-approval-store');
+const {
+  toToolResult,
+  recordInternalError,
+} = require('./lib/mcp-envelope-format');
 
 function createServer(kernelOrOptions = {}) {
   const options = kernelOrOptions && typeof kernelOrOptions === 'object' && typeof kernelOrOptions.learn === 'function'
