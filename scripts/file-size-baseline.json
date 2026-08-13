@@ -16,7 +16,6 @@
     "lib/action-risk-classifier.js": 902,
     "lib/automation-safety-gate.js": 1268,
     "lib/code-change-gate.js": 891,
-    "lib/memory-mutation-gate.js": 1032,
     "lib/memory-store.js": 2282,
     "lib/sandbox-isolation.js": 855,
     "lib/verify.js": 967,
