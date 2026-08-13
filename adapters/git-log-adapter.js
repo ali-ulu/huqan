@@ -1,3 +1,4 @@
+const { contentHash, CONTENT_HASH_ALGORITHM } = require('../lib/content-hash');
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
@@ -141,6 +142,8 @@ function ingestAndLearn(repoPath, kernel, options = {}) {
       sourceRef: entry.sourceRef,
       sourceType: 'import',
       sourceSubType: 'git-log',
+      contentHash: contentHash(entry.content),
+      contentHashAlgorithm: CONTENT_HASH_ALGORITHM,
       actor: options.actor || 'git-log-adapter',
       timestamp: entry.commit.date || new Date().toISOString(),
     };

@@ -1,3 +1,4 @@
+const { contentHash, CONTENT_HASH_ALGORITHM } = require('../lib/content-hash');
 const http = require('http');
 const https = require('https');
 const { resolveSafeAddress } = require('../lib/ssrf-guard');
@@ -312,6 +313,8 @@ async function ingestAndLearn(urls, kernel, options = {}) {
       sourceRef: entry.sourceRef,
       sourceType: 'api',
       sourceSubType: 'http',
+      contentHash: contentHash(entry.content),
+      contentHashAlgorithm: CONTENT_HASH_ALGORITHM,
       actor: options.actor || 'http-adapter',
       timestamp: new Date().toISOString(),
     };
