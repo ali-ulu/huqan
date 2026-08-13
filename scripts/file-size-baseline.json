@@ -10,7 +10,7 @@
   "files": {
     "agent.js": 1127,
     "cli.js": 921,
-    "graph.js": 1953,
+    "graph.js": 1697,
     "kernel.js": 2098,
     "kernel.v2.js": 975,
     "lib/action-risk-classifier.js": 902,
