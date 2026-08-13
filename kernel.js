@@ -6,7 +6,7 @@ const PluginManager = require('./plugin');
 const createNlp = require('./nlp');
 const VerifyService = require('./lib/verify');
 const { buildProvenance } = require('./lib/provenance-ingest');
-const { loadTrustPolicy, applyTrustPolicyToProvenance } = require('./lib/trust-policy');
+const { buildBackgroundProvenance } = require('./lib/background-provenance');
 const { evaluateMemoryAdmission } = require('./lib/memory-admission-gate');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
 const { defaultApprovalRequired } = require('./lib/human-approval-toggle');
@@ -713,35 +713,10 @@ class Kernel {
    * therefore prevents silent canonical writes.
    */
   _backgroundProvenance(source, workspaceId = 'default', extra = {}) {
-    const now = new Date().toISOString();
-    const base = {
-      provenanceId: `prov_bg_${source}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      timestamp: now,
-      source: `background:${source}`,
-      sourceType: 'background_inference',
-      sourceRef: `kernel.${source}`,
-      actor: `kernel-background:${source}`,
-      workspaceId,
-      trustPolicyVersion: this.contractVersion,
-      ...extra,
-    };
-
-    // This object used to be returned as-is, which meant the background and
-    // plugin write paths never reached the trust policy at all: no confidence
-    // was ever computed for them, so a plugin edge and a kernel self-write were
-    // scored the same as each other and as everything else -- which is to say,
-    // not scored. The learn path has always gone through buildProvenance; this
-    // brings the proposeEdge/proposeNode path onto the same policy.
-    //
-    // Applied defensively: this runs on autonomous mutation paths, and a
-    // failure to load a policy file must not turn a background write into a
-    // throw. Falling back to the unscored object is the pre-existing behaviour.
-    try {
-      const applied = applyTrustPolicyToProvenance(base, loadTrustPolicy(this.trustPolicyPath));
-      return applied && applied.provenance ? applied.provenance : base;
-    } catch (_) {
-      return base;
-    }
+    return buildBackgroundProvenance(source, workspaceId, extra, {
+      contractVersion: this.contractVersion,
+      trustPolicyPath: this.trustPolicyPath,
+    });
   }
 
   /**
