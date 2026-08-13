@@ -52,7 +52,6 @@ const EMITTERS = [
   'adapters/markdown-adapter.js',
   'adapters/pdf-adapter.js',
   'adapters/git-log-adapter.js',
-  'plugins/company-brain.js',
 ];
 
 /**
@@ -171,6 +170,39 @@ test.describe('ingest source types reach the trust policy', () => {
 
     assert.match(warnings, /fallback|unknown|unmatched|not in policy/i,
       `a fallback confidence must say so. observed warnings: ${warnings || '(none)'}`);
+  });
+
+  test('KNOWN GAP: the plugin edge path does not reach the trust policy at all', () => {
+    // plugins/company-brain.js is deliberately absent from EMITTERS above, and
+    // this asserts why rather than leaving the omission to be rediscovered.
+    //
+    // It writes through kernel.proposeEdge, not kernel.learn. proposeEdge ->
+    // _commitBackgroundEdge -> _backgroundProvenance builds a provenance object
+    // by hand: no buildProvenance call, no applyTrustPolicyToProvenance call,
+    // and no confidence field at all. So its sourceType is never scored, and
+    // "fixing" it to a declared type would change what the graph edge records
+    // -- edges carry source_type but there is no source_sub_type column to hold
+    // the displaced value -- while buying nothing.
+    //
+    // _backgroundProvenance also hardcodes its own undeclared default,
+    // 'background_inference'. That is a ninth unregistered source type, on a
+    // path where it currently cannot matter.
+    //
+    // This is held as an assertion so that wiring the plugin path into the
+    // trust policy makes this test fail, forcing the emitter list and the graph
+    // schema question to be revisited together rather than separately.
+    const kernelSource = fs.readFileSync(path.join(REPO_ROOT, 'kernel.js'), 'utf8');
+
+    const backgroundProvenance = kernelSource.match(
+      /_backgroundProvenance\(source, workspaceId = 'default', extra = \{\}\) \{[\s\S]*?\n {2}\}/,
+    );
+    assert.ok(backgroundProvenance, '_backgroundProvenance not found; this gap note is stale');
+
+    const body = backgroundProvenance[0];
+    assert.ok(!/buildProvenance|applyTrustPolicyToProvenance|confidence/.test(body),
+      'the plugin/background edge path now reaches the trust policy. Re-add the '
+      + 'plugin emitters to EMITTERS above, and decide what the graph edge should '
+      + 'record before changing any plugin sourceType.');
   });
 
   test('positive control: a declared type with a sub-type is scored from the table', () => {
