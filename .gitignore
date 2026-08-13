@@ -4,6 +4,10 @@ memory.json
 memory.db
 memory.embeddings.json
 memory.mutations.json
+# Crash/interrupted-write artifacts left behind by graph.js's
+# atomicWriteFileSync (writes to a sibling `<file>.tmp-<pid>-<random>` before
+# renaming into place). 40 of these previously slipped into git via #655.
+*.tmp-[0-9]*-*
 agent.memory.json
 *.agent.json
 memory.db-shm
