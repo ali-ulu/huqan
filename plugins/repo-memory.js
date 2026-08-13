@@ -6,6 +6,7 @@ const { ingestGitLog } = require('../adapters/git-log-adapter');
 const { ingestPdf } = require('../adapters/pdf-adapter');
 const { ingestUrls } = require('../adapters/http-adapter');
 const { buildProvenance } = require('../lib/provenance-ingest');
+const { pinnedRepoFile, buildConnectorProvenance } = require('../lib/repo-file-pin');
 const { canonicalizeGitHubRepoUrl } = require('../lib/github-url');
 
 function nowIso() {
@@ -61,28 +62,6 @@ function addCompanyEdge(kernel, fromId, toId, relation, opts = {}) {
     workspaceId,
   });
   return { fromResult, toResult, edgeResult, edge: edgeResult?.edge || null };
-}
-
-function buildConnectorProvenance({
-  sourceType,
-  sourceSubType,
-  sourceRef,
-  sourceTitle,
-  actor,
-  workspaceId,
-  confidence,
-  timestamp,
-}) {
-  return buildProvenance({
-    sourceType,
-    sourceSubType,
-    sourceRef,
-    sourceTitle,
-    actor,
-    workspaceId,
-    confidence,
-    timestamp,
-  }).provenance;
 }
 
 function buildGraphAdmissionRecord({
@@ -190,11 +169,15 @@ async function ingestGithubRepo(kernel, input = {}) {
 
   let added = 0;
   for (const file of files) {
-    const fileRef = `repo:${owner}/${repo}:${file.path}`;
+    // Pinned at the commit the adapter resolved, not at the branch the caller
+    // asked for. Until now this dropped the commitSha it was handed, so the pin
+    // existed at fetch time and was discarded before storage.
+    const pin = pinnedRepoFile(owner, repo, file);
+    const fileRef = pin.sourceRef;
     const fileProvenance = buildConnectorProvenance({
+      ...pin,
       sourceType: 'github',
       sourceSubType: 'repo_file',
-      sourceRef: fileRef,
       sourceTitle: file.path,
       actor: input.actor || 'github',
       workspaceId,

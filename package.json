@@ -204,6 +204,7 @@
         "lib/receipt/receipt-read-index.js",
         "lib/receipt/v4-receipt-family.js",
         "lib/relation-drift.js",
+        "lib/repo-file-pin.js",
         "lib/risk-rules.js",
         "lib/sandbox-isolation.js",
         "lib/sdk.js",
