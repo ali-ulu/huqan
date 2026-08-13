@@ -20,6 +20,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
 
 const { loadTrustPolicy, getDefaultConfidence, applyTrustPolicyToProvenance } = require('../lib/trust-policy');
 
@@ -52,6 +53,7 @@ const EMITTERS = [
   'adapters/markdown-adapter.js',
   'adapters/pdf-adapter.js',
   'adapters/git-log-adapter.js',
+  'plugins/company-brain.js',
 ];
 
 /**
@@ -172,37 +174,72 @@ test.describe('ingest source types reach the trust policy', () => {
       `a fallback confidence must say so. observed warnings: ${warnings || '(none)'}`);
   });
 
-  test('KNOWN GAP: the plugin edge path does not reach the trust policy at all', () => {
-    // plugins/company-brain.js is deliberately absent from EMITTERS above, and
-    // this asserts why rather than leaving the omission to be rediscovered.
+  test('the plugin and background edge path reaches the trust policy', () => {
+    // This case began life as a KNOWN GAP assertion: proposeEdge ->
+    // _commitBackgroundEdge -> _backgroundProvenance built provenance by hand
+    // and never called the policy, so plugin writes and the kernel's own
+    // background writes carried no confidence at all. The guard fired the
+    // moment that was wired up, which is what it was for.
     //
-    // It writes through kernel.proposeEdge, not kernel.learn. proposeEdge ->
-    // _commitBackgroundEdge -> _backgroundProvenance builds a provenance object
-    // by hand: no buildProvenance call, no applyTrustPolicyToProvenance call,
-    // and no confidence field at all. So its sourceType is never scored, and
-    // "fixing" it to a declared type would change what the graph edge records
-    // -- edges carry source_type but there is no source_sub_type column to hold
-    // the displaced value -- while buying nothing.
-    //
-    // _backgroundProvenance also hardcodes its own undeclared default,
-    // 'background_inference'. That is a ninth unregistered source type, on a
-    // path where it currently cannot matter.
-    //
-    // This is held as an assertion so that wiring the plugin path into the
-    // trust policy makes this test fail, forcing the emitter list and the graph
-    // schema question to be revisited together rather than separately.
-    const kernelSource = fs.readFileSync(path.join(REPO_ROOT, 'kernel.js'), 'utf8');
+    // Measured through the kernel rather than by reading kernel.js: a source
+    // grep would pass on an applyTrustPolicyToProvenance call whose result was
+    // discarded.
+    const Kernel = require('../kernel');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'trust-bg-'));
+    try {
+      const kernel = new Kernel({
+        noLoad: true, loadPlugins: false, useSQLite: false,
+        memoryPath: path.join(dir, 'memory.json'),
+      });
 
-    const backgroundProvenance = kernelSource.match(
-      /_backgroundProvenance\(source, workspaceId = 'default', extra = \{\}\) \{[\s\S]*?\n {2}\}/,
-    );
-    assert.ok(backgroundProvenance, '_backgroundProvenance not found; this gap note is stale');
+      const background = kernel._backgroundProvenance('autoThink', 'default');
+      assert.equal(background.sourceType, 'background_inference');
+      assert.equal(typeof background.confidence, 'number',
+        'background provenance carries no confidence; the policy is not being applied');
+      assert.equal(background.confidenceSource, 'policy_default');
+      assert.notEqual(background.confidence, FALLBACK,
+        'background_inference is scoring the unknown fallback again');
 
-    const body = backgroundProvenance[0];
-    assert.ok(!/buildProvenance|applyTrustPolicyToProvenance|confidence/.test(body),
-      'the plugin/background edge path now reaches the trust policy. Re-add the '
-      + 'plugin emitters to EMITTERS above, and decide what the graph edge should '
-      + 'record before changing any plugin sourceType.');
+      // The shape company-brain passes through proposeEdge. Its sourceType is
+      // now declared, so the graph edge keeps recording 'manual' and still gets
+      // a real weight -- no source_sub_type column is needed to hold anything.
+      const pluginEdge = kernel._backgroundProvenance('plugin', 'default', {
+        sourceType: 'manual', sourceRef: 'note:1', actor: 'company-brain',
+      });
+      assert.equal(pluginEdge.sourceType, 'manual');
+      assert.equal(pluginEdge.confidenceSource, 'policy_default');
+      assert.notEqual(pluginEdge.confidence, FALLBACK);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('a deliberate weight is distinguishable from a fallback on the record itself', () => {
+    // system is genuinely 0.5 and the unknown fallback is also 0.5. Before
+    // confidenceSource existed the two produced identical stored records, so no
+    // consumer could tell a chosen weight from a missing one -- which is how
+    // eight unregistered source types survived unnoticed, and what makes the
+    // scoring change in #669 detectable per record rather than only by date.
+    const deliberate = applyTrustPolicyToProvenance(
+      { provenanceId: 'p', sourceRef: 'x', sourceType: 'system' }, POLICY,
+    ).provenance;
+    const fallen = applyTrustPolicyToProvenance(
+      { provenanceId: 'p', sourceRef: 'x', sourceType: 'not-a-source-type' }, POLICY,
+    ).provenance;
+
+    assert.equal(deliberate.confidence, fallen.confidence, 'the premise of this test has changed');
+    assert.notEqual(deliberate.confidenceSource, fallen.confidenceSource,
+      'a deliberate weight and a fallback are still indistinguishable on the record');
+    assert.equal(deliberate.confidenceSource, 'policy_default');
+    assert.equal(fallen.confidenceSource, 'unknown_fallback');
+  });
+
+  test('a caller-supplied confidence is labelled as such, not as a policy decision', () => {
+    const supplied = applyTrustPolicyToProvenance(
+      { provenanceId: 'p', sourceRef: 'x', sourceType: 'user', confidence: 0.42 }, POLICY,
+    ).provenance;
+    assert.equal(supplied.confidence, 0.42);
+    assert.equal(supplied.confidenceSource, 'explicit');
   });
 
   test('positive control: a declared type with a sub-type is scored from the table', () => {

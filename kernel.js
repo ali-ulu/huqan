@@ -6,6 +6,7 @@ const PluginManager = require('./plugin');
 const createNlp = require('./nlp');
 const VerifyService = require('./lib/verify');
 const { buildProvenance } = require('./lib/provenance-ingest');
+const { buildBackgroundProvenance } = require('./lib/background-provenance');
 const { evaluateMemoryAdmission } = require('./lib/memory-admission-gate');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
 const { defaultApprovalRequired } = require('./lib/human-approval-toggle');
@@ -712,18 +713,10 @@ class Kernel {
    * therefore prevents silent canonical writes.
    */
   _backgroundProvenance(source, workspaceId = 'default', extra = {}) {
-    const now = new Date().toISOString();
-    return {
-      provenanceId: `prov_bg_${source}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      timestamp: now,
-      source: `background:${source}`,
-      sourceType: 'background_inference',
-      sourceRef: `kernel.${source}`,
-      actor: `kernel-background:${source}`,
-      workspaceId,
-      trustPolicyVersion: this.contractVersion,
-      ...extra,
-    };
+    return buildBackgroundProvenance(source, workspaceId, extra, {
+      contractVersion: this.contractVersion,
+      trustPolicyPath: this.trustPolicyPath,
+    });
   }
 
   /**

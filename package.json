@@ -117,6 +117,7 @@
         "lib/automation-safety-gate/automation-safety-vocabulary.js",
         "lib/automation-safety-gate/index.js",
         "lib/axiom-package-format.js",
+        "lib/background-provenance.js",
         "lib/causal/causal-edge-errors.js",
         "lib/causal/causal-edge.js",
         "lib/causal/causal-traversal.js",
