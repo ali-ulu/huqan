@@ -70,6 +70,7 @@ test('valid pull_request delivery binds immutable source identity and emits a bo
   assert.equal(result.receipt.workspaceId, 'default');
   assert.equal(result.receipt.actor, 'github-app:991');
   assert.equal(result.receipt.verdict, 'review');
+  assert.notEqual(result.receipt.verdict, 'allow');
   assert.equal(result.receipt.decision, 'beta_observation_only');
   assert.equal(result.receipt.metadata.repositoryId, 1300995136);
   assert.equal(result.receipt.metadata.repositoryFullName, 'ali-ulu/huqan');
@@ -77,6 +78,13 @@ test('valid pull_request delivery binds immutable source identity and emits a bo
   assert.equal(result.receipt.metadata.headSha, 'a'.repeat(40));
   assert.equal(result.receipt.previousReceiptHash, 'genesis:v4-receipt-chain');
   assert.match(result.receipt.receiptHash, /^[0-9a-f]{64}$/);
+
+  const handlerSource = fs.readFileSync(require.resolve('../lib/github-app-beta-handler'), 'utf8');
+  assert.doesNotMatch(handlerSource, /\{\s*verdict:\s*['"]review['"]\s*\}/,
+    'handler must derive the canonical receipt verdict instead of passing a review literal');
+  assert.match(handlerSource, /toCanonicalVerdict\('github_app_beta',\s*BETA_DECISION\)/,
+    'handler must project the bounded beta source decision through the canonical verdict owner');
+
   const disk = fs.readFileSync(path.join(rootPath, 'receipts', `${DELIVERY}.json`), 'utf8');
   assert.doesNotMatch(disk, /secret-token|private-user-name|private@example|feature\/private-name|sensitive title/);
 });
