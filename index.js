@@ -25,6 +25,7 @@
 
 const Kernel = require('./kernel');
 const KernelV2 = require('./kernel.v2');
+const errorPrevention = require('./lib/error-prevention');
 
 module.exports = KernelV2;
 
@@ -43,3 +44,10 @@ module.exports.AXIOM_ERROR = Kernel.AXIOM_ERROR;
 module.exports.CONTRACT_VERSION = Kernel.CONTRACT_VERSION;
 module.exports.ProvenanceError = Kernel.ProvenanceError;
 module.exports.createAdmissionBypassOpts = Kernel.createAdmissionBypassOpts;
+
+// #657: general Error Prevention core. Callers can bind it to the canonical
+// kernel memory store (`createErrorPrevention(kernel.memory)`) from SDK, API,
+// CLI, MCP, or any other host without coupling the core to a specific agent.
+module.exports.ErrorPrevention = errorPrevention.ErrorPrevention;
+module.exports.createErrorPrevention = errorPrevention.createErrorPrevention;
+module.exports.errorPrevention = errorPrevention;
