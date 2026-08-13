@@ -1,7 +1,7 @@
 {
   "name": "huqan-trust-panel",
   "version": "1.0.0",
-  "description": "HUQAN Trust Panel mock-only plugin for Obsidian",
+  "description": "HUQAN Evidence & Trust plugin for Obsidian",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
