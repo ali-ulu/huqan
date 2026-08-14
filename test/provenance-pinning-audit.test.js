@@ -32,6 +32,7 @@ const PROVENANCE_PATHS = [
   'adapters/yaml-adapter.js',
   'lib/background-provenance.js',
   'lib/conflict-detector.js',
+  'lib/connectors/entry-ingest-flow.js',
   'lib/github-connector.js',
   'lib/reviewed-external-graph-execution.js',
   'plugins/repo-memory.js',
@@ -76,6 +77,11 @@ const NOT_PINNED = {
   'lib/conflict-detector.js':
     'records a conflict between claims already in the graph. No external content '
     + 'is read, so there is nothing to pin.',
+  'lib/connectors/entry-ingest-flow.js':
+    'is the shared walk the entry-based connectors in plugins/repo-memory.js '
+    + 'run. It reads nothing itself: every entry, including its sourceRef, is '
+    + 'handed to it by an adapter that already pinned the content, so it has '
+    + 'nothing of its own to pin and forwards what it was given.',
   'lib/reviewed-external-graph-execution.js':
     'executes a graph operation that was already reviewed; the provenance '
     + 'describes the review, not a fetched document.',
