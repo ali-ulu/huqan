@@ -1,8 +1,13 @@
 name: Security Checks
 
 on:
+  # Deliberately unfiltered by base branch. `branches: [main]` here meant a
+  # stacked pull request -- one opened against another feature branch -- never
+  # triggered this workflow at all, and GitHub reported the result as "All
+  # checks have passed", because everything that ran did pass. The scan simply
+  # never ran (#681). npm audit, gitleaks and Semgrep are fail-closed gates;
+  # they cost a few CI minutes on the stacked head and stay silent otherwise.
   pull_request:
-    branches: [main]
   push:
     branches: [main]
   schedule:
