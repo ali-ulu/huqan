@@ -1,8 +1,10 @@
 name: Architecture Checks
 
 on:
+  # No base-branch filter: see the note in security.yml. A pull request based on
+  # a feature branch skipped both jobs below and still showed "All checks have
+  # passed" (#681).
   pull_request:
-    branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
