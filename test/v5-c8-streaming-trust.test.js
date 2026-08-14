@@ -11,6 +11,7 @@ const { createGitHubAppBetaStore } = require('../lib/github-app-beta-store');
 const { createGitHubAppStreamingTrustStore } = require('../lib/github-app-streaming-trust-store');
 const { handleGitHubAppStreamingTrustWebhook } = require('../lib/github-app-streaming-trust-handler');
 const {
+  DECLINED_FALLBACK_CODE,
   ERROR_CODES,
   MAX_FILES,
 } = require('../lib/github-app-streaming-trust');
@@ -106,6 +107,15 @@ function makeGitHubFetch({
     throw new Error(`unexpected GitHub URL: ${url}`);
   };
   return { fetchImpl, calls };
+}
+
+// A declined check is the one written without a receipt: title says so, and
+// its external_id is namespaced apart from an evaluated verdict's.
+function declinedCheckBodies(github) {
+  return github.calls
+    .filter(call => call.url.endsWith('/check-runs'))
+    .map(call => JSON.parse(call.options.body))
+    .filter(body => body.external_id.startsWith('huqan:c8:declined:'));
 }
 
 function privateKey() {
@@ -258,8 +268,18 @@ test('live PR head drift fails closed before changed-file retrieval, evaluation,
     (error) => error.code === ERROR_CODES.HEAD_DRIFT,
   );
   assert.equal(github.calls.filter(call => call.url.includes('/files?')).length, 0);
-  assert.equal(github.calls.filter(call => call.url.endsWith('/check-runs')).length, 0);
   assert.equal(stores.c8Store.readEvaluation(DELIVERY), null);
+  assert.equal(stores.c8Store.readWriteback(DELIVERY).state, 'none');
+
+  // Refusing is right; refusing invisibly is not. The pull request gets one
+  // check saying so, and it is not a pass.
+  const declined = declinedCheckBodies(github);
+  assert.equal(declined.length, 1);
+  assert.equal(declined[0].conclusion, 'action_required');
+  assert.equal(declined[0].head_sha, HEAD_SHA);
+  assert.equal(declined[0].output.title, 'HUQAN: declined');
+  assert.match(declined[0].output.summary, new RegExp(ERROR_CODES.HEAD_DRIFT));
+  assert.match(declined[0].output.summary, /No verdict and no receipt were produced, so this is not a pass\./);
 });
 
 test('changed-file evidence exceeding the file bound fails closed and never writes a check', async (t) => {
@@ -283,8 +303,14 @@ test('changed-file evidence exceeding the file bound fails closed and never writ
     }),
     (error) => error.code === ERROR_CODES.EVIDENCE_TOO_LARGE,
   );
-  assert.equal(github.calls.filter(call => call.url.endsWith('/check-runs')).length, 0);
   assert.equal(stores.c8Store.readEvaluation(DELIVERY), null);
+  assert.equal(stores.c8Store.readWriteback(DELIVERY).state, 'none');
+
+  const declined = declinedCheckBodies(github);
+  assert.equal(declined.length, 1);
+  assert.equal(declined[0].conclusion, 'action_required');
+  assert.match(declined[0].output.summary, new RegExp(ERROR_CODES.EVIDENCE_TOO_LARGE));
+  assert.equal(declined[0].external_id.startsWith('huqan:c8:declined:'), true);
 });
 
 test('ambiguous check-run network outcome is durably marked and automatic replay refuses a second write', async (t) => {
@@ -322,6 +348,10 @@ test('ambiguous check-run network outcome is durably marked and automatic replay
   );
   assert.equal(github.calls.length, callsAfterAmbiguousWrite);
   assert.equal(github.calls.filter(call => call.url.endsWith('/check-runs')).length, 1);
+  // The writeback stage is deliberately outside the declined-check path: there,
+  // writing a check is exactly what failed, and refusing the second write is
+  // the behaviour under test.
+  assert.deepEqual(declinedCheckBodies(github), []);
 });
 
 test('C8 receipt, durable store, and check output exclude webhook title/body/sender and patch bodies', async (t) => {
@@ -360,4 +390,125 @@ test('unknown code-change source decision fails closed in the canonical verdict 
     () => toCanonicalVerdict('code_change', 'attacker_allowish_value'),
     (error) => error.code === 'UNKNOWN_VERDICT_SOURCE',
   );
+});
+
+// --- a refusal has to be visible on the pull request, not only to the caller ---
+//
+// Every bound in this loop is fail-closed and stays that way. What changed is
+// that refusing no longer writes nothing: an absent check on a pull request
+// reads as a check with nothing to say, which is the shape #681 was about.
+
+test('an unexpected failure before a verdict still declines visibly, under a generic code', async (t) => {
+  const stores = tempStores(t);
+  const github = makeGitHubFetch();
+  const brokenStore = {
+    ...stores.c8Store,
+    commitEvaluation() { throw new Error('storage went sideways'); },
+  };
+
+  await assert.rejects(
+    () => handleGitHubAppStreamingTrustWebhook({
+      ...signedRequest(payload()),
+      c7Store: stores.c7Store,
+      c8Store: brokenStore,
+      appId: '123456',
+      privateKey: privateKey(),
+      fetchImpl: github.fetchImpl,
+      nowMs: NOW_MS,
+    }),
+    // The original cause reaches the caller unchanged; the check is additional.
+    (error) => error.message === 'storage went sideways',
+  );
+
+  const declined = declinedCheckBodies(github);
+  assert.equal(declined.length, 1);
+  assert.equal(declined[0].conclusion, 'action_required');
+  assert.match(declined[0].output.summary, new RegExp(DECLINED_FALLBACK_CODE));
+  // An error this module did not raise must not have its message forwarded to
+  // GitHub -- only the fixed reason for its code.
+  assert.equal(declined[0].output.summary.includes('storage went sideways'), false);
+});
+
+test('a declined check that cannot be written does not mask the failure it was reporting', async (t) => {
+  const stores = tempStores(t);
+  const github = makeGitHubFetch({ liveHeadSha: 'c'.repeat(40), checkFailure: 'throw' });
+
+  await assert.rejects(
+    () => handleGitHubAppStreamingTrustWebhook({
+      ...signedRequest(payload()),
+      c7Store: stores.c7Store,
+      c8Store: stores.c8Store,
+      appId: '123456',
+      privateKey: privateKey(),
+      fetchImpl: github.fetchImpl,
+      nowMs: NOW_MS,
+    }),
+    // Not the reporting failure: the head drift is the thing worth reading.
+    (error) => error.code === ERROR_CODES.HEAD_DRIFT,
+  );
+  assert.equal(github.calls.filter(call => call.url.endsWith('/check-runs')).length, 1);
+  assert.equal(stores.c8Store.readEvaluation(DELIVERY), null);
+});
+
+test('a declined check carries nothing from the webhook payload', async (t) => {
+  const stores = tempStores(t);
+  const github = makeGitHubFetch({ liveHeadSha: 'c'.repeat(40) });
+
+  await assert.rejects(
+    () => handleGitHubAppStreamingTrustWebhook({
+      ...signedRequest(payload()),
+      c7Store: stores.c7Store,
+      c8Store: stores.c8Store,
+      appId: '123456',
+      privateKey: privateKey(),
+      fetchImpl: github.fetchImpl,
+      nowMs: NOW_MS,
+    }),
+    (error) => error.code === ERROR_CODES.HEAD_DRIFT,
+  );
+
+  const body = github.calls.find(call => call.url.endsWith('/check-runs')).options.body;
+  for (const secret of [
+    'private-title-must-not-survive',
+    'private-body-token-must-not-survive',
+    'private-feature-name',
+    'private-user',
+    'private@example.invalid',
+  ]) {
+    assert.equal(body.includes(secret), false);
+  }
+});
+
+test('a transient read failure is declined but not remembered, so a redelivery can still evaluate', async (t) => {
+  const stores = tempStores(t);
+  let filesAttempts = 0;
+  const github = makeGitHubFetch();
+  const flaky = async (url, options) => {
+    if (url.includes('/files?')) {
+      filesAttempts += 1;
+      if (filesAttempts === 1) throw new Error('transient network failure');
+    }
+    return github.fetchImpl(url, options);
+  };
+  const request = signedRequest(payload());
+  const key = privateKey();
+  const call = (nowMs, fetchImpl) => handleGitHubAppStreamingTrustWebhook({
+    ...request,
+    c7Store: stores.c7Store,
+    c8Store: stores.c8Store,
+    appId: '123456',
+    privateKey: key,
+    fetchImpl,
+    nowMs,
+  });
+
+  await assert.rejects(() => call(NOW_MS, flaky), (error) => error.code === ERROR_CODES.FILES_READ_FAILED);
+  assert.equal(declinedCheckBodies(github).length, 1);
+  assert.equal(stores.c8Store.readEvaluation(DELIVERY), null);
+
+  // Persisting the decline would have frozen this delivery on its worst moment.
+  const second = await call(NOW_MS + 60000, flaky);
+  assert.equal(second.trust.receipt.verdict, 'allow');
+  assert.equal(second.trust.conclusion, 'success');
+  assert.equal(stores.c8Store.readWriteback(DELIVERY).state, 'complete');
 });
