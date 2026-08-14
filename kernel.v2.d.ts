@@ -16,6 +16,14 @@ declare class KernelV2 {
   constructor(opts?: Record<string, unknown>);
   kernel: Kernel;
   readonly graph: Kernel['graph'];
+  // KernelV2 is the canonical runtime, so this is the declaration a consumer
+  // of `require('huqan')` reads. kernel.v2.js has exposed `get memory()` since
+  // #329 -- added because server.js reads kernel.memory.list() and
+  // .queryLinks() and would otherwise have silently reported the memory
+  // surface as unavailable -- but the member was never declared here, so the
+  // canonical typed surface had no `memory` at all. Mirrored from Kernel for
+  // the same reason `graph` is: the getter forwards, so the types must too.
+  readonly memory: Kernel['memory'];
   readonly contractVersion: string;
   getPersistenceDescriptor(): ReturnType<Kernel['getPersistenceDescriptor']>;
   reload(): void;

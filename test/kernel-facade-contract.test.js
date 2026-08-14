@@ -99,6 +99,16 @@ test('kernel.d.ts aligned with graph/memory surfaces', () => {
   const kd = declaration.slice(classStart);
   assert.match(kd, /\bgraph\s*:\s*\{[\s\S]*?\bload\(\)\s*:\s*void\s*;[\s\S]*?\bsave\(\)\s*:\s*void\s*;[\s\S]*?\}\s*;/);
   assert.match(kd, /\bmemory\s*:\s*\{[\s\S]*?\bclose\(\)\s*:\s*void\s*;[\s\S]*?\}\s*;/);
+  // Presence of close() alone was a floor, not a ceiling: it could not tell
+  // that server.js reaches kernel.memory.list() and .queryLinks() through a
+  // declaration naming neither, which is exactly how that gap survived this
+  // gate. Pinned positively now, the same way the graph surface is above, so
+  // narrowing the memory types back is caught rather than passing quietly.
+  const memberBody = nestedMemberBody(kd, 'memory');
+  assert.match(memberBody, /\blist\(/,
+    'the memory surface must keep declaring list(); server.js calls it');
+  assert.match(memberBody, /\bqueryLinks\(/,
+    'the memory surface must keep declaring queryLinks(); server.js calls it');
   assert.match(kd, /\bgetPersistenceDescriptor\(\)\s*:\s*Readonly<\{\s*memoryPath\s*:\s*string\s*;\s*dbPath\s*:\s*string\s*;\s*\}>\s*;/);
   assert.match(kd, /\breload\(\)\s*:\s*void\s*;/);
   assert.match(kd, /\bpersist\(\)\s*:\s*void\s*;/);
@@ -123,6 +133,29 @@ test('kernel.d.ts aligned with graph/memory surfaces', () => {
   const seams = kd.slice(kd.indexOf('getPersistenceDescriptor'), kd.indexOf('paranoidMode'));
   assert.doesNotMatch(seams, /\bPromise\b|\bany\b|\bRecord\s*</);
   assert.doesNotMatch(seams, /\w+\?\s*\(/);
+});
+
+test('the canonical declaration exposes the forwarding members it forwards', () => {
+  // kernel.v2.js forwards `graph` and `memory` to the wrapped Kernel through
+  // getters. `graph` was declared from the start; `memory` was not, so
+  // require('huqan') -- which resolves to KernelV2 -- had no typed memory
+  // surface at all while server.js was calling kernel.memory.list(). A getter
+  // is an instance member, which arch-4's parity contract deliberately leaves
+  // out ("Instance fields, getters and type declarations are intentionally
+  // outside this contract"), so nothing else covers this.
+  const v2 = fs.readFileSync(path.join(REPO_ROOT, 'kernel.v2.d.ts'), 'utf8');
+  for (const member of ['graph', 'memory']) {
+    assert.match(
+      v2,
+      new RegExp(`readonly ${member}\\s*:\\s*Kernel\\['${member}'\\]\\s*;`),
+      `kernel.v2.d.ts must declare ${member}; kernel.v2.js forwards it at runtime`,
+    );
+    assert.equal(
+      typeof Object.getOwnPropertyDescriptor(KernelV2.prototype, member)?.get,
+      'function',
+      `kernel.v2.js must still forward ${member}; the declaration promises it`,
+    );
+  }
 });
 
 test('Kernel declarations preserve sync learn return variants', () => {

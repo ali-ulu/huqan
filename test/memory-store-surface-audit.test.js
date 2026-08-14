@@ -79,17 +79,21 @@ const UNREACHED_SURFACE = Object.freeze({
 });
 
 /**
- * What kernel.d.ts promises about `kernel.memory`, and what production calls
- * through it that the declaration does not cover.
+ * What the declarations promise about `kernel.memory`, against what production
+ * calls through it.
  *
- * This is a real gap rather than a nit: server.js calls kernel.memory.list()
- * and kernel.memory.queryLinks(), so a TypeScript consumer writing the code
- * this product itself ships would not typecheck. Recorded, not fixed --
- * widening a published declaration is a contract change and belongs to
- * whichever PR owns that contract.
+ * This started as a recorded gap: kernel.d.ts declared `memory: { close() }`
+ * while server.js called kernel.memory.list() and .queryLinks(), and
+ * kernel.v2.d.ts -- the canonical declaration, since require('huqan') resolves
+ * to KernelV2 -- declared no memory member at all. The gap is now closed by
+ * the declarations, and this list is the ratchet on it: a production call
+ * appearing for an undeclared method fails here.
+ *
+ * The declared set is deliberately the consumed surface, not the whole class.
+ * The other 33 public methods stay classified above rather than published.
  */
-const KERNEL_DECLARED_MEMORY_METHODS = Object.freeze(['close']);
-const KERNEL_MEMORY_CALLS_UNDECLARED = Object.freeze(['list', 'queryLinks']);
+const KERNEL_DECLARED_MEMORY_METHODS = Object.freeze(['close', 'list', 'queryLinks']);
+const KERNEL_MEMORY_CALLS_UNDECLARED = Object.freeze([]);
 
 function publicMethods(ctor) {
   return Object.getOwnPropertyNames(ctor.prototype)
@@ -206,6 +210,15 @@ test.describe('MemoryStore public surface audit', () => {
       .sort();
     assert.deepStrictEqual(declared, [...KERNEL_DECLARED_MEMORY_METHODS].sort(),
       'the declared kernel.memory surface changed; re-audit the gap below');
+  });
+
+  test('the canonical declaration carries the memory member too', () => {
+    // The audit read kernel.d.ts alone at first, which understated the gap:
+    // require('huqan') resolves to KernelV2, so kernel.v2.d.ts is the
+    // declaration a consumer of the canonical entry point actually reads.
+    const v2 = fs.readFileSync(path.join(REPO_ROOT, 'kernel.v2.d.ts'), 'utf8');
+    assert.match(v2, /readonly memory\s*:\s*Kernel\['memory'\]\s*;/,
+      'kernel.v2.d.ts must forward the memory type; kernel.v2.js forwards the value');
   });
 
   test('the undeclared kernel.memory calls are exactly the known ones', () => {

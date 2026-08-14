@@ -149,6 +149,46 @@ export type CliMutationAuditResult = Readonly<{
   errorCode: null | 'AUDIT_WRITE_FAILED';
 }>;
 
+/**
+ * The `kernel.memory` read surface this product actually consumes.
+ *
+ * Records and links are `unknown` on purpose: their shape is owned by
+ * lib/memory-schema.js and versioned there, so pinning a structural type here
+ * would publish a second, drifting copy of it. What the declaration commits to
+ * is the call shape and the result envelope, which is what a caller needs to
+ * branch on `ok`.
+ */
+export interface MemoryListOptions {
+  workspaceId?: string;
+  includeTombstoned?: boolean;
+  limit?: number;
+  offset?: number;
+}
+
+export interface MemoryListResult {
+  ok: boolean;
+  memories: unknown[];
+  total: number;
+}
+
+export interface MemoryQueryLinksOptions {
+  workspaceId?: string;
+  fromMemoryId?: string;
+  toMemoryId?: string;
+  relation?: string;
+  includeDeleted?: boolean;
+  includeTombstoned?: boolean;
+  limit?: number;
+  offset?: number;
+}
+
+export interface MemoryQueryLinksResult {
+  ok: boolean;
+  links?: unknown[];
+  total?: number;
+  error?: { code: string; message: string };
+}
+
 export interface KernelOptions {
   noLoad?: boolean;
   memoryPath?: string;
@@ -221,8 +261,17 @@ declare class Kernel {
     _consolidateEdges(dryRun?: boolean): unknown;
   };
 
+  // The memory store's own surface is wider than this. What is declared here
+  // is what this product reaches through `kernel.memory` -- server.js's
+  // graph-data endpoint calls list() and queryLinks(), kernel.js calls
+  // close() -- so a consumer writing the code HUQAN itself ships typechecks.
+  // Declaring the remaining methods would publish a surface no caller has
+  // exercised outside the memory suite; see
+  // test/memory-store-surface-audit.test.js for that classification.
   memory: {
     close(): void;
+    list(opts?: MemoryListOptions): MemoryListResult;
+    queryLinks(opts?: MemoryQueryLinksOptions): MemoryQueryLinksResult;
   };
 
   lang: string;
