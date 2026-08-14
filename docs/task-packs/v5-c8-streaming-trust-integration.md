@@ -26,6 +26,7 @@ At the authorization base:
 2. `lib/github-app-writeback-contract.js` hardcodes `writebackReachable: false`; no reachable GitHub check-run writeback exists.
 3. `lib/github-app-beta-auth.js` requests an installation token scoped only to `checks: write`; no bounded pull-request read permission is requested for changed-file evidence.
 4. No C8 runtime test proves exact-head changed-file retrieval, gate evaluation, canonical receipt binding, review-gate writeback, or replay behavior.
+5. Exact-head full CI after the bounded C8 implementation exposed the repository reachability invariant: `lib/github-app-streaming-auth.js` and `lib/github-app-streaming-trust-handler.js` are intentionally not reachable from a production entry point while #279 hosted/public boundary dispatch remains deferred. They must be explicitly classified rather than silently shipped as unacknowledged dead code.
 
 ## [KABUL]
 
@@ -43,12 +44,14 @@ The change is acceptable only if all of the following are proved by tests:
 - A completed delivery replay returns the stored C8 result without a second changed-file fetch or second check-run write.
 - GitHub 401/403/404/422/5xx, malformed JSON, head drift, excessive pagination, and writeback ambiguity never return a misleading success.
 - Existing C7 tests remain unchanged in semantics and pass.
+- Repository module-reachability CI remains green without pretending the C8 handler is production-reachable before #279 hosted/public dispatch is actually wired.
 
 Targeted commands:
 
 ```text
 node --test test/v5-c8-streaming-trust.test.js
 node --test test/v5-c7-github-app-beta.test.js test/v5-c7-github-app-beta-auth.test.js
+node --test test/module-reachability.test.js
 ```
 
 Final verification:
@@ -76,6 +79,7 @@ npm test
 - `lib/github-app-streaming-trust-store.js` — C8 durable replay/writeback state.
 - `lib/github-app-streaming-trust.js` — bounded exact-head evidence fetch, gate, receipt, check writeback orchestration.
 - `lib/github-app-streaming-trust-handler.js` — thin composition of C7 authenticated raw-webhook ingest and C8 loop.
+- `lib/module-reachability.js` — CI-required acknowledgement only for C8 modules deliberately unreachable until the deferred #279 hosted/public dispatch is wired; no runtime behavior change.
 - `test/v5-c8-streaming-trust.test.js` — acceptance/falsification tests.
 - This task-pack.
 
