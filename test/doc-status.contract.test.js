@@ -24,6 +24,7 @@ const test = require('node:test');
 const {
   DOC_ROOT,
   EXEMPT,
+  MUST_PIN_A_COMMIT,
   STATUS_VOCABULARY,
   checkDocStatus,
   listDocs,
@@ -107,4 +108,42 @@ test('the scanned set is the directory itself, not a stale list (#295)', () => {
     .length;
 
   assert.equal(listDocs().length, onDisk, 'the checker must read the directory, so a new file is seen');
+});
+
+// --- #700: a record about a version has to name the version ---
+
+test('every closeout, implementation and contract record names a commit (#700)', () => {
+  const result = checkDocStatus();
+
+  assert.deepEqual(result.unpinned, [], report(result));
+});
+
+test('an unpinned record of a pinning class fails, and one of a free class does not (#700)', (t) => {
+  const pinning = path.join(repoRoot, DOC_ROOT, 'zz-pin-probe.md');
+  const free = path.join(repoRoot, DOC_ROOT, 'zz-free-probe.md');
+  t.after(() => { fs.rmSync(pinning, { force: true }); fs.rmSync(free, { force: true }); });
+
+  fs.writeFileSync(pinning, '# Probe\n\n**Status:** `closeout`\n\nMeasured something, somewhere.\n');
+  const caught = checkDocStatus();
+  assert.equal(caught.unpinned.length, 1);
+  assert.equal(caught.unpinned[0].declared, 'closeout');
+  assert.match(report(caught), /do not say what they are about/);
+  assert.match(report(caught), /a guessed commit makes an unverifiable/);
+  fs.rmSync(pinning);
+
+  // A direction nobody authorized has nothing to pin, and the rule must not
+  // pretend otherwise -- that is how a plausible-looking SHA gets invented.
+  fs.writeFileSync(free, '# Probe\n\n**Status:** `future`\n\nSomeday, perhaps.\n');
+  assert.deepEqual(checkDocStatus().unpinned, []);
+});
+
+test('the pinning classes are the ones whose claim is about a version (#700)', () => {
+  assert.deepEqual([...MUST_PIN_A_COMMIT].sort(), ['closeout', 'contract', 'implementation']);
+
+  // Stated as an intention rather than left implicit: four `spec` documents
+  // legitimately carry no commit, because a scope definition is routinely
+  // written before the work it scopes exists.
+  for (const free of ['spec', 'future', 'draft', 'research', 'archive']) {
+    assert.equal(MUST_PIN_A_COMMIT.includes(free), false, `${free} must not be forced to pin`);
+  }
 });

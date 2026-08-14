@@ -2,6 +2,8 @@
 
 **Status:** `implementation`
 
+**Canonical base:** `main @ 4431011764c42ff126240d434c3f1cce6e65846b` — the merge that put both this record and the bounded harness it describes on `main` (PR #640).
+
 `npm run conformance:a2a` runs a bounded, local child-process conformance
 harness. It is a development verification artifact, not a production A2A
 transport, listener, discovery service, marketplace, or interoperability

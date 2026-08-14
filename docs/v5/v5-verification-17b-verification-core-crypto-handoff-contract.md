@@ -2,6 +2,8 @@
 
 **Status:** `contract`
 
+**Canonical base:** `main @ 9f0c4eaa163262ea9e4d5cb5fc21b190b460dc54` — the merge that put this contract on `main` (PR #241). Docs-only: it names when this contract became binding, not a separately measured build.
+
 ## Purpose
 
 This document defines the bounded handoff from a future cryptographic adapter to

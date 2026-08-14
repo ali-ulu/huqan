@@ -2,6 +2,8 @@
 
 **Status:** `closeout`
 
+**Canonical base:** `main @ f2c3ac11ab96efe6ec5e80460be5f9098a8fc454` — the merge that put this closeout on `main` (PR #180). Docs-only: it names when this record became current, not a separately measured build.
+
 ## Verdict
 
 V5 Agent Identity implementation-prep chain is closed through
