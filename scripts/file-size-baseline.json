@@ -18,7 +18,6 @@
     "lib/memory-store.js": 2176,
     "lib/sandbox-isolation.js": 855,
     "lib/verify.js": 967,
-    "plugins/repo-memory.js": 1200,
     "scripts/external-conformance/consumer.js": 881,
     "server.js": 1294,
     "workflow-agent.js": 1007,
