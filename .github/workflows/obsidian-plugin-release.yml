@@ -87,7 +87,7 @@ jobs:
 
   publish-prerelease:
     name: Publish beta prerelease
-    if: github.event_name == 'workflow_dispatch' && inputs.publish_prerelease == true
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish_prerelease == true)
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -114,17 +114,21 @@ jobs:
         working-directory: obsidian-plugin
         run: echo "version=$(node -p \"require('./manifest.json').version\")" >> "$GITHUB_OUTPUT"
 
-      - name: Refuse duplicate release
+      - name: Check existing release
+        id: release
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           if gh release view "$VERSION" >/dev/null 2>&1; then
-            echo "Release $VERSION already exists; refusing to overwrite it."
-            exit 1
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release $VERSION already exists; leaving it unchanged."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Create GitHub prerelease
+        if: steps.release.outputs.exists != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
