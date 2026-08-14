@@ -191,15 +191,44 @@ Tavsiye: bu ikizlere refaktör olarak dokunulmamalı. Teknik borç sayılıp
 "temizlenmesi", checkpoint'in `forbiddenClaims` listesindeki yetkisiz
 wire-format migrasyonuna dönüşür.
 
-### B6 — Sürüm ikizleri: `kernel.v2.js` (975), `agent.v3.js` (705)
+### B6 — Sürüm ikizleri: karar zaten verilmiş (düzeltildi)
 
-`kernel.js` + `kernel.v2.js` ve `agent.js` + `agent.v3.js` yan yana
-yaşıyor ve ikisi de `test/arch-4-*-version-parity.contract.test.js` ile
-eşlik altında tutuluyor. Yani bu bilinçli, testle bağlanmış bir çift —
-sessizce birleştirilecek ölü kod değil. Borç, birleştirme kararının
-kendisinin hiçbir yerde yazılı olmaması: hangi sürümün ne zaman
-emekliye ayrılacağını söyleyen bir ADR yok. Önerilen iş kod değil,
-tek sayfalık bir emeklilik kaydı.
+Bu bölümün ilk hali "hangi sürümün emekliye ayrılacağını söyleyen bir
+karar yok, tek sayfalık bir emeklilik kaydı gerekiyor" diyordu.
+**Yanlıştı.** Dosya adlarına bakıp kaynağı okumadan varılmış bir sonuçtu.
+Karar #329 (arch-4) ile verilmiş ve kodda *çalışır biçimde* dayatılıyor:
+
+| Kanıt | Yer |
+|---|---|
+| `CANONICAL_KERNEL_VERSION = 'v2'` | `lib/kernel-factory.js` |
+| `CANONICAL_AGENT_VERSION = 'v3'` | `agentRuntime.js` |
+| Kök export `module.exports = KernelV2` | `index.js` |
+| `main: index.js` | `package.json` |
+
+Ve bu bir yorum değil, kapı: eski sürümü isteyen çağıran sessiz bir
+ikame almıyor, `HUQAN_KERNEL_VERSION_UNSUPPORTED` /
+`HUQAN_AGENT_VERSION_UNSUPPORTED` ile fail-fast hata alıyor.
+
+Dolayısıyla `kernel.js` ve `agent.js` "emekli edilecek ikizler" değil;
+**KernelV2 ve AgentV3'ün sardığı iç uygulamalardır**. Sarma yönü tek
+yönlü olarak sabitlenmiş (`KernelV2 -> Kernel`, asla tersi) ve
+`test/arch-4-*-version-parity.contract.test.js` bunu bağlıyor. Silinmeleri
+söz konusu değil — silinirse kanonik çalışma zamanının gövdesi gider.
+
+Geriye kalan tek gerçek açık kalem çok dar: `index.js` içindeki
+
+```js
+/** @deprecated Use KernelV2 / require('huqan'). Removed in the next major. */
+module.exports.KernelV1 = Kernel;
+```
+
+Yani soru "hangisi kanonik" değil — o cevaplanmış. Soru, bu deprecated
+alias'ı düşürecek **major sürümün ne zaman planlanacağı**, ki bu bir
+release takvimi kararıdır, mimari karar değil. #329 kararının ayrı bir
+ADR dosyası yok (`docs/adr/` altında geçmiyor); kaydı koda ve issue'ya
+dayanıyor. Bunu geriye dönük bir ADR ile yazıya geçirmek meşru bir iş
+olabilir, ama o ADR *verilmiş* bir kararı kaydeder — açık bir soruyu
+değil.
 
 ---
 
@@ -208,7 +237,7 @@ tek sayfalık bir emeklilik kaydı.
 | # | İş | Dosya | Risk | Kazanç |
 |---|---|---|---|---|
 | 1 | Konnektör akışını tekilleştir | `plugins/repo-memory.js` | Düşük | ~650 satır, defterden 1 girdi |
-| 2 | Sürüm emeklilik ADR'si | `docs/adr/` | Yok | B6 kararı yazılı olur |
+| 2 | ~~Sürüm emeklilik ADR'si~~ | — | — | **Geri çekildi**: karar #329 ile verilmiş (B6) |
 | 3 | Paket yüzeyini çıkar | `lib/memory-store.js` | Orta | ~270 satır, ancak PR5 tetiklerse |
 | 4 | Test yerleşimini tekleştir | 65 dosya `git mv` | Düşük | Bulunabilirlik |
 | 5 | Journal'ı çıkar / learn'i çıkar | `graph.js`, `kernel.js` | Yüksek | Yalnız ağır PR önünde |
