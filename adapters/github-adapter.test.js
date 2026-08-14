@@ -3,8 +3,10 @@ const assert = require('node:assert/strict');
 
 const Kernel = require('../kernel');
 const evidenceValidator = require('../plugins/evidence-validator');
-const { canonicalizeGitHubRepoUrl } = require('../lib/github-url');
+const { canonicalizeGitHubRepoUrl, encodeGitHubPathSegments } = require('../lib/github-url');
 const { fetchRepoFiles, fetchAndLearn, parseRepoUrl, includePath } = require('./github-adapter');
+
+const TEST_COMMIT_SHA = 'c'.repeat(40);
 
 function makeResponse({ ok = true, status = 200, json, text, headers = {} }) {
   return {
@@ -50,6 +52,11 @@ test('github-adapter: fetchRepoFiles returns filtered markdown files', async () 
   const calls = [];
   const fetchImpl = async (url) => {
     calls.push(url);
+    if (/\/commits\/[^/?]+$/.test(url)) {
+      // The adapter resolves the ref to a commit before reading anything, so a
+      // stub that does not answer this is not standing in for GitHub.
+      return makeResponse({ json: { sha: TEST_COMMIT_SHA } });
+    }
     if (url.includes('/git/trees/')) {
       return makeResponse({
         json: {
@@ -83,12 +90,14 @@ test('github-adapter: fetchRepoFiles returns filtered markdown files', async () 
   for (const item of files) {
     assert.deepEqual(Object.keys(item).sort(), [
       'branch',
+      'commitSha',
       'content',
       'lastModified',
       'owner',
       'path',
       'repo',
     ]);
+    assert.equal(item.commitSha, TEST_COMMIT_SHA);
   }
   assert.equal(calls.some(url => url.includes('docs/overview.md')), false);
 });
@@ -106,6 +115,11 @@ test('github-adapter: fetchRepoFiles surfaces rate-limit errors', async () => {
 
 function singleFileFetchImpl() {
   return async (url) => {
+    if (/\/commits\/[^/?]+$/.test(url)) {
+      // The adapter resolves the ref to a commit before reading anything, so a
+      // stub that does not answer this is not standing in for GitHub.
+      return makeResponse({ json: { sha: TEST_COMMIT_SHA } });
+    }
     if (url.includes('/git/trees/')) {
       return makeResponse({ json: { tree: [{ type: 'blob', path: 'README.md' }] } });
     }
@@ -129,7 +143,7 @@ test('github-adapter: fetchAndLearn ingests through learnAsync, not the sync pat
   assert.equal(calls.length, 1);
   assert.equal(calls[0].text, 'Kedi hayvandır');
   assert.equal(calls[0].opts.provenance.source, 'github-adapter');
-  assert.equal(calls[0].opts.sourceRef, 'https://github.com/ai-ulu/axiom/blob/main/README.md');
+  assert.equal(calls[0].opts.sourceRef, `https://github.com/ai-ulu/axiom/blob/${TEST_COMMIT_SHA}/README.md`);
   assert.equal(calls[0].opts.provenance.sourceRef, calls[0].opts.sourceRef);
   assert.deepEqual(result.learned, [{ path: 'README.md', learned: 2, ok: true }]);
 });
@@ -180,7 +194,7 @@ test('github-adapter: fetchAndLearn runs the real evidenceReachability probe (#5
   });
 
   assert.equal(probes.length, 1, 'remote GitHub content must be probed, not waved through');
-  assert.equal(probes[0].url, 'https://github.com/ai-ulu/axiom/blob/main/README.md');
+  assert.equal(probes[0].url, `https://github.com/ai-ulu/axiom/blob/${TEST_COMMIT_SHA}/README.md`);
   assert.equal(probes[0].options.method, 'HEAD');
 });
 
@@ -218,4 +232,232 @@ test('github-adapter: with the capability off the probe is never spent (#591)', 
   });
 
   assert.equal(probed, false, 'offline default must stay offline');
+});
+
+// --- #690: the raw fetch URL must address the file the tree named ---
+
+test('github-adapter: fetches reserved-character filenames from an encoded raw URL (#690)', async () => {
+  const rawUrls = [];
+  const treePaths = ['notes#draft.md', 'notes?draft.md', 'release notes.md', 'özet.md'];
+  const fetchImpl = async (url) => {
+    if (/\/commits\/[^/?]+$/.test(url)) return makeResponse({ json: { sha: TEST_COMMIT_SHA } });
+    if (url.includes('/git/trees/')) {
+      return makeResponse({ json: { tree: treePaths.map(path => ({ type: 'blob', path })) } });
+    }
+    rawUrls.push(url);
+    return makeResponse({ text: '# content' });
+  };
+
+  const files = await fetchRepoFiles('https://github.com/ai-ulu/axiom', { branch: 'main', fetchImpl });
+
+  // Each name survives the filter, so each one must also be fetched.
+  assert.deepEqual(files.map(item => item.path), treePaths);
+  assert.deepEqual(rawUrls, treePaths.map(path =>
+    `https://raw.githubusercontent.com/ai-ulu/axiom/${TEST_COMMIT_SHA}/${encodeGitHubPathSegments(path)}`));
+
+  for (const url of rawUrls) {
+    const parsed = new URL(url);
+    // Unencoded, `#draft.md` would sit in the fragment and `?draft.md` in the
+    // query -- neither reaches the server, and the 404 is swallowed silently.
+    assert.equal(parsed.hash, '');
+    assert.equal(parsed.search, '');
+    assert.match(parsed.pathname, /\.md$/);
+  }
+});
+
+test('github-adapter: nested paths keep their separators in the raw URL (#690)', async () => {
+  const rawUrls = [];
+  const fetchImpl = async (url) => {
+    if (/\/commits\/[^/?]+$/.test(url)) return makeResponse({ json: { sha: TEST_COMMIT_SHA } });
+    if (url.includes('/git/trees/')) {
+      return makeResponse({ json: { tree: [{ type: 'blob', path: '.github/ISSUE_TEMPLATE/bug#1.md' }] } });
+    }
+    rawUrls.push(url);
+    return makeResponse({ text: '# content' });
+  };
+
+  await fetchRepoFiles('https://github.com/ai-ulu/axiom', { branch: 'main', fetchImpl });
+
+  assert.deepEqual(rawUrls, [
+    `https://raw.githubusercontent.com/ai-ulu/axiom/${TEST_COMMIT_SHA}/.github/ISSUE_TEMPLATE/bug%231.md`,
+  ]);
+});
+
+// --- #689: a truncated tree is a partial tree, not a small repository ---
+
+test('github-adapter: a truncated recursive tree is completed by walking subtrees (#689)', async () => {
+  const treeCalls = [];
+  const fetchImpl = async (url) => {
+    if (/\/commits\/[^/?]+$/.test(url)) return makeResponse({ json: { sha: TEST_COMMIT_SHA } });
+    if (url.includes('/git/trees/')) {
+      treeCalls.push(url);
+      if (url.includes('recursive=1')) {
+        // What GitHub returns for a large repository: a real prefix of the
+        // tree, flagged, with the rest missing.
+        return makeResponse({ json: { truncated: true, tree: [{ type: 'blob', path: 'README.md' }] } });
+      }
+      if (url.includes('/git/trees/dotgithub')) {
+        return makeResponse({
+          json: {
+            tree: [
+              { type: 'blob', path: 'SECURITY.md' },
+              { type: 'tree', path: 'ISSUE_TEMPLATE', sha: 'templates' },
+            ],
+          },
+        });
+      }
+      if (url.includes('/git/trees/templates')) {
+        return makeResponse({ json: { tree: [{ type: 'blob', path: 'bug.md' }] } });
+      }
+      return makeResponse({
+        json: {
+          tree: [
+            { type: 'blob', path: 'README.md' },
+            { type: 'blob', path: 'CONTRIBUTING.md' },
+            { type: 'tree', path: '.github', sha: 'dotgithub' },
+            { type: 'tree', path: 'docs', sha: 'docs-tree' },
+          ],
+        },
+      });
+    }
+    return makeResponse({ text: '# content' });
+  };
+
+  const files = await fetchRepoFiles('https://github.com/ai-ulu/axiom', { branch: 'main', fetchImpl });
+
+  // Before the fix this returned exactly ['README.md'] and reported success.
+  assert.deepEqual(files.map(item => item.path).sort(), [
+    '.github/ISSUE_TEMPLATE/bug.md',
+    '.github/SECURITY.md',
+    'CONTRIBUTING.md',
+    'README.md',
+  ]);
+  // The walk enters only subtrees that can still hold an includable path, so
+  // `docs` is never requested even though the root listed it.
+  assert.equal(treeCalls.some(url => url.includes('docs-tree')), false);
+});
+
+test('github-adapter: a truncated recursive tree walks only the subtrees explicit paths name (#689)', async () => {
+  const treeCalls = [];
+  const fetchImpl = async (url) => {
+    if (/\/commits\/[^/?]+$/.test(url)) return makeResponse({ json: { sha: TEST_COMMIT_SHA } });
+    if (url.includes('/git/trees/')) {
+      treeCalls.push(url);
+      if (url.includes('recursive=1')) {
+        return makeResponse({ json: { truncated: true, tree: [] } });
+      }
+      if (url.includes('/git/trees/docs-tree')) {
+        return makeResponse({ json: { tree: [{ type: 'blob', path: 'overview.md' }] } });
+      }
+      return makeResponse({
+        json: {
+          tree: [
+            { type: 'tree', path: 'docs', sha: 'docs-tree' },
+            { type: 'tree', path: '.github', sha: 'dotgithub' },
+          ],
+        },
+      });
+    }
+    return makeResponse({ text: '# content' });
+  };
+
+  const files = await fetchRepoFiles('https://github.com/ai-ulu/axiom', {
+    branch: 'main',
+    fetchImpl,
+    paths: ['docs/overview.md'],
+  });
+
+  assert.deepEqual(files.map(item => item.path), ['docs/overview.md']);
+  assert.equal(treeCalls.some(url => url.includes('dotgithub')), false);
+});
+
+test('github-adapter: a truncated subtree fails closed instead of returning a short list (#689)', async () => {
+  const fetchImpl = async (url) => {
+    if (/\/commits\/[^/?]+$/.test(url)) return makeResponse({ json: { sha: TEST_COMMIT_SHA } });
+    if (url.includes('/git/trees/')) {
+      if (url.includes('recursive=1')) {
+        return makeResponse({ json: { truncated: true, tree: [{ type: 'blob', path: 'README.md' }] } });
+      }
+      if (url.includes('/git/trees/dotgithub')) {
+        // No walk can repair this one: the directory itself does not fit.
+        return makeResponse({ json: { truncated: true, tree: [{ type: 'blob', path: 'SECURITY.md' }] } });
+      }
+      return makeResponse({
+        json: {
+          tree: [
+            { type: 'blob', path: 'README.md' },
+            { type: 'tree', path: '.github', sha: 'dotgithub' },
+          ],
+        },
+      });
+    }
+    return makeResponse({ text: '# content' });
+  };
+
+  await assert.rejects(
+    () => fetchRepoFiles('https://github.com/ai-ulu/axiom', { branch: 'main', fetchImpl }),
+    (err) => err && err.code === 'GITHUB_TREE_TRUNCATED' && /\.github/.test(err.message),
+  );
+});
+
+test('github-adapter: a tree entry with no sha fails closed rather than skipping a subtree (#689)', async () => {
+  const fetchImpl = async (url) => {
+    if (/\/commits\/[^/?]+$/.test(url)) return makeResponse({ json: { sha: TEST_COMMIT_SHA } });
+    if (url.includes('/git/trees/')) {
+      if (url.includes('recursive=1')) return makeResponse({ json: { truncated: true, tree: [] } });
+      return makeResponse({ json: { tree: [{ type: 'tree', path: '.github' }] } });
+    }
+    return makeResponse({ text: '# content' });
+  };
+
+  await assert.rejects(
+    () => fetchRepoFiles('https://github.com/ai-ulu/axiom', { branch: 'main', fetchImpl }),
+    (err) => err && err.code === 'GITHUB_TREE_INCOMPLETE',
+  );
+});
+
+test('github-adapter: a partial tree never reaches the mutation path (#689)', async () => {
+  let learnEntered = false;
+  const fetchImpl = async (url) => {
+    if (/\/commits\/[^/?]+$/.test(url)) return makeResponse({ json: { sha: TEST_COMMIT_SHA } });
+    if (url.includes('/git/trees/')) {
+      // Truncated at every level: unrepairable, so nothing may be ingested.
+      return makeResponse({ json: { truncated: true, tree: [{ type: 'blob', path: 'README.md' }] } });
+    }
+    return makeResponse({ text: '# content' });
+  };
+
+  await assert.rejects(
+    () => fetchAndLearn('https://github.com/ai-ulu/axiom', {
+      async learnAsync() { learnEntered = true; return { data: { learned: 1 } }; },
+    }, { branch: 'main', fetchImpl }),
+    (err) => err && err.code === 'GITHUB_TREE_TRUNCATED',
+  );
+  assert.equal(learnEntered, false, 'an incomplete scan must not be ingested as if it were whole');
+});
+
+test('github-adapter: an untruncated tree still costs exactly one tree call (#689)', async () => {
+  const treeCalls = [];
+  const fetchImpl = async (url) => {
+    if (/\/commits\/[^/?]+$/.test(url)) return makeResponse({ json: { sha: TEST_COMMIT_SHA } });
+    if (url.includes('/git/trees/')) {
+      treeCalls.push(url);
+      return makeResponse({
+        json: {
+          truncated: false,
+          tree: [
+            { type: 'blob', path: 'README.md' },
+            { type: 'blob', path: '.github/SECURITY.md' },
+          ],
+        },
+      });
+    }
+    return makeResponse({ text: '# content' });
+  };
+
+  const files = await fetchRepoFiles('https://github.com/ai-ulu/axiom', { branch: 'main', fetchImpl });
+
+  assert.equal(files.length, 2);
+  assert.equal(treeCalls.length, 1);
+  assert.match(treeCalls[0], /recursive=1$/);
 });

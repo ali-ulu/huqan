@@ -4,11 +4,20 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 
 const {
+  DEFAULT_BASELINE_MAX_AGE_MINUTES,
+  assessBaselineFreshness,
   buildContextCapsule,
   formatContextCapsule,
   inspectGitState,
+  readBaselineSyncedAt,
+  resolveBaselineMaxAgeMs,
   validateGitState,
 } = require('../scripts/agent-context');
+
+// Synthetic evidence carries a baseline that was just synced, so the three
+// ancestry tests below each fail for the one reason they name rather than
+// collecting a stale-baseline conflict as well (#682).
+const FRESH_BASELINE = { baselineSyncedAt: Date.now() };
 
 test('agent context capsule is deterministic and ordered stable-first', () => {
   const first = buildContextCapsule();
@@ -126,6 +135,7 @@ test('Git validation fails closed on repository identity mismatch', () => {
     head: 'tip',
     originMain: 'tip',
     worktree: '',
+    ...FRESH_BASELINE,
   };
 
   assert.throws(
@@ -146,6 +156,7 @@ test('Git validation fails closed when baseline HEAD trails origin/main', () => 
     head: 'stale-tip',
     originMain: 'remote-tip',
     worktree: '',
+    ...FRESH_BASELINE,
   };
 
   assert.throws(
@@ -166,6 +177,7 @@ test('Git validation fails closed when a feature branch omits current origin/mai
     head: 'feature-tip',
     originMain: 'remote-tip',
     worktree: '',
+    ...FRESH_BASELINE,
   };
   const isAncestor = (ancestor, descendant) => (
     ancestor === 'base' && descendant === 'remote-tip'
@@ -175,4 +187,144 @@ test('Git validation fails closed when a feature branch omits current origin/mai
     () => validateGitState(checkpoint, evidence, isAncestor),
     /feature branch feature\/stale does not descend from origin\/main/,
   );
+});
+
+// --- #682: the guard must measure how old the baseline it read actually is ---
+//
+// The ancestry check reads `origin/main`, a local ref that only moves when
+// something fetches. Left unmeasured it goes stale over a long session and the
+// check keeps passing against a `main` that CI has already moved past. This was
+// reproduced on the same head: with the local ref rolled back three commits the
+// suite reported 9/9, and with the ref refreshed it reported 4 failures.
+
+const STALE_CHECKPOINT = {
+  repository: 'ali-ulu/huqan',
+  baselineBranch: 'main',
+  canonicalMain: 'base',
+};
+
+function baselineEvidence(baselineSyncedAt) {
+  return {
+    repository: 'ali-ulu/huqan',
+    branch: 'feature/work',
+    head: 'feature-tip',
+    originMain: 'remote-tip',
+    worktree: '',
+    baselineSyncedAt,
+  };
+}
+
+const NOW = Date.parse('2026-08-14T12:00:00Z');
+const HALF_HOUR_MS = 30 * 60000;
+const alwaysAncestor = () => true;
+
+test('a stale origin/main is a conflict, not a silent pass (#682)', () => {
+  assert.throws(
+    () => validateGitState(
+      STALE_CHECKPOINT,
+      baselineEvidence(NOW - (91 * 60000)),
+      alwaysAncestor,
+      { now: NOW, maxAgeMs: HALF_HOUR_MS },
+    ),
+    (error) => error.code === 'CONTEXT_CONFLICT'
+      && /origin\/main was last synced with the remote 91 minutes ago, past the 30 minute limit/.test(error.message)
+      && /git fetch --no-tags origin \+refs\/heads\/main:refs\/remotes\/origin\/main/.test(error.message),
+  );
+});
+
+test('a recently synced origin/main still passes and reports its age verdict (#682)', () => {
+  const gitState = validateGitState(
+    STALE_CHECKPOINT,
+    baselineEvidence(NOW - 60000),
+    alwaysAncestor,
+    { now: NOW, maxAgeMs: HALF_HOUR_MS },
+  );
+
+  assert.equal(gitState.baselineFreshness, 'FRESH');
+  assert.equal(gitState.baselineSyncedAt, new Date(NOW - 60000).toISOString());
+});
+
+test('an unmeasurable origin/main fails closed rather than assuming it is current (#682)', () => {
+  for (const missing of [undefined, null, Number.NaN]) {
+    assert.throws(
+      () => validateGitState(
+        STALE_CHECKPOINT,
+        baselineEvidence(missing),
+        alwaysAncestor,
+        { now: NOW, maxAgeMs: HALF_HOUR_MS },
+      ),
+      (error) => error.code === 'CONTEXT_CONFLICT'
+        && /origin\/main has no recorded sync with the remote, so its age cannot be measured/.test(error.message),
+    );
+  }
+});
+
+test('an offline run may switch the measurement off, but never silently (#682)', () => {
+  // The point of the escape hatch is that it leaves a mark. A run that did not
+  // measure the baseline must not be readable as a run that measured it and
+  // found it fine.
+  const gitState = validateGitState(
+    STALE_CHECKPOINT,
+    baselineEvidence(NOW - (30 * 24 * 60 * 60000)),
+    alwaysAncestor,
+    { now: NOW, maxAgeMs: 0 },
+  );
+
+  assert.equal(gitState.baselineFreshness, 'UNMEASURED_BY_CONFIG');
+  assert.equal(gitState.baselineSyncedAt, null);
+  assert.notEqual(gitState.baselineFreshness, 'FRESH');
+});
+
+test('the staleness threshold is configurable and rejects nonsense (#682)', () => {
+  assert.equal(resolveBaselineMaxAgeMs({}), DEFAULT_BASELINE_MAX_AGE_MINUTES * 60000);
+  assert.equal(resolveBaselineMaxAgeMs({ HUQAN_BASELINE_MAX_AGE_MINUTES: '' }), DEFAULT_BASELINE_MAX_AGE_MINUTES * 60000);
+  assert.equal(resolveBaselineMaxAgeMs({ HUQAN_BASELINE_MAX_AGE_MINUTES: '5' }), 5 * 60000);
+  assert.equal(resolveBaselineMaxAgeMs({ HUQAN_BASELINE_MAX_AGE_MINUTES: '0' }), 0);
+
+  for (const raw of ['-1', 'soon', 'NaN']) {
+    assert.throws(
+      () => resolveBaselineMaxAgeMs({ HUQAN_BASELINE_MAX_AGE_MINUTES: raw }),
+      (error) => error.code === 'CONTEXT_CONFLICT'
+        && /HUQAN_BASELINE_MAX_AGE_MINUTES must be a non-negative number of minutes/.test(error.message),
+    );
+  }
+});
+
+test('freshness is read from the files a fetch touches, newest wins (#682)', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-baseline-'));
+  try {
+    assert.equal(readBaselineSyncedAt([path.join(dir, 'FETCH_HEAD')]), null, 'nothing to read means nothing is claimed');
+
+    const older = path.join(dir, 'FETCH_HEAD');
+    const newer = path.join(dir, 'ref');
+    fs.writeFileSync(older, '');
+    fs.writeFileSync(newer, '');
+    fs.utimesSync(older, new Date(NOW - 7200000), new Date(NOW - 7200000));
+    fs.utimesSync(newer, new Date(NOW - 60000), new Date(NOW - 60000));
+
+    assert.equal(readBaselineSyncedAt([older, newer]), NOW - 60000);
+    assert.equal(readBaselineSyncedAt([newer, older]), NOW - 60000);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('assessBaselineFreshness draws the line exactly at the threshold (#682)', () => {
+  const at = (ageMs) => assessBaselineFreshness(NOW - ageMs, { now: NOW, maxAgeMs: HALF_HOUR_MS }).verdict;
+
+  assert.equal(at(0), 'FRESH');
+  assert.equal(at(HALF_HOUR_MS), 'FRESH', 'exactly at the limit is still inside it');
+  assert.equal(at(HALF_HOUR_MS + 1), 'STALE');
+  // A clock that jumped backwards must not read as an ancient baseline.
+  assert.equal(at(-60000), 'FRESH');
+});
+
+test('the live capsule reports a baseline freshness verdict (#682)', () => {
+  const capsule = buildContextCapsule();
+
+  assert.match(capsule, /"baselineFreshness": "(FRESH|STALE|UNKNOWN|UNMEASURED_BY_CONFIG)"/);
 });

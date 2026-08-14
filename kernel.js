@@ -6,7 +6,8 @@ const PluginManager = require('./plugin');
 const createNlp = require('./nlp');
 const VerifyService = require('./lib/verify');
 const { buildProvenance } = require('./lib/provenance-ingest');
-const { buildBackgroundProvenance } = require('./lib/background-provenance');
+const { buildBackgroundProvenance, provenanceFieldsFrom } = require('./lib/background-provenance');
+const { buildLearnAdmissionRequest } = require('./lib/learn-admission-request');
 const { evaluateMemoryAdmission } = require('./lib/memory-admission-gate');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
 const { defaultApprovalRequired } = require('./lib/human-approval-toggle');
@@ -313,11 +314,7 @@ class Kernel {
     return this._commitBackgroundEdge(from, to, relation, 'plugin', {
       workspaceId: opts.workspaceId || 'default',
       edgeOptions: opts,
-      provenanceExtra: {
-        sourceType: opts.sourceType || 'plugin',
-        sourceRef: opts.sourceRef || '',
-        actor: opts.actor || opts.sessionId || 'plugin',
-      },
+      provenanceExtra: provenanceFieldsFrom(opts),
       admissionOpts: {
         approvalRequired: false,
         sourceType: opts.sourceType || 'plugin',
@@ -699,58 +696,13 @@ class Kernel {
   _evaluateLearnAdmission(text, opts = {}, provenance = null, workspaceId = 'default') {
     if (this._isLearnAdmissionBypass(opts)) return null;
 
-    const admissionContext = isPlainObject(opts.admissionContext) ? opts.admissionContext : {};
-    const createdAt =
-      provenance?.timestamp ||
-      opts.timestamp ||
-      admissionContext.createdAt ||
-      admissionContext.timestamp ||
-      new Date().toISOString();
-    const provenanceId =
-      provenance?.provenanceId ||
-      opts.provenanceId ||
-      admissionContext.provenanceId ||
-      `prov_${workspaceId}_${Date.now()}`;
-    const actor =
-      provenance?.actor ||
-      opts.actor ||
-      admissionContext.actor ||
-      'kernel';
-    const agentId =
-      opts.agentId ||
-      admissionContext.agentId ||
-      'kernel';
-    const memoryDraftId =
-      opts.memoryDraftId ||
-      admissionContext.memoryDraftId ||
-      `draft_${provenanceId}`;
-    const request = {
-      ...admissionContext,
+    const request = buildLearnAdmissionRequest({
+      text,
+      opts,
+      provenance,
       workspaceId,
-      actor,
-      agentId,
-      memoryDraftId,
-      provenanceId,
-      trustPolicyVersion:
-        provenance?.trustPolicyVersion ||
-        opts.trustPolicyVersion ||
-        admissionContext.trustPolicyVersion ||
-        this.contractVersion,
-      approvalId: opts.approvalId || admissionContext.approvalId || '',
-      approvalStatus: opts.approvalStatus || admissionContext.approvalStatus || '',
-      approvalRequired: opts.approvalRequired ?? admissionContext.approvalRequired ?? defaultApprovalRequired(),
-      reason: opts.admissionReason || admissionContext.reason || 'kernel_learn_write',
-      createdAt,
-      proposedMemory: {
-        content: String(text || ''),
-        edges: [{ relation: 'learn', workspaceId }],
-        metadata: {
-          sourceType: provenance?.sourceType || opts.sourceType || admissionContext.sourceType || '',
-          sourceRef: provenance?.sourceRef || opts.sourceRef || admissionContext.sourceRef || '',
-          actor,
-        },
-      },
-    };
+      contractVersion: this.contractVersion,
+    });
 
     const evaluated = evaluateMemoryAdmission(request, {
       approvalRequired: request.approvalRequired,

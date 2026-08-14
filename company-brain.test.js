@@ -77,6 +77,11 @@ test('company-brain: repo-memory ingests github markdown and updates ingest stat
   k.usePlugin(createCompanyBrainPlugin());
 
   const fetchImpl = async (url) => {
+    if (/\/commits\/[^/?]+$/.test(url)) {
+      // github-adapter resolves the ref to a commit before reading anything, so
+      // a stub that does not answer this is not standing in for GitHub.
+      return makeResponse({ json: { sha: 'd'.repeat(40) } });
+    }
     if (url.includes('/git/trees/')) {
       return makeResponse({
         json: {

@@ -1,0 +1,145 @@
+name: Obsidian Plugin
+
+on:
+  pull_request:
+    paths:
+      - 'obsidian-plugin/**'
+      - '.github/workflows/obsidian-plugin-release.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'obsidian-plugin/**'
+      - '.github/workflows/obsidian-plugin-release.yml'
+  workflow_dispatch:
+    inputs:
+      publish_prerelease:
+        description: 'Publish the manifest version as a GitHub prerelease after validation'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and validate plugin
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: obsidian-plugin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: obsidian-plugin/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate release contract
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+          const versions = JSON.parse(fs.readFileSync('versions.json', 'utf8'));
+          if (!/^\d+\.\d+\.\d+$/.test(manifest.version)) {
+            throw new Error(`manifest.version must be x.y.z, got ${manifest.version}`);
+          }
+          if (!/^[a-z-]+$/.test(manifest.id) || manifest.id.includes('obsidian') || manifest.id.endsWith('plugin')) {
+            throw new Error(`invalid Obsidian plugin id: ${manifest.id}`);
+          }
+          if (typeof manifest.minAppVersion !== 'string' || !manifest.minAppVersion) {
+            throw new Error('manifest.minAppVersion is required');
+          }
+          if (versions[manifest.version] && versions[manifest.version] !== manifest.minAppVersion) {
+            throw new Error(`versions.json mismatch for ${manifest.version}`);
+          }
+          for (const file of ['main.js', 'manifest.json', 'styles.css']) {
+            if (!fs.existsSync(file)) throw new Error(`missing release asset: ${file}`);
+          }
+          console.log(`PLUGIN_VERSION=${manifest.version}`);
+          console.log(`MIN_APP_VERSION=${manifest.minAppVersion}`);
+          NODE
+
+      - name: Production build
+        run: npm run build
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: huqan-trust-panel-release-assets
+          path: |
+            obsidian-plugin/main.js
+            obsidian-plugin/manifest.json
+            obsidian-plugin/styles.css
+          if-no-files-found: error
+
+      - name: Verify committed bundle is reproducible
+        working-directory: .
+        run: git diff --exit-code -- obsidian-plugin/main.js obsidian-plugin/styles.css
+
+  publish-prerelease:
+    name: Publish beta prerelease
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish_prerelease == true)
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: obsidian-plugin/package-lock.json
+
+      - name: Install and build
+        working-directory: obsidian-plugin
+        run: |
+          npm ci
+          npm run build
+
+      - name: Resolve plugin version
+        id: version
+        working-directory: obsidian-plugin
+        run: |
+          VERSION="$(node -p "require('./manifest.json').version")"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check existing release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release $VERSION already exists; leaving it unchanged."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub prerelease
+        if: steps.release.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "$VERSION" \
+            --target "$GITHUB_SHA" \
+            --title "HUQAN Trust Panel $VERSION beta" \
+            --prerelease \
+            --notes "Beta release of HUQAN Trust Panel. Requires a local HUQAN runtime. Verification is read-only and the API key is restricted to loopback endpoints." \
+            obsidian-plugin/main.js \
+            obsidian-plugin/manifest.json \
+            obsidian-plugin/styles.css
