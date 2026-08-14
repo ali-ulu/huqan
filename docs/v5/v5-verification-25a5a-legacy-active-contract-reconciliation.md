@@ -2,6 +2,8 @@
 
 **Status:** `contract`
 
+**Canonical base:** `main @ 06c1473aaeca23ffe42eac9e16361df132ee3f38` — the merge that put this reconciliation on `main`. Docs-only: it names when this record became current, not a separately measured build.
+
 ## Status And Purpose
 
 **Mode:** docs-only contract reconciliation

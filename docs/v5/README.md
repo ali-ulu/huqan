@@ -51,6 +51,37 @@ none may be cited as evidence that HUQAN does these things.
 This README is the one file with no status of its own, because an index
 describes the set rather than belonging to it.
 
+### Naming the commit a record is about
+
+A `closeout`, `implementation` or `contract` record is a statement about a
+particular state of the tree, so it must name the commit it is about:
+
+```
+**Canonical base:** `main @ <40-char sha>` — what that commit is
+```
+
+`scripts/check-doc-status.js` fails when one of those three does not (#700).
+Seven of them named no commit when the rule was written, two of them
+closeouts — a record saying a gate was measured, without saying what was
+measured.
+
+The other classes are free of the rule because they have nothing to pin, not
+because it is inconvenient there: a `future` document describes a direction
+nobody authorized, a `draft` is unfinished, `research` commits to nothing, and
+a `spec` is routinely written before the work it scopes. Four of the
+thirty-one `spec` documents carry no commit for exactly that reason, and that
+is recorded here as a decision rather than left as an omission:
+
+- `v5-verification-17-cryptographic-adapter-scope-definition.md`
+- `v5-verification-18-cryptographic-adapter-fixture-scope-definition.md`
+- `v5-verification-23-cryptographic-adapter-adversarial-test-scope-definition.md`
+- `v5-verification-25a1-resolver-binding-fixture-scope-amendment.md`
+
+Do not fill a pin in from memory. A guessed commit makes an unverifiable
+record look verifiable, which is the failure the pin exists to prevent; a pin
+that cannot be established from the history should be recorded as
+unestablished instead.
+
 ## Source Authority
 
 Live source, tests, exact Git SHA and current CI evidence outrank this planning

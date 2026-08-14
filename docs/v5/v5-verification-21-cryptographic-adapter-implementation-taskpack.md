@@ -2,6 +2,8 @@
 
 **Status:** `implementation`
 
+**Canonical base:** `main @ 347a69d23bfac72a440db07c37e1f0a56b88d963` — the merge that put this task order on `main` (PR #248). Docs-only: it names when this record became current, not a separately measured build.
+
 ## Future V22 Scope
 
 V22 may change only:

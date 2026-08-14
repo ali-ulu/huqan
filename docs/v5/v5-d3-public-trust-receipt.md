@@ -2,6 +2,8 @@
 
 **Status:** `closeout`
 
+**Canonical base:** `main @ 13cc50b26cf0b78eb0c01bf959926c2facb69bef` — the merge that put both this record and the export/import surface it describes on `main` (PR #636).
+
 ## Status
 
 `V5_D3_PUBLIC_TRUST_RECEIPT_PROVEN`

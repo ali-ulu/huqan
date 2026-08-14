@@ -2,6 +2,8 @@
 
 **Status:** `contract`
 
+**Canonical base:** `main @ ae3c80ab3cab809a7e89bd80e87826952407afca` — the merge that put this contract on `main` (#252). Docs-only: it names when this contract became binding, not a separately measured build.
+
 ## Purpose And Boundary
 
 V25A recovers the missing canonical binding between a requested
