@@ -11,25 +11,39 @@ gelir; her öneri ayrı onay bekler.
 
 ---
 
-## 0. Bağlam çakışması (önce bu okunmalı)
+## 0. Bağlam çakışması: klon sığlığı, checkpoint borcu değil
 
-`node scripts/agent-context.js` bu commit üzerinde başarısız oluyor:
+`node scripts/agent-context.js` ilk çalıştırmada başarısız oldu ve
+`test/agent-context.test.js` dört testi kırmızı verdi:
 
 ```
 CONTEXT_CONFLICT: checkpoint main 0fef5948f644e611baa8b725f018249662bcdb5d
-is not an ancestor of origin/main 57c21f49a41beea32dab367ba8cc1e8356417f68
+is not an ancestor of origin/main 68c079ff44e85885039ea31520268a8139d4f53a
 ```
 
-Doğrulama sonucu (gözlemlenen): `git cat-file -t 0fef5948` →
-`fatal: Not a valid commit name`. Yani checkpoint'teki `canonicalMain`
-değeri bu klonda **var olmayan** bir commit'e işaret ediyor;
-`docs/current-agent-checkpoint.json` bayat. Çalışma dalı
-`claude/refactor-technical-debt-research-n74a74` ise `origin/main`
-(`68c079f`) ile **birebir aynı** noktada (0 ileri, 0 geri commit).
+İlk teşhis yanlıştı. `git cat-file -t 0fef5948` →
+`fatal: Not a valid commit name` çıktısı, checkpoint'in var olmayan bir
+commit'i sabitlediği izlenimi verdi. Gerçek sebep, çalışma ortamının
+**sığ (shallow) klon** olmasıydı: 2089 commit'lik geçmişin yalnızca 222'si
+mevcuttu, bu yüzden hem nesne araması hem de `merge-base` başarısız oldu.
 
-Sonuç: kaynak-gerçeklik çakışması değil, checkpoint tazeleme borcudur.
-Bu araştırma canlı kaynak üzerinden yapıldı (SRC-001 sırası). Checkpoint'in
-güncellenmesi ayrı ve küçük bir iştir; bu belge onu yapmıyor.
+`git fetch --unshallow` sonrası ölçüm (gözlemlenen):
+
+```
+git cat-file -t 0fef5948…            -> commit
+git merge-base --is-ancestor 0fef… origin/main -> yes (ancestor)
+node --test test/agent-context.test.js -> 17 test, 17 pass, 0 fail
+```
+
+`0fef5948` (PR #597) `origin/main`'in **meşru atasıdır**;
+`docs/current-agent-checkpoint.json` bayat değildir ve tazelenmesi
+gerekmez. Kapı doğru davranmıştır: CI'nin paylaşmadığı bir tabana karşı
+ataliğin ölçülmesini reddetmiştir. Bu bir depo borcu değil, ortam
+koşuludur — sığ klonla çalışan her ajanın `--unshallow` yapması gerekir.
+
+Çalışma dalı `claude/refactor-technical-debt-research-n74a74`, `origin/main`
+(`68c079f`) ile aynı noktadadır. Bu araştırma canlı kaynak üzerinden
+yapıldı (SRC-001 sırası).
 
 ---
 
@@ -183,14 +197,19 @@ tek sayfalık bir emeklilik kaydı.
 | # | İş | Dosya | Risk | Kazanç |
 |---|---|---|---|---|
 | 1 | Konnektör akışını tekilleştir | `plugins/repo-memory.js` | Düşük | ~650 satır, defterden 1 girdi |
-| 2 | Checkpoint'i tazele | `docs/current-agent-checkpoint.json` | Yok | Bootstrap yeniden çalışır |
-| 3 | Sürüm emeklilik ADR'si | `docs/adr/` | Yok | B6 kararı yazılı olur |
-| 4 | Paket yüzeyini çıkar | `lib/memory-store.js` | Orta | ~270 satır, ancak PR5 tetiklerse |
-| 5 | Test yerleşimini tekleştir | 65 dosya `git mv` | Düşük | Bulunabilirlik |
-| 6 | Journal'ı çıkar / learn'i çıkar | `graph.js`, `kernel.js` | Yüksek | Yalnız ağır PR önünde |
+| 2 | Sürüm emeklilik ADR'si | `docs/adr/` | Yok | B6 kararı yazılı olur |
+| 3 | Paket yüzeyini çıkar | `lib/memory-store.js` | Orta | ~270 satır, ancak PR5 tetiklerse |
+| 4 | Test yerleşimini tekleştir | 65 dosya `git mv` | Düşük | Bulunabilirlik |
+| 5 | Journal'ı çıkar / learn'i çıkar | `graph.js`, `kernel.js` | Yüksek | Yalnız ağır PR önünde |
 
-4, 5 ve 6 **big-file-refactor-gate kuralına tabidir**: bağımlı PR
+3, 4 ve 5 **big-file-refactor-gate kuralına tabidir**: bağımlı PR
 gelmeden başlatılmamalıdır.
+
+**#1 yapıldı** — commit `85a3956`: altı entry tabanlı konnektör
+`lib/connectors/entry-ingest-flow.js` içindeki tek yürüyüşe katlandı,
+`plugins/repo-memory.js` 1200 → 641 satır, defterden düştü. Davranış
+değişmedi: iki revizyon aynı fixture üzerinde byte-byte aynı sonuç,
+admission sırası ve hata sözleşmesi üretti.
 
 ## 4. Tavsiye edilmeyenler
 
