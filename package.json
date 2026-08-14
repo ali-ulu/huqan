@@ -165,6 +165,7 @@
         "lib/json-object.js",
         "lib/kernel-factory.js",
         "lib/kernel-read-use-cases.js",
+        "lib/learn-admission-request.js",
         "lib/learn-use-case.js",
         "lib/mcp-approval-store.js",
         "lib/mcp-approval-views.js",
