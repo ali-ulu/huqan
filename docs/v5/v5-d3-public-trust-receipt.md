@@ -1,5 +1,7 @@
 # V5-D3 Public Trust Receipt Exchange
 
+**Status:** `closeout`
+
 ## Status
 
 `V5_D3_PUBLIC_TRUST_RECEIPT_PROVEN`

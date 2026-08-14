@@ -1,5 +1,7 @@
 # V5-D7 HTP/ATP migration compatibility closeout
 
+**Status:** `closeout`
+
 ## Decision
 
 `V5_D7_HTP_ATP_MIGRATION_COMPATIBILITY: PASS`

@@ -1,5 +1,7 @@
 # V5 Verification-17B Cryptographic Evidence Handoff Contract
 
+**Status:** `contract`
+
 ## Purpose
 
 This document defines the bounded handoff from a future cryptographic adapter to

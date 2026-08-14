@@ -1,5 +1,7 @@
 # V5-VERIFICATION-1 - Verification Fixture Scope Definition
 
+**Status:** `spec`
+
 **Mode:** Scope definition only
 **Current checkpoint:** `V5-VERIFICATION-0_CLOSEOUT_AUDIT_GREEN`
 **Canonical branch:** `main`

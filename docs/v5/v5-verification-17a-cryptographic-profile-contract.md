@@ -1,5 +1,7 @@
 # V5-VERIFICATION-17A - Cryptographic Profile Contract
 
+**Status:** `contract`
+
 Mode: source-level profile and canonical byte contract
 Base: main @ 25b18e2b89d926bfb8f79131630cb61dd669302d
 

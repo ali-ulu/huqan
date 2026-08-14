@@ -1,5 +1,7 @@
 # V5-VERIFICATION-25A Key Material Binding Contract
 
+**Status:** `contract`
+
 ## Purpose And Boundary
 
 V25A recovers the missing canonical binding between a requested

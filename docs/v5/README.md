@@ -16,6 +16,41 @@ V5_IMPLEMENTATION_ENTRY: FAIL
 A successor source-backed entry audit must record PASS before V5 ecosystem
 implementation is authorized.
 
+## Document Status
+
+Every document in this directory declares what kind of document it is, on a
+`**Status:** ` line within its first twelve lines. `scripts/check-doc-status.js`
+fails if one does not, or if it claims a status outside this list, so a new
+document cannot join the set unclassified.
+
+| status | what claiming it commits you to |
+| --- | --- |
+| `research` | open questions and directions being explored; commits to nothing |
+| `future` | a described direction with no authorized track behind it; **must not be read as built or scheduled** |
+| `draft` | criteria or a contract still being written; not agreed |
+| `spec` | the agreed shape of work inside a gated track; describes what will be built, not what is |
+| `contract` | a boundary two parts of the system are held to; binding where it applies |
+| `implementation` | a task order for, or description of, code that exists |
+| `closeout` | a record that a gate was measured, and what the verdict was |
+| `archive` | superseded; kept for history and not to be cited as current |
+
+The vocabulary is taken from how these documents already described themselves
+— "Planning only", "Draft criteria only", "**Mode:** implementation taskpack
+only" — rather than imposed on them. It exists because the failure it guards
+against is quiet: a planning document written in the present tense reads like
+a description of the product, and fourteen of the sixty-one carried a `## Status`
+prose section under four different spellings while the other forty-seven
+carried nothing at all.
+
+`future` is the load-bearing one. Seven documents here describe directions
+nobody has authorized: a marketplace, trust-tier routing, a conformance suite,
+an ecosystem blueprint, a shared trust package format, a connector coverage
+matrix, and an agent identity contract plan. None of them is scheduled, and
+none may be cited as evidence that HUQAN does these things.
+
+This README is the one file with no status of its own, because an index
+describes the set rather than belonging to it.
+
 ## Source Authority
 
 Live source, tests, exact Git SHA and current CI evidence outrank this planning

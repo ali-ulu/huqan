@@ -1,5 +1,7 @@
 # V5-IMPL-2D - Shared Trust Package Conformance Readiness Scope
 
+**Status:** `spec`
+
 **Mode:** Scope definition only
 **Current checkpoint:** `PLAN-REENTRY_CHECK_CODE_FIRST_CONTINUE`
 **Canonical branch:** `main`

@@ -1,5 +1,7 @@
 # V5 Connector Coverage / Identity + Package Enforcement Matrix
 
+**Status:** `future`
+
 ## Status
 
 Planning only.

@@ -1,5 +1,7 @@
 # V5-IMPL-3B - Runtime Reader Fixture Scope Definition
 
+**Status:** `spec`
+
 **Mode:** Scope definition only
 **Current checkpoint:** `V5-IMPL-3A_CLOSEOUT_AUDIT_GREEN`
 **Canonical branch:** `main`

@@ -1,5 +1,7 @@
 # V5-IMPL-2H - Runtime Writer Test Scope Definition
 
+**Status:** `spec`
+
 **Mode:** Scope definition only
 **Current checkpoint:** `V5-IMPL-2G_CLOSEOUT_AUDIT_GREEN`
 **Canonical branch:** `main`

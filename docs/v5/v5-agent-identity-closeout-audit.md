@@ -1,5 +1,7 @@
 # V5 Agent Identity Closeout / Readiness Audit
 
+**Status:** `closeout`
+
 ## Verdict
 
 V5 Agent Identity implementation-prep chain is closed through

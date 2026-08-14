@@ -1,5 +1,7 @@
 # V5-VERIFICATION-18 Cryptographic Adapter Fixture Scope Definition
 
+**Status:** `spec`
+
 ## Purpose
 
 V18 defines the static serialized fixture contract for a future V5 cryptographic

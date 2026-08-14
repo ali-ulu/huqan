@@ -1,5 +1,7 @@
 # V5-VERIFICATION-17 Cryptographic Adapter Scope Definition
 
+**Status:** `spec`
+
 ## Purpose
 
 This document authorizes a future, narrowly bounded cryptographic adapter

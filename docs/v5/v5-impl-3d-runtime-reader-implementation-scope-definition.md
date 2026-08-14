@@ -1,5 +1,7 @@
 # V5-IMPL-3D - Runtime Reader Implementation Scope Definition
 
+**Status:** `spec`
+
 **Mode:** Scope definition only
 **Current checkpoint:** `V5-IMPL-3C_CLOSEOUT_AUDIT_GREEN`
 **Canonical branch:** `main`

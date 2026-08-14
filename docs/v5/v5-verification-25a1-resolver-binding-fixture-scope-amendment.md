@@ -1,5 +1,7 @@
 # V5-VERIFICATION-25A1 Resolver Binding Fixture Scope Amendment
 
+**Status:** `spec`
+
 ## Purpose And Boundary
 
 V25A1 defines a separate future fixture corpus for the V25A key-material
