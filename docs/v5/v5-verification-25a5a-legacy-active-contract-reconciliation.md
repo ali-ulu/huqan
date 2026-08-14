@@ -1,5 +1,7 @@
 # V5-VERIFICATION-25A5A Legacy Active Contract Reconciliation
 
+**Status:** `contract`
+
 ## Status And Purpose
 
 **Mode:** docs-only contract reconciliation

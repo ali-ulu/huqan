@@ -1,5 +1,7 @@
 # V5-D2 external package verification closeout
 
+**Status:** `closeout`
+
 ## Decision
 
 V5-D2 is satisfied on the audited repository base:

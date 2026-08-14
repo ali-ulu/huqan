@@ -1,5 +1,7 @@
 # V5-C9 — Certified Node Criteria Draft
 
+**Status:** `draft`
+
 ## Status
 
 Draft criteria only. This document does not issue a certificate or badge and

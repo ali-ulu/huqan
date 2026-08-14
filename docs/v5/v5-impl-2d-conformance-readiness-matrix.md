@@ -1,5 +1,7 @@
 # V5-IMPL-2D - Shared Trust Package Conformance Readiness Matrix
 
+**Status:** `spec`
+
 **Current checkpoint:** `V5-IMPL-2D_SCOPE_DEFINITION_MERGED_DOCS_ONLY_GREEN`
 **Canonical branch:** `main`
 **Base HEAD:** `ce762c7820c4595997d541fefd54fb4a795b9fca`

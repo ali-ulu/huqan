@@ -1,5 +1,7 @@
 # V5-VERIFICATION-21 Cryptographic Adapter Implementation Taskpack
 
+**Status:** `implementation`
+
 ## Future V22 Scope
 
 V22 may change only:

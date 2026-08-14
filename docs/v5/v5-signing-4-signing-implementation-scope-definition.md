@@ -1,5 +1,7 @@
 # V5-SIGNING-4 - Signing Implementation Scope Definition
 
+**Status:** `spec`
+
 **Mode:** Scope definition only
 **Current checkpoint:** `V5-SIGNING-3_CLOSEOUT_AUDIT_GREEN`
 **Canonical branch:** `main`

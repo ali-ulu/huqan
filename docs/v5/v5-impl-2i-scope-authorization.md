@@ -1,5 +1,7 @@
 # V5-IMPL-2I - Runtime Writer Scope Authorization
 
+**Status:** `spec`
+
 **Mode:** Authorization document only
 **Current checkpoint:** `ROADMAP-CHECK_BEFORE_V5-IMPL-2I_NEEDS_SOURCE_UPDATE`
 **Canonical branch:** `main`

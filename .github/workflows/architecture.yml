@@ -48,3 +48,23 @@ jobs:
       # source tree only, so no dependencies are needed.
       - name: Check file sizes
         run: node scripts/check-file-size.js
+
+  doc-status:
+    name: Require every V5 document to declare its status
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      # #295: the V5 set holds shipped work, authorized specifications and
+      # directions nobody has authorized, written in the same voice. Each
+      # document declares which it is; this fails when one does not. Reads the
+      # docs tree only, so no dependencies are needed.
+      - name: Check V5 document status declarations
+        run: node scripts/check-doc-status.js

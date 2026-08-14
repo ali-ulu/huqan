@@ -1,5 +1,7 @@
 # V5-C10 - TrustBench Draft
 
+**Status:** `draft`
+
 ## Status
 
 Draft benchmark contract and reproducible-fixture plan only. It does not add a

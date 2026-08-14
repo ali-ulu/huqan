@@ -1,5 +1,7 @@
 # V5-D6 Bounded A2A Exchange Conformance Harness
 
+**Status:** `implementation`
+
 `npm run conformance:a2a` runs a bounded, local child-process conformance
 harness. It is a development verification artifact, not a production A2A
 transport, listener, discovery service, marketplace, or interoperability

@@ -1,5 +1,7 @@
 # V5-VERIFICATION-25B0 - Signed-Content Binding Scope Definition
 
+**Status:** `spec`
+
 **Mode:** docs-only security contract definition
 **Current checkpoint:** `V5-VERIFICATION-25A6_CLOSEOUT_AUDIT_GREEN`
 **Canonical branch:** `main`

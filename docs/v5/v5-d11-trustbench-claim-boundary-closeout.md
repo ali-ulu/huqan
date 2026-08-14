@@ -1,5 +1,7 @@
 # V5-D11 TrustBench Claim-Boundary Closeout
 
+**Status:** `closeout`
+
 ## Decision
 
 ```text

@@ -1,5 +1,7 @@
 # V5 Marketplace / Ecosystem Security Boundary
 
+**Status:** `future`
+
 ## Status
 
 Planning only. No marketplace, package distribution, badge, or conformance

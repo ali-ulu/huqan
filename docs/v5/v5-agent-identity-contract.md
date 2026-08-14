@@ -1,5 +1,7 @@
 # V5 Agent Identity Contract
 
+**Status:** `future`
+
 ## Status
 
 Planning only.

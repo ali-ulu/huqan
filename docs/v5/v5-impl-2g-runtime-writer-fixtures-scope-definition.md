@@ -1,5 +1,7 @@
 # V5-IMPL-2G - Runtime Writer Fixtures Scope Definition
 
+**Status:** `spec`
+
 **Mode:** Scope definition only
 **Current checkpoint:** `V5-IMPL-2F_CLOSEOUT_AUDIT_GREEN`
 **Canonical branch:** `main`

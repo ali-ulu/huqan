@@ -1,5 +1,7 @@
 # V5 Shared Trust Package / Route Receipt / Reasoning Metadata Plan
 
+**Status:** `future`
+
 ## Status
 
 Planning only.

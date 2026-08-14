@@ -1,5 +1,7 @@
 # V5-D4 external conformance closeout
 
+**Status:** `closeout`
+
 This closeout is bounded to the repository-owned installed-package consumer run. It does not
 establish third-party verification, interoperability, production readiness, connector
 certification, or security/compliance certification.

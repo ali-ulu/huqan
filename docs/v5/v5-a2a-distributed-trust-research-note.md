@@ -1,5 +1,7 @@
 # V5 A2A / Distributed Trust Research Note
 
+**Status:** `research`
+
 ## Status
 
 Research and planning only.

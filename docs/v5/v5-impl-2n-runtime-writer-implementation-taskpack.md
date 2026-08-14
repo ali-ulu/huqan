@@ -1,5 +1,7 @@
 # V5-IMPL-2N - Runtime Writer Implementation Task-Pack
 
+**Status:** `implementation`
+
 **Mode:** Task-pack only
 **Current checkpoint:** `NEXT-GATE-SELECTION_AFTER_V5-IMPL-2M_CLOSEOUT_GREEN`
 **Canonical branch:** `main`
