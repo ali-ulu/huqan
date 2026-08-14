@@ -30,9 +30,20 @@ mevcuttu, bu yüzden hem nesne araması hem de `merge-base` başarısız oldu.
 `git fetch --unshallow` sonrası ölçüm (gözlemlenen):
 
 ```
-git cat-file -t 0fef5948…            -> commit
-git merge-base --is-ancestor 0fef… origin/main -> yes (ancestor)
-node --test test/agent-context.test.js -> 17 test, 17 pass, 0 fail
+git cat-file -t 0fef5948…                       -> commit
+git merge-base --is-ancestor 0fef… origin/main  -> yes (ancestor)
+
+node --test test/agent-context.test.js:
+17 total
+17 pass
+0 fail
+0 skipped
+
+npm test:
+3829 total
+3799 pass
+0 fail
+30 skipped
 ```
 
 `0fef5948` (PR #597) `origin/main`'in **meşru atasıdır**;
