@@ -112,7 +112,9 @@ jobs:
       - name: Resolve plugin version
         id: version
         working-directory: obsidian-plugin
-        run: echo "version=$(node -p \"require('./manifest.json').version\")" >> "$GITHUB_OUTPUT"
+        run: |
+          VERSION="$(node -p "require('./manifest.json').version")"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Check existing release
         id: release
