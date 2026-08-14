@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 
 const Kernel = require('../kernel');
 const evidenceValidator = require('../plugins/evidence-validator');
-const { canonicalizeGitHubRepoUrl } = require('../lib/github-url');
+const { canonicalizeGitHubRepoUrl, encodeGitHubPathSegments } = require('../lib/github-url');
 const { fetchRepoFiles, fetchAndLearn, parseRepoUrl, includePath } = require('./github-adapter');
 
 const TEST_COMMIT_SHA = 'c'.repeat(40);
@@ -232,6 +232,55 @@ test('github-adapter: with the capability off the probe is never spent (#591)', 
   });
 
   assert.equal(probed, false, 'offline default must stay offline');
+});
+
+// --- #690: the raw fetch URL must address the file the tree named ---
+
+test('github-adapter: fetches reserved-character filenames from an encoded raw URL (#690)', async () => {
+  const rawUrls = [];
+  const treePaths = ['notes#draft.md', 'notes?draft.md', 'release notes.md', 'özet.md'];
+  const fetchImpl = async (url) => {
+    if (/\/commits\/[^/?]+$/.test(url)) return makeResponse({ json: { sha: TEST_COMMIT_SHA } });
+    if (url.includes('/git/trees/')) {
+      return makeResponse({ json: { tree: treePaths.map(path => ({ type: 'blob', path })) } });
+    }
+    rawUrls.push(url);
+    return makeResponse({ text: '# content' });
+  };
+
+  const files = await fetchRepoFiles('https://github.com/ai-ulu/axiom', { branch: 'main', fetchImpl });
+
+  // Each name survives the filter, so each one must also be fetched.
+  assert.deepEqual(files.map(item => item.path), treePaths);
+  assert.deepEqual(rawUrls, treePaths.map(path =>
+    `https://raw.githubusercontent.com/ai-ulu/axiom/${TEST_COMMIT_SHA}/${encodeGitHubPathSegments(path)}`));
+
+  for (const url of rawUrls) {
+    const parsed = new URL(url);
+    // Unencoded, `#draft.md` would sit in the fragment and `?draft.md` in the
+    // query -- neither reaches the server, and the 404 is swallowed silently.
+    assert.equal(parsed.hash, '');
+    assert.equal(parsed.search, '');
+    assert.match(parsed.pathname, /\.md$/);
+  }
+});
+
+test('github-adapter: nested paths keep their separators in the raw URL (#690)', async () => {
+  const rawUrls = [];
+  const fetchImpl = async (url) => {
+    if (/\/commits\/[^/?]+$/.test(url)) return makeResponse({ json: { sha: TEST_COMMIT_SHA } });
+    if (url.includes('/git/trees/')) {
+      return makeResponse({ json: { tree: [{ type: 'blob', path: '.github/ISSUE_TEMPLATE/bug#1.md' }] } });
+    }
+    rawUrls.push(url);
+    return makeResponse({ text: '# content' });
+  };
+
+  await fetchRepoFiles('https://github.com/ai-ulu/axiom', { branch: 'main', fetchImpl });
+
+  assert.deepEqual(rawUrls, [
+    `https://raw.githubusercontent.com/ai-ulu/axiom/${TEST_COMMIT_SHA}/.github/ISSUE_TEMPLATE/bug%231.md`,
+  ]);
 });
 
 // --- #689: a truncated tree is a partial tree, not a small repository ---

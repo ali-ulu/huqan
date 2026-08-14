@@ -1,5 +1,5 @@
 const { contentHash, CONTENT_HASH_ALGORITHM } = require('../lib/content-hash');
-const { canonicalizeGitHubRepoUrl, buildGitHubBlobUrl } = require('../lib/github-url');
+const { canonicalizeGitHubRepoUrl, buildGitHubBlobUrl, buildGitHubRawUrl } = require('../lib/github-url');
 
 function toError(message, code, status) {
   const err = new Error(message);
@@ -194,7 +194,11 @@ async function fetchRepoFiles(repoUrl, opts = {}) {
   const dedupedPaths = [...new Set(paths)];
   const files = [];
   for (const filePath of dedupedPaths) {
-    const rawUrl = `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(commitSha)}/${filePath}`;
+    // Segment-encoded through the shared helper: interpolating the tree path
+    // raw let a '#' or '?' in a filename cut the URL short, so the adapter
+    // fetched a different resource than the one the tree named -- a 404 the
+    // loop below swallows, or worse, bytes hashed under the wrong path (#690).
+    const rawUrl = buildGitHubRawUrl({ owner, repo, ref: commitSha, path: filePath });
     const fileRes = await fetchImpl(rawUrl, {
       method: 'GET',
       headers: buildHeaders(token),
