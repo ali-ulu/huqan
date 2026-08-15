@@ -42,6 +42,21 @@ const {
   cloneAuditEvent,
 } = require('./lib/graph-record-utils');
 
+/**
+ * Audit filter key -> audit_log column, for the bounded count path (#728).
+ * workspaceId is handled separately because its empty-string case has
+ * different semantics from the plain equality filters here.
+ */
+const AUDIT_FILTER_COLUMNS = Object.freeze([
+  ['eventType', 'event_type'],
+  ['targetType', 'target_type'],
+  ['targetId', 'target_id'],
+  ['actor', 'actor'],
+  ['provenanceId', 'provenance_id'],
+  ['trustPolicyVersion', 'trust_policy_version'],
+  ['sourceRef', 'source_ref'],
+]);
+
 class Graph {
   /**
    * @param {object|string} [opts]
@@ -64,6 +79,8 @@ class Graph {
     this._auditEvents = [];
     this._outIndex = new Map();
     this._inIndex = new Map();
+    // Prepared COUNT(*) statements keyed by their filter SQL (#728).
+    this._auditCountStmts = new Map();
 
     // SQLite kurulumu
     const wantSQLite = opts.useSQLite !== false && Database !== null;
@@ -347,6 +364,7 @@ class Graph {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `),
       allAuditEvents: this._db.prepare('SELECT * FROM audit_log ORDER BY timestamp ASC, audit_id ASC'),
+      countAuditEvents: this._db.prepare('SELECT COUNT(*) AS total FROM audit_log'),
       getMutationJournal: this._db.prepare('SELECT operation_id, status, result, completed_at FROM mutation_journal WHERE operation_id = ?'),
       insertMutationJournal: this._db.prepare('INSERT INTO mutation_journal (operation_id, status, result, completed_at) VALUES (?, ?, ?, ?)'),
       getMutationReceiptByOperation: this._db.prepare('SELECT * FROM mutation_receipts WHERE operation_id = ?'),
@@ -922,6 +940,67 @@ class Graph {
       });
     }
     return filterAuditEvents(events, filters);
+  }
+
+  /**
+   * Bounded audit count (#728).
+   *
+   * getAuditEvents() reads every audit row, JSON.parses each row's details,
+   * clones and merges them with the in-memory mirror and sorts the result.
+   * Callers that only wanted `.length` therefore paid O(total audit history)
+   * in CPU and memory — enough to turn a small, bounded approval into
+   * process-level resource exhaustion once the log has grown.
+   *
+   * This answers the same question with a COUNT(*) whose result set is one
+   * row regardless of table size.
+   *
+   * Exactness: in SQLite mode appendAuditEvent() write-throughs to audit_log
+   * on every append, so the table is a superset of `_auditEvents` and the
+   * COUNT is exact. The length guard below catches the one arrangement where
+   * that does not hold — events buffered in memory before a database was
+   * attached — and falls back to the exact merged path rather than
+   * under-reporting.
+   */
+  countAuditEvents(filters = {}) {
+    if (!this._db || !this._stmts) {
+      return filterAuditEvents(this._auditEvents, filters).length;
+    }
+
+    const total = Number(this._stmts.countAuditEvents.get()?.total ?? 0);
+    if (this._auditEvents.length > total) {
+      return this.getAuditEvents(filters).length;
+    }
+
+    const clauses = [];
+    const params = [];
+    for (const [key, column] of AUDIT_FILTER_COLUMNS) {
+      const value = filters?.[key];
+      if (!value) continue;
+      clauses.push(`${column} = ?`);
+      params.push(String(value));
+    }
+
+    // Mirrors normalizeWorkspaceFilter(): an absent/null workspaceId means
+    // "every workspace", an empty string means "events with no workspace",
+    // which no stored row can satisfy since rows default to 'default'.
+    if (Object.prototype.hasOwnProperty.call(filters || {}, 'workspaceId')) {
+      const raw = filters.workspaceId;
+      if (raw !== undefined && raw !== null) {
+        if (typeof raw === 'string' && !raw.trim()) return 0;
+        clauses.push('COALESCE(workspace_id, ?) = ?');
+        params.push('default', String(raw));
+      }
+    }
+
+    if (!clauses.length) return total;
+
+    const sql = `SELECT COUNT(*) AS total FROM audit_log WHERE ${clauses.join(' AND ')}`;
+    let statement = this._auditCountStmts.get(sql);
+    if (!statement) {
+      statement = this._db.prepare(sql);
+      this._auditCountStmts.set(sql, statement);
+    }
+    return Number(statement.get(...params)?.total ?? 0);
   }
 
   addCandidateClaim(candidate, opts = {}) {
