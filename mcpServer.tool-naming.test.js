@@ -19,6 +19,7 @@ const path = require('node:path');
 
 const {
   TOOL_SCHEMAS,
+  MODEL_VISIBLE_TOOL_SCHEMAS,
   CANONICAL_MCP_TOOL_NAMES,
   LEGACY_MCP_TOOL_NAMES,
   SERVER_NAME,
@@ -102,16 +103,19 @@ describe('RFC-001 writer half: only canonical names are advertised', () => {
     assert.equal(SERVER_NAME, 'huqan');
   });
 
-  it('advertises exactly the eleven canonical tools and no legacy alias', () => {
-    const advertised = TOOL_SCHEMAS.map((tool) => tool.name);
-    assert.deepEqual([...advertised].sort(), [...CANONICAL_MCP_TOOL_NAMES].sort());
+  it('advertises only model-visible canonical tools and no approval operator surface', () => {
+    const advertised = MODEL_VISIBLE_TOOL_SCHEMAS.map((tool) => tool.name);
+    const expected = CANONICAL_MCP_TOOL_NAMES.filter(name => !['huqan.approve', 'huqan.approvals'].includes(name));
+    assert.deepEqual([...advertised].sort(), [...expected].sort());
+    assert.ok(!advertised.includes('huqan.approve'));
+    assert.ok(!advertised.includes('huqan.approvals'));
     for (const legacy of LEGACY_MCP_TOOL_NAMES) {
       assert.ok(!advertised.includes(legacy), `tools/list must not advertise ${legacy}`);
     }
   });
 
   it('never names AXIOM in an advertised tool name, title or description', () => {
-    for (const tool of TOOL_SCHEMAS) {
+    for (const tool of MODEL_VISIBLE_TOOL_SCHEMAS) {
       const surface = `${tool.name} ${tool.title} ${tool.description}`;
       assert.ok(!/axiom/i.test(surface), `${tool.name} still presents AXIOM: ${surface}`);
     }
@@ -121,12 +125,9 @@ describe('RFC-001 writer half: only canonical names are advertised', () => {
     const server = createServer();
     const listed = server.handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
     const names = listed.result.tools.map((tool) => tool.name);
-    assert.deepEqual([...names].sort(), [...CANONICAL_MCP_TOOL_NAMES].sort());
-    assert.equal(
-      listed.result.tools.length,
-      11,
-      'listing both spellings would present two brands at once, which RFC-001 forbids',
-    );
+    const expected = CANONICAL_MCP_TOOL_NAMES.filter(name => !['huqan.approve', 'huqan.approvals'].includes(name));
+    assert.deepEqual([...names].sort(), [...expected].sort());
+    assert.equal(listed.result.tools.length, expected.length);
   });
 
   it('classifies gates under canonical keys', () => {
@@ -329,7 +330,7 @@ describe('RFC-001 compatibility with approvals persisted before the rename', () 
       context: { source: 'mcp', queuedForExecution: true, args: { text: 'at hayvandir', skipConflicts: true } },
     });
 
-    const result = callTool(kernel, { name: 'huqan.approve', arguments: { approvalId: id, decision: 'approved' } }, { approvalStore: store });
+    const result = callTool(kernel, { name: 'huqan.approve', operatorToken: 'test-operator', arguments: { approvalId: id, decision: 'approved' } }, { approvalStore: store, operatorToken: 'test-operator' });
     assert.notEqual(
       result.error?.code,
       'APPROVAL_EXECUTION_UNSUPPORTED',

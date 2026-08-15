@@ -17,6 +17,7 @@
         "check:cycles": "node scripts/check-import-cycles.js",
         "check:doc-status": "node scripts/check-doc-status.js",
         "check:file-size": "node scripts/check-file-size.js",
+        "check:workflow-governance": "node scripts/check-workflow-governance.js",
         "bench:verify": "node benchmarks/verifBench.js",
         "train": "node scripts/egitim-demo.js --demo",
         "test": "node --test --test-concurrency=1",
