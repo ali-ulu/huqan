@@ -209,6 +209,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
+          cache-dependency-path: package-lock.json
       - run: npm ci --include=optional
       - name: Run full test suite
         run: npm test
@@ -244,6 +245,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: package-lock.json
       - run: npm ci --include=optional
 
       - name: Run benchmark
