@@ -249,7 +249,9 @@ class AgentV3 {
   plan(goal, opts = {}) {
     const result = this.baseAgent.plan(goal, { ...opts, maxSteps: opts.maxSteps || this.maxSteps });
     if (!result || result.ok === false) return result;
-    const memory = this.storage.getGoalMemory(goal);
+    // Scoped: goal memory used to be global by goal text, so planning the same
+    // goal returned another workspace's history (#757).
+    const memory = this.storage.getGoalMemory(goal, opts.workspaceId);
     const data = cloneValue(result.data);
     data.memory = {
       ...(data.memory || {}),
@@ -576,7 +578,7 @@ class AgentV3 {
     let goalMemory;
     let runs;
     try {
-      goalMemory = this.storage.getGoalMemory(goal);
+      goalMemory = this.storage.getGoalMemory(goal, workspaceId);
       runs = this.storage.countRuns();
     } catch (err) {
       return this._storageFailure('readRunMemory', err, state);
@@ -599,6 +601,7 @@ class AgentV3 {
     try {
       this.storage.saveGoalMemory({
         goal,
+        workspaceId,
         objective: activePlan.objective,
         status: state.status,
         completedSteps: state.completedSteps,
