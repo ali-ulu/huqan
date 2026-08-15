@@ -2,6 +2,7 @@ node_modules/
 graphify-out/
 memory.json
 memory.db
+.route-server-*.db
 memory.embeddings.json
 memory.mutations.json
 # Crash/interrupted-write artifacts left behind by graph.js's
