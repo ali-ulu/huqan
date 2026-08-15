@@ -36,21 +36,50 @@ function timestamp(date = new Date()) {
  */
 function resolveRuntimePaths(opts = {}) {
   const { rootDir: cwd, memoryPath, dbPath, backupBaseDir } = resolvePersistencePaths(opts);
-  const embeddingPath = path.resolve(cwd, opts.embeddingPath || memoryPath.replace(/\.json$/i, '.embeddings.json'));
-  const agentMemoryPath = path.resolve(cwd, opts.agentMemoryPath || path.join(path.dirname(memoryPath), 'memory.agent.json'));
+  const runtimeRoots = [...new Set([cwd, path.dirname(memoryPath), path.dirname(dbPath)])];
+  const containedRuntimePath = (candidate) => {
+    const absolute = path.resolve(cwd, candidate);
+    const roots = runtimeRoots.filter((root) => {
+      const relative = path.relative(root, absolute);
+      return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+    }).sort((left, right) => right.length - left.length);
+    if (!roots.length) {
+      const error = new Error(`Runtime persistence path is outside approved roots: ${absolute}`);
+      error.code = 'PERSISTENCE_PATH_NOT_ALLOWED'; error.path = absolute; throw error;
+    }
+    try { return resolvePathWithinRoot(roots[0], absolute, { allowMissing: true }); }
+    catch (cause) {
+      const error = new Error(`Runtime persistence path is outside approved roots: ${absolute}`);
+      error.code = 'PERSISTENCE_PATH_NOT_ALLOWED'; error.path = absolute; error.cause = cause; throw error;
+    }
+  };
+  const embeddingPath = containedRuntimePath(opts.embeddingPath || memoryPath.replace(/\.json$/i, '.embeddings.json'));
+  const agentMemoryPath = containedRuntimePath(opts.agentMemoryPath || path.join(path.dirname(memoryPath), 'memory.agent.json'));
+  const sidecar = (suffix) => containedRuntimePath(`${dbPath}${suffix}`);
 
   return {
     rootDir: cwd,
     backupBaseDir,
     files: [
       dbPath,
-      `${dbPath}-shm`,
-      `${dbPath}-wal`,
+      sidecar('-shm'),
+      sidecar('-wal'),
       memoryPath,
       embeddingPath,
       agentMemoryPath,
     ],
   };
+}
+
+function validateBackupId(value) {
+  const backupId = String(value || '');
+  if (!backupId || backupId === '.' || backupId === '..' || backupId.length > 128
+      || path.isAbsolute(backupId) || /[\\/:]/.test(backupId)
+      || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(backupId)) {
+    const error = new Error('backupId must be one safe path segment');
+    error.code = 'BACKUP_ID_INVALID'; throw error;
+  }
+  return backupId;
 }
 
 function ensureDir(dirPath) {
@@ -125,10 +154,11 @@ function buildOperationReceipt(operationId, kind, startedAt, status, extra = {})
  */
 function createBackup(opts = {}) {
   const runtime = resolveRuntimePaths(opts);
+  const backupId = validateBackupId(opts.backupId || timestamp());
+  const backupDir = resolvePathWithinRoot(runtime.backupBaseDir, path.join(runtime.backupBaseDir, backupId), { allowMissing: true });
+  const stagingDir = resolvePathWithinRoot(runtime.backupBaseDir,
+    path.join(runtime.backupBaseDir, `.staging-${backupId}-${Math.random().toString(36).slice(2, 8)}`), { allowMissing: true });
   ensureDir(runtime.backupBaseDir);
-  const backupId = opts.backupId || timestamp();
-  const backupDir = path.join(runtime.backupBaseDir, backupId);
-  const stagingDir = path.join(runtime.backupBaseDir, `.staging-${backupId}-${Math.random().toString(36).slice(2, 8)}`);
   const operationId = newOperationId('backupop');
   const startedAt = new Date().toISOString();
 
@@ -275,7 +305,7 @@ function restoreBackup(opts = {}) {
   try {
     for (const destination of runtime.files) {
       const fileName = path.basename(destination);
-      const source = path.join(sourceDir, fileName);
+      const source = resolvePathWithinRoot(sourceDir, path.join(sourceDir, fileName), { allowMissing: true });
       if (!fs.existsSync(source)) {
         skipped.push(fileName);
         continue;

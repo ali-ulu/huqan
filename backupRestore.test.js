@@ -156,4 +156,62 @@ describe('backupRestore', () => {
     assert.strictEqual(fs.readFileSync(dbPath, 'utf8'), 'db-v1', 'the successfully restored file must reflect the backup, not the pre-restore (v2) state');
     assert.strictEqual(JSON.parse(fs.readFileSync(memoryPath, 'utf8')).version, 2, 'the failed file must be left untouched at its pre-restore state');
   });
+
+  it('rejects traversal, absolute, mixed-separator and nested backup ids without outside writes', () => {
+    const rootDir = makeTempRoot(); const backupBaseDir = path.join(rootDir, 'backups');
+    const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-backup-id-outside-'));
+    fs.writeFileSync(path.join(rootDir, 'memory.json'), '{}');
+    for (const backupId of ['../escape', '..\\escape', 'nested/id', 'nested\\id', outsideDir, '.', '..']) {
+      assert.throws(
+        () => createBackup({ rootDir, backupBaseDir, backupId }),
+        (error) => error.code === 'BACKUP_ID_INVALID', backupId,
+      );
+    }
+    assert.deepStrictEqual(fs.readdirSync(outsideDir), []);
+    const safe = createBackup({ rootDir, backupBaseDir, backupId: 'safe_2026-08.15' });
+    assert.strictEqual(path.dirname(safe.backupDir), fs.realpathSync(backupBaseDir));
+    fs.rmSync(outsideDir, { recursive: true, force: true });
+  });
+
+  it('rejects absolute and junction-escaped embedding/agent paths before backup or restore mutation', () => {
+    const rootDir = makeTempRoot(); const backupBaseDir = path.join(rootDir, 'backups');
+    const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-runtime-outside-'));
+    const secret = path.join(outsideDir, 'secret.json'); fs.writeFileSync(secret, 'outside-original');
+    fs.writeFileSync(path.join(rootDir, 'memory.json'), '{}');
+    fs.writeFileSync(path.join(rootDir, 'memory.db'), 'db');
+    assert.throws(() => createBackup({ rootDir, backupBaseDir, embeddingPath: secret }),
+      (error) => error.code === 'PERSISTENCE_PATH_NOT_ALLOWED');
+    const link = path.join(rootDir, 'redirect'); fs.symlinkSync(outsideDir, link, 'junction');
+    assert.throws(() => createBackup({ rootDir, backupBaseDir, agentMemoryPath: path.join(link, 'secret.json') }),
+      (error) => error.code === 'PERSISTENCE_PATH_NOT_ALLOWED');
+    const seed = createBackup({ rootDir, backupBaseDir, backupId: 'safe-seed' });
+    assert.throws(() => restoreBackup({ rootDir, backupBaseDir, backupDir: seed.backupDir, embeddingPath: secret }),
+      (error) => error.code === 'PERSISTENCE_PATH_NOT_ALLOWED');
+    assert.strictEqual(fs.readFileSync(secret, 'utf8'), 'outside-original');
+    fs.rmSync(rootDir, { recursive: true, force: true });
+    fs.rmSync(outsideDir, { recursive: true, force: true });
+  });
+
+  it('backs up and restores safe custom embedding and agent-memory paths inside root', () => {
+    const rootDir = makeTempRoot(); const backupBaseDir = path.join(rootDir, 'backups');
+    const embeddingPath = path.join(rootDir, 'custom.embeddings.json');
+    const agentMemoryPath = path.join(rootDir, 'custom.agent.json');
+    fs.writeFileSync(path.join(rootDir, 'memory.json'), '{}');
+    fs.writeFileSync(embeddingPath, 'embedding-v1'); fs.writeFileSync(agentMemoryPath, 'agent-v1');
+    const backup = createBackup({ rootDir, backupBaseDir, embeddingPath, agentMemoryPath, backupId: 'custom-safe' });
+    fs.writeFileSync(embeddingPath, 'embedding-v2'); fs.writeFileSync(agentMemoryPath, 'agent-v2');
+    restoreBackup({ rootDir, backupBaseDir, backupDir: backup.backupDir, embeddingPath, agentMemoryPath });
+    assert.strictEqual(fs.readFileSync(embeddingPath, 'utf8'), 'embedding-v1');
+    assert.strictEqual(fs.readFileSync(agentMemoryPath, 'utf8'), 'agent-v1');
+  });
+
+  it('rejects a backup root junction that redirects outside root', () => {
+    const rootDir = makeTempRoot(); const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-backup-root-outside-'));
+    const backupBaseDir = path.join(rootDir, 'backups'); fs.symlinkSync(outsideDir, backupBaseDir, 'junction');
+    fs.writeFileSync(path.join(rootDir, 'memory.json'), '{}');
+    assert.throws(() => createBackup({ rootDir, backupBaseDir, backupId: 'escaped' }),
+      (error) => error.code === 'PATH_OUTSIDE_ALLOWED_ROOT');
+    assert.deepStrictEqual(fs.readdirSync(outsideDir), []);
+    fs.rmSync(rootDir, { recursive: true, force: true }); fs.rmSync(outsideDir, { recursive: true, force: true });
+  });
 });
