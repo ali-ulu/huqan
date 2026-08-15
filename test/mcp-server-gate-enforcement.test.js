@@ -181,7 +181,11 @@ test('callTool: all known tools pass through gate (allow)', () => {
 
 test('callTool: axiom.approvals passes gate (allow, returns pendingCount)', () => {
   const kernel = mockKernel();
-  const result = callTool(kernel, { name: 'axiom.approvals', arguments: {} });
+  const result = callTool(kernel, {
+    name: 'axiom.approvals',
+    operatorToken: 'test-operator',
+    arguments: {},
+  }, { operatorToken: 'test-operator' });
 
   assert.equal(typeof result.pendingCount, 'number');
   assert.ok(Array.isArray(result.approvals));

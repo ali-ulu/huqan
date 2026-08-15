@@ -16,7 +16,13 @@ function createDogfoodClient(server) {
         jsonrpc: '2.0',
         id: Date.now(),
         method: 'tools/call',
-        params: { name: tool, arguments: args },
+        params: {
+          name: tool,
+          ...(tool === 'huqan.approvals' || tool === 'huqan.approve' || tool === 'axiom.approvals' || tool === 'axiom.approve'
+            ? { operatorToken: 'test-operator' }
+            : {}),
+          arguments: args,
+        },
       };
       const rpcResponse = server.handleRequest(request);
       return rpcResponse.result ? rpcResponse.result.structuredContent || rpcResponse.result : rpcResponse;
@@ -33,28 +39,26 @@ function createDogfoodClient(server) {
   };
 }
 
-test('dogfood: MCP tools/list returns 11 tools', () => {
-  const server = createServer();
+test('dogfood: MCP tools/list returns 9 model-visible tools', () => {
+  const server = createServer({ operatorToken: 'test-operator' });
   const client = createDogfoodClient(server);
   const result = client.listTools();
   assert.ok(result, 'tools/list must return result');
   assert.ok(Array.isArray(result.tools), 'result.tools must be array');
-  assert.equal(result.tools.length, 11, 'Must have 11 MCP tools');
+  assert.equal(result.tools.length, 9, 'Must have 9 model-visible MCP tools');
   const names = result.tools.map(t => t.name).sort();
-  // Canonical names only, and exactly 11 of them: the legacy aliases are
-  // callable (every callTool below still uses them) but must never appear
-  // here, or clients would see the tool count double.
+  // Canonical model-visible names only: approval control remains operator-only
+  // and the legacy aliases are callable but must never appear here.
   assert.deepEqual(names, [
-    'huqan.agent', 'huqan.approve', 'huqan.approvals', 'huqan.ask', 'huqan.compare',
-    'huqan.dream', 'huqan.learn', 'huqan.plan', 'huqan.policy',
-    'huqan.reason', 'huqan.verify',
+    'huqan.agent', 'huqan.ask', 'huqan.compare', 'huqan.dream', 'huqan.learn',
+    'huqan.plan', 'huqan.policy', 'huqan.reason', 'huqan.verify',
   ].sort());
 });
 
 test('dogfood: agent verifies claim through MCP gate (read = allow)', () => {
   const kernel = createKernelFromEnv();
   kernel.learn('Deniz tuzludur', TEST_FIXTURE_LEARN_BYPASS);
-  const server = createServer(kernel);
+  const server = createServer({ kernel, operatorToken: 'test-operator' });
   const client = createDogfoodClient(server);
 
   const result = client.callTool('axiom.verify', { statement: 'Deniz tuzludur' });
@@ -67,7 +71,7 @@ test('dogfood: agent verifies claim through MCP gate (read = allow)', () => {
 
 test('dogfood: agent blocked from mutating tool through MCP gate (learn = review)', () => {
   const kernel = createKernelFromEnv();
-  const server = createServer(kernel);
+  const server = createServer({ kernel, operatorToken: 'test-operator' });
   const client = createDogfoodClient(server);
 
   // Before calling learn, check that the gate blocks it
@@ -85,7 +89,7 @@ test('dogfood: agent blocked from mutating tool through MCP gate (learn = review
 
 test('dogfood: agent receives dry-run result for review-blocked tool', () => {
   const kernel = createKernelFromEnv();
-  const server = createServer(kernel);
+  const server = createServer({ kernel, operatorToken: 'test-operator' });
   const client = createDogfoodClient(server);
 
   const result = client.callTool('axiom.learn', { text: 'Kedi hayvandir' });
@@ -108,7 +112,7 @@ test('dogfood: agent receives dry-run result for review-blocked tool', () => {
 
 test('dogfood: unknown tool returns gate block', () => {
   const kernel = createKernelFromEnv();
-  const server = createServer(kernel);
+  const server = createServer({ kernel, operatorToken: 'test-operator' });
   const client = createDogfoodClient(server);
 
   const result = client.callTool('unknown.tool', { input: 'test' });
@@ -121,7 +125,7 @@ test('dogfood: unknown tool returns gate block', () => {
 
 test('dogfood: full agent loop through MCP produces receipt + gate trail', () => {
   const kernel = createKernelFromEnv();
-  const server = createServer(kernel);
+  const server = createServer({ kernel, operatorToken: 'test-operator' });
   const client = createDogfoodClient(server);
 
   // Step 1: Learn a base fact (blocked by gate, goes to review queue)

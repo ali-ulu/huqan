@@ -9,6 +9,7 @@ validateEnvironmentCompatibility();
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 const readline = require('readline');
 const { isPathWithinRoot } = require('./lib/path-safety');
 const { createKernel } = require('./lib/kernel-factory');
@@ -185,6 +186,7 @@ class CLI {
     });
     this.llm = new LLMAdapter();
     this.approvalStore = null;
+    this._mcpOperatorToken = opts.mcpOperatorToken || crypto.randomBytes(32).toString('hex');
   }
 
   parse(input) {
@@ -203,7 +205,7 @@ class CLI {
 
   _approvalRuntime() {
     if (!this.approvalStore) this.approvalStore = createApprovalStoreFromKernel(this.kernel);
-    return { approvalStore: this.approvalStore };
+    return { approvalStore: this.approvalStore, operatorToken: this._mcpOperatorToken };
   }
 
   _ensureCompanyCapabilities() {
@@ -543,7 +545,7 @@ class CLI {
       case 'onaylar': {
         const result = callMcpTool(
           this.kernel,
-          { name: 'huqan.approvals', arguments: { limit: 50 } },
+          { name: 'huqan.approvals', operatorToken: this._mcpOperatorToken, arguments: { limit: 50 } },
           this._approvalRuntime()
         );
         if (!result || result.ok === false) {
@@ -565,6 +567,7 @@ class CLI {
         }
         const result = callMcpTool(this.kernel, {
           name: 'huqan.approve',
+          operatorToken: this._mcpOperatorToken,
           arguments: { approvalId: approval.approvalId, decision: approval.decision },
         }, this._approvalRuntime());
         if (!result || result.ok === false) {
@@ -608,7 +611,11 @@ class CLI {
         return text;
       }
       case 'quickstart':
-        return runQuickstartCommand({ callTool: callMcpTool, createApprovalStore: createApprovalStoreFromKernel });
+        return runQuickstartCommand({
+          callTool: callMcpTool,
+          createApprovalStore: createApprovalStoreFromKernel,
+          operatorToken: this._mcpOperatorToken,
+        });
       case 'durum': {
         const stats = this.kernel.graph.getStats();
         const nodes = stats.nodes;
