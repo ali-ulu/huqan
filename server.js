@@ -26,6 +26,7 @@ const {
   queryProvenance,
 } = require('./lib/provenance-query');
 const { readReceiptById } = require('./lib/receipt/receipt-read-index');
+const { receiptReadFailure } = require('./lib/http/receipt-read-failures');
 const { createWorkbenchReadHttpRouter } = require('./lib/workbench/workbench-read-http-router');
 const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
 const { readExactWorkspace } = require('./lib/http/exact-workspace');
@@ -784,13 +785,12 @@ const server = http.createServer(async (req, res) => {
     const readFilters = { workspaceId: workspace.workspaceId };
     const read = readReceiptById(kernel.graph, receiptReadRequest.receiptId, readFilters);
     if (!read.ok) {
-      const code = read.status === 'not_found' ? 'receipt_not_found' : 'invalid_receipt_id';
-      writeJson(req, res, read.status === 'not_found' ? 404 : 400, {
+      // A receipt from a broken chain is never served as an ordinary 200, and
+      // it is not "not found" either -- it gets its own code (#766).
+      const failure = receiptReadFailure(read.status);
+      writeJson(req, res, failure.statusCode, {
         ok: false,
-        error: {
-          code,
-          message: read.error?.message || 'receipt could not be read',
-        },
+        error: { code: failure.code, message: read.error?.message || 'receipt could not be read' },
       }, { 'Cache-Control': 'no-cache' });
       return;
     }
