@@ -37,6 +37,7 @@ const {
   callTool: callMcpTool,
   createApprovalStoreFromKernel,
 } = require('./mcpServer');
+const { formatCliApprovalList, formatCliApprovalDecision } = require('./lib/mcp-approval-views');
 
 /**
  * POSIX single-quote escaping for text that is shown to the user inside a
@@ -554,10 +555,7 @@ class CLI {
         if (!result || result.ok === false) {
           return commandFailure(`Approval list error: ${result?.error?.message || 'unknown error'}`, opts);
         }
-        const approvals = Array.isArray(result.approvals) ? result.approvals : [];
-        if (approvals.length === 0) return 'No pending approvals.';
-        const lines = approvals.map(item => `${item.id} | ${item.tool} | ${item.reason || 'review'}`);
-        return `Pending approvals (${result.pendingCount || approvals.length}):\n${lines.join('\n')}`;
+        return formatCliApprovalList(result, args, opts.json);
       }
       case 'onayla': {
         const approval = args && typeof args === 'object' ? args : parseApprovalDecisionArgs(args);
@@ -577,11 +575,7 @@ class CLI {
           const error = result?.error;
           return commandFailure(`Approval error: ${error?.code || 'APPROVAL_FAILED'}: ${error?.message || 'unknown error'}`, opts);
         }
-        const data = result.data || {};
-        const approvalId = data.approval?.id || approval.approvalId;
-        if (data.idempotent) return `Approval already ${data.decision}: ${approvalId}.`;
-        if (data.decision === 'rejected') return `Approval rejected: ${approvalId}.`;
-        return `Approval applied: ${approvalId}. The learned fact was written to canonical state.`;
+        return formatCliApprovalDecision(result, approval.approvalId, opts.json);
       }
       case 'restore': {
         const result = restoreBackup(this._backupOptions({ backupDir: args || undefined }));

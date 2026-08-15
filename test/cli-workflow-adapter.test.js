@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { runCliArgv, CLI_EXIT_CODES } = require('../lib/cli-workflow-adapter');
+const { runCliArgv, CLI_EXIT_CODES, cliEnvelope } = require('../lib/cli-workflow-adapter');
 const { cliHelpText } = require('../lib/cli-help');
 const { CLI_COMMAND_CAPABILITIES, WORKFLOW_CAPABILITIES } = require('../lib/workflow-contract');
 
@@ -80,4 +80,24 @@ test('JSON mode distinguishes invalid, unsupported, partial, and failed outcomes
     assert.equal(result.exitCode, item.expected);
     assert.equal(JSON.parse(stdout[0]).status, item.status);
   }
+});
+
+test('JSON trace retains existing AgentV3 checkpoint and resume fields without inventing run IDs', () => {
+  const output = cliEnvelope('agent-run', {
+    ok: true,
+    data: {
+      status: 'paused', checkpointId: 'checkpoint-real', resumeToken: 'resume-real',
+      resumed: true, resumedFrom: 'checkpoint-old', evidence: [{ type: 'test' }],
+      nextAction: { action: 'approve', tool: 'huqan.learn' }, steps: [{ action: 'inspect' }],
+    },
+    evidence: [{ type: 'test' }],
+  });
+  assert.equal(output.trace.runId, null);
+  assert.equal(output.trace.checkpointId, 'checkpoint-real');
+  assert.equal(output.trace.resumeToken, 'resume-real');
+  assert.equal(output.trace.resumed, true);
+  assert.equal(output.trace.resumedFrom, 'checkpoint-old');
+  assert.deepEqual(output.trace.nextAction, { action: 'approve', tool: 'huqan.learn' });
+  assert.deepEqual(output.data.steps, [{ action: 'inspect' }]);
+  assert.deepEqual(output.evidence, [{ type: 'test' }]);
 });
