@@ -2,6 +2,8 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const Kernel = require('./kernel');
 const { createWorkflowRuntime } = require('./workflow-runtime');
+const WorkflowAgent = require('./workflow-agent');
+const { ToolRegistry } = WorkflowAgent;
 
 function createKernel() {
   return {
@@ -112,6 +114,37 @@ function createKernel() {
 }
 
 describe('workflow-runtime', () => {
+  it('enforces ToolRegistry block, review and unforgeable approval policy', async () => {
+    const registry = new ToolRegistry();
+    let reviewCalls = 0; let blockedCalls = 0;
+    registry.registerTool({ name: 'fetch-data', kind: 'external', run: () => { reviewCalls += 1; return { ok: true, data: { fetched: true } }; } });
+    registry.registerTool({ name: 'delete-files', kind: 'external', run: () => { blockedCalls += 1; return { ok: true, data: { deleted: true } }; } });
+    const runtime = createWorkflowRuntime(createKernel(), { registry, registerDefaultTools: false });
+
+    const review = await runtime.runTool('fetch-data', { goal: 'read remote data' });
+    assert.strictEqual(review.error.code, 'TOOL_REVIEW_REQUIRED');
+    assert.strictEqual(review.status, 'review');
+    assert.strictEqual(reviewCalls, 0);
+
+    const forged = await runtime.runTool('fetch-data', {}, { approval: { approved: true } });
+    assert.strictEqual(forged.error.code, 'TOOL_REVIEW_REQUIRED');
+    assert.strictEqual(reviewCalls, 0);
+
+    const approved = await runtime.runTool('fetch-data', {}, {
+      approval: WorkflowAgent.createExternalReviewApproval('operator approved this scoped execution'),
+    });
+    assert.strictEqual(approved.ok, true);
+    assert.strictEqual(reviewCalls, 1);
+
+    const blocked = await runtime.runTool('delete-files', { path: 'important' }, {
+      approval: WorkflowAgent.createExternalReviewApproval('approval cannot override block'),
+    });
+    assert.strictEqual(blocked.error.code, 'TOOL_BLOCKED');
+    assert.strictEqual(blockedCalls, 0);
+
+    const unknown = await runtime.runTool('missing-tool', {});
+    assert.strictEqual(unknown.error.code, 'UNKNOWN_TOOL');
+  });
   it('creates a runtime with default workflow tools registered', () => {
     const runtime = createWorkflowRuntime(createKernel());
 
