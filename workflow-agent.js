@@ -493,12 +493,25 @@ class ToolRegistry {
       throw new Error(`Tool ${name} must define run(context, input).`);
     }
 
+    // Custom registrations must declare their trust class. Treating every
+    // unknown/malformed kind as internal makes a missing metadata field an
+    // approval-gate bypass (#783). The small canonical set remains compatible
+    // with the legacy built-in registration path; generated workflow tools
+    // receive an explicit kind in registerDefaultWorkflowTools().
+    const declaredKind = tool.kind;
+    const kind = declaredKind === undefined && INTERNAL_TOOLS.has(name)
+      ? 'internal'
+      : declaredKind;
+    if (kind !== 'internal' && kind !== 'external') {
+      throw new Error(`Tool ${name} must declare kind as "internal" or "external".`);
+    }
+
     const record = {
       name,
       description: String(tool.description || ''),
       inputSchema: tool.inputSchema ? cloneValue(tool.inputSchema) : { type: 'object' },
       run: tool.run,
-      kind: tool.kind === 'external' ? 'external' : 'internal',
+      kind,
       cost: normalizePositiveInteger(tool.cost, 1),
       order: Number.isFinite(tool.order) ? Number(tool.order) : this._order,
       tags: Array.isArray(tool.tags) ? [...tool.tags] : [],
