@@ -245,6 +245,7 @@ async function readJsonBody(req, { maxBytes = DEFAULT_MAX_JSON_BODY, requireJson
 
   return await new Promise(resolve => {
     let settled = false;
+    let overflowed = false;
     const finish = result => {
       if (settled) return;
       settled = true;
@@ -252,9 +253,24 @@ async function readJsonBody(req, { maxBytes = DEFAULT_MAX_JSON_BODY, requireJson
     };
 
     req.on('data', chunk => {
+      if (overflowed) return;
       size += chunk.length;
       if (size > maxBytes) {
-        req.destroy();
+        // Stop buffering, but do NOT destroy the request (#749).
+        //
+        // req.destroy() closed the socket before the route could write the 413
+        // this function had just promised it, so a chunked client saw
+        // ECONNRESET / socket hang up instead — the Content-Length fast path
+        // above returned a clean 413 while the streaming path did not, making
+        // the size limit transport-dependent. A caller cannot tell a policy
+        // rejection from a transport failure, and retries on the latter
+        // amplify load.
+        //
+        // Releasing the buffer here is what actually bounds memory; the
+        // remaining inbound bytes are ignored, and the route writes its
+        // response and closes the connection normally.
+        overflowed = true;
+        body = '';
         finish({ ok: false, status: 413, error: { error: 'Payload too large' } });
         return;
       }
@@ -271,6 +287,10 @@ async function readJsonBody(req, { maxBytes = DEFAULT_MAX_JSON_BODY, requireJson
       }
     });
 
+    // A late error after an overflow (the peer giving up once we stop reading,
+    // for instance) must not turn the settled 413 into a 400. finish() already
+    // guards that; this keeps the listener from throwing on an unhandled
+    // 'error' event.
     req.on('error', err => {
       finish({ ok: false, status: 400, error: { error: 'Request error: ' + err.message } });
     });

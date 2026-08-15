@@ -1,0 +1,14 @@
+# Gitleaks scans commit history, so a finding stays reported even after the
+# offending lines are gone from the working tree. Each fingerprint below pins
+# an immutable historical commit and therefore never needs revisiting.
+#
+# All four are synthetic fixtures from the #746 credential corpus in
+# test/secret-and-sourceref-redaction.test.js -- one of them was AWS's
+# published documentation example key. No real credential was ever committed,
+# so there is nothing to rotate. a1eea8a removed the literals from the file by
+# composing fixture values at runtime, so no new finding is introduced going
+# forward; these entries only silence the historical commit.
+d502a110ce7e0795b7b60c186c83bbf0ef841a49:test/secret-and-sourceref-redaction.test.js:generic-api-key:18
+d502a110ce7e0795b7b60c186c83bbf0ef841a49:test/secret-and-sourceref-redaction.test.js:generic-api-key:19
+d502a110ce7e0795b7b60c186c83bbf0ef841a49:test/secret-and-sourceref-redaction.test.js:generic-api-key:23
+d502a110ce7e0795b7b60c186c83bbf0ef841a49:test/secret-and-sourceref-redaction.test.js:generic-api-key:75
