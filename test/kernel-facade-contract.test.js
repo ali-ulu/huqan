@@ -425,6 +425,13 @@ function cleanupTarballInstall() {
   }
 }
 
+// All 4C1 checks are read-only against the same installed package. Reusing the
+// installation removes repeated npm pack/install work while the file-level
+// teardown still guarantees cleanup when the suite finishes.
+test.after(() => {
+  cleanupTarballInstall();
+});
+
 test('4C1: installed tarball smoke — all retained deep imports load', () => {
   const imports = [
     'huqan', 'huqan/kernel', 'huqan/kernel.js',
@@ -455,7 +462,6 @@ test('4C1: installed tarball smoke — all retained deep imports load', () => {
   assert.equal(compatibility.status, 0,
     `verifier compatibility failed. stderr: ${compatibility.stderr?.slice(0, 400)}`);
 
-  cleanupTarballInstall();
 });
 
 test('4C1: installed CLI help smoke', () => {
@@ -468,7 +474,6 @@ test('4C1: installed CLI help smoke', () => {
     env: { ...process.env, AXIOM_USE_SQLITE: 'false', NO_COLOR: '1' },
   });
   assert.equal(result.status, 0, `CLI help exit ${result.status}: ${(result.stderr || result.stdout || '').slice(0, 300)}`);
-  cleanupTarballInstall();
 });
 
 test('4C1: installed dependency resolution', () => {
@@ -484,7 +489,6 @@ test('4C1: installed dependency resolution', () => {
     env: { ...process.env, NO_COLOR: '1' },
   });
   assert.equal(result.status, 0, `installed better-sqlite3 resolution failed. stderr: ${result.stderr?.slice(0, 400)}`);
-  cleanupTarballInstall();
 });
 
 test('4C1: installed server require smoke', () => {
@@ -498,5 +502,4 @@ test('4C1: installed server require smoke', () => {
     env: { AXIOM_DISABLE_AUTO_LISTEN: '1', AXIOM_USE_SQLITE: 'false' },
   });
   assert.equal(result.status, 0, `installed server require failed. stderr: ${result.stderr?.slice(0, 400)}`);
-  cleanupTarballInstall();
 });
