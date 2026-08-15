@@ -29,6 +29,7 @@ function fixture(records = []) {
     writeJson: (_req, _res, status, json, headers) => writes.push({ status, json, headers }),
     learnDocument: () => ({}),
     submitIngest: async () => ({}),
+    createAgent: () => ({ plan: () => ({ ok: true, data: {} }), run: () => ({ ok: true, data: {} }) }),
   });
   const invoke = async (method, path, body) => {
     const req = { method, body };

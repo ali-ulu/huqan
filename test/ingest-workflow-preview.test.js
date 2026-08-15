@@ -43,6 +43,7 @@ describe('ingest workflow preview', () => {
       writeJson: (_req, _res, status, json, headers) => writes.push({ status, json, headers }),
       learnDocument: () => ({}),
       submitIngest: async () => ({}),
+      createAgent: () => ({ plan: () => ({ ok: true, data: {} }), run: () => ({ ok: true, data: {} }) }),
     });
     assert.equal(await handler({ method: 'POST' }, {}, new URL('/api/v2/ingest/preview', 'http://localhost')), true);
     assert.equal(writes[0].status, 200);
@@ -60,6 +61,7 @@ describe('ingest workflow preview', () => {
       writeJson: (_req, _res, status, json, headers) => writes.push({ status, json, headers }),
       learnDocument: () => ({}),
       submitIngest: async input => { calls.push(input); return { status: 202, json: { approval: { id: 'approval-1' } } }; },
+      createAgent: () => ({ plan: () => ({ ok: true, data: {} }), run: () => ({ ok: true, data: {} }) }),
     });
     assert.equal(await handler({ method: 'POST' }, {}, new URL('/api/v2/ingest/execute', 'http://localhost')), true);
     assert.equal(calls.length, 1);
@@ -81,6 +83,7 @@ describe('ingest workflow preview', () => {
       parseJsonRequest: async () => body,
       writeJson: (_req, _res, status, json, headers) => writes.push({ status, json, headers }),
       submitIngest: async () => ({}),
+      createAgent: () => ({ plan: () => ({ ok: true, data: {} }), run: () => ({ ok: true, data: {} }) }),
       learnDocument: (text, options) => { calls.push({ text, options }); return { learned: 0, admissions: [{ outcome: 'review', receipt: { receiptId: 'receipt-1' } }] }; },
     });
     assert.equal(await handler({ method: 'POST' }, {}, new URL('/api/v2/workflows/learn', 'http://localhost')), true);

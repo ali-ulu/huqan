@@ -9,7 +9,7 @@ const http = require('http');
 const path = require('path');
 const { readFileSync } = require('fs');
 const { createKernel, CANONICAL_KERNEL_VERSION } = require('./lib/kernel-factory');
-const { CANONICAL_AGENT_VERSION } = require('./agentRuntime');
+const { CANONICAL_AGENT_VERSION, createAgent } = require('./agentRuntime');
 const { parseCommand } = require('./lib/command-parser');
 const { evaluateLlmSor } = require('./lib/shield');
 const {
@@ -157,7 +157,7 @@ async function submitIngestApproval(data) {
   }
 }
 
-const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, decision }) => decideIngestApproval({ store: getIngestApprovalStore(), kernel, approvalId, decision, handleIngest, ensureRuntime: ensureCompanyRuntime, recordAudit: recordIngestApprovalAudit, toPublicApproval: publicIngestApproval, workerId: INGEST_APPROVAL_WORKER_ID, leaseMs: INGEST_APPROVAL_LEASE_MS }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, learnDocument: (text, options) => kernel.learnDocument(text, options), submitIngest: submitIngestApproval });
+const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, decision }) => decideIngestApproval({ store: getIngestApprovalStore(), kernel, approvalId, decision, handleIngest, ensureRuntime: ensureCompanyRuntime, recordAudit: recordIngestApprovalAudit, toPublicApproval: publicIngestApproval, workerId: INGEST_APPROVAL_WORKER_ID, leaseMs: INGEST_APPROVAL_LEASE_MS }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, learnDocument: (text, options) => kernel.learnDocument(text, options), submitIngest: submitIngestApproval, createAgent: () => createAgent({ kernel, version: readCompatibleEnvironmentVariable('AGENT_VERSION') }) });
 
 function checkViewerRateLimit(req, timestamp = Date.now()) {
   const key = String(req.socket?.remoteAddress || 'unknown');
