@@ -24,7 +24,7 @@ const {
 const Dream = require('./dream');
 const LLMAdapter = require('./llmAdapter');
 const { createAgent } = require('./agentRuntime');
-const { createBackup, restoreBackup } = require('./backupRestore');
+const { createBackup, runCliRestore, formatCliRestore } = require('./backupRestore');
 const { resolvePersistencePaths } = require('./persistencePaths');
 const { evaluateMcpGate } = require('./lib/mcp-gate-adapter');
 const {
@@ -578,9 +578,9 @@ class CLI {
         return formatCliApprovalDecision(result, approval.approvalId, opts.json);
       }
       case 'restore': {
-        const result = restoreBackup(this._backupOptions({ backupDir: args || undefined }));
-        this.kernel.reload();
-        return `Restore tamamlandi: ${result.restored.length} dosya geri yüklendi. Guvenlik yedegi: ${result.safetyBackupDir}${this._commitCliMutation('restore')}`;
+        const result = runCliRestore(args, this._backupOptions({ backupDir: args?.backupDir || args || undefined }));
+        if (!result.dryRun) { this.kernel.reload(); this._commitCliMutation('restore'); }
+        return formatCliRestore(result, opts.json);
       }
       case 'düşün': {
         if (args === 'dur') {
