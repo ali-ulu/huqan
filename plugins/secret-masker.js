@@ -24,17 +24,38 @@
  * what the caller receives.
  */
 
+/**
+ * Key-name fragment for the assignment pattern (#746).
+ *
+ * The old alternation was bare (`api[_-]?key|secret|password|...`), anchored on
+ * a word boundary. `AWS_SECRET_ACCESS_KEY=` therefore did not match: the
+ * character before SECRET is an underscore, which is a word character, so `\b`
+ * fails. Real credential variables are almost always compound names, so the
+ * secret-ish word has to be matchable as a *segment* of the name rather than
+ * the whole of it.
+ */
+const SECRET_KEY_NAME = String.raw`(?:[A-Za-z0-9]+[_.\-])*(?:api[_.\-]?key|secret[_.\-]?access[_.\-]?key|access[_.\-]?key|secret|password|passwd|passphrase|token|credential|auth)(?:[_.\-][A-Za-z0-9]+)*`;
+
 const SECRET_PATTERNS = Object.freeze([
-  { type: 'api_key', pattern: /\bsk-[a-z0-9]{10,}\b/gi },
+  // Vendor-prefixed key families. The old form was `sk-[a-z0-9]{10,}` only,
+  // which misses hyphenated and project-scoped variants such as
+  // `sk-proj-...` and anything using `_` inside the token.
+  { type: 'api_key', pattern: /\b[a-z]{2,4}-(?:[a-z0-9]+-)?[A-Za-z0-9_-]{10,}\b/g },
   { type: 'bearer_token', pattern: /\bBearer\s+[A-Za-z0-9._\-+/=]{10,}\b/gi },
   { type: 'aws_access_key', pattern: /\bAKIA[0-9A-Z]{16}\b/g },
+  // gh[pousr]_ is the classic PAT shape; github_pat_ is the fine-grained one,
+  // which the old pattern did not cover at all.
   { type: 'github_token', pattern: /\bgh[pousr]_[A-Za-z0-9]{20,}\b/g },
+  { type: 'github_token', pattern: /\bgithub_pat_[A-Za-z0-9_]{20,}\b/g },
   { type: 'private_key_block', pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g },
   // Assignment-shaped: a secret-ish label immediately followed by `:`/`=`
   // and a token-like value. Requires the assignment shape (not just the
   // word) so ordinary prose about "the password" or "an API token" is not
   // redacted -- only a value actually being assigned/quoted next to it.
-  { type: 'assignment', pattern: /\b(?:api[_-]?key|secret|password|passwd|token|credential)\s*[:=]\s*['"]?[A-Za-z0-9_\-.+/]{8,}['"]?/gi },
+  //
+  // Key context, not value shape: this is what catches a high-entropy value
+  // next to a strongly secret-bearing name without needing a provider prefix.
+  { type: 'assignment', pattern: new RegExp(String.raw`\b${SECRET_KEY_NAME}\s*[:=]\s*['"]?[A-Za-z0-9_\-.+/]{8,}['"]?`, 'gi') },
 ]);
 
 function findSecretsInText(text) {
@@ -49,13 +70,27 @@ function findSecretsInText(text) {
   return findings;
 }
 
+/**
+ * Patterns are applied in sequence, so a marker inserted by an earlier pattern
+ * is still visible to a later one — and `[REDACTED_SECRET:github_token]` reads
+ * to the assignment pattern as the word "SECRET" followed by `:` and a value,
+ * producing `[[REDACTED_SECRET:assignment]]`. Substituting an inert placeholder
+ * first and expanding the markers at the end keeps every pattern matching only
+ * the original text, and makes the result independent of pattern order.
+ */
 function maskSecretsInText(text) {
   let out = String(text || '');
+  const markers = [];
   for (const { type, pattern } of SECRET_PATTERNS) {
     pattern.lastIndex = 0;
-    out = out.replace(pattern, `[REDACTED_SECRET:${type}]`);
+    out = out.replace(pattern, () => {
+      markers.push(`[REDACTED_SECRET:${type}]`);
+      // \u0000 cannot appear in the patterns above, so a placeholder can never
+      // be re-matched.
+      return `\u0000${markers.length - 1}\u0000`;
+    });
   }
-  return out;
+  return out.replace(/\u0000(\d+)\u0000/g, (_match, index) => markers[Number(index)]);
 }
 
 module.exports = {

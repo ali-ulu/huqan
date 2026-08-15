@@ -28,6 +28,8 @@
 
 // Deliberately short: this is a liveness probe on the ingest path, not a
 // download, so waiting out a long server-side timeout buys nothing.
+const crypto = require('crypto');
+
 const REACHABILITY_TIMEOUT_MS = 5000;
 
 function looksLikeHttpUrl(value) {
@@ -128,9 +130,43 @@ async function checkSourceReachable(value, deps = {}) {
   return { ok: true };
 }
 
+/**
+ * Origin + path only, with userinfo, query and fragment removed (#745).
+ *
+ * A sourceRef is frequently a signed URL, so the parts this drops are exactly
+ * the parts that carry credentials: `?token=`, `&sig=`, a `#` fragment, and the
+ * `user:password@` userinfo that this validator itself rejects. All of it used
+ * to be interpolated verbatim into the thrown error, which reaches CLI, MCP and
+ * plugin logs.
+ *
+ * The digest keeps distinct sources distinguishable in logs without carrying
+ * any of their secret material.
+ */
+function redactSourceRef(sourceRef) {
+  const raw = String(sourceRef ?? '');
+  const digest = crypto.createHash('sha256').update(raw, 'utf8').digest('hex').slice(0, 12);
+  let location = '<unparseable-url>';
+  try {
+    const url = new URL(raw);
+    // Assigning empty strings is what removes these from the serialized URL.
+    url.username = '';
+    url.password = '';
+    url.search = '';
+    url.hash = '';
+    location = url.origin + url.pathname;
+  } catch (_) {
+    // Not parseable: name nothing but the digest.
+  }
+  return `${location} [ref:${digest}]`;
+}
+
 function reject(sourceRef, result) {
-  const err = new Error(`evidence-validator: rejected sourceRef "${sourceRef}": ${result.reason}`);
+  const redacted = redactSourceRef(sourceRef);
+  const err = new Error(`evidence-validator: rejected sourceRef ${redacted}: ${result.reason}`);
   err.code = result.code;
+  // Structured, so a caller keeps a stable handle on the failure without
+  // parsing the message -- and still never sees the raw URL.
+  err.sourceRefDigest = redacted;
   throw err;
 }
 
