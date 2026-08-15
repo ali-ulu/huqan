@@ -71,11 +71,13 @@ test(
         sourceRef: 'src-ipc',
       });
 
-      const node = await rg.getNode('kedi');
+      // Reads are workspace-scoped now (#759), so they name the workspace the
+      // node was written into rather than finding it by bare id.
+      const node = await rg.getNode('kedi', 'ws-ipc');
       assert.deepEqual(node.provenance, provenance);
       assert.equal(node.workspaceId, 'ws-ipc');
 
-      const edges = await rg.getEdges('kedi');
+      const edges = await rg.getEdges('kedi', 'ws-ipc');
       assert.equal(edges.length, 1);
       assert.deepEqual(edges[0].provenance, provenance);
       assert.equal(edges[0].workspaceId, 'ws-ipc');

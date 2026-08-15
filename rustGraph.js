@@ -159,22 +159,25 @@ class RustGraph {
     return { id, label, weight: 0.5, provenance: opts.provenance ?? null, workspaceId: opts.workspaceId };
   }
 
-  async getNode(id) {
-    const res = await this._send({ cmd: 'get_node', id });
-    if (res === this._fallback) return this._fallback.getNode(id);
+  // The read side takes the same workspace selector as graph.js, and defaults
+  // to `default` rather than to "every workspace": an unscoped read must not
+  // see another tenant's node just because it shares an id (#759).
+  async getNode(id, workspaceId = 'default') {
+    const res = await this._send({ cmd: 'get_node', id, workspaceId });
+    if (res === this._fallback) return this._fallback.getNode(id, workspaceId);
     if (!res.ok || !res.node) return null;
     return res.node;
   }
 
-  async removeNode(id) {
-    const res = await this._send({ cmd: 'remove_node', id });
-    if (res === this._fallback) return this._fallback.removeNode(id);
+  async removeNode(id, workspaceId = 'default') {
+    const res = await this._send({ cmd: 'remove_node', id, workspaceId });
+    if (res === this._fallback) return this._fallback.removeNode(id, workspaceId);
     return res.ok;
   }
 
-  async getWeight(id) {
-    const res = await this._send({ cmd: 'get_weight', id });
-    if (res === this._fallback) return this._fallback.getWeight(id);
+  async getWeight(id, workspaceId = 'default') {
+    const res = await this._send({ cmd: 'get_weight', id, workspaceId });
+    if (res === this._fallback) return this._fallback.getWeight(id, workspaceId);
     return res.weight || 0;
   }
 
@@ -205,10 +208,10 @@ class RustGraph {
     };
   }
 
-  async getEdge(fromId, toId, relation) {
+  async getEdge(fromId, toId, relation, workspaceId = 'default') {
     // Fallback aktifse doğrudan fallback'e git
-    if (this._fallback) return this._fallback.getEdge(fromId, toId, relation);
-    const edges = await this.getEdges(fromId);
+    if (this._fallback) return this._fallback.getEdge(fromId, toId, relation, workspaceId);
+    const edges = await this.getEdges(fromId, workspaceId);
     // getEdges array döndürür (fallback durumunda zaten yukarıda yakalandı)
     if (!Array.isArray(edges)) return null;
     for (const e of edges) {
@@ -217,15 +220,15 @@ class RustGraph {
     return null;
   }
 
-  async getEdges(nodeId) {
-    const res = await this._send({ cmd: 'get_edges', id: nodeId });
-    if (res === this._fallback) return this._fallback.getEdges(nodeId);
+  async getEdges(nodeId, workspaceId = 'default') {
+    const res = await this._send({ cmd: 'get_edges', id: nodeId, workspaceId });
+    if (res === this._fallback) return this._fallback.getEdges(nodeId, workspaceId);
     return res.edges || [];
   }
 
-  async getInEdges(nodeId) {
-    const res = await this._send({ cmd: 'get_in_edges', id: nodeId });
-    if (res === this._fallback) return this._fallback.getInEdges(nodeId);
+  async getInEdges(nodeId, workspaceId = 'default') {
+    const res = await this._send({ cmd: 'get_in_edges', id: nodeId, workspaceId });
+    if (res === this._fallback) return this._fallback.getInEdges(nodeId, workspaceId);
     return res.edges || [];
   }
 
@@ -245,9 +248,9 @@ class RustGraph {
     return s.edges || 0;
   }
 
-  async cosineSimilarity(aId, bId) {
-    const res = await this._send({ cmd: 'cosine_similarity', a: aId, b: bId });
-    if (res === this._fallback) return this._fallback.cosineSimilarity(aId, bId);
+  async cosineSimilarity(aId, bId, workspaceId = 'default') {
+    const res = await this._send({ cmd: 'cosine_similarity', a: aId, b: bId, workspaceId });
+    if (res === this._fallback) return this._fallback.cosineSimilarity(aId, bId, workspaceId);
     return res.similarity || 0;
   }
 
@@ -269,13 +272,17 @@ class RustGraph {
     return res.stats || { nodes: 0, edges: 0, decayLambda: 0.05 };
   }
 
-  async learn(text) {
-    const res = await this._send({ cmd: 'learn', text });
+  async learn(text, opts = {}) {
+    const cmd = { cmd: 'learn', text };
+    if (opts && opts.workspaceId !== undefined) cmd.workspaceId = opts.workspaceId;
+    const res = await this._send(cmd);
     return res && res.ok;
   }
 
-  async ask(question) {
-    const res = await this._send({ cmd: 'ask', question });
+  async ask(question, opts = {}) {
+    const cmd = { cmd: 'ask', question };
+    if (opts && opts.workspaceId !== undefined) cmd.workspaceId = opts.workspaceId;
+    const res = await this._send(cmd);
     if (!res || !res.ok) return 'Bilmiyorum';
     return res.answer;
   }
