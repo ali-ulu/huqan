@@ -20,6 +20,7 @@ const {
   ACTION_OUTCOMES,
   ACTION_OWNER,
   OUTCOME_UNKNOWN,
+  captureOperationEvidenceForTest,
   classifyActionOutcome,
   decideIngestApproval,
 } = require('../lib/workbench/ingest-approval-action');
@@ -242,8 +243,9 @@ describe('V4-B2B: ingest approval authority repair', () => {
       assert.equal(receipt.workspaceId, 'default');
       assert.equal(receipt.metadata.snapshotHash, queued.body.approval.snapshotHash);
       assert.equal(receipt.metadata.actionOwner, ACTION_OWNER);
-      assert.match(receipt.metadata.graphEvidenceBeforeRef, /^sha256:/);
-      assert.match(receipt.metadata.graphEvidenceAfterRef, /^sha256:/);
+      assert.equal(receipt.metadata.operationId, approvalId);
+      assert.equal(receipt.metadata.operationWorkspaceId, 'default');
+      assert.match(receipt.metadata.operationEvidenceRef, /^sha256:/);
 
       const durable = store.getToolApprovalById(approvalId);
       assert.equal(durable.status, 'approved');
@@ -313,26 +315,73 @@ describe('V4-B2B: ingest approval authority repair', () => {
     assert.equal(throwing.calls.failed[0], `${OUTCOME_UNKNOWN}:execution_threw`);
   });
 
-  it('classifies contradictory admission and Graph evidence as unknown', () => {
-    const zero = { ok: true, nodes: 10, edges: 20, auditCount: 3 };
-    const grew = { ok: true, nodes: 11, edges: 22, auditCount: 4 };
+  it('classifies only operation-owned evidence and ignores concurrent graph deltas', () => {
+    const noWrite = { ok: true, operationId: 'approval-1', workspaceId: 'default', entries: [
+      { workspaceId: 'default', receiptId: 'receipt-1', auditId: 'audit-1', graphWrite: false },
+    ] };
+    const wrote = { ok: true, operationId: 'approval-1', workspaceId: 'default', entries: [
+      { workspaceId: 'default', receiptId: 'receipt-1', auditId: 'audit-1', graphWrite: true },
+    ] };
     const allow = (graphWrite) => ({ ok: true, admission: { outcome: 'allow', graphWrite } });
 
-    assert.equal(classifyActionOutcome(allow(true), zero, grew).outcome, 'admission_allow_graph_write_observed');
-    assert.equal(classifyActionOutcome(allow(false), zero, zero).outcome, 'admission_allow_no_graph_write_observed');
-    // Observed evidence is authoritative in both directions.
-    assert.equal(classifyActionOutcome(allow(true), zero, zero).outcome, 'admission_allow_no_graph_write_observed');
-    assert.equal(classifyActionOutcome(allow(false), zero, grew).outcome, OUTCOME_UNKNOWN);
+    assert.equal(classifyActionOutcome(allow(true), wrote).outcome, 'admission_allow_graph_write_observed');
+    assert.equal(classifyActionOutcome(allow(false), noWrite).outcome, 'admission_allow_no_graph_write_observed');
+    assert.equal(classifyActionOutcome(allow(true), noWrite).outcome, 'admission_allow_no_graph_write_observed');
+    assert.equal(classifyActionOutcome(allow(false), wrote).outcome, OUTCOME_UNKNOWN);
 
     for (const declared of ['review', 'reject']) {
       const result = { ok: true, admission: { outcome: declared, graphWrite: false } };
-      assert.equal(classifyActionOutcome(result, zero, zero).outcome, `admission_${declared}_no_graph_write_observed`);
-      // A review/reject that still moved the Graph is never a success.
-      assert.equal(classifyActionOutcome(result, zero, grew).outcome, OUTCOME_UNKNOWN);
+      assert.equal(classifyActionOutcome(result, noWrite).outcome, `admission_${declared}_no_graph_write_observed`);
+      assert.equal(classifyActionOutcome(result, wrote).outcome, OUTCOME_UNKNOWN);
     }
 
-    assert.equal(classifyActionOutcome(allow(true), { ok: false }, grew).outcome, OUTCOME_UNKNOWN);
-    assert.equal(classifyActionOutcome(allow(true), grew, zero).outcome, OUTCOME_UNKNOWN);
+    assert.equal(classifyActionOutcome(allow(true), { ok: false }).outcome, OUTCOME_UNKNOWN);
+
+    const captured = captureOperationEvidenceForTest({ admission: { evidence: noWrite.entries } }, 'approval-1', 'default');
+    assert.deepEqual(captured, noWrite);
+    assert.equal(captureOperationEvidenceForTest({ admission: { evidence: [
+      { workspaceId: 'other', receiptId: 'foreign', auditId: 'foreign-audit', graphWrite: true },
+    ] } }, 'approval-1', 'default').ok, false);
+  });
+
+  it('does not bind a concurrent foreign mutation to the approved operation', async () => {
+    const noWriteResult = {
+      ok: true,
+      admission: {
+        outcome: 'allow', graphWrite: false,
+        evidence: [{ workspaceId: 'default', receiptId: 'receipt-own-no-write', auditId: 'audit-own-no-write', graphWrite: false }],
+      },
+    };
+    const noWriteStore = fakeStore(pendingApproval('approval-concurrent-no-write', 'concurrent-no-write'));
+    const noWriteDeps = ownerDeps({ result: noWriteResult, store: noWriteStore });
+    noWriteDeps.handleIngest = async () => {
+      // Models another workspace mutating while this operation performs no
+      // write. Global counters would grow here; operation evidence does not.
+      noWriteDeps.kernel.graph.addNode('foreign-concurrent-node', 'foreign', null, { workspaceId: 'foreign' });
+      return noWriteResult;
+    };
+    const noWrite = await decideIngestApproval(noWriteDeps);
+    assert.equal(noWrite.status, 200);
+    assert.equal(noWrite.json.receipt.actionOutcome, 'admission_allow_no_graph_write_observed');
+    assert.doesNotMatch(JSON.stringify(noWrite.json.receipt), /foreign-concurrent-node|foreign/);
+
+    const writeResult = {
+      ok: true,
+      admission: {
+        outcome: 'allow', graphWrite: true,
+        evidence: [{ workspaceId: 'default', receiptId: 'receipt-own-write', auditId: 'audit-own-write', graphWrite: true }],
+      },
+    };
+    const writeStore = fakeStore(pendingApproval('approval-concurrent-write', 'concurrent-write'));
+    const writeDeps = ownerDeps({ result: writeResult, store: writeStore });
+    writeDeps.handleIngest = async () => {
+      writeDeps.kernel.graph.addNode('foreign-concurrent-node-2', 'foreign', null, { workspaceId: 'foreign' });
+      return writeResult;
+    };
+    const wrote = await decideIngestApproval(writeDeps);
+    assert.equal(wrote.status, 200);
+    assert.equal(wrote.json.receipt.actionOutcome, 'admission_allow_graph_write_observed');
+    assert.doesNotMatch(JSON.stringify(wrote.json.receipt), /foreign-concurrent-node-2|foreign/);
   });
 
   it('keeps server.js a thin orchestrator and excludes reviewed-external execution', () => {
