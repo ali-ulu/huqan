@@ -41,11 +41,56 @@ describe('ingest workflow preview', () => {
       readReceipt: () => ({}),
       parseJsonRequest: async () => manual(),
       writeJson: (_req, _res, status, json, headers) => writes.push({ status, json, headers }),
+      learnDocument: () => ({}),
+      submitIngest: async () => ({}),
     });
     assert.equal(await handler({ method: 'POST' }, {}, new URL('/api/v2/ingest/preview', 'http://localhost')), true);
     assert.equal(writes[0].status, 200);
     assert.equal(writes[0].json.workflowId, 'ingest-preview');
     assert.equal(writes[0].json.data.review.nextAction, 'submit_ingest_execute');
     assert.equal(writes[0].headers['Cache-Control'], 'no-store');
+  });
+
+  it('routes versioned execute through the injected persistent action owner', async () => {
+    const writes = [];
+    const calls = [];
+    const handler = createWorkflowDataRoutes({
+      getApprovalStore: () => ({}), decideApproval: async () => ({}), readReceipt: () => ({}),
+      parseJsonRequest: async () => manual(),
+      writeJson: (_req, _res, status, json, headers) => writes.push({ status, json, headers }),
+      learnDocument: () => ({}),
+      submitIngest: async input => { calls.push(input); return { status: 202, json: { approval: { id: 'approval-1' } } }; },
+    });
+    assert.equal(await handler({ method: 'POST' }, {}, new URL('/api/v2/ingest/execute', 'http://localhost')), true);
+    assert.equal(calls.length, 1);
+    assert.equal(writes[0].status, 202);
+    assert.equal(writes[0].json.workflowId, 'ingest-execute');
+    assert.equal(writes[0].json.status, 'review_required');
+    assert.equal(writes[0].json.ok, false);
+    assert.equal(writes[0].headers['Cache-Control'], 'no-store');
+  });
+
+  it('learn route requires an exact workspace and projects review admission', async () => {
+    const writes = [];
+    const calls = [];
+    let body = { workspaceId: 'workspace-a', text: 'cats are animals' };
+    const handler = createWorkflowDataRoutes({
+      getApprovalStore: () => ({}), decideApproval: async () => ({}), readReceipt: () => ({}),
+      parseJsonRequest: async () => body,
+      writeJson: (_req, _res, status, json, headers) => writes.push({ status, json, headers }),
+      submitIngest: async () => ({}),
+      learnDocument: (text, options) => { calls.push({ text, options }); return { learned: 0, admissions: [{ outcome: 'review', receipt: { receiptId: 'receipt-1' } }] }; },
+    });
+    assert.equal(await handler({ method: 'POST' }, {}, new URL('/api/v2/workflows/learn', 'http://localhost')), true);
+    assert.equal(calls[0].options.workspaceId, 'workspace-a');
+    assert.equal(calls[0].options.actor, 'http-api');
+    assert.equal(calls[0].options.approvalRequired, true);
+    assert.equal(writes[0].status, 202);
+    assert.equal(writes[0].json.status, 'review_required');
+    assert.equal(writes[0].json.receiptId, 'receipt-1');
+    body = { text: 'missing workspace' };
+    await handler({ method: 'POST' }, {}, new URL('/api/v2/workflows/learn', 'http://localhost'));
+    assert.equal(writes[1].status, 400);
+    assert.equal(writes[1].json.error.code, 'INVALID_INPUT');
   });
 });
