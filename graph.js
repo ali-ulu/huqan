@@ -45,6 +45,11 @@ const {
   queryAuditEvents,
   readAuditEvents,
 } = require('./lib/audit-query');
+const {
+  assertChainTipUsable,
+  emptyMutationJournal,
+  readMutationJournal,
+} = require('./lib/mutation-journal');
 
 class Graph {
   /**
@@ -454,23 +459,15 @@ class Graph {
   }
 
   _emptyJsonJournal() {
-    return { operations: {}, receipts: {}, chainTips: {}, receiptsById: {} };
+    return emptyMutationJournal();
   }
 
+  /**
+   * Fails closed on an existing-but-unreadable journal (#731); only a genuinely
+   * absent journal yields empty history. See lib/mutation-journal.js.
+   */
   _readJsonJournal() {
-    const journalPath = this._jsonJournalPath();
-    if (!fs.existsSync(journalPath)) return this._emptyJsonJournal();
-    try {
-      const parsed = JSON.parse(fs.readFileSync(journalPath, 'utf8'));
-      return {
-        operations: parsed.operations && typeof parsed.operations === 'object' ? parsed.operations : {},
-        receipts: parsed.receipts && typeof parsed.receipts === 'object' ? parsed.receipts : {},
-        chainTips: parsed.chainTips && typeof parsed.chainTips === 'object' ? parsed.chainTips : {},
-        receiptsById: parsed.receiptsById && typeof parsed.receiptsById === 'object' ? parsed.receiptsById : {},
-      };
-    } catch (_) {
-      return this._emptyJsonJournal();
-    }
+    return readMutationJournal(this._jsonJournalPath());
   }
 
   _writeJsonJournal(journal) {
@@ -646,7 +643,9 @@ class Graph {
           assertDurableV4WriteAllowed(payload, { operationId: id });
           const receiptFamily = classifyReceiptFamily(payload);
           const chainKey = `${payload.workspaceId}::${receiptFamily}`;
-          const previousReceiptHash = journal.chainTips[chainKey] || null;
+          // Re-checked here so a damaged tip is caught before it is linked
+          // against, not after a broken chain has been written (#731).
+          const previousReceiptHash = assertChainTipUsable(journal.chainTips, chainKey, this._jsonJournalPath());
           const chained = appendReceiptToChain(payload, previousReceiptHash);
           const committedAt = nowIso();
           journal.receipts[id] = {

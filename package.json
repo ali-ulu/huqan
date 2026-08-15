@@ -195,6 +195,7 @@
         "lib/memory-store-utils.js",
         "lib/memory-store.js",
         "lib/module-reachability.js",
+        "lib/mutation-journal.js",
         "lib/path-safety.js",
         "lib/predicate-parser.js",
         "lib/provenance-ingest.js",
