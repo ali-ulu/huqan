@@ -4,7 +4,18 @@
 # incident response even though the repository has explicit supply-chain gates.
 # Both stages deliberately share one reviewed digest; update it as a
 # reviewable diff, keeping the tag comment for readability.
-FROM node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS dependencies
+#
+# Node 22, not Node 20 (#770). Node 20 reached end-of-life on 2026-04-30
+# (nodejs/Release schedule.json), so node:20-bookworm-slim stopped being
+# rebuilt: its tag still resolves to the digest pinned here in April, and every
+# OS-level CVE published since then stays in it permanently, with no upstream
+# fix to pull. A pin cannot be kept current when nothing upstream is current.
+# Node 22 is supported to 2027-04-30 and is already one of the two versions
+# CI's test matrix runs, so the runtime image is covered by the same tests
+# rather than a version nothing exercises. package.json engines still accepts
+# Node >= 20: this changes what the *image* runs, not what the package
+# supports.
+FROM node:22-bookworm-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436 AS dependencies
 
 WORKDIR /app
 
@@ -16,14 +27,14 @@ COPY package*.json ./
 RUN npm ci --omit=dev --no-audit --no-fund
 
 
-FROM node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS runtime
+FROM node:22-bookworm-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436 AS runtime
 
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# node:20-bookworm-slim already ships an unprivileged `node` user (uid/gid 1000).
+# node:22-bookworm-slim already ships an unprivileged `node` user (uid/gid 1000).
 # Everything the runtime touches is copied in owned by that user so the final
 # USER switch below does not need a costly `chown -R` over node_modules.
 COPY --chown=node:node package*.json ./
