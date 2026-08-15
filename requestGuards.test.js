@@ -1,6 +1,8 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const { Readable } = require('node:stream');
+const { EventEmitter } = require('node:events');
+const http = require('node:http');
 const crypto = require('node:crypto');
 
 const {
@@ -85,6 +87,76 @@ describe('Request Guards', () => {
     }), { maxBytes: 100 });
     assert.strictEqual(oversized.ok, false);
     assert.strictEqual(oversized.status, 413);
+    assert.strictEqual(oversized.closeConnection, true);
+    assert.strictEqual(oversized.headers.Connection, 'close');
+  });
+
+  it('readJsonBody pauses chunked overflow without destroying the response socket', async () => {
+    const req = new EventEmitter();
+    req.headers = {
+      'content-type': 'application/json',
+      'transfer-encoding': 'chunked',
+    };
+    let paused = false;
+    let destroyed = false;
+    req.pause = () => { paused = true; };
+    req.destroy = () => { destroyed = true; };
+
+    const resultPromise = readJsonBody(req, { maxBytes: 100 });
+    req.emit('data', Buffer.alloc(60));
+    req.emit('data', Buffer.alloc(60));
+    const result = await resultPromise;
+    assert.strictEqual(result.status, 413);
+    assert.strictEqual(result.closeConnection, true);
+    assert.strictEqual(paused, true);
+    assert.strictEqual(destroyed, false);
+  });
+
+  it('readJsonBody lets an HTTP server flush 413 for a real chunked overflow', async () => {
+    const server = http.createServer(async (req, res) => {
+      const result = await readJsonBody(req, { maxBytes: 100 });
+      res.writeHead(result.status, {
+        'Content-Type': 'application/json',
+        ...result.headers,
+      });
+      res.end(JSON.stringify(result.error));
+    });
+
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', resolve);
+    });
+
+    try {
+      const response = await new Promise((resolve, reject) => {
+        const address = server.address();
+        const req = http.request({
+          host: '127.0.0.1',
+          port: address.port,
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        }, res => {
+          let body = '';
+          res.setEncoding('utf8');
+          res.on('data', chunk => { body += chunk; });
+          res.on('end', () => resolve({
+            statusCode: res.statusCode,
+            headers: res.headers,
+            body,
+          }));
+        });
+        req.once('error', reject);
+        req.write(Buffer.alloc(60, 'a'));
+        req.write(Buffer.alloc(60, 'b'));
+        req.end();
+      });
+
+      assert.strictEqual(response.statusCode, 413);
+      assert.strictEqual(response.headers.connection, 'close');
+      assert.deepStrictEqual(JSON.parse(response.body), { error: 'Payload too large' });
+    } finally {
+      await new Promise(resolve => server.close(resolve));
+    }
   });
 
   it('requireApiKey fails closed when configured key is missing, empty, or whitespace', () => {

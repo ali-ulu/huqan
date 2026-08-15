@@ -196,6 +196,8 @@ async function readJsonBody(req, { maxBytes = DEFAULT_MAX_JSON_BODY, requireJson
     return {
       ok: false,
       status: 413,
+      closeConnection: true,
+      headers: { Connection: 'close' },
       error: { error: 'Payload too large' },
     };
   }
@@ -214,8 +216,18 @@ async function readJsonBody(req, { maxBytes = DEFAULT_MAX_JSON_BODY, requireJson
     req.on('data', chunk => {
       size += chunk.length;
       if (size > maxBytes) {
-        req.destroy();
-        finish({ ok: false, status: 413, error: { error: 'Payload too large' } });
+        // Stop retaining and reading attacker-controlled bytes, but leave the
+        // socket alive long enough for the HTTP layer to write the 413. The
+        // response owner closes it only after the response has flushed.
+        body = '';
+        req.pause?.();
+        finish({
+          ok: false,
+          status: 413,
+          closeConnection: true,
+          headers: { Connection: 'close' },
+          error: { error: 'Payload too large' },
+        });
         return;
       }
       body += chunk;
