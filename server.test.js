@@ -1037,6 +1037,62 @@ describe('Server - Public API Allowlist Lockdown', () => {
   });
 });
 
+describe('Server - unauthenticated /api knowledge disclosure (#727)', () => {
+  // A fact only reachable through kernel.ask(); if an unauthenticated `sor`
+  // ever answers, this token shows up in the response body.
+  const SECRET_SUBJECT = 'zeplinograf';
+  const SECRET_FACT = `${SECRET_SUBJECT} gizlidir`;
+
+  before(async () => {
+    rateLimitMap.clear();
+    const r = await request(`${BASE}/dogrula`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: SECRET_FACT }),
+    });
+    assert.ok(r.status === 200 || r.status === 202, `seed failed with ${r.status}`);
+  });
+
+  it('unauthenticated sor is rejected and discloses no learned answer', async () => {
+    rateLimitMap.clear();
+    const r = await request(`${BASE}/api?q=${encodeURIComponent(`${SECRET_SUBJECT} nedir`)}`, { skipAuth: true });
+    assert.strictEqual(r.status, 401);
+    assert.strictEqual(r.headers.get('www-authenticate'), 'Bearer');
+    const body = await r.text();
+    assert.ok(!body.includes(SECRET_SUBJECT), `unauthenticated response leaked knowledge: ${body}`);
+    assert.ok(!body.includes('Cevap:'), `unauthenticated response returned an answer: ${body}`);
+  });
+
+  it('unauthenticated durum is rejected and enumerates no graph state', async () => {
+    rateLimitMap.clear();
+    const r = await request(`${BASE}/api?q=durum`, { skipAuth: true });
+    assert.strictEqual(r.status, 401);
+    const body = await r.text();
+    assert.ok(!body.includes('Durum:'), `unauthenticated status leaked graph stats: ${body}`);
+    assert.ok(!body.includes('dugum') && !body.includes('düğüm'), `unauthenticated status leaked node counts: ${body}`);
+  });
+
+  it('fixed-response commands stay public', async () => {
+    for (const query of ['selam', 'yardım', 'hello']) {
+      rateLimitMap.clear();
+      const r = await request(`${BASE}/api?q=${encodeURIComponent(query)}`, { skipAuth: true });
+      assert.strictEqual(r.status, 200, `expected 200 for public command: ${query}`);
+    }
+  });
+
+  it('authenticated sor and durum retain intended behavior', async () => {
+    rateLimitMap.clear();
+    const ask = await request(`${BASE}/api?q=${encodeURIComponent(`${SECRET_SUBJECT} nedir`)}`);
+    assert.strictEqual(ask.status, 200);
+    assert.ok((await ask.json()).result.length > 0);
+
+    rateLimitMap.clear();
+    const status = await request(`${BASE}/api?q=durum`);
+    assert.strictEqual(status.status, 200);
+    assert.ok((await status.json()).result.startsWith('Durum:'));
+  });
+});
+
 describe('X-Forwarded-For rate limit keying (#390)', () => {
   it('only grants API-key rate-limit identity to the configured key', () => {
     const originalKey = process.env.AXIOM_API_KEY;

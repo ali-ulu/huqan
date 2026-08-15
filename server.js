@@ -40,6 +40,7 @@ const {
   checkRateLimit,
   clearExpiredRateLimitEntries,
   isAllowedPublicCommand,
+  commandRequiresAuthentication,
   isUnsafePublicApiCommand,
   readJsonBody,
   requireApiKey,
@@ -1199,6 +1200,12 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ result: 'Bu komut web API üzerinden çalıştırılamaz.' }));
         return;
       }
+
+      // /api is a public route, but only its fixed-response commands are
+      // public. `sor` and `durum` read live default-workspace knowledge, so
+      // they are gated on an API key here rather than at the route level
+      // (issue #727).
+      if (p && commandRequiresAuthentication(p.command) && !denyIfUnauthorized(req, res)) return;
 
       let result;
       if (!p) {

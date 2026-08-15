@@ -42,12 +42,38 @@ const UNSAFE_PUBLIC_API_COMMANDS = Object.freeze([
   'neler',
 ]);
 
-const DEFAULT_ALLOWED_PUBLIC_COMMANDS = Object.freeze(new Set([
+/**
+ * Commands that answer from a fixed string and never touch workspace state.
+ * These are the only ones an unauthenticated caller may run (issue #727).
+ */
+const UNAUTHENTICATED_PUBLIC_COMMANDS = Object.freeze(new Set([
   'selam',
   'yardim',
+  'anlamadim',
+]));
+
+/**
+ * Commands that are readable over the API surface but read live workspace
+ * knowledge, so they require an API key:
+ *
+ *   sor   -> kernel.ask(), i.e. learned answers from the default workspace
+ *   durum -> graph stats plus disconnected-node and contradiction labels
+ *
+ * They used to sit in the unauthenticated allowlist, which let any caller that
+ * could reach the port query learned knowledge and enumerate node names.
+ */
+const AUTHENTICATED_API_COMMANDS = Object.freeze(new Set([
   'sor',
   'durum',
-  'anlamadim',
+]));
+
+/**
+ * Every command the /api surface may dispatch at all, regardless of auth.
+ * Authorization within this set is decided by commandRequiresAuthentication().
+ */
+const DEFAULT_ALLOWED_PUBLIC_COMMANDS = Object.freeze(new Set([
+  ...UNAUTHENTICATED_PUBLIC_COMMANDS,
+  ...AUTHENTICATED_API_COMMANDS,
 ]));
 
 function sanitizeInput(raw, maxLength = DEFAULT_MAX_INPUT_LENGTH) {
@@ -87,6 +113,20 @@ function isAllowedPublicCommand(command, allowedSet = DEFAULT_ALLOWED_PUBLIC_COM
   const normalized = normalizePublicApiCommandText(command);
   if (!normalized) return false;
   return allowedSet.has(normalized);
+}
+
+/**
+ * True when the command reads workspace-backed state and therefore may only run
+ * for an authenticated caller.
+ *
+ * Fails closed: anything that does not normalize into the explicitly
+ * unauthenticated set is treated as needing a key, so a command added to the
+ * allowlist later does not become publicly readable by omission.
+ */
+function commandRequiresAuthentication(command, publicSet = UNAUTHENTICATED_PUBLIC_COMMANDS) {
+  const normalized = normalizePublicApiCommandText(command);
+  if (!normalized) return true;
+  return !publicSet.has(normalized);
 }
 
 function sortRateLimitEntriesForEviction(entries = []) {
@@ -245,8 +285,11 @@ module.exports = {
   DEFAULT_RATE_LIMIT_MAX_ENTRIES,
   DEFAULT_RATE_LIMIT_WINDOW,
   DEFAULT_ALLOWED_PUBLIC_COMMANDS,
+  UNAUTHENTICATED_PUBLIC_COMMANDS,
+  AUTHENTICATED_API_COMMANDS,
   clearExpiredRateLimitEntries,
   checkRateLimit,
+  commandRequiresAuthentication,
   constantTimeEqual,
   enforceRateLimitCap,
   extractApiKey,
