@@ -26,6 +26,8 @@ function fixture(records = []) {
       : { ok: false, status: 'not_found', error: { message: 'missing' } },
     parseJsonRequest: async req => req.body,
     writeJson: (_req, _res, status, json, headers) => writes.push({ status, json, headers }),
+    learnDocument: () => ({}),
+    submitIngest: async () => ({}),
   });
   const invoke = async (method, path, body) => {
     const req = { method, body };

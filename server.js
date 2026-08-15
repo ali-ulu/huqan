@@ -139,7 +139,25 @@ const {
 const { runPublicApiCommand } = require('./lib/http/public-api-commands');
 const { V2_STATUS_PHASES } = require('./lib/http/v2-status-phases');
 
-const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, decision }) => decideIngestApproval({ store: getIngestApprovalStore(), kernel, approvalId, decision, handleIngest, ensureRuntime: ensureCompanyRuntime, recordAudit: recordIngestApprovalAudit, toPublicApproval: publicIngestApproval, workerId: INGEST_APPROVAL_WORKER_ID, leaseMs: INGEST_APPROVAL_LEASE_MS }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest: (req, res) => parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_JSON_BODY }), writeJson });
+async function submitIngestApproval(data) {
+  const snapshot = buildIngestApprovalSnapshot(data);
+  if (!snapshot.ok) return { status: snapshot.code === 'INGEST_WORKSPACE_UNSUPPORTED' ? 400 : 409, error: { code: snapshot.code || 'INGEST_SNAPSHOT_REQUIRED', message: snapshot.error || 'Ingest cannot be queued safely.' } };
+  try {
+    const store = getIngestApprovalStore();
+    const approvalKey = `http.ingest.${snapshot.sourceType}.${snapshot.idempotencyKey}.${snapshot.snapshotHash}`;
+    const saved = store.saveToolApprovalIfAbsent({
+      id: newIngestApprovalId(), approvalKey, tool: 'http.ingest', input: JSON.stringify(snapshot.payload),
+      status: 'pending', decision: 'review', reason: 'http_ingest_requires_review',
+      context: { source: 'http-ingest', snapshot },
+      policy: { action: 'ingest', approval: 'review', snapshotIntegrity: 'sha256' },
+    });
+    return { status: saved.approval.status === 'pending' ? 202 : 200, json: { ok: true, status: saved.approval.status, idempotent: !saved.inserted, approval: publicIngestApproval(saved.approval) } };
+  } catch (_) {
+    return { status: 503, error: { code: 'APPROVAL_STORE_UNAVAILABLE', message: 'Persistent ingest approval store is unavailable.' } };
+  }
+}
+
+const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, decision }) => decideIngestApproval({ store: getIngestApprovalStore(), kernel, approvalId, decision, handleIngest, ensureRuntime: ensureCompanyRuntime, recordAudit: recordIngestApprovalAudit, toPublicApproval: publicIngestApproval, workerId: INGEST_APPROVAL_WORKER_ID, leaseMs: INGEST_APPROVAL_LEASE_MS }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, learnDocument: (text, options) => kernel.learnDocument(text, options), submitIngest: submitIngestApproval });
 
 function checkViewerRateLimit(req, timestamp = Date.now()) {
   const key = String(req.socket?.remoteAddress || 'unknown');
@@ -955,28 +973,9 @@ const server = http.createServer(async (req, res) => {
     if (!denyIfUnauthorized(req, res)) return;
     const data = await parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_UPLOAD_BODY });
     if (!data) return;
-    try {
-      const snapshot = buildIngestApprovalSnapshot(data);
-      if (!snapshot.ok) {
-        writeApiError(req, res, snapshot.code === 'INGEST_WORKSPACE_UNSUPPORTED' ? 400 : 409, snapshot.code || 'INGEST_SNAPSHOT_REQUIRED', snapshot.error || 'Ingest cannot be queued safely.');
-        return;
-      }
-      const store = getIngestApprovalStore();
-      const approvalKey = `http.ingest.${snapshot.sourceType}.${snapshot.idempotencyKey}.${snapshot.snapshotHash}`;
-      const saved = store.saveToolApprovalIfAbsent({
-        id: newIngestApprovalId(), approvalKey, tool: 'http.ingest', input: JSON.stringify(snapshot.payload),
-        status: 'pending', decision: 'review', reason: 'http_ingest_requires_review',
-        context: { source: 'http-ingest', snapshot },
-        policy: { action: 'ingest', approval: 'review', snapshotIntegrity: 'sha256' },
-      });
-      const approval = publicIngestApproval(saved.approval);
-      writeJson(req, res, saved.approval.status === 'pending' ? 202 : 200, {
-        ok: true, status: saved.approval.status, idempotent: !saved.inserted, approval,
-      }, { 'Cache-Control': 'no-cache' });
-    } catch (err) {
-      console.error('[ingest] failed:', err);
-      writeApiError(req, res, 503, 'APPROVAL_STORE_UNAVAILABLE', 'Persistent ingest approval store is unavailable.');
-    }
+    const outcome = await submitIngestApproval(data);
+    if (outcome.error) writeApiError(req, res, outcome.status, outcome.error.code, outcome.error.message);
+    else writeJson(req, res, outcome.status, outcome.json, { 'Cache-Control': 'no-cache' });
     return;
   }
 
