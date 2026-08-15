@@ -32,6 +32,9 @@ const pkg = require('./package.json');
 const { VERIFY_STATUS } = require('./lib/mcp-envelope-schema');
 const { VERIFY_ENVELOPE_OUTPUT_SCHEMA } = require('./lib/mcp-tool-data-schemas');
 const { TOOL_SCHEMAS } = require('./lib/mcp-tool-catalog');
+const MODEL_VISIBLE_TOOL_SCHEMAS = Object.freeze(
+  TOOL_SCHEMAS.filter(({ name }) => name !== 'huqan.approve' && name !== 'huqan.approvals'),
+);
 
 const PROTOCOL_VERSION = '2025-06-18';
 // RFC-001 decision 1: HUQAN is the canonical product identity. This is the
@@ -41,6 +44,7 @@ const SERVER_VERSION = pkg.version;
 const MCP_MAX_FRAME_BYTES = 64 * 1024;
 const MCP_MAX_JSON_DEPTH = 32;
 const MCP_MAX_JSON_VALUES = 2048;
+const MCP_OPERATOR_TOKEN_ENV = 'HUQAN_MCP_OPERATOR_TOKEN';
 
 const {
   MCP_MAX_TEXT,
@@ -61,6 +65,13 @@ const {
   recordInternalError,
 } = require('./lib/mcp-envelope-format');
 
+function isMcpOperatorAuthorized(configuredToken, presentedToken) {
+  if (typeof configuredToken !== 'string' || typeof presentedToken !== 'string' || !configuredToken || !presentedToken) return false;
+  const configured = Buffer.from(configuredToken);
+  const presented = Buffer.from(presentedToken);
+  return configured.length === presented.length && crypto.timingSafeEqual(configured, presented);
+}
+
 function createServer(kernelOrOptions = {}) {
   const options = kernelOrOptions && typeof kernelOrOptions === 'object' && typeof kernelOrOptions.learn === 'function'
     ? { kernel: kernelOrOptions }
@@ -68,9 +79,11 @@ function createServer(kernelOrOptions = {}) {
   const envKernelOpts = options.kernel ? {} : buildKernelOptsFromEnv();
   const kernel = options.kernel || createKernelFromEnv();
   const approvalStore = createApprovalStoreFromKernel(kernel, { ...envKernelOpts, ...options });
+  const operatorToken = options.operatorToken || process.env[MCP_OPERATOR_TOKEN_ENV] || '';
   return {
     kernel,
     approvalStore,
+    operatorToken,
     handleRequest(message) {
       if (!message || typeof message !== 'object') {
         return { jsonrpc: '2.0', error: { code: -32600, message: 'Invalid Request' } };
@@ -99,12 +112,12 @@ function createServer(kernelOrOptions = {}) {
       }
 
       if (method === 'tools/list') {
-        return { jsonrpc: '2.0', id, result: { tools: TOOL_SCHEMAS } };
+        return { jsonrpc: '2.0', id, result: { tools: MODEL_VISIBLE_TOOL_SCHEMAS } };
       }
 
       if (method === 'tools/call') {
         try {
-          const result = callTool(kernel, params, { approvalStore });
+          const result = callTool(kernel, params, { approvalStore, operatorToken });
           return { jsonrpc: '2.0', id, result: toToolResult(result) };
         } catch (err) {
           const errorRef = recordInternalError('tools/call', err);
@@ -403,8 +416,11 @@ function callTool(kernel, params = {}, runtime = {}) {
 function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
   const args = parseJsonObject(safeParams.arguments, {});
 
-  if (name === 'huqan.approve') {
-    return handleMcpApprovalDecision(kernel, args, runtime);
+  if (name === 'huqan.approve' || name === 'huqan.approvals') {
+    if (!isMcpOperatorAuthorized(runtime.operatorToken, safeParams.operatorToken)) {
+      return failApprovalDecision('OPERATOR_AUTH_REQUIRED', 'A separate operator capability is required for MCP approval operations.');
+    }
+    if (name === 'huqan.approve') return handleMcpApprovalDecision(kernel, args, runtime);
   }
 
   const gate = applyHumanApprovalToggle(evaluateMcpGate({ tool: name, args, metadata: {} }));
@@ -695,6 +711,8 @@ module.exports = {
   MCP_MAX_JSON_VALUES,
   SERVER_NAME,
   TOOL_SCHEMAS,
+  MODEL_VISIBLE_TOOL_SCHEMAS,
+  MCP_OPERATOR_TOKEN_ENV,
   CANONICAL_MCP_TOOL_NAMES,
   LEGACY_MCP_TOOL_NAMES,
   VERIFY_STATUS,

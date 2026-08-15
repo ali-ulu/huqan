@@ -38,7 +38,10 @@ function waitForMessage(predicate) {
 
 function request(method, params) {
   const id = nextId++;
-  const payload = { jsonrpc: '2.0', id, method, params };
+  const requestParams = method === 'tools/call' && ['huqan.approvals', 'huqan.approve'].includes(params?.name)
+    ? { ...params, operatorToken: 'test-operator' }
+    : params;
+  const payload = { jsonrpc: '2.0', id, method, params: requestParams };
   proc.stdin.write(`${JSON.stringify(payload)}\n`);
   return new Promise((resolve, reject) => {
     pending.set(id, { resolve, reject });
@@ -76,6 +79,7 @@ before(() => {
       AXIOM_MEMORY_PATH: memPath,
       AXIOM_DB_PATH: dbPath,
       AXIOM_KERNEL_VERSION: 'v2',
+      HUQAN_MCP_OPERATOR_TOKEN: 'test-operator',
     },
   });
   rl = readline.createInterface({ input: proc.stdout });
@@ -149,7 +153,8 @@ describe('MCP Server', () => {
     assert.ok(planTool);
     assert.ok(agentTool);
     assert.ok(policyTool);
-    assert.ok(approvalsTool);
+    assert.equal(approvalsTool, undefined, 'approval queue must not be model-visible');
+    assert.equal(list.result.tools.some(t => t.name === 'huqan.approve'), false, 'approval execution must not be model-visible');
     assert.ok(verifyTool);
     assert.ok(verifyTool.outputSchema);
     assert.match(verifyTool.description, /structured evidence trail/i);
@@ -187,8 +192,6 @@ describe('MCP Server', () => {
     assert.ok(policyTool.outputSchema.properties.data.anyOf[1].properties.reasons);
     assert.ok(policyTool.outputSchema.properties.data.anyOf[1].properties.approvalId);
     assert.ok(policyTool.outputSchema.properties.data.anyOf[1].properties.approvalStatus);
-    assert.ok(approvalsTool.outputSchema.properties.data.anyOf[1].properties.pendingCount);
-    assert.ok(approvalsTool.outputSchema.properties.data.anyOf[1].properties.approvals);
   });
 
   it('rejects oversized and structurally unbounded frames, then recovers for the next request', async () => {
@@ -364,7 +367,7 @@ describe('MCP Server', () => {
       countUnresolvedToolApprovals() { return 0; },
     };
 
-    callTool(kernel, { name: 'huqan.approvals', arguments: { limit: 500 } }, { approvalStore });
+    callTool(kernel, { name: 'huqan.approvals', operatorToken: 'test-operator', arguments: { limit: 500 } }, { approvalStore, operatorToken: 'test-operator' });
     callTool(kernel, { name: 'huqan.reason', arguments: { subject: '  kedi\u0000  ' } });
     callTool(kernel, { name: 'huqan.compare', arguments: { left: '  kedi\u0000 ', right: ' kopek\u0007 ' } });
     callTool(kernel, { name: 'huqan.dream', arguments: { depth: 500 } });
