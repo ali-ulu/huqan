@@ -161,6 +161,10 @@ body{display:flex;flex-direction:column}
 .search-results{display:grid;gap:8px;margin-top:10px}
 .search-result{border:1px solid var(--line);border-radius:8px;padding:10px;background:#0b121b}
 .search-result-actions{display:flex;gap:6px;margin-top:8px}
+.review-inbox{display:grid;gap:8px;margin-top:10px}
+.review-item{border:1px solid var(--line);border-radius:8px;padding:10px;background:#0b121b;cursor:pointer}
+.review-item.active{border-color:var(--accent)}
+.review-detail{margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#0b121b}
 @media (max-width: 980px){
   body{overflow:auto}
   .shell,.split{grid-template-columns:1fr}
@@ -239,6 +243,7 @@ body{display:flex;flex-direction:column}
             <p>Bu taslak henüz AXIOM hafızasına yazılmadı. Kalıcı öğrenme için review / approval gerekir.</p>
             <div class="teach-flow-actions">
               <button type="button" class="primary" id="teach-draft-copy">Taslağı kopyala</button>
+              <button type="button" class="primary" id="teach-send-review">Review'a gönder</button>
               <button type="button" id="teach-draft-reset">Sıfırla</button>
               <button type="button" id="teach-draft-hide">Kapat</button>
             </div>
@@ -264,6 +269,13 @@ body{display:flex;flex-direction:column}
           <div class="story-item"><strong>Geçmiş Çelişkiler</strong><span>Eski kararları ve zayıf kanıtları takip et.</span></div>
           <div class="story-item"><strong>Hafıza / Graph</strong><span>Düğümler, kenarlar ve kanıt zinciri tek ekranda.</span></div>
         </div>
+      </div>
+      <div class="card">
+        <strong style="display:block;font-size:14px;margin-bottom:8px">Review Inbox</strong>
+        <button type="button" id="review-refresh">Yenile</button>
+        <div class="workflow-status" id="review-status">Bekleyen ingest adayları yüklenmedi.</div>
+        <div class="review-inbox" id="review-inbox"></div>
+        <div class="review-detail" id="review-detail" hidden></div>
       </div>
     </div>
   </div>
@@ -406,12 +418,16 @@ const teachDraftInput = document.getElementById('teach-draft-input');
 const teachDraftCopy = document.getElementById('teach-draft-copy');
 const teachDraftReset = document.getElementById('teach-draft-reset');
 const teachDraftHide = document.getElementById('teach-draft-hide');
+const teachSendReview = document.getElementById('teach-send-review');
 const workflowKey = document.getElementById('workflow-key');
 const workflowWorkspace = document.getElementById('workflow-workspace');
 const workflowAction = document.getElementById('workflow-action');
 const workflowStatus = document.getElementById('workflow-status');
 const workflowTrace = document.getElementById('workflow-trace');
 let workflowManifest = null;
+let selectedReviewApproval = null;
+let importedFilePreview = null;
+let reviewApprovals = [];
 let lastPromptText = '';
 
 function workflowAuthHeaders(json = false) {
@@ -545,6 +561,106 @@ function setFileMeta(fileName, textLength) {
   judgeFileMeta.innerHTML = `<strong>${escapeHtml(fileName)}</strong> · ${chars} karakter · Dosya tarayıcıda okunur; otomatik olarak sunucuya yüklenmez.`;
 }
 
+async function sha256Hex(text) {
+  const bytes = new TextEncoder().encode(String(text || ''));
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function renderFilePreview() {
+  if (!judgeFileMeta || !importedFilePreview) return;
+  const preview = importedFilePreview;
+  judgeFileMeta.innerHTML = `<strong>${escapeHtml(preview.name)}</strong> · ${escapeHtml(preview.type)} · ${Number(preview.size).toLocaleString('tr-TR')} bayt · ${Number(preview.characters).toLocaleString('tr-TR')} karakter · SHA-256 ${escapeHtml(preview.hash)} · workspace ${escapeHtml(selectedWorkspace())} · yalnız önizleme`;
+}
+
+function renderReviewDetail(approval) {
+  const target = document.getElementById('review-detail');
+  if (!target) return;
+  selectedReviewApproval = approval || null;
+  target.hidden = !approval;
+  if (!approval) return;
+  const receiptId = approval.receipt?.receiptId || approval.receipt?.id || '';
+  target.innerHTML = `
+    <strong>${escapeHtml(approval.sourceRef || approval.id)}</strong>
+    <div class="meta">${escapeHtml(approval.status)} · ${escapeHtml(approval.reason || 'policy nedeni yok')}</div>
+    <div class="meta">snapshot ${escapeHtml(approval.snapshotHash || '—')} · idempotency ${escapeHtml(approval.idempotencyKey || '—')}</div>
+    <div class="search-result-actions">
+      <button type="button" data-review-decision="approved">Onayla</button>
+      <button type="button" data-review-decision="rejected">Reddet</button>
+      ${receiptId ? `<button type="button" data-review-receipt="${escapeAttribute(receiptId)}">Receipt</button>` : ''}
+    </div>`;
+}
+
+function renderReviewInbox(approvals) {
+  const target = document.getElementById('review-inbox');
+  if (!target) return;
+  target.innerHTML = (approvals || []).map(item => `
+    <button type="button" class="review-item" data-review-id="${escapeAttribute(item.id)}">
+      <strong>${escapeHtml(item.sourceRef || item.id)}</strong>
+      <span class="meta">${escapeHtml(item.sourceType)} · ${escapeHtml(item.reason || item.status)}</span>
+    </button>`).join('') || '<div class="story-item"><span>Bekleyen aday yok.</span></div>';
+}
+
+async function loadReviewInbox() {
+  const status = document.getElementById('review-status');
+  try {
+    const response = await fetch('/api/ingest/approvals?limit=50', { headers: workflowAuthHeaders() });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || body.ok === false) throw new Error(workflowErrorMessage(response, body));
+    reviewApprovals = body.approvals || [];
+    renderReviewInbox(reviewApprovals);
+    if (status) status.textContent = `${reviewApprovals.length} bekleyen aday`;
+    if (selectedReviewApproval) {
+      renderReviewDetail(reviewApprovals.find(item => item.id === selectedReviewApproval.id) || selectedReviewApproval);
+    }
+  } catch (error) {
+    if (status) status.textContent = error.message;
+  }
+}
+
+async function sendUnknownToReview() {
+  const claim = String(lastPromptText || '').trim();
+  if (!claim) return addMessage('Review için önce bilinmeyen bir iddia çalıştır.', 'system warn');
+  try {
+    const hash = await sha256Hex(claim);
+    const response = await fetch('/api/ingest', {
+      method: 'POST',
+      headers: workflowAuthHeaders(true),
+      body: JSON.stringify({
+        sourceType: 'manual', text: claim, author: 'claim-workspace',
+        date: new Date().toISOString().slice(0, 10), workspaceId: selectedWorkspace(),
+        idempotencyKey: `claim-workspace:${hash}`,
+      }),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || body.ok === false) throw new Error(workflowErrorMessage(response, body));
+    addMessage(`${body.status === 'pending' ? 'review_required' : body.status}: ${body.approval?.id || ''}${body.idempotent ? ' · idempotent' : ''}`, 'system ok');
+    hideTeachFlow(false);
+    await loadReviewInbox();
+    renderReviewDetail(body.approval);
+  } catch (error) {
+    addMessage(error.message, 'system warn');
+  }
+}
+
+async function decideReviewApproval(decision) {
+  if (!selectedReviewApproval) return;
+  try {
+    const response = await fetch(`/api/ingest/approvals/${encodeURIComponent(selectedReviewApproval.id)}`, {
+      method: 'POST', headers: workflowAuthHeaders(true), body: JSON.stringify({ decision }),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || body.ok === false) return addMessage(workflowErrorMessage(response, body), 'system warn');
+    renderReviewDetail(body.approval);
+    const receiptId = body.approval?.receipt?.receiptId || body.approval?.receipt?.id || '';
+    addMessage(`${body.approval?.status || decision}${body.idempotent ? ' · idempotent' : ''}${receiptId ? ` · receipt ${receiptId}` : ''}`, 'system ok');
+    showReceiptHandoff('', receiptId);
+    await loadReviewInbox();
+  } catch (_) {
+    addMessage('failed: Approval kararı gönderilemedi. Bağlantıyı kontrol edip yeniden dene.', 'system warn');
+  }
+}
+
 function showQuickActions(visible) {
   if (!judgeQuickActions) return;
   judgeQuickActions.hidden = !visible;
@@ -609,13 +725,17 @@ function importFileToInput(file) {
     return;
   }
   const reader = new FileReader();
-  reader.onload = () => {
+  reader.onload = async () => {
     const text = String(reader.result || '');
     if (judgeInput) {
       judgeInput.value = text;
       judgeInput.focus();
     }
-    setFileMeta(name, text.length);
+    importedFilePreview = {
+      name, type: file.type || (name.toLowerCase().endsWith('.md') ? 'text/markdown' : 'text/plain'),
+      size: file.size, characters: text.length, hash: await sha256Hex(text),
+    };
+    renderFilePreview();
     showQuickActions(true);
     addMessage(`Dosya alındı: ${name}`, 'system ok');
   };
@@ -744,6 +864,19 @@ teachDraftCopy?.addEventListener('click', async () => {
     teachDraftInput.select?.();
     addMessage('Öğretme taslağı seçildi. Kopyalamak için Ctrl+C kullanabilirsin.', 'system warn');
   }
+});
+teachSendReview?.addEventListener('click', sendUnknownToReview);
+document.getElementById('review-refresh')?.addEventListener('click', loadReviewInbox);
+document.getElementById('review-inbox')?.addEventListener('click', event => {
+  const button = event.target.closest('[data-review-id]');
+  if (!button) return;
+  renderReviewDetail(reviewApprovals.find(item => item.id === button.dataset.reviewId));
+});
+document.getElementById('review-detail')?.addEventListener('click', event => {
+  const decision = event.target.closest('[data-review-decision]')?.dataset.reviewDecision;
+  if (decision) decideReviewApproval(decision);
+  const receiptId = event.target.closest('[data-review-receipt]')?.dataset.reviewReceipt;
+  if (receiptId) { showReceiptHandoff('', receiptId); switchTab('trust'); loadTrustReceipt(); }
 });
 teachDraftReset?.addEventListener('click', () => {
   if (!teachDraftInput) return;

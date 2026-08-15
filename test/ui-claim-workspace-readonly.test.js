@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const vm = require('node:vm');
 
 const { runReadWorkflow, searchMemory } = require('../lib/http/read-workflow-actions');
 const { publicWorkflowManifest } = require('../lib/workflow-contract');
@@ -67,4 +68,18 @@ test('Claim Workspace uses manifest routes, session-only auth, real search, and 
   assert.match(html, /data-result-action="receipt"/);
   assert.match(html, /renderMemoryResults\(workflowData\.items\)/);
   assert.doesNotMatch(html, /fetch\('\/api\?' \+ new URLSearchParams/);
+});
+
+test('Claim Workspace browser script compiles and wires unknown-to-review through the existing ingest approval runtime', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+  assert.ok(script);
+  assert.doesNotThrow(() => new vm.Script(script));
+  assert.match(html, /crypto\.subtle\.digest\('SHA-256'/);
+  assert.match(html, /fetch\('\/api\/ingest'/);
+  assert.match(html, /fetch\('\/api\/ingest\/approvals\?limit=50'/);
+  assert.match(html, /`\/api\/ingest\/approvals\/\$\{encodeURIComponent\(selectedReviewApproval\.id\)\}`/);
+  assert.match(html, /idempotencyKey: `claim-workspace:\$\{hash\}`/);
+  assert.match(html, /showReceiptHandoff\('', receiptId\)/);
+  assert.doesNotMatch(html, /new (Map|Set)\(.*approval/i);
 });
