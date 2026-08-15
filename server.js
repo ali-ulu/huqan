@@ -19,24 +19,18 @@ const {
 const { handleIngest, buildIngestApprovalSnapshot, sha256 } = require('./lib/ingest');
 const AxiomStorage = require('./storage');
 const { decideIngestApproval } = require('./lib/workbench/ingest-approval-action');
-const {
-  buildTrustReceipt,
-  queryAuditTrailPage,
-  queryCandidateClaims,
-  queryProvenance,
-} = require('./lib/provenance-query');
+const { buildTrustReceipt, queryAuditTrailPage, queryCandidateClaims, queryProvenance } = require('./lib/provenance-query');
 const { readReceiptById } = require('./lib/receipt/receipt-read-index');
 const { receiptReadFailure } = require('./lib/http/receipt-read-failures');
 const { createWorkbenchReadHttpRouter } = require('./lib/workbench/workbench-read-http-router');
 const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
 const { handleWorkflowContractRoute, writeUnavailableWorkflow } = require('./lib/http/workflow-contract-route');
 const { createReadWorkflowHttpRouter } = require('./lib/http/read-workflow-actions');
+const { createWorkflowDataRoutes } = require('./lib/http/workflow-data-routes');
 const { readExactWorkspace } = require('./lib/http/exact-workspace');
 const { createSessionStore } = require('./lib/viewer/session-store');
 const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
-const {
-  createExternalClientProductionBoundary,
-} = require('./lib/external-client-production-boundary');
+const { createExternalClientProductionBoundary } = require('./lib/external-client-production-boundary');
 const pkg = require('./package.json');
 const {
   DEFAULT_MAX_UPLOAD_BODY,
@@ -144,6 +138,8 @@ const {
 } = require('./lib/http-trust-query');
 const { runPublicApiCommand } = require('./lib/http/public-api-commands');
 const { V2_STATUS_PHASES } = require('./lib/http/v2-status-phases');
+
+const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, decision }) => decideIngestApproval({ store: getIngestApprovalStore(), kernel, approvalId, decision, handleIngest, ensureRuntime: ensureCompanyRuntime, recordAudit: recordIngestApprovalAudit, toPublicApproval: publicIngestApproval, workerId: INGEST_APPROVAL_WORKER_ID, leaseMs: INGEST_APPROVAL_LEASE_MS }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest: (req, res) => parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_JSON_BODY }), writeJson });
 
 function checkViewerRateLimit(req, timestamp = Date.now()) {
   const key = String(req.socket?.remoteAddress || 'unknown');
@@ -483,8 +479,9 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (handleWorkflowContractRoute(req, res, reqUrl)) return;
-  if (await handleReadWorkflow(req, res, reqUrl)) return;
+  if (handleWorkflowContractRoute(req, res, reqUrl) || await handleReadWorkflow(req, res, reqUrl)) return;
+  if (await handleWorkflowDataRoute(req, res, reqUrl)) return;
+  // --- /graph-data ---
   if (reqUrl.pathname === '/graph-data') {
     if (req.method !== 'GET') {
       res.writeHead(405); res.end(); return;
