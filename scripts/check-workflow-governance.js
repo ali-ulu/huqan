@@ -9,6 +9,23 @@ const files = fs.readdirSync(workflowDirectory)
   .sort();
 const failures = [];
 
+function stripComments(source) {
+  return source
+    .split(/\r?\n/)
+    .map((line) => line.replace(/(^|\s)#.*$/, '$1'))
+    .join('\n');
+}
+
+function hasPullRequestTargetTrigger(source) {
+  const clean = stripComments(source);
+
+  if (/^\s*pull_request_target\s*:/m.test(clean)) return true;
+  if (/^\s*on\s*:\s*\[[^\]]*\bpull_request_target\b[^\]]*\]/m.test(clean)) return true;
+  if (/^\s*on\s*:\s*\{[^}]*\bpull_request_target\b[^}]*\}/m.test(clean)) return true;
+
+  return false;
+}
+
 for (const file of files) {
   const fullPath = path.join(workflowDirectory, file);
   const source = fs.readFileSync(fullPath, 'utf8');
@@ -22,7 +39,7 @@ for (const file of files) {
     failures.push(`${file}: pull_request workflow must define concurrency`);
   }
 
-  if (/^\s*pull_request_target:\s*$/m.test(source)) {
+  if (hasPullRequestTargetTrigger(source)) {
     failures.push(`${file}: pull_request_target is not allowed in repository workflows`);
   }
 
