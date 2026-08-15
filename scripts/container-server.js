@@ -5,13 +5,19 @@ const {
   validateEnvironmentCompatibility,
 } = require('../lib/environment-compat');
 
+// AGENT_VERSION is deliberately absent (#774). agentRuntime pins AgentV3 as
+// the canonical agent and rejects every non-empty selector other than 'v3', so
+// defaulting the variable at all can only produce one of two wrong outcomes: a
+// legacy value the factory refuses -- which is what 'v2' here did, breaking
+// agent-backed endpoints in a default container the operator never configured
+// -- or a second copy of the canonical literal that can drift from the
+// factory's. Absence already means canonical, so absence is the default.
 const defaults = Object.freeze({
   HOST: '0.0.0.0',
   MEMORY_PATH: '/app/data/memory.json',
   DB_PATH: '/app/data/memory.db',
   BACKUP_DIR: '/app/data/backups',
   KERNEL_VERSION: 'v2',
-  AGENT_VERSION: 'v2',
   TRUST_PROXY: '0',
 });
 
