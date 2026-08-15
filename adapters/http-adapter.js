@@ -98,11 +98,17 @@ async function rawFetch(urlString, options = {}) {
  * validation on every hop -- a same-origin-looking first response can still
  * redirect to an internal address, so the guard has to run again rather
  * than only once for the URL the caller supplied.
+ *
+ * `options.onRedirect(nextUrl)` runs before the hop is fetched and may throw
+ * to refuse it. Policy that is decided per URL belongs there rather than
+ * around this call: the caller's URL says nothing about where it redirects
+ * to (#762).
  */
 async function fetchUrl(urlString, options = {}) {
   let currentUrl = urlString;
   let redirects = 0;
   const maxRedirects = options.maxRedirects ?? DEFAULT_MAX_REDIRECTS;
+  const onRedirect = typeof options.onRedirect === 'function' ? options.onRedirect : null;
 
   for (;;) {
     const res = await rawFetch(currentUrl, options);
@@ -112,6 +118,9 @@ async function fetchUrl(urlString, options = {}) {
       }
       currentUrl = new URL(res.headers.location, currentUrl).toString();
       redirects += 1;
+      // Before the hop is fetched, never after: refusing a URL we already
+      // downloaded would not be a refusal.
+      if (onRedirect) await onRedirect(currentUrl);
       continue;
     }
     return { ...res, finalUrl: currentUrl, redirects };
@@ -164,7 +173,12 @@ async function isAllowedByRobots(urlString, options = {}) {
   if (!entry || (Date.now() - entry.fetchedAt) > ttl) {
     let disallow = [];
     try {
-      const res = await fetchUrl(`${origin}/robots.txt`, { ...options, maxBytes: 200 * 1024 });
+      // `onRedirect` is dropped deliberately: fetching robots.txt is how the
+      // robots check is answered, so carrying the check into that fetch would
+      // recurse. Every hop still goes through rawFetch's SSRF validation, so
+      // dropping it removes no guard.
+      const { onRedirect: _ignored, ...robotsOptions } = options;
+      const res = await fetchUrl(`${origin}/robots.txt`, { ...robotsOptions, maxBytes: 200 * 1024 });
       if (res.statusCode < 400) {
         disallow = parseRobotsDisallow(res.body.toString('utf8'), options.userAgent || DEFAULT_USER_AGENT);
       }
@@ -179,6 +193,15 @@ async function isAllowedByRobots(urlString, options = {}) {
   }
 
   return !entry.disallow.some((prefix) => parsed.pathname.startsWith(prefix));
+}
+
+/** isAllowedByRobots, raised as the adapter's refusal when the answer is no. */
+async function assertRobotsAllows(urlString, options) {
+  if (await isAllowedByRobots(urlString, options)) return;
+  throw Object.assign(
+    new Error(`http-adapter: ${urlString} is disallowed by robots.txt`),
+    { code: 'HTTP_ROBOTS_DISALLOWED', url: urlString }
+  );
 }
 
 function decodeEntities(text) {
@@ -238,12 +261,8 @@ async function ingestUrl(urlString, options = {}) {
   const userAgent = options.userAgent || DEFAULT_USER_AGENT;
   const fetchOptions = { ...options, userAgent };
 
-  if (options.respectRobots !== false) {
-    const allowed = await isAllowedByRobots(urlString, fetchOptions);
-    if (!allowed) {
-      throw Object.assign(new Error(`http-adapter: ${urlString} is disallowed by robots.txt`), { code: 'HTTP_ROBOTS_DISALLOWED' });
-    }
-  }
+  const respectRobots = options.respectRobots !== false;
+  if (respectRobots) await assertRobotsAllows(urlString, fetchOptions);
 
   const cache = options.responseCache || defaultResponseCache;
   const cacheTtlMs = options.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS;
@@ -252,9 +271,15 @@ async function ingestUrl(urlString, options = {}) {
   // Refresh the cache on a miss (no entry OR expired entry), not only when the
   // entry was absent. Previously an expired entry was never replaced, so every
   // subsequent request re-fetched forever.
+  // A redirect target is a different source with its own policy, and it may
+  // be on a different origin entirely, so each hop is checked against its own
+  // robots.txt before it is fetched (#762).
   const result = cacheFresh
     ? cached.result
-    : await fetchUrl(urlString, fetchOptions);
+    : await fetchUrl(urlString, {
+      ...fetchOptions,
+      onRedirect: respectRobots ? (hopUrl) => assertRobotsAllows(hopUrl, fetchOptions) : undefined,
+    });
   if (!cacheFresh) cache.set(urlString, { fetchedAt: Date.now(), result });
 
   if (result.statusCode >= 400) {
@@ -371,6 +396,7 @@ module.exports = {
   fetchUrl,
   parseRobotsDisallow,
   isAllowedByRobots,
+  assertRobotsAllows,
   parseHtml,
   ingestUrl,
   ingestUrls,
