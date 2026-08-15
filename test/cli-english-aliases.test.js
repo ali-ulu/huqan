@@ -14,14 +14,14 @@ test('CLI parse maps English learn and teach aliases to the Turkish teach comman
   const cli = createCli();
   const teachCommand = turkishCommand(cli, '\u00f6\u011fret: K\u00f6pek hayvand\u0131r');
 
-  assert.deepStrictEqual(cli.parse('learn: cats are animals'), { command: teachCommand, args: 'cats are animals' });
-  assert.deepStrictEqual(cli.parse('teach: cats are animals'), { command: teachCommand, args: 'cats are animals' });
+  assert.deepStrictEqual(cli.parse('learn: cats are animals'), { command: teachCommand, args: 'cats are animals', workflowId: 'learn-review' });
+  assert.deepStrictEqual(cli.parse('teach: cats are animals'), { command: teachCommand, args: 'cats are animals', workflowId: 'learn-review' });
 });
 
 test('CLI parse maps English ask and why aliases', () => {
   const cli = createCli();
-  assert.deepStrictEqual(cli.parse('ask: cat nedir'), { command: 'sor', args: 'cat nedir' });
-  assert.deepStrictEqual(cli.parse('why: tavuk'), { command: 'neden', args: 'tavuk' });
+  assert.deepStrictEqual(cli.parse('ask: cat nedir'), { command: 'sor', args: 'cat nedir', workflowId: 'ask' });
+  assert.deepStrictEqual(cli.parse('why: tavuk'), { command: 'neden', args: 'tavuk', workflowId: 'reason' });
 });
 
 test('CLI parse maps English compare, verify, and upload aliases', () => {
@@ -29,10 +29,10 @@ test('CLI parse maps English compare, verify, and upload aliases', () => {
   const compareCommand = turkishCommand(cli, 'tavuk ile yumurta aras\u0131nda kar\u015f\u0131la\u015ft\u0131r');
   const uploadCommand = turkishCommand(cli, 'y\u00fckle: bilgi.txt');
 
-  assert.deepStrictEqual(cli.parse('compare: tavuk | yumurta'), { command: compareCommand, args: 'tavuk|yumurta' });
-  assert.deepStrictEqual(cli.parse('compare: tavuk vs yumurta'), { command: compareCommand, args: 'tavuk|yumurta' });
-  assert.deepStrictEqual(cli.parse('verify: kedi bitkidir'), { command: 'verify', args: 'kedi bitkidir' });
-  assert.deepStrictEqual(cli.parse('upload: notes.txt'), { command: uploadCommand, args: 'notes.txt' });
+  assert.deepStrictEqual(cli.parse('compare: tavuk | yumurta'), { command: compareCommand, args: 'tavuk|yumurta', workflowId: 'compare' });
+  assert.deepStrictEqual(cli.parse('compare: tavuk vs yumurta'), { command: compareCommand, args: 'tavuk|yumurta', workflowId: 'compare' });
+  assert.deepStrictEqual(cli.parse('verify: kedi bitkidir'), { command: 'verify', args: 'kedi bitkidir', workflowId: 'verify' });
+  assert.deepStrictEqual(cli.parse('upload: notes.txt'), { command: uploadCommand, args: 'notes.txt', workflowId: 'learn-review' });
 });
 
 test('CLI help text advertises English-first aliases while preserving Turkish compatibility', () => {

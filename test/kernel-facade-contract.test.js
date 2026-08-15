@@ -464,6 +464,24 @@ test('4C1: installed tarball smoke — all retained deep imports load', () => {
 
 });
 
+test('4C1: installed tarball CLI exposes the stable JSON workflow contract', () => {
+  const result = runInstalledNode(`
+    const CLI = require('huqan/cli');
+    const output = [];
+    const cli = {
+      parse: () => ({ command: 'sor', args: 'cat nedir', workflowId: 'ask' }),
+      _evaluateCliGate: () => null,
+      execute: () => 'Cevap: cat',
+    };
+    CLI.runCliArgv(['--json', 'ask:', 'cat', 'nedir'], { cli, stdout: value => output.push(value) })
+      .then(result => {
+        const envelope = JSON.parse(output[0]);
+        if (result.exitCode !== 0 || envelope.workflowId !== 'ask' || envelope.status !== 'completed') process.exit(2);
+      });
+  `);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+});
+
 test('4C1: installed CLI help smoke', () => {
   const info = setupTarballInstall();
   // Use node directly to run the installed CLI entrypoint

@@ -132,6 +132,7 @@
         "lib/code-change-gate.js",
         "lib/command-exec-gate.js",
         "lib/cli-help.js",
+        "lib/cli-workflow-adapter.js",
         "lib/cli-mutation-audit-intent.js",
         "lib/cli-mutation-audit.js",
         "lib/cli-mutation-gate.js",

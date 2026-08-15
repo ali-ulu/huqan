@@ -14,6 +14,7 @@ const readline = require('readline');
 const { isPathWithinRoot } = require('./lib/path-safety');
 const { createKernel } = require('./lib/kernel-factory');
 const { cliHelpText } = require('./lib/cli-help');
+const { runCliArgv: runWorkflowCliArgv } = require('./lib/cli-workflow-adapter');
 const { runQuickstartCommand } = require('./lib/quickstart-cli');
 const {
   parseCommand,
@@ -334,6 +335,7 @@ class CLI {
       case 'plan': {
         const result = this.agent.plan(args);
         const plan = unwrapAgentPayload(result);
+        if (opts.json) return result;
         const steps = (plan.steps || []).map((step, index) => `  ${index + 1}. ${step.action} -> ${step.tool} | ${step.rationale}`).join('\n');
         const nextAction = plan.nextAction ? `${plan.nextAction.action} -> ${plan.nextAction.tool}` : 'none';
         const recommendations = Array.isArray(plan.recommendations?.items) ? plan.recommendations.items : [];
@@ -351,6 +353,7 @@ class CLI {
       }
       case 'ajan': {
         const result = this.agent.run(args);
+        if (opts.json) return result;
         return result && typeof result.then === 'function'
           ? result.then(resolved => formatAgentRunResult(this.agent, resolved))
           : formatAgentRunResult(this.agent, result);
@@ -809,66 +812,10 @@ class CLI {
 }
 
 async function runCliArgv(argv = [], io = {}) {
-  const args = Array.from(argv || [], value => String(value));
-  const stdout = typeof io.stdout === 'function' ? io.stdout : console.log;
-  const stderr = typeof io.stderr === 'function' ? io.stderr : console.error;
-
-  if (args.length === 0) {
-    return { interactive: true, exitCode: 0 };
-  }
-
-  if (args.length === 1 && ['--help', '-h'].includes(args[0])) {
-    const cli = new CLI({ kernel: { noLoad: true, loadPlugins: false } });
-    stdout(cli.execute('yardım', ''));
-    return { interactive: false, exitCode: 0 };
-  }
-
-  if (args.length === 1 && ['--version', '-v'].includes(args[0])) {
-    stdout(require('./package.json').version);
-    return { interactive: false, exitCode: 0 };
-  }
-
-  if (args[0].startsWith('-')) {
-    stderr(`Unknown option: ${args[0]}`);
-    return { interactive: false, exitCode: 2 };
-  }
-
-  const cli = io.cli || new CLI();
-  try {
-    if (!io.cli && cli.kernel && typeof cli.kernel.reload === 'function') {
-      cli.kernel.reload();
-    }
-    const parsed = cli.parse(args.join(' '));
-    if (!parsed || parsed.command === 'anlamadım' || parsed.command === 'exit') {
-      stderr(`Unknown command: ${args.join(' ')}`);
-      return { interactive: false, exitCode: 2 };
-    }
-
-    const gateResult = cli._evaluateCliGate(parsed.command, parsed.args);
-    if (gateResult && !gateResult.canExecute) {
-      stdout(cli._formatCliGateMessage(parsed.command, gateResult));
-      return {
-        interactive: false,
-        exitCode: 3,
-        command: parsed.command,
-        decision: gateResult.decision,
-      };
-    }
-
-    const output = await cli.execute(parsed.command, parsed.args, {
-      gateResult,
-      throwOnError: true,
-    });
-    stdout(typeof output === 'string' ? output : JSON.stringify(output));
-    return {
-      interactive: false,
-      exitCode: 0,
-      command: parsed.command,
-    };
-  } catch (error) {
-    stderr(`Command error: ${error?.message || error}`);
-    return { interactive: false, exitCode: error?.exitCode || 1 };
-  }
+  return runWorkflowCliArgv(argv, io, {
+    createCli: options => new CLI(options),
+    version: require('./package.json').version,
+  });
 }
 
 async function main(argv = process.argv.slice(2)) {
