@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { resolvePersistencePaths } = require('./persistencePaths');
 const { resolvePathWithinRoot } = require('./lib/path-safety');
 
@@ -175,6 +176,8 @@ function createBackup(opts = {}) {
 
     const receipt = buildOperationReceipt(operationId, 'backup', startedAt, 'complete');
     const manifest = {
+      formatVersion: 1,
+      schemaVersion: 1,
       backupId,
       createdAt: receipt.completedAt,
       rootDir: runtime.rootDir,
@@ -264,6 +267,40 @@ function atomicReplaceFile(source, destination) {
   }
 }
 
+function fileDigest(filePath) {
+  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
+
+function previewRestore(opts = {}) {
+  const runtime = resolveRuntimePaths(opts);
+  const sourceDir = resolveRestoreSource({ ...opts, rootDir: runtime.rootDir, backupBaseDir: runtime.backupBaseDir });
+  if (!sourceDir || !fs.existsSync(sourceDir)) throw new Error(`Backup directory not found: ${sourceDir || runtime.backupBaseDir}`);
+  const manifestPath = resolvePathWithinRoot(sourceDir, path.join(sourceDir, 'manifest.json'));
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  const files = runtime.files.map(destination => {
+    const name = path.basename(destination);
+    const source = resolvePathWithinRoot(sourceDir, path.join(sourceDir, name), { allowMissing: true });
+    const sourceExists = fs.existsSync(source);
+    const targetExists = fs.existsSync(destination);
+    return {
+      name,
+      action: sourceExists ? 'replace' : 'skip',
+      conflict: sourceExists && targetExists && fileDigest(source) !== fileDigest(destination),
+      sourceSize: sourceExists ? fs.statSync(source).size : null,
+      targetSize: targetExists ? fs.statSync(destination).size : null,
+    };
+  });
+  return {
+    ok: true,
+    dryRun: true,
+    sourceDir,
+    schemaVersion: manifest.schemaVersion || manifest.formatVersion || 1,
+    scope: { rootDir: runtime.rootDir, files },
+    conflicts: files.filter(file => file.conflict).map(file => file.name),
+    manifest: { backupId: manifest.backupId, createdAt: manifest.createdAt, files: manifest.files || [] },
+  };
+}
+
 /**
  * Restores AXIOM state files from a selected or latest backup directory.
  *
@@ -286,6 +323,7 @@ function restoreBackup(opts = {}) {
     throw new Error(`Backup directory not found: ${sourceDir || runtime.backupBaseDir}`);
   }
 
+  const preview = previewRestore({ ...opts, rootDir: runtime.rootDir, backupBaseDir: runtime.backupBaseDir });
   const operationId = newOperationId('restoreop');
   const startedAt = new Date().toISOString();
 
@@ -336,6 +374,21 @@ function restoreBackup(opts = {}) {
     skipped,
     safetyBackupDir: safety.backupDir,
   });
+  const verification = {
+    persistence: restored.length > 0 && restored.every(name => fs.existsSync(runtime.files.find(file => path.basename(file) === name))),
+    schema: Number.isFinite(Number(preview.schemaVersion)),
+    graphIntegrity: restored.length > 0 && restored.every(name => {
+      const destination = runtime.files.find(file => path.basename(file) === name);
+      return fileDigest(destination) === fileDigest(path.join(sourceDir, name));
+    }),
+    receipt: receipt.status === 'complete' && receipt.operationId === operationId,
+  };
+  if (!Object.values(verification).every(Boolean)) {
+    const error = new Error('Post-restore verification failed. Use the safety backup before retrying.');
+    error.code = 'RESTORE_VERIFICATION_FAILED';
+    error.receipt = { ...receipt, status: 'partial', verification };
+    throw error;
+  }
 
   return {
     ok: true,
@@ -344,7 +397,22 @@ function restoreBackup(opts = {}) {
     skipped,
     safetyBackupDir: safety.backupDir,
     receipt,
+    preview,
+    verification,
   };
+}
+
+function runCliRestore(args, opts = {}) {
+  const requested = args && typeof args === 'object' ? args : { backupDir: args || undefined };
+  return requested.dryRun
+    ? previewRestore({ ...opts, backupDir: requested.backupDir || undefined })
+    : restoreBackup({ ...opts, backupDir: requested.backupDir || undefined });
+}
+
+function formatCliRestore(result, json = false) {
+  if (json) return result;
+  if (result.dryRun) return `Restore dry-run: ${result.scope.files.length} files, ${result.conflicts.length} conflicts, schema ${result.schemaVersion}.`;
+  return `Restore tamamlandi: ${result.restored.length} dosya geri yüklendi. Guvenlik yedegi: ${result.safetyBackupDir}. Verification: ${Object.values(result.verification).every(Boolean) ? 'passed' : 'failed'}`;
 }
 
 module.exports = {
@@ -353,5 +421,8 @@ module.exports = {
   listBackups,
   resolveRuntimePaths,
   restoreBackup,
+  previewRestore,
+  runCliRestore,
+  formatCliRestore,
   timestamp,
 };
