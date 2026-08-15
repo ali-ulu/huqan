@@ -1,0 +1,150 @@
+name: Dependency Audit
+
+on:
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'obsidian-plugin/package.json'
+      - 'obsidian-plugin/package-lock.json'
+      - 'packages/**/package.json'
+      - 'packages/**/package-lock.json'
+      - '.github/workflows/dependency-audit.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'obsidian-plugin/package.json'
+      - 'obsidian-plugin/package-lock.json'
+      - 'packages/**/package.json'
+      - 'packages/**/package-lock.json'
+      - '.github/workflows/dependency-audit.yml'
+  schedule:
+    # Weekly full dependency audit and update report.
+    - cron: '30 9 * * 1'
+  workflow_dispatch:
+
+# Do not spend runners on stale dependency scans after a new PR push.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  dependency-audit:
+    name: Dependency audit (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: root
+            directory: .
+            lockfile: package-lock.json
+          - name: obsidian-plugin
+            directory: obsidian-plugin
+            lockfile: obsidian-plugin/package-lock.json
+
+    defaults:
+      run:
+        working-directory: ${{ matrix.directory }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ${{ matrix.lockfile }}
+
+      - name: Install dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+
+      - name: Run npm audit at the high-severity threshold
+        id: audit
+        continue-on-error: true
+        run: |
+          set +e
+          npm audit --audit-level=high --json > audit.json 2> audit.stderr
+          status=$?
+          set -e
+          printf 'status=%s\n' "$status" >> "$GITHUB_OUTPUT"
+          if [[ -s audit.stderr ]]; then
+            cat audit.stderr
+          fi
+          exit 0
+
+      - name: Report outdated dependencies
+        if: always()
+        run: |
+          set +e
+          npm outdated --json > outdated.json 2> outdated.stderr
+          status=$?
+          set -e
+          if [[ "$status" -gt 1 ]]; then
+            cat outdated.stderr
+            exit "$status"
+          fi
+          {
+            echo "## ${{ matrix.name }} dependency update report"
+            if [[ -s outdated.json && "$(cat outdated.json)" != "{}" ]]; then
+              echo '```json'
+              cat outdated.json
+              echo '```'
+            else
+              echo 'No outdated dependencies reported by npm.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce audit threshold
+        if: always()
+        run: |
+          status='${{ steps.audit.outputs.status }}'
+          if [[ "$status" != '0' ]]; then
+            echo "npm audit reported high or critical vulnerabilities for ${{ matrix.name }}."
+            if [[ -s audit.json ]]; then
+              cat audit.json
+            fi
+            exit 1
+          fi
+          echo "npm audit passed at the high-severity threshold for ${{ matrix.name }}."
+
+      - name: Upload dependency reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: dependency-audit-${{ matrix.name }}
+          path: |
+            ${{ matrix.directory }}/audit.json
+            ${{ matrix.directory }}/audit.stderr
+            ${{ matrix.directory }}/outdated.json
+            ${{ matrix.directory }}/outdated.stderr
+          if-no-files-found: warn
+          retention-days: 14
+
+  # The repository Dependency Graph is currently unavailable, so npm audit is
+  # the primary fail-closed security gate. Dependency Review can be added here
+  # after the repository feature is enabled in GitHub settings.
+  dependency-audit-gate:
+    name: Dependency Audit Gate
+    if: always()
+    needs:
+      - dependency-audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Enforce dependency audit result
+        run: |
+          if [[ '${{ needs.dependency-audit.result }}' != 'success' ]]; then
+            echo 'Dependency audit matrix failed.'
+            exit 1
+          fi
+          echo 'Dependency audit passed.'
