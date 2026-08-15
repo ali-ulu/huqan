@@ -8,6 +8,7 @@ const path = require('node:path');
 const CLI = require('../cli');
 const { callTool } = require('../mcpServer');
 const { runCliArgv } = CLI;
+const { projectApprovalRecord } = require('../lib/mcp-approval-views');
 
 function withTempAxiomEnv(fn) {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cli-approval-'));
@@ -58,6 +59,9 @@ test('CLI parses approval queue and explicit approval commands', () => {
   const cli = new CLI({ kernel: { noLoad: true, loadPlugins: false } });
   try {
     assert.deepEqual(cli.parse('onaylar'), { command: 'onaylar', args: '', workflowId: 'approvals' });
+    assert.deepEqual(cli.parse('approvals show approval-123'), {
+      command: 'onaylar', args: { approvalId: 'approval-123' }, workflowId: 'approvals',
+    });
     assert.deepEqual(cli.parse('onayla approval-123 rejected'), {
       command: 'onayla', args: { approvalId: 'approval-123', decision: 'rejected', invalidDecision: false }, workflowId: 'approval-decision',
     });
@@ -70,6 +74,19 @@ test('CLI parses approval queue and explicit approval commands', () => {
   } finally {
     closeCli(cli);
   }
+});
+
+test('approval projection is stable and redacts secret-bearing context', () => {
+  const projected = projectApprovalRecord({
+    id: 'approval-real', tool: 'huqan.learn', status: 'pending', input: '{}',
+    context: { source: 'mcp', provenance: { token: 'secret-sentinel' }, args: { text: 'safe claim' } },
+    policy: { reason: 'review', apiKey: 'another-secret' },
+  });
+  assert.equal(projected.id, 'approval-real');
+  assert.equal(projected.claim, 'safe claim');
+  assert.equal(projected.provenance.token, '[REDACTED]');
+  assert.equal(projected.policy.apiKey, '[REDACTED]');
+  assert.equal(JSON.stringify(projected).includes('secret-sentinel'), false);
 });
 
 test('CLI uses the same env-backed persistence paths as MCP', () => {
@@ -112,11 +129,32 @@ test('CLI lists and resolves the same persisted MCP approval without a bypass', 
       // the `onayla` assertions below prove.
       assert.match(listedOutput.join('\n'), /huqan\.learn/);
 
+      const jsonListOutput = [];
+      const jsonList = await runCliArgv(['--json', 'onaylar'], { cli, stdout: value => jsonListOutput.push(value) });
+      const jsonListBody = JSON.parse(jsonListOutput[0]);
+      assert.equal(jsonList.exitCode, 0);
+      assert.equal(jsonListBody.data.approvals[0].id, queued.approval.id);
+      assert.equal(jsonListBody.data.approvals[0].context.source, 'mcp');
+      assert.ok(Object.hasOwn(jsonListBody.data.approvals[0], 'provenance'));
+      assert.ok(Object.hasOwn(jsonListBody.data.approvals[0], 'policy'));
+
+      const detailOutput = [];
+      await runCliArgv(['--json', 'approvals', 'show', queued.approval.id], { cli, stdout: value => detailOutput.push(value) });
+      assert.equal(JSON.parse(detailOutput[0]).data.approval.id, queued.approval.id);
+
       const approvedOutput = [];
       const approved = await runCliArgv(['onayla', queued.approval.id], { cli, stdout: value => approvedOutput.push(value) });
       assert.equal(approved.exitCode, 0);
       assert.match(approvedOutput.join('\n'), /The learned fact was written to canonical state/);
       assert.equal(cli.kernel.verify(text).data.status, 'verified');
+
+      const decisionJsonOutput = [];
+      await runCliArgv(['--json', 'onayla', queued.approval.id], { cli, stdout: value => decisionJsonOutput.push(value) });
+      const decisionJson = JSON.parse(decisionJsonOutput[0]);
+      assert.equal(decisionJson.data.idempotent, true);
+      assert.equal(decisionJson.data.executed, false);
+      assert.ok(Object.hasOwn(decisionJson.data, 'result'));
+      assert.ok(Object.hasOwn(decisionJson.data, 'receipt'));
 
       const invalidOutput = [];
       const invalid = await runCliArgv(['onayla', queued.approval.id, 'maybe'], {
