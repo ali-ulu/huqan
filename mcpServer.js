@@ -34,6 +34,7 @@ const { VERIFY_ENVELOPE_OUTPUT_SCHEMA } = require('./lib/mcp-tool-data-schemas')
 const { TOOL_SCHEMAS } = require('./lib/mcp-tool-catalog');
 const { mcpWorkflowMetadata } = require('./lib/workflow-contract');
 const { executeMcpReadWorkflow } = require('./lib/mcp/read-workflow-tools');
+const { buildIngestWorkflowPreview } = require('./lib/ingest-workflow-preview');
 function publishMcpWorkflowContract(tool) {
   const workflow = mcpWorkflowMetadata(tool.name);
   if (!workflow) return tool;
@@ -598,6 +599,13 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
     case 'huqan.search':
     case 'huqan.trust_receipt':
       return executeMcpReadWorkflow({ kernel, name, args, gate });
+    case 'huqan.ingest_preview': {
+      const preview = buildIngestWorkflowPreview(args);
+      const result = preview.ok
+        ? kernel._ok('ingest_preview', Object.fromEntries(Object.entries(preview).filter(([key]) => key !== 'ok')))
+        : kernel._fail('ingest_preview', preview.code || 'INGEST_PREVIEW_FAILED', preview.error || 'ingest preview failed');
+      return withMcpToolVerdictSurface(result, name, args, gate);
+    }
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
