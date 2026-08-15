@@ -22,6 +22,55 @@ function argumentsFor(argv) {
   return { command, values };
 }
 
+const API_KEY_ENV = 'HUQAN_API_KEY';
+const STDIN_SOURCE = '-';
+
+/**
+ * Reads the bearer credential from somewhere other than argv (#771).
+ *
+ * `--api-key <secret>` put the credential in the process command line, which
+ * is readable by other local users through /proc, and lands in shell history,
+ * CI command logs, job metadata and crash diagnostics. So the secret comes
+ * from the environment, a mode-checked file, or stdin, and only a *reference*
+ * to it may appear on the command line.
+ *
+ * Two sources at once is an error rather than a silent precedence rule: if the
+ * caller is confused about which credential is in play, guessing for them is
+ * how the wrong key gets used against the wrong server.
+ */
+function readApiKey(values) {
+  const fromEnv = process.env[API_KEY_ENV];
+  const hasEnv = typeof fromEnv === 'string' && fromEnv.trim() !== '';
+  const source = values['api-key-file'];
+  const hasSource = typeof source === 'string' && source !== '';
+
+  if (hasEnv && hasSource) {
+    throw new Error(`ambiguous credential: both ${API_KEY_ENV} and --api-key-file are set; supply exactly one`);
+  }
+  if (!hasEnv && !hasSource) {
+    throw new Error(`no credential: set ${API_KEY_ENV}, or pass --api-key-file <path> (or - for stdin)`);
+  }
+
+  const key = hasEnv ? fromEnv : readKeyFile(source);
+  const trimmed = key.trim();
+  // Never echo the value, here or anywhere else: the point of moving it off
+  // argv is that it stops appearing in places it was not meant to.
+  if (!trimmed) throw new Error('credential is empty');
+  return trimmed;
+}
+
+function readKeyFile(source) {
+  if (source === STDIN_SOURCE) return fs.readFileSync(0, 'utf8');
+  const stats = fs.statSync(source);
+  // A world- or group-readable key file is the same disclosure this change is
+  // closing, one step removed. Windows does not carry meaningful POSIX modes,
+  // so the check would only ever produce a false refusal there.
+  if (process.platform !== 'win32' && (stats.mode & 0o077) !== 0) {
+    throw new Error('credential file must not be group- or world-readable (chmod 600)');
+  }
+  return fs.readFileSync(source, 'utf8');
+}
+
 function readObject(filename) {
   const value = JSON.parse(fs.readFileSync(filename, 'utf8'));
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('JSON input must be an object');
@@ -120,12 +169,19 @@ async function main() {
     process.stdout.write(`verified: ${receiptId}\n`);
     return;
   }
-  if (command !== 'admit' || !values.url || !values['api-key'] || !values.input || !values.output
-    || Object.keys(values).length !== 4) {
-    throw new Error('usage: admit --url <url> --api-key <key> --input <envelope.json> --output <response.json>');
+  if (Object.hasOwn(values, 'api-key')) {
+    // Named explicitly so the failure is legible, and without repeating the
+    // value that was just exposed by being typed there.
+    throw new Error(`--api-key is not supported: argv is visible to other processes; use ${API_KEY_ENV} or --api-key-file`);
   }
+  const allowed = new Set(['url', 'input', 'output', 'api-key-file']);
+  if (command !== 'admit' || !values.url || !values.input || !values.output
+    || Object.keys(values).some((key) => !allowed.has(key))) {
+    throw new Error(`usage: admit --url <url> --input <envelope.json> --output <response.json> [--api-key-file <path|->]\n  the bearer credential is read from ${API_KEY_ENV} or --api-key-file (- reads stdin); exactly one source`);
+  }
+  const apiKey = readApiKey(values);
   if (fs.existsSync(values.output)) throw new Error('output file already exists');
-  const result = await request(values.url, values['api-key'], readObject(values.input));
+  const result = await request(values.url, apiKey, readObject(values.input));
   if (!validSuccess(result)) throw new Error('server returned an invalid success artifact');
   fs.writeFileSync(values.output, `${JSON.stringify(result, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
   process.stdout.write(`accepted: ${result.receiptId}\n`);
