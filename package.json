@@ -109,7 +109,6 @@
         "lib/agent-loop-budget-gate.js",
         "lib/agent-memory-state.js",
         "lib/approval-flow.js",
-        "lib/approval-queue.js",
         "lib/approval-schema.js",
         "lib/atp-conformance.js",
         "lib/audit-bounded-read.js",

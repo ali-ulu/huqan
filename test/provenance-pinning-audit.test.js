@@ -34,7 +34,6 @@ const PROVENANCE_PATHS = [
   'lib/conflict-detector.js',
   'lib/connectors/entry-ingest-flow.js',
   'lib/github-connector.js',
-  'lib/reviewed-external-graph-execution.js',
   'plugins/repo-memory.js',
   'lib/repo-file-pin.js',
 ];
@@ -82,9 +81,6 @@ const NOT_PINNED = {
     + 'run. It reads nothing itself: every entry, including its sourceRef, is '
     + 'handed to it by an adapter that already pinned the content, so it has '
     + 'nothing of its own to pin and forwards what it was given.',
-  'lib/reviewed-external-graph-execution.js':
-    'executes a graph operation that was already reviewed; the provenance '
-    + 'describes the review, not a fetched document.',
 };
 
 function sourceOf(rel) {
