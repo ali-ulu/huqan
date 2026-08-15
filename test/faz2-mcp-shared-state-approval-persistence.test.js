@@ -254,7 +254,7 @@ test('FAZ2-5: finalization exceptions are structured and leave a visible unresol
     const text = 'faz2 mcp finalization failure sentinel hayvandir';
     const server = createServer();
     const queued = callTool(server, 'axiom.learn', { text });
-    server.approvalStore.resolveToolApproval = () => {
+    server.approvalStore.finalizeToolApprovalWithReceipt = () => {
       const error = new Error('forced finalization failure');
       error.code = 'FORCED_FINALIZATION_FAILURE';
       throw error;
@@ -278,6 +278,37 @@ test('FAZ2-5: finalization exceptions are structured and leave a visible unresol
       approval.id === queued.approval.id && approval.status === 'executing'
     )));
     closeServer(server);
+  });
+});
+
+test('FAZ2-5: approval persists canonical receipt and idempotent repeats preserve all execution refs', async () => {
+  await withTempAxiomEnv(async () => {
+    const server = createServer();
+    const queued = callTool(server, 'huqan.learn', { text: 'approval receipt parity sentinel hayvandir' });
+    const first = callTool(server, 'huqan.approve', {
+      approvalId: queued.approval.id,
+      decision: 'approved',
+    });
+    closeServer(server);
+    const restarted = createServer();
+    const repeat = callTool(restarted, 'huqan.approve', {
+      approvalId: queued.approval.id,
+      decision: 'approved',
+    });
+
+    assert.equal(first.ok, true);
+    assert.equal(first.data.executed, true);
+    assert.ok(first.data.receipt.receiptId);
+    assert.equal(first.data.refs.receiptId, first.data.receipt.receiptId);
+    assert.ok(first.data.refs.auditId);
+    assert.ok(first.data.refs.candidateId);
+    assert.ok(first.data.refs.provenanceId);
+    assert.equal(repeat.data.idempotent, true);
+    assert.equal(repeat.data.executed, false);
+    assert.deepEqual(repeat.data.receipt, first.data.receipt);
+    assert.deepEqual(repeat.data.refs, first.data.refs);
+    assert.equal(repeat.receiptId, first.receiptId);
+    closeServer(restarted);
   });
 });
 

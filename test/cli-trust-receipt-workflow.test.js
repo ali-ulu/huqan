@@ -66,7 +66,7 @@ test('CLI reads the original materialized Trust Receipt without synthesizing one
   });
 });
 
-test('learn review -> approve -> verify reports the real receipt seam or its exact absence', async () => {
+test('CLI executes learn -> review -> approve -> verify -> original receipt with idempotent refs', async () => {
   await withCli(async cli => {
     const claim = 'cli reviewed receipt gap sentinel is verified';
     const queued = callTool(cli.kernel, { name: 'axiom.learn', arguments: { text: claim } }, cli._approvalRuntime());
@@ -81,26 +81,27 @@ test('learn review -> approve -> verify reports the real receipt seam or its exa
     assert.equal(cli.kernel.verify(claim).data.status, 'verified');
 
     const receipt = decision.data.receipt;
-    if (receipt?.receiptId) {
-      const receiptOutput = [];
-      const read = await CLI.runCliArgv(['receipt', receipt.receiptId, '--workspace', 'default', '--json'], {
-        cli, stdout: value => receiptOutput.push(value),
-      });
-      assert.equal(read.exitCode, 0);
-      assert.deepEqual(JSON.parse(receiptOutput[0]).data.receipt, receipt);
-      return;
-    }
+    assert.ok(receipt?.receiptId);
+    assert.equal(decision.receiptId, receipt.receiptId);
+    assert.ok(decision.data.refs.auditId);
+    assert.ok(decision.data.refs.candidateId);
+    assert.ok(decision.data.refs.provenanceId);
 
-    assert.equal(receipt, null, 'approval projection must not invent a receipt');
-    const before = listMaterializedReceiptEntries(cli.kernel.graph, { workspaceId: 'default' }).length;
-    const unavailableOutput = [];
-    const unavailable = await CLI.runCliArgv(['receipt', queued.approval.id, '--workspace', 'default', '--json'], {
-      cli, stdout: value => unavailableOutput.push(value),
+    const receiptOutput = [];
+    const read = await CLI.runCliArgv(['receipt', receipt.receiptId, '--workspace', 'default', '--json'], {
+      cli, stdout: value => receiptOutput.push(value),
     });
-    const unavailableEnvelope = JSON.parse(unavailableOutput[0]);
-    assert.equal(unavailable.exitCode, 8);
-    assert.equal(unavailableEnvelope.status, 'failed');
-    assert.match(unavailableEnvelope.error.message, /NOT_FOUND/);
-    assert.equal(listMaterializedReceiptEntries(cli.kernel.graph, { workspaceId: 'default' }).length, before);
+    assert.equal(read.exitCode, 0);
+    assert.deepEqual(JSON.parse(receiptOutput[0]).data.receipt, receipt);
+
+    const repeatOutput = [];
+    await CLI.runCliArgv(['onayla', queued.approval.id, '--json'], {
+      cli, stdout: value => repeatOutput.push(value),
+    });
+    const repeat = JSON.parse(repeatOutput[0]);
+    assert.equal(repeat.data.idempotent, true);
+    assert.deepEqual(repeat.data.receipt, receipt);
+    assert.deepEqual(repeat.data.refs, decision.data.refs);
+    assert.equal(listMaterializedReceiptEntries(cli.kernel.graph, { workspaceId: 'default' }).length, 1);
   });
 });
