@@ -26,6 +26,12 @@ const { createBackup, restoreBackup } = require('./backupRestore');
 const { resolvePersistencePaths } = require('./persistencePaths');
 const { evaluateMcpGate } = require('./lib/mcp-gate-adapter');
 const {
+  CLI_MUTATION_GATE,
+  auditCliMutation,
+  commitCliMutation,
+  evaluateCliMutationGate,
+} = require('./lib/cli-mutation-gate');
+const {
   callTool: callMcpTool,
   createApprovalStoreFromKernel,
 } = require('./mcpServer');
@@ -148,31 +154,10 @@ function mapCliCommandToMcpTool(command) {
 
 // F-004: CLI mutation/maintenance commands that have no huqan.* MCP tool
 // mapping but still affect persistence, canonical graph, or background
-// automation. Every command here is REST-blocked via requestGuards
-// UNSAFE_PUBLIC_API_COMMANDS; the CLI must likewise never silently bypass the
-// gate. _evaluateCliGate consults this table (instead of returning null) so a
-// gate decision + audit event is always produced for these commands.
-//   - decision 'allow'  → local recovery/persistence ops that must still run
-//                         (test-covered) but are audited (no silent mutation).
-//   - decision 'review' → canonical-graph / automation mutations: gated like
-//                         huqan.learn so execute() short-circuits (no write).
-//   - mutationType 'none' → read-only/control aliases that are merely
-//                           classified (not audited, not blocked).
-const CLI_MUTATION_GATE = Object.freeze({
-  kaydet:    { decision: 'allow',  reason: 'cli_persist_local',                 mutationType: 'persistence',   auditEvent: 'UPDATE' },
-  backup:    { decision: 'allow',  reason: 'cli_backup_export_local',           mutationType: 'export',        auditEvent: 'EXPORTED' },
-  restore:   { decision: 'allow',  reason: 'cli_restore_state_replace_local',   mutationType: 'state_replace', auditEvent: 'IMPORTED' },
-  evolve:    { decision: 'review', reason: 'cli_canonical_mutation_requires_review', mutationType: 'canonical',  auditEvent: 'REVIEW' },
-  optimize:  { decision: 'review', reason: 'cli_canonical_mutation_requires_review', mutationType: 'canonical',  auditEvent: 'REVIEW' },
-  konsolide: { decision: 'review', reason: 'cli_canonical_mutation_requires_review', mutationType: 'canonical',  auditEvent: 'REVIEW' },
-  dusun:     { decision: 'review', reason: 'cli_automation_requires_review',     mutationType: 'automation',    auditEvent: 'REVIEW' },
-  ruya:      { decision: 'allow',  reason: 'cli_read_only_inference',            mutationType: 'none' },
-  // Quickstart mutates only a throwaway demo store it creates itself, never
-  // canonical user memory, so it is allowed rather than review-gated. It is
-  // still audited, and the canonical write it performs inside that store goes
-  // through the normal axiom.learn review + axiom.approve path.
-  quickstart: { decision: 'allow', reason: 'cli_quickstart_isolated_demo_store', mutationType: 'demo_sandbox', auditEvent: 'UPDATE' },
-});
+// automation. Every command in CLI_MUTATION_GATE is REST-blocked via
+// requestGuards UNSAFE_PUBLIC_API_COMMANDS; the CLI must likewise never
+// silently bypass the gate. The table and its decision semantics live in
+// lib/cli-mutation-gate.js alongside the audit write they depend on.
 
 function commandFailure(message, opts = {}, exitCode = 1) {
   if (opts.throwOnError === true) {
@@ -550,11 +535,11 @@ class CLI {
       }
       case 'backup': {
         const result = createBackup(this._backupOptions());
-        return `Backup complete: ${result.backupDir} (${result.copied.length} files)`;
+        return `Backup complete: ${result.backupDir} (${result.copied.length} files)${this._commitCliMutation('backup')}`;
       }
       case 'kaydet':
         this.kernel.persist();
-        return 'Memory saved.';
+        return `Memory saved.${this._commitCliMutation('kaydet')}`;
       case 'onaylar': {
         const result = callMcpTool(
           this.kernel,
@@ -595,7 +580,7 @@ class CLI {
       case 'restore': {
         const result = restoreBackup(this._backupOptions({ backupDir: args || undefined }));
         this.kernel.reload();
-        return `Restore tamamlandi: ${result.restored.length} dosya geri yüklendi. Guvenlik yedegi: ${result.safetyBackupDir}`;
+        return `Restore tamamlandi: ${result.restored.length} dosya geri yüklendi. Guvenlik yedegi: ${result.safetyBackupDir}${this._commitCliMutation('restore')}`;
       }
       case 'düşün': {
         if (args === 'dur') {
@@ -679,15 +664,27 @@ class CLI {
     const handleLine = async (line) => {
       const parsed = this.parse(line);
       if (parsed.command === 'kaydet') {
-        this._auditCliMutation('kaydet', CLI_MUTATION_GATE.kaydet, 'allow', true);
-        this.kernel.persist();
-        console.log('Memory saved.');
+        // Persisting without its audit record is the fail-open this gate
+        // exists to prevent, so an unwritable audit stops the write (#760).
+        const audit = this._auditCliMutation('kaydet', CLI_MUTATION_GATE.kaydet, 'allow', true);
+        if (!audit.auditRecorded) {
+          console.log(`Kaydetme durduruldu: denetim kaydi yazilamadi (${audit.errorCode}).`);
+        } else {
+          this.kernel.persist();
+          console.log(`Memory saved.${this._commitCliMutation('kaydet', CLI_MUTATION_GATE.kaydet)}`);
+        }
       } else if (parsed.command === 'çıkış' || parsed.command === 'exit') {
         const rawCommand = String(line || '').trim().toLowerCase();
         const sourceCommand = rawCommand === 'exit' || rawCommand === 'quit' ? 'exit' : 'cikis';
-        this._auditCliMutation(sourceCommand, CLI_MUTATION_GATE.kaydet, 'allow', true);
-        this.kernel.persist();
-        console.log('Memory saved. Goodbye.');
+        const audit = this._auditCliMutation(sourceCommand, CLI_MUTATION_GATE.kaydet, 'allow', true);
+        if (!audit.auditRecorded) {
+          // Exit still exits — refusing to quit would trap the user — but the
+          // unaudited save does not happen, and the session says so.
+          console.log(`Kaydetmeden cikiliyor: denetim kaydi yazilamadi (${audit.errorCode}).`);
+        } else {
+          this.kernel.persist();
+          console.log(`Memory saved. Goodbye.${this._commitCliMutation(sourceCommand, CLI_MUTATION_GATE.kaydet)}`);
+        }
         rl.close();
         return;
       } else if (parsed.command === 'llm-sor') {
@@ -788,49 +785,19 @@ class CLI {
   // they proceed ungated. Every real mutation attempt is audited (allow OR
   // review) so nothing mutates silently.
   _evaluateCliMutationGate(command, args) {
-    const normalized = normalizeCommandText(command);
-    let classification = CLI_MUTATION_GATE[normalized];
-    // 'düşün dur' stops the auto-think loop — a control action, not a mutation.
-    if (normalized === 'dusun' && String(args || '').trim() === 'dur') {
-      classification = { decision: 'allow', reason: 'cli_automation_stop', mutationType: 'none' };
-    }
-    if (!classification) return null;
-
-    const decision = classification.decision;
-    const canExecute = decision === 'allow';
-    if (classification.mutationType !== 'none') {
-      this._auditCliMutation(normalized, classification, decision, canExecute);
-    }
-    return {
-      ok: true,
-      allowed: canExecute,
-      canExecute,
-      canDryRun: decision === 'review',
-      decision,
-      reason: classification.reason,
-      requiredReview: decision === 'review',
-      dryRunOnly: false,
-      findings: [{ gate: 'CLI', command: normalized, mutationType: classification.mutationType, decision }],
-      warnings: [],
-      metadata: { source: 'cli', command: normalized, mutationType: classification.mutationType },
-    };
+    return evaluateCliMutationGate({ kernel: this.kernel, command, args });
   }
 
-  _auditCliMutation(command, classification, decision, executed) {
-    try {
-      if (!this.kernel || typeof this.kernel.recordCliMutationAudit !== 'function') return;
-      this.kernel.recordCliMutationAudit({
-        sourceCommand: command,
-        mutationType: classification.mutationType,
-        eventType: classification.auditEvent || (decision === 'allow' ? 'UPDATE' : 'REVIEW'),
-        decision,
-        executionEligible: executed,
-        reason: classification.reason,
-        actor: 'cli-user',
-      });
-    } catch (_) {
-      // Audit must never break command execution.
-    }
+  _auditCliMutation(command, classification, decision, executed, phase = 'attempted') {
+    return auditCliMutation(this.kernel, { command, classification, decision, executed, phase });
+  }
+
+  // Records that a mutation actually completed. Its failure is reported, not
+  // fatal: the state change already happened, so refusing it here would only
+  // hide it (#760).
+  _commitCliMutation(command, classification = null) {
+    const audit = commitCliMutation(this.kernel, command, classification);
+    return audit.auditRecorded ? '' : `\nUyari: ${command} tamamlandi ama commit denetim kaydi yazilamadi (${audit.errorCode}).`;
   }
 }
 

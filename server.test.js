@@ -6,6 +6,8 @@ const os = require('os');
 const path = require('path');
 const Graph = require('./graph');
 const { rateLimitMap } = require('./requestGuards');
+const { CANONICAL_AGENT_VERSION } = require('./agentRuntime');
+const { CANONICAL_KERNEL_VERSION } = require('./lib/kernel-factory');
 const { ACTION_OUTCOMES } = require('./lib/workbench/ingest-approval-action');
 
 let PORT;
@@ -839,9 +841,12 @@ describe('Server - API', () => {
     assert.strictEqual(j.remainingPhases, 1);
     assert.strictEqual(typeof j.currentFocus, 'string');
     assert.strictEqual(j.currentFocus, 'v3.0 Agent Workflow');
-    assert.strictEqual(j.agentRuntime, 'v2');
-    assert.strictEqual(j.checkpointBackend, 'json');
-    assert.strictEqual(j.activeKernel, 'v2');
+    // Asserted against the canonical constants, not duplicated literals: the
+    // old expectations ('v2'/'json') were the #755 defect, where status
+    // advertised a runtime the process was not actually running.
+    assert.strictEqual(j.agentRuntime, CANONICAL_AGENT_VERSION);
+    assert.strictEqual(j.checkpointBackend, 'sqlite');
+    assert.strictEqual(j.activeKernel, CANONICAL_KERNEL_VERSION);
     assert.ok(['sqlite', 'json'].includes(j.backend));
     assert.ok(Number.isInteger(j.nodes));
     assert.ok(Number.isInteger(j.edges));
@@ -1034,6 +1039,126 @@ describe('Server - Public API Allowlist Lockdown', () => {
       const j = await r.json();
       assert.ok(j.result.includes('Anlamadım') || j.result.includes('Anlamadim'), `Expected 'Anlamadım' variant for: ${query}, got: ${j.result}`);
     }
+  });
+});
+
+describe('Server - /api/audit is bounded and paginated (#729)', () => {
+  const TARGET = 'audit-pagination-target';
+
+  before(() => {
+    rateLimitMap.clear();
+    // Seeding goes through the live kernel graph the server serves from.
+    const target = require('./server').kernel?.graph;
+    assert.ok(target, 'server must expose its kernel graph for seeding');
+    for (let i = 0; i < 130; i++) {
+      target.appendAuditEvent({
+        eventType: 'APPROVAL_APPROVED',
+        targetType: 'node',
+        targetId: TARGET,
+        workspaceId: 'default',
+        actor: 'reviewer',
+      });
+    }
+  });
+
+  it('caps a page and advertises continuation', async () => {
+    rateLimitMap.clear();
+    const r = await request(`${BASE}/api/audit?workspaceId=default&targetId=${TARGET}`);
+    assert.strictEqual(r.status, 200);
+    const { data } = await r.json();
+    assert.strictEqual(data.items.length, 100);
+    assert.strictEqual(data.limit, 100);
+    assert.strictEqual(data.hasMore, true);
+    assert.ok(data.nextCursor);
+    assert.strictEqual(data.total, data.items.length);
+  });
+
+  it('honours an explicit limit and clamps an oversized one', async () => {
+    rateLimitMap.clear();
+    const small = await request(`${BASE}/api/audit?workspaceId=default&targetId=${TARGET}&limit=10`);
+    assert.strictEqual((await small.json()).data.items.length, 10);
+
+    rateLimitMap.clear();
+    const huge = await request(`${BASE}/api/audit?workspaceId=default&targetId=${TARGET}&limit=100000`);
+    const { data } = await huge.json();
+    assert.ok(data.items.length <= 500, `page was not clamped: ${data.items.length}`);
+    assert.strictEqual(data.limit, 500);
+  });
+
+  it('walks every event through the cursor without duplicates', async () => {
+    const seen = new Set();
+    let cursor = '';
+    let pages = 0;
+    do {
+      rateLimitMap.clear();
+      const url = `${BASE}/api/audit?workspaceId=default&targetId=${TARGET}&limit=40`
+        + (cursor ? `&cursor=${encodeURIComponent(cursor)}` : '');
+      const r = await request(url);
+      assert.strictEqual(r.status, 200);
+      const { data } = await r.json();
+      for (const event of data.items) seen.add(event.auditId);
+      cursor = data.nextCursor || '';
+      pages += 1;
+      assert.ok(pages < 20, 'pagination did not terminate');
+    } while (cursor);
+
+    assert.strictEqual(seen.size, 130);
+  });
+});
+
+describe('Server - unauthenticated /api knowledge disclosure (#727)', () => {
+  // A fact only reachable through kernel.ask(); if an unauthenticated `sor`
+  // ever answers, this token shows up in the response body.
+  const SECRET_SUBJECT = 'zeplinograf';
+  const SECRET_FACT = `${SECRET_SUBJECT} gizlidir`;
+
+  before(async () => {
+    rateLimitMap.clear();
+    const r = await request(`${BASE}/dogrula`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: SECRET_FACT }),
+    });
+    assert.ok(r.status === 200 || r.status === 202, `seed failed with ${r.status}`);
+  });
+
+  it('unauthenticated sor is rejected and discloses no learned answer', async () => {
+    rateLimitMap.clear();
+    const r = await request(`${BASE}/api?q=${encodeURIComponent(`${SECRET_SUBJECT} nedir`)}`, { skipAuth: true });
+    assert.strictEqual(r.status, 401);
+    assert.strictEqual(r.headers.get('www-authenticate'), 'Bearer');
+    const body = await r.text();
+    assert.ok(!body.includes(SECRET_SUBJECT), `unauthenticated response leaked knowledge: ${body}`);
+    assert.ok(!body.includes('Cevap:'), `unauthenticated response returned an answer: ${body}`);
+  });
+
+  it('unauthenticated durum is rejected and enumerates no graph state', async () => {
+    rateLimitMap.clear();
+    const r = await request(`${BASE}/api?q=durum`, { skipAuth: true });
+    assert.strictEqual(r.status, 401);
+    const body = await r.text();
+    assert.ok(!body.includes('Durum:'), `unauthenticated status leaked graph stats: ${body}`);
+    assert.ok(!body.includes('dugum') && !body.includes('düğüm'), `unauthenticated status leaked node counts: ${body}`);
+  });
+
+  it('fixed-response commands stay public', async () => {
+    for (const query of ['selam', 'yardım', 'hello']) {
+      rateLimitMap.clear();
+      const r = await request(`${BASE}/api?q=${encodeURIComponent(query)}`, { skipAuth: true });
+      assert.strictEqual(r.status, 200, `expected 200 for public command: ${query}`);
+    }
+  });
+
+  it('authenticated sor and durum retain intended behavior', async () => {
+    rateLimitMap.clear();
+    const ask = await request(`${BASE}/api?q=${encodeURIComponent(`${SECRET_SUBJECT} nedir`)}`);
+    assert.strictEqual(ask.status, 200);
+    assert.ok((await ask.json()).result.length > 0);
+
+    rateLimitMap.clear();
+    const status = await request(`${BASE}/api?q=durum`);
+    assert.strictEqual(status.status, 200);
+    assert.ok((await status.json()).result.startsWith('Durum:'));
   });
 });
 

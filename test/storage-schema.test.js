@@ -34,10 +34,22 @@ function fakeDb(existingColumns = {}) {
   };
 }
 
-const ALL_PRESENT = {
-  agent_runs: ['id', 'iterations', 'workspace_id', 'iterations_delta'],
-  checkpoints: ['id', 'goal_key', 'workspace_id'],
-};
+/**
+ * A database on which every additive migration has already been applied.
+ *
+ * Derived from ADDITIVE_COLUMNS rather than listed by hand: spelled out, this
+ * fixture silently goes stale the moment a migration is added, and the
+ * "already migrated" tests then fail for a bookkeeping reason rather than a
+ * real one.
+ */
+const ALL_PRESENT = ADDITIVE_COLUMNS.reduce((acc, migration) => {
+  acc[migration.table] = (acc[migration.table] || []).concat(migration.column);
+  return acc;
+}, {
+  agent_runs: ['id', 'iterations'],
+  checkpoints: ['id', 'goal_key'],
+  goal_memory: ['key', 'goal'],
+});
 
 // ─── the migration set ───────────────────────────────────────────────────────
 
@@ -111,8 +123,8 @@ test('an already-migrated database adds no columns and stays idempotent', () => 
 
 test('a partially-migrated database only gets what it is missing', () => {
   const db = fakeDb({
-    agent_runs: ['id', 'iterations', 'workspace_id'],
-    checkpoints: ['id', 'goal_key', 'workspace_id'],
+    ...ALL_PRESENT,
+    agent_runs: ['id', 'iterations', 'workspace_id'], // iterations_delta is the only gap
   });
   const { addedColumns } = applyStorageSchema(db);
 

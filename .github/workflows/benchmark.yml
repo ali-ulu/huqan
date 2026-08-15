@@ -38,7 +38,7 @@ jobs:
       perf: ${{ steps.classify.outputs.perf }}
       docker: ${{ steps.classify.outputs.docker }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
@@ -62,12 +62,37 @@ jobs:
           # CI_CLASSIFIER_FUNCTIONS_START
           is_runtime_file() {
             # Runtime files whose change requires the full npm test suite.
+            #
+            # Deny-by-default (#752). The previous form was a hand-maintained
+            # allowlist, and it had already drifted: adapters/* is published by
+            # package.json#files and is on the production ingest path, and
+            # github-app-server.js is a declared production entry point in
+            # lib/module-reachability.js. A PR touching only those left
+            # runtime_or_test=no, so branch protection saw the required
+            # npm test check satisfied by the NOT_APPLICABLE skip job while a
+            # shipped surface changed untested.
+            #
+            # scripts/* and benchmarks/* are here because package.json#files
+            # publishes backup.js, restore.js, egitim-demo.js, bench.js and
+            # verifBench.js; the exclusions above are matched first so
+            # benchmarks/fixtures/* stays out.
+            #
+            # The final `*.js` arm is what makes it fail closed: a new root
+            # production file counts as runtime until someone classifies it
+            # otherwise, rather than being silently exempt.
             case "$1" in
-              kernel.js|kernel.v2.js|graph.js|storage.js|plugin.js|cli.js|server.js|mcpServer.js|\
-              agent.js|agent.v3.js|agentRuntime.js|workflow-agent.js|workflow-runtime.js|workflow-tools.js|\
-              finalizer.js|dream.js|llmAdapter.js|causalSimulator.js|rustGraph.js|sandboxRunner.js|\
-              requestGuards.js|toolPolicy.js|persistencePaths.js|backupRestore.js|evidence-ranker.js|\
-              plugins/*|lib/*|nlp/*|packages/*|migrations/*|schemas/*)
+              docs/*|specs/*|test/*|benchmarks/fixtures/*|fixtures/*|public/*|obsidian-plugin/*)
+                return 1
+                ;;
+              plugins/*|lib/*|nlp/*|packages/*|migrations/*|schemas/*|adapters/*|scripts/*|benchmarks/*)
+                return 0
+                ;;
+              */*)
+                # Any other nested path is not a runtime surface.
+                return 1
+                ;;
+              *.js)
+                # Unclassified root-level JavaScript: treat as production.
                 return 0
                 ;;
               *)
@@ -165,7 +190,7 @@ jobs:
         # Test both so a regression on 22 is caught before it reaches users.
         node-version: [20, 22]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       # actions/checkout only creates a remote-tracking ref for the ref it
@@ -175,7 +200,7 @@ jobs:
       # explicitly before running the suite.
       - name: Fetch baseline branch for live Git validation
         run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
@@ -209,8 +234,8 @@ jobs:
     if: needs.classify.outputs.perf == 'yes'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 20
           cache: npm
@@ -264,7 +289,7 @@ jobs:
     if: needs.classify.outputs.docker == 'yes'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Build Docker image
         run: docker build -t huqan:test .
 

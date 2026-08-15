@@ -23,22 +23,24 @@ future work and is not this document.
 
 ```json
 {
+  "sealVersion": "huqan-bundle-seal-v2",
   "schemaVersion": "v4-receipt-bundle-v1",
   "workspaceId": "default",
   "exportedAt": "2026-01-01T00:00:00.000Z",
   "receiptCount": 3,
-  "bundleHash": "be51f403…",
+  "bundleHash": "26244bb0…",
   "receipts": [ … ]
 }
 ```
 
 | Field | Type | Meaning |
 | --- | --- | --- |
+| `sealVersion` | string | names the canonical `bundleHash` input; `huqan-bundle-seal-v2` for bundles produced under this document |
 | `schemaVersion` | string | `v4-receipt-bundle-v1`, or `v4-receipt-bundle-v2` if any receipt declares `v4-receipt-v2` |
 | `workspaceId` | string | workspace the receipts belong to |
-| `exportedAt` | string | ISO-8601 timestamp of export; **not** covered by `bundleHash` |
-| `receiptCount` | integer | number of entries in `receipts` |
-| `bundleHash` | string | lowercase hex SHA-256 sealing the `receipts` array |
+| `exportedAt` | string | ISO-8601 timestamp of export; covered by `bundleHash` |
+| `receiptCount` | integer | number of entries in `receipts`; covered by `bundleHash` |
+| `bundleHash` | string | lowercase hex SHA-256 sealing the envelope and the `receipts` array |
 | `receipts` | array | chained receipt records, in chain order |
 
 `receipts` may be empty. An empty bundle is a valid, verifiable bundle: absence
@@ -195,28 +197,55 @@ editor willing to redo the work. See
 ## Bundle hash
 
 ```text
-bundleHash = sha256Hex(canonicalJson(receipts))
+sealPayload = {
+  "sealVersion":   "huqan-bundle-seal-v2",
+  "schemaVersion": bundle.schemaVersion,
+  "workspaceId":   bundle.workspaceId,
+  "exportedAt":    bundle.exportedAt,
+  "receiptCount":  bundle.receiptCount,
+  "receipts":      bundle.receipts
+}
+
+bundleHash = sha256Hex(canonicalJson(sealPayload))
 ```
 
 The digest covers the **entire `receipts` array as it appears in the bundle**,
-including each `receiptHash`. It does not cover `schemaVersion`, `workspaceId`,
-`exportedAt` or `receiptCount`, so two exports of the same receipts at different
-times carry the same `bundleHash`.
+including each `receiptHash`, **and** every envelope field a recipient may read
+as provenance. Two exports of the same receipts at different times therefore
+carry different `bundleHash` values, because `exportedAt` differs.
+
+`sealPayload` is a distinct object from the bundle: it names the seal and omits
+`bundleHash` itself. Build it explicitly rather than deleting `bundleHash` from
+the bundle, so the field set is the same in every implementation.
+
+### Earlier seal
+
+Bundles that carry no `sealVersion` were produced under an earlier revision
+whose digest was `sha256Hex(canonicalJson(receipts))` alone. Their envelope
+carries no authentication: `workspaceId`, `exportedAt` and `receiptCount` could
+be rewritten without changing `bundleHash`. A verifier may still check such a
+bundle's receipts, but must not report it valid unless its caller has explicitly
+asked for that compatibility, and must tell the caller the envelope is
+unauthenticated.
 
 ## Verification algorithm
 
-A verifier receives only the bundle. Run all three checks; a bundle is valid only
-if all three pass.
+A verifier receives only the bundle. Run all four checks; a bundle is valid only
+if all four pass.
 
 ### 1. Bundle seal
 
 ```text
-sha256Hex(canonicalJson(bundle.receipts)) == bundle.bundleHash
+sha256Hex(canonicalJson(sealPayload(bundle))) == bundle.bundleHash
 ```
 
-Detects modification of the receipts array that was not accompanied by
-recomputing `bundleHash`. It does not detect an editor who rewrote the array and
-resealed it.
+Detects modification of the receipts array **or the envelope** that was not
+accompanied by recomputing `bundleHash`. It does not detect an editor who
+rewrote them and resealed.
+
+For a bundle with no `sealVersion`, compute
+`sha256Hex(canonicalJson(bundle.receipts))` instead, and apply the earlier-seal
+rule above.
 
 ### 2. Envelope version
 
@@ -224,7 +253,17 @@ Compute the expected version: `v4-receipt-bundle-v2` if any receipt has
 `schemaVersion == "v4-receipt-v2"`, otherwise `v4-receipt-bundle-v1`. It must
 equal `bundle.schemaVersion`.
 
-### 3. Chain validation
+### 3. Receipt count
+
+```text
+bundle.receiptCount == bundle.receipts.length
+```
+
+The count is sealed, so this is not the only thing standing behind it; it is a
+self-consistency check that holds for every seal version, including the earlier
+one where the count was unauthenticated.
+
+### 4. Chain validation
 
 Walk `receipts` in order. For each record at index `i`:
 
@@ -247,26 +286,22 @@ A record that is not an object, or that is missing `receiptHash` or
 
 Stop at the first failure and report the index. An empty array passes.
 
-### What is deliberately not checked
+### Portability tests
 
-**`receiptCount` is not a verification input.** It is informational. A bundle
-whose `receiptCount` disagrees with `receipts.length` is still valid if the
-three checks above pass, and a conforming verifier must not reject it on that
-basis.
+Take a valid bundle and change exactly one field. Under this document a
+conforming implementation reports invalid in every case below, because each
+field is inside `sealPayload`:
 
-This is worth stating because rejecting it feels safer and is wrong. A verifier
-that adds the check is stricter than the format, so it will reject bundles the
-producer considers valid — which is a conformance defect, not extra safety. The
-seal already covers the receipts array, so `receiptCount` cannot be used to hide
-a modification: changing the array changes `bundleHash`.
+| Mutation | Expected verdict |
+| --- | --- |
+| `workspaceId` | invalid — bundle seal |
+| `exportedAt` | invalid — bundle seal |
+| `receiptCount` | invalid — bundle seal, and receipt count |
+| any byte of `receipts` | invalid — bundle seal |
+| `sealVersion` removed | invalid — the earlier-seal rule, unless the caller opted in |
 
-Use this as a portability test. Take a valid bundle, change only
-`receiptCount`, and verify it. A conforming implementation still reports valid.
-If yours reports invalid, it has this defect.
-
-**`exportedAt` is also not checked**, and is not covered by the seal, so two
-exports of the same receipts at different times are both valid and share a
-`bundleHash`.
+An implementation that still reports valid after one of these is reading an
+earlier revision of this format, in which the envelope sat outside the seal.
 
 ## Worked example
 
@@ -274,12 +309,12 @@ exports of the same receipts at different times are both valid and share a
 written by hand. It carries three receipts and:
 
 ```text
-bundleHash  be51f403d02405ccda37a6565180b88d662cdfe0f998b493ecfd77dabd317a84
+bundleHash  26244bb0512992b0078504864d698a9c5876fd5a5e12ffc7439b68b55fcc7d03
 chain       genesis:v4-receipt-chain -> 3c8bfe7d… -> c9a316f9… -> 2d672b6e…
 ```
 
-Recomputing `sha256Hex(canonicalJson(receipts))` over that file must reproduce
-the `bundleHash` above. If your implementation does not, the difference is almost
+Recomputing `sha256Hex(canonicalJson(sealPayload))` over that file must
+reproduce the `bundleHash` above. If your implementation does not, the difference is almost
 always key ordering or stray whitespace in `canonicalJson`.
 
 That fixture is pure ASCII, so it cannot detect the serialization rules that
@@ -287,7 +322,7 @@ actually break portability. **`examples/receipt-bundle.unicode.valid.json` is th
 one to test against:**
 
 ```text
-bundleHash  2c99919effcb1b4c3d3ae91f4114ee19683768e887792ee3de194c1d02560dee
+bundleHash  a315368834a6cd5156f3e5409fe94963645495ef4105e6cde988f5427d02f98c
 ```
 
 It is also produced by the real export path, and its `metadata` deliberately
@@ -329,7 +364,7 @@ not accompanied by recomputing the affected hashes.
 It does **not** prove the bundle is unchanged since export. The format is
 unsigned and self-contained, and carries no externally anchored head, so nothing
 in it is beyond an editor's reach. Change a receipt, recompute its hash, recompute
-every following link, recompute `bundleHash`, and the result verifies. The three
+every following link, recompute `bundleHash`, and the result verifies. The four
 checks are satisfied because the document now agrees with itself — which is all
 they ever measured.
 
@@ -341,8 +376,8 @@ What the assurance actually decomposes into:
 
 | Question | Answered by |
 | --- | --- |
-| Is this document self-consistent? | the three checks in this specification |
-| Was it modified without resealing? | the three checks |
+| Is this document self-consistent? | the four checks in this specification |
+| Was it modified without resealing? | the four checks |
 | Was it modified *and* resealed? | **nothing in this format** |
 | Who issued it? | **nothing in this format** |
 | Does it match what the issuer holds? | comparing `bundleHash` against a value obtained from the issuer through a separate channel |

@@ -5,6 +5,7 @@
   "description": "Self-contained, hash-sealed export of a chained trust receipt sequence. Structural shape only: hash and chain correctness are defined by RECEIPT-BUNDLE.md and cannot be expressed in JSON Schema.",
   "type": "object",
   "required": [
+    "sealVersion",
     "schemaVersion",
     "workspaceId",
     "exportedAt",
@@ -14,6 +15,11 @@
   ],
   "additionalProperties": false,
   "properties": {
+    "sealVersion": {
+      "type": "string",
+      "enum": ["huqan-bundle-seal-v2"],
+      "description": "Names the canonical bundleHash input. Absent on legacy bundles, whose seal covered receipts only and whose envelope is therefore unauthenticated."
+    },
     "schemaVersion": {
       "type": "string",
       "enum": ["v4-receipt-bundle-v1", "v4-receipt-bundle-v2"],
@@ -26,17 +32,17 @@
     "exportedAt": {
       "type": "string",
       "minLength": 1,
-      "description": "ISO-8601 export timestamp. Deliberately NOT covered by bundleHash."
+      "description": "ISO-8601 export timestamp. Covered by bundleHash under sealVersion huqan-bundle-seal-v2."
     },
     "receiptCount": {
       "type": "integer",
       "minimum": 0,
-      "description": "Reported entry count. Informational: it is NOT one of the three verification checks, and neither the producer nor a conforming verifier rejects a bundle on it alone."
+      "description": "Entry count. Covered by bundleHash, and a conforming verifier additionally rejects a bundle whose receiptCount disagrees with receipts.length."
     },
     "bundleHash": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$",
-      "description": "Lowercase hex SHA-256 over canonicalJson(receipts)."
+      "description": "Lowercase hex SHA-256 over canonicalJson of the canonical seal payload: {sealVersion, schemaVersion, workspaceId, exportedAt, receiptCount, receipts}."
     },
     "receipts": {
       "type": "array",

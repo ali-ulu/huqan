@@ -78,6 +78,9 @@ function expectedRawEvent(intent) {
       decision: intent.decision,
       executed: intent.executionEligible,
       reason: intent.reason,
+      // `executed` records eligibility, decided before the command ran; phase
+      // is what separates an admitted mutation from a completed one (#760).
+      phase: intent.phase || 'attempted',
       ...(intent.approvalState === undefined ? {} : { approvalState: intent.approvalState }),
       ...(intent.receiptReference === undefined ? {} : { receiptId: intent.receiptReference.trim() }),
     },
@@ -101,7 +104,7 @@ test('Kernel v1 and KernelV2 expose a synchronous CLI audit seam', () => {
   }
 });
 
-test('accepts only the nine exact mappings and appends each bounded event once', () => {
+test('accepts only the exact mappings and appends each bounded event once', () => {
   const managed = makeKernel('mappings');
   const originalAppend = managed.kernel.graph.appendAuditEvent;
   const calls = [];

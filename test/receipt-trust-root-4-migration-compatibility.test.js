@@ -498,8 +498,14 @@ test('materialized readers fail without partial chains, preserve inputs and enfo
   assert.deepEqual(chain.chain, []);
   assert.deepEqual(events, before);
 
+  // The legacy receipt parses on its own, but it sits in the broken chain
+  // asserted invalid just above, so the read is not an ordinary success: it
+  // reports the integrity failure and marks the payload non-authoritative
+  // (#766). The forensic copy is still returned, and still migrated.
   const legacyRead = readReceiptById(events, legacy.receiptId, { workspaceId: legacy.workspaceId });
-  assert.equal(legacyRead.ok, true);
+  assert.equal(legacyRead.ok, false);
+  assert.equal(legacyRead.status, 'chain_invalid');
+  assert.equal(legacyRead.authoritative, false);
   assert.equal(legacyRead.canonicalPayload.schemaVersion, 'v4-receipt-v1');
   assert.equal(Object.hasOwn(legacyRead.canonicalPayload, 'trustRoot'), false);
   assert.deepEqual(events, before);

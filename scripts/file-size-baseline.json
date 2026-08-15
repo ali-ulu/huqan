@@ -9,17 +9,17 @@
   "threshold": 800,
   "files": {
     "agent.js": 1076,
-    "cli.js": 921,
-    "graph.js": 1697,
-    "kernel.js": 1601,
+    "cli.js": 888,
+    "graph.js": 1694,
+    "kernel.js": 1567,
     "kernel.v2.js": 975,
     "lib/action-risk-classifier.js": 902,
     "lib/code-change-gate.js": 891,
-    "lib/memory-store.js": 2176,
+    "lib/memory-store.js": 2085,
     "lib/sandbox-isolation.js": 855,
     "lib/verify.js": 967,
-    "scripts/external-conformance/consumer.js": 881,
-    "server.js": 1294,
+    "scripts/external-conformance/consumer.js": 924,
+    "server.js": 1113,
     "workflow-agent.js": 1007,
     "workflow-tools.js": 962
   }

@@ -226,12 +226,9 @@ class KernelV2 {
     const learnedAt = opts.learnedAt || nowIso();
     const beforeEdgeMap = this.kernel.graph._captureTemporalEdgeKeys();
     const result = this.kernel.learn(text, opts);
-    this.kernel.graph._applyTemporalEdgeMetadata(source, learnedAt, beforeEdgeMap);
-    return this._ok('learn', result.data, result.evidence, {
-      ...result.meta,
-      source,
-      learnedAt,
-    });
+    // #733: workspace-scoped, on top of the touch scope narrowing to written edges.
+    this.kernel.graph._applyTemporalEdgeMetadata(source, learnedAt, beforeEdgeMap, { workspaceId: opts.workspaceId });
+    return this._ok('learn', result.data, result.evidence, { ...result.meta, source, learnedAt });
   }
 
   learnDocument(text, opts = {}) {
@@ -339,7 +336,7 @@ class KernelV2 {
     return normalizeAscii(this._normalizeCopulaTail(predicate));
   }
 
-  _inferTypeChain(subject, target, maxDepth = 4) {
+  _inferTypeChain(subject, target, maxDepth = 4, workspaceId = 'default') {
     const visited = new Set([subject]);
     const queue = [{ node: subject, path: [] }];
 
@@ -348,7 +345,7 @@ class KernelV2 {
       if (current.path.length >= maxDepth) continue;
 
       const edges = this.kernel.graph
-        .getEdges(current.node)
+        .getEdges(current.node, workspaceId)
         .filter(e => this._isTypeRelation(e.relation));
 
       for (const edge of edges) {
@@ -466,16 +463,16 @@ class KernelV2 {
     return this._withManipulationRisk(enriched, risk);
   }
 
-  _collectTypeTargets(subject) {
+  _collectTypeTargets(subject, workspaceId = 'default') {
     return this.kernel.graph
-      .getEdges(subject)
+      .getEdges(subject, workspaceId)
       .filter(edge => this._isTypeRelation(edge.relation))
       .map(edge => edge.to);
   }
 
-  _collectFactTargets(subject) {
+  _collectFactTargets(subject, workspaceId = 'default') {
     return this.kernel.graph
-      .getEdges(subject)
+      .getEdges(subject, workspaceId)
       .filter(edge => FACT_RELATIONS.has(String(edge.relation || '').toLowerCase()))
       .map(edge => ({
         relation: edge.relation,
@@ -485,9 +482,9 @@ class KernelV2 {
       }));
   }
 
-  _collectPredicateTargets(subject) {
+  _collectPredicateTargets(subject, workspaceId = 'default') {
     return this.kernel.graph
-      .getEdges(subject)
+      .getEdges(subject, workspaceId)
       .map(edge => ({
         relation: edge.relation,
         target: this._normalizePredicateToken(edge.to),
@@ -496,9 +493,9 @@ class KernelV2 {
       }));
   }
 
-  _buildDirectTypeEvidence(subject) {
+  _buildDirectTypeEvidence(subject, workspaceId = 'default') {
     return this.kernel.graph
-      .getEdges(subject)
+      .getEdges(subject, workspaceId)
       .filter(edge => this._isTypeRelation(edge.relation))
       .map(edge => ({
         kind: 'direct_edge',
@@ -509,9 +506,9 @@ class KernelV2 {
       }));
   }
 
-  _buildDirectFactEvidence(subject) {
+  _buildDirectFactEvidence(subject, workspaceId = 'default') {
     return this.kernel.graph
-      .getEdges(subject)
+      .getEdges(subject, workspaceId)
       .filter(edge => FACT_RELATIONS.has(String(edge.relation || '').toLowerCase()))
       .map(edge => ({
         kind: 'direct_edge',
@@ -522,9 +519,9 @@ class KernelV2 {
       }));
   }
 
-  _buildPredicateEvidence(subject) {
+  _buildPredicateEvidence(subject, workspaceId = 'default') {
     return this.kernel.graph
-      .getEdges(subject)
+      .getEdges(subject, workspaceId)
       .map(edge => ({
         kind: 'direct_edge',
         text: `${edge.from} --[${edge.relation}]--> ${edge.to}`,
@@ -622,11 +619,11 @@ class KernelV2 {
     };
   }
 
-  _findOppositePredicateConflict(subject, normalizedTargetToken, maxDepth = 4) {
+  _findOppositePredicateConflict(subject, normalizedTargetToken, maxDepth = 4, workspaceId = 'default') {
     const opposite = OPPOSITE_PREDICATES.get(normalizedTargetToken);
     if (!opposite) return null;
 
-    const directOpposite = this._collectPredicateTargets(subject).find(item => item.target === opposite);
+    const directOpposite = this._collectPredicateTargets(subject, workspaceId).find(item => item.target === opposite);
     if (directOpposite) {
       return {
         status: 'contradicted',
@@ -636,12 +633,12 @@ class KernelV2 {
         conflictTarget: directOpposite.rawTarget,
         requestedTarget: normalizedTargetToken,
         confidenceSource: 'opposite-predicate-map',
-        evidence: this._buildPredicateEvidence(subject),
+        evidence: this._buildPredicateEvidence(subject, workspaceId),
         meta: { inferredBy: 'opposite-predicate-conflict' },
       };
     }
 
-    const oppositeChain = this._inferTypeChain(subject, opposite, maxDepth);
+    const oppositeChain = this._inferTypeChain(subject, opposite, maxDepth, workspaceId);
     if (!oppositeChain) return null;
 
     return {
@@ -661,7 +658,8 @@ class KernelV2 {
 
   _buildContradictionDetails(parsed, normalizedTarget, normalizedTargetToken, opts = {}) {
     const maxDepth = opts.maxDepth || 4;
-    const knownFacts = this._collectFactTargets(parsed.subject);
+    const workspaceId = (typeof opts.workspaceId === 'string' && opts.workspaceId.trim()) || 'default'; // #734: never silently fall back to the default workspace
+    const knownFacts = this._collectFactTargets(parsed.subject, workspaceId);
     if (parsed.isNegated && knownFacts.length > 0) {
       const directPositive = knownFacts.find(item => item.target === normalizedTargetToken);
       if (directPositive) {
@@ -672,7 +670,7 @@ class KernelV2 {
           contradictionReason: 'negated_statement_conflicts_with_known_fact',
           conflictTarget: normalizedTarget,
           confidenceSource: 'known-fact-conflict',
-          evidence: this._buildDirectFactEvidence(parsed.subject),
+          evidence: this._buildDirectFactEvidence(parsed.subject, workspaceId),
           meta: { inferredBy: 'fact-negation-conflict' },
         };
       }
@@ -682,7 +680,8 @@ class KernelV2 {
       const oppositeConflict = this._findOppositePredicateConflict(
         parsed.subject,
         normalizedTargetToken,
-        maxDepth
+        maxDepth,
+        workspaceId
       );
       if (oppositeConflict) {
         return oppositeConflict;
@@ -690,12 +689,12 @@ class KernelV2 {
     }
 
     if (!parsed.isNegated) {
-      const knownTypes = this._collectTypeTargets(parsed.subject);
+      const knownTypes = this._collectTypeTargets(parsed.subject, workspaceId);
       const typeConflict = detectTypeLatticeConflict(
         this.kernel.graph,
         parsed.subject,
         normalizedTarget,
-        'default',
+        workspaceId,
       );
       if (typeConflict) {
         return {
@@ -706,13 +705,13 @@ class KernelV2 {
           knownTypes,
           requestedType: normalizedTarget,
           confidenceSource: 'type-lattice-conflict',
-          evidence: typeConflict.evidence || this._buildDirectTypeEvidence(parsed.subject),
+          evidence: typeConflict.evidence || this._buildDirectTypeEvidence(parsed.subject, workspaceId),
           meta: { inferredBy: 'type-conflict' },
         };
       }
     }
 
-    const chain = this._inferTypeChain(parsed.subject, normalizedTarget, maxDepth);
+    const chain = this._inferTypeChain(parsed.subject, normalizedTarget, maxDepth, workspaceId);
     if (chain && parsed.isNegated) {
       return {
         status: 'contradicted',
@@ -753,7 +752,8 @@ class KernelV2 {
     if (!normalizedTarget) return this._withVerifyDetails(this.kernel.verify(verificationStatement, opts), risk);
     const normalizedTargetToken = this._normalizePredicateToken(normalizedTarget);
 
-    const knownFacts = this._collectFactTargets(parsed.subject);
+    const workspaceId = (typeof opts.workspaceId === 'string' && opts.workspaceId.trim()) || 'default'; // #734
+    const knownFacts = this._collectFactTargets(parsed.subject, workspaceId);
     if (parsed.isNegated && knownFacts.length > 0) {
       const directPositive = knownFacts.find(item => item.target === normalizedTargetToken);
       if (directPositive) {
@@ -767,7 +767,7 @@ class KernelV2 {
             conflictTarget: normalizedTarget,
             confidenceSource: 'known-fact-conflict',
           },
-          this._buildDirectFactEvidence(parsed.subject),
+          this._buildDirectFactEvidence(parsed.subject, workspaceId),
           {
             inferredBy: 'fact-negation-conflict',
           }

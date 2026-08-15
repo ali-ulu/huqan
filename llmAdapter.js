@@ -1,3 +1,9 @@
+const crypto = require('crypto');
+
+// Upper bound on distinct failure entries kept in memory (#730). Sustained
+// provider failure with unique prompts would otherwise grow the map forever.
+const DEFAULT_MAX_FAILURE_CACHE_ENTRIES = 500;
+
 class LLMAdapter {
   constructor(opts = {}) {
     this.provider = opts.provider || 'ollama';
@@ -12,6 +18,9 @@ class LLMAdapter {
     this.sleepImpl = typeof opts.sleepImpl === 'function'
       ? opts.sleepImpl
       : (ms => new Promise(resolve => setTimeout(resolve, ms)));
+    this.maxFailureCacheEntries = Number.isInteger(opts.maxFailureCacheEntries)
+      ? Math.max(1, opts.maxFailureCacheEntries)
+      : DEFAULT_MAX_FAILURE_CACHE_ENTRIES;
     this._recentFailures = new Map();
   }
 
@@ -30,20 +39,54 @@ class LLMAdapter {
     }
   }
 
+  /**
+   * Fixed-width digest, not the request text (#730).
+   *
+   * The key used to be provider|endpoint|model|prompt|system concatenated
+   * verbatim, so every failed request left its full prompt and system message
+   * resident in the Map — reachable long after failureCooldownMs, since
+   * expired entries were only dropped when that exact prompt was retried.
+   * Prompts can carry user and company text (plugins/company-brain.js routes
+   * questions through this adapter), so that was unbounded retention of
+   * potentially sensitive material as well as unbounded growth.
+   *
+   * The digest keeps identical requests colliding on the same entry while
+   * storing no plaintext. Lengths are prefixed so that a '|' inside a prompt
+   * cannot make two different requests hash alike.
+   */
   _failureKey(prompt, system) {
-    return [
-      this.provider,
-      this.endpoint,
-      this.model,
-      String(prompt || '').trim(),
-      String(system || '').trim(),
-    ].join('|');
+    const parts = [this.provider, this.endpoint, this.model, String(prompt || '').trim(), String(system || '').trim()];
+    const payload = parts.map((part) => `${Buffer.byteLength(part, 'utf8')}:${part}`).join('|');
+    return crypto.createHash('sha256').update(payload, 'utf8').digest('hex');
+  }
+
+  /**
+   * Drop every entry past its cooldown, then hold the map under its cap.
+   *
+   * The sweep runs on write rather than only on lookup, so an entry whose
+   * prompt is never retried still leaves. Eviction is insertion-ordered:
+   * oldest first, which is deterministic for a given sequence of failures.
+   */
+  _pruneFailures(now = Date.now()) {
+    for (const [key, entry] of this._recentFailures) {
+      if (now > entry.until) this._recentFailures.delete(key);
+    }
+    while (this._recentFailures.size >= this.maxFailureCacheEntries) {
+      const oldest = this._recentFailures.keys().next();
+      if (oldest.done) break;
+      this._recentFailures.delete(oldest.value);
+    }
   }
 
   _cacheFailure(key, error) {
+    const now = Date.now();
+    // Delete first so a refreshed entry moves to the back of the eviction
+    // order instead of keeping its original position.
+    this._recentFailures.delete(key);
+    this._pruneFailures(now);
     this._recentFailures.set(key, {
       error,
-      until: Date.now() + this.failureCooldownMs,
+      until: now + this.failureCooldownMs,
     });
   }
 
@@ -139,3 +182,4 @@ class LLMAdapter {
 }
 
 module.exports = LLMAdapter;
+module.exports.DEFAULT_MAX_FAILURE_CACHE_ENTRIES = DEFAULT_MAX_FAILURE_CACHE_ENTRIES;

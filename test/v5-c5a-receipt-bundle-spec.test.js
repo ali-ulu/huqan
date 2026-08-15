@@ -77,7 +77,25 @@ function expectedEnvelopeVersion(receipts) {
     : 'v4-receipt-bundle-v1';
 }
 
+const SEAL_VERSION = 'huqan-bundle-seal-v2';
+
+/** The spec's sealPayload: envelope fields plus receipts, never bundleHash. */
+function sealPayload(bundle) {
+  return {
+    sealVersion: SEAL_VERSION,
+    schemaVersion: bundle.schemaVersion,
+    workspaceId: bundle.workspaceId,
+    exportedAt: bundle.exportedAt,
+    receiptCount: bundle.receiptCount,
+    receipts: bundle.receipts,
+  };
+}
+
 function checkBundleSeal(bundle) {
+  if (bundle.sealVersion === SEAL_VERSION) {
+    return sha256Hex(canonicalJson(sealPayload(bundle))) === bundle.bundleHash;
+  }
+  // Earlier seal: receipts only, envelope unauthenticated.
   return sha256Hex(canonicalJson(bundle.receipts)) === bundle.bundleHash;
 }
 
@@ -183,7 +201,7 @@ describe('V5-C5A: the published spec reproduces the shipped fixtures', () => {
   });
 
   it('the documented algorithm reproduces the recorded bundleHash', () => {
-    assert.equal(sha256Hex(canonicalJson(valid.receipts)), valid.bundleHash);
+    assert.equal(sha256Hex(canonicalJson(sealPayload(valid))), valid.bundleHash);
   });
 
   it('the documented algorithm reproduces every recorded receiptHash', () => {
@@ -194,27 +212,45 @@ describe('V5-C5A: the published spec reproduces the shipped fixtures', () => {
     }
   });
 
-  it('the valid fixture passes all three verification checks', () => {
+  it('the valid fixture passes all four verification checks', () => {
     assert.equal(checkBundleSeal(valid), true, 'bundle seal');
     assert.equal(valid.schemaVersion, expectedEnvelopeVersion(valid.receipts), 'envelope version');
+    assert.equal(valid.receiptCount, valid.receipts.length, 'receipt count');
     assert.deepEqual(validateChain(valid.receipts), { valid: true, brokenAt: null, reason: null });
   });
 
-  it('receiptCount agrees with the array, as fixture sanity rather than a check', () => {
-    // Asserted about the fixture, not about verification: receiptCount is not
-    // one of the three checks, and the case below proves a verifier must not
-    // reject on it.
-    assert.equal(valid.receiptCount, valid.receipts.length);
+  it('every sealed envelope field is authenticated (#735, #767)', () => {
+    // Each of these used to be outside the seal, so a bundle could be
+    // relabelled with another workspace or export time and still verify.
+    for (const [field, value] of Object.entries({
+      workspaceId: 'someone-elses-workspace',
+      exportedAt: '2030-06-01T12:00:00.000Z',
+      receiptCount: valid.receipts.length + 7,
+      schemaVersion: 'v4-receipt-bundle-v2',
+    })) {
+      const mutated = { ...valid, [field]: value };
+      assert.equal(checkBundleSeal(mutated), false, `${field} must be inside the seal`);
+      assert.equal(verifyExportedBundle(mutated).valid, false,
+        `the producer must reject a mutated ${field} too`);
+    }
   });
 
-  it('a bundle whose receiptCount alone is wrong stays valid', () => {
-    // The narrow rule this locks in: verifyExportedBundle() derives validity
-    // from seal, envelope version and chain only. A verifier that also rejects
-    // on receiptCount is stricter than the format and would reject bundles the
-    // producer considers valid.
+  it('a bundle whose receiptCount alone is wrong is rejected', () => {
     const mutated = { ...valid, receiptCount: valid.receipts.length + 7 };
-    assert.equal(checkBundleSeal(mutated), true);
+    assert.equal(checkBundleSeal(mutated), false);
+    const verdict = verifyExportedBundle(mutated);
+    assert.equal(verdict.valid, false);
+    assert.equal(verdict.receiptCountValid, false);
+    // The chain itself is untouched: only the envelope claim is wrong.
     assert.deepEqual(validateChain(mutated.receipts), { valid: true, brokenAt: null, reason: null });
+  });
+
+  it('dropping sealVersion does not silently fall back to the earlier seal', () => {
+    const { sealVersion: _drop, ...unsealed } = valid;
+    const verdict = verifyExportedBundle(unsealed);
+    assert.equal(verdict.valid, false, 'an unsealed envelope must not verify by default');
+    assert.equal(verdict.envelopeAuthenticated, false);
+    assert.equal(verdict.sealVersionAcceptable, false);
   });
 
   it('the chain links genesis through every record in order', () => {
@@ -224,9 +260,9 @@ describe('V5-C5A: the published spec reproduces the shipped fixtures', () => {
     }
   });
 
-  it('exportedAt is outside the seal, so re-exporting does not change bundleHash', () => {
+  it('exportedAt is inside the seal, so re-exporting changes bundleHash', () => {
     const later = { ...valid, exportedAt: '2030-06-01T12:00:00.000Z' };
-    assert.equal(sha256Hex(canonicalJson(later.receipts)), valid.bundleHash);
+    assert.notEqual(sha256Hex(canonicalJson(sealPayload(later))), valid.bundleHash);
   });
 
   it('an empty bundle is verifiable rather than an error', () => {
@@ -296,7 +332,7 @@ describe('V5-C5A: the canonicalization rules survive non-ASCII and awkward numbe
   });
 
   it('non-ASCII must stay literal: escaping it changes the hash', () => {
-    const escaped = JSON.stringify(unicodeValid.receipts)
+    const escaped = JSON.stringify(sealPayload(unicodeValid))
       .replace(/[\u0080-\uFFFF]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
     assert.notEqual(sha256Hex(escaped), unicodeValid.bundleHash);
   });
@@ -344,19 +380,19 @@ describe('V5-C5A: a clean-room implementation agrees on the bytes', () => {
     assert.equal(result.status, 1, 'exit 1 because two fixtures are invalid by design');
   });
 
-  it('the clean-room verifier does not reject on receiptCount either', { skip: !havePython && 'python3 unavailable' }, () => {
-    // The conformance trap this file exists to catch: an implementation that
-    // adds a plausible-sounding check becomes stricter than the format and
-    // disagrees with the producer. Both must call this bundle valid.
+  it('the clean-room verifier rejects a mutated receiptCount, like the producer', { skip: !havePython && 'python3 unavailable' }, () => {
+    // The conformance property this file exists to protect: producer and
+    // clean-room verifier must reach the same verdict. Both now reject, since
+    // receiptCount is sealed and separately checked (#735, #767).
     const mutated = { ...valid, receiptCount: valid.receipts.length + 7 };
     const tmp = path.join(os.tmpdir(), `c5a-count-${process.pid}.json`);
     fs.writeFileSync(tmp, JSON.stringify(mutated, null, 2));
     try {
       const result = runPython([tmp]);
-      assert.match(result.stdout, /VALID/);
-      assert.doesNotMatch(result.stdout, /INVALID|receipt_count/);
-      assert.equal(result.status, 0);
-      assert.equal(verifyExportedBundle(mutated).valid, true,
+      assert.match(result.stdout, /INVALID/);
+      assert.match(result.stdout, /receipt_count_mismatch/);
+      assert.equal(result.status, 1);
+      assert.equal(verifyExportedBundle(mutated).valid, false,
         'the producer must agree, otherwise the spec is wrong rather than the probe');
     } finally {
       fs.rmSync(tmp, { force: true });
@@ -395,7 +431,7 @@ describe('V5-C5A: what a VALID verdict does not prove', () => {
       forged.receipts[i].receiptHash = sha256Hex(canonicalJson(rest));
       previous = forged.receipts[i].receiptHash;
     }
-    forged.bundleHash = sha256Hex(canonicalJson(forged.receipts));
+    forged.bundleHash = sha256Hex(canonicalJson(sealPayload(forged)));
     return forged;
   }
 
@@ -406,9 +442,10 @@ describe('V5-C5A: what a VALID verdict does not prove', () => {
     assert.notEqual(forged.bundleHash, valid.bundleHash);
   });
 
-  it('all three checks accept it, so VALID does not mean unchanged since export', () => {
+  it('all four checks accept it, so VALID does not mean the content is original', () => {
     assert.equal(checkBundleSeal(forged), true, 'bundle seal');
     assert.equal(forged.schemaVersion, expectedEnvelopeVersion(forged.receipts), 'envelope version');
+    assert.equal(forged.receiptCount, forged.receipts.length, 'receipt count');
     assert.deepEqual(validateChain(forged.receipts), { valid: true, brokenAt: null, reason: null });
   });
 

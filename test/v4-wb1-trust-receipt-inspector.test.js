@@ -83,7 +83,9 @@ describe('V4-WB1: read-only Trust Receipt / Verdict Inspector helper', () => {
 
     assert.equal(result.ok, false);
     assert.equal(result.status, 'read_error');
-    assert.equal(result.reason, 'boom');
+    // The raw message stays in the log, never in the response (#737).
+    assert.equal(result.reason, 'receipt_read_failed');
+    assert.equal(JSON.stringify(result).includes('boom'), false);
     assert.equal(result.receiptId, 'receipt-1');
     assert.equal(result.receipt, undefined);
     assert.equal(result.verdict, undefined);

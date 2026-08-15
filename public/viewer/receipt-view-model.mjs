@@ -2,6 +2,7 @@ export const TERMINAL_STATES = Object.freeze([
   'unauthorized',
   'invalid_request',
   'not_found',
+  'chain_invalid',
   'read_error',
   'found',
 ]);
@@ -51,6 +52,12 @@ export function mapReceiptResponse(input) {
     }
     if (statusCode === 404 && code === 'receipt_not_found') {
       return { state: 'not_found', receipt: null };
+    }
+    // The receipt exists and may even parse on its own, but its chain does
+    // not validate. It gets its own state so the viewer names the integrity
+    // failure instead of reporting a canonical observation (#766).
+    if (statusCode === 409 && code === 'receipt_chain_invalid') {
+      return { state: 'chain_invalid', receipt: null };
     }
   } catch {
     return { state: 'read_error', receipt: null };

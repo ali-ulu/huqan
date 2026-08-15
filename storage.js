@@ -21,6 +21,17 @@ function lower(goal) {
   return normalizeGoal(goal).toLowerCase();
 }
 
+/**
+ * Workspace-qualified goal-memory key (#757).
+ *
+ * `key` is goal_memory's PRIMARY KEY and SQLite cannot alter that in place, so
+ * the workspace lives inside the key rather than beside it. US (0x1f) is the
+ * separator because it cannot appear in a trimmed workspace id or goal text.
+ */
+function goalMemoryKey(goal, workspaceId) {
+  return `${normalizeWorkspaceId(workspaceId)}\u001f${lower(goal)}`;
+}
+
 function normalizeWorkspaceId(workspaceId) {
   return String(workspaceId || 'default').trim() || 'default';
 }
@@ -113,13 +124,14 @@ class AxiomStorage {
       deleteCheckpoint: this.db.prepare('DELETE FROM checkpoints WHERE id = ?'),
       upsertGoalMemory: this.db.prepare(`
         INSERT INTO goal_memory (
-          key, goal, objective, success_count, blocked_count, error_count,
+          key, workspace_id, goal, objective, success_count, blocked_count, error_count,
           resumed_count, last_status, pattern_json, created_at, updated_at
         ) VALUES (
-          @key, @goal, @objective, @success_count, @blocked_count, @error_count,
+          @key, @workspace_id, @goal, @objective, @success_count, @blocked_count, @error_count,
           @resumed_count, @last_status, @pattern_json, @created_at, @updated_at
         )
         ON CONFLICT(key) DO UPDATE SET
+          workspace_id = excluded.workspace_id,
           goal = excluded.goal,
           objective = excluded.objective,
           success_count = excluded.success_count,
@@ -131,6 +143,7 @@ class AxiomStorage {
           updated_at = excluded.updated_at
       `),
       getGoalMemory: this.db.prepare('SELECT * FROM goal_memory WHERE key = ? LIMIT 1'),
+      countGoalsForWorkspace: this.db.prepare('SELECT COUNT(*) AS c FROM goal_memory WHERE workspace_id = ?'),
       upsertRun: this.db.prepare(`
         INSERT INTO agent_runs (
           id, goal_key, goal, objective, status, report, state_json,
@@ -392,9 +405,11 @@ class AxiomStorage {
 
   saveGoalMemory(record = {}) {
     const goal = normalizeGoal(record.goal);
-    const key = lower(goal);
-    const current = this.getGoalMemory(goal) || {
+    const workspaceId = normalizeWorkspaceId(record.workspaceId);
+    const key = goalMemoryKey(goal, workspaceId);
+    const current = this.getGoalMemory(goal, workspaceId) || {
       key,
+      workspace_id: workspaceId,
       goal,
       objective: record.objective || 'investigate',
       success_count: 0,
@@ -410,6 +425,7 @@ class AxiomStorage {
     const status = String(record.status || 'unknown');
     const next = {
       key,
+      workspace_id: workspaceId,
       goal,
       objective: record.objective || current.objective || 'investigate',
       success_count: Number(current.success_count || 0) + (status === 'completed' ? 1 : 0),
@@ -431,8 +447,8 @@ class AxiomStorage {
     return next;
   }
 
-  getGoalMemory(goal) {
-    const row = this._stmts.getGoalMemory.get(lower(goal));
+  getGoalMemory(goal, workspaceId) {
+    const row = this._stmts.getGoalMemory.get(goalMemoryKey(goal, workspaceId));
     if (!row) return null;
     return {
       ...row,
@@ -475,8 +491,9 @@ class AxiomStorage {
     return Number(this._stmts.countRuns.get()?.c || 0);
   }
 
-  countGoals() {
-    return Number(this._stmts.countGoals.get()?.c || 0);
+  countGoals(workspaceId) {
+    if (workspaceId === undefined) return Number(this._stmts.countGoals.get()?.c || 0);
+    return Number(this._stmts.countGoalsForWorkspace.get(normalizeWorkspaceId(workspaceId))?.c || 0);
   }
 
   countCheckpoints() {

@@ -9,6 +9,33 @@ fn now_ms() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64
 }
 
+const DEFAULT_WORKSPACE: &str = "default";
+
+/// Absent/blank workspace means `default`, never "all workspaces" (#759).
+fn normalize_workspace(value: &str) -> String {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        DEFAULT_WORKSPACE.to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
+
+/// Authoritative storage/lookup key for a node.
+///
+/// Mirrors `lib/graph-record-utils.js#nodeStorageKey` exactly, so the two
+/// backends agree on identity and a snapshot written before workspaces existed
+/// still loads: the default workspace keeps the bare id, every other workspace
+/// is prefixed.
+fn storage_key(id: &str, workspace: &str) -> String {
+    let ws = normalize_workspace(workspace);
+    if ws == DEFAULT_WORKSPACE {
+        id.to_string()
+    } else {
+        format!("{}::{}", ws, id)
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 struct Node {
     id: String,
@@ -75,20 +102,19 @@ impl Graph {
     fn add_node(&mut self, id: &str, label: &str, opts: &Value) {
         let now = now_ms();
         let provenance = opts.get("provenance").cloned();
-        let workspace_id = get_str(opts, "workspaceId");
-        if let Some(n) = self.nodes.get_mut(id) {
+        let workspace_id = normalize_workspace(&get_str(opts, "workspaceId"));
+        let key = storage_key(id, &workspace_id);
+        if let Some(n) = self.nodes.get_mut(&key) {
             n.label = label.to_string();
             n.weight = (n.weight + 0.1).min(1.0);
             n.last_accessed = now;
             if provenance.is_some() {
                 n.provenance = provenance;
             }
-            if !workspace_id.is_empty() {
-                n.workspace_id = workspace_id;
-            }
+            n.workspace_id = workspace_id;
         } else {
             self.nodes.insert(
-                id.to_string(),
+                key,
                 Node {
                     id: id.to_string(),
                     label: label.to_string(),
@@ -103,12 +129,17 @@ impl Graph {
         }
     }
 
-    fn remove_node(&mut self, id: &str) -> bool {
-        if self.nodes.remove(id).is_none() {
+    fn remove_node(&mut self, id: &str, workspace: &str) -> bool {
+        let ws = normalize_workspace(workspace);
+        if self.nodes.remove(&storage_key(id, &ws)).is_none() {
             return false;
         }
         let before = self.edges.len();
-        self.edges.retain(|e| e.from != id && e.to != id);
+        // Only this workspace's edges follow the node out; an identically named
+        // node in another workspace keeps its own relationships.
+        self.edges.retain(|e| {
+            normalize_workspace(&e.workspace_id) != ws || (e.from != id && e.to != id)
+        });
         if self.edges.len() != before {
             self.rebuild_index();
         }
@@ -116,21 +147,26 @@ impl Graph {
     }
 
     fn add_edge(&mut self, from: &str, to: &str, relation: &str, opts: &Value) -> bool {
-        if !self.nodes.contains_key(from) || !self.nodes.contains_key(to) {
+        let workspace_id = normalize_workspace(&get_str(opts, "workspaceId"));
+        if !self.nodes.contains_key(&storage_key(from, &workspace_id))
+            || !self.nodes.contains_key(&storage_key(to, &workspace_id))
+        {
             return false;
         }
         let explicit_weight = get_f64_opt(opts, "weight");
         let explicit_confidence = get_f64_opt(opts, "confidence");
         let provenance = opts.get("provenance").cloned();
-        let workspace_id = get_str(opts, "workspaceId");
         let source_ref = get_str(opts, "sourceRef");
         let new_evidence = get_str_vec(opts, "evidence");
 
-        if let Some(e) = self
-            .edges
-            .iter_mut()
-            .find(|e| e.from == from && e.to == to && e.relation == relation)
-        {
+        // Workspace is part of edge identity: the same (from,to,relation) in two
+        // workspaces is two edges, not one shared edge (#759).
+        if let Some(e) = self.edges.iter_mut().find(|e| {
+            e.from == from
+                && e.to == to
+                && e.relation == relation
+                && normalize_workspace(&e.workspace_id) == workspace_id
+        }) {
             e.weight = explicit_weight.unwrap_or_else(|| (e.weight + 0.1).min(1.0)).clamp(0.0, 1.0);
             if explicit_confidence.is_some() {
                 e.confidence = explicit_confidence;
@@ -138,9 +174,7 @@ impl Graph {
             if provenance.is_some() {
                 e.provenance = provenance;
             }
-            if !workspace_id.is_empty() {
-                e.workspace_id = workspace_id;
-            }
+            e.workspace_id = workspace_id;
             if !source_ref.is_empty() {
                 e.source_ref = source_ref;
             }
@@ -169,9 +203,9 @@ impl Graph {
         true
     }
 
-    fn get_edges(&self, node: &str) -> Vec<&Edge> {
+    fn get_edges(&self, node: &str, workspace: &str) -> Vec<&Edge> {
         let mut res = Vec::new();
-        if let Some(indices) = self.out_index.get(node) {
+        if let Some(indices) = self.out_index.get(&storage_key(node, workspace)) {
             for &idx in indices {
                 res.push(&self.edges[idx]);
             }
@@ -179,9 +213,9 @@ impl Graph {
         res
     }
 
-    fn get_in_edges(&self, node: &str) -> Vec<&Edge> {
+    fn get_in_edges(&self, node: &str, workspace: &str) -> Vec<&Edge> {
         let mut res = Vec::new();
-        if let Some(indices) = self.in_index.get(node) {
+        if let Some(indices) = self.in_index.get(&storage_key(node, workspace)) {
             for &idx in indices {
                 res.push(&self.edges[idx]);
             }
@@ -189,12 +223,12 @@ impl Graph {
         res
     }
 
-    fn cosine_similarity(&self, a: &str, b: &str) -> f64 {
-        let an = match self.nodes.get(a) {
+    fn cosine_similarity(&self, a: &str, b: &str, workspace: &str) -> f64 {
+        let an = match self.nodes.get(&storage_key(a, workspace)) {
             Some(n) => n,
             None => return 0.0,
         };
-        let bn = match self.nodes.get(b) {
+        let bn = match self.nodes.get(&storage_key(b, workspace)) {
             Some(n) => n,
             None => return 0.0,
         };
@@ -229,14 +263,22 @@ impl Graph {
     fn optimize(&mut self) -> (usize, usize) {
         let pruned = self.prune(self.prune_threshold);
         let now = now_ms();
-        let ids: Vec<String> = self.nodes.keys().cloned().collect();
+        // (storage key, node id, workspace): the key deletes, the pair reads.
+        let entries: Vec<(String, String, String)> = self
+            .nodes
+            .iter()
+            .map(|(key, n)| (key.clone(), n.id.clone(), normalize_workspace(&n.workspace_id)))
+            .collect();
         let mut removed = 0;
-        for id in &ids {
-            if let Some(n) = self.nodes.get(id) {
+        for (key, id, ws) in &entries {
+            if let Some(n) = self.nodes.get(key) {
                 let elapsed = (now - n.last_accessed) as f64 / 1000.0;
                 let decayed = n.weight * (-self.decay_lambda * elapsed).exp();
-                if decayed < 0.01 && self.get_edges(id).is_empty() && self.get_in_edges(id).is_empty() {
-                    self.nodes.remove(id);
+                if decayed < 0.01
+                    && self.get_edges(id, ws).is_empty()
+                    && self.get_in_edges(id, ws).is_empty()
+                {
+                    self.nodes.remove(key);
                     removed += 1;
                 }
             }
@@ -245,8 +287,9 @@ impl Graph {
     }
 
     fn index_edge(&mut self, idx: usize) {
-        let from = self.edges[idx].from.clone();
-        let to = self.edges[idx].to.clone();
+        let ws = normalize_workspace(&self.edges[idx].workspace_id);
+        let from = storage_key(&self.edges[idx].from, &ws);
+        let to = storage_key(&self.edges[idx].to, &ws);
         self.out_index.entry(from).or_insert_with(Vec::new).push(idx);
         self.in_index.entry(to).or_insert_with(Vec::new).push(idx);
     }
@@ -272,7 +315,11 @@ impl Graph {
         self.out_index.clear();
         self.in_index.clear();
         for n in snapshot.nodes {
-            self.nodes.insert(n.id.clone(), n);
+            // A snapshot written before workspaces existed carries an empty
+            // workspace_id, which normalizes to `default` and so keys by the
+            // bare id exactly as it did before (#759).
+            let key = storage_key(&n.id, &n.workspace_id);
+            self.nodes.insert(key, n);
         }
         self.edges = snapshot.edges;
         self.rebuild_index();
@@ -391,8 +438,9 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
         }
         "get_node" => {
             let id = get_str(cmd, "id");
+            let workspace = normalize_workspace(&get_str(cmd, "workspaceId"));
             let now = now_ms();
-            if let Some(n) = graph.nodes.get_mut(&id) {
+            if let Some(n) = graph.nodes.get_mut(&storage_key(&id, &workspace)) {
                 n.last_accessed = now;
                 json!({
                     "ok": true,
@@ -411,7 +459,8 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
         }
         "remove_node" => {
             let id = get_str(cmd, "id");
-            json!({ "ok": graph.remove_node(&id) })
+            let workspace = get_str(cmd, "workspaceId");
+            json!({ "ok": graph.remove_node(&id, &workspace) })
         }
         "add_edge" => {
             let from = get_str(cmd, "from");
@@ -421,17 +470,28 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
         }
         "get_edges" => {
             let id = get_str(cmd, "id");
-            let edges: Vec<Value> = graph.get_edges(&id).iter().map(|e| edge_to_json(e)).collect();
+            let workspace = get_str(cmd, "workspaceId");
+            let edges: Vec<Value> = graph
+                .get_edges(&id, &workspace)
+                .iter()
+                .map(|e| edge_to_json(e))
+                .collect();
             json!({ "ok": true, "edges": edges })
         }
         "get_in_edges" => {
             let id = get_str(cmd, "id");
-            let edges: Vec<Value> = graph.get_in_edges(&id).iter().map(|e| edge_to_json(e)).collect();
+            let workspace = get_str(cmd, "workspaceId");
+            let edges: Vec<Value> = graph
+                .get_in_edges(&id, &workspace)
+                .iter()
+                .map(|e| edge_to_json(e))
+                .collect();
             json!({ "ok": true, "edges": edges })
         }
         "get_weight" => {
             let id = get_str(cmd, "id");
-            match graph.nodes.get(&id) {
+            let workspace = normalize_workspace(&get_str(cmd, "workspaceId"));
+            match graph.nodes.get(&storage_key(&id, &workspace)) {
                 Some(n) => {
                     let elapsed = (now_ms() - n.last_accessed) as f64 / 1000.0;
                     let decayed = n.weight * (-graph.decay_lambda * elapsed).exp();
@@ -443,10 +503,13 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
         "cosine_similarity" => {
             let a = get_str(cmd, "a");
             let b = get_str(cmd, "b");
-            if !graph.nodes.contains_key(&a) || !graph.nodes.contains_key(&b) {
+            let workspace = normalize_workspace(&get_str(cmd, "workspaceId"));
+            if !graph.nodes.contains_key(&storage_key(&a, &workspace))
+                || !graph.nodes.contains_key(&storage_key(&b, &workspace))
+            {
                 return json!({ "ok": false });
             }
-            json!({ "ok": true, "similarity": graph.cosine_similarity(&a, &b) })
+            json!({ "ok": true, "similarity": graph.cosine_similarity(&a, &b, &workspace) })
         }
         "prune" => {
             let threshold = get_f64(cmd, "threshold", graph.prune_threshold);
@@ -467,7 +530,8 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
                 let parsed = parse_predicate(&predicate);
                 graph.add_node(&parsed.object, &parsed.object, cmd);
                 graph.add_edge(&subject, &parsed.object, &parsed.relation, cmd);
-                if let Some(n) = graph.nodes.get_mut(&subject) {
+                let workspace = normalize_workspace(&get_str(cmd, "workspaceId"));
+                if let Some(n) = graph.nodes.get_mut(&storage_key(&subject, &workspace)) {
                     *n.vector.entry(parsed.object.clone()).or_insert(0.0) += 0.3;
                 }
             }
@@ -477,8 +541,9 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
             let question = get_str(cmd, "question");
             let parts: Vec<&str> = question.trim().split_whitespace().collect();
             let subject = if parts.is_empty() { String::new() } else { parts[0].to_string() };
-            let mut edge_list = graph.get_edges(&subject);
-            if !graph.nodes.contains_key(&subject) || edge_list.is_empty() {
+            let workspace = normalize_workspace(&get_str(cmd, "workspaceId"));
+            let mut edge_list = graph.get_edges(&subject, &workspace);
+            if !graph.nodes.contains_key(&storage_key(&subject, &workspace)) || edge_list.is_empty() {
                 return json!({ "ok": true, "answer": "Bilmiyorum" });
             }
             edge_list.sort_by(|a, b| b.weight.partial_cmp(&a.weight).unwrap_or(std::cmp::Ordering::Equal));

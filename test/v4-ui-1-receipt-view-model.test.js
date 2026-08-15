@@ -14,6 +14,9 @@ test('V4-UI-1 receipt view-model contract', async (t) => {
       'unauthorized',
       'invalid_request',
       'not_found',
+      // A receipt whose materialized chain fails validation is its own
+      // terminal state, so the viewer cannot report it as found (#766).
+      'chain_invalid',
       'read_error',
       'found',
     ]);

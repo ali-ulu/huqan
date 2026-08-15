@@ -11,6 +11,7 @@ const STATE_MESSAGES = Object.freeze({
   unauthorized: 'Open a viewer session to inspect receipts.',
   invalid_request: 'Enter a valid receipt identifier.',
   not_found: 'No receipt was found for this bounded lookup.',
+  chain_invalid: 'Receipt chain integrity failed. This receipt is not authoritative and its fields are withheld.',
   read_error: 'The receipt could not be read safely.',
   found: 'Canonical receipt observed.',
 });

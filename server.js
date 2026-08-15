@@ -8,7 +8,8 @@ const crypto = require('crypto');
 const http = require('http');
 const path = require('path');
 const { readFileSync } = require('fs');
-const { createKernel } = require('./lib/kernel-factory');
+const { createKernel, CANONICAL_KERNEL_VERSION } = require('./lib/kernel-factory');
+const { CANONICAL_AGENT_VERSION } = require('./agentRuntime');
 const { parseCommand } = require('./lib/command-parser');
 const { evaluateLlmSor } = require('./lib/shield');
 const {
@@ -20,11 +21,12 @@ const AxiomStorage = require('./storage');
 const { decideIngestApproval } = require('./lib/workbench/ingest-approval-action');
 const {
   buildTrustReceipt,
-  queryAuditTrail,
+  queryAuditTrailPage,
   queryCandidateClaims,
   queryProvenance,
 } = require('./lib/provenance-query');
 const { readReceiptById } = require('./lib/receipt/receipt-read-index');
+const { receiptReadFailure } = require('./lib/http/receipt-read-failures');
 const { createWorkbenchReadHttpRouter } = require('./lib/workbench/workbench-read-http-router');
 const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
 const { readExactWorkspace } = require('./lib/http/exact-workspace');
@@ -40,6 +42,7 @@ const {
   checkRateLimit,
   clearExpiredRateLimitEntries,
   isAllowedPublicCommand,
+  commandRequiresAuthentication,
   isUnsafePublicApiCommand,
   readJsonBody,
   requireApiKey,
@@ -112,63 +115,6 @@ const ingestApprovalRecoveryTimer = setInterval(() => {
 }, Math.max(5_000, Math.floor(INGEST_APPROVAL_LEASE_MS / 2)));
 ingestApprovalRecoveryTimer.unref?.();
 
-function runPublicApiCommand(command, args) {
-  const normalizedCommand = String(command || '')
-    .replace(/\uFEFF/g, '')
-    .toLowerCase()
-    .replace(/[ç]/g, 'c')
-    .replace(/[ğ]/g, 'g')
-    .replace(/[ı]/g, 'i')
-    .replace(/[ö]/g, 'o')
-    .replace(/[ş]/g, 's')
-    .replace(/[ü]/g, 'u')
-    .replace(/[_-]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  switch (normalizedCommand) {
-    case 'selam':
-      return 'Merhaba! Bana bir sey ogretebilir veya soru sorabilirsin.';
-    case 'yardim':
-      return [
-        'AXIOM komutlari:',
-        '  "kedi balik yer"          -> bilgi ogrenirim',
-        '  "kedi nedir"              -> soruyu cevaplarim',
-        '  "neden tavuk"             -> sebep analizi',
-        '  "tavuk mu yumurta mi"     -> karsilastirma',
-        '  "durum"                   -> sistem durumu',
-        '  "ruya"                    -> hipotez uretirim',
-        '  "plan: hedef"             -> ajan plani uretirim',
-        '  "ajan: hedef"             -> cok adimli ajan calistiririm',
-        '  "backup"                  -> calisma durumunu yedeklerim',
-        '  "restore[: yol]"          -> en son veya secili yedekten geri yuklerim',
-        '  "kaydet"                  -> hafizayi kaydederim',
-        '  "llm-sor: soru"           -> LLM tavsiyesi hazirlarim',
-        '  "yukle: dosya.txt"        -> dosyadan ogrenirim',
-        '  "cikis"                   -> cikis',
-      ].join('\n');
-    case 'anlamadim':
-      return 'Anlamadim. Daha uzun bir cumle yaz veya "yardim" yaz.';
-    case 'sor': {
-      const result = kernel.ask(args);
-      const answer = result.data.answer;
-      return answer === 'Bilmiyorum' ? `X ${answer}` : `Cevap: ${answer}`;
-    }
-    case 'durum': {
-      const stats = kernel.graph.getStats();
-      const gaps = kernel.detectGaps();
-      const contradictions = kernel.detectContradictions();
-      let out = `Durum: ${stats.nodes} düğüm, ${stats.edges} kenar, entropi: ${kernel.entropy().toFixed(3)}`;
-      if (gaps.length > 0) out += `\n  ${gaps.length} baglantisiz dugum: ${gaps.slice(0, 10).join(', ')}${gaps.length > 10 ? '...' : ''}`;
-      for (const item of contradictions.slice(0, 5)) {
-        out += `\n  Celiski [${item.type}]: ${item.node} -> ${item.targets.join(', ')}`;
-      }
-      return out;
-    }
-    default:
-      return null;
-  }
-}
 
 const {
   ALLOWED_CORS_HOSTS,
@@ -195,6 +141,8 @@ const {
   hasTrustQuery,
   readPathReceiptId,
 } = require('./lib/http-trust-query');
+const { runPublicApiCommand } = require('./lib/http/public-api-commands');
+const { V2_STATUS_PHASES } = require('./lib/http/v2-status-phases');
 
 function checkViewerRateLimit(req, timestamp = Date.now()) {
   const key = String(req.socket?.remoteAddress || 'unknown');
@@ -390,7 +338,7 @@ function getHealthData() {
     // window; it is not a second product identity.
     service: 'huqan',
     legacyService: 'axiom',
-    kernelVersion: readCompatibleEnvironmentVariable('KERNEL_VERSION') === 'v2' ? 'v2' : 'v1',
+    kernelVersion: CANONICAL_KERNEL_VERSION, // canonical constant, not the selector (#755)
     backend: stats.backend,
     nodes: stats.nodes,
     edges: stats.edges,
@@ -401,144 +349,14 @@ function getHealthData() {
 
 function getV2StatusData() {
   const stats = kernel.graph.getStats();
-  const activeKernel = readCompatibleEnvironmentVariable('KERNEL_VERSION') === 'v2' ? 'v2' : 'v1';
-  const agentRuntime = String(readCompatibleEnvironmentVariable('AGENT_VERSION') || 'v2').toLowerCase();
+  // #755: from the canonical constants, not the optional version selectors.
+  // With those absent (the normal configuration) the process ran KernelV2 and
+  // AgentV3 while status advertised v1/v2.
+  const activeKernel = CANONICAL_KERNEL_VERSION;
+  const agentRuntime = CANONICAL_AGENT_VERSION;
   const agentRuntimeMode = String(readCompatibleEnvironmentVariable('AGENT_RUNTIME') || '').toLowerCase() || agentRuntime;
   const checkpointBackend = agentRuntime === 'v3' ? 'sqlite' : 'json';
-  const phases = [
-    {
-      id: 'v2.0',
-      title: 'v2.0 Core / Release',
-      status: 'done',
-      summary: 'Core contract, paranoid mode, MCP, benchmarks, release notes, and v2.0.0 tag are shipped.',
-      items: [
-        'Core envelope contract',
-        'paranoidMode + AXIOM_ERROR + contractVersion',
-        'MCP stdio adapter',
-        'Deterministic benchmark fixtures',
-        'Release docs + v2.0.0 tag',
-      ],
-    },
-    {
-      id: 'v2.1',
-      title: 'v2.1 Verify Reasoning',
-      status: 'done',
-      summary: 'KernelV2 verify now supports multi-hop type inference, contradiction reasons, and richer evidence.',
-      items: [
-        'Multi-hop type-chain inference',
-        'Negated known fact conflict',
-        'Opposite predicate conflict',
-        'Known type mismatch conflict',
-      ],
-    },
-    {
-      id: 'v2.2',
-      title: 'v2.2 Ecosystem',
-      status: 'done',
-      summary: 'MCP schema reflects v2 verify fields and can opt into KernelV2 runtime.',
-      items: [
-        'Richer verify output schema',
-        'Optional HUQAN_KERNEL_VERSION=v2 runtime',
-        'Schema tests',
-      ],
-    },
-    {
-      id: 'v2.3',
-      title: 'v2.3 CLI/REST Runtime',
-      status: readCompatibleEnvironmentVariable('KERNEL_VERSION') === 'v2' ? 'done' : 'in_progress',
-      summary: 'CLI, REST, and MCP can run the v2 kernel behind an explicit environment flag.',
-      items: [
-        'CLI KernelV2 opt-in',
-        'REST KernelV2 opt-in',
-        'Health/status kernel visibility',
-      ],
-    },
-    {
-      id: 'v2.4',
-      title: 'v2.4 Status Dashboard',
-      status: 'done',
-      summary: 'The web UI and /v2-status endpoint show phase, runtime, test, and commit state in one place.',
-      items: [
-        'Single status endpoint',
-        'Runtime kernel/backend cards',
-        'Phase progress cards',
-        'Last commit visibility',
-      ],
-    },
-    {
-      id: 'v2.5',
-      title: 'v2.5 REST Structured Verify',
-      status: 'done',
-      summary: 'New /v2/verify endpoint returns the full core envelope while legacy /dogrula stays stable.',
-      items: [
-        'GET /v2/verify',
-        'POST /v2/verify',
-        'Legacy /dogrula compatibility',
-        'Structured REST tests',
-      ],
-    },
-    {
-      id: 'v2.6',
-      title: 'v2.6 MCP Schema Polish',
-      status: 'done',
-      summary: 'MCP tool descriptions and output schemas now mirror the real payload shapes more closely.',
-      items: [
-        'Concrete tool descriptions',
-        'Per-tool output schemas',
-        'Evidence and meta schema details',
-        'Developer-friendly MCP docs',
-      ],
-    },
-    {
-      id: 'v2.7',
-      title: 'v2.7 Manipulation Guard',
-      status: 'done',
-      summary: 'KernelV2 now flags manipulative, coercive, or injection-style text with additive risk metadata.',
-      items: [
-        'Prompt-injection detection',
-        'Coercive and overclaim risk labels',
-        'Risk-aware learnFromLLM filtering',
-        'Structured verify risk metadata',
-      ],
-    },
-    {
-      id: 'v2.8',
-      title: 'v2.8 Status Dashboard Polish',
-      status: 'done',
-      summary: 'The dashboard now makes progress, remaining phases, and current focus easier to scan at a glance.',
-      items: [
-        'Progress percentage',
-        'Remaining phase count',
-        'Current focus clarity',
-        'Dashboard readability polish',
-      ],
-    },
-    {
-      id: 'v2.9',
-      title: 'v2.9 Evidence Polish',
-      status: 'done',
-      summary: 'KernelV2 verify now adds compact explanation and evidence summary fields for clearer reasoning traces.',
-      items: [
-        'Verify explanation text',
-        'Compact evidence summary',
-        'Risk-aware reasoning polish',
-        'MCP schema exposure',
-      ],
-    },
-    {
-      id: 'v3.0',
-      title: 'v3.0 Agent Workflow',
-      status: 'in_progress',
-      summary: 'AXIOM now has a lightweight multi-step agent planner with persistent goal memory, tool selection policy, and execution reports.',
-      items: [
-        'Goal planner',
-        'Persistent goal memory',
-        'Multi-step execution loop',
-        'Tool selection policy',
-        'CLI agent commands',
-      ],
-    },
-  ];
+  const phases = V2_STATUS_PHASES;
 
   const counts = phases.reduce((acc, phase) => {
     acc.total += 1;
@@ -967,13 +785,12 @@ const server = http.createServer(async (req, res) => {
     const readFilters = { workspaceId: workspace.workspaceId };
     const read = readReceiptById(kernel.graph, receiptReadRequest.receiptId, readFilters);
     if (!read.ok) {
-      const code = read.status === 'not_found' ? 'receipt_not_found' : 'invalid_receipt_id';
-      writeJson(req, res, read.status === 'not_found' ? 404 : 400, {
+      // A receipt from a broken chain is never served as an ordinary 200, and
+      // it is not "not found" either -- it gets its own code (#766).
+      const failure = receiptReadFailure(read.status);
+      writeJson(req, res, failure.statusCode, {
         ok: false,
-        error: {
-          code,
-          message: read.error?.message || 'receipt could not be read',
-        },
+        error: { code: failure.code, message: read.error?.message || 'receipt could not be read' },
       }, { 'Cache-Control': 'no-cache' });
       return;
     }
@@ -1025,14 +842,13 @@ const server = http.createServer(async (req, res) => {
           writeApiError(req, res, 400, 'INVALID_QUERY', 'targetId, provenanceId, sourceRef, eventType, or actor is required.');
           return;
         }
-        const items = queryAuditTrail(graph, { ...filters, workspaceId });
+        // Bounded page, not the whole trail (#729). `total` is this page's
+        // item count; hasMore/nextCursor carry continuation.
+        const page = queryAuditTrailPage(graph, { ...filters, workspaceId });
+        const { items, limit, hasMore, nextCursor } = page;
         writeJson(req, res, 200, {
           ok: true,
-          data: {
-            items,
-            total: items.length,
-            workspaceId,
-          },
+          data: { items, total: items.length, limit, hasMore, nextCursor, workspaceId },
         }, { 'Cache-Control': 'no-cache' });
         return;
       }
@@ -1200,13 +1016,16 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
+      // /api is public, but only for fixed-response commands: `sor`/`durum`
+      // read live workspace state, so they need a key (#727).
+      if (p && commandRequiresAuthentication(p.command) && !denyIfUnauthorized(req, res)) return;
       let result;
       if (!p) {
         result = 'HATA: Anlamadım.';
       } else if (p.command === 'kaydet') {
         result = '⚠️ Kaydet komutu sadece CLI\'dan kullanılabilir.';
       } else {
-        result = runPublicApiCommand(p.command, p.args);
+        result = runPublicApiCommand(p.command, p.args, kernel);
         if (result === null) {
           res.writeHead(403, {
             'Content-Type': 'application/json; charset=utf-8',

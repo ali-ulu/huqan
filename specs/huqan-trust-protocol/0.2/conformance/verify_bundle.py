@@ -112,7 +112,31 @@ def sha256_hex(text):
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+SEAL_VERSION = "huqan-bundle-seal-v2"
+
+
+def canonical_seal_payload(bundle):
+    """The exact field set the bundle hash commits to.
+
+    Everything a consumer may treat as authoritative provenance is in here.
+    An earlier revision of this format sealed only ``receipts``, which let a
+    bundle be relabelled with another workspaceId or exportedAt, or declare a
+    false receiptCount, while still verifying (#735, #767).
+    """
+    return {
+        "sealVersion": SEAL_VERSION,
+        "schemaVersion": bundle.get("schemaVersion"),
+        "workspaceId": bundle.get("workspaceId"),
+        "exportedAt": bundle.get("exportedAt"),
+        "receiptCount": bundle.get("receiptCount"),
+        "receipts": bundle["receipts"],
+    }
+
+
 def check_bundle_seal(bundle):
+    if bundle.get("sealVersion") == SEAL_VERSION:
+        return sha256_hex(canonical_json(canonical_seal_payload(bundle))) == bundle["bundleHash"]
+    # Legacy bundles predate the envelope seal and committed to receipts only.
     return sha256_hex(canonical_json(bundle["receipts"])) == bundle["bundleHash"]
 
 
@@ -137,18 +161,23 @@ def validate_chain(receipts):
     return (True, None, None)
 
 
-def verify(bundle):
+def verify(bundle, allow_unsealed_envelope=False):
     """Return (ok, findings) for one parsed bundle."""
     findings = []
     if not check_bundle_seal(bundle):
         findings.append("bundle_seal_mismatch")
     if bundle.get("schemaVersion") != expected_envelope_version(bundle["receipts"]):
         findings.append("envelope_version_mismatch")
-    # receiptCount is deliberately NOT checked. The specification defines exactly
-    # three checks, and the producer's verifyExportedBundle() likewise derives
-    # validity from bundle seal, envelope version and chain only. Rejecting a
-    # bundle on receiptCount would make this verifier stricter than the format it
-    # implements, which is a conformance defect even though it sounds safer.
+    # receiptCount IS checked: the specification now binds it into the seal and
+    # additionally requires it to agree with the array. A count that disagrees
+    # with the receipts it describes is a defect no matter what is signed.
+    if bundle.get("receiptCount") is not None and bundle["receiptCount"] != len(bundle["receipts"]):
+        findings.append("receipt_count_mismatch")
+    # A bundle with no sealVersion has an unauthenticated envelope, so it is
+    # only acceptable to a caller that has explicitly said it will not trust
+    # that envelope.
+    if bundle.get("sealVersion") != SEAL_VERSION and not allow_unsealed_envelope:
+        findings.append("envelope_unsealed")
     ok, broken_at, reason = validate_chain(bundle["receipts"])
     if not ok:
         findings.append("%s@%d" % (reason, broken_at))

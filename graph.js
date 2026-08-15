@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { buildAuditEvent, getAuditEvents: filterAuditEvents, normalizeAuditEvent } = require('./lib/audit-log');
+const { buildAuditEvent, normalizeAuditEvent } = require('./lib/audit-log');
 const { normalizeCandidateClaim } = require('./lib/conflict-detector');
 const { appendReceiptToChain } = require('./lib/receipt/receipt-chain');
 const {
@@ -39,8 +39,10 @@ const {
   sanitizeEdgeMeta,
   attachTraversalMeta,
   normalizeLoadedEdge,
-  cloneAuditEvent,
 } = require('./lib/graph-record-utils');
+const { countAuditEvents, queryAuditEvents, readAuditEvents } = require('./lib/audit-query');
+const { assertChainTipUsable, emptyMutationJournal, readMutationJournal } = require('./lib/mutation-journal');
+const { applyTemporalEdgeMetadata, beginEdgeTouchScope, downgradeEdge, edgeTouchKey } = require('./lib/graph-edge-mutations');
 
 class Graph {
   /**
@@ -64,6 +66,8 @@ class Graph {
     this._auditEvents = [];
     this._outIndex = new Map();
     this._inIndex = new Map();
+    this._auditQueryStmts = new Map();
+    this._edgeTouchScope = null;
 
     // SQLite kurulumu
     const wantSQLite = opts.useSQLite !== false && Database !== null;
@@ -334,6 +338,7 @@ class Graph {
           warnings = excluded.warnings
       `),
       pruneEdges: this._db.prepare('DELETE FROM edges WHERE weight < ? AND workspace_id = ?'),
+      deleteEdge: this._db.prepare('DELETE FROM edges WHERE workspace_id = ? AND from_id = ? AND to_id = ? AND relation = ?'),
       countNodes: this._db.prepare('SELECT COUNT(*) as c FROM nodes'),
       countEdges: this._db.prepare('SELECT COUNT(*) as c FROM edges'),
       allNodes: this._db.prepare('SELECT * FROM nodes'),
@@ -347,6 +352,7 @@ class Graph {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `),
       allAuditEvents: this._db.prepare('SELECT * FROM audit_log ORDER BY timestamp ASC, audit_id ASC'),
+      countAuditEvents: this._db.prepare('SELECT COUNT(*) AS total FROM audit_log'),
       getMutationJournal: this._db.prepare('SELECT operation_id, status, result, completed_at FROM mutation_journal WHERE operation_id = ?'),
       insertMutationJournal: this._db.prepare('INSERT INTO mutation_journal (operation_id, status, result, completed_at) VALUES (?, ?, ?, ?)'),
       getMutationReceiptByOperation: this._db.prepare('SELECT * FROM mutation_receipts WHERE operation_id = ?'),
@@ -448,23 +454,15 @@ class Graph {
   }
 
   _emptyJsonJournal() {
-    return { operations: {}, receipts: {}, chainTips: {}, receiptsById: {} };
+    return emptyMutationJournal();
   }
 
+  /**
+   * Fails closed on an existing-but-unreadable journal (#731); only a genuinely
+   * absent journal yields empty history. See lib/mutation-journal.js.
+   */
   _readJsonJournal() {
-    const journalPath = this._jsonJournalPath();
-    if (!fs.existsSync(journalPath)) return this._emptyJsonJournal();
-    try {
-      const parsed = JSON.parse(fs.readFileSync(journalPath, 'utf8'));
-      return {
-        operations: parsed.operations && typeof parsed.operations === 'object' ? parsed.operations : {},
-        receipts: parsed.receipts && typeof parsed.receipts === 'object' ? parsed.receipts : {},
-        chainTips: parsed.chainTips && typeof parsed.chainTips === 'object' ? parsed.chainTips : {},
-        receiptsById: parsed.receiptsById && typeof parsed.receiptsById === 'object' ? parsed.receiptsById : {},
-      };
-    } catch (_) {
-      return this._emptyJsonJournal();
-    }
+    return readMutationJournal(this._jsonJournalPath());
   }
 
   _writeJsonJournal(journal) {
@@ -640,7 +638,9 @@ class Graph {
           assertDurableV4WriteAllowed(payload, { operationId: id });
           const receiptFamily = classifyReceiptFamily(payload);
           const chainKey = `${payload.workspaceId}::${receiptFamily}`;
-          const previousReceiptHash = journal.chainTips[chainKey] || null;
+          // Re-checked here so a damaged tip is caught before it is linked
+          // against, not after a broken chain has been written (#731).
+          const previousReceiptHash = assertChainTipUsable(journal.chainTips, chainKey, this._jsonJournalPath());
           const chained = appendReceiptToChain(payload, previousReceiptHash);
           const committedAt = nowIso();
           journal.receipts[id] = {
@@ -702,23 +702,24 @@ class Graph {
     this._nodes[storageKey].embedding = embedding;
   }
 
+  /** Edge-touch scope + temporal stamping; see lib/graph-edge-mutations.js (#733). */
   _captureTemporalEdgeKeys() {
-    return new Set(this._edges.map(edge => `${edge.from}|${edge.relation}|${edge.to}`));
+    this._edgeTouchScope = beginEdgeTouchScope(this);
+    return this._edgeTouchScope;
   }
 
-  _applyTemporalEdgeMetadata(source, learnedAt, beforeEdgeKeys) {
-    const timestamp = learnedAt || nowIso();
-    for (const edge of this._edges) {
-      const key = `${edge.from}|${edge.relation}|${edge.to}`;
-      if (!beforeEdgeKeys.has(key) && !edge.createdAt) edge.createdAt = timestamp;
-      edge.updatedAt = timestamp;
-      if (source) edge.source = source;
+  _recordEdgeTouch(workspaceId, from, relation, to) {
+    if (this._edgeTouchScope) this._edgeTouchScope.touched.add(edgeTouchKey(workspaceId, from, relation, to));
+  }
 
-      if (!Array.isArray(edge.evidence)) edge.evidence = [];
-      if (source && !edge.evidence.includes(`source:${source}`)) {
-        edge.evidence.push(`source:${source}`);
-      }
-    }
+  _applyTemporalEdgeMetadata(source, learnedAt, scope, opts = {}) {
+    this._edgeTouchScope = null;
+    return applyTemporalEdgeMetadata(this, { source, learnedAt, scope, workspaceId: opts.workspaceId });
+  }
+
+  /** Canonical downgrade/reclassify write path; see lib/graph-edge-mutations.js (#732). */
+  downgradeEdge(spec = {}) {
+    return downgradeEdge(this, spec);
   }
 
   _consolidateEdges(dryRun = true) {
@@ -895,33 +896,27 @@ class Graph {
     return normalized;
   }
 
+  _auditQueryContext() {
+    return {
+      db: this._db,
+      stmts: this._stmts,
+      events: this._auditEvents,
+      statementCache: this._auditQueryStmts,
+    };
+  }
+
   getAuditEvents(filters = {}) {
-    let events = this._auditEvents;
-    if (this._db && this._stmts) {
-      const dbEvents = this._stmts.allAuditEvents.all().map((row) => normalizeAuditEvent({
-        auditId: row.audit_id,
-        eventType: row.event_type,
-        targetType: row.target_type || '',
-        targetId: row.target_id || '',
-        workspaceId: row.workspace_id || 'default',
-        actor: row.actor || 'system',
-        timestamp: row.timestamp,
-        sourceRef: row.source_ref || '',
-        provenanceId: row.provenance_id || '',
-        trustPolicyVersion: row.trust_policy_version || '',
-        details: JSON.parse(row.details || '{}'),
-      }));
-      const merged = new Map();
-      for (const event of [...dbEvents, ...this._auditEvents]) {
-        merged.set(event.auditId, cloneAuditEvent(event));
-      }
-      events = Array.from(merged.values()).sort((a, b) => {
-        const timestampDiff = String(a.timestamp || '').localeCompare(String(b.timestamp || ''));
-        if (timestampDiff !== 0) return timestampDiff;
-        return String(a.auditId || '').localeCompare(String(b.auditId || ''));
-      });
-    }
-    return filterAuditEvents(events, filters);
+    return readAuditEvents(this._auditQueryContext(), filters);
+  }
+
+  /** Bounded COUNT(*); see lib/audit-query.js (#728). */
+  countAuditEvents(filters = {}) {
+    return countAuditEvents(this._auditQueryContext(), filters);
+  }
+
+  /** One keyset page with filters pushed into SQL; see lib/audit-query.js (#729). */
+  queryAuditEvents(options = {}) {
+    return queryAuditEvents(this._auditQueryContext(), options);
   }
 
   addCandidateClaim(candidate, opts = {}) {
@@ -1107,6 +1102,7 @@ class Graph {
           relation
         );
       }
+      this._recordEdgeTouch(workspaceId, fromId, relation, toId);
       return cloneEdgeRecord(existing);
     }
       const edge = {
@@ -1159,6 +1155,7 @@ class Graph {
         edge.strength ?? 0.5
       );
     }
+    this._recordEdgeTouch(workspaceId, fromId, relation, toId);
     return cloneEdgeRecord(edge);
   }
 

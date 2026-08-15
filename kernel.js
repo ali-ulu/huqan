@@ -18,6 +18,7 @@ const MemoryStore = require('./lib/memory-store');
 const { buildCanonicalReceiptPayload } = require('./lib/receipt/canonical-receipt');
 const { toCanonicalVerdict } = require('./lib/verdict/action-verdict');
 const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
+const { runRustSandbox } = require('./lib/reason-sandbox');
 
 let RustGraph;
 try { RustGraph = require('./rustGraph'); } catch {}
@@ -55,9 +56,8 @@ const {
   CLI_MUTATION_AUDIT_APPROVAL_STATES,
   CLI_MUTATION_AUDIT_MAPPINGS,
   normalizeWorkspaceId,
-  isPlainObject,
-  validateCliMutationAuditIntent,
 } = require('./lib/cli-mutation-audit-intent');
+const { recordCliMutationAudit } = require('./lib/cli-mutation-audit');
 const {
   normalizeExplicitRelationObject,
   parseExplicitRelationPredicate,
@@ -198,14 +198,12 @@ class Kernel {
    */
   async reasonSandbox({ learn = [], ask = [] } = {}) {
     if (this._rust) {
-      const learnCmds = learn.map(text => ({ cmd: 'learn', text }));
-      if (learnCmds.length) await this._rust._send({ cmd: 'batch', commands: learnCmds });
-      const askCmds = ask.map(question => ({ cmd: 'ask', question }));
-      const res = askCmds.length ? await this._rust._send({ cmd: 'batch', commands: askCmds }) : { results: [] };
-      if (res && res.ok !== false) {
-        return { backend: 'rust', answers: (res.results || []).map(r => r.answer || 'Bilmiyorum') };
-      }
-      // Rust process died mid-flight: fall through to the JS sandbox below.
+      // Deliberately NOT this._rust: axiom-core keeps one mutable Graph for the
+      // life of its process, so the kernel's shared bridge is not a sandbox.
+      // runRustSandbox spawns a private process per call and tears it down (#758).
+      const answers = await runRustSandbox({ learn, ask });
+      if (answers) return { backend: 'rust', answers };
+      // Rust unusable or died mid-flight: fall through to the JS sandbox below.
     }
     // JS fallback uses a throwaway Kernel (learn()/ask() live on Kernel, not
     // Graph) so behavior matches the non-sandbox path when Rust is absent.
@@ -541,39 +539,7 @@ class Kernel {
   }
 
   recordCliMutationAudit(intent) {
-    try {
-      const validated = validateCliMutationAuditIntent(intent);
-      if (!validated || !this.graph || typeof this.graph.appendAuditEvent !== 'function') {
-        return { auditRecorded: false, event: null, errorCode: 'AUDIT_WRITE_FAILED' };
-      }
-
-      const details = {
-        source: 'cli',
-        command: validated.sourceCommand,
-        mutationType: validated.mutationType,
-        decision: validated.decision,
-        executed: validated.executionEligible,
-        reason: validated.reason,
-      };
-      if (validated.approvalState !== undefined) details.approvalState = validated.approvalState;
-      if (validated.receiptReference !== undefined) details.receiptId = validated.receiptReference;
-
-      const event = this.graph.appendAuditEvent({
-        eventType: validated.eventType,
-        targetType: 'cli_mutation',
-        targetId: validated.sourceCommand,
-        actor: validated.actor || 'cli-user',
-        workspaceId: validated.workspaceId || 'default',
-        details,
-      });
-
-      if (!isPlainObject(event) || typeof event.then === 'function') {
-        return { auditRecorded: false, event: null, errorCode: 'AUDIT_WRITE_FAILED' };
-      }
-      return { auditRecorded: true, event, errorCode: null };
-    } catch (_) {
-      return { auditRecorded: false, event: null, errorCode: 'AUDIT_WRITE_FAILED' };
-    }
+    return recordCliMutationAudit(this.graph, intent);
   }
   /**
    * FAZ2-PR3 (F-001): Background-source synthetic provenance for autonomous

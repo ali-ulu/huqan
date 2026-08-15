@@ -9,9 +9,19 @@ const { createRouteFixture } = require('./helpers/external-client-route-fixture'
 const { createRouteHarness } = require('./helpers/external-client-route-harness');
 
 const CLIENT = path.join(__dirname, '..', 'scripts', 'external-client.js');
-function run(args) {
+/**
+ * The bearer credential is passed through the environment, never argv (#771).
+ * `options.env` overrides that per call so the credential-source rules can be
+ * exercised; `options.stdin` feeds the `--api-key-file -` path.
+ */
+function run(args, options = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [CLIENT, ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const env = Object.hasOwn(options, 'env') ? options.env : { ...process.env, HUQAN_API_KEY: options.apiKey };
+    const child = spawn(process.execPath, [CLIENT, ...args], {
+      stdio: [options.stdin === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
+      env,
+    });
+    if (options.stdin !== undefined) child.stdin.end(options.stdin);
     let stdout = ''; let stderr = '';
     child.stdout.setEncoding('utf8'); child.stderr.setEncoding('utf8');
     child.stdout.on('data', (chunk) => { stdout += chunk; });
@@ -49,14 +59,14 @@ test('standalone stdlib client admits over loopback and independently verifies r
   const packageFile = write(fixture.directory, 'package.json', pkg);
   const output = path.join(fixture.directory, 'response.json');
   const admitted = await run(['admit', '--url', `http://127.0.0.1:${harness.port}/api/external-client/packages/admit`,
-    '--api-key', harness.apiKey, '--input', input, '--output', output]);
+    '--input', input, '--output', output], { apiKey: harness.apiKey });
   assert.equal(admitted.status, 0, admitted.stderr);
   const artifact = JSON.parse(fs.readFileSync(output, 'utf8'));
   assert.equal(artifact.ok, true);
   assert.deepEqual(counts(fixture), [1, 1, 1]);
   assert.equal(fixture.state().receipts[0].receipt_id, artifact.receiptId);
   const refusedOverwrite = await run(['admit', '--url', `http://127.0.0.1:${harness.port}/api/external-client/packages/admit`,
-    '--api-key', harness.apiKey, '--input', input, '--output', output]);
+    '--input', input, '--output', output], { apiKey: harness.apiKey });
   assert.equal(refusedOverwrite.status, 1);
   assert.equal(refusedOverwrite.stderr, 'output file already exists\n');
   assert.deepEqual(counts(fixture), [1, 1, 1]);
@@ -138,7 +148,7 @@ test('signature, key, package hash, workspace and identity failures are mutation
     const input = write(fixture.directory, `rejected-${index}.json`, makeEnvelope(fixture));
     const output = path.join(fixture.directory, `rejected-${index}-response.json`);
     const result = await run(['admit', '--url', `http://127.0.0.1:${harness.port}/api/external-client/packages/admit`,
-      '--api-key', harness.apiKey, '--input', input, '--output', output]);
+      '--input', input, '--output', output], { apiKey: harness.apiKey });
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /^HTTP 403: request rejected\n$/);
     assert.equal(fs.existsSync(output), false);

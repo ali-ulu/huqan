@@ -224,9 +224,19 @@ function verifySignature(authority, signature, message, evaluationTime) {
   if (!signatureShape(signature)) return false;
   const publicKeySpkiDer = resolveAuthorityKey(authority, signature.keyReference, evaluationTime);
   if (!publicKeySpkiDer) return false;
+  let messageBytes;
+  try {
+    messageBytes = encodeJsonStableV1(message);
+  } catch (_) {
+    // A message the canonicalizer refuses -- unsupported shape, or past a
+    // traversal budget (#765) -- is a message this verifier cannot have
+    // checked. That is an unverified signature, not an exception to raise at
+    // whoever called us.
+    return false;
+  }
   const result = verifyCryptographicEvidence({
     algorithm: 'ed25519-v1',
-    messageBytes: encodeJsonStableV1(message),
+    messageBytes,
     publicKeySpkiDer,
     signatureBytes: strictBase64url(signature.value, 64),
   });

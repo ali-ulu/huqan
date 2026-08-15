@@ -36,13 +36,13 @@ jobs:
     # green regardless of findings (#364, #365).
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           # gitleaks scans the pushed commit range, so it needs full history.
           fetch-depth: 0
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -56,13 +56,16 @@ jobs:
       # key. If this repo ever goes private, GITLEAKS_LICENSE must be set or
       # this step fails closed -- which is the intended behavior.
       - name: Secret scanning (gitleaks)
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Static analysis (Semgrep)
         run: |
-          python3 -m pip install --quiet --user 'semgrep>=1.60,<2'
+          # Exact version, not a range (#751): a newly published release inside
+          # a range changes code executed by this privileged job with no
+          # repository diff. Bump deliberately.
+          python3 -m pip install --quiet --user 'semgrep==1.173.0'
           "$(python3 -m site --user-base)/bin/semgrep" scan \
             --config p/javascript \
             --config p/secrets \

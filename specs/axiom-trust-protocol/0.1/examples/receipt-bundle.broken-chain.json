@@ -1,9 +1,10 @@
 {
+  "sealVersion": "huqan-bundle-seal-v2",
   "schemaVersion": "v4-receipt-bundle-v1",
   "workspaceId": "default",
   "exportedAt": "2026-01-01T00:00:00.000Z",
   "receiptCount": 3,
-  "bundleHash": "be51f403d02405ccda37a6565180b88d662cdfe0f998b493ecfd77dabd317a84",
+  "bundleHash": "26244bb0512992b0078504864d698a9c5876fd5a5e12ffc7439b68b55fcc7d03",
   "receipts": [
     {
       "schemaVersion": "v4-receipt-v1",

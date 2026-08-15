@@ -628,34 +628,71 @@ describe('Graph - Lifecycle and maintenance baseline contracts', { concurrency: 
     assert.strictEqual(saveCalls, 0);
   });
 
-  it('temporal edge metadata preserves workspace-blind keys, identity, order, and no-save behavior', () => {
+  it('temporal edge metadata touches only edges this operation wrote, per workspace (#733)', () => {
     const graph = new Graph({ useSQLite: false });
     for (const workspaceId of ['one', 'two']) {
       graph.addNode('source', 'source', null, { workspaceId });
       graph.addNode('target', 'target', null, { workspaceId });
       graph.addEdge('source', 'target', 'relates', { workspaceId });
     }
-    const beforeKeys = graph._captureTemporalEdgeKeys();
-    const originalEdges = graph._edges.slice();
-    originalEdges[0].createdAt = '2020-01-01T00:00:00.000Z';
-    originalEdges[0].evidence = 'legacy';
-    originalEdges[1].evidence = ['source:contract'];
+    // Same from|relation|to triple in both workspaces: the scope key has to
+    // keep them apart, which the old workspace-blind key could not.
+    const preExisting = graph._edges.slice();
+    preExisting[0].createdAt = '2020-01-01T00:00:00.000Z';
+    preExisting[0].evidence = 'legacy';
+    preExisting[0].source = 'source-a';
+    preExisting[1].evidence = ['source:source-b'];
+    preExisting[1].source = 'source-b';
+
+    const scope = graph._captureTemporalEdgeKeys();
+    assert.deepStrictEqual([...scope.touched], [], 'a fresh scope has touched nothing');
+
+    // Only this edge is written inside the scope.
+    graph.addNode('fresh', 'fresh', null, { workspaceId: 'one' });
+    graph.addEdge('source', 'fresh', 'relates', { workspaceId: 'one' });
+    const created = graph._edges[graph._edges.length - 1];
+
     let saveCalls = 0;
     graph.save = () => { saveCalls += 1; };
 
-    assert.deepStrictEqual([...beforeKeys], ['source|relates|target']);
-    graph._applyTemporalEdgeMetadata('contract', '2026-07-21T00:00:00.000Z', beforeKeys);
+    const stamped = graph._applyTemporalEdgeMetadata('contract', '2026-07-21T00:00:00.000Z', scope, { workspaceId: 'one' });
+    assert.strictEqual(stamped, 1);
 
-    assert.strictEqual(graph._edges[0], originalEdges[0]);
-    assert.strictEqual(graph._edges[1], originalEdges[1]);
-    assert.deepStrictEqual(graph._edges, originalEdges);
-    assert.strictEqual(originalEdges[0].createdAt, '2020-01-01T00:00:00.000Z');
-    assert.strictEqual(originalEdges[1].createdAt, undefined);
-    assert.deepStrictEqual(originalEdges[0].evidence, ['source:contract']);
-    assert.deepStrictEqual(originalEdges[1].evidence, ['source:contract']);
-    assert.strictEqual(originalEdges[0].updatedAt, '2026-07-21T00:00:00.000Z');
-    assert.strictEqual(originalEdges[1].updatedAt, '2026-07-21T00:00:00.000Z');
+    // The newly written edge carries the operation's metadata.
+    assert.strictEqual(created.source, 'contract');
+    assert.strictEqual(created.updatedAt, '2026-07-21T00:00:00.000Z');
+    assert.strictEqual(created.createdAt, '2026-07-21T00:00:00.000Z');
+    assert.deepStrictEqual(created.evidence, ['source:contract']);
+
+    // Pre-existing edges keep their own provenance, in both workspaces.
+    assert.strictEqual(preExisting[0].source, 'source-a');
+    assert.strictEqual(preExisting[1].source, 'source-b');
+    assert.strictEqual(preExisting[0].updatedAt, undefined);
+    assert.strictEqual(preExisting[1].updatedAt, undefined);
+    assert.strictEqual(preExisting[0].createdAt, '2020-01-01T00:00:00.000Z');
+    assert.strictEqual(preExisting[0].evidence, 'legacy');
+    assert.deepStrictEqual(preExisting[1].evidence, ['source:source-b']);
+
+    // Identity and order are untouched, and stamping never saves.
+    assert.strictEqual(graph._edges[0], preExisting[0]);
+    assert.strictEqual(graph._edges[1], preExisting[1]);
     assert.strictEqual(saveCalls, 0);
+  });
+
+  it('temporal edge metadata does not cross into another workspace (#733)', () => {
+    const graph = new Graph({ useSQLite: false });
+    for (const workspaceId of ['w1', 'w2']) {
+      graph.addNode('a', 'a', null, { workspaceId });
+      graph.addNode('b', 'b', null, { workspaceId });
+    }
+    graph.addEdge('a', 'b', 'relates', { workspaceId: 'w2', source: 'source-b' });
+
+    const scope = graph._captureTemporalEdgeKeys();
+    graph.addEdge('a', 'b', 'relates', { workspaceId: 'w1', source: 'source-a' });
+    graph._applyTemporalEdgeMetadata('source-c', '2026-07-21T00:00:00.000Z', scope, { workspaceId: 'w1' });
+
+    assert.strictEqual(graph.getEdge('a', 'b', 'relates', 'w1').source, 'source-c');
+    assert.strictEqual(graph.getEdge('a', 'b', 'relates', 'w2').source, 'source-b');
   });
 });
 

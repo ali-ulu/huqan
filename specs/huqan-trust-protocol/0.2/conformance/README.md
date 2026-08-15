@@ -57,7 +57,7 @@ to end from the document alone:
 - fixtures: [`../../../axiom-trust-protocol/0.1/examples/`](../../../axiom-trust-protocol/0.1/examples/)
 
 ```text
-receipt-bundle.valid.json                  passes all three checks
+receipt-bundle.valid.json                  passes all four checks
 receipt-bundle.unicode.valid.json          passes, and exercises the portability rules
 receipt-bundle.tampered-bundle-hash.json   fails the bundle seal only
 receipt-bundle.broken-chain.json           fails chain self-consistency at index 1

@@ -13,11 +13,11 @@
   },
   "binding": {
     "internalReceiptHash": "3c8bfe7d26e9ede5ca31d0e1398b7284ab8876e00cc67dbec67608b791922ac6",
-    "bundleHash": "be51f403d02405ccda37a6565180b88d662cdfe0f998b493ecfd77dabd317a84"
+    "bundleHash": "26244bb0512992b0078504864d698a9c5876fd5a5e12ffc7439b68b55fcc7d03"
   },
   "integrity": {
     "checksumAlgorithm": "sha256-canonical-json-v1",
-    "checksum": "21f10aa62df710f06cbd45878a4233b91d2dd24197eb9285fdaca91ad659d362",
+    "checksum": "3d97652fcaf138aa19aa18f47b75fd81d42129f57feb628b56656c373004a5b4",
     "signed": true,
     "signature": null
   }
