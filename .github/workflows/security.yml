@@ -15,13 +15,18 @@ on:
     - cron: '0 9 * * 1'
   workflow_dispatch:
 
+# Do not spend a runner on an obsolete security scan after a new PR push.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
   security-events: write
   pull-requests: write
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
 
 jobs:
   # Security checks job

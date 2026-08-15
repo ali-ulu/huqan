@@ -1,0 +1,99 @@
+name: External Conformance
+
+on:
+  pull_request:
+    paths:
+      - '**.js'
+      - '**.json'
+      - 'specs/**'
+      - 'scripts/**'
+      - 'lib/**'
+      - 'packages/**'
+      - 'package-lock.json'
+      - 'package.json'
+      - '.github/workflows/conformance.yml'
+  push:
+    branches: [main]
+    paths:
+      - '**.js'
+      - '**.json'
+      - 'specs/**'
+      - 'scripts/**'
+      - 'lib/**'
+      - 'packages/**'
+      - 'package-lock.json'
+      - 'package.json'
+      - '.github/workflows/conformance.yml'
+  schedule:
+    - cron: '0 10 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  external:
+    name: External consumer conformance (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20, 22]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --include=optional
+
+      - name: Run clean consumer conformance
+        run: node scripts/external-conformance/run.js --json > external-conformance.json
+
+      - name: Publish conformance report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: external-conformance-node-${{ matrix.node-version }}
+          path: external-conformance.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  a2a:
+    name: A2A bounded exchange conformance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --include=optional
+
+      - name: Run A2A conformance
+        run: node scripts/a2a-conformance/run.js > a2a-conformance.json
+
+      - name: Publish A2A report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: a2a-conformance
+          path: a2a-conformance.json
+          if-no-files-found: warn
+          retention-days: 14
