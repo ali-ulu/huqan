@@ -2,7 +2,8 @@ from pathlib import Path
 import re
 import sys
 
-ROOT = Path('/home/ubuntu/huqan/test/bdd/workflows')
+REPO_ROOT = Path(__file__).resolve().parents[1]
+ROOT = REPO_ROOT / 'test' / 'bdd' / 'workflows'
 EXPECTED = {
     'ui_claim_workspace.feature': ('785', 10),
     'api_workflow_contract.feature': ('786', 10),
