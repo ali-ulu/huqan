@@ -32,8 +32,23 @@ const pkg = require('./package.json');
 const { VERIFY_STATUS } = require('./lib/mcp-envelope-schema');
 const { VERIFY_ENVELOPE_OUTPUT_SCHEMA } = require('./lib/mcp-tool-data-schemas');
 const { TOOL_SCHEMAS } = require('./lib/mcp-tool-catalog');
+const { mcpWorkflowMetadata } = require('./lib/workflow-contract');
+function publishMcpWorkflowContract(tool) {
+  const workflow = mcpWorkflowMetadata(tool.name);
+  if (!workflow) return tool;
+  return {
+    ...tool,
+    inputSchema: { $id: `huqan.workflow.${workflow.workflowId}.input.${workflow.version}`, ...tool.inputSchema },
+    outputSchema: { $id: `huqan.workflow.${workflow.workflowId}.output.${workflow.version}`, ...tool.outputSchema },
+    metadata: { workflow },
+  };
+}
+const WORKFLOW_TOOL_SCHEMAS = Object.freeze(TOOL_SCHEMAS.map(publishMcpWorkflowContract));
+const OPERATOR_TOOL_SCHEMAS = Object.freeze(
+  WORKFLOW_TOOL_SCHEMAS.filter(({ name }) => name === 'huqan.approve' || name === 'huqan.approvals'),
+);
 const MODEL_VISIBLE_TOOL_SCHEMAS = Object.freeze(
-  TOOL_SCHEMAS.filter(({ name }) => name !== 'huqan.approve' && name !== 'huqan.approvals'),
+  WORKFLOW_TOOL_SCHEMAS.filter(({ name }) => name !== 'huqan.approve' && name !== 'huqan.approvals'),
 );
 
 const PROTOCOL_VERSION = '2025-06-18';
@@ -418,9 +433,21 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
 
   if (name === 'huqan.approve' || name === 'huqan.approvals') {
     if (!isMcpOperatorAuthorized(runtime.operatorToken, safeParams.operatorToken)) {
-      return failApprovalDecision('OPERATOR_AUTH_REQUIRED', 'A separate operator capability is required for MCP approval operations.');
+      return withMcpToolVerdictSurface(
+        failApprovalDecision('OPERATOR_AUTH_REQUIRED', 'A separate operator capability is required for MCP approval operations.'),
+        name,
+        args,
+        { decision: 'block', reason: 'operator_auth_required', requiredReview: false },
+      );
     }
-    if (name === 'huqan.approve') return handleMcpApprovalDecision(kernel, args, runtime);
+    if (name === 'huqan.approve') {
+      return withMcpToolVerdictSurface(
+        handleMcpApprovalDecision(kernel, args, runtime),
+        name,
+        args,
+        { decision: 'allow', reason: 'operator_authorized', requiredReview: false },
+      );
+    }
   }
 
   const gate = applyHumanApprovalToggle(evaluateMcpGate({ tool: name, args, metadata: {} }));
@@ -711,6 +738,8 @@ module.exports = {
   MCP_MAX_JSON_VALUES,
   SERVER_NAME,
   TOOL_SCHEMAS,
+  WORKFLOW_TOOL_SCHEMAS,
+  OPERATOR_TOOL_SCHEMAS,
   MODEL_VISIBLE_TOOL_SCHEMAS,
   MCP_OPERATOR_TOKEN_ENV,
   CANONICAL_MCP_TOOL_NAMES,
