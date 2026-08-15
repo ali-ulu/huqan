@@ -55,13 +55,14 @@ test('policy table: a public GET does not make POST on the same path public', ()
   assert.equal(post.reason, 'method_not_public');
 });
 
-test('policy table: /graph-data is public only for the default workspace', () => {
-  assert.equal(isPublicRoute('/graph-data', 'GET', { workspaceId: '' }), true);
-  assert.equal(isPublicRoute('/graph-data', 'GET', { workspaceId: 'default' }), true);
-
-  const scoped = resolveRouteAuthPolicy('/graph-data', 'GET', { workspaceId: 'acme' });
-  assert.equal(scoped.authRequired, true);
-  assert.equal(scoped.reason, 'non_default_workspace');
+test('policy table: /graph-data requires authentication for every workspace', () => {
+  for (const workspaceId of ['', 'default', 'acme']) {
+    const decision = resolveRouteAuthPolicy('/graph-data', 'GET', { workspaceId });
+    assert.equal(decision.known, true);
+    assert.equal(decision.authRequired, true);
+    assert.equal(decision.reason, 'declared_authenticated');
+    assert.equal(isPublicRoute('/graph-data', 'GET', { workspaceId }), false);
+  }
 });
 
 test('policy table: trust/read surfaces under /api/ stay authenticated', () => {
@@ -242,9 +243,13 @@ test('runtime: undeclared route is denied without a key, declared public routes 
   assert.equal(api.status, 200);
 
   const graph = await request(port, '/graph-data');
-  assert.equal(graph.status, 200);
+  assert.equal(graph.status, 401);
 
-  // Scoped: non-default workspace requires a key.
+  const defaultWithKey = await request(port, '/graph-data', {
+    Authorization: `Bearer ${API_KEY}`,
+  });
+  assert.notEqual(defaultWithKey.status, 401);
+
   const scoped = await request(port, '/graph-data?workspaceId=acme');
   assert.equal(scoped.status, 401);
 

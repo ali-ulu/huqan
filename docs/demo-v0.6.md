@@ -37,14 +37,14 @@ http://127.0.0.1:3000
 ```bash
 curl.exe http://127.0.0.1:3000/health
 curl.exe http://127.0.0.1:3000/v2-status
-curl.exe http://127.0.0.1:3000/graph-data
+curl.exe -H "Authorization: Bearer $HUQAN_API_KEY" http://127.0.0.1:3000/graph-data
 ```
 
 Beklenen:
 
 - `/health` 200 döner
 - `/v2-status` sistem durumunu döner
-- `/graph-data` node/link metadata ile döner
+- `/graph-data` geçerli API anahtarıyla node/link metadata döner; anahtarsız istek 401 alır
 
 ### 2) Ana sayfa ve ürün yüzü
 
