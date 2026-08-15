@@ -89,7 +89,7 @@ jobs:
               docs/*|specs/*|test/*|benchmarks/fixtures/*|fixtures/*|public/*|obsidian-plugin/*)
                 return 1
                 ;;
-              plugins/*|lib/*|nlp/*|packages/*|migrations/*|schemas/*|adapters/*|scripts/*|benchmarks/*)
+              package.json|package-lock.json|plugins/*|lib/*|nlp/*|packages/*|migrations/*|schemas/*|adapters/*|scripts/*|benchmarks/*)
                 return 0
                 ;;
               */*)

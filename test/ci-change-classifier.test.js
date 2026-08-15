@@ -48,7 +48,12 @@ test('CI classifier maps representative paths to the intended gates', () => {
     ['kernel.js', 'yes,yes,no'],
     ['test/ci-change-classifier.test.js', 'yes,no,no'],
     ['Dockerfile', 'no,no,yes'],
-    ['package.json', 'no,no,yes'],
+    // The manifest declares the test command and the dependency set, so a
+    // change to it can alter how the whole suite runs. is_runtime_file()
+    // classifies it as runtime (#752 deny-by-default), and it stays a Docker
+    // surface because the image is built from it.
+    ['package.json', 'yes,no,yes'],
+    ['package-lock.json', 'yes,no,yes'],
     ['docs/current-operating-roadmap.md', 'no,no,no'],
   ]);
 
