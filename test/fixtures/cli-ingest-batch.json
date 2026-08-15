@@ -1,0 +1,11 @@
+{
+  "items": [
+    {
+      "id": "package-smoke",
+      "sourceType": "manual",
+      "workspaceId": "default",
+      "sourceRef": "package-smoke",
+      "text": "Package smoke preview"
+    }
+  ]
+}
