@@ -461,3 +461,61 @@ test('github-adapter: an untruncated tree still costs exactly one tree call (#68
   assert.equal(treeCalls.length, 1);
   assert.match(treeCalls[0], /recursive=1$/);
 });
+
+test('github-adapter: a 404 for a tree-listed blob rejects the whole scan and never learns', async () => {
+  let learnCalls = 0;
+  const fetchImpl = async (url) => {
+    if (/\/commits\/[^/?]+$/.test(url)) return makeResponse({ json: { sha: TEST_COMMIT_SHA } });
+    if (url.includes('/git/trees/')) return makeResponse({ json: { tree: [
+      { type: 'blob', path: 'README.md' },
+      { type: 'blob', path: 'ROADMAP.md' },
+    ] } });
+    if (url.endsWith('/ROADMAP.md')) return makeResponse({ ok: false, status: 404, text: '' });
+    return makeResponse({ text: '# survivor' });
+  };
+
+  await assert.rejects(
+    () => fetchAndLearn('https://github.com/ai-ulu/axiom', {
+      async learnAsync() { learnCalls += 1; return { data: { learned: 1 } }; },
+    }, { fetchImpl }),
+    (error) => error?.code === 'GITHUB_TREE_FILE_MISSING',
+  );
+  assert.equal(learnCalls, 0);
+});
+
+test('github-adapter: bounds tree work, selected files, per-file and aggregate bytes', async () => {
+  const treeFetch = (tree, body = '# content') => async (url) => {
+    if (/\/commits\/[^/?]+$/.test(url)) return makeResponse({ json: { sha: TEST_COMMIT_SHA } });
+    if (url.includes('/git/trees/')) return makeResponse({ json: { tree } });
+    return makeResponse({ text: body });
+  };
+
+  await assert.rejects(
+    () => fetchRepoFiles('https://github.com/ai-ulu/axiom', {
+      fetchImpl: treeFetch([{ type: 'blob', path: 'README.md' }, { type: 'blob', path: 'ROADMAP.md' }]),
+      maxTreeEntries: 1,
+    }),
+    (error) => error?.code === 'GITHUB_TREE_WORK_LIMIT',
+  );
+  await assert.rejects(
+    () => fetchRepoFiles('https://github.com/ai-ulu/axiom', {
+      fetchImpl: treeFetch([{ type: 'blob', path: 'README.md' }, { type: 'blob', path: 'ROADMAP.md' }]),
+      maxFiles: 1,
+    }),
+    (error) => error?.code === 'GITHUB_FILE_COUNT_LIMIT',
+  );
+  await assert.rejects(
+    () => fetchRepoFiles('https://github.com/ai-ulu/axiom', {
+      fetchImpl: treeFetch([{ type: 'blob', path: 'README.md' }], '12345'),
+      maxFileBytes: 4,
+    }),
+    (error) => error?.code === 'GITHUB_FILE_BYTES_LIMIT',
+  );
+  await assert.rejects(
+    () => fetchRepoFiles('https://github.com/ai-ulu/axiom', {
+      fetchImpl: treeFetch([{ type: 'blob', path: 'README.md' }, { type: 'blob', path: 'ROADMAP.md' }], '1234'),
+      maxTotalBytes: 7,
+    }),
+    (error) => error?.code === 'GITHUB_TOTAL_BYTES_LIMIT',
+  );
+});
