@@ -273,7 +273,14 @@ async function fetchRepoFiles(repoUrl, opts = {}) {
 
     if (!fileRes.ok) {
       if (fileRes.status === 404) {
-        throw toError(`GitHub tree-listed file is missing at the pinned commit: ${filePath}`, 'GITHUB_TREE_FILE_MISSING', 404);
+        const error = toError(
+          `GitHub tree-listed file is missing at pinned commit ${commitSha}: ${filePath}`,
+          'GITHUB_TREE_FILE_MISSING',
+          404,
+        );
+        error.commitSha = commitSha;
+        error.path = filePath;
+        throw error;
       }
       throw parseRateLimitError(fileRes, `Failed to fetch file content (${fileRes.status}): ${filePath}`);
     }
