@@ -183,7 +183,7 @@ function request(port, pathname, headers = {}) {
       (res) => {
         let body = '';
         res.on('data', (c) => { body += c; });
-        res.on('end', () => resolve({ status: res.statusCode, body }));
+        res.on('end', () => resolve({ status: res.statusCode, body, headers: res.headers }));
       },
     );
     req.on('error', reject);
@@ -241,6 +241,22 @@ test('runtime: undeclared route is denied without a key, declared public routes 
 
   const api = await request(port, '/api?q=merhaba');
   assert.equal(api.status, 200);
+
+  const capabilities = await request(port, '/api/v2/workflows');
+  assert.equal(capabilities.status, 200);
+  assert.equal(capabilities.headers['cache-control'], 'no-store');
+  assert.equal(capabilities.headers['x-content-type-options'], 'nosniff');
+  const capabilityBody = JSON.parse(capabilities.body);
+  assert.match(capabilityBody.contractVersion, /^\d+\.\d+\.\d+$/);
+  assert.ok(capabilityBody.workflows.some(item => item.workflowId === 'verify' && item.availability.api === true));
+  assert.ok(capabilityBody.workflows.some(item => item.workflowId === 'ask' && item.availability.api === false));
+
+  const unsupported = await request(port, '/api?q=plan:test');
+  assert.equal(unsupported.status, 403);
+  const unsupportedBody = JSON.parse(unsupported.body);
+  assert.equal(unsupportedBody.status, 'capability_not_available');
+  assert.equal(unsupportedBody.error.code, 'UNSUPPORTED_WORKFLOW');
+  assert.equal(typeof unsupportedBody.traceId, 'string');
 
   const graph = await request(port, '/graph-data');
   assert.equal(graph.status, 401);

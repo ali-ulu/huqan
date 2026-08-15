@@ -29,6 +29,7 @@ const { readReceiptById } = require('./lib/receipt/receipt-read-index');
 const { receiptReadFailure } = require('./lib/http/receipt-read-failures');
 const { createWorkbenchReadHttpRouter } = require('./lib/workbench/workbench-read-http-router');
 const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
+const { handleWorkflowContractRoute, writeUnavailableWorkflow } = require('./lib/http/workflow-contract-route');
 const { readExactWorkspace } = require('./lib/http/exact-workspace');
 const { createSessionStore } = require('./lib/viewer/session-store');
 const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
@@ -482,6 +483,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (handleWorkflowContractRoute(req, res, reqUrl)) return;
   // --- /graph-data ---
   if (reqUrl.pathname === '/graph-data') {
     if (req.method !== 'GET') {
@@ -995,24 +997,14 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (isUnsafePublicApiCommand(q)) {
-      res.writeHead(403, {
-        'Content-Type': 'application/json; charset=utf-8',
-        ...buildCorsHeaders(req),
-        'X-Content-Type-Options': 'nosniff',
-      });
-      res.end(JSON.stringify({ result: 'Bu komut web API üzerinden çalıştırılamaz.' }));
+      writeUnavailableWorkflow(req, res);
       return;
     }
     try {
       const p = parseCommand(q, kernel);
 
       if (p && (!isAllowedPublicCommand(p.command) || isUnsafePublicApiCommand(p.command))) {
-        res.writeHead(403, {
-          'Content-Type': 'application/json; charset=utf-8',
-          ...buildCorsHeaders(req),
-          'X-Content-Type-Options': 'nosniff',
-        });
-        res.end(JSON.stringify({ result: 'Bu komut web API üzerinden çalıştırılamaz.' }));
+        writeUnavailableWorkflow(req, res);
         return;
       }
 
@@ -1027,12 +1019,7 @@ const server = http.createServer(async (req, res) => {
       } else {
         result = runPublicApiCommand(p.command, p.args, kernel);
         if (result === null) {
-          res.writeHead(403, {
-            'Content-Type': 'application/json; charset=utf-8',
-            ...buildCorsHeaders(req),
-            'X-Content-Type-Options': 'nosniff',
-          });
-          res.end(JSON.stringify({ result: 'Bu komut web API üzerinden çalıştırılamaz.' }));
+          writeUnavailableWorkflow(req, res);
           return;
         }
       }
