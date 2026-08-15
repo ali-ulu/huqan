@@ -155,6 +155,7 @@
         "lib/gate-telemetry.js",
         "lib/github-connector.js",
         "lib/github-url.js",
+        "lib/graph-edge-mutations.js",
         "lib/graph-record-utils.js",
         "lib/graph-traversal.js",
         "lib/huqan-package-format.js",

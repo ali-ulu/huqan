@@ -40,16 +40,9 @@ const {
   attachTraversalMeta,
   normalizeLoadedEdge,
 } = require('./lib/graph-record-utils');
-const {
-  countAuditEvents,
-  queryAuditEvents,
-  readAuditEvents,
-} = require('./lib/audit-query');
-const {
-  assertChainTipUsable,
-  emptyMutationJournal,
-  readMutationJournal,
-} = require('./lib/mutation-journal');
+const { countAuditEvents, queryAuditEvents, readAuditEvents } = require('./lib/audit-query');
+const { assertChainTipUsable, emptyMutationJournal, readMutationJournal } = require('./lib/mutation-journal');
+const { applyTemporalEdgeMetadata, beginEdgeTouchScope, downgradeEdge, edgeTouchKey } = require('./lib/graph-edge-mutations');
 
 class Graph {
   /**
@@ -74,6 +67,7 @@ class Graph {
     this._outIndex = new Map();
     this._inIndex = new Map();
     this._auditQueryStmts = new Map();
+    this._edgeTouchScope = null;
 
     // SQLite kurulumu
     const wantSQLite = opts.useSQLite !== false && Database !== null;
@@ -344,6 +338,7 @@ class Graph {
           warnings = excluded.warnings
       `),
       pruneEdges: this._db.prepare('DELETE FROM edges WHERE weight < ? AND workspace_id = ?'),
+      deleteEdge: this._db.prepare('DELETE FROM edges WHERE workspace_id = ? AND from_id = ? AND to_id = ? AND relation = ?'),
       countNodes: this._db.prepare('SELECT COUNT(*) as c FROM nodes'),
       countEdges: this._db.prepare('SELECT COUNT(*) as c FROM edges'),
       allNodes: this._db.prepare('SELECT * FROM nodes'),
@@ -707,23 +702,24 @@ class Graph {
     this._nodes[storageKey].embedding = embedding;
   }
 
+  /** Edge-touch scope + temporal stamping; see lib/graph-edge-mutations.js (#733). */
   _captureTemporalEdgeKeys() {
-    return new Set(this._edges.map(edge => `${edge.from}|${edge.relation}|${edge.to}`));
+    this._edgeTouchScope = beginEdgeTouchScope(this);
+    return this._edgeTouchScope;
   }
 
-  _applyTemporalEdgeMetadata(source, learnedAt, beforeEdgeKeys) {
-    const timestamp = learnedAt || nowIso();
-    for (const edge of this._edges) {
-      const key = `${edge.from}|${edge.relation}|${edge.to}`;
-      if (!beforeEdgeKeys.has(key) && !edge.createdAt) edge.createdAt = timestamp;
-      edge.updatedAt = timestamp;
-      if (source) edge.source = source;
+  _recordEdgeTouch(workspaceId, from, relation, to) {
+    if (this._edgeTouchScope) this._edgeTouchScope.touched.add(edgeTouchKey(workspaceId, from, relation, to));
+  }
 
-      if (!Array.isArray(edge.evidence)) edge.evidence = [];
-      if (source && !edge.evidence.includes(`source:${source}`)) {
-        edge.evidence.push(`source:${source}`);
-      }
-    }
+  _applyTemporalEdgeMetadata(source, learnedAt, scope, opts = {}) {
+    this._edgeTouchScope = null;
+    return applyTemporalEdgeMetadata(this, { source, learnedAt, scope, workspaceId: opts.workspaceId });
+  }
+
+  /** Canonical downgrade/reclassify write path; see lib/graph-edge-mutations.js (#732). */
+  downgradeEdge(spec = {}) {
+    return downgradeEdge(this, spec);
   }
 
   _consolidateEdges(dryRun = true) {
@@ -1106,6 +1102,7 @@ class Graph {
           relation
         );
       }
+      this._recordEdgeTouch(workspaceId, fromId, relation, toId);
       return cloneEdgeRecord(existing);
     }
       const edge = {
@@ -1158,6 +1155,7 @@ class Graph {
         edge.strength ?? 0.5
       );
     }
+    this._recordEdgeTouch(workspaceId, fromId, relation, toId);
     return cloneEdgeRecord(edge);
   }
 

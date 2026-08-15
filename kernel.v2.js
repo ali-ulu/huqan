@@ -226,12 +226,9 @@ class KernelV2 {
     const learnedAt = opts.learnedAt || nowIso();
     const beforeEdgeMap = this.kernel.graph._captureTemporalEdgeKeys();
     const result = this.kernel.learn(text, opts);
-    this.kernel.graph._applyTemporalEdgeMetadata(source, learnedAt, beforeEdgeMap);
-    return this._ok('learn', result.data, result.evidence, {
-      ...result.meta,
-      source,
-      learnedAt,
-    });
+    // #733: workspace-scoped, on top of the touch scope narrowing to written edges.
+    this.kernel.graph._applyTemporalEdgeMetadata(source, learnedAt, beforeEdgeMap, { workspaceId: opts.workspaceId });
+    return this._ok('learn', result.data, result.evidence, { ...result.meta, source, learnedAt });
   }
 
   learnDocument(text, opts = {}) {
