@@ -190,6 +190,7 @@
         "lib/learn-admission-request.js",
         "lib/learn-use-case.js",
         "lib/mcp-approval-store.js",
+        "lib/mcp-ingest-status-tool.js",
         "lib/mcp-approval-views.js",
         "lib/mcp-envelope-format.js",
         "lib/mcp-envelope-schema.js",

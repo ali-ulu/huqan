@@ -143,6 +143,6 @@ describe('canonical workflow data routes', () => {
     assert.equal(capabilities.get('approval-detail').availability.api, true);
     assert.equal(capabilities.get('approval-decision').availability.api, true);
     assert.equal(capabilities.get('trust-receipt-detail').route, '/api/v2/trust-receipts/{id}');
-    assert.deepEqual(capabilities.get('ingest-run-detail').availability, { api: true, cli: true, mcp: false, ui: false });
+    assert.deepEqual(capabilities.get('ingest-run-detail').availability, { api: true, cli: true, mcp: true, ui: false });
   });
 });
