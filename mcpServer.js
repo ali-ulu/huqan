@@ -412,17 +412,34 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
     if (gate.decision === 'review' || gate.requiredReview) {
       const approvalStore = runtime.approvalStore || createApprovalStoreFromKernel(kernel, runtime);
       const approval = saveMcpApproval(approvalStore, name, args, gate);
+      const gateSurface = {
+        decision: gate.decision,
+        allowed: gate.allowed,
+        canExecute: gate.canExecute,
+        canDryRun: gate.canDryRun,
+        requiredReview: gate.requiredReview,
+        reason: gate.reason,
+        metadata: { policyVersion: gate.metadata?.adapterVersion || 'V2.6-PR2' },
+      };
+      // "Queued for review" is a claim about durable state. Without a stored
+      // approval there is no queue and no one to review it, so the caller is
+      // told that instead -- the mutation is blocked either way (#772).
+      if (approval.persisted !== true) {
+        return withMcpToolVerdictSurface({
+          ok: false,
+          gate: gateSurface,
+          approval,
+          error: {
+            code: 'REVIEW_NOT_PERSISTED',
+            reason: approval.notPersistedReason || 'approval_store_unavailable',
+            message: 'Tool call requires review, but no durable approval was recorded; nothing was queued and nothing executed.',
+          },
+          message: `Tool call blocked, review not persisted: ${gate.reason}`,
+        }, name, args, gate);
+      }
       return withMcpToolVerdictSurface({
         ok: false,
-        gate: {
-          decision: gate.decision,
-          allowed: gate.allowed,
-          canExecute: gate.canExecute,
-          canDryRun: gate.canDryRun,
-          requiredReview: gate.requiredReview,
-          reason: gate.reason,
-          metadata: { policyVersion: gate.metadata?.adapterVersion || 'V2.6-PR2' },
-        },
+        gate: gateSurface,
         approval,
         message: `Tool call queued for review: ${gate.reason}`,
       }, name, args, gate);

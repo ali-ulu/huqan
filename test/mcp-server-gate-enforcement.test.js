@@ -19,7 +19,11 @@ function mockKernel() {
 
 // ─── Gate blocks review tools (axiom.learn) ─────────────────────────────────
 
-test('callTool: axiom.learn queued for review (gate)', () => {
+test('callTool: axiom.learn is gated for review, and says so truthfully (gate)', () => {
+  // This mock kernel has no graph and therefore no approval store, so there is
+  // nowhere to queue anything. The call used to be reported as "queued for
+  // review" regardless -- a claim about durable state that nothing backed
+  // (#772). The gate verdict is unchanged; only the claim is.
   const kernel = mockKernel();
   const result = callTool(kernel, { name: 'axiom.learn', arguments: { text: 'test fact' } });
 
@@ -31,7 +35,9 @@ test('callTool: axiom.learn queued for review (gate)', () => {
   assert.equal(result.gate.requiredReview, true);
   assert.equal(result.gate.reason, 'mutating_requires_review');
   assert.ok(result.approval, 'review tool must return approval object');
-  assert.ok(result.message.includes('queued for review'));
+  assert.equal(result.approval.persisted, false);
+  assert.equal(result.error.code, 'REVIEW_NOT_PERSISTED');
+  assert.ok(!result.message.includes('queued for review'));
 });
 
 // ─── Gate returns dry-run for dry_run_only tools (axiom.agent) ─────────────
