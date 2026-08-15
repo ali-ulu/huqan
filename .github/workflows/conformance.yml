@@ -30,14 +30,79 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'schedule' }}
 
 permissions:
   contents: read
 
 jobs:
+  classify:
+    name: Classify conformance impact
+    runs-on: ubuntu-latest
+    outputs:
+      run_external: ${{ steps.classify.outputs.run_external }}
+      run_a2a: ${{ steps.classify.outputs.run_a2a }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Classify changed surface
+        id: classify
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          run_external=false
+          run_a2a=false
+          reason="no conformance surface changed"
+
+          if [[ "$EVENT_NAME" == "schedule" || "$EVENT_NAME" == "workflow_dispatch" || -z "$BASE_SHA" || "$BASE_SHA" =~ ^0+$ ]]; then
+            run_external=true
+            run_a2a=true
+            reason="scheduled/manual run or unavailable diff base"
+          else
+            mapfile -t changed < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+            printf 'Changed files:\n'
+            printf ' - %s\n' "${changed[@]}"
+
+            for path in "${changed[@]}"; do
+              case "$path" in
+                scripts/external-conformance/*)
+                  run_external=true
+                  reason="external consumer conformance code changed"
+                  ;;
+                scripts/a2a-conformance/*)
+                  run_a2a=true
+                  reason="A2A conformance code changed"
+                  ;;
+                .github/workflows/conformance.yml|package.json|package-lock.json|server.js|index.js|lib/*|packages/*|specs/*|scripts/*|*.js|*.json)
+                  run_external=true
+                  run_a2a=true
+                  reason="published/runtime/protocol surface changed"
+                  ;;
+              esac
+            done
+          fi
+
+          {
+            echo "run_external=$run_external" >> "$GITHUB_OUTPUT"
+            echo "run_a2a=$run_a2a" >> "$GITHUB_OUTPUT"
+            echo "### Conformance impact" >> "$GITHUB_STEP_SUMMARY"
+            echo "- External consumer: **$run_external**" >> "$GITHUB_STEP_SUMMARY"
+            echo "- A2A bounded exchange: **$run_a2a**" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Reason: $reason" >> "$GITHUB_STEP_SUMMARY"
+          }
+
   external:
     name: External consumer conformance (Node ${{ matrix.node-version }})
+    if: needs.classify.outputs.run_external == 'true'
+    needs: classify
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -54,6 +119,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci --include=optional
@@ -72,6 +138,8 @@ jobs:
 
   a2a:
     name: A2A bounded exchange conformance
+    if: needs.classify.outputs.run_a2a == 'true'
+    needs: classify
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -82,6 +150,7 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci --include=optional
@@ -97,3 +166,37 @@ jobs:
           path: a2a-conformance.json
           if-no-files-found: warn
           retention-days: 14
+
+  gate:
+    name: Conformance Gate
+    if: always()
+    needs: [classify, external, a2a]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce conformance result
+        env:
+          CLASSIFY_RESULT: ${{ needs.classify.result }}
+          EXTERNAL_EXPECTED: ${{ needs.classify.outputs.run_external }}
+          EXTERNAL_RESULT: ${{ needs.external.result }}
+          A2A_EXPECTED: ${{ needs.classify.outputs.run_a2a }}
+          A2A_RESULT: ${{ needs.a2a.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$CLASSIFY_RESULT" != "success" ]]; then
+            echo "Conformance impact classification did not succeed: $CLASSIFY_RESULT" >&2
+            exit 1
+          fi
+
+          if [[ "$EXTERNAL_EXPECTED" == "true" && "$EXTERNAL_RESULT" != "success" ]]; then
+            echo "External conformance was required but ended as: $EXTERNAL_RESULT" >&2
+            exit 1
+          fi
+
+          if [[ "$A2A_EXPECTED" == "true" && "$A2A_RESULT" != "success" ]]; then
+            echo "A2A conformance was required but ended as: $A2A_RESULT" >&2
+            exit 1
+          fi
+
+          echo "Conformance gate passed: external=$EXTERNAL_RESULT a2a=$A2A_RESULT"
