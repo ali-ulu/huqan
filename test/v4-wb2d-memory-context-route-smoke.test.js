@@ -199,7 +199,11 @@ describe('V4-WB2D: no-mock memory-context route smoke', () => {
     for (const response of [unknown, cross, valid]) assertMemoryHeaders(response);
   });
 
-  it('maps a real over-bound SQLite audit scan to 502', async () => {
+  it('serves an exact lookup from a workspace larger than the scan limit (#736)', async () => {
+    // Previously this returned 502: the route read the whole workspace history
+    // and only then compared its length to maxAuditEvents, so a workspace past
+    // 1024 events could not be inspected at all. The lookup is now bounded to
+    // the two rows an exact match needs, so history size stops mattering.
     const workspaceId = 'wb2d-over-bound';
     let firstId = '';
     for (let index = 0; index < 1025; index += 1) {
@@ -212,8 +216,9 @@ describe('V4-WB2D: no-mock memory-context route smoke', () => {
       if (!firstId) firstId = event.auditId;
     }
     const response = await requestJson(port, memoryPath(firstId, workspaceId));
-    assert.equal(response.status, 502);
-    assert.equal(response.body.status, 'read_error');
+    assert.equal(response.status, 200);
+    assert.equal(response.body.memoryAdmission.status, 'review_required');
+    assert.equal(response.body.memoryAdmission.decision, 'review');
     assertMemoryHeaders(response);
   });
 
@@ -228,7 +233,8 @@ describe('V4-WB2D: no-mock memory-context route smoke', () => {
       `/api/trust-receipt/${encodeURIComponent(receipt.receiptId)}?workspaceId=wb2d-regression`,
     );
     assert.equal(wb3.status, 200);
-    assert.equal(wb3.headers['cache-control'], 'no-cache');
+    // no-store, not no-cache: the body carries receipt and audit material (#738).
+    assert.equal(wb3.headers['cache-control'], 'no-store');
     assert.equal(legacy.status, 200);
     assert.deepEqual(legacy.body.receipt, receipt);
   });

@@ -142,7 +142,9 @@ test('maps a source-backed record through adapter and inspector to 200', () => {
   assert.equal(result.body.provenance.workspaceId, 'workspace-1');
   assert.equal(result.body.provenance.receiptId, 'receipt-1');
   assert.equal(result.body.provenance.traceId, null);
-  assert.deepEqual(seenFilters, { workspaceId: 'workspace-1' });
+  // The record id is pushed into the filter now, so the owner reads the one
+  // matching row instead of the whole workspace history (#736).
+  assert.deepEqual(seenFilters, { workspaceId: 'workspace-1', auditId: 'audit-1' });
   assert.equal(JSON.stringify(result.body).includes('must-not-leak'), false);
   assert.equal(JSON.stringify(result.body).includes('private-source-ref'), false);
   assert.equal(JSON.stringify(result.body).includes('private-provenance-id'), false);
