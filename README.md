@@ -355,7 +355,6 @@ For the live execution order and exact limitations, read [docs/current-operating
 | `server.js` | Local REST server and UI delivery |
 | `mcpServer.js` | MCP integration |
 | `public/` | Backend-connected local UI |
-| `demo/` | Static public demo |
 | `test/` and `*.test.js` | Automated test coverage |
 | `docs/` | Architecture, audits, product boundaries, and roadmap |
 
