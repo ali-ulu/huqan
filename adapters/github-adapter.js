@@ -46,6 +46,23 @@ function parseRateLimitError(res, fallbackMessage) {
 }
 
 const DEFAULT_FETCH_TIMEOUT_MS = 30000;
+const GITHUB_LIMITS = Object.freeze({
+  maxTreeRequests: 1_000,
+  maxTreeEntries: 100_000,
+  maxFiles: 1_000,
+  maxFileBytes: 2 * 1024 * 1024,
+  maxTotalBytes: 10 * 1024 * 1024,
+});
+
+function githubLimits(options = {}) {
+  const limits = {};
+  for (const [name, fallback] of Object.entries(GITHUB_LIMITS)) {
+    const value = options[name] === undefined ? fallback : options[name];
+    if (!Number.isSafeInteger(value) || value <= 0) throw toError(`${name} must be a positive safe integer`, 'GITHUB_INVALID_LIMIT');
+    limits[name] = value;
+  }
+  return limits;
+}
 
 async function defaultFetch(url, options) {
   if (typeof fetch !== 'function') {
@@ -83,7 +100,11 @@ async function resolveCommitSha(owner, repo, ref, token, fetchImpl) {
   return sha;
 }
 
-async function fetchTreePayload(owner, repo, treeSha, token, fetchImpl, { recursive = false } = {}) {
+async function fetchTreePayload(owner, repo, treeSha, token, fetchImpl, { recursive = false, budget } = {}) {
+  if (budget) {
+    budget.treeRequests += 1;
+    if (budget.treeRequests > budget.limits.maxTreeRequests) throw toError('GitHub tree request limit exceeded', 'GITHUB_TREE_WORK_LIMIT');
+  }
   const treeUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${encodeURIComponent(treeSha)}${recursive ? '?recursive=1' : ''}`;
   const treeRes = await fetchImpl(treeUrl, {
     method: 'GET',
@@ -94,7 +115,12 @@ async function fetchTreePayload(owner, repo, treeSha, token, fetchImpl, { recurs
     throw parseRateLimitError(treeRes, `Failed to fetch repository tree (${treeRes.status})`);
   }
 
-  return treeRes.json();
+  const payload = await treeRes.json();
+  if (budget) {
+    budget.treeEntries += Array.isArray(payload?.tree) ? payload.tree.length : 0;
+    if (budget.treeEntries > budget.limits.maxTreeEntries) throw toError('GitHub tree entry limit exceeded', 'GITHUB_TREE_WORK_LIMIT');
+  }
+  return payload;
 }
 
 function treeBlobPaths(treePayload, prefix = '') {
@@ -132,7 +158,7 @@ function subtreeCanContainWantedPaths(dirPath, explicitPaths) {
  * repaired instead -- and a subtree that is itself truncated, which no walk can
  * repair, fails closed rather than returning a quietly short list.
  */
-async function walkTreeBlobPaths(owner, repo, commitSha, token, fetchImpl, explicitPaths) {
+async function walkTreeBlobPaths(owner, repo, commitSha, token, fetchImpl, explicitPaths, budget) {
   const paths = [];
   const queue = [{ path: '', sha: commitSha }];
   const visited = new Set();
@@ -142,7 +168,7 @@ async function walkTreeBlobPaths(owner, repo, commitSha, token, fetchImpl, expli
     if (visited.has(dir.sha)) continue;
     visited.add(dir.sha);
 
-    const payload = await fetchTreePayload(owner, repo, dir.sha, token, fetchImpl);
+    const payload = await fetchTreePayload(owner, repo, dir.sha, token, fetchImpl, { budget });
     if (payload && payload.truncated === true) {
       throw toError(
         `GitHub returned a truncated tree for a single directory, so the file list cannot be completed: ${dir.path || '<root>'}`,
@@ -170,18 +196,57 @@ async function walkTreeBlobPaths(owner, repo, commitSha, token, fetchImpl, expli
   return paths;
 }
 
+async function readBoundedText(response, filePath, maxFileBytes, remainingBytes) {
+  const contentLength = Number(response.headers?.get?.('content-length') || 0);
+  const allowed = Math.min(maxFileBytes, remainingBytes);
+  if (Number.isFinite(contentLength) && contentLength > allowed) {
+    const code = contentLength > maxFileBytes ? 'GITHUB_FILE_BYTES_LIMIT' : 'GITHUB_TOTAL_BYTES_LIMIT';
+    throw toError(`GitHub content byte limit exceeded: ${filePath}`, code);
+  }
+  if (response.body && typeof response.body.getReader === 'function') {
+    const reader = response.body.getReader();
+    const chunks = [];
+    let bytes = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        bytes += value.byteLength;
+        if (bytes > allowed) {
+          await reader.cancel();
+          const code = bytes > maxFileBytes ? 'GITHUB_FILE_BYTES_LIMIT' : 'GITHUB_TOTAL_BYTES_LIMIT';
+          throw toError(`GitHub content byte limit exceeded: ${filePath}`, code);
+        }
+        chunks.push(Buffer.from(value));
+      }
+    } finally {
+      reader.releaseLock?.();
+    }
+    return { content: Buffer.concat(chunks, bytes).toString('utf8'), bytes };
+  }
+  const content = await response.text();
+  const bytes = Buffer.byteLength(content, 'utf8');
+  if (bytes > allowed) {
+    const code = bytes > maxFileBytes ? 'GITHUB_FILE_BYTES_LIMIT' : 'GITHUB_TOTAL_BYTES_LIMIT';
+    throw toError(`GitHub content byte limit exceeded: ${filePath}`, code);
+  }
+  return { content, bytes };
+}
+
 async function fetchRepoFiles(repoUrl, opts = {}) {
   const { owner, repo } = parseRepoUrl(repoUrl);
   const branch = String(opts.branch || 'main');
   const token = opts.token || '';
   const fetchImpl = opts.fetchImpl || defaultFetch;
   const explicitPaths = Array.isArray(opts.paths) ? opts.paths.map(normalizePath).filter(Boolean) : null;
+  const limits = githubLimits(opts);
+  const budget = { limits, treeRequests: 0, treeEntries: 0 };
 
   const commitSha = await resolveCommitSha(owner, repo, branch, token, fetchImpl);
 
-  const treePayload = await fetchTreePayload(owner, repo, commitSha, token, fetchImpl, { recursive: true });
+  const treePayload = await fetchTreePayload(owner, repo, commitSha, token, fetchImpl, { recursive: true, budget });
   let paths = treePayload && treePayload.truncated === true
-    ? await walkTreeBlobPaths(owner, repo, commitSha, token, fetchImpl, explicitPaths)
+    ? await walkTreeBlobPaths(owner, repo, commitSha, token, fetchImpl, explicitPaths, budget)
     : treeBlobPaths(treePayload);
 
   if (explicitPaths && explicitPaths.length > 0) {
@@ -192,7 +257,9 @@ async function fetchRepoFiles(repoUrl, opts = {}) {
   }
 
   const dedupedPaths = [...new Set(paths)];
+  if (dedupedPaths.length > limits.maxFiles) throw toError('GitHub selected file limit exceeded', 'GITHUB_FILE_COUNT_LIMIT');
   const files = [];
+  let totalBytes = 0;
   for (const filePath of dedupedPaths) {
     // Segment-encoded through the shared helper: interpolating the tree path
     // raw let a '#' or '?' in a filename cut the URL short, so the adapter
@@ -205,11 +272,15 @@ async function fetchRepoFiles(repoUrl, opts = {}) {
     });
 
     if (!fileRes.ok) {
-      if (fileRes.status === 404) continue;
+      if (fileRes.status === 404) {
+        throw toError(`GitHub tree-listed file is missing at the pinned commit: ${filePath}`, 'GITHUB_TREE_FILE_MISSING', 404);
+      }
       throw parseRateLimitError(fileRes, `Failed to fetch file content (${fileRes.status}): ${filePath}`);
     }
 
-    const content = await fileRes.text();
+    const read = await readBoundedText(fileRes, filePath, limits.maxFileBytes, limits.maxTotalBytes - totalBytes);
+    totalBytes += read.bytes;
+    const content = read.content;
     const lastModified = fileRes.headers && typeof fileRes.headers.get === 'function'
       ? (fileRes.headers.get('last-modified') || '')
       : '';
@@ -265,6 +336,7 @@ async function fetchAndLearn(repoUrl, kernel, opts = {}) {
 }
 
 module.exports = {
+  GITHUB_LIMITS,
   fetchRepoFiles,
   fetchAndLearn,
   parseRepoUrl,
