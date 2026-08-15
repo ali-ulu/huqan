@@ -2,16 +2,110 @@ const { contentHash, CONTENT_HASH_ALGORITHM } = require('../lib/content-hash');
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
-const { resolvePathWithinRoot } = require('../lib/path-safety');
+const { listFilesWithinRoot } = require('../lib/safe-file-walk');
 
 function toAbs(p) {
   return path.resolve(String(p || ''));
 }
 
 const ALLOWED_YAML_EXTENSIONS = new Set(['.yaml', '.yml']);
+const YAML_LIMITS = Object.freeze({
+  maxFiles: 1_000,
+  maxFileBytes: 2 * 1024 * 1024,
+  maxTotalBytes: 10 * 1024 * 1024,
+  maxEntriesPerFile: 5_000,
+  maxTotalEntries: 10_000,
+  maxValueDepth: 64,
+  maxValueNodes: 100_000,
+  maxOutputBytesPerEntry: 256 * 1024,
+  maxOutputBytesPerFile: 2 * 1024 * 1024,
+  maxTotalOutputBytes: 10 * 1024 * 1024,
+});
 
 function hasYamlExtension(filePath) {
   return ALLOWED_YAML_EXTENSIONS.has(path.extname(String(filePath || '')).toLowerCase());
+}
+
+function yamlError(code, message, details = {}) {
+  const error = new Error(message);
+  error.code = code;
+  Object.assign(error, details);
+  return error;
+}
+
+function yamlLimits(options = {}) {
+  const limits = {};
+  for (const [name, fallback] of Object.entries(YAML_LIMITS)) {
+    const value = options[name] === undefined ? fallback : options[name];
+    if (!Number.isSafeInteger(value) || value <= 0) {
+      throw yamlError('YAML_INVALID_LIMIT', `${name} must be a positive safe integer`);
+    }
+    limits[name] = value;
+  }
+  return limits;
+}
+
+function containsYamlAliasSyntax(source) {
+  let quote = null;
+  let escaped = false;
+  let comment = false;
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === '\n' || char === '\r') {
+      comment = false;
+      continue;
+    }
+    if (comment) continue;
+    if (quote === '"') {
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === '"') quote = null;
+      continue;
+    }
+    if (quote === "'") {
+      if (char === "'" && source[index + 1] === "'") index += 1;
+      else if (char === "'") quote = null;
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+    if (char === '#' && (index === 0 || /\s/.test(source[index - 1]))) {
+      comment = true;
+      continue;
+    }
+    if ((char === '&' || char === '*')
+      && (index === 0 || /[\s,[{]/.test(source[index - 1]))
+      && /[A-Za-z0-9_-]/.test(source[index + 1] || '')) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function inspectYamlValue(value, limits, state, depth = 0) {
+  if (depth > limits.maxValueDepth) {
+    throw yamlError('YAML_VALUE_DEPTH_LIMIT', 'YAML value depth limit exceeded', {
+      limit: limits.maxValueDepth,
+    });
+  }
+  if (value === null || typeof value !== 'object') return;
+  if (state.seen.has(value)) {
+    throw yamlError('YAML_ALIAS_FORBIDDEN', 'YAML aliases and repeated object references are not allowed');
+  }
+  state.seen.add(value);
+  state.nodes += 1;
+  if (state.nodes > limits.maxValueNodes) {
+    throw yamlError('YAML_VALUE_NODE_LIMIT', 'YAML value node limit exceeded', {
+      limit: limits.maxValueNodes,
+    });
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) inspectYamlValue(item, limits, state, depth + 1);
+  } else {
+    for (const item of Object.values(value)) inspectYamlValue(item, limits, state, depth + 1);
+  }
 }
 
 /**
@@ -21,18 +115,60 @@ function hasYamlExtension(filePath) {
  * entry. js-yaml's default schema (DEFAULT_SCHEMA, no !!js/* tags) is used,
  * so parsing never executes code or constructs arbitrary JS types.
  */
-function parseYaml(content, filePath = '') {
+function parseYaml(content, filePath = '', options = {}) {
+  const limits = yamlLimits(options);
   const absPath = toAbs(filePath || '.');
-  const parsed = yaml.load(String(content ?? ''));
+  const source = String(content ?? '');
+  const inputBytes = Buffer.byteLength(source, 'utf8');
+  if (inputBytes > limits.maxFileBytes) {
+    throw yamlError('YAML_FILE_BYTES_LIMIT', 'YAML file byte limit exceeded', {
+      filePath: absPath,
+      limit: limits.maxFileBytes,
+      actual: inputBytes,
+    });
+  }
+  if (containsYamlAliasSyntax(source)) {
+    throw yamlError('YAML_ALIAS_FORBIDDEN', 'YAML anchors and aliases are not allowed', {
+      filePath: absPath,
+    });
+  }
+  const parsed = yaml.load(source);
+  const state = { nodes: 0, seen: new WeakSet() };
+  inspectYamlValue(parsed, limits, state);
   const entries = [];
+  let outputBytes = 0;
 
   const pushEntry = (entryKey, value) => {
     const text = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
     if (!text || !text.trim()) return;
+    if (entries.length >= limits.maxEntriesPerFile) {
+      throw yamlError('YAML_ENTRY_LIMIT', 'YAML entry limit exceeded', {
+        filePath: absPath,
+        limit: limits.maxEntriesPerFile,
+      });
+    }
+    const trimmed = text.trim();
+    const entryBytes = Buffer.byteLength(trimmed, 'utf8');
+    if (entryBytes > limits.maxOutputBytesPerEntry) {
+      throw yamlError('YAML_ENTRY_OUTPUT_BYTES_LIMIT', 'YAML entry output byte limit exceeded', {
+        filePath: absPath,
+        entryKey,
+        limit: limits.maxOutputBytesPerEntry,
+        actual: entryBytes,
+      });
+    }
+    outputBytes += entryBytes;
+    if (outputBytes > limits.maxOutputBytesPerFile) {
+      throw yamlError('YAML_OUTPUT_BYTES_LIMIT', 'YAML file output byte limit exceeded', {
+        filePath: absPath,
+        limit: limits.maxOutputBytesPerFile,
+        actual: outputBytes,
+      });
+    }
     entries.push({
       entryKey,
       filePath: absPath,
-      content: text.trim(),
+      content: trimmed,
       sourceRef: `file:${absPath}:${entryKey}`,
     });
   };
@@ -51,80 +187,64 @@ function parseYaml(content, filePath = '') {
 }
 
 function listYamlFiles(targetPath, options = {}) {
-  const rootPath = options.rootPath || options.allowedRoot || options.workspaceRoot;
-  if (!rootPath) {
-    throw new Error('rootPath is required');
-  }
-
-  const absRoot = path.resolve(String(rootPath));
-  const absTarget = resolvePathWithinRoot(absRoot, targetPath, { allowMissing: true });
-  if (!fs.existsSync(absTarget)) return [];
-
-  const stat = fs.lstatSync(absTarget);
-  const files = [];
-
-  const walk = (dir) => {
-    const resolvedDir = resolvePathWithinRoot(absRoot, dir);
-    const entries = fs.readdirSync(resolvedDir, { withFileTypes: true })
-      .slice()
-      .sort((a, b) => a.name.localeCompare(b.name));
-
-    for (const entry of entries) {
-      const absEntry = path.join(resolvedDir, entry.name);
-      const entryStat = fs.lstatSync(absEntry);
-
-      if (entryStat.isSymbolicLink()) {
-        const realEntry = resolvePathWithinRoot(absRoot, absEntry);
-        const realStat = fs.statSync(realEntry);
-        if (realStat.isDirectory()) {
-          walk(realEntry);
-          continue;
-        }
-        if (realStat.isFile() && hasYamlExtension(realEntry)) {
-          files.push(realEntry);
-        }
-        continue;
-      }
-
-      if (entryStat.isDirectory()) {
-        walk(absEntry);
-        continue;
-      }
-
-      if (entryStat.isFile() && hasYamlExtension(absEntry)) {
-        files.push(absEntry);
-      }
-    }
-  };
-
-  if (stat.isSymbolicLink()) {
-    const realTarget = resolvePathWithinRoot(absRoot, absTarget);
-    const realStat = fs.statSync(realTarget);
-    if (realStat.isDirectory()) {
-      walk(realTarget);
-    } else if (realStat.isFile() && hasYamlExtension(realTarget)) {
-      files.push(realTarget);
-    }
-  } else if (stat.isFile()) {
-    if (hasYamlExtension(absTarget)) {
-      files.push(absTarget);
-    }
-  } else if (stat.isDirectory()) {
-    walk(absTarget);
-  }
-
-  return files.sort((a, b) => a.localeCompare(b));
+  return listFilesWithinRoot(targetPath, { ...options, matchesFile: hasYamlExtension });
 }
 
 function ingestYaml(targetPath, options = {}) {
+  const limits = yamlLimits(options);
   const files = listYamlFiles(targetPath, options);
+  if (files.length > limits.maxFiles) {
+    throw yamlError('YAML_FILE_COUNT_LIMIT', 'YAML file count limit exceeded', {
+      limit: limits.maxFiles,
+      actual: files.length,
+    });
+  }
+
+  let totalBytes = 0;
+  for (const filePath of files) {
+    const bytes = fs.statSync(filePath).size;
+    if (bytes > limits.maxFileBytes) {
+      throw yamlError('YAML_FILE_BYTES_LIMIT', 'YAML file byte limit exceeded', {
+        filePath,
+        limit: limits.maxFileBytes,
+        actual: bytes,
+      });
+    }
+    totalBytes += bytes;
+    if (totalBytes > limits.maxTotalBytes) {
+      throw yamlError('YAML_TOTAL_BYTES_LIMIT', 'YAML aggregate byte limit exceeded', {
+        limit: limits.maxTotalBytes,
+        actual: totalBytes,
+      });
+    }
+  }
+
   const entries = [];
   const errors = [];
+  let totalOutputBytes = 0;
   for (const filePath of files) {
     const content = fs.readFileSync(filePath, 'utf8');
     try {
-      entries.push(...parseYaml(content, filePath));
+      const parsed = parseYaml(content, filePath, limits);
+      if (entries.length + parsed.length > limits.maxTotalEntries) {
+        throw yamlError('YAML_TOTAL_ENTRY_LIMIT', 'YAML aggregate entry limit exceeded', {
+          limit: limits.maxTotalEntries,
+          actual: entries.length + parsed.length,
+        });
+      }
+      totalOutputBytes += parsed.reduce(
+        (sum, entry) => sum + Buffer.byteLength(entry.content, 'utf8'),
+        0,
+      );
+      if (totalOutputBytes > limits.maxTotalOutputBytes) {
+        throw yamlError('YAML_TOTAL_OUTPUT_BYTES_LIMIT', 'YAML aggregate output byte limit exceeded', {
+          limit: limits.maxTotalOutputBytes,
+          actual: totalOutputBytes,
+        });
+      }
+      entries.push(...parsed);
     } catch (e) {
+      if (typeof e?.code === 'string' && e.code.startsWith('YAML_')) throw e;
       errors.push({ filePath, error: e.message });
     }
   }
@@ -161,6 +281,7 @@ function ingestAndLearn(targetPath, kernel, options = {}) {
 }
 
 module.exports = {
+  YAML_LIMITS,
   parseYaml,
   listYamlFiles,
   ingestYaml,

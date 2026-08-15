@@ -34,6 +34,30 @@ test('json-adapter: parseJson throws on malformed JSON', () => {
   assert.throws(() => parseJson('{not valid json', '/tmp/broken.json'));
 });
 
+test('json-adapter: bounds nesting and serialized entry output', () => {
+  assert.throws(
+    () => parseJson('{"a":{"b":{"c":1}}}', '/tmp/deep.json', { maxValueDepth: 1 }),
+    (error) => error?.code === 'JSON_VALUE_DEPTH_LIMIT',
+  );
+  assert.throws(
+    () => parseJson('{"claim":"too-long"}', '/tmp/output.json', { maxOutputBytesPerEntry: 4 }),
+    (error) => error?.code === 'JSON_ENTRY_OUTPUT_BYTES_LIMIT',
+  );
+});
+
+test('json-adapter: aggregate budget failure is atomic before learning', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-json-atomic-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(dir, 'a.json'), '{"a":"alpha"}');
+  fs.writeFileSync(path.join(dir, 'b.json'), '{"b":"beta"}');
+  let calls = 0;
+  assert.throws(
+    () => ingestAndLearn(dir, { learn() { calls += 1; } }, { rootPath: dir, maxTotalOutputBytes: 8 }),
+    (error) => error?.code === 'JSON_TOTAL_OUTPUT_BYTES_LIMIT',
+  );
+  assert.equal(calls, 0);
+});
+
 test('json-adapter: listJsonFiles and ingestJson work recursively', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-json-'));
   const nested = path.join(dir, 'config');

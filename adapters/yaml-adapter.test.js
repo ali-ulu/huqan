@@ -42,6 +42,54 @@ test('yaml-adapter: parseYaml never executes custom !!js/* tags', () => {
   assert.throws(() => parseYaml('exploit: !!js/function "function(){return 1}"', '/tmp/exploit.yaml'));
 });
 
+test('yaml-adapter: rejects aliases before parsing and bounds depth/output', () => {
+  const aliasBomb = [
+    'base: &base [one, two, three]',
+    'expanded: [*base, *base, *base]',
+  ].join('\n');
+  assert.throws(
+    () => parseYaml(aliasBomb, '/tmp/alias.yaml'),
+    (error) => error?.code === 'YAML_ALIAS_FORBIDDEN',
+  );
+
+  assert.throws(
+    () => parseYaml('a:\n  b:\n    c: value', '/tmp/deep.yaml', { maxValueDepth: 1 }),
+    (error) => error?.code === 'YAML_VALUE_DEPTH_LIMIT',
+  );
+  assert.throws(
+    () => parseYaml('claim: a-long-value', '/tmp/output.yaml', { maxOutputBytesPerEntry: 4 }),
+    (error) => error?.code === 'YAML_ENTRY_OUTPUT_BYTES_LIMIT',
+  );
+});
+
+test('yaml-adapter: aggregate budget failure is atomic before learning', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-yaml-atomic-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(dir, 'a.yaml'), 'a: alpha\n', 'utf8');
+  fs.writeFileSync(path.join(dir, 'b.yaml'), 'b: beta\n', 'utf8');
+  let learnCalls = 0;
+
+  assert.throws(
+    () => ingestAndLearn(dir, { learn() { learnCalls += 1; } }, {
+      rootPath: dir,
+      maxTotalOutputBytes: 8,
+    }),
+    (error) => error?.code === 'YAML_TOTAL_OUTPUT_BYTES_LIMIT',
+  );
+  assert.equal(learnCalls, 0);
+});
+
+test('yaml-adapter: pre-read file byte budget rejects the batch', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-yaml-bytes-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(dir, 'large.yaml'), 'claim: too-large\n', 'utf8');
+
+  assert.throws(
+    () => ingestYaml(dir, { rootPath: dir, maxFileBytes: 4 }),
+    (error) => error?.code === 'YAML_FILE_BYTES_LIMIT',
+  );
+});
+
 test('yaml-adapter: listYamlFiles and ingestYaml work recursively across .yaml and .yml', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-yaml-'));
   const nested = path.join(dir, 'config');

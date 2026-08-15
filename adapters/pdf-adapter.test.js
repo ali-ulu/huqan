@@ -68,6 +68,43 @@ test('pdf-adapter: parsePdf rejects a non-PDF buffer', async () => {
   await assert.rejects(() => parsePdf(Buffer.from('not a pdf at all'), '/tmp/broken.pdf'));
 });
 
+test('pdf-adapter: enforces input, page and extracted-output budgets', async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-pdf-budget-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const file = writeFixture(dir, 'bounded.pdf', ['first page', 'second page']);
+  const buffer = fs.readFileSync(file);
+
+  await assert.rejects(
+    () => parsePdf(buffer, file, { maxFileBytes: 16 }),
+    (error) => error?.code === 'PDF_FILE_BYTES_LIMIT',
+  );
+  await assert.rejects(
+    () => parsePdf(buffer, file, { maxPagesPerFile: 1 }),
+    (error) => error?.code === 'PDF_PAGE_LIMIT',
+  );
+  await assert.rejects(
+    () => parsePdf(buffer, file, { maxOutputBytesPerFile: 5 }),
+    (error) => error?.code === 'PDF_OUTPUT_BYTES_LIMIT',
+  );
+});
+
+test('pdf-adapter: aggregate budget failure is atomic before learning', async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-pdf-atomic-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  writeFixture(dir, 'a.pdf', ['alpha text']);
+  writeFixture(dir, 'b.pdf', ['beta text']);
+  let learnCalls = 0;
+
+  await assert.rejects(
+    () => ingestAndLearn(dir, { learn() { learnCalls += 1; } }, {
+      rootPath: dir,
+      maxTotalOutputBytes: 8,
+    }),
+    (error) => error?.code === 'PDF_TOTAL_OUTPUT_BYTES_LIMIT',
+  );
+  assert.equal(learnCalls, 0);
+});
+
 test('pdf-adapter: listPdfFiles and ingestPdf work recursively', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-pdf-list-'));
   const nested = path.join(dir, 'docs');
