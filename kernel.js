@@ -18,6 +18,7 @@ const MemoryStore = require('./lib/memory-store');
 const { buildCanonicalReceiptPayload } = require('./lib/receipt/canonical-receipt');
 const { toCanonicalVerdict } = require('./lib/verdict/action-verdict');
 const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
+const { runRustSandbox } = require('./lib/reason-sandbox');
 
 let RustGraph;
 try { RustGraph = require('./rustGraph'); } catch {}
@@ -198,14 +199,12 @@ class Kernel {
    */
   async reasonSandbox({ learn = [], ask = [] } = {}) {
     if (this._rust) {
-      const learnCmds = learn.map(text => ({ cmd: 'learn', text }));
-      if (learnCmds.length) await this._rust._send({ cmd: 'batch', commands: learnCmds });
-      const askCmds = ask.map(question => ({ cmd: 'ask', question }));
-      const res = askCmds.length ? await this._rust._send({ cmd: 'batch', commands: askCmds }) : { results: [] };
-      if (res && res.ok !== false) {
-        return { backend: 'rust', answers: (res.results || []).map(r => r.answer || 'Bilmiyorum') };
-      }
-      // Rust process died mid-flight: fall through to the JS sandbox below.
+      // Deliberately NOT this._rust: axiom-core keeps one mutable Graph for the
+      // life of its process, so the kernel's shared bridge is not a sandbox.
+      // runRustSandbox spawns a private process per call and tears it down (#758).
+      const answers = await runRustSandbox({ learn, ask });
+      if (answers) return { backend: 'rust', answers };
+      // Rust unusable or died mid-flight: fall through to the JS sandbox below.
     }
     // JS fallback uses a throwaway Kernel (learn()/ask() live on Kernel, not
     // Graph) so behavior matches the non-sandbox path when Rust is absent.

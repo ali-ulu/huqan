@@ -204,6 +204,7 @@
         "lib/provenance-query.js",
         "lib/quickstart-cli.js",
         "lib/quickstart.js",
+        "lib/reason-sandbox.js",
         "lib/reasoning-trace.js",
         "lib/receipt/bounded-receipt-export.js",
         "lib/receipt/canonical-receipt-v2.js",
