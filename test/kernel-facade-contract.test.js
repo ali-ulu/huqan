@@ -494,6 +494,32 @@ test('4C1: installed CLI help smoke', () => {
   assert.equal(result.status, 0, `CLI help exit ${result.status}: ${(result.stderr || result.stdout || '').slice(0, 300)}`);
 });
 
+test('4C1: installed tarball CLI JSON is non-TTY and stable across locale and terminal width', () => {
+  const info = setupTarballInstall();
+  const cliPath = path.join(info.installDir, 'node_modules', 'huqan', 'cli.js');
+  const run = (lang, columns) => cp.spawnSync(process.execPath, [cliPath, '--version', '--json'], {
+    cwd: info.installDir,
+    timeout: 20000,
+    encoding: 'utf8',
+    input: '',
+    env: { ...process.env, LANG: lang, LC_ALL: lang, COLUMNS: columns, AXIOM_USE_SQLITE: 'false', NO_COLOR: '1' },
+  });
+  const narrow = run('tr_TR.UTF-8', '20');
+  const wide = run('en_US.UTF-8', '240');
+  assert.equal(narrow.status, 0, narrow.stderr || narrow.stdout);
+  assert.equal(wide.status, 0, wide.stderr || wide.stdout);
+  const project = output => {
+    const body = JSON.parse(output.trim());
+    delete body.traceId;
+    if (body.trace) delete body.trace.traceId;
+    return body;
+  };
+  assert.deepEqual(project(narrow.stdout), project(wide.stdout));
+  assert.equal(project(narrow.stdout).workflowId, 'cli-version');
+  assert.doesNotMatch(narrow.stdout, /axiom> /);
+  assert.doesNotMatch(wide.stdout, /axiom> /);
+});
+
 test('4C1: installed dependency resolution', () => {
   const info = setupTarballInstall();
   const code = `

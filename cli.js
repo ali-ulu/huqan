@@ -5,7 +5,6 @@ const {
   validateEnvironmentCompatibility,
 } = require('./lib/environment-compat');
 validateEnvironmentCompatibility();
-
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -577,6 +576,7 @@ class CLI {
         }
         return formatCliApprovalDecision(result, approval.approvalId, opts.json);
       }
+      case 'receipt': return require('./lib/cli-trust-receipt').runCliTrustReceipt(this.kernel, args, opts);
       case 'restore': {
         const result = runCliRestore(args, this._backupOptions({ backupDir: args?.backupDir || args || undefined }));
         if (!result.dryRun) { this.kernel.reload(); this._commitCliMutation('restore'); }
