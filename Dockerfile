@@ -1,4 +1,10 @@
-FROM node:20-bookworm-slim AS dependencies
+# Base image pinned by digest (#753). The tag alone can resolve to different
+# image bytes over time, so the same commit could produce materially different
+# runtime images on different dates -- weakening release provenance and
+# incident response even though the repository has explicit supply-chain gates.
+# Both stages deliberately share one reviewed digest; update it as a
+# reviewable diff, keeping the tag comment for readability.
+FROM node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS dependencies
 
 WORKDIR /app
 
@@ -10,7 +16,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev --no-audit --no-fund
 
 
-FROM node:20-bookworm-slim AS runtime
+FROM node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS runtime
 
 WORKDIR /app
 

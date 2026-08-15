@@ -8,7 +8,8 @@ const crypto = require('crypto');
 const http = require('http');
 const path = require('path');
 const { readFileSync } = require('fs');
-const { createKernel } = require('./lib/kernel-factory');
+const { createKernel, CANONICAL_KERNEL_VERSION } = require('./lib/kernel-factory');
+const { CANONICAL_AGENT_VERSION } = require('./agentRuntime');
 const { parseCommand } = require('./lib/command-parser');
 const { evaluateLlmSor } = require('./lib/shield');
 const {
@@ -140,6 +141,7 @@ const {
   readPathReceiptId,
 } = require('./lib/http-trust-query');
 const { runPublicApiCommand } = require('./lib/http/public-api-commands');
+const { V2_STATUS_PHASES } = require('./lib/http/v2-status-phases');
 
 function checkViewerRateLimit(req, timestamp = Date.now()) {
   const key = String(req.socket?.remoteAddress || 'unknown');
@@ -335,7 +337,7 @@ function getHealthData() {
     // window; it is not a second product identity.
     service: 'huqan',
     legacyService: 'axiom',
-    kernelVersion: readCompatibleEnvironmentVariable('KERNEL_VERSION') === 'v2' ? 'v2' : 'v1',
+    kernelVersion: CANONICAL_KERNEL_VERSION, // canonical constant, not the selector (#755)
     backend: stats.backend,
     nodes: stats.nodes,
     edges: stats.edges,
@@ -346,144 +348,14 @@ function getHealthData() {
 
 function getV2StatusData() {
   const stats = kernel.graph.getStats();
-  const activeKernel = readCompatibleEnvironmentVariable('KERNEL_VERSION') === 'v2' ? 'v2' : 'v1';
-  const agentRuntime = String(readCompatibleEnvironmentVariable('AGENT_VERSION') || 'v2').toLowerCase();
+  // #755: from the canonical constants, not the optional version selectors.
+  // With those absent (the normal configuration) the process ran KernelV2 and
+  // AgentV3 while status advertised v1/v2.
+  const activeKernel = CANONICAL_KERNEL_VERSION;
+  const agentRuntime = CANONICAL_AGENT_VERSION;
   const agentRuntimeMode = String(readCompatibleEnvironmentVariable('AGENT_RUNTIME') || '').toLowerCase() || agentRuntime;
   const checkpointBackend = agentRuntime === 'v3' ? 'sqlite' : 'json';
-  const phases = [
-    {
-      id: 'v2.0',
-      title: 'v2.0 Core / Release',
-      status: 'done',
-      summary: 'Core contract, paranoid mode, MCP, benchmarks, release notes, and v2.0.0 tag are shipped.',
-      items: [
-        'Core envelope contract',
-        'paranoidMode + AXIOM_ERROR + contractVersion',
-        'MCP stdio adapter',
-        'Deterministic benchmark fixtures',
-        'Release docs + v2.0.0 tag',
-      ],
-    },
-    {
-      id: 'v2.1',
-      title: 'v2.1 Verify Reasoning',
-      status: 'done',
-      summary: 'KernelV2 verify now supports multi-hop type inference, contradiction reasons, and richer evidence.',
-      items: [
-        'Multi-hop type-chain inference',
-        'Negated known fact conflict',
-        'Opposite predicate conflict',
-        'Known type mismatch conflict',
-      ],
-    },
-    {
-      id: 'v2.2',
-      title: 'v2.2 Ecosystem',
-      status: 'done',
-      summary: 'MCP schema reflects v2 verify fields and can opt into KernelV2 runtime.',
-      items: [
-        'Richer verify output schema',
-        'Optional HUQAN_KERNEL_VERSION=v2 runtime',
-        'Schema tests',
-      ],
-    },
-    {
-      id: 'v2.3',
-      title: 'v2.3 CLI/REST Runtime',
-      status: readCompatibleEnvironmentVariable('KERNEL_VERSION') === 'v2' ? 'done' : 'in_progress',
-      summary: 'CLI, REST, and MCP can run the v2 kernel behind an explicit environment flag.',
-      items: [
-        'CLI KernelV2 opt-in',
-        'REST KernelV2 opt-in',
-        'Health/status kernel visibility',
-      ],
-    },
-    {
-      id: 'v2.4',
-      title: 'v2.4 Status Dashboard',
-      status: 'done',
-      summary: 'The web UI and /v2-status endpoint show phase, runtime, test, and commit state in one place.',
-      items: [
-        'Single status endpoint',
-        'Runtime kernel/backend cards',
-        'Phase progress cards',
-        'Last commit visibility',
-      ],
-    },
-    {
-      id: 'v2.5',
-      title: 'v2.5 REST Structured Verify',
-      status: 'done',
-      summary: 'New /v2/verify endpoint returns the full core envelope while legacy /dogrula stays stable.',
-      items: [
-        'GET /v2/verify',
-        'POST /v2/verify',
-        'Legacy /dogrula compatibility',
-        'Structured REST tests',
-      ],
-    },
-    {
-      id: 'v2.6',
-      title: 'v2.6 MCP Schema Polish',
-      status: 'done',
-      summary: 'MCP tool descriptions and output schemas now mirror the real payload shapes more closely.',
-      items: [
-        'Concrete tool descriptions',
-        'Per-tool output schemas',
-        'Evidence and meta schema details',
-        'Developer-friendly MCP docs',
-      ],
-    },
-    {
-      id: 'v2.7',
-      title: 'v2.7 Manipulation Guard',
-      status: 'done',
-      summary: 'KernelV2 now flags manipulative, coercive, or injection-style text with additive risk metadata.',
-      items: [
-        'Prompt-injection detection',
-        'Coercive and overclaim risk labels',
-        'Risk-aware learnFromLLM filtering',
-        'Structured verify risk metadata',
-      ],
-    },
-    {
-      id: 'v2.8',
-      title: 'v2.8 Status Dashboard Polish',
-      status: 'done',
-      summary: 'The dashboard now makes progress, remaining phases, and current focus easier to scan at a glance.',
-      items: [
-        'Progress percentage',
-        'Remaining phase count',
-        'Current focus clarity',
-        'Dashboard readability polish',
-      ],
-    },
-    {
-      id: 'v2.9',
-      title: 'v2.9 Evidence Polish',
-      status: 'done',
-      summary: 'KernelV2 verify now adds compact explanation and evidence summary fields for clearer reasoning traces.',
-      items: [
-        'Verify explanation text',
-        'Compact evidence summary',
-        'Risk-aware reasoning polish',
-        'MCP schema exposure',
-      ],
-    },
-    {
-      id: 'v3.0',
-      title: 'v3.0 Agent Workflow',
-      status: 'in_progress',
-      summary: 'AXIOM now has a lightweight multi-step agent planner with persistent goal memory, tool selection policy, and execution reports.',
-      items: [
-        'Goal planner',
-        'Persistent goal memory',
-        'Multi-step execution loop',
-        'Tool selection policy',
-        'CLI agent commands',
-      ],
-    },
-  ];
+  const phases = V2_STATUS_PHASES;
 
   const counts = phases.reduce((acc, phase) => {
     acc.total += 1;

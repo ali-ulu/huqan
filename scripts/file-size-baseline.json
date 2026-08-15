@@ -4,10 +4,7 @@
     "Every entry is a file that already exceeded 800 lines when it was recorded.",
     "Entries may only shrink. Lower them with `npm run check:file-size -- --update`",
     "after a file gets smaller; raising one is a hand edit so it shows up in review.",
-    "An entry that reaches the threshold must be deleted, not set to the threshold.",
-    "scripts/external-conformance/consumer.js was raised 881 -> 924 for #735/#767:",
-    "it is the single file the conformance runner copies and executes, so the",
-    "checks for a normative spec rule have to live in it rather than a sibling."
+    "An entry that reaches the threshold must be deleted, not set to the threshold."
   ],
   "threshold": 800,
   "files": {
@@ -22,7 +19,7 @@
     "lib/sandbox-isolation.js": 855,
     "lib/verify.js": 967,
     "scripts/external-conformance/consumer.js": 924,
-    "server.js": 1241,
+    "server.js": 1113,
     "workflow-agent.js": 1007,
     "workflow-tools.js": 962
   }

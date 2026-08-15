@@ -10,10 +10,11 @@ const evidenceValidator = require('../plugins/evidence-validator');
  * Fixture values are composed at runtime rather than written as literals.
  *
  * Every value here is synthetic, but a literal that *looks* like a credential
- * trips repository secret scanners, and the alternative — a .gitleaksignore
- * entry — is pinned to a commit SHA and has to be re-added whenever this file
- * changes. Interpolating a named placeholder keeps the assertion identical
- * while leaving no credential-shaped literal in the source.
+ * trips repository secret scanners. Interpolating a named placeholder keeps
+ * the assertion identical while leaving no credential-shaped literal in the
+ * source, so no new finding is raised going forward. Findings already in git
+ * history are a separate matter and are handled by .gitleaksignore, whose
+ * fingerprints pin immutable commits.
  *
  * It also sharpens the test: the point of #746 is that a secret-bearing key
  * name is enough on its own, so a deliberately low-entropy value is the

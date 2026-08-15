@@ -163,6 +163,7 @@
         "lib/http/route-auth-policy.js",
         "lib/http/exact-workspace.js",
         "lib/http/public-api-commands.js",
+        "lib/http/v2-status-phases.js",
         "lib/human-approval-toggle.js",
         "lib/ingest.js",
         "lib/json-utf8-size.js",

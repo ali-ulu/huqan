@@ -6,6 +6,8 @@ const os = require('os');
 const path = require('path');
 const Graph = require('./graph');
 const { rateLimitMap } = require('./requestGuards');
+const { CANONICAL_AGENT_VERSION } = require('./agentRuntime');
+const { CANONICAL_KERNEL_VERSION } = require('./lib/kernel-factory');
 const { ACTION_OUTCOMES } = require('./lib/workbench/ingest-approval-action');
 
 let PORT;
@@ -839,9 +841,12 @@ describe('Server - API', () => {
     assert.strictEqual(j.remainingPhases, 1);
     assert.strictEqual(typeof j.currentFocus, 'string');
     assert.strictEqual(j.currentFocus, 'v3.0 Agent Workflow');
-    assert.strictEqual(j.agentRuntime, 'v2');
-    assert.strictEqual(j.checkpointBackend, 'json');
-    assert.strictEqual(j.activeKernel, 'v2');
+    // Asserted against the canonical constants, not duplicated literals: the
+    // old expectations ('v2'/'json') were the #755 defect, where status
+    // advertised a runtime the process was not actually running.
+    assert.strictEqual(j.agentRuntime, CANONICAL_AGENT_VERSION);
+    assert.strictEqual(j.checkpointBackend, 'sqlite');
+    assert.strictEqual(j.activeKernel, CANONICAL_KERNEL_VERSION);
     assert.ok(['sqlite', 'json'].includes(j.backend));
     assert.ok(Number.isInteger(j.nodes));
     assert.ok(Number.isInteger(j.edges));
