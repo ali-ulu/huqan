@@ -1,5 +1,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
+const { EventEmitter } = require('node:events');
 const { Readable } = require('node:stream');
 const crypto = require('node:crypto');
 
@@ -85,6 +86,25 @@ describe('Request Guards', () => {
     }), { maxBytes: 100 });
     assert.strictEqual(oversized.ok, false);
     assert.strictEqual(oversized.status, 413);
+  });
+
+  it('streaming JSON overflow returns 413 without destroying the request (#713)', async () => {
+    const req = new EventEmitter();
+    req.headers = { 'content-type': 'application/json' };
+    let destroyed = false;
+    req.destroy = () => {
+      destroyed = true;
+    };
+
+    const pending = readJsonBody(req, { maxBytes: 4 });
+    req.emit('data', '1234');
+    req.emit('data', '5');
+    const result = await pending;
+
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.status, 413);
+    assert.strictEqual(result.error.error, 'Payload too large');
+    assert.strictEqual(destroyed, false);
   });
 
   it('requireApiKey fails closed when configured key is missing, empty, or whitespace', () => {
