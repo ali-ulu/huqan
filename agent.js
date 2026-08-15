@@ -993,7 +993,7 @@ class Agent {
     const finalStep = state.steps[state.steps.length - 1];
     const finalSummary = finalStep ? this._extractAgentSummary(finalStep.result) : { text: '' };
     const finalAnswer = finalSummary.text || 'The agent completed the task but could not produce a short summary.';
-    state.status = finalStep && finalStep.result && finalStep.result.ok === false ? 'blocked' : 'completed';
+    state.status = finalStep && finalStep.result && finalStep.result.ok === false ? 'blocked' : (queued.length > 0 ? 'paused' : 'completed'); // #756
     state.finalSummary = buildFinalSummary({
       goal: state.goal,
       objective: activePlan.objective,
