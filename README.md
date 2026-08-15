@@ -16,7 +16,7 @@ HUQAN is a **local-first AI governance, agent-safety, and verification layer** f
 
 **Canonical repository:** `https://github.com/ali-ulu/huqan`
 
-[![HUQAN — Official Startup on Snikus](https://snikus.com/startup-badge.php?startup=17&theme=dark)](https://snikus.com/)
+[![HUQAN — Official Startup on Snikus](https://snikus.com/startup-badge.php?startup=17&theme=dark)](https://snikus.com/startup.php?id=17)
 
 <p align="center">
   <img src="./docs/assets/huqan-agent-evidence-receipt-flow.svg" alt="HUQAN Agent–Evidence–Receipt flow" width="100%">
