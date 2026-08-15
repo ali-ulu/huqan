@@ -177,6 +177,7 @@
         "lib/human-approval-toggle.js",
         "lib/ingest.js",
         "lib/ingest-workflow-preview.js",
+        "lib/ingest-workflow-run.js",
         "lib/json-utf8-size.js",
         "lib/json-object.js",
         "lib/kernel-envelope.js",

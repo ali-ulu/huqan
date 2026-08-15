@@ -67,6 +67,8 @@ describe('ingest workflow preview', () => {
     assert.equal(writes[0].json.workflowId, 'ingest-execute');
     assert.equal(writes[0].json.status, 'review_required');
     assert.equal(writes[0].json.ok, false);
+    assert.equal(writes[0].json.data.runId, 'approval-1');
+    assert.equal(writes[0].json.data.statusRoute, '/api/v2/ingest/runs/approval-1');
     assert.equal(writes[0].headers['Cache-Control'], 'no-store');
   });
 

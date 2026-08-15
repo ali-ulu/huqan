@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const { describe, it } = require('node:test');
 const { createWorkflowDataRoutes } = require('../lib/http/workflow-data-routes');
 const { WORKFLOW_CAPABILITIES } = require('../lib/workflow-contract');
+const { buildIngestWorkflowRun } = require('../lib/ingest-workflow-run');
 
 function fixture(records = []) {
   const byId = new Map(records.map(record => [record.id, record]));
@@ -43,7 +44,13 @@ const approval = (id, workspaceId) => ({
   tool: 'http.ingest',
   status: 'pending',
   decision: 'review',
-  context: { snapshot: { workspaceId } },
+  context: { snapshot: {
+    workspaceId,
+    sourceType: 'manual',
+    sourceRef: `manual:${id}`,
+    snapshotHash: `sha256:${'a'.repeat(64)}`,
+    idempotencyKey: `ingest-${id}`,
+  } },
 });
 
 describe('canonical workflow data routes', () => {
@@ -84,6 +91,37 @@ describe('canonical workflow data routes', () => {
     assert.equal(result.write.json.data.receipt.workspaceId, 'alpha');
   });
 
+  it('projects bounded progress and truthful resume semantics from the canonical ingest approval', async () => {
+    const pending = approval('run-1', 'alpha');
+    const { invoke } = fixture([pending]);
+    const result = await invoke('GET', '/api/v2/ingest/runs/run-1?workspaceId=alpha');
+    assert.equal(result.write.status, 200);
+    assert.equal(result.write.json.status, 'review_required');
+    assert.deepEqual(result.write.json.data.progress, { completed: 0, total: 1, hasMore: false });
+    assert.deepEqual(result.write.json.data.resume, {
+      allowed: false,
+      reason: 'ingest_runs_have_no_paused_checkpoint',
+    });
+    assert.equal(result.write.json.data.nextAction, 'review');
+    assert.equal(result.write.json.data.retry.allowed, false);
+  });
+
+  it('does not disclose an ingest run from another workspace', async () => {
+    const { invoke } = fixture([approval('run-1', 'alpha')]);
+    const result = await invoke('GET', '/api/v2/ingest/runs/run-1?workspaceId=beta');
+    assert.equal(result.write.status, 404);
+    assert.equal(result.write.json.error.code, 'INGEST_RUN_NOT_FOUND');
+  });
+
+  it('marks unknown failures as manual reconciliation instead of retryable', () => {
+    const failed = { ...approval('run-1', 'alpha'), status: 'failed', reason: 'execution_outcome_unknown' };
+    const run = buildIngestWorkflowRun(failed);
+    assert.equal(run.status, 'failed');
+    assert.equal(run.phase, 'reconciliation_required');
+    assert.equal(run.retry.allowed, false);
+    assert.equal(run.resume.allowed, false);
+  });
+
   it('fails closed when an exact workspace is missing', async () => {
     const { invoke } = fixture();
     const result = await invoke('GET', '/api/v2/approvals');
@@ -104,5 +142,6 @@ describe('canonical workflow data routes', () => {
     assert.equal(capabilities.get('approval-detail').availability.api, true);
     assert.equal(capabilities.get('approval-decision').availability.api, true);
     assert.equal(capabilities.get('trust-receipt-detail').route, '/api/v2/trust-receipts/{id}');
+    assert.deepEqual(capabilities.get('ingest-run-detail').availability, { api: true, cli: false, mcp: false, ui: false });
   });
 });

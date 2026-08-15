@@ -50,7 +50,7 @@ test('huqan.ingest_preview returns a stable manual source manifest without appro
     required: true,
     canonicalWrite: false,
     nextAction: 'submit_ingest_execute',
-    executeRoute: '/api/ingest',
+    executeRoute: '/api/v2/ingest/execute',
   });
 });
 
