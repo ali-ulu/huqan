@@ -462,26 +462,32 @@ test('github-adapter: an untruncated tree still costs exactly one tree call (#68
   assert.match(treeCalls[0], /recursive=1$/);
 });
 
-test('github-adapter: a 404 for a tree-listed blob rejects the whole scan and never learns', async () => {
-  let learnCalls = 0;
-  const fetchImpl = async (url) => {
-    if (/\/commits\/[^/?]+$/.test(url)) return makeResponse({ json: { sha: TEST_COMMIT_SHA } });
-    if (url.includes('/git/trees/')) return makeResponse({ json: { tree: [
-      { type: 'blob', path: 'README.md' },
-      { type: 'blob', path: 'ROADMAP.md' },
-    ] } });
-    if (url.endsWith('/ROADMAP.md')) return makeResponse({ ok: false, status: 404, text: '' });
-    return makeResponse({ text: '# survivor' });
-  };
+for (const [selection, paths] of [['default', undefined], ['explicit', ['README.md', 'ROADMAP.md']]]) {
+  test(`github-adapter: a 404 for a tree-listed blob rejects the whole ${selection} scan and never learns`, async () => {
+    let learnCalls = 0;
+    const fetchImpl = async (url) => {
+      if (/\/commits\/[^/?]+$/.test(url)) return makeResponse({ json: { sha: TEST_COMMIT_SHA } });
+      if (url.includes('/git/trees/')) return makeResponse({ json: { tree: [
+        { type: 'blob', path: 'README.md' },
+        { type: 'blob', path: 'ROADMAP.md' },
+      ] } });
+      if (url.endsWith('/ROADMAP.md')) return makeResponse({ ok: false, status: 404, text: '' });
+      return makeResponse({ text: '# survivor' });
+    };
 
-  await assert.rejects(
-    () => fetchAndLearn('https://github.com/ai-ulu/axiom', {
-      async learnAsync() { learnCalls += 1; return { data: { learned: 1 } }; },
-    }, { fetchImpl }),
-    (error) => error?.code === 'GITHUB_TREE_FILE_MISSING',
-  );
-  assert.equal(learnCalls, 0);
-});
+    await assert.rejects(
+      () => fetchAndLearn('https://github.com/ai-ulu/axiom', {
+        async learnAsync() { learnCalls += 1; return { data: { learned: 1 } }; },
+      }, { fetchImpl, paths }),
+      (error) => error?.code === 'GITHUB_TREE_FILE_MISSING'
+        && error.commitSha === TEST_COMMIT_SHA
+        && error.path === 'ROADMAP.md'
+        && error.message.includes(TEST_COMMIT_SHA)
+        && error.message.includes('ROADMAP.md'),
+    );
+    assert.equal(learnCalls, 0);
+  });
+}
 
 test('github-adapter: bounds tree work, selected files, per-file and aggregate bytes', async () => {
   const treeFetch = (tree, body = '# content') => async (url) => {
