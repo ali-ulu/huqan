@@ -3,14 +3,13 @@
 const { describe, it, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const MemoryStore = require('../lib/memory-store');
 
-// Create a temp directory within the workspace for testing
-const tempDir = path.join(__dirname, 'sqlite-test-temp-' + Date.now());
-if (!fs.existsSync(tempDir)) {
-  fs.mkdirSync(tempDir);
-}
+// Keep runtime artifacts outside the repository. Static source-audit tests scan
+// the workspace concurrently, so a repo-local temp directory creates a race.
+const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-sqlite-test-'));
 
 after(() => {
   try {
