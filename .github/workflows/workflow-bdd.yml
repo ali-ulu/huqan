@@ -1,0 +1,72 @@
+name: Workflow BDD Contract
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workflow-bdd-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CI: true
+  NPM_CONFIG_AUDIT: false
+  NPM_CONFIG_FUND: false
+
+jobs:
+  bdd-contract:
+    name: Validate BDD/Gherkin contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Validate workflow feature files
+        run: python3 scripts/validate_workflow_gherkin.py
+
+      - name: Report BDD scenario inventory
+        run: |
+          echo "Feature files:"
+          find test/bdd/workflows -maxdepth 1 -type f -name '*.feature' -print | sort
+          echo "Scenario count:"
+          grep -Rho '^  Scenario\( Outline\)\?:' test/bdd/workflows/*.feature | wc -l
+          echo "Acceptance-tag count:"
+          grep -Rho '@ac-[0-9-]*' test/bdd/workflows/*.feature | sort -u | wc -l
+
+  node-tests:
+    name: Node.js tests (Node ${{ matrix.node-version }})
+    needs: bdd-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version:
+          - "20"
+          - "22"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --include=optional --no-audit --no-fund
+
+      - name: Run repository test suite
+        run: npm test
