@@ -20,7 +20,7 @@ const AxiomStorage = require('./storage');
 const { decideIngestApproval } = require('./lib/workbench/ingest-approval-action');
 const {
   buildTrustReceipt,
-  queryAuditTrail,
+  queryAuditTrailPage,
   queryCandidateClaims,
   queryProvenance,
 } = require('./lib/provenance-query');
@@ -113,63 +113,6 @@ const ingestApprovalRecoveryTimer = setInterval(() => {
 }, Math.max(5_000, Math.floor(INGEST_APPROVAL_LEASE_MS / 2)));
 ingestApprovalRecoveryTimer.unref?.();
 
-function runPublicApiCommand(command, args) {
-  const normalizedCommand = String(command || '')
-    .replace(/\uFEFF/g, '')
-    .toLowerCase()
-    .replace(/[ç]/g, 'c')
-    .replace(/[ğ]/g, 'g')
-    .replace(/[ı]/g, 'i')
-    .replace(/[ö]/g, 'o')
-    .replace(/[ş]/g, 's')
-    .replace(/[ü]/g, 'u')
-    .replace(/[_-]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  switch (normalizedCommand) {
-    case 'selam':
-      return 'Merhaba! Bana bir sey ogretebilir veya soru sorabilirsin.';
-    case 'yardim':
-      return [
-        'AXIOM komutlari:',
-        '  "kedi balik yer"          -> bilgi ogrenirim',
-        '  "kedi nedir"              -> soruyu cevaplarim',
-        '  "neden tavuk"             -> sebep analizi',
-        '  "tavuk mu yumurta mi"     -> karsilastirma',
-        '  "durum"                   -> sistem durumu',
-        '  "ruya"                    -> hipotez uretirim',
-        '  "plan: hedef"             -> ajan plani uretirim',
-        '  "ajan: hedef"             -> cok adimli ajan calistiririm',
-        '  "backup"                  -> calisma durumunu yedeklerim',
-        '  "restore[: yol]"          -> en son veya secili yedekten geri yuklerim',
-        '  "kaydet"                  -> hafizayi kaydederim',
-        '  "llm-sor: soru"           -> LLM tavsiyesi hazirlarim',
-        '  "yukle: dosya.txt"        -> dosyadan ogrenirim',
-        '  "cikis"                   -> cikis',
-      ].join('\n');
-    case 'anlamadim':
-      return 'Anlamadim. Daha uzun bir cumle yaz veya "yardim" yaz.';
-    case 'sor': {
-      const result = kernel.ask(args);
-      const answer = result.data.answer;
-      return answer === 'Bilmiyorum' ? `X ${answer}` : `Cevap: ${answer}`;
-    }
-    case 'durum': {
-      const stats = kernel.graph.getStats();
-      const gaps = kernel.detectGaps();
-      const contradictions = kernel.detectContradictions();
-      let out = `Durum: ${stats.nodes} düğüm, ${stats.edges} kenar, entropi: ${kernel.entropy().toFixed(3)}`;
-      if (gaps.length > 0) out += `\n  ${gaps.length} baglantisiz dugum: ${gaps.slice(0, 10).join(', ')}${gaps.length > 10 ? '...' : ''}`;
-      for (const item of contradictions.slice(0, 5)) {
-        out += `\n  Celiski [${item.type}]: ${item.node} -> ${item.targets.join(', ')}`;
-      }
-      return out;
-    }
-    default:
-      return null;
-  }
-}
 
 const {
   ALLOWED_CORS_HOSTS,
@@ -196,6 +139,7 @@ const {
   hasTrustQuery,
   readPathReceiptId,
 } = require('./lib/http-trust-query');
+const { runPublicApiCommand } = require('./lib/http/public-api-commands');
 
 function checkViewerRateLimit(req, timestamp = Date.now()) {
   const key = String(req.socket?.remoteAddress || 'unknown');
@@ -1026,14 +970,13 @@ const server = http.createServer(async (req, res) => {
           writeApiError(req, res, 400, 'INVALID_QUERY', 'targetId, provenanceId, sourceRef, eventType, or actor is required.');
           return;
         }
-        const items = queryAuditTrail(graph, { ...filters, workspaceId });
+        // Bounded page, not the whole trail (#729). `total` is this page's
+        // item count; hasMore/nextCursor carry continuation.
+        const page = queryAuditTrailPage(graph, { ...filters, workspaceId });
+        const { items, limit, hasMore, nextCursor } = page;
         writeJson(req, res, 200, {
           ok: true,
-          data: {
-            items,
-            total: items.length,
-            workspaceId,
-          },
+          data: { items, total: items.length, limit, hasMore, nextCursor, workspaceId },
         }, { 'Cache-Control': 'no-cache' });
         return;
       }
@@ -1201,19 +1144,16 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      // /api is a public route, but only its fixed-response commands are
-      // public. `sor` and `durum` read live default-workspace knowledge, so
-      // they are gated on an API key here rather than at the route level
-      // (issue #727).
+      // /api is public, but only for fixed-response commands: `sor`/`durum`
+      // read live workspace state, so they need a key (#727).
       if (p && commandRequiresAuthentication(p.command) && !denyIfUnauthorized(req, res)) return;
-
       let result;
       if (!p) {
         result = 'HATA: Anlamadım.';
       } else if (p.command === 'kaydet') {
         result = '⚠️ Kaydet komutu sadece CLI\'dan kullanılabilir.';
       } else {
-        result = runPublicApiCommand(p.command, p.args);
+        result = runPublicApiCommand(p.command, p.args, kernel);
         if (result === null) {
           res.writeHead(403, {
             'Content-Type': 'application/json; charset=utf-8',

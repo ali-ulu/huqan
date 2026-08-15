@@ -1037,6 +1037,70 @@ describe('Server - Public API Allowlist Lockdown', () => {
   });
 });
 
+describe('Server - /api/audit is bounded and paginated (#729)', () => {
+  const TARGET = 'audit-pagination-target';
+
+  before(() => {
+    rateLimitMap.clear();
+    // Seeding goes through the live kernel graph the server serves from.
+    const target = require('./server').kernel?.graph;
+    assert.ok(target, 'server must expose its kernel graph for seeding');
+    for (let i = 0; i < 130; i++) {
+      target.appendAuditEvent({
+        eventType: 'APPROVAL_APPROVED',
+        targetType: 'node',
+        targetId: TARGET,
+        workspaceId: 'default',
+        actor: 'reviewer',
+      });
+    }
+  });
+
+  it('caps a page and advertises continuation', async () => {
+    rateLimitMap.clear();
+    const r = await request(`${BASE}/api/audit?workspaceId=default&targetId=${TARGET}`);
+    assert.strictEqual(r.status, 200);
+    const { data } = await r.json();
+    assert.strictEqual(data.items.length, 100);
+    assert.strictEqual(data.limit, 100);
+    assert.strictEqual(data.hasMore, true);
+    assert.ok(data.nextCursor);
+    assert.strictEqual(data.total, data.items.length);
+  });
+
+  it('honours an explicit limit and clamps an oversized one', async () => {
+    rateLimitMap.clear();
+    const small = await request(`${BASE}/api/audit?workspaceId=default&targetId=${TARGET}&limit=10`);
+    assert.strictEqual((await small.json()).data.items.length, 10);
+
+    rateLimitMap.clear();
+    const huge = await request(`${BASE}/api/audit?workspaceId=default&targetId=${TARGET}&limit=100000`);
+    const { data } = await huge.json();
+    assert.ok(data.items.length <= 500, `page was not clamped: ${data.items.length}`);
+    assert.strictEqual(data.limit, 500);
+  });
+
+  it('walks every event through the cursor without duplicates', async () => {
+    const seen = new Set();
+    let cursor = '';
+    let pages = 0;
+    do {
+      rateLimitMap.clear();
+      const url = `${BASE}/api/audit?workspaceId=default&targetId=${TARGET}&limit=40`
+        + (cursor ? `&cursor=${encodeURIComponent(cursor)}` : '');
+      const r = await request(url);
+      assert.strictEqual(r.status, 200);
+      const { data } = await r.json();
+      for (const event of data.items) seen.add(event.auditId);
+      cursor = data.nextCursor || '';
+      pages += 1;
+      assert.ok(pages < 20, 'pagination did not terminate');
+    } while (cursor);
+
+    assert.strictEqual(seen.size, 130);
+  });
+});
+
 describe('Server - unauthenticated /api knowledge disclosure (#727)', () => {
   // A fact only reachable through kernel.ask(); if an unauthenticated `sor`
   // ever answers, this token shows up in the response body.

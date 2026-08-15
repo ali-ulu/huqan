@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { buildAuditEvent, getAuditEvents: filterAuditEvents, normalizeAuditEvent } = require('./lib/audit-log');
+const { buildAuditEvent, normalizeAuditEvent } = require('./lib/audit-log');
 const { normalizeCandidateClaim } = require('./lib/conflict-detector');
 const { appendReceiptToChain } = require('./lib/receipt/receipt-chain');
 const {
@@ -39,23 +39,12 @@ const {
   sanitizeEdgeMeta,
   attachTraversalMeta,
   normalizeLoadedEdge,
-  cloneAuditEvent,
 } = require('./lib/graph-record-utils');
-
-/**
- * Audit filter key -> audit_log column, for the bounded count path (#728).
- * workspaceId is handled separately because its empty-string case has
- * different semantics from the plain equality filters here.
- */
-const AUDIT_FILTER_COLUMNS = Object.freeze([
-  ['eventType', 'event_type'],
-  ['targetType', 'target_type'],
-  ['targetId', 'target_id'],
-  ['actor', 'actor'],
-  ['provenanceId', 'provenance_id'],
-  ['trustPolicyVersion', 'trust_policy_version'],
-  ['sourceRef', 'source_ref'],
-]);
+const {
+  countAuditEvents,
+  queryAuditEvents,
+  readAuditEvents,
+} = require('./lib/audit-query');
 
 class Graph {
   /**
@@ -79,8 +68,7 @@ class Graph {
     this._auditEvents = [];
     this._outIndex = new Map();
     this._inIndex = new Map();
-    // Prepared COUNT(*) statements keyed by their filter SQL (#728).
-    this._auditCountStmts = new Map();
+    this._auditQueryStmts = new Map();
 
     // SQLite kurulumu
     const wantSQLite = opts.useSQLite !== false && Database !== null;
@@ -913,94 +901,27 @@ class Graph {
     return normalized;
   }
 
-  getAuditEvents(filters = {}) {
-    let events = this._auditEvents;
-    if (this._db && this._stmts) {
-      const dbEvents = this._stmts.allAuditEvents.all().map((row) => normalizeAuditEvent({
-        auditId: row.audit_id,
-        eventType: row.event_type,
-        targetType: row.target_type || '',
-        targetId: row.target_id || '',
-        workspaceId: row.workspace_id || 'default',
-        actor: row.actor || 'system',
-        timestamp: row.timestamp,
-        sourceRef: row.source_ref || '',
-        provenanceId: row.provenance_id || '',
-        trustPolicyVersion: row.trust_policy_version || '',
-        details: JSON.parse(row.details || '{}'),
-      }));
-      const merged = new Map();
-      for (const event of [...dbEvents, ...this._auditEvents]) {
-        merged.set(event.auditId, cloneAuditEvent(event));
-      }
-      events = Array.from(merged.values()).sort((a, b) => {
-        const timestampDiff = String(a.timestamp || '').localeCompare(String(b.timestamp || ''));
-        if (timestampDiff !== 0) return timestampDiff;
-        return String(a.auditId || '').localeCompare(String(b.auditId || ''));
-      });
-    }
-    return filterAuditEvents(events, filters);
+  _auditQueryContext() {
+    return {
+      db: this._db,
+      stmts: this._stmts,
+      events: this._auditEvents,
+      statementCache: this._auditQueryStmts,
+    };
   }
 
-  /**
-   * Bounded audit count (#728).
-   *
-   * getAuditEvents() reads every audit row, JSON.parses each row's details,
-   * clones and merges them with the in-memory mirror and sorts the result.
-   * Callers that only wanted `.length` therefore paid O(total audit history)
-   * in CPU and memory — enough to turn a small, bounded approval into
-   * process-level resource exhaustion once the log has grown.
-   *
-   * This answers the same question with a COUNT(*) whose result set is one
-   * row regardless of table size.
-   *
-   * Exactness: in SQLite mode appendAuditEvent() write-throughs to audit_log
-   * on every append, so the table is a superset of `_auditEvents` and the
-   * COUNT is exact. The length guard below catches the one arrangement where
-   * that does not hold — events buffered in memory before a database was
-   * attached — and falls back to the exact merged path rather than
-   * under-reporting.
-   */
+  getAuditEvents(filters = {}) {
+    return readAuditEvents(this._auditQueryContext(), filters);
+  }
+
+  /** Bounded COUNT(*); see lib/audit-query.js (#728). */
   countAuditEvents(filters = {}) {
-    if (!this._db || !this._stmts) {
-      return filterAuditEvents(this._auditEvents, filters).length;
-    }
+    return countAuditEvents(this._auditQueryContext(), filters);
+  }
 
-    const total = Number(this._stmts.countAuditEvents.get()?.total ?? 0);
-    if (this._auditEvents.length > total) {
-      return this.getAuditEvents(filters).length;
-    }
-
-    const clauses = [];
-    const params = [];
-    for (const [key, column] of AUDIT_FILTER_COLUMNS) {
-      const value = filters?.[key];
-      if (!value) continue;
-      clauses.push(`${column} = ?`);
-      params.push(String(value));
-    }
-
-    // Mirrors normalizeWorkspaceFilter(): an absent/null workspaceId means
-    // "every workspace", an empty string means "events with no workspace",
-    // which no stored row can satisfy since rows default to 'default'.
-    if (Object.prototype.hasOwnProperty.call(filters || {}, 'workspaceId')) {
-      const raw = filters.workspaceId;
-      if (raw !== undefined && raw !== null) {
-        if (typeof raw === 'string' && !raw.trim()) return 0;
-        clauses.push('COALESCE(workspace_id, ?) = ?');
-        params.push('default', String(raw));
-      }
-    }
-
-    if (!clauses.length) return total;
-
-    const sql = `SELECT COUNT(*) AS total FROM audit_log WHERE ${clauses.join(' AND ')}`;
-    let statement = this._auditCountStmts.get(sql);
-    if (!statement) {
-      statement = this._db.prepare(sql);
-      this._auditCountStmts.set(sql, statement);
-    }
-    return Number(statement.get(...params)?.total ?? 0);
+  /** One keyset page with filters pushed into SQL; see lib/audit-query.js (#729). */
+  queryAuditEvents(options = {}) {
+    return queryAuditEvents(this._auditQueryContext(), options);
   }
 
   addCandidateClaim(candidate, opts = {}) {
