@@ -249,7 +249,7 @@ test('runtime: undeclared route is denied without a key, declared public routes 
   const capabilityBody = JSON.parse(capabilities.body);
   assert.match(capabilityBody.contractVersion, /^\d+\.\d+\.\d+$/);
   assert.ok(capabilityBody.workflows.some(item => item.workflowId === 'verify' && item.availability.api === true));
-  assert.ok(capabilityBody.workflows.some(item => item.workflowId === 'ask' && item.availability.api === false));
+  assert.ok(capabilityBody.workflows.some(item => item.workflowId === 'ask' && item.availability.api === true));
 
   const unsupported = await request(port, '/api?q=plan:test');
   assert.equal(unsupported.status, 403);

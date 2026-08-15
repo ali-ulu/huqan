@@ -37,8 +37,9 @@ test('compatibility help is generated only from the compatibility command contra
 
 test('public manifest is detached and its endpoint is explicitly public read-only', () => {
   const manifest = publicWorkflowManifest();
-  manifest.workflows[0].availability.api = true;
-  assert.equal(WORKFLOW_CAPABILITIES[0].availability.api, false);
+  const originalAvailability = WORKFLOW_CAPABILITIES[0].availability.api;
+  manifest.workflows[0].availability.api = !originalAvailability;
+  assert.equal(WORKFLOW_CAPABILITIES[0].availability.api, originalAvailability);
   const route = PUBLIC_ROUTES.find(item => item.id === 'workflow-capabilities');
   assert.deepEqual(route.methods, ['GET']);
   assert.equal(route.match.pathname, '/api/v2/workflows');

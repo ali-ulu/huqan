@@ -30,6 +30,7 @@ const { receiptReadFailure } = require('./lib/http/receipt-read-failures');
 const { createWorkbenchReadHttpRouter } = require('./lib/workbench/workbench-read-http-router');
 const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
 const { handleWorkflowContractRoute, writeUnavailableWorkflow } = require('./lib/http/workflow-contract-route');
+const { createReadWorkflowHttpRouter } = require('./lib/http/read-workflow-actions');
 const { readExactWorkspace } = require('./lib/http/exact-workspace');
 const { createSessionStore } = require('./lib/viewer/session-store');
 const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
@@ -49,7 +50,6 @@ const {
   requireApiKey,
   sanitizeInput,
 } = require('./requestGuards');
-
 const kernelOpts = {};
 const configuredMemoryPath = readCompatibleEnvironmentVariable('MEMORY_PATH');
 const configuredDbPath = readCompatibleEnvironmentVariable('DB_PATH');
@@ -400,7 +400,7 @@ function ensureCompanyRuntime() {
     companyRuntimeReady = true;
   }
 }
-
+const handleReadWorkflow = createReadWorkflowHttpRouter({ kernel, parseJsonRequest, writeJson, writeApiError, ensureCapabilities: ensureCompanyRuntime });
 const PUBLIC_INDEX_PATH = path.join(__dirname, 'public', 'index.html');
 // The index page is a static build artifact, so read it once and keep the bytes
 // in memory instead of doing sync I/O on every `/` request (#420).
@@ -484,7 +484,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (handleWorkflowContractRoute(req, res, reqUrl)) return;
-  // --- /graph-data ---
+  if (await handleReadWorkflow(req, res, reqUrl)) return;
   if (reqUrl.pathname === '/graph-data') {
     if (req.method !== 'GET') {
       res.writeHead(405); res.end(); return;

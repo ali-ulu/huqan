@@ -152,6 +152,15 @@ body{display:flex;flex-direction:column}
 .link.degil{stroke:#ff6b86;stroke-dasharray:6 3}
 .link.low-confidence{stroke-opacity:.24}
 .link.contradicted{stroke-width:1.8}
+.workspace-bar{display:grid;grid-template-columns:minmax(160px,1fr) minmax(140px,.6fr) auto;gap:8px;margin-top:14px}
+.workspace-bar input,.workflow-actions select{min-width:0;border:1px solid var(--line);background:#0d1520;color:var(--text);border-radius:8px;padding:9px 10px}
+.workflow-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.workflow-status{margin-top:10px;font-size:12px;color:var(--muted)}
+.workflow-status.ready{color:var(--ok)}
+.workflow-status.error{color:var(--danger)}
+.search-results{display:grid;gap:8px;margin-top:10px}
+.search-result{border:1px solid var(--line);border-radius:8px;padding:10px;background:#0b121b}
+.search-result-actions{display:flex;gap:6px;margin-top:8px}
 @media (max-width: 980px){
   body{overflow:auto}
   .shell,.split{grid-template-columns:1fr}
@@ -169,7 +178,7 @@ body{display:flex;flex-direction:column}
 </header>
 
 <nav class="tabs">
-  <button class="tab active" data-tab="judge">Fikrini Yargılat</button>
+  <button class="tab active" data-tab="judge">Claim Workspace</button>
   <button class="tab" data-tab="advocate">Şeytan'ın Avukatı</button>
   <button class="tab" data-tab="conflicts">Geçmiş Çelişkiler</button>
   <button class="tab" data-tab="graph">Hafıza / Graph</button>
@@ -180,8 +189,14 @@ body{display:flex;flex-direction:column}
   <div class="shell">
     <div class="stack">
       <div class="card hero">
-        <h2>Fikrini yargılat</h2>
+        <h2>Claim Workspace</h2>
         <p>Bir iddia yaz, AXIOM graf ile doğrulasın. Bilmediğini uydurmasın, bildiğini ayırıp sonucu açıkça raporlasın.</p>
+        <div class="workspace-bar">
+          <input id="workflow-key" type="password" autocomplete="off" placeholder="API key (yalnız bu sekmede tutulur)" aria-label="API key" />
+          <input id="workflow-workspace" value="default" maxlength="128" placeholder="workspaceId" aria-label="Workspace" />
+          <button id="workflow-connect" type="button">Bağlan</button>
+        </div>
+        <div class="workflow-status" id="workflow-status">Capability manifest yükleniyor…</div>
         <div class="hero-actions">
           <button class="chip" data-preset="öğret: kedi hayvandır">Öğret</button>
           <button class="chip" data-preset="sor: kedi nedir">Sor</button>
@@ -194,10 +209,20 @@ body{display:flex;flex-direction:column}
         <div class="composer">
           <textarea id="judge-input" placeholder="Bir iddia yaz: ‘React Native production için iyi bir seçimdir’" maxlength="4000"></textarea>
           <div class="composer-toolbar">
-            <button id="judge-send">Yargılat</button>
+            <button id="judge-send">Doğrula</button>
             <button id="judge-file-button" type="button" class="secondary">Dosya seç</button>
             <input id="judge-file-input" type="file" accept=".txt,.md,text/plain,text/markdown" hidden />
           </div>
+          <div class="workflow-actions" id="workflow-actions">
+            <select id="workflow-action" aria-label="Workflow eylemi">
+              <option value="verify">Verify</option>
+              <option value="ask">Ask</option>
+              <option value="advocate">Advocate</option>
+              <option value="memory-search">Memory search</option>
+            </select>
+            <span id="workflow-trace" class="workflow-status"></span>
+          </div>
+          <div id="workflow-search-results" class="search-results"></div>
           <div class="composer-meta" id="judge-file-meta">Dosya tarayıcıda okunur; otomatik olarak sunucuya yüklenmez.</div>
           <div class="quick-actions" id="judge-quick-actions" hidden>
             <button class="chip" data-quick-action="judge">Yargılat</button>
@@ -381,7 +406,86 @@ const teachDraftInput = document.getElementById('teach-draft-input');
 const teachDraftCopy = document.getElementById('teach-draft-copy');
 const teachDraftReset = document.getElementById('teach-draft-reset');
 const teachDraftHide = document.getElementById('teach-draft-hide');
+const workflowKey = document.getElementById('workflow-key');
+const workflowWorkspace = document.getElementById('workflow-workspace');
+const workflowAction = document.getElementById('workflow-action');
+const workflowStatus = document.getElementById('workflow-status');
+const workflowTrace = document.getElementById('workflow-trace');
+let workflowManifest = null;
 let lastPromptText = '';
+
+function workflowAuthHeaders(json = false) {
+  const key = String(workflowKey?.value || '').trim();
+  return {
+    ...(json ? { 'Content-Type': 'application/json' } : {}),
+    ...(key ? { Authorization: `Bearer ${key}` } : {}),
+  };
+}
+
+function selectedWorkspace() {
+  return String(workflowWorkspace?.value || '').trim() || 'default';
+}
+
+function workflowCapability(id) {
+  return workflowManifest?.workflows?.find(item => item.workflowId === id) || null;
+}
+
+function setWorkflowStatus(message, kind = '') {
+  if (!workflowStatus) return;
+  workflowStatus.textContent = message;
+  workflowStatus.className = `workflow-status ${kind}`.trim();
+}
+
+async function loadWorkflowManifest() {
+  try {
+    const response = await fetch('/api/v2/workflows', { headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error(`manifest HTTP ${response.status}`);
+    workflowManifest = await response.json();
+    const enabled = workflowManifest.workflows.filter(item => item.availability?.ui).map(item => item.workflowId);
+    Array.from(workflowAction?.options || []).forEach(option => {
+      option.disabled = !enabled.includes(option.value);
+    });
+    setWorkflowStatus(`Contract ${workflowManifest.contractVersion} · UI: ${enabled.join(', ')}`, 'ready');
+  } catch (_) {
+    workflowManifest = null;
+    setWorkflowStatus('Capability manifest yüklenemedi; workflow çalıştırılmayacak.', 'error');
+  }
+}
+
+function workflowErrorMessage(response, body) {
+  const status = body?.status || (response.status === 401 ? 'unauthorized' : response.status === 429 ? 'rate_limited' : 'failed');
+  const next = status === 'unauthorized'
+    ? 'API key girip yeniden bağlan.'
+    : status === 'rate_limited'
+      ? 'Bir süre bekleyip yeniden dene.'
+      : 'Girdiyi ve workspace değerini kontrol et.';
+  return `${status}: ${body?.error?.message || `HTTP ${response.status}`}. ${next}`;
+}
+
+function showReceiptHandoff(sourceRef, receiptId = '') {
+  if (!sourceRef && !receiptId) return;
+  const input = document.getElementById('trust-input');
+  const mode = document.getElementById('trust-mode');
+  const workspace = document.getElementById('trust-workspace');
+  if (input) input.value = receiptId || sourceRef;
+  if (mode) mode.value = receiptId ? 'targetId' : 'sourceRef';
+  if (workspace) workspace.value = selectedWorkspace();
+}
+
+function renderMemoryResults(items) {
+  const target = document.getElementById('workflow-search-results');
+  if (!target) return;
+  target.innerHTML = (items || []).map(item => `
+    <div class="search-result">
+      <strong>${escapeHtml(item.label || item.id)}</strong>
+      <div class="meta">${escapeHtml(item.sourceRef || 'sourceRef yok')} · confidence ${escapeHtml(item.confidence ?? '—')}</div>
+      <div class="search-result-actions">
+        <button type="button" data-result-action="ask" data-value="${escapeAttribute(item.label || item.id)}">Ask</button>
+        <button type="button" data-result-action="verify" data-value="${escapeAttribute(item.label || item.id)}">Verify</button>
+        ${item.sourceRef ? `<button type="button" data-result-action="receipt" data-value="${escapeAttribute(item.sourceRef)}">Receipt</button>` : ''}
+      </div>
+    </div>`).join('') || '<div class="story-item"><span>Eşleşme bulunamadı.</span></div>';
+}
 
 function normalizeText(value) {
   return String(value || '')
@@ -404,6 +508,10 @@ function escapeHtml(value) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function switchTab(name) {
@@ -540,24 +648,41 @@ async function runPrompt(value) {
   lastPromptText = raw;
   addMessage(raw, 'user');
   try {
-    const res = await fetch('/api?' + new URLSearchParams({ q: raw }));
-    if (res.status === 429) {
-      addMessage(friendlyServerMessage(429), 'system warn');
+    const action = workflowAction?.value || 'verify';
+    const capability = workflowCapability(action);
+    if (!capability?.availability?.ui) {
+      addMessage(`${action}: capability_not_available`, 'system warn');
       return;
     }
-    if (!res.ok) {
-      addMessage(friendlyServerMessage(res.status), 'system warn');
+    const payload = { workspaceId: selectedWorkspace() };
+    if (action === 'ask') payload.question = raw;
+    else if (action === 'memory-search') payload.query = raw;
+    else payload.claim = raw;
+    const res = await fetch(capability.route, {
+      method: capability.method,
+      headers: workflowAuthHeaders(true),
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) {
+      addMessage(workflowErrorMessage(res, data), 'system warn');
       return;
     }
-    const data = await res.json();
-    const resultText = normalizeResultText(data.result);
-    let cls = isUnknownResultText(resultText) ? 'system warn' : 'system';
-    if (typeof resultText === 'string' && resultText.startsWith('✅')) cls = 'system ok';
-    else if (typeof resultText === 'string' && resultText.startsWith('⚠')) cls = 'system warn';
-    else if (typeof resultText === 'string' && (resultText.startsWith('❗') || resultText.startsWith('❌'))) cls = 'system highlight';
-    addMessage(resultText, cls);
-    if (isUnknownResultText(resultText)) showTeachFlow(raw, resultText);
+    const workflowData = data.data || data;
+    const resultText = action === 'ask'
+      ? workflowData.answer
+      : action === 'verify'
+        ? `${workflowData.status || data.status}: confidence ${workflowData.confidence ?? data.confidence ?? '—'}`
+        : action === 'advocate'
+          ? `${workflowData.mode}: ${workflowData.counterArgument}`
+          : `${workflowData.total || 0} sonuç`;
+    addMessage(normalizeResultText(resultText), data.status === 'completed' ? 'system ok' : 'system');
+    if (workflowTrace) workflowTrace.textContent = data.traceId ? `trace: ${data.traceId}` : '';
+    if (action === 'memory-search') renderMemoryResults(workflowData.items);
+    if (isUnknownResultText(resultText) || workflowData.unknown === true) showTeachFlow(raw, resultText);
     else hideTeachFlow(false);
+    const sourceRef = data.evidence?.find(item => item?.sourceRef)?.sourceRef;
+    showReceiptHandoff(sourceRef, data.receiptId);
     await updateHeaderStats();
   } catch (err) {
     hideTeachFlow(false);
@@ -566,6 +691,27 @@ async function runPrompt(value) {
 }
 
 document.getElementById('judge-send').addEventListener('click', () => runPrompt());
+document.getElementById('workflow-connect')?.addEventListener('click', () => {
+  sessionStorage.setItem('huqan-workspace', selectedWorkspace());
+  sessionStorage.setItem('huqan-api-key', String(workflowKey?.value || ''));
+  setWorkflowStatus(`Workspace ${selectedWorkspace()} hazır.`, 'ready');
+});
+workflowKey.value = sessionStorage.getItem('huqan-api-key') || '';
+workflowWorkspace.value = sessionStorage.getItem('huqan-workspace') || 'default';
+document.getElementById('workflow-search-results')?.addEventListener('click', event => {
+  const button = event.target.closest('[data-result-action]');
+  if (!button) return;
+  const action = button.dataset.resultAction;
+  const value = button.dataset.value || '';
+  if (action === 'receipt') {
+    showReceiptHandoff(value);
+    switchTab('trust');
+    loadTrustReceipt();
+    return;
+  }
+  workflowAction.value = action;
+  queuePrompt(value);
+});
 judgeInput?.addEventListener('keydown', e => {
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
     e.preventDefault();
@@ -647,7 +793,7 @@ addMessage('Hoş geldin. Bir iddia yaz ya da Dosya seç ile yerel metni alana ak
 async function updateHeaderStats() {
   try {
     const [graphRes, statusRes] = await Promise.all([
-      fetch('/graph-data'),
+      fetch('/graph-data?workspaceId=' + encodeURIComponent(selectedWorkspace()), { headers: workflowAuthHeaders() }),
       fetch('/v2-status'),
     ]);
     const graph = await graphRes.json();
@@ -798,7 +944,7 @@ async function loadTrustReceipt() {
   }
   const { params, mode, workspaceId } = buildTrustQuery();
   try {
-    const res = await fetch('/api/trust-receipt?' + params.toString());
+    const res = await fetch('/api/trust-receipt?' + params.toString(), { headers: workflowAuthHeaders() });
     const data = await res.json();
     if (!res.ok || !data.ok) {
       const errorText = data?.error?.message || 'Trust sorgusu başarısız.';
@@ -887,7 +1033,7 @@ function analyzeGraph(data) {
 
 async function loadGraph() {
   try {
-    const res = await fetch('/graph-data');
+    const res = await fetch('/graph-data?workspaceId=' + encodeURIComponent(selectedWorkspace()), { headers: workflowAuthHeaders() });
     graphData = await res.json();
     analyzeGraph(graphData);
     renderGraph(graphData);
@@ -1094,7 +1240,10 @@ function buildConflictItems(data) {
 
 async function loadConflicts() {
   try {
-    const [graphRes, statusRes] = await Promise.all([fetch('/graph-data'), fetch('/v2-status')]);
+    const [graphRes, statusRes] = await Promise.all([
+      fetch('/graph-data?workspaceId=' + encodeURIComponent(selectedWorkspace()), { headers: workflowAuthHeaders() }),
+      fetch('/v2-status'),
+    ]);
     const graph = await graphRes.json();
     const status = await statusRes.json();
     graphData = graph;
@@ -1137,6 +1286,7 @@ window.addEventListener('resize', () => {
   if (document.getElementById('graph-panel').classList.contains('active')) loadGraph();
 });
 
+loadWorkflowManifest();
 updateHeaderStats();
 loadStatus();
 </script>
