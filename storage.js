@@ -732,7 +732,7 @@ class AxiomStorage {
   }
 
   finalizeToolApprovalWithReceipt(id, {
-    expectedStatus = 'executing', decision = 'approved', reason = '', receipt = null,
+    expectedStatus = 'executing', decision = 'approved', reason = '', receipt = null, contextPatch = null,
   } = {}) {
     if (!id || !receipt || typeof receipt !== 'object') return { finalized: false, approval: null };
     const existing = this.getToolApprovalById(id);
@@ -740,7 +740,11 @@ class AxiomStorage {
     const status = decision === 'approved' ? 'approved' : decision === 'rejected' ? 'rejected' : '';
     if (!status) return { finalized: false, approval: existing };
     const now = this._now();
-    const context = { ...(existing.context || {}), receipt };
+    const context = {
+      ...(existing.context || {}),
+      ...(contextPatch && typeof contextPatch === 'object' ? contextPatch : {}),
+      receipt,
+    };
     const result = this._stmts.finalizeToolApprovalWithReceipt.run({
       id: String(id), expected_status: String(expectedStatus), status, decision: String(decision),
       reason: String(reason || ''), context_json: JSON.stringify(context), decided_at: now, updated_at: now,

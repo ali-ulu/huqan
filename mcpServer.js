@@ -35,6 +35,7 @@ const { TOOL_SCHEMAS } = require('./lib/mcp-tool-catalog');
 const { mcpWorkflowMetadata } = require('./lib/workflow-contract');
 const { executeMcpReadWorkflow } = require('./lib/mcp/read-workflow-tools');
 const { buildIngestWorkflowPreview } = require('./lib/ingest-workflow-preview');
+const { idempotentApprovalDecision, finalizeApprovalExecution } = require('./lib/approval-execution-evidence');
 function publishMcpWorkflowContract(tool) {
   const workflow = mcpWorkflowMetadata(tool.name);
   if (!workflow) return tool;
@@ -216,7 +217,7 @@ function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
       typeof approvalStore.claimToolApproval !== 'function' ||
       typeof approvalStore.rejectToolApproval !== 'function' ||
       typeof approvalStore.failToolApproval !== 'function' ||
-      typeof approvalStore.resolveToolApproval !== 'function') {
+      typeof approvalStore.finalizeToolApprovalWithReceipt !== 'function') {
     return failApprovalDecision('APPROVAL_STORE_UNAVAILABLE', 'Persistent MCP approval store is unavailable.');
   }
 
@@ -244,14 +245,7 @@ function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
     if (existing.status !== decision) {
       return failApprovalDecision('APPROVAL_ALREADY_FINAL', `Approval is already ${existing.status}.`, { approval: existing });
     }
-    return {
-      ok: true,
-      type: 'approval',
-      data: { approval: existing, decision, executed: false, idempotent: true, result: null },
-      evidence: [],
-      error: null,
-      meta: { idempotent: true },
-    };
+    return idempotentApprovalDecision(existing, decision);
   }
 
   if (decision === 'rejected') {
@@ -287,14 +281,7 @@ function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
   if (!claim || claim.claimed !== true) {
     const current = formatApprovalRecord(claim?.approval || approvalStore.getToolApprovalById(approvalId));
     if (current?.status === 'approved') {
-      return {
-        ok: true,
-        type: 'approval',
-        data: { approval: current, decision, executed: false, idempotent: true, result: null },
-        evidence: [],
-        error: null,
-        meta: { idempotent: true },
-      };
+      return idempotentApprovalDecision(current, decision);
     }
     const code = current?.status === 'failed'
       ? 'APPROVAL_RECONCILIATION_REQUIRED'
@@ -347,21 +334,23 @@ function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
     );
   }
 
-  let approved;
+  let finalization;
   try {
-    approved = formatApprovalRecord(approvalStore.resolveToolApproval(approvalId, 'approved', reason));
+    finalization = finalizeApprovalExecution({ store: approvalStore, approvalId, reason, graph: kernel.graph, result });
   } catch (error) {
-    return failApprovalDecision(
-      'APPROVAL_FINALIZATION_FAILED',
-      'Approved MCP action executed but finalizing the approval record threw an error.',
-      {
-        approval: formatApprovalRecord(approvalStore.getToolApprovalById(approvalId)),
-        result,
-        retrySafe: false,
-        finalizationError: error?.code || error?.name || 'error',
-      },
+    return failApprovalDecision('APPROVAL_FINALIZATION_FAILED', 'Approved MCP action executed but finalizing the approval record threw an error.', {
+      approval: formatApprovalRecord(approvalStore.getToolApprovalById(approvalId)), result, retrySafe: false,
+      finalizationError: error?.code || error?.name || 'error',
+    });
+  }
+  if (finalization.code) {
+    const failure = approvalStore.failToolApproval(approvalId, 'execution_outcome_unknown:receipt_not_materialized');
+    return failApprovalDecision(finalization.code, 'Approved MCP action executed but its canonical receipt could not be materialized.',
+      { approval: formatApprovalRecord(failure?.approval || approvalStore.getToolApprovalById(approvalId)), result, retrySafe: false },
     );
   }
+  const approved = formatApprovalRecord(finalization.approval);
+  const executionEvidence = finalization.executionEvidence;
   if (!approved || approved.status !== 'approved') {
     return failApprovalDecision(
       'APPROVAL_FINALIZATION_FAILED',
@@ -372,7 +361,15 @@ function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
   return {
     ok: true,
     type: 'approval',
-    data: { approval: approved, decision, executed: true, idempotent: false, result },
+    data: {
+      approval: approved,
+      decision,
+      executed: true,
+      idempotent: false,
+      result,
+      receipt: executionEvidence.receipt,
+      refs: executionEvidence.refs,
+    },
     evidence: result.evidence || [],
     error: null,
     meta: { admissionAware: true },
