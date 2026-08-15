@@ -35,7 +35,13 @@ function callTool(server, name, args = {}) {
     jsonrpc: '2.0',
     id: 1,
     method: 'tools/call',
-    params: { name, arguments: args },
+    params: {
+      name,
+      ...(name === 'huqan.approve' || name === 'axiom.approve' || name === 'huqan.approvals' || name === 'axiom.approvals'
+        ? { operatorToken: 'test-operator' }
+        : {}),
+      arguments: args,
+    },
   });
   assert.ok(response.result?.structuredContent, `${name} must return structured content`);
   return response.result.structuredContent;
@@ -78,7 +84,7 @@ test('verify classification stays aligned across Kernel, CLI, and SDK wrappers',
 
 test('MCP learn strips caller bypass metadata and executes an approval once', () => {
   const fixture = createFixture('mcp-bypass');
-  const mcp = createServer(fixture.kernel);
+  const mcp = createServer({ kernel: fixture.kernel, operatorToken: 'test-operator' });
   const learnCalls = [];
   const originalLearn = fixture.kernel.learn.bind(fixture.kernel);
   fixture.kernel.learn = (text, options) => {

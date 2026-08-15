@@ -13,7 +13,7 @@ const MCP_SERVER_PATH = path.resolve(__dirname, '..', 'mcpServer.js');
 
 function createDogfoodClient(envOverrides = {}) {
   const proc = cp.spawn(process.execPath, [MCP_SERVER_PATH], {
-    env: { ...process.env, ...envOverrides },
+    env: { HUQAN_MCP_OPERATOR_TOKEN: 'test-operator', ...process.env, ...envOverrides },
     stdio: ['pipe', 'pipe', 'pipe'],
     windowsHide: true,
   });
@@ -76,7 +76,10 @@ function createDogfoodClient(envOverrides = {}) {
         },
       });
 
-      proc.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`);
+      const requestParams = method === 'tools/call' && ['huqan.approvals', 'huqan.approve', 'axiom.approvals', 'axiom.approve'].includes(params?.name)
+        ? { ...params, operatorToken: 'test-operator' }
+        : params;
+      proc.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id, method, params: requestParams })}\n`);
     });
   }
 

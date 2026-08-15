@@ -21,11 +21,13 @@ async function withTempAxiomEnv(fn) {
     AXIOM_DB_PATH: process.env.AXIOM_DB_PATH,
     AXIOM_KERNEL_VERSION: process.env.AXIOM_KERNEL_VERSION,
     AXIOM_USE_SQLITE: process.env.AXIOM_USE_SQLITE,
+    HUQAN_MCP_OPERATOR_TOKEN: process.env.HUQAN_MCP_OPERATOR_TOKEN,
   };
   process.env.AXIOM_MEMORY_PATH = path.join(tempDir, 'memory.json');
   process.env.AXIOM_DB_PATH = path.join(tempDir, 'memory.db');
   process.env.AXIOM_KERNEL_VERSION = '';
   delete process.env.AXIOM_USE_SQLITE;
+  process.env.HUQAN_MCP_OPERATOR_TOKEN = 'test-operator';
 
   try {
     return await fn({ tempDir });
@@ -47,7 +49,13 @@ function callTool(server, name, args = {}) {
     jsonrpc: '2.0',
     id: Math.floor(Math.random() * 1_000_000),
     method: 'tools/call',
-    params: { name, arguments: args },
+    params: {
+      name,
+      ...(name === 'huqan.approve' || name === 'axiom.approve' || name === 'huqan.approvals' || name === 'axiom.approvals'
+        ? { operatorToken: 'test-operator' }
+        : {}),
+      arguments: args,
+    },
   });
 
   assert.equal(response.jsonrpc, '2.0');
