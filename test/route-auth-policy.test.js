@@ -55,17 +55,19 @@ test('policy table: a public GET does not make POST on the same path public', ()
   assert.equal(post.reason, 'method_not_public');
 });
 
-test('policy table: /graph-data is public only for the default workspace', () => {
-  assert.equal(isPublicRoute('/graph-data', 'GET', { workspaceId: '' }), true);
-  assert.equal(isPublicRoute('/graph-data', 'GET', { workspaceId: 'default' }), true);
-
-  const scoped = resolveRouteAuthPolicy('/graph-data', 'GET', { workspaceId: 'acme' });
-  assert.equal(scoped.authRequired, true);
-  assert.equal(scoped.reason, 'non_default_workspace');
+test('policy table: /graph-data requires authentication for every workspace', () => {
+  for (const workspaceId of ['', 'default', 'acme']) {
+    assert.equal(isPublicRoute('/graph-data', 'GET', { workspaceId }), false);
+    const decision = resolveRouteAuthPolicy('/graph-data', 'GET', { workspaceId });
+    assert.equal(decision.known, true);
+    assert.equal(decision.authRequired, true);
+    assert.equal(decision.reason, 'declared_authenticated');
+  }
 });
 
 test('policy table: trust/read surfaces under /api/ stay authenticated', () => {
   for (const pathname of [
+    '/api',
     '/api/provenance',
     '/api/audit',
     '/api/candidate-claims',
@@ -210,7 +212,7 @@ function postJson(port, pathname, body, headers = {}) {
   });
 }
 
-test('runtime: undeclared route is denied without a key, declared public routes still work', async (t) => {
+test('runtime: undeclared routes stay hidden and graph data requires authentication', async (t) => {
   const server = require('../server');
   await new Promise((resolve, reject) => {
     server.listen(0, '127.0.0.1', resolve);
@@ -239,19 +241,25 @@ test('runtime: undeclared route is denied without a key, declared public routes 
   assert.equal(status.status, 200);
 
   const api = await request(port, '/api?q=merhaba');
-  assert.equal(api.status, 200);
+  assert.equal(api.status, 401);
+  const apiWithKey = await request(port, '/api?q=merhaba', { Authorization: `Bearer ${API_KEY}` });
+  assert.equal(apiWithKey.status, 200);
 
   const graph = await request(port, '/graph-data');
-  assert.equal(graph.status, 200);
+  assert.equal(graph.status, 401);
+  const graphWithKey = await request(port, '/graph-data', {
+    Authorization: `Bearer ${API_KEY}`,
+  });
+  assert.equal(graphWithKey.status, 200);
 
-  // Scoped: non-default workspace requires a key.
+  // Both default and non-default workspaces require a key.
   const scoped = await request(port, '/graph-data?workspaceId=acme');
   assert.equal(scoped.status, 401);
 
   const scopedWithKey = await request(port, '/graph-data?workspaceId=acme', {
     Authorization: `Bearer ${API_KEY}`,
   });
-  assert.notEqual(scopedWithKey.status, 401);
+  assert.equal(scopedWithKey.status, 200);
 
   // Prefix-dispatched families are challenged, not served, without a key.
   for (const prefixed of [

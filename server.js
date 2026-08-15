@@ -671,8 +671,6 @@ const server = http.createServer(async (req, res) => {
     }
     const rawWorkspaceId = reqUrl.searchParams.get('workspaceId') || '';
     const requestedWorkspaceId = sanitizeInput(rawWorkspaceId);
-    const isDefaultScope = !requestedWorkspaceId || requestedWorkspaceId === 'default';
-    if (!isDefaultScope && !denyIfUnauthorized(req, res)) return;
     const workspaceId = requestedWorkspaceId || 'default';
     try {
       const data = getGraphData(workspaceId);

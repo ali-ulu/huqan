@@ -179,6 +179,29 @@ describe('Server - index page cache (#420)', () => {
 });
 
 describe('Server - API', () => {
+  it('unauthenticated ask/status cannot invoke or disclose the default kernel', async () => {
+    const originalAsk = server.kernel.ask;
+    const originalStats = server.kernel.graph.getStats;
+    let askCalls = 0; let statsCalls = 0;
+    server.kernel.ask = () => { askCalls += 1; return { data: { answer: 'PRIVATE_DEFAULT_FACT' } }; };
+    server.kernel.graph.getStats = () => { statsCalls += 1; return { nodes: 99, edges: 88 }; };
+    try {
+      const ask = await request(`${BASE}/api?q=${encodeURIComponent('gizli nedir')}`, { skipAuth: true });
+      assert.strictEqual(ask.status, 401);
+      assert.ok(!(await ask.text()).includes('PRIVATE_DEFAULT_FACT'));
+      const status = await request(`${BASE}/api?q=durum`, { skipAuth: true });
+      assert.strictEqual(status.status, 401);
+      assert.deepStrictEqual([askCalls, statsCalls], [0, 0]);
+
+      const authenticated = await request(`${BASE}/api?q=${encodeURIComponent('gizli nedir')}`);
+      assert.strictEqual(authenticated.status, 200);
+      assert.ok((await authenticated.text()).includes('PRIVATE_DEFAULT_FACT'));
+      assert.strictEqual(askCalls, 1);
+    } finally {
+      server.kernel.ask = originalAsk;
+      server.kernel.graph.getStats = originalStats;
+    }
+  });
   it('GET /api?q=... dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {
     const r = await request(`${BASE}/api?q=merhaba`);
     assert.strictEqual(r.status, 200);
@@ -697,14 +720,11 @@ describe('Server - API', () => {
     });
     assert.strictEqual(r.status, 400);
   });
-  it('SEC: GET /graph-data with non-default workspaceId requires auth', async () => {
-    const r = await request(`${BASE}/graph-data?workspaceId=tenant-x`, { skipAuth: true });
-    assert.strictEqual(r.status, 401);
-  });
-
-  it('SEC: GET /graph-data with default workspaceId works without auth (public scope)', async () => {
-    const r = await request(`${BASE}/graph-data?workspaceId=default`, { skipAuth: true });
-    assert.strictEqual(r.status, 200);
+  it('SEC: GET /graph-data requires auth for default and non-default workspaces', async () => {
+    for (const workspaceId of ['default', 'tenant-x']) {
+      const r = await request(`${BASE}/graph-data?workspaceId=${workspaceId}`, { skipAuth: true });
+      assert.strictEqual(r.status, 401);
+    }
   });
 
   it('GET /graph-data dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {
