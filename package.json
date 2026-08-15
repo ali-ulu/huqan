@@ -134,6 +134,7 @@
         "lib/command-exec-gate.js",
         "lib/cli-help.js",
         "lib/cli-workflow-adapter.js",
+        "lib/cli-ingest-batch.js",
         "lib/cli-trust-receipt.js",
         "lib/cli-mutation-audit-intent.js",
         "lib/cli-mutation-audit.js",
