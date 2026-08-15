@@ -8,6 +8,9 @@ const path = require('node:path');
 
 const {
   PRODUCTION_ENTRY_POINTS,
+  CONSUMER_ENTRY_POINTS,
+  TEST_ONLY_FILES,
+  STRUCTURAL_FILES,
   NOT_YET_WIRED,
   analyzeReachability,
 } = require('../lib/module-reachability');
@@ -38,6 +41,12 @@ test('every acknowledgement states a reason', () => {
   }
 });
 
+test('acknowledgement reasons cite durable decisions, not issue lifecycle', () => {
+  for (const [file, reason] of Object.entries(NOT_YET_WIRED)) {
+    assert.doesNotMatch(reason, /#\d+/, `${file} must cite a durable decision rather than an issue number`);
+  }
+});
+
 // ─── the analysis itself ─────────────────────────────────────────────────────
 
 test('the production entry points are actually reachable', () => {
@@ -45,6 +54,25 @@ test('the production entry points are actually reachable', () => {
   for (const entry of PRODUCTION_ENTRY_POINTS) {
     assert.ok(reachable.includes(entry), `${entry} should be in its own reachable set`);
   }
+});
+
+test('consumer entry dependencies are walked', () => {
+  const { reachable } = analyzeReachability({ root: REPO_ROOT });
+  for (const entry of CONSUMER_ENTRY_POINTS) assert.ok(reachable.includes(entry));
+  assert.ok(reachable.includes('lib/huqan-package-format.js'));
+});
+
+test('test-only and structural files are classified outside the pending-work list', () => {
+  for (const file of [...TEST_ONLY_FILES, ...STRUCTURAL_FILES]) {
+    assert.equal(Object.hasOwn(NOT_YET_WIRED, file), false);
+  }
+  assert.ok(TEST_ONLY_FILES.includes('lib/self-test-oracle.js'));
+  assert.ok(STRUCTURAL_FILES.includes('lib/causal/index.js'));
+});
+
+test('standalone entry dependencies are walked', () => {
+  const { reachable } = analyzeReachability({ root: REPO_ROOT });
+  assert.ok(reachable.includes('causalSimulator.js'));
 });
 
 test('core runtime modules are reachable, so the walk is not trivially empty', () => {

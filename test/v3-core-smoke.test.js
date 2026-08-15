@@ -7,15 +7,6 @@ const {
   buildApprovalRequest,
 } = require('../lib/approval-schema');
 const {
-  APPROVAL_QUEUE_STATUSES,
-  buildApprovalQueueItem,
-  enqueueApprovalRequest,
-  expireApprovalRequests,
-  getApprovalRequest,
-  listApprovalRequests,
-  updateApprovalRequestStatus,
-} = require('../lib/approval-queue');
-const {
   APPROVAL_AUDIT_EVENT_TYPES,
   APPROVAL_DECISION_STATUSES,
   APPROVAL_RECEIPT_KINDS,
@@ -92,7 +83,6 @@ function baseMemoryAdmissionRequest(overrides = {}) {
 test('V3 Core smoke: status contracts stay stable', () => {
   assert.deepEqual(APPROVAL_REQUEST_STATUSES, ['pending', 'approved', 'rejected', 'expired', 'cancelled']);
   assert.deepEqual(APPROVAL_REQUEST_VERDICTS, ['allow', 'review', 'dry_run_only', 'block']);
-  assert.deepEqual(APPROVAL_QUEUE_STATUSES, ['pending', 'approved', 'rejected', 'expired', 'cancelled']);
   assert.deepEqual(APPROVAL_DECISION_STATUSES, ['approved', 'rejected']);
   assert.deepEqual(APPROVAL_RECEIPT_KINDS, ['reviewed_action_receipt', 'blocked_action_receipt']);
   assert.deepEqual(APPROVAL_AUDIT_EVENT_TYPES, ['APPROVAL_REQUESTED', 'APPROVAL_APPROVED', 'APPROVAL_REJECTED']);
@@ -105,50 +95,12 @@ test('V3 Core smoke: status contracts stay stable', () => {
   ]);
 });
 
-test('V3 Core smoke: approval request to queue to decision flow', () => {
+test('V3 Core smoke: approval request to decision flow', () => {
   const approvalInput = deepFreeze(baseApprovalRequest());
   const approvalBuilt = buildApprovalRequest(approvalInput);
   assert.equal(approvalBuilt.ok, true);
   assert.equal(approvalBuilt.request.status, 'pending');
   assert.equal(approvalBuilt.request.requestedVerdict, 'review');
-
-  const queueBuilt = buildApprovalQueueItem({ approvalRequest: approvalBuilt.request });
-  assert.equal(queueBuilt.ok, true);
-  assert.equal(queueBuilt.item.status, 'pending');
-  assert.equal(queueBuilt.item.approvalRequest.approvalId, approvalBuilt.request.approvalId);
-
-  const queue = enqueueApprovalRequest([], approvalBuilt.request);
-  assert.equal(queue.ok, true);
-  assert.equal(queue.queue.length, 1);
-
-  const listed = listApprovalRequests(queue.queue, { workspaceId: 'default' });
-  assert.equal(listed.ok, true);
-  assert.equal(listed.count, 1);
-  assert.equal(listed.approvals[0].approvalId, approvalBuilt.request.approvalId);
-
-  const fetched = getApprovalRequest(queue.queue, approvalBuilt.request.approvalId, { workspaceId: 'default' });
-  assert.equal(fetched.ok, true);
-  assert.equal(fetched.item.approvalId, approvalBuilt.request.approvalId);
-
-  const updated = updateApprovalRequestStatus(queue.queue, approvalBuilt.request.approvalId, 'approved', { workspaceId: 'default' });
-  assert.equal(updated.ok, true);
-  assert.equal(updated.item.status, 'approved');
-
-  const expired = expireApprovalRequests(
-    [
-      {
-        ...queue.queue[0],
-        approvalRequest: {
-          ...queue.queue[0].approvalRequest,
-          expiresAt: '2026-06-12T00:00:00.000Z',
-        },
-        expiresAt: '2026-06-12T00:00:00.000Z',
-      },
-    ],
-    { now: '2026-06-12T00:00:01.000Z' },
-  );
-  assert.equal(expired.expiredCount, 1);
-  assert.equal(expired.queue[0].status, 'expired');
 
   const approvedDecision = approveRequest(approvalBuilt.request);
   assert.equal(approvedDecision.ok, true);
