@@ -101,3 +101,54 @@ test('JSON trace retains existing AgentV3 checkpoint and resume fields without i
   assert.deepEqual(output.data.steps, [{ action: 'inspect' }]);
   assert.deepEqual(output.evidence, [{ type: 'test' }]);
 });
+
+test('ingest preview exposes a review-only manual source manifest in JSON', async () => {
+  const stdout = [];
+  let executed = false;
+  const cli = fakeCli({ parsed: { command: 'must-not-parse' } });
+  cli.execute = () => { executed = true; };
+  const result = await runCliArgv([
+    'ingest', 'preview', '--type', 'manual', '--ref', 'note-1',
+    '--workspace', 'default', '--text', 'review me', '--json',
+  ], { cli, stdout: value => stdout.push(value) });
+  const envelope = JSON.parse(stdout[0]);
+
+  assert.equal(executed, false);
+  assert.equal(result.exitCode, CLI_EXIT_CODES.review_required);
+  assert.equal(envelope.workflowId, 'ingest-preview');
+  assert.equal(envelope.status, 'review_required');
+  assert.equal(envelope.data.sourceManifest.workspaceId, 'default');
+  assert.equal(envelope.data.sourceManifest.sourceType, 'manual');
+  assert.equal(envelope.data.sourceManifest.sourceRef, 'note-1');
+  assert.match(envelope.data.sourceManifest.sourceDigest, /^sha256:/);
+  assert.deepEqual(envelope.data.progress, { completed: 0, total: 1, hasMore: false });
+  assert.equal(envelope.data.review.required, true);
+  assert.equal(envelope.data.review.canonicalWrite, false);
+  assert.equal(envelope.trace.nextAction, 'submit_ingest_execute');
+  assert.equal(envelope.trace.runId, null);
+  assert.equal(envelope.trace.resumeToken, null);
+});
+
+test('ingest preview keeps plain output stable and external sources fail closed', async () => {
+  const stdout = [];
+  const stderr = [];
+  const manualCli = fakeCli({ parsed: { command: 'must-not-parse' } });
+  const manual = await runCliArgv([
+    'ingest', 'preview', '--type', 'manual', '--ref', 'note-2', '--text', 'plain text',
+  ], { cli: manualCli, stdout: value => stdout.push(value) });
+  assert.equal(manual.exitCode, CLI_EXIT_CODES.review_required);
+  assert.match(stdout[0], /^Ingest preview: review_required/m);
+  assert.match(stdout[0], /^Progress: 0\/1$/m);
+  assert.match(stdout[0], /^Next action: submit_ingest_execute$/m);
+
+  let executed = false;
+  const externalCli = fakeCli({ parsed: { command: 'must-not-parse' } });
+  externalCli.execute = () => { executed = true; };
+  const external = await runCliArgv(['ingest', 'preview', '--type', 'github', '--ref', 'repo', '--text', 'ignored'], {
+    cli: externalCli,
+    stderr: value => stderr.push(value),
+  });
+  assert.equal(executed, false);
+  assert.equal(external.exitCode, CLI_EXIT_CODES.capability_not_available);
+  assert.deepEqual(stderr, ['Ingest preview unavailable: CLI preview supports manual sources only.']);
+});
