@@ -19,6 +19,34 @@ test('markdown-adapter: parseMarkdown splits by headings', () => {
   assert.equal(sections.every(item => typeof item.sourceRef === 'string'), true);
 });
 
+test('markdown-adapter: bounds lines, sections, and section output', () => {
+  assert.throws(
+    () => parseMarkdown('one\ntwo\nthree', '/tmp/lines.md', { maxLinesPerFile: 2 }),
+    (error) => error?.code === 'MARKDOWN_LINE_LIMIT',
+  );
+  assert.throws(
+    () => parseMarkdown('# A\na\n# B\nb', '/tmp/sections.md', { maxSectionsPerFile: 1 }),
+    (error) => error?.code === 'MARKDOWN_SECTION_LIMIT',
+  );
+  assert.throws(
+    () => parseMarkdown('# A\ntoo-long', '/tmp/output.md', { maxOutputBytesPerSection: 4 }),
+    (error) => error?.code === 'MARKDOWN_SECTION_OUTPUT_BYTES_LIMIT',
+  );
+});
+
+test('markdown-adapter: aggregate budget failure is atomic before learning', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-markdown-atomic-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(dir, 'a.md'), '# A\nalpha');
+  fs.writeFileSync(path.join(dir, 'b.md'), '# B\nbeta');
+  let calls = 0;
+  assert.throws(
+    () => ingestAndLearn(dir, { learn() { calls += 1; } }, { rootPath: dir, maxTotalOutputBytes: 8 }),
+    (error) => error?.code === 'MARKDOWN_TOTAL_OUTPUT_BYTES_LIMIT',
+  );
+  assert.equal(calls, 0);
+});
+
 test('markdown-adapter: listMarkdownFiles and ingestMarkdown work recursively', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-md-'));
   const nested = path.join(dir, 'docs');
