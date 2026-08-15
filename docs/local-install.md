@@ -110,7 +110,7 @@ Add to your MCP client config — see [MCP setup instructions](./demo-mcp-agent-
 | POST | `/v2/verify` | Guarded structured verification endpoint |
 | POST | `/upload` | English alias for guarded load endpoint |
 | POST | `/yukle` | Load text into knowledge base |
-| GET | `/graph-data` | Export the knowledge graph |
+| GET | `/graph-data` | Export the knowledge graph (API key required) |
 
 ---
 

@@ -704,9 +704,9 @@ describe('Server - API', () => {
     assert.strictEqual(r.status, 401);
   });
 
-  it('SEC: GET /graph-data with default workspaceId works without auth (public scope)', async () => {
+  it('SEC: GET /graph-data with default workspaceId requires auth', async () => {
     const r = await request(`${BASE}/graph-data?workspaceId=default`, { skipAuth: true });
-    assert.strictEqual(r.status, 200);
+    assert.strictEqual(r.status, 401);
   });
 
   it('GET /graph-data dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {
