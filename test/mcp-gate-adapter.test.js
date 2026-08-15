@@ -229,11 +229,14 @@ test('evaluateMcpGate: axiom.agent → dry_run_only', () => {
   assert.ok(r.findings.length >= 1);
 });
 
-// ─── evaluateMcpGate: all 10 tools are classified ─────────────────────────────
+// ─── evaluateMcpGate: every declared tool is classified ──────────────────────
 
-test('evaluateMcpGate: all 10 MCP tools produce valid decisions', () => {
+test('evaluateMcpGate: every declared MCP tool produces a valid decision', () => {
   const tools = Object.keys(MCP_TOOL_CLASSIFICATIONS);
-  assert.equal(tools.length, 10, 'Expected exactly 10 MCP tools');
+  assert.ok(tools.length > 0);
+  assert.ok(tools.includes('huqan.advocate'));
+  assert.ok(tools.includes('huqan.search'));
+  assert.ok(tools.includes('huqan.trust_receipt'));
 
   for (const tool of tools) {
     const r = evaluateMcpGate({ tool, args: {} });

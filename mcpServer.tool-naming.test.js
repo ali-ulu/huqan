@@ -59,9 +59,9 @@ after(() => {
 // ─── name table ──────────────────────────────────────────────────────────────
 
 describe('RFC-001 MCP tool name table', () => {
-  it('defines eleven canonical names and eleven legacy aliases', () => {
-    assert.equal(CANONICAL_MCP_TOOL_NAMES.length, 11);
-    assert.equal(LEGACY_MCP_TOOL_NAMES.length, 11);
+  it('defines fourteen canonical names and fourteen legacy aliases', () => {
+    assert.equal(CANONICAL_MCP_TOOL_NAMES.length, 14);
+    assert.equal(LEGACY_MCP_TOOL_NAMES.length, 14);
   });
 
   it('maps every legacy alias onto its canonical name and back', () => {
@@ -82,7 +82,7 @@ describe('RFC-001 MCP tool name table', () => {
 
   it('does not alias arbitrary axiom-prefixed strings onto a real handler', () => {
     // Guards the obvious wrong implementation: a prefix rewrite. Only the
-    // eleven declared aliases may resolve; anything else must survive
+    // declared aliases may resolve; anything else must survive
     // unchanged so unknown-tool handling still fires.
     for (const bogus of ['axiom.', 'axiom.wipe', 'axiom.learn.extra', 'axiomlearn', 'AXIOM.learn']) {
       assert.equal(canonicalMcpToolName(bogus), bogus, `${bogus} must not be rewritten`);

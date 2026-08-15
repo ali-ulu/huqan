@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
 const { createServer, callTool, OPERATOR_TOOL_SCHEMAS } = require('../mcpServer');
 const { WORKFLOW_CONTRACT_VERSION } = require('../lib/workflow-contract');
 const { withMcpToolVerdictSurface } = require('../lib/mcp/response-builders');
+const Kernel = require('../kernel');
 
 function kernel() {
   return {
@@ -137,4 +138,99 @@ test('plan and run identities live in the workflow trace without changing domain
   assert.equal(run.trace.runId, 'checkpoint-stable');
   assert.equal(run.trace.traceId, 'checkpoint-stable');
   assert.equal(run.trace.planId, canonical.trace.planId);
+});
+
+test('MCP discovery publishes advocate, search, and trust-read from the canonical manifest', () => {
+  const tools = createServer({ kernel: kernel(), approvalStore: null }).handleRequest({
+    jsonrpc: '2.0', id: 2, method: 'tools/list', params: {},
+  }).result.tools;
+  const reads = new Map(tools
+    .filter(tool => ['huqan.advocate', 'huqan.search', 'huqan.trust_receipt'].includes(tool.name))
+    .map(tool => [tool.name, tool]));
+
+  assert.deepEqual([...reads.keys()].sort(), ['huqan.advocate', 'huqan.search', 'huqan.trust_receipt']);
+  assert.deepEqual([...reads.values()].map(tool => tool.metadata.workflow.workflowId).sort(), [
+    'advocate', 'memory-search', 'trust-receipt',
+  ]);
+  assert.ok([...reads.values()].every(tool => tool.metadata.workflow.authRequired === true));
+  assert.ok([...reads.values()].every(tool => tool.metadata.workflow.workspaceRequired === true));
+  assert.ok([...reads.values()].every(tool => tool.annotations.readOnlyHint === true));
+});
+
+test('MCP advocate and search reuse read workflows and fail closed without workspace identity', async () => {
+  const readKernel = {
+    graph: {
+      getNodes(workspaceId) {
+        assert.equal(workspaceId, 'team-a');
+        return { alpha: { label: 'Alpha', provenance: { sourceRef: 'doc:alpha', provenanceId: 'prov-alpha' } } };
+      },
+    },
+    async runCapability(name, input) {
+      assert.equal(name, 'devilAdvocate');
+      assert.deepEqual(input, { text: 'alpha is safe', workspaceId: 'default' });
+      return { ok: true, data: { mode: 'counter', counterArguments: ['check alpha'] }, evidence: [] };
+    },
+  };
+
+  const advocate = await callTool(readKernel, {
+    name: 'huqan.advocate', arguments: { workspaceId: 'default', claim: 'alpha is safe' },
+  });
+  const search = await callTool(readKernel, {
+    name: 'huqan.search', arguments: { workspaceId: 'team-a', query: 'alpha' },
+  });
+  const missingWorkspace = await callTool(readKernel, {
+    name: 'huqan.search', arguments: { query: 'alpha' },
+  });
+
+  assert.equal(advocate.workflowId, 'advocate');
+  assert.equal(advocate.data.counterArguments[0], 'check alpha');
+  assert.equal(search.workflowId, 'memory-search');
+  assert.equal(search.data.items[0].provenanceId, 'prov-alpha');
+  assert.equal(search.canonicalWrite, false);
+  assert.equal(missingWorkspace.ok, false);
+  assert.equal(missingWorkspace.status, 'failed');
+  assert.equal(missingWorkspace.error.code, 'INVALID_INPUT');
+
+  const transport = await createServer({ kernel: readKernel, approvalStore: null }).handleRequest({
+    jsonrpc: '2.0', id: 3, method: 'tools/call',
+    params: { name: 'huqan.advocate', arguments: { workspaceId: 'default', claim: 'alpha is safe' } },
+  });
+  assert.equal(transport.id, 3);
+  assert.equal(transport.result.structuredContent.workflowId, 'advocate');
+  assert.equal(transport.result.structuredContent.status, 'completed');
+});
+
+test('MCP trust-read reuses the canonical receipt projection and requires scoped filters', () => {
+  const trustKernel = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+  try {
+    trustKernel.learn('kedi hayvandir', {
+      workspaceId: 'team-a',
+      admissionRequired: true,
+      approvalRequired: true,
+      approvalStatus: 'approved',
+      approvalId: 'approval-mcp-trust-read',
+      provenance: {
+        provenanceId: 'prov-mcp-read', sourceRef: 'doc:mcp-read', sourceType: 'document',
+        actor: 'test', timestamp: '2026-08-15T00:00:00Z', confidence: 0.9,
+        workspaceId: 'team-a', trustPolicyVersion: 'test',
+      },
+    });
+
+    const result = callTool(trustKernel, {
+      name: 'huqan.trust_receipt', arguments: { workspaceId: 'team-a', targetId: 'kedi' },
+    });
+    const unscoped = callTool(trustKernel, {
+      name: 'huqan.trust_receipt', arguments: { workspaceId: 'team-a' },
+    });
+
+    assert.equal(result.workflowId, 'trust-receipt');
+    assert.equal(result.data.workspaceId, 'team-a');
+    assert.equal(result.data.provenance.provenanceId, 'prov-mcp-read');
+    assert.equal(result.receiptId, result.data.receiptId);
+    assert.equal(result.canonicalWrite, false);
+    assert.equal(unscoped.ok, false);
+    assert.equal(unscoped.error.code, 'INVALID_INPUT');
+  } finally {
+    trustKernel.close?.();
+  }
 });

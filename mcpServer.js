@@ -33,6 +33,7 @@ const { VERIFY_STATUS } = require('./lib/mcp-envelope-schema');
 const { VERIFY_ENVELOPE_OUTPUT_SCHEMA } = require('./lib/mcp-tool-data-schemas');
 const { TOOL_SCHEMAS } = require('./lib/mcp-tool-catalog');
 const { mcpWorkflowMetadata } = require('./lib/workflow-contract');
+const { executeMcpReadWorkflow } = require('./lib/mcp/read-workflow-tools');
 function publishMcpWorkflowContract(tool) {
   const workflow = mcpWorkflowMetadata(tool.name);
   if (!workflow) return tool;
@@ -133,6 +134,18 @@ function createServer(kernelOrOptions = {}) {
       if (method === 'tools/call') {
         try {
           const result = callTool(kernel, params, { approvalStore, operatorToken });
+          if (result && typeof result.then === 'function') {
+            return result.then(
+              value => ({ jsonrpc: '2.0', id, result: toToolResult(value) }),
+              (err) => {
+                const errorRef = recordInternalError('tools/call', err);
+                return {
+                  jsonrpc: '2.0', id,
+                  result: { content: [{ type: 'text', text: `INTERNAL_ERROR (ref: ${errorRef})` }], isError: true },
+                };
+              },
+            );
+          }
           return { jsonrpc: '2.0', id, result: toToolResult(result) };
         } catch (err) {
           const errorRef = recordInternalError('tools/call', err);
@@ -581,6 +594,10 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
       return withMcpToolVerdictSurface(kernel.dream({
         depth: boundedMcpInteger(args.depth, 2, 1, 5),
       }), name, args, gate);
+    case 'huqan.advocate':
+    case 'huqan.search':
+    case 'huqan.trust_receipt':
+      return executeMcpReadWorkflow({ kernel, name, args, gate });
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -674,7 +691,15 @@ function runStdio() {
     // request (#414). A malformed request must never be able to do that.
     try {
       const response = server.handleRequest(message);
-      if (response) send(response);
+      if (response && typeof response.then === 'function') {
+        response.then(send, (err) => {
+          const errorRef = recordInternalError('stdio/handleRequest', err);
+          send({
+            jsonrpc: '2.0', id: message.id,
+            error: { code: -32603, message: `Internal error (ref: ${errorRef})` },
+          });
+        });
+      } else if (response) send(response);
     } catch (err) {
       const errorRef = recordInternalError('stdio/handleRequest', err);
       send({
