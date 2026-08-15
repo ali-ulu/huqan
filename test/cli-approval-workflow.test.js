@@ -57,15 +57,15 @@ function closeCli(cli) {
 test('CLI parses approval queue and explicit approval commands', () => {
   const cli = new CLI({ kernel: { noLoad: true, loadPlugins: false } });
   try {
-    assert.deepEqual(cli.parse('onaylar'), { command: 'onaylar', args: '' });
+    assert.deepEqual(cli.parse('onaylar'), { command: 'onaylar', args: '', workflowId: 'approvals' });
     assert.deepEqual(cli.parse('onayla approval-123 rejected'), {
-      command: 'onayla', args: { approvalId: 'approval-123', decision: 'rejected', invalidDecision: false },
+      command: 'onayla', args: { approvalId: 'approval-123', decision: 'rejected', invalidDecision: false }, workflowId: 'approval-decision',
     });
     assert.deepEqual(cli.parse('approve approval-123'), {
-      command: 'onayla', args: { approvalId: 'approval-123', decision: 'approved', invalidDecision: false },
+      command: 'onayla', args: { approvalId: 'approval-123', decision: 'approved', invalidDecision: false }, workflowId: 'approval-decision',
     });
     assert.deepEqual(cli.parse('onayla approval-123 maybe'), {
-      command: 'onayla', args: { approvalId: 'approval-123', decision: 'maybe', invalidDecision: true },
+      command: 'onayla', args: { approvalId: 'approval-123', decision: 'maybe', invalidDecision: true }, workflowId: 'approval-decision',
     });
   } finally {
     closeCli(cli);

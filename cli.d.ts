@@ -12,6 +12,7 @@ export interface CLIOptions {
 export interface ParsedCommand {
   command: string;
   args: string | Record<string, unknown>;
+  workflowId: string | null;
 }
 
 declare class CLI {
@@ -41,6 +42,7 @@ export function runCliArgv(
   exitCode: number;
   command?: string;
   decision?: string;
+  workflowId?: string | null;
 }>;
 
 export = CLI;
