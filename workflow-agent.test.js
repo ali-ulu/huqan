@@ -68,6 +68,7 @@ function createAgent(opts = {}) {
 function registerDiscoveryTools(agent) {
   agent.registerTool({
     name: 'discoveryEngine',
+    kind: 'internal',
     description: 'discover hypotheses',
     inputSchema: { type: 'object' },
     run(context, input) {
@@ -86,6 +87,7 @@ function registerDiscoveryTools(agent) {
 
   agent.registerTool({
     name: 'experimentPlanner',
+    kind: 'internal',
     description: 'plan experiments',
     inputSchema: { type: 'object' },
     run(context, input) {
@@ -104,6 +106,7 @@ function registerDiscoveryTools(agent) {
 
   agent.registerTool({
     name: 'resultAnalyzer',
+    kind: 'internal',
     description: 'analyze results',
     inputSchema: { type: 'object' },
     run(context, input) {
@@ -122,6 +125,7 @@ function registerDiscoveryTools(agent) {
 
   agent.registerTool({
     name: 'replicationChecker',
+    kind: 'internal',
     description: 'check replication',
     inputSchema: { type: 'object' },
     run(context, input) {
@@ -146,6 +150,7 @@ describe('workflow-agent', () => {
     const registry = new ToolRegistry();
     const registered = registry.registerTool({
       name: 'alpha',
+      kind: 'internal',
       description: 'first tool',
       inputSchema: { type: 'object' },
       run() {
@@ -162,6 +167,29 @@ describe('workflow-agent', () => {
     assert.strictEqual(tools[0].name, 'alpha');
     assert.strictEqual(tools[0].description, 'first tool');
     assert.deepStrictEqual(tools[0].inputSchema, { type: 'object' });
+  });
+
+  it('custom tools must declare a valid trust kind instead of defaulting to internal', () => {
+    const registry = new ToolRegistry();
+    const run = () => ({ ok: true, data: { answer: 'ok' } });
+
+    assert.throws(
+      () => registry.registerTool({ name: 'fetch-data', run }),
+      /must declare kind as "internal" or "external"/,
+    );
+    assert.throws(
+      () => registry.registerTool({ name: 'fetch-data', kind: 'trusted', run }),
+      /must declare kind as "internal" or "external"/,
+    );
+
+    const external = registry.registerTool({ name: 'fetch-data', kind: 'external', run });
+    assert.strictEqual(external.kind, 'external');
+  });
+
+  it('canonical built-in tools remain internal when legacy registration omits kind', () => {
+    const registry = new ToolRegistry();
+    const registered = registry.registerTool({ name: 'ask', run: () => ({ ok: true }) });
+    assert.strictEqual(registered.kind, 'internal');
   });
 
   it('plan(goal) returns a deterministic step sequence', () => {
@@ -255,6 +283,7 @@ describe('workflow-agent', () => {
     const agent = new WorkflowAgent({ maxSteps: 2 });
     agent.registerTool({
       name: 'boom',
+      kind: 'internal',
       description: 'throws on purpose',
       inputSchema: { type: 'object' },
       run() {
@@ -487,6 +516,7 @@ describe('WorkflowAgent async tool execution (#408)', () => {
     const agent = new WorkflowAgent();
     agent.registerTool({
       name: 'async-result',
+      kind: 'internal',
       description: 'returns a result asynchronously',
       run: async () => ({ ok: true, data: { answer: 'awaited' }, confidence: 0.8 }),
     });
@@ -501,6 +531,7 @@ describe('WorkflowAgent async tool execution (#408)', () => {
     const agent = new WorkflowAgent();
     agent.registerTool({
       name: 'sync-result',
+      kind: 'internal',
       description: 'returns a result synchronously',
       run: () => ({ ok: true, data: { answer: 'sync' }, confidence: 0.7 }),
     });

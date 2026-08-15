@@ -951,7 +951,7 @@ function registerDefaultWorkflowTools(registry, kernel, options = {}) {
   }
   const tools = createWorkflowTools(kernel, options);
   for (const tool of tools) {
-    registry.registerTool(tool);
+    registry.registerTool({ ...tool, kind: tool.kind || 'internal' });
   }
   return tools;
 }
