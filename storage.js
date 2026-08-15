@@ -1,3 +1,4 @@
+const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const { resolveContainedPath } = require('./lib/memory-store-utils');
@@ -54,7 +55,11 @@ function resolveIterationsDelta(state = {}) {
 }
 
 function resolveDbPath(opts = {}, kernel) {
-  const allowedRoots = [process.cwd()];
+  // os.tmpdir() is an allowed root here for the same reason it is one in
+  // lib/memory-store-utils.resolveDbPath: ephemeral stores (tests, sandboxed
+  // runs) legitimately live there. resolveContainedPath still canonicalizes
+  // through it, so a symlink pointing out of the temp root is still rejected.
+  const allowedRoots = [process.cwd(), os.tmpdir()];
   if (typeof kernel?.graph?.memoryPath === 'string' && kernel.graph.memoryPath.trim()) {
     allowedRoots.push(path.dirname(path.resolve(kernel.graph.memoryPath.trim())));
   }
