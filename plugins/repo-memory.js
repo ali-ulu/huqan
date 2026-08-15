@@ -100,6 +100,7 @@ function buildGraphAdmissionRecord({
     decision: decision || undefined,
     reason: proposal?.admission?.reason || undefined,
     receiptId: proposal?.admission?.receiptId || undefined,
+    auditId: proposal?.audit?.auditId || undefined,
     ...details,
   };
 }

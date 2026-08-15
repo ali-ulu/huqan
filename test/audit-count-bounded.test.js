@@ -4,14 +4,12 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const Graph = require('../graph');
-const { captureGraphEvidenceForTest } = require('../lib/workbench/ingest-approval-action');
 
 let tempDir;
 
 before(() => {
   tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-audit-count-'));
 });
-
 after(() => {
   if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
 });
@@ -136,37 +134,5 @@ describe('Graph.countAuditEvents is bounded (#728)', () => {
 
     assert.strictEqual(graph.countAuditEvents({}), graph.getAuditEvents({}).length);
     assert.strictEqual(graph.countAuditEvents({}), 5);
-  });
-});
-
-describe('ingest approval evidence uses the bounded count (#728)', () => {
-  it('captures evidence without materializing the audit log', () => {
-    const graph = makeGraph('evidence', true);
-    seed(graph, 150);
-
-    let materialized = 0;
-    const originalAll = graph._stmts.allAuditEvents.all.bind(graph._stmts.allAuditEvents);
-    graph._stmts.allAuditEvents.all = (...args) => {
-      materialized += 1;
-      return originalAll(...args);
-    };
-
-    try {
-      const evidence = captureGraphEvidenceForTest({ graph });
-      assert.strictEqual(evidence.ok, true);
-      assert.strictEqual(evidence.auditCount, 150);
-      assert.strictEqual(materialized, 0, 'evidence capture must not read audit rows');
-    } finally {
-      graph._stmts.allAuditEvents.all = originalAll;
-    }
-  });
-
-  it('reports evidence unavailable when the graph cannot answer', () => {
-    const evidence = captureGraphEvidenceForTest({
-      graph: {
-        getStats() { throw new Error('unavailable'); },
-      },
-    });
-    assert.strictEqual(evidence.ok, false);
   });
 });

@@ -90,6 +90,12 @@ function summarizeProposals(proposals = []) {
     graphWrite: list.some(proposal => Boolean(proposal.node || proposal.edge)),
     counts,
     total: list.length,
+    evidence: list.map(proposal => ({
+      workspaceId: proposal.admission?.workspaceId || proposal.audit?.workspaceId || '',
+      receiptId: proposal.admission?.receiptId || '',
+      auditId: proposal.audit?.auditId || '',
+      graphWrite: Boolean(proposal.node || proposal.edge),
+    })),
   };
 }
 

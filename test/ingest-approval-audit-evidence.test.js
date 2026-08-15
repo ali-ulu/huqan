@@ -82,8 +82,23 @@ function fakeStore(approval) {
   };
 }
 
-/** An ingest result that classifies as a clean allow with no observed write. */
-const ALLOW_RESULT = Object.freeze({ ok: true, admission: { outcome: 'allow', graphWrite: false } });
+/** An ingest result with operation-owned evidence and no observed write. */
+function allowResult(approval) {
+  const workspaceId = approval.context.snapshot.workspaceId;
+  return {
+    ok: true,
+    admission: {
+      outcome: 'allow',
+      graphWrite: false,
+      evidence: [{
+        workspaceId,
+        receiptId: `receipt-${approval.id}`,
+        auditId: `audit-${approval.id}`,
+        graphWrite: false,
+      }],
+    },
+  };
+}
 
 function deps({ store, decision = 'approved', recordAudit }) {
   return {
@@ -91,7 +106,7 @@ function deps({ store, decision = 'approved', recordAudit }) {
     kernel,
     approvalId: store.record.id,
     decision,
-    handleIngest: async () => ALLOW_RESULT,
+    handleIngest: async () => allowResult(store.record),
     ensureRuntime: () => {},
     recordAudit,
     toPublicApproval: (record) => ({ id: record.id, status: record.status }),
@@ -147,7 +162,7 @@ describe('an approved ingest without audit evidence is not ordinary success (#76
     let ingestRuns = 0;
     const outcome = await decideIngestApproval({
       ...deps({ store, recordAudit: () => ({}) }),
-      handleIngest: async () => { ingestRuns += 1; return ALLOW_RESULT; },
+      handleIngest: async () => { ingestRuns += 1; return allowResult(store.record); },
     });
 
     assert.equal(ingestRuns, 1);
