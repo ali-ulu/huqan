@@ -237,6 +237,7 @@ test('evaluateMcpGate: every declared MCP tool produces a valid decision', () =>
   assert.ok(tools.includes('huqan.advocate'));
   assert.ok(tools.includes('huqan.search'));
   assert.ok(tools.includes('huqan.trust_receipt'));
+  assert.ok(tools.includes('huqan.ingest_preview'));
 
   for (const tool of tools) {
     const r = evaluateMcpGate({ tool, args: {} });
