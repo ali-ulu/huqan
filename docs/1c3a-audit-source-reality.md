@@ -174,11 +174,17 @@ source, command, mutationType, decision, executed, reason, phase
 intent. The event actor defaults to `cli-user` and the workspace defaults to
 `default` at this boundary.
 
-`graph.js` owns `normalizeAuditEvent()` and `appendAuditEvent()`. Normalization
-adds or resolves the canonical `auditId`, `eventType`, `targetType`, `targetId`,
-`workspaceId`, `actor`, `timestamp`, `sourceRef`, `provenanceId`,
-`trustPolicyVersion`, and JSON-safe `details`. The CLI writer therefore does not
-reimplement Graph normalization.
+`graph.js` owns `appendAuditEvent()`, which normalizes through
+`buildAuditEvent()` from `lib/audit-log.js` and then appends the result to the
+in-memory event list and, when a database is attached, the SQLite insert
+statement. `lib/audit-log.js` is therefore the canonical normalizer, not
+`graph.js`; the sibling `normalizeAuditEvent()` from the same module is used on
+the load/rehydrate paths rather than on append.
+
+Normalization adds or resolves the canonical `auditId`, `eventType`,
+`targetType`, `targetId`, `workspaceId`, `actor`, `timestamp`, `sourceRef`,
+`provenanceId`, `trustPolicyVersion`, and JSON-safe `details`. The CLI writer
+therefore does not reimplement audit normalization.
 
 ### 5. Failure boundary
 
@@ -227,7 +233,8 @@ Gate completion needs its own acceptance evidence and exact CI identity.
 - The package version is `0.9.1`.
 - The CLI delegates the mutation audit through the Kernel seam.
 - `lib/cli-mutation-audit.js` is the single durable CLI audit writer.
-- `graph.js` is the canonical event normalizer and append boundary.
+- `graph.js` is the append boundary; `lib/audit-log.js` is the canonical event
+  normalizer it appends through.
 - Existing tests cover the mapped source seams and failure behaviors.
 - `git diff --check` is the acceptance check for this docs-only change and must
   pass before commit.
@@ -314,7 +321,9 @@ Artifact: docs/1c3a-audit-source-reality.md
 - `lib/cli-mutation-audit.js`: bounded intent validation and durable writer.
 - `kernel.js`: KernelV1 `recordCliMutationAudit()` seam.
 - `kernel.v2.js`: KernelV2 delegation seam.
-- `graph.js`: canonical audit normalization and append boundary.
+- `graph.js`: audit append boundary and durable persistence.
+- `lib/audit-log.js`: canonical audit event normalization (`buildAuditEvent()`
+  on append, `normalizeAuditEvent()` on rehydrate).
 - `cli.js`: command routing and operation ordering.
 - `test/kernel-cli-audit-baseline-contract.test.js`: current contract test owner.
 - `docs/agent-canon.md`: source authority, change discipline, and evidence rules.
