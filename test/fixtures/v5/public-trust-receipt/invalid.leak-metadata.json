@@ -14,7 +14,7 @@
   },
   "binding": {
     "internalReceiptHash": "3c8bfe7d26e9ede5ca31d0e1398b7284ab8876e00cc67dbec67608b791922ac6",
-    "bundleHash": "be51f403d02405ccda37a6565180b88d662cdfe0f998b493ecfd77dabd317a84"
+    "bundleHash": "26244bb0512992b0078504864d698a9c5876fd5a5e12ffc7439b68b55fcc7d03"
   },
   "integrity": {
     "checksumAlgorithm": "sha256-canonical-json-v1",

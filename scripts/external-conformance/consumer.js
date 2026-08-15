@@ -96,7 +96,10 @@ function expectedEnvelopeVersion(receipts) {
     : 'v4-receipt-bundle-v1';
 }
 
+const BUNDLE_SEAL_VERSION = 'huqan-bundle-seal-v2';
+
 const BUNDLE_FIELDS = new Set([
+  'sealVersion',
   'schemaVersion',
   'workspaceId',
   'exportedAt',
@@ -114,6 +117,10 @@ function validateBundleEnvelope(bundle) {
     if (!Object.prototype.hasOwnProperty.call(bundle, field)) {
       return `invalid_bundle_envelope:missing:${field}`;
     }
+  }
+
+  if (bundle.sealVersion !== BUNDLE_SEAL_VERSION) {
+    return 'invalid_bundle_envelope:sealVersion';
   }
 
   const unknown = Object.keys(bundle).filter((field) => !BUNDLE_FIELDS.has(field));
@@ -147,11 +154,24 @@ function verifyBundle(bundle) {
   const findings = [];
   const { receipts } = bundle;
 
-  if (sha256Hex(canonicalJson(receipts)) !== bundle.bundleHash) {
+  // The seal covers the envelope, not just the receipts (#735, #767), so a
+  // relabelled workspaceId/exportedAt/receiptCount is caught here.
+  const sealPayload = {
+    sealVersion: BUNDLE_SEAL_VERSION,
+    schemaVersion: bundle.schemaVersion,
+    workspaceId: bundle.workspaceId,
+    exportedAt: bundle.exportedAt,
+    receiptCount: bundle.receiptCount,
+    receipts,
+  };
+  if (sha256Hex(canonicalJson(sealPayload)) !== bundle.bundleHash) {
     findings.push('bundle_seal_mismatch');
   }
   if (bundle.schemaVersion !== expectedEnvelopeVersion(receipts)) {
     findings.push('envelope_version_mismatch');
+  }
+  if (bundle.receiptCount !== receipts.length) {
+    findings.push('receipt_count_mismatch');
   }
 
   for (let i = 0; i < receipts.length; i += 1) {
@@ -409,15 +429,38 @@ for (const file of bundleFiles) {
 }
 
 function emptyValidBundle() {
-  return {
+  const envelope = {
+    sealVersion: BUNDLE_SEAL_VERSION,
     schemaVersion: 'v4-receipt-bundle-v1',
     workspaceId: 'default',
     exportedAt: '2026-01-01T00:00:00.000Z',
     receiptCount: 0,
-    bundleHash: sha256Hex(canonicalJson([])),
     receipts: [],
   };
+  return { ...envelope, bundleHash: sha256Hex(canonicalJson(envelope)) };
 }
+
+check('bundles', 'bundle without a sealVersion fails closed', () => {
+  // A bundle sealed under the earlier receipts-only rule carries an
+  // unauthenticated envelope, so this consumer refuses it outright (#735).
+  const bundle = emptyValidBundle();
+  delete bundle.sealVersion;
+  assert(JSON.stringify(verifyBundle(bundle))
+    === JSON.stringify(['invalid_bundle_envelope:missing:sealVersion']),
+  `unexpected findings: ${JSON.stringify(verifyBundle(bundle))}`);
+});
+
+check('bundles', 'relabelled envelope fields break the seal', () => {
+  for (const [patch, expected] of [
+    [{ workspaceId: 'someone-elses-workspace' }, ['bundle_seal_mismatch']],
+    [{ exportedAt: '2030-06-01T12:00:00.000Z' }, ['bundle_seal_mismatch']],
+    [{ receiptCount: 7 }, ['bundle_seal_mismatch', 'receipt_count_mismatch']],
+  ]) {
+    const findings = verifyBundle({ ...emptyValidBundle(), ...patch });
+    assert(JSON.stringify(findings) === JSON.stringify(expected),
+      `${JSON.stringify(patch)}: unexpected findings ${JSON.stringify(findings)}`);
+  }
+});
 
 check('bundles', 'bundle missing receipts fails closed before hash checks', () => {
   const bundle = emptyValidBundle();
