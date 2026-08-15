@@ -63,7 +63,7 @@ function assertMemoryAdmissionShape(result) {
   assert.equal(typeof result.memoryAdmission.contextIntegrity.mutationAllowed, 'boolean');
 }
 
-test('axiom.learn returns memory admission metadata with review status', () => {
+test('axiom.learn without an approval store reports a blocked admission', () => {
   const result = callTool(mockKernel(), {
     name: 'axiom.learn',
     arguments: {
@@ -80,7 +80,9 @@ test('axiom.learn returns memory admission metadata with review status', () => {
   assert.equal(result.ok, false);
   assert.equal(result.verdict, 'review');
   assertMemoryAdmissionShape(result);
-  assert.equal(result.memoryAdmission.status, 'review_required');
+  assert.equal(result.memoryAdmission.status, 'blocked');
+  assert.equal(result.status, 'failed');
+  assert.equal(result.error.code, 'REVIEW_NOT_PERSISTED');
   assert.equal(result.memoryAdmission.verdict, 'review');
   assert.equal(result.memoryAdmission.workspaceId, 'v4-pr5-workspace');
   assert.equal(result.memoryAdmission.provenance.present, true);
@@ -95,7 +97,7 @@ test('axiom.learn review does not falsely claim canonical admission or receipt m
   });
 
   assertMemoryAdmissionShape(result);
-  assert.equal(result.memoryAdmission.status, 'review_required');
+  assert.equal(result.memoryAdmission.status, 'blocked');
   assert.equal(result.memoryAdmission.contextIntegrity.canonicalMutation, false);
   assert.equal(result.memoryAdmission.contextIntegrity.mutationAllowed, false);
   assert.equal(result.memoryAdmission.receiptId, null);
@@ -146,7 +148,7 @@ test('null and malformed params do not crash or mutate memory', () => {
   assert.equal(malformedResult.ok, false);
   assert.equal(malformedResult.verdict, 'review');
   assertMemoryAdmissionShape(malformedResult);
-  assert.equal(malformedResult.memoryAdmission.status, 'review_required');
+  assert.equal(malformedResult.memoryAdmission.status, 'blocked');
   assert.equal(malformedResult.memoryAdmission.contextIntegrity.canonicalMutation, false);
 });
 
@@ -176,7 +178,7 @@ test('no fake receiptId is returned when no stored or materialized receipt exist
     },
   });
 
-  assert.equal(result.memoryAdmission.status, 'review_required');
+  assert.equal(result.memoryAdmission.status, 'blocked');
   assert.equal(result.memoryAdmission.receiptId, null);
   assert.equal(result.toolVerdict.receiptId, null);
 });

@@ -49,6 +49,8 @@ for (const [label, approvalStore] of BROKEN_STORES) {
     assert.ok(!result.message.includes('queued for review'), `"${result.message}" claims a queue that does not exist`);
     assert.equal(result.error.code, 'REVIEW_NOT_PERSISTED');
     assert.equal(result.approval.persisted, false);
+    assert.equal(result.status, 'failed');
+    assert.equal(result.memoryAdmission.status, 'blocked');
     assert.match(result.error.reason, /^approval_store_/);
     // ...and the mutation still did not run.
     assert.deepEqual(kernel.learned, []);
@@ -85,6 +87,7 @@ test('a successful save still reports the approval id and the queued state', () 
   assert.equal(result.approval.persisted, true);
   assert.match(result.approval.id, /\S/);
   assert.equal(result.approval.status, 'pending');
+  assert.equal(result.status, 'review_required');
   assert.equal(result.error, undefined);
   assert.deepEqual(kernel.learned, []);
 });
