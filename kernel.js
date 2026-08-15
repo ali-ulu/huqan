@@ -56,9 +56,8 @@ const {
   CLI_MUTATION_AUDIT_APPROVAL_STATES,
   CLI_MUTATION_AUDIT_MAPPINGS,
   normalizeWorkspaceId,
-  isPlainObject,
-  validateCliMutationAuditIntent,
 } = require('./lib/cli-mutation-audit-intent');
+const { recordCliMutationAudit } = require('./lib/cli-mutation-audit');
 const {
   normalizeExplicitRelationObject,
   parseExplicitRelationPredicate,
@@ -540,39 +539,7 @@ class Kernel {
   }
 
   recordCliMutationAudit(intent) {
-    try {
-      const validated = validateCliMutationAuditIntent(intent);
-      if (!validated || !this.graph || typeof this.graph.appendAuditEvent !== 'function') {
-        return { auditRecorded: false, event: null, errorCode: 'AUDIT_WRITE_FAILED' };
-      }
-
-      const details = {
-        source: 'cli',
-        command: validated.sourceCommand,
-        mutationType: validated.mutationType,
-        decision: validated.decision,
-        executed: validated.executionEligible,
-        reason: validated.reason,
-      };
-      if (validated.approvalState !== undefined) details.approvalState = validated.approvalState;
-      if (validated.receiptReference !== undefined) details.receiptId = validated.receiptReference;
-
-      const event = this.graph.appendAuditEvent({
-        eventType: validated.eventType,
-        targetType: 'cli_mutation',
-        targetId: validated.sourceCommand,
-        actor: validated.actor || 'cli-user',
-        workspaceId: validated.workspaceId || 'default',
-        details,
-      });
-
-      if (!isPlainObject(event) || typeof event.then === 'function') {
-        return { auditRecorded: false, event: null, errorCode: 'AUDIT_WRITE_FAILED' };
-      }
-      return { auditRecorded: true, event, errorCode: null };
-    } catch (_) {
-      return { auditRecorded: false, event: null, errorCode: 'AUDIT_WRITE_FAILED' };
-    }
+    return recordCliMutationAudit(this.graph, intent);
   }
   /**
    * FAZ2-PR3 (F-001): Background-source synthetic provenance for autonomous

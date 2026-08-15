@@ -9,9 +9,9 @@
   "threshold": 800,
   "files": {
     "agent.js": 1076,
-    "cli.js": 921,
+    "cli.js": 888,
     "graph.js": 1694,
-    "kernel.js": 1600,
+    "kernel.js": 1567,
     "kernel.v2.js": 975,
     "lib/action-risk-classifier.js": 902,
     "lib/code-change-gate.js": 891,
