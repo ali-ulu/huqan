@@ -52,9 +52,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version:
-          - "20"
-          - "22"
+        # Same split as benchmark.yml: pull requests get the fast Node 22 leg,
+        # pushes to main run Node 20 as well. Keeping the two workflows on one
+        # policy avoids a pull request that is green here and red there.
+        node-version: ${{ github.event_name == 'pull_request' && fromJSON('["22"]') || fromJSON('["20", "22"]') }}
     steps:
       - name: Check out repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

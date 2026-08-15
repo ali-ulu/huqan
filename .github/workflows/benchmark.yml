@@ -191,9 +191,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # README advertises Node 20 LTS and 22 LTS as recommended runtimes.
-        # Test both so a regression on 22 is caught before it reaches users.
-        node-version: [20, 22]
+        # README advertises Node 20 LTS and 22 LTS as recommended runtimes, so
+        # both stay covered — but not on the same trigger. The Node 20 leg runs
+        # roughly three times longer than Node 22 for an identical suite, and it
+        # sat on the critical path of every pull request. Pull requests now take
+        # the fast Node 22 signal; pushes to main run the full matrix, so a
+        # Node 20 regression is still caught on the branch that ships.
+        #
+        # This narrows the matrix, never the gate: "npm test gate" depends on
+        # this job's id, not on a matrix leg name, so the required check is
+        # unchanged and still fails closed when this job fails.
+        node-version: ${{ github.event_name == 'pull_request' && fromJSON('[22]') || fromJSON('[20, 22]') }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
