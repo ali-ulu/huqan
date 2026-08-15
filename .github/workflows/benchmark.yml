@@ -22,6 +22,11 @@ on:
     branches: [main]
   pull_request:
 
+# A new push to the same PR supersedes stale classification/test work.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
@@ -293,6 +298,36 @@ jobs:
       - name: Build Docker image
         run: docker build -t huqan:test .
 
+      - name: Run Docker runtime smoke
+        run: |
+          set -euo pipefail
+          container_id="$(docker run -d --rm \
+            --name "huqan-smoke-${GITHUB_RUN_ID}" \
+            -e HUQAN_API_KEY=ci-smoke-only \
+            -p 127.0.0.1:18080:3000 \
+            huqan:test)"
+          cleanup() {
+            docker logs "${container_id}" || true
+            docker rm -f "${container_id}" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          health_status="starting"
+          for _ in $(seq 1 45); do
+            health_status="$(docker inspect --format '{{.State.Health.Status}}' "${container_id}" 2>/dev/null || true)"
+            if [ "${health_status}" = "healthy" ]; then break; fi
+            if [ "${health_status}" = "unhealthy" ]; then
+              echo "Container healthcheck reported unhealthy." >&2
+              exit 1
+            fi
+            sleep 2
+          done
+          test "${health_status}" = "healthy"
+
+          curl --fail --silent --show-error http://127.0.0.1:18080/health
+          docker exec "${container_id}" sh -c \
+            '! command -v python3 && ! command -v g++ && test "$(id -u)" -ne 0 && test -w /app/data'
+
   docker-build-skip:
     name: Docker build
     needs: classify
@@ -305,3 +340,64 @@ jobs:
           echo "" >> "${GITHUB_STEP_SUMMARY}"
           echo "No Dockerfile / docker-compose / .dockerignore / package.json / package-lock.json changes." >> "${GITHUB_STEP_SUMMARY}"
           echo "Docker build skipped (NOT_APPLICABLE)." >> "${GITHUB_STEP_SUMMARY}"
+
+  # ---------------------------------------------------------------------
+  # Stable required checks. These aggregate the run/skip pairs so branch
+  # protection does not depend on matrix-generated or conditional job names.
+  # ---------------------------------------------------------------------
+  runtime-test-gate:
+    name: npm test gate
+    needs: [classify, runtime-test, runtime-test-skip]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the applicable test path to pass
+        env:
+          CLASSIFY_RESULT: ${{ needs.classify.result }}
+          TEST_RESULT: ${{ needs['runtime-test'].result }}
+          SKIP_RESULT: ${{ needs['runtime-test-skip'].result }}
+        run: |
+          set -euo pipefail
+          test "${CLASSIFY_RESULT}" = success
+          if [ "${TEST_RESULT}" != success ] && [ "${SKIP_RESULT}" != success ]; then
+            echo "Neither the test job nor its NOT_APPLICABLE job passed." >&2
+            exit 1
+          fi
+
+  benchmark-gate:
+    name: Benchmark gate
+    needs: [classify, benchmark, benchmark-skip]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the applicable benchmark path to pass
+        env:
+          CLASSIFY_RESULT: ${{ needs.classify.result }}
+          BENCHMARK_RESULT: ${{ needs.benchmark.result }}
+          SKIP_RESULT: ${{ needs['benchmark-skip'].result }}
+        run: |
+          set -euo pipefail
+          test "${CLASSIFY_RESULT}" = success
+          if [ "${BENCHMARK_RESULT}" != success ] && [ "${SKIP_RESULT}" != success ]; then
+            echo "Neither the benchmark job nor its NOT_APPLICABLE job passed." >&2
+            exit 1
+          fi
+
+  docker-build-gate:
+    name: Docker build gate
+    needs: [classify, docker-build, docker-build-skip]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the applicable Docker path to pass
+        env:
+          CLASSIFY_RESULT: ${{ needs.classify.result }}
+          DOCKER_RESULT: ${{ needs['docker-build'].result }}
+          SKIP_RESULT: ${{ needs['docker-build-skip'].result }}
+        run: |
+          set -euo pipefail
+          test "${CLASSIFY_RESULT}" = success
+          if [ "${DOCKER_RESULT}" != success ] && [ "${SKIP_RESULT}" != success ]; then
+            echo "Neither the Docker job nor its NOT_APPLICABLE job passed." >&2
+            exit 1
+          fi
