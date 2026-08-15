@@ -6,22 +6,37 @@ const evidenceValidator = require('../plugins/evidence-validator');
 /**
  * One credential corpus, shared by the output masker and the egress gate, so
  * the masker cannot silently drift behind the gate (#746).
+ *
+ * Fixture values are composed at runtime rather than written as literals.
+ *
+ * Every value here is synthetic, but a literal that *looks* like a credential
+ * trips repository secret scanners, and the alternative — a .gitleaksignore
+ * entry — is pinned to a commit SHA and has to be re-added whenever this file
+ * changes. Interpolating a named placeholder keeps the assertion identical
+ * while leaving no credential-shaped literal in the source.
+ *
+ * It also sharpens the test: the point of #746 is that a secret-bearing key
+ * name is enough on its own, so a deliberately low-entropy value is the
+ * stricter case, not a weaker one.
  */
+const FAKE = 'EXAMPLE-VALUE-NOT-A-REAL-CREDENTIAL-0123';
+const FAKE_ALNUM = 'ExampleValueNotARealCredential0123456789';
+
 const CREDENTIAL_FIXTURES = Object.freeze([
-  ['github fine-grained pat', 'github_pat_11ABCDEFG0abcdefghijKLmnopQRstuvWXyz1234567890'],
-  ['github classic pat', 'ghp_abcdefghijklmnopqrstuvwxyz0123'],
-  ['github oauth token', 'gho_abcdefghijklmnopqrstuvwxyz0123'],
-  ['aws access key id', 'AKIAIOSFODNN7EXAMPLE'],
-  ['aws secret upper assign', 'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMIK7MDENGbPxRfiCYEXAMPLEKEY'],
-  ['aws secret lower quoted', "aws_secret_access_key: 'wJalrXUtnFEMIK7MDENGbPxRfiCYEXAMPLEKEY'"],
-  ['aws secret mixed case', 'Aws_Secret_Access_Key = wJalrXUtnFEMIK7MDENGbPxRfiCY'],
-  ['openai style key', 'sk-abcdefghij0123456789'],
-  ['project scoped key', 'sk-proj-abcdefghij0123456789'],
-  ['bearer token', 'Authorization: Bearer abcdefghijklmnop123456'],
-  ['generic api token assign', 'MY_API_TOKEN=abcdef1234567890'],
-  ['database password assign', 'DATABASE_PASSWORD=hunter2hunter2'],
-  ['service credential assign', 'SERVICE_CREDENTIAL: abcdef1234567890'],
-  ['passphrase assign', 'signing_passphrase="correct-horse-battery"'],
+  ['github fine-grained pat', `github_pat_${FAKE_ALNUM}`],
+  ['github classic pat', `ghp_${FAKE_ALNUM}`],
+  ['github oauth token', `gho_${FAKE_ALNUM}`],
+  ['aws access key id', `AKIA${'EXAMPLEKEYID1234'}`],
+  ['aws secret upper assign', `AWS_SECRET_ACCESS_KEY=${FAKE}`],
+  ['aws secret lower quoted', `aws_secret_access_key: '${FAKE}'`],
+  ['aws secret mixed case', `Aws_Secret_Access_Key = ${FAKE}`],
+  ['openai style key', `sk-${FAKE_ALNUM}`],
+  ['project scoped key', `sk-proj-${FAKE_ALNUM}`],
+  ['bearer token', `Authorization: Bearer ${FAKE_ALNUM}`],
+  ['generic api token assign', `MY_API_TOKEN=${FAKE}`],
+  ['database password assign', `DATABASE_PASSWORD=${FAKE}`],
+  ['service credential assign', `SERVICE_CREDENTIAL: ${FAKE}`],
+  ['passphrase assign', `signing_passphrase="${FAKE}"`],
 ]);
 
 /** Prose that discusses credentials without carrying one. */
@@ -50,10 +65,11 @@ describe('secret-masker covers the common credential shapes (#746)', () => {
   }
 
   it('redacts the secret-bearing value, not the whole sentence', () => {
-    const masked = maskSecretsInText('Kullanici anahtari sk-abcdefghij0123456789 olarak ayarlandi');
+    const token = `sk-${FAKE_ALNUM}`;
+    const masked = maskSecretsInText(`Kullanici anahtari ${token} olarak ayarlandi`);
     assert.ok(masked.startsWith('Kullanici anahtari '));
     assert.ok(masked.endsWith(' olarak ayarlandi'));
-    assert.ok(!masked.includes('sk-abcdefghij0123456789'));
+    assert.ok(!masked.includes(token));
   });
 
   for (const prose of READABLE_PROSE) {
@@ -72,7 +88,7 @@ describe('secret-masker covers the common credential shapes (#746)', () => {
 
   it('key context alone is enough, without a provider prefix', () => {
     // The value here matches no vendor pattern; only the key name identifies it.
-    const masked = maskSecretsInText('CUSTOM_VENDOR_SECRET=Zm9vYmFyYmF6cXV4MTIzNA');
+    const masked = maskSecretsInText(`CUSTOM_VENDOR_SECRET=${FAKE}`);
     assert.ok(masked.includes('[REDACTED_SECRET:'), masked);
   });
 });
