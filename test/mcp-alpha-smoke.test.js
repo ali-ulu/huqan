@@ -83,7 +83,7 @@ test('PR3 smoke: server initialize + tools/list', () => {
 
   const listResp = server.handleRequest({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} });
   assert.ok(Array.isArray(listResp.result.tools));
-  assert.equal(listResp.result.tools.length, 13);
+  assert.equal(listResp.result.tools.length, 14);
   // tools/list is a writer: it advertises canonical names only. Legacy names
   // stay callable (see the tools/call smoke below) but stop being advertised.
   const advertised = listResp.result.tools.map(tool => tool.name);
