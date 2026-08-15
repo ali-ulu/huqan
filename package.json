@@ -194,6 +194,7 @@
         "lib/mcp-tool-data-schemas.js",
         "lib/mcp-tool-names.js",
         "lib/mcp/response-builders.js",
+        "lib/mcp/read-workflow-tools.js",
         "lib/memory-admission-gate.js",
         "lib/memory-mutation-gate/index.js",
         "lib/memory-mutation-gate/memory-mutation-classifier.js",
