@@ -18,7 +18,23 @@ let proc;
 let rl;
 let nextId = 1;
 const pending = new Map();
+const messages = [];
+const messageWaiters = [];
 let tempDir;
+
+function waitForMessage(predicate) {
+  const existing = messages.find(predicate);
+  if (existing) return Promise.resolve(existing);
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      const index = messageWaiters.findIndex(entry => entry.resolve === resolve);
+      if (index >= 0) messageWaiters.splice(index, 1);
+      reject(new Error('Timeout waiting for MCP message'));
+    }, 3000);
+    timer.unref?.();
+    messageWaiters.push({ predicate, resolve: message => { clearTimeout(timer); resolve(message); }, timer });
+  });
+}
 
 function request(method, params) {
   const id = nextId++;
@@ -69,6 +85,13 @@ before(() => {
   rl = readline.createInterface({ input: proc.stdout });
   rl.on('line', line => {
     const msg = JSON.parse(line);
+    messages.push(msg);
+    for (const entry of [...messageWaiters]) {
+      if (!entry.predicate(msg)) continue;
+      const index = messageWaiters.indexOf(entry);
+      if (index >= 0) messageWaiters.splice(index, 1);
+      entry.resolve(msg);
+    }
     if (msg && Object.prototype.hasOwnProperty.call(msg, 'id') && pending.has(msg.id)) {
       const entry = pending.get(msg.id);
       pending.delete(msg.id);
@@ -81,6 +104,11 @@ before(() => {
 after(async () => {
   for (const [, entry] of pending) entry.reject(new Error('Process closed before response'));
   pending.clear();
+  for (const entry of messageWaiters.splice(0)) {
+    clearTimeout(entry.timer);
+    entry.resolve({ jsonrpc: '2.0', error: { code: -32603, message: 'Test process closed' } });
+  }
+  messages.length = 0;
   rl?.close();
   if (proc && !proc.killed) {
     proc.kill();
@@ -164,6 +192,40 @@ describe('MCP Server', () => {
     assert.ok(policyTool.outputSchema.properties.data.anyOf[1].properties.reasons);
     assert.ok(policyTool.outputSchema.properties.data.anyOf[1].properties.approvalId);
     assert.ok(policyTool.outputSchema.properties.data.anyOf[1].properties.approvalStatus);
+  });
+
+  it('rejects oversized and structurally unbounded frames, then recovers for the next request', async () => {
+    const oversizedError = waitForMessage(message => message.error?.code === -32600
+      && /frame exceeds protocol limit/.test(message.error.message));
+    proc.stdin.write(`${JSON.stringify({
+      jsonrpc: '2.0',
+      id: 9001,
+      method: 'tools/call',
+      params: { name: 'huqan.ask', arguments: { question: 'x'.repeat(70 * 1024) } },
+    })}\n`);
+    const oversized = await oversizedError;
+    assert.equal(oversized.id, null);
+
+    const deep = {};
+    let cursor = deep;
+    for (let index = 0; index < 40; index += 1) {
+      cursor.next = {};
+      cursor = cursor.next;
+    }
+    const depthError = waitForMessage(message => message.error?.code === -32600
+      && /nesting depth/.test(message.error.message));
+    proc.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id: 9002, method: 'ping', params: deep })}\n`);
+    await depthError;
+
+    const valueError = waitForMessage(message => message.error?.code === -32600
+      && /value count/.test(message.error.message));
+    proc.stdin.write(`${JSON.stringify({
+      jsonrpc: '2.0', id: 9003, method: 'ping', params: { items: Array(2050).fill(1) },
+    })}\n`);
+    await valueError;
+
+    const ping = await request('ping', {});
+    assert.deepStrictEqual(ping.result, {});
   });
 
   it('blocks mutating tools via V2.6 gate (huqan.learn requires review)', async () => {
