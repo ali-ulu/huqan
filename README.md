@@ -11,12 +11,11 @@ HUQAN is a **local-first AI governance, agent-safety, and verification layer** f
 [![GitHub forks](https://img.shields.io/github/forks/ali-ulu/huqan?style=flat&logo=github)](https://github.com/ali-ulu/huqan/forks)
 [![Open issues](https://img.shields.io/github/issues/ali-ulu/huqan?style=flat&logo=github)](https://github.com/ali-ulu/huqan/issues)
 [![Last commit](https://img.shields.io/github/last-commit/ali-ulu/huqan?style=flat&logo=github)](https://github.com/ali-ulu/huqan/commits/main)
+[![Snikus](https://img.shields.io/badge/Snikus-Official%20Startup-7c3aed.svg)](https://snikus.com/startup.php?id=17)
 
 [Quick start](#quick-start) · [Why HUQAN](#why-huqan) · [How it works](#how-it-works) · [Ways to run](#ways-to-run) · [Current scope](#current-scope)
 
 **Canonical repository:** `https://github.com/ali-ulu/huqan`
-
-[![HUQAN — Official Startup on Snikus](https://snikus.com/startup-badge.php?startup=17&theme=dark)](https://snikus.com/startup.php?id=17)
 
 <p align="center">
   <img src="./docs/assets/huqan-agent-evidence-receipt-flow.svg" alt="HUQAN Agent–Evidence–Receipt flow" width="100%">
