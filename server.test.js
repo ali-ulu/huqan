@@ -867,12 +867,14 @@ describe('Server - API', () => {
     const r = await request(`${BASE}`);
     assert.strictEqual(r.status, 200);
     const html = await r.text();
-    assert.ok(html.includes('AXIOM'));
-    assert.ok(html.includes('d3@7.9.0'));
-    assert.ok(html.includes('integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i"'));
+    assert.ok(html.includes('HUQAN'));
+    assert.ok(html.includes('Trust Command Center'));
+    // kendi kendine yeten light UI: harici (CDN) betik sarmalanmaz
+    assert.doesNotMatch(html, /<script[^>]*\ssrc=/);
     assert.ok(html.includes('Content-Security-Policy'));
-    assert.ok(html.includes('forceSimulation'));
-    assert.ok(html.includes('Trust Dashboard'));
+    // API key yalnız sessionStorage alanında tutulur; kalıcı localStorage değil
+    assert.ok(html.includes("sessionStorage.getItem('huqan-api-key'"));
+    assert.ok(!html.includes('localStorage.setItem'));
   });
 
   it('bilinmeyen rota 404 dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {
