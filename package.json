@@ -109,6 +109,7 @@
     "lib/a2a/capability-negotiation.js",
     "lib/a2a/exchange-route.js",
     "lib/a2a/negotiate-route.js",
+    "lib/a2a/retry-classification.js",
     "lib/a2a/routes.js",
     "lib/a2a/task-route.js",
     "lib/a2a/task-store.js",
