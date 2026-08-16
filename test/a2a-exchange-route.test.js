@@ -291,12 +291,23 @@ test('a2a route: the auth policy declares the route only when it is configured',
 
 test('a2a route: the production call chain reaches the V5 verification modules', () => {
   const serverSource = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
-  assert.ok(serverSource.includes("require('./lib/a2a/exchange-route')"),
-    'server.js must require the exchange route');
-  assert.ok(serverSource.includes('a2aExchangeBoundary.route(req, res, reqUrl)'),
-    'server.js must dispatch to the exchange boundary');
+  assert.ok(serverSource.includes("require('./lib/a2a/routes')"),
+    'server.js must require the A2A boundary');
+  assert.ok(serverSource.includes('a2aBoundary.route(req, res, reqUrl)'),
+    'server.js must dispatch to the A2A boundary');
   assert.ok(serverSource.includes('a2aRouteEnabled'),
     'server.js must pass the route-enabled flag to the auth policy');
+
+  // P0-C composed the A2A surface behind one mount point so server.js stops
+  // growing a line per route. That inserted a hop into this chain, so the hop
+  // is asserted rather than assumed: the composite is what makes the exchange
+  // reachable now, and a composite that stopped requiring the route would leave
+  // the V5 modules unreached with every other assertion here still passing.
+  const boundarySource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'a2a', 'routes.js'), 'utf8');
+  assert.ok(boundarySource.includes("require('./exchange-route')"),
+    'the A2A boundary must require the exchange route');
+  assert.ok(boundarySource.includes('exchange.route(req, res, reqUrl)'),
+    'the A2A boundary must dispatch to the exchange boundary');
 
   const routeSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'a2a', 'exchange-route.js'), 'utf8');
   assert.ok(routeSource.includes("require('./bounded-exchange')"),
