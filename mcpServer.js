@@ -36,6 +36,7 @@ const { mcpWorkflowMetadata } = require('./lib/workflow-contract');
 const { executeMcpReadWorkflow } = require('./lib/mcp/read-workflow-tools');
 const { buildIngestWorkflowPreview } = require('./lib/ingest-workflow-preview');
 const { readIngestRunStatus } = require('./lib/mcp-ingest-status-tool');
+const { decideMcpIngestApproval, buildMcpIngestExecuteResult } = require('./lib/mcp-ingest-execute-tool');
 const { idempotentApprovalDecision, finalizeApprovalExecution } = require('./lib/approval-execution-evidence');
 function publishMcpWorkflowContract(tool) {
   const workflow = mcpWorkflowMetadata(tool.name);
@@ -220,6 +221,18 @@ function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
       return failApprovalDecision('APPROVAL_ALREADY_FINAL', `Approval is already ${existing.status}.`, { approval: existing });
     }
     return idempotentApprovalDecision(existing, decision);
+  }
+
+  if (existing.tool === 'http.ingest') {
+    return decideMcpIngestApproval({
+      kernel,
+      approvalStore,
+      approvalId,
+      decision,
+      reason,
+      runtime,
+      fail: failApprovalDecision,
+    });
   }
 
   if (decision === 'rejected') {
@@ -426,12 +439,16 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
       );
     }
     if (name === 'huqan.approve') {
-      return withMcpToolVerdictSurface(
-        handleMcpApprovalDecision(kernel, args, runtime),
+      const approvalDecision = handleMcpApprovalDecision(kernel, args, runtime);
+      const projectDecision = (result) => withMcpToolVerdictSurface(
+        result,
         name,
         args,
         { decision: 'allow', reason: 'operator_authorized', requiredReview: false },
       );
+      return approvalDecision && typeof approvalDecision.then === 'function'
+        ? approvalDecision.then(projectDecision)
+        : projectDecision(approvalDecision);
     }
   }
 
@@ -467,10 +484,22 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
           message: `Tool call blocked, review not persisted: ${gate.reason}`,
         }, name, args, gate);
       }
+      const ingestExecuteData = name === 'huqan.ingest_execute'
+        ? {
+          approval,
+          approvalId: approval.id || '',
+          statusRoute: approval.id ? `/api/v2/ingest/runs/${approval.id}` : '',
+          queuedForExecution: approval.persisted === true,
+          result: null,
+          receipt: null,
+          refs: null,
+        }
+        : null;
       return withMcpToolVerdictSurface({
         ok: false,
         gate: gateSurface,
         approval,
+        ...(ingestExecuteData ? { data: ingestExecuteData } : {}),
         message: `Tool call queued for review: ${gate.reason}`,
       }, name, args, gate);
     }
@@ -579,6 +608,8 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
     }
     case 'huqan.ingest_status':
       return withMcpToolVerdictSurface(readIngestRunStatus(kernel, args, runtime), name, args, gate);
+    case 'huqan.ingest_execute':
+      return withMcpToolVerdictSurface(buildMcpIngestExecuteResult(kernel, args, gate), name, args, gate);
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
