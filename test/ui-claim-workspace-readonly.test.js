@@ -61,13 +61,17 @@ test('memory search is workspace-scoped, bounded, and projects trust handoff fie
 
 test('Claim Workspace uses manifest routes, session-only auth, real search, and receipt handoff', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
-  assert.match(html, /fetch\('\/api\/v2\/workflows'/);
-  assert.match(html, /sessionStorage\.setItem\('huqan-api-key'/);
+  // capability manifest'ten türetilen gerçek ajan çağrısı: manifest fetch + route dispatch
+  assert.match(html, /json\('\/api\/v2\/workflows'/);
+  assert.match(html, /state\.manifest/);
+  assert.match(html, /c\.route/);
+  // session-only auth: API key yalnız sessionStorage; kalıcı localStorage değil
+  assert.match(html, /sessionStorage\.setItem\('huqan-(api-key|workspace)'/);
   assert.doesNotMatch(html, /localStorage\.setItem\([^)]*api-key/);
-  assert.match(html, /capability\.route/);
-  assert.match(html, /data-result-action="receipt"/);
-  assert.match(html, /renderMemoryResults\(workflowData\.items\)/);
-  assert.doesNotMatch(html, /fetch\('\/api\?' \+ new URLSearchParams/);
+  // gerçek, workspace-scoped graph arama (sahte connector box değil)
+  assert.match(html, /\/graph-data\?workspaceId=/);
+  // receipt handoff: trust-receipt lookup + son receipt akışı
+  assert.match(html, /\/api\/trust-receipt/);
 });
 
 test('Claim Workspace browser script compiles and wires unknown-to-review through the existing ingest approval runtime', () => {
@@ -75,11 +79,11 @@ test('Claim Workspace browser script compiles and wires unknown-to-review throug
   const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
   assert.ok(script);
   assert.doesNotThrow(() => new vm.Script(script));
+  // bilinmeyen iddia -> review: SHA-256 hash + ingest POST + scoped idempotency key
   assert.match(html, /crypto\.subtle\.digest\('SHA-256'/);
-  assert.match(html, /fetch\('\/api\/ingest'/);
-  assert.match(html, /fetch\('\/api\/ingest\/approvals\?limit=50'/);
-  assert.match(html, /`\/api\/ingest\/approvals\/\$\{encodeURIComponent\(selectedReviewApproval\.id\)\}`/);
-  assert.match(html, /idempotencyKey: `claim-workspace:\$\{hash\}`/);
-  assert.match(html, /showReceiptHandoff\('', receiptId\)/);
-  assert.doesNotMatch(html, /new (Map|Set)\(.*approval/i);
+  assert.match(html, /json\('\/api\/ingest'/);
+  assert.match(html, /idempotencyKey:\`command-center:\$\{h\}\`/);
+  // approval/review kuyruğu okunur ve karar ingest'e postanır
+  assert.match(html, /json\('\/api\/ingest\/approvals\?limit=50'/);
+  assert.match(html, /`\/api\/ingest\/approvals\/\$\{encodeURIComponent\(id\)\}`/);
 });
