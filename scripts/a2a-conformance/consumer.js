@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { createA2aConformanceReplayStore } = require('./replay-store');
+const { createA2aReplayStore } = require('./replay-store');
 const { evaluateBoundedExchange } = require('./verifier');
 
 const MAX_INPUT_BYTES = 1024 * 1024;
@@ -53,7 +53,7 @@ function main() {
       || Object.keys(payload).sort().join(',') !== 'requests'
       || !Array.isArray(payload.requests)) return fail('exact consumer payload required');
 
-  const replay = createA2aConformanceReplayStore(replayDirectory);
+  const replay = createA2aReplayStore(replayDirectory);
   let effectCount = 0;
   const results = payload.requests.map((request) => evaluateBoundedExchange({
     request,
