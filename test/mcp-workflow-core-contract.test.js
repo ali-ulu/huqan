@@ -29,7 +29,7 @@ test('model-visible MCP discovery reuses the workflow manifest without exposing 
   });
   const tools = response.result.tools;
   assert.ok(tools.length > 0);
-  assert.equal(tools.some(tool => tool.name === 'huqan.approve' || tool.name === 'huqan.approvals'), false);
+  assert.equal(tools.some(tool => ['huqan.approve', 'huqan.approvals', 'huqan.agent_resume'].includes(tool.name)), false);
   for (const tool of tools) {
     assert.match(tool.metadata.workflow.workflowId, /^[a-z][a-z0-9-]*$/);
     assert.equal(tool.metadata.workflow.version, WORKFLOW_CONTRACT_VERSION);
@@ -37,7 +37,7 @@ test('model-visible MCP discovery reuses the workflow manifest without exposing 
     assert.match(tool.outputSchema.$id, new RegExp(`\\.${WORKFLOW_CONTRACT_VERSION.replaceAll('.', '\\.')}$`));
     assert.deepEqual(Object.keys(tool.metadata.workflow.counterparts).sort(), ['api', 'cli', 'ui']);
   }
-  assert.deepEqual(OPERATOR_TOOL_SCHEMAS.map(tool => tool.name).sort(), ['huqan.approvals', 'huqan.approve']);
+  assert.deepEqual(OPERATOR_TOOL_SCHEMAS.map(tool => tool.name).sort(), ['huqan.agent_resume', 'huqan.approvals', 'huqan.approve']);
   assert.ok(OPERATOR_TOOL_SCHEMAS.every(tool => tool.metadata.workflow.version === WORKFLOW_CONTRACT_VERSION));
 });
 

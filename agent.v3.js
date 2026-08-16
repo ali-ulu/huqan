@@ -409,12 +409,35 @@ class AgentV3 {
     // workspace-scoped, and looking one up by goal alone would let a run in
     // one workspace hydrate another workspace's paused state.
     const workspaceId = String(opts.workspaceId || 'default').trim() || 'default';
+    const requestedCheckpointId = normalizeGoal(opts.checkpointId);
+    const requestedResumeToken = normalizeGoal(opts.resumeToken);
+    if (requestedCheckpointId || requestedResumeToken) {
+      if (!requestedCheckpointId || !requestedResumeToken) {
+        return this._fail('agent', 'AGENT_CONTINUATION_FIELDS_REQUIRED',
+          'checkpointId and resumeToken must be supplied together.');
+      }
+      if (opts.resume === false) {
+        return this._fail('agent', 'AGENT_CONTINUATION_REQUIRES_RESUME',
+          'Explicit checkpoint continuation requires resume=true.');
+      }
+    }
+
     let resumeRecord = null;
     if (opts.resume !== false) {
       try {
         resumeRecord = this.storage.loadLatestCheckpoint(goal, workspaceId);
       } catch (err) {
         return this._storageFailure('loadLatestCheckpoint', err);
+      }
+    }
+    if (requestedCheckpointId || requestedResumeToken) {
+      const storedToken = resumeRecord?.state?.resumeToken || resumeRecord?.id || '';
+      if (!resumeRecord || resumeRecord.id !== requestedCheckpointId || storedToken !== requestedResumeToken) {
+        return this._fail('agent', 'AGENT_RESUME_TOKEN_INVALID',
+          'The supplied checkpoint and resume token do not match a workspace-scoped checkpoint.', [], {
+            checkpointId: requestedCheckpointId,
+            workspaceId,
+          });
       }
     }
     const state = this._hydrateState(activePlan, resumeRecord);
