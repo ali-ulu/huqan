@@ -33,7 +33,7 @@ const { VERIFY_STATUS } = require('./lib/mcp-envelope-schema');
 const { VERIFY_ENVELOPE_OUTPUT_SCHEMA } = require('./lib/mcp-tool-data-schemas');
 const { TOOL_SCHEMAS } = require('./lib/mcp-tool-catalog');
 const { mcpWorkflowMetadata } = require('./lib/workflow-contract');
-const { executeMcpReadWorkflow } = require('./lib/mcp/read-workflow-tools');
+const { executeMcpVerify, executeMcpReadWorkflow } = require('./lib/mcp/read-workflow-tools');
 const { buildIngestWorkflowPreview } = require('./lib/ingest-workflow-preview');
 const { readIngestRunStatus } = require('./lib/mcp-ingest-status-tool');
 const { decideMcpIngestApproval, buildMcpIngestExecuteResult } = require('./lib/mcp-ingest-execute-tool');
@@ -550,7 +550,7 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
     case 'huqan.ask':
       return withMcpToolVerdictSurface(kernel.ask(sanitizeMcpString(args.question)), name, args, gate);
     case 'huqan.verify':
-      return withMcpToolVerdictSurface(kernel.verify(sanitizeMcpString(args.statement)), name, args, gate);
+      return executeMcpVerify({ kernel, name, args, gate });
     case 'huqan.plan':
       return withTransientAgent(kernel, (agent) => withMcpToolVerdictSurface(
         agent.plan(sanitizeMcpString(args.goal, MCP_MAX_GOAL), {
