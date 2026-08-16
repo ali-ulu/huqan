@@ -474,7 +474,7 @@ const server = http.createServer(async (req, res) => {
   // confirms the existence of an unrouted path.
   const routeAuthPolicy = resolveRouteAuthPolicy(reqUrl.pathname, req.method, {
     workspaceId: sanitizeInput(reqUrl.searchParams.get('workspaceId') || ''),
-    externalClientRouteEnabled: externalClientBoundary !== null, a2aRouteEnabled: a2aBoundary.exchangeEnabled, a2aAgentCardRouteEnabled: a2aBoundary.agentCardEnabled,
+    externalClientRouteEnabled: externalClientBoundary !== null, ...a2aBoundary.authContext,
   });
   // The memory-context route hardens every one of its own responses with
   // no-store/nosniff, but this central gate answers 401 before that handler
