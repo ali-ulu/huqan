@@ -1,0 +1,22 @@
+{
+  "id": "l2-ast-rename",
+  "level": "L2",
+  "description": "Rename a JavaScript identifier without changing comments or string literals.",
+  "operation": {
+    "type": "rename_identifier",
+    "path": "lib/user.js",
+    "from": "userId",
+    "to": "accountId"
+  },
+  "allowedPaths": ["lib/user.js"],
+  "files": {
+    "lib/user.js": "'use strict';\n\n// userId in this comment must remain unchanged.\nfunction loadUser(userId) {\n  const label = 'userId';\n  return { userId, label };\n}\n\nmodule.exports = { loadUser };\n"
+  },
+  "expectedPatch": [
+    {
+      "path": "lib/user.js",
+      "before": "'use strict';\n\n// userId in this comment must remain unchanged.\nfunction loadUser(userId) {\n  const label = 'userId';\n  return { userId, label };\n}\n\nmodule.exports = { loadUser };\n",
+      "after": "'use strict';\n\n// userId in this comment must remain unchanged.\nfunction loadUser(accountId) {\n  const label = 'userId';\n  return { accountId, label };\n}\n\nmodule.exports = { loadUser };\n"
+    }
+  ]
+}
