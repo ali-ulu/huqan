@@ -58,6 +58,7 @@ const {
   normalizeWorkspaceId,
 } = require('./lib/cli-mutation-audit-intent');
 const { recordCliMutationAudit } = require('./lib/cli-mutation-audit');
+const { admitLearn } = require('./lib/kernel-learn-admission');
 const {
   normalizeExplicitRelationObject,
   parseExplicitRelationPredicate,
@@ -737,9 +738,7 @@ class Kernel {
   // callers (CLI, plugins, direct API use) get the same idempotent-replay
   // and crash-safety guarantee, not just MCP-approved learns.
   learn(text, opts = {}) {
-    const ev = this._runBeforeLearn(text, opts);
-    const nextText = ev.text;
-    const nextOpts = ev.opts || opts;
+    const { text: nextText, opts: nextOpts } = admitLearn(this, text, opts);
     this._enterCriticalSection('learn');
     try {
       const operationId = typeof nextOpts.mutationOperationId === 'string' && nextOpts.mutationOperationId.trim()
