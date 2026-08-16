@@ -72,7 +72,7 @@ test('learn direct and transport responses keep approval parity without a canoni
     assert.equal(result.status, 'review_required');
     assert.equal(result.approval.persisted, true);
     assert.equal(result.canonicalWrite, false);
-    assert.equal(result.candidateId, null);
+    assert.match(result.candidateId, /^cand_/);
     assert.equal(result.provenance.provenanceId, 'prov-parity');
     assert.equal(result.audit, null);
     assert.equal(result.receipt, null);

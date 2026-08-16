@@ -79,6 +79,7 @@ const {
   createApprovalStoreFromKernel,
   saveMcpApproval,
 } = require('./lib/mcp-approval-store');
+const { buildApprovalAdmissionOptions } = require('./lib/mcp-approval-admission');
 const {
   toToolResult,
   recordInternalError,
@@ -170,34 +171,6 @@ function createServer(kernelOrOptions = {}) {
       return { jsonrpc: '2.0', id, error: { code: -32601, message: `Method not found: ${method}` } };
     },
   };
-}
-
-function buildApprovalAdmissionOptions(approval, args = {}) {
-  const approvalKey = approval.approvalKey || approval.approval_key || approval.id;
-  return {
-    skipConflicts: args.skipConflicts !== false,
-    maxSentences: args.maxSentences,
-    workspaceId: 'default',
-    approvalRequired: true,
-    approvalStatus: 'approved',
-    approvalId: approval.id,
-    sourceType: 'mcp_approval',
-    sourceRef: approvalKey,
-    actor: 'mcp-approval',
-    provenance: {
-      provenanceId: `prov_mcp_${approval.id}`,
-      sourceType: 'mcp_approval',
-      sourceRef: approvalKey,
-      actor: 'mcp-approval',
-      workspaceId: 'default',
-      timestamp: new Date().toISOString(),
-      trustPolicyVersion: kernelContractVersion(approval),
-    },
-  };
-}
-
-function kernelContractVersion(approval) {
-  return approval?.policy?.gate?.metadata?.contractVersion || 'mcp-approval';
 }
 
 function failApprovalDecision(code, message, meta = {}) {
