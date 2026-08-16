@@ -87,7 +87,6 @@ const SINK_METHODS = Object.freeze([
 const UNROUTED_SINK_CALLS = Object.freeze({
   // --- production mutation paths: the ones P1 must route -------------------
   'kernel.js': { why: 'knowledge, candidate and audit families; the largest routing target', sinks: { addNode: 1, addEdge: 3, addCandidateClaim: 1, appendAuditEvent: 1 } },
-  'lib/learn-use-case.js': { why: 'knowledge family, reached through kernel.learn', sinks: { addNode: 3, addEdge: 4, addTag: 1 } },
   'lib/conflict-detector.js': { why: 'writes across three families from one module', sinks: { addNode: 4, addEdge: 2, addCandidateClaim: 5, appendAuditEvent: 1 } },
   'kernel.v2.js': { why: 'candidate family on the V2 surface', sinks: { addCandidateClaim: 1 } },
   'agent.v3.js': { why: 'audit family', sinks: { appendAuditEvent: 2 } },
@@ -132,6 +131,16 @@ const ROUTED_SINK_CALLS = Object.freeze({
   'lib/workbench/ingest-approval-audit-writer.js': {
     why: 'P1 first routed caller; the sole write runs inside admission.admit()',
     sinks: { appendAuditEvent: 1 },
+  },
+  // A *transitive* routing claim, and weaker than the lexical one above: these
+  // sinks are not inside an admit() callback, they are downstream of one. It
+  // rests on two facts that test/kernel-learn-admission.test.js asserts rather
+  // than assumes -- the module exports only runLearnUseCase, and kernel.js is
+  // its only caller -- so there is no second way in. If either changes, that
+  // test fails before this declaration becomes wrong.
+  'lib/learn-use-case.js': {
+    why: 'knowledge family; reachable only via kernel.learn, which admits before the critical section',
+    sinks: { addNode: 3, addEdge: 4, addTag: 1 },
   },
 });
 
@@ -263,7 +272,7 @@ test('mutation admission: the debt ledger reflects the routing done so far', () 
   // exists, it has moved inside an admission callback. Success is UNROUTED
   // reaching zero, not the total shrinking. Pinning both numbers here keeps
   // that distinction from being quietly re-interpreted later.
-  assert.equal(unrouted, 44, 'unrouted sink calls');
-  assert.equal(routed, 1, 'sink calls routed through admission');
+  assert.equal(unrouted, 36, 'unrouted sink calls');
+  assert.equal(routed, 9, 'sink calls routed through admission');
   assert.equal(unrouted + routed, 45, 'total sink calls is expected to stay constant');
 });
