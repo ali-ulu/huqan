@@ -1,0 +1,27 @@
+{
+  "id": "l1-json-schema-route-test",
+  "level": "L1",
+  "description": "Generate a route module and a node:test contract from a bounded JSON schema.",
+  "operation": {
+    "type": "json_schema_route_test",
+    "schemaPath": "schemas/user.json",
+    "routePath": "routes/user.js",
+    "testPath": "test/routes/user.test.js"
+  },
+  "allowedPaths": ["routes/user.js", "test/routes/user.test.js"],
+  "files": {
+    "schemas/user.json": "{\n  \"route\": {\n    \"method\": \"POST\",\n    \"path\": \"/users\",\n    \"handler\": \"createUser\"\n  },\n  \"required\": [\"email\", \"name\"]\n}\n"
+  },
+  "expectedPatch": [
+    {
+      "path": "routes/user.js",
+      "before": null,
+      "after": "'use strict';\n\nfunction createUserRoute(router, handler) {\n  router.post('/users', handler);\n}\n\nmodule.exports = { createUserRoute };\n"
+    },
+    {
+      "path": "test/routes/user.test.js",
+      "before": null,
+      "after": "'use strict';\n\nconst { test } = require('node:test');\nconst assert = require('node:assert/strict');\n\ntest('POST /users exposes schema-required fields', () => {\n  const requiredFields = [\"email\",\"name\"];\n  assert.deepEqual(requiredFields, [\"email\",\"name\"]);\n});\n"
+    }
+  ]
+}

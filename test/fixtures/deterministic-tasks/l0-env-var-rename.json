@@ -1,0 +1,23 @@
+{
+  "id": "l0-env-var-rename",
+  "level": "L0",
+  "description": "Rename a legacy environment variable in one configuration module.",
+  "operation": {
+    "type": "replace_text",
+    "path": "config/runtime.js",
+    "find": "process.env.AXIOM_PORT",
+    "replace": "process.env.HUQAN_PORT"
+  },
+  "allowedPaths": ["config/runtime.js"],
+  "files": {
+    "config/runtime.js": "'use strict';\n\nmodule.exports = {\n  port: process.env.AXIOM_PORT || 3000,\n  host: process.env.HOST || '127.0.0.1'\n};\n",
+    "docs/migration.md": "# Migration\n\nKeep the legacy name documented.\n"
+  },
+  "expectedPatch": [
+    {
+      "path": "config/runtime.js",
+      "before": "'use strict';\n\nmodule.exports = {\n  port: process.env.AXIOM_PORT || 3000,\n  host: process.env.HOST || '127.0.0.1'\n};\n",
+      "after": "'use strict';\n\nmodule.exports = {\n  port: process.env.HUQAN_PORT || 3000,\n  host: process.env.HOST || '127.0.0.1'\n};\n"
+    }
+  ]
+}

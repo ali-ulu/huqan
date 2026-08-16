@@ -1,0 +1,22 @@
+{
+  "id": "l0-version-bump",
+  "level": "L0",
+  "description": "Bump a package version without changing unrelated fields.",
+  "operation": {
+    "type": "replace_text",
+    "path": "package.json",
+    "find": "\"version\": \"0.9.1\"",
+    "replace": "\"version\": \"0.9.2\""
+  },
+  "allowedPaths": ["package.json"],
+  "files": {
+    "package.json": "{\n  \"name\": \"benchmark-package\",\n  \"version\": \"0.9.1\",\n  \"private\": true\n}\n"
+  },
+  "expectedPatch": [
+    {
+      "path": "package.json",
+      "before": "{\n  \"name\": \"benchmark-package\",\n  \"version\": \"0.9.1\",\n  \"private\": true\n}\n",
+      "after": "{\n  \"name\": \"benchmark-package\",\n  \"version\": \"0.9.2\",\n  \"private\": true\n}\n"
+    }
+  ]
+}
