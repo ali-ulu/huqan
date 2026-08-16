@@ -115,13 +115,13 @@ test('MCP learn strips caller bypass metadata and executes an approval once', ()
     assert.equal(learnCalls.length, 1);
 
     const options = learnCalls[0].options;
-    assert.equal(options.workspaceId, 'default');
+    assert.equal(options.workspaceId, 'caller-workspace');
     assert.equal(options.approvalRequired, true);
     assert.equal(options.approvalStatus, 'approved');
     assert.equal(options.approvalId, queued.approval.id);
     assert.equal(Object.hasOwn(options, 'admissionRequired'), false);
     assert.equal(Object.hasOwn(options, 'admissionBypassReason'), false);
-    assert.equal(options.provenance.workspaceId, 'default');
+    assert.equal(options.provenance.workspaceId, 'caller-workspace');
 
     const duplicate = callTool(mcp, 'axiom.approve', {
       approvalId: queued.approval.id,
