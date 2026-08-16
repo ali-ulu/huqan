@@ -197,6 +197,7 @@
     "lib/mcp-envelope-schema.js",
     "lib/mcp-gate-adapter.js",
     "lib/mcp-ingest-execute-tool.js",
+    "lib/mcp-agent-continuation.js",
     "lib/mcp-ingest-status-tool.js",
     "lib/mcp-input-sanitizers.js",
     "lib/mcp-tool-catalog.js",

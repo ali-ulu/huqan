@@ -37,6 +37,7 @@ const { executeMcpReadWorkflow } = require('./lib/mcp/read-workflow-tools');
 const { buildIngestWorkflowPreview } = require('./lib/ingest-workflow-preview');
 const { readIngestRunStatus } = require('./lib/mcp-ingest-status-tool');
 const { decideMcpIngestApproval, buildMcpIngestExecuteResult } = require('./lib/mcp-ingest-execute-tool');
+const { executeMcpAgentContinuation } = require('./lib/mcp-agent-continuation');
 const { idempotentApprovalDecision, finalizeApprovalExecution } = require('./lib/approval-execution-evidence');
 function publishMcpWorkflowContract(tool) {
   const workflow = mcpWorkflowMetadata(tool.name);
@@ -50,10 +51,10 @@ function publishMcpWorkflowContract(tool) {
 }
 const WORKFLOW_TOOL_SCHEMAS = Object.freeze(TOOL_SCHEMAS.map(publishMcpWorkflowContract));
 const OPERATOR_TOOL_SCHEMAS = Object.freeze(
-  WORKFLOW_TOOL_SCHEMAS.filter(({ name }) => name === 'huqan.approve' || name === 'huqan.approvals'),
+  WORKFLOW_TOOL_SCHEMAS.filter(({ name }) => ['huqan.approve', 'huqan.approvals', 'huqan.agent_resume'].includes(name)),
 );
 const MODEL_VISIBLE_TOOL_SCHEMAS = Object.freeze(
-  WORKFLOW_TOOL_SCHEMAS.filter(({ name }) => name !== 'huqan.approve' && name !== 'huqan.approvals'),
+  WORKFLOW_TOOL_SCHEMAS.filter(({ name }) => !['huqan.approve', 'huqan.approvals', 'huqan.agent_resume'].includes(name)),
 );
 
 const PROTOCOL_VERSION = '2025-06-18';
@@ -429,7 +430,7 @@ function callTool(kernel, params = {}, runtime = {}) {
 function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
   const args = parseJsonObject(safeParams.arguments, {});
 
-  if (name === 'huqan.approve' || name === 'huqan.approvals') {
+  if (name === 'huqan.approve' || name === 'huqan.approvals' || name === 'huqan.agent_resume') {
     if (!isMcpOperatorAuthorized(runtime.operatorToken, safeParams.operatorToken)) {
       return withMcpToolVerdictSurface(
         failApprovalDecision('OPERATOR_AUTH_REQUIRED', 'A separate operator capability is required for MCP approval operations.'),
@@ -437,6 +438,10 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
         args,
         { decision: 'block', reason: 'operator_auth_required', requiredReview: false },
       );
+    }
+    if (name === 'huqan.agent_resume') {
+      const continuation = withTransientAgent(kernel, agent => executeMcpAgentContinuation(agent, args));
+      return withMcpToolVerdictSurface(continuation, name, args, { decision: 'allow', reason: 'operator_authorized', requiredReview: false });
     }
     if (name === 'huqan.approve') {
       const approvalDecision = handleMcpApprovalDecision(kernel, args, runtime);

@@ -59,9 +59,9 @@ after(() => {
 // ─── name table ──────────────────────────────────────────────────────────────
 
 describe('RFC-001 MCP tool name table', () => {
-  it('defines seventeen canonical names and seventeen legacy aliases', () => {
-    assert.equal(CANONICAL_MCP_TOOL_NAMES.length, 17);
-    assert.equal(LEGACY_MCP_TOOL_NAMES.length, 17);
+  it('defines eighteen canonical names and eighteen legacy aliases', () => {
+    assert.equal(CANONICAL_MCP_TOOL_NAMES.length, 18);
+    assert.equal(LEGACY_MCP_TOOL_NAMES.length, 18);
     assert.ok(CANONICAL_MCP_TOOL_NAMES.includes('huqan.ingest_preview'));
     assert.ok(CANONICAL_MCP_TOOL_NAMES.includes('huqan.ingest_execute'));
     assert.ok(CANONICAL_MCP_TOOL_NAMES.includes('huqan.ingest_status'));
@@ -108,7 +108,7 @@ describe('RFC-001 writer half: only canonical names are advertised', () => {
 
   it('advertises only model-visible canonical tools and no approval operator surface', () => {
     const advertised = MODEL_VISIBLE_TOOL_SCHEMAS.map((tool) => tool.name);
-    const expected = CANONICAL_MCP_TOOL_NAMES.filter(name => !['huqan.approve', 'huqan.approvals'].includes(name));
+    const expected = CANONICAL_MCP_TOOL_NAMES.filter(name => !['huqan.approve', 'huqan.approvals', 'huqan.agent_resume'].includes(name));
     assert.deepEqual([...advertised].sort(), [...expected].sort());
     assert.ok(!advertised.includes('huqan.approve'));
     assert.ok(!advertised.includes('huqan.approvals'));
@@ -128,7 +128,7 @@ describe('RFC-001 writer half: only canonical names are advertised', () => {
     const server = createServer();
     const listed = server.handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
     const names = listed.result.tools.map((tool) => tool.name);
-    const expected = CANONICAL_MCP_TOOL_NAMES.filter(name => !['huqan.approve', 'huqan.approvals'].includes(name));
+    const expected = CANONICAL_MCP_TOOL_NAMES.filter(name => !['huqan.approve', 'huqan.approvals', 'huqan.agent_resume'].includes(name));
     assert.deepEqual([...names].sort(), [...expected].sort());
     assert.equal(listed.result.tools.length, expected.length);
   });
