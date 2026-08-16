@@ -32,6 +32,8 @@ const { createSessionStore } = require('./lib/viewer/session-store');
 const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
 const { createExternalClientProductionBoundary } = require('./lib/external-client-production-boundary');
 const { createA2aBoundary } = require('./lib/a2a/routes');
+const { createMutationAdmission } = require('./lib/mutation-admission');
+const { createIngestApprovalAuditWriter } = require('./lib/workbench/ingest-approval-audit-writer');
 const pkg = require('./package.json');
 const {
   DEFAULT_MAX_UPLOAD_BODY,
@@ -79,24 +81,12 @@ function recoverExpiredIngestApprovals(store = ingestApprovalStore) {
   });
 }
 
-// The workspace comes from the immutable snapshot the action owner validated,
-// never from decision-request bytes and never from a hard-coded fallback.
-function recordIngestApprovalAudit(approval, receipt, result = null) {
-  const snapshot = approval.context?.snapshot || {};
-  const resultRef = result ? sha256(result) : '';
-  return kernel.graph.appendAuditEvent({
-    eventType: receipt.decision === 'approved' ? 'APPROVAL_APPROVED' : 'APPROVAL_REJECTED',
-    targetType: 'ingest_approval',
-    targetId: approval.id,
-    details: {
-      receipt,
-      snapshotHash: snapshot.snapshotHash || '',
-      pluginResultRef: resultRef,
-      actionOutcome: receipt.actionOutcome || '',
-      executionGuarantee: 'bounded_action_outcome',
-    },
-  }, { workspaceId: snapshot.workspaceId });
-}
+// P1's first caller routed through the mutation admission seam. The context it
+// has to build lives in the writer rather than here, so this file keeps gaining
+// wiring and delegation only (ARCH-001).
+const recordIngestApprovalAudit = createIngestApprovalAuditWriter({
+  graph: kernel.graph, admission: createMutationAdmission(), hashResult: sha256,
+});
 
 // --- Güvenlik sabitleri ---
 const rateLimitCleanupTimer = setInterval(() => {
