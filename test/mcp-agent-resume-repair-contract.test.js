@@ -26,6 +26,7 @@ function fakeAgent(row = checkpoint()) {
     },
     run(goal, options) {
       calls.push({ operation: 'run', goal, options });
+      const isRepair = options?.mode === 'repair';
       return {
         ok: true,
         type: 'agent',
@@ -38,7 +39,7 @@ function fakeAgent(row = checkpoint()) {
           evidence: [],
           status: 'completed',
           notes: [],
-          finalAnswer: 'continued',
+          finalAnswer: isRepair ? 'repaired' : 'continued',
           completedSteps: 1,
           remainingSteps: 0,
           report: 'continued',
@@ -89,6 +90,11 @@ test('agent continuation requires exact checkpoint token and workspace scope', (
   assert.deepEqual(result.data.stepTrace, result.data.steps);
   assert.deepEqual(result.data.approvalReferences, []);
   assert.equal(result.data.receiptId, null);
+  assert.equal(result.data.repairReason, null);
+  assert.equal(result.data.continuationDecision, null);
+  assert.equal(result.data.repairDecision, null);
+  assert.equal(agent.calls[1].options.mode, 'resume');
+  assert.equal(agent.calls[1].options.repairReason, undefined);
   assert.equal(agent.calls[1].options.checkpointId, 'checkpoint-787');
   assert.equal(agent.calls[1].options.resumeToken, 'checkpoint-787');
 });
@@ -141,11 +147,24 @@ test('agent continuation rejects terminal checkpoints and exposes repair mode on
   assert.equal(terminal.ok, false);
   assert.equal(terminal.error.code, 'AGENT_CHECKPOINT_NOT_RESUMABLE');
 
-  const repaired = executeMcpAgentContinuation(fakeAgent(), {
+  const agent = fakeAgent();
+  const repaired = executeMcpAgentContinuation(agent, {
     goal: 'resume safely', workspaceId: 'workspace-787', checkpointId: 'checkpoint-787', resumeToken: 'checkpoint-787',
     mode: 'repair', repairReason: 'operator-approved checkpoint repair',
   });
   assert.equal(repaired.ok, true);
   assert.equal(repaired.data.continuationMode, 'repair');
-  assert.equal(repaired.data.repairDecision, 'allow');
+  assert.equal(repaired.data.finalAnswer, 'repaired');
+  assert.equal(repaired.data.repairReason, 'operator-approved checkpoint repair');
+  assert.deepEqual(repaired.data.continuationDecision, {
+    mode: 'repair',
+    decision: 'requested',
+    reason: 'operator-approved checkpoint repair',
+    source: 'operator',
+    workspaceId: 'workspace-787',
+    checkpointId: 'checkpoint-787',
+  });
+  assert.equal(repaired.data.repairDecision, null);
+  assert.equal(agent.calls[1].options.mode, 'repair');
+  assert.equal(agent.calls[1].options.repairReason, 'operator-approved checkpoint repair');
 });
