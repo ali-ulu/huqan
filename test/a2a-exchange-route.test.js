@@ -295,8 +295,12 @@ test('a2a route: the production call chain reaches the V5 verification modules',
     'server.js must require the A2A boundary');
   assert.ok(serverSource.includes('a2aBoundary.route(req, res, reqUrl)'),
     'server.js must dispatch to the A2A boundary');
-  assert.ok(serverSource.includes('a2aRouteEnabled'),
-    'server.js must pass the route-enabled flag to the auth policy');
+  // P0-D moved the individual flags into one spreadable authContext so that
+  // adding a route stops editing server.js. The enablement still has to reach
+  // the auth policy, so the assertion follows it to its new owner rather than
+  // being dropped.
+  assert.ok(serverSource.includes('...a2aBoundary.authContext'),
+    'server.js must pass the A2A enablement context to the auth policy');
 
   // P0-C composed the A2A surface behind one mount point so server.js stops
   // growing a line per route. That inserted a hop into this chain, so the hop
@@ -304,6 +308,8 @@ test('a2a route: the production call chain reaches the V5 verification modules',
   // reachable now, and a composite that stopped requiring the route would leave
   // the V5 modules unreached with every other assertion here still passing.
   const boundarySource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'a2a', 'routes.js'), 'utf8');
+  assert.ok(boundarySource.includes('a2aRouteEnabled'),
+    'the A2A boundary must publish the exchange route-enabled flag');
   assert.ok(boundarySource.includes("require('./exchange-route')"),
     'the A2A boundary must require the exchange route');
   assert.ok(boundarySource.includes('exchange.route(req, res, reqUrl)'),

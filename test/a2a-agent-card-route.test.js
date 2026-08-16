@@ -122,13 +122,31 @@ test('agent card: absent P0 surfaces are named rather than omitted', async () =>
   const { boundary } = freshBoundary();
   const response = await withServer(boundary, (port) => request(port));
 
-  // These are the units the P0 scope freeze defers (P0-D..P0-G). Shipping one
-  // without removing its line here would leave the card claiming less than the
-  // deployment does, which is the mirror of the failure this route guards.
-  for (const surface of ['capability-negotiation', 'task-lifecycle', 'idempotency-keys', 'cancellation', 'streaming', 'json-rpc']) {
+  // These are the units the P0 scope freeze still defers (P0-E..P0-G). Shipping
+  // one without removing its line here would leave the card claiming less than
+  // the deployment does, which is the mirror of the failure this route guards.
+  for (const surface of ['task-lifecycle', 'idempotency-keys', 'cancellation', 'streaming', 'json-rpc']) {
     assert.ok(response.body.unsupported.includes(surface), `${surface} must be declared unsupported`);
   }
   assert.deepEqual(response.body.unsupported, [...UNSUPPORTED_SURFACES]);
+
+  // P0-D shipped capability negotiation, so it left the list. The exact-list
+  // assertion above is what forced this edit rather than letting the card go
+  // quietly stale.
+  assert.ok(!response.body.unsupported.includes('capability-negotiation'));
+});
+
+test('agent card: it points at the negotiation route it actually serves', async () => {
+  const { boundary } = freshBoundary();
+  const response = await withServer(boundary, (port) => request(port));
+
+  assert.equal(response.body.negotiation.path, '/api/a2a/negotiate');
+  assert.equal(response.body.negotiation.method, 'POST');
+  assert.deepEqual(response.body.negotiation.protocolVersions, [PROTOCOL_VERSION]);
+
+  // Negotiation is the mechanism for agreeing on capabilities, not one of the
+  // capabilities that can be agreed on.
+  assert.ok(!response.body.capabilities.some((entry) => entry.id === 'capability-negotiation'));
 });
 
 test('agent card: it declares itself authenticated', async () => {
