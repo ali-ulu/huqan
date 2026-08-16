@@ -31,6 +31,7 @@ const { readExactWorkspace } = require('./lib/http/exact-workspace');
 const { createSessionStore } = require('./lib/viewer/session-store');
 const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
 const { createExternalClientProductionBoundary } = require('./lib/external-client-production-boundary');
+const { createA2aExchangeBoundary } = require('./lib/a2a/exchange-route');
 const pkg = require('./package.json');
 const {
   DEFAULT_MAX_UPLOAD_BODY,
@@ -57,6 +58,7 @@ const externalClientBoundary = createExternalClientProductionBoundary({
   environment: process.env,
   graph: kernel.graph,
 });
+const a2aExchangeBoundary = createA2aExchangeBoundary();
 let companyRuntimeReady = false;
 let ingestApprovalStore = null;
 const INGEST_APPROVAL_WORKER_ID = `http-ingest-${crypto.randomUUID()}`;
@@ -472,7 +474,7 @@ const server = http.createServer(async (req, res) => {
   // confirms the existence of an unrouted path.
   const routeAuthPolicy = resolveRouteAuthPolicy(reqUrl.pathname, req.method, {
     workspaceId: sanitizeInput(reqUrl.searchParams.get('workspaceId') || ''),
-    externalClientRouteEnabled: externalClientBoundary !== null,
+    externalClientRouteEnabled: externalClientBoundary !== null, a2aRouteEnabled: a2aExchangeBoundary !== null,
   });
   // The memory-context route hardens every one of its own responses with
   // no-store/nosniff, but this central gate answers 401 before that handler
@@ -497,6 +499,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (a2aExchangeBoundary && await a2aExchangeBoundary.route(req, res, reqUrl)) return;
   if (handleWorkflowContractRoute(req, res, reqUrl) || await handleReadWorkflow(req, res, reqUrl)) return;
   if (await handleWorkflowDataRoute(req, res, reqUrl)) return;
   // --- /graph-data ---

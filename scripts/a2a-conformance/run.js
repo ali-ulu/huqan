@@ -19,6 +19,7 @@ const {
   evaluateBoundedExchange,
 } = require('./verifier');
 
+const A2A_WORKSPACE = 'workspace-a2a';
 const EVALUATION_TIME = '2026-08-11T12:00:00.000Z';
 const ISSUED_AT = '2026-08-11T11:59:00.000Z';
 const OBSERVED_AT = '2026-08-11T11:59:30.000Z';
@@ -48,13 +49,13 @@ function createKey(agentId) {
   };
 }
 
-function identity(agentId, parentAgentId, chain) {
+function identity(agentId, parentAgentId, chain, workspaceId = A2A_WORKSPACE) {
   return {
     agent_id: agentId,
     agent_type: parentAgentId === null ? 'local' : 'delegated',
     display_name: agentId,
     owner_actor_id: 'actor-owner-a2a',
-    workspace_id: 'workspace-a2a',
+    workspace_id: workspaceId,
     delegation_scope: ['verify.claim'],
     allowed_tools: ['axiom.verify', 'axiom.trace'],
     allowed_memory_scopes: ['read_only_context'],
@@ -77,7 +78,7 @@ function identity(agentId, parentAgentId, chain) {
   };
 }
 
-function emptyPackage(source) {
+function emptyPackage(source, workspaceId = A2A_WORKSPACE) {
   const objectCounts = {
     provenanceRecords: 0, auditEvents: 0, candidateClaims: 0, conflictResults: 0,
     verificationResults: 0, trustReceipts: 0, causalChains: 0, simulationResults: 0,
@@ -85,7 +86,7 @@ function emptyPackage(source) {
   return {
     manifest: {
       packageId: 'pkg-a2a-001', format: 'huqan-package', formatVersion: '0.2',
-      createdAt: ISSUED_AT, createdBy: 'agent-source', workspaceId: 'workspace-a2a',
+      createdAt: ISSUED_AT, createdBy: 'agent-source', workspaceId,
       source, description: 'Bounded D6 conformance exchange evidence.',
       objectCounts, protocolVersion: '0.1',
     },
@@ -95,13 +96,13 @@ function emptyPackage(source) {
   };
 }
 
-function buildFixture() {
+function buildFixture(workspaceId = A2A_WORKSPACE) {
   const ids = ['agent-source', 'agent-middle', 'agent-target'];
   const keys = Object.fromEntries([...ids, 'receipt-signer'].map((id) => [id, createKey(id)]));
   const records = {
-    'agent-source': identity('agent-source', null, ['agent-source']),
-    'agent-middle': identity('agent-middle', 'agent-source', ['agent-source', 'agent-middle']),
-    'agent-target': identity('agent-target', 'agent-middle', ids),
+    'agent-source': identity('agent-source', null, ['agent-source'], workspaceId),
+    'agent-middle': identity('agent-middle', 'agent-source', ['agent-source', 'agent-middle'], workspaceId),
+    'agent-target': identity('agent-target', 'agent-middle', ids, workspaceId),
   };
   const participants = ids.map((agentId) => ({
     agentId, identityRef: `identity:${agentId}`, identityHash: canonicalHash(records[agentId]),
@@ -119,7 +120,7 @@ function buildFixture() {
       agentId: participants.at(-1).agentId,
       identityRef: participants.at(-1).identityRef,
       identityHash: participants.at(-1).identityHash,
-      workspaceId: 'workspace-a2a',
+      workspaceId,
     },
     evaluationTime: EVALUATION_TIME,
     authorityId: 'receiver-authority-a2a-v1',
@@ -162,7 +163,7 @@ function buildFixture() {
   const receiptHash = canonicalHash(publicReceipt);
 
   const baseHop = (delegatorId, delegateId, parentDelegationHash) => ({
-    delegatorId, delegateId, workspaceId: 'workspace-a2a', scope: ['verify.claim'],
+    delegatorId, delegateId, workspaceId, scope: ['verify.claim'],
     target: 'claim:bounded-a2a-001', maxRiskTier: 'high',
     allowedTools: ['axiom.verify', 'axiom.trace'], allowedConnectors: ['local_stdio_mcp', 'audit_file'],
     expiresAt: EXPIRES_AT, parentDelegationHash,
@@ -176,7 +177,7 @@ function buildFixture() {
 
   const request = {
     schemaVersion: SCHEMA_VERSION, exchangeId: 'exchange-a2a-001', nonce: 'nonce-a2a-001',
-    issuedAt: ISSUED_AT, expiresAt: EXPIRES_AT, workspaceId: 'workspace-a2a',
+    issuedAt: ISSUED_AT, expiresAt: EXPIRES_AT, workspaceId,
     source: participants[0], target: participants.at(-1), participants,
     delegation: { chain: ids, hops: [first, second] },
     requestedAction: action,
@@ -195,7 +196,7 @@ function buildFixture() {
     internalReceiptHash: INTERNAL_RECEIPT.receiptHash,
     bundleHash: RECEIPT_BUNDLE.bundleHash,
   };
-  const pkg = emptyPackage(sourceBinding);
+  const pkg = emptyPackage(sourceBinding, workspaceId);
   request.evidence = {
     actionHash, receipt: publicReceipt, receiptHash, package: pkg,
     packageHash: canonicalHash(pkg),
@@ -592,7 +593,14 @@ async function run() {
   process.stdout.write(`${JSON.stringify({ report, reportSha256: canonicalHash(report) })}\n`);
 }
 
-run().catch((error) => {
-  process.stderr.write(`${error.stack || error.message}\n`);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  run().catch((error) => {
+    process.stderr.write(`${error.stack || error.message}\n`);
+    process.exitCode = 1;
+  });
+}
+
+// The route test builds its exchanges from this same generator (P0-B). Two
+// generators would mean the route could pass against an envelope the
+// conformance suite would never produce.
+module.exports = Object.freeze({ buildFixture });
