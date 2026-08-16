@@ -122,18 +122,36 @@ test('agent card: absent P0 surfaces are named rather than omitted', async () =>
   const { boundary } = freshBoundary();
   const response = await withServer(boundary, (port) => request(port));
 
-  // These are the units the P0 scope freeze still defers (P0-E..P0-G). Shipping
-  // one without removing its line here would leave the card claiming less than
-  // the deployment does, which is the mirror of the failure this route guards.
-  for (const surface of ['task-lifecycle', 'idempotency-keys', 'cancellation', 'streaming', 'json-rpc']) {
+  // These are the units the P0 scope freeze still defers (P0-F, P0-G) plus
+  // idempotency keys, which P0-E deliberately did not ship. Shipping one
+  // without removing its line here would leave the card claiming less than the
+  // deployment does, which is the mirror of the failure this route guards.
+  for (const surface of ['idempotency-keys', 'cancellation', 'streaming', 'json-rpc']) {
     assert.ok(response.body.unsupported.includes(surface), `${surface} must be declared unsupported`);
   }
   assert.deepEqual(response.body.unsupported, [...UNSUPPORTED_SURFACES]);
 
-  // P0-D shipped capability negotiation, so it left the list. The exact-list
-  // assertion above is what forced this edit rather than letting the card go
-  // quietly stale.
-  assert.ok(!response.body.unsupported.includes('capability-negotiation'));
+  // Each of these left the list when its unit shipped. The exact-list assertion
+  // above is what forced those edits rather than letting the card go stale.
+  assert.ok(!response.body.unsupported.includes('capability-negotiation'), 'shipped in P0-D');
+  assert.ok(!response.body.unsupported.includes('task-lifecycle'), 'shipped in P0-E');
+
+  // `idempotency-keys` stayed on purpose: a caller-supplied key would have to
+  // return a stored success for a retried request, and the case where that is
+  // unknowable is the case the replay marker exists for.
+  assert.ok(response.body.unsupported.includes('idempotency-keys'));
+});
+
+test('agent card: it advertises the task states a consumer must handle', async () => {
+  const { boundary } = freshBoundary();
+  const response = await withServer(boundary, (port) => request(port));
+
+  assert.equal(response.body.tasks.pathPrefix, '/api/a2a/tasks/');
+  assert.equal(response.body.tasks.method, 'GET');
+  // `unknown` is advertised because a consumer that has not been told it exists
+  // will treat it as an error and retry -- which is what at-most-once protects
+  // against.
+  assert.deepEqual(response.body.tasks.states, ['completed', 'unknown']);
 });
 
 test('agent card: it points at the negotiation route it actually serves', async () => {
