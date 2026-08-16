@@ -110,6 +110,8 @@
     "lib/a2a/exchange-route.js",
     "lib/a2a/negotiate-route.js",
     "lib/a2a/routes.js",
+    "lib/a2a/task-route.js",
+    "lib/a2a/task-store.js",
     "lib/action-risk-classifier.js",
     "lib/adversarial-signals.js",
     "lib/agent-loop-budget-gate.js",
