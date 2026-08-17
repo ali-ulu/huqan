@@ -99,6 +99,123 @@ function validateWorkspaceMismatchShape(fixture, errors) {
   }
 }
 
+// Gate 7 fixture classes (remaining §2.1 rows, added after PR #904):
+// Fail-closed — active only when the fixture declares the matching reason code;
+// existing fixtures keep their assertions untouched (no shape change below).
+function validateIdentityClaimShape(fixture, errors) {
+  if (fixture.expected_reason_code !== 'identity.invalid_claim') {
+    return;
+  }
+
+  if (fixture.agent_id !== null) {
+    errors.push(makeError(
+      'identity_claim_present',
+      '/agent_id',
+      'Invalid-claim fixture must leave agent_id null.'
+    ));
+  }
+
+  if (fixture.verification_status !== 'invalid') {
+    errors.push(makeError(
+      'invalid_claim_status_required',
+      '/verification_status',
+      'Invalid-claim fixture must assert verification_status invalid.'
+    ));
+  }
+}
+
+function validateDelegationScopeExceededShape(fixture, errors) {
+  if (fixture.expected_reason_code !== 'delegation.scope_exceeded') {
+    return;
+  }
+
+  if (!Array.isArray(fixture.delegation_scope) || !fixture.delegation_scope.includes('invoke')) {
+    errors.push(makeError(
+      'scope_exceeded_invoke_required',
+      '/delegation_scope',
+      'Scope-exceeded fixture must carry invoke in delegation_scope.'
+    ));
+    return;
+  }
+
+  if (fixture.trust_tier !== 'probationary' && fixture.trust_tier !== 'unverified') {
+    errors.push(makeError(
+      'scope_exceeded_trust_floor',
+      '/trust_tier',
+      'Scope-exceeded fixture must sit below the invoke trust floor.'
+    ));
+  }
+}
+
+function validateDelegationChainInvalidShape(fixture, errors) {
+  if (fixture.expected_reason_code !== 'delegation.chain_invalid') {
+    return;
+  }
+
+  if (!hasNonEmptyString(fixture.parent_agent_id)) {
+    errors.push(makeError(
+      'chain_invalid_parent_required',
+      '/parent_agent_id',
+      'Chain-invalid fixture must include parent_agent_id.'
+    ));
+    return;
+  }
+
+  if (!Array.isArray(fixture.delegation_chain) || fixture.delegation_chain.length === 0) {
+    errors.push(makeError(
+      'chain_invalid_chain_required',
+      '/delegation_chain',
+      'Chain-invalid fixture must include delegation_chain entries.'
+    ));
+    return;
+  }
+
+  if (fixture.delegation_chain.includes(fixture.parent_agent_id)) {
+    errors.push(makeError(
+      'chain_invalid_parent_encoded',
+      '/delegation_chain',
+      'Chain-invalid fixture must not resolve its parent in the chain.'
+    ));
+  }
+}
+
+function validateConnectorContextShape(fixture, errors) {
+  if (fixture.expected_reason_code !== 'connector.context_invalid') {
+    return;
+  }
+
+  if (!Array.isArray(fixture.allowed_connectors) || fixture.allowed_connectors.length > 0) {
+    errors.push(makeError(
+      'connector_context_no_connectors',
+      '/allowed_connectors',
+      'Connector-context fixture must carry an empty allowed_connectors list.'
+    ));
+  }
+}
+
+function validateLifecycleUnresolvableShape(fixture, errors) {
+  if (fixture.expected_reason_code !== 'lifecycle.unresolved') {
+    return;
+  }
+
+  if (fixture.verification_status !== 'unverified') {
+    errors.push(makeError(
+      'lifecycle_unresolved_status_required',
+      '/verification_status',
+      'Unresolvable-lifecycle fixture must assert verification_status unverified.'
+    ));
+    return;
+  }
+
+  if (hasNonEmptyString(fixture.revoked_at) || hasNonEmptyString(fixture.expires_at)) {
+    errors.push(makeError(
+      'lifecycle_unresolved_no_resolved_events',
+      '/revoked_at',
+      'Unresolvable-lifecycle fixture must not carry resolved lifecycle events.'
+    ));
+  }
+}
+
 function validateBrokenDelegationShape(fixture, errors) {
   if (fixture.expected_reason_code !== 'broken_delegation_chain') {
     return;
@@ -180,6 +297,11 @@ function validateAgentIdentityFixture(fixture, schema) {
   validateRevokedShape(fixture, errors);
   validateExpiredShape(fixture, errors);
   validateWorkspaceMismatchShape(fixture, errors);
+  validateIdentityClaimShape(fixture, errors);
+  validateDelegationScopeExceededShape(fixture, errors);
+  validateDelegationChainInvalidShape(fixture, errors);
+  validateConnectorContextShape(fixture, errors);
+  validateLifecycleUnresolvableShape(fixture, errors);
   validateBrokenDelegationShape(fixture, errors);
 
   return {
