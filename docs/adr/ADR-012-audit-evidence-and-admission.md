@@ -2,12 +2,14 @@
 
 ## Status
 
-**Draft — decision not taken.**
+**Accepted.**
 
 ```text
-CONTRACT_EXISTS_IN_SOURCE: yes, partially, undocumented
-CONTRACT_GENERALIZED:      no
-DECISION_REQUIRED_ON:      post-mutation audit failure surfacing
+AXIS:                      mutation_position
+PRE_MUTATION_FAILURE:      fail_closed
+POST_MUTATION_FAILURE:     must_be_visible
+POST_MUTATION_PROPAGATION: TBD_per_caller_contract
+SILENT_CONTINUE:           forbidden
 ```
 
 This ADR answers one question and refuses to answer more than one:
@@ -20,7 +22,8 @@ It is `docs/task-packs/p1d-audit-family-independence.md` verdict 2
 eight-call-site kernel chokepoint is not routed against a contract nobody has
 written down.
 
-**Nothing is routed here and no code changes.** This is a decision document.
+**Nothing is routed here and no code changes.** Accepting this ADR creates
+conformance debt, listed below, rather than changing behaviour.
 
 ## Source Snapshot
 
@@ -108,55 +111,126 @@ being precise rather than alarming about it: what is lost is the *evidence of a
 refusal*, and the refusal itself still happens. Nothing becomes permitted that
 was not permitted. What is lost is the ability to show later that AB10 fired.
 
-## The decision to take
+## Decision
 
-Finding 1 supplies a rule for both positions and the repository already follows
-it in three of seven places. Two questions remain genuinely open, and only the
-second is hard.
+**A — accepted. The axis is mutation position, not the caller or module.**
 
-**Question A — is position the right axis?** The alternative is per-holder
-decisions. Position is proposed because it is a property of the code the rule
-governs rather than of who wrote it, so it can be checked mechanically and a
-new call site classifies itself.
+> Audit failure semantics are determined by the audit write's position relative
+> to the mutation, not by which caller or module performs it.
 
-**Question B — what does a post-mutation audit failure owe the caller?** Three
-behaviours exist in the repository today for the same position:
+```text
+PRE-MUTATION
+    audit evidence failure -> the mutation MUST NOT proceed
 
-| Option | Behaviour | Cost |
-|---|---|---|
-| **B1 — surface it** | throw / return a reconciliation state, as the ingest writer does | every post-mutation caller must handle a new outcome |
-| **B2 — report it** | return a warning alongside success, as `_commitCliMutation` does | callers may ignore it; it is advisory |
-| **B3 — record it** | swallow, log, continue, as the kernel does | the gap is invisible to anyone but an operator reading logs |
+POST-MUTATION
+    audit evidence failure -> the mutation MUST NOT be undone,
+                              and MUST NOT be hidden
+```
 
-These are not equally good, but they are not simply ranked either: B1 is right
-where a receipt claims to prove something, and disproportionate where the audit
-line is a trace rather than evidence.
+Position is the axis because it is a property of the code the rule governs
+rather than of who wrote it: a new call site classifies itself, and the
+classification is mechanically checkable. Finding 2 is the evidence that it
+partitions cleanly — every write in the family falls on one side, and the 5/3
+split inside `_appendAuditEvent` is the proof that the axis cuts *through*
+modules rather than between them.
 
-The recommendation, offered as one and not as a conclusion:
+**B — decided in part, and deliberately not further.**
 
-- **A: adopt position as the axis**, since it is checkable and already implicit.
-- **B: B1 where a receipt or reconciliation identifier is issued** (the ingest
-  path already does this), **B2 elsewhere**, and **B3 nowhere** — because a
-  silent post-mutation gap is what makes an audit trail unfalsifiable.
+| Case | Decision |
+|---|---|
+| Pre-mutation audit failure | **Fail closed** |
+| Post-mutation audit failure | **Must be visible** |
+| Exact post-mutation propagation | **TBD — per caller contract** |
+| Silent `continue` (B3) | **Forbidden** |
 
-Under that recommendation the work implied is bounded and known: `agent.v3.js`
-moves from swallow to block (pre-position), and the kernel's three
-post-mutation sites move from B3 to B2. The five pre-mutation kernel sites
-would move from swallow to block, which is the largest behavioural change in
-the family and the one most in need of an explicit decision rather than a
-default.
+### The distinction this rests on
+
+> **"Must be visible" is not "must throw."**
+
+B1 (surface as a bounded error state) and B2 (report alongside success) are
+both ways of being visible, and this ADR does **not** choose between them. The
+draft recommended a rule — B1 where a receipt or reconciliation identifier is
+issued, B2 elsewhere — and that rule is **not adopted**: it is not yet proven
+general. #883's MCP finding is exactly why. There, an already-B1 write is
+flattened by the transport into a generic code, which shows that "which
+propagation is right" is a question about the caller's contract and its
+transport, not one that the audit position can answer on its own.
+
+Binding the two together now would tie audit evidence to the error API for no
+demonstrated benefit, and would have to be untied later.
+
+What **is** decided is the floor: B3 is forbidden. A post-mutation audit
+failure that is swallowed makes the absence of evidence invisible, which is the
+one outcome that renders an audit trail unfalsifiable. Everything above that
+floor stays open.
+
+### Consequence: `_appendAuditEvent` is no longer one routing unit
+
+This ADR structurally splits it:
+
+```text
+5 PRE sites   (kernel.js:359, 374, 597, 613, 796)
+    -> admission / fail-closed semantics
+
+3 POST sites  (kernel.js:392, 641, 912)
+    -> visible audit-evidence failure
+       (exact propagation TBD)
+```
+
+The earlier plan — "route all eight through one chokepoint" — is superseded.
+Not because it was inconvenient, but because the two halves now have different
+contracts, and one change cannot satisfy both.
+
+## Conformance debt
+
+Accepting this ADR does not change behaviour. It converts three readings from
+"inconsistent" into "known non-conformant", which is a stronger statement and
+is why they are listed rather than left in prose:
+
+| Site | Position | Today | Required | Gap |
+|---|---|---|---|---|
+| `kernel.js:359, 374, 597, 613, 796` | pre | swallows | fail closed | **fail-open** |
+| `kernel.js:392, 641, 912` | post | swallows | visible | **B3, forbidden** |
+| `agent.v3.js` `_recordBudgetAuditEvent` | pre | swallows | fail closed | **fail-open** |
+
+The `agent.v3.js` gap is bounded and it is worth staying precise about it: what
+is lost is the *evidence that AB10 refused*, not the refusal. Nothing becomes
+permitted that was not permitted. It is still a fail-open under this contract,
+and its caller contract is evaluated on its own — see step 3 below.
+
+Conformant already, and unchanged by this ADR: `lib/cli-mutation-gate.js`
+(pre, blocks), `cli.js` `_commitCliMutation` (post, reports),
+`lib/workbench/ingest-approval-audit-writer.js` (post, surfaces).
+
+## Implementation order
+
+Each step is its own unit, and none of them is authorized by this document
+beyond its position in this list.
+
+1. **The 5 pre sites** -> fail closed.
+2. **The 3 post sites** -> remove the silent swallow; measure the propagation
+   contract separately rather than choosing it here.
+3. **`agent.v3.js`** -> evaluated against its own caller contract.
+4. **`lib/cli-mutation-audit.js`** -> evaluated against the #760 contract it
+   already participates in.
+5. **The MCP flattening** -> its own small decision. Not patched ahead of the
+   rule.
 
 ## What this ADR does not decide
 
 - It does not decide whether admission refusals and audit failures share a
   vocabulary. They stay distinguishable regardless of what is chosen above.
 - It does not decide the MCP surface's flattening of `AUDIT_EVIDENCE_MISSING`
-  to `APPROVAL_EXECUTION_FAILED` (recorded in `p1d`). That is a *surfacing*
-  question that question B governs, and it should be settled by the rule rather
-  than patched ahead of it.
+  to `APPROVAL_EXECUTION_FAILED` (recorded in `p1d`). It is step 5, and it is a
+  caller-contract question, not one the position axis settles.
+- **It does not require any site to throw.** Visibility is the requirement;
+  the mechanism is the caller's contract.
 - It does not authorize routing anything. `kernel._appendAuditEvent`,
-  `agent.v3.js` and `lib/cli-mutation-audit.js` stay unrouted until this is
-  accepted.
+  `agent.v3.js` and `lib/cli-mutation-audit.js` stay unrouted; the
+  implementation order above says in what order that is taken up, not that it
+  is approved.
 - It does not claim the classification in finding 2 is permanent. It is pinned
-  by `test/audit-evidence-position.test.js` so that a new audit write cannot
-  join the family unclassified.
+  by `test/audit-evidence-position.test.js`, which asserts the code as it is
+  today -- including the three non-conformant sites -- so that the debt above
+  is measured rather than asserted, and a new audit write cannot join the
+  family unclassified.

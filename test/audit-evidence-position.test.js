@@ -8,14 +8,19 @@
  * happens before the mutation (where a failure can still prevent it) or after
  * (where it cannot, and refusing would only hide a completed write).
  *
- * That classification is the whole basis of the decision, so it must not be a
- * reading someone did once. These tests pin it. They deliberately assert
- * **what the code does today**, including the three places ADR-012 identifies
- * as inconsistent -- a test that asserted the proposed contract instead would
- * fail before the decision was taken and would quietly pressure the outcome.
+ * ADR-012 is now **accepted**: pre-mutation audit failure fails closed,
+ * post-mutation audit failure must be visible, and a silent continue is
+ * forbidden.
  *
- * When ADR-012 is accepted, the expectations below change with the code, and
- * the diff shows exactly which behaviours the decision altered.
+ * These tests still assert **what the code does today**, which after
+ * acceptance means they assert the *non-conformance* as well. That is
+ * deliberate. A test rewritten to assert the accepted contract would fail on
+ * every site that has not been migrated yet, turning a decision into a broken
+ * build and pressuring the migration to happen all at once -- which is exactly
+ * what splitting _appendAuditEvent into two units was meant to avoid.
+ *
+ * So the debt is measured here rather than asserted away, and each
+ * implementation step flips its own expectations in its own diff.
  */
 
 const assert = require('node:assert/strict');
@@ -84,13 +89,26 @@ test('the post-mutation CLI audit reports rather than blocks', () => {
  * decision was taken.
  */
 const CLASSIFICATION = Object.freeze([
-  { site: 'lib/cli-mutation-gate.js', position: 'pre', onFailure: 'blocks', consistent: true },
-  { site: 'cli.js', position: 'post', onFailure: 'reports', consistent: true },
-  { site: 'agent.v3.js', position: 'pre', onFailure: 'swallows', consistent: false },
-  { site: 'lib/workbench/ingest-approval-audit-writer.js', position: 'post', onFailure: 'surfaces', consistent: true },
-  { site: 'kernel.js:pre', position: 'pre', onFailure: 'swallows', consistent: false },
-  { site: 'kernel.js:post', position: 'post', onFailure: 'swallows', consistent: false },
+  { site: 'lib/cli-mutation-gate.js', position: 'pre', onFailure: 'blocks', conformant: true },
+  { site: 'cli.js', position: 'post', onFailure: 'reports', conformant: true },
+  { site: 'agent.v3.js', position: 'pre', onFailure: 'swallows', conformant: false },
+  { site: 'lib/workbench/ingest-approval-audit-writer.js', position: 'post', onFailure: 'surfaces', conformant: true },
+  { site: 'kernel.js:pre', position: 'pre', onFailure: 'swallows', conformant: false },
+  { site: 'kernel.js:post', position: 'post', onFailure: 'swallows', conformant: false },
 ]);
+
+/**
+ * The accepted contract, as a predicate rather than as prose.
+ *
+ * Both conformant post-mutation sites do different things -- one surfaces a
+ * bounded error state, the other returns a warning -- and both satisfy the
+ * contract. Encoding it this way is what keeps "visible" from silently
+ * hardening into "throws".
+ */
+function conformsToAdr012({ position, onFailure }) {
+  if (position === 'pre') return onFailure === 'blocks';
+  return onFailure === 'surfaces' || onFailure === 'reports';
+}
 
 test('the kernel chokepoint straddles both positions', () => {
   // This is ADR-012's load-bearing finding: _appendAuditEvent is not one
@@ -116,10 +134,10 @@ test('the kernel chokepoint straddles both positions', () => {
 });
 
 test('the kernel swallows failures at both positions today', () => {
-  // Recorded as the current state, not endorsed. Under ADR-012's recommendation
-  // the pre sites would block and the post sites would report; both are
-  // decisions to be taken, so this test asserts what is, and will change with
-  // the code when it is.
+  // Recorded as the current state, not endorsed. Under the accepted contract
+  // the pre sites must fail closed and the post sites must be visible, so both
+  // halves are non-conformant today. Steps 1 and 2 of ADR-012's implementation
+  // order flip this expectation, each in its own diff.
   assert.match(
     readSource('kernel.js'),
     /_appendAuditEvent\([\s\S]{0,400}?catch \(error\) \{[\s\S]{0,120}?return null;/,
@@ -131,7 +149,8 @@ test('agent.v3 is the one pre-mutation write that does not block', () => {
   const source = readSource('agent.v3.js');
 
   // The audit records an AB10 refusal. It is a pre-mutation position by
-  // ADR-012's test, and it swallows -- the inconsistency the ADR names.
+  // ADR-012's test, and it swallows -- a fail-open under the accepted
+  // contract, carried as debt until step 3 evaluates its caller contract.
   assert.match(source, /_recordBudgetAuditEvent[\s\S]{0,900}?catch \(_\) \{/);
 
   // What is lost is the evidence of a refusal, not the refusal. Stated as a
@@ -162,9 +181,6 @@ test('the ingest writer is the only post-mutation write that surfaces the gap', 
 
 test('the classification covers every holder ADR-012 scopes', () => {
   // A guard against the table going stale by omission rather than by error.
-  const inconsistent = CLASSIFICATION.filter((row) => !row.consistent).map((row) => row.site);
-
-  assert.deepEqual(inconsistent, ['agent.v3.js', 'kernel.js:pre', 'kernel.js:post']);
   assert.equal(CLASSIFICATION.filter((row) => row.position === 'pre').length, 3);
   assert.equal(CLASSIFICATION.filter((row) => row.position === 'post').length, 3);
 
@@ -173,6 +189,53 @@ test('the classification covers every holder ADR-012 scopes', () => {
     const file = row.site.split(':')[0];
     assert.ok(adr.includes(file), `ADR-012 must name ${file}`);
   }
-  // The decision must still be open: an accepted ADR changes these tests too.
-  assert.match(adr, /\*\*Draft — decision not taken\.\*\*/);
+});
+
+test('the conformance debt is exactly what ADR-012 lists', () => {
+  // The contract as a predicate, applied to the measured classification. This
+  // is the debt ledger: it must shrink through the implementation steps and
+  // must never grow silently.
+  const debt = CLASSIFICATION.filter((row) => !conformsToAdr012(row)).map((row) => row.site);
+
+  assert.deepEqual(debt, ['agent.v3.js', 'kernel.js:pre', 'kernel.js:post']);
+  assert.deepEqual(
+    CLASSIFICATION.filter((row) => !row.conformant).map((row) => row.site),
+    debt,
+    'the recorded conformance flag must agree with the contract predicate',
+  );
+});
+
+test('"visible" is not "throws": both conformant post sites satisfy the contract differently', () => {
+  // The load-bearing distinction of the accepted decision. B1 (surface a
+  // bounded state) and B2 (report alongside success) are both visible, and
+  // ADR-012 chooses neither -- propagation is TBD per caller contract.
+  //
+  // If someone later narrows the predicate to require throwing, this test
+  // fails, and it fails naming the site that would be wrongly condemned.
+  const surfaces = CLASSIFICATION.find((row) => row.onFailure === 'surfaces');
+  const reports = CLASSIFICATION.find((row) => row.onFailure === 'reports');
+
+  assert.ok(conformsToAdr012(surfaces), 'a bounded error state is visible');
+  assert.ok(conformsToAdr012(reports), 'a warning alongside success is visible');
+  assert.notEqual(surfaces.onFailure, reports.onFailure);
+
+  // And the floor that *is* decided: silence is not visibility.
+  assert.equal(conformsToAdr012({ position: 'post', onFailure: 'swallows' }), false);
+});
+
+test('ADR-012 is accepted, and says visible rather than throw', () => {
+  const adr = readSource('docs/adr/ADR-012-audit-evidence-and-admission.md');
+
+  // Acceptance was designed to be a visible act: the draft version of this
+  // test asserted the opposite, so flipping it is part of the decision's diff.
+  assert.match(adr, /\*\*Accepted\.\*\*/);
+  assert.match(adr, /PRE_MUTATION_FAILURE:\s+fail_closed/);
+  assert.match(adr, /POST_MUTATION_FAILURE:\s+must_be_visible/);
+  assert.match(adr, /POST_MUTATION_PROPAGATION:\s+TBD_per_caller_contract/);
+  assert.match(adr, /SILENT_CONTINUE:\s+forbidden/);
+
+  // The rule the draft recommended was explicitly not adopted. Pinned so a
+  // later reader does not mistake the recommendation for the decision.
+  assert.match(adr, /is \*\*not adopted\*\*/);
+  assert.match(adr, /"Must be visible" is not "must throw\."/);
 });
