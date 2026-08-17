@@ -121,12 +121,7 @@ class AxiomStorage {
         ORDER BY updated_at DESC
         LIMIT 1
       `),
-      getCheckpointById: this.db.prepare(`
-        SELECT *
-        FROM checkpoints
-        WHERE id = ? AND goal_key = ? AND workspace_id = ? AND status != 'completed'
-        LIMIT 1
-      `),
+      getCheckpointById: this.db.prepare('SELECT * FROM checkpoints WHERE id = ? AND goal_key = ? AND workspace_id = ? AND status != \'completed\' LIMIT 1'),
       deleteCheckpoint: this.db.prepare('DELETE FROM checkpoints WHERE id = ?'),
       upsertGoalMemory: this.db.prepare(`
         INSERT INTO goal_memory (
@@ -403,16 +398,10 @@ class AxiomStorage {
     };
   }
 
-  /**
-   * Load a checkpoint by its explicit id, still scoped to goal + workspace.
-   *
-   * The MCP continuation contract and AgentV3 both ask callers to name the
-   * checkpoint they want to resume. A latest-only lookup rejects an older but
-   * still resumable checkpoint with the wrong id, so an explicit id must be
-   * matched against the right goal and workspace rather than replaced by the
-   * newest row. `loadLatestCheckpoint` remains the default when no id is
-   * given; this method is only for named selection.
-   */
+  // Named checkpoint lookup for explicit continuation requests. Scopes the
+  // id to goal + workspace so a named checkpoint from another scope cannot
+  // hydrate this run; completed rows stay invisible. `loadLatestCheckpoint`
+  // remains the default when no id is named.
   loadCheckpoint(id, goal, workspaceId) {
     const row = this._stmts.getCheckpointById.get(
       String(id), lower(goal), normalizeWorkspaceId(workspaceId),
