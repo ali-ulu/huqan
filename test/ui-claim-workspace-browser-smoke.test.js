@@ -253,7 +253,42 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     assert.ok(raw.includes(receiptId), 'the opened receipt does not match the clicked identifier');
   });
 
-  it('records no uncaught browser exception across the session', () => {
+  it('opens the receipt from the keyboard as well as the mouse', async () => {
+    // The entry renders as role="button" with tabindex="0", so it promises
+    // keyboard operation. A mouse-only handler would leave a keyboard user
+    // focused on something that announces as a button and does nothing
+    // (WCAG 2.1.1), and a .click()-driven assertion cannot see that.
+    //
+    // Target the approval receipt by id rather than by position: reading a
+    // receipt pushes its own identifier onto the recent list, so by now the
+    // first entry is no longer the one the approval produced.
+    const selector = `#recent [data-receipt=${JSON.stringify(receiptId)}]`;
+    await browser.evaluate(`
+      document.getElementById('einput').value = '';
+      document.getElementById('estatus').textContent = '';
+      document.getElementById('raw').textContent = '';
+      const node = document.querySelector(${JSON.stringify(selector)});
+      node.focus();
+      node.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      true;
+    `);
+    await waitFor(
+      `document.getElementById('estatus').textContent !== 'Kanıt okunuyor…'
+        && document.getElementById('estatus').textContent.length > 0`,
+      'the keyboard-triggered receipt read to settle',
+    );
+
+    const estatus = await browser.evaluate(`document.getElementById('estatus').textContent`);
+    const raw = await browser.evaluate(`document.getElementById('raw').textContent`);
+    assert.match(estatus, /^Receipt bulundu\.$/, `keyboard receipt handoff failed: ${estatus}`);
+    assert.ok(raw.includes(receiptId), 'the keyboard-opened receipt does not match the focused identifier');
+  });
+
+  it('records no uncaught browser exception or console error across the session', () => {
     assert.deepEqual(browser.exceptions, [], `uncaught browser exceptions: ${browser.exceptions.join(' | ')}`);
+    // AC-785-10 asks for a clean console, not merely the absence of a crash.
+    // A workflow error the page caught and logged still means the workflow
+    // broke, so the driver's console channel has to be asserted too.
+    assert.deepEqual(browser.consoleErrors, [], `console errors: ${browser.consoleErrors.join(' | ')}`);
   });
 });
