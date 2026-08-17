@@ -25,6 +25,7 @@ const { receiptReadFailure } = require('./lib/http/receipt-read-failures');
 const { createWorkbenchReadHttpRouter } = require('./lib/workbench/workbench-read-http-router');
 const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
 const { handleWorkflowContractRoute, writeUnavailableWorkflow } = require('./lib/http/workflow-contract-route');
+
 const { createReadWorkflowHttpRouter } = require('./lib/http/read-workflow-actions');
 const { createWorkflowDataRoutes } = require('./lib/http/workflow-data-routes');
 const { readExactWorkspace } = require('./lib/http/exact-workspace');
@@ -150,6 +151,32 @@ async function submitIngestApproval(data) {
 }
 
 const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, decision }) => decideIngestApproval({ store: getIngestApprovalStore(), kernel, approvalId, decision, handleIngest, ensureRuntime: ensureCompanyRuntime, recordAudit: recordIngestApprovalAudit, toPublicApproval: publicIngestApproval, workerId: INGEST_APPROVAL_WORKER_ID, leaseMs: INGEST_APPROVAL_LEASE_MS }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, learnDocument: (text, options) => kernel.learnDocument(text, options), submitIngest: submitIngestApproval, createAgent: () => createAgent({ kernel, version: readCompatibleEnvironmentVariable('AGENT_VERSION') }) });
+
+// First caller of the V5 runtime family (#875 task pack). Issuer key records
+// are dependency-injected as receiver-owned state: with no real registry
+// populated yet the resolver answers every issuer as unknown and the route
+// stays fail-closed. No issuer record may ever come from the request body.
+const issuerTrustedKeyRecords = [];
+let v5PackageImportRouteCache = null;
+function handleV5PackageImportRoute(req, res, reqUrl) {
+  // Lazy load: the V5 runtime family is repo-only (4C1 keeps the installed
+  // tarball minimal), so server.js must still load when the V5 module cannot
+  // be required. The route is activated by request, never at boot.
+  if (v5PackageImportRouteCache === null) {
+    try {
+      const { createV5PackageImportRoute, createReceiverTrustedKeyResolver } = require('./lib/http/v5-package-import-route');
+      v5PackageImportRouteCache = createV5PackageImportRoute({
+        parseJsonRequest,
+        trustedKeyResolver: createReceiverTrustedKeyResolver({ issuerRecords: issuerTrustedKeyRecords }),
+      });
+    } catch (_) {
+      // V5 module not available in this installation (installed tarball):
+      // the endpoint stays permanently unavailable instead of booting broken.
+      v5PackageImportRouteCache = () => false;
+    }
+  }
+  return v5PackageImportRouteCache(req, res, reqUrl);
+}
 
 function checkViewerRateLimit(req, timestamp = Date.now()) {
   const key = String(req.socket?.remoteAddress || 'unknown');
@@ -490,6 +517,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (await a2aBoundary.route(req, res, reqUrl)) return;
+  if (await handleV5PackageImportRoute(req, res, reqUrl)) return;
   if (handleWorkflowContractRoute(req, res, reqUrl) || await handleReadWorkflow(req, res, reqUrl)) return;
   if (await handleWorkflowDataRoute(req, res, reqUrl)) return;
   // --- /graph-data ---
