@@ -16,9 +16,14 @@
  * Section 4 covers `admitCandidateIngress`, which has to prove something
  * different: not that a payload was sealed, but that the *routing decision and
  * its writes* happen inside the admitted effect, across all three families
- * `routeCandidateClaim` touches — and that the two candidate entry points it
- * does not cover stay visible as debt rather than being absorbed into the
- * claim.
+ * `routeCandidateClaim` touches — and that the candidate entry points it does
+ * not cover stay visible as debt rather than being absorbed into the claim.
+ *
+ * Section 5 covers `admitAddCandidateClaim`, the candidate family's second
+ * routed entry point. Its burden is mostly about what must *not* change: the
+ * pre-existing availability fault still throws without consulting the seam, and
+ * the path still performs no conflict detection. Routing a caller may not
+ * repair it.
  */
 
 const assert = require('node:assert/strict');
@@ -29,9 +34,11 @@ const test = require('node:test');
 const { createMutationAdmission } = require('../lib/mutation-admission.js');
 const {
   ABSENCE_REASONS,
+  ADD_CANDIDATE_CLAIM_ACTION,
   CANDIDATE_ABSENCE_REASONS,
   CANDIDATE_INGRESS_ACTION,
   LEARN_ACTION,
+  admitAddCandidateClaim,
   admitCandidateIngress,
   admitLearn,
 } = require('../lib/kernel-mutation-admission.js');
@@ -319,15 +326,19 @@ test('candidate ingress: the real seam admits, and kernel.ingestCandidateClaim h
   assert.match(kernelSource, /admitCandidateIngress\(this, input, opts\)/);
 });
 
-test('candidate ingress: routing this entry point does NOT route the candidate family', () => {
+test('candidate family: two of three entry points are routed, the third is still open', () => {
   // The point of this test is to keep an overclaim from becoming possible by
-  // omission. Two production entry points still reach graph.addCandidateClaim
-  // without passing the seam; if either is ever routed, this test fails and
-  // whoever routed it must restate the claim deliberately.
+  // omission. It failed when kernel.addCandidateClaim was routed, which is the
+  // design working: routing an entry point forces whoever did it to restate the
+  // family-level claim deliberately instead of inheriting the old wording.
   const kernelSource = fs.readFileSync(path.join(repoRoot, 'kernel.js'), 'utf8');
-  assert.match(kernelSource, /return this\.graph\.addCandidateClaim\(candidate, opts\);/,
-    'kernel.addCandidateClaim is expected to still bypass admission');
+  assert.equal((kernelSource.match(/this\.graph\.addCandidateClaim\(/g) || []).length, 0,
+    'kernel.addCandidateClaim must reach the graph only through admitAddCandidateClaim');
+  assert.match(kernelSource, /admitAddCandidateClaim\(this, candidate, opts\)/);
 
+  // The one remaining production ingress. It bypasses the kernel entirely, so
+  // there is nothing here for it to reuse: routing it is a separate unit rather
+  // than a follow-on edit to this module.
   const externalClient = fs.readFileSync(
     path.join(repoRoot, 'lib/external-client-mutation-receipt-owner.js'), 'utf8');
   assert.match(externalClient, /graph\.addCandidateClaim\(/,
@@ -362,4 +373,99 @@ test('candidate ingress context: caller-supplied actors are not promoted, worksp
   assert.equal(seen[1].delegationContext.kind, 'absent');
   assert.equal(JSON.stringify(seen[1]).includes('cli-user'), false);
   assert.equal(JSON.stringify(seen[1]).includes('reviewer-a'), false);
+});
+
+// --- 5. the direct candidate write ----------------------------------------
+
+test('addCandidateClaim: a refusal stores no row', () => {
+  const kernel = makeCandidateKernel('acc-refused');
+  const admission = { admit: () => ({ admitted: false, reason: 'admission.context_invalid' }) };
+
+  assert.throws(
+    () => admitAddCandidateClaim(kernel, makeClaim(), { workspaceId: 'workspace-a' }, admission),
+    (error) => {
+      assert.equal(error.code, 'MUTATION_ADMISSION_REFUSED');
+      return true;
+    },
+  );
+  assert.deepEqual(kernel.graph.getCandidateClaims({ workspaceId: 'workspace-a' }), []);
+});
+
+test('addCandidateClaim: the write runs inside the admitted effect', () => {
+  const kernel = makeCandidateKernel('acc-inside');
+  let rowsBeforeMutate = null;
+  const admission = {
+    admit: (context, mutate) => {
+      rowsBeforeMutate = kernel.graph.getCandidateClaims({ workspaceId: 'workspace-a' }).length;
+      return { admitted: true, result: mutate() };
+    },
+  };
+
+  kernel._mutationAdmission = admission;
+  kernel.addCandidateClaim(makeClaim(), { workspaceId: 'workspace-a' });
+
+  assert.equal(rowsBeforeMutate, 0);
+  assert.equal(kernel.graph.getCandidateClaims({ workspaceId: 'workspace-a' }).length, 1);
+});
+
+test('addCandidateClaim: the availability fault still throws, and never reaches admission', () => {
+  // Preserved exactly: "there is nothing to write to" is an infrastructure
+  // fault, not a decision about whether a write is permitted, so it must not
+  // arrive at the seam as an admitted-then-failed mutation.
+  const admission = { admit: () => { throw new Error('admission must not be consulted'); } };
+
+  assert.throws(
+    () => admitAddCandidateClaim({ graph: null }, makeClaim(), {}, admission),
+    /Graph candidate claim storage is unavailable\./,
+  );
+  assert.throws(
+    () => admitAddCandidateClaim({ graph: {} }, makeClaim(), {}, admission),
+    /Graph candidate claim storage is unavailable\./,
+  );
+});
+
+test('addCandidateClaim: it is a distinct action from candidate ingress, because it skips conflict detection', () => {
+  const kernel = makeCandidateKernel('acc-action');
+  const seen = [];
+  const admission = {
+    admit: (context, mutate) => { seen.push(context); return { admitted: true, result: mutate() }; },
+  };
+
+  admitAddCandidateClaim(kernel, makeClaim(), { workspaceId: 'workspace-a' }, admission);
+
+  assert.equal(seen[0].action, ADD_CANDIDATE_CLAIM_ACTION);
+  assert.notEqual(ADD_CANDIDATE_CLAIM_ACTION, CANDIDATE_INGRESS_ACTION);
+
+  // The behavioural difference the distinct action exists to make expressible.
+  // Contrast with the ingress test above, which ends at status 'accepted' with a
+  // conflict evaluated and a canonical edge written: here nothing is decided.
+  const stored = kernel.graph.getCandidateClaims({ workspaceId: 'workspace-a' });
+  assert.equal(stored.length, 1);
+  assert.equal(stored[0].conflict, null, 'no conflict was evaluated on this path');
+  assert.equal(stored[0].status, 'pending', 'no accept/reject decision was taken');
+  assert.equal(kernel.graph.getEdge('kedi', 'hayvan', 'IS_A', 'workspace-a'), null,
+    'the direct write must not produce a canonical edge');
+});
+
+test('addCandidateClaim: the workspace is resolved with the sink\'s own four-source precedence', () => {
+  const kernel = makeCandidateKernel('acc-workspace');
+  const seen = [];
+  const admission = {
+    admit: (context, mutate) => { seen.push(context); return { admitted: true, result: mutate() }; },
+  };
+
+  // Each call drops one source, so the next one down has to be the one used.
+  admitAddCandidateClaim(kernel, { ...makeClaim(), workspaceId: 'from-claim' }, { workspaceId: '  from-opts  ' }, admission);
+  admitAddCandidateClaim(kernel, { ...makeClaim(), workspaceId: 'from-claim' }, {}, admission);
+  admitAddCandidateClaim(kernel, makeClaim(), {}, admission);
+  admitAddCandidateClaim(kernel, { claim: 'x', proposedEdge: { workspaceId: 'from-edge' } }, {}, admission);
+  admitAddCandidateClaim(kernel, { claim: 'x' }, {}, admission);
+
+  assert.deepEqual(seen.map((context) => context.workspaceId), [
+    'from-opts',
+    'from-claim',
+    'workspace-a', // provenance.workspaceId
+    'from-edge',
+    'default',
+  ]);
 });

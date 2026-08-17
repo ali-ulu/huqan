@@ -58,7 +58,7 @@ const {
   normalizeWorkspaceId,
 } = require('./lib/cli-mutation-audit-intent');
 const { recordCliMutationAudit } = require('./lib/cli-mutation-audit');
-const { admitCandidateIngress, admitLearn } = require('./lib/kernel-mutation-admission');
+const { admitAddCandidateClaim, admitCandidateIngress, admitLearn } = require('./lib/kernel-mutation-admission');
 const {
   normalizeExplicitRelationObject,
   parseExplicitRelationPredicate,
@@ -832,10 +832,7 @@ class Kernel {
 
   // r1: Internal learn implementation
   addCandidateClaim(candidate, opts = {}) {
-    if (!this.graph || typeof this.graph.addCandidateClaim !== 'function') {
-      throw new Error('Graph candidate claim storage is unavailable.');
-    }
-    return this.graph.addCandidateClaim(candidate, opts);
+    return admitAddCandidateClaim(this, candidate, opts);
   }
 
   getCandidateClaims(filters = {}) {

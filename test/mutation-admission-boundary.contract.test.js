@@ -86,8 +86,7 @@ const SINK_METHODS = Object.freeze([
  */
 const UNROUTED_SINK_CALLS = Object.freeze({
   // --- production mutation paths: the ones P1 must route -------------------
-  'kernel.js': { why: 'knowledge, candidate and audit families; the largest routing target', sinks: { addNode: 1, addEdge: 3, addCandidateClaim: 1, appendAuditEvent: 1 } },
-  'kernel.v2.js': { why: 'candidate family on the V2 surface', sinks: { addCandidateClaim: 1 } },
+  'kernel.js': { why: 'knowledge and audit families; its candidate write now lives in lib/kernel-mutation-admission.js', sinks: { addNode: 1, addEdge: 3, appendAuditEvent: 1 } },
   'agent.v3.js': { why: 'audit family', sinks: { appendAuditEvent: 2 } },
   'lib/cli-mutation-audit.js': { why: 'audit family, CLI surface', sinks: { appendAuditEvent: 1 } },
   'lib/mcp-ingest-execute-tool.js': { why: 'audit family, MCP surface', sinks: { appendAuditEvent: 1 } },
@@ -130,6 +129,20 @@ const ROUTED_SINK_CALLS = Object.freeze({
   'lib/workbench/ingest-approval-audit-writer.js': {
     why: 'P1 first routed caller; the sole write runs inside admission.admit()',
     sinks: { appendAuditEvent: 1 },
+  },
+  // Lexical, like the entry above: the sink call is written inside the admit()
+  // callback in admitAddCandidateClaim, having moved here out of kernel.js.
+  'lib/kernel-mutation-admission.js': {
+    why: 'candidate family; kernel.addCandidateClaim writes from inside admission.admit()',
+    sinks: { addCandidateClaim: 1 },
+  },
+  // Not a sink call at all: kernel.v2.js delegates to kernel.addCandidateClaim,
+  // and the receiver-agnostic scan counts it because it matches the method name.
+  // Listed here rather than left unrouted because the method it delegates to is
+  // now admitted, so no V2 caller can reach the graph without passing the seam.
+  'kernel.v2.js': {
+    why: 'candidate family on the V2 surface; delegates to the admitted kernel.addCandidateClaim',
+    sinks: { addCandidateClaim: 1 },
   },
   // A *transitive* routing claim, and weaker than the lexical one above: these
   // sinks are not inside an admit() callback, they are downstream of one. It
@@ -287,7 +300,7 @@ test('mutation admission: the debt ledger reflects the routing done so far', () 
   // exists, it has moved inside an admission callback. Success is UNROUTED
   // reaching zero, not the total shrinking. Pinning both numbers here keeps
   // that distinction from being quietly re-interpreted later.
-  assert.equal(unrouted, 24, 'unrouted sink calls');
-  assert.equal(routed, 21, 'sink calls routed through admission');
+  assert.equal(unrouted, 22, 'unrouted sink calls');
+  assert.equal(routed, 23, 'sink calls routed through admission');
   assert.equal(unrouted + routed, 45, 'total sink calls is expected to stay constant');
 });
