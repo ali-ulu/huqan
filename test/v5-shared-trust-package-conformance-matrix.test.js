@@ -62,7 +62,7 @@ test('V5 Shared Trust Package conformance matrix rows have required fields and s
   const matrix = readMatrix();
 
   assert.equal(Array.isArray(matrix.rows), true);
-  assert.equal(matrix.rows.length, 16);
+  assert.equal(matrix.rows.length, 17);
 
   for (const row of matrix.rows) {
     for (const field of requiredRowFields) {

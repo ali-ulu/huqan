@@ -194,6 +194,70 @@ test('rejection never reads as success — no 5xx-as-2xx, no ok:true on blocked 
   }
 });
 
+test('source snapshot binding is carried exactly as supplied — carried or rejected, never fixed up', async () => {
+  // `receipt.sourceSnapshot` is an optional immutable source binding.
+  // The route never re-hashes, re-versions, or "fixes up" a supplied
+  // snapshot: it carries it as-is, or rejects it whole (fail-closed).
+  // The snapshot may not carry secret-looking material; a secret-looking
+  // value is a write-time rejection with no durable trace of the
+  // snapshot. Contract: docs/v5/v5-immutable-source-snapshot-contract.md
+  // (Section 2).
+  const activeKey = {
+    keyReference: 'agent-test-001',
+    status: 'active',
+    publicKeySpkiDer: Buffer.alloc(44, 0x41),
+  };
+  const resolver = createReceiverTrustedKeyResolver({ issuerRecords: [activeKey] });
+  // Bounded verification currently fails closed on every signature
+  // shape, so a package that survives the snapshot gate still cannot be
+  // admitted today. What this test pins down is the snapshot's position
+  // in the chain: a malformed snapshot is rejected at the schema gate,
+  // and a secret-looking snapshot is rejected for its own reason.
+  const handler = createV5PackageImportRoute({ parseJsonRequest, trustedKeyResolver: resolver });
+
+  const base = minimalValidPackage();
+  const validSnapshot = {
+    snapshotId: 'snap-test-001',
+    snapshotVersion: 'huqan.external-source-snapshot.v1',
+    hash: 'a'.repeat(64),
+    algorithm: 'sha256',
+  };
+
+  // Valid snapshot: passes the snapshot gate; the later verification
+  // gate still fails closed as intended — no durable trace is left on
+  // rejection, and the snapshot reason never appears on rejection
+  // details (rejection details may not carry package body fields).
+  const withSnapshot = makeRequest({ body: { ...base, receipt: { ...base.receipt, sourceSnapshot: validSnapshot } } });
+  const resSnapshot = makeResponse();
+  await handler(withSnapshot, resSnapshot, new URL('http://x/api/v5/packages'));
+  assert.notEqual(resSnapshot.statusCode, 200);
+  assert.notEqual(resSnapshot._body.error.code, 'INVALID_PACKAGE_SCHEMA');
+  assert.equal(Object.hasOwn(resSnapshot._body.error.details || {}, 'sourceSnapshot'), false);
+
+  // Malformed snapshot (bad hash): rejected whole by the fail-closed
+  // schema gate, before the trust or verification gates are evaluated.
+  const malformed = makeRequest({ body: { ...base, receipt: { ...base.receipt, sourceSnapshot: { ...validSnapshot, hash: 'not-hex' } } } });
+  const resMalformed = makeResponse();
+  await handler(malformed, resMalformed, new URL('http://x/api/v5/packages'));
+  assert.equal(resMalformed.statusCode, 400);
+  assert.equal(resMalformed._body.error.code, 'INVALID_PACKAGE_SCHEMA');
+
+  // Extra keys in the snapshot shape: unknown fields are schema-rejected.
+  const extraKey = makeRequest({ body: { ...base, receipt: { ...base.receipt, sourceSnapshot: { ...validSnapshot, extraField: 'x' } } } });
+  const resExtra = makeResponse();
+  await handler(extraKey, resExtra, new URL('http://x/api/v5/packages'));
+  assert.equal(resExtra.statusCode, 400);
+  assert.equal(resExtra._body.error.code, 'INVALID_PACKAGE_SCHEMA');
+
+  // Secret-looking value in the snapshot: rejected whole at write time,
+  // matching the receipt plane's secret-detection semantics.
+  const secret = makeRequest({ body: { ...base, receipt: { ...base.receipt, sourceSnapshot: { ...validSnapshot, snapshotId: 'snap-with-token-credential' } } } });
+  const resSecret = makeResponse();
+  await handler(secret, resSecret, new URL('http://x/api/v5/packages'));
+  assert.equal(resSecret.statusCode, 400);
+  assert.equal(resSecret._body.error.code, 'INVALID_SOURCE_SNAPSHOT');
+});
+
 test('route rejects construction without required dependencies', () => {
   assert.throws(() => createV5PackageImportRoute({ parseJsonRequest }), TypeError);
   assert.throws(() => createV5PackageImportRoute({ trustedKeyResolver: () => {} }), TypeError);
