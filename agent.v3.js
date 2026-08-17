@@ -422,10 +422,20 @@ class AgentV3 {
       }
     }
 
+    // Named selection beats recency: an explicit checkpointId must be
+    // matched against the right goal and workspace rather than replaced
+    // by the newest resumable row. Latest stays the default only when no
+    // id is named, or the named row is not resumable under this scope.
+    // (#880)
     let resumeRecord = null;
     if (opts.resume !== false) {
       try {
-        resumeRecord = this.storage.loadLatestCheckpoint(goal, workspaceId);
+        if (requestedCheckpointId && typeof this.storage.loadCheckpoint === 'function') {
+          resumeRecord = this.storage.loadCheckpoint(requestedCheckpointId, goal, workspaceId);
+        }
+        if (!resumeRecord) {
+          resumeRecord = this.storage.loadLatestCheckpoint(goal, workspaceId);
+        }
       } catch (err) {
         return this._storageFailure('loadLatestCheckpoint', err);
       }
