@@ -126,6 +126,34 @@
               }
             }
           }
+        },
+        "sourceSnapshot": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "snapshotId",
+            "snapshotVersion",
+            "hash",
+            "algorithm"
+          ],
+          "properties": {
+            "snapshotId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "snapshotVersion": {
+              "type": "string",
+              "const": "huqan.external-source-snapshot.v1"
+            },
+            "hash": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "algorithm": {
+              "type": "string",
+              "const": "sha256"
+            }
+          }
         }
       }
     },

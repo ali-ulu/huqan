@@ -67,6 +67,7 @@ The planned package envelope should include:
 | `trust_contract_version` | Shared trust contract version used by producer and consumer. |
 | `identity_contract_ref` | Link to the Agent Identity Contract evidence used by the package. |
 | `receipt_bundle` | Trust Receipts included or referenced by this package. |
+| `source_snapshot` | Optional immutable source binding nested inside the receipt envelope (`receipt.sourceSnapshot`). Exact key set: `{ snapshotId, snapshotVersion: "huqan.external-source-snapshot.v1", hash: <sha256 hex over the canonical binding view>, algorithm: "sha256" }`. A content binding only — it asserts what the source looked like when the package was written; it proves nothing about provenance, authorization, or identity. Contract: `docs/v5/v5-immutable-source-snapshot-contract.md`. |
 | `route_receipts` | Route/hop receipts describing handoff or delegation movement. |
 | `reasoning_metadata` | Bounded deterministic explanation metadata. |
 | `evidence_refs` | References to supporting evidence, artifacts, or fixtures. |
