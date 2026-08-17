@@ -90,7 +90,6 @@ const UNROUTED_SINK_CALLS = Object.freeze({
   'agent.v3.js': { why: 'audit family', sinks: { appendAuditEvent: 2 } },
   'lib/cli-mutation-audit.js': { why: 'audit family, CLI surface', sinks: { appendAuditEvent: 1 } },
   'lib/mcp-ingest-execute-tool.js': { why: 'audit family, MCP surface', sinks: { appendAuditEvent: 1 } },
-  'lib/external-client-mutation-receipt-owner.js': { why: 'candidate family, external client surface', sinks: { addCandidateClaim: 1 } },
 
   // --- second sink provider ------------------------------------------------
   // Not a caller in the usual sense: it wraps a Graph and re-exposes the sinks.
@@ -142,6 +141,15 @@ const ROUTED_SINK_CALLS = Object.freeze({
   // now admitted, so no V2 caller can reach the graph without passing the seam.
   'kernel.v2.js': {
     why: 'candidate family on the V2 surface; delegates to the admitted kernel.addCandidateClaim',
+    sinks: { addCandidateClaim: 1 },
+  },
+  // Lexical. The durable commit -- runMutationOnce and the sink inside it -- is
+  // the admitted effect, so a refusal leaves no journal entry, row or receipt.
+  // This is the only routed caller whose identity is receiver-verified before
+  // the seam is reached; it still declares absence, because what is missing is
+  // a claim *shape* (gate 3), not an identity. Its ABSENCE_REASONS say so.
+  'lib/external-client-mutation-receipt-owner.js': {
+    why: 'candidate family, external client ingress; the durable commit runs inside admission.admit()',
     sinks: { addCandidateClaim: 1 },
   },
   // A *transitive* routing claim, and weaker than the lexical one above: these
@@ -300,7 +308,7 @@ test('mutation admission: the debt ledger reflects the routing done so far', () 
   // exists, it has moved inside an admission callback. Success is UNROUTED
   // reaching zero, not the total shrinking. Pinning both numbers here keeps
   // that distinction from being quietly re-interpreted later.
-  assert.equal(unrouted, 22, 'unrouted sink calls');
-  assert.equal(routed, 23, 'sink calls routed through admission');
+  assert.equal(unrouted, 21, 'unrouted sink calls');
+  assert.equal(routed, 24, 'sink calls routed through admission');
   assert.equal(unrouted + routed, 45, 'total sink calls is expected to stay constant');
 });

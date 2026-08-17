@@ -326,23 +326,36 @@ test('candidate ingress: the real seam admits, and kernel.ingestCandidateClaim h
   assert.match(kernelSource, /admitCandidateIngress\(this, input, opts\)/);
 });
 
-test('candidate family: two of three entry points are routed, the third is still open', () => {
-  // The point of this test is to keep an overclaim from becoming possible by
-  // omission. It failed when kernel.addCandidateClaim was routed, which is the
-  // design working: routing an entry point forces whoever did it to restate the
-  // family-level claim deliberately instead of inheriting the old wording.
+test('candidate family: all three production entry points are routed', () => {
+  // This test has now been restated twice, once per entry point routed, which
+  // is what it is for: the family-level claim may not be inherited, only
+  // rewritten by whoever changed what it describes.
   const kernelSource = fs.readFileSync(path.join(repoRoot, 'kernel.js'), 'utf8');
   assert.equal((kernelSource.match(/this\.graph\.addCandidateClaim\(/g) || []).length, 0,
     'kernel.addCandidateClaim must reach the graph only through admitAddCandidateClaim');
   assert.match(kernelSource, /admitAddCandidateClaim\(this, candidate, opts\)/);
 
-  // The one remaining production ingress. It bypasses the kernel entirely, so
-  // there is nothing here for it to reuse: routing it is a separate unit rather
-  // than a follow-on edit to this module.
+  // The third ingress bypasses the kernel entirely, so it holds the seam
+  // itself rather than reusing anything here: its durable commit is the
+  // admitted effect.
   const externalClient = fs.readFileSync(
     path.join(repoRoot, 'lib/external-client-mutation-receipt-owner.js'), 'utf8');
-  assert.match(externalClient, /graph\.addCandidateClaim\(/,
-    'the external client receipt owner is expected to still bypass admission');
+  assert.match(externalClient, /admission\.admit\(\{/,
+    'the external client ingress must hold its own admission seam');
+  const admitAt = externalClient.indexOf('admission.admit({');
+  const journalAt = externalClient.indexOf('graph.runMutationOnce(operationId');
+  const sinkAt = externalClient.indexOf('graph.addCandidateClaim(localCandidate');
+  assert.ok(admitAt > 0 && admitAt < journalAt && journalAt < sinkAt,
+    'admission must enclose the durable commit, which encloses the sink');
+
+  // Absence is declared here for a different reason than everywhere else, and
+  // the wording must not drift back to the copied one: this caller's identity
+  // IS receiver-verified. What is missing is a claim shape, which is gate 3's.
+  const { ABSENCE_REASONS: EXTERNAL_REASONS } =
+    require('../lib/external-client-mutation-receipt-owner.js');
+  assert.match(EXTERNAL_REASONS.identityClaim, /verifies a receiver-owned identity/);
+  assert.doesNotMatch(EXTERNAL_REASONS.identityClaim, /caller-supplied label/);
+  assert.notEqual(EXTERNAL_REASONS.identityClaim, CANDIDATE_ABSENCE_REASONS.identityClaim);
 
   // And the transitive routing claim for conflict-detector.js is contingent on
   // github-connector staying unwired; assert the second caller is still the
