@@ -43,8 +43,11 @@ test('V5 agent identity coverage report counts valid and invalid fixtures from c
 
   assert.equal(report.fixtureSummary.valid, valid);
   assert.equal(report.fixtureSummary.invalid, invalid);
-  assert.equal(report.fixtureSummary.valid, 1);
-  assert.equal(report.fixtureSummary.invalid, 5);
+  // Ratchet bump 1/5 -> 2/6 (PR for Gate 7's fixture unit, issue #846):
+  // +invalid.revocation_over_expiry.json, +valid.linkage_recomputation.json
+  // Dynamic count above stays exact; static assertion updated to match.
+  assert.equal(report.fixtureSummary.valid, 2);
+  assert.equal(report.fixtureSummary.invalid, 6);
 });
 
 test('V5 agent identity coverage chain flags only completed identity layers', () => {
