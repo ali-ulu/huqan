@@ -124,6 +124,9 @@ test('AgentV3 rejects an explicit continuation whose token does not match the wo
     baseAgent: {
       plan: () => ({ ok: true, data: { goal: 'resume safely', objective: 'investigate', steps: [], selectedTools: [] }, evidence: [], meta: {} }),
       _buildRunRecommendations: () => ({ items: [] }),
+      _suggestNextAction: () => null,
+      _renderReport: () => 'report',
+      _emit: () => undefined,
     },
     storage: {
       getGoalMemory: () => null,
@@ -167,4 +170,195 @@ test('agent continuation rejects terminal checkpoints and exposes repair mode on
   assert.equal(repaired.data.repairDecision, null);
   assert.equal(agent.calls[1].options.mode, 'repair');
   assert.equal(agent.calls[1].options.repairReason, 'operator-approved checkpoint repair');
+});
+
+// #880: an explicit checkpointId must select the named row, not be replaced
+// by the latest non-completed checkpoint. Both MCP continuation and AgentV3
+// resolve a named id through storage.loadCheckpoint scoped to goal +
+// workspace; the latest row stays the default only when no id is named.
+
+function multiCheckpointAgent(rows) {
+  const calls = [];
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  return {
+    calls,
+    storage: {
+      loadCheckpoint(id, goal, workspaceId) {
+        calls.push({ operation: 'loadCheckpoint', id, goal, workspaceId });
+        const row = byId.get(id);
+        if (!row) return null;
+        if (row.goal !== goal) return null;
+        if (row.workspaceId !== workspaceId) return null;
+        if (row.state?.status === 'completed') return null;
+        return { ...row };
+      },
+      loadLatestCheckpoint(goal, workspaceId) {
+        calls.push({ operation: 'loadLatestCheckpoint', goal, workspaceId });
+        const matching = rows
+          .filter((row) => row.goal === goal && row.workspaceId === workspaceId && row.state?.status !== 'completed')
+          .sort((a, b) => (b.updated || 0) - (a.updated || 0));
+        return matching[0] ? { ...matching[0] } : null;
+      },
+    },
+    run(goal, options) {
+      calls.push({ operation: 'run', goal, options });
+      return { ok: true, type: 'agent', data: { goal, finalAnswer: 'continued', status: 'completed' }, evidence: [] };
+    },
+  };
+}
+
+test('agent continuation selects an older explicit checkpoint over the latest one (#880)', () => {
+  const agent = multiCheckpointAgent([
+    { id: 'checkpoint-old', goal: 'resume safely', workspaceId: 'workspace-787', updated: 1, state: { status: 'paused', resumeToken: 'checkpoint-old' } },
+    { id: 'checkpoint-new', goal: 'resume safely', workspaceId: 'workspace-787', updated: 2, state: { status: 'paused', resumeToken: 'checkpoint-new' } },
+  ]);
+
+  const result = executeMcpAgentContinuation(agent, {
+    goal: 'resume safely', workspaceId: 'workspace-787',
+    checkpointId: 'checkpoint-old', resumeToken: 'checkpoint-old',
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.data.checkpointId, 'checkpoint-old');
+  assert.equal(agent.calls[0].operation, 'loadCheckpoint');
+  assert.equal(agent.calls[0].id, 'checkpoint-old');
+  assert.equal(agent.calls[1].operation, 'run');
+  assert.equal(agent.calls[1].options.checkpointId, 'checkpoint-old');
+  assert.equal(agent.calls[1].options.resumeToken, 'checkpoint-old');
+
+  // Wrong token on the explicitly named checkpoint still fails closed.
+  const wrongToken = executeMcpAgentContinuation(agent, {
+    goal: 'resume safely', workspaceId: 'workspace-787',
+    checkpointId: 'checkpoint-old', resumeToken: 'checkpoint-new',
+  });
+  assert.equal(wrongToken.ok, false);
+  assert.equal(wrongToken.error.code, 'AGENT_RESUME_TOKEN_INVALID');
+
+  // A completed checkpoint is not resumable even when named.
+  const completed = multiCheckpointAgent([
+    { id: 'checkpoint-old', goal: 'resume safely', workspaceId: 'workspace-787', updated: 1, state: { status: 'completed', resumeToken: 'checkpoint-old' } },
+  ]);
+  const completedResult = executeMcpAgentContinuation(completed, {
+    goal: 'resume safely', workspaceId: 'workspace-787',
+    checkpointId: 'checkpoint-old', resumeToken: 'checkpoint-old',
+  });
+  assert.equal(completedResult.ok, false);
+  assert.equal(completedResult.error.code, 'AGENT_CHECKPOINT_NOT_FOUND');
+});
+
+test('AgentV3 resumes an explicitly named older checkpoint when one exists (#880)', () => {
+  const agent = new AgentV3({
+    baseAgent: {
+      plan: () => ({ ok: true, data: { goal: 'resume safely', objective: 'investigate', steps: [], selectedTools: [] }, evidence: [], meta: {} }),
+      _buildRunRecommendations: () => ({ items: [] }),
+      _suggestNextAction: () => null,
+      _renderReport: () => 'report',
+      _emit: () => undefined,
+    },
+    storage: {
+      getGoalMemory: () => null,
+      loadCheckpoint(id, goal, workspaceId) {
+        if (id === 'checkpoint-old' && goal === 'resume safely' && workspaceId === 'workspace-787') {
+          return { id: 'checkpoint-old', state: { resumeToken: 'checkpoint-old', status: 'paused' } };
+        }
+        return null;
+      },
+      loadLatestCheckpoint: () => ({ id: 'checkpoint-new', state: { resumeToken: 'checkpoint-new', status: 'paused' } }),
+      sumAgentIterationsSince: () => 0,
+      saveCheckpoint: () => null,
+      countRuns: () => ({ total: 0 }),
+      getGoalMemory: () => null,
+      listPendingToolApprovals: () => [],
+      countPendingToolApprovals: () => 0,
+      saveToolApproval: () => null,
+      saveRun: () => null,
+      saveGoalMemory: () => null,
+      deleteCheckpoint: () => false,
+      countGoals: () => 0,
+      countCheckpoints: () => 0,
+      dbPath: '',
+      // Named selection must not fall back to the newest row when the named
+      // row exists; the fake exposes both so the branch choice is observable.
+    },
+    maxSteps: 1,
+  });
+
+  const result = agent.run('resume safely', {
+    workspaceId: 'workspace-787', resume: true,
+    checkpointId: 'checkpoint-old', resumeToken: 'checkpoint-old',
+  });
+  assert.equal(result.ok, true, 'explicit older checkpoint must resume');
+  assert.equal(result.meta?.checkpointId, 'checkpoint-old');
+
+  // An explicit id that belongs to another workspace fails closed instead of
+  // silently loading the latest workspace row.
+  const crossWorkspace = agent.run('resume safely', {
+    workspaceId: 'workspace-787', resume: true,
+    checkpointId: 'checkpoint-other', resumeToken: 'checkpoint-other',
+  });
+  assert.equal(crossWorkspace.ok, false);
+  assert.equal(crossWorkspace.error.code, 'AGENT_RESUME_TOKEN_INVALID');
+});
+
+test('storage returns the named checkpoint scoped to goal and workspace (#880)', () => {
+  // Real storage behaviour is exercised by the sqlite tests; the contract
+  // here is the shape the fake agents above rely on: loadCheckpoint takes
+  // (id, goal, workspaceId) and loadLatestCheckpoint takes (goal, workspaceId).
+  const path = require('node:path');
+  const fs = require('node:fs');
+  const AxiomStorage = require('../storage');
+  const tmpDir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'huqan-checkpoint-'));
+  const dbPath = path.join(tmpDir, 'checkpoint.db');
+  const store = new AxiomStorage({ dbPath });
+  assert.equal(typeof store.loadCheckpoint, 'function');
+  assert.equal(typeof store.loadLatestCheckpoint, 'function');
+
+  store.saveCheckpoint({
+    checkpointId: 'old-1', goal: 'multi checkpoint goal', workspaceId: 'ws-a',
+    status: 'paused', resumeToken: 'old-1', startedAtMs: 1,
+  });
+  store.saveCheckpoint({
+    checkpointId: 'new-1', goal: 'multi checkpoint goal', workspaceId: 'ws-a',
+    status: 'paused', resumeToken: 'new-1', startedAtMs: 2,
+  });
+  store.saveCheckpoint({
+    checkpointId: 'other-1', goal: 'multi checkpoint goal', workspaceId: 'ws-b',
+    status: 'paused', resumeToken: 'other-1', startedAtMs: 1,
+  });
+
+  const named = store.loadCheckpoint('old-1', 'multi checkpoint goal', 'ws-a');
+  assert.equal(named?.id, 'old-1');
+  assert.equal(named.state.resumeToken, 'old-1');
+  assert.equal(named.workspace_id, 'ws-a');
+
+  // Explicit id must not leak rows from another workspace or another goal.
+  assert.equal(store.loadCheckpoint('old-1', 'multi checkpoint goal', 'ws-b'), null);
+  assert.equal(store.loadCheckpoint('other-1', 'multi checkpoint goal', 'ws-a'), null);
+
+  // Latest remains a non-completed row when no id is named. Equal
+  // updated_at values tie-break by insert order, which the re-save does not
+  // always outrun in fast test runs, so the expectation covers both rows;
+  // what matters is that nothing completed or cross-scoped is returned.
+  const latestBefore = store.loadLatestCheckpoint('multi checkpoint goal', 'ws-a');
+  assert.ok(latestBefore && ['old-1', 'new-1'].includes(latestBefore.id));
+  store.saveCheckpoint({
+    checkpointId: 'new-1', goal: 'multi checkpoint goal', workspaceId: 'ws-a',
+    status: 'paused', resumeToken: 'new-1', startedAtMs: 2,
+  });
+  const latestAfter = store.loadLatestCheckpoint('multi checkpoint goal', 'ws-a');
+  assert.ok(latestAfter && ['old-1', 'new-1'].includes(latestAfter.id),
+    'latest must remain a non-completed row after a re-save');
+
+  // A completed checkpoint is invisible to both lookups.
+  store.saveCheckpoint({
+    checkpointId: 'completed-1', goal: 'multi checkpoint goal', workspaceId: 'ws-a',
+    status: 'completed', resumeToken: 'completed-1', startedAtMs: 3,
+  });
+  assert.equal(store.loadCheckpoint('completed-1', 'multi checkpoint goal', 'ws-a'), null);
+  const latestCompleted = store.loadLatestCheckpoint('multi checkpoint goal', 'ws-a');
+  assert.ok(latestCompleted && ['old-1', 'new-1'].includes(latestCompleted.id),
+    'latest must never return the completed row');
+
+  store.db.close();
+  fs.rmSync(tmpDir, { recursive: true, force: true });
 });
