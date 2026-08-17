@@ -92,10 +92,13 @@ test('claim 1: the three other holders bypass the kernel chokepoint', () => {
   // Each writes to the graph directly. This is what makes them independent
   // entries rather than call sites of the chokepoint -- the fact verdict 1
   // ("no single entry") is built on.
+  // lib/mcp-ingest-execute-tool.js was the third holder when this was measured.
+  // It is no longer here: its write was verdict 3's duplicate and was deleted,
+  // which is the one way an entry may leave this list. The remaining two are
+  // the ones with genuinely separate decisions behind them.
   for (const relPath of [
     'agent.v3.js',
     'lib/cli-mutation-audit.js',
-    'lib/mcp-ingest-execute-tool.js',
   ]) {
     const source = readCode(relPath);
     assert.ok(
@@ -158,35 +161,33 @@ test('claim 3: MCP and HTTP drive the same approval owner', () => {
   assert.match(readSource('lib/mcp-ingest-execute-tool.js'), new RegExp(`require\\('\\./${owner}'\\)`));
   assert.match(readSource('server.js'), new RegExp(`require\\('\\./lib/${owner}'\\)`));
 
-  // server.js injects the routed writer; the MCP surface injects its own.
+  // Both now inject the routed writer. This assertion is the inverted form of
+  // the one that stood here while the duplicate existed -- inverted rather
+  // than deleted, so the resolution of verdict 3 stays visible in the guard
+  // that recorded the problem.
   assert.match(readSource('server.js'), /recordIngestApprovalAudit = createIngestApprovalAuditWriter\(\{/);
-  assert.match(readSource('lib/mcp-ingest-execute-tool.js'), /recordAudit:[\s\S]{0,120}?recordMcpIngestApprovalAudit\(kernel/);
-  assert.equal(
-    countMatches(readCode('lib/mcp-ingest-execute-tool.js'), /createIngestApprovalAuditWriter/g),
-    0,
-    'once MCP injects the routed writer this assertion should be inverted, not deleted',
+  assert.ok(
+    countMatches(readCode('lib/mcp-ingest-execute-tool.js'), /createIngestApprovalAuditWriter/g) > 0,
+    'the MCP surface must build the routed writer, not a copy of it',
   );
+  assert.equal(readSource('lib/mcp-ingest-execute-tool.js').includes('recordMcpIngestApprovalAudit'), false);
 });
 
-test('claim 3: the duplicate writes the same event as the routed writer', () => {
-  // If the two events differed in substance, the MCP call would be a distinct
-  // write and verdict 3 would be wrong. They differ in exactly one respect --
-  // workspace defaulting -- which the document states.
-  const mcp = readSource('lib/mcp-ingest-execute-tool.js');
-  const routed = readSource('lib/workbench/ingest-approval-audit-writer.js');
-
-  for (const marker of [
-    /eventType: receipt\.decision === 'approved' \? 'APPROVAL_APPROVED' : 'APPROVAL_REJECTED'/,
-    /targetType: 'ingest_approval'/,
-    /executionGuarantee: 'bounded_action_outcome'/,
-    /snapshotHash: snapshot\.snapshotHash \|\| ''/,
-  ]) {
-    assert.match(mcp, marker, 'the MCP duplicate must still write this field');
-    assert.match(routed, marker, 'the routed writer must still write this field');
-  }
-
-  // The one recorded difference: the routed writer resolves the workspace in
-  // the open, the duplicate passes it through for the sink to coerce.
-  assert.match(routed, /const workspaceId = snapshot\.workspaceId \|\| DEFAULT_WORKSPACE;/);
-  assert.match(mcp, /\{ workspaceId: snapshot\.workspaceId \}/);
+test('claim 3: the duplicate is gone, and the field-level comparison lives on', () => {
+  // While the duplicate existed, this test compared its event to the routed
+  // writer's field by field -- that comparison was the evidence for verdict 3.
+  // The duplicate is now deleted, so there is nothing here to compare, and the
+  // comparison has moved to test/mcp-ingest-audit-duplicate.test.js, which
+  // reproduces the deleted writer's output explicitly and checks it against
+  // what the routed writer emits today.
+  //
+  // What remains checkable here is that the deletion really happened and was
+  // not merely disconnected.
+  const mcp = readCode('lib/mcp-ingest-execute-tool.js');
+  assert.equal(countMatches(mcp, DIRECT_SINK_CALL), 0);
+  assert.match(
+    readSource('lib/workbench/ingest-approval-audit-writer.js'),
+    /const workspaceId = snapshot\.workspaceId \|\| DEFAULT_WORKSPACE;/,
+    'the surviving writer must still resolve the workspace in the open',
+  );
 });
