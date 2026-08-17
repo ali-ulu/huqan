@@ -21,6 +21,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 
+const os = require('node:os');
+
 const Kernel = require('../kernel.js');
 
 const REPO_ROOT = path.join(__dirname, '..');
@@ -34,9 +36,22 @@ function readCode(relPath) {
     .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
 }
 
+/**
+ * Each kernel must get its own temp path: `new Kernel({})` lands every test
+ * in the repository's default `memory.db`, so kernels share a SQLite file and
+ * the measurements pick up state left behind by earlier subtests (and, on
+ * parallel runs, by sibling files -- SQLITE_BUSY).
+ */
+function makeTempKernel() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-evidence-'));
+  const kernel = new Kernel({ memoryPath: path.join(dir, 'm.json'), dbPath: path.join(dir, 'g.db') });
+  kernel.__evidenceTempDir = dir;
+  return kernel;
+}
+
 /** Two linked nodes sharing a tag, so `_crossLink` finds a derivation to make. */
 function kernelWithCrossLinkableNodes(deadAudit) {
-  const kernel = new Kernel({});
+  const kernel = makeTempKernel();
   for (const id of ['tagx', 's', 'o']) kernel.proposeNode(id, id, PROVENANCE, { workspaceId: 'default' });
   kernel.graph.addTag('s', 'tagx', 0.9, 'default');
   kernel.graph.addTag('o', 'tagx', 0.9, 'default');
