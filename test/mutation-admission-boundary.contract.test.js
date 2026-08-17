@@ -87,7 +87,6 @@ const SINK_METHODS = Object.freeze([
 const UNROUTED_SINK_CALLS = Object.freeze({
   // --- production mutation paths: the ones P1 must route -------------------
   'kernel.js': { why: 'knowledge, candidate and audit families; the largest routing target', sinks: { addNode: 1, addEdge: 3, addCandidateClaim: 1, appendAuditEvent: 1 } },
-  'lib/conflict-detector.js': { why: 'writes across three families from one module', sinks: { addNode: 4, addEdge: 2, addCandidateClaim: 5, appendAuditEvent: 1 } },
   'kernel.v2.js': { why: 'candidate family on the V2 surface', sinks: { addCandidateClaim: 1 } },
   'agent.v3.js': { why: 'audit family', sinks: { appendAuditEvent: 2 } },
   'lib/cli-mutation-audit.js': { why: 'audit family, CLI surface', sinks: { appendAuditEvent: 1 } },
@@ -134,13 +133,29 @@ const ROUTED_SINK_CALLS = Object.freeze({
   },
   // A *transitive* routing claim, and weaker than the lexical one above: these
   // sinks are not inside an admit() callback, they are downstream of one. It
-  // rests on two facts that test/kernel-learn-admission.test.js asserts rather
+  // rests on two facts that test/kernel-mutation-admission.test.js asserts rather
   // than assumes -- the module exports only runLearnUseCase, and kernel.js is
   // its only caller -- so there is no second way in. If either changes, that
   // test fails before this declaration becomes wrong.
   'lib/learn-use-case.js': {
     why: 'knowledge family; reachable only via kernel.learn, which admits before the critical section',
     sinks: { addNode: 3, addEdge: 4, addTag: 1 },
+  },
+  // Transitive like learn-use-case, but with a caveat the entry above does not
+  // have, and it is recorded rather than smoothed over: routeCandidateClaim has
+  // a *second* caller, lib/github-connector.js, which does not admit. That
+  // caller is classified NOT_YET_WIRED in the unrouted ledger above, so no
+  // production path reaches these sinks unadmitted today -- but the routing
+  // claim here is contingent on that classification staying true. If the
+  // connector is ever wired, this entry moves back to UNROUTED.
+  //
+  // Within that bound the property is strong: all twelve calls are downstream
+  // of one admit() callback, across three families (candidate rows, canonical
+  // graph edges, audit events), which is the evidence that the seam sits at a
+  // family-independent boundary.
+  'lib/conflict-detector.js': {
+    why: 'candidate + audit + knowledge sinks; reachable in production only via kernel.ingestCandidateClaim, which routes routeCandidateClaim inside admit()',
+    sinks: { addNode: 4, addEdge: 2, addCandidateClaim: 5, appendAuditEvent: 1 },
   },
 });
 
@@ -272,7 +287,7 @@ test('mutation admission: the debt ledger reflects the routing done so far', () 
   // exists, it has moved inside an admission callback. Success is UNROUTED
   // reaching zero, not the total shrinking. Pinning both numbers here keeps
   // that distinction from being quietly re-interpreted later.
-  assert.equal(unrouted, 36, 'unrouted sink calls');
-  assert.equal(routed, 9, 'sink calls routed through admission');
+  assert.equal(unrouted, 24, 'unrouted sink calls');
+  assert.equal(routed, 21, 'sink calls routed through admission');
   assert.equal(unrouted + routed, 45, 'total sink calls is expected to stay constant');
 });

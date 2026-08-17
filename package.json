@@ -195,7 +195,7 @@
     "lib/kernel-envelope.js",
     "lib/kernel-factory.js",
     "lib/kernel-introspect-report.js",
-    "lib/kernel-learn-admission.js",
+    "lib/kernel-mutation-admission.js",
     "lib/kernel-read-use-cases.js",
     "lib/learn-admission-request.js",
     "lib/learn-use-case.js",
