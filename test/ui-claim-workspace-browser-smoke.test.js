@@ -211,6 +211,24 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
 
     receiptId = await browser.evaluate(`document.querySelector('#recent [data-receipt]')?.dataset.receipt || ''`);
     assert.match(receiptId, /^\S+$/, 'approval surfaced no Trust Receipt in the recent list');
+
+    // The badge must report what the source said, not an integrity verdict the
+    // page never computed. This is the defect the smoke was written against --
+    // the list used to render a hardcoded `VERIFIED` for every entry, including
+    // receipts the server returns with status "unknown".
+    //
+    // Asserted here rather than left to the fix's own diff: without it the
+    // hardcoded badge can be restored and every other assertion still passes,
+    // which was checked by putting it back and watching the suite stay green.
+    const badge = await browser.evaluate(
+      `document.querySelector('#recent [data-receipt]')?.querySelector('em')?.textContent || ''`,
+    );
+    assert.match(badge, /^\S+$/, `the receipt badge rendered nothing: ${JSON.stringify(badge)}`);
+    assert.doesNotMatch(
+      badge,
+      /^VERIFIED$/,
+      'the receipt badge asserts an integrity verdict the page never checked',
+    );
   });
 
   it('returns the approved claim through memory search', async () => {
