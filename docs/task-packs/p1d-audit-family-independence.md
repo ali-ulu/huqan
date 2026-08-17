@@ -156,6 +156,41 @@ exist yet.
 
 **Verdict 3:** `MCP_INGEST_AUDIT_IS_A_DUPLICATE_OF_A_ROUTED_WRITE`.
 
+> **Resolved.** The duplicate was deleted and the MCP surface now builds the
+> same routed writer `server.js` builds. The measurement above describes the
+> state at `df52410`; it is kept as written because it is the evidence the
+> change rests on. Three consequences are worth carrying forward:
+>
+> - The sink-call total fell from 45 to 44. Every earlier routing step left the
+>   total constant and moved a call from `UNROUTED` to `ROUTED`; a duplicate
+>   deletion is the one legitimate way for the total itself to drop.
+> - The scope of this family shrank by one: four holders became three, and the
+>   remaining three each need a decision rather than a deletion.
+> - One thing this measurement got wrong is corrected below.
+
+### Correction to this document's original claim
+
+The first version of this document said the MCP surface's audit-gap path
+already carried the same meaning as `AUDIT_EVIDENCE_MISSING`. Measuring the
+path end to end while making the change showed that it does not, and the
+difference is in a shape mismatch rather than in intent:
+
+`auditEvidenceGap` returns `{ status, json: { error } }`, `apiError` returns
+`{ status, error }`, and `approvalFailure` reads `response.error` — which the
+gap shape does not have. So on the MCP surface the reconciliation code is
+flattened to `APPROVAL_EXECUTION_FAILED` and the reconciliation identifiers do
+not reach the caller. Over HTTP they do, because `server.js` writes
+`outcome.json` as the 409 body.
+
+`retrySafe: false` survives on both, so the rule that actually prevents a
+duplicate write holds. The behaviour is identical before and after the change —
+measured against `origin/main`, where a *failing* writer produced the same
+`APPROVAL_EXECUTION_FAILED` — so it is neither introduced nor fixed here.
+
+It is recorded rather than repaired because it belongs to verdict 2: what an
+audit-evidence gap should mean to a caller is a product decision, and two
+transports currently answer it differently without anyone having chosen that.
+
 ## Verdicts
 
 ```text
@@ -165,6 +200,9 @@ REFUSAL_VISIBILITY_UNRESOLVED                   = true
 MCP_INGEST_AUDIT_IS_A_DUPLICATE_OF_A_ROUTED_WRITE = true
 AUDIT_FAMILY_IS_ANALOGOUS_TO_CANDIDATE_FAMILY   = false
 ```
+
+Verdict 3 has since been acted on; the section that states it records how. The
+other four stand.
 
 ## What this measurement does not claim
 
@@ -182,7 +220,7 @@ AUDIT_FAMILY_IS_ANALOGOUS_TO_CANDIDATE_FAMILY   = false
 
 The five calls are three different problems, and only one is ready:
 
-1. **`lib/mcp-ingest-execute-tool.js`** — the smallest and best-evidenced unit.
+1. ~~**`lib/mcp-ingest-execute-tool.js`**~~ — **done.** The smallest and best-evidenced unit.
    Verdict 3 says the boundary already exists and one transport does not use it.
    Making MCP inject the same routed writer `server.js` injects removes a
    duplicate rather than adding a seam, and verdict 2 does not block it: the

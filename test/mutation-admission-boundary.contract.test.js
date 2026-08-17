@@ -89,7 +89,6 @@ const UNROUTED_SINK_CALLS = Object.freeze({
   'kernel.js': { why: 'knowledge and audit families; its candidate write now lives in lib/kernel-mutation-admission.js', sinks: { addNode: 1, addEdge: 3, appendAuditEvent: 1 } },
   'agent.v3.js': { why: 'audit family', sinks: { appendAuditEvent: 2 } },
   'lib/cli-mutation-audit.js': { why: 'audit family, CLI surface', sinks: { appendAuditEvent: 1 } },
-  'lib/mcp-ingest-execute-tool.js': { why: 'audit family, MCP surface', sinks: { appendAuditEvent: 1 } },
 
   // --- second sink provider ------------------------------------------------
   // Not a caller in the usual sense: it wraps a Graph and re-exposes the sinks.
@@ -304,11 +303,20 @@ test('mutation admission: the debt ledger reflects the routing done so far', () 
   const unrouted = sum(UNROUTED_SINK_CALLS);
   const routed = sum(ROUTED_SINK_CALLS);
 
-  // The total does not fall when a caller is routed -- the sink call still
+  // The total does not fall when a caller is *routed* -- the sink call still
   // exists, it has moved inside an admission callback. Success is UNROUTED
   // reaching zero, not the total shrinking. Pinning both numbers here keeps
   // that distinction from being quietly re-interpreted later.
-  assert.equal(unrouted, 21, 'unrouted sink calls');
+  //
+  // The total has fallen once, from 45 to 44, and the exception is worth
+  // stating rather than absorbing: `lib/mcp-ingest-execute-tool.js` did not
+  // get routed, it got *deleted*. Its audit write was a second copy of a write
+  // `server.js` had already routed -- both transports drive the same approval
+  // owner through an injected `recordAudit` port, and only one was injecting
+  // the routed writer. Removing the copy removes a sink call outright, so the
+  // total moved for the only reason it legitimately can. A total that falls
+  // without a duplicate having been deleted is still a finding, not slack.
+  assert.equal(unrouted, 20, 'unrouted sink calls');
   assert.equal(routed, 24, 'sink calls routed through admission');
-  assert.equal(unrouted + routed, 45, 'total sink calls is expected to stay constant');
+  assert.equal(unrouted + routed, 44, 'total sink calls, lowered once by a duplicate deletion');
 });
