@@ -184,29 +184,56 @@ Not a decision, and it deliberately does not name files:
 4. Re-run Gate 2's two deferred measurements — reachability and contract
    preservation — against the result.
 
-## Open debt: the candidate family has three production entry points
-
-Recorded here because routing one of them is easy to mistake for routing the
-family. `kernel.ingestCandidateClaim` is routed; the other two are not.
+## The candidate family: three production entry points, all routed
 
 | Entry point | Path | State |
 |---|---|---|
-| `kernel.ingestCandidateClaim` | → `routeCandidateClaim` → candidate, knowledge and audit sinks | **Routed.** The routing call is the admitted effect, so a refusal writes nothing. |
-| `kernel.addCandidateClaim` | → `graph.addCandidateClaim` directly | **Unrouted.** Bypasses conflict detection as well as admission. |
-| `lib/external-client-mutation-receipt-owner.js` | → `graph.addCandidateClaim` directly | **Unrouted.** Skips the kernel entirely. |
+| `kernel.ingestCandidateClaim` | → `routeCandidateClaim` → candidate, knowledge and audit sinks | **Routed.** The routing call is the admitted effect. |
+| `kernel.addCandidateClaim` | → `graph.addCandidateClaim` | **Routed.** Still performs no conflict detection; routing did not repair that. |
+| `lib/external-client-mutation-receipt-owner.js` | → `runMutationOnce` → `graph.addCandidateClaim` | **Routed.** Holds its own seam; the durable commit is the admitted effect. |
 
-A fourth path is adjacent rather than a production entry point:
-`lib/github-connector.js` is `routeCandidateClaim`'s second caller and does not
-admit. It is classified `NOT_YET_WIRED` in the boundary contract's unrouted
-ledger, which is what makes the *transitive* routing claim for
-`lib/conflict-detector.js` hold. Wiring the connector invalidates that claim and
-must move the module back to the unrouted ledger.
+Two bounds, both load-bearing:
 
-Consequence for reporting: until the two unrouted entry points are closed, the
-supportable statement is "the `ingestCandidateClaim` entry point is routed", not
-"the candidate family is routed".
-`test/kernel-mutation-admission.test.js` pins all three rows so the distinction
-fails loudly instead of eroding.
+1. **Contingent on `lib/github-connector.js` staying `NOT_YET_WIRED`.** The
+   connector writes candidate claims directly *and* is `routeCandidateClaim`'s
+   second, unadmitted caller. Wiring it reopens this claim and the transitive
+   one for `lib/conflict-detector.js`.
+2. **Routed is not enforced.** The seam still evaluates no identity checks. The
+   claim is "every candidate write passes a single boundary", not that any of
+   them is judged.
+
+`test/kernel-mutation-admission.test.js` pins all three rows. It has been
+restated once per entry point routed, which is its purpose: the family-level
+claim may not be inherited, only rewritten by whoever changed what it describes.
+
+### Gate 3's first real design input
+
+The external-client ingress is qualitatively different from every other routed
+caller, and the difference should not be lost in the word "routed".
+
+Before it is reached, `enforceExternalClientAuthority` enforces — against
+receiver-owned configuration, not request bytes — signature verification against
+`trustedKeys`, identity subject and kind against the operator's trust profile,
+key presence, revocation and validity window, workspace binding, package
+staleness and future-skew against a receiver clock, and an atomic replay
+reservation. The HTTP adapter takes only `package` and `signature` from the
+request; identity and workspace come from the profile file. **The request cannot
+describe who it is.**
+
+That is a superset of P1-A's acceptance predicate, which
+`lib/mutation-admission.js` documents as "what this does NOT do yet".
+
+It still declares its context absent, and the reason is written rather than
+copied: what is missing is a claim **shape**, not an identity. Filling the field
+with an invented object would be worse than declaring absence — `admit()`
+accepts any non-array object without validating it, so a made-up shape would be
+accepted silently today, would drop this call site out of the enumeration of
+places still lacking a claim, and would surface only once enforcement is
+switched on. That is exactly the archaeology the seam was written to prevent.
+
+Consequence: this is the only caller holding verified material — subject, kind,
+`trustedKeyId`, `packageHash`, signature — for a claim shape to be modelled on.
+Gate 3 should be designed against it rather than in the abstract.
 
 ## Non-claims
 
