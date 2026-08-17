@@ -58,13 +58,16 @@ test('V5 agent identity readiness index preserves coverage evidence', () => {
 
   assert.equal(index.coverage.schemaVersion, 'v5-agent-identity-coverage/v0.1');
   assert.equal(index.coverage.status, 'implementation_chain_coverage_manifest');
-  assert.equal(index.coverage.fixtureSummary.total, 6);
-  assert.equal(index.coverage.fixtureSummary.valid, 1);
-  assert.equal(index.coverage.fixtureSummary.invalid, 5);
+  // Ratchet bump 6 -> 8 (PR for Gate 7's fixture unit, issue #846):
+  // +invalid.revocation_over_expiry.json, +valid.linkage_recomputation.json
+  // Readiness index stays coverage-faithful; values updated to match.
+  assert.equal(index.coverage.fixtureSummary.total, 8);
+  assert.equal(index.coverage.fixtureSummary.valid, 2);
+  assert.equal(index.coverage.fixtureSummary.invalid, 6);
   assert.deepEqual(index.coverage.conformanceSummary, {
     ok: true,
-    totalFixtures: 6,
-    passed: 6,
+    totalFixtures: 8,
+    passed: 8,
     failed: 0,
     failingFiles: []
   });
