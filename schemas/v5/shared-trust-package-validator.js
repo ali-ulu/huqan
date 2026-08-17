@@ -84,6 +84,67 @@ function validateNonClaims(nonClaims, errors) {
   }
 }
 
+const SOURCE_SNAPSHOT_VERSION_CONST = 'huqan.external-source-snapshot.v1';
+const SOURCE_SNAPSHOT_ALGORITHM_CONST = 'sha256';
+const SOURCE_SNAPSHOT_HEX_PATTERN = /^[a-f0-9]{64}$/;
+
+/**
+ * `receipt.sourceSnapshot` — immutable source binding, fail-closed.
+ *
+ * Contract: `docs/v5/v5-immutable-source-snapshot-contract.md` (§2).
+ * One nested object inside `receipt` (same location discipline as
+ * `routeReceipt`), exact key set
+ * `{ snapshotId, snapshotVersion, hash, algorithm }`, all four required,
+ * no additional properties. The snapshot is a content binding only:
+ * it carries the source view — it never re-hashes, re-versions, or
+ * "fixes up" what was supplied. A package carrying it asserts the
+ * source looked like that view when the package was written.
+ *
+ * `snapshotVersion` is pinned to the V4 external-source-snapshot
+ * version string — the wiring PR may not introduce a new version
+ * family. `algorithm` is fixed to `sha256`; `hash` is the hex digest
+ * over the canonical binding view of the snapshot, 64 lowercase hex
+ * characters.
+ */
+function validateReceiptSourceSnapshot(sourceSnapshot, errors) {
+  if (!isPlainObject(sourceSnapshot)) {
+    errors.push(makeError('invalid_object', 'receipt.sourceSnapshot', 'receipt.sourceSnapshot must be an object.'));
+    return;
+  }
+
+  validateObjectKeys(
+    sourceSnapshot,
+    new Set(['snapshotId', 'snapshotVersion', 'hash', 'algorithm']),
+    'receipt.sourceSnapshot',
+    errors
+  );
+  validateRequiredString(sourceSnapshot, 'snapshotId', 'receipt.sourceSnapshot.snapshotId', errors);
+
+  if (sourceSnapshot.snapshotVersion !== SOURCE_SNAPSHOT_VERSION_CONST) {
+    errors.push(makeError(
+      'invalid_enum_value',
+      'receipt.sourceSnapshot.snapshotVersion',
+      `receipt.sourceSnapshot.snapshotVersion must be ${SOURCE_SNAPSHOT_VERSION_CONST}.`
+    ));
+  }
+
+  if (sourceSnapshot.algorithm !== SOURCE_SNAPSHOT_ALGORITHM_CONST) {
+    errors.push(makeError(
+      'invalid_enum_value',
+      'receipt.sourceSnapshot.algorithm',
+      `receipt.sourceSnapshot.algorithm must be ${SOURCE_SNAPSHOT_ALGORITHM_CONST}.`
+    ));
+  }
+
+  if (typeof sourceSnapshot.hash !== 'string' || !SOURCE_SNAPSHOT_HEX_PATTERN.test(sourceSnapshot.hash)) {
+    errors.push(makeError(
+      'invalid_string',
+      'receipt.sourceSnapshot.hash',
+      'receipt.sourceSnapshot.hash must be a 64-character lowercase hex sha256 digest.'
+    ));
+  }
+}
+
 function validateReceiptRouteReceipt(routeReceipt, errors) {
   if (!isPlainObject(routeReceipt)) {
     errors.push(makeError('invalid_object', 'receipt.routeReceipt', 'receipt.routeReceipt must be an object.'));
@@ -235,7 +296,7 @@ function validateSharedTrustPackage(candidate) {
   if (!isPlainObject(candidate.receipt)) {
     errors.push(makeError('invalid_object', 'receipt', 'receipt must be an object.'));
   } else {
-    validateObjectKeys(candidate.receipt, new Set(['receiptId', 'issuedAt', 'routeReceipt']), 'receipt', errors);
+    validateObjectKeys(candidate.receipt, new Set(['receiptId', 'issuedAt', 'routeReceipt', 'sourceSnapshot']), 'receipt', errors);
     validateRequiredString(candidate.receipt, 'receiptId', 'receipt.receiptId', errors);
     validateRequiredString(candidate.receipt, 'issuedAt', 'receipt.issuedAt', errors);
 
@@ -245,6 +306,10 @@ function validateSharedTrustPackage(candidate) {
 
     if (Object.hasOwn(candidate.receipt, 'routeReceipt')) {
       validateReceiptRouteReceipt(candidate.receipt.routeReceipt, errors);
+    }
+
+    if (Object.hasOwn(candidate.receipt, 'sourceSnapshot')) {
+      validateReceiptSourceSnapshot(candidate.receipt.sourceSnapshot, errors);
     }
   }
 

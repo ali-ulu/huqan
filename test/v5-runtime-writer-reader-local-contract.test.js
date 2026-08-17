@@ -103,6 +103,71 @@ test('reader fails closed for invalid local candidates in the handoff path', () 
   assert.equal(claimResult.reason_category, 'runtime_reader_claim');
 });
 
+test('writer carries a valid source snapshot exactly as supplied and the reader accepts it', () => {
+  // Convergence: written package with source snapshot passes the
+  // writer-to-reader local handoff unchanged. Carried or rejected, never
+  // fixed up — the reader must accept the snapshot the writer carried
+  // and must not mutate, re-hash, or re-version it. Contract:
+  // docs/v5/v5-immutable-source-snapshot-contract.md (Section 3).
+  const snapshot = {
+    snapshotId: 'snap.local.contract.001',
+    snapshotVersion: 'huqan.external-source-snapshot.v1',
+    hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    algorithm: 'sha256'
+  };
+  const input = makeWriterInput({ sourceSnapshot: snapshot });
+  const writerResult = writeRuntimePackage(input);
+
+  assert.equal(writerResult.ok, true);
+  assert.equal(writerResult.verdict, 'ACCEPT');
+  assert.deepEqual(writerResult.package.sourceSnapshot, input.sourceSnapshot);
+
+  const readerResult = readRuntimePackage(writerResult.package);
+
+  assert.equal(readerResult.ok, true);
+  assert.equal(readerResult.status, 'readable');
+  assert.deepEqual(readerResult.package.sourceSnapshot, input.sourceSnapshot);
+});
+
+test('source snapshot alone is a sufficient acceptance reason when no higher-priority metadata is present', () => {
+  // Without route receipt, reasoning, or provenance, a valid source
+  // snapshot alone makes the writer output acceptable with the snapshot's
+  // own reason category.
+  const snapshot = {
+    snapshotId: 'snap.local.contract.002',
+    snapshotVersion: 'huqan.external-source-snapshot.v1',
+    hash: 'b'.repeat(64),
+    algorithm: 'sha256'
+  };
+  const input = makeWriterInput({
+    routeReceipt: undefined,
+    reasoning: undefined,
+    provenance: undefined,
+    sourceSnapshot: snapshot
+  });
+  const writerResult = writeRuntimePackage(input);
+
+  assert.equal(writerResult.ok, true);
+  assert.equal(writerResult.reason_category, 'valid_source_snapshot_metadata');
+  assert.deepEqual(writerResult.package.sourceSnapshot, input.sourceSnapshot);
+});
+
+
+
+test('absent source snapshot input stays absent — writer and reader emit nothing', () => {
+  // Absent input stays absent; the writer never invents a snapshot shape.
+  const input = makeWriterInput();
+  const writerResult = writeRuntimePackage(input);
+
+  assert.equal(writerResult.ok, true);
+  assert.equal(Object.hasOwn(writerResult.package, 'sourceSnapshot'), false);
+
+  const readerResult = readRuntimePackage(writerResult.package);
+
+  assert.equal(readerResult.ok, true);
+  assert.equal(Object.hasOwn(readerResult.package, 'sourceSnapshot'), false);
+});
+
 test('readable local output does not imply trust, authorization, or verification', () => {
   const result = readRuntimePackage(writeRuntimePackage(makeWriterInput()).package);
 
