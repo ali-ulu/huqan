@@ -58,7 +58,7 @@ const {
   normalizeWorkspaceId,
 } = require('./lib/cli-mutation-audit-intent');
 const { recordCliMutationAudit } = require('./lib/cli-mutation-audit');
-const { admitLearn } = require('./lib/kernel-learn-admission');
+const { admitCandidateIngest, admitLearn } = require('./lib/kernel-mutation-admission');
 const {
   normalizeExplicitRelationObject,
   parseExplicitRelationPredicate,
@@ -850,7 +850,7 @@ class Kernel {
   }
 
   ingestCandidateClaim(input = {}, opts = {}) {
-    return routeCandidateClaim(this, input, opts);
+    return admitCandidateIngest(this, opts, () => routeCandidateClaim(this, input, opts));
   }
 
   // Implementations live in lib/predicate-parser.js. These stay as methods

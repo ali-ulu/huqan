@@ -22,9 +22,11 @@ const test = require('node:test');
 const { createMutationAdmission } = require('../lib/mutation-admission.js');
 const {
   ABSENCE_REASONS,
+  CANDIDATE_INGEST_ACTION,
   LEARN_ACTION,
+  admitCandidateIngest,
   admitLearn,
-} = require('../lib/kernel-learn-admission.js');
+} = require('../lib/kernel-mutation-admission.js');
 
 const repoRoot = path.join(__dirname, '..');
 const FIXED_CLOCK = () => new Date('2026-08-16T12:00:00.000Z');
@@ -61,7 +63,7 @@ test('ordering: the transform cannot be reached without going through admission'
   // The caller never sees the untransformed payload: admitLearn calls the
   // transform itself, so there is no arrangement in which admission is skipped
   // or run first.
-  const source = fs.readFileSync(path.join(repoRoot, 'lib/kernel-learn-admission.js'), 'utf8');
+  const source = fs.readFileSync(path.join(repoRoot, 'lib/kernel-mutation-admission.js'), 'utf8');
   assert.match(source, /_runBeforeLearn\(text, opts\)/);
 
   const kernelSource = fs.readFileSync(path.join(repoRoot, 'kernel.js'), 'utf8');
@@ -96,7 +98,7 @@ test('ordering: a refusal produces no payload, so nothing downstream can proceed
 // --- 2. durability --------------------------------------------------------
 
 test('durability: admission neither performs nor replaces the durable write', () => {
-  const source = fs.readFileSync(path.join(repoRoot, 'lib/kernel-learn-admission.js'), 'utf8');
+  const source = fs.readFileSync(path.join(repoRoot, 'lib/kernel-mutation-admission.js'), 'utf8');
 
   // Invariant 1 again, at this call site: the seam must not acquire durability
   // responsibilities on the way in.
@@ -201,4 +203,93 @@ test('context: the real seam admits a complete learn context', () => {
 
   assert.equal(sealed.text, 'text');
   assert.deepEqual(sealed.opts, { workspaceId: 'default' });
+});
+
+// --- candidate ingest -----------------------------------------------------
+
+test('candidate ingest: the mutation runs inside the admission, not after it', () => {
+  const kernel = {};
+  const order = [];
+  const admission = {
+    admit: (context, mutate) => {
+      order.push('admit:enter');
+      const result = mutate();
+      order.push('admit:exit');
+      return { admitted: true, result };
+    },
+  };
+
+  const result = admitCandidateIngest(kernel, { workspaceId: 'default' }, () => {
+    order.push('mutation');
+    return 'routed';
+  }, admission);
+
+  // The stronger of the two shapes: everything routeCandidateClaim reaches --
+  // all twelve conflict-detector sinks, across three families -- is lexically
+  // inside an active admission rather than merely downstream of one.
+  assert.deepEqual(order, ['admit:enter', 'mutation', 'admit:exit']);
+  assert.equal(result, 'routed');
+});
+
+test('candidate ingest: a refusal means the mutation never runs', () => {
+  let ran = false;
+  const admission = { admit: () => ({ admitted: false, reason: 'identity.invalid_claim' }) };
+
+  assert.throws(
+    () => admitCandidateIngest({}, {}, () => { ran = true; }, admission),
+    (error) => {
+      assert.equal(error.code, 'MUTATION_ADMISSION_REFUSED');
+      assert.match(error.message, /candidate ingest/);
+      return true;
+    },
+  );
+  assert.equal(ran, false);
+});
+
+test('candidate ingest: kernel.ingestCandidateClaim wraps routeCandidateClaim', () => {
+  const kernelSource = fs.readFileSync(path.join(repoRoot, 'kernel.js'), 'utf8');
+
+  // The route call must be the callback, not a sibling statement -- otherwise
+  // the twelve downstream sinks would run outside the admission.
+  assert.match(
+    kernelSource,
+    /admitCandidateIngest\(this, opts, \(\) => routeCandidateClaim\(this, input, opts\)\)/,
+  );
+});
+
+test('candidate ingest: conflict-detector sinks have exactly one production way in', () => {
+  // The ROUTED claim for lib/conflict-detector.js rests on these facts, so they
+  // are asserted rather than assumed.
+  const detector = fs.readFileSync(path.join(repoRoot, 'lib/conflict-detector.js'), 'utf8');
+
+  // Only routeCandidateClaim is exported among the three functions that hold
+  // sink calls; the other two are internal.
+  assert.match(detector, /module\.exports = \{[\s\S]*routeCandidateClaim,/);
+  assert.ok(!/module\.exports[\s\S]*acceptCandidateClaimJournaled/.test(detector));
+  assert.ok(!/module\.exports[\s\S]*\bappendAudit\b/.test(detector));
+
+  const { execFileSync } = require('node:child_process');
+  const callers = execFileSync('git', ['grep', '-l', 'routeCandidateClaim(', '--', '*.js'], {
+    cwd: repoRoot, encoding: 'utf8',
+  })
+    .split('\n').map((l) => l.trim()).filter(Boolean)
+    .filter((f) => !/(\.test\.js$|^test\/)/.test(f))
+    .filter((f) => f !== 'lib/conflict-detector.js');
+
+  // github-connector is NOT_YET_WIRED, so kernel.js is the only production way in.
+  assert.deepEqual(callers.sort(), ['kernel.js', 'lib/github-connector.js']);
+});
+
+test('candidate ingest: routing it does NOT make the candidate family routed', () => {
+  // Two other production entries reach graph.addCandidateClaim without passing
+  // admission. Recording this as a test keeps the ledger honest: a future
+  // reader must not infer family coverage from this unit.
+  const kernelSource = fs.readFileSync(path.join(repoRoot, 'kernel.js'), 'utf8');
+  assert.match(kernelSource, /return this\.graph\.addCandidateClaim\(candidate, opts\)/,
+    'kernel.addCandidateClaim still writes directly');
+
+  const externalClient = fs.readFileSync(
+    path.join(repoRoot, 'lib/external-client-mutation-receipt-owner.js'), 'utf8');
+  assert.match(externalClient, /graph\.addCandidateClaim\(/,
+    'the external client still writes directly');
 });
