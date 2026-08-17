@@ -193,7 +193,8 @@ is why they are listed rather than left in prose:
 | Site | Position | Today | Required | Gap |
 |---|---|---|---|---|
 | `kernel.js:359, 374, 597, 613, 796` | pre | swallows | fail closed | ~~fail-open~~ **evidence only** |
-| `kernel.js:392, 641, 912` | post | swallows | visible | **B3, forbidden** |
+| `kernel.js:392, 641` | post | swallows | visible | **B3, forbidden** |
+| ~~`kernel.js:912`~~ | post | ~~swallows~~ **counts honestly** | visible | **closed** |
 | `agent.v3.js` `_recordBudgetAuditEvent` | pre | swallows | fail closed | ~~fail-open~~ **evidence only** |
 
 > **Corrected by `docs/task-packs/p1g-pre-site-source-reality.md`.**

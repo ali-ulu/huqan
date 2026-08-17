@@ -94,6 +94,10 @@ const CLASSIFICATION = Object.freeze([
   { site: 'agent.v3.js', position: 'pre', onFailure: 'swallows', conformant: false },
   { site: 'lib/workbench/ingest-approval-audit-writer.js', position: 'post', onFailure: 'surfaces', conformant: true },
   { site: 'kernel.js:pre', position: 'pre', onFailure: 'swallows', conformant: false },
+  // Two of the three kernel post sites still swallow. The third, _crossLink's
+  // derived-edge write, was fixed: its counter now reports only audits that
+  // were produced. The entry stays non-conformant because it describes the
+  // remaining two, and it should flip only when they do.
   { site: 'kernel.js:post', position: 'post', onFailure: 'swallows', conformant: false },
 ]);
 
@@ -119,11 +123,15 @@ test('the kernel chokepoint straddles both positions', () => {
 
   // Post-mutation: the audit follows a completed graph write on the same path.
   // The window has to tolerate a gap -- the derived-edge site writes through
-  // `if (edge) { written++; ... }` before auditing -- while refusing to jump
-  // over an intervening sink call or audit call, which would let a pre-mutation
-  // site be miscounted as post-mutation by proximity alone.
+  // `if (edge) { written++; ... }` and, since the _crossLink evidence fix, a
+  // comment block explaining the guard. It was 200 chars and is now 900.
+  //
+  // Widening it is safe because the negative lookahead is what does the real
+  // work: it still refuses to jump over an intervening sink or audit call, so
+  // a pre-mutation site cannot be miscounted as post-mutation by proximity
+  // alone however wide the window gets.
   const postMutation = source.match(
-    /this\.graph\.add(?:Node|Edge)\([^;]*\);(?:(?!_appendAuditEvent|graph\.add)[\s\S]){0,200}?this\._appendAuditEvent\(/g,
+    /this\.graph\.add(?:Node|Edge)\([^;]*\);(?:(?!_appendAuditEvent|graph\.add)[\s\S]){0,900}?this\._appendAuditEvent\(/g,
   ) || [];
   assert.equal(postMutation.length, 3, 'post-mutation kernel audit sites');
 
