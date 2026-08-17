@@ -177,6 +177,9 @@ This ADR structurally splits it:
        (exact propagation TBD)
 ```
 
+Counting `kernel.js` only. See the correction under "Conformance debt": the
+chokepoint's full production reach is 8 pre and 9 post across three files.
+
 The earlier plan — "route all eight through one chokepoint" — is superseded.
 Not because it was inconvenient, but because the two halves now have different
 contracts, and one change cannot satisfy both.
@@ -189,9 +192,30 @@ is why they are listed rather than left in prose:
 
 | Site | Position | Today | Required | Gap |
 |---|---|---|---|---|
-| `kernel.js:359, 374, 597, 613, 796` | pre | swallows | fail closed | **fail-open** |
+| `kernel.js:359, 374, 597, 613, 796` | pre | swallows | fail closed | ~~fail-open~~ **evidence only** |
 | `kernel.js:392, 641, 912` | post | swallows | visible | **B3, forbidden** |
-| `agent.v3.js` `_recordBudgetAuditEvent` | pre | swallows | fail closed | **fail-open** |
+| `agent.v3.js` `_recordBudgetAuditEvent` | pre | swallows | fail closed | ~~fail-open~~ **evidence only** |
+
+> **Corrected by `docs/task-packs/p1g-pre-site-source-reality.md`.**
+>
+> **"Fail-open" was the wrong label for the pre sites.** A fail-open means
+> something gets through. Nothing gets through at any of them: all six are
+> refusal-recording branches, the mutation is decided against before the audit
+> is attempted, and the refusal is carried by the return value or the throw.
+> Measured by running them against a throwing audit sink, not by reading.
+>
+> They are **conformant on enforcement** and **non-conformant on evidence** —
+> the wording this ADR already used for `agent.v3.js` and should have used for
+> all six. The fix is real but smaller and differently shaped than "make them
+> fail closed": they are already closed.
+>
+> **The chokepoint has 17 production call sites, not 8.** The count below is
+> only those inside `kernel.js`. `_appendAuditEvent` is also called from
+> `lib/learn-use-case.js` (3 pre, 4 post) and `lib/conflict-detector.js`
+> (2 post), for 8 pre and 9 post in production; `lib/github-connector.js` also
+> reaches it and is `NOT_YET_WIRED`. The axis decision is unaffected — every
+> additional site classifies cleanly by the same test — but step 2 is nine call
+> sites across three files, not three in one.
 
 The `agent.v3.js` gap is bounded and it is worth staying precise about it: what
 is lost is the *evidence that AB10 refused*, not the refusal. Nothing becomes
