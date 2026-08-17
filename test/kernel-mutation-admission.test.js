@@ -1,10 +1,10 @@
 'use strict';
 
 /**
- * Contract for the learn family's admission step.
+ * Contract for the kernel's admission steps.
  *
- * Routing `kernel.learn` had to prove three things at once, and each has its
- * own section below:
+ * Sections 1-3 cover `admitLearn`. Routing `kernel.learn` had to prove three
+ * things at once:
  *
  *   1. admission runs after the plugin transform, at the point where the
  *      payload can no longer be rewritten, and before any durable machinery;
@@ -12,6 +12,13 @@
  *      distinguishable from DURABLE_MUTATION_JOURNAL_UNAVAILABLE;
  *   3. all three learn entry points reach the same boundary, and the family's
  *      sinks have no other way in.
+ *
+ * Section 4 covers `admitCandidateIngress`, which has to prove something
+ * different: not that a payload was sealed, but that the *routing decision and
+ * its writes* happen inside the admitted effect, across all three families
+ * `routeCandidateClaim` touches — and that the two candidate entry points it
+ * does not cover stay visible as debt rather than being absorbed into the
+ * claim.
  */
 
 const assert = require('node:assert/strict');
@@ -22,9 +29,12 @@ const test = require('node:test');
 const { createMutationAdmission } = require('../lib/mutation-admission.js');
 const {
   ABSENCE_REASONS,
+  CANDIDATE_ABSENCE_REASONS,
+  CANDIDATE_INGRESS_ACTION,
   LEARN_ACTION,
+  admitCandidateIngress,
   admitLearn,
-} = require('../lib/kernel-learn-admission.js');
+} = require('../lib/kernel-mutation-admission.js');
 
 const repoRoot = path.join(__dirname, '..');
 const FIXED_CLOCK = () => new Date('2026-08-16T12:00:00.000Z');
@@ -61,7 +71,7 @@ test('ordering: the transform cannot be reached without going through admission'
   // The caller never sees the untransformed payload: admitLearn calls the
   // transform itself, so there is no arrangement in which admission is skipped
   // or run first.
-  const source = fs.readFileSync(path.join(repoRoot, 'lib/kernel-learn-admission.js'), 'utf8');
+  const source = fs.readFileSync(path.join(repoRoot, 'lib/kernel-mutation-admission.js'), 'utf8');
   assert.match(source, /_runBeforeLearn\(text, opts\)/);
 
   const kernelSource = fs.readFileSync(path.join(repoRoot, 'kernel.js'), 'utf8');
@@ -96,7 +106,7 @@ test('ordering: a refusal produces no payload, so nothing downstream can proceed
 // --- 2. durability --------------------------------------------------------
 
 test('durability: admission neither performs nor replaces the durable write', () => {
-  const source = fs.readFileSync(path.join(repoRoot, 'lib/kernel-learn-admission.js'), 'utf8');
+  const source = fs.readFileSync(path.join(repoRoot, 'lib/kernel-mutation-admission.js'), 'utf8');
 
   // Invariant 1 again, at this call site: the seam must not acquire durability
   // responsibilities on the way in.
@@ -201,4 +211,155 @@ test('context: the real seam admits a complete learn context', () => {
 
   assert.equal(sealed.text, 'text');
   assert.deepEqual(sealed.opts, { workspaceId: 'default' });
+});
+
+// --- 4. candidate ingress -------------------------------------------------
+
+const os = require('node:os');
+const Kernel = require('../kernel.js');
+const { AUDIT_EVENTS } = require('../lib/audit-log.js');
+
+const candidateTempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-candidate-admission-'));
+test.after(() => fs.rmSync(candidateTempDir, { recursive: true, force: true }));
+
+function makeCandidateKernel(name) {
+  return new Kernel({
+    noLoad: true,
+    useSQLite: false,
+    memoryPath: path.join(candidateTempDir, `${name}.json`),
+    dbPath: path.join(candidateTempDir, `${name}.db`),
+  });
+}
+
+function makeClaim(overrides = {}) {
+  return {
+    claim: 'kedi hayvandir',
+    subject: 'kedi',
+    relation: 'IS_A',
+    object: 'hayvan',
+    provenance: {
+      provenanceId: 'prov-admission-001',
+      sourceRef: 'docs/claims.md#1',
+      sourceTitle: 'Claims',
+      sourceType: 'document',
+      actor: 'builder',
+      timestamp: '2026-06-02T00:00:00Z',
+      confidence: 0.91,
+      workspaceId: 'workspace-a',
+      trustPolicyVersion: '0.8.0',
+    },
+    ...overrides,
+  };
+}
+
+test('candidate ingress: a refusal leaves no candidate row, no edge and no audit event', () => {
+  const kernel = makeCandidateKernel('refused');
+  const admission = { admit: () => ({ admitted: false, reason: 'admission.context_invalid' }) };
+
+  assert.throws(
+    () => admitCandidateIngress(kernel, makeClaim(), { workspaceId: 'workspace-a' }, admission),
+    (error) => {
+      assert.equal(error.code, 'MUTATION_ADMISSION_REFUSED');
+      return true;
+    },
+  );
+
+  // This is the property the learn path cannot offer. There, admission hands a
+  // sealed payload back and a caller could in principle write it. Here the
+  // routing *is* the admitted effect, so a refusal is not merely advisory --
+  // there is nothing to write, because nothing was decided.
+  assert.deepEqual(kernel.graph.getCandidateClaims({ workspaceId: 'workspace-a' }), []);
+  assert.equal(kernel.graph.getEdge('kedi', 'hayvan', 'IS_A', 'workspace-a'), null);
+  assert.deepEqual(kernel.graph.getAuditEvents({ workspaceId: 'workspace-a' }), []);
+});
+
+test('candidate ingress: all three families are written inside the admitted effect', () => {
+  const kernel = makeCandidateKernel('three-families');
+  let stateBeforeMutate = null;
+
+  const admission = {
+    admit: (context, mutate) => {
+      // Sampled at the moment admission has decided but the effect has not run.
+      // If any of the three families were written before this point, the seam
+      // would be observing a mutation rather than gating it.
+      stateBeforeMutate = {
+        candidates: kernel.graph.getCandidateClaims({ workspaceId: 'workspace-a' }).length,
+        audits: kernel.graph.getAuditEvents({ workspaceId: 'workspace-a' }).length,
+        edge: kernel.graph.getEdge('kedi', 'hayvan', 'IS_A', 'workspace-a'),
+      };
+      return { admitted: true, result: mutate() };
+    },
+  };
+
+  const routed = admitCandidateIngress(kernel, makeClaim(), { workspaceId: 'workspace-a' }, admission);
+
+  assert.deepEqual(stateBeforeMutate, { candidates: 0, audits: 0, edge: null });
+  assert.equal(routed.candidate.status, 'accepted');
+
+  // candidate family
+  assert.equal(kernel.graph.getCandidateClaims({ workspaceId: 'workspace-a' }).length, 1);
+  // knowledge family — the canonical edge the accept path writes
+  assert.ok(kernel.graph.getEdge('kedi', 'hayvan', 'IS_A', 'workspace-a'));
+  // audit family
+  assert.ok(kernel.graph.getAuditEvents({
+    eventType: AUDIT_EVENTS.CLAIM_ACCEPTED, workspaceId: 'workspace-a',
+  }).length >= 1);
+});
+
+test('candidate ingress: the real seam admits, and kernel.ingestCandidateClaim has no other path', () => {
+  const kernel = makeCandidateKernel('real-seam');
+  const routed = kernel.ingestCandidateClaim(makeClaim(), { workspaceId: 'workspace-a' });
+  assert.equal(routed.candidate.status, 'accepted');
+
+  // Source-level: kernel.js must not reach routeCandidateClaim directly, or the
+  // admitted-effect property above would hold only for the path this test took.
+  const kernelSource = fs.readFileSync(path.join(repoRoot, 'kernel.js'), 'utf8');
+  assert.equal((kernelSource.match(/routeCandidateClaim\(/g) || []).length, 0,
+    'kernel.js must reach routeCandidateClaim only through admitCandidateIngress');
+  assert.match(kernelSource, /admitCandidateIngress\(this, input, opts\)/);
+});
+
+test('candidate ingress: routing this entry point does NOT route the candidate family', () => {
+  // The point of this test is to keep an overclaim from becoming possible by
+  // omission. Two production entry points still reach graph.addCandidateClaim
+  // without passing the seam; if either is ever routed, this test fails and
+  // whoever routed it must restate the claim deliberately.
+  const kernelSource = fs.readFileSync(path.join(repoRoot, 'kernel.js'), 'utf8');
+  assert.match(kernelSource, /return this\.graph\.addCandidateClaim\(candidate, opts\);/,
+    'kernel.addCandidateClaim is expected to still bypass admission');
+
+  const externalClient = fs.readFileSync(
+    path.join(repoRoot, 'lib/external-client-mutation-receipt-owner.js'), 'utf8');
+  assert.match(externalClient, /graph\.addCandidateClaim\(/,
+    'the external client receipt owner is expected to still bypass admission');
+
+  // And the transitive routing claim for conflict-detector.js is contingent on
+  // github-connector staying unwired; assert the second caller is still the
+  // library-only one the ledger classifies as NOT_YET_WIRED.
+  const connector = fs.readFileSync(path.join(repoRoot, 'lib/github-connector.js'), 'utf8');
+  assert.match(connector, /routeCandidateClaim\(/,
+    'github-connector is routeCandidateClaim\'s second caller and is not admitted');
+});
+
+test('candidate ingress context: caller-supplied actors are not promoted, workspace is resolved in the open', () => {
+  const kernel = makeCandidateKernel('context');
+  const seen = [];
+  const admission = {
+    admit: (context, mutate) => { seen.push(context); return { admitted: true, result: mutate() }; },
+  };
+
+  admitCandidateIngress(kernel, makeClaim({ provenance: null }), {}, admission);
+  admitCandidateIngress(kernel, makeClaim(), { workspaceId: '  spaced  ', actor: 'cli-user', reviewedBy: 'reviewer-a' }, admission);
+
+  assert.equal(seen[0].action, CANDIDATE_INGRESS_ACTION);
+  assert.equal(seen[0].workspaceId, 'default');
+  assert.equal(seen[1].workspaceId, 'spaced');
+
+  assert.equal(seen[1].identityClaim.kind, 'absent');
+  assert.match(CANDIDATE_ABSENCE_REASONS.identityClaim, /caller-supplied label/);
+  // reviewedBy names a reviewer but models no delegation; recording it as an
+  // identity or a delegation chain would let the request describe who it is.
+  assert.equal(seen[1].delegationContext.kind, 'absent');
+  assert.equal(JSON.stringify(seen[1]).includes('cli-user'), false);
+  assert.equal(JSON.stringify(seen[1]).includes('reviewer-a'), false);
 });

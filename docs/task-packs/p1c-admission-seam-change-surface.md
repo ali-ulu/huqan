@@ -184,6 +184,30 @@ Not a decision, and it deliberately does not name files:
 4. Re-run Gate 2's two deferred measurements — reachability and contract
    preservation — against the result.
 
+## Open debt: the candidate family has three production entry points
+
+Recorded here because routing one of them is easy to mistake for routing the
+family. `kernel.ingestCandidateClaim` is routed; the other two are not.
+
+| Entry point | Path | State |
+|---|---|---|
+| `kernel.ingestCandidateClaim` | → `routeCandidateClaim` → candidate, knowledge and audit sinks | **Routed.** The routing call is the admitted effect, so a refusal writes nothing. |
+| `kernel.addCandidateClaim` | → `graph.addCandidateClaim` directly | **Unrouted.** Bypasses conflict detection as well as admission. |
+| `lib/external-client-mutation-receipt-owner.js` | → `graph.addCandidateClaim` directly | **Unrouted.** Skips the kernel entirely. |
+
+A fourth path is adjacent rather than a production entry point:
+`lib/github-connector.js` is `routeCandidateClaim`'s second caller and does not
+admit. It is classified `NOT_YET_WIRED` in the boundary contract's unrouted
+ledger, which is what makes the *transitive* routing claim for
+`lib/conflict-detector.js` hold. Wiring the connector invalidates that claim and
+must move the module back to the unrouted ledger.
+
+Consequence for reporting: until the two unrouted entry points are closed, the
+supportable statement is "the `ingestCandidateClaim` entry point is routed", not
+"the candidate family is routed".
+`test/kernel-mutation-admission.test.js` pins all three rows so the distinction
+fails loudly instead of eroding.
+
 ## Non-claims
 
 This document does not claim that an admission seam exists, that B has been

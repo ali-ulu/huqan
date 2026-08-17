@@ -11,7 +11,7 @@ const { buildLearnAdmissionRequest } = require('./lib/learn-admission-request');
 const { evaluateMemoryAdmission } = require('./lib/memory-admission-gate');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
 const { defaultApprovalRequired } = require('./lib/human-approval-toggle');
-const { detectClaimConflict, routeCandidateClaim } = require('./lib/conflict-detector');
+const { detectClaimConflict } = require('./lib/conflict-detector');
 const { createKernelReadUseCases } = require('./lib/kernel-read-use-cases');
 const { runLearnUseCase } = require('./lib/learn-use-case');
 const MemoryStore = require('./lib/memory-store');
@@ -58,7 +58,7 @@ const {
   normalizeWorkspaceId,
 } = require('./lib/cli-mutation-audit-intent');
 const { recordCliMutationAudit } = require('./lib/cli-mutation-audit');
-const { admitLearn } = require('./lib/kernel-learn-admission');
+const { admitCandidateIngress, admitLearn } = require('./lib/kernel-mutation-admission');
 const {
   normalizeExplicitRelationObject,
   parseExplicitRelationPredicate,
@@ -850,7 +850,7 @@ class Kernel {
   }
 
   ingestCandidateClaim(input = {}, opts = {}) {
-    return routeCandidateClaim(this, input, opts);
+    return admitCandidateIngress(this, input, opts);
   }
 
   // Implementations live in lib/predicate-parser.js. These stay as methods
