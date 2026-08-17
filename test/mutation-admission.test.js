@@ -172,3 +172,49 @@ test('admission: durability stays the mutation\'s own concern', () => {
   assert.equal(durableRan, true);
   assert.deepEqual(outcome.result, { committed: true });
 });
+
+test('admission: a forged absent marker without a real reason fails closed (#879)', () => {
+  const admission = createMutationAdmission({ clock: FIXED_CLOCK });
+
+  for (const marker of [
+    { kind: 'absent' },
+    { kind: 'absent', reason: '   ' },
+    { kind: 'absent', reason: '' },
+    { kind: 'absent', reason: 42 },
+    { kind: 'absent', extra: 'x' },
+  ]) {
+    for (const field of ['identityClaim', 'delegationContext', 'connectorContext']) {
+      let called = false;
+      const context = completeContext({ [field]: marker });
+      const outcome = admission.admit(context, () => { called = true; });
+
+      // The marker impersonates `absent(reason)` but skips the helper, so the
+      // invariant it exists to close — an unexplained absence — is present.
+      // It must not fall back to the "plain object claim" branch.
+      assert.equal(outcome.admitted, false, `forged marker on ${field} must refuse`);
+      assert.equal(outcome.reason, ADMISSION_ERRORS.CONTEXT_INVALID);
+      assert.equal(outcome.detail, field);
+      assert.equal(called, false, `forged marker on ${field} must not reach the mutation`);
+    }
+  }
+
+  // A real object claim is still accepted; it simply may not carry the absent
+  // kind. Impersonation is refused; ownership is not.
+  let claimedCalled = false;
+  const ownedOutcome = admission.admit(
+    completeContext({ identityClaim: { kind: 'identity', ref: 'r1' } }),
+    () => { claimedCalled = true; },
+  );
+  assert.equal(ownedOutcome.admitted, true);
+  assert.equal(claimedCalled, true);
+});
+
+test('isAbsent: the marker schema is verified, not just the kind (#879)', () => {
+  assert.equal(isAbsent({ kind: 'absent' }), false);
+  assert.equal(isAbsent({ kind: 'absent', reason: '   ' }), false);
+  assert.equal(isAbsent({ kind: 'absent', reason: '' }), false);
+  assert.equal(isAbsent(Object.create(null)), false);
+  assert.equal(isAbsent(null), false);
+  assert.equal(isAbsent([]), false);
+  assert.equal(isAbsent(absent('a reason')), true);
+});
