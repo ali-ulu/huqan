@@ -29,22 +29,23 @@ function assertStructuredErrors(errors) {
   }
 }
 
-// Ratchet bump 6 -> 8 (PR for Gate 7's fixture unit, issue #846):
-// +invalid.revocation_over_expiry.json — revocation-over-expiry lifecycle rule
-// +valid.linkage_recomputation.json — decision-evidence pair recomputes
-// Existing assertion order and shape unchanged; no schema/validator/runner change.
-// See docs/v5/v5-p1-gate7-conformance-fixtures.md §3.
+// Ratchet bump 8 -> 13 (validator extension for Gate 7's remaining classes, #846):
+// +invalid.identity_claim.json — malformed claim assertion
+// +invalid.delegation_scope_exceeded.json — over-bounded scope assertion
+// +invalid.delegation_chain.json — unresolvable chain assertion
+// +invalid.connector_context.json — absent connector context assertion
+// +invalid.unresolvable_lifecycle.json — reject-whole lifecycle assertion
 test('V5 agent identity conformance links fixtures, schema, and validator', () => {
   const result = runConformance();
 
   assert.equal(result.ok, true);
   assert.equal(result.schemaPath, schemaPath);
   assert.equal(result.fixturesDir, fixturesDir);
-  assert.equal(result.totalFixtures, 8);
-  assert.equal(result.passed, 8);
+  assert.equal(result.totalFixtures, 13);
+  assert.equal(result.passed, 13);
   assert.equal(result.failed, 0);
   assert.equal(Array.isArray(result.results), true);
-  assert.equal(result.results.length, 8);
+  assert.equal(result.results.length, 13);
 
   for (const item of result.results) {
     assert.equal(typeof item.file, 'string');
@@ -84,8 +85,8 @@ test('V5 agent identity conformance summary reports all fixtures passing conform
 
   assert.deepEqual(summary, {
     ok: true,
-    totalFixtures: 8,
-    passed: 8,
+    totalFixtures: 13,
+    passed: 13,
     failed: 0,
     failingFiles: []
   });
