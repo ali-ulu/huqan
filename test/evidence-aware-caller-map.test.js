@@ -7,13 +7,14 @@
  * kind that a reading would get wrong:
  *
  *   - the fifteen discarding sites are five callers, not fifteen contracts;
- *   - `_crossLink`, cited as the precedent for counting evidence, over-reports
- *     it. That is demonstrated by running it against a dead audit sink, not
- *     argued from the source.
+ *   - `_crossLink`, cited as the precedent for counting evidence, over-reported
+ *     it. That was demonstrated by running it against a dead audit sink rather
+ *     than argued from the source, and it is now **fixed**.
  *
- * The second is pinned deliberately as a *defect* test: it asserts the wrong
- * behaviour that exists today, so that fixing it fails here and the fix has to
- * come with its diff. It is not an endorsement.
+ * The second was pinned as a *defect* test -- asserting the wrong behaviour so
+ * the fix had to arrive with its own diff. This is that diff, so the assertion
+ * is inverted rather than deleted: the counter is now checked to stay honest,
+ * in the place that recorded it lying.
  */
 
 const assert = require('node:assert/strict');
@@ -65,32 +66,48 @@ function crossLink(kernel) {
   });
 }
 
-test('DEFECT: _crossLink counts an audit that was never written', () => {
-  // The sharpest form of the evidence problem in this family, and different in
-  // kind from the rest of it. Elsewhere a failed audit produces silence; here
-  // it produces a false positive, which cannot be discovered by comparing
-  // counts later because the count agrees with the wrong answer.
-  //
-  // Asserted as it is today so that the fix must land with its own diff.
+test('_crossLink counts only the audits it actually wrote', () => {
+  // Was a defect test asserting `audits: 1` with a dead sink. The fix inverts
+  // it: the counter now reports zero evidence when zero evidence was produced.
   const live = crossLink(kernelWithCrossLinkableNodes(false));
   const dead = crossLink(kernelWithCrossLinkableNodes(true));
 
   assert.deepEqual(live, { written: 1, audits: 1, skipped: 0 });
-  assert.deepEqual(dead, { written: 1, audits: 1, skipped: 0 });
-  assert.equal(dead.audits, 1, 'today: one audit reported, zero written');
-
-  // The write itself is correct either way -- the defect is in the reporting,
-  // not in what reached the graph.
-  assert.equal(dead.written, 1);
+  assert.deepEqual(dead, { written: 1, audits: 0, skipped: 0 });
 });
 
-test('_crossLink contains the fix in its own other branch', () => {
-  // The parent-allowed branch increments unconditionally; the background branch
-  // guards on the result. Same counter, same loop, two different contracts.
+test('the fix does not retract the write whose evidence was lost', () => {
+  // ADR-012's post-mutation rule is "must not be undone, must not be hidden".
+  // Making the counter honest must not tip into the other failure mode of
+  // pretending the edge never landed -- so `written` stays 1 and the edge
+  // stays in the graph.
+  const kernel = kernelWithCrossLinkableNodes(true);
+
+  const result = crossLink(kernel);
+
+  assert.equal(result.written, 1);
+  assert.equal(result.audits, 0);
+  assert.ok(kernel.graph.getEdge('s', 'o', 'benzer', 'default'), 'the derived edge must remain durable');
+});
+
+test('the gap is now visible in the difference between the two counters', () => {
+  // What "visible" means here, concretely: a caller comparing the counters can
+  // tell that evidence is missing. Before the fix both read 1 and the gap was
+  // undetectable from the return value.
+  const dead = crossLink(kernelWithCrossLinkableNodes(true));
+
+  assert.ok(dead.written > dead.audits, 'written must exceed audits when evidence was lost');
+});
+
+test('both _crossLink branches now guard the counter the same way', () => {
+  // The two branches had different contracts for the same counter. They now
+  // agree: each increments only on a produced audit event.
   const source = readCode('kernel.js');
 
-  assert.match(source, /this\._appendAuditEvent\(\{[\s\S]{0,700}?\}, parentProvenance, workspaceId\);\s*audits\+\+;/);
+  assert.match(source, /\}, parentProvenance, workspaceId\);\s*if \(audit\) audits\+\+;/);
   assert.match(source, /if \(result\.audit\) audits\+\+;/);
+  // And the unconditional form is gone rather than merely shadowed.
+  assert.doesNotMatch(source, /workspaceId\);\s*audits\+\+;/);
 });
 
 test('the fifteen discarding sites are five caller functions', () => {

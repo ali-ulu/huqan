@@ -54,12 +54,18 @@ test('the chokepoint is reached by 21 audit writes, not 17', () => {
   assert.equal(writes, 21, 'total audit writes reaching the chokepoint');
 });
 
-test('six sites bind the result; fifteen discard it', () => {
-  // This is what makes a chokepoint-only fix insufficient: at fifteen sites
-  // there is nothing to receive a signal it would start producing.
+test('seven sites bind the result; fourteen discard it', () => {
+  // This is what makes a chokepoint-only fix insufficient: at the remaining
+  // sites there is nothing to receive a signal it would start producing.
+  //
+  // Was 6/15 when p1h measured it. The _crossLink evidence-count fix bound a
+  // seventh, so the debt ledger moves 6 -> 7 bound and 15 -> 14 discarded.
+  // Recorded as a moving number rather than a fixed one: each caller made
+  // evidence-aware should lower the second figure in a reviewable diff, the
+  // same shape as the mutation-admission ratchet.
   const bound = (relPath) => (readCode(relPath).match(/=\s*this\._appendAuditEvent\s*\(/g) || []).length;
 
-  assert.equal(bound('kernel.js'), 6, 'kernel.js binds six results');
+  assert.equal(bound('kernel.js'), 7, 'kernel.js binds seven results');
   assert.equal(bound('lib/learn-use-case.js'), 0);
   assert.equal(bound('lib/conflict-detector.js'), 0);
 

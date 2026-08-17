@@ -909,7 +909,7 @@ class Kernel {
             const edge = this.graph.addEdge(subject, object, 'benzer', edgeOptions);
             if (edge) {
               written++;
-              this._appendAuditEvent({
+              const audit = this._appendAuditEvent({
                 eventType: 'LEARN',
                 targetType: 'derived_edge',
                 targetId: `${edge.from}|${edge.relation}|${edge.to}`,
@@ -922,7 +922,7 @@ class Kernel {
                   ...this._admissionReceiptDetails(parentAdmission),
                 },
               }, parentProvenance, workspaceId);
-              audits++;
+              if (audit) audits++;
             }
           } else {
             // Background invocation — route through admission gate.

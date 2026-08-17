@@ -163,6 +163,18 @@ be an abstraction over four call sites that already have somewhere to put the
 answer. The shared thing that genuinely exists is the *vocabulary*, and that
 can be a small constants module rather than a seam.
 
+> **Done.** `_crossLink` was fixed as the first implementation unit. The
+> counter now increments only on a produced audit event, in a two-line diff
+> with no new type and no change to what reaches the graph. Both branches of
+> that loop now guard the counter identically. The ledger in P1-H moves from
+> 6 bound / 15 discarded to **7 bound / 14 discarded**.
+>
+> One thing worth not overstating: `_crossLink`'s only production caller,
+> `lib/learn-use-case.js:325`, discards its return value, so this has no
+> observable effect in production today. Its value is that the counter has
+> stopped lying, which is what makes it usable as the precedent for the
+> remaining callers.
+
 **Supported first unit:** `_crossLink`. It is one caller, one site, its
 counter is already wrong in a way that is demonstrated rather than argued, and
 fixing it requires no new type — the `if (result.audit)` form from its own
