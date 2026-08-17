@@ -82,3 +82,8 @@ jobs:
 
       - name: Run repository test suite
         run: npm test
+        env:
+          # Same policy as benchmark.yml: AC-785-10 is only proven when the
+          # browser smoke actually runs, so fail instead of skipping on the
+          # Node 22 leg. Node 20 has no global WebSocket and is left permissive.
+          HUQAN_REQUIRE_BROWSER_SMOKE: ${{ matrix.node-version == 22 && '1' || '' }}
