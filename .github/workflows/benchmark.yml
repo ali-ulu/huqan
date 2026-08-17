@@ -221,6 +221,14 @@ jobs:
       - run: npm ci --include=optional
       - name: Run full test suite
         run: npm test
+        env:
+          # The Claim Workspace browser smoke skips itself when the runtime has
+          # no global WebSocket or no Chromium-family browser. A smoke that
+          # skips silently is not evidence, so require it where it can run.
+          # Node 20 has no global WebSocket, so the requirement is Node 22 only;
+          # on that leg the runner image ships Chrome and this run's log shows
+          # all 9 sub-assertions executing (~9s), not skipping.
+          HUQAN_REQUIRE_BROWSER_SMOKE: ${{ matrix.node-version == 22 && '1' || '' }}
 
   runtime-test-skip:
     name: npm test (runtime/test)
