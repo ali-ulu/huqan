@@ -1,0 +1,34 @@
+{
+  "agent_id": null,
+  "agent_type": "local",
+  "display_name": "Invalid Claim Agent",
+  "owner_actor_id": "actor-owner-001",
+  "workspace_id": "workspace-alpha",
+  "delegation_scope": [
+    "verify"
+  ],
+  "allowed_tools": [
+    "axiom.verify"
+  ],
+  "allowed_memory_scopes": [
+    "read_only_context"
+  ],
+  "allowed_connectors": [
+    "local_stdio_mcp"
+  ],
+  "risk_tier": "low",
+  "trust_tier": "unverified",
+  "policy_version": "v5-planning-identity-1",
+  "issued_at": "2026-08-01T00:00:00.000Z",
+  "expires_at": null,
+  "revoked_at": null,
+  "revocation_reason": null,
+  "parent_agent_id": null,
+  "delegation_chain": [],
+  "receipt_refs": [],
+  "provenance_refs": [],
+  "audit_requirements": [],
+  "verification_status": "invalid",
+  "expected_status": "invalid",
+  "expected_reason_code": "identity.invalid_claim"
+}
