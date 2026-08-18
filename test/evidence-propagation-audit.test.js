@@ -74,9 +74,11 @@ test('four kernel sites bind the result; eleven discard it', () => {
   assert.equal(bound('lib/learn-use-case.js'), 0);
   assert.equal(bound('lib/conflict-detector.js'), 0);
 
-  // The six that bind it also propagate it to the caller.
+  // The binding sites propagate it to the caller. K2 (#328): the background
+  // edge commit delegation moved one propagation site to
+  // lib/background-provenance.js, so the kernel floor is now 3.
   const kernel = readCode('kernel.js');
-  assert.equal((kernel.match(/audit,\s*(?:admission|node|edge)/g) || []).length >= 4, true);
+  assert.equal((kernel.match(/audit,\s*(?:admission|node|edge)/g) || []).length >= 3, true);
 });
 
 test('exactly one production consumer is evidence-aware', () => {
