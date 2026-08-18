@@ -9,6 +9,7 @@ const {
   extractCommandText,
   extractRedirectionTargets,
   findDenylistMatch,
+  findForcePushMatches,
   findInjectionMatches,
   findOutOfWorkspaceTarget,
   evaluateCommandExec,
@@ -307,4 +308,58 @@ test('#379: destructive commands stay caught when embedded in prose goals', () =
   assert.equal(findRawDiskWrite('just cp file /dev/sda quickly'), true);
   // ...but prose mentioning a scoped removal is still not destructive.
   assert.equal(findDestructiveRm('run rm -rf ./build to clean up'), false);
+});
+
+// ─── force push (irreversible remote history rewrite) ────────────────────────
+
+test('evaluateCommandExec: reviews a force push whatever order its flags arrive in', () => {
+  for (const command of [
+    'git push --force origin main',
+    'git push -f origin main',
+    'git push origin main --force',
+    'git push origin main --force-with-lease',
+    'git -C /workspace/project push --force',
+  ]) {
+    const r = evaluateCommandExec({ command, workspaceRoot: '/workspace/project', cwd: '/workspace/project' });
+    assert.equal(r.decision, COMMAND_EXEC_DECISIONS.REVIEW, command);
+    assert.equal(r.reason, COMMAND_EXEC_REASONS.IRREVERSIBLE_GIT_OPERATION_REVIEW, command);
+    assert.ok(r.forcePushMatches.length > 0, command);
+  }
+});
+
+test('evaluateCommandExec: an ordinary push is not a force push', () => {
+  for (const command of [
+    'git push origin main',
+    'git push --follow-tags origin main',
+    'git fetch --force origin main',
+  ]) {
+    const r = evaluateCommandExec({ command, workspaceRoot: '/workspace/project', cwd: '/workspace/project' });
+    assert.equal(r.decision, COMMAND_EXEC_DECISIONS.ALLOW, command);
+    assert.deepEqual(r.forcePushMatches, [], command);
+  }
+});
+
+test('evaluateCommandExec: force push names the operation rather than the metacharacter', () => {
+  // `&&` alone would answer SHELL_INJECTION_PATTERN_REVIEW. The named,
+  // irreversible operation is the more useful finding, so it wins.
+  const r = evaluateCommandExec({
+    command: 'git commit -m "wip" && git push --force',
+    workspaceRoot: '/workspace/project',
+    cwd: '/workspace/project',
+  });
+  assert.equal(r.reason, COMMAND_EXEC_REASONS.IRREVERSIBLE_GIT_OPERATION_REVIEW);
+});
+
+test('evaluateCommandExec: a blocked command stays blocked, force push or not', () => {
+  const r = evaluateCommandExec({ command: 'sudo git push --force', workspaceRoot: '/workspace/project' });
+  assert.equal(r.decision, COMMAND_EXEC_DECISIONS.BLOCK);
+  assert.equal(r.reason, COMMAND_EXEC_REASONS.DENYLISTED_COMMAND_BLOCKED);
+});
+
+test('findForcePushMatches: reports which force variant matched, once each', () => {
+  assert.deepEqual(findForcePushMatches('git push --force origin main'), ['force']);
+  assert.deepEqual(findForcePushMatches('git push --force-with-lease'), ['force_with_lease']);
+  assert.deepEqual(findForcePushMatches('git push --force && git push --force'), ['force']);
+  assert.deepEqual(findForcePushMatches('git status'), []);
+  assert.deepEqual(findForcePushMatches('docker push --force'), []);
 });
