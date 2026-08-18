@@ -3,10 +3,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
+const routeMod = require('../lib/http/v5-package-import-route');
 const {
   createV5PackageImportRoute,
   createReceiverTrustedKeyResolver,
-} = require('../lib/http/v5-package-import-route');
+} = routeMod;
 
 function makeRequest({ method = 'POST', body = null, headers = {} } = {}) {
   const req = new EventEmitter();
@@ -256,6 +257,104 @@ test('source snapshot binding is carried exactly as supplied — carried or reje
   await handler(secret, resSecret, new URL('http://x/api/v5/packages'));
   assert.equal(resSecret.statusCode, 400);
   assert.equal(resSecret._body.error.code, 'INVALID_SOURCE_SNAPSHOT');
+});
+
+test('route unit-of-work constant is stable and named for future seams', () => {
+  // The atomicity contract (docs/v5/v5-package-atomicity-contract.md) keys
+  // future seams (outbox, real mutation seams) off this constant name.
+  const { UNIT_OF_WORK_TYPE } = require('../lib/http/v5-package-import-route');
+  assert.equal(typeof UNIT_OF_WORK_TYPE, 'string');
+  assert.equal(UNIT_OF_WORK_TYPE, 'v5-package-import');
+});
+
+test('atomicity: the package record and its audit event are observable together or not at all', async () => {
+  // Docs-first contract (v5-package-atomicity-contract.md §2): a package
+  // record is observable if and only if the matching `v5_package_imported`
+  // event is observable. Write-then-audit ordering: the 200 response is
+  // written only when the event is durably appended; an append failure
+  // leaves no trace and answers 5xx.
+  const activeKey = {
+    keyReference: 'agent-test-001',
+    status: 'active',
+    publicKeySpkiDer: Buffer.alloc(44, 0x41),
+  };
+  const resolver = createReceiverTrustedKeyResolver({ issuerRecords: [activeKey] });
+  const auditLog = require('../lib/audit-log');
+  const handler = createV5PackageImportRoute({ parseJsonRequest, trustedKeyResolver: resolver });
+
+  // Bounded verification currently fails closed on every signature shape,
+  // so a 200 admission is not reachable today. Fail-closed correctness is
+  // the first half of the invariant: a rejected package must never reach
+  // the audit append — observed by interposing on the chain's append seam.
+  const chain = routeMod.V5_CHAIN;
+  const originalChainAppend = chain.appendAuditEvent;
+  const appended = [];
+  chain.appendAuditEvent = function observingAppend(target, event) {
+    appended.push({ target, event });
+    return originalChainAppend(target, event);
+  };
+  try {
+    const req = makeRequest({ body: minimalValidPackage({ packageId: 'stp-atomic-001' }) });
+    const res = makeResponse();
+    await handler(req, res, new URL('http://x/api/v5/packages'));
+    assert.equal(res.statusCode, 400, 'verification fails closed today — admission is unreachable');
+    assert.equal(appended.length, 0, 'a rejected package must never reach the audit append');
+  } finally {
+    chain.appendAuditEvent = originalChainAppend;
+  }
+
+  // Throw mid-chain (the future writer-accepting half): the response must
+  // never be 200 when the append fails, and no trace of the package may
+  // remain observable to any future reader. Writer and verifier are
+  // interposed so this assertion runs against the commit-guard path
+  // itself rather than being skipped by the verification gate.
+  const throwingTarget = [];
+  Object.defineProperty(throwingTarget, 'push', {
+    value: () => { throw new Error('audit target write failed mid-chain'); },
+    writable: true,
+  });
+  // Today neither the verification gate nor the writer accepts test
+  // fixtures, so the route can never reach the commit guard on its own.
+  // The guard is measured directly: interpose the writer and the
+  // verification gate with stubs that accept (their own validation is
+  // pinned elsewhere) and let the throwing audit target drive the
+  // failure path.
+  const chain2 = routeMod.V5_CHAIN;
+  const originalChain2 = { ...chain2 };
+  const failAppended = [];
+  chain2.writeRuntimePackage = function acceptingWrite(input) {
+    return {
+      ok: true,
+      verdict: 'BLOCK',
+      reason_category: 'test_accept',
+      package: { packageId: input.packageId },
+    };
+  };
+  chain2.evaluateBoundedVerification = function verified() {
+    return { verificationStatus: 'verified', reasonCategory: 'test_accept' };
+  };
+  chain2.appendAuditEvent = function throwingAppend(target, event) {
+    failAppended.push({ target, event });
+    return originalAppend(throwingTarget, event);
+  };
+  try {
+    const failReq = makeRequest({ body: minimalValidPackage({ packageId: 'stp-atomic-002' }) });
+    const failRes = makeResponse();
+    await handler(failReq, failRes, new URL('http://x/api/v5/packages'));
+    assert.equal(failRes.statusCode, 500);
+    assert.equal(failRes._body.error.code, 'PACKAGE_IMPORT_INCOMPLETE');
+    assert.equal(failRes._body.error.details.unitOfWorkType, 'v5-package-import');
+    assert.equal(failRes._body.error.details.packageId, 'stp-atomic-002');
+    assert.equal(failAppended.length, 1,
+      'the unit-of-work append is attempted exactly once after the writer accepted');
+    assert.equal(failAppended[0].event.eventType, 'v5_package_imported');
+    assert.equal(failAppended[0].event.targetId, 'stp-atomic-002');
+    assert.equal(throwingTarget.length, 0, 'the throwing target must not retain a partial write');
+  } finally {
+    chain2.writeRuntimePackage = originalChain2.writeRuntimePackage;
+    chain2.evaluateBoundedVerification = originalChain2.evaluateBoundedVerification;
+    chain2.appendAuditEvent = originalChain2.appendAuditEvent;
+  }
 });
 
 test('route rejects construction without required dependencies', () => {

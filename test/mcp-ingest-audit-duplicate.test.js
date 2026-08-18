@@ -311,7 +311,7 @@ test('6: this is a deletion, so the total falls rather than shifting', () => {
   );
   assert.ok(unroutedLedger.length > 0);
   assert.equal(unroutedLedger.includes(MCP_TOOL), false, 'the MCP surface must leave the unrouted ledger');
-  assert.match(ledger, /assert\.equal\(unrouted, 20,/);
+  assert.match(ledger, /assert\.equal\(unrouted, 22,/);
   assert.match(ledger, /assert\.equal\(routed, 24,/);
-  assert.match(ledger, /assert\.equal\(unrouted \+ routed, 44,/);
+  assert.match(ledger, /assert\.equal\(unrouted \+ routed, 46,/);
 });

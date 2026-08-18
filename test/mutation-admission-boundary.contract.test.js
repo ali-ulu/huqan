@@ -104,6 +104,17 @@ const UNROUTED_SINK_CALLS = Object.freeze({
 
   // --- standalone tooling --------------------------------------------------
   'scripts/seed-demo.js': { why: 'standalone demo seeder; not a production mutation path', sinks: { addNode: 2, addEdge: 1 } },
+
+  // --- V5 unit-of-work audit boundary (Gate 2 closeout) --------------------
+  // Gate 2 closed with NO_EXISTING_UNIVERSAL_HOOK; the V5 package import
+  // route is the first caller surface, and the atomicity contract (docs/v5/
+  // v5-package-atomicity-contract.md) places this unit-of-work audit append
+  // behind a commit check (200 only when the event is durably appended).
+  // Unrouted here deliberately: the append is the unit-of-work event, not a
+  // routed mutation — the family-independent admission seam remains P1's
+  // job, and the commit check is that seam's atomicity precondition, not a
+  // substitute for it.
+  'lib/http/v5-package-import-route.js': { why: 'V5 unit-of-work audit append behind the atomicity commit check; the admission seam (P1) is not this caller\'s; counted twice: the V5_CHAIN lazy wrapper and the commit-guard call', sinks: { appendAuditEvent: 2 } },
 });
 
 /**
@@ -316,7 +327,16 @@ test('mutation admission: the debt ledger reflects the routing done so far', () 
   // the routed writer. Removing the copy removes a sink call outright, so the
   // total moved for the only reason it legitimately can. A total that falls
   // without a duplicate having been deleted is still a finding, not slack.
-  assert.equal(unrouted, 20, 'unrouted sink calls');
+  //
+  // The total rose once, from 44 to 46, and the exception is stated rather
+  // than absorbed: `lib/http/v5-package-import-route.js` gained the unit-of-
+  // work audit append under the V5 atomicity commit check (docs/v5/
+  // v5-package-atomicity-contract.md) -- counted twice by the scan because
+  // the V5_CHAIN lazy wrapper is itself a dot-call. That append is the
+  // unit-of-work event, not a routed mutation -- the admission seam (P1)
+  // remains the family-independent boundary, and this entry is a reviewable
+  // debt decision, not a routing claim.
+  assert.equal(unrouted, 22, 'unrouted sink calls');
   assert.equal(routed, 24, 'sink calls routed through admission');
-  assert.equal(unrouted + routed, 44, 'total sink calls, lowered once by a duplicate deletion');
+  assert.equal(unrouted + routed, 46, 'total sink calls, raised once by the V5 unit-of-work audit append');
 });
