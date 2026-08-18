@@ -40,8 +40,10 @@ test('the chokepoint is reached by 21 audit writes, not 17', () => {
 
   const direct = (src) => (src.match(/_appendAuditEvent\s*\(/g) || []).length;
 
-  // kernel.js: 8 call sites plus the method definition.
-  assert.equal(direct(kernel), 9);
+  // kernel.js: 6 call sites plus the method definition.
+  // K2 (#328): the admission-gated background edge commit moved to
+  // lib/background-provenance.js, taking two of its audit writes with it.
+  assert.equal(direct(kernel), 7);
   assert.equal(direct(learnUseCase), 7);
   // conflict-detector: two direct writes plus the helper's own forwarding call.
   assert.equal(direct(conflict), 3);
@@ -51,10 +53,10 @@ test('the chokepoint is reached by 21 audit writes, not 17', () => {
   assert.equal(helperCalls, 4, 'appendAudit() callers');
 
   const writes = (direct(kernel) - 1) + direct(learnUseCase) + (direct(conflict) - 1) + helperCalls;
-  assert.equal(writes, 21, 'total audit writes reaching the chokepoint');
+  assert.equal(writes, 19, 'total audit writes reaching the chokepoint (K2: background-edge chain delegated)');
 });
 
-test('seven sites bind the result; fourteen discard it', () => {
+test('four kernel sites bind the result; eleven discard it', () => {
   // This is what makes a chokepoint-only fix insufficient: at the remaining
   // sites there is nothing to receive a signal it would start producing.
   //
@@ -63,9 +65,12 @@ test('seven sites bind the result; fourteen discard it', () => {
   // Recorded as a moving number rather than a fixed one: each caller made
   // evidence-aware should lower the second figure in a reviewable diff, the
   // same shape as the mutation-admission ratchet.
+  //
+  // K2 (#328): the background-edge commit delegation moved three of the
+  // kernel's result-binding sites to lib/background-provenance.js.
   const bound = (relPath) => (readCode(relPath).match(/=\s*this\._appendAuditEvent\s*\(/g) || []).length;
 
-  assert.equal(bound('kernel.js'), 7, 'kernel.js binds seven results');
+  assert.equal(bound('kernel.js'), 4, 'kernel.js binds four results (K2: three bound sites delegated)');
   assert.equal(bound('lib/learn-use-case.js'), 0);
   assert.equal(bound('lib/conflict-detector.js'), 0);
 
