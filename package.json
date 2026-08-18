@@ -230,6 +230,7 @@
     "lib/memory-query-engine.js",
     "lib/memory-record-utils.js",
     "lib/memory-schema.js",
+    "lib/memory-supersede.js",
     "lib/memory-store-rollback.js",
     "lib/memory-store-utils.js",
     "lib/memory-store.js",
