@@ -70,14 +70,20 @@ test('claim 1: kernel.js reaches the audit sink exactly once', () => {
   );
 });
 
-test('claim 1: the kernel chokepoint governs eight call sites', () => {
+test('claim 1: the kernel chokepoint governs its six call sites', () => {
   const source = readCode('kernel.js');
 
   // The count is pinned rather than bounded: this is what makes routing
   // _appendAuditEvent a high-coverage change, and a drop would mean a call
   // site left the chokepoint for somewhere else.
+  //
+  // K2 (#328): the admission-gated background edge commit was delegated to
+  // lib/background-provenance.js (commitBackgroundEdge(deps)). Its two audit
+  // sites now live in the delegated module -- if that delegation is ever
+  // dropped back into kernel.js, this count will rise and must fail loudly
+  // with a comment explaining why.
   const callSites = countMatches(source, /this\._appendAuditEvent\s*\(/g);
-  assert.equal(callSites, 8, 'kernel audit call sites reaching the chokepoint');
+  assert.equal(callSites, 6, 'kernel audit call sites reaching the chokepoint (K2: background-edge chain delegated)');
 });
 
 test('claim 1: kernel.v2 adds no second audit path', () => {

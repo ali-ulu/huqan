@@ -130,15 +130,21 @@ test('the kernel chokepoint straddles both positions', () => {
   // work: it still refuses to jump over an intervening sink or audit call, so
   // a pre-mutation site cannot be miscounted as post-mutation by proximity
   // alone however wide the window gets.
+  // K2 (#328): the admission-gated background edge commit
+  // (_autoThinkTick/dream/selfEvolve/_crossLink/proposeEdge path) now lives
+  // in lib/background-provenance.js as commitBackgroundEdge(deps) -- its
+  // addEdge-then-audit chain counts against the delegated module, not
+  // kernel.js. If that delegation is ever dropped back into kernel.js, the
+  // post-mutation count below will rise and this test must catch it.
   const postMutation = source.match(
     /this\.graph\.add(?:Node|Edge)\([^;]*\);(?:(?!_appendAuditEvent|graph\.add)[\s\S]){0,900}?this\._appendAuditEvent\(/g,
   ) || [];
-  assert.equal(postMutation.length, 3, 'post-mutation kernel audit sites');
+  assert.equal(postMutation.length, 2, 'post-mutation kernel audit sites');
 
   // Pre-mutation: the remainder record a refusal or a rejection.
   const total = (source.match(/this\._appendAuditEvent\s*\(/g) || []).length;
-  assert.equal(total, 8, 'total kernel audit call sites');
-  assert.equal(total - postMutation.length, 5, 'pre-mutation kernel audit sites');
+  assert.equal(total, 6, 'total kernel audit call sites (K2: background-edge chain delegated to lib/background-provenance.js)');
+  assert.equal(total - postMutation.length, 4, 'pre-mutation kernel audit sites');
 });
 
 test('the kernel swallows failures at both positions today', () => {
