@@ -2,100 +2,28 @@
 
 const { detectTypeLatticeConflict } = require('./lib/type-lattice');
 
-const TYPE_RELATIONS = new Set(['tür', 'tur']);
-const FACT_RELATIONS = new Set(['özellik', 'ozellik', 'yapabilir']);
-const OPPOSITE_PREDICATES = new Map();
-const MANIPULATION_RULES = [
-  {
-    label: 'prompt_injection',
-    regex: /(?:ignore(?:\s+all)?(?:\s+previous)?(?:\s+instructions?)?|önceki talimatları yok say|sistem mesajını yok say|sistem talimatlarını yok say|system prompt(?:unu)?(?:\s+yok say)?|role:\s*system|developer message|gizli komut|talimatları atla)/i,
-    reason: 'The text is trying to bypass system instructions.',
-    weight: 0.72,
-  },
-  {
-    label: 'coercive_pressure',
-    regex: /(?:hemen|acilen|derhal|zorundasın|zorundasınız|mecbursun|mecbursunuz|bir an önce|şimdi|vakit kaybetmeden|itiraz etme|sorgulama|sadece bunu yap|tek yapman gereken)/i,
-    reason: 'The text uses pressure and urgency language.',
-    weight: 0.24,
-  },
-  {
-    label: 'unsupported_authority',
-    regex: /(?:resmi olarak|yetkiliyim|yetkiliyiz|uzmanım|uzmanız|CEO|admin|yönetici|sistem yöneticisi|kurum adına|otorite olarak|openai|chatgpt|claude|gpt-4|gpt-5)/i,
-    reason: 'The text makes an unsupported claim of authority.',
-    weight: 0.22,
-  },
-  {
-    label: 'false_certainty',
-    regex: /(?:% ?100|kesinlikle|garanti(?:lidir|dir)?|mutlak(?:tır|tır)?|asla yanılmaz|şüphesiz|tartışmasız|her zaman|hiçbir zaman|tamamen eminim)/i,
-    reason: 'The text claims excessive certainty.',
-    weight: 0.18,
-  },
-];
-
-function nowIso() {
-  return new Date().toISOString();
-}
-
-function normalizeText(text) {
-  return String(text || '').trim().toLowerCase();
-}
-
-function normalizeAscii(word) {
-  return String(word || '')
-    .toLowerCase()
-    .replace(/ı/g, 'i')
-    .replace(/ğ/g, 'g')
-    .replace(/ü/g, 'u')
-    .replace(/ş/g, 's')
-    .replace(/ö/g, 'o')
-    .replace(/ç/g, 'c')
-    .trim();
-}
-
-function stripCopulaTail(token) {
-  return String(token || '')
-    .toLowerCase()
-    .replace(/(?:dır|dir|dur|dür|tır|tir|tur|tür)$/i, '')
-    .trim();
-}
-
-function registerOppositePair(left, right) {
-  const leftVariants = [normalizeAscii(left), stripCopulaTail(normalizeAscii(left))].filter(Boolean);
-  const rightVariants = [normalizeAscii(right), stripCopulaTail(normalizeAscii(right))].filter(Boolean);
-  for (const l of leftVariants) {
-    for (const r of rightVariants) {
-      OPPOSITE_PREDICATES.set(l, r);
-      OPPOSITE_PREDICATES.set(r, l);
-    }
-  }
-}
-
-[
-  ['ucar', 'ucmaz'],
-  ['yuzer', 'yuzmez'],
-  ['sicaktir', 'soguktur'],
-  ['canlidir', 'cansizdir'],
-].forEach(([left, right]) => registerOppositePair(left, right));
-
-function normalizeManipulationText(text) {
-  return String(text || '').replace(/\s+/g, ' ').trim();
-}
-
-function parseSimpleTurkishStatement(statement) {
-  const raw = normalizeText(statement);
-  const negMatch = raw.match(/^(\S+)\s+(.+?)\s+de[gğ]il(?:dir|dır|dur|dür)?$/i);
-  if (negMatch) {
-    return { subject: negMatch[1], predicate: negMatch[2], isNegated: true };
-  }
-
-  const words = raw.split(/\s+/).filter(Boolean);
-  if (words.length < 2) return null;
-  return {
-    subject: words[0],
-    predicate: words.slice(1).join(' '),
-    isNegated: false,
-  };
-}
+// Mechanical 1:1 extraction (#328, docs/kernel-split-plan.md V2-A): pure native
+// helpers, the opposite-predicate seed table, and the manipulation rule
+// table moved to lib/kernel-v2-native.js. Behaviour is unchanged -- the
+// module-init seed still runs when kernel-v2-native is first required,
+// which is exactly when KernelV2 itself is required.
+const {
+  TYPE_RELATIONS,
+  FACT_RELATIONS,
+  OPPOSITE_PREDICATES,
+  MANIPULATION_RULES,
+  nowIso,
+  normalizeText,
+  normalizeAscii,
+  stripCopulaTail,
+  registerOppositePair,
+  normalizeManipulationText,
+  parseSimpleTurkishStatement,
+} = require('./lib/kernel-v2-native');
+const {
+  analyseManipulation,
+  withManipulationRisk,
+} = require('./lib/text-safety-scorer');
 
 class KernelV2 {
   constructor(opts = {}) {
@@ -267,7 +195,7 @@ class KernelV2 {
       const words = cleaned.split(/\s+/).filter(Boolean);
       if (words.length < minWords) continue;
 
-      const risk = this._analyzeManipulation(cleaned);
+      const risk = analyseManipulation(cleaned);
       let action = 'allow';
       if (risk.manipulation && risk.score >= blockThreshold && !allowRiskyLearning) {
         action = 'block';
@@ -460,7 +388,7 @@ class KernelV2 {
           },
         }
       : result;
-    return this._withManipulationRisk(enriched, risk);
+    return withManipulationRisk(enriched, risk);
   }
 
   _collectTypeTargets(subject, workspaceId = 'default') {
@@ -529,94 +457,6 @@ class KernelV2 {
         nodes: [edge.from, edge.to],
         edges: [{ from: edge.from, to: edge.to, relation: edge.relation }],
       }));
-  }
-
-  _stripManipulationPrefix(fragment) {
-    return String(fragment || '')
-      .replace(/^(?:lütfen|please|hemen|acilen|derhal|şimdi|bir an önce|önceki talimatları yok say|sistem mesajını yok say|sistem talimatlarını yok say|ignore(?:\s+all)?(?:\s+previous)?(?:\s+instructions?)?|system prompt(?:unu)?(?:\s+yok say)?|role:\s*system|developer message|gizli komut|talimatları atla|sadece bunu yap|tek yapman gereken)\b[\s,:;\-]*/i, '')
-      .trim();
-  }
-
-  _splitManipulationFragments(text) {
-    return normalizeManipulationText(text)
-      .split(/(?:[.!?\n]+|[,;]+|\bve\b|\bama\b|\bfakat\b|\bancak\b|\bçünkü\b|\bzira\b)/i)
-      .map(f => this._stripManipulationPrefix(f))
-      .filter(Boolean);
-  }
-
-  _extractVerificationStatement(text) {
-    const raw = normalizeManipulationText(text);
-    if (!raw) return null;
-
-    const direct = parseSimpleTurkishStatement(raw);
-    if (direct) {
-      const cue = MANIPULATION_RULES.some(rule => rule.regex.test(raw));
-      if (!cue) return raw;
-    }
-
-    for (const fragment of this._splitManipulationFragments(raw)) {
-      if (!fragment) continue;
-      if (MANIPULATION_RULES.some(rule => rule.regex.test(fragment))) continue;
-      if (parseSimpleTurkishStatement(fragment)) return fragment;
-    }
-
-    return direct ? raw : null;
-  }
-
-  _analyzeManipulation(text) {
-    const raw = normalizeManipulationText(text);
-    const lower = raw.toLowerCase();
-    const labels = [];
-    const reasons = [];
-    let score = 0;
-
-    const addHit = (label, reason, weight) => {
-      if (!labels.includes(label)) labels.push(label);
-      if (!reasons.includes(reason)) reasons.push(reason);
-      score += weight;
-    };
-
-    for (const rule of MANIPULATION_RULES) {
-      if (rule.regex.test(lower)) addHit(rule.label, rule.reason, rule.weight);
-    }
-
-    const extractedStatement = this._extractVerificationStatement(raw);
-    if (labels.length > 0 && extractedStatement && extractedStatement !== raw) {
-      addHit('mixed_intent', 'The text contains both a manipulative instruction and content to verify.', 0.18);
-    }
-
-    if (/[:;,-]\s*(?:ignore|önceki|sistem|talimat|prompt|komut|instruction)/i.test(lower)) {
-      addHit('hidden_instruction', 'The text hides an instruction behind delimiters.', 0.2);
-    }
-
-    score = Math.max(0, Math.min(1, score));
-
-    return {
-      manipulation: labels.length > 0,
-      labels,
-      reasons,
-      score: Number(score.toFixed(2)),
-      blocked: score >= 0.7,
-      downgraded: score > 0 && score < 0.7,
-      extractedStatement,
-      source: raw,
-    };
-  }
-
-  _withManipulationRisk(result, risk) {
-    if (!risk || !risk.manipulation) return result;
-    const data = result && result.data && typeof result.data === 'object' && !Array.isArray(result.data)
-      ? { ...result.data, risk }
-      : result.data;
-    return {
-      ...result,
-      data,
-      meta: {
-        ...(result && result.meta ? result.meta : {}),
-        manipulationScore: risk.score,
-        manipulationLabels: risk.labels,
-      },
-    };
   }
 
   _findOppositePredicateConflict(subject, normalizedTargetToken, maxDepth = 4, workspaceId = 'default') {
@@ -743,7 +583,7 @@ class KernelV2 {
   }
 
   verify(statement, opts = {}) {
-    const risk = this._analyzeManipulation(statement);
+    const risk = analyseManipulation(statement);
     const verificationStatement = risk.extractedStatement || statement;
     const parsed = parseSimpleTurkishStatement(verificationStatement);
     if (!parsed) return this._withVerifyDetails(this.kernel.verify(verificationStatement, opts), risk);
