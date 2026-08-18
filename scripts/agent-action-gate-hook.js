@@ -24,12 +24,16 @@
  *
  * Environment:
  *   HUQAN_AGENT_GATE_LOG        append-only JSONL decision log (optional)
- *   HUQAN_AGENT_GATE_ALLOWLIST  extra write roots, os.EOL-free, ':'-separated
+ *   HUQAN_AGENT_GATE_ALLOWLIST  extra write roots, ':'-separated
+ *
+ * Both are read through lib/environment-compat, which is what resolves the
+ * AXIOM_ legacy spelling and rejects a conflicting pair.
  */
 
 const fs = require('node:fs');
 const path = require('node:path');
 const { evaluateAgentAction, AGENT_GATE_DECISIONS } = require('../lib/agent-action-gate-adapter');
+const { readCompatibleEnvironmentVariable } = require('../lib/environment-compat');
 
 const MAX_STDIN_BYTES = 1024 * 1024;
 
@@ -54,7 +58,7 @@ function readStdin() {
 function resolveAllowlist(cwd) {
   const roots = [];
   if (typeof cwd === 'string' && cwd.trim()) roots.push(path.resolve(cwd.trim()));
-  const extra = process.env.HUQAN_AGENT_GATE_ALLOWLIST;
+  const extra = readCompatibleEnvironmentVariable('AGENT_GATE_ALLOWLIST');
   if (typeof extra === 'string' && extra.trim()) {
     for (const entry of extra.split(':')) {
       if (entry.trim()) roots.push(path.resolve(entry.trim()));
@@ -91,7 +95,7 @@ function explain(verdict) {
 
 /** Best-effort decision log. Records the verdict, never the tool payload. */
 function appendAuditLine(payload, verdict) {
-  const target = process.env.HUQAN_AGENT_GATE_LOG;
+  const target = readCompatibleEnvironmentVariable('AGENT_GATE_LOG');
   if (!target) return;
   try {
     fs.appendFileSync(target, `${JSON.stringify({
