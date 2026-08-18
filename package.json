@@ -252,6 +252,7 @@
     "lib/relation-drift.js",
     "lib/repo-file-pin.js",
     "lib/risk-classify.js",
+    "lib/risk-policy-constants.js",
     "lib/risk-rules.js",
     "lib/sandbox-isolation.js",
     "lib/sdk.js",
