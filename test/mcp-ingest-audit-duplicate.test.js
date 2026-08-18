@@ -312,6 +312,11 @@ test('6: this is a deletion, so the total falls rather than shifting', () => {
   assert.ok(unroutedLedger.length > 0);
   assert.equal(unroutedLedger.includes(MCP_TOOL), false, 'the MCP surface must leave the unrouted ledger');
   assert.match(ledger, /assert\.equal\(unrouted, 22,/);
-  assert.match(ledger, /assert\.equal\(routed, 24,/);
-  assert.match(ledger, /assert\.equal\(unrouted \+ routed, 46,/);
+  // K2 (#328): a later routing step delegated the background edge commit to
+  // lib/background-provenance.js as a *new* ledgered entry -- routed rose
+  // 24->26 and the total 46->48. This is the opposite of a deletion, which is
+  // exactly why this test pins the routed and total numbers and not the
+  // difference between them: each shape has its own finding.
+  assert.match(ledger, /assert\.equal\(routed, 26,/);
+  assert.match(ledger, /assert\.equal\(unrouted \+ routed, 48,/);
 });

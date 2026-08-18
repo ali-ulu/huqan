@@ -10,7 +10,7 @@
   "files": {
     "agent.js": 1076,
     "graph.js": 1694,
-    "kernel.js": 1543,
+    "kernel.js": 1461,
     "kernel.v2.js": 815,
     "lib/code-change-gate.js": 891,
     "lib/memory-store.js": 2085,
