@@ -15,7 +15,6 @@
     "lib/code-change-gate.js": 891,
     "lib/memory-store.js": 2085,
     "lib/sandbox-isolation.js": 855,
-    "lib/verify.js": 967,
     "scripts/external-conformance/consumer.js": 924,
     "server.js": 1118,
     "workflow-agent.js": 1020,
