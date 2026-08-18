@@ -139,6 +139,7 @@
     "lib/causal/index.js",
     "lib/claim-decomposition.js",
     "lib/cli-help.js",
+    "lib/cli-helpers.js",
     "lib/cli-ingest-batch.js",
     "lib/cli-mutation-audit-intent.js",
     "lib/cli-mutation-audit.js",
