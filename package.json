@@ -194,6 +194,7 @@
     "lib/json-object.js",
     "lib/json-utf8-size.js",
     "lib/kernel-envelope.js",
+    "lib/kernel-contract.js",
     "lib/kernel-factory.js",
     "lib/kernel-introspect-report.js",
     "lib/kernel-mutation-admission.js",
