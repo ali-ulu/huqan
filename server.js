@@ -168,6 +168,7 @@ function handleV5PackageImportRoute(req, res, reqUrl) {
       v5PackageImportRouteCache = createV5PackageImportRoute({
         parseJsonRequest,
         trustedKeyResolver: createReceiverTrustedKeyResolver({ issuerRecords: issuerTrustedKeyRecords }),
+        auditTarget: kernel.graph,
       });
     } catch (_) {
       // V5 module not available in this installation (installed tarball):

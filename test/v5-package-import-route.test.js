@@ -59,8 +59,18 @@ function minimalValidPackage(overrides = {}) {
   };
 }
 
+
+// Mock audit target — captures events written by the route so tests can
+// assert that the audit event is reachable through a production-owned
+// owner after the handler returns (docs/v5/v5-package-atomicity-contract.md).
+function makeAuditTarget() {
+  const events = [];
+  return { events, _auditEvents: events, appendAuditEvent: require("../lib/audit-log").appendAuditEvent };
+}
+
+
 test('route ignores paths it does not own', async () => {
-  const handler = createV5PackageImportRoute({
+  const handler = createV5PackageImportRoute({ auditTarget: makeAuditTarget(),
     parseJsonRequest,
     trustedKeyResolver: createReceiverTrustedKeyResolver({ issuerRecords: [] }),
   });
@@ -72,7 +82,7 @@ test('route ignores paths it does not own', async () => {
 });
 
 test('non-POST is answered 405 and consumes the path', async () => {
-  const handler = createV5PackageImportRoute({
+  const handler = createV5PackageImportRoute({ auditTarget: makeAuditTarget(),
     parseJsonRequest,
     trustedKeyResolver: createReceiverTrustedKeyResolver({ issuerRecords: [] }),
   });
@@ -84,7 +94,7 @@ test('non-POST is answered 405 and consumes the path', async () => {
 });
 
 test('schema-invalid package fails closed with bounded reason and no durable trace', async () => {
-  const handler = createV5PackageImportRoute({
+  const handler = createV5PackageImportRoute({ auditTarget: makeAuditTarget(),
     parseJsonRequest,
     trustedKeyResolver: createReceiverTrustedKeyResolver({ issuerRecords: [] }),
   });
@@ -99,7 +109,7 @@ test('schema-invalid package fails closed with bounded reason and no durable tra
 
 test('untrusted issuer fails closed even when the package schema and evidence shape look correct', async () => {
   const resolver = createReceiverTrustedKeyResolver({ issuerRecords: [] });
-  const handler = createV5PackageImportRoute({ parseJsonRequest, trustedKeyResolver: resolver });
+  const handler = createV5PackageImportRoute({ auditTarget: makeAuditTarget(), parseJsonRequest, trustedKeyResolver: resolver });
   const req = makeRequest({ body: minimalValidPackage() });
   const res = makeResponse();
   const handled = await handler(req, res, new URL('http://x/api/v5/packages'));
@@ -125,7 +135,7 @@ test('issuer identity is resolved only through receiver-owned trust authority re
 
 test('verified is a signature status, not trust — verification result alone does not imply admission', async () => {
   const resolver = createReceiverTrustedKeyResolver({ issuerRecords: [] });
-  const handler = createV5PackageImportRoute({ parseJsonRequest, trustedKeyResolver: resolver });
+  const handler = createV5PackageImportRoute({ auditTarget: makeAuditTarget(), parseJsonRequest, trustedKeyResolver: resolver });
   // Even a package whose evidence survived bounded verification would still be
   // rejected here, because the issuer is not active in the receiver authority:
   // admission requires both, and the trust gate is evaluated before the
@@ -147,7 +157,7 @@ test('verification failures fail closed and never admit', async () => {
     publicKeySpkiDer: Buffer.alloc(44, 0x41),
   };
   const resolver = createReceiverTrustedKeyResolver({ issuerRecords: [activeKey] });
-  const handler = createV5PackageImportRoute({ parseJsonRequest, trustedKeyResolver: resolver });
+  const handler = createV5PackageImportRoute({ auditTarget: makeAuditTarget(), parseJsonRequest, trustedKeyResolver: resolver });
   const req = makeRequest({ body: minimalValidPackage() });
   const res = makeResponse();
   const handled = await handler(req, res, new URL('http://x/api/v5/packages'));
@@ -158,7 +168,7 @@ test('verification failures fail closed and never admit', async () => {
 });
 
 test('no durable trace of the package body is left on rejection', async () => {
-  const handler = createV5PackageImportRoute({
+  const handler = createV5PackageImportRoute({ auditTarget: makeAuditTarget(),
     parseJsonRequest,
     trustedKeyResolver: createReceiverTrustedKeyResolver({ issuerRecords: [] }),
   });
@@ -180,7 +190,7 @@ test('no durable trace of the package body is left on rejection', async () => {
 });
 
 test('rejection never reads as success — no 5xx-as-2xx, no ok:true on blocked verdict', async () => {
-  const handler = createV5PackageImportRoute({
+  const handler = createV5PackageImportRoute({ auditTarget: makeAuditTarget(),
     parseJsonRequest,
     trustedKeyResolver: createReceiverTrustedKeyResolver({ issuerRecords: [] }),
   });
@@ -214,7 +224,7 @@ test('source snapshot binding is carried exactly as supplied — carried or reje
   // admitted today. What this test pins down is the snapshot's position
   // in the chain: a malformed snapshot is rejected at the schema gate,
   // and a secret-looking snapshot is rejected for its own reason.
-  const handler = createV5PackageImportRoute({ parseJsonRequest, trustedKeyResolver: resolver });
+  const handler = createV5PackageImportRoute({ auditTarget: makeAuditTarget(), parseJsonRequest, trustedKeyResolver: resolver });
 
   const base = minimalValidPackage();
   const validSnapshot = {
@@ -280,7 +290,7 @@ test('atomicity: the package record and its audit event are observable together 
   };
   const resolver = createReceiverTrustedKeyResolver({ issuerRecords: [activeKey] });
   const auditLog = require('../lib/audit-log');
-  const handler = createV5PackageImportRoute({ parseJsonRequest, trustedKeyResolver: resolver });
+  const handler = createV5PackageImportRoute({ auditTarget: makeAuditTarget(), parseJsonRequest, trustedKeyResolver: resolver });
 
   // Bounded verification currently fails closed on every signature shape,
   // so a 200 admission is not reachable today. Fail-closed correctness is
@@ -357,9 +367,49 @@ test('atomicity: the package record and its audit event are observable together 
   }
 });
 
+
+
+test('audit event is reachable through the injected target after a successful import', async () => {
+  // Regression for the audit-target injection: the route must hand the event
+  // to the production-owned audit target (kernel.graph in server.js), never to
+  // an ownerless literal. The event must remain observable through that target
+  // after the handler returns (docs/v5/v5-package-atomicity-contract.md).
+  const activeKey = {
+    keyReference: 'agent-test-001',
+    status: 'active',
+    publicKeySpkiDer: Buffer.alloc(44, 0x41),
+  };
+  const resolver = createReceiverTrustedKeyResolver({ issuerRecords: [activeKey] });
+  const chain = routeMod.V5_CHAIN;
+  const original = { ...chain };
+  chain.writeRuntimePackage = function acceptingWrite(input) {
+    return { ok: true, verdict: 'BLOCK', reason_category: 'test_accept', package: { packageId: input.packageId } };
+  };
+  chain.evaluateBoundedVerification = function verified() {
+    return { verificationStatus: 'verified', reasonCategory: 'test_accept' };
+  };
+  const ownedTarget = makeAuditTarget();
+  const handler = createV5PackageImportRoute({
+    auditTarget: ownedTarget,
+    parseJsonRequest,
+    trustedKeyResolver: resolver,
+  });
+  try {
+    const req = makeRequest({ body: minimalValidPackage({ packageId: 'stp-success-001' }) });
+    const res = makeResponse();
+    await handler(req, res, new URL('http://x/api/v5/packages'));
+    assert.equal(res.statusCode, 200);
+    assert.equal(ownedTarget.events.length, 1);
+    assert.equal(ownedTarget.events[0].eventType, 'v5_package_imported');
+    assert.equal(ownedTarget.events[0].targetId, 'stp-success-001');
+  } finally {
+    chain.writeRuntimePackage = original.writeRuntimePackage;
+    chain.evaluateBoundedVerification = original.evaluateBoundedVerification;
+  }
+});
 test('route rejects construction without required dependencies', () => {
-  assert.throws(() => createV5PackageImportRoute({ parseJsonRequest }), TypeError);
-  assert.throws(() => createV5PackageImportRoute({ trustedKeyResolver: () => {} }), TypeError);
+  assert.throws(() => createV5PackageImportRoute({ auditTarget: makeAuditTarget(), parseJsonRequest }), TypeError);
+  assert.throws(() => createV5PackageImportRoute({ auditTarget: makeAuditTarget(), trustedKeyResolver: () => {} }), TypeError);
 });
 
 test('receiver trust resolver fails closed on empty key bytes and unknown references', () => {
