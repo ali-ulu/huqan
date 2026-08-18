@@ -115,9 +115,14 @@ test('the evidence signal is already consumed by a production caller', () => {
   assert.match(source, /return \{ decision: admission\.outcome, node: null, audit, admission \};/);
 });
 
-test('the chokepoint reaches 17 production call sites, not 8', () => {
+test('the chokepoint reaches 15 production call sites, not 8', () => {
   // ADR-012 says "eight-call-site kernel chokepoint", which counted only
   // kernel.js. Pinned here so the corrected number cannot drift back.
+  //
+  // K2 (#328): the background edge commit moved to
+  // lib/background-provenance.js, taking two of its audit writes with it
+  // (its writes still reach the chokepoint -- they pass through the same
+  // graph sink).
   const count = (relPath) => {
     const source = fs.readFileSync(path.join(REPO_ROOT, relPath), 'utf8')
       .replace(/\/\*[\s\S]*?\*\//g, ' ')
@@ -125,8 +130,8 @@ test('the chokepoint reaches 17 production call sites, not 8', () => {
     return (source.match(/_appendAuditEvent\s*\(/g) || []).length;
   };
 
-  // kernel.js holds 8 call sites plus the method definition itself.
-  assert.equal(count('kernel.js'), 9);
+  // kernel.js holds 6 call sites plus the method definition itself.
+  assert.equal(count('kernel.js'), 7);
   assert.equal(count('lib/learn-use-case.js'), 7);
   // conflict-detector reaches it twice directly, plus once through its own
   // appendAudit pass-through helper.

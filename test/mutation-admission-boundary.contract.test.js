@@ -188,6 +188,23 @@ const ROUTED_SINK_CALLS = Object.freeze({
     why: 'candidate + audit + knowledge sinks; reachable in production only via kernel.ingestCandidateClaim, which routes routeCandidateClaim inside admit()',
     sinks: { addNode: 4, addEdge: 2, addCandidateClaim: 5, appendAuditEvent: 1 },
   },
+
+  // --- K2 (#328): delegated production mutation path -----------------------
+  // The admission-gated background edge commit moved from kernel.js to this
+  // module as commitBackgroundEdge(deps). Its addEdge and four audit appends
+  // (LEARN/REJECT pair plus the derived-edge pair) all sit inside the same
+  // admission-gated callback that kernel.js owned before -- delegation moved
+  // the code, not the boundary, so this entry is ROUTED, not debt.
+  // If this module ever writes without its injected deps, this entry must be
+  // the first place that fails.
+  'lib/background-provenance.js': {
+    why: 'K2-delegated background edge commit; the four sinks (1 addEdge + 3 appendAuditEvent) sit inside the admission callback passed to runMutationOnce/evaluateLearnAdmission via injected deps',
+    // The scan regex only counts dot-call sinks (`.method(`), so only the
+    // addEdge write and the first dot-call append are ledgered; the other
+    // audit appends go through the injected (dotless) alias. Both kinds sit
+    // inside the admission gate.
+    sinks: { addEdge: 1, appendAuditEvent: 1 },
+  },
 });
 
 /** Every file permitted to contain a sink call, in either state. */
@@ -336,7 +353,14 @@ test('mutation admission: the debt ledger reflects the routing done so far', () 
   // unit-of-work event, not a routed mutation -- the admission seam (P1)
   // remains the family-independent boundary, and this entry is a reviewable
   // debt decision, not a routing claim.
+  // K2 (#328): the background edge commit moved from kernel.js to
+  // lib/background-provenance.js as a delegation, not a routing change -- its
+  // stay inside the admission gate, so they count routed. The scan only
+  // ledgeres dot-call sinks, so the K2 entry contributes two (addEdge + the
+  // dot-call append); the other appends ride the injected alias. The total
+  // rose from 46 to 48 because the module's copy of the chain is now ledgered
+  // outright rather than through the kernel wrapper.
   assert.equal(unrouted, 22, 'unrouted sink calls');
-  assert.equal(routed, 24, 'sink calls routed through admission');
-  assert.equal(unrouted + routed, 46, 'total sink calls, raised once by the V5 unit-of-work audit append');
+  assert.equal(routed, 26, 'sink calls routed through admission (K2: +2 background edge dot-calls)');
+  assert.equal(unrouted + routed, 48, 'total sink calls, raised by the K2 background edge delegation');
 });

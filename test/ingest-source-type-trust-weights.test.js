@@ -181,37 +181,33 @@ test.describe('ingest source types reach the trust policy', () => {
     // background writes carried no confidence at all. The guard fired the
     // moment that was wired up, which is what it was for.
     //
-    // Measured through the kernel rather than by reading kernel.js: a source
-    // grep would pass on an applyTrustPolicyToProvenance call whose result was
-    // discarded.
-    const Kernel = require('../kernel');
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'trust-bg-'));
-    try {
-      const kernel = new Kernel({
-        noLoad: true, loadPlugins: false, useSQLite: false,
-        memoryPath: path.join(dir, 'memory.json'),
-      });
+    // Measured against the provenance builder directly rather than by reading
+    // kernel.js: a source grep would pass on an applyTrustPolicyToProvenance
+    // call whose result was discarded.
+    //
+    // K2 (#328): the background provenance builder moved out of kernel.js
+    // (_backgroundProvenance, removed) into lib/background-provenance.js
+    // (buildBackgroundProvenance). The kernel no longer owns it, but the
+    // scored-provenance contract it guards is unchanged.
+    const { buildBackgroundProvenance } = require('../lib/background-provenance');
 
-      const background = kernel._backgroundProvenance('autoThink', 'default');
-      assert.equal(background.sourceType, 'background_inference');
-      assert.equal(typeof background.confidence, 'number',
-        'background provenance carries no confidence; the policy is not being applied');
-      assert.equal(background.confidenceSource, 'policy_default');
-      assert.notEqual(background.confidence, FALLBACK,
-        'background_inference is scoring the unknown fallback again');
+    const background = buildBackgroundProvenance('autoThink', 'default');
+    assert.equal(background.sourceType, 'background_inference');
+    assert.equal(typeof background.confidence, 'number',
+      'background provenance carries no confidence; the policy is not being applied');
+    assert.equal(background.confidenceSource, 'policy_default');
+    assert.notEqual(background.confidence, FALLBACK,
+      'background_inference is scoring the unknown fallback again');
 
-      // The shape company-brain passes through proposeEdge. Its sourceType is
-      // now declared, so the graph edge keeps recording 'manual' and still gets
-      // a real weight -- no source_sub_type column is needed to hold anything.
-      const pluginEdge = kernel._backgroundProvenance('plugin', 'default', {
-        sourceType: 'manual', sourceRef: 'note:1', actor: 'company-brain',
-      });
-      assert.equal(pluginEdge.sourceType, 'manual');
-      assert.equal(pluginEdge.confidenceSource, 'policy_default');
-      assert.notEqual(pluginEdge.confidence, FALLBACK);
-    } finally {
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
+    // The shape company-brain passes through proposeEdge. Its sourceType is
+    // now declared, so the graph edge keeps recording 'manual' and still gets
+    // a real weight -- no source_sub_type column is needed to hold anything.
+    const pluginEdge = buildBackgroundProvenance('plugin', 'default', {
+      sourceType: 'manual', sourceRef: 'note:1', actor: 'company-brain',
+    });
+    assert.equal(pluginEdge.sourceType, 'manual');
+    assert.equal(pluginEdge.confidenceSource, 'policy_default');
+    assert.notEqual(pluginEdge.confidence, FALLBACK);
   });
 
   test('a deliberate weight is distinguishable from a fallback on the record itself', () => {
