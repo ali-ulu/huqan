@@ -6,7 +6,7 @@ const PluginManager = require('./plugin');
 const createNlp = require('./nlp');
 const VerifyService = require('./lib/verify');
 const { buildProvenance } = require('./lib/provenance-ingest');
-const { buildBackgroundProvenance, provenanceFieldsFrom } = require('./lib/background-provenance');
+const { buildBackgroundProvenance, provenanceFieldsFrom, commitBackgroundEdge } = require('./lib/background-provenance');
 const { buildLearnAdmissionRequest } = require('./lib/learn-admission-request');
 const { evaluateMemoryAdmission } = require('./lib/memory-admission-gate');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
@@ -313,10 +313,13 @@ class Kernel {
     const workspaceId = normalizeWorkspaceId(opts.workspaceId || provenance?.workspaceId || 'default');
     const pluginProvenance = provenance && typeof provenance === 'object'
       ? provenance
-      : this._backgroundProvenance('plugin', workspaceId, {
+      : buildBackgroundProvenance('plugin', workspaceId, {
         sourceType: opts.sourceType || 'plugin',
         sourceRef: opts.sourceRef || '',
         actor: opts.actor || opts.sessionId || 'plugin',
+      }, {
+        contractVersion: this.contractVersion,
+        trustPolicyPath: this.trustPolicyPath,
       });
     const proposalText = `${id} ${label || id}`;
     const admissionOpts = {
@@ -523,115 +526,30 @@ class Kernel {
     return recordCliMutationAudit(this.graph, intent);
   }
   /**
-   * FAZ2-PR3 (F-001): Background-source synthetic provenance for autonomous
-   * mutation paths (_autoThinkTick, dream(learnFromDream), selfEvolve,
-   * _crossLink).  Background mutations MUST carry a source/actor/provenanceId
-   * so admission and audit can attribute them.  This is NOT a bypass — the
-   * synthetic provenance is fed into the same admission gate as user writes,
-   * which by default returns 'review' for low-trust background actors and
-   * therefore prevents silent canonical writes.
-   */
-  _backgroundProvenance(source, workspaceId = 'default', extra = {}) {
-    return buildBackgroundProvenance(source, workspaceId, extra, {
-      contractVersion: this.contractVersion,
-      trustPolicyPath: this.trustPolicyPath,
-    });
-  }
-
-  /**
-   * FAZ2-PR3 (F-001): Admission-gated background edge commit.
+   * K2 (#328, docs/kernel-split-plan.md): admission-gated background edge
+   * commit -- now a delegation to lib/background-provenance.js's
+   * commitBackgroundEdge(deps)(from, to, relation, source, opts). The
+   * function body is the single authoritative implementation; Kernel only
+   * injects its instance methods as dependencies. Behaviour is unchanged.
    *
-   * - Builds synthetic provenance describing the background source.
-   * - Routes the proposed edge through _evaluateLearnAdmission (same gate the
-   *   user-facing learn path uses).
-   * - On 'allow' decision: writes the edge with source/provenance metadata and
-   *   emits a LEARN audit event tagged background:<source>.
-   * - On 'review' or 'reject' (the default for synthetic background
-   *   provenance): does NOT write the canonical edge and emits a
-   *   REVIEW/REJECT audit event so the attempt is recorded.
+   * FAZ2-PR3 (F-001): routes the edge through _evaluateLearnAdmission
+   * (same gate the user-facing learn path uses), writes the canonical edge
+   * with provenance + source metadata on 'allow' (LEARN audit), or records
+   * REVIEW/REJECT without writing on every other outcome (fail-closed).
    *
    * @returns {{decision: string, edge: object|null, audit: object|null, admission: object|null}}
    */
   _commitBackgroundEdge(from, to, relation, source, opts = {}) {
-    const workspaceId = normalizeWorkspaceId(opts.workspaceId || 'default');
-    const provenance = this._backgroundProvenance(source, workspaceId, opts.provenanceExtra || {});
-    const proposalText = `${from} ${relation} ${to}`;
-    const admissionOpts = {
-      ...(opts.admissionOpts || {}),
-      workspaceId,
-      provenanceId: provenance.provenanceId,
-      actor: provenance.actor,
-      agentId: provenance.actor,
-      sourceType: provenance.sourceType,
-      sourceRef: provenance.sourceRef,
-      admissionReason: `background_${source}_edge_write`,
-      admissionContext: {
-        ...(opts.admissionOpts && opts.admissionOpts.admissionContext) || {},
-        backgroundSource: source,
-      },
-    };
-    const admission = this._evaluateLearnAdmission(proposalText, admissionOpts, provenance, workspaceId);
-
-    // Admission missing (shouldn't happen for background paths) — treat as review for safety.
-    if (!admission) {
-      const audit = this._appendAuditEvent({
-        eventType: 'REVIEW',
-        targetType: 'background_edge',
-        targetId: `${from}|${relation}|${to}`,
-        details: {
-          backgroundSource: source,
-          reason: 'admission_unavailable',
-          from,
-          to,
-          relation,
-        },
-      }, provenance, workspaceId);
-      return { decision: 'review', edge: null, audit, admission: null };
-    }
-
-    if (admission.outcome !== 'allow') {
-      const audit = this._appendAuditEvent({
-        eventType: admission.outcome === 'reject' ? 'REJECT' : 'REVIEW',
-        targetType: 'background_edge',
-        targetId: `${from}|${relation}|${to}`,
-        details: {
-          backgroundSource: source,
-          reason: admission.reason,
-          admissionOutcome: admission.outcome,
-          approvalStatus: admission.approvalStatus,
-          ...this._admissionReceiptDetails(admission),
-          from,
-          to,
-          relation,
-        },
-      }, provenance, workspaceId);
-      return { decision: admission.outcome, edge: null, audit, admission };
-    }
-
-    // Allowed — write the canonical edge with provenance + source metadata.
-    const edgeOptions = {
-      ...(opts.edgeOptions || {}),
-      workspaceId,
-      provenance,
-      source: opts.edgeOptions && opts.edgeOptions.source
-        ? opts.edgeOptions.source
-        : `background:${source}`,
-    };
-    const edge = this.graph.addEdge(from, to, relation, edgeOptions);
-    const audit = this._appendAuditEvent({
-      eventType: 'LEARN',
-      targetType: 'background_edge',
-      targetId: edge ? `${edge.from}|${edge.relation}|${edge.to}` : `${from}|${relation}|${to}`,
-      details: {
-        backgroundSource: source,
-        from,
-        to,
-        relation,
-        admissionOutcome: 'allow',
-        ...this._admissionReceiptDetails(admission),
-      },
-    }, provenance, workspaceId);
-    return { decision: 'allow', edge, audit, admission };
+    return commitBackgroundEdge({
+      contractVersion: this.contractVersion,
+      trustPolicyPath: this.trustPolicyPath,
+      evaluateLearnAdmission: (text, admissionOpts, provenance, workspaceId) =>
+        this._evaluateLearnAdmission(text, admissionOpts, provenance, workspaceId),
+      appendAuditEvent: (event, provenance, workspaceId) =>
+        this._appendAuditEvent(event, provenance, workspaceId),
+      admissionReceiptDetails: admission => this._admissionReceiptDetails(admission),
+      addEdge: (f, t, rel, edgeOptions) => this.graph.addEdge(f, t, rel, edgeOptions),
+    })(from, to, relation, source, opts);
   }
 
   _isLearnAdmissionBypass(opts = {}) {
