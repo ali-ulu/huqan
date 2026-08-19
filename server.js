@@ -36,6 +36,7 @@ const { createOptionalRouteBoundaries } = require('./lib/http/optional-boundarie
 const { projectUploadAdmission } = require('./lib/http/upload-admission-contract');
 const { createMutationAdmission } = require('./lib/mutation-admission');
 const { createIngestApprovalAuditWriter } = require('./lib/workbench/ingest-approval-audit-writer');
+const { createTrustEvidenceLedger } = require('./lib/trust-evidence-ledger');
 const pkg = require('./package.json');
 const {
   DEFAULT_MAX_UPLOAD_BODY,
@@ -86,8 +87,12 @@ function recoverExpiredIngestApprovals(store = ingestApprovalStore) {
 // P1's first caller routed through the mutation admission seam. The context it
 // has to build lives in the writer rather than here, so this file keeps gaining
 // wiring and delegation only (ARCH-001).
+const trustEvidenceLedger = createTrustEvidenceLedger({ graph: kernel.graph });
 const recordIngestApprovalAudit = createIngestApprovalAuditWriter({
-  graph: kernel.graph, admission: createMutationAdmission(), hashResult: sha256,
+  graph: kernel.graph,
+  admission: createMutationAdmission(),
+  hashResult: sha256,
+  ledger: trustEvidenceLedger,
 });
 
 // --- Güvenlik sabitleri ---

@@ -28,6 +28,7 @@ const KernelV2 = require('./kernel.v2');
 const errorPrevention = require('./lib/error-prevention');
 const agentActionFirewall = require('./lib/agent-action-firewall');
 const agentIdentityRuntime = require('./lib/agent-identity-runtime');
+const trustEvidenceLedger = require('./lib/trust-evidence-ledger');
 
 module.exports = KernelV2;
 
@@ -68,3 +69,11 @@ module.exports.evaluateAgentIdentity = agentIdentityRuntime.evaluateAgentIdentit
 module.exports.snapshotAgentIdentityAuthority = agentIdentityRuntime.snapshotAgentIdentityAuthority;
 module.exports.AGENT_IDENTITY_RUNTIME_VERSION = agentIdentityRuntime.AGENT_IDENTITY_RUNTIME_VERSION;
 module.exports.IDENTITY_RUNTIME_ERRORS = agentIdentityRuntime.IDENTITY_RUNTIME_ERRORS;
+
+// Durable Trust Evidence & Receipt Ledger surface. This composes the existing
+// Graph mutation journal and receipt chain; it does not create a second trust root.
+module.exports.TrustEvidenceLedger = trustEvidenceLedger;
+module.exports.createTrustEvidenceLedger = trustEvidenceLedger.createTrustEvidenceLedger;
+module.exports.buildTrustEvidencePayload = trustEvidenceLedger.buildTrustEvidencePayload;
+module.exports.verifyTrustEvidenceReceipt = trustEvidenceLedger.verifyTrustEvidenceReceipt;
+module.exports.TRUST_EVIDENCE_SCHEMA_VERSION = trustEvidenceLedger.TRUST_EVIDENCE_SCHEMA_VERSION;
