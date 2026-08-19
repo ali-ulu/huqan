@@ -35,14 +35,13 @@ const {
   clamp01,
   edgeSortKey,
   compareCausalEdges,
-  normalizeCausalStep,
   sanitizeEdgeMeta,
-  attachTraversalMeta,
   normalizeLoadedEdge,
 } = require('./lib/graph-record-utils');
 const { countAuditEvents, queryAuditEvents, readAuditEvents } = require('./lib/audit-query');
 const { assertChainTipUsable, emptyMutationJournal, readMutationJournal } = require('./lib/mutation-journal');
 const { applyTemporalEdgeMetadata, beginEdgeTouchScope, downgradeEdge, edgeTouchKey } = require('./lib/graph-edge-mutations');
+const { getCausalChain: runCausalChain } = require('./lib/graph-causal-chain');
 
 class Graph {
   /**
@@ -1604,78 +1603,7 @@ class Graph {
   }
 
   getCausalChain(fromId, maxDepthOrOpts = 10) {
-    const opts = typeof maxDepthOrOpts === 'object' && maxDepthOrOpts !== null
-      ? maxDepthOrOpts
-      : { maxDepth: maxDepthOrOpts };
-    const maxDepth = Number.isFinite(opts.maxDepth) ? Math.max(0, opts.maxDepth) : 10;
-    const workspaceId = normalizeWorkspaceId(opts.workspaceId);
-
-    const chain = [];
-    const visited = [];
-    const visitedSet = new Set();
-    const loops = [];
-    const queue = [{ node: fromId, depth: 0, path: [], pathNodes: [fromId] }];
-    let stoppedReason = this.getNode(fromId, workspaceId) ? 'exhausted' : 'missing-start-node';
-    let confidenceTotal = 0;
-    let confidenceCount = 0;
-    let depthStopped = false;
-
-    if (!this.getNode(fromId, workspaceId)) {
-      return attachTraversalMeta(chain, {
-        start: fromId,
-        visited,
-        loops,
-        stoppedReason,
-        maxDepth,
-        confidence: 0,
-      });
-    }
-
-    while (queue.length > 0) {
-      const { node, depth, path, pathNodes } = queue.shift();
-      if (depth >= maxDepth) {
-        depthStopped = true;
-        continue;
-      }
-      if (!visitedSet.has(node)) {
-        visitedSet.add(node);
-        visited.push(node);
-      }
-
-      const causalEdges = this.getCausalEdges(node, workspaceId);
-      for (const edge of causalEdges) {
-        const step = normalizeCausalStep(edge);
-        const newPath = [...path, step];
-        chain.push(newPath);
-        confidenceTotal += step.confidence ?? 0;
-        confidenceCount += 1;
-
-        if (pathNodes.includes(edge.to)) {
-          loops.push([...pathNodes, edge.to]);
-          continue;
-        }
-
-        queue.push({
-          node: edge.to,
-          depth: depth + 1,
-          path: newPath,
-          pathNodes: [...pathNodes, edge.to],
-        });
-      }
-    }
-
-    if (depthStopped) {
-      stoppedReason = 'maxDepth';
-    }
-
-    return attachTraversalMeta(chain, {
-      start: fromId,
-      visited,
-      loops,
-      stoppedReason,
-      maxDepth,
-      confidence: confidenceCount > 0 ? confidenceTotal / confidenceCount : 0,
-    });
+    return runCausalChain(this, fromId, maxDepthOrOpts);
   }
 
   // ─── Temizlik ─────────────────────────────────────────────────────────────
