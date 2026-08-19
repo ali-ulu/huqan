@@ -67,6 +67,24 @@ class CLI {
     this.llm = new LLMAdapter();
     this.approvalStore = null;
     this._mcpOperatorToken = opts.mcpOperatorToken || crypto.randomBytes(32).toString('hex');
+    this._approvalRuntimeOptions = Object.freeze({
+      ...(Object.hasOwn(opts, 'trustEvidenceLedger') ? { trustEvidenceLedger: opts.trustEvidenceLedger } : {}),
+      ...(Object.hasOwn(opts, 'humanOversightApprovalRuntime')
+        ? { humanOversightApprovalRuntime: opts.humanOversightApprovalRuntime }
+        : {}),
+      ...(Object.hasOwn(opts, 'agentIdentityRuntime')
+        ? { agentIdentityRuntime: opts.agentIdentityRuntime }
+        : {}),
+      ...(Object.hasOwn(opts, 'humanOversightRequesterContext')
+        ? { humanOversightRequesterContext: opts.humanOversightRequesterContext }
+        : {}),
+      ...(Object.hasOwn(opts, 'humanOversightApproverContext')
+        ? { humanOversightApproverContext: opts.humanOversightApproverContext }
+        : {}),
+      ...(Object.hasOwn(opts, 'humanOversightContextResolver')
+        ? { humanOversightContextResolver: opts.humanOversightContextResolver }
+        : {}),
+    });
   }
 
   parse(input) {
@@ -85,7 +103,11 @@ class CLI {
 
   _approvalRuntime() {
     if (!this.approvalStore) this.approvalStore = createApprovalStoreFromKernel(this.kernel);
-    return { approvalStore: this.approvalStore, operatorToken: this._mcpOperatorToken };
+    return {
+      approvalStore: this.approvalStore,
+      operatorToken: this._mcpOperatorToken,
+      ...this._approvalRuntimeOptions,
+    };
   }
 
   _ensureCompanyCapabilities() {
@@ -444,16 +466,27 @@ class CLI {
             2
           );
         }
-        const result = callMcpTool(this.kernel, {
+        return Promise.resolve(callMcpTool(this.kernel, {
           name: 'huqan.approve',
           operatorToken: this._mcpOperatorToken,
           arguments: { approvalId: approval.approvalId, decision: approval.decision },
-        }, this._approvalRuntime());
-        if (!result || result.ok === false) {
-          const error = result?.error;
-          return commandFailure(`Approval error: ${error?.code || 'APPROVAL_FAILED'}: ${error?.message || 'unknown error'}`, opts);
-        }
-        return formatCliApprovalDecision(result, approval.approvalId, opts.json);
+        }, this._approvalRuntime())).then(result => {
+          if (!result || result.ok === false) {
+            const error = result?.error;
+            const message = `Approval error: ${error?.code || 'APPROVAL_FAILED'}: ${error?.message || 'unknown error'}`;
+            if (opts.throwOnError === true && error?.code) {
+              const failure = new Error(message);
+              failure.code = error.code;
+              const boundedMeta = {};
+              if (result?.meta?.identity && typeof result.meta.identity === 'object') boundedMeta.identity = result.meta.identity;
+              if (result?.meta?.oversight && typeof result.meta.oversight === 'object') boundedMeta.oversight = result.meta.oversight;
+              if (Object.keys(boundedMeta).length > 0) failure.meta = boundedMeta;
+              throw failure;
+            }
+            return commandFailure(message, opts);
+          }
+          return formatCliApprovalDecision(result, approval.approvalId, opts.json);
+        });
       }
       case 'receipt': return require('./lib/cli-trust-receipt').runCliTrustReceipt(this.kernel, args, opts);
       case 'restore': {
