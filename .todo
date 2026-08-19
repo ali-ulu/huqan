@@ -101,12 +101,25 @@ gated review by AB4, while learn as an agent-loop step is allowed. Two
 questions, each answered by its own authority -- not one question with two
 answers, which is what item 2 removed.
 
-## [ ] 8. Add an HTTP approval path for /upload admissions
-Observed gap, not yet scoped. POST /upload produces a pending memory admission
-with a provenanceId and a receipt, but /api/ingest/approvals filters on
-tool === 'http.ingest', so an /upload admission cannot be resolved over HTTP at
-all. Today it needs the CLI ("onaylar" / "onayla"). An HTTP client can propose
-but cannot approve.
+## [x] 8. Add an HTTP operator approval path
+Done, and the premise was partly wrong -- corrected in item 11 below.
+
+GET  /api/v2/memory-approvals
+POST /api/v2/memory-approvals/{id}/decision
+
+Both require the API key *and* a separate operator token in
+x-huqan-operator-token, checked constant-time against HUQAN_MCP_OPERATOR_TOKEN.
+Serving them behind the API key alone would have let whoever may propose a
+memory write also approve it, which is the separation mcpServer.js already
+enforces by withholding huqan.approve from tools/list. Unconfigured, the route
+answers 404, matching /api/a2a/exchange and the external-client route.
+
+It delegates to the same huqan.approvals / huqan.approve tools the CLI drives,
+so the receipts and audit events are the tested ones by construction.
+
+lib/http/optional-boundaries.js composes this with the A2A boundary, because
+server.js may not grow a line per route family any more than per route: it is
+at exactly the same 1118 lines it was before this route existed.
 
 ## [x] 9. A PREVENTS edge contradicts the sentence that states it
 Found while verifying item 3; not caused by it. Fixed in lib/verify.js: the
@@ -157,3 +170,33 @@ Also the MCP tool descriptions, whose input examples still read
 Needs a sweep of user-facing strings on the REST, MCP and viewer surfaces, then
 one pass to English, keeping Turkish acceptance on the way in per RFC-001
 decision 7.
+
+## [ ] 11. A /upload admission cannot be resolved by any surface
+Found while doing item 8, and it corrects that item's premise. The gap is not
+"HTTP cannot approve what /upload proposed" -- it is that *nothing* can.
+
+  POST /upload {"text":"..."}
+    -> outcome "review", approvalStatus "pending", graphWrite false,
+       provenanceId prov_..., receiptId madm_receipt_...,
+       approvalId ""            <- empty
+
+The empty approvalId is the finding. Checked against a live server:
+
+  the approval store contains only MCP-sourced records
+    tools:   {"huqan.learn": 50}
+    sources: mcp
+  GET /api/candidate-claims?status=pending  ->  {"items":[],"total":0}
+
+So /upload is propose-and-refuse, not propose-and-queue: it records that a
+write was attempted and denied, with provenance and a review receipt, and
+leaves nothing that can later be approved. The CLI's "onaylar"/"onayla" list
+MCP tool approvals, so they cannot resolve it either.
+
+That may well be the intended V4-B2 boundary -- HTTP action authority is
+scoped to the ingest kinds, and those *do* queue approvals. If it is intended,
+the /upload response should say so rather than returning approvalStatus
+"pending" with no id, which reads as "queued, resolve it later". If it is not,
+/upload needs to queue an approval the way huqan.learn does.
+
+Decide which, then make the response honest. Do not change the gate itself
+without deciding first.

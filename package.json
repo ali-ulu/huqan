@@ -180,6 +180,8 @@
     "lib/http-trust-query.js",
     "lib/http/agent-workflow-routes.js",
     "lib/http/exact-workspace.js",
+    "lib/http/memory-approval-routes.js",
+    "lib/http/optional-boundaries.js",
     "lib/http/public-api-commands.js",
     "lib/http/read-workflow-actions.js",
     "lib/http/receipt-read-failures.js",
