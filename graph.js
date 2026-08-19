@@ -65,6 +65,7 @@ const { touchNode: runNodeTouch } = require('./lib/graph-node-touch');
 const { addTag: runNodeTag } = require('./lib/graph-node-tag');
 const { getWeight: runNodeWeight } = require('./lib/graph-node-weight');
 const { cosineSimilarity: runNodeSimilarity } = require('./lib/graph-node-similarity');
+const { getStats: runGraphStats } = require('./lib/graph-stats');
 const { addEdge: runEdgeWrite } = require('./lib/graph-edge-write');
 
 class Graph {
@@ -1102,14 +1103,10 @@ class Graph {
     return { pruned, removedNodes };
   }
 
+  _statsStoreApi() { return { nodeCount: () => this.nodeCount(), edgeCount: () => this.edgeCount(), candidateClaims: this._candidateClaims, decayLambda: this._decayLambda, hasSqlite: Boolean(this._db) }; }
+
   getStats() {
-    return {
-      nodes: this.nodeCount(),
-      edges: this.edgeCount(),
-      candidateClaims: this._candidateClaims.length,
-      decayLambda: this._decayLambda,
-      backend: this._db ? 'sqlite' : 'json',
-    };
+    return runGraphStats(this._statsStoreApi());
   }
 
   // ─── Kalıcılık ────────────────────────────────────────────────────────────
