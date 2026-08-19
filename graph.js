@@ -43,6 +43,14 @@ const { assertChainTipUsable, emptyMutationJournal, readMutationJournal } = requ
 const { applyTemporalEdgeMetadata, beginEdgeTouchScope, downgradeEdge, edgeTouchKey } = require('./lib/graph-edge-mutations');
 const { getCausalChain: runCausalChain } = require('./lib/graph-causal-chain');
 const { getCandidateClaims: runCandidateClaimsRead } = require('./lib/graph-candidate-claims-read');
+const {
+  getEdge: runEdgeRead,
+  getEdgesBetween: runEdgesBetweenRead,
+  hasAnyEdge: runHasAnyEdgeRead,
+  getEdges: runEdgesRead,
+  getInEdges: runInEdgesRead,
+  getAllEdges: runAllEdgesRead,
+} = require('./lib/graph-edge-read');
 
 class Graph {
   /**
@@ -1138,37 +1146,28 @@ class Graph {
   }
 
   getEdge(fromId, toId, relation, workspaceId = 'default') {
-    const out = this._outIndex.get(edgeIndexKey(fromId, workspaceId)) || [];
-    for (const e of out) {
-      if (e.to === toId && e.relation === relation && normalizeWorkspaceId(e.workspaceId) === normalizeWorkspaceId(workspaceId)) return cloneEdgeRecord(e);
-    }
-    return null;
+    return runEdgeRead(this._outIndex, fromId, toId, relation, workspaceId);
   }
 
   getEdgesBetween(fromId, toId, workspaceId = 'default') {
-    const out = this._outIndex.get(edgeIndexKey(fromId, workspaceId)) || [];
-    return out.filter(e => e.to === toId && normalizeWorkspaceId(e.workspaceId) === normalizeWorkspaceId(workspaceId)).map(cloneEdgeRecord);
+    return runEdgesBetweenRead(this._outIndex, fromId, toId, workspaceId);
   }
 
   hasAnyEdge(fromId, toId, workspaceId = 'default') {
-    return this.getEdgesBetween(fromId, toId, workspaceId).length > 0;
+    return runHasAnyEdgeRead(this._outIndex, fromId, toId, workspaceId);
   }
 
   getEdges(nodeId, workspaceId = 'default') {
-    const out = this._outIndex.get(edgeIndexKey(nodeId, workspaceId)) || [];
-    return out.filter(e => normalizeWorkspaceId(e.workspaceId) === normalizeWorkspaceId(workspaceId)).map(cloneEdgeRecord);
+    return runEdgesRead(this._outIndex, nodeId, workspaceId);
   }
 
   getInEdges(nodeId, workspaceId = 'default') {
-    const out = this._inIndex.get(edgeIndexKey(nodeId, workspaceId)) || [];
-    return out.filter(e => normalizeWorkspaceId(e.workspaceId) === normalizeWorkspaceId(workspaceId)).map(cloneEdgeRecord);
+    return runInEdgesRead(this._inIndex, nodeId, workspaceId);
   }
 
   /** All edges in a workspace, independent of any single node. */
   getAllEdges(workspaceId = 'default') {
-    return this._edges
-      .filter(e => normalizeWorkspaceId(e.workspaceId) === normalizeWorkspaceId(workspaceId))
-      .map(cloneEdgeRecord);
+    return runAllEdgesRead(this._edges, workspaceId);
   }
 
   query(label, workspaceId = 'default') {
