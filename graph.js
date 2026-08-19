@@ -67,6 +67,7 @@ const { getWeight: runNodeWeight } = require('./lib/graph-node-weight');
 const { cosineSimilarity: runNodeSimilarity } = require('./lib/graph-node-similarity');
 const { getStats: runGraphStats } = require('./lib/graph-stats');
 const { countNodes: runNodeCount, countEdges: runEdgeCount } = require('./lib/graph-count-read');
+const { query: runGraphQuery } = require('./lib/graph-query-read');
 const { isCausalRelation: runIsCausalRelation, getCausalRelations: runCausalRelations, getCausalEdges: runCausalEdges } = require('./lib/graph-causal-relation-read');
 const { addEdge: runEdgeWrite } = require('./lib/graph-edge-write');
 
@@ -1052,9 +1053,7 @@ class Graph {
   }
 
   query(label, workspaceId = 'default') {
-    return Object.values(this._nodes)
-      .filter(n => n.label === label && normalizeWorkspaceId(n.workspaceId) === normalizeWorkspaceId(workspaceId))
-      .map(cloneNodeRecord);
+    return runGraphQuery(this._nodes, label, workspaceId);
   }
 
   nodeCount(workspaceId) {
