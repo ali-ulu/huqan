@@ -43,6 +43,7 @@ const { assertChainTipUsable, emptyMutationJournal, readMutationJournal } = requ
 const { applyTemporalEdgeMetadata, beginEdgeTouchScope, downgradeEdge, edgeTouchKey } = require('./lib/graph-edge-mutations');
 const { getCausalChain: runCausalChain } = require('./lib/graph-causal-chain');
 const { getCandidateClaims: runCandidateClaimsRead } = require('./lib/graph-candidate-claims-read');
+const { addCandidateClaim: runCandidateClaimWrite } = require('./lib/graph-candidate-claims-write');
 const {
   getEdge: runEdgeRead,
   getEdgesBetween: runEdgesBetweenRead,
@@ -51,6 +52,13 @@ const {
   getInEdges: runInEdgesRead,
   getAllEdges: runAllEdgesRead,
 } = require('./lib/graph-edge-read');
+const {
+  readMutationReceiptFromJsonJournal,
+  readMutationReceipt,
+  getCommittedMutationReceiptByOperation: runReceiptByOperationRead,
+  getCommittedMutationReceiptById: runReceiptByIdRead,
+} = require('./lib/graph-mutation-receipt-read');
+const { getNode: runNodeRead, getNodes: runNodesRead } = require('./lib/graph-node-read');
 
 class Graph {
   /**
@@ -478,47 +486,28 @@ class Graph {
   }
 
   _readMutationReceiptFromJsonJournal(journal, operationId) {
-    const row = journal.receipts[operationId];
-    if (!row) return null;
-    return {
-      operationId,
-      receiptId: row.receiptId,
-      workspaceId: row.workspaceId,
-      canonicalPayload: row.canonicalPayload,
-      previousReceiptHash: row.previousReceiptHash,
-      receiptHash: row.receiptHash,
-      committedAt: row.committedAt,
-    };
+    return readMutationReceiptFromJsonJournal(journal, operationId);
   }
 
   _readMutationReceipt(row) {
-    if (!row) return null;
-    return {
-      operationId: row.operation_id,
-      receiptId: row.receipt_id,
-      workspaceId: row.workspace_id,
-      canonicalPayload: JSON.parse(row.canonical_payload),
-      previousReceiptHash: row.previous_receipt_hash,
-      receiptHash: row.receipt_hash,
-      committedAt: row.committed_at,
-    };
+    return readMutationReceipt(row);
   }
 
   getCommittedMutationReceiptByOperation(operationId) {
-    if (this._db && this._stmts) {
-      return this._readMutationReceipt(this._stmts.getMutationReceiptByOperation.get(operationId));
-    }
-    return this._readMutationReceiptFromJsonJournal(this._readJsonJournal(), operationId);
+    return runReceiptByOperationRead(this._mutationReceiptReadStoreApi(), operationId);
   }
 
   getCommittedMutationReceiptById(receiptId) {
-    if (this._db && this._stmts) {
-      return this._readMutationReceipt(this._stmts.getMutationReceiptById.get(receiptId));
-    }
-    const journal = this._readJsonJournal();
-    const operationId = journal.receiptsById[receiptId];
-    if (!operationId) return null;
-    return this._readMutationReceiptFromJsonJournal(journal, operationId);
+    return runReceiptByIdRead(this._mutationReceiptReadStoreApi(), receiptId);
+  }
+
+  _mutationReceiptReadStoreApi() {
+    return {
+      hasSqlite: () => Boolean(this._db && this._stmts),
+      getMutationReceiptByOperation: id => this._stmts.getMutationReceiptByOperation.get(id),
+      getMutationReceiptById: id => this._stmts.getMutationReceiptById.get(id),
+      readJsonJournal: () => this._readJsonJournal(),
+    };
   }
 
   runMutationOnce(operationId, mutate, opts = {}) {
@@ -800,14 +789,7 @@ class Graph {
   }
 
   getNodes(workspaceId = 'default') {
-    const scope = normalizeWorkspaceId(workspaceId);
-    const nodes = {};
-    for (const [id, node] of Object.entries(this._nodes)) {
-      if (normalizeWorkspaceId(node.workspaceId) === scope) {
-        nodes[id] = cloneNodeRecord(node);
-      }
-    }
-    return nodes;
+    return runNodesRead(this._nodes, workspaceId);
   }
 
   addNode(id, label, provenance = null, opts = {}) {
@@ -863,11 +845,7 @@ class Graph {
   }
 
   getNode(id, workspaceId = 'default') {
-    const scope = normalizeWorkspaceId(workspaceId);
-    const storageKey = nodeStorageKey(id, scope);
-    const node = this._nodes[storageKey] || (scope === 'default' ? this._nodes[id] : null);
-    if (!node || normalizeWorkspaceId(node.workspaceId) !== scope) return null;
-    return cloneNodeRecord(node);
+    return runNodeRead(this._nodes, id, workspaceId);
   }
 
   touchNode(id, workspaceId = 'default') {
@@ -927,50 +905,38 @@ class Graph {
     return queryAuditEvents(this._auditQueryContext(), options);
   }
 
+  _candidateClaimWriteStoreApi() {
+    return {
+      findIndex: (candidateId, workspaceId) => this._candidateClaims.findIndex(item =>
+        item.candidateId === candidateId && normalizeWorkspaceId(item.workspaceId) === workspaceId
+      ),
+      get: index => this._candidateClaims[index],
+      replace: (index, value) => { this._candidateClaims[index] = value; },
+      append: value => { this._candidateClaims.push(value); },
+      persist: (normalized, workspaceId) => {
+        if (this._db && this._stmts) {
+          this._stmts.upsertCandidateClaim.run(
+            normalized.candidateId,
+            workspaceId,
+            normalized.claim || '',
+            JSON.stringify(normalized.proposedEdge ?? null),
+            JSON.stringify(normalized.provenance ?? null),
+            JSON.stringify(normalized.conflict ?? null),
+            normalized.recommendation || 'accept',
+            normalized.status || 'pending',
+            normalized.createdAt || nowIso(),
+            normalized.reviewedAt || '',
+            normalized.reviewedBy || '',
+            JSON.stringify(normalized.warnings || []),
+          );
+        }
+      },
+      read: filters => runCandidateClaimsRead(this._candidateClaims, filters),
+    };
+  }
+
   addCandidateClaim(candidate, opts = {}) {
-    const normalized = normalizeCandidateClaim({
-      ...candidate,
-      workspaceId: opts.workspaceId || candidate?.workspaceId || candidate?.provenance?.workspaceId || candidate?.proposedEdge?.workspaceId,
-    });
-    const workspaceId = normalizeWorkspaceId(normalized.workspaceId);
-    const index = this._candidateClaims.findIndex(item =>
-      item.candidateId === normalized.candidateId &&
-      normalizeWorkspaceId(item.workspaceId) === workspaceId
-    );
-
-    if (index >= 0) {
-      this._candidateClaims[index] = {
-        ...this._candidateClaims[index],
-        ...normalized,
-        workspaceId,
-        candidateId: normalized.candidateId,
-      };
-    } else {
-      this._candidateClaims.push({
-        ...normalized,
-        workspaceId,
-        candidateId: normalized.candidateId,
-      });
-    }
-
-    if (this._db && this._stmts) {
-      this._stmts.upsertCandidateClaim.run(
-        normalized.candidateId,
-        workspaceId,
-        normalized.claim || '',
-        JSON.stringify(normalized.proposedEdge ?? null),
-        JSON.stringify(normalized.provenance ?? null),
-        JSON.stringify(normalized.conflict ?? null),
-        normalized.recommendation || 'accept',
-        normalized.status || 'pending',
-        normalized.createdAt || nowIso(),
-        normalized.reviewedAt || '',
-        normalized.reviewedBy || '',
-        JSON.stringify(normalized.warnings || []),
-      );
-    }
-
-    return this.getCandidateClaims({ workspaceId }).find(item => item.candidateId === normalized.candidateId) || normalized;
+    return runCandidateClaimWrite(this._candidateClaimWriteStoreApi(), candidate, opts);
   }
 
   getCandidateClaims(filters = {}) {
