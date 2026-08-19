@@ -27,7 +27,7 @@ const path = require('node:path');
 const Kernel = require('../kernel');
 const Dream = require('../dream');
 
-const IDENTITY_SEED_PATH = path.join(__dirname, '..', 'docs', 'seed', 'axiom-identity.seed.json');
+const IDENTITY_SEED_PATH = path.join(__dirname, '..', 'docs', 'seed', 'huqan-identity.seed.json');
 const DEMO_BYPASS_REASON = 'egitim demo seed';
 
 // #363: izole dizin. Production memory'nin bulunduğu yere hiçbir koşulda
@@ -174,7 +174,7 @@ function main(argv = process.argv.slice(2), env = process.env) {
     const v = veriler[i];
     const provenance = i < identityFacts.length
       ? {
-          provenanceId: `axiom-identity-seed-${i + 1}`,
+          provenanceId: `huqan-identity-seed-${i + 1}`,
           sourceRef: `${identitySeed.sourceRef}#${i + 1}`,
           sourceTitle: identitySeed.sourceTitle,
           sourceType: identitySeed.sourceType || 'system',

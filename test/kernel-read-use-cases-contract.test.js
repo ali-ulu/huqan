@@ -199,9 +199,12 @@ test('read use cases preserve ask observable results', () => {
     assert.ok(answer.evidence.length >= 2);
 
     const unknown = kernel.ask('missing nedir');
+    // The fallback identity subject. This graph has neither identity node, so
+    // the canonical name is reported; test/identity-subject-fallback.test.js
+    // covers the legacy-graph read.
     assert.deepEqual(unknown.data, {
       answer: 'Bilmiyorum',
-      subject: 'axiom',
+      subject: 'huqan',
       unknown: true,
     });
 
