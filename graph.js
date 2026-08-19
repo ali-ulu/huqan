@@ -62,6 +62,7 @@ const { getNode: runNodeRead, getNodes: runNodesRead } = require('./lib/graph-no
 const { addNode: runNodeWrite } = require('./lib/graph-node-write');
 const { removeNode: runNodeDelete } = require('./lib/graph-node-delete');
 const { touchNode: runNodeTouch } = require('./lib/graph-node-touch');
+const { addTag: runNodeTag } = require('./lib/graph-node-tag');
 const { addEdge: runEdgeWrite } = require('./lib/graph-edge-write');
 
 class Graph {
@@ -943,13 +944,10 @@ class Graph {
     return Math.max(0, Math.min(1, decayed));
   }
 
+  _nodeTagStoreApi() { return { get: storageKey => this._nodes[storageKey] }; }
+
   addTag(nodeId, dim, weight, workspaceId = 'default') {
-    const storageKey = nodeStorageKey(nodeId, workspaceId);
-    const node = this._nodes[storageKey] || (normalizeWorkspaceId(workspaceId) === 'default' ? this._nodes[nodeId] : null);
-    if (!node) return;
-    const v = node.vector;
-    v[dim] = (v[dim] || 0) + weight;
-    // SQLite'a vector güncelle (lazy — save() sırasında toplu yazılır)
+    return runNodeTag(this._nodeTagStoreApi(), nodeId, dim, weight, workspaceId);
   }
 
   // ─── Edge işlemleri ───────────────────────────────────────────────────────
