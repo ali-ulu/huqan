@@ -29,6 +29,7 @@ const errorPrevention = require('./lib/error-prevention');
 const agentActionFirewall = require('./lib/agent-action-firewall');
 const agentIdentityRuntime = require('./lib/agent-identity-runtime');
 const trustEvidenceLedger = require('./lib/trust-evidence-ledger');
+const humanOversightApprovalRuntime = require('./lib/human-oversight-approval-runtime');
 
 module.exports = KernelV2;
 
@@ -77,3 +78,11 @@ module.exports.createTrustEvidenceLedger = trustEvidenceLedger.createTrustEviden
 module.exports.buildTrustEvidencePayload = trustEvidenceLedger.buildTrustEvidencePayload;
 module.exports.verifyTrustEvidenceReceipt = trustEvidenceLedger.verifyTrustEvidenceReceipt;
 module.exports.TRUST_EVIDENCE_SCHEMA_VERSION = trustEvidenceLedger.TRUST_EVIDENCE_SCHEMA_VERSION;
+
+// Human Oversight & Approval Runtime. The factory requires receiver-owned
+// identity resolution, the existing Graph mutation journal, and the existing
+// Trust Evidence Ledger; it does not create a second durability authority.
+module.exports.HumanOversightApprovalRuntime = humanOversightApprovalRuntime;
+module.exports.createHumanOversightApprovalRuntime = humanOversightApprovalRuntime.createHumanOversightApprovalRuntime;
+module.exports.HUMAN_OVERSIGHT_RUNTIME_VERSION = humanOversightApprovalRuntime.HUMAN_OVERSIGHT_RUNTIME_VERSION;
+module.exports.HUMAN_OVERSIGHT_RUNTIME_REASONS = humanOversightApprovalRuntime.RUNTIME_REASONS;

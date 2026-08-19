@@ -25,7 +25,6 @@ const { receiptReadFailure } = require('./lib/http/receipt-read-failures');
 const { createWorkbenchReadHttpRouter } = require('./lib/workbench/workbench-read-http-router');
 const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
 const { handleWorkflowContractRoute, writeUnavailableWorkflow } = require('./lib/http/workflow-contract-route');
-
 const { createReadWorkflowHttpRouter } = require('./lib/http/read-workflow-actions');
 const { createWorkflowDataRoutes } = require('./lib/http/workflow-data-routes');
 const { readExactWorkspace } = require('./lib/http/exact-workspace');
@@ -56,7 +55,6 @@ const configuredDbPath = readCompatibleEnvironmentVariable('DB_PATH');
 if (configuredMemoryPath) kernelOpts.memoryPath = configuredMemoryPath;
 if (configuredDbPath) kernelOpts.dbPath = configuredDbPath;
 if (readCompatibleEnvironmentVariable('USE_SQLITE') === 'false') kernelOpts.useSQLite = false;
-
 const kernel = createKernel(kernelOpts);
 kernel.graph.load();
 const externalClientBoundary = createExternalClientProductionBoundary({
@@ -212,7 +210,6 @@ const viewerGateway = createViewerGateway({
   readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters),
 });
 
-
 function denyIfUnauthorized(req, res, extraHeaders = {}) {
   const auth = requireApiKey(req);
   if (auth.ok) return true;
@@ -234,7 +231,6 @@ async function parseJsonRequest(req, res, options = {}) {
   writeJson(req, res, result.status, result.error, result.headers);
   return null;
 }
-
 
 function getGraphData(workspaceId = 'default') {
   return buildGraphData({ graph: kernel.graph, memory: kernel.memory, getSafeMemoryLabel, workspaceId });

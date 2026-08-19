@@ -39,7 +39,7 @@ const {
   normalizeLoadedEdge,
 } = require('./lib/graph-record-utils');
 const { countAuditEvents, queryAuditEvents, readAuditEvents } = require('./lib/audit-query');
-const { assertChainTipUsable, emptyMutationJournal, readMutationJournal } = require('./lib/mutation-journal');
+const { assertChainTipUsable, emptyMutationJournal, readMutationJournal, readCommittedMutationResult, readCommittedMutationResultsByPrefix } = require('./lib/mutation-journal');
 const { applyTemporalEdgeMetadata, beginEdgeTouchScope, downgradeEdge, edgeTouchKey } = require('./lib/graph-edge-mutations');
 const { getCausalChain: runCausalChain } = require('./lib/graph-causal-chain');
 const { getCandidateClaims: runCandidateClaimsRead } = require('./lib/graph-candidate-claims-read');
@@ -455,7 +455,7 @@ class Graph {
       readJsonJournal: () => this._readJsonJournal(),
     };
   }
-
+  getCommittedMutationResultByOperation(operationId) { return readCommittedMutationResult(this, operationId); } getCommittedMutationResultsByPrefix(prefix) { return readCommittedMutationResultsByPrefix(this, prefix); }
   runMutationOnce(operationId, mutate, opts = {}) {
     const id = typeof operationId === 'string' ? operationId.trim() : '';
     if (!id) throw new Error('mutation operationId is required');
