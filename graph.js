@@ -58,6 +58,7 @@ const {
   getCommittedMutationReceiptByOperation: runReceiptByOperationRead,
   getCommittedMutationReceiptById: runReceiptByIdRead,
 } = require('./lib/graph-mutation-receipt-read');
+const { getNode: runNodeRead, getNodes: runNodesRead } = require('./lib/graph-node-read');
 
 class Graph {
   /**
@@ -788,14 +789,7 @@ class Graph {
   }
 
   getNodes(workspaceId = 'default') {
-    const scope = normalizeWorkspaceId(workspaceId);
-    const nodes = {};
-    for (const [id, node] of Object.entries(this._nodes)) {
-      if (normalizeWorkspaceId(node.workspaceId) === scope) {
-        nodes[id] = cloneNodeRecord(node);
-      }
-    }
-    return nodes;
+    return runNodesRead(this._nodes, workspaceId);
   }
 
   addNode(id, label, provenance = null, opts = {}) {
@@ -851,11 +845,7 @@ class Graph {
   }
 
   getNode(id, workspaceId = 'default') {
-    const scope = normalizeWorkspaceId(workspaceId);
-    const storageKey = nodeStorageKey(id, scope);
-    const node = this._nodes[storageKey] || (scope === 'default' ? this._nodes[id] : null);
-    if (!node || normalizeWorkspaceId(node.workspaceId) !== scope) return null;
-    return cloneNodeRecord(node);
+    return runNodeRead(this._nodes, id, workspaceId);
   }
 
   touchNode(id, workspaceId = 'default') {

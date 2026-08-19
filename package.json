@@ -179,6 +179,7 @@
     "lib/graph-candidate-claims-write.js",
     "lib/graph-edge-read.js",
     "lib/graph-mutation-receipt-read.js",
+    "lib/graph-node-read.js",
     "lib/graph-edge-mutations.js",
     "lib/graph-record-utils.js",
     "lib/graph-traversal.js",
