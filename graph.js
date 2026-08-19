@@ -66,6 +66,7 @@ const { addTag: runNodeTag } = require('./lib/graph-node-tag');
 const { getWeight: runNodeWeight } = require('./lib/graph-node-weight');
 const { cosineSimilarity: runNodeSimilarity } = require('./lib/graph-node-similarity');
 const { getStats: runGraphStats } = require('./lib/graph-stats');
+const { isCausalRelation: runIsCausalRelation, getCausalRelations: runCausalRelations, getCausalEdges: runCausalEdges } = require('./lib/graph-causal-relation-read');
 const { addEdge: runEdgeWrite } = require('./lib/graph-edge-write');
 
 class Graph {
@@ -1429,19 +1430,15 @@ class Graph {
   // ─── Causal relation helpers for v0.7 ───────────────────────────────────────
 
   isCausalRelation(relation) {
-    return CAUSAL_RELATIONS.includes(relation);
+    return runIsCausalRelation(CAUSAL_RELATIONS, relation);
   }
 
   getCausalRelations() {
-    return [...CAUSAL_RELATIONS];
+    return runCausalRelations(CAUSAL_RELATIONS);
   }
 
   getCausalEdges(fromId, workspaceId = 'default') {
-    const edges = this.getEdges(fromId, workspaceId);
-    return edges
-      .filter(e => this.isCausalRelation(e.relation))
-      .slice()
-      .sort(compareCausalEdges);
+    return runCausalEdges((id, scope) => this.getEdges(id, scope), CAUSAL_RELATIONS, compareCausalEdges, fromId, workspaceId);
   }
 
   getCausalChain(fromId, maxDepthOrOpts = 10) {
