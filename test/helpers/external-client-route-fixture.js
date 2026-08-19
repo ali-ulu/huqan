@@ -11,6 +11,8 @@ const { createExternalClientReplayStore } = require('../../lib/external-client-r
 const { createHuqanClient } = require('../../lib/sdk');
 const { commitExternalClientCandidateClaim } = require('../../lib/external-client-mutation-receipt-owner');
 const { createExternalClientHttpAdapter } = require('../../lib/external-client-http-adapter');
+const { snapshotAgentIdentityAuthority } = require('../../lib/agent-identity-runtime');
+const minimalAgentIdentity = require('../fixtures/v5/agent-identity/valid.minimal.json');
 const COLLECTIONS = ['provenanceRecords','auditEvents','candidateClaims','conflictResults','verificationResults','trustReceipts','causalChains','simulationResults'];
 const IDS = Object.freeze({
   workspaceId: 'workspace-route-a', packageId: 'pkg.route.workspace-a',
@@ -92,7 +94,12 @@ function createRouteFixture(t, options = {}) {
       packageAdmissionHandler: (pkg, context) => {
         handlerCalls += 1; contexts.push(context);
         if (options.handlerError) throw options.handlerError;
-        return commitExternalClientCandidateClaim(pkg, context, { graph });
+        return commitExternalClientCandidateClaim(pkg, context, {
+          graph,
+          ...(Object.hasOwn(options, 'agentIdentityRuntime')
+            ? { agentIdentityRuntime: options.agentIdentityRuntime }
+            : {}),
+        });
       } });
     adapter = createExternalClientHttpAdapter({ admitPackage: (input) => client.admitExternalPackage({
       identity: { subject: IDS.identitySubject, kind: IDS.identityKind },
@@ -125,4 +132,23 @@ function createRouteFixture(t, options = {}) {
     restartReplay, journalReplayAdapter, materializeProfile, cleanup,
   };
 }
-module.exports = { IDS, NOW, packageValue, sign, createRouteFixture };
+function routeIdentityAuthority(ownerActorId = 'connector:route-test') {
+  return snapshotAgentIdentityAuthority({
+    workspaceId: 'workspace-route-a',
+    identities: [{ ref: 'identity:route-agent', record: {
+      ...minimalAgentIdentity,
+      agent_id: `agent-route-${ownerActorId.replace(/[^a-z0-9]+/gi, '-')}`,
+      agent_type: 'connector-agent', owner_actor_id: ownerActorId, workspace_id: 'workspace-route-a',
+      delegation_scope: ['external-client.commitCandidateClaim'], allowed_tools: ['external-client'],
+      allowed_connectors: ['connector'], policy_version: 'route-identity-policy-1',
+    } }],
+    clock: () => Date.parse('2026-08-04T18:00:00.000Z'),
+  });
+}
+function routeIdentityRuntime(authority) {
+  return { authority, identityRef: 'identity:route-agent', action: {
+    capability: 'external-client.commitCandidateClaim', target: 'external://route/package', riskTier: 'low',
+    tool: 'external-client', connector: 'connector',
+  } };
+}
+module.exports = { IDS, NOW, packageValue, sign, createRouteFixture, routeIdentityAuthority, routeIdentityRuntime };
