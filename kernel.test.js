@@ -480,7 +480,7 @@ describe('Kernel - admission bypass unforgeability (#357)', () => {
     // Symbol('...') with a similar description string. Symbol identity, not
     // description text, is what the check requires.
     const kernel = new Kernel({ noLoad: true, loadPlugins: false });
-    const forgedToken = Symbol('axiom-kernel-internal-admission-bypass');
+    const forgedToken = Symbol('huqan-kernel-internal-admission-bypass');
     const result = kernel.learn('kus ucmaz', {
       workspaceId: 'default',
       [forgedToken]: true,

@@ -13,13 +13,13 @@ const RustGraph = require('../rustGraph');
  * the tenant boundary. Identity is now `(workspace, id)` on both sides, using
  * the same key shape as lib/graph-record-utils.js#nodeStorageKey.
  *
- * CI does not build axiom-core, so these run only where `cargo build --release`
- * has been run in axiom-core/. They are reported as skipped, never as passing,
+ * CI does not build huqan-core, so these run only where `cargo build --release`
+ * has been run in huqan-core/. They are reported as skipped, never as passing,
  * when the binary is absent -- the same convention as the #361 IPC test above
  * them in test/rustGraph-provenance.test.js.
  */
 const hasRustBinary = fs.existsSync(RustGraph.resolveRustBin());
-const skip = hasRustBinary ? false : 'axiom-core binary not built in this environment';
+const skip = hasRustBinary ? false : 'huqan-core binary not built in this environment';
 
 function withGraph(fn) {
   return async () => {

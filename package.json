@@ -94,7 +94,7 @@
     "cli.d.ts",
     "cli.js",
     "config/trust-policy.default.json",
-    "docs/seed/axiom-identity.seed.json",
+    "docs/seed/huqan-identity.seed.json",
     "dream.js",
     "evidence-ranker.js",
     "finalizer.js",

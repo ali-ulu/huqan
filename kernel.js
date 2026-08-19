@@ -87,7 +87,7 @@ const { ProvenanceError } = require('./lib/errors/provenance-error');
 // Kernel.createAdmissionBypassOpts(reason), exported below, which requires
 // the caller to already have required('./kernel') -- i.e. be trusted code
 // running in this process, not data arriving over a wire.
-const ADMISSION_BYPASS_TOKEN = Symbol('axiom-kernel-internal-admission-bypass');
+const ADMISSION_BYPASS_TOKEN = Symbol('huqan-kernel-internal-admission-bypass');
 
 class Kernel {
   /**
@@ -141,7 +141,7 @@ class Kernel {
     this._enableConcurrencyLock = opts.enableConcurrencyLock !== false;
     this._lockAcquired = false;
 
-    // v0.9.1: AXIOM Memory Core — kernel.memory API
+    // v0.9.1: HUQAN Memory Core — kernel.memory API
     this.memory = new MemoryStore({
       trustPolicyVersion: this.contractVersion,
       useSQLite: opts.memoryStoreUseSQLite !== undefined ? opts.memoryStoreUseSQLite : opts.useSQLite,
@@ -168,7 +168,7 @@ class Kernel {
    * for that, use learn()/verify() against the real knowledge graph).
    *
    * Uses the Rust accelerator's `batch` command (one IPC round trip for all
-   * learn statements, one more for all questions) when axiom-core is built;
+   * learn statements, one more for all questions) when huqan-core is built;
    * otherwise falls back to an in-memory JS Graph so behavior is identical
    * either way, just slower.
    *
@@ -179,7 +179,7 @@ class Kernel {
    */
   async reasonSandbox({ learn = [], ask = [] } = {}) {
     if (this._rust) {
-      // Deliberately NOT this._rust: axiom-core keeps one mutable Graph for the
+      // Deliberately NOT this._rust: huqan-core keeps one mutable Graph for the
       // life of its process, so the kernel's shared bridge is not a sandbox.
       // runRustSandbox spawns a private process per call and tears it down (#758).
       const answers = await runRustSandbox({ learn, ask });
@@ -188,7 +188,7 @@ class Kernel {
     }
     // JS fallback uses a throwaway Kernel (learn()/ask() live on Kernel, not
     // Graph) so behavior matches the non-sandbox path when Rust is absent.
-    // Its answers use Kernel's full NLP pipeline rather than axiom-core's
+    // Its answers use Kernel's full NLP pipeline rather than huqan-core's
     // simplified Turkish-suffix parser, so exact wording can differ from the
     // Rust backend — that asymmetry between the two engines predates this
     // method (rustGraph.js's own learn/ask already talk to a different

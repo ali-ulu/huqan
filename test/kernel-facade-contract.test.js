@@ -207,8 +207,8 @@ test('4C1: no forbidden entries in allowlist', () => {
   const forbidden = pkg.files.filter(e => {
     const bn = path.basename(e);
     return e.startsWith('test/') || e.startsWith('.github/') || e.startsWith('evidence/') ||
-      e.startsWith('demo/') || (e.startsWith('docs/') && e !== 'docs/seed/axiom-identity.seed.json') ||
-      e.startsWith('fixtures/') || e.startsWith('obsidian-plugin/') || e.startsWith('axiom-core/') ||
+      e.startsWith('demo/') || (e.startsWith('docs/') && e !== 'docs/seed/huqan-identity.seed.json') ||
+      e.startsWith('fixtures/') || e.startsWith('obsidian-plugin/') || e.startsWith('huqan-core/') ||
       e.startsWith('schemas/') || e.startsWith('lib/v5/') || e.startsWith('.kiro/') ||
       bn.endsWith('.test.js') || bn === 'results.json' || bn === 'memory.json' ||
       bn.startsWith('memory.db') || bn === 'agent.memory.json' || bn.endsWith('.agent.json') ||
@@ -348,8 +348,8 @@ test('4C1: packed manifest — zero forbidden entries', () => {
   const files = runPack();
   const forbiddenPatterns = [
     /^test\//, /^\.github\//, /^evidence\//, /^demo\//,
-    /^docs\/(?!seed\/axiom-identity\.seed\.json)/, /^fixtures\//,
-    /^obsidian-plugin\//, /^axiom-core\//, /^schemas\//, /^lib\/v5\//,
+    /^docs\/(?!seed\/huqan-identity\.seed\.json)/, /^fixtures\//,
+    /^obsidian-plugin\//, /^huqan-core\//, /^schemas\//, /^lib\/v5\//,
     /^\.kiro\//, /\.test\.js$/,
   ];
   const forbidden = [];
