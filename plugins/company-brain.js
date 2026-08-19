@@ -2,6 +2,7 @@ const LLMAdapter = require('../llmAdapter');
 const { adjustedConfidence } = require('../evidence-ranker');
 const { normalizeAlias, resolveEntity } = require('../lib/entity-resolution');
 const { gateCompanyIngest } = require('../lib/company-ingest-gate');
+const { withCausalStrength } = require('../lib/causal-edge-strength');
 
 function nowIso() {
   return new Date().toISOString();
@@ -48,7 +49,11 @@ function addCompanyEdge(kernel, fromId, toId, relation, opts = {}) {
     kernel.proposeNode(fromId, fromId),
     kernel.proposeNode(toId, toId),
   ];
-  const edgeResult = kernel.proposeEdge(fromId, toId, relation, {
+  // Causal relations are refused by graph.js::addEdge without a strength, and
+  // refused by throwing: manual and decision ingest died on every CAUSES /
+  // PREVENTS / ENABLES / DEPENDS_ON sentence, after proposeNode had already
+  // written the endpoints, leaving orphan nodes and no edge.
+  const edgeResult = kernel.proposeEdge(fromId, toId, relation, withCausalStrength(relation, {
     source: opts.source || 'manual',
     sourceRef: opts.sourceRef || '',
     sessionId: opts.sessionId || '',
@@ -62,8 +67,9 @@ function addCompanyEdge(kernel, fromId, toId, relation, opts = {}) {
     evidenceType: opts.evidenceType || 'user_experience',
     evidence: Array.isArray(opts.evidence) ? opts.evidence : [],
     confidence: typeof opts.confidence === 'number' ? opts.confidence : 0.65,
+    strength: opts.strength,
     meta: opts.meta,
-  });
+  }));
   proposals.push(edgeResult);
   return {
     edge: edgeResult && edgeResult.edge ? edgeResult.edge : null,
