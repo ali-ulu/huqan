@@ -66,6 +66,7 @@ const { addTag: runNodeTag } = require('./lib/graph-node-tag');
 const { getWeight: runNodeWeight } = require('./lib/graph-node-weight');
 const { cosineSimilarity: runNodeSimilarity } = require('./lib/graph-node-similarity');
 const { getStats: runGraphStats } = require('./lib/graph-stats');
+const { countNodes: runNodeCount, countEdges: runEdgeCount } = require('./lib/graph-count-read');
 const { isCausalRelation: runIsCausalRelation, getCausalRelations: runCausalRelations, getCausalEdges: runCausalEdges } = require('./lib/graph-causal-relation-read');
 const { addEdge: runEdgeWrite } = require('./lib/graph-edge-write');
 
@@ -1057,12 +1058,10 @@ class Graph {
   }
 
   nodeCount(workspaceId) {
-    if (!workspaceId) return Object.keys(this._nodes).length;
-    return Object.values(this._nodes).filter(n => normalizeWorkspaceId(n.workspaceId) === normalizeWorkspaceId(workspaceId)).length;
+    return runNodeCount(this._nodes, workspaceId);
   }
   edgeCount(workspaceId) {
-    if (!workspaceId) return this._edges.length;
-    return this._edges.filter(e => normalizeWorkspaceId(e.workspaceId) === normalizeWorkspaceId(workspaceId)).length;
+    return runEdgeCount(this._edges, workspaceId);
   }
 
   cosineSimilarity(aId, bId, workspaceId = 'default') {
