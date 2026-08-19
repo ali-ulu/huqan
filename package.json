@@ -1,11 +1,12 @@
 {
   "name": "huqan",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "description": "Local-first AI governance and verification layer for claims, agent actions, memory writes, provenance, approvals, and Trust Receipts.",
   "main": "index.js",
   "types": "index.d.ts",
   "bin": {
-    "huqan": "./cli.js"
+    "huqan": "./cli.js",
+    "huqan-mcp": "./bin/huqan-mcp.js"
   },
   "scripts": {
     "start": "node cli.js",
@@ -77,6 +78,7 @@
     "adapters/markdown-adapter.js",
     "adapters/pdf-adapter.js",
     "adapters/yaml-adapter.js",
+    "bin/huqan-mcp.js",
     "agent.js",
     "agent.v3.js",
     "agentRuntime.d.ts",

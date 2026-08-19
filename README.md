@@ -72,9 +72,24 @@ HUQAN is designed for AI governance, agent safety, LLM-output verification, appr
 
 > The current `better-sqlite3` dependency does not support Node.js 18. Earlier README text that advertised Node.js 18 was stale.
 
-### Install from the canonical repository
+### Install
 
-Using HTTPS:
+```bash
+npm install -g huqan
+```
+
+That gives you two commands: `huqan` (the CLI) and `huqan-mcp` (the MCP server
+over stdio). Neither needs a config file or an API key to start.
+
+For a one-off run without installing anything:
+
+```bash
+npx -y huqan quickstart
+```
+
+### Install from source
+
+Use this to contribute, or to run a revision that is not published yet.
 
 ```bash
 git clone https://github.com/ali-ulu/huqan.git
@@ -82,13 +97,7 @@ cd huqan
 npm ci
 ```
 
-Using GitHub CLI:
-
-```bash
-gh repo clone ali-ulu/huqan
-cd huqan
-npm ci
-```
+`gh repo clone ali-ulu/huqan` works the same way.
 
 ### Fix an existing clone that still points to an old repository name
 
@@ -108,9 +117,10 @@ https://github.com/ali-ulu/huqan.git
 One command, no API key, no config file to edit:
 
 ```bash
-npm ci
-node cli.js quickstart
+huqan quickstart
 ```
+
+From a source checkout, that is `npm ci && node cli.js quickstart`.
 
 This runs the real pipeline end to end — `axiom.learn` is proposed, the
 mutation gate answers `review`, an approval is persisted, `axiom.approve`
@@ -251,21 +261,28 @@ Authenticated mutation requests use `X-API-Key` or `Authorization: Bearer <key>`
 ### MCP server for Claude or Cursor
 
 ```bash
-npm run mcp
+huqan-mcp
 ```
 
-Claude Desktop configuration:
+Claude Desktop configuration, with nothing installed ahead of time:
 
 ```json
 {
   "mcpServers": {
     "huqan": {
-      "command": "node",
-      "args": ["/absolute/path/to/huqan/mcpServer.js"]
+      "command": "npx",
+      "args": ["-y", "--package=huqan", "huqan-mcp"]
     }
   }
 }
 ```
+
+`--package=huqan` is required because the bin name differs from the package
+name: without it `npx` would run the `huqan` CLI instead of the MCP server.
+
+If the package is installed globally, `"command": "huqan-mcp"` with no `args`
+does the same thing. From a source checkout it is still
+`"command": "node", "args": ["/absolute/path/to/huqan/mcpServer.js"]`.
 
 The server advertises fifteen tools to the model:
 
