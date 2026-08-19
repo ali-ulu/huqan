@@ -35,14 +35,22 @@ const {
   clamp01,
   edgeSortKey,
   compareCausalEdges,
-  normalizeCausalStep,
   sanitizeEdgeMeta,
-  attachTraversalMeta,
   normalizeLoadedEdge,
 } = require('./lib/graph-record-utils');
 const { countAuditEvents, queryAuditEvents, readAuditEvents } = require('./lib/audit-query');
 const { assertChainTipUsable, emptyMutationJournal, readMutationJournal } = require('./lib/mutation-journal');
 const { applyTemporalEdgeMetadata, beginEdgeTouchScope, downgradeEdge, edgeTouchKey } = require('./lib/graph-edge-mutations');
+const { getCausalChain: runCausalChain } = require('./lib/graph-causal-chain');
+const { getCandidateClaims: runCandidateClaimsRead } = require('./lib/graph-candidate-claims-read');
+const {
+  getEdge: runEdgeRead,
+  getEdgesBetween: runEdgesBetweenRead,
+  hasAnyEdge: runHasAnyEdgeRead,
+  getEdges: runEdgesRead,
+  getInEdges: runInEdgesRead,
+  getAllEdges: runAllEdgesRead,
+} = require('./lib/graph-edge-read');
 
 class Graph {
   /**
@@ -966,29 +974,7 @@ class Graph {
   }
 
   getCandidateClaims(filters = {}) {
-    const normalizedFilters = { ...filters };
-    if (Object.prototype.hasOwnProperty.call(filters, 'workspaceId')) {
-      if (filters.workspaceId === undefined || filters.workspaceId === null) {
-        normalizedFilters.workspaceId = undefined;
-      } else if (typeof filters.workspaceId === 'string' && !filters.workspaceId.trim()) {
-        normalizedFilters.workspaceId = null;
-      } else {
-        normalizedFilters.workspaceId = normalizeWorkspaceId(filters.workspaceId);
-      }
-    } else {
-      normalizedFilters.workspaceId = undefined;
-    }
-    return this._candidateClaims.filter((candidate) => {
-      if (normalizedFilters.workspaceId === null) return false;
-      if (normalizedFilters.workspaceId !== undefined && normalizeWorkspaceId(candidate.workspaceId) !== normalizeWorkspaceId(normalizedFilters.workspaceId)) return false;
-      if (normalizedFilters.status && candidate.status !== normalizedFilters.status) return false;
-      if (normalizedFilters.recommendation && candidate.recommendation !== normalizedFilters.recommendation) return false;
-      if (normalizedFilters.candidateId && candidate.candidateId !== normalizedFilters.candidateId) return false;
-      if (normalizedFilters.reviewedBy && candidate.reviewedBy !== normalizedFilters.reviewedBy) return false;
-      if (normalizedFilters.provenanceId && candidate.provenance?.provenanceId !== normalizedFilters.provenanceId) return false;
-      if (normalizedFilters.sourceRef && candidate.provenance?.sourceRef !== normalizedFilters.sourceRef) return false;
-      return true;
-    });
+    return runCandidateClaimsRead(this._candidateClaims, filters);
   }
 
   removeNode(id, workspaceId = 'default') {
@@ -1160,37 +1146,28 @@ class Graph {
   }
 
   getEdge(fromId, toId, relation, workspaceId = 'default') {
-    const out = this._outIndex.get(edgeIndexKey(fromId, workspaceId)) || [];
-    for (const e of out) {
-      if (e.to === toId && e.relation === relation && normalizeWorkspaceId(e.workspaceId) === normalizeWorkspaceId(workspaceId)) return cloneEdgeRecord(e);
-    }
-    return null;
+    return runEdgeRead(this._outIndex, fromId, toId, relation, workspaceId);
   }
 
   getEdgesBetween(fromId, toId, workspaceId = 'default') {
-    const out = this._outIndex.get(edgeIndexKey(fromId, workspaceId)) || [];
-    return out.filter(e => e.to === toId && normalizeWorkspaceId(e.workspaceId) === normalizeWorkspaceId(workspaceId)).map(cloneEdgeRecord);
+    return runEdgesBetweenRead(this._outIndex, fromId, toId, workspaceId);
   }
 
   hasAnyEdge(fromId, toId, workspaceId = 'default') {
-    return this.getEdgesBetween(fromId, toId, workspaceId).length > 0;
+    return runHasAnyEdgeRead(this._outIndex, fromId, toId, workspaceId);
   }
 
   getEdges(nodeId, workspaceId = 'default') {
-    const out = this._outIndex.get(edgeIndexKey(nodeId, workspaceId)) || [];
-    return out.filter(e => normalizeWorkspaceId(e.workspaceId) === normalizeWorkspaceId(workspaceId)).map(cloneEdgeRecord);
+    return runEdgesRead(this._outIndex, nodeId, workspaceId);
   }
 
   getInEdges(nodeId, workspaceId = 'default') {
-    const out = this._inIndex.get(edgeIndexKey(nodeId, workspaceId)) || [];
-    return out.filter(e => normalizeWorkspaceId(e.workspaceId) === normalizeWorkspaceId(workspaceId)).map(cloneEdgeRecord);
+    return runInEdgesRead(this._inIndex, nodeId, workspaceId);
   }
 
   /** All edges in a workspace, independent of any single node. */
   getAllEdges(workspaceId = 'default') {
-    return this._edges
-      .filter(e => normalizeWorkspaceId(e.workspaceId) === normalizeWorkspaceId(workspaceId))
-      .map(cloneEdgeRecord);
+    return runAllEdgesRead(this._edges, workspaceId);
   }
 
   query(label, workspaceId = 'default') {
@@ -1604,78 +1581,7 @@ class Graph {
   }
 
   getCausalChain(fromId, maxDepthOrOpts = 10) {
-    const opts = typeof maxDepthOrOpts === 'object' && maxDepthOrOpts !== null
-      ? maxDepthOrOpts
-      : { maxDepth: maxDepthOrOpts };
-    const maxDepth = Number.isFinite(opts.maxDepth) ? Math.max(0, opts.maxDepth) : 10;
-    const workspaceId = normalizeWorkspaceId(opts.workspaceId);
-
-    const chain = [];
-    const visited = [];
-    const visitedSet = new Set();
-    const loops = [];
-    const queue = [{ node: fromId, depth: 0, path: [], pathNodes: [fromId] }];
-    let stoppedReason = this.getNode(fromId, workspaceId) ? 'exhausted' : 'missing-start-node';
-    let confidenceTotal = 0;
-    let confidenceCount = 0;
-    let depthStopped = false;
-
-    if (!this.getNode(fromId, workspaceId)) {
-      return attachTraversalMeta(chain, {
-        start: fromId,
-        visited,
-        loops,
-        stoppedReason,
-        maxDepth,
-        confidence: 0,
-      });
-    }
-
-    while (queue.length > 0) {
-      const { node, depth, path, pathNodes } = queue.shift();
-      if (depth >= maxDepth) {
-        depthStopped = true;
-        continue;
-      }
-      if (!visitedSet.has(node)) {
-        visitedSet.add(node);
-        visited.push(node);
-      }
-
-      const causalEdges = this.getCausalEdges(node, workspaceId);
-      for (const edge of causalEdges) {
-        const step = normalizeCausalStep(edge);
-        const newPath = [...path, step];
-        chain.push(newPath);
-        confidenceTotal += step.confidence ?? 0;
-        confidenceCount += 1;
-
-        if (pathNodes.includes(edge.to)) {
-          loops.push([...pathNodes, edge.to]);
-          continue;
-        }
-
-        queue.push({
-          node: edge.to,
-          depth: depth + 1,
-          path: newPath,
-          pathNodes: [...pathNodes, edge.to],
-        });
-      }
-    }
-
-    if (depthStopped) {
-      stoppedReason = 'maxDepth';
-    }
-
-    return attachTraversalMeta(chain, {
-      start: fromId,
-      visited,
-      loops,
-      stoppedReason,
-      maxDepth,
-      confidence: confidenceCount > 0 ? confidenceTotal / confidenceCount : 0,
-    });
+    return runCausalChain(this, fromId, maxDepthOrOpts);
   }
 
   // ─── Temizlik ─────────────────────────────────────────────────────────────
