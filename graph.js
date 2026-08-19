@@ -64,6 +64,7 @@ const { removeNode: runNodeDelete } = require('./lib/graph-node-delete');
 const { touchNode: runNodeTouch } = require('./lib/graph-node-touch');
 const { addTag: runNodeTag } = require('./lib/graph-node-tag');
 const { getWeight: runNodeWeight } = require('./lib/graph-node-weight');
+const { cosineSimilarity: runNodeSimilarity } = require('./lib/graph-node-similarity');
 const { addEdge: runEdgeWrite } = require('./lib/graph-edge-write');
 
 class Graph {
@@ -1063,18 +1064,7 @@ class Graph {
   }
 
   cosineSimilarity(aId, bId, workspaceId = 'default') {
-    const a = this.getNode(aId, workspaceId);
-    const b = this.getNode(bId, workspaceId);
-    if (!a || !b) return 0;
-    const dims = new Set([...Object.keys(a.vector), ...Object.keys(b.vector)]);
-    let dot = 0, magA = 0, magB = 0;
-    for (const d of dims) {
-      const va = a.vector[d] || 0;
-      const vb = b.vector[d] || 0;
-      dot += va * vb; magA += va * va; magB += vb * vb;
-    }
-    const mag = Math.sqrt(magA) * Math.sqrt(magB);
-    return mag === 0 ? 0 : dot / mag;
+    return runNodeSimilarity((nodeId, scope) => this.getNode(nodeId, scope), aId, bId, workspaceId);
   }
 
   prune(threshold, workspaceId = 'default') {
