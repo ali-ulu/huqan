@@ -57,7 +57,7 @@ that has not migrated, and moves the advertised schema and the emitted payload
 together so a client reading the schema it is given is correct in either mode.
 Acceptance of both spellings on the way in is unchanged and permanent.
 
-## [ ] 5. Write the A2A deployment recipe and smoke it
+## [x] 5. Write the A2A deployment recipe and smoke it
 The code is done; the operator instructions are not. Four routes are mounted
 through lib/a2a/routes.js and all four answer 404 today because
 A2A_AUTHORITY_FILE and A2A_REPLAY_DIR are unset:
@@ -65,12 +65,11 @@ A2A_AUTHORITY_FILE and A2A_REPLAY_DIR are unset:
   GET  /.well-known/agent-card.json
   POST /api/a2a/negotiate
   GET  /api/a2a/tasks/{taskId}
-Needed: docs/a2a-deployment.md covering the receiver authority file shape, the
-replay directory, the path-safety rules readReceiverAuthority() enforces, and a
-smoke that proves an exchange over real HTTP rather than the conformance
-runner's child-process stdio. Then repoint the README link, which currently
-goes to the P0 closeout.
-Unblocked: V5_IMPLEMENTATION_ENTRY is PASS.
+Done. docs/a2a-deployment.md carries the authority file shape, the replay
+directory contract, the path-safety rules, the workspace boundary and an
+explicit non-claims section. test/a2a-deployment-smoke.test.js boots the real
+server.js process and proves 404 unconfigured, agent card + accepted exchange
+configured, and a refused replay. README repointed.
 
 ## [ ] 6. Make the CLI English-first
 cli.js --help leads with Turkish commands and Turkish examples:

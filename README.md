@@ -346,8 +346,10 @@ Four A2A routes are on `main` and mounted through `lib/a2a/routes.js`:
 
 They are deployment-gated, not disabled: with `A2A_AUTHORITY_FILE` and
 `A2A_REPLAY_DIR` unset, every one answers `404` rather than `401`, so an
-unconfigured install does not advertise a surface it cannot serve. See
-[docs/v5/v5-p0-a2a-transport-closeout.md](./docs/v5/v5-p0-a2a-transport-closeout.md).
+unconfigured install does not advertise a surface it cannot serve.
+
+To turn them on, and for the boundary of what turning them on does not claim,
+see [docs/a2a-deployment.md](./docs/a2a-deployment.md).
 
 What this repository does **not** currently claim:
 
