@@ -32,6 +32,11 @@ declare const huqan: typeof KernelV2 & {
     mergeWithUpstreamVerdict: (upstreamVerdict?: string, preventionVerdict?: string) => string;
     normalizeAction: (input?: Record<string, unknown>) => Record<string, string>;
   };
+
+  AgentActionFirewall: Record<string, any>;
+  evaluateAgentActionFirewall: (request?: Record<string, unknown>) => Record<string, unknown>;
+  AGENT_ACTION_FIREWALL_VERSION: string;
+  AGENT_ACTION_FIREWALL_DECISIONS: Record<string, string>;
 };
 
 export = huqan;

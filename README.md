@@ -332,6 +332,7 @@ What is real today:
 - verified-failure Error Prevention core exposed through the package root,
 - local CLI, REST, MCP, and UI surfaces,
 - bounded memory and action gates,
+- production-wired Agent Action Firewall for classic agent, workflow/HTTP, and MCP action paths,
 - canonical HUQAN package and cryptographic foundations,
 - two conformance suites, run from this repository:
   `npm run conformance:external` (75 cases) and `npm run conformance:a2a`
@@ -422,6 +423,7 @@ Focused test commands are available in [`package.json`](./package.json).
 - [NLP boundary](./docs/nlp-boundary.md)
 - [Scale truth pack](./docs/scale-truth-pack.md)
 - [Governance](./docs/governance.md)
+- [Agent Action Firewall](./docs/agent-action-firewall.md)
 - [Security policy](./SECURITY.md)
 - [Contributing](./CONTRIBUTING.md)
 - [Issues](https://github.com/ali-ulu/huqan/issues)
