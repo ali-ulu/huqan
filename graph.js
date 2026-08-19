@@ -61,6 +61,7 @@ const {
 const { getNode: runNodeRead, getNodes: runNodesRead } = require('./lib/graph-node-read');
 const { addNode: runNodeWrite } = require('./lib/graph-node-write');
 const { removeNode: runNodeDelete } = require('./lib/graph-node-delete');
+const { touchNode: runNodeTouch } = require('./lib/graph-node-touch');
 const { addEdge: runEdgeWrite } = require('./lib/graph-edge-write');
 
 class Graph {
@@ -830,17 +831,13 @@ class Graph {
     return runNodeRead(this._nodes, id, workspaceId);
   }
 
+  _nodeTouchStoreApi() { return {
+    get: storageKey => this._nodes[storageKey],
+    persist: (accessedAt, id, workspaceId) => this._db && this._stmts && this._stmts.touchNode.run(accessedAt, id, workspaceId),
+  }; }
+
   touchNode(id, workspaceId = 'default') {
-    const scope = normalizeWorkspaceId(workspaceId);
-    const storageKey = nodeStorageKey(id, scope);
-    const node = this._nodes[storageKey] || (scope === 'default' ? this._nodes[id] : null);
-    if (!node || normalizeWorkspaceId(node.workspaceId) !== scope) return null;
-    const accessedAt = Date.now();
-    node.lastAccessed = accessedAt;
-    if (this._db && this._stmts) {
-      this._stmts.touchNode.run(accessedAt, id, scope);
-    }
-    return cloneNodeRecord(node);
+    return runNodeTouch(this._nodeTouchStoreApi(), id, workspaceId);
   }
 
   appendAuditEvent(event, opts = {}) {
