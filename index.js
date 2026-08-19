@@ -67,6 +67,7 @@ module.exports.AGENT_ACTION_FIREWALL_DECISIONS = agentActionFirewall.AGENT_ACTIO
 // evaluator into mutation admission without creating a second identity policy.
 module.exports.AgentIdentityRuntime = agentIdentityRuntime;
 module.exports.evaluateAgentIdentity = agentIdentityRuntime.evaluateAgentIdentity;
+module.exports.composeReceiverOwnedIdentityClaim = agentIdentityRuntime.composeReceiverOwnedIdentityClaim;
 module.exports.snapshotAgentIdentityAuthority = agentIdentityRuntime.snapshotAgentIdentityAuthority;
 module.exports.AGENT_IDENTITY_RUNTIME_VERSION = agentIdentityRuntime.AGENT_IDENTITY_RUNTIME_VERSION;
 module.exports.IDENTITY_RUNTIME_ERRORS = agentIdentityRuntime.IDENTITY_RUNTIME_ERRORS;
