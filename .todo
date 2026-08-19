@@ -84,14 +84,22 @@ hello/hi, agent:, and bare `why X`. Internal dispatch names are unchanged --
 renaming those would move a dispatch surface for a presentation problem. Every
 Turkish spelling still works and the help text says so.
 
-## [ ] 7. Teach huqan.policy the MCP tool classification
-Split out of item 2 rather than smuggled into it.
-huqan.policy and lib/mcp-gate-adapter.js disagree for MCP surface tools that
-are not agent-loop steps: huqan.plan is gated `allow` by the adapter and
-answers external/block/unknown-tool-blocked from toolPolicy.js. Item 2 fixed
-the six tools that are agent steps. The rest need the policy surface to consult
-MCP_TOOL_CLASSIFICATIONS, which is a different module and a wider change than
-widening INTERNAL_TOOLS -- widening it would grant the agent loop new steps.
+## [x] 7. Teach huqan.policy the MCP tool classification
+Done. lib/mcp-tool-policy.js answers for any tool the gate adapter classifies,
+and returns null otherwise so toolPolicy.js's fail-closed handling is intact.
+agent.inspectToolPolicy consults it first.
+
+Live through MCP now:
+  huqan.learn  -> internal/review        (matches the gate that runs it)
+  huqan.plan   -> internal/allow
+  huqan.agent  -> internal/dry_run_only
+  learn        -> internal/allow         (the agent-loop question, unchanged)
+  huqan.notatool, shell.exec -> external/block, still fail-closed
+
+huqan.learn and bare learn now differ on purpose: an MCP call to learn is
+gated review by AB4, while learn as an agent-loop step is allowed. Two
+questions, each answered by its own authority -- not one question with two
+answers, which is what item 2 removed.
 
 ## [ ] 8. Add an HTTP approval path for /upload admissions
 Observed gap, not yet scoped. POST /upload produces a pending memory admission

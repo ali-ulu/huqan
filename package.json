@@ -217,6 +217,7 @@
     "lib/mcp-tool-catalog.js",
     "lib/mcp-tool-data-schemas.js",
     "lib/mcp-tool-names.js",
+    "lib/mcp-tool-policy.js",
     "lib/mcp/read-workflow-tools.js",
     "lib/mcp/response-builders.js",
     "lib/memory-admission-gate.js",

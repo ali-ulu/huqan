@@ -3,6 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 const Dream = require('./dream');
 const { INTERNAL_TOOLS, evaluateToolPolicy } = require('./toolPolicy');
+const { mcpToolPolicy } = require('./lib/mcp-tool-policy');
 const { buildFinalSummary } = require('./finalizer');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
 const { enforceAgentActionStep } = require('./lib/agent-action-firewall');
@@ -639,12 +640,10 @@ class Agent {
   }
 
   inspectToolPolicy(tool, input = '', context = {}) {
-    const policy = evaluateToolPolicy({
-      tool,
-      input,
-      context,
-      internalTools: ALLOWED_TOOLS,
-    });
+    // MCP tools answer from lib/mcp-tool-policy.js, where the gate adapter is
+    // the authority for what calling one does; everything else falls through.
+    const policy = mcpToolPolicy(String(tool || '').trim().toLowerCase())
+      || evaluateToolPolicy({ tool, input, context, internalTools: ALLOWED_TOOLS });
     const approval = this._queueToolApproval(policy, input, context);
     policy.approvalId = approval ? approval.id : null;
     policy.approvalStatus = approval ? approval.status : null;
