@@ -82,6 +82,7 @@ const {
   saveMcpApproval,
 } = require('./lib/mcp-approval-store');
 const { buildApprovalAdmissionOptions } = require('./lib/mcp-approval-admission');
+const { buildMcpOversightInput, buildApproverContext, oversightSummary } = require('./lib/mcp-human-oversight-adapter');
 const {
   toToolResult,
   recordInternalError,
@@ -143,6 +144,7 @@ function createServer(kernelOrOptions = {}) {
             approvalStore,
             operatorToken,
             trustEvidenceLedger: options.trustEvidenceLedger || null,
+            humanOversightApprovalRuntime: options.humanOversightApprovalRuntime || null,
           });
           if (result && typeof result.then === 'function') {
             return result.then(
@@ -190,6 +192,71 @@ function failApprovalDecision(code, message, meta = {}) {
   };
 }
 
+function getHumanOversightRuntime(runtime = {}) {
+  const oversight = runtime.humanOversightApprovalRuntime;
+  return oversight && typeof oversight.createReviewCase === 'function'
+    && typeof oversight.getReviewCase === 'function'
+    && typeof oversight.decide === 'function'
+    && typeof oversight.executeApproved === 'function'
+    ? oversight
+    : null;
+}
+
+function createMcpOversightCase({ runtime, approval, toolName, storedArgs, gate }) {
+  const oversight = getHumanOversightRuntime(runtime);
+  if (!oversight || toolName !== 'huqan.learn') return { enabled: false, ok: true };
+  let input;
+  try {
+    input = buildMcpOversightInput({ approval, toolName, storedArgs, gate, runtime });
+    const result = oversight.createReviewCase({
+      caseId: input.caseId,
+      action: input.action,
+      firewallDecision: input.action.requestedVerdict,
+      requesterContext: input.requesterContext,
+      policy: { requireApproverDistinct: true, policyBasisRef: input.action.policyVersion },
+      metadata: { source: 'mcp-approval', approvalId: approval.id, approvalKey: approval.approvalKey },
+    });
+    if (!result || result.ok !== true) {
+      return { enabled: true, ok: false, result, input };
+    }
+    return { enabled: true, ok: true, input, result, summary: oversightSummary(result) };
+  } catch (error) {
+    return { enabled: true, ok: false, error: error?.message || 'oversight_case_creation_failed', input };
+  }
+}
+
+function readMcpOversightCase({ runtime, approval, toolName, storedArgs, gate }) {
+  const oversight = getHumanOversightRuntime(runtime);
+  if (!oversight || toolName !== 'huqan.learn') return { enabled: false, ok: true };
+  try {
+    const input = buildMcpOversightInput({ approval, toolName, storedArgs, gate, runtime });
+    const result = oversight.getReviewCase(input.caseId);
+    return { enabled: true, ok: Boolean(result?.ok), input, result };
+  } catch (error) {
+    return { enabled: true, ok: false, error: error?.message || 'oversight_case_read_failed' };
+  }
+}
+
+function decideMcpOversight({ runtime, oversightCase, approval, args, decision }) {
+  const oversight = getHumanOversightRuntime(runtime);
+  if (!oversight || !oversightCase?.input) return { enabled: false, ok: true };
+  const decisionType = decision === 'approved' ? 'approve' : 'reject';
+  const result = oversight.decide({
+    caseId: oversightCase.input.caseId,
+    decisionType,
+    approverContext: buildApproverContext(runtime, {
+      approvalId: approval.id,
+      approvalKey: approval.approvalKey,
+      caseId: oversightCase.input.caseId,
+      decision: decisionType,
+      reason: args.reason || '',
+    }),
+    reason: args.reason || `mcp_${decisionType}`,
+    evidenceDigest: oversightCase.input.action.evidenceDigest,
+  });
+  return { enabled: true, ok: Boolean(result?.ok), result };
+}
+
 function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
   const approvalStore = runtime.approvalStore || createApprovalStoreFromKernel(kernel, runtime);
   if (!approvalStore ||
@@ -228,6 +295,21 @@ function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
     return idempotentApprovalDecision(existing, decision);
   }
 
+  const oversightRequired = existing.context?.oversightRequired === true;
+  const oversightRuntime = getHumanOversightRuntime(runtime);
+  if (oversightRequired && !oversightRuntime) {
+    return failApprovalDecision('OVERSIGHT_RUNTIME_UNAVAILABLE', 'This approval requires the configured Human Oversight runtime.', { approval: existing, retrySafe: false });
+  }
+  const storedArgs = existing.context?.args && typeof existing.context.args === 'object'
+    ? existing.context.args
+    : parseJsonObject(existing.input, {});
+  const oversightCase = oversightRequired
+    ? readMcpOversightCase({ runtime, approval: existing, toolName: canonicalMcpToolName(existing.tool), storedArgs, gate: existing.policy?.gate || {} })
+    : { enabled: false, ok: true };
+  if (oversightRequired && !oversightCase.ok) {
+    return failApprovalDecision('OVERSIGHT_CASE_UNAVAILABLE', 'The durable Human Oversight review case could not be read; execution is blocked.', { approval: existing, retrySafe: false });
+  }
+
   if (existing.tool === 'http.ingest') {
     return decideMcpIngestApproval({
       kernel,
@@ -241,6 +323,12 @@ function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
   }
 
   if (decision === 'rejected') {
+    const oversightDecision = oversightRequired
+      ? decideMcpOversight({ runtime, oversightCase, approval: existing, args, decision })
+      : { enabled: false, ok: true };
+    if (oversightRequired && !oversightDecision.ok) {
+      return failApprovalDecision('OVERSIGHT_DECISION_FAILED', 'The durable Human Oversight rejection could not be recorded.', { approval: existing, retrySafe: false });
+    }
     const rejection = approvalStore.rejectToolApproval(approvalId, reason);
     if (!rejection || rejection.rejected !== true) {
       const current = formatApprovalRecord(rejection?.approval || approvalStore.getToolApprovalById(approvalId));
@@ -254,7 +342,14 @@ function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
     return {
       ok: true,
       type: 'approval',
-      data: { approval: rejected, decision, executed: false, idempotent: false, result: null },
+      data: {
+        approval: rejected,
+        decision,
+        executed: false,
+        idempotent: false,
+        result: null,
+        ...(oversightDecision.enabled ? { oversight: oversightSummary(oversightCase.result, oversightDecision.result) } : {}),
+      },
       evidence: [],
       error: null,
       meta: {},
@@ -289,11 +384,18 @@ function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
     );
   }
 
-  const storedArgs = existing.context?.args && typeof existing.context.args === 'object'
-    ? existing.context.args
-    : parseJsonObject(existing.input, {});
   const cleanArgs = sanitizeToolArgsForStorage(existing.tool, storedArgs);
   const learnOptions = buildApprovalAdmissionOptions(existing, cleanArgs);
+  const oversightDecision = oversightRequired
+    ? decideMcpOversight({ runtime, oversightCase, approval: existing, args, decision })
+    : { enabled: false, ok: true };
+  if (oversightRequired && !oversightDecision.ok) {
+    const failure = approvalStore.failToolApproval(approvalId, 'oversight_decision_failed');
+    return failApprovalDecision('OVERSIGHT_DECISION_FAILED', 'The durable Human Oversight approval could not be recorded; execution is blocked.', {
+      approval: formatApprovalRecord(failure?.approval || approvalStore.getToolApprovalById(approvalId)),
+      retrySafe: false,
+    });
+  }
   // #216: both the SQLite and JSON Graph backends now provide a crash-safe
   // durable mutation journal (runMutationOnce), so binding the durable id no
   // longer depends on which backend is active -- runMutationOnce's presence
@@ -301,13 +403,97 @@ function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
   if (kernel.graph && typeof kernel.graph.runMutationOnce === 'function') {
     learnOptions.mutationOperationId = approvalId;
   }
+  const completeExecution = (result, oversightExecution = null) => {
+    if (!result || result.ok === false) {
+      const failure = approvalStore.failToolApproval(approvalId, 'execution_outcome_unknown:result_not_ok');
+      const failed = formatApprovalRecord(failure?.approval || approvalStore.getToolApprovalById(approvalId));
+      return failApprovalDecision(
+        'APPROVAL_EXECUTION_FAILED',
+        'Approved MCP action failed; outcome requires manual reconciliation.',
+        { approval: failed, result, retrySafe: false },
+      );
+    }
+
+    let finalization;
+    try {
+      finalization = finalizeApprovalExecution({ store: approvalStore, approvalId, reason, graph: kernel.graph, result });
+    } catch (error) {
+      return failApprovalDecision('APPROVAL_FINALIZATION_FAILED', 'Approved MCP action executed but finalizing the approval record threw an error.', {
+        approval: formatApprovalRecord(approvalStore.getToolApprovalById(approvalId)), result, retrySafe: false,
+        finalizationError: error?.code || error?.name || 'error',
+      });
+    }
+    if (finalization.code) {
+      const failure = approvalStore.failToolApproval(approvalId, 'execution_outcome_unknown:receipt_not_materialized');
+      return failApprovalDecision(finalization.code, 'Approved MCP action executed but its canonical receipt could not be materialized.',
+        { approval: formatApprovalRecord(failure?.approval || approvalStore.getToolApprovalById(approvalId)), result, retrySafe: false },
+      );
+    }
+    const approved = formatApprovalRecord(finalization.approval);
+    const executionEvidence = finalization.executionEvidence;
+    if (!approved || approved.status !== 'approved') {
+      return failApprovalDecision(
+        'APPROVAL_FINALIZATION_FAILED',
+        'Approved MCP action executed but the approval record could not be finalized.',
+        { approval: approved || formatApprovalRecord(approvalStore.getToolApprovalById(approvalId)), result, retrySafe: false },
+      );
+    }
+    return {
+      ok: true,
+      type: 'approval',
+      data: {
+        approval: approved,
+        decision,
+        executed: true,
+        idempotent: false,
+        result,
+        receipt: executionEvidence.receipt,
+        refs: executionEvidence.refs,
+        ...(oversightRequired ? { oversight: oversightSummary(oversightCase.result, oversightDecision.result, oversightExecution) } : {}),
+      },
+      evidence: result.evidence || [],
+      error: null,
+      meta: { admissionAware: true },
+    };
+  };
+
+  if (oversightRequired) {
+    return Promise.resolve().then(() => oversightRuntime.executeApproved({
+      caseId: oversightCase.input.caseId,
+      action: oversightCase.input.action,
+      requesterContext: oversightCase.input.requesterContext,
+      firewallRequest: oversightCase.input.firewallRequest,
+      executor: () => kernel.learn(cleanArgs.text, learnOptions),
+    })).then((oversightExecution) => {
+      if (!oversightExecution || oversightExecution.ok !== true) {
+        const failure = approvalStore.failToolApproval(approvalId, 'execution_outcome_unknown:oversight_runtime_blocked');
+        return failApprovalDecision('OVERSIGHT_EXECUTION_BLOCKED', 'Human Oversight revalidation blocked the approved action; outcome requires manual reconciliation.', {
+          approval: formatApprovalRecord(failure?.approval || approvalStore.getToolApprovalById(approvalId)),
+          oversight: oversightSummary(oversightCase.result, oversightDecision.result, oversightExecution),
+          retrySafe: false,
+        });
+      }
+      return completeExecution(oversightExecution.result, oversightExecution);
+    }).catch((error) => {
+      const failure = approvalStore.failToolApproval(
+        approvalId,
+        `execution_outcome_unknown:${error?.code || error?.name || 'error'}`,
+      );
+      return failApprovalDecision(
+        'APPROVAL_EXECUTION_FAILED',
+        'Approved MCP action threw during Human Oversight execution; outcome requires manual reconciliation.',
+        { approval: formatApprovalRecord(failure?.approval || approvalStore.getToolApprovalById(approvalId)), retrySafe: false },
+      );
+    });
+  }
+
   let result;
   try {
     result = kernel.learn(cleanArgs.text, learnOptions);
   } catch (error) {
     const failure = approvalStore.failToolApproval(
       approvalId,
-      `execution_outcome_unknown:${error?.code || error?.name || 'error'}`
+      `execution_outcome_unknown:${error?.code || error?.name || 'error'}`,
     );
     const failed = formatApprovalRecord(failure?.approval || approvalStore.getToolApprovalById(approvalId));
     return failApprovalDecision(
@@ -316,56 +502,7 @@ function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
       { approval: failed, retrySafe: false },
     );
   }
-  if (!result || result.ok === false) {
-    const failure = approvalStore.failToolApproval(approvalId, 'execution_outcome_unknown:result_not_ok');
-    const failed = formatApprovalRecord(failure?.approval || approvalStore.getToolApprovalById(approvalId));
-    return failApprovalDecision(
-      'APPROVAL_EXECUTION_FAILED',
-      'Approved MCP action failed; outcome requires manual reconciliation.',
-      { approval: failed, result, retrySafe: false },
-    );
-  }
-
-  let finalization;
-  try {
-    finalization = finalizeApprovalExecution({ store: approvalStore, approvalId, reason, graph: kernel.graph, result });
-  } catch (error) {
-    return failApprovalDecision('APPROVAL_FINALIZATION_FAILED', 'Approved MCP action executed but finalizing the approval record threw an error.', {
-      approval: formatApprovalRecord(approvalStore.getToolApprovalById(approvalId)), result, retrySafe: false,
-      finalizationError: error?.code || error?.name || 'error',
-    });
-  }
-  if (finalization.code) {
-    const failure = approvalStore.failToolApproval(approvalId, 'execution_outcome_unknown:receipt_not_materialized');
-    return failApprovalDecision(finalization.code, 'Approved MCP action executed but its canonical receipt could not be materialized.',
-      { approval: formatApprovalRecord(failure?.approval || approvalStore.getToolApprovalById(approvalId)), result, retrySafe: false },
-    );
-  }
-  const approved = formatApprovalRecord(finalization.approval);
-  const executionEvidence = finalization.executionEvidence;
-  if (!approved || approved.status !== 'approved') {
-    return failApprovalDecision(
-      'APPROVAL_FINALIZATION_FAILED',
-      'Approved MCP action executed but the approval record could not be finalized.',
-      { approval: approved || formatApprovalRecord(approvalStore.getToolApprovalById(approvalId)), result, retrySafe: false },
-    );
-  }
-  return {
-    ok: true,
-    type: 'approval',
-    data: {
-      approval: approved,
-      decision,
-      executed: true,
-      idempotent: false,
-      result,
-      receipt: executionEvidence.receipt,
-      refs: executionEvidence.refs,
-    },
-    evidence: result.evidence || [],
-    error: null,
-    meta: { admissionAware: true },
-  };
+  return completeExecution(result);
 }
 
 /**
@@ -467,7 +604,9 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
   if (!gate.canExecute) {
     if (gate.decision === 'review' || gate.requiredReview) {
       const approvalStore = runtime.approvalStore || createApprovalStoreFromKernel(kernel, runtime);
-      const approval = saveMcpApproval(approvalStore, name, args, gate);
+      const approval = saveMcpApproval(approvalStore, name, args, gate, {
+        oversightRequired: Boolean(getHumanOversightRuntime(runtime)) && name === 'huqan.learn',
+      });
       const gateSurface = {
         decision: gate.decision,
         allowed: gate.allowed,
@@ -493,6 +632,29 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
           message: `Tool call blocked, review not persisted: ${gate.reason}`,
         }, name, args, gate);
       }
+      const oversightCase = createMcpOversightCase({
+        runtime,
+        approval,
+        toolName: name,
+        storedArgs: approval.context?.args || args,
+        gate,
+      });
+      const approvalSurface = oversightCase.enabled
+        ? { ...approval, oversight: oversightCase.summary || { caseId: '', status: 'unavailable' } }
+        : approval;
+      if (oversightCase.enabled && !oversightCase.ok) {
+        return withMcpToolVerdictSurface({
+          ok: false,
+          gate: gateSurface,
+          approval: approvalSurface,
+          error: {
+            code: 'REVIEW_CASE_NOT_PERSISTED',
+            reason: oversightCase.result?.reason || 'oversight_case_creation_failed',
+            message: 'Tool call requires Human Oversight, but no durable review case was recorded; nothing executed.',
+          },
+          message: 'Tool call blocked because the Human Oversight review case was not durably recorded.',
+        }, name, args, gate);
+      }
       const ingestExecuteData = name === 'huqan.ingest_execute'
         ? {
           approval,
@@ -507,8 +669,8 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
       return withMcpToolVerdictSurface({
         ok: false,
         gate: gateSurface,
-        approval,
-        ...(ingestExecuteData ? { data: ingestExecuteData } : {}),
+        approval: approvalSurface,
+        ...(ingestExecuteData ? { data: { ...ingestExecuteData, approval: approvalSurface } } : {}),
         message: `Tool call queued for review: ${gate.reason}`,
       }, name, args, gate);
     }
