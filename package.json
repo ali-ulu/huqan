@@ -235,6 +235,7 @@
     "lib/memory-record-utils.js",
     "lib/memory-schema.js",
     "lib/memory-supersede.js",
+    "lib/memory-temporal.js",
     "lib/memory-store-rollback.js",
     "lib/memory-store-utils.js",
     "lib/memory-store.js",

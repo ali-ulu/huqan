@@ -734,6 +734,22 @@ describe('memory-store', () => {
       assert.strictEqual(res.memories[1].content, 'm2');
     });
 
+    it('since, before and between preserve temporal boundary semantics', () => {
+      const store = createStore();
+      const m1 = store.store({ content: 'm1' }).memory;
+      const m2 = store.store({ content: 'm2' }).memory;
+      const m3 = store.store({ content: 'm3' }).memory;
+      const records = [m1, m2, m3].map((memory) => store._memories.get(store._makeMemoryKey('default', memory.memoryId)));
+      records[0].createdAt = '2026-06-03T12:00:00.000Z';
+      records[1].createdAt = '2026-06-03T12:00:05.000Z';
+      records[2].createdAt = '2026-06-03T12:00:10.000Z';
+
+      assert.equal(store.since('2026-06-03T12:00:05.000Z').total, 2);
+      assert.equal(store.before('2026-06-03T12:00:10.000Z').total, 2);
+      assert.equal(store.between('2026-06-03T12:00:00.000Z', '2026-06-03T12:00:05.000Z').total, 2);
+      assert.equal(store._queryTemporalMemories({ field: 'unknown' }).error.code, 'INVALID_INPUT');
+    });
+
     it('limit/offset works deterministically', () => {
       const store = createStore();
       const m1 = store.store({ content: 'm1' }).memory;
