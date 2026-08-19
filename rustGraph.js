@@ -3,13 +3,31 @@ const path = require('path');
 const fs = require('fs');
 const Graph = require('./graph');
 
+/**
+ * Locate the native accelerator binary.
+ *
+ * The crate is `huqan-core`; it was `axiom-core` before RFC-001's rename, and
+ * `target/` is gitignored, so a checkout that was built before the rename still
+ * has a working binary under the old directory and name. Those paths are kept
+ * as lower-priority candidates: without them such a checkout would silently
+ * lose acceleration and fall back to the JavaScript Graph, which is correct but
+ * slower and gives no hint why.
+ *
+ * Canonical paths are tried first, so a tree with both built prefers the
+ * current one. The first canonical path is returned when nothing exists, which
+ * is what makes a missing binary a clean fallback rather than an error.
+ */
 function resolveRustBin() {
   const isWin = process.platform === 'win32';
-  const exeName = isWin ? 'axiom-core.exe' : 'axiom-core';
+  const exeName = isWin ? 'huqan-core.exe' : 'huqan-core';
+  const legacyExeName = isWin ? 'axiom-core.exe' : 'axiom-core';
   const candidates = [
     // Native build (cargo build --release, no explicit --target).
-    path.join(__dirname, 'axiom-core', 'target', 'release', exeName),
-    // Windows cross/GNU-toolchain build (see axiom-core/build.ps1).
+    path.join(__dirname, 'huqan-core', 'target', 'release', exeName),
+    // Windows cross/GNU-toolchain build (see huqan-core/build.ps1).
+    path.join(__dirname, 'huqan-core', 'target', 'x86_64-pc-windows-gnu', 'release', 'huqan-core.exe'),
+    // Pre-rename builds, accepted but never produced.
+    path.join(__dirname, 'axiom-core', 'target', 'release', legacyExeName),
     path.join(__dirname, 'axiom-core', 'target', 'x86_64-pc-windows-gnu', 'release', 'axiom-core.exe'),
   ];
   for (const candidate of candidates) {

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const RustGraph = require('../rustGraph');
 
 // Simulates a Rust process that never replies, without needing the actual
-// axiom-core binary: a fake `_proc` whose stdin.write() is a no-op means
+// huqan-core binary: a fake `_proc` whose stdin.write() is a no-op means
 // `_onData` is never invoked and `_pending` would stay unresolved forever
 // without the request timeout (#373).
 function makeHangingRustGraph(requestTimeoutMs) {

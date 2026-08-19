@@ -7,7 +7,7 @@ const CAT = 'kedi bir hayvandir';
 const DOG = 'kopek bir hayvandir';
 
 /**
- * A stand-in for one axiom-core process.
+ * A stand-in for one huqan-core process.
  *
  * It reproduces the property that matters: the graph belongs to the *instance*,
  * and `batch` runs its child commands against that graph rather than isolating
@@ -155,11 +155,11 @@ describe('Kernel#reasonSandbox never routes through the shared bridge (#758)', (
   });
 });
 
-describe('reasonSandbox against a real axiom-core process (#758)', () => {
+describe('reasonSandbox against a real huqan-core process (#758)', () => {
   // CI does not build the Rust binary, so this runs only where it exists
-  // (`cargo build --release` in axiom-core/). It is reported as skipped, never
+  // (`cargo build --release` in huqan-core/). It is reported as skipped, never
   // as a pass, when the binary is absent.
-  const skip = rustBinaryAvailable() ? false : 'axiom-core release binary not built';
+  const skip = rustBinaryAvailable() ? false : 'huqan-core release binary not built';
 
   it('a second call does not answer from the first call\'s facts', { skip }, async () => {
     const kernel = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });

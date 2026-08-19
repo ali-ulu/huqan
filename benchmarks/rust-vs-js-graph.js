@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Compares the Rust bridge (rustGraph.js -> axiom-core) against the pure-JS
+// Compares the Rust bridge (rustGraph.js -> huqan-core) against the pure-JS
 // Graph fallback for typical graph operations, so the "hızlandırıcı" claim
 // is measured rather than assumed. Run with: node benchmarks/rust-vs-js-graph.js [nodeCount]
 'use strict';
@@ -72,7 +72,7 @@ function benchJs(n) {
 
   const rust = await benchRust(N);
   if (rust.usingFallback) {
-    console.log('Rust binary not found — rustGraph.js fell back to JS Graph (build axiom-core first: cd axiom-core && cargo build --release).');
+    console.log('Rust binary not found — rustGraph.js fell back to JS Graph (build huqan-core first: cd huqan-core && cargo build --release).');
   } else {
     console.log(`Rust bridge (per-command IPC):   ${rust.ms.toFixed(1)} ms  (${(rust.ms / js.ms).toFixed(1)}x JS)`);
   }

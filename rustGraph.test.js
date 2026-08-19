@@ -8,8 +8,8 @@ const Graph = require('./graph');
 const RustGraph = require('./rustGraph');
 
 const RUST_BIN_CANDIDATES = [
-  path.join(__dirname, 'axiom-core', 'target', 'release', process.platform === 'win32' ? 'axiom-core.exe' : 'axiom-core'),
-  path.join(__dirname, 'axiom-core', 'target', 'x86_64-pc-windows-gnu', 'release', 'axiom-core.exe'),
+  path.join(__dirname, 'huqan-core', 'target', 'release', process.platform === 'win32' ? 'huqan-core.exe' : 'huqan-core'),
+  path.join(__dirname, 'huqan-core', 'target', 'x86_64-pc-windows-gnu', 'release', 'huqan-core.exe'),
 ];
 const RUST_BIN = RUST_BIN_CANDIDATES.find(p => fs.existsSync(p));
 const hasRust = !!RUST_BIN;

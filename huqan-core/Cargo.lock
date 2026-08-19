@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "axiom_core"
+name = "huqan_core"
 version = "0.9.1"
 dependencies = [
  "serde",

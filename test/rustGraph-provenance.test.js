@@ -55,7 +55,7 @@ const hasRustBinary = fs.existsSync(rustBin);
 
 test(
   'rustGraph addNode/addEdge forward provenance through the real Rust IPC process (#361)',
-  { skip: hasRustBinary ? false : 'axiom-core binary not built in this environment' },
+  { skip: hasRustBinary ? false : 'huqan-core binary not built in this environment' },
   async () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rustgraph-ipc-provenance-'));
     const rg = new RustGraph({ memoryPath: path.join(tempDir, 'memory.json') });
