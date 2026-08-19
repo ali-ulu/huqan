@@ -43,6 +43,7 @@ const { assertChainTipUsable, emptyMutationJournal, readMutationJournal } = requ
 const { applyTemporalEdgeMetadata, beginEdgeTouchScope, downgradeEdge, edgeTouchKey } = require('./lib/graph-edge-mutations');
 const { getCausalChain: runCausalChain } = require('./lib/graph-causal-chain');
 const { getCandidateClaims: runCandidateClaimsRead } = require('./lib/graph-candidate-claims-read');
+const { addCandidateClaim: runCandidateClaimWrite } = require('./lib/graph-candidate-claims-write');
 const {
   getEdge: runEdgeRead,
   getEdgesBetween: runEdgesBetweenRead,
@@ -914,50 +915,38 @@ class Graph {
     return queryAuditEvents(this._auditQueryContext(), options);
   }
 
+  _candidateClaimWriteStoreApi() {
+    return {
+      findIndex: (candidateId, workspaceId) => this._candidateClaims.findIndex(item =>
+        item.candidateId === candidateId && normalizeWorkspaceId(item.workspaceId) === workspaceId
+      ),
+      get: index => this._candidateClaims[index],
+      replace: (index, value) => { this._candidateClaims[index] = value; },
+      append: value => { this._candidateClaims.push(value); },
+      persist: (normalized, workspaceId) => {
+        if (this._db && this._stmts) {
+          this._stmts.upsertCandidateClaim.run(
+            normalized.candidateId,
+            workspaceId,
+            normalized.claim || '',
+            JSON.stringify(normalized.proposedEdge ?? null),
+            JSON.stringify(normalized.provenance ?? null),
+            JSON.stringify(normalized.conflict ?? null),
+            normalized.recommendation || 'accept',
+            normalized.status || 'pending',
+            normalized.createdAt || nowIso(),
+            normalized.reviewedAt || '',
+            normalized.reviewedBy || '',
+            JSON.stringify(normalized.warnings || []),
+          );
+        }
+      },
+      read: filters => runCandidateClaimsRead(this._candidateClaims, filters),
+    };
+  }
+
   addCandidateClaim(candidate, opts = {}) {
-    const normalized = normalizeCandidateClaim({
-      ...candidate,
-      workspaceId: opts.workspaceId || candidate?.workspaceId || candidate?.provenance?.workspaceId || candidate?.proposedEdge?.workspaceId,
-    });
-    const workspaceId = normalizeWorkspaceId(normalized.workspaceId);
-    const index = this._candidateClaims.findIndex(item =>
-      item.candidateId === normalized.candidateId &&
-      normalizeWorkspaceId(item.workspaceId) === workspaceId
-    );
-
-    if (index >= 0) {
-      this._candidateClaims[index] = {
-        ...this._candidateClaims[index],
-        ...normalized,
-        workspaceId,
-        candidateId: normalized.candidateId,
-      };
-    } else {
-      this._candidateClaims.push({
-        ...normalized,
-        workspaceId,
-        candidateId: normalized.candidateId,
-      });
-    }
-
-    if (this._db && this._stmts) {
-      this._stmts.upsertCandidateClaim.run(
-        normalized.candidateId,
-        workspaceId,
-        normalized.claim || '',
-        JSON.stringify(normalized.proposedEdge ?? null),
-        JSON.stringify(normalized.provenance ?? null),
-        JSON.stringify(normalized.conflict ?? null),
-        normalized.recommendation || 'accept',
-        normalized.status || 'pending',
-        normalized.createdAt || nowIso(),
-        normalized.reviewedAt || '',
-        normalized.reviewedBy || '',
-        JSON.stringify(normalized.warnings || []),
-      );
-    }
-
-    return this.getCandidateClaims({ workspaceId }).find(item => item.candidateId === normalized.candidateId) || normalized;
+    return runCandidateClaimWrite(this._candidateClaimWriteStoreApi(), candidate, opts);
   }
 
   getCandidateClaims(filters = {}) {
