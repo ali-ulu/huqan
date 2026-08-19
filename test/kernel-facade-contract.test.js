@@ -186,6 +186,10 @@ test('4C1: package.json manifest', () => {
   assert.ok(pkg.files.includes('kernel.js'), 'the deprecated v1 export must still resolve');
   assert.equal(typeof pkg.bin, 'object');
   assert.equal(pkg.bin.huqan, './cli.js');
+  // The MCP server is reachable by name, not only by absolute path: this is
+  // what lets a Claude Desktop config say `npx -y --package=huqan huqan-mcp`.
+  assert.equal(pkg.bin['huqan-mcp'], './bin/huqan-mcp.js');
+  assert.ok(pkg.files.includes('bin/huqan-mcp.js'), 'the MCP executable must ship');
   assert.ok(Array.isArray(pkg.files), 'files allowlist must be present');
   assert.ok(pkg.files.length > 0, 'files allowlist must not be empty');
 });
@@ -495,6 +499,48 @@ test('4C1: installed CLI help smoke', () => {
     env: { ...process.env, AXIOM_USE_SQLITE: 'false', NO_COLOR: '1' },
   });
   assert.equal(result.status, 0, `CLI help exit ${result.status}: ${(result.stderr || result.stdout || '').slice(0, 300)}`);
+});
+
+test('4C1: installed MCP executable answers over stdio', () => {
+  // The CLI smoke above runs cli.js through node. This one runs the *installed
+  // bin* the way a client launches it, so a missing shebang or a wrong bin path
+  // fails here rather than in someone's Claude Desktop config.
+  const info = setupTarballInstall();
+  const binName = process.platform === 'win32' ? 'huqan-mcp.cmd' : 'huqan-mcp';
+  const binPath = path.join(info.installDir, 'node_modules', '.bin', binName);
+  assert.ok(fs.existsSync(binPath), `installed MCP bin not found: ${binPath}`);
+
+  const requests = [
+    { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'tarball-smoke', version: '1' } } },
+    { jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} },
+  ].map((r) => JSON.stringify(r)).join('\n') + '\n';
+
+  const result = cp.spawnSync(binPath, [], {
+    cwd: info.installDir, input: requests, timeout: 60000, encoding: 'utf8',
+    env: {
+      ...process.env,
+      NO_COLOR: '1',
+      HUQAN_DB_PATH: path.join(info.installDir, 'mcp-smoke.sqlite'),
+      HUQAN_MEMORY_PATH: path.join(info.installDir, 'mcp-smoke.json'),
+    },
+  });
+
+  assert.equal(result.status, 0, `MCP bin exit ${result.status}: ${(result.stderr || '').slice(0, 300)}`);
+
+  const messages = String(result.stdout || '').split('\n').filter(Boolean).map((line) => {
+    try {
+      return JSON.parse(line);
+    } catch (_) {
+      return null;
+    }
+  }).filter(Boolean);
+
+  const initialized = messages.find((m) => m.id === 1);
+  const listed = messages.find((m) => m.id === 2);
+  assert.ok(initialized, 'MCP bin did not answer initialize');
+  assert.equal(initialized.result.serverInfo.name, 'huqan');
+  assert.ok(listed && Array.isArray(listed.result.tools), 'MCP bin did not answer tools/list');
+  assert.ok(listed.result.tools.length > 0, 'installed MCP bin advertised no tools');
 });
 
 test('4C1: installed tarball CLI JSON is non-TTY and stable across locale and terminal width', () => {

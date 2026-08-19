@@ -80,7 +80,9 @@ jobs:
             # scripts/* and benchmarks/* are here because package.json#files
             # publishes backup.js, restore.js, egitim-demo.js, bench.js and
             # verifBench.js; the exclusions above are matched first so
-            # benchmarks/fixtures/* stays out.
+            # benchmarks/fixtures/* stays out. bin/* is here because
+            # package.json#bin ships it: it is what an installed consumer
+            # executes, so a change there is a change to a shipped surface.
             #
             # The final `*.js` arm is what makes it fail closed: a new root
             # production file counts as runtime until someone classifies it
@@ -89,7 +91,7 @@ jobs:
               docs/*|specs/*|test/*|benchmarks/fixtures/*|fixtures/*|public/*|obsidian-plugin/*)
                 return 1
                 ;;
-              package.json|package-lock.json|plugins/*|lib/*|nlp/*|packages/*|migrations/*|schemas/*|adapters/*|scripts/*|benchmarks/*)
+              package.json|package-lock.json|plugins/*|lib/*|nlp/*|packages/*|migrations/*|schemas/*|adapters/*|scripts/*|benchmarks/*|bin/*)
                 return 0
                 ;;
               */*)
