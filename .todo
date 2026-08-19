@@ -28,28 +28,19 @@ Commit 09a2b3b.
 - Fixed by resolving the namespace at lookup, not by enlarging INTERNAL_TOOLS
   (agent.js aliases it as ALLOWED_TOOLS, so growing it is a capability change).
 
-## [ ] 3. Close the HTTP ingest loop
-Two defects, both observed on a live server, both demo-breaking because REST is
-the first surface an evaluator tries.
+## [x] 3. Close the HTTP ingest loop
+Commit 8400e4e.
+Root cause was neither of the two things it looked like from the HTTP surface.
+plugins/company-brain.js::addCompanyEdge never passed `strength`, and
+graph.js::addEdge refuses a causal relation without one by throwing. Manual and
+decision ingest therefore died on all four advertised causal relations, after
+proposeNode had already written the endpoints -- hence orphan nodes, no edges,
+and verify answering unknown.
 
-3a. An approved ingest that writes reports failure.
-    POST /api/ingest/approvals/{id} {"decision":"approved"}
-      -> {"ok":false,"code":"INGEST_EXECUTION_UNKNOWN",
-          "message":"Approved ingest did not produce a bounded outcome;
-                     manual reconciliation is required."}
-    while the write actually landed: graph gained 3 nodes and the receipt
-    bundle went from receiptCount 1 to 4. The outcome deriver did not recognise
-    the delta it caused. execution_outcome_unknown is the documented V4-B2
-    behaviour for uncertain outcomes -- this outcome was not uncertain.
-
-3b. Nodes are written, edges are not, so the loop never closes.
-    After approving "Vaccination prevents disease":
-      nodes: [manual-note:...:vaccination-prevents-dis, vaccination, disease]
-      edges: []
-      POST /verify {"statement":"Vaccination prevents disease"}
-        -> {"status":"unknown","confidence":0,"evidence":[]}
-    The CLI/MCP path does write the edge: cli.js quickstart verifies at
-    confidence 0.90 on the same relation. Only the HTTP ingest path is short.
+INGEST_EXECUTION_UNKNOWN turned out to be correct rather than a second defect:
+classifyActionOutcome() refused to call `result.ok !== true` a bounded success.
+It reports admission_allow_graph_write_observed now that the outcome is bounded.
+Fixed by centralising the rule in lib/causal-edge-strength.js.
 
 ## [ ] 4. Flip MCP verify to the canonical English status vocabulary
 huqan.verify answers {"status":"bilinmiyor"} while REST /verify answers
@@ -108,3 +99,50 @@ with a provenanceId and a receipt, but /api/ingest/approvals filters on
 tool === 'http.ingest', so an /upload admission cannot be resolved over HTTP at
 all. Today it needs the CLI ("onaylar" / "onayla"). An HTTP client can propose
 but cannot approve.
+
+## [x] 9. A PREVENTS edge contradicts the sentence that states it
+Found while verifying item 3; not caused by it. Fixed in lib/verify.js: the
+stored-PREVENTS contradiction branch now fires only when the incoming claim is
+affirmative, so a claim that asserts the same prevention verifies. The branch's
+original purpose is kept and tested.
+
+Still open from the same output: the contradiction evidence string is Turkish
+prose ("... ile celiskiyor: ..."). Folded into item 10.
+
+Isolated to the verifier -- edges written straight to the graph, no plugin, no
+ingest, no admission in the path:
+
+  addEdge('exercise','heart disease','PREVENTS',{strength:0.8,confidence:0.95})
+  verify('Exercise prevents heart disease')
+    -> status "contradicted", confidence 0.95
+       evidence: exercise --[PREVENTS]--> heart disease ile celiskiyor:
+                 "Exercise prevents heart disease"
+
+  addEdge('smoking','lung cancer','CAUSES',{strength:0.8,confidence:0.95})
+  verify('Smoking causes lung cancer')
+    -> status "verified", confidence 0.95
+
+So three of the four advertised causal relations verify correctly and PREVENTS
+inverts: asserting it produces a confident contradiction of itself. This is the
+core value proposition failing on a relation the README lists, with
+"Vaccination prevents disease" as one of its own worked examples.
+
+Almost certainly polarity handling: PREVENTS is a negative-polarity relation
+and the contradiction check appears to treat the stated claim as its own
+negation. Fix the polarity, then keep a test per causal relation so the four
+cannot diverge again.
+
+Second, smaller finding on the same output: the contradiction evidence string
+is Turkish ("... ile celiskiyor: ..."). That is prose, not the status
+vocabulary of item 4, so it needs its own pass.
+
+## [ ] 10. Turkish prose on English API surfaces
+Distinct from item 4, which is about the status *vocabulary*. This is free
+prose emitted alongside a correct English status, e.g. the contradiction
+evidence built in lib/verify.js:
+
+  "exercise --[PREVENTS]--> heart disease ile celiskiyor: \"...\""
+
+Needs a sweep of user-facing strings on the REST, MCP and viewer surfaces, then
+one pass to English, keeping Turkish acceptance on the way in per RFC-001
+decision 7.
