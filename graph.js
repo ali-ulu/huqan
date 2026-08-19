@@ -63,6 +63,7 @@ const { addNode: runNodeWrite } = require('./lib/graph-node-write');
 const { removeNode: runNodeDelete } = require('./lib/graph-node-delete');
 const { touchNode: runNodeTouch } = require('./lib/graph-node-touch');
 const { addTag: runNodeTag } = require('./lib/graph-node-tag');
+const { getWeight: runNodeWeight } = require('./lib/graph-node-weight');
 const { addEdge: runEdgeWrite } = require('./lib/graph-edge-write');
 
 class Graph {
@@ -937,11 +938,7 @@ class Graph {
   }
 
   getWeight(id, workspaceId = 'default') {
-    const node = this.getNode(id, workspaceId);
-    if (!node) return 0;
-    const elapsed = (Date.now() - node.lastAccessed) / 1000;
-    const decayed = node.weight * Math.exp(-this._decayLambda * elapsed);
-    return Math.max(0, Math.min(1, decayed));
+    return runNodeWeight((nodeId, scope) => this.getNode(nodeId, scope), this._decayLambda, id, workspaceId);
   }
 
   _nodeTagStoreApi() { return { get: storageKey => this._nodes[storageKey] }; }

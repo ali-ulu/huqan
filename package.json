@@ -186,6 +186,7 @@
     "lib/graph-node-delete.js",
     "lib/graph-node-touch.js",
     "lib/graph-node-tag.js",
+    "lib/graph-node-weight.js",
     "lib/graph-edge-write.js",
     "lib/graph-edge-mutations.js",
     "lib/graph-record-utils.js",
