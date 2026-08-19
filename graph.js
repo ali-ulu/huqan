@@ -59,6 +59,8 @@ const {
   getCommittedMutationReceiptById: runReceiptByIdRead,
 } = require('./lib/graph-mutation-receipt-read');
 const { getNode: runNodeRead, getNodes: runNodesRead } = require('./lib/graph-node-read');
+const { addNode: runNodeWrite } = require('./lib/graph-node-write');
+const { addEdge: runEdgeWrite } = require('./lib/graph-edge-write');
 
 class Graph {
   /**
@@ -792,56 +794,35 @@ class Graph {
     return runNodesRead(this._nodes, workspaceId);
   }
 
+  _nodeWriteStoreApi() {
+    return {
+      readPersisted: (id, workspaceId) => {
+        if (this._db && this._stmts) {
+          return { enabled: true, existing: this._stmts.getNode.get(id, workspaceId) };
+        }
+        return { enabled: false, existing: null };
+      },
+      get: storageKey => this._nodes[storageKey],
+      set: (storageKey, value) => { this._nodes[storageKey] = value; },
+      persist: ({ id, workspaceId, label, created, createdAt, lastAccessed, lastSeen, vector, provenance }) => {
+        this._stmts.upsertNode.run(
+          id,
+          workspaceId,
+          label,
+          0.5,
+          created,
+          createdAt,
+          lastAccessed,
+          lastSeen,
+          vector,
+          provenance,
+        );
+      },
+    };
+  }
+
   addNode(id, label, provenance = null, opts = {}) {
-    const now = Date.now();
-    const isoNow = nowIso();
-    const hasExplicitProvenance = provenance && typeof provenance === 'object';
-    const workspaceId = normalizeWorkspaceId(opts.workspaceId || provenance?.workspaceId);
-    const storageKey = nodeStorageKey(id, workspaceId);
-    if (this._db && this._stmts) {
-      // SQLite path
-      const existing = this._stmts.getNode.get(id, workspaceId);
-      const vector = existing ? existing.vector : '{}';
-      const createdAt = existing && existing.created_at ? existing.created_at : isoNow;
-      const existingProvenance = JSON.parse((existing && existing.provenance) || 'null');
-      const nextProvenance = hasExplicitProvenance ? provenance : existingProvenance;
-      this._stmts.upsertNode.run(id, workspaceId, label, 0.5, now, createdAt, now, isoNow, vector, JSON.stringify(nextProvenance ?? null));
-      // In-memory sync
-      if (this._nodes[storageKey] && normalizeWorkspaceId(this._nodes[storageKey].workspaceId) === workspaceId) {
-        this._nodes[storageKey].label = label;
-        this._nodes[storageKey].workspaceId = workspaceId;
-        this._nodes[storageKey].weight = Math.min(1, this._nodes[storageKey].weight + 0.1);
-        this._nodes[storageKey].lastAccessed = now;
-        this._nodes[storageKey].lastSeen = isoNow;
-        this._nodes[storageKey].last_seen = isoNow;
-        if (hasExplicitProvenance) this._nodes[storageKey].provenance = deepClone(provenance);
-      } else {
-        this._nodes[storageKey] = {
-          id, label, tags: [], vector: {}, weight: 0.5, workspaceId,
-          created: now, created_at: createdAt, lastAccessed: now,
-          lastSeen: isoNow, last_seen: isoNow,
-          provenance: nextProvenance ?? null,
-        };
-      }
-    } else {
-      if (this._nodes[storageKey] && normalizeWorkspaceId(this._nodes[storageKey].workspaceId) === workspaceId) {
-        this._nodes[storageKey].label = label;
-        this._nodes[storageKey].workspaceId = workspaceId;
-        this._nodes[storageKey].weight = Math.min(1, this._nodes[storageKey].weight + 0.1);
-        this._nodes[storageKey].lastAccessed = now;
-        this._nodes[storageKey].lastSeen = isoNow;
-        this._nodes[storageKey].last_seen = isoNow;
-        if (hasExplicitProvenance) this._nodes[storageKey].provenance = deepClone(provenance);
-      } else {
-        this._nodes[storageKey] = {
-          id, label, tags: [], vector: {}, weight: 0.5, workspaceId,
-          created: now, created_at: isoNow, lastAccessed: now,
-          lastSeen: isoNow, last_seen: isoNow,
-          provenance: hasExplicitProvenance ? provenance : null,
-        };
-      }
-    }
-    return cloneNodeRecord(this._nodes[storageKey]);
+    return runNodeWrite(this._nodeWriteStoreApi(), id, label, provenance, opts);
   }
 
   getNode(id, workspaceId = 'default') {
@@ -976,139 +957,77 @@ class Graph {
 
   // ─── Edge işlemleri ───────────────────────────────────────────────────────
 
-  addEdge(fromId, toId, relation, opts = {}) {
-    const workspaceId = normalizeWorkspaceId(opts.workspaceId || opts.provenance?.workspaceId);
-    if (!this.getNode(fromId, workspaceId) || !this.getNode(toId, workspaceId)) return null;
-    this.touchNode(fromId, workspaceId);
-    this.touchNode(toId, workspaceId);
-    const hasExplicitProvenance = opts.provenance && typeof opts.provenance === 'object';
-    const hasExplicitMeta = isPlainObject(opts.meta);
-    const nextMeta = sanitizeEdgeMeta(opts.meta);
-    
-    // Causal relation validation for v0.7
-    const isCausal = CAUSAL_RELATIONS.includes(relation);
-    if (isCausal) {
-      // Causal relations require strength field
-      if (opts.strength === undefined) {
-        throw new Error(`Causal relation '${relation}' requires strength field (0-1)`);
-      }
-      if (typeof opts.strength !== 'number' || opts.strength < 0 || opts.strength > 1) {
-        throw new Error(`Causal relation '${relation}' requires strength between 0 and 1`);
-      }
-    }
-    
-      const existing = (this._outIndex.get(edgeIndexKey(fromId, workspaceId)) || []).find(
-        e => e.to === toId && e.relation === relation && normalizeWorkspaceId(e.workspaceId) === workspaceId
-      );
-      const isoNow = nowIso();
-      const requestedCreatedAt = typeof opts.createdAt === 'string' && opts.createdAt ? opts.createdAt : '';
-      const nextEvidence = Array.isArray(opts.evidence) ? opts.evidence : [];
-      if (existing) {
-        const oldConfidence = existing.confidence ?? existing.weight ?? 0.5;
-        const requestedWeight = opts.weight === undefined
-          ? (existing.weight ?? 0.5) + 0.1
-          : opts.weight;
-        const nextWeight = clamp01(requestedWeight, existing.weight ?? 0.5);
-        const requestedConfidence = opts.confidence === undefined
-          ? (Number.isFinite(Number(existing.confidence)) ? existing.confidence : nextWeight)
-          : opts.confidence;
-        existing.weight = nextWeight;
-        existing.confidence = clamp01(requestedConfidence, nextWeight);
-        if (opts.source) existing.source = opts.source;
-      if (typeof opts.sourceRef === 'string') existing.source_ref = opts.sourceRef;
-      if (typeof opts.sessionId === 'string') existing.session_id = opts.sessionId;
-      if (typeof opts.evidenceType === 'string') existing.evidence_type = opts.evidenceType;
-      if (typeof opts.sourceType === 'string') existing.source_type = opts.sourceType;
-      if (typeof opts.companyMode === 'boolean') existing.company_mode = opts.companyMode ? 1 : 0;
-      if (hasExplicitProvenance) existing.provenance = deepClone(opts.provenance);
-      if (hasExplicitMeta) existing.meta = nextMeta;
-      else existing.meta = sanitizeEdgeMeta(existing.meta);
-      existing.workspaceId = workspaceId;
-      if (requestedCreatedAt && !existing.created_at) existing.created_at = requestedCreatedAt;
-      existing.evidence = [...new Set([...(existing.evidence || []), ...nextEvidence])];
-      existing.updated_at = isoNow;
-      if (isCausal && opts.strength !== undefined) existing.strength = opts.strength;
-      if (!Array.isArray(existing.confidence_history)) existing.confidence_history = [];
-      if (existing.confidence !== oldConfidence) {
-        existing.confidence_history.push({ value: oldConfidence, updated_at: isoNow });
-      }
-      if (this._db && this._stmts) {
+  _edgeWriteStoreApi() {
+    return {
+      hasNode: (id, workspaceId) => Boolean(this.getNode(id, workspaceId)),
+      touchNode: (id, workspaceId) => this.touchNode(id, workspaceId),
+      findExisting: (fromId, toId, relation, workspaceId) => (
+        (this._outIndex.get(edgeIndexKey(fromId, workspaceId)) || []).find(
+          edge => edge.to === toId
+            && edge.relation === relation
+            && normalizeWorkspaceId(edge.workspaceId) === workspaceId
+        ) || null
+      ),
+      append: edge => {
+        this._edges.push(edge);
+        this._indexEdge(edge);
+      },
+      persistUpdate: (edge, workspaceId, fromId, toId, relation, isoNow) => {
+        if (!this._db || !this._stmts) return;
         this._stmts.updateEdgeWeight.run(
-          existing.weight,
-          existing.confidence,
-          existing.source || 'manual',
-          existing.source_ref || '',
-          existing.session_id || '',
-          JSON.stringify(existing.evidence || []),
-          existing.evidence_type || '',
-          JSON.stringify(existing.confidence_history || []),
-          existing.company_mode ? 1 : 0,
-          existing.source_type || '',
-          existing.updated_at || isoNow,
-          JSON.stringify(existing.provenance ?? null),
-          JSON.stringify(existing.meta ?? {}),
+          edge.weight,
+          edge.confidence,
+          edge.source || 'manual',
+          edge.source_ref || '',
+          edge.session_id || '',
+          JSON.stringify(edge.evidence || []),
+          edge.evidence_type || '',
+          JSON.stringify(edge.confidence_history || []),
+          edge.company_mode ? 1 : 0,
+          edge.source_type || '',
+          edge.updated_at || isoNow,
+          JSON.stringify(edge.provenance ?? null),
+          JSON.stringify(edge.meta ?? {}),
           workspaceId,
           workspaceId,
           fromId,
           toId,
-          relation
+          relation,
         );
-      }
-      this._recordEdgeTouch(workspaceId, fromId, relation, toId);
-      return cloneEdgeRecord(existing);
-    }
-      const edge = {
-        from: fromId,
-        to: toId,
-        relation,
-        weight: clamp01(opts.weight, 0.5),
-        confidence: clamp01(opts.confidence, clamp01(opts.weight, 0.5)),
-        source: opts.source || 'manual',
-        source_ref: opts.sourceRef || '',
-        session_id: opts.sessionId || '',
-      evidence: nextEvidence,
-      evidence_type: opts.evidenceType || '',
-      confidence_history: [],
-      company_mode: opts.companyMode ? 1 : 0,
-        source_type: opts.sourceType || '',
-        updated_at: isoNow,
-        created_at: requestedCreatedAt || isoNow,
-        provenance: hasExplicitProvenance ? deepClone(opts.provenance) : null,
-        meta: nextMeta,
-        created: Date.now(),
-        workspaceId,
-      };
-    if (isCausal) {
-      edge.strength = opts.strength ?? 0.5;
-    }
-    this._edges.push(edge);
-    this._indexEdge(edge);
-    if (this._db && this._stmts) {
-      this._stmts.upsertEdge.run(
-        workspaceId,
-        fromId,
-        toId,
-        relation,
-        edge.weight,
-        edge.confidence,
-        edge.source,
-        edge.source_ref || '',
-        edge.session_id || '',
-        JSON.stringify(edge.evidence || []),
-        edge.evidence_type || '',
-        JSON.stringify(edge.confidence_history || []),
-        edge.company_mode ? 1 : 0,
-        edge.source_type || '',
-        edge.updated_at || isoNow,
-        edge.created_at || isoNow,
-        JSON.stringify(edge.provenance ?? null),
-        JSON.stringify(edge.meta ?? {}),
-        edge.created,
-        edge.strength ?? 0.5
-      );
-    }
-    this._recordEdgeTouch(workspaceId, fromId, relation, toId);
-    return cloneEdgeRecord(edge);
+      },
+      persistCreate: (edge, workspaceId, fromId, toId, relation, isoNow) => {
+        if (!this._db || !this._stmts) return;
+        this._stmts.upsertEdge.run(
+          workspaceId,
+          fromId,
+          toId,
+          relation,
+          edge.weight,
+          edge.confidence,
+          edge.source,
+          edge.source_ref || '',
+          edge.session_id || '',
+          JSON.stringify(edge.evidence || []),
+          edge.evidence_type || '',
+          JSON.stringify(edge.confidence_history || []),
+          edge.company_mode ? 1 : 0,
+          edge.source_type || '',
+          edge.updated_at || isoNow,
+          edge.created_at || isoNow,
+          JSON.stringify(edge.provenance ?? null),
+          JSON.stringify(edge.meta ?? {}),
+          edge.created,
+          edge.strength ?? 0.5,
+        );
+      },
+      recordTouch: (workspaceId, fromId, relation, toId) => {
+        this._recordEdgeTouch(workspaceId, fromId, relation, toId);
+      },
+    };
+  }
+
+  addEdge(fromId, toId, relation, opts = {}) {
+    return runEdgeWrite(this._edgeWriteStoreApi(), fromId, toId, relation, opts);
   }
 
   getEdge(fromId, toId, relation, workspaceId = 'default') {
