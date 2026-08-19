@@ -37,6 +37,11 @@ declare const huqan: typeof KernelV2 & {
   evaluateAgentActionFirewall: (request?: Record<string, unknown>) => Record<string, unknown>;
   AGENT_ACTION_FIREWALL_VERSION: string;
   AGENT_ACTION_FIREWALL_DECISIONS: Record<string, string>;
+
+  HumanOversightApprovalRuntime: Record<string, any>;
+  createHumanOversightApprovalRuntime: (options: Record<string, unknown>) => Record<string, any>;
+  HUMAN_OVERSIGHT_RUNTIME_VERSION: string;
+  HUMAN_OVERSIGHT_RUNTIME_REASONS: Record<string, string>;
 };
 
 export = huqan;
