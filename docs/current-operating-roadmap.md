@@ -23,14 +23,21 @@ V4_B5_SOURCE_TEST_CI_RELEASE_CLOSEOUT: PASS
 This is a bounded phase-closeout claim. It is not a claim that every possible V4
 product surface is universally mature, externally interoperable or deployed.
 
-The controlling V5 entry decision remains:
+The controlling V5 entry decision is now:
 
 ```text
-V5_IMPLEMENTATION_ENTRY: FAIL
+V5_IMPLEMENTATION_ENTRY: PASS
 ```
 
-Closing V4-B5 removes the V4-closeout blocker from ADR-010. It does not satisfy
-the independent external interoperability/conformance dependency.
+`docs/v5/v5-implementation-entry-successor-audit.md` records that verdict
+against `b6ea911ef44ad9a762ad2a1b57a85a64281a580c` and supersedes the `FAIL` in
+ADR-010 Decision 3 — and only that decision. Closing V4-B5 removed the
+V4-closeout blocker; the successor audit satisfied the independent external
+interoperability/conformance dependency by requiring the shipped Python verifier
+to agree byte-for-byte with the JavaScript consumer across ATP 0.1 and HTP 0.2,
+including exit status.
+
+Entry is authorized. It is not completion: see the current V5 boundary below.
 
 ## Closed V4 evidence
 
@@ -148,20 +155,24 @@ V5 has bounded library-level trust-object primitives and planning/spec material,
 but library implementation is not production connector enforcement and local
 fixtures are not external interoperability evidence.
 
-The remaining implementation-entry blocker is the external
-interoperability/conformance dependency, tracked by issue `#277` (`V5-C5`).
-A successor entry audit needs a real external consumer/verifier smoke including
-invalid/tampered fail-closed cases before it may record:
+The external interoperability/conformance dependency tracked by issue `#277`
+(`V5-C5`) has been discharged by
+`docs/v5/v5-implementation-entry-successor-audit.md`, which recorded:
 
 ```text
 V5_IMPLEMENTATION_ENTRY: PASS
 ```
 
-Until then the only controlling decision is:
+What that verdict authorizes is entry, and two concrete things follow from it:
 
-```text
-V5_IMPLEMENTATION_ENTRY: FAIL
-```
+- production wiring of the V5 modules still held in
+  `lib/module-reachability.js::NOT_YET_WIRED`, each in its own scoped change;
+- the gated V5 implementation track.
+
+What it does not authorize is any claim of completion. A2A transport is
+`SHIPPED_WITH_ONE_UNIT_DEFERRED` (`docs/v5/v5-p0-a2a-transport-closeout.md`),
+every A2A route is deployment-gated and answers `404` while unconfigured, and no
+third party has spoken to it.
 
 ## Naming and marketplace boundary
 
@@ -169,9 +180,13 @@ ATP/Axiom remains the live source-backed package/protocol lineage. No ATP->HTP
 rename or migration is inferred or authorized by the V4 closeout.
 
 Marketplace, Certified Node, public badges, reputation economy, public-safe
-receipt exchange, A2A exchange and GitHub App / Streaming Trust remain separate
-future gates. Planning documents do not make those surfaces implemented or
-production-ready.
+receipt exchange and GitHub App / Streaming Trust remain separate future gates.
+Planning documents do not make those surfaces implemented or production-ready.
+
+A2A exchange has left that list. Its bounded transport is shipped and mounted
+(P0-B..P0-F, `docs/v5/v5-p0-a2a-transport-closeout.md`) and `npm run
+conformance:a2a` holds at 50/50. Shipped and deployment-gated is still not
+externally interoperable: nothing here claims a third party has connected.
 
 ## Current non-claims
 
@@ -179,10 +194,11 @@ Do not claim:
 
 - universal V4 product maturity beyond the bounded Workbench closeout;
 - external interoperability from local/product tests;
-- V5 ecosystem implementation authorization or completion;
+- V5 ecosystem implementation completion (entry is authorized; completion is not);
 - all connectors V5-enforced;
 - production Shared Trust Package transport from library-only modules;
-- A2A or public-safe receipt exchange complete;
+- public-safe receipt exchange complete;
+- A2A transport externally interoperable, deployed, or spoken to by a third party;
 - GitHub App / Streaming Trust production-ready;
 - Certified Node, TrustBench, public badge, reputation or marketplace live;
 - ATP migrated to HTP;
