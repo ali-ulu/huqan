@@ -5,6 +5,7 @@ const Dream = require('./dream');
 const { INTERNAL_TOOLS, evaluateToolPolicy } = require('./toolPolicy');
 const { buildFinalSummary } = require('./finalizer');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
+const { evaluateAgentActionFirewall, firewallError } = require('./lib/agent-action-firewall');
 const {
   cloneValue,
   nowIso,
@@ -754,6 +755,7 @@ class Agent {
     const beforeTaskData = this._emit('beforeTask', { step, state, opts });
     let result;
     let toolPolicy = null;
+    let firewallDecision = null;
 
     if (beforeTaskData && beforeTaskData.blocked === true) {
       result = {
@@ -771,8 +773,57 @@ class Agent {
         },
       };
     } else {
-      toolPolicy = evaluateToolPolicy({
+      firewallDecision = evaluateAgentActionFirewall({
+        surface: 'agent',
         tool: step.tool,
+        action: step.action,
+        input: step.input,
+        context: {
+          goal: state.goal,
+          objective: state.objective,
+          action: step.action,
+          workspaceId: state.workspaceId || opts.workspaceId || 'default',
+          actor: opts.actor || 'agent',
+          branch: opts.branch,
+          baseBranch: opts.baseBranch,
+          repoState: opts.repoState,
+        },
+        approval: opts.agentActionApproval,
+        preview: opts.preview === true,
+        dryRun: opts.dryRun === true,
+      });
+      emitGateTelemetry(this.kernel, 'agent-action-firewall', {
+        decision: firewallDecision.decision,
+        reason: firewallDecision.reason,
+        metadata: firewallDecision.metadata,
+        findings: firewallDecision.findings,
+      });
+
+      const structuredAction = Boolean(step.input && typeof step.input === 'object' && !Array.isArray(step.input)
+        && ['action', 'operation', 'operationType', 'intent', 'command', 'cmd', 'shell', 'script', 'exec'].some(key => Object.prototype.hasOwnProperty.call(step.input, key)));
+      const enforceFirewall = firewallDecision.decision === 'block'
+        || ALLOWED_TOOLS.has(step.tool)
+        || structuredAction;
+
+      if (enforceFirewall && firewallDecision.decision !== 'allow') {
+        result = {
+          ok: false,
+          type: 'agent',
+          data: null,
+          evidence: [],
+          error: {
+            code: firewallError(firewallDecision.decision),
+            message: firewallDecision.reason || 'Agent action was stopped by the action firewall.',
+          },
+          meta: {
+            blocked: true,
+            firewall: firewallDecision,
+            firewallVersion: firewallDecision.metadata?.firewallVersion || null,
+          },
+        };
+      } else {
+        toolPolicy = evaluateToolPolicy({
+          tool: step.tool,
         input: step.input,
         context: {
           goal: state.goal,
@@ -782,7 +833,7 @@ class Agent {
         internalTools: ALLOWED_TOOLS,
       });
 
-      if (toolPolicy.category !== 'internal') {
+        if (toolPolicy.category !== 'internal') {
         // #469: toolPolicy's block/review decisions for external tools were
         // invisible to plugins (metric-collector.js, daily-digest.js) that
         // already consume afterGateDecision for every other gate. This is
@@ -815,8 +866,8 @@ class Agent {
             policy: toolPolicy,
           },
         };
-      } else {
-        switch (step.tool) {
+        } else {
+          switch (step.tool) {
           case 'learn':
             result = this.kernel.learn(step.input, opts.learnOpts || {});
             break;
@@ -858,6 +909,7 @@ class Agent {
               },
             };
             break;
+          }
         }
       }
     }
@@ -874,6 +926,7 @@ class Agent {
       summary: summary.text || '',
       result,
       policy: toolPolicy,
+      actionFirewall: firewallDecision,
     };
     this._emit('afterTask', { step: stepReport, state, opts });
     return stepReport;

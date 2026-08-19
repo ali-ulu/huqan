@@ -26,6 +26,7 @@
 const Kernel = require('./kernel');
 const KernelV2 = require('./kernel.v2');
 const errorPrevention = require('./lib/error-prevention');
+const agentActionFirewall = require('./lib/agent-action-firewall');
 
 module.exports = KernelV2;
 
@@ -51,3 +52,10 @@ module.exports.createAdmissionBypassOpts = Kernel.createAdmissionBypassOpts;
 module.exports.ErrorPrevention = errorPrevention.ErrorPrevention;
 module.exports.createErrorPrevention = errorPrevention.createErrorPrevention;
 module.exports.errorPrevention = errorPrevention;
+
+// Agent Action Firewall public surface. The runtime seams use the same module,
+// so SDK/connector hosts can preflight an action without creating a second policy.
+module.exports.AgentActionFirewall = agentActionFirewall;
+module.exports.evaluateAgentActionFirewall = agentActionFirewall.evaluateAgentActionFirewall;
+module.exports.AGENT_ACTION_FIREWALL_VERSION = agentActionFirewall.AGENT_ACTION_FIREWALL_VERSION;
+module.exports.AGENT_ACTION_FIREWALL_DECISIONS = agentActionFirewall.AGENT_ACTION_FIREWALL_DECISIONS;

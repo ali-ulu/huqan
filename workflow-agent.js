@@ -1,5 +1,6 @@
 ﻿const { INTERNAL_TOOLS, evaluateToolPolicy } = require('./toolPolicy');
 const { buildFinalSummary } = require('./finalizer');
+const { evaluateAgentActionFirewall, firewallError } = require('./lib/agent-action-firewall');
 
 // #388: an external-tool review gate must not be satisfiable by a bare
 // `{ approved: true }` in caller-supplied opts -- that's exactly the shape
@@ -422,6 +423,7 @@ function buildRecommendations(run) {
 }
 
 function normalizeToolOutput(result, tool, policy, meta = {}) {
+
   const hasEnvelope = result && typeof result === 'object' && Object.prototype.hasOwnProperty.call(result, 'ok');
   const envelope = hasEnvelope ? result : { ok: true, data: result };
   const ok = Boolean(envelope.ok);
@@ -434,13 +436,17 @@ function normalizeToolOutput(result, tool, policy, meta = {}) {
   return {
     ok,
     tool: tool.name,
-    status: policy && policy.blocked
+    status: meta.firewall && meta.firewall.decision === 'block'
       ? 'blocked'
-      : policy && policy.review && !isExternalReviewApproved(meta.approval)
+      : meta.firewall && meta.firewall.decision !== 'allow'
         ? 'review'
-        : ok
-          ? 'done'
-          : 'error',
+        : policy && policy.blocked
+          ? 'blocked'
+          : policy && policy.review && !isExternalReviewApproved(meta.approval)
+            ? 'review'
+            : ok
+              ? 'done'
+              : 'error',
     inputSchema: cloneValue(tool.inputSchema),
     description: tool.description,
     data,
@@ -457,6 +463,7 @@ function normalizeToolOutput(result, tool, policy, meta = {}) {
         cost: tool.cost,
       },
       policy: cloneValue(policy),
+      firewall: cloneValue(meta.firewall || null),
     },
   };
 }
@@ -592,6 +599,32 @@ class ToolRegistry {
       internalTools: this._policyInternalTools(),
     });
     const approved = isExternalReviewApproved(context.approval);
+    const firewall = evaluateAgentActionFirewall({
+      surface: 'workflow',
+      tool: tool.name,
+      action: context.action || context.step?.action || context.operationType || tool.name,
+      input,
+      context: {
+        ...context,
+        workspaceId: context.workspaceId || context.plan?.workspaceId || 'default',
+        actor: context.actor || 'workflow-agent',
+      },
+      approval: context.agentActionApproval,
+      preview: context.preview === true,
+      dryRun: context.dryRun === true,
+    });
+
+    if (firewall.decision !== 'allow') {
+      return normalizeToolOutput({
+        ok: false,
+        error: {
+          code: firewallError(firewall.decision),
+          message: firewall.reason || 'Agent action was stopped by the action firewall.',
+        },
+        evidence: [],
+        meta: { policy, firewall },
+      }, tool, policy, { ...context, firewall });
+    }
 
     if (tool.kind === 'external' && policy.blocked) {
       return normalizeToolOutput({
@@ -601,8 +634,8 @@ class ToolRegistry {
           message: policy.reasons[0] || `Tool ${tool.name} is blocked.`,
         },
         evidence: [],
-        meta: { policy },
-      }, tool, policy, context);
+        meta: { policy, firewall },
+      }, tool, policy, { ...context, firewall });
     }
 
     if (tool.kind === 'external' && policy.review && !approved) {
@@ -613,20 +646,20 @@ class ToolRegistry {
           message: policy.reasons[0] || `Tool ${tool.name} requires review.`,
         },
         evidence: [],
-        meta: { policy },
-      }, tool, policy, context);
+        meta: { policy, firewall },
+      }, tool, policy, { ...context, firewall });
     }
 
     try {
       const result = await Promise.resolve(tool.run(cloneValue(context), cloneValue(input)));
-      return normalizeToolOutput(result, tool, policy, context);
+      return normalizeToolOutput(result, tool, policy, { ...context, firewall });
     } catch (error) {
       return normalizeToolOutput({
         ok: false,
         error: normalizeError(error, 'TOOL_ERROR', `Tool ${tool.name} threw an error.`),
         evidence: [],
-        meta: { policy },
-      }, tool, policy, context);
+        meta: { policy, firewall },
+      }, tool, policy, { ...context, firewall });
     }
   }
 }
@@ -902,6 +935,7 @@ class WorkflowAgent {
         confidence: normalizeConfidence(result.confidence, 0),
         error: result.error ? cloneValue(result.error) : null,
         policy: result.meta ? cloneValue(result.meta.policy) : null,
+        actionFirewall: result.meta ? cloneValue(result.meta.firewall) : null,
         trace: [
           {
             phase: 'run',
@@ -912,6 +946,8 @@ class WorkflowAgent {
             confidence: normalizeConfidence(result.confidence, 0),
             policyAction: result.meta && result.meta.policy ? result.meta.policy.action : 'allow',
             riskScore: result.meta && result.meta.policy ? result.meta.policy.riskScore : 0,
+            firewallDecision: result.meta && result.meta.firewall ? result.meta.firewall.decision : 'allow',
+            firewallReason: result.meta && result.meta.firewall ? result.meta.firewall.reason : null,
             score: plannedStep.confidence,
           },
         ],
