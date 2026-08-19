@@ -9,6 +9,7 @@ const { rateLimitMap } = require('./requestGuards');
 const { CANONICAL_AGENT_VERSION } = require('./agentRuntime');
 const { CANONICAL_KERNEL_VERSION } = require('./lib/kernel-factory');
 const { ACTION_OUTCOMES } = require('./lib/workbench/ingest-approval-action');
+const { NON_QUEUED_APPROVAL_STATUS } = require('./lib/http/upload-admission-contract');
 
 let PORT;
 let BASE;
@@ -109,7 +110,9 @@ async function assertUploadReviewOnly(pathname, payload) {
   assert.strictEqual(body.learned, 0);
   assert.ok(body.admission);
   assert.strictEqual(body.admission.outcome, 'review');
-  assert.strictEqual(body.admission.approvalStatus, 'pending');
+  assert.strictEqual(body.admission.approvalStatus, NON_QUEUED_APPROVAL_STATUS);
+  assert.equal(body.admission.receipt.approvalStatus, 'pending');
+  assert.equal(body.admission.receipt.approvalId, '');
   assert.deepStrictEqual(await getGraphCounts(), before);
   return body;
 }
@@ -392,6 +395,20 @@ describe('Server - API', () => {
       admissionRequired: false,
       admissionBypassReason: 'caller-controlled',
     });
+  });
+  it('POST /upload reports no queue candidate for a review-only admission', async () => {
+    const sourceRef = 'test:upload-not-queued';
+    const body = await assertUploadReviewOnly('/upload', {
+      text: 'upload not queued contract sentinel hayvandir',
+      sourceRef,
+    });
+    assert.equal(body.admission.approvalStatus, NON_QUEUED_APPROVAL_STATUS);
+
+    const candidates = await request(`${BASE}/api/candidate-claims?sourceRef=${encodeURIComponent(sourceRef)}`);
+    assert.equal(candidates.status, 200);
+    const payload = await candidates.json();
+    assert.deepEqual(payload.data.items, []);
+    assert.equal(payload.data.total, 0);
   });
   it('POST /upload alias preserves empty and malformed request errors', async () => {
     const empty = await request(`${BASE}/upload`, {

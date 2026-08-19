@@ -33,6 +33,7 @@ const { createSessionStore } = require('./lib/viewer/session-store');
 const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
 const { createExternalClientProductionBoundary } = require('./lib/external-client-production-boundary');
 const { createOptionalRouteBoundaries } = require('./lib/http/optional-boundaries');
+const { projectUploadAdmission } = require('./lib/http/upload-admission-contract');
 const { createMutationAdmission } = require('./lib/mutation-admission');
 const { createIngestApprovalAuditWriter } = require('./lib/workbench/ingest-approval-audit-writer');
 const pkg = require('./package.json');
@@ -102,7 +103,6 @@ const ingestApprovalRecoveryTimer = setInterval(() => {
   try { recoverExpiredIngestApprovals(); } catch (error) { console.error('[ingest-approval-recovery] failed:', error); }
 }, Math.max(5_000, Math.floor(INGEST_APPROVAL_LEASE_MS / 2)));
 ingestApprovalRecoveryTimer.unref?.();
-
 
 const {
   ALLOWED_CORS_HOSTS,
@@ -769,7 +769,7 @@ const server = http.createServer(async (req, res) => {
         approvalRequired: true,
         provenance: data.provenance && typeof data.provenance === 'object' ? data.provenance : undefined,
       });
-      const admission = Array.isArray(learnResult.admissions) ? (learnResult.admissions.find(Boolean) || null) : null;
+      const admission = projectUploadAdmission(Array.isArray(learnResult.admissions) ? (learnResult.admissions.find(Boolean) || null) : null);
       res.writeHead(200, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
       res.end(JSON.stringify({ ok: true, learned: learnResult.learned, admission }));
     } catch (err) {

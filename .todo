@@ -181,7 +181,7 @@ in numeric-comparison branches no test drove, which is why they survived every
 green run. test/english-api-surface-prose.test.js now guards both the rendered
 evidence and the source.
 
-## [ ] 11. A /upload admission cannot be resolved by any surface
+## [x] 11. A /upload admission cannot be resolved by any surface
 Found while doing item 8, and it corrects that item's premise. The gap is not
 "HTTP cannot approve what /upload proposed" -- it is that *nothing* can.
 
@@ -208,5 +208,4 @@ the /upload response should say so rather than returning approvalStatus
 "pending" with no id, which reads as "queued, resolve it later". If it is not,
 /upload needs to queue an approval the way huqan.learn does.
 
-Decide which, then make the response honest. Do not change the gate itself
-without deciding first.
+Decision: keep the V4-B2 boundary non-queued. `/upload` and `/yukle` now project the transport admission as `approvalStatus: "not_queued"` when no approval ID exists, while preserving the immutable receipt's `approvalStatus: "pending"` decision state. The response and README link to `docs/http-upload-approval-contract.md`, and server/unit tests prove no candidate is persisted. A real approval lifecycle remains available only through `/api/ingest` and is intentionally a separate future contract.
