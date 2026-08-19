@@ -71,16 +71,18 @@ explicit non-claims section. test/a2a-deployment-smoke.test.js boots the real
 server.js process and proves 404 unconfigured, agent card + accepted exchange
 configured, and a refused replay. README repointed.
 
-## [ ] 6. Make the CLI English-first
+## [x] 6. Make the CLI English-first
 cli.js --help leads with Turkish commands and Turkish examples:
   "kedi balik yer" -> I learn a fact
   "neden tavuk"    -> cause analysis
   "ruya"           -> I generate hypotheses
   "dusun" / "onayla" / "kaydet" / "konsolide"
-English aliases exist (learn:, ask:, verify:, upload:) but the primary
-vocabulary and every example are Turkish. The MCP rename landed; the CLI did
-not follow. Turkish spellings must keep working -- reader accepts both, writer
-emits canonical, per RFC-001 decision 7.
+Done. lib/workflow-contract.js's command table now reads English, and every
+command that had only a Turkish spelling gained an English one in
+lib/command-parser.js: status, dream, save, think, stop thinking, consolidate,
+hello/hi, agent:, and bare `why X`. Internal dispatch names are unchanged --
+renaming those would move a dispatch surface for a presentation problem. Every
+Turkish spelling still works and the help text says so.
 
 ## [ ] 7. Teach huqan.policy the MCP tool classification
 Split out of item 2 rather than smuggled into it.

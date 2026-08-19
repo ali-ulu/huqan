@@ -1032,14 +1032,30 @@ describe('Server - Public API Allowlist Lockdown', () => {
     }
   });
 
-  it('fallback queries (hello, hi, ?) preserve existing behavior (200 + Anlamadım)', async () => {
+  it('unrecognized queries preserve existing behavior (200 + Anlamadım)', async () => {
     rateLimitMap.clear();
-    const fallbackQueries = ['hello', 'hi', 'selamlar', 'unknown multi word text', '?', 'h', 'sor', 'neden', 'kim', 'ne', 'yardim', 'nasil', 'nicin'];
+    const fallbackQueries = ['selamlar', 'unknown multi word text', '?', 'h', 'sor', 'neden', 'kim', 'ne', 'yardim', 'nasil', 'nicin'];
     for (const query of fallbackQueries) {
       const r = await request(`${BASE}/api?q=${encodeURIComponent(query)}`);
       assert.strictEqual(r.status, 200, `Expected 200 for fallback query: ${query}`);
       const j = await r.json();
       assert.ok(j.result.includes('Anlamadım') || j.result.includes('Anlamadim'), `Expected 'Anlamadım' variant for: ${query}, got: ${j.result}`);
+    }
+  });
+
+  it('English greetings answer like their Turkish spellings, not as unrecognized', async () => {
+    // `selam` and `merhaba` always reached the greeting; `hello` and `hi` fell
+    // through to Anlamadım only because the parser did not know them. This
+    // widens no allowlist -- the greeting is already an unauthenticated
+    // compatibility command -- it just stops the English spellings being the
+    // odd ones out.
+    rateLimitMap.clear();
+    const turkish = await (await request(`${BASE}/api?q=selam`)).json();
+    for (const query of ['hello', 'hi']) {
+      const r = await request(`${BASE}/api?q=${encodeURIComponent(query)}`);
+      assert.strictEqual(r.status, 200, `Expected 200 for greeting: ${query}`);
+      const j = await r.json();
+      assert.strictEqual(j.result, turkish.result, `${query} must answer exactly like selam`);
     }
   });
 });

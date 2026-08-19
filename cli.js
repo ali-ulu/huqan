@@ -532,17 +532,15 @@ class CLI {
     });
 
     console.log('HUQAN - talk, teach and ask in natural language');
-    console.log('  "kedi balik yer"       | Teach a fact');
-    console.log('  "kedi nedir"           | Ask a question');
-    console.log('  "learn: cats are animals" | English-first teach alias');
-    console.log('  "ask: cat nedir"          | English-first ask alias');
-    console.log('  "verify: kedi bitkidir"   | English-first verify alias');
-    console.log('  "plan: hedef"          | Agent plan');
-    console.log('  "ajan: hedef"          | Run the agent');
-    console.log('  "backup"               | Back up current state');
-    console.log('  "restore[: yol]"       | Restore from a backup');
-    console.log('  "yardım"               | Command reference');
-    console.log('  "çıkış"                | Exit\n');
+    console.log('  "learn: cats are animals" | Learn a fact');
+    console.log('  "ask: what is a cat"      | Ask a question');
+    console.log('  "verify: cats are plants" | Guarded verification');
+    console.log('  "plan: <goal>"            | Agent plan');
+    console.log('  "agent: <goal>"           | Run the agent');
+    console.log('  "backup"                  | Back up current state');
+    console.log('  "restore[: path]"         | Restore from a backup');
+    console.log('  "help"                    | Command reference');
+    console.log('  "exit"                    | Exit\n');
 
     const handleLine = async (line) => {
       const parsed = this.parse(line);
