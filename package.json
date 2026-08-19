@@ -295,6 +295,8 @@
     "lib/viewer/session-cookie.js",
     "lib/viewer/session-store.js",
     "lib/viewer/viewer-gateway.js",
+    "lib/workbench/activity-read.js",
+    "lib/workbench/activity-route.js",
     "lib/workbench/ingest-approval-action.js",
     "lib/workbench/ingest-approval-audit-writer.js",
     "lib/workbench/ingest-approval-audit.js",
