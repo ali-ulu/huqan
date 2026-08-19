@@ -19,6 +19,7 @@ const {
 const { handleIngest, buildIngestApprovalSnapshot, sha256 } = require('./lib/ingest');
 const HuqanStorage = require('./storage');
 const { decideIngestApproval } = require('./lib/workbench/ingest-approval-action');
+const { createHttpIngestOversightCase } = require('./lib/http-human-oversight-adapter');
 const { buildTrustReceipt, queryAuditTrailPage, queryCandidateClaims, queryProvenance } = require('./lib/provenance-query');
 const { readReceiptById } = require('./lib/receipt/receipt-read-index');
 const { receiptReadFailure } = require('./lib/http/receipt-read-failures');
@@ -86,6 +87,24 @@ function recoverExpiredIngestApprovals(store = ingestApprovalStore) {
 // has to build lives in the writer rather than here, so this file keeps gaining
 // wiring and delegation only (ARCH-001).
 const trustEvidenceLedger = createTrustEvidenceLedger({ graph: kernel.graph });
+let httpHumanOversightConfig = null;
+
+function configureHttpHumanOversight(config = null) {
+  if (config === null || config === undefined) {
+    httpHumanOversightConfig = null;
+    return null;
+  }
+  const runtime = config.runtime || config.humanOversightApprovalRuntime;
+  if (!runtime || typeof runtime.createReviewCase !== 'function'
+      || typeof runtime.getReviewCase !== 'function'
+      || typeof runtime.decide !== 'function'
+      || typeof runtime.executeApproved !== 'function') {
+    throw new TypeError('human oversight approval runtime is required');
+  }
+  httpHumanOversightConfig = Object.freeze({ ...config, runtime });
+  return httpHumanOversightConfig;
+}
+
 const recordIngestApprovalAudit = createIngestApprovalAuditWriter({
   graph: kernel.graph,
   admission: createMutationAdmission(),
@@ -145,16 +164,41 @@ async function submitIngestApproval(data) {
     const saved = store.saveToolApprovalIfAbsent({
       id: newIngestApprovalId(), approvalKey, tool: 'http.ingest', input: JSON.stringify(snapshot.payload),
       status: 'pending', decision: 'review', reason: 'http_ingest_requires_review',
-      context: { source: 'http-ingest', snapshot },
+      context: {
+        source: 'http-ingest',
+        snapshot,
+        ...(httpHumanOversightConfig ? { oversightRequired: true } : {}),
+      },
       policy: { action: 'ingest', approval: 'review', snapshotIntegrity: 'sha256' },
     });
-    return { status: saved.approval.status === 'pending' ? 202 : 200, json: { ok: true, status: saved.approval.status, idempotent: !saved.inserted, approval: publicIngestApproval(saved.approval) } };
+    const oversightCase = httpHumanOversightConfig
+      ? createHttpIngestOversightCase({ approval: saved.approval, humanOversight: httpHumanOversightConfig })
+      : { enabled: false, ok: true };
+    if (oversightCase.enabled && !oversightCase.ok) {
+      return {
+        status: 503,
+        error: {
+          code: 'REVIEW_CASE_NOT_PERSISTED',
+          message: 'Human Oversight review case was not durably recorded; ingest remains unexecuted.',
+        },
+      };
+    }
+    return {
+      status: saved.approval.status === 'pending' ? 202 : 200,
+      json: {
+        ok: true,
+        status: saved.approval.status,
+        idempotent: !saved.inserted,
+        approval: publicIngestApproval(saved.approval),
+        ...(oversightCase.enabled ? { oversight: oversightCase.summary } : {}),
+      },
+    };
   } catch (_) {
     return { status: 503, error: { code: 'APPROVAL_STORE_UNAVAILABLE', message: 'Persistent ingest approval store is unavailable.' } };
   }
 }
 
-const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, decision }) => decideIngestApproval({ store: getIngestApprovalStore(), kernel, approvalId, decision, handleIngest, ensureRuntime: ensureCompanyRuntime, recordAudit: recordIngestApprovalAudit, toPublicApproval: publicIngestApproval, workerId: INGEST_APPROVAL_WORKER_ID, leaseMs: INGEST_APPROVAL_LEASE_MS }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, learnDocument: (text, options) => kernel.learnDocument(text, options), submitIngest: submitIngestApproval, createAgent: () => createAgent({ kernel, version: readCompatibleEnvironmentVariable('AGENT_VERSION') }) });
+const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, decision, reason }) => decideIngestApproval({ store: getIngestApprovalStore(), kernel, approvalId, decision, reason, humanOversight: httpHumanOversightConfig, handleIngest, ensureRuntime: ensureCompanyRuntime, recordAudit: recordIngestApprovalAudit, toPublicApproval: publicIngestApproval, workerId: INGEST_APPROVAL_WORKER_ID, leaseMs: INGEST_APPROVAL_LEASE_MS }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, learnDocument: (text, options) => kernel.learnDocument(text, options), submitIngest: submitIngestApproval, createAgent: () => createAgent({ kernel, version: readCompatibleEnvironmentVariable('AGENT_VERSION') }) });
 
 // First caller of the V5 runtime family (#875 task pack). Issuer key records
 // are dependency-injected as receiver-owned state: with no real registry
@@ -839,6 +883,8 @@ const server = http.createServer(async (req, res) => {
         kernel,
         approvalId,
         decision,
+        reason: String(body.reason || ''),
+        humanOversight: httpHumanOversightConfig,
         handleIngest,
         ensureRuntime: ensureCompanyRuntime,
         recordAudit: recordIngestApprovalAudit,
@@ -976,6 +1022,7 @@ server.closeHuqan = server.closeAxiom = () => { // closeAxiom: RFC-001 legacy al
 };
 
 server.startServer = startServer;
+server.configureHttpHumanOversight = configureHttpHumanOversight;
 // Exposed for tests that need to assert against the same kernel/graph
 // instance the HTTP handlers use (e.g. checking audit events a request
 // produced). server.js owns this kernel directly now (#326); it is no
