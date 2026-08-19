@@ -157,7 +157,7 @@ Second, smaller finding on the same output: the contradiction evidence string
 is Turkish ("... ile celiskiyor: ..."). That is prose, not the status
 vocabulary of item 4, so it needs its own pass.
 
-## [ ] 10. Turkish prose on English API surfaces
+## [x] 10. Turkish prose on English API surfaces
 Distinct from item 4, which is about the status *vocabulary*. This is free
 prose emitted alongside a correct English status, e.g. the contradiction
 evidence built in lib/verify.js:
@@ -167,9 +167,19 @@ evidence built in lib/verify.js:
 Also the MCP tool descriptions, whose input examples still read
 "kedi hayvandir" -- visible to every Claude and Cursor user in tools/list.
 
-Needs a sweep of user-facing strings on the REST, MCP and viewer surfaces, then
-one pass to English, keeping Turkish acceptance on the way in per RFC-001
-decision 7.
+Done for the emitted surfaces: lib/verify.js evidence sentences and the MCP
+tool descriptions. A scan of 312 Turkish string literals across 48 runtime
+files found the rest are inputs the reader accepts on purpose -- command words
+in lib/command-parser.js, linguistic data in lib/contradiction-rules.js and
+lib/type-lattice.js, the legacy statuses in lib/verify-status-vocabulary.js --
+and the standalone Turkish demo in scripts/egitim-demo.js. Those stay, per
+RFC-001 decision 7.
+
+Three of the verify.js strings also carried U+FFFD: their Turkish characters
+had already been destroyed, so callers read "Say?sal kar??la?t?rma". They were
+in numeric-comparison branches no test drove, which is why they survived every
+green run. test/english-api-surface-prose.test.js now guards both the rendered
+evidence and the source.
 
 ## [ ] 11. A /upload admission cannot be resolved by any surface
 Found while doing item 8, and it corrects that item's premise. The gap is not
