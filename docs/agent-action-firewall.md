@@ -1,7 +1,7 @@
 # HUQAN Agent Action Firewall
 
-**Durum:** Production-wired MVP bileşeni  
-**Sürüm:** `AAFW-v1.0.0`  
+**Durum:** Production-wired MVP bileşeni
+**Sürüm:** `AAFW-v1.0.0`
 **AB5 policy:** `AB5-v0.1.0`
 
 ## Amaç
