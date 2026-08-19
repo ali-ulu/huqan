@@ -226,6 +226,7 @@
     "lib/memory-mutation-gate/memory-mutation-findings-summary.js",
     "lib/memory-mutation-gate/memory-mutation-normalizer.js",
     "lib/memory-mutation-gate/memory-mutation-vocabulary.js",
+    "lib/memory-event-read.js",
     "lib/memory-link-read.js",
     "lib/memory-link-write.js",
     "lib/memory-package-import.js",
