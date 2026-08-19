@@ -50,7 +50,7 @@ test('1: the MCP surface builds the routed writer', () => {
   // admission seam is the one that matters: it is what MCP was missing.
   assert.match(source, /admission: createMutationAdmission\(\)/);
   assert.match(source, /hashResult: sha256/);
-  assert.match(source, /recordAudit: runtime\.recordIngestApprovalAudit \|\| defaultIngestApprovalAuditWriter\(kernel\)/);
+  assert.match(source, /recordAudit: runtime\.recordIngestApprovalAudit \|\| defaultIngestApprovalAuditWriter\(kernel(?:, runtime\.trustEvidenceLedger \|\| null)?\)/);
 });
 
 test('2: the inline duplicate is deleted, not merely bypassed', () => {

@@ -139,7 +139,11 @@ function createServer(kernelOrOptions = {}) {
 
       if (method === 'tools/call') {
         try {
-          const result = callTool(kernel, params, { approvalStore, operatorToken });
+          const result = callTool(kernel, params, {
+            approvalStore,
+            operatorToken,
+            trustEvidenceLedger: options.trustEvidenceLedger || null,
+          });
           if (result && typeof result.then === 'function') {
             return result.then(
               value => ({ jsonrpc: '2.0', id, result: toToolResult(value) }),
