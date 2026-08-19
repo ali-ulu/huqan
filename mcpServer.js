@@ -82,7 +82,12 @@ const {
   saveMcpApproval,
 } = require('./lib/mcp-approval-store');
 const { buildApprovalAdmissionOptions } = require('./lib/mcp-approval-admission');
-const { buildMcpOversightInput, buildApproverContext, oversightSummary } = require('./lib/mcp-human-oversight-adapter');
+const {
+  buildMcpOversightInput,
+  buildApproverContext,
+  evaluateMcpAgentIdentity,
+  oversightSummary,
+} = require('./lib/mcp-human-oversight-adapter');
 const {
   toToolResult,
   recordInternalError,
@@ -145,6 +150,9 @@ function createServer(kernelOrOptions = {}) {
             operatorToken,
             trustEvidenceLedger: options.trustEvidenceLedger || null,
             humanOversightApprovalRuntime: options.humanOversightApprovalRuntime || null,
+            agentIdentityRuntime: Object.hasOwn(options, 'agentIdentityRuntime')
+              ? options.agentIdentityRuntime
+              : null,
           });
           if (result && typeof result.then === 'function') {
             return result.then(
@@ -309,6 +317,20 @@ function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
   if (oversightRequired && !oversightCase.ok) {
     return failApprovalDecision('OVERSIGHT_CASE_UNAVAILABLE', 'The durable Human Oversight review case could not be read; execution is blocked.', { approval: existing, retrySafe: false });
   }
+  const identityEvaluation = oversightRequired && decision === 'approved'
+    ? evaluateMcpAgentIdentity({ runtime, oversightInput: oversightCase.input })
+    : { enabled: false, ok: true };
+  if (identityEvaluation.enabled && !identityEvaluation.ok) {
+    return failApprovalDecision(
+      'IDENTITY_ENFORCEMENT_BLOCKED',
+      'Receiver-owned Agent Identity evaluation blocked the approved MCP action; execution is not allowed.',
+      {
+        approval: existing,
+        identity: identityEvaluation.evidence,
+        retrySafe: false,
+      },
+    );
+  }
 
   if (existing.tool === 'http.ingest') {
     return decideMcpIngestApproval({
@@ -349,6 +371,7 @@ function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
         idempotent: false,
         result: null,
         ...(oversightDecision.enabled ? { oversight: oversightSummary(oversightCase.result, oversightDecision.result) } : {}),
+        ...(identityEvaluation.enabled ? { identity: identityEvaluation.evidence } : {}),
       },
       evidence: [],
       error: null,
@@ -450,6 +473,7 @@ function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
         receipt: executionEvidence.receipt,
         refs: executionEvidence.refs,
         ...(oversightRequired ? { oversight: oversightSummary(oversightCase.result, oversightDecision.result, oversightExecution) } : {}),
+        ...(identityEvaluation.enabled ? { identity: identityEvaluation.evidence } : {}),
       },
       evidence: result.evidence || [],
       error: null,
