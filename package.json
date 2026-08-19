@@ -235,6 +235,7 @@
     "lib/memory-event-read.js",
     "lib/memory-link-read.js",
     "lib/memory-link-write.js",
+    "lib/memory-patch-metadata.js",
     "lib/memory-package-export.js",
     "lib/memory-package-import.js",
     "lib/memory-query-engine.js",
