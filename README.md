@@ -361,9 +361,16 @@ Four A2A routes are on `main` and mounted through `lib/a2a/routes.js`:
 `POST /api/a2a/exchange`, `GET /.well-known/agent-card.json`,
 `POST /api/a2a/negotiate` and `GET /api/a2a/tasks/{taskId}`.
 
-They are deployment-gated, not disabled: with `A2A_AUTHORITY_FILE` and
-`A2A_REPLAY_DIR` unset, every one answers `404` rather than `401`, so an
+They are deployment-gated, not disabled: with `HUQAN_A2A_AUTHORITY_FILE` and
+`HUQAN_A2A_REPLAY_DIR` unset, every one answers `404` rather than `401`, so an
 unconfigured install does not advertise a surface it cannot serve.
+
+Three of the four turn on from an `npm install`. `POST /api/a2a/exchange` does
+not: it reaches the V5 cryptographic family, which `package.json#files`
+deliberately keeps out of the published tarball, so the route stays `404` there
+no matter how it is configured. Run it from a clone. This is a packaging
+decision, not a defect — `lib/a2a/exchange-route.js` requires those modules
+behind a guard precisely so the installed server still boots.
 
 To turn them on, and for the boundary of what turning them on does not claim,
 see [docs/a2a-deployment.md](./docs/a2a-deployment.md).
