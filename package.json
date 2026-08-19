@@ -176,6 +176,7 @@
     "lib/github-url.js",
     "lib/graph-causal-chain.js",
     "lib/graph-candidate-claims-read.js",
+    "lib/graph-candidate-claims-write.js",
     "lib/graph-edge-read.js",
     "lib/graph-mutation-receipt-read.js",
     "lib/graph-edge-mutations.js",
