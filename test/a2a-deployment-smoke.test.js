@@ -108,7 +108,7 @@ function bootAndProbe({ configured }) {
         };
       } finally {
         if (server.listening) await new Promise((resolve) => server.close(() => resolve()));
-        try { server.closeAxiom(); } catch (_) {}
+        try { server.closeHuqan(); } catch (_) {}
       }
       process.stdout.write('A2A_SMOKE ' + JSON.stringify(result) + '\\n');
     })().catch((error) => { console.error(error.stack || error); process.exitCode = 1; });

@@ -447,7 +447,7 @@ test('4C1: installed tarball smoke — all retained deep imports load', () => {
     const code = `
       const mod = require('${imp}');
       if (!mod) process.exit(1);
-      if (typeof mod.closeAxiom === 'function') mod.closeAxiom();
+      if (typeof mod.closeHuqan === 'function') mod.closeHuqan();
       if (mod.graph && typeof mod.graph.close === 'function') mod.graph.close();
     `;
     const result = runInstalledNode(code, { timeout: 20000 });
@@ -539,7 +539,7 @@ test('4C1: installed server require smoke', () => {
   const code = `
     const server = require('huqan/server');
     if (!server) process.exit(1);
-    if (typeof server.closeAxiom === 'function') server.closeAxiom();
+    if (typeof server.closeHuqan === 'function') server.closeHuqan();
   `;
   const result = runInstalledNode(code, {
     timeout: 15000,

@@ -306,10 +306,10 @@ test('storage returns the named checkpoint scoped to goal and workspace (#880)',
   // (id, goal, workspaceId) and loadLatestCheckpoint takes (goal, workspaceId).
   const path = require('node:path');
   const fs = require('node:fs');
-  const AxiomStorage = require('../storage');
+  const HuqanStorage = require('../storage');
   const tmpDir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'huqan-checkpoint-'));
   const dbPath = path.join(tmpDir, 'checkpoint.db');
-  const store = new AxiomStorage({ dbPath });
+  const store = new HuqanStorage({ dbPath });
   assert.equal(typeof store.loadCheckpoint, 'function');
   assert.equal(typeof store.loadLatestCheckpoint, 'function');
 

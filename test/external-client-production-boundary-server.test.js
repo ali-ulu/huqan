@@ -69,7 +69,7 @@ test('real child server admits one signed package through the fully configured p
         result = { accepted, replay };
       } finally {
         if (server.listening) await new Promise((resolve) => server.close(() => resolve()));
-        server.closeAxiom();
+        server.closeHuqan();
         fs.rmSync(directory, { recursive: true, force: true });
       }
       process.stdout.write('D8_RESULT ' + JSON.stringify({ ...result, cleaned: !fs.existsSync(directory) }) + '\n');

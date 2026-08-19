@@ -8,7 +8,7 @@ const test = require('node:test');
 
 const CLI = require('../cli');
 const Kernel = require('../kernel');
-const { createAxiomClient } = require('../lib/sdk');
+const { createHuqanClient } = require('../lib/sdk');
 const { createServer } = require('../mcpServer');
 
 function createFixture(label) {
@@ -58,7 +58,7 @@ test('verify classification stays aligned across Kernel, CLI, and SDK wrappers',
   const fixture = createFixture('verify');
   const cli = Object.create(CLI.prototype);
   cli.kernel = fixture.kernel;
-  const sdk = createAxiomClient(fixture.kernel);
+  const sdk = createHuqanClient(fixture.kernel);
   try {
     fixture.kernel.learn('kedi hayvandir', Kernel.createAdmissionBypassOpts('test_fixture'));
     fixture.kernel.learn('kus ucmaz', Kernel.createAdmissionBypassOpts('test_fixture'));

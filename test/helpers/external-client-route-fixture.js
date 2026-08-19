@@ -8,7 +8,7 @@ const { stableStringify } = require('../../lib/receipt/canonical-receipt');
 const { createHuqanPackage } = require('../../lib/huqan-package-format');
 const { materializeExternalClientTrustConfig, EXTERNAL_CLIENT_TRUST_CONFIG_VERSION } = require('../../lib/external-client-trust-config');
 const { createExternalClientReplayStore } = require('../../lib/external-client-replay-store');
-const { createAxiomClient } = require('../../lib/sdk');
+const { createHuqanClient } = require('../../lib/sdk');
 const { commitExternalClientCandidateClaim } = require('../../lib/external-client-mutation-receipt-owner');
 const { createExternalClientHttpAdapter } = require('../../lib/external-client-http-adapter');
 const COLLECTIONS = ['provenanceRecords','auditEvents','candidateClaims','conflictResults','verificationResults','trustReceipts','causalChains','simulationResults'];
@@ -88,7 +88,7 @@ function createRouteFixture(t, options = {}) {
     const replayOwner = options.replayReserve
       ? { reserve: async (record) => { replayCalls += 1; return options.replayReserve(record); } }
       : replayStore;
-    client = createAxiomClient({}, { ...profile, clock: () => NOW, replayStore: replayOwner,
+    client = createHuqanClient({}, { ...profile, clock: () => NOW, replayStore: replayOwner,
       packageAdmissionHandler: (pkg, context) => {
         handlerCalls += 1; contexts.push(context);
         if (options.handlerError) throw options.handlerError;

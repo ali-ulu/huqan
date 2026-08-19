@@ -1,9 +1,9 @@
 services:
-  axiom:
+  huqan:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: axiom
+    container_name: huqan
     ports:
       - "${HUQAN_PORT:-${AXIOM_PORT:-3000}}:3000"
     environment:
@@ -49,4 +49,15 @@ services:
       start_period: 20s
 
 volumes:
+  # Deliberately still `axiom-data`, unlike the service and container above.
+  #
+  # A volume name is a data binding, not a label: the actual volume is
+  # `<project>_axiom-data` and it holds the SQLite graph an existing install
+  # already depends on. Renaming the key silently mounts a fresh empty volume
+  # and the operator sees their graph vanish -- the one failure a trust product
+  # must never produce quietly.
+  #
+  # So this sits with the other AXIOM names that bind data rather than describe
+  # it (the graph identity node, the ATP 0.1 wire format): it moves in an
+  # announced breaking release, with a migration, not in a rename pass.
   axiom-data:

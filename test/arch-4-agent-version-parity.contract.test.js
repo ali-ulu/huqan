@@ -35,7 +35,7 @@ const test = require('node:test');
 
 const Agent = require('../agent');
 const AgentV3 = require('../agent.v3');
-const AxiomStorage = require('../storage');
+const HuqanStorage = require('../storage');
 const Kernel = require('../kernel');
 const KernelV2 = require('../kernel.v2');
 const { createAgent, CANONICAL_AGENT_VERSION } = require('../agentRuntime');
@@ -77,7 +77,7 @@ function fixture(t, label) {
   return {
     v1() {
       const k = kernel('v1');
-      const storage = new AxiomStorage({ kernel: k, dbPath: path.join(root, 'v1.db') });
+      const storage = new HuqanStorage({ kernel: k, dbPath: path.join(root, 'v1.db') });
       closeables.push(storage);
       return new Agent({ kernel: k, storage });
     },

@@ -68,7 +68,7 @@ test('chunked JSON overflow returns HTTP 413 and preserves the keep-alive connec
   t.after(async () => {
     agent.destroy();
     await close();
-    try { server.closeAxiom(); } catch (_) {}
+    try { server.closeHuqan(); } catch (_) {}
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 

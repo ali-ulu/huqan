@@ -7,7 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { after, before, describe, it } = require('node:test');
 
-const AxiomStorage = require('../storage');
+const HuqanStorage = require('../storage');
 const { ACTION_OUTCOMES } = require('../lib/workbench/ingest-approval-action');
 
 const VERDICT = 'V4_B2_EXISTING_RUNTIME_CONTRACT_BLOCKED_GAP';
@@ -96,7 +96,7 @@ function approvalAudit(approvalId, eventType) {
 
 before(async () => {
   assert.equal(server.kernel.graph.getStats().backend, 'sqlite');
-  store = new AxiomStorage({ kernel: server.kernel });
+  store = new HuqanStorage({ kernel: server.kernel });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   port = server.address().port;
 });
@@ -104,7 +104,7 @@ before(async () => {
 after(async () => {
   await new Promise((resolve) => server.close(resolve));
   store.close();
-  server.closeAxiom();
+  server.closeHuqan();
   fs.rmSync(tempDir, { recursive: true, force: true });
 });
 

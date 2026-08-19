@@ -11,13 +11,13 @@ const { readFileSync } = require('fs');
 const { createKernel, CANONICAL_KERNEL_VERSION } = require('./lib/kernel-factory');
 const { CANONICAL_AGENT_VERSION, createAgent } = require('./agentRuntime');
 const { parseCommand } = require('./lib/command-parser');
-const { evaluateLlmSor } = require('./lib/shield');
+const { evaluateLlmSor, llmSorCheckFields } = require('./lib/shield');
 const {
   toPublicVerifyPayload,
   toPublicVerifyEnvelope,
 } = require('./lib/verify-status-vocabulary');
 const { handleIngest, buildIngestApprovalSnapshot, sha256 } = require('./lib/ingest');
-const AxiomStorage = require('./storage');
+const HuqanStorage = require('./storage');
 const { decideIngestApproval } = require('./lib/workbench/ingest-approval-action');
 const { buildTrustReceipt, queryAuditTrailPage, queryCandidateClaims, queryProvenance } = require('./lib/provenance-query');
 const { readReceiptById } = require('./lib/receipt/receipt-read-index');
@@ -70,7 +70,7 @@ const INGEST_APPROVAL_LEASE_MS = Math.max(30_000, Math.min(900_000, Number(readC
 
 function getIngestApprovalStore() {
   if (ingestApprovalStore) return ingestApprovalStore;
-  ingestApprovalStore = new AxiomStorage({ kernel });
+  ingestApprovalStore = new HuqanStorage({ kernel });
   recoverExpiredIngestApprovals(ingestApprovalStore);
   return ingestApprovalStore;
 }
@@ -643,8 +643,8 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      // AXIOM ön doğrulama
-      const axiomCheck = legacyVerify(kernel.verify(question, workspaceId ? { workspaceId } : {}));
+      // HUQAN pre-verification
+      const huqanCheck = legacyVerify(kernel.verify(question, workspaceId ? { workspaceId } : {}));
 
       // LLM'ye sor
       const LLMAdapter = require('./llmAdapter');
@@ -656,7 +656,7 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({
           ok: false,
           error: llmRes.error,
-          axiomCheck,
+          ...llmSorCheckFields(huqanCheck),
         }));
         return;
       }
@@ -670,7 +670,7 @@ const server = http.createServer(async (req, res) => {
         kernel: kernel,
         question,
         llmText,
-        axiomCheck,
+        huqanCheck,
         llmCheck,
         autoLearn,
         maxSentences: 15,
@@ -683,7 +683,7 @@ const server = http.createServer(async (req, res) => {
         question,
         llmAnswer: llmText,
         model: llmRes.data.model,
-        axiomCheck,
+        ...llmSorCheckFields(huqanCheck),
         // normalizeCheck() now yields canonical status, so this projection is
         // a no-op for it; kept because the guard also accepts legacy input.
         llmCheck: toPublicVerifyPayload(shield.llmCheck),
@@ -1091,7 +1091,7 @@ if (require.main === module && readCompatibleEnvironmentVariable('DISABLE_AUTO_L
   startServer(PORT, HOST);
 }
 
-server.closeAxiom = () => {
+server.closeHuqan = server.closeAxiom = () => { // closeAxiom: RFC-001 legacy alias
   clearInterval(ingestApprovalRecoveryTimer);
   viewerRateLimits.clear();
   viewerSessionStore.reset();

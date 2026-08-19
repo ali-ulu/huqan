@@ -4,7 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const Database = require('better-sqlite3');
-const AxiomStorage = require('../storage');
+const HuqanStorage = require('../storage');
 const { applyStorageSchema } = require('../lib/storage/schema');
 
 let tempDir;
@@ -30,7 +30,7 @@ after(() => {
  * fixture actually reads back what it wrote.
  */
 function storageAt(dbPath) {
-  return new AxiomStorage({ dbPath, memoryPath: path.join(path.dirname(dbPath), 'memory.json') });
+  return new HuqanStorage({ dbPath, memoryPath: path.join(path.dirname(dbPath), 'memory.json') });
 }
 
 function makeStorage(name) {

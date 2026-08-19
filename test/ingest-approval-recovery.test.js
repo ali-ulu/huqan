@@ -5,13 +5,13 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const AxiomStorage = require('../storage');
+const HuqanStorage = require('../storage');
 
 test('expired HTTP ingest lease becomes visible failed state without re-execution', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-ingest-recovery-'));
   const memoryPath = path.join(tempDir, 'memory.json');
   const dbPath = path.join(tempDir, 'memory.db');
-  const store = new AxiomStorage({ memoryPath, dbPath });
+  const store = new HuqanStorage({ memoryPath, dbPath });
   let now = 10_000;
   store._now = () => now;
 
