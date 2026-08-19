@@ -59,6 +59,7 @@ const {
   getCommittedMutationReceiptById: runReceiptByIdRead,
 } = require('./lib/graph-mutation-receipt-read');
 const { getNode: runNodeRead, getNodes: runNodesRead } = require('./lib/graph-node-read');
+const { addNode: runNodeWrite } = require('./lib/graph-node-write');
 
 class Graph {
   /**
@@ -792,56 +793,35 @@ class Graph {
     return runNodesRead(this._nodes, workspaceId);
   }
 
+  _nodeWriteStoreApi() {
+    return {
+      readPersisted: (id, workspaceId) => {
+        if (this._db && this._stmts) {
+          return { enabled: true, existing: this._stmts.getNode.get(id, workspaceId) };
+        }
+        return { enabled: false, existing: null };
+      },
+      get: storageKey => this._nodes[storageKey],
+      set: (storageKey, value) => { this._nodes[storageKey] = value; },
+      persist: ({ id, workspaceId, label, created, createdAt, lastAccessed, lastSeen, vector, provenance }) => {
+        this._stmts.upsertNode.run(
+          id,
+          workspaceId,
+          label,
+          0.5,
+          created,
+          createdAt,
+          lastAccessed,
+          lastSeen,
+          vector,
+          provenance,
+        );
+      },
+    };
+  }
+
   addNode(id, label, provenance = null, opts = {}) {
-    const now = Date.now();
-    const isoNow = nowIso();
-    const hasExplicitProvenance = provenance && typeof provenance === 'object';
-    const workspaceId = normalizeWorkspaceId(opts.workspaceId || provenance?.workspaceId);
-    const storageKey = nodeStorageKey(id, workspaceId);
-    if (this._db && this._stmts) {
-      // SQLite path
-      const existing = this._stmts.getNode.get(id, workspaceId);
-      const vector = existing ? existing.vector : '{}';
-      const createdAt = existing && existing.created_at ? existing.created_at : isoNow;
-      const existingProvenance = JSON.parse((existing && existing.provenance) || 'null');
-      const nextProvenance = hasExplicitProvenance ? provenance : existingProvenance;
-      this._stmts.upsertNode.run(id, workspaceId, label, 0.5, now, createdAt, now, isoNow, vector, JSON.stringify(nextProvenance ?? null));
-      // In-memory sync
-      if (this._nodes[storageKey] && normalizeWorkspaceId(this._nodes[storageKey].workspaceId) === workspaceId) {
-        this._nodes[storageKey].label = label;
-        this._nodes[storageKey].workspaceId = workspaceId;
-        this._nodes[storageKey].weight = Math.min(1, this._nodes[storageKey].weight + 0.1);
-        this._nodes[storageKey].lastAccessed = now;
-        this._nodes[storageKey].lastSeen = isoNow;
-        this._nodes[storageKey].last_seen = isoNow;
-        if (hasExplicitProvenance) this._nodes[storageKey].provenance = deepClone(provenance);
-      } else {
-        this._nodes[storageKey] = {
-          id, label, tags: [], vector: {}, weight: 0.5, workspaceId,
-          created: now, created_at: createdAt, lastAccessed: now,
-          lastSeen: isoNow, last_seen: isoNow,
-          provenance: nextProvenance ?? null,
-        };
-      }
-    } else {
-      if (this._nodes[storageKey] && normalizeWorkspaceId(this._nodes[storageKey].workspaceId) === workspaceId) {
-        this._nodes[storageKey].label = label;
-        this._nodes[storageKey].workspaceId = workspaceId;
-        this._nodes[storageKey].weight = Math.min(1, this._nodes[storageKey].weight + 0.1);
-        this._nodes[storageKey].lastAccessed = now;
-        this._nodes[storageKey].lastSeen = isoNow;
-        this._nodes[storageKey].last_seen = isoNow;
-        if (hasExplicitProvenance) this._nodes[storageKey].provenance = deepClone(provenance);
-      } else {
-        this._nodes[storageKey] = {
-          id, label, tags: [], vector: {}, weight: 0.5, workspaceId,
-          created: now, created_at: isoNow, lastAccessed: now,
-          lastSeen: isoNow, last_seen: isoNow,
-          provenance: hasExplicitProvenance ? provenance : null,
-        };
-      }
-    }
-    return cloneNodeRecord(this._nodes[storageKey]);
+    return runNodeWrite(this._nodeWriteStoreApi(), id, label, provenance, opts);
   }
 
   getNode(id, workspaceId = 'default') {
