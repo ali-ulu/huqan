@@ -6,6 +6,7 @@ const minimal = require('./fixtures/v5/agent-identity/valid.minimal.json');
 const { canonicalHash } = require('../lib/a2a/bounded-exchange');
 const {
   IDENTITY_RUNTIME_ERRORS,
+  composeReceiverOwnedIdentityClaim,
   evaluateAgentIdentity,
   snapshotAgentIdentityAuthority,
 } = require('../lib/agent-identity-runtime');
@@ -133,6 +134,39 @@ test('runtime identity evaluator preserves delegated scope monotonicity', () => 
 });
 
 
+test('receiver-owned claim composition derives identity fields from the authority snapshot', () => {
+  const identityAuthority = authority();
+  const result = composeReceiverOwnedIdentityClaim({
+    authority: identityAuthority,
+    identityRef: 'identity:minimal',
+    receiver: { subject: minimal.owner_actor_id, kind: 'receiver', workspaceId: minimal.workspace_id },
+  });
+
+  assert.equal(result.allowed, true);
+  assert.deepEqual(Object.keys(result.claim).sort(), [
+    'agentId', 'delegationChain', 'identityHash', 'identityRef', 'workspaceId',
+  ]);
+  assert.equal(result.claim.agentId, minimal.agent_id);
+  assert.deepEqual(result.claim.delegationChain, [minimal.agent_id]);
+});
+
+test('receiver-owned claim composition fails closed on workspace and subject drift', () => {
+  const identityAuthority = authority();
+  const workspaceMismatch = composeReceiverOwnedIdentityClaim({
+    authority: identityAuthority,
+    identityRef: 'identity:minimal',
+    receiver: { subject: minimal.owner_actor_id, kind: 'receiver', workspaceId: 'workspace-other' },
+  });
+  assert.equal(workspaceMismatch.reason, IDENTITY_RUNTIME_ERRORS.WORKSPACE_MISMATCH);
+
+  const subjectMismatch = composeReceiverOwnedIdentityClaim({
+    authority: identityAuthority,
+    identityRef: 'identity:minimal',
+    receiver: { subject: 'caller-controlled', kind: 'receiver', workspaceId: minimal.workspace_id },
+  });
+  assert.equal(subjectMismatch.reason, IDENTITY_RUNTIME_ERRORS.IDENTITY_UNKNOWN);
+});
+
 test('package root exposes the same Agent Identity Runtime seam', () => {
   const pkg = require('..');
   const direct = require('../lib/agent-identity-runtime.js');
@@ -140,5 +174,6 @@ test('package root exposes the same Agent Identity Runtime seam', () => {
   assert.equal(pkg.AgentIdentityRuntime, direct);
   assert.equal(pkg.evaluateAgentIdentity, direct.evaluateAgentIdentity);
   assert.equal(pkg.snapshotAgentIdentityAuthority, direct.snapshotAgentIdentityAuthority);
+  assert.equal(pkg.composeReceiverOwnedIdentityClaim, direct.composeReceiverOwnedIdentityClaim);
   assert.equal(pkg.AGENT_IDENTITY_RUNTIME_VERSION, direct.AGENT_IDENTITY_RUNTIME_VERSION);
 });
