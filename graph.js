@@ -60,6 +60,7 @@ const {
 } = require('./lib/graph-mutation-receipt-read');
 const { getNode: runNodeRead, getNodes: runNodesRead } = require('./lib/graph-node-read');
 const { addNode: runNodeWrite } = require('./lib/graph-node-write');
+const { removeNode: runNodeDelete } = require('./lib/graph-node-delete');
 const { addEdge: runEdgeWrite } = require('./lib/graph-edge-write');
 
 class Graph {
@@ -924,18 +925,17 @@ class Graph {
     return runCandidateClaimsRead(this._candidateClaims, filters);
   }
 
+  _nodeDeleteStoreApi() { return {
+    getNode: (id, workspaceId) => this.getNode(id, workspaceId),
+    deleteNode: storageKey => delete this._nodes[storageKey],
+    removeIncidentEdges: (id, workspaceId) => (this._edges = this._edges.filter(edge => !(edge.workspaceId === workspaceId && (edge.from === id || edge.to === id)))),
+    rebuildIndex: () => this._rebuildIndex(),
+    persistDeleteEdges: (id, workspaceId) => this._db && this._stmts && this._stmts.deleteEdgesOf.run(id, id, workspaceId),
+    persistDeleteNode: (id, workspaceId) => this._db && this._stmts && this._stmts.deleteNode.run(id, workspaceId),
+  }; }
+
   removeNode(id, workspaceId = 'default') {
-    const node = this.getNode(id, workspaceId);
-    if (!node) return false;
-    const storageKey = nodeStorageKey(id, workspaceId);
-    delete this._nodes[storageKey];
-    this._edges = this._edges.filter(e => !(e.workspaceId === node.workspaceId && (e.from === id || e.to === id)));
-    this._rebuildIndex();
-    if (this._db && this._stmts) {
-      this._stmts.deleteEdgesOf.run(id, id, normalizeWorkspaceId(workspaceId));
-      this._stmts.deleteNode.run(id, normalizeWorkspaceId(workspaceId));
-    }
-    return true;
+    return runNodeDelete(this._nodeDeleteStoreApi(), id, workspaceId);
   }
 
   getWeight(id, workspaceId = 'default') {
