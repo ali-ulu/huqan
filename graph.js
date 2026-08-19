@@ -60,6 +60,8 @@ const {
 } = require('./lib/graph-mutation-receipt-read');
 const { getNode: runNodeRead, getNodes: runNodesRead } = require('./lib/graph-node-read');
 const { addNode: runNodeWrite } = require('./lib/graph-node-write');
+const { removeNode: runNodeDelete } = require('./lib/graph-node-delete');
+const { touchNode: runNodeTouch } = require('./lib/graph-node-touch');
 const { addEdge: runEdgeWrite } = require('./lib/graph-edge-write');
 
 class Graph {
@@ -829,17 +831,13 @@ class Graph {
     return runNodeRead(this._nodes, id, workspaceId);
   }
 
+  _nodeTouchStoreApi() { return {
+    get: storageKey => this._nodes[storageKey],
+    persist: (accessedAt, id, workspaceId) => this._db && this._stmts && this._stmts.touchNode.run(accessedAt, id, workspaceId),
+  }; }
+
   touchNode(id, workspaceId = 'default') {
-    const scope = normalizeWorkspaceId(workspaceId);
-    const storageKey = nodeStorageKey(id, scope);
-    const node = this._nodes[storageKey] || (scope === 'default' ? this._nodes[id] : null);
-    if (!node || normalizeWorkspaceId(node.workspaceId) !== scope) return null;
-    const accessedAt = Date.now();
-    node.lastAccessed = accessedAt;
-    if (this._db && this._stmts) {
-      this._stmts.touchNode.run(accessedAt, id, scope);
-    }
-    return cloneNodeRecord(node);
+    return runNodeTouch(this._nodeTouchStoreApi(), id, workspaceId);
   }
 
   appendAuditEvent(event, opts = {}) {
@@ -924,18 +922,17 @@ class Graph {
     return runCandidateClaimsRead(this._candidateClaims, filters);
   }
 
+  _nodeDeleteStoreApi() { return {
+    getNode: (id, workspaceId) => this.getNode(id, workspaceId),
+    deleteNode: storageKey => delete this._nodes[storageKey],
+    removeIncidentEdges: (id, workspaceId) => (this._edges = this._edges.filter(edge => !(edge.workspaceId === workspaceId && (edge.from === id || edge.to === id)))),
+    rebuildIndex: () => this._rebuildIndex(),
+    persistDeleteEdges: (id, workspaceId) => this._db && this._stmts && this._stmts.deleteEdgesOf.run(id, id, workspaceId),
+    persistDeleteNode: (id, workspaceId) => this._db && this._stmts && this._stmts.deleteNode.run(id, workspaceId),
+  }; }
+
   removeNode(id, workspaceId = 'default') {
-    const node = this.getNode(id, workspaceId);
-    if (!node) return false;
-    const storageKey = nodeStorageKey(id, workspaceId);
-    delete this._nodes[storageKey];
-    this._edges = this._edges.filter(e => !(e.workspaceId === node.workspaceId && (e.from === id || e.to === id)));
-    this._rebuildIndex();
-    if (this._db && this._stmts) {
-      this._stmts.deleteEdgesOf.run(id, id, normalizeWorkspaceId(workspaceId));
-      this._stmts.deleteNode.run(id, normalizeWorkspaceId(workspaceId));
-    }
-    return true;
+    return runNodeDelete(this._nodeDeleteStoreApi(), id, workspaceId);
   }
 
   getWeight(id, workspaceId = 'default') {
