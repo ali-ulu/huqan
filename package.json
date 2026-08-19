@@ -262,6 +262,8 @@
     "lib/receipt/receipt-chain.js",
     "lib/receipt/receipt-export.js",
     "lib/receipt/receipt-read-index.js",
+    "lib/receipt/receipt-stamp.js",
+    "lib/receipt/receipt-validation-cache.js",
     "lib/receipt/v4-receipt-family.js",
     "lib/relation-drift.js",
     "lib/repo-file-pin.js",
