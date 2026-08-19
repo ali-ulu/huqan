@@ -1,0 +1,212 @@
+# HUQAN — MVP readiness backlog
+
+Source: a live audit of main @ ea6466d run on 2026-08-19. Every claim below was
+produced by running the surface, not by reading a doc. Ordered by evidence
+gained per unit of work.
+
+Status legend: [ ] open  [~] in progress  [x] done
+
+---
+
+## [x] 1. Align README, roadmap, product surfaces and checkpoint with source
+Commit 4df2504.
+- README claimed eleven axiom.*-era tools; the server advertises fifteen huqan.*
+  tools plus three operator-only ones.
+- Roadmap carried V5_IMPLEMENTATION_ENTRY: FAIL, superseded by the successor
+  audit's PASS.
+- product-surfaces.md named demo/index.html as canonical; no demo/ directory
+  has ever been committed.
+- current-agent-checkpoint.json pinned canonicalMain 0fef5948, an object that
+  does not exist in this repository. scripts/agent-context.js raised
+  CONTEXT_CONFLICT and four test/agent-context.test.js cases were red.
+
+## [x] 2. Resolve the huqan/axiom namespace before the internal-tool lookup
+Commit 09a2b3b.
+- huqan.policy answered external/block/unknown-tool-blocked for huqan.learn and
+  internal/allow for learn. INTERNAL_TOOLS holds bare names; mcpServer.js
+  advertises huqan.*.
+- Fixed by resolving the namespace at lookup, not by enlarging INTERNAL_TOOLS
+  (agent.js aliases it as ALLOWED_TOOLS, so growing it is a capability change).
+
+## [x] 3. Close the HTTP ingest loop
+Commit 8400e4e.
+Root cause was neither of the two things it looked like from the HTTP surface.
+plugins/company-brain.js::addCompanyEdge never passed `strength`, and
+graph.js::addEdge refuses a causal relation without one by throwing. Manual and
+decision ingest therefore died on all four advertised causal relations, after
+proposeNode had already written the endpoints -- hence orphan nodes, no edges,
+and verify answering unknown.
+
+INGEST_EXECUTION_UNKNOWN turned out to be correct rather than a second defect:
+classifyActionOutcome() refused to call `result.ok !== true` a bounded success.
+It reports admission_allow_graph_write_observed now that the outcome is bounded.
+Fixed by centralising the rule in lib/causal-edge-strength.js.
+
+## [x] 4. Flip MCP verify to the canonical English status vocabulary
+huqan.verify answers {"status":"bilinmiyor"} while REST /verify answers
+{"status":"unknown"}. It is the last Turkish string on a surface every Claude
+and Cursor user sees.
+
+Not an oversight: lib/mcp/response-builders.js:258 projects the envelope back
+through toLegacyVerifyEnvelope() on purpose, because mcpServer.js VERIFY_STATUS
+is an advertised output schema and a wire contract. Both directions of the
+adapter already exist in lib/verify-status-vocabulary.js.
+
+Done. HUQAN_MCP_LEGACY_VERIFY_STATUS=1 retains the legacy enum for a client
+that has not migrated, and moves the advertised schema and the emitted payload
+together so a client reading the schema it is given is correct in either mode.
+Acceptance of both spellings on the way in is unchanged and permanent.
+
+## [x] 5. Write the A2A deployment recipe and smoke it
+The code is done; the operator instructions are not. Four routes are mounted
+through lib/a2a/routes.js and all four answer 404 today because
+A2A_AUTHORITY_FILE and A2A_REPLAY_DIR are unset:
+  POST /api/a2a/exchange
+  GET  /.well-known/agent-card.json
+  POST /api/a2a/negotiate
+  GET  /api/a2a/tasks/{taskId}
+Done. docs/a2a-deployment.md carries the authority file shape, the replay
+directory contract, the path-safety rules, the workspace boundary and an
+explicit non-claims section. test/a2a-deployment-smoke.test.js boots the real
+server.js process and proves 404 unconfigured, agent card + accepted exchange
+configured, and a refused replay. README repointed.
+
+## [x] 6. Make the CLI English-first
+cli.js --help leads with Turkish commands and Turkish examples:
+  "kedi balik yer" -> I learn a fact
+  "neden tavuk"    -> cause analysis
+  "ruya"           -> I generate hypotheses
+  "dusun" / "onayla" / "kaydet" / "konsolide"
+Done. lib/workflow-contract.js's command table now reads English, and every
+command that had only a Turkish spelling gained an English one in
+lib/command-parser.js: status, dream, save, think, stop thinking, consolidate,
+hello/hi, agent:, and bare `why X`. Internal dispatch names are unchanged --
+renaming those would move a dispatch surface for a presentation problem. Every
+Turkish spelling still works and the help text says so.
+
+## [x] 7. Teach huqan.policy the MCP tool classification
+Done. lib/mcp-tool-policy.js answers for any tool the gate adapter classifies,
+and returns null otherwise so toolPolicy.js's fail-closed handling is intact.
+agent.inspectToolPolicy consults it first.
+
+Live through MCP now:
+  huqan.learn  -> internal/review        (matches the gate that runs it)
+  huqan.plan   -> internal/allow
+  huqan.agent  -> internal/dry_run_only
+  learn        -> internal/allow         (the agent-loop question, unchanged)
+  huqan.notatool, shell.exec -> external/block, still fail-closed
+
+huqan.learn and bare learn now differ on purpose: an MCP call to learn is
+gated review by AB4, while learn as an agent-loop step is allowed. Two
+questions, each answered by its own authority -- not one question with two
+answers, which is what item 2 removed.
+
+## [x] 8. Add an HTTP operator approval path
+Done, and the premise was partly wrong -- corrected in item 11 below.
+
+GET  /api/v2/memory-approvals
+POST /api/v2/memory-approvals/{id}/decision
+
+Both require the API key *and* a separate operator token in
+x-huqan-operator-token, checked constant-time against HUQAN_MCP_OPERATOR_TOKEN.
+Serving them behind the API key alone would have let whoever may propose a
+memory write also approve it, which is the separation mcpServer.js already
+enforces by withholding huqan.approve from tools/list. Unconfigured, the route
+answers 404, matching /api/a2a/exchange and the external-client route.
+
+It delegates to the same huqan.approvals / huqan.approve tools the CLI drives,
+so the receipts and audit events are the tested ones by construction.
+
+lib/http/optional-boundaries.js composes this with the A2A boundary, because
+server.js may not grow a line per route family any more than per route: it is
+at exactly the same 1118 lines it was before this route existed.
+
+## [x] 9. A PREVENTS edge contradicts the sentence that states it
+Found while verifying item 3; not caused by it. Fixed in lib/verify.js: the
+stored-PREVENTS contradiction branch now fires only when the incoming claim is
+affirmative, so a claim that asserts the same prevention verifies. The branch's
+original purpose is kept and tested.
+
+Still open from the same output: the contradiction evidence string is Turkish
+prose ("... ile celiskiyor: ..."). Folded into item 10.
+
+Isolated to the verifier -- edges written straight to the graph, no plugin, no
+ingest, no admission in the path:
+
+  addEdge('exercise','heart disease','PREVENTS',{strength:0.8,confidence:0.95})
+  verify('Exercise prevents heart disease')
+    -> status "contradicted", confidence 0.95
+       evidence: exercise --[PREVENTS]--> heart disease ile celiskiyor:
+                 "Exercise prevents heart disease"
+
+  addEdge('smoking','lung cancer','CAUSES',{strength:0.8,confidence:0.95})
+  verify('Smoking causes lung cancer')
+    -> status "verified", confidence 0.95
+
+So three of the four advertised causal relations verify correctly and PREVENTS
+inverts: asserting it produces a confident contradiction of itself. This is the
+core value proposition failing on a relation the README lists, with
+"Vaccination prevents disease" as one of its own worked examples.
+
+Almost certainly polarity handling: PREVENTS is a negative-polarity relation
+and the contradiction check appears to treat the stated claim as its own
+negation. Fix the polarity, then keep a test per causal relation so the four
+cannot diverge again.
+
+Second, smaller finding on the same output: the contradiction evidence string
+is Turkish ("... ile celiskiyor: ..."). That is prose, not the status
+vocabulary of item 4, so it needs its own pass.
+
+## [x] 10. Turkish prose on English API surfaces
+Distinct from item 4, which is about the status *vocabulary*. This is free
+prose emitted alongside a correct English status, e.g. the contradiction
+evidence built in lib/verify.js:
+
+  "exercise --[PREVENTS]--> heart disease ile celiskiyor: \"...\""
+
+Also the MCP tool descriptions, whose input examples still read
+"kedi hayvandir" -- visible to every Claude and Cursor user in tools/list.
+
+Done for the emitted surfaces: lib/verify.js evidence sentences and the MCP
+tool descriptions. A scan of 312 Turkish string literals across 48 runtime
+files found the rest are inputs the reader accepts on purpose -- command words
+in lib/command-parser.js, linguistic data in lib/contradiction-rules.js and
+lib/type-lattice.js, the legacy statuses in lib/verify-status-vocabulary.js --
+and the standalone Turkish demo in scripts/egitim-demo.js. Those stay, per
+RFC-001 decision 7.
+
+Three of the verify.js strings also carried U+FFFD: their Turkish characters
+had already been destroyed, so callers read "Say?sal kar??la?t?rma". They were
+in numeric-comparison branches no test drove, which is why they survived every
+green run. test/english-api-surface-prose.test.js now guards both the rendered
+evidence and the source.
+
+## [ ] 11. A /upload admission cannot be resolved by any surface
+Found while doing item 8, and it corrects that item's premise. The gap is not
+"HTTP cannot approve what /upload proposed" -- it is that *nothing* can.
+
+  POST /upload {"text":"..."}
+    -> outcome "review", approvalStatus "pending", graphWrite false,
+       provenanceId prov_..., receiptId madm_receipt_...,
+       approvalId ""            <- empty
+
+The empty approvalId is the finding. Checked against a live server:
+
+  the approval store contains only MCP-sourced records
+    tools:   {"huqan.learn": 50}
+    sources: mcp
+  GET /api/candidate-claims?status=pending  ->  {"items":[],"total":0}
+
+So /upload is propose-and-refuse, not propose-and-queue: it records that a
+write was attempted and denied, with provenance and a review receipt, and
+leaves nothing that can later be approved. The CLI's "onaylar"/"onayla" list
+MCP tool approvals, so they cannot resolve it either.
+
+That may well be the intended V4-B2 boundary -- HTTP action authority is
+scoped to the ingest kinds, and those *do* queue approvals. If it is intended,
+the /upload response should say so rather than returning approvalStatus
+"pending" with no id, which reads as "queued, resolve it later". If it is not,
+/upload needs to queue an approval the way huqan.learn does.
+
+Decide which, then make the response honest. Do not change the gate itself
+without deciding first.

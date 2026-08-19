@@ -5,7 +5,7 @@
  *
  * The behaviours that matter are not "it prints something" but:
  *   1. the mutation gate is still consulted and still answers `review`;
- *   2. the canonical write happens only via axiom.approve;
+ *   2. the canonical write happens only via huqan.approve;
  *   3. a real Trust Receipt is materialized;
  *   4. a failure anywhere fails closed rather than reporting success;
  *   5. the CLI command does not write to the caller's canonical memory.
@@ -28,7 +28,7 @@ function makeFakes(overrides = {}) {
   const calls = [];
   const callTool = (kernel, request) => {
     calls.push(request.name);
-    if (request.name === 'axiom.learn') {
+    if (request.name === 'huqan.learn') {
       if (overrides.learnReturnsNoApproval) return { ok: false, error: { message: 'blocked' } };
       return {
         ok: false,
@@ -36,7 +36,7 @@ function makeFakes(overrides = {}) {
         approval: { id: 'approval-test-1' },
       };
     }
-    if (request.name === 'axiom.approve') {
+    if (request.name === 'huqan.approve') {
       if (overrides.approveFails) return { ok: false, error: { message: 'nope' } };
       return { ok: true, data: { decision: 'approved' } };
     }
@@ -52,7 +52,7 @@ function makeFakes(overrides = {}) {
     status: 'canonical',
     workspaceId: 'default',
     trustPolicyVersion: '0.8.0',
-    provenance: { sourceRef: 'mcp.axiom.learn.approval-test-1' },
+    provenance: { sourceRef: 'mcp.huqan.learn.approval-test-1' },
     auditTrail: [{ auditId: 'a1' }],
   });
   return { calls, callTool, kernel, buildTrustReceipt };
@@ -67,7 +67,7 @@ test('quickstart reaches a Trust Receipt through review then approve', () => {
   assert.equal(result.receipt.receiptId, 'receipt-test-1');
   assert.equal(result.approvalId, 'approval-test-1');
   // The write must be proposed and approved, in that order, via those tools.
-  assert.deepEqual(calls, ['axiom.learn', 'axiom.approve']);
+  assert.deepEqual(calls, ['huqan.learn', 'huqan.approve']);
 });
 
 test('quickstart records the gate decision as review, not allow', () => {
@@ -80,7 +80,7 @@ test('quickstart records the gate decision as review, not allow', () => {
   assert.match(propose.detail, /mutating_requires_review/);
 });
 
-test('quickstart fails closed when axiom.learn queues no approval', () => {
+test('quickstart fails closed when huqan.learn queues no approval', () => {
   const { calls, callTool, kernel, buildTrustReceipt } = makeFakes({ learnReturnsNoApproval: true });
 
   const result = runQuickstart({ kernel, callTool, buildTrustReceipt, approvalStore: {} });
@@ -89,7 +89,7 @@ test('quickstart fails closed when axiom.learn queues no approval', () => {
   assert.equal(result.error.code, 'QUICKSTART_NO_APPROVAL');
   assert.equal(result.receipt, null);
   // Critically: it must not try to approve something that was never queued.
-  assert.deepEqual(calls, ['axiom.learn']);
+  assert.deepEqual(calls, ['huqan.learn']);
 });
 
 test('quickstart fails closed when the approval cannot be applied', () => {

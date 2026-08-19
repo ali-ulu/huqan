@@ -291,16 +291,30 @@ test('a2a route: the auth policy declares the route only when it is configured',
 
 test('a2a route: the production call chain reaches the V5 verification modules', () => {
   const serverSource = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
-  assert.ok(serverSource.includes("require('./lib/a2a/routes')"),
-    'server.js must require the A2A boundary');
-  assert.ok(serverSource.includes('a2aBoundary.route(req, res, reqUrl)'),
-    'server.js must dispatch to the A2A boundary');
+  assert.ok(serverSource.includes("require('./lib/http/optional-boundaries')"),
+    'server.js must require the optional-route boundary');
+  assert.ok(serverSource.includes('optionalRoutes.route(req, res, reqUrl)'),
+    'server.js must dispatch to the optional-route boundary');
   // P0-D moved the individual flags into one spreadable authContext so that
   // adding a route stops editing server.js. The enablement still has to reach
   // the auth policy, so the assertion follows it to its new owner rather than
   // being dropped.
-  assert.ok(serverSource.includes('...a2aBoundary.authContext'),
-    'server.js must pass the A2A enablement context to the auth policy');
+  assert.ok(serverSource.includes('...optionalRoutes.authContext'),
+    'server.js must pass the enablement context to the auth policy');
+
+  // A second composite now sits above the A2A one: the memory-approval route
+  // was the first deployment-gated route that is not A2A, and server.js may not
+  // grow a line per route family any more than it could grow one per route.
+  // Same rule as the hop below -- assert it rather than assume it, or a
+  // composite that stopped requiring the A2A boundary would leave the V5
+  // modules unreached with every other assertion here still passing.
+  const optionalSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'http', 'optional-boundaries.js'), 'utf8');
+  assert.ok(optionalSource.includes("require('../a2a/routes')"),
+    'the optional-route boundary must require the A2A boundary');
+  assert.ok(optionalSource.includes('a2a.route(req, res, reqUrl)'),
+    'the optional-route boundary must dispatch to the A2A boundary');
+  assert.ok(optionalSource.includes('...a2a.authContext'),
+    'the optional-route boundary must republish the A2A enablement context');
 
   // P0-C composed the A2A surface behind one mount point so server.js stops
   // growing a line per route. That inserted a hop into this chain, so the hop

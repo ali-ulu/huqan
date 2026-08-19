@@ -32,7 +32,7 @@ const { readExactWorkspace } = require('./lib/http/exact-workspace');
 const { createSessionStore } = require('./lib/viewer/session-store');
 const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
 const { createExternalClientProductionBoundary } = require('./lib/external-client-production-boundary');
-const { createA2aBoundary } = require('./lib/a2a/routes');
+const { createOptionalRouteBoundaries } = require('./lib/http/optional-boundaries');
 const { createMutationAdmission } = require('./lib/mutation-admission');
 const { createIngestApprovalAuditWriter } = require('./lib/workbench/ingest-approval-audit-writer');
 const pkg = require('./package.json');
@@ -61,7 +61,7 @@ const externalClientBoundary = createExternalClientProductionBoundary({
   environment: process.env,
   graph: kernel.graph,
 });
-const a2aBoundary = createA2aBoundary();
+const optionalRoutes = createOptionalRouteBoundaries({ memoryApproval: { kernel, getParseJsonRequest: () => parseJsonRequest, getWriteJson: () => writeJson, approvalRuntime: () => ({ approvalStore: getIngestApprovalStore() }) } });
 let companyRuntimeReady = false;
 let ingestApprovalStore = null;
 const INGEST_APPROVAL_WORKER_ID = `http-ingest-${crypto.randomUUID()}`;
@@ -492,7 +492,7 @@ const server = http.createServer(async (req, res) => {
   // confirms the existence of an unrouted path.
   const routeAuthPolicy = resolveRouteAuthPolicy(reqUrl.pathname, req.method, {
     workspaceId: sanitizeInput(reqUrl.searchParams.get('workspaceId') || ''),
-    externalClientRouteEnabled: externalClientBoundary !== null, ...a2aBoundary.authContext,
+    externalClientRouteEnabled: externalClientBoundary !== null, ...optionalRoutes.authContext,
   });
   // The memory-context route hardens every one of its own responses with
   // no-store/nosniff, but this central gate answers 401 before that handler
@@ -517,7 +517,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (await a2aBoundary.route(req, res, reqUrl)) return;
+  if (await optionalRoutes.route(req, res, reqUrl)) return;
   if (await handleV5PackageImportRoute(req, res, reqUrl)) return;
   if (handleWorkflowContractRoute(req, res, reqUrl) || await handleReadWorkflow(req, res, reqUrl)) return;
   if (await handleWorkflowDataRoute(req, res, reqUrl)) return;

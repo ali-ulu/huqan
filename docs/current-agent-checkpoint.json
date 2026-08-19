@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "repository": "ali-ulu/huqan",
   "baselineBranch": "main",
-  "canonicalMain": "0fef5948f644e611baa8b725f018249662bcdb5d",
+  "canonicalMain": "ea6466d1081afa2f014b8889fca97236268e050f",
   "worktreePolicy": "REPORT_ONLY",
-  "observedAt": "2026-08-09T22:00:00+03:00",
-  "program": "V4 Workbench runtime-evidence closeout / V5 ecosystem entry boundary",
+  "observedAt": "2026-08-19T11:00:00+03:00",
+  "program": "V5 implementation track entry (authorized) / bounded A2A transport shipped and deployment-gated",
   "completedEvidence": [
     "V4-B1 is closed PASS with authenticated real-server and SQLite Workbench read evidence; Notion candidate 262d357ef37a6d189dc29b1f255c90b7c6ccc745 / PR #264",
     "V4-B2 is closed PASS: runtime PR #520 head 99847901411128b1a0515ed5da23589206716f06 merged as e02eb03e79e10d6bc65e02322febe5eb2fd15055; reconciliation PR #523 merged as 9b6d41f801a918451e3e5142498204d86a549f59; issue #270 closed",
@@ -25,17 +25,24 @@
     "Migration is split into four separately gated units M1 environment variables, M2 verifier package, M3 spec paths, M4 package format, each carrying its own backward-compatibility evidence rather than one rename PR",
     "Environment variable precedence is fail-closed: HUQAN_X wins, AXIOM_X alone is accepted as compatibility, and both set with different values refuses startup with no silent precedence; the migration guide must state that consequence and never print either value",
     "Legacy identifiers cannot be removed in a minor or patch release: removal requires an announced breaking release, a published migration guide, and reader support verified against retained fixtures of the old formats",
-    "RFC-001 is contract only. No runtime change, no rename, no wire-format change, no formatVersion reserved, and no migration gate authorized or scheduled by it"
+    "RFC-001 is contract only. No runtime change, no rename, no wire-format change, no formatVersion reserved, and no migration gate authorized or scheduled by it",
+    "V5_IMPLEMENTATION_ENTRY: PASS is recorded in docs/v5/v5-implementation-entry-successor-audit.md against b6ea911ef44ad9a762ad2a1b57a85a64281a580c; it supersedes ADR-010 Decision 3's FAIL and only that decision, leaving the V4/V5 boundary, artifact status vocabulary, ATP/HTP naming and marketplace deferral untouched",
+    "The #277 external conformance blocker is discharged: the shipped Python verifier agrees byte-for-byte with the JavaScript consumer across legacy ATP 0.1 and canonical HTP 0.2 including exit status, and a mutation test bypassing duplicate reservation requires the run to fail so the replay PASS cannot be decorative",
+    "P0_A2A_PRODUCTION_TRANSPORT: SHIPPED_WITH_ONE_UNIT_DEFERRED per docs/v5/v5-p0-a2a-transport-closeout.md; P0-B..P0-F are on main and P0-G is deferred on the authority of the scope freeze itself",
+    "Four A2A routes are mounted through lib/a2a/routes.js: POST /api/a2a/exchange, GET /.well-known/agent-card.json, POST /api/a2a/negotiate and GET /api/a2a/tasks/{taskId}; each is authenticated and answers 404 rather than 401 when A2A_AUTHORITY_FILE / A2A_REPLAY_DIR are unset, so an unconfigured install does not advertise the surface",
+    "lib/module-reachability.js::NOT_YET_WIRED is down to ten modules: six V5, three self-healer and lib/github-connector.js; the external-client boundary and the reviewed external ingest chain have left it, and four A2A modules graduated by gaining a production caller",
+    "mcpServer.js advertises fifteen model-visible huqan.* tools and withholds huqan.approve, huqan.approvals and huqan.agent_resume behind HUQAN_MCP_OPERATOR_TOKEN, so a model that proposes a mutating action cannot approve it",
+    "Conformance runners observed green on this baseline: npm run conformance:external 75/75 with 0 blocked gaps, npm run conformance:a2a 50/50 with verdict V5_D6_BOUNDED_A2A_EXCHANGE_SUFFICIENT and reportSha256 e3ad2b62259071daaf3fb82159c36198ffe64b3178e4849a38e20d9cab979fd5"
   ],
-  "nextGate": "V5_EXTERNAL_INTEROPERABILITY_CONFORMANCE_ENTRY",
-  "status": "V4_B5_CLOSEOUT_PASS__V5_IMPLEMENTATION_ENTRY_FAIL",
+  "nextGate": "V5_EXTERNAL_THIRD_PARTY_INTEROPERABILITY",
+  "status": "V4_B5_CLOSEOUT_PASS__V5_IMPLEMENTATION_ENTRY_PASS",
   "forbiddenClaims": [
+    "V5 ecosystem implementation complete. Entry is authorized; completion is not.",
+    "A2A transport externally interoperable, deployed, or spoken to by any third party. It is shipped and deployment-gated.",
     "universal V4 stable or complete product maturity beyond the bounded Workbench runtime-evidence closeout",
     "external client interoperability proven by local/product smoke",
-    "V5 ecosystem implementation authorized or complete",
     "all connectors V5-enforced",
     "production Shared Trust Package transport proven by library-only modules",
-    "A2A trust exchange implemented",
     "public-safe receipt exchange complete",
     "GitHub App or Streaming Trust production-ready",
     "Certified Node, TrustBench, public badge, reputation economy or marketplace live",
@@ -50,9 +57,10 @@
     "The client-facing V4-B4 viewer satisfies the V4-B5 external/client trust-artifact row but does not prove external interoperability.",
     "The exact runtime CI of record is PR #588 head 5452a7680a2b3e96e5a288c928c64669cbe57cc9 because all later source changes through the closeout base are documentation-only.",
     "Local bootstrap, node scripts/agent-context.js, local worktree checks and Graphify regeneration remain unverified in the connector-only environment and are not claimed.",
-    "V5 implementation entry remains FAIL until a successor audit has source-backed real external consumer/verifier conformance evidence including invalid/tampered fail-closed cases; issue #277 is the current external conformance blocker.",
     "V5 planning/spec work may continue only within its own accepted gates; this checkpoint does not authorize runtime ecosystem implementation.",
-    "V5-C2 is answered by docs/rfcs/RFC-001-huqan-canonical-naming-and-legacy-compatibility.md. It fixes naming and compatibility contract only; the AXIOM to HUQAN wire/package migration is separate gated work and none of it is authorized yet."
+    "V5-C2 is answered by docs/rfcs/RFC-001-huqan-canonical-naming-and-legacy-compatibility.md. It fixes naming and compatibility contract only; the AXIOM to HUQAN wire/package migration is separate gated work and none of it is authorized yet.",
+    "V5 implementation entry is PASS. What that authorizes is production wiring of the modules still in NOT_YET_WIRED, each in its own scoped change, plus entry into the gated V5 implementation track. It authorizes no completion claim.",
+    "The previous canonicalMain 0fef5948f644e611baa8b725f018249662bcdb5d is not a reachable object in this repository and was not an ancestor of origin/main, so scripts/agent-context.js raised CONTEXT_CONFLICT and four test/agent-context.test.js cases were red. canonicalMain is now the observed origin/main."
   ],
-  "authorizationArtifact": "docs/v4-b5-source-test-ci-release-closeout.md"
+  "authorizationArtifact": "docs/v5/v5-implementation-entry-successor-audit.md"
 }

@@ -267,7 +267,7 @@ Claude Desktop configuration:
 }
 ```
 
-The server advertises eleven tools:
+The server advertises fifteen tools to the model:
 
 | Tool | What it does | Gate |
 | --- | --- | --- |
@@ -276,12 +276,32 @@ The server advertises eleven tools:
 | `huqan.verify` | Verify a statement and return its evidence trail | allow |
 | `huqan.plan` | Build a multi-step plan for a goal | allow |
 | `huqan.agent` | Run the multi-step agent loop | dry-run only |
+| `huqan.ingest_preview` | Build a read-only ingest source manifest for review | allow |
+| `huqan.ingest_execute` | Queue a reviewed manual or decision ingest for approval-owned execution | review |
+| `huqan.ingest_status` | Read the status, progress and final receipt of an ingest run | allow |
 | `huqan.policy` | Inspect the execution policy for a requested tool | allow |
-| `huqan.approvals` | List pending tool approvals | allow |
-| `huqan.approve` | Approve or reject a pending approval | — |
 | `huqan.reason` | Return forward and backward reasoning traces | allow |
 | `huqan.compare` | Compare two concepts across the graph | allow |
 | `huqan.dream` | Generate ranked hypotheses from the graph | allow |
+| `huqan.advocate` | Challenge a claim without mutating the graph | allow |
+| `huqan.search` | Search workspace-scoped memory and return provenance refs | allow |
+| `huqan.trust_receipt` | Read a workspace-scoped Trust Receipt | allow |
+
+### Operator tools are not advertised to the model
+
+Three tools are deliberately withheld from `tools/list` and require the
+`HUQAN_MCP_OPERATOR_TOKEN` environment variable:
+
+| Tool | What it does |
+| --- | --- |
+| `huqan.approve` | Approve or reject a pending approval |
+| `huqan.approvals` | List pending tool approvals |
+| `huqan.agent_resume` | Resume a suspended agent run |
+
+This is the boundary that makes the review gate mean something: a model that
+proposes a mutating action cannot also approve it, because the tool that grants
+approval is never in the tool list it can see. Approval is an operator action
+taken out of band.
 
 The legacy `axiom.*` names from before the HUQAN rename are still accepted, so
 existing installs keep working; they are no longer advertised, and a call using
@@ -313,13 +333,32 @@ What is real today:
 - local CLI, REST, MCP, and UI surfaces,
 - bounded memory and action gates,
 - production-wired Agent Action Firewall for classic agent, workflow/HTTP, and MCP action paths,
-- canonical HUQAN package and cryptographic foundations.
+- canonical HUQAN package and cryptographic foundations,
+- two conformance suites, run from this repository:
+  `npm run conformance:external` (75 cases) and `npm run conformance:a2a`
+  (50 adversarial cases).
+
+### A2A routes ship but stay unconfigured
+
+Four A2A routes are on `main` and mounted through `lib/a2a/routes.js`:
+`POST /api/a2a/exchange`, `GET /.well-known/agent-card.json`,
+`POST /api/a2a/negotiate` and `GET /api/a2a/tasks/{taskId}`.
+
+They are deployment-gated, not disabled: with `A2A_AUTHORITY_FILE` and
+`A2A_REPLAY_DIR` unset, every one answers `404` rather than `401`, so an
+unconfigured install does not advertise a surface it cannot serve.
+
+To turn them on, and for the boundary of what turning them on does not claim,
+see [docs/a2a-deployment.md](./docs/a2a-deployment.md).
 
 What this repository does **not** currently claim:
 
 - universal truth or hallucination elimination,
 - complete inline enforcement for every connector and mutation path,
 - a finished V5 shared-trust ecosystem,
+- external interoperability: no third party has spoken to the A2A transport,
+  and the conformance suites are self-test plus one cross-implementation
+  comparison, not third-party verification,
 - a public agent marketplace or certification network,
 - Wikipedia-scale graph performance,
 - a complete autonomous Self-Healer.
@@ -336,10 +375,18 @@ isolation — they are not evidence that the product runs it.
 
 That set is enumerated with a reason per module in
 [`lib/module-reachability.js`](./lib/module-reachability.js) and enforced by a
-test, so nothing can join it silently. The largest groups today are the
-external-client trust boundary (decided in ADR-010 but deliberately not
-enabled), the V5 track (its entry audit has not passed), the reviewed external
-ingest chain, and the Self-Healer (library-only by design).
+test, so nothing can join it silently. It is now ten modules:
+
+| Group | Modules | Why |
+|---|---|---|
+| V5 | `lib/v5/runtime-reader.js`, `lib/v5/structural-signing-helper.js`, four `schemas/v5/agent-identity-*.js` | entry is authorized, these five have no production caller yet |
+| Self-Healer | `lib/self-healer/index.js`, `audit-runner.js`, `finding-classifier.js` | library-only by product decision; no autonomous runner |
+| Connector | `lib/github-connector.js` | library-only connector |
+
+The external-client trust boundary and the reviewed external ingest chain have
+both left this list: they are reached by `server.js` and gated by deployment
+configuration rather than by reachability. Four A2A modules left it the only way
+a module may — `POST /api/a2a/exchange` gave them a production caller.
 
 The Error Prevention core is not in that unwired set: `index.js` reaches and
 exports it as a package/library surface. No Error Prevention MCP tool is

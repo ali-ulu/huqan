@@ -73,7 +73,8 @@ test('callTool: axiom.verify passes gate (allow)', () => {
   const result = callTool(kernel, { name: 'axiom.verify', arguments: { statement: 'test' } });
 
   assert.equal(result.ok, true);
-  assert.equal(result.data.status, 'dogrulandi');
+  // Stub kernel says 'dogrulandi'; the MCP boundary emits canonical English.
+  assert.equal(result.data.status, 'verified');
 });
 
 test('callTool: axiom.reason passes gate (allow)', () => {

@@ -52,7 +52,7 @@ test('MCP read tools do not allocate an unused Agent storage backend', { concurr
     const verify = callTool(fixture.server, 'axiom.verify', { statement: 'unknown claim' });
     const ask = callTool(fixture.server, 'axiom.ask', { question: 'unknown subject' });
     assert.equal(verify.isError, false);
-    assert.equal(verify.structuredContent.data.status, 'bilinmiyor');
+    assert.equal(verify.structuredContent.data.status, 'unknown');
     assert.equal(ask.isError, false);
     assert.equal(closeCount, 0);
     assert.equal(fs.existsSync(path.join(fixture.root, 'memory.db')), false);

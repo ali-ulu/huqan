@@ -153,7 +153,7 @@ test('MCP dogfood client harness exercises allow, review, dry-run and block deci
     assert.equal(verifyResp.isError, false);
     assert.equal(verifyResp.structuredContent.ok, true);
     assert.equal(typeof verifyResp.structuredContent.data.status, 'string');
-    assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(verifyResp.structuredContent.data.status));
+    assert.ok(['verified', 'contradicted', 'unknown'].includes(verifyResp.structuredContent.data.status));
 
     const approvalsBefore = parseToolCallResponse(await client.request('tools/call', {
       name: 'axiom.approvals',
@@ -256,7 +256,7 @@ test('MCP dogfood client persists approval, receipt, and idempotent replay acros
     assert.ok((await client.request('initialize', {})).result);
     const persisted = await callTool(client, 'axiom.verify', { statement: text });
     assert.equal(persisted.isError, false);
-    assert.equal(persisted.structuredContent.data.status, 'dogrulandi');
+    assert.equal(persisted.structuredContent.data.status, 'verified');
     const replay = await callTool(client, 'axiom.approve', {
       approvalId,
       decision: 'approved',

@@ -34,7 +34,8 @@ test('PR3 smoke: axiom.verify dispatches through gate + kernel', () => {
   const result = callTool(kernel, { name: 'axiom.verify', arguments: { statement: 'kedi hayvandir' } });
 
   assert.equal(result.ok, true);
-  assert.equal(result.data.status, 'dogrulandi');
+  // Stub kernel says 'dogrulandi'; the MCP boundary emits canonical English.
+  assert.equal(result.data.status, 'verified');
   assert.ok(result.data.confidence > 0);
 });
 
