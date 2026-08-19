@@ -51,6 +51,12 @@ const {
   getInEdges: runInEdgesRead,
   getAllEdges: runAllEdgesRead,
 } = require('./lib/graph-edge-read');
+const {
+  readMutationReceiptFromJsonJournal,
+  readMutationReceipt,
+  getCommittedMutationReceiptByOperation: runReceiptByOperationRead,
+  getCommittedMutationReceiptById: runReceiptByIdRead,
+} = require('./lib/graph-mutation-receipt-read');
 
 class Graph {
   /**
@@ -478,47 +484,28 @@ class Graph {
   }
 
   _readMutationReceiptFromJsonJournal(journal, operationId) {
-    const row = journal.receipts[operationId];
-    if (!row) return null;
-    return {
-      operationId,
-      receiptId: row.receiptId,
-      workspaceId: row.workspaceId,
-      canonicalPayload: row.canonicalPayload,
-      previousReceiptHash: row.previousReceiptHash,
-      receiptHash: row.receiptHash,
-      committedAt: row.committedAt,
-    };
+    return readMutationReceiptFromJsonJournal(journal, operationId);
   }
 
   _readMutationReceipt(row) {
-    if (!row) return null;
-    return {
-      operationId: row.operation_id,
-      receiptId: row.receipt_id,
-      workspaceId: row.workspace_id,
-      canonicalPayload: JSON.parse(row.canonical_payload),
-      previousReceiptHash: row.previous_receipt_hash,
-      receiptHash: row.receipt_hash,
-      committedAt: row.committed_at,
-    };
+    return readMutationReceipt(row);
   }
 
   getCommittedMutationReceiptByOperation(operationId) {
-    if (this._db && this._stmts) {
-      return this._readMutationReceipt(this._stmts.getMutationReceiptByOperation.get(operationId));
-    }
-    return this._readMutationReceiptFromJsonJournal(this._readJsonJournal(), operationId);
+    return runReceiptByOperationRead(this._mutationReceiptReadStoreApi(), operationId);
   }
 
   getCommittedMutationReceiptById(receiptId) {
-    if (this._db && this._stmts) {
-      return this._readMutationReceipt(this._stmts.getMutationReceiptById.get(receiptId));
-    }
-    const journal = this._readJsonJournal();
-    const operationId = journal.receiptsById[receiptId];
-    if (!operationId) return null;
-    return this._readMutationReceiptFromJsonJournal(journal, operationId);
+    return runReceiptByIdRead(this._mutationReceiptReadStoreApi(), receiptId);
+  }
+
+  _mutationReceiptReadStoreApi() {
+    return {
+      hasSqlite: () => Boolean(this._db && this._stmts),
+      getMutationReceiptByOperation: id => this._stmts.getMutationReceiptByOperation.get(id),
+      getMutationReceiptById: id => this._stmts.getMutationReceiptById.get(id),
+      readJsonJournal: () => this._readJsonJournal(),
+    };
   }
 
   runMutationOnce(operationId, mutate, opts = {}) {
