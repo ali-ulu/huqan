@@ -238,6 +238,7 @@
     "lib/memory-patch-metadata.js",
     "lib/memory-package-export.js",
     "lib/memory-package-import.js",
+    "lib/memory-package-import-runner.js",
     "lib/memory-query-engine.js",
     "lib/memory-record-utils.js",
     "lib/memory-schema.js",
