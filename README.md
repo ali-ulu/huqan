@@ -426,6 +426,7 @@ Focused test commands are available in [`package.json`](./package.json).
 - [Scale truth pack](./docs/scale-truth-pack.md)
 - [Governance](./docs/governance.md)
 - [Agent Action Firewall](./docs/agent-action-firewall.md)
+- [HTTP upload approval contract](./docs/http-upload-approval-contract.md)
 - [Security policy](./SECURITY.md)
 - [Contributing](./CONTRIBUTING.md)
 - [Issues](https://github.com/ali-ulu/huqan/issues)

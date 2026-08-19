@@ -186,6 +186,7 @@
     "lib/http/read-workflow-actions.js",
     "lib/http/receipt-read-failures.js",
     "lib/http/route-auth-policy.js",
+    "lib/http/upload-admission-contract.js",
     "lib/http/v2-status-phases.js",
     "lib/http/v5-package-import-route.js",
     "lib/http/workflow-contract-route.js",
