@@ -5,6 +5,7 @@ const Dream = require('./dream');
 const { INTERNAL_TOOLS, evaluateToolPolicy } = require('./toolPolicy');
 const { buildFinalSummary } = require('./finalizer');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
+const { enforceAgentActionStep } = require('./lib/agent-action-firewall');
 const {
   cloneValue,
   nowIso,
@@ -16,7 +17,6 @@ const {
   normalizeMemoryPath,
   defaultMemoryState,
 } = require('./lib/agent-memory-state');
-
 const DEFAULT_MAX_STEPS = 4;
 const ALLOWED_TOOLS = INTERNAL_TOOLS;
 const MEMORY_LIMITS = {
@@ -24,7 +24,6 @@ const MEMORY_LIMITS = {
   runs: 32,
   goals: 64,
 };
-
 class Agent {
   constructor(opts = {}) {
     this.kernel = opts.kernel;
@@ -38,14 +37,12 @@ class Agent {
     this.lastRun = null;
     this.activeGoal = null;
   }
-
   _emit(event, data) {
     if (this.plugins && typeof this.plugins.emit === 'function') {
       this.plugins.emit(event, data);
     }
     return data;
   }
-
   _ok(type, data = null, evidence = [], meta = {}) {
     if (this.kernel && typeof this.kernel._ok === 'function') {
       return this.kernel._ok(type, data, evidence, meta);
@@ -59,7 +56,6 @@ class Agent {
       meta,
     };
   }
-
   _fail(type, code, message, evidence = [], meta = {}, data = null) {
     if (this.kernel && typeof this.kernel._fail === 'function') {
       const result = this.kernel._fail(type, code, message, meta);
@@ -78,7 +74,6 @@ class Agent {
       meta,
     };
   }
-
   _collectEvidence(items = []) {
     const evidence = [];
     for (const item of items) {
@@ -86,7 +81,6 @@ class Agent {
     }
     return evidence.filter(Boolean);
   }
-
   _isStalledProgress(previousSummary, currentSummary) {
     const prev = normalizeSummaryText(previousSummary);
     const curr = normalizeSummaryText(currentSummary);
@@ -95,7 +89,6 @@ class Agent {
     if (!prev) return false;
     return curr === prev;
   }
-
   _loadMemory() {
     if (!this.memoryPath) return defaultMemoryState();
     if (!fs.existsSync(this.memoryPath)) return defaultMemoryState();
@@ -111,7 +104,6 @@ class Agent {
       throw corruptError;
     }
   }
-
   _normalizeMemory(memory = {}) {
     const base = defaultMemoryState();
     const normalized = {
@@ -743,17 +735,12 @@ class Agent {
   }
 
   _executeStep(step, state, opts = {}) {
-    // beforeTask previously discarded _emit's return value outright (not
-    // even assigned to a variable), so a plugin mutating the payload had no
-    // way to influence what happens next -- the same "hook looks wired but
-    // its result is never read" shape as #346's afterAsk fix, just with
-    // nothing reading the result at all rather than reading the wrong
-    // thing. Capturing it and honoring `blocked: true` is what makes a
-    // beforeTask plugin (policy-watchdog.js, #213) able to actually halt a
-    // step instead of only observing it after the fact.
+    // Preserve beforeTask hook decisions so policy plugins can halt a step.
+    // This fixes the previously write-only hook result (#346/#213).
     const beforeTaskData = this._emit('beforeTask', { step, state, opts });
     let result;
     let toolPolicy = null;
+    let firewallDecision = null;
 
     if (beforeTaskData && beforeTaskData.blocked === true) {
       result = {
@@ -771,8 +758,19 @@ class Agent {
         },
       };
     } else {
-      toolPolicy = evaluateToolPolicy({
-        tool: step.tool,
+      const firewallResult = enforceAgentActionStep({
+        step,
+        state,
+        opts,
+        kernel: this.kernel,
+        allowedTools: ALLOWED_TOOLS,
+      });
+      firewallDecision = firewallResult.firewallDecision;
+      if (firewallResult.result) {
+        result = firewallResult.result;
+      } else {
+        toolPolicy = evaluateToolPolicy({
+          tool: step.tool,
         input: step.input,
         context: {
           goal: state.goal,
@@ -782,7 +780,7 @@ class Agent {
         internalTools: ALLOWED_TOOLS,
       });
 
-      if (toolPolicy.category !== 'internal') {
+        if (toolPolicy.category !== 'internal') {
         // #469: toolPolicy's block/review decisions for external tools were
         // invisible to plugins (metric-collector.js, daily-digest.js) that
         // already consume afterGateDecision for every other gate. This is
@@ -815,8 +813,8 @@ class Agent {
             policy: toolPolicy,
           },
         };
-      } else {
-        switch (step.tool) {
+        } else {
+          switch (step.tool) {
           case 'learn':
             result = this.kernel.learn(step.input, opts.learnOpts || {});
             break;
@@ -858,6 +856,7 @@ class Agent {
               },
             };
             break;
+          }
         }
       }
     }
@@ -874,6 +873,7 @@ class Agent {
       summary: summary.text || '',
       result,
       policy: toolPolicy,
+      actionFirewall: firewallDecision,
     };
     this._emit('afterTask', { step: stepReport, state, opts });
     return stepReport;

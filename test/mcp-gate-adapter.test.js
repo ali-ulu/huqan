@@ -90,7 +90,7 @@ test('classifyMcpTool: known agent-loop tool', () => {
   assert.equal(c.mutating, false);
   assert.equal(c.category, 'agent-loop');
   assert.equal(c.alphaDecision, 'dry_run_only');
-  assert.deepEqual(c.gates, ['AB1', 'AB2', 'AB8', 'AB9', 'AB11']);
+  assert.deepEqual(c.gates, ['AB1', 'AB2', 'AB5', 'AB8', 'AB9', 'AB11']);
 });
 
 test('classifyMcpTool: unknown tool returns block', () => {
@@ -227,6 +227,27 @@ test('evaluateMcpGate: axiom.agent → dry_run_only', () => {
   assert.equal(r.reason, MCP_GATE_REASONS.AGENT_LOOP_DRY_RUN);
   assert.equal(r.metadata.tool, 'axiom.agent');
   assert.ok(r.findings.length >= 1);
+});
+
+test('evaluateMcpGate: agent force_push is blocked by AB5 before dry-run fallback', () => {
+  const r = evaluateMcpGate({
+    tool: 'huqan.agent',
+    args: { action: 'force_push', target: 'origin/main', goal: 'force push origin/main' },
+  });
+  assert.equal(r.decision, MCP_GATE_DECISIONS.block);
+  assert.equal(r.reason, MCP_GATE_REASONS.AB5_BLOCKED);
+  assert.equal(r.canExecute, false);
+  assert.ok(r.findings.some(f => f.gate === 'AB5' && f.decision === 'block'));
+});
+
+test('evaluateMcpGate: ordinary agent goal remains dry-run-only with AB5 evidence', () => {
+  const r = evaluateMcpGate({
+    tool: 'huqan.agent',
+    args: { goal: 'Summarize the local trust receipt.' },
+  });
+  assert.equal(r.decision, MCP_GATE_DECISIONS.dry_run_only);
+  assert.equal(r.canExecute, false);
+  assert.ok(r.findings.some(f => f.gate === 'AB5'));
 });
 
 // ─── evaluateMcpGate: every declared tool is classified ──────────────────────
@@ -462,4 +483,15 @@ test('evaluateMcpGate: a gate throw on a normally-blocked-by-other-means call st
     metadata: { workspaceId: 'ws-a' },
   });
   assert.equal(r.decision, MCP_GATE_DECISIONS.block);
+});
+
+
+test('evaluateMcpGate: dangerous action expressed only in agent goal is blocked by AB5', () => {
+  const r = evaluateMcpGate({
+    tool: 'huqan.agent',
+    args: { goal: 'force push origin/main immediately' },
+  });
+  assert.equal(r.decision, MCP_GATE_DECISIONS.block);
+  assert.equal(r.reason, MCP_GATE_REASONS.AB5_BLOCKED);
+  assert.ok(r.findings.some(f => f.gate === 'AB5' && f.decision === 'block'));
 });
