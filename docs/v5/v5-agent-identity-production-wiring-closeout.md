@@ -1,5 +1,7 @@
 # V5 Agent Identity Production Wiring Closeout
 
+**Status:** `closeout`
+
 ## Implementation status
 
 ```text
