@@ -1,0 +1,110 @@
+# HUQAN — MVP readiness backlog
+
+Source: a live audit of main @ ea6466d run on 2026-08-19. Every claim below was
+produced by running the surface, not by reading a doc. Ordered by evidence
+gained per unit of work.
+
+Status legend: [ ] open  [~] in progress  [x] done
+
+---
+
+## [x] 1. Align README, roadmap, product surfaces and checkpoint with source
+Commit 4df2504.
+- README claimed eleven axiom.*-era tools; the server advertises fifteen huqan.*
+  tools plus three operator-only ones.
+- Roadmap carried V5_IMPLEMENTATION_ENTRY: FAIL, superseded by the successor
+  audit's PASS.
+- product-surfaces.md named demo/index.html as canonical; no demo/ directory
+  has ever been committed.
+- current-agent-checkpoint.json pinned canonicalMain 0fef5948, an object that
+  does not exist in this repository. scripts/agent-context.js raised
+  CONTEXT_CONFLICT and four test/agent-context.test.js cases were red.
+
+## [x] 2. Resolve the huqan/axiom namespace before the internal-tool lookup
+Commit 09a2b3b.
+- huqan.policy answered external/block/unknown-tool-blocked for huqan.learn and
+  internal/allow for learn. INTERNAL_TOOLS holds bare names; mcpServer.js
+  advertises huqan.*.
+- Fixed by resolving the namespace at lookup, not by enlarging INTERNAL_TOOLS
+  (agent.js aliases it as ALLOWED_TOOLS, so growing it is a capability change).
+
+## [ ] 3. Close the HTTP ingest loop
+Two defects, both observed on a live server, both demo-breaking because REST is
+the first surface an evaluator tries.
+
+3a. An approved ingest that writes reports failure.
+    POST /api/ingest/approvals/{id} {"decision":"approved"}
+      -> {"ok":false,"code":"INGEST_EXECUTION_UNKNOWN",
+          "message":"Approved ingest did not produce a bounded outcome;
+                     manual reconciliation is required."}
+    while the write actually landed: graph gained 3 nodes and the receipt
+    bundle went from receiptCount 1 to 4. The outcome deriver did not recognise
+    the delta it caused. execution_outcome_unknown is the documented V4-B2
+    behaviour for uncertain outcomes -- this outcome was not uncertain.
+
+3b. Nodes are written, edges are not, so the loop never closes.
+    After approving "Vaccination prevents disease":
+      nodes: [manual-note:...:vaccination-prevents-dis, vaccination, disease]
+      edges: []
+      POST /verify {"statement":"Vaccination prevents disease"}
+        -> {"status":"unknown","confidence":0,"evidence":[]}
+    The CLI/MCP path does write the edge: cli.js quickstart verifies at
+    confidence 0.90 on the same relation. Only the HTTP ingest path is short.
+
+## [ ] 4. Flip MCP verify to the canonical English status vocabulary
+huqan.verify answers {"status":"bilinmiyor"} while REST /verify answers
+{"status":"unknown"}. It is the last Turkish string on a surface every Claude
+and Cursor user sees.
+
+Not an oversight: lib/mcp/response-builders.js:258 projects the envelope back
+through toLegacyVerifyEnvelope() on purpose, because mcpServer.js VERIFY_STATUS
+is an advertised output schema and a wire contract. Both directions of the
+adapter already exist in lib/verify-status-vocabulary.js.
+
+What is missing is the compatibility gate, following RFC-001's M1-M4 pattern:
+accept both spellings on the way in, emit only canonical on the way out, and
+record the evidence. docs/verify-status-vocabulary-migration.md already
+measured the blast radius and found nothing persisted, hashed or signed carries
+a verify status.
+
+## [ ] 5. Write the A2A deployment recipe and smoke it
+The code is done; the operator instructions are not. Four routes are mounted
+through lib/a2a/routes.js and all four answer 404 today because
+A2A_AUTHORITY_FILE and A2A_REPLAY_DIR are unset:
+  POST /api/a2a/exchange
+  GET  /.well-known/agent-card.json
+  POST /api/a2a/negotiate
+  GET  /api/a2a/tasks/{taskId}
+Needed: docs/a2a-deployment.md covering the receiver authority file shape, the
+replay directory, the path-safety rules readReceiverAuthority() enforces, and a
+smoke that proves an exchange over real HTTP rather than the conformance
+runner's child-process stdio. Then repoint the README link, which currently
+goes to the P0 closeout.
+Unblocked: V5_IMPLEMENTATION_ENTRY is PASS.
+
+## [ ] 6. Make the CLI English-first
+cli.js --help leads with Turkish commands and Turkish examples:
+  "kedi balik yer" -> I learn a fact
+  "neden tavuk"    -> cause analysis
+  "ruya"           -> I generate hypotheses
+  "dusun" / "onayla" / "kaydet" / "konsolide"
+English aliases exist (learn:, ask:, verify:, upload:) but the primary
+vocabulary and every example are Turkish. The MCP rename landed; the CLI did
+not follow. Turkish spellings must keep working -- reader accepts both, writer
+emits canonical, per RFC-001 decision 7.
+
+## [ ] 7. Teach huqan.policy the MCP tool classification
+Split out of item 2 rather than smuggled into it.
+huqan.policy and lib/mcp-gate-adapter.js disagree for MCP surface tools that
+are not agent-loop steps: huqan.plan is gated `allow` by the adapter and
+answers external/block/unknown-tool-blocked from toolPolicy.js. Item 2 fixed
+the six tools that are agent steps. The rest need the policy surface to consult
+MCP_TOOL_CLASSIFICATIONS, which is a different module and a wider change than
+widening INTERNAL_TOOLS -- widening it would grant the agent loop new steps.
+
+## [ ] 8. Add an HTTP approval path for /upload admissions
+Observed gap, not yet scoped. POST /upload produces a pending memory admission
+with a provenanceId and a receipt, but /api/ingest/approvals filters on
+tool === 'http.ingest', so an /upload admission cannot be resolved over HTTP at
+all. Today it needs the CLI ("onaylar" / "onayla"). An HTTP client can propose
+but cannot approve.
