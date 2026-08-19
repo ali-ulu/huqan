@@ -242,6 +242,7 @@
     "lib/memory-query-engine.js",
     "lib/memory-record-utils.js",
     "lib/memory-schema.js",
+    "lib/memory-store-write.js",
     "lib/memory-supersede.js",
     "lib/memory-temporal.js",
     "lib/memory-tombstone.js",
