@@ -181,6 +181,7 @@
     "lib/graph-candidate-claims-write.js",
     "lib/graph-count-read.js",
     "lib/graph-query-read.js",
+    "lib/graph-prune.js",
     "lib/graph-edge-read.js",
     "lib/graph-mutation-receipt-read.js",
     "lib/graph-node-read.js",

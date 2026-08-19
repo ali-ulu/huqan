@@ -68,6 +68,7 @@ const { cosineSimilarity: runNodeSimilarity } = require('./lib/graph-node-simila
 const { getStats: runGraphStats } = require('./lib/graph-stats');
 const { countNodes: runNodeCount, countEdges: runEdgeCount } = require('./lib/graph-count-read');
 const { query: runGraphQuery } = require('./lib/graph-query-read');
+const { prune: runGraphPrune } = require('./lib/graph-prune');
 const { isCausalRelation: runIsCausalRelation, getCausalRelations: runCausalRelations, getCausalEdges: runCausalEdges } = require('./lib/graph-causal-relation-read');
 const { addEdge: runEdgeWrite } = require('./lib/graph-edge-write');
 
@@ -1067,18 +1068,10 @@ class Graph {
     return runNodeSimilarity((nodeId, scope) => this.getNode(nodeId, scope), aId, bId, workspaceId);
   }
 
+  _pruneStoreApi() { return { getEdges: () => this._edges, setEdges: edges => { this._edges = edges; }, rebuildIndex: () => this._rebuildIndex(), getPruneThreshold: () => this._pruneThreshold, persistPrune: (threshold, scope) => { if (this._db) this._stmts.pruneEdges.run(threshold, scope); } }; }
+
   prune(threshold, workspaceId = 'default') {
-    if (threshold === undefined) threshold = this._pruneThreshold;
-    const scope = normalizeWorkspaceId(workspaceId);
-    const before = this._edges.filter(e => normalizeWorkspaceId(e.workspaceId) === scope).length;
-    this._edges = this._edges.filter(e => normalizeWorkspaceId(e.workspaceId) !== scope || e.weight >= threshold);
-    this._rebuildIndex();
-    const after = this._edges.filter(e => normalizeWorkspaceId(e.workspaceId) === scope).length;
-    const pruned = before - after;
-    if (this._db && pruned > 0) {
-      this._stmts.pruneEdges.run(threshold, scope);
-    }
-    return pruned;
+    return runGraphPrune(this._pruneStoreApi(), threshold, workspaceId);
   }
 
   optimize(workspaceId = 'default') {
