@@ -218,3 +218,73 @@ test('isAbsent: the marker schema is verified, not just the kind (#879)', () => 
   assert.equal(isAbsent([]), false);
   assert.equal(isAbsent(absent('a reason')), true);
 });
+
+
+test('admission: configured identity evaluator refuses before mutation and preserves reason', () => {
+  let evaluatorCalls = 0;
+  const admission = createMutationAdmission({
+    clock: FIXED_CLOCK,
+    identityEvaluator: (context) => {
+      evaluatorCalls += 1;
+      assert.equal(context.evaluationTime, '2026-08-16T12:00:00.000Z');
+      return { decision: 'block', allowed: false, reason: 'identity.workspace_mismatch' };
+    },
+  });
+  let mutationCalls = 0;
+
+  const outcome = admission.admit(
+    completeContext({ identityClaim: { kind: 'identity', ref: 'r1' } }),
+    () => { mutationCalls += 1; },
+  );
+
+  assert.equal(outcome.admitted, false);
+  assert.equal(outcome.reason, ADMISSION_ERRORS.IDENTITY_REFUSED);
+  assert.equal(outcome.detail, 'identity.workspace_mismatch');
+  assert.equal(evaluatorCalls, 1);
+  assert.equal(mutationCalls, 0);
+});
+
+test('admission: configured identity evaluator must explicitly allow before mutation', () => {
+  let received;
+  const admission = createMutationAdmission({
+    clock: FIXED_CLOCK,
+    identityEvaluator: (context) => {
+      received = context;
+      return { decision: 'allow', allowed: true, reason: 'ok' };
+    },
+  });
+
+  const outcome = admission.admit(
+    completeContext({ identityClaim: { kind: 'identity', ref: 'r1' } }),
+    () => 'written',
+  );
+
+  assert.equal(outcome.admitted, true);
+  assert.equal(outcome.result, 'written');
+  assert.equal(received.evaluationTime, '2026-08-16T12:00:00.000Z');
+  assert.equal(received.workspaceId, 'default');
+});
+
+test('admission: evaluator failure fails closed and never reaches mutation', () => {
+  const admission = createMutationAdmission({
+    clock: FIXED_CLOCK,
+    identityEvaluator: () => { throw new Error('unexpected evaluator failure'); },
+  });
+  let called = false;
+
+  const outcome = admission.admit(
+    completeContext({ identityClaim: { kind: 'identity', ref: 'r1' } }),
+    () => { called = true; },
+  );
+
+  assert.equal(outcome.admitted, false);
+  assert.equal(outcome.reason, ADMISSION_ERRORS.IDENTITY_EVALUATOR_INVALID);
+  assert.equal(called, false);
+});
+
+test('admission: identity evaluator configuration rejects non-functions', () => {
+  assert.throws(
+    () => createMutationAdmission({ identityEvaluator: 'not-a-function' }),
+    /admission\.identity_evaluator_invalid/,
+  );
+});

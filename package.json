@@ -120,6 +120,7 @@
     "lib/a2a/task-store.js",
     "lib/action-risk-classifier.js",
     "lib/agent-action-firewall.js",
+    "lib/agent-identity-runtime.js",
     "lib/adversarial-signals.js",
     "lib/agent-loop-budget-gate.js",
     "lib/agent-memory-state.js",
