@@ -88,6 +88,7 @@ function recoverExpiredIngestApprovals(store = ingestApprovalStore) {
 // wiring and delegation only (ARCH-001).
 const trustEvidenceLedger = createTrustEvidenceLedger({ graph: kernel.graph });
 let httpHumanOversightConfig = null;
+let httpAgentIdentityConfig = null;
 
 function configureHttpHumanOversight(config = null) {
   if (config === null || config === undefined) {
@@ -103,6 +104,27 @@ function configureHttpHumanOversight(config = null) {
   }
   httpHumanOversightConfig = Object.freeze({ ...config, runtime });
   return httpHumanOversightConfig;
+}
+
+function configureHttpAgentIdentity(config = null) {
+  if (config === null || config === undefined) {
+    httpAgentIdentityConfig = null;
+    return null;
+  }
+  if (!config || typeof config !== 'object' || Array.isArray(config)
+      || !config.action || typeof config.action !== 'object' || Array.isArray(config.action)) {
+    throw new TypeError('agent identity runtime config with action is required');
+  }
+  httpAgentIdentityConfig = Object.freeze({ ...config, action: Object.freeze({ ...config.action }) });
+  return httpAgentIdentityConfig;
+}
+
+function getHttpApprovalRuntimeConfig() {
+  if (!httpHumanOversightConfig && httpAgentIdentityConfig === null) return null;
+  return Object.freeze({
+    ...(httpHumanOversightConfig || {}),
+    ...(httpAgentIdentityConfig !== null ? { agentIdentityRuntime: httpAgentIdentityConfig } : {}),
+  });
 }
 
 const recordIngestApprovalAudit = createIngestApprovalAuditWriter({
@@ -172,7 +194,7 @@ async function submitIngestApproval(data) {
       policy: { action: 'ingest', approval: 'review', snapshotIntegrity: 'sha256' },
     });
     const oversightCase = httpHumanOversightConfig
-      ? createHttpIngestOversightCase({ approval: saved.approval, humanOversight: httpHumanOversightConfig })
+      ? createHttpIngestOversightCase({ approval: saved.approval, humanOversight: getHttpApprovalRuntimeConfig() })
       : { enabled: false, ok: true };
     if (oversightCase.enabled && !oversightCase.ok) {
       return {
@@ -198,7 +220,7 @@ async function submitIngestApproval(data) {
   }
 }
 
-const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, decision, reason }) => decideIngestApproval({ store: getIngestApprovalStore(), kernel, approvalId, decision, reason, humanOversight: httpHumanOversightConfig, handleIngest, ensureRuntime: ensureCompanyRuntime, recordAudit: recordIngestApprovalAudit, toPublicApproval: publicIngestApproval, workerId: INGEST_APPROVAL_WORKER_ID, leaseMs: INGEST_APPROVAL_LEASE_MS }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, learnDocument: (text, options) => kernel.learnDocument(text, options), submitIngest: submitIngestApproval, createAgent: () => createAgent({ kernel, version: readCompatibleEnvironmentVariable('AGENT_VERSION') }) });
+const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, decision, reason }) => decideIngestApproval({ store: getIngestApprovalStore(), kernel, approvalId, decision, reason, humanOversight: getHttpApprovalRuntimeConfig(), handleIngest, ensureRuntime: ensureCompanyRuntime, recordAudit: recordIngestApprovalAudit, toPublicApproval: publicIngestApproval, workerId: INGEST_APPROVAL_WORKER_ID, leaseMs: INGEST_APPROVAL_LEASE_MS }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, learnDocument: (text, options) => kernel.learnDocument(text, options), submitIngest: submitIngestApproval, createAgent: () => createAgent({ kernel, version: readCompatibleEnvironmentVariable('AGENT_VERSION') }) });
 
 // First caller of the V5 runtime family (#875 task pack). Issuer key records
 // are dependency-injected as receiver-owned state: with no real registry
@@ -884,7 +906,7 @@ const server = http.createServer(async (req, res) => {
         approvalId,
         decision,
         reason: String(body.reason || ''),
-        humanOversight: httpHumanOversightConfig,
+        humanOversight: getHttpApprovalRuntimeConfig(),
         handleIngest,
         ensureRuntime: ensureCompanyRuntime,
         recordAudit: recordIngestApprovalAudit,
@@ -893,7 +915,7 @@ const server = http.createServer(async (req, res) => {
         leaseMs: INGEST_APPROVAL_LEASE_MS,
       });
       if (outcome.error) {
-        writeApiError(req, res, outcome.status, outcome.error.code, outcome.error.message);
+        writeApiError(req, res, outcome.status, outcome.error.code, outcome.error.message, outcome.error.details);
         return;
       }
       writeJson(req, res, outcome.status, outcome.json, { 'Cache-Control': 'no-cache' });
@@ -1023,6 +1045,7 @@ server.closeHuqan = server.closeAxiom = () => { // closeAxiom: RFC-001 legacy al
 
 server.startServer = startServer;
 server.configureHttpHumanOversight = configureHttpHumanOversight;
+server.configureHttpAgentIdentity = configureHttpAgentIdentity;
 // Exposed for tests that need to assert against the same kernel/graph
 // instance the HTTP handlers use (e.g. checking audit events a request
 // produced). server.js owns this kernel directly now (#326); it is no
