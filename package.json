@@ -182,6 +182,7 @@
     "lib/graph-node-read.js",
     "lib/graph-node-write.js",
     "lib/graph-node-delete.js",
+    "lib/graph-node-touch.js",
     "lib/graph-edge-write.js",
     "lib/graph-edge-mutations.js",
     "lib/graph-record-utils.js",
