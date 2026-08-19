@@ -5,7 +5,7 @@ const Dream = require('./dream');
 const { INTERNAL_TOOLS, evaluateToolPolicy } = require('./toolPolicy');
 const { buildFinalSummary } = require('./finalizer');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
-const { evaluateAgentActionFirewall, firewallError } = require('./lib/agent-action-firewall');
+const { enforceAgentActionStep } = require('./lib/agent-action-firewall');
 const {
   cloneValue,
   nowIso,
@@ -17,7 +17,6 @@ const {
   normalizeMemoryPath,
   defaultMemoryState,
 } = require('./lib/agent-memory-state');
-
 const DEFAULT_MAX_STEPS = 4;
 const ALLOWED_TOOLS = INTERNAL_TOOLS;
 const MEMORY_LIMITS = {
@@ -25,7 +24,6 @@ const MEMORY_LIMITS = {
   runs: 32,
   goals: 64,
 };
-
 class Agent {
   constructor(opts = {}) {
     this.kernel = opts.kernel;
@@ -39,14 +37,12 @@ class Agent {
     this.lastRun = null;
     this.activeGoal = null;
   }
-
   _emit(event, data) {
     if (this.plugins && typeof this.plugins.emit === 'function') {
       this.plugins.emit(event, data);
     }
     return data;
   }
-
   _ok(type, data = null, evidence = [], meta = {}) {
     if (this.kernel && typeof this.kernel._ok === 'function') {
       return this.kernel._ok(type, data, evidence, meta);
@@ -60,7 +56,6 @@ class Agent {
       meta,
     };
   }
-
   _fail(type, code, message, evidence = [], meta = {}, data = null) {
     if (this.kernel && typeof this.kernel._fail === 'function') {
       const result = this.kernel._fail(type, code, message, meta);
@@ -79,7 +74,6 @@ class Agent {
       meta,
     };
   }
-
   _collectEvidence(items = []) {
     const evidence = [];
     for (const item of items) {
@@ -87,7 +81,6 @@ class Agent {
     }
     return evidence.filter(Boolean);
   }
-
   _isStalledProgress(previousSummary, currentSummary) {
     const prev = normalizeSummaryText(previousSummary);
     const curr = normalizeSummaryText(currentSummary);
@@ -96,7 +89,6 @@ class Agent {
     if (!prev) return false;
     return curr === prev;
   }
-
   _loadMemory() {
     if (!this.memoryPath) return defaultMemoryState();
     if (!fs.existsSync(this.memoryPath)) return defaultMemoryState();
@@ -112,7 +104,6 @@ class Agent {
       throw corruptError;
     }
   }
-
   _normalizeMemory(memory = {}) {
     const base = defaultMemoryState();
     const normalized = {
@@ -744,14 +735,8 @@ class Agent {
   }
 
   _executeStep(step, state, opts = {}) {
-    // beforeTask previously discarded _emit's return value outright (not
-    // even assigned to a variable), so a plugin mutating the payload had no
-    // way to influence what happens next -- the same "hook looks wired but
-    // its result is never read" shape as #346's afterAsk fix, just with
-    // nothing reading the result at all rather than reading the wrong
-    // thing. Capturing it and honoring `blocked: true` is what makes a
-    // beforeTask plugin (policy-watchdog.js, #213) able to actually halt a
-    // step instead of only observing it after the fact.
+    // Preserve beforeTask hook decisions so policy plugins can halt a step.
+    // This fixes the previously write-only hook result (#346/#213).
     const beforeTaskData = this._emit('beforeTask', { step, state, opts });
     let result;
     let toolPolicy = null;
@@ -773,54 +758,16 @@ class Agent {
         },
       };
     } else {
-      firewallDecision = evaluateAgentActionFirewall({
-        surface: 'agent',
-        tool: step.tool,
-        action: step.action,
-        input: step.input,
-        context: {
-          goal: state.goal,
-          objective: state.objective,
-          action: step.action,
-          workspaceId: state.workspaceId || opts.workspaceId || 'default',
-          actor: opts.actor || 'agent',
-          branch: opts.branch,
-          baseBranch: opts.baseBranch,
-          repoState: opts.repoState,
-        },
-        approval: opts.agentActionApproval,
-        preview: opts.preview === true,
-        dryRun: opts.dryRun === true,
+      const firewallResult = enforceAgentActionStep({
+        step,
+        state,
+        opts,
+        kernel: this.kernel,
+        allowedTools: ALLOWED_TOOLS,
       });
-      emitGateTelemetry(this.kernel, 'agent-action-firewall', {
-        decision: firewallDecision.decision,
-        reason: firewallDecision.reason,
-        metadata: firewallDecision.metadata,
-        findings: firewallDecision.findings,
-      });
-
-      const structuredAction = Boolean(step.input && typeof step.input === 'object' && !Array.isArray(step.input)
-        && ['action', 'operation', 'operationType', 'intent', 'command', 'cmd', 'shell', 'script', 'exec'].some(key => Object.prototype.hasOwnProperty.call(step.input, key)));
-      const enforceFirewall = firewallDecision.decision === 'block'
-        || ALLOWED_TOOLS.has(step.tool)
-        || structuredAction;
-
-      if (enforceFirewall && firewallDecision.decision !== 'allow') {
-        result = {
-          ok: false,
-          type: 'agent',
-          data: null,
-          evidence: [],
-          error: {
-            code: firewallError(firewallDecision.decision),
-            message: firewallDecision.reason || 'Agent action was stopped by the action firewall.',
-          },
-          meta: {
-            blocked: true,
-            firewall: firewallDecision,
-            firewallVersion: firewallDecision.metadata?.firewallVersion || null,
-          },
-        };
+      firewallDecision = firewallResult.firewallDecision;
+      if (firewallResult.result) {
+        result = firewallResult.result;
       } else {
         toolPolicy = evaluateToolPolicy({
           tool: step.tool,

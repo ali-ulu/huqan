@@ -114,6 +114,7 @@
     "lib/a2a/task-route.js",
     "lib/a2a/task-store.js",
     "lib/action-risk-classifier.js",
+    "lib/agent-action-firewall.js",
     "lib/adversarial-signals.js",
     "lib/agent-loop-budget-gate.js",
     "lib/agent-memory-state.js",

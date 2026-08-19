@@ -433,12 +433,16 @@ function normalizeToolOutput(result, tool, policy, meta = {}) {
   const confidenceSource = envelope.confidence ?? envelope.meta?.confidence ?? data?.confidence ?? meta.confidence;
   const confidence = normalizeConfidence(confidenceSource, ok ? 0.55 : 0);
 
+  const firewallReviewApproved = meta.firewall
+    && meta.firewall.decision === 'review'
+    && isExternalReviewApproved(meta.approval);
+
   return {
     ok,
     tool: tool.name,
-    status: meta.firewall && meta.firewall.decision === 'block'
+    status: meta.firewall && (meta.firewall.decision === 'block' || meta.firewall.decision === 'dry_run_only')
       ? 'blocked'
-      : meta.firewall && meta.firewall.decision !== 'allow'
+      : meta.firewall && meta.firewall.decision !== 'allow' && !firewallReviewApproved
         ? 'review'
         : policy && policy.blocked
           ? 'blocked'
@@ -599,6 +603,15 @@ class ToolRegistry {
       internalTools: this._policyInternalTools(),
     });
     const approved = isExternalReviewApproved(context.approval);
+    const firewallApproval = approved
+      ? {
+          explicit: true,
+          approved: true,
+          reviewed: true,
+          notes: context.approval.reason,
+          reviewedBy: 'workflow-operator',
+        }
+      : context.agentActionApproval;
     const firewall = evaluateAgentActionFirewall({
       surface: 'workflow',
       tool: tool.name,
@@ -609,12 +622,17 @@ class ToolRegistry {
         workspaceId: context.workspaceId || context.plan?.workspaceId || 'default',
         actor: context.actor || 'workflow-agent',
       },
-      approval: context.agentActionApproval,
+      approval: firewallApproval,
       preview: context.preview === true,
       dryRun: context.dryRun === true,
+      trustedInternal: tool.kind === 'internal',
     });
 
-    if (firewall.decision !== 'allow') {
+    // BLOCK and DRY_RUN_ONLY are hard enforcement outcomes. REVIEW is
+    // compatible with the legacy external-tool review token below: a genuine
+    // operator approval may satisfy both gates, while an unapproved request
+    // still receives the established TOOL_REVIEW_REQUIRED contract.
+    if (firewall.decision === 'block' || firewall.decision === 'dry_run_only') {
       return normalizeToolOutput({
         ok: false,
         error: {
