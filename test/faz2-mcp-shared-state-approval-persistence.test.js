@@ -118,7 +118,7 @@ test('FAZ2-5: rejecting a persisted MCP approval does not execute the mutation',
     assert.equal(rejected.data.approval.status, 'rejected');
 
     const verify = callTool(server, 'axiom.verify', { statement: text });
-    assert.equal(verify.data.status, 'bilinmiyor');
+    assert.equal(verify.data.status, 'unknown');
     assert.ok(!pendingApprovalIds(server).includes(approvalId));
     closeServer(server);
   });
@@ -133,7 +133,7 @@ test('FAZ2-5: approving a persisted MCP approval executes once through admission
     closeServer(server);
 
     server = createServer();
-    assert.equal(callTool(server, 'axiom.verify', { statement: text }).data.status, 'bilinmiyor');
+    assert.equal(callTool(server, 'axiom.verify', { statement: text }).data.status, 'unknown');
 
     const approved = callTool(server, 'axiom.approve', {
       approvalId,
@@ -154,7 +154,7 @@ test('FAZ2-5: approving a persisted MCP approval executes once through admission
 
     const auditCountAfterApprove = learnAuditCount(server, text);
     assert.ok(auditCountAfterApprove >= 1, 'approved execution must emit LEARN audit');
-    assert.equal(callTool(server, 'axiom.verify', { statement: text }).data.status, 'dogrulandi');
+    assert.equal(callTool(server, 'axiom.verify', { statement: text }).data.status, 'verified');
 
     const duplicate = callTool(server, 'axiom.approve', {
       approvalId,
@@ -198,7 +198,7 @@ test('FAZ2-5: an atomic approval claim blocks a competing executor before mutati
     assert.equal(competing.ok, false);
     assert.equal(competing.error.code, 'APPROVAL_EXECUTION_IN_PROGRESS');
     assert.equal(competing.meta.approval.status, 'executing');
-    assert.equal(callTool(second, 'axiom.verify', { statement: text }).data.status, 'bilinmiyor');
+    assert.equal(callTool(second, 'axiom.verify', { statement: text }).data.status, 'unknown');
     assert.equal(learnAuditCount(second, text), 0);
 
     closeServer(second);
@@ -269,7 +269,7 @@ test('FAZ2-5: finalization exceptions are structured and leave a visible unresol
     assert.equal(failed.meta.retrySafe, false);
     assert.equal(failed.meta.finalizationError, 'FORCED_FINALIZATION_FAILURE');
     assert.equal(failed.meta.approval.status, 'executing');
-    assert.equal(callTool(server, 'axiom.verify', { statement: text }).data.status, 'dogrulandi');
+    assert.equal(callTool(server, 'axiom.verify', { statement: text }).data.status, 'verified');
 
     const approvals = callTool(server, 'axiom.approvals', { limit: 20 });
     assert.equal(approvals.pendingCount, 0);

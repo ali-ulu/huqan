@@ -132,19 +132,38 @@ kept indefinitely: it is what makes the boundary adapter order-independent.
 
 These are gaps, not completed work.
 
-### 1. MCP tool output schema still declares the Turkish enum
+### 1. MCP tool output schema — CLOSED
 
-`mcpServer.js:94` declares:
+This gap is closed. `lib/mcp-envelope-schema.js` now resolves `VERIFY_STATUS`
+to the canonical English trio, and `lib/mcp/response-builders.js` projects the
+`huqan.verify` envelope with `toPublicVerifyEnvelope` instead of
+`toLegacyVerifyEnvelope`. MCP was the last surface answering `bilinmiyor`; it
+answers `unknown`.
 
-```js
-const VERIFY_STATUS = ['dogrulandi', 'celiski', 'bilinmiyor'];
-```
+Because the enum is a wire contract with external clients, this followed the
+M1–M4 shape rather than flipping silently:
 
-used in the `verify` tool's declared output schema. This is a **wire contract
-with external MCP clients**, with existing conformance tests and recorded
-evidence artifacts under `evidence/archive/`. Changing it is a separate gate
-with its own compatibility evidence, following the M1–M4 pattern in RFC-001.
-It was not attempted here.
+| Property | How it is met |
+| --- | --- |
+| Canonical by default | An unset environment emits and advertises English |
+| Legacy retained | `HUQAN_MCP_LEGACY_VERIFY_STATUS=1` restores the Turkish enum |
+| Legacy name accepted | `AXIOM_MCP_LEGACY_VERIFY_STATUS` resolves identically, through `readCompatibleEnvironmentVariable` |
+| Acceptance unchanged | Readers still take both spellings, permanently |
+| No silent divergence | One predicate drives both the advertised schema and the emitted payload |
+
+The invariant that makes this a compatibility gate rather than a break: the
+schema and the payload move **together**. A client that reads the schema it is
+given is correct in either mode, and which mode a server is in is answerable
+from `tools/list` alone. Resolution happens once at module load, because a
+schema that changed shape mid-session would contradict the `tools/list` a
+client already read.
+
+Evidence: `test/mcp-verify-status-vocabulary.test.js` drives the real stdio
+server in both modes and asserts the advertised enum, the emitted status, and
+that the emitted status is a member of the advertised enum.
+
+Removal of the opt-in requires an announced breaking release, per the same
+rule that governs the other legacy identifiers.
 
 ### 2. Internal / persisted vocabulary is unchanged
 
@@ -167,8 +186,23 @@ is not hash-pinned and was safe to change.
 
 ### 4. CLI and web UI
 
-`cli.js`, `public/index.html` and `demo/` remain Turkish. Out of scope for the
-API-boundary work.
+`cli.js` remains Turkish-first. `public/index.html` has since been migrated
+(its title is `HUQAN — Trust Command Center` and it contains no AXIOM string).
+`demo/` does not exist. Out of scope for the API-boundary work.
+
+### 5. Turkish prose alongside canonical statuses
+
+Separate from the vocabulary, and still open: free prose emitted next to a
+correct English status, such as the contradiction evidence built in
+`lib/verify.js`:
+
+```text
+exercise --[PREVENTS]--> heart disease ile çelişiyor: "..."
+```
+
+The status is `contradicted`; the sentence explaining it is not English. Same
+for several MCP tool descriptions, whose examples still read `"kedi
+hayvandir"`. This needs its own sweep.
 
 ## Tests
 

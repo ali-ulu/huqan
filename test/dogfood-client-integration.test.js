@@ -66,7 +66,7 @@ test('dogfood: agent verifies claim through MCP gate (read = allow)', () => {
   assert.ok(result, 'verify must return result');
   assert.equal(result.ok, true, 'verify must return ok=true');
   assert.equal(result.type, 'verify', 'verify must return type=verify');
-  assert.equal(result.data.status, 'dogrulandi', 'Known fact must return dogrulandi');
+  assert.equal(result.data.status, 'verified', 'Known fact must return verified');
   assert.ok(result.data.confidence >= 0.5, 'Confidence must be >= 0.5');
 });
 
@@ -85,7 +85,7 @@ test('dogfood: agent blocked from mutating tool through MCP gate (learn = review
   assert.ok(result.gate.canDryRun, 'learn must support dry run');
   // Verify the unique fact was NOT learned (gate blocked it)
   const verifyResult = client.callTool('axiom.verify', { statement: uniqueFact });
-  assert.equal(verifyResult.data.status, 'bilinmiyor', 'Fact must not be in graph (gate blocked learn)');
+  assert.equal(verifyResult.data.status, 'unknown', 'Fact must not be in graph (gate blocked learn)');
 });
 
 test('dogfood: agent receives dry-run result for review-blocked tool', () => {
@@ -136,10 +136,10 @@ test('dogfood: full agent loop through MCP produces receipt + gate trail', () =>
 
   // Step 2: Verify a related claim (allowed)
   const verifyResult = client.callTool('axiom.verify', { statement: uniqueBase });
-  // Since learn was blocked, verify should return bilinmiyor
+  // Since learn was blocked, verify should return unknown
   assert.ok(verifyResult.ok, 'verify must succeed');
-  assert.equal(verifyResult.data.status, 'bilinmiyor',
-    'verify must return bilinmiyor for unlearned fact');
+  assert.equal(verifyResult.data.status, 'unknown',
+    'verify must return unknown for unlearned fact');
 
   // Step 3: Check approvals for the blocked learn
   const approvalsResult = client.callTool('axiom.approvals', { limit: 10 });

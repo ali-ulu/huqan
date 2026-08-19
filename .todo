@@ -42,7 +42,7 @@ classifyActionOutcome() refused to call `result.ok !== true` a bounded success.
 It reports admission_allow_graph_write_observed now that the outcome is bounded.
 Fixed by centralising the rule in lib/causal-edge-strength.js.
 
-## [ ] 4. Flip MCP verify to the canonical English status vocabulary
+## [x] 4. Flip MCP verify to the canonical English status vocabulary
 huqan.verify answers {"status":"bilinmiyor"} while REST /verify answers
 {"status":"unknown"}. It is the last Turkish string on a surface every Claude
 and Cursor user sees.
@@ -52,11 +52,10 @@ through toLegacyVerifyEnvelope() on purpose, because mcpServer.js VERIFY_STATUS
 is an advertised output schema and a wire contract. Both directions of the
 adapter already exist in lib/verify-status-vocabulary.js.
 
-What is missing is the compatibility gate, following RFC-001's M1-M4 pattern:
-accept both spellings on the way in, emit only canonical on the way out, and
-record the evidence. docs/verify-status-vocabulary-migration.md already
-measured the blast radius and found nothing persisted, hashed or signed carries
-a verify status.
+Done. HUQAN_MCP_LEGACY_VERIFY_STATUS=1 retains the legacy enum for a client
+that has not migrated, and moves the advertised schema and the emitted payload
+together so a client reading the schema it is given is correct in either mode.
+Acceptance of both spellings on the way in is unchanged and permanent.
 
 ## [ ] 5. Write the A2A deployment recipe and smoke it
 The code is done; the operator instructions are not. Four routes are mounted
@@ -142,6 +141,9 @@ prose emitted alongside a correct English status, e.g. the contradiction
 evidence built in lib/verify.js:
 
   "exercise --[PREVENTS]--> heart disease ile celiskiyor: \"...\""
+
+Also the MCP tool descriptions, whose input examples still read
+"kedi hayvandir" -- visible to every Claude and Cursor user in tools/list.
 
 Needs a sweep of user-facing strings on the REST, MCP and viewer surfaces, then
 one pass to English, keeping Turkish acceptance on the way in per RFC-001

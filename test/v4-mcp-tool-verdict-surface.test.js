@@ -86,7 +86,9 @@ test('legacy axiom.verify exposes allow verdict metadata', () => {
   });
 
   assert.equal(result.ok, true);
-  assert.equal(result.data.status, 'dogrulandi');
+  // The stub kernel above answers 'dogrulandi'; MCP emits the canonical
+  // spelling, so this asserts the boundary adapter, not the kernel.
+  assert.equal(result.data.status, 'verified');
   assertToolVerdict(result, { verdict: 'allow', tool: 'huqan.verify', ok: true });
 });
 
