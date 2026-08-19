@@ -121,6 +121,7 @@
     "lib/action-risk-classifier.js",
     "lib/agent-action-firewall.js",
     "lib/agent-identity-runtime.js",
+    "lib/trust-evidence-ledger.js",
     "lib/adversarial-signals.js",
     "lib/agent-loop-budget-gate.js",
     "lib/agent-memory-state.js",
