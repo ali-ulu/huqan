@@ -122,6 +122,7 @@
     "lib/agent-action-firewall.js",
     "lib/agent-identity-runtime.js",
     "lib/human-oversight-approval-runtime.js",
+    "lib/http-human-oversight-adapter.js",
     "lib/trust-evidence-ledger.js",
     "lib/adversarial-signals.js",
     "lib/agent-loop-budget-gate.js",
