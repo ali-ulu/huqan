@@ -226,7 +226,10 @@ test('4C1: required closure paths in allowlist', () => {
     'lib/memory-store.js', 'lib/verify.js', 'lib/learn-use-case.js',
     'lib/provenance-ingest.js', 'lib/memory-admission-gate.js',
     'lib/conflict-detector.js', 'lib/kernel-read-use-cases.js',
-    'lib/sdk.js', 'lib/atp-conformance.js', 'lib/axiom-package-format.js',
+    'lib/sdk.js', 'lib/atp-conformance.js',
+    // Both names ship: the canonical implementation, and the AXIOM-era
+    // re-export an external consumer may already require by path.
+    'lib/huqan-package-format.js', 'lib/axiom-package-format.js',
     'graph.js', 'dream.js', 'plugin.js', 'nlp/index.js',
     'config/trust-policy.default.json',
     'packages/axiom-verify/index.js', 'packages/axiom-verify/package.json',
