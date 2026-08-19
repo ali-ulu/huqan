@@ -87,7 +87,7 @@ const { ProvenanceError } = require('./lib/errors/provenance-error');
 // Kernel.createAdmissionBypassOpts(reason), exported below, which requires
 // the caller to already have required('./kernel') -- i.e. be trusted code
 // running in this process, not data arriving over a wire.
-const ADMISSION_BYPASS_TOKEN = Symbol('axiom-kernel-internal-admission-bypass');
+const ADMISSION_BYPASS_TOKEN = Symbol('huqan-kernel-internal-admission-bypass');
 
 class Kernel {
   /**
@@ -141,7 +141,7 @@ class Kernel {
     this._enableConcurrencyLock = opts.enableConcurrencyLock !== false;
     this._lockAcquired = false;
 
-    // v0.9.1: AXIOM Memory Core — kernel.memory API
+    // v0.9.1: HUQAN Memory Core — kernel.memory API
     this.memory = new MemoryStore({
       trustPolicyVersion: this.contractVersion,
       useSQLite: opts.memoryStoreUseSQLite !== undefined ? opts.memoryStoreUseSQLite : opts.useSQLite,
