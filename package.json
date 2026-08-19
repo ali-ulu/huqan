@@ -188,6 +188,7 @@
     "lib/graph-node-tag.js",
     "lib/graph-node-weight.js",
     "lib/graph-node-similarity.js",
+    "lib/graph-stats.js",
     "lib/graph-edge-write.js",
     "lib/graph-edge-mutations.js",
     "lib/graph-record-utils.js",
