@@ -4,7 +4,7 @@
 
 ## Requirements
 
-- **Node.js >= 18** (no GPU, no API key, no Docker)
+- **Node.js >= 20** (no GPU, no API key, no Docker)
 - **OS**: macOS, Linux, or Windows (PowerShell)
 - **Disk**: ~50 MB (including dependencies)
 - **RAM**: ~100 MB at runtime
@@ -16,7 +16,7 @@
 ```bash
 git clone https://github.com/ali-ulu/huqan.git
 cd huqan
-npm ci --include=optional
+npm run setup:sqlite
 ```
 
 ---
@@ -34,7 +34,7 @@ This loads the initial Turkish knowledge base (~5 seconds). You can skip this â€
 ## Verify installation
 
 ```bash
-node -e "require('better-sqlite3'); console.log('better-sqlite3 ok')"
+npm run setup:sqlite
 npm test
 ```
 
@@ -136,9 +136,10 @@ Teach causal chains:
 
 ## Troubleshooting
 
-**`npm ci --include=optional` fails:**
-- Check Node.js version: `node --version` (must be >= 18)
-- Try `npm cache clean --force` then retry
+**`npm run setup:sqlite` fails:**
+- Check Node.js version: `node --version` (the project requires Node.js >= 20)
+- Retry after `npm cache clean --force`.
+- If the message reports an ABI mismatch, the script attempts `npm rebuild better-sqlite3`; if that also fails, remove `node_modules` and run the setup command again.
 
 **Port 3000 already in use:**
 ```bash

@@ -5,7 +5,7 @@ AXIOM v0.9.1 sürümü release edilmeden hemen önce veya release sonrasında si
 ## 1. Clean Clone Smoke
 Aşağıdaki standart komut dizisi her sürüm mühürlenirken çalıştırılır:
 1. `git clone` (Taze bir klon oluşturma)
-2. `npm ci` (Driftsiz, kilitli dependency kurulumu)
+2. `npm run setup:sqlite` (Kilitli dependency kurulumu ve better-sqlite3 native probe)
 3. `npm test` (Tüm paketlerin 682+ senaryoyu firesiz geçmesi)
 
 ## 2. Targeted Memory Core Tests
