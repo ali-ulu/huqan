@@ -142,7 +142,7 @@ function probeRealServer(configurationValue) {
           const chunks = [];
           res.on('data', (chunk) => chunks.push(chunk));
           res.on('end', () => server.close(() => {
-            try { server.closeAxiom(); } catch (_) {}
+            try { server.closeHuqan(); } catch (_) {}
             process.stdout.write(JSON.stringify({ statusCode: res.statusCode,
               body: Buffer.concat(chunks).toString('utf8') }));
           }));

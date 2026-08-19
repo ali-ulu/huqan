@@ -77,7 +77,7 @@ describe('V4-WB3C: no-mock workbench trust receipt route smoke (real server.js)'
 
   after(async () => {
     await new Promise((resolve) => server.close(resolve));
-    server.closeAxiom();
+    server.closeHuqan();
   });
 
   it('reads a real receipt through the WB1 inspector via the live route', async () => {

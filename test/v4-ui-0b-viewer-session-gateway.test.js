@@ -357,7 +357,7 @@ test('V4-UI-0B server wiring keeps viewer auth isolated from the canonical API',
     assert.equal(stillLimited.statusCode, 429, 'canonical API buckets must not evict the viewer bucket');
   } finally {
     if (server?.listening) await new Promise((resolve) => server.close(resolve));
-    server?.closeAxiom?.();
+    server?.closeHuqan?.();
     delete require.cache[require.resolve('../server')];
     for (const [name, snapshot] of Object.entries(previous)) {
       if (snapshot.present) process.env[name] = snapshot.value;

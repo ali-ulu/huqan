@@ -21,7 +21,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const AxiomStorage = require('../storage');
+const HuqanStorage = require('../storage');
 
 let HAS_SQLITE = true;
 try {
@@ -34,7 +34,7 @@ const PAGE_SIZE = 500;
 
 function withStore(fn) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-recovery-paging-'));
-  const store = new AxiomStorage({
+  const store = new HuqanStorage({
     memoryPath: path.join(root, 'memory.json'),
     dbPath: path.join(root, 'memory.db'),
   });

@@ -22,7 +22,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const AxiomStorage = require('../storage');
+const HuqanStorage = require('../storage');
 
 let HAS_SQLITE = true;
 try {
@@ -35,7 +35,7 @@ const FROZEN_NOW = 1_700_000_000_000;
 
 function withFrozenClockStore(fn) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-id-collision-'));
-  const store = new AxiomStorage({
+  const store = new HuqanStorage({
     memoryPath: path.join(root, 'memory.json'),
     dbPath: path.join(root, 'memory.db'),
   });

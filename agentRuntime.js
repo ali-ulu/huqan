@@ -1,6 +1,6 @@
 const Agent = require('./agent');
 const AgentV3 = require('./agent.v3');
-const AxiomStorage = require('./storage');
+const HuqanStorage = require('./storage');
 const { createWorkflowRuntime } = require('./workflow-runtime');
 const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
 
@@ -72,7 +72,7 @@ function createAgent(opts = {}) {
       if (Object.prototype.hasOwnProperty.call(opts, 'dbPath') && opts.dbPath) {
         storageOpts.dbPath = opts.dbPath;
       }
-      return new AxiomStorage(storageOpts);
+      return new HuqanStorage(storageOpts);
     } catch (_) {
       return null;
     }

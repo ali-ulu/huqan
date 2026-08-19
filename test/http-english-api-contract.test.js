@@ -71,7 +71,7 @@ describe('public HTTP API answers in English', () => {
 
   after(async () => {
     await new Promise((resolve) => server.close(resolve));
-    server.closeAxiom();
+    server.closeHuqan();
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 

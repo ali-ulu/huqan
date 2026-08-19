@@ -77,7 +77,7 @@ function resolveDbPath(opts = {}, kernel) {
   return resolveContainedPath(path.join(process.cwd(), 'memory.db'), allowedRoots);
 }
 
-class AxiomStorage {
+class HuqanStorage {
   constructor(opts = {}) {
     this.kernel = opts.kernel;
     this.dbPath = resolveDbPath(opts, this.kernel);
@@ -793,4 +793,4 @@ function safeParse(value, fallback) {
   }
 }
 
-module.exports = AxiomStorage;
+module.exports = HuqanStorage;

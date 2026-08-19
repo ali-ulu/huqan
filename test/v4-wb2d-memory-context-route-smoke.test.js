@@ -120,7 +120,7 @@ describe('V4-WB2D: no-mock memory-context route smoke', () => {
 
   after(async () => {
     await new Promise((resolve) => server.close(resolve));
-    server.closeAxiom();
+    server.closeHuqan();
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 

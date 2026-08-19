@@ -84,7 +84,7 @@ describe('V4-PR3: read-only Trust Receipt API surface', () => {
 
   after(async () => {
     await new Promise((resolve) => server.close(resolve));
-    server.closeAxiom();
+    server.closeHuqan();
   });
 
   it('returns a stored/materialized receipt by valid receiptId', async () => {

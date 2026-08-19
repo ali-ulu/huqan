@@ -100,7 +100,7 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     }
     server?.closeAllConnections?.();
     server?.closeIdleConnections?.();
-    server?.closeAxiom?.();
+    server?.closeHuqan?.();
     if (server) await new Promise(resolve => server.close(() => resolve()));
     delete process.env.AXIOM_MEMORY_PATH;
     delete process.env.AXIOM_DB_PATH;

@@ -5,7 +5,7 @@ const test = require('node:test');
 
 const Kernel = require('../kernel');
 const KernelV2 = require('../kernel.v2');
-const { createAxiomClient } = require('../lib/sdk');
+const { createHuqanClient } = require('../lib/sdk');
 const { createWorkflowTools } = require('../workflow-tools');
 
 test('Kernel capability execution fails closed before PluginManager delegation', async () => {
@@ -130,9 +130,9 @@ test('SDK prefers governed Kernel runner and uses PluginManager only as compatib
     },
   };
 
-  assert.deepEqual(await createAxiomClient(kernel).runCapability('demo', { a: 1 }), { owner: 'kernel' });
+  assert.deepEqual(await createHuqanClient(kernel).runCapability('demo', { a: 1 }), { owner: 'kernel' });
   delete kernel.runCapability;
-  assert.deepEqual(await createAxiomClient(kernel).runCapability('demo', { a: 2 }), { owner: 'plugins' });
+  assert.deepEqual(await createHuqanClient(kernel).runCapability('demo', { a: 2 }), { owner: 'plugins' });
   assert.deepEqual(calls.map((call) => call[0]), ['kernel', 'plugins']);
 });
 

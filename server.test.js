@@ -146,7 +146,7 @@ before(async () => {
 after(async () => {
   server.closeAllConnections?.();
   server.closeIdleConnections?.();
-  server.closeAxiom?.();
+  server.closeHuqan?.();
   await new Promise(resolve => server.close(() => resolve()));
   server.closeAllConnections?.();
   server.closeIdleConnections?.();

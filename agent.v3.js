@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const path = require('path');
 const Agent = require('./agent');
-const AxiomStorage = require('./storage');
+const HuqanStorage = require('./storage');
 const { evaluateAgentLoopBudget, DEFAULT_MAX_ITERATIONS_PER_WINDOW, DEFAULT_WINDOW_MS } = require('./lib/agent-loop-budget-gate');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
 
@@ -65,7 +65,7 @@ class AgentV3 {
       maxSteps: opts.maxSteps || 4,
       storage: createToolApprovalSeam(() => this.storage),
     });
-    this.storage = opts.storage || new AxiomStorage({
+    this.storage = opts.storage || new HuqanStorage({
       kernel: this.kernel,
       dbPath: opts.dbPath || defaultDbPath(this.kernel),
     });

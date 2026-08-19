@@ -132,8 +132,8 @@ after(async () => {
   if (httpServer && httpServer.listening) {
     await new Promise((resolve) => httpServer.close(resolve));
   }
-  if (httpServer && typeof httpServer.closeAxiom === 'function') {
-    httpServer.closeAxiom();
+  if (httpServer && typeof httpServer.closeHuqan === 'function') {
+    httpServer.closeHuqan();
   }
   fs.rmSync(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 });

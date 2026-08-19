@@ -1,9 +1,9 @@
 services:
-  axiom:
+  huqan:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: axiom
+    container_name: huqan
     ports:
       - "${HUQAN_PORT:-${AXIOM_PORT:-3000}}:3000"
     environment:
@@ -27,7 +27,7 @@ services:
       - HUQAN_TRUST_PROXY
       - AXIOM_TRUST_PROXY
     volumes:
-      - axiom-data:/app/data
+      - huqan-data:/app/data
       # Writable tmpfs for SQLite WAL and other transient files (read-only root fs)
       - type: tmpfs
         target: /tmp
@@ -49,4 +49,8 @@ services:
       start_period: 20s
 
 volumes:
-  axiom-data:
+  # Renamed from `axiom-data`. An existing deployment keeps its old volume, which
+  # is no longer mounted -- migrate before the first `up` with:
+  #   docker run --rm -v <project>_axiom-data:/from -v <project>_huqan-data:/to \
+  #     alpine sh -c "cp -a /from/. /to/"
+  huqan-data:

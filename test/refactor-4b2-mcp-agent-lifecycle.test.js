@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 
-const AxiomStorage = require('../storage');
+const HuqanStorage = require('../storage');
 const Kernel = require('../kernel');
 const { createServer } = require('../mcpServer');
 
@@ -42,9 +42,9 @@ function closeFixture(fixture) {
 
 test('MCP read tools do not allocate an unused Agent storage backend', { concurrency: false }, () => {
   const fixture = createFixture('read');
-  const originalClose = AxiomStorage.prototype.close;
+  const originalClose = HuqanStorage.prototype.close;
   let closeCount = 0;
-  AxiomStorage.prototype.close = function closeInstrumentedStorage() {
+  HuqanStorage.prototype.close = function closeInstrumentedStorage() {
     closeCount += 1;
     return originalClose.call(this);
   };
@@ -57,16 +57,16 @@ test('MCP read tools do not allocate an unused Agent storage backend', { concurr
     assert.equal(closeCount, 0);
     assert.equal(fs.existsSync(path.join(fixture.root, 'memory.db')), false);
   } finally {
-    AxiomStorage.prototype.close = originalClose;
+    HuqanStorage.prototype.close = originalClose;
     closeFixture(fixture);
   }
 });
 
 test('MCP agent-backed tools close their per-call storage before returning', { concurrency: false }, () => {
   const fixture = createFixture('agent');
-  const originalClose = AxiomStorage.prototype.close;
+  const originalClose = HuqanStorage.prototype.close;
   let closeCount = 0;
-  AxiomStorage.prototype.close = function closeInstrumentedStorage() {
+  HuqanStorage.prototype.close = function closeInstrumentedStorage() {
     closeCount += 1;
     return originalClose.call(this);
   };
@@ -86,7 +86,7 @@ test('MCP agent-backed tools close their per-call storage before returning', { c
     assert.equal(dryRun.structuredContent.dryRun, true);
     assert.equal(closeCount, 3);
   } finally {
-    AxiomStorage.prototype.close = originalClose;
+    HuqanStorage.prototype.close = originalClose;
     closeFixture(fixture);
   }
 });

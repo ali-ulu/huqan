@@ -2,7 +2,7 @@
 
 // V4-B2B acceptance and adversarial evidence for the ingest approval authority
 // repair. HTTP-level cases use real server.js, Kernel, SQLite Graph,
-// AxiomStorage and loopback HTTP. Owner-level cases drive
+// HuqanStorage and loopback HTTP. Owner-level cases drive
 // lib/workbench/ingest-approval-action.js directly with injected hostile
 // dependencies, which is the only way to prove the fail-closed branches that a
 // healthy plugin never reaches.
@@ -15,7 +15,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { after, before, describe, it } = require('node:test');
 
-const AxiomStorage = require('../storage');
+const HuqanStorage = require('../storage');
 const {
   ACTION_OUTCOMES,
   ACTION_OWNER,
@@ -142,7 +142,7 @@ function pendingApproval(id, suffix) {
 
 before(async () => {
   assert.equal(server.kernel.graph.getStats().backend, 'sqlite');
-  store = new AxiomStorage({ kernel: server.kernel });
+  store = new HuqanStorage({ kernel: server.kernel });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   port = server.address().port;
 });
@@ -150,7 +150,7 @@ before(async () => {
 after(async () => {
   await new Promise((resolve) => server.close(resolve));
   store.close();
-  server.closeAxiom();
+  server.closeHuqan();
   fs.rmSync(tempDir, { recursive: true, force: true });
 });
 
