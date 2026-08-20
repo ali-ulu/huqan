@@ -17,6 +17,7 @@ const { runLearnUseCase } = require('./lib/learn-use-case');
 const { runLearnDocument } = require('./lib/kernel-learn-document');
 const { runSelfLearn } = require('./lib/kernel-self-learn');
 const { runLearnFromLLM } = require('./lib/kernel-learn-from-llm');
+const { runDream } = require('./lib/kernel-dream');
 const MemoryStore = require('./lib/memory-store');
 const { buildCanonicalReceiptPayload } = require('./lib/receipt/canonical-receipt');
 const { toCanonicalVerdict } = require('./lib/verdict/action-verdict');
@@ -1115,63 +1116,7 @@ class Kernel {
   }
 
   dream(opts = {}) {
-    const dreamer = new Dream(this);
-    const raw = dreamer.dream(opts);
-    const hypotheses = raw.map(h => {
-      const nodes = [h.from, h.to, h.node, ...(h.targets || [])].filter(Boolean);
-      const edges = h.from && h.to ? [{ from: h.from, to: h.to, relation: h.relation || h.type || 'hypothesis' }] : [];
-      return {
-        ...h,
-        _evidence: {
-          kind: 'hypothesis',
-          text: h.from && h.to ? `${h.from} ? ${h.to}` : `${nodes.join(' ? ') || 'hypothesis'}`,
-          confidence: Math.max(0, Math.min(1, h.confidence || 0)),
-          nodes,
-          edges,
-        },
-      };
-    });
-
-    // Geribesleme: hipotezleri grafiğe ekle
-    // FAZ2-PR3 (F-001-b): when learnFromDream is set, hypotheses are
-    // background-derived candidate writes — route through admission +
-    // audit instead of silent canonical writes.
-    const learned = [];
-    const pending = [];
-    if (opts.learnFromDream) {
-      const threshold = opts.dreamLearnThreshold ?? 0.1;
-      for (const h of hypotheses) {
-        if (h.confidence > threshold && h.from && h.to) {
-          const existing = this.graph.hasAnyEdge(h.from, h.to);
-          if (!existing && this.graph.getNode(h.from) && this.graph.getNode(h.to)) {
-            const rel = (h.relation === 'tür' || h.via === 'tür') ? 'tür'
-                      : (h.relation === 'yapabilir') ? 'yapabilir'
-                      : (h.relation === 'özellik') ? 'özellik'
-                      : (h.type === 'zincir' || h.relation === 'benzer') ? 'benzer'
-                      : 'hipotez';
-            const result = this._commitBackgroundEdge(h.from, h.to, rel, 'dream', {
-              provenanceExtra: {
-                hypothesisType: h.type,
-                hypothesisConfidence: h.confidence,
-                via: h.via || null,
-              },
-            });
-            if (result.decision === 'allow' && result.edge) {
-              learned.push({ from: h.from, to: h.to, confidence: h.confidence, relation: rel });
-            } else {
-              pending.push({ from: h.from, to: h.to, confidence: h.confidence, relation: rel, decision: result.decision });
-            }
-          }
-        }
-      }
-    }
-
-    // Rüya döngü sayacı
-    if (!this._dreamCount) this._dreamCount = 0;
-    this._dreamCount++;
-
-    const evidence = hypotheses.map(h => h._evidence);
-    return this._ok('dream', { hypotheses, learned, pending, cycle: this._dreamCount }, evidence);
+    return runDream(opts, { createDreams: dreamOpts => new Dream(this).dream(dreamOpts), graph: this.graph, commitBackgroundEdge: (from, to, relation, source, commitOpts) => this._commitBackgroundEdge(from, to, relation, source, commitOpts), getDreamCount: () => this._dreamCount, setDreamCount: value => { this._dreamCount = value; }, ok: (type, data, evidence) => this._ok(type, data, evidence) });
   }
 
   learnDocument(text, opts = {}) {
