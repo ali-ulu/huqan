@@ -316,6 +316,7 @@ class CLI {
             action: 'ingest',
             sourceType: 'github',
             repoUrl: payload.repoUrl,
+            enforceConnectorFirewall: true,
           });
           return Promise.resolve(run).then(result => {
             if (!result || result.ok === false) {
