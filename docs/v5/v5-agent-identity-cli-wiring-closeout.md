@@ -1,8 +1,10 @@
 # Runtime Agent Identity — CLI approval wiring closeout
 
 **Issue:** #940  
-**Status:** production-shaped, explicit opt-in slice  
-**Durability:** existing Graph mutation journal and receipt path  
+**Status:** `closeout`
+**Canonical base:** `main @ 186b58e866a8c0b67d77d88882bee3db18d5b5c5`
+**Implementation commit:** `371bbb8eabd5656a4fa626a63e476d15737171c0`
+**Durability:** existing Graph mutation journal and receipt path
 **Fail-closed:** enabled
 
 ## Scope

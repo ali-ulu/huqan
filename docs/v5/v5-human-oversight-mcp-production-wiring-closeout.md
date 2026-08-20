@@ -1,8 +1,9 @@
 # V5 Human Oversight MCP Production Wiring Closeout
 
-status: implemented
-implementation_commit: 10bb023
-verification: 45 targeted tests passed; known agent-context baseline exception remains outside this slice
+**Status:** `closeout`
+**Canonical base:** `main @ 186b58e866a8c0b67d77d88882bee3db18d5b5c5`
+**Implementation commit:** `d086536e2c78ea87a98e0596b4edf8c501d0c10e`
+**Verification:** targeted MCP oversight production-wiring tests passed; current canonical context was checked separately.
 
 ## Scope
 

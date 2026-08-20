@@ -1,6 +1,8 @@
 # Runtime Agent Identity — MCP approval ingress wiring closeout
 
-**Status:** implemented production-shaped opt-in slice  
+**Status:** `closeout`
+**Canonical base:** `main @ 186b58e866a8c0b67d77d88882bee3db18d5b5c5`
+**Implementation commit:** `0ffd180f77a7d5517251dd8d10eba4bf6c554010`
 **Issue:** [#940](https://github.com/ali-ulu/huqan/issues/940)  
 **Runtime:** Node.js / CommonJS  
 **Durability authority:** existing `Graph.runMutationOnce()` and approval/receipt path  
