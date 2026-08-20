@@ -6,6 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const MemoryStore = require('../lib/memory-store');
+const Database = require('better-sqlite3');
 
 // Keep runtime artifacts outside the repository. Static source-audit tests scan
 // the workspace concurrently, so a repo-local temp directory creates a race.
@@ -340,6 +341,103 @@ describe('memory-store-sqlite', () => {
     assert.strictEqual(linksRes.ok, true);
     assert.strictEqual(linksRes.total, 1);
     assert.strictEqual(linksRes.links[0].relation, 'supports');
+    store2.close();
+  });
+
+  it('history preserves direct and linked events with workspace isolation after reload', () => {
+    const dbPath = getDbPath('history-linked-reload');
+    const store1 = new MemoryStore({ useSQLite: true, dbPath });
+
+    const root = store1.store({ content: 'history root', workspaceId: 'ws-history' }).memory;
+    const target = store1.store({ content: 'history target', workspaceId: 'ws-history' }).memory;
+    const other = store1.store({ content: 'other workspace', workspaceId: 'ws-other' }).memory;
+    const linkRes = store1.linkMemories({
+      fromMemoryId: root.memoryId,
+      toMemoryId: target.memoryId,
+      relation: 'supports',
+      workspaceId: 'ws-history',
+    });
+    assert.strictEqual(linkRes.ok, true);
+
+    const before = store1.history(root.memoryId, { workspaceId: 'ws-history' });
+    assert.strictEqual(before.ok, true);
+    assert.strictEqual(before.total, 2);
+    assert.deepStrictEqual(before.events.map((event) => event.eventType), ['CREATED', 'LINKED']);
+    store1.close();
+
+    const store2 = new MemoryStore({ useSQLite: true, dbPath });
+    const after = store2.history(root.memoryId, { workspaceId: 'ws-history' });
+    assert.strictEqual(after.ok, true);
+    assert.strictEqual(after.total, before.total);
+    assert.deepStrictEqual(after.events.map((event) => event.eventType), ['CREATED', 'LINKED']);
+    assert.deepStrictEqual(after.events.map((event) => event.memoryId), before.events.map((event) => event.memoryId));
+    assert.ok(after.events.every((event) => event.workspaceId === 'ws-history'));
+
+    const isolated = store2.history(other.memoryId, { workspaceId: 'ws-history' });
+    assert.strictEqual(isolated.ok, true);
+    assert.strictEqual(isolated.total, 0);
+    store2.close();
+  });
+
+  it('history preserves supersede relatedMemoryId after SQLite reload', () => {
+    const dbPath = getDbPath('history-related-reload');
+    const store1 = new MemoryStore({ useSQLite: true, dbPath });
+    const root = store1.store({ content: 'history v1', workspaceId: 'ws-history' }).memory;
+    const supersedeRes = store1.supersede(root.memoryId, 'history v2', { workspaceId: 'ws-history' });
+    assert.strictEqual(supersedeRes.ok, true);
+
+    const before = store1.history(root.memoryId, { workspaceId: 'ws-history' });
+    assert.strictEqual(before.ok, true);
+    assert.strictEqual(before.total, 3);
+    const relatedBefore = before.events.find((event) => event.relatedMemoryId === root.memoryId);
+    assert.ok(relatedBefore);
+    assert.strictEqual(relatedBefore.eventType, 'CREATED');
+    assert.strictEqual(relatedBefore.memoryId, supersedeRes.newMemory.memoryId);
+    store1.close();
+
+    const store2 = new MemoryStore({ useSQLite: true, dbPath });
+    const after = store2.history(root.memoryId, { workspaceId: 'ws-history' });
+    assert.strictEqual(after.ok, true);
+    assert.strictEqual(after.total, before.total);
+    const relatedAfter = after.events.find((event) => event.relatedMemoryId === root.memoryId);
+    assert.ok(relatedAfter);
+    assert.strictEqual(relatedAfter.eventType, 'CREATED');
+    assert.strictEqual(relatedAfter.memoryId, supersedeRes.newMemory.memoryId);
+    store2.close();
+  });
+
+  it('legacy memory_events schema gains relatedMemoryId without losing history', () => {
+    const dbPath = getDbPath('history-related-legacy-schema');
+    const legacyDb = new Database(dbPath);
+    legacyDb.exec(`
+      CREATE TABLE memory_events (
+        workspace_id TEXT NOT NULL,
+        event_id TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        memory_id TEXT NOT NULL,
+        actor TEXT NOT NULL,
+        details_json TEXT NOT NULL,
+        provenance_json TEXT NOT NULL,
+        trust_policy_version TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (workspace_id, event_id)
+      );
+    `);
+    legacyDb.close();
+
+    const store1 = new MemoryStore({ useSQLite: true, dbPath });
+    const root = store1.store({ content: 'legacy history v1', workspaceId: 'ws-history' }).memory;
+    const supersedeRes = store1.supersede(root.memoryId, 'legacy history v2', { workspaceId: 'ws-history' });
+    assert.strictEqual(supersedeRes.ok, true);
+    const columns = store1._db.prepare('PRAGMA table_info(memory_events)').all();
+    assert.ok(columns.some((column) => column.name === 'related_memory_id'));
+    store1.close();
+
+    const store2 = new MemoryStore({ useSQLite: true, dbPath });
+    const history = store2.history(root.memoryId, { workspaceId: 'ws-history' });
+    assert.strictEqual(history.ok, true);
+    assert.strictEqual(history.total, 3);
+    assert.ok(history.events.some((event) => event.relatedMemoryId === root.memoryId));
     store2.close();
   });
 
