@@ -63,6 +63,14 @@ const { addNode: runNodeWrite } = require('./lib/graph-node-write');
 const { removeNode: runNodeDelete } = require('./lib/graph-node-delete');
 const { touchNode: runNodeTouch } = require('./lib/graph-node-touch');
 const { addTag: runNodeTag } = require('./lib/graph-node-tag');
+const { getWeight: runNodeWeight } = require('./lib/graph-node-weight');
+const { cosineSimilarity: runNodeSimilarity } = require('./lib/graph-node-similarity');
+const { getStats: runGraphStats } = require('./lib/graph-stats');
+const { countNodes: runNodeCount, countEdges: runEdgeCount } = require('./lib/graph-count-read');
+const { query: runGraphQuery } = require('./lib/graph-query-read');
+const { prune: runGraphPrune } = require('./lib/graph-prune');
+const { optimize: runGraphOptimize } = require('./lib/graph-optimize');
+const { isCausalRelation: runIsCausalRelation, getCausalRelations: runCausalRelations, getCausalEdges: runCausalEdges } = require('./lib/graph-causal-relation-read');
 const { addEdge: runEdgeWrite } = require('./lib/graph-edge-write');
 
 class Graph {
@@ -937,11 +945,7 @@ class Graph {
   }
 
   getWeight(id, workspaceId = 'default') {
-    const node = this.getNode(id, workspaceId);
-    if (!node) return 0;
-    const elapsed = (Date.now() - node.lastAccessed) / 1000;
-    const decayed = node.weight * Math.exp(-this._decayLambda * elapsed);
-    return Math.max(0, Math.min(1, decayed));
+    return runNodeWeight((nodeId, scope) => this.getNode(nodeId, scope), this._decayLambda, id, workspaceId);
   }
 
   _nodeTagStoreApi() { return { get: storageKey => this._nodes[storageKey] }; }
@@ -1051,78 +1055,36 @@ class Graph {
   }
 
   query(label, workspaceId = 'default') {
-    return Object.values(this._nodes)
-      .filter(n => n.label === label && normalizeWorkspaceId(n.workspaceId) === normalizeWorkspaceId(workspaceId))
-      .map(cloneNodeRecord);
+    return runGraphQuery(this._nodes, label, workspaceId);
   }
 
   nodeCount(workspaceId) {
-    if (!workspaceId) return Object.keys(this._nodes).length;
-    return Object.values(this._nodes).filter(n => normalizeWorkspaceId(n.workspaceId) === normalizeWorkspaceId(workspaceId)).length;
+    return runNodeCount(this._nodes, workspaceId);
   }
   edgeCount(workspaceId) {
-    if (!workspaceId) return this._edges.length;
-    return this._edges.filter(e => normalizeWorkspaceId(e.workspaceId) === normalizeWorkspaceId(workspaceId)).length;
+    return runEdgeCount(this._edges, workspaceId);
   }
 
   cosineSimilarity(aId, bId, workspaceId = 'default') {
-    const a = this.getNode(aId, workspaceId);
-    const b = this.getNode(bId, workspaceId);
-    if (!a || !b) return 0;
-    const dims = new Set([...Object.keys(a.vector), ...Object.keys(b.vector)]);
-    let dot = 0, magA = 0, magB = 0;
-    for (const d of dims) {
-      const va = a.vector[d] || 0;
-      const vb = b.vector[d] || 0;
-      dot += va * vb; magA += va * va; magB += vb * vb;
-    }
-    const mag = Math.sqrt(magA) * Math.sqrt(magB);
-    return mag === 0 ? 0 : dot / mag;
+    return runNodeSimilarity((nodeId, scope) => this.getNode(nodeId, scope), aId, bId, workspaceId);
   }
+
+  _pruneStoreApi() { return { getEdges: () => this._edges, setEdges: edges => { this._edges = edges; }, rebuildIndex: () => this._rebuildIndex(), getPruneThreshold: () => this._pruneThreshold, persistPrune: (threshold, scope) => { if (this._db) this._stmts.pruneEdges.run(threshold, scope); } }; }
 
   prune(threshold, workspaceId = 'default') {
-    if (threshold === undefined) threshold = this._pruneThreshold;
-    const scope = normalizeWorkspaceId(workspaceId);
-    const before = this._edges.filter(e => normalizeWorkspaceId(e.workspaceId) === scope).length;
-    this._edges = this._edges.filter(e => normalizeWorkspaceId(e.workspaceId) !== scope || e.weight >= threshold);
-    this._rebuildIndex();
-    const after = this._edges.filter(e => normalizeWorkspaceId(e.workspaceId) === scope).length;
-    const pruned = before - after;
-    if (this._db && pruned > 0) {
-      this._stmts.pruneEdges.run(threshold, scope);
-    }
-    return pruned;
+    return runGraphPrune(this._pruneStoreApi(), threshold, workspaceId);
   }
+
+  _optimizeStoreApi() { return { prune: scope => this.prune(undefined, scope), getNodes: () => this._nodes, getEdges: (nodeId, scope) => this.getEdges(nodeId, scope), getInEdges: (nodeId, scope) => this.getInEdges(nodeId, scope), decayLambda: this._decayLambda, deleteNode: id => { delete this._nodes[id]; }, persistDeleteNode: (id, scope) => { if (this._db && this._stmts) this._stmts.deleteNode.run(id, scope); } }; }
 
   optimize(workspaceId = 'default') {
-    const scope = normalizeWorkspaceId(workspaceId);
-    const now = Date.now();
-    let pruned = this.prune(undefined, scope);
-    const nodeIds = Object.keys(this._nodes).filter(id => normalizeWorkspaceId(this._nodes[id].workspaceId) === scope);
-    let removedNodes = 0;
-    for (const id of nodeIds) {
-      const node = this._nodes[id];
-      const elapsed = (now - node.lastAccessed) / 1000;
-      const decayed = node.weight * Math.exp(-this._decayLambda * elapsed);
-      const outEdges = this.getEdges(node.id, node.workspaceId);
-      const inEdges = this.getInEdges(node.id, node.workspaceId);
-      if (decayed < 0.01 && outEdges.length === 0 && inEdges.length === 0) {
-        delete this._nodes[id];
-        if (this._db && this._stmts) this._stmts.deleteNode.run(node.id, normalizeWorkspaceId(node.workspaceId));
-        removedNodes++;
-      }
-    }
-    return { pruned, removedNodes };
+    return runGraphOptimize(this._optimizeStoreApi(), workspaceId);
   }
 
+  _statsStoreApi() { return { nodeCount: () => this.nodeCount(), edgeCount: () => this.edgeCount(), candidateClaims: this._candidateClaims, decayLambda: this._decayLambda, hasSqlite: Boolean(this._db) }; }
+
   getStats() {
-    return {
-      nodes: this.nodeCount(),
-      edges: this.edgeCount(),
-      candidateClaims: this._candidateClaims.length,
-      decayLambda: this._decayLambda,
-      backend: this._db ? 'sqlite' : 'json',
-    };
+    return runGraphStats(this._statsStoreApi());
   }
 
   // ─── Kalıcılık ────────────────────────────────────────────────────────────
@@ -1445,19 +1407,15 @@ class Graph {
   // ─── Causal relation helpers for v0.7 ───────────────────────────────────────
 
   isCausalRelation(relation) {
-    return CAUSAL_RELATIONS.includes(relation);
+    return runIsCausalRelation(CAUSAL_RELATIONS, relation);
   }
 
   getCausalRelations() {
-    return [...CAUSAL_RELATIONS];
+    return runCausalRelations(CAUSAL_RELATIONS);
   }
 
   getCausalEdges(fromId, workspaceId = 'default') {
-    const edges = this.getEdges(fromId, workspaceId);
-    return edges
-      .filter(e => this.isCausalRelation(e.relation))
-      .slice()
-      .sort(compareCausalEdges);
+    return runCausalEdges((id, scope) => this.getEdges(id, scope), CAUSAL_RELATIONS, compareCausalEdges, fromId, workspaceId);
   }
 
   getCausalChain(fromId, maxDepthOrOpts = 10) {
