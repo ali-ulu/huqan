@@ -21,6 +21,7 @@ const { runDream } = require('./lib/kernel-dream');
 const { runSelfEvolve } = require('./lib/kernel-self-evolve');
 const { runAlternatives } = require('./lib/kernel-alternatives');
 const { runContextSimilarity } = require('./lib/kernel-context-similarity');
+const { runAutoThinkTick } = require('./lib/kernel-auto-think');
 const MemoryStore = require('./lib/memory-store');
 const { buildCanonicalReceiptPayload } = require('./lib/receipt/canonical-receipt');
 const { toCanonicalVerdict } = require('./lib/verdict/action-verdict');
@@ -930,62 +931,7 @@ class Kernel {
   }
 
   _autoThinkTick() {
-    if (!this._dreamCount) this._dreamCount = 0;
-    this._dreamCount++;
-
-    const isBilinclikTick = this._dreamCount > 0; // tüm tick'ler artık bilinçli
-
-    // ADIM 1: Rüya gör + öğren (recursion)
-    // FAZ2-PR3 (F-001-a): autonomous edge proposals route through
-    // _commitBackgroundEdge so they receive synthetic provenance, admission
-    // evaluation, and audit instead of writing directly to the graph.
-    const hips = this._dreamer.dream();
-    let eklenen = 0;
-    let bekleyen = 0;
-    if (hips.length > 0) {
-      for (const h of hips.slice(0, 5)) {
-        if (h.confidence > 0.25) {
-          const existing = this.graph.hasAnyEdge(h.from, h.to);
-          if (!existing && this.graph.getNode(h.from) && this.graph.getNode(h.to)) {
-            const rel = h.type === 'zincir' ? 'benzer' : (h.type === 'benzerlik' ? 'benzer'
-                      : h.relation === 'tür' ? 'tür'
-                      : h.relation === 'yapabilir' ? 'yapabilir'
-                      : h.relation === 'özellik' ? 'özellik'
-                      : 'hipotez');
-            const result = this._commitBackgroundEdge(h.from, h.to, rel, '_autoThinkTick', {
-              provenanceExtra: {
-                hypothesisType: h.type,
-                hypothesisConfidence: h.confidence,
-              },
-            });
-            if (result.decision === 'allow' && result.edge) eklenen++;
-            else bekleyen++;
-          }
-        }
-      }
-    }
-
-    // ADIM 2: İçgözlem (her tick'te değil, bilgi büyüdükçe)
-    let celiskiSayisi = 0;
-    let metaGuven = 0.5;
-    if (isBilinclikTick && this._dreamCount % 3 === 0) {
-      const durum = this.introspect().data;
-      celiskiSayisi = durum.saglik.celiski;
-      metaGuven = durum.saglik.metaGuven;
-
-      // Zayıf noktaları tespit et
-      if (celiskiSayisi > 5) {
-        this._autoThinkLog(durum.zayifNoktalar.join('; '));
-      }
-    }
-
-    // ADIM 3: Sürekli öğrenme dürtüsü (bilinç tikleri)
-    if (eklenen > 0) {
-      this._autoThinkLog(eklenen + ' new connections - ' + this.graph.nodeCount() + ' nodes total');
-    } else if (this._dreamCount % 5 === 0) {
-      // Boş rüya -> daha fazla girdi lazım
-      this._autoThinkLog('empty dream, more input needed');
-    }
+    return runAutoThinkTick({ dreamer: this._dreamer, graph: this.graph, commitBackgroundEdge: (...args) => this._commitBackgroundEdge(...args), introspect: (...args) => this.introspect(...args), autoThinkLog: (...args) => this._autoThinkLog(...args), getDreamCount: () => this._dreamCount, setDreamCount: value => { this._dreamCount = value; } });
   }
 
   _autoThinkLog(msg) {
