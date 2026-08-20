@@ -57,6 +57,18 @@ been published, so every install to date has been a `git clone`.
 - `README.md` named the A2A environment variables without their `HUQAN_`
   prefix, so following it verbatim left the routes off.
 
+### Changed — install footprint
+- `pdfjs-dist` and `pdfkit` moved to `optionalDependencies`, and both are now
+  loaded on first use rather than at require-time. Previously a top-level
+  `require` in `plugins/receipt-exporter.js`, and a `require.resolve` for the
+  standard-font path in `adapters/pdf-adapter.js`, made a missing or
+  half-installed PDF dependency take the whole module down at load — the kernel
+  printed `Plugin failed to load: receipt-exporter.js` at every start and the
+  plugin's JSON export went down with the PDF one. The failure now lands on the
+  PDF call that needs it, as `HUQAN_PDF_EXPORT_UNAVAILABLE` naming the package
+  to install. `npm install --omit=optional` takes the install from about 111 MB
+  to about 20 MB with the full learn → approve → verify → receipt path intact.
+
 ### Known limits of the published tarball
 - `POST /api/a2a/exchange` cannot be enabled from an `npm install`. It reaches
   the V5 cryptographic family, which `package.json#files` deliberately does not

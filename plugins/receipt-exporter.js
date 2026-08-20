@@ -37,7 +37,33 @@
 
 const fs = require('fs');
 const path = require('path');
-const PDFDocument = require('pdfkit');
+
+/**
+ * Loaded on first PDF export, not at require-time.
+ *
+ * A top-level require made the whole plugin unloadable when pdfkit was absent
+ * -- the kernel printed `Plugin failed to load: receipt-exporter.js` at every
+ * start, and the plugin's JSON export, which needs nothing from pdfkit, went
+ * down with it. Deferring puts the failure on the one call that cannot work
+ * without it.
+ */
+let PDFDocumentCache = null;
+function loadPdfDocument() {
+  if (PDFDocumentCache === null) {
+    try {
+      PDFDocumentCache = require('pdfkit');
+    } catch (cause) {
+      const error = new Error(
+        'PDF receipt export needs pdfkit, which is not installed. Install it with '
+        + '`npm install pdfkit`, or export the receipt as JSON instead.',
+      );
+      error.code = 'HUQAN_PDF_EXPORT_UNAVAILABLE';
+      error.cause = cause;
+      throw error;
+    }
+  }
+  return PDFDocumentCache;
+}
 const { createPathError, isPathWithinRoot, resolvePathWithinRoot } = require('../lib/path-safety');
 
 const REPO_ROOT = path.join(__dirname, '..');
@@ -198,6 +224,7 @@ async function exportReceiptToPdf(receipt, outputDir) {
   const filePath = resolveReceiptTarget(receipt, outputDir, 'pdf');
   const receiptId = path.basename(filePath, '.pdf');
 
+  const PDFDocument = loadPdfDocument();
   const doc = new PDFDocument({
     size: 'A4',
     margin: 48,

@@ -456,7 +456,9 @@
   ],
   "dependencies": {
     "better-sqlite3": "^12.10.0",
-    "js-yaml": "^5.2.3",
+    "js-yaml": "^5.2.3"
+  },
+  "optionalDependencies": {
     "pdfjs-dist": "^6.2.108",
     "pdfkit": "^0.19.1"
   }

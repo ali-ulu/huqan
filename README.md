@@ -87,6 +87,21 @@ For a one-off run without installing anything:
 npx -y huqan quickstart
 ```
 
+#### A smaller install
+
+PDF ingest (`pdfjs-dist`) and PDF receipt export (`pdfkit`) are optional
+dependencies. They install by default; skipping them takes the install from
+about 111 MB to about 20 MB, and everything except the two PDF paths still
+works:
+
+```bash
+npm install -g huqan --omit=optional
+```
+
+Reading a PDF or exporting a receipt as PDF then fails with a message naming
+the package to install; JSON receipt export and every other adapter are
+unaffected.
+
 ### Install from source
 
 Use this to contribute, or to run a revision that is not published yet.
