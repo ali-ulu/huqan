@@ -102,6 +102,9 @@ Reading a PDF or exporting a receipt as PDF then fails with a message naming
 the package to install; JSON receipt export and every other adapter are
 unaffected.
 
+Publishing a new version of the package is documented in
+[docs/npm-publish.md](./docs/npm-publish.md).
+
 ### Install from source
 
 Use this to contribute, or to run a revision that is not published yet.
