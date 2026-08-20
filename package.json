@@ -123,6 +123,7 @@
     "lib/adversarial-signals.js",
     "lib/agent-loop-budget-gate.js",
     "lib/agent-memory-state.js",
+    "lib/agent-run-guidance.js",
     "lib/approval-execution-evidence.js",
     "lib/approval-flow.js",
     "lib/approval-schema.js",
