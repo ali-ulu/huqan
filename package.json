@@ -352,6 +352,7 @@
     "lib/workbench/trust-receipt-route.js",
     "lib/workbench/workbench-read-http-router.js",
     "lib/workflow-contract.js",
+    "lib/workflow-run-guidance.js",
     "llmAdapter.js",
     "mcpServer.js",
     "nlp/index.js",
