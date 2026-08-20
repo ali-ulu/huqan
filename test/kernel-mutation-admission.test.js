@@ -163,7 +163,7 @@ test('family: the learn sinks have exactly one way in', () => {
   assert.match(useCase, /module\.exports = \{ runLearnUseCase \}/);
 
   const { execFileSync } = require('node:child_process');
-  const callers = execFileSync('git', ['grep', '-l', 'runLearnUseCase(', '--', '*.js'], {
+  const callers = execFileSync('git', ['-c', 'color.ui=false', 'grep', '-l', 'runLearnUseCase(', '--', '*.js'], {
     cwd: repoRoot, encoding: 'utf8',
   })
     .split('\n')
