@@ -177,3 +177,53 @@ test('connector preview remains dry_run_only for local and HTTP connectors', asy
     assert.equal(calls, 0);
   }
 });
+
+test('connector firewall normalizes HTTP reachability probes as read-only actions', async () => {
+  const normalized = normalizeConnectorAction({
+    connector: 'http',
+    action: 'probe',
+    url: 'https://example.com/report#section',
+    actor: 'evidence-validator',
+  });
+  assert.equal(normalized.ok, true);
+  assert.equal(normalized.canonicalAction, 'http.probe_url');
+  assert.equal(normalized.executor, 'fetchUrl');
+  assert.equal(normalized.targetRef, 'https://example.com/report');
+  assert.equal(normalized.stateMutationBoundary, 'none');
+
+  let calls = 0;
+  const result = await executeConnectorAction({
+    request: {
+      connector: 'http',
+      action: 'probe',
+      url: 'https://example.com/report#section',
+    },
+    execute: async decision => {
+      calls += 1;
+      assert.equal(decision.targetRef, 'https://example.com/report');
+      return { statusCode: 200 };
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.decision, 'allow');
+  assert.equal(calls, 1);
+});
+
+test('connector firewall blocks HTTP reachability probes with credential-bearing targets', async () => {
+  let calls = 0;
+  const result = await executeConnectorAction({
+    request: {
+      connector: 'http',
+      action: 'probe',
+      url: 'https://user:secret@example.com/report',
+    },
+    execute: async () => {
+      calls += 1;
+      return { statusCode: 200 };
+    },
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'CONNECTOR_TARGET_INVALID');
+  assert.equal(result.canExecute, false);
+  assert.equal(calls, 0);
+});

@@ -81,13 +81,37 @@ korunur: `repoMemory` dogrudan cagrilarinda connector enforcement ancak
 `enforceConnectorFirewall: true` ile etkinlesir; CLI GitHub production yolu bu
 opt-in'i açikça verir.
 
+## #968 HTTP Reachability Probe Follow-up
+
+`evidence-validator` içindeki `learnAsync()` öncesi, yalnızca `evidenceReachability`
+capability’si açıkken çalışan HTTP HEAD probe’ü de ortak connector firewall
+sözleşmesine bağlanır. Bu action remote içerik indirmez ve graph yazmaz; yalnızca
+kaynağın erişilebilirliğini bounded timeout ile kontrol eder.
+
+```text
+sourceRef (http/https)
+  ↓
+connector-action-firewall: http.probe
+  ↓ allow + canExecute
+http-adapter.fetchUrl(method=HEAD, timeout)
+  ↓
+reachability result → learnAsync preIngest
+```
+
+`http.probe` mevcut Agent Action Firewall içindeki read-only `read_repository`
+action’ına map edilir. Credential-bearing, malformed, preview/dry-run veya
+firewall allow dışı hedefler executor’a ulaşmaz. `evidenceReachability`
+capability’si kapalıyken mevcut offline davranış korunur; probe çağrısı yapılmaz.
+Bu slice yeni signer, receipt family veya durability otoritesi eklemez.
+
 ## Kaynak
 
 - `docs/audits/connector-trust-coverage-inventory.md` — yüzey siniflandirmasi
 - `docs/agent-action-firewall.md` — action/target/approval sözlesmesi
 - `lib/agent-action-firewall.js` — canonical Agent Action Firewall
 - `lib/connector-action-firewall.js` — bounded connector adapter
-- `plugins/repo-memory.js` — GitHub production caller
+- `plugins/repo-memory.js` — GitHub ve dosya/URL ingest production caller’ları
+- `plugins/evidence-validator.js` — opt-in HTTP HEAD reachability caller’ı
 - `cli.js` — GitHub/repo ingest CLI ingress'i
 - Gate'ler: `lib/tool-call-gate.js`, `lib/memory-mutation-gate.js`,
   `lib/mcp-gate-adapter.js`
