@@ -169,6 +169,7 @@
     "lib/cross-workspace-access-gate.js",
     "lib/data-egress-gate.js",
     "lib/deterministic-json-copy.js",
+    "lib/dream-experiment-loop.js",
     "lib/entity-resolution.js",
     "lib/environment-compat.js",
     "lib/error-prevention",

@@ -692,9 +692,8 @@ class KernelV2 {
     });
   }
 
-  getStats() {
-    return this.kernel.graph.getStats();
-  }
+  _commitBackgroundEdge(from, to, relation, source, opts = {}) { return this.kernel._commitBackgroundEdge(from, to, relation, source, opts); }
+  getStats() { return this.kernel.graph.getStats(); }
 
   entropy() {
     return this.kernel.entropy();
