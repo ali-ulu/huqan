@@ -7,9 +7,11 @@ const { ingestPdf } = require('../adapters/pdf-adapter');
 const { ingestUrls } = require('../adapters/http-adapter');
 const { buildProvenance } = require('../lib/provenance-ingest');
 const { pinnedRepoFile, buildConnectorProvenance } = require('../lib/repo-file-pin');
-const { canonicalizeGitHubRepoUrl } = require('../lib/github-url');
 const { requireRootedPath, runEntryIngest } = require('../lib/connectors/entry-ingest-flow');
-const { executeConnectorAction } = require('../lib/connector-action-firewall');
+const {
+  executeGuardedConnectorIngest,
+  fetchGithubRepoWithFirewall,
+} = require('../lib/connectors/repo-memory-firewall');
 
 function nowIso() {
   return new Date().toISOString();
@@ -137,58 +139,20 @@ async function ingestGithubRepo(kernel, input = {}) {
   const sessionId = input.sessionId || '';
   const fetchRepoFilesImpl = typeof input.fetchRepoFiles === 'function' ? input.fetchRepoFiles : fetchRepoFiles;
   const parseRepoUrlImpl = typeof input.parseRepoUrl === 'function' ? input.parseRepoUrl : parseRepoUrl;
-  const connectorFirewallEnabled = input.enforceConnectorFirewall === true
-    || input.connectorFirewall?.enabled === true;
-  let connectorFirewall = null;
-  let files;
-  let repoUrl;
   const fetchOptions = {
     token: input.token || process.env.GITHUB_TOKEN || '',
     branch: input.branch || 'main',
     paths: input.paths,
     fetchImpl: input.fetchImpl,
   };
-  if (connectorFirewallEnabled) {
-    const guardedFetch = await executeConnectorAction({
-      request: {
-        connector: 'github',
-        action: 'ingest',
-        repoUrl: rawRepoUrl,
-        branch: fetchOptions.branch,
-        workspaceId: input.workspaceId,
-        actor: input.actor,
-        preview: input.preview === true,
-        dryRun: input.dryRun === true,
-        approval: input.connectorFirewall?.approval || input.agentActionApproval,
-      },
-      execute: decision => fetchRepoFilesImpl(repoUrl, fetchOptions, decision),
-    });
-    connectorFirewall = guardedFetch.firewallSummary || {
-      decision: guardedFetch.decision || null,
-      reason: guardedFetch.reason || null,
-      connectorFirewallVersion: guardedFetch.connectorFirewallVersion || null,
-    };
-    if (!guardedFetch.ok) {
-      const normalizationFailure = new Set([
-        'CONNECTOR_TARGET_REQUIRED',
-        'CONNECTOR_TARGET_INVALID',
-        'CONNECTOR_ACTION_UNKNOWN',
-      ]).has(guardedFetch.reason);
-      return {
-        ok: false,
-        sourceType: 'github',
-        repoUrl,
-        error: guardedFetch.error || guardedFetch.reason || 'Connector action blocked',
-        code: normalizationFailure ? guardedFetch.reason : (guardedFetch.code || 'CONNECTOR_ACTION_FIREWALL_BLOCKED'),
-        connectorFirewall,
-      };
-    }
-    files = guardedFetch.value;
-    repoUrl = guardedFetch.target;
-  } else {
-    repoUrl = canonicalizeGitHubRepoUrl(rawRepoUrl).repoUrl;
-    files = await fetchRepoFilesImpl(repoUrl, fetchOptions);
-  }
+  const fetched = await fetchGithubRepoWithFirewall({
+    rawRepoUrl,
+    input,
+    fetchRepoFilesImpl,
+    fetchOptions,
+  });
+  if (!fetched.ok) return fetched;
+  const { value: files, repoUrl, connectorFirewall = null } = fetched;
 
   const { owner, repo } = parseRepoUrlImpl(repoUrl);
   const repoNode = `repo:${owner}/${repo}`;
@@ -413,58 +377,6 @@ function plainEntry(entry, input) {
     actor: input.actor || 'repo-memory',
     timestamp: input.timestamp || nowIso(),
     details: { entryKey: entry.entryKey },
-  };
-}
-
-function connectorFirewallIsEnabled(input = {}) {
-  return input.enforceConnectorFirewall === true || input.connectorFirewall?.enabled === true;
-}
-
-function connectorFirewallFailure(guarded, sourceType) {
-  const normalizationFailure = new Set([
-    'CONNECTOR_TARGET_REQUIRED',
-    'CONNECTOR_TARGET_INVALID',
-    'CONNECTOR_ACTION_UNKNOWN',
-  ]).has(guarded.reason);
-  return {
-    ok: false,
-    sourceType,
-    error: guarded.error || guarded.reason || 'Connector action blocked',
-    code: normalizationFailure ? guarded.reason : (guarded.code || 'CONNECTOR_ACTION_FIREWALL_BLOCKED'),
-    connectorFirewall: guarded.firewallSummary || {
-      decision: guarded.decision || null,
-      reason: guarded.reason || null,
-      connectorFirewallVersion: guarded.connectorFirewallVersion || null,
-    },
-  };
-}
-
-async function executeGuardedConnectorIngest({ connector, target, input = {}, execute }) {
-  if (!connectorFirewallIsEnabled(input)) {
-    return { ok: true, value: await execute() };
-  }
-
-  const request = {
-    connector,
-    action: 'ingest',
-    workspaceId: input.workspaceId,
-    actor: input.actor,
-    preview: input.preview === true,
-    dryRun: input.dryRun === true,
-    approval: input.connectorFirewall?.approval || input.agentActionApproval,
-  };
-  if (connector === 'http') request.urls = Array.isArray(target) ? target : [target];
-  else request.targetPath = target;
-
-  const guarded = await executeConnectorAction({
-    request,
-    execute,
-  });
-  if (!guarded.ok) return connectorFirewallFailure(guarded, connector);
-  return {
-    ok: true,
-    value: guarded.value,
-    connectorFirewall: guarded.firewallSummary || null,
   };
 }
 

@@ -5,13 +5,13 @@ const HuqanStorage = require('./storage');
 const { evaluateAgentLoopBudget, DEFAULT_MAX_ITERATIONS_PER_WINDOW, DEFAULT_WINDOW_MS } = require('./lib/agent-loop-budget-gate');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
 const {
-  createInitialState,
-  ensureState,
-  startFromDreamResult,
-  advanceAfterVerification,
-  isDreamExperimentVerificationStep,
   loopEnabled,
-} = require('./lib/dream-experiment-loop');
+  isDreamExperimentVerificationStep,
+  prepareDreamExperiment,
+  prepareDreamQueue,
+  processDreamStep,
+  selectDreamNextAction,
+} = require('./lib/agent-v3-dream-loop-adapter');
 
 function cloneValue(value) {
   if (value === undefined) return undefined;
@@ -479,25 +479,15 @@ class AgentV3 {
     // describe a workspace that was never touched. One run, one workspace.
     const scopedOpts = this._withWorkspaceScope(opts, workspaceId);
     const dreamLoopActive = loopEnabled(opts, this.kernel);
-    if (dreamLoopActive && !state.dreamExperimentLoop) {
-      state.dreamExperimentLoop = createInitialState({
-        workspaceId,
-        goal,
-        checkpointId: state.checkpointId,
-        maxHypotheses: opts.dreamExperimentMaxHypotheses,
-        maxCycles: opts.dreamExperimentMaxCycles,
-        experimentId: opts.dreamExperimentId,
-      });
-    } else if (dreamLoopActive && state.dreamExperimentLoop) {
-      state.dreamExperimentLoop = ensureState(state.dreamExperimentLoop, {
-        workspaceId,
-        goal,
-        checkpointId: state.checkpointId,
-        maxHypotheses: opts.dreamExperimentMaxHypotheses,
-        maxCycles: opts.dreamExperimentMaxCycles,
-        experimentId: opts.dreamExperimentId,
-      });
-    }
+    const preparedDreamState = prepareDreamExperiment({
+      active: dreamLoopActive,
+      state,
+      workspaceId,
+      goal,
+      checkpointId: state.checkpointId,
+      opts,
+    });
+    if (preparedDreamState) state.dreamExperimentLoop = preparedDreamState;
 
     // AB10: durable, workspace-scoped ceiling on top of this call's own
     // maxIterations/timeBudgetMs (which only bound a single run()). Checked
@@ -511,17 +501,8 @@ class AgentV3 {
     // the loop below stops at the first of queued exhaustion, the plan's step
     // ceiling, or the per-call iteration ceiling.
     if (dreamLoopActive && !state.dreamExperimentLoop.hypotheses.length) {
-      // The regular plan may already contain ask/verify/dream fallback steps.
-      // An enabled experiment loop owns its bounded cycle explicitly so those
-      // legacy steps cannot consume the budget before hypothesis verification.
-      queued.length = 0;
-      queued.unshift({
-        id: `dream-experiment-dream-${state.steps.length + 1}`,
-        action: 'dream',
-        tool: 'dream',
-        input: {},
-        rationale: 'Dream experiment loop is enabled; generate a bounded hypothesis set before verification.',
-      });
+      // The enabled loop owns its bounded cycle before legacy fallback steps.
+      prepareDreamQueue(queued, state);
     }
 
     const runCapacity = Math.max(0, Math.min(
@@ -596,29 +577,8 @@ class AgentV3 {
       }
 
       let loopHandled = false;
-      if (dreamLoopActive && step.tool === 'dream') {
-        const loopResult = startFromDreamResult(this.kernel, state.dreamExperimentLoop, report.result, {
-          workspaceId,
-          goal,
-          checkpointId: state.checkpointId,
-          maxHypotheses: opts.dreamExperimentMaxHypotheses,
-          maxCycles: opts.dreamExperimentMaxCycles,
-          experimentId: opts.dreamExperimentId,
-        });
-        state.dreamExperimentLoop = loopResult.state;
-        loopHandled = loopResult.handled;
-        if (loopResult.nextStep && state.steps.length < activePlan.maxSteps) queued.unshift(loopResult.nextStep);
-        if (loopResult.blocked) {
-          state.status = 'blocked';
-          state.blockedBy = 'dream-experiment-loop';
-          state.blockReason = loopResult.state.lastError?.message || 'Dream experiment loop durability failed.';
-          queued.length = 0;
-        }
-      } else if (dreamLoopActive && isDreamExperimentVerificationStep(step)) {
-        const loopResult = advanceAfterVerification(this.kernel, state.dreamExperimentLoop, {
-          step,
-          ...report,
-        }, {
+      if (dreamLoopActive && (step.tool === 'dream' || isDreamExperimentVerificationStep(step))) {
+        const loopResult = processDreamStep(this.kernel, state.dreamExperimentLoop, { step, report }, {
           workspaceId,
           goal,
           checkpointId: state.checkpointId,
@@ -700,14 +660,11 @@ class AgentV3 {
     state.completedSteps = state.steps.length;
     state.remainingSteps = queued.length;
     state.recommendations = this.baseAgent._buildRunRecommendations(state);
-    const loopNextAction = state.dreamExperimentLoop?.nextAction;
-    state.nextAction = dreamLoopActive && loopNextAction
-      ? {
-          action: loopNextAction,
-          tool: loopNextAction === 'verify' ? 'verify' : loopNextAction,
-          reason: state.dreamExperimentLoop.terminalReason || 'Dream experiment loop selected the next bounded action.',
-        }
-      : this.baseAgent._suggestNextAction(state);
+    state.nextAction = selectDreamNextAction(
+      dreamLoopActive,
+      state,
+      this.baseAgent._suggestNextAction(state),
+    );
     state.report = this._renderReport(state);
     let goalMemory;
     let runs;
