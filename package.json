@@ -236,6 +236,7 @@
     "lib/kernel-learn-from-llm.js",
     "lib/kernel-dream.js",
     "lib/kernel-self-evolve.js",
+    "lib/kernel-context-similarity.js",
     "lib/kernel-v2-native.js",
     "lib/learn-admission-request.js",
     "lib/learn-use-case.js",

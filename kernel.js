@@ -20,6 +20,7 @@ const { runLearnFromLLM } = require('./lib/kernel-learn-from-llm');
 const { runDream } = require('./lib/kernel-dream');
 const { runSelfEvolve } = require('./lib/kernel-self-evolve');
 const { runAlternatives } = require('./lib/kernel-alternatives');
+const { runContextSimilarity } = require('./lib/kernel-context-similarity');
 const MemoryStore = require('./lib/memory-store');
 const { buildCanonicalReceiptPayload } = require('./lib/receipt/canonical-receipt');
 const { toCanonicalVerdict } = require('./lib/verdict/action-verdict');
@@ -855,36 +856,7 @@ class Kernel {
   }
 
   contextSimilarity(a, b, context) {
-    const ctxWeight = {};
-    const ctxNode = this.graph.getNode(context);
-    if (ctxNode) {
-      for (const [dim, w] of Object.entries(ctxNode.vector)) {
-        ctxWeight[dim] = w;
-      }
-    }
-
-    const aNode = this.graph.getNode(a);
-    const bNode = this.graph.getNode(b);
-    if (!aNode || !bNode) return 0;
-
-    const dims = new Set([
-      ...Object.keys(aNode.vector),
-      ...Object.keys(bNode.vector),
-      ...Object.keys(ctxWeight),
-    ]);
-
-    let dot = 0, magA = 0, magB = 0;
-    for (const d of dims) {
-      const cw = ctxWeight[d] || 1;
-      const va = (aNode.vector[d] || 0) * cw;
-      const vb = (bNode.vector[d] || 0) * cw;
-      dot += va * vb;
-      magA += va * va;
-      magB += vb * vb;
-    }
-
-    const mag = Math.sqrt(magA) * Math.sqrt(magB);
-    return mag === 0 ? 0 : dot / mag;
+    return runContextSimilarity(this.graph, a, b, context);
   }
 
   entropy(workspaceId = 'default') {
