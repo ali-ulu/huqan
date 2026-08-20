@@ -6,12 +6,20 @@ Current classification: `Partial trust layer`
 
 This document is a point-in-time inventory of connector, client, and trust-path coverage on current main. It is intentionally conservative: a path is only `trust-connected` when the tested contract shows gate enforcement, auditable output, and the relevant trust artifacts for that path. If a path is not fully proven end to end, it stays `partially-trust-connected`, `logged-wrapper`, or `api-wrapper`.
 
+## Canonical #968 follow-up
+
+On `feat/huqan-p1-canonical`, the tested `repo-memory` production caller now applies the opt-in connector firewall before GitHub, markdown, JSON, YAML, git-log, PDF, and HTTP URL source reads. The separate `plugins/evidence-validator.js` production path also applies the same firewall to its opt-in `evidenceReachability` HTTP HEAD probe through `http.probe`; the probe is read-only, bounded, and does not write graph state.
+
+A repository-wide exact import search found no production or internal caller of `lib/github-connector.js` outside its own tests and reachability metadata. The real GitHub ingestion path remains `plugins/repo-memory.js` → `adapters/github-adapter.js`, and the direct HTTP probe path is `plugins/evidence-validator.js` → `adapters/http-adapter.js`. No additional production-reachable connector bypass was identified in this follow-up.
+
+The evidence-validator probe remains conservatively classified as `partially-trust-connected` because the AAFW decision and explicit rejection are tested, but the probe itself does not create an audit event or receipt; it is a pre-ingest liveness check rather than a graph mutation.
+
 ## Inventory summary
 
 | Classification | Count |
 | --- | ---: |
 | `trust-connected` | 11 |
-| `partially-trust-connected` | 0 |
+| `partially-trust-connected` | 1 |
 | `logged-wrapper` | 1 |
 | `api-wrapper` | 1 |
 | `library-only` | 1 |
@@ -42,6 +50,7 @@ If any of these are not proven for the tested path, the path remains partial.
 | `adapters/github-adapter.js` | `parseRepoUrl`, `includePath`, `fetchRepoFiles` | `api_wrapper` | no | yes | no | no | no | no | no | no | `adapters/github-adapter.test.js` | `api-wrapper` | Fetching remote repo files is only a source wrapper; trust attachment happens later |
 | `adapters/markdown-adapter.js` | `parseMarkdown`, `listMarkdownFiles`, `ingestMarkdown` | `filesystem_wrapper` | no | no | no | no | no | no | no | no | `adapters/markdown-adapter.test.js`, `plugins/repo-memory.test.js` | `logged-wrapper` | Root confinement is proven, but the adapter itself does not attach provenance |
 | `plugins/repo-memory.js` | `ingestGithubRepo`, `ingestMarkdownPath`, `run` | `connector_ingest` | yes | yes for GitHub, no for markdown | yes on tested paths | yes | yes on tested paths | yes on tested paths | no | yes on tested paths | `plugins/repo-memory.test.js`, `lib/provenance-query.test.js`, `lib/provenance-ingest.test.js` | `trust-connected` | Tested current-main paths now return explicit admission records |
+| `plugins/evidence-validator.js` | `preIngest` / `checkSourceReachable` when `evidenceReachability` is enabled | `http_probe` | no | yes | yes via `http.probe` | no | no | explicit rejection only | no | n/a | `plugins/evidence-validator.test.js`, `test/connector-action-firewall.test.js` | `partially-trust-connected` | AAFW blocks malformed/credential-bearing/preview paths before HEAD; no audit/receipt because this is a bounded liveness probe |
 | `lib/github-connector.js` | `buildGitHubProvenance`, `routeAsPendingCandidate`, `ingestGitHubItem`, `ingestGitHubItems` | `connector_ingest` | yes | no | yes on tested paths | yes | yes | yes | yes on tested paths | yes for stored candidate/audit paths | `lib/github-connector.test.js`, `lib/provenance-query.test.js`, `lib/provenance-ingest.test.js` | `library-only` | No production or internal caller found (`grep -rl "require(.*github-connector" --include="*.js"` outside its own test file returns nothing); the real GitHub ingest path used by `plugins/repo-memory.js` is the separate `adapters/github-adapter.js`. Trust behavior is proven only inside this file's own tests, not reachable from `cli.js`, `server.js`, `mcpServer.js`, or any plugin |
 | `lib/provenance-ingest.js` | `buildProvenance`, `ingestWithProvenance` | `provenance_ingest` | yes | no | yes | yes | yes | yes | partial | yes | `lib/provenance-ingest.test.js` | `trust-connected` | Strict provenance policy is caller-controlled |
 | `lib/provenance-query.js` | `queryProvenance`, `queryTrustGraph`, `buildTrustReceipt` | `provenance_query` | no | no | n/a | no | no | no | yes | n/a | `lib/provenance-query.test.js`, `test/provenance-receipt-bridge.integration.test.js`, `test/causal-receipt-bridge.test.js` | `trust-connected` | Trust receipt generation remains tested on current-main paths |
@@ -63,6 +72,8 @@ If any of these are not proven for the tested path, the path remains partial.
 - Connector provenance is still partial across the full connector set.
 - Connector-to-graph admission is still partial across the full connector set.
 - The inline trust boundary is not yet mandatory across every connector and client path.
+- The `evidence-validator` HTTP probe is now inline-gated when its existing `evidenceReachability` capability is enabled, but remains partial because it has no audit/receipt artifact.
+
 - `repo-memory` is trust-connected on the tested current-main paths, but the overall system is still only a partial trust layer because the inline boundary is not mandatory everywhere.
 - `lib/github-connector.js` is reclassified `library-only`: its trust behavior is proven only within its own tests. No production or internal caller was found; `repo-memory`'s real GitHub ingest path goes through `adapters/github-adapter.js` instead.
 
