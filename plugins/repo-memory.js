@@ -416,30 +416,92 @@ function plainEntry(entry, input) {
   };
 }
 
+function connectorFirewallIsEnabled(input = {}) {
+  return input.enforceConnectorFirewall === true || input.connectorFirewall?.enabled === true;
+}
+
+function connectorFirewallFailure(guarded, sourceType) {
+  const normalizationFailure = new Set([
+    'CONNECTOR_TARGET_REQUIRED',
+    'CONNECTOR_TARGET_INVALID',
+    'CONNECTOR_ACTION_UNKNOWN',
+  ]).has(guarded.reason);
+  return {
+    ok: false,
+    sourceType,
+    error: guarded.error || guarded.reason || 'Connector action blocked',
+    code: normalizationFailure ? guarded.reason : (guarded.code || 'CONNECTOR_ACTION_FIREWALL_BLOCKED'),
+    connectorFirewall: guarded.firewallSummary || {
+      decision: guarded.decision || null,
+      reason: guarded.reason || null,
+      connectorFirewallVersion: guarded.connectorFirewallVersion || null,
+    },
+  };
+}
+
+async function executeGuardedConnectorIngest({ connector, target, input = {}, execute }) {
+  if (!connectorFirewallIsEnabled(input)) {
+    return { ok: true, value: await execute() };
+  }
+
+  const request = {
+    connector,
+    action: 'ingest',
+    workspaceId: input.workspaceId,
+    actor: input.actor,
+    preview: input.preview === true,
+    dryRun: input.dryRun === true,
+    approval: input.connectorFirewall?.approval || input.agentActionApproval,
+  };
+  if (connector === 'http') request.urls = Array.isArray(target) ? target : [target];
+  else request.targetPath = target;
+
+  const guarded = await executeConnectorAction({
+    request,
+    execute,
+  });
+  if (!guarded.ok) return connectorFirewallFailure(guarded, connector);
+  return {
+    ok: true,
+    value: guarded.value,
+    connectorFirewall: guarded.firewallSummary || null,
+  };
+}
+
 async function ingestMarkdownPath(kernel, input = {}) {
   const { targetPath, rootPath } = requireRootedPath(input, {
     label: 'markdown',
     rootCode: 'MARKDOWN_ROOT_REQUIRED',
   });
 
-  const ingested = ingestMarkdown(targetPath, { rootPath });
-  const { added, admissions } = runPathIngest(kernel, input, {
-    source: 'markdown',
-    provenanceSourceType: 'document',
-    fileSubType: 'markdown_file',
-    entrySubType: 'markdown_section',
-    confidence: 0.68,
-    entries: ingested.sections.map((section) => ({
-      filePath: section.filePath,
-      sourceRef: `file:${section.filePath}:${section.sectionTitle}`,
-      key: section.sectionTitle,
-      label: section.sectionTitle,
-      actor: input.actor || 'repo-memory',
-      timestamp: input.timestamp || nowIso(),
-      details: { sectionTitle: section.sectionTitle },
-    })),
+  const guarded = await executeGuardedConnectorIngest({
+    connector: 'markdown',
+    target: targetPath,
+    input,
+    execute: async () => {
+      const ingested = ingestMarkdown(targetPath, { rootPath });
+      const { added, admissions } = runPathIngest(kernel, input, {
+        source: 'markdown',
+        provenanceSourceType: 'document',
+        fileSubType: 'markdown_file',
+        entrySubType: 'markdown_section',
+        confidence: 0.68,
+        entries: ingested.sections.map((section) => ({
+          filePath: section.filePath,
+          sourceRef: `file:${section.filePath}:${section.sectionTitle}`,
+          key: section.sectionTitle,
+          label: section.sectionTitle,
+          actor: input.actor || 'repo-memory',
+          timestamp: input.timestamp || nowIso(),
+          details: { sectionTitle: section.sectionTitle },
+        })),
+      });
+      return { ingested, added, admissions };
+    },
   });
+  if (!guarded.ok) return guarded;
 
+  const { ingested, added, admissions } = guarded.value;
   trackIngestSuccess(kernel, 'markdown', added);
   return {
     ok: true,
@@ -448,6 +510,7 @@ async function ingestMarkdownPath(kernel, input = {}) {
     added,
     admission: summarizeGraphAdmissions(admissions),
     admissions,
+    ...(guarded.connectorFirewall ? { connectorFirewall: guarded.connectorFirewall } : {}),
   };
 }
 
@@ -457,16 +520,26 @@ async function ingestJsonPath(kernel, input = {}) {
     rootCode: 'JSON_ROOT_REQUIRED',
   });
 
-  const ingested = ingestJson(targetPath, { rootPath });
-  const { added, admissions } = runPathIngest(kernel, input, {
-    source: 'json',
-    provenanceSourceType: 'import',
-    fileSubType: 'json_file',
-    entrySubType: 'json_entry',
-    confidence: 0.68,
-    entries: ingested.entries.map((entry) => plainEntry(entry, input)),
+  const guarded = await executeGuardedConnectorIngest({
+    connector: 'json',
+    target: targetPath,
+    input,
+    execute: async () => {
+      const ingested = ingestJson(targetPath, { rootPath });
+      const { added, admissions } = runPathIngest(kernel, input, {
+        source: 'json',
+        provenanceSourceType: 'import',
+        fileSubType: 'json_file',
+        entrySubType: 'json_entry',
+        confidence: 0.68,
+        entries: ingested.entries.map((entry) => plainEntry(entry, input)),
+      });
+      return { ingested, added, admissions };
+    },
   });
+  if (!guarded.ok) return guarded;
 
+  const { ingested, added, admissions } = guarded.value;
   trackIngestSuccess(kernel, 'json', added);
   return {
     ok: true,
@@ -475,6 +548,7 @@ async function ingestJsonPath(kernel, input = {}) {
     added,
     admission: summarizeGraphAdmissions(admissions),
     admissions,
+    ...(guarded.connectorFirewall ? { connectorFirewall: guarded.connectorFirewall } : {}),
   };
 }
 
@@ -484,16 +558,26 @@ async function ingestYamlPath(kernel, input = {}) {
     rootCode: 'YAML_ROOT_REQUIRED',
   });
 
-  const ingested = ingestYaml(targetPath, { rootPath });
-  const { added, admissions } = runPathIngest(kernel, input, {
-    source: 'yaml',
-    provenanceSourceType: 'import',
-    fileSubType: 'yaml_file',
-    entrySubType: 'yaml_entry',
-    confidence: 0.68,
-    entries: ingested.entries.map((entry) => plainEntry(entry, input)),
+  const guarded = await executeGuardedConnectorIngest({
+    connector: 'yaml',
+    target: targetPath,
+    input,
+    execute: async () => {
+      const ingested = ingestYaml(targetPath, { rootPath });
+      const { added, admissions } = runPathIngest(kernel, input, {
+        source: 'yaml',
+        provenanceSourceType: 'import',
+        fileSubType: 'yaml_file',
+        entrySubType: 'yaml_entry',
+        confidence: 0.68,
+        entries: ingested.entries.map((entry) => plainEntry(entry, input)),
+      });
+      return { ingested, added, admissions };
+    },
   });
+  if (!guarded.ok) return guarded;
 
+  const { ingested, added, admissions } = guarded.value;
   trackIngestSuccess(kernel, 'yaml', added);
   return {
     ok: true,
@@ -502,6 +586,7 @@ async function ingestYamlPath(kernel, input = {}) {
     added,
     admission: summarizeGraphAdmissions(admissions),
     admissions,
+    ...(guarded.connectorFirewall ? { connectorFirewall: guarded.connectorFirewall } : {}),
   };
 }
 
@@ -511,32 +596,42 @@ async function ingestGitLogPath(kernel, input = {}) {
     rootCode: 'GIT_LOG_ROOT_REQUIRED',
   });
 
-  const ingested = ingestGitLog(targetPath, {
-    rootPath,
-    maxCommits: input.maxCommits,
-    since: input.since,
-    branch: input.branch,
-    pathFilter: input.pathFilter,
+  const guarded = await executeGuardedConnectorIngest({
+    connector: 'git-log',
+    target: targetPath,
+    input,
+    execute: async () => {
+      const ingested = ingestGitLog(targetPath, {
+        rootPath,
+        maxCommits: input.maxCommits,
+        since: input.since,
+        branch: input.branch,
+        pathFilter: input.pathFilter,
+      });
+      // A commit carries its own author and date, so unlike the other connectors
+      // the entry provenance is the commit's, not the ingesting caller's.
+      const { added, admissions } = runPathIngest(kernel, input, {
+        source: 'git-log',
+        provenanceSourceType: 'import',
+        fileSubType: 'git_log_repo',
+        entrySubType: 'git_log_commit',
+        confidence: 0.68,
+        entries: ingested.entries.map((entry) => ({
+          filePath: entry.filePath,
+          sourceRef: entry.sourceRef,
+          key: entry.entryKey,
+          label: entry.commit.subject || entry.entryKey,
+          actor: entry.commit.authorName || input.actor || 'repo-memory',
+          timestamp: entry.commit.date || input.timestamp || nowIso(),
+          details: { entryKey: entry.entryKey, commitHash: entry.commit.hash },
+        })),
+      });
+      return { ingested, added, admissions };
+    },
   });
-  // A commit carries its own author and date, so unlike the other connectors
-  // the entry provenance is the commit's, not the ingesting caller's.
-  const { added, admissions } = runPathIngest(kernel, input, {
-    source: 'git-log',
-    provenanceSourceType: 'import',
-    fileSubType: 'git_log_repo',
-    entrySubType: 'git_log_commit',
-    confidence: 0.68,
-    entries: ingested.entries.map((entry) => ({
-      filePath: entry.filePath,
-      sourceRef: entry.sourceRef,
-      key: entry.entryKey,
-      label: entry.commit.subject || entry.entryKey,
-      actor: entry.commit.authorName || input.actor || 'repo-memory',
-      timestamp: entry.commit.date || input.timestamp || nowIso(),
-      details: { entryKey: entry.entryKey, commitHash: entry.commit.hash },
-    })),
-  });
+  if (!guarded.ok) return guarded;
 
+  const { ingested, added, admissions } = guarded.value;
   trackIngestSuccess(kernel, 'git-log', added);
   return {
     ok: true,
@@ -546,6 +641,7 @@ async function ingestGitLogPath(kernel, input = {}) {
     added,
     admission: summarizeGraphAdmissions(admissions),
     admissions,
+    ...(guarded.connectorFirewall ? { connectorFirewall: guarded.connectorFirewall } : {}),
   };
 }
 
@@ -555,16 +651,26 @@ async function ingestPdfPath(kernel, input = {}) {
     rootCode: 'PDF_ROOT_REQUIRED',
   });
 
-  const ingested = await ingestPdf(targetPath, { rootPath });
-  const { added, admissions } = runPathIngest(kernel, input, {
-    source: 'pdf',
-    provenanceSourceType: 'import',
-    fileSubType: 'pdf_file',
-    entrySubType: 'pdf_page',
-    confidence: 0.68,
-    entries: ingested.entries.map((entry) => plainEntry(entry, input)),
+  const guarded = await executeGuardedConnectorIngest({
+    connector: 'pdf',
+    target: targetPath,
+    input,
+    execute: async () => {
+      const ingested = await ingestPdf(targetPath, { rootPath });
+      const { added, admissions } = runPathIngest(kernel, input, {
+        source: 'pdf',
+        provenanceSourceType: 'import',
+        fileSubType: 'pdf_file',
+        entrySubType: 'pdf_page',
+        confidence: 0.68,
+        entries: ingested.entries.map((entry) => plainEntry(entry, input)),
+      });
+      return { ingested, added, admissions };
+    },
   });
+  if (!guarded.ok) return guarded;
 
+  const { ingested, added, admissions } = guarded.value;
   trackIngestSuccess(kernel, 'pdf', added);
   return {
     ok: true,
@@ -573,6 +679,7 @@ async function ingestPdfPath(kernel, input = {}) {
     added,
     admission: summarizeGraphAdmissions(admissions),
     admissions,
+    ...(guarded.connectorFirewall ? { connectorFirewall: guarded.connectorFirewall } : {}),
   };
 }
 
@@ -584,26 +691,36 @@ async function ingestHttpUrls(kernel, input = {}) {
     throw err;
   }
 
-  // Deliberately not a spread of `input` -- allowPrivateAddresses is a
-  // test-only SSRF bypass in lib/ssrf-guard and must never be reachable
-  // from a plugin/CLI caller, so only known-safe fields are forwarded here.
-  const ingested = await ingestUrls(urls, {
-    respectRobots: input.respectRobots,
-    timeoutMs: input.timeoutMs,
-    maxBytes: input.maxBytes,
-    maxRedirects: input.maxRedirects,
-    userAgent: input.userAgent,
+  const guarded = await executeGuardedConnectorIngest({
+    connector: 'http',
+    target: urls,
+    input,
+    execute: async () => {
+      // Deliberately not a spread of `input` -- allowPrivateAddresses is a
+      // test-only SSRF bypass in lib/ssrf-guard and must never be reachable
+      // from a plugin/CLI caller, so only known-safe fields are forwarded here.
+      const ingested = await ingestUrls(urls, {
+        respectRobots: input.respectRobots,
+        timeoutMs: input.timeoutMs,
+        maxBytes: input.maxBytes,
+        maxRedirects: input.maxRedirects,
+        userAgent: input.userAgent,
+      });
+      const { added, admissions } = runPathIngest(kernel, input, {
+        source: 'http',
+        provenanceSourceType: 'import',
+        fileSubType: 'http_page',
+        entrySubType: 'http_section',
+        confidence: 0.6,
+        fileRefPrefix: 'url:',
+        entries: ingested.entries.map((entry) => plainEntry(entry, input)),
+      });
+      return { ingested, added, admissions };
+    },
   });
-  const { added, admissions } = runPathIngest(kernel, input, {
-    source: 'http',
-    provenanceSourceType: 'import',
-    fileSubType: 'http_page',
-    entrySubType: 'http_section',
-    confidence: 0.6,
-    fileRefPrefix: 'url:',
-    entries: ingested.entries.map((entry) => plainEntry(entry, input)),
-  });
+  if (!guarded.ok) return guarded;
 
+  const { ingested, added, admissions } = guarded.value;
   trackIngestSuccess(kernel, 'http', added);
   return {
     ok: true,
@@ -613,6 +730,7 @@ async function ingestHttpUrls(kernel, input = {}) {
     fetchErrors: ingested.errors,
     admission: summarizeGraphAdmissions(admissions),
     admissions,
+    ...(guarded.connectorFirewall ? { connectorFirewall: guarded.connectorFirewall } : {}),
   };
 }
 

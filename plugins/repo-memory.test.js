@@ -600,3 +600,74 @@ test('repo-memory forwards proposal receipts without generating connector audit 
     fs.rmSync(rootDir, { recursive: true, force: true });
   }
 });
+
+
+test('repo-memory opt-in connector firewall blocks every non-GitHub source before source read', async () => {
+  const kernel = makeKernel();
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-repo-firewall-root-'));
+  const markdownPath = path.join(rootDir, 'source.md');
+  const jsonPath = path.join(rootDir, 'source.json');
+  const yamlPath = path.join(rootDir, 'source.yaml');
+  const pdfPath = path.join(rootDir, 'source.pdf');
+  const gitPath = path.join(rootDir, 'repo');
+  fs.writeFileSync(markdownPath, '# Safe\ncontent', 'utf8');
+  fs.writeFileSync(jsonPath, JSON.stringify({ claim: 'safe' }), 'utf8');
+  fs.writeFileSync(yamlPath, 'claim: safe\n', 'utf8');
+  writeMinimalPdf(pdfPath, 'safe');
+  fs.mkdirSync(gitPath);
+  initGitRepo(gitPath);
+  gitCommit(gitPath, 'claim.txt', 'safe', 'Safe commit');
+
+  try {
+    const cases = [
+      { sourceType: 'markdown', path: markdownPath },
+      { sourceType: 'json', path: jsonPath },
+      { sourceType: 'yaml', path: yamlPath },
+      { sourceType: 'git-log', path: gitPath },
+      { sourceType: 'pdf', path: pdfPath },
+      { sourceType: 'http', url: 'https://example.com/docs' },
+    ];
+    for (const input of cases) {
+      const result = await repoMemory.run(kernel, {
+        action: 'ingest',
+        ...input,
+        rootPath: rootDir,
+        enforceConnectorFirewall: true,
+        preview: true,
+      });
+      assert.equal(result.ok, false, input.sourceType);
+      assert.equal(result.code, 'CONNECTOR_ACTION_FIREWALL_BLOCKED', input.sourceType);
+      assert.equal(result.connectorFirewall.decision, 'allow', input.sourceType);
+      assert.equal(result.error, 'CONNECTOR_PREVIEW_ONLY', input.sourceType);
+    }
+    assert.equal(kernel.nodes.length, 0);
+    assert.equal(kernel.edges.length, 0);
+  } finally {
+    fs.rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('repo-memory opt-in markdown connector allows bounded read before graph ingest', async () => {
+  const kernel = makeKernel();
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-repo-firewall-allow-'));
+  const markdownPath = path.join(rootDir, 'source.md');
+  fs.writeFileSync(markdownPath, '# Guarded\ncontent', 'utf8');
+  try {
+    const result = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'markdown',
+      path: markdownPath,
+      rootPath: rootDir,
+      enforceConnectorFirewall: true,
+      workspaceId: 'workspace-firewall',
+      actor: 'connector-test',
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.connectorFirewall.decision, 'allow');
+    assert.equal(result.connectorFirewall.metadata.surface, 'connector');
+    assert.equal(result.admission.outcome, 'admitted');
+    assert.ok(kernel.nodes.length > 0);
+  } finally {
+    fs.rmSync(rootDir, { recursive: true, force: true });
+  }
+});

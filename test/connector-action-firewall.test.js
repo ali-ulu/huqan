@@ -117,3 +117,63 @@ test('allowed connector action invokes executor exactly once with bounded decisi
   assert.deepEqual(result.value, ['file']);
   assert.equal(calls, 1);
 });
+
+
+test('connector firewall normalizes local source connectors with bound targets', () => {
+  for (const connector of ['markdown', 'json', 'yaml', 'git-log', 'pdf']) {
+    const result = evaluateConnectorAction({
+      connector,
+      action: 'ingest',
+      targetPath: `/workspace/${connector}/source`,
+      workspaceId: 'workspace-local',
+      actor: 'connector-test',
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.canExecute, true);
+    assert.equal(result.decision, 'allow');
+    assert.equal(result.firewallVersion, 'AAFW-v1.0.0');
+    assert.equal(result.target, `/workspace/${connector}/source`);
+    assert.equal(result.firewallSummary.metadata.surface, 'connector');
+  }
+});
+
+test('connector firewall normalizes multiple HTTP targets and refuses credentials', () => {
+  const result = evaluateConnectorAction({
+    connector: 'http',
+    action: 'ingest',
+    urls: ['https://example.com/docs#section', 'http://example.org/feed'],
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.canExecute, true);
+  assert.equal(result.decision, 'allow');
+  assert.deepEqual(result.targets, ['https://example.com/docs', 'http://example.org/feed']);
+  assert.equal(result.target, 'https://example.com/docs|http://example.org/feed');
+
+  const credentials = normalizeConnectorAction({
+    connector: 'http',
+    action: 'ingest',
+    url: 'https://user:secret@example.com/private',
+  });
+  assert.equal(credentials.ok, false);
+  assert.equal(credentials.reason, 'CONNECTOR_TARGET_INVALID');
+});
+
+test('connector preview remains dry_run_only for local and HTTP connectors', async () => {
+  for (const request of [
+    { connector: 'markdown', action: 'ingest', targetPath: '/workspace/docs/readme.md' },
+    { connector: 'http', action: 'ingest', urls: ['https://example.com'] },
+  ]) {
+    let calls = 0;
+    const result = await executeConnectorAction({
+      request: { ...request, preview: true },
+      execute: async () => {
+        calls += 1;
+        return ['should-not-run'];
+      },
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 'CONNECTOR_ACTION_FIREWALL_BLOCKED');
+    assert.equal(result.decision, 'dry_run_only');
+    assert.equal(calls, 0);
+  }
+});
