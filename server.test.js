@@ -1051,7 +1051,13 @@ describe('Server - Public API Allowlist Lockdown', () => {
 
   it('unrecognized queries preserve existing behavior (200 + Anlamadım)', async () => {
     rateLimitMap.clear();
-    const fallbackQueries = ['selamlar', 'unknown multi word text', '?', 'h', 'sor', 'neden', 'kim', 'ne', 'yardim', 'nasil', 'nicin'];
+    // `yardim` used to sit in this list: the fixed-word command lists held
+    // 'yardım' and compared against the raw input, so the folded spelling --
+    // the one compatibilityHelpText() prints -- fell through to the fallback.
+    // It is a recognized command in both spellings now, the same way `hello`
+    // and `hi` stopped being the odd ones out in the test below. Bare `sor`
+    // stays here on purpose: it is only accepted as `sor: <soru>`.
+    const fallbackQueries = ['selamlar', 'unknown multi word text', '?', 'h', 'sor', 'neden', 'kim', 'ne', 'nasil', 'nicin'];
     for (const query of fallbackQueries) {
       const r = await request(`${BASE}/api?q=${encodeURIComponent(query)}`);
       assert.strictEqual(r.status, 200, `Expected 200 for fallback query: ${query}`);
@@ -1073,6 +1079,29 @@ describe('Server - Public API Allowlist Lockdown', () => {
       assert.strictEqual(r.status, 200, `Expected 200 for greeting: ${query}`);
       const j = await r.json();
       assert.strictEqual(j.result, turkish.result, `${query} must answer exactly like selam`);
+    }
+  });
+
+  it('folded spellings answer like their Turkish originals, including the one the help prints', async () => {
+    // RFC-001 decision 7 is "a reader accepts both spellings". The fixed-word
+    // command lists compared against the raw lowercased input while holding
+    // diacritic entries, so only the Turkish spelling arrived -- and `yardim`,
+    // the spelling compatibilityHelpText() and the /api/v2/workflows manifest
+    // both print, was among the rejected ones. The help was advertising a
+    // command the reader refused.
+    rateLimitMap.clear();
+    for (const [turkishSpelling, foldedSpelling] of [['yardım', 'yardim'], ['durum', 'durum']]) {
+      const expected = await (await request(`${BASE}/api?q=${encodeURIComponent(turkishSpelling)}`)).json();
+      const actual = await (await request(`${BASE}/api?q=${encodeURIComponent(foldedSpelling)}`)).json();
+      assert.strictEqual(
+        actual.result,
+        expected.result,
+        `${foldedSpelling} must answer exactly like ${turkishSpelling}`,
+      );
+      assert.ok(
+        !actual.result.includes('Anlamadim') && !actual.result.includes('Anlamadım'),
+        `${foldedSpelling} must be recognized, got: ${actual.result}`,
+      );
     }
   });
 });
