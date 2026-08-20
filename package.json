@@ -233,6 +233,7 @@
     "lib/kernel-learn-document.js",
     "lib/kernel-self-learn.js",
     "lib/kernel-learn-from-llm.js",
+    "lib/kernel-dream.js",
     "lib/kernel-v2-native.js",
     "lib/learn-admission-request.js",
     "lib/learn-use-case.js",
