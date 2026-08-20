@@ -726,6 +726,28 @@ describe('Server - API', () => {
     assert.strictEqual(r.status, 401);
   });
 
+  it('SEC: the graph export is not stored or content-sniffed', async () => {
+    // /graph-data returns the whole knowledge graph for a workspace, and was
+    // the least hardened JSON route on this server: no X-Content-Type-Options
+    // at all, and `no-cache`, which only forces revalidation and still lets an
+    // intermediary or the browser write the export to disk. Neighbouring routes
+    // (/api, /api/v2/workflows, the viewer) already set both headers, so the
+    // endpoint with the most sensitive payload was the one outside the rule.
+    const r = await request(`${BASE}/graph-data?workspaceId=default`);
+    assert.strictEqual(r.status, 200);
+    assert.strictEqual(r.headers.get('x-content-type-options'), 'nosniff');
+    assert.strictEqual(r.headers.get('cache-control'), 'no-store');
+  });
+
+  it('SEC: /health is not content-sniffed', async () => {
+    // Public, and it reports node/edge counts. Its cache directive is left as
+    // `no-cache` on purpose: it is a liveness probe, and tightening that is a
+    // separate call from stopping MIME sniffing.
+    const r = await request(`${BASE}/health`, { skipAuth: true });
+    assert.strictEqual(r.status, 200);
+    assert.strictEqual(r.headers.get('x-content-type-options'), 'nosniff');
+  });
+
   it('GET /graph-data dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {
     const r = await request(`${BASE}/graph-data?workspaceId=default`);
     assert.strictEqual(r.status, 200);
@@ -744,7 +766,9 @@ describe('Server - API', () => {
       assert.ok('target' in j.links[0]);
     }
     assert.notStrictEqual(r.headers.get('access-control-allow-origin'), '*');
-    assert.strictEqual(r.headers.get('cache-control'), 'no-cache');
+    // `no-store` since the graph export stopped being merely revalidated; the
+    // dedicated header test above owns that contract and explains it.
+    assert.strictEqual(r.headers.get('cache-control'), 'no-store');
     // PR-C3: additive memory fields
     assert.ok(Array.isArray(j.memoryNodes), 'memoryNodes must be an array');
     assert.ok(Array.isArray(j.memoryLinks), 'memoryLinks must be an array');
