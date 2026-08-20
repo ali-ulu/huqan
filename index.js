@@ -27,6 +27,7 @@ const Kernel = require('./kernel');
 const KernelV2 = require('./kernel.v2');
 const errorPrevention = require('./lib/error-prevention');
 const agentActionFirewall = require('./lib/agent-action-firewall');
+const prGuardian = require('./lib/pr-guardian');
 
 module.exports = KernelV2;
 
@@ -59,3 +60,8 @@ module.exports.AgentActionFirewall = agentActionFirewall;
 module.exports.evaluateAgentActionFirewall = agentActionFirewall.evaluateAgentActionFirewall;
 module.exports.AGENT_ACTION_FIREWALL_VERSION = agentActionFirewall.AGENT_ACTION_FIREWALL_VERSION;
 module.exports.AGENT_ACTION_FIREWALL_DECISIONS = agentActionFirewall.AGENT_ACTION_FIREWALL_DECISIONS;
+
+// GitHub PR Guardian SDK surface. It is transport-independent: hosts may use
+// the library directly without MCP or the bundled HTTP server.
+module.exports.PrGuardian = prGuardian;
+module.exports.PRGuardian = prGuardian;

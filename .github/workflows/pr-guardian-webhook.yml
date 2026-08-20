@@ -1,0 +1,177 @@
+name: PR Guardian webhook
+
+# This workflow never checks out or executes pull-request code. It only
+# serializes trusted event metadata and sends it to the HUQAN PR Guardian
+# webhook. Fork PRs are handled by the external GitHub App/webhook boundary;
+# this Actions path is limited to same-repository PRs because pull_request
+# workflows do not receive repository secrets for forked code.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+concurrency:
+  group: pr-guardian-${{ github.repository }}-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  notify-huqan:
+    name: Notify HUQAN PR Guardian
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PR_GUARDIAN_WEBHOOK_URL: ${{ vars.PR_GUARDIAN_WEBHOOK_URL }}
+      PR_GUARDIAN_WEBHOOK_SECRET: ${{ secrets.PR_GUARDIAN_WEBHOOK_SECRET }}
+      PR_REPOSITORY: ${{ github.event.repository.full_name }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_ACTION: ${{ github.event.action }}
+      PR_TITLE: ${{ github.event.pull_request.title }}
+      PR_BODY: ${{ github.event.pull_request.body }}
+      PR_URL: ${{ github.event.pull_request.html_url }}
+      PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+      PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      PR_ACTOR: ${{ github.actor }}
+      PR_DELIVERY_ID: pr-guardian-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Build signed GitHub pull_request payload
+        id: payload
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          umask 077
+
+          if [[ -z "${PR_GUARDIAN_WEBHOOK_URL}" ]]; then
+            echo "::error::Repository variable PR_GUARDIAN_WEBHOOK_URL is not configured."
+            exit 1
+          fi
+          if [[ -z "${PR_GUARDIAN_WEBHOOK_SECRET}" ]]; then
+            echo "::error::Repository secret PR_GUARDIAN_WEBHOOK_SECRET is not configured."
+            exit 1
+          fi
+          if [[ -z "${PR_REPOSITORY}" || -z "${PR_NUMBER}" || -z "${PR_HEAD_SHA}" ]]; then
+            echo "::error::The pull request event did not contain the immutable repository, number, or head SHA."
+            exit 1
+          fi
+
+          payload_file="${RUNNER_TEMP}/pr-guardian-payload.json"
+          signature_file="${RUNNER_TEMP}/pr-guardian-signature.txt"
+          response_file="${RUNNER_TEMP}/pr-guardian-response.json"
+          status_file="${RUNNER_TEMP}/pr-guardian-status.txt"
+
+          jq -n \
+            --arg action "${PR_ACTION}" \
+            --arg number "${PR_NUMBER}" \
+            --arg repo "${PR_REPOSITORY}" \
+            --arg title "${PR_TITLE}" \
+            --arg body "${PR_BODY}" \
+            --arg url "${PR_URL}" \
+            --arg base "${PR_BASE_REF}" \
+            --arg head "${PR_HEAD_REF}" \
+            --arg sha "${PR_HEAD_SHA}" \
+            --arg actor "${PR_ACTOR}" \
+            --arg delivery "${PR_DELIVERY_ID}" \
+            '{
+              action: $action,
+              number: ($number | tonumber),
+              pull_request: {
+                number: ($number | tonumber),
+                title: $title,
+                body: $body,
+                html_url: $url,
+                base: { ref: $base },
+                head: { ref: $head, sha: $sha }
+              },
+              repository: { full_name: $repo },
+              sender: { login: $actor }
+            }' > "${payload_file}"
+
+          signature="$(openssl dgst -sha256 -hmac "${PR_GUARDIAN_WEBHOOK_SECRET}" -hex "${payload_file}" | awk '{print $2}')"
+          if [[ ! "${signature}" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::error::Could not create a SHA-256 webhook signature."
+            exit 1
+          fi
+          printf 'sha256=%s' "${signature}" > "${signature_file}"
+
+          {
+            echo "payload_file=${payload_file}"
+            echo "signature_file=${signature_file}"
+            echo "response_file=${response_file}"
+            echo "status_file=${status_file}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Send signed payload to HUQAN
+        id: webhook
+        shell: bash
+        env:
+          PAYLOAD_FILE: ${{ steps.payload.outputs.payload_file }}
+          SIGNATURE_FILE: ${{ steps.payload.outputs.signature_file }}
+          RESPONSE_FILE: ${{ steps.payload.outputs.response_file }}
+          STATUS_FILE: ${{ steps.payload.outputs.status_file }}
+        run: |
+          set -Eeuo pipefail
+
+          status="$(curl --silent --show-error \
+            --connect-timeout 10 \
+            --max-time 30 \
+            --output "${RESPONSE_FILE}" \
+            --write-out '%{http_code}' \
+            -X POST "${PR_GUARDIAN_WEBHOOK_URL%/}/api/v2/pr-guardian/webhooks/github" \
+            -H 'content-type: application/json' \
+            -H 'x-github-event: pull_request' \
+            -H "x-github-delivery: ${PR_DELIVERY_ID}" \
+            -H "x-hub-signature-256: $(cat "${SIGNATURE_FILE}")" \
+            --data-binary "@${PAYLOAD_FILE}")"
+
+          printf '%s' "${status}" > "${STATUS_FILE}"
+          cat "${RESPONSE_FILE}"
+          printf '\nHTTP status: %s\n' "${status}"
+
+          if [[ ! "${status}" =~ ^2[0-9][0-9]$ ]]; then
+            echo "::error::HUQAN PR Guardian webhook returned HTTP ${status}."
+            exit 1
+          fi
+
+      - name: Enforce fail-closed policy response
+        shell: bash
+        env:
+          RESPONSE_FILE: ${{ steps.payload.outputs.response_file }}
+        run: |
+          set -Eeuo pipefail
+
+          decision="$(jq -r '.decision // .policy.decision // empty' "${RESPONSE_FILE}")"
+          case "${decision}" in
+            allow|review)
+              echo "HUQAN PR Guardian decision: ${decision}"
+              ;;
+            dry_run_only)
+              echo "::warning::HUQAN returned dry_run_only; no external mutation was authorized."
+              ;;
+            block)
+              echo "::error::HUQAN PR Guardian blocked this pull request action."
+              exit 1
+              ;;
+            *)
+              echo "::error::HUQAN response did not contain a recognized decision."
+              exit 1
+              ;;
+          esac
+
+      - name: Comment on PR when HUQAN blocks
+        if: ${{ always() && steps.webhook.outcome == 'success' }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_API_URL: ${{ github.api_url }}
+          PR_GUARDIAN_RESPONSE_FILE: ${{ steps.payload.outputs.response_file }}
+          PR_GUARDIAN_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PR_GUARDIAN_ACTION: github.pr.guardian
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/comment-pr-guardian-block.js
