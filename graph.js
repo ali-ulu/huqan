@@ -69,6 +69,7 @@ const { getStats: runGraphStats } = require('./lib/graph-stats');
 const { countNodes: runNodeCount, countEdges: runEdgeCount } = require('./lib/graph-count-read');
 const { query: runGraphQuery } = require('./lib/graph-query-read');
 const { prune: runGraphPrune } = require('./lib/graph-prune');
+const { optimize: runGraphOptimize } = require('./lib/graph-optimize');
 const { isCausalRelation: runIsCausalRelation, getCausalRelations: runCausalRelations, getCausalEdges: runCausalEdges } = require('./lib/graph-causal-relation-read');
 const { addEdge: runEdgeWrite } = require('./lib/graph-edge-write');
 
@@ -1074,25 +1075,10 @@ class Graph {
     return runGraphPrune(this._pruneStoreApi(), threshold, workspaceId);
   }
 
+  _optimizeStoreApi() { return { prune: scope => this.prune(undefined, scope), getNodes: () => this._nodes, getEdges: (nodeId, scope) => this.getEdges(nodeId, scope), getInEdges: (nodeId, scope) => this.getInEdges(nodeId, scope), decayLambda: this._decayLambda, deleteNode: id => { delete this._nodes[id]; }, persistDeleteNode: (id, scope) => { if (this._db && this._stmts) this._stmts.deleteNode.run(id, scope); } }; }
+
   optimize(workspaceId = 'default') {
-    const scope = normalizeWorkspaceId(workspaceId);
-    const now = Date.now();
-    let pruned = this.prune(undefined, scope);
-    const nodeIds = Object.keys(this._nodes).filter(id => normalizeWorkspaceId(this._nodes[id].workspaceId) === scope);
-    let removedNodes = 0;
-    for (const id of nodeIds) {
-      const node = this._nodes[id];
-      const elapsed = (now - node.lastAccessed) / 1000;
-      const decayed = node.weight * Math.exp(-this._decayLambda * elapsed);
-      const outEdges = this.getEdges(node.id, node.workspaceId);
-      const inEdges = this.getInEdges(node.id, node.workspaceId);
-      if (decayed < 0.01 && outEdges.length === 0 && inEdges.length === 0) {
-        delete this._nodes[id];
-        if (this._db && this._stmts) this._stmts.deleteNode.run(node.id, normalizeWorkspaceId(node.workspaceId));
-        removedNodes++;
-      }
-    }
-    return { pruned, removedNodes };
+    return runGraphOptimize(this._optimizeStoreApi(), workspaceId);
   }
 
   _statsStoreApi() { return { nodeCount: () => this.nodeCount(), edgeCount: () => this.edgeCount(), candidateClaims: this._candidateClaims, decayLambda: this._decayLambda, hasSqlite: Boolean(this._db) }; }
