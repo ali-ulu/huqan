@@ -205,6 +205,13 @@ const ROUTED_SINK_CALLS = Object.freeze({
     // inside the admission gate.
     sinks: { addEdge: 1, appendAuditEvent: 1 },
   },
+  // Dream transition durability is a Graph.runMutationOnce unit of work; the
+  // single audit append is inside that callback and cannot execute on replay
+  // or after a failed durable mutation.
+  'lib/dream-experiment-loop.js': {
+    why: 'bounded dream transition audit is inside Graph.runMutationOnce callback; no second durability authority is introduced',
+    sinks: { appendAuditEvent: 1 },
+  },
 });
 
 /** Every file permitted to contain a sink call, in either state. */
@@ -359,8 +366,9 @@ test('mutation admission: the debt ledger reflects the routing done so far', () 
   // ledgeres dot-call sinks, so the K2 entry contributes two (addEdge + the
   // dot-call append); the other appends ride the injected alias. The total
   // rose from 46 to 48 because the module's copy of the chain is now ledgered
-  // outright rather than through the kernel wrapper.
+  // outright rather than through the kernel wrapper. DEL then added one routed
+  // audit append inside its own Graph.runMutationOnce transition callback.
   assert.equal(unrouted, 22, 'unrouted sink calls');
-  assert.equal(routed, 26, 'sink calls routed through admission (K2: +2 background edge dot-calls)');
-  assert.equal(unrouted + routed, 48, 'total sink calls, raised by the K2 background edge delegation');
+  assert.equal(routed, 27, 'sink calls routed through admission (K2 + DEL callbacks)');
+  assert.equal(unrouted + routed, 49, 'total sink calls, raised by K2 delegation and DEL audit');
 });

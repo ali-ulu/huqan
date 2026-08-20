@@ -29,6 +29,7 @@
 // Deliberately short: this is a liveness probe on the ingest path, not a
 // download, so waiting out a long server-side timeout buys nothing.
 const crypto = require('crypto');
+const { executeConnectorAction } = require('../lib/connector-action-firewall');
 
 const REACHABILITY_TIMEOUT_MS = 5000;
 
@@ -97,18 +98,28 @@ function validateSourceUrl(value) {
  * passes rather than being read as a rejection.
  *
  * @param {string} value
- * @param {{fetchUrl?: Function, timeoutMs?: number}} [deps]
+ * @param {{fetchUrl?: Function, timeoutMs?: number, workspaceId?: string, actor?: string, approval?: object}} [deps]
  * @returns {Promise<{ok: true} | {ok: false, reason: string, code: string}>}
  */
 async function checkSourceReachable(value, deps = {}) {
   // Required lazily so merely registering this plugin does not pull in
   // http/https/dns, and so tests can inject a fetch without a live network.
   const fetchUrl = deps.fetchUrl || require('../adapters/http-adapter').fetchUrl;
-  let response;
+  let guarded;
   try {
-    response = await fetchUrl(String(value).trim(), {
-      method: 'HEAD',
-      timeoutMs: deps.timeoutMs || REACHABILITY_TIMEOUT_MS,
+    guarded = await executeConnectorAction({
+      request: {
+        connector: 'http',
+        action: 'probe',
+        url: String(value).trim(),
+        workspaceId: deps.workspaceId,
+        actor: deps.actor || 'evidence-validator',
+        approval: deps.approval,
+      },
+      execute: (decision) => fetchUrl(decision.targetRef, {
+        method: 'HEAD',
+        timeoutMs: deps.timeoutMs || REACHABILITY_TIMEOUT_MS,
+      }),
     });
   } catch (error) {
     return {
@@ -118,6 +129,15 @@ async function checkSourceReachable(value, deps = {}) {
     };
   }
 
+  if (!guarded.ok) {
+    return {
+      ok: false,
+      reason: `source could not be reached: ${guarded.error || guarded.reason || 'connector action blocked'}`,
+      code: 'EVIDENCE_URL_UNREACHABLE',
+    };
+  }
+
+  const response = guarded.value;
   const status = response && response.statusCode;
   if (status === 405 || status === 501) return { ok: true };
   if (typeof status !== 'number' || status >= 400) {
