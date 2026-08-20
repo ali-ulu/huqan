@@ -16,6 +16,7 @@ const { createKernelReadUseCases } = require('./lib/kernel-read-use-cases');
 const { runLearnUseCase } = require('./lib/learn-use-case');
 const { runLearnDocument } = require('./lib/kernel-learn-document');
 const { runSelfLearn } = require('./lib/kernel-self-learn');
+const { runLearnFromLLM } = require('./lib/kernel-learn-from-llm');
 const MemoryStore = require('./lib/memory-store');
 const { buildCanonicalReceiptPayload } = require('./lib/receipt/canonical-receipt');
 const { toCanonicalVerdict } = require('./lib/verdict/action-verdict');
@@ -1189,86 +1190,7 @@ class Kernel {
    * @returns {{ learned: number, skipped: number, conflicts: string[] }}
    */
   learnFromLLM(text, opts = {}) {
-    // r1: Note - this method calls learn() and verify() which are now async
-    // For backward compatibility, returning async function result
-    if (this.paranoidMode) {
-      return {
-        learned: 0,
-        skipped: 0,
-        conflicts: [],
-        ok: false,
-        error: {
-          code: AXIOM_ERROR.LLM_DISABLED,
-          message: 'Paranoid mode is active: outbound LLM calls and automatic learning are blocked.',
-        },
-        meta: {
-          contractVersion: this.contractVersion,
-          paranoidMode: this.paranoidMode,
-        },
-      };
-    }
-
-    const skipConflicts = opts.skipConflicts !== false;
-    const minWords     = opts.minWords     || 2;
-    const maxSentences = opts.maxSentences || 20;
-
-    // Metni cümlelere böl: nokta, ünlem, soru işareti veya satır sonu
-    const sentences = text
-      .split(/[.!?\n]+/)
-      .map(s => s.trim())
-      .filter(s => s.length > 3);
-
-    let learned = 0, skipped = 0;
-    const conflicts = [];
-
-    for (const sentence of sentences.slice(0, maxSentences)) {
-      // Markdown işaretlerini temizle
-      const cleaned = sentence
-        .replace(/^[\s#*\-–—•>]+/, '')
-        .replace(/\*\*(.+?)\*\*/g, '$1')
-        .replace(/`(.+?)`/g, '$1')
-        .trim();
-
-      const words = cleaned.split(/\s+/).filter(Boolean);
-      if (words.length < minWords) { skipped++; continue; }
-
-      // Çelişki kontrolü
-      if (skipConflicts) {
-        const workspaceId = normalizeWorkspaceId(opts.workspaceId || opts.provenance?.workspaceId || 'default');
-        const check = this.verify(cleaned, { workspaceId });
-        if (check.data.status === 'contradicted') {
-          conflicts.push(cleaned);
-          skipped++;
-          continue;
-        }
-      }
-
-      const workspaceId = normalizeWorkspaceId(opts.workspaceId || opts.provenance?.workspaceId || 'default');
-      const provenance = opts.provenance && typeof opts.provenance === 'object'
-        ? { ...opts.provenance }
-        : {
-            provenanceId: `llm-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-            sourceRef: opts.sourceRef || 'llm:auto-learn',
-            sourceTitle: opts.sourceTitle || 'LLM auto-learn sentence',
-            sourceType: 'llm',
-            actor: opts.actor || 'system',
-            timestamp: opts.timestamp || new Date().toISOString(),
-            workspaceId,
-            confidence: opts.confidence ?? 0.5,
-            trustPolicyVersion: opts.trustPolicyVersion || '0.8.0',
-          };
-      const learnResult = this.learn(cleaned, {
-        ...opts,
-        provenance,
-        workspaceId,
-        admissionRequired: true,
-        approvalRequired: opts.approvalRequired ?? defaultApprovalRequired(),
-      });
-      if (Number(learnResult?.data?.learned || 0) > 0) learned++;
-      else skipped++;
-    }
-
-    return { learned, skipped, conflicts };
+    return runLearnFromLLM(text, opts, { paranoidMode: this.paranoidMode, contractVersion: this.contractVersion, verify: (statement, verifyOpts) => this.verify(statement, verifyOpts), learn: (sentence, learnOpts) => this.learn(sentence, learnOpts) });
   }
 
   detectContradictions(subject = '', workspaceId = 'default') {
