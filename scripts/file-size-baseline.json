@@ -8,16 +8,16 @@
   ],
   "threshold": 800,
   "files": {
-    "agent.js": 1075,
-    "graph.js": 1438,
-    "kernel.js": 1447,
+    "agent.js": 952,
+    "graph.js": 1306,
+    "kernel.js": 1097,
     "kernel.v2.js": 815,
     "lib/code-change-gate.js": 891,
-    "lib/memory-store.js": 1130,
+    "lib/memory-store.js": 1061,
     "lib/sandbox-isolation.js": 855,
     "scripts/external-conformance/consumer.js": 924,
-    "server.js": 1118,
-    "workflow-agent.js": 1074,
-    "workflow-tools.js": 962
+    "server.js": 989,
+    "workflow-agent.js": 971,
+    "workflow-tools.js": 884
   }
 }

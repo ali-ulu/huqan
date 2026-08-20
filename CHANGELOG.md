@@ -6,10 +6,18 @@ Unreleased. The first version prepared for the npm registry: `huqan` has never
 been published, so every install to date has been a `git clone`.
 
 ### Added
-- `huqan-mcp` binary. `mcpServer.js` gained a shebang and a `bin` entry, so the
-  MCP server can be started by name instead of by absolute path. Claude Desktop
-  can now be configured with `npx -y --package=huqan huqan-mcp` and no prior
-  install.
+- `huqan-mcp` binary. `bin/huqan-mcp.js` is a `bin` entry that starts the MCP
+  server by name instead of by absolute path, so Claude Desktop can be
+  configured with `npx -y --package=huqan huqan-mcp` and no prior install. It is
+  a file of its own rather than a shebang on `mcpServer.js`, which sits at
+  exactly the 800-line threshold `scripts/check-file-size.js` enforces.
+- `scripts/check-package-closure.js` and `npm run check:package-closure` — fail
+  when a module the installed package loads is missing from
+  `package.json#files`. It walks *load-time* requires outward from `main`, every
+  `bin`, and each published plugin and adapter; requires behind a guard are out
+  of scope, which is what keeps the deliberately repo-only V5 family from being
+  reported as a defect. Wired into `prepublishOnly`, so a publish that would
+  ship a broken tarball fails before it uploads.
 - `GET /api/v2/memory-approvals` and `POST /api/v2/memory-approvals/{id}/decision`
   — operator-gated approval over HTTP. Both require the API key *and* a separate
   operator token in `x-huqan-operator-token`, so the surface that may propose a
@@ -39,6 +47,34 @@ been published, so every install to date has been a `git clone`.
 - `docs/current-agent-checkpoint.json` pinned a `canonicalMain` SHA that is not
   a reachable object in this repository, which failed
   `scripts/agent-context.js` and four tests.
+- Three modules loaded by the installed package were missing from
+  `package.json#files`, so `npm install` produced a tarball that threw
+  `Cannot find module` at load: `lib/safe-file-walk.js` (required by all four
+  file adapters — JSON, Markdown, PDF and YAML), `lib/causal-edge-strength.js`
+  (the `company-brain` plugin) and `lib/connectors/entry-ingest-flow.js` (the
+  `repo-memory` plugin). Every path resolved from a clone, so nothing in the
+  repository noticed. `check:package-closure` above is the guard that now does.
+- `README.md` named the A2A environment variables without their `HUQAN_`
+  prefix, so following it verbatim left the routes off.
+
+### Changed — install footprint
+- `pdfjs-dist` and `pdfkit` moved to `optionalDependencies`, and both are now
+  loaded on first use rather than at require-time. Previously a top-level
+  `require` in `plugins/receipt-exporter.js`, and a `require.resolve` for the
+  standard-font path in `adapters/pdf-adapter.js`, made a missing or
+  half-installed PDF dependency take the whole module down at load — the kernel
+  printed `Plugin failed to load: receipt-exporter.js` at every start and the
+  plugin's JSON export went down with the PDF one. The failure now lands on the
+  PDF call that needs it, as `HUQAN_PDF_EXPORT_UNAVAILABLE` naming the package
+  to install. `npm install --omit=optional` takes the install from about 111 MB
+  to about 20 MB with the full learn → approve → verify → receipt path intact.
+
+### Known limits of the published tarball
+- `POST /api/a2a/exchange` cannot be enabled from an `npm install`. It reaches
+  the V5 cryptographic family, which `package.json#files` deliberately does not
+  publish, so the route stays `404` there however it is configured; the other
+  three A2A routes do turn on. Run the exchange from a clone. `README.md` now
+  says so.
 
 ### Changed
 - **MCP `huqan.verify` emits the canonical English status vocabulary**

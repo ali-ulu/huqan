@@ -15,6 +15,13 @@ const { detectClaimConflict } = require('./lib/conflict-detector');
 const { createKernelReadUseCases } = require('./lib/kernel-read-use-cases');
 const { runLearnUseCase } = require('./lib/learn-use-case');
 const { runLearnDocument } = require('./lib/kernel-learn-document');
+const { runSelfLearn } = require('./lib/kernel-self-learn');
+const { runLearnFromLLM } = require('./lib/kernel-learn-from-llm');
+const { runDream } = require('./lib/kernel-dream');
+const { runSelfEvolve } = require('./lib/kernel-self-evolve');
+const { runAlternatives } = require('./lib/kernel-alternatives');
+const { runContextSimilarity } = require('./lib/kernel-context-similarity');
+const { runAutoThinkTick } = require('./lib/kernel-auto-think');
 const MemoryStore = require('./lib/memory-store');
 const { buildCanonicalReceiptPayload } = require('./lib/receipt/canonical-receipt');
 const { toCanonicalVerdict } = require('./lib/verdict/action-verdict');
@@ -846,105 +853,11 @@ class Kernel {
   }
 
   alternatives(subject, maxPaths = 3, workspaceId = 'default') {
-    const normalized = this.normalizeWord(subject);
-    const node = this.graph.getNode(normalized, workspaceId);
-    if (!node) {
-      return this._ok('alternatives', { subject: normalized, answer: 'Bilmiyorum', paths: [] }, []);
-    }
-
-    // 1. Doğrudan kenarlardan alternatif grupları oluştur
-    const edges = this.graph.getEdges(normalized, workspaceId);
-    const groups = { 'tür': [], yapabilir: [], 'özellik': [], benzer: [], hipotez: [] };
-    for (const e of edges) {
-      const g = groups[e.relation];
-      if (g) g.push(e.to);
-    }
-
-    // 2. En yüksek güvenli hedefleri seç, her gruptan bir tane al
-    const paths = [];
-    const usedNodes = new Set([normalized]);
-
-    // İlişki önceliği: tür > yapabilir > özellik > benzer > hipotez
-    const relOrder = ['tür', 'yapabilir', 'özellik', 'benzer', 'hipotez'];
-
-    for (const rel of relOrder) {
-      if (paths.length >= maxPaths) break;
-      const targets = groups[rel] || [];
-      if (targets.length === 0) continue;
-
-      // Güvene göre sırala (yüksekten düşe)
-      const sorted = targets
-        .map(t => ({ target: t, weight: edges.find(e => e.to === t && e.relation === rel)?.weight || 0.5 }))
-        .sort((a, b) => b.weight - a.weight);
-
-      const best = sorted[0];
-      if (usedNodes.has(best.target)) continue;
-
-      const subEdges = this.graph.getEdges(best.target, workspaceId).filter(e => !usedNodes.has(e.to));
-      const chain = subEdges.slice(0, 2).map(e => ({ node: e.to, rel: e.relation }));
-      paths.push({
-        type: rel,
-        from: normalized,
-        to: best.target,
-        chain,
-        confidence: best.weight,
-      });
-      usedNodes.add(best.target);
-    }
-
-    // 3. Alternatif çözüm olarak değerlendir
-    let answer = normalized + ': alternative paths:\n';
-    for (const p of paths) {
-      answer += `  [${p.type}] ${p.from} → ${p.to}`;
-      if (p.chain.length > 0) {
-        answer += ` → ${p.chain.map(c => c.node + '(' + c.rel + ')').join(', ')}`;
-      }
-      answer += ` (confidence: ${p.confidence.toFixed(2)})\n`;
-    }
-    if (paths.length === 0) answer = 'Bilmiyorum';
-
-    const evidence = paths.map(p => ({
-      kind: 'alternative_path',
-      text: `${p.from} --[${p.type}]--> ${p.to}`,
-      confidence: p.confidence,
-      nodes: [p.from, p.to],
-      edges: [{ from: p.from, to: p.to, relation: p.type }],
-    }));
-
-    return this._ok('alternatives', { subject: normalized, answer, paths }, evidence);
+    return runAlternatives(value => this.normalizeWord(value), this.graph, (type, data, evidence) => this._ok(type, data, evidence), subject, maxPaths, workspaceId);
   }
 
   contextSimilarity(a, b, context) {
-    const ctxWeight = {};
-    const ctxNode = this.graph.getNode(context);
-    if (ctxNode) {
-      for (const [dim, w] of Object.entries(ctxNode.vector)) {
-        ctxWeight[dim] = w;
-      }
-    }
-
-    const aNode = this.graph.getNode(a);
-    const bNode = this.graph.getNode(b);
-    if (!aNode || !bNode) return 0;
-
-    const dims = new Set([
-      ...Object.keys(aNode.vector),
-      ...Object.keys(bNode.vector),
-      ...Object.keys(ctxWeight),
-    ]);
-
-    let dot = 0, magA = 0, magB = 0;
-    for (const d of dims) {
-      const cw = ctxWeight[d] || 1;
-      const va = (aNode.vector[d] || 0) * cw;
-      const vb = (bNode.vector[d] || 0) * cw;
-      dot += va * vb;
-      magA += va * va;
-      magB += vb * vb;
-    }
-
-    const mag = Math.sqrt(magA) * Math.sqrt(magB);
-    return mag === 0 ? 0 : dot / mag;
+    return runContextSimilarity(this.graph, a, b, context);
   }
 
   entropy(workspaceId = 'default') {
@@ -1018,62 +931,7 @@ class Kernel {
   }
 
   _autoThinkTick() {
-    if (!this._dreamCount) this._dreamCount = 0;
-    this._dreamCount++;
-
-    const isBilinclikTick = this._dreamCount > 0; // tüm tick'ler artık bilinçli
-
-    // ADIM 1: Rüya gör + öğren (recursion)
-    // FAZ2-PR3 (F-001-a): autonomous edge proposals route through
-    // _commitBackgroundEdge so they receive synthetic provenance, admission
-    // evaluation, and audit instead of writing directly to the graph.
-    const hips = this._dreamer.dream();
-    let eklenen = 0;
-    let bekleyen = 0;
-    if (hips.length > 0) {
-      for (const h of hips.slice(0, 5)) {
-        if (h.confidence > 0.25) {
-          const existing = this.graph.hasAnyEdge(h.from, h.to);
-          if (!existing && this.graph.getNode(h.from) && this.graph.getNode(h.to)) {
-            const rel = h.type === 'zincir' ? 'benzer' : (h.type === 'benzerlik' ? 'benzer'
-                      : h.relation === 'tür' ? 'tür'
-                      : h.relation === 'yapabilir' ? 'yapabilir'
-                      : h.relation === 'özellik' ? 'özellik'
-                      : 'hipotez');
-            const result = this._commitBackgroundEdge(h.from, h.to, rel, '_autoThinkTick', {
-              provenanceExtra: {
-                hypothesisType: h.type,
-                hypothesisConfidence: h.confidence,
-              },
-            });
-            if (result.decision === 'allow' && result.edge) eklenen++;
-            else bekleyen++;
-          }
-        }
-      }
-    }
-
-    // ADIM 2: İçgözlem (her tick'te değil, bilgi büyüdükçe)
-    let celiskiSayisi = 0;
-    let metaGuven = 0.5;
-    if (isBilinclikTick && this._dreamCount % 3 === 0) {
-      const durum = this.introspect().data;
-      celiskiSayisi = durum.saglik.celiski;
-      metaGuven = durum.saglik.metaGuven;
-
-      // Zayıf noktaları tespit et
-      if (celiskiSayisi > 5) {
-        this._autoThinkLog(durum.zayifNoktalar.join('; '));
-      }
-    }
-
-    // ADIM 3: Sürekli öğrenme dürtüsü (bilinç tikleri)
-    if (eklenen > 0) {
-      this._autoThinkLog(eklenen + ' new connections - ' + this.graph.nodeCount() + ' nodes total');
-    } else if (this._dreamCount % 5 === 0) {
-      // Boş rüya -> daha fazla girdi lazım
-      this._autoThinkLog('empty dream, more input needed');
-    }
+    return runAutoThinkTick({ dreamer: this._dreamer, graph: this.graph, commitBackgroundEdge: (...args) => this._commitBackgroundEdge(...args), introspect: (...args) => this.introspect(...args), autoThinkLog: (...args) => this._autoThinkLog(...args), getDreamCount: () => this._dreamCount, setDreamCount: value => { this._dreamCount = value; } });
   }
 
   _autoThinkLog(msg) {
@@ -1113,63 +971,7 @@ class Kernel {
   }
 
   dream(opts = {}) {
-    const dreamer = new Dream(this);
-    const raw = dreamer.dream(opts);
-    const hypotheses = raw.map(h => {
-      const nodes = [h.from, h.to, h.node, ...(h.targets || [])].filter(Boolean);
-      const edges = h.from && h.to ? [{ from: h.from, to: h.to, relation: h.relation || h.type || 'hypothesis' }] : [];
-      return {
-        ...h,
-        _evidence: {
-          kind: 'hypothesis',
-          text: h.from && h.to ? `${h.from} ? ${h.to}` : `${nodes.join(' ? ') || 'hypothesis'}`,
-          confidence: Math.max(0, Math.min(1, h.confidence || 0)),
-          nodes,
-          edges,
-        },
-      };
-    });
-
-    // Geribesleme: hipotezleri grafiğe ekle
-    // FAZ2-PR3 (F-001-b): when learnFromDream is set, hypotheses are
-    // background-derived candidate writes — route through admission +
-    // audit instead of silent canonical writes.
-    const learned = [];
-    const pending = [];
-    if (opts.learnFromDream) {
-      const threshold = opts.dreamLearnThreshold ?? 0.1;
-      for (const h of hypotheses) {
-        if (h.confidence > threshold && h.from && h.to) {
-          const existing = this.graph.hasAnyEdge(h.from, h.to);
-          if (!existing && this.graph.getNode(h.from) && this.graph.getNode(h.to)) {
-            const rel = (h.relation === 'tür' || h.via === 'tür') ? 'tür'
-                      : (h.relation === 'yapabilir') ? 'yapabilir'
-                      : (h.relation === 'özellik') ? 'özellik'
-                      : (h.type === 'zincir' || h.relation === 'benzer') ? 'benzer'
-                      : 'hipotez';
-            const result = this._commitBackgroundEdge(h.from, h.to, rel, 'dream', {
-              provenanceExtra: {
-                hypothesisType: h.type,
-                hypothesisConfidence: h.confidence,
-                via: h.via || null,
-              },
-            });
-            if (result.decision === 'allow' && result.edge) {
-              learned.push({ from: h.from, to: h.to, confidence: h.confidence, relation: rel });
-            } else {
-              pending.push({ from: h.from, to: h.to, confidence: h.confidence, relation: rel, decision: result.decision });
-            }
-          }
-        }
-      }
-    }
-
-    // Rüya döngü sayacı
-    if (!this._dreamCount) this._dreamCount = 0;
-    this._dreamCount++;
-
-    const evidence = hypotheses.map(h => h._evidence);
-    return this._ok('dream', { hypotheses, learned, pending, cycle: this._dreamCount }, evidence);
+    return runDream(opts, { createDreams: dreamOpts => new Dream(this).dream(dreamOpts), graph: this.graph, commitBackgroundEdge: (from, to, relation, source, commitOpts) => this._commitBackgroundEdge(from, to, relation, source, commitOpts), getDreamCount: () => this._dreamCount, setDreamCount: value => { this._dreamCount = value; }, ok: (type, data, evidence) => this._ok(type, data, evidence) });
   }
 
   learnDocument(text, opts = {}) {
@@ -1188,86 +990,7 @@ class Kernel {
    * @returns {{ learned: number, skipped: number, conflicts: string[] }}
    */
   learnFromLLM(text, opts = {}) {
-    // r1: Note - this method calls learn() and verify() which are now async
-    // For backward compatibility, returning async function result
-    if (this.paranoidMode) {
-      return {
-        learned: 0,
-        skipped: 0,
-        conflicts: [],
-        ok: false,
-        error: {
-          code: AXIOM_ERROR.LLM_DISABLED,
-          message: 'Paranoid mode is active: outbound LLM calls and automatic learning are blocked.',
-        },
-        meta: {
-          contractVersion: this.contractVersion,
-          paranoidMode: this.paranoidMode,
-        },
-      };
-    }
-
-    const skipConflicts = opts.skipConflicts !== false;
-    const minWords     = opts.minWords     || 2;
-    const maxSentences = opts.maxSentences || 20;
-
-    // Metni cümlelere böl: nokta, ünlem, soru işareti veya satır sonu
-    const sentences = text
-      .split(/[.!?\n]+/)
-      .map(s => s.trim())
-      .filter(s => s.length > 3);
-
-    let learned = 0, skipped = 0;
-    const conflicts = [];
-
-    for (const sentence of sentences.slice(0, maxSentences)) {
-      // Markdown işaretlerini temizle
-      const cleaned = sentence
-        .replace(/^[\s#*\-–—•>]+/, '')
-        .replace(/\*\*(.+?)\*\*/g, '$1')
-        .replace(/`(.+?)`/g, '$1')
-        .trim();
-
-      const words = cleaned.split(/\s+/).filter(Boolean);
-      if (words.length < minWords) { skipped++; continue; }
-
-      // Çelişki kontrolü
-      if (skipConflicts) {
-        const workspaceId = normalizeWorkspaceId(opts.workspaceId || opts.provenance?.workspaceId || 'default');
-        const check = this.verify(cleaned, { workspaceId });
-        if (check.data.status === 'contradicted') {
-          conflicts.push(cleaned);
-          skipped++;
-          continue;
-        }
-      }
-
-      const workspaceId = normalizeWorkspaceId(opts.workspaceId || opts.provenance?.workspaceId || 'default');
-      const provenance = opts.provenance && typeof opts.provenance === 'object'
-        ? { ...opts.provenance }
-        : {
-            provenanceId: `llm-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-            sourceRef: opts.sourceRef || 'llm:auto-learn',
-            sourceTitle: opts.sourceTitle || 'LLM auto-learn sentence',
-            sourceType: 'llm',
-            actor: opts.actor || 'system',
-            timestamp: opts.timestamp || new Date().toISOString(),
-            workspaceId,
-            confidence: opts.confidence ?? 0.5,
-            trustPolicyVersion: opts.trustPolicyVersion || '0.8.0',
-          };
-      const learnResult = this.learn(cleaned, {
-        ...opts,
-        provenance,
-        workspaceId,
-        admissionRequired: true,
-        approvalRequired: opts.approvalRequired ?? defaultApprovalRequired(),
-      });
-      if (Number(learnResult?.data?.learned || 0) > 0) learned++;
-      else skipped++;
-    }
-
-    return { learned, skipped, conflicts };
+    return runLearnFromLLM(text, opts, { paranoidMode: this.paranoidMode, contractVersion: this.contractVersion, verify: (statement, verifyOpts) => this.verify(statement, verifyOpts), learn: (sentence, learnOpts) => this.learn(sentence, learnOpts) });
   }
 
   detectContradictions(subject = '', workspaceId = 'default') {
@@ -1325,66 +1048,7 @@ class Kernel {
    * 4. Kaydet, rapor döndür
    */
   selfEvolve(opts = {}) {
-    const Dream = require('./dream');
-    const dreamer = new Dream(this);
-    const dreams = dreamer.dream();
-
-    // FAZ2-PR3 (F-001-c): self-evolution converts autonomous hypotheses into
-    // canonical edges.  Each proposed edge now passes through
-    // _commitBackgroundEdge so synthetic provenance is attached, admission is
-    // evaluated, and the attempt is audited.  By default the admission gate
-    // returns 'review' for background-derived writes, so canonical writes only
-    // happen when the operator has wired a higher-trust background policy.
-    const added = [];
-    const deferred = [];
-    for (const h of dreams) {
-      if (opts.minConfidence && h.confidence < opts.minConfidence) continue;
-      const defaultMin = h.type === 'zincir' ? 0.25 : 0.3;
-      if (h.confidence < defaultMin) continue;
-
-      const rel = h.relation || (
-        h.type === 'benzerlik' || h.type === 'vektör-benzerlik'
-          ? 'benzer'
-          : 'hipotez'
-      );
-
-      const existing = this.graph.getEdge(h.from, h.to, rel);
-      if (existing) continue;
-
-      const weight = Math.min(0.4, h.confidence * 0.8);
-      const result = this._commitBackgroundEdge(h.from, h.to, rel, 'selfEvolve', {
-        edgeOptions: { weight, source: 'kendilik' },
-        provenanceExtra: {
-          hypothesisType: h.type,
-          hypothesisConfidence: h.confidence,
-          weight,
-        },
-      });
-      if (result.decision === 'allow' && result.edge) {
-        added.push({ from: h.from, to: h.to, relation: rel, confidence: h.confidence, type: h.type });
-      } else {
-        deferred.push({ from: h.from, to: h.to, relation: rel, confidence: h.confidence, type: h.type, decision: result.decision });
-      }
-    }
-
-    const cons = this.consolidate(false);
-    const opt = this.graph.optimize();
-
-    if (added.length > 0 || cons.removed > 0) {
-      try { this.graph.save(); } catch (e) { console.error("[Kernel] Graph save hatası:", e.message); }
-    }
-
-    this._dreamCount = (this._dreamCount || 0) + 1;
-
-    return {
-      dreams: dreams.length,
-      added: added.length,
-      addedDetails: added,
-      deferred: deferred.length,
-      deferredDetails: deferred,
-      consolidated: cons.removed,
-      optimized: opt.pruned,
-    };
+    return runSelfEvolve(opts, { createDreams: () => new Dream(this).dream(), graph: this.graph, commitBackgroundEdge: (from, to, relation, source, commitOpts) => this._commitBackgroundEdge(from, to, relation, source, commitOpts), consolidate: dryRun => this.consolidate(dryRun), optimize: () => this.graph.optimize(), save: () => this.graph.save(), getDreamCount: () => this._dreamCount, setDreamCount: value => { this._dreamCount = value; } });
   }
 
   /**
@@ -1392,21 +1056,7 @@ class Kernel {
    * Bilinmeyen kavramları bulur ve LLM'den öğrenir.
    */
   selfLearn(opts = {}) {
-    const gaps = this.detectGaps();
-    if (gaps.length === 0) return { gaps: 0, learned: 0, message: 'Bo?luk yok' };
-
-    const before = this.graph.edgeCount();
-    for (const gapId of gaps) {
-      const node = this.graph.getNode(gapId);
-      if (!node) continue;
-      const hasAnyEdge = this.graph.getEdges(gapId).length > 0 || this.graph.getInEdges(gapId).length > 0;
-      if (hasAnyEdge) continue;
-
-      const sim = this.graph.cosineSimilarity ? this.graph.cosineSimilarity(gapId, gapId) : 0;
-    }
-
-    const after = this.graph.edgeCount();
-    return { gaps: gaps.length, learned: after - before };
+    return runSelfLearn(() => this.detectGaps(), this.graph);
   }
 
   /**

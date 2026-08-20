@@ -22,10 +22,23 @@ const PDF_LIMITS = Object.freeze({
 });
 // pdf.js validates this as a URL-shaped string, so it must use '/' even on
 // Windows -- path.join's '\' separator makes it reject the value outright.
-const STANDARD_FONT_DATA_URL = `${path.join(
-  path.dirname(require.resolve('pdfjs-dist/package.json')),
-  'standard_fonts'
-).split(path.sep).join('/')}/`;
+//
+// Resolved on first use, not at require-time: this was the module's only
+// load-time touch of pdfjs-dist, and it made a missing or half-installed
+// pdfjs-dist take the whole adapter down with `Cannot find module
+// 'pdfjs-dist/package.json'` -- before any caller had asked for a PDF. The
+// library itself was already deferred (see loadPdfjs); this makes the pair
+// consistent, so the failure now lands on the PDF call that needs it.
+let standardFontDataUrlCache = null;
+function standardFontDataUrl() {
+  if (standardFontDataUrlCache === null) {
+    standardFontDataUrlCache = `${path.join(
+      path.dirname(require.resolve('pdfjs-dist/package.json')),
+      'standard_fonts'
+    ).split(path.sep).join('/')}/`;
+  }
+  return standardFontDataUrlCache;
+}
 
 function hasPdfExtension(filePath) {
   return ALLOWED_PDF_EXTENSIONS.has(path.extname(String(filePath || '')).toLowerCase());
@@ -115,7 +128,7 @@ async function parsePdf(buffer, filePath = '', options = {}) {
   const loadingTask = pdfjsLib.getDocument({
     data,
     isEvalSupported: false,
-    standardFontDataUrl: STANDARD_FONT_DATA_URL,
+    standardFontDataUrl: standardFontDataUrl(),
     verbosity: pdfjsLib.VerbosityLevel.ERRORS,
   });
   const doc = await withinDeadline(loadingTask.promise, deadline);
