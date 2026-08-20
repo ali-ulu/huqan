@@ -366,6 +366,26 @@ describe('CLI - Komut Çalıştırma', () => {
     assert.ok(output.includes('review gerektiriyor'));
   });
 
+  it('execute: company-ingest GitHub path propagates connector firewall opt-in', async () => {
+    const cli = freshCLI({ loadPlugins: false, capabilities: { companyMode: true, pluginCapabilities: true } });
+    const calls = [];
+    cli.kernel.runCapability = async (name, payload) => {
+      calls.push({ name, payload });
+      return { ok: true, files: 1, added: 0 };
+    };
+
+    const output = await cli.execute('company-ingest', {
+      source: 'github',
+      repoUrl: 'https://github.com/owner/repo',
+    }, { gateResult: { canExecute: true, decision: 'allow' } });
+
+    assert.equal(output, 'Repo ingest: ok (files=1, added=0)');
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].name, 'repoMemory');
+    assert.equal(calls[0].payload.sourceType, 'github');
+    assert.equal(calls[0].payload.enforceConnectorFirewall, true);
+  });
+
   it('execute: mri/tartis/celiski komutlari runCapability ile calisir', async () => {
     const cli = freshCLI({
       loadPlugins: false,
