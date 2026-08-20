@@ -18,6 +18,7 @@ const { runLearnDocument } = require('./lib/kernel-learn-document');
 const { runSelfLearn } = require('./lib/kernel-self-learn');
 const { runLearnFromLLM } = require('./lib/kernel-learn-from-llm');
 const { runDream } = require('./lib/kernel-dream');
+const { runSelfEvolve } = require('./lib/kernel-self-evolve');
 const MemoryStore = require('./lib/memory-store');
 const { buildCanonicalReceiptPayload } = require('./lib/receipt/canonical-receipt');
 const { toCanonicalVerdict } = require('./lib/verdict/action-verdict');
@@ -1193,66 +1194,7 @@ class Kernel {
    * 4. Kaydet, rapor döndür
    */
   selfEvolve(opts = {}) {
-    const Dream = require('./dream');
-    const dreamer = new Dream(this);
-    const dreams = dreamer.dream();
-
-    // FAZ2-PR3 (F-001-c): self-evolution converts autonomous hypotheses into
-    // canonical edges.  Each proposed edge now passes through
-    // _commitBackgroundEdge so synthetic provenance is attached, admission is
-    // evaluated, and the attempt is audited.  By default the admission gate
-    // returns 'review' for background-derived writes, so canonical writes only
-    // happen when the operator has wired a higher-trust background policy.
-    const added = [];
-    const deferred = [];
-    for (const h of dreams) {
-      if (opts.minConfidence && h.confidence < opts.minConfidence) continue;
-      const defaultMin = h.type === 'zincir' ? 0.25 : 0.3;
-      if (h.confidence < defaultMin) continue;
-
-      const rel = h.relation || (
-        h.type === 'benzerlik' || h.type === 'vektör-benzerlik'
-          ? 'benzer'
-          : 'hipotez'
-      );
-
-      const existing = this.graph.getEdge(h.from, h.to, rel);
-      if (existing) continue;
-
-      const weight = Math.min(0.4, h.confidence * 0.8);
-      const result = this._commitBackgroundEdge(h.from, h.to, rel, 'selfEvolve', {
-        edgeOptions: { weight, source: 'kendilik' },
-        provenanceExtra: {
-          hypothesisType: h.type,
-          hypothesisConfidence: h.confidence,
-          weight,
-        },
-      });
-      if (result.decision === 'allow' && result.edge) {
-        added.push({ from: h.from, to: h.to, relation: rel, confidence: h.confidence, type: h.type });
-      } else {
-        deferred.push({ from: h.from, to: h.to, relation: rel, confidence: h.confidence, type: h.type, decision: result.decision });
-      }
-    }
-
-    const cons = this.consolidate(false);
-    const opt = this.graph.optimize();
-
-    if (added.length > 0 || cons.removed > 0) {
-      try { this.graph.save(); } catch (e) { console.error("[Kernel] Graph save hatası:", e.message); }
-    }
-
-    this._dreamCount = (this._dreamCount || 0) + 1;
-
-    return {
-      dreams: dreams.length,
-      added: added.length,
-      addedDetails: added,
-      deferred: deferred.length,
-      deferredDetails: deferred,
-      consolidated: cons.removed,
-      optimized: opt.pruned,
-    };
+    return runSelfEvolve(opts, { createDreams: () => new Dream(this).dream(), graph: this.graph, commitBackgroundEdge: (from, to, relation, source, commitOpts) => this._commitBackgroundEdge(from, to, relation, source, commitOpts), consolidate: dryRun => this.consolidate(dryRun), optimize: () => this.graph.optimize(), save: () => this.graph.save(), getDreamCount: () => this._dreamCount, setDreamCount: value => { this._dreamCount = value; } });
   }
 
   /**
