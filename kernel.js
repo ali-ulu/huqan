@@ -15,6 +15,7 @@ const { detectClaimConflict } = require('./lib/conflict-detector');
 const { createKernelReadUseCases } = require('./lib/kernel-read-use-cases');
 const { runLearnUseCase } = require('./lib/learn-use-case');
 const { runLearnDocument } = require('./lib/kernel-learn-document');
+const { runSelfLearn } = require('./lib/kernel-self-learn');
 const MemoryStore = require('./lib/memory-store');
 const { buildCanonicalReceiptPayload } = require('./lib/receipt/canonical-receipt');
 const { toCanonicalVerdict } = require('./lib/verdict/action-verdict');
@@ -1392,21 +1393,7 @@ class Kernel {
    * Bilinmeyen kavramları bulur ve LLM'den öğrenir.
    */
   selfLearn(opts = {}) {
-    const gaps = this.detectGaps();
-    if (gaps.length === 0) return { gaps: 0, learned: 0, message: 'Bo?luk yok' };
-
-    const before = this.graph.edgeCount();
-    for (const gapId of gaps) {
-      const node = this.graph.getNode(gapId);
-      if (!node) continue;
-      const hasAnyEdge = this.graph.getEdges(gapId).length > 0 || this.graph.getInEdges(gapId).length > 0;
-      if (hasAnyEdge) continue;
-
-      const sim = this.graph.cosineSimilarity ? this.graph.cosineSimilarity(gapId, gapId) : 0;
-    }
-
-    const after = this.graph.edgeCount();
-    return { gaps: gaps.length, learned: after - before };
+    return runSelfLearn(() => this.detectGaps(), this.graph);
   }
 
   /**

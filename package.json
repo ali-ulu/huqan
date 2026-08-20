@@ -227,6 +227,7 @@
     "lib/kernel-mutation-admission.js",
     "lib/kernel-read-use-cases.js",
     "lib/kernel-learn-document.js",
+    "lib/kernel-self-learn.js",
     "lib/kernel-v2-native.js",
     "lib/learn-admission-request.js",
     "lib/learn-use-case.js",
