@@ -199,6 +199,7 @@
     "lib/graph-stats.js",
     "lib/graph-causal-relation-read.js",
     "lib/graph-edge-write.js",
+    "lib/kernel-alternatives.js",
     "lib/graph-edge-mutations.js",
     "lib/graph-record-utils.js",
     "lib/graph-traversal.js",
