@@ -191,6 +191,7 @@
     "lib/graph-edge-read.js",
     "lib/graph-mutation-receipt-read.js",
     "lib/graph-mutation-receipt-schema.js",
+    "lib/graph-consolidate-edges.js",
     "lib/graph-node-read.js",
     "lib/graph-node-write.js",
     "lib/graph-node-delete.js",
