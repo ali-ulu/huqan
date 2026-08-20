@@ -1,5 +1,7 @@
 # Dream Motoru: Gerçek Hipotez Zinciri Kaynak Raporu
 
+**Status:** `research`
+
 **İnceleme kapsamı:** `dream.js`, `kernel.js`, `lib/background-provenance.js` ve arka plan yazma kapısı testleri.
 
 **Rapor amacı:** Bu belge, Dream motorunun kaynak kodda gerçekten bulunan hipotez üretimi, admission ve canonical grafik yazımı akışını açıklar. Kavramsal olarak arzu edilen bir deney döngüsü, kaynakta mevcutmuş gibi sunulmaz. Özellikle **hipotez üretiminin ve uygun admission kararında grafiğe yazılmasının mevcut olduğu**, buna karşılık hipotezden deneye ve gözlemden otomatik sonraki hipoteze uzanan tam kapalı döngünün ayrı bir state machine olarak bulunmadığı ayrımı korunur.

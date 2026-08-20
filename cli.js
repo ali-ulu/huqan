@@ -331,6 +331,7 @@ class CLI {
             action: 'ingest',
             sourceType: 'markdown',
             path: payload.targetPath,
+            enforceConnectorFirewall: true,
           });
           return Promise.resolve(run).then(result => {
             if (!result || result.ok === false) {
@@ -345,6 +346,7 @@ class CLI {
             action: 'ingest',
             sourceType: 'json',
             path: payload.targetPath,
+            enforceConnectorFirewall: true,
           });
           return Promise.resolve(run).then(result => {
             if (!result || result.ok === false) {
@@ -359,6 +361,7 @@ class CLI {
             action: 'ingest',
             sourceType: 'yaml',
             path: payload.targetPath,
+            enforceConnectorFirewall: true,
           });
           return Promise.resolve(run).then(result => {
             if (!result || result.ok === false) {
@@ -373,6 +376,7 @@ class CLI {
             action: 'ingest',
             sourceType: 'git-log',
             path: payload.targetPath,
+            enforceConnectorFirewall: true,
           });
           return Promise.resolve(run).then(result => {
             if (!result || result.ok === false) {
@@ -387,6 +391,7 @@ class CLI {
             action: 'ingest',
             sourceType: 'pdf',
             path: payload.targetPath,
+            enforceConnectorFirewall: true,
           });
           return Promise.resolve(run).then(result => {
             if (!result || result.ok === false) {
@@ -401,6 +406,7 @@ class CLI {
             action: 'ingest',
             sourceType: 'http',
             url: payload.repoUrl,
+            enforceConnectorFirewall: true,
           });
           return Promise.resolve(run).then(result => {
             if (!result || result.ok === false) {

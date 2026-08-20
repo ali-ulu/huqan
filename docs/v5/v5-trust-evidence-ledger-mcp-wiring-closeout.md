@@ -1,6 +1,8 @@
 # V5 Trust Evidence Ledger MCP Wiring Closeout
 
 **Status:** `closeout`
+**Canonical base:** `main @ 186b58e866a8c0b67d77d88882bee3db18d5b5c5`
+**Implementation commit:** `b29d149e790d225e7dd06521f6064e1af213ae40`
 
 ## Implementation status
 

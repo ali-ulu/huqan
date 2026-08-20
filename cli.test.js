@@ -945,3 +945,33 @@ describe('CLI - Lifecycle and maintenance baseline contracts', { concurrency: fa
   });
 
 });
+
+
+  it('execute: company-ingest non-GitHub paths propagate connector firewall opt-in', async () => {
+    const cases = [
+      { source: 'markdown', targetPath: '/workspace/source.md' },
+      { source: 'json', targetPath: '/workspace/source.json' },
+      { source: 'yaml', targetPath: '/workspace/source.yaml' },
+      { source: 'git-log', targetPath: '/workspace/repo' },
+      { source: 'pdf', targetPath: '/workspace/source.pdf' },
+      { source: 'http', repoUrl: 'https://example.com/docs' },
+    ];
+
+    for (const input of cases) {
+      const cli = freshCLI({ loadPlugins: false, capabilities: { companyMode: true, pluginCapabilities: true } });
+      const calls = [];
+      cli.kernel.runCapability = async (name, payload) => {
+        calls.push({ name, payload });
+        return { ok: true, files: 1, urls: 1, commits: 1, added: 0 };
+      };
+
+      const output = await cli.execute('company-ingest', input, {
+        gateResult: { canExecute: true, decision: 'allow' },
+      });
+      assert.equal(calls.length, 1, input.source);
+      assert.equal(calls[0].name, 'repoMemory', input.source);
+      assert.equal(calls[0].payload.enforceConnectorFirewall, true, input.source);
+      assert.equal(calls[0].payload.sourceType, input.source === 'http' ? 'http' : input.source, input.source);
+      assert.equal(typeof output, 'string');
+    }
+  });

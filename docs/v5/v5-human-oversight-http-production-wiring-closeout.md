@@ -1,7 +1,9 @@
 # Huqan V5 — Human Oversight HTTP/Workflow Production Wiring Closeout
 
+**Status:** `closeout`
+**Canonical base:** `main @ 186b58e866a8c0b67d77d88882bee3db18d5b5c5`
+**Implementation commit:** `1094a5415129357a763fb1219d23d429fdc00653` — `feat(#942): wire human oversight into HTTP ingest approvals`
 **Issue:** [#942](https://github.com/ali-ulu/huqan/issues/942)
-**Implementation commit:** `0ff4e79` — `feat(#942): wire human oversight into HTTP ingest approvals`
 **Tarih:** 20 Ağustos 2026
 **Durum:** HTTP/workflow ingest approval dilimi tamamlandı; global wiring iddiası değildir.
 

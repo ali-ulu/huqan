@@ -1,5 +1,9 @@
 # #940 Runtime Agent Identity — HTTP/workflow wiring closeout
 
+**Status:** `closeout`
+**Canonical base:** `main @ 186b58e866a8c0b67d77d88882bee3db18d5b5c5`
+**Implementation commit:** `a492512868d17d4556f54177c92fee9faa9ab407`
+
 **Implementation scope:** HTTP/workflow ingest approval owner’da opt-in receiver-owned Agent Identity enforcement.
 
 **Source status:** HTTP ingest approval preparation’ı, mevcut Human Oversight lifecycle’ından önce bounded Agent Identity değerlendirmesine bağlandı. Identity config yalnız explicit `agentIdentityRuntime` ile etkinleşir; config yoksa mevcut legacy approval davranışı korunur.
