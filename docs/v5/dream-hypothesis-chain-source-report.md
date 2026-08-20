@@ -4,11 +4,11 @@
 
 **İnceleme kapsamı:** `dream.js`, `kernel.js`, `lib/background-provenance.js` ve arka plan yazma kapısı testleri.
 
-**Rapor amacı:** Bu belge, Dream motorunun kaynak kodda gerçekten bulunan hipotez üretimi, admission ve canonical grafik yazımı akışını açıklar. Kavramsal olarak arzu edilen bir deney döngüsü, kaynakta mevcutmuş gibi sunulmaz. Özellikle **hipotez üretiminin ve uygun admission kararında grafiğe yazılmasının mevcut olduğu**, buna karşılık hipotezden deneye ve gözlemden otomatik sonraki hipoteze uzanan tam kapalı döngünün ayrı bir state machine olarak bulunmadığı ayrımı korunur.
+**Rapor amacı:** Bu belge, Dream motorunun çekirdek kaynak yollarında gerçekten bulunan hipotez üretimi, admission ve canonical grafik yazımını; ayrıca canonical branch’te #969 ile eklenen opt-in, bounded deney döngüsünü ayırarak açıklar. Önceki kaynak incelemesinin “ayrı state machine yok” bulgusu tarihsel baseline’a aittir; mevcut branch’teki `lib/dream-experiment-loop.js` bu boşluğu sınırlı bir controller olarak kapatır. Kavramsal olarak arzu edilen sınırsız otonom araştırma akışı ise mevcutmuş gibi sunulmaz.
 
 ## 1. Ana bulgu
 
-Dream motorunda bağımsız bir `HypothesisChain` sınıfı veya hipotezleri deney aşamalarından geçiren ayrı bir state machine bulunmuyor. Bununla birlikte bu durum, hipotezlerin grafiğe hiç yazılmadığı anlamına gelmez. Kaynak kodda üç gerçek yazım yolu vardır:
+Dream çekirdeğinde bağımsız bir `HypothesisChain` sınıfı yoktur; çekirdek `dream.js`/`kernel.js` yolları hipotez adaylarını üretir ve background admission üzerinden yazar. Canonical branch’te #969 ile eklenen `lib/dream-experiment-loop.js` ise bu adayları `PENDING → VERIFYING → OBSERVED → COMMITTED/DEFERRED` durumlarıyla sınırlı bir deney controller’ından geçirir. Bu durum, çekirdek Dream yazım yollarının gerçekliğini değiştirmez; aşağıdaki üç yol hâlen canonical hipotez kenarı yazımının kaynak kodda doğrulanan yollarıdır:
 
 | Yol | Hipotez kaynağı | Canonical kenar yazımı | Kaynak kodda doğrulanan sonuç |
 |---|---|---|---|
@@ -20,7 +20,7 @@ Bu yolların ortak noktası, hipotez kenarlarının doğrudan ve sessiz bir `gra
 
 Dolayısıyla kaynak koddan çıkarılabilecek doğru sonuç şudur:
 
-> **Hipotez üretimi vardır ve hipotez adayları, ilgili adaylık/eşik koşulları sağlanıp arka plan admission kararı `allow` olduğunda canonical grafiğe yazılabilir. Varsayılan veya daha kısıtlı admission kararlarında yazım yapılmaz; aday `pending`/`deferred` olarak ve audit ile görünür kalır. Eksik olan parça, hipotez → deney tasarımı → araç yürütme → gerçek gözlem → sonuç değerlendirme → otomatik sonraki hipotez şeklindeki tam kapalı deney orkestrasyonudur.**
+> **Çekirdek Dream akışında hipotez üretimi vardır ve hipotez adayları, ilgili adaylık/eşik koşulları sağlanıp arka plan admission kararı `allow` olduğunda canonical grafiğe yazılabilir. Varsayılan veya daha kısıtlı admission kararlarında yazım yapılmaz; aday `pending`/`deferred` olarak ve audit ile görünür kalır. #969 sonrasında opt-in bounded controller, hipotezi verify adımına bağlar, sonucu `support`/`reject`/`unknown` gözlem sinyaline normalize eder ve supporting observation için mevcut `_commitBackgroundEdge()` admission yolunu kullanır. Bu, sınırlı kontrollü deney döngüsüdür; sınırsız otonom deney orkestrasyonu değildir.**
 
 ## 2. Gerçek ana akışın özeti
 
@@ -204,7 +204,7 @@ Bu yol, kullanıcının grafikte `hipotez` ilişkili kenar görmüş olmasını 
 | `verify` | Grafikte iki düğüm arasında en fazla beş derinlikli DFS yolu arar ve yol güveni hesaplar |
 | `walk` | En yüksek ağırlıklı yolu seçerek belirli derinliğe kadar yürür |
 
-Bu yardımcılar sorgulama, puanlama veya doğrulama araçlarıdır. Kaynakta hipotez adayını bir deney kaydıyla ilişkilendiren, araç yürütmesini kaydeden, gerçek gözlemi toplayan ve sonucu bir sonraki hipotez state’ine bağlayan ortak bir state machine geçişi görülmüyor. [1]
+Bu yardımcılar sorgulama, puanlama veya doğrulama araçlarıdır; kendi içlerinde deney state machine’i değildir. #969’un ayrı `lib/dream-experiment-loop.js` controller’ı bu çekirdek yardımcıları bounded `verify` adımı, normalize edilmiş observation ve sonraki hipotez seçimiyle bağlar. Controller’ın yazma etkisi yine mevcut Graph/mutation-admission/background-provenance sınırları içindedir; ikinci bir durability otoritesi oluşturmaz. [1] [5]
 
 ## 10. Gerçek akış ile olması gereken akış arasındaki ayrım
 
@@ -224,7 +224,7 @@ Bilgi grafiği
   └─ non-allow → pending/deferred + REVIEW/REJECT audit
 ```
 
-### Kaynakta ayrı bir kapalı döngü olarak doğrulanmayan
+### #969 öncesi baseline’da ayrı bir kapalı döngü olarak doğrulanmayan
 
 ```text
 Hipotez
@@ -236,7 +236,7 @@ Hipotez
   → otomatik sonraki hipotez
 ```
 
-Buradaki ikinci şema mimari bir ihtiyaç veya tasarım alanı olarak ifade edilebilir; ancak mevcut Dream motorunun gerçekleşen akışı olarak sunulamaz. Workflow katmanında `discoveryEngine`, `experimentPlanner`, `resultAnalyzer` ve `replicationChecker` gibi adlar bulunsa bile bunların `dream.js` içindeki hipotez üreticilerini state geçişleriyle bağladığı bu kaynak incelemesinde doğrulanmamıştır. [1] [2]
+Buradaki ikinci şema #969 öncesi baseline’ın tarihsel bulgusudur; güncel canonical branch’in gerçekleşen akışı olarak tek başına sunulamaz. Güncel branch’te bunun sınırlı karşılığı `lib/dream-experiment-loop.js` içinde vardır: controller bounded hypothesis listesi üretir, her hipotezi mevcut AgentV3 `verify` yoluna bağlar, sonucu observation sinyaline dönüştürür ve bir sonraki hipotezi seçer. Workflow katmanındaki diğer araç adlarının bu controller’ın dışında aynı state machine’i kurduğu iddia edilmez. [1] [2] [5]
 
 ## 11. Huqan trust-kernel ile doğrulanmış temas noktası
 
@@ -263,7 +263,7 @@ Dream motorunun kaynakta doğrulanan gerçek hipotez akışı şöyledir:
 
 > **Bilgi grafiğini bağlam ve bütçe ile tarar; benzerlik, zincir/geçiş, boşluk, simetri ve çelişki adayları üretir; adayları güven, yenilik ve fayda bileşik skoruyla sıralar; çelişkileri öne alarak en fazla 10 hipotez döndürür; kernel bu adaylara sınırlı bir `_evidence` görünümü ekler; `learnFromDream`, AutoThink veya `selfEvolve` yollarında uygun adayları mevcut background provenance ve admission kapısından geçirir; admission `allow` ise ilişki eşlemesine göre `hipotez`, `benzer`, `tür`, `özellik` veya `yapabilir` ilişkili canonical kenar ve `LEARN` audit üretilir; allow dışı kararlarda canonical yazım yapılmaz ve aday pending/deferred ile audit olarak görünür.**
 
-Bu nedenle **hipotez üretimi ve koşullu canonical hipotez yazımı mevcut ve kaynak kodla doğrulanmıştır**. Eksik olan, hipotezlerin yalnızca üretilip güvenli yazım kararından geçirilmesi değil; bunların ayrı ve kalıcı bir deney state machine içinde yürütülmesi, gerçek gözlemlerle değerlendirilmesi ve gözlem sonucundan otomatik yeni hipotez üretilmesidir. Başka bir ifadeyle kaynak kod, hipotez tarafını ve güvenli arka plan öğrenme kapısını içerir; tam kapalı “rüya görme/deney” döngüsünü ayrı bir orchestration state machine olarak göstermemektedir.
+Bu nedenle **hipotez üretimi ve koşullu canonical hipotez yazımı çekirdek Dream kaynak kodunda doğrulanmıştır**. Buna ek olarak #969, `lib/dream-experiment-loop.js` ile hipotez → verify → observation → sonraki hipotez akışını bounded bir state machine olarak canonical branch’e bağlamıştır. Supporting observation commit’i mevcut `_commitBackgroundEdge()` admission ve `Graph.runMutationOnce()` durability yolundan geçer; rejection, unknown, missing Graph durability veya bütçe sınırı canonical edge yazımını engeller. Sonuç, kontrollü ve opt-in bir deney loop’udur; yeni signer, receipt family, durability authority veya sınırsız otonom araştırma iddiası değildir.
 
 ## References
 
@@ -274,3 +274,7 @@ Bu nedenle **hipotez üretimi ve koşullu canonical hipotez yazımı mevcut ve k
 [3]: https://github.com/ali-ulu/huqan/blob/main/lib/background-provenance.js "Background provenance ve admission-gated canonical edge yazımı"
 
 [4]: https://github.com/ali-ulu/huqan/blob/main/test/faz2-background-write-gate-audit.test.js "Dream background admission ve audit testleri"
+
+[5]: https://github.com/ali-ulu/huqan/blob/main/lib/dream-experiment-loop.js "Bounded Dream hypothesis verification and observation loop"
+
+[6]: https://github.com/ali-ulu/huqan/blob/main/test/dream-experiment-loop.test.js "Dream experiment loop unit contract"
