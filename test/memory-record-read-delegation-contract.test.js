@@ -14,6 +14,7 @@ const delegateCode = delegateSource
   .map((line) => line.replace(/\/\/.*$/, ''))
   .join('\n');
 const {
+  listMemories,
   getMemory,
   findById,
   findByContentHash,
@@ -78,13 +79,14 @@ const otherWorkspace = makeRecord({
 });
 const context = makeContext([alpha, beta, deleted, otherWorkspace]);
 
- test('MS: record lookup methods are delegated to lib/memory-record-read.js', () => {
+test('MS: record read methods are delegated to lib/memory-record-read.js', () => {
   assert.ok(
     storeSource.includes("} = require('./memory-record-read');"),
     'lib/memory-store.js imports the record-read delegate',
   );
 
   const wrappers = [
+    ['list', 'readListMemories'],
     ['get', 'readGetMemory'],
     ['findById', 'readFindById'],
     ['findByContentHash', 'readFindByContentHash'],
@@ -111,19 +113,28 @@ const context = makeContext([alpha, beta, deleted, otherWorkspace]);
 
 test('MS: pinned record-read call sites remain read-only and acyclic', () => {
   assert.equal((storeSource.match(/require\('\.\/memory-record-read'\)/g) || []).length, 1, 'delegate require appears once');
-  for (const delegate of ['readGetMemory', 'readFindById', 'readFindByContentHash', 'readFindBySourceRef', 'readFindByKind', 'readFindByStatus']) {
+  for (const delegate of ['readListMemories', 'readGetMemory', 'readFindById', 'readFindByContentHash', 'readFindBySourceRef', 'readFindByKind', 'readFindByStatus']) {
     assert.equal((storeSource.match(new RegExp(`${delegate}\\(`, 'g')) || []).length, 1, `${delegate} has one call site`);
   }
-  assert.equal((storeSource.match(/_recordReadContext\(\)/g) || []).length, 7, 'context factory has one definition plus six call sites');
+  assert.equal((storeSource.match(/_recordReadContext\(\)/g) || []).length, 8, 'context factory has one definition plus seven call sites');
   assert.equal((delegateCode.match(/this\./g) || []).length, 0, 'delegate has no this/store receiver access');
   assert.ok(!delegateCode.includes("require('./memory-store')"), 'delegate has no cycle back to memory-store');
   for (const banned of ['_db', '_stmts', '_events', '_links', '_withTransaction', '_persistenceError', 'appendEvent', 'persist(']) {
     assert.ok(!delegateCode.includes(banned), `delegate must not touch store internals (${banned})`);
   }
-  assert.equal((delegateCode.match(/context\.memories\.values\(\)/g) || []).length, 4, 'collection scans remain local to delegate-owned result logic');
+  assert.equal((delegateCode.match(/context\.memories\.values\(\)/g) || []).length, 5, 'collection scans remain local to delegate-owned result logic');
 });
 
 test('MS: record-read behavior preserves workspace, tombstone, ordering, and cloning semantics', () => {
+  const listResult = listMemories(context, { workspaceId: 'default' });
+  assert.deepEqual(listResult.memories.map((memory) => memory.memoryId), ['m-beta', 'm-alpha']);
+  assert.equal(listResult.total, 2);
+  assert.deepEqual(
+    listMemories(context, { workspaceId: 'default', includeTombstoned: true, limit: 1, offset: 1 }).memories.map((memory) => memory.memoryId),
+    ['m-alpha'],
+  );
+  assert.deepEqual(listMemories(context, { workspaceId: 'workspace-b' }).memories.map((memory) => memory.memoryId), ['m-other']);
+
   const getResult = getMemory(context, 'm-alpha', { workspaceId: 'default' });
   assert.equal(getResult.ok, true);
   assert.equal(getResult.memory.memoryId, 'm-alpha');
@@ -176,6 +187,7 @@ test('MS: public MemoryStore record-read wrappers use the injected context', () 
     store._memories.set(store._makeMemoryKey(record.workspaceId, record.memoryId), record);
   }
 
+  assert.deepEqual(store.list().memories.map((memory) => memory.memoryId), ['wrapped-b', 'wrapped-a']);
   assert.equal(store.get('wrapped-a').ok, true);
   assert.equal(store.findById('wrapped-a').ok, true);
   assert.deepEqual(store.findBySourceRef('wrapped-source').memories.map((memory) => memory.memoryId), ['wrapped-b', 'wrapped-a']);
