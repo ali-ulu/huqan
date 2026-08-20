@@ -72,6 +72,7 @@ const { prune: runGraphPrune } = require('./lib/graph-prune');
 const { optimize: runGraphOptimize } = require('./lib/graph-optimize');
 const { isCausalRelation: runIsCausalRelation, getCausalRelations: runCausalRelations, getCausalEdges: runCausalEdges } = require('./lib/graph-causal-relation-read');
 const { addEdge: runEdgeWrite } = require('./lib/graph-edge-write');
+const { ensureMutationReceiptFamilySchema: runMutationReceiptFamilySchema } = require('./lib/graph-mutation-receipt-schema');
 
 class Graph {
   /**
@@ -392,76 +393,7 @@ class Graph {
   }
 
   _ensureMutationReceiptFamilySchema() {
-    const validateRows = () => {
-      const rows = this._db.prepare(`
-        SELECT sequence, canonical_payload, receipt_family
-        FROM mutation_receipts
-        ORDER BY sequence ASC
-      `).all();
-      for (const row of rows) {
-        const payload = JSON.parse(row.canonical_payload);
-        const derived = classifyReceiptFamily(payload);
-        if (!RECEIPT_FAMILIES.has(row.receipt_family) || row.receipt_family !== derived) {
-          throw new Error(`invalid mutation receipt family at sequence ${row.sequence}`);
-        }
-      }
-      return rows.length;
-    };
-    const verifyIndex = () => {
-      const columns = this._db.prepare("PRAGMA index_info('idx_mutation_receipts_workspace_family_sequence')")
-        .all().map(row => row.name);
-      if (columns.length !== 3
-        || columns[0] !== 'workspace_id'
-        || columns[1] !== 'receipt_family'
-        || columns[2] !== 'sequence') {
-        throw new Error('mutation receipt family index is incomplete');
-      }
-    };
-
-    const columns = this._db.prepare('PRAGMA table_info(mutation_receipts)').all();
-    const familyColumn = columns.find(column => column.name === 'receipt_family');
-    try {
-      if (!familyColumn) {
-        this._db.transaction(() => {
-          this._db.exec("ALTER TABLE mutation_receipts ADD COLUMN receipt_family TEXT NOT NULL DEFAULT 'non-v4' CHECK(receipt_family IN ('v4', 'non-v4'))");
-          const rows = this._db.prepare('SELECT sequence, canonical_payload FROM mutation_receipts ORDER BY sequence ASC').all();
-          const updateFamily = this._db.prepare('UPDATE mutation_receipts SET receipt_family = ? WHERE sequence = ?');
-          let updated = 0;
-          for (const row of rows) {
-            const family = classifyReceiptFamily(JSON.parse(row.canonical_payload));
-            if (!RECEIPT_FAMILIES.has(family)) {
-              throw new Error(`unsupported mutation receipt family at sequence ${row.sequence}`);
-            }
-            const result = updateFamily.run(family, row.sequence);
-            if (Number(result?.changes || 0) !== 1) {
-              throw new Error(`mutation receipt family backfill mismatch at sequence ${row.sequence}`);
-            }
-            updated += 1;
-          }
-          if (updated !== rows.length || validateRows() !== rows.length) {
-            throw new Error('mutation receipt family backfill is incomplete');
-          }
-          this._db.exec(`
-            CREATE INDEX IF NOT EXISTS idx_mutation_receipts_workspace_family_sequence
-            ON mutation_receipts(workspace_id, receipt_family, sequence DESC)
-          `);
-          verifyIndex();
-        })();
-        return;
-      }
-
-      if (Number(familyColumn.notnull) !== 1) {
-        throw new Error('mutation receipt family column must be NOT NULL');
-      }
-      validateRows();
-      this._db.exec(`
-        CREATE INDEX IF NOT EXISTS idx_mutation_receipts_workspace_family_sequence
-        ON mutation_receipts(workspace_id, receipt_family, sequence DESC)
-      `);
-      verifyIndex();
-    } catch (cause) {
-      throw receiptFamilyMigrationError(cause);
-    }
+    return runMutationReceiptFamilySchema(this._db);
   }
 
   /**
