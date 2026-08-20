@@ -14,6 +14,7 @@ const delegateCode = delegateSource
   .map((line) => line.replace(/\/\/.*$/, ''))
   .join('\n');
 const {
+  getMemory,
   findById,
   findByContentHash,
   findBySourceRef,
@@ -84,6 +85,7 @@ const context = makeContext([alpha, beta, deleted, otherWorkspace]);
   );
 
   const wrappers = [
+    ['get', 'readGetMemory'],
     ['findById', 'readFindById'],
     ['findByContentHash', 'readFindByContentHash'],
     ['findBySourceRef', 'readFindBySourceRef'],
@@ -109,10 +111,10 @@ const context = makeContext([alpha, beta, deleted, otherWorkspace]);
 
 test('MS: pinned record-read call sites remain read-only and acyclic', () => {
   assert.equal((storeSource.match(/require\('\.\/memory-record-read'\)/g) || []).length, 1, 'delegate require appears once');
-  for (const delegate of ['readFindById', 'readFindByContentHash', 'readFindBySourceRef', 'readFindByKind', 'readFindByStatus']) {
+  for (const delegate of ['readGetMemory', 'readFindById', 'readFindByContentHash', 'readFindBySourceRef', 'readFindByKind', 'readFindByStatus']) {
     assert.equal((storeSource.match(new RegExp(`${delegate}\\(`, 'g')) || []).length, 1, `${delegate} has one call site`);
   }
-  assert.equal((storeSource.match(/_recordReadContext\(\)/g) || []).length, 6, 'context factory has one definition plus five call sites');
+  assert.equal((storeSource.match(/_recordReadContext\(\)/g) || []).length, 7, 'context factory has one definition plus six call sites');
   assert.equal((delegateCode.match(/this\./g) || []).length, 0, 'delegate has no this/store receiver access');
   assert.ok(!delegateCode.includes("require('./memory-store')"), 'delegate has no cycle back to memory-store');
   for (const banned of ['_db', '_stmts', '_events', '_links', '_withTransaction', '_persistenceError', 'appendEvent', 'persist(']) {
@@ -122,6 +124,14 @@ test('MS: pinned record-read call sites remain read-only and acyclic', () => {
 });
 
 test('MS: record-read behavior preserves workspace, tombstone, ordering, and cloning semantics', () => {
+  const getResult = getMemory(context, 'm-alpha', { workspaceId: 'default' });
+  assert.equal(getResult.ok, true);
+  assert.equal(getResult.memory.memoryId, 'm-alpha');
+  getResult.memory.content.topic = 'changed';
+  assert.equal(alpha.content.topic, 'alpha', 'get returns a cloned memory');
+  assert.equal(getMemory(context, 'm-other', { workspaceId: 'default' }).error.code, 'NOT_FOUND');
+  assert.equal(getMemory(context, 'missing', { workspaceId: 'default' }).error.code, 'NOT_FOUND');
+
   const idResult = findById(context, 'm-alpha', { workspaceId: 'default' });
   assert.equal(idResult.ok, true);
   assert.equal(idResult.memory.memoryId, 'm-alpha');
@@ -148,6 +158,7 @@ test('MS: record-read behavior preserves workspace, tombstone, ordering, and clo
 });
 
 test('MS: record-read invalid inputs preserve existing error codes', () => {
+  assert.equal(getMemory(context, '', {}).error.code, 'INVALID_INPUT');
   assert.equal(findById(context, '', {}).error.code, 'INVALID_INPUT');
   assert.equal(findByContentHash(context, ' ', {}).error.code, 'INVALID_INPUT');
   assert.equal(findBySourceRef(context, null, {}).error.code, 'INVALID_INPUT');
@@ -165,6 +176,7 @@ test('MS: public MemoryStore record-read wrappers use the injected context', () 
     store._memories.set(store._makeMemoryKey(record.workspaceId, record.memoryId), record);
   }
 
+  assert.equal(store.get('wrapped-a').ok, true);
   assert.equal(store.findById('wrapped-a').ok, true);
   assert.deepEqual(store.findBySourceRef('wrapped-source').memories.map((memory) => memory.memoryId), ['wrapped-b', 'wrapped-a']);
   assert.deepEqual(store.findByKind('note').memories.map((memory) => memory.memoryId), ['wrapped-b', 'wrapped-a']);
