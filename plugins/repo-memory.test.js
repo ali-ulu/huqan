@@ -436,6 +436,79 @@ test('repo-memory github ingest preserves provenance on nodes and edges', async 
   assert.ok(kernel.edges.some((edge) => /repo:owner\/repo:docs\/claim\.md/.test(edge.meta?.provenance?.sourceRef || '')));
 });
 
+test('repo-memory GitHub connector firewall blocks malformed target before fetch', async () => {
+  const kernel = makeKernel();
+  let fetchCalls = 0;
+  const result = await repoMemory.run(kernel, {
+    action: 'ingest',
+    sourceType: 'github',
+    enforceConnectorFirewall: true,
+    fetchRepoFiles: async () => {
+      fetchCalls += 1;
+      return [];
+    },
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'CONNECTOR_TARGET_REQUIRED');
+  assert.equal(result.connectorFirewall.decision, 'block');
+  assert.equal(fetchCalls, 0);
+  assert.equal(kernel.nodes.length, 0);
+});
+
+test('repo-memory GitHub connector firewall blocks preview before fetch', async () => {
+  const kernel = makeKernel();
+  let fetchCalls = 0;
+  const result = await repoMemory.run(kernel, {
+    action: 'ingest',
+    sourceType: 'github',
+    repoUrl: 'https://github.com/owner/repo',
+    enforceConnectorFirewall: true,
+    preview: true,
+    fetchRepoFiles: async () => {
+      fetchCalls += 1;
+      return [];
+    },
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'CONNECTOR_ACTION_FIREWALL_BLOCKED');
+  assert.equal(result.connectorFirewall.decision, 'allow');
+  assert.equal(fetchCalls, 0);
+  assert.equal(kernel.nodes.length, 0);
+});
+
+test('repo-memory GitHub connector firewall allows bounded read before graph ingest', async () => {
+  const kernel = makeKernel();
+  let fetchCalls = 0;
+  const result = await repoMemory.run(kernel, {
+    action: 'ingest',
+    sourceType: 'github',
+    repoUrl: 'https://github.com/owner/repo',
+    enforceConnectorFirewall: true,
+    workspaceId: 'workspace-firewall',
+    actor: 'connector-test',
+    fetchRepoFiles: async () => {
+      fetchCalls += 1;
+      return [{
+        owner: 'owner',
+        repo: 'repo',
+        branch: 'main',
+        path: 'README.md',
+        content: '# Guarded',
+        lastModified: '2026-08-01T00:00:00.000Z',
+      }];
+    },
+    parseRepoUrl: () => ({ owner: 'owner', repo: 'repo' }),
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.connectorFirewall.decision, 'allow');
+  assert.equal(result.connectorFirewall.metadata.surface, 'connector');
+  assert.equal(fetchCalls, 1);
+  assert.equal(result.admission.outcome, 'admitted');
+});
+
 test('repo-memory does not persist GitHub URL credentials or selectors', async () => {
   const kernel = makeKernel();
   const result = await repoMemory.run(kernel, {
