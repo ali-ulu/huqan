@@ -74,6 +74,54 @@ handlers for backward compatibility, but are never advertised — always call
 the `huqan.*` name. See `docs/mcp-tool-name-migration.md` for the exact
 compatibility rules if a legacy call ever needs explaining.
 
+### Argument shapes for the tools you'll call most
+
+The exact field names below come from the handler code (`mcpServer.js` and
+`lib/mcp/read-workflow-tools.js`), not from guessing — use them as-is rather
+than inventing plausible-looking field names, and otherwise trust whatever
+`tools/list` reports for a tool over anything here if they ever disagree.
+
+```jsonc
+// huqan.learn — text is required; skipConflicts defaults to true
+{ "text": "Vaccination prevents disease", "skipConflicts": true, "maxSentences": 10 }
+
+// huqan.ask
+{ "question": "What prevents disease?" }
+
+// huqan.verify — workspaceId is optional, defaults to the kernel's default workspace
+{ "statement": "Growth depends on investment", "workspaceId": "default" }
+
+// huqan.plan / huqan.agent — maxSteps is clamped to 1-8, defaults to 4
+{ "goal": "Investigate why deploys are failing", "maxSteps": 4 }
+
+// huqan.reason
+{ "subject": "investment" }
+
+// huqan.compare
+{ "left": "smoking", "right": "vaccination" }
+
+// huqan.dream — depth is clamped to 1-5, defaults to 2
+{ "depth": 2 }
+
+// huqan.advocate / huqan.search — both require workspaceId; advocate accepts
+// claim/text/question as aliases for the same field, search accepts
+// query/claim/node
+{ "workspaceId": "default", "claim": "Growth depends on investment" }
+{ "workspaceId": "default", "query": "investment" }
+
+// huqan.trust_receipt — workspaceId plus at least one of targetId,
+// provenanceId, sourceRef, candidateId, eventType
+{ "workspaceId": "default", "targetId": "node-123" }
+```
+
+**`huqan.verify` does not create a Trust Receipt by itself** — it only
+verifies against the graph and returns evidence + confidence in the same
+call. If the user wants an auditable receipt for a verification or approval,
+that's a separate `huqan.trust_receipt` lookup keyed by workspace plus one of
+the filters above (typically the `targetId` or `provenanceId` the earlier
+call returned) — don't imply a receipt exists until you've actually fetched
+one this way.
+
 ### Operator tools: never assume you can approve your own request
 
 Three tools exist but are **deliberately withheld** from `tools/list`. They
