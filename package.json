@@ -469,6 +469,7 @@
     "specs/huqan-trust-protocol/0.2/schemas/shared-trust-package.schema.json",
     "storage.js",
     "toolPolicy.js",
+    "lib/workflow-tool-repo-memory.js",
     "workflow-agent.js",
     "workflow-runtime.js",
     "workflow-tools.js"
