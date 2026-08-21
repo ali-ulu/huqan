@@ -80,6 +80,7 @@
     "adapters/markdown-adapter.js",
     "adapters/pdf-adapter.js",
     "adapters/yaml-adapter.js",
+    "adapters/utils/learn-entries.js",
     "bin/huqan-mcp.js",
     "agent.js",
     "agent.v3.js",
