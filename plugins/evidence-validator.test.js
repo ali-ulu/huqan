@@ -216,3 +216,16 @@ test('evidence-validator: learnAsync() learns normally when the source is reacha
   assert.ok(result?.data?.learned > 0, 'a reachable source must learn');
   assert.ok(k.graph.getNode('kedi'));
 });
+
+test('evidence-validator: AAFW blocks credential-bearing probe targets before fetch', async () => {
+  let called = false;
+  const result = await evidenceValidator.checkSourceReachable('https://user:secret@example.com/report', {
+    fetchUrl: async () => {
+      called = true;
+      return { statusCode: 200 };
+    },
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'EVIDENCE_URL_UNREACHABLE');
+  assert.equal(called, false);
+});
