@@ -18,6 +18,11 @@ account can do, and how to tell afterwards whether it worked.
 npm run check:package-closure && npm test
 ```
 
+and `npm run verify:tarball` covers the half those two cannot reach. The CI
+workflow runs the tarball verification explicitly and lets `npm publish` run
+the other two, so the halves do not overlap: one proves the source tree is
+sound, the other proves the tarball behaves.
+
 Those two cover the failure this repository has actually shipped. In v0.10.0,
 three modules the installed package loads at require time were missing from
 `package.json#files`, so the tarball threw `Cannot find module` from inside
@@ -32,8 +37,8 @@ check replaces.
 
 ## Before you publish
 
-1. **Be on a clean `main`.** The version in `package.json` is what gets
-   published; there is no tag-driven release job.
+1. **Be on a clean `main`.** `package.json#version` is what gets published;
+   the tag only has to agree with it.
 
    ```bash
    git checkout main && git pull && git status --porcelain
@@ -46,43 +51,57 @@ check replaces.
 3. **Rehearse the tarball.** This is the step that catches what tests do not:
 
    ```bash
-   npm pack --pack-destination /tmp/huqan-rehearsal
-   mkdir -p /tmp/huqan-consumer && cd /tmp/huqan-consumer && npm init -y
-   npm install /tmp/huqan-rehearsal/huqan-<version>.tgz
-   ./node_modules/.bin/huqan quickstart
+   npm run verify:tarball
    ```
 
-   Read the output, do not just check the exit code. A plugin or adapter that
-   fails to load prints a line and the run still succeeds — that line is the
-   defect. A good run ends with a Trust Receipt at confidence 0.90 and no
-   `Plugin failed to load` or `Cannot find module` anywhere above it.
+   It packs the package, installs it into an empty project twice -- once
+   normally and once with `--omit=optional`, since both are documented install
+   shapes -- and checks each one: both bins present, `huqan --version` correct,
+   `huqan quickstart` producing a canonical Trust Receipt, and `huqan-mcp`
+   answering `initialize` and listing its tools.
 
-4. **Rehearse the slim install too.** `pdfjs-dist` and `pdfkit` are optional
-   dependencies, so `--omit=optional` is a supported shape (about 20 MB instead
-   of about 111 MB) and needs to keep working:
+   The reason it reads output rather than exit codes: a plugin or adapter that
+   fails to load prints a line and the run still exits 0. That line is the
+   defect. `scripts/verify-package-tarball.js` fails on `Plugin failed to
+   load`, `Cannot find module` and `MODULE_NOT_FOUND` anywhere in the
+   quickstart output, which is exactly how v0.10.0's three unpublished modules
+   would have been caught.
 
-   ```bash
-   npm install /tmp/huqan-rehearsal/huqan-<version>.tgz --omit=optional
-   ```
-
-   Same quickstart, same receipt. PDF ingest and PDF receipt export are the
-   only things that may fail, and they must fail as
+   PDF ingest and PDF receipt export are the only things allowed to be
+   unavailable under `--omit=optional`, and they must fail as
    `HUQAN_PDF_EXPORT_UNAVAILABLE` naming the package to install, not as a
    module-not-found.
 
-5. **Check the MCP executable answers**, since it is what every editor
-   integration starts:
+## Publishing from CI (preferred)
 
-   ```bash
-   printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"rehearsal","version":"1"}}}' \
-     | ./node_modules/.bin/huqan-mcp
-   ```
+`.github/workflows/publish.yml` publishes on a `v*` tag, and it is the better
+path for one reason a laptop cannot match: `--provenance`. npm exchanges the
+workflow's OIDC token for a signed attestation tying the tarball to this
+repository, this workflow and this commit, and shows it on the package page.
+For a product whose claim is verifiable provenance, publishing unattested is a
+poor first impression.
 
-   Expect `"serverInfo":{"name":"huqan","version":"<version>"}`.
+**One-time setup.** Create an npm access token of type **Automation** (it
+bypasses 2FA, which is what lets CI publish while your account keeps 2FA on),
+then add it to this repository under Settings → Secrets and variables →
+Actions as `NPM_TOKEN`.
 
-## Publishing
+**Every release after that:**
 
-Only the npm account owner can do this part; it needs a login and, if the
+```bash
+npm version <patch|minor|major>   # bumps package.json and creates the v<x> tag
+git push --follow-tags
+```
+
+The workflow refuses to proceed if the tag disagrees with
+`package.json#version`, or if that version is already on the registry.
+
+To exercise every gate without uploading, run the workflow manually from the
+Actions tab with **dry_run** left checked.
+
+## Publishing from a laptop
+
+Works, and produces no provenance attestation. It needs a login and, if the
 account has 2FA on publishes, a one-time code at the prompt.
 
 ```bash
@@ -104,10 +123,6 @@ npm publish --tag next
 # ... verify ...
 npm dist-tag add huqan@<version> latest
 ```
-
-`--provenance` is not available from a laptop: it requires a CI runner with an
-OIDC identity. Publishing without it is normal for a first release; wiring a
-publish workflow is a separate decision.
 
 ## After publishing
 
