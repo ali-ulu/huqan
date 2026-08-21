@@ -36,9 +36,8 @@ const { mcpWorkflowMetadata } = require('./lib/workflow-contract');
 const { executeMcpVerify, executeMcpReadWorkflow } = require('./lib/mcp/read-workflow-tools');
 const { buildIngestWorkflowPreview } = require('./lib/ingest-workflow-preview');
 const { readIngestRunStatus } = require('./lib/mcp-ingest-status-tool');
-const { decideMcpIngestApproval, buildMcpIngestExecuteResult } = require('./lib/mcp-ingest-execute-tool');
+const { buildMcpIngestExecuteResult } = require('./lib/mcp-ingest-execute-tool');
 const { executeMcpAgentContinuation } = require('./lib/mcp-agent-continuation');
-const { idempotentApprovalDecision, finalizeApprovalExecution } = require('./lib/approval-execution-evidence');
 function publishMcpWorkflowContract(tool) {
   const workflow = mcpWorkflowMetadata(tool.name);
   if (!workflow) return tool;
@@ -81,7 +80,6 @@ const {
   createApprovalStoreFromKernel,
   saveMcpApproval,
 } = require('./lib/mcp-approval-store');
-const { buildApprovalAdmissionOptions } = require('./lib/mcp-approval-admission');
 const {
   toToolResult,
   recordInternalError,
@@ -139,7 +137,15 @@ function createServer(kernelOrOptions = {}) {
 
       if (method === 'tools/call') {
         try {
-          const result = callTool(kernel, params, { approvalStore, operatorToken });
+          const result = callTool(kernel, params, {
+            approvalStore,
+            operatorToken,
+            trustEvidenceLedger: options.trustEvidenceLedger || null,
+            humanOversightApprovalRuntime: options.humanOversightApprovalRuntime || null,
+            agentIdentityRuntime: Object.hasOwn(options, 'agentIdentityRuntime')
+              ? options.agentIdentityRuntime
+              : null,
+          });
           if (result && typeof result.then === 'function') {
             return result.then(
               value => ({ jsonrpc: '2.0', id, result: toToolResult(value) }),
@@ -186,183 +192,12 @@ function failApprovalDecision(code, message, meta = {}) {
   };
 }
 
-function handleMcpApprovalDecision(kernel, args = {}, runtime = {}) {
-  const approvalStore = runtime.approvalStore || createApprovalStoreFromKernel(kernel, runtime);
-  if (!approvalStore ||
-      typeof approvalStore.getToolApprovalById !== 'function' ||
-      typeof approvalStore.claimToolApproval !== 'function' ||
-      typeof approvalStore.rejectToolApproval !== 'function' ||
-      typeof approvalStore.failToolApproval !== 'function' ||
-      typeof approvalStore.finalizeToolApprovalWithReceipt !== 'function') {
-    return failApprovalDecision('APPROVAL_STORE_UNAVAILABLE', 'Persistent MCP approval store is unavailable.');
-  }
-
-  const approvalId = sanitizeMcpString(args.approvalId, MCP_MAX_SHORT);
-  if (!approvalId) {
-    return failApprovalDecision('APPROVAL_ID_REQUIRED', 'approvalId is required.');
-  }
-
-  // #615: only a genuinely absent decision field defaults to 'approved'.
-  // A present-but-invalid value (wrong enum, empty string, whitespace) must
-  // fail closed rather than silently falling into the most privileged
-  // branch -- args.decision || 'approved' could not tell those cases apart.
-  const decisionProvided = args.decision !== undefined && args.decision !== null;
-  const decision = sanitizeMcpApprovalDecision(decisionProvided ? args.decision : 'approved');
-  if (!decision) {
-    return failApprovalDecision('INVALID_APPROVAL_DECISION', 'decision must be "approved" or "rejected".');
-  }
-  const reason = sanitizeMcpString(args.reason || `mcp_${decision}`, MCP_MAX_TEXT);
-  const existing = formatApprovalRecord(approvalStore.getToolApprovalById(approvalId));
-  if (!existing) {
-    return failApprovalDecision('APPROVAL_NOT_FOUND', `Approval not found: ${approvalId}`);
-  }
-
-  if (existing.status === 'approved' || existing.status === 'rejected') {
-    if (existing.status !== decision) {
-      return failApprovalDecision('APPROVAL_ALREADY_FINAL', `Approval is already ${existing.status}.`, { approval: existing });
-    }
-    return idempotentApprovalDecision(existing, decision);
-  }
-
-  if (existing.tool === 'http.ingest') {
-    return decideMcpIngestApproval({
-      kernel,
-      approvalStore,
-      approvalId,
-      decision,
-      reason,
-      runtime,
-      fail: failApprovalDecision,
-    });
-  }
-
-  if (decision === 'rejected') {
-    const rejection = approvalStore.rejectToolApproval(approvalId, reason);
-    if (!rejection || rejection.rejected !== true) {
-      const current = formatApprovalRecord(rejection?.approval || approvalStore.getToolApprovalById(approvalId));
-      return failApprovalDecision(
-        'APPROVAL_DECISION_CONFLICT',
-        'Approval is already claimed or is not pending.',
-        { approval: current, retrySafe: false },
-      );
-    }
-    const rejected = formatApprovalRecord(rejection.approval);
-    return {
-      ok: true,
-      type: 'approval',
-      data: { approval: rejected, decision, executed: false, idempotent: false, result: null },
-      evidence: [],
-      error: null,
-      meta: {},
-    };
-  }
-
-  // Canonicalized rather than compared literally: approvals persisted before
-  // the RFC-001 rename carry `tool: "axiom.learn"`, and those rows must stay
-  // executable. Comparing the raw string would have silently made every
-  // pre-rename pending approval permanently unapprovable.
-  if (canonicalMcpToolName(existing.tool) !== 'huqan.learn') {
-    return failApprovalDecision('APPROVAL_EXECUTION_UNSUPPORTED', `Approval execution is only supported for huqan.learn, got ${existing.tool}.`, { approval: existing });
-  }
-
-  const claim = approvalStore.claimToolApproval(approvalId, reason);
-  if (!claim || claim.claimed !== true) {
-    const current = formatApprovalRecord(claim?.approval || approvalStore.getToolApprovalById(approvalId));
-    if (current?.status === 'approved') {
-      return idempotentApprovalDecision(current, decision);
-    }
-    const code = current?.status === 'failed'
-      ? 'APPROVAL_RECONCILIATION_REQUIRED'
-      : current?.status === 'executing'
-        ? 'APPROVAL_EXECUTION_IN_PROGRESS'
-        : 'APPROVAL_DECISION_CONFLICT';
-    return failApprovalDecision(
-      code,
-      current?.status === 'failed'
-        ? 'Approval execution outcome is unknown and requires manual reconciliation.'
-        : 'Approval execution is already claimed or is not pending.',
-      { approval: current, retrySafe: false },
-    );
-  }
-
-  const storedArgs = existing.context?.args && typeof existing.context.args === 'object'
-    ? existing.context.args
-    : parseJsonObject(existing.input, {});
-  const cleanArgs = sanitizeToolArgsForStorage(existing.tool, storedArgs);
-  const learnOptions = buildApprovalAdmissionOptions(existing, cleanArgs);
-  // #216: both the SQLite and JSON Graph backends now provide a crash-safe
-  // durable mutation journal (runMutationOnce), so binding the durable id no
-  // longer depends on which backend is active -- runMutationOnce's presence
-  // is itself the capability signal now that it is real on both.
-  if (kernel.graph && typeof kernel.graph.runMutationOnce === 'function') {
-    learnOptions.mutationOperationId = approvalId;
-  }
-  let result;
-  try {
-    result = kernel.learn(cleanArgs.text, learnOptions);
-  } catch (error) {
-    const failure = approvalStore.failToolApproval(
-      approvalId,
-      `execution_outcome_unknown:${error?.code || error?.name || 'error'}`
-    );
-    const failed = formatApprovalRecord(failure?.approval || approvalStore.getToolApprovalById(approvalId));
-    return failApprovalDecision(
-      'APPROVAL_EXECUTION_FAILED',
-      'Approved MCP action threw during execution; outcome requires manual reconciliation.',
-      { approval: failed, retrySafe: false },
-    );
-  }
-  if (!result || result.ok === false) {
-    const failure = approvalStore.failToolApproval(approvalId, 'execution_outcome_unknown:result_not_ok');
-    const failed = formatApprovalRecord(failure?.approval || approvalStore.getToolApprovalById(approvalId));
-    return failApprovalDecision(
-      'APPROVAL_EXECUTION_FAILED',
-      'Approved MCP action failed; outcome requires manual reconciliation.',
-      { approval: failed, result, retrySafe: false },
-    );
-  }
-
-  let finalization;
-  try {
-    finalization = finalizeApprovalExecution({ store: approvalStore, approvalId, reason, graph: kernel.graph, result });
-  } catch (error) {
-    return failApprovalDecision('APPROVAL_FINALIZATION_FAILED', 'Approved MCP action executed but finalizing the approval record threw an error.', {
-      approval: formatApprovalRecord(approvalStore.getToolApprovalById(approvalId)), result, retrySafe: false,
-      finalizationError: error?.code || error?.name || 'error',
-    });
-  }
-  if (finalization.code) {
-    const failure = approvalStore.failToolApproval(approvalId, 'execution_outcome_unknown:receipt_not_materialized');
-    return failApprovalDecision(finalization.code, 'Approved MCP action executed but its canonical receipt could not be materialized.',
-      { approval: formatApprovalRecord(failure?.approval || approvalStore.getToolApprovalById(approvalId)), result, retrySafe: false },
-    );
-  }
-  const approved = formatApprovalRecord(finalization.approval);
-  const executionEvidence = finalization.executionEvidence;
-  if (!approved || approved.status !== 'approved') {
-    return failApprovalDecision(
-      'APPROVAL_FINALIZATION_FAILED',
-      'Approved MCP action executed but the approval record could not be finalized.',
-      { approval: approved || formatApprovalRecord(approvalStore.getToolApprovalById(approvalId)), result, retrySafe: false },
-    );
-  }
-  return {
-    ok: true,
-    type: 'approval',
-    data: {
-      approval: approved,
-      decision,
-      executed: true,
-      idempotent: false,
-      result,
-      receipt: executionEvidence.receipt,
-      refs: executionEvidence.refs,
-    },
-    evidence: result.evidence || [],
-    error: null,
-    meta: { admissionAware: true },
-  };
-}
+const {
+  createMcpApprovalDecisionHandler,
+  getHumanOversightRuntime,
+  createMcpOversightCase,
+} = require('./lib/mcp-approval-decision-handler');
+const handleMcpApprovalDecision = createMcpApprovalDecisionHandler({ failApprovalDecision });
 
 /**
  * Run `callback` with a throwaway agent and close that agent's storage
@@ -463,7 +298,9 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
   if (!gate.canExecute) {
     if (gate.decision === 'review' || gate.requiredReview) {
       const approvalStore = runtime.approvalStore || createApprovalStoreFromKernel(kernel, runtime);
-      const approval = saveMcpApproval(approvalStore, name, args, gate);
+      const approval = saveMcpApproval(approvalStore, name, args, gate, {
+        oversightRequired: Boolean(getHumanOversightRuntime(runtime)) && name === 'huqan.learn',
+      });
       const gateSurface = {
         decision: gate.decision,
         allowed: gate.allowed,
@@ -489,6 +326,29 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
           message: `Tool call blocked, review not persisted: ${gate.reason}`,
         }, name, args, gate);
       }
+      const oversightCase = createMcpOversightCase({
+        runtime,
+        approval,
+        toolName: name,
+        storedArgs: approval.context?.args || args,
+        gate,
+      });
+      const approvalSurface = oversightCase.enabled
+        ? { ...approval, oversight: oversightCase.summary || { caseId: '', status: 'unavailable' } }
+        : approval;
+      if (oversightCase.enabled && !oversightCase.ok) {
+        return withMcpToolVerdictSurface({
+          ok: false,
+          gate: gateSurface,
+          approval: approvalSurface,
+          error: {
+            code: 'REVIEW_CASE_NOT_PERSISTED',
+            reason: oversightCase.result?.reason || 'oversight_case_creation_failed',
+            message: 'Tool call requires Human Oversight, but no durable review case was recorded; nothing executed.',
+          },
+          message: 'Tool call blocked because the Human Oversight review case was not durably recorded.',
+        }, name, args, gate);
+      }
       const ingestExecuteData = name === 'huqan.ingest_execute'
         ? {
           approval,
@@ -503,8 +363,8 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
       return withMcpToolVerdictSurface({
         ok: false,
         gate: gateSurface,
-        approval,
-        ...(ingestExecuteData ? { data: ingestExecuteData } : {}),
+        approval: approvalSurface,
+        ...(ingestExecuteData ? { data: { ...ingestExecuteData, approval: approvalSurface } } : {}),
         message: `Tool call queued for review: ${gate.reason}`,
       }, name, args, gate);
     }

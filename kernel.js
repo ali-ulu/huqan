@@ -141,7 +141,7 @@ class Kernel {
       if (fs.existsSync(pDir)) this.plugins.load(pDir);
     }
     this._verifyService = new VerifyService(this);
-    this.strictProvenance = opts.strictProvenance === true;
+    this.strictProvenance = opts.strictProvenance === true; this.trustPolicyPath = typeof opts.trustPolicyPath === 'string' && opts.trustPolicyPath.trim() ? opts.trustPolicyPath.trim() : null;
     
     // r1: single-flight guard for critical operations (verify/learn), enforced
     // synchronously by _enterCriticalSection()/_exitCriticalSection() below.
