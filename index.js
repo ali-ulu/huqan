@@ -30,6 +30,7 @@ const agentActionFirewall = require('./lib/agent-action-firewall');
 const agentIdentityRuntime = require('./lib/agent-identity-runtime');
 const trustEvidenceLedger = require('./lib/trust-evidence-ledger');
 const humanOversightApprovalRuntime = require('./lib/human-oversight-approval-runtime');
+const prGuardian = require('./lib/pr-guardian');
 
 module.exports = KernelV2;
 
@@ -87,3 +88,8 @@ module.exports.HumanOversightApprovalRuntime = humanOversightApprovalRuntime;
 module.exports.createHumanOversightApprovalRuntime = humanOversightApprovalRuntime.createHumanOversightApprovalRuntime;
 module.exports.HUMAN_OVERSIGHT_RUNTIME_VERSION = humanOversightApprovalRuntime.HUMAN_OVERSIGHT_RUNTIME_VERSION;
 module.exports.HUMAN_OVERSIGHT_RUNTIME_REASONS = humanOversightApprovalRuntime.RUNTIME_REASONS;
+
+// GitHub PR Guardian SDK surface. It is transport-independent: hosts may use
+// the library directly without MCP or the bundled HTTP server.
+module.exports.PrGuardian = prGuardian;
+module.exports.PRGuardian = prGuardian;

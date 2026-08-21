@@ -137,8 +137,8 @@ test('the chokepoint reaches 15 production call sites, not 8', () => {
   // appendAudit pass-through helper.
   assert.equal(count('lib/conflict-detector.js'), 3);
 
-  // Excluded from the production total, and named so the exclusion is a
-  // decision rather than an oversight.
+  // The connector is now production-reachable through PR Guardian, so it is
+  // no longer excluded from the production total.
   const { NOT_YET_WIRED } = require('../lib/module-reachability.js');
-  assert.ok(Object.prototype.hasOwnProperty.call(NOT_YET_WIRED, 'lib/github-connector.js'));
+  assert.equal(Object.prototype.hasOwnProperty.call(NOT_YET_WIRED, 'lib/github-connector.js'), false);
 });
