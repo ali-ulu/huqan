@@ -66,11 +66,11 @@ HUQAN is designed for AI governance, agent safety, LLM-output verification, appr
 
 - Git
 - npm
-- **Node.js 20 or newer**
-- Node.js 20 LTS or 22 LTS is recommended
+- **Node.js 22.13.0 or newer**
+- Node.js 22 LTS or 24 LTS is recommended
 - A compiler toolchain may be required if your platform cannot use a prebuilt `better-sqlite3` binary
 
-> The current `better-sqlite3` dependency does not support Node.js 18. Earlier README text that advertised Node.js 18 was stale.
+> Node.js 20 reached end-of-life on 2026-04-30 and is no longer supported. It was dropped because `pdfjs-dist` requires `>=22.13.0`, so on Node 20 npm silently skipped that optional dependency and the PDF adapter could not load — a runtime this project claimed to support could not run a feature it shipped.
 
 ### Install
 
