@@ -353,6 +353,15 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
         ? {
           approval,
           approvalId: approval.id || '',
+          // huqan.ingest_status requires `runId` and its schema describes it as
+          // "Run identifier returned by ingest execute" -- but this response
+          // carried the value only as `approvalId`, so the advertised
+          // preview -> execute -> status flow ended with a caller holding no
+          // field by the name the next call asks for. The HTTP surface already
+          // emits both (lib/http/workflow-data-routes.js), so this is the MCP
+          // side catching up rather than a new field: same value, same source,
+          // `approvalId` kept for anything already reading it.
+          runId: approval.id || '',
           statusRoute: approval.id ? `/api/v2/ingest/runs/${approval.id}` : '',
           queuedForExecution: approval.persisted === true,
           result: null,

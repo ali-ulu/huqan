@@ -233,3 +233,72 @@ test('read workflow availability boundaries remain explicit', () => {
   assert.equal(workflowForMcpTool('huqan.search').availability.cli, false);
   assert.equal(workflowForMcpTool('huqan.trust_receipt').availability.cli, false);
 });
+
+/**
+ * The parity fixture above deliberately stubs `runCapability` into always
+ * succeeding, and gives its kernel no capability surface at all. That proves
+ * the two envelopes agree *once the capability runs* -- it says nothing about
+ * whether the capability is reachable on a given surface, which is where the
+ * real defect lived: `mcpServer.js` builds its kernel with `loadPlugins: false`
+ * and `pluginCapabilities` off, so `advocate` threw `CAPABILITY_REQUIRED` and
+ * MCP reported an opaque `INTERNAL_ERROR` ref on every single call, while HTTP
+ * served the same workflow normally.
+ *
+ * These cases pin the answer at that boundary rather than the boundary itself:
+ * a surface may legitimately decline to enable plugins, but it has to say so.
+ */
+function capabilityKernel({ pluginCapabilities, devilAdvocate }) {
+  return {
+    hasCapability(name) {
+      return name === 'pluginCapabilities' ? pluginCapabilities : false;
+    },
+    getCapability(name) {
+      return name === 'devilAdvocate' && devilAdvocate ? { name, plugin: 'devil-advocate' } : null;
+    },
+    async runCapability() {
+      throw new Error('runCapability must not be reached when the capability is unavailable');
+    },
+  };
+}
+
+test('advocate reports an unavailable capability instead of throwing an internal error', async () => {
+  const cases = [
+    ['plugin capabilities disabled', { pluginCapabilities: false, devilAdvocate: false }],
+    ['plugin capabilities on, devil-advocate not registered', { pluginCapabilities: true, devilAdvocate: false }],
+  ];
+
+  for (const [label, capabilities] of cases) {
+    const result = await runReadWorkflow({
+      workflowId: 'advocate',
+      kernel: capabilityKernel(capabilities),
+      input: { workspaceId: 'default', claim: 'Alpha is documented.' },
+    });
+
+    assert.equal(result.body.ok, false, label);
+    assert.equal(result.body.status, 'capability_not_available', label);
+    assert.equal(result.body.error.code, 'CAPABILITY_NOT_AVAILABLE', label);
+    assert.match(result.body.error.message, /advocate/, label);
+  }
+});
+
+test('advocate still runs when the surface does enable the capability', async () => {
+  const kernel = {
+    hasCapability: (name) => name === 'pluginCapabilities',
+    getCapability: (name) => (name === 'devilAdvocate' ? { name, plugin: 'devil-advocate' } : null),
+    async runCapability(name, input) {
+      assert.equal(name, 'devilAdvocate');
+      assert.deepEqual(input, { text: 'Alpha is documented.', workspaceId: 'default' });
+      return { ok: true, type: 'advocate', data: { mode: 'counter' }, evidence: [], error: null, meta: {} };
+    },
+  };
+
+  const result = await runReadWorkflow({
+    workflowId: 'advocate',
+    kernel,
+    input: { workspaceId: 'default', claim: 'Alpha is documented.' },
+  });
+
+  assert.equal(result.body.ok, true);
+  assert.equal(result.body.status, 'completed');
+  assert.equal(result.body.data.mode, 'counter');
+});

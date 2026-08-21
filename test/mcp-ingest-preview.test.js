@@ -62,3 +62,24 @@ test('huqan.ingest_preview fails closed for external sources', () => {
   assert.equal(result.error.code, 'INGEST_SNAPSHOT_REQUIRED');
   assert.equal(result.data, null);
 });
+
+/**
+ * The test above proves external sources fail closed. That behaviour was
+ * correct while the advertised enum still offered `github` and `markdown`, so
+ * a client reading the schema could pick a value the surface can never serve —
+ * immutable snapshot support for them does not exist, and
+ * docs/v5/v5-connector-coverage-matrix.md records that as intentional, not as
+ * a deployment toggle. The tool's own description already said external
+ * sources fail closed; only the enum disagreed.
+ *
+ * Preview and execute are advertised as consecutive steps of one flow, so a
+ * source type offered by the first has to be accepted by the second.
+ */
+test('the advertised source types are the ones both ingest steps accept', () => {
+  const sourceTypes = (toolName) => TOOL_SCHEMAS
+    .find(tool => tool.name === toolName)
+    .inputSchema.properties.sourceType.enum;
+
+  assert.deepEqual(sourceTypes('huqan.ingest_preview'), ['manual', 'decision']);
+  assert.deepEqual(sourceTypes('huqan.ingest_preview'), sourceTypes('huqan.ingest_execute'));
+});

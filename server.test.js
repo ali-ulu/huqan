@@ -726,6 +726,28 @@ describe('Server - API', () => {
     assert.strictEqual(r.status, 401);
   });
 
+  it('SEC: the graph export is not stored or content-sniffed', async () => {
+    // /graph-data returns the whole knowledge graph for a workspace, and was
+    // the least hardened JSON route on this server: no X-Content-Type-Options
+    // at all, and `no-cache`, which only forces revalidation and still lets an
+    // intermediary or the browser write the export to disk. Neighbouring routes
+    // (/api, /api/v2/workflows, the viewer) already set both headers, so the
+    // endpoint with the most sensitive payload was the one outside the rule.
+    const r = await request(`${BASE}/graph-data?workspaceId=default`);
+    assert.strictEqual(r.status, 200);
+    assert.strictEqual(r.headers.get('x-content-type-options'), 'nosniff');
+    assert.strictEqual(r.headers.get('cache-control'), 'no-store');
+  });
+
+  it('SEC: /health is not content-sniffed', async () => {
+    // Public, and it reports node/edge counts. Its cache directive is left as
+    // `no-cache` on purpose: it is a liveness probe, and tightening that is a
+    // separate call from stopping MIME sniffing.
+    const r = await request(`${BASE}/health`, { skipAuth: true });
+    assert.strictEqual(r.status, 200);
+    assert.strictEqual(r.headers.get('x-content-type-options'), 'nosniff');
+  });
+
   it('GET /graph-data dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {
     const r = await request(`${BASE}/graph-data?workspaceId=default`);
     assert.strictEqual(r.status, 200);
@@ -744,7 +766,9 @@ describe('Server - API', () => {
       assert.ok('target' in j.links[0]);
     }
     assert.notStrictEqual(r.headers.get('access-control-allow-origin'), '*');
-    assert.strictEqual(r.headers.get('cache-control'), 'no-cache');
+    // `no-store` since the graph export stopped being merely revalidated; the
+    // dedicated header test above owns that contract and explains it.
+    assert.strictEqual(r.headers.get('cache-control'), 'no-store');
     // PR-C3: additive memory fields
     assert.ok(Array.isArray(j.memoryNodes), 'memoryNodes must be an array');
     assert.ok(Array.isArray(j.memoryLinks), 'memoryLinks must be an array');
@@ -1051,7 +1075,13 @@ describe('Server - Public API Allowlist Lockdown', () => {
 
   it('unrecognized queries preserve existing behavior (200 + Anlamadım)', async () => {
     rateLimitMap.clear();
-    const fallbackQueries = ['selamlar', 'unknown multi word text', '?', 'h', 'sor', 'neden', 'kim', 'ne', 'yardim', 'nasil', 'nicin'];
+    // `yardim` used to sit in this list: the fixed-word command lists held
+    // 'yardım' and compared against the raw input, so the folded spelling --
+    // the one compatibilityHelpText() prints -- fell through to the fallback.
+    // It is a recognized command in both spellings now, the same way `hello`
+    // and `hi` stopped being the odd ones out in the test below. Bare `sor`
+    // stays here on purpose: it is only accepted as `sor: <soru>`.
+    const fallbackQueries = ['selamlar', 'unknown multi word text', '?', 'h', 'sor', 'neden', 'kim', 'ne', 'nasil', 'nicin'];
     for (const query of fallbackQueries) {
       const r = await request(`${BASE}/api?q=${encodeURIComponent(query)}`);
       assert.strictEqual(r.status, 200, `Expected 200 for fallback query: ${query}`);
@@ -1073,6 +1103,29 @@ describe('Server - Public API Allowlist Lockdown', () => {
       assert.strictEqual(r.status, 200, `Expected 200 for greeting: ${query}`);
       const j = await r.json();
       assert.strictEqual(j.result, turkish.result, `${query} must answer exactly like selam`);
+    }
+  });
+
+  it('folded spellings answer like their Turkish originals, including the one the help prints', async () => {
+    // RFC-001 decision 7 is "a reader accepts both spellings". The fixed-word
+    // command lists compared against the raw lowercased input while holding
+    // diacritic entries, so only the Turkish spelling arrived -- and `yardim`,
+    // the spelling compatibilityHelpText() and the /api/v2/workflows manifest
+    // both print, was among the rejected ones. The help was advertising a
+    // command the reader refused.
+    rateLimitMap.clear();
+    for (const [turkishSpelling, foldedSpelling] of [['yardım', 'yardim'], ['durum', 'durum']]) {
+      const expected = await (await request(`${BASE}/api?q=${encodeURIComponent(turkishSpelling)}`)).json();
+      const actual = await (await request(`${BASE}/api?q=${encodeURIComponent(foldedSpelling)}`)).json();
+      assert.strictEqual(
+        actual.result,
+        expected.result,
+        `${foldedSpelling} must answer exactly like ${turkishSpelling}`,
+      );
+      assert.ok(
+        !actual.result.includes('Anlamadim') && !actual.result.includes('Anlamadım'),
+        `${foldedSpelling} must be recognized, got: ${actual.result}`,
+      );
     }
   });
 });
