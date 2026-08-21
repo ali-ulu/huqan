@@ -38,6 +38,18 @@ declare const huqan: typeof KernelV2 & {
   AGENT_ACTION_FIREWALL_VERSION: string;
   AGENT_ACTION_FIREWALL_DECISIONS: Record<string, string>;
 
+  AgentIdentityRuntime: Record<string, any>;
+  evaluateAgentIdentity: (request?: Record<string, unknown>) => Record<string, unknown>;
+  composeReceiverOwnedIdentityClaim: (request?: Record<string, unknown>) => Record<string, unknown>;
+  snapshotAgentIdentityAuthority: (request?: Record<string, unknown>) => Record<string, unknown>;
+  AGENT_IDENTITY_RUNTIME_VERSION: string;
+  IDENTITY_RUNTIME_ERRORS: Record<string, string>;
+
+  HumanOversightApprovalRuntime: Record<string, any>;
+  createHumanOversightApprovalRuntime: (options: Record<string, unknown>) => Record<string, any>;
+  HUMAN_OVERSIGHT_RUNTIME_VERSION: string;
+  HUMAN_OVERSIGHT_RUNTIME_REASONS: Record<string, string>;
+
   PrGuardian: {
     TOOL: string;
     ACTIONS: Record<string, string>;

@@ -27,6 +27,9 @@ const Kernel = require('./kernel');
 const KernelV2 = require('./kernel.v2');
 const errorPrevention = require('./lib/error-prevention');
 const agentActionFirewall = require('./lib/agent-action-firewall');
+const agentIdentityRuntime = require('./lib/agent-identity-runtime');
+const trustEvidenceLedger = require('./lib/trust-evidence-ledger');
+const humanOversightApprovalRuntime = require('./lib/human-oversight-approval-runtime');
 const prGuardian = require('./lib/pr-guardian');
 
 module.exports = KernelV2;
@@ -60,6 +63,31 @@ module.exports.AgentActionFirewall = agentActionFirewall;
 module.exports.evaluateAgentActionFirewall = agentActionFirewall.evaluateAgentActionFirewall;
 module.exports.AGENT_ACTION_FIREWALL_VERSION = agentActionFirewall.AGENT_ACTION_FIREWALL_VERSION;
 module.exports.AGENT_ACTION_FIREWALL_DECISIONS = agentActionFirewall.AGENT_ACTION_FIREWALL_DECISIONS;
+
+// Runtime agent identity and delegated-authority surface. Hosts may compose this
+// evaluator into mutation admission without creating a second identity policy.
+module.exports.AgentIdentityRuntime = agentIdentityRuntime;
+module.exports.evaluateAgentIdentity = agentIdentityRuntime.evaluateAgentIdentity;
+module.exports.composeReceiverOwnedIdentityClaim = agentIdentityRuntime.composeReceiverOwnedIdentityClaim;
+module.exports.snapshotAgentIdentityAuthority = agentIdentityRuntime.snapshotAgentIdentityAuthority;
+module.exports.AGENT_IDENTITY_RUNTIME_VERSION = agentIdentityRuntime.AGENT_IDENTITY_RUNTIME_VERSION;
+module.exports.IDENTITY_RUNTIME_ERRORS = agentIdentityRuntime.IDENTITY_RUNTIME_ERRORS;
+
+// Durable Trust Evidence & Receipt Ledger surface. This composes the existing
+// Graph mutation journal and receipt chain; it does not create a second trust root.
+module.exports.TrustEvidenceLedger = trustEvidenceLedger;
+module.exports.createTrustEvidenceLedger = trustEvidenceLedger.createTrustEvidenceLedger;
+module.exports.buildTrustEvidencePayload = trustEvidenceLedger.buildTrustEvidencePayload;
+module.exports.verifyTrustEvidenceReceipt = trustEvidenceLedger.verifyTrustEvidenceReceipt;
+module.exports.TRUST_EVIDENCE_SCHEMA_VERSION = trustEvidenceLedger.TRUST_EVIDENCE_SCHEMA_VERSION;
+
+// Human Oversight & Approval Runtime. The factory requires receiver-owned
+// identity resolution, the existing Graph mutation journal, and the existing
+// Trust Evidence Ledger; it does not create a second durability authority.
+module.exports.HumanOversightApprovalRuntime = humanOversightApprovalRuntime;
+module.exports.createHumanOversightApprovalRuntime = humanOversightApprovalRuntime.createHumanOversightApprovalRuntime;
+module.exports.HUMAN_OVERSIGHT_RUNTIME_VERSION = humanOversightApprovalRuntime.HUMAN_OVERSIGHT_RUNTIME_VERSION;
+module.exports.HUMAN_OVERSIGHT_RUNTIME_REASONS = humanOversightApprovalRuntime.RUNTIME_REASONS;
 
 // GitHub PR Guardian SDK surface. It is transport-independent: hosts may use
 // the library directly without MCP or the bundled HTTP server.

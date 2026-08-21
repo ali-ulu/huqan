@@ -4,6 +4,14 @@ const Agent = require('./agent');
 const HuqanStorage = require('./storage');
 const { evaluateAgentLoopBudget, DEFAULT_MAX_ITERATIONS_PER_WINDOW, DEFAULT_WINDOW_MS } = require('./lib/agent-loop-budget-gate');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
+const {
+  loopEnabled,
+  isDreamExperimentVerificationStep,
+  prepareDreamExperiment,
+  prepareDreamQueue,
+  processDreamStep,
+  selectDreamNextAction,
+} = require('./lib/agent-v3-dream-loop-adapter');
 
 function cloneValue(value) {
   if (value === undefined) return undefined;
@@ -331,6 +339,13 @@ class AgentV3 {
       state.checkpointId = checkpoint.id;
       state.status = 'running';
       state.progress = state.progress || { stalledCount: 0, lastSummary: '' };
+      if (state.dreamExperimentLoop && typeof state.dreamExperimentLoop === 'object') {
+        state.dreamExperimentLoop = ensureState(state.dreamExperimentLoop, {
+          workspaceId: state.workspaceId,
+          goal: state.goal,
+          checkpointId: state.checkpointId,
+        });
+      }
       state.completedSteps = Number(state.steps.length || 0);
       state.remainingSteps = Array.isArray(state.queuedSteps) ? state.queuedSteps.length : 0;
       state.iteration = Number(state.iteration || state.steps.length || 0);
@@ -363,6 +378,7 @@ class AgentV3 {
       iteration: 0,
       iterationsAtRunStart: 0,
       budgetRemaining: this.timeBudgetMs,
+      dreamExperimentLoop: null,
     };
   }
 
@@ -462,6 +478,16 @@ class AgentV3 {
     // steps actually read and mutate another -- making AB10's accounting
     // describe a workspace that was never touched. One run, one workspace.
     const scopedOpts = this._withWorkspaceScope(opts, workspaceId);
+    const dreamLoopActive = loopEnabled(opts, this.kernel);
+    const preparedDreamState = prepareDreamExperiment({
+      active: dreamLoopActive,
+      state,
+      workspaceId,
+      goal,
+      checkpointId: state.checkpointId,
+      opts,
+    });
+    if (preparedDreamState) state.dreamExperimentLoop = preparedDreamState;
 
     // AB10: durable, workspace-scoped ceiling on top of this call's own
     // maxIterations/timeBudgetMs (which only bound a single run()). Checked
@@ -474,6 +500,11 @@ class AgentV3 {
     // Only ask the budget for the iterations this run can actually perform:
     // the loop below stops at the first of queued exhaustion, the plan's step
     // ceiling, or the per-call iteration ceiling.
+    if (dreamLoopActive && !state.dreamExperimentLoop.hypotheses.length) {
+      // The enabled loop owns its bounded cycle before legacy fallback steps.
+      prepareDreamQueue(queued, state);
+    }
+
     const runCapacity = Math.max(0, Math.min(
       queued.length,
       activePlan.maxSteps - state.steps.length,
@@ -545,7 +576,30 @@ class AgentV3 {
         break;
       }
 
-      if (shouldForceDream) {
+      let loopHandled = false;
+      if (dreamLoopActive && (step.tool === 'dream' || isDreamExperimentVerificationStep(step))) {
+        const loopResult = processDreamStep(this.kernel, state.dreamExperimentLoop, { step, report }, {
+          workspaceId,
+          goal,
+          checkpointId: state.checkpointId,
+          maxHypotheses: opts.dreamExperimentMaxHypotheses,
+          maxCycles: opts.dreamExperimentMaxCycles,
+          experimentId: opts.dreamExperimentId,
+          admissionOpts: opts.dreamExperimentAdmissionOpts,
+        });
+        state.dreamExperimentLoop = loopResult.state;
+        loopHandled = loopResult.handled;
+        if (loopResult.nextStep && state.steps.length < activePlan.maxSteps) queued.unshift(loopResult.nextStep);
+        if (loopResult.blocked) {
+          state.status = 'blocked';
+          state.blockedBy = 'dream-experiment-loop';
+          state.blockReason = loopResult.state.lastError?.message || 'Dream experiment loop durability failed.';
+          queued.length = 0;
+        }
+      }
+
+      const effectiveFollowUp = loopHandled ? null : followUp;
+      if (shouldForceDream && !loopHandled) {
         queued.unshift({
           id: `dream-${state.steps.length + 1}`,
           action: 'dream',
@@ -553,10 +607,10 @@ class AgentV3 {
           input: {},
           rationale: 'Progress stalled; switching to hypothesis mode.',
         });
-      } else if (followUp && state.steps.length < activePlan.maxSteps) {
-        const nextSignature = this.baseAgent._stepSignature(followUp, state);
+      } else if (effectiveFollowUp && state.steps.length < activePlan.maxSteps) {
+        const nextSignature = this.baseAgent._stepSignature(effectiveFollowUp, state);
         if (this.baseAgent._findRecentFailure(nextSignature)) {
-          const fallback = followUp.action === 'dream'
+          const fallback = effectiveFollowUp.action === 'dream'
             ? null
             : { action: 'dream', tool: 'dream', input: {}, rationale: 'Previous failure repeated; safe fallback selected.' };
           if (fallback && !this.baseAgent._findRecentFailure(this.baseAgent._stepSignature(fallback, state))) {
@@ -570,10 +624,10 @@ class AgentV3 {
           }
         } else {
           queued.unshift({
-            id: `${followUp.action}-${state.steps.length + 1}`,
-            action: followUp.action,
-            tool: followUp.tool,
-            input: followUp.input,
+            id: `${effectiveFollowUp.action}-${state.steps.length + 1}`,
+            action: effectiveFollowUp.action,
+            tool: effectiveFollowUp.tool,
+            input: effectiveFollowUp.input,
             rationale: 'Previous step produced a follow-up need.',
           });
         }
@@ -606,7 +660,11 @@ class AgentV3 {
     state.completedSteps = state.steps.length;
     state.remainingSteps = queued.length;
     state.recommendations = this.baseAgent._buildRunRecommendations(state);
-    state.nextAction = this.baseAgent._suggestNextAction(state);
+    state.nextAction = selectDreamNextAction(
+      dreamLoopActive,
+      state,
+      this.baseAgent._suggestNextAction(state),
+    );
     state.report = this._renderReport(state);
     let goalMemory;
     let runs;

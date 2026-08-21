@@ -39,7 +39,7 @@ const {
   normalizeLoadedEdge,
 } = require('./lib/graph-record-utils');
 const { countAuditEvents, queryAuditEvents, readAuditEvents } = require('./lib/audit-query');
-const { assertChainTipUsable, emptyMutationJournal, readMutationJournal } = require('./lib/mutation-journal');
+const { assertChainTipUsable, emptyMutationJournal, readMutationJournal, readCommittedMutationResult, readCommittedMutationResultsByPrefix } = require('./lib/mutation-journal');
 const { applyTemporalEdgeMetadata, beginEdgeTouchScope, downgradeEdge, edgeTouchKey } = require('./lib/graph-edge-mutations');
 const { getCausalChain: runCausalChain } = require('./lib/graph-causal-chain');
 const { getCandidateClaims: runCandidateClaimsRead } = require('./lib/graph-candidate-claims-read');
@@ -72,6 +72,8 @@ const { prune: runGraphPrune } = require('./lib/graph-prune');
 const { optimize: runGraphOptimize } = require('./lib/graph-optimize');
 const { isCausalRelation: runIsCausalRelation, getCausalRelations: runCausalRelations, getCausalEdges: runCausalEdges } = require('./lib/graph-causal-relation-read');
 const { addEdge: runEdgeWrite } = require('./lib/graph-edge-write');
+const { ensureMutationReceiptFamilySchema: runMutationReceiptFamilySchema } = require('./lib/graph-mutation-receipt-schema');
+const consolidateEdges = require('./lib/graph-consolidate-edges');
 
 class Graph {
   /**
@@ -392,76 +394,7 @@ class Graph {
   }
 
   _ensureMutationReceiptFamilySchema() {
-    const validateRows = () => {
-      const rows = this._db.prepare(`
-        SELECT sequence, canonical_payload, receipt_family
-        FROM mutation_receipts
-        ORDER BY sequence ASC
-      `).all();
-      for (const row of rows) {
-        const payload = JSON.parse(row.canonical_payload);
-        const derived = classifyReceiptFamily(payload);
-        if (!RECEIPT_FAMILIES.has(row.receipt_family) || row.receipt_family !== derived) {
-          throw new Error(`invalid mutation receipt family at sequence ${row.sequence}`);
-        }
-      }
-      return rows.length;
-    };
-    const verifyIndex = () => {
-      const columns = this._db.prepare("PRAGMA index_info('idx_mutation_receipts_workspace_family_sequence')")
-        .all().map(row => row.name);
-      if (columns.length !== 3
-        || columns[0] !== 'workspace_id'
-        || columns[1] !== 'receipt_family'
-        || columns[2] !== 'sequence') {
-        throw new Error('mutation receipt family index is incomplete');
-      }
-    };
-
-    const columns = this._db.prepare('PRAGMA table_info(mutation_receipts)').all();
-    const familyColumn = columns.find(column => column.name === 'receipt_family');
-    try {
-      if (!familyColumn) {
-        this._db.transaction(() => {
-          this._db.exec("ALTER TABLE mutation_receipts ADD COLUMN receipt_family TEXT NOT NULL DEFAULT 'non-v4' CHECK(receipt_family IN ('v4', 'non-v4'))");
-          const rows = this._db.prepare('SELECT sequence, canonical_payload FROM mutation_receipts ORDER BY sequence ASC').all();
-          const updateFamily = this._db.prepare('UPDATE mutation_receipts SET receipt_family = ? WHERE sequence = ?');
-          let updated = 0;
-          for (const row of rows) {
-            const family = classifyReceiptFamily(JSON.parse(row.canonical_payload));
-            if (!RECEIPT_FAMILIES.has(family)) {
-              throw new Error(`unsupported mutation receipt family at sequence ${row.sequence}`);
-            }
-            const result = updateFamily.run(family, row.sequence);
-            if (Number(result?.changes || 0) !== 1) {
-              throw new Error(`mutation receipt family backfill mismatch at sequence ${row.sequence}`);
-            }
-            updated += 1;
-          }
-          if (updated !== rows.length || validateRows() !== rows.length) {
-            throw new Error('mutation receipt family backfill is incomplete');
-          }
-          this._db.exec(`
-            CREATE INDEX IF NOT EXISTS idx_mutation_receipts_workspace_family_sequence
-            ON mutation_receipts(workspace_id, receipt_family, sequence DESC)
-          `);
-          verifyIndex();
-        })();
-        return;
-      }
-
-      if (Number(familyColumn.notnull) !== 1) {
-        throw new Error('mutation receipt family column must be NOT NULL');
-      }
-      validateRows();
-      this._db.exec(`
-        CREATE INDEX IF NOT EXISTS idx_mutation_receipts_workspace_family_sequence
-        ON mutation_receipts(workspace_id, receipt_family, sequence DESC)
-      `);
-      verifyIndex();
-    } catch (cause) {
-      throw receiptFamilyMigrationError(cause);
-    }
+    return runMutationReceiptFamilySchema(this._db);
   }
 
   /**
@@ -522,7 +455,7 @@ class Graph {
       readJsonJournal: () => this._readJsonJournal(),
     };
   }
-
+  getCommittedMutationResultByOperation(operationId) { return readCommittedMutationResult(this, operationId); } getCommittedMutationResultsByPrefix(prefix) { return readCommittedMutationResultsByPrefix(this, prefix); }
   runMutationOnce(operationId, mutate, opts = {}) {
     const id = typeof operationId === 'string' ? operationId.trim() : '';
     if (!id) throw new Error('mutation operationId is required');
@@ -733,72 +666,7 @@ class Graph {
   }
 
   _consolidateEdges(dryRun = true) {
-    const edges = this._edges;
-    const removed = [];
-    const marked = new Set();
-    const byPair = {};
-
-    for (let i = 0; i < edges.length; i++) {
-      if (edges[i].kistlama) continue;
-      const key = `${edges[i].from}|${edges[i].to}`;
-      if (!byPair[key]) byPair[key] = [];
-      byPair[key].push(i);
-    }
-
-    for (const indices of Object.values(byPair)) {
-      const high = indices.filter(i => edges[i].weight >= 0.5);
-      const low = indices.filter(i => edges[i].weight < 0.3);
-      for (const index of low) {
-        if (high.length > 0) {
-          removed.push({
-            idx: index,
-            edge: edges[index],
-            reason: `low-weight (${edges[index].weight}) superseded by high-weight (${edges[high[0]].weight}) for same pair`,
-          });
-          marked.add(index);
-        }
-      }
-    }
-
-    const byRelation = {};
-    for (let i = 0; i < edges.length; i++) {
-      if (marked.has(i) || edges[i].kistlama) continue;
-      const key = `${edges[i].from}|${edges[i].relation}`;
-      if (!byRelation[key]) byRelation[key] = [];
-      byRelation[key].push(i);
-    }
-
-    for (const indices of Object.values(byRelation)) {
-      const high = indices.filter(i => edges[i].weight >= 0.5);
-      const low = indices.filter(i => edges[i].weight < 0.3);
-      for (const index of low) {
-        if (high.length > 0 && !marked.has(index)) {
-          removed.push({
-            idx: index,
-            edge: edges[index],
-            reason: `low-weight restriction (${edges[index].weight}) \u00e2\u20ac\u201d subject already has high-weight '${edges[index].relation}'`,
-          });
-          marked.add(index);
-        }
-      }
-    }
-
-    if (!dryRun && removed.length > 0) {
-      this._edges = edges.filter((_, index) => !marked.has(index));
-      this._rebuildIndex();
-      try {
-        this.save();
-      } catch (error) {
-        console.error('[Kernel] Graph save hatası:', error.message);
-      }
-    }
-
-    return {
-      dryRun,
-      removed: removed.length,
-      details: removed.map(({ edge, reason }) =>
-        `${edge.from} ? ${edge.to} (${edge.relation}, w:${edge.weight}): ${reason}`),
-    };
+    return consolidateEdges({ edges: this._edges, dryRun, replaceEdges: arr => { this._edges = arr; }, rebuildIndex: () => this._rebuildIndex(), save: () => this.save(), logSaveError: error => { console.error('[Kernel] Graph save hatası:', error.message); } });
   }
 
   getNodes(workspaceId = 'default') {
