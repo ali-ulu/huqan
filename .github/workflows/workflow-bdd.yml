@@ -52,10 +52,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Same split as benchmark.yml: pull requests get the fast Node 22 leg,
-        # pushes to main run Node 20 as well. Keeping the two workflows on one
-        # policy avoids a pull request that is green here and red there.
-        node-version: ${{ github.event_name == 'pull_request' && fromJSON('["22"]') || fromJSON('["20", "22"]') }}
+        # Same policy as benchmark.yml, which is now a single leg: Node 20 is
+        # end-of-life and the package declares engines >=22.13.0. Keeping the
+        # two workflows on one policy avoids a pull request that is green here
+        # and red there.
+        node-version: ['22']
     steps:
       - name: Check out repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -84,6 +85,7 @@ jobs:
         run: npm test
         env:
           # Same policy as benchmark.yml: AC-785-10 is only proven when the
-          # browser smoke actually runs, so fail instead of skipping on the
-          # Node 22 leg. Node 20 has no global WebSocket and is left permissive.
-          HUQAN_REQUIRE_BROWSER_SMOKE: ${{ matrix.node-version == 22 && '1' || '' }}
+          # browser smoke actually runs, so fail instead of skipping. The
+          # conditional this replaced exempted Node 20, which has no global
+          # WebSocket; that leg is gone.
+          HUQAN_REQUIRE_BROWSER_SMOKE: '1'

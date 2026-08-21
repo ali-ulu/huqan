@@ -68,7 +68,7 @@
   "author": "Huqan Contributors",
   "license": "AGPL-3.0-only",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.13.0"
   },
   "files": [
     "LICENSE",

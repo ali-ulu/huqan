@@ -107,7 +107,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [20, 22]
+        # Node 20 is end-of-life (2026-04-30) and the package declares
+        # engines >=22.13.0, so an external consumer on Node 20 is no longer a
+        # supported configuration to prove.
+        node-version: [22]
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
