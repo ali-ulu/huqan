@@ -14,6 +14,9 @@ agent.memory.json
 memory.db-shm
 memory.db-wal
 test_memory.db
+# Fixture databases the tests write beside themselves. The tests clean up after
+# themselves; this is the backstop for a run that dies before its cleanup.
+test/test-demo-seed.*
 # Trust Receipts written at runtime, and by the smoke tests that exercise the
 # receipt paths — generated output, not source.
 receipts/
