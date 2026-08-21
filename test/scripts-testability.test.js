@@ -33,8 +33,18 @@ test('seed-demo runDemoSeed works', (t) => {
   assert.ok(result.nodeCount > 0);
   assert.ok(result.edgeCount > 0);
   
-  if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
-  if (fs.existsSync(memoryPath)) fs.unlinkSync(memoryPath);
+  // SQLite writes `-shm`/`-wal` sidecars beside the database, and the kernel
+  // writes an `.embeddings.json` beside the memory file. Removing only the two
+  // paths passed in left three files behind in test/ on every run.
+  for (const leftover of [
+    dbPath,
+    `${dbPath}-shm`,
+    `${dbPath}-wal`,
+    memoryPath,
+    memoryPath.replace(/\.json$/, '.embeddings.json'),
+  ]) {
+    if (fs.existsSync(leftover)) fs.unlinkSync(leftover);
+  }
 });
 
 test('setup-sqlite commandLabel', (t) => {
