@@ -1,4 +1,5 @@
 const { contentHash, CONTENT_HASH_ALGORITHM } = require('../lib/content-hash');
+const { learnEntriesSync } = require('./utils/learn-entries');
 const fs = require('fs');
 const path = require('path');
 const { listFilesWithinRoot } = require('../lib/safe-file-walk');
@@ -120,27 +121,7 @@ function ingestJson(targetPath, options = {}) {
 
 function ingestAndLearn(targetPath, kernel, options = {}) {
   const result = ingestJson(targetPath, options);
-  const learned = [];
-  for (const entry of result.entries) {
-    const provenance = {
-      provenanceId: `json-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      source: 'json-adapter',
-      sourceRef: entry.sourceRef,
-      sourceType: 'document',
-      sourceSubType: 'json',
-      contentHash: contentHash(entry.content),
-      contentHashAlgorithm: CONTENT_HASH_ALGORITHM,
-      actor: options.actor || 'json-adapter',
-      timestamp: new Date().toISOString(),
-    };
-    try {
-      const r = kernel.learn(entry.content, { provenance, sourceType: 'document', sourceSubType: 'json', sourceRef: provenance.sourceRef });
-      learned.push({ entryKey: entry.entryKey, learned: r.data.learned, ok: true });
-    } catch (e) {
-      learned.push({ entryKey: entry.entryKey, error: e.message, ok: false });
-    }
-  }
-  return { ...result, learned };
+  return learnEntriesSync(result, kernel, options, 'document', 'json');
 }
 
 module.exports = {
