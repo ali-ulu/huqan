@@ -1,4 +1,5 @@
 const { contentHash, CONTENT_HASH_ALGORITHM } = require('../lib/content-hash');
+const { learnEntriesSync } = require('./utils/learn-entries');
 const fs = require('fs');
 const path = require('path');
 const { listFilesWithinRoot } = require('../lib/safe-file-walk');
@@ -268,27 +269,7 @@ async function ingestPdf(targetPath, options = {}) {
 
 async function ingestAndLearn(targetPath, kernel, options = {}) {
   const result = await ingestPdf(targetPath, options);
-  const learned = [];
-  for (const entry of result.entries) {
-    const provenance = {
-      provenanceId: `pdf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      source: 'pdf-adapter',
-      sourceRef: entry.sourceRef,
-      sourceType: 'document',
-      sourceSubType: 'pdf',
-      contentHash: contentHash(entry.content),
-      contentHashAlgorithm: CONTENT_HASH_ALGORITHM,
-      actor: options.actor || 'pdf-adapter',
-      timestamp: new Date().toISOString(),
-    };
-    try {
-      const r = kernel.learn(entry.content, { provenance, sourceType: 'document', sourceSubType: 'pdf', sourceRef: provenance.sourceRef });
-      learned.push({ entryKey: entry.entryKey, learned: r.data.learned, ok: true });
-    } catch (e) {
-      learned.push({ entryKey: entry.entryKey, error: e.message, ok: false });
-    }
-  }
-  return { ...result, learned };
+  return learnEntriesSync(result, kernel, options, 'document', 'pdf');
 }
 
 module.exports = {
