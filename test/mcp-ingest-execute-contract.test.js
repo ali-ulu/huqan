@@ -121,6 +121,12 @@ describe('huqan.ingest_execute (#787 P0)', () => {
     assert.equal(result.approval.context.mcpTool, 'huqan.ingest_execute');
     assert.equal(result.approval.context.queuedForExecution, true);
     assert.equal(result.data.approvalId, result.approval.id);
+    // huqan.ingest_status takes `runId`, and its schema calls that the
+    // identifier "returned by ingest execute" -- but this response used to
+    // carry the value only as approvalId, so the advertised
+    // preview -> execute -> status flow ended with no field by the name the
+    // next call asks for. The HTTP surface has always emitted both.
+    assert.equal(result.data.runId, result.approval.id);
     assert.equal(result.data.statusRoute, `/api/v2/ingest/runs/${result.approval.id}`);
     assert.equal(result.data.queuedForExecution, true);
     assert.deepEqual(verifyIngestApprovalSnapshot(result.approval.context.snapshot).ok, true);
