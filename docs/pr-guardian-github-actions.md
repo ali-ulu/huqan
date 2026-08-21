@@ -39,6 +39,8 @@ gh variable set PR_GUARDIAN_WEBHOOK_URL --body 'https://huqan.example.com'
 
 Alternatif olarak repository **Settings → Secrets and variables → Actions** ekranından ekleyebilirsiniz.[2]
 
+`PR_GUARDIAN_WEBHOOK_URL` tanımlı değilse job hiç çalışmaz, skip edilir. Webhook boundary'si ayrı bir deployment adımı olduğu için, henüz bir HUQAN server ayağa kaldırmamış bir repository'de her PR'ın var olmayan bir webhook yüzünden kırmızıya düşmesi istenmez. Variable tanımlandığı andan itibaren adım içi guard'lar fail-closed çalışmaya devam eder: secret eksikse, yanıt 2xx değilse veya karar tanınmıyorsa job başarısız olur.
+
 ## İstek akışı
 
 Workflow, GitHub event metadata’sını `jq` ile yeni bir JSON payload’a çevirir. Payload doğrudan PR kodunu çalıştırmaz; yalnızca title, body, repository, PR number, base/head ref, head SHA ve actor metadata’sını içerir. Ardından aynı ham payload dosyası üzerinde:

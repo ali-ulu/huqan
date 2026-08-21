@@ -5,6 +5,12 @@ name: PR Guardian webhook
 # webhook. Fork PRs are handled by the external GitHub App/webhook boundary;
 # this Actions path is limited to same-repository PRs because pull_request
 # workflows do not receive repository secrets for forked code.
+#
+# The job is also skipped until PR_GUARDIAN_WEBHOOK_URL is configured. The
+# webhook boundary is a separate deployment step, so a repository that has not
+# stood one up yet must not have every pull request fail on a webhook that does
+# not exist. Once the variable is set the in-step guards below still fail closed
+# on a missing secret, a non-2xx response, or an unrecognized decision.
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -21,7 +27,9 @@ concurrency:
 jobs:
   notify-huqan:
     name: Notify HUQAN PR Guardian
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository
+      && vars.PR_GUARDIAN_WEBHOOK_URL != ''
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
