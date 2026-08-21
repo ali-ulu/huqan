@@ -69,8 +69,24 @@ test('a directory entry in files expands to the files inside it', () => {
 test('a require at module scope counts, one inside a guard does not', () => {
   assert.deepEqual(loadTimeRequires("const x = require('./a');"), ['./a']);
   assert.deepEqual(loadTimeRequires("function f() { return require('./a'); }"), []);
+  assert.deepEqual(loadTimeRequires("const f = function () { require('./a'); };"), []);
+  assert.deepEqual(loadTimeRequires("const f = () => { require('./a'); };"), []);
+  assert.deepEqual(loadTimeRequires("module.exports = { run() { require('./a'); } };"), []);
+  assert.deepEqual(loadTimeRequires("class C { m() { require('./a'); } }"), []);
   assert.deepEqual(loadTimeRequires("try { require('./a'); } catch (_) {}"), []);
-  assert.deepEqual(loadTimeRequires("if (flag) { require('./a'); }"), []);
+  assert.deepEqual(loadTimeRequires("try { x(); } catch (e) { require('./a'); }"), []);
+});
+
+test('a brace that only groups defers nothing', () => {
+  // #979: the scanner used to call any `{` a boundary, so these three read as
+  // deferred and their modules could be left out of the tarball while the
+  // check still passed -- the exact failure class the check exists to catch,
+  // since every one of them runs while the module is being evaluated.
+  assert.deepEqual(loadTimeRequires("const registry = { x: require('./a') };"), ['./a']);
+  assert.deepEqual(loadTimeRequires("if (flag) { require('./a'); }"), ['./a']);
+  assert.deepEqual(loadTimeRequires("for (const x of xs) { require('./a'); }"), ['./a']);
+  // and a grouping brace must not swallow what follows it either
+  assert.deepEqual(loadTimeRequires("const o = { a: 1 };\nrequire('./a');"), ['./a']);
 });
 
 test('requires named in comments and strings do not count', () => {

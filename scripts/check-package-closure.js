@@ -25,9 +25,12 @@
  * time has no such guard: it either resolves or the module does not load.
  *
  * Scope note: like scripts/check-import-cycles.js this is a *static* read of
- * literal `require('./x')` calls, and it treats a require as load-time when it
- * sits at brace depth zero. A require inside `if`/`try`/a function body is
- * deferred and therefore out of scope, which is exactly the guarded case above.
+ * literal `require('./x')` calls. What defers one is a *function body* or a
+ * `try`/`catch` block -- the two forms that decide at run time whether the
+ * require ever executes. A brace that only groups (an object literal, an
+ * `if`/`for`/`while` block at module scope) defers nothing: the require inside
+ * it still runs while the module is being evaluated, so the module it names
+ * has to be in the tarball.
  *
  * Usage:  node scripts/check-package-closure.js
  * Exit 0 = the load-time closure is fully published, exit 1 = something is not.
@@ -64,20 +67,73 @@ function publishedFiles(root) {
   return out;
 }
 
+/** Keywords whose parenthesised head introduces a block, not a function body. */
+const BLOCK_HEADS = new Set(['if', 'for', 'while', 'switch']);
+
+/**
+ * Does the `{` just opened defer what is inside it?
+ *
+ * Only two forms do. A function body runs when something calls it, and a
+ * `try`/`catch` block is the repository's deliberate guard for a repo-only
+ * dependency -- both mean the require may never execute. Everything else --
+ * an object literal, an `if` or `for` block, a bare block -- is evaluated as
+ * the module loads, so a require inside it is a load-time require.
+ *
+ * The decision is made from the token immediately before the brace, and where
+ * that token is `)`, from the one before its matching `(`:
+ *
+ *   `=> {`                     function body        deferred
+ *   `try {`                    guard                deferred
+ *   `catch (e) {`              guard                deferred
+ *   `function f() {` / `f() {` function body        deferred
+ *   `if (x) {` / `for (…) {`   block                load-time
+ *   `= {` / `, {` / `: {`      object literal       load-time
+ *
+ * Anything unrecognized is treated as load-time. That is the safe direction
+ * for a packaging guard: it can ask for a module to be published that did not
+ * strictly need to be, but it cannot wave one through that an installed
+ * consumer will fail to resolve.
+ *
+ * @param {string[]} tokens significant tokens seen so far, in source order
+ * @returns {boolean} true when the brace defers its contents
+ */
+function braceDefers(tokens) {
+  const prev = tokens[tokens.length - 1];
+  if (prev === undefined) return false;
+  if (prev === '=>' || prev === 'try') return true;
+  if (prev !== ')') return false;
+
+  // Walk back to the `(` this `)` closes, then read the token in front of it.
+  let depth = 0;
+  for (let i = tokens.length - 1; i >= 0; i -= 1) {
+    if (tokens[i] === ')') depth += 1;
+    else if (tokens[i] === '(') {
+      depth -= 1;
+      if (depth === 0) {
+        const head = tokens[i - 1];
+        if (head === 'catch') return true;
+        return !BLOCK_HEADS.has(head);
+      }
+    }
+  }
+  return false;
+}
+
 /**
  * Relative require specifiers that run when the module is loaded.
  *
- * Brace depth is the test: depth zero is module scope, anything deeper is
- * inside a function, a block or a try, and so is deferred. The scanner steps
- * over comments and string literals so a require mentioned in prose or inside
- * a template does not count.
+ * The scanner steps over comments and string literals so a require mentioned
+ * in prose or inside a template does not count, and keeps a stack of the
+ * braces it is inside. A require counts when no brace enclosing it defers --
+ * see braceDefers for which ones do.
  *
  * @param {string} src module source
  * @returns {string[]} specifiers, in source order
  */
 function loadTimeRequires(src) {
   const found = [];
-  let depth = 0;
+  const deferring = [];
+  const tokens = [];
   let i = 0;
 
   while (i < src.length) {
@@ -101,15 +157,29 @@ function loadTimeRequires(src) {
         i += 1;
       }
       i += 1;
+      tokens.push('<string>');
       continue;
     }
 
-    if (c === '{') depth += 1;
-    else if (c === '}') depth -= 1;
-    else if (depth === 0 && src.startsWith('require(', i)) {
-      const match = /^require\(\s*['"](\.[^'"]+)['"]\s*\)/.exec(src.slice(i));
-      if (match) found.push(match[1]);
+    if (/[A-Za-z_$]/.test(c)) {
+      let word = '';
+      while (i < src.length && /[A-Za-z0-9_$]/.test(src[i])) {
+        word += src[i];
+        i += 1;
+      }
+      if (word === 'require' && deferring.every((d) => !d)) {
+        const match = /^require\(\s*['"](\.[^'"]+)['"]\s*\)/.exec(src.slice(i - word.length));
+        if (match) found.push(match[1]);
+      }
+      tokens.push(word);
+      continue;
     }
+
+    if (c === '{') deferring.push(braceDefers(tokens));
+    else if (c === '}') deferring.pop();
+
+    if (!/\s/.test(c)) tokens.push(c === '=' && src[i + 1] === '>' ? '=>' : c);
+    if (c === '=' && src[i + 1] === '>') i += 1;
     i += 1;
   }
 
