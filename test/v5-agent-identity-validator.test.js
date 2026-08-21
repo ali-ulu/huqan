@@ -120,3 +120,112 @@ test('V5 agent identity validator test stays isolated from runtime modules', () 
   assert.equal(forbiddenRuntimeImport.test(testSource), false);
   assert.equal(forbiddenRuntimeImport.test(validatorSource), false);
 });
+
+
+test('V5 agent identity validator rejects invalid schema', () => {
+  const fixture = { expected_status: 'valid', expected_reason_code: null };
+  const result = validateAgentIdentityFixture(fixture, null);
+  assert.equal(result.valid, false);
+  assert.equal(result.errors[0].code, 'invalid_schema_object');
+});
+
+test('V5 agent identity validator missing expected status', () => {
+  const schema = readSchema();
+  const fixture = { expected_reason_code: null };
+  const result = validateAgentIdentityFixture(fixture, schema);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some(e => e.code === 'missing_expected_status'));
+});
+
+test('V5 agent identity validator missing expected reason code', () => {
+  const schema = readSchema();
+  const fixture = { expected_status: 'valid' };
+  const result = validateAgentIdentityFixture(fixture, schema);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some(e => e.code === 'missing_expected_reason_code'));
+});
+
+test('V5 agent identity validator identity claim shape', () => {
+  const schema = readSchema();
+  const fixture = {
+    expected_status: 'invalid',
+    expected_reason_code: 'identity.invalid_claim',
+    agent_id: 'a1',
+    verification_status: 'valid'
+  };
+  const result = validateAgentIdentityFixture(fixture, schema);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some(e => e.code === 'identity_claim_present'));
+  assert.ok(result.errors.some(e => e.code === 'invalid_claim_status_required'));
+});
+
+test('V5 agent identity validator delegation scope exceeded', () => {
+  const schema = readSchema();
+  const fixture = {
+    expected_status: 'invalid',
+    expected_reason_code: 'delegation.scope_exceeded',
+    delegation_scope: ['read'],
+    trust_tier: 'verified'
+  };
+  const result = validateAgentIdentityFixture(fixture, schema);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some(e => e.code === 'scope_exceeded_invoke_required'));
+  
+  fixture.delegation_scope = ['invoke'];
+  const result2 = validateAgentIdentityFixture(fixture, schema);
+  assert.ok(result2.errors.some(e => e.code === 'scope_exceeded_trust_floor'));
+});
+
+test('V5 agent identity validator delegation chain invalid', () => {
+  const schema = readSchema();
+  const fixture = {
+    expected_status: 'invalid',
+    expected_reason_code: 'delegation.chain_invalid'
+  };
+  const result = validateAgentIdentityFixture(fixture, schema);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some(e => e.code === 'chain_invalid_parent_required'));
+  
+  fixture.parent_agent_id = 'p1';
+  const result2 = validateAgentIdentityFixture(fixture, schema);
+  assert.ok(result2.errors.some(e => e.code === 'chain_invalid_chain_required'));
+  
+  fixture.delegation_chain = ['p1'];
+  const result3 = validateAgentIdentityFixture(fixture, schema);
+  assert.ok(result3.errors.some(e => e.code === 'chain_invalid_parent_encoded'));
+});
+
+test('V5 agent identity validator connector context', () => {
+  const schema = readSchema();
+  const fixture = {
+    expected_status: 'invalid',
+    expected_reason_code: 'connector.context_invalid',
+    allowed_connectors: ['c1']
+  };
+  const result = validateAgentIdentityFixture(fixture, schema);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some(e => e.code === 'connector_context_no_connectors'));
+});
+
+test('V5 agent identity validator lifecycle unresolvable', () => {
+  const schema = readSchema();
+  const fixture = {
+    expected_status: 'invalid',
+    expected_reason_code: 'lifecycle.unresolved',
+    verification_status: 'valid',
+    revoked_at: 'now'
+  };
+  const result = validateAgentIdentityFixture(fixture, schema);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some(e => e.code === 'lifecycle_unresolved_status_required'));
+  
+  fixture.verification_status = 'unverified';
+  const result2 = validateAgentIdentityFixture(fixture, schema);
+  assert.ok(result2.errors.some(e => e.code === 'lifecycle_unresolved_no_resolved_events'));
+});
+
+test('validateAgentIdentityFixtureFile handles missing files', () => {
+  const result = validateAgentIdentityFixtureFile('does-not-exist.json', 'also-missing.json');
+  assert.equal(result.valid, false);
+  assert.equal(result.errors[0].code, 'fixture_read_error');
+});

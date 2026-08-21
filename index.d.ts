@@ -37,6 +37,7 @@ declare const huqan: typeof KernelV2 & {
   evaluateAgentActionFirewall: (request?: Record<string, unknown>) => Record<string, unknown>;
   AGENT_ACTION_FIREWALL_VERSION: string;
   AGENT_ACTION_FIREWALL_DECISIONS: Record<string, string>;
+
   AgentIdentityRuntime: Record<string, any>;
   evaluateAgentIdentity: (request?: Record<string, unknown>) => Record<string, unknown>;
   composeReceiverOwnedIdentityClaim: (request?: Record<string, unknown>) => Record<string, unknown>;
@@ -48,6 +49,25 @@ declare const huqan: typeof KernelV2 & {
   createHumanOversightApprovalRuntime: (options: Record<string, unknown>) => Record<string, any>;
   HUMAN_OVERSIGHT_RUNTIME_VERSION: string;
   HUMAN_OVERSIGHT_RUNTIME_REASONS: Record<string, string>;
+
+  PrGuardian: {
+    TOOL: string;
+    ACTIONS: Record<string, string>;
+    DECISIONS: Record<string, string>;
+    normalizePullRequestSnapshot: (input?: Record<string, unknown>, options?: Record<string, unknown>) => Record<string, unknown>;
+    evaluatePullRequest: (snapshot?: Record<string, unknown>, options?: Record<string, unknown>) => Record<string, unknown>;
+    createReviewService: (options?: Record<string, unknown>) => Record<string, (...args: any[]) => any>;
+    createGitHubRestClient: (options?: Record<string, unknown>) => Record<string, (...args: any[]) => Promise<any>> | null;
+  };
+  PRGuardian: {
+    TOOL: string;
+    ACTIONS: Record<string, string>;
+    DECISIONS: Record<string, string>;
+    normalizePullRequestSnapshot: (input?: Record<string, unknown>, options?: Record<string, unknown>) => Record<string, unknown>;
+    evaluatePullRequest: (snapshot?: Record<string, unknown>, options?: Record<string, unknown>) => Record<string, unknown>;
+    createReviewService: (options?: Record<string, unknown>) => Record<string, (...args: any[]) => any>;
+    createGitHubRestClient: (options?: Record<string, unknown>) => Record<string, (...args: any[]) => Promise<any>> | null;
+  };
 };
 
 export = huqan;

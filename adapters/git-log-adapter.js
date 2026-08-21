@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { resolvePathWithinRoot } = require('../lib/path-safety');
+const { learnEntriesSync } = require('./utils/learn-entries');
 
 // Record/field separators from the ASCII control range, chosen because they
 // essentially never appear in real commit messages, so a single git-log
@@ -134,27 +135,7 @@ function ingestGitLog(repoPath, options = {}) {
 
 function ingestAndLearn(repoPath, kernel, options = {}) {
   const result = ingestGitLog(repoPath, options);
-  const learned = [];
-  for (const entry of result.entries) {
-    const provenance = {
-      provenanceId: `git-log-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      source: 'git-log-adapter',
-      sourceRef: entry.sourceRef,
-      sourceType: 'import',
-      sourceSubType: 'git-log',
-      contentHash: contentHash(entry.content),
-      contentHashAlgorithm: CONTENT_HASH_ALGORITHM,
-      actor: options.actor || 'git-log-adapter',
-      timestamp: entry.commit.date || new Date().toISOString(),
-    };
-    try {
-      const r = kernel.learn(entry.content, { provenance, sourceType: 'import', sourceSubType: 'git-log', sourceRef: provenance.sourceRef });
-      learned.push({ entryKey: entry.entryKey, learned: r.data.learned, ok: true });
-    } catch (e) {
-      learned.push({ entryKey: entry.entryKey, error: e.message, ok: false });
-    }
-  }
-  return { ...result, learned };
+  return learnEntriesSync(result, kernel, options, 'import', 'git-log');
 }
 
 module.exports = {
