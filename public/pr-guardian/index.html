@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HUQAN Review Console</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; background: #0d1117; color: #e6edf3; }
+    body { margin: 0; background: radial-gradient(circle at top right, #17233a, #0d1117 45%); }
+    main { max-width: 1180px; margin: 0 auto; padding: 32px 20px 64px; }
+    header { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
+    h1 { margin: 0 0 6px; letter-spacing: -0.03em; } p { color: #9da7b3; }
+    .toolbar, .card { background: rgba(22, 27, 34, .92); border: 1px solid #30363d; border-radius: 14px; padding: 18px; box-shadow: 0 16px 40px rgba(0,0,0,.18); }
+    .toolbar { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: end; margin-bottom: 18px; }
+    label { display: grid; gap: 6px; color: #9da7b3; font-size: 12px; }
+    input, textarea, button { font: inherit; border-radius: 8px; border: 1px solid #30363d; padding: 10px 12px; }
+    input, textarea { color: #e6edf3; background: #0d1117; } button { cursor: pointer; color: #fff; background: #238636; border-color: #2ea043; } button.secondary { background: #21262d; border-color: #484f58; } button.danger { background: #da3633; border-color: #f85149; }
+    .grid { display: grid; gap: 14px; } .review { display: grid; grid-template-columns: 1fr auto; gap: 16px; }
+    .meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; } .pill { border: 1px solid #30363d; border-radius: 999px; padding: 4px 8px; font-size: 12px; color: #9da7b3; }
+    .decision-allow { color: #3fb950; } .decision-review { color: #d29922; } .decision-block { color: #f85149; } .decision-dry_run_only { color: #58a6ff; }
+    pre { overflow: auto; white-space: pre-wrap; background: #0d1117; border-radius: 8px; padding: 12px; color: #c9d1d9; font-size: 12px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: start; justify-content: end; } .empty { text-align: center; padding: 40px; color: #9da7b3; }
+    @media (max-width: 760px) { header, .review { display: block; } .toolbar { grid-template-columns: 1fr; } .actions { justify-content: start; margin-top: 14px; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div><h1>HUQAN Review Console</h1><p>GitHub PR snapshot’larını policy, approval ve Trust Receipt sınırlarında inceleyin.</p></div>
+    <button class="secondary" id="refresh">Yenile</button>
+  </header>
+  <section class="toolbar">
+    <label>Operator token<input id="token" type="password" autocomplete="off" placeholder="x-huqan-operator-token"></label>
+    <button id="load">Review’ları getir</button>
+    <button class="secondary" id="dryrun">Dry-run örneği</button>
+  </section>
+  <section id="dryrun-output" class="card" hidden></section>
+  <section id="reviews" class="grid"><div class="card empty">Review kayıtları yüklenmedi.</div></section>
+</main>
+<script>
+  const $ = id => document.getElementById(id);
+  const endpoint = '/api/v2/pr-guardian';
+  const headers = () => ({ 'x-huqan-operator-token': $('token').value.trim(), 'content-type': 'application/json' });
+  async function call(path, options = {}) {
+    const res = await fetch(endpoint + path, { ...options, headers: { ...headers(), ...(options.headers || {}) } });
+    const data = await res.json().catch(() => ({ ok: false, error: { code: 'INVALID_RESPONSE' } }));
+    if (!res.ok) throw new Error(data.error?.message || data.error?.code || `HTTP ${res.status}`);
+    return data;
+  }
+  function esc(value) { return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch])); }
+  function render(reviews) {
+    $('reviews').innerHTML = reviews.length ? reviews.map(item => {
+      const snapshot = item.context?.snapshot || {};
+      const decision = item.policy?.decision || item.decision || 'review';
+      return `<article class="card review"><div><h2>${esc(snapshot.repo || item.source || 'GitHub PR')} #${esc(snapshot.number || '')}</h2><p>${esc(snapshot.title || item.claim || 'Başlık yok')}</p><div class="meta"><span class="pill">${esc(item.status)}</span><span class="pill ${'decision-' + decision}">${esc(decision)}</span><span class="pill">head ${esc(snapshot.headSha || '')}</span><span class="pill">${esc(snapshot.targetHash || '')}</span></div><details><summary>Policy ve provenance</summary><pre>${esc(JSON.stringify({ policy: item.policy, provenance: item.provenance, risk: item.context?.riskLabels }, null, 2))}</pre></details></div><div class="actions">${item.status === 'pending' ? `<button data-approve="${esc(item.id)}">Onayla</button><button class="danger" data-reject="${esc(item.id)}">Reddet</button>` : ''}${item.status === 'approved' ? `<button data-execute="${esc(item.id)}">Comment çalıştır</button>` : ''}</div></article>`;
+    }).join('') : '<div class="card empty">Unresolved review bulunamadı.</div>';
+    document.querySelectorAll('[data-approve]').forEach(btn => btn.onclick = () => decide(btn.dataset.approve, 'approved'));
+    document.querySelectorAll('[data-reject]').forEach(btn => btn.onclick = () => decide(btn.dataset.reject, 'rejected'));
+    document.querySelectorAll('[data-execute]').forEach(btn => btn.onclick = () => execute(btn.dataset.execute));
+  }
+  async function load() { try { const data = await call('/reviews'); render(data.data?.reviews || []); } catch (error) { $('reviews').innerHTML = `<div class="card empty">${esc(error.message)}</div>`; } }
+  async function decide(id, decision) { try { await call(`/reviews/${encodeURIComponent(id)}/decision`, { method: 'POST', body: JSON.stringify({ decision, reason: 'review-console-operator-decision' }) }); await load(); } catch (error) { alert(error.message); } }
+  async function execute(id) { try { const data = await call(`/reviews/${encodeURIComponent(id)}/execute`, { method: 'POST', body: JSON.stringify({ action: 'github.comment.create', body: 'HUQAN Review Console: approved review.' }) }); alert(JSON.stringify(data.receipt || data, null, 2)); await load(); } catch (error) { alert(error.message); } }
+  $('dryrun').onclick = async () => { const body = { repo: 'example/acme', number: 42, headSha: 'abc123', workspaceId: 'github:example/acme', title: 'Add alerting guard', body: 'read-only change', files: [{ filename: 'src/alert.js', patch: '+ guard();' }], action: 'github.status.preview' }; try { const data = await call('/dry-run', { method: 'POST', body: JSON.stringify(body) }); $('dryrun-output').hidden = false; $('dryrun-output').innerHTML = `<strong>dry_run sonucu</strong><pre>${esc(JSON.stringify(data, null, 2))}</pre>`; } catch (error) { alert(error.message); } };
+  $('load').onclick = load; $('refresh').onclick = load;
+</script>
+</body>
+</html>

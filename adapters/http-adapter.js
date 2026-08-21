@@ -1,4 +1,5 @@
 const { contentHash, CONTENT_HASH_ALGORITHM } = require('../lib/content-hash');
+const { learnEntriesAsync, learnEntriesSync, learnEntries } = require('./utils/learn-entries');
 const http = require('http');
 const https = require('https');
 const { resolveSafeAddress } = require('../lib/ssrf-guard');
@@ -346,50 +347,13 @@ async function ingestUrls(urls, options = {}) {
  * without standing up a server: the version-recording behaviour is the part
  * worth testing, and it should not be reachable only through a live fetch.
  */
-async function learnEntries(result, kernel, options = {}) {
-  const learned = [];
-  for (const entry of result.entries) {
-    const provenance = {
-      provenanceId: `http-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      source: 'http-adapter',
-      sourceRef: entry.sourceRef,
-      sourceType: 'api',
-      sourceSubType: 'http',
-      contentHash: contentHash(entry.content),
-      contentHashAlgorithm: CONTENT_HASH_ALGORITHM,
-      actor: options.actor || 'http-adapter',
-      timestamp: new Date().toISOString(),
-    };
-
-    // Only when the server actually offered one. An empty sourceVersion would
-    // read as "pinned, to nothing" -- a claim where none was made. With no
-    // validator the content hash is the only version signal, and it is always
-    // present.
-    if (entry.etag) {
-      provenance.sourceVersion = entry.etag;
-      provenance.sourceVersionKind = 'etag';
-    } else if (entry.lastModified) {
-      provenance.sourceVersion = entry.lastModified;
-      provenance.sourceVersionKind = 'last_modified';
-    }
-    try {
-      // learnAsync, not learn: this is the URL-sourced ingest path, so it is
-      // exactly where an async preIngest gate -- evidence-validator's
-      // reachability probe (#348) -- has to be able to run. Called without a
-      // `typeof kernel.learnAsync === 'function'` guard on purpose: quietly
-      // falling back to the synchronous learn() would skip the gate without
-      // saying so, which is the failure shape #348 was filed about.
-      const r = await kernel.learnAsync(entry.content, { provenance, sourceType: 'api', sourceSubType: 'http', sourceRef: provenance.sourceRef });
-      learned.push({ entryKey: entry.entryKey, learned: r.data.learned, ok: true });
-    } catch (e) {
-      learned.push({ entryKey: entry.entryKey, error: e.message, ok: false });
-    }
-  }
-  return { ...result, learned };
-}
-
 async function ingestAndLearn(urls, kernel, options = {}) {
-  return learnEntries(await ingestUrls(urls, options), kernel, options);
+  const result = await ingestUrls(urls, options);
+  if (!result || !result.entries) return result;
+  
+  // Custom logic for HTTP adapter's etag/lastModified mapping could go here if needed
+  
+  return learnEntriesAsync(result, kernel, options, 'api', 'http');
 }
 
 module.exports = {

@@ -158,10 +158,10 @@ test('a learn batch produces one audit write, across every sequence tried', () =
 
 // --- the finding that reorders the work -------------------------------------
 
-test('the candidate ingest path has no production entry', () => {
+test('the legacy candidate ingest path has no direct HTTP, CLI, or MCP entry', () => {
   // Six of the fourteen remaining sites sit behind kernel.ingestCandidateClaim.
-  // Nothing in production calls it: kernel.v2 forwards it, and the HTTP surface
-  // only *reads* candidate claims.
+  // No direct HTTP, CLI, or MCP entry calls it: kernel.v2 forwards it, while
+  // GitHub PR Guardian reaches the connector-specific ingest path separately.
   const server = readCode('server.js');
 
   assert.equal(server.includes('ingestCandidateClaim'), false, 'no HTTP ingest entry');
@@ -172,9 +172,9 @@ test('the candidate ingest path has no production entry', () => {
   // kernel.v2's is a pass-through, not a second entry.
   assert.match(readCode('kernel.v2.js'), /ingestCandidateClaim\(input = \{\}, opts = \{\}\) \{\s*return this\.kernel\.ingestCandidateClaim\(input, opts\);/);
 
-  // routeCandidateClaim's only other caller is classified not-yet-wired.
+  // PR Guardian is now the production caller for the connector path.
   const { NOT_YET_WIRED } = require('../lib/module-reachability.js');
-  assert.ok(Object.prototype.hasOwnProperty.call(NOT_YET_WIRED, 'lib/github-connector.js'));
+  assert.equal(Object.prototype.hasOwnProperty.call(NOT_YET_WIRED, 'lib/github-connector.js'), false);
 });
 
 test('the learn path, by contrast, is production reachable', () => {

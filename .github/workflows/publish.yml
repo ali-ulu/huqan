@@ -1,0 +1,95 @@
+name: Publish to npm
+
+# Tag-driven, never automatic on a branch. A publish is irreversible in
+# practice -- npm allows unpublishing only within 72 hours and only while
+# nothing depends on the version -- so it takes a deliberate act (pushing a
+# `v*` tag, or dispatching this workflow) rather than happening as a side
+# effect of a merge.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run every gate and pack the tarball, but do not upload'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      # Required for npm provenance: npm exchanges this workflow's OIDC token
+      # for a signed attestation that ties the published tarball to this
+      # repository, this workflow and this commit. Without it, `npm publish
+      # --provenance` fails rather than publishing unattested.
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+          # Writes the .npmrc that makes NODE_AUTH_TOKEN below authenticate.
+          registry-url: 'https://registry.npmjs.org'
+
+      # The tag is what a human typed; package.json#version is what actually
+      # gets published. A disagreement means one of them is wrong, and
+      # guessing which would publish a version nobody asked for.
+      - name: Require the tag to match package.json#version
+        if: github.event_name == 'push'
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          manifest="$(node -p "require('./package.json').version")"
+          if [ "${tag}" != "${manifest}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match package.json version ${manifest}." >&2
+            echo "Retag, or bump the manifest -- do not publish a mismatch." >&2
+            exit 1
+          fi
+          echo "Publishing version ${manifest}."
+
+      - name: Refuse to republish an existing version
+        run: |
+          set -euo pipefail
+          name="$(node -p "require('./package.json').name")"
+          version="$(node -p "require('./package.json').version")"
+          if npm view "${name}@${version}" version --json > /dev/null 2>&1; then
+            echo "${name}@${version} is already on the registry." >&2
+            echo "npm versions are immutable; bump the version instead." >&2
+            exit 1
+          fi
+          echo "${name}@${version} is not on the registry yet."
+
+      - run: npm ci --include=optional
+
+      # The gate no static check replaces: pack the tarball, install it into an
+      # empty project, and read the output. A plugin that fails to load prints
+      # a line and still exits 0, which is how v0.10.0 nearly shipped three
+      # modules that resolved from a clone and not from node_modules.
+      #
+      # `npm publish` separately runs prepublishOnly (the package-closure check
+      # and the full suite), so the two halves do not overlap: this proves the
+      # tarball behaves, that one proves the source tree is sound.
+      - name: Verify the packed tarball as an installed consumer sees it
+        run: npm run verify:tarball
+
+      - name: Publish
+        if: github.event_name == 'push' || inputs.dry_run == false
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Dry run complete
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run
+        run: echo "Every gate passed. Re-run with dry_run unchecked, or push a v* tag, to publish."

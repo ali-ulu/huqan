@@ -1,4 +1,5 @@
 const { contentHash, CONTENT_HASH_ALGORITHM } = require('../lib/content-hash');
+const { learnEntriesSync } = require('./utils/learn-entries');
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
@@ -257,27 +258,7 @@ function ingestYaml(targetPath, options = {}) {
 
 function ingestAndLearn(targetPath, kernel, options = {}) {
   const result = ingestYaml(targetPath, options);
-  const learned = [];
-  for (const entry of result.entries) {
-    const provenance = {
-      provenanceId: `yaml-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      source: 'yaml-adapter',
-      sourceRef: entry.sourceRef,
-      sourceType: 'document',
-      sourceSubType: 'yaml',
-      contentHash: contentHash(entry.content),
-      contentHashAlgorithm: CONTENT_HASH_ALGORITHM,
-      actor: options.actor || 'yaml-adapter',
-      timestamp: new Date().toISOString(),
-    };
-    try {
-      const r = kernel.learn(entry.content, { provenance, sourceType: 'document', sourceSubType: 'yaml', sourceRef: provenance.sourceRef });
-      learned.push({ entryKey: entry.entryKey, learned: r.data.learned, ok: true });
-    } catch (e) {
-      learned.push({ entryKey: entry.entryKey, error: e.message, ok: false });
-    }
-  }
-  return { ...result, learned };
+  return learnEntriesSync(result, kernel, options, 'document', 'yaml');
 }
 
 module.exports = {

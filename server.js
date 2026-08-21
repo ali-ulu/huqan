@@ -32,7 +32,7 @@ const { readExactWorkspace } = require('./lib/http/exact-workspace');
 const { createSessionStore } = require('./lib/viewer/session-store');
 const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
 const { createExternalClientProductionBoundary } = require('./lib/external-client-production-boundary');
-const { createOptionalRouteBoundaries } = require('./lib/http/optional-boundaries');
+const { createOptionalRouteBoundaries } = require('./lib/http/optional-boundaries'), { createPrGuardianOptions } = require('./lib/http/pr-guardian-config');
 const { projectUploadAdmission } = require('./lib/http/upload-admission-contract');
 const { createMutationAdmission } = require('./lib/mutation-admission');
 const { createIngestApprovalAuditWriter } = require('./lib/workbench/ingest-approval-audit-writer');
@@ -62,7 +62,7 @@ const externalClientBoundary = createExternalClientProductionBoundary({
   environment: process.env,
   graph: kernel.graph,
 });
-const optionalRoutes = createOptionalRouteBoundaries({ memoryApproval: { kernel, getParseJsonRequest: () => parseJsonRequest, getWriteJson: () => writeJson, approvalRuntime: () => ({ approvalStore: getIngestApprovalStore() }) } });
+const optionalRoutes = createOptionalRouteBoundaries({ memoryApproval: { kernel, getParseJsonRequest: () => parseJsonRequest, getWriteJson: () => writeJson, approvalRuntime: () => ({ approvalStore: getIngestApprovalStore() }) }, prGuardian: createPrGuardianOptions({ getApprovalStore: getIngestApprovalStore, getParseJsonRequest: () => parseJsonRequest, getWriteJson: () => writeJson }) });
 let companyRuntimeReady = false;
 let ingestApprovalStore = null;
 const INGEST_APPROVAL_WORKER_ID = `http-ingest-${crypto.randomUUID()}`;
