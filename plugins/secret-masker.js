@@ -36,11 +36,39 @@
  */
 const SECRET_KEY_NAME = String.raw`(?:[A-Za-z0-9]+[_.\-])*(?:api[_.\-]?key|secret[_.\-]?access[_.\-]?key|access[_.\-]?key|secret|password|passwd|passphrase|token|credential|auth)(?:[_.\-][A-Za-z0-9]+)*`;
 
+/**
+ * The vendor prefixes that actually introduce a key, listed rather than
+ * described.
+ *
+ * The prefix used to be `[a-z]{2,4}`, which says "any two-to-four lowercase
+ * letters". Since the value class `[A-Za-z0-9_-]{10,}` contains the hyphen, a
+ * match ran straight through every following segment, so ordinary hyphenated
+ * prose was redacted whole: `web-application-server`,
+ * `kod-inceleme-raporu`, `iso-8601-format`. Which phrases were censored looked
+ * arbitrary — `multi-tenant-architecture` survived only because `multi` is five
+ * letters.
+ *
+ * That is the opposite of what this module exists for. Its own docblock gives
+ * over-redaction as the reason it does substring scanning at all, and the
+ * afterAsk/afterDream hooks rewrite `data.answer` and `hypothesis.text` in
+ * place — the original never reaches the caller, so a false positive is
+ * unrecoverable content loss (#1031).
+ *
+ * Only the prefix is narrowed. The issue also proposed requiring an uppercase
+ * or digit in the value, but that would stop matching `sk-abcdefghijklmnop`,
+ * which two existing detection tests use, and drop Slack's `xox*` tokens
+ * entirely. Keeping the hyphen in the value class is likewise deliberate:
+ * Slack tokens are multi-segment, and removing it would truncate them and leak
+ * the tail. The allowlist alone removes every reported false positive without
+ * weakening detection.
+ */
+const VENDOR_KEY_PREFIX = String.raw`(?:sk|pk|rk|ak|xoxb|xoxp|xoxa|xoxs|xoxr)`;
+
 const SECRET_PATTERNS = Object.freeze([
   // Vendor-prefixed key families. The old form was `sk-[a-z0-9]{10,}` only,
   // which misses hyphenated and project-scoped variants such as
   // `sk-proj-...` and anything using `_` inside the token.
-  { type: 'api_key', pattern: /\b[a-z]{2,4}-(?:[a-z0-9]+-)?[A-Za-z0-9_-]{10,}\b/g },
+  { type: 'api_key', pattern: new RegExp(String.raw`\b${VENDOR_KEY_PREFIX}-(?:[a-z0-9]+-)?[A-Za-z0-9_-]{10,}\b`, 'g') },
   { type: 'bearer_token', pattern: /\bBearer\s+[A-Za-z0-9._\-+/=]{10,}\b/gi },
   { type: 'aws_access_key', pattern: /\bAKIA[0-9A-Z]{16}\b/g },
   // gh[pousr]_ is the classic PAT shape; github_pat_ is the fine-grained one,
