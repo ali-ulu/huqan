@@ -47,14 +47,15 @@ describe('contradiction-rules', () => {
     assert.strictEqual(signal.rule, CONTRADICTION_RULES.TYPE_CONFLICT);
   });
 
-  it('emits relation drift for semantic mismatch', () => {
+  it('emits a review-only relation drift signal for topical predicate mismatch', () => {
     const signal = detectPredicateDrift(
       { text: 'TCAS detects traffic', subject: 'TCAS', relation: 'detects traffic' },
-      { text: 'TCAS is weather radar', subject: 'TCAS', relation: 'is weather radar' },
+      { text: 'TCAS detects aircraft traffic', subject: 'TCAS', relation: 'detects aircraft traffic' },
     );
 
     assert.ok(signal);
     assert.strictEqual(signal.rule, CONTRADICTION_RULES.PREDICATE_DRIFT);
+    assert.strictEqual(signal.kind, 'risk');
     assert.ok(signal.flags.includes('RELATION_DRIFT'));
   });
 
