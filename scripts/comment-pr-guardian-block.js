@@ -90,6 +90,13 @@ function buildComment({ response, repo, number, headSha, runUrl, action }) {
   ].join('\n');
 }
 
+/**
+ * Page budget for the managed-comment search: 2000 comments at per_page=100.
+ * A bound rather than a while(next) loop, so a malformed or cyclic Link header
+ * cannot turn this into an unbounded run of authenticated requests.
+ */
+const MAX_COMMENT_PAGES = 20;
+
 async function githubRequest({ apiBaseUrl, token, method, path, body }) {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     method,
@@ -111,7 +118,79 @@ async function githubRequest({ apiBaseUrl, token, method, path, body }) {
     error.body = parsed;
     throw error;
   }
-  return parsed;
+  return { data: parsed, link: text(response.headers?.get?.('link')) };
+}
+
+/**
+ * The `rel="next"` target of a Link header, as a path under `apiBaseUrl`.
+ *
+ * Returns '' when there is no next page. Throws when the header names a
+ * different host: this request carries a bearer token, so following a URL the
+ * response chose would hand that token to whoever chose it. A pagination
+ * cursor is allowed to move us through the API, not off it.
+ */
+function nextPagePath(link, apiBaseUrl) {
+  if (!link) return '';
+  const match = /<([^>]+)>\s*;\s*rel\s*=\s*"?next"?/i.exec(link);
+  if (!match) return '';
+  const target = text(match[1]);
+  if (!target) return '';
+  if (!target.startsWith(`${apiBaseUrl}/`)) {
+    const error = new Error('GitHub pagination pointed outside the configured API host');
+    error.code = 'GITHUB_COMMENTS_PAGINATION_INVALID';
+    error.target = target;
+    throw error;
+  }
+  return target.slice(apiBaseUrl.length);
+}
+
+/**
+ * The managed comment, wherever it is, or null when it is genuinely absent.
+ *
+ * The search used to read one page. A PR with more than 100 issue comments
+ * therefore hid an existing marker behind the first page, and the caller --
+ * finding nothing -- posted another comment, which is the opposite of the
+ * idempotency this script exists to provide.
+ *
+ * Two failures are deliberately *not* reported as "absent", because absent is
+ * what makes the caller create a comment:
+ *
+ *   - a request that fails partway through the pages: it throws;
+ *   - a PR longer than the page budget: it throws.
+ *
+ * "Not in the pages I could read" is not "not there", and treating it as such
+ * is precisely the duplicate this fixes. A run that cannot complete the search
+ * leaves the thread untouched and fails loudly instead.
+ */
+async function findManagedComment({ apiBaseUrl, token, encodedRepo, number, botLogin }) {
+  let path = `/repos/${encodedRepo}/issues/${number}/comments?per_page=100`;
+
+  for (let page = 1; page <= MAX_COMMENT_PAGES; page += 1) {
+    const { data, link } = await githubRequest({ apiBaseUrl, token, method: 'GET', path });
+    if (!Array.isArray(data)) {
+      const error = new Error('GitHub comments response was not an array');
+      error.code = 'GITHUB_COMMENTS_RESPONSE_INVALID';
+      throw error;
+    }
+
+    const found = data.find(comment => (
+      comment
+        && comment.user?.login === botLogin
+        && typeof comment.body === 'string'
+        && comment.body.includes(MARKER)
+    ));
+    if (found?.id) return found;
+
+    const next = nextPagePath(link, apiBaseUrl);
+    if (!next) return null;
+    path = next;
+  }
+
+  const error = new Error(
+    `PR has more than ${MAX_COMMENT_PAGES} pages of comments; the managed comment could not be ruled out`,
+  );
+  error.code = 'GITHUB_COMMENTS_PAGINATION_EXHAUSTED';
+  throw error;
 }
 
 async function run(env = process.env) {
@@ -142,22 +221,10 @@ async function run(env = process.env) {
   }
 
   const encodedRepo = repo.split('/').map(encodeURIComponent).join('/');
-  const commentsPath = `/repos/${encodedRepo}/issues/${number}/comments?per_page=100`;
-  const comments = await githubRequest({ apiBaseUrl, token, method: 'GET', path: commentsPath });
-  if (!Array.isArray(comments)) {
-    const error = new Error('GitHub comments response was not an array');
-    error.code = 'GITHUB_COMMENTS_RESPONSE_INVALID';
-    throw error;
-  }
+  const botLogin = text(env.GITHUB_ACTIONS_BOT_LOGIN || 'github-actions[bot]');
+  const existing = await findManagedComment({ apiBaseUrl, token, encodedRepo, number, botLogin });
 
   const body = buildComment({ response, repo, number, headSha, runUrl, action });
-  const botLogin = text(env.GITHUB_ACTIONS_BOT_LOGIN || 'github-actions[bot]');
-  const existing = comments.find(comment => (
-    comment
-      && comment.user?.login === botLogin
-      && typeof comment.body === 'string'
-      && comment.body.includes(MARKER)
-  ));
 
   if (existing?.id) {
     const updated = await githubRequest({
@@ -167,7 +234,7 @@ async function run(env = process.env) {
       path: `/repos/${encodedRepo}/issues/comments/${encodeURIComponent(existing.id)}`,
       body: { body },
     });
-    return { ok: true, commented: true, updated: true, commentId: existing.id, response: updated };
+    return { ok: true, commented: true, updated: true, commentId: existing.id, response: updated.data };
   }
 
   const created = await githubRequest({
@@ -177,7 +244,7 @@ async function run(env = process.env) {
     path: `/repos/${encodedRepo}/issues/${number}/comments`,
     body: { body },
   });
-  return { ok: true, commented: true, created: true, commentId: created?.id || null, response: created };
+  return { ok: true, commented: true, created: true, commentId: created.data?.id || null, response: created.data };
 }
 
 if (require.main === module) {

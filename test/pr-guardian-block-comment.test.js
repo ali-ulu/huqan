@@ -19,11 +19,24 @@ async function withResponseFile(response, callback) {
   }
 }
 
-function response(status, body) {
+function response(status, body, extraHeaders = {}) {
   return new Response(body == null ? '' : JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...extraHeaders },
   });
+}
+
+/** A page of ordinary comments, none of them the managed one. */
+function filler(count, startId = 1) {
+  return Array.from({ length: count }, (_, index) => ({
+    id: startId + index,
+    user: { login: 'someone' },
+    body: `ordinary comment ${startId + index}`,
+  }));
+}
+
+function nextLink(page) {
+  return { link: `<https://api.github.test/repos/acme/widgets/issues/42/comments?per_page=100&page=${page}>; rel="next"` };
 }
 
 function baseEnv(responseFile) {
@@ -109,6 +122,130 @@ test('duplicate managed comment is updated instead of duplicated', async () => {
       assert.equal(calls.length, 2);
       assert.equal(calls[1].url, 'https://api.github.test/repos/acme/widgets/issues/comments/7001');
       assert.equal(calls[1].options.method, 'PATCH');
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+});
+
+test('a managed comment on a later page is updated, not duplicated', async () => {
+  // #1016: the search read one page. A PR with more than 100 issue comments
+  // hid the marker behind it, and every block delivery posted another comment
+  // -- the opposite of the idempotency this script advertises.
+  await withResponseFile({ decision: 'block', policy: { reason: 'force_push_blocked' } }, async responseFile => {
+    const originalFetch = global.fetch;
+    const calls = [];
+    global.fetch = async (url, options) => {
+      calls.push({ url, options });
+      if (calls.length === 1) return response(200, filler(100, 1), nextLink(2));
+      if (calls.length === 2) return response(200, filler(100, 101), nextLink(3));
+      if (calls.length === 3) {
+        return response(200, [
+          ...filler(3, 201),
+          { id: 7001, user: { login: 'github-actions[bot]' }, body: `old\n${MARKER}` },
+        ]);
+      }
+      return response(200, { id: 7001, body: 'updated' });
+    };
+    try {
+      const result = await run(baseEnv(responseFile));
+      assert.equal(result.updated, true);
+      assert.equal(result.created, undefined);
+      assert.equal(result.commentId, 7001);
+
+      assert.equal(calls.length, 4, 'expected three page reads and one PATCH');
+      assert.equal(calls[0].url, 'https://api.github.test/repos/acme/widgets/issues/42/comments?per_page=100');
+      assert.equal(calls[1].url, 'https://api.github.test/repos/acme/widgets/issues/42/comments?per_page=100&page=2');
+      assert.equal(calls[2].url, 'https://api.github.test/repos/acme/widgets/issues/42/comments?per_page=100&page=3');
+      assert.equal(calls[3].options.method, 'PATCH');
+      assert.ok(!calls.some(call => call.options?.method === 'POST'), 'a duplicate comment was posted');
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+});
+
+test('a marker absent from every page creates exactly one comment', async () => {
+  await withResponseFile({ decision: 'block', policy: { reason: 'force_push_blocked' } }, async responseFile => {
+    const originalFetch = global.fetch;
+    const calls = [];
+    global.fetch = async (url, options) => {
+      calls.push({ url, options });
+      if (calls.length === 1) return response(200, filler(100, 1), nextLink(2));
+      if (calls.length === 2) return response(200, filler(40, 101));
+      return response(201, { id: 7002 });
+    };
+    try {
+      const result = await run(baseEnv(responseFile));
+      assert.equal(result.created, true);
+      assert.equal(result.commentId, 7002);
+      assert.equal(calls.filter(call => call.options?.method === 'POST').length, 1);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+});
+
+test('a page read that fails leaves the thread untouched rather than duplicating', async () => {
+  // The distinction the fix rests on: "not in the pages I could read" is not
+  // "not there". Reporting a partial search as absent is what creates the
+  // duplicate, so an incomplete search must not reach the POST.
+  await withResponseFile({ decision: 'block', policy: { reason: 'force_push_blocked' } }, async responseFile => {
+    const originalFetch = global.fetch;
+    const calls = [];
+    global.fetch = async (url, options) => {
+      calls.push({ url, options });
+      if (calls.length === 1) return response(200, filler(100, 1), nextLink(2));
+      return response(502, { message: 'bad gateway' });
+    };
+    try {
+      await assert.rejects(run(baseEnv(responseFile)), error => error.code === 'GITHUB_COMMENT_API_ERROR');
+      assert.ok(!calls.some(call => call.options?.method === 'POST'), 'a comment was posted after a failed search');
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+});
+
+test('pagination is bounded, and exhausting the budget does not post', async () => {
+  // A cyclic or endless Link header must not become an unbounded run of
+  // authenticated requests, and must not end in a new comment either.
+  await withResponseFile({ decision: 'block', policy: { reason: 'force_push_blocked' } }, async responseFile => {
+    const originalFetch = global.fetch;
+    const calls = [];
+    global.fetch = async (url, options) => {
+      calls.push({ url, options });
+      return response(200, filler(100, calls.length * 100), nextLink(calls.length + 1));
+    };
+    try {
+      await assert.rejects(
+        run(baseEnv(responseFile)),
+        error => error.code === 'GITHUB_COMMENTS_PAGINATION_EXHAUSTED',
+      );
+      assert.equal(calls.length, 20, 'the page budget was not enforced');
+      assert.ok(!calls.some(call => call.options?.method === 'POST'));
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+});
+
+test('pagination pointing at another host is refused before the token is sent there', async () => {
+  await withResponseFile({ decision: 'block', policy: { reason: 'force_push_blocked' } }, async responseFile => {
+    const originalFetch = global.fetch;
+    const calls = [];
+    global.fetch = async (url, options) => {
+      calls.push({ url, options });
+      return response(200, filler(100, 1), {
+        link: '<https://attacker.example/repos/acme/widgets/issues/42/comments?page=2>; rel="next"',
+      });
+    };
+    try {
+      await assert.rejects(
+        run(baseEnv(responseFile)),
+        error => error.code === 'GITHUB_COMMENTS_PAGINATION_INVALID',
+      );
+      assert.equal(calls.length, 1, 'a request was sent to the host the response chose');
     } finally {
       global.fetch = originalFetch;
     }
