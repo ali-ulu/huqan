@@ -172,7 +172,15 @@ class CLI {
         return answer === 'Bilmiyorum' ? `X ${answer}` : `Neden: ${answer}`;
       }
       case 'karşılaştır': {
-        const [left, right] = String(args || '').split('|');
+        // Defaults, the way _evaluateCliGate()'s 'huqan.compare' branch already
+        // writes it. normalizeCompareArgs() returns the text unchanged when it
+        // finds neither '|' nor ' vs ', so a single-term `compare: elma` reached
+        // `right.trim()` on undefined and threw a raw stack trace at the user
+        // (#1029).
+        const [left = '', right = ''] = String(args || '').split('|');
+        if (!left.trim() || !right.trim()) {
+          return commandFailure('Kullanim: compare: <a>|<b>', opts);
+        }
         const result = this.kernel.compare(left.trim(), right.trim());
         const answer = result.data.answer;
         return answer === 'Bilmiyorum' ? `X ${answer}` : `Karsilastirma: ${answer}`;
@@ -222,13 +230,19 @@ class CLI {
       case 'llm-sor': {
         const axiomResult = this.kernel.ask(args);
         const verifyResult = this.kernel.verify(args);
-        const verify = verifyResult.data;
-        let out = `AXIOM dogrulamasi: ${verify.status} (guven: ${verify.confidence.toFixed(2)})`;
+        const verify = verifyResult.data || {};
+        // The verify branch above guards these with `typeof === 'number'`; this
+        // one did not, so a non-numeric confidence or risk score crashed the
+        // same way (#1029).
+        const confidenceText = typeof verify.confidence === 'number' ? verify.confidence.toFixed(2) : 'n/a';
+        let out = `AXIOM dogrulamasi: ${verify.status || 'unknown'} (guven: ${confidenceText})`;
         if (axiomResult.data.answer !== 'Bilmiyorum') out += `\nAXIOM: ${axiomResult.data.answer}`;
-        if (verifyResult.evidence.length > 0) out += `\nKanit: ${verifyResult.evidence[0].text}`;
+        const evidence = Array.isArray(verifyResult.evidence) ? verifyResult.evidence : [];
+        if (evidence.length > 0 && evidence[0] && evidence[0].text) out += `\nKanit: ${evidence[0].text}`;
         if (verify.risk && verify.risk.manipulation) {
           const labels = Array.isArray(verify.risk.labels) && verify.risk.labels.length > 0 ? verify.risk.labels.join(', ') : 'manipulation';
-          out += `\nRisk: ${labels} (skor: ${verify.risk.score.toFixed(2)})`;
+          const scoreText = typeof verify.risk.score === 'number' ? verify.risk.score.toFixed(2) : 'n/a';
+          out += `\nRisk: ${labels} (skor: ${scoreText})`;
         }
         out += `\nLLM yaniti icin: ollama run ${shellQuote(this.llm.model)} ${shellQuote(args)}`;
         return out;
@@ -582,6 +596,7 @@ class CLI {
     console.log('  "help"                    | Command reference');
     console.log('  "exit"                    | Exit\n');
 
+    let closing = false;
     const handleLine = async (line) => {
       const parsed = this.parse(line);
       if (parsed.command === 'kaydet') {
@@ -606,6 +621,7 @@ class CLI {
           this.kernel.persist();
           console.log(`Memory saved. Goodbye.${this._commitCliMutation(sourceCommand, CLI_MUTATION_GATE.kaydet)}`);
         }
+        closing = true;
         rl.close();
         return;
       } else if (parsed.command === 'llm-sor') {
@@ -614,17 +630,25 @@ class CLI {
         const output = await Promise.resolve(this.execute(parsed.command, parsed.args));
         console.log(output);
       }
-      rl.prompt();
     };
 
     let lineQueue = Promise.resolve();
     let closeExit = null;
     rl.prompt();
     rl.on('line', (line) => {
+      // The prompt is restored in `finally`, not at the end of handleLine.
+      // A throw inside a command branch skipped `rl.prompt()` entirely, so the
+      // only thing the user saw was a raw Error object from the catch below and
+      // then no prompt at all on the next line (#1029). `closing` keeps the
+      // exit branches from printing one last prompt after the goodbye.
       const current = lineQueue.then(() => handleLine(line));
-      lineQueue = current.catch(error => {
-        console.error(error);
-      });
+      lineQueue = current
+        .catch(error => {
+          console.error(error?.message || error);
+        })
+        .finally(() => {
+          if (!closing) rl.prompt();
+        });
       return current;
     });
     rl.on('close', () => {
