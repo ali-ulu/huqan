@@ -4,8 +4,8 @@
 
 HUQAN is a **local-first AI governance, agent-safety, and verification layer** for claims, memory writes, and risky actions. It connects AI-assisted work to evidence, provenance, scope, policy, approval, and auditable Trust Receipts.
 
-[![Version](https://img.shields.io/badge/version-v0.9.1-2563eb.svg)](./package.json)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D20-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Version](https://img.shields.io/badge/version-v0.10.0-2563eb.svg)](./package.json)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D22.13.0-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-22c55e.svg)](./LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/ali-ulu/huqan?style=flat&logo=github)](https://github.com/ali-ulu/huqan/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/ali-ulu/huqan?style=flat&logo=github)](https://github.com/ali-ulu/huqan/forks)
@@ -140,15 +140,15 @@ huqan quickstart
 
 From a source checkout, that is `npm ci && node cli.js quickstart`.
 
-This runs the real pipeline end to end — `axiom.learn` is proposed, the
-mutation gate answers `review`, an approval is persisted, `axiom.approve`
+This runs the real pipeline end to end — `huqan.learn` is proposed, the
+mutation gate answers `review`, an approval is persisted, `huqan.approve`
 performs the canonical write, the claim is verified against the graph, and the
 resulting Trust Receipt is printed:
 
 ```text
 HUQAN quickstart — learn -> review -> approve -> verify -> Trust Receipt
-  1. OK   propose: axiom.learn -> review (mutating_requires_review), approval approval-…
-  2. OK   approve: axiom.approve -> approved (actor cli-quickstart)
+  1. OK   propose: huqan.learn -> review (mutating_requires_review), approval approval-…
+  2. OK   approve: huqan.approve -> approved (actor cli-quickstart)
   3. OK   verify: verified (confidence 0.90)
   4. OK   receipt: receiptId … (status canonical)
 ```
@@ -240,7 +240,7 @@ const prevention = createErrorPrevention(kernel.memory, {
 ```
 
 This is a package/library surface for verified failure memory, governed rule
-lifecycle, and deterministic preflight decisions. It is not one of the eleven
+lifecycle, and deterministic preflight decisions. It is not one of the fifteen
 MCP tools advertised below.
 
 ### Local CLI
