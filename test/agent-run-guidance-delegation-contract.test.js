@@ -108,6 +108,40 @@ test('next-action and follow-up decisions preserve fail-closed ordering', () => 
   ), { action: 'verify', tool: 'verify', input: 'understand the result' });
 });
 
+/**
+ * "I have no answer" used to be decided by matching the Turkish display string
+ * `Bilmiyorum`, so the day that string is translated every unanswered step
+ * would read as answered and the run would continue instead of falling back to
+ * dream — a silent wrong turn, not a crash. Read results carry `data.unknown`
+ * for exactly this, and the decision follows the flag.
+ *
+ * The string stays a fallback for producers that hand back a bare answer with
+ * no envelope to put a flag on, so both spellings of the contract are pinned
+ * here: flag-first, string-still-honoured.
+ */
+test('unanswered follow-up decisions read the structural flag, not the display string', () => {
+  const summary = (answer, unknown) => guidance.extractAgentSummary({
+    data: unknown === undefined ? { answer } : { answer, unknown },
+    evidence: [],
+  });
+  const dream = { action: 'dream', tool: 'dream', input: {} };
+
+  for (const step of [{ action: 'ask' }, { action: 'compare' }]) {
+    const decide = (s) => guidance.chooseFollowUp(step, s, state({ objective: 'investigate' }));
+
+    // The flag decides even when the answer text is not the Turkish string.
+    assert.deepEqual(decide(summary('I do not know', true)), dream, step.action);
+    assert.equal(decide(summary('dog vs cat: shared animal', false)), null, step.action);
+
+    // A producer with no flag still gets the legacy reading.
+    assert.deepEqual(decide(summary('Bilmiyorum')), dream, step.action);
+    assert.equal(decide(summary('dog vs cat: shared animal')), null, step.action);
+
+    // An empty answer is unanswered regardless of either signal.
+    assert.deepEqual(decide(summary('', false)), dream, step.action);
+  }
+});
+
 test('Agent wrappers preserve the delegate result and AgentV3-compatible memory seam', () => {
   const memory = { stats: { tools: { ask: { success: 1 } } } };
   const context = { memory };
