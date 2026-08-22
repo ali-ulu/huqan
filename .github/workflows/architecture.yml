@@ -54,6 +54,27 @@ jobs:
       - name: Check file sizes
         run: node scripts/check-file-size.js
 
+  control-chars:
+    name: Forbid raw control characters in tracked sources
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+
+      # #1042: a raw control byte makes git classify a source file as binary,
+      # so its changes render as `Bin X -> Y bytes` with no line diff and grep
+      # reports only "binary file matches" — the file drops out of review and
+      # out of every codebase-wide search. Reads the source tree only, so no
+      # dependencies are needed.
+      - name: Check for raw control characters
+        run: node scripts/check-control-chars.js
+
   doc-status:
     name: Require every V5 document to declare its status
     runs-on: ubuntu-latest

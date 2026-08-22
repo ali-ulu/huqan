@@ -16,6 +16,7 @@
     "backup": "node scripts/backup.js",
     "restore": "node scripts/restore.js",
     "bench": "node benchmarks/bench.js",
+    "check:control-chars": "node scripts/check-control-chars.js",
     "check:cycles": "node scripts/check-import-cycles.js",
     "check:doc-status": "node scripts/check-doc-status.js",
     "check:file-size": "node scripts/check-file-size.js",
