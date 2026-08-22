@@ -88,6 +88,48 @@ describe('Request Guards', () => {
     assert.strictEqual(oversized.status, 413);
   });
 
+  it('readJsonBody decodes multi-byte UTF-8 split across chunk boundaries (#1023)', async () => {
+    // `body += chunk` decoded each chunk on its own, so a character straddling
+    // a chunk boundary became two U+FFFD replacements. JSON.parse still
+    // succeeded — U+FFFD is valid inside a JSON string — so the body was
+    // corrupted with no error code anywhere on the POST surface.
+    const text = 'ğüşiöçĞÜŞİÖÇ'.repeat(2000);
+    const payload = Buffer.from(JSON.stringify({ t: text }), 'utf8');
+
+    const req = new EventEmitter();
+    req.headers = { 'content-type': 'application/json' };
+    req.destroy = () => {};
+
+    const pending = readJsonBody(req, { maxBytes: 2_000_000 });
+    // 1023 is deliberately coprime with the 2- and 3-byte character widths, so
+    // boundaries land mid-character.
+    for (let off = 0; off < payload.length; off += 1023) {
+      req.emit('data', payload.subarray(off, Math.min(off + 1023, payload.length)));
+    }
+    req.emit('end');
+
+    const result = await pending;
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.data.t, text);
+    assert.strictEqual(result.data.t.length, text.length);
+    assert.ok(!result.data.t.includes('\uFFFD'), 'body must not contain replacement characters');
+  });
+
+  it('readJsonBody bounds maxBytes by bytes, not by decoded characters (#1023)', async () => {
+    // A 2-byte character must count as 2 against the limit; counting decoded
+    // characters would let a Turkish body pass a byte budget it exceeds.
+    const req = new EventEmitter();
+    req.headers = { 'content-type': 'application/json' };
+    req.destroy = () => {};
+
+    const pending = readJsonBody(req, { maxBytes: 8 });
+    req.emit('data', Buffer.from('ğüşiö', 'utf8')); // 10 bytes, 5 characters
+    const result = await pending;
+
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.status, 413);
+  });
+
   it('streaming JSON overflow returns 413 without destroying the request (#713)', async () => {
     const req = new EventEmitter();
     req.headers = { 'content-type': 'application/json' };
