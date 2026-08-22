@@ -13,8 +13,8 @@ const DEMO_GOAL = 'Review a bounded verification workflow and report its evidenc
 
 function parseArgs(argv = process.argv.slice(2)) {
   const options = {
-    dbPath: process.env.HUQAN_DEMO_DB_PATH || DEFAULT_DB_PATH,
-    workspaceId: process.env.HUQAN_DEMO_WORKSPACE_ID || DEFAULT_WORKSPACE,
+    dbPath: DEFAULT_DB_PATH,
+    workspaceId: DEFAULT_WORKSPACE,
     reset: false,
     enqueue: true,
     json: false,
