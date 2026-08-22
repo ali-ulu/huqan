@@ -1004,7 +1004,7 @@ class Kernel {
     const result = buildIntrospectReport({
       graph: this.graph,
       workspaceId,
-      contradictions: this.detectContradictions(),
+      contradictions: this.detectContradictions('', workspaceId),
       gaps: this.detectGaps(workspaceId),
       entropy: this.entropy(workspaceId),
       dreamCount: this._dreamCount || 0,
