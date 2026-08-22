@@ -54,6 +54,92 @@ describe('Causal Relations - v0.7', () => {
     });
   });
 
+  it('nedensel kenarin strength guncellemesi SQLite\'a yazilir (#1024)', () => {
+    // `strength` was written by the create statement but absent from the
+    // update statement, so lowering an edge's strength changed only the
+    // in-memory edge. Every reload then decided on the stale, higher value —
+    // and verify.js reads exactly this field first.
+    if (!Database) return;
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-strength-update-'));
+    const memoryPath = path.join(tmpDir, 'memory.json');
+
+    const graph = new Graph({ memoryPath, useSQLite: true });
+    graph.addNode('a', 'A');
+    graph.addNode('b', 'B');
+    graph.addEdge('a', 'b', 'CAUSES', { strength: 0.9 });
+    assert.strictEqual(graph._db.prepare('SELECT strength FROM edges').get().strength, 0.9);
+
+    graph.addEdge('a', 'b', 'CAUSES', { strength: 0.2 });
+    assert.strictEqual(graph.getEdge('a', 'b', 'CAUSES').strength, 0.2, 'in-memory edge');
+    assert.strictEqual(
+      graph._db.prepare('SELECT strength FROM edges').get().strength,
+      0.2,
+      'the row must carry the update, not the creation value',
+    );
+
+    graph.save();
+    graph.close();
+
+    const reloaded = new Graph({ memoryPath, useSQLite: true });
+    reloaded.load();
+    assert.strictEqual(reloaded.getEdge('a', 'b', 'CAUSES').strength, 0.2, 'after reload');
+    reloaded.close();
+
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('save() nedensel kenarin strength alanini tasir (#1024)', () => {
+    // save() writes through its own UPSERT. That copy had drifted from the
+    // shared statement and omitted `strength` entirely, so save() could not
+    // repair a value the update path had failed to write. This mutates the
+    // in-memory edge directly so only the save path is exercised.
+    if (!Database) return;
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-strength-save-'));
+    const memoryPath = path.join(tmpDir, 'memory.json');
+
+    const graph = new Graph({ memoryPath, useSQLite: true });
+    graph.addNode('a', 'A');
+    graph.addNode('b', 'B');
+    graph.addEdge('a', 'b', 'CAUSES', { strength: 0.9 });
+    // getEdge() hands back a clone, so the live record is reached directly —
+    // the point here is to leave persistUpdate out of the picture entirely.
+    graph._edges[0].strength = 0.15;
+    graph.save();
+    graph.close();
+
+    const reloaded = new Graph({ memoryPath, useSQLite: true });
+    reloaded.load();
+    assert.strictEqual(reloaded.getEdge('a', 'b', 'CAUSES').strength, 0.15);
+    reloaded.close();
+
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('downgradeEdge nedensel kenarin strength alanini korur (#1024)', () => {
+    // downgradeEdge writes through persistEdgeUpdate, the *second* hand-written
+    // argument list for the same statement. It had the same gap, so a downgrade
+    // of a causal edge wrote every other column and left the row's strength
+    // untouched. Both call sites now share one argument builder.
+    if (!Database) return;
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-strength-downgrade-'));
+    const memoryPath = path.join(tmpDir, 'memory.json');
+
+    const graph = new Graph({ memoryPath, useSQLite: true });
+    graph.addNode('a', 'A');
+    graph.addNode('b', 'B');
+    graph.addEdge('a', 'b', 'CAUSES', { strength: 0.8, weight: 0.9, confidence: 0.9 });
+
+    graph._edges[0].strength = 0.3;
+    graph.downgradeEdge({ fromId: 'a', toId: 'b', relation: 'CAUSES', weight: 0.2, confidence: 0.2 });
+
+    const row = graph._db.prepare('SELECT weight, strength FROM edges').get();
+    assert.strictEqual(row.weight, 0.2, 'the downgrade itself must land');
+    assert.strictEqual(row.strength, 0.3, 'and it must carry strength with it');
+
+    graph.close();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
   it('causal relation strength field zorunludur', () => {
     const graph = new Graph({ noLoad: true });
     graph.addNode('node1', 'Node 1');

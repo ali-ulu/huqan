@@ -37,6 +37,7 @@ const {
   compareCausalEdges,
   sanitizeEdgeMeta,
   normalizeLoadedEdge,
+  edgeUpdateArgs,
 } = require('./lib/graph-record-utils');
 const { countAuditEvents, queryAuditEvents, readAuditEvents } = require('./lib/audit-query');
 const { assertChainTipUsable, emptyMutationJournal, readMutationJournal, readCommittedMutationResult, readCommittedMutationResultsByPrefix } = require('./lib/mutation-journal');
@@ -374,7 +375,7 @@ class Graph {
       countEdges: this._db.prepare('SELECT COUNT(*) as c FROM edges'),
       allNodes: this._db.prepare('SELECT * FROM nodes'),
       allEdges: this._db.prepare('SELECT * FROM edges'),
-      updateEdgeWeight: this._db.prepare('UPDATE edges SET weight = ?, confidence = ?, source = ?, source_ref = ?, session_id = ?, evidence = ?, evidence_type = ?, confidence_history = ?, company_mode = ?, source_type = ?, updated_at = ?, provenance = ?, meta = ?, workspace_id = ? WHERE workspace_id = ? AND from_id = ? AND to_id = ? AND relation = ?'),
+      updateEdgeWeight: this._db.prepare('UPDATE edges SET weight = ?, confidence = ?, source = ?, source_ref = ?, session_id = ?, evidence = ?, evidence_type = ?, confidence_history = ?, company_mode = ?, source_type = ?, updated_at = ?, provenance = ?, meta = ?, strength = ?, workspace_id = ? WHERE workspace_id = ? AND from_id = ? AND to_id = ? AND relation = ?'),
       updateNodeVector: this._db.prepare('UPDATE nodes SET vector = ? WHERE id = ? AND workspace_id = ?'),
       insertAuditEvent: this._db.prepare(`
         INSERT OR IGNORE INTO audit_log (
@@ -842,24 +843,7 @@ class Graph {
       persistUpdate: (edge, workspaceId, fromId, toId, relation, isoNow) => {
         if (!this._db || !this._stmts) return;
         this._stmts.updateEdgeWeight.run(
-          edge.weight,
-          edge.confidence,
-          edge.source || 'manual',
-          edge.source_ref || '',
-          edge.session_id || '',
-          JSON.stringify(edge.evidence || []),
-          edge.evidence_type || '',
-          JSON.stringify(edge.confidence_history || []),
-          edge.company_mode ? 1 : 0,
-          edge.source_type || '',
-          edge.updated_at || isoNow,
-          JSON.stringify(edge.provenance ?? null),
-          JSON.stringify(edge.meta ?? {}),
-          workspaceId,
-          workspaceId,
-          fromId,
-          toId,
-          relation,
+          ...edgeUpdateArgs(edge, workspaceId, fromId, toId, relation, isoNow),
         );
       },
       persistCreate: (edge, workspaceId, fromId, toId, relation, isoNow) => {
@@ -1026,25 +1010,14 @@ class Graph {
           );
         }
         for (const edge of this._edges) {
-        this._db.prepare(`
-          INSERT INTO edges (workspace_id, from_id, to_id, relation, weight, confidence, source, source_ref, session_id, evidence, evidence_type, confidence_history, company_mode, source_type, updated_at, created_at, provenance, meta, created)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(workspace_id, from_id, to_id, relation) DO UPDATE SET
-              workspace_id = excluded.workspace_id,
-              weight = excluded.weight,
-              confidence = excluded.confidence,
-              source = excluded.source,
-              source_ref = excluded.source_ref,
-              session_id = excluded.session_id,
-              evidence = excluded.evidence,
-              evidence_type = excluded.evidence_type,
-              confidence_history = excluded.confidence_history,
-              company_mode = excluded.company_mode,
-              source_type = excluded.source_type,
-              updated_at = excluded.updated_at,
-              provenance = excluded.provenance,
-              meta = excluded.meta
-          `).run(
+          // The shared `upsertEdge` statement, not a second copy of it.
+          //
+          // This loop used to inline its own INSERT ... ON CONFLICT whose
+          // column list had drifted from `_initDB`'s: `strength` was absent
+          // from both the columns and the DO UPDATE SET, so save() could not
+          // repair a strength the update path had already failed to write.
+          // Two UPSERTs over one table is what let them diverge (#1024).
+          this._stmts.upsertEdge.run(
             normalizeWorkspaceId(edge.workspaceId),
             edge.from,
             edge.to,
@@ -1063,7 +1036,8 @@ class Graph {
             edge.created_at || nowIso(),
             JSON.stringify(edge.provenance ?? null),
             JSON.stringify(edge.meta ?? {}),
-            edge.created
+            edge.created,
+            edge.strength ?? 0.5
           );
         }
         for (const candidate of this._candidateClaims) {
