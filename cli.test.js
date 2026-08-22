@@ -163,6 +163,52 @@ describe('CLI - Komut Çözümleme', () => {
     assert.strictEqual(cli.parse('teach: dogs are animals').command, 'öğret');
   });
 
+  it('parse: prefix komutlari her iki yazimda da ayni komuta cozulur', () => {
+    // RFC-001 decision 7: a reader accepts both spellings. The prefix family
+    // used to decide on the raw lowercased input, so `ogret:` / `yukle:` were
+    // rejected while `doğrula:` was — asymmetric in both directions (#1001).
+    const cli = freshCLI();
+    for (const [diacritic, ascii, command] of [
+      ['öğret: kedi balık yer', 'ogret: kedi balık yer', 'öğret'],
+      ['yükle: notlar.txt', 'yukle: notlar.txt', 'yükle'],
+      ['doğrula: kedi hayvandır', 'dogrula: kedi hayvandır', 'verify'],
+      ['şirket-sor: nedir', 'sirket-sor: nedir', 'company-query'],
+      ['tartış: konu', 'tartis: konu', 'tartis'],
+      ['çelişki: konu', 'celiski: konu', 'celiski'],
+    ]) {
+      const left = cli.parse(diacritic);
+      const right = cli.parse(ascii);
+      assert.strictEqual(left.command, command, diacritic);
+      assert.strictEqual(right.command, command, ascii);
+      assert.deepStrictEqual(right.args, left.args, `${diacritic} vs ${ascii}`);
+    }
+  });
+
+  it('parse: prefix payloadindaki Turkce karakterler korunur', () => {
+    // Only the prefix decision is folded; the payload reaches the handler
+    // byte-for-byte.
+    const cli = freshCLI();
+    assert.strictEqual(cli.parse('ogret: Çiğdem ışıl öğün').args, 'Çiğdem ışıl öğün');
+    assert.strictEqual(cli.parse('öğret: Çiğdem ışıl öğün').args, 'Çiğdem ışıl öğün');
+  });
+
+  it('parse: ingilizce prefix aliaslari degismedi', () => {
+    const cli = freshCLI();
+    assert.strictEqual(cli.parse('learn: cats eat fish').command, 'öğret');
+    assert.strictEqual(cli.parse('teach: dogs are animals').command, 'öğret');
+    assert.strictEqual(cli.parse('upload: notes.txt').command, 'yükle');
+    assert.strictEqual(cli.parse('verify: growth depends on investment').command, 'verify');
+    assert.strictEqual(cli.parse('upload: notes.txt').args, 'notes.txt');
+  });
+
+  it('parse: prefix eslesmesi ilk iki nokta oncesinin tamamini ister', () => {
+    // `please verify: x` is not a verify command — the folded key is the whole
+    // segment before the colon, not a prefix of it.
+    const cli = freshCLI();
+    assert.notStrictEqual(cli.parse('please verify: x').command, 'verify');
+    assert.notStrictEqual(cli.parse('askew: x').command, 'sor');
+  });
+
   it('parse: selam ve yardım', () => {
     const cli = freshCLI();
     assert.strictEqual(cli.parse('merhaba').command, 'selam');
