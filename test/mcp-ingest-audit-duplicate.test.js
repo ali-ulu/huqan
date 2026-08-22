@@ -293,7 +293,7 @@ test('5: an admission refusal is reported exactly as a write failure was', () =>
 
 // --- 6: what the ledger does -------------------------------------------------
 
-test('6: this is a deletion, so the total falls rather than shifting', () => {
+test('6: the duplicate stays deleted while later reviewed audit writes are counted', () => {
   // Every routing step so far moved a call from UNROUTED to ROUTED and left
   // the total at 45. This one does not, and the difference is the finding:
   // the call was a duplicate of an already-routed write, so removing it
@@ -301,7 +301,8 @@ test('6: this is a deletion, so the total falls rather than shifting', () => {
   //
   // Pinned here as well as in the ledger so that the *shape* of the change is
   // recorded next to its reasoning, and a later reader does not read the
-  // dropped total as an accounting slip.
+  // dropped total as an accounting slip. #1080 later adds one separate,
+  // reviewed Graph-owned DELETE audit event for optimize maintenance.
   const ledger = readSource('test/mutation-admission-boundary.contract.test.js');
 
   // Scoped to the ledger object rather than the whole file: the surrounding
@@ -313,14 +314,15 @@ test('6: this is a deletion, so the total falls rather than shifting', () => {
   );
   assert.ok(unroutedLedger.length > 0);
   assert.equal(unroutedLedger.includes(MCP_TOOL), false, 'the MCP surface must leave the unrouted ledger');
-  assert.match(ledger, /assert\.equal\(unrouted, 22,/);
+  assert.match(ledger, /assert\.equal\(unrouted, 23,/);
   // K2 (#328): a later routing step delegated the background edge commit to
   // lib/background-provenance.js as a *new* ledgered entry -- routed rose
   // 24->26 and the total 46->48. DEL then added one routed audit append inside
-  // its Graph.runMutationOnce transition callback, producing 27/49. This is
-  // the opposite of a deletion, which is exactly why this test pins the routed
-  // and total numbers and not the difference between them: each shape has its
-  // own finding.
+  // its Graph.runMutationOnce transition callback, producing 27/49. #1080
+  // then added one reviewed Graph-owned maintenance audit, producing 27/50.
+  // This is the opposite of a deletion, which is exactly why this test pins
+  // the routed and total numbers and not the difference between them: each
+  // shape has its own finding.
   assert.match(ledger, /assert\.equal\(routed, 27,/);
-  assert.match(ledger, /assert\.equal\(unrouted \+ routed, 49,/);
+  assert.match(ledger, /assert\.equal\(unrouted \+ routed, 50,/);
 });

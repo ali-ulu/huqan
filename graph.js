@@ -927,7 +927,7 @@ class Graph {
     return runGraphPrune(this._pruneStoreApi(), threshold, workspaceId);
   }
 
-  _optimizeStoreApi() { return { prune: scope => this.prune(undefined, scope), getNodes: () => this._nodes, getEdges: (nodeId, scope) => this.getEdges(nodeId, scope), getInEdges: (nodeId, scope) => this.getInEdges(nodeId, scope), decayLambda: this._decayLambda, deleteNode: id => { delete this._nodes[id]; }, persistDeleteNode: (id, scope) => { if (this._db && this._stmts) this._stmts.deleteNode.run(id, scope); } }; }
+  _optimizeStoreApi() { return { prune: scope => this.prune(undefined, scope), getNodes: () => this._nodes, getEdges: (nodeId, scope) => this.getEdges(nodeId, scope), getInEdges: (nodeId, scope) => this.getInEdges(nodeId, scope), decayLambda: this._decayLambda, deleteNode: id => { delete this._nodes[id]; }, persistDeleteNode: (id, scope) => { if (this._db && this._stmts) this._stmts.deleteNode.run(id, scope); }, auditRemoval: (node, decayedWeight) => this.appendAuditEvent({ eventType: 'DELETE', targetType: 'node', targetId: node.id, workspaceId: normalizeWorkspaceId(node.workspaceId), actor: 'graph.optimize', sourceRef: 'graph.optimize', details: { reason: 'decayed_isolated_node', decayedWeight } }) }; }
 
   optimize(workspaceId = 'default') {
     return runGraphOptimize(this._optimizeStoreApi(), workspaceId);
