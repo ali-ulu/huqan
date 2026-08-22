@@ -92,6 +92,46 @@ test('PR Guardian blocks risky text and incomplete immutable snapshots', () => {
   assert.equal(incomplete.reason, 'immutable_pr_snapshot_required');
 });
 
+test('every risk severity reaches its verdict from the snapshot text alone', () => {
+  // #1015: two of the three severity branches read `signals.find(...)`, but
+  // `signals` is `{ labels, findings }` and has no `.find`. Only BLOCK was
+  // covered, and only BLOCK was spelled correctly -- so a secret, migration or
+  // deploy PR threw `TypeError: signals.find is not a function` instead of
+  // returning a verdict, and the whole suite stayed green.
+  //
+  // READ_SNAPSHOT is used throughout so the action rules further down cannot
+  // supply the expected decision by a different route: what is pinned here is
+  // the risk-pattern branch itself.
+  const cases = [
+    ['Please force-push the history rewrite.', DECISIONS.BLOCK, 'history_rewrite_or_force_push', 'force-push'],
+    ['Deploy production release tonight.', DECISIONS.DRY_RUN_ONLY, 'production_deploy_requires_explicit_gate', 'deploy'],
+    ['Rotate the production secret and its credential.', DECISIONS.REVIEW, 'secret_or_credential_change', 'secret-change'],
+    ['Add a database migration for the new schema.', DECISIONS.REVIEW, 'database_or_schema_change', 'migration'],
+  ];
+
+  for (const [body, decision, reason, label] of cases) {
+    const verdict = evaluatePullRequest(snapshot({ body }), { action: ACTIONS.READ_SNAPSHOT });
+    assert.equal(verdict.decision, decision, body);
+    assert.equal(verdict.reason, reason, body);
+    assert.ok(verdict.riskLabels.includes(label), `${body}: missing risk label ${label}`);
+  }
+
+  // Severity precedence, and the reason coming from the matching finding
+  // rather than from whichever pattern matched first: this text trips the
+  // REVIEW patterns before the BLOCK one in RISK_PATTERNS order.
+  const mixed = evaluatePullRequest(
+    snapshot({ body: 'Rotate the secret, run the migration, then force-push.' }),
+    { action: ACTIONS.READ_SNAPSHOT },
+  );
+  assert.equal(mixed.decision, DECISIONS.BLOCK);
+  assert.equal(mixed.reason, 'history_rewrite_or_force_push');
+
+  // And an ordinary PR is still untouched by any of it.
+  const plain = evaluatePullRequest(snapshot(), { action: ACTIONS.READ_SNAPSHOT });
+  assert.equal(plain.decision, DECISIONS.ALLOW);
+  assert.deepEqual(plain.riskLabels, []);
+});
+
 test('Review service is idempotent, requires approval, revalidates head SHA and emits receipt', async () => {
   const storage = fakeStorage();
   const service = serviceWith(storage);
