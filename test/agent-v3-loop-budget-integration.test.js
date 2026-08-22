@@ -108,6 +108,9 @@ test('the run workspace is pushed into every per-tool option bag', () => {
   assert.equal(scoped.learnOpts.workspaceId, 'ws-alpha');
   assert.equal(scoped.askOpts.workspaceId, 'ws-alpha');
   assert.equal(scoped.verifyOpts.workspaceId, 'ws-alpha');
+  assert.equal(scoped.reasonOpts.workspaceId, 'ws-alpha');
+  assert.equal(scoped.compareOpts.workspaceId, 'ws-alpha');
+  assert.equal(scoped.dreamOpts.workspaceId, 'ws-alpha');
 });
 
 test('a conflicting per-tool workspace is overridden by the run workspace', () => {

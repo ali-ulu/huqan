@@ -33,6 +33,8 @@ try { RustGraph = require('./rustGraph'); } catch {}
 const RUST_BIN = readCompatibleEnvironmentVariable('RUST_BIN') || (RustGraph && RustGraph.resolveRustBin ? RustGraph.resolveRustBin() : undefined);
 const hasRust = !!RUST_BIN && fs.existsSync(RUST_BIN) && typeof RustGraph !== 'undefined';
 
+function workspaceIdFrom(options) { return normalizeWorkspaceId(options && typeof options === 'object' && !Array.isArray(options) ? options.workspaceId : options); }
+
 const {
   AXIOM_ERROR,
   CONTRACT_VERSION,
@@ -848,9 +850,7 @@ class Kernel {
     return { written, audits, skipped };
   }
 
-  ask(question) {
-    return this._readUseCases.ask(question);
-  }
+  ask(question, opts = {}) { return this._readUseCases.ask(question, workspaceIdFrom(opts)); }
 
   alternatives(subject, maxPaths = 3, workspaceId = 'default') {
     return runAlternatives(value => this.normalizeWord(value), this.graph, (type, data, evidence) => this._ok(type, data, evidence), subject, maxPaths, workspaceId);
@@ -860,21 +860,13 @@ class Kernel {
     return runContextSimilarity(this.graph, a, b, context);
   }
 
-  entropy(workspaceId = 'default') {
-    return this._readUseCases.entropy(workspaceId);
-  }
+  entropy(workspaceId = 'default') { return this._readUseCases.entropy(workspaceId); }
 
-  detectGaps(workspaceId = 'default') {
-    return this._readUseCases.detectGaps(workspaceId);
-  }
+  detectGaps(workspaceId = 'default') { return this._readUseCases.detectGaps(workspaceId); }
 
-  reason(subject, workspaceId = 'default') {
-    return this._readUseCases.reason(subject, workspaceId);
-  }
+  reason(subject, opts = 'default') { return this._readUseCases.reason(subject, workspaceIdFrom(opts)); }
 
-  compare(a, b, workspaceId = 'default') {
-    return this._readUseCases.compare(a, b, workspaceId);
-  }
+  compare(a, b, opts = 'default') { return this._readUseCases.compare(a, b, workspaceIdFrom(opts)); }
 
   _parseNumericComparison(text) {
     return this._verifyService._parseNumericComparison(text);
