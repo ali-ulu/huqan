@@ -1,13 +1,17 @@
-name: Hourly Architecture Scan
+name: HUQAN Hourly Architecture Scan
 
 on:
   schedule:
-    - cron: '0 * * * *' # Run at the start of every hour
-  workflow_dispatch: # Allow manual triggering
+    - cron: '0 * * * *'
+  workflow_dispatch:
 
 permissions:
-  issues: write
   contents: read
+  issues: write
+
+concurrency:
+  group: huqan-hourly-architecture-scan
+  cancel-in-progress: false
 
 jobs:
   scan-architecture:
@@ -26,12 +30,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .huqan_automation_state.json
-          key: architecture-scan-state-${{ github.run_id }}
+          key: huqan-architecture-scan-state-v2-${{ github.run_id }}
           restore-keys: |
-            architecture-scan-state-
+            huqan-architecture-scan-state-v2-
             
+      - name: Test deterministic scanner
+        run: python3 -m unittest discover -s scripts/architecture-scan -p 'test_*.py'
+
       - name: Run analyzer script
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          python3 scripts/architecture-scan/analyzer.py
+        run: python3 scripts/architecture-scan/analyzer.py
