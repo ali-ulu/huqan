@@ -244,6 +244,40 @@ describe('Server - API', () => {
     assert.strictEqual(j.error, 'Method not allowed');
   });
 
+  it('the verify routes refuse every method except POST (#1035)', async () => {
+    // The guards used to admit GET and then fall through to an unconditional
+    // 405 at the end of the block, so the routes read as though GET were
+    // served while it never was. The externally visible answer is unchanged;
+    // what these pin is that it stays a single, deliberate refusal.
+    //
+    // This sweep spends enough of the shared rate-limit budget to starve later
+    // suites, so it is cleared the way the allowlist tests below do.
+    rateLimitMap.clear();
+    for (const path of ['/v2/verify', '/dogrula', '/verify']) {
+      for (const method of ['GET', 'PUT', 'DELETE', 'PATCH', 'HEAD']) {
+        const r = await request(`${BASE}${path}?claim=kedi+hayvandir`, { method });
+        assert.strictEqual(r.status, 405, `${method} ${path}`);
+      }
+    }
+    rateLimitMap.clear();
+  });
+
+  it('POST /v2/verify still reads workspaceId from the query when the body omits it (#1035)', async () => {
+    // This fallback was reported as GET-only dead code. It is not: /llm-sor,
+    // /dogrula and /yukle all read workspaceId body-then-query the same way,
+    // and POST reaches it whenever the body leaves the field out.
+    rateLimitMap.clear();
+    const r = await request(`${BASE}/v2/verify?workspaceId=ws-1035`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ claim: 'kedi hayvandir' }),
+    });
+    assert.strictEqual(r.status, 200);
+    const body = await r.json();
+    assert.strictEqual(body.ok, true);
+    rateLimitMap.clear();
+  });
+
   it('OPTIONS preflight returns safe CORS headers', async () => {
     const r = await request(`${BASE}/v2/verify`, {
       method: 'OPTIONS',
