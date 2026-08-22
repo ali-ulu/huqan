@@ -693,23 +693,16 @@ class KernelV2 {
   }
 
   _commitBackgroundEdge(from, to, relation, source, opts = {}) { return this.kernel._commitBackgroundEdge(from, to, relation, source, opts); }
+  _evaluateLearnAdmission(text, opts, provenance, workspaceId) { return this.kernel._evaluateLearnAdmission(text, opts, provenance, workspaceId); }
+  _backgroundProvenance(source, workspaceId, opts) { return this.kernel._backgroundProvenance(source, workspaceId, opts); }
+  _appendAuditEvent(event, provenance, workspaceId) { return this.kernel._appendAuditEvent(event, provenance, workspaceId); }
+  _admissionReceiptDetails(admission) { return this.kernel._admissionReceiptDetails(admission); }
   getStats() { return this.kernel.graph.getStats(); }
 
-  entropy() {
-    return this.kernel.entropy();
-  }
-
-  detectGaps() {
-    return this.kernel.detectGaps();
-  }
-
-  detectContradictions() {
-    return this.kernel.detectContradictions();
-  }
-
-  startAutoThink(intervalMs) {
-    return this.kernel.startAutoThink(intervalMs);
-  }
+  entropy() { return this.kernel.entropy(); }
+  detectGaps() { return this.kernel.detectGaps(); }
+  detectContradictions() { return this.kernel.detectContradictions(); }
+  startAutoThink(intervalMs) { return this.kernel.startAutoThink(intervalMs); }
 
   stopAutoThink() {
     return this.kernel.stopAutoThink();
