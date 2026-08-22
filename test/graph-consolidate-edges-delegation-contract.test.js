@@ -34,19 +34,20 @@ function runDelegate(edges, dryRun, callbacks = {}) {
     rebuildIndex: callbacks.rebuildIndex || (() => {}),
     save: callbacks.save || (() => {}),
     logSaveError: callbacks.logSaveError || (() => {}),
+    auditRemoval: callbacks.auditRemoval || (() => {}),
   });
 }
 
 test('GRAPH: _consolidateEdges is a one-line injected delegation', () => {
   assert.equal(
     methodBody(graphSource, '_consolidateEdges'),
-    "return consolidateEdges({ edges: this._edges, dryRun, replaceEdges: arr => { this._edges = arr; }, rebuildIndex: () => this._rebuildIndex(), save: () => this.save(), logSaveError: error => { console.error('[Kernel] Graph save hatası:', error.message); } });",
+    "return consolidateEdges({ edges: this._edges, dryRun, replaceEdges: arr => { this._edges = arr; }, rebuildIndex: () => this._rebuildIndex(), save: () => this.save(), logSaveError: error => { console.error('[Kernel] Graph save hatası:', error.message); }, auditRemoval: (edge, reason) => this.appendAuditEvent({ eventType: 'DELETE', targetType: 'edge', targetId: `${edge.from}|${edge.relation}|${edge.to}`, workspaceId: normalizeWorkspaceId(edge.workspaceId), actor: 'graph.consolidate', sourceRef: 'graph.consolidate', details: { reason, weight: edge.weight } }) });",
   );
 });
 
 test('GRAPH: consolidation delegate is narrow, callback-driven, and cycle-free', () => {
   assert.doesNotMatch(delegateSource, /graph\.js/);
-  assert.doesNotMatch(delegateSource, /require\(/);
+  assert.match(delegateSource, /normalizeWorkspaceId/);
   assert.doesNotMatch(delegateSource, /this\._(?:edges|nodes|db)/);
   assert.doesNotMatch(delegateSource, /class\s+Graph/);
   assert.doesNotMatch(delegateSource, /console\.error/);
@@ -71,13 +72,33 @@ test('GRAPH: consolidation dry-run preserves input and returns deterministic det
     dryRun: true,
     removed: 1,
     details: [
-      'subject ? object (stale, w:0.2): low-weight (0.2) superseded by high-weight (0.9) for same pair',
+      'subject → object (stale, w:0.2): low-weight (0.2) superseded by high-weight (0.9) for same pair',
     ],
   });
   assert.deepStrictEqual(originalEdges, [high, low]);
   assert.equal(replaced, false);
   assert.equal(rebuilt, false);
   assert.equal(saved, false);
+});
+
+test('GRAPH: consolidation apply audits every removed edge after rebuilding indexes', () => {
+  const high = edge('subject', 'object', 'kept', 0.9);
+  const low = edge('subject', 'object', 'stale', 0.2);
+  const calls = [];
+
+  runDelegate([high, low], false, {
+    replaceEdges: () => calls.push('replace'),
+    rebuildIndex: () => calls.push('rebuild'),
+    auditRemoval: (removed, reason) => calls.push(['audit', removed, reason]),
+    save: () => calls.push('save'),
+  });
+
+  assert.equal(calls[0], 'replace');
+  assert.equal(calls[1], 'rebuild');
+  assert.strictEqual(calls[2][0], 'audit');
+  assert.strictEqual(calls[2][1], low);
+  assert.match(calls[2][2], /superseded/);
+  assert.equal(calls[3], 'save');
 });
 
 test('GRAPH: consolidation apply replaces, rebuilds, and saves in order', () => {
