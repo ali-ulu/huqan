@@ -39,6 +39,7 @@ const {
   normalizeLoadedEdge,
   edgeUpdateArgs,
 } = require('./lib/graph-record-utils');
+const { derivePersistenceLayout } = require('./lib/memory-store-utils');
 const { countAuditEvents, queryAuditEvents, readAuditEvents } = require('./lib/audit-query');
 const { assertChainTipUsable, emptyMutationJournal, readMutationJournal, readCommittedMutationResult, readCommittedMutationResultsByPrefix } = require('./lib/mutation-journal');
 const { applyTemporalEdgeMetadata, beginEdgeTouchScope, downgradeEdge, edgeTouchKey } = require('./lib/graph-edge-mutations');
@@ -89,7 +90,8 @@ class Graph {
     if (typeof opts === 'string') opts = { memoryPath: opts };
     opts = opts || {};
     this.memoryPath = opts.memoryPath || 'memory.json';
-    this._embeddingPath = this.memoryPath.replace(/\.json$/, '.embeddings.json');
+    this._paths = derivePersistenceLayout(this.memoryPath, opts.dbPath);
+    this._embeddingPath = this._paths.embeddingPath;
     this._decayLambda = opts.decayLambda || 0.05;
     this._pruneThreshold = opts.pruneThreshold || 0.01;
     this._nodes = {};
@@ -106,7 +108,7 @@ class Graph {
     this._db = null;
     this._stmts = null; // SQLite statement güvenliği için null init
     if (wantSQLite) {
-      const dbPath = opts.dbPath || this.memoryPath.replace(/\.json$/, '.db');
+      const dbPath = this._paths.dbPath;
       try {
         this._db = new Database(dbPath);
         this._initDB();
@@ -411,9 +413,7 @@ class Graph {
    *     receiptsById: { [receiptId]: operationId } }
    */
   _jsonJournalPath() {
-    return /\.json$/i.test(this.memoryPath)
-      ? this.memoryPath.replace(/\.json$/i, '.mutations.json')
-      : `${this.memoryPath}.mutations.json`;
+    return this._paths.journalPath;
   }
 
   _emptyJsonJournal() {
