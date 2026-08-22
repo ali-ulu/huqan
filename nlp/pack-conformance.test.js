@@ -40,3 +40,52 @@ for (const entry of cases) {
     assert.equal(nlp.normalize(entry.subject), entry.subject);
   });
 }
+
+/**
+ * Packs whose copula is a separate word must keep a multi-word subject whole.
+ *
+ * The English pack searched for the copula *after* dropping stop-words, and
+ * 'is'/'are'/'was'/'were' are themselves stop-words — so the copula was never
+ * found, the branch was dead, and every sentence fell to a fallback that takes
+ * the first non-stop-word as the subject. Single-word subjects came out right
+ * by coincidence, which is what kept it hidden (#1037).
+ *
+ * Turkish is deliberately absent: its copula is a suffix ('hayvandır'), not a
+ * word, so it does not have a copula index to split on.
+ */
+const copulaCases = [
+  { code: 'en', sample: 'the big cat is a small animal', subject: 'bigcat', predicate: 'small animal' },
+  { code: 'de', sample: 'der grosse hund ist ein tier', subject: 'dergrossehund', predicate: 'tier' },
+  { code: 'ar', sample: 'القط الكبير هو حيوان صغير', subject: 'قطالكبير', predicate: 'حيوان صغير' },
+];
+
+for (const entry of copulaCases) {
+  test(`nlp pack ${entry.code} keeps a multi-word subject across the copula (#1037)`, () => {
+    const nlp = createNlp(entry.code);
+    const facts = nlp.extractFacts(entry.sample);
+
+    assert.equal(facts.length, 1, entry.sample);
+    assert.equal(facts[0].subject, entry.subject, `${entry.code} subject`);
+    assert.equal(facts[0].predicate, entry.predicate, `${entry.code} predicate`);
+  });
+}
+
+test('nlp pack en resolves the copula branch rather than the fallback (#1037)', () => {
+  const nlp = createNlp('en');
+  // Every copula spelling must reach the branch, not just the present tense.
+  for (const [sample, subject, predicate] of [
+    ['cats are animals', 'cat', 'animals'],
+    ['water is wet', 'water', 'wet'],
+    ['the sky was blue', 'sky', 'blue'],
+    ['the roads were wet', 'road', 'wet'],
+  ]) {
+    const facts = nlp.extractFacts(sample);
+    assert.equal(facts.length, 1, sample);
+    assert.equal(facts[0].subject, subject, sample);
+    assert.equal(facts[0].predicate, predicate, sample);
+  }
+
+  // A sentence opening with the copula has no subject, so it yields nothing
+  // rather than inventing one.
+  assert.deepEqual(nlp.extractFacts('is a fragment'), []);
+});
