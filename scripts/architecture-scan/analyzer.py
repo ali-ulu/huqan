@@ -25,6 +25,8 @@ from typing import Any
 CORE_FILES = {"kernel.js", "kernel.v2.js", "graph.js", "server.js", "cli.js", "mcpServer.js"}
 DEFAULT_STATE_PATH = ".huqan_automation_state.json"
 STATE_VERSION = 2
+STATE_MARKER = "huqan-scan-state:v2"
+STATE_ISSUE_TITLE = "[HUQAN Scan] Queue State"
 
 
 @dataclass(frozen=True)
@@ -83,6 +85,34 @@ def save_state(state_path: Path, state: dict[str, Any]) -> None:
     temporary_path = state_path.with_suffix(f"{state_path.suffix}.tmp")
     temporary_path.write_text(json.dumps(state, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     temporary_path.replace(state_path)
+
+
+def build_state_issue_body(state: dict[str, Any]) -> str:
+    return f"""<!-- {STATE_MARKER} -->
+## HUQAN mimari tarama kuyruğu
+
+Bu issue, saatlik mimari tarama iş akışının makine tarafından yönetilen kalıcı durumudur. Lütfen bu issue'yu kapatmayın veya gövdesindeki JSON verisini elle değiştirmeyin.
+
+```json
+{json.dumps(state, ensure_ascii=False, indent=2, sort_keys=True)}
+```
+"""
+
+
+def parse_state_issue_body(body: str) -> dict[str, Any]:
+    if STATE_MARKER not in body:
+        raise RuntimeError("Tarama durumu issue gövdesinde gerekli işaretleyici bulunamadı.")
+    match = re.search(r"```json\s*(\{.*?\})\s*```", body, re.DOTALL)
+    if not match:
+        raise RuntimeError("Tarama durumu issue gövdesinde JSON verisi bulunamadı.")
+    try:
+        state = json.loads(match.group(1))
+    except json.JSONDecodeError as error:
+        raise RuntimeError(f"Tarama durumu JSON verisi geçersiz: {error}") from error
+    for key, default in new_state().items():
+        state.setdefault(key, default)
+    state["version"] = STATE_VERSION
+    return state
 
 
 def source_files(repo_dir: Path) -> list[str]:
@@ -218,6 +248,45 @@ def run_gh(arguments: list[str]) -> str:
     return result.stdout
 
 
+def load_github_state() -> tuple[dict[str, Any], int]:
+    output = run_gh([
+        "issue", "list", "--state", "open", "--search", STATE_MARKER,
+        "--json", "number,body", "--limit", "100",
+    ])
+    try:
+        issues = json.loads(output)
+    except json.JSONDecodeError as error:
+        raise GitHubIssueError(f"GitHub tarama durumu yanıtı çözümlenemedi: {error}") from error
+
+    for issue in issues:
+        if STATE_MARKER in (issue.get("body") or ""):
+            return parse_state_issue_body(issue["body"]), int(issue["number"])
+
+    state = new_state()
+    body = build_state_issue_body(state)
+    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", suffix=".md", delete=False) as temporary:
+        temporary.write(body)
+        body_path = temporary.name
+    try:
+        url = run_gh(["issue", "create", "--title", STATE_ISSUE_TITLE, "--body-file", body_path]).strip()
+    finally:
+        Path(body_path).unlink(missing_ok=True)
+
+    issue_number = int(url.rstrip("/").split("/")[-1])
+    return state, issue_number
+
+
+def save_github_state(issue_number: int, state: dict[str, Any]) -> None:
+    body = build_state_issue_body(state)
+    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", suffix=".md", delete=False) as temporary:
+        temporary.write(body)
+        body_path = temporary.name
+    try:
+        run_gh(["issue", "edit", str(issue_number), "--body-file", body_path])
+    finally:
+        Path(body_path).unlink(missing_ok=True)
+
+
 def find_open_issue(fingerprint: str) -> str | None:
     marker = f"huqan-scan:{fingerprint}"
     output = run_gh([
@@ -276,8 +345,7 @@ def create_issue(file_path: str, finding: Finding) -> tuple[str, str]:
     return "created", issue_url
 
 
-def scan_once(repo_dir: Path, state_path: Path) -> dict[str, Any]:
-    state = load_state(state_path)
+def scan_once(repo_dir: Path, state: dict[str, Any], persist_state: Any) -> dict[str, Any]:
     files = source_files(repo_dir)
     file_path = take_next_file(state, files)
     absolute_path = repo_dir / file_path
@@ -305,14 +373,14 @@ def scan_once(repo_dir: Path, state_path: Path) -> dict[str, Any]:
         complete_file(state, file_path)
         report["status"] = "completed"
         state["last_run"] = report
-        save_state(state_path, state)
+        persist_state(state)
         return report
     except Exception as error:
         requeue_file(state, file_path)
         report["status"] = "failed"
         report["error"] = str(error)
         state["last_run"] = report
-        save_state(state_path, state)
+        persist_state(state)
         raise
 
 
@@ -320,7 +388,12 @@ def main() -> int:
     repo_dir = Path(os.environ.get("GITHUB_WORKSPACE", ".")).resolve()
     state_path = Path(os.environ.get("STATE_FILE_PATH", DEFAULT_STATE_PATH)).resolve()
     try:
-        report = scan_once(repo_dir, state_path)
+        if os.environ.get("STATE_BACKEND") == "github":
+            state, issue_number = load_github_state()
+            report = scan_once(repo_dir, state, lambda value: save_github_state(issue_number, value))
+        else:
+            state = load_state(state_path)
+            report = scan_once(repo_dir, state, lambda value: save_state(state_path, value))
     except Exception as error:
         print(f"HUQAN taraması başarısız: {error}", file=sys.stderr)
         return 1

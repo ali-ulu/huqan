@@ -26,18 +26,11 @@ jobs:
         with:
           python-version: '3.11'
           
-      - name: Restore scan state
-        uses: actions/cache@v4
-        with:
-          path: .huqan_automation_state.json
-          key: huqan-architecture-scan-state-v2-${{ github.run_id }}
-          restore-keys: |
-            huqan-architecture-scan-state-v2-
-            
       - name: Test deterministic scanner
         run: python3 -m unittest discover -s scripts/architecture-scan -p 'test_*.py'
 
       - name: Run analyzer script
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STATE_BACKEND: github
         run: python3 scripts/architecture-scan/analyzer.py

@@ -55,6 +55,16 @@ class AnalyzerTests(unittest.TestCase):
         self.assertEqual(restored["pending_files"], ["lib/a.js"])
         self.assertEqual(json.loads(json.dumps(restored))["version"], analyzer.STATE_VERSION)
 
+    def test_state_issue_body_round_trip_preserves_queue(self):
+        state = analyzer.new_state()
+        state["pending_files"] = ["lib/a.js"]
+
+        body = analyzer.build_state_issue_body(state)
+        restored = analyzer.parse_state_issue_body(body)
+
+        self.assertEqual(restored["pending_files"], ["lib/a.js"])
+        self.assertIn(analyzer.STATE_MARKER, body)
+
     def test_fingerprint_is_stable_for_same_finding(self):
         finding = analyzer.Finding("empty-catch", "high", "Fail-closed risk", "detail", 12)
 
