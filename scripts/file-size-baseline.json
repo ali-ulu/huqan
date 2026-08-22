@@ -8,7 +8,7 @@
   ],
   "threshold": 800,
   "files": {
-    "agent.js": 952,
+    "agent.js": 951,
     "graph.js": 1280,
     "kernel.js": 1097,
     "kernel.v2.js": 814,
@@ -16,8 +16,8 @@
     "lib/memory-store.js": 1041,
     "lib/sandbox-isolation.js": 855,
     "scripts/external-conformance/consumer.js": 924,
-    "server.js": 1060,
-    "workflow-agent.js": 971,
+    "server.js": 1030,
+    "workflow-agent.js": 970,
     "workflow-tools.js": 884
   }
 }

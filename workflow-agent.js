@@ -940,9 +940,8 @@ class WorkflowAgent {
       recommendations: [],
       finalAnswer,
       plan: cloneValue(plan),
-      tools: allTools,
+            tools: allTools,
     };
-
     run.nextAction = deriveNextAction(run, planSteps.slice(steps.length));
     run.recommendations = buildRecommendations(run);
     run.finalSummary = buildFinalSummary(run);

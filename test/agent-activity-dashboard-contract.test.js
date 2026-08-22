@@ -26,6 +26,24 @@ describe('Agent Activity dashboard contract', () => {
     assert.match(script, /activity failed/);
   });
 
+  it('renders unique tools and call counts in run history', () => {
+    assert.match(script, /Array\.isArray\(run\.tools\)/);
+    assert.match(script, /tool\.name/);
+    assert.match(script, /tool\.count/);
+    assert.match(script, /toolCallCount/);
+    assert.match(script, /Araçlar:/);
+  });
+
+  it('renders the workspace tool usage donut and accessible legend', () => {
+    assert.match(dashboard, /id="obstooldonut"/);
+    assert.match(dashboard, /id="obstoollegend"/);
+    assert.match(script, /function renderToolUsage\(metrics\)/);
+    assert.match(script, /metrics\.toolUsage/);
+    assert.match(script, /conic-gradient/);
+    assert.match(script, /aria-label/);
+    assert.match(script, /Araç kullanım dağılımı/);
+  });
+
   it('keeps the inline dashboard script syntactically valid', () => {
     assert.ok(script);
     assert.doesNotThrow(() => new vm.Script(script));
