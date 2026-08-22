@@ -313,12 +313,12 @@ declare class Kernel {
   learnFromLLM(text: string, opts?: LearnOptions): LearnFromLLMResult;
   ask(question: string, opts?: Record<string, unknown>): Envelope<'ask', AskData>;
   verify(statement: string, opts?: Record<string, unknown>): Envelope<'verify', VerifyData>;
-  reason(subject: string, opts?: Record<string, unknown>): Envelope<'reason', ReasonData>;
-  compare(left: string, right: string, opts?: Record<string, unknown>): Envelope<'compare', CompareData>;
+  reason(subject: string, opts?: Record<string, unknown> | string): Envelope<'reason', ReasonData>;
+  compare(left: string, right: string, opts?: Record<string, unknown> | string): Envelope<'compare', CompareData>;
   dream(opts?: Record<string, unknown>): Envelope<'dream', DreamData>;
-  detectGaps(): string[];
-  detectContradictions(): Array<{ type: string; node: string; targets: string[]; confidence: number; message?: string }>;
-  entropy(): number;
+  detectGaps(workspaceId?: string): string[];
+  detectContradictions(subject?: string, workspaceId?: string): Array<{ type: string; node: string; targets: string[]; confidence: number; message?: string }>;
+  entropy(workspaceId?: string): number;
   consolidate(dryRun?: boolean): { dryRun: boolean; removed: number; details: string[] };
   selfEvolve(opts?: Record<string, unknown>): Record<string, unknown>;
   startAutoThink(intervalMs?: number): void;
