@@ -4,7 +4,7 @@
 
 HUQAN is a **local-first AI governance, agent-safety, and verification layer** for claims, memory writes, and risky actions. It connects AI-assisted work to evidence, provenance, scope, policy, approval, and auditable Trust Receipts.
 
-[![Version](https://img.shields.io/badge/version-v0.10.0-2563eb.svg)](./package.json)
+[![Version](https://img.shields.io/github/package-json/v/ali-ulu/huqan)](./package.json)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22.13.0-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-22c55e.svg)](./LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/ali-ulu/huqan?style=flat&logo=github)](https://github.com/ali-ulu/huqan/stargazers)
