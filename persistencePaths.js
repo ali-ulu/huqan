@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { resolveContainedPath } = require('./lib/memory-store-utils');
+const { resolveContainedPath, siblingPersistencePath } = require('./lib/memory-store-utils');
 const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
 
 function resolvePersistencePaths(opts = {}) {
@@ -12,7 +12,7 @@ function resolvePersistencePaths(opts = {}) {
     allowedRoots,
   );
   const dbPath = resolveContainedPath(
-    path.resolve(cwd, opts.dbPath || readCompatibleEnvironmentVariable('DB_PATH') || memoryPath.replace(/\.json$/i, '.db')),
+    path.resolve(cwd, opts.dbPath || readCompatibleEnvironmentVariable('DB_PATH') || siblingPersistencePath(memoryPath, '.db')),
     [...allowedRoots, path.dirname(memoryPath)],
   );
   const backupBaseDir = resolveContainedPath(
