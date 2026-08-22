@@ -1,3 +1,4 @@
+declare namespace Kernel {
 export type VerifyStatus = 'dogrulandi' | 'celiski' | 'bilinmiyor';
 
 export interface EvidenceEdgeRef {
@@ -204,6 +205,8 @@ export interface KernelOptions {
   strictProvenance?: boolean;
 }
 
+}
+
 declare class ProvenanceError extends Error {
   constructor(message?: string);
   name: 'ProvenanceError';
@@ -215,7 +218,7 @@ declare class Kernel {
   static CONTRACT_VERSION: string;
   static ProvenanceError: typeof ProvenanceError;
 
-  constructor(opts?: KernelOptions);
+  constructor(opts?: Kernel.KernelOptions);
 
   /**
    * Graph surface used by the kernel. This is a structural subset of the real
@@ -270,8 +273,8 @@ declare class Kernel {
   // test/memory-store-surface-audit.test.js for that classification.
   memory: {
     close(): void;
-    list(opts?: MemoryListOptions): MemoryListResult;
-    queryLinks(opts?: MemoryQueryLinksOptions): MemoryQueryLinksResult;
+    list(opts?: Kernel.MemoryListOptions): Kernel.MemoryListResult;
+    queryLinks(opts?: Kernel.MemoryQueryLinksOptions): Kernel.MemoryQueryLinksResult;
   };
 
   lang: string;
@@ -290,7 +293,7 @@ declare class Kernel {
     removedNodes: number;
   };
 
-  recordCliMutationAudit(intent: CliMutationAuditIntent): CliMutationAuditResult;
+  recordCliMutationAudit(intent: Kernel.CliMutationAuditIntent): Kernel.CliMutationAuditResult;
 
   paranoidMode: boolean;
 
@@ -305,20 +308,20 @@ declare class Kernel {
     opts?: Record<string, unknown>
   ): Promise<unknown>;
 
-  learn(text: string, opts?: LearnOptions): Envelope<'learn', LearnData>;
+  learn(text: string, opts?: Kernel.LearnOptions): Kernel.Envelope<'learn', Kernel.LearnData>;
   learnDocument(text: string): number;
-  learnDocument(text: string, opts: LearnOptions & { returnDetails: true }): LearnDocumentResult;
-  learnDocument(text: string, opts: LearnOptions & { returnDetails?: false }): number;
-  learnDocument(text: string, opts: LearnOptions): number | LearnDocumentResult;
-  learnFromLLM(text: string, opts?: LearnOptions): LearnFromLLMResult;
-  ask(question: string, opts?: Record<string, unknown>): Envelope<'ask', AskData>;
-  verify(statement: string, opts?: Record<string, unknown>): Envelope<'verify', VerifyData>;
-  reason(subject: string, opts?: Record<string, unknown>): Envelope<'reason', ReasonData>;
-  compare(left: string, right: string, opts?: Record<string, unknown>): Envelope<'compare', CompareData>;
-  dream(opts?: Record<string, unknown>): Envelope<'dream', DreamData>;
-  detectGaps(): string[];
-  detectContradictions(): Array<{ type: string; node: string; targets: string[]; confidence: number; message?: string }>;
-  entropy(): number;
+  learnDocument(text: string, opts: Kernel.LearnOptions & { returnDetails: true }): Kernel.LearnDocumentResult;
+  learnDocument(text: string, opts: Kernel.LearnOptions & { returnDetails?: false }): number;
+  learnDocument(text: string, opts: Kernel.LearnOptions): number | Kernel.LearnDocumentResult;
+  learnFromLLM(text: string, opts?: Kernel.LearnOptions): Kernel.LearnFromLLMResult;
+  ask(question: string, opts?: Record<string, unknown>): Kernel.Envelope<'ask', Kernel.AskData>;
+  verify(statement: string, opts?: Record<string, unknown>): Kernel.Envelope<'verify', Kernel.VerifyData>;
+  reason(subject: string, opts?: Record<string, unknown> | string): Kernel.Envelope<'reason', Kernel.ReasonData>;
+  compare(left: string, right: string, opts?: Record<string, unknown> | string): Kernel.Envelope<'compare', Kernel.CompareData>;
+  dream(opts?: Record<string, unknown>): Kernel.Envelope<'dream', Kernel.DreamData>;
+  detectGaps(workspaceId?: string): string[];
+  detectContradictions(subject?: string, workspaceId?: string): Array<{ type: string; node: string; targets: string[]; confidence: number; message?: string }>;
+  entropy(workspaceId?: string): number;
   consolidate(dryRun?: boolean): { dryRun: boolean; removed: number; details: string[] };
   selfEvolve(opts?: Record<string, unknown>): Record<string, unknown>;
   startAutoThink(intervalMs?: number): void;

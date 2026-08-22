@@ -116,7 +116,7 @@ test('kernel.d.ts aligned with graph/memory surfaces', () => {
   assert.match(declaration, /export type CliMutationAuditIntent\s*=\s*Readonly<\{/);
   assert.match(declaration, /export interface NormalizedAuditEvent\s*\{/);
   assert.match(declaration, /export type CliMutationAuditResult\s*=\s*Readonly<\{/);
-  assert.match(kd, /\brecordCliMutationAudit\(intent\s*:\s*CliMutationAuditIntent\)\s*:\s*CliMutationAuditResult\s*;/);
+  assert.match(kd, /\brecordCliMutationAudit\(intent\s*:\s*Kernel\.CliMutationAuditIntent\)\s*:\s*Kernel\.CliMutationAuditResult\s*;/);
 
   // The guarantee is about the Kernel's own surface. kernel.graph
   // .appendAuditEvent is a real runtime method (graph.js defines it,
@@ -164,11 +164,23 @@ test('Kernel declarations preserve sync learn return variants', () => {
   assert.match(kd, /export interface LearnDocumentResult\s*\{/);
   assert.match(kd, /export interface LearnFromLLMResult\s*\{/);
   assert.match(kd, /learnDocument\(text:\s*string\):\s*number;/);
-  assert.match(kd, /learnDocument\(text:\s*string,\s*opts:\s*LearnOptions\s*&\s*\{\s*returnDetails:\s*true\s*\}\):\s*LearnDocumentResult;/);
-  assert.match(kd, /learnDocument\(text:\s*string,\s*opts:\s*LearnOptions\s*&\s*\{\s*returnDetails\?:\s*false\s*\}\):\s*number;/);
-  assert.match(kd, /learnFromLLM\(text:\s*string,\s*opts\?:\s*LearnOptions\):\s*LearnFromLLMResult;/);
+  assert.match(kd, /learnDocument\(text:\s*string,\s*opts:\s*Kernel\.LearnOptions\s*&\s*\{\s*returnDetails:\s*true\s*\}\):\s*Kernel\.LearnDocumentResult;/);
+  assert.match(kd, /learnDocument\(text:\s*string,\s*opts:\s*Kernel\.LearnOptions\s*&\s*\{\s*returnDetails\?:\s*false\s*\}\):\s*number;/);
+  assert.match(kd, /learnFromLLM\(text:\s*string,\s*opts\?:\s*Kernel\.LearnOptions\):\s*Kernel\.LearnFromLLMResult;/);
   assert.doesNotMatch(kd, /learn(?:Document|FromLLM)[^;]*\bPromise\b/);
   assert.match(v2d, /type KernelV2LearnFromLLMResult\s*=/);
+});
+
+test('Kernel declarations preserve runtime workspace signatures (#1074)', () => {
+  const kd = fs.readFileSync(path.join(REPO_ROOT, 'kernel.d.ts'), 'utf8');
+  const v2d = fs.readFileSync(path.join(REPO_ROOT, 'kernel.v2.d.ts'), 'utf8');
+  for (const declaration of [kd, v2d]) {
+    assert.match(declaration, /entropy\(workspaceId\?:\s*string\):\s*number;/);
+    assert.match(declaration, /detectGaps\(workspaceId\?:\s*string\):\s*string\[\];/);
+    assert.match(declaration, /detectContradictions\(subject\?:\s*string,\s*workspaceId\?:\s*string\)/);
+  }
+  assert.match(kd, /reason\(subject:\s*string,\s*opts\?:\s*Record<string, unknown>\s*\|\s*string\)/);
+  assert.match(kd, /compare\(left:\s*string,\s*right:\s*string,\s*opts\?:\s*Record<string, unknown>\s*\|\s*string\)/);
 });
 
 // =========================================================================

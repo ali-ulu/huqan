@@ -699,9 +699,9 @@ class KernelV2 {
   _admissionReceiptDetails(admission) { return this.kernel._admissionReceiptDetails(admission); }
   getStats() { return this.kernel.graph.getStats(); }
 
-  entropy() { return this.kernel.entropy(); }
-  detectGaps() { return this.kernel.detectGaps(); }
-  detectContradictions() { return this.kernel.detectContradictions(); }
+  entropy(workspaceId = 'default') { return this.kernel.entropy(workspaceId); }
+  detectGaps(workspaceId = 'default') { return this.kernel.detectGaps(workspaceId); }
+  detectContradictions(subject = '', workspaceId = 'default') { return this.kernel.detectContradictions(subject, workspaceId); }
   startAutoThink(intervalMs) { return this.kernel.startAutoThink(intervalMs); }
 
   stopAutoThink() {

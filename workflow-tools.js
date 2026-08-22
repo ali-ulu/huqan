@@ -177,7 +177,7 @@ function createWorkflowTools(kernel, options = {}) {
         });
       }
       const payload = normalizeToolInput(input);
-      const contradictions = kernel.detectContradictions(payload.subject || context.subject || payload.text || '');
+      const contradictions = kernel.detectContradictions(payload.subject || context.subject || payload.text || '', payload.workspaceId || context.workspaceId || context.opts?.workspaceId || 'default');
       const normalized = Array.isArray(contradictions) ? contradictions : [];
       return buildEnvelope({
         ok: true,

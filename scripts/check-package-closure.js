@@ -41,6 +41,19 @@ const path = require('path');
 
 const repoRoot = path.resolve(__dirname, '..');
 
+function packageRoots(root) {
+  const roots = [root];
+  const packagesDir = path.join(root, 'packages');
+  if (!fs.existsSync(packagesDir)) return roots;
+  for (const name of fs.readdirSync(packagesDir).sort()) {
+    const candidate = path.join(packagesDir, name);
+    const manifest = path.join(candidate, 'package.json');
+    if (!fs.statSync(candidate).isDirectory() || !fs.existsSync(manifest)) continue;
+    if (JSON.parse(fs.readFileSync(manifest, 'utf8')).private !== true) roots.push(candidate);
+  }
+  return roots;
+}
+
 /**
  * Expand package.json#files into the concrete file set it ships. Entries may
  * name a directory (the manifest lists `lib/error-prevention`), so a bare
@@ -264,21 +277,35 @@ function analyzePackageClosure(opts = {}) {
   return { entryPoints, reached: [...reached].sort(), missing };
 }
 
-function main() {
-  const { entryPoints, reached, missing } = analyzePackageClosure();
+function analyzePackageClosures(opts = {}) {
+  const root = opts && opts.root ? opts.root : repoRoot;
+  return packageRoots(root).map(packageRoot => ({
+    root: packageRoot,
+    ...analyzePackageClosure({ root: packageRoot }),
+  }));
+}
 
-  if (missing.size === 0) {
+function main() {
+  const reports = analyzePackageClosures();
+  const failures = reports.filter(report => report.missing.size > 0);
+
+  if (failures.length === 0) {
+    const reached = reports.reduce((total, report) => total + report.reached.length, 0);
+    const entryPoints = reports.reduce((total, report) => total + report.entryPoints.length, 0);
     console.log(
-      `OK: the load-time closure of ${reached.length} modules `
-      + `from ${entryPoints.length} published entry points is fully published.`,
+      `OK: the load-time closure of ${reached} modules `
+      + `from ${entryPoints} published entry points is fully published.`,
     );
     return 0;
   }
 
-  console.error(`FAIL: ${missing.size} module(s) load at install time but are not published.\n`);
-  for (const target of [...missing.keys()].sort()) {
-    console.error(`  ${target}`);
-    console.error(`      required at load time by: ${missing.get(target).join(', ')}`);
+  const missingCount = failures.reduce((total, report) => total + report.missing.size, 0);
+  console.error(`FAIL: ${missingCount} module(s) load at install time but are not published.\n`);
+  for (const report of failures) {
+    for (const target of [...report.missing.keys()].sort()) {
+      console.error(`  ${path.relative(repoRoot, report.root) || '.'}/${target}`);
+      console.error(`      required at load time by: ${report.missing.get(target).join(', ')}`);
+    }
   }
   console.error(
     '\nAn installed consumer gets "Cannot find module" for each of these.',
@@ -293,7 +320,9 @@ if (require.main === module) process.exit(main());
 
 module.exports = {
   analyzePackageClosure,
+  analyzePackageClosures,
   loadTimeRequires,
   loadTimeEntryPoints,
+  packageRoots,
   publishedFiles,
 };
