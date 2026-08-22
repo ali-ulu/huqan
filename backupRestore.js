@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { spawnSync } = require('child_process');
 const { resolvePersistencePaths } = require('./persistencePaths');
 const { resolvePathWithinRoot } = require('./lib/path-safety');
 
@@ -97,6 +98,14 @@ function copyIfExists(source, destination) {
   };
 }
 
+function backupSqliteIfExists(source, destination) {
+  if (!fs.existsSync(source)) return null;
+  const program = "const Database=require('better-sqlite3');const db=new Database(process.argv[1],{readonly:true});db.backup(process.argv[2]).then(()=>db.close()).catch(e=>{console.error(e.stack||e.message);process.exitCode=1})";
+  const result = spawnSync(process.execPath, ['-e', program, source, destination], { encoding: 'utf8' });
+  if (result.status !== 0) throw new Error(`SQLite online backup failed: ${(result.stderr || result.stdout || '').trim()}`);
+  return { name: path.basename(source), size: fs.statSync(destination).size };
+}
+
 function pruneOldBackups(backupBaseDir, keepLast = 10) {
   const keep = Math.max(1, Number(keepLast) || 10);
   if (!fs.existsSync(backupBaseDir)) return [];
@@ -169,7 +178,11 @@ function createBackup(opts = {}) {
     const skipped = [];
 
     for (const filePath of runtime.files) {
-      const result = copyIfExists(filePath, path.join(stagingDir, path.basename(filePath)));
+      const name = path.basename(filePath);
+      if (name.endsWith('-wal') || name.endsWith('-shm')) { skipped.push(name); continue; }
+      const result = name.endsWith('.db')
+        ? backupSqliteIfExists(filePath, path.join(stagingDir, name))
+        : copyIfExists(filePath, path.join(stagingDir, name));
       if (result) copied.push(result);
       else skipped.push(path.basename(filePath));
     }
