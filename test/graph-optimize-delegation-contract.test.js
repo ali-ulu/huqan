@@ -41,6 +41,7 @@ test('GRAPH: optimize preserves scoped decay removal and persistence callbacks',
   const prunedScopes = [];
   const deleted = [];
   const persisted = [];
+  const audited = [];
   const storeApi = {
     prune: scope => { prunedScopes.push(scope); return 2; },
     getNodes: () => nodes,
@@ -49,6 +50,7 @@ test('GRAPH: optimize preserves scoped decay removal and persistence callbacks',
     decayLambda: 0.5,
     deleteNode: id => { deleted.push(id); delete nodes[id]; },
     persistDeleteNode: (id, workspaceId) => persisted.push({ id, workspaceId }),
+    auditRemoval: (node, decayedWeight) => audited.push({ id: node.id, decayedWeight }),
   };
 
   const result = optimize(storeApi, ' default ');
@@ -56,6 +58,7 @@ test('GRAPH: optimize preserves scoped decay removal and persistence callbacks',
   assert.deepEqual(prunedScopes, ['default']);
   assert.deepEqual(deleted, ['default::orphan']);
   assert.deepEqual(persisted, [{ id: 'orphan', workspaceId: 'default' }]);
+  assert.deepEqual(audited.map(event => event.id), ['orphan']);
   assert.ok(nodes['default::connected']);
   assert.ok(nodes['other::orphan']);
 });

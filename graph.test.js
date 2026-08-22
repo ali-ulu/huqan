@@ -270,6 +270,45 @@ describe('Graph - Optimize', () => {
     assert.strictEqual(g.getEdge('a', 'b', 'bag', 'one'), null);
     assert.ok(g.getEdge('a', 'b', 'bag', 'two'));
   });
+
+  it('optimize keeps an isolated node that is only minutes old', () => {
+    g = new Graph({ useSQLite: false });
+    g.addNode('orphan', 'orphan');
+    Object.values(g._nodes)[0].lastAccessed = Date.now() - 120 * 1000;
+
+    const result = g.optimize();
+
+    assert.strictEqual(result.removedNodes, 0);
+    assert.ok(g.getNode('orphan'));
+  });
+
+  it('optimize does not delete nodes made isolated by its own prune pass', () => {
+    g = new Graph({ useSQLite: false });
+    g.addNode('a', 'a'); g.addNode('b', 'b');
+    g.addEdge('a', 'b', 'weak', { weight: 0.005 });
+    for (const node of Object.values(g._nodes)) node.lastAccessed = Date.now() - 90 * 24 * 60 * 60 * 1000;
+
+    const result = g.optimize();
+
+    assert.strictEqual(result.pruned, 1);
+    assert.strictEqual(result.removedNodes, 0);
+    assert.ok(g.getNode('a'));
+    assert.ok(g.getNode('b'));
+  });
+
+  it('optimize audits removal of a decayed isolated node', () => {
+    g = new Graph({ useSQLite: false });
+    g.addNode('orphan', 'orphan');
+    Object.values(g._nodes)[0].lastAccessed = Date.now() - 90 * 24 * 60 * 60 * 1000;
+
+    const result = g.optimize();
+    const events = g.getAuditEvents({ eventType: 'DELETE', targetType: 'node', targetId: 'orphan' });
+
+    assert.strictEqual(result.removedNodes, 1);
+    assert.strictEqual(events.length, 1);
+    assert.strictEqual(events[0].actor, 'graph.optimize');
+    assert.strictEqual(events[0].details.reason, 'decayed_isolated_node');
+  });
 });
 
 describe('Graph - Prune (Budama)', () => {
