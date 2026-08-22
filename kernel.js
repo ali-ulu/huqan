@@ -919,7 +919,7 @@ class Kernel {
         console.error('\n[autoThink hata]', e.message);
       }
     }, intervalMs);
-    this._autoThinkLog('AutoThink ba?lad? (her ' + (intervalMs / 1000) + 's)');
+    this._autoThinkLog('AutoThink başladı (her ' + (intervalMs / 1000) + 's)');
   }
 
   stopAutoThink() {

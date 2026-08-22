@@ -77,6 +77,6 @@ test('KERNEL: selfLearn preserves empty-gap early return without counting edges'
     },
   };
 
-  assert.deepEqual(runSelfLearn(() => [], graph), { gaps: 0, learned: 0, message: 'Bo?luk yok' });
+  assert.deepEqual(runSelfLearn(() => [], graph), { gaps: 0, learned: 0, message: 'Boşluk yok' });
   assert.equal(edgeCountCalled, false);
 });
