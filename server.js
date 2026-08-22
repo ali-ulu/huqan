@@ -22,6 +22,7 @@ const { decideIngestApproval } = require('./lib/workbench/ingest-approval-action
 const { createHttpIngestOversightCase } = require('./lib/http-human-oversight-adapter');
 const { buildTrustReceipt, queryAuditTrailPage, queryCandidateClaims, queryProvenance } = require('./lib/provenance-query');
 const { readReceiptById } = require('./lib/receipt/receipt-read-index');
+const { createBackgroundTimers } = require('./lib/http/background-timers');
 const { receiptReadFailure } = require('./lib/http/receipt-read-failures');
 const { createWorkbenchReadHttpRouter } = require('./lib/workbench/workbench-read-http-router');
 const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
@@ -135,18 +136,17 @@ const recordIngestApprovalAudit = createIngestApprovalAuditWriter({
 });
 
 // --- Güvenlik sabitleri ---
-const rateLimitCleanupTimer = setInterval(() => {
+const backgroundTimers = createBackgroundTimers();
+backgroundTimers.add(setInterval(() => {
   clearExpiredRateLimitEntries();
-}, 60_000);
-rateLimitCleanupTimer.unref?.();
+}, 60_000));
 const VIEWER_RATE_LIMIT_WINDOW_MS = 60_000;
 const VIEWER_RATE_LIMIT_MAX = 120;
 const VIEWER_RATE_LIMIT_MAX_ENTRIES = 2048;
 const viewerRateLimits = new Map();
-const ingestApprovalRecoveryTimer = setInterval(() => {
+backgroundTimers.add(setInterval(() => {
   try { recoverExpiredIngestApprovals(); } catch (error) { console.error('[ingest-approval-recovery] failed:', error); }
-}, Math.max(5_000, Math.floor(INGEST_APPROVAL_LEASE_MS / 2)));
-ingestApprovalRecoveryTimer.unref?.();
+}, Math.max(5_000, Math.floor(INGEST_APPROVAL_LEASE_MS / 2))));
 
 const {
   ALLOWED_CORS_HOSTS,
@@ -491,7 +491,12 @@ const server = http.createServer(async (req, res) => {
 
   // Structured v2 contract endpoint. Legacy /dogrula stays unchanged below.
   if (reqUrl.pathname === '/v2/verify') {
-    if (req.method !== 'POST' && req.method !== 'GET') {
+    // POST only. The guard used to admit GET as well, but nothing served it:
+    // GET passed this check, skipped the POST branch, and fell to an
+    // unconditional 405 at the end of the block. The `&& req.method !== 'GET'`
+    // was doing no work — GET was refused either way, just from a different
+    // line — while making the route read as though GET were supported (#1035).
+    if (req.method !== 'POST') {
       writeJson(req, res, 405, { error: 'Method not allowed' });
       return;
     }
@@ -513,15 +518,10 @@ const server = http.createServer(async (req, res) => {
       }
     };
 
-    if (req.method === 'POST') {
-      if (!denyIfUnauthorized(req, res)) return;
-      const data = await parseJsonRequest(req, res, { maxBytes: 4_096 });
-      if (!data) return;
-      sendVerifyResult(data.claim || data.statement || data.text || '', data.workspaceId || '');
-      return;
-    }
-
-    writeJson(req, res, 405, { error: 'Method not allowed' });
+    if (!denyIfUnauthorized(req, res)) return;
+    const data = await parseJsonRequest(req, res, { maxBytes: 4_096 });
+    if (!data) return;
+    sendVerifyResult(data.claim || data.statement || data.text || '', data.workspaceId || '');
     return;
   }
 
@@ -600,35 +600,35 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   if (reqUrl.pathname === '/dogrula' || reqUrl.pathname === '/verify') {
-    if (req.method !== 'POST' && req.method !== 'GET') {
+    // POST only, for the same reason as /v2/verify above (#1035).
+    if (req.method !== 'POST') {
       res.writeHead(405, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
       res.end(JSON.stringify({ error: 'Method not allowed' }));
       return;
     }
-    if (req.method === 'POST') {
-      if (!denyIfUnauthorized(req, res)) return;
-      const data = await parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_JSON_BODY });
-      if (!data) return;
-      // `claim` is the canonical English input field. `statement` and `text`
-      // remain accepted as compatibility spellings (RFC-001 reader rule).
-      const text = sanitizeInput(data.claim || data.statement || data.text || '');
-      const workspaceId = sanitizeInput(data.workspaceId || reqUrl.searchParams.get('workspaceId') || '');
-      if (!text) {
-        res.writeHead(400, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-        res.end(JSON.stringify({ error: 'claim, statement or text is required' }));
-        return;
-      }
-      try {
-        const result = legacyVerify(kernel.verify(text, workspaceId ? { workspaceId } : {}));
-        res.writeHead(200, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-        res.end(JSON.stringify(result));
-      } catch (err) {
-        console.error('[dogrula]', err);
-        writeJson(req, res, 500, { error: 'Internal server error' });
-      }
+    if (!denyIfUnauthorized(req, res)) return;
+    const data = await parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_JSON_BODY });
+    if (!data) return;
+    // `claim` is the canonical English input field. `statement` and `text`
+    // remain accepted as compatibility spellings (RFC-001 reader rule).
+    const text = sanitizeInput(data.claim || data.statement || data.text || '');
+    // Not GET leftovers: the body-then-query order is how /llm-sor and /yukle
+    // read workspaceId too, and it is reachable from POST whenever the body
+    // omits the field.
+    const workspaceId = sanitizeInput(data.workspaceId || reqUrl.searchParams.get('workspaceId') || '');
+    if (!text) {
+      res.writeHead(400, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
+      res.end(JSON.stringify({ error: 'claim, statement or text is required' }));
       return;
     }
-    writeJson(req, res, 405, { error: 'Method not allowed' });
+    try {
+      const result = legacyVerify(kernel.verify(text, workspaceId ? { workspaceId } : {}));
+      res.writeHead(200, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
+      res.end(JSON.stringify(result));
+    } catch (err) {
+      console.error('[dogrula]', err);
+      writeJson(req, res, 500, { error: 'Internal server error' });
+    }
     return;
   }
   if (reqUrl.pathname === '/yukle' || reqUrl.pathname === '/upload') {
@@ -1003,6 +1003,7 @@ if (require.main === module && readCompatibleEnvironmentVariable('DISABLE_AUTO_L
 server.closeHuqan = server.closeAxiom = () => { // closeAxiom: RFC-001 legacy alias
   clearInterval(ingestApprovalRecoveryTimer);
   observabilityRuntime.stop();
+  backgroundTimers.clearAll();
   viewerRateLimits.clear();
   viewerSessionStore.reset();
   if (ingestApprovalStore && typeof ingestApprovalStore.close === 'function') {
