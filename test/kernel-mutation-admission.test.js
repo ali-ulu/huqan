@@ -31,7 +31,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 
-const { createMutationAdmission } = require('../lib/mutation-admission.js');
+const { absent, createMutationAdmission } = require('../lib/mutation-admission.js');
 const {
   ABSENCE_REASONS,
   ADD_CANDIDATE_CLAIM_ACTION,
@@ -214,7 +214,7 @@ test('context: the real seam admits a complete learn context', () => {
   // Not a stub: the actual module, proving the context this caller builds is
   // one the seam accepts.
   const kernel = makeKernel();
-  const sealed = admitLearn(kernel, 'text', { workspaceId: 'default' }, createMutationAdmission({ clock: FIXED_CLOCK }));
+  const sealed = admitLearn(kernel, 'text', { workspaceId: 'default' }, createMutationAdmission({ clock: FIXED_CLOCK, identityEvaluator: absent('test seam: this case exercises admission, not identity enforcement') }));
 
   assert.equal(sealed.text, 'text');
   assert.deepEqual(sealed.opts, { workspaceId: 'default' });
