@@ -89,6 +89,7 @@ const UNROUTED_SINK_CALLS = Object.freeze({
   'kernel.js': { why: 'knowledge and audit families; its candidate write now lives in lib/kernel-mutation-admission.js', sinks: { addNode: 1, addEdge: 3, appendAuditEvent: 1 } },
   'agent.v3.js': { why: 'audit family', sinks: { appendAuditEvent: 2 } },
   'lib/cli-mutation-audit.js': { why: 'audit family, CLI surface', sinks: { appendAuditEvent: 1 } },
+  'graph.js': { why: 'graph optimize and consolidate maintenance audits; DELETE evidence is emitted by the Graph persistence owner until the family-independent admission seam covers maintenance operations', sinks: { appendAuditEvent: 2 } },
 
   // --- second sink provider ------------------------------------------------
   // Not a caller in the usual sense: it wraps a Graph and re-exposes the sinks.
@@ -368,7 +369,10 @@ test('mutation admission: the debt ledger reflects the routing done so far', () 
   // rose from 46 to 48 because the module's copy of the chain is now ledgered
   // outright rather than through the kernel wrapper. DEL then added one routed
   // audit append inside its own Graph.runMutationOnce transition callback.
-  assert.equal(unrouted, 22, 'unrouted sink calls');
+  // #1080/#1081 add reviewed Graph-owned DELETE evidence for optimize() and
+  // consolidate() while the maintenance family has no admission seam of its
+  // own yet.
+  assert.equal(unrouted, 24, 'unrouted sink calls');
   assert.equal(routed, 27, 'sink calls routed through admission (K2 + DEL callbacks)');
-  assert.equal(unrouted + routed, 49, 'total sink calls, raised by K2 delegation and DEL audit');
+  assert.equal(unrouted + routed, 51, 'total sink calls, raised by K2 delegation, DEL audit, and maintenance evidence');
 });

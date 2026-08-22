@@ -150,9 +150,9 @@ test('consolidate dry-run returns exact removal order without replacing, rebuild
         fragments: ['low-weight restriction (0.25)', "subject already has high-weight 'supports'"],
       });
       assert.deepStrictEqual(result.details, [
-        'pair-subject ? pair-object (stale, w:0.2): low-weight (0.2) superseded by high-weight (0.9) for same pair',
-        'pair-subject ? pair-object (weaker, w:0.1): low-weight (0.1) superseded by high-weight (0.9) for same pair',
-        "rel-subject ? rel-removed (supports, w:0.25): low-weight restriction (0.25) \u00e2\u20ac\u201d subject already has high-weight 'supports'",
+        'pair-subject → pair-object (stale, w:0.2): low-weight (0.2) superseded by high-weight (0.9) for same pair',
+        'pair-subject → pair-object (weaker, w:0.1): low-weight (0.1) superseded by high-weight (0.9) for same pair',
+        "rel-subject → rel-removed (supports, w:0.25): low-weight restriction (0.25) — subject already has high-weight 'supports'",
       ]);
 
       assert.strictEqual(kernel.graph._edges, originalEdges);
@@ -258,7 +258,7 @@ test('consolidate save errors are logged and swallowed after in-memory mutation'
   });
 });
 
-test('consolidate grouping is workspace-blind for pair and relation decisions', { concurrency: false }, () => {
+test('consolidate keeps pair and relation decisions inside each workspace', { concurrency: false }, () => {
   withKernel(kernel => {
     const crossWorkspacePairHigh = edge('shared-pair-from', 'shared-pair-to', 'kept', 0.9, {
       workspaceId: 'workspace-a',
@@ -284,22 +284,27 @@ test('consolidate grouping is workspace-blind for pair and relation decisions', 
 
     assert.deepStrictEqual(
       { dryRun: result.dryRun, removed: result.removed, detailCount: result.details.length },
-      { dryRun: true, removed: 2, detailCount: 2 },
+      { dryRun: true, removed: 0, detailCount: 0 },
     );
-    assertRemovalDetail(result.details[0], {
-      from: 'shared-pair-from',
-      to: 'shared-pair-to',
-      relation: 'stale',
-      weight: 0.2,
-      fragments: ['low-weight (0.2)', 'high-weight (0.9)', 'same pair'],
-    });
-    assertRemovalDetail(result.details[1], {
-      from: 'shared-rel-from',
-      to: 'target-b',
-      relation: 'supports',
-      weight: 0.1,
-      fragments: ['low-weight restriction (0.1)', "subject already has high-weight 'supports'"],
-    });
+    assert.deepStrictEqual(result.details, []);
     assert.strictEqual(kernel.graph._edges, originalEdges);
+  });
+});
+
+test('consolidate applies an auditable DELETE event for each removed edge', { concurrency: false }, () => {
+  withKernel(kernel => {
+    const high = edge('subject', 'object', 'kept', 0.9, { workspaceId: 'workspace-a' });
+    const low = edge('subject', 'object', 'stale', 0.2, { workspaceId: 'workspace-a' });
+    kernel.graph._edges = [high, low];
+
+    const result = kernel.consolidate(false);
+    const events = kernel.graph.getAuditEvents({
+      eventType: 'DELETE', targetType: 'edge', targetId: 'subject|stale|object', workspaceId: 'workspace-a',
+    });
+
+    assert.equal(result.removed, 1);
+    assert.equal(events.length, 1);
+    assert.equal(events[0].actor, 'graph.consolidate');
+    assert.match(events[0].details.reason, /superseded/);
   });
 });
