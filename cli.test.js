@@ -661,6 +661,44 @@ describe('CLI - Komut Çalıştırma', () => {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   });
+  it('execute: tek terimli compare yigin izi yerine kullanim mesaji doner (#1029)', () => {
+    // normalizeCompareArgs() returns the text unchanged when it finds neither
+    // '|' nor ' vs ', so a documented `compare: elma` reached `right.trim()`
+    // on undefined and threw a raw TypeError at the user.
+    const cli = freshCLI();
+    for (const input of ['elma', 'elma|', '|armut', '   ', '']) {
+      const parsed = cli.parse(`compare: ${input}`);
+      const result = cli.execute(parsed.command, parsed.args);
+      assert.strictEqual(result, 'Kullanim: compare: <a>|<b>', JSON.stringify(input));
+    }
+  });
+
+  it('execute: iki terimli compare calismaya devam eder (#1029)', () => {
+    const cli = freshCLI();
+    cli.kernel.learn('Kedi hayvandır', TEST_FIXTURE_LEARN_BYPASS);
+    cli.kernel.learn('Köpek hayvandır', TEST_FIXTURE_LEARN_BYPASS);
+    const parsed = cli.parse('compare: kedi|köpek');
+    const result = cli.execute(parsed.command, parsed.args);
+    assert.ok(result.startsWith('Karsilastirma:') || result.startsWith('X '), result);
+    // ' vs ' is the other spelling normalizeCompareArgs() accepts.
+    const viaVs = cli.parse('compare: kedi vs köpek');
+    assert.strictEqual(viaVs.args, 'kedi|köpek');
+  });
+
+  it('execute: llm-sor sayisal olmayan confidence/risk skorunda comez (#1029)', () => {
+    // The verify branch guards these with `typeof === 'number'`; llm-sor did
+    // not, so a non-numeric value crashed the same way the compare branch did.
+    const cli = freshCLI();
+    cli.kernel.verify = () => ({
+      ok: true,
+      data: { status: 'unverified', confidence: null, risk: { manipulation: true, labels: [], score: undefined } },
+      evidence: null,
+    });
+    const result = cli.execute('llm-sor', 'kedi nedir');
+    assert.ok(result.includes('guven: n/a'), result);
+    assert.ok(result.includes('skor: n/a'), result);
+  });
+
   it('execute: "llm-sor:" AXIOM cevabı döndürür', () => {
     const cli = freshCLI();
     cli.kernel.learn('Kedi hayvandır', TEST_FIXTURE_LEARN_BYPASS);
@@ -813,6 +851,9 @@ describe('CLI - Lifecycle and maintenance baseline contracts', { concurrency: fa
       const harness = createInteractiveHarness(cli);
       try {
         await harness.line('kaydet');
+        // The prompt is issued from the queue's finally, one tick after the
+        // line itself settles, so flush before asserting (#1029).
+        await new Promise(resolve => setImmediate(resolve));
         assert.deepStrictEqual(harness.events, [
           'persist',
           'log:Memory saved.',
@@ -898,8 +939,15 @@ describe('CLI - Lifecycle and maintenance baseline contracts', { concurrency: fa
 
         await assert.rejects(failedLine, error => error === expected);
         await saveLine;
+        // The prompt is issued from the queue's finally, one tick after the
+        // line itself settles, so flush before asserting.
+        await new Promise(resolve => setImmediate(resolve));
+        // The prompt now follows the error too (#1029): a throw inside a
+        // command branch used to skip rl.prompt() entirely, leaving the user
+        // with a raw Error and no prompt on the next line.
         assert.deepStrictEqual(harness.events, [
           'error:command failed',
+          'prompt',
           'persist',
           'log:Memory saved.',
           'prompt',
@@ -911,15 +959,19 @@ describe('CLI - Lifecycle and maintenance baseline contracts', { concurrency: fa
     });
   });
 
-  it('interactive persistence errors propagate without success output or prompt', async () => {
+  it('interactive persistence errors propagate without success output, and keep the prompt', async () => {
     await withIsolatedInteractiveCLI(async cli => {
       const expected = new Error('persist failed');
       const harness = createInteractiveHarness(cli, () => { throw expected; });
       try {
         await assert.rejects(harness.line('kaydet'), error => error === expected);
+        // No success line is printed and the error still propagates; what
+        // changed is that the session is left usable rather than promptless
+        // (#1029).
         assert.deepStrictEqual(harness.events, [
           'persist',
           'error:persist failed',
+          'prompt',
         ]);
       } finally {
         harness.restore();
