@@ -151,7 +151,7 @@ class AgentV3 {
 
   /**
    * Returns `opts` with the run's workspace forced onto the per-tool option
-   * bags agent.js reads (`learnOpts`, `askOpts`, `verifyOpts`).
+   * bags agent.js reads.
    *
    * The run-level workspace is authoritative and overrides a per-tool value
    * on purpose: the alternative is a run whose budget and run record name one
@@ -160,7 +160,7 @@ class AgentV3 {
    */
   _withWorkspaceScope(opts = {}, workspaceId) {
     const scoped = { ...opts, workspaceId };
-    for (const key of ['learnOpts', 'askOpts', 'verifyOpts']) {
+    for (const key of ['learnOpts', 'askOpts', 'verifyOpts', 'reasonOpts', 'compareOpts', 'dreamOpts']) {
       const existing = opts[key] && typeof opts[key] === 'object' && !Array.isArray(opts[key])
         ? opts[key]
         : {};
@@ -473,7 +473,7 @@ class AgentV3 {
     state.workspaceId = workspaceId; state.agentId = String(opts.agentId || state.agentId || ''); state.observabilityRunId = state.observabilityRunId || `agent-${crypto.randomUUID?.() || Date.now()}`; try { this.kernel?.observability?.recordLifecycle?.('beforeAgentRun', state); } catch (_) {}
 
     // Force the run's workspace onto every tool call. agent.js reads
-    // opts.learnOpts / askOpts / verifyOpts straight through, so without this
+    // per-tool option bags straight through, so without this
     // a run could be budgeted and recorded against one workspace while its
     // steps actually read and mutate another -- making AB10's accounting
     // describe a workspace that was never touched. One run, one workspace.
