@@ -88,8 +88,13 @@ module.exports = {
     const staleEdges = state.pendingStaleEdges;
     state.pendingStaleEdges = null; // consume once, regardless of outcome below
 
-    if (Array.isArray(staleEdges) && staleEdges.length > 0
-      && data && typeof data.answer === 'string' && data.answer !== 'Bilmiyorum') {
+    // A freshness note only makes sense on an answer that exists. `unknown` is
+    // the structural way to ask that; the string match stays as the fallback
+    // for a payload that predates the flag.
+    const answered = data && typeof data.answer === 'string'
+      && (typeof data.unknown === 'boolean' ? !data.unknown : data.answer !== 'Bilmiyorum');
+
+    if (Array.isArray(staleEdges) && staleEdges.length > 0 && answered) {
       data.answer = `${data.answer} [freshness: ${staleEdges.length} ilişki 30+ gündür güncellenmemiş]`;
     }
     return data;

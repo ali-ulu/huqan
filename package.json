@@ -263,6 +263,7 @@
     "lib/mcp-human-oversight-adapter.js",
     "lib/mcp-approval-store.js",
     "lib/mcp-approval-views.js",
+    "lib/mcp-configuration-errors.js",
     "lib/mcp-envelope-format.js",
     "lib/mcp-envelope-schema.js",
     "lib/mcp-gate-adapter.js",
