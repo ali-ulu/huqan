@@ -13,6 +13,7 @@ const REQUIRED_FILES = [
   'lib/self-healer/source-dependency-graph.js',
   'lib/self-healer/source-dogfood-simulator.js',
   'lib/code-change-gate.js',
+  'lib/code-change-path-classification.js',
   'sandboxRunner.js',
   'dream.js',
   'rustGraph.js',

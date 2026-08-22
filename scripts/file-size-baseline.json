@@ -12,7 +12,7 @@
     "graph.js": 1280,
     "kernel.js": 1097,
     "kernel.v2.js": 814,
-    "lib/code-change-gate.js": 889,
+    "lib/code-change-gate.js": 857,
     "lib/memory-store.js": 1041,
     "lib/sandbox-isolation.js": 851,
     "scripts/external-conformance/consumer.js": 924,

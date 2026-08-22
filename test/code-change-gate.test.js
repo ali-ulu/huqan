@@ -101,6 +101,37 @@ describe('AB3 code change gate core decisions', () => {
     assert.equal(summary.decision, CODE_CHANGE_GATE_DECISIONS.ALLOW);
   });
 
+  it('requires exact paths before allowing docs or helpers', () => {
+    const allowedDocs = [
+      'README.md',
+      'docs/architecture.txt',
+      'LICENSE',
+    ];
+    for (const path of allowedDocs) {
+      const finding = classifyChangedFile({ path, status: 'modified', changeType: 'docs' });
+      assert.equal(finding.decision, CODE_CHANGE_GATE_DECISIONS.ALLOW, path);
+      assert.equal(finding.category, 'docs', path);
+    }
+
+    const riskySourcePaths = [
+      'lib/graph-record-utils.js',
+      'lib/license-manager.js',
+      'lib/readme-builder.js',
+      'lib/utils/crypto-signer.js',
+    ];
+    for (const path of riskySourcePaths) {
+      const finding = classifyChangedFile({ path, status: 'modified', changeType: 'source' });
+      assert.equal(finding.decision, CODE_CHANGE_GATE_DECISIONS.REVIEW, path);
+      assert.equal(finding.category, 'source', path);
+    }
+
+    for (const path of riskySourcePaths) {
+      const mislabeledHelper = classifyChangedFile({ path, status: 'modified', changeType: 'helper' });
+      assert.equal(mislabeledHelper.decision, CODE_CHANGE_GATE_DECISIONS.REVIEW, path);
+      assert.equal(mislabeledHelper.category, 'source', path);
+    }
+  });
+
   it('policy override can raise a narrow helper change to review', () => {
     const result = evaluateCodeChange(makeInput({
       files: [
