@@ -24,6 +24,8 @@ function argumentsFor(argv) {
 
 const API_KEY_ENV = 'HUQAN_API_KEY';
 const STDIN_SOURCE = '-';
+const REQUEST_TIMEOUT_MS = 15_000;
+const RESPONSE_MAX_BYTES = 1 * 1024 * 1024;
 
 /**
  * Reads the bearer credential from somewhere other than argv (#771).
@@ -137,13 +139,32 @@ function request(url, apiKey, body) {
     if (!['http:', 'https:'].includes(target.protocol)) throw new Error('URL protocol must be http or https');
     const transport = target.protocol === 'https:' ? https : http;
     const bytes = Buffer.from(JSON.stringify(body), 'utf8');
-    const outgoing = transport.request(target, { method: 'POST', headers: {
+    let settled = false;
+    const failOnce = (error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    };
+    const outgoing = transport.request(target, { method: 'POST', timeout: REQUEST_TIMEOUT_MS, headers: {
       authorization: `Bearer ${apiKey}`, 'content-type': 'application/json; charset=utf-8',
       'content-length': String(bytes.length), accept: 'application/json',
     } }, (incoming) => {
       const chunks = [];
-      incoming.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+      let received = 0;
+      incoming.on('data', (chunk) => {
+        if (settled) return;
+        received += chunk.length;
+        if (received > RESPONSE_MAX_BYTES) {
+          failOnce(new Error(`HTTP response exceeded ${RESPONSE_MAX_BYTES} byte limit`));
+          incoming.destroy();
+          outgoing.destroy();
+          return;
+        }
+        chunks.push(Buffer.from(chunk));
+      });
       incoming.on('end', () => {
+        if (settled) return;
+        settled = true;
         const raw = Buffer.concat(chunks).toString('utf8');
         let parsed;
         try { parsed = JSON.parse(raw); } catch (_) { return reject(new Error(`HTTP ${incoming.statusCode}: non-JSON response`)); }
@@ -152,8 +173,13 @@ function request(url, apiKey, body) {
         }
         resolve(parsed);
       });
+      incoming.on('error', failOnce);
     });
-    outgoing.on('error', reject);
+    outgoing.on('timeout', () => {
+      failOnce(new Error(`HTTP request timed out after ${REQUEST_TIMEOUT_MS}ms`));
+      outgoing.destroy();
+    });
+    outgoing.on('error', failOnce);
     outgoing.end(bytes);
   });
 }
