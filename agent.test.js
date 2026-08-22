@@ -164,6 +164,30 @@ describe('Agent', () => {
     assert.strictEqual(report.status, 'done');
   });
 
+  it('runs ask, reason, and compare inside the scoped workspace (#1068)', () => {
+    const agent = freshAgent();
+    const workspaceId = 'customer-a';
+    agent.kernel.graph.addNode('kedi', 'kedi', null, { workspaceId });
+    agent.kernel.graph.addNode('kopek', 'kopek', null, { workspaceId });
+    agent.kernel.graph.addNode('hayvan', 'hayvan', null, { workspaceId });
+    agent.kernel.graph.addEdge('kedi', 'hayvan', 'tur', { workspaceId });
+    agent.kernel.graph.addEdge('kopek', 'hayvan', 'tur', { workspaceId });
+    const state = { goal: 'kedi', objective: 'ask', steps: [] };
+    const opts = {
+      askOpts: { workspaceId },
+      reasonOpts: { workspaceId },
+      compareOpts: { workspaceId },
+    };
+
+    const ask = agent._executeStep({ id: 'ask', action: 'ask', tool: 'ask', input: 'kedi nedir', rationale: '' }, state, opts);
+    const reason = agent._executeStep({ id: 'reason', action: 'reason', tool: 'reason', input: 'kedi', rationale: '' }, state, opts);
+    const compare = agent._executeStep({ id: 'compare', action: 'compare', tool: 'compare', input: 'kedi | kopek', rationale: '' }, state, opts);
+
+    assert.equal(ask.result.data.unknown, false);
+    assert.equal(reason.result.data.unknown, false);
+    assert.equal(compare.result.data.unknown, false);
+  });
+
   it('persists goal history and can resume an unfinished run', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-agent-'));
     const memoryPath = path.join(tmpDir, 'agent.memory.json');

@@ -525,11 +525,11 @@ class ToolRegistry {
       trustedInternal: tool.kind === 'internal',
     });
 
-    // BLOCK and DRY_RUN_ONLY are hard enforcement outcomes. REVIEW is
-    // compatible with the legacy external-tool review token below: a genuine
-    // operator approval may satisfy both gates, while an unapproved request
-    // still receives the established TOOL_REVIEW_REQUIRED contract.
-    if (firewall.decision === 'block' || firewall.decision === 'dry_run_only') {
+    // A review is an execution gate, not a post-execution label. The same
+    // unforgeable operator approval that satisfies external review may release
+    // a firewall review for either tool kind.
+    if (firewall.decision === 'block' || firewall.decision === 'dry_run_only'
+      || (tool.kind === 'internal' && firewall.decision === 'review' && !approved)) {
       return normalizeToolOutput({
         ok: false,
         error: {
