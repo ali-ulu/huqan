@@ -93,6 +93,6 @@ describe('real user smoke blockers', () => {
     assert.strictEqual(ascii.data.status, 'verified');
     assert.strictEqual(huqan.data.unknown, false);
     assert.strictEqual(axiom.data.status, 'verified');
-    assert.strictEqual(unknown.data.status, 'contradicted');
+    assert.strictEqual(unknown.data.status, 'unknown');
   });
 });
