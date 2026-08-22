@@ -1,3 +1,4 @@
+const { StringDecoder } = require('string_decoder');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -51,6 +52,23 @@ class RustGraph {
     this._nextId = 1;
     this._ready = false;
     this._buf = '';
+    // Stdout chunks are Buffers -- setEncoding() is never called on the pipe --
+    // and `this._buf += chunk.toString()` decoded each one on its own, so a
+    // multi-byte UTF-8 character straddling a chunk boundary was split and each
+    // half became U+FFFD. The corruption lands inside a JSON string value, so
+    // the line still parses, `_reqId` still matches, and the mangled answer is
+    // returned to the caller as an ordinary result with no error path taken.
+    // Since the boundary falls wherever OS pipe buffering puts it, the same
+    // query answered correctly or corruptly at random (#1030).
+    //
+    // StringDecoder is the stateful decoder for exactly this: it holds back an
+    // incomplete character and emits it once the next chunk completes it.
+    this._decoder = new StringDecoder('utf8');
+    // `RUST_MAX_LINE_BYTES` was compared against `this._buf.length`, which
+    // counts UTF-16 code units rather than bytes. It erred conservatively so it
+    // was not a hole, but the name did not describe the check; this counts the
+    // bytes that actually arrived.
+    this._bufBytes = 0;
     this._requestTimeoutMs = Number.isFinite(opts.requestTimeoutMs) && opts.requestTimeoutMs > 0
       ? opts.requestTimeoutMs
       : RUST_REQUEST_TIMEOUT_MS;
@@ -86,18 +104,27 @@ class RustGraph {
   }
 
   _onData(chunk) {
-    this._buf += chunk.toString();
-    if (this._buf.length > RUST_MAX_LINE_BYTES) {
+    const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), 'utf8');
+    this._bufBytes += buf.length;
+    this._buf += this._decoder.write(buf);
+    if (this._bufBytes > RUST_MAX_LINE_BYTES) {
       // A malicious/buggy Rust process streaming huge or newline-less output
       // must not be allowed to grow this buffer without bound (OOM DoS, #372).
       // Reset and fail every in-flight request; a well-behaved process would
       // never produce a single reply line this large.
       this._buf = '';
+      this._bufBytes = 0;
+      // The abandoned stream may have left a partial character held back.
+      this._decoder = new StringDecoder('utf8');
       this._rejectAll('buffer_overflow');
       return;
     }
     const lines = this._buf.split('\n');
     this._buf = lines.pop() || '';
+    // Only the unconsumed remainder still counts against the cap. When no line
+    // completed, `_buf` is unchanged and the running total is already right --
+    // which is what keeps a newline-less flood bounded.
+    if (lines.length > 0) this._bufBytes = Buffer.byteLength(this._buf, 'utf8');
     for (const line of lines) {
       if (!line.trim()) continue;
       let parsed;
