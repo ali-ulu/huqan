@@ -1,6 +1,7 @@
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
+const { createRequire } = require('module');
 const os = require('os');
 const path = require('path');
 const { analyzeReachability } = require('../lib/module-reachability');
@@ -22,7 +23,7 @@ function loadCollectSourceFiles() {
     `${source}\nmodule.exports.__collectSourceFiles = collectSourceFiles;`,
   );
   const shim = { exports: {} };
-  factory(require, shim, shim.exports, path.dirname(modulePath), modulePath);
+  factory(createRequire(modulePath), shim, shim.exports, path.dirname(modulePath), modulePath);
   return shim.exports.__collectSourceFiles;
 }
 
