@@ -35,8 +35,8 @@ test('consolidate dry-run preserves edge array, identities, order, and details',
     dryRun: true,
     removed: 2,
     details: [
-      'a ? b (supports, w:0.2): low-weight (0.2) superseded by high-weight (0.9) for same pair',
-      "a ? d (supports, w:0.1): low-weight restriction (0.1) \u00e2\u20ac\u201d subject already has high-weight 'supports'",
+      'a → b (supports, w:0.2): low-weight (0.2) superseded by high-weight (0.9) for same pair',
+      "a → d (supports, w:0.1): low-weight restriction (0.1) — subject already has high-weight 'supports'",
     ],
   });
   assert.strictEqual(kernel.graph._edges, edgesBefore);
@@ -57,7 +57,7 @@ test('consolidate excludes restricted edges from both removal phases', () => {
   const result = kernel.consolidate(true);
 
   assert.equal(result.removed, 1);
-  assert.match(result.details[0], /a \? d/);
+  assert.match(result.details[0], /a → d/);
   assert.ok(kernel.graph._edges.includes(restrictedLow));
   assert.ok(kernel.graph._edges.includes(unrestrictedLow));
 });
