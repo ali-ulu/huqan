@@ -100,6 +100,12 @@ function copyIfExists(source, destination) {
 
 function backupSqliteIfExists(source, destination) {
   if (!fs.existsSync(source)) return null;
+  // Historical fixtures and compatibility deployments may use a `.db` name
+  // for a non-SQLite persistence blob. Only invoke SQLite's backup API for
+  // an actual SQLite file; those blobs retain the established copy behavior.
+  if (fs.readFileSync(source, { encoding: null, flag: 'r' }).subarray(0, 16).toString('utf8') !== 'SQLite format 3\u0000') {
+    return copyIfExists(source, destination);
+  }
   const program = "const Database=require('better-sqlite3');const db=new Database(process.argv[1],{readonly:true});db.backup(process.argv[2]).then(()=>db.close()).catch(e=>{console.error(e.stack||e.message);process.exitCode=1})";
   const result = spawnSync(process.execPath, ['-e', program, source, destination], { encoding: 'utf8' });
   if (result.status !== 0) throw new Error(`SQLite online backup failed: ${(result.stderr || result.stdout || '').trim()}`);
