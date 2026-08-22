@@ -68,7 +68,12 @@
 
   function renderRuns(data) {
     const items = data.items || [];
-    byId('obsruns').innerHTML = items.map(run => `<div class="item"><b>${escape(run.status)}</b> · ${escape(run.runtime)} · ${escape(run.runId.slice(0, 12))}</div><small>${escape(run.updatedAt)} · ${escape(formatDuration(run.durationMs))} · ${escape(formatTokens(run.tokens))} token</small>`).join('') || '<div class="empty">Henüz kalıcı run yok.</div>';
+    byId('obsruns').innerHTML = items.map(run => {
+      const tools = Array.isArray(run.tools) ? run.tools : [];
+      const toolText = tools.length ? tools.map(tool => `${escape(tool.name)} ×${escape(tool.count)}`).join(', ') : 'araç kullanılmadı';
+      const toolCalls = run.toolCallCount ?? tools.reduce((total, tool) => total + Number(tool.count || 0), 0);
+      return `<div class="item"><b>${escape(run.status)}</b> · ${escape(run.runtime)} · ${escape(run.runId.slice(0, 12))}<div class="sub">Araçlar: ${toolText} · ${escape(toolCalls)} çağrı</div></div><small>${escape(run.updatedAt)} · ${escape(formatDuration(run.durationMs))} · ${escape(formatTokens(run.tokens))} token</small>`;
+    }).join('') || '<div class="empty">Henüz kalıcı run yok.</div>';
   }
 
   function renderQueue(data) {

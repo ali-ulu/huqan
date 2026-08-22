@@ -1001,7 +1001,6 @@ if (require.main === module && readCompatibleEnvironmentVariable('DISABLE_AUTO_L
 }
 
 server.closeHuqan = server.closeAxiom = () => { // closeAxiom: RFC-001 legacy alias
-  clearInterval(ingestApprovalRecoveryTimer);
   observabilityRuntime.stop();
   backgroundTimers.clearAll();
   viewerRateLimits.clear();

@@ -26,6 +26,14 @@ describe('Agent Activity dashboard contract', () => {
     assert.match(script, /activity failed/);
   });
 
+  it('renders unique tools and call counts in run history', () => {
+    assert.match(script, /Array\.isArray\(run\.tools\)/);
+    assert.match(script, /tool\.name/);
+    assert.match(script, /tool\.count/);
+    assert.match(script, /toolCallCount/);
+    assert.match(script, /Araçlar:/);
+  });
+
   it('keeps the inline dashboard script syntactically valid', () => {
     assert.ok(script);
     assert.doesNotThrow(() => new vm.Script(script));
