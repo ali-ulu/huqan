@@ -61,7 +61,10 @@ test('OpenAPI route serves the document generated from the same manifest', () =>
 
 test('help compatibility commands and migration notes stay tied to the canonical contract', () => {
   const help = require('../lib/workflow-contract').compatibilityHelpText();
-  for (const item of COMPATIBILITY_COMMANDS) assert.match(help, new RegExp(`"${item.command}"`));
+  // `usage` where the typed form differs from the identifier: `sor` is only
+  // accepted as `sor: <soru>`, and printing the bare identifier advertised a
+  // call that answers "Anlamadim".
+  for (const item of COMPATIBILITY_COMMANDS) assert.match(help, new RegExp(`"${item.usage || item.command}"`));
   const migration = fs.readFileSync(path.join(__dirname, '..', 'docs', 'workflow-http-migration.md'), 'utf8');
   assert.match(migration, /\/api\/v2\/workflows/);
   assert.match(migration, /\/api\/v2\/openapi\.json/);

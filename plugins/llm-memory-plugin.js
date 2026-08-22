@@ -10,7 +10,9 @@ module.exports = {
   },
 
   afterAsk(kernel, data) {
-    if (data.answer === 'Bilmiyorum') {
+    // Structural first, string second: the payload now carries `unknown`, and
+    // the display string is only consulted for a caller that predates it.
+    if (typeof data.unknown === 'boolean' ? data.unknown : data.answer === 'Bilmiyorum') {
       adapter.ask(data.question).then(res => {
         if (res.ok) {
           kernel.learnFromLLM(res.data.text, { skipConflicts: true, maxSentences: 5 });

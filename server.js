@@ -474,7 +474,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, {
         'Content-Type': JSON_CONTENT_TYPE,
         ...buildCorsHeaders(req),
-        'Cache-Control': 'no-cache',
+        'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
       });
       res.end(JSON.stringify(data));
     } catch (err) {
@@ -515,7 +515,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, {
         'Content-Type': JSON_CONTENT_TYPE,
         ...buildCorsHeaders(req),
-        'Cache-Control': 'no-cache',
+        'Cache-Control': 'no-cache', 'X-Content-Type-Options': 'nosniff',
       });
       res.end(JSON.stringify(getHealthData()));
     } catch (err) {

@@ -15,7 +15,7 @@ HUQAN is a maintainer-led repository. Pull requests are reviewed by a human befo
 
 ## Local setup
 
-HUQAN currently requires **Node.js 20 or newer**. Node.js 20 LTS or 22 LTS is recommended.
+HUQAN currently requires **Node.js 22.13.0 or newer**. Node.js 22 LTS or 24 LTS is recommended. Node.js 20 reached end-of-life on 2026-04-30 and is no longer supported.
 
 ```bash
 git clone https://github.com/ali-ulu/huqan.git

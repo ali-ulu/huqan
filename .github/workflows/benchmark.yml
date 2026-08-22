@@ -193,17 +193,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # README advertises Node 20 LTS and 22 LTS as recommended runtimes, so
-        # both stay covered — but not on the same trigger. The Node 20 leg runs
-        # roughly three times longer than Node 22 for an identical suite, and it
-        # sat on the critical path of every pull request. Pull requests now take
-        # the fast Node 22 signal; pushes to main run the full matrix, so a
-        # Node 20 regression is still caught on the branch that ships.
+        # Single leg: Node 20 reached end-of-life on 2026-04-30 and the package
+        # now declares engines >=22.13.0, so there is no second supported
+        # runtime left to cover here.
         #
-        # This narrows the matrix, never the gate: "npm test gate" depends on
-        # this job's id, not on a matrix leg name, so the required check is
-        # unchanged and still fails closed when this job fails.
-        node-version: ${{ github.event_name == 'pull_request' && fromJSON('[22]') || fromJSON('[20, 22]') }}
+        # The split this replaced (pull requests on [22], pushes to main on
+        # [20, 22]) is worth remembering rather than repeating: a leg that runs
+        # only after merge cannot block the merge. Node 20 broke on 2026-08-20
+        # and main stayed red through roughly ten merges, because every pull
+        # request saw a green Node 22 and nobody was looking at the leg that
+        # ran afterwards. If a runtime is worth testing, test it where the
+        # result can still stop something.
+        node-version: [22]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -226,11 +227,11 @@ jobs:
         env:
           # The Claim Workspace browser smoke skips itself when the runtime has
           # no global WebSocket or no Chromium-family browser. A smoke that
-          # skips silently is not evidence, so require it where it can run.
-          # Node 20 has no global WebSocket, so the requirement is Node 22 only;
-          # on that leg the runner image ships Chrome and this run's log shows
-          # all 9 sub-assertions executing (~9s), not skipping.
-          HUQAN_REQUIRE_BROWSER_SMOKE: ${{ matrix.node-version == 22 && '1' || '' }}
+          # skips silently is not evidence, so require it. The conditional this
+          # replaced existed only to exempt Node 20, which has no global
+          # WebSocket; with that leg gone the requirement is unconditional, and
+          # the runner image ships Chrome.
+          HUQAN_REQUIRE_BROWSER_SMOKE: '1'
 
   runtime-test-skip:
     name: npm test (runtime/test)
@@ -261,7 +262,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci --include=optional

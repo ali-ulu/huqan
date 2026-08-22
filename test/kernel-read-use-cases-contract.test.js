@@ -161,16 +161,24 @@ test('read use cases preserve reason and compare observable results', () => {
     assert.deepEqual(compare.data.onlyB, []);
     assert.ok(compare.evidence.length >= 2);
 
+    // `unknown` is part of the observable shape now. `ask` has always reported
+    // it; reason and compare answered "Bilmiyorum" with no structural signal at
+    // all, which forced every consumer to match that Turkish display string to
+    // find out whether there was an answer — a string doing load-bearing work
+    // in control flow, one translation away from failing silently.
     const unknown = kernel.compare('dog', 'missing', 'workspace-a');
     assert.deepEqual(unknown.data, {
       a: 'dog',
       b: 'missing',
       answer: 'Bilmiyorum',
+      unknown: true,
       common: [],
       onlyA: [],
       onlyB: [],
       paths: [],
     });
+    assert.equal(compare.data.unknown, false, 'an answered compare says so structurally');
+    assert.equal(reason.data.unknown, false, 'an answered reason says so structurally');
   } finally {
     closeKernel(kernel);
   }

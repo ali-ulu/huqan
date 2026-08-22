@@ -99,6 +99,6 @@ test('selfLearn preserves the empty-gap early return without counting edges', { 
       throw new Error('edgeCount must not run for an empty gap set');
     };
 
-    assert.deepEqual(kernel.selfLearn(), { gaps: 0, learned: 0, message: 'Bo?luk yok' });
+    assert.deepEqual(kernel.selfLearn(), { gaps: 0, learned: 0, message: 'Boşluk yok' });
   });
 });

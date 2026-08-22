@@ -68,7 +68,7 @@
   "author": "Huqan Contributors",
   "license": "AGPL-3.0-only",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.13.0"
   },
   "files": [
     "LICENSE",
@@ -263,6 +263,7 @@
     "lib/mcp-human-oversight-adapter.js",
     "lib/mcp-approval-store.js",
     "lib/mcp-approval-views.js",
+    "lib/mcp-configuration-errors.js",
     "lib/mcp-envelope-format.js",
     "lib/mcp-envelope-schema.js",
     "lib/mcp-gate-adapter.js",

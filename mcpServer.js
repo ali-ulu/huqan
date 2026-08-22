@@ -84,6 +84,30 @@ const {
   toToolResult,
   recordInternalError,
 } = require('./lib/mcp-envelope-format');
+const {
+  describeConfigurationError,
+  configurationErrorEnvelope,
+  recordConfigurationError,
+} = require('./lib/mcp-configuration-errors');
+
+/**
+ * A failed `tools/call`, answered as either a configuration limit or a fault.
+ *
+ * A deterministic misconfiguration used to be indistinguishable from a crash
+ * here: both became `INTERNAL_ERROR (ref: …)`, and the sentence that would fix
+ * the former reached only the server's own stderr. See
+ * lib/mcp-configuration-errors.js for which codes qualify and why relaying
+ * them does not reopen #413.
+ */
+function toolCallFailure(err) {
+  const configuration = describeConfigurationError(err);
+  if (configuration) {
+    recordConfigurationError('tools/call', configuration.code);
+    return toToolResult(configurationErrorEnvelope(configuration));
+  }
+  const errorRef = recordInternalError('tools/call', err);
+  return { content: [{ type: 'text', text: `INTERNAL_ERROR (ref: ${errorRef})` }], isError: true };
+}
 
 function isMcpOperatorAuthorized(configuredToken, presentedToken) {
   if (typeof configuredToken !== 'string' || typeof presentedToken !== 'string' || !configuredToken || !presentedToken) return false;
@@ -149,26 +173,12 @@ function createServer(kernelOrOptions = {}) {
           if (result && typeof result.then === 'function') {
             return result.then(
               value => ({ jsonrpc: '2.0', id, result: toToolResult(value) }),
-              (err) => {
-                const errorRef = recordInternalError('tools/call', err);
-                return {
-                  jsonrpc: '2.0', id,
-                  result: { content: [{ type: 'text', text: `INTERNAL_ERROR (ref: ${errorRef})` }], isError: true },
-                };
-              },
+              err => ({ jsonrpc: '2.0', id, result: toolCallFailure(err) }),
             );
           }
           return { jsonrpc: '2.0', id, result: toToolResult(result) };
         } catch (err) {
-          const errorRef = recordInternalError('tools/call', err);
-          return {
-            jsonrpc: '2.0',
-            id,
-            result: {
-              content: [{ type: 'text', text: `INTERNAL_ERROR (ref: ${errorRef})` }],
-              isError: true,
-            },
-          };
+          return { jsonrpc: '2.0', id, result: toolCallFailure(err) };
         }
       }
 
@@ -353,6 +363,15 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
         ? {
           approval,
           approvalId: approval.id || '',
+          // huqan.ingest_status requires `runId` and its schema describes it as
+          // "Run identifier returned by ingest execute" -- but this response
+          // carried the value only as `approvalId`, so the advertised
+          // preview -> execute -> status flow ended with a caller holding no
+          // field by the name the next call asks for. The HTTP surface already
+          // emits both (lib/http/workflow-data-routes.js), so this is the MCP
+          // side catching up rather than a new field: same value, same source,
+          // `approvalId` kept for anything already reading it.
+          runId: approval.id || '',
           statusRoute: approval.id ? `/api/v2/ingest/runs/${approval.id}` : '',
           queuedForExecution: approval.persisted === true,
           result: null,
