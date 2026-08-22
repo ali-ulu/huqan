@@ -71,6 +71,31 @@ describe('finalizer', () => {
     assert.ok(summary.nextQuestions.length >= 1);
   });
 
+  it('does not infer contradiction or uncertainty from substrings (#1045)', () => {
+    const makeRun = (summary) => ({
+      goal: 'soru',
+      objective: 'investigate',
+      status: 'completed',
+      steps: [{ tool: 'ask', action: 'ask', status: 'done', summary }],
+      evidence: [],
+      finalAnswer: summary,
+    });
+
+    for (const summary of [
+      'Celik bir metaldir.',
+      'Bu bir celikhane raporudur.',
+      'Sorun unblocked durumda.',
+      'There is no database conflict here.',
+    ]) {
+      const result = buildFinalSummary(makeRun(summary));
+      assert.strictEqual(result.mode, 'graph-backed', summary);
+      assert.deepStrictEqual(result.unknowns, [], summary);
+    }
+
+    assert.strictEqual(buildFinalSummary(makeRun('A direct conflict was found.')).mode, 'contradicted');
+    assert.strictEqual(buildFinalSummary(makeRun('There is no data.')).mode, 'insufficient-data');
+  });
+
   it('smoke: summarizes covid19 vs grip analysis with explicit uncertainty', () => {
     const summary = buildFinalSummary({
       goal: "covid19 ve grip arasindaki farklari analiz et ve hasta_ahmet'in durumunu degerlendir",
