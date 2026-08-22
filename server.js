@@ -22,6 +22,7 @@ const { decideIngestApproval } = require('./lib/workbench/ingest-approval-action
 const { createHttpIngestOversightCase } = require('./lib/http-human-oversight-adapter');
 const { buildTrustReceipt, queryAuditTrailPage, queryCandidateClaims, queryProvenance } = require('./lib/provenance-query');
 const { readReceiptById } = require('./lib/receipt/receipt-read-index');
+const { createBackgroundTimers } = require('./lib/http/background-timers');
 const { receiptReadFailure } = require('./lib/http/receipt-read-failures');
 const { createWorkbenchReadHttpRouter } = require('./lib/workbench/workbench-read-http-router');
 const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
@@ -135,18 +136,17 @@ const recordIngestApprovalAudit = createIngestApprovalAuditWriter({
 });
 
 // --- Güvenlik sabitleri ---
-const rateLimitCleanupTimer = setInterval(() => {
+const backgroundTimers = createBackgroundTimers();
+backgroundTimers.add(setInterval(() => {
   clearExpiredRateLimitEntries();
-}, 60_000);
-rateLimitCleanupTimer.unref?.();
+}, 60_000));
 const VIEWER_RATE_LIMIT_WINDOW_MS = 60_000;
 const VIEWER_RATE_LIMIT_MAX = 120;
 const VIEWER_RATE_LIMIT_MAX_ENTRIES = 2048;
 const viewerRateLimits = new Map();
-const ingestApprovalRecoveryTimer = setInterval(() => {
+backgroundTimers.add(setInterval(() => {
   try { recoverExpiredIngestApprovals(); } catch (error) { console.error('[ingest-approval-recovery] failed:', error); }
-}, Math.max(5_000, Math.floor(INGEST_APPROVAL_LEASE_MS / 2)));
-ingestApprovalRecoveryTimer.unref?.();
+}, Math.max(5_000, Math.floor(INGEST_APPROVAL_LEASE_MS / 2))));
 
 const {
   ALLOWED_CORS_HOSTS,
@@ -1032,7 +1032,7 @@ if (require.main === module && readCompatibleEnvironmentVariable('DISABLE_AUTO_L
 }
 
 server.closeHuqan = server.closeAxiom = () => { // closeAxiom: RFC-001 legacy alias
-  clearInterval(ingestApprovalRecoveryTimer);
+  backgroundTimers.clearAll();
   viewerRateLimits.clear();
   viewerSessionStore.reset();
   if (ingestApprovalStore && typeof ingestApprovalStore.close === 'function') {
