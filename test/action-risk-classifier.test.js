@@ -234,6 +234,25 @@ describe('AB1 v2 classifier behavior', () => {
     assert.strictEqual(r.riskLevel, 'MEDIUM');
   });
 
+  it('does not lower review for URL traversal or encoded separators (#1063)', () => {
+    const allowlistedUrls = ['https://api.example.com/v1'];
+    for (const url of [
+      'https://api.example.com/v1/../../admin',
+      'https://api.example.com/v1/..%2f..%2fadmin',
+      'https://api.example.com/v1/%2e%2e%2fadmin',
+    ]) {
+      const r = classifyAgentAction({ category: 'NETWORK_CALL', target: { url } }, { allowlistedUrls });
+      assert.strictEqual(r.decision, 'HUMAN_REVIEW', url);
+      assert.strictEqual(r.riskLevel, 'HIGH', url);
+    }
+  });
+
+  it('matches URL allowlists by normalized scheme, host, port, and path (#1063)', () => {
+    assert.strictEqual(isUrlInList('HTTPS://API.EXAMPLE.COM:443/v1/items', ['https://api.example.com/v1']), true);
+    assert.strictEqual(isUrlInList('https://api.example.com:8443/v1/items', ['https://api.example.com/v1']), false);
+    assert.strictEqual(isUrlInList('https://api.example.com/v10/items', ['https://api.example.com/v1']), false);
+  });
+
   it('NETWORK_CALL to unknown URL is HUMAN_REVIEW / HIGH', () => {
     const r = classifyAgentAction({ category: 'NETWORK_CALL', target: { url: 'https://unknown.example.com/x' } });
     assert.strictEqual(r.decision, 'HUMAN_REVIEW');
