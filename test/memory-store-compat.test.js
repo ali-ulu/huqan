@@ -72,7 +72,12 @@ describe('main memory compatibility aliases', () => {
     assert.strictEqual(statusRes.ok, true);
     assert.strictEqual(statusRes.total, 3);
 
-    assert.strictEqual(store.save().ok, true);
+    // This store is constructed with useSQLite: false, so save() reports that
+    // there is nothing durable behind it rather than claiming success (#1028).
+    const saved = store.save();
+    assert.strictEqual(saved.ok, false);
+    assert.strictEqual(saved.persistent, false);
+    assert.strictEqual(saved.error.code, 'PERSISTENCE_DISABLED');
     assert.strictEqual(store.load().ok, true);
 
     const supports = store.link({
