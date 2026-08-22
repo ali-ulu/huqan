@@ -159,6 +159,21 @@ describe('AB6 sandbox isolation core decisions', () => {
     assert.equal(result.allowed, true);
   });
 
+  it('sandbox root itself is inside sandbox during destructive cleanup', () => {
+    const result = evaluate({
+      source: 'wipe temp artifacts',
+      sourceTrust: SOURCE_TRUST_LEVELS.VALIDATED,
+      runner: RUNNER_TYPES.NODE_VM,
+      context: {
+        tempArtifactPath: 'C:\\sandbox',
+        sandboxRoot: 'C:\\sandbox',
+      },
+    });
+
+    assert.equal(result.decision, SANDBOX_ISOLATION_DECISIONS.ALLOW);
+    assert.equal(result.allowed, true);
+  });
+
   it('temp artifact outside sandbox returns quarantine', () => {
     const result = evaluate({
       source: 'write tmp artifact',

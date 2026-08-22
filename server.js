@@ -176,6 +176,7 @@ const {
 const { runPublicApiCommand } = require('./lib/http/public-api-commands');
 const { V2_STATUS_PHASES } = require('./lib/http/v2-status-phases');
 const { buildGraphData } = require('./lib/server-graph-data');
+const { createRuntimeStatusHandlers } = require('./lib/http/runtime-status');
 
 async function submitIngestApproval(data) {
   const snapshot = buildIngestApprovalSnapshot(data);
@@ -220,7 +221,7 @@ async function submitIngestApproval(data) {
   }
 }
 
-const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, decision, reason }) => decideIngestApproval({ store: getIngestApprovalStore(), kernel, approvalId, decision, reason, humanOversight: getHttpApprovalRuntimeConfig(), handleIngest, ensureRuntime: ensureCompanyRuntime, recordAudit: recordIngestApprovalAudit, toPublicApproval: publicIngestApproval, workerId: INGEST_APPROVAL_WORKER_ID, leaseMs: INGEST_APPROVAL_LEASE_MS }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, learnDocument: (text, options) => kernel.learnDocument(text, options), submitIngest: submitIngestApproval, createAgent: () => createAgent({ kernel, version: readCompatibleEnvironmentVariable('AGENT_VERSION') }) });
+const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, decision, reason }) => decideIngestApproval({ store: getIngestApprovalStore(), kernel, approvalId, decision, reason, humanOversight: getHttpApprovalRuntimeConfig(), handleIngest, ensureRuntime: ensureCompanyRuntime, recordAudit: recordIngestApprovalAudit, toPublicApproval: publicIngestApproval, workerId: INGEST_APPROVAL_WORKER_ID, leaseMs: INGEST_APPROVAL_LEASE_MS }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, learnDocument: (text, options) => kernel.learnDocument(text, options), submitIngest: submitIngestApproval, createAgent: options => observabilityRuntime.createAgent(options) });
 
 // First caller of the V5 runtime family (#875 task pack). Issuer key records
 // are dependency-injected as receiver-owned state: with no real registry
@@ -302,63 +303,15 @@ function getGraphData(workspaceId = 'default') {
   return buildGraphData({ graph: kernel.graph, memory: kernel.memory, getSafeMemoryLabel, workspaceId });
 }
 
-function getHealthData() {
-  const stats = kernel.graph.getStats();
-  return {
-    ok: true,
-    // Canonical product identity (RFC-001). `legacyService` keeps the AXIOM
-    // spelling readable for existing health probes during the compatibility
-    // window; it is not a second product identity.
-    service: 'huqan',
-    legacyService: 'axiom',
-    kernelVersion: CANONICAL_KERNEL_VERSION, // canonical constant, not the selector (#755)
-    backend: stats.backend,
-    nodes: stats.nodes,
-    edges: stats.edges,
-    uptimeSec: Math.floor(process.uptime()),
-    timestamp: new Date().toISOString(),
-  };
-}
-
-function getV2StatusData() {
-  const stats = kernel.graph.getStats();
-  // #755: from the canonical constants, not the optional version selectors.
-  // With those absent (the normal configuration) the process ran KernelV2 and
-  // AgentV3 while status advertised v1/v2.
-  const activeKernel = CANONICAL_KERNEL_VERSION;
-  const agentRuntime = CANONICAL_AGENT_VERSION;
-  const agentRuntimeMode = String(readCompatibleEnvironmentVariable('AGENT_RUNTIME') || '').toLowerCase() || agentRuntime;
-  const checkpointBackend = agentRuntime === 'v3' ? 'sqlite' : 'json';
-  const phases = V2_STATUS_PHASES;
-
-  const counts = phases.reduce((acc, phase) => {
-    acc.total += 1;
-    acc[phase.status] += 1;
-    return acc;
-  }, { total: 0, done: 0, in_progress: 0, pending: 0 });
-  const progressPercent = counts.total ? Math.round((counts.done / counts.total) * 100) : 0;
-  const remainingPhases = Math.max(0, counts.total - counts.done);
-
-  return {
-    ok: true,
-    version: pkg.version,
-    contractVersion: kernel.contractVersion || '1.0.0',
-    activeKernel,
-    backend: stats.backend,
-    nodes: stats.nodes,
-    edges: stats.edges,
-    updatedAt: new Date().toISOString(),
-    counts,
-    progressPercent,
-    remainingPhases,
-    phases,
-    currentFocus: 'v3.0 Agent Workflow',
-    nextAction: 'Use the planner to run goal-driven multi-step tasks, persist the goal history, and report each tool decision clearly.',
-    agentRuntime,
-    agentRuntimeMode,
-    checkpointBackend,
-  };
-}
+const runtimeStatus = createRuntimeStatusHandlers({
+  kernel,
+  pkg,
+  kernelVersion: CANONICAL_KERNEL_VERSION,
+  agentVersion: CANONICAL_AGENT_VERSION,
+  agentRuntimeMode: String(readCompatibleEnvironmentVariable('AGENT_RUNTIME') || '').toLowerCase() || CANONICAL_AGENT_VERSION,
+  phases: V2_STATUS_PHASES,
+});
+const { getHealthData, getV2StatusData } = runtimeStatus;
 
 function ensureCompanyRuntime() {
   if (typeof kernel.hasCapability === 'function' && !kernel.hasCapability('companyMode')) {
@@ -373,6 +326,16 @@ function ensureCompanyRuntime() {
   }
 }
 const handleReadWorkflow = createReadWorkflowHttpRouter({ kernel, parseJsonRequest, writeJson, writeApiError, ensureCapabilities: ensureCompanyRuntime });
+const observabilityRuntime = require('./lib/observability/server-runtime').createObservabilityServerRuntime({
+  kernel,
+  getStorage: getIngestApprovalStore,
+  createAgent,
+  parseJsonRequest,
+  writeJson,
+  denyIfUnauthorized,
+  readEnvironment: readCompatibleEnvironmentVariable,
+});
+const handleObservabilityRoute = observabilityRuntime.handleRoute;
 const PUBLIC_INDEX_PATH = path.join(__dirname, 'public', 'index.html');
 // The index page is a static build artifact, so read it once and keep the bytes
 // in memory instead of doing sync I/O on every `/` request (#420).
@@ -456,6 +419,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (await optionalRoutes.route(req, res, reqUrl)) return;
+  if (await handleObservabilityRoute(req, res, reqUrl)) return;
   if (await handleV5PackageImportRoute(req, res, reqUrl)) return;
   if (handleWorkflowContractRoute(req, res, reqUrl) || await handleReadWorkflow(req, res, reqUrl)) return;
   if (await handleWorkflowDataRoute(req, res, reqUrl)) return;
@@ -1027,11 +991,17 @@ function startServer(port = PORT, host = HOST) {
   });
 }
 
+function startAgentWorkerIfEnabled() {
+  return observabilityRuntime.startWorkerIfEnabled();
+}
+
 if (require.main === module && readCompatibleEnvironmentVariable('DISABLE_AUTO_LISTEN') !== '1') {
+  startAgentWorkerIfEnabled();
   startServer(PORT, HOST);
 }
 
 server.closeHuqan = server.closeAxiom = () => { // closeAxiom: RFC-001 legacy alias
+  observabilityRuntime.stop();
   backgroundTimers.clearAll();
   viewerRateLimits.clear();
   viewerSessionStore.reset();

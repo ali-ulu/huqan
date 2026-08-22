@@ -120,6 +120,15 @@ describe('Dream - Node2Vec Gömmeler', () => {
     assert.strictEqual(d.embedding(), null);
   });
 
+  it('projection weights cover both signs within the documented range (#1046)', () => {
+    const { d } = fresh();
+    const weights = [];
+    for (let i = 0; i < 512; i++) weights.push(d._projectionWeight(`node-${i}`, i % 64, 64));
+    assert.ok(weights.every((weight) => weight >= -1 && weight < 1));
+    assert.ok(weights.some((weight) => weight < 0));
+    assert.ok(weights.some((weight) => weight > 0));
+  });
+
   it('embedding: düğümlere vektör atar', () => {
     const { k, d } = fresh();
     k.learn('Köpek memelidir');

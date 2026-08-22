@@ -9,7 +9,7 @@ function createWorkflowRuntime(kernel, opts = {}) {
 
   const agent = opts.agent instanceof WorkflowAgent
     ? opts.agent
-    : new WorkflowAgent({
+      : new WorkflowAgent({
         ...opts,
         registry,
       });

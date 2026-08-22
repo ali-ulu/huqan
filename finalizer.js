@@ -93,14 +93,41 @@ function cleanFactText(text) {
     .trim();
 }
 
-function isUnknownText(text) {
+const UNKNOWN_TOKENS = Object.freeze([
+  'bilinmiyor', 'bilmiyorum', 'unknown', 'insufficient', 'yetersiz',
+  'no data', 'not enough', 'belirsiz', 'unclear',
+]);
+const CONTRADICTION_TOKENS = Object.freeze([
+  'celiski', 'contradiction', 'contradict', 'conflict', 'blocked',
+]);
+
+function hasStandaloneToken(text, tokens) {
   const value = foldText(text);
-  return /(bilinmiyor|bilmiyorum|unknown|insufficient|yetersiz|no data|not enough|belirsiz|unclear)/.test(value);
+  return tokens.some((token) => new RegExp(
+    `(?<![\\p{L}\\p{N}])${token}(?![\\p{L}\\p{N}])`,
+    'u',
+  ).test(value));
+}
+
+function hasNegatedTokenBefore(value, index) {
+  const prefix = value.slice(Math.max(0, index - 80), index);
+  return /(?:^|[^\p{L}\p{N}])(?:no|not|without)(?:[\s-]+[\p{L}\p{N}]+){0,2}[\s-]*$/u.test(prefix);
+}
+
+function isUnknownText(text) {
+  return hasStandaloneToken(text, UNKNOWN_TOKENS);
 }
 
 function isContradictionText(text) {
   const value = foldText(text);
-  return /(celiski|celik|contradict|conflict|blocked)/.test(value);
+  return CONTRADICTION_TOKENS.some((token) => {
+    const pattern = new RegExp(`(?<![\\p{L}\\p{N}])${token}(?![\\p{L}\\p{N}])`, 'gu');
+    let match;
+    while ((match = pattern.exec(value)) !== null) {
+      if (!hasNegatedTokenBefore(value, match.index)) return true;
+    }
+    return false;
+  });
 }
 
 function isLLMTool(step = {}) {

@@ -96,8 +96,9 @@ class Dream {
     h2 = Math.imul(h2 ^ (h2 >>> 16), 0x45d9f3b);
     h2 = h2 ^ (h2 >>> 16);
 
-    // [-1, 1] aralığına normalize
-    return (h2 / 2147483648) - 1;
+    // h2 zaten signed 32-bit aralığındadır: [-2^31, 2^31 - 1].
+    // Bölme onu doğrudan [-1, 1) aralığına taşır.
+    return h2 / 2147483648;
   }
 
   _nodeSignatureWeight(node, dim, totalDims) {
