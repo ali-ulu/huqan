@@ -373,6 +373,7 @@
     "lib/viewer/session-cookie.js",
     "lib/viewer/session-store.js",
     "lib/viewer/viewer-gateway.js",
+    "lib/workspace-id.js",
     "lib/workbench/activity-read.js",
     "lib/workbench/activity-route.js",
     "lib/workbench/ingest-approval-action.js",

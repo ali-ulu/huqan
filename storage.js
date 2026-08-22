@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { resolveContainedPath } = require('./lib/memory-store-utils');
 const { applyStorageSchema } = require('./lib/storage/schema');
 const { loadSqliteDriver, sqliteUnavailableError } = require('./lib/sqlite-availability');
+const { normalizeWorkspaceId } = require('./lib/workspace-id');
 
 // The load error is retained (not discarded as before) so the throw site can
 // tell "not installed" from "installed but built for a different Node ABI" —
@@ -30,10 +31,6 @@ function lower(goal) {
  */
 function goalMemoryKey(goal, workspaceId) {
   return `${normalizeWorkspaceId(workspaceId)}\u001f${lower(goal)}`;
-}
-
-function normalizeWorkspaceId(workspaceId) {
-  return String(workspaceId || 'default').trim() || 'default';
 }
 
 /**
