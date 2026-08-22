@@ -30,6 +30,102 @@ function rustExec(cmds) {
   });
 }
 
+// Transport decoding is JS-side only: it is driven through _onData directly,
+// so it runs whether or not the Rust binary is built.
+describe('RustGraph - IPC transport decoding (#1030)', () => {
+  function makeReader() {
+    const graph = new RustGraph({ memoryPath: path.join(os.tmpdir(), 'huqan-rust-ipc-none.json') });
+    const replies = [];
+    graph._unrefIfIdle = () => {};
+    return { graph, replies };
+  }
+
+  it('a multi-byte character split across chunks decodes intact', () => {
+    // stdout has no setEncoding(), so chunks are Buffers and `+= chunk.toString()`
+    // decoded each on its own. The corruption lands inside a JSON string value,
+    // so the line still parses and `_reqId` still matches — the mangled answer
+    // reached the caller as an ordinary result.
+    const { graph, replies } = makeReader();
+    graph._pending.set(1, reply => replies.push(reply));
+
+    const line = '{"_reqId":1,"answer":"kedi bir hayvandır"}\n';
+    const bytes = Buffer.from(line, 'utf8');
+    const splitAt = bytes.indexOf(Buffer.from('ı', 'utf8')) + 1;
+
+    graph._onData(bytes.subarray(0, splitAt));
+    graph._onData(bytes.subarray(splitAt));
+
+    assert.strictEqual(replies.length, 1);
+    assert.strictEqual(replies[0].answer, 'kedi bir hayvandır');
+    assert.ok(!replies[0].answer.includes('\uFFFD'), 'no replacement characters');
+  });
+
+  it('survives a byte-at-a-time stream of Turkish text', () => {
+    const { graph, replies } = makeReader();
+    graph._pending.set(7, reply => replies.push(reply));
+
+    const answer = 'ğüşiöçĞÜŞİÖÇ'.repeat(40);
+    const bytes = Buffer.from(`${JSON.stringify({ _reqId: 7, answer })}\n`, 'utf8');
+    for (const byte of bytes) graph._onData(Buffer.from([byte]));
+
+    assert.strictEqual(replies.length, 1);
+    assert.strictEqual(replies[0].answer, answer);
+  });
+
+  it('delivers several replies arriving in one chunk', () => {
+    const { graph } = makeReader();
+    const seen = [];
+    graph._pending.set(1, reply => seen.push(reply.answer));
+    graph._pending.set(2, reply => seen.push(reply.answer));
+
+    graph._onData(Buffer.from(
+      '{"_reqId":1,"answer":"birinci"}\n{"_reqId":2,"answer":"ikinci"}\n',
+      'utf8',
+    ));
+
+    assert.deepStrictEqual(seen, ['birinci', 'ikinci']);
+  });
+
+  it('bounds the buffer by bytes, and only the unconsumed remainder counts', () => {
+    // RUST_MAX_LINE_BYTES was compared against String.length (UTF-16 code
+    // units), so the constant's name did not describe the check.
+    const { graph } = makeReader();
+    let rejected = null;
+    graph._pending.set(1, reply => { rejected = reply; });
+
+    // A newline-less flood must still trip the guard.
+    const megabyte = Buffer.alloc(1024 * 1024, 0x61);
+    for (let i = 0; i < 11 && !rejected; i += 1) graph._onData(megabyte);
+
+    assert.ok(rejected, 'the overflow guard must fire');
+    assert.strictEqual(rejected.ok, false);
+    assert.strictEqual(rejected.error, 'buffer_overflow');
+    assert.strictEqual(graph._buf, '');
+    assert.strictEqual(graph._bufBytes, 0);
+  });
+
+  it('a long but complete stream never trips the guard', () => {
+    // Completed lines leave the buffer, so their bytes must stop counting --
+    // otherwise a long-lived process would eventually reject a healthy reply.
+    const { graph } = makeReader();
+    const seen = [];
+    let rejected = false;
+
+    for (let i = 0; i < 200; i += 1) {
+      graph._pending.set(i, reply => {
+        if (reply.ok === false) rejected = true;
+        else seen.push(reply.answer);
+      });
+      const answer = 'ğüşiöç'.repeat(2000);
+      graph._onData(Buffer.from(`${JSON.stringify({ _reqId: i, answer })}\n`, 'utf8'));
+    }
+
+    assert.strictEqual(rejected, false, 'a healthy stream must not overflow');
+    assert.strictEqual(seen.length, 200);
+    assert.ok(graph._bufBytes < 1024, 'only the remainder counts');
+  });
+});
+
 describe('RustGraph - JS ile Karşılaştırma', { skip: !hasRust }, () => {
 
   it('add_node: düğüm oluşturur', async () => {
