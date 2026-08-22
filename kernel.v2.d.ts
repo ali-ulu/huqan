@@ -30,9 +30,9 @@ declare class KernelV2 {
   persist(): void;
   optimize(): ReturnType<Kernel['optimize']>;
   usePlugin(plugin: Record<string, unknown>): void;
-  entropy(): number;
-  detectGaps(): string[];
-  detectContradictions(): ReturnType<Kernel['detectContradictions']>;
+  entropy(workspaceId?: string): number;
+  detectGaps(workspaceId?: string): string[];
+  detectContradictions(subject?: string, workspaceId?: string): ReturnType<Kernel['detectContradictions']>;
   startAutoThink(intervalMs?: number): void;
   stopAutoThink(): void;
   recordCliMutationAudit(
@@ -76,8 +76,8 @@ declare class KernelV2 {
   ): KernelV2LearnFromLLMResult;
   ask(question: string, opts?: Record<string, unknown>): ReturnType<Kernel['ask']>;
   verify(statement: string, opts?: Record<string, unknown>): ReturnType<Kernel['verify']>;
-  reason(subject: string, opts?: Record<string, unknown>): ReturnType<Kernel['reason']>;
-  compare(left: string, right: string, opts?: Record<string, unknown>): ReturnType<Kernel['compare']>;
+  reason(subject: string, opts?: Record<string, unknown> | string): ReturnType<Kernel['reason']>;
+  compare(left: string, right: string, opts?: Record<string, unknown> | string): ReturnType<Kernel['compare']>;
   dream(opts?: Record<string, unknown>): ReturnType<Kernel['dream']>;
 }
 
