@@ -471,6 +471,11 @@ class AgentV3 {
     const deadline = Date.now() + Math.max(0, Number.isInteger(opts.timeBudgetMs) ? opts.timeBudgetMs : this.timeBudgetMs);
     const maxIterations = Number.isInteger(opts.maxIterations) ? opts.maxIterations : this.maxIterations;
     state.workspaceId = workspaceId;
+    state.agentId = String(opts.agentId || state.agentId || '');
+    state.observabilityRunId = state.observabilityRunId || `agent-${crypto.randomUUID?.() || Date.now()}`;
+    try {
+      this.kernel?.observability?.recordLifecycle?.('beforeAgentRun', state);
+    } catch (_) {}
 
     // Force the run's workspace onto every tool call. agent.js reads
     // opts.learnOpts / askOpts / verifyOpts straight through, so without this
