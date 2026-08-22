@@ -1,0 +1,37 @@
+name: Hourly Architecture Scan
+
+on:
+  schedule:
+    - cron: '0 * * * *' # Run at the start of every hour
+  workflow_dispatch: # Allow manual triggering
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  scan-architecture:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Restore scan state
+        uses: actions/cache@v4
+        with:
+          path: .huqan_automation_state.json
+          key: architecture-scan-state-${{ github.run_id }}
+          restore-keys: |
+            architecture-scan-state-
+            
+      - name: Run analyzer script
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 scripts/architecture-scan/analyzer.py
