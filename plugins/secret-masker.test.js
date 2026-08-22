@@ -96,3 +96,51 @@ test('secret-masker: afterAsk end to end -- a leaked secret never reaches kernel
   assert.equal(answer.includes('[REDACTED_SECRET:api_key]'), true);
   assert.ok(answer.includes('hayvan'), 'legitimate answer content should survive masking');
 });
+
+test('secret-masker: ordinary hyphenated prose is not treated as a key (#1031)', () => {
+  // The prefix was `[a-z]{2,4}` and the value class contains the hyphen, so a
+  // match ran through every following segment and redacted the whole phrase.
+  // The hooks rewrite answers in place, so a false positive is unrecoverable.
+  const phrases = [
+    'The web-application-server is running.',
+    'Bu bir kod-inceleme-raporu belgesidir.',
+    'ISO tarih: iso-8601-format kullanildi.',
+    'api-gateway-endpoint yapilandirmasi',
+    'sub-domain-routing devrede',
+    'pre-release-candidate etiketi',
+    'yeni-veri-modeli tasarimi',
+    // Survived only because `multi` is five letters -- which is what made the
+    // old behavior look arbitrary.
+    'multi-tenant-architecture',
+  ];
+  for (const phrase of phrases) {
+    assert.equal(maskSecretsInText(phrase), phrase, phrase);
+    assert.deepEqual(findSecretsInText(phrase), [], phrase);
+  }
+});
+
+test('secret-masker: vendor-prefixed keys are still detected in full (#1031)', () => {
+  const keys = [
+    'sk-abcdef1234567890',
+    // All-lowercase, no digits: an entropy requirement in the value would miss
+    // this, and two existing detection tests use exactly this shape.
+    'sk-abcdefghijklmnop',
+    'sk-proj-ExampleValueNotARealCredential0123456789',
+    'pk-abcdefghijklmnop',
+    'rk-abcdefghijklmnop',
+    // Slack tokens are multi-segment; the value class keeps the hyphen so the
+    // tail is not left behind unredacted. The segments are deliberately worded
+    // rather than digit-shaped: a realistic `xoxb-<digits>-<digits>-<alnum>`
+    // fixture is caught by GitHub's push protection as a live Slack token, and
+    // only the multi-segment shape matters here.
+    'xoxb-ExampleNotARealToken-ExampleNotARealToken-ExampleNotARealToken',
+    'xoxp-ExampleNotARealToken-ExampleNotARealToken-ExampleNotARealToken',
+  ];
+  for (const key of keys) {
+    const findings = findSecretsInText(`deger: ${key} sonu`);
+    assert.equal(findings.length, 1, key);
+    assert.equal(findings[0].type, 'api_key', key);
+    assert.equal(findings[0].match, key, `${key} must be matched whole`);
+    assert.equal(maskSecretsInText(`deger: ${key} sonu`), 'deger: [REDACTED_SECRET:api_key] sonu', key);
+  }
+});
