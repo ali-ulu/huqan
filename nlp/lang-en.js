@@ -46,17 +46,30 @@ function extractFacts(text) {
     ];
   }
 
-  const tokens = rawTokens.filter(t => !isStopWord(t));
-  if (tokens.length < 2) return [];
-
-  const isIdx = tokens.findIndex(t => ['is', 'are', 'was', 'were'].includes(t));
-  if (isIdx > 0) {
-    const subject = normalize(tokens.slice(0, isIdx).join(' '));
-    const predicate = tokens.slice(isIdx + 1).join(' ');
+  // The copula is located on rawTokens, before stop-words are dropped.
+  //
+  // This search used to run on the filtered list, but 'is', 'are', 'was' and
+  // 'were' are themselves in STOP_WORDS — so the copula was never present,
+  // findIndex always returned -1, and the whole branch was dead. Every sentence
+  // fell to the final fallback, which takes "the first non-stop-word" as the
+  // subject: "the big cat is a small animal" yielded subject `big`, predicate
+  // `cat small animal`. Single-word subjects came out right by coincidence.
+  //
+  // extractFacts runs on the kernel.learn() path and its subject becomes the
+  // graph node's identity, so a wrong subject is a node no later ask/verify/
+  // reason query can find. lang-de.js and lang-ar.js already search rawTokens
+  // this way; only the English pack had the order inverted (#1037).
+  const copulaIdx = rawTokens.findIndex(t => ['is', 'are', 'was', 'were'].includes(t));
+  if (copulaIdx > 0) {
+    const subject = normalize(rawTokens.slice(0, copulaIdx).filter(t => !isStopWord(t)).join(' '));
+    const predicate = rawTokens.slice(copulaIdx + 1).filter(t => !isStopWord(t)).join(' ');
     if (subject && predicate) {
       return [{ subject, predicate }];
     }
   }
+
+  const tokens = rawTokens.filter(t => !isStopWord(t));
+  if (tokens.length < 2) return [];
 
   return [{
     subject: normalize(tokens[0]),
