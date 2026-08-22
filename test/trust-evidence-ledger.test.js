@@ -16,7 +16,7 @@ const {
 const {
   createIngestApprovalAuditWriter,
 } = require('../lib/workbench/ingest-approval-audit-writer');
-const { createMutationAdmission } = require('../lib/mutation-admission');
+const { absent, createMutationAdmission } = require('../lib/mutation-admission');
 
 function makeTempGraph() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-trust-ledger-'));
@@ -154,7 +154,10 @@ test('ingest approval writer uses ledger only after admission and preserves old 
   };
   const writer = createIngestApprovalAuditWriter({
     graph,
-    admission: createMutationAdmission({ clock: () => new Date('2026-08-19T10:00:00.000Z') }),
+    admission: createMutationAdmission({
+      clock: () => new Date('2026-08-19T10:00:00.000Z'),
+      identityEvaluator: absent('test seam: this case exercises admission, not identity enforcement'),
+    }),
     hashResult: () => 'hash-result',
     ledger,
   });

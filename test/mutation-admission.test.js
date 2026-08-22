@@ -39,7 +39,7 @@ function completeContext(overrides = {}) {
 }
 
 test('admission: a complete context admits, and the mutation runs once', () => {
-  const admission = createMutationAdmission({ clock: FIXED_CLOCK });
+  const admission = createMutationAdmission({ clock: FIXED_CLOCK, identityEvaluator: absent('test seam: this case exercises admission, not identity enforcement') });
   let calls = 0;
 
   const outcome = admission.admit(completeContext(), () => { calls += 1; return 'written'; });
@@ -50,7 +50,7 @@ test('admission: a complete context admits, and the mutation runs once', () => {
 });
 
 test('admission: an incomplete context refuses and never reaches the mutation', () => {
-  const admission = createMutationAdmission({ clock: FIXED_CLOCK });
+  const admission = createMutationAdmission({ clock: FIXED_CLOCK, identityEvaluator: absent('test seam: this case exercises admission, not identity enforcement') });
 
   for (const field of CONTEXT_FIELDS) {
     const context = completeContext();
@@ -68,7 +68,7 @@ test('admission: an incomplete context refuses and never reaches the mutation', 
 });
 
 test('admission: present-but-empty is refused, not read as absent', () => {
-  const admission = createMutationAdmission({ clock: FIXED_CLOCK });
+  const admission = createMutationAdmission({ clock: FIXED_CLOCK, identityEvaluator: absent('test seam: this case exercises admission, not identity enforcement') });
 
   for (const [field, value] of [
     ['workspaceId', ''],
@@ -105,7 +105,7 @@ test('admission: a declared absence is accepted and carries its reason', () => {
 });
 
 test('admission: the caller cannot supply the evaluation clock', () => {
-  const admission = createMutationAdmission({ clock: FIXED_CLOCK });
+  const admission = createMutationAdmission({ clock: FIXED_CLOCK, identityEvaluator: absent('test seam: this case exercises admission, not identity enforcement') });
   let called = false;
 
   const outcome = admission.admit(
@@ -122,14 +122,14 @@ test('admission: the caller cannot supply the evaluation clock', () => {
 });
 
 test('admission: the evaluation time is stamped by the receiver', () => {
-  const admission = createMutationAdmission({ clock: FIXED_CLOCK });
+  const admission = createMutationAdmission({ clock: FIXED_CLOCK, identityEvaluator: absent('test seam: this case exercises admission, not identity enforcement') });
   const outcome = admission.admit(completeContext(), () => null);
 
   assert.equal(outcome.evaluationTime, '2026-08-16T12:00:00.000Z');
 });
 
 test('admission: a malformed call refuses before anything runs', () => {
-  const admission = createMutationAdmission({ clock: FIXED_CLOCK });
+  const admission = createMutationAdmission({ clock: FIXED_CLOCK, identityEvaluator: absent('test seam: this case exercises admission, not identity enforcement') });
 
   for (const context of [null, undefined, 'ctx', 42, []]) {
     const outcome = admission.admit(context, () => { throw new Error('must not run'); });
@@ -143,7 +143,7 @@ test('admission: a malformed call refuses before anything runs', () => {
 });
 
 test('admission: a refusal is returned, not thrown', () => {
-  const admission = createMutationAdmission({ clock: FIXED_CLOCK });
+  const admission = createMutationAdmission({ clock: FIXED_CLOCK, identityEvaluator: absent('test seam: this case exercises admission, not identity enforcement') });
 
   // A thrown refusal could be swallowed by a caller's own try/catch and read as
   // an unrelated failure, which is how a boundary silently stops boundng.
@@ -154,7 +154,7 @@ test('admission: a refusal is returned, not thrown', () => {
 });
 
 test('admission: durability stays the mutation\'s own concern', () => {
-  const admission = createMutationAdmission({ clock: FIXED_CLOCK });
+  const admission = createMutationAdmission({ clock: FIXED_CLOCK, identityEvaluator: absent('test seam: this case exercises admission, not identity enforcement') });
   const source = require('node:fs').readFileSync(require.resolve('../lib/mutation-admission.js'), 'utf8');
 
   // Invariant 1: admission is not durability. If this module ever calls
@@ -174,7 +174,7 @@ test('admission: durability stays the mutation\'s own concern', () => {
 });
 
 test('admission: a forged absent marker without a real reason fails closed (#879)', () => {
-  const admission = createMutationAdmission({ clock: FIXED_CLOCK });
+  const admission = createMutationAdmission({ clock: FIXED_CLOCK, identityEvaluator: absent('test seam: this case exercises admission, not identity enforcement') });
 
   for (const marker of [
     { kind: 'absent' },

@@ -15,7 +15,9 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { ADMISSION_ERRORS, createMutationAdmission, isAbsent } = require('../lib/mutation-admission.js');
+const {
+  ADMISSION_ERRORS, absent, createMutationAdmission, isAbsent,
+} = require('../lib/mutation-admission.js');
 const {
   ABSENCE_REASONS,
   AUDIT_ACTION,
@@ -38,7 +40,7 @@ function makeGraph() {
 
 function makeWriter(overrides = {}) {
   const graph = overrides.graph || makeGraph();
-  const admission = overrides.admission || createMutationAdmission({ clock: FIXED_CLOCK });
+  const admission = overrides.admission || createMutationAdmission({ clock: FIXED_CLOCK, identityEvaluator: absent('test seam: this case exercises admission, not identity enforcement') });
   const record = createIngestApprovalAuditWriter({ graph, admission, hashResult: () => 'result-hash' });
   return { graph, admission, record };
 }
@@ -149,7 +151,7 @@ test('routed caller: absences are declared with reasons, not left missing', () =
 test('routed caller: the real seam refuses an incomplete context', () => {
   // Not the stub: the actual admission module, proving the wiring rejects.
   const graph = makeGraph();
-  const admission = createMutationAdmission({ clock: FIXED_CLOCK });
+  const admission = createMutationAdmission({ clock: FIXED_CLOCK, identityEvaluator: absent('test seam: this case exercises admission, not identity enforcement') });
   const record = createIngestApprovalAuditWriter({ graph, admission, hashResult: () => '' });
 
   // A snapshot whose workspace is an empty string, which the seam treats as
@@ -162,7 +164,7 @@ test('routed caller: the real seam refuses an incomplete context', () => {
 });
 
 test('routed caller: construction refuses an incomplete wiring', () => {
-  const admission = createMutationAdmission({ clock: FIXED_CLOCK });
+  const admission = createMutationAdmission({ clock: FIXED_CLOCK, identityEvaluator: absent('test seam: this case exercises admission, not identity enforcement') });
   assert.throws(() => createIngestApprovalAuditWriter({ admission, hashResult: () => '' }), /audit sink/);
   assert.throws(() => createIngestApprovalAuditWriter({ graph: makeGraph(), hashResult: () => '' }), /admission seam/);
   assert.throws(() => createIngestApprovalAuditWriter({ graph: makeGraph(), admission }), /result hasher/);

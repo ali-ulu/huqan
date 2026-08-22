@@ -28,7 +28,7 @@ const test = require('node:test');
 
 const { decideMcpIngestApproval } = require('../lib/mcp-ingest-execute-tool.js');
 const { recordAuditEvidence, auditOrGap } = require('../lib/workbench/ingest-approval-audit.js');
-const { createMutationAdmission } = require('../lib/mutation-admission.js');
+const { absent, createMutationAdmission } = require('../lib/mutation-admission.js');
 const { createIngestApprovalAuditWriter } = require('../lib/workbench/ingest-approval-audit-writer.js');
 const { sha256 } = require('../lib/ingest.js');
 
@@ -48,7 +48,9 @@ test('1: the MCP surface builds the routed writer', () => {
   assert.match(source, /createIngestApprovalAuditWriter\(\{/);
   // Built with the same three dependencies server.js builds it with. The
   // admission seam is the one that matters: it is what MCP was missing.
-  assert.match(source, /admission: createMutationAdmission\(\)/);
+  // Since #1009 the seam cannot be constructed without declaring whether it
+  // enforces identity, so what is pinned here is the declaration, not a bare call.
+  assert.match(source, /admission: createMutationAdmission\(\{\s*\n\s*identityEvaluator: absent\(/);
   assert.match(source, /hashResult: sha256/);
   assert.match(source, /recordAudit: runtime\.recordIngestApprovalAudit \|\| defaultIngestApprovalAuditWriter\(kernel(?:, runtime\.trustEvidenceLedger \|\| null)?\)/);
 });
@@ -89,7 +91,7 @@ function captureWrite(approval, receipt, result) {
     appendAuditEvent(event, opts) { writes.push({ event, opts }); return { auditId: 'audit-x' }; },
   };
   const record = createIngestApprovalAuditWriter({
-    graph, admission: createMutationAdmission(), hashResult: sha256,
+    graph, admission: createMutationAdmission({ identityEvaluator: absent('test seam: this case exercises admission, not identity enforcement') }), hashResult: sha256,
   });
   record(approval, receipt, result);
   return writes[0];
