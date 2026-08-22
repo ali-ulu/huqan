@@ -84,6 +84,16 @@ test('classifyMcpTool: known mutating tool', () => {
   assert.deepEqual(c.gates, ['AB1', 'AB2', 'AB4', 'AB11']);
 });
 
+test('classifyMcpTool: prototype names are unknown and fail closed (#1069)', () => {
+  for (const name of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+    const classification = classifyMcpTool(name);
+    const result = evaluateMcpGate({ tool: name, args: { question: 'q' }, metadata: {} });
+    assert.equal(classification.known, false, name);
+    assert.equal(result.decision, MCP_GATE_DECISIONS.block, name);
+    assert.equal(result.reason, MCP_GATE_REASONS.UNKNOWN_TOOL_BLOCK, name);
+  }
+});
+
 test('classifyMcpTool: known agent-loop tool', () => {
   const c = classifyMcpTool('axiom.agent');
   assert.equal(c.known, true);
