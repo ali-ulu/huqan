@@ -7,6 +7,7 @@ const { mcpToolPolicy } = require('./lib/mcp-tool-policy');
 const { buildFinalSummary } = require('./finalizer');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
 const { enforceAgentActionStep } = require('./lib/agent-action-firewall');
+const { stepFailureSignature } = require('./lib/agent-failure-signature');
 const {
   cloneValue,
   nowIso,
@@ -226,10 +227,7 @@ class Agent {
   }
 
   _stepSignature(step = {}, state = {}) {
-    const tool = String(step.tool || '').trim();
-    const action = String(step.action || '').trim();
-    const input = normalizeGoal(step.input || state.goal || '');
-    return `${tool}|${action}|${input}`;
+    return stepFailureSignature(step, state);
   }
 
   _findRecentFailure(signature) {
@@ -399,7 +397,7 @@ class Agent {
       }
     }
     for (const tool of base) {
-      const sig = `${tool}|${objective}|${text}`;
+      const sig = this._stepSignature({ tool, action: tool, input: goal }, { goal });
       const failure = this._findRecentFailure(sig);
       if (failure) {
         failureHits.push({ tool, error: failure.error, attempt: failure.attempt });
