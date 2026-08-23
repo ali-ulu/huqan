@@ -118,6 +118,29 @@ test('düşük-ağırlık is still detected', () => {
   assert.equal(found[0].type, 'düşük-ağırlık');
 });
 
+test('time-series values are not reported as numeric contradictions (#1175)', () => {
+  const graph = fakeGraph(['company'], {
+    company: [
+      { to: '2020 yılı çalışan sayısı 100', relation: 'özellik' },
+      { to: '2021 yılı çalışan sayısı 120', relation: 'özellik' },
+    ],
+  });
+
+  assert.deepEqual(serviceFor(graph).detectContradictions(), []);
+});
+
+test('different values under the same temporal qualifier remain numeric contradictions', () => {
+  const graph = fakeGraph(['company'], {
+    company: [
+      { to: '2020 yılı çalışan sayısı 100', relation: 'özellik' },
+      { to: '2020 yılı çalışan sayısı 120', relation: 'özellik' },
+    ],
+  });
+
+  const numeric = serviceFor(graph).detectContradictions().filter(c => c.type === 'sayısal');
+  assert.equal(numeric.length, 1);
+});
+
 test('results stay grouped by contradiction type, not by node (#395)', () => {
   // The passes were deliberately not fused into a single node loop, because
   // that would turn this type-major order into node-major order.
