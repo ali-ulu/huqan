@@ -186,6 +186,35 @@ test('bounded verification core never returns verified/signature_valid -- it is 
   }
 });
 
+test('bounded verification core treats an expired expiresAt as expired_key_metadata even under status: active (#1274)', () => {
+  const positive = readFixtures().find(({ caseId }) => caseId === 'verified-supported-algorithm');
+
+  const expired = JSON.parse(JSON.stringify(positive.input));
+  expired.trustedKeyMetadata.expiresAt = '2020-01-01T00:00:00.000Z';
+  expired.evaluationTime = '2026-08-23T00:00:00.000Z';
+  assert.deepEqual(evaluateBoundedVerification(expired), {
+    verificationStatus: 'not_verified',
+    reasonCategory: 'expired_key_metadata'
+  });
+
+  const notYetExpired = JSON.parse(JSON.stringify(positive.input));
+  notYetExpired.trustedKeyMetadata.expiresAt = '2030-01-01T00:00:00.000Z';
+  notYetExpired.evaluationTime = '2026-08-23T00:00:00.000Z';
+  assert.deepEqual(evaluateBoundedVerification(notYetExpired), {
+    verificationStatus: 'not_verified',
+    reasonCategory: 'malformed_signature_evidence'
+  });
+
+  // exactly at the boundary counts as expired, matching trusted-key-resolver.js
+  const atBoundary = JSON.parse(JSON.stringify(positive.input));
+  atBoundary.trustedKeyMetadata.expiresAt = '2026-08-23T00:00:00.000Z';
+  atBoundary.evaluationTime = '2026-08-23T00:00:00.000Z';
+  assert.deepEqual(evaluateBoundedVerification(atBoundary), {
+    verificationStatus: 'not_verified',
+    reasonCategory: 'expired_key_metadata'
+  });
+});
+
 test('verification core source contains no resolver, runtime, or crypto dependency', () => {
   const source = fs.readFileSync(
     path.join(__dirname, '..', 'lib', 'v5', 'verification-core.js'),
