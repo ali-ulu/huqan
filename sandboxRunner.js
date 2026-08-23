@@ -1,6 +1,8 @@
 const childProcess = require('node:child_process');
 const vm = require('node:vm');
 
+const { evaluateSandboxIsolation } = require('./lib/sandbox-isolation');
+
 const DEFAULT_TIMEOUT_MS = 150;
 const DEFAULT_MAX_SOURCE_BYTES = 64 * 1024;
 const DEFAULT_MAX_INPUT_BYTES = 256 * 1024;
@@ -310,9 +312,65 @@ function runChildProcess() {
   }
 }
 
+/**
+ * AB6 admission, evaluated before anything is spawned.
+ *
+ * This module is the wall -- a child process, a forbidden-pattern filter, byte
+ * and heap and time limits. What it had no notion of is whether a given request
+ * should be admitted at all: how far the source is trusted, whether the runner
+ * is one the policy recognises, whether the requested timeout is inside the
+ * operator's ceiling. AB6 answers exactly that, and until now it answered it
+ * for nobody -- the gate was imported once by the MCP adapter and never called
+ * (#1253), so the decision layer existed and no execution ever passed through
+ * it.
+ *
+ * The order matters: policy decision, then sandbox creation, then execution.
+ * Evaluating after the spawn would make the gate a reporter rather than a gate.
+ *
+ * `block` refuses. `quarantine` proceeds, which is not a loophole: quarantine
+ * means "execution may proceed in an isolated sandbox only", and this is that
+ * sandbox. A caller that does not declare `sourceTrust` gets `unknown`, hence
+ * quarantine rather than allow -- unproven trust is recorded, not assumed.
+ */
+function admitSandboxRequest(sourceText, timeoutMs, opts) {
+  const verdict = evaluateSandboxIsolation(
+    {
+      source: sourceText,
+      sourceTrust: opts.sourceTrust || 'unknown',
+      runner: 'node:vm',
+      operation: opts.operation || 'execute',
+      timeoutMs,
+      workspaceId: opts.workspaceId,
+    },
+    opts.isolationPolicy ? { policy: opts.isolationPolicy } : {},
+  );
+  return verdict;
+}
+
 function runSandboxed(source, bindings = {}, opts = {}) {
   const timeoutMs = Number(opts.timeoutMs) > 0 ? Number(opts.timeoutMs) : DEFAULT_TIMEOUT_MS;
   const sourceText = String(source || '');
+
+  const isolation = admitSandboxRequest(sourceText, timeoutMs, opts);
+  if (isolation.decision === 'block') {
+    return {
+      ok: false,
+      data: null,
+      error: {
+        code: 'SANDBOX_POLICY_BLOCKED',
+        message: 'Sandbox isolation policy refused this request.',
+        details: isolation.findings,
+      },
+      meta: {
+        runner: 'node:vm',
+        timeoutMs,
+        isolation: 'child_process',
+        heapLimitMb: DEFAULT_CHILD_HEAP_MB,
+        ab6: { decision: isolation.decision, reason: isolation.reason },
+      },
+    };
+  }
+
   if (byteLength(sourceText) > DEFAULT_MAX_SOURCE_BYTES) {
     return {
       ok: false,
@@ -368,7 +426,15 @@ function runSandboxed(source, bindings = {}, opts = {}) {
 
   const environment = { ...process.env };
   delete environment.NODE_OPTIONS;
-  const meta = { runner: 'node:vm', timeoutMs, isolation: 'child_process', heapLimitMb: DEFAULT_CHILD_HEAP_MB };
+  // The verdict travels with the result, so a receipt records that the gate ran
+  // and what it decided -- not merely that execution happened.
+  const meta = {
+    runner: 'node:vm',
+    timeoutMs,
+    isolation: 'child_process',
+    heapLimitMb: DEFAULT_CHILD_HEAP_MB,
+    ab6: { decision: isolation.decision, reason: isolation.reason },
+  };
   let child;
   try {
     child = childProcess.spawnSync(process.execPath, [
@@ -425,10 +491,19 @@ function runSandboxed(source, bindings = {}, opts = {}) {
 
   try {
     const response = JSON.parse(child.stdout || '');
+    // The child reports its own meta, which is the authority on what actually
+    // ran. The admission verdict is not the child's to report, so it is stamped
+    // over the top either way -- otherwise the one path that matters most, a
+    // successful execution, would carry no record that a gate had decided it.
     if (response.ok === true) {
-      return { ok: true, data: response.data, error: null, meta: response.meta || meta };
+      return {
+        ok: true,
+        data: response.data,
+        error: null,
+        meta: { ...(response.meta || meta), ab6: meta.ab6 },
+      };
     }
-    return response;
+    return { ...response, meta: { ...(response.meta || meta), ab6: meta.ab6 } };
   } catch (_) {
     return {
       ok: false,
