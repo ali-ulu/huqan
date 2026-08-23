@@ -183,37 +183,65 @@ jobs:
           } >> "${GITHUB_STEP_SUMMARY}"
 
   # ---------------------------------------------------------------------
-  # npm test — mandatory on runtime OR test changes.
+  # Fast feedback — static checks and a small contract smoke run in parallel
+  # with the weighted full-suite shards. This is advisory; runtime-test-gate
+  # below remains the stable required check for the complete test surface.
+  # ---------------------------------------------------------------------
+  fast-contract:
+    name: Fast contract checks
+    needs: classify
+    if: needs.classify.outputs.runtime_or_test == 'yes'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Fetch baseline branch for live Git validation
+        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci --include=optional
+      - name: Run fast static checks
+        run: |
+          set -euo pipefail
+          npm run check:package-closure
+          npm run check:file-size
+          npm run check:control-chars
+          npm run check:doc-status
+          npm run check:workflow-governance
+      - name: Run fast contract tests
+        run: >-
+          node --test --test-concurrency=2
+          test/agent-context.test.js
+          test/quickstart-first-run.test.js
+          test/agent-activity-dashboard-contract.test.js
+
+  # ---------------------------------------------------------------------
+  # npm test — mandatory on runtime OR test changes. The three shard legs
+  # preserve the full test-file set while allowing independent CI runners to
+  # execute the historical heavy files in parallel.
   # ---------------------------------------------------------------------
   runtime-test:
-    name: npm test (runtime/test, Node ${{ matrix.node-version }})
+    name: npm test (runtime/test, Node ${{ matrix.node-version }}, shard ${{ matrix.shard }})
     needs: classify
     if: needs.classify.outputs.runtime_or_test == 'yes'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        # Single leg: Node 20 reached end-of-life on 2026-04-30 and the package
-        # now declares engines >=22.13.0, so there is no second supported
-        # runtime left to cover here.
-        #
-        # The split this replaced (pull requests on [22], pushes to main on
-        # [20, 22]) is worth remembering rather than repeating: a leg that runs
-        # only after merge cannot block the merge. Node 20 broke on 2026-08-20
-        # and main stayed red through roughly ten merges, because every pull
-        # request saw a green Node 22 and nobody was looking at the leg that
-        # ran afterwards. If a runtime is worth testing, test it where the
-        # result can still stop something.
+        # Node 20 reached end-of-life on 2026-04-30 and the package declares
+        # engines >=22.13.0, so there is one supported runtime leg.
         node-version: [22]
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
-      # actions/checkout only creates a remote-tracking ref for the ref it
-      # checked out, so `origin/main` does not resolve here. The agent-context
-      # guard in test/agent-context.test.js validates live Git state against
-      # origin/main and fails closed without it, so fetch the baseline branch
-      # explicitly before running the suite.
+      # The agent-context guard validates live Git state against origin/main,
+      # so fetch the baseline explicitly after checkout.
       - name: Fetch baseline branch for live Git validation
         run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -222,16 +250,26 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci --include=optional
-      - name: Run full test suite
-        run: npm test
+      - name: Run weighted test shard
+        run: >-
+          node scripts/run-test-shard.js
+          --shard=${{ matrix.shard }}
+          --total=3
+          --concurrency=1
+          --report=artifacts/test-shard-${{ matrix.shard }}.xml
         env:
-          # The Claim Workspace browser smoke skips itself when the runtime has
-          # no global WebSocket or no Chromium-family browser. A smoke that
-          # skips silently is not evidence, so require it. The conditional this
-          # replaced existed only to exempt Node 20, which has no global
-          # WebSocket; with that leg gone the requirement is unconditional, and
-          # the runner image ships Chrome.
+          # A browser smoke that skips silently is not evidence; the runner
+          # image is expected to provide Chrome and global WebSocket support.
+          # Shards provide process-level CI parallelism. Keep each shard serial
+          # because legacy JSON tests share default persistence within a runner.
           HUQAN_REQUIRE_BROWSER_SMOKE: '1'
+      - name: Upload JUnit timing report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-timings-node-${{ matrix.node-version }}-shard-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
+          path: artifacts/test-shard-${{ matrix.shard }}.xml
+          if-no-files-found: warn
 
   runtime-test-skip:
     name: npm test (runtime/test)
