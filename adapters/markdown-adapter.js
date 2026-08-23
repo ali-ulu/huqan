@@ -34,6 +34,7 @@ function parseMarkdown(content, filePath = '', options = {}) {
   if (lines.length > limits.maxLinesPerFile) throw markdownError('MARKDOWN_LINE_LIMIT', 'Markdown line limit exceeded');
   const sections = [];
   let outputBytes = 0;
+  let fence = null;
 
   let current = {
     sectionTitle: 'root',
@@ -60,6 +61,19 @@ function parseMarkdown(content, filePath = '', options = {}) {
   };
 
   for (const line of lines) {
+    const trimmed = line.trimStart();
+    if (fence) {
+      current.content += `${line}\n`;
+      if (trimmed.startsWith(fence.marker.repeat(fence.length))
+          && /^\s*$/.test(trimmed.slice(fence.length))) fence = null;
+      continue;
+    }
+    const openingFence = trimmed.match(/^(`{3,}|~{3,})/);
+    if (openingFence) {
+      fence = { marker: openingFence[1][0], length: openingFence[1].length };
+      current.content += `${line}\n`;
+      continue;
+    }
     const headerMatch = line.match(/^(#{1,3})\s+(.+?)\s*$/);
     if (headerMatch) {
       flush();
