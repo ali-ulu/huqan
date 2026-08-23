@@ -114,6 +114,47 @@ test('company-brain: repo-memory ingests github markdown and updates ingest stat
   assert.equal(status.distribution.repo > 0, true);
 });
 
+test('company-brain: ingest status distribution reports api ingests and separates decision from manual (#1314)', async () => {
+  const k = makeKernel();
+  k.usePlugin(createCompanyBrainPlugin());
+
+  for (let i = 0; i < 3; i++) {
+    // eslint-disable-next-line no-await-in-loop
+    await k.runCapability('companyBrain', {
+      action: 'api',
+      sourceRef: `jira:PROJ-${i}`,
+      text: 'Musteri X gecikmeden sikayet etti.',
+    });
+  }
+  await k.runCapability('companyBrain', {
+    action: 'decision',
+    title: 'Bir karar',
+    rationale: 'gerekce',
+    date: '2026-08-23',
+    decidedBy: 'ali',
+  });
+  await k.runCapability('companyBrain', {
+    action: 'manual',
+    author: 'ali',
+    date: '2026-08-23',
+    text: 'serbest not',
+  });
+
+  const status = await k.runCapability('ingestStatus', {});
+  assert.equal(status.ok, true);
+  assert.equal(status.distribution.api, 3);
+  assert.equal(status.distribution.decision, 1);
+  assert.equal(status.distribution.manual, 1);
+});
+
+test('company-brain: ingest status distribution reports all known source types as zero on a fresh kernel (#1314)', async () => {
+  const k = makeKernel();
+  k.usePlugin(createCompanyBrainPlugin());
+
+  const status = await k.runCapability('ingestStatus', {});
+  assert.deepEqual(status.distribution, { repo: 0, markdown: 0, manual: 0, decision: 0, api: 0 });
+});
+
 test('company-brain: graph-backed query returns source refs', async () => {
   const k = makeKernel();
   k.usePlugin(createCompanyBrainPlugin());
