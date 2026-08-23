@@ -53,7 +53,7 @@ test('receipt-exporter: exportReceiptToFile writes JSON keyed by receiptId', () 
   // into a throwaway subdirectory under the repo instead of the OS temp
   // root -- mirrors metric-collector.test.js's export test for the same
   // path-safety reason.
-  const outputDir = path.join(__dirname, '..', `tmp-receipt-export-test-${process.pid}`);
+  const outputDir = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-export-test-${process.pid}`);
   try {
     const filePath = exportReceiptToFile({ receiptId: 'r-123', ok: true }, outputDir);
     assert.ok(filePath.endsWith(`r-123.json`));
@@ -62,6 +62,36 @@ test('receipt-exporter: exportReceiptToFile writes JSON keyed by receiptId', () 
   } finally {
     fs.rmSync(outputDir, { recursive: true, force: true });
     fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('receipt-exporter: exportReceiptToFile rejects an outputDir inside the repo but outside receipts/ (#1280)', () => {
+  // Previously validated only against REPO_ROOT, so outputDir: '.' (resolving
+  // to the repo root under process.cwd()) plus a legitimate-looking
+  // receiptId reached repo-root files like package.json -- receiptId is
+  // already a validated single safe segment, so the escape had to come from
+  // outputDir, not the file name.
+  const repoRoot = path.join(__dirname, '..');
+  assert.throws(
+    () => exportReceiptToFile({ receiptId: 'package' }, repoRoot),
+    (e) => e.code === 'PATH_OUTSIDE_ALLOWED_ROOT',
+  );
+});
+
+test('receipt-exporter: a second export to the same target fails instead of overwriting the first (#1280)', () => {
+  const outputDir = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-exclusive-${process.pid}`);
+  try {
+    const first = exportReceiptToFile({ receiptId: 'r-exclusive-1', decision: 'first' }, outputDir);
+    assert.equal(JSON.parse(fs.readFileSync(first, 'utf8')).decision, 'first');
+
+    assert.throws(
+      () => exportReceiptToFile({ receiptId: 'r-exclusive-1', decision: 'second' }, outputDir),
+      (e) => e.code === 'RECEIPT_EXPORT_TARGET_EXISTS',
+    );
+    // The original file must survive untouched -- not silently overwritten.
+    assert.equal(JSON.parse(fs.readFileSync(first, 'utf8')).decision, 'first');
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
   }
 });
 
@@ -81,6 +111,19 @@ test('receipt-exporter: afterLearn does nothing when no receipt is present', () 
   const kernel = fakeKernel();
   receiptExporter.afterLearn(kernel, { text: 'x', opts: {}, admission: {} });
   assert.equal(ensureExporterState(kernel).exported.length, 0);
+});
+
+test('receipt-exporter: exported history is capped at MAX_EXPORTED_HISTORY entries (#1280)', () => {
+  const { recordExported, MAX_EXPORTED_HISTORY } = receiptExporter._test;
+  const kernel = fakeKernel();
+  const state = ensureExporterState(kernel);
+  for (let i = 0; i < MAX_EXPORTED_HISTORY + 50; i += 1) {
+    recordExported(state, { receiptId: `r-${i}`, filePath: `/x/r-${i}.json`, exportedAt: 'now' });
+  }
+  assert.equal(state.exported.length, MAX_EXPORTED_HISTORY);
+  // The oldest entries are dropped, not the newest.
+  assert.equal(state.exported[0].receiptId, 'r-50');
+  assert.equal(state.exported[state.exported.length - 1].receiptId, `r-${MAX_EXPORTED_HISTORY + 49}`);
 });
 
 test('receipt-exporter: run() list returns an isolated copy', () => {
@@ -137,7 +180,7 @@ test('receipt-exporter: afterLearn end to end -- a real kernel.learn() with an a
 });
 
 test('receipt-exporter: exportReceiptToPdf writes a real PDF with %PDF magic bytes', async () => {
-  const outputDir = path.join(__dirname, '..', `tmp-receipt-export-test-${process.pid}`);
+  const outputDir = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-export-test-${process.pid}`);
   try {
     const filePath = await exportReceiptToPdf({ receiptId: 'r-pdf-1', decision: 'approved' }, outputDir);
     assert.ok(filePath.endsWith('r-pdf-1.pdf'));
@@ -163,7 +206,7 @@ test('receipt-exporter: exportReceiptToPdf rejects an outputDir outside the repo
 
 test('receipt-exporter: run() format "pdf" exports a real PDF and records it', async () => {
   const kernel = fakeKernel();
-  const outputDir = path.join(__dirname, '..', `tmp-receipt-export-test-${process.pid}`);
+  const outputDir = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-export-test-${process.pid}`);
   try {
     const result = await receiptExporter.run(kernel, {
       action: 'export',
@@ -188,7 +231,7 @@ test('receipt-exporter: run() format "pdf" exports a real PDF and records it', a
 
 test('receipt-exporter: run() default format stays JSON', () => {
   const kernel = fakeKernel();
-  const outputDir = path.join(__dirname, '..', `tmp-receipt-export-test-${process.pid}`);
+  const outputDir = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-export-test-${process.pid}`);
   try {
     const result = receiptExporter.run(kernel, {
       action: 'export',
@@ -204,7 +247,7 @@ test('receipt-exporter: run() default format stays JSON', () => {
 });
 
 test('receipt-exporter: PDF round-trip -- a generated receipt PDF reads back its fields', async () => {
-  const outputDir = path.join(__dirname, '..', `tmp-receipt-export-test-${process.pid}`);
+  const outputDir = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-export-test-${process.pid}`);
   try {
     const receipt = {
       receiptId: 'r-roundtrip-7',
@@ -229,8 +272,8 @@ test('receipt-exporter: PDF round-trip -- a generated receipt PDF reads back its
 // --- #543: receiptId path traversal ---------------------------------------
 
 test('receipt-exporter: #543 traversal receiptId cannot escape the output dir (JSON)', () => {
-  const outputDir = path.join(__dirname, '..', `tmp-receipt-traversal-${process.pid}`);
-  const sentinel = path.join(__dirname, '..', `tmp-receipt-sentinel-${process.pid}.json`);
+  const outputDir = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-traversal-${process.pid}`);
+  const sentinel = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-sentinel-${process.pid}.json`);
   try {
     fs.mkdirSync(outputDir, { recursive: true });
     fs.writeFileSync(sentinel, 'sentinel');
@@ -247,7 +290,7 @@ test('receipt-exporter: #543 traversal receiptId cannot escape the output dir (J
 });
 
 test('receipt-exporter: #543 traversal receiptId rejects on the PDF path too', async () => {
-  const outputDir = path.join(__dirname, '..', `tmp-receipt-traversal-pdf-${process.pid}`);
+  const outputDir = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-traversal-pdf-${process.pid}`);
   try {
     fs.mkdirSync(outputDir, { recursive: true });
     await assert.rejects(
@@ -291,7 +334,7 @@ test('receipt-exporter: #543 legitimate receiptId shapes still pass', () => {
 
 test('receipt-exporter: #544 unknown format fails closed instead of writing JSON', () => {
   const kernel = fakeKernel();
-  const outputDir = path.join(__dirname, '..', `tmp-receipt-format-${process.pid}`);
+  const outputDir = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-format-${process.pid}`);
   try {
     const result = receiptExporter.run(kernel, {
       action: 'export',
@@ -313,7 +356,7 @@ test('receipt-exporter: #544 unknown format fails closed instead of writing JSON
 
 test('receipt-exporter: #544 supported formats still export and report honestly', async () => {
   const kernel = fakeKernel();
-  const outputDir = path.join(__dirname, '..', `tmp-receipt-format-ok-${process.pid}`);
+  const outputDir = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-format-ok-${process.pid}`);
   try {
     const json = receiptExporter.run(kernel, {
       action: 'export', format: 'JSON', outputDir,
