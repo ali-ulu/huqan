@@ -41,6 +41,29 @@ test('scrubSecrets redacts nested and array-nested secrets, preserving structure
   assert.equal(result.scrubbed.items[1].safe, 'value');
 });
 
+const SAMPLE_JWT = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U';
+
+test('scrubSecrets redacts a bare JWT with no keyword or Bearer prefix nearby (#1315)', () => {
+  const result = scrubSecrets({ text: `Wiki notu: oturum jetonu ${SAMPLE_JWT} ile` });
+
+  assert.equal(result.secretDetected, true);
+  assert.equal(result.scrubbed.text, 'Wiki notu: oturum jetonu [REDACTED_SECRET:jwt] ile');
+});
+
+test('scrubSecrets redacts a JWT that is the entire value (#1315)', () => {
+  const result = scrubSecrets({ text: SAMPLE_JWT });
+
+  assert.equal(result.secretDetected, true);
+  assert.equal(result.scrubbed.text, '[REDACTED_SECRET:jwt]');
+});
+
+test('scrubSecrets still redacts a Bearer-prefixed JWT via the existing keyword/shape rule (#1315)', () => {
+  const result = scrubSecrets({ text: `Authorization: Bearer ${SAMPLE_JWT}` });
+
+  assert.equal(result.secretDetected, true);
+  assert.equal(result.scrubbed.text, '[REDACTED]');
+});
+
 test('redactSecretValues and hasSecretLookingValue agree on the same detection rules (reused, not reimplemented)', () => {
   const payload = { credential: 'topsecret' };
   assert.equal(hasSecretLookingValue(payload), true);
