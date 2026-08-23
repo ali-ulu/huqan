@@ -109,13 +109,20 @@ test('döngü is reported once per node even with several back edges (#395)', ()
   assert.equal(cycles.filter(c => c.node === 'b').length, 1);
 });
 
-test('düşük-ağırlık is still detected', () => {
+test('low-weight evidence is not reported as a contradiction (#1173)', () => {
   const graph = fakeGraph(['a'], {
     a: [{ to: 'x', relation: 'olur', weight: 0.1 }],
   });
+  assert.deepEqual(serviceFor(graph).detectContradictions(), []);
+});
+
+test('an explicit conflict flag remains a contradiction (#1173)', () => {
+  const graph = fakeGraph(['a'], {
+    a: [{ to: 'x', relation: 'olur', weight: 0.1, celiski: true }],
+  });
   const found = serviceFor(graph).detectContradictions();
   assert.equal(found.length, 1);
-  assert.equal(found[0].type, 'düşük-ağırlık');
+  assert.equal(found[0].type, 'çelişki');
 });
 
 test('time-series values are not reported as numeric contradictions (#1175)', () => {
@@ -148,19 +155,19 @@ test('results stay grouped by contradiction type, not by node (#395)', () => {
     a: [
       { to: 'hayvan', relation: 'tür' },
       { to: 'bitki', relation: 'tür' },
-      { to: 'x', relation: 'olur', weight: 0.1 },
+      { to: 'x', relation: 'olur', celiski: true },
     ],
     b: [
       { to: 'insan', relation: 'tür' },
       { to: 'kurum', relation: 'tür' },
-      { to: 'y', relation: 'olur', weight: 0.05 },
+      { to: 'y', relation: 'olur', celiski: true },
     ],
   });
 
   const types = serviceFor(graph).detectContradictions().map(c => c.type);
 
-  // Both 'çoklu-tür' entries come before both 'düşük-ağırlık' entries.
-  assert.deepEqual(types, ['çoklu-tür', 'çoklu-tür', 'düşük-ağırlık', 'düşük-ağırlık']);
+  // Both 'çoklu-tür' entries come before both explicit conflict entries.
+  assert.deepEqual(types, ['çoklu-tür', 'çoklu-tür', 'çelişki', 'çelişki']);
 });
 
 test('an empty graph produces no contradictions and no reads', () => {
