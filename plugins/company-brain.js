@@ -19,7 +19,7 @@ function slug(text) {
 function ensureCompanyState(kernel) {
   if (!kernel._companyIngestState) {
     kernel._companyIngestState = {
-      bySource: { repo: 0, markdown: 0, manual: 0 },
+      bySource: { repo: 0, markdown: 0, manual: 0, decision: 0, api: 0 },
       lastIngestAt: null,
       ingestErrors: [],
     };
@@ -455,7 +455,7 @@ function ingestDecision(kernel, input = {}) {
   }
 
   const added = rationaleEdge.edge ? 1 : 0;
-  trackSuccess(kernel, 'manual', added);
+  trackSuccess(kernel, 'decision', added);
   return {
     ok: true,
     sourceType: 'decision',
@@ -551,11 +551,9 @@ function getIngestStatus(kernel) {
   return {
     ok: true,
     totalNodes: stats.nodes || 0,
-    distribution: {
-      repo: Number(state.bySource.repo || 0),
-      markdown: Number(state.bySource.markdown || 0),
-      manual: Number(state.bySource.manual || 0),
-    },
+    distribution: Object.fromEntries(
+      Object.entries(state.bySource).map(([key, value]) => [key, Number(value || 0)])
+    ),
     lastIngestAt: state.lastIngestAt || null,
     ingestErrors: Array.isArray(state.ingestErrors) ? state.ingestErrors : [],
   };
