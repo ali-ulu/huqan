@@ -56,6 +56,13 @@ function extractFacts(text, knownNodes = null) {
     ];
   }
 
+  const article = words.indexOf('bir');
+  if (article > 0 && article < words.length - 1) {
+    const subject = normalize(words.slice(0, article).join(' '));
+    const predicate = words.slice(article + 1).filter(w => w !== 'de' && w !== 'da').join(' ');
+    return subject && predicate ? [{ subject, predicate }] : [];
+  }
+
   if (knownNodes) {
     const nodeIds = typeof knownNodes === 'object' && !Array.isArray(knownNodes)
       ? Object.keys(knownNodes)
