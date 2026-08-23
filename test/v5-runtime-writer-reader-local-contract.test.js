@@ -192,3 +192,27 @@ test('writer and reader helpers remain isolated from exchange and persistence su
   assert.equal(forbiddenDependencyPattern.test(writerSource), false);
   assert.equal(forbiddenDependencyPattern.test(readerSource), false);
 });
+
+test('a BigInt anywhere in the input fails closed with BLOCK instead of throwing (#1298)', () => {
+  const input = makeWriterInput({ provenance: { traceId: 'trace.bigint', weight: 10n } });
+  let result;
+  assert.doesNotThrow(() => {
+    result = writeRuntimePackage(input);
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.verdict, 'BLOCK');
+  assert.equal(result.reason_category, 'invalid_json_value');
+});
+
+test('a circular reference in the input fails closed with BLOCK instead of throwing (#1298)', () => {
+  const provenance = { traceId: 'trace.cycle', source: 'local_test' };
+  provenance.self = provenance;
+  const input = makeWriterInput({ provenance });
+  let result;
+  assert.doesNotThrow(() => {
+    result = writeRuntimePackage(input);
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.verdict, 'BLOCK');
+  assert.equal(result.reason_category, 'invalid_json_value');
+});
