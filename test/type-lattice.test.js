@@ -38,7 +38,10 @@ describe('type-lattice', () => {
     const ancestors = collectTypeAncestors(kernel.graph, 'köpek', 'default');
     const types = ancestors.map(entry => entry.type);
 
-    assert.deepStrictEqual(types.slice(0, 3), ['hayvan', 'canlı', 'organizma']);
+    // `canli`, not `canlı`: node ids are ASCII-folded, and dotless ı now folds
+    // with the other five Turkish letters instead of being the one exception
+    // that made a word's token depend on its case (#1196).
+    assert.deepStrictEqual(types.slice(0, 3), ['hayvan', 'canli', 'organizma']);
   });
 
   it('detects disjoint type conflicts through the lattice', () => {
