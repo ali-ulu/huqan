@@ -145,6 +145,19 @@ test('http-adapter: fetchUrl enforces maxBytes', async () => {
   });
 });
 
+test('http-adapter: fetchUrl enforces timeoutMs despite a slow response stream', async () => {
+  await withServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    const drip = setInterval(() => res.write('a'), 10);
+    req.on('close', () => clearInterval(drip));
+  }, async (baseUrl) => {
+    await assert.rejects(
+      () => fetchUrl(`${baseUrl}/`, { allowPrivateAddresses: true, timeoutMs: 60 }),
+      (err) => err.code === 'HTTP_TIMEOUT',
+    );
+  });
+});
+
 test('http-adapter: isAllowedByRobots respects Disallow and caches per origin', async () => {
   let robotsRequests = 0;
   await withServer((req, res) => {

@@ -37,6 +37,21 @@ async function rawFetch(urlString, options = {}) {
   const timeoutMs = options.timeoutMs || DEFAULT_TIMEOUT_MS;
 
   return new Promise((resolve, reject) => {
+    let res;
+    let settled = false;
+    let deadline;
+    // Rejecting here directly (rather than via req.destroy(err) and an
+    // 'error' listener) avoids destroy()'s error re-emitting synchronously
+    // through the in-flight 'data' event dispatch and surfacing as an
+    // uncaught exception instead of a clean promise rejection.
+    const failOnce = (err) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(deadline);
+      reject(err);
+      req.destroy();
+      res?.destroy();
+    };
     const req = client.request({
       hostname: parsed.hostname,
       port: parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
@@ -50,21 +65,10 @@ async function rawFetch(urlString, options = {}) {
       },
       lookup: pinnedLookup(safe.addresses[0], safe.family),
       timeout: timeoutMs,
-    }, (res) => {
+    }, (response) => {
+      res = response;
       const chunks = [];
       let received = 0;
-      let settled = false;
-      // Rejecting here directly (rather than via req.destroy(err) and an
-      // 'error' listener) avoids destroy()'s error re-emitting synchronously
-      // through the in-flight 'data' event dispatch and surfacing as an
-      // uncaught exception instead of a clean promise rejection.
-      const failOnce = (err) => {
-        if (settled) return;
-        settled = true;
-        reject(err);
-        req.destroy();
-        res.destroy();
-      };
       res.on('data', (chunk) => {
         if (settled) return;
         received += chunk.length;
@@ -77,6 +81,7 @@ async function rawFetch(urlString, options = {}) {
       res.on('end', () => {
         if (settled) return;
         settled = true;
+        clearTimeout(deadline);
         resolve({
           statusCode: res.statusCode,
           headers: res.headers,
@@ -86,10 +91,12 @@ async function rawFetch(urlString, options = {}) {
       res.on('error', failOnce);
     });
     req.on('timeout', () => {
-      req.destroy();
-      reject(Object.assign(new Error(`http-adapter: request timed out after ${timeoutMs}ms`), { code: 'HTTP_TIMEOUT' }));
+      failOnce(Object.assign(new Error(`http-adapter: request timed out after ${timeoutMs}ms`), { code: 'HTTP_TIMEOUT' }));
     });
-    req.on('error', reject);
+    req.on('error', failOnce);
+    deadline = setTimeout(() => {
+      failOnce(Object.assign(new Error(`http-adapter: request timed out after ${timeoutMs}ms`), { code: 'HTTP_TIMEOUT' }));
+    }, timeoutMs);
     req.end();
   });
 }
