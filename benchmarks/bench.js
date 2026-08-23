@@ -1,4 +1,5 @@
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const Kernel = require('../kernel');
 
@@ -30,12 +31,35 @@ function average(values) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+const benchmarkPersistenceDirs = new Set();
+
+process.once('exit', () => {
+  for (const dir of benchmarkPersistenceDirs) fs.rmSync(dir, { recursive: true, force: true });
+});
+
 function createKernel() {
-  return new Kernel({
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-benchmark-'));
+  benchmarkPersistenceDirs.add(tempDir);
+  const kernel = new Kernel({
     noLoad: true,
     loadPlugins: false,
     useSQLite: false,
+    memoryPath: path.join(tempDir, 'memory.json'),
   });
+  kernel.__benchmarkPersistenceDir = tempDir;
+  return kernel;
+}
+
+function closeKernel(kernel) {
+  const tempDir = kernel?.__benchmarkPersistenceDir;
+  try {
+    if (typeof kernel?.graph?.close === 'function') kernel.graph.close();
+  } finally {
+    if (tempDir) {
+      benchmarkPersistenceDirs.delete(tempDir);
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  }
 }
 
 function measure(name, fn, iterations) {
@@ -61,40 +85,48 @@ function benchFixture(label, statements, options = {}) {
   const iterations = options.iterations ?? 5;
   const queryKernel = createKernel();
 
-  const learn = measure(`${label}:learn`, () => {
-    const learnKernel = createKernel();
+  try {
+    const learn = measure(`${label}:learn`, () => {
+      const learnKernel = createKernel();
+      try {
+        for (const statement of statements) {
+          learnKernel.learn(statement, TEST_FIXTURE_LEARN_BYPASS);
+        }
+        return learnKernel.graph.getStats();
+      } finally {
+        closeKernel(learnKernel);
+      }
+    }, iterations);
+
     for (const statement of statements) {
-      learnKernel.learn(statement, TEST_FIXTURE_LEARN_BYPASS);
+      queryKernel.learn(statement, TEST_FIXTURE_LEARN_BYPASS);
     }
-    return learnKernel.graph.getStats();
-  }, iterations);
 
-  for (const statement of statements) {
-    queryKernel.learn(statement, TEST_FIXTURE_LEARN_BYPASS);
+    const sample = statements[0];
+    const subject = sample.split(/\s+/)[0];
+    const compareLeft = statements[0].split(/\s+/)[0];
+    const compareRight = statements[1]?.split(/\s+/)[0] || compareLeft;
+
+    const ask = measure(`${label}:ask`, () => queryKernel.ask(`${subject} nedir`), iterations);
+    const verify = measure(`${label}:verify`, () => queryKernel.verify(sample), iterations);
+    const reason = measure(`${label}:reason`, () => queryKernel.reason(subject), iterations);
+    const compare = measure(`${label}:compare`, () => queryKernel.compare(compareLeft, compareRight), iterations);
+    const dream = measure(`${label}:dream`, () => queryKernel.dream(), iterations);
+
+    return {
+      label,
+      nodes: queryKernel.graph.getStats().nodes,
+      edges: queryKernel.graph.getStats().edges,
+      learn,
+      ask,
+      verify,
+      reason,
+      compare,
+      dream,
+    };
+  } finally {
+    closeKernel(queryKernel);
   }
-
-  const sample = statements[0];
-  const subject = sample.split(/\s+/)[0];
-  const compareLeft = statements[0].split(/\s+/)[0];
-  const compareRight = statements[1]?.split(/\s+/)[0] || compareLeft;
-
-  const ask = measure(`${label}:ask`, () => queryKernel.ask(`${subject} nedir`), iterations);
-  const verify = measure(`${label}:verify`, () => queryKernel.verify(sample), iterations);
-  const reason = measure(`${label}:reason`, () => queryKernel.reason(subject), iterations);
-  const compare = measure(`${label}:compare`, () => queryKernel.compare(compareLeft, compareRight), iterations);
-  const dream = measure(`${label}:dream`, () => queryKernel.dream(), iterations);
-
-  return {
-    label,
-    nodes: queryKernel.graph.getStats().nodes,
-    edges: queryKernel.graph.getStats().edges,
-    learn,
-    ask,
-    verify,
-    reason,
-    compare,
-    dream,
-  };
 }
 
 function runBenchmarks(options = {}) {
