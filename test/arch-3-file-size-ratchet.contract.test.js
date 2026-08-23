@@ -45,6 +45,32 @@ test('a new file over the threshold fails', () => {
   assert.equal(violations[0].limit, THRESHOLD);
 });
 
+test('a new-over-threshold message reports how far over the threshold it is', () => {
+  const { violations } = evaluate({ 'lib/big.js': THRESHOLD + 2200 }, {});
+  assert.match(violations[0].message, /2200 over the 800-line threshold/);
+});
+
+test('--update alone (no --seed-new) never seeds a new debt entry for a brand-new file (#1289)', () => {
+  const { violations, nextBaseline } = evaluate({ 'lib/brand-new.js': THRESHOLD + 2200 }, {});
+  assert.deepEqual(kinds(violations), ['new-over-threshold']);
+  assert.deepEqual(nextBaseline, {}, 'plain evaluate() (seedNew defaults to false) must not write a ceiling');
+});
+
+test('--seed-new explicitly opts in to recording a brand-new over-threshold file (#1289)', () => {
+  const { violations, nextBaseline } = evaluate(
+    { 'lib/brand-new.js': THRESHOLD + 2200 }, {}, THRESHOLD, { seedNew: true },
+  );
+  assert.deepEqual(kinds(violations), ['new-over-threshold']);
+  assert.equal(nextBaseline['lib/brand-new.js'], THRESHOLD + 2200);
+});
+
+test('--seed-new never lets an existing ceiling grow -- only new files are affected (#1289)', () => {
+  const { nextBaseline } = evaluate(
+    { 'kernel.js': 5000 }, { 'kernel.js': 2098 }, THRESHOLD, { seedNew: true },
+  );
+  assert.equal(nextBaseline['kernel.js'], 2098, 'seedNew only governs brand-new entries, not the grown-ceiling ratchet');
+});
+
 test('a baseline file that grows past its recorded ceiling fails', () => {
   const { violations } = evaluate({ 'kernel.js': 2099 }, { 'kernel.js': 2098 });
   assert.deepEqual(kinds(violations), ['grew']);
