@@ -65,6 +65,24 @@ function seedPharma(kernel) {
 }
 
 describe('semantic false-positive hardening', () => {
+  it('returns unknown for an unrelated predicate about a known subject (#1076)', () => {
+    const kernel = makeKernel('predicate-drift');
+    kernel.graph.addNode('kedi', 'kedi');
+    kernel.graph.addNode('hayvan', 'hayvan');
+    kernel.graph.addEdge('kedi', 'hayvan', 'tür');
+
+    assert.strictEqual(unwrap(kernel.verify('kedi hayvandir')).status, 'verified');
+    for (const claim of ['kedi uyuyor', 'kedi bahcede', 'kedi sut icer']) {
+      const result = unwrap(kernel.verify(claim));
+      assert.strictEqual(result.status, 'unknown', `${claim} has no contradictory evidence`);
+      assert.strictEqual(result.confidence, 0);
+    }
+
+    const typeConflict = unwrap(kernel.verify('kedi bitkidir'));
+    assert.strictEqual(typeConflict.status, 'contradicted');
+    assert.ok(typeConflict.confidence >= 0.9);
+  });
+
   it('downgrades aviation false claims away from dogrulandi', () => {
     const kernel = makeKernel('aviation');
     seedAviation(kernel);

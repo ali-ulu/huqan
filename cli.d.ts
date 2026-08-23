@@ -1,3 +1,4 @@
+declare namespace CLI {
 export interface CLIOptions {
   kernelInstance?: any;
   kernel?: Record<string, unknown>;
@@ -15,10 +16,12 @@ export interface ParsedCommand {
   workflowId: string | null;
 }
 
+}
+
 declare class CLI {
-  constructor(opts?: CLIOptions);
+  constructor(opts?: CLI.CLIOptions);
   kernel: any;
-  parse(input: string): ParsedCommand;
+  parse(input: string): CLI.ParsedCommand;
   /**
    * Execute a parsed command. Most commands return a string synchronously,
    * but some (mri, tartisma, celiski, etc.) return a Promise<string>. Callers
@@ -29,6 +32,7 @@ declare class CLI {
   start(): void;
 }
 
+declare namespace CLI {
 export function createKernel(opts?: Record<string, unknown>): any;
 export function runCliArgv(
   argv?: unknown[],
@@ -44,5 +48,7 @@ export function runCliArgv(
   decision?: string;
   workflowId?: string | null;
 }>;
+
+}
 
 export = CLI;

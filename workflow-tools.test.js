@@ -174,6 +174,19 @@ describe('workflow-tools', () => {
     assert.ok(result.evidence.some(item => item.kind === 'negation'));
   });
 
+  it('findContradictions forwards the workflow workspace (#1073)', () => {
+    let seen;
+    const kernel = createKernel({
+      detectContradictions(subject, workspaceId) {
+        seen = [subject, workspaceId];
+        return [];
+      },
+    });
+    const tool = createWorkflowTools(kernel).find(item => item.name === 'findContradictions');
+    tool.run({ workspaceId: 'tenant-a' }, { subject: 'kedi' });
+    assert.deepStrictEqual(seen, ['kedi', 'tenant-a']);
+  });
+
   it('rankEvidence uses evidence-ranker weights and adjusted confidence', () => {
     const tool = createWorkflowTools(createKernel()).find(item => item.name === 'rankEvidence');
     const result = tool.run({}, {

@@ -2,13 +2,17 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 
 const {
   analyzePackageClosure,
+  analyzePackageClosures,
   loadTimeRequires,
   loadTimeEntryPoints,
   publishedFiles,
+  packageRoots,
 } = require('../scripts/check-package-closure');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -23,6 +27,34 @@ test('every module the installed package loads is published', () => {
   assert.deepEqual([...missing.keys()], [],
     'these modules run at install time but are not in package.json#files, so an '
     + 'installed consumer gets "Cannot find module" for each:\n' + report);
+});
+
+test('every publishable package is included in closure analysis (#1071)', () => {
+  const roots = packageRoots(REPO_ROOT);
+  assert.equal(roots.includes(path.join(REPO_ROOT, 'packages', 'huqan-verify')), false,
+    'the broken legacy package must stay explicitly private');
+  assert.equal(roots.includes(path.join(REPO_ROOT, 'packages', 'axiom-verify')), false,
+    'the compatibility alias must stay explicitly private');
+  assert.equal(analyzePackageClosures({ root: REPO_ROOT }).every(report => report.missing.size === 0), true);
+});
+
+test('a publishable nested package with an escaped require fails closure (#1071)', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-package-closure-'));
+  try {
+    fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'root', main: 'index.js', files: ['index.js'] }));
+    fs.writeFileSync(path.join(root, 'index.js'), "module.exports = {};\n");
+    fs.writeFileSync(path.join(root, 'missing.js'), "module.exports = {};\n");
+    fs.mkdirSync(path.join(root, 'packages', 'publishable'), { recursive: true });
+    const nested = path.join(root, 'packages', 'publishable');
+    fs.writeFileSync(path.join(nested, 'package.json'), JSON.stringify({ name: 'publishable', main: 'index.js', files: ['index.js'] }));
+    fs.writeFileSync(path.join(nested, 'index.js'), "module.exports = require('../../missing');\n");
+    const reports = analyzePackageClosures({ root });
+    const nestedReport = reports.find(report => report.root === nested);
+    assert.ok(nestedReport);
+    assert.equal(nestedReport.missing.size, 1);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 // ─── the analysis itself ─────────────────────────────────────────────────────

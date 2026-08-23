@@ -24,6 +24,11 @@ class Dream {
     const windowSize  = opts.windowSize   || 5;
     const p           = opts.p            || 1.0;
     const q           = opts.q            || 1.0;
+    // Embeddings must be reproducible by default; callers can inject a random
+    // source for experiments without making the normal path flaky.
+    const random = typeof opts.random === 'function'
+      ? opts.random
+      : this._seededRandom(opts.seed ?? 'huqan-dream-embedding');
 
     const nodes = Object.keys(this.graph._nodes);
     if (nodes.length < 2) return null;
@@ -32,7 +37,7 @@ class Dream {
     const walks = [];
     for (const id of nodes) {
       for (let w = 0; w < walksPerNode; w++) {
-        walks.push(this._biasedWalk(id, walkLength, p, q));
+        walks.push(this._biasedWalk(id, walkLength, p, q, random));
       }
     }
 
@@ -148,7 +153,21 @@ class Dream {
 
   // ─── Random Walk ──────────────────────────────────────────────────────────
 
-  _biasedWalk(start, length, p, q) {
+  _seededRandom(seed) {
+    let state = 2166136261;
+    for (const char of String(seed)) {
+      state ^= char.charCodeAt(0);
+      state = Math.imul(state, 16777619);
+    }
+    return () => {
+      state ^= state >>> 13;
+      state = Math.imul(state, 16777619);
+      state ^= state >>> 16;
+      return (state >>> 0) / 4294967296;
+    };
+  }
+
+  _biasedWalk(start, length, p, q, random = Math.random) {
     const path    = [start];
     const visited = new Set([start]); // döngü önleme için Set kullan
     let prev      = null;
@@ -172,7 +191,7 @@ class Dream {
       const total = weights.reduce((s, w) => s + w, 0);
       if (total === 0) break;
 
-      let r    = Math.random() * total;
+      let r    = random() * total;
       let pick = candidates[candidates.length - 1]; // fallback
       for (let j = 0; j < candidates.length; j++) {
         r -= weights[j];

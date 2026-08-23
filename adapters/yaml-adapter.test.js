@@ -62,6 +62,21 @@ test('yaml-adapter: rejects aliases before parsing and bounds depth/output', () 
   );
 });
 
+test('yaml-adapter: accepts indicator characters in plain and block scalars', () => {
+  const entries = parseYaml([
+    'note: see *important* details',
+    'title: Foo &bar',
+    'script: |',
+    '  rm -rf *cache',
+  ].join('\n'), '/tmp/plain-scalars.yaml');
+
+  assert.deepEqual(entries.map((entry) => [entry.entryKey, entry.content]), [
+    ['note', 'see *important* details'],
+    ['title', 'Foo &bar'],
+    ['script', 'rm -rf *cache'],
+  ]);
+});
+
 test('yaml-adapter: aggregate budget failure is atomic before learning', (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-yaml-atomic-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));

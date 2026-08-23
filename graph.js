@@ -41,7 +41,7 @@ const {
 } = require('./lib/graph-record-utils');
 const { derivePersistenceLayout } = require('./lib/memory-store-utils');
 const { countAuditEvents, queryAuditEvents, readAuditEvents } = require('./lib/audit-query');
-const { assertChainTipUsable, emptyMutationJournal, readMutationJournal, readCommittedMutationResult, readCommittedMutationResultsByPrefix } = require('./lib/mutation-journal');
+const { assertChainTipUsable, emptyMutationJournal, readMutationJournal, readCommittedMutationResult, readCommittedMutationResultsByPrefix, withMutationJournalLock } = require('./lib/mutation-journal');
 const { applyTemporalEdgeMetadata, beginEdgeTouchScope, downgradeEdge, edgeTouchKey } = require('./lib/graph-edge-mutations');
 const { getCausalChain: runCausalChain } = require('./lib/graph-causal-chain');
 const { getCandidateClaims: runCandidateClaimsRead } = require('./lib/graph-candidate-claims-read');
@@ -431,7 +431,6 @@ class Graph {
   _writeJsonJournal(journal) {
     atomicWriteFileSync(this._jsonJournalPath(), JSON.stringify(journal));
   }
-
   _readMutationReceiptFromJsonJournal(journal, operationId) {
     return readMutationReceiptFromJsonJournal(journal, operationId);
   }
@@ -534,7 +533,8 @@ class Graph {
    * unchanged) -- durability comes from the journal file being written with
    * atomicWriteFileSync() (never a torn write) rather than a SQL transaction.
    */
-  _runMutationOnceJson(id, mutate, opts) {
+  _runMutationOnceJson(id, mutate, opts) { return withMutationJournalLock(this._jsonJournalPath(), () => this._runMutationOnceJsonLocked(id, mutate, opts)); }
+  _runMutationOnceJsonLocked(id, mutate, opts) {
     const readStored = () => {
       const journal = this._readJsonJournal();
       const op = journal.operations[id];
@@ -667,7 +667,7 @@ class Graph {
   }
 
   _consolidateEdges(dryRun = true) {
-    return consolidateEdges({ edges: this._edges, dryRun, replaceEdges: arr => { this._edges = arr; }, rebuildIndex: () => this._rebuildIndex(), save: () => this.save(), logSaveError: error => { console.error('[Kernel] Graph save hatası:', error.message); } });
+    return consolidateEdges({ edges: this._edges, dryRun, replaceEdges: arr => { this._edges = arr; }, rebuildIndex: () => this._rebuildIndex(), save: () => this.save(), logSaveError: error => { console.error('[Kernel] Graph save hatası:', error.message); }, auditRemoval: (edge, reason) => this.appendAuditEvent({ eventType: 'DELETE', targetType: 'edge', targetId: `${edge.from}|${edge.relation}|${edge.to}`, workspaceId: normalizeWorkspaceId(edge.workspaceId), actor: 'graph.consolidate', sourceRef: 'graph.consolidate', details: { reason, weight: edge.weight } }) });
   }
 
   getNodes(workspaceId = 'default') {
@@ -927,7 +927,7 @@ class Graph {
     return runGraphPrune(this._pruneStoreApi(), threshold, workspaceId);
   }
 
-  _optimizeStoreApi() { return { prune: scope => this.prune(undefined, scope), getNodes: () => this._nodes, getEdges: (nodeId, scope) => this.getEdges(nodeId, scope), getInEdges: (nodeId, scope) => this.getInEdges(nodeId, scope), decayLambda: this._decayLambda, deleteNode: id => { delete this._nodes[id]; }, persistDeleteNode: (id, scope) => { if (this._db && this._stmts) this._stmts.deleteNode.run(id, scope); } }; }
+  _optimizeStoreApi() { return { prune: scope => this.prune(undefined, scope), getNodes: () => this._nodes, getEdges: (nodeId, scope) => this.getEdges(nodeId, scope), getInEdges: (nodeId, scope) => this.getInEdges(nodeId, scope), decayLambda: this._decayLambda, deleteNode: id => { delete this._nodes[id]; }, persistDeleteNode: (id, scope) => { if (this._db && this._stmts) this._stmts.deleteNode.run(id, scope); }, auditRemoval: (node, decayedWeight) => this.appendAuditEvent({ eventType: 'DELETE', targetType: 'node', targetId: node.id, workspaceId: normalizeWorkspaceId(node.workspaceId), actor: 'graph.optimize', sourceRef: 'graph.optimize', details: { reason: 'decayed_isolated_node', decayedWeight } }) }; }
 
   optimize(workspaceId = 'default') {
     return runGraphOptimize(this._optimizeStoreApi(), workspaceId);

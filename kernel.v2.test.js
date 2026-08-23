@@ -17,6 +17,19 @@ function freshV2() {
 }
 
 describe('KernelV2', () => {
+  it('keeps introspection and read delegates inside the requested workspace (#1073)', () => {
+    const k = freshV2();
+    const workspaceId = 'tenant-a';
+    for (const node of ['kedi', 'hayvan', 'bitki']) k.graph.addNode(node, node, null, { workspaceId });
+    k.graph.addEdge('kedi', 'hayvan', 'tür', { workspaceId });
+    k.graph.addEdge('kedi', 'bitki', 'tür', { workspaceId });
+
+    assert.equal(k.detectContradictions('', workspaceId).length, 1);
+    assert.equal(k.detectGaps(workspaceId).length, 2);
+    assert.ok(k.entropy(workspaceId) > 0);
+    assert.equal(k.introspect(workspaceId).data.saglik.celiski, 1);
+  });
+
   it('stores temporal metadata during learn', () => {
     const k = freshV2();
     const learnedAt = '2026-05-24T10:00:00.000Z';

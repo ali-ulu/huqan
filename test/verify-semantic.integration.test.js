@@ -249,17 +249,17 @@ describe('verify semantic integration', () => {
     assert.strictEqual(result.status, 'verified');
   });
 
-  it('marks benign unrelated drift as celiski in current semantics', () => {
+  it('leaves benign unrelated drift unknown rather than contradicted (#1076)', () => {
     const kernel = makeKernel('benign-relation-drift');
     kernel.learn('aspirin kan inceltici olarak etki eder', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
 
     const raw = kernel.verify('aspirin beyaz tablettir', { workspaceId: 'default' });
     const result = unwrap(raw);
 
-    assert.strictEqual(result.status, 'contradicted');
+    assert.strictEqual(result.status, 'unknown');
   });
 
-  it('marks high-risk weak claims as celiski with risk flags', () => {
+  it('keeps high-risk weak claims unknown while preserving risk flags', () => {
     const kernel = makeKernel('high-risk');
     seedFacts(kernel);
 
@@ -268,10 +268,10 @@ describe('verify semantic integration', () => {
     const semanticTrust = raw.meta.semanticTrust;
 
     assert.ok(result && typeof result === 'object', 'verify result should be an object');
-    assert.strictEqual(result.status, 'contradicted');
+    assert.strictEqual(result.status, 'unknown');
     assert.ok(semanticTrust && typeof semanticTrust === 'object', 'semantic trust meta should be attached');
-    assert.strictEqual(semanticTrust.status, 'contradicted');
-    assert.strictEqual(semanticTrust.classification, 'contradicted');
+    assert.strictEqual(semanticTrust.status, 'unknown');
+    assert.strictEqual(semanticTrust.classification, 'needs_review');
     assert.ok(Array.isArray(semanticTrust.warnings), 'warnings should be an array');
     assert.ok(
       semanticTrust.risk.flags.includes('HIGH_RISK_DOMAIN') ||

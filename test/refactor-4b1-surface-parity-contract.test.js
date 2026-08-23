@@ -65,7 +65,7 @@ test('verify classification stays aligned across Kernel, CLI, and SDK wrappers',
 
     const cases = [
       ['kedi hayvandir', 'verified'],
-      ['kus ucar', 'contradicted'],
+      ['kus ucar', 'unknown'],
       ['balik ucabilir', 'unknown'],
     ];
 
