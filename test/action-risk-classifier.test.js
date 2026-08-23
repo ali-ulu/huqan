@@ -76,6 +76,19 @@ describe('AB1 v2 canon', () => {
   it('high-impact write categories contains the expected 8 entries', () => {
     assert.strictEqual(HIGH_IMPACT_WRITE_CATEGORIES.size, 8);
   });
+
+  it('high-impact write categories is genuinely immutable, not just Object.freeze on the Set wrapper (#1285)', () => {
+    // Object.freeze on a Set blocks reconfiguring the Set object's own
+    // properties, but add()/delete()/clear() mutate through [[SetData]],
+    // which Object.freeze never touches -- so the set stayed fully mutable
+    // through its own methods despite being "frozen".
+    assert.throws(() => HIGH_IMPACT_WRITE_CATEGORIES.add('READ_ONLY'), TypeError);
+    assert.throws(() => HIGH_IMPACT_WRITE_CATEGORIES.delete('MEMORY_WRITE'), TypeError);
+    assert.throws(() => HIGH_IMPACT_WRITE_CATEGORIES.clear(), TypeError);
+    assert.strictEqual(HIGH_IMPACT_WRITE_CATEGORIES.size, 8);
+    assert.strictEqual(HIGH_IMPACT_WRITE_CATEGORIES.has('MEMORY_WRITE'), true);
+    assert.strictEqual([...HIGH_IMPACT_WRITE_CATEGORIES].length, 8);
+  });
 });
 
 describe('AB1 v2 normalization', () => {
