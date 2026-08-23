@@ -242,6 +242,7 @@
     "lib/http/v5-package-import-route.js",
     "lib/http/workflow-contract-route.js",
     "lib/http/workflow-data-routes.js",
+    "lib/http/workflow-request-validation.js",
     "lib/http/pr-guardian-config.js",
     "lib/http/pr-guardian-routes.js",
     "lib/http/workflow-envelope.js",
