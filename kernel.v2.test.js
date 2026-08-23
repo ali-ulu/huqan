@@ -16,6 +16,31 @@ function freshV2() {
   return new KernelV2({ noLoad: true, useSQLite: false, loadPlugins: false });
 }
 
+describe('multi-word subject verification (#1171)', () => {
+  it('does not verify a different multi-word subject against a shared first token', () => {
+    const k = freshV2();
+    learnFixture(k, 'Ali bir dolandırıcı');
+
+    assert.equal(k.verify('Ali bir dolandırıcı').data.status, 'verified');
+    for (const statement of [
+      'Ali Yılmaz bir dolandırıcı',
+      'Ali Demir bir dolandırıcı',
+      'Ali Holding bir dolandırıcı',
+    ]) {
+      const result = k.verify(statement);
+      assert.equal(result.data.status, 'unknown');
+      assert.equal(result.data.subjectResolution, 'exact_match_required');
+    }
+  });
+
+  it('verifies a multi-word subject when that exact node exists', () => {
+    const k = freshV2();
+    learnFixture(k, 'Ali Yılmaz bir doktordur');
+
+    assert.equal(k.verify('Ali Yılmaz bir doktordur').data.status, 'verified');
+  });
+});
+
 describe('KernelV2', () => {
   it('keeps introspection and read delegates inside the requested workspace (#1073)', () => {
     const k = freshV2();

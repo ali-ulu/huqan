@@ -2,6 +2,7 @@
 
 const { detectTypeLatticeConflict } = require('./lib/type-lattice');
 const { stripCopulaOrKeep } = require('./lib/turkish-copula');
+const { resolveKnownSubject } = require('./lib/subject-resolution');
 
 // Mechanical 1:1 extraction (#328, docs/kernel-split-plan.md V2-A): pure native
 // helpers, the opposite-predicate seed table, and the manipulation rule
@@ -42,7 +43,6 @@ class KernelV2 {
   get plugins() {
     return this.kernel.plugins;
   }
-
   get graph() {
     return this.kernel.graph;
   }
@@ -55,11 +55,9 @@ class KernelV2 {
   get memory() {
     return this.kernel.memory;
   }
-
   get contractVersion() {
     return this.kernel.contractVersion;
   }
-
   getPersistenceDescriptor() {
     return this.kernel.getPersistenceDescriptor();
   }
@@ -70,7 +68,6 @@ class KernelV2 {
   reload() {
     return this.kernel.reload();
   }
-
   persist() {
     return this.kernel.persist();
   }
@@ -585,7 +582,7 @@ class KernelV2 {
   verify(statement, opts = {}) {
     const risk = analyseManipulation(statement);
     const verificationStatement = risk.extractedStatement || statement;
-    const parsed = parseSimpleTurkishStatement(verificationStatement);
+    let parsed = parseSimpleTurkishStatement(verificationStatement);
     if (!parsed) return this._withVerifyDetails(this.kernel.verify(verificationStatement, opts), risk);
 
     const normalizedTarget = this._normalizeCopulaTail(parsed.predicate);
@@ -593,6 +590,9 @@ class KernelV2 {
     const normalizedTargetToken = this._normalizePredicateToken(normalizedTarget);
 
     const workspaceId = (typeof opts.workspaceId === 'string' && opts.workspaceId.trim()) || 'default'; // #734
+    const resolvedSubject = resolveKnownSubject(this.kernel.graph, parsed.subject, workspaceId);
+    if (parsed.subject.includes(' ') && !resolvedSubject) return this._withVerifyDetails(this._ok('verify', { status: 'unknown', confidence: 0, unresolvedSubject: parsed.subject, subjectResolution: 'exact_match_required' }), risk);
+    if (resolvedSubject) parsed = { ...parsed, subject: resolvedSubject };
     const knownFacts = this._collectFactTargets(parsed.subject, workspaceId);
     if (parsed.isNegated && knownFacts.length > 0) {
       const directPositive = knownFacts.find(item => item.target === normalizedTargetToken);
