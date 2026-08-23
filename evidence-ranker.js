@@ -1,4 +1,4 @@
-﻿// Null-prototype, so a type name is only ever looked up among the weights
+// Null-prototype, so a type name is only ever looked up among the weights
 // themselves.
 //
 // A plain object literal inherits from Object.prototype, so `WEIGHTS[type]`
