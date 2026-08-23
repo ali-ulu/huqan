@@ -4,10 +4,12 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { spawn } = require('node:child_process');
 const { after, test } = require('node:test');
 
 const Graph = require('../graph');
 const { buildCanonicalReceiptPayload } = require('../lib/receipt/canonical-receipt');
+const { lockPathFor, withMutationJournalLock } = require('../lib/mutation-journal-lock');
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-durable-journal-'));
 
@@ -22,6 +24,87 @@ function makeGraph(name, backend) {
     useSQLite: backend === 'sqlite',
   });
 }
+
+function runConcurrentJournalWorker(memoryPath, barrierPath, operationId, tag) {
+  const script = `
+    const fs = require('node:fs');
+    const Graph = require(process.argv[1]);
+    const memoryPath = process.argv[2];
+    const barrierPath = process.argv[3];
+    const operationId = process.argv[4];
+    const tag = process.argv[5];
+    const sleeper = new Int32Array(new SharedArrayBuffer(4));
+    while (!fs.existsSync(barrierPath)) Atomics.wait(sleeper, 0, 0, 5);
+    const graph = new Graph({ memoryPath, useSQLite: false });
+    const outcome = graph.runMutationOnce(operationId, () => {
+      Atomics.wait(sleeper, 0, 0, 150);
+      return { tag };
+    });
+    process.stdout.write(JSON.stringify(outcome));
+  `;
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ['-e', script, path.join(__dirname, '..', 'graph.js'), memoryPath, barrierPath, operationId, tag], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = ''; let stderr = '';
+    child.stdout.setEncoding('utf8'); child.stderr.setEncoding('utf8');
+    child.stdout.on('data', chunk => { stdout += chunk; });
+    child.stderr.on('data', chunk => { stderr += chunk; });
+    child.once('error', reject);
+    child.once('exit', status => status === 0 ? resolve(JSON.parse(stdout)) : reject(new Error(stderr || `worker exited ${status}`)));
+  });
+}
+
+test('[json] durable journal serializes the same operation across processes', async () => {
+  const memoryPath = path.join(root, 'multi-process.json');
+  const barrierPath = path.join(root, 'multi-process.ready');
+  const workers = [
+    runConcurrentJournalWorker(memoryPath, barrierPath, 'shared-operation', 'a'),
+    runConcurrentJournalWorker(memoryPath, barrierPath, 'shared-operation', 'b'),
+  ];
+  fs.writeFileSync(barrierPath, 'ready');
+  const outcomes = await Promise.all(workers);
+  const fresh = new Graph({ memoryPath, useSQLite: false });
+  const journal = fresh._readJsonJournal();
+
+  assert.equal(outcomes.filter(outcome => outcome.replayed === false).length, 1);
+  assert.equal(outcomes.filter(outcome => outcome.replayed === true).length, 1);
+  assert.deepEqual(Object.keys(journal.operations), ['shared-operation']);
+  assert.equal(fs.existsSync(`${memoryPath}.mutations.json.lock`), false);
+});
+
+test('[json] durable journal retains concurrent distinct operations across processes', async () => {
+  const memoryPath = path.join(root, 'multi-process-distinct.json');
+  const barrierPath = path.join(root, 'multi-process-distinct.ready');
+  const workers = [
+    runConcurrentJournalWorker(memoryPath, barrierPath, 'operation-a', 'a'),
+    runConcurrentJournalWorker(memoryPath, barrierPath, 'operation-b', 'b'),
+  ];
+  fs.writeFileSync(barrierPath, 'ready');
+  const outcomes = await Promise.all(workers);
+  const fresh = new Graph({ memoryPath, useSQLite: false });
+  const journal = fresh._readJsonJournal();
+
+  assert.deepEqual(outcomes.map(outcome => outcome.replayed), [false, false]);
+  assert.deepEqual(Object.keys(journal.operations).sort(), ['operation-a', 'operation-b']);
+});
+
+test('[json] durable journal fails closed for a stale lock left by a dead process', () => {
+  const journalPath = path.join(root, 'stale-lock.mutations.json');
+  const lockPath = lockPathFor(journalPath);
+  fs.writeFileSync(lockPath, JSON.stringify({ pid: 2147483647, token: 'dead', acquiredAt: '2026-01-01T00:00:00.000Z' }));
+  const stale = new Date(Date.now() - (6 * 60 * 1000));
+  fs.utimesSync(lockPath, stale, stale);
+
+  let ran = false;
+  assert.throws(
+    () => withMutationJournalLock(journalPath, () => { ran = true; }),
+    error => error?.code === 'MUTATION_JOURNAL_STALE_LOCK',
+  );
+
+  assert.equal(ran, false);
+  assert.equal(fs.existsSync(lockPath), true);
+});
 
 // #216: the JSON backend now provides the SAME durable-journal contract as
 // SQLite (idempotent replay, rollback-on-error, hash-chained receipts) --

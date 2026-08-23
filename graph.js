@@ -41,7 +41,7 @@ const {
 } = require('./lib/graph-record-utils');
 const { derivePersistenceLayout } = require('./lib/memory-store-utils');
 const { countAuditEvents, queryAuditEvents, readAuditEvents } = require('./lib/audit-query');
-const { assertChainTipUsable, emptyMutationJournal, readMutationJournal, readCommittedMutationResult, readCommittedMutationResultsByPrefix } = require('./lib/mutation-journal');
+const { assertChainTipUsable, emptyMutationJournal, readMutationJournal, readCommittedMutationResult, readCommittedMutationResultsByPrefix, withMutationJournalLock } = require('./lib/mutation-journal');
 const { applyTemporalEdgeMetadata, beginEdgeTouchScope, downgradeEdge, edgeTouchKey } = require('./lib/graph-edge-mutations');
 const { getCausalChain: runCausalChain } = require('./lib/graph-causal-chain');
 const { getCandidateClaims: runCandidateClaimsRead } = require('./lib/graph-candidate-claims-read');
@@ -431,7 +431,6 @@ class Graph {
   _writeJsonJournal(journal) {
     atomicWriteFileSync(this._jsonJournalPath(), JSON.stringify(journal));
   }
-
   _readMutationReceiptFromJsonJournal(journal, operationId) {
     return readMutationReceiptFromJsonJournal(journal, operationId);
   }
@@ -534,7 +533,8 @@ class Graph {
    * unchanged) -- durability comes from the journal file being written with
    * atomicWriteFileSync() (never a torn write) rather than a SQL transaction.
    */
-  _runMutationOnceJson(id, mutate, opts) {
+  _runMutationOnceJson(id, mutate, opts) { return withMutationJournalLock(this._jsonJournalPath(), () => this._runMutationOnceJsonLocked(id, mutate, opts)); }
+  _runMutationOnceJsonLocked(id, mutate, opts) {
     const readStored = () => {
       const journal = this._readJsonJournal();
       const op = journal.operations[id];
