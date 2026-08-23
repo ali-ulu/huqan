@@ -6,6 +6,7 @@ validateEnvironmentCompatibility();
 
 const fs = require('fs');
 const crypto = require('crypto');
+const { constantTimeEqual } = require('./requestGuards');
 const { buildKernelOptsFromEnv } = require('./lib/kernel-factory');
 const { createAgent } = require('./agentRuntime');
 const { evaluateMcpGate, MCP_GATE_DECISIONS } = require('./lib/mcp-gate-adapter');
@@ -111,9 +112,12 @@ function toolCallFailure(err) {
 
 function isMcpOperatorAuthorized(configuredToken, presentedToken) {
   if (typeof configuredToken !== 'string' || typeof presentedToken !== 'string' || !configuredToken || !presentedToken) return false;
-  const configured = Buffer.from(configuredToken);
-  const presented = Buffer.from(presentedToken);
-  return configured.length === presented.length && crypto.timingSafeEqual(configured, presented);
+  // requestGuards.constantTimeEqual hashes both operands, so the compared
+  // buffers are always the same size. A `length === length &&` guard in front
+  // of timingSafeEqual short-circuits: on a mismatch the comparison never runs
+  // and the call returns measurably sooner, which leaks the configured token's
+  // length and lets an attacker shrink the search space (#1038).
+  return constantTimeEqual(configuredToken, presentedToken);
 }
 
 function createServer(kernelOrOptions = {}) {
