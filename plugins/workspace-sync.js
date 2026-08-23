@@ -45,7 +45,15 @@ const MAX_LOG_ENTRIES = 500;
 
 function ensureSyncState(kernel) {
   if (!kernel._workspaceSyncState) {
-    kernel._workspaceSyncState = { byGoal: {}, log: [] };
+    // `byGoal` is keyed by caller-supplied goal text, so it must not inherit
+    // from Object.prototype. On a plain object `byGoal['constructor']` read as
+    // an existing run and produced an AB11 `block` for a goal running for the
+    // first time -- a security decision recorded against a workspace crossing
+    // that never happened -- while `byGoal['__proto__'] = entry` wrote no key
+    // at all, silently losing that goal's history and poisoning every later
+    // lookup of `goal`, `workspaceId` and `runAt`. A null prototype closes
+    // both the read and the write (#1275).
+    kernel._workspaceSyncState = { byGoal: Object.create(null), log: [] };
   }
   return kernel._workspaceSyncState;
 }
