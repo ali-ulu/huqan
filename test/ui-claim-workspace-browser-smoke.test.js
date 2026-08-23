@@ -155,7 +155,7 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     `);
 
     await waitFor(
-      `document.getElementById('run').disabled === false && document.getElementById('result').innerHTML.length > 0`,
+      `document.getElementById('run').disabled === false && document.getElementById('vstatus').textContent !== 'Capability manifest hazır.' && document.getElementById('result').innerHTML.length > 0`,
       'the verify action to settle',
     );
 
@@ -240,7 +240,7 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
       true;
     `);
     await waitFor(
-      `document.getElementById('run').disabled === false && document.getElementById('result').innerHTML.length > 0`,
+      `document.getElementById('run').disabled === false && document.getElementById('vstatus').textContent !== 'Capability manifest hazır.' && document.getElementById('result').innerHTML.length > 0`,
       'memory search to settle',
     );
 
