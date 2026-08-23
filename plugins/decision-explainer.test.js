@@ -41,6 +41,29 @@ test('explainDecision: canonical verdict envelope (.verdict) is also accepted', 
   );
 });
 
+test('explainDecision: a caller-supplied Object.prototype member name does not leak into the explanation (#1319)', () => {
+  // Object.freeze() does not cut the prototype chain, so a plain
+  // `table[key]` lookup for these caller-controlled key names used to
+  // return the inherited Object.prototype member (a function) instead of
+  // falling back, embedding the function's source in the human-readable
+  // explanation text.
+  assert.equal(
+    plugin.explainDecision({ decision: 'allow', reason: 'constructor' }),
+    "Karar: izin verildi. Sebep: constructor",
+  );
+  assert.equal(
+    plugin.explainDecision({ decision: 'allow', reason: 'toString' }),
+    "Karar: izin verildi. Sebep: toString",
+  );
+  assert.equal(
+    plugin.explainDecision({ decision: 'toString', reason: 'read_only_allow' }),
+    'toString: Salt-okunur bir işlem olduğu için izin verildi.',
+  );
+  const valueOfExplanation = plugin.explainDecision({ decision: 'valueOf', reason: 'valueOf' });
+  assert.equal(typeof valueOfExplanation, 'string');
+  assert.equal(/\[native code\]/.test(valueOfExplanation), false);
+});
+
 test('explainDecision: malformed/missing decision returns a safe fallback', () => {
   assert.equal(
     plugin.explainDecision(null),
