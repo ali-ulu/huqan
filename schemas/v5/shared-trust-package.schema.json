@@ -103,7 +103,8 @@
           "additionalProperties": false,
           "required": [
             "routeId",
-            "hopCount"
+            "hopCount",
+            "metadata"
           ],
           "properties": {
             "routeId": {

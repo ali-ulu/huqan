@@ -114,6 +114,19 @@ test('V5 shared trust package validator rejects missing route receipt metadata',
   );
 });
 
+test('V5 shared trust package schema.json required list agrees with the validator on receipt.routeReceipt.metadata (#1311)', () => {
+  // The validator hand-codes this rule (schema.json's required arrays are
+  // only consulted for the root object, not nested ones -- see
+  // shared-trust-package-validator.js), so nothing enforces schema/validator
+  // agreement automatically. Assert it explicitly so the two cannot drift
+  // apart again the way they did before #1311: the validator rejected a
+  // schema-conformant package (routeReceipt without metadata) because the
+  // schema listed metadata as optional while the validator required it.
+  const schema = require('../schemas/v5/shared-trust-package.schema.json');
+  const routeReceiptSchema = schema.properties.receipt.properties.routeReceipt;
+  assert.deepEqual([...routeReceiptSchema.required].sort(), ['hopCount', 'metadata', 'routeId']);
+});
+
 test('V5 shared trust package validator rejects malformed route receipt metadata', () => {
   const fixture = clone(readFixture('valid-with-route-receipt.json'));
   fixture.receipt.routeReceipt.metadata.transport = { nested: true };
