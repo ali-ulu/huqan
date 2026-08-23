@@ -5,6 +5,7 @@ const {
   PII_TYPES,
   isValidTckn,
   isValidLuhn,
+  isValidIban,
   findPiiInText,
   evaluateEgress,
 } = require('../lib/data-egress-gate');
@@ -43,6 +44,27 @@ test('findPiiInText finds a checksum-valid TCKN embedded in text', () => {
 test('findPiiInText finds a checksum-valid credit card number', () => {
   const findings = findPiiInText('card 4111111111111111 on file');
   assert.ok(findings.some((f) => f.type === PII_TYPES.CREDIT_CARD));
+});
+
+test('isValidIban accepts a checksum-valid Turkish IBAN and rejects a mutated one (#1315)', () => {
+  assert.equal(isValidIban('TR330006100519786457841326'), true);
+  assert.equal(isValidIban('TR330006100519786457841327'), false);
+});
+
+test('findPiiInText finds a checksum-valid IBAN embedded in text (#1315)', () => {
+  const findings = findPiiInText('Odeme IBAN TR330006100519786457841326 hesabina gonderildi.');
+  assert.ok(findings.some((f) => f.type === PII_TYPES.IBAN && f.match === 'TR330006100519786457841326'));
+});
+
+test('evaluateEgress redacts a checksum-valid IBAN and leaves an invalid one alone (#1315)', () => {
+  const valid = evaluateEgress({ text: 'IBAN TR330006100519786457841326 hesabina gonderildi.' });
+  assert.equal(valid.piiDetected, true);
+  assert.deepEqual(valid.piiTypes, [PII_TYPES.IBAN]);
+  assert.equal(valid.scrubbed.text, 'IBAN [REDACTED_PII:iban] hesabina gonderildi.');
+
+  const invalid = evaluateEgress({ text: 'ref TR330006100519786457841327 kaydedildi' });
+  assert.equal(invalid.piiDetected, false);
+  assert.equal(invalid.scrubbed.text, 'ref TR330006100519786457841327 kaydedildi');
 });
 
 test('findPiiInText does not flag non-PII numeric-looking strings (low false-positive rate)', () => {
