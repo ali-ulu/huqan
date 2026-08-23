@@ -166,6 +166,55 @@ test('bounded verification output never claims trust or authorization', () => {
   }
 });
 
+test('bounded verification core never returns verified/signature_valid -- it is a structural verifier with no cryptographic capability (#1299)', () => {
+  const source = fs.readFileSync(
+    path.join(__dirname, '..', 'lib', 'v5', 'verification-core.js'),
+    'utf8'
+  );
+
+  // evaluateBoundedVerification has no path that can produce this status:
+  // signatureReason always returns a truthy reason (missing or malformed),
+  // so every input falls through to not_verified. Asserting the string is
+  // gone from the source, not just untriggered by fixtures, so a future
+  // edit can't quietly reopen the previously-dead 'verified' branch.
+  assert.equal(source.includes('signature_valid'), false);
+  assert.equal(source.includes("result('verified'"), false);
+
+  for (const fixture of readFixtures()) {
+    const actual = evaluateBoundedVerification(fixtureInput(fixture));
+    assert.notEqual(actual.verificationStatus, 'verified', fixture.caseId);
+  }
+});
+
+test('bounded verification core treats an expired expiresAt as expired_key_metadata even under status: active (#1274)', () => {
+  const positive = readFixtures().find(({ caseId }) => caseId === 'verified-supported-algorithm');
+
+  const expired = JSON.parse(JSON.stringify(positive.input));
+  expired.trustedKeyMetadata.expiresAt = '2020-01-01T00:00:00.000Z';
+  expired.evaluationTime = '2026-08-23T00:00:00.000Z';
+  assert.deepEqual(evaluateBoundedVerification(expired), {
+    verificationStatus: 'not_verified',
+    reasonCategory: 'expired_key_metadata'
+  });
+
+  const notYetExpired = JSON.parse(JSON.stringify(positive.input));
+  notYetExpired.trustedKeyMetadata.expiresAt = '2030-01-01T00:00:00.000Z';
+  notYetExpired.evaluationTime = '2026-08-23T00:00:00.000Z';
+  assert.deepEqual(evaluateBoundedVerification(notYetExpired), {
+    verificationStatus: 'not_verified',
+    reasonCategory: 'malformed_signature_evidence'
+  });
+
+  // exactly at the boundary counts as expired, matching trusted-key-resolver.js
+  const atBoundary = JSON.parse(JSON.stringify(positive.input));
+  atBoundary.trustedKeyMetadata.expiresAt = '2026-08-23T00:00:00.000Z';
+  atBoundary.evaluationTime = '2026-08-23T00:00:00.000Z';
+  assert.deepEqual(evaluateBoundedVerification(atBoundary), {
+    verificationStatus: 'not_verified',
+    reasonCategory: 'expired_key_metadata'
+  });
+});
+
 test('verification core source contains no resolver, runtime, or crypto dependency', () => {
   const source = fs.readFileSync(
     path.join(__dirname, '..', 'lib', 'v5', 'verification-core.js'),

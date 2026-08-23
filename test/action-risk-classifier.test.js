@@ -76,6 +76,19 @@ describe('AB1 v2 canon', () => {
   it('high-impact write categories contains the expected 8 entries', () => {
     assert.strictEqual(HIGH_IMPACT_WRITE_CATEGORIES.size, 8);
   });
+
+  it('high-impact write categories is genuinely immutable, not just Object.freeze on the Set wrapper (#1285)', () => {
+    // Object.freeze on a Set blocks reconfiguring the Set object's own
+    // properties, but add()/delete()/clear() mutate through [[SetData]],
+    // which Object.freeze never touches -- so the set stayed fully mutable
+    // through its own methods despite being "frozen".
+    assert.throws(() => HIGH_IMPACT_WRITE_CATEGORIES.add('READ_ONLY'), TypeError);
+    assert.throws(() => HIGH_IMPACT_WRITE_CATEGORIES.delete('MEMORY_WRITE'), TypeError);
+    assert.throws(() => HIGH_IMPACT_WRITE_CATEGORIES.clear(), TypeError);
+    assert.strictEqual(HIGH_IMPACT_WRITE_CATEGORIES.size, 8);
+    assert.strictEqual(HIGH_IMPACT_WRITE_CATEGORIES.has('MEMORY_WRITE'), true);
+    assert.strictEqual([...HIGH_IMPACT_WRITE_CATEGORIES].length, 8);
+  });
 });
 
 describe('AB1 v2 normalization', () => {
@@ -182,6 +195,28 @@ describe('AB1 v2 helper functions', () => {
 
     assert.strictEqual(isUrlInList('https://api.axiom.local/health', ['https://api.axiom.local']), true);
     assert.strictEqual(isUrlInList('https://example.com', ['https://api.axiom.local']), false);
+  });
+
+  it('isPathSecuritySensitive requires a path-boundary match, not a bare suffix (#1286)', () => {
+    // These file names merely end with a sensitive token but are not the
+    // token itself -- a bare endsWith() over-blocked them.
+    assert.strictEqual(isPathSecuritySensitive('mykernel.js'), false);
+    assert.strictEqual(isPathSecuritySensitive('notpackage.json'), false);
+    assert.strictEqual(isPathSecuritySensitive('backup-server.js'), false);
+    assert.strictEqual(isPathSecuritySensitive('src/backup-server.js'), false);
+
+    // A multi-segment token trailed by extra characters ('.bak') is not the
+    // token either -- the old includes('/' + token) check had no
+    // right-hand boundary and matched this too.
+    assert.strictEqual(isPathSecuritySensitive('lib/verify.js.bak'), false);
+
+    // Genuine matches, bare and nested, still block.
+    assert.strictEqual(isPathSecuritySensitive('kernel.js'), true);
+    assert.strictEqual(isPathSecuritySensitive('server.js'), true);
+    assert.strictEqual(isPathSecuritySensitive('package.json'), true);
+    assert.strictEqual(isPathSecuritySensitive('src/kernel.js'), true);
+    assert.strictEqual(isPathSecuritySensitive('lib/verify.js'), true);
+    assert.strictEqual(isPathSecuritySensitive('a/b/lib/verify.js'), true);
   });
 });
 

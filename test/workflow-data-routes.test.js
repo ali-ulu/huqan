@@ -6,7 +6,7 @@ const { createWorkflowDataRoutes } = require('../lib/http/workflow-data-routes')
 const { WORKFLOW_CAPABILITIES } = require('../lib/workflow-contract');
 const { buildIngestWorkflowRun } = require('../lib/ingest-workflow-run');
 
-function fixture(records = []) {
+function fixture(records = [], overrides = {}) {
   const byId = new Map(records.map(record => [record.id, record]));
   const writes = [];
   const decisions = [];
@@ -22,9 +22,9 @@ function fixture(records = []) {
       record.decision = input.decision;
       return { status: 200, json: { approval: record, idempotent: false } };
     },
-    readReceipt: (id, filters) => id === 'receipt-1'
+    readReceipt: overrides.readReceipt || ((id, filters) => id === 'receipt-1'
       ? { ok: true, receipt: { receiptId: id, workspaceId: filters.workspaceId } }
-      : { ok: false, status: 'not_found', error: { message: 'missing' } },
+      : { ok: false, status: 'not_found', error: { message: 'missing' } }),
     parseJsonRequest: async req => req.body,
     writeJson: (_req, _res, status, json, headers) => writes.push({ status, json, headers }),
     learnDocument: () => ({}),
@@ -65,6 +65,41 @@ describe('canonical workflow data routes', () => {
     assert.equal(result.write.json.status, 'completed');
     assert.deepEqual(result.write.json.data.approvals.map(item => item.id), ['a']);
     assert.equal(result.write.headers['Cache-Control'], 'no-store');
+  });
+
+  it('does not lose a tenant\'s own approvals behind another tenant\'s pending queue (#1287)', async () => {
+    // 60 other-workspace approvals sorted ahead of 3 belonging to the
+    // requesting tenant -- with the pre-fix "fetch default limit, then
+    // filter" ordering, the default-limit page (50) would be entirely
+    // other-tenant records and this tenant's own queue would appear empty.
+    const noisyTenant = Array.from({ length: 60 }, (_, i) => approval(`noisy-${i}`, 'beta'));
+    const ownApprovals = [approval('a', 'alpha'), approval('b', 'alpha'), approval('c', 'alpha')];
+    const { invoke } = fixture([...noisyTenant, ...ownApprovals]);
+
+    const result = await invoke('GET', '/api/v2/approvals?workspaceId=alpha');
+    assert.equal(result.write.status, 200);
+    assert.deepEqual(result.write.json.data.approvals.map(item => item.id).sort(), ['a', 'b', 'c']);
+    assert.equal(result.write.json.data.total, 3);
+    assert.equal(result.write.json.data.windowTruncated, false);
+  });
+
+  it('never returns a raw driver/exception message for a failed receipt read (#1283)', async () => {
+    const leakyMessage = 'SQLITE_CORRUPT: database disk image is malformed (/var/lib/huqan/tenant-a/memory.db, journal offset 40961)';
+    const { invoke: invokeLeaky } = fixture([], {
+      readReceipt: () => ({ ok: false, status: 'read_error', error: { message: leakyMessage } }),
+    });
+    const leaky = await invokeLeaky('GET', '/api/v2/trust-receipts/leaky?workspaceId=alpha');
+    assert.equal(leaky.write.json.error.message.includes('SQLITE_CORRUPT'), false);
+    assert.equal(leaky.write.json.error.message.includes('/var/lib/huqan'), false);
+    assert.equal(leaky.write.json.error.message, 'receiptId is not valid');
+
+    const throwMessage = 'driver exploded: /var/lib/huqan/tenant-a/memory.db';
+    const { invoke: invokeThrows } = fixture([], {
+      readReceipt: () => { throw new Error(throwMessage); },
+    });
+    const thrown = await invokeThrows('GET', '/api/v2/trust-receipts/throws?workspaceId=alpha');
+    assert.equal(thrown.write.json.error.message.includes('/var/lib/huqan'), false);
+    assert.equal(thrown.write.json.error.message, 'receiptId is not valid');
   });
 
   it('does not disclose an approval from another workspace', async () => {

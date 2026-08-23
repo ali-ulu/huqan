@@ -36,6 +36,20 @@ test('legacy status values map onto the canonical English values', () => {
   assert.equal(toCanonicalVerifyStatus('bilinmiyor'), 'unknown');
 });
 
+test('toCanonicalVerifyStatus/toLegacyVerifyStatus degrade to unknown for an Object.prototype member name, not a function (#1320)', () => {
+  // A plain `table[value]` lookup returns an inherited Object.prototype
+  // member (truthy) for these names, so `|| 'unknown'` never ran and the
+  // function value reached toPublicVerifyPayload's `status` field, which
+  // JSON.stringify silently drops -- the field vanished entirely.
+  for (const value of ['constructor', 'toString', 'hasOwnProperty', '__proto__']) {
+    assert.equal(toCanonicalVerifyStatus(value), 'unknown');
+    assert.equal(toLegacyVerifyStatus(value), 'bilinmiyor');
+  }
+  const payload = toPublicVerifyPayload({ status: 'constructor', confidence: 0.9 });
+  assert.equal(payload.status, 'unknown');
+  assert.equal(typeof payload.status, 'string');
+});
+
 test('canonical values are accepted unchanged (projection is idempotent)', () => {
   for (const status of CANONICAL_VERIFY_STATUSES) {
     assert.equal(toCanonicalVerifyStatus(status), status);
@@ -181,6 +195,22 @@ test('envelope projection does not pollute the projected object\'s prototype (#1
   const projectedLegacy = toLegacyVerifyEnvelope(envelope);
   assert.equal(projectedLegacy.polluted, undefined);
   assert.equal(Object.getPrototypeOf(projectedLegacy), Object.prototype);
+});
+
+test('envelope projection preserves an own "__proto__" key as ordinary data, not just avoids pollution (#1320)', () => {
+  // The #1300 fix stopped the pollution by skipping '__proto__' entirely,
+  // which meant the field silently vanished from the output -- the
+  // module's own documented guarantee is "every other value [is]
+  // preserved." Object.defineProperty writes it as a real own data
+  // property instead, so it survives projection like any other key.
+  const envelope = JSON.parse('{"data":{"status":"dogrulandi"},"__proto__":{"normal":1}}');
+  assert.deepEqual(Object.keys(envelope), ['data', '__proto__']);
+
+  const projectedPublic = toPublicVerifyEnvelope(envelope);
+  assert.ok(Object.hasOwn(projectedPublic, '__proto__'));
+  assert.deepEqual(Object.keys(projectedPublic), ['data', '__proto__']);
+  assert.deepEqual(projectedPublic.__proto__, { normal: 1 });
+  assert.equal(Object.getPrototypeOf(projectedPublic), Object.prototype);
 });
 
 test('shield reads both vocabularies so boundary ordering cannot change a verdict', () => {

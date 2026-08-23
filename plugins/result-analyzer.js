@@ -8,26 +8,39 @@ function normalizeInput(input) {
   return '';
 }
 
-const REJECT_STEMS = ['reject', 'fail', 'negative', 'false', 'deny', 'broken', 'invalid'];
-const SUPPORT_STEMS = ['support', 'confirm', 'positive', 'pass', 'true', 'works', 'valid'];
-
-function tokenStartsWithAny(token, stems) {
-  return stems.some((stem) => token.startsWith(stem));
-}
+// #1307 / #1325: a plain substring-anywhere test let positive stems match
+// inside a negated word (invalid -> valid, unsupported -> support), and an
+// unqualified prefix match (an earlier fix for #1307) let "pass" match
+// inside "passive". Each entry here is a literal word plus, where the word
+// has common inflections actually seen in experiment write-ups, an explicit
+// suffix alternation -- matched with \b on both sides so "passive"/
+// "workshop"/"bypass" cannot match "pass"/"work"/"pass". Includes the
+// Turkish stems #1325 asked for, since result text is not English-only.
+const REJECT_WORDS = [
+  'reject(?:s|ed|ing)?', 'fail(?:s|ed|ing)?', 'negative', 'false',
+  'den(?:y|ies|ied)', 'broken', 'invalid',
+  'gecersiz', 'geçersiz', 'basarisiz', 'başarısız', 'reddedildi',
+  'dogrulanmadi', 'doğrulanmadı',
+];
+const SUPPORT_WORDS = [
+  'support(?:s|ed|ing)?', 'confirm(?:s|ed|ing)?', 'positive',
+  'pass(?:es|ed|ing)?', 'true', 'works?', 'valid',
+  'destekliyor', 'dogrulandi', 'doğrulandı', 'basarili', 'başarılı',
+  'gecerli', 'geçerli',
+];
+const REJECT_PATTERN = new RegExp(`\\b(?:${REJECT_WORDS.join('|')})\\b`);
+const SUPPORT_PATTERN = new RegExp(`\\b(?:${SUPPORT_WORDS.join('|')})\\b`);
 
 function classifySignal(text) {
   const normalized = String(text || '').toLowerCase();
-  const tokens = normalized.match(/[a-z]+/g) || [];
-  // #1307: a plain substring test on the whole string let positive stems
-  // match inside a negated word (invalid -> valid, unsupported -> support,
-  // unconfirmed -> confirm, untrue -> true, overworked -> works), so a
-  // negative result was misclassified as support. Matching per-token by
-  // prefix instead of substring-anywhere avoids that, while still catching
-  // inflected forms (confirms, rejects, failed) that a strict \bword\b
-  // boundary would miss. Reject is checked before support so a token that
-  // happens to satisfy both (there are none today) fails closed.
-  if (tokens.some((token) => tokenStartsWithAny(token, REJECT_STEMS))) return 'reject';
-  if (tokens.some((token) => tokenStartsWithAny(token, SUPPORT_STEMS))) return 'support';
+  const hasReject = REJECT_PATTERN.test(normalized);
+  const hasSupport = SUPPORT_PATTERN.test(normalized);
+  // Both present (e.g. "does not support the hypothesis; reject it") is
+  // genuinely ambiguous -- falling through to 'mixed' routes it to a human
+  // via experimentPlanner/'refine' instead of silently picking a side.
+  if (hasReject && hasSupport) return 'mixed';
+  if (hasReject) return 'reject';
+  if (hasSupport) return 'support';
   return 'mixed';
 }
 

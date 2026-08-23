@@ -55,3 +55,24 @@ test('GRAPH: node-read delegate preserves workspace isolation and cloned results
   assert.equal(getNode(nodes, 'alpha', 'team').workspaceId, 'team');
   assert.equal(getNode(nodes, 'alpha', 'default').workspaceId, 'default');
 });
+
+test('GRAPH: node-read delegate keys getNodes by node id, not the internal storage key, in every workspace (#1294)', () => {
+  const { getNodes } = require('../lib/graph-node-read');
+  const nodes = {
+    alpha: { id: 'alpha', workspaceId: 'default' },
+    'team::alpha': { id: 'alpha', workspaceId: 'team' },
+    'team::beta': { id: 'beta', workspaceId: 'team' },
+  };
+
+  const defaultNodes = getNodes(nodes, 'default');
+  assert.deepEqual(Object.keys(defaultNodes).sort(), ['alpha']);
+
+  // Before the fix this returned {'team::alpha': ..., 'team::beta': ...} --
+  // the raw storage key, scope-prefixed for every workspace but 'default' --
+  // which broke any consumer treating Object.keys(getNodes(...)) as node
+  // ids (e.g. extractFacts's multi-word subject match).
+  const teamNodes = getNodes(nodes, 'team');
+  assert.deepEqual(Object.keys(teamNodes).sort(), ['alpha', 'beta']);
+  assert.equal(teamNodes.alpha.workspaceId, 'team');
+  assert.equal(teamNodes.beta.workspaceId, 'team');
+});

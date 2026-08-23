@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const knowledgeFreshness = require('./knowledge-freshness');
-const { isStaleTimestamp, findStaleEdgesForQuestion } = knowledgeFreshness._test;
+const { isStaleTimestamp, edgeTimestamp, findStaleEdgesForQuestion } = knowledgeFreshness._test;
 const Kernel = require('../kernel');
 
 const TEST_BYPASS = Kernel.createAdmissionBypassOpts('test');
@@ -11,11 +11,17 @@ const TEST_BYPASS = Kernel.createAdmissionBypassOpts('test');
 // what it returns is a no-op against stored state -- tests that need a
 // genuinely stale edge (learn() always stamps "now") reach into the
 // internal _edges array directly instead.
+//
+// Backdates the REAL graph.js edge fields (created_at/updated_at, snake_case)
+// -- not createdAt/updatedAt, which never exist on an actual edge record
+// (#1278). A helper using the wrong field names would mask exactly the bug
+// this file exists to catch.
 function backdateEdgesFrom(kernel, fromId, isoTimestamp) {
   for (const edge of kernel.graph._edges) {
     if (edge.from === fromId) {
-      edge.createdAt = isoTimestamp;
-      edge.updatedAt = isoTimestamp;
+      edge.created_at = isoTimestamp;
+      edge.updated_at = isoTimestamp;
+      edge.created = Date.parse(isoTimestamp);
     }
   }
 }
@@ -33,6 +39,25 @@ test('knowledge-freshness: isStaleTimestamp compares age against the threshold',
   const staleAfterMs = 30 * 24 * 60 * 60 * 1000;
   assert.equal(isStaleTimestamp(recent, staleAfterMs, now), false);
   assert.equal(isStaleTimestamp(old, staleAfterMs, now), true);
+});
+
+test('knowledge-freshness: edgeTimestamp reads the real snake_case graph.js edge fields, not camelCase (#1278)', () => {
+  const old = '2020-01-01T00:00:00.000Z';
+  const realShape = { created_at: old, updated_at: old, created: Date.parse(old) };
+  assert.equal(edgeTimestamp(realShape), Date.parse(old));
+
+  // A never-real shape must not accidentally satisfy the function either.
+  const camelOnly = { createdAt: old, updatedAt: old };
+  assert.ok(Number.isNaN(edgeTimestamp(camelOnly)));
+
+  // updated_at is preferred over created_at: a REAFFIRMED edge advances
+  // updated_at but not created_at, and staleness should track the update.
+  const reaffirmed = { created_at: '2019-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z' };
+  assert.equal(edgeTimestamp(reaffirmed), Date.parse('2026-01-01T00:00:00.000Z'));
+
+  // Numeric `created` (epoch ms) is the fallback when no ISO field is set.
+  const numericOnly = { created: 1577836800000 };
+  assert.equal(edgeTimestamp(numericOnly), 1577836800000);
 });
 
 test('knowledge-freshness: findStaleEdgesForQuestion finds stale edges off a matched graph node', () => {
@@ -92,6 +117,25 @@ test('knowledge-freshness: end to end -- "Bilmiyorum" is never annotated', () =>
   k.plugins.register(knowledgeFreshness);
   const answer = k.ask('uçan fil nedir').data.answer;
   assert.equal(answer, 'Bilmiyorum');
+});
+
+test('knowledge-freshness: end to end -- a stale edge in another workspace is not attributed to the queried workspace (#1278)', () => {
+  const k = new Kernel({ noLoad: true, loadPlugins: false, capabilities: { workspaceScoping: true } });
+  k.plugins.register(knowledgeFreshness);
+  k.learn('köpek hayvandır', { ...TEST_BYPASS, workspaceId: 'tenant-a' });
+  k.learn('köpek hayvandır', { ...TEST_BYPASS, workspaceId: 'default' });
+
+  const veryOld = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+  for (const edge of k.graph._edges) {
+    if (edge.from === 'köpek' && edge.workspaceId === 'tenant-a') {
+      edge.created_at = veryOld;
+      edge.updated_at = veryOld;
+    }
+  }
+
+  // 'default' has a fresh edge only -- the stale tenant-a edge must not surface here.
+  const answer = k.ask('köpek nedir', 'default').data.answer;
+  assert.equal(answer.includes('[freshness:'), false);
 });
 
 test('knowledge-freshness: pendingStaleEdges is consumed once, not leaked into the next ask()', () => {
