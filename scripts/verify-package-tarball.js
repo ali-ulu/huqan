@@ -30,6 +30,13 @@ const path = require('node:path');
 
 const repoRoot = path.resolve(__dirname, '..');
 const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
+// npm and package bins are .cmd files on Windows.  PowerShell resolves their
+// extension interactively, but child_process does not add it for us.
+const NPM_COMMAND = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+
+function packageBin(binDir, name) {
+  return path.join(binDir, process.platform === 'win32' ? `${name}.cmd` : name);
+}
 
 /** Output that means a module did not load, whatever the exit code said. */
 const LOAD_FAILURE_PATTERNS = [
@@ -50,7 +57,10 @@ function ok(message) {
 }
 
 function run(command, args, options = {}) {
-  const result = cp.spawnSync(command, args, {
+  const isWindowsCmd = process.platform === 'win32' && command.toLowerCase().endsWith('.cmd');
+  const result = cp.spawnSync(isWindowsCmd ? process.env.ComSpec : command, isWindowsCmd
+    ? ['/d', '/s', '/c', command, ...args]
+    : args, {
     encoding: 'utf8',
     timeout: options.timeoutMs || 10 * 60 * 1000,
     ...options,
@@ -79,13 +89,13 @@ function verifyInstall(label, tarball, installFlags) {
   const env = { ...process.env, HOME: home, USERPROFILE: home };
 
   try {
-    const init = run('npm', ['init', '-y'], { cwd: consumer });
+    const init = run(NPM_COMMAND, ['init', '-y'], { cwd: consumer });
     if (init.status !== 0) {
       fail(`${label}: could not initialise the consumer project`);
       return;
     }
 
-    const install = run('npm', ['install', tarball, '--no-audit', '--no-fund', ...installFlags], {
+    const install = run(NPM_COMMAND, ['install', tarball, '--no-audit', '--no-fund', ...installFlags], {
       cwd: consumer,
       env,
     });
@@ -97,16 +107,16 @@ function verifyInstall(label, tarball, installFlags) {
 
     const binDir = path.join(consumer, 'node_modules', '.bin');
     for (const binName of Object.keys(pkg.bin || {})) {
-      const binPath = path.join(binDir, binName);
+      const binPath = packageBin(binDir, binName);
       if (fs.existsSync(binPath)) ok(`bin present: ${binName}`);
       else fail(`${label}: declared bin is missing from the install: ${binName}`);
     }
 
-    const version = run(path.join(binDir, 'huqan'), ['--version'], { cwd: consumer, env });
+    const version = run(packageBin(binDir, 'huqan'), ['--version'], { cwd: consumer, env });
     if (version.stdout.trim() === pkg.version) ok(`huqan --version reports ${pkg.version}`);
     else fail(`${label}: huqan --version said "${version.stdout.trim()}", expected "${pkg.version}"`);
 
-    const quickstart = run(path.join(binDir, 'huqan'), ['quickstart'], { cwd: consumer, env });
+    const quickstart = run(packageBin(binDir, 'huqan'), ['quickstart'], { cwd: consumer, env });
     if (quickstart.status !== 0) {
       fail(`${label}: quickstart exited ${quickstart.status}\n${quickstart.output.slice(-2000)}`);
     } else {
@@ -135,7 +145,7 @@ function verifyInstall(label, tarball, installFlags) {
  * that installs but cannot answer `initialize` is broken for its main use.
  */
 function verifyMcp(label, binDir, cwd, env) {
-  const mcpBin = path.join(binDir, 'huqan-mcp');
+  const mcpBin = packageBin(binDir, 'huqan-mcp');
   if (!fs.existsSync(mcpBin)) return;
 
   const requests = [
@@ -181,7 +191,7 @@ function main() {
 
   const packDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-pack-'));
   try {
-    const pack = run('npm', ['pack', '--pack-destination', packDir], { cwd: repoRoot });
+    const pack = run(NPM_COMMAND, ['pack', '--pack-destination', packDir], { cwd: repoRoot });
     if (pack.status !== 0) {
       fail(`npm pack failed\n${pack.output.slice(-2000)}`);
       return 1;
