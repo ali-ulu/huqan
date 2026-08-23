@@ -183,6 +183,28 @@ describe('AB1 v2 helper functions', () => {
     assert.strictEqual(isUrlInList('https://api.axiom.local/health', ['https://api.axiom.local']), true);
     assert.strictEqual(isUrlInList('https://example.com', ['https://api.axiom.local']), false);
   });
+
+  it('isPathSecuritySensitive requires a path-boundary match, not a bare suffix (#1286)', () => {
+    // These file names merely end with a sensitive token but are not the
+    // token itself -- a bare endsWith() over-blocked them.
+    assert.strictEqual(isPathSecuritySensitive('mykernel.js'), false);
+    assert.strictEqual(isPathSecuritySensitive('notpackage.json'), false);
+    assert.strictEqual(isPathSecuritySensitive('backup-server.js'), false);
+    assert.strictEqual(isPathSecuritySensitive('src/backup-server.js'), false);
+
+    // A multi-segment token trailed by extra characters ('.bak') is not the
+    // token either -- the old includes('/' + token) check had no
+    // right-hand boundary and matched this too.
+    assert.strictEqual(isPathSecuritySensitive('lib/verify.js.bak'), false);
+
+    // Genuine matches, bare and nested, still block.
+    assert.strictEqual(isPathSecuritySensitive('kernel.js'), true);
+    assert.strictEqual(isPathSecuritySensitive('server.js'), true);
+    assert.strictEqual(isPathSecuritySensitive('package.json'), true);
+    assert.strictEqual(isPathSecuritySensitive('src/kernel.js'), true);
+    assert.strictEqual(isPathSecuritySensitive('lib/verify.js'), true);
+    assert.strictEqual(isPathSecuritySensitive('a/b/lib/verify.js'), true);
+  });
 });
 
 describe('AB1 v2 classifier behavior', () => {
