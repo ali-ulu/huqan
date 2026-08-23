@@ -276,13 +276,44 @@ function callTool(kernel, params = {}, runtime = {}) {
   return withMcpToolDeprecationSurface(outcome, requestedName);
 }
 
+/**
+ * The verdict stamped on the operator-token tools, which bypass evaluateMcpGate.
+ *
+ * The elevated path itself is a design choice: the operator token is a stronger
+ * credential than an ordinary MCP caller holds. What was wrong is what the
+ * receipt said about it. The reason read `operator_authorized` beside a
+ * `decision: 'allow'`, which is indistinguishable from a verdict the gates
+ * produced -- so an auditor reading a stored receipt could not tell "the gates
+ * evaluated this and allowed it" from "the gates were never consulted" (#1183).
+ *
+ * That distinction is the whole point of the receipt. It matters most for
+ * `huqan.agent_resume`, which runs the real agent (`executeMcpAgentContinuation`
+ * -> `agent.run(goal, { resume: true })`), while the same run started through
+ * `huqan.agent` is classified `dry_run_only` after AB1/AB2/AB5/AB8/AB9/AB11.
+ * The resumed run still passes agent.v3's own internal gates; what it skips is
+ * this surface's evaluation, and now it says so.
+ */
+const OPERATOR_AUTHORIZED_VERDICT = Object.freeze({
+  decision: 'allow',
+  reason: 'operator_authorized_gates_not_evaluated',
+  requiredReview: false,
+  gatesEvaluated: false,
+});
+
 function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
   const args = parseJsonObject(safeParams.arguments, {});
 
   if (name === 'huqan.approve' || name === 'huqan.approvals' || name === 'huqan.agent_resume') {
     if (!isMcpOperatorAuthorized(runtime.operatorToken, safeParams.operatorToken)) {
       return withMcpToolVerdictSurface(
-        failApprovalDecision('OPERATOR_AUTH_REQUIRED', 'A separate operator capability is required for MCP approval operations.'),
+        failApprovalDecision(
+          'OPERATOR_AUTH_REQUIRED',
+          name === 'huqan.agent_resume'
+            // Not an approval operation, and saying so matters: the operator
+            // reading this needs to know which capability was demanded of them.
+            ? 'A separate operator capability is required to resume an agent run.'
+            : 'A separate operator capability is required for MCP approval operations.',
+        ),
         name,
         args,
         { decision: 'block', reason: 'operator_auth_required', requiredReview: false },
@@ -290,7 +321,7 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
     }
     if (name === 'huqan.agent_resume') {
       const continuation = withTransientAgent(kernel, agent => executeMcpAgentContinuation(agent, args));
-      return withMcpToolVerdictSurface(continuation, name, args, { decision: 'allow', reason: 'operator_authorized', requiredReview: false });
+      return withMcpToolVerdictSurface(continuation, name, args, OPERATOR_AUTHORIZED_VERDICT);
     }
     if (name === 'huqan.approve') {
       const approvalDecision = handleMcpApprovalDecision(kernel, args, runtime);
@@ -298,7 +329,7 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
         result,
         name,
         args,
-        { decision: 'allow', reason: 'operator_authorized', requiredReview: false },
+        OPERATOR_AUTHORIZED_VERDICT,
       );
       return approvalDecision && typeof approvalDecision.then === 'function'
         ? approvalDecision.then(projectDecision)
