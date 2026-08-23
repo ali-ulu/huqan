@@ -5,6 +5,10 @@ memory.db
 .route-server-*.db
 memory.embeddings.json
 memory.mutations.json
+# Runtime lock for the JSON mutation journal (lib/mutation-journal-lock.js).
+# Never commit one: a stale lock file in a fresh clone blocks the journal.
+memory.mutations.json.lock
+*.mutations.json.lock
 # Crash/interrupted-write artifacts left behind by graph.js's
 # atomicWriteFileSync (writes to a sibling `<file>.tmp-<pid>-<random>` before
 # renaming into place). 40 of these previously slipped into git via #655.

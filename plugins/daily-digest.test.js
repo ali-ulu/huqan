@@ -45,6 +45,18 @@ test('daily-digest: a blocked run is counted as blocked, not completed', () => {
   assert.equal(bucket.runsCompleted, 0);
 });
 
+test('daily-digest: a missing or non-blocked/completed status is counted as other, not completed', () => {
+  const kernel = fakeKernel();
+  const digestState = ensureDigestState(kernel);
+  recordRun(digestState, null, '2026-08-06');
+  recordRun(digestState, { status: 'paused', steps: [] }, '2026-08-06');
+  const bucket = digestState.byDate['2026-08-06'];
+  assert.equal(bucket.runs, 2);
+  assert.equal(bucket.runsCompleted, 0);
+  assert.equal(bucket.runsBlocked, 0);
+  assert.equal(bucket.runsOther, 2);
+});
+
 test('daily-digest: separate dates accumulate independently', () => {
   const kernel = fakeKernel();
   const digestState = ensureDigestState(kernel);

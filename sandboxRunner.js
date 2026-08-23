@@ -276,20 +276,37 @@ function childResult(payload) {
   }
 }
 
+// #1310: childResult()'s ok:true result already carries dataJson as a
+// bounded, pre-serialized JSON string. Wrapping the whole response in a
+// second JSON.stringify() re-escapes every '"' and '\' inside that string,
+// which can nearly double its size -- close enough to CHILD_PROTOCOL_MAX_BYTES
+// (2x DEFAULT_MAX_RESULT_BYTES) that a quote-heavy result can overflow the
+// spawnSync maxBuffer and throw a synchronous, uncaught
+// ERR_CHILD_PROCESS_STDIO_MAXBUFFER in the parent. Splice dataJson in as a
+// raw JSON value (it is always well-formed JSON, or childResult would not
+// have produced it) instead of re-serializing it as a string.
+function writeChildResponse(response) {
+  if (response.ok === true && typeof response.dataJson === 'string') {
+    const metaJson = JSON.stringify(response.meta || null);
+    process.stdout.write(`{"ok":true,"data":${response.dataJson},"error":null,"meta":${metaJson}}`);
+    return;
+  }
+  process.stdout.write(JSON.stringify(response));
+}
+
 function runChildProcess() {
   let request;
   try {
     const input = require('node:fs').readFileSync(0, 'utf8');
     request = JSON.parse(input);
-    const response = childResult(request);
-    process.stdout.write(JSON.stringify(response));
+    writeChildResponse(childResult(request));
   } catch (error) {
-    process.stdout.write(JSON.stringify({
+    writeChildResponse({
       ok: false,
       data: null,
       error: { code: 'SANDBOX_RUNTIME', message: boundedErrorMessage(error) },
       meta: { runner: 'node:vm', isolation: 'child_process', heapLimitMb: DEFAULT_CHILD_HEAP_MB },
-    }));
+    });
   }
 }
 
@@ -351,20 +368,39 @@ function runSandboxed(source, bindings = {}, opts = {}) {
 
   const environment = { ...process.env };
   delete environment.NODE_OPTIONS;
-  const child = childProcess.spawnSync(process.execPath, [
-    `--max-old-space-size=${DEFAULT_CHILD_HEAP_MB}`,
-    __filename,
-    CHILD_MODE,
-  ], {
-    input: requestJson,
-    encoding: 'utf8',
-    env: environment,
-    timeout: timeoutMs + CHILD_STARTUP_GRACE_MS,
-    maxBuffer: CHILD_PROTOCOL_MAX_BYTES,
-    windowsHide: true,
-  });
-
   const meta = { runner: 'node:vm', timeoutMs, isolation: 'child_process', heapLimitMb: DEFAULT_CHILD_HEAP_MB };
+  let child;
+  try {
+    child = childProcess.spawnSync(process.execPath, [
+      `--max-old-space-size=${DEFAULT_CHILD_HEAP_MB}`,
+      __filename,
+      CHILD_MODE,
+    ], {
+      input: requestJson,
+      encoding: 'utf8',
+      env: environment,
+      timeout: timeoutMs + CHILD_STARTUP_GRACE_MS,
+      maxBuffer: CHILD_PROTOCOL_MAX_BYTES,
+      windowsHide: true,
+    });
+  } catch (error) {
+    // #1310: spawnSync throws synchronously (rather than setting
+    // child.error) when the child's stdout/stderr exceeds maxBuffer
+    // (ERR_CHILD_PROCESS_STDIO_MAXBUFFER). Map that the same way
+    // child.error is mapped below instead of letting it escape and break
+    // runSandboxed's "always returns a structured result" contract.
+    return {
+      ok: false,
+      data: null,
+      error: {
+        code: error && error.code === 'ETIMEDOUT' ? 'SANDBOX_TIMEOUT' : 'SANDBOX_RESOURCE_LIMIT',
+        message: error && error.code === 'ETIMEDOUT'
+          ? 'Sandbox execution exceeded its process timeout.'
+          : 'Sandbox process exceeded a resource boundary.',
+      },
+      meta,
+    };
+  }
   if (child.error) {
     return {
       ok: false,
@@ -389,8 +425,8 @@ function runSandboxed(source, bindings = {}, opts = {}) {
 
   try {
     const response = JSON.parse(child.stdout || '');
-    if (response.ok === true && typeof response.dataJson === 'string') {
-      return { ok: true, data: JSON.parse(response.dataJson), error: null, meta: response.meta || meta };
+    if (response.ok === true) {
+      return { ok: true, data: response.data, error: null, meta: response.meta || meta };
     }
     return response;
   } catch (_) {

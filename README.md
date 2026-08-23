@@ -4,7 +4,7 @@
 
 HUQAN is a **local-first AI governance, agent-safety, and verification layer** for claims, memory writes, and risky actions. It connects AI-assisted work to evidence, provenance, scope, policy, approval, and auditable Trust Receipts.
 
-[![Version](https://img.shields.io/badge/version-v0.10.0-2563eb.svg)](./package.json)
+[![Version](https://img.shields.io/github/package-json/v/ali-ulu/huqan)](./package.json)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22.13.0-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-22c55e.svg)](./LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/ali-ulu/huqan?style=flat&logo=github)](https://github.com/ali-ulu/huqan/stargazers)
@@ -13,7 +13,7 @@ HUQAN is a **local-first AI governance, agent-safety, and verification layer** f
 [![Last commit](https://img.shields.io/github/last-commit/ali-ulu/huqan?style=flat&logo=github)](https://github.com/ali-ulu/huqan/commits/main)
 [![Snikus](https://img.shields.io/badge/Snikus-Official%20Startup-7c3aed.svg)](https://snikus.com/startup.php?id=17)
 
-[Quick start](#quick-start) · [Product Hunt demo](./docs/product-hunt-quickstart.md) · [Why HUQAN](#why-huqan) · [How it works](#how-it-works) · [Ways to run](#ways-to-run) · [Current scope](#current-scope)
+[Quick start](#quick-start) · [Observability quickstart](./docs/product-hunt-quickstart.md) · [Why HUQAN](#why-huqan) · [How it works](#how-it-works) · [Ways to run](#ways-to-run) · [Current scope](#current-scope)
 
 **Canonical repository:** `https://github.com/ali-ulu/huqan`
 
@@ -156,9 +156,9 @@ HUQAN quickstart — learn -> review -> approve -> verify -> Trust Receipt
 Quickstart runs in a throwaway store in your temp directory; it does not write
 to your own memory, and it does not relax any gate.
 
-For a Product Hunt-ready observability walkthrough with an isolated demo SQLite
-store, seeded run history, tool usage, alerts, queue state, and dashboard steps,
-see [Product Hunt Quickstart and Demo](./docs/product-hunt-quickstart.md).
+For an observability quickstart covering an isolated local server, real run
+telemetry, tool usage, alerts, queue state, and dashboard steps, see
+[Observability Quickstart](./docs/product-hunt-quickstart.md).
 
 ### Verify the local SQLite dependency and test suite
 

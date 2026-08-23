@@ -8,10 +8,26 @@ function normalizeInput(input) {
   return '';
 }
 
+const REJECT_STEMS = ['reject', 'fail', 'negative', 'false', 'deny', 'broken', 'invalid'];
+const SUPPORT_STEMS = ['support', 'confirm', 'positive', 'pass', 'true', 'works', 'valid'];
+
+function tokenStartsWithAny(token, stems) {
+  return stems.some((stem) => token.startsWith(stem));
+}
+
 function classifySignal(text) {
   const normalized = String(text || '').toLowerCase();
-  if (/(support|confirm|positive|pass|true|works|valid)/i.test(normalized)) return 'support';
-  if (/(reject|fail|negative|false|deny|broken|invalid)/i.test(normalized)) return 'reject';
+  const tokens = normalized.match(/[a-z]+/g) || [];
+  // #1307: a plain substring test on the whole string let positive stems
+  // match inside a negated word (invalid -> valid, unsupported -> support,
+  // unconfirmed -> confirm, untrue -> true, overworked -> works), so a
+  // negative result was misclassified as support. Matching per-token by
+  // prefix instead of substring-anywhere avoids that, while still catching
+  // inflected forms (confirms, rejects, failed) that a strict \bword\b
+  // boundary would miss. Reject is checked before support so a token that
+  // happens to satisfy both (there are none today) fails closed.
+  if (tokens.some((token) => tokenStartsWithAny(token, REJECT_STEMS))) return 'reject';
+  if (tokens.some((token) => tokenStartsWithAny(token, SUPPORT_STEMS))) return 'support';
   return 'mixed';
 }
 
@@ -90,3 +106,4 @@ function createResultAnalyzerPlugin() {
 
 module.exports = createResultAnalyzerPlugin();
 module.exports.create = createResultAnalyzerPlugin;
+module.exports._test = { classifySignal, normalizeInput };

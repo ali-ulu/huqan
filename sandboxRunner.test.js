@@ -87,6 +87,21 @@ describe('Sandbox Runner', () => {
     assert.strictEqual(result.error.code, 'SANDBOX_OUTPUT_DEPTH');
   });
 
+  it('does not overflow the child protocol buffer on a quote-heavy result near the size limit (#1310)', () => {
+    // A string of this many literal '"' characters JSON-encodes (via
+    // stringifyBounded) to just under DEFAULT_MAX_RESULT_BYTES -- passing
+    // the result-size bound -- but every byte of that encoding is itself a
+    // '"' or '\' character. Wrapping the child's response in a second
+    // JSON.stringify() (the pre-fix behavior) re-escapes each of those,
+    // pushing the envelope past CHILD_PROTOCOL_MAX_BYTES and either
+    // throwing a synchronous ERR_CHILD_PROCESS_STDIO_MAXBUFFER or
+    // truncating stdout. The fix avoids the second escaping pass entirely.
+    const quoteCount = 131070;
+    const result = runSandboxed(`'"'.repeat(${quoteCount})`);
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.data, '"'.repeat(quoteCount));
+  });
+
   it('contains heap exhaustion in the child process', () => {
     const result = runSandboxed('new Array(20000000).fill({ x: "1234567890" })', {}, { timeoutMs: 2000 });
     assert.strictEqual(result.ok, false);

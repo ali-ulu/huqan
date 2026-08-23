@@ -1,26 +1,26 @@
 # HUQAN Product Hunt Quickstart ve Demo Rehberi
 
-Bu rehber, HUQAN’ı Product Hunt ziyaretçisine **beş dakika içinde denettirmek** ve yaklaşık iki dakikalık bir ürün walkthrough’u kaydetmek için hazırlanmıştır. Akış, mevcut local-first CLI, REST server, authenticated observability API’si ve Trust Command Center UI’siyle çalışır.
+Bu rehber, HUQAN’ı Product Hunt ziyaretçisine **beş dakika içinde denettirmek** ve yaklaşık iki dakikalık bir ürün walkthrough’u kaydetmek için hazırlanmıştır. Akış, repository’nin gerçek local-first CLI, REST server, authenticated observability API’si ve Trust Command Center UI’si üzerine kuruludur.
 
-> HUQAN bir LLM veya hosted SaaS değildir. Bu rehber, local-first bir agent observability ve governance MVP’sini gösterir. Product Hunt metninde demo verisini production ölçek, bağımsız third-party interoperability veya production SLA kanıtı olarak sunmayın.
+> HUQAN bir LLM veya hosted SaaS değildir. Bu rehber, local-first bir agent observability ve governance MVP’sini gösterir. Demo, production ölçek, bağımsız third-party interoperability veya production SLA kanıtı olarak sunulmamalıdır.
 
-## Demo iki ayrı akıştan oluşur
+## Ne gösterilecek?
 
-İlk akış, HUQAN’ın Trust Receipt değerini tek komutla gösterir. `huqan quickstart` kendi geçici store’unu kullanır; gerçek `learn -> review -> approve -> verify -> Trust Receipt` zincirini çalıştırır, fakat kullanıcının canonical memory’sini değiştirmez.
+Demo iki gerçek ürün yüzeyini art arda gösterir. İlk bölümde `quickstart` komutu, mutating `learn` isteğinin review ve approval sonrasında doğrulanabilir Trust Receipt’e dönüşmesini gösterir. İkinci bölümde gerçek AgentV3 çalışması yapılandırılmışsa bu run’ın Observability sekmesindeki metrics, Run History, tool usage, alert, queue ve live event stream yüzeylerine nasıl taşındığı gösterilir.
 
-İkinci akış, Observability sekmesinin değerini gösterir. Deterministik demo script’i aynı SQLite DB’ye iki güvenli örnek run, tool usage, token/cost, bir alarm kuralı ve isteğe bağlı queue kaydı yazar. Server bu DB’yi açar ve dashboard bu veriyi authenticated API üzerinden gösterir. Bu iki akış bilerek ayrıdır: quickstart Trust Receipt üretir; observability seed’i dashboard’u doldurur.
+Bu rehber **sentetik observability run’ı üretmez**. Dashboard’da veri görülebilmesi için gerçek bir AgentV3 run’ı veya kullanıcının kendi izole test akışı gerekir. Boş bir dashboard, henüz izlenecek run oluşmadığı anlamına gelir ve hata olarak yorumlanmamalıdır.
 
 | Akış | Ne gösterir? | Veri davranışı |
 |---|---|---|
 | Trust Receipt quickstart | Review gate, operator approval, verification ve canonical receipt | Throwaway store; kullanıcının memory’sine yazmaz |
-| Observability dashboard demo | Run History, tool usage, metrics, alert ve queue | Seçilen demo SQLite DB’sine kontrollü örnek veri yazar |
-| İsteğe bağlı worker | Gerçek AgentV3 queue execution | Yalnız yapılandırılmış runtime ile; başarı garanti edilmez |
+| Gerçek AgentV3 run | Run History, tool usage, metrics, alert, queue ve SSE olayları | Kullanıcının seçtiği local SQLite DB’sine gerçek runtime telemetry’si yazar |
+| Dashboard read surface | Workspace-scoped ve redacted observability görünümü | Ham goal/prompt/output veya secret göstermez |
 
 ## Gereksinimler
 
 Node.js **22.13.0 veya daha yeni** bir sürüm, npm ve Git gerekir. Kaynaktan çalıştırma için repository clone’u ve `npm ci` kullanılır. `better-sqlite3` yüklenemezse platformun derleme araçları gerekebilir.
 
-Bu demo için gerçek API anahtarı kullanmayın. Rehberdeki `ph-local-demo-key` yalnızca localhost üzerinde, geçici demo DB’siyle kullanılacak örnek bir anahtardır. Anahtarı repository’ye, ekran görüntüsüne veya Product Hunt açıklamasına koymayın.
+Demo için gerçek API anahtarı kullanmayın. Aşağıdaki `ph-local-demo-key` yalnızca localhost üzerinde ve geçici demo DB’siyle kullanılacak örnek bir anahtardır. Anahtarı repository’ye, ekran görüntüsüne veya Product Hunt açıklamasına koymayın.
 
 ## 1. Kaynaktan kurulumu yapın
 
@@ -37,7 +37,7 @@ node --version
 node -e "const Database=require('better-sqlite3'); const db=new Database(':memory:'); db.close(); console.log('SQLite OK')"
 ```
 
-Published npm paketi kullanılacaksa `npm install -g huqan` ve `huqan quickstart` çalışır. Product Hunt observability demo script’i belirli bir release’e henüz dahil değilse kaynak checkout akışını kullanın; en güncel demo dosyası repository’deki `scripts/product-hunt-observability-demo.js` dosyasıdır.
+Published npm paketi kullanılacaksa `npm install -g huqan` ve `huqan quickstart` çalışır. Product demo’sunda kullanılacak en güncel observability davranışı için repository’nin güncel `main` branch’ini veya güncel paket release’ini kullandığınızı doğrulayın.
 
 ## 2. İlk Trust Receipt’i gösterin
 
@@ -73,50 +73,22 @@ Trust Receipt
 Demo store (throwaway, your own memory was not touched): /tmp/huqan-quickstart-<id>
 ```
 
-Bu adımın anlatımı şudur: HUQAN mutating `learn` isteğini doğrudan yazmaz; önce `review` kararı ve approval kaydı üretir, operator approval sonrasında canonical write yapar, ardından graph üzerinden verify eder ve Trust Receipt oluşturur. Gate’i gevşetmez. Quickstart geçici store kullandığı için Product Hunt videosunda “your own memory was not touched” satırını özellikle gösterin.
+Bu adımın anlatımı şudur: HUQAN mutating `learn` isteğini doğrudan yazmaz; önce `review` kararı ve approval kaydı üretir, operator approval sonrasında canonical write yapar, ardından graph üzerinden verify eder ve Trust Receipt oluşturur. Gate gevşetilmez. Quickstart geçici store kullandığı için Product Hunt videosunda “your own memory was not touched” satırını özellikle gösterin.
 
-## 3. Deterministik observability demo DB’sini hazırlayın
+## 3. İzole demo server’ını başlatın
 
-İkinci terminalde veya aynı terminalde aşağıdaki komutları çalıştırın. `DEMO_DIR` yalnızca bu demo için ayrılmış geçici klasördür:
+Observability verisinin kişisel veya proje memory’siyle karışmaması için ayrı bir geçici klasör kullanın. Server’ı başlatmadan önce:
 
 ```bash
 export DEMO_DIR="$(mktemp -d)"
 export DEMO_DB="$DEMO_DIR/memory.db"
 export DEMO_WORKSPACE="product-hunt-demo"
-
-npm run demo:observability -- \
-  --db "$DEMO_DB" \
-  --workspace "$DEMO_WORKSPACE" \
-  --reset \
-  --no-queue
-```
-
-Beklenen özet:
-
-```text
-HUQAN Product Hunt observability demo data ready.
-  database  : /tmp/<id>/memory.db
-  workspace : product-hunt-demo
-  runs      : 2 (1 completed, 1 failed)
-  tool calls: 4
-  queue     : 0 queued/running
-  alerts    : 1 firing
-  note      : demo goals are stored privately; public projections expose digest and length only.
-```
-
-Bu script iki temsilî run oluşturur: biri completed, diğeri kontrollü bir `DEMO_REVIEW_REQUIRED` failure durumundadır. Tool Usage Mix içinde `verify: 2`, `ask: 1` ve `compare: 1` görünür. p95 latency alarmı 500 ms eşiğini aşacak şekilde firing olur. Amaç gerçek performans ölçümü yapmak değil, dashboard’un başarı, hata, tool mix, cost, token ve alert yüzeylerini tek ekranda görünür kılmaktır.
-
-`--no-queue` başlangıçta queue’yu boş bırakır. Canlı stream’i göstermek için dashboard açıldıktan sonra UI içindeki Agent Queue formundan bir demo goal gönderin. Worker kapalı olduğu için bu job kuyrukta kalır ve `queue_enqueued` olayı SSE akışında görünür. Böylece canlı akış ve queue görünür olur; yapılandırılmamış bir worker run’ının başarıyla tamamlandığı iddia edilmez.
-
-## 4. Trust Command Center’ı başlatın
-
-Aynı terminalde demo DB’sini ve workspace’i server’a verin:
-
-```bash
 export HUQAN_API_KEY="ph-local-demo-key"
 export HUQAN_MEMORY_PATH="$DEMO_DIR/memory.json"
 export HUQAN_DB_PATH="$DEMO_DB"
-export HUQAN_AGENT_WORKER_ENABLED=0
+export HUQAN_AGENT_WORKER_ENABLED=1
+export HUQAN_AGENT_WORKER_INTERVAL_MS=1000
+export HUQAN_AGENT_WORKER_LEASE_MS=120000
 export PORT=3000
 
 npm run server
@@ -128,6 +100,10 @@ Server şu adreste açılır:
 http://127.0.0.1:3000
 ```
 
+`HUQAN_AGENT_WORKER_ENABLED=1`, queue üzerinden gönderilen işlerin AgentV3 worker tarafından alınmasına izin verir. Worker’ın gerçek bir run’ı tamamlayabilmesi için AgentV3 runtime’ının ve kullandığı araçların ayrıca yapılandırılmış olması gerekir. Dış model veya araç yapılandırması olmayan bir kurulumda job’ın retry veya failure durumuna düşmesi mümkündür; bu durum observability ekranında gösterilebilir, fakat başarılı demo sonucu olarak sunulmamalıdır.
+
+## 4. Gerçek bir AgentV3 run’ı gönderin
+
 Tarayıcıda **Settings** sekmesine gidin ve şu değerleri girin:
 
 | Alan | Değer |
@@ -135,9 +111,36 @@ Tarayıcıda **Settings** sekmesine gidin ve şu değerleri girin:
 | API Key | `ph-local-demo-key` |
 | Workspace | `product-hunt-demo` |
 
-**Kaydet & Bağlan** düğmesine bastıktan sonra **Observability** sekmesine geçin. UI, metrics, runs, queue ve alerts uçlarını authenticated olarak yükler; canlı olaylar için `/api/observability/stream?workspaceId=product-hunt-demo` SSE bağlantısını açar.
+**Kaydet & Bağlan** düğmesine bastıktan sonra **Observability** sekmesine geçin. Queue panelindeki **Goal** alanına kişisel veri içermeyen, kısa ve güvenli bir hedef yazın. Örneğin:
 
-## 5. İki dakikalık Product Hunt demo senaryosu
+```text
+Verify a bounded local claim and report its evidence status
+```
+
+`Max steps` değerini `2` veya `3` seçip **Kuyruğa al** düğmesine basın. UI önce `queue_enqueued` olayını ve queue durumunu gösterir. Worker yapılandırması uygunsa iş `queue_started` durumuna geçer; AgentV3 run’ı tamamlandığında Run History, metrics ve Tool Usage Mix güncellenir. Worker başarısız olursa failure status, error code, retry count ve canlı olay akışı yine monitoring değerini gösterir.
+
+## 5. Observability ekranında gösterilecek yüzeyler
+
+Run oluştuğunda aşağıdaki sırayı izleyin. Sayısal değerler ortam ve run’a göre değişir; rehber sabit success rate, latency veya tool count vaat etmez.
+
+| Sıra | Dashboard yüzeyi | Gösterilecek nokta |
+|---:|---|---|
+| 1 | Metrics kartları | Total Runs, Completed/Failed Runs, Success Rate, Average/P95 Latency, Tokens, Cost ve Queue Depth |
+| 2 | Tool Usage Mix | Gerçek run step’lerinden türetilen araç dağılımı, toplam çağrı ve yüzde |
+| 3 | Run History | Workspace kapsamındaki run status, süre, step bilgisi, benzersiz tool listesi ve çağrı sayısı |
+| 4 | Live Event Stream | `run_started`, step, queue ve `run_finished` olaylarının SSE üzerinden redacted akışı |
+| 5 | Agent Queue | queued/running/failed status, retry ve lease davranışı |
+| 6 | Alert Rule | Dashboard formundan seçilen threshold ve cooldown ile üretilecek alarm durumu |
+
+Canlı olaylar için Observability sekmesi SSE bağlantısı açar. Bağlantı kurulumu veya yeniden bağlanma durumunu gösterirken, tarayıcı ağ panelinde API key’i veya hassas request payload’ını kaydetmeyin.
+
+## 6. Alarmı göstermek
+
+Dashboard’daki **Alert Rule** formundan bir eşik seçin. Product demo için mevcut run’ın ölçülen değerine göre bir eşik belirleyin; örneğin gerçek p95 latency değerinin hemen altında bir `p95_latency_ms` eşiği veya gözlenen queue depth’in üzerinde olmayan bir queue kuralı seçebilirsiniz. Eşik değerini önceden sabitlemeyin; çünkü run süresi ve queue zamanlaması makineye göre değişir.
+
+Alarm gösterimi sırasında rule adı, metric, threshold, actual value, firing/resolved status ve cooldown alanlarını göstermek yeterlidir. Aynı olayın cooldown nedeniyle tekrar tekrar alarm üretmemesi beklenen davranıştır. Notification adapter’ı yapılandırılmadıysa dashboard alarmı, harici Slack/e-posta gönderimi anlamına gelmez.
+
+## 7. İki dakikalık Product Hunt demo senaryosu
 
 Aşağıdaki akış ekran kaydı veya canlı walkthrough için kullanılabilir. Toplam süre yaklaşık 90–120 saniyedir.
 
@@ -145,20 +148,20 @@ Aşağıdaki akış ekran kaydı veya canlı walkthrough için kullanılabilir. 
 |---:|---|---|
 | 0–10 sn | HUQAN başlığı ve local terminal | “AI agent’ınızın ne yaptığı, hangi araçları kullandığı ve ne kadar sürdüğü görünür olsun.” |
 | 10–25 sn | `node cli.js quickstart` çıktısı | “HUQAN, mutating write’ı review ve operator approval olmadan canonical memory’ye geçirmiyor; sonunda doğrulanabilir Trust Receipt üretiyor.” |
-| 25–40 sn | Trust Command Center → Settings → Observability | `product-hunt-demo` workspace’ine bağlanın; dashboard’un authenticated olduğunu gösterin. |
-| 40–55 sn | Metrics kartları | Total Runs = 2, Success Rate = 50%, P95 Latency, Tokens, Cost ve Queue Depth değerlerini gösterin. |
-| 55–70 sn | Tool Usage Mix ve Run History | Donut grafikte `verify`, `ask`, `compare` dağılımını; run satırlarında tool listesi ve call count değerlerini gösterin. |
-| 70–85 sn | Alerts paneli | `p95_latency_ms > 500` alarmının firing durumunu ve threshold/actual value alanlarını gösterin. |
-| 85–105 sn | Live Event Stream + Agent Queue | UI formundan kısa bir demo goal gönderin. Worker kapalı olduğu için job queued kalır; `queue_enqueued` olayı canlı stream’de görünür. |
+| 25–40 sn | Trust Command Center → Settings → Observability | İzole workspace’e authenticated biçimde bağlanın. |
+| 40–55 sn | Metrics kartları | Gerçek run’ın başarı, gecikme, token, cost ve queue sinyallerini gösterin. |
+| 55–70 sn | Tool Usage Mix ve Run History | Gerçekte kullanılan araçların dağılımını, çağrı sayılarını ve run status’unu gösterin. |
+| 70–85 sn | Live Event Stream | Bir queue veya run olayının redacted SSE akışında görünmesini gösterin. |
+| 85–105 sn | Agent Queue ve Alert Rule | Queue state, lease/retry veya threshold tabanlı alarm görünümünü gösterin. |
 | 105–120 sn | Dashboard genel görünüm ve güvenlik notu | “Read modelleri workspace-scoped’dir; ham goal/prompt/output veya secret gösterilmez.” diyerek kapatın. |
 
-### Demo anlatımının Product Hunt için kısa İngilizce versiyonu
+### Product Hunt için kısa İngilizce anlatım
 
 > **HUQAN makes AI-agent behavior observable without turning your data into a cloud dependency.** Start with a real review-gated Trust Receipt, then open the local command center to inspect run history, tool usage, latency, token cost, alerts, live events, and queue state — all scoped to the selected workspace.
 
-> The demo uses isolated local data. It shows the monitoring workflow, not a claim of production scale or hosted SaaS availability.
+> The demo uses isolated local data. Metrics and run results come from the configured local runtime; the walkthrough does not claim production scale, hosted SaaS availability, or an external integration that has not been configured.
 
-## 6. API ile hızlı doğrulama
+## 8. API ile hızlı doğrulama
 
 Dashboard yerine terminalden aynı yüzeyleri kontrol etmek için server çalışırken:
 
@@ -168,7 +171,7 @@ curl -fsS \
   "http://127.0.0.1:3000/api/observability/metrics?workspaceId=$DEMO_WORKSPACE&windowMs=86400000"
 ```
 
-Beklenen metriklerde `totalRuns: 2`, `toolCallCount: 4`, `queueDepth: 0`, `tokenKnown: true` ve `costKnown: true` görülür. Run geçmişi:
+Run geçmişi:
 
 ```bash
 curl -fsS \
@@ -184,40 +187,29 @@ curl -fsS \
   "http://127.0.0.1:3000/api/observability/alerts?workspaceId=$DEMO_WORKSPACE&limit=10"
 ```
 
-Workspace parametresi observability GET uçlarında zorunludur. API key vermeden yapılan istek `401 Unauthorized` döndürmelidir. Farklı workspace ile yapılan istek, bu demo workspace’inin verisini döndürmemelidir.
+Run oluşmadan metrics sonucu boş değerler veya `null` oranlar içerebilir; bu, local server’ın henüz telemetry almadığını gösterir. API key vermeden yapılan istek `401 Unauthorized` döndürmelidir. Farklı workspace ile yapılan istek, `product-hunt-demo` verisini döndürmemelidir.
 
-## 7. İsteğe bağlı gerçek worker gösterimi
+## 9. Kayıt ve görsel hazırlığı
 
-Gerçek AgentV3 queue execution’ı göstermek için server’ı şu değişkenle başlatabilirsiniz:
+Ekran kaydı sırasında yalnızca localhost adresi ve geçici demo API key’i kullanın. Rastgele UUID’leri kısaltabilirsiniz; ancak `review`, `approved`, `verified`, `canonical`, workspace kapsamı, tool count, status ve alarm threshold değerlerini doğru biçimde gösterin. Bunlar ürünün değerini anlatan güvenli sinyallerdir.
 
-```bash
-export HUQAN_AGENT_WORKER_ENABLED=1
-export HUQAN_AGENT_WORKER_INTERVAL_MS=1000
-export HUQAN_AGENT_WORKER_LEASE_MS=120000
-npm run server
-```
+Önerilen görsel seti dört kareden oluşur: Trust Receipt quickstart çıktısı, gerçek run’ın metrics kartları, Tool Usage Mix + Run History ve Live Event Stream + Queue/Alert paneli. Hiçbir karede ham prompt, tool input/output, secret, credential veya kişisel veri görünmemelidir.
 
-Bu bölüm yalnızca AgentV3 runtime’ı ve araç yürütme ortamı yapılandırılmışsa kullanılmalıdır. Worker’ın temel davranışı lease, retry ve terminal failure telemetry’sidir; dış model/araç konfigürasyonu yoksa bir job’ın başarısız olması beklenebilir. Product Hunt videosunda deterministik seed demo ana akışını, gerçek worker bölümünü ise “optional runtime integration” olarak sunun. Başarılı bir worker run’ı için gerekli dış bağımlılıkları bu local quickstart’ın otomatik olarak sağladığını iddia etmeyin.
-
-## 8. Kayıt ve görsel hazırlığı
-
-Ekran kaydı sırasında yalnızca localhost adresi ve demo API key’i kullanın. Terminalde rastgele UUID’leri kısaltabilirsiniz; ancak `review`, `approved`, `verified`, `canonical`, workspace kapsamı, tool count ve alarm threshold değerlerini gizlemeyin. Bunlar ürünün değerini anlatan güvenli ve gerekli sinyallerdir.
-
-Önerilen görsel seti dört kareden oluşur: Trust Receipt quickstart çıktısı, Observability metrics kartları, Tool Usage Mix + Run History ve Live Event Stream + Alert paneli. Dashboard’un boş veya loading durumunu değil, seed edilmiş workspace’teki kararlı sonucu kaydedin.
-
-## 9. Troubleshooting
+## 10. Troubleshooting
 
 | Belirti | Çözüm |
 |---|---|
 | `better-sqlite3` yüklenemiyor | Node.js 22.13+ kullandığınızı ve platform derleme araçlarının kurulu olduğunu kontrol edin; sonra `npm ci` çalıştırın. |
 | Dashboard `401 Unauthorized` gösteriyor | Settings’te API key’in server’daki `HUQAN_API_KEY` ile aynı olduğunu kontrol edin. |
-| Dashboard boş görünüyor | Workspace’in tam olarak `product-hunt-demo` olduğunu ve server’ın `$DEMO_DB` ile başlatıldığını kontrol edin. |
+| Dashboard boş görünüyor | Workspace’in tam olarak `product-hunt-demo` olduğunu, server’ın `$DEMO_DB` ile başlatıldığını ve en az bir gerçek run veya queue job gönderildiğini kontrol edin. |
+| Queue job çalışmıyor | Worker’ın `HUQAN_AGENT_WORKER_ENABLED=1` olduğunu ve AgentV3 runtime/araç yapılandırmasının mevcut olduğunu kontrol edin. Yapılandırılmamış runtime’da failure/retry beklenebilir. |
 | `400` ve workspace hatası | Observability GET istekleri tam olarak bir adet boş olmayan `workspaceId` ister. |
-| Queue job çalışmıyor | Deterministik demo için worker bilerek `0`’dır; queue görünürlüğü beklenen davranıştır. Gerçek execution için `HUQAN_AGENT_WORKER_ENABLED=1` ve AgentV3 runtime yapılandırması gerekir. |
+| SSE olay görünmüyor | Settings bağlantısını yenileyin, doğru workspace’i seçin ve yeni bir queue/run olayı üretin. |
+| Alarm görünmüyor | Eşiği gerçek ölçüme göre seçin; cooldown süresi içinde aynı rule için ikinci firing bastırılabilir. |
 | Port dolu | `PORT=3001` gibi başka bir port seçin ve dashboard’u yeni porttan açın. |
 | Quickstart kendi memory’sini değiştirdi sanılıyor | `quickstart` throwaway store kullanır; çıktıda `your own memory was not touched` satırını kontrol edin. |
 
-## 10. Temizlik
+## 11. Temizlik
 
 Server terminalinde `Ctrl+C` ile yalnızca bu demo server’ını durdurun. Sonra geçici DB’yi silin:
 
@@ -230,6 +222,6 @@ Bu komut yalnızca rehberde oluşturduğunuz geçici demo klasörünü hedefleme
 
 ## Gerçeklik sınırı
 
-Bu rehberin kanıtladığı şey, local-first monitoring MVP’sinin kurulabilir demo akışıdır: kalıcı run/event okuma, workspace-scoped metrics, tool usage summary, alert görünümü, queue state ve authenticated SSE bağlantısı. Bu rehber tek başına hosted SaaS deployment’ı, çok kiracılı production işletimi, belirli bir ölçek/SLA veya üçüncü taraf agent framework entegrasyonu kanıtlamaz.
+Bu rehberin kanıtladığı şey, local-first monitoring MVP’sinin kurulabilir ve gözlemlenebilir demo akışıdır: gerçek CLI quickstart, authenticated server bağlantısı, workspace-scoped metrics/events/runs/queue/alerts yüzeyleri ve redacted SSE akışı. Bu rehber tek başına hosted SaaS deployment’ı, çok kiracılı production işletimi, belirli bir ölçek/SLA veya üçüncü taraf agent framework entegrasyonu kanıtlamaz.
 
 Product Hunt metninde en doğru ifade **local-first agent observability MVP / open-source beta** olacaktır. Hosted auth, RBAC, retention, rate limiting, backup/restore, notification adapter’ları, load/soak kanıtı ve operasyonel SLO’lar sonraki ürünleşme aşamasının konularıdır.

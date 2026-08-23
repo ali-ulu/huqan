@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const workspaceSync = require('./workspace-sync');
-const { ensureSyncState, resolveRunWorkspaceId, recordRun } = workspaceSync._test;
+const { ensureSyncState, resolveRunWorkspaceId, recordRun, MAX_LOG_ENTRIES } = workspaceSync._test;
 
 function fakeKernelWithEmit() {
   const emitted = [];
@@ -78,6 +78,18 @@ test('workspace-sync: run() log and byGoal actions return isolated copies', () =
   const byGoalResult = workspaceSync.run(kernel, { action: 'byGoal' });
   assert.equal(byGoalResult.ok, true);
   assert.equal(byGoalResult.byGoal['find x'].workspaceId, 'ws-b');
+});
+
+test('workspace-sync: log is capped at MAX_LOG_ENTRIES, dropping the oldest entries', () => {
+  const kernel = fakeKernelWithEmit();
+  const goal = 'find x';
+  for (let i = 0; i < MAX_LOG_ENTRIES + 10; i += 1) {
+    recordRun(kernel, { goal, workspaceId: i % 2 === 0 ? 'ws-a' : 'ws-b' });
+  }
+  const syncState = ensureSyncState(kernel);
+  assert.equal(syncState.log.length, MAX_LOG_ENTRIES);
+  // The oldest 10 switches were dropped; the newest entry is still the last one recorded.
+  assert.equal(syncState.log[syncState.log.length - 1].toWorkspaceId, syncState.byGoal[goal].workspaceId);
 });
 
 test('workspace-sync: run() rejects an unsupported action', () => {

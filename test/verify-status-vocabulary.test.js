@@ -12,6 +12,7 @@ const {
   isKnownVerifyStatus,
   toPublicVerifyPayload,
   toPublicVerifyEnvelope,
+  toLegacyVerifyEnvelope,
 } = require('../lib/verify-status-vocabulary');
 const { normalizeCheck, classifyLlmSor } = require('../lib/shield');
 
@@ -159,6 +160,27 @@ test('envelope projection does not mutate the kernel result it was given', () =>
   assert.equal(envelope.data.status, 'dogrulandi', 'internal representation must stay legacy');
   assert.equal(envelope.meta.reasoningTrace.status, 'dogrulandi');
   assert.equal(projected.data.status, 'verified');
+});
+
+test('envelope projection does not pollute the projected object\'s prototype (#1300)', () => {
+  // JSON.parse('{"__proto__":{"polluted":true}}') produces an own-enumerable
+  // '__proto__' key, not an actual prototype override -- so this reproduces
+  // what untrusted JSON-parsed input can hand to the projector. A plain
+  // `projected[childKey] = value` assignment for that key sets the *actual*
+  // [[Prototype]] of `projected` (via the __proto__ accessor every plain
+  // object inherits), which hasOwnProperty cannot see -- `projected.polluted`
+  // resolves through the prototype chain instead, so that is the property
+  // access this test has to use to catch it.
+  const envelope = JSON.parse('{"data":{"status":"dogrulandi"},"__proto__":{"polluted":true}}');
+
+  const projectedPublic = toPublicVerifyEnvelope(envelope);
+  assert.equal(projectedPublic.data.status, 'verified');
+  assert.equal(projectedPublic.polluted, undefined);
+  assert.equal(Object.getPrototypeOf(projectedPublic), Object.prototype);
+
+  const projectedLegacy = toLegacyVerifyEnvelope(envelope);
+  assert.equal(projectedLegacy.polluted, undefined);
+  assert.equal(Object.getPrototypeOf(projectedLegacy), Object.prototype);
 });
 
 test('shield reads both vocabularies so boundary ordering cannot change a verdict', () => {
