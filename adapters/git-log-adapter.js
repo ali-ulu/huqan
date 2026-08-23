@@ -5,11 +5,6 @@ const { execFileSync } = require('child_process');
 const { resolvePathWithinRoot } = require('../lib/path-safety');
 const { learnEntriesSync } = require('./utils/learn-entries');
 
-// Record/field separators from the ASCII control range, chosen because they
-// essentially never appear in real commit messages, so a single git-log
-// invocation can be split back into structured commits without a second
-// process per commit.
-const RECORD_SEP = '\x1e';
 const FIELD_SEP = '\x1f';
 const DEFAULT_MAX_COMMITS = 200;
 
@@ -18,15 +13,13 @@ function toAbs(p) {
 }
 
 /**
- * Parses the raw stdout of `git log --pretty=format:%H\x1f%an\x1f%ae\x1f%aI
- * \x1f%s\x1f%b\x1e` into structured commit records. Pure and git-free, so it
+ * Parses one raw metadata record emitted for a known commit hash. Pure and git-free, so it
  * is testable without spawning a process.
  */
 function parseGitLog(rawOutput) {
   const text = String(rawOutput || '');
   if (!text.trim()) return [];
-  return text.split(RECORD_SEP)
-    .map((record) => record.replace(/^\s+/, ''))
+  return text.split('\x1e')
     .filter((record) => record.trim().length > 0)
     .map((record) => {
       const [hash, authorName, authorEmail, date, subject, ...bodyParts] = record.split(FIELD_SEP);
@@ -90,7 +83,7 @@ function getCommits(repoPath, options = {}) {
     '-C', absRepo,
     'log',
     `--max-count=${maxCommits}`,
-    `--pretty=format:%H${FIELD_SEP}%an${FIELD_SEP}%ae${FIELD_SEP}%aI${FIELD_SEP}%s${FIELD_SEP}%b${RECORD_SEP}`,
+    '--pretty=format:%H',
   ];
   if (options.since) args.push(`--since=${options.since}`);
   if (options.branch) {
@@ -109,8 +102,13 @@ function getCommits(repoPath, options = {}) {
   }
   if (options.pathFilter) args.push('--', String(options.pathFilter));
 
-  const raw = execFileSync('git', args, { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
-  return parseGitLog(raw).map((commit) => ({ ...commit, repoPath: absRepo }));
+  const hashes = String(execFileSync('git', args, { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }))
+    .trim().split(/\r?\n/).filter((hash) => /^[0-9a-f]{40,64}$/i.test(hash));
+  return hashes.map((hash) => {
+    const raw = execFileSync('git', ['-C', absRepo, 'show', '-s', `--format=%H${FIELD_SEP}%an${FIELD_SEP}%ae${FIELD_SEP}%aI${FIELD_SEP}%s${FIELD_SEP}%b`, hash], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
+    const [commit] = parseGitLog(raw);
+    return { ...commit, hash, shortHash: hash.slice(0, 12), repoPath: absRepo };
+  });
 }
 
 function ingestGitLog(repoPath, options = {}) {
