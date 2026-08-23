@@ -33,8 +33,20 @@ const { executeConnectorAction } = require('../lib/connector-action-firewall');
 
 const REACHABILITY_TIMEOUT_MS = 5000;
 
+// The WHATWG URL parser silently strips every tab/CR/LF from anywhere in the
+// input before parsing (https://url.spec.whatwg.org/#url-parsing), so
+// "ht\ttps://real.example@evil.example/" parses as a normal https URL
+// pointing at evil.example even though it visibly doesn't start with
+// "https://". Stripping the same characters here (not parsing -- just this
+// membership test) is what keeps the pre-check in sync with what the parser
+// itself will accept as an http(s) URL, so a spoof shaped this way still
+// reaches validateSourceUrl instead of skipping the gate entirely (#1279).
+function stripUrlControlChars(value) {
+  return String(value).replace(/[\t\r\n]/g, '');
+}
+
 function looksLikeHttpUrl(value) {
-  return typeof value === 'string' && /^https?:\/\//i.test(value.trim());
+  return typeof value === 'string' && /^https?:\/\//i.test(stripUrlControlChars(value.trim()));
 }
 
 function hasUserinfoSpoof(parsed) {
@@ -65,9 +77,22 @@ function hasSuspiciousIdnHost(parsed) {
  * @returns {{ok: true} | {ok: false, reason: string, code: string}}
  */
 function validateSourceUrl(value) {
+  const raw = String(value).trim();
+  // Reject control characters explicitly, before parsing, rather than let
+  // the parser silently normalize them away: the sourceRef a caller wrote
+  // and the sourceRef the rest of this gate acts on must be the same string,
+  // and a control character embedded in a provenance reference is itself
+  // suspicious regardless of what it happens to reveal once stripped (#1279).
+  if (/[\t\r\n]/.test(raw)) {
+    return {
+      ok: false,
+      reason: 'URL contains a tab/CR/LF character that URL parsing would silently strip',
+      code: 'EVIDENCE_URL_MALFORMED',
+    };
+  }
   let parsed;
   try {
-    parsed = new URL(String(value).trim());
+    parsed = new URL(raw);
   } catch (_) {
     return { ok: false, reason: 'malformed URL', code: 'EVIDENCE_URL_MALFORMED' };
   }
