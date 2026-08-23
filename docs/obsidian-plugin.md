@@ -44,3 +44,29 @@ npm run check
 The plugin release tag must exactly match its `manifest.json` and
 `package.json` version. Stable release assets are published by the dedicated
 repository's GitHub Actions workflow.
+
+## Repository update flow
+
+There is intentionally no bidirectional copy or generated plugin bundle in this
+repository. The dedicated `ali-ulu/huqan-obsidian` repository is the single source
+of truth for plugin code and releases. The HUQAN repository remains the source of
+truth for the local runtime and the `/health` and `/v2/verify` API surfaces used by
+the plugin.
+
+When a HUQAN runtime change may affect those surfaces, the
+`.github/workflows/obsidian-plugin-compatibility.yml` workflow checks the proposed
+HUQAN revision against the current `huqan-obsidian` `main` branch. It checks out
+both public repositories, starts the proposed local server with a disposable test
+key, and runs `npm run check:runtime` from the plugin repository. The workflow is
+therefore a compatibility gate, not a code synchronization mechanism.
+
+The normal ownership rule is:
+
+| Change | Edit here | Result |
+| --- | --- | --- |
+| Plugin UI, commands, settings, or bundle | `ali-ulu/huqan-obsidian` | Plugin PR, tests, tag, and GitHub Release |
+| HUQAN `/health` or `/v2/verify` behavior | `ali-ulu/huqan` | Runtime PR plus Obsidian compatibility check |
+| Shared integration contract | Both repositories, in separate scoped PRs | Compatibility check must pass before release |
+
+This avoids two copies of `main.js` diverging. A runtime release does not silently
+rewrite the plugin, and a plugin release does not silently modify the HUQAN server.
