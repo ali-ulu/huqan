@@ -67,6 +67,22 @@ describe('canonical workflow data routes', () => {
     assert.equal(result.write.headers['Cache-Control'], 'no-store');
   });
 
+  it('does not lose a tenant\'s own approvals behind another tenant\'s pending queue (#1287)', async () => {
+    // 60 other-workspace approvals sorted ahead of 3 belonging to the
+    // requesting tenant -- with the pre-fix "fetch default limit, then
+    // filter" ordering, the default-limit page (50) would be entirely
+    // other-tenant records and this tenant's own queue would appear empty.
+    const noisyTenant = Array.from({ length: 60 }, (_, i) => approval(`noisy-${i}`, 'beta'));
+    const ownApprovals = [approval('a', 'alpha'), approval('b', 'alpha'), approval('c', 'alpha')];
+    const { invoke } = fixture([...noisyTenant, ...ownApprovals]);
+
+    const result = await invoke('GET', '/api/v2/approvals?workspaceId=alpha');
+    assert.equal(result.write.status, 200);
+    assert.deepEqual(result.write.json.data.approvals.map(item => item.id).sort(), ['a', 'b', 'c']);
+    assert.equal(result.write.json.data.total, 3);
+    assert.equal(result.write.json.data.windowTruncated, false);
+  });
+
   it('does not disclose an approval from another workspace', async () => {
     const { invoke } = fixture([approval('a', 'alpha')]);
     const result = await invoke('GET', '/api/v2/approvals/a?workspaceId=beta');
