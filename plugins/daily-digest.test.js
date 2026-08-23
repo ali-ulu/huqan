@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const dailyDigest = require('./daily-digest');
-const { utcDateKey, ensureDigestState, recordRun } = dailyDigest._test;
+const { utcDateKey, ensureDigestState, recordRun, pruneOldBuckets, MAX_RETAINED_DAYS } = dailyDigest._test;
 
 function fakeKernel() {
   return {};
@@ -90,6 +90,52 @@ test('daily-digest: run() returns an empty bucket for a date with no runs', () =
   const result = dailyDigest.run(kernel, { action: 'summary', date: '2020-01-01' });
   assert.equal(result.ok, true);
   assert.equal(result.digest.runs, 0);
+});
+
+test('daily-digest: run() rejects prototype-chain property names as dates instead of returning them (#1281)', () => {
+  const kernel = fakeKernel();
+  dailyDigest.afterAgentRun(kernel, { status: 'completed', steps: [] });
+
+  for (const date of ['constructor', 'toString', '__proto__', 'valueOf', 'hasOwnProperty']) {
+    const result = dailyDigest.run(kernel, { action: 'summary', date });
+    assert.equal(result.ok, false, date);
+    assert.equal(result.code, 'INVALID_DATE', date);
+    assert.equal(result.digest, undefined, date);
+  }
+});
+
+test('daily-digest: run() rejects a malformed date shape that is not YYYY-MM-DD (#1281)', () => {
+  const kernel = fakeKernel();
+  // '' is excluded: input.date || utcDateKey() falls back to today for any
+  // falsy value, same as an omitted date -- that's the existing, intended
+  // "no date given" behavior, not something this validation should reject.
+  for (const date of ['2026-8-6', '20260806', 'not-a-date']) {
+    const result = dailyDigest.run(kernel, { action: 'summary', date });
+    assert.equal(result.ok, false, date);
+    assert.equal(result.code, 'INVALID_DATE', date);
+  }
+});
+
+test('daily-digest: byDate is pruned to the most recent MAX_RETAINED_DAYS buckets (#1281)', () => {
+  const kernel = fakeKernel();
+  const digestState = ensureDigestState(kernel);
+  for (let i = 0; i < MAX_RETAINED_DAYS + 30; i += 1) {
+    const dateKey = new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10);
+    recordRun(digestState, { status: 'completed', steps: [] }, dateKey);
+  }
+  assert.equal(Object.keys(digestState.byDate).length, MAX_RETAINED_DAYS);
+  // The oldest buckets are the ones pruned, not the newest.
+  assert.equal(Object.hasOwn(digestState.byDate, '2026-01-01'), false);
+  const lastDateKey = new Date(Date.UTC(2026, 0, MAX_RETAINED_DAYS + 30)).toISOString().slice(0, 10);
+  assert.equal(Object.hasOwn(digestState.byDate, lastDateKey), true);
+});
+
+test('daily-digest: pruneOldBuckets is a no-op under the retention limit', () => {
+  const kernel = fakeKernel();
+  const digestState = ensureDigestState(kernel);
+  recordRun(digestState, { status: 'completed', steps: [] }, '2026-08-06');
+  pruneOldBuckets(digestState);
+  assert.equal(Object.keys(digestState.byDate).length, 1);
 });
 
 test('daily-digest: run() rejects an unsupported action', () => {

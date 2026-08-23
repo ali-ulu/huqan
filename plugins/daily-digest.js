@@ -23,6 +23,30 @@ function utcDateKey(date = new Date()) {
   return date.toISOString().slice(0, 10);
 }
 
+const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+// utcDateKey() always produces this shape; a caller-supplied date must match
+// it too, both so a malformed value fails closed with a clear reason instead
+// of silently looking up nothing, and so byDate's retention pruning (below)
+// can trust every key it holds is a real calendar date.
+function isValidDateKey(value) {
+  return typeof value === 'string' && DATE_KEY_PATTERN.test(value);
+}
+
+// byDate lives for kernel._dailyDigestState's process lifetime; without a
+// cap it grows by one bucket per UTC day forever (#1281). Kept well past any
+// plausible "how far back does a daily digest matter" query.
+const MAX_RETAINED_DAYS = 90;
+
+function pruneOldBuckets(digestState) {
+  const keys = Object.keys(digestState.byDate);
+  if (keys.length <= MAX_RETAINED_DAYS) return;
+  keys.sort();
+  for (const key of keys.slice(0, keys.length - MAX_RETAINED_DAYS)) {
+    delete digestState.byDate[key];
+  }
+}
+
 function emptyBucket(dateKey) {
   return {
     date: dateKey,
@@ -45,8 +69,9 @@ function ensureDigestState(kernel) {
 }
 
 function ensureDayBucket(digestState, dateKey) {
-  if (!digestState.byDate[dateKey]) {
+  if (!Object.hasOwn(digestState.byDate, dateKey)) {
     digestState.byDate[dateKey] = emptyBucket(dateKey);
+    pruneOldBuckets(digestState);
   }
   return digestState.byDate[dateKey];
 }
@@ -97,14 +122,28 @@ module.exports = {
     if (action !== 'summary') {
       return { ok: false, error: `Unsupported daily-digest action: ${action}` };
     }
-    const digestState = ensureDigestState(kernel);
     const dateKey = input.date || utcDateKey();
+    if (!isValidDateKey(dateKey)) {
+      return { ok: false, error: `Invalid date, expected YYYY-MM-DD: ${input.date}`, code: 'INVALID_DATE' };
+    }
+    const digestState = ensureDigestState(kernel);
+    const digest = Object.hasOwn(digestState.byDate, dateKey)
+      ? digestState.byDate[dateKey]
+      : emptyBucket(dateKey);
     return {
       ok: true,
-      digest: digestState.byDate[dateKey] || emptyBucket(dateKey),
+      digest,
       lastRunAt: digestState.lastRunAt,
     };
   },
 };
 
-module.exports._test = { utcDateKey, ensureDigestState, ensureDayBucket, recordRun };
+module.exports._test = {
+  utcDateKey,
+  isValidDateKey,
+  ensureDigestState,
+  ensureDayBucket,
+  recordRun,
+  pruneOldBuckets,
+  MAX_RETAINED_DAYS,
+};
