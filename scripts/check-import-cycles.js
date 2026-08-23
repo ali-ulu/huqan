@@ -38,6 +38,30 @@ function listSourceFiles() {
     .filter((file) => !EXCLUDE.test(file));
 }
 
+/**
+ * Strips block and line comments before require() extraction (#1288).
+ *
+ * The most common way to break a cycle is to delete the unwanted require()
+ * call and leave a comment explaining why -- which a plain regex over the raw
+ * source still counts as a live edge, so breaking a cycle this way keeps CI
+ * red, and the only way to pass is to delete the very comment documenting the
+ * fix. `(^|[^:\\])\/\/` deliberately excludes a `//` immediately preceded by
+ * `:` or `\`, so `http://...`/`https://...` inside a string is not treated as
+ * a comment start.
+ *
+ * Does not also strip string literals: doing so would blank out a real
+ * require()'s own path argument along with everything else, since both are
+ * quoted the same way. A require('./x') spelled out inside an unrelated
+ * string literal (a template, an error message) is a separate, narrower
+ * false positive that needs real parsing (an AST walk) to fix without also
+ * breaking legitimate calls -- left as a known limitation, not attempted here.
+ */
+function stripComments(source) {
+  return String(source)
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:\\])\/\/[^\n]*/g, '$1');
+}
+
 function buildGraph(allFiles, sourceFiles) {
   const known = new Set(allFiles);
 
@@ -53,7 +77,7 @@ function buildGraph(allFiles, sourceFiles) {
 
   const graph = new Map();
   for (const file of sourceFiles) {
-    const source = fs.readFileSync(path.join(repoRoot, file), 'utf8');
+    const source = stripComments(fs.readFileSync(path.join(repoRoot, file), 'utf8'));
     const deps = [...source.matchAll(/require\(\s*['"`](\.[^'"`]+)['"`]\s*\)/g)]
       .map((match) => resolve(file, match[1]))
       .filter((dep) => dep && !IS_TEST.test(dep));
@@ -108,4 +132,4 @@ function main() {
 
 if (require.main === module) process.exit(main());
 
-module.exports = { listSourceFiles, buildGraph, findCycles };
+module.exports = { listSourceFiles, buildGraph, findCycles, stripComments };
