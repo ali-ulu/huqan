@@ -368,6 +368,7 @@
     "lib/text-utils.js",
     "lib/tool-call-gate.js",
     "lib/trust-policy.js",
+    "lib/turkish-copula.js",
     "lib/type-lattice.js",
     "lib/verdict/action-verdict.js",
     "lib/verify-native.js",

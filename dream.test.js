@@ -406,18 +406,23 @@ describe('Dream - Gelişmiş Skorlama ve Sıralama', () => {
   it('dream: novelty (yenilik) skoru sıralamayı etkiler', () => {
     const { k, d } = fresh();
     
-    // 1. a ve b: Ortak komşuları var ama aralarında zaten bağ var (Novelty = 0)
-    k.learn('a cdir');
-    k.learn('b cdir');
-    k.learn('a bdir'); 
-    
-    // 2. d ve e: Ortak komşuları var ve aralarında bağ yok (Novelty = 1)
-    k.learn('d fdir');
-    k.learn('e fdir');
-    
+    // Yuklemler gercek Turkce kopula tasiyor: "cdir" gibi tek harfli koku olan
+    // sentetik bicimler artik `tur` kenari uretmiyor, cunku kopula soyma bir
+    // asgari kok uzunlugu ariyor (#1195). Testin kurgusu ayni: iki cift, ikisi
+    // de ortak komsu paylasiyor, biri kendi arasinda zaten bagli.
+    //
+    // 1. ali ve ayse: Ortak komşuları var ama aralarında zaten bağ var (Novelty = 0)
+    k.learn('ali cevizdir');
+    k.learn('ayse cevizdir');
+    k.learn('ali aysedir');
+
+    // 2. deniz ve emre: Ortak komşuları var ve aralarında bağ yok (Novelty = 1)
+    k.learn('deniz gemidir');
+    k.learn('emre gemidir');
+
     const results = d.dream();
-    const hypAB = results.find(h => (h.from === 'a' && h.to === 'b') || (h.from === 'b' && h.to === 'a'));
-    const hypDE = results.find(h => (h.from === 'd' && h.to === 'e') || (h.from === 'e' && h.to === 'd'));
+    const hypAB = results.find(h => (h.from === 'ali' && h.to === 'ayse') || (h.from === 'ayse' && h.to === 'ali'));
+    const hypDE = results.find(h => (h.from === 'deniz' && h.to === 'emre') || (h.from === 'emre' && h.to === 'deniz'));
     
     assert.ok(hypAB, 'A-B hipotezi üretilmeli');
     assert.ok(hypDE, 'D-E hipotezi üretilmeli');
@@ -430,16 +435,17 @@ describe('Dream - Gelişmiş Skorlama ve Sıralama', () => {
   it('dream: usefulness (degree) skoru sıralamayı etkiler', () => {
     const { k, d } = fresh();
     
-    // 1. a -> b -> c (a düşük degree: sadece 1 çıkış)
-    k.learn('a bdir');
-    k.learn('b cdir');
-    
-    // 2. x -> y -> z (x yüksek degree: 4 çıkış)
-    k.learn('x ydir');
-    k.learn('y zdir');
-    k.learn('x pdir');
-    k.learn('x qdir');
-    k.learn('x rdir');
+    // Sentetik tek harfli kokler yerine gercek kopula tasiyan yuklemler (#1195).
+    // 1. ali -> ayse -> ceviz (ali düşük degree: sadece 1 çıkış)
+    k.learn('ali aysedir');
+    k.learn('ayse cevizdir');
+
+    // 2. ozan -> selin -> gemi (ozan yüksek degree: 4 çıkış)
+    k.learn('ozan selindir');
+    k.learn('selin gemidir');
+    k.learn('ozan kalemdir');
+    k.learn('ozan yesimdir');
+    k.learn('ozan denizdir');
     
     // Ortalama degree'i yükseltmek için ek düğümler
     for (let i = 0; i < 20; i++) {
@@ -448,9 +454,9 @@ describe('Dream - Gelişmiş Skorlama ve Sıralama', () => {
     
     const results = d.dream();
     
-    // Zincir hipotezleri: a->c (transitive via b) ve x->z (transitive via y)
-    const hypAC = results.find(h => h.from === 'a' && h.to === 'c' && h.type === 'zincir');
-    const hypXZ = results.find(h => h.from === 'x' && h.to === 'z' && h.type === 'zincir');
+    // Zincir hipotezleri: ali->ceviz (ayse uzerinden) ve ozan->gemi (selin uzerinden)
+    const hypAC = results.find(h => h.from === 'ali' && h.to === 'ceviz' && h.type === 'zincir');
+    const hypXZ = results.find(h => h.from === 'ozan' && h.to === 'gemi' && h.type === 'zincir');
     
     assert.ok(hypAC, 'A->C zincir hipotezi üretilmeli');
     assert.ok(hypXZ, 'X->Z zincir hipotezi üretilmeli');

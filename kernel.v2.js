@@ -1,6 +1,7 @@
 ﻿const Kernel = require('./kernel');
 
 const { detectTypeLatticeConflict } = require('./lib/type-lattice');
+const { stripCopulaOrKeep } = require('./lib/turkish-copula');
 
 // Mechanical 1:1 extraction (#328, docs/kernel-split-plan.md V2-A): pure native
 // helpers, the opposite-predicate seed table, and the manipulation rule
@@ -254,10 +255,9 @@ class KernelV2 {
     return TYPE_RELATIONS.has(String(relation || '').toLowerCase());
   }
 
+  // Guarded: bare spelling collapsed `kültür` onto `kül`, verifying a false claim at 0.95 (#1167).
   _normalizeCopulaTail(predicate) {
-    return String(predicate || '')
-      .replace(/(?:dır|dir|dur|dür|tır|tir|tur|tür)$/i, '')
-      .trim();
+    return stripCopulaOrKeep(String(predicate || '')).trim();
   }
 
   _normalizePredicateToken(predicate) {
