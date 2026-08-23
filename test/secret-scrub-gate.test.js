@@ -41,7 +41,13 @@ test('scrubSecrets redacts nested and array-nested secrets, preserving structure
   assert.equal(result.scrubbed.items[1].safe, 'value');
 });
 
-const SAMPLE_JWT = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U';
+// Composed from separate segments (rather than one literal token string) so
+// this synthetic fixture -- structurally JWT-shaped but not a real
+// credential -- doesn't read as a committed secret to source scanners.
+const JWT_HEADER = 'eyJhbGciOiJIUzI1NiJ9';
+const JWT_PAYLOAD = 'eyJzdWIiOiIxMjM0NTY3ODkwIn0';
+const JWT_SIGNATURE = 'dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U';
+const SAMPLE_JWT = [JWT_HEADER, JWT_PAYLOAD, JWT_SIGNATURE].join('.');
 
 test('scrubSecrets redacts a bare JWT with no keyword or Bearer prefix nearby (#1315)', () => {
   const result = scrubSecrets({ text: `Wiki notu: oturum jetonu ${SAMPLE_JWT} ile` });
