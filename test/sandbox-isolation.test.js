@@ -82,7 +82,10 @@ describe('AB6 sandbox isolation core decisions', () => {
     assert.equal(result.decision, SANDBOX_ISOLATION_DECISIONS.BLOCK);
     assert.equal(result.allowed, false);
     assert.equal(result.canDryRun, false);
-    assert.equal(result.reason, SANDBOX_ISOLATION_REASONS.RESOURCE_EXHAUSTION_BLOCK);
+    // Was RESOURCE_EXHAUSTION_BLOCK, which is what an unknown runner reported
+    // before #1112 -- the file's only code/reason mismatch, and the reason an
+    // operator went looking for a resource limit that was never involved.
+    assert.equal(result.reason, SANDBOX_ISOLATION_REASONS.UNKNOWN_RUNNER_BLOCK);
     assert.equal(result.risk.level, SANDBOX_RISK_LEVELS.CRITICAL);
   });
 
