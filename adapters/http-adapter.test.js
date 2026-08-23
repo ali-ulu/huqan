@@ -56,6 +56,11 @@ test('http-adapter: parseHtml strips script/style/comments and decodes entities'
   assert.equal(entries[0].content, '1 < 2 end');
 });
 
+test('http-adapter: parseHtml decodes each entity once, including astral and hex references', () => {
+  const entries = parseHtml('<p>Literal &amp;lt;tag&amp;gt;; 😀: &#128512;; CJK: &#134071;; &#x27;quoted&#x27;</p>', 'https://example.com/doc');
+  assert.equal(entries[0].content, "Literal &lt;tag&gt;; 😀: 😀; CJK: 𠮷; 'quoted'");
+});
+
 test('http-adapter: parseRobotsDisallow matches the "*" block by default', () => {
   const text = 'User-agent: *\nDisallow: /private\nDisallow: /admin\n';
   const disallow = parseRobotsDisallow(text, 'huqan-http-adapter/1.0');
