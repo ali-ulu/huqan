@@ -323,6 +323,7 @@
     "lib/module-reachability.js",
     "lib/mutation-admission.js",
     "lib/mutation-journal.js",
+    "lib/mutation-journal-lock.js",
     "lib/path-safety.js",
     "lib/predicate-parser.js",
     "lib/provenance-ingest.js",
