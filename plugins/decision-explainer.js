@@ -31,6 +31,18 @@ const DECISION_LABELS = Object.freeze({
   quarantine: 'Karantinaya alındı',
 });
 
+// #1319: DECISION_LABELS/KNOWN_REASONS are Object.freeze()'d plain objects,
+// which does not cut the prototype chain -- Object.freeze only blocks
+// mutation. A caller-supplied key like 'constructor' or 'toString' looked
+// up with a plain `table[key]` returns the inherited Object.prototype
+// member (a function, hence truthy), not undefined, so the `|| fallback`
+// pattern never applied and the function's source ended up embedded in the
+// human-readable explanation text. Object.hasOwn restricts the lookup to
+// the table's own mapped keys.
+function lookup(table, key, fallback) {
+  return Object.hasOwn(table, key) ? table[key] : fallback;
+}
+
 function normalizeDecisionInput(decision) {
   if (!decision || typeof decision !== 'object') return null;
   // Accepts evaluateMcpGate()/evaluateMemoryAdmission() decision objects
@@ -48,8 +60,8 @@ function explainDecision(decision) {
   if (!normalized) {
     return 'Açıklanacak bir karar bulunamadı (decision/verdict alanı eksik).';
   }
-  const label = DECISION_LABELS[normalized.value] || normalized.value;
-  const knownSentence = KNOWN_REASONS[normalized.reason];
+  const label = lookup(DECISION_LABELS, normalized.value, normalized.value);
+  const knownSentence = lookup(KNOWN_REASONS, normalized.reason, null);
   if (knownSentence) {
     return `${label}: ${knownSentence}`;
   }
