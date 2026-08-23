@@ -38,6 +38,11 @@ const { emitGateTelemetry } = require('../lib/gate-telemetry');
 
 const DEFAULT_WORKSPACE_ID = 'default';
 
+// #1309: syncState.log is in-memory for the kernel's lifetime with no other
+// pruning, so on a long-lived kernel it would otherwise grow without bound.
+// Cap it as a ring buffer -- drop the oldest entry once the cap is reached.
+const MAX_LOG_ENTRIES = 500;
+
 function ensureSyncState(kernel) {
   if (!kernel._workspaceSyncState) {
     kernel._workspaceSyncState = { byGoal: {}, log: [] };
@@ -84,6 +89,9 @@ function recordRun(kernel, state) {
       reason: crossWorkspaceDecision.reason,
       at: entry.runAt,
     });
+    if (syncState.log.length > MAX_LOG_ENTRIES) {
+      syncState.log.splice(0, syncState.log.length - MAX_LOG_ENTRIES);
+    }
   }
 
   syncState.byGoal[goal] = entry;
@@ -119,4 +127,4 @@ module.exports = {
   },
 };
 
-module.exports._test = { ensureSyncState, resolveRunWorkspaceId, recordRun, DEFAULT_WORKSPACE_ID };
+module.exports._test = { ensureSyncState, resolveRunWorkspaceId, recordRun, DEFAULT_WORKSPACE_ID, MAX_LOG_ENTRIES };
