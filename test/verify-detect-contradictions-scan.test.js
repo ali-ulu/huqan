@@ -63,8 +63,8 @@ test('each node is read exactly once, not once per detection pass (#395)', () =>
 
 test('a subject filter reads only that node (#395)', () => {
   const graph = fakeGraph(['a', 'b', 'c'], {
-    a: [{ to: 'x', relation: 'tür' }, { to: 'y', relation: 'tür' }],
-    b: [{ to: 'q', relation: 'tür' }, { to: 'r', relation: 'tür' }],
+    a: [{ to: 'hayvan', relation: 'tür' }, { to: 'bitki', relation: 'tür' }],
+    b: [{ to: 'insan', relation: 'tür' }, { to: 'kurum', relation: 'tür' }],
     c: [],
   });
 
@@ -75,14 +75,22 @@ test('a subject filter reads only that node (#395)', () => {
   assert.equal(found[0].node, 'a');
 });
 
-test('çoklu-tür is still detected', () => {
+test('çoklu-tür is reported only for disjoint types', () => {
   const graph = fakeGraph(['a'], {
-    a: [{ to: 'kus', relation: 'tür' }, { to: 'balik', relation: 'tür' }],
+    a: [{ to: 'hayvan', relation: 'tür' }, { to: 'bitki', relation: 'tür' }],
   });
   const found = serviceFor(graph).detectContradictions();
   assert.equal(found.length, 1);
   assert.equal(found[0].type, 'çoklu-tür');
-  assert.deepEqual(found[0].targets, ['kus', 'balik']);
+  assert.deepEqual(found[0].targets, ['hayvan', 'bitki']);
+  assert.equal(found[0].confidence, 0.95);
+});
+
+test('compatible types are not reported as a contradiction (#1174)', () => {
+  const graph = fakeGraph(['a'], {
+    a: [{ to: 'doktor', relation: 'tür' }, { to: 'ebeveyn', relation: 'tür' }],
+  });
+  assert.deepEqual(serviceFor(graph).detectContradictions(), []);
 });
 
 test('döngü is reported once per node even with several back edges (#395)', () => {
@@ -115,13 +123,13 @@ test('results stay grouped by contradiction type, not by node (#395)', () => {
   // that would turn this type-major order into node-major order.
   const graph = fakeGraph(['a', 'b'], {
     a: [
-      { to: 'kus', relation: 'tür' },
-      { to: 'balik', relation: 'tür' },
+      { to: 'hayvan', relation: 'tür' },
+      { to: 'bitki', relation: 'tür' },
       { to: 'x', relation: 'olur', weight: 0.1 },
     ],
     b: [
-      { to: 'memeli', relation: 'tür' },
-      { to: 'kedi', relation: 'tür' },
+      { to: 'insan', relation: 'tür' },
+      { to: 'kurum', relation: 'tür' },
       { to: 'y', relation: 'olur', weight: 0.05 },
     ],
   });
