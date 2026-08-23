@@ -1333,25 +1333,45 @@ describe('X-Forwarded-For rate limit keying (#390)', () => {
     }
   });
 
-  it('uses FIRST XFF entry when AXIOM_TRUST_PROXY=1 (#390)', async () => {
+  it('uses LAST XFF entry when AXIOM_TRUST_PROXY=1, not the client-supplied first one (#1295)', async () => {
+    // #1295: TRUST_PROXY=1 asserts exactly one trusted hop sits directly in
+    // front of us. That hop appends what it saw onto the *end* of the
+    // list, so the trustworthy value is the last entry -- the first entry
+    // is whatever the original client claimed and is fully attacker
+    // controlled (trusting it let an attacker mint a fresh rate-limit key
+    // on every request by varying the header -- #390's original "use the
+    // first entry" behavior was the bug this test now guards against).
     const original = process.env.AXIOM_TRUST_PROXY;
     process.env.AXIOM_TRUST_PROXY = "1";
     try {
       const { getRateLimitKey } = require('./server');
-      const req = { headers: { 'x-forwarded-for': '1.2.3.4, 5.6.7.8' }, socket: { remoteAddress: '10.0.0.1' } };
-      assert.strictEqual(getRateLimitKey(req), "ip:1.2.3.4");
+      const req = { headers: { 'x-forwarded-for': 'attacker-controlled-value, 5.6.7.8' }, socket: { remoteAddress: '10.0.0.1' } };
+      assert.strictEqual(getRateLimitKey(req), "ip:5.6.7.8");
     } finally {
       if (original) process.env.AXIOM_TRUST_PROXY = original;
       else delete process.env.AXIOM_TRUST_PROXY;
     }
   });
 
-  it('ignores malformed first XFF entry and falls back to remoteAddress', async () => {
+  it('rejects an invalid-looking IP in the last XFF entry instead of accepting any character-set match (#1295)', async () => {
     const original = process.env.AXIOM_TRUST_PROXY;
     process.env.AXIOM_TRUST_PROXY = "1";
     try {
       const { getRateLimitKey } = require('./server');
-      const req = { headers: { 'x-forwarded-for': 'not-an-ip, 5.6.7.8' }, socket: { remoteAddress: '10.0.0.1' } };
+      const req = { headers: { 'x-forwarded-for': '1.2.3.4, ::::' }, socket: { remoteAddress: '10.0.0.1' } };
+      assert.strictEqual(getRateLimitKey(req), "ip:10.0.0.1");
+    } finally {
+      if (original) process.env.AXIOM_TRUST_PROXY = original;
+      else delete process.env.AXIOM_TRUST_PROXY;
+    }
+  });
+
+  it('ignores malformed last XFF entry and falls back to remoteAddress', async () => {
+    const original = process.env.AXIOM_TRUST_PROXY;
+    process.env.AXIOM_TRUST_PROXY = "1";
+    try {
+      const { getRateLimitKey } = require('./server');
+      const req = { headers: { 'x-forwarded-for': '5.6.7.8, not-an-ip' }, socket: { remoteAddress: '10.0.0.1' } };
       assert.strictEqual(getRateLimitKey(req), "ip:10.0.0.1");
     } finally {
       if (original) process.env.AXIOM_TRUST_PROXY = original;
