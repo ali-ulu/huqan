@@ -48,6 +48,15 @@ describe('V4-WB3A: workbench trust receipt route contract (pure, no server)', ()
       assert.equal(result.ok, true);
       assert.equal(result.receiptId.length, 128);
     });
+
+    it('strips embedded tab/CR/LF instead of letting them survive into receiptId (#1301)', () => {
+      const result = parseWorkbenchTrustReceiptPath(
+        `${ROUTE_PREFIX}${encodeURIComponent('r-1\t\r\n[FORGED] admin escalated')}`
+      );
+      assert.equal(result.ok, true);
+      assert.equal(result.receiptId, 'r-1[FORGED] admin escalated');
+      assert.equal(/[\x00-\x1F\x7F]/.test(result.receiptId), false);
+    });
   });
 
   describe('handleWorkbenchTrustReceiptRequest status mapping', () => {
@@ -91,6 +100,20 @@ describe('V4-WB3A: workbench trust receipt route contract (pure, no server)', ()
       assert.equal(statusCode, 404);
       assert.equal(body.ok, false);
       assert.equal(body.status, 'not_found');
+    });
+
+    it('sanitizes receiptId even when called directly with unsanitized input (#1301)', () => {
+      let seenReceiptId = null;
+      const readReceipt = (source, receiptId) => {
+        seenReceiptId = receiptId;
+        return { ok: false, status: 'not_found' };
+      };
+      handleWorkbenchTrustReceiptRequest({
+        receiptId: 'r-1\r\ninjected log line',
+        source: {},
+        readReceipt,
+      });
+      assert.equal(seenReceiptId, 'r-1injected log line');
     });
 
     it('maps a missing receiptId to invalid_request / 400', () => {
