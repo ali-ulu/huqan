@@ -21,6 +21,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
 
 # A new push to the same PR supersedes stale classification/test work.
 concurrency:
@@ -42,6 +45,7 @@ jobs:
       runtime_or_test: ${{ steps.classify.outputs.runtime_or_test }}
       perf: ${{ steps.classify.outputs.perf }}
       docker: ${{ steps.classify.outputs.docker }}
+      nightly: ${{ steps.classify.outputs.nightly }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -151,6 +155,10 @@ jobs:
           runtime_or_test=no
           perf=no
           docker=no
+          nightly=no
+          if [ "${GITHUB_EVENT_NAME}" = "schedule" ] || [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            nightly=yes
+          fi
 
           while IFS= read -r f; do
             [ -z "${f}" ] && continue
@@ -163,6 +171,7 @@ jobs:
           echo "runtime_or_test=${runtime_or_test}" >> "${GITHUB_OUTPUT}"
           echo "perf=${perf}"                         >> "${GITHUB_OUTPUT}"
           echo "docker=${docker}"                     >> "${GITHUB_OUTPUT}"
+          echo "nightly=${nightly}"                   >> "${GITHUB_OUTPUT}"
 
           {
             echo "## CI change classification"
@@ -178,6 +187,7 @@ jobs:
             echo "| runtime/test (npm test) | ${runtime_or_test} |"
             echo "| perf-sensitive (benchmark) | ${perf} |"
             echo "| docker/package (docker build) | ${docker} |"
+            echo "| nightly/full selection | ${nightly} |"
             echo ""
             echo "Security Checks always runs (separate workflow, not conditionalized)."
           } >> "${GITHUB_STEP_SUMMARY}"
@@ -189,8 +199,8 @@ jobs:
   # ---------------------------------------------------------------------
   fast-contract:
     name: Fast contract checks
-    needs: classify
-    if: needs.classify.outputs.runtime_or_test == 'yes'
+    needs: [classify, test-impact-plan]
+    if: needs['test-impact-plan'].outputs.run_tests == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -220,14 +230,85 @@ jobs:
           test/agent-activity-dashboard-contract.test.js
 
   # ---------------------------------------------------------------------
-  # npm test — mandatory on runtime OR test changes. The three shard legs
-  # preserve the full test-file set while allowing independent CI runners to
-  # execute the historical heavy files in parallel.
+  # Deterministic impact plan. The plan is always produced on PRs and on
+  # nightly/manual runs. Agent additions, when supplied by a trusted caller,
+  # are validated as add-only; the selector itself owns the mandatory union.
+  # ---------------------------------------------------------------------
+  test-impact-plan:
+    name: Test impact plan
+    needs: classify
+    if: always()
+    runs-on: ubuntu-latest
+    outputs:
+      run_tests: ${{ steps.plan.outputs.run_tests }}
+      full_suite: ${{ steps.plan.outputs.full_suite }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Fetch baseline branch for live Git validation
+        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Generate and validate impact plan
+        id: plan
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          RUNTIME_OR_TEST: ${{ needs.classify.outputs.runtime_or_test }}
+          NIGHTLY: ${{ needs.classify.outputs.nightly }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          mode=pr
+          if [ "${NIGHTLY}" = "yes" ]; then mode=nightly; fi
+          agent_args=()
+          if [ -f .huqan/agent-test-plan.json ]; then
+            agent_args+=(--agent-plan=.huqan/agent-test-plan.json)
+          fi
+          node scripts/ci-impact-plan.js \
+            --base="${BASE_SHA}" \
+            --head="${HEAD_SHA}" \
+            --mode="${mode}" \
+            --runtime-or-test="${RUNTIME_OR_TEST}" \
+            "${agent_args[@]}" \
+            --output=artifacts/test-impact-plan.json
+          node -e "const fs=require('node:fs'); const p=require('./scripts/ci-impact-plan'); const plan=JSON.parse(fs.readFileSync('artifacts/test-impact-plan.json','utf8')); p.validateImpactPlan(plan,p.discoverKnownTests());"
+          node -e "const p=JSON.parse(require('node:fs').readFileSync('artifacts/test-impact-plan.json','utf8')); console.log(JSON.stringify({runTests:p.runTests,fullSuite:p.fullSuite,changedFiles:p.changedFiles.length,selectedTests:p.selectedTestCount,knownTests:p.knownTestCount,matchedImpactRules:p.matchedImpactRules,agent:p.agent},null,2));"
+          run_tests="$(node -p 'JSON.parse(require("node:fs").readFileSync("artifacts/test-impact-plan.json", "utf8")).runTests')"
+          full_suite="$(node -p 'JSON.parse(require("node:fs").readFileSync("artifacts/test-impact-plan.json", "utf8")).fullSuite')"
+          echo "run_tests=${run_tests}" >> "${GITHUB_OUTPUT}"
+          echo "full_suite=${full_suite}" >> "${GITHUB_OUTPUT}"
+      - name: Publish impact plan summary
+        if: always()
+        run: |
+          if [ -f artifacts/test-impact-plan.json ]; then
+            {
+              echo "## Test impact plan"
+              echo ""
+              node -e "const p=JSON.parse(require('node:fs').readFileSync('artifacts/test-impact-plan.json','utf8')); console.log('| Field | Value |'); console.log('|---|---|'); console.log('| Mode | '+p.mode+' |'); console.log('| Changed files | '+p.changedFiles.length+' |'); console.log('| Selected tests | '+p.selectedTestCount+' / '+p.knownTestCount+' |'); console.log('| Full suite fallback | '+p.fullSuite+' |'); console.log('| Impact rules | '+(p.matchedImpactRules.join(', ') || 'none')+' |'); console.log('| Agent status | '+p.agent.status+' |');"
+            } >> "${GITHUB_STEP_SUMMARY}"
+          fi
+      - name: Upload impact plan
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-impact-plan-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: artifacts/test-impact-plan.json
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------------------
+  # npm test — the impact plan selects the PR surface and the three shard legs
+  # distribute that plan across independent CI runners. Nightly/manual modes
+  # select the complete discovered test-file set.
   # ---------------------------------------------------------------------
   runtime-test:
-    name: npm test (runtime/test, Node ${{ matrix.node-version }}, shard ${{ matrix.shard }})
-    needs: classify
-    if: needs.classify.outputs.runtime_or_test == 'yes'
+    name: npm test (runtime/test selected, Node ${{ matrix.node-version }}, shard ${{ matrix.shard }})
+    needs: [classify, test-impact-plan]
+    if: needs['test-impact-plan'].outputs.run_tests == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -250,9 +331,15 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci --include=optional
-      - name: Run weighted test shard
+      - name: Download validated impact plan
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: test-impact-plan-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: artifacts
+      - name: Run selected weighted test shard
         run: >-
           node scripts/run-test-shard.js
+          --selection=artifacts/test-impact-plan.json
           --shard=${{ matrix.shard }}
           --total=3
           --concurrency=1
@@ -273,8 +360,8 @@ jobs:
 
   runtime-test-skip:
     name: npm test (runtime/test)
-    needs: classify
-    if: needs.classify.outputs.runtime_or_test != 'yes'
+    needs: [classify, test-impact-plan]
+    if: needs['test-impact-plan'].outputs.run_tests != 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Report NOT_APPLICABLE
@@ -282,7 +369,7 @@ jobs:
           echo "## npm test: NOT_APPLICABLE" >> "${GITHUB_STEP_SUMMARY}"
           echo "" >> "${GITHUB_STEP_SUMMARY}"
           echo "No runtime or test files changed in this PR." >> "${GITHUB_STEP_SUMMARY}"
-          echo "Full npm test suite skipped (NOT_APPLICABLE)." >> "${GITHUB_STEP_SUMMARY}"
+          echo "Selected impact test plan skipped (NOT_APPLICABLE)." >> "${GITHUB_STEP_SUMMARY}"
           echo "" >> "${GITHUB_STEP_SUMMARY}"
           echo "If your change intentionally touches a runtime surface" >> "${GITHUB_STEP_SUMMARY}"
           echo "(kernel.js, graph.js, plugins/**, lib/**, nlp/**, test/**, etc.)," >> "${GITHUB_STEP_SUMMARY}"
@@ -406,18 +493,20 @@ jobs:
   # ---------------------------------------------------------------------
   runtime-test-gate:
     name: npm test gate
-    needs: [classify, runtime-test, runtime-test-skip]
+    needs: [classify, test-impact-plan, runtime-test, runtime-test-skip]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Require the applicable test path to pass
         env:
           CLASSIFY_RESULT: ${{ needs.classify.result }}
+          PLAN_RESULT: ${{ needs['test-impact-plan'].result }}
           TEST_RESULT: ${{ needs['runtime-test'].result }}
           SKIP_RESULT: ${{ needs['runtime-test-skip'].result }}
         run: |
           set -euo pipefail
           test "${CLASSIFY_RESULT}" = success
+          test "${PLAN_RESULT}" = success
           if [ "${TEST_RESULT}" != success ] && [ "${SKIP_RESULT}" != success ]; then
             echo "Neither the test job nor its NOT_APPLICABLE job passed." >&2
             exit 1
