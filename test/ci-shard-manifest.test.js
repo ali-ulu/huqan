@@ -22,6 +22,7 @@ test('CI shard manifest follows Node test discovery without including helper scr
   assert.equal(new Set(files).size, files.length);
   assert.equal(isTestFile('test/helpers/cdp-browser.js'), true);
   assert.equal(isTestFile('scripts/ci-shard-manifest.js'), false);
+  assert.equal(isTestFile('artifacts/test-impact-plan.json'), false);
 });
 
 test('weighted shard assignment covers each file exactly once', () => {
