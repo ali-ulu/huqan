@@ -1,0 +1,116 @@
+name: Obsidian Plugin Compatibility
+
+on:
+  pull_request:
+    paths:
+      - 'server.js'
+      - 'requestGuards.js'
+      - 'environment-compat.js'
+      - 'kernel.js'
+      - 'kernel.v2.js'
+      - 'graph.js'
+      - 'lib/**/*.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/obsidian-plugin-compatibility.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'server.js'
+      - 'requestGuards.js'
+      - 'environment-compat.js'
+      - 'kernel.js'
+      - 'kernel.v2.js'
+      - 'graph.js'
+      - 'lib/**/*.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/obsidian-plugin-compatibility.yml'
+  workflow_dispatch:
+    inputs:
+      plugin-ref:
+        description: 'Plugin branch, tag, or commit to test'
+        required: false
+        default: 'main'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: obsidian-plugin-compatibility-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  compatibility:
+    name: Test current HUQAN against plugin
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout HUQAN runtime
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Checkout Obsidian plugin
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: ali-ulu/huqan-obsidian
+          ref: ${{ inputs.plugin-ref || 'main' }}
+          path: obsidian-plugin
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            obsidian-plugin/package-lock.json
+
+      - name: Install HUQAN dependencies
+        run: npm ci
+
+      - name: Install plugin dependencies
+        run: npm ci --prefix obsidian-plugin
+
+      - name: Start HUQAN runtime
+        shell: bash
+        env:
+          HUQAN_API_KEY: compatibility-test-key
+          HOST: 127.0.0.1
+          PORT: '3000'
+        run: |
+          set -euo pipefail
+          node server.js > "$RUNNER_TEMP/huqan-server.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/huqan-server.pid"
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:3000/health >/dev/null; then
+              echo 'HUQAN runtime is ready.'
+              exit 0
+            fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/huqan-server.log"
+          exit 1
+
+      - name: Run Obsidian plugin compatibility smoke
+        working-directory: obsidian-plugin
+        env:
+          HUQAN_API_KEY: compatibility-test-key
+          HUQAN_ENDPOINT: http://127.0.0.1:3000
+        run: npm run check:runtime
+
+      - name: Stop HUQAN runtime
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f "$RUNNER_TEMP/huqan-server.pid" ]]; then
+            kill "$(cat "$RUNNER_TEMP/huqan-server.pid")" 2>/dev/null || true
+          fi
+          if [[ -f "$RUNNER_TEMP/huqan-server.log" ]]; then
+            tail -50 "$RUNNER_TEMP/huqan-server.log" || true
+          fi

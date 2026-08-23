@@ -30,4 +30,3 @@ receipts/
 local-*.json
 local-*.js
 backups/
-obsidian-plugin/dist/

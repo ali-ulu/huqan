@@ -208,7 +208,15 @@ function validateGitState(checkpoint, evidence, isAncestor, options = {}) {
   };
 }
 
-function inspectGitState(checkpoint) {
+/**
+ * `options` is forwarded verbatim to `validateGitState`, so a caller that
+ * already knows the answer to the freshness question can supply it: `now` and
+ * `maxAgeMs` pin the measurement instead of reading the wall clock. The CLI
+ * passes nothing and keeps the thirty minute default; a test that asserts the
+ * capsule's *shape* passes `maxAgeMs: 0` so its result stops depending on how
+ * long ago someone last fetched (#1291).
+ */
+function inspectGitState(checkpoint, options = {}) {
   const evidence = {
     repository: normalizeGitHubRepository(
       requireGitEvidence('remote.origin.url', ['config', '--get', 'remote.origin.url']),
@@ -228,7 +236,7 @@ function inspectGitState(checkpoint) {
     }
   };
 
-  return validateGitState(checkpoint, evidence, isAncestor);
+  return validateGitState(checkpoint, evidence, isAncestor, options);
 }
 
 function formatContextCapsule(canon, checkpoint, gitState, deliveryProtocol = '') {
@@ -271,7 +279,7 @@ function buildContextCapsule(options = {}) {
   const deliveryProtocol = options.deliveryProtocol || readUtf8(deliveryProtocolPath);
   const checkpoint = options.checkpoint
     || JSON.parse(readUtf8(checkpointPath));
-  const gitState = options.gitState || inspectGitState(checkpoint);
+  const gitState = options.gitState || inspectGitState(checkpoint, options.gitStateOptions);
 
   return formatContextCapsule(canon, checkpoint, gitState, deliveryProtocol);
 }
