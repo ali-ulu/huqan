@@ -18,14 +18,29 @@ test('classifySignal: does not match a positive word inside a negated one (#1307
   assert.notEqual(classifySignal('the team was overworked'), 'support');
 });
 
-test('classifySignal: matches inflected forms by prefix (confirms, rejects, failed)', () => {
+test('classifySignal: does not match "pass" inside "passive" or "bypass" (#1325)', () => {
+  assert.notEqual(classifySignal('Passive observation only.'), 'support');
+  assert.notEqual(classifySignal('The bypass was triggered.'), 'support');
+});
+
+test('classifySignal: matches inflected forms (confirms, rejects, failed)', () => {
   assert.equal(classifySignal('the graph confirms this'), 'support');
   assert.equal(classifySignal('the reviewer rejects the claim'), 'reject');
   assert.equal(classifySignal('the build failed'), 'reject');
 });
 
-test('classifySignal: reject wins when both a reject and support word are present', () => {
-  assert.equal(classifySignal('previously valid, now rejected as broken'), 'reject');
+test('classifySignal: "Test failed: output was invalid." is reject, not support (#1325)', () => {
+  assert.equal(classifySignal('Test failed: output was invalid.'), 'reject');
+});
+
+test('classifySignal: both a reject and support word present is ambiguous -> mixed, not a silent pick (#1325)', () => {
+  assert.equal(classifySignal('previously valid, now rejected as broken'), 'mixed');
+  assert.equal(classifySignal('The data does not support the hypothesis; reject it.'), 'mixed');
+});
+
+test('classifySignal: matches Turkish support/reject stems (#1325)', () => {
+  assert.equal(classifySignal('Sonuc gecersiz, hipotez reddedildi.'), 'reject');
+  assert.equal(classifySignal('Hipotez basarili sekilde dogrulandi.'), 'support');
 });
 
 test('run(): a negative result signals reject, not support', async () => {
