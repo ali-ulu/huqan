@@ -5,8 +5,6 @@ on:
     paths:
       - 'package.json'
       - 'package-lock.json'
-      - 'obsidian-plugin/package.json'
-      - 'obsidian-plugin/package-lock.json'
       - 'packages/**/package.json'
       - 'packages/**/package-lock.json'
       - '.github/workflows/dependency-audit.yml'
@@ -15,8 +13,6 @@ on:
     paths:
       - 'package.json'
       - 'package-lock.json'
-      - 'obsidian-plugin/package.json'
-      - 'obsidian-plugin/package-lock.json'
       - 'packages/**/package.json'
       - 'packages/**/package-lock.json'
       - '.github/workflows/dependency-audit.yml'
@@ -46,9 +42,6 @@ jobs:
           - name: root
             directory: .
             lockfile: package-lock.json
-          - name: obsidian-plugin
-            directory: obsidian-plugin
-            lockfile: obsidian-plugin/package-lock.json
 
     defaults:
       run:
