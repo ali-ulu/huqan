@@ -56,6 +56,11 @@ test('http-adapter: parseHtml strips script/style/comments and decodes entities'
   assert.equal(entries[0].content, '1 < 2 end');
 });
 
+test('http-adapter: parseHtml decodes each entity once, including astral and hex references', () => {
+  const entries = parseHtml('<p>Literal &amp;lt;tag&amp;gt;; 😀: &#128512;; CJK: &#134071;; &#x27;quoted&#x27;</p>', 'https://example.com/doc');
+  assert.equal(entries[0].content, "Literal &lt;tag&gt;; 😀: 😀; CJK: 𠮷; 'quoted'");
+});
+
 test('http-adapter: parseRobotsDisallow matches the "*" block by default', () => {
   const text = 'User-agent: *\nDisallow: /private\nDisallow: /admin\n';
   const disallow = parseRobotsDisallow(text, 'huqan-http-adapter/1.0');
@@ -141,6 +146,19 @@ test('http-adapter: fetchUrl enforces maxBytes', async () => {
     await assert.rejects(
       () => fetchUrl(`${baseUrl}/`, { allowPrivateAddresses: true, maxBytes: 100 }),
       (err) => err.code === 'HTTP_RESPONSE_TOO_LARGE'
+    );
+  });
+});
+
+test('http-adapter: fetchUrl enforces timeoutMs despite a slow response stream', async () => {
+  await withServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    const drip = setInterval(() => res.write('a'), 10);
+    req.on('close', () => clearInterval(drip));
+  }, async (baseUrl) => {
+    await assert.rejects(
+      () => fetchUrl(`${baseUrl}/`, { allowPrivateAddresses: true, timeoutMs: 60 }),
+      (err) => err.code === 'HTTP_TIMEOUT',
     );
   });
 });
@@ -273,6 +291,25 @@ test('http-adapter: ingestUrl refreshes the cache after the TTL expires (regress
     const freshOpts = { ...opts, cacheTtlMs: 60000 };
     await ingestUrl(`${baseUrl}/page`, freshOpts);
     assert.equal(requests, 2, 'refreshed cache entry should be reused within the new TTL');
+  });
+});
+
+test('http-adapter: response cache evicts stale entries and bounds distinct URLs', async () => {
+  await withServer((req, res) => {
+    if (req.url === '/robots.txt') { res.writeHead(404); res.end(); return; }
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end(req.url);
+  }, async (baseUrl) => {
+    const responseCache = new Map();
+    const opts = { allowPrivateAddresses: true, robotsCache: new Map(), responseCache, responseCacheMaxEntries: 2 };
+    await ingestUrl(`${baseUrl}/one`, opts);
+    await ingestUrl(`${baseUrl}/two`, opts);
+    await ingestUrl(`${baseUrl}/three`, opts);
+    assert.equal(responseCache.size, 2);
+    assert.equal(responseCache.has(`${baseUrl}/one`), false);
+
+    await ingestUrl(`${baseUrl}/two`, { ...opts, cacheTtlMs: 0 });
+    assert.equal(responseCache.has(`${baseUrl}/two`), true, 'expired entries are removed before replacement');
   });
 });
 

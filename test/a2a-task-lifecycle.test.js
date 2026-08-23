@@ -41,6 +41,13 @@ function makeSandbox() {
   return { root, replayDirectory, authorityFile, fixture };
 }
 
+function reserveUnknownTask(directory, replayKey) {
+  const taskId = taskIdForReplayKey(replayKey);
+  fs.writeFileSync(path.join(directory, `${replayKey}.reserved`), replayKey, 'utf8');
+  fs.writeFileSync(path.join(directory, `${taskId}.reserved-task`), '', 'utf8');
+  return taskId;
+}
+
 async function withBoundaries(sandbox, run) {
   const options = { authorityFile: sandbox.authorityFile, replayDirectory: sandbox.replayDirectory };
   const exchange = createA2aExchangeBoundary(options);
@@ -135,9 +142,7 @@ test('task lifecycle: a reservation without a completion reads unknown, not comp
   const replayKey = 'a'.repeat(64);
 
   // Exactly the state a failed effect leaves behind: reserved, never completed.
-  fs.writeFileSync(path.join(sandbox.replayDirectory, `${replayKey}.reserved`), replayKey, 'utf8');
-
-  const record = store.readTask(taskIdForReplayKey(replayKey));
+  const record = store.readTask(reserveUnknownTask(sandbox.replayDirectory, replayKey));
   assert.equal(record.state, TASK_STATES.UNKNOWN);
   assert.notEqual(record.state, TASK_STATES.COMPLETED);
 });
@@ -145,8 +150,7 @@ test('task lifecycle: a reservation without a completion reads unknown, not comp
 test('task lifecycle: an unknown task stays unknown and is never a retry prompt', async () => {
   const sandbox = makeSandbox();
   const replayKey = 'b'.repeat(64);
-  fs.writeFileSync(path.join(sandbox.replayDirectory, `${replayKey}.reserved`), replayKey, 'utf8');
-  const taskId = taskIdForReplayKey(replayKey);
+  const taskId = reserveUnknownTask(sandbox.replayDirectory, replayKey);
 
   const response = await withBoundaries(sandbox, (port) => request(port, {
     requestPath: `${A2A_TASK_PATH_PREFIX}${taskId}`,
@@ -167,6 +171,21 @@ test('task lifecycle: never-reserved is not_found, kept distinct from unknown', 
   // operator reading these makes different decisions.
   assert.equal(store.readTask('c'.repeat(64)).state, TASK_STATES.NOT_FOUND);
   assert.equal(store.readTask('not-a-hash').state, TASK_STATES.NOT_FOUND);
+});
+
+test('task lifecycle: an unknown lookup does not scan unrelated reservations', () => {
+  const sandbox = makeSandbox();
+  const store = createA2aTaskStore(sandbox.replayDirectory);
+  for (let index = 0; index < 200; index += 1) {
+    fs.writeFileSync(path.join(sandbox.replayDirectory, `${index.toString(16).padStart(64, '0')}.reserved`), 'legacy', 'utf8');
+  }
+  const originalReadDir = fs.readdirSync;
+  fs.readdirSync = () => { throw new Error('task lookup must not scan reservations'); };
+  try {
+    assert.equal(store.readTask('c'.repeat(64)).state, TASK_STATES.NOT_FOUND);
+  } finally {
+    fs.readdirSync = originalReadDir;
+  }
 });
 
 test('task lifecycle: a completion is written once and never overwritten', () => {

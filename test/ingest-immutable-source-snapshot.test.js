@@ -131,6 +131,21 @@ test('snapshot verification rejects unknown top-level and file fields', () => {
   assert.equal(fileVerdict.code, 'SOURCE_SNAPSHOT_FIELD_UNSUPPORTED');
 });
 
+test('snapshot verification refuses Object.prototype source types without throwing', () => {
+  for (const sourceType of ['constructor', '__proto__', 'toString', 'valueOf']) {
+    const result = verifyImmutableExternalSourceSnapshot({
+      version: EXTERNAL_SOURCE_SNAPSHOT_VERSION,
+      sourceType,
+      files: [],
+    });
+    assert.deepEqual(result, {
+      ok: false,
+      code: 'SOURCE_SNAPSHOT_FIELD_UNSUPPORTED',
+      error: 'source snapshot contains unsupported fields',
+    }, sourceType);
+  }
+});
+
 test('snapshot paths reject traversal, encoding, absolute paths, controls, and duplicates', () => {
   const unsafePaths = [
     '../secret.md',

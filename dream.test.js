@@ -158,6 +158,26 @@ describe('Dream - Node2Vec Gömmeler', () => {
     assert.ok(sim > 0, `köpek-kedi similarity: ${sim}`);
   });
 
+  it('embedding: varsayılan random walk aynı graph için deterministiktir', () => {
+    const { k, d } = fresh();
+    k.learn('Köpek memelidir');
+    k.learn('Kedi memelidir');
+    k.learn('Köpek havlar');
+    k.learn('Kedi miyavlar');
+
+    const options = { walksPerNode: 8, walkLength: 15 };
+    d.embedding(options);
+    const first = Object.fromEntries(
+      Object.entries(k.graph._nodes).map(([id, node]) => [id, Array.from(node.embedding)]),
+    );
+    d.embedding(options);
+    const second = Object.fromEntries(
+      Object.entries(k.graph._nodes).map(([id, node]) => [id, Array.from(node.embedding)]),
+    );
+
+    assert.deepStrictEqual(second, first);
+  });
+
   it('nodeSimilarity: ilgisiz kavramlar düşük skor', () => {
     const { k, d } = fresh();
     k.learn('Köpek memelidir');

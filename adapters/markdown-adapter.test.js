@@ -19,6 +19,27 @@ test('markdown-adapter: parseMarkdown splits by headings', () => {
   assert.equal(sections.every(item => typeof item.sourceRef === 'string'), true);
 });
 
+test('markdown-adapter: fenced code comments remain content under their real heading', () => {
+  const sections = parseMarkdown([
+    '# Real Heading',
+    '',
+    'Some real prose about the policy.',
+    '',
+    '```bash',
+    '# rm -rf / --no-preserve-root',
+    'echo danger',
+    '```',
+    '',
+    'More prose belonging to Real Heading.',
+  ].join('\n'), '/tmp/fenced.md');
+
+  assert.equal(sections.length, 1);
+  assert.equal(sections[0].sectionTitle, 'Real Heading');
+  assert.match(sections[0].content, /# rm -rf \/ --no-preserve-root/);
+  assert.match(sections[0].content, /More prose belonging to Real Heading\./);
+  assert.match(sections[0].sourceRef, /:Real Heading$/);
+});
+
 test('markdown-adapter: bounds lines, sections, and section output', () => {
   assert.throws(
     () => parseMarkdown('one\ntwo\nthree', '/tmp/lines.md', { maxLinesPerFile: 2 }),

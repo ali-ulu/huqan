@@ -371,6 +371,23 @@ test('github-adapter: a truncated recursive tree walks only the subtrees explici
   assert.equal(treeCalls.some(url => url.includes('dotgithub')), false);
 });
 
+test('github-adapter: a tree walk visits distinct paths with the same tree SHA', async () => {
+  const fetchImpl = async (url) => {
+    if (/\/commits\/[^/?]+$/.test(url)) return makeResponse({ json: { sha: TEST_COMMIT_SHA } });
+    if (url.includes('recursive=1')) return makeResponse({ json: { truncated: true, tree: [] } });
+    if (url.includes('/git/trees/shared')) return makeResponse({ json: { tree: [{ type: 'blob', path: 'guide.md' }] } });
+    if (url.includes('/git/trees/')) return makeResponse({ json: { tree: [
+      { type: 'tree', path: 'docs-a', sha: 'shared' },
+      { type: 'tree', path: 'docs-b', sha: 'shared' },
+    ] } });
+    return makeResponse({ text: '# guide' });
+  };
+  const files = await fetchRepoFiles('https://github.com/ai-ulu/axiom', {
+    fetchImpl, paths: ['docs-a/guide.md', 'docs-b/guide.md'],
+  });
+  assert.deepEqual(files.map((file) => file.path).sort(), ['docs-a/guide.md', 'docs-b/guide.md']);
+});
+
 test('github-adapter: a truncated subtree fails closed instead of returning a short list (#689)', async () => {
   const fetchImpl = async (url) => {
     if (/\/commits\/[^/?]+$/.test(url)) return makeResponse({ json: { sha: TEST_COMMIT_SHA } });

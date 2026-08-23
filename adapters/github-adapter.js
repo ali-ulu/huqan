@@ -165,8 +165,8 @@ async function walkTreeBlobPaths(owner, repo, commitSha, token, fetchImpl, expli
 
   while (queue.length > 0) {
     const dir = queue.shift();
-    if (visited.has(dir.sha)) continue;
-    visited.add(dir.sha);
+    if (visited.has(dir.path)) continue;
+    visited.add(dir.path);
 
     const payload = await fetchTreePayload(owner, repo, dir.sha, token, fetchImpl, { budget });
     if (payload && payload.truncated === true) {
