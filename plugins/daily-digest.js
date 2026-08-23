@@ -29,6 +29,7 @@ function emptyBucket(dateKey) {
     runs: 0,
     runsCompleted: 0,
     runsBlocked: 0,
+    runsOther: 0,
     steps: 0,
     stepsCompleted: 0,
     stepsPending: 0,
@@ -53,10 +54,15 @@ function ensureDayBucket(digestState, dateKey) {
 function recordRun(digestState, runState, dateKey) {
   const bucket = ensureDayBucket(digestState, dateKey);
   bucket.runs += 1;
-  if (runState && runState.status === 'blocked') {
+  const status = runState && runState.status;
+  if (status === 'blocked') {
     bucket.runsBlocked += 1;
-  } else {
+  } else if (status === 'completed') {
     bucket.runsCompleted += 1;
+  } else {
+    // Unknown or missing status (e.g. 'paused', or a state emitted without
+    // a status at all): don't misreport it as completed -- see #1305.
+    bucket.runsOther += 1;
   }
 
   const steps = runState && Array.isArray(runState.steps) ? runState.steps : [];
