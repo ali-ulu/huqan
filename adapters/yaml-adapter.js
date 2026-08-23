@@ -46,45 +46,6 @@ function yamlLimits(options = {}) {
   return limits;
 }
 
-function containsYamlAliasSyntax(source) {
-  let quote = null;
-  let escaped = false;
-  let comment = false;
-  for (let index = 0; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === '\n' || char === '\r') {
-      comment = false;
-      continue;
-    }
-    if (comment) continue;
-    if (quote === '"') {
-      if (escaped) escaped = false;
-      else if (char === '\\') escaped = true;
-      else if (char === '"') quote = null;
-      continue;
-    }
-    if (quote === "'") {
-      if (char === "'" && source[index + 1] === "'") index += 1;
-      else if (char === "'") quote = null;
-      continue;
-    }
-    if (char === '"' || char === "'") {
-      quote = char;
-      continue;
-    }
-    if (char === '#' && (index === 0 || /\s/.test(source[index - 1]))) {
-      comment = true;
-      continue;
-    }
-    if ((char === '&' || char === '*')
-      && (index === 0 || /[\s,[{]/.test(source[index - 1]))
-      && /[A-Za-z0-9_-]/.test(source[index + 1] || '')) {
-      return true;
-    }
-  }
-  return false;
-}
-
 function inspectYamlValue(value, limits, state, depth = 0) {
   if (depth > limits.maxValueDepth) {
     throw yamlError('YAML_VALUE_DEPTH_LIMIT', 'YAML value depth limit exceeded', {
@@ -126,11 +87,6 @@ function parseYaml(content, filePath = '', options = {}) {
       filePath: absPath,
       limit: limits.maxFileBytes,
       actual: inputBytes,
-    });
-  }
-  if (containsYamlAliasSyntax(source)) {
-    throw yamlError('YAML_ALIAS_FORBIDDEN', 'YAML anchors and aliases are not allowed', {
-      filePath: absPath,
     });
   }
   const parsed = yaml.load(source);
