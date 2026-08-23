@@ -24,7 +24,12 @@ const path = require('path');
 const { resolvePathWithinRoot } = require('../lib/path-safety');
 
 const DEFAULT_OUTPUT_PATH = path.join(__dirname, '..', 'benchmarks', 'gate-telemetry.json');
-const REPO_ROOT = path.join(__dirname, '..');
+// Bounded to benchmarks/, not REPO_ROOT: a caller-controlled outputPath
+// validated only against REPO_ROOT can target any .json file in the repo
+// (package.json, memory.json, even benchmarks/results.json -- bench.js's own
+// unrelated-schema output this module's own docs above say it must not
+// touch), and fs.writeFileSync silently overwrites whatever it finds (#1280).
+const BENCHMARKS_ROOT = path.join(__dirname, '..', 'benchmarks');
 
 function ensureMetricsState(kernel) {
   if (!kernel._gateMetricsState) {
@@ -50,8 +55,7 @@ function recordDecision(metricsState, event) {
 }
 
 function resolveOutputPath(outputPath) {
-  if (!outputPath) return DEFAULT_OUTPUT_PATH;
-  return resolvePathWithinRoot(REPO_ROOT, outputPath, { allowMissing: true });
+  return resolvePathWithinRoot(BENCHMARKS_ROOT, outputPath || DEFAULT_OUTPUT_PATH, { allowMissing: true });
 }
 
 module.exports = {

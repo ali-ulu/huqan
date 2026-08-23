@@ -68,6 +68,12 @@ const { createPathError, isPathWithinRoot, resolvePathWithinRoot } = require('..
 
 const REPO_ROOT = path.join(__dirname, '..');
 const DEFAULT_OUTPUT_DIR = path.join(REPO_ROOT, 'receipts');
+// The actual enforcement boundary. A caller-controlled outputDir validated
+// only against REPO_ROOT can target any .json file in the repo (package.json,
+// memory.json, ...) since the receiptId-derived file name is already a safe
+// single segment -- the boundary that matters is "stay inside receipts/", not
+// "stay inside the repo" (#1280).
+const RECEIPTS_ROOT = DEFAULT_OUTPUT_DIR;
 
 // Formats this exporter can actually produce. Anything else fails closed
 // rather than silently falling through to the JSON writer while reporting
@@ -82,11 +88,23 @@ const SUPPORTED_FORMATS = Object.freeze(['json', 'pdf']);
 const MAX_RECEIPT_ID_LEN = 128;
 const SAFE_RECEIPT_ID = /^[A-Za-z0-9._-]+$/;
 
+// kernel._receiptExporterState lives for the process's lifetime; without a
+// cap, state.exported grows by one entry per learn() with a receipt for as
+// long as a long-running server keeps running (#1280).
+const MAX_EXPORTED_HISTORY = 1000;
+
 function ensureExporterState(kernel) {
   if (!kernel._receiptExporterState) {
     kernel._receiptExporterState = { exported: [] };
   }
   return kernel._receiptExporterState;
+}
+
+function recordExported(state, entry) {
+  state.exported.push(entry);
+  if (state.exported.length > MAX_EXPORTED_HISTORY) {
+    state.exported.splice(0, state.exported.length - MAX_EXPORTED_HISTORY);
+  }
 }
 
 /**
@@ -116,7 +134,7 @@ function resolveReceiptFileStem(receipt) {
     throw createPathError(
       'RECEIPT_EXPORT_INVALID_RECEIPT_ID',
       'receiptId is not a safe file name segment',
-      REPO_ROOT,
+      RECEIPTS_ROOT,
       candidate,
     );
   }
@@ -129,18 +147,18 @@ function resolveReceiptFileStem(receipt) {
  * against the directory it was meant to land in.
  */
 function resolveReceiptTarget(receipt, outputDir, extension) {
-  const resolvedDir = resolvePathWithinRoot(REPO_ROOT, outputDir, { allowMissing: true });
+  const resolvedDir = resolvePathWithinRoot(RECEIPTS_ROOT, outputDir || RECEIPTS_ROOT, { allowMissing: true });
   const stem = resolveReceiptFileStem(receipt);
   const filePath = path.join(resolvedDir, `${stem}.${extension}`);
 
   // Defence in depth: the stem is already a validated single segment, so this
   // should be unreachable -- it exists so any future loosening of the stem
   // rules still cannot write outside the resolved directory.
-  if (path.dirname(filePath) !== resolvedDir || !isPathWithinRoot(REPO_ROOT, filePath)) {
+  if (path.dirname(filePath) !== resolvedDir || !isPathWithinRoot(RECEIPTS_ROOT, filePath)) {
     throw createPathError(
       'PATH_OUTSIDE_ALLOWED_ROOT',
       'Path escapes allowed root',
-      REPO_ROOT,
+      RECEIPTS_ROOT,
       filePath,
     );
   }
@@ -149,9 +167,31 @@ function resolveReceiptTarget(receipt, outputDir, extension) {
   return filePath;
 }
 
+// Exclusive create ('wx'): receipts are immutable evidence, so a second
+// export attempt for the same target must fail rather than silently
+// overwrite what may be a different receipt that happened to resolve to the
+// same file name (#1280). Mirrors lib/v5/public-trust-receipt.js's own
+// exclusive-write pattern.
+function writeExclusive(filePath, bytes) {
+  let fd;
+  try {
+    fd = fs.openSync(filePath, 'wx');
+  } catch (error) {
+    if (error && error.code === 'EEXIST') {
+      throw createPathError('RECEIPT_EXPORT_TARGET_EXISTS', 'receipt export target already exists', RECEIPTS_ROOT, filePath);
+    }
+    throw error;
+  }
+  try {
+    fs.writeSync(fd, bytes);
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
 function exportReceiptToFile(receipt, outputDir) {
   const filePath = resolveReceiptTarget(receipt, outputDir, 'json');
-  fs.writeFileSync(filePath, JSON.stringify(receipt, null, 2));
+  writeExclusive(filePath, JSON.stringify(receipt, null, 2));
   return filePath;
 }
 
@@ -232,9 +272,17 @@ async function exportReceiptToPdf(receipt, outputDir) {
   });
 
   return new Promise((resolve, reject) => {
-    const writeStream = fs.createWriteStream(filePath);
+    // Exclusive create, same as the JSON writer: a second export for the
+    // same target must fail, not silently overwrite (#1280).
+    const writeStream = fs.createWriteStream(filePath, { flags: 'wx' });
     writeStream.on('finish', () => resolve(filePath));
-    writeStream.on('error', reject);
+    writeStream.on('error', (error) => {
+      if (error && error.code === 'EEXIST') {
+        reject(createPathError('RECEIPT_EXPORT_TARGET_EXISTS', 'receipt export target already exists', RECEIPTS_ROOT, filePath));
+        return;
+      }
+      reject(error);
+    });
     doc.on('error', reject);
     doc.pipe(writeStream);
     renderReceiptPdf(doc, receipt);
@@ -261,7 +309,7 @@ module.exports = {
     try {
       const filePath = exportReceiptToFile(receipt, DEFAULT_OUTPUT_DIR);
       const state = ensureExporterState(kernel);
-      state.exported.push({
+      recordExported(state, {
         receiptId: receipt.receiptId || receipt.id || null,
         filePath,
         exportedAt: new Date().toISOString(),
@@ -298,7 +346,7 @@ module.exports = {
       }
       const outputDir = input.outputDir || DEFAULT_OUTPUT_DIR;
       const recordExport = (filePath) => {
-        state.exported.push({
+        recordExported(state, {
           receiptId: input.receipt.receiptId || input.receipt.id || null,
           filePath,
           format,
@@ -331,6 +379,9 @@ module.exports._test = {
   exportReceiptToPdf,
   collectPdfFields,
   resolveReceiptFileStem,
+  recordExported,
   DEFAULT_OUTPUT_DIR,
+  RECEIPTS_ROOT,
+  MAX_EXPORTED_HISTORY,
   SUPPORTED_FORMATS,
 };

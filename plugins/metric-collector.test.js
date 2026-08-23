@@ -85,6 +85,19 @@ test('metric-collector: run() export rejects a path outside the repo root', () =
   }
 });
 
+test('metric-collector: run() export rejects a repo-root-but-outside-benchmarks/ target (#1280)', () => {
+  const kernel = fakeKernel();
+  metricCollector.afterGateDecision(kernel, { source: 'mcp-tool-call', decision: 'block' });
+
+  // Previously only bounded to REPO_ROOT, so any .json file anywhere in the
+  // repo (package.json here) resolved as a valid export target and would
+  // have been silently overwritten by writeFileSync.
+  const outputPath = path.join(__dirname, '..', 'package.json');
+  const result = metricCollector.run(kernel, { action: 'export', outputPath });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'PATH_OUTSIDE_ALLOWED_ROOT');
+});
+
 test('metric-collector: run() export defaults to benchmarks/gate-telemetry.json', () => {
   assert.ok(metricCollector._test.DEFAULT_OUTPUT_PATH.endsWith(path.join('benchmarks', 'gate-telemetry.json')));
 });
