@@ -19,9 +19,21 @@ const {
 // collecting a stale-baseline conflict as well (#682).
 const FRESH_BASELINE = { baselineSyncedAt: Date.now() };
 
+// The tests below that run against the live repository assert the capsule's
+// shape, its rule text and its ancestry reporting -- none of which depend on
+// how long ago someone fetched. Left measured, they inherit the thirty minute
+// baseline window and the suite's colour starts tracking the wall clock: green
+// right after a fetch, five failures half an hour later, on an unchanged tree.
+// That is what made `npm test` unreliable enough to be waived by name in a
+// dozen closeout documents (#1291). Switching the measurement off at these
+// call sites is the honest reading -- these tests never measured freshness --
+// and it is switched off explicitly, not silently: the window itself is still
+// covered, hermetically, by the `assessBaselineFreshness` cases below.
+const MEASUREMENT_OFF = { maxAgeMs: 0 };
+
 test('agent context capsule is deterministic and ordered stable-first', () => {
-  const first = buildContextCapsule();
-  const second = buildContextCapsule();
+  const first = buildContextCapsule({ gitStateOptions: MEASUREMENT_OFF });
+  const second = buildContextCapsule({ gitStateOptions: MEASUREMENT_OFF });
 
   assert.equal(first, second);
   assert.match(first, /^# HUQAN Agent Context Capsule\n/);
@@ -34,7 +46,7 @@ test('agent context capsule is deterministic and ordered stable-first', () => {
 });
 
 test('agent context capsule exposes the exact Ponytail, delivery, and Graphify rules', () => {
-  const capsule = buildContextCapsule();
+  const capsule = buildContextCapsule({ gitStateOptions: MEASUREMENT_OFF });
 
   assert.match(capsule, /Does this need to exist\? If no, skip it\./);
   assert.match(capsule, /Is it already in this codebase\? Reuse it; do not rewrite it\./);
@@ -75,7 +87,7 @@ test('mutable checkpoint changes do not alter the stable cache prefix', () => {
 
 test('live Git validation accepts the canonical clone and reports worktree state', () => {
   const checkpoint = require('../docs/current-agent-checkpoint.json');
-  const gitState = inspectGitState(checkpoint);
+  const gitState = inspectGitState(checkpoint, MEASUREMENT_OFF);
   const originMain = require('node:child_process').execFileSync(
     'git',
     ['rev-parse', 'origin/main'],
@@ -102,7 +114,7 @@ test('live Git validation reports an older checkpoint ancestor without self-bloc
   const gitState = inspectGitState({
     ...checkpoint,
     canonicalMain: parent,
-  });
+  }, MEASUREMENT_OFF);
 
   assert.equal(gitState.checkpointMain, parent);
   assert.equal(gitState.checkpointDrift, 'STALE_ANCESTOR');
@@ -115,11 +127,15 @@ test('live Git validation fails closed when checkpoint main is not in canonical 
   };
 
   assert.throws(
-    () => inspectGitState(checkpoint),
+    () => inspectGitState(checkpoint, MEASUREMENT_OFF),
     (error) => error.code === 'CONTEXT_CONFLICT'
-      && /checkpoint main 0000000000000000000000000000000000000000 is not an ancestor/.test(
-        error.message,
-      ),
+      // Conflicts are joined into one message, so a substring match alone would
+      // also be satisfied by a stale-baseline conflict this test is not about:
+      // on an unfetched clone it would pass while the ancestry check it names
+      // never ran. Measurement off, the ancestry reason is the only one left.
+      && error.message === 'CONTEXT_CONFLICT: checkpoint main '
+        + '0000000000000000000000000000000000000000 is not an ancestor of origin/main '
+        + `${require('node:child_process').execFileSync('git', ['rev-parse', 'origin/main'], { encoding: 'utf8' }).trim()}`,
   );
 });
 
@@ -324,7 +340,19 @@ test('assessBaselineFreshness draws the line exactly at the threshold (#682)', (
 });
 
 test('the live capsule reports a baseline freshness verdict (#682)', () => {
-  const capsule = buildContextCapsule();
+  // Accepting any of the four verdicts made this assertion true no matter what
+  // the clock said -- but reaching it required surviving `validateGitState`,
+  // which throws on STALE and UNKNOWN, so the test failed on an unfetched clone
+  // before it could assert anything (#1291). Pinning `now` one minute after the
+  // baseline this clone actually recorded keeps it live -- the real ref, the
+  // real evidence -- while asking for the one verdict that is then correct.
+  const syncedAt = readBaselineSyncedAt();
+  assert.equal(typeof syncedAt, 'number', 'this clone records when it last fetched');
 
-  assert.match(capsule, /"baselineFreshness": "(FRESH|STALE|UNKNOWN|UNMEASURED_BY_CONFIG)"/);
+  const capsule = buildContextCapsule({
+    gitStateOptions: { now: syncedAt + 60000, maxAgeMs: HALF_HOUR_MS },
+  });
+
+  assert.match(capsule, /"baselineFreshness": "FRESH"/);
+  assert.match(capsule, new RegExp(`"baselineSyncedAt": "${new Date(syncedAt).toISOString()}"`));
 });
