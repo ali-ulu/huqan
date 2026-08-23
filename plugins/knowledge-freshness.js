@@ -39,6 +39,18 @@ function ensureFreshnessState(kernel) {
   return kernel._knowledgeFreshnessState;
 }
 
+// graph.js's real edge shape is snake_case (updated_at/created_at, plus a
+// numeric epoch-ms `created`) -- camelCase createdAt/updatedAt never exist on
+// a real edge record. updated_at is checked first: a REAFFIRMED edge advances
+// updated_at but not created_at, and "N days since update" is what a
+// freshness notice is meant to measure (#1278).
+function edgeTimestamp(edge) {
+  const iso = edge.updated_at || edge.created_at;
+  if (typeof iso === 'string' && iso) return Date.parse(iso);
+  if (Number.isFinite(edge.created)) return edge.created;
+  return NaN;
+}
+
 function isStaleTimestamp(ts, staleAfterMs, now) {
   if (!ts) return false; // no timestamp recorded -- nothing to judge staleness against
   const parsed = Date.parse(ts);
@@ -46,9 +58,14 @@ function isStaleTimestamp(ts, staleAfterMs, now) {
   return (now - parsed) > staleAfterMs;
 }
 
+function isStaleInstant(instant, staleAfterMs, now) {
+  return Number.isFinite(instant) && (now - instant) > staleAfterMs;
+}
+
 function findStaleEdgesForQuestion(kernel, question, opts = {}) {
   const staleAfterMs = Number.isFinite(opts.staleAfterMs) ? opts.staleAfterMs : DEFAULT_STALE_AFTER_MS;
   const now = Number.isFinite(opts.now) ? opts.now : Date.now();
+  const workspaceId = opts.workspaceId || 'default';
   const graph = kernel && kernel.graph;
   if (!graph || typeof graph.getNode !== 'function' || typeof graph.getEdges !== 'function') return [];
 
@@ -60,12 +77,12 @@ function findStaleEdgesForQuestion(kernel, question, opts = {}) {
     const normalized = typeof kernel.normalizeWord === 'function' ? kernel.normalizeWord(word) : word;
     if (!normalized || seenWords.has(normalized)) continue;
     seenWords.add(normalized);
-    if (!graph.getNode(normalized)) continue;
+    if (!graph.getNode(normalized, workspaceId)) continue;
 
-    for (const edge of graph.getEdges(normalized)) {
-      const ts = edge.createdAt || edge.updatedAt;
-      if (isStaleTimestamp(ts, staleAfterMs, now)) {
-        staleEdges.push({ from: edge.from, to: edge.to, relation: edge.relation, timestamp: ts });
+    for (const edge of graph.getEdges(normalized, workspaceId)) {
+      const instant = edgeTimestamp(edge);
+      if (isStaleInstant(instant, staleAfterMs, now)) {
+        staleEdges.push({ from: edge.from, to: edge.to, relation: edge.relation, timestamp: new Date(instant).toISOString() });
       }
     }
   }
@@ -79,7 +96,9 @@ module.exports = {
 
   beforeAsk(kernel, data) {
     const state = ensureFreshnessState(kernel);
-    state.pendingStaleEdges = findStaleEdgesForQuestion(kernel, data && data.question);
+    state.pendingStaleEdges = findStaleEdgesForQuestion(kernel, data && data.question, {
+      workspaceId: data && data.workspaceId,
+    });
     return data;
   },
 
@@ -101,4 +120,10 @@ module.exports = {
   },
 };
 
-module.exports._test = { ensureFreshnessState, isStaleTimestamp, findStaleEdgesForQuestion, DEFAULT_STALE_AFTER_MS };
+module.exports._test = {
+  ensureFreshnessState,
+  isStaleTimestamp,
+  edgeTimestamp,
+  findStaleEdgesForQuestion,
+  DEFAULT_STALE_AFTER_MS,
+};
