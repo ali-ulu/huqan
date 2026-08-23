@@ -109,6 +109,40 @@ test('döngü is reported once per node even with several back edges (#395)', ()
   assert.equal(cycles.filter(c => c.node === 'b').length, 1);
 });
 
+test('negation requires the same exact type target, not a substring (#1177)', () => {
+  const graph = fakeGraph(['x'], {
+    x: [
+      { to: 'hasta [değil]', relation: 'değil' },
+      { to: 'hastane çalışanı', relation: 'özellik' },
+    ],
+  });
+  assert.deepEqual(serviceFor(graph).detectContradictions(), []);
+});
+
+test('negation still conflicts with the exact positive type target (#1177)', () => {
+  const graph = fakeGraph(['x'], {
+    x: [
+      { to: 'hasta [değil]', relation: 'değil' },
+      { to: 'hasta', relation: 'tür' },
+    ],
+  });
+  const found = serviceFor(graph).detectContradictions();
+  assert.equal(found.length, 1);
+  assert.equal(found[0].type, 'negasyon');
+});
+
+test('negation preserves exact matching for yapabilir/yapamaz pairs (#1177)', () => {
+  const graph = fakeGraph(['x'], {
+    x: [
+      { to: 'alt kiralayamaz', relation: 'değil' },
+      { to: 'alt kiralayabilir', relation: 'yapabilir' },
+    ],
+  });
+  const found = serviceFor(graph).detectContradictions();
+  assert.equal(found.length, 1);
+  assert.equal(found[0].type, 'negasyon');
+});
+
 test('low-weight evidence is not reported as a contradiction (#1173)', () => {
   const graph = fakeGraph(['a'], {
     a: [{ to: 'x', relation: 'olur', weight: 0.1 }],
