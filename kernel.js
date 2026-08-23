@@ -233,7 +233,7 @@ class Kernel {
   }
 
   enableCapability(name) {
-    if (!name || !(name in DEFAULT_CAPABILITIES)) {
+    if (typeof name !== 'string' || !Object.hasOwn(DEFAULT_CAPABILITIES, name)) { // own-prop, not `in`: `in` walked the prototype chain (#1204)
       const error = new Error(`Unknown capability: ${name}`);
       error.code = 'CAPABILITY_UNKNOWN';
       error.capability = name;
