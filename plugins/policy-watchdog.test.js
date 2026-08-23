@@ -17,6 +17,21 @@ function writePolicy(dir, name, content) {
   return filePath;
 }
 
+// #1297: os.tmpdir() is no longer a default-allowed lib/trust-policy.js
+// root. checkPolicy() reads through loadTrustPolicy(), so these tests grant
+// their own scratch directory via the operator-controlled TRUST_POLICY_ROOTS
+// extension mechanism, the same way lib/trust-policy.test.js does.
+function withPolicyRoot(root, fn) {
+  const previous = process.env.HUQAN_TRUST_POLICY_ROOTS;
+  process.env.HUQAN_TRUST_POLICY_ROOTS = root;
+  try {
+    return fn();
+  } finally {
+    if (previous === undefined) delete process.env.HUQAN_TRUST_POLICY_ROOTS;
+    else process.env.HUQAN_TRUST_POLICY_ROOTS = previous;
+  }
+}
+
 test('policy-watchdog: hashPolicy is stable for identical content and differs for different content', () => {
   const a = hashPolicy({ version: '1.0' });
   const b = hashPolicy({ version: '1.0' });
@@ -28,11 +43,13 @@ test('policy-watchdog: hashPolicy is stable for identical content and differs fo
 test('policy-watchdog: checkPolicy establishes a baseline on the first call, does not lock', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-watchdog-'));
   try {
-    const policyPath = writePolicy(dir, 'policy.json', { version: '1.0', rules: [] });
-    const kernel = fakeKernel();
-    const state = checkPolicy(kernel, { policyPath });
-    assert.equal(state.locked, false);
-    assert.equal(state.baselineVersion, '1.0');
+    withPolicyRoot(dir, () => {
+      const policyPath = writePolicy(dir, 'policy.json', { version: '1.0', rules: [] });
+      const kernel = fakeKernel();
+      const state = checkPolicy(kernel, { policyPath });
+      assert.equal(state.locked, false);
+      assert.equal(state.baselineVersion, '1.0');
+    });
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -41,16 +58,18 @@ test('policy-watchdog: checkPolicy establishes a baseline on the first call, doe
 test('policy-watchdog: checkPolicy locks when the policy content changes after the baseline', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-watchdog-'));
   try {
-    const policyPath = path.join(dir, 'policy.json');
-    fs.writeFileSync(policyPath, JSON.stringify({ version: '1.0', rules: ['a'] }));
-    const kernel = fakeKernel();
+    withPolicyRoot(dir, () => {
+      const policyPath = path.join(dir, 'policy.json');
+      fs.writeFileSync(policyPath, JSON.stringify({ version: '1.0', rules: ['a'] }));
+      const kernel = fakeKernel();
 
-    checkPolicy(kernel, { policyPath }); // establishes baseline
-    fs.writeFileSync(policyPath, JSON.stringify({ version: '1.1', rules: ['a', 'b'] })); // changed mid-run
-    const state = checkPolicy(kernel, { policyPath });
+      checkPolicy(kernel, { policyPath }); // establishes baseline
+      fs.writeFileSync(policyPath, JSON.stringify({ version: '1.1', rules: ['a', 'b'] })); // changed mid-run
+      const state = checkPolicy(kernel, { policyPath });
 
-    assert.equal(state.locked, true);
-    assert.match(state.lockedReason, /1\.0.*1\.1/);
+      assert.equal(state.locked, true);
+      assert.match(state.lockedReason, /1\.0.*1\.1/);
+    });
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -59,11 +78,13 @@ test('policy-watchdog: checkPolicy locks when the policy content changes after t
 test('policy-watchdog: checkPolicy does not lock when re-reading identical content', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-watchdog-'));
   try {
-    const policyPath = writePolicy(dir, 'policy.json', { version: '1.0', rules: [] });
-    const kernel = fakeKernel();
-    checkPolicy(kernel, { policyPath });
-    const state = checkPolicy(kernel, { policyPath });
-    assert.equal(state.locked, false);
+    withPolicyRoot(dir, () => {
+      const policyPath = writePolicy(dir, 'policy.json', { version: '1.0', rules: [] });
+      const kernel = fakeKernel();
+      checkPolicy(kernel, { policyPath });
+      const state = checkPolicy(kernel, { policyPath });
+      assert.equal(state.locked, false);
+    });
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -72,15 +93,17 @@ test('policy-watchdog: checkPolicy does not lock when re-reading identical conte
 test('policy-watchdog: once locked, stays locked on subsequent checks even without further changes', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-watchdog-'));
   try {
-    const policyPath = path.join(dir, 'policy.json');
-    fs.writeFileSync(policyPath, JSON.stringify({ version: '1.0' }));
-    const kernel = fakeKernel();
-    checkPolicy(kernel, { policyPath });
-    fs.writeFileSync(policyPath, JSON.stringify({ version: '1.1' }));
-    checkPolicy(kernel, { policyPath }); // locks here
-    fs.writeFileSync(policyPath, JSON.stringify({ version: '1.0' })); // reverted back
-    const state = checkPolicy(kernel, { policyPath });
-    assert.equal(state.locked, true, 'a circuit breaker does not silently un-latch when content reverts');
+    withPolicyRoot(dir, () => {
+      const policyPath = path.join(dir, 'policy.json');
+      fs.writeFileSync(policyPath, JSON.stringify({ version: '1.0' }));
+      const kernel = fakeKernel();
+      checkPolicy(kernel, { policyPath });
+      fs.writeFileSync(policyPath, JSON.stringify({ version: '1.1' }));
+      checkPolicy(kernel, { policyPath }); // locks here
+      fs.writeFileSync(policyPath, JSON.stringify({ version: '1.0' })); // reverted back
+      const state = checkPolicy(kernel, { policyPath });
+      assert.equal(state.locked, true, 'a circuit breaker does not silently un-latch when content reverts');
+    });
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -100,7 +123,8 @@ test('policy-watchdog: beforeTask blocks with blockedBy set once the watchdog is
     fs.writeFileSync(policyPath, JSON.stringify({ version: '1.0' }));
     const kernel = fakeKernel();
     // Prime the watchdog into a locked state directly, mirroring what a
-    // real beforeTask sequence across a run would produce.
+    // real beforeTask sequence across a run would produce. No loadTrustPolicy()
+    // call happens in this test, so no TRUST_POLICY_ROOTS grant is needed here.
     const watchdogState = ensureWatchdogState(kernel);
     watchdogState.locked = true;
     watchdogState.lockedReason = 'trust policy changed mid-run (version 1.0 -> 1.1)';
