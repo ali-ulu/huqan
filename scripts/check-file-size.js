@@ -31,11 +31,18 @@
  *     gain is locked in and cannot be spent later;
  *   - when it drops to the threshold, its baseline entry must be removed.
  *
- * `--update` rewrites the baseline, but only ever downward. Raising a ceiling
- * requires editing the JSON by hand, which is visible in review — a ratchet
- * that any script run can loosen is not a ratchet.
+ * `--update` rewrites the baseline, but only ever downward: a `grew`
+ * violation keeps its old, lower recorded ceiling regardless of `--update`,
+ * and the only way to raise one is a hand edit to the JSON, visible in
+ * review. Seeding a *new* debt entry -- a file crossing the threshold for
+ * the first time -- is the one case `--update` alone used to also perform,
+ * which meant a single routine `--update` run could write an arbitrarily
+ * high ceiling for a brand-new file with no hand edit and no distinct
+ * command-line signal (#1289). That is now gated behind a second, explicit
+ * flag: `--update --seed-new`. `--update` on its own never adds an entry
+ * that was not already in the baseline.
  *
- * Usage:  node scripts/check-file-size.js [--update]
+ * Usage:  node scripts/check-file-size.js [--update] [--seed-new]
  * Exit 0 = within budget, exit 1 = a violation.
  */
 
@@ -101,6 +108,8 @@ function writeBaseline(files) {
       `Every entry is a file that already exceeded ${THRESHOLD} lines when it was recorded.`,
       'Entries may only shrink. Lower them with `npm run check:file-size -- --update`',
       'after a file gets smaller; raising one is a hand edit so it shows up in review.',
+      'A brand-new entry requires `--update --seed-new` explicitly (#1289); plain',
+      '--update never adds a file that was not already in this ledger.',
       'An entry that reaches the threshold must be deleted, not set to the threshold.',
     ],
     threshold: THRESHOLD,
@@ -113,7 +122,8 @@ function writeBaseline(files) {
  * Pure decision function: given the measured sizes and the recorded baseline,
  * report what is wrong and what the baseline should become.
  */
-function evaluate(measured, baseline, threshold = THRESHOLD) {
+function evaluate(measured, baseline, threshold = THRESHOLD, opts = {}) {
+  const seedNew = Boolean(opts.seedNew);
   const violations = [];
   const nextBaseline = {};
 
@@ -122,17 +132,20 @@ function evaluate(measured, baseline, threshold = THRESHOLD) {
 
     if (recorded === undefined) {
       if (lines > threshold) {
+        const over = lines - threshold;
         violations.push({
           kind: 'new-over-threshold',
           file,
           lines,
           limit: threshold,
-          message: `${file} is ${lines} lines, over the ${threshold}-line threshold.`,
+          message: `${file} is ${lines} lines, ${over} over the ${threshold}-line threshold.`,
         });
-        // Seeding the ledger has to be possible, so --update records this.
-        // The safety here is the reviewed diff: a new entry in the JSON is a
-        // visible claim that a file was allowed to cross the threshold.
-        nextBaseline[file] = lines;
+        // Seeding the ledger has to be possible, but only under the explicit
+        // --seed-new flag (#1289) -- a plain --update run never adds an
+        // entry the baseline didn't already have. The safety here is the
+        // reviewed diff: a new entry in the JSON is a visible claim that a
+        // file was allowed to cross the threshold.
+        if (seedNew) nextBaseline[file] = lines;
       }
       continue;
     }
@@ -194,32 +207,41 @@ function measure(files) {
 
 function main(argv = process.argv.slice(2)) {
   const update = argv.includes('--update');
+  const seedNew = argv.includes('--seed-new');
   const files = listSourceFiles();
   const measured = measure(files);
   const baseline = readBaseline();
-  const { violations, nextBaseline } = evaluate(measured, baseline);
+  const { violations, nextBaseline } = evaluate(measured, baseline, THRESHOLD, { seedNew });
 
   if (update) {
     // An existing ceiling is never raised: a `grew` violation keeps its old,
     // lower number, so --update cannot bless a file that got bigger. A file
-    // crossing the threshold for the first time is recorded, because the
-    // ledger has to be seedable -- but it is reported loudly, and the added
-    // JSON line is what a reviewer sees.
+    // crossing the threshold for the first time is recorded only when
+    // --seed-new was also passed (#1289) -- a plain --update never adds a
+    // new entry -- and even then it is reported loudly, with the added JSON
+    // line as what a reviewer sees.
     writeBaseline(nextBaseline);
     const added = violations.filter((item) => item.kind === 'new-over-threshold');
     const grew = violations.filter((item) => item.kind === 'grew');
 
-    if (added.length > 0) {
+    if (added.length > 0 && seedNew) {
       console.error(`Recorded ${added.length} file(s) newly over ${THRESHOLD} lines:\n`);
       for (const item of added) console.error(`  ${item.message}`);
       console.error('\nThese are new debt entries. Do not commit them unless crossing the'
         + '\nthreshold was a deliberate, reviewed decision.');
+    } else if (added.length > 0) {
+      console.error(`${added.length} file(s) are newly over ${THRESHOLD} lines and were NOT recorded:\n`);
+      for (const item of added) console.error(`  ${item.message}`);
+      console.error('\nRe-run with --update --seed-new if crossing the threshold was a'
+        + '\ndeliberate, reviewed decision.');
     }
     if (grew.length > 0) {
       console.error(`\n${grew.length} file(s) exceed a recorded ceiling and were NOT blessed:\n`);
       for (const item of grew) console.error(`  ${item.message}`);
       return 1;
     }
+
+    if (added.length > 0 && !seedNew) return 1;
 
     console.log(`Baseline updated: ${Object.keys(nextBaseline).length} file(s) over ${THRESHOLD} lines.`);
     return 0;
