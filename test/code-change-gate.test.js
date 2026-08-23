@@ -53,6 +53,15 @@ function makeInput(overrides = {}) {
   };
 }
 
+it('uses code-point order for canonical file findings', () => {
+  const normalized = normalizeCodeChangeInput({
+    files: ['docs/äpfel.md', 'docs/zebra.md', 'docs/Index.md', 'docs/index.md'].map((path) => ({ path })),
+  });
+  assert.deepEqual(normalized.files.map((file) => file.path), [
+    'docs/Index.md', 'docs/index.md', 'docs/zebra.md', 'docs/äpfel.md',
+  ]);
+});
+
 function makeResult(overrides = {}) {
   return evaluateCodeChange(makeInput(overrides));
 }
