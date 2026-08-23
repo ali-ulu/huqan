@@ -166,6 +166,26 @@ test('bounded verification output never claims trust or authorization', () => {
   }
 });
 
+test('bounded verification core never returns verified/signature_valid -- it is a structural verifier with no cryptographic capability (#1299)', () => {
+  const source = fs.readFileSync(
+    path.join(__dirname, '..', 'lib', 'v5', 'verification-core.js'),
+    'utf8'
+  );
+
+  // evaluateBoundedVerification has no path that can produce this status:
+  // signatureReason always returns a truthy reason (missing or malformed),
+  // so every input falls through to not_verified. Asserting the string is
+  // gone from the source, not just untriggered by fixtures, so a future
+  // edit can't quietly reopen the previously-dead 'verified' branch.
+  assert.equal(source.includes('signature_valid'), false);
+  assert.equal(source.includes("result('verified'"), false);
+
+  for (const fixture of readFixtures()) {
+    const actual = evaluateBoundedVerification(fixtureInput(fixture));
+    assert.notEqual(actual.verificationStatus, 'verified', fixture.caseId);
+  }
+});
+
 test('verification core source contains no resolver, runtime, or crypto dependency', () => {
   const source = fs.readFileSync(
     path.join(__dirname, '..', 'lib', 'v5', 'verification-core.js'),
