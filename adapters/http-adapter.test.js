@@ -294,6 +294,25 @@ test('http-adapter: ingestUrl refreshes the cache after the TTL expires (regress
   });
 });
 
+test('http-adapter: response cache evicts stale entries and bounds distinct URLs', async () => {
+  await withServer((req, res) => {
+    if (req.url === '/robots.txt') { res.writeHead(404); res.end(); return; }
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end(req.url);
+  }, async (baseUrl) => {
+    const responseCache = new Map();
+    const opts = { allowPrivateAddresses: true, robotsCache: new Map(), responseCache, responseCacheMaxEntries: 2 };
+    await ingestUrl(`${baseUrl}/one`, opts);
+    await ingestUrl(`${baseUrl}/two`, opts);
+    await ingestUrl(`${baseUrl}/three`, opts);
+    assert.equal(responseCache.size, 2);
+    assert.equal(responseCache.has(`${baseUrl}/one`), false);
+
+    await ingestUrl(`${baseUrl}/two`, { ...opts, cacheTtlMs: 0 });
+    assert.equal(responseCache.has(`${baseUrl}/two`), true, 'expired entries are removed before replacement');
+  });
+});
+
 test('http-adapter: ingestUrls collects per-URL errors without aborting the batch', async () => {
   await withServer((req, res) => {
     if (req.url === '/robots.txt') { res.writeHead(404); res.end(); return; }
