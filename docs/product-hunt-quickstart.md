@@ -70,7 +70,7 @@ Trust Receipt
   trustPolicyVersion : 0.8.0
   provenance         : mcp.huqan.learn.approval-<uuid>
   auditTrail entries : 1
-Demo store (throwaway, your own memory was not touched): /tmp/huqan-quickstart-<id>
+Demo store (throwaway, removed after the run; your own memory was not touched): /tmp/huqan-quickstart-<id>
 ```
 
 Bu adımın anlatımı şudur: HUQAN mutating `learn` isteğini doğrudan yazmaz; önce `review` kararı ve approval kaydı üretir, operator approval sonrasında canonical write yapar, ardından graph üzerinden verify eder ve Trust Receipt oluşturur. Gate gevşetilmez. Quickstart geçici store kullandığı için Product Hunt videosunda “your own memory was not touched” satırını özellikle gösterin.
