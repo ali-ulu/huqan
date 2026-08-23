@@ -11,11 +11,25 @@ const Dream = require('./dream');
 const { createAgent } = require('./agentRuntime');
 
 const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
+const testPersistenceDirs = new Set();
+
+process.once('exit', () => {
+  for (const dir of testPersistenceDirs) fs.rmSync(dir, { recursive: true, force: true });
+});
 
 function freshCLI(kernelOpts = {}) {
+  const usesDefaultPersistence = !kernelOpts.memoryPath && !kernelOpts.dbPath && kernelOpts.useSQLite === undefined;
+  const tempDir = usesDefaultPersistence
+    ? fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cli-test-'))
+    : null;
+  if (tempDir) testPersistenceDirs.add(tempDir);
+  const isolatedDefaults = tempDir
+    ? { memoryPath: path.join(tempDir, 'memory.json'), useSQLite: false }
+    : {};
   const cli = new CLI();
-  cli.kernel = new Kernel({ noLoad: true, ...kernelOpts });
+  cli.kernel = new Kernel({ noLoad: true, ...isolatedDefaults, ...kernelOpts });
   cli.dream = new Dream(cli.kernel);
+  cli.__testPersistenceDir = tempDir;
   return cli;
 }
 
@@ -29,6 +43,10 @@ function closeManagedCLI(cli) {
   }
   if (cli?.kernel?.memory && typeof cli.kernel.memory.close === 'function') {
     cli.kernel.memory.close();
+  }
+  if (cli?.__testPersistenceDir) {
+    testPersistenceDirs.delete(cli.__testPersistenceDir);
+    fs.rmSync(cli.__testPersistenceDir, { recursive: true, force: true });
   }
 }
 function createInteractiveHarness(cli, persistImpl = () => undefined) {

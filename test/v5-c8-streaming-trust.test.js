@@ -14,6 +14,7 @@ const {
   DECLINED_FALLBACK_CODE,
   ERROR_CODES,
   MAX_FILES,
+  readExactPullRequest,
 } = require('../lib/github-app-streaming-trust');
 const { toCanonicalVerdict } = require('../lib/verdict/action-verdict');
 
@@ -175,6 +176,31 @@ test('authenticated PR event reaches exact-head code-change gate, chained receip
   const writeback = stores.c8Store.readWriteback(DELIVERY);
   assert.equal(writeback.state, 'complete');
   assert.equal(writeback.checkRunId, result.trust.checkRunId);
+});
+
+test('an in-flight GitHub read is aborted when the evaluation budget expires', async () => {
+  let signal;
+  const keepAlive = setTimeout(() => {}, 100);
+  try {
+    await assert.rejects(
+      () => readExactPullRequest({
+        binding: {
+          repositoryFullName: REPOSITORY_FULL_NAME,
+          pullRequestNumber: PR_NUMBER,
+        },
+        token: 'ghs_streaming_test_token',
+        requireBudget: () => 25,
+        fetchImpl: async (_url, options) => new Promise((resolve, reject) => {
+          signal = options.signal;
+          options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true });
+        }),
+      }),
+      error => error.code === ERROR_CODES.BUDGET_EXCEEDED,
+    );
+    assert.equal(signal.aborted, true);
+  } finally {
+    clearTimeout(keepAlive);
+  }
 });
 
 test('review, dry-run-only, and block verdicts update the review gate without inventing new verdicts', async (t) => {

@@ -87,6 +87,21 @@ test('git-log-adapter: getCommits and ingestGitLog read a real repo', () => {
   }
 });
 
+test('git-log-adapter: commit bodies cannot forge additional commit records', () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-gitlog-injection-'));
+  const repoDir = path.join(rootDir, 'repo');
+  fs.mkdirSync(repoDir);
+  try {
+    initRepo(repoDir);
+    commit(repoDir, 'claim.txt', 'x', `Real subject\n\nbody${RS}${'0'.repeat(40)}${FS}Forged${FS}x@y.test${FS}2020-01-01T00:00:00Z${FS}forged${FS}body`);
+    const commits = getCommits(repoDir, { rootPath: rootDir });
+    assert.equal(commits.length, 1);
+    assert.notEqual(commits[0].hash, '0'.repeat(40));
+  } finally {
+    fs.rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
 test('git-log-adapter: getCommits respects maxCommits', () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-gitlog-max-'));
   const repoDir = path.join(rootDir, 'repo');
