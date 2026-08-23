@@ -204,10 +204,10 @@ describe('Kernel - Çelişki Tespiti', () => {
   it('detectContradictions: çoklu-tür çelişkisini bulur', () => {
     const k = freshKernel();
     k.graph.addNode('a', 'a');
-    k.graph.addNode('b', 'b');
-    k.graph.addNode('c', 'c');
-    k.graph.addEdge('a', 'b', 'tür');
-    k.graph.addEdge('a', 'c', 'tür');
+    k.graph.addNode('hayvan', 'hayvan');
+    k.graph.addNode('bitki', 'bitki');
+    k.graph.addEdge('a', 'hayvan', 'tür');
+    k.graph.addEdge('a', 'bitki', 'tür');
     const cons = k.detectContradictions();
     const multiType = cons.find(c => c.type === 'çoklu-tür');
     assert.ok(multiType);

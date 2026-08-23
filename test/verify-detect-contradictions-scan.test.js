@@ -63,8 +63,8 @@ test('each node is read exactly once, not once per detection pass (#395)', () =>
 
 test('a subject filter reads only that node (#395)', () => {
   const graph = fakeGraph(['a', 'b', 'c'], {
-    a: [{ to: 'x', relation: 'tür' }, { to: 'y', relation: 'tür' }],
-    b: [{ to: 'q', relation: 'tür' }, { to: 'r', relation: 'tür' }],
+    a: [{ to: 'hayvan', relation: 'tür' }, { to: 'bitki', relation: 'tür' }],
+    b: [{ to: 'insan', relation: 'tür' }, { to: 'kurum', relation: 'tür' }],
     c: [],
   });
 
@@ -75,14 +75,22 @@ test('a subject filter reads only that node (#395)', () => {
   assert.equal(found[0].node, 'a');
 });
 
-test('çoklu-tür is still detected', () => {
+test('çoklu-tür is reported only for disjoint types', () => {
   const graph = fakeGraph(['a'], {
-    a: [{ to: 'kus', relation: 'tür' }, { to: 'balik', relation: 'tür' }],
+    a: [{ to: 'hayvan', relation: 'tür' }, { to: 'bitki', relation: 'tür' }],
   });
   const found = serviceFor(graph).detectContradictions();
   assert.equal(found.length, 1);
   assert.equal(found[0].type, 'çoklu-tür');
-  assert.deepEqual(found[0].targets, ['kus', 'balik']);
+  assert.deepEqual(found[0].targets, ['hayvan', 'bitki']);
+  assert.equal(found[0].confidence, 0.95);
+});
+
+test('compatible types are not reported as a contradiction (#1174)', () => {
+  const graph = fakeGraph(['a'], {
+    a: [{ to: 'doktor', relation: 'tür' }, { to: 'ebeveyn', relation: 'tür' }],
+  });
+  assert.deepEqual(serviceFor(graph).detectContradictions(), []);
 });
 
 test('döngü is reported once per node even with several back edges (#395)', () => {
@@ -101,13 +109,77 @@ test('döngü is reported once per node even with several back edges (#395)', ()
   assert.equal(cycles.filter(c => c.node === 'b').length, 1);
 });
 
-test('düşük-ağırlık is still detected', () => {
-  const graph = fakeGraph(['a'], {
-    a: [{ to: 'x', relation: 'olur', weight: 0.1 }],
+test('negation requires the same exact type target, not a substring (#1177)', () => {
+  const graph = fakeGraph(['x'], {
+    x: [
+      { to: 'hasta [değil]', relation: 'değil' },
+      { to: 'hastane çalışanı', relation: 'özellik' },
+    ],
+  });
+  assert.deepEqual(serviceFor(graph).detectContradictions(), []);
+});
+
+test('negation still conflicts with the exact positive type target (#1177)', () => {
+  const graph = fakeGraph(['x'], {
+    x: [
+      { to: 'hasta [değil]', relation: 'değil' },
+      { to: 'hasta', relation: 'tür' },
+    ],
   });
   const found = serviceFor(graph).detectContradictions();
   assert.equal(found.length, 1);
-  assert.equal(found[0].type, 'düşük-ağırlık');
+  assert.equal(found[0].type, 'negasyon');
+});
+
+test('negation preserves exact matching for yapabilir/yapamaz pairs (#1177)', () => {
+  const graph = fakeGraph(['x'], {
+    x: [
+      { to: 'alt kiralayamaz', relation: 'değil' },
+      { to: 'alt kiralayabilir', relation: 'yapabilir' },
+    ],
+  });
+  const found = serviceFor(graph).detectContradictions();
+  assert.equal(found.length, 1);
+  assert.equal(found[0].type, 'negasyon');
+});
+
+test('low-weight evidence is not reported as a contradiction (#1173)', () => {
+  const graph = fakeGraph(['a'], {
+    a: [{ to: 'x', relation: 'olur', weight: 0.1 }],
+  });
+  assert.deepEqual(serviceFor(graph).detectContradictions(), []);
+});
+
+test('an explicit conflict flag remains a contradiction (#1173)', () => {
+  const graph = fakeGraph(['a'], {
+    a: [{ to: 'x', relation: 'olur', weight: 0.1, celiski: true }],
+  });
+  const found = serviceFor(graph).detectContradictions();
+  assert.equal(found.length, 1);
+  assert.equal(found[0].type, 'çelişki');
+});
+
+test('time-series values are not reported as numeric contradictions (#1175)', () => {
+  const graph = fakeGraph(['company'], {
+    company: [
+      { to: '2020 yılı çalışan sayısı 100', relation: 'özellik' },
+      { to: '2021 yılı çalışan sayısı 120', relation: 'özellik' },
+    ],
+  });
+
+  assert.deepEqual(serviceFor(graph).detectContradictions(), []);
+});
+
+test('different values under the same temporal qualifier remain numeric contradictions', () => {
+  const graph = fakeGraph(['company'], {
+    company: [
+      { to: '2020 yılı çalışan sayısı 100', relation: 'özellik' },
+      { to: '2020 yılı çalışan sayısı 120', relation: 'özellik' },
+    ],
+  });
+
+  const numeric = serviceFor(graph).detectContradictions().filter(c => c.type === 'sayısal');
+  assert.equal(numeric.length, 1);
 });
 
 test('results stay grouped by contradiction type, not by node (#395)', () => {
@@ -115,21 +187,21 @@ test('results stay grouped by contradiction type, not by node (#395)', () => {
   // that would turn this type-major order into node-major order.
   const graph = fakeGraph(['a', 'b'], {
     a: [
-      { to: 'kus', relation: 'tür' },
-      { to: 'balik', relation: 'tür' },
-      { to: 'x', relation: 'olur', weight: 0.1 },
+      { to: 'hayvan', relation: 'tür' },
+      { to: 'bitki', relation: 'tür' },
+      { to: 'x', relation: 'olur', celiski: true },
     ],
     b: [
-      { to: 'memeli', relation: 'tür' },
-      { to: 'kedi', relation: 'tür' },
-      { to: 'y', relation: 'olur', weight: 0.05 },
+      { to: 'insan', relation: 'tür' },
+      { to: 'kurum', relation: 'tür' },
+      { to: 'y', relation: 'olur', celiski: true },
     ],
   });
 
   const types = serviceFor(graph).detectContradictions().map(c => c.type);
 
-  // Both 'çoklu-tür' entries come before both 'düşük-ağırlık' entries.
-  assert.deepEqual(types, ['çoklu-tür', 'çoklu-tür', 'düşük-ağırlık', 'düşük-ağırlık']);
+  // Both 'çoklu-tür' entries come before both explicit conflict entries.
+  assert.deepEqual(types, ['çoklu-tür', 'çoklu-tür', 'çelişki', 'çelişki']);
 });
 
 test('an empty graph produces no contradictions and no reads', () => {
