@@ -12,3 +12,12 @@ d502a110ce7e0795b7b60c186c83bbf0ef841a49:test/secret-and-sourceref-redaction.tes
 d502a110ce7e0795b7b60c186c83bbf0ef841a49:test/secret-and-sourceref-redaction.test.js:generic-api-key:19
 d502a110ce7e0795b7b60c186c83bbf0ef841a49:test/secret-and-sourceref-redaction.test.js:generic-api-key:23
 d502a110ce7e0795b7b60c186c83bbf0ef841a49:test/secret-and-sourceref-redaction.test.js:generic-api-key:75
+
+# Same situation as above, for the #1315 JWT-detection tests: a synthetic,
+# non-functional JWT (fake header/payload/signature, no real credential) was
+# briefly committed as a single literal string in 84364e5. Commit 2c009f5
+# rewrote the fixture as separately-declared segments joined at runtime, so
+# no new literal finding is introduced going forward; these two entries only
+# silence the already-superseded historical commit.
+84364e5f99db9765590e0d5abae56af65f5fe075:test/secret-scrub-gate.test.js:jwt:44
+84364e5f99db9765590e0d5abae56af65f5fe075:test/company-ingest-gate.test.js:jwt:6
