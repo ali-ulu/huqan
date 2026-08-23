@@ -8,6 +8,7 @@ const { buildFinalSummary } = require('./finalizer');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
 const { enforceAgentActionStep } = require('./lib/agent-action-firewall');
 const { prepareGoalIntegrityForPlan } = require('./lib/goal-integrity-gate');
+const { initializeBehavioralState, behavioralBlockResult } = require('./lib/agent-behavioral-integrity');
 const { stepFailureSignature } = require('./lib/agent-failure-signature');
 const {
   cloneValue,
@@ -615,7 +616,9 @@ class Agent {
     let toolPolicy = null;
     let firewallDecision = null;
 
-    if (beforeTaskData && beforeTaskData.blocked === true) {
+    result = behavioralBlockResult(state, step);
+    if (result) {
+    } else if (beforeTaskData && beforeTaskData.blocked === true) {
       result = {
         ok: false,
         type: 'agent',
@@ -790,13 +793,10 @@ class Agent {
     };
     state.completedSteps = state.steps.length;
     state.remainingSteps = Array.isArray(state.queuedSteps) ? state.queuedSteps.length : 0;
-    // agent.js (unlike agent.v3.js) has no workspace-scoping concept of its
-    // own; this only threads through what the caller explicitly passed, so
-    // plugins observing beforeAgentRun/afterAgentRun (workspace-sync.js,
-    // #213) have something real to read instead of guessing at a default.
     state.workspaceId = typeof opts.workspaceId === 'string' && opts.workspaceId.trim()
       ? opts.workspaceId.trim()
       : (state.workspaceId || 'default');
+    state.behavioralManifest = resumeCandidate?.behavioralManifest; state.behavioralFindings = resumeCandidate?.behavioralFindings ? cloneValue(resumeCandidate.behavioralFindings) : []; initializeBehavioralState(state, state);
     this._emit('beforeAgentRun', state);
 
     const queued = Array.isArray(state.queuedSteps) ? [...state.queuedSteps] : [];
