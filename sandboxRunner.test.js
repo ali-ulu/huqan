@@ -103,7 +103,15 @@ describe('Sandbox Runner', () => {
   });
 
   it('contains heap exhaustion in the child process', () => {
-    const result = runSandboxed('new Array(20000000).fill({ x: "1234567890" })', {}, { timeoutMs: 2000 });
+    // 2000ms is above AB6's default ceiling, so the request has to be
+    // authorised now that the gate sits in front of execution (#1253). Stating
+    // the policy here is the intended shape -- the caller that needs a longer
+    // run says so -- and it keeps this test about heap containment rather than
+    // about the timeout rule, which has its own tests.
+    const result = runSandboxed('new Array(20000000).fill({ x: "1234567890" })', {}, {
+      timeoutMs: 2000,
+      isolationPolicy: { maximumTimeoutMs: 2000 },
+    });
     assert.strictEqual(result.ok, false);
     assert.strictEqual(result.error.code, 'SANDBOX_RESOURCE_LIMIT');
     const followup = runSandboxed('({ alive: true })');
