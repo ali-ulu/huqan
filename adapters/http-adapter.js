@@ -10,6 +10,8 @@ const DEFAULT_MAX_BYTES = 5 * 1024 * 1024;
 const DEFAULT_USER_AGENT = 'huqan-http-adapter/1.0 (+https://github.com/ali-ulu/huqan)';
 const DEFAULT_CACHE_TTL_MS = 5 * 60 * 1000;
 const DEFAULT_ROBOTS_CACHE_TTL_MS = 10 * 60 * 1000;
+const DEFAULT_RESPONSE_CACHE_MAX_ENTRIES = 100;
+const DEFAULT_ROBOTS_CACHE_MAX_ENTRIES = 500;
 const REDIRECT_STATUS_CODES = new Set([301, 302, 303, 307, 308]);
 
 const defaultResponseCache = new Map();
@@ -20,6 +22,12 @@ function pinnedLookup(pinnedAddress, family) {
     const cb = typeof options === 'function' ? options : callback;
     cb(null, pinnedAddress, family);
   };
+}
+
+function setBoundedCache(cache, key, value, maxEntries) {
+  cache.delete(key);
+  cache.set(key, value);
+  while (cache.size > maxEntries) cache.delete(cache.keys().next().value);
 }
 
 /**
@@ -176,9 +184,14 @@ async function isAllowedByRobots(urlString, options = {}) {
   const origin = parsed.origin;
   const cache = options.robotsCache || defaultRobotsCache;
   const ttl = options.robotsCacheTtlMs ?? DEFAULT_ROBOTS_CACHE_TTL_MS;
+  const maxEntries = options.robotsCacheMaxEntries ?? DEFAULT_ROBOTS_CACHE_MAX_ENTRIES;
 
   let entry = cache.get(origin);
-  if (!entry || (Date.now() - entry.fetchedAt) > ttl) {
+  if (entry && (Date.now() - entry.fetchedAt) >= ttl) {
+    cache.delete(origin);
+    entry = null;
+  }
+  if (!entry) {
     let disallow = [];
     try {
       // `onRedirect` is dropped deliberately: fetching robots.txt is how the
@@ -197,7 +210,9 @@ async function isAllowedByRobots(urlString, options = {}) {
       disallow = [];
     }
     entry = { fetchedAt: Date.now(), disallow };
-    cache.set(origin, entry);
+    setBoundedCache(cache, origin, entry, maxEntries);
+  } else {
+    setBoundedCache(cache, origin, entry, maxEntries);
   }
 
   return !entry.disallow.some((prefix) => parsed.pathname.startsWith(prefix));
@@ -275,8 +290,13 @@ async function ingestUrl(urlString, options = {}) {
 
   const cache = options.responseCache || defaultResponseCache;
   const cacheTtlMs = options.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS;
-  const cached = cache.get(urlString);
+  const maxEntries = options.responseCacheMaxEntries ?? DEFAULT_RESPONSE_CACHE_MAX_ENTRIES;
+  let cached = cache.get(urlString);
   const cacheFresh = cached && (Date.now() - cached.fetchedAt) < cacheTtlMs;
+  if (cached && !cacheFresh) {
+    cache.delete(urlString);
+    cached = null;
+  }
   // Refresh the cache on a miss (no entry OR expired entry), not only when the
   // entry was absent. Previously an expired entry was never replaced, so every
   // subsequent request re-fetched forever.
@@ -289,7 +309,8 @@ async function ingestUrl(urlString, options = {}) {
       ...fetchOptions,
       onRedirect: respectRobots ? (hopUrl) => assertRobotsAllows(hopUrl, fetchOptions) : undefined,
     });
-  if (!cacheFresh) cache.set(urlString, { fetchedAt: Date.now(), result });
+  if (!cacheFresh) setBoundedCache(cache, urlString, { fetchedAt: Date.now(), result }, maxEntries);
+  else setBoundedCache(cache, urlString, cached, maxEntries);
 
   if (result.statusCode >= 400) {
     throw Object.assign(
