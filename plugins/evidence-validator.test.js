@@ -37,6 +37,34 @@ test('evidence-validator: an ordinary ASCII multi-label host is not flagged', ()
   assert.deepEqual(validateSourceUrl('https://docs.example.co.uk/page'), { ok: true });
 });
 
+test('evidence-validator: rejects control characters that URL parsing would silently strip, for every spoof-shaped placement (#1279)', () => {
+  const variants = [
+    'ht\ttps://accounts.google.com@evil.example/login',
+    'h\nttps://accounts.google.com@evil.example/login',
+    'https\r\n://accounts.google.com@evil.example/login',
+  ];
+  for (const variant of variants) {
+    // Confirm the premise: the parser really does resolve this to the spoofed
+    // host, same as the plain (no-control-character) case.
+    const parsed = new URL(variant.replace(/[\t\r\n]/g, ''));
+    assert.equal(parsed.hostname, 'evil.example', variant);
+
+    const result = validateSourceUrl(variant);
+    assert.equal(result.ok, false, variant);
+    assert.equal(result.code, 'EVIDENCE_URL_MALFORMED', variant);
+  }
+});
+
+test('evidence-validator: beforeLearn throws for a control-character-smuggled spoof, not just the plain form (#1279)', () => {
+  assert.throws(
+    () => evidenceValidator.beforeLearn(null, {
+      text: 'x',
+      opts: { sourceRef: 'ht\ttps://accounts.google.com@evil.example/login' },
+    }),
+    (err) => err.code === 'EVIDENCE_URL_MALFORMED'
+  );
+});
+
 test('evidence-validator: beforeLearn ignores non-URL sourceRef shapes (file:, git:, absent)', () => {
   const passthroughFile = evidenceValidator.beforeLearn(null, { text: 'x', opts: { sourceRef: 'file:/tmp/a.md' } });
   assert.equal(passthroughFile.opts.sourceRef, 'file:/tmp/a.md');
