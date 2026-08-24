@@ -143,15 +143,36 @@ describe('agent workflow HTTP routes (#786)', () => {
     assert.equal(missingGoal.write.json.status, 'failed');
   });
 
-  it('bounds maxSteps to the same range the MCP surface enforces', async () => {
+  it('rejects out-of-contract maxSteps instead of silently coercing it', async () => {
     const { invoke } = fixture({ run: pausedRun });
-    const { calls } = await invoke('POST', '/api/v2/agent/runs', {
+    const high = await invoke('POST', '/api/v2/agent/runs', {
       workspaceId: 'w', goal: 'g', maxSteps: 999,
     });
-    assert.equal(calls.at(-1).options.maxSteps, 8);
+    assert.equal(high.write.status, 400);
+    assert.equal(high.write.json.error.code, 'INVALID_INPUT');
+    assert.equal(high.calls.length, 0);
 
     const low = await invoke('POST', '/api/v2/agent/runs', { workspaceId: 'w', goal: 'g', maxSteps: -5 });
-    assert.equal(low.calls.at(-1).options.maxSteps, 1);
+    assert.equal(low.write.status, 400);
+    assert.equal(low.write.json.error.code, 'INVALID_INPUT');
+    assert.equal(low.calls.length, 0);
+  });
+
+  it('rejects non-string workspace IDs and undocumented properties before creating an agent', async () => {
+    const { invoke } = fixture({ plan: planResult });
+    const invalidWorkspace = await invoke('POST', '/api/v2/agent/plan', {
+      workspaceId: ['tenant-a'], goal: 'hedef',
+    });
+    assert.equal(invalidWorkspace.write.status, 400);
+    assert.equal(invalidWorkspace.write.json.error.code, 'INVALID_INPUT');
+    assert.equal(invalidWorkspace.calls.length, 0);
+
+    const extraProperty = await invoke('POST', '/api/v2/agent/plan', {
+      workspaceId: 'tenant-a', goal: 'hedef', ignored: true,
+    });
+    assert.equal(extraProperty.write.status, 400);
+    assert.equal(extraProperty.write.json.error.code, 'INVALID_INPUT');
+    assert.equal(extraProperty.calls.length, 0);
   });
 
   it('rejects non-POST methods', async () => {

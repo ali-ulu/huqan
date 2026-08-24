@@ -13,7 +13,12 @@ const Kernel = require('./kernel');
 const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 function freshAgent(dbPath) {
-  const kernel = new KernelV2({ noLoad: true, useSQLite: false, loadPlugins: false });
+  const kernel = new KernelV2({
+    noLoad: true,
+    useSQLite: false,
+    loadPlugins: false,
+    memoryPath: path.join(path.dirname(dbPath), 'memory.json'),
+  });
   kernel.learn('kedi hayvandir', TEST_FIXTURE_LEARN_BYPASS);
   return new AgentV3({ kernel, dbPath, maxSteps: 4, maxIterations: 50, timeBudgetMs: 2000 });
 }

@@ -26,14 +26,23 @@ const { DANGLING_EVENT, DANGLING_LINK } = require('../lib/memory-package-import'
 
 let tempDir;
 let counter = 0;
+const stores = new Set();
 
 before(() => {
   tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-memory-package-'));
 });
 
 after(() => {
+  for (const store of stores) {
+    try { store.close(); } catch (_) {}
+  }
   if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
 });
+
+function trackStore(store) {
+  stores.add(store);
+  return store;
+}
 
 const BACKENDS = [
   ['in-memory', () => new MemoryStore()],
@@ -111,7 +120,7 @@ function importInto(store, contents, opts = {}) {
 for (const [backendName, makeStore] of BACKENDS) {
   describe(`memory package references must resolve (${backendName}, #761)`, () => {
     it('a well-formed package still imports', () => {
-      const store = makeStore();
+      const store = trackStore(makeStore());
       const result = importInto(store, {
         memories: [memory('mem-a'), memory('mem-b')],
         events: [event('evt-a', 'mem-a')],
@@ -124,7 +133,7 @@ for (const [backendName, makeStore] of BACKENDS) {
     });
 
     it('an event citing a memory nobody has is not imported', () => {
-      const store = makeStore();
+      const store = trackStore(makeStore());
       const result = importInto(store, {
         memories: [memory('mem-a')],
         events: [event('evt-a', 'mem-a'), event('evt-ghost', 'mem-never-existed')],
@@ -138,7 +147,7 @@ for (const [backendName, makeStore] of BACKENDS) {
     });
 
     it('a link with either endpoint missing is not imported', () => {
-      const store = makeStore();
+      const store = trackStore(makeStore());
       const result = importInto(store, {
         memories: [memory('mem-a')],
         links: [
@@ -159,7 +168,7 @@ for (const [backendName, makeStore] of BACKENDS) {
     });
 
     it('a package holding an invalid memory is refused before anything imports', () => {
-      const store = makeStore();
+      const store = trackStore(makeStore());
       // The other half of "dependents must not outlive their memory": a
       // memory that fails its own validation never reaches the import loop,
       // because validateMemoryPackage rejects the package as a whole. So the
@@ -177,7 +186,7 @@ for (const [backendName, makeStore] of BACKENDS) {
     });
 
     it('a conflicting memory still resolves, and the conflict is reported', () => {
-      const store = makeStore();
+      const store = trackStore(makeStore());
       const first = importInto(store, { memories: [memory('mem-a')] });
       assert.strictEqual(first.ok, true);
 
@@ -196,7 +205,7 @@ for (const [backendName, makeStore] of BACKENDS) {
     });
 
     it('a reference to a memory already in the target workspace resolves', () => {
-      const store = makeStore();
+      const store = trackStore(makeStore());
       const seeded = store.store({ content: 'already here', workspaceId: 'target-ws' });
       assert.strictEqual(seeded.ok, true);
 
@@ -212,7 +221,7 @@ for (const [backendName, makeStore] of BACKENDS) {
     });
 
     it('strict mode rolls the whole package back on a dangling reference', () => {
-      const store = makeStore();
+      const store = trackStore(makeStore());
       const result = importInto(store, {
         memories: [memory('mem-a'), memory('mem-b')],
         events: [event('evt-ghost', 'mem-never-existed')],
@@ -228,7 +237,7 @@ for (const [backendName, makeStore] of BACKENDS) {
     });
 
     it('idempotent mode reports the dependency instead of importing it', () => {
-      const store = makeStore();
+      const store = trackStore(makeStore());
       const result = importInto(store, {
         memories: [memory('mem-a')],
         events: [event('evt-ghost', 'mem-never-existed')],
@@ -244,7 +253,7 @@ for (const [backendName, makeStore] of BACKENDS) {
     });
 
     it('leaves no dangling row behind in the store it exports from', () => {
-      const store = makeStore();
+      const store = trackStore(makeStore());
       importInto(store, {
         memories: [memory('mem-a')],
         events: [event('evt-a', 'mem-a'), event('evt-ghost', 'mem-never-existed')],
@@ -274,7 +283,7 @@ describe('both backends agree on referential admission (#761)', () => {
     };
 
     const results = BACKENDS.map(([, makeStore]) => {
-      const result = importInto(makeStore(), contents);
+      const result = importInto(trackStore(makeStore()), contents);
       return {
         ok: result.ok,
         imported: result.imported,

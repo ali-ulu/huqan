@@ -24,7 +24,7 @@ function taskFixture() {
 describe('first real Huqan bounded task', () => {
   it('matches the canonical source after the runner-applied exact patch', () => {
     const task = taskFixture();
-    const source = fs.readFileSync(path.join(REPO_ROOT, SOURCE_PATH), 'utf8');
+    const source = fs.readFileSync(path.join(REPO_ROOT, SOURCE_PATH), 'utf8').replace(/\r\n/g, '\n');
 
     assert.equal(task.allowedPaths.length, 1);
     assert.deepEqual(task.allowedPaths, [SOURCE_PATH]);

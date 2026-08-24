@@ -8,6 +8,8 @@ const { buildFinalSummary } = require('./finalizer');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
 const { enforceAgentActionStep } = require('./lib/agent-action-firewall');
 const { createExecutionScope, evaluateGoalBinding } = require('./lib/goal-binding');
+const { prepareGoalIntegrityForPlan } = require('./lib/goal-integrity-gate');
+const { initializeBehavioralState, behavioralBlockResult } = require('./lib/agent-behavioral-integrity');
 const { stepFailureSignature } = require('./lib/agent-failure-signature');
 const {
   cloneValue,
@@ -449,11 +451,9 @@ class Agent {
   _buildPlan(goal, opts = {}) {
     const objective = this._objective(goal);
     const cleanedGoal = normalizeGoal(goal);
-    const shortGoal = firstWords(cleanedGoal, 5);
+    const goalIntegrity = prepareGoalIntegrityForPlan(this, cleanedGoal, opts); if (!goalIntegrity.ok) return goalIntegrity.result;
     const policy = this._policy(cleanedGoal, objective);
     const steps = [];
-    const selectedTools = [...policy.selectedTools];
-
     const pushStep = (id, action, tool, input, rationale) => {
       steps.push({ id, action, tool, input, rationale });
     };
@@ -493,13 +493,14 @@ class Agent {
     const plan = {
       goal: cleanedGoal,
       objective,
-      shortGoal,
+      shortGoal: firstWords(cleanedGoal, 5),
       steps: limitedSteps,
-      selectedTools,
+      selectedTools: [...policy.selectedTools],
       maxSteps: Math.max(1, opts.maxSteps || this.maxSteps),
       status: 'planned',
       confidence: objective === 'investigate' ? 0.58 : 0.74,
       policy,
+      goalIntegrity: goalIntegrity.scope,
       memory: memorySummary,
       rationale: objective === 'investigate'
         ? 'The overall objective is unclear; gather context first, then decide.'
@@ -619,7 +620,9 @@ class Agent {
     let toolPolicy = null;
     let firewallDecision = null;
 
-    if (beforeTaskData && beforeTaskData.blocked === true) {
+    result = behavioralBlockResult(state, step);
+    if (result) {
+    } else if (beforeTaskData && beforeTaskData.blocked === true) {
       result = {
         ok: false,
         type: 'agent',
@@ -757,7 +760,7 @@ class Agent {
     const scopeResult = createExecutionScope(goal, opts);
     if (!scopeResult.ok) return this._fail('agent', scopeResult.reason, 'Untrusted content cannot define an execution goal.', [], { goalBinding: scopeResult.receipt });
     const planResult = this.plan(goal, opts);
-    const freshPlan = planResult.data;
+    if (!planResult || planResult.ok === false) return planResult; const freshPlan = planResult.data;
     const resumeCandidate = opts.resume === false ? null : this._findResumeRun(goal);
     const activePlan = resumeCandidate && resumeCandidate.plan ? resumeCandidate.plan : freshPlan;
     const state = resumeCandidate ? {
@@ -797,6 +800,9 @@ class Agent {
       ? opts.workspaceId.trim()
       : (state.workspaceId || 'default');
     state.executionScope = scopeResult.scope;
+    state.behavioralManifest = resumeCandidate?.behavioralManifest;
+    state.behavioralFindings = resumeCandidate?.behavioralFindings ? cloneValue(resumeCandidate.behavioralFindings) : [];
+    initializeBehavioralState(state, { ...state, selectedTools: [...(state.selectedTools || []), 'dream'] });
     this._emit('beforeAgentRun', state);
 
     const queued = Array.isArray(state.queuedSteps) ? [...state.queuedSteps] : [];

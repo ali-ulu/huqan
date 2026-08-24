@@ -16,7 +16,7 @@
     "kernel.v2.js": 807,
     "lib/code-change-gate.js": 857,
     "lib/memory-store.js": 1041,
-    "lib/sandbox-isolation.js": 851,
+    "lib/sandbox-isolation.js": 831,
     "scripts/external-conformance/consumer.js": 924,
     "server.js": 1030,
     "workflow-agent.js": 967,

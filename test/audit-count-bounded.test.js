@@ -6,11 +6,15 @@ const path = require('path');
 const Graph = require('../graph');
 
 let tempDir;
+const graphs = new Set();
 
 before(() => {
   tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-audit-count-'));
 });
 after(() => {
+  for (const graph of graphs) {
+    try { graph.close(); } catch (_) {}
+  }
   if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
 });
 
@@ -27,11 +31,13 @@ function seed(graph, count, workspaceId = 'default') {
 }
 
 function makeGraph(name, useSQLite) {
-  return new Graph({
+  const graph = new Graph({
     memoryPath: path.join(tempDir, `${name}.json`),
     useSQLite,
     noLoad: true,
   });
+  graphs.add(graph);
+  return graph;
 }
 
 describe('Graph.countAuditEvents is bounded (#728)', () => {

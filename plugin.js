@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
+const { createActivationGate } = require('./lib/supply-chain-activation-gate');
 
 const VERIFIED_PLUGIN = Symbol('axiom.verifiedPlugin');
 
@@ -54,6 +55,23 @@ function readManifest(filePath) {
     manifestPath,
     manifest: JSON.parse(fs.readFileSync(manifestPath, 'utf8')),
   };
+}
+
+function loadActivationGate() {
+  const raw = readCompatibleEnvironmentVariable('SUPPLY_CHAIN_ACTIVATION_POLICY');
+  if (!raw) return null;
+  try { return createActivationGate(JSON.parse(raw)); } catch (error) {
+    const wrapped = new Error(`Invalid supply-chain activation policy: ${error.message}`);
+    wrapped.code = 'SUPPLY_CHAIN_ACTIVATION_POLICY_INVALID';
+    throw wrapped;
+  }
+}
+
+function pluginComponent(plugin, verification) {
+  const manifest = verification.manifest || {};
+  return { componentType: 'plugin', name: plugin.name, version: manifest.version,
+    contentHash: verification.sha256, issuer: manifest.issuer, workspaceId: manifest.workspaceId,
+    capabilities: (plugin.capabilities || []).map(item => item.name), expiresAt: manifest.expiresAt };
 }
 
 /**
@@ -157,6 +175,8 @@ function verifyPluginFile(filePath, opts = {}) {
     status: signatureKey ? 'verified-signed' : 'verified',
     sha256: currentHash,
     manifestPath,
+    manifest,
+    filePath,
     reason: signatureKey ? 'Plugin hash and signature verified.' : 'Plugin hash verified.',
   };
 }
@@ -180,6 +200,7 @@ class PluginManager {
       process.env.NODE_ENV === 'production';
     this.strictPlugins =
       this.productionPluginEnforcement || readCompatibleEnvironmentVariable('PLUGIN_STRICT') !== '0';
+    this.activationGate = loadActivationGate();
     for (const e of EVENTS) this._handlers[e] = [];
   }
 
@@ -204,6 +225,8 @@ class PluginManager {
         // whole of the guarantee. require() gives the plugin the host process's
         // privileges (#362); see verifyPluginFile above.
         const plugin = require(filePath);
+        const activation = this._activatePlugin(plugin, verification);
+        plugin.__activation = activation;
         plugin.__verification = verification;
         if (Object.prototype.hasOwnProperty.call(plugin, VERIFIED_PLUGIN)) {
           plugin[VERIFIED_PLUGIN] = verification;
@@ -273,6 +296,22 @@ class PluginManager {
   _hasVerifiedProvenance(plugin) {
     const verification = plugin && plugin[VERIFIED_PLUGIN];
     return Boolean(verification && verification.ok === true);
+  }
+
+  _activatePlugin(plugin, verification) {
+    if (!this.activationGate) return null;
+    return this.activationGate.activate(pluginComponent(plugin, verification));
+  }
+
+  _reattestPlugin(plugin) {
+    if (!this.activationGate) return;
+    const verification = plugin && plugin[VERIFIED_PLUGIN];
+    if (!verification || !verification.filePath || hashFile(verification.filePath) !== verification.sha256) {
+      const error = new Error('Supply-chain activation rejected: hash-drift');
+      error.code = 'SUPPLY_CHAIN_ACTIVATION_REJECTED';
+      throw error;
+    }
+    this.activationGate.reattest(pluginComponent(plugin, verification));
   }
 
   emit(event, data) {
@@ -371,6 +410,7 @@ class PluginManager {
     if (!plugin || typeof plugin.run !== 'function') {
       throw new Error(`Plugin "${capability.plugin}" cannot run capability: ${name}`);
     }
+    this._reattestPlugin(plugin);
     return plugin.run(this.kernel, input, {
       ...opts,
       capability,
