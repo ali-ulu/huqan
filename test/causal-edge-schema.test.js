@@ -54,9 +54,9 @@ describe('frozen exports', () => {
     assert.strictEqual(REQUIRED_FIELDS.length, 10);
   });
 
-  it('CAUSAL_EDGE_ERROR_CODES is frozen with 12 entries', () => {
+  it('CAUSAL_EDGE_ERROR_CODES is frozen with 15 entries', () => {
     assert.ok(Object.isFrozen(CAUSAL_EDGE_ERROR_CODES));
-    assert.strictEqual(Object.keys(CAUSAL_EDGE_ERROR_CODES).length, 12);
+    assert.strictEqual(Object.keys(CAUSAL_EDGE_ERROR_CODES).length, 15);
   });
 });
 
