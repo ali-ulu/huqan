@@ -1,0 +1,54 @@
+name: Observability release gate
+
+on:
+  pull_request:
+    paths:
+      - 'lib/observability/**'
+      - 'scripts/observability-**'
+      - 'benchmarks/observability-**'
+      - 'docs/openapi-observability-v1.yaml'
+      - 'docs/observability-**'
+      - 'backupRestore.js'
+      - 'backupRestore.test.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/observability-release.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  observability-release:
+    name: Unit, recovery, load, package and rollback gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci --include=optional
+      - name: Unit, integration, security, migration and dashboard contracts
+        run: node --test lib/observability/*.test.js
+      - name: Backup and restore recovery
+        run: node --test backupRestore.test.js
+      - name: Load target gate
+        run: npm run test:observability-load
+      - name: Soak and resource gate
+        run: npm run test:observability-soak
+      - name: Package closure and source invariants
+        run: |
+          set -euo pipefail
+          npm run check:package-closure
+          npm run check:file-size
+          npm run check:control-chars
+          npm run check:doc-status
+      - name: Installed tarball smoke
+        run: npm run verify:tarball

@@ -111,6 +111,7 @@
     "docs/seed/huqan-identity.seed.json",
     "docs/openapi-observability-v1.yaml",
     "docs/observability-client.md",
+    "docs/observability-release-rollback.md",
     "dream.js",
     "evidence-ranker.js",
     "finalizer.js",
