@@ -118,6 +118,16 @@ describe('canonical workflow data routes', () => {
     assert.deepEqual(result.decisions, [{ approvalId: 'a', decision: 'approved', reason: '' }]);
   });
 
+  it('enforces the published approval-decision body schema before dispatch', async () => {
+    const { invoke } = fixture([approval('a', 'alpha')]);
+    const result = await invoke('POST', '/api/v2/approvals/a/decision?workspaceId=alpha', {
+      decision: 'approved', unexpected: true,
+    });
+    assert.equal(result.write.status, 400);
+    assert.equal(result.write.json.error.code, 'INVALID_INPUT');
+    assert.deepEqual(result.decisions, []);
+  });
+
   it('reads a workspace-scoped receipt through the canonical alias', async () => {
     const { invoke } = fixture();
     const result = await invoke('GET', '/api/v2/trust-receipts/receipt-1?workspaceId=alpha');
