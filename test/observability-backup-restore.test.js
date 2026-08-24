@@ -26,11 +26,11 @@ test('backup and restore preserve observability data, workspace scope and redact
   const backupDbPath = path.join(backup.backupDir, 'memory.db');
   assert.ok(fs.existsSync(backupDbPath));
   assert.deepEqual(backup.manifest.observability, {
-    applicable: true, complete: true, version: 1, integrity: 'ok', unsafePayloadRows: 0,
+    applicable: true, complete: true, version: 2, integrity: 'ok', unsafePayloadRows: 0,
   });
   assert.equal(fs.readFileSync(backupDbPath).includes(Buffer.from(secret)), false);
   const snapshot = new Database(backupDbPath, { readonly: true });
-  assert.equal(getObservabilitySchemaVersion(snapshot), 1);
+  assert.equal(getObservabilitySchemaVersion(snapshot), 2);
   assert.equal(snapshot.prepare("SELECT COUNT(*) count FROM observability_events WHERE workspace_id = 'ws-a'").get().count, 2);
   snapshot.close();
   if (process.platform !== 'win32') assert.equal(fs.statSync(backupDbPath).mode & 0o077, 0);
