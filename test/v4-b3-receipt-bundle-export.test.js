@@ -184,7 +184,7 @@ describe('V4-B3: receipt bundle export — authenticated happy path', () => {
   it('omitted workspaceId is rejected before reading receipts', async () => {
     const res = await request(ROUTE_PATHNAME);
     assert.equal(res.status, 400);
-    assert.equal(res.body.error.code, 'invalid_workspace_id');
+    assert.equal(res.body.error.code, 'MISSING_WORKSPACE_ID');
   });
 
   it('exact default workspaceId returns a verified bundle', async () => {
@@ -222,6 +222,17 @@ describe('V4-B3: receipt bundle export — authenticated happy path', () => {
     const res = await request(ROUTE_PATHNAME, { method: 'POST' });
     assert.equal(res.status, 405);
     assert.equal(res.body?.bundle, undefined);
+  });
+});
+
+describe('V4-B3: receipt bundle export — route module contract', () => {
+  it('exports only live path and handler helpers', () => {
+    assert.deepEqual(Object.keys(require('../lib/workbench/receipt-bundle-export-route')).sort(), [
+      'ROUTE_PATHNAME',
+      'STATUS_TO_HTTP',
+      'handleWorkbenchReceiptBundleRequest',
+      'parseWorkbenchReceiptBundlePath',
+    ]);
   });
 });
 
@@ -392,15 +403,24 @@ describe('V4-B3: receipt bundle export — router header contract on every statu
     assert.equal(result.body.bundle, undefined);
   });
 
-  it('400 carries no-store and nosniff, and repeated workspaceId is rejected', () => {
-    const rejectedSearch = dispatch(syntheticSource(1), '?workspaceId=tenant-a');
+  it('400 carries no-store and nosniff, and workspace errors preserve canonical codes', () => {
+    const missing = dispatch(syntheticSource(1), '');
+    assert.equal(missing.statusCode, 400);
+    assert.equal(missing.body.error.code, 'MISSING_WORKSPACE_ID');
+    assert.equal(missing.headers['Cache-Control'], 'no-store');
+    assert.equal(missing.headers['X-Content-Type-Options'], 'nosniff');
+
+    const rejectedSearch = dispatch(syntheticSource(1), '?workspaceId=');
     assert.equal(rejectedSearch.statusCode, 400);
+    assert.equal(rejectedSearch.body.error.code, 'INVALID_WORKSPACE_ID');
     assert.equal(rejectedSearch.headers['Cache-Control'], 'no-store');
     assert.equal(rejectedSearch.headers['X-Content-Type-Options'], 'nosniff');
 
     const repeated = dispatch(syntheticSource(1), '?workspaceId=default&workspaceId=default');
     assert.equal(repeated.statusCode, 400);
+    assert.equal(repeated.body.error.code, 'INVALID_WORKSPACE_ID');
     assert.equal(repeated.headers['Cache-Control'], 'no-store');
+    assert.equal(repeated.headers['X-Content-Type-Options'], 'nosniff');
     assert.equal(repeated.body.bundle, undefined);
   });
 
