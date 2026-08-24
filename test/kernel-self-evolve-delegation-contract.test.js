@@ -73,7 +73,35 @@ test('KERNEL: selfEvolve preserves relation mapping, deferred admission, and mai
     edgeOptions: { weight: 0.4, source: 'kendilik' },
     provenanceExtra: { hypothesisType: 'vektör-benzerlik', hypothesisConfidence: 0.9, weight: 0.4 },
   });
-  assert.deepEqual(calls.slice(2), [['consolidate', false], ['optimize'], ['count', 1]]);
+  assert.deepEqual(calls.slice(2), [['consolidate', false], ['optimize'], ['save'], ['count', 1]]);
+});
+
+test('KERNEL: selfEvolve saves optimized pruning even without additions', () => {
+  const calls = [];
+  const result = runSelfEvolve(
+    {},
+    {
+      createDreams: () => [],
+      graph: { getEdge: () => null },
+      commitBackgroundEdge: () => ({ decision: 'review', edge: null }),
+      consolidate: dryRun => { calls.push(['consolidate', dryRun]); return { removed: 0 }; },
+      optimize: () => { calls.push(['optimize']); return { pruned: 2 }; },
+      save: () => { calls.push(['save']); },
+      getDreamCount: () => 0,
+      setDreamCount: value => calls.push(['count', value]),
+    },
+  );
+
+  assert.deepEqual(result, {
+    dreams: 0,
+    added: 0,
+    addedDetails: [],
+    deferred: 0,
+    deferredDetails: [],
+    consolidated: 0,
+    optimized: 2,
+  });
+  assert.deepEqual(calls, [['consolidate', false], ['optimize'], ['save'], ['count', 1]]);
 });
 
 test('KERNEL: selfEvolve preserves allowed writes, save condition, filters, and save-error swallowing', () => {
