@@ -540,7 +540,7 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
   });
 
   it('keeps backup and restore output and operation ordering behind the audit seam', () => {
-    const managed = createIsolatedCli();
+    const managed = createIsolatedCli({ useSQLite: true });
     const originalAudit = managed.cli.kernel.recordCliMutationAudit;
     const originalOptions = managed.cli._backupOptions;
     const originalReload = managed.cli.kernel.reload;

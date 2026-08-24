@@ -30,11 +30,9 @@ describe('backupRestore', () => {
     const backupBaseDir = path.join(rootDir, 'backups');
     const memoryPath = path.join(rootDir, 'memory.json');
     fs.writeFileSync(memoryPath, JSON.stringify({ version: 1 }));
-    fs.writeFileSync(path.join(rootDir, 'memory.db'), 'db-v1');
 
     const backup = createBackup({ rootDir, backupBaseDir, backupId: 'seed', keepLast: 5 });
     fs.writeFileSync(memoryPath, JSON.stringify({ version: 2 }));
-    fs.writeFileSync(path.join(rootDir, 'memory.db'), 'db-v2');
 
     const restored = restoreBackup({ rootDir, backupBaseDir, backupDir: backup.backupDir, keepLast: 5 });
     const data = JSON.parse(fs.readFileSync(memoryPath, 'utf8'));
@@ -218,6 +216,26 @@ describe('backupRestore', () => {
     assert.ok(!entries.some(name => name.startsWith('.staging-')), 'staging directory must be cleaned up on failure');
   });
 
+  it('rejects an invalid SQLite backup source before replacing live state', () => {
+    const rootDir = makeTempRoot();
+    const backupBaseDir = path.join(rootDir, 'backups');
+    const memoryPath = path.join(rootDir, 'memory.json');
+    const dbPath = path.join(rootDir, 'memory.db');
+    fs.writeFileSync(memoryPath, JSON.stringify({ version: 1 }));
+    fs.writeFileSync(dbPath, 'not-a-sqlite-database');
+
+    const backup = createBackup({ rootDir, backupBaseDir, backupId: 'invalid-db', keepLast: 5 });
+    fs.writeFileSync(memoryPath, JSON.stringify({ version: 2 }));
+
+    assert.throws(
+      () => restoreBackup({ rootDir, backupBaseDir, backupDir: backup.backupDir, keepLast: 5 }),
+      error => error?.code === 'RESTORE_SOURCE_INVALID'
+        && error.validation?.file === 'memory.db',
+    );
+    assert.deepEqual(JSON.parse(fs.readFileSync(memoryPath, 'utf8')), { version: 2 });
+    assert.deepEqual(fs.readdirSync(backupBaseDir), ['invalid-db']);
+  });
+
   it('restoreBackup carries a complete operation receipt', () => {
     const rootDir = makeTempRoot();
     const backupBaseDir = path.join(rootDir, 'backups');
@@ -237,17 +255,16 @@ describe('backupRestore', () => {
     const rootDir = makeTempRoot();
     const backupBaseDir = path.join(rootDir, 'backups');
     const memoryPath = path.join(rootDir, 'memory.json');
-    const dbPath = path.join(rootDir, 'memory.db');
+    const embeddingPath = path.join(rootDir, 'memory.embeddings.json');
     fs.writeFileSync(memoryPath, JSON.stringify({ version: 1 }));
-    fs.writeFileSync(dbPath, 'db-v1');
+    fs.writeFileSync(embeddingPath, 'embedding-v1');
 
     const backup = createBackup({ rootDir, backupBaseDir, backupId: 'seed3', keepLast: 5 });
     fs.writeFileSync(memoryPath, JSON.stringify({ version: 2 }));
-    fs.writeFileSync(dbPath, 'db-v2');
+    fs.writeFileSync(embeddingPath, 'embedding-v2');
 
-    // Fail the SECOND rename the restore loop performs (dbPath's rename
-    // succeeds first, memoryPath's rename then throws), without touching the
-    // safety backup's own (earlier) rename call.
+    // Fail the SECOND restore-file rename (the embedding sidecar), without
+    // touching the safety backup's own (earlier) rename call.
     const originalRename = fs.renameSync;
     let renameCalls = 0;
     fs.renameSync = (...args) => {
@@ -267,11 +284,11 @@ describe('backupRestore', () => {
 
     assert.ok(caught, 'restoreBackup must throw on a partial failure');
     assert.strictEqual(caught.receipt.status, 'partial');
-    assert.ok(caught.receipt.restored.includes('memory.db'), 'files restored before the failure must be recorded');
-    assert.ok(!caught.receipt.restored.includes('memory.json'), 'the failing file must not be recorded as restored');
+    assert.ok(caught.receipt.restored.includes('memory.json'), 'files restored before the failure must be recorded');
+    assert.ok(!caught.receipt.restored.includes('memory.embeddings.json'), 'the failing file must not be recorded as restored');
     assert.ok(fs.existsSync(caught.receipt.safetyBackupDir), 'safety backup must exist as the recovery path');
-    assert.strictEqual(fs.readFileSync(dbPath, 'utf8'), 'db-v1', 'the successfully restored file must reflect the backup, not the pre-restore (v2) state');
-    assert.strictEqual(JSON.parse(fs.readFileSync(memoryPath, 'utf8')).version, 2, 'the failed file must be left untouched at its pre-restore state');
+    assert.strictEqual(JSON.parse(fs.readFileSync(memoryPath, 'utf8')).version, 1, 'the successfully restored file must reflect the backup, not the pre-restore (v2) state');
+    assert.strictEqual(fs.readFileSync(embeddingPath, 'utf8'), 'embedding-v2', 'the failed file must be left untouched at its pre-restore state');
   });
 
   it('rejects traversal, absolute, mixed-separator and nested backup ids without outside writes', () => {

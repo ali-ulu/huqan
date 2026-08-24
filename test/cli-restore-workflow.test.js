@@ -18,7 +18,6 @@ function fixture() {
     backupBaseDir: path.join(rootDir, 'backups'),
   };
   fs.writeFileSync(opts.memoryPath, '{"fact":"before"}');
-  fs.writeFileSync(opts.dbPath, 'sqlite-before');
   return { rootDir, opts };
 }
 

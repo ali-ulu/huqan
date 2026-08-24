@@ -29,6 +29,7 @@ const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
 const { handleWorkflowContractRoute, writeUnavailableWorkflow } = require('./lib/http/workflow-contract-route');
 const { createReadWorkflowHttpRouter } = require('./lib/http/read-workflow-actions');
 const { createWorkflowDataRoutes } = require('./lib/http/workflow-data-routes');
+const { bindHttpProvenance } = require('./lib/http/http-provenance');
 const { readExactWorkspace } = require('./lib/http/exact-workspace');
 const { createSessionStore } = require('./lib/viewer/session-store');
 const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
@@ -663,12 +664,8 @@ const server = http.createServer(async (req, res) => {
       const learnResult = kernel.learnDocument(text, {
         returnDetails: true,
         workspaceId,
-        sourceType: sanitizeInput(data.sourceType || '') || 'upload',
-        sourceRef: sanitizeInput(data.sourceRef || '') || reqUrl.pathname,
-        sourceTitle: sanitizeInput(data.sourceTitle || '') || 'HTTP upload',
-        actor: 'http-api',
         approvalRequired: true,
-        provenance: data.provenance && typeof data.provenance === 'object' ? data.provenance : undefined,
+        provenance: bindHttpProvenance(data.provenance, { actor: 'http-api', workspaceId, sourceType: sanitizeInput(data.sourceType || '') || 'upload', sourceRef: sanitizeInput(data.sourceRef || '') || reqUrl.pathname, sourceTitle: sanitizeInput(data.sourceTitle || '') || 'HTTP upload' }),
       });
       const admission = projectUploadAdmission(Array.isArray(learnResult.admissions) ? (learnResult.admissions.find(Boolean) || null) : null);
       res.writeHead(200, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });

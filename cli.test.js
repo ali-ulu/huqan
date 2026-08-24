@@ -657,6 +657,7 @@ describe('CLI - Komut Çalıştırma', () => {
     const cli = new CLI({
       kernel: {
         memoryPath,
+        dbPath: path.join(tmpDir, 'memory.db'),
         noLoad: true,
         useSQLite: false,
         memoryStoreUseSQLite: false,

@@ -77,7 +77,20 @@ describe('ingest workflow preview', () => {
   it('learn route requires an exact workspace and projects review admission', async () => {
     const writes = [];
     const calls = [];
-    let body = { workspaceId: 'workspace-a', text: 'cats are animals' };
+    let body = {
+      workspaceId: 'workspace-a',
+      text: 'cats are animals',
+      provenance: {
+        workspaceId: 'workspace-b',
+        actor: 'forged-actor',
+        provenanceId: 'forged-provenance',
+        sourceRef: 'forged-ref',
+        sourceTitle: 'forged-title',
+        sourceType: 'forged-type',
+        timestamp: '2020-01-01T00:00:00.000Z',
+        confidence: 1,
+      },
+    };
     const handler = createWorkflowDataRoutes({
       getApprovalStore: () => ({}), decideApproval: async () => ({}), readReceipt: () => ({}),
       parseJsonRequest: async () => body,
@@ -90,6 +103,13 @@ describe('ingest workflow preview', () => {
     assert.equal(calls[0].options.workspaceId, 'workspace-a');
     assert.equal(calls[0].options.actor, 'http-api');
     assert.equal(calls[0].options.approvalRequired, true);
+    assert.deepEqual(calls[0].options.provenance, {
+      workspaceId: 'workspace-a',
+      actor: 'http-api',
+      sourceRef: '/api/v2/workflows/learn',
+      sourceTitle: 'HTTP workflow learn',
+      sourceType: 'upload',
+    });
     assert.equal(writes[0].status, 202);
     assert.equal(writes[0].json.status, 'review_required');
     assert.equal(writes[0].json.receiptId, 'receipt-1');
