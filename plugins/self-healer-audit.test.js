@@ -5,7 +5,12 @@ const os = require('os');
 const path = require('path');
 
 const selfHealerAudit = require('./self-healer-audit');
-const { ensureAuditState, unclassifiedModuleFinding, runReachabilityAudit } = selfHealerAudit._test;
+const {
+  ensureAuditState,
+  unclassifiedModuleFinding,
+  runBehavioralObservation,
+  runReachabilityAudit,
+} = selfHealerAudit._test;
 
 function fakeKernel() { return {}; }
 
@@ -109,5 +114,67 @@ test('self-healer-audit: the real repo root does not throw and produces a well-f
   const result = selfHealerAudit.run(fakeKernel(), { action: 'scan' });
   assert.equal(result.ok, true);
   assert.equal(typeof result.unacknowledgedCount, 'number');
+  assert.equal(result.applied, false);
+});
+
+
+test('self-healer-audit: behavior action creates scoped quarantine and governed proposal without apply', () => {
+  const result = selfHealerAudit.run(fakeKernel(), {
+    action: 'behavior',
+    workspaceId: 'ws-alpha',
+    baseline: {
+      agentId: 'agent-data',
+      goal: 'produce a bounded report',
+      capabilities: ['read', 'verify'],
+      tools: ['verify'],
+      connectors: ['local'],
+      targetClasses: ['workspace_file'],
+      egressClasses: ['none'],
+      delegation: ['none'],
+    },
+    observation: {
+      agentId: 'agent-data',
+      tool: 'learn',
+      action: 'verify',
+      connector: 'local',
+      targetClass: 'workspace_file',
+      egressClass: 'none',
+      delegationClass: 'none',
+      sequenceLength: 2,
+      sequenceTools: ['learn'],
+    },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.action, 'behavior');
+  assert.equal(result.behavior.deviationCode, 'unexpected_tool');
+  assert.equal(result.behavior.decision, 'quarantine');
+  assert.equal(result.containment.action, 'quarantine');
+  assert.equal(result.containment.executorSuppressed, true);
+  assert.equal(result.containment.applied, false);
+  assert.equal(result.applied, false);
+  assert.equal(result.findingCount, 1);
+  assert.equal(result.proposals.length, 1);
+  assert.equal(result.proposals[0].decision, 'quarantine');
+  assert.ok(result.proposals[0].approvalRequest);
+  assert.equal(result.proposals[0].approvalRequest.requestedVerdict, 'review');
+  assert.equal(result.receiptSummary.receiptKind, 'asi10_behavioral_containment_summary');
+});
+
+test('self-healer-audit: behavior action fails closed when no complete baseline is supplied', () => {
+  const result = selfHealerAudit.run(fakeKernel(), {
+    action: 'behavior',
+    workspaceId: 'ws-alpha',
+    observation: {
+      agentId: 'agent-data',
+      tool: 'verify',
+      action: 'verify',
+    },
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.behavior.deviationCode, 'baseline_missing');
+  assert.equal(result.containment.action, 'quarantine');
+  assert.equal(result.containment.executorSuppressed, true);
   assert.equal(result.applied, false);
 });

@@ -5,12 +5,28 @@ const assert = require('node:assert/strict');
 
 const {
   CONNECTOR_ACTION_FIREWALL_VERSION,
+  CONNECTOR_ACTIONS,
   evaluateConnectorAction,
   executeConnectorAction,
   normalizeConnectorAction,
 } = require('../lib/connector-action-firewall');
 
 const VALID_REPO = 'https://github.com/owner/repo.git?token=not-stored#fragment';
+
+test('every registered connector action declares bounded budget and egress policy', () => {
+  for (const actions of Object.values(CONNECTOR_ACTIONS)) {
+    for (const contract of Object.values(actions)) {
+      assert.equal(typeof contract.egressClass, 'string');
+      assert.ok(contract.egressClass.length > 0);
+      assert.equal(Number.isInteger(contract.budget.maxTargets), true);
+      assert.equal(Number.isFinite(contract.budget.costPerTarget), true);
+      assert.equal(Number.isFinite(contract.budget.maxCostUnits), true);
+      assert.ok(contract.budget.maxTargets > 0);
+      assert.ok(contract.budget.costPerTarget > 0);
+      assert.ok(contract.budget.maxCostUnits > 0);
+    }
+  }
+});
 
 test('connector firewall normalizes GitHub ingest into the existing AAFW contract', () => {
   const result = evaluateConnectorAction({
@@ -27,6 +43,15 @@ test('connector firewall normalizes GitHub ingest into the existing AAFW contrac
   assert.equal(result.decision, 'allow');
   assert.equal(result.connectorFirewallVersion, CONNECTOR_ACTION_FIREWALL_VERSION);
   assert.equal(result.target, 'https://github.com/owner/repo');
+  assert.equal(result.egressClass, 'github_remote_read');
+  assert.deepEqual(result.budget, {
+    class: 'remote_repository_read',
+    targetCount: 1,
+    costPerTarget: 1,
+    costUnits: 1,
+    maxTargets: 1,
+    maxCostUnits: 1,
+  });
   assert.match(result.firewallSummary.metadata.actionId, /^[a-f0-9]{24}$/);
   assert.equal(JSON.stringify(result).includes('token=not-stored'), false);
   assert.equal(JSON.stringify(result).includes('#fragment'), false);
@@ -56,6 +81,34 @@ test('connector firewall rejects missing, malformed and unknown connector contex
   assert.equal(unknownAction.canExecute, false);
   assert.equal(unknownAction.decision, 'block');
   assert.equal(unknownAction.reason, 'CONNECTOR_ACTION_UNKNOWN');
+});
+
+test('HTTP fan-out beyond the bounded policy is blocked before the executor', async () => {
+  let calls = 0;
+  const result = await executeConnectorAction({
+    request: {
+      connector: 'http',
+      action: 'ingest',
+      urls: [
+        'https://one.example',
+        'https://two.example',
+        'https://three.example',
+        'https://four.example',
+        'https://five.example',
+      ],
+    },
+    execute: async () => {
+      calls += 1;
+      return ['bypass'];
+    },
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'CONNECTOR_ACTION_FIREWALL_BLOCKED');
+  assert.equal(result.decision, 'block');
+  assert.equal(result.reason, 'CONNECTOR_BUDGET_TARGET_LIMIT');
+  assert.equal(result.canExecute, false);
+  assert.equal(calls, 0);
 });
 
 test('connector preview is dry_run_only and cannot invoke executor', async () => {
@@ -133,6 +186,8 @@ test('connector firewall normalizes local source connectors with bound targets',
     assert.equal(result.decision, 'allow');
     assert.equal(result.firewallVersion, 'AAFW-v1.0.0');
     assert.equal(result.target, `/workspace/${connector}/source`);
+    assert.equal(result.egressClass, 'local_filesystem_read');
+    assert.equal(result.budget.costUnits, 1);
     assert.equal(result.firewallSummary.metadata.surface, 'connector');
   }
 });
@@ -148,6 +203,8 @@ test('connector firewall normalizes multiple HTTP targets and refuses credential
   assert.equal(result.decision, 'allow');
   assert.deepEqual(result.targets, ['https://example.com/docs', 'http://example.org/feed']);
   assert.equal(result.target, 'https://example.com/docs|http://example.org/feed');
+  assert.equal(result.egressClass, 'external_http_read');
+  assert.equal(result.budget.costUnits, 2);
 
   const credentials = normalizeConnectorAction({
     connector: 'http',

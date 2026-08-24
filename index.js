@@ -31,6 +31,7 @@ const agentIdentityRuntime = require('./lib/agent-identity-runtime');
 const trustEvidenceLedger = require('./lib/trust-evidence-ledger');
 const humanOversightApprovalRuntime = require('./lib/human-oversight-approval-runtime');
 const prGuardian = require('./lib/pr-guardian');
+const multiAgentCascadeGuard = require('./lib/multi-agent-cascade-guard');
 
 module.exports = KernelV2;
 
@@ -93,3 +94,9 @@ module.exports.HUMAN_OVERSIGHT_RUNTIME_REASONS = humanOversightApprovalRuntime.R
 // the library directly without MCP or the bundled HTTP server.
 module.exports.PrGuardian = prGuardian;
 module.exports.PRGuardian = prGuardian;
+
+// Bounded multi-agent coordination. Hosts supply execution; this guard owns
+// fan-out, dependency isolation, retry, and circuit-breaker policy.
+module.exports.MultiAgentCascadeGuard = multiAgentCascadeGuard;
+module.exports.createMultiAgentCascadeGuard = multiAgentCascadeGuard.createMultiAgentCascadeGuard;
+module.exports.MULTI_AGENT_CASCADE_REASONS = multiAgentCascadeGuard.REASONS;
