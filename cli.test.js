@@ -782,7 +782,11 @@ describe('CLI - Komut Çalıştırma', () => {
   });
 
   it('execute: ajan shows checkpoint details when v3 agent is enabled', () => {
-    const cli = new CLI({ kernel: { noLoad: true, useSQLite: false, version: 'v2' }, agentVersion: 'v3' });
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cli-v3-test-'));
+    const cli = new CLI({
+      kernel: { noLoad: true, useSQLite: false, version: 'v2', memoryPath: path.join(tempDir, 'memory.json') },
+      agentVersion: 'v3',
+    });
     cli.kernel.learn('kedi hayvandir');
     const result = cli.execute('ajan', 'kedi hayvandir mi');
     assert.ok(result.includes('dry-run-only'));

@@ -184,6 +184,43 @@ test('approval requires a distinct authenticated approver and binds the immutabl
   }
 });
 
+test('ASI09: blocked-action overrides require a bounded operator reason', () => {
+  const { runtime, dir } = fixture();
+  try {
+    const created = runtime.createReviewCase({
+      action: action({ requestedVerdict: 'block', actionFingerprint: 'action:blocked-override' }),
+      firewallDecision: 'block',
+      requesterContext: {},
+      policy: { allowOverride: true },
+    });
+    assert.equal(created.ok, true);
+    assert.equal(created.case.status, 'blocked');
+
+    const missingReason = runtime.decide({
+      caseId: created.case.caseId,
+      decisionType: 'override',
+      approverContext: {},
+      evidenceDigest: created.case.evidenceDigest,
+    });
+    assert.equal(missingReason.ok, false);
+    assert.equal(missingReason.reason, RUNTIME_REASONS.DECISION_REASON_REQUIRED);
+    assert.equal(missingReason.details.reasonRequired, true);
+
+    const approved = runtime.decide({
+      caseId: created.case.caseId,
+      decisionType: 'override',
+      approverContext: {},
+      reason: 'operator reviewed the blocked action and accepted the bounded exception',
+      evidenceDigest: created.case.evidenceDigest,
+    });
+    assert.equal(approved.ok, true);
+    assert.equal(approved.decision.reason, 'operator reviewed the blocked action and accepted the bounded exception');
+    assert.equal(approved.case.status, 'approved');
+  } finally {
+    cleanup(dir);
+  }
+});
+
 test('expired cases, action drift, dry-run execution, and firewall disagreement fail closed', () => {
   const { runtime, dir, clockState } = fixture();
   try {
