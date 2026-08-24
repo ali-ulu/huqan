@@ -58,3 +58,31 @@ test('GRAPH: node-write delegate preserves workspace, update, and persistence se
   assert.equal(other.workspaceId, 'ws-b');
   assert.notEqual(other, updated);
 });
+
+test('GRAPH: addNode persists the reinforced weight instead of a fixed baseline (#1241)', () => {
+  const nodes = {};
+  const persisted = [];
+  let persistedRow = null;
+  const store = {
+    readPersisted: () => ({ enabled: true, existing: persistedRow }),
+    get: key => nodes[key],
+    set: (key, value) => { nodes[key] = value; },
+    persist: value => {
+      persisted.push(value);
+      persistedRow = {
+        ...value,
+        created_at: value.createdAt,
+        provenance: value.provenance,
+        vector: value.vector,
+      };
+    },
+  };
+
+  addNode(store, 'n1', 'first', null, { workspaceId: 'ws-a' });
+  addNode(store, 'n1', 'second', null, { workspaceId: 'ws-a' });
+
+  assert.equal(persisted.length, 2);
+  assert.equal(persisted[0].weight, 0.5);
+  assert.equal(persisted[1].weight, 0.6);
+  assert.equal(nodes[nodeStorageKey('n1', 'ws-a')].weight, 0.6);
+});
