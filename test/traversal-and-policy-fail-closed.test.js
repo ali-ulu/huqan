@@ -10,6 +10,7 @@ const {
   CYCLE_STOPPED,
   detectCycle,
   detectCycleBounded,
+  findPathWithTimeout,
 } = require('../lib/graph-traversal');
 const {
   TRUST_POLICY_UNAVAILABLE_CONFIDENCE,
@@ -90,6 +91,23 @@ describe('cycle detection is bounded, not recursive (#743)', () => {
     const result = detectCycleBounded(graph, 'n0', { maxDepth: 50 });
     assert.ok(result.cycle, 'a cycle within budget must still be reported');
     assert.ok(result.cycle.includes('x') && result.cycle.includes('y'));
+  });
+
+  it('a dead-end branch does not suppress a valid later path (#1243)', () => {
+    const graph = new Graph({ useSQLite: false, noLoad: true });
+    for (const id of ['start', 'dead', 'dead-2', 'dead-3', 'bridge', 'shared', 'goal']) {
+      graph.addNode(id, id, null, { workspaceId: 'default' });
+    }
+    graph.addEdge('start', 'dead', 'tür', { workspaceId: 'default' });
+    graph.addEdge('dead', 'dead-2', 'tür', { workspaceId: 'default' });
+    graph.addEdge('dead-2', 'dead-3', 'tür', { workspaceId: 'default' });
+    graph.addEdge('dead-3', 'shared', 'tür', { workspaceId: 'default' });
+    graph.addEdge('start', 'bridge', 'tür', { workspaceId: 'default' });
+    graph.addEdge('bridge', 'shared', 'tür', { workspaceId: 'default' });
+    graph.addEdge('shared', 'goal', 'tür', { workspaceId: 'default' });
+
+    const result = findPathWithTimeout(graph, 'start', 'goal', 100, 'default', 5);
+    assert.deepStrictEqual(result.path, ['start', 'bridge', 'shared', 'goal']);
   });
 
   it('a "neden" question over a deep chain does not crash the kernel', () => {
