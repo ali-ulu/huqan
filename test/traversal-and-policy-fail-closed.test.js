@@ -107,6 +107,9 @@ describe('cycle detection is bounded, not recursive (#743)', () => {
     let result;
     assert.doesNotThrow(() => { result = kernel.ask('neden n0'); }, 'ask/reason must not throw on a deep chain');
     assert.ok(result);
+    assert.strictEqual(result.data.cycleSearch.cycle, null);
+    assert.strictEqual(result.data.cycleSearch.stoppedReason, CYCLE_STOPPED.MAX_DEPTH);
+    assert.equal(result.data.cycles.length, 0);
   });
 });
 
