@@ -371,7 +371,6 @@
     "lib/self-healer/safety-decision.js",
     "lib/self-healer/source-dependency-graph.js",
     "lib/self-healer/source-dogfood-simulator.js",
-    "lib/self-test-oracle.js",
     "lib/semantic-score.js",
     "lib/semantic-signals.js",
     "lib/server-response-helpers.js",
