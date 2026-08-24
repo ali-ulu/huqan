@@ -55,15 +55,17 @@ function identityKey(...parts) {
   return `${label}-${digest}`;
 }
 
+const INGEST_STATE_KEY = '_companyBrainIngestState';
+
 function ensureCompanyState(kernel) {
-  if (!kernel._companyIngestState) {
-    kernel._companyIngestState = {
+  if (!kernel[INGEST_STATE_KEY]) {
+    kernel[INGEST_STATE_KEY] = {
       bySource: { repo: 0, markdown: 0, manual: 0, decision: 0, api: 0 },
       lastIngestAt: null,
       ingestErrors: [],
     };
   }
-  return kernel._companyIngestState;
+  return kernel[INGEST_STATE_KEY];
 }
 
 function trackSuccess(kernel, sourceType, amount = 1) {
@@ -589,6 +591,13 @@ function ingestApi(kernel, input = {}) {
 
 function getIngestStatus(kernel) {
   const state = ensureCompanyState(kernel);
+  const repoState = kernel._repoMemoryIngestState;
+  const distribution = {};
+  for (const ingestState of [repoState, state]) {
+    for (const [key, value] of Object.entries(ingestState?.bySource || {})) {
+      distribution[key] = Number(distribution[key] || 0) + Number(value || 0);
+    }
+  }
   const stats = kernel.graph && typeof kernel.graph.getStats === 'function'
     ? kernel.graph.getStats()
     : { nodes: 0, edges: 0 };
@@ -596,10 +605,8 @@ function getIngestStatus(kernel) {
   return {
     ok: true,
     totalNodes: stats.nodes || 0,
-    distribution: Object.fromEntries(
-      Object.entries(state.bySource).map(([key, value]) => [key, Number(value || 0)])
-    ),
-    lastIngestAt: state.lastIngestAt || null,
+    distribution,
+    lastIngestAt: state.lastIngestAt || repoState?.lastIngestAt || null,
     // Newest first and bounded. Returning the whole array meant a monitoring
     // caller polling this endpoint pulled every error ever recorded: 200k
     // failed ingests produced a 24 MB body, with the one error the operator
