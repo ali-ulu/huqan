@@ -132,7 +132,7 @@ function createRouteFixture(t, options = {}) {
     restartReplay, journalReplayAdapter, materializeProfile, cleanup,
   };
 }
-function routeIdentityAuthority(ownerActorId = 'connector:route-test') {
+function routeIdentityAuthority(ownerActorId = 'connector:route-test', recordOverrides = {}) {
   return snapshotAgentIdentityAuthority({
     workspaceId: 'workspace-route-a',
     identities: [{ ref: 'identity:route-agent', record: {
@@ -141,6 +141,7 @@ function routeIdentityAuthority(ownerActorId = 'connector:route-test') {
       agent_type: 'connector-agent', owner_actor_id: ownerActorId, workspace_id: 'workspace-route-a',
       delegation_scope: ['external-client.commitCandidateClaim'], allowed_tools: ['external-client'],
       allowed_connectors: ['connector'], policy_version: 'route-identity-policy-1',
+      ...recordOverrides,
     } }],
     clock: () => Date.parse('2026-08-04T18:00:00.000Z'),
   });

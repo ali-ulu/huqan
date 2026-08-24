@@ -40,6 +40,7 @@ const {
   edgeUpdateArgs,
 } = require('./lib/graph-record-utils');
 const { derivePersistenceLayout } = require('./lib/memory-store-utils');
+const { handleSqliteInitializationError, hasExistingPersistenceFile, sqlitePersistenceError } = require('./lib/sqlite-persistence-validation');
 const { countAuditEvents, queryAuditEvents, readAuditEvents } = require('./lib/audit-query');
 const { assertChainTipUsable, emptyMutationJournal, readMutationJournal, readCommittedMutationResult, readCommittedMutationResultsByPrefix, withMutationJournalLock } = require('./lib/mutation-journal');
 const { applyTemporalEdgeMetadata, beginEdgeTouchScope, downgradeEdge, edgeTouchKey } = require('./lib/graph-edge-mutations');
@@ -109,6 +110,7 @@ class Graph {
     this._stmts = null; // SQLite statement güvenliği için null init
     if (wantSQLite) {
       const dbPath = this._paths.dbPath;
+      const hasExistingDatabase = hasExistingPersistenceFile(dbPath);
       try {
         this._db = new Database(dbPath);
         this._initDB();
@@ -116,8 +118,7 @@ class Graph {
         try { this._db?.close(); } catch (_) {}
         this._db = null;
         this._stmts = null;
-        if (e?.code === RECEIPT_FAMILY_MIGRATION_ERROR_CODE) throw e;
-        console.error('[Graph] SQLite başlatılamadı, JSON fallback:', e.message);
+        handleSqliteInitializationError(e, hasExistingDatabase, RECEIPT_FAMILY_MIGRATION_ERROR_CODE);
       }
     }
   }
@@ -1187,15 +1188,13 @@ class Graph {
 
           // Embedding'leri yükle
           if (fs.existsSync(this._embeddingPath)) {
-            try {
-              const emb = JSON.parse(fs.readFileSync(this._embeddingPath, 'utf-8'));
-              this._restoreEmbeddings(emb);
-            } catch (_) {}
+            const emb = JSON.parse(fs.readFileSync(this._embeddingPath, 'utf-8'));
+            this._restoreEmbeddings(emb);
           }
           return; // SQLite'tan başarıyla yüklendi
         }
       } catch (e) {
-        console.error('[Graph] SQLite yükleme hatası, JSON fallback:', e.message);
+        throw sqlitePersistenceError('load', e);
       }
     }
 

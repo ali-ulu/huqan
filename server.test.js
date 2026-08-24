@@ -415,7 +415,7 @@ describe('Server - API', () => {
         admissionBypassReason: 'nested-caller-controlled',
       },
     });
-    assert.strictEqual(body.admission.workspaceId, 'rest-review-workspace');
+    assert.strictEqual(body.admission.workspaceId, 'default');
     assert.strictEqual(body.admission.receipt.actor, 'http-api');
     assert.strictEqual(body.admission.receipt.approvalId, '');
   });

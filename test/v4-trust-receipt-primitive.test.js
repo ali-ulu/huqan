@@ -136,6 +136,18 @@ describe('V4-PR2.5: canonical receipt payload', () => {
     assert.doesNotThrow(() => stableStringify(payload));
     assert.strictEqual(stableStringify(payload), '{"left":{"id":"shared"},"right":{"id":"shared"}}');
   });
+
+  it('stableStringify preserves special own keys in canonical bytes', () => {
+    const special = JSON.parse('{"metadata":{"__proto__":{"attacker":"value"},"constructor":{"shadow":true},"prototype":{"marker":true}}}');
+    const ordinary = { metadata: {} };
+    const serialized = stableStringify(special);
+
+    assert.match(serialized, /__proto__/);
+    assert.match(serialized, /constructor/);
+    assert.match(serialized, /prototype/);
+    assert.notStrictEqual(serialized, stableStringify(ordinary));
+    assert.notStrictEqual(hashCanonicalReceiptPayload(special), hashCanonicalReceiptPayload(ordinary));
+  });
 });
 
 describe('V4-PR2.5: receipt chain — linking and genesis', () => {
