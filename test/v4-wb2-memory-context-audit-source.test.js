@@ -246,6 +246,68 @@ test('malformed, duplicate and over-bound source results become read_error', () 
   assert.equal(inspect(malformedEvent, 'x', 'fake-workspace').status, 'read_error');
 });
 
+test('maps audit and receipt trace ids into the memory-context record and provenance', () => {
+  const fromDetails = fakeEvent({
+    auditId: 'audit-trace-details',
+    workspaceId: 'trace-workspace',
+    details: {
+      admissionOutcome: 'review',
+      reason: 'approval_pending',
+      traceId: 'trace-from-details',
+      receiptId: 'receipt-from-details',
+      receipt: {
+        decision: 'review',
+        traceId: 'trace-from-receipt',
+        receiptId: 'receipt-from-receipt',
+      },
+    },
+  });
+  const fromReceipt = fakeEvent({
+    auditId: 'audit-trace-receipt',
+    workspaceId: 'trace-workspace',
+    details: {
+      admissionOutcome: 'allow',
+      reason: 'approved',
+      receipt: {
+        decision: 'allow',
+        traceId: 'trace-receipt-fallback',
+        receiptId: 'receipt-receipt-fallback',
+      },
+    },
+  });
+  const source = createMemoryContextAuditSource({
+    getAuditEvents(filters) {
+      return [fromDetails, fromReceipt].filter((event) => (
+        event.auditId === filters.auditId && event.workspaceId === filters.workspaceId
+      ));
+    },
+  });
+
+  const detailsRecord = source.readMemoryContext({
+    recordId: fromDetails.auditId,
+    workspaceId: fromDetails.workspaceId,
+  });
+  assert.equal(detailsRecord.traceId, 'trace-from-details');
+  assert.equal(detailsRecord.memoryAdmission.traceId, 'trace-from-details');
+  assert.equal(inspectMemoryContext({
+    source,
+    recordId: fromDetails.auditId,
+    workspaceId: fromDetails.workspaceId,
+  }).provenance.traceId, 'trace-from-details');
+
+  const receiptRecord = source.readMemoryContext({
+    recordId: fromReceipt.auditId,
+    workspaceId: fromReceipt.workspaceId,
+  });
+  assert.equal(receiptRecord.traceId, 'trace-receipt-fallback');
+  assert.equal(receiptRecord.memoryAdmission.traceId, 'trace-receipt-fallback');
+  assert.equal(inspectMemoryContext({
+    source,
+    recordId: fromReceipt.auditId,
+    workspaceId: fromReceipt.workspaceId,
+  }).provenance.traceId, 'trace-receipt-fallback');
+});
+
 test('missing receipt stays null and provenance fields are not relabeled as traceId', () => {
   const root = fixtureRoot('minimal');
   let kernel;
