@@ -2,6 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
+const Module = require('node:module');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -205,6 +206,77 @@ test('HTTP ingest Human Oversight blocks before claim and executor when approver
     assert.equal(f.store.getToolApprovalById(f.approval.id).status, 'pending');
     assert.equal(executions, 0);
   } finally {
+    f.graph.close?.();
+    fs.rmSync(f.dir, { recursive: true, force: true });
+  }
+});
+
+test('failed approved oversight does not start a lease heartbeat before returning', async () => {
+  const actionModule = require.resolve('../lib/workbench/ingest-approval-action');
+  const adapterModule = require.resolve('../lib/http-human-oversight-adapter');
+  const originalLoad = Module._load;
+  const originalSetInterval = global.setInterval;
+  const originalClearInterval = global.clearInterval;
+  const originalAdapter = require(adapterModule);
+  const f = fixture();
+  let intervalStarts = 0;
+  let intervalClears = 0;
+  let executions = 0;
+
+  delete require.cache[actionModule];
+  Module._load = function patchedLoad(request, parent, isMain) {
+    const resolved = Module._resolveFilename(request, parent, isMain);
+    if (resolved === adapterModule) {
+      return {
+        ...originalAdapter,
+        prepareHttpIngestOversightDecision: () => ({
+          ok: true,
+          oversightCase: { enabled: true },
+          oversightDecision: { enabled: true, ok: false },
+          identityEvaluation: { enabled: false, ok: true },
+        }),
+      };
+    }
+    return originalLoad.apply(this, arguments);
+  };
+  global.setInterval = (...args) => {
+    intervalStarts += 1;
+    return originalSetInterval(...args);
+  };
+  global.clearInterval = handle => {
+    intervalClears += 1;
+    return originalClearInterval(handle);
+  };
+
+  try {
+    const { decideIngestApproval: isolatedDecideIngestApproval } = require(actionModule);
+    const result = await isolatedDecideIngestApproval({
+      store: f.store,
+      kernel: {},
+      approvalId: f.approval.id,
+      decision: 'approved',
+      reason: 'bounded_http_operator_review',
+      handleIngest: async () => {
+        executions += 1;
+        return { ok: true, admission: { outcome: 'allow', graphWrite: false, entries: [] } };
+      },
+      ensureRuntime: () => {},
+      recordAudit: () => ({ auditId: 'audit-http-heartbeat-cleanup' }),
+      toPublicApproval: value => value,
+      workerId: 'http-test-worker',
+      leaseMs: 10_000,
+    });
+
+    assert.equal(result.error.code, 'OVERSIGHT_DECISION_FAILED');
+    assert.equal(f.store.getToolApprovalById(f.approval.id).status, 'failed');
+    assert.equal(executions, 0);
+    assert.equal(intervalStarts, 0);
+    assert.equal(intervalClears, 0);
+  } finally {
+    Module._load = originalLoad;
+    global.setInterval = originalSetInterval;
+    global.clearInterval = originalClearInterval;
+    delete require.cache[actionModule];
     f.graph.close?.();
     fs.rmSync(f.dir, { recursive: true, force: true });
   }
