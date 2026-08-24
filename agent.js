@@ -7,6 +7,7 @@ const { mcpToolPolicy } = require('./lib/mcp-tool-policy');
 const { buildFinalSummary } = require('./finalizer');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
 const { enforceAgentActionStep } = require('./lib/agent-action-firewall');
+const { prepareGoalIntegrityForPlan } = require('./lib/goal-integrity-gate');
 const { stepFailureSignature } = require('./lib/agent-failure-signature');
 const {
   cloneValue,
@@ -450,11 +451,9 @@ class Agent {
   _buildPlan(goal, opts = {}) {
     const objective = this._objective(goal);
     const cleanedGoal = normalizeGoal(goal);
-    const shortGoal = firstWords(cleanedGoal, 5);
+    const goalIntegrity = prepareGoalIntegrityForPlan(this, cleanedGoal, opts); if (!goalIntegrity.ok) return goalIntegrity.result;
     const policy = this._policy(cleanedGoal, objective);
     const steps = [];
-    const selectedTools = [...policy.selectedTools];
-
     const pushStep = (id, action, tool, input, rationale) => {
       steps.push({ id, action, tool, input, rationale });
     };
@@ -494,13 +493,14 @@ class Agent {
     const plan = {
       goal: cleanedGoal,
       objective,
-      shortGoal,
+      shortGoal: firstWords(cleanedGoal, 5),
       steps: limitedSteps,
-      selectedTools,
+      selectedTools: [...policy.selectedTools],
       maxSteps: Math.max(1, opts.maxSteps || this.maxSteps),
       status: 'planned',
       confidence: objective === 'investigate' ? 0.58 : 0.74,
       policy,
+      goalIntegrity: goalIntegrity.scope,
       memory: memorySummary,
       rationale: objective === 'investigate'
         ? 'The overall objective is unclear; gather context first, then decide.'
@@ -754,7 +754,7 @@ class Agent {
 
   run(goal, opts = {}) {
     const planResult = this.plan(goal, opts);
-    const freshPlan = planResult.data;
+    if (!planResult || planResult.ok === false) return planResult; const freshPlan = planResult.data;
     const resumeCandidate = opts.resume === false ? null : this._findResumeRun(goal);
     const activePlan = resumeCandidate && resumeCandidate.plan ? resumeCandidate.plan : freshPlan;
     const state = resumeCandidate ? {
