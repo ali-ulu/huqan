@@ -1,19 +1,58 @@
+const crypto = require('crypto');
 const LLMAdapter = require('../llmAdapter');
 const { adjustedConfidence } = require('../evidence-ranker');
 const { normalizeAlias, resolveEntity } = require('../lib/entity-resolution');
 const { gateCompanyIngest } = require('../lib/company-ingest-gate');
 const { withCausalStrength } = require('../lib/causal-edge-strength');
+const { recordIngestError, summarizeIngestErrors } = require('../lib/bounded-ingest-errors');
 
 function nowIso() {
   return new Date().toISOString();
 }
 
+/**
+ * Readable, lossy label for a node id. Never an identity on its own -- see
+ * `identityKey`.
+ *
+ * Turkish-aware lowercasing matters here: plain `.toLowerCase()` maps `İ`
+ * (U+0130) to `i` + U+0307, and the combining dot is outside the allowed class,
+ * so every `İ` split its word in two ("ÜRÜN İADE POLİTİKASI" became
+ * "ürün-i-ade-poli-ti-kasi"). NFC keeps ç/ğ/ö/ş/ü composed -- NFKD would strip
+ * them to bare ASCII, which is a different and unwanted change -- and any
+ * combining mark that still survives is removed rather than turned into a
+ * separator.
+ */
 function slug(text) {
   return String(text || '')
-    .toLowerCase()
+    .normalize('NFC')
+    .toLocaleLowerCase('tr')
+    .replace(/\p{M}+/gu, '')
     .replace(/[^a-z0-9çğıöşü]+/gi, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 48) || 'decision';
+}
+
+/**
+ * Identity for a company-brain node: the readable slug plus a digest over the
+ * *whole* input.
+ *
+ * The slug alone was the distinguishing part of these ids, and it truncates at
+ * 48 characters. Two decisions on the same date whose titles diverged after
+ * character 48 collapsed onto one node -- silently, both calls returning
+ * ok:true -- so two contradictory policies ended up filed as evidence for the
+ * same decision, and contradiction detection could not see a conflict because
+ * the graph held only one. `manual-note` was worse: it keyed on the first 24
+ * characters of the note text.
+ *
+ * @param {...string} parts Everything that makes this node distinct.
+ * @returns {string}
+ */
+function identityKey(...parts) {
+  const label = slug(parts[0]);
+  // JSON-encoding the parts keeps the field boundary unambiguous, so
+  // ('ab', 'c') and ('a', 'bc') cannot hash alike.
+  const digest = crypto.createHash('sha256').update(JSON.stringify(parts.map(part => String(part ?? ''))), 'utf8').digest('hex').slice(0, 12);
+  return `${label}-${digest}`;
 }
 
 function ensureCompanyState(kernel) {
@@ -36,11 +75,7 @@ function trackSuccess(kernel, sourceType, amount = 1) {
 
 function trackError(kernel, sourceType, message) {
   const state = ensureCompanyState(kernel);
-  state.ingestErrors.push({
-    sourceType,
-    message: String(message || 'unknown error'),
-    at: nowIso(),
-  });
+  recordIngestError(state, sourceType, message, nowIso());
   state.lastIngestAt = nowIso();
 }
 
@@ -335,7 +370,9 @@ function ingestManual(kernel, input = {}) {
   const author = String(input.author || 'unknown').trim() || 'unknown';
   const date = String(input.date || nowIso().slice(0, 10)).trim() || nowIso().slice(0, 10);
   const sourceRef = `manual:${author}:${date}`;
-  const noteNode = `manual-note:${author}:${date}:${slug(text.slice(0, 24))}`;
+  // The whole note text feeds the identity: keying on its first 24 characters
+  // merged two same-day notes by the same author that merely started alike.
+  const noteNode = `manual-note:${author}:${date}:${identityKey(text)}`;
 
   const proposals = [kernel.proposeNode(noteNode, noteNode)];
   const facts = typeof kernel.extractFacts === 'function'
@@ -410,10 +447,16 @@ function ingestDecision(kernel, input = {}) {
   const date = String(input.date || nowIso().slice(0, 10)).trim();
   const decidedBy = String(input.decidedBy || 'unknown').trim();
   const sourceRef = `manual:${decidedBy}:${date}`;
-  const decisionId = `decision:${slug(title)}:${date}`;
-  const rationaleId = `decision-rationale:${slug(title)}:${date}`;
+  const decisionKey = identityKey(title, date, decidedBy);
+  const decisionId = `decision:${decisionKey}:${date}`;
+  const rationaleId = `decision-rationale:${decisionKey}:${date}`;
 
   const proposals = [];
+  // Every edge this function writes is counted, not just the rationale one.
+  // `added` fed both the return value and trackSuccess, so a decision with
+  // alternatives and links reported at most 1 and the `decision` share of
+  // ingestStatus.distribution drifted low with every such ingest.
+  let added = 0;
   const rationaleEdge = addCompanyEdge(kernel, decisionId, rationaleId, 'açıklar', {
     source: 'manual',
     sourceRef,
@@ -424,10 +467,11 @@ function ingestDecision(kernel, input = {}) {
     sessionId: input.sessionId || '',
   });
   proposals.push(...rationaleEdge.proposals);
+  if (rationaleEdge.edge) added += 1;
 
   const alternatives = Array.isArray(input.alternatives) ? input.alternatives : [];
   for (const alt of alternatives) {
-    const altId = `alternative:${slug(alt)}:${date}`;
+    const altId = `alternative:${identityKey(alt, date)}:${date}`;
     const alternativeEdge = addCompanyEdge(kernel, decisionId, altId, 'alternatif', {
       source: 'manual',
       sourceRef,
@@ -438,6 +482,7 @@ function ingestDecision(kernel, input = {}) {
       sessionId: input.sessionId || '',
     });
     proposals.push(...alternativeEdge.proposals);
+    if (alternativeEdge.edge) added += 1;
   }
 
   const links = Array.isArray(input.links) ? input.links : [];
@@ -452,9 +497,9 @@ function ingestDecision(kernel, input = {}) {
       sessionId: input.sessionId || '',
     });
     proposals.push(...linkEdge.proposals);
+    if (linkEdge.edge) added += 1;
   }
 
-  const added = rationaleEdge.edge ? 1 : 0;
   trackSuccess(kernel, 'decision', added);
   return {
     ok: true,
@@ -509,7 +554,7 @@ function ingestApi(kernel, input = {}) {
   }
 
   const date = String(input.date || new Date().toISOString().slice(0, 10));
-  const noteNode = `api-note:${slug(sourceRef)}:${date}`;
+  const noteNode = `api-note:${identityKey(sourceRef)}:${date}`;
   const proposals = [];
 
   const edge = addCompanyEdge(kernel, noteNode, text.slice(0, 96), 'not', {
@@ -555,7 +600,11 @@ function getIngestStatus(kernel) {
       Object.entries(state.bySource).map(([key, value]) => [key, Number(value || 0)])
     ),
     lastIngestAt: state.lastIngestAt || null,
-    ingestErrors: Array.isArray(state.ingestErrors) ? state.ingestErrors : [],
+    // Newest first and bounded. Returning the whole array meant a monitoring
+    // caller polling this endpoint pulled every error ever recorded: 200k
+    // failed ingests produced a 24 MB body, with the one error the operator
+    // needed buried at the end.
+    ...summarizeIngestErrors(state),
   };
 }
 

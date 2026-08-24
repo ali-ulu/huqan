@@ -53,10 +53,15 @@ test('memory search is workspace-scoped, bounded, and projects trust handoff fie
       };
     },
   };
-  assert.deepEqual(searchMemory(graph, { workspaceId: 'team-a', query: 'alpha' }), [{
-    id: 'alpha', label: 'Alpha claim', confidence: 0.8,
-    sourceRef: 'doc:alpha', provenanceId: 'prov-alpha', workspaceId: 'team-a',
-  }]);
+  // searchMemory now reports whether the result was trimmed alongside the rows
+  // (#1269), so the caller can tell 50 results from the first 50 of 20 000.
+  assert.deepEqual(searchMemory(graph, { workspaceId: 'team-a', query: 'alpha' }), {
+    items: [{
+      id: 'alpha', label: 'Alpha claim', confidence: 0.8,
+      sourceRef: 'doc:alpha', provenanceId: 'prov-alpha', workspaceId: 'team-a',
+    }],
+    truncated: false,
+  });
 });
 
 test('Claim Workspace uses manifest routes, session-only auth, real search, and receipt handoff', () => {
