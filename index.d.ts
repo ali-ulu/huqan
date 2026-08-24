@@ -1,6 +1,20 @@
 import Kernel = require('./kernel');
 import KernelV2 = require('./kernel.v2');
 
+type TelemetryClientFactory = (options: {
+  sink: { recordLifecycle: (eventName: string, data: Record<string, unknown>) => unknown };
+  workspaceId: string;
+  agentId?: string;
+  runtime?: string;
+  idFactory?: () => string;
+}) => {
+  startRun: (input?: Record<string, unknown>) => Readonly<{ workspaceId: string; runId: string; traceId: string }>;
+  finishRun: (ids: Record<string, unknown>, fields?: Record<string, unknown>) => unknown;
+  startStep: (ids: Record<string, unknown>, fields?: Record<string, unknown>) => unknown;
+  finishStep: (ids: Record<string, unknown>, fields?: Record<string, unknown>) => unknown;
+  gateDecision: (ids: Record<string, unknown>, fields?: Record<string, unknown>) => unknown;
+};
+
 /**
  * Package root export (#329).
  *
@@ -19,6 +33,12 @@ declare const huqan: typeof KernelV2 & {
   CONTRACT_VERSION: string;
   ProvenanceError: typeof Kernel.ProvenanceError;
   createAdmissionBypassOpts: (reason: string) => Record<string, unknown>;
+
+  ObservabilityClient: {
+    createTelemetryClient: TelemetryClientFactory;
+    safeMetadata: (value: unknown, depth?: number) => unknown;
+  };
+  createTelemetryClient: TelemetryClientFactory;
 
   ErrorPrevention: new (memoryStore: any, options?: Record<string, unknown>) => any;
   createErrorPrevention: (memoryStore: any, options?: Record<string, unknown>) => any;
