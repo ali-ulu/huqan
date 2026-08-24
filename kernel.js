@@ -1044,8 +1044,8 @@ class Kernel {
   }
 
   /**
-   * Kendi kendine öğrenme — boşlukları tespit edip doldurur.
-   * Bilinmeyen kavramları bulur ve LLM'den öğrenir.
+   * Kendi kendine öğrenme için boşlukları tespit eder.
+   * Governed bir öğrenme/admission yolu bağlanana kadar read-only stub döndürür.
    */
   selfLearn(opts = {}) {
     return runSelfLearn(() => this.detectGaps(), this.graph);
