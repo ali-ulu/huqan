@@ -60,6 +60,15 @@ test('Agent Activity Pulse dashboard contract', async (t) => {
     assert.match(script, /showActivity\(id\)/);
   });
 
+  await t.test('reflects the activity read surface in the Integration Surfaces registry', () => {
+    assert.ok(script.includes("activity:{label:'Agent Activity',endpoint:'/api/workbench/activity',s:'checking'}"));
+    assert.ok(script.includes("activity:'Workspace-scoped bounded agent activity read surface.'"));
+    assert.ok(script.includes("async function loadActivityPulse(){surface('activity','checking')"));
+    assert.ok(script.includes("surface('activity',r.status===401||r.status===403?'locked':'err')"));
+    assert.ok(script.includes("surface('activity','ok')"));
+    assert.ok(script.includes("surface('activity','err')"));
+  });
+
   await t.test('keeps the inline dashboard script syntactically valid', () => {
     assert.doesNotThrow(() => new vm.Script(script));
   });
