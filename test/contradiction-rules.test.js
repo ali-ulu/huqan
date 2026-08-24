@@ -159,4 +159,23 @@ describe('contradiction-rules', () => {
     assert.ok(signal);
     assert.strictEqual(signal.rule, CONTRADICTION_RULES.NEGATION_CONFLICT);
   });
+
+  it('does not treat cause as a substring inside because (#1234)', () => {
+    const signals = runContradictionRules(
+      { text: 'engine fails because of icing', subject: 'engine' },
+      { text: 'engine prevents failure', subject: 'engine' },
+    );
+    assert.equal(
+      signals.some(signal => signal.rule === CONTRADICTION_RULES.CAUSE_PREVENT_OPPOSITION),
+      false,
+    );
+  });
+
+  it('still detects a true cause/prevent opposition at phrase boundaries', () => {
+    const signals = runContradictionRules(
+      { text: 'engine causes failure', subject: 'engine' },
+      { text: 'engine prevents failure', subject: 'engine' },
+    );
+    assert.ok(signals.some(signal => signal.rule === CONTRADICTION_RULES.CAUSE_PREVENT_OPPOSITION));
+  });
 });
