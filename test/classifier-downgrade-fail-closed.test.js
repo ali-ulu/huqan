@@ -67,6 +67,22 @@ describe('read-only automation classification is fail-closed (#739)', () => {
     }
   });
 
+  it('general destructive verbs cannot hide behind a read-only token', () => {
+    for (const operationType of [
+      'list and delete branches',
+      'report and remove remote',
+      'show and rename repository',
+      'view and disable workflow',
+    ]) {
+      const finding = classifyAutomationOperation({ operationType });
+      assert.notStrictEqual(finding.decision, 'allow', `${operationType} was allowed`);
+      assert.notStrictEqual(finding.category, 'read_only', `${operationType} was read-only`);
+    }
+    const branchDelete = classifyAutomationOperation({ operationType: 'list and delete branches' });
+    assert.strictEqual(branchDelete.category, 'branch_delete');
+    assert.strictEqual(branchDelete.decision, 'review');
+  });
+
   it('genuinely read-only operations are still allowed', () => {
     for (const operationType of ['list branches', 'view pull request', 'read repository']) {
       const finding = classifyAutomationOperation({ operationType });
