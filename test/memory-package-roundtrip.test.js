@@ -295,3 +295,74 @@ describe('memory-package-roundtrip', () => {
     });
   });
 });
+
+it('#1515: workspaceId alias imports only into the requested workspace and reports it', () => {
+  const source = createStore();
+  source.store({ content: 'tenant-memory', workspaceId: 'w1' });
+  const pkg = source.exportPackage({ workspaceId: 'w1' }).package;
+  const target = createStore();
+
+  const result = target.importPackage(pkg, { workspaceId: 'w1' });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.targetWorkspaceId, 'w1');
+  assert.equal(result.conflicts, undefined);
+  assert.equal(target.list({ workspaceId: 'w1' }).memories.length, 1);
+  assert.equal(target.list({ workspaceId: 'default' }).memories.length, 0);
+});
+
+it('#1515: importPackage rejects an omitted target workspace instead of defaulting', () => {
+  const source = createStore();
+  source.store({ content: 'tenant-memory', workspaceId: 'w1' });
+  const pkg = source.exportPackage({ workspaceId: 'w1' }).package;
+  const target = createStore();
+
+  const result = target.importPackage(pkg, {});
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, 'TARGET_WORKSPACE_REQUIRED');
+  assert.equal(target.list({ workspaceId: 'w1' }).memories.length, 0);
+  assert.equal(target.list({ workspaceId: 'default' }).memories.length, 0);
+});
+
+it('#1515: targetWorkspaceId takes precedence over workspaceId', () => {
+  const source = createStore();
+  source.store({ content: 'tenant-memory', workspaceId: 'w1' });
+  const pkg = source.exportPackage({ workspaceId: 'w1' }).package;
+  const target = createStore();
+
+  const result = target.importPackage(pkg, {
+    targetWorkspaceId: 'w1',
+    workspaceId: 'ignored-workspace',
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.targetWorkspaceId, 'w1');
+  assert.equal(target.list({ workspaceId: 'w1' }).memories.length, 1);
+  assert.equal(target.list({ workspaceId: 'ignored-workspace' }).memories.length, 0);
+});
+
+it('#1515: reports package/target mismatch and strict mode aborts before mutation', () => {
+  const source = createStore();
+  source.store({ content: 'tenant-memory', workspaceId: 'w1' });
+  const pkg = source.exportPackage({ workspaceId: 'w1' }).package;
+
+  const idempotentTarget = createStore();
+  const idempotent = idempotentTarget.importPackage(pkg, { targetWorkspaceId: 'w2' });
+  assert.equal(idempotent.ok, true);
+  assert.equal(idempotent.targetWorkspaceId, 'w2');
+  assert.deepEqual(idempotent.conflicts, [{
+    type: 'workspace',
+    reason: 'package workspace differs from target',
+    packageWorkspaceId: 'w1',
+    targetWorkspaceId: 'w2',
+  }]);
+  assert.equal(idempotentTarget.list({ workspaceId: 'w2' }).memories.length, 1);
+
+  const strictTarget = createStore();
+  const strict = strictTarget.importPackage(pkg, { targetWorkspaceId: 'w2', mode: 'strict' });
+  assert.equal(strict.ok, false);
+  assert.equal(strict.error.code, 'CONFLICT');
+  assert.deepEqual(strict.error.details, idempotent.conflicts);
+  assert.equal(strictTarget.list({ workspaceId: 'w2' }).memories.length, 0);
+});

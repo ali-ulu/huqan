@@ -130,7 +130,7 @@ test('#400: strict mode succeeds when there is no conflict', () => {
   const pkg = store.exportPackage({ workspaceId: 'ws' }).package;
 
   const target = new MemoryStore();
-  const result = target.importPackage(pkg, { targetWorkspaceId: 'other-ws', mode: 'strict' });
+  const result = target.importPackage(pkg, { targetWorkspaceId: 'ws', mode: 'strict' });
 
   assert.equal(result.ok, true, 'a clean strict import still succeeds');
   assert.equal(result.imported.memories, 1);
