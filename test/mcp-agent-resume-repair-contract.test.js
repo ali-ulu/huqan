@@ -359,6 +359,16 @@ test('storage returns the named checkpoint scoped to goal and workspace (#880)',
   assert.ok(latestCompleted && ['old-1', 'new-1'].includes(latestCompleted.id),
     'latest must never return the completed row');
 
+  // Deletion must carry the same scope as lookup; a wrong goal/workspace cannot
+  // remove the row, and the caller gets an exact changed/not-changed result.
+  assert.equal(store.deleteCheckpoint('old-1', 'multi checkpoint goal', 'ws-b'), false);
+  assert.equal(store.deleteCheckpoint('old-1', 'other goal', 'ws-a'), false);
+  assert.ok(store.loadCheckpoint('old-1', 'multi checkpoint goal', 'ws-a'));
+  assert.equal(store.deleteCheckpoint('old-1', 'multi checkpoint goal', 'ws-a'), true);
+  assert.equal(store.deleteCheckpoint('old-1', 'multi checkpoint goal', 'ws-a'), false);
+  assert.equal(store.loadCheckpoint('old-1', 'multi checkpoint goal', 'ws-a'), null);
+  assert.equal(store.deleteCheckpoint('new-1'), false);
+
   store.db.close();
   fs.rmSync(tmpDir, { recursive: true, force: true });
 });
