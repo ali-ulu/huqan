@@ -166,7 +166,11 @@ describe('memory-schema', () => {
     const packageObject = {
       version: '0.9.1',
       workspaceId: 'workspace-a',
-      memories: [baseRecord()],
+      memories: [
+        baseRecord(),
+        baseRecord({ memoryId: 'mem-2' }),
+        baseRecord({ memoryId: 'mem-3' }),
+      ],
       events: [
         baseEvent({ eventType: 'TOMBSTONE', details: { reason: 'delete' } }),
         baseEvent({ eventId: 'evt-2', eventType: 'UPDATED', details: { reason: 'superseded' } }),
@@ -179,6 +183,36 @@ describe('memory-schema', () => {
 
     const validation = validateMemoryPackage(packageObject);
     assert.ok(validation.ok, JSON.stringify(validation.errors, null, 2));
+  });
+
+  it('rejects package references that are absent from the memories collection (#1514)', () => {
+    const packageObject = {
+      version: '1.0.0',
+      workspaceId: 'workspace-a',
+      memories: [baseRecord()],
+      events: [
+        baseEvent({ memoryId: 'missing-event-memory' }),
+        baseEvent({ eventId: 'evt-related', relatedMemoryId: 'missing-related-memory' }),
+      ],
+      links: [
+        baseLink({ fromMemoryId: 'missing-link-from' }),
+        baseLink({ linkId: 'link-missing-to', toMemoryId: 'missing-link-to' }),
+      ],
+    };
+
+    const validation = validateMemoryPackage(packageObject);
+
+    assert.equal(validation.ok, false);
+    assert.deepEqual(
+      validation.errors.filter((error) => error.code === 'REFERENTIAL_INTEGRITY').map((error) => error.field),
+      [
+        'events[0].memoryId',
+        'events[1].relatedMemoryId',
+        'links[0].fromMemoryId',
+        'links[1].fromMemoryId',
+        'links[1].toMemoryId',
+      ],
+    );
   });
 
   it('normalizes memory objects without mutating inputs', () => {
