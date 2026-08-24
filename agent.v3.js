@@ -4,6 +4,7 @@ const Agent = require('./agent');
 const HuqanStorage = require('./storage');
 const { evaluateAgentLoopBudget, DEFAULT_MAX_ITERATIONS_PER_WINDOW, DEFAULT_WINDOW_MS } = require('./lib/agent-loop-budget-gate');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
+const { initializeBehavioralState } = require('./lib/agent-behavioral-integrity');
 const {
   loopEnabled,
   isDreamExperimentVerificationStep,
@@ -470,7 +471,7 @@ class AgentV3 {
     const queued = Array.isArray(state.queuedSteps) ? [...state.queuedSteps] : [];
     const deadline = Date.now() + Math.max(0, Number.isInteger(opts.timeBudgetMs) ? opts.timeBudgetMs : this.timeBudgetMs);
     const maxIterations = Number.isInteger(opts.maxIterations) ? opts.maxIterations : this.maxIterations;
-    state.workspaceId = workspaceId; state.agentId = String(opts.agentId || state.agentId || ''); state.observabilityRunId = state.observabilityRunId || `agent-${crypto.randomUUID?.() || Date.now()}`; try { this.kernel?.observability?.recordLifecycle?.('beforeAgentRun', state); } catch (_) {}
+    state.workspaceId = workspaceId; state.agentId = String(opts.agentId || state.agentId || ''); state.observabilityRunId = state.observabilityRunId || `agent-${crypto.randomUUID?.() || Date.now()}`; try { this.kernel?.observability?.recordLifecycle?.('beforeAgentRun', state); } catch (_) {} initializeBehavioralState(state, { goal: state.goal, workspaceId, selectedTools: state.selectedTools || activePlan.selectedTools });
 
     // Force the run's workspace onto every tool call. agent.js reads
     // per-tool option bags straight through, so without this

@@ -25,11 +25,13 @@ function makeRouter() {
         return true;
       },
     }),
+    getHealth: () => ({ inspect: () => ({ liveness: { ok: true }, readiness: { ok: true } }) }),
     parseJsonRequest: async () => ({}),
     writeJson: (req, res, status, body) => {
       res.captured = { status, body };
     },
     denyIfUnauthorized: () => true,
+    authorizeWorkspace: () => ({ allowed: true, role: 'admin' }),
   });
   return { router, deletes };
 }
