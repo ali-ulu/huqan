@@ -32,7 +32,7 @@ const {
 } = require('../lib/a2a/exchange-route');
 const { TIMEOUTS, RETRY, UNSUPPORTED_SURFACES } = require('../lib/a2a/agent-card');
 const {
-  NON_RETRYABLE_EVALUATOR_REASONS,
+  RETRYABLE_EVALUATOR_REASONS,
   classifyEvaluatorReason,
   classifyTransportRefusal,
 } = require('../lib/a2a/retry-classification');
@@ -170,13 +170,34 @@ test('retry: every response carries the flag, so a consumer never has to infer i
   }
 });
 
-test('retry: the unsafe set is exactly the reasons that may have reserved', () => {
-  assert.deepEqual([...NON_RETRYABLE_EVALUATOR_REASONS], ['replay_detected', 'verification_failed']);
+test('retry: the safe set is exactly the pre-reservation evaluator reasons', () => {
+  assert.deepEqual([...RETRYABLE_EVALUATOR_REASONS], [
+    'consumer_invalid',
+    'exchange_shape_invalid',
+    'authority_invalid',
+    'exchange_expired',
+    'identity_invalid',
+    'identity_binding_invalid',
+    'delegation_chain_invalid',
+    'delegation_invalid',
+    'delegation_signature_invalid',
+    'delegation_scope_escalation',
+    'delegation_expired',
+    'constraints_exceeded',
+    'evidence_action_invalid',
+    'evidence_receipt_invalid',
+    'evidence_package_invalid',
+    'evidence_package_authority_invalid',
+    'evidence_refs_invalid',
+    'evidence_package_binding_invalid',
+    'evidence_receipt_authority_invalid',
+    'exchange_signature_invalid',
+  ]);
 
-  // replay_detected: the reservation already existed.
-  // verification_failed: the evaluator's catch-all, and a throwing effect is one
-  // of the ways it is reached, so the reservation may be standing.
-  for (const reason of NON_RETRYABLE_EVALUATOR_REASONS) {
+  for (const reason of RETRYABLE_EVALUATOR_REASONS) {
+    assert.equal(classifyEvaluatorReason(reason), true, `${reason} must be safe`);
+  }
+  for (const reason of ['replay_detected', 'verification_failed']) {
     assert.equal(classifyEvaluatorReason(reason), false, `${reason} must be unsafe`);
   }
 });
@@ -189,10 +210,9 @@ test('retry: an unrecognised reason shape defaults to unsafe', () => {
     assert.equal(classifyEvaluatorReason(reason), false, `${JSON.stringify(reason)} must be unsafe`);
   }
 
-  // A recognised-shape reason that is not on the denylist is safe, which is what
-  // keeps the ~40 verification codes from needing enumeration.
+  // A new string reason is unsafe until it is proven to occur before reservation.
   assert.equal(classifyEvaluatorReason('delegation_expired'), true);
-  assert.equal(classifyEvaluatorReason('some_future_verification_reason'), true);
+  assert.equal(classifyEvaluatorReason('some_future_verification_reason'), false);
 });
 
 test('retry: transport classification is structural, not reason-derived', () => {
