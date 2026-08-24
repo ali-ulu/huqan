@@ -23,6 +23,18 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '503': {$ref: '#/components/responses/Unavailable'}
+  /internal-metrics:
+    get:
+      operationId: getObservabilityInternalMetrics
+      description: Process-local self-monitoring counters and gauges; never emits telemetry events itself.
+      parameters: [{$ref: '#/components/parameters/Workspace'}]
+      responses:
+        '200': {$ref: '#/components/responses/InternalMetrics'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/Unavailable'}
   /events:
     get:
       operationId: listObservabilityEvents
@@ -163,6 +175,7 @@ components:
     Status: {name: status, in: query, schema: {type: string, maxLength: 128}}
   responses:
     Metrics: {description: Metrics envelope, content: {application/json: {schema: {$ref: '#/components/schemas/MetricsEnvelope'}}}}
+    InternalMetrics: {description: Internal metrics envelope, content: {application/json: {schema: {$ref: '#/components/schemas/InternalMetricsEnvelope'}}}}
     EventPage: {description: Event cursor page, content: {application/json: {schema: {$ref: '#/components/schemas/EventPageEnvelope'}}}}
     RunPage: {description: Run cursor page, content: {application/json: {schema: {$ref: '#/components/schemas/RunPageEnvelope'}}}}
     QueuePage: {description: Queue cursor page, content: {application/json: {schema: {$ref: '#/components/schemas/QueuePageEnvelope'}}}}
@@ -182,6 +195,23 @@ components:
       content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
     Unavailable: {description: Authorization, limiter, service, or storage unavailable, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
   schemas:
+    InternalMetricsEnvelope:
+      type: object
+      additionalProperties: false
+      required: [ok, data]
+      properties:
+        ok: {const: true}
+        data:
+          type: object
+          additionalProperties: false
+          required: [counters, gauges, latencyMs, lastEventWriteAt, lastWorkerTickAt, generatedAt]
+          properties:
+            counters: {type: object, additionalProperties: {type: integer, minimum: 0}}
+            gauges: {type: object, additionalProperties: {type: [integer, number, boolean], minimum: 0}}
+            latencyMs: {type: object, additionalProperties: {type: number, minimum: 0}}
+            lastEventWriteAt: {type: [string, 'null']}
+            lastWorkerTickAt: {type: [string, 'null']}
+            generatedAt: {type: string, format: date-time}
     WorkspaceId: {type: string, minLength: 1, maxLength: 128, pattern: '^[^\x00-\x1F\x7F]+$'}
     WorkspaceBody: {type: object, additionalProperties: false, required: [workspaceId], properties: {workspaceId: {$ref: '#/components/schemas/WorkspaceId'}}}
     ErrorEnvelope:
