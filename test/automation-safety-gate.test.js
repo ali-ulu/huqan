@@ -538,6 +538,37 @@ describe('AB5 automation safety gate core decisions', () => {
     assert.ok(Array.isArray(summary.categories));
   });
 
+  it('maps decision severity monotonically for dry-run and review findings', () => {
+    const finding = (decision, id) => ({
+      id,
+      operationType: 'test',
+      category: 'test',
+      decision,
+      reason: `${id}_REASON`,
+    });
+
+    const dryRun = summarizeAutomationFindings([finding(AUTOMATION_SAFETY_DECISIONS.DRY_RUN_ONLY, 'dry-run')]);
+    assert.equal(dryRun.decision, AUTOMATION_SAFETY_DECISIONS.DRY_RUN_ONLY);
+    assert.equal(dryRun.riskLevel, 'medium');
+    assert.equal(dryRun.riskScore, 0.55);
+    assert.equal(dryRun.hasHighRisk, false);
+
+    const review = summarizeAutomationFindings([finding(AUTOMATION_SAFETY_DECISIONS.REVIEW, 'review')]);
+    assert.equal(review.decision, AUTOMATION_SAFETY_DECISIONS.REVIEW);
+    assert.equal(review.riskLevel, 'high');
+    assert.equal(review.riskScore, 0.8);
+    assert.equal(review.hasHighRisk, true);
+
+    const combined = summarizeAutomationFindings([
+      finding(AUTOMATION_SAFETY_DECISIONS.DRY_RUN_ONLY, 'dry-run'),
+      finding(AUTOMATION_SAFETY_DECISIONS.REVIEW, 'review'),
+    ]);
+    assert.equal(combined.decision, AUTOMATION_SAFETY_DECISIONS.REVIEW);
+    assert.equal(combined.riskLevel, 'high');
+    assert.equal(combined.riskScore, 0.8);
+    assert.equal(combined.hasHighRisk, true);
+  });
+
   it('normalizeAutomationSafetyDecision keeps output shape stable', () => {
     const normalized = normalizeAutomationSafetyDecision({
       ok: true,
