@@ -346,8 +346,8 @@ test('KernelV2 preserves temporal edge metadata and bounded LLM risk results', (
     const edge = fixture.kernel.graph.getEdges('kedi', 'default')[0];
     assert.equal(learned.meta.source, 'contract-test');
     assert.equal(learned.meta.learnedAt, FIXED_TIME);
-    assert.equal(edge.createdAt, FIXED_TIME);
-    assert.equal(edge.updatedAt, FIXED_TIME);
+    assert.equal(edge.created_at, FIXED_TIME);
+    assert.equal(edge.updated_at, FIXED_TIME);
     assert.equal(edge.source, 'contract-test');
     assert.ok(edge.evidence.includes('source:contract-test'));
     assert.equal(saveCalls, 1);
@@ -396,7 +396,7 @@ test('KernelV2 review-only learn leaves existing edge metadata alone (#733)', ()
     assert.equal(fixture.kernel.graph.edgeCount('default'), beforeCount);
     // A learn that wrote no edge must not stamp its source onto one it did
     // not touch — that was the provenance corruption in #733.
-    assert.equal(existing.updatedAt, beforeEdge.updatedAt);
+    assert.equal(existing.updated_at, beforeEdge.updated_at);
     assert.equal(existing.source, beforeEdge.source);
     assert.equal(existing.evidence.includes('source:review-attempt'), false);
     // #216 part 3: every learn() call (including review-only outcomes) now
@@ -420,7 +420,8 @@ test('KernelV2 preserves live edge identity and order, stamping only what it wro
     fixture.kernel.learn('kedi hayvandir', bypass());
     fixture.kernel.learn('kopek memelidir', bypass());
     const [first, second] = fixture.kernel.graph._edges;
-    first.createdAt = originalCreatedAt;
+    const firstUpdatedAt = first.updated_at;
+    first.created_at = originalCreatedAt;
     first.evidence = 'legacy-evidence';
     first.source = 'legacy-source';
     second.evidence = ['source:user'];
@@ -439,16 +440,16 @@ test('KernelV2 preserves live edge identity and order, stamping only what it wro
     assert.strictEqual(edges[1], before[1]);
 
     // Edges this learn did not write keep their own metadata verbatim.
-    assert.equal(first.createdAt, originalCreatedAt);
-    assert.equal(first.updatedAt, undefined);
+    assert.equal(first.created_at, originalCreatedAt);
+    assert.equal(first.updated_at, firstUpdatedAt);
     assert.equal(first.source, 'legacy-source');
     assert.equal(first.evidence, 'legacy-evidence');
     assert.deepEqual(second.evidence, ['source:user']);
 
     // The edge it did write carries the operation's metadata.
     const created = edges[edges.length - 1];
-    assert.equal(created.createdAt, FIXED_TIME);
-    assert.equal(created.updatedAt, FIXED_TIME);
+    assert.equal(created.created_at, FIXED_TIME);
+    assert.equal(created.updated_at, FIXED_TIME);
     assert.equal(created.source, 'user');
   } finally {
     closeFixture(fixture);
@@ -465,6 +466,7 @@ test('KernelV2 keys new-edge metadata by workspace, not by bare triple (#733)', 
     });
     const workspaceAEdge = fixture.kernel.graph._edges.find((c) => c.workspaceId === 'workspace-a');
     const workspaceASource = workspaceAEdge.source;
+    const workspaceAUpdatedAt = workspaceAEdge.updated_at;
 
     v2.learn('kedi hayvandir', {
       ...bypass(),
@@ -477,14 +479,14 @@ test('KernelV2 keys new-edge metadata by workspace, not by bare triple (#733)', 
     assert.ok(edge);
     // Same from|relation|to as workspace-a, but a different edge: the
     // workspace-qualified key keeps it from being mistaken for pre-existing.
-    assert.equal(edge.createdAt, FIXED_TIME);
-    assert.equal(edge.updatedAt, FIXED_TIME);
+    assert.equal(edge.created_at, FIXED_TIME);
+    assert.equal(edge.updated_at, FIXED_TIME);
     assert.equal(edge.source, 'workspace-collision');
     assert.ok(edge.evidence.includes('source:workspace-collision'));
 
     // ...and workspace-a is untouched by it.
     assert.equal(workspaceAEdge.source, workspaceASource);
-    assert.equal(workspaceAEdge.updatedAt, undefined);
+    assert.equal(workspaceAEdge.updated_at, workspaceAUpdatedAt);
   } finally {
     closeFixture(fixture);
   }
