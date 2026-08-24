@@ -584,3 +584,26 @@ describe('Kernel - concurrency contract (#368)', () => {
     }
   });
 });
+
+describe('Kernel - Türkçe durum ekli ask özneleri (#1206)', () => {
+  it('resolves case-marked subjects instead of returning Bilmiyorum', () => {
+    const k = freshKernel({ useSQLite: false });
+    k.learn('kedi hayvandır');
+
+    const questions = [
+      'kedinin özelliği nedir',
+      'kediyi anlat',
+      'kediye ne olur',
+      'kedide ne var',
+      'kediden ne çıkar',
+    ];
+
+    for (const question of questions) {
+      const result = k.ask(question);
+      assert.equal(result.ok, true, question);
+      assert.equal(result.data.subject, 'kedi', question);
+      assert.equal(result.data.unknown, false, question);
+      assert.match(result.data.answer, /hayvan/, question);
+    }
+  });
+});
