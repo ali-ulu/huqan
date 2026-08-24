@@ -31,7 +31,7 @@ describe('Agent Activity dashboard contract', () => {
     assert.match(script, /tool\.name/);
     assert.match(script, /tool\.count/);
     assert.match(script, /toolCallCount/);
-    assert.match(script, /Araçlar:/);
+    assert.match(script, /Tools:/);
   });
 
   it('renders the workspace tool usage donut and accessible legend', () => {
@@ -41,7 +41,24 @@ describe('Agent Activity dashboard contract', () => {
     assert.match(script, /metrics\.toolUsage/);
     assert.match(script, /conic-gradient/);
     assert.match(script, /aria-label/);
-    assert.match(script, /Araç kullanım dağılımı/);
+    assert.match(script, /Tool usage distribution/);
+  });
+
+  it('uses consistent English copy for dashboard states and formatting', () => {
+    for (const legacyCopy of [
+      'Araçlar:',
+      'Araç kullanım dağılımı',
+      'Activity erişimi kilitli.',
+      'Bu workspace’te henüz ajan eylemi yok.',
+      'Activity okunamadı. Tekrar deneyin.',
+      'Sistem Sağlıklı',
+      'Son senkronizasyon:',
+      'tr-TR',
+    ]) {
+      assert.doesNotMatch(dashboard, new RegExp(legacyCopy.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')));
+    }
+    assert.match(dashboard, /Search: receipt ID, claim, source…/);
+    assert.ok(script.includes("new Intl.DateTimeFormat('en-US'"));
   });
 
   it('keeps the inline dashboard script syntactically valid', () => {
