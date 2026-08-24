@@ -63,8 +63,8 @@ describe('KernelV2', () => {
     assert.strictEqual(res.meta.source, 'test-suite');
     const edge = k.kernel.graph.getEdge('kedi', 'hayvan', 'tür');
     assert.ok(edge);
-    assert.strictEqual(edge.createdAt, learnedAt);
-    assert.strictEqual(edge.updatedAt, learnedAt);
+    assert.strictEqual(edge.created_at, learnedAt);
+    assert.strictEqual(edge.updated_at, learnedAt);
     assert.strictEqual(edge.source, 'test-suite');
     assert.ok(Array.isArray(edge.evidence));
   });

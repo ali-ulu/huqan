@@ -677,7 +677,9 @@ describe('Graph - Lifecycle and maintenance baseline contracts', { concurrency: 
     // Same from|relation|to triple in both workspaces: the scope key has to
     // keep them apart, which the old workspace-blind key could not.
     const preExisting = graph._edges.slice();
-    preExisting[0].createdAt = '2020-01-01T00:00:00.000Z';
+    const preExistingUpdatedAt = preExisting[0].updated_at;
+    const otherPreExistingUpdatedAt = preExisting[1].updated_at;
+    preExisting[0].created_at = '2020-01-01T00:00:00.000Z';
     preExisting[0].evidence = 'legacy';
     preExisting[0].source = 'source-a';
     preExisting[1].evidence = ['source:source-b'];
@@ -699,16 +701,16 @@ describe('Graph - Lifecycle and maintenance baseline contracts', { concurrency: 
 
     // The newly written edge carries the operation's metadata.
     assert.strictEqual(created.source, 'contract');
-    assert.strictEqual(created.updatedAt, '2026-07-21T00:00:00.000Z');
-    assert.strictEqual(created.createdAt, '2026-07-21T00:00:00.000Z');
+    assert.strictEqual(created.updated_at, '2026-07-21T00:00:00.000Z');
+    assert.strictEqual(created.created_at, '2026-07-21T00:00:00.000Z');
     assert.deepStrictEqual(created.evidence, ['source:contract']);
 
     // Pre-existing edges keep their own provenance, in both workspaces.
     assert.strictEqual(preExisting[0].source, 'source-a');
     assert.strictEqual(preExisting[1].source, 'source-b');
-    assert.strictEqual(preExisting[0].updatedAt, undefined);
-    assert.strictEqual(preExisting[1].updatedAt, undefined);
-    assert.strictEqual(preExisting[0].createdAt, '2020-01-01T00:00:00.000Z');
+    assert.strictEqual(preExisting[0].updated_at, preExistingUpdatedAt);
+    assert.strictEqual(preExisting[1].updated_at, otherPreExistingUpdatedAt);
+    assert.strictEqual(preExisting[0].created_at, '2020-01-01T00:00:00.000Z');
     assert.strictEqual(preExisting[0].evidence, 'legacy');
     assert.deepStrictEqual(preExisting[1].evidence, ['source:source-b']);
 
