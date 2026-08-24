@@ -31,6 +31,7 @@ const agentIdentityRuntime = require('./lib/agent-identity-runtime');
 const trustEvidenceLedger = require('./lib/trust-evidence-ledger');
 const humanOversightApprovalRuntime = require('./lib/human-oversight-approval-runtime');
 const prGuardian = require('./lib/pr-guardian');
+const observabilityClient = require('./lib/observability/client');
 
 module.exports = KernelV2;
 
@@ -93,3 +94,9 @@ module.exports.HUMAN_OVERSIGHT_RUNTIME_REASONS = humanOversightApprovalRuntime.R
 // the library directly without MCP or the bundled HTTP server.
 module.exports.PrGuardian = prGuardian;
 module.exports.PRGuardian = prGuardian;
+
+// Safe external-agent telemetry adapter. It binds callers to an explicit
+// workspace/run/trace identity and rejects sensitive payload fields before
+// invoking the injected sink.
+module.exports.ObservabilityClient = observabilityClient;
+module.exports.createTelemetryClient = observabilityClient.createTelemetryClient;
