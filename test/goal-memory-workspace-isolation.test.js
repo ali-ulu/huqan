@@ -9,12 +9,16 @@ const { applyStorageSchema } = require('../lib/storage/schema');
 
 let tempDir;
 let counter = 0;
+const storages = new Set();
 
 before(() => {
   tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-goal-memory-'));
 });
 
 after(() => {
+  for (const storage of storages) {
+    try { storage.close(); } catch (_) {}
+  }
   if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
 });
 
@@ -30,7 +34,9 @@ after(() => {
  * fixture actually reads back what it wrote.
  */
 function storageAt(dbPath) {
-  return new HuqanStorage({ dbPath, memoryPath: path.join(path.dirname(dbPath), 'memory.json') });
+  const storage = new HuqanStorage({ dbPath, memoryPath: path.join(path.dirname(dbPath), 'memory.json') });
+  storages.add(storage);
+  return storage;
 }
 
 function makeStorage(name) {
