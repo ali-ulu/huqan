@@ -160,7 +160,7 @@ test('family: the learn sinks have exactly one way in', () => {
   // ROUTED entry is a transitive claim, so the two facts it rests on are
   // asserted here rather than assumed: one export, one caller.
   const useCase = fs.readFileSync(path.join(repoRoot, 'lib/learn-use-case.js'), 'utf8');
-  assert.match(useCase, /module\.exports = \{[^}]*runLearnUseCase[^}]*\}/);
+  assert.match(useCase, /module\.exports = \{ runLearnUseCase, hasRealProvenance \}/);
 
   const { execFileSync } = require('node:child_process');
   const callers = execFileSync('git', ['-c', 'color.ui=false', 'grep', '-l', 'runLearnUseCase(', '--', '*.js'], {
