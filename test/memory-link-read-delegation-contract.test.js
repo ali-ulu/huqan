@@ -7,8 +7,8 @@ const path = require('node:path');
 
 const STORE_SOURCE = path.join(__dirname, '..', 'lib', 'memory-store.js');
 const DELEGATE_SOURCE = path.join(__dirname, '..', 'lib', 'memory-link-read.js');
-const storeSource = fs.readFileSync(STORE_SOURCE, 'utf8');
-const delegateSource = fs.readFileSync(DELEGATE_SOURCE, 'utf8');
+const storeSource = fs.readFileSync(STORE_SOURCE, 'utf8').replace(/\r\n/g, '\n');
+const delegateSource = fs.readFileSync(DELEGATE_SOURCE, 'utf8').replace(/\r\n/g, '\n');
 const delegateCode = delegateSource
   .split('\n')
   .map((line) => line.replace(/\/\/.*$/, ''))

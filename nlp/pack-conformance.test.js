@@ -54,13 +54,13 @@ for (const entry of cases) {
  * word, so it does not have a copula index to split on.
  */
 const copulaCases = [
-  { code: 'en', sample: 'the big cat is a small animal', subject: 'bigcat', predicate: 'small animal' },
-  { code: 'de', sample: 'der grosse hund ist ein tier', subject: 'dergrossehund', predicate: 'tier' },
-  { code: 'ar', sample: 'القط الكبير هو حيوان صغير', subject: 'قطالكبير', predicate: 'حيوان صغير' },
+  { code: 'en', sample: 'the big cat is a small animal', subject: 'big cat', predicate: 'small animal' },
+  { code: 'de', sample: 'der grosse hund ist ein tier', subject: 'grosse hund', predicate: 'tier' },
+  { code: 'ar', sample: 'القط الكبير هو حيوان صغير', subject: 'قط كبير', predicate: 'حيوان صغير' },
 ];
 
 for (const entry of copulaCases) {
-  test(`nlp pack ${entry.code} keeps a multi-word subject across the copula (#1037)`, () => {
+  test(`nlp pack ${entry.code} keeps a normalized multi-word subject across the copula (#1037, #1116)`, () => {
     const nlp = createNlp(entry.code);
     const facts = nlp.extractFacts(entry.sample);
 

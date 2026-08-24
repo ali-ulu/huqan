@@ -1,0 +1,7 @@
+{
+  "runs": 3,
+  "minSuccessRate": 1,
+  "maxAverageLatencyMs": 5000,
+  "maxP95LatencyMs": 5000,
+  "maxQueueLagMs": 1000
+}

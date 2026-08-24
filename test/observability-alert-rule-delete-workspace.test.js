@@ -30,6 +30,7 @@ function makeRouter() {
       res.captured = { status, body };
     },
     denyIfUnauthorized: () => true,
+    authorizeWorkspace: () => ({ allowed: true, role: 'admin' }),
   });
   return { router, deletes };
 }

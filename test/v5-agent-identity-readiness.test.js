@@ -34,14 +34,18 @@ test('V5 agent identity readiness index keeps runtime and ecosystem capabilities
   const index = buildAgentIdentityReadinessIndex();
 
   assert.equal(index.readyForRuntimeEnforcement, false);
-  assert.equal(index.implementationBoundaryClean, true);
+  // #1324: notCompleted is measured from coverage now, so it reports these six
+  // capabilities as what they are -- not completed. implementationBoundaryClean
+  // follows, and is false until they actually are. It used to be derived from a
+  // frozen all-false constant, which made it true for every possible input.
+  assert.equal(index.implementationBoundaryClean, false);
   assert.deepEqual(index.boundaryMatrix.notCompleted, {
-    runtimeEnforcement: false,
-    connectorIdentityEnforcement: false,
-    a2aIdentityExchange: false,
-    marketplaceIdentityLayer: false,
-    trustPackageWriterReader: false,
-    agentActionPolicyEngine: false
+    runtimeEnforcement: true,
+    connectorIdentityEnforcement: true,
+    a2aIdentityExchange: true,
+    marketplaceIdentityLayer: true,
+    trustPackageWriterReader: true,
+    agentActionPolicyEngine: true
   });
   assert.deepEqual(index.boundaryMatrix.nonEnforcement, {
     runtimeIdentity: true,

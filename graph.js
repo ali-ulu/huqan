@@ -127,7 +127,7 @@ class Graph {
   _initDB() {
     this._db.exec(`
       PRAGMA journal_mode = WAL;
-      PRAGMA synchronous = NORMAL;
+      PRAGMA synchronous = FULL;
       CREATE TABLE IF NOT EXISTS nodes (
         id TEXT NOT NULL,
         workspace_id TEXT NOT NULL DEFAULT 'default',
