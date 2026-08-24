@@ -21,6 +21,7 @@ const {
   registerOppositePair,
   normalizeManipulationText,
   parseSimpleTurkishStatement,
+  resolveNegativeClaimFallback,
 } = require('./lib/kernel-v2-native');
 const {
   analyseManipulation,
@@ -619,10 +620,9 @@ class KernelV2 {
     if (base?.data?.status !== 'unknown') {
       const contradictionReason = base?.data?.contradictionReason;
       if (base?.data?.status !== 'contradicted' || contradictionReason) {
-        return this._withVerifyDetails(base, risk);
+        if (!(parsed.isNegated && base?.data?.status === 'verified')) return this._withVerifyDetails(base, risk);
       }
     }
-
     const contradictionDetails = this._buildContradictionDetails(
       parsed,
       normalizedTarget,
@@ -648,7 +648,7 @@ class KernelV2 {
           base.meta,
         ), risk);
       }
-      return this._withVerifyDetails(base, risk);
+      return this._withVerifyDetails(resolveNegativeClaimFallback(this.kernel, base, verificationStatement, opts, workspaceId, parsed, normalizedTarget), risk);
     }
 
     const { evidence, meta, ...data } = contradictionDetails;
