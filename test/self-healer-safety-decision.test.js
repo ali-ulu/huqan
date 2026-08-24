@@ -68,6 +68,27 @@ test('explicit insufficient_evidence is quarantined', () => {
   assert.ok(d.allowedNextSteps.includes('isolate'));
 });
 
+test('behavioral_quarantine is quarantined even when no source file is affected', () => {
+  const d = decideSelfHealerAction(finding({
+    affectedFiles: [],
+    riskFlags: ['behavioral_deviation', 'behavioral_quarantine', 'unexpected_tool'],
+  }));
+  assert.equal(d.decision, SELF_HEALER_DECISIONS.QUARANTINE);
+  assert.equal(d.reason, SELF_HEALER_DECISION_REASONS.BEHAVIORAL_DEVIATION_QUARANTINED);
+  assert.equal(d.requiresApproval, true);
+  assert.ok(d.allowedNextSteps.includes('isolate'));
+});
+
+test('behavioral_deviation requires review before the no-affected-surface fallback', () => {
+  const d = decideSelfHealerAction(finding({
+    affectedFiles: [],
+    riskFlags: ['behavioral_deviation', 'repeated_anomaly'],
+  }));
+  assert.equal(d.decision, SELF_HEALER_DECISIONS.REQUIRE_REVIEW);
+  assert.equal(d.reason, SELF_HEALER_DECISION_REASONS.BEHAVIORAL_DEVIATION_REVIEW);
+  assert.equal(d.requiresApproval, true);
+});
+
 // ─── minimum evidence rule ───────────────────────────────────────────────────
 
 test('a finding with no evidence is observe-only, never a proposal', () => {
