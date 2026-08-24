@@ -475,7 +475,15 @@ class AgentV3 {
     const queued = Array.isArray(state.queuedSteps) ? [...state.queuedSteps] : [];
     const deadline = Date.now() + Math.max(0, Number.isInteger(opts.timeBudgetMs) ? opts.timeBudgetMs : this.timeBudgetMs);
     const maxIterations = Number.isInteger(opts.maxIterations) ? opts.maxIterations : this.maxIterations;
-    state.workspaceId = workspaceId; state.agentId = String(opts.agentId || state.agentId || ''); state.observabilityRunId = state.observabilityRunId || `agent-${crypto.randomUUID?.() || Date.now()}`; try { this.kernel?.observability?.recordLifecycle?.('beforeAgentRun', state); } catch (_) {} initializeBehavioralState(state, { goal: state.goal, workspaceId, selectedTools: state.selectedTools || activePlan.selectedTools });
+    state.workspaceId = workspaceId;
+    state.agentId = String(opts.agentId || state.agentId || '');
+    state.observabilityRunId = state.observabilityRunId || `agent-${crypto.randomUUID?.() || Date.now()}`;
+    try { this.kernel?.observability?.recordLifecycle?.('beforeAgentRun', state); } catch (_) {}
+    initializeBehavioralState(state, { goal: state.goal, workspaceId, selectedTools: state.selectedTools || activePlan.selectedTools });
+    // Keep the public plugin lifecycle contract reachable on the canonical v3
+    // path. This intentionally precedes the durable budget gate: a before hook
+    // observes every accepted run attempt, including one refused before work.
+    this.baseAgent._emit('beforeAgentRun', state);
 
     // Force the run's workspace onto every tool call. agent.js reads
     // per-tool option bags straight through, so without this
