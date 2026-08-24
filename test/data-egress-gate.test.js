@@ -46,6 +46,26 @@ test('findPiiInText finds a checksum-valid credit card number', () => {
   assert.ok(findings.some((f) => f.type === PII_TYPES.CREDIT_CARD));
 });
 
+test('findPiiInText detects checksum-valid cards across common separators and padded digit runs (#1108)', () => {
+  for (const value of ['4111.1111.1111.1111', '4111/1111_1111-1111', '99994111111111111111']) {
+    assert.ok(findPiiInText(value).some((finding) => finding.type === PII_TYPES.CREDIT_CARD), value);
+  }
+});
+
+test('evaluateEgress redacts checksum-valid TCKNs inside padded digit runs (#1108)', () => {
+  const result = evaluateEgress({ note: 'id=0010000000146' });
+  assert.equal(result.piiDetected, true);
+  assert.deepEqual(result.piiTypes, [PII_TYPES.TCKN]);
+  assert.equal(result.scrubbed.note, 'id=[REDACTED_PII:tckn]');
+});
+
+test('evaluateEgress does not classify a card-shaped substring inside an invalid IBAN', () => {
+  const value = 'TR004111111111111111';
+  const result = evaluateEgress({ note: value });
+  assert.equal(result.piiDetected, false);
+  assert.equal(result.scrubbed.note, value);
+});
+
 test('isValidIban accepts a checksum-valid Turkish IBAN and rejects a mutated one (#1315)', () => {
   assert.equal(isValidIban('TR330006100519786457841326'), true);
   assert.equal(isValidIban('TR330006100519786457841327'), false);

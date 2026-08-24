@@ -19,7 +19,7 @@
     "lib/sandbox-isolation.js": 831,
     "scripts/external-conformance/consumer.js": 924,
     "server.js": 1030,
-    "workflow-agent.js": 970,
+    "workflow-agent.js": 967,
     "workflow-tools.js": 884
   }
 }

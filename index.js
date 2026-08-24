@@ -32,6 +32,7 @@ const trustEvidenceLedger = require('./lib/trust-evidence-ledger');
 const humanOversightApprovalRuntime = require('./lib/human-oversight-approval-runtime');
 const prGuardian = require('./lib/pr-guardian');
 const observabilityClient = require('./lib/observability/client');
+const multiAgentCascadeGuard = require('./lib/multi-agent-cascade-guard');
 
 module.exports = KernelV2;
 
@@ -100,3 +101,9 @@ module.exports.PRGuardian = prGuardian;
 // invoking the injected sink.
 module.exports.ObservabilityClient = observabilityClient;
 module.exports.createTelemetryClient = observabilityClient.createTelemetryClient;
+
+// Bounded multi-agent coordination. Hosts supply execution; this guard owns
+// fan-out, dependency isolation, retry, and circuit-breaker policy.
+module.exports.MultiAgentCascadeGuard = multiAgentCascadeGuard;
+module.exports.createMultiAgentCascadeGuard = multiAgentCascadeGuard.createMultiAgentCascadeGuard;
+module.exports.MULTI_AGENT_CASCADE_REASONS = multiAgentCascadeGuard.REASONS;

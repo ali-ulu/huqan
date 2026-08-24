@@ -7,7 +7,9 @@ const { mcpToolPolicy } = require('./lib/mcp-tool-policy');
 const { buildFinalSummary } = require('./finalizer');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
 const { enforceAgentActionStep } = require('./lib/agent-action-firewall');
+const { createExecutionScope, evaluateGoalBinding } = require('./lib/goal-binding');
 const { prepareGoalIntegrityForPlan } = require('./lib/goal-integrity-gate');
+const { initializeBehavioralState, behavioralBlockResult } = require('./lib/agent-behavioral-integrity');
 const { stepFailureSignature } = require('./lib/agent-failure-signature');
 const {
   cloneValue,
@@ -222,7 +224,6 @@ class Agent {
           selectedTools: meta.selectedTools || [],
         });
       } catch (_) {
-        // Storage is best-effort; JSON memory remains canonical fallback.
       }
     }
   }
@@ -328,7 +329,6 @@ class Agent {
           budgetRemaining: state.budgetRemaining || 0,
         });
       } catch (_) {
-        // Non-fatal persistence mirror.
       }
     }
     return entry;
@@ -608,14 +608,18 @@ class Agent {
   }
 
   _executeStep(step, state, opts = {}) {
-    // Preserve beforeTask hook decisions so policy plugins can halt a step.
-    // This fixes the previously write-only hook result (#346/#213).
+    const goalBinding = state.executionScope ? evaluateGoalBinding(state.executionScope, step) : { ok: true, receipt: null };
+    if (!goalBinding.ok) {
+      return { id: step.id, action: step.action, tool: step.tool, input: step.input, rationale: step.rationale, status: 'blocked', summary: '', result: { ok: false, type: 'agent', data: null, evidence: [], error: { code: goalBinding.reason, message: 'Step attempted to change the trusted execution scope.' }, meta: { blocked: true, goalBinding: goalBinding.receipt } }, policy: null, actionFirewall: null, goalBinding: goalBinding.receipt };
+    }
     const beforeTaskData = this._emit('beforeTask', { step, state, opts });
     let result;
     let toolPolicy = null;
     let firewallDecision = null;
 
-    if (beforeTaskData && beforeTaskData.blocked === true) {
+    result = behavioralBlockResult(state, step);
+    if (result) {
+    } else if (beforeTaskData && beforeTaskData.blocked === true) {
       result = {
         ok: false,
         type: 'agent',
@@ -654,10 +658,6 @@ class Agent {
       });
 
         if (toolPolicy.category !== 'internal') {
-        // #469: toolPolicy's block/review decisions for external tools were
-        // invisible to plugins (metric-collector.js, daily-digest.js) that
-        // already consume afterGateDecision for every other gate. This is
-        // observability only -- it does not change what toolPolicy decides.
         emitGateTelemetry(this.kernel, 'agent-tool-policy', {
           decision: toolPolicy.action,
           reason: toolPolicy.reasons[0] || '',
@@ -746,13 +746,15 @@ class Agent {
       summary: summary.text || '',
       result,
       policy: toolPolicy,
-      actionFirewall: firewallDecision,
+      actionFirewall: firewallDecision, goalBinding: goalBinding.receipt,
     };
     this._emit('afterTask', { step: stepReport, state, opts });
     return stepReport;
   }
 
   run(goal, opts = {}) {
+    const scopeResult = createExecutionScope(goal, opts);
+    if (!scopeResult.ok) return this._fail('agent', scopeResult.reason, 'Untrusted content cannot define an execution goal.', [], { goalBinding: scopeResult.receipt });
     const planResult = this.plan(goal, opts);
     if (!planResult || planResult.ok === false) return planResult; const freshPlan = planResult.data;
     const resumeCandidate = opts.resume === false ? null : this._findResumeRun(goal);
@@ -790,13 +792,11 @@ class Agent {
     };
     state.completedSteps = state.steps.length;
     state.remainingSteps = Array.isArray(state.queuedSteps) ? state.queuedSteps.length : 0;
-    // agent.js (unlike agent.v3.js) has no workspace-scoping concept of its
-    // own; this only threads through what the caller explicitly passed, so
-    // plugins observing beforeAgentRun/afterAgentRun (workspace-sync.js,
-    // #213) have something real to read instead of guessing at a default.
     state.workspaceId = typeof opts.workspaceId === 'string' && opts.workspaceId.trim()
       ? opts.workspaceId.trim()
       : (state.workspaceId || 'default');
+    state.executionScope = scopeResult.scope; state.behavioralManifest = resumeCandidate?.behavioralManifest;
+    state.behavioralFindings = resumeCandidate?.behavioralFindings ? cloneValue(resumeCandidate.behavioralFindings) : []; initializeBehavioralState(state, { ...state, selectedTools: [...(state.selectedTools || []), 'dream'] });
     this._emit('beforeAgentRun', state);
 
     const queued = Array.isArray(state.queuedSteps) ? [...state.queuedSteps] : [];

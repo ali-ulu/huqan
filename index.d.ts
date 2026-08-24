@@ -88,6 +88,19 @@ declare const huqan: typeof KernelV2 & {
     createReviewService: (options?: Record<string, unknown>) => Record<string, (...args: any[]) => any>;
     createGitHubRestClient: (options?: Record<string, unknown>) => Record<string, (...args: any[]) => Promise<any>> | null;
   };
+
+  MultiAgentCascadeGuard: {
+    createMultiAgentCascadeGuard: (options?: Record<string, unknown>) => {
+      run: (tasks: Array<Record<string, unknown>>, executor: (task: Record<string, unknown>, context: { attempt: number }) => Promise<Record<string, unknown>> | Record<string, unknown>) => Promise<Record<string, unknown>>;
+      REASONS: Record<string, string>;
+    };
+    REASONS: Record<string, string>;
+  };
+  createMultiAgentCascadeGuard: (options?: Record<string, unknown>) => {
+    run: (tasks: Array<Record<string, unknown>>, executor: (task: Record<string, unknown>, context: { attempt: number }) => Promise<Record<string, unknown>> | Record<string, unknown>) => Promise<Record<string, unknown>>;
+    REASONS: Record<string, string>;
+  };
+  MULTI_AGENT_CASCADE_REASONS: Record<string, string>;
 };
 
 export = huqan;
