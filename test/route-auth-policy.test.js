@@ -141,6 +141,30 @@ test('prefix-dispatched route families are declared too', () => {
   }
 });
 
+test('prefix rules do not match a longer path segment (#1229)', () => {
+  for (const pathname of [
+    '/api/v2/approvals',
+    '/api/v2/approvals/request-1',
+    '/api/v2/approvals/request-1/decision',
+  ]) {
+    const decision = resolveRouteAuthPolicy(pathname, 'GET');
+    assert.equal(decision.known, true, `${pathname} must be declared`);
+    assert.equal(decision.authRequired, true, `${pathname} must require auth`);
+  }
+
+  for (const pathname of [
+    '/api/v2/approvalsXYZ',
+    '/api/v2/approvalsXYZ/request-1',
+  ]) {
+    assert.deepEqual(resolveRouteAuthPolicy(pathname, 'GET'), {
+      known: false,
+      authRequired: false,
+      ruleId: 'unknown',
+      reason: 'unknown_route',
+    });
+  }
+});
+
 test('prefix constants used by the routers are covered by the policy', () => {
   // Discover the prefix literals the routers dispatch on, so that adding a new
   // prefix-based family without declaring it is caught rather than assumed.
