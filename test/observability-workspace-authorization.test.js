@@ -28,6 +28,7 @@ function harness({ subject = 'alice', body = null } = {}) {
     writeJson: (_req, _res, status, response) => writes.push({ status, response }),
     denyIfUnauthorized: req => { req.huqanAuth = Object.freeze({ subject }); return true; },
     authorizeWorkspace: input => authorizer.authorize(input),
+    rateLimiter: { check: () => ({ allowed: true }), acquireStream: () => ({ allowed: true, release() {} }) },
   });
   return { router, calls, writes, subscriber: () => subscriber };
 }

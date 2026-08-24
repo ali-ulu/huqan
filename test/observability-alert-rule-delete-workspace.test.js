@@ -31,6 +31,7 @@ function makeRouter() {
     },
     denyIfUnauthorized: () => true,
     authorizeWorkspace: () => ({ allowed: true, role: 'admin' }),
+    rateLimiter: { check: () => ({ allowed: true }), acquireStream: () => ({ allowed: true, release() {} }) },
   });
   return { router, deletes };
 }

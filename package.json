@@ -141,6 +141,7 @@
     "lib/observability/http-router.js",
     "lib/observability/agent-worker.js",
     "lib/observability/authorization.js",
+    "lib/observability/rate-limiter.js",
     "lib/observability/server-runtime.js",
     "lib/http/runtime-status.js",
     "lib/approval-execution-evidence.js",

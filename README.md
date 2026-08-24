@@ -175,6 +175,16 @@ default has one authenticated API-key principal; multi-user deployments can
 inject another principal/membership resolver through the same authorization
 contract without changing observability routes.
 
+Observability abuse protection is also local-first and fail-closed. Defaults
+allow 120 list requests, 30 queue mutations, 30 alert-rule mutations, and 20
+SSE connection attempts per authenticated subject/workspace per minute, with at
+most 3 concurrent SSE connections. Pagination is capped at 100 items and query
+strings/cursors are bounded. Override the numeric limits with
+`HUQAN_OBSERVABILITY_RATE_LIMIT_POLICY` JSON. Limit state is reliable within one
+server process; multi-process deployments must inject or place a shared limiter
+in front of HUQAN because counters are intentionally not coordinated across
+processes.
+
 ### Verify the local SQLite dependency and test suite
 
 ```bash
