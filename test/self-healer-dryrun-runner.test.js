@@ -65,6 +65,19 @@ test('no proposal ever requests an allow verdict', () => {
 
 // ─── AB10 budget is the runaway-loop stop ────────────────────────────────────
 
+test('a requested run that crosses the ceiling blocks before proposals are generated', () => {
+  const r = runSelfHealerDryRun(
+    { findings: [docsFinding(), securityFinding()], iterationsUsed: 199 },
+    { maxIterationsPerWindow: 200 },
+  );
+  assert.equal(r.blockedByBudget, true);
+  assert.equal(r.budget.decision, 'block');
+  assert.equal(r.budget.remaining, 1);
+  assert.equal(r.budgetReviewRequired, false);
+  assert.equal(r.processedFindingCount, 0);
+  assert.deepEqual(r.proposals, []);
+});
+
 test('an exhausted loop budget blocks the run and emits no proposals', () => {
   const r = runSelfHealerDryRun(
     { findings: [docsFinding(), securityFinding()], iterationsUsed: 500 },
@@ -75,6 +88,20 @@ test('an exhausted loop budget blocks the run and emits no proposals', () => {
   assert.deepEqual(r.proposals, []);
   assert.equal(r.summary.approvalsRequired, 0);
   assert.equal(r.applied, false);
+});
+
+test('a near-limit REVIEW is explicit and reports the processed finding count', () => {
+  const r = runSelfHealerDryRun(
+    { findings: [docsFinding()], iterationsUsed: 159 },
+    { maxIterationsPerWindow: 200 },
+  );
+  assert.equal(r.blockedByBudget, false);
+  assert.equal(r.budget.decision, 'review');
+  assert.equal(r.budgetReviewRequired, true);
+  assert.equal(r.budgetTruncated, false);
+  assert.equal(r.findingCount, 1);
+  assert.equal(r.processedFindingCount, 1);
+  assert.equal(r.proposals.length, 1);
 });
 
 test('an omitted usage figure is reported, not silently treated as a fresh budget', () => {
