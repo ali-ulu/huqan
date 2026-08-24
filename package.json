@@ -125,6 +125,7 @@
       "lib/agent-action-firewall.js",
       "lib/agent-failure-signature.js",
       "lib/agent-identity-runtime.js",
+      "lib/goal-integrity-gate.js",
     "lib/agent-v3-dream-loop-adapter.js",
     "lib/human-oversight-approval-runtime.js",
     "lib/human-oversight-approval-runtime-primitives.js",
