@@ -201,12 +201,34 @@ telemetry writes and active runs/jobs continue unchanged.
 
 The existing `backup`/`restore` flow copies the whole SQLite database through
 SQLite's online backup API, so observability tables and their schema metadata
-are included atomically. Observability schema version 1 upgrades legacy queue
+are included atomically. Observability schema version 2 upgrades legacy queue
 tables transactionally and rejects databases created by a newer runtime.
 Backup directories are restricted to the configured persistence roots and are
 created with owner-only directory/file permissions where the platform supports
 POSIX modes. Restore verification should be performed with the runtime stopped;
 startup reapplies migrations before observability records are served.
+
+Alerts have a stable fingerprint per workspace/rule/metric and move through
+`firing`, `acknowledged`, and `resolved`. Active alerts are deduplicated; a
+resolved alert can fire again only after its rule cooldown. Admins acknowledge
+an alert with `POST /api/observability/alerts/:alertId/acknowledge` and an exact
+`workspaceId` JSON body. Crossing the threshold back to normal resolves it
+automatically.
+
+Outbound alert delivery is disabled by default. Enable one HTTPS webhook with
+an explicit policy (use a secret manager in production):
+
+```powershell
+$env:HUQAN_OBSERVABILITY_WEBHOOK_POLICY = '{"enabled":true,"url":"https://alerts.example.com/huqan","secret":"replace-with-a-strong-shared-secret","timeoutMs":5000,"maxAttempts":3,"baseDelayMs":250}'
+```
+
+Payloads contain only alert identity, workspace, metric, threshold, value,
+status, fingerprint, and timestamp. They are HMAC-SHA256 signed, do not follow
+redirects, and retry only timeout/network, 408, 429, and 5xx failures with
+bounded exponential backoff. Successful delivery IDs are deduplicated within
+the server process; receivers must also deduplicate `X-HUQAN-Delivery` across
+restarts. Delivery failure is logged without remote error text or secrets and
+never rolls back telemetry or changes authorization behavior.
 
 ### Verify the local SQLite dependency and test suite
 

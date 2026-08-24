@@ -44,7 +44,9 @@ test('restore creates a safety backup and verifies restored persistence and rece
     fs.writeFileSync(opts.memoryPath, '{"fact":"after"}');
     const result = restoreBackup({ ...opts, backupDir: backup.backupDir });
     assert.ok(fs.existsSync(result.safetyBackupDir));
-    assert.deepEqual(result.verification, { persistence: true, schema: true, graphIntegrity: true, receipt: true });
+    assert.deepEqual(result.verification, {
+      persistence: true, schema: true, graphIntegrity: true, receipt: true, observability: true,
+    });
     assert.equal(result.receipt.status, 'complete');
     assert.equal(fs.readFileSync(opts.memoryPath, 'utf8'), '{"fact":"before"}');
   } finally { fs.rmSync(rootDir, { recursive: true, force: true }); }
