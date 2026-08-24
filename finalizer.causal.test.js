@@ -167,6 +167,46 @@ describe('Causal Finalizer - v0.7', () => {
     assert.strictEqual(result.causalChains, 0);
   });
 
+  it('buildCausalSummary preserves non-JSON-safe values without throwing (#1165)', () => {
+    const value = {
+      amount: 12n,
+      date: new Date('2026-06-03T00:00:00.000Z'),
+      map: new Map([['key', 'value']]),
+      set: new Set(['item']),
+      missing: undefined,
+      notANumber: Number.NaN,
+    };
+    value.self = value;
+    const input = { amount: 3n, self: value };
+
+    const result = buildCausalSummary({
+      ok: true,
+      mode: 'causal',
+      nodeId: 'A',
+      outcomes: [],
+      risks: [],
+      confidence: 0.8,
+      causalChains: 0,
+      evidence: [{ type: 'object', value }],
+      unknowns: [value],
+      input,
+    });
+
+    assert.equal(result.ok, true);
+    const clonedValue = result.evidence[0].value;
+    assert.equal(clonedValue.amount, 12n);
+    assert.equal(clonedValue.date instanceof Date, true);
+    assert.deepEqual([...clonedValue.map.entries()], [['key', 'value']]);
+    assert.deepEqual([...clonedValue.set.values()], ['item']);
+    assert.equal(clonedValue.missing, undefined);
+    assert.equal(Number.isNaN(clonedValue.notANumber), true);
+    assert.equal(clonedValue.self, clonedValue);
+    assert.equal(result.input.amount, 3n);
+    assert.equal(result.input.self.self.amount, 12n);
+    assert.equal(result.unknowns.length, 1);
+    assert.match(result.unknowns[0], /^\[unserializable:/);
+  });
+
   it('buildCausalSummary causal mode için deterministic yargı özeti üretir', () => {
     const simulation = {
       ok: true,
