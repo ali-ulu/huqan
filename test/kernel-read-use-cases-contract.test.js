@@ -124,6 +124,23 @@ test('read use cases preserve entropy and detectGaps observable results', () => 
   }
 });
 
+test('entropy ignores zero-weight edges when positive edges exist', () => {
+  const kernel = makeKernel('zero-weight-entropy');
+
+  try {
+    kernel.graph.addNode('source', 'source', null, { workspaceId: 'workspace-a' });
+    kernel.graph.addNode('zero', 'zero', null, { workspaceId: 'workspace-a' });
+    kernel.graph.addNode('positive', 'positive', null, { workspaceId: 'workspace-a' });
+    kernel.graph.addEdge('source', 'zero', 'related', { weight: 0, workspaceId: 'workspace-a' });
+    kernel.graph.addEdge('source', 'positive', 'related', { weight: 1, workspaceId: 'workspace-a' });
+
+    assert.equal(kernel.entropy('workspace-a'), 0);
+    assert.equal(Number.isNaN(kernel.entropy('workspace-a')), false);
+  } finally {
+    closeKernel(kernel);
+  }
+});
+
 test('read use cases preserve reason and compare observable results', () => {
   const kernel = makeKernel('reason-compare');
 
