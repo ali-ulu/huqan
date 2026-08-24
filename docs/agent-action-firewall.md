@@ -103,7 +103,7 @@ const decision = evaluateAgentActionFirewall({
 - [x] Fail-closed evaluator exception ve malformed input testleri mevcut.
 - [x] Audit metadata ham input yerine bounded keys ve fingerprint kullanıyor.
 - [x] MCP response findings ve workflow trace AB5 kararını taşıyor.
-- [ ] Gerçek dış sistem connector’ları için her connector’a özgü action vocabulary genişletilmeli.
+- [x] Production-reachable repo-memory ve evidence-validator connector action’ları merkezi `CONNECTOR_ACTIONS` sözleşmesine bağlı; coverage contract yeni executor bypass’ını CI’da reddeder.
 - [ ] Release öncesi hedef CI ortamında tam test ve security workflow sonuçları alınmalı.
 
 ## Bilinen sınırlar
@@ -111,3 +111,19 @@ const decision = evaluateAgentActionFirewall({
 Firewall, dış sistemlerdeki gerçek yetkilendirmelerin yerine geçmez. GitHub token scope, deploy platform permission, branch protection veya cloud IAM ayrıca enforce edilmelidir. Firewall’ın görevi HUQAN agent’ının kendi karar ve yürütme zincirinde yüksek riskli action’ları erken durdurmak, review/dry-run yoluna almak ve kanıt üretmektir.
 
 Yeni bir action connector’ı eklenirken action adı, hedef, branch/baseBranch, approval ve preview semantiği açıkça AB5 input’una taşınmalı; connector executor’ı firewall kararını görmeden çalışmamalıdır.
+
+### Connector conformance sınırı
+
+`lib/connector-action-firewall.js` şu an GitHub, markdown, JSON, YAML,
+git-log, PDF ve HTTP ingest/probe yüzeylerini tanımlar. Her kayıt canonical
+action, executor, target alanı ve state-mutation sınırını taşır; unknown
+connector/action veya malformed target fail-closed `block` olur. Gerçek
+çalıştırma noktaları `executeConnectorAction()` üzerinden geçer; `review`,
+`dry_run_only` ve `block` kararları executor çağırmaz. Bu kapsam
+`test/connector-firewall-coverage.contract.test.js` tarafından source-backed
+olarak korunur.
+
+Bu sözleşme dış IAM, egress kontrolü, maliyet muhasebesi veya connector-wide
+rate limiting uygulamaz. Yeni state-changing connectorlar için bunların
+operator policy'sinde ayrıca tanımlanması gerekir; uygulama yokken bu belge
+onları sağlanmış olarak iddia etmez.
