@@ -133,6 +133,21 @@ test('read-only network inspection can still allow', () => {
   assert.equal(result.reason, TOOL_GATE_REASONS.LOW_RISK_ACTION);
 });
 
+test('ordinary payload words do not trigger short-token escalation', () => {
+  const result = evaluateToolCall({
+    action: 'inspect',
+    toolName: 'postgres-reader',
+    input: 'compute the output from the input before reading',
+    classifier: makeClassifier({
+      risk: { level: 'low', score: 0.1, category: 'read' },
+    }),
+  });
+
+  assert.equal(result.decision, TOOL_GATE_DECISIONS.ALLOW);
+  assert.equal(result.allowed, true);
+  assert.equal(result.canExecute, true);
+});
+
 test('network mutation tool does not allow', () => {
   const result = evaluateToolCall({
     action: 'fetch',
