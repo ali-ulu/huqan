@@ -213,3 +213,43 @@ test('V5 shared trust package validator stays isolated from runtime and signing 
   assert.equal(forbiddenImportPattern.test(source), false);
   assert.equal(forbiddenRuntimeWords.test(source), false);
 });
+
+
+test('V5 shared trust package validator rejects unknown subject types and validates supplied routeReceipt independently', () => {
+  const fixture = clone(readFixture('valid-minimal.json'));
+  fixture.subject.type = 'other';
+  fixture.routeReceipt = {
+    hops: 'not-an-array',
+    arbitrary: { nested: true },
+  };
+
+  const result = validateSharedTrustPackage(fixture);
+
+  assert.equal(result.valid, false);
+  assertStructuredResult(result);
+  assert.equal(
+    result.errors.some((error) => error.code === 'invalid_enum_value' && error.path === 'subject.type'),
+    true
+  );
+  assert.equal(
+    result.errors.some((error) => error.code === 'unknown_field' && error.path === 'routeReceipt.arbitrary'),
+    true
+  );
+  assert.equal(
+    result.errors.some((error) => error.code === 'missing_required_field' && error.path === 'routeReceipt.hops'),
+    true
+  );
+});
+
+test('V5 shared trust package validator keeps route_receipt receipt route required', () => {
+  const fixture = clone(readFixture('valid-minimal.json'));
+  fixture.subject.type = 'route_receipt';
+
+  const result = validateSharedTrustPackage(fixture);
+
+  assert.equal(result.valid, false);
+  assert.equal(
+    result.errors.some((error) => error.code === 'missing_required_field' && error.path === 'receipt.routeReceipt'),
+    true
+  );
+});

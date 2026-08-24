@@ -6,6 +6,7 @@ const schema = require('./shared-trust-package.schema.json');
 const SHARED_TRUST_PACKAGE_SCHEMA_VERSION = 'v5-shared-trust-package/v0.1';
 const VALID_VERDICT_STATUSES = new Set(['allow', 'review', 'dry_run_only', 'block']);
 const VALID_REASONING_STATUSES = new Set(['allow', 'review', 'dry_run_only', 'block', 'unknown']);
+const VALID_SUBJECT_TYPES = new Set(['agent_action', 'change', 'tool_call', 'route_receipt', 'route_receipt_chain', 'reasoning_metadata']);
 
 function makeError(code, path, message) {
   return { code, path, message };
@@ -275,7 +276,10 @@ function validateSharedTrustPackage(candidate) {
     errors.push(makeError('invalid_object', 'subject', 'subject must be an object.'));
   } else {
     validateObjectKeys(candidate.subject, new Set(['type', 'id']), 'subject', errors);
-    validateRequiredString(candidate.subject, 'type', 'subject.type', errors);
+    if (validateRequiredString(candidate.subject, 'type', 'subject.type', errors)
+      && !VALID_SUBJECT_TYPES.has(candidate.subject.type)) {
+      errors.push(makeError('invalid_enum_value', 'subject.type', 'subject.type is not allowed.'));
+    }
     validateRequiredString(candidate.subject, 'id', 'subject.id', errors);
   }
 
@@ -322,7 +326,7 @@ function validateSharedTrustPackage(candidate) {
     }
   }
 
-  if (candidate.subject && candidate.subject.type === 'route_receipt_chain') {
+  if (Object.hasOwn(candidate, 'routeReceipt')) {
     validateTopLevelRouteReceipt(candidate.routeReceipt, errors);
   }
 
