@@ -1,0 +1,366 @@
+openapi: 3.1.0
+info:
+  title: HUQAN Observability API
+  version: 1.0.0
+  description: >-
+    Workspace-scoped local-first API. /api/v1/observability is stable for v1.
+    /api/observability remains a backward-compatible alias during 0.x. Additive
+    response fields may be introduced in v1; removal, rename, type, ordering,
+    pagination, or error-semantic changes require a new major prefix.
+servers:
+  - url: /api/v1/observability
+security:
+  - apiKey: []
+paths:
+  /metrics:
+    get:
+      operationId: getObservabilityMetrics
+      parameters: [{$ref: '#/components/parameters/Workspace'}, {$ref: '#/components/parameters/WindowMs'}]
+      responses:
+        '200': {$ref: '#/components/responses/Metrics'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /events:
+    get:
+      operationId: listObservabilityEvents
+      description: Newest createdAt/eventId first.
+      parameters: [{$ref: '#/components/parameters/Workspace'}, {$ref: '#/components/parameters/Limit'}, {$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/EventType'}, {$ref: '#/components/parameters/RunId'}]
+      responses:
+        '200': {$ref: '#/components/responses/EventPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /runs:
+    get:
+      operationId: listObservabilityRuns
+      description: Newest updatedAt/runId first.
+      parameters: [{$ref: '#/components/parameters/Workspace'}, {$ref: '#/components/parameters/Limit'}, {$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Status'}]
+      responses:
+        '200': {$ref: '#/components/responses/RunPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /queue:
+    get:
+      operationId: listObservabilityQueue
+      description: Newest updatedAt/jobId first.
+      parameters: [{$ref: '#/components/parameters/Workspace'}, {$ref: '#/components/parameters/Limit'}, {$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Status'}]
+      responses:
+        '200': {$ref: '#/components/responses/QueuePage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+    post:
+      operationId: enqueueObservabilityJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/EnqueueRequest'}
+      responses:
+        '202': {$ref: '#/components/responses/Job'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /alerts:
+    get:
+      operationId: listObservabilityAlerts
+      description: Newest firedAt/alertId first.
+      parameters: [{$ref: '#/components/parameters/Workspace'}, {$ref: '#/components/parameters/Limit'}, {$ref: '#/components/parameters/Cursor'}]
+      responses:
+        '200': {$ref: '#/components/responses/AlertPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /alerts/{alertId}/acknowledge:
+    post:
+      operationId: acknowledgeObservabilityAlert
+      parameters:
+        - {name: alertId, in: path, required: true, schema: {type: string, minLength: 1, maxLength: 160}}
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/WorkspaceBody'}}}
+      responses:
+        '200': {$ref: '#/components/responses/Alert'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /alert-rules:
+    get:
+      operationId: listObservabilityAlertRules
+      description: Newest updatedAt/ruleId first.
+      parameters: [{$ref: '#/components/parameters/Workspace'}, {$ref: '#/components/parameters/Limit'}, {$ref: '#/components/parameters/Cursor'}]
+      responses:
+        '200': {$ref: '#/components/responses/RulePage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+    post:
+      operationId: createObservabilityAlertRule
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/CreateRuleRequest'}}}
+      responses:
+        '201': {$ref: '#/components/responses/Rule'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /alert-rules/{ruleId}:
+    delete:
+      operationId: deleteObservabilityAlertRule
+      parameters:
+        - {name: ruleId, in: path, required: true, schema: {type: string, minLength: 1, maxLength: 160}}
+        - {$ref: '#/components/parameters/Workspace'}
+      responses:
+        '200': {$ref: '#/components/responses/Deleted'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /stream:
+    get:
+      operationId: streamObservabilityEvents
+      parameters: [{$ref: '#/components/parameters/Workspace'}]
+      responses:
+        '200': {description: Workspace-filtered SSE; ready frame then Event data frames., content: {text/event-stream: {schema: {type: string}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+components:
+  securitySchemes:
+    apiKey: {type: apiKey, in: header, name: X-API-Key}
+  parameters:
+    Workspace: {name: workspaceId, in: query, required: true, schema: {$ref: '#/components/schemas/WorkspaceId'}}
+    Limit: {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 50}}
+    Cursor: {name: cursor, in: query, description: Opaque; pass nextCursor unchanged., schema: {type: string, maxLength: 512}}
+    WindowMs: {name: windowMs, in: query, schema: {type: integer, minimum: 1000, maximum: 2678400000}}
+    EventType: {name: eventType, in: query, schema: {type: string, maxLength: 128}}
+    RunId: {name: runId, in: query, schema: {type: string, maxLength: 128}}
+    Status: {name: status, in: query, schema: {type: string, maxLength: 128}}
+  responses:
+    Metrics: {description: Metrics envelope, content: {application/json: {schema: {$ref: '#/components/schemas/MetricsEnvelope'}}}}
+    EventPage: {description: Event cursor page, content: {application/json: {schema: {$ref: '#/components/schemas/EventPageEnvelope'}}}}
+    RunPage: {description: Run cursor page, content: {application/json: {schema: {$ref: '#/components/schemas/RunPageEnvelope'}}}}
+    QueuePage: {description: Queue cursor page, content: {application/json: {schema: {$ref: '#/components/schemas/QueuePageEnvelope'}}}}
+    AlertPage: {description: Alert cursor page, content: {application/json: {schema: {$ref: '#/components/schemas/AlertPageEnvelope'}}}}
+    RulePage: {description: Rule cursor page, content: {application/json: {schema: {$ref: '#/components/schemas/RulePageEnvelope'}}}}
+    Job: {description: Accepted queue job, content: {application/json: {schema: {$ref: '#/components/schemas/JobEnvelope'}}}}
+    Alert: {description: Alert, content: {application/json: {schema: {$ref: '#/components/schemas/AlertEnvelope'}}}}
+    Rule: {description: Alert rule, content: {application/json: {schema: {$ref: '#/components/schemas/RuleEnvelope'}}}}
+    Deleted: {description: Deleted alert rule, content: {application/json: {schema: {$ref: '#/components/schemas/DeleteEnvelope'}}}}
+    BadRequest: {description: Validation or exact workspace error, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+    Unauthorized: {description: Missing or invalid authentication, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+    Forbidden: {description: Workspace membership or role denied, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+    NotFound: {description: Scoped resource not found, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+    RateLimited:
+      description: Subject/workspace/action limit exceeded
+      headers: {Retry-After: {schema: {type: integer, minimum: 1}}}
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
+    Unavailable: {description: Authorization, limiter, service, or storage unavailable, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+  schemas:
+    WorkspaceId: {type: string, minLength: 1, maxLength: 128, pattern: '^[^\x00-\x1F\x7F]+$'}
+    WorkspaceBody: {type: object, additionalProperties: false, required: [workspaceId], properties: {workspaceId: {$ref: '#/components/schemas/WorkspaceId'}}}
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [ok, error]
+      properties:
+        ok: {const: false}
+        error: {type: object, additionalProperties: false, required: [code, message], properties: {code: {type: string, minLength: 1, maxLength: 160}, message: {type: string, minLength: 1, maxLength: 512}}}
+    PageFields:
+      type: object
+      required: [items, limit, hasMore, nextCursor]
+      properties:
+        items: {type: array, maxItems: 100}
+        limit: {type: integer, minimum: 1, maximum: 100}
+        hasMore: {type: boolean}
+        nextCursor: {type: [string, 'null'], maxLength: 512}
+    Event:
+      type: object
+      additionalProperties: false
+      required: [eventId, workspaceId, eventType, status, costKnown, payload, createdAt]
+      properties:
+        eventId: {type: string}
+        workspaceId: {$ref: '#/components/schemas/WorkspaceId'}
+        runId: {type: [string, 'null']}
+        traceId: {type: [string, 'null']}
+        agentId: {type: [string, 'null']}
+        eventType: {type: string}
+        status: {type: [string, 'null']}
+        tool: {type: [string, 'null']}
+        durationMs: {type: [integer, 'null']}
+        tokens: {type: [integer, 'null']}
+        inputTokens: {type: [integer, 'null']}
+        outputTokens: {type: [integer, 'null']}
+        costMicros: {type: [integer, 'null']}
+        costKnown: {type: boolean}
+        payload: {type: object, description: Redacted bounded metadata only.}
+        createdAt: {type: string, format: date-time}
+    ToolUsage: {type: object, additionalProperties: false, required: [name, count], properties: {name: {type: string}, count: {type: integer, minimum: 0}}}
+    Run:
+      type: object
+      additionalProperties: false
+      required: [runId, workspaceId, runtime, goalDigest, goalLength, status, startedAt, stepCount, costKnown, updatedAt, tools, toolCallCount]
+      properties:
+        runId: {type: string}
+        workspaceId: {$ref: '#/components/schemas/WorkspaceId'}
+        agentId: {type: [string, 'null']}
+        runtime: {type: string}
+        goalDigest: {type: [string, 'null'], description: One-way digest only.}
+        goalLength: {type: integer}
+        objective: {type: [string, 'null']}
+        status: {type: string}
+        startedAt: {type: string, format: date-time}
+        finishedAt: {type: [string, 'null']}
+        durationMs: {type: [integer, 'null']}
+        stepCount: {type: integer}
+        successfulSteps: {type: integer}
+        blockedSteps: {type: integer}
+        errorSteps: {type: integer}
+        tokens: {type: [integer, 'null']}
+        inputTokens: {type: [integer, 'null']}
+        outputTokens: {type: [integer, 'null']}
+        costMicros: {type: [integer, 'null']}
+        costKnown: {type: boolean}
+        errorCode: {type: [string, 'null']}
+        updatedAt: {type: string, format: date-time}
+        tools: {type: array, items: {$ref: '#/components/schemas/ToolUsage'}}
+        toolCallCount: {type: integer}
+    QueueJob:
+      type: object
+      additionalProperties: false
+      required: [jobId, workspaceId, goalDigest, goalLength, maxSteps, status, attempts, maxAttempts, availableAt, createdAt, updatedAt]
+      properties:
+        jobId: {type: string}
+        workspaceId: {$ref: '#/components/schemas/WorkspaceId'}
+        agentId: {type: [string, 'null']}
+        goalDigest: {type: string, description: One-way digest only.}
+        goalLength: {type: integer}
+        maxSteps: {type: integer}
+        status: {type: string}
+        attempts: {type: integer}
+        maxAttempts: {type: integer}
+        availableAt: {type: string, format: date-time}
+        leaseUntil: {type: [string, 'null']}
+        workerId: {type: [string, 'null']}
+        runId: {type: [string, 'null']}
+        errorCode: {type: [string, 'null']}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+    Alert:
+      type: object
+      additionalProperties: false
+      required: [alertId, ruleId, workspaceId, metric, value, threshold, fingerprint, status, firedAt]
+      properties:
+        alertId: {type: string}
+        ruleId: {type: string}
+        workspaceId: {$ref: '#/components/schemas/WorkspaceId'}
+        metric: {type: string}
+        value: {type: number}
+        threshold: {type: number}
+        fingerprint: {type: [string, 'null']}
+        status: {enum: [firing, acknowledged, resolved]}
+        eventId: {type: [string, 'null']}
+        firedAt: {type: string, format: date-time}
+        acknowledgedAt: {type: [string, 'null']}
+        resolvedAt: {type: [string, 'null']}
+    AlertRule:
+      type: object
+      additionalProperties: false
+      required: [ruleId, workspaceId, name, metric, operator, threshold, windowMs, cooldownMs, enabled, createdAt, updatedAt]
+      properties:
+        ruleId: {type: string}
+        workspaceId: {$ref: '#/components/schemas/WorkspaceId'}
+        name: {type: string}
+        metric: {enum: [success_rate, avg_latency_ms, p95_latency_ms, token_total, cost_micros, error_count, queue_depth]}
+        operator: {enum: [gt, gte, lt, lte, eq]}
+        threshold: {type: number}
+        windowMs: {type: integer}
+        cooldownMs: {type: integer}
+        enabled: {type: boolean}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+    Metrics:
+      type: object
+      additionalProperties: false
+      required: [workspaceId, windowMs, since, totalRuns, completedRuns, failedRuns, totalTokens, tokenKnown, costKnown, errorRuns, queueDepth, toolUsage, toolCallCount, generatedAt]
+      properties:
+        workspaceId: {$ref: '#/components/schemas/WorkspaceId'}
+        windowMs: {type: integer}
+        since: {type: string, format: date-time}
+        totalRuns: {type: integer}
+        completedRuns: {type: integer}
+        failedRuns: {type: integer}
+        successRate: {type: [number, 'null']}
+        avgLatencyMs: {type: [number, 'null']}
+        p95LatencyMs: {type: [number, 'null']}
+        totalTokens: {type: integer}
+        tokenKnown: {type: boolean}
+        totalCostMicros: {type: [integer, 'null']}
+        costKnown: {type: boolean}
+        errorRuns: {type: integer}
+        queueDepth: {type: integer}
+        toolUsage: {type: array, items: {$ref: '#/components/schemas/ToolUsage'}}
+        toolCallCount: {type: integer}
+        generatedAt: {type: string, format: date-time}
+    QueueSummary: {type: object, required: [workspaceId, byStatus, depth], properties: {workspaceId: {$ref: '#/components/schemas/WorkspaceId'}, byStatus: {type: object, additionalProperties: {type: integer, minimum: 0}}, depth: {type: integer, minimum: 0}}}
+    EnqueueRequest:
+      type: object
+      additionalProperties: false
+      required: [workspaceId, goal]
+      properties:
+        workspaceId: {$ref: '#/components/schemas/WorkspaceId'}
+        goal: {type: string, minLength: 1, maxLength: 4000, writeOnly: true}
+        jobId: {type: string}
+        agentId: {type: string}
+        maxSteps: {type: integer, minimum: 1, maximum: 8}
+        maxAttempts: {type: integer, minimum: 1, maximum: 5}
+    CreateRuleRequest:
+      type: object
+      additionalProperties: false
+      required: [workspaceId, metric, operator, threshold]
+      properties:
+        workspaceId: {$ref: '#/components/schemas/WorkspaceId'}
+        ruleId: {type: string}
+        name: {type: string, maxLength: 160}
+        metric: {enum: [success_rate, avg_latency_ms, p95_latency_ms, token_total, cost_micros, error_count, queue_depth]}
+        operator: {enum: [gt, gte, lt, lte, eq]}
+        threshold: {type: number}
+        windowMs: {type: integer, minimum: 1000, maximum: 2678400000}
+        cooldownMs: {type: integer, minimum: 1000, maximum: 2678400000}
+        enabled: {type: boolean}
+    SuccessBase: {type: object, required: [ok, data], properties: {ok: {const: true}}}
+    EventPageEnvelope: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {allOf: [{$ref: '#/components/schemas/PageFields'}, {properties: {items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/Event'}}}}]}}}]}
+    RunPageEnvelope: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {allOf: [{$ref: '#/components/schemas/PageFields'}, {properties: {items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/Run'}}}}]}}}]}
+    QueuePageEnvelope: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {allOf: [{$ref: '#/components/schemas/PageFields'}, {$ref: '#/components/schemas/QueueSummary'}, {properties: {items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/QueueJob'}}}}]}}}]}
+    AlertPageEnvelope: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {allOf: [{$ref: '#/components/schemas/PageFields'}, {properties: {items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/Alert'}}}}]}}}]}
+    RulePageEnvelope: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {allOf: [{$ref: '#/components/schemas/PageFields'}, {properties: {items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/AlertRule'}}}}]}}}]}
+    MetricsEnvelope: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {type: object, required: [metrics, queue, alerts], properties: {metrics: {$ref: '#/components/schemas/Metrics'}, queue: {$ref: '#/components/schemas/QueueSummary'}, alerts: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/Alert'}}}}}}]}
+    JobEnvelope: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/QueueJob'}}}]}
+    AlertEnvelope: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/Alert'}}}]}
+    RuleEnvelope: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/AlertRule'}}}]}
+    DeleteEnvelope: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {type: object, additionalProperties: false, required: [deleted], properties: {deleted: {const: true}}}}}]}

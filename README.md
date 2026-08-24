@@ -175,6 +175,14 @@ default has one authenticated API-key principal; multi-user deployments can
 inject another principal/membership resolver through the same authorization
 contract without changing observability routes.
 
+The stable observability API prefix is `/api/v1/observability`; the original
+`/api/observability` routes remain backward-compatible aliases throughout the
+0.x release line. V1 may gain additive response fields, but removing or
+renaming fields, changing their types, ordering/pagination semantics, or error
+meaning requires a new major prefix. The complete request, response, cursor,
+limit, time-window, SSE, authorization, rate-limit, and storage-error contract
+is published in [Observability OpenAPI v1](./docs/openapi-observability-v1.yaml).
+
 Observability abuse protection is also local-first and fail-closed. Defaults
 allow 120 list requests, 30 queue mutations, 30 alert-rule mutations, and 20
 SSE connection attempts per authenticated subject/workspace per minute, with at
