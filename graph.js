@@ -320,7 +320,7 @@ class Graph {
         ON CONFLICT(workspace_id, id) DO UPDATE SET
           workspace_id = excluded.workspace_id,
           label = excluded.label,
-          weight = MIN(1.0, weight + 0.1),
+          weight = excluded.weight,
           last_accessed = excluded.last_accessed,
           last_seen = excluded.last_seen,
           provenance = excluded.provenance
@@ -684,12 +684,12 @@ class Graph {
       },
       get: storageKey => this._nodes[storageKey],
       set: (storageKey, value) => { this._nodes[storageKey] = value; },
-      persist: ({ id, workspaceId, label, created, createdAt, lastAccessed, lastSeen, vector, provenance }) => {
+      persist: ({ id, workspaceId, label, weight, created, createdAt, lastAccessed, lastSeen, vector, provenance }) => {
         this._stmts.upsertNode.run(
           id,
           workspaceId,
           label,
-          0.5,
+          weight,
           created,
           createdAt,
           lastAccessed,
