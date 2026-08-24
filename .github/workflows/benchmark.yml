@@ -221,7 +221,10 @@ jobs:
       # fetched, while still failing on a real merge conflict.
       - name: Materialize current baseline ancestry for live Git validation
         if: github.event_name == 'pull_request'
-        run: git merge --no-edit origin/main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git merge --no-edit origin/main
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
