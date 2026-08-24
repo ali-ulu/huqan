@@ -30,12 +30,11 @@ test('KERNEL: selfLearn delegate is narrow, public-API-only, and cycle-free', ()
   assert.doesNotMatch(delegateSource, /kernel\.js/);
   assert.doesNotMatch(delegateSource, /require\(["']\.\.\/kernel["']\)/);
   assert.doesNotMatch(delegateSource, /_edges|_nodes|_db|_stmts/);
-  assert.match(delegateSource, /graph\.edgeCount\(\)/);
-  assert.match(delegateSource, /graph\.getEdges\(gapId\)/);
-  assert.match(delegateSource, /graph\.getInEdges\(gapId\)/);
+  assert.doesNotMatch(delegateSource, /cosineSimilarity|addEdge|learn\(/);
+  assert.match(delegateSource, /stub:\s*true/);
 });
 
-test('KERNEL: selfLearn preserves edgeCount delta and skips connected gaps', () => {
+test('KERNEL: selfLearn reports discovered gaps as an explicit read-only stub', () => {
   const calls = [];
   const counts = [10, 12];
   const graph = {
@@ -58,14 +57,8 @@ test('KERNEL: selfLearn preserves edgeCount delta and skips connected gaps', () 
     },
   };
 
-  assert.deepEqual(runSelfLearn(() => ['connected', 'isolated'], graph), { gaps: 2, learned: 2 });
-  assert.deepEqual(calls.filter(([name]) => name === 'edgeCount'), [
-    ['edgeCount', []],
-    ['edgeCount', []],
-  ]);
-  assert.deepEqual(calls.filter(([name]) => name === 'cosineSimilarity'), [
-    ['cosineSimilarity', 'isolated', 'isolated'],
-  ]);
+  assert.deepEqual(runSelfLearn(() => ['connected', 'isolated'], graph), { gaps: 2, learned: 0, stub: true });
+  assert.deepEqual(calls, [], 'read-only stub must not inspect or mutate graph state');
 });
 
 test('KERNEL: selfLearn preserves empty-gap early return without counting edges', () => {
@@ -77,6 +70,6 @@ test('KERNEL: selfLearn preserves empty-gap early return without counting edges'
     },
   };
 
-  assert.deepEqual(runSelfLearn(() => [], graph), { gaps: 0, learned: 0, message: 'Boşluk yok' });
+  assert.deepEqual(runSelfLearn(() => [], graph), { gaps: 0, learned: 0, stub: true, message: 'Boşluk yok' });
   assert.equal(edgeCountCalled, false);
 });
