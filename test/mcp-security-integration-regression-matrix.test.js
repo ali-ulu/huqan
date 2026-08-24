@@ -226,7 +226,7 @@ test('duplicate approved decision is idempotent and preserves the same receipt',
   };
   const store = fixtureApprovalStore([approval]);
   const server = createServer({ kernel: fixtureKernel(), approvalStore: store, operatorToken: 'operator-secret' });
-  const params = { approvalId: approval.id, decision: 'approved' };
+  const params = { approvalId: approval.id, workspaceId: 'default', decision: 'approved' };
   const first = transportCall(server, 1, 'huqan.approve', params, { operatorToken: 'operator-secret' });
   const second = transportCall(server, 2, 'huqan.approve', params, { operatorToken: 'operator-secret' });
 

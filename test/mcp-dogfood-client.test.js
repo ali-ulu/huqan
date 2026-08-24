@@ -240,6 +240,7 @@ test('MCP dogfood client persists approval, receipt, and idempotent replay acros
 
     const approved = await callTool(client, 'axiom.approve', {
       approvalId,
+      workspaceId: 'default',
       decision: 'approved',
       reason: 'dogfood approval',
     });
@@ -259,6 +260,7 @@ test('MCP dogfood client persists approval, receipt, and idempotent replay acros
     assert.equal(persisted.structuredContent.data.status, 'verified');
     const replay = await callTool(client, 'axiom.approve', {
       approvalId,
+      workspaceId: 'default',
       decision: 'approved',
       reason: 'dogfood replay must not re-execute',
     });

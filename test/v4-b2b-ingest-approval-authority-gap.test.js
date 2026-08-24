@@ -278,12 +278,12 @@ describe('V4-B2B: ingest approval authority repair', () => {
     });
 
     const before = graphCounts();
-    const tampered = await requestJson(`/api/ingest/approvals/${tamperedId}`, {
+    const tampered = await requestJson(`/api/ingest/approvals/${tamperedId}?workspaceId=tenant-b`, {
       method: 'POST', body: { decision: 'approved' },
     });
     assert.equal(tampered.status, 409);
     assert.equal(tampered.body.error.code, 'SNAPSHOT_INTEGRITY_MISMATCH');
-    assert.equal(store.getToolApprovalById(tamperedId).status, 'failed');
+    assert.equal(store.getToolApprovalById(tamperedId, 'tenant-b').status, 'failed');
     assert.deepEqual(graphCounts(), before);
   });
 

@@ -380,6 +380,7 @@
     "lib/sqlite-availability.js",
     "lib/ssrf-guard.js",
     "lib/storage/schema.js",
+    "lib/storage/tool-approval-methods.js",
     "lib/subject-resolution.js",
     "lib/text-safety-scorer.js",
     "lib/text-utils.js",

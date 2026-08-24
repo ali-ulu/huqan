@@ -320,7 +320,7 @@ describe('MCP Server', () => {
 
     const approvals = await request('tools/call', {
       name: 'huqan.approvals',
-      arguments: { limit: 10 },
+      arguments: { limit: 10, workspaceId: 'default' },
     });
     assert.strictEqual(approvals.result.isError, false);
     assert.strictEqual(approvals.result.structuredContent.pendingCount >= 1, true);
@@ -346,7 +346,7 @@ describe('MCP Server', () => {
 
     const approvals = await request('tools/call', {
       name: 'huqan.approvals',
-      arguments: { limit: 20 },
+      arguments: { limit: 20, workspaceId: 'default' },
     });
     assert.strictEqual(approvals.result.isError, false);
     assert.ok(Array.isArray(approvals.result.structuredContent.approvals));
@@ -367,7 +367,7 @@ describe('MCP Server', () => {
       countUnresolvedToolApprovals() { return 0; },
     };
 
-    callTool(kernel, { name: 'huqan.approvals', operatorToken: 'test-operator', arguments: { limit: 500 } }, { approvalStore, operatorToken: 'test-operator' });
+    callTool(kernel, { name: 'huqan.approvals', operatorToken: 'test-operator', arguments: { limit: 500, workspaceId: 'default' } }, { approvalStore, operatorToken: 'test-operator' });
     callTool(kernel, { name: 'huqan.reason', arguments: { subject: '  kedi\u0000  ' } });
     callTool(kernel, { name: 'huqan.compare', arguments: { left: '  kedi\u0000 ', right: ' kopek\u0007 ' } });
     callTool(kernel, { name: 'huqan.dream', arguments: { depth: 500 } });

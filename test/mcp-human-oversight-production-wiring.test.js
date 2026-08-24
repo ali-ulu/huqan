@@ -136,7 +136,7 @@ test('MCP opt-in approval path creates and executes a durable Human Oversight ca
     const approved = await callTool(f.kernel, {
       name: 'huqan.approve',
       operatorToken: 'operator-token',
-      arguments: JSON.stringify({ approvalId: queued.approval.id, decision: 'approved', reason: 'bounded_operator_review' }),
+      arguments: JSON.stringify({ approvalId: queued.approval.id, workspaceId: 'workspace-a', decision: 'approved', reason: 'bounded_operator_review' }),
     }, runtimeOptions(f));
     assert.equal(approved.ok, true, JSON.stringify(approved));
     assert.equal(approved.data.executed, true);
@@ -178,7 +178,7 @@ test('MCP oversight marker fails closed when the runtime is absent at approval t
     const result = callTool(f.kernel, {
       name: 'huqan.approve',
       operatorToken: 'operator-token',
-      arguments: JSON.stringify({ approvalId: queued.approval.id, decision: 'approved' }),
+      arguments: JSON.stringify({ approvalId: queued.approval.id, workspaceId: 'workspace-a', decision: 'approved' }),
     }, { approvalStore: f.store, operatorToken: 'operator-token' });
     assert.equal(result.ok, false);
     assert.equal(result.error.code, 'OVERSIGHT_RUNTIME_UNAVAILABLE');

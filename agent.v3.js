@@ -312,14 +312,14 @@ class AgentV3 {
   // the baseAgent seam above; these read straight from v3's storage, mirroring
   // the guards agent.js uses so a storage without the approval tables degrades
   // to empty rather than throwing.
-  listPendingToolApprovals(limit = 20) {
+  listPendingToolApprovals(limit = 20, workspaceId = 'default') {
     if (!this.storage || typeof this.storage.listPendingToolApprovals !== 'function') return [];
-    return this.storage.listPendingToolApprovals(limit);
+    return this.storage.listPendingToolApprovals(limit, workspaceId);
   }
 
-  countPendingToolApprovals() {
+  countPendingToolApprovals(workspaceId = 'default') {
     if (!this.storage || typeof this.storage.countPendingToolApprovals !== 'function') return 0;
-    return this.storage.countPendingToolApprovals();
+    return this.storage.countPendingToolApprovals(workspaceId);
   }
 
   _hydrateState(activePlan, checkpoint = null) {
@@ -750,15 +750,15 @@ class AgentV3 {
     });
   }
 
-  getStatus() {
+  getStatus(workspaceId = 'default') {
     const goals = this.storage ? this.storage.countGoals() : 0;
     const checkpoints = this.storage ? this.storage.countCheckpoints() : 0;
     const runs = this.storage ? this.storage.countRuns() : 0;
     const pendingApprovals = this.storage && typeof this.storage.countPendingToolApprovals === 'function'
-      ? this.storage.countPendingToolApprovals()
+      ? this.storage.countPendingToolApprovals(workspaceId)
       : 0;
     const recentApprovals = this.storage && typeof this.storage.listPendingToolApprovals === 'function'
-      ? this.storage.listPendingToolApprovals(5).map(item => ({
+      ? this.storage.listPendingToolApprovals(5, workspaceId).map(item => ({
           id: item.id,
           tool: item.tool,
           status: item.status,

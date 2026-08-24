@@ -141,7 +141,7 @@ describe('huqan.learn candidate/admission contract (#787)', () => {
     const approved = callTool(kernel, {
       name: 'huqan.approve',
       operatorToken: 'operator-token',
-      arguments: JSON.stringify({ approvalId, decision: 'approved' }),
+      arguments: JSON.stringify({ approvalId, workspaceId: 'workspace-p0', decision: 'approved' }),
     }, { approvalStore: store, operatorToken: 'operator-token' });
 
     assert.equal(approved.ok, true);
