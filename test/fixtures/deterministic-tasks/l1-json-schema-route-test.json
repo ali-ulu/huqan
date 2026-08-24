@@ -16,12 +16,12 @@
     {
       "path": "routes/user.js",
       "before": null,
-      "after": "'use strict';\n\nfunction createUserRoute(router, handler) {\n  router.post('/users', handler);\n}\n\nmodule.exports = { createUserRoute };\n"
+      "after": "'use strict';\n\nconst requiredFields = Object.freeze([\"email\",\"name\"]);\n\nfunction createUserRoute(router, handler) {\n  router.post('/users', handler);\n}\n\nmodule.exports = { createUserRoute, requiredFields };\n"
     },
     {
       "path": "test/routes/user.test.js",
       "before": null,
-      "after": "'use strict';\n\nconst { test } = require('node:test');\nconst assert = require('node:assert/strict');\n\ntest('POST /users exposes schema-required fields', () => {\n  const requiredFields = [\"email\",\"name\"];\n  assert.deepEqual(requiredFields, [\"email\",\"name\"]);\n});\n"
+      "after": "'use strict';\n\nconst { test } = require('node:test');\nconst assert = require('node:assert/strict');\nconst { requiredFields } = require(\"../../routes/user\");\n\ntest('POST /users exposes schema-required fields', () => {\n  assert.deepEqual(requiredFields, [\"email\",\"name\"]);\n});\n"
     }
   ]
 }
