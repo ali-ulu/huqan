@@ -45,9 +45,9 @@ test('Agent Activity Pulse dashboard contract', async (t) => {
       assert.match(script, new RegExp(`pulseStatus\\('${state}'`), `missing ${state} state`);
     }
     assert.match(script, /r\.status===401\|\|r\.status===403\?'LOCKED':'ERROR'/);
-    assert.match(script, /Activity erişimi kilitli\. Settings’ten API key ekleyin\./);
-    assert.match(script, /Bu workspace’te henüz ajan eylemi yok\./);
-    assert.match(script, /Activity okunamadı\. Tekrar deneyin\./);
+    assert.match(script, /Activity access is locked\. Add an API key in Settings\./);
+    assert.match(script, /No agent actions in this workspace yet\./);
+    assert.match(script, /Activity could not be loaded\. Try again\./);
   });
 
   await t.test('pins refresh and keyboard/click-through wiring', () => {
