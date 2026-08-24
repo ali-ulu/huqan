@@ -128,7 +128,8 @@ test('the fifteen discarding sites are five caller functions', () => {
   // K2 (#328): the background-edge commit was delegated to
   // lib/background-provenance.js, so kernel.js line numbers shifted. The
   // learn discarding site is now line 694 (the ProvenanceError re-append),
-  // and _crossLink's derivation site remains at 796.
+  // _crossLink's derivation site remains at 796, and the strict-provenance
+  // helper added before executeLearn shifts its pinned sites by 29 lines.
   assert.deepEqual(new Set(enclosing('kernel.js', [796, 694])), new Set(['learn', '_crossLink']));
   // The strict provenance helper now precedes executeLearn, so keep the
   // measurement pinned to the seven current learn-use-case sink lines.
