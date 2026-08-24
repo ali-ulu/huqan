@@ -7,8 +7,8 @@ const test = require('node:test');
 const Agent = require('../agent');
 const guidance = require('../lib/agent-run-guidance');
 
-const agentSource = fs.readFileSync(path.join(__dirname, '..', 'agent.js'), 'utf8');
-const delegateSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'agent-run-guidance.js'), 'utf8');
+const agentSource = fs.readFileSync(path.join(__dirname, '..', 'agent.js'), 'utf8').replace(/\r\n/g, '\n');
+const delegateSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'agent-run-guidance.js'), 'utf8').replace(/\r\n/g, '\n');
 
 const state = overrides => ({
   status: 'running',

@@ -15,6 +15,12 @@ module.exports = {
     // a throw the trailing .catch() cannot see, since catch only covers the
     // promise adapter.ask() returns, not the call that constructs it.
     if (!adapter) return data;
+    // Paranoid mode is checked before the request, not after it (#1317).
+    // learnFromLLM refuses under paranoidMode, but it only runs once the
+    // adapter has already resolved -- so the user's question had left the
+    // machine and only the *learning* was blocked. A mode whose message reads
+    // "outbound LLM calls ... are blocked" has to stop the call itself.
+    if (kernel?.paranoidMode === true) return data;
     // Structural first, string second: the payload now carries `unknown`, and
     // the display string is only consulted for a caller that predates it.
     if (typeof data.unknown === 'boolean' ? data.unknown : data.answer === 'Bilmiyorum') {

@@ -13,8 +13,8 @@ const ENGINE_SOURCE = path.join(__dirname, '..', 'lib', 'memory-query-engine.js'
 const ENGINE_IMPORT = "const { runQuery } = require('./memory-query-engine');";
 const ENGINE_REQUIRE_REGEX = /require\('\.\/memory-query-engine'\)/;
 
-const storeSource = fs.readFileSync(STORE_SOURCE, 'utf8');
-const engineSource = fs.readFileSync(ENGINE_SOURCE, 'utf8');
+const storeSource = fs.readFileSync(STORE_SOURCE, 'utf8').replace(/\r\n/g, '\n');
+const engineSource = fs.readFileSync(ENGINE_SOURCE, 'utf8').replace(/\r\n/g, '\n');
 
 // Strip comment lines before structural checks so example delegation snippets
 // in the delegate's header comment do not count as real references.
