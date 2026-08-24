@@ -608,12 +608,9 @@ class Agent {
   }
 
   _executeStep(step, state, opts = {}) {
-    const goalBinding = state.executionScope
-      ? evaluateGoalBinding(state.executionScope, step)
-      : { ok: true, receipt: null };
+    const goalBinding = state.executionScope ? evaluateGoalBinding(state.executionScope, step) : { ok: true, receipt: null };
     if (!goalBinding.ok) {
-      const result = { ok: false, type: 'agent', data: null, evidence: [], error: { code: goalBinding.reason, message: 'Step attempted to change the trusted execution scope.' }, meta: { blocked: true, goalBinding: goalBinding.receipt } };
-      return { id: step.id, action: step.action, tool: step.tool, input: step.input, rationale: step.rationale, status: 'blocked', summary: '', result, policy: null, actionFirewall: null, goalBinding: goalBinding.receipt };
+      return { id: step.id, action: step.action, tool: step.tool, input: step.input, rationale: step.rationale, status: 'blocked', summary: '', result: { ok: false, type: 'agent', data: null, evidence: [], error: { code: goalBinding.reason, message: 'Step attempted to change the trusted execution scope.' }, meta: { blocked: true, goalBinding: goalBinding.receipt } }, policy: null, actionFirewall: null, goalBinding: goalBinding.receipt };
     }
     const beforeTaskData = this._emit('beforeTask', { step, state, opts });
     let result;
@@ -749,8 +746,7 @@ class Agent {
       summary: summary.text || '',
       result,
       policy: toolPolicy,
-      actionFirewall: firewallDecision,
-      goalBinding: goalBinding.receipt,
+      actionFirewall: firewallDecision, goalBinding: goalBinding.receipt,
     };
     this._emit('afterTask', { step: stepReport, state, opts });
     return stepReport;
@@ -799,10 +795,8 @@ class Agent {
     state.workspaceId = typeof opts.workspaceId === 'string' && opts.workspaceId.trim()
       ? opts.workspaceId.trim()
       : (state.workspaceId || 'default');
-    state.executionScope = scopeResult.scope;
-    state.behavioralManifest = resumeCandidate?.behavioralManifest;
-    state.behavioralFindings = resumeCandidate?.behavioralFindings ? cloneValue(resumeCandidate.behavioralFindings) : [];
-    initializeBehavioralState(state, { ...state, selectedTools: [...(state.selectedTools || []), 'dream'] });
+    state.executionScope = scopeResult.scope; state.behavioralManifest = resumeCandidate?.behavioralManifest;
+    state.behavioralFindings = resumeCandidate?.behavioralFindings ? cloneValue(resumeCandidate.behavioralFindings) : []; initializeBehavioralState(state, { ...state, selectedTools: [...(state.selectedTools || []), 'dream'] });
     this._emit('beforeAgentRun', state);
 
     const queued = Array.isArray(state.queuedSteps) ? [...state.queuedSteps] : [];
