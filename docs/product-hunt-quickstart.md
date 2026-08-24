@@ -8,7 +8,7 @@ Bu rehber, HUQAN’ı Product Hunt ziyaretçisine **beş dakika içinde denettir
 
 Demo iki gerçek ürün yüzeyini art arda gösterir. İlk bölümde `quickstart` komutu, mutating `learn` isteğinin review ve approval sonrasında doğrulanabilir Trust Receipt’e dönüşmesini gösterir. İkinci bölümde gerçek AgentV3 çalışması yapılandırılmışsa bu run’ın Observability sekmesindeki metrics, Run History, tool usage, alert, queue ve live event stream yüzeylerine nasıl taşındığı gösterilir.
 
-Bu rehber **sentetik observability run’ı üretmez**. Dashboard’da veri görülebilmesi için gerçek bir AgentV3 run’ı veya kullanıcının kendi izole test akışı gerekir. Boş bir dashboard, henüz izlenecek run oluşmadığı anlamına gelir ve hata olarak yorumlanmamalıdır.
+Tek komutlu demo gerçek AgentV3 akışını izole bir SQLite veritabanında çalıştırır; sentetik telemetry veya mock dashboard kullanmaz. Kişisel memory, mevcut proje verisi ve ortam API anahtarları demo verisine kopyalanmaz.
 
 | Akış | Ne gösterir? | Veri davranışı |
 |---|---|---|
@@ -77,30 +77,19 @@ Bu adımın anlatımı şudur: HUQAN mutating `learn` isteğini doğrudan yazmaz
 
 ## 3. İzole demo server’ını başlatın
 
-Observability verisinin kişisel veya proje memory’siyle karışmaması için ayrı bir geçici klasör kullanın. Server’ı başlatmadan önce:
+Repository kökünde tek komut çalıştırın:
 
 ```bash
-export DEMO_DIR="$(mktemp -d)"
-export DEMO_DB="$DEMO_DIR/memory.db"
-export DEMO_WORKSPACE="product-hunt-demo"
-export HUQAN_API_KEY="ph-local-demo-key"
-export HUQAN_MEMORY_PATH="$DEMO_DIR/memory.json"
-export HUQAN_DB_PATH="$DEMO_DB"
-export HUQAN_AGENT_WORKER_ENABLED=1
-export HUQAN_AGENT_WORKER_INTERVAL_MS=1000
-export HUQAN_AGENT_WORKER_LEASE_MS=120000
-export PORT=3000
-
-npm run server
+npm run demo:observability
 ```
 
-Server şu adreste açılır:
+Komut boş bir `.huqan-observability-demo` klasörü oluşturur, bounded bir gerçek AgentV3 run’ı üretir ve server’ı başlatır. Çıktıda dashboard adresi, sabit `huqan-observability-demo` workspace’i ve yalnızca bu process için rastgele oluşturulmuş session API key gösterilir. Bu değerleri Settings ekranına girin. Varsayılan adres:
 
 ```text
 http://127.0.0.1:3000
 ```
 
-`HUQAN_AGENT_WORKER_ENABLED=1`, queue üzerinden gönderilen işlerin AgentV3 worker tarafından alınmasına izin verir. Worker’ın gerçek bir run’ı tamamlayabilmesi için AgentV3 runtime’ının ve kullandığı araçların ayrıca yapılandırılmış olması gerekir. Dış model veya araç yapılandırması olmayan bir kurulumda job’ın retry veya failure durumuna düşmesi mümkündür; bu durum observability ekranında gösterilebilir, fakat başarılı demo sonucu olarak sunulmamalıdır.
+Demo klasörü doluysa komut mevcut veriyi ezmez ve fail-closed çıkar. Başka bir klasör veya port için `node scripts/observability-demo.js --output <bos-klasor> --port <port>` kullanın. Server başlatmadan yalnızca kanıt üretmek için `--no-serve` ekleyin.
 
 ## 4. Gerçek bir AgentV3 run’ı gönderin
 
