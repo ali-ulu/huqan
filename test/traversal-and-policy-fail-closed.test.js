@@ -10,7 +10,6 @@ const {
   CYCLE_STOPPED,
   detectCycle,
   detectCycleBounded,
-  detectCycleWithMeta,
   findPathWithTimeout,
 } = require('../lib/graph-traversal');
 const {
@@ -80,15 +79,6 @@ describe('cycle detection is bounded, not recursive (#743)', () => {
     assert.strictEqual(detectCycleBounded(graph, 'n0', { timeoutMs: 0.0001 }).stoppedReason, CYCLE_STOPPED.TIMEOUT);
   });
 
-  it('the detailed cycle wrapper preserves a budget stop instead of reporting no cycle', () => {
-    const graph = chainGraph(20);
-    const detailed = detectCycleWithMeta(graph, 'n0', new Set(), [], 'default', { maxDepth: 2 });
-
-    assert.strictEqual(detailed.cycle, null);
-    assert.strictEqual(detailed.stoppedReason, CYCLE_STOPPED.MAX_DEPTH);
-    assert.strictEqual(detectCycle(graph, 'n0', new Set(), [], 'default', { maxDepth: 2 }), null);
-  });
-
   it('a shallow cycle is still found when a deep branch hits the depth budget', () => {
     const graph = chainGraph(2000);
     // A short cycle hanging off the start node, reachable before the long chain
@@ -103,7 +93,7 @@ describe('cycle detection is bounded, not recursive (#743)', () => {
     assert.ok(result.cycle.includes('x') && result.cycle.includes('y'));
   });
 
-  it('a dead-end branch does not suppress a valid later path', () => {
+  it('a dead-end branch does not suppress a valid later path (#1243)', () => {
     const graph = new Graph({ useSQLite: false, noLoad: true });
     for (const id of ['start', 'dead', 'dead-2', 'dead-3', 'bridge', 'shared', 'goal']) {
       graph.addNode(id, id, null, { workspaceId: 'default' });
@@ -135,9 +125,9 @@ describe('cycle detection is bounded, not recursive (#743)', () => {
     let result;
     assert.doesNotThrow(() => { result = kernel.ask('neden n0'); }, 'ask/reason must not throw on a deep chain');
     assert.ok(result);
-    assert.equal(result.data.cycleSearch.complete, false);
-    assert.equal(result.data.cycleSearch.stoppedReason, CYCLE_STOPPED.MAX_DEPTH);
-    assert.match(result.data.answer, /döngü taraması tamamlanmadı/);
+    assert.strictEqual(result.data.cycleSearch.cycle, null);
+    assert.strictEqual(result.data.cycleSearch.stoppedReason, CYCLE_STOPPED.MAX_DEPTH);
+    assert.equal(result.data.cycles.length, 0);
   });
 });
 

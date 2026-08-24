@@ -57,7 +57,7 @@ const {
 const {
   forwardChain,
   backwardChain,
-  detectCycle,
+  detectCycleBounded,
   resolveCycleOrder,
   findPath,
   findPathWithTimeout,
@@ -884,8 +884,8 @@ class Kernel {
     return backwardChain(this.graph, id, chain, visited, depth, workspaceId);
   }
 
-  _detectCycle(start, visited, pathArr, workspaceId = 'default', opts = {}) {
-    return detectCycle(this.graph, start, visited, pathArr, workspaceId, opts);
+  _detectCycle(start, visited, pathArr, workspaceId = 'default') {
+    return detectCycleBounded(this.graph, start, { workspaceId, visited, pathArr });
   }
 
   _resolveCycleOrder(cycle, workspaceId = 'default') {
