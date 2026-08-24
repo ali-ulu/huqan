@@ -160,6 +160,7 @@
     "lib/observability/retention.js",
     "lib/observability/notification.js",
     "lib/observability/pagination.js",
+    "lib/observability/page-readers.js",
     "lib/observability/server-runtime.js",
     "lib/http/runtime-status.js",
     "scripts/observability-load-smoke.js",
