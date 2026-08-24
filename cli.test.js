@@ -202,6 +202,23 @@ describe('CLI - Komut Çözümleme', () => {
     }
   });
 
+  it('parse: #1181 Turkish command spellings reach their documented handlers', () => {
+    const cli = freshCLI();
+    const cases = [
+      ['neden: kedi', 'neden', 'kedi'],
+      ['karşılaştır: kedi | köpek', 'karşılaştır', 'kedi|köpek'],
+      ['karsilastir: kedi | köpek', 'karşılaştır', 'kedi|köpek'],
+      ['düşün', 'düşün', 'başla'],
+      ['dusun', 'düşün', 'başla'],
+      ['konsolide', 'konsolide', ''],
+    ];
+    for (const [input, command, args] of cases) {
+      const parsed = cli.parse(input);
+      assert.strictEqual(parsed.command, command, input);
+      assert.deepStrictEqual(parsed.args, args, input);
+    }
+  });
+
   it('parse: prefix payloadindaki Turkce karakterler korunur', () => {
     // Only the prefix decision is folded; the payload reaches the handler
     // byte-for-byte.
