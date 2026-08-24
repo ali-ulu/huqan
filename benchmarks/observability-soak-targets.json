@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "load": { "cycles": 20, "eventsPerCycle": 10, "subscribersPerCycle": 20, "queueJobsPerCycle": 5 },
+  "maxHeapGrowthBytes": 16777216,
+  "maxSqliteBytesPerEvent": 4096,
+  "maxQueueLagMs": 1000,
+  "maxCycleP95Ms": 100
+}
