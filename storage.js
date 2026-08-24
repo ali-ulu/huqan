@@ -119,7 +119,7 @@ class HuqanStorage {
         LIMIT 1
       `),
       getCheckpointById: this.db.prepare('SELECT * FROM checkpoints WHERE id = ? AND goal_key = ? AND workspace_id = ? AND status != \'completed\' LIMIT 1'),
-      deleteCheckpoint: this.db.prepare('DELETE FROM checkpoints WHERE id = ?'),
+      deleteCheckpoint: this.db.prepare('DELETE FROM checkpoints WHERE id = ? AND goal = ? AND workspace_id = ?'),
       upsertGoalMemory: this.db.prepare(`
         INSERT INTO goal_memory (
           key, workspace_id, goal, objective, success_count, blocked_count, error_count,
@@ -411,10 +411,12 @@ class HuqanStorage {
     };
   }
 
-  deleteCheckpoint(id) {
-    if (!id) return false;
-    this._stmts.deleteCheckpoint.run(String(id));
-    return true;
+  deleteCheckpoint(id, goal, workspaceId) {
+    if (!id || !normalizeGoal(goal) || workspaceId === undefined || workspaceId === null || !String(workspaceId).trim()) return false;
+    const info = this._stmts.deleteCheckpoint.run(
+      String(id), lower(goal), normalizeWorkspaceId(workspaceId),
+    );
+    return info.changes > 0;
   }
 
   saveGoalMemory(record = {}) {

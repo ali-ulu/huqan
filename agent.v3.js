@@ -711,7 +711,7 @@ class AgentV3 {
 
     if (state.status === 'completed' || state.status === 'blocked') {
       try {
-        this.storage.deleteCheckpoint(state.checkpointId);
+        this.storage.deleteCheckpoint(state.checkpointId, goal, workspaceId);
       } catch (err) {
         return this._storageFailure('deleteCheckpoint', err, state);
       }
