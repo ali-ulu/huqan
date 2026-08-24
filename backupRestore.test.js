@@ -57,6 +57,123 @@ describe('backupRestore', () => {
     assert.strictEqual(path.basename(backups[1]), '20260529_100000');
   });
 
+  it('orders backups by manifest time and excludes staging directories', () => {
+    const rootDir = makeTempRoot();
+    const backupBaseDir = path.join(rootDir, 'backups');
+    const createManifestOnlyBackup = (backupId, createdAt) => {
+      const dir = path.join(backupBaseDir, backupId);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify({ backupId, createdAt }));
+      return dir;
+    };
+
+    createManifestOnlyBackup('20260101_000000', '2026-08-20T12:00:00.000Z');
+    createManifestOnlyBackup('pre-restore-20260102_000000', '2026-01-02T12:00:00.000Z');
+    fs.mkdirSync(path.join(backupBaseDir, '.staging-crashed'), { recursive: true });
+
+    const backups = listBackups({ rootDir, backupBaseDir });
+    assert.deepStrictEqual(backups.map(dir => path.basename(dir)), [
+      '20260101_000000',
+      'pre-restore-20260102_000000',
+    ]);
+  });
+
+  it('prunes oldest regular and safety backups independently by manifest time', () => {
+    const rootDir = makeTempRoot();
+    const backupBaseDir = path.join(rootDir, 'backups');
+    fs.writeFileSync(path.join(rootDir, 'memory.json'), '{}');
+    const createManifestOnlyBackup = (backupId, createdAt) => {
+      const dir = path.join(backupBaseDir, backupId);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify({ backupId, createdAt }));
+    };
+
+    createManifestOnlyBackup('regular-old', '2026-01-01T00:00:00.000Z');
+    createManifestOnlyBackup('regular-recent', '2026-08-20T00:00:00.000Z');
+    createManifestOnlyBackup('pre-restore-old', '2026-01-02T00:00:00.000Z');
+    createManifestOnlyBackup('pre-restore-recent', '2026-08-19T00:00:00.000Z');
+
+    createBackup({ rootDir, backupBaseDir, backupId: 'latest', keepLast: 1 });
+
+    assert.ok(!fs.existsSync(path.join(backupBaseDir, 'regular-old')));
+    assert.ok(!fs.existsSync(path.join(backupBaseDir, 'regular-recent')));
+    assert.ok(fs.existsSync(path.join(backupBaseDir, 'latest')));
+    assert.ok(!fs.existsSync(path.join(backupBaseDir, 'pre-restore-old')));
+    assert.ok(fs.existsSync(path.join(backupBaseDir, 'pre-restore-recent')));
+  });
+
+  it('does not select a pre-restore safety backup as the default restore source', () => {
+    const rootDir = makeTempRoot();
+    const backupBaseDir = path.join(rootDir, 'backups');
+    const memoryPath = path.join(rootDir, 'memory.json');
+    fs.writeFileSync(memoryPath, JSON.stringify({ version: 1 }));
+
+    const old = createBackup({ rootDir, backupBaseDir, backupId: '20260101_000000', keepLast: 10 });
+    const oldManifest = JSON.parse(fs.readFileSync(path.join(old.backupDir, 'manifest.json'), 'utf8'));
+    oldManifest.createdAt = '2026-01-01T00:00:00.000Z';
+    fs.writeFileSync(path.join(old.backupDir, 'manifest.json'), JSON.stringify(oldManifest));
+
+    fs.writeFileSync(memoryPath, JSON.stringify({ version: 2 }));
+    const newest = createBackup({ rootDir, backupBaseDir, backupId: '20260820_120000', keepLast: 10 });
+    const newestManifest = JSON.parse(fs.readFileSync(path.join(newest.backupDir, 'manifest.json'), 'utf8'));
+    newestManifest.createdAt = '2026-08-20T12:00:00.000Z';
+    fs.writeFileSync(path.join(newest.backupDir, 'manifest.json'), JSON.stringify(newestManifest));
+
+    fs.writeFileSync(memoryPath, JSON.stringify({ version: 3 }));
+    createBackup({ rootDir, backupBaseDir, backupId: 'pre-restore-20260102_000000', keepLast: 10 });
+
+    const restored = restoreBackup({ rootDir, backupBaseDir, keepLast: 10 });
+    assert.strictEqual(path.basename(restored.sourceDir), path.basename(newest.backupDir));
+    assert.strictEqual(JSON.parse(fs.readFileSync(memoryPath, 'utf8')).version, 2);
+  });
+
+  it('makes default backup IDs collision-resistant and reports explicit ID conflicts', () => {
+    const rootDir = makeTempRoot();
+    const backupBaseDir = path.join(rootDir, 'backups');
+    fs.writeFileSync(path.join(rootDir, 'memory.json'), '{}');
+
+    const first = createBackup({ rootDir, backupBaseDir, keepLast: 10 });
+    const second = createBackup({ rootDir, backupBaseDir, keepLast: 10 });
+    assert.notStrictEqual(first.backupId, second.backupId);
+    assert.match(first.backupId, /^\d{8}_\d{6}-[A-Za-z0-9]+$/);
+    assert.match(second.backupId, /^\d{8}_\d{6}-[A-Za-z0-9]+$/);
+
+    assert.throws(
+      () => createBackup({ rootDir, backupBaseDir, backupId: first.backupId, keepLast: 10 }),
+      (error) => error.code === 'BACKUP_ID_CONFLICT'
+        && error.backupId === first.backupId
+        && error.receipt?.status === 'failed',
+    );
+    assert.ok(!fs.readdirSync(backupBaseDir).some(name => name.startsWith('.staging-')));
+  });
+
+  it('normalizes a rename collision to BACKUP_ID_CONFLICT', () => {
+    const rootDir = makeTempRoot();
+    const backupBaseDir = path.join(rootDir, 'backups');
+    fs.writeFileSync(path.join(rootDir, 'memory.json'), '{}');
+    const originalRename = fs.renameSync;
+    fs.renameSync = (source, destination) => {
+      if (path.basename(destination) === 'race') {
+        const error = new Error('destination exists');
+        error.code = 'ENOTEMPTY';
+        throw error;
+      }
+      return originalRename(source, destination);
+    };
+
+    try {
+      assert.throws(
+        () => createBackup({ rootDir, backupBaseDir, backupId: 'race', keepLast: 10 }),
+        (error) => error.code === 'BACKUP_ID_CONFLICT' && error.backupId === 'race',
+      );
+    } finally {
+      fs.renameSync = originalRename;
+    }
+
+    assert.ok(!fs.existsSync(path.join(backupBaseDir, 'race')));
+    assert.ok(!fs.readdirSync(backupBaseDir).some(name => name.startsWith('.staging-')));
+  });
+
   it('uses AXIOM_BACKUP_DIR when no backup dir is passed', () => {
     const rootDir = makeTempRoot();
     const backupBaseDir = path.join(rootDir, 'persistent-backups');

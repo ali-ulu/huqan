@@ -112,15 +112,51 @@ function backupSqliteIfExists(source, destination) {
   return { name: path.basename(source), size: fs.statSync(destination).size };
 }
 
+function readBackupEntries(backupBaseDir, { includeStaging = false } = {}) {
+  if (!fs.existsSync(backupBaseDir)) return [];
+  return fs.readdirSync(backupBaseDir, { withFileTypes: true })
+    .filter(entry => entry.isDirectory() && (includeStaging || !entry.name.startsWith('.staging-')))
+    .map(entry => {
+      const dir = path.join(backupBaseDir, entry.name);
+      let createdAt = 0;
+      try {
+        const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
+        const parsed = Date.parse(manifest.createdAt);
+        createdAt = Number.isFinite(parsed) ? parsed : 0;
+      } catch (_) {
+        createdAt = 0;
+      }
+      return {
+        dir,
+        createdAt,
+        isStaging: entry.name.startsWith('.staging-'),
+        isSafety: entry.name.startsWith('pre-restore-'),
+      };
+    });
+}
+
+function sortBackupEntriesNewestFirst(left, right) {
+  return right.createdAt - left.createdAt || right.dir.localeCompare(left.dir);
+}
+
+function sortBackupEntriesOldestFirst(left, right) {
+  return left.createdAt - right.createdAt || left.dir.localeCompare(right.dir);
+}
+
 function pruneOldBackups(backupBaseDir, keepLast = 10) {
   const keep = Math.max(1, Number(keepLast) || 10);
-  if (!fs.existsSync(backupBaseDir)) return [];
-  const entries = fs.readdirSync(backupBaseDir, { withFileTypes: true })
-    .filter(entry => entry.isDirectory())
-    .map(entry => path.join(backupBaseDir, entry.name))
-    .sort();
-  if (entries.length <= keep) return [];
-  const stale = entries.slice(0, entries.length - keep);
+  const entries = readBackupEntries(backupBaseDir, { includeStaging: true });
+  if (!entries.length) return [];
+
+  const staging = entries.filter(entry => entry.isStaging);
+  const regular = entries.filter(entry => !entry.isStaging && !entry.isSafety).sort(sortBackupEntriesOldestFirst);
+  const safety = entries.filter(entry => !entry.isStaging && entry.isSafety).sort(sortBackupEntriesOldestFirst);
+  const stale = [
+    ...staging,
+    ...regular.slice(0, Math.max(0, regular.length - keep)),
+    ...safety.slice(0, Math.max(0, safety.length - keep)),
+  ].map(entry => entry.dir);
+
   for (const dirPath of stale) {
     fs.rmSync(dirPath, { recursive: true, force: true });
   }
@@ -133,8 +169,23 @@ function writeManifest(targetDir, manifest) {
   return manifestPath;
 }
 
+function randomSuffix() {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+function newBackupId(prefix = '') {
+  return `${prefix}${timestamp()}-${randomSuffix()}`;
+}
+
 function newOperationId(prefix) {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  return `${prefix}_${Date.now()}_${randomSuffix()}`;
+}
+
+function backupIdConflictError(backupId) {
+  const error = new Error(`A backup already exists with this id: ${backupId}`);
+  error.code = 'BACKUP_ID_CONFLICT';
+  error.backupId = backupId;
+  return error;
 }
 
 /**
@@ -170,16 +221,18 @@ function buildOperationReceipt(operationId, kind, startedAt, status, extra = {})
  */
 function createBackup(opts = {}) {
   const runtime = resolveRuntimePaths(opts);
-  const backupId = validateBackupId(opts.backupId || timestamp());
+  const backupId = validateBackupId(opts.backupId || newBackupId());
   const backupDir = resolvePathWithinRoot(runtime.backupBaseDir, path.join(runtime.backupBaseDir, backupId), { allowMissing: true });
   const stagingDir = resolvePathWithinRoot(runtime.backupBaseDir,
-    path.join(runtime.backupBaseDir, `.staging-${backupId}-${Math.random().toString(36).slice(2, 8)}`), { allowMissing: true });
+    path.join(runtime.backupBaseDir, `.staging-${backupId}-${randomSuffix()}`), { allowMissing: true });
   ensureDir(runtime.backupBaseDir);
   const operationId = newOperationId('backupop');
   const startedAt = new Date().toISOString();
 
   ensureDir(stagingDir);
   try {
+    if (fs.existsSync(backupDir)) throw backupIdConflictError(backupId);
+
     const copied = [];
     const skipped = [];
 
@@ -221,11 +274,14 @@ function createBackup(opts = {}) {
     };
   } catch (error) {
     fs.rmSync(stagingDir, { recursive: true, force: true });
-    error.receipt = buildOperationReceipt(operationId, 'backup', startedAt, 'failed', {
+    const normalizedError = error?.code === 'ENOTEMPTY' || error?.code === 'EEXIST'
+      ? backupIdConflictError(backupId)
+      : error;
+    normalizedError.receipt = buildOperationReceipt(operationId, 'backup', startedAt, 'failed', {
       backupId,
-      message: error.message,
+      message: normalizedError.message,
     });
-    throw error;
+    throw normalizedError;
   }
 }
 
@@ -238,11 +294,9 @@ function createBackup(opts = {}) {
 function listBackups(opts = {}) {
   const runtime = resolveRuntimePaths(opts);
   if (!fs.existsSync(runtime.backupBaseDir)) return [];
-  return fs.readdirSync(runtime.backupBaseDir, { withFileTypes: true })
-    .filter(entry => entry.isDirectory())
-    .map(entry => path.join(runtime.backupBaseDir, entry.name))
-    .sort()
-    .reverse();
+  return readBackupEntries(runtime.backupBaseDir)
+    .sort(sortBackupEntriesNewestFirst)
+    .map(entry => entry.dir);
 }
 
 /**
@@ -265,7 +319,8 @@ function resolveRestoreSource(opts = {}) {
       throw err;
     }
   }
-  const backups = listBackups(opts);
+  const backups = listBackups(opts)
+    .filter(dir => !path.basename(dir).startsWith('pre-restore-'));
   return backups[0] || null;
 }
 
@@ -353,7 +408,7 @@ function restoreBackup(opts = {}) {
     embeddingPath: runtime.files[4],
     agentMemoryPath: runtime.files[5],
     backupBaseDir: runtime.backupBaseDir,
-    backupId: `pre-restore-${timestamp()}`,
+    backupId: newBackupId('pre-restore-'),
     keepLast: opts.keepLast || 10,
   });
 
