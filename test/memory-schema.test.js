@@ -103,6 +103,18 @@ describe('memory-schema', () => {
     assert.ok(validation.errors.some((error) => error.field === 'memoryId'));
   });
 
+  it('reports missing nested provenance fields with their full path (#1188)', () => {
+    const record = baseRecord({ provenance: { ...baseProvenance(), workspaceId: '' } });
+    const validation = validateMemoryRecord(record);
+    assert.equal(validation.ok, false);
+    assert.ok(validation.errors.some((error) => error.field === 'provenance.workspaceId'));
+    assert.ok(validation.errors.every((error) => !['workspaceId', 'provenanceId'].includes(error.field)));
+
+    const event = baseEvent({ provenance: { ...baseProvenance(), actor: '' } });
+    const eventValidation = validateMemoryEvent(event);
+    assert.ok(eventValidation.errors.some((error) => error.field === 'provenance.actor'));
+  });
+
   it('accepts valid memory events and rejects unsupported event types', () => {
     const valid = validateMemoryEvent(baseEvent({ eventType: 'TOMBSTONE', details: { reason: 'deleted' } }));
     assert.ok(valid.ok, JSON.stringify(valid.errors, null, 2));
