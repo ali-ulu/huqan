@@ -45,9 +45,9 @@ test('Agent Activity Pulse dashboard contract', async (t) => {
       assert.match(script, new RegExp(`pulseStatus\\('${state}'`), `missing ${state} state`);
     }
     assert.match(script, /r\.status===401\|\|r\.status===403\?'LOCKED':'ERROR'/);
-    assert.match(script, /Activity erişimi kilitli\. Settings’ten API key ekleyin\./);
-    assert.match(script, /Bu workspace’te henüz ajan eylemi yok\./);
-    assert.match(script, /Activity okunamadı\. Tekrar deneyin\./);
+    assert.match(script, /Activity access is locked\. Add an API key in Settings\./);
+    assert.match(script, /No agent actions in this workspace yet\./);
+    assert.match(script, /Activity could not be loaded\. Try again\./);
   });
 
   await t.test('pins refresh and keyboard/click-through wiring', () => {
@@ -58,6 +58,15 @@ test('Agent Activity Pulse dashboard contract', async (t) => {
     assert.match(script, /function openAgentActivity\(id\)/);
     assert.match(script, /go\('activity'\)/);
     assert.match(script, /showActivity\(id\)/);
+  });
+
+  await t.test('reflects the activity read surface in the Integration Surfaces registry', () => {
+    assert.ok(script.includes("activity:{label:'Agent Activity',endpoint:'/api/workbench/activity',s:'checking'}"));
+    assert.ok(script.includes("activity:'Workspace-scoped bounded agent activity read surface.'"));
+    assert.ok(script.includes("async function loadActivityPulse(){surface('activity','checking')"));
+    assert.ok(script.includes("surface('activity',r.status===401||r.status===403?'locked':'err')"));
+    assert.ok(script.includes("surface('activity','ok')"));
+    assert.ok(script.includes("surface('activity','err')"));
   });
 
   await t.test('keeps the inline dashboard script syntactically valid', () => {

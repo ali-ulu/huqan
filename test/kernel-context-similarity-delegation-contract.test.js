@@ -4,8 +4,8 @@ const path = require('node:path');
 const test = require('node:test');
 const { runContextSimilarity } = require('../lib/kernel-context-similarity');
 
-const kernelSource = fs.readFileSync(path.join(__dirname, '..', 'kernel.js'), 'utf8');
-const delegateSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'kernel-context-similarity.js'), 'utf8');
+const kernelSource = fs.readFileSync(path.join(__dirname, '..', 'kernel.js'), 'utf8').replace(/\r\n/g, '\n');
+const delegateSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'kernel-context-similarity.js'), 'utf8').replace(/\r\n/g, '\n');
 
 test('Kernel.contextSimilarity is a one-line, cycle-free delegation', () => {
   assert.match(
