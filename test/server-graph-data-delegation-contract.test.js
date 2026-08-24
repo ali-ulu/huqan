@@ -4,8 +4,8 @@ const path = require('node:path');
 const test = require('node:test');
 const { buildGraphData } = require('../lib/server-graph-data');
 
-const serverSource = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
-const delegateSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'server-graph-data.js'), 'utf8');
+const serverSource = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8').replace(/\r\n/g, '\n');
+const delegateSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'server-graph-data.js'), 'utf8').replace(/\r\n/g, '\n');
 
 test('server getGraphData is a one-line, cycle-free delegation', () => {
   assert.match(
