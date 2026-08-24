@@ -160,6 +160,19 @@ For an observability quickstart covering an isolated local server, real run
 telemetry, tool usage, alerts, queue state, and dashboard steps, see
 [Observability Quickstart](./docs/product-hunt-quickstart.md).
 
+Authenticated operational probes are available per exact workspace:
+
+```text
+GET /api/observability/health?workspaceId=<workspace>  # process liveness; HTTP 200 while the process can answer
+GET /api/observability/ready?workspaceId=<workspace>   # DB/schema/required-worker readiness; HTTP 503 when unready
+```
+
+Both responses report only bounded status, queue depth/lag, and the timestamp
+of the last successful event write. They never include goals, prompts, tool
+input/output, credentials, or database error messages. A deliberately disabled
+optional worker is reported as disabled without making synchronous HUQAN usage
+unready; a worker configured as enabled but not running does fail readiness.
+
 ### Verify the local SQLite dependency and test suite
 
 ```bash
