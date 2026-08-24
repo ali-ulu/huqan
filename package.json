@@ -204,6 +204,7 @@
     "lib/external-client-http-adapter.js",
     "lib/external-client-mutation-receipt-owner.js",
     "lib/external-client-package-gate.js",
+    "lib/supply-chain-activation-gate.js",
     "lib/external-client-production-boundary.js",
     "lib/external-client-replay-store.js",
     "lib/external-client-trust-config.js",
