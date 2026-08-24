@@ -142,6 +142,7 @@
     "lib/agent-run-guidance.js",
     "lib/observability/schema.js",
     "lib/observability/helpers.js",
+    "lib/observability/health.js",
     "lib/observability/service.js",
     "lib/observability/http-router.js",
     "lib/observability/agent-worker.js",
