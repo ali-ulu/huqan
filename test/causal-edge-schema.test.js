@@ -126,11 +126,14 @@ describe('determinism (multiverse-safe)', () => {
 });
 
 describe('error code names', () => {
-  it('all 12 error codes exist as keys', () => {
+  it('all 15 error codes exist as keys', () => {
     const expected = [
       'MISSING_FIELD',
       'INVALID_RELATION',
+      'INVALID_ID',
+      'INVALID_ENDPOINT',
       'INVALID_STRENGTH',
+      'INVALID_CONFIDENCE',
       'INVALID_WORKSPACE_ID',
       'EMPTY_PROVENANCE_ID',
       'INVALID_PROVENANCE_ID',
