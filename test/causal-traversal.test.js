@@ -184,6 +184,32 @@ test('convergent dag is not treated as a cycle', () => {
   assert.equal(result.traversal.visitedEdgeCount, 4);
 });
 
+test('global finished-node tracking bounds convergent DAG traversal', () => {
+  const layers = 16;
+  const edges = [];
+  let edgeId = 0;
+  for (let index = 0; index < layers; index += 1) {
+    const current = `L${index}`;
+    const next = `L${index + 1}`;
+    for (const middle of [`a${index}`, `b${index}`]) {
+      edges.push(edge(`e${edgeId++}`, current, middle, 'CAUSES'));
+      edges.push(edge(`e${edgeId++}`, middle, next, 'CAUSES'));
+    }
+  }
+  const nodes = [{ id: 'L0' }];
+  for (let index = 1; index <= layers; index += 1) {
+    nodes.push({ id: `L${index}` }, { id: `a${index - 1}` }, { id: `b${index - 1}` });
+  }
+
+  const result = traverseCausalGraph(createAdapter(nodes, edges), 'L0');
+
+  assert.equal(result.traversal.completed, true);
+  assert.equal(result.traversal.stopReason, 'terminus');
+  assert.equal(result.traversal.visitedEdgeCount, edges.length);
+  assert.equal(result.traversal.traversalOrder.length, edges.length);
+  assert.equal(result.traversal.visitedNodeCount, nodes.length);
+});
+
 test('missing start produces missing_start without traversal', () => {
   const adapter = createAdapter([], []);
 
