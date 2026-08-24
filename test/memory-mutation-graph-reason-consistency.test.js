@@ -26,12 +26,13 @@ function classify(entry, context = {}) {
   return classifyMemoryMutation({ id: 'mem_001', scope: 'default', ...entry }, { targetSpace: 'default', ...context });
 }
 
-// `tombstoned` is intentionally absent: it reaches the destructive-delete
-// branch first, which does block. The flags that land on the graph branch are
-// these two.
+// `tombstoned` joined this list in #1257: a tombstone is a reversible soft
+// delete, and `deleted` no longer inherits it, so it reaches the graph branch
+// instead of the hard-delete one.
 const FLAG_ONLY_ENTRIES = [
   { linksChanged: true },
   { superseded: true },
+  { tombstoned: true },
 ];
 
 test('a graph mutation known only by its flags is not reported as blocked', () => {
@@ -65,7 +66,7 @@ test('a broad graph mutation is dry-run-only and still not reported as blocked',
 });
 
 test('the destructive delete branch still blocks with the canonical block reason', () => {
-  const result = classify({ tombstoned: true });
+  const result = classify({ deleted: true });
 
   assert.equal(result.decision, MEMORY_MUTATION_GATE_DECISIONS.BLOCK);
   assert.equal(result.reason, MEMORY_MUTATION_GATE_REASONS.CANONICAL_GRAPH_MUTATION_BLOCKED);

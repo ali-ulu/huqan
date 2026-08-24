@@ -37,6 +37,28 @@ describe('claim-decomposition', () => {
     assert.ok(result.subclaims[1].claim.startsWith('React Native'));
   });
 
+  it('uses the subject only when a trailing clause has its own predicate (#1117)', () => {
+    for (const [claim, expected] of [
+      ['Berlin has a river and is a capital', ['Berlin has a river', 'Berlin is a capital']],
+      ['The dog has fleas and is sick', ['The dog has fleas', 'The dog is sick']],
+      ['Ali can swim and is fast', ['Ali can swim', 'Ali is fast']],
+      ['Redis is fast and has persistence', ['Redis is fast', 'Redis has persistence']],
+    ]) {
+      assert.deepEqual(decomposeClaim(claim).subclaims.map(item => item.claim), expected, claim);
+    }
+  });
+
+  it('keeps carrying the first predicate when the trailing clause elides it (#1117)', () => {
+    assert.deepEqual(
+      decomposeClaim('Berlin has a river and a park').subclaims.map(item => item.claim),
+      ['Berlin has a river', 'Berlin has a park'],
+    );
+    assert.deepEqual(
+      decomposeClaim('Redis is fast and reliable').subclaims.map(item => item.claim),
+      ['Redis is fast', 'Redis is reliable'],
+    );
+  });
+
   it('normalizes subclaims and decomposition envelopes', () => {
     const normalized = normalizeSubclaim({
       claim: 'React Native is performant',

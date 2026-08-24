@@ -12,21 +12,27 @@ const SECRET = '/var/secrets/huqan-driver.key';
 
 let tempDir;
 let counter = 0;
+const graphs = new Set();
 
 before(() => {
   tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-workbench-'));
 });
 
 after(() => {
+  for (const graph of graphs) {
+    try { graph.close(); } catch (_) {}
+  }
   if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
 });
 
 function makeGraph() {
-  return new Graph({
+  const graph = new Graph({
     memoryPath: path.join(tempDir, `wb-${counter++}.json`),
     useSQLite: true,
     noLoad: true,
   });
+  graphs.add(graph);
+  return graph;
 }
 
 function seedAudit(graph, count, workspaceId = 'workspace-alpha') {
