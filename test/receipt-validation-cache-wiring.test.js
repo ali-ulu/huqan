@@ -79,6 +79,35 @@ test('inspector reuses a validated found result only for an exact stamp', () => 
   assert.equal(cache.stats().hits, 1);
 });
 
+test('different receipt ids use independent validation cache entries', () => {
+  const state = {
+    generation: 1,
+    receiptCount: 2,
+    headHash: HEAD_HASH,
+  };
+  const source = sourceWithStamp(state);
+  const cache = createReceiptValidationCache();
+  const calls = { count: 0 };
+  const inspect = (receiptId) => inspectTrustReceipt({
+    receiptId,
+    workspaceId: 'workspace-a',
+    schemaFamily: 'v4',
+    source,
+    cache,
+    readReceipt: foundRead(receiptId, calls),
+  });
+
+  assert.equal(inspect('receipt-a').status, 'found');
+  assert.equal(inspect('receipt-b').status, 'found');
+  assert.equal(inspect('receipt-a').status, 'found');
+  assert.equal(inspect('receipt-b').status, 'found');
+
+  assert.equal(calls.count, 2);
+  assert.equal(cache.stats().entries, 2);
+  assert.equal(cache.stats().hits, 2);
+  assert.equal(cache.stats().misses, 2);
+});
+
 test('inspector treats a changed generation as a cache miss', () => {
   const state = {
     generation: 1,

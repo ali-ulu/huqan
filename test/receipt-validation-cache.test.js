@@ -17,6 +17,7 @@ function stamp(overrides = {}) {
     sourceId: 'graph:benchmark',
     workspaceId: 'workspace-a',
     schemaFamily: 'v4',
+    receiptId: 'receipt-a',
     generation: 1,
     receiptCount: 1,
     headHash: HASH_A,
@@ -53,10 +54,11 @@ test('returns an immutable value only for an exact stamp match', () => {
   assert.equal(cache.stats().misses, 0);
 });
 
-test('misses closed when generation, count, head, workspace, schema, or source changes', () => {
+test('misses closed when receipt, generation, count, head, workspace, schema, or source changes', () => {
   const cache = createReceiptValidationCache();
   cache.put(stamp(), result());
   for (const changed of [
+    { receiptId: 'receipt-b' },
     { generation: 2 },
     { receiptCount: 2, headHash: HASH_B },
     { headHash: HASH_B },
@@ -67,12 +69,13 @@ test('misses closed when generation, count, head, workspace, schema, or source c
     assert.equal(cache.get(stamp(changed)), null);
   }
   assert.equal(cache.stats().hits, 0);
-  assert.equal(cache.stats().misses, 6);
+  assert.equal(cache.stats().misses, 7);
 });
 
 test('malformed stamps and values bypass storage without throwing', () => {
   const cache = createReceiptValidationCache();
   assert.equal(cache.put({ workspaceId: 'workspace-a' }, result()), false);
+  assert.equal(cache.put({ ...stamp(), receiptId: undefined }, result()), false);
   assert.equal(cache.put(stamp(), null), false);
   assert.equal(cache.put(stamp(), 'not-an-object'), false);
   assert.equal(cache.get({ ...stamp(), headHash: 'tampered' }), null);
