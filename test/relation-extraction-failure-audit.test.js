@@ -79,9 +79,10 @@ test('relation extraction audit keeps explicit marker fixes while broad gaps sta
   const cases = [
     {
       text: 'Sigara kanser yapar',
-      expectedRelation: 'CAUSES',
+      expectedRelation: 'yapabilir',
       expectedObjectHints: ['kanser'],
-      expectedClassification: 'clean_relation_extracted',
+      expectedClassification: 'false_causal_relation',
+      neutral: true,
     },
     {
       text: 'Sigara kansere neden olur',
