@@ -199,6 +199,15 @@ and completed/failed queue jobs without an active lease. Invalid policy or a
 locked database disables/fails the cleanup safely and emits a bounded error;
 telemetry writes and active runs/jobs continue unchanged.
 
+The existing `backup`/`restore` flow copies the whole SQLite database through
+SQLite's online backup API, so observability tables and their schema metadata
+are included atomically. Observability schema version 1 upgrades legacy queue
+tables transactionally and rejects databases created by a newer runtime.
+Backup directories are restricted to the configured persistence roots and are
+created with owner-only directory/file permissions where the platform supports
+POSIX modes. Restore verification should be performed with the runtime stopped;
+startup reapplies migrations before observability records are served.
+
 ### Verify the local SQLite dependency and test suite
 
 ```bash

@@ -86,12 +86,18 @@ function validateBackupId(value) {
 
 function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
+  try { fs.chmodSync(dirPath, 0o700); } catch (_) { /* platform best effort */ }
   return dirPath;
+}
+
+function hardenFile(filePath) {
+  try { fs.chmodSync(filePath, 0o600); } catch (_) { /* platform best effort */ }
 }
 
 function copyIfExists(source, destination) {
   if (!fs.existsSync(source)) return null;
   fs.copyFileSync(source, destination);
+  hardenFile(destination);
   return {
     name: path.basename(source),
     size: fs.statSync(source).size,
@@ -109,7 +115,31 @@ function backupSqliteIfExists(source, destination) {
   const program = "const Database=require('better-sqlite3');const db=new Database(process.argv[1],{readonly:true});db.backup(process.argv[2]).then(()=>db.close()).catch(e=>{console.error(e.stack||e.message);process.exitCode=1})";
   const result = spawnSync(process.execPath, ['-e', program, source, destination], { encoding: 'utf8' });
   if (result.status !== 0) throw new Error(`SQLite online backup failed: ${(result.stderr || result.stdout || '').trim()}`);
+  hardenFile(destination);
   return { name: path.basename(source), size: fs.statSync(destination).size };
+}
+
+function inspectObservabilityDatabase(filePath) {
+  if (!fs.existsSync(filePath) || fs.readFileSync(filePath).subarray(0, 16).toString('utf8') !== 'SQLite format 3\u0000') {
+    return { applicable: false };
+  }
+  const Database = require('better-sqlite3');
+  const db = new Database(filePath, { readonly: true, fileMustExist: true });
+  try {
+    const required = ['observability_events', 'observability_runs', 'observability_alert_rules',
+      'observability_alerts', 'agent_queue_jobs'];
+    const tables = new Set(db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map(row => row.name));
+    if (!required.some(name => tables.has(name))) return { applicable: false };
+    const complete = required.every(name => tables.has(name));
+    const version = complete && tables.has('observability_schema_meta')
+      ? Number(db.prepare('SELECT version FROM observability_schema_meta WHERE singleton = 1').get()?.version || 0) : 0;
+    const unsafePayloadRows = complete ? Number(db.prepare(`SELECT
+      (SELECT COUNT(*) FROM observability_events e WHERE EXISTS (
+        SELECT 1 FROM json_tree(e.payload_json) WHERE lower(key) IN ('apikey','api_key','password','secret','token','credential')))
+      + (SELECT COUNT(*) FROM agent_queue_jobs q WHERE EXISTS (
+        SELECT 1 FROM json_tree(q.result_json) WHERE lower(key) IN ('apikey','api_key','password','secret','token','credential'))) AS count`).get().count) : 0;
+    return { applicable: true, complete, version, integrity: db.pragma('integrity_check', { simple: true }), unsafePayloadRows };
+  } finally { db.close(); }
 }
 
 function pruneOldBackups(backupBaseDir, keepLast = 10) {
@@ -130,6 +160,7 @@ function pruneOldBackups(backupBaseDir, keepLast = 10) {
 function writeManifest(targetDir, manifest) {
   const manifestPath = path.join(targetDir, 'manifest.json');
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+  hardenFile(manifestPath);
   return manifestPath;
 }
 
@@ -194,6 +225,15 @@ function createBackup(opts = {}) {
     }
 
     const receipt = buildOperationReceipt(operationId, 'backup', startedAt, 'complete');
+    const databaseCopy = copied.find(item => item.name === path.basename(runtime.files[0]));
+    const observability = databaseCopy
+      ? inspectObservabilityDatabase(path.join(stagingDir, databaseCopy.name))
+      : { applicable: false };
+    if (observability.applicable && (!observability.complete || observability.integrity !== 'ok' || observability.unsafePayloadRows > 0)) {
+      const error = new Error('Observability backup verification failed.');
+      error.code = 'OBSERVABILITY_BACKUP_VERIFICATION_FAILED';
+      throw error;
+    }
     const manifest = {
       formatVersion: 1,
       schemaVersion: 1,
@@ -203,6 +243,7 @@ function createBackup(opts = {}) {
       files: copied.map(item => item.name),
       copied: copied.length,
       skipped,
+      observability,
       receipt,
     };
     writeManifest(stagingDir, manifest);
@@ -393,6 +434,7 @@ function restoreBackup(opts = {}) {
     skipped,
     safetyBackupDir: safety.backupDir,
   });
+  const observability = inspectObservabilityDatabase(runtime.files[0]);
   const verification = {
     persistence: restored.length > 0 && restored.every(name => fs.existsSync(runtime.files.find(file => path.basename(file) === name))),
     schema: Number.isFinite(Number(preview.schemaVersion)),
@@ -401,6 +443,8 @@ function restoreBackup(opts = {}) {
       return fileDigest(destination) === fileDigest(path.join(sourceDir, name));
     }),
     receipt: receipt.status === 'complete' && receipt.operationId === operationId,
+    observability: !observability.applicable || (observability.complete && observability.integrity === 'ok'
+      && observability.unsafePayloadRows === 0),
   };
   if (!Object.values(verification).every(Boolean)) {
     const error = new Error('Post-restore verification failed. Use the safety backup before retrying.');
