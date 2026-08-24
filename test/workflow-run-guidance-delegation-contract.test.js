@@ -7,8 +7,8 @@ const test = require('node:test');
 const WorkflowAgent = require('../workflow-agent');
 const guidance = require('../lib/workflow-run-guidance');
 
-const runtimeSource = fs.readFileSync(path.join(__dirname, '..', 'workflow-agent.js'), 'utf8');
-const delegateSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'workflow-run-guidance.js'), 'utf8');
+const runtimeSource = fs.readFileSync(path.join(__dirname, '..', 'workflow-agent.js'), 'utf8').replace(/\r\n/g, '\n');
+const delegateSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'workflow-run-guidance.js'), 'utf8').replace(/\r\n/g, '\n');
 
 function run(overrides = {}) {
   return {

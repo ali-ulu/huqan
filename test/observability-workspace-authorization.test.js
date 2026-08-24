@@ -24,6 +24,7 @@ function harness({ subject = 'alice', body = null } = {}) {
   const writes = [];
   const router = createObservabilityHttpRouter({
     getService: () => service,
+    getHealth: () => ({ inspect: () => ({ liveness: { ok: true }, readiness: { ok: true } }) }),
     parseJsonRequest: async () => body,
     writeJson: (_req, _res, status, response) => writes.push({ status, response }),
     denyIfUnauthorized: req => { req.huqanAuth = Object.freeze({ subject }); return true; },

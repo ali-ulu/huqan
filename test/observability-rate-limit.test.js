@@ -16,6 +16,7 @@ function harness({ subject = 'alice', body = null, policy = {}, limiter } = {}) 
   const rateLimiter = limiter || createObservabilityRateLimiter({ policy: JSON.stringify(policy) });
   const router = createObservabilityHttpRouter({
     getService: () => service,
+    getHealth: () => ({ inspect: () => ({ liveness: { ok: true }, readiness: { ok: true } }) }),
     parseJsonRequest: async () => body,
     writeJson: (_req, _res, status, response, headers) => writes.push({ status, response, headers }),
     denyIfUnauthorized: req => { req.huqanAuth = { subject }; return true; },

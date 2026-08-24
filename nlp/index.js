@@ -21,7 +21,7 @@ const PACKS = {
 const AR_HINTS = new Set(['هو', 'هي', 'كان', 'تكون', 'يكون', 'وال', 'في', 'من', 'إلى', 'على']);
 const DE_HINTS = new Set(['der', 'die', 'das', 'ist', 'sind', 'war', 'waren', 'und', 'für', 'mit']);
 const EN_HINTS = new Set(['the', 'is', 'are', 'was', 'were', 'and', 'of', 'with', 'for']);
-const TR_HINTS = new Set(['ve', 'veya', 'bir', 'için', 'gibi', 'değil', 'dır', 'dir', 'dır', 'mi', 'mı']);
+const TR_HINTS = new Set(['ve', 'veya', 'bir', 'için', 'gibi', 'değil', 'dır', 'dir', 'dur', 'dür', 'mi', 'mı']);
 
 function detectLanguage(text) {
   const sample = String(text || '').toLowerCase();
@@ -59,24 +59,27 @@ function detectLanguage(text) {
   return 'tr';
 }
 
+function resolvePack(langCode) {
+  const key = String(langCode || '').toLowerCase();
+  return Object.hasOwn(PACKS, key) ? PACKS[key] : tr;
+}
+
 function createAutoPack() {
-  const base = tr;
+  const packFor = (text, languageHint = '') => (
+    languageHint ? resolvePack(languageHint) : resolvePack(detectLanguage(text))
+  );
   return {
     name: 'auto',
     detectLanguage,
-    normalize: base.normalize,
-    tokenize: base.tokenize,
-    isStopWord: base.isStopWord,
-    extractFacts(text, knownNodes = null) {
-      const lang = detectLanguage(text);
-      const pack = PACKS[lang] || tr;
-      return pack.extractFacts(text, knownNodes);
-    },
+    normalize: (word, languageHint = '') => packFor(word, languageHint).normalize(word),
+    tokenize: (text, languageHint = '') => packFor(text, languageHint).tokenize(text),
+    isStopWord: (word, languageHint = '') => packFor(word, languageHint).isStopWord(word),
+    extractFacts: (text, knownNodes = null) => packFor(text).extractFacts(text, knownNodes),
   };
 }
 
 module.exports = function createNlp(langCode = 'tr') {
   const key = String(langCode || 'tr').toLowerCase();
   if (key === 'auto') return createAutoPack();
-  return PACKS[key] || tr;
+  return resolvePack(key);
 };

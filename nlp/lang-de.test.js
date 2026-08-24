@@ -15,6 +15,15 @@ test('lang-de extractFacts splits simple copula statements', () => {
   assert.equal(facts[0].predicate, 'tiere');
 });
 
+test('lang-de extractFacts preserves normalized multi-word subjects (#1116)', () => {
+  assert.deepEqual(de.extractFacts('Der große Hund ist ein Säugetier'), [{
+    subject: 'große hund',
+    predicate: 'säugetier',
+  }]);
+  assert.equal(de.extractFacts('Der Hund ist ein Tier')[0].subject, 'hund');
+  assert.equal(de.extractFacts('Hund ist Tier')[0].subject, 'hund');
+});
+
 test('lang-de extractFacts handles coordinated subjects', () => {
   const facts = de.extractFacts('Katzen und Hunde sind Säugetiere');
   assert.equal(facts.length, 2);

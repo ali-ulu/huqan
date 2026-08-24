@@ -1,9 +1,11 @@
 const crypto = require('crypto');
+const { createExecutionScope } = require('./lib/goal-binding');
 const path = require('path');
 const Agent = require('./agent');
 const HuqanStorage = require('./storage');
 const { evaluateAgentLoopBudget, DEFAULT_MAX_ITERATIONS_PER_WINDOW, DEFAULT_WINDOW_MS } = require('./lib/agent-loop-budget-gate');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
+const { initializeBehavioralState } = require('./lib/agent-behavioral-integrity');
 const {
   loopEnabled,
   isDreamExperimentVerificationStep,
@@ -418,6 +420,8 @@ class AgentV3 {
   }
 
   run(goal, opts = {}) {
+    const scopeResult = createExecutionScope(goal, opts);
+    if (!scopeResult.ok) return this._fail('agent', scopeResult.reason, 'Untrusted content cannot define an execution goal.', [], { goalBinding: scopeResult.receipt });
     const planResult = this.plan(goal, opts);
     if (!planResult || planResult.ok === false) return planResult;
     const activePlan = planResult.data;
@@ -467,10 +471,11 @@ class AgentV3 {
       }
     }
     const state = this._hydrateState(activePlan, resumeRecord);
+    state.executionScope = scopeResult.scope;
     const queued = Array.isArray(state.queuedSteps) ? [...state.queuedSteps] : [];
     const deadline = Date.now() + Math.max(0, Number.isInteger(opts.timeBudgetMs) ? opts.timeBudgetMs : this.timeBudgetMs);
     const maxIterations = Number.isInteger(opts.maxIterations) ? opts.maxIterations : this.maxIterations;
-    state.workspaceId = workspaceId; state.agentId = String(opts.agentId || state.agentId || ''); state.observabilityRunId = state.observabilityRunId || `agent-${crypto.randomUUID?.() || Date.now()}`; try { this.kernel?.observability?.recordLifecycle?.('beforeAgentRun', state); } catch (_) {}
+    state.workspaceId = workspaceId; state.agentId = String(opts.agentId || state.agentId || ''); state.observabilityRunId = state.observabilityRunId || `agent-${crypto.randomUUID?.() || Date.now()}`; try { this.kernel?.observability?.recordLifecycle?.('beforeAgentRun', state); } catch (_) {} initializeBehavioralState(state, { goal: state.goal, workspaceId, selectedTools: state.selectedTools || activePlan.selectedTools });
 
     // Force the run's workspace onto every tool call. agent.js reads
     // per-tool option bags straight through, so without this
@@ -720,18 +725,6 @@ class AgentV3 {
 
     this.lastRun = state;
 
-    // #329: agent.js's run() emits afterAgentRun after the final state is
-    // built and the run is persisted, so the hook's contract is "an agent run
-    // reached a conclusion", not "a run() call returned". AgentV3 keeps that
-    // contract by emitting only on terminal states.
-    //
-    // `paused` is a real intermediate state here -- the run is checkpointed
-    // and resumable -- and must not emit. plugins/daily-digest.js counts only
-    // `blocked` separately and buckets everything else as runsCompleted, so a
-    // paused emit would quietly corrupt that statistic.
-    //
-    // baseAgent is built from the same kernel, so its plugin manager is
-    // already the live one; no new event plumbing is involved.
     if (state.status === 'completed' || state.status === 'blocked') {
       this.baseAgent._emit('afterAgentRun', state);
     }

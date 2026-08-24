@@ -25,6 +25,7 @@ function makeRouter() {
         return true;
       },
     }),
+    getHealth: () => ({ inspect: () => ({ liveness: { ok: true }, readiness: { ok: true } }) }),
     parseJsonRequest: async () => ({}),
     writeJson: (req, res, status, body) => {
       res.captured = { status, body };
