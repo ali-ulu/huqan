@@ -211,10 +211,16 @@ jobs:
       # actions/checkout intentionally leaves pull-request worktrees detached.
       # The live Git guard requires branch identity as evidence; name the
       # checked-out commit without changing the commit or weakening ancestry.
+      #
+      # -C, not --create: on a push to main the checkout already has a local
+      # `main`, and --create fails with "a branch named 'main' already exists",
+      # which turned every post-merge run of this workflow red. -C points the
+      # branch at $GITHUB_SHA whether or not it exists, which is the intent
+      # either way.
       - name: Name checked-out branch for live Git validation
         env:
           HUQAN_CI_BRANCH: ${{ github.head_ref || github.ref_name }}
-        run: git switch --create "$HUQAN_CI_BRANCH" "$GITHUB_SHA"
+        run: git switch -C "$HUQAN_CI_BRANCH" "$GITHUB_SHA"
       # GitHub can materialize the pull-request merge ref before a newer main
       # commit lands. Merge the fetched baseline into this ephemeral test
       # branch so the live guard measures the same current ancestry that CI
@@ -345,10 +351,16 @@ jobs:
       # Pull-request checkouts are detached by design. Name the checked-out
       # commit so live Git validation has branch identity as evidence; this
       # does not alter the commit or weaken the ancestry check.
+      #
+      # -C, not --create: on a push to main the checkout already has a local
+      # `main`, and --create fails with "a branch named 'main' already exists",
+      # which turned every post-merge run of this workflow red. -C points the
+      # branch at $GITHUB_SHA whether or not it exists, which is the intent
+      # either way.
       - name: Name checked-out branch for live Git validation
         env:
           HUQAN_CI_BRANCH: ${{ github.head_ref || github.ref_name }}
-        run: git switch --create "$HUQAN_CI_BRANCH" "$GITHUB_SHA"
+        run: git switch -C "$HUQAN_CI_BRANCH" "$GITHUB_SHA"
       # GitHub can materialize the pull-request merge ref before a newer main
       # commit lands. Merge the fetched baseline into this ephemeral test
       # branch so the live guard measures the same current ancestry, while a
