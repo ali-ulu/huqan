@@ -796,7 +796,7 @@ class Agent {
     state.workspaceId = typeof opts.workspaceId === 'string' && opts.workspaceId.trim()
       ? opts.workspaceId.trim()
       : (state.workspaceId || 'default');
-    state.behavioralManifest = resumeCandidate?.behavioralManifest; state.behavioralFindings = resumeCandidate?.behavioralFindings ? cloneValue(resumeCandidate.behavioralFindings) : []; initializeBehavioralState(state, state);
+    state.behavioralManifest = resumeCandidate?.behavioralManifest; state.behavioralFindings = resumeCandidate?.behavioralFindings ? cloneValue(resumeCandidate.behavioralFindings) : []; initializeBehavioralState(state, { ...state, selectedTools: [...(state.selectedTools || []), 'dream'] });
     this._emit('beforeAgentRun', state);
 
     const queued = Array.isArray(state.queuedSteps) ? [...state.queuedSteps] : [];
