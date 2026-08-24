@@ -156,6 +156,7 @@
     "lib/automation-safety-gate/index.js",
     "lib/axiom-package-format.js",
     "lib/background-provenance.js",
+    "lib/bounded-ingest-errors.js",
     "lib/causal-edge-strength.js",
     "lib/causal/causal-edge-errors.js",
     "lib/causal/causal-edge.js",
