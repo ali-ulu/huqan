@@ -12,6 +12,7 @@ const {
   executeGuardedConnectorIngest,
   fetchGithubRepoWithFirewall,
 } = require('../lib/connectors/repo-memory-firewall');
+const { recordIngestError } = require('../lib/bounded-ingest-errors');
 
 function nowIso() {
   return new Date().toISOString();
@@ -37,11 +38,7 @@ function trackIngestSuccess(kernel, sourceType, amount) {
 
 function trackIngestError(kernel, sourceType, message) {
   const state = ensureCompanyState(kernel);
-  state.ingestErrors.push({
-    sourceType,
-    message: String(message || 'unknown error'),
-    at: nowIso(),
-  });
+  recordIngestError(state, sourceType, message, nowIso());
   state.lastIngestAt = nowIso();
 }
 

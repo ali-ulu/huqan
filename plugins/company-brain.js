@@ -3,6 +3,7 @@ const { adjustedConfidence } = require('../evidence-ranker');
 const { normalizeAlias, resolveEntity } = require('../lib/entity-resolution');
 const { gateCompanyIngest } = require('../lib/company-ingest-gate');
 const { withCausalStrength } = require('../lib/causal-edge-strength');
+const { recordIngestError, summarizeIngestErrors } = require('../lib/bounded-ingest-errors');
 
 function nowIso() {
   return new Date().toISOString();
@@ -36,11 +37,7 @@ function trackSuccess(kernel, sourceType, amount = 1) {
 
 function trackError(kernel, sourceType, message) {
   const state = ensureCompanyState(kernel);
-  state.ingestErrors.push({
-    sourceType,
-    message: String(message || 'unknown error'),
-    at: nowIso(),
-  });
+  recordIngestError(state, sourceType, message, nowIso());
   state.lastIngestAt = nowIso();
 }
 
@@ -555,7 +552,11 @@ function getIngestStatus(kernel) {
       Object.entries(state.bySource).map(([key, value]) => [key, Number(value || 0)])
     ),
     lastIngestAt: state.lastIngestAt || null,
-    ingestErrors: Array.isArray(state.ingestErrors) ? state.ingestErrors : [],
+    // Newest first and bounded. Returning the whole array meant a monitoring
+    // caller polling this endpoint pulled every error ever recorded: 200k
+    // failed ingests produced a 24 MB body, with the one error the operator
+    // needed buried at the end.
+    ...summarizeIngestErrors(state),
   };
 }
 
