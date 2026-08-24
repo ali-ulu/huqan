@@ -69,6 +69,29 @@ describe('memory-package-roundtrip', () => {
       assert.strictEqual(result.package.memories[0].status, 'active');
     });
 
+    it('excludes tombstone-dependent events and links by default (#1514)', () => {
+      const store = createStore();
+      const active = store.store({ content: 'active' });
+      const tombstoned = store.store({ content: 'to-tombstone' });
+      store.linkMemories({
+        fromMemoryId: active.memory.memoryId,
+        toMemoryId: tombstoned.memory.memoryId,
+        relation: 'supports',
+      });
+      store.tombstone(tombstoned.memory.memoryId);
+      const activeEvent = store._events.find((event) => event.memoryId === active.memory.memoryId);
+      activeEvent.relatedMemoryId = tombstoned.memory.memoryId;
+
+      const result = store.exportPackage({});
+
+      assert.equal(result.ok, true, JSON.stringify(result.error));
+      const memoryIds = new Set(result.package.memories.map((memory) => memory.memoryId));
+      assert.deepEqual([...memoryIds], [active.memory.memoryId]);
+      assert.equal(result.package.events.length, 0);
+      assert.equal(result.package.links.length, 0);
+      assert.equal(JSON.stringify(result.package).includes(tombstoned.memory.memoryId), false);
+    });
+
     it('includes tombstoned memories when requested', () => {
       const store = createStore();
       const m1 = store.store({ content: 'active' });
