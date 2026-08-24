@@ -150,7 +150,6 @@
     "lib/observability/server-runtime.js",
     "lib/http/runtime-status.js",
     "scripts/observability-load-smoke.js",
-    "scripts/observability-load-smoke.test.js",
     "lib/approval-execution-evidence.js",
     "lib/approval-flow.js",
     "lib/approval-schema.js",
