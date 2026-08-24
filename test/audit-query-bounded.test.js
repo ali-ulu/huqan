@@ -8,21 +8,27 @@ const { queryAuditTrail, queryAuditTrailPage } = require('../lib/provenance-quer
 const { AUDIT_QUERY_MAX_LIMIT, clampAuditLimit } = require('../lib/audit-query');
 
 let tempDir;
+const graphs = new Set();
 
 before(() => {
   tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-audit-query-'));
 });
 
 after(() => {
+  for (const graph of graphs) {
+    try { graph.close(); } catch (_) {}
+  }
   if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
 });
 
 function makeGraph(name, useSQLite = true) {
-  return new Graph({
+  const graph = new Graph({
     memoryPath: path.join(tempDir, `${name}.json`),
     useSQLite,
     noLoad: true,
   });
+  graphs.add(graph);
+  return graph;
 }
 
 /**
