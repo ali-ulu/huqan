@@ -452,6 +452,11 @@ function ingestDecision(kernel, input = {}) {
   const rationaleId = `decision-rationale:${decisionKey}:${date}`;
 
   const proposals = [];
+  // Every edge this function writes is counted, not just the rationale one.
+  // `added` fed both the return value and trackSuccess, so a decision with
+  // alternatives and links reported at most 1 and the `decision` share of
+  // ingestStatus.distribution drifted low with every such ingest.
+  let added = 0;
   const rationaleEdge = addCompanyEdge(kernel, decisionId, rationaleId, 'açıklar', {
     source: 'manual',
     sourceRef,
@@ -462,6 +467,7 @@ function ingestDecision(kernel, input = {}) {
     sessionId: input.sessionId || '',
   });
   proposals.push(...rationaleEdge.proposals);
+  if (rationaleEdge.edge) added += 1;
 
   const alternatives = Array.isArray(input.alternatives) ? input.alternatives : [];
   for (const alt of alternatives) {
@@ -476,6 +482,7 @@ function ingestDecision(kernel, input = {}) {
       sessionId: input.sessionId || '',
     });
     proposals.push(...alternativeEdge.proposals);
+    if (alternativeEdge.edge) added += 1;
   }
 
   const links = Array.isArray(input.links) ? input.links : [];
@@ -490,9 +497,9 @@ function ingestDecision(kernel, input = {}) {
       sessionId: input.sessionId || '',
     });
     proposals.push(...linkEdge.proposals);
+    if (linkEdge.edge) added += 1;
   }
 
-  const added = rationaleEdge.edge ? 1 : 0;
   trackSuccess(kernel, 'decision', added);
   return {
     ok: true,
