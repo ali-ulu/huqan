@@ -37,13 +37,13 @@
     return key ? { Authorization: `Bearer ${key}` } : {};
   };
   const get = async (path) => {
-    const response = await fetch(`${path}${path.includes('?') ? '&' : '?'}workspaceId=${encodeURIComponent(workspace())}`, { headers: headers(), cache: 'no-store' });
+    const response = await fetch(path.includes('workspaceId=') ? path : `${path}${path.includes('?') ? '&' : '?'}workspaceId=${encodeURIComponent(selectedWorkspace())}`, { headers: headers(), cache: 'no-store' });
     const body = await response.json().catch(() => ({}));
     if (!response.ok || body.ok === false) throw new Error(body.error?.message || `HTTP ${response.status}`);
     return body.data || body;
   };
   const post = async (path, body) => {
-    const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers() }, body: JSON.stringify({ ...body, workspaceId: workspace() }) });
+    const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers() }, body: JSON.stringify({ ...body, workspaceId: selectedWorkspace() }) });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || data.ok === false) throw new Error(data.error?.message || `HTTP ${response.status}`);
     return data.data || data;
@@ -51,19 +51,51 @@
   const escape = value => String(value ?? '—').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
   const formatDuration = value => value === null || value === undefined ? '—' : `${Math.round(value)} ms`;
   const formatTokens = value => value === null || value === undefined ? 'ölçülmedi' : Number(value).toLocaleString('tr-TR');
-  const setStatus = text => { if (byId('obsstatus')) byId('obsstatus').textContent = text; };
+  const dashboardState = { runCursor: null, runHistory: [], reconnectAttempt: 0, reconnectTimer: null, seenEvents: new Set(), lastLoadedAt: 0 };
+  const selectedWorkspace = () => (byId('obsworkspace')?.value || workspace()).trim() || 'default';
+  const selectedWindow = () => Number(byId('obstime')?.value || 86400000);
+  const queryFor = (extra = {}) => new URLSearchParams({ workspaceId: selectedWorkspace(), windowMs: String(selectedWindow()), ...extra });
+  const setStatus = (text, tone = '') => { const node = byId('obsstatus'); if (!node) return; node.textContent = text; node.setAttribute('role', tone === 'bad' ? 'alert' : 'status'); node.dataset.tone = tone; };
+  const setStreamStatus = text => { const node = byId('obsstreammeta'); if (node) node.textContent = text; };
+
+  function installDashboardControls() {
+    const view = byId('v-observability');
+    const metrics = view?.querySelector('.metrics');
+    if (!view || !metrics || byId('obsworkspace')) return;
+    const controls = document.createElement('div');
+    controls.className = 'obsfilters';
+    controls.setAttribute('aria-label', 'Observability filtreleri');
+    controls.innerHTML = `<div class="field"><label for="obsworkspace">Workspace</label><input id="obsworkspace" autocomplete="off" value="${escape(workspace())}"></div><div class="field"><label for="obstime">Zaman aralığı</label><select id="obstime"><option value="3600000">Son 1 saat</option><option value="21600000">Son 6 saat</option><option value="86400000" selected>Son 24 saat</option><option value="604800000">Son 7 gün</option></select></div><button class="btn primary" id="obsapply">Filtreleri uygula</button>`;
+    metrics.before(controls);
+    const style = document.createElement('style');
+    style.textContent = '.obsfilters{display:grid;grid-template-columns:minmax(150px,1fr) minmax(150px,1fr) auto;gap:8px;align-items:end;margin:0 0 10px}.obsfilters .field{margin:0}.obsactions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}.obs-state[data-tone="bad"]{color:var(--bad)}.obs-state[data-tone="warn"]{color:var(--warn)}.obs-state[data-tone="good"]{color:var(--good)}@media(max-width:700px){.obsfilters{grid-template-columns:1fr}.obsactions{justify-content:stretch}.obsactions .btn{flex:1}.twocol{grid-template-columns:1fr}}';
+    document.head.appendChild(style);
+    const status = byId('obsstatus'); status?.classList.add('obs-state'); status?.setAttribute('role', 'status'); status?.setAttribute('aria-live', 'polite');
+    const runs = byId('obsruns');
+    if (runs) { const actions = document.createElement('div'); actions.className = 'obsactions'; actions.innerHTML = '<button class="btn" id="obsrunprev" disabled>Önceki</button><button class="btn" id="obsrunnext" disabled>Sonraki</button>'; runs.after(actions); }
+    const streamMeta = view.querySelector('#obsevents')?.closest('.panel')?.querySelector('.ph small'); if (streamMeta) streamMeta.id = 'obsstreammeta';
+    view.querySelector('h1')?.setAttribute('tabindex', '-1');
+  }
 
   function renderToolUsage(metrics) {
     const usage = Array.isArray(metrics.toolUsage) ? metrics.toolUsage : [];
     const colors = ['#1688ff', '#16b77a', '#dfa31b', '#ee5067', '#8b5cf6', '#24c8ff', '#f97316', '#64748b'];
-    const total = Number(metrics.toolCallCount ?? usage.reduce((sum, tool) => sum + Number(tool.count || 0), 0));
+    const summed = usage.reduce((sum, tool) => sum + Math.max(0, Number(tool.count || 0)), 0);
+    const reported = Number(metrics.toolCallCount);
+    const total = Number.isFinite(reported) && reported >= 0 ? reported : summed;
     const donut = byId('obstooldonut');
     const legend = byId('obstoollegend');
     byId('obstooltotal').textContent = total.toLocaleString('tr-TR');
     if (!total || !usage.length) {
       donut.style.setProperty('--tool-gradient', 'conic-gradient(#dcebf7 0 100%)');
       donut.setAttribute('aria-label', 'Henüz araç çağrısı yok');
-      legend.innerHTML = '<div class="empty">Henüz araç çağrısı yok.</div>';
+      legend.innerHTML = total && !usage.length ? '<div class="empty">Toplam çağrı var ancak araç dağılımı eksik.</div>' : '<div class="empty">Henüz araç çağrısı yok.</div>';
+      return;
+    }
+    if (summed !== total) {
+      donut.style.setProperty('--tool-gradient', 'conic-gradient(#dfa31b 0 100%)');
+      donut.setAttribute('aria-label', `Araç kullanım toplamı tutarsız: raporlanan ${total}, dağılım ${summed}`);
+      legend.innerHTML = `<div class="empty">Tutarsız toplam: ${escape(total)} raporlandı, dağılım ${escape(summed)}. Grafik gizlendi.</div>`;
       return;
     }
     let cursor = 0;
@@ -103,6 +135,9 @@
       const toolCalls = run.toolCallCount ?? tools.reduce((total, tool) => total + Number(tool.count || 0), 0);
       return `<div class="item"><b>${escape(run.status)}</b> · ${escape(run.runtime)} · ${escape(run.runId.slice(0, 12))}<div class="sub">Araçlar: ${toolText} · ${escape(toolCalls)} çağrı</div></div><small>${escape(run.updatedAt)} · ${escape(formatDuration(run.durationMs))} · ${escape(formatTokens(run.tokens))} token</small>`;
     }).join('') || '<div class="empty">Henüz kalıcı run yok.</div>';
+    byId('obsrunnext').disabled = !data.nextCursor;
+    byId('obsrunprev').disabled = dashboardState.runHistory.length === 0;
+    dashboardState.runCursor = data.nextCursor || null;
   }
 
   function renderQueue(data) {
@@ -116,38 +151,51 @@
   }
 
   function appendEvent(event) {
+    const eventKey = String(event.eventId || event.id || `${event.createdAt || ''}:${event.runId || ''}:${event.eventType || ''}:${event.status || ''}`);
+    if (dashboardState.seenEvents.has(eventKey)) return;
+    dashboardState.seenEvents.add(eventKey);
+    if (dashboardState.seenEvents.size > 500) dashboardState.seenEvents.delete(dashboardState.seenEvents.values().next().value);
     const box = byId('obsevents');
     const line = `${event.createdAt || new Date().toISOString()} · ${event.eventType} · ${event.status || '—'}${event.tool ? ` · ${event.tool}` : ''}`;
     box.textContent = `${line}\n${box.textContent}`.split('\n').slice(0, 30).join('\n');
   }
 
-  async function loadAll() {
-    setStatus('Observability okunuyor…');
+  async function loadAll(cursor = null) {
+    setStatus('Observability okunuyor…', 'warn');
     try {
-      const [metrics, runs, queue, alerts] = await Promise.all([
-        get('/api/observability/metrics'),
-        get('/api/observability/runs?limit=20'),
-        get('/api/observability/queue?limit=20'),
-        get('/api/observability/alerts?limit=20'),
+      const common = Object.fromEntries(queryFor());
+      const [metrics, runs, events, queue, alerts] = await Promise.all([
+        get(`/api/v1/observability/metrics?${new URLSearchParams(common)}`),
+        get(`/api/v1/observability/runs?${queryFor({ limit: '20', ...(cursor ? { cursor } : {}) })}`),
+        get(`/api/v1/observability/events?${queryFor({ limit: '30' })}`),
+        get(`/api/v1/observability/queue?${queryFor({ limit: '20' })}`),
+        get(`/api/v1/observability/alerts?${queryFor({ limit: '20' })}`),
       ]);
       renderMetrics(metrics);
       renderRuns(runs);
+      (events.items || []).slice().reverse().forEach(appendEvent);
       renderQueue(queue);
       renderAlerts(alerts);
-      setStatus('Canlı ve kalıcı gözlem hazır.');
+      dashboardState.lastLoadedAt = Date.now();
+      setStatus(`Güncel · ${selectedWorkspace()} · ${new Date(dashboardState.lastLoadedAt).toLocaleTimeString('tr-TR')}`, 'good');
     } catch (error) {
-      setStatus(`Observability okunamadı: ${error.message}`);
+      const stale = dashboardState.lastLoadedAt ? ` · Son başarılı veri ${new Date(dashboardState.lastLoadedAt).toLocaleTimeString('tr-TR')}` : '';
+      setStatus(`Observability okunamadı: ${error.message}${stale}`, 'bad');
     }
   }
 
   function connectStream() {
     if (window.__huqanObservabilityStream) window.__huqanObservabilityStream.close();
+    if (dashboardState.reconnectTimer) clearTimeout(dashboardState.reconnectTimer);
     const controller = new AbortController();
     const streamState = { close: () => controller.abort() };
     window.__huqanObservabilityStream = streamState;
-    const query = new URLSearchParams({ workspaceId: workspace() });
-    fetch(`/api/observability/stream?${query.toString()}`, { headers: headers(), signal: controller.signal, cache: 'no-store' }).then(async response => {
+    const query = queryFor();
+    setStreamStatus(dashboardState.reconnectAttempt ? `SSE · yeniden bağlanıyor (${dashboardState.reconnectAttempt})` : 'SSE · bağlanıyor');
+    fetch(`/api/v1/observability/stream?${query.toString()}`, { headers: headers(), signal: controller.signal, cache: 'no-store' }).then(async response => {
       if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
+      dashboardState.reconnectAttempt = 0;
+      setStreamStatus('SSE · canlı');
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
@@ -160,13 +208,18 @@
         for (const frame of frames) {
           const data = frame.split('\\n').find(line => line.startsWith('data: '));
           if (!data) continue;
-          try { const event = JSON.parse(data.slice(6)); if (event.eventType) { appendEvent(event); loadAll(); } } catch (_) {}
+          try { const event = JSON.parse(data.slice(6)); if (event.eventType) appendEvent(event); } catch (_) {}
         }
       }
-    }).catch(error => { if (!controller.signal.aborted) setStatus(`Canlı akış yeniden bağlanıyor: ${error.message}`); });
+      if (!controller.signal.aborted) throw new Error('stream ended');
+    }).catch(error => { if (!controller.signal.aborted) { dashboardState.reconnectAttempt += 1; const delay = Math.min(30000, 1000 * (2 ** Math.min(dashboardState.reconnectAttempt - 1, 5))); setStreamStatus(`SSE · ${Math.round(delay / 1000)} sn sonra yeniden bağlanacak`); setStatus(`Canlı akış kesildi: ${error.message}. Kalıcı veri kullanılmaya devam ediyor.`, 'warn'); dashboardState.reconnectTimer = setTimeout(connectStream, delay); } });
   }
 
   document.addEventListener('DOMContentLoaded', () => {
+    installDashboardControls();
+    byId('obsapply')?.addEventListener('click', () => { dashboardState.runCursor = null; dashboardState.runHistory = []; dashboardState.seenEvents.clear(); loadAll(); connectStream(); });
+    byId('obsrunnext')?.addEventListener('click', () => { if (!dashboardState.runCursor) return; dashboardState.runHistory.push(dashboardState.runCursor); loadAll(dashboardState.runCursor); });
+    byId('obsrunprev')?.addEventListener('click', () => { dashboardState.runHistory.pop(); const previous = dashboardState.runHistory.at(-1) || null; loadAll(previous); });
     byId('obsrefresh')?.addEventListener('click', () => { loadAll(); connectStream(); });
     byId('obsqueueform')?.addEventListener('submit', async event => {
       event.preventDefault();

@@ -27,7 +27,7 @@ paths:
     get:
       operationId: listObservabilityEvents
       description: Newest createdAt/eventId first.
-      parameters: [{$ref: '#/components/parameters/Workspace'}, {$ref: '#/components/parameters/Limit'}, {$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/EventType'}, {$ref: '#/components/parameters/RunId'}]
+      parameters: [{$ref: '#/components/parameters/Workspace'}, {$ref: '#/components/parameters/WindowMs'}, {$ref: '#/components/parameters/Limit'}, {$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/EventType'}, {$ref: '#/components/parameters/RunId'}]
       responses:
         '200': {$ref: '#/components/responses/EventPage'}
         '400': {$ref: '#/components/responses/BadRequest'}
@@ -39,7 +39,7 @@ paths:
     get:
       operationId: listObservabilityRuns
       description: Newest updatedAt/runId first.
-      parameters: [{$ref: '#/components/parameters/Workspace'}, {$ref: '#/components/parameters/Limit'}, {$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Status'}]
+      parameters: [{$ref: '#/components/parameters/Workspace'}, {$ref: '#/components/parameters/WindowMs'}, {$ref: '#/components/parameters/Limit'}, {$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Status'}]
       responses:
         '200': {$ref: '#/components/responses/RunPage'}
         '400': {$ref: '#/components/responses/BadRequest'}
@@ -51,7 +51,7 @@ paths:
     get:
       operationId: listObservabilityQueue
       description: Newest updatedAt/jobId first.
-      parameters: [{$ref: '#/components/parameters/Workspace'}, {$ref: '#/components/parameters/Limit'}, {$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Status'}]
+      parameters: [{$ref: '#/components/parameters/Workspace'}, {$ref: '#/components/parameters/WindowMs'}, {$ref: '#/components/parameters/Limit'}, {$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Status'}]
       responses:
         '200': {$ref: '#/components/responses/QueuePage'}
         '400': {$ref: '#/components/responses/BadRequest'}
@@ -77,7 +77,7 @@ paths:
     get:
       operationId: listObservabilityAlerts
       description: Newest firedAt/alertId first.
-      parameters: [{$ref: '#/components/parameters/Workspace'}, {$ref: '#/components/parameters/Limit'}, {$ref: '#/components/parameters/Cursor'}]
+      parameters: [{$ref: '#/components/parameters/Workspace'}, {$ref: '#/components/parameters/WindowMs'}, {$ref: '#/components/parameters/Limit'}, {$ref: '#/components/parameters/Cursor'}]
       responses:
         '200': {$ref: '#/components/responses/AlertPage'}
         '400': {$ref: '#/components/responses/BadRequest'}
