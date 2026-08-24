@@ -116,11 +116,20 @@ test('a genuinely new record in a re-imported package is still imported', () => 
   const store = new MemoryStore();
   importInto(store, pkg);
 
-  const extended = seededPackage();
-  extended.memories = [...pkg.memories, ...extended.memories.slice(0, 1)];
-  extended.events = [...pkg.events, ...extended.events.slice(0, 1)];
+  // The new record is built explicitly rather than borrowed from a second
+  // seeded package: that made the fixture depend on export ordering and random
+  // ids, which is a property of the fixture, not of the behaviour under test.
+  const extra = {
+    ...structuredClone(pkg.memories[0]),
+    memoryId: 'memory-brand-new',
+    content: 'memory-brand-new',
+  };
+  const extended = { ...pkg, memories: [...pkg.memories, extra] };
+
   const second = importInto(store, extended);
 
-  assert.ok(second.imported.memories >= 1, 'the new memory must land');
-  assert.ok(second.skipped.events >= pkg.events.length, 'the repeated events must be skipped');
+  assert.equal(second.imported.memories, 1, 'exactly the new memory must land');
+  assert.equal(second.skipped.memories, pkg.memories.length, 'the repeated memories must be skipped');
+  assert.equal(second.skipped.events, pkg.events.length, 'the repeated events must be skipped');
+  assert.equal(second.imported.events, 0);
 });
