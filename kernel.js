@@ -884,8 +884,8 @@ class Kernel {
     return backwardChain(this.graph, id, chain, visited, depth, workspaceId);
   }
 
-  _detectCycle(start, visited, pathArr, workspaceId = 'default') {
-    return detectCycle(this.graph, start, visited, pathArr, workspaceId);
+  _detectCycle(start, visited, pathArr, workspaceId = 'default', opts = {}) {
+    return detectCycle(this.graph, start, visited, pathArr, workspaceId, opts);
   }
 
   _resolveCycleOrder(cycle, workspaceId = 'default') {
