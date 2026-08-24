@@ -507,6 +507,35 @@ describe('memory-store-sqlite', () => {
     store2.close();
   });
 
+  it('workspace-scoped legacy reads preserve isolation after reload', () => {
+    const dbPath = getDbPath('ws-isolation-legacy-reads');
+    const store1 = new MemoryStore({ useSQLite: true, dbPath });
+    const source = store1.store({ content: 'source', workspaceId: 'ws-a' }).memory;
+    const target = store1.store({ content: 'target', workspaceId: 'ws-a' }).memory;
+    store1.patchMetadata(source.memoryId, { tracked: true });
+    const linkResult = store1.linkMemories({
+      fromMemoryId: source.memoryId,
+      toMemoryId: target.memoryId,
+      relation: 'supports',
+      workspaceId: 'ws-a',
+    });
+    assert.strictEqual(linkResult.ok, true);
+    store1.close();
+
+    const store2 = new MemoryStore({ useSQLite: true, dbPath });
+    assert.strictEqual(store2.getEvents(source.memoryId, { workspaceId: 'ws-a' }).length, 2);
+    assert.strictEqual(store2.getEvents(source.memoryId, { workspaceId: 'ws-b' }).length, 0);
+    assert.strictEqual(store2.getLinks(source.memoryId, { workspaceId: 'ws-a' }).length, 1);
+    assert.strictEqual(store2.getLinks(source.memoryId, { workspaceId: 'ws-b' }).length, 0);
+    assert.strictEqual(store2.getBacklinks(target.memoryId, { workspaceId: 'ws-a' }).length, 1);
+    assert.strictEqual(store2.getBacklinks(target.memoryId, { workspaceId: 'ws-b' }).length, 0);
+    assert.throws(
+      () => store2.getEvents(source.memoryId, { workspaceId: 7 }),
+      (error) => error.code === 'WORKSPACE_ID_INVALID',
+    );
+    store2.close();
+  });
+
   it('transaction rollback test for failed link creation', () => {
     const dbPath = getDbPath('rollback-link');
     const store = new MemoryStore({ useSQLite: true, dbPath });
@@ -699,7 +728,7 @@ describe('memory-store-sqlite', () => {
 
       const store2 = new MemoryStore({ useSQLite: true, dbPath });
 
-      const events1 = store2.getEvents(mid1);
+      const events1 = store2.getEvents(mid1, { workspaceId: 'ws-a' });
       const updateEvent = events1.find(e => e.eventType === 'UPDATED' && e.details.action === 'supersede');
       assert.ok(updateEvent);
       assert.strictEqual(updateEvent.provenance.actor, 'superseder');
@@ -707,7 +736,7 @@ describe('memory-store-sqlite', () => {
       assert.strictEqual(updateEvent.details.previousStatus, 'active');
       assert.strictEqual(updateEvent.details.newStatus, 'superseded');
 
-      const events2 = store2.getEvents(mid2);
+      const events2 = store2.getEvents(mid2, { workspaceId: 'ws-a' });
       const tombstoneEvent = events2.find(e => e.eventType === 'TOMBSTONE');
       assert.ok(tombstoneEvent);
       assert.strictEqual(tombstoneEvent.provenance.actor, 'tombstoner');

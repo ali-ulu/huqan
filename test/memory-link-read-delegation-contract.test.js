@@ -15,7 +15,7 @@ const delegateCode = delegateSource
   .join('\n');
 
 const methods = [
-  ['getLinks', 'readLinks', 'getLinks(memoryId)'],
+  ['getLinks', 'readLinks', 'getLinks(memoryId, opts = {})'],
   ['findLinks', 'readFindLinks', 'findLinks(memoryId, opts = {})'],
   ['findLinkedMemories', 'readFindLinkedMemories', 'findLinkedMemories(memoryId, opts = {})'],
   ['getBacklinks', 'readBacklinks', 'getBacklinks(memoryId, opts = {})'],

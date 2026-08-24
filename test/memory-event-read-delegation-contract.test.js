@@ -36,11 +36,11 @@ test('MS: event-read methods are delegated to lib/memory-event-read.js', () => {
     'timeline is a one-line delegation',
   );
 
-  const getEventsMatch = storeSource.match(/getEvents\(memoryId\) \{[\s\S]*?\n  \}/);
+  const getEventsMatch = storeSource.match(/getEvents\(memoryId, opts = \{\}\) \{[\s\S]*?\n  \}/);
   assert.ok(getEventsMatch, 'getEvents method still exists');
   assert.match(
     getEventsMatch[0],
-    /getEvents\(memoryId\) \{\s*return runGetEvents\(this\._eventReadContext\(\), memoryId\);/,
+    /getEvents\(memoryId, opts = \{\}\) \{\s*return runGetEvents\(this\._eventReadContext\(\), memoryId, opts\);/,
     'getEvents is a one-line delegation',
   );
 
@@ -71,14 +71,14 @@ test('MS: pinned call sites — event-read delegation remains read-only', () => 
 test('MS: getEvents delegate preserves empty, trimmed, sorted, and cloned results', () => {
   const { runGetEvents } = require('../lib/memory-event-read');
   const events = [
-    { memoryId: 'm1', eventType: 'late', createdAt: '2026-01-02T00:00:00.000Z', details: { n: 2 } },
-    { memoryId: 'm2', eventType: 'other', createdAt: '2026-01-01T00:00:00.000Z' },
-    { memoryId: 'm1', eventType: 'early', createdAt: '2026-01-01T00:00:00.000Z', details: { n: 1 } },
+    { memoryId: 'm1', workspaceId: 'default', eventType: 'late', createdAt: '2026-01-02T00:00:00.000Z', details: { n: 2 } },
+    { memoryId: 'm2', workspaceId: 'default', eventType: 'other', createdAt: '2026-01-01T00:00:00.000Z' },
+    { memoryId: 'm1', workspaceId: 'default', eventType: 'early', createdAt: '2026-01-01T00:00:00.000Z', details: { n: 1 } },
   ];
-  const result = runGetEvents({ events }, ' m1 ');
+  const result = runGetEvents({ events }, ' m1 ', { workspaceId: 'default' });
 
   assert.deepEqual(result.map(event => event.eventType), ['early', 'late']);
   assert.notStrictEqual(result[0], events[2]);
   assert.notStrictEqual(result[0].details, events[2].details);
-  assert.deepEqual(runGetEvents({ events }, ''), []);
+  assert.deepEqual(runGetEvents({ events }, '', { workspaceId: 'default' }), []);
 });

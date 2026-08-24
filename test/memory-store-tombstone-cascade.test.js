@@ -57,7 +57,7 @@ describe('PR-S6 tombstone and supersede cascade', () => {
     const linksForTombstonedInclude = store.linksForMemory(m2.memoryId, { workspaceId: 'ws-a', includeDeleted: true });
     assert.strictEqual(linksForTombstonedInclude.links.length, 2);
 
-    const auditLinks = store.getLinks(m2.memoryId);
+    const auditLinks = store.getLinks(m2.memoryId, { workspaceId: 'ws-a' });
     assert.strictEqual(auditLinks.length, 2);
 
     const timelineRes = store.timeline({ workspaceId: 'ws-a' });
@@ -102,7 +102,7 @@ describe('PR-S6 tombstone and supersede cascade', () => {
     const linksForOriginalInclude = store.linksForMemory(original.memoryId, { workspaceId: 'ws-a', includeDeleted: true });
     assert.strictEqual(linksForOriginalInclude.links.length, 1);
 
-    const auditLinks = store.getLinks(original.memoryId);
+    const auditLinks = store.getLinks(original.memoryId, { workspaceId: 'ws-a' });
     assert.strictEqual(auditLinks.length, 1);
 
     const wsBQuery = store.query({ workspaceId: 'ws-b' });

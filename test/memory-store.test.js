@@ -327,6 +327,40 @@ describe('memory-store', () => {
     assert.strictEqual(links[0].relation, 'supersedes');
   });
 
+  it('scopes getEvents, getLinks, and getBacklinks by workspace', () => {
+    const store = createStore();
+    const source = store.store({ content: 'source', workspaceId: 'ws-a' }).memory;
+    const target = store.store({ content: 'target', workspaceId: 'ws-a' }).memory;
+    store.patchMetadata(source.memoryId, { tracked: true });
+    const linkResult = store.linkMemories({
+      fromMemoryId: source.memoryId,
+      toMemoryId: target.memoryId,
+      relation: 'supports',
+      workspaceId: 'ws-a',
+    });
+    assert.strictEqual(linkResult.ok, true);
+
+    assert.strictEqual(store.getEvents(source.memoryId, { workspaceId: 'ws-a' }).length, 2);
+    assert.strictEqual(store.getEvents(source.memoryId, { workspaceId: 'ws-b' }).length, 0);
+    assert.strictEqual(store.getLinks(source.memoryId, { workspaceId: 'ws-a' }).length, 1);
+    assert.strictEqual(store.getLinks(source.memoryId, { workspaceId: 'ws-b' }).length, 0);
+    assert.strictEqual(store.getBacklinks(target.memoryId, { workspaceId: 'ws-a' }).length, 1);
+    assert.strictEqual(store.getBacklinks(target.memoryId, { workspaceId: 'ws-b' }).length, 0);
+  });
+
+  it('rejects non-string workspaceId on legacy event and link reads', () => {
+    const store = createStore();
+    const source = store.store({ content: 'source', workspaceId: 'ws-a' }).memory;
+    const invalidWorkspace = { workspaceId: ['ws-a'] };
+    for (const read of [
+      () => store.getEvents(source.memoryId, invalidWorkspace),
+      () => store.getLinks(source.memoryId, invalidWorkspace),
+      () => store.getBacklinks(source.memoryId, invalidWorkspace),
+    ]) {
+      assert.throws(read, (error) => error.code === 'WORKSPACE_ID_INVALID');
+    }
+  });
+
   // ── invalid memory fails validation ──────────────────────
   it('store with non-JSON-safe content fails', () => {
     const store = createStore();
