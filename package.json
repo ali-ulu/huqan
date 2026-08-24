@@ -146,6 +146,7 @@
     "lib/observability/agent-worker.js",
     "lib/observability/authorization.js",
     "lib/observability/rate-limiter.js",
+    "lib/observability/retention.js",
     "lib/observability/server-runtime.js",
     "lib/http/runtime-status.js",
     "scripts/observability-load-smoke.js",

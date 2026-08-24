@@ -191,6 +191,14 @@ and queue claims against `benchmarks/observability-load-targets.json`, reports
 event/queue volume and SQLite size as JSON, and exits non-zero when a target is
 missed. `npm run test:observability-load` runs the same acceptance gate.
 
+Retention is disabled unless `HUQAN_OBSERVABILITY_RETENTION_POLICY` contains an
+explicit JSON policy such as `{"enabled":true,"workspaceIds":["demo"],"batchSize":500}`. Cleanup runs
+hourly by default in bounded, workspace-scoped transactions. It removes only
+expired events not attached to active runs, terminal runs, non-firing alerts,
+and completed/failed queue jobs without an active lease. Invalid policy or a
+locked database disables/fails the cleanup safely and emits a bounded error;
+telemetry writes and active runs/jobs continue unchanged.
+
 ### Verify the local SQLite dependency and test suite
 
 ```bash
