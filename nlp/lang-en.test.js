@@ -15,6 +15,17 @@ test('lang-en extractFacts splits simple subject and predicate', () => {
   assert.equal(facts[0].predicate, 'animals');
 });
 
+test('lang-en extractFacts preserves normalized multi-word subjects (#1116)', () => {
+  assert.deepEqual(en.extractFacts('The big dogs are animals'), [{
+    subject: 'big dog',
+    predicate: 'animals',
+  }]);
+  assert.deepEqual(en.extractFacts('New York is a city'), [{
+    subject: 'new york',
+    predicate: 'city',
+  }]);
+});
+
 test('lang-en extractFacts handles coordinated subjects', () => {
   const facts = en.extractFacts('Cats and dogs are mammals');
   assert.equal(facts.length, 2);

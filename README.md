@@ -160,6 +160,12 @@ For an observability quickstart covering an isolated local server, real run
 telemetry, tool usage, alerts, queue state, and dashboard steps, see
 [Observability Quickstart](./docs/product-hunt-quickstart.md).
 
+Authenticated observability access is fail-closed behind both the normal API key and an explicit workspace membership policy. Configure the local API-key principal with exact workspaces and roles before using these endpoints:
+
+```powershell
+$env:HUQAN_OBSERVABILITY_AUTHZ_POLICY = '{"memberships":[{"subject":"local-api-key","workspaceId":"demo","role":"admin"}]}'
+```
+
 Authenticated operational probes are available per exact workspace:
 
 ```text
@@ -167,11 +173,9 @@ GET /api/observability/health?workspaceId=<workspace>  # process liveness; HTTP 
 GET /api/observability/ready?workspaceId=<workspace>   # DB/schema/required-worker readiness; HTTP 503 when unready
 ```
 
-Both responses report only bounded status, queue depth/lag, and the timestamp
-of the last successful event write. They never include goals, prompts, tool
-input/output, credentials, or database error messages. A deliberately disabled
-optional worker is reported as disabled without making synchronous HUQAN usage
-unready; a worker configured as enabled but not running does fail readiness.
+Both responses report only bounded status, queue depth/lag, and the timestamp of the last successful event write. They never include goals, prompts, tool input/output, credentials, or database error messages. A deliberately disabled optional worker is reported as disabled without making synchronous HUQAN usage unready; a worker configured as enabled but not running does fail readiness.
+
+Roles are bounded: `viewer` can read and stream, `operator` can also enqueue, and `admin` can also create or delete alert rules. Wildcard, duplicate, malformed, missing, or cross-workspace membership is rejected. This local-first default has one authenticated API-key principal; multi-user deployments can inject another principal/membership resolver through the same authorization contract without changing observability routes.
 
 ### Verify the local SQLite dependency and test suite
 

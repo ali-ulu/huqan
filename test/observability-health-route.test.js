@@ -12,6 +12,7 @@ function routeHarness(report) {
     parseJsonRequest: async () => ({}),
     writeJson: (_req, _res, status, body) => writes.push({ status, body }),
     denyIfUnauthorized: () => true,
+    authorizeWorkspace: () => ({ allowed: true }),
   });
   return { route, writes };
 }
@@ -37,6 +38,7 @@ test('health routes require one exact workspace', async () => {
     parseJsonRequest: async () => ({}),
     writeJson: (_req, _res, status, body) => writes.push({ status, body }),
     denyIfUnauthorized: () => true,
+    authorizeWorkspace: () => ({ allowed: true }),
   });
   await route({ method: 'GET' }, {}, new URL('http://local/api/observability/health'));
   assert.equal(writes[0].status, 400);

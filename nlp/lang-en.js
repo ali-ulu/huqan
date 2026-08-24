@@ -1,3 +1,5 @@
+const normalizePhrase = require('./normalize-phrase');
+
 const STOP_WORDS = new Set([
   'the', 'a', 'an', 'and', 'or', 'to', 'of', 'in', 'on', 'for', 'with',
   'is', 'are', 'was', 'were', 'be', 'been', 'being',
@@ -61,7 +63,7 @@ function extractFacts(text) {
   // this way; only the English pack had the order inverted (#1037).
   const copulaIdx = rawTokens.findIndex(t => ['is', 'are', 'was', 'were'].includes(t));
   if (copulaIdx > 0) {
-    const subject = normalize(rawTokens.slice(0, copulaIdx).filter(t => !isStopWord(t)).join(' '));
+    const subject = normalizePhrase(rawTokens.slice(0, copulaIdx), normalize, isStopWord);
     const predicate = rawTokens.slice(copulaIdx + 1).filter(t => !isStopWord(t)).join(' ');
     if (subject && predicate) {
       return [{ subject, predicate }];
