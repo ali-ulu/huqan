@@ -73,6 +73,7 @@ test('policy table: trust/read surfaces under /api/ stay authenticated', () => {
     '/api/trust-receipt',
     '/api/ingest',
     '/api/workbench/memory-context/abc',
+    '/api/workbench/activity',
   ]) {
     assert.equal(
       resolveRouteAuthPolicy(pathname, 'GET').authRequired,

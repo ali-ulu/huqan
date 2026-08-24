@@ -155,7 +155,7 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     `);
 
     await waitFor(
-      `document.getElementById('run').disabled === false && document.getElementById('vstatus').textContent !== 'Capability manifest hazır.' && document.getElementById('result').innerHTML.length > 0`,
+      `document.getElementById('run').disabled === false && document.getElementById('vstatus').textContent !== 'Capability manifest ready.' && document.getElementById('result').innerHTML.length > 0`,
       'the verify action to settle',
     );
 
@@ -240,7 +240,7 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
       true;
     `);
     await waitFor(
-      `document.getElementById('run').disabled === false && document.getElementById('vstatus').textContent !== 'Capability manifest hazır.' && document.getElementById('result').innerHTML.length > 0`,
+      `document.getElementById('run').disabled === false && document.getElementById('vstatus').textContent !== 'Capability manifest ready.' && document.getElementById('result').innerHTML.length > 0`,
       'memory search to settle',
     );
 
@@ -258,7 +258,7 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     // only by pasting an identifier into the Evidence tab by hand.
     await browser.evaluate(`document.querySelector('#recent [data-receipt]').click(); true;`);
     await waitFor(
-      `document.getElementById('estatus').textContent !== 'Kanıt okunuyor…'
+      `document.getElementById('estatus').textContent !== 'Loading evidence…'
         && document.getElementById('estatus').textContent.length > 0`,
       'the receipt read to settle',
     );
@@ -266,7 +266,7 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     const estatus = await browser.evaluate(`document.getElementById('estatus').textContent`);
     const raw = await browser.evaluate(`document.getElementById('raw').textContent`);
 
-    assert.match(estatus, /^Receipt bulundu\.$/, `receipt handoff failed: ${estatus}`);
+    assert.match(estatus, /^Receipt found\.$/, `receipt handoff failed: ${estatus}`);
     assert.match(raw, /"receiptId":/, `no receipt document rendered: ${raw.slice(0, 200)}`);
     assert.ok(raw.includes(receiptId), 'the opened receipt does not match the clicked identifier');
   });
@@ -291,14 +291,14 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
       true;
     `);
     await waitFor(
-      `document.getElementById('estatus').textContent !== 'Kanıt okunuyor…'
+      `document.getElementById('estatus').textContent !== 'Loading evidence…'
         && document.getElementById('estatus').textContent.length > 0`,
       'the keyboard-triggered receipt read to settle',
     );
 
     const estatus = await browser.evaluate(`document.getElementById('estatus').textContent`);
     const raw = await browser.evaluate(`document.getElementById('raw').textContent`);
-    assert.match(estatus, /^Receipt bulundu\.$/, `keyboard receipt handoff failed: ${estatus}`);
+    assert.match(estatus, /^Receipt found\.$/, `keyboard receipt handoff failed: ${estatus}`);
     assert.ok(raw.includes(receiptId), 'the keyboard-opened receipt does not match the focused identifier');
   });
 

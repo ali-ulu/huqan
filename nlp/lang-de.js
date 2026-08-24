@@ -1,3 +1,5 @@
+const normalizePhrase = require('./normalize-phrase');
+
 const STOP_WORDS = new Set([
   'der', 'die', 'das', 'ein', 'eine', 'und', 'oder', 'ist', 'sind', 'war', 'waren',
   'zu', 'von', 'mit', 'für', 'auf', 'im', 'in', 'am', 'an',
@@ -38,7 +40,7 @@ function extractFacts(text) {
 
   const copulaIdx = rawTokens.findIndex(t => ['ist', 'sind', 'war', 'waren'].includes(t));
   if (copulaIdx > 0) {
-    const subject = normalize(rawTokens.slice(0, copulaIdx).join(' '));
+    const subject = normalizePhrase(rawTokens.slice(0, copulaIdx), normalize, isStopWord);
     const predicate = rawTokens.slice(copulaIdx + 1).filter(t => !isStopWord(t)).join(' ');
     if (subject && predicate) {
       return [{ subject, predicate }];

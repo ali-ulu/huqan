@@ -24,6 +24,11 @@ const classifierFunctions = marker[1]
   .map((line) => line.startsWith('          ') ? line.slice(10) : line)
   .join('\n');
 
+function usableBash() {
+  const probe = spawnSync('bash', ['-c', '[ "$1" = cli.js ] && printf huqan-bash-ok', 'huqan-probe', 'cli.js'], { encoding: 'utf8' });
+  return probe.status === 0 && probe.stdout === 'huqan-bash-ok';
+}
+
 function classify(file) {
   const script = `${classifierFunctions}
     runtime=no
@@ -41,7 +46,8 @@ function classify(file) {
   return result.stdout;
 }
 
-test('CI classifier maps representative paths to the intended gates', () => {
+test('CI classifier maps representative paths to the intended gates', (t) => {
+  if (!usableBash()) return t.skip('requires a usable POSIX bash; Windows system bash.exe is not one');
   const cases = new Map([
     ['cli.js', 'yes,no,no'],
     ['lib/contradiction-rules.js', 'yes,no,no'],
