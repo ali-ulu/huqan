@@ -106,7 +106,6 @@
     "cli.js",
     "config/trust-policy.default.json",
     "docs/seed/huqan-identity.seed.json",
-    "docs/openapi-observability-v1.yaml",
     "dream.js",
     "evidence-ranker.js",
     "finalizer.js",
