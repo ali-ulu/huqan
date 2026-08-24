@@ -412,6 +412,7 @@
     "nlp/lang-de.js",
     "nlp/lang-en.js",
     "nlp/lang-tr.js",
+    "nlp/normalize-phrase.js",
     "package.json",
     "packages/axiom-verify/index.js",
     "packages/axiom-verify/package.json",
