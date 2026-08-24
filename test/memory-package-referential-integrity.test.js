@@ -106,7 +106,9 @@ function pkg({ memories = [], events = [], links = [] }) {
   return {
     version: '1.0.0',
     schemaVersion: 'memory-package-v1',
-    workspaceId: 'source-ws',
+    // These fixtures intentionally remap record-level source metadata, but
+    // the package itself targets the workspace used by importInto().
+    workspaceId: 'target-ws',
     memories,
     events,
     links,
