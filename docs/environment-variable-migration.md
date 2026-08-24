@@ -87,3 +87,15 @@ does not reveal either value.
 Docker and Compose follow the same rule. Container defaults are applied only
 when neither spelling is present, so an existing legacy-only deployment keeps
 working. New examples and deployment configuration should use canonical names.
+
+## MemoryStore persistence when SQLite is disabled
+
+When `HUQAN_USE_SQLITE=false` (or the compatible `AXIOM_USE_SQLITE=false`) is set, the managed MemoryStore uses JSON persistence whenever a memory path is configured. A direct `MemoryStore` receives that path through `memoryPath`; the Kernel keeps the graph’s `MEMORY_PATH` separate and derives a sibling `<stem>.memory-store.json` file for managed memories unless an explicit `memoryStorePath` is supplied. This prevents the graph JSON and managed-memory JSON from overwriting one another.
+
+The JSON file contains memory records, append-only memory events, and memory links. Store, metadata patch, tombstone, supersede, and package-import mutations are persisted atomically, and reload validates records plus their event/link memory references before applying them. `save()` and `load()` report `backend: "json"`, `persistent: true`; `save()` is an actual write (`skipped: false`). If SQLite is disabled without a configured memory path, the MemoryStore remains process-local and `save()` fails closed with `PERSISTENCE_DISABLED` rather than claiming durability.
+
+This setting does not change the existing fail-closed behavior when SQLite is explicitly requested but its driver is unavailable.
+
+---
+
+> This documents the runtime behavior of the current source. It is not a deployment or external interoperability claim.

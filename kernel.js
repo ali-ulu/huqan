@@ -22,7 +22,7 @@ const { runSelfEvolve } = require('./lib/kernel-self-evolve');
 const { runAlternatives } = require('./lib/kernel-alternatives');
 const { runContextSimilarity } = require('./lib/kernel-context-similarity');
 const { runAutoThinkTick } = require('./lib/kernel-auto-think');
-const MemoryStore = require('./lib/memory-store');
+const MemoryStore = require('./lib/memory-store'); const { siblingPersistencePath } = require('./lib/memory-store-utils');
 const { buildCanonicalReceiptPayload } = require('./lib/receipt/canonical-receipt');
 const { toCanonicalVerdict } = require('./lib/verdict/action-verdict');
 const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
@@ -156,7 +156,7 @@ class Kernel {
       trustPolicyVersion: this.contractVersion,
       useSQLite: opts.memoryStoreUseSQLite !== undefined ? opts.memoryStoreUseSQLite : opts.useSQLite,
       dbPath: opts.memoryStoreDbPath || opts.dbPath,
-      memoryPath: opts.memoryStorePath || opts.memoryPath,
+      memoryPath: opts.memoryStorePath || (opts.memoryPath ? siblingPersistencePath(opts.memoryPath, '.memory-store.json') : undefined),
     });
 
     // Hook graph.close to also close memory store db connection
