@@ -2,6 +2,10 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
+const childProcess = require('node:child_process');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const {
   STATUS,
   loadTaskFixture,
@@ -113,5 +117,48 @@ describe('Deterministic coding task benchmarks', () => {
     assert.equal(result.reason, 'PATH_NOT_ALLOWED_OR_MISSING');
     assert.deepEqual(result.files, task.files);
     assert.deepEqual(result.patch, []);
+  });
+
+  it('generates a schema test that fails when route metadata drifts (#1233)', () => {
+    const task = fixture('l1-json-schema-route-test');
+    const result = runTask(task);
+    assert.equal(result.status, STATUS.COMPLETED);
+
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-schema-task-'));
+    try {
+      const routeDir = path.join(tempDir, 'routes');
+      const testDir = path.join(tempDir, 'test', 'routes');
+      fs.mkdirSync(routeDir, { recursive: true });
+      fs.mkdirSync(testDir, { recursive: true });
+      const routePath = path.join(routeDir, 'user.js');
+      const routeSource = result.files['routes/user.js'];
+      fs.writeFileSync(routePath, routeSource);
+      const generatedTest = path.join(testDir, 'user.test.js');
+      fs.writeFileSync(generatedTest, result.files['test/routes/user.test.js']);
+
+      const passingRun = childProcess.spawnSync(
+        process.execPath,
+        [generatedTest],
+        { cwd: tempDir, encoding: 'utf8' },
+      );
+      assert.equal(passingRun.status, 0, `${passingRun.stdout}\n${passingRun.stderr}`);
+
+      fs.writeFileSync(
+        routePath,
+        routeSource.replace(
+          'Object.freeze(["email","name"])',
+          'Object.freeze(["phone","name"])',
+        ),
+      );
+      const driftedRun = childProcess.spawnSync(
+        process.execPath,
+        [generatedTest],
+        { cwd: tempDir, encoding: 'utf8' },
+      );
+
+      assert.notEqual(driftedRun.status, 0, `${driftedRun.stdout}\n${driftedRun.stderr}`);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });
