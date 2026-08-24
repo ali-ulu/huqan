@@ -279,7 +279,7 @@ const viewerGateway = createViewerGateway({
 
 function denyIfUnauthorized(req, res, extraHeaders = {}) {
   const auth = requireApiKey(req);
-  if (auth.ok) return true;
+  if (auth.ok) { req.huqanAuth = Object.freeze({ subject: 'local-api-key' }); return true; }
   writeJson(req, res, auth.status, auth.error, { ...auth.headers, ...extraHeaders });
   return false;
 }
