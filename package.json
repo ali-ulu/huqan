@@ -375,6 +375,7 @@
     "lib/risk-rules.js",
     "lib/safe-file-walk.js",
     "lib/sandbox-isolation.js",
+    "lib/sandbox-path-containment.js",
     "lib/sandbox-timeout-policy.js",
     "lib/sdk.js",
     "lib/secret-scrub-gate.js",
