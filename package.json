@@ -353,6 +353,7 @@
     "lib/sandbox-timeout-policy.js",
     "lib/sdk.js",
     "lib/secret-scrub-gate.js",
+    "lib/self-healer/behavioral-containment.js",
     "lib/self-healer/dryrun-runner.js",
     "lib/self-healer/finding-schema.js",
     "lib/self-healer/safety-decision.js",
