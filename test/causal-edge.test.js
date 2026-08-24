@@ -156,6 +156,28 @@ describe('validateCausalEdge negative cases', () => {
     assert.ok(result.errors.some(e => e.field === 'id' && e.code === CAUSAL_EDGE_ERROR_CODES.MISSING_FIELD));
   });
 
+  it('rejects empty id', () => {
+    const result = validateCausalEdge(validEdge({ id: '   ' }));
+    assert.strictEqual(result.ok, false);
+    assert.ok(result.errors.some(e => e.field === 'id' && e.code === CAUSAL_EDGE_ERROR_CODES.INVALID_ID));
+  });
+
+  it('rejects empty from and to endpoints', () => {
+    for (const field of ['from', 'to']) {
+      const result = validateCausalEdge(validEdge({ [field]: '' }));
+      assert.strictEqual(result.ok, false);
+      assert.ok(result.errors.some(e => e.field === field && e.code === CAUSAL_EDGE_ERROR_CODES.INVALID_ENDPOINT));
+    }
+  });
+
+  it('rejects invalid confidence values', () => {
+    for (const confidence of [NaN, Infinity, -0.1, 1.1, 'high']) {
+      const result = validateCausalEdge(validEdge({ confidence }));
+      assert.strictEqual(result.ok, false, `confidence ${String(confidence)} should fail`);
+      assert.ok(result.errors.some(e => e.field === 'confidence' && e.code === CAUSAL_EDGE_ERROR_CODES.INVALID_CONFIDENCE));
+    }
+  });
+
   it('rejects missing relation', () => {
     const edge = validEdge();
     delete edge.relation;
@@ -264,13 +286,12 @@ describe('validateCausalEdge negative cases', () => {
   });
 });
 
-describe('validateCausalEdge strengthLabel warning', () => {
-  it('warns when strengthLabel does not match band', () => {
+describe('validateCausalEdge strengthLabel consistency', () => {
+  it('rejects when strengthLabel does not match band', () => {
     const edge = validEdge({ strengthLabel: 'weak' });
     const result = validateCausalEdge(edge);
-    assert.strictEqual(result.ok, true);
-    assert.ok(result.warnings.length > 0);
-    assert.ok(result.warnings.some(w => w.code === CAUSAL_EDGE_ERROR_CODES.STRENGTH_LABEL_MISMATCH));
+    assert.strictEqual(result.ok, false);
+    assert.ok(result.errors.some(e => e.code === CAUSAL_EDGE_ERROR_CODES.STRENGTH_LABEL_MISMATCH));
   });
 
   it('no warning when strengthLabel matches band', () => {
@@ -280,11 +301,14 @@ describe('validateCausalEdge strengthLabel warning', () => {
     assert.strictEqual(result.warnings.length, 0);
   });
 
-  it('no warning when strengthLabel is absent', () => {
-    const edge = validEdge();
-    const result = validateCausalEdge(edge);
-    assert.strictEqual(result.ok, true);
-    assert.strictEqual(result.warnings.length, 0);
+  it('no error when strengthLabel is absent or null', () => {
+    for (const strengthLabel of [undefined, null]) {
+      const edge = validEdge();
+      if (strengthLabel !== undefined) edge.strengthLabel = strengthLabel;
+      const result = validateCausalEdge(edge);
+      assert.strictEqual(result.ok, true);
+      assert.strictEqual(result.errors.length, 0);
+    }
   });
 });
 
@@ -340,6 +364,19 @@ describe('normalizeCausalEdge', () => {
   it('rejects non-null future field via CausalEdgeValidationError', () => {
     const edge = validEdge({ probability: 0.5 });
     assert.throws(() => normalizeCausalEdge(edge), CausalEdgeValidationError);
+  });
+
+  it('rejects mismatched strengthLabel and invalid confidence', () => {
+    assert.throws(
+      () => normalizeCausalEdge(validEdge({ strengthLabel: 'weak' })),
+      (error) => error instanceof CausalEdgeValidationError
+        && error.code === CAUSAL_EDGE_ERROR_CODES.STRENGTH_LABEL_MISMATCH,
+    );
+    assert.throws(
+      () => normalizeCausalEdge(validEdge({ confidence: 'yüksek' })),
+      (error) => error instanceof CausalEdgeValidationError
+        && error.code === CAUSAL_EDGE_ERROR_CODES.INVALID_CONFIDENCE,
+    );
   });
 });
 
