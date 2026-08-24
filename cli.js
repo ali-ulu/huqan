@@ -470,7 +470,7 @@ class CLI {
       case 'onaylar': {
         const result = callMcpTool(
           this.kernel,
-          { name: 'huqan.approvals', operatorToken: this._mcpOperatorToken, arguments: { limit: 50 } },
+          { name: 'huqan.approvals', operatorToken: this._mcpOperatorToken, arguments: { limit: 50, workspaceId: 'default' } },
           this._approvalRuntime()
         );
         if (!result || result.ok === false) {
@@ -490,7 +490,7 @@ class CLI {
         return Promise.resolve(callMcpTool(this.kernel, {
           name: 'huqan.approve',
           operatorToken: this._mcpOperatorToken,
-          arguments: { approvalId: approval.approvalId, decision: approval.decision },
+          arguments: { approvalId: approval.approvalId, decision: approval.decision, workspaceId: 'default' },
         }, this._approvalRuntime())).then(result => {
           if (!result || result.ok === false) {
             const error = result?.error;

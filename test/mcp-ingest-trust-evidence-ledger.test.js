@@ -86,7 +86,7 @@ test('MCP approval owner appends bounded trust evidence through the opt-in ledge
   const queued = queue(kernel, approvalStore);
   const result = await callTool(kernel, {
     name: 'huqan.approve',
-    arguments: JSON.stringify({ approvalId: queued.approval.id, decision: 'approved', reason: 'ledger_test_approved' }),
+    arguments: JSON.stringify({ approvalId: queued.approval.id, workspaceId: 'default', decision: 'approved', reason: 'ledger_test_approved' }),
     operatorToken: 'test-operator',
   }, { approvalStore, operatorToken: 'test-operator', trustEvidenceLedger: ledger });
 
@@ -123,7 +123,7 @@ test('MCP createServer passes its opt-in ledger into the approval runtime', asyn
     method: 'tools/call',
     params: {
       name: 'huqan.approve',
-      arguments: JSON.stringify({ approvalId: queued.approval.id, decision: 'approved', reason: 'server_ledger_test' }),
+      arguments: JSON.stringify({ approvalId: queued.approval.id, workspaceId: 'default', decision: 'approved', reason: 'server_ledger_test' }),
       operatorToken: 'test-operator',
     },
   });

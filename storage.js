@@ -5,6 +5,7 @@ const { resolveContainedPath } = require('./lib/memory-store-utils');
 const { applyStorageSchema } = require('./lib/storage/schema');
 const { loadSqliteDriver, sqliteUnavailableError } = require('./lib/sqlite-availability');
 const { normalizeWorkspaceId } = require('./lib/workspace-id');
+const toolApprovalMethods = require('./lib/storage/tool-approval-methods');
 
 // The load error is retained (not discarded as before) so the throw site can
 // tell "not installed" from "installed but built for a different Node ABI" —
@@ -20,6 +21,22 @@ function normalizeGoal(goal) {
 
 function lower(goal) {
   return normalizeGoal(goal).toLowerCase();
+}
+
+const APPROVAL_KEY_SEPARATOR = '\u001f';
+
+function approvalWorkspaceId(record = {}) {
+  return normalizeWorkspaceId(
+    record.workspaceId
+      ?? record.context?.workspaceId
+      ?? record.context?.snapshot?.workspaceId,
+  );
+}
+
+function scopedApprovalKey(approvalKey, workspaceId) {
+  const key = String(approvalKey || '');
+  const prefix = `${workspaceId}${APPROVAL_KEY_SEPARATOR}`;
+  return key.startsWith(prefix) ? key : `${prefix}${key}`;
 }
 
 /**
@@ -179,10 +196,10 @@ class HuqanStorage {
       upsertToolApproval: this.db.prepare(`
         INSERT INTO tool_approvals (
           id, approval_key, tool, input, context_json, policy_json,
-          status, decision, reason, created_at, updated_at, decided_at
+          status, decision, reason, workspace_id, created_at, updated_at, decided_at
         ) VALUES (
           @id, @approval_key, @tool, @input, @context_json, @policy_json,
-          @status, @decision, @reason, @created_at, @updated_at, @decided_at
+          @status, @decision, @reason, @workspace_id, @created_at, @updated_at, @decided_at
         )
         ON CONFLICT(approval_key) DO UPDATE SET
           tool = excluded.tool,
@@ -192,43 +209,44 @@ class HuqanStorage {
           status = excluded.status,
           decision = excluded.decision,
           reason = excluded.reason,
+          workspace_id = excluded.workspace_id,
           updated_at = excluded.updated_at,
           decided_at = excluded.decided_at
       `),
       insertToolApprovalIfAbsent: this.db.prepare(`
         INSERT INTO tool_approvals (
           id, approval_key, tool, input, context_json, policy_json,
-          status, decision, reason, created_at, updated_at, decided_at
+          status, decision, reason, workspace_id, created_at, updated_at, decided_at
         ) VALUES (
           @id, @approval_key, @tool, @input, @context_json, @policy_json,
-          @status, @decision, @reason, @created_at, @updated_at, @decided_at
+          @status, @decision, @reason, @workspace_id, @created_at, @updated_at, @decided_at
         ) ON CONFLICT(approval_key) DO NOTHING
       `),
-      getToolApprovalByKey: this.db.prepare('SELECT * FROM tool_approvals WHERE approval_key = ? LIMIT 1'),
-      getToolApprovalById: this.db.prepare('SELECT * FROM tool_approvals WHERE id = ? LIMIT 1'),
+      getToolApprovalByKey: this.db.prepare('SELECT * FROM tool_approvals WHERE approval_key = ? AND workspace_id = ? LIMIT 1'),
+      getToolApprovalById: this.db.prepare('SELECT * FROM tool_approvals WHERE id = ? AND workspace_id = ? LIMIT 1'),
       listPendingToolApprovals: this.db.prepare(`
         SELECT *
         FROM tool_approvals
-        WHERE status = 'pending'
+        WHERE workspace_id = ? AND status = 'pending'
         ORDER BY updated_at DESC
         LIMIT ?
       `),
       countPendingToolApprovals: this.db.prepare(`
         SELECT COUNT(*) AS c
         FROM tool_approvals
-        WHERE status = 'pending'
+        WHERE workspace_id = ? AND status = 'pending'
       `),
       listUnresolvedToolApprovals: this.db.prepare(`
         SELECT *
         FROM tool_approvals
-        WHERE status IN ('pending', 'executing', 'failed')
+        WHERE workspace_id = ? AND status IN ('pending', 'executing', 'failed')
         ORDER BY updated_at DESC
         LIMIT ?
       `),
       countUnresolvedToolApprovals: this.db.prepare(`
         SELECT COUNT(*) AS c
         FROM tool_approvals
-        WHERE status IN ('pending', 'executing', 'failed')
+        WHERE workspace_id = ? AND status IN ('pending', 'executing', 'failed')
       `),
       // Keyset page for recoverExpiredToolApprovals (#426).
       //
@@ -255,6 +273,7 @@ class HuqanStorage {
             reason = @reason,
             updated_at = @updated_at
         WHERE id = @id
+          AND workspace_id = @workspace_id
           AND status = 'pending'
       `),
       claimToolApprovalWithLease: this.db.prepare(`
@@ -265,6 +284,7 @@ class HuqanStorage {
             context_json = @context_json,
             updated_at = @updated_at
         WHERE id = @id
+          AND workspace_id = @workspace_id
           AND status = 'pending'
       `),
       renewToolApprovalLease: this.db.prepare(`
@@ -272,6 +292,7 @@ class HuqanStorage {
         SET context_json = @context_json,
             updated_at = @updated_at
         WHERE id = @id
+          AND workspace_id = @workspace_id
           AND status = 'executing'
           AND context_json = @expected_context_json
       `),
@@ -283,6 +304,7 @@ class HuqanStorage {
             decided_at = @decided_at,
             updated_at = @updated_at
         WHERE id = @id
+          AND workspace_id = @workspace_id
           AND status = 'executing'
           AND context_json = @expected_context_json
       `),
@@ -294,6 +316,7 @@ class HuqanStorage {
             decided_at = @decided_at,
             updated_at = @updated_at
         WHERE id = @id
+          AND workspace_id = @workspace_id
           AND status = 'pending'
       `),
       failToolApproval: this.db.prepare(`
@@ -304,6 +327,7 @@ class HuqanStorage {
             decided_at = @decided_at,
             updated_at = @updated_at
         WHERE id = @id
+          AND workspace_id = @workspace_id
           AND status = 'executing'
       `),
       // The status guard is what makes an approval decision one-way (#422).
@@ -326,6 +350,7 @@ class HuqanStorage {
             decided_at = @decided_at,
             updated_at = @updated_at
         WHERE id = @id
+          AND workspace_id = @workspace_id
           AND status IN ('pending', 'executing')
       `),
       finalizeToolApprovalWithReceipt: this.db.prepare(`
@@ -337,6 +362,7 @@ class HuqanStorage {
             decided_at = @decided_at,
             updated_at = @updated_at
         WHERE id = @id
+          AND workspace_id = @workspace_id
           AND status = @expected_status
       `),
     };
@@ -516,260 +542,6 @@ class HuqanStorage {
     return Number(this._stmts.countCheckpoints.get()?.c || 0);
   }
 
-  saveToolApproval(record = {}) {
-    const id = String(record.id || this._newId('approval'));
-    const approvalKey = String(record.approvalKey || `${lower(record.tool)}:${lower(record.input)}:${lower(record.context?.goal || '')}:${String(record.policy?.action || '')}`);
-    const tool = String(record.tool || '');
-    const input = String(record.input || '');
-    const context = record.context && typeof record.context === 'object' ? record.context : {};
-    const policy = record.policy && typeof record.policy === 'object' ? record.policy : {};
-    const status = String(record.status || 'pending');
-    const decision = String(record.decision || '');
-    const reason = String(record.reason || '');
-    const now = this._now();
-    const payload = {
-      id,
-      approval_key: approvalKey,
-      tool,
-      input,
-      context_json: JSON.stringify(context),
-      policy_json: JSON.stringify(policy),
-      status,
-      decision,
-      reason,
-      created_at: Number(record.createdAt || now),
-      updated_at: now,
-      decided_at: Number(record.decidedAt || 0),
-    };
-    this._stmts.upsertToolApproval.run(payload);
-    return this.getToolApprovalByKey(approvalKey);
-  }
-
-  saveToolApprovalIfAbsent(record = {}) {
-    const id = String(record.id || this._newId('approval'));
-    const approvalKey = String(record.approvalKey || `${lower(record.tool)}:${lower(record.input)}`);
-    const now = this._now();
-    const payload = {
-      id,
-      approval_key: approvalKey,
-      tool: String(record.tool || ''),
-      input: String(record.input || ''),
-      context_json: JSON.stringify(record.context && typeof record.context === 'object' ? record.context : {}),
-      policy_json: JSON.stringify(record.policy && typeof record.policy === 'object' ? record.policy : {}),
-      status: String(record.status || 'pending'),
-      decision: String(record.decision || ''),
-      reason: String(record.reason || ''),
-      created_at: Number(record.createdAt || now),
-      updated_at: now,
-      decided_at: Number(record.decidedAt || 0),
-    };
-    const inserted = this._stmts.insertToolApprovalIfAbsent.run(payload).changes === 1;
-    return { inserted, approval: this.getToolApprovalByKey(approvalKey) };
-  }
-
-  getToolApprovalByKey(approvalKey) {
-    const row = this._stmts.getToolApprovalByKey.get(String(approvalKey || ''));
-    return row ? this._hydrateToolApproval(row) : null;
-  }
-
-  getToolApprovalById(id) {
-    const row = this._stmts.getToolApprovalById.get(String(id || ''));
-    return row ? this._hydrateToolApproval(row) : null;
-  }
-
-  listPendingToolApprovals(limit = 20) {
-    const rows = this._stmts.listPendingToolApprovals.all(Math.max(1, Number(limit) || 20));
-    return rows.map(row => this._hydrateToolApproval(row));
-  }
-
-  countPendingToolApprovals() {
-    return Number(this._stmts.countPendingToolApprovals.get()?.c || 0);
-  }
-
-  listUnresolvedToolApprovals(limit = 20) {
-    const rows = this._stmts.listUnresolvedToolApprovals.all(Math.max(1, Number(limit) || 20));
-    return rows.map(row => this._hydrateToolApproval(row));
-  }
-
-  countUnresolvedToolApprovals() {
-    return Number(this._stmts.countUnresolvedToolApprovals.get()?.c || 0);
-  }
-
-  claimToolApproval(id, reason = 'approval_execution_claimed') {
-    if (!id) return { claimed: false, approval: null };
-    const result = this._stmts.claimToolApproval.run({
-      id: String(id),
-      reason: String(reason || ''),
-      updated_at: this._now(),
-    });
-    return {
-      claimed: Number(result.changes || 0) === 1,
-      approval: this.getToolApprovalById(id),
-    };
-  }
-
-  rejectToolApproval(id, reason = 'approval_rejected') {
-    if (!id) return { rejected: false, approval: null };
-    const now = this._now();
-    const result = this._stmts.rejectToolApproval.run({
-      id: String(id),
-      reason: String(reason || ''),
-      decided_at: now,
-      updated_at: now,
-    });
-    return {
-      rejected: Number(result.changes || 0) === 1,
-      approval: this.getToolApprovalById(id),
-    };
-  }
-
-  failToolApproval(id, reason = 'approval_execution_failed') {
-    if (!id) return { failed: false, approval: null };
-    const now = this._now();
-    const result = this._stmts.failToolApproval.run({
-      id: String(id),
-      reason: String(reason || ''),
-      decided_at: now,
-      updated_at: now,
-    });
-    return {
-      failed: Number(result.changes || 0) === 1,
-      approval: this.getToolApprovalById(id),
-    };
-  }
-
-  resolveToolApproval(id, decision = 'approved', reason = '') {
-    if (!id) return null;
-    const existing = this.getToolApprovalById(id);
-    if (!existing) return null;
-    const status = decision === 'approved' ? 'approved' : decision === 'rejected' ? 'rejected' : 'pending';
-    const now = this._now();
-    this._stmts.resolveToolApproval.run({
-      id: String(id),
-      status,
-      decision: String(decision || ''),
-      reason: String(reason || ''),
-      decided_at: status === 'pending' ? 0 : now,
-      updated_at: now,
-    });
-    return this.getToolApprovalById(id);
-  }
-
-  claimToolApprovalWithLease(id, {
-    owner = '',
-    leaseMs = 60_000,
-    reason = 'approval_execution_claimed',
-  } = {}) {
-    if (!id || !String(owner).trim()) return { claimed: false, approval: null };
-    const existing = this.getToolApprovalById(id);
-    if (!existing || existing.status !== 'pending') return { claimed: false, approval: existing };
-    const now = this._now();
-    const safeLeaseMs = Math.max(1_000, Math.min(900_000, Number(leaseMs) || 60_000));
-    const context = {
-      ...(existing.context || {}),
-      executionClaim: {
-        owner: String(owner),
-        claimedAt: now,
-        leaseExpiresAt: now + safeLeaseMs,
-      },
-    };
-    const result = this._stmts.claimToolApprovalWithLease.run({
-      id: String(id),
-      reason: String(reason || ''),
-      context_json: JSON.stringify(context),
-      updated_at: now,
-    });
-    return {
-      claimed: Number(result.changes || 0) === 1,
-      approval: this.getToolApprovalById(id),
-    };
-  }
-
-  renewToolApprovalLease(id, owner, leaseMs = 60_000) {
-    if (!id || !String(owner).trim()) return { renewed: false, approval: null };
-    const existing = this.getToolApprovalById(id);
-    const claim = existing?.context?.executionClaim;
-    if (!existing || existing.status !== 'executing' || claim?.owner !== String(owner)) {
-      return { renewed: false, approval: existing || null };
-    }
-    const now = this._now();
-    const safeLeaseMs = Math.max(1_000, Math.min(900_000, Number(leaseMs) || 60_000));
-    const context = {
-      ...(existing.context || {}),
-      executionClaim: {
-        ...claim,
-        leaseExpiresAt: now + safeLeaseMs,
-      },
-    };
-    const result = this._stmts.renewToolApprovalLease.run({
-      id: String(id),
-      context_json: JSON.stringify(context),
-      expected_context_json: existing.context_json,
-      updated_at: now,
-    });
-    return {
-      renewed: Number(result.changes || 0) === 1,
-      approval: this.getToolApprovalById(id),
-    };
-  }
-
-  recoverExpiredToolApprovals({ tool = '', now = this._now(), reason = 'execution_lease_expired' } = {}) {
-    const recovered = [];
-    // Walk executing approvals in id order, a page at a time, instead of
-    // materialising a single 10k-row result set (#426). The old cap was not
-    // just a memory concern: with more than 10k unresolved approvals, the
-    // executing rows past the cap were never recovered at all, silently.
-    let cursor = '';
-    for (;;) {
-      const page = this._stmts.listExecutingToolApprovalsAfter.all(cursor, RECOVERY_PAGE_SIZE);
-      if (page.length === 0) break;
-      // Advance before filtering, so a page of non-expired rows still moves the
-      // cursor and the walk terminates.
-      cursor = String(page[page.length - 1].id);
-
-      for (const row of page) {
-        const approval = this._hydrateToolApproval(row);
-        if (tool && approval.tool !== tool) continue;
-        const expiresAt = Number(approval.context?.executionClaim?.leaseExpiresAt || 0);
-        if (!Number.isFinite(expiresAt) || expiresAt <= 0 || expiresAt > now) continue;
-        const result = this._stmts.failExpiredToolApproval.run({
-          id: String(approval.id),
-          reason: String(reason || 'execution_lease_expired'),
-          expected_context_json: approval.context_json,
-          decided_at: now,
-          updated_at: now,
-        });
-        if (Number(result.changes || 0) === 1) recovered.push(this.getToolApprovalById(approval.id));
-      }
-
-      if (page.length < RECOVERY_PAGE_SIZE) break;
-    }
-    return recovered;
-  }
-
-  finalizeToolApprovalWithReceipt(id, {
-    expectedStatus = 'executing', decision = 'approved', reason = '', receipt = null, contextPatch = null,
-  } = {}) {
-    if (!id || !receipt || typeof receipt !== 'object') return { finalized: false, approval: null };
-    const existing = this.getToolApprovalById(id);
-    if (!existing || existing.status !== expectedStatus) return { finalized: false, approval: existing };
-    const status = decision === 'approved' ? 'approved' : decision === 'rejected' ? 'rejected' : '';
-    if (!status) return { finalized: false, approval: existing };
-    const now = this._now();
-    const context = {
-      ...(existing.context || {}),
-      ...(contextPatch && typeof contextPatch === 'object' ? contextPatch : {}),
-      receipt,
-    };
-    const result = this._stmts.finalizeToolApprovalWithReceipt.run({
-      id: String(id), expected_status: String(expectedStatus), status, decision: String(decision),
-      reason: String(reason || ''), context_json: JSON.stringify(context), decided_at: now, updated_at: now,
-    });
-    return {
-      finalized: Number(result.changes || 0) === 1,
-      approval: this.getToolApprovalById(id),
-    };
-  }
 
   _hydrateToolApproval(row) {
     return {
@@ -783,6 +555,8 @@ class HuqanStorage {
     if (this.db) this.db.close();
   }
 }
+
+Object.assign(HuqanStorage.prototype, toolApprovalMethods);
 
 function safeParse(value, fallback) {
   try {

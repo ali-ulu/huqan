@@ -157,7 +157,7 @@ describe('FAZ2-PR5 contract: F-006 MCP approval persistence and execution path',
       const denied = callTool(server.kernel, {
         name: 'huqan.approve',
         operatorToken: 'wrong-secret',
-        arguments: { approvalId: queued.approval.id, decision: 'approved' },
+        arguments: { approvalId: queued.approval.id, workspaceId: 'default', decision: 'approved' },
       }, { approvalStore: server.approvalStore, operatorToken: 'operator-secret' });
       assert.equal(denied.ok, false);
       assert.equal(denied.error.code, 'OPERATOR_AUTH_REQUIRED');
@@ -166,7 +166,7 @@ describe('FAZ2-PR5 contract: F-006 MCP approval persistence and execution path',
       const approved = callTool(server.kernel, {
         name: 'huqan.approve',
         operatorToken: 'operator-secret',
-        arguments: { approvalId: queued.approval.id, decision: 'approved' },
+        arguments: { approvalId: queued.approval.id, workspaceId: 'default', decision: 'approved' },
       }, { approvalStore: server.approvalStore, operatorToken: 'operator-secret' });
       assert.equal(approved.ok, true);
       assert.equal(approved.data.executed, true);
@@ -189,7 +189,7 @@ describe('FAZ2-PR5 contract: F-006 MCP approval persistence and execution path',
       const approved = callTool(server.kernel, {
         name: 'huqan.approve',
         operatorToken: 'test-operator',
-        arguments: { approvalId: queued.approval.id, decision: 'approved' },
+        arguments: { approvalId: queued.approval.id, workspaceId: 'default', decision: 'approved' },
       }, { approvalStore: server.approvalStore, operatorToken: 'test-operator' });
       assert.equal(approved.ok, true);
       assert.equal(approved.data.executed, true);
@@ -215,7 +215,7 @@ describe('FAZ2-PR5 contract: F-006 MCP approval persistence and execution path',
         operatorToken: 'test-operator',
         // Exactly the raw JSON-RPC repro from #615: a client that skips
         // schema validation and sends an out-of-enum decision.
-        arguments: { approvalId: queued.approval.id, decision: 'banana', reason: 'invalid-decision-repro' },
+        arguments: { approvalId: queued.approval.id, workspaceId: 'default', decision: 'banana', reason: 'invalid-decision-repro' },
       }, { approvalStore: server.approvalStore, operatorToken: 'test-operator' });
       assert.equal(invalid.ok, false);
       assert.equal(invalid.error.code, 'INVALID_APPROVAL_DECISION');
@@ -226,7 +226,7 @@ describe('FAZ2-PR5 contract: F-006 MCP approval persistence and execution path',
       const stillPending = callTool(server.kernel, {
         name: 'huqan.approve',
         operatorToken: 'test-operator',
-        arguments: { approvalId: queued.approval.id, decision: 'approved' },
+        arguments: { approvalId: queued.approval.id, workspaceId: 'default', decision: 'approved' },
       }, { approvalStore: server.approvalStore, operatorToken: 'test-operator' });
       assert.equal(stillPending.ok, true);
       assert.equal(stillPending.data.executed, true);
@@ -250,7 +250,7 @@ describe('FAZ2-PR5 contract: F-006 MCP approval persistence and execution path',
         const result = callTool(server.kernel, {
           name: 'huqan.approve',
         operatorToken: 'test-operator',
-          arguments: { approvalId: queued.approval.id, decision },
+          arguments: { approvalId: queued.approval.id, workspaceId: 'default', decision },
         }, { approvalStore: server.approvalStore, operatorToken: 'test-operator' });
         assert.equal(result.ok, false);
         assert.equal(result.error.code, 'INVALID_APPROVAL_DECISION');
@@ -273,7 +273,7 @@ describe('FAZ2-PR5 contract: F-006 MCP approval persistence and execution path',
       const result = callTool(server.kernel, {
         name: 'huqan.approve',
         operatorToken: 'test-operator',
-        arguments: { approvalId: queued.approval.id },
+        arguments: { approvalId: queued.approval.id, workspaceId: 'default' },
       }, { approvalStore: server.approvalStore, operatorToken: 'test-operator' });
       assert.equal(result.ok, true);
       assert.equal(result.data.decision, 'approved');

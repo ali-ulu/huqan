@@ -89,7 +89,7 @@ function queue(kernel, approvalStore, args = ingestArgs()) {
 async function approve(kernel, approvalStore, approvalId) {
   return callTool(kernel, {
     name: 'huqan.approve',
-    arguments: JSON.stringify({ approvalId, decision: 'approved', reason: 'contract_test_approved' }),
+    arguments: JSON.stringify({ approvalId, decision: 'approved', workspaceId: 'default', reason: 'contract_test_approved' }),
     operatorToken: 'test-operator',
   }, { approvalStore, operatorToken: 'test-operator', recordIngestApprovalAudit: () => ({ auditId: 'final-audit' }) });
 }

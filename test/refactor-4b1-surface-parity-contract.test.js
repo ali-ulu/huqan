@@ -108,6 +108,7 @@ test('MCP learn strips caller bypass metadata and executes an approval once', ()
 
     const approved = callTool(mcp, 'axiom.approve', {
       approvalId: queued.approval.id,
+      workspaceId: 'caller-workspace',
       decision: 'approved',
     });
     assert.equal(approved.ok, true);
@@ -125,6 +126,7 @@ test('MCP learn strips caller bypass metadata and executes an approval once', ()
 
     const duplicate = callTool(mcp, 'axiom.approve', {
       approvalId: queued.approval.id,
+      workspaceId: 'caller-workspace',
       decision: 'approved',
     });
     assert.equal(duplicate.data.idempotent, true);

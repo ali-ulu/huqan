@@ -196,7 +196,7 @@ test('MCP approval executes when receiver-owned Agent Identity allows the action
     const approved = await callTool(f.kernel, {
       name: 'huqan.approve',
       operatorToken: 'operator-token',
-      arguments: JSON.stringify({ approvalId: queued.approval.id, decision: 'approved' }),
+      arguments: JSON.stringify({ approvalId: queued.approval.id, workspaceId: 'workspace-mcp', decision: 'approved' }),
     }, runtimeOptions(f));
 
     assert.equal(approved.ok, true, JSON.stringify(approved));
@@ -236,7 +236,7 @@ test('MCP createServer propagates opt-in Agent Identity runtime into approval ex
       params: {
         name: 'huqan.approve',
         operatorToken: 'operator-token',
-        arguments: JSON.stringify({ approvalId: queued.approval.id, decision: 'approved' }),
+        arguments: JSON.stringify({ approvalId: queued.approval.id, workspaceId: 'workspace-mcp', decision: 'approved' }),
       },
     });
     const approved = approvedResponse.result.structuredContent;
@@ -256,7 +256,7 @@ test('MCP approval fails closed before claim and executor when receiver-owned id
     const blocked = await callTool(f.kernel, {
       name: 'huqan.approve',
       operatorToken: 'operator-token',
-      arguments: JSON.stringify({ approvalId: queued.approval.id, decision: 'approved' }),
+      arguments: JSON.stringify({ approvalId: queued.approval.id, workspaceId: 'workspace-mcp', decision: 'approved' }),
     }, runtimeOptions(f));
 
     assert.equal(blocked.ok, false);

@@ -220,8 +220,7 @@ async function submitIngestApproval(data) {
     return { status: 503, error: { code: 'APPROVAL_STORE_UNAVAILABLE', message: 'Persistent ingest approval store is unavailable.' } };
   }
 }
-
-const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, decision, reason }) => decideIngestApproval({ store: getIngestApprovalStore(), kernel, approvalId, decision, reason, humanOversight: getHttpApprovalRuntimeConfig(), handleIngest, ensureRuntime: ensureCompanyRuntime, recordAudit: recordIngestApprovalAudit, toPublicApproval: publicIngestApproval, workerId: INGEST_APPROVAL_WORKER_ID, leaseMs: INGEST_APPROVAL_LEASE_MS }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, learnDocument: (text, options) => kernel.learnDocument(text, options), submitIngest: submitIngestApproval, createAgent: options => observabilityRuntime.createAgent(options) });
+const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, workspaceId, decision, reason }) => decideIngestApproval({ store: getIngestApprovalStore(), kernel, approvalId, workspaceId, decision, reason, humanOversight: getHttpApprovalRuntimeConfig(), handleIngest, ensureRuntime: ensureCompanyRuntime, recordAudit: recordIngestApprovalAudit, toPublicApproval: publicIngestApproval, workerId: INGEST_APPROVAL_WORKER_ID, leaseMs: INGEST_APPROVAL_LEASE_MS }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, learnDocument: (text, options) => kernel.learnDocument(text, options), submitIngest: submitIngestApproval, createAgent: options => observabilityRuntime.createAgent(options) });
 
 // First caller of the V5 runtime family (#875 task pack). Issuer key records
 // are dependency-injected as receiver-owned state: with no real registry
@@ -836,7 +835,7 @@ const server = http.createServer(async (req, res) => {
     try {
       recoverExpiredIngestApprovals();
       const limit = Math.min(100, Math.max(1, Number(reqUrl.searchParams.get('limit')) || 50));
-      const approvals = getIngestApprovalStore().listUnresolvedToolApprovals(limit)
+      const approvals = getIngestApprovalStore().listUnresolvedToolApprovals(limit, sanitizeInput(reqUrl.searchParams.get('workspaceId') || 'default', 128) || 'default')
         .filter(item => item.tool === 'http.ingest')
         .map(publicIngestApproval);
       writeJson(req, res, 200, { ok: true, approvals }, { 'Cache-Control': 'no-cache' });
@@ -868,6 +867,7 @@ const server = http.createServer(async (req, res) => {
         store,
         kernel,
         approvalId,
+        workspaceId: sanitizeInput(reqUrl.searchParams.get('workspaceId') || 'default', 128) || 'default',
         decision,
         reason: String(body.reason || ''),
         humanOversight: getHttpApprovalRuntimeConfig(),
