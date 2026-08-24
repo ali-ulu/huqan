@@ -1,22 +1,13 @@
 ﻿const { INTERNAL_TOOLS, evaluateToolPolicy } = require('./toolPolicy');
 const { buildFinalSummary } = require('./finalizer');
 const { evaluateAgentActionFirewall, firewallError } = require('./lib/agent-action-firewall');
+const { createExecutionScope, evaluateGoalBinding } = require('./lib/goal-binding');
 const {
   buildReport,
   deriveNextAction,
   buildRecommendations,
 } = require('./lib/workflow-run-guidance');
 
-// #388: an external-tool review gate must not be satisfiable by a bare
-// `{ approved: true }` in caller-supplied opts -- that's exactly the shape
-// untrusted JSON (an HTTP body, MCP tool args) can carry, so any future
-// caller that forwarded external input into run()/runTool() opts would
-// hand out review bypass for free. Approval must instead be an unforgeable
-// token keyed by this module-private Symbol, produced only by
-// WorkflowAgent.createExternalReviewApproval(reason) below. A Symbol key
-// cannot survive JSON.stringify/JSON.parse or be produced by spreading
-// decoded/untrusted data into a plain object -- the same technique used for
-// kernel.js's admission-bypass token (#357).
 const EXTERNAL_REVIEW_APPROVAL_TOKEN = Symbol('workflow-agent-external-review-approval');
 
 function isExternalReviewApproved(approval) {
@@ -797,6 +788,8 @@ class WorkflowAgent {
 
   async run(goal, opts = {}) {
     const plan = this._normalizePlanInput(goal, opts);
+    const scopeResult = createExecutionScope(plan.goal, { ...opts, objective: plan.objective });
+    if (!scopeResult.ok) return { ok: false, status: 'blocked', errors: [{ code: scopeResult.reason }], goalBinding: scopeResult.receipt };
     const maxSteps = normalizePositiveInteger(opts.maxSteps, plan.maxSteps || this.maxSteps);
     const budget = resolveBudget(opts.budget, plan.budget ?? this.budget);
     const steps = [];
@@ -820,6 +813,8 @@ class WorkflowAgent {
       }
 
       const plannedStep = planSteps[index];
+      const goalBinding = evaluateGoalBinding(scopeResult.scope, plannedStep);
+      if (!goalBinding.ok) { errors.push({ stepId: plannedStep.id, tool: plannedStep.tool, code: goalBinding.reason }); sawBlocked = true; break; }
       const registryTool = this.getTool(plannedStep.tool);
       const stepCost = normalizePositiveInteger(plannedStep.cost, registryTool ? registryTool.cost : 1);
       if (stepCost > budgetRemaining) {
@@ -851,6 +846,7 @@ class WorkflowAgent {
         error: result.error ? cloneValue(result.error) : null,
         policy: result.meta ? cloneValue(result.meta.policy) : null,
         actionFirewall: result.meta ? cloneValue(result.meta.firewall) : null,
+        goalBinding: goalBinding.receipt,
         trace: [
           {
             phase: 'run',
@@ -940,6 +936,7 @@ class WorkflowAgent {
       recommendations: [],
       finalAnswer,
       plan: cloneValue(plan),
+      goalBinding: scopeResult.receipt,
             tools: allTools,
     };
     run.nextAction = deriveNextAction(run, planSteps.slice(steps.length));

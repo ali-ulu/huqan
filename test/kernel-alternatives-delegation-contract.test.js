@@ -4,8 +4,8 @@ const path = require('node:path');
 const test = require('node:test');
 const { runAlternatives } = require('../lib/kernel-alternatives');
 
-const kernelSource = fs.readFileSync(path.join(__dirname, '..', 'kernel.js'), 'utf8');
-const delegateSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'kernel-alternatives.js'), 'utf8');
+const kernelSource = fs.readFileSync(path.join(__dirname, '..', 'kernel.js'), 'utf8').replace(/\r\n/g, '\n');
+const delegateSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'kernel-alternatives.js'), 'utf8').replace(/\r\n/g, '\n');
 
 test('Kernel.alternatives is a one-line, cycle-free delegation', () => {
   assert.match(
