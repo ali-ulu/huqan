@@ -63,6 +63,37 @@ function cleanup(dir) {
   fs.rmSync(dir, { recursive: true, force: true });
 }
 
+test('critical-risk approvals require a second distinct approver before execution is authorized', () => {
+  const { runtime, dir } = fixture();
+  try {
+    const created = runtime.createReviewCase({
+      action: action({ riskScore: 90 }), firewallDecision: 'review', requesterContext: {},
+      policy: { approvalCooldownMs: 0, criticalRiskScore: 80, requiredApprovers: 2 },
+    });
+    const first = runtime.decide({ caseId: created.case.caseId, decisionType: 'approve', approverContext: { identityRef: 'human:one', identityHash: 'one' }, evidenceDigest: created.case.evidenceDigest });
+    assert.equal(first.ok, true);
+    assert.equal(first.case.status, 'escalated');
+    const same = runtime.decide({ caseId: created.case.caseId, decisionType: 'approve', approverContext: { identityRef: 'human:one', identityHash: 'one' }, evidenceDigest: created.case.evidenceDigest });
+    assert.equal(same.ok, false);
+    assert.equal(same.reason, RUNTIME_REASONS.QUORUM_DISTINCT_APPROVER_REQUIRED);
+    const second = runtime.decide({ caseId: created.case.caseId, decisionType: 'approve', approverContext: { identityRef: 'human:two', identityHash: 'two' }, evidenceDigest: created.case.evidenceDigest });
+    assert.equal(second.ok, true);
+    assert.equal(second.case.status, 'approved');
+  } finally { cleanup(dir); }
+});
+
+test('approval cooldown is scoped to the same approver and workspace', () => {
+  const { runtime, dir } = fixture();
+  try {
+    const first = runtime.createReviewCase({ action: action({ actionFingerprint: 'action:one', riskScore: 90 }), firewallDecision: 'review', requesterContext: {}, policy: { approvalCooldownMs: 60_000, requiredApprovers: 1 } });
+    assert.equal(runtime.decide({ caseId: first.case.caseId, decisionType: 'approve', approverContext: { identityRef: 'human:one', identityHash: 'one' }, evidenceDigest: first.case.evidenceDigest }).ok, true);
+    const second = runtime.createReviewCase({ action: action({ actionFingerprint: 'action:two', riskScore: 90 }), firewallDecision: 'review', requesterContext: {}, policy: { approvalCooldownMs: 60_000, requiredApprovers: 1 } });
+    const blocked = runtime.decide({ caseId: second.case.caseId, decisionType: 'approve', approverContext: { identityRef: 'human:one', identityHash: 'one' }, evidenceDigest: second.case.evidenceDigest });
+    assert.equal(blocked.ok, false);
+    assert.equal(blocked.reason, RUNTIME_REASONS.APPROVAL_COOLDOWN_ACTIVE);
+  } finally { cleanup(dir); }
+});
+
 test('review case creation is receiver-identity-bound, durable, receipt-linked, and replay-safe', () => {
   const { runtime, dir } = fixture();
   try {

@@ -6,6 +6,10 @@ const DEFAULT_MAX_FAILURE_CACHE_ENTRIES = 500;
 
 class LLMAdapter {
   constructor(opts = {}) {
+    // `PARANOID=1` is the same environment switch kernel.js reads for
+    // kernel.paranoidMode, so the adapter refuses under exactly the setting
+    // the operator turned on.
+    this.paranoidMode = opts.paranoidMode === true || process.env.PARANOID === '1';
     this.provider = opts.provider || 'ollama';
     this.model = opts.model || (this.provider === 'ollama' ? 'llama3.2:3b' : 'gpt-4o-mini');
     this.endpoint = opts.endpoint || 'http://localhost:11434';
@@ -26,6 +30,13 @@ class LLMAdapter {
 
   async ask(prompt, system) {
     try {
+      // Second guard, at the boundary that actually reaches the network. The
+      // plugin above checks kernel.paranoidMode; this catches any other caller
+      // that forgets, for the environment-variable form of the same setting.
+      // A refusal here never sends the prompt anywhere.
+      if (this.paranoidMode) {
+        return { ok: false, error: 'Paranoid mode is active: outbound LLM calls are blocked.', provider: this.provider };
+      }
       const key = this._failureKey(prompt, system);
       const cachedFailure = this._getCachedFailure(key);
       if (cachedFailure) {
