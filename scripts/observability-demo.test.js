@@ -9,6 +9,14 @@ const Database = require('better-sqlite3');
 const net = require('node:net');
 const { seedDemo, serveDemo, WORKSPACE } = require('./observability-demo');
 
+test('README quickstart is wired to the packaged demo command', () => {
+  const packageJson = require('../package.json');
+  const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8');
+  assert.equal(packageJson.scripts['demo:observability'], 'node scripts/observability-demo.js');
+  assert.match(readme, /npm run demo:observability/);
+  assert.equal(packageJson.files.includes('scripts/observability-demo.js'), true);
+});
+
 function availablePort() {
   return new Promise((resolve, reject) => {
     const server = net.createServer();

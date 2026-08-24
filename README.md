@@ -160,6 +160,17 @@ For an observability quickstart covering an isolated local server, real run
 telemetry, tool usage, alerts, queue state, and dashboard steps, see
 [Observability Quickstart](./docs/product-hunt-quickstart.md).
 
+From a source checkout, create a real bounded AgentV3 run in a new isolated
+SQLite store and open the local dashboard with one command:
+
+```bash
+npm run demo:observability
+```
+
+The command refuses to reuse a non-empty demo directory. It prints a generated
+session API key and the exact demo workspace for the local Settings screen;
+neither value is persisted in the repository or copied from your environment.
+
 Observability HTTP access is fail-closed behind both the normal API key and an
 explicit workspace membership policy. Configure the local API-key principal
 with exact workspaces and roles before using these endpoints:
