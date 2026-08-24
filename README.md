@@ -185,6 +185,12 @@ server process; multi-process deployments must inject or place a shared limiter
 in front of HUQAN because counters are intentionally not coordinated across
 processes.
 
+Run `npm run benchmark:observability` for the committed staging load profile.
+It measures p95 event writes, list reads, summaries, 25-subscriber SSE fan-out,
+and queue claims against `benchmarks/observability-load-targets.json`, reports
+event/queue volume and SQLite size as JSON, and exits non-zero when a target is
+missed. `npm run test:observability-load` runs the same acceptance gate.
+
 ### Verify the local SQLite dependency and test suite
 
 ```bash

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "load": {
+    "eventWrites": 1000,
+    "listReads": 100,
+    "summaryReads": 50,
+    "sseSubscribers": 25,
+    "queueClaims": 100
+  },
+  "p95TargetsMs": {
+    "eventWrite": 25,
+    "listEvents": 50,
+    "summary": 100,
+    "sseFanout": 25,
+    "queueClaim": 30
+  },
+  "maxSqliteBytes": 16777216
+}

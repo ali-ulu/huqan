@@ -9,6 +9,8 @@
     "huqan-mcp": "./bin/huqan-mcp.js"
   },
   "scripts": {
+    "test:observability-load": "node --test scripts/observability-load-smoke.test.js",
+    "benchmark:observability": "node scripts/observability-load-smoke.js",
     "prepublishOnly": "npm run check:package-closure && npm test",
     "start": "node cli.js",
     "server": "node server.js",
@@ -91,6 +93,8 @@
     "backupRestore.d.ts",
     "backupRestore.js",
     "benchmarks/bench.js",
+    "benchmarks/observability-load-report.json",
+    "benchmarks/observability-load-targets.json",
     "benchmarks/fixtures/grapheval.json",
     "benchmarks/fixtures/large.json",
     "benchmarks/fixtures/medium.json",
@@ -144,6 +148,8 @@
     "lib/observability/rate-limiter.js",
     "lib/observability/server-runtime.js",
     "lib/http/runtime-status.js",
+    "scripts/observability-load-smoke.js",
+    "scripts/observability-load-smoke.test.js",
     "lib/approval-execution-evidence.js",
     "lib/approval-flow.js",
     "lib/approval-schema.js",
