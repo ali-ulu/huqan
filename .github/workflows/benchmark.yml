@@ -208,6 +208,13 @@ jobs:
           fetch-depth: 0
       - name: Fetch baseline branch for live Git validation
         run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+      # actions/checkout intentionally leaves pull-request worktrees detached.
+      # The live Git guard requires branch identity as evidence; name the
+      # checked-out commit without changing the commit or weakening ancestry.
+      - name: Name checked-out branch for live Git validation
+        env:
+          HUQAN_CI_BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: git switch --create "$HUQAN_CI_BRANCH" "$GITHUB_SHA"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
@@ -325,6 +332,13 @@ jobs:
       # so fetch the baseline explicitly after checkout.
       - name: Fetch baseline branch for live Git validation
         run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+      # Pull-request checkouts are detached by design. Name the checked-out
+      # commit so live Git validation has branch identity as evidence; this
+      # does not alter the commit or weaken the ancestry check.
+      - name: Name checked-out branch for live Git validation
+        env:
+          HUQAN_CI_BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: git switch --create "$HUQAN_CI_BRANCH" "$GITHUB_SHA"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ matrix.node-version }}
