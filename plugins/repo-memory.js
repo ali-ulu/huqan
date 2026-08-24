@@ -18,15 +18,17 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+const INGEST_STATE_KEY = '_repoMemoryIngestState';
+
 function ensureCompanyState(kernel) {
-  if (!kernel._companyIngestState) {
-    kernel._companyIngestState = {
+  if (!kernel[INGEST_STATE_KEY]) {
+    kernel[INGEST_STATE_KEY] = {
       bySource: { repo: 0, markdown: 0, json: 0, yaml: 0, 'git-log': 0, pdf: 0, http: 0, manual: 0 },
       lastIngestAt: null,
       ingestErrors: [],
     };
   }
-  return kernel._companyIngestState;
+  return kernel[INGEST_STATE_KEY];
 }
 
 function trackIngestSuccess(kernel, sourceType, amount) {
