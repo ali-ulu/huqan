@@ -1,4 +1,5 @@
 const { normalizeWorkspaceId } = require('./lib/graph-record-utils');
+const { isSymmetricRelation, nodesAreDisjoint } = require('./lib/dream-hypothesis-semantics');
 
 const MAX_DREAM_COMPARISONS = 10_000;
 const MAX_DREAM_WORK = 50_000;
@@ -324,6 +325,9 @@ class Dream {
     return {
       nodes,
       workspaceId,
+      // #1213: memoised type ancestors, so the disjointness guard on the
+      // O(n²) similarity pass does not re-walk the lattice per pair.
+      typeAncestors: new Map(),
       outEdges,
       inEdges,
       outTargets,
@@ -362,7 +366,13 @@ class Dream {
         const bTargets = context.outTargets.get(b.id);
         const common   = [...aTargets].filter(t => bTargets.has(t));
 
-        if (common.length > 0) {
+        // #1213: the lattice already says these two cannot both apply, so a
+        // similarity edge between them can only ever be rejected -- after
+        // costing a reviewer's attention in the approval queue.
+        const disjoint = nodesAreDisjoint(
+          nodeId => context.outEdges.get(nodeId), a.id, b.id, context.workspaceId, context.typeAncestors);
+
+        if (common.length > 0 && !disjoint) {
           const existing = context.relationTargets.get(a.id)?.get('benzer')?.has(b.id)
                         || context.relationTargets.get(b.id)?.get('benzer')?.has(a.id);
           if (!existing) {
@@ -383,7 +393,7 @@ class Dream {
           }
         }
 
-        const sim = this.graph.cosineSimilarity(a.id, b.id, context.workspaceId);
+        const sim = disjoint ? 0 : this.graph.cosineSimilarity(a.id, b.id, context.workspaceId);
         if (sim > 0.5) {
           const hasEdge = context.outTargets.get(a.id).has(b.id)
                        || context.outTargets.get(b.id).has(a.id);
@@ -470,6 +480,11 @@ class Dream {
       for (const edge of edges) {
         if (added >= 50) break;
         if (!this._consumeDreamWork(context)) return;
+        // #1213: `tür` is not symmetric -- a cat is an animal, an animal is not
+        // a cat -- and proposing its reverse builds the two-node cycle verify's
+        // `döngü` rule reports as a contradiction. Unlisted relations count as
+        // asymmetric: this generator's output is a write proposal.
+        if (!isSymmetricRelation(edge.relation)) continue;
         const reverse    = context.relationTargets.get(edge.to)?.get(edge.relation)?.has(node.id);
         const reverseAny = context.outTargets.get(edge.to)?.has(node.id);
         if (!reverse && !reverseAny) {
