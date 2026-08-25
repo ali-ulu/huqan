@@ -79,11 +79,20 @@ test('Claim Workspace uses manifest routes, session-only auth, real search, and 
   assert.match(html, /\/api\/trust-receipt/);
 });
 
-test('Claim Workspace mirrors runtime status in the header and footer', () => {
+test('Claim Workspace derives truthful aggregate status and surface state', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
-  assert.match(html, /<span id="footstatus">System Healthy<\/span>/);
-  assert.match(html, /\$\('sys'\)\.textContent='ONLINE';\$\('sys'\)\.style\.color='var\(--good\)';\$\('footstatus'\)\.textContent='System Healthy'/);
-  assert.match(html, /\$\('sys'\)\.textContent='DEGRADED';\$\('sys'\)\.style\.color='var\(--warn\)';\$\('footstatus'\)\.textContent='System Degraded'/);
+  assert.match(html, /<span id="footstatus">Checking status<\/span>/);
+  assert.match(html, /function aggregateState\(a\)/);
+  assert.match(html, /\$\('sys'\)\.textContent=g/);
+  assert.match(html, /aggregateText\(g\)/);
+  assert.match(html, /healthsum'\)\.textContent=`\$\{g\} · \$\{n\}\/\$\{a\.length\}`/);
+  assert.match(html, /surfaceLabel\(x\.s\)/);
+  assert.match(html, /id="securemeter"/);
+  assert.match(html, /securemeter'\)\.style\.width=state\.key\?'100%':'0%'/);
+  assert.match(html, /Status:<\/b> \$\{esc\(surfaceLabel\(x\.s\)\)\} · <b>Reason:<\/b>/);
+  assert.match(html, /Last checked:<\/b> \$\{esc\(surfaceTime\(x\.lastChecked\)\)\}/);
+  assert.match(html, /Graph data is empty/);
+  assert.match(html, /Approval queue is/);
 });
 
 test('Claim Workspace browser script compiles and wires unknown-to-review through the existing ingest approval runtime', () => {

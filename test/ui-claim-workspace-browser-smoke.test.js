@@ -149,9 +149,10 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     await browser.evaluate(`document.getElementById('clear').click(); true;`);
     await waitFor(
       `document.getElementById('sstatus').textContent === 'API key not set.'
-        && document.getElementById('astate').textContent === 'AUTH REQUIRED'
-        && /Graph Data\\s*●\\s*locked/.test(document.getElementById('health').textContent)
-        && /Approval Queue\\s*●\\s*locked/.test(document.getElementById('health').textContent)`,
+        && document.getElementById('astate').textContent === 'LOCKED'
+        && document.getElementById('sys').textContent === 'PARTIAL'
+        && /Graph Data\\s*●\\s*LOCKED/.test(document.getElementById('health').textContent)
+        && /Approval Queue\\s*●\\s*LOCKED/.test(document.getElementById('health').textContent)`,
       'unauthenticated graph and approval surfaces to become locked',
     );
     await browser.evaluate(`
@@ -165,14 +166,14 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
   it('settles the connection and shows Graph Data and Approval Queue as live', async () => {
     await waitFor(
       `document.getElementById('sstatus').textContent === 'Connected.'
-        && document.getElementById('astate').textContent === 'LIVE'
-        && /Graph Data\\s*●\\s*ok/.test(document.getElementById('health').textContent)
-        && /Approval Queue\\s*●\\s*ok/.test(document.getElementById('health').textContent)`,
+        && ['EMPTY', 'LIVE'].includes(document.getElementById('astate').textContent)
+        && /Graph Data\\s*●\\s*(?:LIVE|EMPTY)/.test(document.getElementById('health').textContent)
+        && /Approval Queue\\s*●\\s*(?:LIVE|EMPTY)/.test(document.getElementById('health').textContent)`,
       'the authenticated graph and approval surfaces to become live',
     );
     const health = await browser.evaluate(`document.getElementById('health').textContent`);
-    assert.match(health, /Graph Data\s*●\s*ok/);
-    assert.match(health, /Approval Queue\s*●\s*ok/);
+    assert.match(health, /Graph Data\s*●\s*(?:LIVE|EMPTY)/);
+    assert.match(health, /Approval Queue\s*●\s*(?:LIVE|EMPTY)/);
   });
 
   it('runs a verify action against the canonical authenticated endpoint', async () => {
