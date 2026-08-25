@@ -406,6 +406,7 @@
     "lib/verify-native.js",
     "lib/verify-numeric-contradictions.js",
     "lib/verify-status-vocabulary.js",
+    "lib/verify-contradiction-evidence.js",
     "lib/verify.js",
     "lib/viewer/session-cookie.js",
     "lib/viewer/session-store.js",
