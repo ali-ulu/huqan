@@ -843,3 +843,32 @@ describe('PR-S3C SQLite warmup corruption quarantine (#1536)', () => {
     );
   });
 });
+
+
+describe('PR-S3D SQLite mutation snapshot cost (#1535)', () => {
+  it('does not snapshot the in-memory mirror on SQLite writes', () => {
+    const dbPath = getDbPath('sqlite-no-write-snapshot');
+    const store = new MemoryStore({ useSQLite: true, dbPath });
+    let snapshotCalls = 0;
+    store._snapshotInMemoryState = () => {
+      snapshotCalls += 1;
+      throw new Error('SQLite writes must not take a full mirror snapshot');
+    };
+
+    const first = store.store({ content: 'first', workspaceId: 'ws1' });
+    const second = store.store({ content: 'second', workspaceId: 'ws1' });
+    assert.strictEqual(first.ok, true);
+    assert.strictEqual(second.ok, true);
+    assert.strictEqual(store.patchMetadata(first.memory.memoryId, { tag: 'patched' }, { workspaceId: 'ws1' }).ok, true);
+    assert.strictEqual(store.linkMemories({
+      workspaceId: 'ws1',
+      fromMemoryId: first.memory.memoryId,
+      toMemoryId: second.memory.memoryId,
+      relation: 'supports',
+    }).ok, true);
+    assert.strictEqual(store.supersede(second.memory.memoryId, 'second-v2', { workspaceId: 'ws1' }).ok, true);
+    assert.strictEqual(store.tombstone(first.memory.memoryId, { workspaceId: 'ws1' }).ok, true);
+    assert.strictEqual(snapshotCalls, 0);
+    store.close();
+  });
+});
