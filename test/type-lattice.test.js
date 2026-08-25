@@ -8,6 +8,9 @@ const {
   detectTypeLatticeConflict,
   collectTypeAncestors,
   registerDisjointPair,
+  unregisterDisjointPair,
+  disjointPairsFor,
+  DISJOINT_TYPE_PAIRS,
 } = require('../lib/type-lattice');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-type-lattice-'));
@@ -112,5 +115,70 @@ describe('registerDisjointPair', () => {
     assert.strictEqual(registerDisjointPair('aynı', 'aynı'), false, 'self-pair');
     assert.strictEqual(registerDisjointPair('', 'bir şey'), false, 'empty left');
     assert.strictEqual(registerDisjointPair('bir şey', null), false, 'missing right');
+  });
+});
+
+// #1166: the disjoint table was one mutable module-level array with no
+// workspace anywhere in the API. Node caches the module, so a single
+// registerDisjointPair() call from one tenant's plugin changed contradiction
+// detection for every workspace in the process, permanently -- there was no
+// removal API. The reproduction below is the issue's, verbatim.
+describe('#1166 disjoint pairs are workspace-scoped', () => {
+  it('a pair registered for one workspace does not change another tenant verdict', () => {
+    const kernel = makeKernel('scope-tenants');
+    kernel.graph.addNode('x', 'x', null, { workspaceId: 'tenant-B' });
+    kernel.graph.addNode('vitamin', 'vitamin', null, { workspaceId: 'tenant-B' });
+    kernel.graph.addEdge('x', 'vitamin', 'tür', { workspaceId: 'tenant-B' });
+
+    assert.deepStrictEqual(
+      collectTypeAncestors(kernel.graph, 'x', 'tenant-B').map(entry => entry.type),
+      ['vitamin'],
+    );
+    assert.strictEqual(detectTypeLatticeConflict(kernel.graph, 'x', 'ilaç', 'tenant-B'), null);
+
+    // The call the issue makes: from another tenant's code path, naming no
+    // workspace of tenant-B's.
+    assert.strictEqual(registerDisjointPair('ilaç', 'vitamin', 'tenant-A'), true);
+
+    assert.strictEqual(
+      detectTypeLatticeConflict(kernel.graph, 'x', 'ilaç', 'tenant-B'),
+      null,
+      "tenant-A's registration must not decide tenant-B's verdicts",
+    );
+
+    // ...and it does take effect where it was registered.
+    kernel.graph.addNode('y', 'y', null, { workspaceId: 'tenant-A' });
+    kernel.graph.addNode('vitamin', 'vitamin', null, { workspaceId: 'tenant-A' });
+    kernel.graph.addEdge('y', 'vitamin', 'tür', { workspaceId: 'tenant-A' });
+    const signal = detectTypeLatticeConflict(kernel.graph, 'y', 'ilaç', 'tenant-A');
+    assert.ok(signal, 'the registering workspace does get the new pair');
+    assert.strictEqual(signal.rule, 'TYPE_CONFLICT');
+  });
+
+  it('a registration can be undone without restarting the process', () => {
+    assert.strictEqual(registerDisjointPair('kavram-a', 'kavram-b', 'tenant-undo'), true);
+    assert.strictEqual(unregisterDisjointPair('kavram-a', 'kavram-b', 'tenant-undo'), true);
+    assert.strictEqual(unregisterDisjointPair('kavram-a', 'kavram-b', 'tenant-undo'), false, 'already removed');
+
+    // Symmetric, like registration.
+    assert.strictEqual(registerDisjointPair('kavram-c', 'kavram-d', 'tenant-undo'), true);
+    assert.strictEqual(unregisterDisjointPair('kavram-d', 'kavram-c', 'tenant-undo'), true);
+  });
+
+  it('built-in pairs are not removable and apply everywhere', () => {
+    assert.strictEqual(unregisterDisjointPair('hayvan', 'bitki', 'default'), false);
+    assert.strictEqual(unregisterDisjointPair('hayvan', 'bitki', 'tenant-anything'), false);
+    for (const workspaceId of ['default', 'tenant-A', 'tenant-B']) {
+      assert.ok(
+        disjointPairsFor(workspaceId).some(([a, b]) => a === 'hayvan' && b === 'bitki'),
+        `built-ins must apply in ${workspaceId}`,
+      );
+    }
+  });
+
+  it('the exported table cannot be mutated around registerDisjointPair', () => {
+    assert.throws(() => DISJOINT_TYPE_PAIRS.push(['kaçak', 'giriş']), TypeError);
+    assert.throws(() => DISJOINT_TYPE_PAIRS[0].push('üçüncü'), TypeError);
+    assert.throws(() => disjointPairsFor('default').push(['kaçak', 'giriş']), TypeError);
   });
 });
