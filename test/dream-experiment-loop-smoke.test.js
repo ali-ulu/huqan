@@ -45,6 +45,14 @@ test('AgentV3 opt-in Dream loop generates and verifies a bounded hypothesis cycl
     });
     kernel.learn('kedi hayvandir', BYPASS);
     kernel.graph.addEdge('kedi', 'hayvan', 'tür', { workspaceId: 'default', source: 'test-fixture' });
+    // #1213: this fixture used to rely on dream() proposing the reverse of a
+    // `tür` edge (hayvan --tür--> kedi). That hypothesis is invalid -- `tür` is
+    // not symmetric, and committing its reverse builds the two-node cycle
+    // verify reports as a `döngü` contradiction -- so it is no longer
+    // generated. `benzer` is symmetric, so it gives this loop the same shape
+    // of hypothesis without asserting a semantic the system rejects.
+    kernel.graph.addNode('kopek', 'kopek', null, { workspaceId: 'default' });
+    kernel.graph.addEdge('kedi', 'kopek', 'benzer', { workspaceId: 'default', source: 'test-fixture', strength: 0.9, confidence: 0.9 });
     const agent = new AgentV3({
       kernel,
       dbPath: path.join(tmpDir, 'memory.db'),
@@ -71,6 +79,6 @@ test('AgentV3 opt-in Dream loop generates and verifies a bounded hypothesis cycl
     assert.ok(result.data.steps.some(step => step.action === 'dream'));
     assert.ok(result.data.steps.some(step => step.action === 'dream-experiment-verify'));
     assert.equal(result.data.dreamExperimentLoop.observations[0].commitDecision, 'allow');
-    assert.ok(kernel.graph.getEdges('hayvan', 'default').some(edge => edge.to === 'kedi' && edge.relation === 'tür'));
+    assert.ok(kernel.graph.getEdges('kopek', 'default').some(edge => edge.to === 'kedi' && edge.relation === 'benzer'));
   });
 });
