@@ -35,9 +35,10 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const Kernel = require('../kernel');
+const { isolatedKernelOptions } = require('./helpers/isolated-persistence');
 
 function makeKernel() {
-  return new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+  return new Kernel(isolatedKernelOptions('faz2-background', { loadPlugins: false }));
 }
 
 // Seed nodes via the bypass path (the only sanctioned way to deterministically
