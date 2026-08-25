@@ -1,4 +1,4 @@
-const { fetchRepoFiles, parseRepoUrl } = require('../adapters/github-adapter');
+const { fetchRepoFiles, parseRepoUrl, isMarkdownPath } = require('../adapters/github-adapter');
 const { parseMarkdown, ingestMarkdown } = require('../adapters/markdown-adapter');
 const { ingestJson } = require('../adapters/json-adapter');
 const { ingestYaml } = require('../adapters/yaml-adapter');
@@ -248,7 +248,11 @@ async function ingestGithubRepo(kernel, input = {}) {
       },
     }));
 
-    const sections = parseMarkdown(file.content, `${owner}/${repo}/${file.path}`);
+    // Only markdown gets section parsing: running it over source or config
+    // files turns leading `# ` comments into graph "section" nodes (#1508).
+    const sections = isMarkdownPath(file.path)
+      ? parseMarkdown(file.content, `${owner}/${repo}/${file.path}`)
+      : [];
     if (sections.length === 0) {
       if (fileProposal.edge) added += 1;
       continue;

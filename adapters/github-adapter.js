@@ -26,10 +26,19 @@ function normalizePath(filePath) {
   return String(filePath || '').replace(/\\/g, '/');
 }
 
+/**
+ * Extension rule, split out of includePath() so both selection branches can
+ * apply it. Explicit caller paths may narrow *where* files come from, but they
+ * must never widen *which types* are ingested (#1508).
+ */
+function isMarkdownPath(filePath) {
+  return normalizePath(filePath).toLowerCase().endsWith('.md');
+}
+
 function includePath(filePath) {
   const normalized = normalizePath(filePath);
   const lower = normalized.toLowerCase();
-  if (!lower.endsWith('.md')) return false;
+  if (!isMarkdownPath(normalized)) return false;
 
   if (lower === 'readme.md' || lower === 'contributing.md' || lower === 'roadmap.md') return true;
   if (lower.startsWith('.github/')) return true;
@@ -251,7 +260,7 @@ async function fetchRepoFiles(repoUrl, opts = {}) {
 
   if (explicitPaths && explicitPaths.length > 0) {
     const allowSet = new Set(explicitPaths.map(pathItem => pathItem.toLowerCase()));
-    paths = paths.filter(item => allowSet.has(item.toLowerCase()));
+    paths = paths.filter(item => allowSet.has(item.toLowerCase()) && isMarkdownPath(item));
   } else {
     paths = paths.filter(includePath);
   }
@@ -348,4 +357,5 @@ module.exports = {
   fetchAndLearn,
   parseRepoUrl,
   includePath,
+  isMarkdownPath,
 };
