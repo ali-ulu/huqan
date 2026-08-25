@@ -277,10 +277,10 @@ const viewerGateway = createViewerGateway({
   readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters),
 });
 
-function denyIfUnauthorized(req, res, extraHeaders = {}) {
+function denyIfUnauthorized(req, res, extraHeaders = {}, options = {}) {
   const auth = requireApiKey(req);
   if (auth.ok) { req.huqanAuth = Object.freeze({ subject: 'local-api-key' }); return true; }
-  writeJson(req, res, auth.status, auth.error, { ...auth.headers, ...extraHeaders });
+  writeJson(req, res, auth.status, options.errorCode ? { ok: false, error: { code: options.errorCode, message: 'Unauthorized.' } } : auth.error, { ...auth.headers, ...extraHeaders });
   return false;
 }
 
@@ -400,7 +400,7 @@ const server = http.createServer(async (req, res) => {
   // ever runs, so the headers have to be carried here too -- same reason the
   // rate-limit branch above special-cases the prefix.
   if (routeAuthPolicy.authRequired
-    && !denyIfUnauthorized(req, res, memoryContextSecurityHeaders(rawPath))) return;
+    && !denyIfUnauthorized(req, res, memoryContextSecurityHeaders(rawPath), routeAuthPolicy.ruleId === 'observability' ? { errorCode: 'UNAUTHORIZED' } : {})) return;
   // An undeclared path must never reach a handler. If one is added without a
   // policy entry it is answered as 404 here rather than executing
   // unauthenticated, so the declaration is enforced at runtime and not only by
