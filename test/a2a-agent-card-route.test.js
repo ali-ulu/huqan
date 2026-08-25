@@ -24,7 +24,7 @@ const test = require('node:test');
 
 const { buildFixture } = require('../scripts/a2a-conformance/run.js');
 const { resolveRouteAuthPolicy } = require('../lib/http/route-auth-policy');
-const { CANONICAL_WORKSPACE } = require('../lib/a2a/exchange-route');
+const { CANONICAL_WORKSPACE, createA2aExchangeBoundary } = require('../lib/a2a/exchange-route');
 const { buildAgentCard, PROTOCOL_VERSION, UNSUPPORTED_SURFACES } = require('../lib/a2a/agent-card');
 const {
   AGENT_CARD_PATH,
@@ -200,6 +200,65 @@ test('agent card: no card is served without the configuration the capability nee
   const authorityFile = writeAuthority(root, buildFixture(CANONICAL_WORKSPACE).authority);
   assert.equal(createAgentCardBoundary({ authorityFile, replayDirectory: '' }), null);
   assert.ok(createAgentCardBoundary({ authorityFile, replayDirectory }));
+});
+
+// #1182: the check above was a string check. A non-empty A2A_REPLAY_DIR that
+// cannot actually back a replay store left the exchange route unbuilt (404)
+// while the card kept advertising `bounded-exchange` — a consumer reads the
+// card, sends the request, and gets a route that does not exist. The card
+// boundary now runs the exchange boundary's own construction, so the two
+// answers cannot diverge.
+test('agent card: a configured but unusable replay directory serves no card (#1182)', () => {
+  const { root, replayDirectory } = makeSandbox();
+  const authorityFile = writeAuthority(root, buildFixture(CANONICAL_WORKSPACE).authority);
+
+  // A path that exists but is a file, not a directory.
+  const notADirectory = path.join(root, 'replay-not-a-dir');
+  fs.writeFileSync(notADirectory, 'x', 'utf8');
+
+  // A path that does not exist at all.
+  const missing = path.join(root, 'replay-missing');
+
+  // A symlink to a real directory: refused for the same reason the authority
+  // path checks refuse one — it is a way to move the store after the fact.
+  const linked = path.join(root, 'replay-link');
+  fs.symlinkSync(replayDirectory, linked);
+
+  for (const badDirectory of [notADirectory, missing, linked]) {
+    assert.equal(
+      createA2aExchangeBoundary({ authorityFile, replayDirectory: badDirectory }),
+      null,
+      `exchange route must be absent for ${path.basename(badDirectory)}`,
+    );
+    assert.equal(
+      createAgentCardBoundary({ authorityFile, replayDirectory: badDirectory }),
+      null,
+      `card must not advertise a route that is absent (${path.basename(badDirectory)})`,
+    );
+  }
+});
+
+test('agent card: the card exists exactly when the route it advertises exists (#1182)', () => {
+  const { root, replayDirectory } = makeSandbox();
+  const authorityFile = writeAuthority(root, buildFixture(CANONICAL_WORKSPACE).authority);
+  const missing = path.join(root, 'absent-replay');
+
+  // The property, stated directly rather than as a list of cases: whatever the
+  // configuration, a card is served if and only if the exchange route is built.
+  const configurations = [
+    {},
+    { authorityFile, replayDirectory },
+    { authorityFile, replayDirectory: '' },
+    { authorityFile: '', replayDirectory },
+    { authorityFile, replayDirectory: missing },
+    { authorityFile: path.join(root, 'no-authority.json'), replayDirectory },
+  ];
+
+  for (const options of configurations) {
+    const hasExchange = createA2aExchangeBoundary(options) !== null;
+    const hasCard = createAgentCardBoundary(options) !== null;
+    assert.equal(hasCard, hasExchange, `card/route disagreement for ${JSON.stringify(options)}`);
+  }
 });
 
 test('agent card: a relative or symlinked authority path is refused', () => {
