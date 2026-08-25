@@ -115,6 +115,21 @@ test('Claim Workspace derives all aggregate dashboard status labels from one hel
   assert.doesNotMatch(html, /\$\('footstatus'\)\.textContent='System Healthy'/);
 });
 
+test('Claim Workspace exposes truthful surface metadata and actionable empty states', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  assert.match(html, /surfaces:\{status:\{label:'Runtime Status'.*reason:'Waiting for runtime status.'.*lastChecked:null.*nextAction:'Refresh'/);
+  assert.match(html, /function surface\(k,s,detail=\{\}\)/);
+  assert.match(html, /function surfaceLabel\(s\)/);
+  assert.match(html, /function surfaceCta\(k\)/);
+  assert.match(html, /id="securemeter"/);
+  assert.match(html, /securemeter'\)\.style\.width=state\.key\?'100%':'0%'/);
+  assert.match(html, /id="meshstate"/);
+  assert.match(html, /id="meshstage"/);
+  assert.match(html, /meshstage'\)\.hidden=!hasData/);
+  assert.match(html, /No pending approvals\.<\/b><br>\$\{esc\(s\.reason\)\}/);
+  assert.ok(html.includes('<b>Last checked:</b>'));
+});
+
 test('Claim Workspace browser script compiles and wires unknown-to-review through the existing ingest approval runtime', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
   const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
