@@ -29,6 +29,7 @@ const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
 const { handleWorkflowContractRoute, writeUnavailableWorkflow } = require('./lib/http/workflow-contract-route');
 const { createReadWorkflowHttpRouter } = require('./lib/http/read-workflow-actions');
 const { createWorkflowDataRoutes } = require('./lib/http/workflow-data-routes');
+const { bindHttpProvenance } = require('./lib/http/http-provenance');
 const { readExactWorkspace } = require('./lib/http/exact-workspace');
 const { createSessionStore } = require('./lib/viewer/session-store');
 const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
@@ -276,10 +277,10 @@ const viewerGateway = createViewerGateway({
   readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters),
 });
 
-function denyIfUnauthorized(req, res, extraHeaders = {}) {
+function denyIfUnauthorized(req, res, extraHeaders = {}, options = {}) {
   const auth = requireApiKey(req);
   if (auth.ok) { req.huqanAuth = Object.freeze({ subject: 'local-api-key' }); return true; }
-  writeJson(req, res, auth.status, auth.error, { ...auth.headers, ...extraHeaders });
+  writeJson(req, res, auth.status, options.errorCode ? { ok: false, error: { code: options.errorCode, message: 'Unauthorized.' } } : auth.error, { ...auth.headers, ...extraHeaders });
   return false;
 }
 
@@ -399,7 +400,7 @@ const server = http.createServer(async (req, res) => {
   // ever runs, so the headers have to be carried here too -- same reason the
   // rate-limit branch above special-cases the prefix.
   if (routeAuthPolicy.authRequired
-    && !denyIfUnauthorized(req, res, memoryContextSecurityHeaders(rawPath))) return;
+    && !denyIfUnauthorized(req, res, memoryContextSecurityHeaders(rawPath), routeAuthPolicy.ruleId === 'observability' ? { errorCode: 'UNAUTHORIZED' } : {})) return;
   // An undeclared path must never reach a handler. If one is added without a
   // policy entry it is answered as 404 here rather than executing
   // unauthenticated, so the declaration is enforced at runtime and not only by
@@ -663,12 +664,8 @@ const server = http.createServer(async (req, res) => {
       const learnResult = kernel.learnDocument(text, {
         returnDetails: true,
         workspaceId,
-        sourceType: sanitizeInput(data.sourceType || '') || 'upload',
-        sourceRef: sanitizeInput(data.sourceRef || '') || reqUrl.pathname,
-        sourceTitle: sanitizeInput(data.sourceTitle || '') || 'HTTP upload',
-        actor: 'http-api',
         approvalRequired: true,
-        provenance: data.provenance && typeof data.provenance === 'object' ? data.provenance : undefined,
+        provenance: bindHttpProvenance(data.provenance, { actor: 'http-api', workspaceId, sourceType: sanitizeInput(data.sourceType || '') || 'upload', sourceRef: sanitizeInput(data.sourceRef || '') || reqUrl.pathname, sourceTitle: sanitizeInput(data.sourceTitle || '') || 'HTTP upload' }),
       });
       const admission = projectUploadAdmission(Array.isArray(learnResult.admissions) ? (learnResult.admissions.find(Boolean) || null) : null);
       res.writeHead(200, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
@@ -961,7 +958,7 @@ const server = http.createServer(async (req, res) => {
   // --- Ana sayfa ---
   if (reqUrl.pathname === '/') {
     try {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', ...buildCorsHeaders(req) });
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', ...buildCorsHeaders(req), 'Cache-Control': 'no-cache' });
       res.end(getHtmlPage());
     } catch (err) {
       console.error('[index]', err);

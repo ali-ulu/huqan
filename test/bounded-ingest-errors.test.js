@@ -4,10 +4,10 @@
  * Ingest-error state must be bounded, and the status response must stay a fixed
  * size no matter how long the process has been failing.
  *
- * company-brain and repo-memory share `kernel._companyIngestState` and both
- * carried the same unbounded push. The array grew fastest in the situation
- * nobody wants it to -- an unreachable source adds one record per attempt --
- * and the status endpoint returned all of it in one response.
+ * company-brain and repo-memory once shared `kernel._companyIngestState`, so
+ * counters and raw connector failures leaked across plugin boundaries. Each
+ * plugin now owns its state, while this helper keeps each owner’s history
+ * bounded and safe for status responses.
  */
 
 const test = require('node:test');
@@ -18,6 +18,7 @@ const {
   DEFAULT_REPORTED_ERRORS,
   recordIngestError,
   summarizeIngestErrors,
+  sanitizeIngestErrorMessage,
 } = require('../lib/bounded-ingest-errors');
 
 function fill(count, state = { ingestErrors: [] }) {
@@ -94,4 +95,42 @@ test('the status response stays a fixed size as failures accumulate', () => {
   const large = JSON.stringify(summarizeIngestErrors(fill(200_000))).length;
 
   assert.ok(large < small * 2, `response grew with history: ${small} -> ${large} bytes`);
+});
+
+test('#1524: repo-memory and company-brain state is isolated on the same kernel', () => {
+  const repoMemory = require('../plugins/repo-memory');
+  const companyBrain = require('../plugins/company-brain');
+  const kernel = { graph: { getStats: () => ({ nodes: 0, edges: 0 }) } };
+
+  repoMemory._test.trackIngestSuccess(kernel, 'json', 7);
+  repoMemory._test.trackIngestSuccess(kernel, 'pdf', 5);
+  repoMemory._test.trackIngestError(kernel, 'http', 'https://internal.example/private /srv/company/secret.json failed');
+
+  const companyState = companyBrain._test.ensureCompanyState(kernel);
+  const repoState = repoMemory._test.ensureCompanyState(kernel);
+  const companyStatus = companyBrain._test.getIngestStatus(kernel);
+
+  assert.notEqual(companyState, repoState);
+  assert.equal(companyStatus.distribution.json, 7);
+  assert.equal(companyStatus.distribution.pdf, 5);
+  assert.deepEqual(companyStatus.ingestErrors, []);
+  assert.equal(repoState.bySource.json, 7);
+  assert.equal(repoState.bySource.pdf, 5);
+  assert.equal(repoState.ingestErrors.length, 1);
+  assert.equal(repoState.ingestErrors[0].message, '[REDACTED_URL] [REDACTED_PATH] failed');
+});
+
+test('#1524: ingest status error messages redact URLs, absolute paths, and length', () => {
+  const raw = 'fetch https://internal.example/private?token=secret failed at /srv/company/secret.json';
+  const sanitized = sanitizeIngestErrorMessage(raw);
+
+  assert.equal(sanitized.includes('internal.example'), false);
+  assert.equal(sanitized.includes('/srv/company'), false);
+  assert.match(sanitized, /\[REDACTED_URL\]/);
+  assert.match(sanitized, /\[REDACTED_PATH\]/);
+  assert.ok(sanitized.length <= 512);
+
+  const state = { ingestErrors: [] };
+  recordIngestError(state, 'http', 'x'.repeat(1000), '2026-08-24T20:00:00.000Z');
+  assert.equal(state.ingestErrors[0].message.length, 512);
 });

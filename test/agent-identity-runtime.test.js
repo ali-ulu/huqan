@@ -134,6 +134,39 @@ test('runtime identity evaluator preserves delegated scope monotonicity', () => 
 });
 
 
+test('runtime identity evaluator rejects a delegated chain whose first record is not an authority root', () => {
+  const parent = {
+    ...minimal,
+    agent_id: 'agent-parent-001',
+    display_name: 'Parent Agent',
+    parent_agent_id: 'agent-missing-grandparent',
+    delegation_chain: ['agent-missing-grandparent', 'agent-parent-001'],
+    receipt_refs: ['receipt-agent-parent-001'],
+    provenance_refs: ['provenance-agent-parent-001'],
+  };
+  const child = {
+    ...minimal,
+    agent_id: 'agent-child-001',
+    display_name: 'Child Agent',
+    parent_agent_id: parent.agent_id,
+    delegation_chain: [parent.agent_id, 'agent-child-001'],
+    receipt_refs: ['receipt-agent-child-001'],
+    provenance_refs: ['provenance-agent-child-001'],
+  };
+  const result = evaluateAgentIdentity({
+    authority: authority([
+      { ref: 'identity:parent', record: parent },
+      { ref: 'identity:child', record: child },
+    ]),
+    claim: claim(child, 'identity:child', [parent.agent_id, child.agent_id]),
+    action: action(),
+  });
+
+  assert.equal(result.allowed, false);
+  assert.equal(result.decision, 'block');
+  assert.equal(result.reason, IDENTITY_RUNTIME_ERRORS.DELEGATION_CHAIN_INVALID);
+});
+
 test('receiver-owned claim composition derives identity fields from the authority snapshot', () => {
   const identityAuthority = authority();
   const result = composeReceiverOwnedIdentityClaim({

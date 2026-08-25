@@ -31,12 +31,13 @@ const path = require('path');
 // ---------------------------------------------------------------------------
 const Kernel = require('../kernel');
 const Graph = require('../graph');
+const { isolatedKernelOptions } = require('./helpers/isolated-persistence');
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 function makeKernel() {
-  return new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+  return new Kernel(isolatedKernelOptions('faz2-universal', { loadPlugins: false }));
 }
 
 /**

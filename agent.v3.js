@@ -475,11 +475,10 @@ class AgentV3 {
     const queued = Array.isArray(state.queuedSteps) ? [...state.queuedSteps] : [];
     const deadline = Date.now() + Math.max(0, Number.isInteger(opts.timeBudgetMs) ? opts.timeBudgetMs : this.timeBudgetMs);
     const maxIterations = Number.isInteger(opts.maxIterations) ? opts.maxIterations : this.maxIterations;
-    state.workspaceId = workspaceId;
-    state.agentId = String(opts.agentId || state.agentId || '');
+    state.workspaceId = workspaceId; state.agentId = String(opts.agentId || state.agentId || 'agent-v3');
     state.observabilityRunId = state.observabilityRunId || `agent-${crypto.randomUUID?.() || Date.now()}`;
     try { this.kernel?.observability?.recordLifecycle?.('beforeAgentRun', state); } catch (_) {}
-    initializeBehavioralState(state, { goal: state.goal, workspaceId, selectedTools: state.selectedTools || activePlan.selectedTools });
+    initializeBehavioralState(state, { goal: state.goal, workspaceId, agentId: state.agentId, selectedTools: state.selectedTools || activePlan.selectedTools, capabilities: (activePlan.steps || []).map(step => step.action) });
     // Keep the public plugin lifecycle contract reachable on the canonical v3
     // path. This intentionally precedes the durable budget gate: a before hook
     // observes every accepted run attempt, including one refused before work.

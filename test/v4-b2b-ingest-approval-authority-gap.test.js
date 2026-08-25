@@ -287,6 +287,37 @@ describe('V4-B2B: ingest approval authority repair', () => {
     assert.deepEqual(graphCounts(), before);
   });
 
+  it('schedules heartbeat before a short approval lease can expire', async () => {
+    const result = {
+      ok: true,
+      admission: {
+        outcome: 'allow',
+        graphWrite: false,
+        entries: [{ workspaceId: 'default', receiptId: 'receipt-short-lease', auditId: 'audit-short-lease', graphWrite: false }],
+      },
+    };
+    const injected = fakeStore(pendingApproval('b2b-short-lease', 'short-lease'));
+    const deps = ownerDeps({ result, store: injected });
+    deps.leaseMs = 4_000;
+    const originalSetInterval = global.setInterval;
+    const originalClearInterval = global.clearInterval;
+    let intervalMs = null;
+    global.setInterval = (_callback, delay) => {
+      intervalMs = delay;
+      return { unref() {} };
+    };
+    global.clearInterval = () => {};
+
+    try {
+      const outcome = await decideIngestApproval(deps);
+      assert.equal(outcome.status, 200, JSON.stringify(outcome));
+      assert.equal(intervalMs, 2_000);
+    } finally {
+      global.setInterval = originalSetInterval;
+      global.clearInterval = originalClearInterval;
+    }
+  });
+
   it('never finalizes a hostile or uncertain result as approved', async () => {
     const hostileResults = [
       null,

@@ -110,9 +110,34 @@ tweak. Until such a boundary exists, this section is the honest statement of
 where the trust boundary sits (#362).
 
 A future `permissions` manifest field gating plugin `require()` calls would be
+
 defense-in-depth and an audit aid — a declared, reviewable capability list — but
 it would remain bypassable from in-process code, and must not be described as a
 sandbox either.
+
+## Supply-chain activation gate
+
+When `PLUGIN_PRODUCTION_ENFORCEMENT=1` or `NODE_ENV=production`, dynamic plugin
+loading requires `SUPPLY_CHAIN_ACTIVATION_POLICY`; a signing key alone is not an
+allowlist. The policy binds the exact component type, name, version, content
+hash, issuer, workspace and declared capabilities. The adjacent plugin
+manifest must declare capabilities that exactly match the loaded descriptor;
+missing, malformed or mismatched declarations are rejected before registration.
+
+Activation is re-attested immediately before every `runCapability()` call. A
+loaded plugin can be revoked by its exact component identity through the bounded
+`PluginManager.revokePlugin(name, reason)` seam, and the revocation is rechecked
+before execution. The activation receipt contains only bounded component
+identity/provenance fields, decision and reason; it does not contain plugin
+payloads, signing keys or environment secrets.
+
+The gate provides the implemented provenance, allowlist, pinning, expiry,
+hash-drift and component-specific revocation checks. It does not generate a full
+SBOM/AIBOM, issue credentials, sandbox in-process code, enforce external IAM or
+network egress, or prove registry publication/deployment. Those remain explicit
+non-claims until separately implemented and evidenced. This bounded gate is
+separate from #1103 registry publication, #1119 package/release work and #1182
+A2A agent-card/exchange availability.
 
 ## Verify Status Contract
 

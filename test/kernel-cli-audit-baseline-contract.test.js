@@ -187,10 +187,10 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
       ['kaydet', '', 'UPDATE', 'allow', 'persistence', 'cli_persist_local', true, 'kaydet'],
       ['backup', '', 'EXPORTED', 'allow', 'export', 'cli_backup_export_local', true, 'backup'],
       ['restore', '', 'IMPORTED', 'allow', 'state_replace', 'cli_restore_state_replace_local', true, 'restore'],
-      ['optimize', '', 'REVIEW', 'review', 'canonical', 'cli_canonical_mutation_requires_review', false, 'optimize'],
-      ['evolve', '', 'REVIEW', 'review', 'canonical', 'cli_canonical_mutation_requires_review', false, 'evolve'],
-      ['konsolide', '', 'REVIEW', 'review', 'canonical', 'cli_canonical_mutation_requires_review', false, 'konsolide'],
-      ['d\u00fc\u015f\u00fcn', 'ba\u015fla', 'REVIEW', 'review', 'automation', 'cli_automation_requires_review', false, 'dusun'],
+      ['optimize', '', 'BLOCKED', 'block', 'canonical', 'cli_canonical_mutation_unavailable', false, 'optimize'],
+      ['evolve', '', 'BLOCKED', 'block', 'canonical', 'cli_canonical_mutation_unavailable', false, 'evolve'],
+      ['konsolide', '', 'BLOCKED', 'block', 'canonical', 'cli_canonical_mutation_unavailable', false, 'konsolide'],
+      ['d\u00fc\u015f\u00fcn', 'ba\u015fla', 'BLOCKED', 'block', 'automation', 'cli_automation_unavailable', false, 'dusun'],
     ];
 
     try {
@@ -333,7 +333,7 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
     }
   });
 
-  it('keeps review-gated commands non-executable when audit fails', () => {
+  it('keeps unavailable commands non-executable when audit fails', () => {
     const managed = createIsolatedCli();
     const original = managed.cli.kernel.recordCliMutationAudit;
     const originalOptimize = managed.cli.kernel.optimize;
@@ -345,7 +345,7 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
       const gate = managed.cli._evaluateCliMutationGate('optimize', '');
       assert.strictEqual(gate.canExecute, false);
       assert.strictEqual(gate.canDryRun, false, 'a dry run must not be offered without audit');
-      assert.strictEqual(gate.metadata.classifiedDecision, 'review');
+      assert.strictEqual(gate.metadata.classifiedDecision, 'block');
       assert.strictEqual(optimizeCalls, 0);
     } finally {
       managed.cli.kernel.recordCliMutationAudit = original;
@@ -381,7 +381,7 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
     }
   });
 
-  it('records review audit before formatting and never invokes mutation', () => {
+  it('records unavailable-command audit before formatting and never invokes mutation', () => {
     const managed = createIsolatedCli();
     const originalAudit = managed.cli.kernel.recordCliMutationAudit;
     const originalFormat = managed.cli._formatCliGateMessage;
@@ -400,12 +400,46 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
         stages.push('mutation');
         return { pruned: 0, removedNodes: 0 };
       };
-      assert.match(managed.cli.execute('optimize', ''), /review gerektiriyor/);
+      assert.match(managed.cli.execute('optimize', ''), /engellendi/);
       assert.deepStrictEqual(stages, ['audit', 'format']);
     } finally {
       managed.cli.kernel.recordCliMutationAudit = originalAudit;
       managed.cli._formatCliGateMessage = originalFormat;
       managed.cli.kernel.optimize = originalOptimize;
+      managed.close();
+    }
+  });
+
+  it('does not execute unavailable maintenance mutations even with an executable gate result', () => {
+    const managed = createIsolatedCli();
+    const calls = { think: 0, optimize: 0, consolidate: 0, evolve: 0 };
+    const originals = {
+      startAutoThink: managed.cli.kernel.startAutoThink,
+      optimize: managed.cli.kernel.optimize,
+      consolidate: managed.cli.kernel.consolidate,
+      selfEvolve: managed.cli.kernel.selfEvolve,
+    };
+    try {
+      managed.cli.kernel.startAutoThink = () => { calls.think += 1; };
+      managed.cli.kernel.optimize = () => { calls.optimize += 1; return { pruned: 0, removedNodes: 0 }; };
+      managed.cli.kernel.consolidate = () => { calls.consolidate += 1; return { removed: 0 }; };
+      managed.cli.kernel.selfEvolve = () => { calls.evolve += 1; return { dreams: 0, added: 0, consolidated: 0, optimized: 0 }; };
+
+      const executableGate = { canExecute: true, decision: 'allow', reason: 'test-only-gate' };
+      for (const [command, args, key] of [
+        ['düşün', 'başla', 'think'],
+        ['optimize', '', 'optimize'],
+        ['konsolide', '', 'consolidate'],
+        ['evolve', '', 'evolve'],
+      ]) {
+        assert.match(managed.cli.execute(command, args, { gateResult: executableGate }), /engellendi/);
+        assert.equal(calls[key], 0, `${command} must not reach its mutation method`);
+      }
+    } finally {
+      managed.cli.kernel.startAutoThink = originals.startAutoThink;
+      managed.cli.kernel.optimize = originals.optimize;
+      managed.cli.kernel.consolidate = originals.consolidate;
+      managed.cli.kernel.selfEvolve = originals.selfEvolve;
       managed.close();
     }
   });
@@ -540,7 +574,7 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
   });
 
   it('keeps backup and restore output and operation ordering behind the audit seam', () => {
-    const managed = createIsolatedCli();
+    const managed = createIsolatedCli({ useSQLite: true });
     const originalAudit = managed.cli.kernel.recordCliMutationAudit;
     const originalOptions = managed.cli._backupOptions;
     const originalReload = managed.cli.kernel.reload;

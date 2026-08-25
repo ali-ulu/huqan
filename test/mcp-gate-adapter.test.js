@@ -203,6 +203,7 @@ test('evaluateMcpGate: axiom.learn → review', () => {
   assert.equal(r.decision, MCP_GATE_DECISIONS.review);
   assert.equal(r.metadata.tool, 'axiom.learn');
   assert.equal(r.metadata.mutating, true);
+  assert.equal(r.risk.score, 80);
   assert.ok(r.findings.length >= 2);
 });
 

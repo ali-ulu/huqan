@@ -19,7 +19,10 @@ async function withEnv(values, fn) {
 describe('supply-chain activation gate', () => {
   it('requires the exact allowlisted type/name/version/hash/issuer/workspace/capabilities', () => {
     const gate = createActivationGate({ components: [component] });
-    assert.strictEqual(gate.activate(component).receipt.decision, 'allow');
+    const activated = gate.activate(component);
+    assert.strictEqual(activated.receipt.decision, 'allow');
+    assert.strictEqual(activated.receipt.issuer, 'operator');
+    assert.deepStrictEqual(activated.receipt.capabilities, ['safe.run']);
     assert.throws(() => gate.activate({ ...component, capabilities: ['other.run'] }), /not-allowlisted/);
     assert.throws(() => gate.activate({ ...component, contentHash: 'b'.repeat(64) }), /not-allowlisted/);
   });
@@ -41,7 +44,13 @@ describe('supply-chain activation gate', () => {
       const file = path.join(dir, 'safe-plugin.js');
       fs.writeFileSync(file, source);
       const contentHash = crypto.createHash('sha256').update(source).digest('hex');
-      fs.writeFileSync(path.join(dir, 'safe-plugin.manifest.json'), JSON.stringify({ sha256: contentHash, version: '1.0.0', issuer: 'operator', workspaceId: 'workspace-a' }));
+      fs.writeFileSync(path.join(dir, 'safe-plugin.manifest.json'), JSON.stringify({
+        sha256: contentHash,
+        version: '1.0.0',
+        issuer: 'operator',
+        workspaceId: 'workspace-a',
+        capabilities: ['safe.run'],
+      }));
       await withEnv({ AXIOM_PLUGIN_STRICT: '1', AXIOM_SUPPLY_CHAIN_ACTIVATION_POLICY: JSON.stringify({ components: [{ ...component, contentHash }] }) }, async () => {
         const manager = new PluginManager(null);
         assert.strictEqual(manager.load(dir), 1);

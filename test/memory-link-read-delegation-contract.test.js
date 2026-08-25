@@ -15,7 +15,7 @@ const delegateCode = delegateSource
   .join('\n');
 
 const methods = [
-  ['getLinks', 'readLinks', 'getLinks(memoryId)'],
+  ['getLinks', 'readLinks', 'getLinks(memoryId, opts = {})'],
   ['findLinks', 'readFindLinks', 'findLinks(memoryId, opts = {})'],
   ['findLinkedMemories', 'readFindLinkedMemories', 'findLinkedMemories(memoryId, opts = {})'],
   ['getBacklinks', 'readBacklinks', 'getBacklinks(memoryId, opts = {})'],
@@ -59,4 +59,20 @@ test('MS: pinned call sites — seven link-read delegations', () => {
   }
   assert.equal((delegateCode.match(/context\.links\.push/g) || []).length, 0, 'delegate never mutates context.links');
   assert.equal((delegateCode.match(/context\.links\s*=/g) || []).length, 0, 'delegate never reassigns context.links');
+});
+
+test('MS: getLinks and getBacklinks honor workspace scope', () => {
+  const { getLinks, getBacklinks } = require('../lib/memory-link-read');
+  const links = [
+    { linkId: 'a-link', fromMemoryId: 'm1', toMemoryId: 'm2', workspaceId: 'tenant-a', relation: 'references' },
+    { linkId: 'b-link', fromMemoryId: 'm1', toMemoryId: 'm2', workspaceId: 'tenant-b', relation: 'references' },
+    { linkId: 'a-incoming', fromMemoryId: 'm3', toMemoryId: 'm1', workspaceId: 'tenant-a', relation: 'supports' },
+  ];
+
+  const tenantA = getLinks({ links }, 'm1', { workspaceId: 'tenant-a' });
+  assert.deepEqual(tenantA.map((link) => link.linkId), ['a-link', 'a-incoming']);
+  assert.notStrictEqual(tenantA[0], links[2]);
+  assert.deepEqual(getLinks({ links }, 'm1', { workspaceId: 'tenant-b' }).map((link) => link.linkId), ['b-link']);
+  assert.deepEqual(getBacklinks({ links }, 'm1', { workspaceId: 'tenant-a' }).map((link) => link.linkId), ['a-incoming']);
+  assert.deepEqual(getLinks({ links }, 'm1').map((link) => link.linkId), []);
 });

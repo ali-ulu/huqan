@@ -7,7 +7,6 @@ const readline = require('readline');
 const CLI = require('./cli');
 const Kernel = require('./kernel');
 const KernelV2 = require('./kernel.v2');
-const Dream = require('./dream');
 const { createAgent } = require('./agentRuntime');
 
 const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
@@ -26,9 +25,8 @@ function freshCLI(kernelOpts = {}) {
   const isolatedDefaults = tempDir
     ? { memoryPath: path.join(tempDir, 'memory.json'), useSQLite: false }
     : {};
-  const cli = new CLI();
-  cli.kernel = new Kernel({ noLoad: true, ...isolatedDefaults, ...kernelOpts });
-  cli.dream = new Dream(cli.kernel);
+  const kernel = new Kernel({ noLoad: true, ...isolatedDefaults, ...kernelOpts });
+  const cli = new CLI({ kernelInstance: kernel });
   cli.__testPersistenceDir = tempDir;
   return cli;
 }
@@ -657,6 +655,7 @@ describe('CLI - Komut Çalıştırma', () => {
     const cli = new CLI({
       kernel: {
         memoryPath,
+        dbPath: path.join(tmpDir, 'memory.db'),
         noLoad: true,
         useSQLite: false,
         memoryStoreUseSQLite: false,
@@ -1018,26 +1017,23 @@ describe('CLI - Lifecycle and maintenance baseline contracts', { concurrency: fa
     });
   });
 
-  it('optimize preserves formatting and calls only the Kernel seam once', async () => {
+  it('optimize remains unavailable even when the gate result is absent', async () => {
     await withIsolatedInteractiveCLI(async cli => {
       const originalGate = cli._evaluateCliGate;
       const originalOptimize = cli.kernel.optimize;
       const originalGraphOptimize = cli.kernel.graph.optimize;
-      const calls = [];
+      let calls = 0;
       cli._evaluateCliGate = () => null;
-      cli.kernel.optimize = (...args) => {
-        calls.push(args);
+      cli.kernel.optimize = () => {
+        calls += 1;
         return { pruned: 3, removedNodes: 2 };
       };
       cli.kernel.graph.optimize = () => {
         throw new Error('CLI accessed Graph.optimize directly');
       };
       try {
-        assert.strictEqual(
-          cli.execute('optimize', ''),
-          'Optimize: pruned 3 edges, removed 2 nodes.',
-        );
-        assert.deepStrictEqual(calls, [[]]);
+        assert.match(cli.execute('optimize', ''), /engellendi/);
+        assert.equal(calls, 0, 'unavailable optimize must not reach the Kernel mutation seam');
       } finally {
         cli._evaluateCliGate = originalGate;
         cli.kernel.optimize = originalOptimize;

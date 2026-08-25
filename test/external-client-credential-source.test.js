@@ -104,7 +104,11 @@ test('a group- or world-readable key file is refused', async () => {
   const result = await run(admitArgs(['--api-key-file', keyFile]), { env: {} });
 
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /group- or world-readable/);
+  if (process.platform === 'win32') {
+    assert.match(result.stderr, /credential file permissions cannot be verified on Windows/);
+  } else {
+    assert.match(result.stderr, /group- or world-readable/);
+  }
   assert.doesNotMatch(result.stderr, new RegExp(SECRET));
 });
 
@@ -127,7 +131,10 @@ for (const [label, makeCall] of [
   }],
   ['stdin', () => ({ args: admitArgs(['--api-key-file', '-']), options: { env: {}, stdin: `${SECRET}\n` } })],
 ]) {
-  test(`a credential from ${label} is accepted`, async () => {
+  test(`a credential from ${label} is accepted`, async (t) => {
+    if (label === 'a mode-600 file' && process.platform === 'win32') {
+      return t.skip('Windows file ACLs are not verified by this CLI; use environment or stdin');
+    }
     setup(label.replace(/\s+/g, '-'));
     const { args, options } = makeCall();
     const result = await run(args, options);

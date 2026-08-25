@@ -1,3 +1,6 @@
+const { normalizeWorkspaceId } = require('./lib/graph-record-utils');
+const { isSymmetricRelation, nodesAreDisjoint } = require('./lib/dream-hypothesis-semantics');
+
 const MAX_DREAM_COMPARISONS = 10_000;
 const MAX_DREAM_WORK = 50_000;
 
@@ -211,6 +214,7 @@ class Dream {
 
   _calculateCompositeScore(hyp, context = null) {
     const confidence = hyp.confidence || 0.3;
+    const scope = normalizeWorkspaceId(context ? context.workspaceId : undefined);
 
     let novelty = 0;
     if (hyp.type === 'çelişki') {
@@ -219,20 +223,20 @@ class Dream {
       const exists = context
         ? context.outTargets.get(hyp.from)?.has(hyp.to)
           || context.outTargets.get(hyp.to)?.has(hyp.from)
-        : this.graph.getEdges(hyp.from).some(e => e.to === hyp.to)
-          || this.graph.getEdges(hyp.to).some(e => e.to === hyp.from);
+        : this.graph.getEdges(hyp.from, scope).some(e => e.to === hyp.to)
+          || this.graph.getEdges(hyp.to, scope).some(e => e.to === hyp.from);
       novelty = exists ? 0 : 1;
     }
 
     let usefulness = 0;
     const nodeId = hyp.from || hyp.node;
     if (nodeId) {
-      const outDeg = context ? (context.outEdges.get(nodeId)?.length || 0) : this.graph.getEdges(nodeId).length;
-      const inDeg = context ? (context.inEdges.get(nodeId)?.length || 0) : this.graph.getInEdges(nodeId).length;
+      const outDeg = context ? (context.outEdges.get(nodeId)?.length || 0) : this.graph.getEdges(nodeId, scope).length;
+      const inDeg = context ? (context.inEdges.get(nodeId)?.length || 0) : this.graph.getInEdges(nodeId, scope).length;
       const deg = outDeg + inDeg;
       const nodes = context ? context.nodes : Object.values(this.graph._nodes);
       const avgDeg = context ? context.avgDeg : nodes.reduce((s, n) => {
-        return s + this.graph.getEdges(n.id).length + this.graph.getInEdges(n.id).length;
+        return s + this.graph.getEdges(n.id, scope).length + this.graph.getInEdges(n.id, scope).length;
       }, 0) / Math.max(1, nodes.length);
       usefulness = avgDeg > 0 ? Math.min(1, deg / avgDeg) : 0;
     }
@@ -247,21 +251,32 @@ class Dream {
 
   // ─── Dream (Hipotez Üretimi) ──────────────────────────────────────────────
 
-  dream() {
-    this._emit('beforeDream', {});
-    const nodes = Object.values(this.graph._nodes);
+  /**
+   * #1189: every graph read on this path is workspace-scoped, and the node set
+   * is the workspace's own. Reading `_nodes` whole while calling getEdges()
+   * without a scope meant a non-default workspace saw its nodes but the default
+   * workspace's edges -- no edges, so no hypotheses, so a silent empty dream.
+   * The scope rides on the context so the finders cannot forget it.
+   */
+  dream(opts = {}) {
+    const workspaceId = normalizeWorkspaceId(
+      opts && typeof opts === 'object' && !Array.isArray(opts) ? opts.workspaceId : opts,
+    );
+    this._emit('beforeDream', { workspaceId });
+    const nodes = Object.values(this.graph._nodes)
+      .filter(node => normalizeWorkspaceId(node.workspaceId) === workspaceId);
     if (nodes.length < 2) {
-      this._emit('afterDream', { hypotheses: [] });
+      this._emit('afterDream', { hypotheses: [], workspaceId });
       return [];
     }
 
-    const context = this._createDreamContext(nodes);
+    const context = this._createDreamContext(nodes, workspaceId);
     const hypotheses = [];
     this._findSimilarityHypotheses(nodes, hypotheses, context);
     this._findTransitiveHypotheses(nodes, hypotheses, context);
     this._findGapHypotheses(nodes, hypotheses, context);
     this._findSymmetryHypotheses(nodes, hypotheses, context);
-    this._findContradictionHypotheses(nodes, hypotheses);
+    this._findContradictionHypotheses(nodes, hypotheses, context);
 
     const scored = hypotheses.map(h => ({
       ...h,
@@ -276,11 +291,11 @@ class Dream {
 
     const result = [...contradictions, ...others].slice(0, 10);
 
-    this._emit('afterDream', { hypotheses: result });
+    this._emit('afterDream', { hypotheses: result, workspaceId });
     return result;
   }
 
-  _createDreamContext(nodes) {
+  _createDreamContext(nodes, workspaceId = 'default') {
     const outEdges = new Map();
     const inEdges = new Map();
     const outTargets = new Map();
@@ -289,8 +304,8 @@ class Dream {
     let degreeTotal = 0;
 
     for (const node of nodes) {
-      const outgoing = this.graph.getEdges(node.id);
-      const incoming = this.graph.getInEdges(node.id);
+      const outgoing = this.graph.getEdges(node.id, workspaceId);
+      const incoming = this.graph.getInEdges(node.id, workspaceId);
       outEdges.set(node.id, outgoing);
       inEdges.set(node.id, incoming);
       outTargets.set(node.id, new Set(outgoing.map(edge => edge.to)));
@@ -309,6 +324,10 @@ class Dream {
 
     return {
       nodes,
+      workspaceId,
+      // #1213: memoised type ancestors, so the disjointness guard on the
+      // O(n²) similarity pass does not re-walk the lattice per pair.
+      typeAncestors: new Map(),
       outEdges,
       inEdges,
       outTargets,
@@ -347,7 +366,13 @@ class Dream {
         const bTargets = context.outTargets.get(b.id);
         const common   = [...aTargets].filter(t => bTargets.has(t));
 
-        if (common.length > 0) {
+        // #1213: the lattice already says these two cannot both apply, so a
+        // similarity edge between them can only ever be rejected -- after
+        // costing a reviewer's attention in the approval queue.
+        const disjoint = nodesAreDisjoint(
+          nodeId => context.outEdges.get(nodeId), a.id, b.id, context.workspaceId, context.typeAncestors);
+
+        if (common.length > 0 && !disjoint) {
           const existing = context.relationTargets.get(a.id)?.get('benzer')?.has(b.id)
                         || context.relationTargets.get(b.id)?.get('benzer')?.has(a.id);
           if (!existing) {
@@ -368,7 +393,7 @@ class Dream {
           }
         }
 
-        const sim = this.graph.cosineSimilarity(a.id, b.id);
+        const sim = disjoint ? 0 : this.graph.cosineSimilarity(a.id, b.id, context.workspaceId);
         if (sim > 0.5) {
           const hasEdge = context.outTargets.get(a.id).has(b.id)
                        || context.outTargets.get(b.id).has(a.id);
@@ -417,20 +442,20 @@ class Dream {
   }
 
   _findGapHypotheses(nodes, hypotheses, context) {
-    const gaps = this.kernel.detectGaps();
+    const gaps = this.kernel.detectGaps(context.workspaceId);
     if (gaps.length === 0 || nodes.length < 2) return;
 
     let added = 0;
     for (const gapId of gaps) {
       if (added >= 50) break;
-      const gapNode = this.graph.getNode(gapId);
+      const gapNode = this.graph.getNode(gapId, context.workspaceId);
       if (!gapNode) continue;
 
       let best = null, bestSim = 0;
       for (const n of nodes) {
         if (n.id === gapId) continue;
         if (!this._consumeDreamWork(context, 'comparison')) return;
-        const sim = this.graph.cosineSimilarity(gapId, n.id);
+        const sim = this.graph.cosineSimilarity(gapId, n.id, context.workspaceId);
         if (sim > bestSim) { bestSim = sim; best = n.id; }
       }
 
@@ -455,6 +480,11 @@ class Dream {
       for (const edge of edges) {
         if (added >= 50) break;
         if (!this._consumeDreamWork(context)) return;
+        // #1213: `tür` is not symmetric -- a cat is an animal, an animal is not
+        // a cat -- and proposing its reverse builds the two-node cycle verify's
+        // `döngü` rule reports as a contradiction. Unlisted relations count as
+        // asymmetric: this generator's output is a write proposal.
+        if (!isSymmetricRelation(edge.relation)) continue;
         const reverse    = context.relationTargets.get(edge.to)?.get(edge.relation)?.has(node.id);
         const reverseAny = context.outTargets.get(edge.to)?.has(node.id);
         if (!reverse && !reverseAny) {
@@ -472,10 +502,10 @@ class Dream {
     }
   }
 
-  _findContradictionHypotheses(nodes, hypotheses) {
+  _findContradictionHypotheses(nodes, hypotheses, context = null) {
     if (typeof this.kernel.detectContradictions !== 'function') return;
     try {
-      const contradictions = this.kernel.detectContradictions();
+      const contradictions = this.kernel.detectContradictions('', normalizeWorkspaceId(context ? context.workspaceId : undefined));
       let added = 0;
       for (const c of contradictions) {
         if (added >= 50) break;
