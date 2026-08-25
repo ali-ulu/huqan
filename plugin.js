@@ -67,11 +67,19 @@ function loadActivationGate() {
   }
 }
 
+function normalizedCapabilityNames(value) {
+  if (!Array.isArray(value)) return null;
+  const names = value.map(item => typeof item === 'string' ? item : item?.name);
+  if (names.some(name => typeof name !== 'string' || !name.trim())) return null;
+  return [...new Set(names.map(name => name.trim()))].sort();
+}
+
 function pluginComponent(plugin, verification) {
   const manifest = verification.manifest || {};
   return { componentType: 'plugin', name: plugin.name, version: manifest.version,
     contentHash: verification.sha256, issuer: manifest.issuer, workspaceId: manifest.workspaceId,
-    capabilities: (plugin.capabilities || []).map(item => item.name), expiresAt: manifest.expiresAt };
+    capabilities: normalizedCapabilityNames(manifest.capabilities)
+      || normalizedCapabilityNames(plugin.capabilities) || [], expiresAt: manifest.expiresAt };
 }
 
 /**
@@ -207,6 +215,10 @@ class PluginManager {
   load(dir) {
     const pDir = path.resolve(dir);
     if (!fs.existsSync(pDir)) return 0;
+    if (this.productionPluginEnforcement && !this.activationGate) {
+      console.error('Plugin loading refused: production supply-chain activation policy is required.');
+      return 0;
+    }
     const files = fs.readdirSync(pDir).filter(isRuntimePluginFile);
     let count = 0;
     for (const file of files) {
@@ -225,6 +237,11 @@ class PluginManager {
         // whole of the guarantee. require() gives the plugin the host process's
         // privileges (#362); see verifyPluginFile above.
         const plugin = require(filePath);
+        const descriptor = this._validatePluginDescriptor(plugin, verification);
+        if (!descriptor.ok) {
+          console.error(`Plugin failed to load: ${file} - ${descriptor.reason}`);
+          continue;
+        }
         const activation = this._activatePlugin(plugin, verification);
         plugin.__activation = activation;
         plugin.__verification = verification;
@@ -298,9 +315,60 @@ class PluginManager {
     return Boolean(verification && verification.ok === true);
   }
 
+  _validatePluginDescriptor(plugin, verification) {
+    const declaredRaw = verification?.manifest?.capabilities;
+    if (declaredRaw === undefined) {
+      if (this.activationGate) {
+        return {
+          ok: false,
+          reason: 'Plugin manifest capabilities are required by the activation policy.',
+          code: 'PLUGIN_CAPABILITIES_MISSING',
+        };
+      }
+      return { ok: true };
+    }
+    const declared = normalizedCapabilityNames(declaredRaw);
+    const actual = normalizedCapabilityNames(plugin?.capabilities) || [];
+    if (!declared) {
+      return {
+        ok: false,
+        reason: 'Plugin manifest capabilities are invalid.',
+        code: 'PLUGIN_CAPABILITIES_INVALID',
+      };
+    }
+    if (JSON.stringify(declared) !== JSON.stringify(actual)) {
+      return {
+        ok: false,
+        reason: 'Plugin manifest capabilities do not match the loaded descriptor.',
+        code: 'PLUGIN_CAPABILITIES_MISMATCH',
+      };
+    }
+    return { ok: true };
+  }
+
   _activatePlugin(plugin, verification) {
     if (!this.activationGate) return null;
     return this.activationGate.activate(pluginComponent(plugin, verification));
+  }
+
+  revokePlugin(name, reason = 'revoked') {
+    if (!this.activationGate) {
+      const error = new Error('Supply-chain activation policy is not configured.');
+      error.code = 'SUPPLY_CHAIN_ACTIVATION_POLICY_REQUIRED';
+      throw error;
+    }
+    const plugin = this.plugins.find(item => item && item.name === name);
+    if (!plugin) {
+      const error = new Error(`Unknown plugin: ${name}`);
+      error.code = 'PLUGIN_NOT_FOUND';
+      throw error;
+    }
+    const verification = plugin[VERIFIED_PLUGIN];
+    return this.activationGate.revoke(pluginComponent(plugin, verification), reason);
+  }
+
+  listActivationInventory() {
+    return this.activationGate ? this.activationGate.inventory() : [];
   }
 
   _reattestPlugin(plugin) {
