@@ -96,25 +96,31 @@ function seedFacts(kernel) {
 
 function runDemoSeed(options = {}) {
   const kernel = createKernel(options);
-  seedFacts(kernel);
+  try {
+    seedFacts(kernel);
 
-  if (kernel.graph && typeof kernel.graph.save === 'function') {
-    kernel.graph.save();
+    if (kernel.graph && typeof kernel.graph.save === 'function') {
+      kernel.graph.save();
+    }
+
+    const nodeCount = Object.keys(kernel.graph.getNodes()).length;
+    const edgeCount = (kernel.graph._edges || []).length;
+
+    if (options.silent !== true) {
+      console.log(`Demo seed complete.`);
+      console.log(`Nodes added: ${nodeCount}`);
+      console.log(`Edges added: ${edgeCount}`);
+      console.log(`\nYou can now run verify commands against this memory.`);
+      console.log(`Example:`);
+      console.log(`  node cli.js dogrula "HUQAN is an LLM-free knowledge verification engine"`);
+    }
+
+    return { nodeCount, edgeCount };
+  } finally {
+    if (kernel.graph && typeof kernel.graph.close === 'function') {
+      kernel.graph.close();
+    }
   }
-
-  const nodeCount = Object.keys(kernel.graph.getNodes()).length;
-  const edgeCount = (kernel.graph._edges || []).length;
-  
-  if (options.silent !== true) {
-    console.log(`Demo seed complete.`);
-    console.log(`Nodes added: ${nodeCount}`);
-    console.log(`Edges added: ${edgeCount}`);
-    console.log(`\nYou can now run verify commands against this memory.`);
-    console.log(`Example:`);
-    console.log(`  node cli.js dogrula "HUQAN is an LLM-free knowledge verification engine"`);
-  }
-
-  return { nodeCount, edgeCount };
 }
 
 if (require.main === module) {

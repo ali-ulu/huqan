@@ -64,10 +64,14 @@ function readApiKey(values) {
 function readKeyFile(source) {
   if (source === STDIN_SOURCE) return fs.readFileSync(0, 'utf8');
   const stats = fs.statSync(source);
-  // A world- or group-readable key file is the same disclosure this change is
-  // closing, one step removed. Windows does not carry meaningful POSIX modes,
-  // so the check would only ever produce a false refusal there.
-  if (process.platform !== 'win32' && (stats.mode & 0o077) !== 0) {
+  // Windows does not expose a portable POSIX mode contract here, and this
+  // boundary has no ACL verifier. Refuse the file source rather than reading a
+  // credential whose local disclosure boundary cannot be established; callers
+  // can use HUQAN_API_KEY or stdin when they need a Windows-safe source.
+  if (process.platform === 'win32') {
+    throw new Error('credential file permissions cannot be verified on Windows; use HUQAN_API_KEY or --api-key-file -');
+  }
+  if ((stats.mode & 0o077) !== 0) {
     throw new Error('credential file must not be group- or world-readable (chmod 600)');
   }
   return fs.readFileSync(source, 'utf8');
