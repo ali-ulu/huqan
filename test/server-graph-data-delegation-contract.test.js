@@ -171,3 +171,26 @@ test('graph-data delegate preserves default scope and memory failure fallback', 
   assert.deepEqual(result.memoryLinks, []);
   assert.deepEqual(result.metadata, { memory: { enabled: false, reason: 'kernel.memory access error' } });
 });
+
+test('graph-data keeps the top 400 weighted nodes in the bounded projection', () => {
+  const nodes = Object.fromEntries(
+    Array.from({ length: 450 }, (_, index) => [
+      `node-${index}`,
+      { id: `node-${index}`, label: `Node ${index}`, weight: index },
+    ]),
+  );
+  const result = buildGraphData({
+    graph: {
+      getNodes: () => nodes,
+      getAllEdges: () => [],
+      getEdges: () => [],
+    },
+    memory: null,
+    getSafeMemoryLabel: () => 'unused',
+  });
+
+  assert.strictEqual(result.nodes.length, 400);
+  assert.strictEqual(result.nodes[0].id, 'node-449');
+  assert.strictEqual(result.nodes.at(-1).id, 'node-50');
+  assert.deepEqual(result.links, []);
+});

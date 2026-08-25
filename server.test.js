@@ -174,6 +174,7 @@ describe('Server - index page cache (#420)', () => {
     const first = await request(`${BASE}/`);
     assert.strictEqual(first.status, 200);
     assert.match(first.headers.get('content-type'), /text\/html/);
+    assert.strictEqual(first.headers.get('cache-control'), 'no-cache');
     const firstBody = await first.text();
 
     const second = await request(`${BASE}/`);
@@ -861,9 +862,9 @@ describe('Server - API', () => {
       assert.deepStrictEqual(second.nodes, first.nodes);
       assert.deepStrictEqual(second.links, first.links);
       assert.strictEqual(getNodeCalls, 0);
-      assert.strictEqual(first.nodes.length, 150);
+      assert.strictEqual(first.nodes.length, 151);
       assert.equal(first.nodes.some(node => node.id === 'graphread-150'), true);
-      assert.equal(first.nodes.some(node => node.id === 'graphread-149'), false);
+      assert.equal(first.nodes.some(node => node.id === 'graphread-149'), true);
       assert.ok(first.nodes.every(node => node.workspaceId === workspaceId));
       assert.ok(first.links.every(link => link.workspaceId === workspaceId));
       const nodeIds = new Set(first.nodes.map(node => node.id));
