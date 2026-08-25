@@ -79,6 +79,13 @@ test('Claim Workspace uses manifest routes, session-only auth, real search, and 
   assert.match(html, /\/api\/trust-receipt/);
 });
 
+test('Claim Workspace mirrors runtime status in the header and footer', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  assert.match(html, /<span id="footstatus">System Healthy<\/span>/);
+  assert.match(html, /\$\('sys'\)\.textContent='ONLINE';\$\('sys'\)\.style\.color='var\(--good\)';\$\('footstatus'\)\.textContent='System Healthy'/);
+  assert.match(html, /\$\('sys'\)\.textContent='DEGRADED';\$\('sys'\)\.style\.color='var\(--warn\)';\$\('footstatus'\)\.textContent='System Degraded'/);
+});
+
 test('Claim Workspace browser script compiles and wires unknown-to-review through the existing ingest approval runtime', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
   const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
