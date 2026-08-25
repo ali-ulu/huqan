@@ -145,6 +145,7 @@
     "lib/observability/health.js",
     "lib/observability/service.js",
     "lib/observability/http-router.js",
+    "lib/observability/rate-limiter.js",
     "lib/observability/agent-worker.js",
     "lib/observability/authorization.js",
     "lib/observability/server-runtime.js",
