@@ -99,6 +99,31 @@ function canonicalBytes(receipt) {
   return encodeJsonStableV1(receipt);
 }
 
+function resignAndReseal(receipt, privateKey) {
+  receipt.integrity.signature.value = crypto.sign(
+    null,
+    encodeJsonStableV1({
+      domainLabel: PUBLIC_RECEIPT_SIGNATURE_DOMAIN,
+      schemaVersion: receipt.schemaVersion,
+      publicReceiptId: receipt.publicReceiptId,
+      issuedAt: receipt.issuedAt,
+      disclosure: receipt.disclosure,
+      binding: receipt.binding,
+      integrity: {
+        checksumAlgorithm: receipt.integrity.checksumAlgorithm,
+        signed: true,
+        signature: {
+          profileId: receipt.integrity.signature.profileId,
+          keyId: receipt.integrity.signature.keyId,
+        },
+      },
+    }),
+    privateKey,
+  ).toString('base64url');
+  receipt.integrity.checksum = computePublicReceiptChecksum(receipt);
+  return canonicalBytes(receipt);
+}
+
 function reseal(receipt) {
   receipt.integrity.checksum = computePublicReceiptChecksum(receipt);
   return canonicalBytes(receipt);
@@ -263,6 +288,7 @@ describe('V5-D3 import: independent binding, key lifecycle and Ed25519', () => {
     assert.deepEqual(result.verification, {
       checksum: 'valid',
       binding: 'matched_independently',
+      disclosure: 'issuer_asserted',
       keyState: 'active',
       signature: 'valid',
     });
@@ -273,7 +299,29 @@ describe('V5-D3 import: independent binding, key lifecycle and Ed25519', () => {
     const options = importOptions(keys);
     delete options.expectedBundleHash;
     options.sourceBundle = bundle;
-    assert.equal(importPublicTrustReceipt(canonicalBytes(receipt), options).ok, true);
+    const result = importPublicTrustReceipt(canonicalBytes(receipt), options);
+    assert.equal(result.ok, true);
+    assert.equal(result.verification.disclosure, 'matched_against_bundle');
+  });
+
+  it('rejects a re-signed disclosure that contradicts the supplied source bundle', () => {
+    const { keys, receipt } = makeReceipt();
+    const forged = clone(receipt);
+    forged.disclosure = {
+      receiptKind: 'command_exec_receipt',
+      decision: 'reject',
+      verdict: 'block',
+      status: 'rejected',
+      riskScore: 99,
+      trustPolicyVersion: '9.9.9-forged',
+      createdAt: '1999-01-01T00:00:00.000Z',
+    };
+    const options = importOptions(keys, { sourceBundle: bundle });
+    delete options.expectedBundleHash;
+    assertRejected(
+      importPublicTrustReceipt(resignAndReseal(forged, keys.privateKey), options),
+      ERROR_CODES.BINDING_MISMATCH,
+    );
   });
 
   it('never trusts only the hashes asserted inside the artifact', () => {
