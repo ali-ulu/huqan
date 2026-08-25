@@ -71,6 +71,7 @@ const { cosineSimilarity: runNodeSimilarity } = require('./lib/graph-node-simila
 const { getStats: runGraphStats } = require('./lib/graph-stats');
 const { countNodes: runNodeCount, countEdges: runEdgeCount } = require('./lib/graph-count-read');
 const { query: runGraphQuery } = require('./lib/graph-query-read');
+const { createMutationRollbackSnapshot, restoreMutationRollbackSnapshot } = require('./lib/graph-mutation-rollback');
 const { prune: runGraphPrune } = require('./lib/graph-prune');
 const { optimize: runGraphOptimize } = require('./lib/graph-optimize');
 const { isCausalRelation: runIsCausalRelation, getCausalRelations: runCausalRelations, getCausalEdges: runCausalEdges } = require('./lib/graph-causal-relation-read');
@@ -465,6 +466,23 @@ class Graph {
     return this._runMutationOnceJson(id, mutate, opts);
   }
 
+  /** Rollback pre-image + restore; see lib/graph-mutation-rollback.js (#1134). */
+  _mutationRollbackSnapshot() {
+    return createMutationRollbackSnapshot(
+      { nodes: this._nodes, edges: this._edges, candidateClaims: this._candidateClaims, auditEvents: this._auditEvents },
+      { cloneNodeMap, deepClone });
+  }
+
+  _restoreMutationRollbackSnapshot(snapshot) {
+    return restoreMutationRollbackSnapshot({
+      setNodes: nodes => { this._nodes = nodes; },
+      setEdges: edges => { this._edges = edges; },
+      setCandidateClaims: claims => { this._candidateClaims = claims; },
+      truncateAuditEvents: count => { this._auditEvents.length = count; },
+      rebuildIndexes: () => { this._outIndex.clear(); this._inIndex.clear(); this._rebuildIndex(); },
+    }, snapshot);
+  }
+
   _runMutationOnceSqlite(id, mutate, opts) {
     const readStored = () => {
       const row = this._stmts.getMutationJournal.get(id);
@@ -473,10 +491,7 @@ class Graph {
     const stored = readStored();
     if (stored !== null) return { replayed: true, result: stored, receipt: this.getCommittedMutationReceiptByOperation(id) };
 
-    const snapshot = {
-      nodes: cloneNodeMap(this._nodes), edges: deepClone(this._edges),
-      candidateClaims: deepClone(this._candidateClaims), auditEvents: deepClone(this._auditEvents),
-    };
+    const snapshot = this._mutationRollbackSnapshot();
     try {
       const execute = this._db.transaction(() => {
         const alreadyCompleted = readStored();
@@ -511,13 +526,7 @@ class Graph {
       return execute();
     } catch (error) {
       // SQLite rolls back, but Graph also keeps mutable in-memory indexes.
-      this._nodes = snapshot.nodes;
-      this._edges = snapshot.edges;
-      this._candidateClaims = snapshot.candidateClaims;
-      this._auditEvents = snapshot.auditEvents;
-      this._outIndex.clear();
-      this._inIndex.clear();
-      this._rebuildIndex();
+      this._restoreMutationRollbackSnapshot(snapshot);
       const completed = readStored();
       if (completed !== null) {
         return { replayed: true, result: completed, receipt: this.getCommittedMutationReceiptByOperation(id) };
@@ -551,10 +560,7 @@ class Graph {
       };
     }
 
-    const snapshot = {
-      nodes: cloneNodeMap(this._nodes), edges: deepClone(this._edges),
-      candidateClaims: deepClone(this._candidateClaims), auditEvents: deepClone(this._auditEvents),
-    };
+    const snapshot = this._mutationRollbackSnapshot();
     try {
       // Re-check immediately before mutating (mirrors the SQLite path's
       // in-transaction re-check) to keep the replay race window minimal.
@@ -626,13 +632,7 @@ class Graph {
       // that redundant second save for the JSON backend specifically.
       return { replayed: false, result, receipt, persisted: true };
     } catch (error) {
-      this._nodes = snapshot.nodes;
-      this._edges = snapshot.edges;
-      this._candidateClaims = snapshot.candidateClaims;
-      this._auditEvents = snapshot.auditEvents;
-      this._outIndex.clear();
-      this._inIndex.clear();
-      this._rebuildIndex();
+      this._restoreMutationRollbackSnapshot(snapshot);
       const completed = readStored();
       if (completed !== null) {
         return { replayed: true, result: completed.result, receipt: this._readMutationReceiptFromJsonJournal(completed.journal, id) };

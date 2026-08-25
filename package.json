@@ -222,6 +222,7 @@
     "lib/graph-optimize.js",
     "lib/graph-edge-read.js",
     "lib/graph-mutation-receipt-read.js",
+    "lib/graph-mutation-rollback.js",
     "lib/graph-mutation-receipt-schema.js",
     "lib/graph-consolidate-edges.js",
     "lib/graph-node-read.js",
