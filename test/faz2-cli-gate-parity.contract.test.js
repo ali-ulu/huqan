@@ -5,10 +5,11 @@
  * F-004 closed: every CLI command that can mutate persistence, the canonical
  * graph, or background automation now runs through a gate. _evaluateCliGate no
  * longer returns null for mutation-bearing commands — it returns either a
- * review decision (canonical/automation mutations, execute() short-circuits) or
- * an audited allow decision (local persistence/recovery ops that must still
- * run). This mirrors the REST surface, where requestGuards
- * UNSAFE_PUBLIC_API_COMMANDS blocks the same commands on the public API.
+ * review decision (approval-backed mutations), an explicit unavailable block
+ * (maintenance mutations without a CLI approval workflow), or an audited allow
+ * decision (local persistence/recovery ops that must still run). This mirrors
+ * the REST surface, where requestGuards UNSAFE_PUBLIC_API_COMMANDS blocks the
+ * same commands on the public API.
  *
  * Mechanism:
  *   cli.js mapCliCommandToMcpTool  — maps öğret/öğren/yükle/company-ingest to
@@ -16,7 +17,9 @@
  *   cli.js CLI_MUTATION_GATE       — classifies kaydet/backup/restore/evolve/
  *                                    optimize/konsolide/düşün/rüya so
  *                                    _evaluateCliGate never short-circuits to
- *                                    null for a mutation command.
+ *                                    null for a mutation command; maintenance
+ *                                    mutations are explicit unavailable blocks
+ *                                    until an approval workflow exists.
  *
  * Historical note: prior revisions of this file asserted the RED gap
  * (_evaluateCliGate returning null). Those assertions are intentionally
@@ -40,7 +43,8 @@ function makeCLI() {
 
 /**
  * Mutation-bearing CLI commands that previously bypassed the gate (returned
- * null). After FAZ2-6 each must return a non-null gate decision.
+ * null). After FAZ2-6 each must return a non-null gate decision, including an
+ * explicit block for maintenance mutations without an approval workflow.
  */
 const MUTATION_COMMANDS = [
   'kaydet',
@@ -140,13 +144,14 @@ describe('FAZ2-PR1 contract: F-004 currently gated commands stay gated', () => {
 // SECTION 4: Mutation gate decisions are correct (no silent canonical write)
 // ---------------------------------------------------------------------------
 describe('FAZ2-PR6 contract: F-004 mutation gate decisions', () => {
-  // Canonical-graph / automation mutations must be reviewed (execute() blocks).
+  // Canonical-graph / automation mutations are explicit unavailable blocks
+  // until the CLI has a durable approval/execution workflow.
   for (const cmd of ['evolve', 'optimize', 'konsolide', 'düşün']) {
-    it(`'${cmd}' is reviewed and cannot execute silently`, () => {
+    it(`'${cmd}' is unavailable and cannot execute silently`, () => {
       const cli = makeCLI();
       const result = cli._evaluateCliGate(cmd, '');
       assert.notStrictEqual(result, null, `gate must run for '${cmd}'`);
-      assert.strictEqual(result.decision, 'review', `'${cmd}' must be reviewed`);
+      assert.strictEqual(result.decision, 'block', `'${cmd}' must be explicitly blocked`);
       assert.strictEqual(result.canExecute, false, `'${cmd}' must not execute under review`);
     });
   }
