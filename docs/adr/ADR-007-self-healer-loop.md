@@ -18,14 +18,18 @@ Current implemented authority remains in source and tests:
 - `lib/self-healer/audit-runner.js`
 - `lib/self-healer/finding-classifier.js`
 - `lib/self-healer/index.js`
+- `lib/self-healer/behavioral-containment.js`
 - `test/self-healer-*.test.js`
+- `test/agent-v3-behavioral-containment.test.js`
 
-The current implemented surface is limited to finding schema validation,
-caller-provided check normalization into audit reports, and finding
-classification. Nightly repo audits, autonomous repo scanning, fix proposal
-generation, draft patch/PR production, receipt emission, and memory/audit
-integration are target capabilities unless a later source file and test prove
-otherwise.
+The current implemented surface includes finding schema validation,
+caller-provided check normalization into audit reports, finding classification,
+and a bounded AgentV3 behavioral-containment seam. Nightly repo audits,
+autonomous repo scanning, fix proposal generation, draft patch/PR production,
+receipt emission beyond bounded receipt summaries, and memory/audit integration
+remain target capabilities unless a later source file and test prove otherwise.
+The AgentV3 seam observes only the current run's declared baseline and bounded
+step metadata; it does not create an autonomous Self-Healer runner.
 
 ## Context
 
@@ -76,10 +80,16 @@ Self-Healer cannot:
 
 ## Core Loop
 
-Current runtime implements only the audit-only helper portion of this loop: it
-accepts caller-provided checks, normalizes them into validated findings, and
-returns a report. It does not scan the repository autonomously, run tests,
-inspect Git history, create branches, write memory, emit receipts, or open PRs.
+Current runtime implements the audit-only helper portion of this loop and a
+bounded runtime observation seam. The audit helper accepts caller-provided
+checks, normalizes them into validated findings, and returns a report. The
+canonical AgentV3 path materializes an immutable-shaped, workspace/agent-scoped
+behavioral baseline and evaluates each step before execution. Tool, goal,
+workspace, identity, connector, target, egress, delegation, and repeated
+anomaly drift can fail closed into a bounded quarantine or review/pause result.
+The seam records bounded receipt summaries and findings but never revokes
+credentials, repairs code, applies a patch, writes canonical memory, scans the
+repository autonomously, creates branches, or opens PRs.
 
 1. Observe
 
@@ -189,6 +199,12 @@ Self-Healer runs in constrained modes:
   - produce validated findings and an audit report
   - does not read or scan repository contents autonomously
   - no write
+
+- `behavioral_observation` (IMPLEMENTED, bounded)
+  - evaluate each canonical AgentV3 step against a run-scoped baseline
+  - suppress the current executor on drift and expose a bounded finding/receipt summary
+  - require operator review and pause on repeated anomalies
+  - no autonomous repair, credential revocation, reintegration, or Self-Healer loop
 
 - `proposal_only` (PLANNED)
   - produce fix/test plan
