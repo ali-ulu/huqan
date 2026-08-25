@@ -91,3 +91,40 @@ test('V5 agent identity conformance summary reports all fixtures passing conform
     failingFiles: []
   });
 });
+
+// #1537: the conformance check asked "do the errors contain the declared reason
+// code?" -- and validateExpectedInvalidState echoes that declared code into
+// errors. So a misspelled discriminator matched itself while every shape rule
+// keyed on that code had been skipped: the check proved the fixture *names* a
+// violation, not that it *encodes* one.
+test('a fixture whose declared reason code is unusable does not conform', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-agent-identity-conformance-'));
+  try {
+    for (const file of fs.readdirSync(fixturesDir)) {
+      fs.copyFileSync(path.join(fixturesDir, file), path.join(tempDir, file));
+    }
+
+    const clean = runAgentIdentityConformance({ schemaPath, fixturesDir: tempDir });
+    assert.equal(clean.ok, true, 'the untouched copy must still conform');
+
+    const target = path.join(tempDir, 'invalid.workspace_mismatch.json');
+    const fixture = JSON.parse(fs.readFileSync(target, 'utf8'));
+    // Break the encoded violation, then misspell the discriminator by one
+    // character -- the combination that used to pass.
+    fixture.requested_workspace_id = fixture.workspace_id;
+    fixture.expected_reason_code += '_';
+    fs.writeFileSync(target, JSON.stringify(fixture));
+
+    const result = runAgentIdentityConformance({ schemaPath, fixturesDir: tempDir });
+    assert.equal(result.ok, false, 'a typo in the discriminator must fail conformance');
+    assert.equal(result.failed, 1);
+
+    const failing = result.results.find((entry) => entry.file === 'invalid.workspace_mismatch.json');
+    assert.equal(failing.conformance_valid, false);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
