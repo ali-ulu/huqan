@@ -18,7 +18,7 @@ const { runLearnDocument } = require('./lib/kernel-learn-document');
 const { runSelfLearn } = require('./lib/kernel-self-learn');
 const { runLearnFromLLM } = require('./lib/kernel-learn-from-llm');
 const { runDream } = require('./lib/kernel-dream');
-const { runSelfEvolve } = require('./lib/kernel-self-evolve');
+const { runSelfEvolve, buildSelfEvolveCollaborators } = require('./lib/kernel-self-evolve');
 const { runAlternatives } = require('./lib/kernel-alternatives');
 const { runContextSimilarity } = require('./lib/kernel-context-similarity');
 const { runAutoThinkTick } = require('./lib/kernel-auto-think');
@@ -1040,7 +1040,7 @@ class Kernel {
    * 4. Kaydet, rapor döndür
    */
   selfEvolve(opts = {}) {
-    return runSelfEvolve(opts, { createDreams: () => new Dream(this).dream(), graph: this.graph, commitBackgroundEdge: (from, to, relation, source, commitOpts) => this._commitBackgroundEdge(from, to, relation, source, commitOpts), consolidate: dryRun => this.consolidate(dryRun), optimize: () => this.graph.optimize(), save: () => this.graph.save(), getDreamCount: () => this._dreamCount, setDreamCount: value => { this._dreamCount = value; } });
+    return runSelfEvolve(opts, buildSelfEvolveCollaborators(this, Dream, workspaceIdFrom(opts)));
   }
 
   /**

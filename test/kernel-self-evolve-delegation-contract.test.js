@@ -22,7 +22,7 @@ function methodBody(source, methodName) {
 test('KERNEL: selfEvolve is a one-line delegate', () => {
   assert.equal(
     methodBody(kernelSource, 'selfEvolve'),
-    'return runSelfEvolve(opts, { createDreams: () => new Dream(this).dream(), graph: this.graph, commitBackgroundEdge: (from, to, relation, source, commitOpts) => this._commitBackgroundEdge(from, to, relation, source, commitOpts), consolidate: dryRun => this.consolidate(dryRun), optimize: () => this.graph.optimize(), save: () => this.graph.save(), getDreamCount: () => this._dreamCount, setDreamCount: value => { this._dreamCount = value; } });',
+    'return runSelfEvolve(opts, buildSelfEvolveCollaborators(this, Dream, workspaceIdFrom(opts)));',
   );
 });
 
@@ -56,6 +56,7 @@ test('KERNEL: selfEvolve preserves relation mapping, deferred admission, and mai
   );
 
   assert.deepEqual(result, {
+    workspaceId: 'default',
     dreams: 1,
     added: 0,
     addedDetails: [],
@@ -66,6 +67,7 @@ test('KERNEL: selfEvolve preserves relation mapping, deferred admission, and mai
   });
   assert.equal(calls[0][0], 'getEdge');
   assert.equal(calls[0][3], 'benzer');
+  assert.equal(calls[0][4], 'default', 'the duplicate check is workspace-scoped (#1189)');
   assert.equal(calls[1][0], 'commit');
   assert.equal(calls[1][2], 'hedef');
   assert.equal(calls[1][3], 'benzer');
@@ -93,6 +95,7 @@ test('KERNEL: selfEvolve saves optimized pruning even without additions', () => 
   );
 
   assert.deepEqual(result, {
+    workspaceId: 'default',
     dreams: 0,
     added: 0,
     addedDetails: [],
