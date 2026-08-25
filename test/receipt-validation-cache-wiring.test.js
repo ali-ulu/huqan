@@ -255,11 +255,9 @@ test('receipt stamp utility follows materialized audit receipts and invalidates 
     workspaceId: 'workspace-a',
     timestamp: committed.receipt.canonicalPayload.createdAt,
     details: {
-      receipt: {
-        ...committed.receipt.canonicalPayload,
-        previousReceiptHash: committed.receipt.previousReceiptHash,
-        receiptHash: committed.receipt.receiptHash,
-      },
+      // Materialization stores the canonical payload; chain fields remain in
+      // the durable mutation journal and must not be manufactured by the test.
+      receipt: committed.receipt.canonicalPayload,
     },
   }, { workspaceId: 'workspace-a' });
 
@@ -306,6 +304,66 @@ test('receipt stamp utility follows materialized audit receipts and invalidates 
   }
 });
 
+
+test('receipt stamp uses the durable SQLite receipt when materialization omits chain fields', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const Graph = require('../graph');
+  const { buildCanonicalReceiptPayload } = require('../lib/receipt/canonical-receipt');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-receipt-stamp-sqlite-'));
+  const graph = new Graph({
+    memoryPath: path.join(root, 'memory.json'),
+    dbPath: path.join(root, 'memory.db'),
+    useSQLite: true,
+  });
+  const receipt = buildCanonicalReceiptPayload({
+    receiptId: 'sqlite-stamp-receipt-1',
+    receiptKind: 'memory_admission_receipt',
+    decision: 'allow',
+    status: 'admitted',
+    admissionId: 'sqlite-stamp-admission-1',
+    workspaceId: 'workspace-a',
+    provenanceId: 'sqlite-stamp-provenance-1',
+    trustPolicyVersion: 'test',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  }, { verdict: 'allow' });
+
+  try {
+    const committed = graph.runMutationOnce('sqlite-stamp-operation-1', () => ({ ok: true }), {
+      buildCanonicalReceipt: () => receipt,
+    });
+    graph.appendAuditEvent({
+      eventType: 'TRUST_RECEIPT_MATERIALIZED',
+      targetType: 'trust_receipt',
+      targetId: receipt.receiptId,
+      workspaceId: 'workspace-a',
+      timestamp: receipt.createdAt,
+      details: { receipt },
+    }, { workspaceId: 'workspace-a' });
+
+    assert.equal(receipt.receiptHash, undefined);
+    assert.deepEqual(getReceiptStamp(graph, 'workspace-a', 'v4'), {
+      generation: 1,
+      receiptCount: 1,
+      headHash: committed.receipt.receiptHash,
+    });
+
+    const cache = createReceiptValidationCache();
+    const options = {
+      receiptId: receipt.receiptId,
+      workspaceId: 'workspace-a',
+      source: graph,
+      cache,
+    };
+    assert.equal(inspectTrustReceipt(options).status, 'found');
+    assert.equal(inspectTrustReceipt(options).status, 'found');
+    assert.equal(cache.stats().hits, 1);
+  } finally {
+    graph.close?.();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test('workbench router keeps one cache instance across receipt requests', () => {
   const { createWorkbenchReadHttpRouter } = require('../lib/workbench/workbench-read-http-router');

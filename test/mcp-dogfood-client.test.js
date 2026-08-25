@@ -116,7 +116,7 @@ async function callTool(client, name, args = {}) {
   }));
 }
 
-test('MCP dogfood client harness exercises allow, review, dry-run and block decisions through stdio', async () => {
+test('MCP dogfood client harness exercises allow, durable review and block decisions through stdio', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-mcp-dogfood-'));
   const client = createDogfoodClient({
     AXIOM_DB_PATH: path.join(tempDir, 'memory.db'),
@@ -177,14 +177,16 @@ test('MCP dogfood client harness exercises allow, review, dry-run and block deci
       name: 'axiom.agent',
       arguments: { goal: 'run an autonomous loop' },
     }));
-    assert.equal(agentResp.isError, false);
-    assert.equal(agentResp.structuredContent.ok, true);
-    assert.equal(agentResp.structuredContent.dryRun, true);
+    assert.equal(agentResp.isError, true);
+    assert.equal(agentResp.structuredContent.ok, false);
     const agentPayload = agentResp.structuredContent;
-    assert.equal(agentPayload.gate.decision, 'dry_run_only');
+    assert.equal(agentPayload.gate.decision, 'review');
+    assert.equal(agentPayload.gate.reason, 'agent_loop_requires_review');
     assert.equal(agentPayload.gate.allowed, false);
     assert.equal(agentPayload.gate.canExecute, false);
     assert.equal(agentPayload.gate.canDryRun, true);
+    assert.equal(agentPayload.approval.persisted, true);
+    assert.ok(agentPayload.approval.id);
 
     const unknownResp = parseToolCallResponse(await client.request('tools/call', {
       name: 'axiom.unknown_tool',
@@ -202,8 +204,8 @@ test('MCP dogfood client harness exercises allow, review, dry-run and block deci
       name: 'axiom.approvals',
       arguments: {},
     }));
-    assert.equal(approvalsAfter.structuredContent.pendingCount, pendingBefore + 1);
-    assert.equal(approvalsAfter.structuredContent.approvals.length, approvalsBefore.structuredContent.approvals.length + 1);
+    assert.equal(approvalsAfter.structuredContent.pendingCount, pendingBefore + 2);
+    assert.equal(approvalsAfter.structuredContent.approvals.length, approvalsBefore.structuredContent.approvals.length + 2);
   } finally {
     await client.close();
     fs.rmSync(tempDir, { recursive: true, force: true });

@@ -958,7 +958,7 @@ const server = http.createServer(async (req, res) => {
   // --- Ana sayfa ---
   if (reqUrl.pathname === '/') {
     try {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', ...buildCorsHeaders(req) });
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', ...buildCorsHeaders(req), 'Cache-Control': 'no-cache' });
       res.end(getHtmlPage());
     } catch (err) {
       console.error('[index]', err);
