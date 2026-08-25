@@ -48,11 +48,10 @@ function validateExpectedInvalidState(fixture, errors) {
   ));
 }
 
+// The reason-code gate that used to open each of these lives in
+// REASON_CODE_SHAPES now, so the discriminator is tested once instead of ten
+// times and an unmatched code is an error rather than nine silent returns.
 function validateRevokedShape(fixture, errors) {
-  if (fixture.expected_reason_code !== 'identity_revoked') {
-    return;
-  }
-
   if (!hasNonEmptyString(fixture.revoked_at)) {
     errors.push(makeError('revoked_at_required', '/revoked_at', 'Revoked fixture must include revoked_at.'));
   }
@@ -67,20 +66,12 @@ function validateRevokedShape(fixture, errors) {
 }
 
 function validateExpiredShape(fixture, errors) {
-  if (fixture.expected_reason_code !== 'identity_expired') {
-    return;
-  }
-
   if (!hasNonEmptyString(fixture.expires_at)) {
     errors.push(makeError('expires_at_required', '/expires_at', 'Expired fixture must include expires_at.'));
   }
 }
 
 function validateWorkspaceMismatchShape(fixture, errors) {
-  if (fixture.expected_reason_code !== 'workspace_mismatch') {
-    return;
-  }
-
   if (!hasNonEmptyString(fixture.requested_workspace_id)) {
     errors.push(makeError(
       'requested_workspace_id_required',
@@ -103,10 +94,6 @@ function validateWorkspaceMismatchShape(fixture, errors) {
 // Fail-closed — active only when the fixture declares the matching reason code;
 // existing fixtures keep their assertions untouched (no shape change below).
 function validateIdentityClaimShape(fixture, errors) {
-  if (fixture.expected_reason_code !== 'identity.invalid_claim') {
-    return;
-  }
-
   if (fixture.agent_id !== null) {
     errors.push(makeError(
       'identity_claim_present',
@@ -125,10 +112,6 @@ function validateIdentityClaimShape(fixture, errors) {
 }
 
 function validateDelegationScopeExceededShape(fixture, errors) {
-  if (fixture.expected_reason_code !== 'delegation.scope_exceeded') {
-    return;
-  }
-
   if (!Array.isArray(fixture.delegation_scope) || !fixture.delegation_scope.includes('invoke')) {
     errors.push(makeError(
       'scope_exceeded_invoke_required',
@@ -148,10 +131,6 @@ function validateDelegationScopeExceededShape(fixture, errors) {
 }
 
 function validateDelegationChainInvalidShape(fixture, errors) {
-  if (fixture.expected_reason_code !== 'delegation.chain_invalid') {
-    return;
-  }
-
   if (!hasNonEmptyString(fixture.parent_agent_id)) {
     errors.push(makeError(
       'chain_invalid_parent_required',
@@ -180,10 +159,6 @@ function validateDelegationChainInvalidShape(fixture, errors) {
 }
 
 function validateConnectorContextShape(fixture, errors) {
-  if (fixture.expected_reason_code !== 'connector.context_invalid') {
-    return;
-  }
-
   if (!Array.isArray(fixture.allowed_connectors) || fixture.allowed_connectors.length > 0) {
     errors.push(makeError(
       'connector_context_no_connectors',
@@ -194,10 +169,6 @@ function validateConnectorContextShape(fixture, errors) {
 }
 
 function validateLifecycleUnresolvableShape(fixture, errors) {
-  if (fixture.expected_reason_code !== 'lifecycle.unresolved') {
-    return;
-  }
-
   if (fixture.verification_status !== 'unverified') {
     errors.push(makeError(
       'lifecycle_unresolved_status_required',
@@ -217,10 +188,6 @@ function validateLifecycleUnresolvableShape(fixture, errors) {
 }
 
 function validateBrokenDelegationShape(fixture, errors) {
-  if (fixture.expected_reason_code !== 'broken_delegation_chain') {
-    return;
-  }
-
   if (!hasNonEmptyString(fixture.parent_agent_id)) {
     errors.push(makeError(
       'parent_agent_id_required',
@@ -280,6 +247,13 @@ function validateAgentIdentityFixture(fixture, schema) {
 
   validateEnumField(fixture, schema, 'trust_tier', errors);
   validateEnumField(fixture, schema, 'verification_status', errors);
+  // #1537: every shape rule below is gated on expected_reason_code, and this
+  // field had no enum at all -- so a one-character typo in the discriminator
+  // turned all ten validators off at once and the fixture came back looking
+  // like a correctly-written one. expected_status gates
+  // validateExpectedInvalidState the same way.
+  validateEnumField(fixture, schema, 'expected_reason_code', errors);
+  validateEnumField(fixture, schema, 'expected_status', errors);
 
   if (!Object.hasOwn(fixture, 'expected_status')) {
     errors.push(makeError('missing_expected_status', '/expected_status', 'expected_status is required.'));
@@ -294,20 +268,59 @@ function validateAgentIdentityFixture(fixture, schema) {
   }
 
   validateExpectedInvalidState(fixture, errors);
-  validateRevokedShape(fixture, errors);
-  validateExpiredShape(fixture, errors);
-  validateWorkspaceMismatchShape(fixture, errors);
-  validateIdentityClaimShape(fixture, errors);
-  validateDelegationScopeExceededShape(fixture, errors);
-  validateDelegationChainInvalidShape(fixture, errors);
-  validateConnectorContextShape(fixture, errors);
-  validateLifecycleUnresolvableShape(fixture, errors);
-  validateBrokenDelegationShape(fixture, errors);
+  validateReasonCodeShape(fixture, errors);
 
   return {
     valid: errors.length === 0,
     errors
   };
+}
+
+/**
+ * Which shape validator owns each reason code.
+ *
+ * The validators used to be called one after another, each re-testing
+ * expected_reason_code and returning silently when it did not match. That made
+ * "this code has no rules" and "this code is misspelled" the same event, and
+ * the silent one was the fail-open one (#1537). A code that reaches here and is
+ * not in this table is named as such instead.
+ *
+ * `null` means the code is known and carries no extra shape rules of its own --
+ * missing_agent_id is covered by the schema's required-field check.
+ */
+const REASON_CODE_SHAPES = Object.freeze({
+  missing_agent_id: null,
+  identity_revoked: validateRevokedShape,
+  identity_expired: validateExpiredShape,
+  workspace_mismatch: validateWorkspaceMismatchShape,
+  'identity.invalid_claim': validateIdentityClaimShape,
+  'delegation.scope_exceeded': validateDelegationScopeExceededShape,
+  'delegation.chain_invalid': validateDelegationChainInvalidShape,
+  'connector.context_invalid': validateConnectorContextShape,
+  'lifecycle.unresolved': validateLifecycleUnresolvableShape,
+  broken_delegation_chain: validateBrokenDelegationShape,
+});
+
+function validateReasonCodeShape(fixture, errors) {
+  const reasonCode = fixture.expected_reason_code;
+  // A valid-class fixture declares no reason code; that is not an unknown one.
+  if (reasonCode === null || reasonCode === undefined) {
+    return;
+  }
+
+  if (!Object.hasOwn(REASON_CODE_SHAPES, reasonCode)) {
+    errors.push(makeError(
+      'unknown_reason_code',
+      '/expected_reason_code',
+      `expected_reason_code ${String(reasonCode)} has no shape rules; a misspelled code silently disables every shape check.`
+    ));
+    return;
+  }
+
+  const validator = REASON_CODE_SHAPES[reasonCode];
+  if (validator) {
+    validator(fixture, errors);
+  }
 }
 
 function validateAgentIdentityFixtureFile(filePath, schemaPath) {

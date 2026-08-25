@@ -147,10 +147,24 @@
       ]
     },
     "expected_status": {
-      "type": "string"
+      "type": "string",
+      "enum": ["valid", "invalid", "expired", "revoked", "rejected"]
     },
     "expected_reason_code": {
-      "type": ["string", "null"]
+      "type": ["string", "null"],
+      "enum": [
+        null,
+        "missing_agent_id",
+        "identity_revoked",
+        "identity_expired",
+        "workspace_mismatch",
+        "identity.invalid_claim",
+        "delegation.scope_exceeded",
+        "delegation.chain_invalid",
+        "connector.context_invalid",
+        "lifecycle.unresolved",
+        "broken_delegation_chain"
+      ]
     }
   }
 }
