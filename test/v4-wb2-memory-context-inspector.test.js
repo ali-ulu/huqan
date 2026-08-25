@@ -86,7 +86,7 @@ describe('V4-WB2: read-only Memory Admission / Context Integrity Inspector helpe
 
     assert.equal(inspected.ok, true);
     assert.equal(inspected.status, 'ok');
-    assert.equal(inspected.memoryAdmission.status, 'blocked');
+    assert.equal(inspected.memoryAdmission.status, 'review_required');
     assert.equal(inspected.memoryAdmission.decision, 'review');
     assert.equal(inspected.memoryAdmission.reason, 'mutating_requires_review');
     assert.equal(inspected.provenance.workspaceId, 'wb2-valid-memory');

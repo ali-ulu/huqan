@@ -82,12 +82,26 @@ describe('self-healer audit runner dry run', () => {
     fs.writeFileSync = originalWriteFileSync;
   });
 
-  it('runs in audit_only mode', () => {
+  it('blocks reports containing high-severity findings', () => {
     const report = runSelfHealerAudit(baseInput());
     assert.strictEqual(report.mode, 'audit_only');
-    assert.strictEqual(report.status, 'ready');
+    assert.strictEqual(report.status, 'blocked');
     assert.strictEqual(report.findingCount, 1);
     assert.ok(report.reportId.startsWith('audit_'));
+  });
+
+  it('keeps reports with no high-severity findings ready', () => {
+    const report = runSelfHealerAudit(baseInput({
+      checks: [baseCheck({ severity: 'medium' })],
+    }));
+    assert.strictEqual(report.status, 'ready');
+  });
+
+  it('blocks reports containing critical findings', () => {
+    const report = runSelfHealerAudit(baseInput({
+      checks: [baseCheck({ severity: 'critical' })],
+    }));
+    assert.strictEqual(report.status, 'blocked');
   });
 
   it('rejects draft_patch', () => {
@@ -183,6 +197,72 @@ describe('self-healer audit runner dry run', () => {
     });
     assert.strictEqual(validation.ok, false);
     assert.ok(validation.errors.some((error) => error.field === 'repoRoot'));
+  });
+
+  it('requires explicit output permission', () => {
+    const validation = validateAuditOptions({
+      workspaceId: 'default',
+      repoRoot: safeRepoRoot,
+      mode: 'audit_only',
+      outputPath: `${safeRepoRoot}/audit.json`,
+    });
+    assert.strictEqual(validation.ok, false);
+    assert.deepStrictEqual(validation.errors[0], {
+      field: 'outputPath',
+      code: 'VALIDATION_ERROR',
+      message: 'outputPath requires allowOutput',
+    });
+  });
+
+  it('rejects relative outputPath even when output is allowed', () => {
+    const validation = validateAuditOptions({
+      workspaceId: 'default',
+      repoRoot: safeRepoRoot,
+      mode: 'audit_only',
+      outputPath: 'reports/audit.json',
+      allowOutput: true,
+    });
+    assert.strictEqual(validation.ok, false);
+    assert.ok(validation.errors.some((error) => error.field === 'outputPath'));
+  });
+
+  it('rejects outputPath traversal even when output is allowed', () => {
+    const validation = validateAuditOptions({
+      workspaceId: 'default',
+      repoRoot: safeRepoRoot,
+      mode: 'audit_only',
+      outputPath: `${safeRepoRoot}/../escape/audit.json`,
+      allowOutput: true,
+    });
+    assert.strictEqual(validation.ok, false);
+    assert.ok(validation.errors.some((error) => error.field === 'outputPath'));
+  });
+
+  it('requires allowed outputPath to remain inside repoRoot', () => {
+    const validation = validateAuditOptions({
+      workspaceId: 'default',
+      repoRoot: safeRepoRoot,
+      mode: 'audit_only',
+      outputPath: process.platform === 'win32' ? 'C:/outside/audit.json' : '/outside/audit.json',
+      allowOutput: true,
+    });
+    assert.strictEqual(validation.ok, false);
+    assert.ok(validation.errors.some((error) => error.field === 'outputPath'));
+  });
+
+  it('accepts a normalized outputPath inside repoRoot when allowed', () => {
+    const outputPath = process.platform === 'win32'
+      ? 'C:/safe/repo/reports/audit.json'
+      : '/safe/repo/reports/audit.json';
+    const validation = validateAuditOptions({
+      workspaceId: 'default',
+      repoRoot: safeRepoRoot,
+      mode: 'audit_only',
+      outputPath,
+      allowOutput: true,
+    });
+    assert.strictEqual(validation.ok, true);
+    assert.strictEqual(validation.value.outputPath, outputPath);
   });
 
   it('rejects invalid check clearly', () => {

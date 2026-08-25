@@ -105,16 +105,18 @@ test('legacy axiom.learn exposes review verdict metadata without synthetic recei
   assert.equal(result.toolVerdict.receiptId, null);
 });
 
-test('legacy axiom.agent exposes dry-run verdict metadata', () => {
+test('legacy axiom.agent exposes restored review verdict metadata', () => {
   const result = callTool(mockKernel(), {
     name: 'axiom.agent',
     arguments: { goal: 'inspect only' },
-  });
+  }, { approvalStore: null });
 
-  assert.equal(result.ok, true);
-  assert.equal(result.dryRun, true);
-  assert.equal(result.gate.decision, 'dry_run_only');
-  assertToolVerdict(result, { verdict: 'dry_run_only', tool: 'huqan.agent', ok: true });
+  assert.equal(result.ok, false);
+  assert.equal(result.gate.decision, 'review');
+  assert.equal(result.gate.reason, 'agent_loop_requires_review');
+  assert.equal(result.approval.persisted, false);
+  assert.equal(result.error.code, 'REVIEW_NOT_PERSISTED');
+  assertToolVerdict(result, { verdict: 'review', tool: 'huqan.agent', ok: false });
 });
 
 test('unknown tool fails closed with block verdict metadata', () => {
