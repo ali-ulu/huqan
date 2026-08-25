@@ -23,6 +23,7 @@ process.env.AXIOM_API_KEY = API_KEY;
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-330-'));
 process.env.AXIOM_MEMORY_PATH = path.join(tmpDir, 'memory.json');
 process.env.AXIOM_DB_PATH = path.join(tmpDir, 'memory.db');
+process.env.AXIOM_OBSERVABILITY_AUTHZ_POLICY = JSON.stringify({ memberships: [{ subject: 'local-api-key', workspaceId: 'default', role: 'admin' }] });
 
 const {
   resolveRouteAuthPolicy,
@@ -271,6 +272,21 @@ test('runtime: undeclared route is denied without a key, declared public routes 
   assert.equal(capabilities.status, 200);
   assert.equal(capabilities.headers['cache-control'], 'no-store');
   assert.equal(capabilities.headers['x-content-type-options'], 'nosniff');
+  const observabilityOpenApi = await request(port, '/api/observability/openapi.json');
+  assert.equal(observabilityOpenApi.status, 200);
+  assert.equal(observabilityOpenApi.headers['cache-control'], 'no-store');
+  assert.equal(observabilityOpenApi.headers['x-content-type-options'], 'nosniff');
+  assert.equal(JSON.parse(observabilityOpenApi.body).info.version, '1.0.0');
+
+  const observabilityDenied = await request(port, '/api/observability/v1/events?workspaceId=default');
+  assert.equal(observabilityDenied.status, 401);
+  assert.equal(JSON.parse(observabilityDenied.body).error.code, 'UNAUTHORIZED');
+  const observabilityEvents = await request(port, '/api/observability/v1/events?workspaceId=default', {
+    Authorization: `Bearer ${API_KEY}`,
+  });
+  assert.equal(observabilityEvents.status, 200);
+  assert.equal(JSON.parse(observabilityEvents.body).ok, true);
+
   const capabilityBody = JSON.parse(capabilities.body);
   assert.match(capabilityBody.contractVersion, /^\d+\.\d+\.\d+$/);
   assert.ok(capabilityBody.workflows.some(item => item.workflowId === 'verify' && item.availability.api === true));
