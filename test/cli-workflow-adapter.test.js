@@ -27,6 +27,20 @@ test('CLI help is generated from enabled command capabilities', () => {
   }
 });
 
+test('CLI help does not advertise maintenance mutations without an approval workflow', () => {
+  const help = cliHelpText();
+  const unavailable = WORKFLOW_CAPABILITIES
+    .filter(item => ['auto-think', 'optimize', 'consolidate', 'evolve'].includes(item.workflowId));
+  assert.equal(unavailable.length, 4);
+  for (const item of unavailable) {
+    assert.equal(item.availability.cli, false, `${item.workflowId} must not claim CLI availability`);
+  }
+  assert.match(help, /Maintenance mutations .* are not exposed by the CLI/);
+  for (const command of ['think', 'optimize', 'consolidate', 'evolve']) {
+    assert.doesNotMatch(help, new RegExp(`^  "${command}"`, 'm'));
+  }
+});
+
 test('JSON mode emits a locale-independent completed envelope', async () => {
   const stdout = [];
   const result = await runCliArgv(['ask:', 'cat', 'nedir', '--json'], {

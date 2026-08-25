@@ -1017,26 +1017,23 @@ describe('CLI - Lifecycle and maintenance baseline contracts', { concurrency: fa
     });
   });
 
-  it('optimize preserves formatting and calls only the Kernel seam once', async () => {
+  it('optimize remains unavailable even when the gate result is absent', async () => {
     await withIsolatedInteractiveCLI(async cli => {
       const originalGate = cli._evaluateCliGate;
       const originalOptimize = cli.kernel.optimize;
       const originalGraphOptimize = cli.kernel.graph.optimize;
-      const calls = [];
+      let calls = 0;
       cli._evaluateCliGate = () => null;
-      cli.kernel.optimize = (...args) => {
-        calls.push(args);
+      cli.kernel.optimize = () => {
+        calls += 1;
         return { pruned: 3, removedNodes: 2 };
       };
       cli.kernel.graph.optimize = () => {
         throw new Error('CLI accessed Graph.optimize directly');
       };
       try {
-        assert.strictEqual(
-          cli.execute('optimize', ''),
-          'Optimize: pruned 3 edges, removed 2 nodes.',
-        );
-        assert.deepStrictEqual(calls, [[]]);
+        assert.match(cli.execute('optimize', ''), /engellendi/);
+        assert.equal(calls, 0, 'unavailable optimize must not reach the Kernel mutation seam');
       } finally {
         cli._evaluateCliGate = originalGate;
         cli.kernel.optimize = originalOptimize;
