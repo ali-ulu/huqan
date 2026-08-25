@@ -345,6 +345,7 @@
     "lib/memory-store-persistence-report.js",
     "lib/memory-store-sqlite-warmup.js",
     "lib/memory-store.js",
+    "lib/module-reachability.js",
     "lib/mutation-admission.js",
     "lib/mutation-journal.js",
     "lib/mutation-journal-lock.js",
