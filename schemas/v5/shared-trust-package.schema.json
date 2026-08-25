@@ -53,6 +53,14 @@
       "properties": {
         "type": {
           "type": "string",
+          "enum": [
+            "agent_action",
+            "change",
+            "tool_call",
+            "route_receipt",
+            "route_receipt_chain",
+            "reasoning_metadata"
+          ],
           "minLength": 1
         },
         "id": {

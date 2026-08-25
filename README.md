@@ -117,6 +117,41 @@ npm ci
 
 `gh repo clone ali-ulu/huqan` works the same way.
 
+### Optional Rust graph accelerator
+
+The repository includes an optional `huqan-core` Rust JSON-IPC accelerator. It is not required for the normal CLI, server, MCP, or canonical `kernel.learn()` path; when the binary is unavailable, HUQAN keeps its existing JavaScript behavior.
+
+On Linux, macOS, or another native Cargo target, build the release binary from the repository root:
+
+```bash
+cd huqan-core
+cargo build --release
+cd ..
+```
+
+On Windows, the existing MinGW cross-build remains available:
+
+```powershell
+cd huqan-core
+.\build.ps1 -Toolchain gnu
+```
+
+A Windows host with the MSVC Rust target can use the new build option instead:
+
+```powershell
+.\build.ps1 -Toolchain msvc
+```
+
+The runtime discovers `huqan-core/target/release/huqan-core` (or `.exe` on Windows). To select a binary elsewhere, set `HUQAN_RUST_BIN` before starting Node; the legacy compatible spelling is accepted when the canonical variable is absent. If both compatible names are set to different values, startup fails closed rather than choosing one silently.
+
+The Rust learn accelerator is batched to amortize JSON-IPC round trips and is used by the isolated reasoning sandbox. The canonical `kernel.learn()` and `learnDocument()` methods remain synchronous and admission/durability-governed, so enabling Rust does not bypass provenance, policy, audit, or Trust Receipt semantics. Compare the optional path against the canonical JavaScript path with:
+
+```bash
+node benchmarks/rust-vs-js-graph.js 2000
+```
+
+When no binary is present, the benchmark reports that fact and keeps the JavaScript result as the reference; it does not claim Rust throughput without a built binary.
+
 ### Fix an existing clone that still points to an old repository name
 
 ```bash

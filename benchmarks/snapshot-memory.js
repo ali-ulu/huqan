@@ -27,9 +27,20 @@ function buildSnapshot(opts) {
     generatedAt: new Date().toISOString(),
     commit: getCommit(),
     iterations: result.iterations,
+    warmupIterations: result.warmupIterations,
     seed: result.seed,
     fixtures: result.fixtures,
+    sqliteFixtures: result.sqliteFixtures,
   };
+}
+
+function printFixtureGroup(lines, groupName, fixtures) {
+  for (const [, data] of Object.entries(fixtures || {})) {
+    lines.push(
+      `[${groupName}:${data.name}] size=${data.size} recordCount=${data.recordCount} `
+      + `ingest=${data.ingestMs}ms query=${data.queryMs}ms roundtrip=${data.roundtripMs}ms`,
+    );
+  }
 }
 
 function printHuman(snapshot) {
@@ -37,13 +48,9 @@ function printHuman(snapshot) {
   lines.push('AXIOM memory snapshot');
   lines.push(`schema=${snapshot.schema} version=${snapshot.version}`);
   lines.push(`commit=${snapshot.commit} generatedAt=${snapshot.generatedAt}`);
-  lines.push(`iterations=${snapshot.iterations} seed=0x${snapshot.seed.toString(16)}`);
-  for (const [, data] of Object.entries(snapshot.fixtures)) {
-    lines.push(
-      `[${data.name}] size=${data.size} recordCount=${data.recordCount} ` +
-      `ingest=${data.ingestMs}ms query=${data.queryMs}ms roundtrip=${data.roundtripMs}ms`
-    );
-  }
+  lines.push(`iterations=${snapshot.iterations} warmupIterations=${snapshot.warmupIterations} seed=0x${snapshot.seed.toString(16)}`);
+  printFixtureGroup(lines, 'memory', snapshot.fixtures);
+  printFixtureGroup(lines, 'sqlite', snapshot.sqliteFixtures);
   process.stdout.write(`${lines.join('\n')}\n`);
 }
 

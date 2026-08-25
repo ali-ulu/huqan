@@ -22,7 +22,7 @@ function methodBody(source, methodName) {
 test('KERNEL: selfEvolve is a one-line delegate', () => {
   assert.equal(
     methodBody(kernelSource, 'selfEvolve'),
-    'return runSelfEvolve(opts, { createDreams: () => new Dream(this).dream(), graph: this.graph, commitBackgroundEdge: (from, to, relation, source, commitOpts) => this._commitBackgroundEdge(from, to, relation, source, commitOpts), consolidate: dryRun => this.consolidate(dryRun), optimize: () => this.graph.optimize(), save: () => this.graph.save(), getDreamCount: () => this._dreamCount, setDreamCount: value => { this._dreamCount = value; } });',
+    'return runSelfEvolve(opts, buildSelfEvolveCollaborators(this, Dream, workspaceIdFrom(opts)));',
   );
 });
 
@@ -56,6 +56,7 @@ test('KERNEL: selfEvolve preserves relation mapping, deferred admission, and mai
   );
 
   assert.deepEqual(result, {
+    workspaceId: 'default',
     dreams: 1,
     added: 0,
     addedDetails: [],
@@ -66,6 +67,7 @@ test('KERNEL: selfEvolve preserves relation mapping, deferred admission, and mai
   });
   assert.equal(calls[0][0], 'getEdge');
   assert.equal(calls[0][3], 'benzer');
+  assert.equal(calls[0][4], 'default', 'the duplicate check is workspace-scoped (#1189)');
   assert.equal(calls[1][0], 'commit');
   assert.equal(calls[1][2], 'hedef');
   assert.equal(calls[1][3], 'benzer');
@@ -73,7 +75,36 @@ test('KERNEL: selfEvolve preserves relation mapping, deferred admission, and mai
     edgeOptions: { weight: 0.4, source: 'kendilik' },
     provenanceExtra: { hypothesisType: 'vektör-benzerlik', hypothesisConfidence: 0.9, weight: 0.4 },
   });
-  assert.deepEqual(calls.slice(2), [['consolidate', false], ['optimize'], ['count', 1]]);
+  assert.deepEqual(calls.slice(2), [['consolidate', false], ['optimize'], ['save'], ['count', 1]]);
+});
+
+test('KERNEL: selfEvolve saves optimized pruning even without additions', () => {
+  const calls = [];
+  const result = runSelfEvolve(
+    {},
+    {
+      createDreams: () => [],
+      graph: { getEdge: () => null },
+      commitBackgroundEdge: () => ({ decision: 'review', edge: null }),
+      consolidate: dryRun => { calls.push(['consolidate', dryRun]); return { removed: 0 }; },
+      optimize: () => { calls.push(['optimize']); return { pruned: 2 }; },
+      save: () => { calls.push(['save']); },
+      getDreamCount: () => 0,
+      setDreamCount: value => calls.push(['count', value]),
+    },
+  );
+
+  assert.deepEqual(result, {
+    workspaceId: 'default',
+    dreams: 0,
+    added: 0,
+    addedDetails: [],
+    deferred: 0,
+    deferredDetails: [],
+    consolidated: 0,
+    optimized: 2,
+  });
+  assert.deepEqual(calls, [['consolidate', false], ['optimize'], ['save'], ['count', 1]]);
 });
 
 test('KERNEL: selfEvolve preserves allowed writes, save condition, filters, and save-error swallowing', () => {

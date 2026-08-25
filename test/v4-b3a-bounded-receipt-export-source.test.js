@@ -250,6 +250,21 @@ describe('V4-B3A: bounded audit source', () => {
     )], { code: AUDIT_EVENT_SOURCE_DIVERGENCE_CODE });
   });
 
+  it('checks divergence before an early consumer return can bypass validation', (t) => {
+    const graph = sqliteGraph(t);
+    graph.appendAuditEvent(auditEvent(6, null, { extraDetails: { note: 'durable' } }));
+    graph._auditEvents[graph._auditEvents.length - 1].details.note = 'memory-mutated';
+
+    function consumeFirst(iterable) {
+      for (const event of iterable) return event;
+      return null;
+    }
+
+    assert.throws(() => consumeFirst(iterateAuditEventsBounded(
+      graph, { workspaceId: 'default' }, { maxDetailsBytes: 1024 },
+    )), { code: AUDIT_EVENT_SOURCE_DIVERGENCE_CODE });
+  });
+
   it('contains no complete SQLite .all() read in the bounded module', () => {
     const source = fs.readFileSync(path.join(__dirname, '..', 'lib', 'audit-bounded-read.js'), 'utf8');
     assert.equal(source.includes('.all('), false);

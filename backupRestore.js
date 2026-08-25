@@ -112,15 +112,51 @@ function backupSqliteIfExists(source, destination) {
   return { name: path.basename(source), size: fs.statSync(destination).size };
 }
 
+function readBackupEntries(backupBaseDir, { includeStaging = false } = {}) {
+  if (!fs.existsSync(backupBaseDir)) return [];
+  return fs.readdirSync(backupBaseDir, { withFileTypes: true })
+    .filter(entry => entry.isDirectory() && (includeStaging || !entry.name.startsWith('.staging-')))
+    .map(entry => {
+      const dir = path.join(backupBaseDir, entry.name);
+      let createdAt = 0;
+      try {
+        const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
+        const parsed = Date.parse(manifest.createdAt);
+        createdAt = Number.isFinite(parsed) ? parsed : 0;
+      } catch (_) {
+        createdAt = 0;
+      }
+      return {
+        dir,
+        createdAt,
+        isStaging: entry.name.startsWith('.staging-'),
+        isSafety: entry.name.startsWith('pre-restore-'),
+      };
+    });
+}
+
+function sortBackupEntriesNewestFirst(left, right) {
+  return right.createdAt - left.createdAt || right.dir.localeCompare(left.dir);
+}
+
+function sortBackupEntriesOldestFirst(left, right) {
+  return left.createdAt - right.createdAt || left.dir.localeCompare(right.dir);
+}
+
 function pruneOldBackups(backupBaseDir, keepLast = 10) {
   const keep = Math.max(1, Number(keepLast) || 10);
-  if (!fs.existsSync(backupBaseDir)) return [];
-  const entries = fs.readdirSync(backupBaseDir, { withFileTypes: true })
-    .filter(entry => entry.isDirectory())
-    .map(entry => path.join(backupBaseDir, entry.name))
-    .sort();
-  if (entries.length <= keep) return [];
-  const stale = entries.slice(0, entries.length - keep);
+  const entries = readBackupEntries(backupBaseDir, { includeStaging: true });
+  if (!entries.length) return [];
+
+  const staging = entries.filter(entry => entry.isStaging);
+  const regular = entries.filter(entry => !entry.isStaging && !entry.isSafety).sort(sortBackupEntriesOldestFirst);
+  const safety = entries.filter(entry => !entry.isStaging && entry.isSafety).sort(sortBackupEntriesOldestFirst);
+  const stale = [
+    ...staging,
+    ...regular.slice(0, Math.max(0, regular.length - keep)),
+    ...safety.slice(0, Math.max(0, safety.length - keep)),
+  ].map(entry => entry.dir);
+
   for (const dirPath of stale) {
     fs.rmSync(dirPath, { recursive: true, force: true });
   }
@@ -133,8 +169,23 @@ function writeManifest(targetDir, manifest) {
   return manifestPath;
 }
 
+function randomSuffix() {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+function newBackupId(prefix = '') {
+  return `${prefix}${timestamp()}-${randomSuffix()}`;
+}
+
 function newOperationId(prefix) {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  return `${prefix}_${Date.now()}_${randomSuffix()}`;
+}
+
+function backupIdConflictError(backupId) {
+  const error = new Error(`A backup already exists with this id: ${backupId}`);
+  error.code = 'BACKUP_ID_CONFLICT';
+  error.backupId = backupId;
+  return error;
 }
 
 /**
@@ -170,16 +221,18 @@ function buildOperationReceipt(operationId, kind, startedAt, status, extra = {})
  */
 function createBackup(opts = {}) {
   const runtime = resolveRuntimePaths(opts);
-  const backupId = validateBackupId(opts.backupId || timestamp());
+  const backupId = validateBackupId(opts.backupId || newBackupId());
   const backupDir = resolvePathWithinRoot(runtime.backupBaseDir, path.join(runtime.backupBaseDir, backupId), { allowMissing: true });
   const stagingDir = resolvePathWithinRoot(runtime.backupBaseDir,
-    path.join(runtime.backupBaseDir, `.staging-${backupId}-${Math.random().toString(36).slice(2, 8)}`), { allowMissing: true });
+    path.join(runtime.backupBaseDir, `.staging-${backupId}-${randomSuffix()}`), { allowMissing: true });
   ensureDir(runtime.backupBaseDir);
   const operationId = newOperationId('backupop');
   const startedAt = new Date().toISOString();
 
   ensureDir(stagingDir);
   try {
+    if (fs.existsSync(backupDir)) throw backupIdConflictError(backupId);
+
     const copied = [];
     const skipped = [];
 
@@ -221,11 +274,14 @@ function createBackup(opts = {}) {
     };
   } catch (error) {
     fs.rmSync(stagingDir, { recursive: true, force: true });
-    error.receipt = buildOperationReceipt(operationId, 'backup', startedAt, 'failed', {
+    const normalizedError = error?.code === 'ENOTEMPTY' || error?.code === 'EEXIST'
+      ? backupIdConflictError(backupId)
+      : error;
+    normalizedError.receipt = buildOperationReceipt(operationId, 'backup', startedAt, 'failed', {
       backupId,
-      message: error.message,
+      message: normalizedError.message,
     });
-    throw error;
+    throw normalizedError;
   }
 }
 
@@ -238,11 +294,9 @@ function createBackup(opts = {}) {
 function listBackups(opts = {}) {
   const runtime = resolveRuntimePaths(opts);
   if (!fs.existsSync(runtime.backupBaseDir)) return [];
-  return fs.readdirSync(runtime.backupBaseDir, { withFileTypes: true })
-    .filter(entry => entry.isDirectory())
-    .map(entry => path.join(runtime.backupBaseDir, entry.name))
-    .sort()
-    .reverse();
+  return readBackupEntries(runtime.backupBaseDir)
+    .sort(sortBackupEntriesNewestFirst)
+    .map(entry => entry.dir);
 }
 
 /**
@@ -265,7 +319,8 @@ function resolveRestoreSource(opts = {}) {
       throw err;
     }
   }
-  const backups = listBackups(opts);
+  const backups = listBackups(opts)
+    .filter(dir => !path.basename(dir).startsWith('pre-restore-'));
   return backups[0] || null;
 }
 
@@ -288,6 +343,60 @@ function atomicReplaceFile(source, destination) {
 
 function fileDigest(filePath) {
   return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
+
+function validateSqlitePersistenceFile(filePath) {
+  const program = [
+    "const Database=require('better-sqlite3');",
+    "const db=new Database(process.argv[1],{readonly:true,fileMustExist:true});",
+    "const integrity=db.pragma('integrity_check',{simple:true});",
+    "const profiles=[",
+    "{tables:['nodes','edges','audit_log','candidate_claims','mutation_journal','mutation_receipts'],jsonColumns:{nodes:['vector','provenance'],edges:['evidence','confidence_history','provenance','meta'],candidate_claims:['proposed_edge','provenance','conflict','warnings'],audit_log:['details'],mutation_journal:['result'],mutation_receipts:['canonical_payload']}},",
+    "{tables:['checkpoints','goal_memory','agent_runs','tool_approvals'],jsonColumns:{checkpoints:['state_json','evidence_json'],goal_memory:['pattern_json'],agent_runs:['state_json'],tool_approvals:['context_json','policy_json']}},",
+    "];",
+    "const tables=new Set(db.prepare(\"SELECT name FROM sqlite_master WHERE type='table'\").all().map(row=>row.name));",
+    "const profile=profiles.find(candidate=>candidate.tables.every(name=>tables.has(name)));",
+    "if(integrity!=='ok'||!profile){console.error('SQLite integrity/schema validation failed');db.close();process.exitCode=2;}else{",
+    "for(const [table,columns] of Object.entries(profile.jsonColumns)){for(const row of db.prepare('SELECT '+columns.join(',')+' FROM '+table).all()){for(const column of columns){const value=row[column];JSON.parse(value===null||value===''?'null':value);}}}",
+    "db.close();}",
+  ].join('');
+  const result = spawnSync(process.execPath, ['-e', program, filePath], { encoding: 'utf8' });
+  if (result.status !== 0) {
+    return { valid: false, reason: (result.stderr || result.stdout || 'SQLite integrity/schema validation failed').trim() };
+  }
+  return { valid: true, reason: null };
+}
+
+function validateJsonPersistenceFile(filePath) {
+  try {
+    const value = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    if (value === null || typeof value !== 'object') {
+      return { valid: false, reason: 'JSON persistence artifact must contain an object or array' };
+    }
+    return { valid: true, reason: null };
+  } catch (error) {
+    return { valid: false, reason: `JSON parse failed: ${error.message}` };
+  }
+}
+
+function validateRestoreSource(sourceDir, runtime) {
+  for (const destination of runtime.files) {
+    const name = path.basename(destination);
+    const source = path.join(sourceDir, name);
+    if (!fs.existsSync(source)) continue;
+    if (name === 'memory.db') {
+      const header = fs.readFileSync(source, { encoding: null }).subarray(0, 16).toString('utf8');
+      if (header !== 'SQLite format 3\u0000') {
+        return { valid: false, file: name, reason: 'memory.db is not a SQLite database' };
+      }
+      const result = validateSqlitePersistenceFile(source);
+      if (!result.valid) return { valid: false, file: name, reason: result.reason };
+    } else if (name === 'memory.json') {
+      const result = validateJsonPersistenceFile(source);
+      if (!result.valid) return { valid: false, file: name, reason: result.reason };
+    }
+  }
+  return { valid: true, file: null, reason: null };
 }
 
 function previewRestore(opts = {}) {
@@ -343,6 +452,14 @@ function restoreBackup(opts = {}) {
   }
 
   const preview = previewRestore({ ...opts, rootDir: runtime.rootDir, backupBaseDir: runtime.backupBaseDir });
+  const sourceValidation = validateRestoreSource(sourceDir, runtime);
+  if (!sourceValidation.valid) {
+    const error = new Error(`Restore source validation failed for ${sourceValidation.file}: ${sourceValidation.reason}`);
+    error.code = 'RESTORE_SOURCE_INVALID';
+    error.sourceDir = sourceDir;
+    error.validation = sourceValidation;
+    throw error;
+  }
   const operationId = newOperationId('restoreop');
   const startedAt = new Date().toISOString();
 
@@ -353,7 +470,7 @@ function restoreBackup(opts = {}) {
     embeddingPath: runtime.files[4],
     agentMemoryPath: runtime.files[5],
     backupBaseDir: runtime.backupBaseDir,
-    backupId: `pre-restore-${timestamp()}`,
+    backupId: newBackupId('pre-restore-'),
     keepLast: opts.keepLast || 10,
   });
 
@@ -396,7 +513,7 @@ function restoreBackup(opts = {}) {
   const verification = {
     persistence: restored.length > 0 && restored.every(name => fs.existsSync(runtime.files.find(file => path.basename(file) === name))),
     schema: Number.isFinite(Number(preview.schemaVersion)),
-    graphIntegrity: restored.length > 0 && restored.every(name => {
+    graphIntegrity: sourceValidation.valid && restored.length > 0 && restored.every(name => {
       const destination = runtime.files.find(file => path.basename(file) === name);
       return fileDigest(destination) === fileDigest(path.join(sourceDir, name));
     }),

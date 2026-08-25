@@ -145,6 +145,69 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     assert.ok(enabled.length > 0, 'no action was enabled by the manifest');
   });
 
+  it('shows auth-required states instead of generic errors without a session key', async () => {
+    await browser.evaluate(`document.getElementById('clear').click(); true;`);
+    await waitFor(
+      `document.getElementById('sstatus').textContent === 'API key not set.'
+        && document.getElementById('astate').textContent === 'LOCKED'
+        && /Graph Data\\s*●\\s*LOCKED/.test(document.getElementById('health').textContent)
+        && /Approval Queue\\s*●\\s*LOCKED/.test(document.getElementById('health').textContent)`,
+      'unauthenticated graph and approval surfaces to become locked',
+    );
+    await browser.evaluate(`
+      document.getElementById('key').value = ${JSON.stringify(TEST_API_KEY)};
+      document.getElementById('workspace').value = 'default';
+      document.getElementById('save').click();
+      true;
+    `);
+  });
+
+  it('settles the connection and shows Graph Data and Approval Queue as live', async () => {
+    await waitFor(
+      `document.getElementById('sstatus').textContent === 'Connected.'
+        && /^(LIVE|EMPTY)$/.test(document.getElementById('astate').textContent)
+        && /Graph Data\\s*●\\s*(LIVE|EMPTY)/.test(document.getElementById('health').textContent)
+        && /Approval Queue\\s*●\\s*(LIVE|EMPTY)/.test(document.getElementById('health').textContent)`,
+      'the authenticated graph and approval surfaces to become live',
+    );
+    const health = await browser.evaluate(`document.getElementById('health').textContent`);
+    assert.match(health, /Graph Data\s*●\s*(LIVE|EMPTY)/);
+    assert.match(health, /Approval Queue\s*●\s*(LIVE|EMPTY)/);
+    assert.equal(await browser.evaluate(`document.getElementById('securemeter').style.width`), '100%');
+  });
+
+  it('keeps header, health summary, and footer aligned to one aggregate status', async () => {
+    const header = await browser.evaluate(`document.getElementById('sys').textContent`);
+    const summary = await browser.evaluate(`document.getElementById('healthsum').textContent`);
+    const footer = await browser.evaluate(`document.getElementById('footstatus').textContent`);
+    assert.match(header, /^(HEALTHY|PARTIAL|DEGRADED|OFFLINE|CHECKING)$/);
+    assert.match(summary, new RegExp(`^${header} \\u00b7 \\d+/\\d+ surfaces available$`));
+    assert.equal(footer, summary);
+
+    await browser.evaluate(`document.getElementById('clear').click(); true;`);
+    await waitFor(
+      `document.getElementById('sys').textContent !== 'HEALTHY'
+        && document.getElementById('healthsum').textContent.startsWith(document.getElementById('sys').textContent + ' · ')
+        && document.getElementById('footstatus').textContent === document.getElementById('healthsum').textContent`,
+      'the aggregate status to remain aligned after clearing the session key',
+    );
+    const unauthenticated = await browser.evaluate(`({
+      header: document.getElementById('sys').textContent,
+      summary: document.getElementById('healthsum').textContent,
+      footer: document.getElementById('footstatus').textContent,
+    })`);
+    assert.notEqual(unauthenticated.header, 'HEALTHY');
+    assert.equal(unauthenticated.footer, unauthenticated.summary);
+
+    await browser.evaluate(`
+      document.getElementById('key').value = ${JSON.stringify(TEST_API_KEY)};
+      document.getElementById('workspace').value = 'default';
+      document.getElementById('save').click();
+      true;
+    `);
+    await waitFor(`document.getElementById('sstatus').textContent === 'Connected.'`, 'the session to reconnect');
+  });
+
   it('runs a verify action against the canonical authenticated endpoint', async () => {
     await waitFor(`document.getElementById('wstate').textContent === 'READY'`, 'the manifest');
     await browser.evaluate(`

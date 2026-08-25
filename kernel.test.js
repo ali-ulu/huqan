@@ -1,12 +1,13 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const Kernel = require('./kernel');
+const { isolatedKernelOptions } = require('./test/helpers/isolated-persistence');
 
 const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 // Test için temiz kernel — memory.json yüklemez
 function freshKernel(opts = {}) {
-  const kernel = new Kernel({ noLoad: true, ...opts });
+  const kernel = new Kernel(isolatedKernelOptions('kernel', opts));
   const learn = kernel.learn.bind(kernel);
   kernel.learn = (text, learnOpts = {}) => learn(text, { ...learnOpts, ...TEST_FIXTURE_LEARN_BYPASS });
   return kernel;
@@ -581,6 +582,29 @@ describe('Kernel - concurrency contract (#368)', () => {
         undefined,
         `${symbol} was removed as dead code; reintroducing it means there are two lock mechanisms again`
       );
+    }
+  });
+});
+
+describe('Kernel - Türkçe durum ekli ask özneleri (#1206)', () => {
+  it('resolves case-marked subjects instead of returning Bilmiyorum', () => {
+    const k = freshKernel({ useSQLite: false });
+    k.learn('kedi hayvandır');
+
+    const questions = [
+      'kedinin özelliği nedir',
+      'kediyi anlat',
+      'kediye ne olur',
+      'kedide ne var',
+      'kediden ne çıkar',
+    ];
+
+    for (const question of questions) {
+      const result = k.ask(question);
+      assert.equal(result.ok, true, question);
+      assert.equal(result.data.subject, 'kedi', question);
+      assert.equal(result.data.unknown, false, question);
+      assert.match(result.data.answer, /hayvan/, question);
     }
   });
 });

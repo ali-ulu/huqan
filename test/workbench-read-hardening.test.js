@@ -249,4 +249,26 @@ describe('Workbench read responses are not cacheable (#738, #768)', () => {
     assert.strictEqual(captured[0].statusCode, 200);
     assert.strictEqual(captured[0].headers['Cache-Control'], 'no-store');
   });
+
+  it('all exact-workspace Workbench routes preserve the shared error vocabulary (#1227)', () => {
+    for (const pathname of [
+      '/api/workbench/trust-receipt/receipt-1',
+      '/api/workbench/memory-context/record-1',
+    ]) {
+      const missing = captureRoute({ pathname, search: '' });
+      assert.strictEqual(missing.length, 1);
+      assert.strictEqual(missing[0].statusCode, 400);
+      assert.strictEqual(missing[0].body.error.code, 'MISSING_WORKSPACE_ID', pathname);
+
+      const invalid = captureRoute({ pathname, search: '?workspaceId=' });
+      assert.strictEqual(invalid.length, 1);
+      assert.strictEqual(invalid[0].statusCode, 400);
+      assert.strictEqual(invalid[0].body.error.code, 'INVALID_WORKSPACE_ID', pathname);
+
+      const repeated = captureRoute({ pathname, search: '?workspaceId=default&workspaceId=default' });
+      assert.strictEqual(repeated.length, 1);
+      assert.strictEqual(repeated[0].statusCode, 400);
+      assert.strictEqual(repeated[0].body.error.code, 'INVALID_WORKSPACE_ID', pathname);
+    }
+  });
 });

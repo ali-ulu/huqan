@@ -23,6 +23,16 @@ test('reviews when the requested run would push usage past the review threshold'
   assert.equal(result.reason, AGENT_LOOP_BUDGET_REASONS.APPROACHING_LIMIT);
 });
 
+test('blocks fail-closed when the requested run would cross the window ceiling', () => {
+  const result = evaluateAgentLoopBudget(
+    { iterationsUsed: 199, requestedIterations: 5000 },
+    { maxIterationsPerWindow: 200 },
+  );
+  assert.equal(result.decision, AGENT_LOOP_BUDGET_DECISIONS.BLOCK);
+  assert.equal(result.reason, AGENT_LOOP_BUDGET_REASONS.LIMIT_EXCEEDED);
+  assert.equal(result.remaining, 1);
+});
+
 test('blocks fail-closed once the window budget is already exhausted', () => {
   const result = evaluateAgentLoopBudget({ iterationsUsed: 200 }, { maxIterationsPerWindow: 200 });
   assert.equal(result.decision, AGENT_LOOP_BUDGET_DECISIONS.BLOCK);

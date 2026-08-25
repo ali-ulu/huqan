@@ -4,8 +4,9 @@
  *
  * Proves that CLI and REST mutation surfaces agree: a command that the REST
  * public API blocks (requestGuards UNSAFE_PUBLIC_API_COMMANDS) is never
- * silently executed by the CLI — the CLI gate runs for it, producing either a
- * review decision (no canonical write) or an audited allow decision.
+ * silently executed by the CLI — the CLI gate runs for it, producing either an
+ * explicit unavailable block, a review decision (no canonical write), or an
+ * audited allow decision.
  *
  * Read-only commands stay usable on the CLI and are not fake-gated.
  */
@@ -16,9 +17,10 @@ const assert = require('node:assert/strict');
 const CLI = require('../cli');
 const Kernel = require('../kernel');
 const { isUnsafePublicApiCommand, isAllowedPublicCommand } = require('../requestGuards');
+const { isolatedKernelOptions } = require('./helpers/isolated-persistence');
 
 function makeCLI(opts = {}) {
-  const kernel = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false, ...opts });
+  const kernel = new Kernel(isolatedKernelOptions('faz2-rest-cli', opts));
   return new CLI({ kernelInstance: kernel });
 }
 
@@ -56,11 +58,12 @@ describe('FAZ2-PR6: REST/CLI mutation gate parity (F-004)', () => {
     assert.ok(!cli.kernel.graph.getNode('kedi'), 'reviewed learn must not create a node');
   });
 
-  it('reviewed CLI maintenance mutation (optimize) does not execute', () => {
+  it('unavailable CLI maintenance mutation (optimize) is explicitly blocked', () => {
     const cli = makeCLI();
     const gate = cli._evaluateCliGate('optimize', '');
-    assert.strictEqual(gate.decision, 'review');
-    assert.strictEqual(gate.canExecute, false, 'optimize must not run under review');
+    assert.strictEqual(gate.decision, 'block');
+    assert.strictEqual(gate.reason, 'cli_canonical_mutation_unavailable');
+    assert.strictEqual(gate.canExecute, false, 'optimize must not execute without an approval workflow');
   });
 
   // 3. Allow-decision CLI mutation writes WITH an audit event (no silent op).

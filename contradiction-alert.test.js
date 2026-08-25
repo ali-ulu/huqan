@@ -50,3 +50,31 @@ test('contradiction-alert: includes temporal metadata and evidence quality when 
   assert.equal(typeof first.adjustedConfidence, 'number');
   assert.equal(typeof result.data.evidenceQuality, 'number');
 });
+
+test('contradiction-alert: ignores unrelated facts and independent capabilities', async () => {
+  const k = new Kernel({ noLoad: true, loadPlugins: false, capabilities: { temporal: true } });
+  k.learn('ali doktordur', TEST_FIXTURE_LEARN_BYPASS);
+  k.learn('ali kosabilir', TEST_FIXTURE_LEARN_BYPASS);
+  k.usePlugin(createContradictionAlertPlugin());
+
+  const unrelated = await k.plugins.runCapability('contradictionAlert', { text: 'ali istanbulda yasar' });
+  assert.deepEqual(unrelated.data.conflictingThoughts, []);
+  assert.equal(unrelated.data.conflictType, null);
+
+  const independentCapability = await k.plugins.runCapability('contradictionAlert', { text: 'ali yuzebilir' });
+  assert.deepEqual(independentCapability.data.conflictingThoughts, []);
+  assert.equal(independentCapability.data.conflictType, null);
+});
+
+test('contradiction-alert: recognizes Turkish negation with and without diacritics', async () => {
+  for (const negation of ['değil', 'degil', 'değildir', 'degildir']) {
+    const k = new Kernel({ noLoad: true, loadPlugins: false, capabilities: { temporal: true } });
+    k.learn('kedi hayvandir', TEST_FIXTURE_LEARN_BYPASS);
+    k.usePlugin(createContradictionAlertPlugin());
+
+    const result = await k.plugins.runCapability('contradictionAlert', { text: `kedi hayvan ${negation}` });
+    assert.equal(result.ok, true);
+    assert.equal(result.data.conflictingThoughts.length, 1, negation);
+    assert.equal(result.data.conflictType, 'direct', negation);
+  }
+});

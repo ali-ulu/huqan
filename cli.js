@@ -470,7 +470,7 @@ class CLI {
       case 'onaylar': {
         const result = callMcpTool(
           this.kernel,
-          { name: 'huqan.approvals', operatorToken: this._mcpOperatorToken, arguments: { limit: 50 } },
+          { name: 'huqan.approvals', operatorToken: this._mcpOperatorToken, arguments: { limit: 50, workspaceId: 'default' } },
           this._approvalRuntime()
         );
         if (!result || result.ok === false) {
@@ -490,7 +490,7 @@ class CLI {
         return Promise.resolve(callMcpTool(this.kernel, {
           name: 'huqan.approve',
           operatorToken: this._mcpOperatorToken,
-          arguments: { approvalId: approval.approvalId, decision: approval.decision },
+          arguments: { approvalId: approval.approvalId, decision: approval.decision, workspaceId: 'default' },
         }, this._approvalRuntime())).then(result => {
           if (!result || result.ok === false) {
             const error = result?.error;
@@ -520,26 +520,18 @@ class CLI {
           this.kernel.stopAutoThink();
           return 'Dusunmeyi durdurdum.';
         }
-        this.kernel.startAutoThink(15000);
-        return 'Arka planda dusunmeye basladim.';
+        return this._formatCliGateMessage(command, {
+          decision: 'block',
+          reason: 'cli_automation_unavailable',
+        });
       }
-      case 'optimize': {
-        const result = this.kernel.optimize();
-        return `Optimize: pruned ${result.pruned} edges, removed ${result.removedNodes} nodes.`;
-      }
-      case 'konsolide': {
-        const dryRun = this.kernel.consolidate(true);
-        if (dryRun.removed === 0) return 'No contradictory edges to clean up.';
-        const result = this.kernel.consolidate(false);
-        return `Cleaned up ${result.removed} contradictory edges.`;
-      }
-      case 'evolve': {
-        const result = this.kernel.selfEvolve();
-        let text = `Kendilik dongusu tamam: ${result.dreams} hipotez incelendi`;
-        if (result.added > 0) text += `, added ${result.added} new facts`;
-        text += `, cleaned up ${result.consolidated} contradictions, pruned ${result.optimized} edges.`;
-        return text;
-      }
+      case 'optimize':
+      case 'konsolide':
+      case 'evolve':
+        return this._formatCliGateMessage(command, {
+          decision: 'block',
+          reason: 'cli_canonical_mutation_unavailable',
+        });
       case 'quickstart':
         return runQuickstartCommand({
           callTool: callMcpTool,

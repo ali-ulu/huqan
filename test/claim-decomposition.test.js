@@ -78,6 +78,33 @@ describe('claim-decomposition', () => {
     assert.deepStrictEqual(envelope.warnings, ['X']);
   });
 
+  it('assigns unique index-based ids to subclaims without explicit ids (#1214)', () => {
+    const envelope = normalizeDecomposition({
+      originalClaim: 'A, B, C',
+      compound: true,
+      subclaims: [{ claim: 'A' }, { claim: 'B' }, { claim: 'C' }],
+      warnings: [],
+    });
+
+    assert.deepEqual(envelope.subclaims.map(subclaim => subclaim.id), [
+      'claim_1',
+      'claim_2',
+      'claim_3',
+    ]);
+    assert.equal(new Set(envelope.subclaims.map(subclaim => subclaim.id)).size, 3);
+  });
+
+  it('keeps explicit subclaim ids unchanged while normalizing', () => {
+    const envelope = normalizeDecomposition({
+      originalClaim: 'A and B',
+      compound: true,
+      subclaims: [{ id: 'custom-a', claim: 'A' }, { id: 'custom-b', claim: 'B' }],
+      warnings: [],
+    });
+
+    assert.deepEqual(envelope.subclaims.map(subclaim => subclaim.id), ['custom-a', 'custom-b']);
+  });
+
   it('marker matching is independent across repeated calls, even interleaved (#447)', () => {
     // A shared RegExp with a global/sticky flag advances .lastIndex as a side
     // effect of .test()/.match(), so a later call's result would silently

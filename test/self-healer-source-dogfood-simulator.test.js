@@ -33,6 +33,46 @@ test('source dogfood builds a bounded transitive dependency graph', () => {
   } finally { cleanup(root); }
 });
 
+test('source dogfood ignores require text inside comments and string literals', () => {
+  const root = fixture({
+    'entry.js': [
+      '// require(\'./legacy\')',
+      'const documentation = "do not call require(\\\'./secret-config\\\')";',
+      '/* require(\'./commented-out\') */',
+      'const template = `require(\'./template\')`;',
+      "module.exports = require('./real');",
+    ].join('\n'),
+    'real.js': 'module.exports = 1;\n',
+    'legacy.js': 'module.exports = 2;\n',
+    'secret-config.js': 'module.exports = 3;\n',
+    'commented-out.js': 'module.exports = 4;\n',
+    'template.js': 'module.exports = 5;\n',
+  });
+  try {
+    const graph = buildDependencyGraph({ root, targetPath: 'entry.js' });
+    assert.deepEqual(graph.nodes, ['entry.js', 'real.js']);
+    assert.deepEqual(graph.edges, [{ from: 'entry.js', to: 'real.js' }]);
+    assert.equal(graph.truncated, false);
+  } finally { cleanup(root); }
+});
+
+test('source dogfood returns a bounded partial graph instead of throwing at maxFiles', () => {
+  const root = fixture({
+    'entry.js': "module.exports = [require('./a'), require('./b')];\n",
+    'a.js': "module.exports = require('./leaf-a');\n",
+    'b.js': "module.exports = require('./leaf-b');\n",
+    'leaf-a.js': 'module.exports = 1;\n',
+    'leaf-b.js': 'module.exports = 2;\n',
+  });
+  try {
+    const graph = buildDependencyGraph({ root, targetPath: 'entry.js', maxFiles: 2 });
+    assert.deepEqual(graph.nodes, ['a.js', 'entry.js']);
+    assert.deepEqual(graph.edges, [{ from: 'entry.js', to: 'a.js' }]);
+    assert.equal(graph.truncated, true);
+    assert.equal(graph.maxFiles, 2);
+  } finally { cleanup(root); }
+});
+
 test('Dream turns a source-derived transitive path into a review candidate', () => {
   const root = fixture({ 'entry.js': "module.exports = require('./middle');\n", 'middle.js': "module.exports = require('./leaf');\n", 'leaf.js': 'module.exports = 1;\n' });
   try {
@@ -72,6 +112,21 @@ test('full source simulation compares graph structure and emits a review-only fi
     assert.equal(result.finding.suggestedFix.allowedFiles[0], 'entry.js');
     assert.match(result.finding.summary, /No patch was generated or applied/);
   } finally { cleanup(root); }
+});
+
+test('truncated dependency evidence stays medium risk and capped confidence', () => {
+  const candidate = { candidateId: 'shc_truncated', from: 'entry.js', to: 'leaf.js', hypothesisType: 'zincir', confidence: 0.9 };
+  const finding = buildFinding(
+    candidate,
+    { closesCycle: true, beforeEdges: 2, afterEdges: 3 },
+    { backend: 'js-fallback', before: { edges: 2 }, after: { edges: 3 } },
+    { decision: 'review', reason: 'RUNTIME_ENTRYPOINT_REQUIRES_DRY_RUN' },
+    { truncated: true, maxFiles: 2 },
+  );
+  assert.equal(finding.severity, 'medium');
+  assert.equal(finding.confidence, 0.5);
+  assert.equal(finding.riskFlags.includes('dependency_graph_truncated'), true);
+  assert.match(finding.summary, /incomplete evidence/);
 });
 
 test('a code-change gate block cannot be downgraded into a review approval', () => {

@@ -21,6 +21,7 @@ const {
   registerOppositePair,
   normalizeManipulationText,
   parseSimpleTurkishStatement,
+  resolveNegativeClaimFallback,
 } = require('./lib/kernel-v2-native');
 const {
   analyseManipulation,
@@ -342,9 +343,9 @@ class KernelV2 {
     const status = data && data.status;
 
     if (status === 'verified') {
-      parts.push(data?.inferred ? 'İfade grafikteki bir çıkarım zinciriyle desteklendi.' : 'The statement is directly supported by the graph.');
+      parts.push(data?.inferred ? 'The statement is supported by an inference chain in the graph.' : 'The statement is directly supported by the graph.');
     } else if (status === 'contradicted') {
-      const reason = data?.contradictionReason || 'çelişki';
+      const reason = data?.contradictionReason || 'unspecified';
       parts.push(`The statement was found contradictory (${reason}).`);
     } else {
       parts.push('Not enough evidence was found for the statement.');
@@ -619,10 +620,9 @@ class KernelV2 {
     if (base?.data?.status !== 'unknown') {
       const contradictionReason = base?.data?.contradictionReason;
       if (base?.data?.status !== 'contradicted' || contradictionReason) {
-        return this._withVerifyDetails(base, risk);
+        if (!(parsed.isNegated && base?.data?.status === 'verified')) return this._withVerifyDetails(base, risk);
       }
     }
-
     const contradictionDetails = this._buildContradictionDetails(
       parsed,
       normalizedTarget,
@@ -648,7 +648,7 @@ class KernelV2 {
           base.meta,
         ), risk);
       }
-      return this._withVerifyDetails(base, risk);
+      return this._withVerifyDetails(resolveNegativeClaimFallback(this.kernel, base, verificationStatement, opts, workspaceId, parsed, normalizedTarget), risk);
     }
 
     const { evidence, meta, ...data } = contradictionDetails;

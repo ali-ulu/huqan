@@ -64,31 +64,21 @@ test('auto-think reports the existing global nodeCount without reading _nodes', 
   });
 });
 
-test('selfLearn computes the existing global edgeCount delta without reading _edges', { concurrency: false }, () => {
+test('selfLearn reports a read-only stub instead of claiming an edge delta', { concurrency: false }, () => {
   withKernel((kernel) => {
-    const counts = [10, 12];
-    let edgeCountCalls = 0;
-    const edgeCountArgs = [];
     kernel.detectGaps = () => ['gap'];
-    kernel.graph.getNode = () => ({ id: 'gap' });
-    kernel.graph.getEdges = () => [];
-    kernel.graph.getInEdges = () => [];
-    kernel.graph.cosineSimilarity = () => 0;
-    kernel.graph.edgeCount = (...args) => {
-      edgeCountCalls += 1;
-      edgeCountArgs.push(args);
-      return counts.shift();
-    };
+    for (const method of ['edgeCount', 'getNode', 'getEdges', 'getInEdges', 'cosineSimilarity']) {
+      kernel.graph[method] = () => {
+        throw new Error(`${method} must not run while selfLearn is a stub`);
+      };
+    }
     Object.defineProperty(kernel.graph, '_edges', {
       configurable: true,
       get() {
         throw new Error('direct _edges read');
       },
     });
-
-    assert.deepEqual(kernel.selfLearn(), { gaps: 1, learned: 2 });
-    assert.equal(edgeCountCalls, 2);
-    assert.deepEqual(edgeCountArgs, [[], []]);
+    assert.deepEqual(kernel.selfLearn(), { gaps: 1, learned: 0, stub: true });
   });
 });
 
@@ -99,6 +89,6 @@ test('selfLearn preserves the empty-gap early return without counting edges', { 
       throw new Error('edgeCount must not run for an empty gap set');
     };
 
-    assert.deepEqual(kernel.selfLearn(), { gaps: 0, learned: 0, message: 'Boşluk yok' });
+    assert.deepEqual(kernel.selfLearn(), { gaps: 0, learned: 0, stub: true, message: 'Boşluk yok' });
   });
 });

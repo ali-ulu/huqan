@@ -322,3 +322,61 @@ it('simulateChange sonucu traversal dahil JSON-serializable (#401)', () => {
     }
   });
 });
+
+
+describe('Causal Simulator - what-if state overlay (#1160)', () => {
+  it('projects add, modify, and remove without mutating the graph', () => {
+    const graph = buildBranchingGraph();
+    const simulator = new CausalSimulator(graph);
+    const before = JSON.stringify({ nodes: graph._nodes, edges: graph._edges });
+
+    const added = simulator.simulateChange({
+      nodeId: 'A',
+      changeType: 'add',
+      newState: { enabled: true },
+    });
+    const modified = simulator.simulateChange({
+      nodeId: 'A',
+      changeType: 'modify',
+      newState: { enabled: false },
+    });
+    const removed = simulator.simulateChange({
+      nodeId: 'A',
+      changeType: 'remove',
+      newState: { enabled: false },
+    });
+
+    assert.equal(added.simulation.effect, 'activated');
+    assert.equal(added.simulation.stateImpact, 1);
+    assert.equal(modified.simulation.effect, 'suppressed');
+    assert.equal(modified.simulation.stateImpact, 0);
+    assert.equal(removed.simulation.effect, 'suppressed');
+    assert.equal(removed.simulation.stateImpact, 0);
+    assert.ok(modified.outcomes.every(outcome => outcome.impact === 0 && outcome.confidence === 0));
+    assert.equal(modified.risks.length, 0);
+    assert.equal(modified.confidence, 0);
+    assert.match(modified.recommendation, /suppresses downstream causal consequences/);
+    assert.notEqual(added.summary, modified.summary);
+    assert.equal(JSON.stringify({ nodes: graph._nodes, edges: graph._edges }), before);
+  });
+
+  it('uses explicit status values as a modify-state overlay', () => {
+    const graph = buildBranchingGraph();
+    const simulator = new CausalSimulator(graph);
+    const active = simulator.simulateChange({
+      nodeId: 'A',
+      changeType: 'modify',
+      newState: { status: 'active' },
+    });
+    const disabled = simulator.simulateChange({
+      nodeId: 'A',
+      changeType: 'modify',
+      newState: { status: 'disabled' },
+    });
+
+    assert.equal(active.simulation.stateImpact, 1);
+    assert.equal(disabled.simulation.stateImpact, 0);
+    assert.ok(active.confidence > disabled.confidence);
+    assert.equal(disabled.outcomes.every(outcome => outcome.simulationEffect === 'suppressed'), true);
+  });
+});

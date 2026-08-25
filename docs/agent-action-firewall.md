@@ -123,6 +123,25 @@ connector/action veya malformed target fail-closed `block` olur. Gerçek
 `test/connector-firewall-coverage.contract.test.js` tarafından source-backed
 olarak korunur.
 
+`CONNECTOR_ACTION_COVERAGE`, aynı registry’den türetilen source-backed coverage
+manifestidir. Her kayıt `productionReachable`, gerçek wrapper/adapter veya
+validator `sourceRefs`, `executorBoundary`, `targetField`, `workspaceField`,
+`branchField`, explicit `baseBranchField`, `approvalField`, `previewField`,
+`dryRunField`, `rateCostPolicy`, `chainingPolicy` ve `stateChanging` alanlarını
+taşır. `test/connector-firewall-coverage.contract.test.js`, manifest kayıtlarının
+registry ile aynı kaldığını, source referanslarının mevcut olduğunu ve her
+registered executor çağrısının guarded wrapper ledger’ında bulunduğunu CI’da
+kontrol eder. Böylece yeni bir connector/action eklemek coverage manifesti ve
+source-backed callsite hesabı olmadan geçemez.
+
+Mevcut kayıtlar GitHub, markdown, JSON, YAML, git-log, PDF ve HTTP ingest ile
+HTTP probe’dur; bu, `lib/github-connector.js` gibi library-only bir modülü
+production-reachable ilan etmez. `baseBranchField: null` mevcut action
+vocabulary’sinde base-branch seçimi olmadığını açıkça belirtir. `rateCostPolicy`
+şu an yalnızca admission-time bounded budget’i, `chainingPolicy` ise tool
+chaining/rate limiting’in bu sınırda uygulanmadığını ve non-claim olduğunu
+belirtir.
+
 Bu sözleşme dış IAM, egress kontrolü, maliyet muhasebesi veya connector-wide
 rate limiting uygulamaz. Yeni state-changing connectorlar için bunların
 operator policy'sinde ayrıca tanımlanması gerekir; uygulama yokken bu belge

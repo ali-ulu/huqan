@@ -29,6 +29,7 @@ const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
 const { handleWorkflowContractRoute, writeUnavailableWorkflow } = require('./lib/http/workflow-contract-route');
 const { createReadWorkflowHttpRouter } = require('./lib/http/read-workflow-actions');
 const { createWorkflowDataRoutes } = require('./lib/http/workflow-data-routes');
+const { bindHttpProvenance } = require('./lib/http/http-provenance');
 const { readExactWorkspace } = require('./lib/http/exact-workspace');
 const { createSessionStore } = require('./lib/viewer/session-store');
 const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
@@ -220,8 +221,7 @@ async function submitIngestApproval(data) {
     return { status: 503, error: { code: 'APPROVAL_STORE_UNAVAILABLE', message: 'Persistent ingest approval store is unavailable.' } };
   }
 }
-
-const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, decision, reason }) => decideIngestApproval({ store: getIngestApprovalStore(), kernel, approvalId, decision, reason, humanOversight: getHttpApprovalRuntimeConfig(), handleIngest, ensureRuntime: ensureCompanyRuntime, recordAudit: recordIngestApprovalAudit, toPublicApproval: publicIngestApproval, workerId: INGEST_APPROVAL_WORKER_ID, leaseMs: INGEST_APPROVAL_LEASE_MS }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, learnDocument: (text, options) => kernel.learnDocument(text, options), submitIngest: submitIngestApproval, createAgent: options => observabilityRuntime.createAgent(options) });
+const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, workspaceId, decision, reason }) => decideIngestApproval({ store: getIngestApprovalStore(), kernel, approvalId, workspaceId, decision, reason, humanOversight: getHttpApprovalRuntimeConfig(), handleIngest, ensureRuntime: ensureCompanyRuntime, recordAudit: recordIngestApprovalAudit, toPublicApproval: publicIngestApproval, workerId: INGEST_APPROVAL_WORKER_ID, leaseMs: INGEST_APPROVAL_LEASE_MS }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, learnDocument: (text, options) => kernel.learnDocument(text, options), submitIngest: submitIngestApproval, createAgent: options => observabilityRuntime.createAgent(options) });
 
 // First caller of the V5 runtime family (#875 task pack). Issuer key records
 // are dependency-injected as receiver-owned state: with no real registry
@@ -277,10 +277,10 @@ const viewerGateway = createViewerGateway({
   readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters),
 });
 
-function denyIfUnauthorized(req, res, extraHeaders = {}) {
+function denyIfUnauthorized(req, res, extraHeaders = {}, options = {}) {
   const auth = requireApiKey(req);
   if (auth.ok) { req.huqanAuth = Object.freeze({ subject: 'local-api-key' }); return true; }
-  writeJson(req, res, auth.status, auth.error, { ...auth.headers, ...extraHeaders });
+  writeJson(req, res, auth.status, options.errorCode ? { ok: false, error: { code: options.errorCode, message: 'Unauthorized.' } } : auth.error, { ...auth.headers, ...extraHeaders });
   return false;
 }
 
@@ -400,7 +400,7 @@ const server = http.createServer(async (req, res) => {
   // ever runs, so the headers have to be carried here too -- same reason the
   // rate-limit branch above special-cases the prefix.
   if (routeAuthPolicy.authRequired
-    && !denyIfUnauthorized(req, res, memoryContextSecurityHeaders(rawPath))) return;
+    && !denyIfUnauthorized(req, res, memoryContextSecurityHeaders(rawPath), routeAuthPolicy.ruleId === 'observability' ? { errorCode: 'UNAUTHORIZED' } : {})) return;
   // An undeclared path must never reach a handler. If one is added without a
   // policy entry it is answered as 404 here rather than executing
   // unauthenticated, so the declaration is enforced at runtime and not only by
@@ -664,12 +664,8 @@ const server = http.createServer(async (req, res) => {
       const learnResult = kernel.learnDocument(text, {
         returnDetails: true,
         workspaceId,
-        sourceType: sanitizeInput(data.sourceType || '') || 'upload',
-        sourceRef: sanitizeInput(data.sourceRef || '') || reqUrl.pathname,
-        sourceTitle: sanitizeInput(data.sourceTitle || '') || 'HTTP upload',
-        actor: 'http-api',
         approvalRequired: true,
-        provenance: data.provenance && typeof data.provenance === 'object' ? data.provenance : undefined,
+        provenance: bindHttpProvenance(data.provenance, { actor: 'http-api', workspaceId, sourceType: sanitizeInput(data.sourceType || '') || 'upload', sourceRef: sanitizeInput(data.sourceRef || '') || reqUrl.pathname, sourceTitle: sanitizeInput(data.sourceTitle || '') || 'HTTP upload' }),
       });
       const admission = projectUploadAdmission(Array.isArray(learnResult.admissions) ? (learnResult.admissions.find(Boolean) || null) : null);
       res.writeHead(200, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
@@ -836,7 +832,7 @@ const server = http.createServer(async (req, res) => {
     try {
       recoverExpiredIngestApprovals();
       const limit = Math.min(100, Math.max(1, Number(reqUrl.searchParams.get('limit')) || 50));
-      const approvals = getIngestApprovalStore().listUnresolvedToolApprovals(limit)
+      const approvals = getIngestApprovalStore().listUnresolvedToolApprovals(limit, sanitizeInput(reqUrl.searchParams.get('workspaceId') || 'default', 128) || 'default')
         .filter(item => item.tool === 'http.ingest')
         .map(publicIngestApproval);
       writeJson(req, res, 200, { ok: true, approvals }, { 'Cache-Control': 'no-cache' });
@@ -868,6 +864,7 @@ const server = http.createServer(async (req, res) => {
         store,
         kernel,
         approvalId,
+        workspaceId: sanitizeInput(reqUrl.searchParams.get('workspaceId') || 'default', 128) || 'default',
         decision,
         reason: String(body.reason || ''),
         humanOversight: getHttpApprovalRuntimeConfig(),
@@ -961,7 +958,7 @@ const server = http.createServer(async (req, res) => {
   // --- Ana sayfa ---
   if (reqUrl.pathname === '/') {
     try {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', ...buildCorsHeaders(req) });
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', ...buildCorsHeaders(req), 'Cache-Control': 'no-cache' });
       res.end(getHtmlPage());
     } catch (err) {
       console.error('[index]', err);

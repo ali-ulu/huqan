@@ -699,7 +699,7 @@ describe('memory-store-sqlite', () => {
 
       const store2 = new MemoryStore({ useSQLite: true, dbPath });
 
-      const events1 = store2.getEvents(mid1);
+      const events1 = store2.getEvents(mid1, { workspaceId: 'ws-a' });
       const updateEvent = events1.find(e => e.eventType === 'UPDATED' && e.details.action === 'supersede');
       assert.ok(updateEvent);
       assert.strictEqual(updateEvent.provenance.actor, 'superseder');
@@ -707,7 +707,7 @@ describe('memory-store-sqlite', () => {
       assert.strictEqual(updateEvent.details.previousStatus, 'active');
       assert.strictEqual(updateEvent.details.newStatus, 'superseded');
 
-      const events2 = store2.getEvents(mid2);
+      const events2 = store2.getEvents(mid2, { workspaceId: 'ws-a' });
       const tombstoneEvent = events2.find(e => e.eventType === 'TOMBSTONE');
       assert.ok(tombstoneEvent);
       assert.strictEqual(tombstoneEvent.provenance.actor, 'tombstoner');
@@ -796,5 +796,79 @@ describe('memory-store-sqlite', () => {
         store.close();
       }
     });
+  });
+});
+
+
+describe('PR-S3C SQLite warmup corruption quarantine (#1536)', () => {
+  it('opens with valid rows and bounded corruptRows diagnostics instead of bricking the store', () => {
+    const dbPath = getDbPath('warmup-corrupt-rows');
+    const store1 = new MemoryStore({ useSQLite: true, dbPath });
+    const valid = store1.store({ content: 'valid', workspaceId: 'ws1' });
+    const corrupt = store1.store({ content: 'corrupt', workspaceId: 'ws1' });
+    const link = store1.linkMemories({
+      workspaceId: 'ws1',
+      fromMemoryId: valid.memory.memoryId,
+      toMemoryId: corrupt.memory.memoryId,
+      relation: 'supports',
+    });
+    assert.strictEqual(valid.ok, true);
+    assert.strictEqual(corrupt.ok, true);
+    assert.strictEqual(link.ok, true);
+    store1.close();
+
+    const db = new Database(dbPath);
+    db.prepare('UPDATE memories SET trust_policy_version = ? WHERE memory_id = ?')
+      .run('', corrupt.memory.memoryId);
+    const corruptEventId = db.prepare(
+      'SELECT event_id FROM memory_events WHERE memory_id = ? ORDER BY event_id LIMIT 1',
+    ).get(valid.memory.memoryId).event_id;
+    db.prepare('UPDATE memory_events SET event_type = ? WHERE event_id = ?')
+      .run('', corruptEventId);
+    db.prepare('UPDATE memory_links SET relation = ? WHERE link_id = ?')
+      .run('', link.link.linkId);
+    db.close();
+
+    const store2 = new MemoryStore({ useSQLite: true, dbPath });
+    assert.deepStrictEqual(store2.corruptRows.map((row) => row.kind), ['memory', 'event', 'link']);
+    assert.ok(store2.corruptRows.every((row) => row.id && Array.isArray(row.errors)));
+    assert.strictEqual(store2.list({ workspaceId: 'ws1' }).total, 1);
+    assert.strictEqual(store2.get(valid.memory.memoryId, { workspaceId: 'ws1' }).ok, true);
+    assert.strictEqual(store2.get(corrupt.memory.memoryId, { workspaceId: 'ws1' }).ok, false);
+    store2.close();
+
+    assert.throws(
+      () => new MemoryStore({ useSQLite: true, dbPath, strictWarmup: true }),
+      (error) => error.code === 'MEMORY_STORE_CORRUPT_ROW' && error.details.kind === 'memory',
+    );
+  });
+});
+
+
+describe('PR-S3D SQLite mutation snapshot cost (#1535)', () => {
+  it('does not snapshot the in-memory mirror on SQLite writes', () => {
+    const dbPath = getDbPath('sqlite-no-write-snapshot');
+    const store = new MemoryStore({ useSQLite: true, dbPath });
+    let snapshotCalls = 0;
+    store._snapshotInMemoryState = () => {
+      snapshotCalls += 1;
+      throw new Error('SQLite writes must not take a full mirror snapshot');
+    };
+
+    const first = store.store({ content: 'first', workspaceId: 'ws1' });
+    const second = store.store({ content: 'second', workspaceId: 'ws1' });
+    assert.strictEqual(first.ok, true);
+    assert.strictEqual(second.ok, true);
+    assert.strictEqual(store.patchMetadata(first.memory.memoryId, { tag: 'patched' }, { workspaceId: 'ws1' }).ok, true);
+    assert.strictEqual(store.linkMemories({
+      workspaceId: 'ws1',
+      fromMemoryId: first.memory.memoryId,
+      toMemoryId: second.memory.memoryId,
+      relation: 'supports',
+    }).ok, true);
+    assert.strictEqual(store.supersede(second.memory.memoryId, 'second-v2', { workspaceId: 'ws1' }).ok, true);
+    assert.strictEqual(store.tombstone(first.memory.memoryId, { workspaceId: 'ws1' }).ok, true);
+    assert.strictEqual(snapshotCalls, 0);
+    store.close();
   });
 });

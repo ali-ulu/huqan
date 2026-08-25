@@ -22,6 +22,7 @@ const path = require('node:path');
 const { after, test } = require('node:test');
 
 const Kernel = require('../kernel');
+const KernelV2 = require('../kernel.v2');
 const { TOOL_SCHEMAS } = require('../lib/mcp-tool-catalog');
 
 const TURKISH_LETTER = /[çğışöüÇĞİŞÖÜ]/;
@@ -98,4 +99,35 @@ test('lib/verify.js emits no replacement characters at all', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'lib', 'verify.js'), 'utf8');
 
   assert.doesNotMatch(source, REPLACEMENT_CHAR);
+});
+
+// #1136: kernel.v2's verify explanation still carried Turkish prose on the
+// 'verified + inferred' branch, next to an English sibling on the same line.
+// Driving the explanation builder directly covers every branch, including the
+// ones a rendered verify() call does not reach on a small fixture graph.
+test('kernel.v2 verify explanations are English on every branch', () => {
+  const v2 = new KernelV2({ noLoad: true, loadPlugins: false, useSQLite: false, memoryPath: path.join(tempDir, 'v2-prose.json') });
+
+  const explanations = [
+    v2._buildVerifyExplanation({ status: 'verified', inferred: true }),
+    v2._buildVerifyExplanation({ status: 'verified', inferred: false }),
+    v2._buildVerifyExplanation({ status: 'contradicted', contradictionReason: 'opposite_predicate_conflict' }),
+    // No reason supplied: the fallback string is a surface too.
+    v2._buildVerifyExplanation({ status: 'contradicted' }),
+    v2._buildVerifyExplanation({ status: 'unverified' }),
+    v2._buildVerifyExplanation(
+      { status: 'verified', inferred: true, reasoningPath: [{ from: 'a', relation: 'CAUSES', to: 'b' }] },
+      ['direct edge a -> b'],
+      { manipulation: true, labels: ['urgency'] },
+    ),
+  ];
+
+  for (const explanation of explanations) {
+    assert.ok(explanation.length > 0, 'explanation must not be empty');
+    assert.doesNotMatch(explanation, TURKISH_LETTER);
+    assert.doesNotMatch(explanation, REPLACEMENT_CHAR);
+  }
+
+  // The branch the issue named, pinned to its English replacement.
+  assert.match(explanations[0], /inference chain/);
 });

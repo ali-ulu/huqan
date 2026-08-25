@@ -169,11 +169,22 @@ test('the workflow runtime axis is untouched by the version decision', (t) => {
  */
 function emitProbe(t, label, { maxSteps = 1 } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), `huqan-arch4-emit-${label}-`));
-  const kernel = new KernelV2({ noLoad: true, useSQLite: false, loadPlugins: false });
+  const kernel = new KernelV2({
+    noLoad: true,
+    useSQLite: false,
+    loadPlugins: false,
+    memoryPath: path.join(root, 'kernel.json'),
+    dbPath: null,
+  });
   kernel.learn('kedi hayvandir', Kernel.createAdmissionBypassOpts('test_fixture_seed'));
 
+  const beforeSeen = [];
   const seen = [];
-  kernel.usePlugin({ name: `emit-probe-${label}`, afterAgentRun(_kernel, state) { seen.push(state); } });
+  kernel.usePlugin({
+    name: `emit-probe-${label}`,
+    beforeAgentRun(_kernel, state) { beforeSeen.push(state); },
+    afterAgentRun(_kernel, state) { seen.push(state); },
+  });
 
   const agent = new AgentV3({
     kernel,
@@ -189,7 +200,7 @@ function emitProbe(t, label, { maxSteps = 1 } = {}) {
     fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
   });
 
-  return { agent, seen, maxSteps };
+  return { agent, beforeSeen, seen, maxSteps };
 }
 
 const EMIT_GOAL = 'kedi hayvandir mi?';
@@ -205,6 +216,7 @@ test('a completed run emits afterAgentRun exactly once', (t) => {
   });
 
   assert.equal(result.data.status, 'completed');
+  assert.equal(probe.beforeSeen.length, 1);
   assert.equal(probe.seen.length, 1);
 });
 
@@ -225,6 +237,7 @@ test('a blocked run emits afterAgentRun exactly once', (t) => {
   });
 
   assert.equal(result.ok, false);
+  assert.equal(probe.beforeSeen.length, 1);
   assert.equal(probe.seen.length, 1);
   assert.equal(probe.seen[0].status, 'blocked');
 });
@@ -239,7 +252,27 @@ test('a paused run emits afterAgentRun zero times', (t) => {
   });
 
   assert.equal(result.data.status, 'paused');
+  assert.equal(probe.beforeSeen.length, 1, 'beforeAgentRun observes a resumable run attempt');
   assert.equal(probe.seen.length, 0, 'a resumable checkpoint is not a concluded run');
+});
+
+test('beforeAgentRun fires before a durable budget refusal', (t) => {
+  const probe = emitProbe(t, 'budget-refused', { maxSteps: 1 });
+  probe.agent.storage.sumAgentIterationsSince = () => 1;
+  const result = probe.agent.run(EMIT_GOAL, {
+    resume: false,
+    maxSteps: 1,
+    maxIterations: 200,
+    maxIterationsPerWindow: 1,
+    timeBudgetMs: 8000,
+    workspaceId: 'ws-budget-refused',
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, 'AGENT_LOOP_BUDGET_EXCEEDED');
+  assert.equal(probe.beforeSeen.length, 1, 'the before hook observes the refused attempt');
+  assert.equal(probe.beforeSeen[0].workspaceId, 'ws-budget-refused');
+  assert.equal(probe.seen.length, 0, 'no terminal hook fires when the run never starts');
 });
 
 test('the emitted state keeps the v3 workspaceId the run was scoped to', (t) => {
@@ -252,6 +285,7 @@ test('the emitted state keeps the v3 workspaceId the run was scoped to', (t) => 
     workspaceId: 'ws-scoped',
   });
 
+  assert.equal(probe.beforeSeen.length, 1);
   assert.equal(probe.seen.length, 1);
   // plugins/workspace-sync.js reads state.workspaceId directly when present,
   // so v3's run state is strictly better input than agent.js ever produced.
@@ -268,6 +302,7 @@ test('afterAgentRun fires after the run is persisted, not before', (t) => {
     workspaceId: 'ws-order',
   });
 
+  assert.equal(probe.beforeSeen.length, 1);
   assert.equal(probe.seen.length, 1);
   // agent.js emits after _rememberRun(); the v3 emit sits after saveRun /
   // saveGoalMemory / deleteCheckpoint, so a subscriber observing storage sees

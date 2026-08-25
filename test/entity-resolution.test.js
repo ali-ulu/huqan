@@ -148,6 +148,23 @@ describe('Entity Resolution - resolveEntity with domain', () => {
     assert.strictEqual(r2.canonical, 'boeing_737');
     assert.strictEqual(r3.canonical, 'boeing_737');
   });
+
+  it('uses the same Turkish-ASCII folding for dynamic domain registration and lookup (#1237)', () => {
+    assert.strictEqual(registerAlias('Havacılık 1237', 'THY1237', 'turkish_airlines'), true);
+
+    const resolved = resolveEntity('thy1237', { domain: 'HAVACILIK 1237' });
+    assert.deepStrictEqual(resolved, {
+      matched: true,
+      canonical: 'turkish_airlines',
+      domain: 'havacilik 1237',
+      confidence: 1,
+      reason: 'exact_alias',
+      aliases: ['thy1237'],
+    });
+    assert.ok(listAliases('Havacılık 1237').some(
+      ({ alias, canonical }) => alias === 'thy1237' && canonical === 'turkish_airlines',
+    ));
+  });
 });
 
 describe('Entity Resolution - resolveEntity without domain', () => {

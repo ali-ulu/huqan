@@ -136,13 +136,27 @@ test('CLI opt-in Agent Identity and Human Oversight allow a receiver-bound appro
     assert.equal(queued.approval.context.oversightRequired, true);
 
     const output = [];
-    const result = await CLI.runCliArgv(['onayla', queued.approval.id, '--json'], {
+    const firstResult = await CLI.runCliArgv(['onayla', queued.approval.id, '--json'], {
       cli: fixture.cli,
       stdout: value => output.push(value),
     });
-    const decision = JSON.parse(output[0]);
+    const firstDecision = JSON.parse(output[0]);
 
-    assert.equal(result.exitCode, 0, JSON.stringify(decision));
+    assert.equal(firstResult.exitCode, 8, JSON.stringify(firstDecision));
+    assert.equal(firstDecision.ok, false, JSON.stringify(firstDecision));
+    assert.equal(firstDecision.error.code, 'OVERSIGHT_QUORUM_PENDING');
+    assert.equal(fixture.cli.approvalStore.getToolApprovalById(queued.approval.id).status, 'pending');
+    assert.equal(executions, 0);
+
+    const decision = await callTool(fixture.kernel, {
+      name: 'huqan.approve',
+      operatorToken: 'cli-operator-token',
+      arguments: JSON.stringify({ approvalId: queued.approval.id, workspaceId: 'default', decision: 'approved' }),
+    }, {
+      ...fixture.cli._approvalRuntime(),
+      humanOversightApproverContext: { identityRef: 'human:cli-operator-b', identityHash: 'hash-cli-operator-b' },
+    });
+
     assert.equal(decision.ok, true, JSON.stringify(decision));
     assert.equal(decision.data.executed, true);
     assert.equal(decision.data.identity.decision, 'allow');

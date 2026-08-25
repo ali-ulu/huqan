@@ -274,7 +274,7 @@ describe('MCP Server', () => {
     assert.strictEqual(typeof res.result.structuredContent.data.explanation, 'string');
   });
 
-  it('returns a structured agent plan and blocks agent execution via V2.6 gate', async () => {
+  it('returns a structured agent plan and durably queues agent execution for review', async () => {
     const plan = await request('tools/call', {
       name: 'huqan.plan',
       arguments: { goal: 'kedi hayvandir mi' },
@@ -288,14 +288,16 @@ describe('MCP Server', () => {
       name: 'huqan.agent',
       arguments: { goal: 'kedi hayvandir' },
     });
-    assert.strictEqual(agent.result.isError, false);
-    assert.strictEqual(agent.result.structuredContent.ok, true);
-    assert.strictEqual(agent.result.structuredContent.dryRun, true);
-    assert.strictEqual(agent.result.structuredContent.gate.decision, 'dry_run_only');
+    assert.strictEqual(agent.result.isError, true);
+    assert.strictEqual(agent.result.structuredContent.ok, false);
+    assert.strictEqual(agent.result.structuredContent.gate.decision, 'review');
     assert.strictEqual(agent.result.structuredContent.gate.canExecute, false);
     assert.strictEqual(agent.result.structuredContent.gate.canDryRun, true);
-    assert.strictEqual(agent.result.structuredContent.gate.reason, 'agent_loop_dry_run_only');
-    assert.ok(agent.result.structuredContent.message.includes('dry-run'));
+    assert.strictEqual(agent.result.structuredContent.gate.reason, 'agent_loop_requires_review');
+    assert.strictEqual(agent.result.structuredContent.approval.persisted, true);
+    assert.strictEqual(agent.result.structuredContent.approval.status, 'pending');
+    assert.ok(agent.result.structuredContent.approval.id);
+    assert.ok(agent.result.structuredContent.message.includes('queued for review'));
   });
 
   it('exposes external tool policy decisions through MCP', async () => {
@@ -320,7 +322,7 @@ describe('MCP Server', () => {
 
     const approvals = await request('tools/call', {
       name: 'huqan.approvals',
-      arguments: { limit: 10 },
+      arguments: { limit: 10, workspaceId: 'default' },
     });
     assert.strictEqual(approvals.result.isError, false);
     assert.strictEqual(approvals.result.structuredContent.pendingCount >= 1, true);
@@ -346,7 +348,7 @@ describe('MCP Server', () => {
 
     const approvals = await request('tools/call', {
       name: 'huqan.approvals',
-      arguments: { limit: 20 },
+      arguments: { limit: 20, workspaceId: 'default' },
     });
     assert.strictEqual(approvals.result.isError, false);
     assert.ok(Array.isArray(approvals.result.structuredContent.approvals));
@@ -367,7 +369,7 @@ describe('MCP Server', () => {
       countUnresolvedToolApprovals() { return 0; },
     };
 
-    callTool(kernel, { name: 'huqan.approvals', operatorToken: 'test-operator', arguments: { limit: 500 } }, { approvalStore, operatorToken: 'test-operator' });
+    callTool(kernel, { name: 'huqan.approvals', operatorToken: 'test-operator', arguments: { limit: 500, workspaceId: 'default' } }, { approvalStore, operatorToken: 'test-operator' });
     callTool(kernel, { name: 'huqan.reason', arguments: { subject: '  kedi\u0000  ' } });
     callTool(kernel, { name: 'huqan.compare', arguments: { left: '  kedi\u0000 ', right: ' kopek\u0007 ' } });
     callTool(kernel, { name: 'huqan.dream', arguments: { depth: 500 } });

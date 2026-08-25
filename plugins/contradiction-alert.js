@@ -1,5 +1,11 @@
 const { adjustedConfidence } = require('../evidence-ranker');
 
+const { normalizeAlias } = require('../lib/entity-resolution');
+
+// No relation is currently proven single-valued by the graph contract. In
+// particular, multiple `tür` edges are valid for a concept hierarchy, so a
+// different type or capability is not itself a contradiction.
+
 function normalizeInput(input) {
   if (typeof input === 'string') return input.trim();
   if (input && typeof input.text === 'string') return input.text.trim();
@@ -14,24 +20,23 @@ function toIso(value) {
   return null;
 }
 
+function normalizeConflictObject(relation, object) {
+  const normalized = normalizeAlias(object);
+  if (relation === 'değil') return normalized.replace(/(maz|mez)$/i, '');
+  if (relation === 'yapabilir') {
+    return normalized.replace(/(acak|ecek|ıyor|iyor|uyor|üyor|ar|er|ır|ir|ur|ür|r)$/i, '');
+  }
+  return normalized;
+}
+
 function classifyConflict(incomingRelation, existingRelation, incomingObject, existingObject) {
+  const negationPair = (incomingRelation === 'değil' && ['tür', 'yapabilir'].includes(existingRelation))
+    || (existingRelation === 'değil' && ['tür', 'yapabilir'].includes(incomingRelation));
   if (
-    (incomingRelation === 'değil' && existingRelation === 'tür' && incomingObject === existingObject) ||
-    (incomingRelation === 'tür' && existingRelation === 'değil' && incomingObject === existingObject)
+    negationPair &&
+    normalizeConflictObject(incomingRelation, incomingObject) === normalizeConflictObject(existingRelation, existingObject)
   ) {
     return 'direct';
-  }
-
-  if (
-    incomingRelation === existingRelation &&
-    incomingRelation === 'yapabilir' &&
-    incomingObject !== existingObject
-  ) {
-    return 'strategic';
-  }
-
-  if (incomingRelation !== existingRelation && incomingObject !== existingObject) {
-    return 'indirect';
   }
 
   return null;
@@ -39,7 +44,8 @@ function classifyConflict(incomingRelation, existingRelation, incomingObject, ex
 
 function parseIncoming(kernel, predicate) {
   const raw = String(predicate || '').trim();
-  const asciiNeg = raw.match(/^(.+?)\s+degil(dir)?$/i);
+  const normalized = normalizeAlias(raw);
+  const asciiNeg = normalized.match(/^(.+?)\s+degil(dir)?$/i);
   if (asciiNeg) {
     return { relation: 'değil', object: asciiNeg[1].trim() };
   }

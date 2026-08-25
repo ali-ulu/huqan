@@ -25,6 +25,15 @@ describe('adversarial-signals', () => {
     assert.strictEqual(english.rule, ADVERSARIAL_RULES.WEASEL_WORDS);
   });
 
+  it('#1197 matches may as a whole term, not inside Turkish negative participles', () => {
+    for (const text of ['olmayan iddia', 'çalışmayacak plan', 'yapmayabilir sonuç']) {
+      assert.equal(detectWeaselWords(text), null, `${text} must not match the English term may`);
+    }
+    const signal = detectWeaselWords('this may, perhaps, be unsafe');
+    assert.ok(signal);
+    assert.equal(signal.meta.term, 'may');
+  });
+
   it('detects strawman attribution framing', () => {
     const signal = detectStrawmanAttribution('Ali dedi ki B737 has 4 engines');
     assert.ok(signal);

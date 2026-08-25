@@ -82,6 +82,37 @@ function writePlugin(dir, name, opts = {}) {
   return { filePath, manifestPath };
 }
 
+function writeActivationPlugin(dir, name, { capabilityName = `${name}Capability`, signingKey, manifest = {} } = {}) {
+  const filePath = path.join(dir, `${name}.js`);
+  fs.writeFileSync(filePath, pluginSource(name, capabilityName));
+  const sha256 = PluginManager.hashFile(filePath);
+  const manifestPath = filePath.replace(/\.js$/i, '.manifest.json');
+  const record = {
+    sha256,
+    signature: PluginManager.hmacSign(sha256, signingKey),
+    version: '1.0.0',
+    issuer: 'operator',
+    workspaceId: 'workspace-a',
+    capabilities: [{ name: capabilityName, command: capabilityName }],
+    ...manifest,
+  };
+  fs.writeFileSync(manifestPath, JSON.stringify(record));
+  return { filePath, manifestPath, capabilityName, manifest: record };
+}
+
+function activationComponent(name, fixture) {
+  return {
+    componentType: 'plugin',
+    name,
+    version: fixture.manifest.version,
+    contentHash: fixture.manifest.sha256,
+    issuer: fixture.manifest.issuer,
+    workspaceId: fixture.manifest.workspaceId,
+    capabilities: (fixture.manifest.capabilities || []).map(item => item.name || item),
+    expiresAt: fixture.manifest.expiresAt,
+  };
+}
+
 function loadFixture(dir, env = {}) {
   return withEnv(
     {
@@ -223,15 +254,98 @@ describe('FAZ2-7: production plugin signing/hash enforcement', () => {
     );
   }));
 
-  it('signed, hash-verified plugin loads and exposes expected capability (#391: production requires a signing key)', () => withPluginDir((dir) => {
+  it('signed, hash-verified and allowlisted plugin loads with expected capability', () => withPluginDir((dir) => {
     // Not a plausible-looking credential -- concatenated to avoid tripping
     // generic-secret scanners on a fixture HMAC key with no real value.
     const signingKey = ['faz2', 'fixture', 'hmac', 'key'].join('-');
-    writePlugin(dir, 'validPlugin', { capabilityName: 'validCap', signingKey });
-    const { manager, count } = loadFixture(dir, { AXIOM_PLUGIN_SIGNING_KEY: signingKey });
+    const fixture = writeActivationPlugin(dir, 'validPlugin', {
+      capabilityName: 'validCap',
+      signingKey,
+    });
+    const policy = JSON.stringify({ components: [activationComponent('validPlugin', fixture)] });
+    const { manager, count } = loadFixture(dir, {
+      AXIOM_PLUGIN_SIGNING_KEY: signingKey,
+      AXIOM_SUPPLY_CHAIN_ACTIVATION_POLICY: policy,
+    });
 
     assert.strictEqual(count, 1);
     assert.ok(manager.getCapability('validCap'));
+    assert.deepStrictEqual(manager.listActivationInventory()[0].capabilities, ['validCap']);
+  }));
+
+  it('production enforcement refuses plugin loading when activation policy is absent', () => withPluginDir((dir) => {
+    const signingKey = ['faz2', 'policy', 'required', 'key'].join('-');
+    writeActivationPlugin(dir, 'policyRequiredPlugin', {
+      capabilityName: 'policyRequiredCap',
+      signingKey,
+    });
+    const { manager, count } = loadFixture(dir, { AXIOM_PLUGIN_SIGNING_KEY: signingKey });
+
+    assert.strictEqual(count, 0);
+    assert.deepStrictEqual(manager.listActivationInventory(), []);
+    assert.strictEqual(manager.getCapability('policyRequiredCap'), null);
+  }));
+
+  it('activation policy rejects a manifest capability mismatch before registration', () => withPluginDir((dir) => {
+    const signingKey = ['faz2', 'capability', 'mismatch', 'key'].join('-');
+    const fixture = writeActivationPlugin(dir, 'mismatchPlugin', {
+      capabilityName: 'actualCap',
+      signingKey,
+      manifest: { capabilities: [{ name: 'declaredCap', command: 'declaredCap' }] },
+    });
+    const policy = JSON.stringify({ components: [activationComponent('mismatchPlugin', fixture)] });
+    const { manager, count } = loadFixture(dir, {
+      AXIOM_PLUGIN_SIGNING_KEY: signingKey,
+      AXIOM_SUPPLY_CHAIN_ACTIVATION_POLICY: policy,
+    });
+
+    assert.strictEqual(count, 0);
+    assert.strictEqual(manager.getCapability('actualCap'), null);
+  }));
+
+  it('activation policy requires manifest capabilities before plugin registration', () => withPluginDir((dir) => {
+    const signingKey = ['faz2', 'capability', 'missing', 'key'].join('-');
+    const fixture = writeActivationPlugin(dir, 'missingCapabilitiesPlugin', {
+      capabilityName: 'missingCapabilitiesCap',
+      signingKey,
+      manifest: { capabilities: undefined },
+    });
+    const policy = JSON.stringify({ components: [activationComponent('missingCapabilitiesPlugin', fixture)] });
+    const { manager, count } = loadFixture(dir, {
+      AXIOM_PLUGIN_SIGNING_KEY: signingKey,
+      AXIOM_SUPPLY_CHAIN_ACTIVATION_POLICY: policy,
+    });
+
+    assert.strictEqual(count, 0);
+    assert.strictEqual(manager.getCapability('missingCapabilitiesCap'), null);
+  }));
+
+  it('revokes one loaded plugin without affecting another workspace component', async () => withPluginDir(async (dir) => {
+    const signingKey = ['faz2', 'revoke', 'scope', 'key'].join('-');
+    const first = writeActivationPlugin(dir, 'firstPlugin', {
+      capabilityName: 'firstCap',
+      signingKey,
+      manifest: { workspaceId: 'workspace-a' },
+    });
+    const second = writeActivationPlugin(dir, 'secondPlugin', {
+      capabilityName: 'secondCap',
+      signingKey,
+      manifest: { workspaceId: 'workspace-b' },
+    });
+    const policy = JSON.stringify({
+      components: [activationComponent('firstPlugin', first), activationComponent('secondPlugin', second)],
+    });
+    const { manager, count } = loadFixture(dir, {
+      AXIOM_PLUGIN_SIGNING_KEY: signingKey,
+      AXIOM_SUPPLY_CHAIN_ACTIVATION_POLICY: policy,
+    });
+
+    assert.strictEqual(count, 2);
+    const revoked = manager.revokePlugin('firstPlugin', 'incident-1376');
+    assert.strictEqual(revoked.decision, 'revoke');
+    assert.strictEqual(revoked.workspaceId, 'workspace-a');
+    await assert.rejects(() => manager.runCapability('firstCap', {}), /incident-1376/);
+    assert.deepStrictEqual(await manager.runCapability('secondCap', {}), { ok: true, source: 'fixture' });
   }));
 
   it('production/enforced mode with no signing key rejects an otherwise-valid, correctly hash-verified plugin (#391)', () => withPluginDir((dir) => {

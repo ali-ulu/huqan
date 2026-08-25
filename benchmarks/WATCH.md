@@ -8,10 +8,12 @@ what to look at and when.
 
 - `benchmarks/bench-memory-scale.js` — deterministic memory benchmark
   (small=10, medium=100, large=1000) measuring `ingestMs`, `queryMs`,
-  and `roundtripMs` on a fresh in-memory `MemoryStore`.
+  and `roundtripMs` for separate in-memory and SQLite fixture groups.
+  `queryMs` times `list()` on a prebuilt store, and every metric excludes
+  two fixed V8/JIT warmup calls.
 - `benchmarks/snapshot-memory.js` — produces a versioned JSON snapshot
-  with `schema`, `version`, `commit`, `iterations`, `seed`, and
-  per-fixture timing fields.
+  with `schema`, `version`, `commit`, `iterations`, `warmupIterations`,
+  `seed`, and per-fixture timing fields for both backend groups.
 - `benchmarks/bench-memory-scale.test.js` and
   `benchmarks/snapshot-memory.test.js` — minimal smoke tests.
 
@@ -26,9 +28,10 @@ No runtime code was changed. No baseline was overwritten.
 
 ## Watch item 2 — Timing trend (advisory by default)
 
-- Compare `ingestMs` / `queryMs` / `roundtripMs` across snapshots from
-  the same machine and same Node version. A 2x regression on the same
-  hardware is a real signal; a 1.2x drift is probably noise.
+- Compare `ingestMs` / `queryMs` / `roundtripMs` within the same backend
+  group, across snapshots from the same machine and same Node version. A 2x
+  regression on the same hardware is a real signal; a 1.2x drift is probably
+  noise.
 - Use `PR-S4A`'s `check-regression.js` with `--strict-timing` if you
   need an explicit failure on drift.
 
@@ -61,3 +64,6 @@ in `.gitignore`. This PR intentionally does not commit any snapshot.
 - Memory store runtime changes (PR-S5 family, separate work).
 - Real-scale fixtures (10k+ records) — that requires its own design
   decision and is not part of S4B.
+- Cross-backend regression thresholds — the two fixture groups are reported
+  separately; this benchmark does not claim that their absolute timings are
+  directly comparable.

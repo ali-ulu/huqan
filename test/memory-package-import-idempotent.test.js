@@ -30,7 +30,9 @@ function seededPackage() {
 
   const exported = source.exportPackage({ workspaceId: 'ws-src' });
   assert.equal(exported.ok, true);
-  return exported.package;
+  // The fixture intentionally remaps record-level data to ws-dst; declare the
+  // package target accordingly so this suite remains focused on idempotency.
+  return { ...exported.package, workspaceId: 'ws-dst' };
 }
 
 function importInto(store, pkg, opts = {}) {

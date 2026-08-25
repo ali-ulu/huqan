@@ -1,4 +1,4 @@
-const { fetchRepoFiles, parseRepoUrl } = require('../adapters/github-adapter');
+const { fetchRepoFiles, parseRepoUrl, isMarkdownPath } = require('../adapters/github-adapter');
 const { parseMarkdown, ingestMarkdown } = require('../adapters/markdown-adapter');
 const { ingestJson } = require('../adapters/json-adapter');
 const { ingestYaml } = require('../adapters/yaml-adapter');
@@ -18,15 +18,17 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+const INGEST_STATE_KEY = '_repoMemoryIngestState';
+
 function ensureCompanyState(kernel) {
-  if (!kernel._companyIngestState) {
-    kernel._companyIngestState = {
+  if (!kernel[INGEST_STATE_KEY]) {
+    kernel[INGEST_STATE_KEY] = {
       bySource: { repo: 0, markdown: 0, json: 0, yaml: 0, 'git-log': 0, pdf: 0, http: 0, manual: 0 },
       lastIngestAt: null,
       ingestErrors: [],
     };
   }
-  return kernel._companyIngestState;
+  return kernel[INGEST_STATE_KEY];
 }
 
 function trackIngestSuccess(kernel, sourceType, amount) {
@@ -246,7 +248,11 @@ async function ingestGithubRepo(kernel, input = {}) {
       },
     }));
 
-    const sections = parseMarkdown(file.content, `${owner}/${repo}/${file.path}`);
+    // Only markdown gets section parsing: running it over source or config
+    // files turns leading `# ` comments into graph "section" nodes (#1508).
+    const sections = isMarkdownPath(file.path)
+      ? parseMarkdown(file.content, `${owner}/${repo}/${file.path}`)
+      : [];
     if (sections.length === 0) {
       if (fileProposal.edge) added += 1;
       continue;

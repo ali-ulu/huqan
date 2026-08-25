@@ -349,6 +349,27 @@ describe('AB3 code change gate core decisions', () => {
     assert.ok(result.warnings.every(warning => !warning.includes(token)));
   });
 
+  it('safe secret and deploy names do not hard-block by substring', () => {
+    for (const path of ['lib/secret-scrub-gate.js', '.env.example', 'id_rsa.pub', 'lib/tokenizer.js', 'docs/deployment.md']) {
+      const result = makeResult({
+        files: [{ path, status: 'modified', changeType: 'source' }],
+        intent: 'refresh the auth token logic',
+        diffSummary: 'update deployment documentation',
+      });
+      assert.notEqual(result.decision, CODE_CHANGE_GATE_DECISIONS.BLOCK, path);
+      assert.notEqual(result.reason, CODE_CHANGE_GATE_REASONS.SECRET_CHANGE_BLOCKED, path);
+      assert.notEqual(result.reason, CODE_CHANGE_GATE_REASONS.RELEASE_OR_DEPLOY_CHANGE_BLOCKED, path);
+    }
+  });
+  it('exact sensitive filenames remain blocked', () => {
+    for (const path of ['.env', 'id_rsa']) {
+      const result = makeResult({
+        files: [{ path, status: 'modified', changeType: 'source' }],
+      });
+      assert.equal(result.decision, CODE_CHANGE_GATE_DECISIONS.BLOCK, path);
+      assert.equal(result.reason, CODE_CHANGE_GATE_REASONS.SECRET_CHANGE_BLOCKED, path);
+    }
+  });
   it('main branch write attempt returns block', () => {
     const result = evaluateCodeChange(makeInput({
       repoState: {

@@ -126,6 +126,21 @@ describe('kernel concurrency and path safety', () => {
     assert.ok(raw.meta && raw.meta.semanticTrust, 'semantic trust metadata should still be present');
   });
 
+  it('does not let a dead-end branch poison a later valid path (#1243)', () => {
+    const kernel = makeKernel('path-visited-backtracking');
+    for (const id of ['start', 'dead', 'shared', 'target']) {
+      kernel.graph.addNode(id, id, null, { workspaceId: 'default' });
+    }
+    kernel.graph.addEdge('start', 'dead', 'linked', { workspaceId: 'default' });
+    kernel.graph.addEdge('dead', 'shared', 'linked', { workspaceId: 'default' });
+    kernel.graph.addEdge('start', 'shared', 'linked', { workspaceId: 'default' });
+    kernel.graph.addEdge('shared', 'target', 'linked', { workspaceId: 'default' });
+
+    const result = kernel._findPathWithTimeout('start', 'target', 100, 'default', 3);
+    assert.deepStrictEqual(result.path, ['start', 'shared', 'target']);
+    assert.strictEqual(result.stoppedReason, 'maxDepth');
+  });
+
   it('reports path timeout and maxDepth when traversals are bounded', () => {
     const kernel = makeKernel('path-guards');
     kernel.graph.addNode('alpha', 'alpha', null, { workspaceId: 'default' });

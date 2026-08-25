@@ -429,10 +429,7 @@ describe('Integration: MCP Gate + Safety (AB1–AB6 enforcement)', () => {
     assert.ok(result.data, 'should have data from kernel');
   });
 
-  it('axiom.learn (write) is held for review by gate — REVIEW required', () => {
-    // This mock kernel has no approval store, so there is nowhere to queue the
-    // call. The gate verdict is unchanged; the response no longer claims a
-    // durable review queue that does not exist (#772).
+  it('axiom.learn (write) is held for durable review by gate — REVIEW required', () => {
     const kernel = mockKernel();
     const result = callTool(kernel, { name: 'axiom.learn', arguments: { text: 'New fact' } });
     assert.equal(result.ok, false);
@@ -440,18 +437,24 @@ describe('Integration: MCP Gate + Safety (AB1–AB6 enforcement)', () => {
     assert.equal(result.gate.canExecute, false);
     assert.equal(result.gate.canDryRun, true);
     assert.equal(result.gate.requiredReview, true);
-    assert.equal(result.error.code, 'REVIEW_NOT_PERSISTED');
-    assert.equal(result.message, 'Tool call blocked, review not persisted: mutating_requires_review');
+    assert.equal(result.approval.persisted, true);
+    assert.ok(result.approval.id);
+    assert.equal(result.status, 'review_required');
+    assert.equal(result.message, 'Tool call queued for review: mutating_requires_review');
   });
 
-  it('axiom.agent (agent loop) returns a dry-run plan via gate - DRY_RUN_ONLY', () => {
+  it('axiom.agent (agent loop) is restored to durable review — REVIEW required', () => {
     const kernel = mockKernel();
     const result = callTool(kernel, { name: 'axiom.agent', arguments: { goal: 'Build a plan' } });
-    assert.equal(result.ok, true);
-    assert.equal(result.dryRun, true);
+    assert.equal(result.ok, false);
     assert.equal(result.gate.allowed, false);
+    assert.equal(result.gate.canExecute, false);
     assert.equal(result.gate.canDryRun, true);
-    assert.equal(result.gate.reason, 'agent_loop_dry_run_only');
+    assert.equal(result.gate.requiredReview, true);
+    assert.equal(result.gate.decision, 'review');
+    assert.equal(result.gate.reason, 'agent_loop_requires_review');
+    assert.equal(result.approval.persisted, true);
+    assert.ok(result.approval.id);
   });
 
   it('unknown tool is blocked by gate (returns error, not throw)', () => {

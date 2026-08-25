@@ -117,6 +117,37 @@ function findScopedNode(nodes, nodeId) {
   return Object.values(nodes).find(node => node?.id === nodeId) || null;
 }
 
+function cloneState(value) {
+  if (typeof value === 'undefined') return null;
+  try { return JSON.parse(JSON.stringify(value)); } catch (_) { return String(value); }
+}
+
+function stateImpact(changeType, newState) {
+  const type = String(changeType || 'unknown').trim().toLowerCase();
+  if (type === 'remove') return 0;
+  if (type === 'add') return 1;
+  if (type !== 'modify') return 1;
+  if (typeof newState === 'boolean') return newState ? 1 : 0;
+  if (!newState || typeof newState !== 'object') return 1;
+  for (const key of ['enabled', 'active', 'available']) {
+    if (typeof newState[key] === 'boolean') return newState[key] ? 1 : 0;
+  }
+  const state = String(newState.status || newState.state || '').trim().toLowerCase();
+  if (['disabled', 'inactive', 'removed', 'offline', 'blocked', 'off'].includes(state)) return 0;
+  return 1;
+}
+
+function simulationOverlay(changeType, newState) {
+  const type = String(changeType || 'unknown').trim().toLowerCase() || 'unknown';
+  const impact = stateImpact(type, newState);
+  return {
+    changeType: type,
+    stateImpact: impact,
+    effect: type === 'remove' || impact === 0 ? 'suppressed' : type === 'add' ? 'activated' : type === 'modify' ? 'modified' : 'observed',
+    newState: cloneState(newState),
+  };
+}
+
 /**
  * Causal Simulator for v0.7
  * Simulates "what-if" scenarios using causal chains
@@ -178,6 +209,7 @@ class CausalSimulator {
       };
     }
 
+    const simulation = simulationOverlay(changeType, newState);
     const traversal = this.graph.getCausalChain(nodeId, { maxDepth, workspaceId });
     const causalChains = Array.isArray(traversal)
       ? traversal
@@ -203,8 +235,10 @@ class CausalSimulator {
       const chainStrength = average(chain.map(step => clamp01(step.strength)));
       const chainConfidence = average(chain.map(step => clamp01(step.confidence)));
       const lengthPenalty = Math.max(0.55, 1 - Math.max(0, chain.length - 1) * 0.08);
-      const impact = clamp01(chainStrength * profile.impactBias * lengthPenalty);
-      const confidence = clamp01((chainConfidence * 0.65 + chainStrength * 0.35) * lengthPenalty);
+      const baseImpact = clamp01(chainStrength * profile.impactBias * lengthPenalty);
+      const baseConfidence = clamp01((chainConfidence * 0.65 + chainStrength * 0.35) * lengthPenalty);
+      const impact = clamp01(baseImpact * simulation.stateImpact);
+      const confidence = clamp01(baseConfidence * simulation.stateImpact);
       const riskScore = clamp01((impact * 0.65 + confidence * 0.35) * profile.riskBias);
       const severity = severityFromScore(riskScore, profile);
       const chainEvidence = collectEvidence(chain);
@@ -220,6 +254,7 @@ class CausalSimulator {
         impact,
         confidence,
         severity,
+        simulationEffect: simulation.effect,
         evidence: chainEvidence,
         description: this._describeChain(chain),
       });
@@ -231,6 +266,7 @@ class CausalSimulator {
           severity,
           impact,
           confidence,
+          simulationEffect: simulation.effect,
           description: `${terminalEdge.relation}: ${terminalEdge.from} → ${terminalEdge.to} (impact: ${impact.toFixed(3)}, confidence: ${confidence.toFixed(3)})`,
         });
       }
@@ -297,7 +333,8 @@ class CausalSimulator {
     }
 
     const uniqueEvidence = uniqueStrings(evidence);
-    const recommendation = this._deriveRecommendation(risks, avgConfidence, mode);
+    const simulatedConfidence = clamp01(traversalConfidence * simulation.stateImpact);
+    const recommendation = this._deriveRecommendation(risks, simulatedConfidence, mode, simulation);
 
     return {
       ok: true,
@@ -305,6 +342,7 @@ class CausalSimulator {
       action: action || `Simulate change on ${nodeId}`,
       nodeId,
       changeType: changeType || 'unknown',
+      simulation,
       workspaceId,
       input: {
         action: action || `Simulate change on ${nodeId}`,
@@ -321,16 +359,17 @@ class CausalSimulator {
       risks,
       evidence: uniqueEvidence,
       unknowns: uniqueStrings(unknowns),
-      confidence: traversalConfidence,
+      confidence: simulatedConfidence,
       traversal: traversalMetadata,
       recommendation,
       summary: this._generateSummary({
         mode,
         outcomes,
         risks,
-        confidence: traversalConfidence,
+        confidence: simulatedConfidence,
         unknowns,
         traversalStoppedReason,
+        simulation,
       })
     };
   }
@@ -354,11 +393,12 @@ class CausalSimulator {
    * Generate a summary of the simulation
    * @private
    */
-  _generateSummary({ mode, outcomes, risks, confidence, unknowns, traversalStoppedReason }) {
+  _generateSummary({ mode, outcomes, risks, confidence, unknowns, traversalStoppedReason, simulation = null }) {
     const riskCount = risks.length;
     const outcomeCount = outcomes.length;
+    const effect = simulation?.effect && simulation.effect !== 'observed' ? ` (${simulation.effect})` : '';
 
-    let summary = `${mode === 'causal-backed' ? 'Simulation found' : 'Simulation had'} ${outcomeCount} causal outcome(s)`;
+    let summary = `${mode === 'causal-backed' ? 'Simulation found' : 'Simulation had'} ${outcomeCount} causal outcome(s)${effect}`;
     if (riskCount > 0) {
       summary += ` with ${riskCount} high-risk consequence(s)`;
     }
@@ -386,9 +426,13 @@ class CausalSimulator {
     return summary;
   }
 
-  _deriveRecommendation(risks, confidence, mode) {
+  _deriveRecommendation(risks, confidence, mode, simulation = null) {
     if (mode === 'missing-node') {
       return 'Node not found; seed the graph before simulating.';
+    }
+
+    if (simulation?.stateImpact === 0) {
+      return 'Hypothetical removal or disabled state suppresses downstream causal consequences; no active risk is projected.';
     }
 
     if (risks.length === 0) {

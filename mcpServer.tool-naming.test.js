@@ -333,7 +333,7 @@ describe('RFC-001 compatibility with approvals persisted before the rename', () 
       context: { source: 'mcp', queuedForExecution: true, args: { text: 'at hayvandir', skipConflicts: true } },
     });
 
-    const result = callTool(kernel, { name: 'huqan.approve', operatorToken: 'test-operator', arguments: { approvalId: id, decision: 'approved' } }, { approvalStore: store, operatorToken: 'test-operator' });
+    const result = callTool(kernel, { name: 'huqan.approve', operatorToken: 'test-operator', arguments: { approvalId: id, workspaceId: 'default', decision: 'approved' } }, { approvalStore: store, operatorToken: 'test-operator' });
     assert.notEqual(
       result.error?.code,
       'APPROVAL_EXECUTION_UNSUPPORTED',

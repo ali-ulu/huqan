@@ -1,6 +1,15 @@
 function cloneValue(value) {
   if (value === undefined) return undefined;
+  if (typeof structuredClone === 'function') return structuredClone(value);
   return JSON.parse(JSON.stringify(value));
+}
+
+function safeStringify(value) {
+  try {
+    return JSON.stringify(value);
+  } catch (_) {
+    return `[unserializable:${Object.prototype.toString.call(value)}]`;
+  }
 }
 
 function foldText(value) {
@@ -68,7 +77,7 @@ function stableKey(value) {
   if (value === null) return 'null';
   if (typeof value === 'string') return `str:${foldText(value)}`;
   if (typeof value !== 'object') return `${typeof value}:${String(value)}`;
-  return `obj:${JSON.stringify(value)}`;
+  return `obj:${safeStringify(value)}`;
 }
 
 function dedupeStable(items) {
@@ -505,7 +514,7 @@ function buildCausalSummary(simulationResult = {}) {
   const evidence = normalizeCausalEvidence(simulationResult.evidence);
   const unknowns = dedupeStable(
     (Array.isArray(simulationResult.unknowns) ? simulationResult.unknowns : simulationResult.unknowns ? [simulationResult.unknowns] : [])
-      .map(item => extractText(item) || normalizeText(typeof item === 'string' ? item : JSON.stringify(item)))
+      .map(item => extractText(item) || normalizeText(typeof item === 'string' ? item : safeStringify(item)))
       .filter(Boolean)
   );
   const recommendation = normalizeText(

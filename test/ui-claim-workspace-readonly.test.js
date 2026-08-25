@@ -79,6 +79,57 @@ test('Claim Workspace uses manifest routes, session-only auth, real search, and 
   assert.match(html, /\/api\/trust-receipt/);
 });
 
+test('Claim Workspace derives all aggregate dashboard status labels from one helper', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  const match = html.match(/function aggregateStatus\(surfaces\)\{([\s\S]*?)\}function renderHealth/);
+  assert.ok(match, 'aggregate status helper must be present');
+  const aggregateStatus = vm.runInNewContext(`(function aggregateStatus(surfaces){${match[1]}})`);
+  const surfaces = {
+    status: { s: 'ok' }, workflows: { s: 'ok' }, graph: { s: 'ok' },
+    approvals: { s: 'ok' }, activity: { s: 'ok' },
+  };
+  const healthy = aggregateStatus(surfaces);
+  assert.equal(healthy.label, 'HEALTHY');
+  assert.equal(healthy.online, 5);
+  assert.equal(healthy.total, 5);
+  surfaces.activity.s = 'locked';
+  assert.equal(aggregateStatus(surfaces).label, 'PARTIAL');
+  surfaces.status.s = 'err';
+  surfaces.workflows.s = 'err';
+  surfaces.graph.s = 'checking';
+  surfaces.approvals.s = 'checking';
+  surfaces.activity.s = 'checking';
+  assert.equal(aggregateStatus(surfaces).label, 'CHECKING');
+  surfaces.graph.s = 'err';
+  surfaces.approvals.s = 'err';
+  surfaces.activity.s = 'err';
+  assert.equal(aggregateStatus(surfaces).label, 'OFFLINE');
+  surfaces.status.s = 'ok';
+  surfaces.workflows.s = 'ok';
+  assert.equal(aggregateStatus(surfaces).label, 'DEGRADED');
+  assert.match(html, /aggregate=aggregateStatus\(state\.surfaces\)/);
+  assert.match(html, /\$\('sys'\)\.textContent=aggregate\.label/);
+  assert.match(html, /\$\('healthsum'\)\.textContent=`\$\{aggregate\.label\} · \$\{n\}\/\$\{a\.length\} surfaces available`/);
+  assert.match(html, /\$\('footstatus'\)\.textContent=`\$\{aggregate\.label\} · \$\{n\}\/\$\{a\.length\} surfaces available`/);
+  assert.doesNotMatch(html, /\$\('sys'\)\.textContent='ONLINE'/);
+  assert.doesNotMatch(html, /\$\('footstatus'\)\.textContent='System Healthy'/);
+});
+
+test('Claim Workspace exposes truthful surface metadata and actionable empty states', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  assert.match(html, /surfaces:\{status:\{label:'Runtime Status'.*reason:'Waiting for runtime status.'.*lastChecked:null.*nextAction:'Refresh'/);
+  assert.match(html, /function surface\(k,s,detail=\{\}\)/);
+  assert.match(html, /function surfaceLabel\(s\)/);
+  assert.match(html, /function surfaceCta\(k\)/);
+  assert.match(html, /id="securemeter"/);
+  assert.match(html, /securemeter'\)\.style\.width=state\.key\?'100%':'0%'/);
+  assert.match(html, /id="meshstate"/);
+  assert.match(html, /id="meshstage"/);
+  assert.match(html, /meshstage'\)\.hidden=!hasData/);
+  assert.match(html, /No pending approvals\.<\/b><br>\$\{esc\(s\.reason\)\}/);
+  assert.ok(html.includes('<b>Last checked:</b>'));
+});
+
 test('Claim Workspace browser script compiles and wires unknown-to-review through the existing ingest approval runtime', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
   const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
@@ -89,6 +140,8 @@ test('Claim Workspace browser script compiles and wires unknown-to-review throug
   assert.match(html, /json\('\/api\/ingest'/);
   assert.match(html, /idempotencyKey:\`command-center:\$\{h\}\`/);
   // approval/review kuyruğu okunur ve karar ingest'e postanır
-  assert.match(html, /json\('\/api\/ingest\/approvals\?limit=50'/);
+  assert.match(html, /json\('\/api\/ingest\/approvals\?limit=50&workspaceId='/);
+  assert.match(html, /encodeURIComponent\(state\.ws\)/);
+  assert.match(html, /await refresh\(\);const failed=/);
   assert.match(html, /`\/api\/ingest\/approvals\/\$\{encodeURIComponent\(id\)\}`/);
 });

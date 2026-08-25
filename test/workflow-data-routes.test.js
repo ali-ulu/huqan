@@ -12,8 +12,13 @@ function fixture(records = [], overrides = {}) {
   const decisions = [];
   const handler = createWorkflowDataRoutes({
     getApprovalStore: () => ({
-      listUnresolvedToolApprovals: limit => records.slice(0, limit),
-      getToolApprovalById: id => byId.get(id) || null,
+      listUnresolvedToolApprovals: (limit, workspaceId) => records
+        .filter(record => record.context?.snapshot?.workspaceId === workspaceId)
+        .slice(0, limit),
+      getToolApprovalById: (id, workspaceId) => {
+        const record = byId.get(id) || null;
+        return record && record.context?.snapshot?.workspaceId === workspaceId ? record : null;
+      },
     }),
     decideApproval: async input => {
       decisions.push(input);
@@ -115,7 +120,7 @@ describe('canonical workflow data routes', () => {
     assert.equal(result.write.status, 200);
     assert.equal(result.write.json.workflowId, 'approval-decision');
     assert.equal(result.write.json.data.approval.status, 'approved');
-    assert.deepEqual(result.decisions, [{ approvalId: 'a', decision: 'approved', reason: '' }]);
+    assert.deepEqual(result.decisions, [{ approvalId: 'a', workspaceId: 'alpha', decision: 'approved', reason: '' }]);
   });
 
   it('enforces the published approval-decision body schema before dispatch', async () => {

@@ -617,7 +617,19 @@ class Agent {
     let toolPolicy = null;
     let firewallDecision = null;
 
-    result = behavioralBlockResult(state, step);
+    // Evaluate the action firewall before behavioral containment so the
+    // observation includes the same workspace/approval metadata that governs
+    // execution. Neither gate executes the step; both must pass before a tool
+    // call is reached.
+    const firewallResult = enforceAgentActionStep({
+      step,
+      state,
+      opts,
+      kernel: this.kernel,
+      allowedTools: ALLOWED_TOOLS,
+    });
+    firewallDecision = firewallResult.firewallDecision;
+    result = behavioralBlockResult(state, step, { firewallDecision });
     if (result) {
     } else if (beforeTaskData && beforeTaskData.blocked === true) {
       result = {
@@ -634,19 +646,10 @@ class Agent {
           blockedBy: beforeTaskData.blockedBy || null,
         },
       };
+    } else if (firewallResult.result) {
+      result = firewallResult.result;
     } else {
-      const firewallResult = enforceAgentActionStep({
-        step,
-        state,
-        opts,
-        kernel: this.kernel,
-        allowedTools: ALLOWED_TOOLS,
-      });
-      firewallDecision = firewallResult.firewallDecision;
-      if (firewallResult.result) {
-        result = firewallResult.result;
-      } else {
-        toolPolicy = evaluateToolPolicy({
+      toolPolicy = evaluateToolPolicy({
           tool: step.tool,
         input: step.input,
         context: {
@@ -732,7 +735,6 @@ class Agent {
           }
         }
       }
-    }
 
     const summary = this._extractAgentSummary(result);
     const blocked = result?.error?.code === 'UNSUPPORTED_TOOL' || result?.meta?.blocked === true;
@@ -795,8 +797,15 @@ class Agent {
     state.workspaceId = typeof opts.workspaceId === 'string' && opts.workspaceId.trim()
       ? opts.workspaceId.trim()
       : (state.workspaceId || 'default');
+    state.agentId = String(opts.agentId || state.agentId || 'agent-v1');
     state.executionScope = scopeResult.scope; state.behavioralManifest = resumeCandidate?.behavioralManifest;
-    state.behavioralFindings = resumeCandidate?.behavioralFindings ? cloneValue(resumeCandidate.behavioralFindings) : []; initializeBehavioralState(state, { ...state, selectedTools: [...(state.selectedTools || []), 'dream'] });
+    state.behavioralFindings = resumeCandidate?.behavioralFindings ? cloneValue(resumeCandidate.behavioralFindings) : [];
+    initializeBehavioralState(state, {
+      ...state,
+      agentId: state.agentId,
+      selectedTools: [...(state.selectedTools || []), 'dream'],
+      capabilities: (activePlan.steps || []).map(step => step.action),
+    });
     this._emit('beforeAgentRun', state);
 
     const queued = Array.isArray(state.queuedSteps) ? [...state.queuedSteps] : [];

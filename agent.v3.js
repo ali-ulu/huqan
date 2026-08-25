@@ -312,14 +312,14 @@ class AgentV3 {
   // the baseAgent seam above; these read straight from v3's storage, mirroring
   // the guards agent.js uses so a storage without the approval tables degrades
   // to empty rather than throwing.
-  listPendingToolApprovals(limit = 20) {
+  listPendingToolApprovals(limit = 20, workspaceId = 'default') {
     if (!this.storage || typeof this.storage.listPendingToolApprovals !== 'function') return [];
-    return this.storage.listPendingToolApprovals(limit);
+    return this.storage.listPendingToolApprovals(limit, workspaceId);
   }
 
-  countPendingToolApprovals() {
+  countPendingToolApprovals(workspaceId = 'default') {
     if (!this.storage || typeof this.storage.countPendingToolApprovals !== 'function') return 0;
-    return this.storage.countPendingToolApprovals();
+    return this.storage.countPendingToolApprovals(workspaceId);
   }
 
   _hydrateState(activePlan, checkpoint = null) {
@@ -475,7 +475,14 @@ class AgentV3 {
     const queued = Array.isArray(state.queuedSteps) ? [...state.queuedSteps] : [];
     const deadline = Date.now() + Math.max(0, Number.isInteger(opts.timeBudgetMs) ? opts.timeBudgetMs : this.timeBudgetMs);
     const maxIterations = Number.isInteger(opts.maxIterations) ? opts.maxIterations : this.maxIterations;
-    state.workspaceId = workspaceId; state.agentId = String(opts.agentId || state.agentId || ''); state.observabilityRunId = state.observabilityRunId || `agent-${crypto.randomUUID?.() || Date.now()}`; try { this.kernel?.observability?.recordLifecycle?.('beforeAgentRun', state); } catch (_) {} initializeBehavioralState(state, { goal: state.goal, workspaceId, selectedTools: state.selectedTools || activePlan.selectedTools });
+    state.workspaceId = workspaceId; state.agentId = String(opts.agentId || state.agentId || 'agent-v3');
+    state.observabilityRunId = state.observabilityRunId || `agent-${crypto.randomUUID?.() || Date.now()}`;
+    try { this.kernel?.observability?.recordLifecycle?.('beforeAgentRun', state); } catch (_) {}
+    initializeBehavioralState(state, { goal: state.goal, workspaceId, agentId: state.agentId, selectedTools: state.selectedTools || activePlan.selectedTools, capabilities: (activePlan.steps || []).map(step => step.action) });
+    // Keep the public plugin lifecycle contract reachable on the canonical v3
+    // path. This intentionally precedes the durable budget gate: a before hook
+    // observes every accepted run attempt, including one refused before work.
+    this.baseAgent._emit('beforeAgentRun', state);
 
     // Force the run's workspace onto every tool call. agent.js reads
     // per-tool option bags straight through, so without this
@@ -711,7 +718,7 @@ class AgentV3 {
 
     if (state.status === 'completed' || state.status === 'blocked') {
       try {
-        this.storage.deleteCheckpoint(state.checkpointId);
+        this.storage.deleteCheckpoint(state.checkpointId, goal, workspaceId);
       } catch (err) {
         return this._storageFailure('deleteCheckpoint', err, state);
       }
@@ -750,15 +757,15 @@ class AgentV3 {
     });
   }
 
-  getStatus() {
+  getStatus(workspaceId = 'default') {
     const goals = this.storage ? this.storage.countGoals() : 0;
     const checkpoints = this.storage ? this.storage.countCheckpoints() : 0;
     const runs = this.storage ? this.storage.countRuns() : 0;
     const pendingApprovals = this.storage && typeof this.storage.countPendingToolApprovals === 'function'
-      ? this.storage.countPendingToolApprovals()
+      ? this.storage.countPendingToolApprovals(workspaceId)
       : 0;
     const recentApprovals = this.storage && typeof this.storage.listPendingToolApprovals === 'function'
-      ? this.storage.listPendingToolApprovals(5).map(item => ({
+      ? this.storage.listPendingToolApprovals(5, workspaceId).map(item => ({
           id: item.id,
           tool: item.tool,
           status: item.status,

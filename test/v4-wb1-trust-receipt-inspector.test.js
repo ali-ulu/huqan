@@ -1,14 +1,29 @@
 'use strict';
 
 const { describe, it } = require('node:test');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const assert = require('node:assert/strict');
 
 const Kernel = require('../kernel');
 const { inspectTrustReceipt } = require('../lib/workbench/trust-receipt-inspector');
 const { listMaterializedReceiptEntries } = require('../lib/receipt/receipt-read-index');
 
-function makeKernel() {
-  return new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+function makeKernel(t) {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-wb1-receipt-'));
+  const kernel = new Kernel({
+    noLoad: true,
+    useSQLite: false,
+    loadPlugins: false,
+    memoryPath: path.join(tempDir, 'memory.json'),
+    dbPath: null,
+  });
+  t?.after(() => {
+    try { kernel.graph.close?.(); } catch (_) {}
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+  return kernel;
 }
 
 function approvedAdmissionOpts(workspaceId, overrides = {}) {
@@ -46,9 +61,9 @@ function graphSnapshot(kernel, workspaceId) {
   };
 }
 
-describe('V4-WB1: read-only Trust Receipt / Verdict Inspector helper', () => {
-  it('missing receiptId returns explicit invalid_request', () => {
-    const result = inspectTrustReceipt({ source: makeKernel().graph, receiptId: '   ' });
+describe('V4-WB1: read-only Trust Receipt / Verdict Inspector helper', (t) => {
+  it('missing receiptId returns explicit invalid_request', (t) => {
+    const result = inspectTrustReceipt({ source: makeKernel(t).graph, receiptId: '   ' });
 
     assert.equal(result.ok, false);
     assert.equal(result.status, 'invalid_request');
@@ -57,8 +72,8 @@ describe('V4-WB1: read-only Trust Receipt / Verdict Inspector helper', () => {
     assert.equal(result.source.readOnly, true);
   });
 
-  it('unknown receiptId returns not_found without fake receipt data', () => {
-    const kernel = makeKernel();
+  it('unknown receiptId returns not_found without fake receipt data', (t) => {
+    const kernel = makeKernel(t);
     learnApproved(kernel, 'serce hayvandir', 'wb1-unknown', { provenanceId: 'prov-wb1-unknown' });
 
     const result = inspectTrustReceipt({ source: kernel.graph, receiptId: 'missing-receipt-id', workspaceId: 'wb1-unknown' });
@@ -71,7 +86,7 @@ describe('V4-WB1: read-only Trust Receipt / Verdict Inspector helper', () => {
     assert.equal(result.source.readOnly, true);
   });
 
-  it('throwing read source returns structured read_error without fake receipt data', () => {
+  it('throwing read source returns structured read_error without fake receipt data', (t) => {
     const result = inspectTrustReceipt({
       source: {
         getAuditEvents() {
@@ -92,8 +107,8 @@ describe('V4-WB1: read-only Trust Receipt / Verdict Inspector helper', () => {
     assert.equal(result.source.readOnly, true);
   });
 
-  it('inspects a real materialized receipt through the receipt read index', () => {
-    const kernel = makeKernel();
+  it('inspects a real materialized receipt through the receipt read index', (t) => {
+    const kernel = makeKernel(t);
     const receipt = learnApproved(kernel, 'atmaca hayvandir', 'wb1-real', { provenanceId: 'prov-wb1-real' });
 
     const result = inspectTrustReceipt({ source: kernel.graph, receiptId: receipt.receiptId, workspaceId: 'wb1-real' });
@@ -107,8 +122,8 @@ describe('V4-WB1: read-only Trust Receipt / Verdict Inspector helper', () => {
     assert.equal(result.source.readOnly, true);
   });
 
-  it('exposes verdict and reason fields from real receipt data', () => {
-    const kernel = makeKernel();
+  it('exposes verdict and reason fields from real receipt data', (t) => {
+    const kernel = makeKernel(t);
     const receipt = learnApproved(kernel, 'kartal hayvandir', 'wb1-verdict', { provenanceId: 'prov-wb1-verdict' });
 
     const result = inspectTrustReceipt({ source: kernel.graph, receiptId: receipt.receiptId, workspaceId: 'wb1-verdict' });
@@ -120,8 +135,8 @@ describe('V4-WB1: read-only Trust Receipt / Verdict Inspector helper', () => {
     assert.equal(result.chainStatus, 'valid');
   });
 
-  it('reports missing optional inspector fields without synthesizing them', () => {
-    const kernel = makeKernel();
+  it('reports missing optional inspector fields without synthesizing them', (t) => {
+    const kernel = makeKernel(t);
     const receipt = learnApproved(kernel, 'doğan hayvandir', 'wb1-missing', { provenanceId: 'prov-wb1-missing' });
 
     const result = inspectTrustReceipt({ source: kernel.graph, receiptId: receipt.receiptId, workspaceId: 'wb1-missing' });
@@ -134,8 +149,8 @@ describe('V4-WB1: read-only Trust Receipt / Verdict Inspector helper', () => {
     assert.equal(result.tool, '');
   });
 
-  it('does not create a new receipt during inspection', () => {
-    const kernel = makeKernel();
+  it('does not create a new receipt during inspection', (t) => {
+    const kernel = makeKernel(t);
     const workspaceId = 'wb1-no-new-receipt';
     const receipt = learnApproved(kernel, 'baykus hayvandir', workspaceId, { provenanceId: 'prov-wb1-no-new-receipt' });
     const before = listMaterializedReceiptEntries(kernel.graph, { workspaceId }).length;
@@ -147,8 +162,8 @@ describe('V4-WB1: read-only Trust Receipt / Verdict Inspector helper', () => {
     assert.equal(after, before);
   });
 
-  it('does not mutate memory, graph, or audit state during inspection', () => {
-    const kernel = makeKernel();
+  it('does not mutate memory, graph, or audit state during inspection', (t) => {
+    const kernel = makeKernel(t);
     const workspaceId = 'wb1-readonly';
     const receipt = learnApproved(kernel, 'turna hayvandir', workspaceId, { provenanceId: 'prov-wb1-readonly' });
     const before = graphSnapshot(kernel, workspaceId);
@@ -160,8 +175,8 @@ describe('V4-WB1: read-only Trust Receipt / Verdict Inspector helper', () => {
     assert.deepEqual(after, before);
   });
 
-  it('returned receipt mutation cannot mutate internal stored state', () => {
-    const kernel = makeKernel();
+  it('returned receipt mutation cannot mutate internal stored state', (t) => {
+    const kernel = makeKernel(t);
     const workspaceId = 'wb1-clone';
     const receipt = learnApproved(kernel, 'anka hayvandir', workspaceId, { provenanceId: 'prov-wb1-clone' });
 
@@ -174,8 +189,8 @@ describe('V4-WB1: read-only Trust Receipt / Verdict Inspector helper', () => {
     assert.equal(second.canonicalPayload.reason, receipt.reason);
   });
 
-  it('respects workspace boundary for explicit workspace filters', () => {
-    const kernel = makeKernel();
+  it('respects workspace boundary for explicit workspace filters', (t) => {
+    const kernel = makeKernel(t);
     const receipt = learnApproved(kernel, 'leylek hayvandir', 'wb1-right-workspace', { provenanceId: 'prov-wb1-boundary' });
 
     const wrongWorkspace = inspectTrustReceipt({

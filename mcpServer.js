@@ -170,6 +170,15 @@ function createServer(kernelOrOptions = {}) {
             operatorToken,
             trustEvidenceLedger: options.trustEvidenceLedger || null,
             humanOversightApprovalRuntime: options.humanOversightApprovalRuntime || null,
+            ...(Object.hasOwn(options, 'humanOversightRequesterContext')
+              ? { humanOversightRequesterContext: options.humanOversightRequesterContext }
+              : {}),
+            ...(Object.hasOwn(options, 'humanOversightApproverContext')
+              ? { humanOversightApproverContext: options.humanOversightApproverContext }
+              : {}),
+            ...(Object.hasOwn(options, 'humanOversightContextResolver')
+              ? { humanOversightContextResolver: options.humanOversightContextResolver }
+              : {}),
             agentIdentityRuntime: Object.hasOwn(options, 'agentIdentityRuntime')
               ? options.agentIdentityRuntime
               : null,
@@ -496,11 +505,12 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
       ));
     case 'huqan.approvals':
       const approvalStore = runtime.approvalStore || createApprovalStoreFromKernel(kernel, runtime);
+      const approvalWorkspaceId = sanitizeMcpString(args.workspaceId, MCP_MAX_SHORT) || 'default';
       const approvalLimit = boundedMcpInteger(args.limit, 50, 1, 50);
-      const storedApprovals = listPersistentApprovals(approvalStore, approvalLimit);
+      const storedApprovals = listPersistentApprovals(approvalStore, approvalLimit, approvalWorkspaceId);
       return withMcpToolVerdictSurface({
-        pendingCount: countPersistentApprovals(approvalStore),
-        unresolvedCount: countUnresolvedApprovals(approvalStore),
+        pendingCount: countPersistentApprovals(approvalStore, approvalWorkspaceId),
+        unresolvedCount: countUnresolvedApprovals(approvalStore, approvalWorkspaceId),
         approvals: storedApprovals.slice(0, approvalLimit),
       }, name, args, gate);
     case 'huqan.reason':

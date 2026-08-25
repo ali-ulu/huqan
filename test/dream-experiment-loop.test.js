@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const {
   createInitialState,
+  ensureState,
   startFromDreamResult,
   advanceAfterVerification,
   loopEnabled,
@@ -41,6 +42,24 @@ function fakeKernel({ durable = true, edgeDecision = 'allow' } = {}) {
   };
   return kernel;
 }
+
+test('ensureState re-clamps restored cycle and hypothesis limits', () => {
+  const restored = ensureState({
+    workspaceId: 'ws-dream',
+    maxCycles: 999,
+    maxHypotheses: 999,
+    hypotheses: [],
+    attempted: [],
+    observations: [],
+  });
+
+  assert.equal(restored.maxCycles, 5);
+  assert.equal(restored.maxHypotheses, 10);
+
+  const lowerBounded = ensureState({ maxCycles: 0, maxHypotheses: 0 });
+  assert.equal(lowerBounded.maxCycles, 1);
+  assert.equal(lowerBounded.maxHypotheses, 1);
+});
 
 test('Dream loop persists bounded generation and advances to the first verification step', () => {
   const kernel = fakeKernel();

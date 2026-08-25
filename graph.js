@@ -26,12 +26,8 @@ const {
   nodeStorageKey,
   edgeIndexKey,
   nowIso,
-  deepClone,
   isPlainObject,
   normalizeNodeRecord,
-  cloneNodeMap,
-  cloneNodeRecord,
-  cloneEdgeRecord,
   clamp01,
   edgeSortKey,
   compareCausalEdges,
@@ -40,6 +36,8 @@ const {
   edgeUpdateArgs,
 } = require('./lib/graph-record-utils');
 const { derivePersistenceLayout } = require('./lib/memory-store-utils');
+const { createMutationRollback } = require('./lib/graph-mutation-rollback');
+const { handleSqliteInitializationError, hasExistingPersistenceFile, sqlitePersistenceError } = require('./lib/sqlite-persistence-validation');
 const { countAuditEvents, queryAuditEvents, readAuditEvents } = require('./lib/audit-query');
 const { assertChainTipUsable, emptyMutationJournal, readMutationJournal, readCommittedMutationResult, readCommittedMutationResultsByPrefix, withMutationJournalLock } = require('./lib/mutation-journal');
 const { applyTemporalEdgeMetadata, beginEdgeTouchScope, downgradeEdge, edgeTouchKey } = require('./lib/graph-edge-mutations');
@@ -109,6 +107,7 @@ class Graph {
     this._stmts = null; // SQLite statement güvenliği için null init
     if (wantSQLite) {
       const dbPath = this._paths.dbPath;
+      const hasExistingDatabase = hasExistingPersistenceFile(dbPath);
       try {
         this._db = new Database(dbPath);
         this._initDB();
@@ -116,8 +115,7 @@ class Graph {
         try { this._db?.close(); } catch (_) {}
         this._db = null;
         this._stmts = null;
-        if (e?.code === RECEIPT_FAMILY_MIGRATION_ERROR_CODE) throw e;
-        console.error('[Graph] SQLite başlatılamadı, JSON fallback:', e.message);
+        handleSqliteInitializationError(e, hasExistingDatabase, RECEIPT_FAMILY_MIGRATION_ERROR_CODE);
       }
     }
   }
@@ -320,7 +318,7 @@ class Graph {
         ON CONFLICT(workspace_id, id) DO UPDATE SET
           workspace_id = excluded.workspace_id,
           label = excluded.label,
-          weight = MIN(1.0, weight + 0.1),
+          weight = excluded.weight,
           last_accessed = excluded.last_accessed,
           last_seen = excluded.last_seen,
           provenance = excluded.provenance
@@ -472,10 +470,9 @@ class Graph {
     const stored = readStored();
     if (stored !== null) return { replayed: true, result: stored, receipt: this.getCommittedMutationReceiptByOperation(id) };
 
-    const snapshot = {
-      nodes: cloneNodeMap(this._nodes), edges: deepClone(this._edges),
-      candidateClaims: deepClone(this._candidateClaims), auditEvents: deepClone(this._auditEvents),
-    };
+    const previousRollback = this._mutationRollback;
+    const rollback = createMutationRollback(this);
+    this._mutationRollback = rollback;
     try {
       const execute = this._db.transaction(() => {
         const alreadyCompleted = readStored();
@@ -509,19 +506,16 @@ class Graph {
       });
       return execute();
     } catch (error) {
-      // SQLite rolls back, but Graph also keeps mutable in-memory indexes.
-      this._nodes = snapshot.nodes;
-      this._edges = snapshot.edges;
-      this._candidateClaims = snapshot.candidateClaims;
-      this._auditEvents = snapshot.auditEvents;
-      this._outIndex.clear();
-      this._inIndex.clear();
-      this._rebuildIndex();
+      // SQLite rolls back durably; the lazy journal restores only in-memory
+      // records and collection roots touched by this callback.
+      rollback.restore();
       const completed = readStored();
       if (completed !== null) {
         return { replayed: true, result: completed, receipt: this.getCommittedMutationReceiptByOperation(id) };
       }
       throw error;
+    } finally {
+      this._mutationRollback = previousRollback;
     }
   }
 
@@ -550,10 +544,9 @@ class Graph {
       };
     }
 
-    const snapshot = {
-      nodes: cloneNodeMap(this._nodes), edges: deepClone(this._edges),
-      candidateClaims: deepClone(this._candidateClaims), auditEvents: deepClone(this._auditEvents),
-    };
+    const previousRollback = this._mutationRollback;
+    const rollback = createMutationRollback(this);
+    this._mutationRollback = rollback;
     try {
       // Re-check immediately before mutating (mirrors the SQLite path's
       // in-transaction re-check) to keep the replay race window minimal.
@@ -625,24 +618,21 @@ class Graph {
       // that redundant second save for the JSON backend specifically.
       return { replayed: false, result, receipt, persisted: true };
     } catch (error) {
-      this._nodes = snapshot.nodes;
-      this._edges = snapshot.edges;
-      this._candidateClaims = snapshot.candidateClaims;
-      this._auditEvents = snapshot.auditEvents;
-      this._outIndex.clear();
-      this._inIndex.clear();
-      this._rebuildIndex();
+      rollback.restore();
       const completed = readStored();
       if (completed !== null) {
         return { replayed: true, result: completed.result, receipt: this._readMutationReceiptFromJsonJournal(completed.journal, id) };
       }
       throw error;
+    } finally {
+      this._mutationRollback = previousRollback;
     }
   }
 
   // ─── Node işlemleri ───────────────────────────────────────────────────────
 
   _assignEmbedding(storageKey, embedding) {
+    this._mutationRollback?.recordNode(storageKey);
     this._nodes[storageKey].embedding = embedding;
   }
 
@@ -683,13 +673,14 @@ class Graph {
         return { enabled: false, existing: null };
       },
       get: storageKey => this._nodes[storageKey],
+      recordNode: storageKey => this._mutationRollback?.recordNode(storageKey),
       set: (storageKey, value) => { this._nodes[storageKey] = value; },
-      persist: ({ id, workspaceId, label, created, createdAt, lastAccessed, lastSeen, vector, provenance }) => {
+      persist: ({ id, workspaceId, label, weight, created, createdAt, lastAccessed, lastSeen, vector, provenance }) => {
         this._stmts.upsertNode.run(
           id,
           workspaceId,
           label,
-          0.5,
+          weight,
           created,
           createdAt,
           lastAccessed,
@@ -711,6 +702,7 @@ class Graph {
 
   _nodeTouchStoreApi() { return {
     get: storageKey => this._nodes[storageKey],
+    recordNode: storageKey => this._mutationRollback?.recordNode(storageKey),
     persist: (accessedAt, id, workspaceId) => this._db && this._stmts && this._stmts.touchNode.run(accessedAt, id, workspaceId),
   }; }
 
@@ -764,6 +756,7 @@ class Graph {
 
   _candidateClaimWriteStoreApi() {
     return {
+      recordCandidateClaim: index => this._mutationRollback?.recordCandidateClaim(index),
       findIndex: (candidateId, workspaceId) => this._candidateClaims.findIndex(item =>
         item.candidateId === candidateId && normalizeWorkspaceId(item.workspaceId) === workspaceId
       ),
@@ -802,6 +795,7 @@ class Graph {
 
   _nodeDeleteStoreApi() { return {
     getNode: (id, workspaceId) => this.getNode(id, workspaceId),
+    recordNode: storageKey => this._mutationRollback?.recordNode(storageKey),
     deleteNode: storageKey => delete this._nodes[storageKey],
     removeIncidentEdges: (id, workspaceId) => (this._edges = this._edges.filter(edge => !(edge.workspaceId === workspaceId && (edge.from === id || edge.to === id)))),
     rebuildIndex: () => this._rebuildIndex(),
@@ -817,7 +811,10 @@ class Graph {
     return runNodeWeight((nodeId, scope) => this.getNode(nodeId, scope), this._decayLambda, id, workspaceId);
   }
 
-  _nodeTagStoreApi() { return { get: storageKey => this._nodes[storageKey] }; }
+  _nodeTagStoreApi() { return {
+    get: storageKey => this._nodes[storageKey],
+    recordNode: storageKey => this._mutationRollback?.recordNode(storageKey),
+  }; }
 
   addTag(nodeId, dim, weight, workspaceId = 'default') {
     return runNodeTag(this._nodeTagStoreApi(), nodeId, dim, weight, workspaceId);
@@ -836,6 +833,7 @@ class Graph {
             && normalizeWorkspaceId(edge.workspaceId) === workspaceId
         ) || null
       ),
+      recordEdge: edge => this._mutationRollback?.recordEdge(edge),
       append: edge => {
         this._edges.push(edge);
         this._indexEdge(edge);
@@ -927,7 +925,7 @@ class Graph {
     return runGraphPrune(this._pruneStoreApi(), threshold, workspaceId);
   }
 
-  _optimizeStoreApi() { return { prune: scope => this.prune(undefined, scope), getNodes: () => this._nodes, getEdges: (nodeId, scope) => this.getEdges(nodeId, scope), getInEdges: (nodeId, scope) => this.getInEdges(nodeId, scope), decayLambda: this._decayLambda, deleteNode: id => { delete this._nodes[id]; }, persistDeleteNode: (id, scope) => { if (this._db && this._stmts) this._stmts.deleteNode.run(id, scope); }, auditRemoval: (node, decayedWeight) => this.appendAuditEvent({ eventType: 'DELETE', targetType: 'node', targetId: node.id, workspaceId: normalizeWorkspaceId(node.workspaceId), actor: 'graph.optimize', sourceRef: 'graph.optimize', details: { reason: 'decayed_isolated_node', decayedWeight } }) }; }
+  _optimizeStoreApi() { return { prune: scope => this.prune(undefined, scope), getNodes: () => this._nodes, getEdges: (nodeId, scope) => this.getEdges(nodeId, scope), getInEdges: (nodeId, scope) => this.getInEdges(nodeId, scope), decayLambda: this._decayLambda, recordNode: id => this._mutationRollback?.recordNode(id), deleteNode: id => { this._mutationRollback?.recordNode(id); delete this._nodes[id]; }, persistDeleteNode: (id, scope) => { if (this._db && this._stmts) this._stmts.deleteNode.run(id, scope); }, auditRemoval: (node, decayedWeight) => this.appendAuditEvent({ eventType: 'DELETE', targetType: 'node', targetId: node.id, workspaceId: normalizeWorkspaceId(node.workspaceId), actor: 'graph.optimize', sourceRef: 'graph.optimize', details: { reason: 'decayed_isolated_node', decayedWeight } }) }; }
 
   optimize(workspaceId = 'default') {
     return runGraphOptimize(this._optimizeStoreApi(), workspaceId);
@@ -1187,15 +1185,13 @@ class Graph {
 
           // Embedding'leri yükle
           if (fs.existsSync(this._embeddingPath)) {
-            try {
-              const emb = JSON.parse(fs.readFileSync(this._embeddingPath, 'utf-8'));
-              this._restoreEmbeddings(emb);
-            } catch (_) {}
+            const emb = JSON.parse(fs.readFileSync(this._embeddingPath, 'utf-8'));
+            this._restoreEmbeddings(emb);
           }
           return; // SQLite'tan başarıyla yüklendi
         }
       } catch (e) {
-        console.error('[Graph] SQLite yükleme hatası, JSON fallback:', e.message);
+        throw sqlitePersistenceError('load', e);
       }
     }
 

@@ -405,3 +405,12 @@ test('V5 shared trust package schema test stays isolated from runtime modules', 
 
   assert.equal(forbiddenRuntimeImport.test(testSource), false);
 });
+
+
+test('V5 shared trust package schema constrains subject types to the supported contract', () => {
+  const schema = readSchema();
+  assert.deepEqual(
+    schema.properties.subject.properties.type.enum,
+    ['agent_action', 'change', 'tool_call', 'route_receipt', 'route_receipt_chain', 'reasoning_metadata']
+  );
+});

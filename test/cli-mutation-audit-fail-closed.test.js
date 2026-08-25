@@ -85,7 +85,7 @@ describe('an unwritable audit blocks the mutation it was meant to record (#760)'
     });
   }
 
-  it('reports which decision the command would otherwise have had', () => {
+  it('reports the classified decision for allowed and unavailable commands', () => {
     const kernel = kernelWithAudit('throws');
     assert.strictEqual(
       evaluateCliMutationGate({ kernel, command: 'restore', args: '' }).metadata.classifiedDecision,
@@ -93,7 +93,7 @@ describe('an unwritable audit blocks the mutation it was meant to record (#760)'
     );
     assert.strictEqual(
       evaluateCliMutationGate({ kernel, command: 'optimize', args: '' }).metadata.classifiedDecision,
-      'review',
+      'block',
     );
   });
 
@@ -121,12 +121,12 @@ describe('an unwritable audit blocks the mutation it was meant to record (#760)'
     assert.strictEqual(kernel.calls.length, 0);
   });
 
-  it('keeps a review-gated command non-executable rather than promoting it', () => {
+  it('keeps an unavailable command explicitly blocked rather than promoting it', () => {
     const kernel = kernelWithAudit('records');
     const gate = evaluateCliMutationGate({ kernel, command: 'evolve', args: '' });
-    assert.strictEqual(gate.decision, 'review');
+    assert.strictEqual(gate.decision, 'block');
     assert.strictEqual(gate.canExecute, false);
-    assert.strictEqual(gate.canDryRun, true);
+    assert.strictEqual(gate.canDryRun, false);
   });
 });
 

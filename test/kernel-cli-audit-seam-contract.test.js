@@ -14,10 +14,10 @@ const MAPPINGS = Object.freeze([
   ['cikis', 'persistence', 'UPDATE', 'allow', true, 'cli_persist_local'],
   ['backup', 'export', 'EXPORTED', 'allow', true, 'cli_backup_export_local'],
   ['restore', 'state_replace', 'IMPORTED', 'allow', true, 'cli_restore_state_replace_local'],
-  ['optimize', 'canonical', 'REVIEW', 'review', false, 'cli_canonical_mutation_requires_review'],
-  ['evolve', 'canonical', 'REVIEW', 'review', false, 'cli_canonical_mutation_requires_review'],
-  ['konsolide', 'canonical', 'REVIEW', 'review', false, 'cli_canonical_mutation_requires_review'],
-  ['dusun', 'automation', 'REVIEW', 'review', false, 'cli_automation_requires_review'],
+  ['optimize', 'canonical', 'BLOCKED', 'block', false, 'cli_canonical_mutation_unavailable'],
+  ['evolve', 'canonical', 'BLOCKED', 'block', false, 'cli_canonical_mutation_unavailable'],
+  ['konsolide', 'canonical', 'BLOCKED', 'block', false, 'cli_canonical_mutation_unavailable'],
+  ['dusun', 'automation', 'BLOCKED', 'block', false, 'cli_automation_unavailable'],
 ]);
 
 const FAILURE = Object.freeze({
