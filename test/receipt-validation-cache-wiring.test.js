@@ -255,10 +255,10 @@ test('receipt stamp utility follows materialized audit receipts and invalidates 
     workspaceId: 'workspace-a',
     timestamp: committed.receipt.canonicalPayload.createdAt,
     details: {
+      // The production materializer stores the canonical receipt only. Chain
+      // hashes remain authoritative in the durable mutation-receipt journal.
       receipt: {
         ...committed.receipt.canonicalPayload,
-        previousReceiptHash: committed.receipt.previousReceiptHash,
-        receiptHash: committed.receipt.receiptHash,
       },
     },
   }, { workspaceId: 'workspace-a' });
@@ -339,4 +339,63 @@ test('workbench router keeps one cache instance across receipt requests', () => 
   assert.equal(bodies[0].status, 'found');
   assert.equal(bodies[1].status, 'found');
   assert.equal(cache.stats().hits, 1);
+});
+
+
+test('SQLite receipt stamps use durable mutation receipts when audit materializations omit hashes', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const Graph = require('../graph');
+  const { buildCanonicalReceiptPayload } = require('../lib/receipt/canonical-receipt');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-receipt-stamp-sqlite-'));
+  const graph = new Graph({
+    memoryPath: path.join(root, 'memory.json'),
+    dbPath: path.join(root, 'memory.db'),
+    useSQLite: true,
+  });
+  const committed = graph.runMutationOnce('sqlite-stamp-operation', () => ({ ok: true }), {
+    buildCanonicalReceipt: () => buildCanonicalReceiptPayload({
+      receiptId: 'sqlite-stamp-receipt',
+      receiptKind: 'memory_admission_receipt',
+      decision: 'allow',
+      status: 'admitted',
+      admissionId: 'admission-sqlite-stamp',
+      workspaceId: 'workspace-sqlite',
+      provenanceId: 'prov-sqlite-stamp',
+      trustPolicyVersion: 'test',
+      createdAt: '2026-01-02T00:00:00.000Z',
+    }, { verdict: 'allow' }),
+  });
+
+  try {
+    graph.appendAuditEvent({
+      eventType: 'TRUST_RECEIPT_MATERIALIZED',
+      targetType: 'trust_receipt',
+      targetId: committed.receipt.receiptId,
+      workspaceId: 'workspace-sqlite',
+      timestamp: committed.receipt.canonicalPayload.createdAt,
+      details: { receipt: { ...committed.receipt.canonicalPayload } },
+    }, { workspaceId: 'workspace-sqlite' });
+
+    assert.deepEqual(getReceiptStamp(graph, 'workspace-sqlite', 'v4'), {
+      generation: 1,
+      receiptCount: 1,
+      headHash: committed.receipt.receiptHash,
+    });
+
+    const cache = createReceiptValidationCache();
+    const options = {
+      receiptId: 'sqlite-stamp-receipt',
+      workspaceId: 'workspace-sqlite',
+      source: graph,
+      cache,
+    };
+    assert.equal(inspectTrustReceipt(options).status, 'found');
+    assert.equal(inspectTrustReceipt(options).status, 'found');
+    assert.equal(cache.stats().hits, 1);
+  } finally {
+    graph.close?.();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
