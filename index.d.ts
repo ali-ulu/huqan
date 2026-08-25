@@ -50,6 +50,10 @@ declare const huqan: typeof KernelV2 & {
   HUMAN_OVERSIGHT_RUNTIME_VERSION: string;
   HUMAN_OVERSIGHT_RUNTIME_REASONS: Record<string, string>;
 
+  BehavioralContainmentRuntime: Record<string, any>;
+  createBehavioralContainmentRuntime: (options?: Record<string, unknown>) => Record<string, any>;
+  BEHAVIORAL_RUNTIME_VERSION: string;
+
   PrGuardian: {
     TOOL: string;
     ACTIONS: Record<string, string>;

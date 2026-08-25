@@ -30,6 +30,7 @@ const agentActionFirewall = require('./lib/agent-action-firewall');
 const agentIdentityRuntime = require('./lib/agent-identity-runtime');
 const trustEvidenceLedger = require('./lib/trust-evidence-ledger');
 const humanOversightApprovalRuntime = require('./lib/human-oversight-approval-runtime');
+const behavioralContainmentRuntime = require('./lib/self-healer/behavioral-containment-runtime');
 const prGuardian = require('./lib/pr-guardian');
 const multiAgentCascadeGuard = require('./lib/multi-agent-cascade-guard');
 
@@ -90,7 +91,15 @@ module.exports.createHumanOversightApprovalRuntime = humanOversightApprovalRunti
 module.exports.HUMAN_OVERSIGHT_RUNTIME_VERSION = humanOversightApprovalRuntime.HUMAN_OVERSIGHT_RUNTIME_VERSION;
 module.exports.HUMAN_OVERSIGHT_RUNTIME_REASONS = humanOversightApprovalRuntime.RUNTIME_REASONS;
 
-// GitHub PR Guardian SDK surface. It is transport-independent: hosts may use
+// Bounded ASI10 executor-containment surface. It records logical, scoped
+// suppression/revocation state only; credential/IAM revocation remains outside
+// the package and operator-controlled.
+module.exports.BehavioralContainmentRuntime = behavioralContainmentRuntime;
+module.exports.createBehavioralContainmentRuntime = behavioralContainmentRuntime.createBehavioralContainmentRuntime;
+module.exports.BEHAVIORAL_RUNTIME_VERSION = behavioralContainmentRuntime.BEHAVIORAL_RUNTIME_VERSION;
+
+// GitHub PR Guardian SDK surface.
+// It is transport-independent: hosts may use
 // the library directly without MCP or the bundled HTTP server.
 module.exports.PrGuardian = prGuardian;
 module.exports.PRGuardian = prGuardian;

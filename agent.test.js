@@ -514,4 +514,60 @@ describe('Agent', () => {
 
     assert.strictEqual(observed.length, 0);
   });
+
+  it('captures bounded behavioral telemetry and suppresses an out-of-scope queued tool', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-agent-behavior-'));
+    const agent = freshAgent(path.join(tmpDir, 'agent.memory.json'));
+    const originalPlan = agent.plan;
+    const originalAsk = agent.kernel.ask;
+    let askCalls = 0;
+    agent.kernel.ask = () => {
+      askCalls += 1;
+      return { ok: true, type: 'ask', data: { answer: 'bounded answer' }, evidence: [], error: null, meta: {} };
+    };
+    agent.plan = () => ({
+      ok: true,
+      type: 'plan',
+      data: {
+        goal: 'safe bounded goal',
+        objective: 'ask',
+        selectedTools: ['ask'],
+        steps: [
+          { id: 'ask-1', action: 'ask', tool: 'ask', input: 'safe question', rationale: '' },
+          { id: 'rogue-2', action: 'learn', tool: 'learn', input: 'out of scope', rationale: '' },
+          { id: 'ask-3', action: 'ask', tool: 'ask', input: 'should not run', rationale: '' },
+        ],
+        maxSteps: 3,
+        status: 'planned',
+        policy: {},
+        memory: { knownGoals: 0, previousRuns: 0, resumed: false },
+        rationale: 'test',
+      },
+    });
+
+    try {
+      const result = agent.run('safe bounded goal', { resume: false, stepRetries: 0 });
+      assert.equal(result.ok, false);
+      assert.equal(result.data.status, 'blocked');
+      assert.equal(askCalls, 1);
+      assert.equal(result.data.steps.length, 3);
+      assert.equal(result.data.steps[0].status, 'done');
+      assert.equal(result.data.steps[1].status, 'blocked');
+      assert.equal(result.data.steps[1].result.error.code, 'BEHAVIORAL_TOOL_DEVIATION');
+      assert.equal(result.data.steps[1].result.meta.containment, 'quarantine');
+      assert.equal(result.data.steps[1].result.meta.behavioralContainment.executorSuppressed, true);
+      assert.equal(result.data.steps[2].status, 'blocked');
+      assert.equal(result.data.steps[2].result.error.code, 'BEHAVIORAL_QUARANTINE_ACTIVE');
+      assert.equal(result.data.steps[2].result.meta.containment, 'quarantine');
+      assert.equal(result.data.behavioralTelemetry.eventCount, 2);
+      assert.equal(result.data.behavioralTelemetry.events[1].deviationCode, 'unexpected_tool');
+      assert.equal(result.data.behavioralTelemetry.events[1].tool, 'learn');
+      assert.equal(result.data.behavioralManifest.goal, undefined);
+      assert.ok(result.data.behavioralManifest.baselineHash);
+    } finally {
+      agent.plan = originalPlan;
+      agent.kernel.ask = originalAsk;
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
 });
