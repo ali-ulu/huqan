@@ -303,6 +303,42 @@ describe('RustGraph - JS ile Karşılaştırma', { skip: !hasRust }, () => {
       fs.rmSync(tmpPath, { force: true });
     }
   });
+
+  // #1142: query() returned [] on the Rust backend while the JS backend did a
+  // real label lookup, so the same call answered differently depending on
+  // whether the accelerator was built.
+  it('query: etikete göre düğüm döndürür ve JS ile aynı sonucu verir', async () => {
+    const g = new Graph();
+    g.addNode('n1', 'Kisi');
+    g.addNode('n2', 'Kisi');
+    g.addNode('n3', 'Sehir');
+    const jsIds = g.query('Kisi').map(node => node.id).sort();
+
+    const res = await rustExec([
+      { cmd: 'add_node', id: 'n1', label: 'Kisi' },
+      { cmd: 'add_node', id: 'n2', label: 'Kisi' },
+      { cmd: 'add_node', id: 'n3', label: 'Sehir' },
+      { cmd: 'query', label: 'Kisi' },
+      { cmd: 'query', label: 'Yok' },
+    ]);
+
+    assert.strictEqual(res[3].ok, true);
+    assert.deepStrictEqual(res[3].nodes.map(node => node.id), jsIds);
+    assert.deepStrictEqual(res[4].nodes, []);
+  });
+
+  it('query: çalışma alanı kapsamı uygular', async () => {
+    const res = await rustExec([
+      { cmd: 'add_node', id: 'ortak', label: 'Kisi', workspaceId: 'default' },
+      { cmd: 'add_node', id: 'kiraci', label: 'Kisi', workspaceId: 'tenant-a' },
+      { cmd: 'query', label: 'Kisi', workspaceId: 'default' },
+      { cmd: 'query', label: 'Kisi', workspaceId: 'tenant-a' },
+    ]);
+
+    assert.deepStrictEqual(res[2].nodes.map(node => node.id), ['ortak']);
+    assert.deepStrictEqual(res[3].nodes.map(node => node.id), ['kiraci']);
+    assert.strictEqual(res[3].nodes[0].workspaceId, 'tenant-a');
+  });
 });
 
 // The suite above is skipped whenever the Rust binary is missing, which is the
@@ -351,6 +387,26 @@ describe('RustGraph - JS fallback (Rust binary yok)', { skip: hasRust }, () => {
       await bridge.addNode('b', 'b');
       await bridge.getStats();
       assert.strictEqual(bridge._fallback, first, 'fallback instance değişmemeli');
+    } finally {
+      if (bridge._fallback && typeof bridge._fallback.close === 'function') bridge._fallback.close();
+      bridge.destroy();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // #1142: query() must forward label *and* workspaceId to the fallback Graph,
+  // which is what carries the call whenever the accelerator is not built.
+  it('query fallback Graph.query(label, workspaceId) çağrısına iletilir', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rustgraph-fallback-'));
+    const bridge = new RustGraph({ memoryPath: path.join(dir, 'memory.json') });
+    try {
+      await bridge.addNode('n1', 'Kisi', { workspaceId: 'default' });
+      await bridge.addNode('n2', 'Kisi', { workspaceId: 'tenant-a' });
+      await bridge.addNode('n3', 'Sehir', { workspaceId: 'default' });
+
+      assert.deepStrictEqual((await bridge.query('Kisi')).map(node => node.id), ['n1']);
+      assert.deepStrictEqual((await bridge.query('Kisi', 'tenant-a')).map(node => node.id), ['n2']);
+      assert.deepStrictEqual(await bridge.query('Yok'), []);
     } finally {
       if (bridge._fallback && typeof bridge._fallback.close === 'function') bridge._fallback.close();
       bridge.destroy();

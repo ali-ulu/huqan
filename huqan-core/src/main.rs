@@ -340,6 +340,17 @@ impl Graph {
     }
 }
 
+fn node_to_json(n: &Node) -> Value {
+    json!({
+        "id": n.id,
+        "label": n.label,
+        "weight": n.weight,
+        "vector": { "tags": [], "dimensions": n.vector.len() },
+        "provenance": n.provenance,
+        "workspaceId": n.workspace_id,
+    })
+}
+
 fn edge_to_json(e: &Edge) -> Value {
     json!({
         "from": e.from,
@@ -442,17 +453,7 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
             let now = now_ms();
             if let Some(n) = graph.nodes.get_mut(&storage_key(&id, &workspace)) {
                 n.last_accessed = now;
-                json!({
-                    "ok": true,
-                    "node": {
-                        "id": n.id,
-                        "label": n.label,
-                        "weight": n.weight,
-                        "vector": { "tags": [], "dimensions": n.vector.len() },
-                        "provenance": n.provenance,
-                        "workspaceId": n.workspace_id,
-                    }
-                })
+                json!({ "ok": true, "node": node_to_json(n) })
             } else {
                 json!({ "ok": false, "error": "not_found" })
             }
@@ -558,6 +559,23 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
             } else {
                 json!({ "ok": true, "answer": format!("{} {}", subject, results.join(", ")) })
             }
+        }
+        // #1142: the JS backend's Graph.query() is a real label lookup, so the
+        // Rust backend needs one too -- otherwise the same call returns rows
+        // without the accelerator and nothing with it.
+        "query" => {
+            let label = get_str(cmd, "label");
+            let workspace = normalize_workspace(&get_str(cmd, "workspaceId"));
+            let mut matches: Vec<&Node> = graph
+                .nodes
+                .values()
+                .filter(|n| n.label == label && normalize_workspace(&n.workspace_id) == workspace)
+                .collect();
+            // HashMap iteration order is unspecified; the JS side returns
+            // insertion order. Sort by id so both backends are deterministic.
+            matches.sort_by(|a, b| a.id.cmp(&b.id));
+            let nodes: Vec<Value> = matches.iter().map(|n| node_to_json(n)).collect();
+            json!({ "ok": true, "nodes": nodes })
         }
         "stats" => {
             json!({
