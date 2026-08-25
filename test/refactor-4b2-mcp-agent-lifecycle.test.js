@@ -62,7 +62,7 @@ test('MCP read tools do not allocate an unused Agent storage backend', { concurr
   }
 });
 
-test('MCP agent-backed tools close their per-call storage before returning', { concurrency: false }, () => {
+test('MCP agent-backed tools close storage, and reviewed calls skip allocation', { concurrency: false }, () => {
   const fixture = createFixture('agent');
   const originalClose = HuqanStorage.prototype.close;
   let closeCount = 0;
@@ -81,10 +81,14 @@ test('MCP agent-backed tools close their per-call storage before returning', { c
     });
     assert.equal(policy.isError, false);
 
-    const dryRun = callTool(fixture.server, 'axiom.agent', { goal: 'verify a claim', maxSteps: 1 });
-    assert.equal(dryRun.isError, false);
-    assert.equal(dryRun.structuredContent.dryRun, true);
-    assert.equal(closeCount, 3);
+    const review = callTool(fixture.server, 'axiom.agent', { goal: 'verify a claim', maxSteps: 1 });
+    assert.equal(review.isError, true);
+    assert.equal(review.structuredContent.gate.decision, 'review');
+    assert.equal(review.structuredContent.gate.reason, 'agent_loop_requires_review');
+    assert.equal(review.structuredContent.approval.persisted, false);
+    // The restored review gate returns before the agent is constructed; only
+    // plan and policy allocate transient Agent storage in this fixture.
+    assert.equal(closeCount, 2);
   } finally {
     HuqanStorage.prototype.close = originalClose;
     closeFixture(fixture);

@@ -338,3 +338,35 @@ test('missing receipt stays null and provenance fields are not relabeled as trac
     cleanup(root, kernel);
   }
 });
+
+test('maps approval receipt vocabulary when admissionOutcome is absent', () => {
+  const events = [
+    fakeEvent({
+      auditId: 'audit-approved-receipt',
+      eventType: 'APPROVAL_APPROVED',
+      details: { receipt: { decision: 'approved', receiptId: 'receipt-approved' } },
+    }),
+    fakeEvent({
+      auditId: 'audit-rejected-receipt',
+      eventType: 'APPROVAL_REJECTED',
+      details: { receipt: { decision: 'rejected', receiptId: 'receipt-rejected' } },
+    }),
+  ];
+  const source = createMemoryContextAuditSource({
+    getAuditEvents(filters) {
+      return events.filter((event) => (
+        event.auditId === filters.auditId && event.workspaceId === filters.workspaceId
+      ));
+    },
+  });
+
+  const approved = source.readMemoryContext({ recordId: 'audit-approved-receipt', workspaceId: 'fake-workspace' });
+  assert.equal(approved.memoryAdmission.status, 'admitted');
+  assert.equal(approved.memoryAdmission.decision, 'approved');
+  assert.equal(approved.memoryAdmission.receiptId, 'receipt-approved');
+
+  const rejected = source.readMemoryContext({ recordId: 'audit-rejected-receipt', workspaceId: 'fake-workspace' });
+  assert.equal(rejected.memoryAdmission.status, 'rejected');
+  assert.equal(rejected.memoryAdmission.decision, 'rejected');
+  assert.equal(rejected.memoryAdmission.receiptId, 'receipt-rejected');
+});

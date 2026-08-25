@@ -117,6 +117,19 @@ describe('RECEIPT-TRUST-ROOT-3 runtime foundation', () => {
     }).kind, 'v2_invalid_trust_root');
   });
 
+  it('accepts shared acyclic nested references but rejects ancestor cycles', () => {
+    const shared = { label: 'safe-shared-value' };
+    const sharedReference = materializedV2('local_operator', {
+      metadata: { first: shared, second: shared },
+    });
+    assert.equal(classifyRawMaterializedReceipt(sharedReference).kind, 'v2');
+
+    const cyclic = {};
+    cyclic.self = cyclic;
+    const cyclicReference = materializedV2('local_operator', { metadata: { cyclic } });
+    assert.equal(classifyRawMaterializedReceipt(cyclicReference).kind, 'v2_invalid_trust_root');
+  });
+
   it('reads V2 roots, returns bounded causes, and preserves inputs', () => {
     const raw = materializedV2(byId.get('RTR-024-READ-V2-PRESERVES-ROOT').input.trustRoot);
     const event = { workspaceId: raw.workspaceId, details: { receipt: raw } };
