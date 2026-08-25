@@ -7,6 +7,7 @@ const {
   createAuditReportId,
   runSelfHealerAudit,
   validateAuditOptions,
+  AUDIT_STATUSES,
 } = require('../lib/self-healer/audit-runner');
 const { validateFinding } = require('../lib/self-healer/finding-schema');
 
@@ -85,9 +86,61 @@ describe('self-healer audit runner dry run', () => {
   it('runs in audit_only mode', () => {
     const report = runSelfHealerAudit(baseInput());
     assert.strictEqual(report.mode, 'audit_only');
-    assert.strictEqual(report.status, 'ready');
+    // baseCheck() is a high-severity security finding. This asserted 'ready'
+    // only because the status field could not say anything else: it was
+    // `findings.length > 0 ? 'ready' : 'ready'` (#1543).
+    assert.strictEqual(report.status, 'blocked');
     assert.strictEqual(report.findingCount, 1);
     assert.ok(report.reportId.startsWith('audit_'));
+  });
+
+  // #1543: 'blocked' was declared in AUDIT_STATUSES and produced nowhere, so a
+  // report with two critical findings carried the same status as an empty one.
+  it('status separates blocking findings from the rest', () => {
+    const status = (checks) => runSelfHealerAudit(baseInput({ checks })).status;
+
+    assert.strictEqual(status([]), 'ready', 'a clean audit is ready');
+    assert.strictEqual(status([baseCheck({ severity: 'info' })]), 'ready');
+    assert.strictEqual(status([baseCheck({ severity: 'low' })]), 'ready');
+    assert.strictEqual(status([baseCheck({ severity: 'medium' })]), 'ready');
+    assert.strictEqual(status([baseCheck({ severity: 'high' })]), 'blocked');
+    assert.strictEqual(status([baseCheck({ severity: 'critical' })]), 'blocked');
+
+    // One blocking finding among many is enough.
+    assert.strictEqual(
+      status([baseCheck({ severity: 'low', title: 'a' }), baseCheck({ severity: 'critical', title: 'b' })]),
+      'blocked',
+    );
+
+    // Every status the module produces must be one it declares.
+    for (const checks of [[], [baseCheck({ severity: 'low' })], [baseCheck({ severity: 'critical' })]]) {
+      assert.ok(AUDIT_STATUSES.includes(status(checks)));
+    }
+  });
+
+  // #1543: allowOutput skipped path validation entirely, so '../../../etc/x'
+  // came back ok:true. Nothing consumes outputPath yet -- which is why it
+  // matters: the first consumer would inherit a path already called valid.
+  it('outputPath is validated like repoRoot, not waved through by allowOutput', () => {
+    const check = (outputPath, extra = {}) =>
+      validateAuditOptions({ repoRoot: safeRepoRoot, mode: 'audit_only', outputPath, allowOutput: true, ...extra });
+    const outside = process.platform === 'win32' ? 'C:/etc/kritik' : '/etc/kritik';
+
+    assert.strictEqual(check(`${safeRepoRoot}/audit.json`).ok, true, 'a path inside the repo root is fine');
+
+    for (const bad of ['../../../etc/kritik', `${safeRepoRoot}/../../etc/kritik`, outside]) {
+      const result = check(bad);
+      assert.strictEqual(result.ok, false, `${bad} must be rejected`);
+      assert.strictEqual(result.errors[0].field, 'outputPath');
+    }
+  });
+
+  it('outputPath without allowOutput names the real condition', () => {
+    const result = validateAuditOptions({ repoRoot: safeRepoRoot, mode: 'audit_only', outputPath: `${safeRepoRoot}/audit.json` });
+    assert.strictEqual(result.ok, false);
+    // audit_only is the only mode there is, so "disabled in audit_only mode"
+    // implied a mode distinction that does not exist. allowOutput is the gate.
+    assert.match(result.errors[0].message, /allowOutput/);
   });
 
   it('rejects draft_patch', () => {
