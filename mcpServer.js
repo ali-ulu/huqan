@@ -170,6 +170,15 @@ function createServer(kernelOrOptions = {}) {
             operatorToken,
             trustEvidenceLedger: options.trustEvidenceLedger || null,
             humanOversightApprovalRuntime: options.humanOversightApprovalRuntime || null,
+            ...(Object.hasOwn(options, 'humanOversightRequesterContext')
+              ? { humanOversightRequesterContext: options.humanOversightRequesterContext }
+              : {}),
+            ...(Object.hasOwn(options, 'humanOversightApproverContext')
+              ? { humanOversightApproverContext: options.humanOversightApproverContext }
+              : {}),
+            ...(Object.hasOwn(options, 'humanOversightContextResolver')
+              ? { humanOversightContextResolver: options.humanOversightContextResolver }
+              : {}),
             agentIdentityRuntime: Object.hasOwn(options, 'agentIdentityRuntime')
               ? options.agentIdentityRuntime
               : null,
