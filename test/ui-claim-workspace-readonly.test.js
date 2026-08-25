@@ -89,6 +89,8 @@ test('Claim Workspace browser script compiles and wires unknown-to-review throug
   assert.match(html, /json\('\/api\/ingest'/);
   assert.match(html, /idempotencyKey:\`command-center:\$\{h\}\`/);
   // approval/review kuyruğu okunur ve karar ingest'e postanır
-  assert.match(html, /json\('\/api\/ingest\/approvals\?limit=50'/);
+  assert.match(html, /json\('\/api\/ingest\/approvals\?limit=50&workspaceId='/);
+  assert.match(html, /encodeURIComponent\(state\.ws\)/);
+  assert.match(html, /await refresh\(\);const failed=/);
   assert.match(html, /`\/api\/ingest\/approvals\/\$\{encodeURIComponent\(id\)\}`/);
 });

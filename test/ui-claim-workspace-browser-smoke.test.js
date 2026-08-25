@@ -145,6 +145,36 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     assert.ok(enabled.length > 0, 'no action was enabled by the manifest');
   });
 
+  it('shows auth-required states instead of generic errors without a session key', async () => {
+    await browser.evaluate(`document.getElementById('clear').click(); true;`);
+    await waitFor(
+      `document.getElementById('sstatus').textContent === 'API key not set.'
+        && document.getElementById('astate').textContent === 'AUTH REQUIRED'
+        && /Graph Data\\s*●\\s*locked/.test(document.getElementById('health').textContent)
+        && /Approval Queue\\s*●\\s*locked/.test(document.getElementById('health').textContent)`,
+      'unauthenticated graph and approval surfaces to become locked',
+    );
+    await browser.evaluate(`
+      document.getElementById('key').value = ${JSON.stringify(TEST_API_KEY)};
+      document.getElementById('workspace').value = 'default';
+      document.getElementById('save').click();
+      true;
+    `);
+  });
+
+  it('settles the connection and shows Graph Data and Approval Queue as live', async () => {
+    await waitFor(
+      `document.getElementById('sstatus').textContent === 'Connected.'
+        && document.getElementById('astate').textContent === 'LIVE'
+        && /Graph Data\\s*●\\s*ok/.test(document.getElementById('health').textContent)
+        && /Approval Queue\\s*●\\s*ok/.test(document.getElementById('health').textContent)`,
+      'the authenticated graph and approval surfaces to become live',
+    );
+    const health = await browser.evaluate(`document.getElementById('health').textContent`);
+    assert.match(health, /Graph Data\s*●\s*ok/);
+    assert.match(health, /Approval Queue\s*●\s*ok/);
+  });
+
   it('runs a verify action against the canonical authenticated endpoint', async () => {
     await waitFor(`document.getElementById('wstate').textContent === 'READY'`, 'the manifest');
     await browser.evaluate(`
