@@ -44,7 +44,7 @@ test('Agent Activity Pulse dashboard contract', async (t) => {
     for (const state of ['LOADING', 'LOCKED', 'ERROR', 'EMPTY', 'LIVE']) {
       assert.match(script, new RegExp(`pulseStatus\\('${state}'`), `missing ${state} state`);
     }
-    assert.match(script, /r\.status===401\|\|r\.status===403\?'LOCKED':'ERROR'/);
+    assert.match(script, /const locked=r\.status===401\|\|r\.status===403/);
     assert.match(script, /Activity access is locked\. Add an API key in Settings\./);
     assert.match(script, /No agent actions in this workspace yet\./);
     assert.match(script, /Activity could not be loaded\. Try again\./);
@@ -61,12 +61,12 @@ test('Agent Activity Pulse dashboard contract', async (t) => {
   });
 
   await t.test('reflects the activity read surface in the Integration Surfaces registry', () => {
-    assert.ok(script.includes("activity:{label:'Agent Activity',endpoint:'/api/workbench/activity',s:'checking'}"));
+    assert.ok(script.includes("activity:{label:'Agent Activity',endpoint:'/api/workbench/activity',s:'checking',reason:'Waiting for activity."));
     assert.ok(script.includes("activity:'Workspace-scoped bounded agent activity read surface.'"));
-    assert.ok(script.includes("async function loadActivityPulse(){surface('activity','checking')"));
-    assert.ok(script.includes("surface('activity',r.status===401||r.status===403?'locked':'err')"));
-    assert.ok(script.includes("surface('activity','ok')"));
-    assert.ok(script.includes("surface('activity','err')"));
+    assert.ok(script.includes("async function loadActivityPulse(){surface('activity','checking',{reason:'Loading activity.'"));
+    assert.match(script, /surface\('activity',locked\?'locked':'err',\{reason:/);
+    assert.match(script, /surface\('activity',empty\?'empty':'ok',\{reason:/);
+    assert.match(script, /surface\('activity','err',\{reason:/);
   });
 
   await t.test('keeps the inline dashboard script syntactically valid', () => {
