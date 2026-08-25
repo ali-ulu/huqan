@@ -175,6 +175,38 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     assert.match(health, /Approval Queue\s*●\s*ok/);
   });
 
+  it('keeps header, health summary, and footer aligned to one aggregate status', async () => {
+    const header = await browser.evaluate(`document.getElementById('sys').textContent`);
+    const summary = await browser.evaluate(`document.getElementById('healthsum').textContent`);
+    const footer = await browser.evaluate(`document.getElementById('footstatus').textContent`);
+    assert.match(header, /^(HEALTHY|PARTIAL|DEGRADED|OFFLINE|CHECKING)$/);
+    assert.match(summary, new RegExp(`^${header} \\u00b7 \\d+/\\d+ surfaces available$`));
+    assert.equal(footer, summary);
+
+    await browser.evaluate(`document.getElementById('clear').click(); true;`);
+    await waitFor(
+      `document.getElementById('sys').textContent !== 'HEALTHY'
+        && document.getElementById('healthsum').textContent.startsWith(document.getElementById('sys').textContent + ' · ')
+        && document.getElementById('footstatus').textContent === document.getElementById('healthsum').textContent`,
+      'the aggregate status to remain aligned after clearing the session key',
+    );
+    const unauthenticated = await browser.evaluate(`({
+      header: document.getElementById('sys').textContent,
+      summary: document.getElementById('healthsum').textContent,
+      footer: document.getElementById('footstatus').textContent,
+    })`);
+    assert.notEqual(unauthenticated.header, 'HEALTHY');
+    assert.equal(unauthenticated.footer, unauthenticated.summary);
+
+    await browser.evaluate(`
+      document.getElementById('key').value = ${JSON.stringify(TEST_API_KEY)};
+      document.getElementById('workspace').value = 'default';
+      document.getElementById('save').click();
+      true;
+    `);
+    await waitFor(`document.getElementById('sstatus').textContent === 'Connected.'`, 'the session to reconnect');
+  });
+
   it('runs a verify action against the canonical authenticated endpoint', async () => {
     await waitFor(`document.getElementById('wstate').textContent === 'READY'`, 'the manifest');
     await browser.evaluate(`
