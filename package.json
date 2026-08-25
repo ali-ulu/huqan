@@ -237,6 +237,7 @@
     "lib/graph-edge-write.js",
     "lib/kernel-alternatives.js",
     "lib/graph-edge-mutations.js",
+    "lib/graph-mutation-rollback.js",
     "lib/graph-record-utils.js",
     "lib/graph-traversal.js",
     "lib/http-trust-query.js",
