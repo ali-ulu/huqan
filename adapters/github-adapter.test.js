@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const Kernel = require('../kernel');
 const evidenceValidator = require('../plugins/evidence-validator');
 const { canonicalizeGitHubRepoUrl, encodeGitHubPathSegments } = require('../lib/github-url');
-const { fetchRepoFiles, fetchAndLearn, parseRepoUrl, includePath } = require('./github-adapter');
+const { fetchRepoFiles, fetchAndLearn, parseRepoUrl, includePath, isMarkdownPath } = require('./github-adapter');
 
 const TEST_COMMIT_SHA = 'c'.repeat(40);
 
@@ -541,4 +541,38 @@ test('github-adapter: bounds tree work, selected files, per-file and aggregate b
     }),
     (error) => error?.code === 'GITHUB_TOTAL_BYTES_LIMIT',
   );
+});
+
+test('github-adapter: explicit paths narrow location but cannot widen file types (#1508)', async () => {
+  const fetchImpl = async (url) => {
+    if (/\/commits\/[^/?]+$/.test(url)) return makeResponse({ json: { sha: TEST_COMMIT_SHA } });
+    if (url.includes('recursive=1')) {
+      return makeResponse({
+        json: {
+          truncated: false,
+          tree: [
+            { type: 'blob', path: 'docs/overview.md' },
+            { type: 'blob', path: 'src/app.py' },
+            { type: 'blob', path: 'config/prod.yaml' },
+          ],
+        },
+      });
+    }
+    return makeResponse({ text: '# content' });
+  };
+
+  const files = await fetchRepoFiles('https://github.com/ai-ulu/axiom', {
+    branch: 'main',
+    fetchImpl,
+    paths: ['docs/overview.md', 'src/app.py', 'config/prod.yaml'],
+  });
+
+  assert.deepEqual(files.map(item => item.path), ['docs/overview.md']);
+});
+
+test('github-adapter: isMarkdownPath checks the extension independent of location (#1508)', () => {
+  assert.equal(isMarkdownPath('docs/deep/nested/guide.MD'), true);
+  assert.equal(isMarkdownPath('src/app.py'), false);
+  assert.equal(isMarkdownPath('config/prod.yaml'), false);
+  assert.equal(includePath('docs/deep/nested/guide.md'), false);
 });
