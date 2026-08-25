@@ -7,7 +7,6 @@ const readline = require('readline');
 const CLI = require('./cli');
 const Kernel = require('./kernel');
 const KernelV2 = require('./kernel.v2');
-const Dream = require('./dream');
 const { createAgent } = require('./agentRuntime');
 
 const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
@@ -26,9 +25,8 @@ function freshCLI(kernelOpts = {}) {
   const isolatedDefaults = tempDir
     ? { memoryPath: path.join(tempDir, 'memory.json'), useSQLite: false }
     : {};
-  const cli = new CLI();
-  cli.kernel = new Kernel({ noLoad: true, ...isolatedDefaults, ...kernelOpts });
-  cli.dream = new Dream(cli.kernel);
+  const kernel = new Kernel({ noLoad: true, ...isolatedDefaults, ...kernelOpts });
+  const cli = new CLI({ kernelInstance: kernel });
   cli.__testPersistenceDir = tempDir;
   return cli;
 }
