@@ -396,6 +396,7 @@
     "lib/type-lattice.js",
     "lib/verdict/action-verdict.js",
     "lib/verify-native.js",
+    "lib/verify-numeric-contradictions.js",
     "lib/verify-status-vocabulary.js",
     "lib/verify.js",
     "lib/viewer/session-cookie.js",
