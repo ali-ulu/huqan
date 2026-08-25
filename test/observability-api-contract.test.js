@@ -52,6 +52,10 @@ function harness() {
       calls.push({ method: 'listEvents', input });
       return { items: [], limit: 50, hasMore: false, nextCursor: null };
     },
+    listRuns(input) {
+      calls.push({ method: 'listRuns', input });
+      return { items: [], limit: 20, hasMore: false, nextCursor: null };
+    },
   };
   let authCalls = 0;
   const router = createObservabilityHttpRouter({
@@ -130,6 +134,21 @@ test('v1 and legacy paths share the same bounded router behavior', async () => {
     assert.equal(h.authCalls, 1);
     assert.deepEqual(h.calls[0].input, { workspaceId: 'ws-a', limit: undefined, cursor: undefined, eventType: undefined, runId: undefined, status: undefined });
   }
+});
+
+test('runs operation documents and forwards its bounded time window', async () => {
+  const spec = observabilityOpenApiDocument();
+  const parameters = spec.paths[`${OBSERVABILITY_API_PREFIX}/runs`].get.parameters;
+  assert.deepEqual(parameters.find(parameter => parameter.name === 'windowMs').schema, { type: 'integer', minimum: 1000, maximum: 31 * 24 * 60 * 60 * 1000 });
+
+  const h = harness();
+  const handled = await h.router({ method: 'GET', headers: {} }, {}, new URL(`http://local${OBSERVABILITY_API_PREFIX}/runs?workspaceId=ws-a&limit=20&windowMs=3600000`));
+  assert.equal(handled, true);
+  assert.equal(h.writes[0].status, 200);
+  assert.deepEqual(h.calls[0], {
+    method: 'listRuns',
+    input: { workspaceId: 'ws-a', limit: '20', cursor: undefined, eventType: undefined, runId: undefined, status: undefined, windowMs: '3600000' },
+  });
 });
 
 test('OpenAPI metadata is public GET-only and served from the generated document', async () => {
