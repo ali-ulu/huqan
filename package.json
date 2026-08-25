@@ -148,6 +148,7 @@
     "lib/observability/health.js",
     "lib/observability/service.js",
     "lib/observability/alert-lifecycle.js",
+    "lib/observability/migrations.js",
     "lib/observability/http-router.js",
     "lib/observability/rate-limiter.js",
     "lib/observability/retention.js",
