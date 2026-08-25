@@ -2,6 +2,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const KernelV2 = require('./kernel.v2');
 const Kernel = require('./kernel');
+const { isolatedKernelOptions } = require('./test/helpers/isolated-persistence');
 
 // KernelV2.learn() delegates straight to a wrapped v1 Kernel instance
 // (this.kernel.learn()), so it enforces the same admission gate and needs
@@ -13,7 +14,7 @@ function learnFixture(kernel, text, opts = {}) {
 }
 
 function freshV2() {
-  return new KernelV2({ noLoad: true, useSQLite: false, loadPlugins: false });
+  return new KernelV2(isolatedKernelOptions('kernel-v2', { loadPlugins: false }));
 }
 
 describe('multi-word subject verification (#1171)', () => {
