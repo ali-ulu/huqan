@@ -21,7 +21,9 @@ test('observability dashboard time-window contract', async t => {
     assert.match(script, /const observabilityWindow = \(\) =>/);
     assert.match(script, /Number\.isSafeInteger\(value\) && value >= 1000/);
     assert.match(script, /get\(`\/api\/observability\/metrics\?windowMs=\$\{windowMs\}`\)/);
-    assert.match(script, /get\(`\/api\/observability\/runs\?limit=20&windowMs=\$\{windowMs\}`\)/);
+    assert.match(script, /async function loadRuns\(reset = true\)/);
+    assert.match(script, /get\(`\/api\/observability\/runs\?limit=20&windowMs=\$\{windowMs\}\$\{cursorQuery\}`\)/);
+    assert.match(script, /loadRuns\(true\)/);
     assert.match(script, /get\('\/api\/observability\/queue\?limit=20'\)/);
     assert.match(script, /get\('\/api\/observability\/alerts\?limit=20'\)/);
     assert.match(script, /byId\('obswindow'\)\?\.addEventListener\('change', loadAll\)/);
