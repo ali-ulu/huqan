@@ -440,10 +440,17 @@ jobs:
 
       - name: Run benchmark
         run: node benchmarks/bench.js --json --quick > benchmarks/current-results.json
-
       - name: Check regression
         run: node benchmarks/check-regression.js benchmarks/results.json benchmarks/current-results.json --multiplier=2.5
-
+      - name: Run observability load smoke
+        run: node benchmarks/observability-load-smoke.js > benchmarks/observability-load-current.json
+      - name: Upload observability load-smoke artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: observability-load-smoke-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: benchmarks/observability-load-current.json
+          if-no-files-found: warn
       - name: Publish benchmark summary
         if: always()
         run: |
@@ -451,6 +458,13 @@ jobs:
             echo "## Benchmark Summary"
             echo ""
             node benchmarks/check-regression.js benchmarks/results.json benchmarks/current-results.json --multiplier=2.5
+            echo ""
+            echo "## Observability Load Smoke"
+            if [ -f benchmarks/observability-load-current.json ]; then
+              cat benchmarks/observability-load-current.json
+            else
+              echo "Load-smoke report was not produced."
+            fi
           } >> "${GITHUB_STEP_SUMMARY}"
 
   benchmark-skip:
