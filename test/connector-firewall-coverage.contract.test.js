@@ -47,6 +47,7 @@ const test = require('node:test');
 const { listSourceFiles } = require('../scripts/check-file-size.js');
 const {
   CONNECTOR_ACTIONS,
+  CONNECTOR_ACTION_COVERAGE,
   evaluateConnectorAction,
   executeConnectorAction,
 } = require('../lib/connector-action-firewall.js');
@@ -119,6 +120,37 @@ function executorCallSites() {
   }
   return sites;
 }
+
+// ─── the coverage manifest ────────────────────────────────────────────────────
+
+test('the coverage manifest is source-backed and complete for every registered action', () => {
+  assert.deepEqual(Object.keys(CONNECTOR_ACTION_COVERAGE).sort(), Object.keys(CONNECTOR_ACTIONS).sort());
+  for (const [connector, actions] of Object.entries(CONNECTOR_ACTIONS)) {
+    for (const [action, contract] of Object.entries(actions)) {
+      const coverage = CONNECTOR_ACTION_COVERAGE[connector]?.[action];
+      assert.ok(coverage, `${connector}.${action} has no coverage manifest entry`);
+      assert.equal(coverage.productionReachable, true);
+      assert.equal(coverage.executorBoundary, 'executeConnectorAction');
+      assert.equal(coverage.targetField, contract.targetField);
+      assert.equal(coverage.workspaceField, 'workspaceId');
+      assert.equal(coverage.branchField, 'branch');
+      assert.equal(coverage.baseBranchField, null);
+      assert.equal(coverage.approvalField, 'approval');
+      assert.equal(coverage.previewField, 'preview');
+      assert.equal(coverage.dryRunField, 'dryRun');
+      assert.equal(coverage.rateCostPolicy, 'bounded_admission_budget_only');
+      assert.equal(coverage.chainingPolicy, 'not_implemented_non_claim');
+      assert.equal(coverage.stateChanging, contract.stateMutationBoundary !== 'none');
+      assert.ok(Array.isArray(coverage.sourceRefs) && coverage.sourceRefs.length >= 2);
+      for (const rel of coverage.sourceRefs) {
+        assert.equal(fs.existsSync(path.join(repoRoot, rel)), true,
+          `${connector}.${action} sourceRef does not exist: ${rel}`);
+      }
+      assert.deepEqual(coverage, contract.coverage,
+        `${connector}.${action} coverage export drifted from the registry contract`);
+    }
+  }
+});
 
 // ─── the ledger ──────────────────────────────────────────────────────────────
 
