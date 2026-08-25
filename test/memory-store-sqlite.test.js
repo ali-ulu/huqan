@@ -699,7 +699,7 @@ describe('memory-store-sqlite', () => {
 
       const store2 = new MemoryStore({ useSQLite: true, dbPath });
 
-      const events1 = store2.getEvents(mid1);
+      const events1 = store2.getEvents(mid1, { workspaceId: 'ws-a' });
       const updateEvent = events1.find(e => e.eventType === 'UPDATED' && e.details.action === 'supersede');
       assert.ok(updateEvent);
       assert.strictEqual(updateEvent.provenance.actor, 'superseder');
@@ -707,7 +707,7 @@ describe('memory-store-sqlite', () => {
       assert.strictEqual(updateEvent.details.previousStatus, 'active');
       assert.strictEqual(updateEvent.details.newStatus, 'superseded');
 
-      const events2 = store2.getEvents(mid2);
+      const events2 = store2.getEvents(mid2, { workspaceId: 'ws-a' });
       const tombstoneEvent = events2.find(e => e.eventType === 'TOMBSTONE');
       assert.ok(tombstoneEvent);
       assert.strictEqual(tombstoneEvent.provenance.actor, 'tombstoner');
