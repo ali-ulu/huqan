@@ -26,15 +26,26 @@ function evaluateRegression(baseline, current, opts = {}) {
       continue;
     }
 
-    if (curFixture.nodes < baseFixture.nodes) {
-      const message = `${fixtureName}.nodes regressed: ${curFixture.nodes} < ${baseFixture.nodes}`;
-      failures.push(message);
-      blockingFailures.push(message);
-    }
-    if (curFixture.edges < baseFixture.edges) {
-      const message = `${fixtureName}.edges regressed: ${curFixture.edges} < ${baseFixture.edges}`;
-      failures.push(message);
-      blockingFailures.push(message);
+    // Guarded the way the metric loop below already guards, rather than
+    // compared directly. `undefined < 1000` and `"cok" < 1000` are both false
+    // in JavaScript, so a truncated or malformed benchmark result read as "no
+    // regression" and walked through the gate. `null` was caught, but only by
+    // accident -- it coerces to 0 -- and reported as a regressed value rather
+    // than a broken field (#1551).
+    for (const field of ['nodes', 'edges']) {
+      const curValue = curFixture[field];
+      const baseValue = baseFixture[field];
+      if (!isFiniteNumber(curValue) || !isFiniteNumber(baseValue)) {
+        const message = `${fixtureName}.${field} is not numeric`;
+        failures.push(message);
+        blockingFailures.push(message);
+        continue;
+      }
+      if (curValue < baseValue) {
+        const message = `${fixtureName}.${field} regressed: ${curValue} < ${baseValue}`;
+        failures.push(message);
+        blockingFailures.push(message);
+      }
     }
 
     for (const metric of metrics) {

@@ -134,4 +134,60 @@ describe('benchmark regression checker', () => {
     assert.match(summary, /## Blocking failures/);
     assert.match(summary, /## Advisory timing warnings/);
   });
+
+  // #1551: nodes/edges were compared directly while the metric loop four lines
+  // below used isFiniteNumber. `undefined < 5` and `"cok" < 5` are false, so a
+  // truncated or malformed result read as "no regression" and passed the gate.
+  describe('#1551 nodes/edges are checked for numericness before comparison', () => {
+    const baseline = { version: '2.0.0', fixtures: { small: makeBaselineFixture() } };
+    const evaluate = (overrides) => evaluateRegression(baseline, {
+      iterations: 2,
+      results: [makeCurrentFixture(overrides)],
+    });
+
+    it('a healthy result still passes', () => {
+      assert.strictEqual(evaluate({}).ok, true);
+    });
+
+    it('a real regression is still reported as a regression', () => {
+      const result = evaluate({ nodes: 4 });
+      assert.strictEqual(result.ok, false);
+      assert.deepStrictEqual(result.blockingFailures, ['small.nodes regressed: 4 < 5']);
+    });
+
+    it('a missing field blocks instead of passing silently', () => {
+      for (const field of ['nodes', 'edges']) {
+        const result = evaluate({ [field]: undefined });
+        assert.strictEqual(result.ok, false, `a missing ${field} must not pass the gate`);
+        assert.deepStrictEqual(result.blockingFailures, [`small.${field} is not numeric`]);
+      }
+
+      // Both missing: each is reported on its own, not collapsed into one.
+      const result = evaluate({ nodes: undefined, edges: undefined });
+      assert.deepStrictEqual(result.blockingFailures, ['small.nodes is not numeric', 'small.edges is not numeric']);
+    });
+
+    it('a non-numeric value blocks', () => {
+      for (const bad of ['cok', true, {}, []]) {
+        const result = evaluate({ nodes: bad });
+        assert.strictEqual(result.ok, false, `nodes: ${JSON.stringify(bad)} must not pass the gate`);
+        assert.deepStrictEqual(result.blockingFailures, ['small.nodes is not numeric']);
+      }
+    });
+
+    it('null is rejected as a broken field, not reported as a regressed value', () => {
+      // This case already failed, but for the wrong reason: null coerces to 0,
+      // so it read as "regressed to null" rather than "the field is broken".
+      const result = evaluate({ nodes: null });
+      assert.strictEqual(result.ok, false);
+      assert.deepStrictEqual(result.blockingFailures, ['small.nodes is not numeric']);
+    });
+
+    it('a broken baseline field blocks too, not just a broken current one', () => {
+      const brokenBaseline = { version: '2.0.0', fixtures: { small: makeBaselineFixture({ edges: undefined }) } };
+      const result = evaluateRegression(brokenBaseline, { iterations: 2, results: [makeCurrentFixture()] });
+      assert.strictEqual(result.ok, false);
+      assert.deepStrictEqual(result.blockingFailures, ['small.edges is not numeric']);
+    });
+  });
 });
