@@ -30,7 +30,7 @@ const { runRustSandbox } = require('./lib/reason-sandbox');
 
 let RustGraph;
 try { RustGraph = require('./rustGraph'); } catch {}
-const RUST_BIN = readCompatibleEnvironmentVariable('RUST_BIN') || (RustGraph && RustGraph.resolveRustBin ? RustGraph.resolveRustBin() : undefined);
+const RUST_BIN = RustGraph && RustGraph.resolveRustBin ? RustGraph.resolveRustBin() : readCompatibleEnvironmentVariable('RUST_BIN');
 const hasRust = !!RUST_BIN && fs.existsSync(RUST_BIN) && typeof RustGraph !== 'undefined';
 
 function workspaceIdFrom(options) { return normalizeWorkspaceId(options && typeof options === 'object' && !Array.isArray(options) ? options.workspaceId : options); }

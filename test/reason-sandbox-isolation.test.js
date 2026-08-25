@@ -23,6 +23,7 @@ function fakeAxiomCoreFactory() {
       opts,
       destroyed: false,
       batches: [],
+      learnBatchCalls: 0,
       _fallback: null,
       async _send(cmd) {
         assert.strictEqual(instance.destroyed, false, 'a destroyed sandbox backend was reused');
@@ -35,6 +36,11 @@ function fakeAxiomCoreFactory() {
           return { ok: true, answer: facts.has(child.question) ? 'biliyorum' : 'Bilmiyorum' };
         });
         return { ok: true, results };
+      },
+      async learnBatch(texts, opts = {}) {
+        instance.learnBatchCalls += 1;
+        const commands = texts.map(text => ({ cmd: 'learn', text, ...opts }));
+        return instance._send({ cmd: 'batch', commands });
       },
       destroy() { instance.destroyed = true; },
     };
@@ -54,6 +60,7 @@ describe('reasonSandbox gets a request-scoped Rust graph (#758)', () => {
     assert.strictEqual(createRustGraph.instances.length, 2, 'the two calls shared a backend');
     for (const instance of createRustGraph.instances) {
       assert.strictEqual(instance.destroyed, true, 'a sandbox backend outlived its call');
+      assert.strictEqual(instance.learnBatchCalls, 1, 'Rust learn must use the batched adapter');
     }
   });
 
@@ -76,6 +83,20 @@ describe('reasonSandbox gets a request-scoped Rust graph (#758)', () => {
     assert.deepStrictEqual(a, ['biliyorum', 'Bilmiyorum']);
     assert.deepStrictEqual(b, ['biliyorum', 'Bilmiyorum']);
     assert.strictEqual(createRustGraph.instances.length, 2);
+  });
+
+  it('a failed learnBatch result is treated as an unusable Rust backend', async () => {
+    let destroyed = false;
+    const createRustGraph = () => ({
+      _fallback: null,
+      _send: async () => ({ ok: true, results: [] }),
+      learnBatch: async () => ({ ok: false, error: 'process_exited' }),
+      destroy() { destroyed = true; },
+    });
+
+    const answers = await runRustSandbox({ learn: [CAT], ask: [CAT], createRustGraph });
+    assert.strictEqual(answers, null);
+    assert.strictEqual(destroyed, true);
   });
 
   it('learning with nothing to ask still runs, and still tears down', async () => {
