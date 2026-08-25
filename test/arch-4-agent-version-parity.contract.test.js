@@ -169,7 +169,13 @@ test('the workflow runtime axis is untouched by the version decision', (t) => {
  */
 function emitProbe(t, label, { maxSteps = 1 } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), `huqan-arch4-emit-${label}-`));
-  const kernel = new KernelV2({ noLoad: true, useSQLite: false, loadPlugins: false });
+  const kernel = new KernelV2({
+    noLoad: true,
+    useSQLite: false,
+    loadPlugins: false,
+    memoryPath: path.join(root, 'kernel-memory.json'),
+    dbPath: path.join(root, 'kernel-graph.db'),
+  });
   kernel.learn('kedi hayvandir', Kernel.createAdmissionBypassOpts('test_fixture_seed'));
 
   const beforeSeen = [];

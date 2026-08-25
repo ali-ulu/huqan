@@ -16,9 +16,16 @@ const assert = require('node:assert/strict');
 const CLI = require('../cli');
 const Kernel = require('../kernel');
 const { isUnsafePublicApiCommand, isAllowedPublicCommand } = require('../requestGuards');
+const { isolatedJsonMemoryPath } = require('./helpers/isolated-json-memory-path');
 
 function makeCLI(opts = {}) {
-  const kernel = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false, ...opts });
+  const kernel = new Kernel({
+    noLoad: true,
+    useSQLite: false,
+    loadPlugins: false,
+    memoryPath: isolatedJsonMemoryPath('faz2-cli'),
+    ...opts,
+  });
   return new CLI({ kernelInstance: kernel });
 }
 

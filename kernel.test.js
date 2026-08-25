@@ -1,12 +1,17 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const Kernel = require('./kernel');
+const { isolatedJsonMemoryPath } = require('./test/helpers/isolated-json-memory-path');
 
 const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 // Test için temiz kernel — memory.json yüklemez
 function freshKernel(opts = {}) {
-  const kernel = new Kernel({ noLoad: true, ...opts });
+  const kernel = new Kernel({
+    noLoad: true,
+    memoryPath: isolatedJsonMemoryPath('kernel-test'),
+    ...opts,
+  });
   const learn = kernel.learn.bind(kernel);
   kernel.learn = (text, learnOpts = {}) => learn(text, { ...learnOpts, ...TEST_FIXTURE_LEARN_BYPASS });
   return kernel;
