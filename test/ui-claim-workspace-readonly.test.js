@@ -79,11 +79,40 @@ test('Claim Workspace uses manifest routes, session-only auth, real search, and 
   assert.match(html, /\/api\/trust-receipt/);
 });
 
-test('Claim Workspace mirrors runtime status in the header and footer', () => {
+test('Claim Workspace derives all aggregate dashboard status labels from one helper', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
-  assert.match(html, /<span id="footstatus">System Healthy<\/span>/);
-  assert.match(html, /\$\('sys'\)\.textContent='ONLINE';\$\('sys'\)\.style\.color='var\(--good\)';\$\('footstatus'\)\.textContent='System Healthy'/);
-  assert.match(html, /\$\('sys'\)\.textContent='DEGRADED';\$\('sys'\)\.style\.color='var\(--warn\)';\$\('footstatus'\)\.textContent='System Degraded'/);
+  const match = html.match(/function aggregateStatus\(surfaces\)\{([\s\S]*?)\}function renderHealth/);
+  assert.ok(match, 'aggregate status helper must be present');
+  const aggregateStatus = vm.runInNewContext(`(function aggregateStatus(surfaces){${match[1]}})`);
+  const surfaces = {
+    status: { s: 'ok' }, workflows: { s: 'ok' }, graph: { s: 'ok' },
+    approvals: { s: 'ok' }, activity: { s: 'ok' },
+  };
+  const healthy = aggregateStatus(surfaces);
+  assert.equal(healthy.label, 'HEALTHY');
+  assert.equal(healthy.online, 5);
+  assert.equal(healthy.total, 5);
+  surfaces.activity.s = 'locked';
+  assert.equal(aggregateStatus(surfaces).label, 'PARTIAL');
+  surfaces.status.s = 'err';
+  surfaces.workflows.s = 'err';
+  surfaces.graph.s = 'checking';
+  surfaces.approvals.s = 'checking';
+  surfaces.activity.s = 'checking';
+  assert.equal(aggregateStatus(surfaces).label, 'CHECKING');
+  surfaces.graph.s = 'err';
+  surfaces.approvals.s = 'err';
+  surfaces.activity.s = 'err';
+  assert.equal(aggregateStatus(surfaces).label, 'OFFLINE');
+  surfaces.status.s = 'ok';
+  surfaces.workflows.s = 'ok';
+  assert.equal(aggregateStatus(surfaces).label, 'DEGRADED');
+  assert.match(html, /aggregate=aggregateStatus\(state\.surfaces\)/);
+  assert.match(html, /\$\('sys'\)\.textContent=aggregate\.label/);
+  assert.match(html, /\$\('healthsum'\)\.textContent=`\$\{aggregate\.label\} · \$\{n\}\/\$\{a\.length\} surfaces available`/);
+  assert.match(html, /\$\('footstatus'\)\.textContent=`\$\{aggregate\.label\} · \$\{n\}\/\$\{a\.length\} surfaces available`/);
+  assert.doesNotMatch(html, /\$\('sys'\)\.textContent='ONLINE'/);
+  assert.doesNotMatch(html, /\$\('footstatus'\)\.textContent='System Healthy'/);
 });
 
 test('Claim Workspace browser script compiles and wires unknown-to-review through the existing ingest approval runtime', () => {
