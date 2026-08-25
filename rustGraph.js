@@ -3,6 +3,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const Graph = require('./graph');
+const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
 
 /**
  * Locate the native accelerator binary.
@@ -18,7 +19,10 @@ const Graph = require('./graph');
  * current one. The first canonical path is returned when nothing exists, which
  * is what makes a missing binary a clean fallback rather than an error.
  */
-function resolveRustBin() {
+function resolveRustBin(environment = process.env) {
+  const configured = readCompatibleEnvironmentVariable('RUST_BIN', environment);
+  if (typeof configured === 'string' && configured.trim()) return path.resolve(configured.trim());
+
   const isWin = process.platform === 'win32';
   const exeName = isWin ? 'huqan-core.exe' : 'huqan-core';
   const legacyExeName = isWin ? 'axiom-core.exe' : 'axiom-core';
@@ -327,6 +331,30 @@ class RustGraph {
     if (opts && opts.workspaceId !== undefined) cmd.workspaceId = opts.workspaceId;
     const res = await this._send(cmd);
     return res && res.ok;
+  }
+
+  /**
+   * Learn several statements in one IPC round trip. This is intentionally a
+   * RustGraph accelerator surface, not a replacement for Kernel.learn(): the
+   * canonical Kernel path remains synchronous and admission/durability-governed.
+   * @param {string[]} texts
+   * @param {object} [opts]
+   * @returns {Promise<{ok: boolean, results: object[], error?: string}>}
+   */
+  async learnBatch(texts, opts = {}) {
+    const statements = Array.isArray(texts) ? texts.filter(text => typeof text === 'string') : [];
+    const workspaceId = opts && opts.workspaceId !== undefined ? opts.workspaceId : undefined;
+    const commands = statements.map(text => {
+      const command = { cmd: 'learn', text };
+      if (workspaceId !== undefined) command.workspaceId = workspaceId;
+      return command;
+    });
+    const res = await this._send({ cmd: 'batch', commands });
+    if (res === this._fallback) return { ok: false, results: [], error: 'rust_unavailable' };
+    if (!res || res.ok !== true || !Array.isArray(res.results)) {
+      return { ok: false, results: [], error: res?.error || 'invalid_response' };
+    }
+    return { ok: true, results: res.results };
   }
 
   async ask(question, opts = {}) {
