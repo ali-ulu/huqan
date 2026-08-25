@@ -147,3 +147,32 @@ test('the guarded repo-only families stay out of the closure', () => {
     assert.notEqual(file, 'lib/a2a/bounded-exchange.js');
   }
 });
+
+// ─── what `files` does and does not have to say (#1471) ──────────────────────
+
+test('npm-always-published root files are treated as published without a files entry', () => {
+  // mcpServer.js requires ./package.json at load time. Modelling `files` as the
+  // whole published set made this gate demand a redundant "package.json" entry
+  // and report "Cannot find module" for a file npm puts in every tarball.
+  const published = publishedFiles(REPO_ROOT);
+  const listed = new Set(JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8')).files);
+
+  for (const name of ['package.json', 'README.md', 'LICENSE']) {
+    assert.ok(published.has(name), `${name} must count as published`);
+    assert.ok(!listed.has(name), `${name} is always published, so listing it in files is redundant`);
+  }
+});
+
+test('nested package readmes stay listed explicitly, because npm only auto-publishes the root one', () => {
+  // A bare "README.md" entry in `files` behaves like a gitignore pattern and
+  // matches at any depth, so it was silently carrying the sub-package readmes.
+  // Removing it as "redundant" dropped both from the tarball; npm's automatic
+  // inclusion covers only the root readme. Measured with `npm pack --dry-run`.
+  const listed = new Set(JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8')).files);
+
+  for (const pkg of ['axiom-verify', 'huqan-verify']) {
+    const readme = `packages/${pkg}/README.md`;
+    assert.ok(fs.existsSync(path.join(REPO_ROOT, readme)), `${readme} must exist`);
+    assert.ok(listed.has(readme), `${readme} must be listed explicitly, like its package.json sibling`);
+  }
+});

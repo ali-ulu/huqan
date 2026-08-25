@@ -62,9 +62,24 @@ function packageRoots(root) {
  * @param {string} root repository root
  * @returns {Set<string>} repo-relative POSIX paths
  */
+/**
+ * Files npm publishes whether or not `files` lists them.
+ *
+ * npm always ships the manifest, the readme and the licence from the package
+ * root. Modelling `files` as the whole published set therefore reports a false
+ * failure for them: mcpServer.js requires `./package.json` at load time, so
+ * dropping the redundant `"package.json"` entry made this gate claim an
+ * installed consumer would get "Cannot find module" -- for a file npm puts in
+ * every tarball. Verified with `npm pack --dry-run`: removing the entry leaves
+ * package.json in the tarball, and `npm run verify:tarball` installs and runs
+ * it. Only the root files are covered; a nested readme is published only if an
+ * entry matches it, which is why packages/*'/'README.md are listed explicitly.
+ */
+const ALWAYS_PUBLISHED = Object.freeze(['package.json', 'README.md', 'LICENSE']);
+
 function publishedFiles(root) {
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  const out = new Set();
+  const out = new Set(ALWAYS_PUBLISHED.filter((name) => fs.existsSync(path.join(root, name))));
   const walkDir = (dir) => {
     for (const name of fs.readdirSync(dir)) {
       const full = path.join(dir, name);
