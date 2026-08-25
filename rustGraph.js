@@ -277,10 +277,15 @@ class RustGraph {
     return res.edges || [];
   }
 
-  async query(label) {
-    if (this._fallback) return this._fallback.query(label);
-    const stats = await this.getStats();
-    return [];
+  // #1142: this used to fetch getStats(), throw the result away and return []
+  // whenever the accelerator was live, so a label lookup that worked in the JS
+  // fallback silently returned nothing on a Rust-enabled deployment. It is now
+  // a real 'query' command, and workspaceId is accepted for parity with
+  // Graph.query(label, workspaceId).
+  async query(label, workspaceId = 'default') {
+    const res = await this._send({ cmd: 'query', label, workspaceId });
+    if (res === this._fallback) return this._fallback.query(label, workspaceId);
+    return res.nodes || [];
   }
 
   async nodeCount() {
