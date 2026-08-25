@@ -83,7 +83,7 @@ test('a stale agent-version env var is answered, not hidden behind a reference n
   try {
     const { result: response, lines } = silenceStderr(() => withEnv(
       { HUQAN_AGENT_VERSION: 'v2' },
-      () => callTool(server, 'huqan.agent', { goal: 'kediyi arastir' }),
+      () => callTool(server, 'huqan.plan', { goal: 'kediyi arastir' }),
     ));
     const result = (await response).result;
 
@@ -106,7 +106,7 @@ test('two spellings of one environment variable name themselves in the response'
   try {
     const { result: response } = silenceStderr(() => withEnv(
       { HUQAN_AGENT_VERSION: 'v3', AXIOM_AGENT_VERSION: 'v2' },
-      () => callTool(server, 'huqan.agent', { goal: 'kediyi arastir' }),
+      () => callTool(server, 'huqan.plan', { goal: 'kediyi arastir' }),
     ));
     const result = (await response).result;
 
