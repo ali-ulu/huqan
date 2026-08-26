@@ -100,9 +100,18 @@ jobs:
 
       - name: Publish
         if: github.event_name == 'push' || inputs.dry_run == false
-        run: npm publish --provenance --access public
+        run: |
+          # secrets.NPM_TOKEN historically carried a trailing newline (set
+          # from a piped echo, e.g. `echo $token | gh secret set`), which
+          # makes npm's Authorization header illegal: "<token> is not a
+          # legal HTTP header value". npm tokens are [A-Za-z0-9_]+, so
+          # stripping CR/LF is safe and makes the publish independent of
+          # how the secret was pasted.
+          token="$(printf '%s' "$RAW_NPM_TOKEN" | tr -d '\r\n')"
+          printf '//registry.npmjs.org/:_authToken=%s\n' "${token}" > "${HOME}/.npmrc"
+          npm publish --provenance --access public
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          RAW_NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Dry run complete
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run
