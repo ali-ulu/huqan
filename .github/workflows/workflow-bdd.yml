@@ -105,7 +105,7 @@ jobs:
         run: npm ci --include=optional --no-audit --no-fund
 
       - name: Run repository test suite
-        run: npm test
+        run: npm run test:serial
         env:
           # Same policy as benchmark.yml: AC-785-10 is only proven when the
           # browser smoke actually runs, so fail instead of skipping. The
