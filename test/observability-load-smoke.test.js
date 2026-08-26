@@ -17,6 +17,7 @@ test('observability load smoke measures every P0.6 surface within bounded target
     queueJobs: 100,
   });
   assert.equal(report.resources.queueDepthBefore, 100);
+  assert.equal(report.resources.queueLagMs, 0);
   assert.equal(report.resources.queueDepthAfter, 0);
   assert.equal(report.resources.sseEventsReceived, 6_400);
   assert.equal(Number.isInteger(report.resources.databaseTiming.calls), true);

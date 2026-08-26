@@ -18,6 +18,8 @@
 
 The fixture also requires exactly `200 × 32 = 6,400` subscriber deliveries during the fan-out window. The threshold fixture is stored in `benchmarks/fixtures/observability-load-targets.json`; the JSON report includes the Node runtime, platform, architecture, workload counts, p95/average/max timings, and resource measurements.
 
+The benchmark configures SQLite with the same `WAL` journal and `NORMAL` synchronization settings used by the production storage owner. Queue timestamps use a fixed logical clock so `queueLagMs` reflects controlled queue state instead of fixture setup time or runner contention; operation latency continues to use the monotonic high-resolution process clock.
+
 ## Running and CI evidence
 
 Run the smoke locally with `npm run bench:observability:load`. The Benchmark workflow runs the entrypoint directly so the uploaded `observability-load-current.json` artifact remains valid JSON rather than containing an npm lifecycle banner. The job summary includes the report and the artifact is retained with the workflow run.
