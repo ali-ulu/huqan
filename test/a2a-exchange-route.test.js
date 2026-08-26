@@ -335,10 +335,10 @@ test('a2a route: the production call chain reaches the V5 verification modules',
 
   const evaluatorSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'a2a', 'bounded-exchange.js'), 'utf8');
   for (const dependency of [
-    '../v5/cryptographic-profile-contract',
-    '../v5/cryptographic-verification-adapter',
-    '../v5/public-trust-receipt',
-    '../v5/trusted-key-resolver',
+    '../receipt/cryptographic-profile-contract',
+    '../receipt/cryptographic-verification-adapter',
+    '../receipt/public-trust-receipt',
+    '../receipt/trusted-key-resolver',
   ]) {
     assert.ok(evaluatorSource.includes(`require('${dependency}')`),
       `the evaluator must reach ${dependency}`);
