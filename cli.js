@@ -562,9 +562,10 @@ class CLI {
       }
       case 'hypotheses': {
         const argsObject = args && typeof args === 'object' ? args : {};
+        const writes = argsObject.propose === true || argsObject.review === true;
         return runCliHypotheses(this.kernel, argsObject, {
           json: opts.json === true,
-          commitMutation: argsObject.propose === true
+          commitMutation: writes
             ? () => this._commitCliMutation('hypotheses', CLI_MUTATION_GATE.hypotheses)
             : null,
         });
@@ -669,7 +670,10 @@ class CLI {
     // the persisted id and runs the admission-aware learn path, so a synthetic
     // CLI allow decision must not bypass that authority.
     if (normalizeCommandText(command) === 'onayla') return null;
-    if (normalizeCommandText(command) === 'hypotheses' && !(args && typeof args === 'object' && args.propose === true)) return null;
+    // The bare report is read-only; --propose and `review` both write to the
+    // candidate-claim family and stay behind the gate.
+    if (normalizeCommandText(command) === 'hypotheses'
+      && !(args && typeof args === 'object' && (args.propose === true || args.review === true))) return null;
     const tool = mapCliCommandToMcpTool(command);
     if (!tool) {
       // F-004: commands without an MCP tool mapping may still mutate. Route
