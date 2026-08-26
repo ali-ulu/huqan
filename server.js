@@ -69,7 +69,6 @@ let companyRuntimeReady = false;
 let ingestApprovalStore = null;
 const INGEST_APPROVAL_WORKER_ID = `http-ingest-${crypto.randomUUID()}`;
 const INGEST_APPROVAL_LEASE_MS = Math.max(30_000, Math.min(900_000, Number(readCompatibleEnvironmentVariable('INGEST_APPROVAL_LEASE_MS')) || 120_000));
-
 function getIngestApprovalStore() {
   if (ingestApprovalStore) return ingestApprovalStore;
   ingestApprovalStore = new HuqanStorage({ kernel });
@@ -351,8 +350,7 @@ function getHtmlPage() {
   }
   return cachedHtmlPage;
 }
-
-
+const handleAnswerRoute = require('./lib/http/answer-route').createAnswerRoute({ kernel, legacyVerify, sanitizeInput, parseJsonRequest, denyIfUnauthorized, buildCorsHeaders, JSON_CONTENT_TYPE, DEFAULT_MAX_JSON_BODY, writeJson });
 const server = http.createServer(async (req, res) => {
   try {
   res.setHeader('Connection', 'close');
@@ -524,6 +522,9 @@ const server = http.createServer(async (req, res) => {
     sendVerifyResult(data.claim || data.statement || data.text || '', data.workspaceId || '');
     return;
   }
+
+  // /answer -> lib/http/answer-route.js (#328)
+  if (reqUrl.pathname === '/answer') { handleAnswerRoute(req, res, reqUrl); return; }
 
   // --- /llm-sor ---
   if (reqUrl.pathname === '/llm-sor') {
@@ -1023,5 +1024,4 @@ module.exports.getRateLimitKey = getRateLimitKey;
 // Exposed so the index-page cache (#420) can be asserted directly, without
 // having to intercept fs from outside the module.
 module.exports.getHtmlPage = getHtmlPage;
-
 
