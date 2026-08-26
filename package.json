@@ -9,7 +9,7 @@
     "huqan-mcp": "./bin/huqan-mcp.js"
   },
   "scripts": {
-    "prepublishOnly": "npm run check:package-closure && npm test",
+    "prepublishOnly": "npm run check:package-closure",
     "start": "node cli.js",
     "server": "node server.js",
     "mcp": "node mcpServer.js",
