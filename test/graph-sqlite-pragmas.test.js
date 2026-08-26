@@ -35,3 +35,15 @@ test('an opened SQLite graph actually carries the pragmas', () => {
   assert.strictEqual(graph._db.pragma('synchronous', { simple: true }), 2);
   assert.strictEqual(graph._db.pragma('busy_timeout', { simple: true }), DEFAULT_BUSY_TIMEOUT_MS);
 });
+
+test('a graph can be opened with a tuned busy timeout', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-graph-pragmas-tuned-'));
+  const graph = new Graph({ useSQLite: true, dbPath: path.join(dir, 'graph.db'), busyTimeoutMs: 250 });
+  assert.strictEqual(graph._db.pragma('busy_timeout', { simple: true }), 250);
+});
+
+test('an unusable busy timeout falls back to the default rather than opening unguarded', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-graph-pragmas-junk-'));
+  const graph = new Graph({ useSQLite: true, dbPath: path.join(dir, 'graph.db'), busyTimeoutMs: 'nope' });
+  assert.strictEqual(graph._db.pragma('busy_timeout', { simple: true }), DEFAULT_BUSY_TIMEOUT_MS);
+});

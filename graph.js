@@ -111,7 +111,7 @@ class Graph {
       const hasExistingDatabase = hasExistingPersistenceFile(dbPath);
       try {
         this._db = new Database(dbPath);
-        this._initDB();
+        this._initDB(opts);
       } catch (e) {
         try { this._db?.close(); } catch (_) {}
         this._db = null;
@@ -123,9 +123,9 @@ class Graph {
 
   // ─── SQLite şema ──────────────────────────────────────────────────────────
 
-  _initDB() {
+  _initDB(opts = {}) {
     this._db.exec(`
-      ${sqlitePragmaSql()}
+      ${sqlitePragmaSql({ busyTimeoutMs: opts.busyTimeoutMs })}
       CREATE TABLE IF NOT EXISTS nodes (
         id TEXT NOT NULL,
         workspace_id TEXT NOT NULL DEFAULT 'default',
