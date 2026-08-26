@@ -444,12 +444,21 @@ jobs:
         run: node benchmarks/check-regression.js benchmarks/results.json benchmarks/current-results.json --multiplier=2.5
       - name: Run observability load smoke
         run: node benchmarks/observability-load-smoke.js > benchmarks/observability-load-current.json
+      - name: Run observability bounded soak
+        run: node --expose-gc benchmarks/observability-soak.js > benchmarks/observability-soak-current.json
       - name: Upload observability load-smoke artifact
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: observability-load-smoke-${{ github.run_id }}-attempt-${{ github.run_attempt }}
           path: benchmarks/observability-load-current.json
+          if-no-files-found: warn
+      - name: Upload observability soak artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: observability-soak-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: benchmarks/observability-soak-current.json
           if-no-files-found: warn
       - name: Publish benchmark summary
         if: always()
@@ -464,6 +473,13 @@ jobs:
               cat benchmarks/observability-load-current.json
             else
               echo "Load-smoke report was not produced."
+            fi
+            echo ""
+            echo "## Observability Bounded Soak"
+            if [ -f benchmarks/observability-soak-current.json ]; then
+              cat benchmarks/observability-soak-current.json
+            else
+              echo "Soak report was not produced."
             fi
           } >> "${GITHUB_STEP_SUMMARY}"
 
