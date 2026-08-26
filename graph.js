@@ -44,6 +44,7 @@ const { applyTemporalEdgeMetadata, beginEdgeTouchScope, downgradeEdge, edgeTouch
 const { getCausalChain: runCausalChain } = require('./lib/graph-causal-chain');
 const { getCandidateClaims: runCandidateClaimsRead } = require('./lib/graph-candidate-claims-read');
 const { addCandidateClaim: runCandidateClaimWrite } = require('./lib/graph-candidate-claims-write');
+const { sqlitePragmaSql } = require('./lib/graph-sqlite-pragmas');
 const {
   getEdge: runEdgeRead,
   getEdgesBetween: runEdgesBetweenRead,
@@ -110,7 +111,7 @@ class Graph {
       const hasExistingDatabase = hasExistingPersistenceFile(dbPath);
       try {
         this._db = new Database(dbPath);
-        this._initDB();
+        this._initDB(opts);
       } catch (e) {
         try { this._db?.close(); } catch (_) {}
         this._db = null;
@@ -122,10 +123,9 @@ class Graph {
 
   // ─── SQLite şema ──────────────────────────────────────────────────────────
 
-  _initDB() {
+  _initDB(opts = {}) {
     this._db.exec(`
-      PRAGMA journal_mode = WAL;
-      PRAGMA synchronous = FULL;
+      ${sqlitePragmaSql({ busyTimeoutMs: opts.busyTimeoutMs })}
       CREATE TABLE IF NOT EXISTS nodes (
         id TEXT NOT NULL,
         workspace_id TEXT NOT NULL DEFAULT 'default',
