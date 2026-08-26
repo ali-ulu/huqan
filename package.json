@@ -334,7 +334,6 @@
     "lib/pr-guardian/review-service.js",
     "lib/pilot/trust-receipt-pilot.js",
     "lib/pilot/trust-receipt-pilot-archive.js",
-    "lib/pilot/test-database-boundary.js",
     "lib/pr-guardian/github-client.js",
     "lib/memory-admission-gate.js",
     "lib/memory-mutation-gate/index.js",
