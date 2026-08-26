@@ -35,6 +35,7 @@ const multiAgentCascadeGuard = require('./lib/multi-agent-cascade-guard');
 const trustReceiptPilot = require('./lib/pilot/trust-receipt-pilot');
 const trustReceiptPilotArchive = require('./lib/pilot/trust-receipt-pilot-archive');
 const pilotTestDatabaseBoundary = require('./lib/pilot/test-database-boundary');
+const observabilityClient = require('./lib/observability/client');
 
 module.exports = KernelV2;
 
@@ -112,3 +113,11 @@ module.exports.verifyPilotTrustReceipt = trustReceiptPilot.verifyPilotTrustRecei
 module.exports.verifyPilotPublicProjection = trustReceiptPilot.verifyPilotPublicProjection;
 module.exports.createPilotReceiptArchive = trustReceiptPilotArchive.createPilotReceiptArchive;
 module.exports.assertPilotTestDatabaseBoundary = pilotTestDatabaseBoundary.assertPilotTestDatabaseBoundary;
+
+// Stable local-first AgentV3 framework integration. The client hashes goals
+// before handing them to the observability service and forwards only bounded,
+// workspace-scoped telemetry fields; it has no network side effects.
+module.exports.ObservabilityTelemetryClient = observabilityClient;
+module.exports.createObservabilityTelemetryClient = observabilityClient.createObservabilityTelemetryClient;
+module.exports.OBSERVABILITY_CLIENT_ERRORS = observabilityClient.OBSERVABILITY_CLIENT_ERRORS;
+module.exports.TELEMETRY_EVENT_TYPES = observabilityClient.TELEMETRY_EVENT_TYPES;

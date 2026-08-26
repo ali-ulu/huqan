@@ -1,3 +1,4 @@
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./test/helpers/isolated-persistence');
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
@@ -13,7 +14,7 @@ const Kernel = require('./kernel');
 const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 function freshAgent(memoryPath) {
-  const kernel = new KernelV2({ noLoad: true, useSQLite: false, loadPlugins: false });
+  const kernel = new KernelV2(isolatedKernelOptions('agent', { noLoad: true, useSQLite: false, loadPlugins: false }));
   return new Agent({ kernel, memoryPath });
 }
 

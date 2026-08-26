@@ -89,6 +89,41 @@ declare const huqan: typeof KernelV2 & {
   verifyPilotPublicProjection: (projection: Record<string, any>, receipt: Record<string, any>) => { valid: boolean; reason: string | null };
   createPilotReceiptArchive: (records: Array<Record<string, any>>) => Readonly<Record<string, any>>;
   assertPilotTestDatabaseBoundary: (environment: Record<string, string | undefined>) => Readonly<Record<string, string>>;
+
+  ObservabilityTelemetryClient: {
+    OBSERVABILITY_CLIENT_ERRORS: Record<string, string>;
+    TELEMETRY_EVENT_TYPES: readonly string[];
+    createObservabilityTelemetryClient: (options: {
+      service: Record<string, (...args: any[]) => any>;
+      workspaceId: string;
+      agentId?: string;
+      runtime?: string;
+    }) => {
+      workspaceId: string;
+      agentId: string;
+      runtime: string;
+      startRun: (input: Record<string, unknown>) => any;
+      recordStep: (input: Record<string, unknown>) => any;
+      recordGateDecision: (input: Record<string, unknown>) => any;
+      finishRun: (input: Record<string, unknown>) => any;
+    };
+  };
+  createObservabilityTelemetryClient: (options: {
+    service: Record<string, (...args: any[]) => any>;
+    workspaceId: string;
+    agentId?: string;
+    runtime?: string;
+  }) => {
+    workspaceId: string;
+    agentId: string;
+    runtime: string;
+    startRun: (input: Record<string, unknown>) => any;
+    recordStep: (input: Record<string, unknown>) => any;
+    recordGateDecision: (input: Record<string, unknown>) => any;
+    finishRun: (input: Record<string, unknown>) => any;
+  };
+  OBSERVABILITY_CLIENT_ERRORS: Record<string, string>;
+  TELEMETRY_EVENT_TYPES: readonly string[];
 };
 
 export = huqan;

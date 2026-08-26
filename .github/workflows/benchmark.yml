@@ -92,14 +92,14 @@ jobs:
             # production file counts as runtime until someone classifies it
             # otherwise, rather than being silently exempt.
             case "$1" in
-              docs/*|specs/*|test/*|benchmarks/fixtures/*|fixtures/*|public/*)
+              docs/*|specs/*|test/*|benchmarks/fixtures/*|fixtures/*|public/*|examples/*)
                 return 1
                 ;;
               package.json|package-lock.json|plugins/*|lib/*|nlp/*|packages/*|migrations/*|schemas/*|adapters/*|scripts/*|benchmarks/*|bin/*)
                 return 0
                 ;;
               */*)
-                # Any other nested path is not a runtime surface.
+                # Other nested artifacts, including examples, are not runtime surfaces.
                 return 1
                 ;;
               *.js)

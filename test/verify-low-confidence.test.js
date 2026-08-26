@@ -1,11 +1,12 @@
 'use strict';
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./helpers/isolated-persistence');
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const Kernel = require('../kernel');
 
 function verifyWithWeight(weight) {
-  const kernel = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+  const kernel = new Kernel(isolatedKernelOptions('verify-low-confidence', { noLoad: true, useSQLite: false, loadPlugins: false }));
   kernel.graph.addNode('a', 'a');
   kernel.graph.addNode('b', 'b');
   kernel.graph.addEdge('a', 'b', 'tür', { weight });

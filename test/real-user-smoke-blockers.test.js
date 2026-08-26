@@ -1,3 +1,4 @@
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./helpers/isolated-persistence');
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const { spawnSync } = require('node:child_process');
@@ -79,7 +80,7 @@ describe('real user smoke blockers', () => {
   });
 
   it('verifies seeded Turkish facts with natural Turkish and ASCII variants', () => {
-    const kernel = new Kernel({ noLoad: true, useSQLite: false });
+    const kernel = new Kernel(isolatedKernelOptions('real-user-smoke-blockers', { noLoad: true, useSQLite: false }));
     kernel.learn('mant\u0131k do\u011fru d\u00fc\u015f\u00fcnme y\u00f6ntemidir', TEST_FIXTURE_LEARN_BYPASS);
     kernel.learn('AXIOM bilgi grafi\u011fi motorudur', TEST_FIXTURE_LEARN_BYPASS);
 

@@ -1,3 +1,4 @@
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./helpers/isolated-persistence');
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
@@ -153,12 +154,12 @@ describe('FAZ2-7: production plugin signing/hash enforcement', () => {
         AXIOM_PLUGIN_SIGNING_KEY: undefined,
       },
       async () => {
-        const kernel = new Kernel({
+        const kernel = new Kernel(isolatedKernelOptions('faz2-production-plugin-signing-enforcement', {
           noLoad: true,
           useSQLite: false,
           loadPlugins: false,
           capabilities: { pluginCapabilities: true },
-        });
+        }));
         const count = kernel.plugins.load(dir);
 
         assert.strictEqual(count, 0);
@@ -237,12 +238,12 @@ describe('FAZ2-7: production plugin signing/hash enforcement', () => {
         AXIOM_PLUGIN_SIGNING_KEY: undefined,
       },
       async () => {
-        const kernel = new Kernel({
+        const kernel = new Kernel(isolatedKernelOptions('faz2-production-plugin-signing-enforcement', {
           noLoad: true,
           useSQLite: false,
           loadPlugins: false,
           capabilities: { pluginCapabilities: true },
-        });
+        }));
         const count = kernel.plugins.load(dir);
 
         assert.strictEqual(count, 0);

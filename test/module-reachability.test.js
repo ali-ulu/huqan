@@ -8,6 +8,7 @@ const path = require('node:path');
 
 const {
   PRODUCTION_ENTRY_POINTS,
+  NON_RUNTIME_PREFIXES,
   CONSUMER_ENTRY_POINTS,
   TEST_ONLY_FILES,
   STRUCTURAL_FILES,
@@ -60,6 +61,13 @@ test('consumer entry dependencies are walked', () => {
   const { reachable } = analyzeReachability({ root: REPO_ROOT });
   for (const entry of CONSUMER_ENTRY_POINTS) assert.ok(reachable.includes(entry));
   assert.ok(reachable.includes('lib/huqan-package-format.js'));
+});
+
+test('repository examples are explicit non-runtime artifacts', () => {
+  assert.deepEqual(NON_RUNTIME_PREFIXES, ['examples/']);
+  const { unacknowledged, unreachable } = analyzeReachability({ root: REPO_ROOT });
+  assert.ok(unreachable.includes('examples/observability-client.js'));
+  assert.equal(unacknowledged.includes('examples/observability-client.js'), false);
 });
 
 test('test-only and structural files are classified outside the pending-work list', () => {

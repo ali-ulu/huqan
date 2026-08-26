@@ -1,4 +1,5 @@
 'use strict';
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./helpers/isolated-persistence');
 
 const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
@@ -119,8 +120,18 @@ test('malformed evaluator output reaches the real fail-closed conversion branch'
     const gatePath = require.resolve('./lib/memory-admission-gate');
     const gate = require(gatePath);
     require.cache[gatePath].exports = { ...gate, evaluateMemoryAdmission: () => ({ ok: false }) };
+    const fs = require('node:fs');
+    const os = require('node:os');
+    const path = require('node:path');
     const Kernel = require('./kernel');
-    const kernel = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-2e1-invalid-'));
+    const kernel = new Kernel({
+      noLoad: true,
+      useSQLite: false,
+      loadPlugins: false,
+      memoryPath: path.join(root, 'memory.json'),
+      dbPath: null,
+    });
     const result = kernel.learn('kedi hayvandir', {
       provenance: {
         provenanceId: 'prov-isolated-invalid', sourceType: 'manual', sourceRef: 'test:isolated',
@@ -137,6 +148,7 @@ test('malformed evaluator output reaches the real fail-closed conversion branch'
       auditType: kernel.graph.getAuditEvents()[0]?.eventType
     };
     kernel.graph.close(); kernel.memory.close();
+    fs.rmSync(root, { recursive: true, force: true });
     process.stdout.write(JSON.stringify(output));
   `;
   const child = spawnSync(process.execPath, ['-e', script], {

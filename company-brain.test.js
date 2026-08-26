@@ -1,3 +1,4 @@
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./test/helpers/isolated-persistence');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -6,7 +7,7 @@ const createRepoMemoryPlugin = require('./plugins/repo-memory').create;
 const createCompanyBrainPlugin = require('./plugins/company-brain').create;
 
 function makeKernel() {
-  return new Kernel({
+  return new Kernel(isolatedKernelOptions('company-brain', {
     noLoad: true,
     useSQLite: false,
     loadPlugins: false,
@@ -16,7 +17,7 @@ function makeKernel() {
       evidenceRanking: true,
       temporal: true,
     },
-  });
+  }));
 }
 
 function makeResponse({ ok = true, status = 200, json, text, headers = {} }) {
