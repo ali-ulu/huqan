@@ -282,7 +282,7 @@ npm run server
 
 The canonical local UI is `public/index.html`. The read-only Trust Receipt Viewer is available at `/viewer` on a running server and renders receipts already owned by that local server. It is not a mutation surface and is not a public static marketing demo.
 
-For an observability walkthrough covering local server telemetry, tool usage, alerts, queue state, and dashboard steps, see [Observability Quickstart](./docs/product-hunt-quickstart.md).
+For an observability walkthrough covering local server telemetry, tool usage, alerts, queue state, and dashboard steps, see [Observability Quickstart](./docs/product-hunt-quickstart.md). For framework lifecycle integration through the stable local telemetry client, see [Observability Telemetry Client](./docs/observability-client.md).
 
 ### Optional Rust graph accelerator
 
