@@ -19,7 +19,12 @@ function harness({ subject = 'alice', body = null } = {}) {
     subscribe: listener => { subscriber = listener; return () => {}; },
   }, { get(target, key) {
     if (key in target) return target[key];
-    return input => { calls.push({ key, input }); return key === 'deleteAlertRule' ? true : { items: [] }; };
+    return input => {
+      calls.push({ key, input });
+      if (key === 'deleteAlertRule') return true;
+      if (key === 'acknowledgeAlert') return { alertId: input.alertId, workspaceId: input.workspaceId, status: 'acknowledged' };
+      return { items: [] };
+    };
   } });
   const writes = [];
   const router = createObservabilityHttpRouter({
@@ -61,6 +66,53 @@ test('queue and alert mutations require exact body scope and sufficient role', a
   await role.router({ method: 'POST', headers: {} }, {}, new URL('http://local/api/observability/alert-rules'));
   assert.equal(role.writes[0].response.error.code, 'OBSERVABILITY_PERMISSION_FORBIDDEN');
   assert.deepEqual(role.calls, []);
+});
+
+test('alert acknowledgement requires exact workspace and alerts:write permission', async () => {
+  const accepted = harness({ subject: 'admin', body: { workspaceId: 'ws-a' } });
+  await accepted.router(
+    { method: 'POST', headers: {} },
+    {},
+    new URL('http://local/api/observability/alerts/alert-1/acknowledge'),
+  );
+  assert.equal(accepted.writes[0].status, 200);
+  assert.deepEqual(accepted.writes[0].response, {
+    ok: true,
+    data: { alertId: 'alert-1', workspaceId: 'ws-a', status: 'acknowledged' },
+  });
+  assert.deepEqual(accepted.calls, [{
+    key: 'acknowledgeAlert',
+    input: { workspaceId: 'ws-a', alertId: 'alert-1' },
+  }]);
+
+  const operator = harness({ subject: 'operator', body: { workspaceId: 'ws-a' } });
+  await operator.router(
+    { method: 'POST', headers: {} },
+    {},
+    new URL('http://local/api/observability/alerts/alert-1/acknowledge'),
+  );
+  assert.equal(operator.writes[0].status, 403);
+  assert.equal(operator.writes[0].response.error.code, 'OBSERVABILITY_PERMISSION_FORBIDDEN');
+  assert.deepEqual(operator.calls, []);
+
+  const crossWorkspace = harness({ subject: 'admin', body: { workspaceId: 'ws-b' } });
+  await crossWorkspace.router(
+    { method: 'POST', headers: {} },
+    {},
+    new URL('http://local/api/observability/alerts/alert-1/acknowledge'),
+  );
+  assert.equal(crossWorkspace.writes[0].status, 403);
+  assert.deepEqual(crossWorkspace.calls, []);
+
+  const missingWorkspace = harness({ subject: 'admin', body: { reason: 'operator' } });
+  await missingWorkspace.router(
+    { method: 'POST', headers: {} },
+    {},
+    new URL('http://local/api/observability/alerts/alert-1/acknowledge'),
+  );
+  assert.equal(missingWorkspace.writes[0].status, 400);
+  assert.equal(missingWorkspace.writes[0].response.error.code, 'MISSING_WORKSPACE_ID');
+  assert.deepEqual(missingWorkspace.calls, []);
 });
 
 test('SSE authorizes its workspace and never publishes another workspace event', async () => {
