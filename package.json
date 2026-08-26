@@ -146,6 +146,7 @@
     "lib/observability/helpers.js",
     "lib/observability/health.js",
     "lib/observability/service.js",
+    "lib/observability/internal-metrics.js",
     "lib/observability/api-contract.js",
     "lib/observability/notification-adapter.js",
     "lib/observability/alert-lifecycle.js",
