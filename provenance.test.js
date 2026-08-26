@@ -1,3 +1,4 @@
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./test/helpers/isolated-persistence');
 ﻿const { describe, it, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
@@ -256,7 +257,7 @@ describe('Provenance System', () => {
   });
 
   it('throws ProvenanceError in strict mode when provenance is missing', () => {
-    const kernel = new Kernel({ noLoad: true, useSQLite: false, strictProvenance: true });
+    const kernel = new Kernel(isolatedKernelOptions('provenance', { noLoad: true, useSQLite: false, strictProvenance: true }));
 
     assert.throws(
       () => kernel.learn('aslan hayvandir', APPROVED_TEST_ADMISSION),

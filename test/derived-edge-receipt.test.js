@@ -1,4 +1,5 @@
 'use strict';
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./helpers/isolated-persistence');
 
 /**
  * Closes issue #214: derived `benzer` edges written via the parent-allowed
@@ -15,7 +16,7 @@ const assert = require('node:assert/strict');
 const Kernel = require('../kernel');
 
 function makeKernel() {
-  return new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+  return new Kernel(isolatedKernelOptions('derived-edge-receipt', { noLoad: true, useSQLite: false, loadPlugins: false }));
 }
 
 describe('derived_edge audit carries parent admission receipt', () => {

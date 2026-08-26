@@ -1,4 +1,5 @@
 'use strict';
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./helpers/isolated-persistence');
 
 /**
  * The measured claims in `docs/task-packs/p1k-batch-caller-measurement.md`.
@@ -33,7 +34,7 @@ function readCode(relPath) {
 }
 
 function isolatedKernel() {
-  return new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+  return new Kernel(isolatedKernelOptions('batch-caller-measurement', { noLoad: true, useSQLite: false, loadPlugins: false }));
 }
 
 /** An admitted, provenanced learn -- the shape that actually writes an edge. */
