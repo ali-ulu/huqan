@@ -155,6 +155,7 @@
     "lib/observability/retention.js",
     "lib/observability/agent-worker.js",
     "lib/observability/authorization.js",
+    "lib/observability/client.js",
     "lib/observability/server-runtime.js",
     "lib/http/runtime-status.js",
     "lib/approval-execution-evidence.js",
