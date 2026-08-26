@@ -34,6 +34,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # Full history is required: the live-Git-validation tests in
+          # test/agent-context.test.js and the V5-C5 external-conformance
+          # runner fail on a shallow checkout (they read canonical ancestry,
+          # not just the tip). Every other workflow that runs those suites
+          # already fetches depth 0; publish.yml was the only one that did not.
+          fetch-depth: 0
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -77,18 +84,34 @@ jobs:
       # empty project, and read the output. A plugin that fails to load prints
       # a line and still exits 0, which is how v0.10.0 nearly shipped three
       # modules that resolved from a clone and not from node_modules.
-      #
-      # `npm publish` separately runs prepublishOnly (the package-closure check
-      # and the full suite), so the two halves do not overlap: this proves the
-      # tarball behaves, that one proves the source tree is sound.
       - name: Verify the packed tarball as an installed consumer sees it
         run: npm run verify:tarball
 
+      # The full suite must run here, as its own step, and NOT inside `npm
+      # publish`'s prepublishOnly. Nested npm operations (the 4C1 installed-
+      # tarball tests and the V5-C5 conformance runner pack + install the
+      # package from inside the suite) are contaminated by the outer `npm
+      # publish` process: on a clean runner the same suite fails 21 tests when
+      # run as prepublishOnly and passes when run as a step. prepublishOnly is
+      # therefore limited to the fast closure check; this step is the
+      # "source tree is sound" gate.
+      - name: Run the full test suite
+        run: npm test
+
       - name: Publish
         if: github.event_name == 'push' || inputs.dry_run == false
-        run: npm publish --provenance --access public
+        run: |
+          # secrets.NPM_TOKEN historically carried a trailing newline (set
+          # from a piped echo, e.g. `echo $token | gh secret set`), which
+          # makes npm's Authorization header illegal: "<token> is not a
+          # legal HTTP header value". npm tokens are [A-Za-z0-9_]+, so
+          # stripping CR/LF is safe and makes the publish independent of
+          # how the secret was pasted.
+          token="$(printf '%s' "$RAW_NPM_TOKEN" | tr -d '\r\n')"
+          printf '//registry.npmjs.org/:_authToken=%s\n' "${token}" > "${HOME}/.npmrc"
+          npm publish --provenance --access public
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          RAW_NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Dry run complete
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run
