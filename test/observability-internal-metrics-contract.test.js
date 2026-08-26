@@ -31,6 +31,7 @@ function harness() {
         projectionFailures: 0,
         summary: { calls: 1, totalDurationMs: 0, slowCalls: 0 },
         alertEvaluation: { calls: 1, failures: 0, totalDurationMs: 0 },
+        database: { calls: 4, totalDurationMs: 1, slowCalls: 0 },
       };
     },
     subscribe(listener, options) {
@@ -72,6 +73,7 @@ test('metrics response exposes only the bounded internal snapshot for the reques
     projectionFailures: 0,
     summary: { calls: 1, totalDurationMs: 0, slowCalls: 0 },
     alertEvaluation: { calls: 1, failures: 0, totalDurationMs: 0 },
+    database: { calls: 4, totalDurationMs: 1, slowCalls: 0 },
   });
 });
 
@@ -99,7 +101,7 @@ test('OpenAPI metrics schema names the internal snapshot and its bounded fields'
   assert.equal(response.properties.data.properties.internal.$ref, '#/components/schemas/InternalMetrics');
   const internal = spec.components.schemas.InternalMetrics;
   assert.deepEqual(Object.keys(internal.properties).sort(), [
-    'alertEvaluation', 'droppedEvents', 'eventWrites', 'projectionFailures', 'subscriberCount', 'summary', 'workspaceId',
+    'alertEvaluation', 'database', 'droppedEvents', 'eventWrites', 'projectionFailures', 'subscriberCount', 'summary', 'workspaceId',
   ].sort());
   assert.equal(internal.additionalProperties, false);
 });

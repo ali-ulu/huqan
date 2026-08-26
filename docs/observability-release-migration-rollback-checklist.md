@@ -71,7 +71,7 @@ Rollback **kod release’i geri alma hazırlığı** olarak tanımlıdır; bu be
 
 Observability performans smoke kanıtı [`benchmarks/observability-load-smoke.js`](../benchmarks/observability-load-smoke.js), hedef fixture’ı [`benchmarks/fixtures/observability-load-targets.json`](../benchmarks/fixtures/observability-load-targets.json) ve test otoritesi [`test/observability-load-smoke.test.js`](../test/observability-load-smoke.test.js) üzerinden alınır. `npm run bench:observability:load` veya repository’nin bu benchmarkı çağıran CI gate’i hedefleri değiştirmeden çalıştırılmalıdır.
 
-Bu load-smoke; event write, list/summary, SSE fan-out, queue claim, DB boyutu ve queue lag için bounded p95 kabulünü doğrular. **Uzun süreli production soak, memory leak yokluğu, external notification delivery veya üçüncü taraf receiver interoperability kanıtı değildir.** Bu iddialar ayrı acceptance dilimleridir.
+Bu load-smoke; event write, list/summary, SSE fan-out, queue claim, DB boyutu, queue lag ve process-local instrumented database operation timing resource’ı için bounded kabulü doğrular. **Uzun süreli production soak, memory leak yokluğu, external notification delivery veya üçüncü taraf receiver interoperability kanıtı değildir.** Bu iddialar ayrı acceptance dilimleridir.
 
 Notification adapter için controlling sözleşme [`docs/observability-notifications.md`](observability-notifications.md) ve [`test/observability-notification-adapter.test.js`](../test/observability-notification-adapter.test.js) dosyalarındadır. Adapter explicit caller configuration ile kullanılabilir; varsayılan server runtime’ı dış endpoint’e kendiliğinden istek göndermez.
 
