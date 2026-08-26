@@ -360,6 +360,7 @@
     "lib/memory-temporal.js",
     "lib/memory-tombstone.js",
     "lib/memory-store-rollback.js",
+    "lib/default-persistence-path.js",
     "lib/memory-store-utils.js",
     "lib/memory-store-json-persistence.js",
     "lib/memory-store-persistence-report.js",
