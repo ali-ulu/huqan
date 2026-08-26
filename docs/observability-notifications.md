@@ -1,6 +1,6 @@
 # Observability Notification Adapter
 
-Bu slice, observability alert’leri için güvenli bir notification adapter boundary’si ekler. Adapter’ın tek concrete uygulaması injected transport ile çalışan **HTTPS webhook** adapter’ıdır. Varsayılan HUQAN server runtime’ı bu adapter’ı otomatik oluşturmaz veya dış endpoint’e kendiliğinden istek göndermez; bu nedenle güvenlik ve dış sistem yan etkileri explicit caller configuration’ına bağlı kalır.
+Bu slice, observability alert’leri için güvenli bir notification adapter boundary’si ve alert lifecycle’a explicit service wiring’i tanımlar. Adapter’ın tek concrete uygulaması injected transport ile çalışan **HTTPS webhook** adapter’ıdır. `createObservabilityService({ notificationAdapter })` ile adapter açıkça verilirse `alert_firing`, `alert_acknowledged` ve `alert_resolved` olayları adapter’a bildirilir; adapter verilmezse mevcut no-op davranış korunur. Varsayılan HUQAN server runtime’ı bu adapter’ı otomatik oluşturmaz veya dış endpoint’e kendiliğinden istek göndermez; bu nedenle güvenlik ve dış sistem yan etkileri explicit caller configuration’ına bağlı kalır.
 
 ## Sözleşme
 
@@ -17,4 +17,4 @@ Webhook body’si deterministic JSON olarak imzalanır. Signature `X-Huqan-Notif
 
 ## Doğrulama sınırı
 
-Regression testleri HTTPS-only URL validation, secret/payload redaction, deterministic HMAC header, transient retry ve backoff, timeout, non-retryable 4xx, bounded attempts, duplicate suppression ve failure isolation davranışlarını injected fake transport ile doğrular. Bu testler gerçek üçüncü taraf endpoint’ine gönderim veya external notification delivery kanıtı değildir. Alert lifecycle’a otomatik production wiring, persistent delivery ledger, distributed idempotency, webhook receiver interoperability ve hosted secret management ayrı acceptance dilimleridir.
+Regression testleri HTTPS-only URL validation, secret/payload redaction, deterministic HMAC header, transient retry ve backoff, timeout, non-retryable 4xx, bounded attempts, duplicate suppression ve failure isolation davranışlarını; service wiring testleri ise lifecycle event bildirimini ve adapter failure’ın telemetry/state geçişlerini bozmamasını injected fake adapter ile doğrular. Bu testler gerçek üçüncü taraf endpoint’ine gönderim veya external notification delivery kanıtı değildir. Persistent delivery ledger, distributed idempotency, webhook receiver interoperability, hosted secret management ve varsayılan server’da automatic external configuration ayrı acceptance dilimleridir.
