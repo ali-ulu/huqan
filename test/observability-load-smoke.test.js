@@ -65,9 +65,14 @@ test('the best-of-N run reports every attempt, and asserts on the least contende
   assert.equal(report.attempts.total, 2);
   assert.equal(report.attempts.targetUtilisation.length, 2);
   // The selected attempt is no worse than any attempt it was chosen from.
-  const selected = targetUtilisation(report, DEFAULT_TARGETS.targets);
+  // Compared at the artifact's own precision: attempts.targetUtilisation is
+  // rounded to 6 decimals for the report, so an exact recomputation sits up to
+  // half an ulp of that either side of it -- which failed this assertion about
+  // half the time on the raw value.
+  const round6 = value => Number(value.toFixed(6));
+  const selected = round6(targetUtilisation(report, DEFAULT_TARGETS.targets));
   for (const utilisation of report.attempts.targetUtilisation) {
-    assert.equal(selected <= utilisation + 1e-9, true);
+    assert.equal(selected <= utilisation, true, `${selected} > ${utilisation}`);
   }
 });
 

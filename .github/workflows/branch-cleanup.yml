@@ -1,0 +1,67 @@
+name: Branch Cleanup
+
+# GitHub's "automatically delete head branches" setting only fires on merge.
+# A pull request that is closed without merging keeps its branch forever, and
+# this repository closes plenty of them: 54 unmerged-closed pull requests had
+# left 12 dead branches behind. This covers exactly that gap and nothing else --
+# merged branches are still the built-in setting's job.
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+
+# One cleanup per pull request; a re-close should not race an in-flight run.
+concurrency:
+  group: branch-cleanup-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  delete-unmerged-head-branch:
+    name: Delete the head branch of an unmerged closed PR
+    runs-on: ubuntu-latest
+    # Merged branches are the built-in setting's job, and a fork's branch is
+    # not ours to delete. `pull_request` also hands fork runs a read-only
+    # token, so this guard is belt and braces.
+    if: >-
+      github.event.pull_request.merged == false &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: Delete the branch, unless something still needs it
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          if [ "$BRANCH" = "$DEFAULT_BRANCH" ]; then
+            echo "Refusing to delete the default branch ($BRANCH)."
+            exit 0
+          fi
+
+          # A branch can carry more than one pull request. Deleting it while
+          # another is still open would close that one too.
+          open_prs=$(gh api "repos/$REPO/pulls?state=open&head=${REPO%%/*}:$BRANCH" --jq 'length')
+          if [ "$open_prs" != "0" ]; then
+            echo "$BRANCH still has $open_prs open pull request(s); leaving it."
+            exit 0
+          fi
+
+          # Branch protection is the repository owner saying this branch
+          # matters. Never override that.
+          protected=$(gh api "repos/$REPO/branches/$BRANCH" --jq '.protected' 2>/dev/null || echo 'missing')
+          if [ "$protected" = "missing" ]; then
+            echo "$BRANCH is already gone."
+            exit 0
+          fi
+          if [ "$protected" = "true" ]; then
+            echo "$BRANCH is protected; leaving it."
+            exit 0
+          fi
+
+          gh api -X DELETE "repos/$REPO/git/refs/heads/$BRANCH"
+          echo "Deleted $BRANCH (PR #$PR_NUMBER was closed without merging)."
