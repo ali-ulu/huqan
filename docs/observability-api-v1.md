@@ -13,7 +13,7 @@ Bu metadata endpoint’i workspace verisi içermez ve yalnızca `GET` için publ
 | Kaynak | Versioned path | Davranış |
 | --- | --- | --- |
 | Health/readiness | `/api/observability/v1/health`, `/ready` | Workspace-scoped liveness/readiness; `ready` dependency başarısında `503` dönebilir. |
-| Metrics | `/api/observability/v1/metrics` | Bounded metrics, queue summary ve alert özeti; `windowMs` bounded’dir. |
+| Metrics | `/api/observability/v1/metrics` | Bounded metrics, queue summary, alert özeti ve workspace-scoped internal runtime counters; `windowMs` bounded’dir. |
 | Events | `/api/observability/v1/events` | Redacted event page; bounded `windowMs`, `cursor`, `limit`, event type ve run filtreleri. |
 | Runs | `/api/observability/v1/runs` | Redacted run page; stable cursor ordering ve tool usage özeti. |
 | Queue | `/api/observability/v1/queue` | Bounded queue read ve authenticated enqueue. |
@@ -25,7 +25,7 @@ Tüm JSON response’ları `no-store` ve `nosniff` header’larıyla döner. Ba�
 
 ## Sınırlar ve güvenlik
 
-Pagination cursor tabanlıdır; event/run listelerinde default limit bounded’dir, `windowMs` 1 saniye ile 31 gün arasında normalize edilir ve route query guard maksimum `100` limit ile `512` karakter cursor uygular. Event ve run response modelleri plaintext `goal`, `prompt`, `input`, `output`, `secret`, `credential` ve `authorization` alanlarını yayınlamaz. Run’larda yalnızca `goalDigest` ve `goalLength`; queue job’larında yalnızca digest ve uzunluk taşınır. Event payload’ı persistence öncesi `safePayload` redaction ve byte/öğe sınırlarından geçer.
+Pagination cursor tabanlıdır; event/run listelerinde default limit bounded’dir, `windowMs` 1 saniye ile 31 gün arasında normalize edilir ve route query guard maksimum `100` limit ile `512` karakter cursor uygular. Event ve run response modelleri plaintext `goal`, `prompt`, `input`, `output`, `secret`, `credential` ve `authorization` alanlarını yayınlamaz. Run’larda yalnızca `goalDigest` ve `goalLength`; queue job’larında yalnızca digest ve uzunluk taşınır. Event payload’ı persistence öncesi `safePayload` redaction ve byte/öğe sınırlarından geçer. Metrics response içindeki `internal` alanı yalnızca process-local, workspace-scoped ve bounded sayaçları (`eventWrites`, `droppedEvents`, `projectionFailures`, summary/alert timing ve subscriber count) içerir; payload, hata metni, prompt/goal veya credential taşımaz. Bu sayaçlar durable/distributed telemetry değildir ve kendi kendine observability event’i üretmez.
 
 Standard error code grupları auth, workspace/permission, validation, rate limit ve storage/unavailable sınıflarına ayrılmıştır. Rate limit response’ları `429` ve `Retry-After` header’ı içerir. Unknown/unrouted paths default-deny ve non-disclosure davranışıyla `404` olarak kalır; OpenAPI’de yalnız gerçekten servis edilen v1 paths bulunur.
 
