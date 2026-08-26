@@ -43,6 +43,10 @@ function assertTargets(report, targets) {
   }
   if (report.resources.dbFileBytes > targets.maxDbFileBytes) failures.push(`dbFileBytes=${report.resources.dbFileBytes}`);
   if (report.resources.queueLagMs > targets.maxQueueLagMs) failures.push(`queueLagMs=${report.resources.queueLagMs}`);
+  const databaseTiming = report.resources.databaseTiming;
+  if (!databaseTiming || !Number.isInteger(databaseTiming.calls) || databaseTiming.calls <= 0) failures.push(`databaseTiming.calls=${databaseTiming?.calls}`);
+  if (!databaseTiming || !Number.isFinite(databaseTiming.totalDurationMs) || databaseTiming.totalDurationMs < 0) failures.push(`databaseTiming.totalDurationMs=${databaseTiming?.totalDurationMs}`);
+  if (!databaseTiming || !Number.isInteger(databaseTiming.slowCalls) || databaseTiming.slowCalls < 0 || databaseTiming.slowCalls > databaseTiming.calls) failures.push(`databaseTiming.slowCalls=${databaseTiming?.slowCalls}`);
   if (report.resources.sseEventsReceived !== report.workload.ssePublishes * report.workload.sseSubscribers) {
     failures.push(`sseEventsReceived=${report.resources.sseEventsReceived}`);
   }
@@ -103,6 +107,7 @@ function runLoadSmoke({ targets = DEFAULT_TARGETS } = {}) {
       queueLagMs: queueBefore.lagMs,
       queueDepthAfter: service.queueSummary({ workspaceId }).depth,
       sseEventsReceived,
+      databaseTiming: service.internalMetrics({ workspaceId }).database,
     };
     const report = {
       schemaVersion: 1,
