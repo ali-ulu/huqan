@@ -2,7 +2,16 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { composeFluentAnswer, parseEvidence, renderTriple, detectLocale, EVIDENCE_RE } = require('../lib/fluent-answer.js');
+const { composeFluentAnswer, parseEvidence, renderTriple, detectLocale, extractKeywordClaim, EVIDENCE_RE } = require('../lib/fluent-answer.js');
+
+test('extractKeywordClaim: soru kelimelerini soyar', () => {
+  assert.equal(extractKeywordClaim('What provides thread safety?'), 'provides thread safety');
+  assert.equal(extractKeywordClaim('thread safety nedir?'), 'thread safety');
+});
+
+test('extractKeywordClaim: tum kelimeler stopword ise orijinali dondurur', () => {
+  assert.equal(extractKeywordClaim('nedir?'), 'nedir');
+});
 
 test('parseEvidence: kanıt satırını üçlüye ayrıştırır', () => {
   const t = parseEvidence([
