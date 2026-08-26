@@ -144,9 +144,7 @@ const VIEWER_RATE_LIMIT_WINDOW_MS = 60_000;
 const VIEWER_RATE_LIMIT_MAX = 120;
 const VIEWER_RATE_LIMIT_MAX_ENTRIES = 2048;
 const viewerRateLimits = new Map();
-backgroundTimers.add(setInterval(() => {
-  try { recoverExpiredIngestApprovals(); } catch (error) { console.error('[ingest-approval-recovery] failed:', error); }
-}, Math.max(5_000, Math.floor(INGEST_APPROVAL_LEASE_MS / 2))));
+backgroundTimers.add(setInterval(() => { try { recoverExpiredIngestApprovals(); } catch (error) { writeStructuredLog(console, 'error', 'http.ingest_approval_recovery_error', {}, { runtime: 'http', errorCode: error?.code || 'INGEST_APPROVAL_RECOVERY_FAILED' }); } }, Math.max(5_000, Math.floor(INGEST_APPROVAL_LEASE_MS / 2))));
 
 const {
   ALLOWED_CORS_HOSTS,
@@ -176,7 +174,7 @@ const {
 const { runPublicApiCommand } = require('./lib/http/public-api-commands');
 const { V2_STATUS_PHASES } = require('./lib/http/v2-status-phases');
 const { buildGraphData } = require('./lib/server-graph-data');
-const { createRuntimeStatusHandlers } = require('./lib/http/runtime-status');
+const { createRuntimeStatusHandlers } = require('./lib/http/runtime-status'); const { createRequestCorrelation, writeStructuredLog } = require('./lib/http/structured-log');
 
 async function submitIngestApproval(data) {
   const snapshot = buildIngestApprovalSnapshot(data);
@@ -352,7 +350,7 @@ function getHtmlPage() {
 }
 const handleAnswerRoute = require('./lib/http/answer-route').createAnswerRoute({ kernel, legacyVerify, sanitizeInput, parseJsonRequest, denyIfUnauthorized, buildCorsHeaders, JSON_CONTENT_TYPE, DEFAULT_MAX_JSON_BODY, writeJson });
 const server = http.createServer(async (req, res) => {
-  try {
+  const correlation = createRequestCorrelation(req, res); try {
   res.setHeader('Connection', 'close');
   const rawPath = String(req.url || '').split('?', 1)[0].split('#', 1)[0];
   if (viewerGateway.isViewerPath(rawPath)) {
@@ -440,7 +438,7 @@ const server = http.createServer(async (req, res) => {
       });
       res.end(JSON.stringify(data));
     } catch (err) {
-      console.error('[graph-data]', err);
+      writeStructuredLog(console, 'error', 'http.graph_data_error', correlation, { route: '/graph-data', method: req.method, errorCode: err?.code || 'GRAPH_DATA_FAILED' });
       writeJson(req, res, 500, { error: 'Internal server error' });
     }
     return;
@@ -461,7 +459,7 @@ const server = http.createServer(async (req, res) => {
       });
       res.end(JSON.stringify(data));
     } catch (err) {
-      console.error('[v2-status]', err);
+      writeStructuredLog(console, 'error', 'http.v2_status_error', correlation, { route: '/v2-status', method: req.method, errorCode: err?.code || 'V2_STATUS_FAILED' });
       writeJson(req, res, 500, { error: 'Internal server error' });
     }
     return;
@@ -481,7 +479,7 @@ const server = http.createServer(async (req, res) => {
       });
       res.end(JSON.stringify(getHealthData()));
     } catch (err) {
-      console.error('[health]', err);
+      writeStructuredLog(console, 'error', 'http.health_error', correlation, { route: '/health', method: req.method, errorCode: err?.code || 'HEALTH_FAILED' });
       writeJson(req, res, 500, { error: 'Internal server error' });
     }
     return;
@@ -511,7 +509,7 @@ const server = http.createServer(async (req, res) => {
         // Boundary projection only — the kernel envelope itself is unchanged.
         writeJson(req, res, 200, toPublicVerifyEnvelope(result), { 'Cache-Control': 'no-cache' });
       } catch (err) {
-        console.error('[v2/verify]', err);
+        writeStructuredLog(console, 'error', 'http.v2_verify_error', correlation, { route: '/v2/verify', method: req.method, errorCode: err?.code || 'V2_VERIFY_FAILED' });
         writeJson(req, res, 500, { error: 'Internal server error' });
       }
     };
@@ -595,7 +593,7 @@ const server = http.createServer(async (req, res) => {
         learnResult: shield.learnResult,
       }));
     } catch (err) {
-      console.error('[llm-sor]', err);
+      writeStructuredLog(console, 'error', 'http.llm_sor_error', correlation, { route: '/llm-sor', method: req.method, errorCode: err?.code || 'LLM_SOR_FAILED' });
       writeJson(req, res, 500, { error: 'Internal server error' });
     }
     return;
@@ -627,7 +625,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
       res.end(JSON.stringify(result));
     } catch (err) {
-      console.error('[dogrula]', err);
+      writeStructuredLog(console, 'error', 'http.verify_error', correlation, { route: '/dogrula', method: req.method, errorCode: err?.code || 'VERIFY_FAILED' });
       writeJson(req, res, 500, { error: 'Internal server error' });
     }
     return;
@@ -672,7 +670,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
       res.end(JSON.stringify({ ok: true, learned: learnResult.learned, admission }));
     } catch (err) {
-      console.error('[yukle]', err);
+      writeStructuredLog(console, 'error', 'http.upload_error', correlation, { route: '/yukle', method: req.method, errorCode: err?.code || 'UPLOAD_FAILED' });
       writeJson(req, res, 500, { error: 'Internal server error' });
     }
     return;
@@ -689,7 +687,7 @@ const server = http.createServer(async (req, res) => {
       const status = await kernel.runCapability('ingestStatus', {});
       writeJson(req, res, 200, status, { 'Cache-Control': 'no-cache' });
     } catch (err) {
-      console.error('[ingest-status] failed:', err);
+      writeStructuredLog(console, 'error', 'http.ingest_status_error', correlation, { route: '/api/ingest/status', method: req.method, errorCode: err?.code || 'INGEST_STATUS_FAILED' });
       writeJson(req, res, 500, { error: 'ingest status failed' });
     }
     return;
@@ -818,7 +816,7 @@ const server = http.createServer(async (req, res) => {
         data: receipt,
       }, { 'Cache-Control': 'no-cache' });
     } catch (err) {
-      console.error('[trust-query] failed:', err);
+      writeStructuredLog(console, 'error', 'http.trust_query_error', correlation, { route: '/api/trust', method: req.method, errorCode: err?.code || 'TRUST_QUERY_FAILED' });
       writeApiError(req, res, 500, 'TRUST_QUERY_FAILED', 'trust query failed');
     }
     return;
@@ -882,7 +880,7 @@ const server = http.createServer(async (req, res) => {
       }
       writeJson(req, res, outcome.status, outcome.json, { 'Cache-Control': 'no-cache' });
     } catch (error) {
-      console.error('[ingest-approval] failed:', error);
+      writeStructuredLog(console, 'error', 'http.ingest_approval_error', correlation, { route: '/api/ingest/approval', method: req.method, errorCode: error?.code || 'INGEST_APPROVAL_FAILED' });
       writeApiError(req, res, 500, 'INGEST_APPROVAL_FAILED', 'Ingest approval failed; inspect unresolved approvals.');
     }
     return;
@@ -950,7 +948,7 @@ const server = http.createServer(async (req, res) => {
       });
       res.end(JSON.stringify({ result }));
     } catch (err) {
-      console.error('[api]', err);
+      writeStructuredLog(console, 'error', 'http.api_error', correlation, { route: '/api', method: req.method, errorCode: err?.code || 'API_FAILED' });
       writeJson(req, res, 500, { error: 'Internal server error' });
     }
     return;
@@ -962,7 +960,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', ...buildCorsHeaders(req), 'Cache-Control': 'no-cache' });
       res.end(getHtmlPage());
     } catch (err) {
-      console.error('[index]', err);
+      writeStructuredLog(console, 'error', 'http.index_error', correlation, { route: '/', method: req.method, errorCode: err?.code || 'INDEX_FAILED' });
       writeJson(req, res, 500, { error: 'Internal server error' });
     }
     return;
@@ -971,7 +969,7 @@ const server = http.createServer(async (req, res) => {
   res.writeHead(404, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
   res.end(JSON.stringify({ error: 'Not found' }));
   } catch (err) {
-    console.error('[server] unhandled error:', err);
+    writeStructuredLog(console, 'error', 'http.unhandled_error', correlation, { route: String(req.url || '').split('?', 1)[0], method: req.method, errorCode: err?.code || 'HTTP_UNHANDLED_ERROR' });
     if (!res.headersSent) {
       res.writeHead(500, { 'Content-Type': JSON_CONTENT_TYPE });
       res.end(JSON.stringify({ error: 'Internal server error' }));
