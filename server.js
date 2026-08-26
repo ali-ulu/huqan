@@ -220,16 +220,10 @@ async function submitIngestApproval(data) {
 }
 const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, workspaceId, decision, reason }) => decideIngestApproval({ store: getIngestApprovalStore(), kernel, approvalId, workspaceId, decision, reason, humanOversight: getHttpApprovalRuntimeConfig(), handleIngest, ensureRuntime: ensureCompanyRuntime, recordAudit: recordIngestApprovalAudit, toPublicApproval: publicIngestApproval, workerId: INGEST_APPROVAL_WORKER_ID, leaseMs: INGEST_APPROVAL_LEASE_MS }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, learnDocument: (text, options) => kernel.learnDocument(text, options), submitIngest: submitIngestApproval, createAgent: options => observabilityRuntime.createAgent(options) });
 
-// First caller of the V5 runtime family (#875 task pack). Issuer key records
-// are dependency-injected as receiver-owned state: with no real registry
-// populated yet the resolver answers every issuer as unknown and the route
-// stays fail-closed. No issuer record may ever come from the request body.
+// V5 issuer records are receiver-owned; an empty registry remains fail-closed.
 const issuerTrustedKeyRecords = [];
 let v5PackageImportRouteCache = null;
 function handleV5PackageImportRoute(req, res, reqUrl) {
-  // Lazy load: the V5 runtime family is repo-only (4C1 keeps the installed
-  // tarball minimal), so server.js must still load when the V5 module cannot
-  // be required. The route is activated by request, never at boot.
   if (v5PackageImportRouteCache === null) {
     try {
       const { createV5PackageImportRoute, createReceiverTrustedKeyResolver } = require('./lib/http/v5-package-import-route');
@@ -238,15 +232,20 @@ function handleV5PackageImportRoute(req, res, reqUrl) {
         trustedKeyResolver: createReceiverTrustedKeyResolver({ issuerRecords: issuerTrustedKeyRecords }),
         auditTarget: kernel.graph,
       });
-    } catch (_) {
-      // V5 module not available in this installation (installed tarball):
-      // the endpoint stays permanently unavailable instead of booting broken.
-      v5PackageImportRouteCache = () => false;
-    }
+    } catch (_) { v5PackageImportRouteCache = () => false; }
   }
   return v5PackageImportRouteCache(req, res, reqUrl);
 }
-
+let v5PreflightRouteCache = null;
+function handleV5PreflightRoute(req, res, reqUrl) {
+  if (v5PreflightRouteCache === null) {
+    try {
+      const { createV5PreflightRoute } = require('./lib/http/v5-preflight-route');
+      v5PreflightRouteCache = createV5PreflightRoute({ parseJsonRequest });
+    } catch (_) { v5PreflightRouteCache = () => false; }
+  }
+  return v5PreflightRouteCache(req, res, reqUrl);
+}
 function checkViewerRateLimit(req, timestamp = Date.now()) {
   const key = String(req.socket?.remoteAddress || 'unknown');
   let record = viewerRateLimits.get(key);
@@ -417,6 +416,7 @@ const server = http.createServer(async (req, res) => {
   if (await optionalRoutes.route(req, res, reqUrl)) return;
   if (await handleObservabilityRoute(req, res, reqUrl)) return;
   if (await handleV5PackageImportRoute(req, res, reqUrl)) return;
+  if (await handleV5PreflightRoute(req, res, reqUrl)) return;
   if (handleWorkflowContractRoute(req, res, reqUrl) || await handleReadWorkflow(req, res, reqUrl)) return;
   if (await handleWorkflowDataRoute(req, res, reqUrl)) return;
   // --- /graph-data ---

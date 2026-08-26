@@ -41,7 +41,8 @@
     "test:rust": "node --test rustGraph.test.js",
     "test:server": "node --test server.test.js",
     "conformance:external": "node scripts/external-conformance/run.js",
-    "conformance:a2a": "node scripts/a2a-conformance/run.js"
+    "conformance:a2a": "node scripts/a2a-conformance/run.js",
+    "check:v5-identity": "node scripts/check-v5-identity-readiness.js"
   },
   "keywords": [
     "ai-governance",
@@ -390,6 +391,9 @@
     "lib/secret-patterns.js",
     "lib/self-healer/behavioral-containment.js",
     "lib/self-healer/dryrun-runner.js",
+    "lib/self-healer/audit-runner.js",
+    "lib/self-healer/finding-classifier.js",
+    "lib/self-healer/approval-bridge.js",
     "lib/self-healer/finding-schema.js",
     "lib/self-healer/safety-decision.js",
     "lib/self-healer/source-dependency-graph.js",
