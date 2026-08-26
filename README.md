@@ -139,6 +139,8 @@ HUQAN quickstart — learn -> review -> approve -> verify -> Trust Receipt
 
 The quickstart uses a throwaway store in the temporary directory. It does not write to your own memory and does not relax a gate.
 
+For a separate local observability walkthrough, run `npm run demo:observability`. It seeds a real AgentV3 run and dashboard-ready state in a fresh isolated directory, then serves the dashboard on loopback; see [Local Observability Seed Demo](./docs/observability-demo.md). This is not a hosted, production, external-network, or soak-performance claim.
+
 ### Run the bounded Trust Receipt pilot
 
 The repository also contains a bounded local Trust Receipt pilot:
