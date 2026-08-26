@@ -1,3 +1,4 @@
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./test/helpers/isolated-persistence');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -6,12 +7,12 @@ const Kernel = require('./kernel');
 const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 test('company-mode: learn attaches company metadata when capability is enabled', () => {
-  const k = new Kernel({
+  const k = new Kernel(isolatedKernelOptions('company-mode', {
     noLoad: true,
     useSQLite: false,
     loadPlugins: false,
     capabilities: { companyMode: true },
-  });
+  }));
 
   k.learn('kedi hayvandir', {
     sourceType: 'manual',
@@ -31,12 +32,12 @@ test('company-mode: learn attaches company metadata when capability is enabled',
 });
 
 test('company-mode: learn ignores company metadata when company capability is disabled', () => {
-  const k = new Kernel({
+  const k = new Kernel(isolatedKernelOptions('company-mode', {
     noLoad: true,
     useSQLite: false,
     loadPlugins: false,
     capabilities: { companyMode: false },
-  });
+  }));
 
   k.learn('kopek hayvandir', {
     sourceType: 'manual',

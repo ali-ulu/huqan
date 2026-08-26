@@ -522,7 +522,7 @@ describe('Kernel - admission bypass unforgeability (#357)', () => {
   });
 
   it('reasonSandbox (the one legitimate internal-bootstrap bypass) still works', async () => {
-    const kernel = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+    const kernel = new Kernel(isolatedKernelOptions('kernel', { noLoad: true, useSQLite: false, loadPlugins: false }));
     const { backend, answers } = await kernel.reasonSandbox({
       learn: ['kedi hayvandir'],
       ask: ['kedi nedir'],

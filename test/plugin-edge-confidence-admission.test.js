@@ -1,4 +1,5 @@
 'use strict';
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./helpers/isolated-persistence');
 
 /**
  * #697: the trust policy's confidence has to change the admission decision.
@@ -29,7 +30,7 @@ const {
 const { buildLearnAdmissionRequest } = require('../lib/learn-admission-request');
 
 function kernelWithNodes() {
-  const kernel = new Kernel({ noLoad: true, loadPlugins: false, useSQLite: false });
+  const kernel = new Kernel(isolatedKernelOptions('plugin-edge-confidence-admission', { noLoad: true, loadPlugins: false, useSQLite: false }));
   kernel.proposeNode('from', 'From', null, {});
   kernel.proposeNode('to', 'To', null, {});
   return kernel;

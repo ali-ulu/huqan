@@ -1,3 +1,4 @@
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./helpers/isolated-persistence');
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
@@ -29,7 +30,7 @@ after(() => {
 });
 
 function chainGraph(length, { closeCycle = false } = {}) {
-  const graph = new Graph({ useSQLite: false, noLoad: true });
+  const graph = new Graph(isolatedGraphOptions('traversal-and-policy-fail-closed', { useSQLite: false, noLoad: true }));
   for (let i = 0; i < length; i++) graph.addNode(`n${i}`, `n${i}`, null, { workspaceId: 'default' });
   for (let i = 0; i < length - 1; i++) {
     graph.addEdge(`n${i}`, `n${i + 1}`, 'tür', { workspaceId: 'default' });
@@ -53,7 +54,7 @@ describe('cycle detection is bounded, not recursive (#743)', () => {
   });
 
   it('short-cycle semantics are unchanged', () => {
-    const graph = new Graph({ useSQLite: false, noLoad: true });
+    const graph = new Graph(isolatedGraphOptions('traversal-and-policy-fail-closed', { useSQLite: false, noLoad: true }));
     for (const id of ['a', 'b', 'c']) graph.addNode(id, id, null, { workspaceId: 'default' });
     graph.addEdge('a', 'b', 'tür', { workspaceId: 'default' });
     graph.addEdge('b', 'c', 'tür', { workspaceId: 'default' });
@@ -94,7 +95,7 @@ describe('cycle detection is bounded, not recursive (#743)', () => {
   });
 
   it('a dead-end branch does not suppress a valid later path (#1243)', () => {
-    const graph = new Graph({ useSQLite: false, noLoad: true });
+    const graph = new Graph(isolatedGraphOptions('traversal-and-policy-fail-closed', { useSQLite: false, noLoad: true }));
     for (const id of ['start', 'dead', 'dead-2', 'dead-3', 'bridge', 'shared', 'goal']) {
       graph.addNode(id, id, null, { workspaceId: 'default' });
     }

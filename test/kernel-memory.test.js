@@ -1,10 +1,11 @@
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./helpers/isolated-persistence');
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const Kernel = require('../kernel');
 
 describe('kernel memory integration', () => {
   it('exposes the memory store on the kernel instance', () => {
-    const kernel = new Kernel({ noLoad: true, loadPlugins: false, useSQLite: false });
+    const kernel = new Kernel(isolatedKernelOptions('kernel-memory', { noLoad: true, loadPlugins: false, useSQLite: false }));
     assert.ok(kernel.memory);
     assert.strictEqual(typeof kernel.memory.store, 'function');
     assert.strictEqual(typeof kernel.memory.get, 'function');
@@ -12,7 +13,7 @@ describe('kernel memory integration', () => {
   });
 
   it('can store and get memories through kernel.memory', () => {
-    const kernel = new Kernel({ noLoad: true, loadPlugins: false, useSQLite: false });
+    const kernel = new Kernel(isolatedKernelOptions('kernel-memory', { noLoad: true, loadPlugins: false, useSQLite: false }));
     const storeRes = kernel.memory.store({
       content: 'Kernel level memory validation test',
       workspaceId: 'workspace-kernel-test'
