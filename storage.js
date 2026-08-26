@@ -6,6 +6,7 @@ const { applyStorageSchema } = require('./lib/storage/schema');
 const { loadSqliteDriver, sqliteUnavailableError } = require('./lib/sqlite-availability');
 const { normalizeWorkspaceId } = require('./lib/workspace-id');
 const toolApprovalMethods = require('./lib/storage/tool-approval-methods');
+const { resolveDefaultMemoryPath } = require('./lib/default-persistence-path');
 
 // The load error is retained (not discarded as before) so the throw site can
 // tell "not installed" from "installed but built for a different Node ABI" —
@@ -88,7 +89,13 @@ function resolveDbPath(opts = {}, kernel) {
   if (typeof graphMemoryPath === 'string' && graphMemoryPath.endsWith('.json')) {
     return resolveContainedPath(graphMemoryPath.replace(/\.json$/, '.db'), allowedRoots);
   }
-  return resolveContainedPath(path.join(process.cwd(), 'memory.db'), allowedRoots);
+  // #1579: the last of the three default-path sources (the graph's and
+  // MemoryStore's are the others). Under the test runner this resolves outside
+  // the repository, so a storage built with no path -- as agentRuntime.test.js
+  // does through a fake kernel -- stops leaving a memory.db in the working tree.
+  const fallback = path.resolve(path.dirname(resolveDefaultMemoryPath()), 'memory.db');
+  allowedRoots.push(path.dirname(fallback));
+  return resolveContainedPath(fallback, allowedRoots);
 }
 
 class HuqanStorage {
