@@ -69,7 +69,6 @@ let companyRuntimeReady = false;
 let ingestApprovalStore = null;
 const INGEST_APPROVAL_WORKER_ID = `http-ingest-${crypto.randomUUID()}`;
 const INGEST_APPROVAL_LEASE_MS = Math.max(30_000, Math.min(900_000, Number(readCompatibleEnvironmentVariable('INGEST_APPROVAL_LEASE_MS')) || 120_000));
-
 function getIngestApprovalStore() {
   if (ingestApprovalStore) return ingestApprovalStore;
   ingestApprovalStore = new HuqanStorage({ kernel });
@@ -351,8 +350,7 @@ function getHtmlPage() {
   }
   return cachedHtmlPage;
 }
-
-
+const handleAnswerRoute = require('./lib/http/answer-route').createAnswerRoute({ kernel, legacyVerify, sanitizeInput, parseJsonRequest, denyIfUnauthorized, buildCorsHeaders, JSON_CONTENT_TYPE, DEFAULT_MAX_JSON_BODY, writeJson });
 const server = http.createServer(async (req, res) => {
   try {
   res.setHeader('Connection', 'close');
@@ -525,44 +523,8 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // --- /answer: graph-grounded fluent answers without an external LLM ---
-  if (reqUrl.pathname === '/answer') {
-    if (req.method !== 'POST') {
-      res.writeHead(405, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ error: 'Method not allowed' }));
-      return;
-    }
-    if (!denyIfUnauthorized(req, res)) return;
-    const data = await parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_JSON_BODY });
-    if (!data) return;
-    const question = sanitizeInput(data.question || data.q || '');
-    const workspaceId = sanitizeInput(data.workspaceId || reqUrl.searchParams.get('workspaceId') || '');
-    if (!question) {
-      res.writeHead(400, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ error: 'question is required' }));
-      return;
-    }
-    try {
-      // Lazy require keeps startup graph identical when this surface is unused.
-      const { composeFluentAnswer } = require('./lib/fluent-answer');
-      const verifyOpts = workspaceId ? { workspaceId } : {};
-      const check = legacyVerify(kernel.verify(question, verifyOpts));
-      const composed = composeFluentAnswer(check, question);
-      res.writeHead(200, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req), 'Cache-Control': 'no-cache' });
-      res.end(JSON.stringify({
-        ok: true,
-        question,
-        answer: composed.answer,
-        status: composed.status,
-        confidence: composed.confidence,
-        evidenceCount: composed.evidenceCount,
-      }));
-    } catch (err) {
-      console.error('[answer]', err);
-      writeJson(req, res, 500, { error: 'Internal server error' });
-    }
-    return;
-  }
+  // /answer -> lib/http/answer-route.js (#328)
+  if (reqUrl.pathname === '/answer') { handleAnswerRoute(req, res, reqUrl); return; }
 
   // --- /llm-sor ---
   if (reqUrl.pathname === '/llm-sor') {
@@ -1062,5 +1024,4 @@ module.exports.getRateLimitKey = getRateLimitKey;
 // Exposed so the index-page cache (#420) can be asserted directly, without
 // having to intercept fs from outside the module.
 module.exports.getHtmlPage = getHtmlPage;
-
 
