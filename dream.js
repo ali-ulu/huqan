@@ -3,6 +3,47 @@ const { isSymmetricRelation, nodesAreDisjoint } = require('./lib/dream-hypothesi
 
 const MAX_DREAM_COMPARISONS = 10_000;
 const MAX_DREAM_WORK = 50_000;
+const MIN_DREAM_NODE_QUALITY = 0.3;
+
+function measureDreamNodeQuality(value) {
+  if (typeof value !== 'string') return 0;
+  const text = value.normalize('NFKC').trim();
+  if (!text || !/\p{L}/u.test(text)) return 0;
+
+  // Markdown table fragments and rendered list/quote markers are document
+  // structure, not concepts. A pipe anywhere in a node is especially strong
+  // evidence that a table row was ingested as prose (#1643).
+  if (text.includes('|') || /^(?:#{1,6}|[-*+]|>)\s+/u.test(text)) return 0;
+
+  // Volatile CI execution identifiers create pairs that differ only by an
+  // opaque number (for example "npm test job 93172327986 success"). They are
+  // useful provenance, but not stable graph concepts from which to dream.
+  if (/\b(?:job|run|build|workflow|check)[\s_:#-]+\d{5,}\b/iu.test(text)) return 0;
+
+  const alphanumeric = Array.from(text).filter(char => /[\p{L}\p{N}]/u.test(char));
+  const digitCount = alphanumeric.filter(char => /\p{N}/u.test(char)).length;
+  const digitRatio = digitCount / Math.max(1, alphanumeric.length);
+  const wordCount = text.split(/\s+/u).filter(Boolean).length;
+
+  let quality = text.length === 1 ? 0.35 : 0.6;
+  if (text.length >= 4) quality += 0.15;
+  if (wordCount >= 2 && wordCount <= 8) quality += 0.1;
+  if (text.length > 160) quality -= 0.2;
+  if (digitRatio > 0.35) quality -= 0.25;
+  return Math.max(0, Math.min(1, quality));
+}
+
+function hypothesisNodeQuality(hypothesis) {
+  const values = [
+    hypothesis.from,
+    hypothesis.to,
+    hypothesis.node,
+    hypothesis.via,
+    ...(Array.isArray(hypothesis.targets) ? hypothesis.targets : []),
+  ].filter(value => value !== undefined && value !== null);
+  if (values.length === 0) return 0;
+  return Math.min(...values.map(measureDreamNodeQuality));
+}
 
 class Dream {
   constructor(kernel) {
@@ -215,6 +256,7 @@ class Dream {
   _calculateCompositeScore(hyp, context = null) {
     const confidence = hyp.confidence || 0.3;
     const scope = normalizeWorkspaceId(context ? context.workspaceId : undefined);
+    const quality = hypothesisNodeQuality(hyp);
 
     let novelty = 0;
     if (hyp.type === 'çelişki') {
@@ -242,10 +284,11 @@ class Dream {
     }
 
     return {
-      score: confidence * 0.5 + novelty * 0.3 + usefulness * 0.2,
+      score: confidence * 0.45 + novelty * 0.25 + usefulness * 0.2 + quality * 0.1,
       confidence,
       novelty,
       usefulness,
+      quality,
     };
   }
 
@@ -264,7 +307,8 @@ class Dream {
     );
     this._emit('beforeDream', { workspaceId });
     const nodes = Object.values(this.graph._nodes)
-      .filter(node => normalizeWorkspaceId(node.workspaceId) === workspaceId);
+      .filter(node => normalizeWorkspaceId(node.workspaceId) === workspaceId)
+      .filter(node => measureDreamNodeQuality(node.id) >= MIN_DREAM_NODE_QUALITY);
     if (nodes.length < 2) {
       this._emit('afterDream', { hypotheses: [], workspaceId });
       return [];
@@ -278,10 +322,12 @@ class Dream {
     this._findSymmetryHypotheses(nodes, hypotheses, context);
     this._findContradictionHypotheses(nodes, hypotheses, context);
 
-    const scored = hypotheses.map(h => ({
-      ...h,
-      ...this._calculateCompositeScore(h, context),
-    }));
+    const scored = hypotheses
+      .map(h => ({
+        ...h,
+        ...this._calculateCompositeScore(h, context),
+      }))
+      .filter(h => h.quality >= MIN_DREAM_NODE_QUALITY);
 
     const contradictions = scored.filter(h => h.type === 'çelişki');
     const others = scored.filter(h => h.type !== 'çelişki');
@@ -301,11 +347,14 @@ class Dream {
     const outTargets = new Map();
     const edgesByTarget = new Map();
     const relationTargets = new Map();
+    const allowedNodeIds = new Set(nodes.map(node => node.id));
     let degreeTotal = 0;
 
     for (const node of nodes) {
-      const outgoing = this.graph.getEdges(node.id, workspaceId);
-      const incoming = this.graph.getInEdges(node.id, workspaceId);
+      const outgoing = this.graph.getEdges(node.id, workspaceId)
+        .filter(edge => allowedNodeIds.has(edge.to));
+      const incoming = this.graph.getInEdges(node.id, workspaceId)
+        .filter(edge => allowedNodeIds.has(edge.from));
       outEdges.set(node.id, outgoing);
       inEdges.set(node.id, incoming);
       outTargets.set(node.id, new Set(outgoing.map(edge => edge.to)));
