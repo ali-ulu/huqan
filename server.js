@@ -144,13 +144,7 @@ const VIEWER_RATE_LIMIT_WINDOW_MS = 60_000;
 const VIEWER_RATE_LIMIT_MAX = 120;
 const VIEWER_RATE_LIMIT_MAX_ENTRIES = 2048;
 const viewerRateLimits = new Map();
-backgroundTimers.add(setInterval(() => {
-  try { recoverExpiredIngestApprovals(); } catch (error) {
-    writeStructuredLog(console, 'error', 'http.ingest_approval_recovery_error', {}, {
-      runtime: 'http', errorCode: error?.code || 'INGEST_APPROVAL_RECOVERY_FAILED',
-    });
-  }
-}, Math.max(5_000, Math.floor(INGEST_APPROVAL_LEASE_MS / 2))));
+backgroundTimers.add(setInterval(() => { try { recoverExpiredIngestApprovals(); } catch (error) { writeStructuredLog(console, 'error', 'http.ingest_approval_recovery_error', {}, { runtime: 'http', errorCode: error?.code || 'INGEST_APPROVAL_RECOVERY_FAILED' }); } }, Math.max(5_000, Math.floor(INGEST_APPROVAL_LEASE_MS / 2))));
 
 const {
   ALLOWED_CORS_HOSTS,
@@ -180,8 +174,7 @@ const {
 const { runPublicApiCommand } = require('./lib/http/public-api-commands');
 const { V2_STATUS_PHASES } = require('./lib/http/v2-status-phases');
 const { buildGraphData } = require('./lib/server-graph-data');
-const { createRuntimeStatusHandlers } = require('./lib/http/runtime-status');
-const { createRequestCorrelation, writeStructuredLog } = require('./lib/http/structured-log');
+const { createRuntimeStatusHandlers } = require('./lib/http/runtime-status'); const { createRequestCorrelation, writeStructuredLog } = require('./lib/http/structured-log');
 
 async function submitIngestApproval(data) {
   const snapshot = buildIngestApprovalSnapshot(data);
@@ -357,8 +350,7 @@ function getHtmlPage() {
 }
 const handleAnswerRoute = require('./lib/http/answer-route').createAnswerRoute({ kernel, legacyVerify, sanitizeInput, parseJsonRequest, denyIfUnauthorized, buildCorsHeaders, JSON_CONTENT_TYPE, DEFAULT_MAX_JSON_BODY, writeJson });
 const server = http.createServer(async (req, res) => {
-  const correlation = createRequestCorrelation(req, res);
-  try {
+  const correlation = createRequestCorrelation(req, res); try {
   res.setHeader('Connection', 'close');
   const rawPath = String(req.url || '').split('?', 1)[0].split('#', 1)[0];
   if (viewerGateway.isViewerPath(rawPath)) {
