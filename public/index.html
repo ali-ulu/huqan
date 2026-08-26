@@ -77,29 +77,47 @@
   function renderToolUsage(metrics) {
     const usage = Array.isArray(metrics.toolUsage) ? metrics.toolUsage : [];
     const colors = ['#1688ff', '#16b77a', '#dfa31b', '#ee5067', '#8b5cf6', '#24c8ff', '#f97316', '#64748b'];
-    const total = Number(metrics.toolCallCount ?? usage.reduce((sum, tool) => sum + Number(tool.count || 0), 0));
+    const counts = new Map();
+    usage.forEach(tool => {
+      const count = Number(tool?.count);
+      if (!Number.isFinite(count) || count <= 0) return;
+      const name = String(tool?.name || 'unknown');
+      counts.set(name, (counts.get(name) || 0) + count);
+    });
+    const normalized = [...counts.entries()].map(([name, count], index) => ({ name, count, color: colors[index % colors.length] }));
+    const usageTotal = normalized.reduce((sum, tool) => sum + tool.count, 0);
+    const reportedTotal = Number(metrics.toolCallCount);
+    const hasReportedTotal = Number.isFinite(reportedTotal) && reportedTotal >= 0;
+    const totalMismatch = hasReportedTotal && reportedTotal !== usageTotal;
+    const total = hasReportedTotal ? Math.max(reportedTotal, usageTotal) : usageTotal;
     const donut = byId('obstooldonut');
     const legend = byId('obstoollegend');
+    const meta = byId('obstoolmeta');
+    if (meta) meta.textContent = `${meta.textContent.replace(/ · total mismatch$/, '')}${totalMismatch ? ' · total mismatch' : ''}`;
     byId('obstooltotal').textContent = total.toLocaleString('en-US');
-    if (!total || !usage.length) {
+    if (!total) {
       donut.style.setProperty('--tool-gradient', 'conic-gradient(#dcebf7 0 100%)');
       donut.setAttribute('aria-label', 'No tool calls yet');
       legend.innerHTML = '<div class="empty">No tool calls yet.</div>';
       return;
     }
+    if (!normalized.length) {
+      donut.style.setProperty('--tool-gradient', 'conic-gradient(#64748b 0 100%)');
+      donut.setAttribute('aria-label', `Tool usage breakdown unavailable: ${total} calls`);
+      legend.innerHTML = '<div class="empty">Tool usage breakdown unavailable.</div>';
+      return;
+    }
+    const items = total > usageTotal ? [...normalized, { name: 'Unattributed', count: total - usageTotal, color: '#64748b' }] : normalized;
     let cursor = 0;
-    const slices = [];
-    const items = usage.filter(tool => Number(tool.count || 0) > 0).map((tool, index) => {
-      const count = Number(tool.count);
+    const slices = items.map(tool => {
+      const percent = tool.count / total * 100;
       const start = cursor;
-      cursor += count / total * 100;
-      const color = colors[index % colors.length];
-      slices.push(`${color} ${start.toFixed(2)}% ${cursor.toFixed(2)}%`);
-      return { name: String(tool.name || 'unknown'), count, color, percent: count / total * 100 };
+      cursor += percent;
+      return { ...tool, percent, slice: `${tool.color} ${start.toFixed(2)}% ${cursor.toFixed(2)}%` };
     });
-    donut.style.setProperty('--tool-gradient', `conic-gradient(${slices.join(',')})`);
-    donut.setAttribute('aria-label', `Tool usage distribution: ${total} calls`);
-    legend.innerHTML = items.map(tool => `<div class="toollegend-item" style="--tool-color:${tool.color}" title="${escape(tool.name)}"><i aria-hidden="true"></i><b>${escape(tool.name)}</b><span>${escape(tool.count.toLocaleString('en-US'))} · ${escape(`${Math.round(tool.percent)}%`)}</span></div>`).join('');
+    donut.style.setProperty('--tool-gradient', `conic-gradient(${slices.map(tool => tool.slice).join(',')})`);
+    donut.setAttribute('aria-label', `Tool usage distribution: ${total} calls${totalMismatch ? '; breakdown incomplete' : ''}`);
+    legend.innerHTML = slices.map(tool => `<div class="toollegend-item" style="--tool-color:${tool.color}" title="${escape(tool.name)}"><i aria-hidden="true"></i><b>${escape(tool.name)}</b><span>${escape(tool.count.toLocaleString('en-US'))} · ${escape(`${Math.round(tool.percent)}%`)}</span></div>`).join('');
   }
 
   function renderMetrics(data) {
