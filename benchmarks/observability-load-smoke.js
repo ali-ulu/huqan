@@ -57,8 +57,11 @@ function runLoadSmoke({ targets = DEFAULT_TARGETS } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-observability-load-'));
   const dbPath = path.join(root, 'observability-load.db');
   const db = new Database(dbPath);
+  db.pragma('journal_mode = WAL');
+  db.pragma('synchronous = NORMAL');
   const workspaceId = String(targets.workspaceId || 'observability-load-smoke');
-  const service = createObservabilityService({ db });
+  const logicalNow = Date.UTC(2026, 0, 1);
+  const service = createObservabilityService({ db, now: () => logicalNow });
   let sseEventsReceived = 0;
   let collectSseEvents = false;
   const unsubscribe = [];
