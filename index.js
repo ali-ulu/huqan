@@ -32,6 +32,9 @@ const trustEvidenceLedger = require('./lib/trust-evidence-ledger');
 const humanOversightApprovalRuntime = require('./lib/human-oversight-approval-runtime');
 const prGuardian = require('./lib/pr-guardian');
 const multiAgentCascadeGuard = require('./lib/multi-agent-cascade-guard');
+const trustReceiptPilot = require('./lib/pilot/trust-receipt-pilot');
+const trustReceiptPilotArchive = require('./lib/pilot/trust-receipt-pilot-archive');
+const pilotTestDatabaseBoundary = require('./lib/pilot/test-database-boundary');
 
 module.exports = KernelV2;
 
@@ -100,3 +103,12 @@ module.exports.PRGuardian = prGuardian;
 module.exports.MultiAgentCascadeGuard = multiAgentCascadeGuard;
 module.exports.createMultiAgentCascadeGuard = multiAgentCascadeGuard.createMultiAgentCascadeGuard;
 module.exports.MULTI_AGENT_CASCADE_REASONS = multiAgentCascadeGuard.REASONS;
+
+// Bounded Trust Receipt pilot surface for one real issuer-to-receiver event.
+module.exports.TrustReceiptPilot = trustReceiptPilot;
+module.exports.buildPilotTrustReceipt = trustReceiptPilot.buildPilotTrustReceipt;
+module.exports.projectPilotTrustReceipt = trustReceiptPilot.projectPilotTrustReceipt;
+module.exports.verifyPilotTrustReceipt = trustReceiptPilot.verifyPilotTrustReceipt;
+module.exports.verifyPilotPublicProjection = trustReceiptPilot.verifyPilotPublicProjection;
+module.exports.createPilotReceiptArchive = trustReceiptPilotArchive.createPilotReceiptArchive;
+module.exports.assertPilotTestDatabaseBoundary = pilotTestDatabaseBoundary.assertPilotTestDatabaseBoundary;
