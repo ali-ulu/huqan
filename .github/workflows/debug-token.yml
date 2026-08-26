@@ -7,6 +7,9 @@ name: Debug NPM token shape
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   debug:
     runs-on: ubuntu-latest
