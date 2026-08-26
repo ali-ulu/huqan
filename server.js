@@ -525,6 +525,45 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // --- /answer: graph-grounded fluent answers without an external LLM ---
+  if (reqUrl.pathname === '/answer') {
+    if (req.method !== 'POST') {
+      res.writeHead(405, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
+      res.end(JSON.stringify({ error: 'Method not allowed' }));
+      return;
+    }
+    if (!denyIfUnauthorized(req, res)) return;
+    const data = await parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_JSON_BODY });
+    if (!data) return;
+    const question = sanitizeInput(data.question || data.q || '');
+    const workspaceId = sanitizeInput(data.workspaceId || reqUrl.searchParams.get('workspaceId') || '');
+    if (!question) {
+      res.writeHead(400, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
+      res.end(JSON.stringify({ error: 'question is required' }));
+      return;
+    }
+    try {
+      // Lazy require keeps startup graph identical when this surface is unused.
+      const { composeFluentAnswer } = require('./lib/fluent-answer');
+      const verifyOpts = workspaceId ? { workspaceId } : {};
+      const check = legacyVerify(kernel.verify(question, verifyOpts));
+      const composed = composeFluentAnswer(check, question);
+      res.writeHead(200, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req), 'Cache-Control': 'no-cache' });
+      res.end(JSON.stringify({
+        ok: true,
+        question,
+        answer: composed.answer,
+        status: composed.status,
+        confidence: composed.confidence,
+        evidenceCount: composed.evidenceCount,
+      }));
+    } catch (err) {
+      console.error('[answer]', err);
+      writeJson(req, res, 500, { error: 'Internal server error' });
+    }
+    return;
+  }
+
   // --- /llm-sor ---
   if (reqUrl.pathname === '/llm-sor') {
     if (req.method !== 'POST') {
