@@ -1,11 +1,12 @@
 'use strict';
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./helpers/isolated-persistence');
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
 function makeKernel(opts = {}) {
   const Kernel = require('../kernel');
-  return new Kernel({
+  return new Kernel(isolatedKernelOptions('faz2-plugin-write-isolation', {
     noLoad: true,
     useSQLite: false,
     paranoidMode: false,
@@ -16,7 +17,7 @@ function makeKernel(opts = {}) {
       ...(opts.capabilities || {}),
     },
     ...opts,
-  });
+  }));
 }
 
 function countNodes(kernel) {

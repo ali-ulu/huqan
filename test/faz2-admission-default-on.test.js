@@ -1,11 +1,12 @@
 'use strict';
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./helpers/isolated-persistence');
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const Kernel = require('../kernel');
 
 function makeKernel() {
-  return new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+  return new Kernel(isolatedKernelOptions('faz2-admission-default-on', { noLoad: true, useSQLite: false, loadPlugins: false }));
 }
 
 function approvedAdmissionOpts(overrides = {}) {

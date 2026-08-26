@@ -1,3 +1,4 @@
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./helpers/isolated-persistence');
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const Kernel = require('../kernel');
@@ -146,7 +147,7 @@ describe('reasonSandbox gets a request-scoped Rust graph (#758)', () => {
 
 describe('Kernel#reasonSandbox never routes through the shared bridge (#758)', () => {
   it('leaves the kernel-wide RustGraph untouched and alive', async () => {
-    const kernel = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+    const kernel = new Kernel(isolatedKernelOptions('reason-sandbox-isolation', { noLoad: true, useSQLite: false, loadPlugins: false }));
     let sharedSends = 0;
     let sharedDestroyed = false;
     kernel._rust = {
@@ -163,7 +164,7 @@ describe('Kernel#reasonSandbox never routes through the shared bridge (#758)', (
   });
 
   it('the JS backend has the same isolation semantics', async () => {
-    const kernel = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+    const kernel = new Kernel(isolatedKernelOptions('reason-sandbox-isolation', { noLoad: true, useSQLite: false, loadPlugins: false }));
     kernel._rust = null;
 
     const first = await kernel.reasonSandbox({ learn: [CAT], ask: ['kedi nedir'] });
@@ -183,7 +184,7 @@ describe('reasonSandbox against a real huqan-core process (#758)', () => {
   const skip = rustBinaryAvailable() ? false : 'huqan-core release binary not built';
 
   it('a second call does not answer from the first call\'s facts', { skip }, async () => {
-    const kernel = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+    const kernel = new Kernel(isolatedKernelOptions('reason-sandbox-isolation', { noLoad: true, useSQLite: false, loadPlugins: false }));
     assert.ok(kernel._rust, 'the binary exists but the kernel did not enable the Rust backend');
 
     const first = await kernel.reasonSandbox({ learn: [CAT], ask: ['kedi nedir'] });

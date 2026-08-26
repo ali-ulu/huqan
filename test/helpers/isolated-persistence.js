@@ -24,6 +24,16 @@ function isolatedKernelOptions(label = 'kernel', overrides = {}) {
   };
 }
 
+function isolatedGraphOptions(label = 'graph', overrides = {}) {
+  const root = createIsolatedPersistenceRoot(label);
+  return {
+    useSQLite: false,
+    memoryPath: path.join(root, 'memory.json'),
+    dbPath: null,
+    ...overrides,
+  };
+}
+
 function cleanupRoots() {
   for (const root of roots) {
     try {
@@ -40,4 +50,5 @@ process.once('exit', cleanupRoots);
 module.exports = {
   createIsolatedPersistenceRoot,
   isolatedKernelOptions,
+  isolatedGraphOptions,
 };

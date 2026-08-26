@@ -1,4 +1,5 @@
 'use strict';
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./helpers/isolated-persistence');
 /**
  * FAZ2-PR6 — CLI Gate Parity Contract Tests (F-004)
  *
@@ -36,7 +37,7 @@ const Kernel = require('../kernel');
 // Helpers
 // ---------------------------------------------------------------------------
 function makeCLI() {
-  const kernel = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+  const kernel = new Kernel(isolatedKernelOptions('faz2-cli-gate-parity-contract', { noLoad: true, useSQLite: false, loadPlugins: false }));
   const cli = new CLI({ kernelInstance: kernel });
   return cli;
 }

@@ -1,4 +1,5 @@
 'use strict';
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./helpers/isolated-persistence');
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
@@ -54,7 +55,7 @@ test('goal-integrity: detects a proposed goal drift before planning', () => {
 });
 
 test('Agent.plan carries immutable goal scope and blocks a proposed drift', () => {
-  const kernel = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+  const kernel = new Kernel(isolatedKernelOptions('goal-integrity-gate', { noLoad: true, useSQLite: false, loadPlugins: false }));
   try {
     const agent = new Agent({ kernel, memoryPath: null });
     const planned = agent.plan('Review the release evidence', {
@@ -77,7 +78,7 @@ test('Agent.plan carries immutable goal scope and blocks a proposed drift', () =
 });
 
 test('Agent step firewall metadata carries only bounded goal-integrity fields', () => {
-  const kernel = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+  const kernel = new Kernel(isolatedKernelOptions('goal-integrity-gate', { noLoad: true, useSQLite: false, loadPlugins: false }));
   try {
     const agent = new Agent({ kernel, memoryPath: null });
     const scope = createGoalIntegrityScope('Read the release evidence', {
