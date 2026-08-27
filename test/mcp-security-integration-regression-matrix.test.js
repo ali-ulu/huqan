@@ -1,5 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 
 const {
   createServer,
@@ -282,6 +285,77 @@ test('failed ingest projection is explicit and never advertises retry or success
   assert.equal(result.data.retry.allowed, false);
   assert.equal(result.receiptId, null);
   assert.equal(result.canonicalWrite, false);
+});
+
+test('approved MCP ingest initializes the company runtime on a real server-created kernel', async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-mcp-ingest-runtime-'));
+  const previousCwd = process.cwd();
+  const environmentKeys = ['AXIOM_MEMORY_PATH', 'AXIOM_DB_PATH', 'AXIOM_USE_SQLITE'];
+  const previousEnvironment = Object.fromEntries(environmentKeys.map((key) => [key, process.env[key]]));
+  let server = null;
+
+  try {
+    process.chdir(tempDir);
+    process.env.AXIOM_MEMORY_PATH = path.join(tempDir, 'graph.json');
+    process.env.AXIOM_DB_PATH = path.join(tempDir, 'graph.db');
+    process.env.AXIOM_USE_SQLITE = 'true';
+
+    server = createServer({ operatorToken: 'mcp-runtime-test-operator' });
+    let pluginLoadCalls = 0;
+    let pluginLoadArgs = null;
+    const originalPluginLoad = server.kernel.plugins?.load;
+    assert.equal(typeof originalPluginLoad, 'function');
+    server.kernel.plugins.load = (...args) => {
+      pluginLoadCalls += 1;
+      pluginLoadArgs = args;
+      return originalPluginLoad.apply(server.kernel.plugins, args);
+    };
+
+    const pendingResponse = await transportCall(server, 1, 'huqan.ingest_execute', {
+      sourceType: 'manual',
+      workspaceId: 'default',
+      idempotencyKey: 'mcp-runtime-initialization-regression',
+      text: 'MCP runtime initialization regression fact.',
+      title: 'MCP runtime regression',
+      author: 'test',
+      rationale: 'Verify approved ingest initializes capabilities before execution.',
+    });
+    const pending = pendingResponse.result.structuredContent;
+    assert.equal(pendingResponse.result.isError, true);
+    assert.equal(pending.status, 'review_required');
+    assert.equal(pending.canonicalWrite, false);
+    const approvalId = pending.approval?.id || pending.approvalId;
+    assert.ok(approvalId);
+
+    const approvedResponse = await transportCall(server, 2, 'huqan.approve', {
+      approvalId,
+      workspaceId: 'default',
+      decision: 'approved',
+      reason: 'runtime initialization regression test',
+    }, { operatorToken: 'mcp-runtime-test-operator' });
+    const approved = approvedResponse.result.structuredContent;
+
+    assert.equal(approvedResponse.result.isError, false);
+    assert.equal(approved.ok, true);
+    assert.equal(approved.status, 'completed');
+    assert.equal(approved.data.decision, 'approved');
+    assert.equal(approved.data.executed, true);
+    assert.equal(approved.data.idempotent, false);
+    assert.equal(approved.canonicalWrite, false);
+    assert.ok(approved.receiptId);
+    assert.equal(server.kernel.hasCapability('companyMode'), true);
+    assert.equal(server.kernel.hasCapability('pluginCapabilities'), true);
+    assert.equal(pluginLoadCalls, 1);
+    assert.deepEqual(pluginLoadArgs, [path.join(__dirname, '..', 'plugins')]);
+  } finally {
+    try { server?.approvalStore?.close?.(); } catch (_) {}
+    process.chdir(previousCwd);
+    for (const key of environmentKeys) {
+      if (previousEnvironment[key] === undefined) delete process.env[key];
+      else process.env[key] = previousEnvironment[key];
+    }
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
 });
 
 test('policy denial and partial-run surfaces remain fail-closed and receipt-free', () => {
