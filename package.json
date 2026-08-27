@@ -289,6 +289,7 @@
     "lib/human-approval-toggle.js",
     "lib/huqan-package-format.js",
     "lib/hypothesis-feedback.js",
+    "lib/hypothesis-fitness.js",
     "lib/hypothesis-review.js",
     "lib/hypothesis-tuning.js",
     "lib/ingest-workflow-preview.js",
