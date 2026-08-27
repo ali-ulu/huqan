@@ -5,7 +5,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { createServer } = require('../mcpServer');
+const { createServer, createMcpOperatorCapability, operatorCapabilityBinding } = require('../mcpServer');
+const { canonicalMcpToolName } = require('../lib/mcp-tool-names');
 
 function restoreEnv(saved) {
   for (const [key, value] of Object.entries(saved)) {
@@ -45,17 +46,20 @@ function closeServer(server) {
 }
 
 function callTool(server, name, args = {}) {
+  const canonicalName = canonicalMcpToolName(name);
+  const operator = ['huqan.approve', 'huqan.approvals', 'huqan.agent_resume'].includes(canonicalName)
+    ? {
+        operatorCapability: createMcpOperatorCapability({
+          secret: 'test-operator',
+          ...operatorCapabilityBinding(canonicalName, args),
+        }),
+      }
+    : {};
   const response = server.handleRequest({
     jsonrpc: '2.0',
     id: Math.floor(Math.random() * 1_000_000),
     method: 'tools/call',
-    params: {
-      name,
-      ...(name === 'huqan.approve' || name === 'axiom.approve' || name === 'huqan.approvals' || name === 'axiom.approvals'
-        ? { operatorToken: 'test-operator' }
-        : {}),
-      arguments: args,
-    },
+    params: { name, ...operator, arguments: args },
   });
 
   assert.equal(response.jsonrpc, '2.0');

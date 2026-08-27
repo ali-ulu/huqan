@@ -36,6 +36,8 @@ const {
 const {
   callTool: callMcpTool,
   createApprovalStoreFromKernel,
+  createMcpOperatorCapability,
+  operatorCapabilityBinding,
 } = require('./mcpServer');
 const { formatCliApprovalList, formatCliApprovalDecision } = require('./lib/mcp-approval-views');
 
@@ -68,6 +70,7 @@ class CLI {
     this.llm = new LLMAdapter();
     this.approvalStore = null;
     this._mcpOperatorToken = opts.mcpOperatorToken || crypto.randomBytes(32).toString('hex');
+    this._mcpCapabilityNonces = new Map();
     this._approvalRuntimeOptions = Object.freeze({
       ...(Object.hasOwn(opts, 'trustEvidenceLedger') ? { trustEvidenceLedger: opts.trustEvidenceLedger } : {}),
       ...(Object.hasOwn(opts, 'humanOversightApprovalRuntime')
@@ -102,11 +105,17 @@ class CLI {
     return { ...resolved, ...extra };
   }
 
+  _createOperatorCapability(tool, args) {
+    const binding = operatorCapabilityBinding(tool, args);
+    return createMcpOperatorCapability({ secret: this._mcpOperatorToken, ...binding });
+  }
+
   _approvalRuntime() {
     if (!this.approvalStore) this.approvalStore = createApprovalStoreFromKernel(this.kernel);
     return {
       approvalStore: this.approvalStore,
-      operatorToken: this._mcpOperatorToken,
+      operatorSecret: this._mcpOperatorToken,
+      operatorCapabilityNonces: this._mcpCapabilityNonces,
       ...this._approvalRuntimeOptions,
     };
   }
@@ -469,9 +478,10 @@ class CLI {
         this.kernel.persist();
         return `Memory saved.${this._commitCliMutation('kaydet')}`;
       case 'onaylar': {
+        const approvalArguments = { limit: 50, workspaceId: 'default' };
         const result = callMcpTool(
           this.kernel,
-          { name: 'huqan.approvals', operatorToken: this._mcpOperatorToken, arguments: { limit: 50, workspaceId: 'default' } },
+          { name: 'huqan.approvals', operatorCapability: this._createOperatorCapability('huqan.approvals', approvalArguments), arguments: approvalArguments },
           this._approvalRuntime()
         );
         if (!result || result.ok === false) {
@@ -488,10 +498,11 @@ class CLI {
             2
           );
         }
+        const approvalArguments = { approvalId: approval.approvalId, decision: approval.decision, workspaceId: 'default' };
         return Promise.resolve(callMcpTool(this.kernel, {
           name: 'huqan.approve',
-          operatorToken: this._mcpOperatorToken,
-          arguments: { approvalId: approval.approvalId, decision: approval.decision, workspaceId: 'default' },
+          operatorCapability: this._createOperatorCapability('huqan.approve', approvalArguments),
+          arguments: approvalArguments,
         }, this._approvalRuntime())).then(result => {
           if (!result || result.ok === false) {
             const error = result?.error;
@@ -538,6 +549,7 @@ class CLI {
           callTool: callMcpTool,
           createApprovalStore: createApprovalStoreFromKernel,
           operatorToken: this._mcpOperatorToken,
+          createOperatorCapability: ({ tool, arguments: args }) => this._createOperatorCapability(tool, args),
         });
       case 'durum': {
         const stats = this.kernel.graph.getStats();

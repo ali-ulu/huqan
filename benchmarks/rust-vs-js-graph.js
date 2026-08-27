@@ -67,29 +67,45 @@ async function benchRustBatch(n) {
 }
 
 function benchJs(n) {
-  const g = new Graph();
-  const t0 = process.hrtime.bigint();
-  for (let i = 0; i < n; i++) {
-    g.addNode(`n${i}`, `label${i}`);
+  const temp = createRustBenchmarkTemp('huqan-js-graph-bench-');
+  const g = new Graph({ noLoad: true, useSQLite: false, memoryPath: temp.memoryPath });
+  try {
+    const t0 = process.hrtime.bigint();
+    for (let i = 0; i < n; i++) {
+      g.addNode(`n${i}`, `label${i}`);
+    }
+    for (let i = 0; i < n - 1; i++) {
+      g.addEdge(`n${i}`, `n${i + 1}`, 'tür');
+    }
+    for (let i = 0; i < n; i++) {
+      g.getEdges(`n${i}`);
+    }
+    const t1 = process.hrtime.bigint();
+    return { ms: Number(t1 - t0) / 1e6 };
+  } finally {
+    try { g.close(); } catch {}
+    removeRustBenchmarkTemp(temp.dir);
   }
-  for (let i = 0; i < n - 1; i++) {
-    g.addEdge(`n${i}`, `n${i + 1}`, 'tür');
-  }
-  for (let i = 0; i < n; i++) {
-    g.getEdges(`n${i}`);
-  }
-  const t1 = process.hrtime.bigint();
-  return { ms: Number(t1 - t0) / 1e6 };
 }
 
 function benchJsLearn(n) {
-  const g = new Kernel({ noLoad: true, loadPlugins: false, useSQLite: false });
-  const statements = learnStatements(n);
-  const t0 = process.hrtime.bigint();
-  for (const statement of statements) g.learn(statement, LEARN_BYPASS);
-  const t1 = process.hrtime.bigint();
-  try { g.graph.close(); } catch {}
-  return { ms: Number(t1 - t0) / 1e6 };
+  const temp = createRustBenchmarkTemp('huqan-js-learn-bench-');
+  const g = new Kernel({
+    noLoad: true,
+    loadPlugins: false,
+    useSQLite: false,
+    memoryPath: temp.memoryPath,
+  });
+  try {
+    const statements = learnStatements(n);
+    const t0 = process.hrtime.bigint();
+    for (const statement of statements) g.learn(statement, LEARN_BYPASS);
+    const t1 = process.hrtime.bigint();
+    return { ms: Number(t1 - t0) / 1e6 };
+  } finally {
+    try { g.graph.close(); } catch {}
+    removeRustBenchmarkTemp(temp.dir);
+  }
 }
 
 async function benchRustLearn(n) {

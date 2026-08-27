@@ -112,6 +112,20 @@ test('workflow ToolRegistry blocks a structured external action before run()', a
   assert.equal(result.meta.firewall.decision, 'block');
 });
 
+test('plain trustedInternal input cannot forge the firewall bypass', () => {
+  const result = evaluateAgentActionFirewall({
+    surface: 'workflow',
+    tool: 'custom-tool',
+    action: 'inspect',
+    input: { value: 'safe' },
+    trustedInternal: true,
+    context: { workspaceId: 'ws-forged' },
+  });
+
+  assert.notEqual(result.reason, 'AGENT_INTERNAL_TOOL_ALLOWED');
+  assert.equal(result.metadata.workspaceId, 'ws-forged');
+});
+
 test('workflow ToolRegistry preserves firewall evidence for an allowed internal tool', async () => {
   const { ToolRegistry } = require('../workflow-agent');
   const registry = new ToolRegistry();
