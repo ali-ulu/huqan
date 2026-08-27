@@ -450,7 +450,11 @@ The following repository sources define the current scope and are preferred over
 
 ## License
 
-GNU Affero General Public License v3.0 (AGPL-3.0). See [LICENSE](./LICENSE) and [NOTICE](./NOTICE).
+HUQAN is currently distributed under the GNU Affero General Public License v3.0, `AGPL-3.0-only`. See [LICENSE](./LICENSE) and [NOTICE](./NOTICE).
+
+A separate commercial license is being prepared for organizations that need proprietary use of covered HUQAN components. The commercial terms are not yet operative and no commercial rights are granted by this repository. Contact the project owner only after an approved commercial agreement is available.
+
+Future external contributions will be subject to the project’s approved contributor rights process. [`CLA.md`](./CLA.md) is currently a draft for legal review and is not yet an operative agreement. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the contribution and review rules.
 
 ---
 
