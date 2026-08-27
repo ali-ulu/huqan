@@ -140,6 +140,22 @@ test('the workflow runs the check before it builds or sends the payload', () => 
   assert.ok(buildIndex < sendIndex);
 });
 
+test('the scripts this job runs come from the trusted base ref, not the PR', () => {
+  const workflow = fs.readFileSync(WORKFLOW, 'utf8');
+  // The job carries PR_GUARDIAN_WEBHOOK_SECRET and, in its comment step,
+  // GITHUB_TOKEN, and it executes two scripts from the working tree. A default
+  // checkout in a `pull_request` workflow lands the PR merge commit, so anyone
+  // who can push a branch here could rewrite either script and read the secret
+  // out. Pin the checkout to the base SHA.
+  assert.match(workflow, /ref: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/);
+  assert.match(workflow, /persist-credentials: false/);
+
+  const checkoutIndex = workflow.indexOf('actions/checkout@');
+  const refIndex = workflow.indexOf('github.event.pull_request.base.sha');
+  const firstScriptIndex = workflow.indexOf('node scripts/check-pr-guardian-webhook-url.js');
+  assert.ok(checkoutIndex > -1 && refIndex > checkoutIndex && refIndex < firstScriptIndex);
+});
+
 test('the fail-closed signature and response handling are untouched', () => {
   const workflow = fs.readFileSync(WORKFLOW, 'utf8');
   assert.match(workflow, /openssl dgst -sha256 -hmac/);
