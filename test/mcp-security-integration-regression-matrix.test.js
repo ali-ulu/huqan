@@ -349,6 +349,7 @@ test('approved MCP ingest initializes the company runtime on a real server-creat
     assert.deepEqual(pluginLoadArgs, [path.join(__dirname, '..', 'plugins')]);
   } finally {
     try { server?.approvalStore?.close?.(); } catch (_) {}
+    try { server?.kernel?.graph?.close?.(); } catch (_) {}
     process.chdir(previousCwd);
     for (const key of environmentKeys) {
       if (previousEnvironment[key] === undefined) delete process.env[key];
