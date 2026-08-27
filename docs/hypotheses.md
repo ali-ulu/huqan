@@ -58,11 +58,12 @@ Yalnızca `provenance.sourceType === 'hypothesis-engine'` adayları sayılır; `
 
 ## Eşik tuning tavsiyesi
 
-`hypotheses tuning`, geri bildirim istatistiklerini somut bir eşik önerisine çevirir. **Tavsiye üretir, uygulamaz** — hiçbir eşiği, config dosyasını veya kaydı değiştirmez; çıktıdaki `applied` alanı her zaman `false`'tur. Eşiği kalıcı olarak değiştirmek, kendi admission ve onay hikâyesi olan ayrı bir iştir.
+`hypotheses tuning`, geri bildirim istatistiklerini somut bir eşik önerisine çevirir. **Varsayılan olarak tavsiye üretir, uygulamaz** — `--apply` yazılmadıkça hiçbir eşik değişmez ve çıktıdaki `applied` alanı `false` kalır.
 
 ```bash
 node cli.js hypotheses tuning
 node cli.js hypotheses tuning --json --critical 7
+node cli.js hypotheses tuning --apply          # kararı kalıcı yapar
 ```
 
 Bir kural için öneri üretilmesi iki koşula bağlıdır: en az **5** inceleme (`MIN_REVIEWED`) ve **%60 üzeri** red oranı (`REJECTION_TRIGGER`; eşitlik tetiklemez). Koşullar sağlanmazsa kural `skipped` listesinde gerekçesiyle görünür — `insufficient_data`, `within_tolerance`, `already_at_bound` veya `no_tunable_threshold`.
@@ -98,5 +99,17 @@ Skor 0–1 arası, harf notu `A` (≥0.90) → `F`. Tutarlılık ikili değil, a
 **Veri olmayan bir bileşen `0` değil `null`'dur.** Kenarsız bir grafın kanıt kapsamı yoktur; hiç incelenmemiş bir sistemin isabeti yoktur. Bunları sıfır saymak boş bir grafı bozukmuş gibi gösterirdi; onun yerine `null` bileşen ortalamadan çıkarılır ve kalan ağırlıklar yeniden normalize edilir (`meta.weightUsed` kullanılan toplam ağırlığı taşır). Hiçbir bileşen ölçülemiyorsa skor ve not `null` döner.
 
 Bileşenler `generateHypotheses`'in `meta.ruleCounts` çıktısını yeniden kullanır — yalıtılmış düğüm ve çevrim sayıları ayrıca hesaplanmaz. Kanıt ölçümü `KANIT_EKSİK` kuralının kullandığı `hasEvidence` ile aynı işlevi paylaşır, ikinci bir kopya sapmasın diye.
+
+## Eşiği kalıcı yapmak — `--apply`
+
+`--apply`, o an üretilen önerileri workspace başına kalıcı hale getirir. Yazan motor değildir: bu komutu bir insan yazdığı için çalışır. "Motor yalnızca önerir" omurgası korunur; değişen tek şey, insanın kararı koyacak elle düzenlenen bir kaynak dosyadan başka bir yerinin olması.
+
+Eşikler `memory.json`'ın kardeşi olan `*.hypothesis-thresholds.json` dosyasında, workspace başına saklanır. Yazım atomiktir (geçici dosya + rename), CLI mutation-gate'inden geçer ve `hypothesis_thresholds` hedefli bir `UPDATE` audit event'i bırakır. Bu event, değişikliğin **kanıtını** da taşır — hangi kural, kaç inceleme, hangi red oranı. "Bu eşik neden bu?" sorusu aylar sonra yalnızca izden cevaplanabilir.
+
+**Öncelik: açık bayrak > kayıtlı değer > `DEFAULTS`.** Bayrak "bu koşuda şunu kullan" demektir; kayıtlı değerden zayıf sayılsaydı `--critical 7` sessizce hiçbir şey yapmazdı. Bayrak bir yazım değildir — kayıtlı değeri değiştirmez.
+
+**Tamir değil, ret.** Ayrıştırılamayan bir depo ya da `generateHypotheses`'in reddedeceği bir değer fail-closed davranır. Sessizce sıfırlamak birinin verdiği kararı çöpe atardı; sessizce kırpmak motoru kimsenin seçmediği bir eşikte çalıştırırdı. İkisi de durup sorunu söylemekten kötüdür.
+
+Öneri yoksa `--apply` hiçbir şey yazmaz ve bunu söyler. Uygulanan öneriler birikimlidir: kural hâlâ gürültülüyse bir sonraki tur varsayılandan değil, kayıtlı değerden hareket eder.
 
 > **Sınır:** Hipotez üretimi doğruluk garantisi değildir. Sonuçlar kanıt, provenance, approval ve policy geçitlerinden bağımsız olarak canonical gerçek kabul edilmez.

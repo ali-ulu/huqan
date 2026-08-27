@@ -574,12 +574,15 @@ class CLI {
       }
       case 'hypotheses': {
         const argsObject = args && typeof args === 'object' ? args : {};
+        const applies = argsObject.tuning === true && argsObject.apply === true;
         const writes = argsObject.propose === true || argsObject.review === true;
         return runCliHypotheses(this.kernel, argsObject, {
           json: opts.json === true,
-          commitMutation: writes
-            ? () => this._commitCliMutation('hypotheses', CLI_MUTATION_GATE.hypotheses)
-            : null,
+          commitMutation: applies
+            ? () => this._commitCliMutation('hypotheses-tuning-apply', CLI_MUTATION_GATE['hypotheses-tuning-apply'])
+            : writes
+              ? () => this._commitCliMutation('hypotheses', CLI_MUTATION_GATE.hypotheses)
+              : null,
         });
       }
       case 'selam':
@@ -685,7 +688,8 @@ class CLI {
     // The bare report is read-only; --propose and `review` both write to the
     // candidate-claim family and stay behind the gate.
     if (normalizeCommandText(command) === 'hypotheses'
-      && !(args && typeof args === 'object' && (args.propose === true || args.review === true))) return null;
+      && !(args && typeof args === 'object'
+        && (args.propose === true || args.review === true || (args.tuning === true && args.apply === true)))) return null;
     const tool = mapCliCommandToMcpTool(command);
     if (!tool) {
       // F-004: commands without an MCP tool mapping may still mutate. Route
