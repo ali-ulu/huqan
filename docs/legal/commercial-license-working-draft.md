@@ -1,16 +1,24 @@
 # HUQAN Commercial License — Working Draft
 
-> **STATUS: DRAFT — NOT OPERATIVE**
+> **STATUS: VERSIONED REVIEW DRAFT — NOT OPERATIVE**
 >
-> This document is a working draft for qualified legal review. It is not an offer, quote, binding license, or legal advice. No commercial rights are granted by publishing or linking this file. The Project Owner, covered versions, fees, scope, governing law, and notice details must be finalized before use.
+> **Draft identifier:** `HUQAN-COMMERCIAL-v1.0-review`
+> **Proposed effective date:** 2026-08-27
+>
+> This document is a prepared working draft for qualified legal review. It is not an offer, quote, binding license, or legal advice. No commercial rights are granted by publishing or linking this file. The Project Owner, covered versions, fees, scope, governing law, and notice details must be approved before use.
 
 ## 1. Project and owner
 
 **Project:** HUQAN (`ali-ulu/huqan`)  
 **Open-source license:** GNU Affero General Public License version 3, `AGPL-3.0-only`  
-**Proposed Project Owner:** Ali Ulu / Huqan AI, subject to confirmation of the correct legal person and notice address.
+| Field | Value |
+|---|---|
+| Project Owner provided for review | Ali Ulu |
+| Notice email | `aliulu@ai-ulu.com` |
+| Location provided for notices | Afyonkarahisar, Türkiye |
+| Proposed governing law | Türkiye, subject to qualified legal review |
 
-The final agreement must name the exact individual or legal entity authorized to grant the commercial rights. “Huqan AI” must not be treated as a legal entity unless its legal status and ownership are confirmed.
+The final agreement must confirm whether Ali Ulu is acting personally or through a legal entity authorized to grant the commercial rights. “Huqan AI” must not be treated as a legal entity unless its legal status and ownership are confirmed. The notice email and location above are maintainer-provided review information and must be checked for legal sufficiency before adoption.
 
 ## 2. Commercial option
 
@@ -54,7 +62,7 @@ After termination, the agreement must state whether the customer may continue us
 
 ## 8. Warranty, liability, confidentiality, and governing law
 
-The final agreement must contain lawyer-reviewed provisions for warranties, disclaimers, limitation of liability, confidentiality, data processing where relevant, dispute resolution, governing law, notices, assignment, and the relationship between the commercial agreement and the AGPL-licensed public project.
+The final agreement must contain lawyer-reviewed provisions for warranties, disclaimers, limitation of liability, confidentiality, data processing where relevant, dispute resolution, governing law, notices, assignment, and the relationship between the commercial agreement and the AGPL-licensed public project. The proposed governing law is Türkiye, but no governing-law or dispute provision is operative in this draft.
 
 ## 9. Version and scope record
 
@@ -69,7 +77,11 @@ Each signed license should record:
 - agreement version and effective date; and
 - authorized signatories.
 
-## 10. Public wording after approval
+## 10. Contact and adoption record
+
+The review contact for legal and commercial drafting questions is `aliulu@ai-ulu.com`. Publishing this email in the repository does not create an offer or grant. The final agreement should record the confirmed Project Owner, notice address, governing law, covered version, authorized signatories, and effective date.
+
+## 11. Public wording after approval
 
 Only after legal and ownership review, the README may use wording similar to the following:
 

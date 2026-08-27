@@ -1,8 +1,11 @@
 # HUQAN Individual Contributor License Agreement (ICLA)
 
-> **STATUS: DRAFT — NOT YET ADOPTED**
+> **STATUS: VERSIONED REVIEW DRAFT — NOT OPERATIVE**
 >
-> This document is a working draft for legal review. It is not an invitation to contribute, a binding agreement, or a substitute for advice from qualified counsel. It must not be used as the project’s operative CLA until the project owner has approved the final text and the signature process.
+> **Draft identifier:** `HUQAN-ICLA-v1.0-review`
+> **Proposed effective date:** 2026-08-27
+>
+> This document is a prepared working draft for legal review. It is not an invitation to contribute, a binding agreement, or a substitute for advice from qualified counsel. It must not be used as the project’s operative CLA until the Project Owner has approved the final text, the legal capacity of the Project Owner has been confirmed, and the signature process has been adopted.
 
 Thank you for your interest in contributing to HUQAN. This Individual Contributor License Agreement (the “Agreement”) is intended to clarify the rights associated with contributions submitted to the HUQAN project, maintained by the project owner identified in the project’s current legal notices (the “Project”).
 
@@ -10,7 +13,19 @@ Thank you for your interest in contributing to HUQAN. This Individual Contributo
 
 “**Contribution**” means any original work of authorship, including source code, documentation, configuration, tests, examples, design material, or other copyrightable material that you intentionally submit to the Project for inclusion in the Project, whether submitted through a pull request, issue attachment, patch, email, or another project-approved channel.
 
-“**You**” or “**Your**” means the individual accepting this Agreement. “**Project Owner**” means the person or legal entity authorized to receive the rights described in this Agreement. The final version must identify the Project Owner and notice address precisely.
+“**You**” or “**Your**” means the individual accepting this Agreement. “**Project Owner**” means the person or legal entity authorized to receive the rights described in this Agreement.
+
+## 1.1 Project Owner and notices
+
+| Field | Value |
+|---|---|
+| Project Owner | Ali Ulu |
+| Notice email | `aliulu@ai-ulu.com` |
+| Location provided for notices | Afyonkarahisar, Türkiye |
+| Proposed governing law | Türkiye, subject to qualified legal review |
+| Project | HUQAN (`ali-ulu/huqan`) |
+
+The Project Owner information above is provided by the maintainer for this review draft. Before adoption, qualified counsel must confirm whether Ali Ulu is acting personally or through a legal entity, whether the notice details are sufficient, and whether the proposed governing law and dispute provisions are appropriate.
 
 ## 2. Your representations
 
@@ -74,4 +89,4 @@ Do not submit passwords, access tokens, payment information, or unnecessary pers
 
 ## 10. Final adoption checklist
 
-Before this file becomes operative, the Project Owner must confirm the legal entity or person receiving the rights, review the copyright and patent grants, decide whether a separate corporate contributor agreement is needed, define the historical-contribution policy, select the acceptance/recording mechanism, and obtain qualified legal review.
+Before this file becomes operative, the Project Owner must confirm whether the rights are received personally or by a legal entity, review the copyright and patent grants, decide whether a separate corporate contributor agreement is needed, define the historical-contribution policy, select the acceptance/recording mechanism, confirm the notice and governing-law provisions, and obtain qualified legal review. The operative copy must retain a version identifier and effective date and must be clearly separated from this review draft.
