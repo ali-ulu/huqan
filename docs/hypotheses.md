@@ -77,4 +77,26 @@ Bir kural için öneri üretilmesi iki koşula bağlıdır: en az **5** inceleme
 
 **Öneriler yalnızca bir kuralı susturur.** Sürekli reddedilen bir kural fazla ateşleniyordur; öneri onu daha az ateşlenecek yöne taşır. Tersi yön — çoğunlukla kabul edilen bir kuralın eşiğini gevşetmek — bilerek yapılmaz: kabul, bulguların doğru olduğunu söyler; daha fazla bulgu beklediğini değil. İkincisini birincisinden çıkarmak, bir tuner'ın kendi çıktısını büyütmeye başlama biçimidir.
 
+## Graf sağlığı skoru
+
+`hypotheses fitness`, sistemin ne kadar sağlıklı öğrendiğini tek bir deterministik skora indirger. **Ölçer; hiçbir şeyi optimize etmez** — eşik değiştirmez, kayıt yazmaz, skoru motora geri beslemez.
+
+```bash
+node cli.js hypotheses fitness
+node cli.js hypotheses fitness --workspaceId alpha --json
+```
+
+| Bileşen | Ağırlık | Ölçtüğü |
+| --- | --- | --- |
+| `evidenceCoverage` | 0.30 | kanıt taşıyan kenarların oranı |
+| `hypothesisAccuracy` | 0.30 | incelenmiş hipotezlerin kabul oranı |
+| `connectivity` | 0.20 | yalıtılmamış düğümlerin oranı |
+| `consistency` | 0.20 | nedensel çevrim yokluğu — `1 / (1 + çevrim)` |
+
+Skor 0–1 arası, harf notu `A` (≥0.90) → `F`. Tutarlılık ikili değil, azalarak düşer: bir çevrim gerçek bir kusurdur ama on çevrimli bir graf kadar bozuk değildir; 0/1 bir bileşen bu farkı silerdi.
+
+**Veri olmayan bir bileşen `0` değil `null`'dur.** Kenarsız bir grafın kanıt kapsamı yoktur; hiç incelenmemiş bir sistemin isabeti yoktur. Bunları sıfır saymak boş bir grafı bozukmuş gibi gösterirdi; onun yerine `null` bileşen ortalamadan çıkarılır ve kalan ağırlıklar yeniden normalize edilir (`meta.weightUsed` kullanılan toplam ağırlığı taşır). Hiçbir bileşen ölçülemiyorsa skor ve not `null` döner.
+
+Bileşenler `generateHypotheses`'in `meta.ruleCounts` çıktısını yeniden kullanır — yalıtılmış düğüm ve çevrim sayıları ayrıca hesaplanmaz. Kanıt ölçümü `KANIT_EKSİK` kuralının kullandığı `hasEvidence` ile aynı işlevi paylaşır, ikinci bir kopya sapmasın diye.
+
 > **Sınır:** Hipotez üretimi doğruluk garantisi değildir. Sonuçlar kanıt, provenance, approval ve policy geçitlerinden bağımsız olarak canonical gerçek kabul edilmez.
