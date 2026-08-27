@@ -34,9 +34,6 @@ For architecture decisions, also see the `docs/ADR-*.md` files.
   bug report, technical analysis, root review report). Most issues documented
   here were resolved by the v0.9.1 line. Kept as historical evidence of the
   bug surface and the decisions taken.
-- `archive/sandbox-v0.8/` — Sandbox runner smoke test report from the v0.8
-  cycle (35 PASS / 4 FAIL). Current sandbox behavior is covered by the test
-  suite in `test/`.
 - `archive/self-analyze-v0.8/` — One-shot kernel self-analysis snapshot from
   the v0.8 cycle. Not deterministic; do not use for runtime decisions.
 - `archive/strategy-2026/` — Strategic paths document considered for the
