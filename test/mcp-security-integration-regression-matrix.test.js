@@ -348,14 +348,19 @@ test('approved MCP ingest initializes the company runtime on a real server-creat
     assert.equal(pluginLoadCalls, 1);
     assert.deepEqual(pluginLoadArgs, [path.join(__dirname, '..', 'plugins')]);
   } finally {
-    try { server?.approvalStore?.close?.(); } catch (_) {}
-    try { server?.kernel?.graph?.close?.(); } catch (_) {}
-    process.chdir(previousCwd);
-    for (const key of environmentKeys) {
-      if (previousEnvironment[key] === undefined) delete process.env[key];
-      else process.env[key] = previousEnvironment[key];
+    let cleanupError = null;
+    try { server?.approvalStore?.close?.(); } catch (error) { cleanupError = error; }
+    try { server?.kernel?.graph?.close?.(); } catch (error) { cleanupError ||= error; }
+    try {
+      process.chdir(previousCwd);
+      for (const key of environmentKeys) {
+        if (previousEnvironment[key] === undefined) delete process.env[key];
+        else process.env[key] = previousEnvironment[key];
+      }
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
     }
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    if (cleanupError) throw cleanupError;
   }
 });
 
