@@ -15,10 +15,9 @@
 |---|---|
 | Project Owner provided for review | Ali Ulu |
 | Notice email | `aliulu@ai-ulu.com` |
-| Location provided for notices | Afyonkarahisar, Türkiye |
 | Proposed governing law | Türkiye, subject to qualified legal review |
 
-The final agreement must confirm whether Ali Ulu is acting personally or through a legal entity authorized to grant the commercial rights. “Huqan AI” must not be treated as a legal entity unless its legal status and ownership are confirmed. The notice email and location above are maintainer-provided review information and must be checked for legal sufficiency before adoption.
+The final agreement must confirm whether Ali Ulu is acting personally or through a legal entity authorized to grant the commercial rights. The notice email above is maintainer-provided review information and must be checked for legal sufficiency before adoption.
 
 ## 2. Commercial option
 

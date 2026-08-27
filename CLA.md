@@ -21,7 +21,6 @@ Thank you for your interest in contributing to HUQAN. This Individual Contributo
 |---|---|
 | Project Owner | Ali Ulu |
 | Notice email | `aliulu@ai-ulu.com` |
-| Location provided for notices | Afyonkarahisar, Türkiye |
 | Proposed governing law | Türkiye, subject to qualified legal review |
 | Project | HUQAN (`ali-ulu/huqan`) |
 

@@ -11,7 +11,7 @@ HUQAN’s public open-source license remains `AGPL-3.0-only`. This preparation b
 
 The project owner has stated that the current repository’s substantive contributions are owned by the project owner, that bot-generated material was directed by the project owner, and that one other person only corrected wording. On that basis, no retroactive CLA request is planned at this stage. This is a maintainer-provided project fact for process planning, not an independent legal ownership opinion.
 
-For the current review drafts, the maintainer provided the following owner and notice information: **Ali Ulu**, `aliulu@ai-ulu.com`, Afyonkarahisar, Türkiye, with Türkiye proposed as the governing law. The legal capacity of the owner, the sufficiency of the notice details, and the final governing-law language remain subject to qualified legal review.
+For the current review drafts, the maintainer provided the following owner and notice information: **Ali Ulu**, `aliulu@ai-ulu.com`, with Türkiye proposed as the governing law. The legal capacity of the owner, the sufficiency of the notice details, and the final governing-law language remain subject to qualified legal review.
 
 ## Future-contribution rule
 

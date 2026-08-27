@@ -4,9 +4,9 @@
 > Bu belge bir teklif, bağlayıcı şart veya lisans grant’i değildir. Fiyatlar ve
 > şartlar yer tutucudur. Yayımlamadan veya herhangi bir müşteriye sunmadan önce
 > hukukçu incelemesi şarttır. Bu taslak için proje sahibi olarak Ali Ulu,
-> bildirim e-postası olarak `aliulu@ai-ulu.com`, konum olarak Afyonkarahisar,
-> Türkiye ve önerilen hukuk olarak Türkiye kaydedilmiştir; bunlar hukukçu
-> incelemesinin yerine geçmez. Hukuk/CLA çalışma belgeleri için
+> bildirim e-postası olarak `aliulu@ai-ulu.com` ve önerilen hukuk olarak
+> Türkiye kaydedilmiştir; bunlar hukukçu incelemesinin yerine geçmez.
+> Hukuk/CLA çalışma belgeleri için
 > [`docs/legal/dual-licensing-status.md`](../legal/dual-licensing-status.md),
 > [`CLA.md`](../../CLA.md) ve
 > [`commercial-license-working-draft.md`](../legal/commercial-license-working-draft.md)
