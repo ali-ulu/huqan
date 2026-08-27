@@ -5,6 +5,7 @@ const {
 validateEnvironmentCompatibility();
 
 const fs = require('fs');
+const path = require('path');
 const crypto = require('crypto');
 const { constantTimeEqual } = require('./requestGuards');
 const { buildKernelOptsFromEnv } = require('./lib/kernel-factory');
@@ -128,6 +129,19 @@ function createServer(kernelOrOptions = {}) {
   const kernel = options.kernel || createKernelFromEnv();
   const approvalStore = createApprovalStoreFromKernel(kernel, { ...envKernelOpts, ...options });
   const operatorToken = options.operatorToken || process.env[MCP_OPERATOR_TOKEN_ENV] || '';
+  let companyRuntimeReady = false;
+  function ensureCompanyRuntime() {
+    if (typeof kernel.hasCapability === 'function' && !kernel.hasCapability('companyMode')) {
+      kernel.enableCapability('companyMode');
+    }
+    if (typeof kernel.hasCapability === 'function' && !kernel.hasCapability('pluginCapabilities')) {
+      kernel.enableCapability('pluginCapabilities');
+    }
+    if (!companyRuntimeReady && kernel.plugins && typeof kernel.plugins.load === 'function') {
+      kernel.plugins.load(path.join(__dirname, 'plugins'));
+      companyRuntimeReady = true;
+    }
+  }
   return {
     kernel,
     approvalStore,
@@ -169,6 +183,7 @@ function createServer(kernelOrOptions = {}) {
             approvalStore,
             operatorToken,
             trustEvidenceLedger: options.trustEvidenceLedger || null,
+            ensureRuntime: ensureCompanyRuntime,
             humanOversightApprovalRuntime: options.humanOversightApprovalRuntime || null,
             ...(Object.hasOwn(options, 'humanOversightRequesterContext')
               ? { humanOversightRequesterContext: options.humanOversightRequesterContext }
