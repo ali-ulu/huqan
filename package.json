@@ -290,6 +290,7 @@
     "lib/huqan-package-format.js",
     "lib/hypothesis-feedback.js",
     "lib/hypothesis-review.js",
+    "lib/hypothesis-tuning.js",
     "lib/ingest-workflow-preview.js",
     "lib/is-plain-object.js",
     "lib/ingest-workflow-run.js",
