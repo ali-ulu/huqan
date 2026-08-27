@@ -23,6 +23,7 @@ const path = require('node:path');
 
 const Kernel = require('../kernel');
 const Graph = require('../graph');
+const Agent = require('../agent');
 const {
   DEFAULT_MEMORY_FILENAME,
   isInsideRepo,
@@ -57,6 +58,19 @@ test('a kernel given no path does not write into the repository root', () => {
       `${artefact} was written into the repository root by a default-path kernel`,
     );
   }
+});
+
+test('an agent given no memory path does not write into the repository root', () => {
+  const kernel = new Kernel({ noLoad: true, loadPlugins: false });
+  const agent = new Agent({ kernel });
+  assert.equal(isInsideRepo(agent.memoryPath), false, agent.memoryPath);
+  agent.memory.goals.push({ goal: 'agent default isolation' });
+  agent._saveMemory();
+  assert.equal(
+    fs.existsSync(path.join(REPO_ROOT, 'agent.memory.json')),
+    false,
+    'agent.memory.json was written into the repository root by a default-path agent',
+  );
 });
 
 test('noLoad does not make a default path safe -- it skips the read, not the write', () => {
