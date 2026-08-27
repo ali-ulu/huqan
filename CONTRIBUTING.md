@@ -13,7 +13,7 @@ HUQAN is a maintainer-led repository. Pull requests are reviewed by a human befo
 - Do not change package version or dependencies unless the scoped task requires it.
 - AI-assisted contributions are allowed, but they must be reviewed by a human before merge.
 - The repository is currently distributed under `AGPL-3.0-only`; do not change the license, add a commercial exception, or publish licensing claims through a pull request unless the project owner has approved the exact scope.
-- `CLA.md` is a legal-review draft and is not operative yet. Before an operative CLA is adopted, no external non-trivial contribution may be treated as cleared for future commercial relicensing solely because it appears in a pull request.
+- `CLA.md` is the versioned legal-review draft `HUQAN-ICLA-v1.0-review` and is not operative yet. Before an operative CLA is adopted, no external non-trivial contribution may be treated as cleared for future commercial relicensing solely because it appears in a pull request.
 
 ## Local setup
 
@@ -42,7 +42,7 @@ The project owner currently treats the existing repository history as project-ow
 
 Before submitting a future non-trivial contribution, contributors must identify any employer, client, school, third-party, or generated-material restriction that may affect the contribution. Once the project owner adopts an operative CLA, the contributor must complete the approved acceptance process before the contribution is merged. A pull-request checkbox or a sentence saying “I agree” is not an operative CLA unless the project owner and qualified counsel have approved that exact process.
 
-The draft agreement in [`CLA.md`](./CLA.md) is provided for review only. It is intended to describe future contribution rights, including the possibility of distributing accepted contributions under AGPL and, where legally authorized, under separate commercial terms. It does not itself grant rights, change the current license, or authorize a commercial license.
+The versioned review draft `HUQAN-ICLA-v1.0-review` in [`CLA.md`](./CLA.md) is provided for review only. It is intended to describe future contribution rights, including the possibility of distributing accepted contributions under AGPL and, where legally authorized, under separate commercial terms. It does not itself grant rights, change the current license, or authorize a commercial license. The review contact is Ali Ulu at `aliulu@ai-ulu.com`; this contact detail does not make the draft operative.
 
 If a contribution is made in the course of employment or for a client, the contributor must confirm that they have permission to submit it. Contributors must not submit confidential information, credentials, personal data, copied code, or dependency content with incompatible terms.
 

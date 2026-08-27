@@ -3,7 +3,10 @@
 > **DURUM: STRATEJİK TASLAK. HUKUKİ İNCELEME GEREKTİRİR.**
 > Bu belge bir teklif, bağlayıcı şart veya lisans grant’i değildir. Fiyatlar ve
 > şartlar yer tutucudur. Yayımlamadan veya herhangi bir müşteriye sunmadan önce
-> hukukçu incelemesi şarttır. Hukuk/CLA çalışma belgeleri için
+> hukukçu incelemesi şarttır. Bu taslak için proje sahibi olarak Ali Ulu,
+> bildirim e-postası olarak `aliulu@ai-ulu.com` ve önerilen hukuk olarak
+> Türkiye kaydedilmiştir; bunlar hukukçu incelemesinin yerine geçmez.
+> Hukuk/CLA çalışma belgeleri için
 > [`docs/legal/dual-licensing-status.md`](../legal/dual-licensing-status.md),
 > [`CLA.md`](../../CLA.md) ve
 > [`commercial-license-working-draft.md`](../legal/commercial-license-working-draft.md)
@@ -66,7 +69,9 @@ Bu ayrım baştan net yazılmazsa, alıcı lisansı destek sanır.
 3. `LICENSE-COMMERCIAL.md` veya avukatın seçtiği gerçek sözleşme metnini oluştur.
 4. README'ye yalnızca onaylı, bağlayıcı olmayan doğru açıklamayı ekle.
 5. `docs/gtm/` altında fiyat/kapsam belgesini hukukçu onayından sonra yayınla.
-6. Gelen talepleri karşılayacak onaylı bir iletişim adresi belirle.
+6. Gelen talepleri karşılayacak onaylı bir iletişim adresi belirle. İnceleme
+   iletişimi olarak şimdilik `aliulu@ai-ulu.com` kaydedilmiştir; bu adres tek
+   başına ticari teklif veya lisans grant’i oluşturmaz.
 
 `NOTICE` dosyası ve mevcut telif sahipliği, ticari lisans satabilmek için
 tüm katkıların hak durumunun net olmasını gerektirir. Dış katkı alındıysa
