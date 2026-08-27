@@ -36,8 +36,7 @@ const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
 const { createExternalClientProductionBoundary } = require('./lib/external-client-production-boundary');
 const { createOptionalRouteBoundaries } = require('./lib/http/optional-boundaries'), { createPrGuardianOptions } = require('./lib/http/pr-guardian-config');
 const { projectUploadAdmission } = require('./lib/http/upload-admission-contract');
-const { absent, createMutationAdmission } = require('./lib/mutation-admission');
-const { createIngestApprovalAuditWriter } = require('./lib/workbench/ingest-approval-audit-writer');
+const { createHttpIngestApprovalAuditWriter } = require('./lib/http/ingest-approval-audit-writer');
 const { createTrustEvidenceLedger } = require('./lib/trust-evidence-ledger');
 const pkg = require('./package.json');
 const {
@@ -128,12 +127,7 @@ function getHttpApprovalRuntimeConfig() {
   });
 }
 
-const recordIngestApprovalAudit = createIngestApprovalAuditWriter({
-  graph: kernel.graph,
-  admission: createMutationAdmission({ identityEvaluator: absent('HTTP ingest-approval audit callers carry no receiver-owned identity claim yet') }),
-  hashResult: sha256,
-  ledger: trustEvidenceLedger,
-});
+const recordIngestApprovalAudit = createHttpIngestApprovalAuditWriter({ graph: kernel.graph, getIdentityConfig: () => httpAgentIdentityConfig, hashResult: sha256, ledger: trustEvidenceLedger });
 
 // --- Güvenlik sabitleri ---
 const backgroundTimers = createBackgroundTimers();

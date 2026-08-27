@@ -7,7 +7,12 @@ const os = require('node:os');
 const path = require('node:path');
 
 const Graph = require('../graph');
-const { callTool, createServer } = require('../mcpServer');
+const {
+  callTool,
+  createServer,
+  createMcpOperatorCapability,
+  operatorCapabilityBinding,
+} = require('../mcpServer');
 const { createHumanOversightApprovalRuntime } = require('../lib/human-oversight-approval-runtime');
 const { createTrustEvidenceLedger } = require('../lib/trust-evidence-ledger');
 const {
@@ -171,10 +176,22 @@ function queueParams() {
   };
 }
 
+function operatorParams(name, args) {
+  return {
+    name,
+    operatorCapability: createMcpOperatorCapability({
+      secret: 'operator-token',
+      ...operatorCapabilityBinding(name, args),
+    }),
+    arguments: JSON.stringify(args),
+  };
+}
+
 function runtimeOptions(fixture) {
   return {
     approvalStore: fixture.store,
-    operatorToken: 'operator-token',
+    operatorSecret: 'operator-token',
+    operatorCapabilityNonces: new Map(),
     humanOversightApprovalRuntime: fixture.oversight,
     humanOversightRequesterContext: {
       session: 'receiver-owned-mcp-session',
@@ -193,21 +210,21 @@ test('MCP approval executes when receiver-owned Agent Identity allows the action
     assert.equal(queued.ok, false);
     assert.equal(queued.approval.context.oversightRequired, true);
 
-    const first = await callTool(f.kernel, {
-      name: 'huqan.approve',
-      operatorToken: 'operator-token',
-      arguments: JSON.stringify({ approvalId: queued.approval.id, workspaceId: 'workspace-mcp', decision: 'approved' }),
-    }, runtimeOptions(f));
+    const first = await callTool(f.kernel, operatorParams('huqan.approve', {
+      approvalId: queued.approval.id,
+      workspaceId: 'workspace-mcp',
+      decision: 'approved',
+    }), runtimeOptions(f));
     assert.equal(first.ok, false, JSON.stringify(first));
     assert.equal(first.error.code, 'OVERSIGHT_QUORUM_PENDING');
     assert.equal(f.store.getToolApprovalById(queued.approval.id).status, 'pending');
     assert.equal(f.executions, 0);
 
-    const approved = await callTool(f.kernel, {
-      name: 'huqan.approve',
-      operatorToken: 'operator-token',
-      arguments: JSON.stringify({ approvalId: queued.approval.id, workspaceId: 'workspace-mcp', decision: 'approved' }),
-    }, {
+    const approved = await callTool(f.kernel, operatorParams('huqan.approve', {
+      approvalId: queued.approval.id,
+      workspaceId: 'workspace-mcp',
+      decision: 'approved',
+    }), {
       ...runtimeOptions(f),
       humanOversightApproverContext: { identityRef: 'human:operator-b', identityHash: 'hash-operator-b' },
     });
@@ -247,11 +264,11 @@ test('MCP createServer propagates opt-in Agent Identity runtime into approval ex
     const firstResponse = await server.handleRequest({
       id: 'approve-identity-1',
       method: 'tools/call',
-      params: {
-        name: 'huqan.approve',
-        operatorToken: 'operator-token',
-        arguments: JSON.stringify({ approvalId: queued.approval.id, workspaceId: 'workspace-mcp', decision: 'approved' }),
-      },
+      params: operatorParams('huqan.approve', {
+        approvalId: queued.approval.id,
+        workspaceId: 'workspace-mcp',
+        decision: 'approved',
+      }),
     });
     const first = firstResponse.result.structuredContent;
     assert.equal(first.ok, false, JSON.stringify(first));
@@ -262,11 +279,11 @@ test('MCP createServer propagates opt-in Agent Identity runtime into approval ex
     const approvedResponse = await secondServer.handleRequest({
       id: 'approve-identity-2',
       method: 'tools/call',
-      params: {
-        name: 'huqan.approve',
-        operatorToken: 'operator-token',
-        arguments: JSON.stringify({ approvalId: queued.approval.id, workspaceId: 'workspace-mcp', decision: 'approved' }),
-      },
+      params: operatorParams('huqan.approve', {
+        approvalId: queued.approval.id,
+        workspaceId: 'workspace-mcp',
+        decision: 'approved',
+      }),
     });
     const approved = approvedResponse.result.structuredContent;
     assert.equal(approved.ok, true, JSON.stringify(approved));
@@ -282,11 +299,11 @@ test('MCP approval fails closed before claim and executor when receiver-owned id
   const f = fixture({ ownerActorId: 'different-owner' });
   try {
     const queued = callTool(f.kernel, queueParams(), runtimeOptions(f));
-    const blocked = await callTool(f.kernel, {
-      name: 'huqan.approve',
-      operatorToken: 'operator-token',
-      arguments: JSON.stringify({ approvalId: queued.approval.id, workspaceId: 'workspace-mcp', decision: 'approved' }),
-    }, runtimeOptions(f));
+    const blocked = await callTool(f.kernel, operatorParams('huqan.approve', {
+      approvalId: queued.approval.id,
+      workspaceId: 'workspace-mcp',
+      decision: 'approved',
+    }), runtimeOptions(f));
 
     assert.equal(blocked.ok, false);
     assert.equal(blocked.error.code, 'IDENTITY_ENFORCEMENT_BLOCKED');

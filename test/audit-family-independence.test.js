@@ -171,7 +171,7 @@ test('claim 3: MCP and HTTP drive the same approval owner', () => {
   // the one that stood here while the duplicate existed -- inverted rather
   // than deleted, so the resolution of verdict 3 stays visible in the guard
   // that recorded the problem.
-  assert.match(readSource('server.js'), /recordIngestApprovalAudit = createIngestApprovalAuditWriter\(\{/);
+  assert.match(readSource('server.js'), /recordIngestApprovalAudit = createHttpIngestApprovalAuditWriter\(\{/);
   assert.ok(
     countMatches(readCode('lib/mcp-ingest-execute-tool.js'), /createIngestApprovalAuditWriter/g) > 0,
     'the MCP surface must build the routed writer, not a copy of it',

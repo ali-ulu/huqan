@@ -1,7 +1,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const WorkflowAgent = require('./workflow-agent');
-const { ToolRegistry } = require('./workflow-agent');
+const { ToolRegistry, registerReceiverOwnedTool } = require('./workflow-agent');
 
 function createAgent(opts = {}) {
   const agent = new WorkflowAgent({ maxSteps: 4, ...opts });
@@ -66,9 +66,8 @@ function createAgent(opts = {}) {
 }
 
 function registerDiscoveryTools(agent) {
-  agent.registerTool({
+  registerReceiverOwnedTool(agent.registry, {
     name: 'discoveryEngine',
-    kind: 'internal',
     description: 'discover hypotheses',
     inputSchema: { type: 'object' },
     run(context, input) {
@@ -85,9 +84,8 @@ function registerDiscoveryTools(agent) {
     },
   });
 
-  agent.registerTool({
+  registerReceiverOwnedTool(agent.registry, {
     name: 'experimentPlanner',
-    kind: 'internal',
     description: 'plan experiments',
     inputSchema: { type: 'object' },
     run(context, input) {
@@ -104,9 +102,8 @@ function registerDiscoveryTools(agent) {
     },
   });
 
-  agent.registerTool({
+  registerReceiverOwnedTool(agent.registry, {
     name: 'resultAnalyzer',
-    kind: 'internal',
     description: 'analyze results',
     inputSchema: { type: 'object' },
     run(context, input) {
@@ -123,9 +120,8 @@ function registerDiscoveryTools(agent) {
     },
   });
 
-  agent.registerTool({
+  registerReceiverOwnedTool(agent.registry, {
     name: 'replicationChecker',
-    kind: 'internal',
     description: 'check replication',
     inputSchema: { type: 'object' },
     run(context, input) {
@@ -146,7 +142,7 @@ function registerDiscoveryTools(agent) {
 }
 
 describe('workflow-agent', () => {
-  it('registerTool() stores metadata and listTools() returns registered tools', () => {
+  it('registerTool() treats caller-declared internal custom tools as external', () => {
     const registry = new ToolRegistry();
     const registered = registry.registerTool({
       name: 'alpha',
@@ -159,24 +155,22 @@ describe('workflow-agent', () => {
     });
 
     assert.strictEqual(registered.name, 'alpha');
-    assert.strictEqual(registered.description, 'first tool');
+    assert.strictEqual(registered.kind, 'external');
     assert.ok(!Object.prototype.hasOwnProperty.call(registered, 'run'));
 
     const tools = registry.listTools();
     assert.strictEqual(tools.length, 1);
-    assert.strictEqual(tools[0].name, 'alpha');
+    assert.strictEqual(tools[0].kind, 'external');
     assert.strictEqual(tools[0].description, 'first tool');
     assert.deepStrictEqual(tools[0].inputSchema, { type: 'object' });
   });
 
-  it('custom tools must declare a valid trust kind instead of defaulting to internal', () => {
+  it('custom tools default to external authority and validate declared kind', () => {
     const registry = new ToolRegistry();
     const run = () => ({ ok: true, data: { answer: 'ok' } });
 
-    assert.throws(
-      () => registry.registerTool({ name: 'fetch-data', run }),
-      /must declare kind as "internal" or "external"/,
-    );
+    const omitted = registry.registerTool({ name: 'fetch-data', run });
+    assert.strictEqual(omitted.kind, 'external');
     assert.throws(
       () => registry.registerTool({ name: 'fetch-data', kind: 'trusted', run }),
       /must declare kind as "internal" or "external"/,
@@ -281,9 +275,8 @@ describe('workflow-agent', () => {
 
   it('returns partial or failed when a tool throws', async () => {
     const agent = new WorkflowAgent({ maxSteps: 2 });
-    agent.registerTool({
+    registerReceiverOwnedTool(agent.registry, {
       name: 'boom',
-      kind: 'internal',
       description: 'throws on purpose',
       inputSchema: { type: 'object' },
       run() {
@@ -535,9 +528,8 @@ describe('WorkflowAgent external-review approval cannot be forged (#388)', () =>
 describe('WorkflowAgent async tool execution (#408)', () => {
   it('awaits an async tool result before normalizing it', async () => {
     const agent = new WorkflowAgent();
-    agent.registerTool({
+    registerReceiverOwnedTool(agent.registry, {
       name: 'async-result',
-      kind: 'internal',
       description: 'returns a result asynchronously',
       run: async () => ({ ok: true, data: { answer: 'awaited' }, confidence: 0.8 }),
     });
@@ -550,9 +542,8 @@ describe('WorkflowAgent async tool execution (#408)', () => {
 
   it('keeps synchronous tool results compatible through the async API', async () => {
     const agent = new WorkflowAgent();
-    agent.registerTool({
+    registerReceiverOwnedTool(agent.registry, {
       name: 'sync-result',
-      kind: 'internal',
       description: 'returns a result synchronously',
       run: () => ({ ok: true, data: { answer: 'sync' }, confidence: 0.7 }),
     });

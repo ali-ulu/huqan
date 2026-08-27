@@ -4,7 +4,10 @@ const assert = require('node:assert/strict');
 const {
   createServer,
   callTool,
+  createMcpOperatorCapability,
+  operatorCapabilityBinding,
 } = require('../mcpServer');
+const { canonicalMcpToolName } = require('../lib/mcp-tool-names');
 const { evaluateMcpGate } = require('../lib/mcp-gate-adapter');
 const { withMcpToolVerdictSurface } = require('../lib/mcp/response-builders');
 
@@ -110,11 +113,18 @@ function fixtureApprovalStore(initial = []) {
 }
 
 function transportCall(server, id, name, arguments_, extra = {}) {
+  const canonicalName = canonicalMcpToolName(name);
+  const { operatorToken, operatorCapability, ...rest } = extra;
+  const capability = operatorCapability || (
+    operatorToken && ['huqan.approve', 'huqan.approvals', 'huqan.agent_resume'].includes(canonicalName)
+      ? createMcpOperatorCapability({ secret: operatorToken, ...operatorCapabilityBinding(canonicalName, arguments_) })
+      : undefined
+  );
   return server.handleRequest({
     jsonrpc: '2.0',
     id,
     method: 'tools/call',
-    params: { name, arguments: arguments_, ...extra },
+    params: { name, arguments: arguments_, ...rest, ...(capability ? { operatorCapability: capability } : {}) },
   });
 }
 
