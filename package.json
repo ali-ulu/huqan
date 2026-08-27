@@ -291,6 +291,7 @@
     "lib/hypothesis-feedback.js",
     "lib/hypothesis-fitness.js",
     "lib/hypothesis-review.js",
+    "lib/hypothesis-thresholds.js",
     "lib/hypothesis-tuning.js",
     "lib/ingest-workflow-preview.js",
     "lib/is-plain-object.js",
