@@ -283,6 +283,24 @@ class HuqanStorage {
           AND workspace_id = @workspace_id
           AND status = 'pending'
       `),
+      // #1675: the PR Guardian executes an approval that is already
+      // `approved`, not `pending`, so neither claim statement above could
+      // consume it -- the row stayed `approved` across the GitHub call and a
+      // repeated request posted the comment again. This statement is that
+      // missing transition, and the `context_json = @expected_context_json`
+      // guard is what makes it atomic: two concurrent executors read the same
+      // context, both try to claim, and exactly one UPDATE matches.
+      claimApprovedToolApproval: this.db.prepare(`
+        UPDATE tool_approvals
+        SET status = 'executing',
+            reason = @reason,
+            context_json = @context_json,
+            updated_at = @updated_at
+        WHERE id = @id
+          AND workspace_id = @workspace_id
+          AND status = 'approved'
+          AND context_json = @expected_context_json
+      `),
       claimToolApprovalWithLease: this.db.prepare(`
         UPDATE tool_approvals
         SET status = 'executing',

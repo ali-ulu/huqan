@@ -272,6 +272,14 @@ Operator-only tools are deliberately withheld from `tools/list` and require `HUQ
 
 This separation means a model that proposes a mutating action cannot also approve it through the model-visible catalog.
 
+Operator capabilities are single-use, and the record of a spent one is durable
+(#1674). Consumed nonces are written to `.huqan-capability-nonces` beside the
+memory store, so a capability that was already used stays used across a restart
+and across workers; set `HUQAN_MCP_CAPABILITY_NONCE_DIR` to point every worker
+at one shared writable directory when the default is not on shared storage. If
+that directory cannot be written, capability verification fails closed rather
+than falling back to memory-only replay protection.
+
 ### Local UI and Trust Receipt Viewer
 
 Start the local server to serve the backend-connected developer UI:

@@ -137,10 +137,64 @@ function verifyArtifact(values) {
   return response.receiptId;
 }
 
+/**
+ * Hostnames that never leave the machine. IPv6 literals arrive from `new URL`
+ * wrapped in brackets and lower-cased, and IPv4-mapped forms (`::ffff:127.0.0.1`)
+ * are loopback too.
+ */
+function isLoopbackHost(hostname) {
+  const host = hostname.replace(/^\[/, '').replace(/\]$/, '').toLowerCase();
+  if (host === 'localhost' || host === '::1' || host === '0:0:0:0:0:0:0:1') return true;
+  const mapped = host.startsWith('::ffff:') ? host.slice('::ffff:'.length) : host;
+  const octets = mapped.split('.');
+  if (octets.length !== 4) return false;
+  if (!octets.every((octet) => /^\d{1,3}$/.test(octet) && Number(octet) <= 255)) return false;
+  // 127.0.0.0/8 in full: 127.0.0.1 is the common case, but the whole block is
+  // routed to the local host.
+  return Number(octets[0]) === 127;
+}
+
+/**
+ * Refuse to put a bearer credential on the wire in cleartext (#1672).
+ *
+ * The `authorization: Bearer <key>` header below is a long-lived credential
+ * for the admission endpoint. Over plain HTTP it is readable by anything on
+ * the path -- a proxy, a captive network, a host doing DNS interception -- and
+ * a leaked key here admits packages under the client's identity. HTTPS is
+ * therefore the default and the only option for a remote endpoint.
+ *
+ * Loopback is the one exception, and it is a genuine one rather than a
+ * convenience: `http://127.0.0.1:<port>` never reaches a network interface, so
+ * there is no path to intercept. That is how the standalone route tests and
+ * local development drive this client, and requiring a certificate for it
+ * would only push people toward disabling verification.
+ *
+ * There is deliberately no override flag. An "allow insecure" switch is the
+ * thing that ends up pasted into a production runbook; a caller that needs a
+ * remote plaintext endpoint has a broken deployment, not a missing flag.
+ */
+function assertTransportSecurity(target) {
+  if (!['http:', 'https:'].includes(target.protocol)) throw new Error('URL protocol must be http or https');
+  if (target.protocol === 'https:') return;
+  if (isLoopbackHost(target.hostname)) return;
+  throw new Error(
+    `refusing to send the bearer credential over cleartext HTTP to ${target.hostname}: `
+    + 'use https://, or a loopback address (127.0.0.1 / [::1] / localhost) for local development',
+  );
+}
+
+function parseEndpoint(url) {
+  try {
+    return new URL(url);
+  } catch (_) {
+    throw new Error('--url is not a valid absolute URL');
+  }
+}
+
 function request(url, apiKey, body) {
   return new Promise((resolve, reject) => {
-    const target = new URL(url);
-    if (!['http:', 'https:'].includes(target.protocol)) throw new Error('URL protocol must be http or https');
+    const target = parseEndpoint(url);
+    assertTransportSecurity(target);
     const transport = target.protocol === 'https:' ? https : http;
     const bytes = Buffer.from(JSON.stringify(body), 'utf8');
     let settled = false;
@@ -209,6 +263,9 @@ async function main() {
     || Object.keys(values).some((key) => !allowed.has(key))) {
     throw new Error(`usage: admit --url <url> --input <envelope.json> --output <response.json> [--api-key-file <path|->]\n  the bearer credential is read from ${API_KEY_ENV} or --api-key-file (- reads stdin); exactly one source`);
   }
+  // Checked before the credential is read, so an unsafe URL fails without
+  // even loading the secret into this process.
+  assertTransportSecurity(parseEndpoint(values.url));
   const apiKey = readApiKey(values);
   if (fs.existsSync(values.output)) throw new Error('output file already exists');
   const result = await request(values.url, apiKey, readObject(values.input));
@@ -217,4 +274,8 @@ async function main() {
   process.stdout.write(`accepted: ${result.receiptId}\n`);
 }
 
-main().catch((error) => fail(error?.message || 'external client failed'));
+if (require.main === module) {
+  main().catch((error) => fail(error?.message || 'external client failed'));
+}
+
+module.exports = { assertTransportSecurity, isLoopbackHost, parseEndpoint };
