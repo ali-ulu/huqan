@@ -15,13 +15,13 @@ For the current review drafts, the maintainer provided the following owner and n
 
 ## Future-contribution rule
 
-The new `CLA.md` is a versioned review draft for future contributions only (`HUQAN-ICLA-v1.0-review`). It must not be treated as operative until the Project Owner, the correct legal capacity, the rights grant, the patent language, the notice provisions, and the acceptance mechanism have been reviewed and approved by qualified counsel.
+The `CLA.md` is now a consolidated versioned review draft for future contributions only (`HUQAN-ICLA-v1.0-review`). It must not be treated as operative until the Project Owner, the correct legal capacity, the rights grant, the patent language, the notice provisions, the privacy process, and the acceptance mechanism have been reviewed and approved by qualified counsel.
 
 The project should require an accepted CLA or another approved rights record before merging a future non-trivial external contribution. A PR checkbox alone should not be treated as a signed CLA unless counsel approves that exact process.
 
 ## Commercial licensing rule
 
-The new `docs/legal/commercial-license-working-draft.md` is a non-binding working document. It does not grant commercial rights and is not a public offer. A commercial license may be published or signed only after:
+The `docs/legal/commercial-license-working-draft.md` is now a consolidated, non-binding working document (`HUQAN-COMMERCIAL-v1.0-review`). It does not grant commercial rights and is not a public offer. A commercial license may be published or signed only after:
 
 1. the Project Owner’s legal capacity and the final notice details are confirmed;
 2. the covered HUQAN components and versions are defined;
@@ -40,7 +40,7 @@ The new `docs/legal/commercial-license-working-draft.md` is a non-binding workin
 
 ## Planned adoption sequence
 
-The proposed sequence is: approve the legal owner and operative CLA text; publish the CLA and its acceptance process; update contribution guidance; establish private acceptance records; review the commercial license; publish only the approved README notice and contact address; and keep a versioned record of each commercial agreement.
+The proposed sequence is: approve the legal owner and operative CLA text; publish the CLA and its acceptance process; update contribution guidance; establish private acceptance records; finalize the commercial scope and order-form schedules; publish only the approved README notice and contact address; and keep a versioned record of each commercial agreement. The current documents close the drafting gaps but do not complete these adoption decisions.
 
 ## Evidence labels
 
