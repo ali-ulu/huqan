@@ -40,7 +40,12 @@ function assertTargets(report, targets) {
 
 function runBaseline({ targets = DEFAULT_TARGETS } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-observability-baseline-'));
-  const kernel = new KernelV2({ noLoad: true, useSQLite: false, loadPlugins: false });
+  const kernel = new KernelV2({
+    noLoad: true,
+    useSQLite: false,
+    loadPlugins: false,
+    memoryPath: path.join(root, 'memory.json'),
+  });
   kernel.learn('kedi hayvandir', Kernel.createAdmissionBypassOpts('test_fixture_seed'));
   instrumentUsage(kernel);
   const agent = new AgentV3({
