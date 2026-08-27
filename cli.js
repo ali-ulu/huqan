@@ -13,6 +13,7 @@ const readline = require('readline');
 const { isPathWithinRoot } = require('./lib/path-safety');
 const { createKernel } = require('./lib/kernel-factory');
 const { cliHelpText } = require('./lib/cli-help');
+const { runCliHypotheses } = require('./lib/cli-hypotheses');
 const { runCliArgv: runWorkflowCliArgv } = require('./lib/cli-workflow-adapter');
 const { runQuickstartCommand } = require('./lib/quickstart-cli');
 const {
@@ -559,6 +560,16 @@ class CLI {
         const lines = hypotheses.map(item => `  ${item.from} -> ${item.to} (${item.type}, guven: ${item.confidence.toFixed(2)})`);
         return `${hypotheses.length} hipotez:\n${lines.join('\n')}`;
       }
+      case 'hypotheses': {
+        const argsObject = args && typeof args === 'object' ? args : {};
+        const writes = argsObject.propose === true || argsObject.review === true;
+        return runCliHypotheses(this.kernel, argsObject, {
+          json: opts.json === true,
+          commitMutation: writes
+            ? () => this._commitCliMutation('hypotheses', CLI_MUTATION_GATE.hypotheses)
+            : null,
+        });
+      }
       case 'selam':
         return 'Hello! You can teach me something or ask me a question.';
       case 'yardım':
@@ -659,6 +670,10 @@ class CLI {
     // the persisted id and runs the admission-aware learn path, so a synthetic
     // CLI allow decision must not bypass that authority.
     if (normalizeCommandText(command) === 'onayla') return null;
+    // The bare report is read-only; --propose and `review` both write to the
+    // candidate-claim family and stay behind the gate.
+    if (normalizeCommandText(command) === 'hypotheses'
+      && !(args && typeof args === 'object' && (args.propose === true || args.review === true))) return null;
     const tool = mapCliCommandToMcpTool(command);
     if (!tool) {
       // F-004: commands without an MCP tool mapping may still mutate. Route
