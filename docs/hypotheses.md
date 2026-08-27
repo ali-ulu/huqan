@@ -43,4 +43,17 @@ Komut fail-closed davranır: bilinmeyen `candidateId`, hipotez motoru dışında
 
 `accepted` / `rejected` değerleri, kural bazında geri bildirim sayımının girdisidir ve bu iki yüzey arasında değişmez bir veri sözleşmesidir.
 
+## Kural bazında geri bildirim
+
+`hypotheses feedback`, kaydedilmiş inceleme kararlarının kural bazında ne söylediğini raporlar. Tamamen salt-okumadır: düğüm, kenar, aday veya audit event yazmaz, hiçbir eşiği değiştirmez.
+
+```bash
+node cli.js hypotheses feedback
+node cli.js hypotheses feedback --workspaceId alpha --json
+```
+
+Her kural için `accepted`, `rejected`, `pending`, `reviewed`, `total` sayıları ve iki oran döner. **Oranlar incelenmiş adaylar üzerinden hesaplanır, toplam üzerinden değil** — bekleyen bir aday henüz bir yargı taşımaz, paydaya girerse "henüz bakılmamış" durumu "kural aleyhine kanıt" gibi okunur. Hiç inceleme yoksa oranlar `0` değil `null` döner; bu ayrım, eşik önerisi üreten bir adımın veri yokluğunu düşük performansla karıştırmasını engeller.
+
+Yalnızca `provenance.sourceType === 'hypothesis-engine'` adayları sayılır; `[TYPE]` etiketi taşıyan yabancı bir iddia da sayıma girmez. Etiketi bozulmuş bir hipotez adayı düşürülmez, `BİLİNMEYEN` kovasında görünür. Çıktı kural tipine göre sıralıdır ve aynı girdide birebir aynıdır.
+
 > **Sınır:** Hipotez üretimi doğruluk garantisi değildir. Sonuçlar kanıt, provenance, approval ve policy geçitlerinden bağımsız olarak canonical gerçek kabul edilmez.
