@@ -30,3 +30,11 @@ jobs:
             console.log("nonAlnum=" + (bad.join(",") || "none"));
             if (t.length) console.log("lastCharCode=" + t.charCodeAt(t.length - 1));
           '
+      - name: Token identity and access
+        run: |
+          token="$(printf '%s' "$NODE_AUTH_TOKEN" | tr -d '\r\n')"
+          printf '//registry.npmjs.org/:_authToken=%s\n' "${token}" > "${HOME}/.npmrc"
+          echo "whoami:"
+          npm whoami || true
+          echo "packages:"
+          npm access ls packages --json 2>&1 | head -40 || true
