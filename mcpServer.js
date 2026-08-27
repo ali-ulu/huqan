@@ -13,6 +13,7 @@ const {
   createMcpOperatorCapability,
   verifyMcpOperatorCapability,
 } = require('./lib/mcp-operator-capability');
+const { createDurableCapabilityNonceStore, resolveCapabilityNonceDirectory } = require('./lib/mcp-capability-nonce-store');
 const { buildKernelOptsFromEnv } = require('./lib/kernel-factory');
 const { createAgent } = require('./agentRuntime');
 const { evaluateMcpGate, MCP_GATE_DECISIONS } = require('./lib/mcp-gate-adapter');
@@ -160,7 +161,14 @@ function createServer(kernelOrOptions = {}) {
   const kernel = options.kernel || createKernelFromEnv();
   const approvalStore = createApprovalStoreFromKernel(kernel, { ...envKernelOpts, ...options });
   const operatorToken = options.operatorToken || process.env[MCP_OPERATOR_TOKEN_ENV] || '';
-  const operatorCapabilityNonces = new Map();
+  // Consumed capability nonces are durable by default (#1674): a capability is
+  // valid for up to five minutes, so a restart inside that window must not
+  // hand a spent token a second life. A caller may pass its own store (the
+  // in-process tests pass a Map); everything else gets the on-disk store,
+  // which is atomic across concurrent workers and fails closed when the
+  // directory cannot be written.
+  const operatorCapabilityNonces = options.operatorCapabilityNonces
+    || createDurableCapabilityNonceStore({ directory: resolveCapabilityNonceDirectory(options, envKernelOpts) });
   let companyRuntimeReady = false;
   function ensureCompanyRuntime() {
     if (typeof kernel.hasCapability === 'function' && !kernel.hasCapability('companyMode')) {
@@ -761,6 +769,8 @@ module.exports = {
   LEGACY_MCP_TOOL_NAMES,
   VERIFY_STATUS,
   buildKernelOptsFromEnv,
+  createDurableCapabilityNonceStore,
+  resolveCapabilityNonceDirectory,
   createKernelFromEnv,
   createApprovalStoreFromKernel,
   callTool,

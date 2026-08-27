@@ -27,6 +27,17 @@ logs and crash diagnostics. It is read from `HUQAN_API_KEY`, or from
 world-readable — or from stdin with `--api-key-file -`. Exactly one source may
 be present; two is an error rather than a silent precedence rule, and the
 value is never echoed in output or in any error message.
+
+The endpoint must be HTTPS whenever it is not loopback (#1672). The `admit`
+command sends the credential as an `authorization: Bearer` header, so a
+cleartext request to a remote host would hand the key to anything on the
+network path. `https://` is accepted everywhere; plain `http://` is accepted
+only for `127.0.0.0/8`, `[::1]` and `localhost` — the local-development case
+above, where the request never reaches a network interface. Any other
+`http://` URL fails before the credential is even read, with a message naming
+the host. There is no override flag: a remote plaintext endpoint is a
+deployment to fix, not a switch to flip.
+
 Tampered signatures, unknown keys, package-hash changes, workspace mismatches,
 and identity mismatches exit non-zero, create no output artifact, and create no
 mutation. An identical replay leaves the operation ID, receipt ID, receipt hash,

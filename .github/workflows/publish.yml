@@ -16,6 +16,13 @@ on:
         type: boolean
         default: true
 
+# A manual dispatch used to be able to reach the publish step from any ref a
+# maintainer could select -- a branch, or a tag whose name said nothing about
+# what was in package.json. The tag/version binding below is therefore keyed on
+# the ref itself rather than on the event: whatever the trigger, a real publish
+# only happens from an immutable `v<version>` tag that is already on the
+# default branch (#1673).
+
 permissions:
   contents: read
 
@@ -23,6 +30,12 @@ jobs:
   publish:
     name: Publish
     runs-on: ubuntu-latest
+
+    # The environment carries the NPM_TOKEN and the required reviewers/branch
+    # policy. A dispatch from an unauthorized ref cannot reach the secret at
+    # all if the environment's deployment-branch policy is set to `v*` tags
+    # only, which is the intended configuration for this job.
+    environment: npm-publish
 
     permissions:
       contents: read
@@ -50,21 +63,64 @@ jobs:
           # Writes the .npmrc that makes NODE_AUTH_TOKEN below authenticate.
           registry-url: 'https://registry.npmjs.org'
 
-      # The tag is what a human typed; package.json#version is what actually
-      # gets published. A disagreement means one of them is wrong, and
-      # guessing which would publish a version nobody asked for.
-      - name: Require the tag to match package.json#version
-        if: github.event_name == 'push'
+      # Release authority, checked once for every trigger (#1673).
+      #
+      # A publish is only allowed from an immutable `v<version>` tag that is
+      # already an ancestor of the default branch. That is three separate
+      # claims, and each one has to hold on its own:
+      #
+      #   1. The ref is a tag, not a branch. A branch tip moves, so "publish
+      #      from main" means publishing whatever happened to be there when
+      #      the job started -- unreviewable after the fact.
+      #   2. The tag name matches package.json#version exactly. The tag is
+      #      what a human typed; the manifest is what actually gets published.
+      #      A disagreement means one of them is wrong, and guessing which
+      #      would publish a version nobody asked for.
+      #   3. The tagged commit is reachable from the default branch, so the
+      #      published tree is code that went through review, not a tag
+      #      pushed onto an arbitrary commit.
+      #
+      # A dry run is exempt from nothing: it runs the same gates, and the
+      # publish step below is what the dry-run flag actually withholds.
+      - name: Require an authorized immutable release ref
+        id: authority
         run: |
           set -euo pipefail
+
+          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            echo "::error::Refusing to run from ${GITHUB_REF_TYPE} '${GITHUB_REF_NAME}'." >&2
+            echo "Publication is bound to an immutable v* tag. Push (or dispatch from) the tag." >&2
+            exit 1
+          fi
+
+          case "${GITHUB_REF_NAME}" in
+            v*) ;;
+            *)
+              echo "::error::Tag '${GITHUB_REF_NAME}' is not a v* release tag." >&2
+              exit 1
+              ;;
+          esac
+
           tag="${GITHUB_REF_NAME#v}"
           manifest="$(node -p "require('./package.json').version")"
           if [ "${tag}" != "${manifest}" ]; then
-            echo "Tag ${GITHUB_REF_NAME} does not match package.json version ${manifest}." >&2
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match package.json version ${manifest}." >&2
             echo "Retag, or bump the manifest -- do not publish a mismatch." >&2
             exit 1
           fi
-          echo "Publishing version ${manifest}."
+
+          default_branch="${DEFAULT_BRANCH}"
+          git fetch --no-tags origin "+refs/heads/${default_branch}:refs/remotes/origin/${default_branch}"
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" "refs/remotes/origin/${default_branch}"; then
+            echo "::error::Tag ${GITHUB_REF_NAME} (${GITHUB_SHA}) is not an ancestor of ${default_branch}." >&2
+            echo "Only reviewed, merged commits may be published." >&2
+            exit 1
+          fi
+
+          echo "version=${manifest}" >> "${GITHUB_OUTPUT}"
+          echo "Publishing version ${manifest} from tag ${GITHUB_REF_NAME} (${GITHUB_SHA})."
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
 
       - name: Refuse to republish an existing version
         run: |
@@ -101,6 +157,17 @@ jobs:
       - name: Publish
         if: github.event_name == 'push' || inputs.dry_run == false
         run: |
+          set -euo pipefail
+          # Re-read the manifest at the point of upload rather than trusting
+          # the earlier step's output: the gates above run npm ci, pack and
+          # the full suite, and a publish must be of the version that was
+          # actually authorized.
+          manifest="$(node -p "require('./package.json').version")"
+          if [ "v${manifest}" != "${GITHUB_REF_NAME}" ] || [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            echo "::error::Release ref no longer matches ${manifest}; refusing to publish." >&2
+            exit 1
+          fi
+
           # secrets.NPM_TOKEN historically carried a trailing newline (set
           # from a piped echo, e.g. `echo $token | gh secret set`), which
           # makes npm's Authorization header illegal: "<token> is not a
@@ -115,4 +182,4 @@ jobs:
 
       - name: Dry run complete
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run
-        run: echo "Every gate passed. Re-run with dry_run unchecked, or push a v* tag, to publish."
+        run: echo "Every gate passed on tag ${GITHUB_REF_NAME}. Re-run with dry_run unchecked, or push a v* tag, to publish."
