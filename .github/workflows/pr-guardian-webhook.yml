@@ -1,16 +1,25 @@
 name: PR Guardian webhook
 
-# This workflow never checks out or executes pull-request code. It only
-# serializes trusted event metadata and sends it to the HUQAN PR Guardian
-# webhook. Fork PRs are handled by the external GitHub App/webhook boundary;
-# this Actions path is limited to same-repository PRs because pull_request
-# workflows do not receive repository secrets for forked code.
+# This workflow never executes pull-request code. It serializes trusted event
+# metadata and sends it to the HUQAN PR Guardian webhook. It does check out the
+# repository, but pinned to `github.event.pull_request.base.sha` -- the reviewed
+# base tree, never the PR merge commit -- because two steps run scripts from the
+# working tree while the job holds PR_GUARDIAN_WEBHOOK_SECRET and, in its last
+# step, GITHUB_TOKEN. Any change here that lets the PR's own tree reach those
+# steps hands a repository secret to whoever opened the pull request; the
+# checkout step below says so again at the point where it matters, and
+# test/pr-guardian-webhook-destination.test.js fails if the pin is dropped.
+#
+# Fork PRs are handled by the external GitHub App/webhook boundary; this Actions
+# path is limited to same-repository PRs because pull_request workflows do not
+# receive repository secrets for forked code.
 #
 # The job is also skipped until PR_GUARDIAN_WEBHOOK_URL is configured. The
 # webhook boundary is a separate deployment step, so a repository that has not
 # stood one up yet must not have every pull request fail on a webhook that does
-# not exist. Once the variable is set the in-step guards below still fail closed
-# on a missing secret, a non-2xx response, or an unrecognized decision.
+# not exist. Once the variable is set the destination check and the in-step
+# guards below still fail closed on an unsafe destination, a missing secret, a
+# non-2xx response, or an unrecognized decision.
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -76,10 +85,11 @@ jobs:
           set -Eeuo pipefail
           umask 077
 
-          if [[ -z "${PR_GUARDIAN_WEBHOOK_URL}" ]]; then
-            echo "::error::Repository variable PR_GUARDIAN_WEBHOOK_URL is not configured."
-            exit 1
-          fi
+          # PR_GUARDIAN_WEBHOOK_URL is not re-checked here: the job's `if:`
+          # requires it to be non-empty, and the destination check step above
+          # rejects an empty value before this step runs. A third copy of that
+          # branch could never execute, and an unreachable guard reads like the
+          # real one.
           if [[ -z "${PR_GUARDIAN_WEBHOOK_SECRET}" ]]; then
             echo "::error::Repository secret PR_GUARDIAN_WEBHOOK_SECRET is not configured."
             exit 1

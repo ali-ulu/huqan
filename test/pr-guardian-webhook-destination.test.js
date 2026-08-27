@@ -147,13 +147,41 @@ test('the scripts this job runs come from the trusted base ref, not the PR', () 
   // checkout in a `pull_request` workflow lands the PR merge commit, so anyone
   // who can push a branch here could rewrite either script and read the secret
   // out. Pin the checkout to the base SHA.
-  assert.match(workflow, /ref: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/);
-  assert.match(workflow, /persist-credentials: false/);
+  assert.match(workflow, /^\s*ref: \$\{\{ github\.event\.pull_request\.base\.sha \}\}\s*$/m);
+  assert.match(workflow, /^\s*persist-credentials: false\s*$/m);
 
+  // Match the `ref:` line itself, not the prose above it that names the same
+  // expression -- otherwise a comment mentioning base.sha satisfies the check.
   const checkoutIndex = workflow.indexOf('actions/checkout@');
-  const refIndex = workflow.indexOf('github.event.pull_request.base.sha');
+  const refIndex = workflow.search(/^\s*ref: \$\{\{ github\.event\.pull_request\.base\.sha \}\}\s*$/m);
   const firstScriptIndex = workflow.indexOf('node scripts/check-pr-guardian-webhook-url.js');
-  assert.ok(checkoutIndex > -1 && refIndex > checkoutIndex && refIndex < firstScriptIndex);
+  assert.ok(checkoutIndex > -1, 'the job must check out the repository');
+  assert.ok(refIndex > checkoutIndex, 'the ref must belong to the checkout step');
+  assert.ok(refIndex < firstScriptIndex, 'the pinned checkout must precede the first script step');
+});
+
+test('the header comment matches what the job actually does', () => {
+  const workflow = fs.readFileSync(WORKFLOW, 'utf8');
+  const header = workflow.slice(0, workflow.indexOf('\non:'));
+  // The job does check out the repository (#1683). A header claiming otherwise
+  // is how a future change re-adds a default checkout believing none was
+  // intended, silently restoring the merge-commit checkout the pin prevents.
+  assert.doesNotMatch(header, /never checks out/);
+  assert.match(header, /base\.sha/);
+});
+
+test('the payload step does not re-check what the destination step already rejected', () => {
+  const workflow = fs.readFileSync(WORKFLOW, 'utf8');
+  const payloadStep = workflow.slice(
+    workflow.indexOf('- name: Build signed GitHub pull_request payload'),
+    workflow.indexOf('- name: Send signed payload to HUQAN'),
+  );
+  // An unreachable guard reads like the real one: the job's `if:` requires a
+  // non-empty URL and the destination check rejects one anyway.
+  assert.doesNotMatch(payloadStep, /if \[\[ -z "\$\{PR_GUARDIAN_WEBHOOK_URL\}" \]\]/);
+  // The guards that can still fire stay.
+  assert.match(payloadStep, /if \[\[ -z "\$\{PR_GUARDIAN_WEBHOOK_SECRET\}" \]\]/);
+  assert.match(payloadStep, /PR_HEAD_SHA/);
 });
 
 test('the fail-closed signature and response handling are untouched', () => {
