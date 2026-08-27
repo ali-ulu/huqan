@@ -10,6 +10,8 @@ const readline = require('node:readline');
 const { once } = require('node:events');
 
 const MCP_SERVER_PATH = path.resolve(__dirname, '..', 'mcpServer.js');
+const { createMcpOperatorCapability, operatorCapabilityBinding } = require('../mcpServer');
+const { canonicalMcpToolName } = require('../lib/mcp-tool-names');
 
 function createDogfoodClient(envOverrides = {}) {
   const proc = cp.spawn(process.execPath, [MCP_SERVER_PATH], {
@@ -76,8 +78,15 @@ function createDogfoodClient(envOverrides = {}) {
         },
       });
 
-      const requestParams = method === 'tools/call' && ['huqan.approvals', 'huqan.approve', 'axiom.approvals', 'axiom.approve'].includes(params?.name)
-        ? { ...params, operatorToken: 'test-operator' }
+      const canonicalName = canonicalMcpToolName(params?.name);
+      const requestParams = method === 'tools/call' && ['huqan.approvals', 'huqan.approve', 'huqan.agent_resume'].includes(canonicalName)
+        ? {
+            ...params,
+            operatorCapability: createMcpOperatorCapability({
+              secret: 'test-operator',
+              ...operatorCapabilityBinding(canonicalName, params.arguments || {}),
+            }),
+          }
         : params;
       proc.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id, method, params: requestParams })}\n`);
     });

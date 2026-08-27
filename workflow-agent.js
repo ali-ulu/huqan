@@ -1,6 +1,7 @@
 ﻿const { INTERNAL_TOOLS, evaluateToolPolicy } = require('./toolPolicy');
 const { buildFinalSummary } = require('./finalizer');
-const { evaluateAgentActionFirewall, firewallError } = require('./lib/agent-action-firewall');
+const { RECEIVER_OWNED_INTERNAL_TOOL, registerReceiverOwnedTool } = require('./lib/workflow-tool-registration');
+const { evaluateAgentActionFirewall, firewallError, createReceiverOwnedInternalActionRequest } = require('./lib/agent-action-firewall');
 const { createExecutionScope, evaluateGoalBinding } = require('./lib/goal-binding');
 const {
   buildReport,
@@ -366,7 +367,6 @@ class ToolRegistry {
     this._order = 0;
     this._internalTools = new Set([
       ...Array.from(INTERNAL_TOOLS || []),
-      ...Array.isArray(opts.internalTools) ? opts.internalTools.map(normalizeName) : [],
     ].map(normalizeName));
   }
 
@@ -392,18 +392,14 @@ class ToolRegistry {
       throw new Error(`Tool ${name} must define run(context, input).`);
     }
 
-    // Custom registrations must declare their trust class. Treating every
-    // unknown/malformed kind as internal makes a missing metadata field an
-    // approval-gate bypass (#783). The small canonical set remains compatible
-    // with the legacy built-in registration path; generated workflow tools
-    // receive an explicit kind in registerDefaultWorkflowTools().
     const declaredKind = tool.kind;
-    const kind = declaredKind === undefined && INTERNAL_TOOLS.has(name)
-      ? 'internal'
-      : declaredKind;
-    if (kind !== 'internal' && kind !== 'external') {
+    if (declaredKind !== undefined && declaredKind !== 'internal' && declaredKind !== 'external') {
       throw new Error(`Tool ${name} must declare kind as "internal" or "external".`);
     }
+    const receiverOwnedInternal = tool[RECEIVER_OWNED_INTERNAL_TOOL] === true;
+    const internalAuthority = receiverOwnedInternal
+      || (INTERNAL_TOOLS.has(name) && declaredKind !== 'external');
+    const kind = internalAuthority ? 'internal' : 'external';
 
     const record = {
       name,
@@ -411,6 +407,7 @@ class ToolRegistry {
       inputSchema: tool.inputSchema ? cloneValue(tool.inputSchema) : { type: 'object' },
       run: tool.run,
       kind,
+      internalAuthority,
       cost: normalizePositiveInteger(tool.cost, 1),
       order: Number.isFinite(tool.order) ? Number(tool.order) : this._order,
       tags: Array.isArray(tool.tags) ? [...tool.tags] : [],
@@ -450,7 +447,7 @@ class ToolRegistry {
   _policyInternalTools() {
     const names = new Set([...this._internalTools]);
     for (const tool of this._tools) {
-      if (tool.kind !== 'external') {
+      if (tool.internalAuthority === true) {
         names.add(tool.name);
       }
     }
@@ -500,7 +497,7 @@ class ToolRegistry {
           reviewedBy: 'workflow-operator',
         }
       : context.agentActionApproval;
-    const firewall = evaluateAgentActionFirewall({
+    const firewallRequest = {
       surface: 'workflow',
       tool: tool.name,
       action: context.action || context.step?.action || context.operationType || tool.name,
@@ -513,8 +510,10 @@ class ToolRegistry {
       approval: firewallApproval,
       preview: context.preview === true,
       dryRun: context.dryRun === true,
-      trustedInternal: tool.kind === 'internal',
-    });
+    };
+    const firewall = evaluateAgentActionFirewall(tool.internalAuthority === true
+      ? createReceiverOwnedInternalActionRequest(firewallRequest)
+      : firewallRequest);
 
     // A review is an execution gate, not a post-execution label. The same
     // unforgeable operator approval that satisfies external review may release
@@ -952,6 +951,7 @@ class WorkflowAgent {
 module.exports = WorkflowAgent;
 module.exports.WorkflowAgent = WorkflowAgent;
 module.exports.ToolRegistry = ToolRegistry;
+module.exports.registerReceiverOwnedTool = registerReceiverOwnedTool;
 module.exports.normalizeConfidence = normalizeConfidence;
 module.exports.normalizeEvidence = normalizeEvidence;
 module.exports.normalizeError = normalizeError;
