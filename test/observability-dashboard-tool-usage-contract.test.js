@@ -4,7 +4,7 @@ const vm = require('node:vm');
 const test = require('node:test');
 
 const dashboard = fs.readFileSync('public/index.html', 'utf8');
-const script = dashboard.match(/<script>([\s\S]*)<\/script>/)?.[1];
+const script = dashboard.match(/<script>([\s\S]*)<\/script>/)?.[1].replace(/\r\n/g, '\n');
 
 assert.ok(script, 'dashboard inline script must exist');
 
