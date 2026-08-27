@@ -47,6 +47,28 @@ jobs:
       PR_ACTOR: ${{ github.actor }}
       PR_DELIVERY_ID: pr-guardian-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
+      # The destination is a repository variable, and the payload plus its
+      # HMAC signature go wherever it points. Validate it before the payload
+      # step builds or signs anything: HTTPS for any remote host, cleartext
+      # HTTP only for loopback and only off a runner, and no credentials,
+      # fragment, query or malformed origin (#1677).
+      # Pinned to the base SHA, never the PR merge commit. This job holds
+      # PR_GUARDIAN_WEBHOOK_SECRET at job level and GITHUB_TOKEN in the comment
+      # step, and it runs two scripts from the working tree. A default checkout
+      # in a `pull_request` workflow gives the merge commit -- code the PR
+      # author wrote -- so anyone able to push a branch in this repository could
+      # rewrite either script and read the secret out. The base ref is the
+      # trusted tree: it is what review already approved, and the scripts here
+      # have no reason to be the PR's versions of themselves.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Require an HTTPS webhook destination
+        shell: bash
+        run: node scripts/check-pr-guardian-webhook-url.js
+
       - name: Build signed GitHub pull_request payload
         id: payload
         shell: bash
