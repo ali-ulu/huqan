@@ -321,6 +321,7 @@
     "lib/mcp-agent-approval-execution.js",
     "lib/mcp-approval-admission.js",
     "lib/mcp-approval-decision-handler.js",
+    "lib/mcp-capability-nonce-store.js",
     "lib/mcp-human-oversight-adapter.js",
     "lib/mcp-approval-store.js",
     "lib/mcp-approval-views.js",
