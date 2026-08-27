@@ -8,6 +8,11 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { constantTimeEqual } = require('./requestGuards');
+const {
+  capabilityBinding,
+  createMcpOperatorCapability,
+  verifyMcpOperatorCapability,
+} = require('./lib/mcp-operator-capability');
 const { buildKernelOptsFromEnv } = require('./lib/kernel-factory');
 const { createAgent } = require('./agentRuntime');
 const { evaluateMcpGate, MCP_GATE_DECISIONS } = require('./lib/mcp-gate-adapter');
@@ -111,14 +116,40 @@ function toolCallFailure(err) {
   return { content: [{ type: 'text', text: `INTERNAL_ERROR (ref: ${errorRef})` }], isError: true };
 }
 
+function operatorCapabilityBinding(name, args) {
+  return capabilityBinding({
+    tool: name,
+    workspaceId: String(args.workspaceId || 'default'),
+    approvalId: name === 'huqan.approve' ? String(args.approvalId || '') : null,
+    runId: name === 'huqan.agent_resume' ? String(args.runId || args.checkpointId || '') : null,
+    arguments: args,
+  });
+}
+
 function isMcpOperatorAuthorized(configuredToken, presentedToken) {
   if (typeof configuredToken !== 'string' || typeof presentedToken !== 'string' || !configuredToken || !presentedToken) return false;
-  // requestGuards.constantTimeEqual hashes both operands, so the compared
-  // buffers are always the same size. A `length === length &&` guard in front
-  // of timingSafeEqual short-circuits: on a mismatch the comparison never runs
-  // and the call returns measurably sooner, which leaks the configured token's
-  // length and lets an attacker shrink the search space (#1038).
   return constantTimeEqual(configuredToken, presentedToken);
+}
+
+function operatorCapabilityAuthorized(runtime, name, args, presentedCapability, presentedToken) {
+  const secret = runtime?.operatorSecret;
+  if (typeof secret === 'string' && secret && typeof presentedCapability === 'string') {
+    const binding = operatorCapabilityBinding(name, args);
+    const result = verifyMcpOperatorCapability({
+      secret,
+      capability: presentedCapability,
+      expected: binding,
+      nonceStore: runtime.operatorCapabilityNonces,
+    });
+    return result.ok === true;
+  }
+  // Deprecated in-process compatibility only. createServer() never supplies
+  // operatorToken to this seam, so a network MCP caller cannot use the static
+  // credential path. CLI and HTTP production callers use scoped capabilities.
+  if (typeof runtime?.operatorToken === 'string' && typeof presentedToken === 'string') {
+    return isMcpOperatorAuthorized(runtime.operatorToken, presentedToken);
+  }
+  return false;
 }
 
 function createServer(kernelOrOptions = {}) {
@@ -129,6 +160,7 @@ function createServer(kernelOrOptions = {}) {
   const kernel = options.kernel || createKernelFromEnv();
   const approvalStore = createApprovalStoreFromKernel(kernel, { ...envKernelOpts, ...options });
   const operatorToken = options.operatorToken || process.env[MCP_OPERATOR_TOKEN_ENV] || '';
+  const operatorCapabilityNonces = new Map();
   let companyRuntimeReady = false;
   function ensureCompanyRuntime() {
     if (typeof kernel.hasCapability === 'function' && !kernel.hasCapability('companyMode')) {
@@ -146,6 +178,7 @@ function createServer(kernelOrOptions = {}) {
     kernel,
     approvalStore,
     operatorToken,
+    operatorCapabilityNonces,
     handleRequest(message) {
       if (!message || typeof message !== 'object') {
         return { jsonrpc: '2.0', error: { code: -32600, message: 'Invalid Request' } };
@@ -181,7 +214,8 @@ function createServer(kernelOrOptions = {}) {
         try {
           const result = callTool(kernel, params, {
             approvalStore,
-            operatorToken,
+            operatorSecret: operatorToken,
+            operatorCapabilityNonces,
             trustEvidenceLedger: options.trustEvidenceLedger || null,
             ensureRuntime: ensureCompanyRuntime,
             humanOversightApprovalRuntime: options.humanOversightApprovalRuntime || null,
@@ -328,15 +362,15 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
   const args = parseJsonObject(safeParams.arguments, {});
 
   if (name === 'huqan.approve' || name === 'huqan.approvals' || name === 'huqan.agent_resume') {
-    if (!isMcpOperatorAuthorized(runtime.operatorToken, safeParams.operatorToken)) {
+    if (!operatorCapabilityAuthorized(runtime, name, args, safeParams.operatorCapability, safeParams.operatorToken)) {
       return withMcpToolVerdictSurface(
         failApprovalDecision(
           'OPERATOR_AUTH_REQUIRED',
           name === 'huqan.agent_resume'
             // Not an approval operation, and saying so matters: the operator
             // reading this needs to know which capability was demanded of them.
-            ? 'A separate operator capability is required to resume an agent run.'
-            : 'A separate operator capability is required for MCP approval operations.',
+            ? 'A scoped operator capability is required to resume an agent run.'
+            : 'A scoped operator capability is required for this MCP approval operation.',
         ),
         name,
         args,
@@ -736,4 +770,8 @@ module.exports = {
   sanitizeToolArgsForStorage,
   executeReadOnlyDryRun,
   withTransientAgent,
+  capabilityBinding,
+  createMcpOperatorCapability,
+  verifyMcpOperatorCapability,
+  operatorCapabilityBinding,
 };

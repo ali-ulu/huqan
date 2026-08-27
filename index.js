@@ -32,6 +32,10 @@ const trustEvidenceLedger = require('./lib/trust-evidence-ledger');
 const humanOversightApprovalRuntime = require('./lib/human-oversight-approval-runtime');
 const prGuardian = require('./lib/pr-guardian');
 const multiAgentCascadeGuard = require('./lib/multi-agent-cascade-guard');
+const trustReceiptPilot = require('./lib/pilot/trust-receipt-pilot');
+const trustReceiptPilotArchive = require('./lib/pilot/trust-receipt-pilot-archive');
+const pilotTestDatabaseBoundary = require('./lib/pilot/test-database-boundary');
+const observabilityClient = require('./lib/observability/client');
 
 module.exports = KernelV2;
 
@@ -100,3 +104,20 @@ module.exports.PRGuardian = prGuardian;
 module.exports.MultiAgentCascadeGuard = multiAgentCascadeGuard;
 module.exports.createMultiAgentCascadeGuard = multiAgentCascadeGuard.createMultiAgentCascadeGuard;
 module.exports.MULTI_AGENT_CASCADE_REASONS = multiAgentCascadeGuard.REASONS;
+
+// Bounded Trust Receipt pilot surface for one real issuer-to-receiver event.
+module.exports.TrustReceiptPilot = trustReceiptPilot;
+module.exports.buildPilotTrustReceipt = trustReceiptPilot.buildPilotTrustReceipt;
+module.exports.projectPilotTrustReceipt = trustReceiptPilot.projectPilotTrustReceipt;
+module.exports.verifyPilotTrustReceipt = trustReceiptPilot.verifyPilotTrustReceipt;
+module.exports.verifyPilotPublicProjection = trustReceiptPilot.verifyPilotPublicProjection;
+module.exports.createPilotReceiptArchive = trustReceiptPilotArchive.createPilotReceiptArchive;
+module.exports.assertPilotTestDatabaseBoundary = pilotTestDatabaseBoundary.assertPilotTestDatabaseBoundary;
+
+// Stable local-first AgentV3 framework integration. The client hashes goals
+// before handing them to the observability service and forwards only bounded,
+// workspace-scoped telemetry fields; it has no network side effects.
+module.exports.ObservabilityTelemetryClient = observabilityClient;
+module.exports.createObservabilityTelemetryClient = observabilityClient.createObservabilityTelemetryClient;
+module.exports.OBSERVABILITY_CLIENT_ERRORS = observabilityClient.OBSERVABILITY_CLIENT_ERRORS;
+module.exports.TELEMETRY_EVENT_TYPES = observabilityClient.TELEMETRY_EVENT_TYPES;

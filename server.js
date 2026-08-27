@@ -36,8 +36,7 @@ const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
 const { createExternalClientProductionBoundary } = require('./lib/external-client-production-boundary');
 const { createOptionalRouteBoundaries } = require('./lib/http/optional-boundaries'), { createPrGuardianOptions } = require('./lib/http/pr-guardian-config');
 const { projectUploadAdmission } = require('./lib/http/upload-admission-contract');
-const { absent, createMutationAdmission } = require('./lib/mutation-admission');
-const { createIngestApprovalAuditWriter } = require('./lib/workbench/ingest-approval-audit-writer');
+const { createHttpIngestApprovalAuditWriter } = require('./lib/http/ingest-approval-audit-writer');
 const { createTrustEvidenceLedger } = require('./lib/trust-evidence-ledger');
 const pkg = require('./package.json');
 const {
@@ -69,7 +68,6 @@ let companyRuntimeReady = false;
 let ingestApprovalStore = null;
 const INGEST_APPROVAL_WORKER_ID = `http-ingest-${crypto.randomUUID()}`;
 const INGEST_APPROVAL_LEASE_MS = Math.max(30_000, Math.min(900_000, Number(readCompatibleEnvironmentVariable('INGEST_APPROVAL_LEASE_MS')) || 120_000));
-
 function getIngestApprovalStore() {
   if (ingestApprovalStore) return ingestApprovalStore;
   ingestApprovalStore = new HuqanStorage({ kernel });
@@ -129,12 +127,7 @@ function getHttpApprovalRuntimeConfig() {
   });
 }
 
-const recordIngestApprovalAudit = createIngestApprovalAuditWriter({
-  graph: kernel.graph,
-  admission: createMutationAdmission({ identityEvaluator: absent('HTTP ingest-approval audit callers carry no receiver-owned identity claim yet') }),
-  hashResult: sha256,
-  ledger: trustEvidenceLedger,
-});
+const recordIngestApprovalAudit = createHttpIngestApprovalAuditWriter({ graph: kernel.graph, getIdentityConfig: () => httpAgentIdentityConfig, hashResult: sha256, ledger: trustEvidenceLedger });
 
 // --- Güvenlik sabitleri ---
 const backgroundTimers = createBackgroundTimers();
@@ -145,9 +138,7 @@ const VIEWER_RATE_LIMIT_WINDOW_MS = 60_000;
 const VIEWER_RATE_LIMIT_MAX = 120;
 const VIEWER_RATE_LIMIT_MAX_ENTRIES = 2048;
 const viewerRateLimits = new Map();
-backgroundTimers.add(setInterval(() => {
-  try { recoverExpiredIngestApprovals(); } catch (error) { console.error('[ingest-approval-recovery] failed:', error); }
-}, Math.max(5_000, Math.floor(INGEST_APPROVAL_LEASE_MS / 2))));
+backgroundTimers.add(setInterval(() => { try { recoverExpiredIngestApprovals(); } catch (error) { writeStructuredLog(console, 'error', 'http.ingest_approval_recovery_error', {}, { runtime: 'http', errorCode: error?.code || 'INGEST_APPROVAL_RECOVERY_FAILED' }); } }, Math.max(5_000, Math.floor(INGEST_APPROVAL_LEASE_MS / 2))));
 
 const {
   ALLOWED_CORS_HOSTS,
@@ -177,7 +168,7 @@ const {
 const { runPublicApiCommand } = require('./lib/http/public-api-commands');
 const { V2_STATUS_PHASES } = require('./lib/http/v2-status-phases');
 const { buildGraphData } = require('./lib/server-graph-data');
-const { createRuntimeStatusHandlers } = require('./lib/http/runtime-status');
+const { createRuntimeStatusHandlers } = require('./lib/http/runtime-status'); const { createRequestCorrelation, writeStructuredLog } = require('./lib/http/structured-log');
 
 async function submitIngestApproval(data) {
   const snapshot = buildIngestApprovalSnapshot(data);
@@ -223,16 +214,10 @@ async function submitIngestApproval(data) {
 }
 const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, workspaceId, decision, reason }) => decideIngestApproval({ store: getIngestApprovalStore(), kernel, approvalId, workspaceId, decision, reason, humanOversight: getHttpApprovalRuntimeConfig(), handleIngest, ensureRuntime: ensureCompanyRuntime, recordAudit: recordIngestApprovalAudit, toPublicApproval: publicIngestApproval, workerId: INGEST_APPROVAL_WORKER_ID, leaseMs: INGEST_APPROVAL_LEASE_MS }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, learnDocument: (text, options) => kernel.learnDocument(text, options), submitIngest: submitIngestApproval, createAgent: options => observabilityRuntime.createAgent(options) });
 
-// First caller of the V5 runtime family (#875 task pack). Issuer key records
-// are dependency-injected as receiver-owned state: with no real registry
-// populated yet the resolver answers every issuer as unknown and the route
-// stays fail-closed. No issuer record may ever come from the request body.
+// V5 issuer records are receiver-owned; an empty registry remains fail-closed.
 const issuerTrustedKeyRecords = [];
 let v5PackageImportRouteCache = null;
 function handleV5PackageImportRoute(req, res, reqUrl) {
-  // Lazy load: the V5 runtime family is repo-only (4C1 keeps the installed
-  // tarball minimal), so server.js must still load when the V5 module cannot
-  // be required. The route is activated by request, never at boot.
   if (v5PackageImportRouteCache === null) {
     try {
       const { createV5PackageImportRoute, createReceiverTrustedKeyResolver } = require('./lib/http/v5-package-import-route');
@@ -241,15 +226,20 @@ function handleV5PackageImportRoute(req, res, reqUrl) {
         trustedKeyResolver: createReceiverTrustedKeyResolver({ issuerRecords: issuerTrustedKeyRecords }),
         auditTarget: kernel.graph,
       });
-    } catch (_) {
-      // V5 module not available in this installation (installed tarball):
-      // the endpoint stays permanently unavailable instead of booting broken.
-      v5PackageImportRouteCache = () => false;
-    }
+    } catch (_) { v5PackageImportRouteCache = () => false; }
   }
   return v5PackageImportRouteCache(req, res, reqUrl);
 }
-
+let v5PreflightRouteCache = null;
+function handleV5PreflightRoute(req, res, reqUrl) {
+  if (v5PreflightRouteCache === null) {
+    try {
+      const { createV5PreflightRoute } = require('./lib/http/v5-preflight-route');
+      v5PreflightRouteCache = createV5PreflightRoute({ parseJsonRequest });
+    } catch (_) { v5PreflightRouteCache = () => false; }
+  }
+  return v5PreflightRouteCache(req, res, reqUrl);
+}
 function checkViewerRateLimit(req, timestamp = Date.now()) {
   const key = String(req.socket?.remoteAddress || 'unknown');
   let record = viewerRateLimits.get(key);
@@ -351,10 +341,9 @@ function getHtmlPage() {
   }
   return cachedHtmlPage;
 }
-
-
+const handleAnswerRoute = require('./lib/http/answer-route').createAnswerRoute({ kernel, legacyVerify, sanitizeInput, parseJsonRequest, denyIfUnauthorized, buildCorsHeaders, JSON_CONTENT_TYPE, DEFAULT_MAX_JSON_BODY, writeJson });
 const server = http.createServer(async (req, res) => {
-  try {
+  const correlation = createRequestCorrelation(req, res); try {
   res.setHeader('Connection', 'close');
   const rawPath = String(req.url || '').split('?', 1)[0].split('#', 1)[0];
   if (viewerGateway.isViewerPath(rawPath)) {
@@ -421,6 +410,7 @@ const server = http.createServer(async (req, res) => {
   if (await optionalRoutes.route(req, res, reqUrl)) return;
   if (await handleObservabilityRoute(req, res, reqUrl)) return;
   if (await handleV5PackageImportRoute(req, res, reqUrl)) return;
+  if (await handleV5PreflightRoute(req, res, reqUrl)) return;
   if (handleWorkflowContractRoute(req, res, reqUrl) || await handleReadWorkflow(req, res, reqUrl)) return;
   if (await handleWorkflowDataRoute(req, res, reqUrl)) return;
   // --- /graph-data ---
@@ -442,7 +432,7 @@ const server = http.createServer(async (req, res) => {
       });
       res.end(JSON.stringify(data));
     } catch (err) {
-      console.error('[graph-data]', err);
+      writeStructuredLog(console, 'error', 'http.graph_data_error', correlation, { route: '/graph-data', method: req.method, errorCode: err?.code || 'GRAPH_DATA_FAILED' });
       writeJson(req, res, 500, { error: 'Internal server error' });
     }
     return;
@@ -463,7 +453,7 @@ const server = http.createServer(async (req, res) => {
       });
       res.end(JSON.stringify(data));
     } catch (err) {
-      console.error('[v2-status]', err);
+      writeStructuredLog(console, 'error', 'http.v2_status_error', correlation, { route: '/v2-status', method: req.method, errorCode: err?.code || 'V2_STATUS_FAILED' });
       writeJson(req, res, 500, { error: 'Internal server error' });
     }
     return;
@@ -483,7 +473,7 @@ const server = http.createServer(async (req, res) => {
       });
       res.end(JSON.stringify(getHealthData()));
     } catch (err) {
-      console.error('[health]', err);
+      writeStructuredLog(console, 'error', 'http.health_error', correlation, { route: '/health', method: req.method, errorCode: err?.code || 'HEALTH_FAILED' });
       writeJson(req, res, 500, { error: 'Internal server error' });
     }
     return;
@@ -513,7 +503,7 @@ const server = http.createServer(async (req, res) => {
         // Boundary projection only — the kernel envelope itself is unchanged.
         writeJson(req, res, 200, toPublicVerifyEnvelope(result), { 'Cache-Control': 'no-cache' });
       } catch (err) {
-        console.error('[v2/verify]', err);
+        writeStructuredLog(console, 'error', 'http.v2_verify_error', correlation, { route: '/v2/verify', method: req.method, errorCode: err?.code || 'V2_VERIFY_FAILED' });
         writeJson(req, res, 500, { error: 'Internal server error' });
       }
     };
@@ -524,6 +514,9 @@ const server = http.createServer(async (req, res) => {
     sendVerifyResult(data.claim || data.statement || data.text || '', data.workspaceId || '');
     return;
   }
+
+  // /answer -> lib/http/answer-route.js (#328)
+  if (reqUrl.pathname === '/answer') { handleAnswerRoute(req, res, reqUrl); return; }
 
   // --- /llm-sor ---
   if (reqUrl.pathname === '/llm-sor') {
@@ -594,7 +587,7 @@ const server = http.createServer(async (req, res) => {
         learnResult: shield.learnResult,
       }));
     } catch (err) {
-      console.error('[llm-sor]', err);
+      writeStructuredLog(console, 'error', 'http.llm_sor_error', correlation, { route: '/llm-sor', method: req.method, errorCode: err?.code || 'LLM_SOR_FAILED' });
       writeJson(req, res, 500, { error: 'Internal server error' });
     }
     return;
@@ -626,7 +619,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
       res.end(JSON.stringify(result));
     } catch (err) {
-      console.error('[dogrula]', err);
+      writeStructuredLog(console, 'error', 'http.verify_error', correlation, { route: '/dogrula', method: req.method, errorCode: err?.code || 'VERIFY_FAILED' });
       writeJson(req, res, 500, { error: 'Internal server error' });
     }
     return;
@@ -671,7 +664,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
       res.end(JSON.stringify({ ok: true, learned: learnResult.learned, admission }));
     } catch (err) {
-      console.error('[yukle]', err);
+      writeStructuredLog(console, 'error', 'http.upload_error', correlation, { route: '/yukle', method: req.method, errorCode: err?.code || 'UPLOAD_FAILED' });
       writeJson(req, res, 500, { error: 'Internal server error' });
     }
     return;
@@ -688,7 +681,7 @@ const server = http.createServer(async (req, res) => {
       const status = await kernel.runCapability('ingestStatus', {});
       writeJson(req, res, 200, status, { 'Cache-Control': 'no-cache' });
     } catch (err) {
-      console.error('[ingest-status] failed:', err);
+      writeStructuredLog(console, 'error', 'http.ingest_status_error', correlation, { route: '/api/ingest/status', method: req.method, errorCode: err?.code || 'INGEST_STATUS_FAILED' });
       writeJson(req, res, 500, { error: 'ingest status failed' });
     }
     return;
@@ -817,7 +810,7 @@ const server = http.createServer(async (req, res) => {
         data: receipt,
       }, { 'Cache-Control': 'no-cache' });
     } catch (err) {
-      console.error('[trust-query] failed:', err);
+      writeStructuredLog(console, 'error', 'http.trust_query_error', correlation, { route: '/api/trust', method: req.method, errorCode: err?.code || 'TRUST_QUERY_FAILED' });
       writeApiError(req, res, 500, 'TRUST_QUERY_FAILED', 'trust query failed');
     }
     return;
@@ -881,7 +874,7 @@ const server = http.createServer(async (req, res) => {
       }
       writeJson(req, res, outcome.status, outcome.json, { 'Cache-Control': 'no-cache' });
     } catch (error) {
-      console.error('[ingest-approval] failed:', error);
+      writeStructuredLog(console, 'error', 'http.ingest_approval_error', correlation, { route: '/api/ingest/approval', method: req.method, errorCode: error?.code || 'INGEST_APPROVAL_FAILED' });
       writeApiError(req, res, 500, 'INGEST_APPROVAL_FAILED', 'Ingest approval failed; inspect unresolved approvals.');
     }
     return;
@@ -949,7 +942,7 @@ const server = http.createServer(async (req, res) => {
       });
       res.end(JSON.stringify({ result }));
     } catch (err) {
-      console.error('[api]', err);
+      writeStructuredLog(console, 'error', 'http.api_error', correlation, { route: '/api', method: req.method, errorCode: err?.code || 'API_FAILED' });
       writeJson(req, res, 500, { error: 'Internal server error' });
     }
     return;
@@ -961,7 +954,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', ...buildCorsHeaders(req), 'Cache-Control': 'no-cache' });
       res.end(getHtmlPage());
     } catch (err) {
-      console.error('[index]', err);
+      writeStructuredLog(console, 'error', 'http.index_error', correlation, { route: '/', method: req.method, errorCode: err?.code || 'INDEX_FAILED' });
       writeJson(req, res, 500, { error: 'Internal server error' });
     }
     return;
@@ -970,7 +963,7 @@ const server = http.createServer(async (req, res) => {
   res.writeHead(404, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
   res.end(JSON.stringify({ error: 'Not found' }));
   } catch (err) {
-    console.error('[server] unhandled error:', err);
+    writeStructuredLog(console, 'error', 'http.unhandled_error', correlation, { route: String(req.url || '').split('?', 1)[0], method: req.method, errorCode: err?.code || 'HTTP_UNHANDLED_ERROR' });
     if (!res.headersSent) {
       res.writeHead(500, { 'Content-Type': JSON_CONTENT_TYPE });
       res.end(JSON.stringify({ error: 'Internal server error' }));
@@ -1023,5 +1016,4 @@ module.exports.getRateLimitKey = getRateLimitKey;
 // Exposed so the index-page cache (#420) can be asserted directly, without
 // having to intercept fs from outside the module.
 module.exports.getHtmlPage = getHtmlPage;
-
 

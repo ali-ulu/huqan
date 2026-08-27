@@ -8,8 +8,8 @@ const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
 
 const { stableStringify } = require('../../lib/receipt/canonical-receipt');
-const { encodeJsonStableV1 } = require('../../lib/v5/cryptographic-profile-contract');
-const { exportPublicTrustReceipt } = require('../../lib/v5/public-trust-receipt');
+const { encodeJsonStableV1 } = require('../../lib/receipt/cryptographic-profile-contract');
+const { exportPublicTrustReceipt } = require('../../lib/receipt/public-trust-receipt');
 const {
   SCHEMA_VERSION,
   canonicalHash,

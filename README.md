@@ -1,8 +1,10 @@
 # HUQAN
 
-### Models generate. Agents act. Memory stores. **HUQAN judges.**
+> **Confidence is not truth. Verify before you trust.**
 
-HUQAN is a **local-first AI governance, agent-safety, and verification layer** for claims, memory writes, and risky actions. It connects AI-assisted work to evidence, provenance, scope, policy, approval, and auditable Trust Receipts.
+**HUQAN is a local-first, partial-trust AI governance and verification layer for claims, memory writes, and selected agent actions.** It connects AI-assisted work to evidence, provenance, workspace scope, policy, approval, verification, risk gates, audit records, and Trust Receipts.
+
+HUQAN is **not an LLM**, a universal truth engine, or a promise that hallucinations will disappear. Its purpose is narrower and practical: to make supported AI-agent workflows more observable, reviewable, and accountable before an output becomes a memory entry, decision, or real-world action.
 
 [![Version](https://img.shields.io/github/package-json/v/ali-ulu/huqan)](./package.json)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22.13.0-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org/)
@@ -11,174 +13,121 @@ HUQAN is a **local-first AI governance, agent-safety, and verification layer** f
 [![GitHub forks](https://img.shields.io/github/forks/ali-ulu/huqan?style=flat&logo=github)](https://github.com/ali-ulu/huqan/forks)
 [![Open issues](https://img.shields.io/github/issues/ali-ulu/huqan?style=flat&logo=github)](https://github.com/ali-ulu/huqan/issues)
 [![Last commit](https://img.shields.io/github/last-commit/ali-ulu/huqan?style=flat&logo=github)](https://github.com/ali-ulu/huqan/commits/main)
-[![Snikus](https://img.shields.io/badge/Snikus-Official%20Startup-7c3aed.svg)](https://snikus.com/startup.php?id=17)
 
-[Quick start](#quick-start) · [Observability quickstart](./docs/product-hunt-quickstart.md) · [Why HUQAN](#why-huqan) · [How it works](#how-it-works) · [Ways to run](#ways-to-run) · [Current scope](#current-scope)
+[Quick start](#quick-start) · [What is HUQAN?](#what-is-huqan) · [How it works](#how-it-works) · [Capabilities](#current-capabilities) · [Ways to run](#ways-to-run) · [FAQ](#faq) · [Current scope](#current-scope)
 
-**Canonical repository:** `https://github.com/ali-ulu/huqan`
+**Canonical repository:** <https://github.com/ali-ulu/huqan>
 
 <p align="center">
-  <img src="./docs/assets/huqan-agent-evidence-receipt-flow.svg" alt="HUQAN Agent–Evidence–Receipt flow" width="100%">
+  <img src="./docs/assets/huqan-trust-receipt-pilot.png" alt="HUQAN Trust Receipt pilot showing evidence, review, approval, and bounded local proof" width="78%">
 </p>
+
+<p align="center"><em>A bounded local Trust Receipt pilot — evidence, review, approval, and audit context; not a universal truth or production-readiness claim.</em></p>
 
 ## What is HUQAN?
 
-AI systems can produce useful outputs without showing:
+AI systems can produce useful outputs while leaving important questions unanswered:
 
-- what source supports a claim,
-- which workspace or scope applies,
-- whether a risky action was approved,
-- what changed later,
-- or why a result was allowed, blocked, or escalated.
+- What evidence supports the claim?
+- Which provenance and workspace scope apply?
+- Was a memory write or risky action reviewed?
+- Which policy and risk checks were used?
+- Why was the result allowed, blocked, or escalated?
+- What auditable record remains after the decision?
 
-HUQAN adds a deterministic, auditable trust boundary around those decisions on its tested local paths.
+HUQAN adds a **bounded, deterministic, and auditable trust boundary** around these questions on its tested local paths. It does not make the underlying model truthful by itself. Instead, it helps a developer or operator inspect the evidence and decision context before trusting a supported result.
 
-```text
-claim or action
-      ↓
-evidence + provenance + scope + policy
-      ↓
-verification + contradiction + risk gates
-      ↓
-ALLOW / BLOCK / ESCALATE
-      ↓
-Trust Receipt + audit context
-```
-
-HUQAN is not another LLM. Its core local graph, verification, gate, and receipt paths do not require a hosted model or cloud service.
+> **Short definition:** HUQAN is local-first governance infrastructure for evidence, provenance, policy, approval, verification, and Trust Receipts around AI-assisted work.
 
 ## Why HUQAN?
 
-| Need | HUQAN provides |
-|---|---|
-| **Repeatable decisions** | Deterministic verification and policy outcomes on tested paths |
-| **Evidence traceability** | Provenance, graph evidence, reasoning context, and receipt links |
-| **Safer AI agents** | Explicit review, block, escalation, and dry-run boundaries |
-| **Protected memory** | Admission and workspace checks before canonical memory writes |
-| **Auditability** | Trust Receipts and append-oriented audit records |
-| **Local operation** | CLI, local server, and MCP flows without a required cloud dependency |
+The central distinction is between an AI system **generating** an output and a person or system **trusting** that output. HUQAN focuses on the boundary between those two events.
 
-HUQAN is designed for AI governance, agent safety, LLM-output verification, approval workflows, provenance tracking, MCP integrations, and audit-ready AI-assisted work.
+| Need | HUQAN’s bounded contribution |
+|---|---|
+| Evidence traceability | Graph-backed evidence, provenance references, scope context, and receipt links |
+| Repeatable checks | Deterministic verification, contradiction checks, and policy outcomes on tested paths |
+| Agent-action review | Review, approval, dry-run, escalation, and block boundaries on supported paths |
+| Protected memory | Admission and workspace checks before canonical memory writes |
+| Auditability | Append-oriented audit context, canonical Trust Receipts, and receipt chains |
+| Local-first operation | CLI, local REST server, MCP, library, and local UI surfaces without a required hosted model |
+
+## How it works
+
+```text
+claim, memory write, or agent action
+                ↓
+evidence + provenance + workspace scope
+                ↓
+verification + contradiction + risk checks
+                ↓
+policy decision and approval boundary
+                ↓
+ALLOW / BLOCK / REVIEW / ESCALATE / DRY-RUN ONLY
+                ↓
+Trust Receipt + audit context
+```
+
+The main local runtime flow is:
+
+```mermaid
+flowchart LR
+    A[Agent or user output] --> B[Evidence and provenance]
+    B --> C[Verification and contradiction checks]
+    C --> D[Scope, policy, and risk gates]
+    D -->|approved| E[Trusted state or permitted action]
+    D -->|blocked or uncertain| F[Block, review, or escalate]
+    E --> G[Trust Receipt]
+    F --> G
+```
+
+A passing verification result is not a universal certificate of truth. It is a result produced within the configured evidence, provenance, workspace, policy, and runtime boundary.
 
 ## Quick start
 
 ### Requirements
 
-- Git
-- npm
-- **Node.js 22.13.0 or newer**
-- Node.js 22 LTS or 24 LTS is recommended
-- A compiler toolchain may be required if your platform cannot use a prebuilt `better-sqlite3` binary
+You need Git, npm, and **Node.js 22.13.0 or newer**. Node.js 22 LTS or 24 LTS is recommended. A compiler toolchain may be required on platforms that cannot use a prebuilt `better-sqlite3` binary.
 
-> Node.js 20 reached end-of-life on 2026-04-30 and is no longer supported. It was dropped because `pdfjs-dist` requires `>=22.13.0`, so on Node 20 npm silently skipped that optional dependency and the PDF adapter could not load — a runtime this project claimed to support could not run a feature it shipped.
-
-### Install
+### Install the published package
 
 ```bash
 npm install -g huqan
 ```
 
-That gives you two commands: `huqan` (the CLI) and `huqan-mcp` (the MCP server
-over stdio). Neither needs a config file or an API key to start.
+This installs two commands:
 
-For a one-off run without installing anything:
+- `huqan` — the local CLI.
+- `huqan-mcp` — the MCP server over stdio.
+
+Neither command requires a configuration file or API key merely to start.
+
+For a one-off run without a global install:
 
 ```bash
 npx -y huqan quickstart
 ```
 
-#### A smaller install
-
-PDF ingest (`pdfjs-dist`) and PDF receipt export (`pdfkit`) are optional
-dependencies. They install by default; skipping them takes the install from
-about 111 MB to about 20 MB, and everything except the two PDF paths still
-works:
-
-```bash
-npm install -g huqan --omit=optional
-```
-
-Reading a PDF or exporting a receipt as PDF then fails with a message naming
-the package to install; JSON receipt export and every other adapter are
-unaffected.
-
-Publishing a new version of the package is documented in
-[docs/npm-publish.md](./docs/npm-publish.md).
-
-### Install from source
-
-Use this to contribute, or to run a revision that is not published yet.
+### Run from source
 
 ```bash
 git clone https://github.com/ali-ulu/huqan.git
 cd huqan
 npm ci
+node cli.js quickstart
 ```
 
-`gh repo clone ali-ulu/huqan` works the same way.
-
-### Optional Rust graph accelerator
-
-The repository includes an optional `huqan-core` Rust JSON-IPC accelerator. It is not required for the normal CLI, server, MCP, or canonical `kernel.learn()` path; when the binary is unavailable, HUQAN keeps its existing JavaScript behavior.
-
-On Linux, macOS, or another native Cargo target, build the release binary from the repository root:
-
-```bash
-cd huqan-core
-cargo build --release
-cd ..
-```
-
-On Windows, the existing MinGW cross-build remains available:
-
-```powershell
-cd huqan-core
-.\build.ps1 -Toolchain gnu
-```
-
-A Windows host with the MSVC Rust target can use the new build option instead:
-
-```powershell
-.\build.ps1 -Toolchain msvc
-```
-
-The runtime discovers `huqan-core/target/release/huqan-core` (or `.exe` on Windows). To select a binary elsewhere, set `HUQAN_RUST_BIN` before starting Node; the legacy compatible spelling is accepted when the canonical variable is absent. If both compatible names are set to different values, startup fails closed rather than choosing one silently.
-
-The Rust learn accelerator is batched to amortize JSON-IPC round trips and is used by the isolated reasoning sandbox. The canonical `kernel.learn()` and `learnDocument()` methods remain synchronous and admission/durability-governed, so enabling Rust does not bypass provenance, policy, audit, or Trust Receipt semantics. Compare the optional path against the canonical JavaScript path with:
-
-```bash
-node benchmarks/rust-vs-js-graph.js 2000
-```
-
-When no binary is present, the benchmark reports that fact and keeps the JavaScript result as the reference; it does not claim Rust throughput without a built binary.
-
-### Fix an existing clone that still points to an old repository name
-
-```bash
-git remote set-url origin https://github.com/ali-ulu/huqan.git
-git remote -v
-```
-
-The `origin` fetch and push URLs should both be:
-
-```text
-https://github.com/ali-ulu/huqan.git
-```
+`gh repo clone ali-ulu/huqan` can be used instead of `git clone`.
 
 ### Your first Trust Receipt
-
-One command, no API key, no config file to edit:
 
 ```bash
 huqan quickstart
 ```
 
-From a source checkout, that is `npm ci && node cli.js quickstart`.
+From a source checkout, use `npm ci && node cli.js quickstart`. The quickstart exercises the local pipeline: propose a `huqan.learn` mutation, receive a review decision, persist approval, perform the canonical write, verify the claim against the graph, and print the resulting Trust Receipt.
 
-This runs the real pipeline end to end — `huqan.learn` is proposed, the
-mutation gate answers `review`, an approval is persisted, `huqan.approve`
-performs the canonical write, the claim is verified against the graph, and the
-resulting Trust Receipt is printed:
+Typical output has this shape:
 
 ```text
 HUQAN quickstart — learn -> review -> approve -> verify -> Trust Receipt
@@ -188,38 +137,72 @@ HUQAN quickstart — learn -> review -> approve -> verify -> Trust Receipt
   4. OK   receipt: receiptId … (status canonical)
 ```
 
-Quickstart runs in a throwaway store in your temp directory; it does not write
-to your own memory, and it does not relax any gate.
+The quickstart uses a throwaway store in the temporary directory. It does not write to your own memory and does not relax a gate.
 
-For an observability quickstart covering an isolated local server, real run
-telemetry, tool usage, alerts, queue state, and dashboard steps, see
-[Observability Quickstart](./docs/product-hunt-quickstart.md).
+### Run the bounded Trust Receipt pilot
 
-Authenticated observability access is fail-closed behind both the normal API key and an explicit workspace membership policy. Configure the local API-key principal with exact workspaces and roles before using these endpoints:
-
-```powershell
-$env:HUQAN_OBSERVABILITY_AUTHZ_POLICY = '{"memberships":[{"subject":"local-api-key","workspaceId":"demo","role":"admin"}]}'
-```
-
-Authenticated operational probes are available per exact workspace:
-
-```text
-GET /api/observability/health?workspaceId=<workspace>  # process liveness; HTTP 200 while the process can answer
-GET /api/observability/ready?workspaceId=<workspace>   # DB/schema/required-worker readiness; HTTP 503 when unready
-```
-
-Both responses report only bounded status, queue depth/lag, and the timestamp of the last successful event write. They never include goals, prompts, tool input/output, credentials, or database error messages. A deliberately disabled optional worker is reported as disabled without making synchronous HUQAN usage unready; a worker configured as enabled but not running does fail readiness.
-
-Roles are bounded: `viewer` can read and stream, `operator` can also enqueue, and `admin` can also create or delete alert rules. Wildcard, duplicate, malformed, missing, or cross-workspace membership is rejected. This local-first default has one authenticated API-key principal; multi-user deployments can inject another principal/membership resolver through the same authorization contract without changing observability routes.
-
-### Verify the local SQLite dependency and test suite
+The repository also contains a bounded local Trust Receipt pilot:
 
 ```bash
-node -e "const Database=require('better-sqlite3'); const db=new Database(':memory:'); db.close(); console.log('SQLite OK')"
-npm test
+npm run pilot:trust-receipt
 ```
 
-### Start the CLI
+Treat this as a scoped pilot and test surface, not as evidence of a complete shared-trust ecosystem or universal production readiness.
+
+### Optional smaller installation
+
+PDF ingest (`pdfjs-dist`) and PDF receipt export (`pdfkit`) are optional dependencies. To omit them:
+
+```bash
+npm install -g huqan --omit=optional
+```
+
+Reading a PDF or exporting a receipt as PDF then requires the corresponding package. JSON receipt export and other adapters remain separate paths.
+
+## Current capabilities
+
+The current repository exposes the following primitives and developer surfaces. Each capability remains bounded by its specific adapter, policy, workspace, approval, and runtime path.
+
+| Capability | What is documented or exercised |
+|---|---|
+| Graph-backed verification | Claims and relationships can be checked against the local graph on supported paths |
+| Evidence and provenance | Verification and receipt flows preserve source and decision context where the path provides it |
+| Contradiction checks | Supported verification paths can surface conflicting evidence instead of silently treating every claim as accepted |
+| Explicit relations | The current natural-language boundary includes `CAUSES`, `PREVENTS`, `ENABLES`, and `DEPENDS_ON` markers |
+| Memory admission | Canonical memory writes pass through admission and workspace checks |
+| Policy and risk gates | Supported actions can produce `allow`, `block`, `review`, `escalate`, or `dry_run_only` outcomes |
+| Human approval | Guarded mutations can require a separate approval step before the canonical write or action path |
+| Trust Receipts | Canonical receipt records preserve bounded evidence, provenance, decision, and audit context |
+| Error Prevention | The package root exposes a verified-failure and deterministic preflight core |
+| Package primitives | `.huqan` package primitives exist with legacy `.axiom.json` reader compatibility where documented |
+| Developer surfaces | CLI, REST, MCP, library, local UI, and read-only Trust Receipt Viewer surfaces are present |
+| A2A transport | Four routes are shipped but deployment-gated and unconfigured by default |
+| Agent Action Firewall | Production-wired coverage exists for documented classic agent, workflow/HTTP, and MCP action paths; it is not universal connector enforcement |
+
+## Ways to run
+
+### As a library
+
+```js
+const Kernel = require('huqan'); // KernelV2, the canonical runtime
+const kernel = new Kernel();
+```
+
+`require('huqan')` resolves to `KernelV2`, the runtime used by the CLI, REST server, and MCP server. The older `KernelV1` compatibility surface remains reachable as `require('huqan').KernelV1`, but it is deprecated and is not the canonical runtime option.
+
+The package root also exposes the Error Prevention core:
+
+```js
+const { createErrorPrevention } = require('huqan');
+const prevention = createErrorPrevention(kernel.memory, {
+  verifyEvidence,
+  resolveApproval,
+});
+```
+
+This is a package/library surface for verified failure memory, governed rule lifecycle, and deterministic preflight decisions. It is not an additional MCP tool.
+
+### Local CLI
 
 ```bash
 npm start
@@ -231,95 +214,19 @@ Direct invocation remains available:
 node cli.js
 ```
 
-Example controlled statements:
-
-```text
-Smoking causes lung cancer
-Vaccination prevents disease
-Authentication enables secure access
-Growth depends on investment
-```
-
 HUQAN currently handles explicit supported relation markers. It is not a general-purpose natural-language understanding engine.
-
-## How it works
-
-```mermaid
-flowchart LR
-    A[Agent or user output] --> B[Evidence and provenance]
-    B --> C[Verification and contradiction checks]
-    C --> D[Scope, policy, and risk gates]
-    D -->|approved| E[Trusted state or permitted action]
-    D -->|blocked or uncertain| F[Block or escalate]
-    E --> G[Trust Receipt]
-    F --> G
-```
-
-The main runtime layers are:
-
-```text
-CLI / REST / MCP / local UI
-            ↓
-agent routing and task dispatch
-            ↓
-safety gates and approval boundaries
-            ↓
-verification and graph reasoning
-            ↓
-provenance, receipts, and memory admission
-            ↓
-SQLite-backed local state and audit records
-```
-
-## Ways to run
-
-### As a library
-
-```js
-const Kernel = require('huqan'); // KernelV2, the canonical runtime
-const kernel = new Kernel();
-```
-
-`require('huqan')` resolves to `KernelV2`, the same runtime the CLI, REST
-server and MCP server build. The older `Kernel` implementation it wraps is
-still reachable as `require('huqan').KernelV1`, but it is deprecated, is not a
-runtime option, and will be removed in the next major release.
-
-The package root also exposes the general Error Prevention core:
-
-```js
-const { createErrorPrevention } = require('huqan');
-const prevention = createErrorPrevention(kernel.memory, {
-  verifyEvidence,
-  resolveApproval,
-});
-```
-
-This is a package/library surface for verified failure memory, governed rule
-lifecycle, and deterministic preflight decisions. It is not one of the fifteen
-MCP tools advertised below.
-
-### Local CLI
-
-```bash
-npm start
-```
 
 ### Local REST server
 
-Mutation endpoints require an API key.
+Mutation endpoints require an API key:
 
 ```bash
 HUQAN_API_KEY=replace-with-a-secret npm run server
 ```
 
-`HUQAN_API_KEY` is the canonical environment-variable name used by the runtime.
-See [the environment-variable migration guide](docs/environment-variable-migration.md)
-before running canonical and legacy names together.
-
 The server starts at `http://localhost:3000`.
 
-Useful endpoints:
+Useful endpoints include:
 
 | Endpoint | Method | Purpose |
 |---|---:|---|
@@ -330,7 +237,7 @@ Useful endpoints:
 | `/v2/verify` | POST | Guarded structured verification |
 | `/upload` | POST | Guarded load alias |
 
-Authenticated mutation requests use `X-API-Key` or `Authorization: Bearer <key>`.
+Authenticated mutation requests use `X-API-Key` or `Authorization: Bearer <key>`. Review the route contract and workspace authorization policy before exposing a local server beyond its intended boundary.
 
 ### MCP server for Claude or Cursor
 
@@ -338,7 +245,7 @@ Authenticated mutation requests use `X-API-Key` or `Authorization: Bearer <key>`
 huqan-mcp
 ```
 
-Claude Desktop configuration, with nothing installed ahead of time:
+Claude Desktop configuration with no prior global installation:
 
 ```json
 {
@@ -351,169 +258,168 @@ Claude Desktop configuration, with nothing installed ahead of time:
 }
 ```
 
-`--package=huqan` is required because the bin name differs from the package
-name: without it `npx` would run the `huqan` CLI instead of the MCP server.
+`--package=huqan` is required because the binary name differs from the package name. From a source checkout, use `"command": "node"` with `"args": ["/absolute/path/to/huqan/mcpServer.js"]`.
 
-If the package is installed globally, `"command": "huqan-mcp"` with no `args`
-does the same thing. From a source checkout it is still
-`"command": "node", "args": ["/absolute/path/to/huqan/mcpServer.js"]`.
+The model-visible MCP catalog includes tools for learning, asking grounded questions, verification, planning, bounded agent execution, ingest preview/status, policy inspection, reasoning traces, comparison, hypothesis generation, advocacy, scoped search, and Trust Receipt reading.
 
-The server advertises fifteen tools to the model:
+Operator-only tools are deliberately withheld from `tools/list` and require `HUQAN_MCP_OPERATOR_TOKEN`:
 
-| Tool | What it does | Gate |
-| --- | --- | --- |
-| `huqan.learn` | Learn a natural-language fact into the local graph | review |
-| `huqan.ask` | Ask a grounded question against the graph | allow |
-| `huqan.verify` | Verify a statement and return its evidence trail | allow |
-| `huqan.plan` | Build a multi-step plan for a goal | allow |
-| `huqan.agent` | Run the multi-step agent loop | dry-run only |
-| `huqan.ingest_preview` | Build a read-only ingest source manifest for review | allow |
-| `huqan.ingest_execute` | Queue a reviewed manual or decision ingest for approval-owned execution | review |
-| `huqan.ingest_status` | Read the status, progress and final receipt of an ingest run | allow |
-| `huqan.policy` | Inspect the execution policy for a requested tool | allow |
-| `huqan.reason` | Return forward and backward reasoning traces | allow |
-| `huqan.compare` | Compare two concepts across the graph | allow |
-| `huqan.dream` | Generate ranked hypotheses from the graph | allow |
-| `huqan.advocate` | Challenge a claim without mutating the graph | allow |
-| `huqan.search` | Search workspace-scoped memory and return provenance refs | allow |
-| `huqan.trust_receipt` | Read a workspace-scoped Trust Receipt | allow |
-
-### Operator tools are not advertised to the model
-
-Three tools are deliberately withheld from `tools/list` and require the
-`HUQAN_MCP_OPERATOR_TOKEN` environment variable:
-
-| Tool | What it does |
-| --- | --- |
+| Tool | Purpose |
+|---|---|
 | `huqan.approve` | Approve or reject a pending approval |
-| `huqan.approvals` | List pending tool approvals |
+| `huqan.approvals` | List pending approvals |
 | `huqan.agent_resume` | Resume a suspended agent run |
 
-This is the boundary that makes the review gate mean something: a model that
-proposes a mutating action cannot also approve it, because the tool that grants
-approval is never in the tool list it can see. Approval is an operator action
-taken out of band.
+This separation means a model that proposes a mutating action cannot also approve it through the model-visible catalog.
 
-The legacy `axiom.*` names from before the HUQAN rename are still accepted, so
-existing installs keep working; they are no longer advertised, and a call using
-one returns a `meta.deprecation` notice. See
-[docs/mcp-tool-name-migration.md](docs/mcp-tool-name-migration.md).
+### Local UI and Trust Receipt Viewer
 
-## Core capabilities
+Start the local server to serve the backend-connected developer UI:
 
-- Graph-backed claim verification
-- Contradiction detection
-- Explicit `CAUSES`, `PREVENTS`, `ENABLES`, and `DEPENDS_ON` relations
-- Memory admission and workspace isolation
-- Risk classification and safety gates
-- Approval flows for guarded actions
-- Provenance and audit records
-- Canonical Trust Receipts and receipt chains
-- Verified failure memory and deterministic Error Prevention preflight
-- Portable `.huqan` package primitives with legacy `.axiom.json` reader compatibility
-- CLI, REST, MCP, and local UI surfaces
+```bash
+npm run server
+```
+
+The canonical local UI is `public/index.html`. The read-only Trust Receipt Viewer is available at `/viewer` on a running server and renders receipts already owned by that local server. It is not a mutation surface and is not a public static marketing demo.
+
+For an observability walkthrough covering local server telemetry, tool usage, alerts, queue state, and dashboard steps, see [Observability Quickstart](./docs/product-hunt-quickstart.md). For framework lifecycle integration through the stable local telemetry client, see [Observability Telemetry Client](./docs/observability-client.md).
+
+### Optional Rust graph accelerator
+
+The repository contains an optional `huqan-core` Rust JSON-IPC accelerator. It is not required for the normal CLI, server, MCP, or canonical `kernel.learn()` path. When the binary is unavailable, the JavaScript path remains the reference behavior.
+
+```bash
+cd huqan-core
+cargo build --release
+cd ..
+```
+
+To select a binary elsewhere, set `HUQAN_RUST_BIN` before starting Node. Compare the optional path with:
+
+```bash
+node benchmarks/rust-vs-js-graph.js 2000
+```
+
+The benchmark does not claim Rust throughput when no binary is present.
 
 ## Current scope
 
-HUQAN is currently a **local-first partial trust layer**.
+HUQAN is currently a **local-first partial-trust governance layer**. The project is strongest where it can observe a supported flow, attach evidence and provenance, evaluate configured gates, require approval where applicable, and create a bounded audit or Trust Receipt record.
 
-What is real today:
+### Shipped and bounded
 
-- verification, graph, provenance, approval, audit, and receipt primitives,
-- verified-failure Error Prevention core exposed through the package root,
-- local CLI, REST, MCP, and UI surfaces,
-- bounded memory and action gates,
-- production-wired Agent Action Firewall for classic agent, workflow/HTTP, and MCP action paths,
-- canonical HUQAN package and cryptographic foundations,
-- two conformance suites, run from this repository:
-  `npm run conformance:external` (75 cases) and `npm run conformance:a2a`
-  (50 adversarial cases).
+The repository contains local verification, graph, provenance, approval, audit, receipt, memory, action-gate, CLI, REST, MCP, UI, and package primitives. It also contains two repository-run conformance suites:
 
-### A2A routes ship but stay unconfigured
+```bash
+npm run conformance:external
+npm run conformance:a2a
+```
 
-Four A2A routes are on `main` and mounted through `lib/a2a/routes.js`:
-`POST /api/a2a/exchange`, `GET /.well-known/agent-card.json`,
-`POST /api/a2a/negotiate` and `GET /api/a2a/tasks/{taskId}`.
+These suites are evidence for the tested cases and implementations they cover. They are not third-party certification or proof of universal interoperability.
 
-They are deployment-gated, not disabled: with `HUQAN_A2A_AUTHORITY_FILE` and
-`HUQAN_A2A_REPLAY_DIR` unset, every one answers `404` rather than `401`, so an
-unconfigured install does not advertise a surface it cannot serve.
+### A2A routes are deployment-gated
 
-Three of the four turn on from an `npm install`. `POST /api/a2a/exchange` does
-not: it reaches the V5 cryptographic family, which `package.json#files`
-deliberately keeps out of the published tarball, so the route stays `404` there
-no matter how it is configured. Run it from a clone. This is a packaging
-decision, not a defect — `lib/a2a/exchange-route.js` requires those modules
-behind a guard precisely so the installed server still boots.
+Four routes are mounted through `lib/a2a/routes.js`:
 
-To turn them on, and for the boundary of what turning them on does not claim,
-see [docs/a2a-deployment.md](./docs/a2a-deployment.md).
+- `POST /api/a2a/exchange`
+- `GET /.well-known/agent-card.json`
+- `POST /api/a2a/negotiate`
+- `GET /api/a2a/tasks/{taskId}`
 
-What this repository does **not** currently claim:
+With `HUQAN_A2A_AUTHORITY_FILE` and `HUQAN_A2A_REPLAY_DIR` unset, the routes answer `404` rather than `401`; an unconfigured installation therefore does not advertise a surface it cannot serve. The exchange route has additional package/runtime conditions documented in [A2A deployment](./docs/a2a-deployment.md).
 
-- universal truth or hallucination elimination,
-- complete inline enforcement for every connector and mutation path,
-- a finished V5 shared-trust ecosystem,
-- external interoperability: no third party has spoken to the A2A transport,
-  and the conformance suites are self-test plus one cross-implementation
-  comparison, not third-party verification,
-- a public agent marketplace or certification network,
-- Wikipedia-scale graph performance,
-- a complete autonomous Self-Healer.
+### Implemented but not production-reachable
 
-### Shipped but not wired
+Some modules are implemented and unit-tested but are not reached by the production entry-point graph declared in [`lib/module-reachability.js`](./lib/module-reachability.js). A passing unit test for such a module proves isolated behavior only; it does not prove that the installed product executes that module.
 
-Part of this repository is implemented and unit-tested but is **not reached by
-the production entry-point graph** declared in
-[`lib/module-reachability.js`](./lib/module-reachability.js): `cli.js`,
-`server.js`, `mcpServer.js`, `index.js`, `kernel.js`, and
-`github-app-server.js` (plus dynamically loaded plugin entry points). Green
-tests for those unreached modules mean the code behaves as specified in
-isolation — they are not evidence that the product runs it.
+The current reachability report includes bounded V5, Self-Healer, and connector entries. See the live report and [Current Operating Roadmap](./docs/current-operating-roadmap.md) before describing any of them as generally available.
 
-That set is enumerated with a reason per module in
-[`lib/module-reachability.js`](./lib/module-reachability.js) and enforced by a
-test, so nothing can join it silently. It is now ten modules:
+### What HUQAN does not claim
 
-| Group | Modules | Why |
-|---|---|---|
-| V5 | `lib/v5/runtime-reader.js`, `lib/v5/structural-signing-helper.js`, four `schemas/v5/agent-identity-*.js` | entry is authorized, these five have no production caller yet |
-| Self-Healer | `lib/self-healer/index.js`, `audit-runner.js`, `finding-classifier.js` | library-only by product decision; no autonomous runner |
-| Connector | `lib/github-connector.js` | library-only connector |
+HUQAN does not claim:
 
-The external-client trust boundary and the reviewed external ingest chain have
-both left this list: they are reached by `server.js` and gated by deployment
-configuration rather than by reachability. Four A2A modules left it the only way
-a module may — `POST /api/a2a/exchange` gave them a production caller.
+- universal truth or elimination of AI hallucinations;
+- complete inline enforcement for every connector, agent, or mutation path;
+- a finished V5 shared-trust ecosystem;
+- external third-party interoperability for the A2A transport;
+- a public agent marketplace, certification network, public badge, or reputation economy;
+- Wikipedia-scale graph performance;
+- a complete autonomous Self-Healer;
+- that a design document, roadmap, or isolated unit test is equivalent to production deployment evidence;
+- that HUQAN replaces IAM, application security, infrastructure security, data protection, or human governance.
 
-The Error Prevention core is not in that unwired set: `index.js` reaches and
-exports it as a package/library surface. No Error Prevention MCP tool is
-currently advertised.
+## FAQ
 
-For the live execution order and exact limitations, read [docs/current-operating-roadmap.md](./docs/current-operating-roadmap.md).
+### Is HUQAN an AI model?
+
+No. HUQAN is a local-first governance and verification layer around supported AI-assisted workflows. It does not replace the language model that generated an output.
+
+### Does HUQAN eliminate hallucinations?
+
+No. HUQAN does not promise to eliminate hallucinations. It helps a supported workflow inspect evidence and provenance, apply configured policies and approval boundaries, and record the resulting decision context.
+
+### What is a Trust Receipt?
+
+A Trust Receipt is a bounded, auditable record of a supported verification or action-governance flow. It can preserve evidence, provenance, scope, risk, review, approval, and the resulting decision. It is not a universal certificate that a claim is true.
+
+### Can HUQAN block an agent action?
+
+On supported and wired execution paths, HUQAN can produce decisions such as `allow`, `review`, `dry_run_only`, or `block`. Coverage must be verified for the particular connector, mutation path, identity, policy, and deployment configuration. HUQAN does not claim universal enforcement.
+
+### Does HUQAN replace enterprise security?
+
+No. HUQAN complements identity and access management, application security, infrastructure security, data protection, and human oversight. It does not replace those controls.
+
+### Can HUQAN run locally without a hosted model?
+
+The core local graph, verification, gate, and receipt paths do not require a hosted model or cloud service. Optional adapters, integrations, and deployment-gated surfaces may have their own requirements.
+
+### What does “partial trust” mean?
+
+It means that a result is evaluated within explicit evidence, provenance, workspace, policy, approval, and runtime boundaries. HUQAN does not treat every model output, memory entry, connector, or external action as automatically trustworthy.
+
+### Where should I start?
+
+Run `huqan quickstart`, inspect the generated Trust Receipt, then read the relevant guide for verification, provenance, policy, approval, memory admission, Agent Action Firewall coverage, and security assumptions.
 
 ## Repository map
 
 | Path | Purpose |
 |---|---|
+| `index.js`, `index.d.ts` | Package exports and public type surface |
 | `kernel.js`, `graph.js` | Verification and graph reasoning core |
-| `lib/` | Gates, provenance, memory, receipts, viewers, and supporting modules |
-| `cli.js` | Local command-line interface |
+| `lib/` | Gates, provenance, memory, receipts, viewer, adapters, and supporting modules |
+| `cli.js` | Local CLI entry point |
 | `server.js` | Local REST server and UI delivery |
-| `mcpServer.js` | MCP integration |
-| `public/` | Backend-connected local UI |
+| `mcpServer.js`, `bin/huqan-mcp.js` | MCP integration and package binary |
+| `public/` | Backend-connected local UI and read-only viewer |
 | `test/` and `*.test.js` | Automated test coverage |
-| `docs/` | Architecture, audits, product boundaries, and roadmap |
+| `docs/` | Architecture, audits, contracts, product boundaries, and roadmap |
+| `scripts/` | Conformance, pilot, benchmark, and repository tooling |
 
-## Development
+## Development and verification
+
+Install dependencies and run the test suite:
 
 ```bash
+npm ci
 npm test
+```
+
+Useful focused checks include:
+
+```bash
+npm run test:cli
+npm run test:server
+npm run test:plugin
+npm run test:backup
+npm run conformance:external
+npm run conformance:a2a
 npm run bench
 npm run bench:verify
 ```
 
-Focused test commands are available in [`package.json`](./package.json).
+If a focused test passes, report it as evidence for that focused behavior. Do not describe it as full-suite or production evidence without the corresponding test, CI, and runtime proof.
 
 ## Documentation and support
 
@@ -524,16 +430,32 @@ Focused test commands are available in [`package.json`](./package.json).
 - [Scale truth pack](./docs/scale-truth-pack.md)
 - [Governance](./docs/governance.md)
 - [Agent Action Firewall](./docs/agent-action-firewall.md)
+- [A2A deployment](./docs/a2a-deployment.md)
 - [HTTP upload approval contract](./docs/http-upload-approval-contract.md)
 - [Security policy](./SECURITY.md)
 - [Contributing](./CONTRIBUTING.md)
 - [Issues](https://github.com/ali-ulu/huqan/issues)
 - [Discussions](https://github.com/ali-ulu/huqan/discussions)
 
+## Evidence and references
+
+The following repository sources define the current scope and are preferred over marketing summaries when a claim needs verification:
+
+1. [Product surfaces](./docs/product-surfaces.md) — canonical local UI, docs entry, and read-only Trust Receipt Viewer boundaries.
+2. [Current operating roadmap](./docs/current-operating-roadmap.md) — current execution order and known limitations.
+3. [Agent Action Firewall](./docs/agent-action-firewall.md) — supported action-governance boundaries.
+4. [A2A deployment](./docs/a2a-deployment.md) — deployment-gated route conditions and limitations.
+5. [Module reachability](./lib/module-reachability.js) — distinction between production-reachable and library-only modules.
+6. [Package metadata](./package.json) — package version, supported Node.js engine, binaries, and scripts.
+
 ## License
 
-GNU Affero General Public License v3.0 (AGPL-3.0). See [LICENSE](./LICENSE) and [NOTICE](./NOTICE).
+HUQAN is currently distributed under the GNU Affero General Public License v3.0, `AGPL-3.0-only`. See [LICENSE](./LICENSE) and [NOTICE](./NOTICE).
+
+A separate commercial license is being prepared for organizations that need proprietary use of covered HUQAN components. The commercial terms are not yet operative and no commercial rights are granted by this repository. Contact the project owner only after an approved commercial agreement is available.
+
+Future external contributions will be subject to the project’s approved contributor rights process. [`CLA.md`](./CLA.md) is currently a draft for legal review and is not yet an operative agreement. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the contribution and review rules.
 
 ---
 
-**HUQAN:** trust and evidence infrastructure for AI-mediated work.
+**HUQAN:** local-first trust and evidence infrastructure for AI-mediated work.

@@ -1,3 +1,4 @@
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./test/helpers/isolated-persistence');
 ﻿const test = require('node:test');
 const assert = require('node:assert/strict');
 const Graph = require('./graph');
@@ -7,7 +8,7 @@ function isIso8601(value) {
 }
 
 test('temporal: addNode writes created_at and updates last_seen on update', async () => {
-  const g = new Graph({ useSQLite: false });
+  const g = new Graph(isolatedGraphOptions('temporal', { useSQLite: false }));
   g.addNode('n1', 'node');
   const first = g.getNode('n1');
   const firstCreatedAt = first.created_at;
@@ -26,7 +27,7 @@ test('temporal: addNode writes created_at and updates last_seen on update', asyn
 });
 
 test('temporal: addEdge writes ISO fields and confidence history', async () => {
-  const g = new Graph({ useSQLite: false });
+  const g = new Graph(isolatedGraphOptions('temporal', { useSQLite: false }));
   g.addNode('a', 'A');
   g.addNode('b', 'B');
 

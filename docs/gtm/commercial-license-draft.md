@@ -1,11 +1,15 @@
 # Ticari Lisans — TASLAK
 
-> **DURUM: TASLAK. HUKUKİ İNCELEME GEREKTİRİR.**
-> Bu belge bir teklif veya bağlayıcı şart değildir. Fiyatlar ve şartlar
-> yer tutucudur. Yayımlamadan önce bir avukatın gözden geçirmesi şarttır.
-> Buradaki hiçbir madde hukuki tavsiye değildir.
+> **DURUM: STRATEJİK TASLAK. HUKUKİ İNCELEME GEREKTİRİR.**
+> Bu belge bir teklif, bağlayıcı şart veya lisans grant’i değildir. Fiyatlar ve
+> şartlar yer tutucudur. Yayımlamadan veya herhangi bir müşteriye sunmadan önce
+> hukukçu incelemesi şarttır. Hukuk/CLA çalışma belgeleri için
+> [`docs/legal/dual-licensing-status.md`](../legal/dual-licensing-status.md),
+> [`CLA.md`](../../CLA.md) ve
+> [`commercial-license-working-draft.md`](../legal/commercial-license-working-draft.md)
+> dosyalarına bakın.
 
-## Neden bu SKU bugün satılabilir
+## Neden bu SKU ileride satılabilir olabilir
 
 HUQAN, **AGPL-3.0** ile lisanslı. AGPL'in ağ hükmü (§13) şunu gerektirir:
 HUQAN'ı değiştirip bir ağ servisi üzerinden kullanıcıya sunan taraf, o
@@ -16,8 +20,11 @@ Bu, kapalı kaynak ürün satan her şirket için ikili bir seçim yaratır:
 1. Kendi ürününü de AGPL yap, veya
 2. Ticari istisna satın al.
 
-**Gereken mühendislik: sıfır.** Ürün hazır. Eksik olan tek şey bir sayfa
-ve bir iletişim adresi.
+Yeni mühendislik gerektirmeyebilecek bir lisans konuşması için teknik ürün
+çekirdeği yeterli olabilir; ancak bu, ticari lisansın bugün satışa hazır olduğu
+anlamına gelmez. Eksik veya doğrulanması gereken konular; hak zinciri, ticari
+lisans metni, lisans kapsamı, iletişim kanalı ve hukukçu onayıdır.
+
 
 ## Hedef alıcı
 
@@ -54,12 +61,12 @@ Bu ayrım baştan net yazılmazsa, alıcı lisansı destek sanır.
 
 ## Yapılacaklar
 
-1. Avukat incelemesi — **diğer her şeyden önce**.
-2. `LICENSE-COMMERCIAL.md` (gerçek metin, avukat onaylı).
-3. README'ye kısa bölüm: "HUQAN AGPL-3.0'dır. Kapalı kaynak üründe
-   kullanmak için ticari istisna mevcuttur: <iletişim>".
-4. `docs/gtm/` altında tek sayfalık fiyat/kapsam belgesi.
-5. Gelen talepleri karşılayacak bir e-posta adresi.
+1. Hak zinciri ve dependency lisanslarını doğrula.
+2. Avukat incelemesi — **diğer her şeyden önce**.
+3. `LICENSE-COMMERCIAL.md` veya avukatın seçtiği gerçek sözleşme metnini oluştur.
+4. README'ye yalnızca onaylı, bağlayıcı olmayan doğru açıklamayı ekle.
+5. `docs/gtm/` altında fiyat/kapsam belgesini hukukçu onayından sonra yayınla.
+6. Gelen talepleri karşılayacak onaylı bir iletişim adresi belirle.
 
 `NOTICE` dosyası ve mevcut telif sahipliği, ticari lisans satabilmek için
 tüm katkıların hak durumunun net olmasını gerektirir. Dış katkı alındıysa

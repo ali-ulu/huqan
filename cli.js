@@ -13,6 +13,7 @@ const readline = require('readline');
 const { isPathWithinRoot } = require('./lib/path-safety');
 const { createKernel } = require('./lib/kernel-factory');
 const { cliHelpText } = require('./lib/cli-help');
+const { runCliHypotheses } = require('./lib/cli-hypotheses');
 const { runCliArgv: runWorkflowCliArgv } = require('./lib/cli-workflow-adapter');
 const { runQuickstartCommand } = require('./lib/quickstart-cli');
 const {
@@ -35,6 +36,8 @@ const {
 const {
   callTool: callMcpTool,
   createApprovalStoreFromKernel,
+  createMcpOperatorCapability,
+  operatorCapabilityBinding,
 } = require('./mcpServer');
 const { formatCliApprovalList, formatCliApprovalDecision } = require('./lib/mcp-approval-views');
 
@@ -67,6 +70,7 @@ class CLI {
     this.llm = new LLMAdapter();
     this.approvalStore = null;
     this._mcpOperatorToken = opts.mcpOperatorToken || crypto.randomBytes(32).toString('hex');
+    this._mcpCapabilityNonces = new Map();
     this._approvalRuntimeOptions = Object.freeze({
       ...(Object.hasOwn(opts, 'trustEvidenceLedger') ? { trustEvidenceLedger: opts.trustEvidenceLedger } : {}),
       ...(Object.hasOwn(opts, 'humanOversightApprovalRuntime')
@@ -101,11 +105,17 @@ class CLI {
     return { ...resolved, ...extra };
   }
 
+  _createOperatorCapability(tool, args) {
+    const binding = operatorCapabilityBinding(tool, args);
+    return createMcpOperatorCapability({ secret: this._mcpOperatorToken, ...binding });
+  }
+
   _approvalRuntime() {
     if (!this.approvalStore) this.approvalStore = createApprovalStoreFromKernel(this.kernel);
     return {
       approvalStore: this.approvalStore,
-      operatorToken: this._mcpOperatorToken,
+      operatorSecret: this._mcpOperatorToken,
+      operatorCapabilityNonces: this._mcpCapabilityNonces,
       ...this._approvalRuntimeOptions,
     };
   }
@@ -468,9 +478,10 @@ class CLI {
         this.kernel.persist();
         return `Memory saved.${this._commitCliMutation('kaydet')}`;
       case 'onaylar': {
+        const approvalArguments = { limit: 50, workspaceId: 'default' };
         const result = callMcpTool(
           this.kernel,
-          { name: 'huqan.approvals', operatorToken: this._mcpOperatorToken, arguments: { limit: 50, workspaceId: 'default' } },
+          { name: 'huqan.approvals', operatorCapability: this._createOperatorCapability('huqan.approvals', approvalArguments), arguments: approvalArguments },
           this._approvalRuntime()
         );
         if (!result || result.ok === false) {
@@ -487,10 +498,11 @@ class CLI {
             2
           );
         }
+        const approvalArguments = { approvalId: approval.approvalId, decision: approval.decision, workspaceId: 'default' };
         return Promise.resolve(callMcpTool(this.kernel, {
           name: 'huqan.approve',
-          operatorToken: this._mcpOperatorToken,
-          arguments: { approvalId: approval.approvalId, decision: approval.decision, workspaceId: 'default' },
+          operatorCapability: this._createOperatorCapability('huqan.approve', approvalArguments),
+          arguments: approvalArguments,
         }, this._approvalRuntime())).then(result => {
           if (!result || result.ok === false) {
             const error = result?.error;
@@ -537,6 +549,7 @@ class CLI {
           callTool: callMcpTool,
           createApprovalStore: createApprovalStoreFromKernel,
           operatorToken: this._mcpOperatorToken,
+          createOperatorCapability: ({ tool, arguments: args }) => this._createOperatorCapability(tool, args),
         });
       case 'durum': {
         const stats = this.kernel.graph.getStats();
@@ -558,6 +571,16 @@ class CLI {
         if (hypotheses.length === 0) return 'I could not produce a hypothesis; I need more information.';
         const lines = hypotheses.map(item => `  ${item.from} -> ${item.to} (${item.type}, guven: ${item.confidence.toFixed(2)})`);
         return `${hypotheses.length} hipotez:\n${lines.join('\n')}`;
+      }
+      case 'hypotheses': {
+        const argsObject = args && typeof args === 'object' ? args : {};
+        const writes = argsObject.propose === true || argsObject.review === true;
+        return runCliHypotheses(this.kernel, argsObject, {
+          json: opts.json === true,
+          commitMutation: writes
+            ? () => this._commitCliMutation('hypotheses', CLI_MUTATION_GATE.hypotheses)
+            : null,
+        });
       }
       case 'selam':
         return 'Hello! You can teach me something or ask me a question.';
@@ -659,6 +682,10 @@ class CLI {
     // the persisted id and runs the admission-aware learn path, so a synthetic
     // CLI allow decision must not bypass that authority.
     if (normalizeCommandText(command) === 'onayla') return null;
+    // The bare report is read-only; --propose and `review` both write to the
+    // candidate-claim family and stay behind the gate.
+    if (normalizeCommandText(command) === 'hypotheses'
+      && !(args && typeof args === 'object' && (args.propose === true || args.review === true))) return null;
     const tool = mapCliCommandToMcpTool(command);
     if (!tool) {
       // F-004: commands without an MCP tool mapping may still mutate. Route

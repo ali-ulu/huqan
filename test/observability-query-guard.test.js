@@ -79,5 +79,6 @@ test('observability query guard preserves exact workspace validation and accepts
     eventType: 'run_finished',
     runId: 'run-1',
     status: 'completed',
+    windowMs: '60000',
   });
 });

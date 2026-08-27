@@ -386,6 +386,41 @@ describe('Dream - Node2Vec Gömmeler', () => {
 });
 
 describe('Dream - Gelişmiş Skorlama ve Sıralama', () => {
+  it('dream: markdown table and CI execution nodes never become hypotheses', () => {
+    const { k, d } = fresh();
+    k.detectContradictions = () => [
+      { node: '|', targets: ['pr | #2 |', 'pr | #4 |'], confidence: 0.95 },
+      {
+        node: 'npm test job 93172327986 success',
+        targets: ['npm test job 93172328153 success'],
+        confidence: 0.9,
+      },
+      { node: 'agent identity', targets: ['delegated authority'], confidence: 0.7 },
+    ];
+    k.learn('agent identity supports delegated authority');
+
+    const results = d.dream();
+
+    assert.ok(results.some(result => result.node === 'agent identity'));
+    assert.ok(results.every(result => {
+      const values = [result.from, result.to, result.node, result.via, ...(result.targets || [])]
+        .filter(Boolean);
+      return values.every(value => !value.includes('|') && !/\bjob\s+\d{5,}\b/i.test(value));
+    }));
+  });
+
+  it('dream: node quality differentiates otherwise equal composite scores', () => {
+    const { d } = fresh();
+    d.graph.addNode('a', 'a');
+    d.graph.addNode('agent identity', 'agent identity');
+
+    const short = d._calculateCompositeScore({ from: 'a', confidence: 0.5 });
+    const meaningful = d._calculateCompositeScore({ from: 'agent identity', confidence: 0.5 });
+
+    assert.ok(meaningful.quality > short.quality);
+    assert.ok(meaningful.score > short.score);
+  });
+
   it('dream: çelişkiler her zaman en üstte yer alır', () => {
     const { k, d } = fresh();
     // Bir çelişki üretmek için kernel.detectContradictions'ı mock'layalım

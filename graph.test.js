@@ -1,3 +1,4 @@
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./test/helpers/isolated-persistence');
 const { describe, it, after } = require('node:test');
 const assert = require('node:assert');
 const Graph = require('./graph');
@@ -9,7 +10,7 @@ describe('Graph - Düğüm Yönetimi', () => {
   let g;
 
   it('addNode: yeni düğüm oluşturur, weight=0.5', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     g.addNode('köpek', 'hayvan');
     const n = g.getNode('köpek');
     assert.ok(n);
@@ -19,7 +20,7 @@ describe('Graph - Düğüm Yönetimi', () => {
   });
 
   it('addNode: aynı id label günceller, weight artar', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     g.addNode('köpek', 'hayvan');
     g.addNode('köpek', 'memeli hayvan');
     const n = g.getNode('köpek');
@@ -28,7 +29,7 @@ describe('Graph - Düğüm Yönetimi', () => {
   });
 
   it('getNode: olmayan id null döner', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     assert.strictEqual(g.getNode('olmayan'), null);
   });
 });
@@ -37,7 +38,7 @@ describe('Graph - Kenar Yönetimi', () => {
   let g;
 
   it('addEdge: kenar oluşturur, weight=0.5', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     g.addNode('köpek', 'hayvan');
     g.addNode('memeli', 'sınıf');
     g.addEdge('köpek', 'memeli', 'tür');
@@ -49,7 +50,7 @@ describe('Graph - Kenar Yönetimi', () => {
   });
 
   it('addEdge: aynı kenar tekrarı weight artırır (tavan 1.0)', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     g.addNode('a', 'x');
     g.addNode('b', 'y');
     g.addEdge('a', 'b', 'bag');
@@ -61,12 +62,12 @@ describe('Graph - Kenar Yönetimi', () => {
   });
 
   it('getEdge: olmayan kenar null döner', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     assert.strictEqual(g.getEdge('x', 'y', 'z'), null);
   });
 
   it('getEdge returns a defensive copy', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     g.addNode('a', 'x');
     g.addNode('b', 'y');
     g.addEdge('a', 'b', 'bag');
@@ -77,7 +78,7 @@ describe('Graph - Kenar Yönetimi', () => {
   });
 
   it('getEdgesBetween: iki düğüm arasındaki tüm kenarları döndürür', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     g.addNode('a', 'x'); g.addNode('b', 'y');
     g.addEdge('a', 'b', 'tür');
     g.addEdge('a', 'b', 'benzer');
@@ -86,26 +87,26 @@ describe('Graph - Kenar Yönetimi', () => {
   });
 
   it('getEdgesBetween: kenar yoksa boş dizi döner', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     g.addNode('a', 'x'); g.addNode('b', 'y');
     assert.deepStrictEqual(g.getEdgesBetween('a', 'b'), []);
   });
 
   it('hasAnyEdge: iki düğüm arasında en az bir kenar varsa true', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     g.addNode('a', 'x'); g.addNode('b', 'y');
     g.addEdge('a', 'b', 'tür');
     assert.strictEqual(g.hasAnyEdge('a', 'b'), true);
   });
 
   it('hasAnyEdge: kenar yoksa false', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     g.addNode('a', 'x'); g.addNode('b', 'y');
     assert.strictEqual(g.hasAnyEdge('a', 'b'), false);
   });
 
   it('hasAnyEdge: relation bilinmezken edge var mı kontrolü (regresyon: P0 bug fix)', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     g.addNode('a', 'x'); g.addNode('b', 'y');
     g.addEdge('a', 'b', 'tür');
     assert.strictEqual(g.hasAnyEdge('a', 'b'), true);
@@ -117,7 +118,7 @@ describe('Graph - Sorgu', () => {
   let g;
 
   it('query: label ile eşleşen düğümleri bulur', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     g.addNode('köpek', 'hayvan');
     g.addNode('kedi', 'hayvan');
     g.addNode('masa', 'eşya');
@@ -130,7 +131,7 @@ describe('Graph - Seyrek Süperpozisyon', () => {
   let g;
 
   it('addTag: vektöre boyut ekler', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     g.addNode('köpek', 'hayvan');
     g.addTag('köpek', 'memeli', 0.8);
     const n = g.getNode('köpek');
@@ -138,7 +139,7 @@ describe('Graph - Seyrek Süperpozisyon', () => {
   });
 
   it('addTag: varolan boyuta weight ekler', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     g.addNode('köpek', 'hayvan');
     g.addTag('köpek', 'memeli', 0.8);
     g.addTag('köpek', 'memeli', 0.1);
@@ -147,7 +148,7 @@ describe('Graph - Seyrek Süperpozisyon', () => {
   });
 
   it('cosineSimilarity: aynı vektör 1 döner', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     g.addNode('a', 'x');
     g.addNode('b', 'y');
     g.addTag('a', 'boyut1', 0.5);
@@ -157,7 +158,7 @@ describe('Graph - Seyrek Süperpozisyon', () => {
   });
 
   it('cosineSimilarity: dik vektör 0 döner', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     g.addNode('a', 'x');
     g.addNode('b', 'y');
     g.addTag('a', 'boyut1', 1);
@@ -171,7 +172,7 @@ describe('Graph - Unutma Eğrisi', () => {
   let g;
 
   it('getNode is a pure defensive read and touchNode owns access updates', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     g.addNode('köpek', 'hayvan');
     Object.values(g._nodes)[0].lastAccessed = 1;
     const once = g.getNode('köpek');
@@ -183,7 +184,7 @@ describe('Graph - Unutma Eğrisi', () => {
   });
 
   it('getNode returns a defensive copy', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     g.addNode('kedi', 'hayvan');
     const node = g.getNode('kedi');
     node.label = 'mutated';
@@ -194,7 +195,7 @@ describe('Graph - Unutma Eğrisi', () => {
   });
 
   it('getWeight: zamanla azalan weight döner', () => {
-    g = new Graph({ decayLambda: 0.1, useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { decayLambda: 0.1, useSQLite: false }));
     g.addNode('test', 'x');
     g.getNode('test');
     const w = g.getWeight('test');
@@ -206,7 +207,7 @@ describe('Graph - Gelişmiş Sorgu', () => {
   let g;
 
   it('getInEdges: inbound kenarları O(1) döndürür', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     g.addNode('a', 'x'); g.addNode('b', 'y'); g.addNode('c', 'z');
     g.addEdge('b', 'a', 'tür');
     g.addEdge('c', 'a', 'tür');
@@ -215,7 +216,7 @@ describe('Graph - Gelişmiş Sorgu', () => {
   });
 
   it('nodeCount / edgeCount: doğru sayı döner', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     g.addNode('a', 'x'); g.addNode('b', 'y');
     g.addEdge('a', 'b', 'bag');
     assert.strictEqual(g.nodeCount(), 2);
@@ -223,14 +224,14 @@ describe('Graph - Gelişmiş Sorgu', () => {
   });
 
   it('getStats: yapılandırma bilgisi döner', () => {
-    g = new Graph({ decayLambda: 0.1, pruneThreshold: 0.05, useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { decayLambda: 0.1, pruneThreshold: 0.05, useSQLite: false }));
     const s = g.getStats();
     assert.strictEqual(s.decayLambda, 0.1);
     assert.ok(typeof s.nodes === 'number');
   });
 
   it('removeNode: düğüm ve tüm kenarlarını temizler', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     g.addNode('a', 'x'); g.addNode('b', 'y');
     g.addEdge('a', 'b', 'bag');
     assert.ok(g.removeNode('a'));
@@ -240,7 +241,7 @@ describe('Graph - Gelişmiş Sorgu', () => {
   });
 
   it('removeNode: olmayan düğüm false döner', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     assert.strictEqual(g.removeNode('olmayan'), false);
   });
 });
@@ -249,7 +250,7 @@ describe('Graph - Optimize', () => {
   let g;
 
   it('optimize: zayıf nodesuz kenarları budar', () => {
-    g = new Graph({ decayLambda: 0.5, useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { decayLambda: 0.5, useSQLite: false }));
     g.addNode('a', 'x'); g.addNode('b', 'y');
     g.addEdge('a', 'b', 'bag');
     g._edges[0].weight = 0.001;
@@ -258,7 +259,7 @@ describe('Graph - Optimize', () => {
   });
 
   it('optimize scopes pruning to the requested workspace', () => {
-    g = new Graph({ pruneThreshold: 0.3, useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { pruneThreshold: 0.3, useSQLite: false }));
     for (const workspaceId of ['one', 'two']) {
       g.addNode('a', 'a', null, { workspaceId });
       g.addNode('b', 'b', null, { workspaceId });
@@ -272,7 +273,7 @@ describe('Graph - Optimize', () => {
   });
 
   it('optimize keeps an isolated node that is only minutes old', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     g.addNode('orphan', 'orphan');
     Object.values(g._nodes)[0].lastAccessed = Date.now() - 120 * 1000;
 
@@ -283,7 +284,7 @@ describe('Graph - Optimize', () => {
   });
 
   it('optimize does not delete nodes made isolated by its own prune pass', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     g.addNode('a', 'a'); g.addNode('b', 'b');
     g.addEdge('a', 'b', 'weak', { weight: 0.005 });
     for (const node of Object.values(g._nodes)) node.lastAccessed = Date.now() - 90 * 24 * 60 * 60 * 1000;
@@ -297,7 +298,7 @@ describe('Graph - Optimize', () => {
   });
 
   it('optimize audits removal of a decayed isolated node', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     g.addNode('orphan', 'orphan');
     Object.values(g._nodes)[0].lastAccessed = Date.now() - 90 * 24 * 60 * 60 * 1000;
 
@@ -315,7 +316,7 @@ describe('Graph - Prune (Budama)', () => {
   let g;
 
   it('prune: eşik altı kenarları temizler', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     g.addNode('a', 'x'); g.addNode('b', 'y'); g.addNode('c', 'z');
     g.addEdge('a', 'b', 'bag');
     g.addEdge('a', 'c', 'zayif');
@@ -326,7 +327,7 @@ describe('Graph - Prune (Budama)', () => {
   });
 
   it('prune keeps edges outside the default workspace', () => {
-    g = new Graph({ useSQLite: false });
+    g = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     for (const workspaceId of ['default', 'other']) {
       g.addNode('a', 'a', null, { workspaceId });
       g.addNode('b', 'b', null, { workspaceId });
@@ -640,7 +641,7 @@ describe('Graph - Lifecycle and maintenance baseline contracts', { concurrency: 
   }));
 
   it('assignEmbedding stores the exact vector on the exact existing storage key', () => {
-    const graph = new Graph({ useSQLite: false });
+    const graph = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     graph.addNode('shared', 'one', null, { workspaceId: 'one' });
     graph.addNode('shared', 'two', null, { workspaceId: 'two' });
     const storageKeys = Object.keys(graph._nodes);
@@ -668,7 +669,7 @@ describe('Graph - Lifecycle and maintenance baseline contracts', { concurrency: 
   });
 
   it('temporal edge metadata touches only edges this operation wrote, per workspace (#733)', () => {
-    const graph = new Graph({ useSQLite: false });
+    const graph = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     for (const workspaceId of ['one', 'two']) {
       graph.addNode('source', 'source', null, { workspaceId });
       graph.addNode('target', 'target', null, { workspaceId });
@@ -721,7 +722,7 @@ describe('Graph - Lifecycle and maintenance baseline contracts', { concurrency: 
   });
 
   it('temporal edge metadata does not cross into another workspace (#733)', () => {
-    const graph = new Graph({ useSQLite: false });
+    const graph = new Graph(isolatedGraphOptions('graph', { useSQLite: false }));
     for (const workspaceId of ['w1', 'w2']) {
       graph.addNode('a', 'a', null, { workspaceId });
       graph.addNode('b', 'b', null, { workspaceId });

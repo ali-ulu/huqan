@@ -1,10 +1,11 @@
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./test/helpers/isolated-persistence');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const Kernel = require('./kernel');
 
 test('reasonSandbox: learns and answers without touching the real graph', async () => {
-  const k = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+  const k = new Kernel(isolatedKernelOptions('reasonSandbox', { noLoad: true, useSQLite: false, loadPlugins: false }));
   const before = k.graph.getStats();
 
   const res = await k.reasonSandbox({
@@ -22,7 +23,7 @@ test('reasonSandbox: learns and answers without touching the real graph', async 
 });
 
 test('reasonSandbox: unknown question answers Bilmiyorum on both backends', async () => {
-  const k = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+  const k = new Kernel(isolatedKernelOptions('reasonSandbox', { noLoad: true, useSQLite: false, loadPlugins: false }));
 
   const rustForced = k._rust ? await k.reasonSandbox({ ask: ['bilinmeyen nedir'] }) : null;
   if (rustForced) assert.strictEqual(rustForced.answers[0], 'Bilmiyorum');
@@ -36,7 +37,7 @@ test('reasonSandbox: unknown question answers Bilmiyorum on both backends', asyn
 });
 
 test('reasonSandbox: empty input returns no answers on either backend', async () => {
-  const k = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+  const k = new Kernel(isolatedKernelOptions('reasonSandbox', { noLoad: true, useSQLite: false, loadPlugins: false }));
   const res = await k.reasonSandbox({});
   assert.deepStrictEqual(res.answers, []);
 });

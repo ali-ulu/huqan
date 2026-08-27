@@ -321,9 +321,11 @@ test('6: the duplicate stays deleted while later reviewed audit writes are count
   // 24->26 and the total 46->48. DEL then added one routed audit append inside
   // its Graph.runMutationOnce transition callback, producing 27/49. #1080
   // then added two reviewed Graph-owned maintenance audits, producing 27/51.
+  // The hypothesis surface then added two routed candidate writes -- the
+  // `--propose` queue and the human review verdict -- producing 29/53.
   // This is the opposite of a deletion, which is exactly why this test pins
   // the routed and total numbers and not the difference between them: each
   // shape has its own finding.
-  assert.match(ledger, /assert\.equal\(routed, 27,/);
-  assert.match(ledger, /assert\.equal\(unrouted \+ routed, 51,/);
+  assert.match(ledger, /assert\.equal\(routed, 29,/);
+  assert.match(ledger, /assert\.equal\(unrouted \+ routed, 53,/);
 });

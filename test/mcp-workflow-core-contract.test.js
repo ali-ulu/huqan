@@ -1,4 +1,5 @@
 'use strict';
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./helpers/isolated-persistence');
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -201,7 +202,7 @@ test('MCP advocate and search reuse read workflows and fail closed without works
 });
 
 test('MCP trust-read reuses the canonical receipt projection and requires scoped filters', () => {
-  const trustKernel = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+  const trustKernel = new Kernel(isolatedKernelOptions('mcp-workflow-core-contract', { noLoad: true, useSQLite: false, loadPlugins: false }));
   try {
     trustKernel.learn('kedi hayvandir', {
       workspaceId: 'team-a',

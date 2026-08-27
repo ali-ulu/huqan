@@ -215,6 +215,19 @@ describe('Kernel - Çelişki Tespiti', () => {
     assert.strictEqual(multiType.node, 'a');
   });
 
+  it('learn: uyumlu çoklu türler alternatif çatışmasına dönüşmez', () => {
+    const k = freshKernel();
+    k.learn('Kedi hayvandır');
+    k.learn('Kedi memelidir');
+
+    const edges = k.graph.getEdges('kedi');
+    assert.ok(edges.some(e => e.relation === 'tür' && e.to === 'hayvan'));
+    assert.ok(edges.some(e => e.relation === 'tür' && e.to === 'memeli'));
+    assert.equal(edges.some(e => e.relation === 'benzer' && e.to === 'memeli'), false);
+    assert.equal(k.detectContradictions().length, 0);
+    assert.equal(k.verify('Kedi memelidir').data.status, 'verified');
+  });
+
   it('detectContradictions: döngü çelişkisini bulur', () => {
     const k = freshKernel();
     k.graph.addNode('a', 'a');
@@ -522,7 +535,7 @@ describe('Kernel - admission bypass unforgeability (#357)', () => {
   });
 
   it('reasonSandbox (the one legitimate internal-bootstrap bypass) still works', async () => {
-    const kernel = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+    const kernel = new Kernel(isolatedKernelOptions('kernel', { noLoad: true, useSQLite: false, loadPlugins: false }));
     const { backend, answers } = await kernel.reasonSandbox({
       learn: ['kedi hayvandir'],
       ask: ['kedi nedir'],

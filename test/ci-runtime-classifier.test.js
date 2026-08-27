@@ -86,6 +86,7 @@ describe('CI runtime classifier is fail-closed (#752)', () => {
       'docs/architecture.md',
       'specs/huqan-trust-protocol/0.2/RECEIPT-BUNDLE.md',
       'public/index.html',
+      'examples/observability-client.js',
     ]) {
       assert.strictEqual(isRuntime(file), false, `${file} must not trigger the runtime suite`);
     }

@@ -1,7 +1,13 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createServer, createKernelFromEnv } = require('../mcpServer');
+const {
+  createServer,
+  createKernelFromEnv,
+  createMcpOperatorCapability,
+  operatorCapabilityBinding,
+} = require('../mcpServer');
+const { canonicalMcpToolName } = require('../lib/mcp-tool-names');
 const Kernel = require('../kernel');
 
 const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
@@ -12,17 +18,20 @@ const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture
 function createDogfoodClient(server) {
   return {
     callTool(tool, args) {
+      const canonicalName = canonicalMcpToolName(tool);
+      const operator = ['huqan.approvals', 'huqan.approve', 'huqan.agent_resume'].includes(canonicalName)
+        ? {
+            operatorCapability: createMcpOperatorCapability({
+              secret: 'test-operator',
+              ...operatorCapabilityBinding(canonicalName, args),
+            }),
+          }
+        : {};
       const request = {
         jsonrpc: '2.0',
         id: Date.now(),
         method: 'tools/call',
-        params: {
-          name: tool,
-          ...(tool === 'huqan.approvals' || tool === 'huqan.approve' || tool === 'axiom.approvals' || tool === 'axiom.approve'
-            ? { operatorToken: 'test-operator' }
-            : {}),
-          arguments: args,
-        },
+        params: { name: tool, ...operator, arguments: args },
       };
       const rpcResponse = server.handleRequest(request);
       return rpcResponse.result ? rpcResponse.result.structuredContent || rpcResponse.result : rpcResponse;
