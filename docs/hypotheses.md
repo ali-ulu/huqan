@@ -56,4 +56,25 @@ Her kural için `accepted`, `rejected`, `pending`, `reviewed`, `total` sayılar�
 
 Yalnızca `provenance.sourceType === 'hypothesis-engine'` adayları sayılır; `[TYPE]` etiketi taşıyan yabancı bir iddia da sayıma girmez. Etiketi bozulmuş bir hipotez adayı düşürülmez, `BİLİNMEYEN` kovasında görünür. Çıktı kural tipine göre sıralıdır ve aynı girdide birebir aynıdır.
 
+## Eşik tuning tavsiyesi
+
+`hypotheses tuning`, geri bildirim istatistiklerini somut bir eşik önerisine çevirir. **Tavsiye üretir, uygulamaz** — hiçbir eşiği, config dosyasını veya kaydı değiştirmez; çıktıdaki `applied` alanı her zaman `false`'tur. Eşiği kalıcı olarak değiştirmek, kendi admission ve onay hikâyesi olan ayrı bir iştir.
+
+```bash
+node cli.js hypotheses tuning
+node cli.js hypotheses tuning --json --critical 7
+```
+
+Bir kural için öneri üretilmesi iki koşula bağlıdır: en az **5** inceleme (`MIN_REVIEWED`) ve **%60 üzeri** red oranı (`REJECTION_TRIGGER`; eşitlik tetiklemez). Koşullar sağlanmazsa kural `skipped` listesinde gerekçesiyle görünür — `insufficient_data`, `within_tolerance`, `already_at_bound` veya `no_tunable_threshold`.
+
+| Kural | Option | Yön | Etki |
+| --- | --- | --- | --- |
+| `ZAYIF_BAĞ` | `confidenceFloor` | −0.05 | daha az kenar zayıf sayılır |
+| `KRİTİK_DÜĞÜM` | `criticalInDegree` | +1 | daha az düğüm kritik sayılır |
+| `KÜÇÜK_BİLEŞEN` | `smallComponentSize` | −1 | daha az bileşen küçük sayılır |
+
+`KANIT_EKSİK`, `YALITILMIŞ_DÜĞÜM` ve `NEDENSEL_DÖNGÜ` yapısaldır, ayarlanabilir bir eşiği yoktur; sessizce düşürülmez, `no_tunable_threshold` gerekçesiyle raporlanır. Öneriler `generateHypotheses`'in kabul ettiği sınırların içinde kalır, böylece elle uygulanan bir öneri sessizce varsayılana geri kırpılmaz.
+
+**Öneriler yalnızca bir kuralı susturur.** Sürekli reddedilen bir kural fazla ateşleniyordur; öneri onu daha az ateşlenecek yöne taşır. Tersi yön — çoğunlukla kabul edilen bir kuralın eşiğini gevşetmek — bilerek yapılmaz: kabul, bulguların doğru olduğunu söyler; daha fazla bulgu beklediğini değil. İkincisini birincisinden çıkarmak, bir tuner'ın kendi çıktısını büyütmeye başlama biçimidir.
+
 > **Sınır:** Hipotez üretimi doğruluk garantisi değildir. Sonuçlar kanıt, provenance, approval ve policy geçitlerinden bağımsız olarak canonical gerçek kabul edilmez.
