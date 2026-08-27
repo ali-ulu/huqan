@@ -5,7 +5,13 @@ const os = require('os');
 const path = require('path');
 const readline = require('readline');
 const { spawn } = require('child_process');
-const { TOOL_SCHEMAS, createKernelFromEnv, callTool } = require('./mcpServer');
+const {
+  TOOL_SCHEMAS,
+  createKernelFromEnv,
+  callTool,
+  createMcpOperatorCapability,
+  operatorCapabilityBinding,
+} = require('./mcpServer');
 const Kernel = require('./kernel');
 
 // createKernelFromEnv() may return either Kernel or KernelV2 depending on
@@ -38,8 +44,14 @@ function waitForMessage(predicate) {
 
 function request(method, params) {
   const id = nextId++;
-  const requestParams = method === 'tools/call' && ['huqan.approvals', 'huqan.approve'].includes(params?.name)
-    ? { ...params, operatorToken: 'test-operator' }
+  const requestParams = method === 'tools/call' && ['huqan.approvals', 'huqan.approve', 'huqan.agent_resume'].includes(params?.name)
+    ? {
+        ...params,
+        operatorCapability: createMcpOperatorCapability({
+          secret: 'test-operator',
+          ...operatorCapabilityBinding(params.name, params.arguments || {}),
+        }),
+      }
     : params;
   const payload = { jsonrpc: '2.0', id, method, params: requestParams };
   proc.stdin.write(`${JSON.stringify(payload)}\n`);
@@ -355,6 +367,19 @@ describe('MCP Server', () => {
     assert.ok(!approvals.result.structuredContent.approvals.some(item => item.tool === 'unknown.tool' && item.status === 'pending'));
   });
 
+  it('does not accept a static operator token as a scoped capability', () => {
+    const response = callTool({}, {
+      name: 'huqan.approvals',
+      operatorToken: 'test-operator',
+      arguments: { limit: 1, workspaceId: 'default' },
+    }, {
+      approvalStore: { listUnresolvedToolApprovals: () => [], countPendingToolApprovals: () => 0 },
+      operatorSecret: 'test-operator',
+      operatorCapabilityNonces: new Map(),
+    });
+    assert.equal(response.error.code, 'OPERATOR_AUTH_REQUIRED');
+  });
+
   it('bounds runtime integers to the limits advertised by MCP schemas', () => {
     const captured = {};
     const kernel = {
@@ -369,7 +394,19 @@ describe('MCP Server', () => {
       countUnresolvedToolApprovals() { return 0; },
     };
 
-    callTool(kernel, { name: 'huqan.approvals', operatorToken: 'test-operator', arguments: { limit: 500, workspaceId: 'default' } }, { approvalStore, operatorToken: 'test-operator' });
+    const approvalArguments = { limit: 500, workspaceId: 'default' };
+    callTool(kernel, {
+      name: 'huqan.approvals',
+      operatorCapability: createMcpOperatorCapability({
+        secret: 'test-operator',
+        ...operatorCapabilityBinding('huqan.approvals', approvalArguments),
+      }),
+      arguments: approvalArguments,
+    }, {
+      approvalStore,
+      operatorSecret: 'test-operator',
+      operatorCapabilityNonces: new Map(),
+    });
     callTool(kernel, { name: 'huqan.reason', arguments: { subject: '  kedi\u0000  ' } });
     callTool(kernel, { name: 'huqan.compare', arguments: { left: '  kedi\u0000 ', right: ' kopek\u0007 ' } });
     callTool(kernel, { name: 'huqan.dream', arguments: { depth: 500 } });

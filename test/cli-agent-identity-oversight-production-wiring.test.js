@@ -148,10 +148,11 @@ test('CLI opt-in Agent Identity and Human Oversight allow a receiver-bound appro
     assert.equal(fixture.cli.approvalStore.getToolApprovalById(queued.approval.id).status, 'pending');
     assert.equal(executions, 0);
 
+    const approvalArguments = { approvalId: queued.approval.id, workspaceId: 'default', decision: 'approved' };
     const decision = await callTool(fixture.kernel, {
       name: 'huqan.approve',
-      operatorToken: 'cli-operator-token',
-      arguments: JSON.stringify({ approvalId: queued.approval.id, workspaceId: 'default', decision: 'approved' }),
+      operatorCapability: fixture.cli._createOperatorCapability('huqan.approve', approvalArguments),
+      arguments: JSON.stringify(approvalArguments),
     }, {
       ...fixture.cli._approvalRuntime(),
       humanOversightApproverContext: { identityRef: 'human:cli-operator-b', identityHash: 'hash-cli-operator-b' },

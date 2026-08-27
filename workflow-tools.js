@@ -1,9 +1,5 @@
 const { adjustedConfidence, rankEvidence, WEIGHTS } = require('./evidence-ranker');
-const {
-  normalizeConfidence,
-  normalizeEvidence,
-  normalizeError,
-} = require('./workflow-agent');
+const { normalizeConfidence, normalizeEvidence, normalizeError, registerReceiverOwnedTool } = require('./workflow-agent');
 const { createRepoMemoryTool } = require('./lib/workflow-tool-repo-memory');
 
 function cloneValue(value) {
@@ -873,7 +869,7 @@ function registerDefaultWorkflowTools(registry, kernel, options = {}) {
   }
   const tools = createWorkflowTools(kernel, options);
   for (const tool of tools) {
-    registry.registerTool({ ...tool, kind: tool.kind || 'internal' });
+    registerReceiverOwnedTool(registry, tool);
   }
   return tools;
 }

@@ -36,6 +36,8 @@ function bootAndProbe({ configured }) {
   const script = `
     const http = require('http');
     const path = require('path');
+    const { createMcpOperatorCapability, operatorCapabilityBinding } = require(path.join(${JSON.stringify(repoRoot)}, 'mcpServer'));
+    const operatorSecret = ${JSON.stringify(OPERATOR_TOKEN)};
     const caseDir = process.argv[1];
     const configured = process.argv[2] === 'yes';
 
@@ -49,11 +51,15 @@ function bootAndProbe({ configured }) {
 
     const server = require(path.join(${JSON.stringify(repoRoot)}, 'server.js'));
 
-    function request(method, urlPath, { body, operatorToken } = {}) {
+    function capability(name, args) {
+      return createMcpOperatorCapability({ secret: operatorSecret, ...operatorCapabilityBinding(name, args) });
+    }
+
+    function request(method, urlPath, { body, operatorCapability } = {}) {
       return new Promise((resolve, reject) => {
         const raw = body === undefined ? null : JSON.stringify(body);
         const headers = { 'x-api-key': ${JSON.stringify(API_KEY)} };
-        if (operatorToken) headers['x-huqan-operator-token'] = operatorToken;
+        if (operatorCapability) headers['x-huqan-operator-capability'] = operatorCapability;
         if (raw !== null) {
           headers['content-type'] = 'application/json';
           headers['content-length'] = Buffer.byteLength(raw);
@@ -76,15 +82,15 @@ function bootAndProbe({ configured }) {
         await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
 
         const noToken = await request('GET', '/api/v2/memory-approvals');
-        const wrongToken = await request('GET', '/api/v2/memory-approvals', { operatorToken: 'wrong-token' });
-        const listed = await request('GET', '/api/v2/memory-approvals', { operatorToken: ${JSON.stringify(OPERATOR_TOKEN)} });
+        const wrongToken = await request('GET', '/api/v2/memory-approvals', { operatorCapability: 'not-a-capability' });
+        const listedArgs = { limit: 50, workspaceId: 'default' };
+        const listed = await request('GET', '/api/v2/memory-approvals', { operatorCapability: capability('huqan.approvals', listedArgs) });
         const decideNoToken = await request('POST', '/api/v2/memory-approvals/some-id/decision', { body: { decision: 'approved' } });
+        const badDecisionArgs = { approvalId: 'some-id', workspaceId: 'default', decision: 'maybe', reason: '' };
         const badDecision = await request('POST', '/api/v2/memory-approvals/some-id/decision', {
-          body: { decision: 'maybe' }, operatorToken: ${JSON.stringify(OPERATOR_TOKEN)},
+          body: { decision: 'maybe' }, operatorCapability: capability('huqan.approve', badDecisionArgs),
         });
-        const wrongMethod = await request('POST', '/api/v2/memory-approvals', {
-          body: {}, operatorToken: ${JSON.stringify(OPERATOR_TOKEN)},
-        });
+        const wrongMethod = await request('POST', '/api/v2/memory-approvals', { body: {} });
 
         result = { noToken, wrongToken, listed, decideNoToken, badDecision, wrongMethod };
       } finally {
@@ -129,14 +135,14 @@ test('the API key alone cannot reach the approval queue', () => {
   assert.match(result.decideNoToken.body, /OPERATOR_AUTH_REQUIRED/);
 });
 
-test('a wrong operator token is refused exactly like a missing one', () => {
+test('a wrong operator capability is refused exactly like a missing one', () => {
   const result = bootAndProbe({ configured: true });
 
   assert.equal(result.wrongToken.status, 403);
   assert.match(result.wrongToken.body, /OPERATOR_AUTH_REQUIRED/);
 });
 
-test('the operator token lists the approval queue', () => {
+test('the scoped operator capability lists the approval queue', () => {
   const result = bootAndProbe({ configured: true });
 
   assert.equal(result.listed.status, 200);
