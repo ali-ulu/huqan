@@ -47,7 +47,7 @@ The central distinction is between an AI system **generating** an output and a p
 |---|---|
 | Evidence traceability | Graph-backed evidence, provenance references, scope context, and receipt links |
 | Repeatable checks | Deterministic verification, contradiction checks, and policy outcomes on tested paths |
-| Agent-action review | Review, approval, dry-run, escalation, and block boundaries on supported paths |
+| Agent-action review | Review, approval, dry-run, and block boundaries on supported paths, with escalation available where an approval boundary is configured |
 | Protected memory | Admission and workspace checks before canonical memory writes |
 | Auditability | Append-oriented audit context, canonical Trust Receipts, and receipt chains |
 | Local-first operation | CLI, local REST server, MCP, library, and local UI surfaces without a required hosted model |
@@ -63,10 +63,24 @@ verification + contradiction + risk checks
                 ↓
 policy decision and approval boundary
                 ↓
-ALLOW / BLOCK / REVIEW / ESCALATE / DRY-RUN ONLY
+ALLOW / REVIEW / QUARANTINE / DRY-RUN ONLY / BLOCK / REJECT
                 ↓
 Trust Receipt + audit context
 ```
+
+Not every outcome is available on every path. The gate that guards tool calls
+answers `allow`, `review`, `dry_run_only` or `block`; the memory admission gate
+adds `quarantine` and `reject`, because a write can be held aside for
+inspection rather than refused outright.
+
+**Escalation is a decision a person makes, not one the gate returns.** Where an
+approval boundary is configured, a reviewer can escalate a pending case instead
+of deciding it: the case moves to `escalated` and nothing executes until the
+authority it was raised to decides. That is a multi-party control, so it earns
+its place in an organization with more than one approver and is simply absent
+in a single-user install — there is no second authority to raise a case to. The
+decision types are `approve`, `reject`, `expire`, `cancel`, `escalate` and
+`override`; see `lib/human-oversight-approval-runtime.js`.
 
 The main local runtime flow is:
 
@@ -76,9 +90,12 @@ flowchart LR
     B --> C[Verification and contradiction checks]
     C --> D[Scope, policy, and risk gates]
     D -->|approved| E[Trusted state or permitted action]
-    D -->|blocked or uncertain| F[Block, review, or escalate]
+    D -->|blocked or uncertain| F[Block, review, quarantine, or dry-run]
+    F -->|approval boundary configured| H[Human decision: approve, reject, or escalate]
+    H -->|approved| E
     E --> G[Trust Receipt]
     F --> G
+    H --> G
 ```
 
 A passing verification result is not a universal certificate of truth. It is a result produced within the configured evidence, provenance, workspace, policy, and runtime boundary.

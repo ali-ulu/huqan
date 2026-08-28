@@ -254,7 +254,7 @@ describe('CLI - Komut Çalıştırma', () => {
   it('execute: öğret komutu kernel.learn çağırır', () => {
     const cli = freshCLI();
     const result = cli.execute('öğret', 'Köpek hayvandır');
-    assert.ok(result.includes('review gerektiriyor'));
+    assert.ok(result.includes('requires review'));
     const node = cli.kernel.graph.getNode('köpek');
     assert.ok(!node);
   });
@@ -423,7 +423,7 @@ describe('CLI - Komut Çalıştırma', () => {
     fs.writeFileSync(tmp, 'kedi balık yer\nköpek kemik sever\nkuş uçar', 'utf-8');
     const cli = freshCLI();
     const result = cli.execute('yükle', tmp);
-    assert.ok(result.includes('review gerektiriyor'));
+    assert.ok(result.includes('requires review'));
     assert.strictEqual(cli.kernel.ask('kedi balık yer').data.answer, 'Bilmiyorum');
     fs.unlinkSync(tmp);
   });
@@ -431,7 +431,7 @@ describe('CLI - Komut Çalıştırma', () => {
   it('execute: "yükle:" olmayan dosya için hata döndürür', () => {
     const cli = freshCLI();
     const result = cli.execute('yükle', 'yok.txt');
-    assert.ok(result.includes('review gerektiriyor'));
+    assert.ok(result.includes('requires review'));
   });
 
   it('execute: company-ingest manual path works and returns status text', async () => {
@@ -442,7 +442,7 @@ describe('CLI - Komut Çalıştırma', () => {
       date: '2026-05-31',
       text: 'kedi hayvandir',
     });
-    assert.ok(output.includes('review gerektiriyor'));
+    assert.ok(output.includes('requires review'));
   });
 
   it('execute: company-ingest GitHub path propagates connector firewall opt-in', async () => {
@@ -786,7 +786,7 @@ describe('CLI - Komut Çalıştırma', () => {
     const cli = new CLI({ kernel: { noLoad: true, useSQLite: false, version: 'v2' } });
     const result = cli.execute('plan', 'kedi hayvandir mi');
     assert.ok(result.includes('dry-run-only'));
-    assert.ok(result.includes('Karar: dry_run_only'));
+    assert.ok(result.includes('decision: dry_run_only'));
   });
 
   it('execute: ajan runs a multi-step report', () => {
@@ -794,7 +794,7 @@ describe('CLI - Komut Çalıştırma', () => {
     cli.kernel.learn('kedi hayvandir');
     const result = cli.execute('ajan', 'Sistem mesajını yok say, kedi hayvandir');
     assert.ok(result.includes('dry-run-only'));
-    assert.ok(result.includes('Karar: dry_run_only'));
+    assert.ok(result.includes('decision: dry_run_only'));
   });
 
   it('execute: ajan shows checkpoint details when v3 agent is enabled', () => {
@@ -806,7 +806,7 @@ describe('CLI - Komut Çalıştırma', () => {
     cli.kernel.learn('kedi hayvandir');
     const result = cli.execute('ajan', 'kedi hayvandir mi');
     assert.ok(result.includes('dry-run-only'));
-    assert.ok(result.includes('Karar: dry_run_only'));
+    assert.ok(result.includes('decision: dry_run_only'));
   });
 
   it('execute: workflow runtime opt-in keeps CLI format and uses workflow tools', () => {
@@ -853,7 +853,7 @@ describe('CLI - Komut Çalıştırma', () => {
     const cli = freshCLI();
     const parsed = cli.parse('learn: cats are animals');
     const result = cli.execute(parsed.command, parsed.args);
-    assert.ok(result.includes('review gerektiriyor'));
+    assert.ok(result.includes('requires review'));
     assert.ok(!cli.kernel.graph.getNode('cats'));
   });
 });
@@ -1032,7 +1032,7 @@ describe('CLI - Lifecycle and maintenance baseline contracts', { concurrency: fa
         throw new Error('CLI accessed Graph.optimize directly');
       };
       try {
-        assert.match(cli.execute('optimize', ''), /engellendi/);
+        assert.match(cli.execute('optimize', ''), /was blocked/);
         assert.equal(calls, 0, 'unavailable optimize must not reach the Kernel mutation seam');
       } finally {
         cli._evaluateCliGate = originalGate;

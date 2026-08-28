@@ -77,7 +77,7 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
   it('uses exit 3 when the command requires review', () => {
     const result = runCli(['learn:', 'cats', 'are', 'animals']);
     assert.strictEqual(result.status, 3);
-    assert.match(result.stdout, /review gerektiriyor/);
+    assert.match(result.stdout, /requires review/);
   });
 
   it('persists through the one-shot kaydet command', () => {
