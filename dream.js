@@ -414,8 +414,6 @@ class Dream {
         if (checked.has(key)) continue;
         checked.add(key);
 
-        const aEdges   = context.outEdges.get(a.id);
-        const bEdges   = context.outEdges.get(b.id);
         const aTargets = context.outTargets.get(a.id);
         const bTargets = context.outTargets.get(b.id);
         const common   = [...aTargets].filter(t => bTargets.has(t));

@@ -7,10 +7,8 @@ const {
 validateEnvironmentCompatibility();
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
 const crypto = require('crypto');
 const readline = require('readline');
-const { isPathWithinRoot } = require('./lib/path-safety');
 const { createKernel } = require('./lib/kernel-factory');
 const { cliHelpText } = require('./lib/cli-help');
 const { formatCliGateMessage } = require('./lib/cli-gate-message');
@@ -45,7 +43,6 @@ const { formatCliApprovalList, formatCliApprovalDecision } = require('./lib/mcp-
 
 const {
   shellQuote,
-  getCliReadRoots,
   resolveCliReadPath,
   isWorkflowRuntime,
   unwrapAgentPayload,
