@@ -7,6 +7,19 @@ const {
   startGitHubAppBetaServer,
 } = require('../github-app-server.js');
 
+function closeServer(server) {
+  return new Promise((resolve, reject) => {
+    if (!server.listening) {
+      resolve();
+      return;
+    }
+    server.close(error => {
+      if (error) reject(error);
+      else resolve();
+    });
+  });
+}
+
 test('createGitHubAppBetaServer fails if boundary is missing or invalid', (t) => {
   assert.throws(
     () => createGitHubAppBetaServer(),
@@ -51,18 +64,19 @@ test('createGitHubAppBetaServer handles requests', async (t) => {
     handle: async () => ({ statusCode: 200, headers: {}, body: { ok: true } })
   };
   const server = startGitHubAppBetaServer({ boundary, port: 0 });
+  t.after(() => closeServer(server));
   await new Promise((resolve) => server.once('listening', resolve));
   const port = server.address().port;
   
   // Test 404
   const res404 = await fetch(`http://127.0.0.1:${port}/wrong`);
   assert.equal(res404.status, 404);
+  await res404.text();
   
   // Test 200
   const res200 = await fetch(`http://127.0.0.1:${port}/webhook`);
   assert.equal(res200.status, 200);
-  
-  server.close();
+  await res200.text();
 });
 
 test('createGitHubAppBetaServer handles internal errors', async (t) => {
@@ -71,11 +85,11 @@ test('createGitHubAppBetaServer handles internal errors', async (t) => {
     handle: async () => { throw new Error('Internal'); }
   };
   const server = startGitHubAppBetaServer({ boundary, port: 0 });
+  t.after(() => closeServer(server));
   await new Promise((resolve) => server.once('listening', resolve));
   const port = server.address().port;
   
   const res500 = await fetch(`http://127.0.0.1:${port}/webhook`);
   assert.equal(res500.status, 500);
-  
-  server.close();
+  await res500.text();
 });
