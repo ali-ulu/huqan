@@ -10,7 +10,7 @@ const { after, test } = require('node:test');
 const Graph = require('../graph');
 const { buildCanonicalReceiptPayload } = require('../lib/receipt/canonical-receipt');
 const { GENESIS_PREVIOUS_HASH } = require('../lib/receipt/receipt-chain');
-const { lockPathFor, withMutationJournalLock } = require('../lib/mutation-journal-lock');
+const { LOCK_WAIT_MS, isReclaimableLock, lockPathFor, withMutationJournalLock } = require('../lib/mutation-journal-lock');
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-durable-journal-'));
 
@@ -252,6 +252,43 @@ test('[json] durable journal fails closed for a stale lock left by a dead proces
 
   assert.equal(ran, false);
   assert.equal(fs.existsSync(lockPath), true);
+});
+
+test('[json] a dead owner is refused immediately, without waiting out the lock timeout', () => {
+  // The refusal verdict is deliberate (see the test above). What must not
+  // happen is reaching it slowly: a crash used to cost every later mutation a
+  // full LOCK_WAIT_MS block, and then reported LOCK_TIMEOUT -- a contention
+  // code -- even though the owning pid was already provably gone.
+  const journalPath = path.join(root, 'fresh-dead-lock.mutations.json');
+  const lockPath = lockPathFor(journalPath);
+  fs.writeFileSync(lockPath, JSON.stringify({ pid: 2147483647, token: 'dead', acquiredAt: new Date().toISOString() }));
+
+  let ran = false;
+  const startedAt = Date.now();
+  assert.throws(
+    () => withMutationJournalLock(journalPath, () => { ran = true; }),
+    error => error?.code === 'MUTATION_JOURNAL_STALE_LOCK',
+  );
+  const elapsedMs = Date.now() - startedAt;
+
+  assert.equal(ran, false);
+  assert.equal(fs.existsSync(lockPath), true);
+  assert.ok(elapsedMs < LOCK_WAIT_MS / 2, `refusal took ${elapsedMs}ms, expected well under ${LOCK_WAIT_MS}ms`);
+});
+
+test('[json] a half-written lock from a live writer is not mistaken for a dead owner', () => {
+  // Between openSync(wx) and the pid write, the lock file exists but is empty.
+  // Liveness cannot be judged there, so the age gate must still apply -- other-
+  // wise the fast path above would evict a healthy concurrent writer.
+  const journalPath = path.join(root, 'half-written-lock.mutations.json');
+  const lockPath = lockPathFor(journalPath);
+  fs.writeFileSync(lockPath, '');
+
+  assert.equal(isReclaimableLock(journalPath), false);
+
+  const stale = new Date(Date.now() - (6 * 60 * 1000));
+  fs.utimesSync(lockPath, stale, stale);
+  assert.equal(isReclaimableLock(journalPath), true, 'the age gate still reclaims an abandoned unreadable lock');
 });
 
 test('[sqlite] two real processes keep one canonical result and receipt for the same operation', async () => {
