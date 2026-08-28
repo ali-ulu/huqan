@@ -1,21 +1,9 @@
 'use strict';
 
 /**
- * #1135: the JSON backend's commit ordering, pinned by test.
- *
- * _runMutationOnceJsonLocked() persists graph state with save() and only then
- * marks the journal 'completed'. The comment above those two lines documents
- * the choice and its cost:
- *
- *   - save() first  -> a crash in between double-applies on retry
- *   - journal first -> a crash in between claims success for data that was
- *                      never persisted (phantom completion)
- *
- * The tradeoff was argued in a comment and asserted nowhere, so nothing stopped
- * a later edit from reversing the two lines and silently buying the worse
- * failure. These tests drive both sides of the window directly: one proves the
- * accepted cost is the one actually paid, the other proves the failure that was
- * traded away stays traded away.
+ * #1135/#1711: graph, embedding sidecar and journal form one recoverable JSON
+ * transaction. Once prepared, a retry completes the recorded after-images and
+ * replays the canonical result without invoking the mutation again.
  */
 
 const assert = require('node:assert/strict');
@@ -50,15 +38,10 @@ function journalStatus(journalPath, operationId) {
   return op ? op.status : null;
 }
 
-test('#1135 a crash between save() and the journal write re-runs the mutation on retry', () => {
-  const { graph, journalPath } = makeGraph('crash-window');
-
-  // The crash window: save() has already landed, the journal write has not.
-  const realWriteJournal = graph._writeJsonJournal.bind(graph);
-  let crashOnJournalWrite = true;
-  graph._writeJsonJournal = (journal) => {
-    if (crashOnJournalWrite) throw new Error('process died before the journal was written');
-    return realWriteJournal(journal);
+test('#1135 a prepared transaction recovers without double-applying', () => {
+  const { graph, memoryPath, journalPath } = makeGraph('crash-window');
+  graph._jsonTransactionFault = point => {
+    if (point === 'after-graph-publish') throw new Error('process died');
   };
 
   let applications = 0;
@@ -70,33 +53,25 @@ test('#1135 a crash between save() and the journal write re-runs the mutation on
 
   assert.throws(() => graph.runMutationOnce('op-1', mutate), /process died/);
 
-  // Ordering guarantee: the mutation reached disk, the journal did not record
-  // it. That asymmetry is the whole point of putting save() first.
   assert.equal(applications, 1);
   assert.equal(journalStatus(journalPath, 'op-1'), null, 'the journal must not claim completion');
-
-  // The cost of that choice, made explicit: the same operationId is not
-  // recognized as a replay, so the mutation runs a second time.
-  crashOnJournalWrite = false;
-  const retry = graph.runMutationOnce('op-1', mutate);
-
-  assert.equal(retry.replayed, false, 'a crashed operation is not recognized as completed');
-  assert.equal(applications, 2, 'this is the accepted double-apply, not a regression');
+  const restarted = new Graph({ memoryPath, useSQLite: false, noLoad: true });
+  const retry = restarted.runMutationOnce('op-1', () => {
+    applications += 1;
+    throw new Error('must not execute');
+  });
+  assert.equal(retry.replayed, true);
+  assert.equal(applications, 1);
   assert.equal(journalStatus(journalPath, 'op-1'), 'completed');
-
-  // And why it is the lesser evil: nothing was ever reported as done that was
-  // not on disk. Both applications really happened.
-  assert.equal(retry.result.applied, 2);
+  assert.equal(retry.result.applied, 1);
 });
 
 test('#1135 a failing save() never leaves a completed journal entry behind', () => {
   const { graph, journalPath } = makeGraph('save-fails');
 
-  const realSave = graph.save.bind(graph);
-  let failSave = true;
-  graph.save = (...args) => {
-    if (failSave) throw new Error('disk full');
-    return realSave(...args);
+  let failPrepare = true;
+  graph._jsonTransactionFault = point => {
+    if (failPrepare && point === 'before-prepared') throw new Error('disk full');
   };
 
   let applications = 0;
@@ -115,7 +90,7 @@ test('#1135 a failing save() never leaves a completed journal entry behind', () 
   assert.equal(Object.keys(graph.getNodes('w')).length, 0, 'in-memory state rolled back');
 
   // The retry therefore applies exactly once in total — no loss, no duplicate.
-  failSave = false;
+  failPrepare = false;
   const retry = graph.runMutationOnce('op-2', mutate);
 
   assert.equal(retry.replayed, false);

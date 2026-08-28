@@ -38,7 +38,7 @@ const {
 const { derivePersistenceLayout, resolveDefaultMemoryPath } = require('./lib/memory-store-utils');
 const { createMutationRollback } = require('./lib/graph-mutation-rollback');
 const { assertGraphPersistenceWritable, loadJsonGraph } = require('./lib/graph-json-persistence');
-const { runSnapshotMutation, saveSnapshot, writeCurrentState, writeJsonFiles } = require('./lib/graph-json-snapshot');
+const { commitJsonTransaction, rememberSnapshot, runSnapshotMutation, saveSnapshot, writeCurrentState, writeJsonFiles } = require('./lib/graph-json-snapshot');
 const { handleSqliteInitializationError, hasExistingPersistenceFile, sqlitePersistenceError } = require('./lib/sqlite-persistence-validation');
 const { countAuditEvents, queryAuditEvents, readAuditEvents } = require('./lib/audit-query');
 const { assertChainTipUsable, emptyMutationJournal, readMutationJournal, readCommittedMutationResult, readCommittedMutationResultsByPrefix } = require('./lib/mutation-journal');
@@ -599,19 +599,12 @@ class Graph {
       }
 
       journal.operations[id] = { status: 'completed', result, receiptId: receipt?.receiptId || null, committedAt: nowIso() };
-      // Ordering matters: persist the actual graph state FIRST, and only
-      // mark the journal 'completed' AFTER that succeeds. If save() were to
-      // throw, in-memory state is rolled back below -- if the journal had
-      // already been marked 'completed' at that point, a replay would
-      // return a "success" result for data that was never actually
-      // persisted (phantom completion, real data loss). Reversing this
-      // (journal first) trades that for a smaller, opposite risk: if the
-      // journal write itself fails right after a successful save(), a
-      // retry with the same operationId would re-run an already-applied
-      // mutation. A rare possible double-apply is the lesser failure mode
-      // than ever falsely claiming a mutation completed.
-      this.save();
-      this._writeJsonJournal(journal);
+      // Prepare one redo record before publishing graph, embedding sidecar,
+      // and completed journal after-images. Restart recovery finishes that
+      // exact record, so a prepared operation neither double-applies nor
+      // produces a phantom completion.
+      commitJsonTransaction(this, id, journal);
+      rememberSnapshot(this);
 
       // persisted: true tells the caller save() already happened as part of
       // committing this mutation (unlike the SQLite path, where the DB
