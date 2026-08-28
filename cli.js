@@ -13,6 +13,8 @@ const readline = require('readline');
 const { isPathWithinRoot } = require('./lib/path-safety');
 const { createKernel } = require('./lib/kernel-factory');
 const { cliHelpText } = require('./lib/cli-help');
+const { formatCliGateMessage } = require('./lib/cli-gate-message');
+const { formatPluginCapabilityStatus } = require('./lib/cli-plugin-status');
 const { runCliHypotheses } = require('./lib/cli-hypotheses');
 const { runCliArgv: runWorkflowCliArgv } = require('./lib/cli-workflow-adapter');
 const { runQuickstartCommand } = require('./lib/quickstart-cli');
@@ -560,7 +562,8 @@ class CLI {
         const contradictions = this.kernel.detectContradictions();
         let out = `Status: ${nodes} nodes, ${edges} edges, entropy: ${entropy.toFixed(3)}`;
         if (isWorkflowRuntime(this.agent)) out += `\n  Agent runtime: workflow`;
-        if (gaps.length > 0) out += `\n  ${gaps.length} baglantisiz dugum: ${gaps.slice(0, 10).join(', ')}${gaps.length > 10 ? '...' : ''}`;
+        if (gaps.length > 0) out += `\n  ${gaps.length} unconnected node(s): ${gaps.slice(0, 10).join(', ')}${gaps.length > 10 ? '...' : ''}`;
+        out += formatPluginCapabilityStatus(this.kernel?.plugins);
         for (const item of contradictions.slice(0, 5)) {
           out += `\n  Contradiction [${item.type}]: ${item.node} -> ${item.targets.join(', ')}`;
         }
@@ -735,17 +738,9 @@ class CLI {
     return evaluateMcpGate({ tool, args: gateArgs, metadata });
   }
 
+  // See lib/cli-gate-message.js (#1693) for why the wording matters.
   _formatCliGateMessage(command, gate) {
-    const decision = gate?.decision || 'block';
-    const reason = gate?.reason || 'gate_blocked';
-    const commandLabel = String(command || '');
-    if (decision === 'dry_run_only') {
-      return `Gate: ${commandLabel} dry-run-only. Calisma baslatilmadi. Karar: ${decision}. Sebep: ${reason}.`;
-    }
-    if (decision === 'review') {
-      return `Gate: ${commandLabel} review gerektiriyor. Sessiz mutation/calistirma yapilmadi. Karar: ${decision}. Sebep: ${reason}.`;
-    }
-    return `Gate: ${commandLabel} engellendi. Karar: ${decision}. Sebep: ${reason}.`;
+    return formatCliGateMessage(command, gate);
   }
 
   // F-004: synthetic gate decision for CLI mutation/maintenance commands that
@@ -765,7 +760,7 @@ class CLI {
   // hide it (#760).
   _commitCliMutation(command, classification = null) {
     const audit = commitCliMutation(this.kernel, command, classification);
-    return audit.auditRecorded ? '' : `\nUyari: ${command} tamamlandi ama commit denetim kaydi yazilamadi (${audit.errorCode}).`;
+    return audit.auditRecorded ? '' : `\nWarning: ${command} completed, but its commit audit record could not be written (${audit.errorCode}).`;
   }
 }
 
