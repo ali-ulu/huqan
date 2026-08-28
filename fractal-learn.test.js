@@ -88,4 +88,27 @@ describe('FractalLearn - özyinelemeli bilgi sentezi', () => {
     assert.ok(r.data.params.depth <= 5);
     assert.ok(r.data.params.minScore <= 1);
   });
+
+  it('autoTune=false: thresholdChanges boş, geriye uyumluluk', () => {
+    const k = fresh();
+    k.learn('a b dir');
+    k.learn('b c dir');
+    const fl = new FractalLearn(k);
+    const r = fl.run({ maxRounds: 2, minScore: 0.1 });
+    assert.strictEqual(r.data.params.autoTune, false);
+    assert.deepEqual(r.data.thresholdChanges, []);
+  });
+
+  it('autoTune=true: çıktıya thresholdChanges alanı eklenir, yetersiz veride değişmez', () => {
+    const k = fresh();
+    k.learn('a b dir');
+    k.learn('b c dir');
+    k.learn('c d dir');
+    const fl = new FractalLearn(k);
+    const r = fl.run({ maxRounds: 3, minScore: 0.1, autoTune: true });
+    assert.strictEqual(r.data.params.autoTune, true);
+    assert.ok(Array.isArray(r.data.thresholdChanges));
+    // candidate_claims boş olduğundan sıkılaştırma sinyali oluşmaz -> eşik değişmez.
+    assert.deepEqual(r.data.thresholdChanges, []);
+  });
 });
