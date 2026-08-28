@@ -2,9 +2,20 @@
 
 ## v0.10.1
 
-Unreleased. A security release: every fix below landed after v0.10.0 was
-published, so the version currently installable from the registry does not
-carry them. Bump and tag before pointing anyone at `npm install -g huqan`.
+Unreleased — the manifest is bumped and waiting on a `v0.10.1` tag. Until that
+tag is pushed, `npm install -g huqan` still serves v0.10.0, which carries none
+of the fixes below.
+
+Primarily a security release, and the first release since v0.10.0 reached the
+registry on 2026-08-27, so it also carries everything else that landed in
+between.
+
+### Added
+- **Graceful shutdown on SIGTERM/SIGINT (#1697).** `server.js` stops accepting
+  connections and drains the HTTP server before closing observability timers,
+  viewer state, approval storage, external-client resources and the kernel
+  graph. A five-second fail-safe exits non-zero if the drain does not finish,
+  so a container stop no longer severs in-flight requests silently.
 
 ### Fixed
 - **Mutation journal replay tracking (#1671).** Journal sections are
@@ -44,6 +55,59 @@ carry them. Bump and tag before pointing anyone at `npm install -g huqan`.
   loopback, no embedded credentials, fragment or query, and no control
   characters. Its checkout is pinned to the base SHA, so the scripts the job
   runs are the reviewed ones rather than the pull request's.
+- **Data loss on a corrupt JSON graph (#1703).** JSON graph loading moved to
+  its own persistence module and now rejects malformed JSON, bad record
+  shapes, explicitly null collections and colliding normalized node ids. A
+  failed load keeps the previous in-memory view but refuses `save()` and
+  canonical mutations with `GRAPH_JSON_LOAD_FAILED`, so a damaged file can no
+  longer be overwritten by the process that failed to read it. Writing
+  reopens only once a valid snapshot loads.
+- **Concurrent SQLite mutations (#1698).** The durable mutation transaction
+  takes `BEGIN IMMEDIATE`, acquiring the write reservation before the
+  idempotency re-check. Two processes could previously both enter the mutation
+  callback for the same `operationId`.
+- **A dead lock owner blocked writers for 30 seconds (#1706).** The JSON
+  mutation journal consulted a lock record's age before its pid, so a crash
+  left every later mutation waiting out the full lock timeout and then failing
+  with a contention code — while the owning process was provably gone. A
+  parsed record naming a dead pid now decides at once; age remains the
+  fallback where liveness cannot settle it, which is what keeps a half-written
+  lock from a live writer from being evicted. The verdict is unchanged: the
+  lock is still preserved for investigation and never silently stolen.
+- **MCP resources left open on shutdown (#1701).** The MCP server closes owned
+  approval and kernel resources on JSON-RPC shutdown, idempotently and aware
+  of what it owns, and exits non-zero when cleanup fails.
+- **Hypothesis noise (#1643).** `dream()` no longer treats markdown table
+  pipes, CI job ids, or punctuation-only nodes as hypothesis sources, so the
+  human review queue stops filling with proposals built from ingest debris.
+- **The first sixty seconds of the CLI (#1693, #1694, #1695).** The gate
+  refusal for a mutating command was Turkish on an English CLI, half its
+  diacritics stripped, and named no way forward; it is now English, states the
+  decision and reason, and points at a next step that exists. Five
+  `[Plugin] … disabled` warnings no longer precede every command's output —
+  `huqan status` reports which plugins are active, which are waiting on a
+  capability, and which capability each one wants. The quickstart no longer
+  ends by suggesting a command that answers `unknown` against the reader's own
+  graph.
+
+### Documentation
+- **The decision vocabulary in the README matches the code (#1705).** The
+  "How it works" outcome line advertised an `ESCALATE` result no gate returns
+  and omitted `quarantine` and `reject`, which the memory admission gate does.
+  Escalation is real but belongs one layer up — a reviewer's decision at the
+  approval boundary, present where an organization has more than one approver
+  and absent in a single-user install — and the README now says so.
+  `test/readme-decision-vocabulary.test.js` reads the constants and fails if
+  the prose drifts from them again.
+
+### Tests
+- Filesystem failure modes: read-only persistence directory, truncated
+  mutation journal, corrupt SQLite file (#1699).
+- HTTP transport failure paths over real TCP: auth rejection before ingest
+  mutation, declared and chunked uploads over the body limit, malformed JSON
+  (#1700).
+- Real multi-process coverage for the SQLite durable journal, including a
+  process killed inside a transaction (#1698).
 
 ## v0.10.0
 
