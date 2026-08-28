@@ -18,7 +18,7 @@
     "lib/memory-store.js": 961,
     "lib/sandbox-isolation.js": 831,
     "scripts/external-conformance/consumer.js": 924,
-    "server.js": 1019,
+    "server.js": 1035,
     "workflow-agent.js": 967,
     "workflow-tools.js": 880
   }

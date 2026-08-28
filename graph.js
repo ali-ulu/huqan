@@ -504,7 +504,7 @@ class Graph {
         this._stmts.insertMutationJournal.run(id, 'completed', JSON.stringify(result), nowIso());
         return { replayed: false, result, receipt };
       });
-      return execute();
+      return (typeof execute.immediate === 'function' ? execute.immediate : execute)();
     } catch (error) {
       // SQLite rolls back durably; the lazy journal restores only in-memory
       // records and collection roots touched by this callback.
