@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.11.0
+
+### Added
+- **fractal-learn (#1714).** New `huqan.fractal-learn` MCP tool running a
+  bounded recursive knowledge-synthesis loop: it chains `kernel.dream` rounds
+  (hypothesis generation admitted through the mutation gate) and stops when the
+  per-round entropy gain saturates (`exhausted` / `saturated` / `maxRounds`).
+  Every write is receipted and the tool is gated `mutating_requires_review`, so
+  the graph never grows silently.
+
 ## v0.10.1
 
 Unreleased — the manifest is bumped and waiting on a `v0.10.1` tag. Until that
