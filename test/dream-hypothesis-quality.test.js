@@ -34,6 +34,30 @@ describe('#1643 - dream hipotez kalitesi: düğüm uygunluk kapısı', () => {
     assert.strictEqual(isEligibleHypothesisNode('self-healer loop nedir?'), true);
   });
 
+  it('isEligibleHypothesisNode: JS literal gürültüsü elenir (#1643 follow-up)', () => {
+    // Ingest edilen kod/JSON içeriklerinden sızan runtime değerleri
+    assert.strictEqual(isEligibleHypothesisNode('undefined'), false);
+    assert.strictEqual(isEligibleHypothesisNode('null'), false);
+    assert.strictEqual(isEligibleHypothesisNode('true'), false);
+    assert.strictEqual(isEligibleHypothesisNode('false'), false);
+    assert.strictEqual(isEligibleHypothesisNode('NaN'), false);
+    assert.strictEqual(isEligibleHypothesisNode('Undefined'), false); // case-insensitive
+  });
+
+  it('dream: zincir hipotezleri gürültü ara/hedef düğümlerden geçmez', () => {
+    const { k, d } = fresh();
+    // Zincir: A -> kirli ara -> B (ara düğüm JS literal gürültüsü)
+    k.learn('Köpek hayvandır');
+    k.learn('hayvan undefined');
+    k.learn('undefined memelidir');
+    const results = d.dream().filter(h => h.type === 'zincir');
+    for (const h of results) {
+      // via (ara düğüm) asla JS literal gürültüsü olamaz
+      assert.notStrictEqual(String(h.via).toLowerCase(), 'undefined', 'via gürültü olamaz');
+      assert.notStrictEqual(String(h.to).toLowerCase(), 'undefined', 'to gürültü olamaz');
+    }
+  });
+
   it('dream: gürültü düğümleri hipotez kaynağı olamaz', () => {
     const { k, d } = fresh();
     // Anlamlı kavram çifti

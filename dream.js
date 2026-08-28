@@ -473,11 +473,17 @@ class Dream {
       const edges = context.outEdges.get(node.id);
       for (const edge of edges) {
         if (added >= 50) break;
+        // #1643 follow-up: the source is gated by the caller, but hop targets
+        // come straight from the graph. A chain hop through or into debris
+        // ("{", "[],") yields a syntactically valid, semantically empty
+        // proposal -- gate both hops.
+        if (!isEligibleHypothesisNode(edge.to)) continue;
         const transEdges = context.outEdges.get(edge.to) || [];
         for (const te of transEdges) {
           if (added >= 50) break;
           if (!this._consumeDreamWork(context)) return;
           if (te.to === node.id) continue;
+          if (!isEligibleHypothesisNode(te.to)) continue;
           const existing = context.relationTargets.get(node.id)?.get(edge.relation)?.has(te.to);
           if (!existing) {
             hypotheses.push({
