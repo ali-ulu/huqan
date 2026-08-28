@@ -10,7 +10,6 @@ const { buildBackgroundProvenance, provenanceFieldsFrom, commitBackgroundEdge } 
 const { buildLearnAdmissionRequest } = require('./lib/learn-admission-request');
 const { evaluateMemoryAdmission } = require('./lib/memory-admission-gate');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
-const { defaultApprovalRequired } = require('./lib/human-approval-toggle');
 const { detectClaimConflict } = require('./lib/conflict-detector');
 const { createKernelReadUseCases } = require('./lib/kernel-read-use-cases');
 const { runLearnUseCase } = require('./lib/learn-use-case');
@@ -40,13 +39,7 @@ const {
   CONTRACT_VERSION,
   DEFAULT_CAPABILITIES,
 } = require('./lib/kernel-contract');
-const {
-  CLI_MUTATION_AUDIT_FIELDS,
-  CLI_MUTATION_AUDIT_REQUIRED_FIELDS,
-  CLI_MUTATION_AUDIT_APPROVAL_STATES,
-  CLI_MUTATION_AUDIT_MAPPINGS,
-  normalizeWorkspaceId,
-} = require('./lib/cli-mutation-audit-intent');
+const { normalizeWorkspaceId } = require('./lib/cli-mutation-audit-intent');
 const { recordCliMutationAudit } = require('./lib/cli-mutation-audit');
 const { admitAddCandidateClaim, admitCandidateIngress, admitLearn } = require('./lib/kernel-mutation-admission');
 const {

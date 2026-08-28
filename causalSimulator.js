@@ -1,4 +1,4 @@
-const { Graph, CAUSAL_RELATIONS } = require('./graph');
+const { Graph } = require('./graph');
 
 const RELATION_PROFILES = Object.freeze({
   CAUSES: {
