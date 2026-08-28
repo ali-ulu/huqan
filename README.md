@@ -277,7 +277,7 @@ Claude Desktop configuration with no prior global installation:
 
 `--package=huqan` is required because the binary name differs from the package name. From a source checkout, use `"command": "node"` with `"args": ["/absolute/path/to/huqan/mcpServer.js"]`.
 
-The model-visible MCP catalog includes tools for learning, asking grounded questions, verification, planning, bounded agent execution, ingest preview/status, policy inspection, reasoning traces, comparison, hypothesis generation, advocacy, scoped search, and Trust Receipt reading.
+The model-visible MCP catalog includes tools for learning, asking grounded questions, verification, planning, bounded agent execution, ingest preview/status, policy inspection, reasoning traces, comparison, hypothesis generation, advocacy, scoped search, Trust Receipt reading, and recursive knowledge synthesis (`huqan.fractal-learn`, optionally self-tuning through its one-way `autoTune` mode — it can tighten its own thresholds but never loosen them).
 
 Operator-only tools are deliberately withheld from `tools/list` and require `HUQAN_MCP_OPERATOR_TOKEN`:
 
