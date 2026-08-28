@@ -586,6 +586,7 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
       return withMcpToolVerdictSurface(kernel.dream({
         depth: boundedMcpInteger(args.depth, 2, 1, 5),
       }), name, args, gate);
+    case 'huqan.fractal-learn': return require('./lib/mcp/fractal-learn-tool').executeMcpFractalLearn(kernel, name, args, gate);
     case 'huqan.advocate':
     case 'huqan.search':
     case 'huqan.trust_receipt':
