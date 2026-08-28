@@ -50,7 +50,7 @@ test('cli.js dogfood client routes öğret through the review gate as a real chi
     // is a real out-of-process client subject to the same trust boundary,
     // not an in-process shortcut around it.
     assert.equal(learnResult.status, 3);
-    assert.match(learnResult.stdout, /review gerektiriyor/);
+    assert.match(learnResult.stdout, /requires review/);
 
     const askAfter = runCli(['sor', 'kopek nedir'], env);
     assert.equal(askAfter.status, 0);
