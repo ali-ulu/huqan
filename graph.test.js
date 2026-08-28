@@ -5,6 +5,85 @@ const Graph = require('./graph');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { spawnSync } = require('node:child_process');
+
+describe('Graph JSON corruption refuses persistence (#1703)', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-json-corrupt-'));
+  after(() => fs.rmSync(root, { recursive: true, force: true }));
+
+  it('a restarted process cannot overwrite corrupt graph or append a successful operation', () => {
+    const memoryPath = path.join(root, 'restart.json');
+    const seed = new Graph({ memoryPath, useSQLite: false });
+    seed.runMutationOnce('seed', () => { seed.addNode('seed'); return { ok: true }; });
+    seed.close();
+    const journalPath = memoryPath.replace(/\.json$/, '.mutations.json');
+    const journal = fs.readFileSync(journalPath);
+    const corrupt = '{"nodes":{"seed":';
+    fs.writeFileSync(memoryPath, corrupt);
+    const child = spawnSync(process.execPath, ['-e', `
+      const assert = require('node:assert/strict');
+      const Graph = require(process.argv[1]);
+      const graph = new Graph({ memoryPath: process.argv[2], useSQLite: false });
+      assert.throws(() => graph.load(), { code: 'GRAPH_JSON_LOAD_FAILED' });
+      let called = false;
+      assert.throws(() => graph.runMutationOnce('new-operation', () => {
+        called = true;
+        graph.addNode('replacement');
+        return { ok: true };
+      }), { code: 'GRAPH_JSON_LOAD_FAILED' });
+      assert.equal(called, false);
+      assert.throws(() => graph.save(), { code: 'GRAPH_JSON_LOAD_FAILED' });
+      graph.close();
+    `, require.resolve('./graph'), memoryPath], { encoding: 'utf8', timeout: 10000 });
+    assert.ifError(child.error);
+    assert.strictEqual(child.status, 0, child.stderr);
+    assert.strictEqual(fs.readFileSync(memoryPath, 'utf8'), corrupt);
+    assert.deepStrictEqual(fs.readFileSync(journalPath), journal);
+  });
+
+  it('rejects malformed graph shapes without publishing a partial snapshot', () => {
+    const memoryPath = path.join(root, 'shapes.json');
+    const graph = new Graph({ memoryPath, useSQLite: false });
+    graph.addNode('prior');
+    for (const value of [null, [], {}, { nodes: [] }, { nodes: { bad: null } },
+      { nodes: { bad: { id: 42 } } }, { nodes: {}, edges: {} },
+      { nodes: {}, edges: [null] }, { nodes: {}, edges: [{ from: 'a' }] },
+      { nodes: {}, candidateClaims: {} }, { nodes: {}, auditEvents: [false] },
+      { nodes: {}, candidateClaims: null }, { nodes: {}, candidate_claims: null },
+      { nodes: {}, auditEvents: null }, { nodes: {}, audit_log: null },
+      { nodes: { first: { id: 'same' }, second: { id: 'same' } } }]) {
+      const bytes = JSON.stringify(value);
+      fs.writeFileSync(memoryPath, bytes);
+      assert.throws(() => graph.load(), { code: 'GRAPH_JSON_LOAD_FAILED' });
+      assert.ok(graph.getNode('prior'));
+      assert.throws(() => graph.save(), { code: 'GRAPH_JSON_LOAD_FAILED' });
+      assert.strictEqual(fs.readFileSync(memoryPath, 'utf8'), bytes);
+    }
+    graph.close();
+  });
+
+  it('requires a valid reload to recover, while a fresh missing store remains supported', () => {
+    const memoryPath = path.join(root, 'recovery.json');
+    const graph = new Graph({ memoryPath, useSQLite: false });
+    graph.load();
+    graph.addNode('saved');
+    graph.save();
+    const backup = fs.readFileSync(memoryPath);
+    fs.writeFileSync(memoryPath, '{');
+    assert.throws(() => graph.load(), { code: 'GRAPH_JSON_LOAD_FAILED' });
+    fs.unlinkSync(memoryPath);
+    assert.throws(() => graph.load(), { code: 'GRAPH_JSON_LOAD_FAILED' });
+    fs.writeFileSync(memoryPath, backup);
+    graph.load();
+    graph.runMutationOnce('recovered', () => { graph.addNode('after'); return { ok: true }; });
+    graph.close();
+    const reopened = new Graph({ memoryPath, useSQLite: false });
+    reopened.load();
+    assert.ok(reopened.getNode('saved'));
+    assert.ok(reopened.getNode('after'));
+    reopened.close();
+  });
+});
 
 describe('Graph - Düğüm Yönetimi', () => {
   let g;
@@ -558,22 +637,15 @@ describe('Graph - Lifecycle and maintenance baseline contracts', { concurrency: 
     assert.strictEqual(graph.edgeCount(), 0);
   }));
 
-  it('load swallows malformed JSON after clearing stale state', () => withTempGraph(root => {
+  it('load rejects malformed JSON, retains the prior view and blocks persistence', () => withTempGraph(root => {
     const memoryPath = path.join(root, 'malformed.json');
     fs.writeFileSync(memoryPath, '{ invalid json', 'utf8');
     const graph = new Graph({ memoryPath, useSQLite: false });
     graph.addNode('stale', 'stale');
-    const originalError = console.error;
-    const errors = [];
-    console.error = (...args) => errors.push(args);
-    try {
-      assert.strictEqual(graph.load(), undefined);
-      assert.strictEqual(graph.nodeCount(), 0);
-      assert.strictEqual(graph.edgeCount(), 0);
-      assert.strictEqual(errors.length, 1);
-    } finally {
-      console.error = originalError;
-    }
+    assert.throws(() => graph.load(), { code: 'GRAPH_JSON_LOAD_FAILED' });
+    assert.ok(graph.getNode('stale'));
+    assert.throws(() => graph.save(), { code: 'GRAPH_JSON_LOAD_FAILED' });
+    assert.strictEqual(fs.readFileSync(memoryPath, 'utf8'), '{ invalid json');
   }));
 
   it('save completes synchronously and persists public graph state', () => withTempGraph(root => {
@@ -781,6 +853,28 @@ describe('Graph - embedding survival across save failure and rollback (#369)', {
     // The serialized form still must not carry the vector inline.
     const persisted = JSON.parse(fs.readFileSync(path.join(root, 'memory.json'), 'utf-8'));
     assert.ok(!persisted.nodes[storageKey].embedding, 'embeddings belong in the sidecar file, not memory.json');
+  }));
+
+  it('retries a caught sidecar write failure without losing pending embeddings', () => withTempRoot(root => {
+    const graph = new Graph({ memoryPath: path.join(root, 'memory.json'), useSQLite: false });
+    graph.addNode('seed');
+    graph.save();
+    const before = fs.readFileSync(graph.memoryPath);
+    graph._assignEmbedding('seed', new Float64Array([2, 3]));
+    graph.addNode('pending');
+    const rename = fs.renameSync;
+    fs.renameSync = (from, to) => {
+      if (to === graph._embeddingPath) throw Object.assign(new Error('sidecar denied'), { code: 'EACCES' });
+      return rename(from, to);
+    };
+    try { assert.throws(() => graph.save(), { code: 'EACCES' }); }
+    finally { fs.renameSync = rename; }
+    assert.deepStrictEqual(fs.readFileSync(graph.memoryPath), before);
+    assert.deepStrictEqual(Array.from(graph._nodes.seed.embedding), [2, 3]);
+    graph.save();
+    graph.load();
+    assert.ok(graph.getNode('pending'));
+    assert.deepStrictEqual(Array.from(graph._nodes.seed.embedding), [2, 3]);
   }));
 
   // #609: the sidecar is part of the saved state, so every save() has to bring

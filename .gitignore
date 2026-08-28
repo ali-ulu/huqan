@@ -30,3 +30,6 @@ receipts/
 local-*.json
 local-*.js
 backups/
+
+# MCP operator-capability replay records (#1674)
+.huqan-capability-nonces/

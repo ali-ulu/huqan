@@ -7,7 +7,12 @@ const os = require('node:os');
 const path = require('node:path');
 
 const Graph = require('../graph');
-const { callTool, createServer } = require('../mcpServer');
+const {
+  callTool,
+  createServer,
+  createMcpOperatorCapability,
+  operatorCapabilityBinding,
+} = require('../mcpServer');
 const { createTrustEvidenceLedger } = require('../lib/trust-evidence-ledger');
 const { createHumanOversightApprovalRuntime } = require('../lib/human-oversight-approval-runtime');
 
@@ -111,10 +116,22 @@ function queueParams() {
   };
 }
 
+function operatorParams(args) {
+  return {
+    name: 'huqan.approve',
+    operatorCapability: createMcpOperatorCapability({
+      secret: 'operator-token',
+      ...operatorCapabilityBinding('huqan.approve', args),
+    }),
+    arguments: JSON.stringify(args),
+  };
+}
+
 function runtimeOptions(fixture, overrides = {}) {
   return {
     approvalStore: fixture.store,
-    operatorToken: 'operator-token',
+    operatorSecret: 'operator-token',
+    operatorCapabilityNonces: new Map(),
     humanOversightApprovalRuntime: fixture.runtime,
     humanOversightRequesterContext: { session: 'receiver-owned-mcp-session' },
     humanOversightApproverContext: { identityRef: 'human:operator-a', identityHash: 'hash-operator-a' },
@@ -135,11 +152,8 @@ test('MCP opt-in approval path creates and executes a durable Human Oversight ca
     assert.equal(pending.ok, true);
     assert.equal(pending.case.status, 'pending');
 
-    const first = await callTool(f.kernel, {
-      name: 'huqan.approve',
-      operatorToken: 'operator-token',
-      arguments: JSON.stringify({ approvalId: queued.approval.id, workspaceId: 'workspace-a', decision: 'approved', reason: 'bounded_operator_review' }),
-    }, runtimeOptions(f));
+    const firstArguments = { approvalId: queued.approval.id, workspaceId: 'workspace-a', decision: 'approved', reason: 'bounded_operator_review' };
+    const first = await callTool(f.kernel, operatorParams(firstArguments), runtimeOptions(f));
     assert.equal(first.ok, false, JSON.stringify(first));
     assert.equal(first.error.code, 'OVERSIGHT_QUORUM_PENDING');
     assert.equal(first.meta.retrySafe, true);
@@ -147,11 +161,8 @@ test('MCP opt-in approval path creates and executes a durable Human Oversight ca
     assert.equal(f.store.getToolApprovalById(queued.approval.id).status, 'pending');
     assert.equal(f.runtime.getReviewCase(queued.approval.oversight.caseId).case.status, 'escalated');
 
-    const approved = await callTool(f.kernel, {
-      name: 'huqan.approve',
-      operatorToken: 'operator-token',
-      arguments: JSON.stringify({ approvalId: queued.approval.id, workspaceId: 'workspace-a', decision: 'approved', reason: 'bounded_second_operator_review' }),
-    }, runtimeOptions(f, {
+    const approvedArguments = { approvalId: queued.approval.id, workspaceId: 'workspace-a', decision: 'approved', reason: 'bounded_second_operator_review' };
+    const approved = await callTool(f.kernel, operatorParams(approvedArguments), runtimeOptions(f, {
       humanOversightApproverContext: { identityRef: 'human:operator-b', identityHash: 'hash-operator-b' },
     }));
     assert.equal(approved.ok, true, JSON.stringify(approved));
@@ -191,11 +202,12 @@ test('MCP oversight marker fails closed when the runtime is absent at approval t
   const f = fixture();
   try {
     const queued = callTool(f.kernel, queueParams(), runtimeOptions(f));
-    const result = callTool(f.kernel, {
-      name: 'huqan.approve',
-      operatorToken: 'operator-token',
-      arguments: JSON.stringify({ approvalId: queued.approval.id, workspaceId: 'workspace-a', decision: 'approved' }),
-    }, { approvalStore: f.store, operatorToken: 'operator-token' });
+    const approvalArguments = { approvalId: queued.approval.id, workspaceId: 'workspace-a', decision: 'approved' };
+    const result = callTool(f.kernel, operatorParams(approvalArguments), {
+      approvalStore: f.store,
+      operatorSecret: 'operator-token',
+      operatorCapabilityNonces: new Map(),
+    });
     assert.equal(result.ok, false);
     assert.equal(result.error.code, 'OVERSIGHT_RUNTIME_UNAVAILABLE');
     assert.equal(f.store.getToolApprovalById(queued.approval.id).status, 'pending');

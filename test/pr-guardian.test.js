@@ -49,6 +49,31 @@ function fakeStorage() {
       const row = byId.get(id); if (!row) return { failed: false, approval: null };
       row.status = 'failed'; row.reason = reason; row.updated_at = Date.now(); return { failed: true, approval: hydrate(clone(row)) };
     },
+    // Mirrors HuqanStorage.claimApprovedToolApproval (#1675): only an
+    // 'approved' row with no execution recorded may be consumed, and the
+    // compare-and-swap on context_json is what settles a concurrent race.
+    claimApprovedToolApproval(id, { owner = '', reason = '' } = {}) {
+      const row = byId.get(id);
+      if (!row) return { claimed: false, approval: null, reason: 'not_found' };
+      const existing = hydrate(clone(row));
+      if (existing.status !== 'approved' || existing.decision !== 'approved') return { claimed: false, approval: existing, reason: 'not_approved' };
+      if (existing.context?.execution) return { claimed: false, approval: existing, reason: 'already_executed' };
+      if (existing.context?.executionClaim) return { claimed: false, approval: existing, reason: 'already_claimed' };
+      const expected = row.context_json;
+      const context = { ...(existing.context || {}), executionClaim: { owner: String(owner), claimedAt: Date.now() } };
+      if (row.context_json !== expected) return { claimed: false, approval: hydrate(clone(row)), reason: 'lost_race' };
+      row.status = 'executing'; row.reason = reason; row.context_json = JSON.stringify(context); row.updated_at = Date.now();
+      return { claimed: true, approval: hydrate(clone(row)), reason: 'claimed' };
+    },
+    finalizeToolApprovalWithReceipt(id, { expectedStatus = 'executing', decision = 'approved', reason = '', receipt = null, contextPatch = null } = {}) {
+      const row = byId.get(id);
+      if (!row || row.status !== expectedStatus) return { finalized: false, approval: row ? hydrate(clone(row)) : null };
+      const context = { ...JSON.parse(row.context_json || '{}'), ...(contextPatch || {}), receipt };
+      row.status = decision === 'approved' ? 'approved' : 'rejected';
+      row.decision = decision; row.reason = reason; row.context_json = JSON.stringify(context);
+      row.decided_at = Date.now(); row.updated_at = Date.now();
+      return { finalized: true, approval: hydrate(clone(row)) };
+    },
     saveToolApproval(record) {
       const row = byId.get(record.id); if (!row) return null;
       Object.assign(row, record, { approval_key: record.approvalKey, context_json: JSON.stringify(record.context || {}), policy_json: JSON.stringify(record.policy || {}) });

@@ -37,9 +37,11 @@ const {
 } = require('./lib/graph-record-utils');
 const { derivePersistenceLayout, resolveDefaultMemoryPath } = require('./lib/memory-store-utils');
 const { createMutationRollback } = require('./lib/graph-mutation-rollback');
+const { assertGraphPersistenceWritable, loadJsonGraph } = require('./lib/graph-json-persistence');
+const { commitJsonTransaction, rememberSnapshot, runSnapshotMutation, saveSnapshot, writeCurrentState, writeJsonFiles } = require('./lib/graph-json-snapshot');
 const { handleSqliteInitializationError, hasExistingPersistenceFile, sqlitePersistenceError } = require('./lib/sqlite-persistence-validation');
 const { countAuditEvents, queryAuditEvents, readAuditEvents } = require('./lib/audit-query');
-const { assertChainTipUsable, emptyMutationJournal, readMutationJournal, readCommittedMutationResult, readCommittedMutationResultsByPrefix, withMutationJournalLock } = require('./lib/mutation-journal');
+const { assertChainTipUsable, emptyMutationJournal, readMutationJournal, readCommittedMutationResult, readCommittedMutationResultsByPrefix } = require('./lib/mutation-journal');
 const { applyTemporalEdgeMetadata, beginEdgeTouchScope, downgradeEdge, edgeTouchKey } = require('./lib/graph-edge-mutations');
 const { getCausalChain: runCausalChain } = require('./lib/graph-causal-chain');
 const { getCandidateClaims: runCandidateClaimsRead } = require('./lib/graph-candidate-claims-read');
@@ -455,6 +457,7 @@ class Graph {
   }
   getCommittedMutationResultByOperation(operationId) { return readCommittedMutationResult(this, operationId); } getCommittedMutationResultsByPrefix(prefix) { return readCommittedMutationResultsByPrefix(this, prefix); }
   runMutationOnce(operationId, mutate, opts = {}) {
+    assertGraphPersistenceWritable(this);
     const id = typeof operationId === 'string' ? operationId.trim() : '';
     if (!id) throw new Error('mutation operationId is required');
     if (typeof mutate !== 'function') throw new TypeError('mutation callback is required');
@@ -504,7 +507,7 @@ class Graph {
         this._stmts.insertMutationJournal.run(id, 'completed', JSON.stringify(result), nowIso());
         return { replayed: false, result, receipt };
       });
-      return execute();
+      return (typeof execute.immediate === 'function' ? execute.immediate : execute)();
     } catch (error) {
       // SQLite rolls back durably; the lazy journal restores only in-memory
       // records and collection roots touched by this callback.
@@ -527,7 +530,7 @@ class Graph {
    * unchanged) -- durability comes from the journal file being written with
    * atomicWriteFileSync() (never a torn write) rather than a SQL transaction.
    */
-  _runMutationOnceJson(id, mutate, opts) { return withMutationJournalLock(this._jsonJournalPath(), () => this._runMutationOnceJsonLocked(id, mutate, opts)); }
+  _runMutationOnceJson(id, mutate, opts) { return runSnapshotMutation(this, () => this._runMutationOnceJsonLocked(id, mutate, opts)); }
   _runMutationOnceJsonLocked(id, mutate, opts) {
     const readStored = () => {
       const journal = this._readJsonJournal();
@@ -596,19 +599,12 @@ class Graph {
       }
 
       journal.operations[id] = { status: 'completed', result, receiptId: receipt?.receiptId || null, committedAt: nowIso() };
-      // Ordering matters: persist the actual graph state FIRST, and only
-      // mark the journal 'completed' AFTER that succeeds. If save() were to
-      // throw, in-memory state is rolled back below -- if the journal had
-      // already been marked 'completed' at that point, a replay would
-      // return a "success" result for data that was never actually
-      // persisted (phantom completion, real data loss). Reversing this
-      // (journal first) trades that for a smaller, opposite risk: if the
-      // journal write itself fails right after a successful save(), a
-      // retry with the same operationId would re-run an already-applied
-      // mutation. A rare possible double-apply is the lesser failure mode
-      // than ever falsely claiming a mutation completed.
-      this.save();
-      this._writeJsonJournal(journal);
+      // Prepare one redo record before publishing graph, embedding sidecar,
+      // and completed journal after-images. Restart recovery finishes that
+      // exact record, so a prepared operation neither double-applies nor
+      // produces a phantom completion.
+      commitJsonTransaction(this, id, journal);
+      rememberSnapshot(this);
 
       // persisted: true tells the caller save() already happened as part of
       // committing this mutation (unlike the SQLite path, where the DB
@@ -965,18 +961,8 @@ class Graph {
   }
 
   save() {
-    // #369: strip -> write -> restore has to be crash-safe. _stripEmbeddings()
-    // deletes node.embedding from the *live* in-memory nodes so the serialized
-    // form stays JSON-clean, which means that between here and the restore the
-    // only copy of those vectors is the local `embeddings` map. Restoring in a
-    // finally makes a failed save() degrade to "not persisted" rather than
-    // "not persisted AND erased from memory".
-    const embeddings = this._stripEmbeddings();
-    try {
-      this._writeStrippedState(embeddings);
-    } finally {
-      this._restoreEmbeddings(embeddings);
-    }
+    assertGraphPersistenceWritable(this);
+    return this._db && this._stmts ? writeCurrentState(this) : saveSnapshot(this, () => writeCurrentState(this));
   }
 
   // Split out of save() purely so the restore above can live in a finally
@@ -1073,30 +1059,11 @@ class Graph {
       saveAll();
     }
 
-    // JSON de yaz (Rust katmanı ve fallback için) — atomik: crash mid-write
-    // memoryPath'i asla yarım/bozuk bırakmaz (eski içerik ya da yeni içerik,
-    // ikisinin karışımı asla).
-    const data = {
-      nodes: this._nodes,
-      edges: this._edges,
-      candidateClaims: this._candidateClaims,
-      auditEvents: this._auditEvents,
-    };
-    atomicWriteFileSync(this.memoryPath, JSON.stringify(data));
-
-    // Embedding'leri ayrı dosyaya yaz (aynı atomik garanti). Geri koyma işi
-    // save()'in finally'sinde: buradaki bir hata da embedding'leri bellekte
-    // bırakmalı (#369).
-    //
-    // #609: koşulsuz yazılır. Eskiden yalnızca en az bir embedding varken
-    // yazılıyordu, dolayısıyla son embedding silindiğinde (ya da prune() node'u
-    // düşürdüğünde) eski sidecar diskte kalıyor ve bir sonraki load() silinmiş
-    // vektörü geri diriltiyordu. Sidecar memory.json'ın parçası gibi
-    // davranmalı: her save() onu son duruma eşitler, boş obje dahil.
-    atomicWriteFileSync(this._embeddingPath, JSON.stringify(embeddings));
+    writeJsonFiles(this, embeddings);
   }
 
   load() {
+    if (!this._db || !this._stmts) return loadJsonGraph(this);
     this._nodes = {};
     this._edges = [];
     this._candidateClaims = [];
@@ -1195,34 +1162,7 @@ class Graph {
       }
     }
 
-    // JSON fallback
-    if (!fs.existsSync(this.memoryPath)) return;
-    try {
-      const data = JSON.parse(fs.readFileSync(this.memoryPath, 'utf-8'));
-      this._nodes = {};
-      for (const [key, node] of Object.entries(data.nodes || {})) {
-        const normalized = normalizeNodeRecord(node, key);
-        this._nodes[nodeStorageKey(normalized.id, normalized.workspaceId)] = normalized;
-      }
-      this._edges = (data.edges || []).map(edge => normalizeLoadedEdge(edge));
-      this._candidateClaims = (data.candidateClaims || data.candidate_claims || []).map(candidate => normalizeCandidateClaim(candidate));
-      this._auditEvents = (data.auditEvents || data.audit_log || []).map(event => normalizeAuditEvent(event));
-      this._rebuildIndex();
-
-      if (fs.existsSync(this._embeddingPath)) {
-        try {
-          const emb = JSON.parse(fs.readFileSync(this._embeddingPath, 'utf-8'));
-          this._restoreEmbeddings(emb);
-        } catch (_) {}
-      }
-
-      // JSON'dan yüklendiyse SQLite'a migrate et
-      if (this._db && Object.keys(this._nodes).length > 0) {
-        this.save(); // SQLite'a yaz
-      }
-    } catch (e) {
-      console.error('Load error:', e.message);
-    }
+    return loadJsonGraph(this);
   }
 
   // ─── Index yönetimi ───────────────────────────────────────────────────────

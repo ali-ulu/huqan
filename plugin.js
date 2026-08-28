@@ -209,7 +209,37 @@ class PluginManager {
     this.strictPlugins =
       this.productionPluginEnforcement || readCompatibleEnvironmentVariable('PLUGIN_STRICT') !== '0';
     this.activationGate = loadActivationGate();
+    // Capability skips are a configuration state, not output (#1694). They are
+    // collected here so `huqan status` can report them on request instead of
+    // every command announcing them.
+    this.capabilityNotices = [];
     for (const e of EVENTS) this._handlers[e] = [];
+  }
+
+  /**
+   * Record a plugin that declined, or loaded with an optional feature off.
+   * Deduplicated: load() may run more than once in a process.
+   */
+  recordCapabilityNotice({ plugin, capability, kind }) {
+    const notice = { plugin: String(plugin || ''), capability: String(capability || ''), kind };
+    const seen = this.capabilityNotices.some(existing => existing.plugin === notice.plugin
+      && existing.capability === notice.capability && existing.kind === notice.kind);
+    if (!seen) this.capabilityNotices.push(notice);
+    return notice;
+  }
+
+  /**
+   * What a reader of `huqan status` needs: which plugins are active, which
+   * declined and what each one is waiting for.
+   */
+  capabilitySummary() {
+    const skipped = this.capabilityNotices.filter(notice => notice.kind === 'required');
+    const degraded = this.capabilityNotices.filter(notice => notice.kind === 'optional');
+    return {
+      loaded: this.plugins.map(plugin => plugin.name).sort(),
+      skipped: skipped.map(notice => ({ plugin: notice.plugin, capability: notice.capability })),
+      degraded: degraded.map(notice => ({ plugin: notice.plugin, capability: notice.capability })),
+    };
   }
 
   load(dir) {
@@ -261,10 +291,18 @@ class PluginManager {
         if (err && err.code === 'PLUGIN_CAPABILITY_DISABLED') {
           // Three of the bundled plugins (company-brain, repo-memory,
           // contradiction-alert) require companyMode or temporal, both off by
-          // default in kernel.js DEFAULT_CAPABILITIES. Printing that as a load
-          // failure made a correct default configuration look broken on every
-          // single startup. It is a skip, and it reads like one.
-          console.warn(`[Plugin] ${err.pluginName || file}: skipped — needs capability '${err.capability}', which is disabled`);
+          // default in kernel.js DEFAULT_CAPABILITIES. This is a skip, not a
+          // failure -- and it is the *expected* state, so it is recorded rather
+          // than printed (#1694). Writing five of these to stderr on every
+          // single command made a correct default configuration look like a
+          // half-broken install, and polluted --json output on the way past.
+          // `huqan status` reports what was skipped and which capability each
+          // one wants.
+          this.recordCapabilityNotice({
+            plugin: err.pluginName || file,
+            capability: err.capability,
+            kind: 'required',
+          });
           continue;
         }
         console.error(`Plugin failed to load: ${file} - ${err.message}`);
@@ -296,7 +334,9 @@ class PluginManager {
     const optional = Array.isArray(plugin.optional) ? plugin.optional : [];
     for (const capability of optional) {
       if (!this.kernel || typeof this.kernel.hasCapability !== 'function' || !this.kernel.hasCapability(capability)) {
-        console.warn(`[Plugin] ${plugin.name}: optional capability disabled: ${capability}`);
+        // Recorded, not printed (#1694): the plugin loaded and works, it simply
+        // has one optional feature switched off. That is not news on every run.
+        this.recordCapabilityNotice({ plugin: plugin.name, capability, kind: 'optional' });
       }
     }
     this.plugins.push(plugin);

@@ -99,6 +99,13 @@ function stripCaseSuffix(word) {
 
 function normalize(word) {
   let w = String(word || '').toLowerCase().trim();
+  // Ingest-side node hygiene (#1643 follow-up): markdown/JSON debris reaches
+  // learn() as whitespace tokens ("{", "[],", "true,"). Only the Turkish pack
+  // keeps punctuation through normalize (en/de/ar whitelist to letters), so
+  // those tokens were turning into graph nodes verbatim. Trim edge
+  // punctuation; interior punctuation stays ("curl.exe", "agent-card/x").
+  w = w.replace(/^[^\p{L}\p{N}_]+/u, '').replace(/[^\p{L}\p{N}_]+$/u, '');
+  if (!w) return '';
   w = w.replace(/i\u0307/g, 'i').replace(/\u0307/g, '');
   // Case morphology belongs to a token, not to the final characters of a
   // multi-word subject or predicate (`gizli kedi` must stay `gizli kedi`).
@@ -133,9 +140,15 @@ function isStopWord(word) {
   return STOP_WORDS.has(normalize(word));
 }
 
+function hasLexicalContent(token) {
+  // A token with no letter or digit anywhere ("{", "---", "\"\"\"") carries no
+  // concept and must never become a node or part of one (#1643 follow-up).
+  return /[\p{L}\p{N}]/u.test(token);
+}
+
 function extractFacts(text, knownNodes = null) {
   const raw = String(text || '').toLowerCase().trim();
-  const words = raw.split(/\s+/).filter(Boolean);
+  const words = raw.split(/\s+/).filter(hasLexicalContent);
   if (words.length < 2) return [];
 
   const filtered = words.filter(w => w !== 'bir' && w !== 'de' && w !== 'da');

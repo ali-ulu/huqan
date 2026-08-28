@@ -47,7 +47,7 @@ The central distinction is between an AI system **generating** an output and a p
 |---|---|
 | Evidence traceability | Graph-backed evidence, provenance references, scope context, and receipt links |
 | Repeatable checks | Deterministic verification, contradiction checks, and policy outcomes on tested paths |
-| Agent-action review | Review, approval, dry-run, escalation, and block boundaries on supported paths |
+| Agent-action review | Review, approval, dry-run, and block boundaries on supported paths, with escalation available where an approval boundary is configured |
 | Protected memory | Admission and workspace checks before canonical memory writes |
 | Auditability | Append-oriented audit context, canonical Trust Receipts, and receipt chains |
 | Local-first operation | CLI, local REST server, MCP, library, and local UI surfaces without a required hosted model |
@@ -63,10 +63,24 @@ verification + contradiction + risk checks
                 ↓
 policy decision and approval boundary
                 ↓
-ALLOW / BLOCK / REVIEW / ESCALATE / DRY-RUN ONLY
+ALLOW / REVIEW / QUARANTINE / DRY-RUN ONLY / BLOCK / REJECT
                 ↓
 Trust Receipt + audit context
 ```
+
+Not every outcome is available on every path. The gate that guards tool calls
+answers `allow`, `review`, `dry_run_only` or `block`; the memory admission gate
+adds `quarantine` and `reject`, because a write can be held aside for
+inspection rather than refused outright.
+
+**Escalation is a decision a person makes, not one the gate returns.** Where an
+approval boundary is configured, a reviewer can escalate a pending case instead
+of deciding it: the case moves to `escalated` and nothing executes until the
+authority it was raised to decides. That is a multi-party control, so it earns
+its place in an organization with more than one approver and is simply absent
+in a single-user install — there is no second authority to raise a case to. The
+decision types are `approve`, `reject`, `expire`, `cancel`, `escalate` and
+`override`; see `lib/human-oversight-approval-runtime.js`.
 
 The main local runtime flow is:
 
@@ -76,9 +90,12 @@ flowchart LR
     B --> C[Verification and contradiction checks]
     C --> D[Scope, policy, and risk gates]
     D -->|approved| E[Trusted state or permitted action]
-    D -->|blocked or uncertain| F[Block, review, or escalate]
+    D -->|blocked or uncertain| F[Block, review, quarantine, or dry-run]
+    F -->|approval boundary configured| H[Human decision: approve, reject, or escalate]
+    H -->|approved| E
     E --> G[Trust Receipt]
     F --> G
+    H --> G
 ```
 
 A passing verification result is not a universal certificate of truth. It is a result produced within the configured evidence, provenance, workspace, policy, and runtime boundary.
@@ -272,6 +289,14 @@ Operator-only tools are deliberately withheld from `tools/list` and require `HUQ
 
 This separation means a model that proposes a mutating action cannot also approve it through the model-visible catalog.
 
+Operator capabilities are single-use, and the record of a spent one is durable
+(#1674). Consumed nonces are written to `.huqan-capability-nonces` beside the
+memory store, so a capability that was already used stays used across a restart
+and across workers; set `HUQAN_MCP_CAPABILITY_NONCE_DIR` to point every worker
+at one shared writable directory when the default is not on shared storage. If
+that directory cannot be written, capability verification fails closed rather
+than falling back to memory-only replay protection.
+
 ### Local UI and Trust Receipt Viewer
 
 Start the local server to serve the backend-connected developer UI:
@@ -450,7 +475,11 @@ The following repository sources define the current scope and are preferred over
 
 ## License
 
-GNU Affero General Public License v3.0 (AGPL-3.0). See [LICENSE](./LICENSE) and [NOTICE](./NOTICE).
+HUQAN is currently distributed under the GNU Affero General Public License v3.0, `AGPL-3.0-only`. See [LICENSE](./LICENSE) and [NOTICE](./NOTICE).
+
+A separate commercial license is being prepared for organizations that need proprietary use of covered HUQAN components. The commercial terms are not yet operative and no commercial rights are granted by this repository. Contact the project owner only after an approved commercial agreement is available.
+
+Future external contributions will be subject to the project’s approved contributor rights process. [`CLA.md`](./CLA.md) is currently the versioned review draft `HUQAN-ICLA-v1.0-review` and is not yet an operative agreement. The review contact is Ali Ulu at `aliulu@ai-ulu.com`; publishing this contact does not grant rights or activate a CLA. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the contribution and review rules.
 
 ---
 

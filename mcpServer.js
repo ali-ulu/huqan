@@ -5,8 +5,15 @@ const {
 validateEnvironmentCompatibility();
 
 const fs = require('fs');
+const path = require('path');
 const crypto = require('crypto');
 const { constantTimeEqual } = require('./requestGuards');
+const {
+  capabilityBinding,
+  createMcpOperatorCapability,
+  verifyMcpOperatorCapability,
+} = require('./lib/mcp-operator-capability');
+const { createDurableCapabilityNonceStore, resolveCapabilityNonceDirectory } = require('./lib/mcp-capability-nonce-store');
 const { buildKernelOptsFromEnv } = require('./lib/kernel-factory');
 const { createAgent } = require('./agentRuntime');
 const { evaluateMcpGate, MCP_GATE_DECISIONS } = require('./lib/mcp-gate-adapter');
@@ -39,6 +46,7 @@ const { buildIngestWorkflowPreview } = require('./lib/ingest-workflow-preview');
 const { readIngestRunStatus } = require('./lib/mcp-ingest-status-tool');
 const { buildMcpIngestExecuteResult } = require('./lib/mcp-ingest-execute-tool');
 const { executeMcpAgentContinuation } = require('./lib/mcp-agent-continuation');
+const { createMcpServerCloser } = require('./lib/mcp/server-lifecycle');
 function publishMcpWorkflowContract(tool) {
   const workflow = mcpWorkflowMetadata(tool.name);
   if (!workflow) return tool;
@@ -110,14 +118,40 @@ function toolCallFailure(err) {
   return { content: [{ type: 'text', text: `INTERNAL_ERROR (ref: ${errorRef})` }], isError: true };
 }
 
+function operatorCapabilityBinding(name, args) {
+  return capabilityBinding({
+    tool: name,
+    workspaceId: String(args.workspaceId || 'default'),
+    approvalId: name === 'huqan.approve' ? String(args.approvalId || '') : null,
+    runId: name === 'huqan.agent_resume' ? String(args.runId || args.checkpointId || '') : null,
+    arguments: args,
+  });
+}
+
 function isMcpOperatorAuthorized(configuredToken, presentedToken) {
   if (typeof configuredToken !== 'string' || typeof presentedToken !== 'string' || !configuredToken || !presentedToken) return false;
-  // requestGuards.constantTimeEqual hashes both operands, so the compared
-  // buffers are always the same size. A `length === length &&` guard in front
-  // of timingSafeEqual short-circuits: on a mismatch the comparison never runs
-  // and the call returns measurably sooner, which leaks the configured token's
-  // length and lets an attacker shrink the search space (#1038).
   return constantTimeEqual(configuredToken, presentedToken);
+}
+
+function operatorCapabilityAuthorized(runtime, name, args, presentedCapability, presentedToken) {
+  const secret = runtime?.operatorSecret;
+  if (typeof secret === 'string' && secret && typeof presentedCapability === 'string') {
+    const binding = operatorCapabilityBinding(name, args);
+    const result = verifyMcpOperatorCapability({
+      secret,
+      capability: presentedCapability,
+      expected: binding,
+      nonceStore: runtime.operatorCapabilityNonces,
+    });
+    return result.ok === true;
+  }
+  // Deprecated in-process compatibility only. createServer() never supplies
+  // operatorToken to this seam, so a network MCP caller cannot use the static
+  // credential path. CLI and HTTP production callers use scoped capabilities.
+  if (typeof runtime?.operatorToken === 'string' && typeof presentedToken === 'string') {
+    return isMcpOperatorAuthorized(runtime.operatorToken, presentedToken);
+  }
+  return false;
 }
 
 function createServer(kernelOrOptions = {}) {
@@ -128,10 +162,36 @@ function createServer(kernelOrOptions = {}) {
   const kernel = options.kernel || createKernelFromEnv();
   const approvalStore = createApprovalStoreFromKernel(kernel, { ...envKernelOpts, ...options });
   const operatorToken = options.operatorToken || process.env[MCP_OPERATOR_TOKEN_ENV] || '';
+  // Consumed capability nonces are durable by default (#1674): a capability is
+  // valid for up to five minutes, so a restart inside that window must not
+  // hand a spent token a second life. A caller may pass its own store (the
+  // in-process tests pass a Map); everything else gets the on-disk store,
+  // which is atomic across concurrent workers and fails closed when the
+  // directory cannot be written.
+  const operatorCapabilityNonces = options.operatorCapabilityNonces
+    || createDurableCapabilityNonceStore({ directory: resolveCapabilityNonceDirectory(options, envKernelOpts) });
+  let companyRuntimeReady = false;
+  function ensureCompanyRuntime() {
+    if (typeof kernel.hasCapability === 'function' && !kernel.hasCapability('companyMode')) {
+      kernel.enableCapability('companyMode');
+    }
+    if (typeof kernel.hasCapability === 'function' && !kernel.hasCapability('pluginCapabilities')) {
+      kernel.enableCapability('pluginCapabilities');
+    }
+    if (!companyRuntimeReady && kernel.plugins && typeof kernel.plugins.load === 'function') {
+      kernel.plugins.load(path.join(__dirname, 'plugins'));
+      companyRuntimeReady = true;
+    }
+  }
+  const close = createMcpServerCloser({ kernel, approvalStore, operatorCapabilityNonces,
+    ownsKernel: !options.kernel, ownsApprovalStore: !Object.hasOwn(options, 'approvalStore'),
+    ownsOperatorCapabilityNonces: !Object.hasOwn(options, 'operatorCapabilityNonces') });
   return {
     kernel,
     approvalStore,
     operatorToken,
+    operatorCapabilityNonces,
+    close,
     handleRequest(message) {
       if (!message || typeof message !== 'object') {
         return { jsonrpc: '2.0', error: { code: -32600, message: 'Invalid Request' } };
@@ -167,8 +227,10 @@ function createServer(kernelOrOptions = {}) {
         try {
           const result = callTool(kernel, params, {
             approvalStore,
-            operatorToken,
+            operatorSecret: operatorToken,
+            operatorCapabilityNonces,
             trustEvidenceLedger: options.trustEvidenceLedger || null,
+            ensureRuntime: ensureCompanyRuntime,
             humanOversightApprovalRuntime: options.humanOversightApprovalRuntime || null,
             ...(Object.hasOwn(options, 'humanOversightRequesterContext')
               ? { humanOversightRequesterContext: options.humanOversightRequesterContext }
@@ -313,15 +375,15 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
   const args = parseJsonObject(safeParams.arguments, {});
 
   if (name === 'huqan.approve' || name === 'huqan.approvals' || name === 'huqan.agent_resume') {
-    if (!isMcpOperatorAuthorized(runtime.operatorToken, safeParams.operatorToken)) {
+    if (!operatorCapabilityAuthorized(runtime, name, args, safeParams.operatorCapability, safeParams.operatorToken)) {
       return withMcpToolVerdictSurface(
         failApprovalDecision(
           'OPERATOR_AUTH_REQUIRED',
           name === 'huqan.agent_resume'
             // Not an approval operation, and saying so matters: the operator
             // reading this needs to know which capability was demanded of them.
-            ? 'A separate operator capability is required to resume an agent run.'
-            : 'A separate operator capability is required for MCP approval operations.',
+            ? 'A scoped operator capability is required to resume an agent run.'
+            : 'A scoped operator capability is required for this MCP approval operation.',
         ),
         name,
         args,
@@ -654,7 +716,13 @@ function runStdio() {
     if (message && message.method === 'shutdown') {
       shuttingDown = true;
       process.stdin.pause();
-      setTimeout(() => process.exit(0), 0).unref?.();
+      try {
+        server.close();
+      } catch (error) {
+        recordInternalError('stdio/shutdown', error);
+        process.exitCode = 1;
+      }
+      setTimeout(() => process.exit(process.exitCode || 0), 0).unref?.();
     }
   }
 
@@ -713,6 +781,8 @@ module.exports = {
   LEGACY_MCP_TOOL_NAMES,
   VERIFY_STATUS,
   buildKernelOptsFromEnv,
+  createDurableCapabilityNonceStore,
+  resolveCapabilityNonceDirectory,
   createKernelFromEnv,
   createApprovalStoreFromKernel,
   callTool,
@@ -722,4 +792,8 @@ module.exports = {
   sanitizeToolArgsForStorage,
   executeReadOnlyDryRun,
   withTransientAgent,
+  capabilityBinding,
+  createMcpOperatorCapability,
+  verifyMcpOperatorCapability,
+  operatorCapabilityBinding,
 };

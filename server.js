@@ -23,6 +23,7 @@ const { createHttpIngestOversightCase } = require('./lib/http-human-oversight-ad
 const { buildTrustReceipt, queryAuditTrailPage, queryCandidateClaims, queryProvenance } = require('./lib/provenance-query');
 const { readReceiptById } = require('./lib/receipt/receipt-read-index');
 const { createBackgroundTimers } = require('./lib/http/background-timers');
+const { createGracefulShutdown } = require('./lib/http/graceful-shutdown');
 const { receiptReadFailure } = require('./lib/http/receipt-read-failures');
 const { createWorkbenchReadHttpRouter } = require('./lib/workbench/workbench-read-http-router');
 const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
@@ -36,8 +37,7 @@ const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
 const { createExternalClientProductionBoundary } = require('./lib/external-client-production-boundary');
 const { createOptionalRouteBoundaries } = require('./lib/http/optional-boundaries'), { createPrGuardianOptions } = require('./lib/http/pr-guardian-config');
 const { projectUploadAdmission } = require('./lib/http/upload-admission-contract');
-const { absent, createMutationAdmission } = require('./lib/mutation-admission');
-const { createIngestApprovalAuditWriter } = require('./lib/workbench/ingest-approval-audit-writer');
+const { createHttpIngestApprovalAuditWriter } = require('./lib/http/ingest-approval-audit-writer');
 const { createTrustEvidenceLedger } = require('./lib/trust-evidence-ledger');
 const pkg = require('./package.json');
 const {
@@ -128,12 +128,7 @@ function getHttpApprovalRuntimeConfig() {
   });
 }
 
-const recordIngestApprovalAudit = createIngestApprovalAuditWriter({
-  graph: kernel.graph,
-  admission: createMutationAdmission({ identityEvaluator: absent('HTTP ingest-approval audit callers carry no receiver-owned identity claim yet') }),
-  hashResult: sha256,
-  ledger: trustEvidenceLedger,
-});
+const recordIngestApprovalAudit = createHttpIngestApprovalAuditWriter({ graph: kernel.graph, getIdentityConfig: () => httpAgentIdentityConfig, hashResult: sha256, ledger: trustEvidenceLedger });
 
 // --- Güvenlik sabitleri ---
 const backgroundTimers = createBackgroundTimers();
@@ -982,8 +977,11 @@ const HOST = readCompatibleEnvironmentVariable('HOST') || '127.0.0.1';
 
 function startServer(port = PORT, host = HOST) {
   return server.listen(port, host, () => {
-    console.log(`🧠 HUQAN web interface: http://${host}:${port}`);
-    console.log(`   Graph view: http://${host}:${port} → "Graph" tab`);
+    const address = server.address();
+    const boundHost = typeof address === 'object' && address ? address.address : host;
+    const boundPort = typeof address === 'object' && address ? address.port : port;
+    console.log(`🧠 HUQAN web interface: http://${boundHost}:${boundPort}`);
+    console.log(`   Graph view: http://${boundHost}:${boundPort} → "Graph" tab`);
   });
 }
 
@@ -991,12 +989,7 @@ function startAgentWorkerIfEnabled() {
   return observabilityRuntime.startWorkerIfEnabled();
 }
 
-if (require.main === module && readCompatibleEnvironmentVariable('DISABLE_AUTO_LISTEN') !== '1') {
-  startAgentWorkerIfEnabled();
-  startServer(PORT, HOST);
-}
-
-server.closeHuqan = server.closeAxiom = () => { // closeAxiom: RFC-001 legacy alias
+function closeHuqan() {
   observabilityRuntime.stop();
   backgroundTimers.clearAll();
   viewerRateLimits.clear();
@@ -1007,7 +1000,24 @@ server.closeHuqan = server.closeAxiom = () => { // closeAxiom: RFC-001 legacy al
   }
   try { externalClientBoundary?.close(); } catch (_) {}
   kernel.graph.close();
-};
+}
+
+const gracefulShutdown = createGracefulShutdown({
+  server,
+  closeResources: closeHuqan,
+  logError: (signal, error) => writeStructuredLog(console, 'error', 'http.graceful_shutdown_error', null, {
+    signal,
+    errorCode: error?.code || 'GRACEFUL_SHUTDOWN_FAILED',
+  }),
+});
+
+if (require.main === module && readCompatibleEnvironmentVariable('DISABLE_AUTO_LISTEN') !== '1') {
+  gracefulShutdown.bind();
+  startAgentWorkerIfEnabled();
+  startServer(PORT, HOST);
+}
+
+server.closeHuqan = server.closeAxiom = closeHuqan; // closeAxiom: RFC-001 legacy alias
 
 server.startServer = startServer;
 server.configureHttpHumanOversight = configureHttpHumanOversight;

@@ -244,7 +244,10 @@ test('AC-3.2: register() warns but continues when optional capability is missing
     console.warn = origWarn;
   }
   assert.equal(k.plugins.plugins.some(p => p.name === 'optional-llm'), true);
-  assert.ok(warnings.some(w => w.includes('optional capability disabled: llm')));
+  // #1694: recorded for `huqan status`, never printed.
+  assert.equal(warnings.length, 0, 'capability notices must not be printed');
+  assert.ok(k.plugins.capabilityNotices.some(n => n.plugin === 'optional-llm'
+    && n.capability === 'llm' && n.kind === 'optional'));
 });
 
 test('AC-3.4: load() skips bad-hash plugin but continues with others', () => {

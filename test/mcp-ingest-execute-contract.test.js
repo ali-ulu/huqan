@@ -2,7 +2,12 @@
 
 const assert = require('node:assert/strict');
 const { describe, it } = require('node:test');
-const { callTool, MODEL_VISIBLE_TOOL_SCHEMAS } = require('../mcpServer');
+const {
+  callTool,
+  MODEL_VISIBLE_TOOL_SCHEMAS,
+  createMcpOperatorCapability,
+  operatorCapabilityBinding,
+} = require('../mcpServer');
 const { verifyIngestApprovalSnapshot } = require('../lib/ingest');
 const { TOOL_SCHEMAS } = require('../lib/mcp-tool-catalog');
 const { WORKFLOW_CAPABILITIES } = require('../lib/workflow-contract');
@@ -87,11 +92,12 @@ function queue(kernel, approvalStore, args = ingestArgs()) {
 }
 
 async function approve(kernel, approvalStore, approvalId) {
+  const args = { approvalId, decision: 'approved', workspaceId: 'default', reason: 'contract_test_approved' };
   return callTool(kernel, {
     name: 'huqan.approve',
-    arguments: JSON.stringify({ approvalId, decision: 'approved', workspaceId: 'default', reason: 'contract_test_approved' }),
-    operatorToken: 'test-operator',
-  }, { approvalStore, operatorToken: 'test-operator', recordIngestApprovalAudit: () => ({ auditId: 'final-audit' }) });
+    arguments: JSON.stringify(args),
+    operatorCapability: createMcpOperatorCapability({ secret: 'test-operator', ...operatorCapabilityBinding('huqan.approve', args) }),
+  }, { approvalStore, operatorSecret: 'test-operator', operatorCapabilityNonces: new Map(), recordIngestApprovalAudit: () => ({ auditId: 'final-audit' }) });
 }
 
 describe('huqan.ingest_execute (#787 P0)', () => {

@@ -154,6 +154,18 @@ const ROUTED_SINK_CALLS = Object.freeze({
     why: 'candidate family on the V2 surface; delegates to the admitted kernel.addCandidateClaim',
     sinks: { addCandidateClaim: 1 },
   },
+  // Same delegation shape as kernel.v2.js above: both CLI hypothesis paths call
+  // kernel.addCandidateClaim, which admits before it writes. Neither reaches
+  // Graph directly, and neither writes a canonical node or edge -- `--propose`
+  // queues a candidate, `review` records a verdict on one already queued.
+  'lib/cli-hypotheses.js': {
+    why: 'candidate family on the CLI surface; delegates to the admitted kernel.addCandidateClaim',
+    sinks: { addCandidateClaim: 1 },
+  },
+  'lib/hypothesis-review.js': {
+    why: 'candidate family, human review verdict; delegates to the admitted kernel.addCandidateClaim',
+    sinks: { addCandidateClaim: 1 },
+  },
   // Lexical. The durable commit -- runMutationOnce and the sink inside it -- is
   // the admitted effect, so a refusal leaves no journal entry, row or receipt.
   // This is the only routed caller whose identity is receiver-verified before
@@ -372,7 +384,10 @@ test('mutation admission: the debt ledger reflects the routing done so far', () 
   // #1080/#1081 add reviewed Graph-owned DELETE evidence for optimize() and
   // consolidate() while the maintenance family has no admission seam of its
   // own yet.
+  // The hypothesis surface adds two routed candidate writes -- `--propose`
+  // (lib/cli-hypotheses.js) and the human review verdict
+  // (lib/hypothesis-review.js) -- both delegating to kernel.addCandidateClaim.
   assert.equal(unrouted, 24, 'unrouted sink calls');
-  assert.equal(routed, 27, 'sink calls routed through admission (K2 + DEL callbacks)');
-  assert.equal(unrouted + routed, 51, 'total sink calls, raised by K2 delegation, DEL audit, and maintenance evidence');
+  assert.equal(routed, 29, 'sink calls routed through admission (K2 + DEL callbacks + hypothesis surface)');
+  assert.equal(unrouted + routed, 53, 'total sink calls, raised by K2 delegation, DEL audit, maintenance evidence, and the hypothesis surface');
 });
