@@ -37,6 +37,7 @@ const {
 } = require('./lib/graph-record-utils');
 const { derivePersistenceLayout, resolveDefaultMemoryPath } = require('./lib/memory-store-utils');
 const { createMutationRollback } = require('./lib/graph-mutation-rollback');
+const { assertGraphPersistenceWritable, loadJsonGraph } = require('./lib/graph-json-persistence');
 const { handleSqliteInitializationError, hasExistingPersistenceFile, sqlitePersistenceError } = require('./lib/sqlite-persistence-validation');
 const { countAuditEvents, queryAuditEvents, readAuditEvents } = require('./lib/audit-query');
 const { assertChainTipUsable, emptyMutationJournal, readMutationJournal, readCommittedMutationResult, readCommittedMutationResultsByPrefix, withMutationJournalLock } = require('./lib/mutation-journal');
@@ -455,6 +456,7 @@ class Graph {
   }
   getCommittedMutationResultByOperation(operationId) { return readCommittedMutationResult(this, operationId); } getCommittedMutationResultsByPrefix(prefix) { return readCommittedMutationResultsByPrefix(this, prefix); }
   runMutationOnce(operationId, mutate, opts = {}) {
+    assertGraphPersistenceWritable(this);
     const id = typeof operationId === 'string' ? operationId.trim() : '';
     if (!id) throw new Error('mutation operationId is required');
     if (typeof mutate !== 'function') throw new TypeError('mutation callback is required');
@@ -965,6 +967,7 @@ class Graph {
   }
 
   save() {
+    assertGraphPersistenceWritable(this);
     // #369: strip -> write -> restore has to be crash-safe. _stripEmbeddings()
     // deletes node.embedding from the *live* in-memory nodes so the serialized
     // form stays JSON-clean, which means that between here and the restore the
@@ -1097,6 +1100,7 @@ class Graph {
   }
 
   load() {
+    if (!this._db || !this._stmts) return loadJsonGraph(this);
     this._nodes = {};
     this._edges = [];
     this._candidateClaims = [];
@@ -1195,34 +1199,7 @@ class Graph {
       }
     }
 
-    // JSON fallback
-    if (!fs.existsSync(this.memoryPath)) return;
-    try {
-      const data = JSON.parse(fs.readFileSync(this.memoryPath, 'utf-8'));
-      this._nodes = {};
-      for (const [key, node] of Object.entries(data.nodes || {})) {
-        const normalized = normalizeNodeRecord(node, key);
-        this._nodes[nodeStorageKey(normalized.id, normalized.workspaceId)] = normalized;
-      }
-      this._edges = (data.edges || []).map(edge => normalizeLoadedEdge(edge));
-      this._candidateClaims = (data.candidateClaims || data.candidate_claims || []).map(candidate => normalizeCandidateClaim(candidate));
-      this._auditEvents = (data.auditEvents || data.audit_log || []).map(event => normalizeAuditEvent(event));
-      this._rebuildIndex();
-
-      if (fs.existsSync(this._embeddingPath)) {
-        try {
-          const emb = JSON.parse(fs.readFileSync(this._embeddingPath, 'utf-8'));
-          this._restoreEmbeddings(emb);
-        } catch (_) {}
-      }
-
-      // JSON'dan yüklendiyse SQLite'a migrate et
-      if (this._db && Object.keys(this._nodes).length > 0) {
-        this.save(); // SQLite'a yaz
-      }
-    } catch (e) {
-      console.error('Load error:', e.message);
-    }
+    return loadJsonGraph(this);
   }
 
   // ─── Index yönetimi ───────────────────────────────────────────────────────

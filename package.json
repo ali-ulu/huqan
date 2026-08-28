@@ -252,6 +252,7 @@
     "lib/graph-consolidate-edges.js",
     "lib/graph-node-read.js",
     "lib/graph-node-write.js",
+    "lib/graph-json-persistence.js",
     "lib/graph-node-delete.js",
     "lib/graph-node-touch.js",
     "lib/graph-node-tag.js",
