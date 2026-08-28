@@ -274,6 +274,7 @@
     "lib/http/public-api-commands.js",
     "lib/http/read-workflow-actions.js",
     "lib/http/background-timers.js",
+    "lib/http/graceful-shutdown.js",
     "lib/http/receipt-read-failures.js",
     "lib/http/route-auth-policy.js",
     "lib/http/upload-admission-contract.js",
