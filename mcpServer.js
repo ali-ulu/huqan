@@ -46,6 +46,7 @@ const { buildIngestWorkflowPreview } = require('./lib/ingest-workflow-preview');
 const { readIngestRunStatus } = require('./lib/mcp-ingest-status-tool');
 const { buildMcpIngestExecuteResult } = require('./lib/mcp-ingest-execute-tool');
 const { executeMcpAgentContinuation } = require('./lib/mcp-agent-continuation');
+const { createMcpServerCloser } = require('./lib/mcp/server-lifecycle');
 function publishMcpWorkflowContract(tool) {
   const workflow = mcpWorkflowMetadata(tool.name);
   if (!workflow) return tool;
@@ -182,11 +183,15 @@ function createServer(kernelOrOptions = {}) {
       companyRuntimeReady = true;
     }
   }
+  const close = createMcpServerCloser({ kernel, approvalStore, operatorCapabilityNonces,
+    ownsKernel: !options.kernel, ownsApprovalStore: !Object.hasOwn(options, 'approvalStore'),
+    ownsOperatorCapabilityNonces: !Object.hasOwn(options, 'operatorCapabilityNonces') });
   return {
     kernel,
     approvalStore,
     operatorToken,
     operatorCapabilityNonces,
+    close,
     handleRequest(message) {
       if (!message || typeof message !== 'object') {
         return { jsonrpc: '2.0', error: { code: -32600, message: 'Invalid Request' } };
@@ -710,7 +715,13 @@ function runStdio() {
     if (message && message.method === 'shutdown') {
       shuttingDown = true;
       process.stdin.pause();
-      setTimeout(() => process.exit(0), 0).unref?.();
+      try {
+        server.close();
+      } catch (error) {
+        recordInternalError('stdio/shutdown', error);
+        process.exitCode = 1;
+      }
+      setTimeout(() => process.exit(process.exitCode || 0), 0).unref?.();
     }
   }
 

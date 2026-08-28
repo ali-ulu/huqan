@@ -339,6 +339,7 @@
     "lib/mcp-operator-capability.js",
     "lib/mcp/read-workflow-tools.js",
     "lib/mcp/response-builders.js",
+    "lib/mcp/server-lifecycle.js",
     "lib/pr-guardian/index.js",
     "lib/pr-guardian/policy.js",
     "lib/pr-guardian/snapshot.js",
