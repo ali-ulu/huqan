@@ -1,6 +1,6 @@
 {
   "name": "huqan",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "Local-first AI governance and verification layer for claims, agent actions, memory writes, provenance, approvals, and Trust Receipts.",
   "main": "index.js",
   "types": "index.d.ts",

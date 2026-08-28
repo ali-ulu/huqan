@@ -1,9 +1,54 @@
 # Changelog
 
+## v0.10.1
+
+Unreleased. A security release: every fix below landed after v0.10.0 was
+published, so the version currently installable from the registry does not
+carry them. Bump and tag before pointing anyone at `npm install -g huqan`.
+
+### Fixed
+- **Mutation journal replay tracking (#1671).** Journal sections are
+  null-prototype maps. On a plain object `operations['__proto__'] = entry`
+  re-points the prototype instead of creating an own property, so a completed
+  mutation left no record and the same operationId ran a second time;
+  `constructor` and `toString` failed the other way, reading an inherited value
+  back as a journal row. Persisted records keep own-property semantics across a
+  JSON round trip.
+- **External client transport (#1672).** `scripts/external-client.js` requires
+  HTTPS for any bearer-authenticated destination that is not loopback. It
+  previously sent `authorization: Bearer <HUQAN_API_KEY>` in the clear to
+  whatever URL it was given. Plain HTTP survives only for `127.0.0.0/8`,
+  `[::1]` and `localhost`, where the request never reaches a network interface,
+  and the check runs before the credential is read.
+- **Release authority (#1673).** `publish.yml` checks the ref for every
+  trigger, not only for tag pushes. A manual `workflow_dispatch` could reach
+  `npm publish` from any ref, skipping the tag/version binding entirely. A
+  publish now requires an immutable `v<version>` tag matching the manifest whose
+  commit is an ancestor of the default branch, and the job runs in the
+  `npm-publish` environment.
+- **MCP capability replay (#1674).** Consumed capability nonces are recorded
+  durably, one exclusively-created file per nonce, instead of in a process-local
+  map. A restart inside a capability's five-minute validity window used to
+  forget the nonce and accept a spent token again. Reservation is atomic across
+  workers; verification stays fail-closed when the store cannot be written.
+- **PR Guardian execution (#1675).** An approved action is claimed atomically
+  into `executing` before the GitHub call and finalized with an explicit
+  execution record, so a repeated or concurrent request cannot post the comment
+  twice. A call that threw is left `failed` with an unknown outcome rather than
+  silently retried.
+- **Docker build context (#1676).** Environment files, npm/yarn credentials,
+  private keys, certificates and service-account material are excluded before
+  the runtime stage's `COPY . .`, with example files re-included.
+- **PR Guardian webhook destination (#1677).** The workflow validates
+  `PR_GUARDIAN_WEBHOOK_URL` before building or signing anything: HTTPS unless
+  loopback, no embedded credentials, fragment or query, and no control
+  characters. Its checkout is pinned to the base SHA, so the scripts the job
+  runs are the reviewed ones rather than the pull request's.
+
 ## v0.10.0
 
-Unreleased. The first version prepared for the npm registry: `huqan` has never
-been published, so every install to date has been a `git clone`.
+Published to npm on 2026-08-27 — the first version on the registry. Before it,
+every install was a `git clone`.
 
 ### Added
 - `huqan-mcp` binary. `bin/huqan-mcp.js` is a `bin` entry that starts the MCP
