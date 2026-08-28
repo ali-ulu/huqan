@@ -9,6 +9,7 @@ const { after, test } = require('node:test');
 
 const Graph = require('../graph');
 const { buildCanonicalReceiptPayload } = require('../lib/receipt/canonical-receipt');
+const { GENESIS_PREVIOUS_HASH } = require('../lib/receipt/receipt-chain');
 const { lockPathFor, withMutationJournalLock } = require('../lib/mutation-journal-lock');
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-durable-journal-'));
@@ -131,6 +132,77 @@ function runJsonRetryWorker(memoryPath, operationId) {
   return runProcess(['-e', script, path.join(__dirname, '..', 'graph.js'), memoryPath, operationId]);
 }
 
+function primeSqliteDatabase(dbPath) {
+  const graph = new Graph({
+    memoryPath: path.join(path.dirname(dbPath), 'sqlite-prime-memory.json'),
+    dbPath,
+    useSQLite: true,
+    busyTimeoutMs: 5_000,
+  });
+  graph.close();
+}
+
+function runSqliteWorker(dbPath, barrierPath, operationId, tag, options = {}) {
+  const markerPath = options.markerPath || '';
+  const crashAfterMarker = options.crashAfterMarker ? '1' : '0';
+  const script = `
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const Graph = require(process.argv[1]);
+    const { buildCanonicalReceiptPayload } = require(process.argv[2]);
+    const dbPath = process.argv[3];
+    const barrierPath = process.argv[4];
+    const operationId = process.argv[5];
+    const tag = process.argv[6];
+    const markerPath = process.argv[7];
+    const crashAfterMarker = process.argv[8] === '1';
+    const sleeper = new Int32Array(new SharedArrayBuffer(4));
+    if (barrierPath) while (!fs.existsSync(barrierPath)) Atomics.wait(sleeper, 0, 0, 5);
+    const graph = new Graph({
+      memoryPath: path.join(path.dirname(dbPath), 'sqlite-worker-memory.json'),
+      dbPath,
+      useSQLite: true,
+      busyTimeoutMs: 5_000,
+    });
+    let applications = 0;
+    const outcome = graph.runMutationOnce(operationId, () => {
+      applications += 1;
+      graph.addNode('node-' + tag, 'worker ' + tag, null, { workspaceId: 'w' });
+      if (markerPath) {
+        fs.writeFileSync(markerPath, 'mutation-open');
+        if (crashAfterMarker) process.kill(process.pid, 'SIGKILL');
+      }
+      return { tag };
+    }, {
+      buildCanonicalReceipt: () => buildCanonicalReceiptPayload({
+        receiptId: 'receipt-' + operationId,
+        receiptKind: 'memory_admission_receipt',
+        decision: 'allow',
+        status: 'admitted',
+        admissionId: 'admission-' + operationId,
+        workspaceId: 'w',
+        provenanceId: 'prov-' + operationId,
+        trustPolicyVersion: 'test',
+        createdAt: '2026-01-01T00:00:00.000Z',
+      }, { verdict: 'allow' }),
+    });
+    graph.close?.();
+    process.stdout.write(JSON.stringify({ outcome, applications }));
+  `;
+  return runProcess([
+    '-e',
+    script,
+    path.join(__dirname, '..', 'graph.js'),
+    path.join(__dirname, '..', 'lib', 'receipt', 'canonical-receipt.js'),
+    dbPath,
+    barrierPath || '',
+    operationId,
+    tag,
+    markerPath,
+    crashAfterMarker,
+  ]);
+}
+
 test('[json] durable journal serializes the same operation across processes', async () => {
   const memoryPath = path.join(root, 'multi-process.json');
   const barrierPath = path.join(root, 'multi-process.ready');
@@ -180,6 +252,90 @@ test('[json] durable journal fails closed for a stale lock left by a dead proces
 
   assert.equal(ran, false);
   assert.equal(fs.existsSync(lockPath), true);
+});
+
+test('[sqlite] two real processes keep one canonical result and receipt for the same operation', async () => {
+  const dbPath = path.join(root, 'sqlite-same-operation.db');
+  const barrierPath = path.join(root, 'sqlite-same-operation.ready');
+  primeSqliteDatabase(dbPath);
+  const workers = [
+    runSqliteWorker(dbPath, barrierPath, 'shared-sqlite-operation', 'a'),
+    runSqliteWorker(dbPath, barrierPath, 'shared-sqlite-operation', 'b'),
+  ];
+  fs.writeFileSync(barrierPath, 'ready');
+  const results = await Promise.all(workers);
+  const outputs = results.map((result) => {
+    assert.equal(result.code, 0, result.stderr);
+    return JSON.parse(result.stdout);
+  });
+  const graph = new Graph({ dbPath, memoryPath: path.join(root, 'sqlite-same-operation.json'), useSQLite: true });
+  const journal = graph._db.prepare('SELECT status, result FROM mutation_journal WHERE operation_id = ?').get('shared-sqlite-operation');
+  const receiptCount = graph._db.prepare('SELECT COUNT(*) AS count FROM mutation_receipts WHERE operation_id = ?').get('shared-sqlite-operation').count;
+  const nodeCount = graph._db.prepare('SELECT COUNT(*) AS count FROM nodes WHERE workspace_id = ?').get('w').count;
+
+  assert.equal(outputs.filter(({ outcome }) => outcome.replayed === false).length, 1);
+  assert.equal(outputs.filter(({ outcome }) => outcome.replayed === true).length, 1);
+  assert.equal(outputs.reduce((count, { applications }) => count + applications, 0), 1);
+  assert.equal(journal.status, 'completed');
+  assert.equal(JSON.parse(journal.result).tag === 'a' || JSON.parse(journal.result).tag === 'b', true);
+  assert.equal(receiptCount, 1);
+  assert.equal(nodeCount, 1);
+  graph.close();
+});
+
+test('[sqlite] two real processes retain distinct operations and a chained receipt sequence', async () => {
+  const dbPath = path.join(root, 'sqlite-distinct-operations.db');
+  const barrierPath = path.join(root, 'sqlite-distinct-operations.ready');
+  primeSqliteDatabase(dbPath);
+  const workers = [
+    runSqliteWorker(dbPath, barrierPath, 'sqlite-operation-a', 'a'),
+    runSqliteWorker(dbPath, barrierPath, 'sqlite-operation-b', 'b'),
+  ];
+  fs.writeFileSync(barrierPath, 'ready');
+  const results = await Promise.all(workers);
+  for (const result of results) assert.equal(result.code, 0, result.stderr);
+  const graph = new Graph({ dbPath, memoryPath: path.join(root, 'sqlite-distinct-operations.json'), useSQLite: true });
+  const journalCount = graph._db.prepare('SELECT COUNT(*) AS count FROM mutation_journal').get().count;
+  const receiptRows = graph._db.prepare('SELECT operation_id, previous_receipt_hash FROM mutation_receipts ORDER BY committed_at, operation_id').all();
+  const nodeCount = graph._db.prepare('SELECT COUNT(*) AS count FROM nodes WHERE workspace_id = ?').get('w').count;
+
+  assert.equal(journalCount, 2);
+  assert.deepEqual(receiptRows.map((row) => row.operation_id).sort(), ['sqlite-operation-a', 'sqlite-operation-b']);
+  assert.equal(receiptRows.filter((row) => row.previous_receipt_hash === GENESIS_PREVIOUS_HASH).length, 1);
+  assert.equal(receiptRows.filter((row) => row.previous_receipt_hash !== GENESIS_PREVIOUS_HASH).length, 1);
+  assert.equal(nodeCount, 2);
+  graph.close();
+});
+
+test('[sqlite] a real process killed inside a transaction can be restarted without a duplicate', async () => {
+  const dbPath = path.join(root, 'sqlite-transaction-crash.db');
+  const markerPath = path.join(root, 'sqlite-transaction-crash.marker');
+  const operationId = 'sqlite-transaction-crash';
+  primeSqliteDatabase(dbPath);
+  const crashed = await runSqliteWorker(dbPath, '', operationId, 'crashed', { markerPath, crashAfterMarker: true });
+  if (process.platform === 'win32') {
+    assert.notEqual(crashed.code, 0, 'Windows must report the hard-killed child as unsuccessful');
+  } else {
+    assert.equal(crashed.code, null);
+    assert.equal(crashed.signal, 'SIGKILL');
+  }
+  assert.equal(fs.readFileSync(markerPath, 'utf8'), 'mutation-open');
+
+  const retry = await runSqliteWorker(dbPath, '', operationId, 'retry');
+  assert.equal(retry.code, 0, retry.stderr);
+  const retryResult = JSON.parse(retry.stdout);
+  const graph = new Graph({ dbPath, memoryPath: path.join(root, 'sqlite-transaction-crash.json'), useSQLite: true });
+  const journal = graph._db.prepare('SELECT status, result FROM mutation_journal WHERE operation_id = ?').get(operationId);
+  const receiptCount = graph._db.prepare('SELECT COUNT(*) AS count FROM mutation_receipts WHERE operation_id = ?').get(operationId).count;
+  const nodeCount = graph._db.prepare('SELECT COUNT(*) AS count FROM nodes WHERE workspace_id = ?').get('w').count;
+
+  assert.equal(retryResult.outcome.replayed, false);
+  assert.equal(retryResult.applications, 1);
+  assert.equal(journal.status, 'completed');
+  assert.equal(JSON.parse(journal.result).tag, 'retry');
+  assert.equal(receiptCount, 1);
+  assert.equal(nodeCount, 1);
+  graph.close();
 });
 
 test('[json] a real process crash persists graph state but refuses stale-lock replay on restart', async () => {
