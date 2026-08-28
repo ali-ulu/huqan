@@ -1,12 +1,20 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
+const os = require('node:os');
+const path = require('node:path');
+const crypto = require('node:crypto');
 const Kernel = require('./kernel');
 const Dream = require('./dream');
 
 const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 function fresh() {
-  const k = new Kernel({ noLoad: true });
+  // Isolated journal per test: dream tests mutate the durable JSON mutation
+  // journal, and sharing the repo's real memory.json/memory.mutations.json
+  // would both pollute user data and let stale locks from an aborted run
+  // wedge every subsequent test (see lib/mutation-journal-lock.js).
+  const iso = path.join(os.tmpdir(), `huqan-dream-test-${process.pid}-${crypto.randomUUID()}`);
+  const k = new Kernel({ noLoad: true, memoryPath: iso });
   const learn = k.learn.bind(k);
   k.learn = (text, learnOpts = {}) => learn(text, { ...learnOpts, ...TEST_FIXTURE_LEARN_BYPASS });
   return { k, d: new Dream(k) };
@@ -390,7 +398,7 @@ describe('Dream - Gelişmiş Skorlama ve Sıralama', () => {
     const { k, d } = fresh();
     // Bir çelişki üretmek için kernel.detectContradictions'ı mock'layalım
     k.detectContradictions = () => [
-      { node: 'A', targets: ['B'], confidence: 0.1 } // Çok düşük confidence
+      { node: 'armut', targets: ['bal'], confidence: 0.1 } // Çok düşük confidence
     ];
     
     // Çok yüksek confidence'lı diğer hipotezleri üretmek için veri ekleyelim
@@ -400,7 +408,7 @@ describe('Dream - Gelişmiş Skorlama ve Sıralama', () => {
     const results = d.dream();
     
     assert.strictEqual(results[0].type, 'çelişki', 'İlk sonuç mutlaka çelişki olmalı');
-    assert.strictEqual(results[0].node, 'A');
+    assert.strictEqual(results[0].node, 'armut');
   });
 
   it('dream: novelty (yenilik) skoru sıralamayı etkiler', () => {

@@ -1,5 +1,5 @@
 const { normalizeWorkspaceId } = require('./lib/graph-record-utils');
-const { isSymmetricRelation, nodesAreDisjoint } = require('./lib/dream-hypothesis-semantics');
+const { isSymmetricRelation, nodesAreDisjoint, isEligibleHypothesisNode } = require('./lib/dream-hypothesis-semantics');
 
 const MAX_DREAM_COMPARISONS = 10_000;
 const MAX_DREAM_WORK = 50_000;
@@ -271,12 +271,17 @@ class Dream {
     }
 
     const context = this._createDreamContext(nodes, workspaceId);
+    // #1643: punctuation debris and id-like labels ("|", "93172327986") are
+    // excluded as hypothesis *sources*. They still exist in the graph as edge
+    // targets; a proposal anchored on an eligible node may still reference
+    // them via `via`, but no hypothesis is born from noise.
+    const eligibleNodes = nodes.filter(node => isEligibleHypothesisNode(node.id));
     const hypotheses = [];
-    this._findSimilarityHypotheses(nodes, hypotheses, context);
-    this._findTransitiveHypotheses(nodes, hypotheses, context);
-    this._findGapHypotheses(nodes, hypotheses, context);
-    this._findSymmetryHypotheses(nodes, hypotheses, context);
-    this._findContradictionHypotheses(nodes, hypotheses, context);
+    this._findSimilarityHypotheses(eligibleNodes, hypotheses, context);
+    this._findTransitiveHypotheses(eligibleNodes, hypotheses, context);
+    this._findGapHypotheses(eligibleNodes, hypotheses, context);
+    this._findSymmetryHypotheses(eligibleNodes, hypotheses, context);
+    this._findContradictionHypotheses(eligibleNodes, hypotheses, context);
 
     const scored = hypotheses.map(h => ({
       ...h,
@@ -509,10 +514,22 @@ class Dream {
       let added = 0;
       for (const c of contradictions) {
         if (added >= 50) break;
+        // #1643: a contradiction anchored on punctuation debris or between
+        // id-like labels is noise, not insight -- the detector fires on graph
+        // shape and cannot tell "pr | #2" from "köpek".
+        if (!isEligibleHypothesisNode(c.node)) continue;
+        let targets = (c.targets || []).filter(t => isEligibleHypothesisNode(t));
+        // #1643: targets that differ only in their digits are the same line
+        // observed twice (CI job IDs, PR numbers) -- the detector cannot know
+        // that, but a hypothesis claiming they contradict each other carries
+        // no information. Collapse digit runs before judging novelty.
+        const idVariants = new Set(targets.map(t => String(t).replace(/\d+/g, '#').trim()));
+        if (idVariants.size < Math.min(2, targets.length)) continue;
+        if (targets.length === 0) continue;
         hypotheses.push({
           type: 'çelişki',
           node: c.node,
-          targets: c.targets,
+          targets,
           confidence: c.confidence || 0.4,
         });
         added++;
