@@ -119,10 +119,14 @@ describe('#1213 B: symmetry is proposed only for symmetric relations', () => {
       noLoad: true, loadPlugins: false, useSQLite: false,
       memoryPath: path.join(root, `sym${seq}.json`),
     });
-    // Enough nodes for dream() to run, with one benzer edge whose reverse is absent.
-    for (const id of ['a', 'b', 'c']) kernel.graph.addNode(id, id, null, { workspaceId: 'default' });
-    kernel.graph.addEdge('a', 'b', 'benzer', { workspaceId: 'default', strength: 0.9, confidence: 0.9, source: 'manual' });
-    kernel.graph.addEdge('b', 'c', 'benzer', { workspaceId: 'default', strength: 0.9, confidence: 0.9, source: 'manual' });
+    // Enough nodes for dream() to run, with one benzer edge whose reverse is
+    // absent. The labels are real words because the node quality gate (#1643)
+    // refuses single characters as hypothesis sources -- 'a'/'b'/'c' would be
+    // filtered before this rule is ever reached, and the test would pass for
+    // the wrong reason if it asserted emptiness instead.
+    for (const id of ['elma', 'armut', 'erik']) kernel.graph.addNode(id, id, null, { workspaceId: 'default' });
+    kernel.graph.addEdge('elma', 'armut', 'benzer', { workspaceId: 'default', strength: 0.9, confidence: 0.9, source: 'manual' });
+    kernel.graph.addEdge('armut', 'erik', 'benzer', { workspaceId: 'default', strength: 0.9, confidence: 0.9, source: 'manual' });
 
     const symmetry = new Dream(kernel).dream({ workspaceId: 'default' }).filter(h => h.type === 'simetri');
     assert.ok(symmetry.length > 0, 'benzer is symmetric, so its reverse is a real hypothesis');
