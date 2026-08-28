@@ -9,6 +9,14 @@
   per-round entropy gain saturates (`exhausted` / `saturated` / `maxRounds`).
   Every write is receipted and the tool is gated `mutating_requires_review`, so
   the graph never grows silently.
+- **autoTune (#1716).** `huqan.fractal-learn` gains a one-way `autoTune` mode:
+  after each round it reads review feedback and tightens `minScore` /
+  `entropyFloor`, but never loosens them automatically. Tightening is recorded
+  per round; loosening always requires human approval.
+- **Graph health scoring and threshold tuning advice.** `huqan fitness` scores
+  graph health (coverage, precision, connectivity, consistency → A–F grade);
+  `huqan tuning` turns review feedback into a threshold proposal — advice only,
+  it never applies a change.
 
 ## v0.10.1
 

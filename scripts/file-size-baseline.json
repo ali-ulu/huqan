@@ -11,9 +11,9 @@
   "threshold": 800,
   "files": {
     "agent.js": 958,
-    "graph.js": 1216,
-    "kernel.js": 1089,
-    "kernel.v2.js": 807,
+    "graph.js": 1207,
+    "kernel.js": 1082,
+    "kernel.v2.js": 802,
     "lib/code-change-gate.js": 834,
     "lib/memory-store.js": 961,
     "lib/sandbox-isolation.js": 831,

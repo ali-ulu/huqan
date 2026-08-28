@@ -13,13 +13,8 @@ const {
   TYPE_RELATIONS,
   FACT_RELATIONS,
   OPPOSITE_PREDICATES,
-  MANIPULATION_RULES,
   nowIso,
-  normalizeText,
   normalizeAscii,
-  stripCopulaTail,
-  registerOppositePair,
-  normalizeManipulationText,
   parseSimpleTurkishStatement,
   resolveNegativeClaimFallback,
 } = require('./lib/kernel-v2-native');
