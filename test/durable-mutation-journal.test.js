@@ -25,6 +25,12 @@ function makeGraph(name, backend) {
   });
 }
 
+function journalStatus(journalPath, operationId) {
+  if (!fs.existsSync(journalPath)) return null;
+  const operation = readMutationJournal(journalPath).operations[operationId];
+  return operation ? operation.status : null;
+}
+
 function runConcurrentJournalWorker(memoryPath, barrierPath, operationId, tag) {
   const script = `
     const fs = require('node:fs');
@@ -53,6 +59,76 @@ function runConcurrentJournalWorker(memoryPath, barrierPath, operationId, tag) {
     child.once('error', reject);
     child.once('exit', status => status === 0 ? resolve(JSON.parse(stdout)) : reject(new Error(stderr || `worker exited ${status}`)));
   });
+}
+
+function runProcess(args, timeoutMs = 5_000) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = ''; let stderr = '';
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      child.kill();
+      reject(new Error(`child process timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+    timer.unref?.();
+    child.stdout.setEncoding('utf8'); child.stderr.setEncoding('utf8');
+    child.stdout.on('data', chunk => { stdout += chunk; });
+    child.stderr.on('data', chunk => { stderr += chunk; });
+    child.once('error', error => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.once('close', (code, signal) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({ code, signal, stdout, stderr });
+    });
+  });
+}
+
+function runJsonCrashWorker(memoryPath, journalWriteMarkerPath, operationId) {
+  const script = `
+    const fs = require('node:fs');
+    const Graph = require(process.argv[1]);
+    const memoryPath = process.argv[2];
+    const journalWriteMarkerPath = process.argv[3];
+    const operationId = process.argv[4];
+    const graph = new Graph({ memoryPath, useSQLite: false });
+    graph._writeJsonJournal = () => {
+      fs.writeFileSync(journalWriteMarkerPath, 'graph-save-complete');
+      process.kill(process.pid, 'SIGKILL');
+    };
+    graph.runMutationOnce(operationId, () => {
+      graph.addNode('crashed-node', 'persisted before journal crash');
+      return { applied: true };
+    });
+  `;
+  return runProcess(['-e', script, path.join(__dirname, '..', 'graph.js'), memoryPath, journalWriteMarkerPath, operationId]);
+}
+
+function runJsonRetryWorker(memoryPath, operationId) {
+  const script = `
+    const Graph = require(process.argv[1]);
+    const memoryPath = process.argv[2];
+    const operationId = process.argv[3];
+    const graph = new Graph({ memoryPath, useSQLite: false });
+    let applications = 0;
+    try {
+      const outcome = graph.runMutationOnce(operationId, () => {
+        applications += 1;
+        graph.addNode('retry-node', 'must not execute after stale-lock refusal');
+        return { applied: true };
+      });
+      process.stdout.write(JSON.stringify({ ok: true, outcome, applications }));
+    } catch (error) {
+      process.stdout.write(JSON.stringify({ ok: false, code: error.code, message: error.message, applications }));
+    }
+  `;
+  return runProcess(['-e', script, path.join(__dirname, '..', 'graph.js'), memoryPath, operationId]);
 }
 
 test('[json] durable journal serializes the same operation across processes', async () => {
@@ -104,6 +180,40 @@ test('[json] durable journal fails closed for a stale lock left by a dead proces
 
   assert.equal(ran, false);
   assert.equal(fs.existsSync(lockPath), true);
+});
+
+test('[json] a real process crash persists graph state but refuses stale-lock replay on restart', async () => {
+  const memoryPath = path.join(root, 'process-crash-recovery.json');
+  const journalPath = memoryPath.replace(/\.json$/, '.mutations.json');
+  const lockPath = lockPathFor(journalPath);
+  const markerPath = path.join(root, 'process-crash-recovery.marker');
+  const operationId = 'process-crash-after-save';
+
+  const crashed = await runJsonCrashWorker(memoryPath, markerPath, operationId);
+  if (process.platform === 'win32') {
+    assert.notEqual(crashed.code, 0, 'Windows must report the hard-killed child as unsuccessful');
+  } else {
+    assert.equal(crashed.code, null);
+    assert.equal(crashed.signal, 'SIGKILL');
+  }
+  assert.equal(fs.readFileSync(markerPath, 'utf8'), 'graph-save-complete');
+  assert.equal(fs.existsSync(memoryPath), true);
+  assert.equal(journalStatus(journalPath, operationId), null, 'the killed process must not claim completion');
+
+  const restartedGraph = new Graph({ memoryPath, useSQLite: false });
+  restartedGraph.load();
+  assert.ok(restartedGraph.getNode('crashed-node'), 'graph state written before the crash must remain readable');
+  assert.equal(fs.existsSync(lockPath), true, 'SIGKILL bypasses the lock release finally block');
+
+  const stale = new Date(Date.now() - (6 * 60 * 1000));
+  fs.utimesSync(lockPath, stale, stale);
+  const retry = await runJsonRetryWorker(memoryPath, operationId);
+  assert.equal(retry.code, 0, retry.stderr);
+  const retryResult = JSON.parse(retry.stdout);
+  assert.equal(retryResult.ok, false);
+  assert.equal(retryResult.code, 'MUTATION_JOURNAL_STALE_LOCK');
+  assert.equal(retryResult.applications, 0, 'stale-lock refusal must happen before the mutation callback');
+  assert.equal(fs.existsSync(lockPath), true, 'current fail-closed behavior preserves the stale lock for investigation');
 });
 
 // #216: the JSON backend now provides the SAME durable-journal contract as
