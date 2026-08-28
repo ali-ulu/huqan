@@ -524,6 +524,14 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
       return withMcpToolVerdictSurface(kernel.dream({
         depth: boundedMcpInteger(args.depth, 2, 1, 5),
       }), name, args, gate);
+    case 'huqan.fractal-learn':
+      return withMcpToolVerdictSurface(new (require('./lib/fractal-learn').FractalLearn)(kernel).run({
+        depth: boundedMcpInteger(args.depth, 2, 1, 5),
+        maxRounds: boundedMcpInteger(args.maxRounds, 5, 1, 20),
+        minScore: typeof args.minScore === 'number' ? args.minScore : 0.6,
+        entropyFloor: typeof args.entropyFloor === 'number' ? args.entropyFloor : 0.001,
+        workspaceId: sanitizeMcpString(args.workspaceId, MCP_MAX_SHORT) || 'default',
+      }), name, args, gate);
     case 'huqan.advocate':
     case 'huqan.search':
     case 'huqan.trust_receipt':
