@@ -23,6 +23,7 @@ const { createHttpIngestOversightCase } = require('./lib/http-human-oversight-ad
 const { buildTrustReceipt, queryAuditTrailPage, queryCandidateClaims, queryProvenance } = require('./lib/provenance-query');
 const { readReceiptById } = require('./lib/receipt/receipt-read-index');
 const { createBackgroundTimers } = require('./lib/http/background-timers');
+const { createGracefulShutdown } = require('./lib/http/graceful-shutdown');
 const { receiptReadFailure } = require('./lib/http/receipt-read-failures');
 const { createWorkbenchReadHttpRouter } = require('./lib/workbench/workbench-read-http-router');
 const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
@@ -36,8 +37,7 @@ const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
 const { createExternalClientProductionBoundary } = require('./lib/external-client-production-boundary');
 const { createOptionalRouteBoundaries } = require('./lib/http/optional-boundaries'), { createPrGuardianOptions } = require('./lib/http/pr-guardian-config');
 const { projectUploadAdmission } = require('./lib/http/upload-admission-contract');
-const { absent, createMutationAdmission } = require('./lib/mutation-admission');
-const { createIngestApprovalAuditWriter } = require('./lib/workbench/ingest-approval-audit-writer');
+const { createHttpIngestApprovalAuditWriter } = require('./lib/http/ingest-approval-audit-writer');
 const { createTrustEvidenceLedger } = require('./lib/trust-evidence-ledger');
 const pkg = require('./package.json');
 const {
@@ -128,12 +128,7 @@ function getHttpApprovalRuntimeConfig() {
   });
 }
 
-const recordIngestApprovalAudit = createIngestApprovalAuditWriter({
-  graph: kernel.graph,
-  admission: createMutationAdmission({ identityEvaluator: absent('HTTP ingest-approval audit callers carry no receiver-owned identity claim yet') }),
-  hashResult: sha256,
-  ledger: trustEvidenceLedger,
-});
+const recordIngestApprovalAudit = createHttpIngestApprovalAuditWriter({ graph: kernel.graph, getIdentityConfig: () => httpAgentIdentityConfig, hashResult: sha256, ledger: trustEvidenceLedger });
 
 // --- Güvenlik sabitleri ---
 const backgroundTimers = createBackgroundTimers();
@@ -220,16 +215,10 @@ async function submitIngestApproval(data) {
 }
 const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, workspaceId, decision, reason }) => decideIngestApproval({ store: getIngestApprovalStore(), kernel, approvalId, workspaceId, decision, reason, humanOversight: getHttpApprovalRuntimeConfig(), handleIngest, ensureRuntime: ensureCompanyRuntime, recordAudit: recordIngestApprovalAudit, toPublicApproval: publicIngestApproval, workerId: INGEST_APPROVAL_WORKER_ID, leaseMs: INGEST_APPROVAL_LEASE_MS }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, learnDocument: (text, options) => kernel.learnDocument(text, options), submitIngest: submitIngestApproval, createAgent: options => observabilityRuntime.createAgent(options) });
 
-// First caller of the V5 runtime family (#875 task pack). Issuer key records
-// are dependency-injected as receiver-owned state: with no real registry
-// populated yet the resolver answers every issuer as unknown and the route
-// stays fail-closed. No issuer record may ever come from the request body.
+// V5 issuer records are receiver-owned; an empty registry remains fail-closed.
 const issuerTrustedKeyRecords = [];
 let v5PackageImportRouteCache = null;
 function handleV5PackageImportRoute(req, res, reqUrl) {
-  // Lazy load: the V5 runtime family is repo-only (4C1 keeps the installed
-  // tarball minimal), so server.js must still load when the V5 module cannot
-  // be required. The route is activated by request, never at boot.
   if (v5PackageImportRouteCache === null) {
     try {
       const { createV5PackageImportRoute, createReceiverTrustedKeyResolver } = require('./lib/http/v5-package-import-route');
@@ -238,15 +227,20 @@ function handleV5PackageImportRoute(req, res, reqUrl) {
         trustedKeyResolver: createReceiverTrustedKeyResolver({ issuerRecords: issuerTrustedKeyRecords }),
         auditTarget: kernel.graph,
       });
-    } catch (_) {
-      // V5 module not available in this installation (installed tarball):
-      // the endpoint stays permanently unavailable instead of booting broken.
-      v5PackageImportRouteCache = () => false;
-    }
+    } catch (_) { v5PackageImportRouteCache = () => false; }
   }
   return v5PackageImportRouteCache(req, res, reqUrl);
 }
-
+let v5PreflightRouteCache = null;
+function handleV5PreflightRoute(req, res, reqUrl) {
+  if (v5PreflightRouteCache === null) {
+    try {
+      const { createV5PreflightRoute } = require('./lib/http/v5-preflight-route');
+      v5PreflightRouteCache = createV5PreflightRoute({ parseJsonRequest });
+    } catch (_) { v5PreflightRouteCache = () => false; }
+  }
+  return v5PreflightRouteCache(req, res, reqUrl);
+}
 function checkViewerRateLimit(req, timestamp = Date.now()) {
   const key = String(req.socket?.remoteAddress || 'unknown');
   let record = viewerRateLimits.get(key);
@@ -417,6 +411,7 @@ const server = http.createServer(async (req, res) => {
   if (await optionalRoutes.route(req, res, reqUrl)) return;
   if (await handleObservabilityRoute(req, res, reqUrl)) return;
   if (await handleV5PackageImportRoute(req, res, reqUrl)) return;
+  if (await handleV5PreflightRoute(req, res, reqUrl)) return;
   if (handleWorkflowContractRoute(req, res, reqUrl) || await handleReadWorkflow(req, res, reqUrl)) return;
   if (await handleWorkflowDataRoute(req, res, reqUrl)) return;
   // --- /graph-data ---
@@ -982,8 +977,11 @@ const HOST = readCompatibleEnvironmentVariable('HOST') || '127.0.0.1';
 
 function startServer(port = PORT, host = HOST) {
   return server.listen(port, host, () => {
-    console.log(`🧠 HUQAN web interface: http://${host}:${port}`);
-    console.log(`   Graph view: http://${host}:${port} → "Graph" tab`);
+    const address = server.address();
+    const boundHost = typeof address === 'object' && address ? address.address : host;
+    const boundPort = typeof address === 'object' && address ? address.port : port;
+    console.log(`🧠 HUQAN web interface: http://${boundHost}:${boundPort}`);
+    console.log(`   Graph view: http://${boundHost}:${boundPort} → "Graph" tab`);
   });
 }
 
@@ -991,12 +989,7 @@ function startAgentWorkerIfEnabled() {
   return observabilityRuntime.startWorkerIfEnabled();
 }
 
-if (require.main === module && readCompatibleEnvironmentVariable('DISABLE_AUTO_LISTEN') !== '1') {
-  startAgentWorkerIfEnabled();
-  startServer(PORT, HOST);
-}
-
-server.closeHuqan = server.closeAxiom = () => { // closeAxiom: RFC-001 legacy alias
+function closeHuqan() {
   observabilityRuntime.stop();
   backgroundTimers.clearAll();
   viewerRateLimits.clear();
@@ -1007,7 +1000,24 @@ server.closeHuqan = server.closeAxiom = () => { // closeAxiom: RFC-001 legacy al
   }
   try { externalClientBoundary?.close(); } catch (_) {}
   kernel.graph.close();
-};
+}
+
+const gracefulShutdown = createGracefulShutdown({
+  server,
+  closeResources: closeHuqan,
+  logError: (signal, error) => writeStructuredLog(console, 'error', 'http.graceful_shutdown_error', null, {
+    signal,
+    errorCode: error?.code || 'GRACEFUL_SHUTDOWN_FAILED',
+  }),
+});
+
+if (require.main === module && readCompatibleEnvironmentVariable('DISABLE_AUTO_LISTEN') !== '1') {
+  gracefulShutdown.bind();
+  startAgentWorkerIfEnabled();
+  startServer(PORT, HOST);
+}
+
+server.closeHuqan = server.closeAxiom = closeHuqan; // closeAxiom: RFC-001 legacy alias
 
 server.startServer = startServer;
 server.configureHttpHumanOversight = configureHttpHumanOversight;

@@ -2,13 +2,20 @@
 
 **Status:** implementation
 
-**About:** `main` at the commit that introduced this page, with
-`package.json` at version 0.10.0 and the package not yet on the registry.
+**About:** `main` at the commit that revised this page, with `package.json` at
+version 0.10.1 and v0.10.0 on the registry since 2026-08-27.
 
-`huqan` has never been published — `npm view huqan` answers 404 — so the first
-publish is the one that decides what the name means. This page is the runbook:
+`huqan` is published: `npm view huqan version` answers, and `npm install -g
+huqan` reaches real users. That changes what this runbook is for. The first
+publish decided what the name means; every publish after it decides what
+existing installs upgrade into, and npm allows unpublishing only within 72
+hours and only while nothing depends on the version. This page is the runbook:
 what the repository already checks for you, what only a human with the npm
 account can do, and how to tell afterwards whether it worked.
+
+> A published version is never edited in place. If something is wrong with what
+> is on the registry, the fix is a new version — see #1688 for the security
+> release that motivated this revision.
 
 ## What runs automatically
 
@@ -37,8 +44,9 @@ check replaces.
 
 ## Before you publish
 
-1. **Be on a clean `main`.** `package.json#version` is what gets published;
-   the tag only has to agree with it.
+1. **Be on a clean `main`.** `package.json#version` is what gets published; the
+   tag has to agree with it, and CI additionally requires the tagged commit to
+   be an ancestor of `main` (#1673), so a tag on an unmerged commit is refused.
 
    ```bash
    git checkout main && git pull && git status --porcelain
@@ -46,7 +54,10 @@ check replaces.
 
 2. **Decide the version.** `npm publish` refuses to overwrite an existing
    version, and npm only allows unpublishing within 72 hours of a publish, and
-   only while nothing depends on it. Treat the number as permanent.
+   only while nothing depends on it. Treat the number as permanent. Check what
+   is already there first — `npm view huqan versions` — since the workflow's
+   "Refuse to republish an existing version" step will stop a publish that
+   forgets to bump.
 
 3. **Rehearse the tarball.** This is the step that catches what tests do not:
 
@@ -83,8 +94,12 @@ poor first impression.
 
 **One-time setup.** Create an npm access token of type **Automation** (it
 bypasses 2FA, which is what lets CI publish while your account keeps 2FA on),
-then add it to this repository under Settings → Secrets and variables →
-Actions as `NPM_TOKEN`.
+then add it as `NPM_TOKEN`. The job declares `environment: npm-publish`, so the
+token belongs on that environment rather than at repository scope: an
+environment secret is unreachable from any other workflow, and the
+environment's deployment-branch policy can be restricted to `v*` tags so a
+dispatch from a branch cannot reach it at all. See #1690 for the repository-side
+setup, which is admin-only and not enforced by anything in this repository.
 
 **Every release after that:**
 
@@ -93,8 +108,11 @@ npm version <patch|minor|major>   # bumps package.json and creates the v<x> tag
 git push --follow-tags
 ```
 
-The workflow refuses to proceed if the tag disagrees with
-`package.json#version`, or if that version is already on the registry.
+The workflow refuses to proceed unless the ref is an immutable `v*` tag whose
+name matches `package.json#version` and whose commit is an ancestor of the
+default branch, and it refuses if that version is already on the registry. The
+same checks run for a manual dispatch — there is no branch path to the publish
+step (#1673).
 
 To exercise every gate without uploading, run the workflow manually from the
 Actions tab with **dry_run** left checked.
@@ -111,12 +129,14 @@ npm publish
 
 The package is unscoped and public, so no `--access` flag is needed. The
 license is `AGPL-3.0-only`; npm shows it on the package page, and that is the
-license the first publish establishes for everyone who installs.
+license established for everyone who installs.
 
-**Consider `--tag next` for the first publish.** It uploads the version without
-moving the `latest` tag, so `npm install huqan` keeps returning nothing while
-`npm install huqan@next` gets the real thing. That buys a round of real-world
-verification before the name starts serving strangers:
+**Consider `--tag next` for a risky release.** It uploads the version without
+moving the `latest` tag, so `npm install huqan` keeps serving the current
+`latest` while `npm install huqan@next` gets the new build. That buys a round of
+real-world verification before existing installs upgrade into it. It is the
+wrong choice for a security release, where the point is that `latest` stops
+being the vulnerable version:
 
 ```bash
 npm publish --tag next

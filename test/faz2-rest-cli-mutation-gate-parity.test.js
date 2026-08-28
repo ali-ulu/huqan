@@ -53,7 +53,7 @@ describe('FAZ2-PR6: REST/CLI mutation gate parity (F-004)', () => {
     const cli = makeCLI();
     const before = nodeCount(cli);
     const out = cli.execute('öğret', 'Kedi hayvandır');
-    assert.ok(String(out).includes('review gerektiriyor'), 'execute must surface the review gate');
+    assert.ok(String(out).includes('requires review'), 'execute must surface the review gate');
     assert.strictEqual(nodeCount(cli), before, 'no canonical node may be written under review');
     assert.ok(!cli.kernel.graph.getNode('kedi'), 'reviewed learn must not create a node');
   });

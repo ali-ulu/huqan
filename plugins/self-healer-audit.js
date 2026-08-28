@@ -2,6 +2,9 @@
 
 const { analyzeReachability } = require('../lib/module-reachability');
 const { runSelfHealerDryRun } = require('../lib/self-healer/dryrun-runner');
+const { runSelfHealerAudit } = require('../lib/self-healer/audit-runner');
+const { classifyRawFinding } = require('../lib/self-healer/finding-classifier');
+const { createSelfHealerApprovalBridge } = require('../lib/self-healer/approval-bridge');
 const { simulateSourceCandidate } = require('../lib/self-healer/source-dogfood-simulator');
 const {
   assessBehavior,
@@ -81,12 +84,41 @@ function governFindings(kernel, findings, options = {}) {
     ? options.windowMs
     : DEFAULT_WINDOW_MS;
   const now = Number.isFinite(options.now) ? options.now : Date.now();
+  const repoRoot = options.repoRoot || options.root || process.cwd();
+  const classifiedFindings = findings.map((finding) => classifyRawFinding(finding, { workspaceId }));
+  const auditReport = runSelfHealerAudit({
+    workspaceId,
+    repoRoot,
+    mode: 'audit_only',
+    checks: classifiedFindings,
+  });
   const result = runSelfHealerDryRun(
-    { findings, workspaceId, iterationsUsed: iterationsUsedInWindow(kernel, workspaceId, windowMs, now) },
+    {
+      findings: auditReport.findings,
+      workspaceId,
+      iterationsUsed: iterationsUsedInWindow(kernel, workspaceId, windowMs, now),
+    },
     { maxIterationsPerWindow: options.maxIterationsPerWindow },
   );
   if (!result.blockedByBudget) recordIterations(kernel, workspaceId, findings.length || 1, now);
-  return result;
+  const approvalBridge = createSelfHealerApprovalBridge({
+    approvalRuntime: options.approvalRuntime,
+    requesterContext: options.requesterContext,
+    resolveFirewall: options.resolveFirewall,
+  });
+  const approvalResult = approvalBridge.bridge({
+    proposals: result.proposals,
+    findings: auditReport.findings,
+    workspaceId,
+    runId: result.runId,
+    auditReportId: auditReport.reportId,
+  });
+  return {
+    ...result,
+    auditReport,
+    auditReportId: auditReport.reportId,
+    approvalBridge: approvalResult,
+  };
 }
 
 function runBehavioralObservation(kernel, options = {}) {

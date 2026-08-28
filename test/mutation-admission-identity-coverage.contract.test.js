@@ -61,6 +61,10 @@ const ENFORCED_CONSTRUCTIONS = Object.freeze({
     why: 'external client ingress; the only surface whose identity is receiver-verified before the seam is reached',
     count: 1,
   },
+  'lib/http/identity-mutation-admission.js': {
+    why: 'HTTP ingest-approval audit writer; receiver-owned service identity is evaluated before the audit mutation',
+    count: 1,
+  },
 });
 
 /**
@@ -72,10 +76,6 @@ const ENFORCED_CONSTRUCTIONS = Object.freeze({
  * move to ENFORCED_CONSTRUCTIONS when its callers gain one.
  */
 const DECLARED_ABSENT_CONSTRUCTIONS = Object.freeze({
-  'server.js': {
-    why: 'HTTP ingest-approval audit writer; callers carry no receiver-owned claim',
-    count: 1,
-  },
   'lib/mcp-ingest-execute-tool.js': {
     why: 'MCP ingest execute; gates on its own approval flow, not on an identity decision',
     count: 1,

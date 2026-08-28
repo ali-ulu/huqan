@@ -49,7 +49,68 @@ demo
 .eslintrc*
 .tsconfig.json
 *.log
+
+# Local credentials and secret material (#1676).
+# `COPY . .` in the runtime stage copies whatever survives this file, so a
+# developer's untracked .env.local or ~/.npmrc-style token sitting in the
+# working tree would be baked into a published image layer -- readable by
+# anyone who can pull it, and not removable by a later RUN rm. These patterns
+# are matched anywhere in the tree, not just at the root, because the build
+# context includes every subdirectory.
 .env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+!.env.sample
+!**/.env.sample
+.npmrc
+**/.npmrc
+.yarnrc
+.yarnrc.yml
+**/.yarnrc
+**/.yarnrc.yml
+.netrc
+**/.netrc
+.pypirc
+**/.pypirc
+.aws
+**/.aws
+.ssh
+**/.ssh
+.gnupg
+**/.gnupg
+*.pem
+**/*.pem
+*.key
+**/*.key
+*.p12
+**/*.p12
+*.pfx
+**/*.pfx
+*.crt
+**/*.crt
+*.cer
+**/*.cer
+*.der
+**/*.der
+id_rsa*
+**/id_rsa*
+id_ecdsa*
+**/id_ecdsa*
+id_ed25519*
+**/id_ed25519*
+secrets.json
+**/secrets.json
+*.secrets.json
+**/*.secrets.json
+credentials
+**/credentials
+service-account*.json
+**/service-account*.json
+gha-creds-*.json
+**/gha-creds-*.json
 
 # Local developer scratch (see .gitignore)
 local-*.json
@@ -57,3 +118,7 @@ local-*.js
 demo-sonuc.json
 tbk-demo.js
 tbk-kira.js
+
+# MCP operator-capability replay records (#1674): runtime state, never baked in
+.huqan-capability-nonces
+**/.huqan-capability-nonces

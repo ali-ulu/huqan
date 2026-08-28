@@ -9,7 +9,8 @@ const { after, test } = require('node:test');
 
 const Graph = require('../graph');
 const { buildCanonicalReceiptPayload } = require('../lib/receipt/canonical-receipt');
-const { lockPathFor, withMutationJournalLock } = require('../lib/mutation-journal-lock');
+const { GENESIS_PREVIOUS_HASH } = require('../lib/receipt/receipt-chain');
+const { LOCK_WAIT_MS, isReclaimableLock, lockPathFor, withMutationJournalLock } = require('../lib/mutation-journal-lock');
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-durable-journal-'));
 
@@ -23,6 +24,12 @@ function makeGraph(name, backend) {
     dbPath: path.join(root, `${name}-${backend}.db`),
     useSQLite: backend === 'sqlite',
   });
+}
+
+function journalStatus(journalPath, operationId) {
+  if (!fs.existsSync(journalPath)) return null;
+  const operation = readMutationJournal(journalPath).operations[operationId];
+  return operation ? operation.status : null;
 }
 
 function runConcurrentJournalWorker(memoryPath, barrierPath, operationId, tag) {
@@ -53,6 +60,147 @@ function runConcurrentJournalWorker(memoryPath, barrierPath, operationId, tag) {
     child.once('error', reject);
     child.once('exit', status => status === 0 ? resolve(JSON.parse(stdout)) : reject(new Error(stderr || `worker exited ${status}`)));
   });
+}
+
+function runProcess(args, timeoutMs = 5_000) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = ''; let stderr = '';
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      child.kill();
+      reject(new Error(`child process timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+    timer.unref?.();
+    child.stdout.setEncoding('utf8'); child.stderr.setEncoding('utf8');
+    child.stdout.on('data', chunk => { stdout += chunk; });
+    child.stderr.on('data', chunk => { stderr += chunk; });
+    child.once('error', error => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.once('close', (code, signal) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({ code, signal, stdout, stderr });
+    });
+  });
+}
+
+function runJsonCrashWorker(memoryPath, journalWriteMarkerPath, operationId) {
+  const script = `
+    const fs = require('node:fs');
+    const Graph = require(process.argv[1]);
+    const memoryPath = process.argv[2];
+    const journalWriteMarkerPath = process.argv[3];
+    const operationId = process.argv[4];
+    const graph = new Graph({ memoryPath, useSQLite: false });
+    graph._writeJsonJournal = () => {
+      fs.writeFileSync(journalWriteMarkerPath, 'graph-save-complete');
+      process.kill(process.pid, 'SIGKILL');
+    };
+    graph.runMutationOnce(operationId, () => {
+      graph.addNode('crashed-node', 'persisted before journal crash');
+      return { applied: true };
+    });
+  `;
+  return runProcess(['-e', script, path.join(__dirname, '..', 'graph.js'), memoryPath, journalWriteMarkerPath, operationId]);
+}
+
+function runJsonRetryWorker(memoryPath, operationId) {
+  const script = `
+    const Graph = require(process.argv[1]);
+    const memoryPath = process.argv[2];
+    const operationId = process.argv[3];
+    const graph = new Graph({ memoryPath, useSQLite: false });
+    let applications = 0;
+    try {
+      const outcome = graph.runMutationOnce(operationId, () => {
+        applications += 1;
+        graph.addNode('retry-node', 'must not execute after stale-lock refusal');
+        return { applied: true };
+      });
+      process.stdout.write(JSON.stringify({ ok: true, outcome, applications }));
+    } catch (error) {
+      process.stdout.write(JSON.stringify({ ok: false, code: error.code, message: error.message, applications }));
+    }
+  `;
+  return runProcess(['-e', script, path.join(__dirname, '..', 'graph.js'), memoryPath, operationId]);
+}
+
+function primeSqliteDatabase(dbPath) {
+  const graph = new Graph({
+    memoryPath: path.join(path.dirname(dbPath), 'sqlite-prime-memory.json'),
+    dbPath,
+    useSQLite: true,
+    busyTimeoutMs: 5_000,
+  });
+  graph.close();
+}
+
+function runSqliteWorker(dbPath, barrierPath, operationId, tag, options = {}) {
+  const markerPath = options.markerPath || '';
+  const crashAfterMarker = options.crashAfterMarker ? '1' : '0';
+  const script = `
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const Graph = require(process.argv[1]);
+    const { buildCanonicalReceiptPayload } = require(process.argv[2]);
+    const dbPath = process.argv[3];
+    const barrierPath = process.argv[4];
+    const operationId = process.argv[5];
+    const tag = process.argv[6];
+    const markerPath = process.argv[7];
+    const crashAfterMarker = process.argv[8] === '1';
+    const sleeper = new Int32Array(new SharedArrayBuffer(4));
+    if (barrierPath) while (!fs.existsSync(barrierPath)) Atomics.wait(sleeper, 0, 0, 5);
+    const graph = new Graph({
+      memoryPath: path.join(path.dirname(dbPath), 'sqlite-worker-memory.json'),
+      dbPath,
+      useSQLite: true,
+      busyTimeoutMs: 5_000,
+    });
+    let applications = 0;
+    const outcome = graph.runMutationOnce(operationId, () => {
+      applications += 1;
+      graph.addNode('node-' + tag, 'worker ' + tag, null, { workspaceId: 'w' });
+      if (markerPath) {
+        fs.writeFileSync(markerPath, 'mutation-open');
+        if (crashAfterMarker) process.kill(process.pid, 'SIGKILL');
+      }
+      return { tag };
+    }, {
+      buildCanonicalReceipt: () => buildCanonicalReceiptPayload({
+        receiptId: 'receipt-' + operationId,
+        receiptKind: 'memory_admission_receipt',
+        decision: 'allow',
+        status: 'admitted',
+        admissionId: 'admission-' + operationId,
+        workspaceId: 'w',
+        provenanceId: 'prov-' + operationId,
+        trustPolicyVersion: 'test',
+        createdAt: '2026-01-01T00:00:00.000Z',
+      }, { verdict: 'allow' }),
+    });
+    graph.close?.();
+    process.stdout.write(JSON.stringify({ outcome, applications }));
+  `;
+  return runProcess([
+    '-e',
+    script,
+    path.join(__dirname, '..', 'graph.js'),
+    path.join(__dirname, '..', 'lib', 'receipt', 'canonical-receipt.js'),
+    dbPath,
+    barrierPath || '',
+    operationId,
+    tag,
+    markerPath,
+    crashAfterMarker,
+  ]);
 }
 
 test('[json] durable journal serializes the same operation across processes', async () => {
@@ -104,6 +252,161 @@ test('[json] durable journal fails closed for a stale lock left by a dead proces
 
   assert.equal(ran, false);
   assert.equal(fs.existsSync(lockPath), true);
+});
+
+test('[json] a dead owner is refused immediately, without waiting out the lock timeout', () => {
+  // The refusal verdict is deliberate (see the test above). What must not
+  // happen is reaching it slowly: a crash used to cost every later mutation a
+  // full LOCK_WAIT_MS block, and then reported LOCK_TIMEOUT -- a contention
+  // code -- even though the owning pid was already provably gone.
+  const journalPath = path.join(root, 'fresh-dead-lock.mutations.json');
+  const lockPath = lockPathFor(journalPath);
+  fs.writeFileSync(lockPath, JSON.stringify({ pid: 2147483647, token: 'dead', acquiredAt: new Date().toISOString() }));
+
+  let ran = false;
+  const startedAt = Date.now();
+  assert.throws(
+    () => withMutationJournalLock(journalPath, () => { ran = true; }),
+    error => error?.code === 'MUTATION_JOURNAL_STALE_LOCK',
+  );
+  const elapsedMs = Date.now() - startedAt;
+
+  assert.equal(ran, false);
+  assert.equal(fs.existsSync(lockPath), true);
+  assert.ok(elapsedMs < LOCK_WAIT_MS / 2, `refusal took ${elapsedMs}ms, expected well under ${LOCK_WAIT_MS}ms`);
+});
+
+test('[json] a half-written lock from a live writer is not mistaken for a dead owner', () => {
+  // Between openSync(wx) and the pid write, the lock file exists but is empty.
+  // Liveness cannot be judged there, so the age gate must still apply -- other-
+  // wise the fast path above would evict a healthy concurrent writer.
+  const journalPath = path.join(root, 'half-written-lock.mutations.json');
+  const lockPath = lockPathFor(journalPath);
+  fs.writeFileSync(lockPath, '');
+
+  assert.equal(isReclaimableLock(journalPath), false);
+
+  const stale = new Date(Date.now() - (6 * 60 * 1000));
+  fs.utimesSync(lockPath, stale, stale);
+  assert.equal(isReclaimableLock(journalPath), true, 'the age gate still reclaims an abandoned unreadable lock');
+});
+
+test('[sqlite] two real processes keep one canonical result and receipt for the same operation', async () => {
+  const dbPath = path.join(root, 'sqlite-same-operation.db');
+  const barrierPath = path.join(root, 'sqlite-same-operation.ready');
+  primeSqliteDatabase(dbPath);
+  const workers = [
+    runSqliteWorker(dbPath, barrierPath, 'shared-sqlite-operation', 'a'),
+    runSqliteWorker(dbPath, barrierPath, 'shared-sqlite-operation', 'b'),
+  ];
+  fs.writeFileSync(barrierPath, 'ready');
+  const results = await Promise.all(workers);
+  const outputs = results.map((result) => {
+    assert.equal(result.code, 0, result.stderr);
+    return JSON.parse(result.stdout);
+  });
+  const graph = new Graph({ dbPath, memoryPath: path.join(root, 'sqlite-same-operation.json'), useSQLite: true });
+  const journal = graph._db.prepare('SELECT status, result FROM mutation_journal WHERE operation_id = ?').get('shared-sqlite-operation');
+  const receiptCount = graph._db.prepare('SELECT COUNT(*) AS count FROM mutation_receipts WHERE operation_id = ?').get('shared-sqlite-operation').count;
+  const nodeCount = graph._db.prepare('SELECT COUNT(*) AS count FROM nodes WHERE workspace_id = ?').get('w').count;
+
+  assert.equal(outputs.filter(({ outcome }) => outcome.replayed === false).length, 1);
+  assert.equal(outputs.filter(({ outcome }) => outcome.replayed === true).length, 1);
+  assert.equal(outputs.reduce((count, { applications }) => count + applications, 0), 1);
+  assert.equal(journal.status, 'completed');
+  assert.equal(JSON.parse(journal.result).tag === 'a' || JSON.parse(journal.result).tag === 'b', true);
+  assert.equal(receiptCount, 1);
+  assert.equal(nodeCount, 1);
+  graph.close();
+});
+
+test('[sqlite] two real processes retain distinct operations and a chained receipt sequence', async () => {
+  const dbPath = path.join(root, 'sqlite-distinct-operations.db');
+  const barrierPath = path.join(root, 'sqlite-distinct-operations.ready');
+  primeSqliteDatabase(dbPath);
+  const workers = [
+    runSqliteWorker(dbPath, barrierPath, 'sqlite-operation-a', 'a'),
+    runSqliteWorker(dbPath, barrierPath, 'sqlite-operation-b', 'b'),
+  ];
+  fs.writeFileSync(barrierPath, 'ready');
+  const results = await Promise.all(workers);
+  for (const result of results) assert.equal(result.code, 0, result.stderr);
+  const graph = new Graph({ dbPath, memoryPath: path.join(root, 'sqlite-distinct-operations.json'), useSQLite: true });
+  const journalCount = graph._db.prepare('SELECT COUNT(*) AS count FROM mutation_journal').get().count;
+  const receiptRows = graph._db.prepare('SELECT operation_id, previous_receipt_hash FROM mutation_receipts ORDER BY committed_at, operation_id').all();
+  const nodeCount = graph._db.prepare('SELECT COUNT(*) AS count FROM nodes WHERE workspace_id = ?').get('w').count;
+
+  assert.equal(journalCount, 2);
+  assert.deepEqual(receiptRows.map((row) => row.operation_id).sort(), ['sqlite-operation-a', 'sqlite-operation-b']);
+  assert.equal(receiptRows.filter((row) => row.previous_receipt_hash === GENESIS_PREVIOUS_HASH).length, 1);
+  assert.equal(receiptRows.filter((row) => row.previous_receipt_hash !== GENESIS_PREVIOUS_HASH).length, 1);
+  assert.equal(nodeCount, 2);
+  graph.close();
+});
+
+test('[sqlite] a real process killed inside a transaction can be restarted without a duplicate', async () => {
+  const dbPath = path.join(root, 'sqlite-transaction-crash.db');
+  const markerPath = path.join(root, 'sqlite-transaction-crash.marker');
+  const operationId = 'sqlite-transaction-crash';
+  primeSqliteDatabase(dbPath);
+  const crashed = await runSqliteWorker(dbPath, '', operationId, 'crashed', { markerPath, crashAfterMarker: true });
+  if (process.platform === 'win32') {
+    assert.notEqual(crashed.code, 0, 'Windows must report the hard-killed child as unsuccessful');
+  } else {
+    assert.equal(crashed.code, null);
+    assert.equal(crashed.signal, 'SIGKILL');
+  }
+  assert.equal(fs.readFileSync(markerPath, 'utf8'), 'mutation-open');
+
+  const retry = await runSqliteWorker(dbPath, '', operationId, 'retry');
+  assert.equal(retry.code, 0, retry.stderr);
+  const retryResult = JSON.parse(retry.stdout);
+  const graph = new Graph({ dbPath, memoryPath: path.join(root, 'sqlite-transaction-crash.json'), useSQLite: true });
+  const journal = graph._db.prepare('SELECT status, result FROM mutation_journal WHERE operation_id = ?').get(operationId);
+  const receiptCount = graph._db.prepare('SELECT COUNT(*) AS count FROM mutation_receipts WHERE operation_id = ?').get(operationId).count;
+  const nodeCount = graph._db.prepare('SELECT COUNT(*) AS count FROM nodes WHERE workspace_id = ?').get('w').count;
+
+  assert.equal(retryResult.outcome.replayed, false);
+  assert.equal(retryResult.applications, 1);
+  assert.equal(journal.status, 'completed');
+  assert.equal(JSON.parse(journal.result).tag, 'retry');
+  assert.equal(receiptCount, 1);
+  assert.equal(nodeCount, 1);
+  graph.close();
+});
+
+test('[json] a real process crash persists graph state but refuses stale-lock replay on restart', async () => {
+  const memoryPath = path.join(root, 'process-crash-recovery.json');
+  const journalPath = memoryPath.replace(/\.json$/, '.mutations.json');
+  const lockPath = lockPathFor(journalPath);
+  const markerPath = path.join(root, 'process-crash-recovery.marker');
+  const operationId = 'process-crash-after-save';
+
+  const crashed = await runJsonCrashWorker(memoryPath, markerPath, operationId);
+  if (process.platform === 'win32') {
+    assert.notEqual(crashed.code, 0, 'Windows must report the hard-killed child as unsuccessful');
+  } else {
+    assert.equal(crashed.code, null);
+    assert.equal(crashed.signal, 'SIGKILL');
+  }
+  assert.equal(fs.readFileSync(markerPath, 'utf8'), 'graph-save-complete');
+  assert.equal(fs.existsSync(memoryPath), true);
+  assert.equal(journalStatus(journalPath, operationId), null, 'the killed process must not claim completion');
+
+  const restartedGraph = new Graph({ memoryPath, useSQLite: false });
+  restartedGraph.load();
+  assert.ok(restartedGraph.getNode('crashed-node'), 'graph state written before the crash must remain readable');
+  assert.equal(fs.existsSync(lockPath), true, 'SIGKILL bypasses the lock release finally block');
+
+  const stale = new Date(Date.now() - (6 * 60 * 1000));
+  fs.utimesSync(lockPath, stale, stale);
+  const retry = await runJsonRetryWorker(memoryPath, operationId);
+  assert.equal(retry.code, 0, retry.stderr);
+  const retryResult = JSON.parse(retry.stdout);
+  assert.equal(retryResult.ok, false);
+  assert.equal(retryResult.code, 'MUTATION_JOURNAL_STALE_LOCK');
+  assert.equal(retryResult.applications, 0, 'stale-lock refusal must happen before the mutation callback');
+  assert.equal(fs.existsSync(lockPath), true, 'current fail-closed behavior preserves the stale lock for investigation');
 });
 
 // #216: the JSON backend now provides the SAME durable-journal contract as

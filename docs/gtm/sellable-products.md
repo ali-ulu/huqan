@@ -78,17 +78,24 @@ ucuz düzeltmeler, yüksek etki. (5 ajan bu gece bunların üzerinde çalıştı
 
 ## Satılabilir SKU'lar — ilk gelire kalan süreye göre
 
-### SKU 0 — Ticari Lisans (AGPL istisnası) · **bugün satılabilir**
+### SKU 0 — Ticari Lisans (AGPL alternatifi) · **hukukçu onayı sonrası değerlendirilebilir**
 
-**Ne:** HUQAN AGPL-3.0. Kapalı kaynak bir ürüne gömmek isteyen her şirket
-ya kendi ürününü AGPL yapmak ya da ticari istisna almak zorunda.
+**Ne:** HUQAN şu anda `AGPL-3.0-only` ile dağıtılıyor. Kapalı kaynak bir ürüne
+HUQAN bileşeni eklemek isteyen şirket, kullanım modelinin AGPL yükümlülüklerini
+nasıl etkilediğini ve ayrı bir ticari sözleşmeye ihtiyaç olup olmadığını
+hukukçusuyla değerlendirmelidir.
 
-**Gereken mühendislik: sıfır.** Ürün zaten hazır; eksik olan tek şey bir
-fiyat sayfası ve bir e-posta adresi.
+**Gereken iş:** Teknik çekirdek tek başına yeterli değildir. Satıştan önce hak
+sahipliği ve dependency envanteri, covered component/version kapsamı, yazılı
+lisans sözleşmesi, fiyat ve ödeme şartları, sorumluluk hükümleri ve onaylı
+iletişim süreci tamamlanmalıdır.
 
-**Fiyat:** 5.000-25.000 $/yıl (şirket büyüklüğüne göre).
+**Fiyat:** 5.000-25.000 $/yıl yalnızca iç planlama için yer tutucudur; teklif
+veya kamuya açık fiyat değildir.
 **Alıcı:** ajan altyapısı satan yazılım şirketleri.
-**Sonraki adım:** `LICENSE-COMMERCIAL.md` + README'ye üç satır + iletişim.
+**Sonraki adım:** hukukçu incelemesi, `docs/legal/commercial-license-working-draft.md`
+metninin onaylanması ve ancak bundan sonra gerçek ticari sözleşme ile iletişim
+sürecinin oluşturulması. Bu belgede henüz `LICENSE-COMMERCIAL.md` bulunmuyor.
 
 ---
 

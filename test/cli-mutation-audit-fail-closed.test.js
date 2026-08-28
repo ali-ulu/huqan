@@ -139,7 +139,7 @@ describe('the CLI surfaces the block instead of mutating (#760)', () => {
       managed.cli.kernel.recordCliMutationAudit = () => ({ auditRecorded: false, errorCode: 'AUDIT_WRITE_FAILED' });
 
       const output = managed.cli.execute('restore', '');
-      assert.match(output, /engellendi/);
+      assert.match(output, /was blocked/);
       assert.match(output, /cli_audit_write_failed/);
       assert.strictEqual(reloads, 0, 'canonical state was replaced without an audit record');
     } finally {
@@ -154,7 +154,7 @@ describe('the CLI surfaces the block instead of mutating (#760)', () => {
       managed.cli._backupOptions = () => { backups += 1; return {}; };
       managed.cli.kernel.recordCliMutationAudit = () => ({ auditRecorded: false, errorCode: 'AUDIT_WRITE_FAILED' });
 
-      assert.match(managed.cli.execute('backup', ''), /engellendi/);
+      assert.match(managed.cli.execute('backup', ''), /was blocked/);
       assert.strictEqual(backups, 0);
     } finally {
       managed.close();
@@ -209,7 +209,7 @@ describe('committed audit events (#760)', () => {
       };
       const output = managed.cli.execute('kaydet', '');
       assert.match(output, /^Memory saved\./, 'the mutation itself must still be reported');
-      assert.match(output, /commit denetim kaydi yazilamadi/);
+      assert.match(output, /commit audit record could not be written/);
       assert.strictEqual(calls, 2);
     } finally {
       managed.close();

@@ -135,9 +135,26 @@ function verifyInstall(label, tarball, installFlags) {
     }
 
     verifyMcp(label, binDir, consumer, env);
+    verifyA2aRuntime(label, consumer, env);
   } finally {
     fs.rmSync(consumer, { recursive: true, force: true });
   }
+}
+
+/**
+ * The HTTP boundary loads the evaluator and replay store dynamically so the
+ * static package-closure check cannot see this dependency chain. Load the
+ * evaluator from the installed tarball to prove every A2A/V5 dependency was
+ * actually published.
+ */
+function verifyA2aRuntime(label, cwd, env) {
+  const probe = run(process.execPath, [
+    '-e',
+    "const a2a = require('huqan/lib/a2a/bounded-exchange'); if (typeof a2a.evaluateBoundedExchange !== 'function') process.exit(2);",
+  ], { cwd, env });
+
+  if (probe.status === 0) ok('installed A2A evaluator loads with its V5 dependency closure');
+  else fail(`${label}: installed A2A evaluator cannot load\n${probe.output.slice(-2000)}`);
 }
 
 /**

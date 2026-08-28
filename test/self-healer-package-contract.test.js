@@ -8,6 +8,8 @@ const pkg = require('../package.json');
 const REQUIRED_FILES = [
   'plugins/self-healer-audit.js',
   'lib/self-healer/dryrun-runner.js',
+  'lib/self-healer/audit-runner.js',
+  'lib/self-healer/finding-classifier.js',
   'lib/self-healer/finding-schema.js',
   'lib/self-healer/safety-decision.js',
   'lib/self-healer/source-dependency-graph.js',

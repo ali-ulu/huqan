@@ -308,7 +308,7 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
           mode === 'missing' ? 'AUDIT_SINK_UNAVAILABLE' : 'AUDIT_WRITE_FAILED',
         );
 
-        assert.match(managed.cli.execute('kaydet', ''), /engellendi/);
+        assert.match(managed.cli.execute('kaydet', ''), /was blocked/);
         assert.strictEqual(persistCalls, 0, 'state was persisted without an audit record');
         assert.strictEqual(attempts, mode === 'throwing' ? 2 : 0);
       } finally {
@@ -400,7 +400,7 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
         stages.push('mutation');
         return { pruned: 0, removedNodes: 0 };
       };
-      assert.match(managed.cli.execute('optimize', ''), /engellendi/);
+      assert.match(managed.cli.execute('optimize', ''), /was blocked/);
       assert.deepStrictEqual(stages, ['audit', 'format']);
     } finally {
       managed.cli.kernel.recordCliMutationAudit = originalAudit;
@@ -432,7 +432,7 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
         ['konsolide', '', 'consolidate'],
         ['evolve', '', 'evolve'],
       ]) {
-        assert.match(managed.cli.execute(command, args, { gateResult: executableGate }), /engellendi/);
+        assert.match(managed.cli.execute(command, args, { gateResult: executableGate }), /was blocked/);
         assert.equal(calls[key], 0, `${command} must not reach its mutation method`);
       }
     } finally {

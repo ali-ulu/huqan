@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "repository": "ali-ulu/huqan",
   "baselineBranch": "main",
-  "canonicalMain": "1ddd08eacfe7776013a4c9159846d30b9a10c667",
+  "canonicalMain": "2032ae2630c552713f0718b64ee7cc3bddd8ba4c",
   "worktreePolicy": "REPORT_ONLY",
-  "observedAt": "2026-08-20T20:17:17+00:00",
+  "observedAt": "2026-08-27T12:03:14Z",
   "program": "V5 implementation track entry (authorized) / bounded A2A transport shipped and deployment-gated",
   "completedEvidence": [
     "V4-B1 is closed PASS with authenticated real-server and SQLite Workbench read evidence; Notion candidate 262d357ef37a6d189dc29b1f255c90b7c6ccc745 / PR #264",

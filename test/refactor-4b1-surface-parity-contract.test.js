@@ -9,7 +9,12 @@ const test = require('node:test');
 const CLI = require('../cli');
 const Kernel = require('../kernel');
 const { createHuqanClient } = require('../lib/sdk');
-const { createServer } = require('../mcpServer');
+const {
+  createServer,
+  createMcpOperatorCapability,
+  operatorCapabilityBinding,
+} = require('../mcpServer');
+const { canonicalMcpToolName } = require('../lib/mcp-tool-names');
 
 function createFixture(label) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), `huqan-4b1-${label}-`));
@@ -31,17 +36,20 @@ function closeFixture(fixture, server) {
 }
 
 function callTool(server, name, args = {}) {
+  const canonicalName = canonicalMcpToolName(name);
+  const operator = ['huqan.approve', 'huqan.approvals'].includes(canonicalName)
+    ? {
+        operatorCapability: createMcpOperatorCapability({
+          secret: 'test-operator',
+          ...operatorCapabilityBinding(canonicalName, args),
+        }),
+      }
+    : {};
   const response = server.handleRequest({
     jsonrpc: '2.0',
     id: 1,
     method: 'tools/call',
-    params: {
-      name,
-      ...(name === 'huqan.approve' || name === 'axiom.approve' || name === 'huqan.approvals' || name === 'axiom.approvals'
-        ? { operatorToken: 'test-operator' }
-        : {}),
-      arguments: args,
-    },
+    params: { name, ...operator, arguments: args },
   });
   assert.ok(response.result?.structuredContent, `${name} must return structured content`);
   return response.result.structuredContent;

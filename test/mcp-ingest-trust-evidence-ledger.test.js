@@ -6,7 +6,12 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const Graph = require('../graph');
-const { callTool, createServer } = require('../mcpServer');
+const {
+  callTool,
+  createServer,
+  createMcpOperatorCapability,
+  operatorCapabilityBinding,
+} = require('../mcpServer');
 const { createTrustEvidenceLedger } = require('../lib/trust-evidence-ledger');
 
 function makeKernel(graph) {
@@ -84,11 +89,12 @@ test('MCP approval owner appends bounded trust evidence through the opt-in ledge
   const approvalStore = makeApprovalStore();
   const ledger = createTrustEvidenceLedger({ graph });
   const queued = queue(kernel, approvalStore);
+  const approvalArgs = { approvalId: queued.approval.id, workspaceId: 'default', decision: 'approved', reason: 'ledger_test_approved' };
   const result = await callTool(kernel, {
     name: 'huqan.approve',
-    arguments: JSON.stringify({ approvalId: queued.approval.id, workspaceId: 'default', decision: 'approved', reason: 'ledger_test_approved' }),
-    operatorToken: 'test-operator',
-  }, { approvalStore, operatorToken: 'test-operator', trustEvidenceLedger: ledger });
+    arguments: JSON.stringify(approvalArgs),
+    operatorCapability: createMcpOperatorCapability({ secret: 'test-operator', ...operatorCapabilityBinding('huqan.approve', approvalArgs) }),
+  }, { approvalStore, operatorSecret: 'test-operator', operatorCapabilityNonces: new Map(), trustEvidenceLedger: ledger });
 
   assert.equal(result.ok, true);
   assert.equal(result.data.refs.auditRef !== undefined, true);
@@ -124,7 +130,10 @@ test('MCP createServer passes its opt-in ledger into the approval runtime', asyn
     params: {
       name: 'huqan.approve',
       arguments: JSON.stringify({ approvalId: queued.approval.id, workspaceId: 'default', decision: 'approved', reason: 'server_ledger_test' }),
-      operatorToken: 'test-operator',
+      operatorCapability: createMcpOperatorCapability({
+        secret: 'test-operator',
+        ...operatorCapabilityBinding('huqan.approve', { approvalId: queued.approval.id, workspaceId: 'default', decision: 'approved', reason: 'server_ledger_test' }),
+      }),
     },
   });
   assert.equal(approvedResponse.result.structuredContent.ok, true);

@@ -35,7 +35,7 @@ const {
   normalizeLoadedEdge,
   edgeUpdateArgs,
 } = require('./lib/graph-record-utils');
-const { derivePersistenceLayout } = require('./lib/memory-store-utils');
+const { derivePersistenceLayout, resolveDefaultMemoryPath } = require('./lib/memory-store-utils');
 const { createMutationRollback } = require('./lib/graph-mutation-rollback');
 const { handleSqliteInitializationError, hasExistingPersistenceFile, sqlitePersistenceError } = require('./lib/sqlite-persistence-validation');
 const { countAuditEvents, queryAuditEvents, readAuditEvents } = require('./lib/audit-query');
@@ -88,7 +88,7 @@ class Graph {
   constructor(opts) {
     if (typeof opts === 'string') opts = { memoryPath: opts };
     opts = opts || {};
-    this.memoryPath = opts.memoryPath || 'memory.json';
+    this.memoryPath = opts.memoryPath || resolveDefaultMemoryPath();
     this._paths = derivePersistenceLayout(this.memoryPath, opts.dbPath);
     this._embeddingPath = this._paths.embeddingPath;
     this._decayLambda = opts.decayLambda || 0.05;
@@ -504,7 +504,7 @@ class Graph {
         this._stmts.insertMutationJournal.run(id, 'completed', JSON.stringify(result), nowIso());
         return { replayed: false, result, receipt };
       });
-      return execute();
+      return (typeof execute.immediate === 'function' ? execute.immediate : execute)();
     } catch (error) {
       // SQLite rolls back durably; the lazy journal restores only in-memory
       // records and collection roots touched by this callback.
