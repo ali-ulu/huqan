@@ -855,6 +855,28 @@ describe('Graph - embedding survival across save failure and rollback (#369)', {
     assert.ok(!persisted.nodes[storageKey].embedding, 'embeddings belong in the sidecar file, not memory.json');
   }));
 
+  it('retries a caught sidecar write failure without losing pending embeddings', () => withTempRoot(root => {
+    const graph = new Graph({ memoryPath: path.join(root, 'memory.json'), useSQLite: false });
+    graph.addNode('seed');
+    graph.save();
+    const before = fs.readFileSync(graph.memoryPath);
+    graph._assignEmbedding('seed', new Float64Array([2, 3]));
+    graph.addNode('pending');
+    const rename = fs.renameSync;
+    fs.renameSync = (from, to) => {
+      if (to === graph._embeddingPath) throw Object.assign(new Error('sidecar denied'), { code: 'EACCES' });
+      return rename(from, to);
+    };
+    try { assert.throws(() => graph.save(), { code: 'EACCES' }); }
+    finally { fs.renameSync = rename; }
+    assert.deepStrictEqual(fs.readFileSync(graph.memoryPath), before);
+    assert.deepStrictEqual(Array.from(graph._nodes.seed.embedding), [2, 3]);
+    graph.save();
+    graph.load();
+    assert.ok(graph.getNode('pending'));
+    assert.deepStrictEqual(Array.from(graph._nodes.seed.embedding), [2, 3]);
+  }));
+
   // #609: the sidecar is part of the saved state, so every save() has to bring
   // it to the current truth -- including the truth "there are none left".
   it('does not resurrect a deleted embedding from a stale sidecar on reload', () => withTempRoot(root => {

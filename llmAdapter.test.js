@@ -2,6 +2,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const LLMAdapter = require('./llmAdapter');
 const Kernel = require('./kernel');
+const { isolatedKernelOptions } = require('./test/helpers/isolated-persistence');
 
 const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
@@ -102,7 +103,7 @@ describe('LLMAdapter', () => {
 
 describe('kernel.verify()', () => {
   function freshK() {
-    const k = new Kernel({ noLoad: true });
+    const k = new Kernel(isolatedKernelOptions('llm-adapter-verify', { loadPlugins: false }));
     return k;
   }
 
@@ -159,7 +160,7 @@ describe('kernel.verify()', () => {
 
 describe('kernel.learnDocument()', () => {
   function freshK() {
-    return new Kernel({ noLoad: true });
+    return new Kernel(isolatedKernelOptions('llm-adapter-document', { loadPlugins: false }));
   }
 
   it('learns from plain text lines', () => {
@@ -208,7 +209,7 @@ describe('kernel.learnDocument()', () => {
 
 describe('kernel.learnFromLLM()', () => {
   function freshK() {
-    return new Kernel({ noLoad: true });
+    return new Kernel(isolatedKernelOptions('llm-adapter-learn', { loadPlugins: false }));
   }
 
   it('does not auto-write canonical graph from LLM text without approved admission', () => {

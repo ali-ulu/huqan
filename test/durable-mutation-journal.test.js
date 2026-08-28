@@ -41,10 +41,13 @@ function runConcurrentJournalWorker(memoryPath, barrierPath, operationId, tag) {
     const operationId = process.argv[4];
     const tag = process.argv[5];
     const sleeper = new Int32Array(new SharedArrayBuffer(4));
-    while (!fs.existsSync(barrierPath)) Atomics.wait(sleeper, 0, 0, 5);
     const graph = new Graph({ memoryPath, useSQLite: false });
+    graph.load();
+    fs.writeFileSync(barrierPath + '.' + tag, 'loaded');
+    while (!fs.existsSync(barrierPath)) Atomics.wait(sleeper, 0, 0, 5);
     const outcome = graph.runMutationOnce(operationId, () => {
       Atomics.wait(sleeper, 0, 0, 150);
+      graph.addNode('node-' + tag, 'worker ' + tag);
       return { tag };
     });
     process.stdout.write(JSON.stringify(outcome));
@@ -60,6 +63,15 @@ function runConcurrentJournalWorker(memoryPath, barrierPath, operationId, tag) {
     child.once('error', reject);
     child.once('exit', status => status === 0 ? resolve(JSON.parse(stdout)) : reject(new Error(stderr || `worker exited ${status}`)));
   });
+}
+
+async function releaseJournalWorkers(barrierPath) {
+  const deadline = Date.now() + 5000;
+  while (!['a', 'b'].every(tag => fs.existsSync(barrierPath + '.' + tag))) {
+    if (Date.now() > deadline) throw new Error('journal workers did not load their initial snapshots');
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  fs.writeFileSync(barrierPath, 'ready');
 }
 
 function runProcess(args, timeoutMs = 5_000) {
@@ -210,14 +222,16 @@ test('[json] durable journal serializes the same operation across processes', as
     runConcurrentJournalWorker(memoryPath, barrierPath, 'shared-operation', 'a'),
     runConcurrentJournalWorker(memoryPath, barrierPath, 'shared-operation', 'b'),
   ];
-  fs.writeFileSync(barrierPath, 'ready');
+  await releaseJournalWorkers(barrierPath);
   const outcomes = await Promise.all(workers);
   const fresh = new Graph({ memoryPath, useSQLite: false });
+  fresh.load();
   const journal = fresh._readJsonJournal();
 
   assert.equal(outcomes.filter(outcome => outcome.replayed === false).length, 1);
   assert.equal(outcomes.filter(outcome => outcome.replayed === true).length, 1);
   assert.deepEqual(Object.keys(journal.operations), ['shared-operation']);
+  assert.equal(Object.keys(fresh.getNodes()).length, 1);
   assert.equal(fs.existsSync(`${memoryPath}.mutations.json.lock`), false);
 });
 
@@ -228,13 +242,58 @@ test('[json] durable journal retains concurrent distinct operations across proce
     runConcurrentJournalWorker(memoryPath, barrierPath, 'operation-a', 'a'),
     runConcurrentJournalWorker(memoryPath, barrierPath, 'operation-b', 'b'),
   ];
-  fs.writeFileSync(barrierPath, 'ready');
+  await releaseJournalWorkers(barrierPath);
   const outcomes = await Promise.all(workers);
   const fresh = new Graph({ memoryPath, useSQLite: false });
+  fresh.load();
   const journal = fresh._readJsonJournal();
 
   assert.deepEqual(outcomes.map(outcome => outcome.replayed), [false, false]);
   assert.deepEqual(Object.keys(journal.operations).sort(), ['operation-a', 'operation-b']);
+  assert.ok(fresh.getNode('node-a'));
+  assert.ok(fresh.getNode('node-b'));
+});
+
+test('[json] a stale direct save cannot overwrite a newer writer', () => {
+  const a = makeGraph('stale-direct-save', 'json');
+  const b = makeGraph('stale-direct-save', 'json');
+  a.load(); b.load();
+  a.addNode('first'); a.save();
+  b.addNode('pending');
+  const bytes = fs.readFileSync(a.memoryPath);
+  assert.throws(() => b.save(), { code: 'GRAPH_JSON_WRITE_CONFLICT' });
+  assert.deepEqual(fs.readFileSync(a.memoryPath), bytes);
+  assert.ok(b.getNode('pending'), 'conflict retains the caller pending view');
+  b.load(); b.addNode('second'); b.save();
+  a.load();
+  assert.ok(a.getNode('first'));
+  assert.ok(a.getNode('second'));
+});
+
+test('[json] canonical refresh refuses to discard local unsaved changes', () => {
+  const a = makeGraph('dirty-canonical-view', 'json');
+  const b = makeGraph('dirty-canonical-view', 'json');
+  a.load(); b.load();
+  b.addNode('pending');
+  a.runMutationOnce('first', () => { a.addNode('first'); return { ok: true }; });
+  let called = false;
+  assert.throws(() => b.runMutationOnce('second', () => { called = true; }), { code: 'GRAPH_JSON_WRITE_CONFLICT' });
+  assert.equal(called, false);
+  assert.ok(b.getNode('pending'));
+  assert.equal(b._readJsonJournal().operations.second, undefined);
+});
+
+test('[json] nested canonical mutations fail before the inner callback or persistence', () => {
+  const graph = makeGraph('nested-canonical', 'json');
+  let innerCalled = false;
+  assert.throws(() => graph.runMutationOnce('outer', () => {
+    graph.addNode('outer');
+    return graph.runMutationOnce('inner', () => { innerCalled = true; return { ok: true }; });
+  }), { code: 'GRAPH_JSON_NESTED_MUTATION' });
+  assert.equal(innerCalled, false);
+  assert.equal(graph.getNode('outer'), null);
+  assert.deepEqual(Object.keys(graph._readJsonJournal().operations), []);
+  assert.equal(fs.existsSync(graph.memoryPath), false);
 });
 
 test('[json] durable journal fails closed for a stale lock left by a dead process', () => {

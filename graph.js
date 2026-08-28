@@ -38,9 +38,10 @@ const {
 const { derivePersistenceLayout, resolveDefaultMemoryPath } = require('./lib/memory-store-utils');
 const { createMutationRollback } = require('./lib/graph-mutation-rollback');
 const { assertGraphPersistenceWritable, loadJsonGraph } = require('./lib/graph-json-persistence');
+const { runSnapshotMutation, saveSnapshot, writeCurrentState, writeJsonFiles } = require('./lib/graph-json-snapshot');
 const { handleSqliteInitializationError, hasExistingPersistenceFile, sqlitePersistenceError } = require('./lib/sqlite-persistence-validation');
 const { countAuditEvents, queryAuditEvents, readAuditEvents } = require('./lib/audit-query');
-const { assertChainTipUsable, emptyMutationJournal, readMutationJournal, readCommittedMutationResult, readCommittedMutationResultsByPrefix, withMutationJournalLock } = require('./lib/mutation-journal');
+const { assertChainTipUsable, emptyMutationJournal, readMutationJournal, readCommittedMutationResult, readCommittedMutationResultsByPrefix } = require('./lib/mutation-journal');
 const { applyTemporalEdgeMetadata, beginEdgeTouchScope, downgradeEdge, edgeTouchKey } = require('./lib/graph-edge-mutations');
 const { getCausalChain: runCausalChain } = require('./lib/graph-causal-chain');
 const { getCandidateClaims: runCandidateClaimsRead } = require('./lib/graph-candidate-claims-read');
@@ -529,7 +530,7 @@ class Graph {
    * unchanged) -- durability comes from the journal file being written with
    * atomicWriteFileSync() (never a torn write) rather than a SQL transaction.
    */
-  _runMutationOnceJson(id, mutate, opts) { return withMutationJournalLock(this._jsonJournalPath(), () => this._runMutationOnceJsonLocked(id, mutate, opts)); }
+  _runMutationOnceJson(id, mutate, opts) { return runSnapshotMutation(this, () => this._runMutationOnceJsonLocked(id, mutate, opts)); }
   _runMutationOnceJsonLocked(id, mutate, opts) {
     const readStored = () => {
       const journal = this._readJsonJournal();
@@ -968,18 +969,7 @@ class Graph {
 
   save() {
     assertGraphPersistenceWritable(this);
-    // #369: strip -> write -> restore has to be crash-safe. _stripEmbeddings()
-    // deletes node.embedding from the *live* in-memory nodes so the serialized
-    // form stays JSON-clean, which means that between here and the restore the
-    // only copy of those vectors is the local `embeddings` map. Restoring in a
-    // finally makes a failed save() degrade to "not persisted" rather than
-    // "not persisted AND erased from memory".
-    const embeddings = this._stripEmbeddings();
-    try {
-      this._writeStrippedState(embeddings);
-    } finally {
-      this._restoreEmbeddings(embeddings);
-    }
+    return this._db && this._stmts ? writeCurrentState(this) : saveSnapshot(this, () => writeCurrentState(this));
   }
 
   // Split out of save() purely so the restore above can live in a finally
@@ -1076,27 +1066,7 @@ class Graph {
       saveAll();
     }
 
-    // JSON de yaz (Rust katmanı ve fallback için) — atomik: crash mid-write
-    // memoryPath'i asla yarım/bozuk bırakmaz (eski içerik ya da yeni içerik,
-    // ikisinin karışımı asla).
-    const data = {
-      nodes: this._nodes,
-      edges: this._edges,
-      candidateClaims: this._candidateClaims,
-      auditEvents: this._auditEvents,
-    };
-    atomicWriteFileSync(this.memoryPath, JSON.stringify(data));
-
-    // Embedding'leri ayrı dosyaya yaz (aynı atomik garanti). Geri koyma işi
-    // save()'in finally'sinde: buradaki bir hata da embedding'leri bellekte
-    // bırakmalı (#369).
-    //
-    // #609: koşulsuz yazılır. Eskiden yalnızca en az bir embedding varken
-    // yazılıyordu, dolayısıyla son embedding silindiğinde (ya da prune() node'u
-    // düşürdüğünde) eski sidecar diskte kalıyor ve bir sonraki load() silinmiş
-    // vektörü geri diriltiyordu. Sidecar memory.json'ın parçası gibi
-    // davranmalı: her save() onu son duruma eşitler, boş obje dahil.
-    atomicWriteFileSync(this._embeddingPath, JSON.stringify(embeddings));
+    writeJsonFiles(this, embeddings);
   }
 
   load() {
