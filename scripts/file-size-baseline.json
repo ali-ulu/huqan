@@ -11,7 +11,7 @@
   "threshold": 800,
   "files": {
     "agent.js": 958,
-    "graph.js": 1223,
+    "graph.js": 1216,
     "kernel.js": 1089,
     "kernel.v2.js": 807,
     "lib/code-change-gate.js": 834,

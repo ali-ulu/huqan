@@ -10,7 +10,9 @@ const { after, test } = require('node:test');
 const Graph = require('../graph');
 const { buildCanonicalReceiptPayload } = require('../lib/receipt/canonical-receipt');
 const { GENESIS_PREVIOUS_HASH } = require('../lib/receipt/receipt-chain');
-const { LOCK_WAIT_MS, isReclaimableLock, lockPathFor, withMutationJournalLock } = require('../lib/mutation-journal-lock');
+const { readMutationJournal } = require('../lib/mutation-journal');
+const { LOCK_WAIT_MS, STALE_LOCK_MS, isReclaimableLock, lockPathFor, ownerPathFor, withMutationJournalLock } = require('../lib/mutation-journal-lock');
+const { redoPathFor } = require('../lib/graph-json-transaction');
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-durable-journal-'));
 
@@ -103,45 +105,68 @@ function runProcess(args, timeoutMs = 5_000) {
   });
 }
 
-function runJsonCrashWorker(memoryPath, journalWriteMarkerPath, operationId) {
+function runJsonCrashWorker(memoryPath, markerPath, operationId, crashPoint) {
   const script = `
     const fs = require('node:fs');
     const Graph = require(process.argv[1]);
-    const memoryPath = process.argv[2];
-    const journalWriteMarkerPath = process.argv[3];
-    const operationId = process.argv[4];
+    const { buildCanonicalReceiptPayload } = require(process.argv[2]);
+    const memoryPath = process.argv[3];
+    const markerPath = process.argv[4];
+    const operationId = process.argv[5];
+    const crashPoint = process.argv[6];
     const graph = new Graph({ memoryPath, useSQLite: false });
-    graph._writeJsonJournal = () => {
-      fs.writeFileSync(journalWriteMarkerPath, 'graph-save-complete');
+    graph._jsonTransactionFault = point => {
+      if (point !== crashPoint) return;
+      fs.writeFileSync(markerPath, point);
       process.kill(process.pid, 'SIGKILL');
     };
     graph.runMutationOnce(operationId, () => {
       graph.addNode('crashed-node', 'persisted before journal crash');
       return { applied: true };
-    });
+    }, { buildCanonicalReceipt: () => buildCanonicalReceiptPayload({
+      receiptId: 'receipt-' + operationId,
+      receiptKind: 'memory_admission_receipt', decision: 'allow', status: 'admitted',
+      admissionId: 'admission-' + operationId, workspaceId: 'w',
+      provenanceId: 'prov-' + operationId, trustPolicyVersion: 'test',
+      createdAt: '2026-01-01T00:00:00.000Z',
+    }, { verdict: 'allow' }) });
   `;
-  return runProcess(['-e', script, path.join(__dirname, '..', 'graph.js'), memoryPath, journalWriteMarkerPath, operationId]);
+  return runProcess(['-e', script, path.join(__dirname, '..', 'graph.js'), path.join(__dirname, '..', 'lib', 'receipt', 'canonical-receipt.js'), memoryPath, markerPath, operationId, crashPoint]);
 }
 
-function runJsonRetryWorker(memoryPath, operationId) {
+function runJsonRetryWorker(memoryPath, operationId, crashPoint = '') {
   const script = `
     const Graph = require(process.argv[1]);
-    const memoryPath = process.argv[2];
-    const operationId = process.argv[3];
+    const { buildCanonicalReceiptPayload } = require(process.argv[2]);
+    const memoryPath = process.argv[3];
+    const operationId = process.argv[4];
+    const crashPoint = process.argv[5];
     const graph = new Graph({ memoryPath, useSQLite: false });
+    if (crashPoint) graph._jsonTransactionFault = point => {
+      if (point === crashPoint) process.kill(process.pid, 'SIGKILL');
+    };
     let applications = 0;
     try {
       const outcome = graph.runMutationOnce(operationId, () => {
         applications += 1;
         graph.addNode('retry-node', 'must not execute after stale-lock refusal');
         return { applied: true };
-      });
-      process.stdout.write(JSON.stringify({ ok: true, outcome, applications }));
+      }, { buildCanonicalReceipt: () => buildCanonicalReceiptPayload({
+        receiptId: 'receipt-' + operationId,
+        receiptKind: 'memory_admission_receipt', decision: 'allow', status: 'admitted',
+        admissionId: 'admission-' + operationId, workspaceId: 'w',
+        provenanceId: 'prov-' + operationId, trustPolicyVersion: 'test',
+        createdAt: '2026-01-01T00:00:00.000Z',
+      }, { verdict: 'allow' }) });
+      process.stdout.write(JSON.stringify({ ok: true, outcome, applications,
+        crashedNode: Boolean(graph.getNode('crashed-node')),
+        retryNode: Boolean(graph.getNode('retry-node')),
+        receipt: graph.getCommittedMutationReceiptByOperation(operationId) }));
     } catch (error) {
       process.stdout.write(JSON.stringify({ ok: false, code: error.code, message: error.message, applications }));
     }
   `;
-  return runProcess(['-e', script, path.join(__dirname, '..', 'graph.js'), memoryPath, operationId]);
+  return runProcess(['-e', script, path.join(__dirname, '..', 'graph.js'), path.join(__dirname, '..', 'lib', 'receipt', 'canonical-receipt.js'), memoryPath, operationId, crashPoint]);
 }
 
 function primeSqliteDatabase(dbPath) {
@@ -296,56 +321,41 @@ test('[json] nested canonical mutations fail before the inner callback or persis
   assert.equal(fs.existsSync(graph.memoryPath), false);
 });
 
-test('[json] durable journal fails closed for a stale lock left by a dead process', () => {
+test('[json] a dead directory-lock owner is reclaimed without deleting a live successor lock', () => {
   const journalPath = path.join(root, 'stale-lock.mutations.json');
   const lockPath = lockPathFor(journalPath);
-  fs.writeFileSync(lockPath, JSON.stringify({ pid: 2147483647, token: 'dead', acquiredAt: '2026-01-01T00:00:00.000Z' }));
-  const stale = new Date(Date.now() - (6 * 60 * 1000));
+  fs.mkdirSync(lockPath);
+  fs.writeFileSync(ownerPathFor(journalPath), JSON.stringify({
+    pid: 2147483647, token: 'dead', acquiredAt: '2026-01-01T00:00:00.000Z',
+  }));
+  const stale = new Date(Date.now() - STALE_LOCK_MS - 100);
   fs.utimesSync(lockPath, stale, stale);
 
   let ran = false;
-  assert.throws(
-    () => withMutationJournalLock(journalPath, () => { ran = true; }),
-    error => error?.code === 'MUTATION_JOURNAL_STALE_LOCK',
-  );
-
-  assert.equal(ran, false);
-  assert.equal(fs.existsSync(lockPath), true);
+  withMutationJournalLock(journalPath, () => { ran = true; });
+  assert.equal(ran, true);
+  assert.equal(fs.existsSync(lockPath), false);
+  assert.equal(fs.existsSync(ownerPathFor(journalPath)), false);
 });
 
-test('[json] a dead owner is refused immediately, without waiting out the lock timeout', () => {
-  // The refusal verdict is deliberate (see the test above). What must not
-  // happen is reaching it slowly: a crash used to cost every later mutation a
-  // full LOCK_WAIT_MS block, and then reported LOCK_TIMEOUT -- a contention
-  // code -- even though the owning pid was already provably gone.
-  const journalPath = path.join(root, 'fresh-dead-lock.mutations.json');
+test('[json] a live owner is never declared reclaimable even past the stale mtime', () => {
+  const journalPath = path.join(root, 'live-lock.mutations.json');
   const lockPath = lockPathFor(journalPath);
-  fs.writeFileSync(lockPath, JSON.stringify({ pid: 2147483647, token: 'dead', acquiredAt: new Date().toISOString() }));
-
-  let ran = false;
-  const startedAt = Date.now();
-  assert.throws(
-    () => withMutationJournalLock(journalPath, () => { ran = true; }),
-    error => error?.code === 'MUTATION_JOURNAL_STALE_LOCK',
-  );
-  const elapsedMs = Date.now() - startedAt;
-
-  assert.equal(ran, false);
-  assert.equal(fs.existsSync(lockPath), true);
-  assert.ok(elapsedMs < LOCK_WAIT_MS / 2, `refusal took ${elapsedMs}ms, expected well under ${LOCK_WAIT_MS}ms`);
-});
-
-test('[json] a half-written lock from a live writer is not mistaken for a dead owner', () => {
-  // Between openSync(wx) and the pid write, the lock file exists but is empty.
-  // Liveness cannot be judged there, so the age gate must still apply -- other-
-  // wise the fast path above would evict a healthy concurrent writer.
-  const journalPath = path.join(root, 'half-written-lock.mutations.json');
-  const lockPath = lockPathFor(journalPath);
-  fs.writeFileSync(lockPath, '');
-
+  fs.mkdirSync(lockPath);
+  fs.writeFileSync(ownerPathFor(journalPath), JSON.stringify({
+    pid: process.pid, token: 'live', acquiredAt: new Date().toISOString(),
+  }));
+  const stale = new Date(Date.now() - STALE_LOCK_MS - 100);
+  fs.utimesSync(lockPath, stale, stale);
   assert.equal(isReclaimableLock(journalPath), false);
+});
 
-  const stale = new Date(Date.now() - (6 * 60 * 1000));
+test('[json] an empty abandoned directory lock becomes reclaimable only after the age gate', () => {
+  const journalPath = path.join(root, 'empty-directory-lock.mutations.json');
+  const lockPath = lockPathFor(journalPath);
+  fs.mkdirSync(lockPath);
+  assert.equal(isReclaimableLock(journalPath), false);
+  const stale = new Date(Date.now() - STALE_LOCK_MS - 100);
   fs.utimesSync(lockPath, stale, stale);
   assert.equal(isReclaimableLock(journalPath), true, 'the age gate still reclaims an abandoned unreadable lock');
 });
@@ -434,38 +444,72 @@ test('[sqlite] a real process killed inside a transaction can be restarted witho
   graph.close();
 });
 
-test('[json] a real process crash persists graph state but refuses stale-lock replay on restart', async () => {
-  const memoryPath = path.join(root, 'process-crash-recovery.json');
+for (const crashPoint of ['before-prepared', 'after-prepared', 'after-graph-publish', 'after-embedding-publish', 'after-journal-publish']) {
+  test(`[json] SIGKILL at ${crashPoint} recovers one canonical operation within five seconds`, async () => {
+    const slug = crashPoint.replaceAll('-', '_');
+    const memoryPath = path.join(root, `process-crash-${slug}.json`);
+    const journalPath = memoryPath.replace(/\.json$/, '.mutations.json');
+    const markerPath = path.join(root, `process-crash-${slug}.marker`);
+    const operationId = `process-crash-${slug}`;
+
+    const crashed = await runJsonCrashWorker(memoryPath, markerPath, operationId, crashPoint);
+    assert.notEqual(crashed.code, 0);
+    assert.equal(fs.readFileSync(markerPath, 'utf8'), crashPoint);
+
+    const startedAt = Date.now();
+    const retry = await runJsonRetryWorker(memoryPath, operationId);
+    const recoveryMs = Date.now() - startedAt;
+    assert.equal(retry.code, 0, retry.stderr);
+    assert.ok(recoveryMs < 5_000, `recovery took ${recoveryMs}ms`);
+    const result = JSON.parse(retry.stdout);
+    assert.equal(result.ok, true);
+    const prepared = crashPoint !== 'before-prepared';
+    assert.equal(result.applications, prepared ? 0 : 1);
+    assert.equal(result.outcome.replayed, prepared);
+    assert.equal(result.crashedNode, prepared);
+    assert.equal(result.retryNode, !prepared);
+    assert.equal(result.receipt.receiptId, `receipt-${operationId}`);
+    assert.equal(result.receipt.previousReceiptHash, GENESIS_PREVIOUS_HASH);
+    assert.equal(journalStatus(journalPath, operationId), 'completed');
+
+    const graph = new Graph({ memoryPath, useSQLite: false });
+    graph.load();
+    const next = graph.runMutationOnce(`${operationId}-next`, () => {
+      graph.addNode('next-node', 'next operation');
+      return { applied: true };
+    });
+    assert.equal(next.replayed, false);
+    assert.ok(graph.getNode('next-node'));
+    assert.equal(fs.existsSync(lockPathFor(journalPath)), false);
+    assert.equal(fs.existsSync(ownerPathFor(journalPath)), false);
+    assert.equal(fs.existsSync(redoPathFor(journalPath)), false);
+  });
+}
+
+test('[json] SIGKILL before recovery cleanup is idempotently recoverable', async () => {
+  const memoryPath = path.join(root, 'process-crash-recovery-cleanup.json');
   const journalPath = memoryPath.replace(/\.json$/, '.mutations.json');
-  const lockPath = lockPathFor(journalPath);
-  const markerPath = path.join(root, 'process-crash-recovery.marker');
-  const operationId = 'process-crash-after-save';
+  const markerPath = path.join(root, 'process-crash-recovery-cleanup.marker');
+  const operationId = 'process-crash-recovery-cleanup';
+  const firstCrash = await runJsonCrashWorker(memoryPath, markerPath, operationId, 'after-prepared');
+  assert.notEqual(firstCrash.code, 0);
+  const recoveryCrash = await runJsonRetryWorker(memoryPath, operationId, 'before-recovery-cleanup');
+  assert.notEqual(recoveryCrash.code, 0);
+  assert.equal(fs.existsSync(redoPathFor(journalPath)), true);
 
-  const crashed = await runJsonCrashWorker(memoryPath, markerPath, operationId);
-  if (process.platform === 'win32') {
-    assert.notEqual(crashed.code, 0, 'Windows must report the hard-killed child as unsuccessful');
-  } else {
-    assert.equal(crashed.code, null);
-    assert.equal(crashed.signal, 'SIGKILL');
-  }
-  assert.equal(fs.readFileSync(markerPath, 'utf8'), 'graph-save-complete');
-  assert.equal(fs.existsSync(memoryPath), true);
-  assert.equal(journalStatus(journalPath, operationId), null, 'the killed process must not claim completion');
-
-  const restartedGraph = new Graph({ memoryPath, useSQLite: false });
-  restartedGraph.load();
-  assert.ok(restartedGraph.getNode('crashed-node'), 'graph state written before the crash must remain readable');
-  assert.equal(fs.existsSync(lockPath), true, 'SIGKILL bypasses the lock release finally block');
-
-  const stale = new Date(Date.now() - (6 * 60 * 1000));
-  fs.utimesSync(lockPath, stale, stale);
-  const retry = await runJsonRetryWorker(memoryPath, operationId);
-  assert.equal(retry.code, 0, retry.stderr);
-  const retryResult = JSON.parse(retry.stdout);
-  assert.equal(retryResult.ok, false);
-  assert.equal(retryResult.code, 'MUTATION_JOURNAL_STALE_LOCK');
-  assert.equal(retryResult.applications, 0, 'stale-lock refusal must happen before the mutation callback');
-  assert.equal(fs.existsSync(lockPath), true, 'current fail-closed behavior preserves the stale lock for investigation');
+  const startedAt = Date.now();
+  const finalRetry = await runJsonRetryWorker(memoryPath, operationId);
+  assert.ok(Date.now() - startedAt < 5_000);
+  assert.equal(finalRetry.code, 0, finalRetry.stderr);
+  const result = JSON.parse(finalRetry.stdout);
+  assert.equal(result.ok, true);
+  assert.equal(result.applications, 0);
+  assert.equal(result.outcome.replayed, true);
+  assert.equal(result.crashedNode, true);
+  assert.equal(result.retryNode, false);
+  assert.equal(result.receipt.previousReceiptHash, GENESIS_PREVIOUS_HASH);
+  assert.equal(fs.existsSync(redoPathFor(journalPath)), false);
+  assert.equal(fs.existsSync(lockPathFor(journalPath)), false);
 });
 
 // #216: the JSON backend now provides the SAME durable-journal contract as
@@ -557,10 +601,11 @@ for (const backend of ['sqlite', 'json']) {
 // failure of the *persistence* step specifically, after mutate() already
 // ran in-memory -- only applies to the JSON backend's two-step
 // (save-then-mark-journal) design.
-test('[json] durable journal never marks an operation completed if save() fails (no phantom completion)', () => {
+test('[json] durable journal never marks an operation completed if prepare fails (no phantom completion)', () => {
   const graph = makeGraph('save-fail', 'json');
-  const originalSave = graph.save.bind(graph);
-  graph.save = () => { throw new Error('simulated disk failure'); };
+  graph._jsonTransactionFault = point => {
+    if (point === 'before-prepared') throw new Error('simulated prepare failure');
+  };
   let threw = null;
   try {
     graph.runMutationOnce('op-save-fail', () => {
@@ -570,9 +615,9 @@ test('[json] durable journal never marks an operation completed if save() fails 
   } catch (error) {
     threw = error;
   } finally {
-    graph.save = originalSave;
+    graph._jsonTransactionFault = null;
   }
-  assert.ok(threw, 'save() failure must propagate, not be swallowed');
+  assert.ok(threw, 'prepare failure must propagate, not be swallowed');
   assert.equal(graph.getNode('fish', 'w'), null, 'rolled back in-memory state');
 
   // Retry with the same operationId must re-run the mutation (not replay
@@ -586,6 +631,47 @@ test('[json] durable journal never marks an operation completed if save() fails 
   assert.equal(reran, true);
   assert.equal(retry.replayed, false);
   assert.ok(graph.getNode('fish', 'w'));
+});
+
+test('[json] recovery hash mismatch fails closed and preserves redo evidence', async () => {
+  const memoryPath = path.join(root, 'recovery-conflict.json');
+  const journalPath = memoryPath.replace(/\.json$/, '.mutations.json');
+  const markerPath = path.join(root, 'recovery-conflict.marker');
+  const operationId = 'recovery-conflict';
+  const crashed = await runJsonCrashWorker(memoryPath, markerPath, operationId, 'after-prepared');
+  assert.notEqual(crashed.code, 0);
+  fs.writeFileSync(memoryPath, JSON.stringify({ unrelated: true }));
+  const retry = await runJsonRetryWorker(memoryPath, operationId);
+  assert.equal(retry.code, 0, retry.stderr);
+  const result = JSON.parse(retry.stdout);
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'GRAPH_JSON_RECOVERY_CONFLICT');
+  assert.equal(result.applications, 0);
+  assert.equal(fs.existsSync(redoPathFor(journalPath)), true);
+  assert.equal(journalStatus(journalPath, operationId), null);
+});
+
+test('[json] recovery refuses a redo target outside the exact store paths', async () => {
+  const memoryPath = path.join(root, 'recovery-path-conflict.json');
+  const journalPath = memoryPath.replace(/\.json$/, '.mutations.json');
+  const markerPath = path.join(root, 'recovery-path-conflict.marker');
+  const outsidePath = path.join(root, 'must-not-be-written.json');
+  const operationId = 'recovery-path-conflict';
+  const crashed = await runJsonCrashWorker(memoryPath, markerPath, operationId, 'after-prepared');
+  assert.notEqual(crashed.code, 0);
+  const redoPath = redoPathFor(journalPath);
+  const redo = JSON.parse(fs.readFileSync(redoPath, 'utf8'));
+  redo.files.memory.path = outsidePath;
+  fs.writeFileSync(redoPath, JSON.stringify(redo));
+
+  const retry = await runJsonRetryWorker(memoryPath, operationId);
+  assert.equal(retry.code, 0, retry.stderr);
+  const result = JSON.parse(retry.stdout);
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'GRAPH_JSON_RECOVERY_CONFLICT');
+  assert.equal(result.applications, 0);
+  assert.equal(fs.existsSync(outsidePath), false);
+  assert.equal(fs.existsSync(redoPath), true);
 });
 
 // #216: the JSON backend previously had no durable journal at all and

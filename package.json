@@ -254,6 +254,7 @@
     "lib/graph-node-write.js",
     "lib/graph-json-persistence.js",
     "lib/graph-json-snapshot.js",
+    "lib/graph-json-transaction.js",
     "lib/graph-node-delete.js",
     "lib/graph-node-touch.js",
     "lib/graph-node-tag.js",
@@ -597,7 +598,8 @@
   ],
   "dependencies": {
     "better-sqlite3": "^12.10.0",
-    "js-yaml": "^5.2.3"
+    "js-yaml": "^5.2.3",
+    "proper-lockfile": "4.1.2"
   },
   "optionalDependencies": {
     "pdfjs-dist": "^6.2.108",
