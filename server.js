@@ -23,7 +23,7 @@ const { createHttpIngestOversightCase } = require('./lib/http-human-oversight-ad
 const { buildTrustReceipt, queryAuditTrailPage, queryCandidateClaims, queryProvenance } = require('./lib/provenance-query');
 const { readReceiptById } = require('./lib/receipt/receipt-read-index');
 const { createBackgroundTimers } = require('./lib/http/background-timers');
-const { createGracefulShutdown } = require('./lib/http/graceful-shutdown');
+const { createGracefulShutdown } = require('./lib/http/graceful-shutdown'), { resolveHttpServerTimeouts } = require('./lib/http/server-timeouts');
 const { receiptReadFailure } = require('./lib/http/receipt-read-failures');
 const { createWorkbenchReadHttpRouter } = require('./lib/workbench/workbench-read-http-router');
 const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
@@ -343,7 +343,7 @@ function getHtmlPage() {
   return cachedHtmlPage;
 }
 const handleAnswerRoute = require('./lib/http/answer-route').createAnswerRoute({ kernel, legacyVerify, sanitizeInput, parseJsonRequest, denyIfUnauthorized, buildCorsHeaders, JSON_CONTENT_TYPE, DEFAULT_MAX_JSON_BODY, writeJson });
-const server = http.createServer(async (req, res) => {
+const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnvironmentVariable), async (req, res) => {
   const correlation = createRequestCorrelation(req, res); try {
   res.setHeader('Connection', 'close');
   const rawPath = String(req.url || '').split('?', 1)[0].split('#', 1)[0];
@@ -1017,7 +1017,7 @@ if (require.main === module && readCompatibleEnvironmentVariable('DISABLE_AUTO_L
   startServer(PORT, HOST);
 }
 
-server.closeHuqan = server.closeAxiom = closeHuqan; // closeAxiom: RFC-001 legacy alias
+server.closeHuqan = server.closeAxiom = closeHuqan; server.bindGracefulShutdown = gracefulShutdown.bind; // closeAxiom: RFC-001 legacy alias
 
 server.startServer = startServer;
 server.configureHttpHumanOversight = configureHttpHumanOversight;
