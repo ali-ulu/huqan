@@ -36,6 +36,9 @@ const { createSessionStore } = require('./lib/viewer/session-store');
 const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
 const { createExternalClientProductionBoundary } = require('./lib/external-client-production-boundary');
 const { createOptionalRouteBoundaries } = require('./lib/http/optional-boundaries'), { createPrGuardianOptions } = require('./lib/http/pr-guardian-config');
+const { fitnessHistoryPath, readFitnessHistory } = require('./lib/fitness-history');
+const { buildFitnessDashboard } = require('./scripts/fitness-dashboard');
+const { readStoredThresholds } = require('./lib/hypothesis-thresholds');
 const { projectUploadAdmission } = require('./lib/http/upload-admission-contract');
 const { createHttpIngestApprovalAuditWriter } = require('./lib/http/ingest-approval-audit-writer');
 const { createTrustEvidenceLedger } = require('./lib/trust-evidence-ledger');
@@ -434,6 +437,44 @@ const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnviron
       res.end(JSON.stringify(data));
     } catch (err) {
       writeStructuredLog(console, 'error', 'http.graph_data_error', correlation, { route: '/graph-data', method: req.method, errorCode: err?.code || 'GRAPH_DATA_FAILED' });
+      writeJson(req, res, 500, { error: 'Internal server error' });
+    }
+    return;
+  }
+
+  // --- /fitness-dashboard ---
+  // Read-only: renders the fitness history (lib/fitness-history.js) as a
+  // self-contained HTML dashboard. No graph mutation; history/geometry data
+  // stays behind the route-auth-policy (authenticated).
+  if (reqUrl.pathname === '/fitness-dashboard') {
+    if (req.method !== 'GET') {
+      res.writeHead(405, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
+      res.end(JSON.stringify({ error: 'Method not allowed' }));
+      return;
+    }
+    try {
+      let entries = [];
+      let thresholds;
+      try {
+        entries = readFitnessHistory(fitnessHistoryPath(kernel), 200);
+      } catch (_noStore) {
+        entries = [];
+      }
+      try {
+        thresholds = readStoredThresholds(kernel, 'default');
+      } catch (_noThresholds) {
+        thresholds = undefined;
+      }
+      const html = buildFitnessDashboard(entries, { thresholds, title: 'HUQAN Fitness Panosu' });
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        ...buildCorsHeaders(req),
+        'Cache-Control': 'no-store',
+        'X-Content-Type-Options': 'nosniff',
+      });
+      res.end(html);
+    } catch (err) {
+      writeStructuredLog(console, 'error', 'http.fitness_dashboard_error', correlation, { route: '/fitness-dashboard', method: req.method, errorCode: err?.code || 'FITNESS_DASHBOARD_FAILED' });
       writeJson(req, res, 500, { error: 'Internal server error' });
     }
     return;

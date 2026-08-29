@@ -539,6 +539,7 @@
     "scripts/egitim-demo.js",
     "scripts/restore.js",
     "scripts/run-trust-receipt-pilot.js",
+    "scripts/fitness-dashboard.js",
     "server.js",
     "specs/axiom-package-format/0.1/README.md",
     "specs/axiom-package-format/0.1/examples/package.candidate-claims.axiom.json",

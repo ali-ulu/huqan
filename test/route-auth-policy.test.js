@@ -90,6 +90,16 @@ test('policy table: trust/read surfaces under /api/ stay authenticated', () => {
   }
 });
 
+test('policy table: /fitness-dashboard is declared and authenticated', () => {
+  const decision = resolveRouteAuthPolicy('/fitness-dashboard', 'GET', { workspaceId: 'default' });
+  assert.equal(decision.known, true);
+  assert.equal(decision.authRequired, true);
+  assert.equal(decision.ruleId, 'fitness-dashboard');
+  // Fitness history is graph health data, not the public demo surface:
+  // even the default workspace stays behind an API key.
+  assert.equal(isPublicRoute('/fitness-dashboard', 'GET', { workspaceId: 'default' }), false);
+});
+
 test('policy table: every public route carries a written justification', () => {
   for (const rule of PUBLIC_ROUTES) {
     assert.ok(rule.why && rule.why.length > 20, `${rule.id} needs a 'why'`);
