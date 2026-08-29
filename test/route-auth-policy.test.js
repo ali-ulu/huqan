@@ -56,14 +56,20 @@ test('policy table: a public GET does not make POST on the same path public', ()
   assert.equal(post.reason, 'method_not_public');
 });
 
-test('policy table: /graph-data requires authentication for every workspace', () => {
-  for (const workspaceId of ['', 'default', 'acme']) {
+test('policy table: /graph-data is public only for the default workspace', () => {
+  for (const workspaceId of ['', 'default']) {
     const decision = resolveRouteAuthPolicy('/graph-data', 'GET', { workspaceId });
     assert.equal(decision.known, true);
-    assert.equal(decision.authRequired, true);
-    assert.equal(decision.reason, 'declared_authenticated');
-    assert.equal(isPublicRoute('/graph-data', 'GET', { workspaceId }), false);
+    assert.equal(decision.authRequired, false);
+    assert.equal(decision.reason, 'public_route');
+    assert.equal(isPublicRoute('/graph-data', 'GET', { workspaceId }), true);
   }
+
+  const scoped = resolveRouteAuthPolicy('/graph-data', 'GET', { workspaceId: 'acme' });
+  assert.equal(scoped.known, true);
+  assert.equal(scoped.authRequired, true);
+  assert.equal(scoped.reason, 'non_default_workspace');
+  assert.equal(isPublicRoute('/graph-data', 'GET', { workspaceId: 'acme' }), false);
 });
 
 test('policy table: trust/read surfaces under /api/ stay authenticated', () => {
@@ -300,7 +306,7 @@ test('runtime: undeclared route is denied without a key, declared public routes 
   assert.equal(typeof unsupportedBody.traceId, 'string');
 
   const graph = await request(port, '/graph-data');
-  assert.equal(graph.status, 401);
+  assert.equal(graph.status, 200);
 
   const defaultWithKey = await request(port, '/graph-data', {
     Authorization: `Bearer ${API_KEY}`,
