@@ -279,6 +279,8 @@ Claude Desktop configuration with no prior global installation:
 
 The model-visible MCP catalog includes tools for learning, asking grounded questions, verification, planning, bounded agent execution, ingest preview/status, policy inspection, reasoning traces, comparison, hypothesis generation, advocacy, scoped search, Trust Receipt reading, and recursive knowledge synthesis (`huqan.fractal-learn`, optionally self-tuning through its one-way `autoTune` mode — it can tighten its own thresholds but never loosen them).
 
+`huqan.self-evolve` runs that same synthesis loop and then a measured self-evolution pass, and reports which of the two moved: its verdict distinguishes a run that only changed graph content (`native-content-only`) from one that also changed the thresholds producing it (`native-writes-config`), with `inactive` when nothing moved. It is classified as a mutating write and is held for human review exactly like `huqan.fractal-learn`, so the reach it adds is in what an approved run may change, not in what it may bypass.
+
 Operator-only tools are deliberately withheld from `tools/list` and require `HUQAN_MCP_OPERATOR_TOKEN`:
 
 | Tool | Purpose |
