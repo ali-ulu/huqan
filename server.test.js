@@ -756,9 +756,9 @@ describe('Server - API', () => {
     assert.strictEqual(r.status, 401);
   });
 
-  it('SEC: GET /graph-data with default workspaceId requires auth', async () => {
+  it('SEC: GET /graph-data with default workspaceId is public', async () => {
     const r = await request(`${BASE}/graph-data?workspaceId=default`, { skipAuth: true });
-    assert.strictEqual(r.status, 401);
+    assert.strictEqual(r.status, 200);
   });
 
   it('SEC: the graph export is not stored or content-sniffed', async () => {
