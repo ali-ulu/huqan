@@ -77,6 +77,43 @@ binary is absent. Zero Rust parity test cases execute.
 
 This is not a passing parity proof.
 
+### Update: bounded parity evidence for two read-only operations
+
+`test/huqan-core-hypothesis-fitness-parity.test.js` asserts result parity
+between `lib/graph-hypotheses.js` / `lib/hypothesis-fitness.js` and the Rust
+port in `huqan-core/src/hypotheses.rs`, on a fixture that fires every
+hypothesis rule. Seven cases pass against a locally built release binary. That
+covers the *minimum future proof* list's item 3 — "exact result and error
+parity for one bounded operation" — for those two operations, and covers no
+other item on that list.
+
+Scope of the claim, stated so it cannot be read wider than it is:
+
+- both operations are pure reads. Neither writes, takes a clock, nor mints an
+  identity, which is what makes a second implementation checkable at all; a
+  second implementation of a *write* would have to prove receipt, admission and
+  audit parity too;
+- `buildHypothesisCandidate` is deliberately not ported. It mints candidate and
+  provenance ids from a sha256 digest and stamps a timestamp, and a parity port
+  must not create a second id-minting authority. The Rust candidate store added
+  alongside the port only *holds* claims and verdicts fed to it;
+- the port is **not** wired into Kernel behavior. `RUST_DEFERRED` stands, and
+  the JavaScript path remains authoritative;
+- the suite skips when the release binary is absent, exactly as the RustGraph
+  suite does. A skip is the absence of a parity proof, not a passing one — CI
+  shows a skip here, not a pass.
+
+Guards against a vacuous pass are asserted inside the suite: that the fixture
+really produces 8 hypotheses across all 6 rule types before anything is
+compared; that review history genuinely moves the score (`0.6111` → `0.6278`),
+so the `hypothesisAccuracy` component is not inert; that out-of-range options
+*fall back* rather than clamp in both engines; and that a node in `tenant-x`
+does not leak into a `default` report.
+
+Build the binary with `huqan-core/build.ps1`, which puts the MinGW toolchain on
+`PATH` for the `x86_64-pc-windows-gnu` target; a bare `cargo build` outside that
+script fails to link with `cannot find 'ld'`.
+
 ## Known parity gaps
 
 Current wrapper behavior is not ready to be treated as a Graph replacement:
