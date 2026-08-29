@@ -10,6 +10,9 @@ const CAUSAL_RELATIONS: [&str; 5] = ["CAUSES", "PREVENTS", "ENABLES", "DEPENDS_O
 
 const SEVERITY_ORDER: [(&str, u8); 3] = [("high", 0), ("medium", 1), ("low", 2)];
 
+// lib/hypothesis-review.js#HYPOTHESIS_SOURCE_TYPE birebir kopya.
+const HYPOTHESIS_SOURCE_TYPE: &str = "hypothesis-engine";
+
 fn normalize_workspace(value: &str) -> String {
     let v = value.trim();
     if v.is_empty() {
@@ -369,8 +372,8 @@ pub fn generate_hypotheses(graph: &Graph, options: &Value) -> Value {
 }
 
 // hypothesis-fitness.js::buildFitnessReport'un Rust portu.
-// hypothesisAccuracy Rust'ta candidate_claims olmadigi icin null kalir
-// (JS tarafinda da bos grafta acceptanceRate null'dur); diger 3 bilesen tam.
+// hypothesisAccuracy, candidate deposundan (add_candidate) hesaplanir;
+// reviewed>0 degilse null kalir (JS'te de bos grafta acceptanceRate null).
 
 const COMPONENT_WEIGHTS: [(&str, f64); 4] = [
     ("evidenceCoverage", 0.3),
@@ -415,6 +418,29 @@ pub fn build_fitness_report(graph: &Graph, options: &Value) -> Value {
     let report = generate_hypotheses(graph, options);
     let edges = graph.all_edges(&workspace);
 
+    // candidate-feedback: acceptanceRate over reviewed hypothesis candidates
+    // (lib/hypothesis-feedback.js#summarize). pending candidates carry no
+    // verdict, so they never enter the denominator.
+    let mut accepted = 0usize;
+    let mut reviewed = 0usize;
+    for c in &graph.all_candidates(&workspace) {
+        if c.source_type != HYPOTHESIS_SOURCE_TYPE {
+            continue;
+        }
+        match c.status.as_str() {
+            "accepted" => {
+                accepted += 1;
+                reviewed += 1;
+            }
+            "rejected" => {
+                reviewed += 1;
+            }
+            _ => {}
+        }
+    }
+    let hypothesis_accuracy: Option<f64> =
+        if reviewed > 0 { Some(accepted as f64 / reviewed as f64) } else { None };
+
     let node_count = report["meta"]["nodeCount"].as_u64().unwrap_or(0) as usize;
     let edge_count = edges.len();
     let evidenced = edges.iter().filter(|e| has_evidence(e)).count();
@@ -437,7 +463,7 @@ pub fn build_fitness_report(graph: &Graph, options: &Value) -> Value {
                 None
             },
         ),
-        ("hypothesisAccuracy", None),
+        ("hypothesisAccuracy", hypothesis_accuracy),
         (
             "connectivity",
             if node_count > 0 {
@@ -464,7 +490,7 @@ pub fn build_fitness_report(graph: &Graph, options: &Value) -> Value {
         let weight = weight_of(name);
         let detail = match name {
             "evidenceCoverage" => json!({ "evidencedEdges": evidenced, "edgeCount": edge_count }),
-            "hypothesisAccuracy" => json!({ "accepted": 0, "reviewed": 0 }),
+            "hypothesisAccuracy" => json!({ "accepted": accepted, "reviewed": reviewed }),
             "connectivity" => json!({ "isolatedNodes": isolated, "nodeCount": node_count }),
             "consistency" => json!({ "cycles": cycles }),
             _ => json!({}),
