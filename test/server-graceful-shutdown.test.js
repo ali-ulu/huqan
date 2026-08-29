@@ -15,12 +15,13 @@ function runServerUntilSignal(signal) {
   return new Promise((resolve, reject) => {
     const memoryPath = path.join(root, `${signal}.memory.json`);
     const dbPath = path.join(root, `${signal}.db`);
-    const child = spawn(process.execPath, [path.join(__dirname, '..', 'server.js')], {
+    const child = spawn(process.execPath, [path.join(__dirname, '..', 'scripts', 'container-server.js')], {
       env: {
         ...process.env,
         HUQAN_MEMORY_PATH: memoryPath,
         HUQAN_DB_PATH: dbPath,
         HUQAN_USE_SQLITE: 'false',
+        HUQAN_API_KEY: 'shutdown-test-key',
         HUQAN_HOST: '127.0.0.1',
         PORT: '0',
       },
@@ -78,7 +79,7 @@ function runServerUntilSignal(signal) {
 }
 
 for (const signal of ['SIGTERM', 'SIGINT']) {
-  test(`server exits cleanly after ${signal}`, async () => {
+  test(`production container entrypoint exits cleanly after ${signal}`, { skip: process.platform === 'win32' }, async () => {
     const result = await runServerUntilSignal(signal);
     assert.equal(result.code, 0, `${signal} exit code; stderr=${result.stderr}`);
     assert.equal(result.receivedSignal, null, `${signal} should be handled by graceful shutdown`);

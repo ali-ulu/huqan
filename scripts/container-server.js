@@ -37,14 +37,15 @@ function prepareContainerEnvironment(environment = process.env) {
   return environment;
 }
 
-function main() {
-  prepareContainerEnvironment();
-  const server = require('../server');
-  if (readCompatibleEnvironmentVariable('DISABLE_AUTO_LISTEN') !== '1') {
+function main({ environment = process.env, loadServer = () => require('../server') } = {}) {
+  prepareContainerEnvironment(environment);
+  const server = loadServer();
+  if (readCompatibleEnvironmentVariable('DISABLE_AUTO_LISTEN', environment) !== '1') {
+    server.bindGracefulShutdown();
     server.startServer();
   }
 }
 
 if (require.main === module) main();
 
-module.exports = { prepareContainerEnvironment };
+module.exports = { main, prepareContainerEnvironment };

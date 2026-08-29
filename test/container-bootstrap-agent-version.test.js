@@ -18,12 +18,17 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { prepareContainerEnvironment } = require('../scripts/container-server');
+const { main, prepareContainerEnvironment } = require('../scripts/container-server');
 const { createAgent, resolveAgentVersion, CANONICAL_AGENT_VERSION } = require('../agentRuntime');
 const Kernel = require('../kernel');
 
 function containerEnv(extra = {}) {
-  return { HUQAN_API_KEY: 'container-bootstrap-test-key', ...extra };
+  const platformEnv = Object.fromEntries(
+    ['PATH', 'TEMP', 'TMP', 'TMPDIR', 'SystemRoot', 'WINDIR']
+      .filter((key) => process.env[key] !== undefined)
+      .map((key) => [key, process.env[key]]),
+  );
+  return { ...platformEnv, HUQAN_API_KEY: 'container-bootstrap-test-key', ...extra };
 }
 
 /** agentRuntime reads process.env, so a case that depends on it swaps it. */
@@ -69,11 +74,13 @@ test('after bootstrap, the canonical agent resolves and can be created', () => {
       memoryPath: path.join(dir, 'memory.json'),
       dbPath: path.join(dir, 'memory.db'),
     });
+    let agent;
     try {
-      const agent = createAgent({ kernel, memoryPath: path.join(dir, 'agent.json') });
+      agent = createAgent({ kernel, memoryPath: path.join(dir, 'agent.json') });
       assert.ok(agent, 'a default container could not create its agent');
       assert.equal(agent.constructor.name, 'AgentV3');
     } finally {
+      try { agent?.storage?.close(); } catch (_) {}
       try { kernel.graph.close(); } catch (_) {}
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -94,11 +101,13 @@ test('an agent-backed operation runs under the bootstrapped environment', () => 
       memoryPath: path.join(dir, 'memory.json'),
       dbPath: path.join(dir, 'memory.db'),
     });
+    let agent;
     try {
-      const agent = createAgent({ kernel, memoryPath: path.join(dir, 'agent.json') });
+      agent = createAgent({ kernel, memoryPath: path.join(dir, 'agent.json') });
       const plan = agent.plan('kedi hakkinda arastir');
       assert.ok(plan, 'the agent produced no plan under container defaults');
     } finally {
+      try { agent?.storage?.close(); } catch (_) {}
       try { kernel.graph.close(); } catch (_) {}
       try { fs.rmSync(dir, { recursive: true, force: true }); } catch (_) {}
     }
@@ -131,4 +140,16 @@ test('the canonical version literal is not duplicated in the bootstrap', () => {
 
   assert.doesNotMatch(defaultsBlock, /AGENT_VERSION/,
     'the bootstrap must not carry its own copy of the agent version');
+});
+
+test('production bootstrap binds graceful shutdown before listening', () => {
+  const calls = [];
+  main({
+    environment: containerEnv(),
+    loadServer: () => ({
+      bindGracefulShutdown() { calls.push('bind'); },
+      startServer() { calls.push('listen'); },
+    }),
+  });
+  assert.deepEqual(calls, ['bind', 'listen']);
 });
