@@ -5,6 +5,8 @@ use std::collections::HashMap;
 use std::io::{self, BufRead, Write};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+mod hypotheses;
+
 fn now_ms() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64
 }
@@ -37,8 +39,8 @@ fn storage_key(id: &str, workspace: &str) -> String {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-struct Node {
-    id: String,
+pub struct Node {
+    pub id: String,
     label: String,
     weight: f64,
     created: u64,
@@ -52,16 +54,16 @@ struct Node {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-struct Edge {
-    from: String,
-    to: String,
-    relation: String,
-    weight: f64,
+pub struct Edge {
+    pub from: String,
+    pub to: String,
+    pub relation: String,
+    pub weight: f64,
     created: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    confidence: Option<f64>,
+    pub confidence: Option<f64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    evidence: Vec<String>,
+    pub evidence: Vec<String>,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     source_ref: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -78,7 +80,7 @@ struct Snapshot {
     edges: Vec<Edge>,
 }
 
-struct Graph {
+pub struct Graph {
     nodes: HashMap<String, Node>,
     edges: Vec<Edge>,
     out_index: HashMap<String, Vec<usize>>,
@@ -300,6 +302,32 @@ impl Graph {
         for i in 0..self.edges.len() {
             self.index_edge(i);
         }
+    }
+
+    fn all_nodes(&self, workspace: &str) -> Vec<&Node> {
+        let ws = normalize_workspace(workspace);
+        let mut out: Vec<&Node> = self
+            .nodes
+            .values()
+            .filter(|n| normalize_workspace(&n.workspace_id) == ws)
+            .collect();
+        out.sort_by(|a, b| a.id.cmp(&b.id));
+        out
+    }
+
+    fn all_edges(&self, workspace: &str) -> Vec<&Edge> {
+        let ws = normalize_workspace(workspace);
+        let mut out: Vec<&Edge> = self
+            .edges
+            .iter()
+            .filter(|e| normalize_workspace(&e.workspace_id) == ws)
+            .collect();
+        out.sort_by(|a, b| {
+            let ka = format!("{}\u{0}{}\u{0}{}", a.from, a.to, a.relation);
+            let kb = format!("{}\u{0}{}\u{0}{}", b.from, b.to, b.relation);
+            ka.cmp(&kb)
+        });
+        out
     }
 
     fn to_snapshot(&self) -> Snapshot {
@@ -577,6 +605,8 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
             let nodes: Vec<Value> = matches.iter().map(|n| node_to_json(n)).collect();
             json!({ "ok": true, "nodes": nodes })
         }
+        "hypotheses" => hypotheses::generate_hypotheses(graph, cmd),
+        "fitness" => hypotheses::build_fitness_report(graph, cmd),
         "stats" => {
             json!({
                 "ok": true,
