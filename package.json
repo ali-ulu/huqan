@@ -274,6 +274,7 @@
     "lib/http/answer-route.js",
     "lib/http/http-provenance.js",
     "lib/http/exact-workspace.js",
+    "lib/http/fitness-dashboard-route.js",
     "lib/http/memory-approval-routes.js",
     "lib/http/optional-boundaries.js",
     "lib/http/public-api-commands.js",
