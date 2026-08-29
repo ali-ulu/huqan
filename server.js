@@ -1017,7 +1017,7 @@ if (require.main === module && readCompatibleEnvironmentVariable('DISABLE_AUTO_L
   startServer(PORT, HOST);
 }
 
-server.closeHuqan = server.closeAxiom = closeHuqan; // closeAxiom: RFC-001 legacy alias
+server.closeHuqan = server.closeAxiom = closeHuqan; server.bindGracefulShutdown = gracefulShutdown.bind; // closeAxiom: RFC-001 legacy alias
 
 server.startServer = startServer;
 server.configureHttpHumanOversight = configureHttpHumanOversight;
