@@ -72,17 +72,30 @@ pub struct Edge {
     workspace_id: String,
 }
 
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Candidate {
+    pub claim: String,
+    pub status: String,
+    #[serde(default)]
+    pub source_type: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub workspace_id: String,
+}
+
 #[derive(Serialize, Deserialize, Default)]
 struct Snapshot {
     #[serde(default)]
     nodes: Vec<Node>,
     #[serde(default)]
     edges: Vec<Edge>,
+    #[serde(default)]
+    candidates: Vec<Candidate>,
 }
 
 pub struct Graph {
     nodes: HashMap<String, Node>,
     edges: Vec<Edge>,
+    candidates: Vec<Candidate>,
     out_index: HashMap<String, Vec<usize>>,
     in_index: HashMap<String, Vec<usize>>,
     decay_lambda: f64,
@@ -94,6 +107,7 @@ impl Graph {
         Graph {
             nodes: HashMap::new(),
             edges: Vec::new(),
+            candidates: Vec::new(),
             out_index: HashMap::new(),
             in_index: HashMap::new(),
             decay_lambda: 0.05,
@@ -330,16 +344,37 @@ impl Graph {
         out
     }
 
+    fn all_candidates(&self, workspace: &str) -> Vec<&Candidate> {
+        let ws = normalize_workspace(workspace);
+        self.candidates
+            .iter()
+            .filter(|c| normalize_workspace(&c.workspace_id) == ws)
+            .collect()
+    }
+
+    fn add_candidate(&mut self, claim: &str, status: &str, opts: &Value) {
+        let source_type = get_str(opts, "sourceType");
+        let workspace_id = normalize_workspace(&get_str(opts, "workspaceId"));
+        self.candidates.push(Candidate {
+            claim: claim.to_string(),
+            status: status.to_string(),
+            source_type,
+            workspace_id,
+        });
+    }
+
     fn to_snapshot(&self) -> Snapshot {
         Snapshot {
             nodes: self.nodes.values().cloned().collect(),
             edges: self.edges.clone(),
+            candidates: self.candidates.clone(),
         }
     }
 
     fn load_snapshot(&mut self, snapshot: Snapshot) {
         self.nodes.clear();
         self.edges.clear();
+        self.candidates.clear();
         self.out_index.clear();
         self.in_index.clear();
         for n in snapshot.nodes {
@@ -350,6 +385,7 @@ impl Graph {
             self.nodes.insert(key, n);
         }
         self.edges = snapshot.edges;
+        self.candidates = snapshot.candidates;
         self.rebuild_index();
     }
 
@@ -607,6 +643,41 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
         }
         "hypotheses" => hypotheses::generate_hypotheses(graph, cmd),
         "fitness" => hypotheses::build_fitness_report(graph, cmd),
+        "add_candidate" => {
+            let claim = get_str(cmd, "claim");
+            let status = get_str(cmd, "status");
+            if claim.is_empty() {
+                json!({ "ok": false, "error": "claim_required" })
+            } else {
+                graph.add_candidate(&claim, &status, cmd);
+                json!({ "ok": true })
+            }
+        }
+        "list_candidates" => {
+            let ws = normalize_workspace(&get_str(cmd, "workspaceId"));
+            let items: Vec<Value> = graph
+                .all_candidates(&ws)
+                .iter()
+                .map(|c| {
+                    json!({
+                        "claim": c.claim,
+                        "status": c.status,
+                        "sourceType": c.source_type,
+                        "workspaceId": c.workspace_id,
+                    })
+                })
+                .collect();
+            let count = items.len();
+            json!({ "ok": true, "candidates": items, "count": count })
+        }
+        "clear_candidates" => {
+            let ws = normalize_workspace(&get_str(cmd, "workspaceId"));
+            let before = graph.candidates.len();
+            graph
+                .candidates
+                .retain(|c| normalize_workspace(&c.workspace_id) != ws);
+            json!({ "ok": true, "removed": before - graph.candidates.len() })
+        }
         "stats" => {
             json!({
                 "ok": true,
