@@ -139,3 +139,75 @@ test('real TCP chunked overflow returns 413 and malformed JSON returns 400', asy
   assert.equal(malformed.status, 400);
   assert.match(malformed.body, /Invalid JSON/i);
 });
+
+/**
+ * `req.url` is a path, so building a `URL` from it needs a base, and the only
+ * base a request carries is its own `Host` header -- a value the client
+ * controls completely. Handing it straight to `new URL()` let a malformed one
+ * throw out of the request handler and be reported as an internal server fault
+ * (#1729). These cases pin the boundary: the client's mistake is answered as
+ * the client's mistake, before any route runs.
+ */
+function hostRequest({ host, method = 'GET', pathName = '/health', apiKey = null }) {
+  const lines = [`${method} ${pathName} HTTP/1.1`];
+  if (host !== null) lines.push(`Host: ${host}`);
+  lines.push('Connection: close');
+  if (apiKey !== null) lines.push(`X-API-Key: ${apiKey}`);
+  lines.push('', '');
+  return lines.join('\r\n');
+}
+
+test('real TCP malformed Host is a bounded 400, not an internal server fault', async (t) => {
+  const { port, output } = await bootServer(t);
+
+  // Control first: the same request with a usable Host must succeed, so a 400
+  // below is attributable to the Host and not to the route being broken.
+  const healthy = await sendRaw(port, hostRequest({ host: '127.0.0.1' }));
+  assert.equal(healthy.status, 200);
+
+  const malformed = await sendRaw(port, hostRequest({ host: '[bad' }));
+  assert.equal(malformed.status, 400);
+  // The rejection must not echo the client's input back into the response.
+  assert.doesNotMatch(malformed.body, /\[bad/);
+  // A 500 would put a client mistake into the server's error budget. The log
+  // line that classified it that way must be gone too, not just the status.
+  assert.doesNotMatch(output.stderr, /http\.unhandled_error/);
+});
+
+test('real TCP Host that smuggles a different origin is refused', async (t) => {
+  const { port } = await bootServer(t);
+
+  // `new URL('http://user@evil.com')` parses cleanly and yields origin
+  // `http://evil.com`; `new URL('http://a/b')` yields `http://a`. Both are
+  // accepted by the URL parser and both move the origin somewhere the client
+  // chose, so neither is a usable base.
+  for (const host of ['user@evil.com', 'a/b', 'ex ample.com']) {
+    const response = await sendRaw(port, hostRequest({ host }));
+    assert.equal(response.status, 400, `Host: ${host} must be refused`);
+  }
+});
+
+test('real TCP Host rejection happens before the route authorization gate', async (t) => {
+  const { port } = await bootServer(t);
+
+  // /api/ingest answers 401 without a key. A malformed Host on the same
+  // request must answer 400 instead -- proving the check runs before the auth
+  // gate, and therefore before any handler could execute or mutate.
+  const unauthorized = await sendRaw(port, hostRequest({ method: 'POST', pathName: '/api/ingest', host: '127.0.0.1' }));
+  assert.equal(unauthorized.status, 401);
+
+  const malformed = await sendRaw(port, hostRequest({ method: 'POST', pathName: '/api/ingest', host: '[bad' }));
+  assert.equal(malformed.status, 400);
+});
+
+test('real TCP unusual but valid Host values still serve', async (t) => {
+  const { port } = await bootServer(t);
+
+  // The check must not be broader than "unusable as an origin". Mixed case, an
+  // explicit port, a bracketed IPv6 literal and a trailing root dot are all
+  // legal and must keep working.
+  for (const host of ['EXAMPLE.com:8080', '[::1]:3000', 'example.com.', '127.0.0.1']) {
+    const response = await sendRaw(port, hostRequest({ host }));
+    assert.equal(response.status, 200, `Host: ${host} must still be served`);
+  }
+});

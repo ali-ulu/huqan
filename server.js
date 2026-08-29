@@ -23,7 +23,7 @@ const { createHttpIngestOversightCase } = require('./lib/http-human-oversight-ad
 const { buildTrustReceipt, queryAuditTrailPage, queryCandidateClaims, queryProvenance } = require('./lib/provenance-query');
 const { readReceiptById } = require('./lib/receipt/receipt-read-index');
 const { createBackgroundTimers } = require('./lib/http/background-timers');
-const { createGracefulShutdown } = require('./lib/http/graceful-shutdown'), { resolveHttpServerTimeouts } = require('./lib/http/server-timeouts');
+const { createGracefulShutdown } = require('./lib/http/graceful-shutdown'), { resolveHttpServerTimeouts } = require('./lib/http/server-timeouts'), { resolveRequestUrl } = require('./lib/http/request-origin');
 const { receiptReadFailure } = require('./lib/http/receipt-read-failures');
 const { createWorkbenchReadHttpRouter } = require('./lib/workbench/workbench-read-http-router');
 const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
@@ -347,14 +347,16 @@ const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnviron
   const correlation = createRequestCorrelation(req, res); try {
   res.setHeader('Connection', 'close');
   const rawPath = String(req.url || '').split('?', 1)[0].split('#', 1)[0];
+  // Resolved once, before any route -- a malformed client-controlled Host is
+  // the client's mistake, not an internal fault; see lib/http/request-origin.js.
+  const reqUrl = resolveRequestUrl(req); if (reqUrl === null) return writeJson(req, res, 400, { error: 'Bad request' });
   if (viewerGateway.isViewerPath(rawPath)) {
     if (!checkViewerRateLimit(req)) {
       res.writeHead(429, { 'Content-Type': JSON_CONTENT_TYPE, 'Cache-Control': 'no-store' });
       res.end(JSON.stringify({ ok: false, error: { code: 'rate_limited', message: 'Too many requests' } }));
       return;
     }
-    const viewerUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-    await viewerGateway.handle(req, res, viewerUrl);
+    await viewerGateway.handle(req, res, reqUrl);
     return;
   }
   if (req.method === 'OPTIONS') {
@@ -372,8 +374,6 @@ const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnviron
     res.end(JSON.stringify({ error: 'Too many requests' }));
     return;
   }
-
-  const reqUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
 
   // --- Central route authorization gate (issue #330) ---
   // Authorization is decided by lib/http/route-auth-policy.js before any
