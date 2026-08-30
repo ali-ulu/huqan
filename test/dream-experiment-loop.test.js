@@ -95,15 +95,63 @@ test('Verified observation commits through background admission and selects the 
       data: { status: 'verified', confidence: 0.88 },
       evidence: [{ kind: 'edge' }],
     },
-  }, { workspaceId: 'ws-dream', goal: 'test' });
+  }, {
+    workspaceId: 'ws-dream',
+    goal: 'test',
+    causalSimulator: {
+      simulateChange(opts) {
+        assert.equal(opts.workspaceId, 'ws-dream');
+        assert.equal(opts.nodeId, 'kedi');
+        return {
+          ok: true,
+          mode: 'causal-backed',
+          confidence: 0.9,
+          causalChains: 1,
+          affectedNodes: [{ nodeId: 'hayvan', confidence: 0.85, impact: 0.8 }],
+        };
+      },
+    },
+  });
 
   assert.equal(observed.blocked, false);
   assert.equal(observed.state.observations[0].signal, 'support');
+  assert.equal(observed.state.observations[0].semanticSignal, 'support');
+  assert.equal(observed.state.observations[0].causalSignal, 'support');
   assert.equal(observed.state.observations[0].commitDecision, 'allow');
   assert.equal(kernel._test.edges.length, 1);
   assert.equal(kernel._test.edges[0].relation, 'tür');
   assert.equal(observed.nextStep.tool, 'verify');
   assert.equal(observed.nextStep.dreamExperiment.hypothesisKey, generated.state.hypotheses[1].key);
+});
+
+test('Semantic support without workspace-scoped causal support fails closed', () => {
+  const kernel = fakeKernel();
+  const initial = createInitialState({ workspaceId: 'ws-dream', goal: 'test', maxHypotheses: 1, maxCycles: 1 });
+  const generated = startFromDreamResult(kernel, initial, [
+    { from: 'x', to: 'y', relation: 'hipotez', confidence: 0.9 },
+  ], { workspaceId: 'ws-dream', goal: 'test' });
+
+  const observed = advanceAfterVerification(kernel, generated.state, {
+    step: generated.nextStep,
+    result: { ok: true, data: { status: 'verified', confidence: 0.9 }, evidence: [] },
+  }, {
+    workspaceId: 'ws-dream',
+    causalSimulator: {
+      simulateChange: opts => ({
+        ok: true,
+        mode: 'insufficient-data',
+        workspaceId: opts.workspaceId,
+        causalChains: 0,
+        affectedNodes: [],
+      }),
+    },
+  });
+
+  assert.equal(observed.state.observations[0].semanticSignal, 'support');
+  assert.equal(observed.state.observations[0].causalSignal, 'unknown');
+  assert.equal(observed.state.observations[0].signal, 'unknown');
+  assert.equal(observed.state.observations[0].commitDecision, 'not_applicable');
+  assert.equal(kernel._test.edges.length, 0);
 });
 
 test('Non-supporting observation does not create a canonical edge and ends a bounded one-hypothesis cycle', () => {
@@ -142,8 +190,9 @@ test('Loop fails closed when Graph mutation durability is unavailable', () => {
   assert.match(result.state.lastError.message, /durability/i);
 });
 
-test('Loop is opt-in and requires the existing Graph mutation journal', () => {
+test('Loop is default-on, explicitly disableable, and requires the existing Graph mutation journal', () => {
   assert.equal(loopEnabled({ dreamExperimentLoop: true }, { graph: { runMutationOnce() {} } }), true);
-  assert.equal(loopEnabled({}, { graph: { runMutationOnce() {} } }), false);
+  assert.equal(loopEnabled({}, { graph: { runMutationOnce() {} } }), true);
+  assert.equal(loopEnabled({ dreamExperimentLoop: false }, { graph: { runMutationOnce() {} } }), false);
   assert.equal(loopEnabled({ dreamExperimentLoop: true }, { graph: {} }), false);
 });

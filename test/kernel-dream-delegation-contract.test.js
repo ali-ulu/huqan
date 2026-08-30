@@ -37,10 +37,10 @@ test('KERNEL: dream delegate is narrow and cycle-free', () => {
 test('KERNEL: dream preserves hypothesis evidence and counter envelope', () => {
   const calls = [];
   const result = runDream(
-    { mode: 'test' },
+    { mode: 'test', learnFromDream: false },
     {
       createDreams: opts => {
-        assert.deepEqual(opts, { mode: 'test' });
+        assert.deepEqual(opts, { mode: 'test', learnFromDream: false });
         return [{ from: 'kedi', to: 'hayvan', confidence: 0.7, relation: 'tür' }];
       },
       graph: {
@@ -66,6 +66,36 @@ test('KERNEL: dream preserves hypothesis evidence and counter envelope', () => {
     nodes: ['kedi', 'hayvan'],
     edges: [{ from: 'kedi', to: 'hayvan', relation: 'tür' }],
   });
+});
+
+test('KERNEL: dream routes hypotheses through learning admission by default', () => {
+  const commits = [];
+  const result = runDream(
+    { workspaceId: 'tenant-b' },
+    {
+      createDreams: () => [{ from: 'a', to: 'b', confidence: 0.9, relation: 'hipotez' }],
+      graph: {
+        hasAnyEdge: (_from, _to, workspaceId) => {
+          assert.equal(workspaceId, 'tenant-b');
+          return false;
+        },
+        getNode: (_id, workspaceId) => {
+          assert.equal(workspaceId, 'tenant-b');
+          return { id: _id };
+        },
+      },
+      commitBackgroundEdge: (...args) => {
+        commits.push(args);
+        return { decision: 'review' };
+      },
+      getDreamCount: () => 0,
+      setDreamCount: () => {},
+      ok: (type, data) => ({ type, data }),
+    },
+  );
+
+  assert.equal(commits.length, 1);
+  assert.equal(result.data.pending.length, 1);
 });
 
 test('KERNEL: dream forwards the requested workspace unchanged to Dream', () => {
@@ -115,6 +145,7 @@ test('KERNEL: dream preserves admission-routed learned and pending hypotheses', 
   assert.equal(commits[0][2], 'tür');
   assert.equal(commits[1][2], 'benzer');
   assert.deepEqual(commits[0][4], {
+    workspaceId: 'default',
     provenanceExtra: { hypothesisType: 'direct', hypothesisConfidence: 0.8, via: null },
   });
 });

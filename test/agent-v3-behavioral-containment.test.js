@@ -59,6 +59,7 @@ test('canonical AgentV3 stops connector drift before invoking the kernel tool', 
     maxSteps: 1,
     maxIterations: 1,
     timeBudgetMs: 5000,
+    dreamExperimentLoop: false,
   });
   agent.baseAgent.plan = (goal) => ({
     ok: true,
