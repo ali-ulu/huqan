@@ -1,0 +1,54 @@
+name: Launch installed-package smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/launch-smoke.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'cli.js'
+      - 'server.js'
+      - 'mcpServer.js'
+      - 'lib/**'
+      - 'scripts/launch-installed-package-smoke.js'
+      - 'scripts/verify-package-tarball.js'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: launch-smoke-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  installed-package-smoke:
+    name: Installed package smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install repository dependencies
+        run: npm ci --include=optional
+
+      - name: Verify package tarball contract
+        run: npm run verify:tarball
+
+      - name: Exercise installed launch surfaces
+        run: node scripts/launch-installed-package-smoke.js
