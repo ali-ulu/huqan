@@ -205,6 +205,136 @@ test('Git validation fails closed when a feature branch omits current origin/mai
   );
 });
 
+// --- A release tag is behind the baseline on purpose, not by accident ---
+//
+// The guard knew two shapes: sitting on the baseline branch, or working on a
+// branch that already contains it. A release checkout is neither. `publish.yml`
+// checks out an immutable `v<version>` tag and proves, in its own authority
+// step, that the tagged commit is an ancestor of the default branch -- so by
+// the time the suite runs, HEAD is deliberately *behind* origin/main, by
+// however many commits landed since the release. The guard read that as a
+// feature branch that had failed to rebase and failed closed, which turned
+// every publish run red at the one step that is supposed to certify the
+// release. The tag is what distinguishes the two: an unrebased branch does not
+// have one, and a tag alone is not enough either -- a tag pushed onto an
+// arbitrary commit is exactly the thing `publish.yml` refuses, so the commit
+// must still be reachable from origin/main.
+
+const RELEASE_CHECKPOINT = {
+  repository: 'ali-ulu/huqan',
+  baselineBranch: 'main',
+  canonicalMain: 'base',
+};
+
+// Ancestry as a release checkout actually observes it: the checkpoint and the
+// tagged commit are both reachable from origin/main, and origin/main is
+// reachable from neither.
+const releaseAncestry = (ancestor, descendant) => descendant === 'remote-tip'
+  && (ancestor === 'base' || ancestor === 'tagged-commit');
+
+test('a release tag reachable from origin/main validates instead of failing closed', () => {
+  const gitState = validateGitState(
+    RELEASE_CHECKPOINT,
+    {
+      repository: 'ali-ulu/huqan',
+      branch: '',
+      head: 'tagged-commit',
+      originMain: 'remote-tip',
+      releaseTag: 'v0.11.0',
+      worktree: '',
+      ...FRESH_BASELINE,
+    },
+    releaseAncestry,
+  );
+
+  assert.equal(gitState.headPosition, 'RELEASE_TAG');
+  assert.equal(gitState.releaseTag, 'v0.11.0');
+  assert.equal(gitState.currentBranch, '(detached)');
+});
+
+test('a detached HEAD behind origin/main without a release tag still fails closed', () => {
+  assert.throws(
+    () => validateGitState(
+      RELEASE_CHECKPOINT,
+      {
+        repository: 'ali-ulu/huqan',
+        branch: '',
+        head: 'tagged-commit',
+        originMain: 'remote-tip',
+        releaseTag: '',
+        worktree: '',
+        ...FRESH_BASELINE,
+      },
+      releaseAncestry,
+    ),
+    /\(detached\) does not descend from origin\/main/,
+  );
+});
+
+test('a release tag outside canonical ancestry still fails closed', () => {
+  assert.throws(
+    () => validateGitState(
+      RELEASE_CHECKPOINT,
+      {
+        repository: 'ali-ulu/huqan',
+        branch: '',
+        head: 'tag-on-an-arbitrary-commit',
+        originMain: 'remote-tip',
+        releaseTag: 'v9.9.9',
+        worktree: '',
+        ...FRESH_BASELINE,
+      },
+      releaseAncestry,
+    ),
+    /\(detached\) does not descend from origin\/main/,
+  );
+});
+
+test('the release exemption does not cover a named branch that carries a tag', () => {
+  assert.throws(
+    () => validateGitState(
+      RELEASE_CHECKPOINT,
+      {
+        repository: 'ali-ulu/huqan',
+        branch: 'feature/stale',
+        head: 'tagged-commit',
+        originMain: 'remote-tip',
+        releaseTag: 'v0.11.0',
+        worktree: '',
+        ...FRESH_BASELINE,
+      },
+      releaseAncestry,
+    ),
+    /feature branch feature\/stale does not descend from origin\/main/,
+  );
+});
+
+test('the ordinary head positions are reported by name', () => {
+  const evidence = {
+    repository: 'ali-ulu/huqan',
+    originMain: 'remote-tip',
+    worktree: '',
+    ...FRESH_BASELINE,
+  };
+
+  assert.equal(
+    validateGitState(
+      RELEASE_CHECKPOINT,
+      { ...evidence, branch: 'main', head: 'remote-tip' },
+      alwaysAncestor,
+    ).headPosition,
+    'BASELINE',
+  );
+  assert.equal(
+    validateGitState(
+      RELEASE_CHECKPOINT,
+      { ...evidence, branch: 'feature/work', head: 'feature-tip' },
+      alwaysAncestor,
+    ).headPosition,
+    'AHEAD_OF_BASELINE',
+  );
+});
+
 // --- #682: the guard must measure how old the baseline it read actually is ---
 //
 // The ancestry check reads `origin/main`, a local ref that only moves when
