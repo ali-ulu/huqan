@@ -82,6 +82,7 @@ class AgentV3 {
     this.maxSteps = opts.maxSteps || this.baseAgent.maxSteps || 4;
     this.maxIterations = Number.isInteger(opts.maxIterations) ? opts.maxIterations : 50;
     this.timeBudgetMs = Number.isInteger(opts.timeBudgetMs) ? opts.timeBudgetMs : 30000;
+    this.dreamExperimentLoop = opts.dreamExperimentLoop !== false;
     // AB10: durable per-workspace ceiling, separate from the single-call
     // maxIterations/timeBudgetMs above.
     this.maxIterationsPerWindow = Number.isInteger(opts.maxIterationsPerWindow) ? opts.maxIterationsPerWindow : DEFAULT_MAX_ITERATIONS_PER_WINDOW;
@@ -490,7 +491,7 @@ class AgentV3 {
     // steps actually read and mutate another -- making AB10's accounting
     // describe a workspace that was never touched. One run, one workspace.
     const scopedOpts = this._withWorkspaceScope(opts, workspaceId);
-    const dreamLoopActive = loopEnabled(opts, this.kernel);
+    const dreamLoopActive = loopEnabled({ ...opts, dreamExperimentLoop: opts.dreamExperimentLoop ?? this.dreamExperimentLoop }, this.kernel);
     const preparedDreamState = prepareDreamExperiment({
       active: dreamLoopActive,
       state,

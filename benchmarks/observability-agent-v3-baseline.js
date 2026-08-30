@@ -54,6 +54,7 @@ function runBaseline({ targets = DEFAULT_TARGETS } = {}) {
     maxSteps: 1,
     maxIterations: 20,
     timeBudgetMs: 5000,
+    dreamExperimentLoop: false,
   });
   const service = createObservabilityService({ db: agent.storage.db });
   kernel.observability = service;

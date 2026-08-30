@@ -20,7 +20,14 @@ function freshAgent(dbPath) {
     memoryPath: path.join(path.dirname(dbPath), 'memory.json'),
   });
   kernel.learn('kedi hayvandir', TEST_FIXTURE_LEARN_BYPASS);
-  return new AgentV3({ kernel, dbPath, maxSteps: 4, maxIterations: 50, timeBudgetMs: 2000 });
+  return new AgentV3({
+    kernel,
+    dbPath,
+    maxSteps: 4,
+    maxIterations: 50,
+    timeBudgetMs: 2000,
+    dreamExperimentLoop: false,
+  });
 }
 
 describe('AgentV3', () => {

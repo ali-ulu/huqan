@@ -192,6 +192,7 @@ function emitProbe(t, label, { maxSteps = 1 } = {}) {
     maxSteps,
     maxIterations: 200,
     timeBudgetMs: 8000,
+    dreamExperimentLoop: false,
   });
 
   t.after(() => {

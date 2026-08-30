@@ -27,7 +27,7 @@ function withPolicyRoot(root, fn) {
   }
 }
 
-test('AgentV3 opt-in Dream loop generates and verifies a bounded hypothesis cycle', () => {
+test('AgentV3 default Dream loop generates, verifies, and fails closed without causal support', () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-dream-loop-smoke-'));
   withPolicyRoot(tmpDir, () => {
     const trustPolicyPath = path.join(tmpDir, 'trust-policy.json');
@@ -66,7 +66,6 @@ test('AgentV3 opt-in Dream loop generates and verifies a bounded hypothesis cycl
       workspaceId: 'default',
       maxIterations: 4,
       timeBudgetMs: 5000,
-      dreamExperimentLoop: true,
       dreamExperimentMaxHypotheses: 1,
       dreamExperimentMaxCycles: 1,
       dreamExperimentAdmissionOpts: { approvalRequired: false },
@@ -78,7 +77,9 @@ test('AgentV3 opt-in Dream loop generates and verifies a bounded hypothesis cycl
     assert.ok(result.data.dreamExperimentLoop.transitionSeq >= 1);
     assert.ok(result.data.steps.some(step => step.action === 'dream'));
     assert.ok(result.data.steps.some(step => step.action === 'dream-experiment-verify'));
-    assert.equal(result.data.dreamExperimentLoop.observations[0].commitDecision, 'allow');
-    assert.ok(kernel.graph.getEdges('kopek', 'default').some(edge => edge.to === 'kedi' && edge.relation === 'benzer'));
+    assert.equal(result.data.dreamExperimentLoop.observations[0].semanticSignal, 'support');
+    assert.equal(result.data.dreamExperimentLoop.observations[0].causalSignal, 'unknown');
+    assert.equal(result.data.dreamExperimentLoop.observations[0].commitDecision, 'not_applicable');
+    assert.equal(kernel.graph.getEdges('kopek', 'default').some(edge => edge.to === 'kedi' && edge.relation === 'benzer'), false);
   });
 });
