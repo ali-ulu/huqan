@@ -32,7 +32,7 @@ function fixture(records = [], overrides = {}) {
       : { ok: false, status: 'not_found', error: { message: 'missing' } }),
     parseJsonRequest: async req => req.body,
     writeJson: (_req, _res, status, json, headers) => writes.push({ status, json, headers }),
-    learnDocument: () => ({}),
+    proposeLearn: overrides.proposeLearn || (async () => ({ approval: { id: 'approval-learn', persisted: true, context: {} } })),
     submitIngest: async () => ({}),
     createAgent: () => ({ plan: () => ({ ok: true, data: {} }), run: () => ({ ok: true, data: {} }) }),
   });

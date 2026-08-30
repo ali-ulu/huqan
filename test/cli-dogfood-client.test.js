@@ -51,10 +51,24 @@ test('cli.js dogfood client routes öğret through the review gate as a real chi
     // not an in-process shortcut around it.
     assert.equal(learnResult.status, 3);
     assert.match(learnResult.stdout, /requires review/);
+    const approvalId = learnResult.stdout.match(/approval-[0-9a-f-]+/)?.[0];
+    assert.ok(approvalId, 'learn must return the durable approval id');
+
+    const approvals = runCli(['approvals'], env);
+    assert.equal(approvals.status, 0);
+    assert.match(approvals.stdout, new RegExp(approvalId));
 
     const askAfter = runCli(['sor', 'kopek nedir'], env);
     assert.equal(askAfter.status, 0);
     assert.doesNotMatch(askAfter.stdout, /dogfood-sentinel/);
+
+    const approved = runCli(['approve', approvalId, 'approved'], env);
+    assert.equal(approved.status, 0);
+    assert.match(approved.stdout, /written to canonical state/);
+
+    const verified = runCli(['verify:', 'kopek dogfood-sentinel hayvandir'], env);
+    assert.equal(verified.status, 0);
+    assert.match(verified.stdout, /Verify: verified/);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }

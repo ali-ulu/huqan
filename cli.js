@@ -39,7 +39,7 @@ const {
   createMcpOperatorCapability,
   operatorCapabilityBinding,
 } = require('./mcpServer');
-const { formatCliApprovalList, formatCliApprovalDecision } = require('./lib/mcp-approval-views');
+const { formatCliApprovalList, formatCliApprovalDecision } = require('./lib/mcp-approval-views'); const { queueCliLearnReview } = require('./lib/cli-learn-review');
 
 const {
   shellQuote,
@@ -119,6 +119,8 @@ class CLI {
     };
   }
 
+  _queueLearnReview(args) { return queueCliLearnReview({ kernel: this.kernel, approvalRuntime: () => this._approvalRuntime(), callTool: callMcpTool }, args); }
+
   _ensureCompanyCapabilities() {
     if (typeof this.kernel.hasCapability === 'function' && !this.kernel.hasCapability('companyMode')) {
       this.kernel.enableCapability('companyMode');
@@ -154,6 +156,12 @@ class CLI {
       ? opts.gateResult
       : this._evaluateCliGate(command, args);
     if (gateResult && !gateResult.canExecute) {
+      if (mapCliCommandToMcpTool(command) === 'huqan.learn' && gateResult.decision === 'review') {
+        const proposal = this._queueLearnReview(args);
+        if (opts.json) return proposal;
+        const approvalId = proposal?.approval?.id || '';
+        return approvalId ? `Learn requires review. Approval queued: ${approvalId}` : this._formatCliGateMessage(command, gateResult);
+      }
       return this._formatCliGateMessage(command, gateResult);
     }
     switch (command) {
