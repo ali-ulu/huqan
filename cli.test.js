@@ -32,6 +32,9 @@ function freshCLI(kernelOpts = {}) {
 }
 
 function closeManagedCLI(cli) {
+  if (cli?.approvalStore && typeof cli.approvalStore.close === 'function') {
+    cli.approvalStore.close();
+  }
   const storage = cli?.agent?.storage;
   if (storage && typeof storage.close === 'function' && storage.db?.open !== false) {
     storage.close();
@@ -851,10 +854,15 @@ describe('CLI - Komut Çalıştırma', () => {
 
   it('execute: english learn alias is gated and does not mutate silently', () => {
     const cli = freshCLI();
-    const parsed = cli.parse('learn: cats are animals');
-    const result = cli.execute(parsed.command, parsed.args);
-    assert.ok(result.includes('requires review'));
-    assert.ok(!cli.kernel.graph.getNode('cats'));
+    try {
+      const parsed = cli.parse('learn: cats are animals');
+      const result = cli.execute(parsed.command, parsed.args);
+      assert.ok(result.includes('requires review'));
+      assert.match(result, /approval-[0-9a-f-]+/);
+      assert.ok(!cli.kernel.graph.getNode('cats'));
+    } finally {
+      closeManagedCLI(cli);
+    }
   });
 });
 async function withIsolatedInteractiveCLI(run) {

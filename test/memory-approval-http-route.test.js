@@ -92,7 +92,25 @@ function bootAndProbe({ configured }) {
         });
         const wrongMethod = await request('POST', '/api/v2/memory-approvals', { body: {} });
 
-        result = { noToken, wrongToken, listed, decideNoToken, badDecision, wrongMethod };
+        const learn = await request('POST', '/api/v2/workflows/learn', {
+          body: { workspaceId: 'default', text: 'http parity sentinel causes durable result' },
+        });
+        const learnBody = JSON.parse(learn.body);
+        const approvalId = learnBody?.data?.approvalId || '';
+        const listedAfterArgs = { limit: 50, workspaceId: 'default' };
+        const listedAfter = await request('GET', '/api/v2/memory-approvals', {
+          operatorCapability: capability('huqan.approvals', listedAfterArgs),
+        });
+        const approveArgs = { approvalId, workspaceId: 'default', decision: 'approved', reason: 'http parity test' };
+        const approved = await request('POST', '/api/v2/memory-approvals/' + encodeURIComponent(approvalId) + '/decision', {
+          body: { decision: 'approved', reason: 'http parity test' },
+          operatorCapability: capability('huqan.approve', approveArgs),
+        });
+        const verified = await request('POST', '/api/v2/workflows/verify', {
+          body: { workspaceId: 'default', claim: 'http parity sentinel causes durable result' },
+        });
+
+        result = { noToken, wrongToken, listed, decideNoToken, badDecision, wrongMethod, learn, listedAfter, approved, verified };
       } finally {
         if (server.listening) await new Promise((resolve) => server.close(() => resolve()));
         try { server.closeHuqan(); } catch (_) {}
@@ -149,6 +167,28 @@ test('the scoped operator capability lists the approval queue', () => {
   const body = JSON.parse(result.listed.body);
   assert.ok(Array.isArray(body.approvals), 'expected an approvals array');
   assert.equal(typeof body.pendingCount, 'number');
+});
+
+test('HTTP learn queues a durable MCP approval that the operator can apply', () => {
+  const result = bootAndProbe({ configured: true });
+  assert.equal(result.learn.status, 202);
+  const learned = JSON.parse(result.learn.body);
+  assert.equal(learned.status, 'review_required');
+  assert.match(learned.data.approvalId, /^approval-/);
+  assert.equal(learned.data.approval.persisted, true);
+
+  assert.equal(result.listedAfter.status, 200);
+  const listed = JSON.parse(result.listedAfter.body);
+  assert.ok(listed.approvals.some(item => item.id === learned.data.approvalId));
+
+  assert.equal(result.approved.status, 200);
+  const approved = JSON.parse(result.approved.body);
+  assert.equal(approved.data.executed, true);
+  assert.equal(approved.data.approval.id, learned.data.approvalId);
+
+  assert.equal(result.verified.status, 200);
+  const verified = JSON.parse(result.verified.body);
+  assert.equal(verified.data.status, 'verified');
 });
 
 test('an invalid decision is refused after authorization', () => {

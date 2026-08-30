@@ -38,7 +38,7 @@ const { createExternalClientProductionBoundary } = require('./lib/external-clien
 const { createOptionalRouteBoundaries } = require('./lib/http/optional-boundaries'), { createPrGuardianOptions } = require('./lib/http/pr-guardian-config'), { createFitnessDashboardRoute } = require('./lib/http/fitness-dashboard-route');
 const { projectUploadAdmission } = require('./lib/http/upload-admission-contract');
 const { createHttpIngestApprovalAuditWriter } = require('./lib/http/ingest-approval-audit-writer');
-const { createTrustEvidenceLedger } = require('./lib/trust-evidence-ledger');
+const { createTrustEvidenceLedger } = require('./lib/trust-evidence-ledger'); const { callTool: callMcpTool } = require('./mcpServer');
 const pkg = require('./package.json');
 const {
   DEFAULT_MAX_UPLOAD_BODY,
@@ -213,7 +213,7 @@ async function submitIngestApproval(data) {
     return { status: 503, error: { code: 'APPROVAL_STORE_UNAVAILABLE', message: 'Persistent ingest approval store is unavailable.' } };
   }
 }
-const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, workspaceId, decision, reason }) => decideIngestApproval({ store: getIngestApprovalStore(), kernel, approvalId, workspaceId, decision, reason, humanOversight: getHttpApprovalRuntimeConfig(), handleIngest, ensureRuntime: ensureCompanyRuntime, recordAudit: recordIngestApprovalAudit, toPublicApproval: publicIngestApproval, workerId: INGEST_APPROVAL_WORKER_ID, leaseMs: INGEST_APPROVAL_LEASE_MS }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, learnDocument: (text, options) => kernel.learnDocument(text, options), submitIngest: submitIngestApproval, createAgent: options => observabilityRuntime.createAgent(options) });
+const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, workspaceId, decision, reason }) => decideIngestApproval({ store: getIngestApprovalStore(), kernel, approvalId, workspaceId, decision, reason, humanOversight: getHttpApprovalRuntimeConfig(), handleIngest, ensureRuntime: ensureCompanyRuntime, recordAudit: recordIngestApprovalAudit, toPublicApproval: publicIngestApproval, workerId: INGEST_APPROVAL_WORKER_ID, leaseMs: INGEST_APPROVAL_LEASE_MS }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, proposeLearn: args => callMcpTool(kernel, { name: 'huqan.learn', arguments: args }, { approvalStore: getIngestApprovalStore() }), submitIngest: submitIngestApproval, createAgent: options => observabilityRuntime.createAgent(options) });
 
 // V5 issuer records are receiver-owned; an empty registry remains fail-closed.
 const issuerTrustedKeyRecords = [];
