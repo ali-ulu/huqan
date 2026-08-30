@@ -592,10 +592,11 @@ class Dream {
 
   // ─── Amplify / Simulate / Verify ─────────────────────────────────────────
 
-  amplify(subject, candidates, relation) {
+  amplify(subject, candidates, relation, opts = {}) {
+    const workspaceId = normalizeWorkspaceId(opts && typeof opts === 'object' ? opts.workspaceId : opts);
     const scored = candidates.map(c => {
-      const edge     = this.graph.getEdge(subject, c, relation);
-      const verified = this.verify(subject, c);
+      const edge     = this.graph.getEdge(subject, c, relation, workspaceId);
+      const verified = this._verify(subject, c, workspaceId);
       return {
         answer: c,
         score: edge
@@ -610,7 +611,7 @@ class Dream {
       if (totalScore === 0) break;
       for (const s of scored) {
         if (s.score > 0) {
-          const edge = this.graph.getEdge(subject, s.answer, relation);
+          const edge = this.graph.getEdge(subject, s.answer, relation, workspaceId);
           if (edge) {
             const ratio = s.score / totalScore;
             edge.weight = Math.min(1, edge.weight + ratio * 0.1);
@@ -622,21 +623,23 @@ class Dream {
     return scored.sort((a, b) => b.score - a.score).map(s => s.answer);
   }
 
-  simulate(subject) {
-    const node = this.graph.getNode(subject);
+  simulate(subject, opts = {}) {
+    const workspaceId = normalizeWorkspaceId(opts && typeof opts === 'object' ? opts.workspaceId : opts);
+    const node = this.graph.getNode(subject, workspaceId);
     if (!node) return [];
 
-    const edges = this.graph.getEdges(subject);
+    const edges = this.graph.getEdges(subject, workspaceId);
     const scored = edges.map(e => ({
       answer: e.to,
       score: e.weight * (e.relation === 'tür' ? 1.2 : 1.0),
     }));
 
     // Vektör benzerliği ile ek adaylar
-    const allNodes = Object.values(this.graph._nodes);
+    const allNodes = Object.values(this.graph._nodes)
+      .filter(candidate => normalizeWorkspaceId(candidate.workspaceId) === workspaceId);
     for (const n of allNodes) {
       if (n.id !== subject && !scored.some(s => s.answer === n.id)) {
-        const sim = this.graph.cosineSimilarity(subject, n.id);
+        const sim = this.graph.cosineSimilarity(subject, n.id, workspaceId);
         if (sim > 0.3) scored.push({ answer: n.id, score: sim * 0.5 });
       }
     }
@@ -644,27 +647,32 @@ class Dream {
     return scored.sort((a, b) => b.score - a.score).slice(0, 3);
   }
 
-  verify(subject, object) {
+  verify(subject, object, opts = {}) {
+    const workspaceId = normalizeWorkspaceId(opts && typeof opts === 'object' ? opts.workspaceId : opts);
+    return this._verify(subject, object, workspaceId);
+  }
+
+  _verify(subject, object, workspaceId) {
     const visited = new Set();
     const path    = [];
-    const found   = this._dfs(subject, object, visited, path, 5);
+    const found   = this._dfs(subject, object, visited, path, 5, workspaceId);
     if (found) {
-      return { valid: true, confidence: this._pathConfidence(path), path };
+      return { valid: true, confidence: this._pathConfidence(path, workspaceId), path };
     }
     return { valid: false, confidence: 0, path: [] };
   }
 
-  _dfs(current, target, visited, path, depth) {
+  _dfs(current, target, visited, path, depth, workspaceId) {
     if (depth <= 0 || visited.has(current)) return false;
     visited.add(current);
     path.push(current);
     if (current === target) return true;
 
-    for (const e of this.graph.getEdges(current)) {
-      if (!visited.has(e.to) && this._dfs(e.to, target, visited, path, depth - 1)) return true;
+    for (const e of this.graph.getEdges(current, workspaceId)) {
+      if (!visited.has(e.to) && this._dfs(e.to, target, visited, path, depth - 1, workspaceId)) return true;
     }
-    for (const ie of this.graph.getInEdges(current)) {
-      if (!visited.has(ie.from) && this._dfs(ie.from, target, visited, path, depth - 1)) return true;
+    for (const ie of this.graph.getInEdges(current, workspaceId)) {
+      if (!visited.has(ie.from) && this._dfs(ie.from, target, visited, path, depth - 1, workspaceId)) return true;
     }
 
     path.pop();
@@ -672,23 +680,24 @@ class Dream {
     return false;
   }
 
-  _pathConfidence(path) {
+  _pathConfidence(path, workspaceId) {
     let conf = 1;
     for (let i = 0; i < path.length - 1; i++) {
-      const edge = this.graph.getEdges(path[i]).find(e => e.to === path[i + 1])
-                || this.graph.getInEdges(path[i]).find(e => e.from === path[i + 1]);
+      const edge = this.graph.getEdges(path[i], workspaceId).find(e => e.to === path[i + 1])
+                || this.graph.getInEdges(path[i], workspaceId).find(e => e.from === path[i + 1]);
       if (edge) conf *= edge.weight;
     }
     return conf;
   }
 
-  walk(start, maxDepth) {
+  walk(start, maxDepth, opts = {}) {
+    const workspaceId = normalizeWorkspaceId(opts && typeof opts === 'object' ? opts.workspaceId : opts);
     const path    = [start];
     const visited = new Set([start]);
     let current   = start;
 
     for (let i = 0; i < maxDepth; i++) {
-      const edges = this.graph.getEdges(current).filter(e => !visited.has(e.to));
+      const edges = this.graph.getEdges(current, workspaceId).filter(e => !visited.has(e.to));
       if (edges.length === 0) break;
       const pick = edges.sort((a, b) => b.weight - a.weight)[0];
       path.push(pick.to);

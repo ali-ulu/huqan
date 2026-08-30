@@ -68,6 +68,21 @@ test('KERNEL: dream preserves hypothesis evidence and counter envelope', () => {
   });
 });
 
+test('KERNEL: dream forwards the requested workspace unchanged to Dream', () => {
+  const requested = { workspaceId: 'tenant-b', depth: 4 };
+  runDream(requested, {
+    createDreams: opts => {
+      assert.strictEqual(opts, requested);
+      return [];
+    },
+    graph: {},
+    commitBackgroundEdge: () => ({ decision: 'review' }),
+    getDreamCount: () => 0,
+    setDreamCount: () => {},
+    ok: (type, data) => ({ type, data }),
+  });
+});
+
 test('KERNEL: dream preserves admission-routed learned and pending hypotheses', () => {
   const commits = [];
   const result = runDream(
