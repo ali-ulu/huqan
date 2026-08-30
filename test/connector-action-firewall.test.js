@@ -2,6 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 
 const {
   CONNECTOR_ACTION_FIREWALL_VERSION,
@@ -177,7 +178,8 @@ test('connector firewall normalizes local source connectors with bound targets',
     const result = evaluateConnectorAction({
       connector,
       action: 'ingest',
-      targetPath: `/workspace/${connector}/source`,
+      targetPath: __dirname,
+      rootPath: __dirname,
       workspaceId: 'workspace-local',
       actor: 'connector-test',
     });
@@ -185,7 +187,7 @@ test('connector firewall normalizes local source connectors with bound targets',
     assert.equal(result.canExecute, true);
     assert.equal(result.decision, 'allow');
     assert.equal(result.firewallVersion, 'AAFW-v1.0.0');
-    assert.equal(result.target, `/workspace/${connector}/source`);
+    assert.equal(result.target, fs.realpathSync(__dirname));
     assert.equal(result.egressClass, 'local_filesystem_read');
     assert.equal(result.budget.costUnits, 1);
     assert.equal(result.firewallSummary.metadata.surface, 'connector');
@@ -217,7 +219,7 @@ test('connector firewall normalizes multiple HTTP targets and refuses credential
 
 test('connector preview remains dry_run_only for local and HTTP connectors', async () => {
   for (const request of [
-    { connector: 'markdown', action: 'ingest', targetPath: '/workspace/docs/readme.md' },
+    { connector: 'markdown', action: 'ingest', targetPath: __filename, rootPath: __dirname },
     { connector: 'http', action: 'ingest', urls: ['https://example.com'] },
   ]) {
     let calls = 0;

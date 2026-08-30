@@ -392,9 +392,10 @@ async function ingestMarkdownPath(kernel, input = {}) {
   const guarded = await executeGuardedConnectorIngest({
     connector: 'markdown',
     target: targetPath,
+    rootPath,
     input,
-    execute: async () => {
-      const ingested = ingestMarkdown(targetPath, { rootPath });
+    execute: async decision => {
+      const ingested = ingestMarkdown(decision.target, { rootPath: decision.rootPath });
       const { added, admissions } = runPathIngest(kernel, input, {
         source: 'markdown',
         provenanceSourceType: 'document',
@@ -438,9 +439,10 @@ async function ingestJsonPath(kernel, input = {}) {
   const guarded = await executeGuardedConnectorIngest({
     connector: 'json',
     target: targetPath,
+    rootPath,
     input,
-    execute: async () => {
-      const ingested = ingestJson(targetPath, { rootPath });
+    execute: async decision => {
+      const ingested = ingestJson(decision.target, { rootPath: decision.rootPath });
       const { added, admissions } = runPathIngest(kernel, input, {
         source: 'json',
         provenanceSourceType: 'import',
@@ -476,9 +478,10 @@ async function ingestYamlPath(kernel, input = {}) {
   const guarded = await executeGuardedConnectorIngest({
     connector: 'yaml',
     target: targetPath,
+    rootPath,
     input,
-    execute: async () => {
-      const ingested = ingestYaml(targetPath, { rootPath });
+    execute: async decision => {
+      const ingested = ingestYaml(decision.target, { rootPath: decision.rootPath });
       const { added, admissions } = runPathIngest(kernel, input, {
         source: 'yaml',
         provenanceSourceType: 'import',
@@ -514,10 +517,11 @@ async function ingestGitLogPath(kernel, input = {}) {
   const guarded = await executeGuardedConnectorIngest({
     connector: 'git-log',
     target: targetPath,
+    rootPath,
     input,
-    execute: async () => {
-      const ingested = ingestGitLog(targetPath, {
-        rootPath,
+    execute: async decision => {
+      const ingested = ingestGitLog(decision.target, {
+        rootPath: decision.rootPath,
         maxCommits: input.maxCommits,
         since: input.since,
         branch: input.branch,
@@ -569,9 +573,10 @@ async function ingestPdfPath(kernel, input = {}) {
   const guarded = await executeGuardedConnectorIngest({
     connector: 'pdf',
     target: targetPath,
+    rootPath,
     input,
-    execute: async () => {
-      const ingested = await ingestPdf(targetPath, { rootPath });
+    execute: async decision => {
+      const ingested = await ingestPdf(decision.target, { rootPath: decision.rootPath });
       const { added, admissions } = runPathIngest(kernel, input, {
         source: 'pdf',
         provenanceSourceType: 'import',
