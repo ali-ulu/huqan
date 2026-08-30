@@ -197,6 +197,7 @@
     "lib/cli-help.js",
     "lib/cli-plugin-status.js",
     "lib/cli-helpers.js",
+    "lib/cli-learn-review.js",
     "lib/cli-hypotheses.js",
     "lib/cli-ingest-batch.js",
     "lib/cli-mutation-audit-intent.js",

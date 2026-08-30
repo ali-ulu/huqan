@@ -8,7 +8,7 @@
  * installs that tarball into an empty project, and exercises the public user
  * surfaces that are easy to miss when tests run from a checkout:
  *
- *   - interactive CLI mutation refusal
+ *   - interactive CLI durable approval proposal without mutation
  *   - MCP mutation review surface
  *   - local HTTP server /health and /viewer
  *   - authenticated HTTP learn-review without a canonical write
@@ -89,12 +89,11 @@ function verifyCliReview(binDir, consumer, env) {
     return;
   }
 
-  const reviewHeadline = /requires review\. Nothing was mutated and nothing ran\./i.test(cli.output);
-  const reviewDecision = /decision:\s*review/i.test(cli.output);
-  if (reviewHeadline && reviewDecision) {
-    ok('interactive CLI refuses a mutating learn without executing it');
+  const approvalId = cli.output.match(/Approval queued:\s*(approval-[^\s]+)/i)?.[1];
+  if (approvalId) {
+    ok('interactive CLI queues a durable approval without executing the learn');
   } else {
-    fail(`interactive CLI did not expose the expected review refusal\n${cli.output.slice(-2000)}`);
+    fail(`interactive CLI did not expose a durable review approval\n${cli.output.slice(-2000)}`);
   }
 }
 
@@ -205,16 +204,17 @@ function verifyServer(consumer, env) {
       body: JSON.stringify({
         workspaceId: ${JSON.stringify(SMOKE_WORKSPACE)},
         text: ${JSON.stringify(SMOKE_CLAIM)},
-        sourceType: 'launch-smoke',
+        sourceType: 'upload',
         sourceRef: 'launch-smoke://installed-package',
       }),
     });
     const review = await reviewResponse.json();
-    const outcome = String(review?.data?.admission?.outcome || review?.data?.admission?.decision || '').toLowerCase();
     if (reviewResponse.status !== 202
       || review?.status !== 'review_required'
       || Number(review?.data?.learned || 0) !== 0
-      || outcome !== 'review') {
+      || review?.data?.approval?.persisted !== true
+      || typeof review?.data?.approvalId !== 'string'
+      || review.data.approvalId.length === 0) {
       throw new Error('HTTP learn-review contract failed: ' + reviewResponse.status + ' ' + JSON.stringify(review));
     }
 

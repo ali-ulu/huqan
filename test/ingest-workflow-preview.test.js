@@ -41,7 +41,7 @@ describe('ingest workflow preview', () => {
       readReceipt: () => ({}),
       parseJsonRequest: async () => manual(),
       writeJson: (_req, _res, status, json, headers) => writes.push({ status, json, headers }),
-      learnDocument: () => ({}),
+      proposeLearn: async () => ({ approval: { id: 'approval-learn', persisted: true, context: {} } }),
       submitIngest: async () => ({}),
       createAgent: () => ({ plan: () => ({ ok: true, data: {} }), run: () => ({ ok: true, data: {} }) }),
     });
@@ -59,7 +59,7 @@ describe('ingest workflow preview', () => {
       getApprovalStore: () => ({}), decideApproval: async () => ({}), readReceipt: () => ({}),
       parseJsonRequest: async () => manual(),
       writeJson: (_req, _res, status, json, headers) => writes.push({ status, json, headers }),
-      learnDocument: () => ({}),
+      proposeLearn: async () => ({ approval: { id: 'approval-learn', persisted: true, context: {} } }),
       submitIngest: async input => { calls.push(input); return { status: 202, json: { approval: { id: 'approval-1' } } }; },
       createAgent: () => ({ plan: () => ({ ok: true, data: {} }), run: () => ({ ok: true, data: {} }) }),
     });
@@ -97,13 +97,25 @@ describe('ingest workflow preview', () => {
       writeJson: (_req, _res, status, json, headers) => writes.push({ status, json, headers }),
       submitIngest: async () => ({}),
       createAgent: () => ({ plan: () => ({ ok: true, data: {} }), run: () => ({ ok: true, data: {} }) }),
-      learnDocument: (text, options) => { calls.push({ text, options }); return { learned: 0, admissions: [{ outcome: 'review', receipt: { receiptId: 'receipt-1' } }] }; },
+      proposeLearn: async proposal => {
+        calls.push(proposal);
+        return {
+          gate: { decision: 'review', reason: 'mutating_requires_review' },
+          approval: {
+            id: 'approval-1',
+            persisted: true,
+            context: {
+              candidateId: 'candidate-1',
+              provenance: proposal.provenance,
+            },
+          },
+        };
+      },
     });
     assert.equal(await handler({ method: 'POST' }, {}, new URL('/api/v2/workflows/learn', 'http://localhost')), true);
-    assert.equal(calls[0].options.workspaceId, 'workspace-a');
-    assert.equal(calls[0].options.actor, 'http-api');
-    assert.equal(calls[0].options.approvalRequired, true);
-    assert.deepEqual(calls[0].options.provenance, {
+    assert.equal(calls[0].workspaceId, 'workspace-a');
+    assert.equal(calls[0].text, 'cats are animals');
+    assert.deepEqual(calls[0].provenance, {
       workspaceId: 'workspace-a',
       actor: 'http-api',
       sourceRef: '/api/v2/workflows/learn',
@@ -112,7 +124,9 @@ describe('ingest workflow preview', () => {
     });
     assert.equal(writes[0].status, 202);
     assert.equal(writes[0].json.status, 'review_required');
-    assert.equal(writes[0].json.receiptId, 'receipt-1');
+    assert.equal(writes[0].json.data.approvalId, 'approval-1');
+    assert.equal(writes[0].json.data.candidateId, 'candidate-1');
+    assert.equal(writes[0].json.approval.persisted, true);
     body = { text: 'missing workspace' };
     await handler({ method: 'POST' }, {}, new URL('/api/v2/workflows/learn', 'http://localhost'));
     assert.equal(writes[1].status, 400);
