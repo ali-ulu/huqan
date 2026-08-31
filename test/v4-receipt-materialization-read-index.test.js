@@ -23,6 +23,7 @@ const {
 } = require('../lib/receipt/receipt-read-index');
 const { validateReceiptChain } = require('../lib/receipt/receipt-chain');
 const { verifyExportedBundle } = require('../lib/receipt/receipt-export');
+const { createTrustEvidenceLedger } = require('../lib/trust-evidence-ledger');
 
 function makeKernel(t, useSQLite = false) {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-receipt-index-'));
@@ -173,6 +174,60 @@ describe('V4-PR2.6: receipt materialization/read index', (t) => {
     assert.equal(read.status, 'invalid');
     assert.equal(read.error.code, 'INVALID_RECEIPT');
     assert.match(read.error.message, /receipt\.receiptKind|receipt\.admissionId/);
+  });
+
+  it('does not let an approval-flow audit receipt poison the canonical receipt chain', (t) => {
+    const kernel = makeKernel(t);
+    const result = learnApproved(kernel, 'viewer kanonik receipt okur', { provenanceId: 'prov-action-receipt-skip' });
+    const canonicalReceipt = result.data.admission.receipt;
+
+    kernel.graph.appendAuditEvent({
+      eventType: 'APPROVAL_APPROVED',
+      targetType: 'ingest_approval',
+      targetId: 'approval-action-receipt-skip',
+      details: {
+        receipt: {
+          receiptId: 'apr-receipt-action-skip',
+          receiptKind: 'reviewed_action_receipt',
+          decision: 'approved',
+          status: 'reviewed',
+          approvalId: 'approval-action-receipt-skip',
+          workspaceId: 'default',
+        },
+      },
+    }, { workspaceId: 'default' });
+
+    const read = readReceiptById(kernel.graph, canonicalReceipt.receiptId, { workspaceId: 'default' });
+    assert.equal(read.ok, true);
+    assert.equal(read.status, 'found');
+    assert.equal(read.chainStatus, 'valid');
+    assert.equal(readReceiptById(kernel.graph, 'apr-receipt-action-skip', { workspaceId: 'default' }).status, 'not_found');
+  });
+
+  it('reads a durable Trust Evidence Ledger receipt from its journaled chain', (t) => {
+    const kernel = makeKernel(t, true);
+    const ledger = createTrustEvidenceLedger({ graph: kernel.graph });
+    const appended = ledger.append({
+      operationId: 'trust-evidence:receipt-read-index',
+      event: {
+        workspaceId: 'default',
+        decision: 'allow',
+        reason: 'approved ingest audit',
+        actionFingerprint: 'sha256:receipt-read-index',
+        createdAt: '2026-08-31T00:00:00.000Z',
+      },
+      mutate: () => kernel.graph.appendAuditEvent({
+        eventType: 'APPROVAL_APPROVED', targetType: 'ingest_approval', targetId: 'receipt-read-index', details: {},
+      }, { workspaceId: 'default' }),
+    });
+
+    const receiptId = appended.receipt.receiptId;
+    const read = readReceiptById(kernel.graph, receiptId, { workspaceId: 'default' });
+    assert.equal(read.ok, true);
+    assert.equal(read.status, 'found');
+    assert.equal(read.chainStatus, 'valid');
+    assert.equal(read.canonicalPayload.receiptKind, 'trust_evidence');
+    assert.equal(read.chainedReceipt.receiptId, receiptId);
   });
 
   it('chain validation and export operate over stored real receipts', (t) => {
