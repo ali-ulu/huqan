@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.11.1
+
+Unreleased — the manifest is bumped and waiting on a `v0.11.1` tag. It carries
+everything listed under v0.11.0 below, which never reached the registry: the
+`v0.11.0` tag predates the fix below, and the publish job checks out the tag,
+so that tag can no longer pass its own gate. v0.10.0 is still what
+`npm install -g huqan` serves.
+
+### Fixed
+- **Publishing from a release tag (#1745).** The live Git guard in
+  `scripts/agent-context.js` knew two shapes -- sitting on the baseline branch,
+  or working on a branch that already contains it. `publish.yml` checks out an
+  immutable `v<version>` tag, which is deliberately *behind* `origin/main` by
+  however many commits landed since the release, so the guard read a reviewed,
+  merged commit as an unrebased feature branch and failed closed. Six tests
+  reported it, all with one message, at the step meant to certify the release.
+  A release checkout is now a third recognised state, admitted only on all
+  three of: a detached HEAD, a `v*` tag at that commit, and reachability from
+  `origin/main` -- the last being the same claim `publish.yml` proves on its
+  own before the suite runs. `gitState` reports `headPosition` and the tag it
+  was admitted under; a detached HEAD without a tag, and a tag outside
+  canonical ancestry, both still fail closed.
+
 ## v0.11.0
 
 ### Added
