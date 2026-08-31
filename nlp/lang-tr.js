@@ -186,8 +186,12 @@ function extractFacts(text, knownNodes = null) {
     }
   }
 
-  const subject = normalize(filtered[0]);
+  // 1760 guard: reject prose that would fragment into single-word nodes
+  if (isStopWord(filtered[0])) return [];
+  if (/^\d+\.$/.test(filtered[0])) return [];
   const predicate = filtered.slice(1).join(' ');
+  if (predicate.split(/\s+/).filter(Boolean).length > 8) return [];
+  const subject = normalize(filtered[0]);
   return [{ subject, predicate }];
 }
 
