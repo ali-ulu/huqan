@@ -43,13 +43,13 @@ describe('real user smoke blockers', () => {
     }
   });
 
-  it('scripts/egitim-demo.js (demo) persists seeded Turkish facts as UTF-8 without mojibake, isolated from production memory', () => {
+  it('scripts/knowledge-graph-demo.js (demo) persists seeded Turkish facts as UTF-8 without mojibake, isolated from production memory', () => {
     const cwd = makeTempDir('axiom-egitim-');
     try {
       const demoMemoryDir = path.join(cwd, 'demo-memory');
       const result = spawnSync(
         process.execPath,
-        [path.join(repoRoot, 'scripts', 'egitim-demo.js'), '--demo', '--persist-dir', demoMemoryDir],
+        [path.join(repoRoot, 'scripts', 'knowledge-graph-demo.js'), '--demo', '--persist-dir', demoMemoryDir],
         { cwd, encoding: 'utf8' },
       );
 
