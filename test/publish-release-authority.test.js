@@ -176,3 +176,100 @@ test('a dry run still withholds the upload', () => {
   assert.match(publishStep, /npm publish --provenance --access public/);
   assert.match(workflowSource, /- name: Dry run complete/);
 });
+
+// --- The credentials have to land where npm actually looks ---
+//
+// `actions/setup-node` with `registry-url` does not write `~/.npmrc`. It
+// writes its own file under RUNNER_TEMP and exports
+// `NPM_CONFIG_USERCONFIG` pointing at it, which takes precedence over the
+// home directory -- and seeds it with the literal placeholder
+// `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}`, where
+// NODE_AUTH_TOKEN defaults to the string `XXXXX-XXXXX-XXXXX-XXXXX`.
+//
+// So a publish step that writes a perfectly good token to `$HOME/.npmrc`
+// authenticates with that placeholder instead. npm answers a PUT from an
+// unauthorized client with 404 rather than 403, so the failure reads as
+// "the package does not exist" and sends everyone to look at the token,
+// which is valid. That is what run 33342689402 did, after every gate --
+// including the full suite -- had passed.
+//
+// The step is executed here rather than pattern-matched, so the assertion is
+// that the token is readable at the path npm will consult.
+
+const publishScript = extractRunScript('Publish');
+
+function runPublishCredentials(env) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-publish-npmrc-'));
+  const home = path.join(dir, 'home');
+  const runnerTemp = path.join(dir, 'runner-temp');
+  fs.mkdirSync(home);
+  fs.mkdirSync(runnerTemp);
+
+  // What setup-node leaves behind, verbatim.
+  const userConfig = path.join(runnerTemp, '.npmrc');
+  fs.writeFileSync(
+    userConfig,
+    'registry=https://registry.npmjs.org/\n'
+    + '//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}\n',
+  );
+
+  fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'huqan', version: '9.9.9' }));
+  // Stub npm so the credentials are checked without contacting a registry.
+  const binDir = path.join(dir, 'bin');
+  fs.mkdirSync(binDir);
+  fs.writeFileSync(path.join(binDir, 'npm'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+
+  const scriptPath = path.join(dir, 'publish.sh');
+  fs.writeFileSync(scriptPath, publishScript);
+  const result = spawnSync('bash', [scriptPath], {
+    cwd: dir,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+      HOME: home,
+      RUNNER_TEMP: runnerTemp,
+      NPM_CONFIG_USERCONFIG: userConfig,
+      NODE_AUTH_TOKEN: 'XXXXX-XXXXX-XXXXX-XXXXX',
+      GITHUB_REF_NAME: 'v9.9.9',
+      GITHUB_REF_TYPE: 'tag',
+      ...env,
+    },
+  });
+  return { result, userConfig, home };
+}
+
+test('the token is written where npm reads it, not to $HOME', () => {
+  const { result, userConfig } = runPublishCredentials({ RAW_NPM_TOKEN: 'npm_realtoken' });
+
+  assert.equal(result.status, 0, result.stderr);
+  const effective = fs.readFileSync(userConfig, 'utf8');
+  assert.match(
+    effective,
+    /^\/\/registry\.npmjs\.org\/:_authToken=npm_realtoken$/m,
+    'npm reads NPM_CONFIG_USERCONFIG; the token must be readable there',
+  );
+  assert.doesNotMatch(
+    effective,
+    /\$\{NODE_AUTH_TOKEN\}|XXXXX-XXXXX-XXXXX-XXXXX/,
+    'the setup-node placeholder must not survive as the effective credential',
+  );
+});
+
+test('a token pasted with a trailing newline is still a legal header value', () => {
+  const { result, userConfig } = runPublishCredentials({ RAW_NPM_TOKEN: 'npm_realtoken\n' });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(fs.readFileSync(userConfig, 'utf8'), /^\/\/registry\.npmjs\.org\/:_authToken=npm_realtoken$/m);
+});
+
+test('an unset secret fails the step instead of attempting an anonymous publish', () => {
+  // The environment is what carries NPM_TOKEN. A job that reaches this step
+  // without it -- a renamed secret, an environment that did not attach --
+  // must not fall through to `npm publish` with no credential and read the
+  // resulting 404 as a registry problem.
+  const { result } = runPublishCredentials({ RAW_NPM_TOKEN: '' });
+
+  assert.notEqual(result.status, 0, 'an empty token must fail the step');
+  assert.match(result.stderr, /NPM_TOKEN resolved empty/);
+});
