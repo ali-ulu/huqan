@@ -1,4 +1,4 @@
-// #363 güvenlik regresyon testleri: egitim demo script'i artık scripts/ altında,
+// #363 güvenlik regresyon testleri: knowledge-graph demo script'i scripts/ altında,
 // opt-in demo modu gerektirir (AXIOM_DEMO_MODE=1 veya --demo), require edilmekle
 // çalışmaz ve production memory'ye (CWD memory.json) asla dokunmaz.
 const { describe, it } = require('node:test');
@@ -9,9 +9,9 @@ const os = require('node:os');
 const path = require('node:path');
 
 const repoRoot = path.resolve(__dirname, '..');
-const scriptPath = path.join(repoRoot, 'scripts', 'egitim-demo.js');
+const scriptPath = path.join(repoRoot, 'scripts', 'knowledge-graph-demo.js');
 
-const demoMod = require('../scripts/egitim-demo');
+const demoMod = require('../scripts/knowledge-graph-demo');
 
 function makeTempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -27,7 +27,7 @@ function removeTempDir(dir) {
   }
 }
 
-describe('#363 egitim demo güvenliği', () => {
+describe('#363 knowledge-graph demo güvenliği', () => {
   it('module require edilmesi demo çalıştırmaz ve hiçbir dosya yazmaz', () => {
     const cwd = makeTempDir('axiom-egitim-require-');
     try {
@@ -75,7 +75,7 @@ describe('#363 egitim demo güvenliği', () => {
       const intended = demoMod.resolvePersistDir([], cwd);
       assert.strictEqual(path.isAbsolute(intended), true);
       assert.strictEqual(intended.startsWith(cwd), false);
-      assert.match(intended, /huqan-egitim-demo/);
+      assert.match(intended, /huqan-knowledge-graph-demo/);
       assert.strictEqual(intended.startsWith(os.tmpdir()), true);
     } finally {
       removeTempDir(cwd);
@@ -93,10 +93,12 @@ describe('#363 egitim demo güvenliği', () => {
     }
   });
 
-  it('package.json manifest egitim.js içermez, scripts/egitim-demo.js içerir', () => {
+  it('package.json manifest egitim.js içermez, canonical knowledge-graph demo içerir', () => {
     const pkg = require('../package.json');
     assert.ok(!pkg.files.includes('egitim.js'), 'egitim.js npm files içinde olmamalı');
-    assert.ok(pkg.files.includes('scripts/egitim-demo.js'), 'scripts/egitim-demo.js npm files içinde olmalı');
-    assert.match(pkg.scripts.train, /scripts\/egitim-demo\.js/);
+    assert.ok(!pkg.files.includes('scripts/egitim-demo.js'), 'legacy scripts/egitim-demo.js npm files içinde olmamalı');
+    assert.ok(pkg.files.includes('scripts/knowledge-graph-demo.js'), 'scripts/knowledge-graph-demo.js npm files içinde olmalı');
+    assert.match(pkg.scripts['demo:knowledge-graph'], /scripts\/knowledge-graph-demo\.js/);
+    assert.match(pkg.scripts.train, /scripts\/knowledge-graph-demo\.js/);
   });
 });
