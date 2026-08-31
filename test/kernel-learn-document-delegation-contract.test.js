@@ -19,11 +19,15 @@ function methodBody(source, methodName) {
   return source.slice(bodyStart + 1, end).trim();
 }
 
-test('KERNEL: learnDocument is a one-line delegate', () => {
-  assert.equal(
-    methodBody(kernelSource, 'learnDocument'),
-    'return runLearnDocument((line, options) => this.learn(line, options), text, opts);',
-  );
+test('KERNEL: learnDocument is a narrow delegate with a guarded batch-save flush (#1747)', () => {
+  const body = methodBody(kernelSource, 'learnDocument');
+  // Still a narrow delegate: single runLearnDocument call, no inline loop.
+  assert.match(body, /runLearnDocument\(\(line, options\) => this\.learn\(line, options\), text, opts\)/);
+  assert.doesNotMatch(body, /\bfor\s*\(|\bwhile\s*\(/);
+  // Batch persistence flush only under the explicit opt-in.
+  assert.match(body, /opts\.deferSave === true/);
+  assert.match(body, /this\.graph\.save\(\)/);
+  assert.match(body, /return result;/);
 });
 
 test('KERNEL: learnDocument delegate is narrow and cycle-free', () => {

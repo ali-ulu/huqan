@@ -960,7 +960,13 @@ class Kernel {
   }
 
   learnDocument(text, opts = {}) {
-    return runLearnDocument((line, options) => this.learn(line, options), text, opts);
+    const result = runLearnDocument((line, options) => this.learn(line, options), text, opts);
+    // #1747 batch persistence: with deferSave the per-learned-line save is
+    // suppressed inside learn(); flush the graph once per document here.
+    if (opts.deferSave === true) {
+      try { this.graph.save(); } catch (e) { console.error("[Kernel] Graph save hatası:", e.message); }
+    }
+    return result;
   }
 
   /**
