@@ -2,11 +2,16 @@
 
 ## v0.11.1
 
-Unreleased — the manifest is bumped and waiting on a `v0.11.1` tag. It carries
-everything listed under v0.11.0 below, which never reached the registry: the
-`v0.11.0` tag predates the fix below, and the publish job checks out the tag,
-so that tag can no longer pass its own gate. v0.10.0 is still what
-`npm install -g huqan` serves.
+Released 2026-08-31 — `npm install -g huqan` now serves this version. It
+carries everything listed under v0.11.0 and v0.10.1 below, neither of which
+reached the registry, so the last version users actually received was v0.10.0.
+
+The upload was made by hand rather than by `publish.yml`, so the published
+tarball carries **no npm provenance attestation** and cannot be traced
+cryptographically back to the `v0.11.1` tag (`ffbe070`), which is the commit it
+was built from. The publish job has since moved from a stored npm token to
+GitHub OIDC trusted publishing (#1690), which attests every upload; releases
+from the next tag onward will carry provenance.
 
 ### Fixed
 - **Publishing from a release tag (#1745).** The live Git guard in
@@ -24,6 +29,10 @@ so that tag can no longer pass its own gate. v0.10.0 is still what
   canonical ancestry, both still fail closed.
 
 ## v0.11.0
+
+Never released under its own tag — these changes reached users as part of
+v0.11.1 above. The `v0.11.0` tag predates the #1745 fix, and because the publish
+job checks out the tag, that tag can no longer pass its own release gate.
 
 ### Added
 - **fractal-learn (#1714).** New `huqan.fractal-learn` MCP tool running a
@@ -43,11 +52,11 @@ so that tag can no longer pass its own gate. v0.10.0 is still what
 
 ## v0.10.1
 
-Unreleased — the manifest is bumped and waiting on a `v0.10.1` tag. Until that
-tag is pushed, `npm install -g huqan` still serves v0.10.0, which carries none
-of the fixes below.
+Never released under its own tag — these changes reached users as part of
+v0.11.1 above. The heading is kept because the entries below are the record of
+what landed, not a promise of a version that will ship.
 
-Primarily a security release, and the first release since v0.10.0 reached the
+Primarily a security release, and the first work since v0.10.0 reached the
 registry on 2026-08-27, so it also carries everything else that landed in
 between.
 
