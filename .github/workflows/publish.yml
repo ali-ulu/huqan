@@ -31,10 +31,11 @@ jobs:
     name: Publish
     runs-on: ubuntu-latest
 
-    # The environment carries the NPM_TOKEN and the required reviewers/branch
-    # policy. A dispatch from an unauthorized ref cannot reach the secret at
-    # all if the environment's deployment-branch policy is set to `v*` tags
-    # only, which is the intended configuration for this job.
+    # The environment carries the required reviewers/branch policy, and is now
+    # also half of the publish credential: its name is part of the OIDC claim
+    # npm checks against the package's trusted publisher, so a job running
+    # outside `npm-publish` cannot publish even from a valid tag. Keep the
+    # environment's deployment-branch policy set to `v*` tags only.
     environment: npm-publish
 
     permissions:
@@ -60,7 +61,8 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: package-lock.json
-          # Writes the .npmrc that makes NODE_AUTH_TOKEN below authenticate.
+          # Points npm at the public registry. The auth line this also seeds is
+          # cleared in the publish step below, which authenticates over OIDC.
           registry-url: 'https://registry.npmjs.org'
 
       # Release authority, checked once for every trigger (#1673).
@@ -154,6 +156,32 @@ jobs:
       - name: Run the full test suite
         run: npm test
 
+      # Trusted publishing needs a newer npm than any Node 22 image ships
+      # (setup-node's Node 22 comes with npm 10.x). The OIDC exchange lives in
+      # npm >= 11.5.1; on an older CLI `npm publish` silently falls back to
+      # looking for an _authToken and fails as if the credential were wrong.
+      # This step is therefore load-bearing, not hygiene.
+      - name: Install an npm that can exchange OIDC for a publish credential
+        run: |
+          set -euo pipefail
+          npm install -g npm@latest
+          npm --version
+
+      # Publishes with GitHub's OIDC identity instead of a long-lived npm
+      # token. npm mints a short-lived, single-publish credential after
+      # checking this repository, this workflow file and this environment
+      # against the trusted publisher configured on the package.
+      #
+      # This replaces secrets.NPM_TOKEN, and the replacement is the point: a
+      # granular token expires and has to be minted, scoped and pasted into
+      # the environment again on a schedule, and every failure mode of that
+      # dance (wrong account, package not in the selection, 2FA required,
+      # trailing newline, the wrong .npmrc) surfaces as npm's unauthorized-PUT
+      # 404 -- an error that names the package rather than the credential.
+      # There is nothing to rotate here, so none of that recurs.
+      #
+      # No `--provenance` flag: trusted publishing attests every upload, and
+      # passing it explicitly is redundant rather than additive.
       - name: Publish
         if: github.event_name == 'push' || inputs.dry_run == false
         run: |
@@ -168,35 +196,14 @@ jobs:
             exit 1
           fi
 
-          # secrets.NPM_TOKEN historically carried a trailing newline (set
-          # from a piped echo, e.g. `echo $token | gh secret set`), which
-          # makes npm's Authorization header illegal: "<token> is not a
-          # legal HTTP header value". npm tokens are [A-Za-z0-9_]+, so
-          # stripping CR/LF is safe and makes the publish independent of
-          # how the secret was pasted.
-          token="$(printf '%s' "$RAW_NPM_TOKEN" | tr -d '\r\n')"
-          if [ -z "${token}" ]; then
-            echo "::error::NPM_TOKEN resolved empty; refusing to attempt an unauthenticated publish." >&2
-            exit 1
-          fi
-
-          # Write to the file npm will actually read. `setup-node` with
-          # registry-url does not touch ~/.npmrc: it writes its own file under
-          # RUNNER_TEMP and exports NPM_CONFIG_USERCONFIG at it, which outranks
-          # the home directory. Its seeded line is
-          # `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}`, and
-          # NODE_AUTH_TOKEN defaults to the literal `XXXXX-XXXXX-XXXXX-XXXXX`.
-          # Writing a valid token to ~/.npmrc therefore published nothing and
-          # authenticated with that placeholder; npm answers an unauthorized
-          # PUT with 404, not 403, so the failure read as "the package does not
-          # exist" and pointed at a token that was never the problem
-          # (run 33342689402).
+          # setup-node seeded a userconfig whose only auth line dereferences
+          # NODE_AUTH_TOKEN, which is unset here. Left in place npm reads it as
+          # an empty credential and never attempts the OIDC exchange, so the
+          # registry line is rewritten without it.
           npmrc="${NPM_CONFIG_USERCONFIG:-${HOME}/.npmrc}"
           printf 'registry=https://registry.npmjs.org/\n' > "${npmrc}"
-          printf '//registry.npmjs.org/:_authToken=%s\n' "${token}" >> "${npmrc}"
-          npm publish --provenance --access public
-        env:
-          RAW_NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+          npm publish --access public
 
       - name: Dry run complete
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run

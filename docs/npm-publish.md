@@ -78,51 +78,84 @@ jobs:
 ```
 
 That declaration alone is **not** proof that the repository-side environment
-policy is configured. GitHub can create an environment implicitly, and a
-repository-scoped `NPM_TOKEN` is not made environment-scoped merely because the
-job names an environment.
+policy is configured. GitHub can create an environment implicitly, and naming
+an environment does not by itself restrict who may deploy to it.
+
+Since the move to trusted publishing the environment is no longer only defense
+in depth: **its name is half of the publish credential.** npm checks the
+repository, the workflow filename and the environment name carried in the OIDC
+claim against the trusted publisher configured on the package, so a job running
+outside `npm-publish` cannot publish even from a valid release tag.
 
 Before the next real npm publication, a repository administrator must verify
 all of the following in **Settings -> Environments -> npm-publish**:
 
 - the `npm-publish` environment exists intentionally;
 - deployment branches/tags are restricted so only release `v*` tags can deploy;
-- `NPM_TOKEN` is stored as an **environment secret** for `npm-publish`;
-- any repository-scoped `NPM_TOKEN` is removed after the environment secret is
-  confirmed working, unless a separately documented workflow still needs it;
 - required reviewers are configured if a human publication gate is desired.
 
-The workflow's own tag/version/default-branch checks remain mandatory even
-when the environment is configured. The environment is defense in depth, not
-an alternative release authority.
+There is no `NPM_TOKEN` to scope any more. If one is still stored — repository
+secret or environment secret — delete it: it is now an unused long-lived write
+credential for the package, which is strictly worse than having none.
 
-### How to verify the environment setup
+The workflow's own tag/version/default-branch checks remain mandatory even when
+the environment is configured. They are an independent release authority, not a
+restatement of the credential.
+
+## npm trusted publisher (one-time, on npmjs.com)
+
+The workflow authenticates over OIDC and stores nothing, but that only works
+once the package itself names this workflow as a trusted publisher. Until it
+does, every release fails at the upload step — and it fails as an HTTP 404
+naming the package, because npm answers an unauthorized `PUT` with 404 rather
+than 403. The message reads `'huqan@x.y.z' is not in this registry`, which
+looks like a registry problem and is in fact a credential problem. Runs
+33342689402, 33343813607 and their four predecessors all died exactly here,
+with every release gate already passed.
+
+On **npmjs.com → the `huqan` package → Settings → Trusted Publisher**, add a
+GitHub Actions publisher with exactly:
+
+```text
+Organization or user: ali-ulu
+Repository:           huqan
+Workflow filename:    publish.yml
+Environment:          npm-publish
+```
+
+All four must match the workflow, the environment name included. A mismatch in
+any one of them produces the same 404 as having configured nothing at all.
+
+### How to verify the setup
 
 Do not close #1690 from source review alone. Record repository-admin evidence
-showing the environment policy and secret scope. Secret **values must never be
-copied into an issue, log, screenshot, command output or documentation**.
+showing the environment policy and the trusted-publisher entry.
 
 A safe verification record contains only facts such as:
 
 ```text
 Environment: npm-publish
 Deployment policy: protected/restricted to release v* tags
-NPM_TOKEN scope: environment
 Required reviewers: configured / intentionally not configured
+Trusted publisher on npm: ali-ulu/huqan, publish.yml, env npm-publish
+Stored NPM_TOKEN: none (removed)
 Verified by: <admin>
 Verified at: <timestamp>
 ```
 
 Then run the publish workflow manually from the intended release tag with
-`dry_run` left enabled. A dry run must pass every release gate without uploading
-anything. The environment configuration itself must still be checked in GitHub
-Settings because a successful dry run does not prove where a secret is scoped.
+`dry_run` left enabled. A dry run passes every release gate without uploading,
+so it proves the gates and the tag binding — but **not** the credential: the
+OIDC exchange only happens at the upload npm dry runs withhold. The trusted
+publisher entry must therefore still be checked on npmjs.com.
 
 ## Publishing from CI (preferred)
 
-`.github/workflows/publish.yml` is tag-driven and publishes with npm provenance.
-The workflow obtains an OIDC token for the provenance attestation and supplies
-`NPM_TOKEN` only to the final publish step.
+`.github/workflows/publish.yml` is tag-driven and authenticates with GitHub's
+OIDC identity rather than a stored token: npm mints a short-lived, single-upload
+credential after checking the claim against the package's trusted publisher.
+Provenance is attested automatically, so the workflow passes no `--provenance`
+flag. Nothing is stored, so nothing expires and nothing has to be rotated.
 
 For a release after the version decision is reviewed:
 

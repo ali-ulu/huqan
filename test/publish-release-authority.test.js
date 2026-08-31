@@ -173,30 +173,59 @@ test('the publish job is bound to a protected environment', () => {
 test('a dry run still withholds the upload', () => {
   const publishStep = workflowSource.slice(workflowSource.indexOf('- name: Publish'));
   assert.match(publishStep, /if:\s*github\.event_name == 'push' \|\| inputs\.dry_run == false/);
-  assert.match(publishStep, /npm publish --provenance --access public/);
+  assert.match(publishStep, /npm publish --access public/);
   assert.match(workflowSource, /- name: Dry run complete/);
 });
 
-// --- The credentials have to land where npm actually looks ---
+// --- The credential is minted, not stored ---
 //
-// `actions/setup-node` with `registry-url` does not write `~/.npmrc`. It
-// writes its own file under RUNNER_TEMP and exports
-// `NPM_CONFIG_USERCONFIG` pointing at it, which takes precedence over the
-// home directory -- and seeds it with the literal placeholder
-// `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}`, where
-// NODE_AUTH_TOKEN defaults to the string `XXXXX-XXXXX-XXXXX-XXXXX`.
+// Publishing authenticates with GitHub's OIDC identity: npm checks the
+// repository, workflow file and environment in the claim against the trusted
+// publisher configured on the package, then mints a short-lived credential
+// for that one upload. Nothing is stored, so nothing expires and nothing is
+// rotated.
 //
-// So a publish step that writes a perfectly good token to `$HOME/.npmrc`
-// authenticates with that placeholder instead. npm answers a PUT from an
-// unauthorized client with 404 rather than 403, so the failure reads as
-// "the package does not exist" and sends everyone to look at the token,
-// which is valid. That is what run 33342689402 did, after every gate --
-// including the full suite -- had passed.
-//
-// The step is executed here rather than pattern-matched, so the assertion is
-// that the token is readable at the path npm will consult.
+// The tests below pin the three things that silently revert this to the
+// long-lived-token arrangement it replaced. Each has already cost a failed
+// release once, and each surfaces as the same misleading error: npm answers
+// an unauthorized PUT with 404, not 403, so a credential problem reads as
+// "the package does not exist" and sends everyone to look at the registry.
 
 const publishScript = extractRunScript('Publish');
+
+test('the job can obtain an OIDC token', () => {
+  // Without `id-token: write` the runner has no identity to exchange and the
+  // publish falls back to looking for a token that is no longer there.
+  assert.match(workflowSource, /^\s*id-token:\s*write\s*$/m);
+});
+
+test('no long-lived npm credential is referenced anywhere in the workflow', () => {
+  // Comments are stripped first: the prose explains why the token is gone and
+  // has to be free to name it. Only executable lines are pinned.
+  const executable = workflowSource
+    .split('\n')
+    .filter((line) => !/^\s*#/.test(line))
+    .join('\n');
+
+  assert.doesNotMatch(
+    executable,
+    /secrets\.NPM_TOKEN|NODE_AUTH_TOKEN/,
+    'a stored token reintroduces the expiry-and-rotation failure mode that trusted publishing removes',
+  );
+});
+
+test('npm is upgraded past the version that can exchange OIDC', () => {
+  // setup-node's Node 22 ships npm 10.x. The OIDC exchange landed in 11.5.1;
+  // on an older CLI `npm publish` looks for an _authToken instead and fails.
+  const upgradeIndex = workflowSource.indexOf('npm install -g npm@latest');
+  const publishIndex = workflowSource.indexOf('- name: Publish');
+  assert.ok(upgradeIndex > -1, 'the publish job must install an npm that supports trusted publishing');
+  assert.ok(upgradeIndex < publishIndex, 'the upgrade must happen before the publish step');
+});
+
+// The step below is executed rather than pattern-matched: the assertion is
+// about the state of the file npm will actually consult, not about the text
+// of the script that produces it.
 
 function runPublishCredentials(env) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-publish-npmrc-'));
@@ -239,37 +268,18 @@ function runPublishCredentials(env) {
   return { result, userConfig, home };
 }
 
-test('the token is written where npm reads it, not to $HOME', () => {
-  const { result, userConfig } = runPublishCredentials({ RAW_NPM_TOKEN: 'npm_realtoken' });
+test('the setup-node auth placeholder is cleared before publishing', () => {
+  // setup-node seeds the userconfig with `_authToken=${NODE_AUTH_TOKEN}`,
+  // which is unset here. npm reads that as an empty stored credential and
+  // never attempts the OIDC exchange, so the line has to go.
+  const { result, userConfig } = runPublishCredentials({});
 
   assert.equal(result.status, 0, result.stderr);
   const effective = fs.readFileSync(userConfig, 'utf8');
-  assert.match(
-    effective,
-    /^\/\/registry\.npmjs\.org\/:_authToken=npm_realtoken$/m,
-    'npm reads NPM_CONFIG_USERCONFIG; the token must be readable there',
-  );
+  assert.match(effective, /^registry=https:\/\/registry\.npmjs\.org\/$/m);
   assert.doesNotMatch(
     effective,
-    /\$\{NODE_AUTH_TOKEN\}|XXXXX-XXXXX-XXXXX-XXXXX/,
-    'the setup-node placeholder must not survive as the effective credential',
+    /_authToken/,
+    'any _authToken line, placeholder or not, suppresses the OIDC exchange',
   );
-});
-
-test('a token pasted with a trailing newline is still a legal header value', () => {
-  const { result, userConfig } = runPublishCredentials({ RAW_NPM_TOKEN: 'npm_realtoken\n' });
-
-  assert.equal(result.status, 0, result.stderr);
-  assert.match(fs.readFileSync(userConfig, 'utf8'), /^\/\/registry\.npmjs\.org\/:_authToken=npm_realtoken$/m);
-});
-
-test('an unset secret fails the step instead of attempting an anonymous publish', () => {
-  // The environment is what carries NPM_TOKEN. A job that reaches this step
-  // without it -- a renamed secret, an environment that did not attach --
-  // must not fall through to `npm publish` with no credential and read the
-  // resulting 404 as a registry problem.
-  const { result } = runPublishCredentials({ RAW_NPM_TOKEN: '' });
-
-  assert.notEqual(result.status, 0, 'an empty token must fail the step');
-  assert.match(result.stderr, /NPM_TOKEN resolved empty/);
 });
