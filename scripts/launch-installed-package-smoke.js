@@ -382,7 +382,7 @@ function verifyServerApprovedReceiptAndViewer(consumer, baseEnv) {
 
     const viewerShellResponse = await fetch(base + '/viewer');
     const viewerShell = await viewerShellResponse.text();
-    if (viewerShellResponse.status !== 200 || !/text\\/html/i.test(viewerShellResponse.headers.get('content-type') || '') || !viewerShell.includes('HUQAN')) {
+    if (viewerShellResponse.status !== 200 || !/text\/html/i.test(viewerShellResponse.headers.get('content-type') || '') || !viewerShell.includes('HUQAN')) {
       throw new Error('viewer shell contract failed: ' + viewerShellResponse.status);
     }
 
@@ -499,7 +499,7 @@ function verifyServerApprovedReceiptAndViewer(consumer, baseEnv) {
       viewerReceipt: viewerReceipt.receipt,
       preApprovalVerified: false,
       postApprovalVerified: true,
-    }) + '\\n');
+    }) + '\n');
   } finally {
     if (listening?.listening) {
       await new Promise(resolve => listening.close(resolve));
