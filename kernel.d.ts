@@ -35,6 +35,12 @@ export interface LearnData {
 
 export interface LearnOptions extends Record<string, unknown> {
   returnDetails?: boolean;
+  /**
+   * #1747 batch persistence: when true, `learnDocument` suppresses the
+   * per-learned-line full `graph.save()` and flushes the graph once at the
+   * end of the document. Default (absent/false) is unchanged.
+   */
+  deferSave?: boolean;
 }
 
 export interface LearnDocumentResult {
