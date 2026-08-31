@@ -960,7 +960,7 @@ class Kernel {
   }
 
   learnDocument(text, opts = {}) {
-    return runLearnDocument((line, options) => this.learn(line, options), text, opts);
+    return runLearnDocument((line, options) => this.learn(line, options), text, opts, { flushGraph: () => this.graph.save() });
   }
 
   /**
