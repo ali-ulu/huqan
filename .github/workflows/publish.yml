@@ -175,7 +175,25 @@ jobs:
           # stripping CR/LF is safe and makes the publish independent of
           # how the secret was pasted.
           token="$(printf '%s' "$RAW_NPM_TOKEN" | tr -d '\r\n')"
-          printf '//registry.npmjs.org/:_authToken=%s\n' "${token}" > "${HOME}/.npmrc"
+          if [ -z "${token}" ]; then
+            echo "::error::NPM_TOKEN resolved empty; refusing to attempt an unauthenticated publish." >&2
+            exit 1
+          fi
+
+          # Write to the file npm will actually read. `setup-node` with
+          # registry-url does not touch ~/.npmrc: it writes its own file under
+          # RUNNER_TEMP and exports NPM_CONFIG_USERCONFIG at it, which outranks
+          # the home directory. Its seeded line is
+          # `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}`, and
+          # NODE_AUTH_TOKEN defaults to the literal `XXXXX-XXXXX-XXXXX-XXXXX`.
+          # Writing a valid token to ~/.npmrc therefore published nothing and
+          # authenticated with that placeholder; npm answers an unauthorized
+          # PUT with 404, not 403, so the failure read as "the package does not
+          # exist" and pointed at a token that was never the problem
+          # (run 33342689402).
+          npmrc="${NPM_CONFIG_USERCONFIG:-${HOME}/.npmrc}"
+          printf 'registry=https://registry.npmjs.org/\n' > "${npmrc}"
+          printf '//registry.npmjs.org/:_authToken=%s\n' "${token}" >> "${npmrc}"
           npm publish --provenance --access public
         env:
           RAW_NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
