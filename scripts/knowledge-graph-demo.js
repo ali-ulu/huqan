@@ -28,12 +28,12 @@ const Kernel = require('../kernel');
 const Dream = require('../dream');
 
 const IDENTITY_SEED_PATH = path.join(__dirname, '..', 'docs', 'seed', 'huqan-identity.seed.json');
-const DEMO_BYPASS_REASON = 'egitim demo seed';
+const DEMO_BYPASS_REASON = 'knowledge graph demo seed';
 
 // #363: izole dizin. Production memory'nin bulunduğu yere hiçbir koşulda
 // dokunmaz; yalnızca açık `--persist-dir` flag'ı hedefi değiştirir.
 function defaultPersistDir() {
-  return path.join(os.tmpdir(), 'huqan-egitim-demo', String(process.pid));
+  return path.join(os.tmpdir(), 'huqan-knowledge-graph-demo', String(process.pid));
 }
 
 // Opt-in demo modu: HUQAN_DEMO_MODE=1 ortam değişkeni VEYA açık `--demo` flag'ı.
@@ -153,8 +153,8 @@ function buildDemoCorpus(identitySeed) {
 
 function main(argv = process.argv.slice(2), env = process.env) {
   if (!isDemoRequested(argv, env)) {
-    console.error('egitim-demo: demo mode is off. To run it deliberately: HUQAN_DEMO_MODE=1 node scripts/egitim-demo.js');
-    console.error('egitim-demo: (#363 safety guard) the demo never touches production memory.json; its default target is an isolated temporary directory.');
+    console.error('knowledge-graph-demo: demo mode is off. To run it deliberately: HUQAN_DEMO_MODE=1 node scripts/knowledge-graph-demo.js');
+    console.error('knowledge-graph-demo: (#363 safety guard) the demo never touches production memory.json; its default target is an isolated temporary directory.');
     process.exitCode = 2;
     return;
   }

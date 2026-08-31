@@ -75,7 +75,7 @@ describe('#363 knowledge-graph demo güvenliği', () => {
       const intended = demoMod.resolvePersistDir([], cwd);
       assert.strictEqual(path.isAbsolute(intended), true);
       assert.strictEqual(intended.startsWith(cwd), false);
-      assert.match(intended, /huqan-egitim-demo/);
+      assert.match(intended, /huqan-knowledge-graph-demo/);
       assert.strictEqual(intended.startsWith(os.tmpdir()), true);
     } finally {
       removeTempDir(cwd);
