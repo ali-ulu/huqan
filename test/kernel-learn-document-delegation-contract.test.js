@@ -19,15 +19,19 @@ function methodBody(source, methodName) {
   return source.slice(bodyStart + 1, end).trim();
 }
 
-test('KERNEL: learnDocument is a narrow delegate with a guarded batch-save flush (#1747)', () => {
+test('KERNEL: learnDocument is a one-line delegate; batch flush lives in the module (#1747)', () => {
   const body = methodBody(kernelSource, 'learnDocument');
-  // Still a narrow delegate: single runLearnDocument call, no inline loop.
-  assert.match(body, /runLearnDocument\(\(line, options\) => this\.learn\(line, options\), text, opts\)/);
-  assert.doesNotMatch(body, /\bfor\s*\(|\bwhile\s*\(/);
-  // Batch persistence flush only under the explicit opt-in.
-  assert.match(body, /opts\.deferSave === true/);
-  assert.match(body, /this\.graph\.save\(\)/);
-  assert.match(body, /return result;/);
+  // Still a one-line delegate: single runLearnDocument call, no inline loop,
+  // no flush logic inline (kernel.js line budget, #328). The graph flush is
+  // injected as a hook; the deferSave decision is owned by the module.
+  assert.match(
+    body,
+    /runLearnDocument\(\(line, options\) => this\.learn\(line, options\), text, opts, \{ flushGraph: \(\) => this\.graph\.save\(\) \}\)/,
+  );
+  assert.doesNotMatch(body, /\bfor\s*\(|\bwhile\s*\(|deferSave/);
+  const moduleSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'kernel-learn-document.js'), 'utf8');
+  assert.match(moduleSource, /opts\.deferSave === true/);
+  assert.match(moduleSource, /hooks\.flushGraph\(\)/);
 });
 
 test('KERNEL: learnDocument delegate is narrow and cycle-free', () => {

@@ -13,7 +13,7 @@ const { emitGateTelemetry } = require('./lib/gate-telemetry');
 const { detectClaimConflict } = require('./lib/conflict-detector');
 const { createKernelReadUseCases } = require('./lib/kernel-read-use-cases');
 const { runLearnUseCase } = require('./lib/learn-use-case');
-const { runLearnDocument } = require('./lib/kernel-learn-document');
+const { runLearnDocument, runLearnDocumentBatched } = require('./lib/kernel-learn-document');
 const { runSelfLearn } = require('./lib/kernel-self-learn');
 const { runLearnFromLLM } = require('./lib/kernel-learn-from-llm');
 const { runDream } = require('./lib/kernel-dream');
@@ -143,6 +143,10 @@ class Kernel {
     // Can be disabled with enableConcurrencyLock=false for backward compatibility.
     this._enableConcurrencyLock = opts.enableConcurrencyLock !== false;
     this._lockAcquired = false;
+    // #1747: while a batched document learn (learnDocument deferSave) is in
+    // flight this holds the document's shared _postCommitEffects array, so
+    // per-line learns run inside the document's single durable mutation.
+    this._durableMutationBatch = null;
 
     // v0.9.1: HUQAN Memory Core — kernel.memory API
     this.memory = new MemoryStore({
@@ -640,6 +644,24 @@ class Kernel {
   // and crash-safety guarantee, not just MCP-approved learns.
   learn(text, opts = {}) {
     const { text: nextText, opts: nextOpts } = admitLearn(this, text, opts);
+    // #1747 batched document learn: while learnDocument(deferSave) runs the
+    // whole document inside one durable mutation, per-line learns must NOT
+    // start their own runMutationOnce (nested JSON mutations are forbidden,
+    // and a per-line commit would serialize the full graph per line -- the
+    // O(n^2) this opt-in exists to remove). They run inside the document's
+    // transaction with the exact same admission/provenance/audit flow as a
+    // standalone learn; the document owns the journal entry and the single
+    // graph commit.
+    if (this._durableMutationBatch) {
+      return runLearnUseCase(this, nextText, {
+        ...nextOpts,
+        _durableMutationTransaction: true,
+        _postCommitEffects: this._durableMutationBatch,
+      }, {
+        normalizeWorkspaceId,
+        ProvenanceError,
+      });
+    }
     this._enterCriticalSection('learn');
     try {
       const operationId = typeof nextOpts.mutationOperationId === 'string' && nextOpts.mutationOperationId.trim()
@@ -960,13 +982,7 @@ class Kernel {
   }
 
   learnDocument(text, opts = {}) {
-    const result = runLearnDocument((line, options) => this.learn(line, options), text, opts);
-    // #1747 batch persistence: with deferSave the per-learned-line save is
-    // suppressed inside learn(); flush the graph once per document here.
-    if (opts.deferSave === true) {
-      try { this.graph.save(); } catch (e) { console.error("[Kernel] Graph save hatası:", e.message); }
-    }
-    return result;
+    return runLearnDocument((line, options) => this.learn(line, options), text, opts, { flushGraph: () => this.graph.save() });
   }
 
   /**
