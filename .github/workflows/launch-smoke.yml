@@ -13,6 +13,9 @@ on:
       - 'lib/**'
       - 'scripts/launch-installed-package-smoke.js'
       - 'scripts/verify-package-tarball.js'
+      - 'test/memory-lifecycle-restore-receipt-chain.test.js'
+      - 'test/memory-tombstone-supersede-downstream-exclusion.test.js'
+      - 'test/memory-mutation-race-adversarial.test.js'
 
 permissions:
   contents: read
@@ -52,3 +55,6 @@ jobs:
 
       - name: Exercise installed launch surfaces
         run: node scripts/launch-installed-package-smoke.js
+
+      - name: Lifecycle smoke slice (memory store + receipt chain, Node 22)
+        run: node --test test/memory-lifecycle-restore-receipt-chain.test.js test/memory-tombstone-supersede-downstream-exclusion.test.js test/memory-mutation-race-adversarial.test.js
