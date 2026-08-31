@@ -1,176 +1,197 @@
 # Publishing `huqan` to npm
 
-**Status:** implementation
+**Status:** implementation + release runbook
 
-**About:** `main` at the commit that revised this page, with `package.json` at
-version 0.10.1 and v0.10.0 on the registry since 2026-08-27.
+**Source reality at this revision:** `package.json` is `0.11.1`; the latest
+stable GitHub Release is `v0.10.0`. Existing version/tag state must be checked
+again immediately before any publication because npm versions and Git tags are
+immutable release identities.
 
-`huqan` is published: `npm view huqan version` answers, and `npm install -g
-huqan` reaches real users. That changes what this runbook is for. The first
-publish decided what the name means; every publish after it decides what
-existing installs upgrade into, and npm allows unpublishing only within 72
-hours and only while nothing depends on the version. This page is the runbook:
-what the repository already checks for you, what only a human with the npm
-account can do, and how to tell afterwards whether it worked.
+`huqan` is already public on npm. Every later publish therefore changes what
+existing installs can upgrade into. Never edit or repoint an already-published
+version/tag to make it represent newer code; publish a new version instead.
 
-> A published version is never edited in place. If something is wrong with what
-> is on the registry, the fix is a new version — see #1688 for the security
-> release that motivated this revision.
+## What the repository checks
 
-## What runs automatically
+`package.json#prepublishOnly` intentionally runs only:
 
-`npm publish` triggers `prepublishOnly`, which is:
-
-```
-npm run check:package-closure && npm test
+```bash
+npm run check:package-closure
 ```
 
-and `npm run verify:tarball` covers the half those two cannot reach. The CI
-workflow runs the tarball verification explicitly and lets `npm publish` run
-the other two, so the halves do not overlap: one proves the source tree is
-sound, the other proves the tarball behaves.
+The CI publish workflow performs the expensive gates as explicit steps before
+`npm publish`:
 
-Those two cover the failure this repository has actually shipped. In v0.10.0,
-three modules the installed package loads at require time were missing from
-`package.json#files`, so the tarball threw `Cannot find module` from inside
-`node_modules` while every path still resolved from a clone.
-`scripts/check-package-closure.js` walks load-time requires outward from
-`main`, every declared `bin`, and each published plugin and adapter, and fails
-when one of them is not published.
+1. require an immutable `v<version>` tag;
+2. require the tag name to match `package.json#version` exactly;
+3. require the tagged commit to be an ancestor of the default branch;
+4. refuse a version that already exists on npm;
+5. run `npm ci --include=optional`;
+6. run `npm run verify:tarball` against a clean installed consumer;
+7. run the full `npm test` suite;
+8. publish with npm provenance only after all gates pass.
 
-What it does **not** cover: whether the tarball behaves once installed. A
-module can be present and still be wrong. The smoke below is the part no static
-check replaces.
+The full test suite is deliberately not nested inside `prepublishOnly`.
+Installed-package tests themselves invoke npm pack/install operations, and
+running them from inside an outer `npm publish` contaminates those nested npm
+processes. `.github/workflows/publish.yml` is the authoritative orchestration.
 
 ## Before you publish
 
-1. **Be on a clean `main`.** `package.json#version` is what gets published; the
-   tag has to agree with it, and CI additionally requires the tagged commit to
-   be an ancestor of `main` (#1673), so a tag on an unmerged commit is refused.
+1. **Start from reviewed `main`.** Confirm the intended commit and that the
+   release version is not already published.
 
    ```bash
-   git checkout main && git pull && git status --porcelain
+   git checkout main
+   git pull
+   git status --porcelain
+   npm view huqan versions --json
    ```
 
-2. **Decide the version.** `npm publish` refuses to overwrite an existing
-   version, and npm only allows unpublishing within 72 hours of a publish, and
-   only while nothing depends on it. Treat the number as permanent. Check what
-   is already there first — `npm view huqan versions` — since the workflow's
-   "Refuse to republish an existing version" step will stop a publish that
-   forgets to bump.
+2. **Choose a new immutable version.** Do not reuse or move an existing tag.
+   In particular, a historical `v0.11.0` tag remains the identity of the commit
+   it already points to; newer launch hardening must ship under a newer version.
 
-3. **Rehearse the tarball.** This is the step that catches what tests do not:
+3. **Rehearse the exact tarball.**
 
    ```bash
    npm run verify:tarball
    ```
 
-   It packs the package, installs it into an empty project twice -- once
-   normally and once with `--omit=optional`, since both are documented install
-   shapes -- and checks each one: both bins present, `huqan --version` correct,
-   `huqan quickstart` producing a canonical Trust Receipt, and `huqan-mcp`
-   answering `initialize` and listing its tools.
+   This packs the current source and installs it into empty consumers so the
+   package is tested as a user receives it rather than through paths available
+   only in a clone. It verifies both normal install and the documented
+   optional-dependency boundary.
 
-   The reason it reads output rather than exit codes: a plugin or adapter that
-   fails to load prints a line and the run still exits 0. That line is the
-   defect. `scripts/verify-package-tarball.js` fails on `Plugin failed to
-   load`, `Cannot find module` and `MODULE_NOT_FOUND` anywhere in the
-   quickstart output, which is exactly how v0.10.0's three unpublished modules
-   would have been caught.
+4. **Run the launch installed-package smoke for a launch release.** The launch
+   gate exercises the actual installed CLI, MCP and local server paths and is
+   separate from unit/source tests.
 
-   PDF ingest and PDF receipt export are the only things allowed to be
-   unavailable under `--omit=optional`, and they must fail as
-   `HUQAN_PDF_EXPORT_UNAVAILABLE` naming the package to install, not as a
-   module-not-found.
+## GitHub Environment: `npm-publish` (#1690)
+
+The workflow already declares:
+
+```yaml
+jobs:
+  publish:
+    environment: npm-publish
+```
+
+That declaration alone is **not** proof that the repository-side environment
+policy is configured. GitHub can create an environment implicitly, and a
+repository-scoped `NPM_TOKEN` is not made environment-scoped merely because the
+job names an environment.
+
+Before the next real npm publication, a repository administrator must verify
+all of the following in **Settings -> Environments -> npm-publish**:
+
+- the `npm-publish` environment exists intentionally;
+- deployment branches/tags are restricted so only release `v*` tags can deploy;
+- `NPM_TOKEN` is stored as an **environment secret** for `npm-publish`;
+- any repository-scoped `NPM_TOKEN` is removed after the environment secret is
+  confirmed working, unless a separately documented workflow still needs it;
+- required reviewers are configured if a human publication gate is desired.
+
+The workflow's own tag/version/default-branch checks remain mandatory even
+when the environment is configured. The environment is defense in depth, not
+an alternative release authority.
+
+### How to verify the environment setup
+
+Do not close #1690 from source review alone. Record repository-admin evidence
+showing the environment policy and secret scope. Secret **values must never be
+copied into an issue, log, screenshot, command output or documentation**.
+
+A safe verification record contains only facts such as:
+
+```text
+Environment: npm-publish
+Deployment policy: protected/restricted to release v* tags
+NPM_TOKEN scope: environment
+Required reviewers: configured / intentionally not configured
+Verified by: <admin>
+Verified at: <timestamp>
+```
+
+Then run the publish workflow manually from the intended release tag with
+`dry_run` left enabled. A dry run must pass every release gate without uploading
+anything. The environment configuration itself must still be checked in GitHub
+Settings because a successful dry run does not prove where a secret is scoped.
 
 ## Publishing from CI (preferred)
 
-`.github/workflows/publish.yml` publishes on a `v*` tag, and it is the better
-path for one reason a laptop cannot match: `--provenance`. npm exchanges the
-workflow's OIDC token for a signed attestation tying the tarball to this
-repository, this workflow and this commit, and shows it on the package page.
-For a product whose claim is verifiable provenance, publishing unattested is a
-poor first impression.
+`.github/workflows/publish.yml` is tag-driven and publishes with npm provenance.
+The workflow obtains an OIDC token for the provenance attestation and supplies
+`NPM_TOKEN` only to the final publish step.
 
-**One-time setup.** Create an npm access token of type **Automation** (it
-bypasses 2FA, which is what lets CI publish while your account keeps 2FA on),
-then add it as `NPM_TOKEN`. The job declares `environment: npm-publish`, so the
-token belongs on that environment rather than at repository scope: an
-environment secret is unreachable from any other workflow, and the
-environment's deployment-branch policy can be restricted to `v*` tags so a
-dispatch from a branch cannot reach it at all. See #1690 for the repository-side
-setup, which is admin-only and not enforced by anything in this repository.
-
-**Every release after that:**
+For a release after the version decision is reviewed:
 
 ```bash
-npm version <patch|minor|major>   # bumps package.json and creates the v<x> tag
+npm version <patch|minor|major>
 git push --follow-tags
 ```
 
-The workflow refuses to proceed unless the ref is an immutable `v*` tag whose
-name matches `package.json#version` and whose commit is an ancestor of the
-default branch, and it refuses if that version is already on the registry. The
-same checks run for a manual dispatch — there is no branch path to the publish
-step (#1673).
+Do this only when creating the tag is the intended release action. A Product
+Hunt launch candidate should first finish its exact installed-package smoke;
+creating a tag is not a substitute for that smoke.
 
-To exercise every gate without uploading, run the workflow manually from the
-Actions tab with **dry_run** left checked.
+A manual workflow dispatch is useful for rehearsal. Real publication still
+requires an immutable release tag whose name matches the manifest and whose
+commit is on the default branch.
 
 ## Publishing from a laptop
 
-Works, and produces no provenance attestation. It needs a login and, if the
-account has 2FA on publishes, a one-time code at the prompt.
+A direct laptop publish works but does not provide the GitHub Actions provenance
+attestation and bypasses the repository's environment defense in depth. Prefer
+CI for normal releases.
+
+If emergency/manual publication is deliberately chosen:
 
 ```bash
-npm whoami          # confirm which account you are about to publish as
-npm publish
+npm whoami
+npm publish --access public
 ```
 
-The package is unscoped and public, so no `--access` flag is needed. The
-license is `AGPL-3.0-only`; npm shows it on the package page, and that is the
-license established for everyone who installs.
+Use the same version, tarball and test discipline as CI. Never use a laptop
+publish to work around a failing release gate.
 
-**Consider `--tag next` for a risky release.** It uploads the version without
-moving the `latest` tag, so `npm install huqan` keeps serving the current
-`latest` while `npm install huqan@next` gets the new build. That buys a round of
-real-world verification before existing installs upgrade into it. It is the
-wrong choice for a security release, where the point is that `latest` stops
-being the vulnerable version:
+For a deliberately staged non-security release, `--tag next` can keep `latest`
+on the existing stable version while the new version is verified:
 
 ```bash
-npm publish --tag next
-# ... verify ...
+npm publish --tag next --access public
+# verify the exact published version externally
 npm dist-tag add huqan@<version> latest
 ```
 
+Moving `latest` is itself a release action and must be deliberate.
+
 ## After publishing
 
-Verify from outside the repository, in a directory with no `node_modules` and
-no clone:
+Verify from outside the repository in a directory with no clone-local
+`node_modules`:
 
 ```bash
 npm view huqan version
-cd $(mktemp -d)
+cd "$(mktemp -d)"
 npx -y huqan quickstart
 npx -y --package=huqan huqan-mcp < /dev/null
 ```
 
-The `--package=huqan` is not optional and not cosmetic: the bin is named
-`huqan-mcp` while the package is named `huqan`, so `npx huqan-mcp` looks for a
-package that does not exist. This is the exact string the README gives editors,
-so a failure here is a failure of the documented setup.
+The `--package=huqan` form matters because the executable is named
+`huqan-mcp` while the npm package is named `huqan`.
 
-Then check the rendered package page for the README, the license and the file
-list at `https://www.npmjs.com/package/huqan`.
+Also inspect the rendered npm package page for the expected README, license,
+version, provenance and file list, and compare the published version with the
+Git tag and GitHub Release identity.
 
-## Known limits of what you are publishing
+## Known release boundaries
 
-- `POST /api/a2a/exchange` cannot be enabled from an install. It reaches the V5
-  cryptographic family, which `package.json#files` deliberately does not
-  publish, so the route stays 404 there however it is configured. The other
-  three A2A routes do turn on. See `README.md` and `docs/a2a-deployment.md`.
-- `better-sqlite3` is a required dependency and a native addon. On a platform
-  with no prebuilt binary the install needs a C++ toolchain. `lib/sqlite-availability.js`
-  turns the two failure modes — never installed, versus installed against a
-  different Node ABI — into different messages, because the fix differs.
+- npm versions are immutable release identities; fix mistakes with a new
+  version rather than trying to overwrite one.
+- `better-sqlite3` is a required native dependency. A platform with no matching
+  prebuilt binary may need a C++ toolchain.
+- A passing source/unit suite is not a clean installed-package launch proof.
+- A workflow line saying `environment: npm-publish` is not evidence that #1690
+  is closed; repository-side environment policy and secret scope must be
+  verified separately.
