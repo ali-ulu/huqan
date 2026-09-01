@@ -19,7 +19,28 @@ configuring them does and does not claim.
 | `/api/a2a/tasks/{taskId}` | GET | Read what happened to a prior exchange |
 
 All four mount through `lib/a2a/routes.js`, which `server.js` reaches in one
-line. Each is authenticated.
+line. Each is authenticated. The exchange route additionally sends every
+cryptographically verified delegated action through the Agent Action Firewall
+(AB5) before it reserves a replay key or records an effect.
+
+## Delegated task and policy admission
+
+The signed exchange carries the task in `requestedAction` and the delegation
+policy in `constraints`. The receiver also resolves the source identity's
+signed, authority-bound `policy_version`. These values enter AB5 together; the
+receiver does not execute a task whose source policy is absent.
+
+The ordering is fail-closed:
+
+1. validate the envelope, identities, delegation, evidence and signature;
+2. evaluate `requestedAction + constraints + policy_version` through AB5;
+3. only an `allow` decision may reserve the replay key and record the effect.
+
+`block`, `review`, and `dry_run_only` all stop before reservation and effect.
+Their HTTP response contains bounded `receiptMetadata` with the firewall
+decision, policy version, task, and delegated constraints. An allowed exchange
+stores the same metadata inside its durable task effect, so the task read route
+returns the policy and AB5 decision that admitted it.
 
 ## Enabling it
 
@@ -172,6 +193,7 @@ may bind exactly one workspace.
 | Booting `node server.js` with these variables serves the surface | `test/a2a-deployment-smoke.test.js` |
 | Booting without them serves `404`, not `401` | same file |
 | A replayed exchange is refused by the real server | same file |
+| An AB5-blocked exchange produces no effect | `test/a2a-deployment-smoke.test.js` |
 | Entry into the V5 track is authorized | `docs/v5/v5-implementation-entry-successor-audit.md` — `V5_IMPLEMENTATION_ENTRY: PASS` |
 
 ## What configuring this does not claim

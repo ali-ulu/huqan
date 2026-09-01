@@ -40,7 +40,7 @@ after(() => {
 // Booting the server in-process would leave its SQLite handles and listeners in
 // this test runner, and server.js is required by many other suites. A child
 // process keeps each boot isolated and lets the environment differ per case.
-function bootAndProbe({ configured }) {
+function bootAndProbe({ configured, firewallCase = 'allow' }) {
   const caseDir = fs.mkdtempSync(path.join(tempDir, 'case-'));
   const replayDirectory = path.join(caseDir, 'replay');
   fs.mkdirSync(replayDirectory);
@@ -56,7 +56,10 @@ function bootAndProbe({ configured }) {
     // The route serves the canonical workspace only, so the fixture must be
     // built for it; the conformance suite's own default workspace is refused
     // here with a2a_workspace_not_canonical, which is correct.
-    const fixture = buildFixture(CANONICAL_WORKSPACE);
+    const firewallCase = process.argv[3] || 'allow';
+    const fixture = buildFixture(CANONICAL_WORKSPACE, firewallCase === 'block'
+      ? { target: 'force push', tool: 'axiom.trace' }
+      : {});
 
     const authorityFile = path.join(caseDir, 'authority.json');
     fs.writeFileSync(authorityFile, JSON.stringify(fixture.authority), 'utf8');
@@ -101,9 +104,18 @@ function bootAndProbe({ configured }) {
         const card = await request('GET', '/.well-known/agent-card.json');
         const exchange = await request('POST', '/api/a2a/exchange', fixture.request);
         const replay = await request('POST', '/api/a2a/exchange', fixture.request);
+        const exchangeBody = JSON.parse(exchange.body || '{}');
         result = {
           card: { status: card.status, agentId: (JSON.parse(card.body || '{}').agent || {}).agentId || null },
-          exchange: { status: exchange.status, body: exchange.body.slice(0, 400) },
+          exchange: {
+            status: exchange.status,
+            body: exchange.body.slice(0, 400),
+            decision: exchangeBody.decision,
+            reason: exchangeBody.reason,
+            safeToRetry: exchangeBody.safeToRetry,
+            receiptMetadata: exchangeBody.receiptMetadata,
+            hasEffect: exchangeBody.effect !== undefined,
+          },
           replay: { status: replay.status, body: replay.body.slice(0, 400) },
         };
       } finally {
@@ -114,7 +126,7 @@ function bootAndProbe({ configured }) {
     })().catch((error) => { console.error(error.stack || error); process.exitCode = 1; });
   `;
 
-  const output = execFileSync(process.execPath, ['-e', script, caseDir, configured ? 'yes' : 'no'], {
+  const output = execFileSync(process.execPath, ['-e', script, caseDir, configured ? 'yes' : 'no', firewallCase], {
     cwd: repoRoot,
     encoding: 'utf8',
     timeout: 120000,
@@ -156,4 +168,17 @@ test('a configured server refuses the replayed exchange', () => {
   assert.equal(result.exchange.status, 200, `exchange body: ${result.exchange.body}`);
   assert.notEqual(result.replay.status, 200);
   assert.match(result.replay.body, /replay/i);
+});
+
+test('a configured server blocks an AB5-refused exchange before applying it', () => {
+  const result = bootAndProbe({ configured: true, firewallCase: 'block' });
+
+  assert.equal(result.exchange.status, 403);
+  assert.equal(result.exchange.decision, 'block');
+  assert.equal(result.exchange.reason, 'FORCE_PUSH_BLOCKED');
+  assert.equal(result.exchange.safeToRetry, true);
+  assert.equal(result.exchange.receiptMetadata.decision, 'block');
+  assert.equal(result.exchange.receiptMetadata.policy.policyVersion, 'v5-d6-1');
+  assert.equal(result.exchange.receiptMetadata.task.tool, 'axiom.trace');
+  assert.equal(result.exchange.hasEffect, false);
 });

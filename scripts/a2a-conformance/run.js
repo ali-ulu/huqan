@@ -96,7 +96,7 @@ function emptyPackage(source, workspaceId = A2A_WORKSPACE) {
   };
 }
 
-function buildFixture(workspaceId = A2A_WORKSPACE) {
+function buildFixture(workspaceId = A2A_WORKSPACE, options = {}) {
   const ids = ['agent-source', 'agent-middle', 'agent-target'];
   const keys = Object.fromEntries([...ids, 'receipt-signer'].map((id) => [id, createKey(id)]));
   const records = {
@@ -134,15 +134,15 @@ function buildFixture(workspaceId = A2A_WORKSPACE) {
     }],
   };
   const action = {
-    capability: 'verify.claim', target: 'claim:bounded-a2a-001', riskTier: 'medium',
-    tool: 'axiom.verify', connector: 'local_stdio_mcp',
+    capability: 'verify.claim', target: options.target || 'claim:bounded-a2a-001', riskTier: 'medium',
+    tool: options.tool || 'axiom.verify', connector: 'local_stdio_mcp',
     parametersHash: canonicalHash({ claimId: 'claim:bounded-a2a-001' }),
   };
   const actionHash = canonicalHash(action);
   const observation = {
     observedActionHash: actionHash,
     observedRiskTier: 'medium',
-    usedTools: ['axiom.verify'],
+    usedTools: [action.tool],
     usedConnectors: ['local_stdio_mcp'],
     observedAt: OBSERVED_AT,
     effectHash: canonicalHash({ effect: 'verified', claimId: 'claim:bounded-a2a-001' }),
@@ -164,7 +164,7 @@ function buildFixture(workspaceId = A2A_WORKSPACE) {
 
   const baseHop = (delegatorId, delegateId, parentDelegationHash) => ({
     delegatorId, delegateId, workspaceId, scope: ['verify.claim'],
-    target: 'claim:bounded-a2a-001', maxRiskTier: 'high',
+    target: action.target, maxRiskTier: 'high',
     allowedTools: ['axiom.verify', 'axiom.trace'], allowedConnectors: ['local_stdio_mcp', 'audit_file'],
     expiresAt: EXPIRES_AT, parentDelegationHash,
     keyReference: keys[delegatorId].keyReference,
