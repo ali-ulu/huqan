@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 const { resolvePersistencePaths } = require('./persistencePaths');
 const { resolvePathWithinRoot } = require('./lib/path-safety');
+const { derivePersistenceLayout } = require('./lib/memory-store-utils');
 
 const DEFAULT_FILES = Object.freeze([
   'memory.db',
@@ -34,7 +35,7 @@ function timestamp(date = new Date()) {
  * Resolves the runtime file set used by backup and restore operations.
  *
  * @param {object} [opts]
- * @returns {{rootDir: string, backupBaseDir: string, files: string[]}}
+ * @returns {{rootDir: string, backupBaseDir: string, files: string[], journalPath: string}}
  */
 function resolveRuntimePaths(opts = {}) {
   const { rootDir: cwd, memoryPath, dbPath, backupBaseDir } = resolvePersistencePaths(opts);
@@ -58,6 +59,13 @@ function resolveRuntimePaths(opts = {}) {
   const embeddingPath = containedRuntimePath(opts.embeddingPath || memoryPath.replace(/\.json$/i, '.embeddings.json'));
   const agentMemoryPath = containedRuntimePath(opts.agentMemoryPath || path.join(path.dirname(memoryPath), 'memory.agent.json'));
   const sidecar = (suffix) => containedRuntimePath(`${dbPath}${suffix}`);
+  // JSON-backend mutation journal (receipt chain + operation replay
+  // authority). Derived from the same layout API the JSON backend writes
+  // with (graph.js _jsonJournalPath -> derivePersistenceLayout), so the
+  // backup file set cannot drift from the runtime layout; in SQLite mode
+  // the journal lives in the database and this file is normally absent.
+  // Appended last: restoreBackup addresses files[0]/[3]/[4]/[5] positionally.
+  const journalPath = containedRuntimePath(derivePersistenceLayout(memoryPath, dbPath).journalPath);
 
   return {
     rootDir: cwd,
@@ -69,7 +77,9 @@ function resolveRuntimePaths(opts = {}) {
       memoryPath,
       embeddingPath,
       agentMemoryPath,
+      journalPath,
     ],
+    journalPath,
   };
 }
 
@@ -391,7 +401,7 @@ function validateRestoreSource(sourceDir, runtime) {
       }
       const result = validateSqlitePersistenceFile(source);
       if (!result.valid) return { valid: false, file: name, reason: result.reason };
-    } else if (name === 'memory.json') {
+    } else if (name === 'memory.json' || destination === runtime.journalPath) {
       const result = validateJsonPersistenceFile(source);
       if (!result.valid) return { valid: false, file: name, reason: result.reason };
     }
