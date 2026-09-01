@@ -42,6 +42,28 @@ decision, policy version, task, and delegated constraints. An allowed exchange
 stores the same metadata inside its durable task effect, so the task read route
 returns the policy and AB5 decision that admitted it.
 
+## Inter-agent receipt chain
+
+Every exchange also carries a signed `routeReceipt`. Its
+`parent_receipt_id` must equal the verified public trust receipt id in
+`evidence.receipt`; its source, target, workspace, action hash, delegation
+scope, constraints, expiry, source policy version, and timestamp must match
+the rest of the signed envelope. The receiver recomputes the route receipt id
+and refuses a missing, altered, or self-inconsistent link before replay
+reservation or effect.
+
+After AB5 evaluates the delegated task, the receiver deterministically
+aggregates the parent receipt decision with its local decision. A disagreement
+emits `cross_agent_decision_contradiction` and the aggregate risk is the higher
+of the parent receipt's 0-100 score and the receiver decision score (`allow=0`,
+`review=50`, `dry_run_only=75`, `block=100`). The route receipt and aggregation
+are returned in refusal metadata or stored with an allowed task effect.
+
+This path is local-first: validation, hashing, signature checks, aggregation,
+replay reservation, and task recording use only the request bytes and the
+receiver-owned local authority/replay paths. No network lookup or cloud
+service is needed to decide an exchange.
+
 ## Enabling it
 
 Two variables, both absolute paths, both required. Setting one without the
@@ -188,7 +210,7 @@ may bind exactly one workspace.
 
 | Claim | Where it is proved |
 |---|---|
-| Bounded exchange rules hold under 50 adversarial cases | `npm run conformance:a2a` — 50/50, verdict `V5_D6_BOUNDED_A2A_EXCHANGE_SUFFICIENT` |
+| Bounded exchange rules hold under 52 adversarial cases | `npm run conformance:a2a` — 52/52, verdict `V5_D6_BOUNDED_A2A_EXCHANGE_SUFFICIENT` |
 | A real HTTP request reaches those rules unchanged | `test/a2a-exchange-route.test.js` and its sibling route tests |
 | Booting `node server.js` with these variables serves the surface | `test/a2a-deployment-smoke.test.js` |
 | Booting without them serves `404`, not `401` | same file |

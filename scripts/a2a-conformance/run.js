@@ -10,6 +10,7 @@ const { spawn, spawnSync } = require('node:child_process');
 const { stableStringify } = require('../../lib/receipt/canonical-receipt');
 const { encodeJsonStableV1 } = require('../../lib/receipt/cryptographic-profile-contract');
 const { exportPublicTrustReceipt } = require('../../lib/receipt/public-trust-receipt');
+const { buildInterAgentRouteReceipt } = require('../../lib/a2a/inter-agent-receipt-chain');
 const {
   SCHEMA_VERSION,
   canonicalHash,
@@ -186,9 +187,15 @@ function buildFixture(workspaceId = A2A_WORKSPACE, options = {}) {
       allowedConnectors: ['local_stdio_mcp', 'audit_file'],
     },
     observation,
+    routeReceipt: null,
     evidence: null,
     signature: { algorithm: 'ed25519-v1', keyReference: keys['agent-source'].keyReference, value: '' },
   };
+  request.routeReceipt = buildInterAgentRouteReceipt(
+    request,
+    publicReceipt,
+    records['agent-source'].policy_version,
+  );
   const sourceBinding = {
     type: 'a2a-conformance', exchangeId: request.exchangeId, workspaceId: request.workspaceId,
     sourceIdentityHash: request.source.identityHash, targetIdentityHash: request.target.identityHash,
@@ -260,6 +267,14 @@ function resignRequest(fixture, request) {
 function rebindAll(fixture, request) {
   request.evidence.actionHash = canonicalHash(request.requestedAction);
   request.observation.observedActionHash = request.evidence.actionHash;
+  const sourceIdentity = fixture.authority.identities.find(
+    (entry) => entry.ref === request.source.identityRef,
+  );
+  request.routeReceipt = buildInterAgentRouteReceipt(
+    request,
+    request.evidence.receipt,
+    sourceIdentity.record.policy_version,
+  );
   const source = request.evidence.package.manifest.source;
   source.exchangeId = request.exchangeId;
   source.workspaceId = request.workspaceId;
@@ -330,6 +345,15 @@ const NEGATIVE_CASES = [
   ['missing_expiry', 'exchange_shape_invalid', ({ request }) => { delete request.expiresAt; }],
   ['missing_constraints', 'exchange_shape_invalid', ({ request }) => { delete request.constraints; }],
   ['missing_observation', 'exchange_shape_invalid', ({ request }) => { delete request.observation; }],
+  ['missing_route_receipt', 'exchange_shape_invalid', ({ request }) => { delete request.routeReceipt; }],
+  ['parent_receipt_binding_mismatch', 'route_receipt_invalid', ({ fixture, request }) => {
+    request.routeReceipt.parent_receipt_id = '0'.repeat(64);
+    const { route_receipt_id: ignored, ...projection } = request.routeReceipt;
+    request.routeReceipt.route_receipt_id = canonicalHash(projection);
+    request.evidence.package.manifest.source.envelopeHash = canonicalHash(envelopeCoreView(request));
+    resignPackage(fixture, request);
+    resignRequest(fixture, request);
+  }],
   ['delegation_signature_tampered', 'delegation_signature_invalid', ({ request }) => {
     const value = request.delegation.hops[0].signature.value;
     request.delegation.hops[0].signature.value = `${value[0] === 'A' ? 'B' : 'A'}${value.slice(1)}`;

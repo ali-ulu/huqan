@@ -191,6 +191,7 @@ test('retry: the safe set is exactly the pre-reservation evaluator reasons', () 
     'evidence_refs_invalid',
     'evidence_package_binding_invalid',
     'evidence_receipt_authority_invalid',
+    'route_receipt_invalid',
     'exchange_signature_invalid',
   ]);
 
