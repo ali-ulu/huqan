@@ -1,7 +1,7 @@
 # Current Operating Roadmap
 
 **Audited live baseline:** `main` at
-`0a1cc37011679e138e55a79ec47e2ebbd7503c14`.
+`df1eed1ac9831085e966704ba7b0de21f052707d` (observed 2026-09-01T20:47:36Z).
 
 This is an observation, not an implementation base pin. Live source, exact Git
 SHA, tests and current CI outrank this compact execution source. Detailed
@@ -173,6 +173,29 @@ What it does not authorize is any claim of completion. A2A transport is
 `SHIPPED_WITH_ONE_UNIT_DEFERRED` (`docs/v5/v5-p0-a2a-transport-closeout.md`),
 every A2A route is deployment-gated and answers `404` while unconfigured, and no
 third party has spoken to it.
+
+## Multi-agent control plane (`#1766`)
+
+The roadmap issue `#1766` sequences five phases. Two are merged:
+
+| Faz | Issue | State | Evidence |
+| --- | --- | --- | --- |
+| A — A2A exchange under the Agent Action Firewall | `#1767` | merged | `74ee93f2` (PR `#1773`) |
+| B — inter-agent trust receipt chain | `#1768` | merged | `df1eed1a` (PR `#1774`) |
+| C — persistent agent identity | `#1769` | open | — |
+| D — graduated autonomy | `#1770` | open | — |
+| E — continuous monitoring | `#1771` | open | — |
+
+Faz A resolves the delegated policy before an exchange and refuses when it is
+absent; an unreadable firewall decision defaults to `block`, so the delegated
+path is fail-closed. Faz B binds a delegated task to `parent_receipt_id`,
+verifies it against the parent's real `publicReceiptId`, and raises
+`cross_agent_decision_contradiction` when parent and receiver disagree.
+
+The boundary this does not move: the delegated path is gated and the
+accountability chain holds across agents, but the agents in that chain still
+have no persistent identity written to the gate decision or the receipt. That
+is Faz C, and Faz D's trust score has no stable subject until it lands.
 
 ## Naming and marketplace boundary
 
