@@ -315,7 +315,7 @@ test('6: the duplicate stays deleted while later reviewed audit writes are count
   );
   assert.ok(unroutedLedger.length > 0);
   assert.equal(unroutedLedger.includes(MCP_TOOL), false, 'the MCP surface must leave the unrouted ledger');
-  assert.match(ledger, /assert\.equal\(unrouted, 24,/);
+  assert.match(ledger, /assert\.equal\(unrouted, 25,/);
   // K2 (#328): a later routing step delegated the background edge commit to
   // lib/background-provenance.js as a *new* ledgered entry -- routed rose
   // 24->26 and the total 46->48. DEL then added one routed audit append inside
@@ -323,9 +323,12 @@ test('6: the duplicate stays deleted while later reviewed audit writes are count
   // then added two reviewed Graph-owned maintenance audits, producing 27/51.
   // The hypothesis surface then added two routed candidate writes -- the
   // `--propose` queue and the human review verdict -- producing 29/53.
+  // PR #1765 then added one ledgered audit append in
+  // lib/external-action-receipt.js (external-action receipt projection),
+  // producing 30/54.
   // This is the opposite of a deletion, which is exactly why this test pins
   // the routed and total numbers and not the difference between them: each
   // shape has its own finding.
   assert.match(ledger, /assert\.equal\(routed, 29,/);
-  assert.match(ledger, /assert\.equal\(unrouted \+ routed, 53,/);
+  assert.match(ledger, /assert\.equal\(unrouted \+ routed, 54,/);
 });
