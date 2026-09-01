@@ -1,0 +1,3 @@
+name: huqan-external-action-guard
+version: 1.0.0
+description: Fail-closed HUQAN admission guard for Hermes tool calls

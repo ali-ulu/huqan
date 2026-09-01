@@ -16,10 +16,12 @@ HUQAN is a good fit when the central question is not only “what did the model 
 - provenance-aware claims, graph evidence, memory admission, and workspace-scoped reads;
 - explicit review, approval, block, escalation, and dry-run boundaries for guarded actions;
 - append-oriented audit records, canonical Trust Receipts, and receipt chains;
+- an agent-brand-independent external pre-execution contract with bounded
+  Claude Code, Codex, OpenCode, Pi, Hermes, and generic adapter projections;
 - local CLI, REST, MCP, and UI surfaces on the supported paths; and
 - two repository-run conformance suites: `npm run conformance:external` (75 cases) and `npm run conformance:a2a` (50 adversarial cases).
 
-These are repository-backed capabilities, not a universal governance or interoperability certification. The [README Current scope](../README.md#current-scope) remains the source of truth for what is real, deployment-gated, or explicitly not claimed.
+These are repository-backed capabilities, not a universal governance or interoperability certification. The external guard enforces only calls that a client hook, wrapper, gateway, or sandbox sends through it before execution; an unconnected agent remains outside HUQAN's control. The [README Current scope](../README.md#current-scope) remains the source of truth for what is real, deployment-gated, or explicitly not claimed.
 
 ## Named alternatives: choose by the problem you need to solve
 
@@ -60,6 +62,7 @@ HUQAN’s public positioning should remain tied to repository evidence:
 | Conformance | The repository provides a 75-case external suite and a 50-case adversarial A2A suite that can be run from the repository. | Self-run conformance is not third-party verification or external interoperability proof. |
 | Graph scale | Current public language is small-to-medium graph tested; larger-scale support requires dedicated benchmarking. | Wikipedia-scale, million-node, and enterprise-scale claims are not established. |
 | Product maturity | HUQAN is a local-first partial trust layer with bounded memory and action gates. | It is not a finished autonomous self-healer, public certification network, or universal governance suite. |
+| External agent guard | `huqan-gate` applies one policy envelope and receipt contract to current adapters and future generic clients. | Native or wrapper pre-execution wiring must be proven per client; it is not OS-level universal interception. |
 
 For implementation details, see the [scale truth pack](scale-truth-pack.md), the [product positioning guide](product-positioning.md), and the [README Current scope](../README.md#current-scope). Claims about deployed, external, or third-party behavior require evidence from that specific environment rather than documentation intent.
 

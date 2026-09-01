@@ -90,6 +90,7 @@ const UNROUTED_SINK_CALLS = Object.freeze({
   'agent.v3.js': { why: 'audit family', sinks: { appendAuditEvent: 2 } },
   'lib/cli-mutation-audit.js': { why: 'audit family, CLI surface', sinks: { appendAuditEvent: 1 } },
   'graph.js': { why: 'graph optimize and consolidate maintenance audits; DELETE evidence is emitted by the Graph persistence owner until the family-independent admission seam covers maintenance operations', sinks: { appendAuditEvent: 2 } },
+  'lib/external-action-receipt.js': { why: 'audit family; the external action guard projects each bounded receipt into the graph append-only audit_log next to its primary crash-safe JSONL trail, mirroring agent.v3/cli-mutation-audit until the family-independent admission seam covers audit events', sinks: { appendAuditEvent: 1 } },
 
   // --- second sink provider ------------------------------------------------
   // Not a caller in the usual sense: it wraps a Graph and re-exposes the sinks.
@@ -387,7 +388,10 @@ test('mutation admission: the debt ledger reflects the routing done so far', () 
   // The hypothesis surface adds two routed candidate writes -- `--propose`
   // (lib/cli-hypotheses.js) and the human review verdict
   // (lib/hypothesis-review.js) -- both delegating to kernel.addCandidateClaim.
-  assert.equal(unrouted, 24, 'unrouted sink calls');
+  // PR #1765: the external action guard adds one ledgered audit append
+  // (lib/external-action-receipt.js projects receipts into the graph
+  // append-only audit_log beside its crash-safe JSONL trail).
+  assert.equal(unrouted, 25, 'unrouted sink calls');
   assert.equal(routed, 29, 'sink calls routed through admission (K2 + DEL callbacks + hypothesis surface)');
-  assert.equal(unrouted + routed, 53, 'total sink calls, raised by K2 delegation, DEL audit, maintenance evidence, and the hypothesis surface');
+  assert.equal(unrouted + routed, 54, 'total sink calls, raised by K2 delegation, DEL audit, maintenance evidence, the hypothesis surface, and the external-action receipt projection');
 });

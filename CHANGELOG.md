@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Agent-independent external action guard (#1761/#1762).** `huqan-gate`
+  normalizes external client tool calls into one versioned envelope, reuses
+  HUQAN's existing risk/action/command/memory/automation/egress/workspace gates,
+  fails closed on malformed input or receipt errors, and persists a canonical
+  admission receipt to JSONL plus `audit_log` when SQLite is available. Thin
+  Claude Code, Codex, OpenCode, Pi, Hermes, and generic projections keep client
+  names out of policy. Coverage requires a real pre-execution hook or wrapper;
+  hookless, unconnected agents are not claimed as enforced.
+
 ## v0.11.1
 
 Released 2026-08-31 — `npm install -g huqan` now serves this version. It

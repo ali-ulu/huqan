@@ -124,6 +124,20 @@ declare const huqan: typeof KernelV2 & {
   };
   OBSERVABILITY_CLIENT_ERRORS: Record<string, string>;
   TELEMETRY_EVENT_TYPES: readonly string[];
+
+  ExternalActionGuard: Record<string, any>;
+  evaluateExternalAction: (input: Record<string, unknown>, options?: Record<string, unknown>) => Record<string, any>;
+  recordExternalActionOutcome: (
+    input: Record<string, unknown>,
+    admissionReceipt: Record<string, unknown>,
+    outcome: Record<string, unknown>,
+    options?: Record<string, unknown>,
+  ) => Record<string, any>;
+  ExternalActionAdapter: Record<string, any>;
+  createOpenCodeGuardPlugin: (options?: Record<string, unknown>) => (...args: any[]) => Promise<Record<string, any>>;
+  registerPiGuard: (pi: Record<string, any>, options?: Record<string, unknown>) => void;
+  createDurableExternalActionReceiptWriter: (options?: Record<string, unknown>) => { path: string; append: (receipt: Record<string, unknown>) => Record<string, unknown>; close: () => void };
+  createExternalActionReceiptWriter: (options?: Record<string, unknown>) => { path: string; append: (receipt: Record<string, unknown>) => Record<string, unknown> };
 };
 
 export = huqan;

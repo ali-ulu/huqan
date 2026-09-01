@@ -108,7 +108,13 @@ const decision = evaluateAgentActionFirewall({
 
 ## Bilinen sınırlar
 
-Firewall, dış sistemlerdeki gerçek yetkilendirmelerin yerine geçmez. GitHub token scope, deploy platform permission, branch protection veya cloud IAM ayrıca enforce edilmelidir. Firewall’ın görevi HUQAN agent’ının kendi karar ve yürütme zincirinde yüksek riskli action’ları erken durdurmak, review/dry-run yoluna almak ve kanıt üretmektir.
+Firewall, dış sistemlerdeki gerçek yetkilendirmelerin yerine geçmez. GitHub token scope, deploy platform permission, branch protection veya cloud IAM ayrıca enforce edilmelidir. Firewall'ın görevi HUQAN agent'ının kendi karar ve yürütme zincirinde yüksek riskli action'ları erken durdurmak, review/dry-run yoluna almak ve kanıt üretmektir.
+
+HUQAN dışındaki ajanların shell, dosya, ağ ve diğer tool call'ları bu firewall'a
+kendiliğinden girmez. Bu ayrı sınır için agent-independent
+[`huqan-gate`](./external-action-guard.md) kullanılır. Dış ajan ancak native
+pre-tool hook'u veya guard kararına uyan wrapper gerçek executor'dan önce
+bağlandığında enforce edilmiş sayılır.
 
 Yeni bir action connector’ı eklenirken action adı, hedef, branch/baseBranch, approval ve preview semantiği açıkça AB5 input’una taşınmalı; connector executor’ı firewall kararını görmeden çalışmamalıdır.
 
