@@ -126,6 +126,12 @@ test('a2a route: a valid exchange is admitted through the real HTTP boundary', a
   assert.equal(response.body.effect.receiptMetadata.firewallVersion, 'AAFW-v1.0.0');
   assert.equal(response.body.effect.receiptMetadata.policy.policyVersion, 'v5-d6-1');
   assert.deepEqual(response.body.effect.receiptMetadata.task, fixture.request.requestedAction);
+  assert.equal(
+    response.body.effect.receiptMetadata.routeReceipt.parent_receipt_id,
+    fixture.request.evidence.receipt.publicReceiptId,
+  );
+  assert.equal(response.body.effect.receiptMetadata.crossAgentAggregation.status, 'consistent');
+  assert.equal(response.body.effect.receiptMetadata.crossAgentAggregation.signal, null);
   assert.equal(response.headers['cache-control'], 'no-store');
 });
 
@@ -160,6 +166,11 @@ test('a2a route: AB5 review stops before effect and replay reservation', async (
     assert.equal(response.body.reason, 'UNKNOWN_OPERATION_REVIEW_REQUIRED');
     assert.equal(response.body.safeToRetry, true);
     assert.equal(response.body.receiptMetadata.decision, 'review');
+    assert.equal(
+      response.body.receiptMetadata.crossAgentAggregation.signal,
+      'cross_agent_decision_contradiction',
+    );
+    assert.equal(response.body.receiptMetadata.crossAgentAggregation.aggregate_risk_score, 50);
     assert.equal(response.body.effect, undefined);
     assert.equal(response.body.taskId, undefined);
   }

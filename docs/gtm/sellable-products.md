@@ -36,7 +36,7 @@ Onay olmadan grafiğe yazmıyor, provenance ve makbuz üretiyor. Ürünün tezi 
 
 ```
 npm run conformance:a2a
-50/50 passed · verdict: V5_D6_BOUNDED_A2A_EXCHANGE_SUFFICIENT
+52/52 passed · verdict: V5_D6_BOUNDED_A2A_EXCHANGE_SUFFICIENT
 reportSha256: e3ad2b62...
 ```
 

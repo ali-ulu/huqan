@@ -21,9 +21,9 @@ test('V5-D6 bounded A2A conformance is reproducible from the declared command', 
   });
   assert.equal(result.status, 0, result.stderr || 'D6 conformance runner failed');
   const output = JSON.parse(result.stdout);
-  assert.equal(output.report.caseCount, 50);
-  assert.equal(output.report.passed, 50);
+  assert.equal(output.report.caseCount, 52);
+  assert.equal(output.report.passed, 52);
   assert.equal(output.report.failed, 0);
   assert.equal(output.report.productionTransportClaimed, false);
-  assert.equal(output.reportSha256, 'e3ad2b62259071daaf3fb82159c36198ffe64b3178e4849a38e20d9cab979fd5');
+  assert.equal(output.reportSha256, '4daca2aae640928d35bd602fa3a089aeb1ab9413bdb5feac53642dd3f7fcfd11');
 });
