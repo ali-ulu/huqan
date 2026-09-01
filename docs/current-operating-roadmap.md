@@ -176,13 +176,13 @@ third party has spoken to it.
 
 ## Multi-agent control plane (`#1766`)
 
-The roadmap issue `#1766` sequences five phases. Two are merged:
+The roadmap issue `#1766` sequences five phases. Three are merged:
 
 | Faz | Issue | State | Evidence |
 | --- | --- | --- | --- |
 | A — A2A exchange under the Agent Action Firewall | `#1767` | merged | `74ee93f2` (PR `#1773`) |
 | B — inter-agent trust receipt chain | `#1768` | merged | `df1eed1a` (PR `#1774`) |
-| C — persistent agent identity | `#1769` | open | — |
+| C — persistent agent identity | `#1769` | merged | `lib/external-action-identity.js`, `lib/external-action-identity-log.js` |
 | D — graduated autonomy | `#1770` | open | — |
 | E — continuous monitoring | `#1771` | open | — |
 
@@ -190,12 +190,20 @@ Faz A resolves the delegated policy before an exchange and refuses when it is
 absent; an unreadable firewall decision defaults to `block`, so the delegated
 path is fail-closed. Faz B binds a delegated task to `parent_receipt_id`,
 verifies it against the parent's real `publicReceiptId`, and raises
-`cross_agent_decision_contradiction` when parent and receiver disagree.
+`cross_agent_decision_contradiction` when parent and receiver disagree. Faz C
+adds the `huqan.agent-identity-card.v1` capability card to the external action
+guard: identity is decided by an `identity` gate finding and persisted into
+`metadata.identity` on every admission and outcome receipt, inside the canonical
+receipt hash, and `queryExternalActionsByIdentity()` (CLI:
+`huqan-gate --identity-log`) lists every action recorded for one identity.
 
-The boundary this does not move: the delegated path is gated and the
-accountability chain holds across agents, but the agents in that chain still
-have no persistent identity written to the gate decision or the receipt. That
-is Faz C, and Faz D's trust score has no stable subject until it lands.
+The boundary this does not move: the card is unsigned deployment configuration,
+not a cryptographically verified assertion, and enforcing its presence is
+opt-in (`--require-identity` /
+`HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY`) so that pre-card adapters stay attributed
+rather than silently broken. Signed identity, workspace authority snapshots and
+revocation remain behind the `docs/v5/v5-agent-identity-closeout-audit.md` gate.
+Faz D's trust score now has a stable subject, but no score is computed yet.
 
 ## Naming and marketplace boundary
 

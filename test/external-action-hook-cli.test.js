@@ -117,3 +117,81 @@ test('shipped adapter templates bind every supported host to HUQAN before execut
   assert.match(hermes, /shell=False/);
   assert.match(manifest, /name: huqan-external-action-guard/);
 });
+
+// --- Faz C (#1769): identity card + identity log query over the CLI --------
+
+function identityCardFile(directory) {
+  const target = path.join(directory, 'card.json');
+  fs.writeFileSync(target, JSON.stringify({
+    schemaVersion: 'huqan.agent-identity-card.v1',
+    agentId: 'future-agent-2035',
+    agentName: 'future-agent-2035',
+    ownerActorId: 'actor:ali',
+    workspaceId: 'default',
+    capabilities: ['shell'],
+    issuedAt: '2026-01-01T00:00:00.000Z',
+  }));
+  return target;
+}
+
+function runHookWithCard(payload, directory, extraArgs = []) {
+  const receiptLog = path.join(directory, 'receipts.jsonl');
+  return {
+    receiptLog,
+    process: spawnSync(process.execPath, [
+      hook,
+      '--profile', 'generic',
+      '--workspace-root', root,
+      '--receipt-log', receiptLog,
+      '--memory-path', path.join(directory, 'memory.json'),
+      '--db-path', path.join(directory, 'memory.db'),
+      ...extraArgs,
+    ], { cwd: root, input: JSON.stringify(payload), encoding: 'utf8' }),
+  };
+}
+
+test('the hook attaches an identity card and reports it in the decision output', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-gate-identity-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const run = runHookWithCard(genericPayload('git status'), directory, [
+    '--identity-card', identityCardFile(directory),
+  ]);
+  assert.equal(run.process.status, 0, run.process.stderr);
+  const output = JSON.parse(run.process.stdout);
+  assert.equal(output.decision, 'allow');
+  assert.equal(output.identityRef, 'agent:default:future-agent-2035');
+  assert.equal(output.identityAttested, true);
+
+  const receipt = JSON.parse(fs.readFileSync(run.receiptLog, 'utf8').trim().split(/\r?\n/)[0]);
+  assert.equal(receipt.metadata.identity.ownerActorId, 'actor:ali');
+  assert.equal(receipt.metadata.identity.attested, true);
+});
+
+test('--require-identity fails closed when no card is supplied', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-gate-identity-req-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const run = runHookWithCard(genericPayload('git status'), directory, ['--require-identity']);
+  assert.equal(run.process.status, 2, run.process.stderr);
+  assert.equal(JSON.parse(run.process.stdout).decision, 'block');
+});
+
+test('--identity-log lists every action recorded for one identity', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-gate-identity-log-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const card = identityCardFile(directory);
+  const first = runHookWithCard(genericPayload('git status'), directory, ['--identity-card', card]);
+  assert.equal(first.process.status, 0, first.process.stderr);
+  const second = runHookWithCard(genericPayload('git diff'), directory, ['--identity-card', card]);
+  assert.equal(second.process.status, 0, second.process.stderr);
+
+  const query = spawnSync(process.execPath, [
+    hook,
+    '--identity-log', 'agent:default:future-agent-2035',
+    '--receipt-log', first.receiptLog,
+  ], { cwd: root, encoding: 'utf8' });
+  assert.equal(query.status, 0, query.stderr);
+  const result = JSON.parse(query.stdout);
+  assert.equal(result.matched, 2);
+  assert.equal(result.summary.attested, 2);
+  assert.ok(result.actions.every(action => action.identity.ownerActorId === 'actor:ali'));
+});

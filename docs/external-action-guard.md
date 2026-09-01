@@ -35,6 +35,70 @@ verilmezse araç adı ve argümanlardan türetilir. Eksik ajan, oturum veya ara�
 kimliği fail-closed `block` olur. Bilinmeyen araç ya da shell komutu otomatik
 `allow` olmaz; en az `review` ister.
 
+## Agent identity (capability card)
+
+Zarftaki `agentName`/`sessionId` bir taşıma alanıdır: "bir şey oldu" der, "hangi
+kimlik, hangi yetkiyle, kimin adına yaptı" demez. Faz C (#1769) bunun için
+`huqan.agent-identity-card.v1` kartını ekler ve kararı **her** receipt'e yazar.
+
+```json
+{
+  "schemaVersion": "huqan.agent-identity-card.v1",
+  "agentId": "future-agent-2035",
+  "agentName": "future-agent-2035",
+  "agentVersion": "1.4.0",
+  "ownerActorId": "actor:ali",
+  "onBehalfOf": "actor:ali",
+  "workspaceId": "default",
+  "capabilities": ["file_read", "shell"],
+  "delegationChain": ["orchestrator", "future-agent-2035"],
+  "issuedAt": "2026-01-01T00:00:00.000Z",
+  "expiresAt": null
+}
+```
+
+`capabilities` zarfın `kind` sözlüğünden değer alır; `*` hepsini kapsar.
+`delegationChain` verilirse son eleman `agentId` olmak zorundadır. Kart
+zarfın `identity` alanında ya da CLI'da `--identity-card <dosya>` ile verilir —
+CLI'dan gelen kart ajanın kendi payload'ındaki kartı geçersiz kılar, çünkü bir
+ajan kendi yetkisini kendisi beyan edemez.
+
+Kart **verildiğinde** enforcement fail-closed'dır: geçersiz şema, workspace veya
+ajan adı uyuşmazlığı, süresi geçmiş/henüz geçerli olmayan kart ve kartın
+vermediği bir capability `block` olur. Karar `identity` gate finding'i olarak
+kararın içine, kimlik de `metadata.identity` olarak receipt'e yazılır — yani
+canonical receipt hash'inin kapsamındadır.
+
+Kart **verilmediğinde** eylem yine attribute edilir (`attested: false`,
+`ownerActorId: "unattested"`) ama karar değişmez. Kartı zorunlu kılmak bir
+deployment kararıdır: `--require-identity`, library'de
+`requireIdentityCard: true | 'review'`, ya da
+`HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY=1|review`. Böylece kimlik açmak, kartı
+henüz taşımayan mevcut uyarlayıcıları sessizce kırmaz.
+
+> Bu basit karttır. `lib/agent-identity-runtime.js` (workspace authority
+> snapshot'ı, imzalı delegation, revocation) hâlâ
+> `docs/v5/v5-agent-identity-closeout-audit.md` gate'inin arkasındadır; burada
+> V5 runtime identity enforcement iddia edilmez.
+
+### Bir kimliğin tüm eylemlerini listelemek
+
+Receipt trail'i salt-okunur sorgulanır — ne graph açar ne de bir admission
+sink'ine yazar:
+
+```powershell
+huqan-gate --identity-log agent:default:future-agent-2035 --receipt-log C:\logs\receipts.jsonl
+huqan-gate --identity-log future-agent-2035 --owner actor:ali --since 2026-01-01T00:00:00.000Z --limit 50
+```
+
+`--identity-log` `agent:` ile başlıyorsa `identityRef`, aksi halde `agentId`
+olarak yorumlanır. Çıktı eşleşen action'ları ve bir özet (karar/araç kırılımı,
+`attested` sayısı, ilk/son zaman) döner; `truncated` alanı `limit`'in cevabı
+kesip kesmediğini söyler. Aynı sorgu library'den
+`queryExternalActionsByIdentity()` ile de yapılır. Kimlik kalıcılığından önce
+yazılmış receipt'ler cevaptan düşürülmez; `legacy: true` ve `attested: false`
+ile işaretlenir.
+
 ## Karar ve enforcement
 
 Çekirdek mevcut HUQAN risk, tool-call, command, memory, automation, egress ve
@@ -140,3 +204,12 @@ Yeni bir ajan eklemek için çekirdeğe ajan adı eklenmez. Yapılacak iş üç 
   yetkileri ayrıca enforce edilmelidir.
 - Admission receipt eylemin değerlendirildiğini kanıtlar; eylemin çalıştığını
   outcome receipt olmadan kanıtlamaz.
+- Capability card imzalanmış değildir. Kartı guard'a veren süreç (hook config,
+  wrapper) güvenilir kabul edilir; kart bir kimlik **beyanının** doğrulanmış
+  taşıyıcısı değil, deployment'ın verdiği yetki tanımıdır. Kriptografik kimlik
+  doğrulama V5 runtime'ının gate'i arkasındadır.
+- `attested: true` "geçerli biçimli bir kart sunuldu ve bu çağrıya bağlandı"
+  demektir; "eylem kabul edildi" demek değildir. Süresi geçmiş ya da kapsam dışı
+  bir kart attested'dır ve `block` alır. Kabul kararı `identity` gate finding'i
+  ve receipt `decision` alanındadır. `attested: false` ise kimliğin zarftan
+  türetildiğini gösterir; iki durum log sorgusunda ayrıştırılabilir.
