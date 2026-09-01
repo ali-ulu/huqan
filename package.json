@@ -116,7 +116,6 @@
     "cli.js",
     "config/trust-policy.default.json",
     "docs/seed/huqan-identity.seed.json",
-    "docs/external-action-guard.md",
     "dream.js",
     "evidence-ranker.js",
     "finalizer.js",
