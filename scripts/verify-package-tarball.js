@@ -116,6 +116,9 @@ function verifyInstall(label, tarball, installFlags) {
     if (version.stdout.trim() === pkg.version) ok(`huqan --version reports ${pkg.version}`);
     else fail(`${label}: huqan --version said "${version.stdout.trim()}", expected "${pkg.version}"`);
 
+    verifyExternalAdapters(label, consumer);
+    verifyExternalGuard(label, binDir, consumer, env);
+
     const quickstart = run(packageBin(binDir, 'huqan'), ['quickstart'], { cwd: consumer, env });
     if (quickstart.status !== 0) {
       fail(`${label}: quickstart exited ${quickstart.status}\n${quickstart.output.slice(-2000)}`);
@@ -138,6 +141,50 @@ function verifyInstall(label, tarball, installFlags) {
     verifyA2aRuntime(label, consumer, env);
   } finally {
     fs.rmSync(consumer, { recursive: true, force: true });
+  }
+}
+
+function verifyExternalAdapters(label, consumer) {
+  const root = path.join(consumer, 'node_modules', 'huqan', 'adapters', 'external-action');
+  const required = [
+    'claude-code-hooks.json',
+    'codex-hooks.json',
+    'opencode-plugin.mjs',
+    'pi-extension.js',
+    path.join('hermes', 'plugin.yaml'),
+    path.join('hermes', '__init__.py'),
+  ];
+  const missing = required.filter((entry) => !fs.existsSync(path.join(root, entry)));
+  if (missing.length === 0) ok('external agent adapter templates are present');
+  else fail(`${label}: external adapter templates missing: ${missing.join(', ')}`);
+}
+
+function verifyExternalGuard(label, binDir, cwd, env) {
+  const guardBin = packageBin(binDir, 'huqan-gate');
+  if (!fs.existsSync(guardBin)) return;
+  const receiptLog = path.join(cwd, 'guard-receipts.jsonl');
+  const payload = JSON.stringify({
+    invocationId: 'installed-guard-probe',
+    agentName: 'future-agent',
+    sessionId: 'installed-session',
+    toolName: 'shell',
+    args: { command: 'rm -rf /' },
+    cwd,
+    workspaceRoot: cwd,
+  });
+  const guard = run(guardBin, [
+    '--profile', 'generic',
+    '--workspace-root', cwd,
+    '--receipt-log', receiptLog,
+    '--memory-path', path.join(cwd, 'guard-memory.json'),
+    '--db-path', path.join(cwd, 'guard-memory.db'),
+  ], { cwd, env, input: payload, timeoutMs: 60 * 1000 });
+  let output = null;
+  try { output = JSON.parse(guard.stdout); } catch (_) {}
+  if (guard.status === 2 && output?.decision === 'block' && fs.existsSync(receiptLog)) {
+    ok('installed huqan-gate blocks a denylisted command and persists a receipt');
+  } else {
+    fail(`${label}: installed huqan-gate did not fail closed\n${guard.output.slice(-1000)}`);
   }
 }
 

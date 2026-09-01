@@ -36,6 +36,9 @@ const trustReceiptPilot = require('./lib/pilot/trust-receipt-pilot');
 const trustReceiptPilotArchive = require('./lib/pilot/trust-receipt-pilot-archive');
 const pilotTestDatabaseBoundary = require('./lib/pilot/test-database-boundary');
 const observabilityClient = require('./lib/observability/client');
+const externalActionGuard = require('./lib/external-action-guard');
+const externalActionAdapter = require('./lib/external-action-adapter');
+const externalActionReceipt = require('./lib/external-action-receipt');
 
 module.exports = KernelV2;
 
@@ -121,3 +124,14 @@ module.exports.ObservabilityTelemetryClient = observabilityClient;
 module.exports.createObservabilityTelemetryClient = observabilityClient.createObservabilityTelemetryClient;
 module.exports.OBSERVABILITY_CLIENT_ERRORS = observabilityClient.OBSERVABILITY_CLIENT_ERRORS;
 module.exports.TELEMETRY_EVENT_TYPES = observabilityClient.TELEMETRY_EVENT_TYPES;
+
+// Agent-brand-independent pre-execution action guard. Client adapters only
+// translate native hook envelopes; all policy and receipt decisions live here.
+module.exports.ExternalActionGuard = externalActionGuard;
+module.exports.evaluateExternalAction = externalActionGuard.evaluateExternalAction;
+module.exports.recordExternalActionOutcome = externalActionGuard.recordExternalActionOutcome;
+module.exports.ExternalActionAdapter = externalActionAdapter;
+module.exports.createOpenCodeGuardPlugin = externalActionAdapter.createOpenCodeGuardPlugin;
+module.exports.registerPiGuard = externalActionAdapter.registerPiGuard;
+module.exports.createDurableExternalActionReceiptWriter = externalActionReceipt.createDurableExternalActionReceiptWriter;
+module.exports.createExternalActionReceiptWriter = externalActionReceipt.createJsonlExternalActionReceiptWriter;

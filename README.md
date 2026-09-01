@@ -194,7 +194,7 @@ The current repository exposes the following primitives and developer surfaces. 
 | Package primitives | `.huqan` package primitives exist with legacy `.axiom.json` reader compatibility where documented |
 | Developer surfaces | CLI, REST, MCP, library, local UI, and read-only Trust Receipt Viewer surfaces are present |
 | A2A transport | Four routes are shipped but deployment-gated and unconfigured by default |
-| Agent Action Firewall | Production-wired coverage exists for documented classic agent, workflow/HTTP, and MCP action paths; it is not universal connector enforcement |
+| Agent Action Firewall | HUQAN-owned paths plus the agent-independent `huqan-gate` pre-execution contract; external enforcement exists only where a client hook or wrapper is actually connected |
 
 ## Ways to run
 
@@ -344,6 +344,13 @@ npm run conformance:a2a
 
 These suites are evidence for the tested cases and implementations they cover. They are not third-party certification or proof of universal interoperability.
 
+The package also ships `huqan-gate`, an agent-brand-independent pre-execution
+guard. Its generic envelope lets a future agent reuse the same policy without
+adding that agent's name to the core. Claude Code, Codex, OpenCode, Pi, and
+Hermes projections are included. This is enforcement only when the client
+actually calls the guard before execution; hookless clients require a wrapper,
+gateway, or sandbox. See [External action guard](./docs/external-action-guard.md).
+
 ### A2A routes are deployment-gated
 
 Four routes are mounted through `lib/a2a/routes.js`:
@@ -391,7 +398,7 @@ A Trust Receipt is a bounded, auditable record of a supported verification or ac
 
 ### Can HUQAN block an agent action?
 
-On supported and wired execution paths, HUQAN can produce decisions such as `allow`, `review`, `dry_run_only`, or `block`. Coverage must be verified for the particular connector, mutation path, identity, policy, and deployment configuration. HUQAN does not claim universal enforcement.
+On supported and wired execution paths, HUQAN can produce decisions such as `allow`, `review`, `dry_run_only`, or `block`. External agents can use the common `huqan-gate` envelope and current adapters, but the hook or wrapper must be installed before execution. Coverage must be verified for the particular client, connector, mutation path, identity, policy, and deployment configuration. HUQAN does not claim that an unconnected or hookless agent is enforced.
 
 ### Does HUQAN replace enterprise security?
 
@@ -457,6 +464,7 @@ If a focused test passes, report it as evidence for that focused behavior. Do no
 - [Scale truth pack](./docs/scale-truth-pack.md)
 - [Governance](./docs/governance.md)
 - [Agent Action Firewall](./docs/agent-action-firewall.md)
+- [External action guard](./docs/external-action-guard.md)
 - [A2A deployment](./docs/a2a-deployment.md)
 - [HTTP upload approval contract](./docs/http-upload-approval-contract.md)
 - [Security policy](./SECURITY.md)

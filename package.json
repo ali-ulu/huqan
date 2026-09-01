@@ -6,7 +6,8 @@
   "types": "index.d.ts",
   "bin": {
     "huqan": "./cli.js",
-    "huqan-mcp": "./bin/huqan-mcp.js"
+    "huqan-mcp": "./bin/huqan-mcp.js",
+    "huqan-gate": "./bin/huqan-gate-hook.js"
   },
   "scripts": {
     "prepublishOnly": "npm run check:package-closure",
@@ -80,6 +81,7 @@
   },
   "files": [
     "NOTICE",
+    "adapters/external-action",
     "adapters/git-log-adapter.js",
     "adapters/github-adapter.js",
     "adapters/http-adapter.js",
@@ -89,6 +91,7 @@
     "adapters/yaml-adapter.js",
     "adapters/utils/learn-entries.js",
     "bin/huqan-mcp.js",
+    "bin/huqan-gate-hook.js",
     "agent.js",
     "agent.v3.js",
     "agentRuntime.d.ts",
@@ -113,6 +116,7 @@
     "cli.js",
     "config/trust-policy.default.json",
     "docs/seed/huqan-identity.seed.json",
+    "docs/external-action-guard.md",
     "dream.js",
     "evidence-ranker.js",
     "finalizer.js",
@@ -209,6 +213,10 @@
     "lib/code-change-gate.js",
     "lib/code-change-path-classification.js",
     "lib/command-exec-gate.js",
+    "lib/external-action-adapter.js",
+    "lib/external-action-envelope.js",
+    "lib/external-action-guard.js",
+    "lib/external-action-receipt.js",
     "lib/command-parser.js",
     "lib/company-ingest-gate.js",
     "lib/connector-action-firewall.js",
