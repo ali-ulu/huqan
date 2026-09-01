@@ -75,6 +75,19 @@ async function main() {
       agentName: argumentValue('--agent-name') || undefined,
       identityCard: identityCardPath ? readJsonFile(identityCardPath) : undefined,
       requireIdentityCard: process.argv.includes('--require-identity') ? true : undefined,
+      graduatedAutonomy: process.argv.includes('--graduated-autonomy') ? {
+        enabled: true,
+        receiptPath: receiptWriter.path,
+        ...(argumentValue('--autonomy-activation') ? {
+          activation: {
+            status: 'approved',
+            approvalId: argumentValue('--autonomy-activation'),
+            actor: argumentValue('--human-approver'),
+            actorType: 'human',
+            approvedAt: argumentValue('--approved-at'),
+          },
+        } : {}),
+      } : undefined,
     });
     process.stdout.write(`${JSON.stringify(evaluated.projection.output)}\n`);
     process.exitCode = evaluated.projection.exitCode;

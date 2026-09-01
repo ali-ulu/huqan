@@ -183,7 +183,7 @@ The roadmap issue `#1766` sequences five phases. Three are merged:
 | A — A2A exchange under the Agent Action Firewall | `#1767` | merged | `74ee93f2` (PR `#1773`) |
 | B — inter-agent trust receipt chain | `#1768` | merged | `df1eed1a` (PR `#1774`) |
 | C — persistent agent identity | `#1769` | merged | `lib/external-action-identity.js`, `lib/external-action-identity-log.js` |
-| D — graduated autonomy | `#1770` | open | — |
+| D — graduated autonomy | `#1770` | implementation | `lib/graduated-autonomy.js`, `test/graduated-autonomy.test.js` |
 | E — continuous monitoring | `#1771` | open | — |
 
 Faz A resolves the delegated policy before an exchange and refuses when it is
@@ -203,7 +203,13 @@ opt-in (`--require-identity` /
 `HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY`) so that pre-card adapters stay attributed
 rather than silently broken. Signed identity, workspace authority snapshots and
 revocation remain behind the `docs/v5/v5-agent-identity-closeout-audit.md` gate.
-Faz D's trust score now has a stable subject, but no score is computed yet.
+Faz D computes a receipt-hash-verified score for the stable identity subject:
+success, violation and review ratios feed T1 read-only, T2 restricted-write and
+T3 expanded ceilings. Promotion requires sample and success-streak hysteresis;
+the first promotion also requires a recorded human activation. New violations
+demote without a waiting streak. The autonomy decision is opt-in and is only a
+ceiling: it cannot override a stricter AB1-AB11 review or block, and unattested
+identity cannot leave T1.
 
 ## Naming and marketplace boundary
 

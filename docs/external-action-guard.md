@@ -99,6 +99,45 @@ kesip kesmediğini söyler. Aynı sorgu library'den
 yazılmış receipt'ler cevaptan düşürülmez; `legacy: true` ve `attested: false`
 ile işaretlenir.
 
+## Graduated autonomy (T1 / T2 / T3)
+
+Faz D (#1770) dış action receipt geçmişinden identity-bazlı bir güven skoru
+hesaplar: başarılı outcome, ihlal (`block`/`failed`) ve insan review oranları
+ayrı tutulur. Yalnız canonical `receiptHash`'i doğrulanan receipt'ler pozitif
+kanıt olabilir; eksik veya değiştirilmiş satırlar promotion üretemez.
+
+| Tier | Yetki tavanı |
+|---|---|
+| `T1` | Salt-okuma ve sandbox simulation |
+| `T2` | T1 + workspace-bounded filesystem/memory write |
+| `T3` | Genişletilmiş action sınıfları; mevcut güvenlik gate'leri yine geçerli |
+
+Promotion yavaştır: T2 için en az 10 action, 75 skor ve 5 kesintisiz başarı;
+T3 için 30 action, 90 skor ve 10 kesintisiz başarı gerekir. İlk T1→T2 geçişi
+`approved` bir insan activation kaydı olmadan yapılmaz. Demotion bekleme serisi
+kullanmaz: yeni `failed` outcome bir tier, yeni `block` doğrudan T1 düşürür;
+demotion eşikleri T2 için 60, T3 için 80'dir. Tier bir **yetki tavanıdır**;
+AB1–AB11'den gelen `review` veya `block` kararını asla `allow`'a yükseltmez.
+Promotion ayrıca `attested: true` capability-card kimliği ister; yalnız ajan
+adından türetilen unattested kimlik geçmişi devralamaz ve T1'den çıkamaz.
+
+Özellik geriye dönük uyumluluk için opt-in'dir:
+
+```powershell
+$event | huqan-gate --profile generic --graduated-autonomy --receipt-log C:\logs\receipts.jsonl
+$event | huqan-gate --profile generic --graduated-autonomy `
+  --autonomy-activation approval-42 --human-approver actor:ali `
+  --approved-at 2026-01-01T00:10:00.000Z
+```
+
+Library'de `graduatedAutonomy: { enabled: true, receipts?, receiptPath?,
+activation? }`, deployment ortamında
+`HUQAN_EXTERNAL_GUARD_GRADUATED_AUTONOMY=1` kullanılabilir. Hesaplanan tier,
+skor, oranlar, transition ve ilk activation kanıtı admission receipt'in
+`metadata.autonomy` alanına hash kapsamında yazılır; outcome aynı kararı
+admission receipt'ten miras alır. Promotion/demotion receipt'i kalıcı
+yazılamazsa geçiş fail-closed `block` olur; yalnız bellekte yetki artışı yoktur.
+
 ## Karar ve enforcement
 
 Çekirdek mevcut HUQAN risk, tool-call, command, memory, automation, egress ve

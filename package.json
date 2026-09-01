@@ -216,6 +216,7 @@
     "lib/external-action-adapter.js",
     "lib/external-action-envelope.js",
     "lib/external-action-guard.js",
+    "lib/graduated-autonomy.js",
     "lib/external-action-identity.js",
     "lib/external-action-identity-log.js",
     "lib/external-action-receipt.js",

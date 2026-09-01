@@ -195,3 +195,16 @@ test('--identity-log lists every action recorded for one identity', t => {
   assert.equal(result.summary.attested, 2);
   assert.ok(result.actions.every(action => action.identity.ownerActorId === 'actor:ali'));
 });
+
+test('--graduated-autonomy exposes the enforced T1 score and tier in CLI output', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-gate-autonomy-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const run = runHookWithCard(genericPayload('git status'), directory, ['--graduated-autonomy']);
+  assert.equal(run.process.status, 0, run.process.stderr);
+  const output = JSON.parse(run.process.stdout);
+  assert.equal(output.autonomyTier, 'T1');
+  assert.equal(output.autonomyScore, 0);
+  const receipt = JSON.parse(fs.readFileSync(run.receiptLog, 'utf8').trim());
+  assert.equal(receipt.metadata.autonomy.schemaVersion, 'huqan.graduated-autonomy.v1');
+  assert.equal(receipt.metadata.autonomy.requiredTier, 'T1');
+});
