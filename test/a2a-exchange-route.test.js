@@ -96,12 +96,12 @@ function request(port, { method = 'POST', body, contentType = 'application/json'
   });
 }
 
-function freshBoundary() {
+function freshBoundary(fixtureOptions = {}) {
   const { root, replayDirectory } = makeSandbox();
   // P0-B serves the canonical workspace only, so the route fixture is built
   // in `default`. The conformance suite keeps its own workspace by default,
   // which is why the generator takes it as a parameter rather than a constant.
-  const fixture = buildFixture(CANONICAL_WORKSPACE);
+  const fixture = buildFixture(CANONICAL_WORKSPACE, fixtureOptions);
   const authorityFile = writeAuthority(root, fixture.authority);
   const boundary = createA2aExchangeBoundary({ authorityFile, replayDirectory });
   return { boundary, fixture, root, replayDirectory, authorityFile };
@@ -122,6 +122,10 @@ test('a2a route: a valid exchange is admitted through the real HTTP boundary', a
   assert.equal(response.body.reason, 'ok');
   assert.equal(response.body.effect.admitted, true);
   assert.equal(response.body.effect.exchangeId, fixture.request.exchangeId);
+  assert.equal(response.body.effect.receiptMetadata.decision, 'allow');
+  assert.equal(response.body.effect.receiptMetadata.firewallVersion, 'AAFW-v1.0.0');
+  assert.equal(response.body.effect.receiptMetadata.policy.policyVersion, 'v5-d6-1');
+  assert.deepEqual(response.body.effect.receiptMetadata.task, fixture.request.requestedAction);
   assert.equal(response.headers['cache-control'], 'no-store');
 });
 
@@ -138,6 +142,27 @@ test('a2a route: replaying the identical exchange is refused by the existing own
   assert.equal(results[1].status, 403);
   assert.equal(results[1].body.decision, 'block');
   assert.equal(results[1].body.reason, 'replay_detected');
+});
+
+test('a2a route: AB5 review stops before effect and replay reservation', async () => {
+  // `axiom.trace` is delegation-allowed but is not one of AB5's recognized
+  // read-only execution tools, so the signed task reaches a review decision.
+  const { boundary, fixture } = freshBoundary({ tool: 'axiom.trace' });
+
+  const results = await withServer(boundary, async (port) => [
+    await request(port, { body: fixture.request }),
+    await request(port, { body: fixture.request }),
+  ]);
+
+  for (const response of results) {
+    assert.equal(response.status, 403);
+    assert.equal(response.body.decision, 'review');
+    assert.equal(response.body.reason, 'UNKNOWN_OPERATION_REVIEW_REQUIRED');
+    assert.equal(response.body.safeToRetry, true);
+    assert.equal(response.body.receiptMetadata.decision, 'review');
+    assert.equal(response.body.effect, undefined);
+    assert.equal(response.body.taskId, undefined);
+  }
 });
 
 test('a2a route: a tampered exchange signature is refused with the evaluator reason', async () => {

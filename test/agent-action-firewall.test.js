@@ -25,6 +25,22 @@ test.describe('Agent Action Firewall', () => {
     assert.equal(Object.prototype.hasOwnProperty.call(result.metadata, 'raw'), false);
   });
 
+  test('allows HUQAN read aliases but does not trust an arbitrary namespace suffix', () => {
+    const known = evaluateAgentActionFirewall({
+      surface: 'a2a',
+      tool: 'axiom.verify',
+      input: { action: 'verify.claim', target: 'claim:1' },
+    });
+    const forged = evaluateAgentActionFirewall({
+      surface: 'a2a',
+      tool: 'evil.verify',
+      input: { action: 'verify.claim', target: 'claim:1' },
+    });
+
+    assert.equal(known.decision, 'allow');
+    assert.equal(forged.decision, 'review');
+  });
+
   test('blocks force-push action before the executor is reached', () => {
     const result = evaluateAgentActionFirewall({
       surface: 'agent',
