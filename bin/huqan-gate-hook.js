@@ -75,6 +75,7 @@ async function main() {
       agentName: argumentValue('--agent-name') || undefined,
       identityCard: identityCardPath ? readJsonFile(identityCardPath) : undefined,
       requireIdentityCard: process.argv.includes('--require-identity') ? true : undefined,
+      allowControlPlane: process.argv.includes('--allow-control-plane') ? true : undefined,
       graduatedAutonomy: process.argv.includes('--graduated-autonomy') ? {
         enabled: true,
         receiptPath: receiptWriter.path,
