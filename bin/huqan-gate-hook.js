@@ -8,6 +8,7 @@ const {
 } = require('../lib/external-action-adapter');
 const { createDurableExternalActionReceiptWriter } = require('../lib/external-action-receipt');
 const { queryExternalActionsByIdentity } = require('../lib/external-action-identity-log');
+const { manageGate } = require('../lib/external-action-gate-install');
 
 const MAX_STDIN_BYTES = 1024 * 1024;
 
@@ -57,6 +58,19 @@ function readStdin() {
 async function main() {
   let receiptWriter;
   try {
+    const command = process.argv[2];
+    if (['install', 'uninstall', 'status'].includes(command)) {
+      const result = manageGate(command, {
+        deploymentAuthorized: true,
+        profile: argumentValue('--profile') || undefined,
+        root: argumentValue('--target-root') || process.cwd(),
+        home: argumentValue('--home') || undefined,
+        receiptPath: argumentValue('--receipt-log') || undefined,
+      });
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      process.exitCode = 0;
+      return;
+    }
     if (argumentValue('--identity-log')) return queryIdentityLog();
     const profile = argumentValue('--profile', EXTERNAL_ADAPTER_PROFILES.GENERIC);
     const identityCardPath = argumentValue('--identity-card');
