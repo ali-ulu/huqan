@@ -355,9 +355,19 @@ JSON config bozuksa ya da HUQAN'a ait hedef dosya yerel olarak değiştirilmişs
 komut üzerine yazmaz. `uninstall` da yalnız HUQAN hook girişini veya içeriği
 paket şablonuyla birebir aynı HUQAN dosyasını kaldırır.
 
+`opencode` ve `pi` için kurulan dosya `huqan` paketini **adıyla** import eder.
+Node bu adı kurulan dosyanın bulunduğu dizinden yukarı doğru arar ve **global
+npm kurulumu bu aramaya görünmez**. Bu yüzden kurulum, hedeften paketin
+çözülüp çözülmediğini önceden kontrol eder; çözülemiyorsa hiçbir şey yazmadan
+reddeder. Çözüm, paketi hedef çalışma alanına kurmaktır (`npm install huqan`).
+
 Başarılı `install` çıktısındaki `sentinel`, seçilen profil üzerinden bilinen
-yıkıcı bir eylemin gerçekten `block` aldığını gösterir. Bu doğrulama gerçek
-eylemi çalıştırmaz ve receipt trail'e sentetik kayıt yazmaz. `status`, her
+yıkıcı bir eylemin gerçekten `block` aldığını gösterir — ama `via: "evaluator"`
+alanının söylediği sınırla: doğrulama guard'ın karar yolunu **kurulumu yapan
+süreç içinde** çalıştırır, kurulan dosyayı yüklemez ve host'un hook zincirini
+tetiklemez. Yani kapının o istemcide canlı olduğunun ucu uca kanıtı değildir
+(#1792). Bu doğrulama gerçek eylemi çalıştırmaz ve receipt trail'e sentetik
+kayıt yazmaz. `status`, her
 profilin hedefini/bağlılık durumunu ve varsa varsayılan ya da `--receipt-log`
 ile seçilen trail'deki son receipt'in zaman, karar ve kimliğini döndürür.
 
