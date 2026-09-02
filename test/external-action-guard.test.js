@@ -188,8 +188,11 @@ test('Claude and Codex native hook payloads normalize to the universal envelope 
   }
 });
 
+// In-process guards write receipts by default now, so tests that only care
+// about the decision pass an explicit null writer rather than appending to the
+// deployment's real trail.
 test('OpenCode plugin throws before a reviewed tool executes', async () => {
-  const plugin = createOpenCodeGuardPlugin();
+  const plugin = createOpenCodeGuardPlugin({ receiptWriter: null });
   const hooks = await plugin({ directory: workspaceRoot });
   await assert.rejects(
     hooks['tool.execute.before'](
@@ -200,9 +203,46 @@ test('OpenCode plugin throws before a reviewed tool executes', async () => {
   );
 });
 
+test('in-process guards leave a receipt behind, like the CLI hook does', async (t) => {
+  // #1792: the opencode install blocked correctly and wrote nothing, so a
+  // deployment that chose that client had no evidence trail at all -- while
+  // the same deployment on claude-code or codex did. The gap was silent
+  // because the template calls the factory with no options.
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-inprocess-receipt-'));
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const receiptPath = path.join(base, 'receipts.jsonl');
+
+  const plugin = createOpenCodeGuardPlugin({ receiptPath });
+  const hooks = await plugin({ directory: workspaceRoot });
+  await assert.rejects(hooks['tool.execute.before'](
+    { tool: 'bash', sessionID: 's1', callID: 'c1' },
+    { args: { command: 'custom-action' } },
+  ));
+
+  assert.equal(fs.existsSync(receiptPath), true, 'no receipt file was created');
+  const receipts = fs.readFileSync(receiptPath, 'utf8').trim().split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line));
+  assert.equal(receipts.length, 1);
+  assert.equal(receipts[0].decision, 'review');
+});
+
+test('an explicit null writer opts an in-process guard out of receipts', async (t) => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-inprocess-optout-'));
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const receiptPath = path.join(base, 'receipts.jsonl');
+
+  const plugin = createOpenCodeGuardPlugin({ receiptPath, receiptWriter: null });
+  const hooks = await plugin({ directory: workspaceRoot });
+  await assert.rejects(hooks['tool.execute.before'](
+    { tool: 'bash', sessionID: 's1', callID: 'c1' },
+    { args: { command: 'custom-action' } },
+  ));
+
+  assert.equal(fs.existsSync(receiptPath), false);
+});
+
 test('Pi adapter returns block for reviewed calls', async () => {
   let handler;
-  registerPiGuard({ on(event, callback) { if (event === 'tool_call') handler = callback; } }, { cwd: workspaceRoot, sessionId: 's1' });
+  registerPiGuard({ on(event, callback) { if (event === 'tool_call') handler = callback; } }, { cwd: workspaceRoot, sessionId: 's1', receiptWriter: null });
   const decision = await handler({ toolName: 'bash', toolCallId: 'c1', input: { command: 'custom-action' } }, {});
   assert.equal(decision.block, true);
   assert.match(decision.reason, /HUQAN review/);
