@@ -362,12 +362,22 @@ npm kurulumu bu aramaya görünmez**. Bu yüzden kurulum, hedeften paketin
 reddeder. Çözüm, paketi hedef çalışma alanına kurmaktır (`npm install huqan`).
 
 Başarılı `install` çıktısındaki `sentinel`, seçilen profil üzerinden bilinen
-yıkıcı bir eylemin gerçekten `block` aldığını gösterir — ama `via: "evaluator"`
-alanının söylediği sınırla: doğrulama guard'ın karar yolunu **kurulumu yapan
-süreç içinde** çalıştırır, kurulan dosyayı yüklemez ve host'un hook zincirini
-tetiklemez. Yani kapının o istemcide canlı olduğunun ucu uca kanıtı değildir
-(#1792). Bu doğrulama gerçek eylemi çalıştırmaz ve receipt trail'e sentetik
-kayıt yazmaz. `status`, her
+yıkıcı bir eylemin gerçekten `block` aldığını gösterir. `via` alanı bunun
+**neyle** kanıtlandığını söyler:
+
+- `via: "artifact"` (`opencode`, `pi`): kurulan dosya ayrı bir süreçte, kendi
+  dizininden çözülerek yüklenir ve host'un sözleşmesiyle (`tool.execute.before`
+  / `tool_call`) çağrılır. Yüklenemeyen, guard API'sine erişemeyen ya da
+  engellerken makbuz bırakmayan bir artefakt kurulumu **başarısız eder**; o
+  çağrının yazdığı dosya geri alınır (#1792).
+- `via: "evaluator"` (`claude-code`, `codex`, `hermes`): bu profiller guard'a
+  `huqan-gate` komutunu çalıştırarak ulaşır ve doğrulama o komutu **henüz
+  çalıştırmıyor**; yalnızca karar yolunun kurulumu yapan süreç içinde
+  engellediğini gösterir. Kapının o istemcide canlı olduğunun ucu uca kanıtı
+  değildir.
+
+Sentinel gerçek eylemi çalıştırmaz; artefakt doğrulamasının ürettiği makbuz
+geçici bir dosyaya yazılır, deployment'ın receipt trail'ine dokunulmaz. `status`, her
 profilin hedefini/bağlılık durumunu ve varsa varsayılan ya da `--receipt-log`
 ile seçilen trail'deki son receipt'in zaman, karar ve kimliğini döndürür.
 

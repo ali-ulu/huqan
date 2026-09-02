@@ -45,9 +45,15 @@ test('every supported profile installs idempotently, reports a blocked sentinel,
     const second = manageGate('install', options(paths, profile));
     assert.equal(first.sentinel.live, true, profile);
     assert.equal(first.sentinel.decision, 'block', profile);
-    // The sentinel says what it actually exercised: the evaluator in this
-    // process, not the installed artifact under its host.
-    assert.equal(first.sentinel.via, 'evaluator', profile);
+    // The sentinel says what it actually exercised. `file` profiles are driven
+    // through the installed artifact under its host's contract; the rest reach
+    // their guard by spawning `huqan-gate`, which is not executed yet, so they
+    // claim only the evaluator in this process.
+    assert.equal(first.sentinel.via, ['opencode', 'pi'].includes(profile) ? 'artifact' : 'evaluator', profile);
+    // The denylist is what the sentinel is written to prove. Pi used to block
+    // as `malformed_external_action_blocked` because the payload was shaped for
+    // a different profile -- a green sentinel that proved the wrong path.
+    assert.equal(first.sentinel.reason, 'DENYLISTED_COMMAND_BLOCKED', profile);
     assert.equal(second.target, first.target, profile);
     assert.equal(manageGate('status', options(paths, profile)).clients[0].installed, true, profile);
     assert.equal(manageGate('uninstall', options(paths, profile)).removed, true, profile);
@@ -81,6 +87,43 @@ test('a workspace that cannot resolve huqan is refused, and refusing leaves noth
   // Same workspace, package now present: the install goes through.
   linkPackage(paths.root);
   assert.equal(manageGate('install', options(paths, 'opencode')).installed, true);
+});
+
+test('an installed artifact that cannot reach the guard API fails the install and leaves nothing behind', t => {
+  // The other half of #1792: the workspace resolves `huqan`, so the dependency
+  // check passes, but the resolved package predates the guard API -- exactly
+  // the published huqan@0.11.1 on the machine where this was found. The old
+  // sentinel called the evaluator inside its own process and reported
+  // `live: true` over an artifact that dies the moment its host loads it.
+  const paths = sandbox(t, { linked: false });
+  const stub = path.join(paths.root, 'node_modules', 'huqan');
+  fs.mkdirSync(stub, { recursive: true });
+  fs.writeFileSync(path.join(stub, 'package.json'), JSON.stringify({ name: 'huqan', version: '0.0.0', main: 'index.js' }));
+  fs.writeFileSync(path.join(stub, 'index.js'), 'module.exports = {};\n');
+
+  for (const profile of ['opencode', 'pi']) {
+    assert.throws(() => manageGate('install', options(paths, profile)), /installed artifact is not loadable/, profile);
+    const status = manageGate('status', options(paths, profile)).clients[0];
+    assert.equal(status.installed, false, profile);
+    assert.equal(fs.existsSync(status.target), false, profile);
+  }
+});
+
+test('the sentinel keeps its synthetic block out of the deployment receipt trail', t => {
+  // The sentinel is a fabricated `rm -rf /`. It has to write a receipt --
+  // that is how a blocking artifact proves it still leaves evidence (#1794) --
+  // but writing it where auditors read would open the trail with a block that
+  // never happened.
+  const paths = sandbox(t);
+  const trail = path.join(paths.root, 'deployment-receipts.jsonl');
+  const previous = process.env.HUQAN_EXTERNAL_GUARD_RECEIPTS;
+  process.env.HUQAN_EXTERNAL_GUARD_RECEIPTS = trail;
+  t.after(() => {
+    if (previous === undefined) delete process.env.HUQAN_EXTERNAL_GUARD_RECEIPTS;
+    else process.env.HUQAN_EXTERNAL_GUARD_RECEIPTS = previous;
+  });
+  assert.equal(manageGate('install', options(paths, 'opencode')).sentinel.receiptWritten, true);
+  assert.equal(fs.existsSync(trail), false);
 });
 
 test('JSON hook install preserves unrelated hooks and keeps one HUQAN entry', t => {
