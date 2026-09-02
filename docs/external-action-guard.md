@@ -138,6 +138,71 @@ skor, oranlar, transition ve ilk activation kanıtı admission receipt'in
 admission receipt'ten miras alır. Promotion/demotion receipt'i kalıcı
 yazılamazsa geçiş fail-closed `block` olur; yalnız bellekte yetki artışı yoktur.
 
+## Continuous post-action monitoring (Faz E)
+
+Pre-execution gate tek başına runtime sonucunu göremez. Host, eylem bittikten
+sonra `recordExternalActionOutcome()` çağrısına `continuousMonitoring` vererek
+bounded behavioral signal toplar. Bu yüzey yeni bir self-healer runner açmaz;
+mevcut `behavioral-containment` değerlendirmesini ve finding classifier'ı
+kullanır.
+
+```js
+recordExternalActionOutcome(invocation, admission.receipt, {
+  status: 'success',
+  durationMs: 42,
+  sideEffectCount: 0,
+  behavioralObservation: {
+    tool: 'Read',
+    action: 'read',
+    connector: 'local',
+    targetClass: 'workspace_path',
+    egressClass: 'none',
+    delegationClass: 'none',
+  },
+}, {
+  receiptWriter,
+  continuousMonitoring: {
+    enabled: true,
+    activation: {
+      status: 'approved',
+      approvalId: 'approval-123',
+      actor: 'actor:operator',
+      actorType: 'human',
+      approvedAt: '2026-01-01T00:00:00.000Z',
+    },
+    baseline: {
+      goal: 'bounded external action monitoring',
+      capabilities: ['read'],
+      tools: ['read'],
+      connectors: ['local'],
+      targetClasses: ['workspace_path'],
+      egressClasses: ['none'],
+      delegation: ['none'],
+    },
+  },
+});
+```
+
+İlk kurulumda onaylı ve geleceğe tarihlenmemiş bir insan aktivasyonu
+zorunludur. Aktivasyon yoksa sinyal receipt'e `activation_required` olarak
+yazılır fakat otomatik containment devreye girmez. Aktif bir baseline sapması,
+`policyViolation`, `unexpectedSideEffect` veya açık `anomaly` sinyali:
+
+- mevcut self-healer finding şemasında sınıflanır;
+- outcome receipt'in `metadata.monitoring` alanına hash-kapsamlı yazılır;
+- receipt durable yazılmışsa identity'yi quarantine eder ve Faz D için kritik
+  ihlal sayılarak bir sonraki kararda T1'e demote eder;
+- durable receipt yoksa `ok:false` döner ve quarantine uygulanmış sayılmaz.
+
+Continuous monitoring açıldığında Faz D autonomy tavanı aynı receipt kaynağıyla
+otomatik etkinleşir; çağıranın ikinci bir feature flag vermesi gerekmez.
+`continuousMonitoring.receipts` veya `receiptPath` açıkça verilebilir, aksi halde
+durable writer yolu kullanılır.
+
+Özellik varsayılan kapalıdır. Library seçeneğine ek olarak
+`HUQAN_EXTERNAL_GUARD_CONTINUOUS_MONITORING=1` ile etkinleştirilebilir; yine de
+baseline ve insan aktivasyonu verilmeden otomatik containment kurulmaz.
+
 ## Karar ve enforcement
 
 Çekirdek mevcut HUQAN risk, tool-call, command, memory, automation, egress ve

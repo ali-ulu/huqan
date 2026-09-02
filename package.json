@@ -437,6 +437,7 @@
     "lib/secret-scrub-gate.js",
     "lib/secret-patterns.js",
     "lib/self-healer/behavioral-containment.js",
+    "lib/post-action-monitor.js",
     "lib/self-healer/dryrun-runner.js",
     "lib/self-healer/audit-runner.js",
     "lib/self-healer/finding-classifier.js",

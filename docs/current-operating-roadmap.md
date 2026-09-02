@@ -183,8 +183,8 @@ The roadmap issue `#1766` sequences five phases. Three are merged:
 | A — A2A exchange under the Agent Action Firewall | `#1767` | merged | `74ee93f2` (PR `#1773`) |
 | B — inter-agent trust receipt chain | `#1768` | merged | `df1eed1a` (PR `#1774`) |
 | C — persistent agent identity | `#1769` | merged | `lib/external-action-identity.js`, `lib/external-action-identity-log.js` |
-| D — graduated autonomy | `#1770` | implementation | `lib/graduated-autonomy.js`, `test/graduated-autonomy.test.js` |
-| E — continuous monitoring | `#1771` | open | — |
+| D — graduated autonomy | `#1770` | merged | `lib/graduated-autonomy.js`, `test/graduated-autonomy.test.js` |
+| E — continuous monitoring | `#1771` | implementation | `lib/post-action-monitor.js`, `test/post-action-monitor.test.js` |
 
 Faz A resolves the delegated policy before an exchange and refuses when it is
 absent; an unreadable firewall decision defaults to `block`, so the delegated

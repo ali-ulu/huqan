@@ -24,12 +24,16 @@ Current implemented authority remains in source and tests:
 
 The current implemented surface includes finding schema validation,
 caller-provided check normalization into audit reports, finding classification,
-and a bounded AgentV3 behavioral-containment seam. Nightly repo audits,
+and a bounded AgentV3 behavioral-containment seam. External-action outcomes can
+feed that same seam through `lib/post-action-monitor.js`: a human-activated
+baseline deviation produces a classified finding, durable quarantine evidence,
+and a critical graduated-autonomy demotion signal. Nightly repo audits,
 autonomous repo scanning, fix proposal generation, draft patch/PR production,
 receipt emission beyond bounded receipt summaries, and memory/audit integration
 remain target capabilities unless a later source file and test prove otherwise.
 The AgentV3 seam observes only the current run's declared baseline and bounded
-step metadata; it does not create an autonomous Self-Healer runner.
+step metadata. The post-action seam observes only explicitly reported bounded
+outcome metadata; neither surface creates an autonomous Self-Healer runner.
 
 ## Context
 
