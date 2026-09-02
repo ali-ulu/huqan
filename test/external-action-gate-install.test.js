@@ -267,3 +267,46 @@ test('management API requires deployment authority and CLI exposes status', t =>
   assert.equal(cli.status, 0, cli.stderr);
   assert.equal(JSON.parse(cli.stdout).clients[0].installed, true);
 });
+
+function codexTrustStore(root, entry) {
+  const target = path.join(root, '.codex', 'config.toml');
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, `[hooks.state.'${entry}']\ntrusted_hash = "sha256:deadbeef"\n`);
+}
+
+test('an install that writes the hook entry says the host has to trust it again', t => {
+  // Codex skips a hook whose trusted_hash it does not have, silently -- so a
+  // reinstall disarmed the gate and nothing said so until a turn was measured
+  // (#1797). The install cannot approve on the user's behalf; it can refuse to
+  // let the fact go unmentioned.
+  const paths = sandbox(t);
+  const hooks = path.join(paths.root, '.codex', 'hooks.json');
+
+  const untrusted = manageGate('install', options(paths, 'codex')).hostTrust;
+  assert.equal(untrusted.record, 'absent');
+  assert.equal(untrusted.reapprovalRequired, true);
+  manageGate('uninstall', options(paths, 'codex'));
+
+  codexTrustStore(paths.root, `${hooks}:pre_tool_use:0:0`);
+  const rewritten = manageGate('install', options(paths, 'codex')).hostTrust;
+  assert.equal(rewritten.record, 'present');
+  assert.equal(rewritten.reapprovalRequired, true, 'a freshly written entry is not the one that was trusted');
+  assert.match(rewritten.reason, /previous one/);
+
+  // Second install changes nothing, so the record still describes what is there.
+  assert.equal(manageGate('install', options(paths, 'codex')).hostTrust.reapprovalRequired, false);
+});
+
+test('trust state is readable without reinstalling, and only claimed for hosts that keep it', t => {
+  const paths = sandbox(t);
+  manageGate('install', options(paths, 'codex'));
+  codexTrustStore(paths.root, `${path.join(paths.root, '.codex', 'hooks.json')}:pre_tool_use:0:0`);
+  assert.equal(manageGate('status', options(paths, 'codex')).clients[0].hostTrust.reapprovalRequired, false);
+
+  // A key for a different hook in the same store is not this hook's trust.
+  codexTrustStore(paths.root, `${path.join(paths.root, '.codex', 'config.toml')}:session_start:0:0`);
+  assert.equal(manageGate('status', options(paths, 'codex')).clients[0].hostTrust.record, 'absent');
+
+  // No claim is made about hosts whose trust behaviour has not been measured.
+  assert.equal(manageGate('status', options(paths, 'opencode')).clients[0].hostTrust, null);
+});
