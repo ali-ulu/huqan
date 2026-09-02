@@ -248,6 +248,35 @@ cross-workspace gate'lerini yeniden kullanır. En sert karar kazanır:
 | `review` | İnsan kararı olmadan çalışmaz |
 | `block` | Çalışmaz |
 
+### Codex hook sözleşmesi (ölçüldü, codex-cli 0.151.0)
+
+Codex ikilisi hook giriş/çıkış şemalarını kendi içinde taşıyor; aşağıdakiler
+oradan çıkarıldı, tahmin değil.
+
+`PreToolUse` **girdisi** şu alanların hepsini zorunlu tutar: `session_id`,
+`tool_use_id`, `turn_id`, `tool_name`, `tool_input`, `cwd`, `model`,
+`permission_mode` (`default | acceptEdits | plan | dontAsk |
+bypassPermissions`), `agent_id`, `agent_type`, `transcript_path`. Adaptör
+bunlardan `agent_id`, `agent_type`, `model` ve `permission_mode`'u makbuza
+`metadata.host` altında **`attested: false`** ile yazar — host'un kendisi
+hakkında söylediği şey, deployment'ın doğruladığı kimlik değil; `identity`
+bloğuyla karıştırılmaz.
+
+`PreToolUse` **çıktısında** şema `allow | deny | ask` listeler ama bu sürüm
+üçünden ikisini reddediyor; ikilinin kendi hata metinleri: *"PreToolUse hook
+returned unsupported permissionDecision:ask"* ve *"...:allow"*. Reddedilen bir
+çıktı yok sayılan bir çıktıdır, yani `ask` göndermek `review`'ü **sessiz bir
+allow'a** çevirirdi. Bu yüzden `review` de `deny` olarak uygulanır ve farkı
+`permissionDecisionReason` taşır: "human decision pending, not a denylist
+block", ayrıca makbuz kimliği. `deny` gönderirken gerekçe zorunludur (*"...
+returned permissionDecision:deny without a non-empty permissionDecisionReason"*).
+
+Ayrı bir `PermissionRequest` olayı da var; çıktısı `behavior: allow | deny` +
+`message` kabul ediyor (`interrupt`, `updatedInput`, `updatedPermissions`
+şimdilik fail-closed). Codex kullanıcıya onay sorduğunda HUQAN'ın gerekçesini
+oraya iliştirmek mümkün — henüz bağlanmadı, çünkü PreToolUse zaten reddettiği
+bir çağrı için onay istemi hiç oluşmuyor.
+
 ### Shell komutları hangi kategoriye düşer
 
 Sırayla: deployment (`git push`, `npm publish`, …) → izin değişikliği (`chmod`,

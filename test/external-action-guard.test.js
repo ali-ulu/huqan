@@ -12,6 +12,7 @@ const {
 const {
   normalizeHookInvocation,
   projectHookDecision,
+  evaluateHookInvocation,
   createOpenCodeGuardPlugin,
   registerPiGuard,
 } = require('../lib/external-action-adapter');
@@ -293,4 +294,71 @@ test('a receipt says when the deployment list is what allowed a command', () => 
   // or every audit would read as though the deployment had waved it through.
   const builtin = evaluateExternalAction(invocation({ args: { command: 'git status' } }), { allowedCommands: ['git status'] });
   assert.equal(builtin.receipt.metadata.allowlistedCommand, '');
+});
+
+function codexPayload(overrides = {}) {
+  return {
+    session_id: 'codex-session',
+    tool_use_id: 'codex-call',
+    turn_id: 'codex-turn',
+    tool_name: 'Bash',
+    tool_input: { command: 'gh pr list' },
+    cwd: workspaceRoot,
+    model: 'gpt-5.6-sol',
+    agent_id: 'agent-42',
+    agent_type: 'codex-cli',
+    permission_mode: 'bypassPermissions',
+    ...overrides,
+  };
+}
+
+test('a Codex review says it is a pending decision, since the decision field cannot', () => {
+  // Codex's wire schema lists allow/deny/ask but the runtime rejects ask, and
+  // an output it rejects is one it ignores -- which would turn a review into a
+  // silent allow. Review is therefore enforced as deny, and the difference has
+  // to survive in the reason.
+  const options = { workspaceRoot, allowControlPlane: true, receiptWriter: null };
+  const review = evaluateHookInvocation('codex', codexPayload(), options);
+  assert.equal(review.result.decision, 'review');
+  const reviewed = review.projection.output.hookSpecificOutput;
+  assert.equal(reviewed.permissionDecision, 'deny');
+  assert.match(reviewed.permissionDecisionReason, /human decision pending, not a denylist block/);
+  assert.ok(reviewed.permissionDecisionReason.includes(review.result.receipt.receiptId));
+
+  const blocked = evaluateHookInvocation('codex', codexPayload({ tool_input: { command: 'rm -rf /' } }), options);
+  assert.equal(blocked.result.decision, 'block');
+  const denied = blocked.projection.output.hookSpecificOutput;
+  assert.equal(denied.permissionDecision, 'deny');
+  assert.doesNotMatch(denied.permissionDecisionReason, /human decision pending/);
+  assert.ok(denied.permissionDecisionReason.includes(blocked.result.receipt.receiptId));
+});
+
+test('what the host says about itself is recorded, and recorded as unattested', () => {
+  const options = { workspaceRoot, allowControlPlane: true, receiptWriter: null };
+  const evaluated = evaluateHookInvocation('codex', codexPayload(), options);
+  const { host, identity } = evaluated.result.receipt.metadata;
+  assert.deepEqual(host, {
+    attested: false,
+    agentId: 'agent-42',
+    agentType: 'codex-cli',
+    model: 'gpt-5.6-sol',
+    permissionMode: 'bypassPermissions',
+  });
+  // The host naming itself must not reach the identity block, which is the
+  // deployment's claim, not the agent's.
+  assert.equal(identity.attested, false);
+  assert.equal(identity.agentId, 'codex');
+  assert.equal(identity.identityRef, 'agent:default:codex');
+});
+
+test('host-reported fields are bounded and string-only', () => {
+  const evaluated = evaluateHookInvocation('codex', codexPayload({
+    agent_id: 'x'.repeat(5000),
+    model: { nested: 'object' },
+    agent_type: null,
+  }), { workspaceRoot, allowControlPlane: true, receiptWriter: null });
+  const { host } = evaluated.result.receipt.metadata;
+  assert.equal(host.agentId.length, 200);
+  assert.equal(host.model, '');
+  assert.equal(host.agentType, '');
 });
