@@ -45,12 +45,11 @@ test('every supported profile installs idempotently, reports a blocked sentinel,
     const second = manageGate('install', options(paths, profile));
     assert.equal(first.sentinel.live, true, profile);
     assert.equal(first.sentinel.decision, 'block', profile);
-    // The sentinel says which surface it actually exercised: the installed
-    // artifact for `file` profiles, the recorded hook command for JSON hooks,
-    // and -- for hermes, whose Python plugin resolves the executable itself --
-    // only the evaluator in this process.
-    const expectedVia = { opencode: 'artifact', pi: 'artifact', 'claude-code': 'command', codex: 'command' };
-    assert.equal(first.sentinel.via, expectedVia[profile] || 'evaluator', profile);
+    // The sentinel says which surface it actually exercised: installed
+    // artifacts for file/Hermes profiles and the recorded command for JSON.
+    const expectedVia = { opencode: 'artifact', pi: 'artifact', hermes: 'artifact', 'claude-code': 'command', codex: 'command' };
+    assert.equal(first.sentinel.via, expectedVia[profile], profile);
+    assert.equal(first.sentinel.receiptWritten, true, profile);
     // The denylist is what the sentinel is written to prove. Pi used to block
     // as `malformed_external_action_blocked` because the payload was shaped for
     // a different profile -- a green sentinel that proved the wrong path.
@@ -179,6 +178,33 @@ test('a gate spelling that cannot run is skipped for one that can', t => {
   const install = manageGate('install', options(paths, 'codex'));
   assert.equal(install.sentinel.command.includes('nowhere'), false);
   assert.equal(install.sentinel.decision, 'block');
+});
+
+test('Hermes records the tested gate argv and no longer depends on host PATH', t => {
+  const paths = sandbox(t);
+  const previous = process.env.HUQAN_GATE_PATH;
+  process.env.HUQAN_GATE_PATH = path.join(paths.root, 'missing-after-install', 'huqan-gate');
+  t.after(() => {
+    if (previous === undefined) delete process.env.HUQAN_GATE_PATH;
+    else process.env.HUQAN_GATE_PATH = previous;
+  });
+  const install = manageGate('install', options(paths, 'hermes'));
+  const config = JSON.parse(fs.readFileSync(path.join(install.target, 'huqan-gate.json'), 'utf8'));
+  assert.equal(config.schemaVersion, 1);
+  assert.equal(Array.isArray(config.argv), true);
+  assert.equal(config.argv.some(value => value.includes('huqan-gate-hook.js')), true);
+  assert.equal(install.sentinel.via, 'artifact');
+  assert.equal(install.sentinel.receiptWritten, true);
+});
+
+test('Hermes refuses to reclaim a locally modified gate command', t => {
+  const paths = sandbox(t);
+  const install = manageGate('install', options(paths, 'hermes'));
+  const configPath = path.join(install.target, 'huqan-gate.json');
+  fs.writeFileSync(configPath, JSON.stringify({ schemaVersion: 1, argv: ['other-guard'] }));
+  assert.equal(manageGate('status', options(paths, 'hermes')).clients[0].installed, false);
+  assert.throws(() => manageGate('install', options(paths, 'hermes')), /modified Hermes gate command/);
+  assert.throws(() => manageGate('uninstall', options(paths, 'hermes')), /modified Hermes gate command/);
 });
 
 test('an install over an unrunnable recorded command fails and removes nothing', t => {
