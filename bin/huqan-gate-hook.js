@@ -7,6 +7,7 @@ const {
   evaluateHookInvocation,
 } = require('../lib/external-action-adapter');
 const { createDurableExternalActionReceiptWriter } = require('../lib/external-action-receipt');
+const { readAllowedCommands } = require('../lib/external-action-command-policy');
 const { queryExternalActionsByIdentity } = require('../lib/external-action-identity-log');
 const { manageGate } = require('../lib/external-action-gate-install');
 
@@ -93,6 +94,9 @@ async function main() {
     });
     const evaluated = evaluateHookInvocation(profile, payload, {
       receiptWriter,
+      // A policy file that cannot be read is a failure, not an empty list: the
+      // catch below turns it into a fail-closed exit rather than a quiet allow.
+      allowedCommands: readAllowedCommands(argumentValue('--policy') || undefined),
       workspaceRoot: argumentValue('--workspace-root') || undefined,
       workspaceId: argumentValue('--workspace-id', 'default'),
       agentName: argumentValue('--agent-name') || undefined,
