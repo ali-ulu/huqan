@@ -370,14 +370,29 @@ yıkıcı bir eylemin gerçekten `block` aldığını gösterir. `via` alanı bu
   / `tool_call`) çağrılır. Yüklenemeyen, guard API'sine erişemeyen ya da
   engellerken makbuz bırakmayan bir artefakt kurulumu **başarısız eder**; o
   çağrının yazdığı dosya geri alınır (#1792).
-- `via: "evaluator"` (`claude-code`, `codex`, `hermes`): bu profiller guard'a
-  `huqan-gate` komutunu çalıştırarak ulaşır ve doğrulama o komutu **henüz
-  çalıştırmıyor**; yalnızca karar yolunun kurulumu yapan süreç içinde
-  engellediğini gösterir. Kapının o istemcide canlı olduğunun ucu uca kanıtı
-  değildir.
+- `via: "command"` (`claude-code`, `codex`): config'e **yazılmış olan** komut —
+  bu süreçte yeniden çözülen değil — sentinel payload'ıyla çalıştırılır ve
+  host'un okuduğu gibi okunur. Başlatılamayan, farklı karar veren ya da makbuz
+  bırakmayan komut kurulumu **başarısız eder**; o çağrının eklediği hook girişi
+  geri alınır. Çıktıdaki `command` alanı tam olarak neyin kaydedildiğini
+  gösterir.
+- `via: "evaluator"` (`hermes`): Hermes'in Python plugin'i gate
+  çalıştırılabilirini kendi içinde PATH ya da `HUQAN_GATE_PATH` üzerinden
+  çözüyor — kurulumun host adına ayarlayabileceği bir şey değil — bu yüzden
+  doğrulama yalnızca karar yolunun kurulumu yapan süreç içinde engellediğini
+  gösterir. Kapının o istemcide canlı olduğunun ucu uca kanıtı değildir.
 
-Sentinel gerçek eylemi çalıştırmaz; artefakt doğrulamasının ürettiği makbuz
-geçici bir dosyaya yazılır, deployment'ın receipt trail'ine dokunulmaz. `status`, her
+Hook komutu kurulum anında çözülür, taşınabilir olandan başlayarak:
+`HUQAN_GATE_PATH` → PATH üzerindeki `huqan-gate` → çalışma alanının
+`node_modules/.bin` shim'i → paketin kendi girişinin mevcut Node ikilisiyle
+mutlak çağrısı. Şablonlardaki düz `huqan-gate --profile X` yazımı yalnız o ad
+PATH'te olduğunda çalışıyordu; olmadığında host hook'u yine tetikliyor, komut
+başlayamıyor ve fail-closed guard bunu "her araç çağrısı engellendi"ye
+çeviriyordu (#1792).
+
+Sentinel gerçek eylemi çalıştırmaz; doğrulamanın ürettiği makbuz ve (CLI
+yolunda) açılan graph geçici bir dizine yazılır, deployment'ın receipt trail'ine
+dokunulmaz. `status`, her
 profilin hedefini/bağlılık durumunu ve varsa varsayılan ya da `--receipt-log`
 ile seçilen trail'deki son receipt'in zaman, karar ve kimliğini döndürür.
 
