@@ -2,21 +2,27 @@
 
 import json
 import os
-import shutil
 import subprocess
+from pathlib import Path
 
 
-def _gate_executable():
-    configured = os.environ.get("HUQAN_GATE_PATH")
-    if configured:
-        return configured
-    return shutil.which("huqan-gate") or shutil.which("huqan-gate.cmd")
+def _gate_command():
+    try:
+        config = json.loads((Path(__file__).parent / "huqan-gate.json").read_text(encoding="utf-8"))
+        if not isinstance(config, dict):
+            return None
+        argv = config.get("argv")
+        if not isinstance(argv, list) or not argv or not all(isinstance(value, str) and value for value in argv):
+            return None
+        return argv
+    except (OSError, ValueError, TypeError):
+        return None
 
 
 def guard_tool_call(tool_name: str, args: dict, task_id: str, **kwargs):
     """Block Hermes execution unless HUQAN returns an explicit allow."""
-    executable = _gate_executable()
-    if not executable:
+    command = _gate_command()
+    if not command:
         return {"action": "block", "message": "HUQAN guard unavailable; blocked fail-closed"}
 
     payload = {
@@ -29,7 +35,7 @@ def guard_tool_call(tool_name: str, args: dict, task_id: str, **kwargs):
     }
     try:
         completed = subprocess.run(
-            [executable, "--profile", "hermes"],
+            [*command, "--profile", "hermes"],
             input=json.dumps(payload),
             capture_output=True,
             text=True,
