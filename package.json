@@ -219,6 +219,7 @@
     "lib/external-action-gate-install.js",
     "lib/graduated-autonomy.js",
     "lib/external-action-identity.js",
+    "lib/external-action-identity-signing.js",
     "lib/external-action-identity-log.js",
     "lib/external-action-receipt.js",
     "lib/command-parser.js",
