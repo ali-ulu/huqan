@@ -127,23 +127,48 @@ test('the sentinel keeps its synthetic block out of the deployment receipt trail
   assert.equal(fs.existsSync(trail), false);
 });
 
-test('the recorded hook command is one the host can actually run', t => {
-  // The templates recorded `huqan-gate --profile X`, which only works where
-  // that name is on PATH. Where it is not, the host still fires the hook, the
-  // command fails to start, and a fail-closed guard turns that into "every
-  // tool call is blocked" (#1792).
+test('the recorded hook command runs in every shell a host might hand it to', t => {
+  // Codex hands hook commands to PowerShell, where `"C:\Program Files\...\
+  // node.exe" script.js` is a parser error -- the hook exited 1, wrote no
+  // receipt, and Codex ran the tool anyway (#1797). cmd.exe runs that same
+  // string happily, which is exactly why validating under one shell is not
+  // validating.
   const paths = sandbox(t);
   for (const profile of ['claude-code', 'codex']) {
     const install = manageGate('install', options(paths, profile));
     assert.equal(install.sentinel.via, 'command', profile);
     assert.equal(install.sentinel.receiptWritten, true, profile);
+    assert.deepEqual(install.sentinel.shells, process.platform === 'win32' ? ['cmd', 'powershell'] : ['sh'], profile);
+    assert.equal(install.sentinel.command.includes('"'), false, profile);
     const recorded = JSON.parse(fs.readFileSync(install.target, 'utf8')).hooks.PreToolUse
       .flatMap(entry => entry.hooks).map(hook => hook.command);
     assert.deepEqual(recorded, [install.sentinel.command], profile);
   }
 });
 
-test('a hook command that cannot start fails the install and the entry is taken back out', t => {
+test('the recorded command still blocks when run the way the host runs it', t => {
+  // End of the chain: not "a command like this one works" but "this exact
+  // string, through this shell, denies the action and leaves a receipt".
+  const paths = sandbox(t);
+  const install = manageGate('install', options(paths, 'codex'));
+  const trail = path.join(paths.root, 'host-receipts.jsonl');
+  const shell = process.platform === 'win32'
+    ? { file: 'powershell.exe', argv: ['-NoProfile', '-NonInteractive', '-Command', install.sentinel.command] }
+    : { file: '/bin/sh', argv: ['-c', install.sentinel.command] };
+  const run = spawnSync(shell.file, shell.argv, {
+    input: JSON.stringify({ session_id: 's', tool_use_id: 't', tool_name: 'Bash', tool_input: { command: 'rm -rf /' }, cwd: paths.root }),
+    encoding: 'utf8',
+    env: { ...process.env, HUQAN_EXTERNAL_GUARD_RECEIPTS: trail, HUQAN_MEMORY_PATH: path.join(paths.root, 'memory.json'), HUQAN_DB_PATH: path.join(paths.root, 'memory.db') },
+  });
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(JSON.parse(run.stdout).hookSpecificOutput.permissionDecision, 'deny');
+  assert.equal(fs.readFileSync(trail, 'utf8').trim().split(/\r?\n/).length, 1);
+});
+
+test('a gate spelling that cannot run is skipped for one that can', t => {
+  // HUQAN_GATE_PATH is the most explicit candidate, so it is tried first --
+  // but it is still only recorded if it actually blocks the sentinel. When it
+  // cannot run, the install falls through rather than writing it.
   const paths = sandbox(t);
   const previous = process.env.HUQAN_GATE_PATH;
   process.env.HUQAN_GATE_PATH = path.join(paths.root, 'nowhere', 'huqan-gate');
@@ -151,10 +176,26 @@ test('a hook command that cannot start fails the install and the entry is taken 
     if (previous === undefined) delete process.env.HUQAN_GATE_PATH;
     else process.env.HUQAN_GATE_PATH = previous;
   });
-  assert.throws(() => manageGate('install', options(paths, 'codex')), /recorded hook command/);
-  assert.equal(manageGate('status', options(paths, 'codex')).clients[0].installed, false);
-  const config = JSON.parse(fs.readFileSync(path.join(paths.root, '.codex', 'hooks.json'), 'utf8'));
-  assert.deepEqual(config.hooks.PreToolUse, []);
+  const install = manageGate('install', options(paths, 'codex'));
+  assert.equal(install.sentinel.command.includes('nowhere'), false);
+  assert.equal(install.sentinel.decision, 'block');
+});
+
+test('an install over an unrunnable recorded command fails and removes nothing', t => {
+  // This machine's state before the fix: a config already carrying a HUQAN
+  // entry whose command the host cannot start. The install must not report
+  // success over it -- and must not delete an entry it did not write.
+  const paths = sandbox(t);
+  const target = path.join(paths.root, '.codex', 'hooks.json');
+  const stale = { matcher: '.*', hooks: [{ type: 'command', command: 'huqan-gate --profile codex', commandWindows: 'huqan-gate.cmd --profile codex', timeout: 30 }] };
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, JSON.stringify({ hooks: { PreToolUse: [stale] } }));
+  if (spawnSync('huqan-gate', ['--help'], { shell: true }).status === 0) {
+    t.diagnostic('skipped: huqan-gate is on PATH here, so the stale command is runnable');
+    return;
+  }
+  assert.throws(() => manageGate('install', options(paths, 'codex')), /hook command/);
+  assert.deepEqual(JSON.parse(fs.readFileSync(target, 'utf8')).hooks.PreToolUse, [stale]);
 });
 
 test('a hook command with local edits is left alone rather than reclaimed', t => {
