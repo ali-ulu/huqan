@@ -102,6 +102,23 @@ test('fail-closed: bozuk zarf, yanlış algoritma, hatalı imza gövdesi doğrul
   assert.equal(verifyAgentIdentityCardSignature(null, null, publicKeyPem), false);
 });
 
+test('fail-closed: symbol anahtarlı zarf istisna değil doğrulama hatası üretir', () => {
+  // Regresyon: parseSignatureEnvelope Reflect.ownKeys kullanırken symbol'ler de
+  // listeye giriyordu ve TAM ÜÇ anahtarlı zarfta uzunluk kontrolü kısa devre
+  // yapmadığı için .sort() "Cannot convert a Symbol value to a string" atıyordu.
+  // Modülün sözleşmesi bozuk girdide istisna değil false; çağıran try/catch
+  // yazmak zorunda kalmamalı.
+  const { card } = normalizeAgentIdentityCard(CARD_INPUT);
+  const { publicKeyPem } = generateIdentityCardKeyPair();
+  const zarf = {
+    algorithm: SIGNATURE_ALGORITHM,
+    schemaVersion: IDENTITY_CARD_SIGNATURE_VERSION,
+    [Symbol('signature')]: 'AAAA',
+  };
+
+  assert.equal(verifyAgentIdentityCardSignature(card, zarf, publicKeyPem), false);
+});
+
 test('yanlış anahtar doğrulamaz, doğru anahtar doğrular', () => {
   const { card } = normalizeAgentIdentityCard(CARD_INPUT);
   const signer = generateIdentityCardKeyPair();
