@@ -469,6 +469,29 @@ kaydedilen mutlak tırnaklı biçim ise Codex'in kabuğunda hiç başlamıyor, h
 `exit 1` veriyor ve **Codex komutu yine de çalıştırıyordu** (#1797) — fail-closed
 bir guard'ın host tarafından fail-open'a çevrilmesi.
 
+### Host güveni: kurulmak devrede olmak değil
+
+Codex, gördüğü her hook için `config.toml` içinde bir `trusted_hash` tutar ve
+kaydı olmayan hook'u **sessizce atlar** (CLI'daki
+`--dangerously-bypass-hook-trust` bayrağı tam da bunun için). Yani hook girişini
+yazmak, kullanıcı etkileşimli bir turda onaylayana kadar kapıyı devre dışı
+bırakır — ölçüldü: yeni komuttan sonra PreToolUse hiç çalışmadı ve hiçbir şey
+bunu söylemedi (#1797).
+
+Bu yüzden `install` ve `status` çıktıları `hostTrust` taşır:
+
+```json
+{"host":"codex","store":"...\\.codex\\config.toml","record":"present",
+ "reapprovalRequired":true,
+ "reason":"this install wrote the hook entry, so the stored trusted_hash is for the previous one; ..."}
+```
+
+Hash yeniden hesaplanmaz — girdisi Codex'in işi, tahmin etmek arkasında
+duramayacağımız bir iddia olurdu. Yalnız iki şey okunur: bu hook için bir kayıt
+var mı, ve girişi bu kurulum mu yazdı (komutun değişmesinin tek yolu bu).
+Güven davranışı ölçülmemiş host'lar için alan `null` kalır; olmayan bir şey
+hakkında iddia üretilmez.
+
 Sentinel gerçek eylemi çalıştırmaz; doğrulamanın ürettiği makbuz ve (CLI
 yolunda) açılan graph geçici bir dizine yazılır, deployment'ın receipt trail'ine
 dokunulmaz. `status`, her
