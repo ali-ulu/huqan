@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- **Control-plane protection for the external action guard.** Writes, deletes
+  and in-place rewrites of the config that wires the guard in —
+  `.claude/settings.json`, `.codex/hooks.json`, `.opencode/plugin/**`,
+  `.pi/extensions/**`, `.hermes/plugins/**`, `adapters/external-action/**` —
+  are now `block` on every profile instead of an ordinary `review`. Previously
+  disarming the guard raised the same `ask` as any other workspace write, so a
+  single habitual approval removed it for all later actions. Reading the config
+  is unchanged. `huqan-gate --allow-control-plane` (deployment-supplied, never
+  read from the invocation payload) permits maintenance.
 - **Agent-independent external action guard (#1761/#1762).** `huqan-gate`
   normalizes external client tool calls into one versioned envelope, reuses
   HUQAN's existing risk/action/command/memory/automation/egress/workspace gates,

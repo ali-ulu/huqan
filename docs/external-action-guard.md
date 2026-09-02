@@ -220,6 +220,39 @@ pre-tool hook sunmuyorsa komutu yalnızca log'dan sonradan görmek yetmez; ajan�
 çalıştırmak gerekir. Bu bağlantı kurulmadan HUQAN o ajanın eylemini durdurduğunu
 iddia etmez.
 
+## Guard'ın kendi kontrol düzlemi
+
+Her profil, koruduğu workspace'in **içinde** duran bir config dosyasıyla
+bağlanır. Bu dosya guard'ın çalışıp çalışmayacağına karar verir, dolayısıyla
+sıradan bir kaynak dosyayla aynı kefeye konamaz: Claude Code profilinde
+`review` → `ask` demektir ve her yazma zaten `ask` ürettiği için, alışkanlıkla
+verilen tek bir onay guard'ı sonraki tüm eylemler için kaldırır.
+
+Bu yollara yazma, silme veya yeniden yazma `block`'tur — profilden bağımsız:
+
+| Profil | Korunan yol |
+|---|---|
+| Claude Code | `.claude/settings.json`, `.claude/settings.local.json`, `.claude/hooks.json`, `.claude/hooks/**` |
+| Codex | `.codex/hooks.json`, `.codex/hooks/**` |
+| OpenCode | `.opencode/plugin/**` |
+| Pi | `.pi/extensions/**` |
+| Hermes | `.hermes/plugins/**` |
+| HUQAN | `adapters/external-action/**` |
+
+Config'i **okumak** kısıtlanmaz. `cat`, `grep` ve `git diff` bir operatörün
+guard'ın bağlı olduğunu doğrulama yoludur; bunları da işaretlemek insanları
+kontrol düzlemi uyarılarını onaylamaya alıştırırdı.
+
+Bakım gerçek bir ihtiyaç olduğu için blok mutlak değil: `--allow-control-plane`
+bayrağı muafiyeti verir. Bayrak, hook'u kuran deployment'tan gelir ve
+invocation payload'ından **okunmaz** — ajan muafiyeti kendi kendine
+isteyemez. Bu, capability card'ın `evaluateHookInvocation` içinde options'tan
+bağlanmasıyla aynı gerekçedir.
+
+Bu bir sandbox değildir. Ajan config'i bu gate'in görmediği bir yoldan
+değiştirebiliyorsa (guard'ın hiç bağlı olmadığı bir istemci, onaylanmış bir alt
+süreç, doğrudan dosya sistemi erişimi) blok geçerli değildir.
+
 ## CLI ve genel uyarlayıcı
 
 Paket kurulunca `huqan-gate` stdin'den native veya generic JSON event okur:
@@ -306,6 +339,11 @@ Yeni bir ajan eklemek için çekirdeğe ajan adı eklenmez. Yapılacak iş üç 
   yoktur; generic wrapper ile bağlanabilirler, aksi halde coverage iddia edilmez.
 - Ağ erişimi, credential scope, branch protection ve container/sandbox
   yetkileri ayrıca enforce edilmelidir.
+- Guard, onayladığı bir komutun **başlattığı** sürecin kendi tool çağrılarını
+  görmez. `node my-agent.js` tek bir shell eylemi olarak değerlendirilir; o
+  sürecin sonradan yaptıkları hook'tan geçmez.
+- Kontrol düzlemi bloğu, guard'ın çağrıldığı yolları kapsar. Guard'ın hiç
+  bağlı olmadığı bir istemci aynı dosyayı serbestçe değiştirebilir.
 - Admission receipt eylemin değerlendirildiğini kanıtlar; eylemin çalıştığını
   outcome receipt olmadan kanıtlamaz.
 - Capability card imzalanmış değildir. Kartı guard'a veren süreç (hook config,
