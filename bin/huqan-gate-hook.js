@@ -21,6 +21,15 @@ function readJsonFile(target) {
   return JSON.parse(fs.readFileSync(target, 'utf8'));
 }
 
+// One or more PEM public keys, separated by the END line. Used to verify the
+// capability card signature; key distribution stays a deployment decision.
+function readTrustedIdentityKeys(target) {
+  return fs.readFileSync(target, 'utf8')
+    .split('-----END PUBLIC KEY-----')
+    .map((chunk) => `${chunk}-----END PUBLIC KEY-----`.trim())
+    .filter((pem) => pem.startsWith('-----BEGIN PUBLIC KEY-----'));
+}
+
 // Read-only audit mode: answer "what has this identity done?" from the same
 // receipt trail the guard writes. No stdin, no receipt writer, no graph.
 function queryIdentityLog() {
@@ -88,7 +97,14 @@ async function main() {
       workspaceId: argumentValue('--workspace-id', 'default'),
       agentName: argumentValue('--agent-name') || undefined,
       identityCard: identityCardPath ? readJsonFile(identityCardPath) : undefined,
+      identityCardSignature: argumentValue('--identity-card-signature')
+        ? readJsonFile(argumentValue('--identity-card-signature'))
+        : undefined,
+      trustedPublicKeys: argumentValue('--trusted-identity-keys')
+        ? readTrustedIdentityKeys(argumentValue('--trusted-identity-keys'))
+        : undefined,
       requireIdentityCard: process.argv.includes('--require-identity') ? true : undefined,
+      requireSignedIdentityCard: process.argv.includes('--require-signed-identity') ? true : undefined,
       allowControlPlane: process.argv.includes('--allow-control-plane') ? true : undefined,
       graduatedAutonomy: process.argv.includes('--graduated-autonomy') ? {
         enabled: true,

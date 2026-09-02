@@ -76,6 +76,31 @@ deployment kararıdır: `--require-identity`, library'de
 `HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY=1|review`. Böylece kimlik açmak, kartı
 henüz taşımayan mevcut uyarlayıcıları sessizce kırmaz.
 
+### Kart imzası (ed25519)
+
+`lib/external-action-identity-signing.js` kartın kanonik serileştirmesi
+üzerine detached bir ed25519 imzası üretir ve doğrular. İmza, kartın yanında
+zarfın `identityCardSignature` alanında (CLI'da
+`--identity-card-signature <dosya>`) taşınır; kanonik serileştirme
+kullanıldığı için anahtar sırası imzayı bozmaz, ama herhangi bir alan
+değişikliği bozar.
+
+Doğrulama, deployment'ın verdiği `trustedPublicKeys` ile yapılır (CLI'da
+`--trusted-identity-keys <dosya>` — PEM'ler `-----END PUBLIC KEY-----`
+satırıyla ayrılır). Anahtar dağıtımı bu modülün işi değildir; modül yalnız
+doğrular ve her türden bozuk girdide fail-closed `false` döner.
+
+İmza doğrulaması ayrı, sıkı opt-in bir deployment kararıdır:
+`--require-signed-identity`, library'de
+`requireSignedIdentityCard: true | 'review'`, ya da
+`HUQAN_EXTERNAL_GUARD_REQUIRE_SIGNED_IDENTITY=1|review`. Zorunlu kılındığında
+imzasız veya doğrulama başarısız bir kart `block`/`review` olur. İmza
+sonucu `identity.signatureVerified` alanına ve makbuza yazılır; `attested:
+true` hâlâ yalnız "geçerli biçimli kart sunuldu" demektir —
+`signatureVerified: true` olmadan makbuz kriptografik olarak doğrulanmış bir
+fleet kimliğine bağlanmış sayılmaz. Merkezi makbuz toplamanın (#1781)
+önkoşulu budur.
+
 > Bu, external-action guard'a özgü basit capability card sözleşmesidir ve
 > `lib/agent-identity-runtime.js` ile kablolanmış değildir. V5 Agent Identity
 > runtime'ı artık kodda vardır: receiver-owned workspace authority snapshot'ı,
@@ -392,7 +417,11 @@ Yeni bir ajan eklemek için çekirdeğe ajan adı eklenmez. Yapılacak iş üç 
   guard bu runtime'ı çağırmadığı için iki güven modeli birbirinin yerine
   kullanılamaz. Bu nedenle farklı makinelerden toplanan guard receipt'leri,
   yalnız `attested: true` alanına bakılarak kriptografik olarak doğrulanmış bir
-  fleet kimliğine bağlanmış sayılamaz.
+  fleet kimliğine bağlanmış sayılamaz. Kart için ayrı bir ed25519 imza
+  katmanı vardır (yukarıda "Kart imzası"): `signatureVerified: true` bir
+  makbuzu imzalayan anahtarın deployment'ın güvenilir anahtarlarından birine
+  bağlar; ancak imza varsayılan olarak opsiyoneldir ve zorunlu kılınmadıkça
+  imzasız makbuzlar bu sınıra takılır.
 - `attested: true` yalnız "geçerli biçimli capability card sunuldu, normalize
   edildi ve bu çağrıya bağlandı" demektir. İmza doğrulandı, kart güvenilir bir
   issuer'dan geldi veya eylem kabul edildi demek değildir. Süresi geçmiş,
