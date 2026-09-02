@@ -69,6 +69,23 @@ async function main() {
   let receiptWriter;
   try {
     const command = process.argv[2];
+    if (command === 'ship') {
+      const { shipExternalActionReceipts } = require('../lib/external-action-receipt-shipper');
+      const result = await shipExternalActionReceipts({
+        endpoint: argumentValue('--endpoint') || undefined,
+        token: argumentValue('--token') || undefined,
+        path: argumentValue('--receipt-log') || undefined,
+        cursorPath: argumentValue('--cursor') || undefined,
+        batchSize: argumentValue('--batch-size') || undefined,
+        host: argumentValue('--host') || require('node:os').hostname(),
+        dryRun: process.argv.includes('--dry-run'),
+      });
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      // A collector that would not take the evidence is a failure worth a
+      // non-zero exit, so a scheduled run does not look successful in a log.
+      process.exitCode = result.failure ? 1 : 0;
+      return;
+    }
     if (['install', 'uninstall', 'status'].includes(command)) {
       const result = manageGate(command, {
         deploymentAuthorized: true,

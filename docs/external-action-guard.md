@@ -469,6 +469,42 @@ kaydedilen mutlak tırnaklı biçim ise Codex'in kabuğunda hiç başlamıyor, h
 `exit 1` veriyor ve **Codex komutu yine de çalıştırıyordu** (#1797) — fail-closed
 bir guard'ın host tarafından fail-open'a çevrilmesi.
 
+### Makbuzu üreten makineden çıkarmak
+
+Makbuza bakması gereken kişi ajanı çalıştıran kişi değil; kanıt yerel bir
+`jsonl`'de kaldığı sürece hiçbir soruya cevap vermiyor (#1781). `ship` komutu
+trail'i bir toplayıcıya gönderir:
+
+```powershell
+npx huqan-gate ship --endpoint https://collector.example/batches --token <jeton>
+npx huqan-gate ship --dry-run            # ne gideceğini gösterir, ağa dokunmaz
+```
+
+Üç özellik etrafında kurulu:
+
+- **Guard'ın karar yoluna hiç dokunmaz.** Gönderim ayrı bir komut, olaydan
+  sonra. Toplayıcının kapalı, yavaş ya da hatalı olması bir ajanın neye izinli
+  olduğunu değiştiremez ve araç çağrısına ağ gecikmesi ekleyemez.
+- **Kuyruk zaten trail'in kendisi.** Ekleme-yalnızca dosya olduğu için ayrı bir
+  spool gerekmiyor: başarısız gönderim imleci yerinde bırakır, sonraki koşum
+  aynı yerden devam eder. Toplayıcı kabul edene kadar diskteki kayıt tek
+  doğrudur; hiçbir makbuz gönderim uğruna silinmez.
+- **Kiracı kaynağında ayrılır.** Gruplama workspace + owner bazında ve trail
+  sırasını bozmadan yapılır, yani bir batch iki kiracıyı asla karıştırmaz.
+
+İmleç (`<trail>.shipped.json`) ekleme-yalnızca dosyadaki bir konumdur; dosya
+döndürülür ya da kısaltılırsa durduğu makbuz tutmaz, o zaman son gönderilen
+zaman damgasından sonrası yeniden gönderilir ve rapor `resynced: true` der —
+sessiz bir yeniden senkron, toplayıcının sessizce kopya alması demek olurdu.
+
+Batch zarfı `huqan.receipt-batch.v1`: `batchId`, `tenant`, `source`, `count`,
+`contentHash` (kopya eleme ve bozuk aktarım tespiti için — imza **değildir**) ve
+`bundleSignature`. Bu son alan ilk sürümden beri var ama değeri şimdilik sabit
+`unsigned`: ajanı adlandıran kart imzalı (#1786), **bundle'ın kendisi imzasız**
+(#1788). Yani toplayıcı "kimin ürettiği doğrulanmış makbuz" diyebilir,
+"içeriği kaynağında değişmediği kanıtlanmış makbuz" diyemez. Alanın baştan
+durması, #1788 geldiğinde saklanmış batch'lerin şemasını kırmamak içindir.
+
 ### Host güveni: kurulmak devrede olmak değil
 
 Codex, gördüğü her hook için `config.toml` içinde bir `trusted_hash` tutar ve

@@ -224,6 +224,7 @@
     "lib/external-action-identity-signing.js",
     "lib/external-action-identity-log.js",
     "lib/external-action-receipt.js",
+    "lib/external-action-receipt-shipper.js",
     "lib/command-parser.js",
     "lib/company-ingest-gate.js",
     "lib/connector-action-firewall.js",
