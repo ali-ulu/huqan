@@ -45,11 +45,12 @@ test('every supported profile installs idempotently, reports a blocked sentinel,
     const second = manageGate('install', options(paths, profile));
     assert.equal(first.sentinel.live, true, profile);
     assert.equal(first.sentinel.decision, 'block', profile);
-    // The sentinel says what it actually exercised. `file` profiles are driven
-    // through the installed artifact under its host's contract; the rest reach
-    // their guard by spawning `huqan-gate`, which is not executed yet, so they
-    // claim only the evaluator in this process.
-    assert.equal(first.sentinel.via, ['opencode', 'pi'].includes(profile) ? 'artifact' : 'evaluator', profile);
+    // The sentinel says which surface it actually exercised: the installed
+    // artifact for `file` profiles, the recorded hook command for JSON hooks,
+    // and -- for hermes, whose Python plugin resolves the executable itself --
+    // only the evaluator in this process.
+    const expectedVia = { opencode: 'artifact', pi: 'artifact', 'claude-code': 'command', codex: 'command' };
+    assert.equal(first.sentinel.via, expectedVia[profile] || 'evaluator', profile);
     // The denylist is what the sentinel is written to prove. Pi used to block
     // as `malformed_external_action_blocked` because the payload was shaped for
     // a different profile -- a green sentinel that proved the wrong path.
@@ -124,6 +125,52 @@ test('the sentinel keeps its synthetic block out of the deployment receipt trail
   });
   assert.equal(manageGate('install', options(paths, 'opencode')).sentinel.receiptWritten, true);
   assert.equal(fs.existsSync(trail), false);
+});
+
+test('the recorded hook command is one the host can actually run', t => {
+  // The templates recorded `huqan-gate --profile X`, which only works where
+  // that name is on PATH. Where it is not, the host still fires the hook, the
+  // command fails to start, and a fail-closed guard turns that into "every
+  // tool call is blocked" (#1792).
+  const paths = sandbox(t);
+  for (const profile of ['claude-code', 'codex']) {
+    const install = manageGate('install', options(paths, profile));
+    assert.equal(install.sentinel.via, 'command', profile);
+    assert.equal(install.sentinel.receiptWritten, true, profile);
+    const recorded = JSON.parse(fs.readFileSync(install.target, 'utf8')).hooks.PreToolUse
+      .flatMap(entry => entry.hooks).map(hook => hook.command);
+    assert.deepEqual(recorded, [install.sentinel.command], profile);
+  }
+});
+
+test('a hook command that cannot start fails the install and the entry is taken back out', t => {
+  const paths = sandbox(t);
+  const previous = process.env.HUQAN_GATE_PATH;
+  process.env.HUQAN_GATE_PATH = path.join(paths.root, 'nowhere', 'huqan-gate');
+  t.after(() => {
+    if (previous === undefined) delete process.env.HUQAN_GATE_PATH;
+    else process.env.HUQAN_GATE_PATH = previous;
+  });
+  assert.throws(() => manageGate('install', options(paths, 'codex')), /recorded hook command/);
+  assert.equal(manageGate('status', options(paths, 'codex')).clients[0].installed, false);
+  const config = JSON.parse(fs.readFileSync(path.join(paths.root, '.codex', 'hooks.json'), 'utf8'));
+  assert.deepEqual(config.hooks.PreToolUse, []);
+});
+
+test('a hook command with local edits is left alone rather than reclaimed', t => {
+  // Ownership is structural now, because the command is resolved per machine
+  // and can no longer be compared to a fixed template string. It still has to
+  // stop at commands this install could have written: an added flag is someone
+  // else's decision, not ours to overwrite or remove.
+  const paths = sandbox(t);
+  const install = manageGate('install', options(paths, 'codex'));
+  const config = JSON.parse(fs.readFileSync(install.target, 'utf8'));
+  config.hooks.PreToolUse[0].hooks[0].command += ' --require-identity';
+  config.hooks.PreToolUse[0].hooks[0].commandWindows += ' --require-identity';
+  fs.writeFileSync(install.target, JSON.stringify(config));
+  assert.equal(manageGate('status', options(paths, 'codex')).clients[0].installed, false);
+  assert.throws(() => manageGate('install', options(paths, 'codex')), /modified HUQAN hook/);
+  assert.throws(() => manageGate('uninstall', options(paths, 'codex')), /modified HUQAN hook/);
 });
 
 test('JSON hook install preserves unrelated hooks and keeps one HUQAN entry', t => {
