@@ -76,10 +76,17 @@ deployment kararıdır: `--require-identity`, library'de
 `HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY=1|review`. Böylece kimlik açmak, kartı
 henüz taşımayan mevcut uyarlayıcıları sessizce kırmaz.
 
-> Bu basit karttır. `lib/agent-identity-runtime.js` (workspace authority
-> snapshot'ı, imzalı delegation, revocation) hâlâ
-> `docs/v5/v5-agent-identity-closeout-audit.md` gate'inin arkasındadır; burada
-> V5 runtime identity enforcement iddia edilmez.
+> Bu, external-action guard'a özgü basit capability card sözleşmesidir ve
+> `lib/agent-identity-runtime.js` ile kablolanmış değildir. V5 Agent Identity
+> runtime'ı artık kodda vardır: receiver-owned workspace authority snapshot'ı,
+> canonical identity hash'i, süre/revocation alanları, delegation zinciri ve
+> capability/tool/connector/risk sınırlarını fail-closed değerlendirir. Ancak
+> bu runtime kriptografik capability-card imzası doğrulamaz, anahtar dağıtmaz ve
+> harici bir identity provider'dan attestation almaz. CLI, HTTP/workflow, MCP
+> approval ve external-client mutation yollarındaki kullanımı da explicit
+> opt-in dilimlerdir; bütün runtime yüzeyleri için global enforcement değildir.
+> Dolayısıyla V5 runtime'ın varlığı, bu guard kartını imzalı veya V5 tarafından
+> doğrulanmış yapmaz.
 
 ### Bir kimliğin tüm eylemlerini listelemek
 
@@ -346,12 +353,19 @@ Yeni bir ajan eklemek için çekirdeğe ajan adı eklenmez. Yapılacak iş üç 
   bağlı olmadığı bir istemci aynı dosyayı serbestçe değiştirebilir.
 - Admission receipt eylemin değerlendirildiğini kanıtlar; eylemin çalıştığını
   outcome receipt olmadan kanıtlamaz.
-- Capability card imzalanmış değildir. Kartı guard'a veren süreç (hook config,
-  wrapper) güvenilir kabul edilir; kart bir kimlik **beyanının** doğrulanmış
-  taşıyıcısı değil, deployment'ın verdiği yetki tanımıdır. Kriptografik kimlik
-  doğrulama V5 runtime'ının gate'i arkasındadır.
-- `attested: true` "geçerli biçimli bir kart sunuldu ve bu çağrıya bağlandı"
-  demektir; "eylem kabul edildi" demek değildir. Süresi geçmiş ya da kapsam dışı
-  bir kart attested'dır ve `block` alır. Kabul kararı `identity` gate finding'i
-  ve receipt `decision` alanındadır. `attested: false` ise kimliğin zarftan
-  türetildiğini gösterir; iki durum log sorgusunda ayrıştırılabilir.
+- Guard capability card'ı imzalanmış değildir. Kartı guard'a veren süreç (hook
+  config veya wrapper) güvenilir kabul edilir; kart deployment'ın verdiği yetki
+  tanımıdır. `lib/agent-identity-runtime.js` receiver-owned authority ve
+  canonical hash üzerinden ayrı bir opt-in runtime doğrulaması yapar, fakat o
+  da kriptografik kart imzası veya anahtar dağıtımı sağlamaz. External-action
+  guard bu runtime'ı çağırmadığı için iki güven modeli birbirinin yerine
+  kullanılamaz. Bu nedenle farklı makinelerden toplanan guard receipt'leri,
+  yalnız `attested: true` alanına bakılarak kriptografik olarak doğrulanmış bir
+  fleet kimliğine bağlanmış sayılamaz.
+- `attested: true` yalnız "geçerli biçimli capability card sunuldu, normalize
+  edildi ve bu çağrıya bağlandı" demektir. İmza doğrulandı, kart güvenilir bir
+  issuer'dan geldi veya eylem kabul edildi demek değildir. Süresi geçmiş,
+  henüz geçerli olmayan ya da kapsam dışı bir kart yine `attested: true` olur
+  ve `block` alır. Kabul kararı `identity` gate finding'i ile receipt `decision`
+  alanındadır. `attested: false` kimliğin zarftan türetildiğini gösterir; iki
+  durum log sorgusunda ayrıştırılabilir.
