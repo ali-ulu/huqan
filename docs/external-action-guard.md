@@ -248,6 +248,47 @@ cross-workspace gate'lerini yeniden kullanır. En sert karar kazanır:
 | `review` | İnsan kararı olmadan çalışmaz |
 | `block` | Çalışmaz |
 
+### Shell komutları hangi kategoriye düşer
+
+Sırayla: deployment (`git push`, `npm publish`, …) → izin değişikliği (`chmod`,
+`sudo`, …) → dosya yazma (`cp`, `rm`, `mkdir`, …) → **kompozisyon** → salt
+okunur → geri kalan her şey `TOOL_CHAIN_EXECUTION`, yani `review`.
+
+**Kompozisyon** ayrı bir adım: içinde yönlendirme, boru, zincirleme veya
+ikame (`>`, `>>`, `<`, `|`, `;`, `&`, `` ` ``, `$(`, `${`) geçen bir komut asla
+salt okunur sayılmaz. Sebebi ölçüldü: `ls -la > out.txt` bir dosya yazma,
+`type gizli.json > disari` bir kopyalama; güvenli liste yalnız baştaki fiili
+tanıdığı için ikisi de `allow` alıyordu (#1799).
+
+Salt okunur liste yan etkisiz komutları kapsar (`ls`, `pwd`, `git status|diff|
+log|show|branch|rev-parse|remote`, `rg`, `grep`, `find`, `type`, `cat`, `head`,
+`tail`, `wc`, `echo`, `stat`, `date`, `du`, `df`, `Get-*`) ve `<komut>
+--version` biçimindeki sürüm sorgularını.
+
+### Deployment komut listesi
+
+Geri kalan her şeyin `review` alması bilinçli ("bilinmeyen sessizce
+geçmez") ama ayarlanabilir olmalı; yoksa `npm test` için her turda onay isteyen
+bir kapı kapatılır ve elde ne engelleme ne makbuz kalır. Bunun için bir dosya:
+
+```jsonc
+// varsayılan: receipt trail'in yanında external-action-policy.json
+// (HUQAN_EXTERNAL_GUARD_POLICY ile ya da --policy <dosya> ile değiştirilir)
+{ "allowedCommands": ["npm test", "npm run lint", "node"] }
+```
+
+Kural: bir girdi komutun tamamıyla ya da **tam argüman sınırında** eşleşir —
+`npm test`, `npm test -- --watch`'ı kapsar, `npm testify`'ı kapsamaz. Liste
+yalnızca sınıflandırıcının "bilinmeyen tool-chain" diyeceği bir komutu salt
+okunura yükseltebilir: deployment, izin ve yazma kategorileri ile denylist
+**değişmez**, kompozisyon içeren komut hiç yükseltilmez. Bir izin listesi
+kararının makbuzunda `metadata.allowlistedCommand` hangi girdinin geçirdiğini
+yazar; okunamayan bir politika dosyası sessiz `allow` değil fail-closed hatadır.
+
+Dosya çağrı anında okunur (mtime ile önbelleklenir), yani uzun ömürlü bir
+editörde kurulumu ya da hook komutunu değiştirmeden düzenlenebilir — hook
+komutunun değişmesi host'un güven kaydını düşürdüğü için bu önemli.
+
 Guard yalnızca yürütmeden **önce** çağrıldığında enforcement sağlar. Bir ajan
 pre-tool hook sunmuyorsa komutu yalnızca log'dan sonradan görmek yetmez; ajanı
 `huqan-gate` kararına uyan bir wrapper, MCP gateway veya OS sandbox içinde
