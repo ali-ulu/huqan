@@ -229,6 +229,7 @@
     "lib/connectors/repo-memory-firewall.js",
     "lib/content-hash.js",
     "lib/contradiction-rules.js",
+    "lib/control-plane-paths.js",
     "lib/cross-workspace-access-gate.js",
     "lib/data-egress-gate.js",
     "lib/deterministic-json-copy.js",
