@@ -87,7 +87,9 @@ değişikliği bozar.
 
 Doğrulama, deployment'ın verdiği `trustedPublicKeys` ile yapılır (CLI'da
 `--trusted-identity-keys <dosya>` — PEM'ler `-----END PUBLIC KEY-----`
-satırıyla ayrılır). Anahtar dağıtımı bu modülün işi değildir; modül yalnız
+satırıyla ayrılır). Anahtar dağıtımı bu modülün işi değildir ve şu an hiçbir
+modülün işi değildir — registry, iptal yayını ve federasyon #1787'de açık
+iştir; bugün anahtarı deployment elle taşır. Modül yalnız
 doğrular ve her türden bozuk girdide fail-closed `false` döner.
 
 İmza doğrulaması ayrı, sıkı opt-in bir deployment kararıdır:
@@ -422,6 +424,18 @@ Yeni bir ajan eklemek için çekirdeğe ajan adı eklenmez. Yapılacak iş üç 
   makbuzu imzalayan anahtarın deployment'ın güvenilir anahtarlarından birine
   bağlar; ancak imza varsayılan olarak opsiyoneldir ve zorunlu kılınmadıkça
   imzasız makbuzlar bu sınıra takılır.
+- Anahtar **dağıtımı** hiçbir katmanda çözülmüş değildir. Kart imzasını
+  doğrulayan taraf güvenilir açık anahtarları deployment'tan alır
+  (`--trusted-identity-keys`); A2A tarafında da authority tek bir yerel
+  dosyadan okunur (`A2A_AUTHORITY_FILE`) ve agent card trust-root yayınlamayı
+  kasten reddeder. Yani iki yabancı taraf birbirinin anahtarını protokol içinden
+  öğrenemez; registry, iptal yayını ve federasyon açık iştir (#1787).
+- Bu bölüm external-action guard kartı hakkındadır; "kriptografik doğrulama
+  yok" diye okunmamalıdır. A2A yüzeyi imzalı çalışır:
+  `lib/a2a/bounded-exchange.js` her hop'u ed25519 ile doğrular, imzalı
+  delegasyon zincirini (`delegation_signature_invalid`) ve
+  `expires_at`/`revoked_at` alanlarını fail-closed değerlendirir. Farklı olan
+  şey doğrulamanın varlığı değil, hangi yüzeyde zorunlu olduğudur.
 - `attested: true` yalnız "geçerli biçimli capability card sunuldu, normalize
   edildi ve bu çağrıya bağlandı" demektir. İmza doğrulandı, kart güvenilir bir
   issuer'dan geldi veya eylem kabul edildi demek değildir. Süresi geçmiş,
