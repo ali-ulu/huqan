@@ -371,24 +371,33 @@ yıkıcı bir eylemin gerçekten `block` aldığını gösterir. `via` alanı bu
   engellerken makbuz bırakmayan bir artefakt kurulumu **başarısız eder**; o
   çağrının yazdığı dosya geri alınır (#1792).
 - `via: "command"` (`claude-code`, `codex`): config'e **yazılmış olan** komut —
-  bu süreçte yeniden çözülen değil — sentinel payload'ıyla çalıştırılır ve
-  host'un okuduğu gibi okunur. Başlatılamayan, farklı karar veren ya da makbuz
-  bırakmayan komut kurulumu **başarısız eder**; o çağrının eklediği hook girişi
-  geri alınır. Çıktıdaki `command` alanı tam olarak neyin kaydedildiğini
-  gösterir.
+  bu süreçte yeniden çözülen değil — sentinel payload'ıyla ve **host'un
+  kullanabileceği her kabukta** (Windows'ta cmd.exe *ve* PowerShell, POSIX'te
+  sh) çalıştırılır. Başlatılamayan, herhangi bir kabukta farklı karar veren ya
+  da makbuz bırakmayan komut kurulumu **başarısız eder**; o çağrının eklediği
+  hook girişi geri alınır. Çıktıdaki `command` neyin kaydedildiğini, `shells`
+  ise iddianın hangi yorumlayıcılarda sınandığını söyler.
 - `via: "evaluator"` (`hermes`): Hermes'in Python plugin'i gate
   çalıştırılabilirini kendi içinde PATH ya da `HUQAN_GATE_PATH` üzerinden
   çözüyor — kurulumun host adına ayarlayabileceği bir şey değil — bu yüzden
   doğrulama yalnızca karar yolunun kurulumu yapan süreç içinde engellediğini
   gösterir. Kapının o istemcide canlı olduğunun ucu uca kanıtı değildir.
 
-Hook komutu kurulum anında çözülür, taşınabilir olandan başlayarak:
-`HUQAN_GATE_PATH` → PATH üzerindeki `huqan-gate` → çalışma alanının
-`node_modules/.bin` shim'i → paketin kendi girişinin mevcut Node ikilisiyle
-mutlak çağrısı. Şablonlardaki düz `huqan-gate --profile X` yazımı yalnız o ad
-PATH'te olduğunda çalışıyordu; olmadığında host hook'u yine tetikliyor, komut
-başlayamıyor ve fail-closed guard bunu "her araç çağrısı engellendi"ye
-çeviriyordu (#1792).
+Hook komutu kurulum anında **çalıştırılarak** seçilir. Adaylar taşınabilir
+olandan başlayarak sırayla denenir — `HUQAN_GATE_PATH` → PATH üzerindeki
+`huqan-gate` → çalışma alanının `node_modules/.bin` shim'i → `node <mutlak
+giriş>` → mutlak Node ikilisi — ve **her kabukta sentinel'i engelleyen ilk
+aday** kaydedilir. Hiçbiri geçmezse kurulum, neyi denediğini söyleyerek
+reddeder.
+
+Komut **tırnaksız** yazılır; boşluklu yollar Windows kısa adına (`PROGRA~1`)
+çevrilir, çevrilemezse o aday elenir. Sebebi: tırnaklı yol PowerShell'de
+`& ` olmadan sözdizimi hatası, `&` ile başlayan komut ise cmd.exe'de hata —
+yani her iki kabukta çalışan tırnaklı bir yazım yok. Şablonlardaki düz
+`huqan-gate --profile X` de yalnız o ad PATH'te olduğunda çalışıyordu (#1792);
+kaydedilen mutlak tırnaklı biçim ise Codex'in kabuğunda hiç başlamıyor, hook
+`exit 1` veriyor ve **Codex komutu yine de çalıştırıyordu** (#1797) — fail-closed
+bir guard'ın host tarafından fail-open'a çevrilmesi.
 
 Sentinel gerçek eylemi çalıştırmaz; doğrulamanın ürettiği makbuz ve (CLI
 yolunda) açılan graph geçici bir dizine yazılır, deployment'ın receipt trail'ine
