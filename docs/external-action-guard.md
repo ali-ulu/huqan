@@ -308,6 +308,37 @@ recordExternalActionOutcome(invocation, admission.receipt, {
 | Hermes | `--profile hermes` | `{ action: "block" }` | `pre_tool_call` hook event'leri |
 | Gelecekteki/özel ajan | `generic` profil veya doğrudan library API | exit `3` / host kararı | Ortak zarfa çevrilip pre-execution bağlanan çağrılar |
 
+### Kurulum, durum ve kaldırma
+
+Kurulum komutu profil ile hedef şemayı birlikte doğrular, mevcut hook'ları
+koruyarak yalnız HUQAN girişini ekler ve aynı komut tekrarlandığında ikinci bir
+giriş üretmez:
+
+```powershell
+npx huqan-gate install --profile codex
+npx huqan-gate install --profile opencode
+npx huqan-gate status
+npx huqan-gate uninstall --profile codex
+```
+
+`claude-code`, `codex`, `opencode` ve `pi` varsayılan olarak mevcut çalışma
+dizinine; `hermes` kullanıcı home dizinindeki plugin yoluna kurulur. İzole
+deployment veya test için hedefler `--target-root` ve `--home` ile verilebilir.
+JSON config bozuksa ya da HUQAN'a ait hedef dosya yerel olarak değiştirilmişse
+komut üzerine yazmaz. `uninstall` da yalnız HUQAN hook girişini veya içeriği
+paket şablonuyla birebir aynı HUQAN dosyasını kaldırır.
+
+Başarılı `install` çıktısındaki `sentinel`, seçilen profil üzerinden bilinen
+yıkıcı bir eylemin gerçekten `block` aldığını gösterir. Bu doğrulama gerçek
+eylemi çalıştırmaz ve receipt trail'e sentetik kayıt yazmaz. `status`, her
+profilin hedefini/bağlılık durumunu ve varsa varsayılan ya da `--receipt-log`
+ile seçilen trail'deki son receipt'in zaman, karar ve kimliğini döndürür.
+
+Bu yönetim yolu guard kontrol düzlemine kasıtlı deployment yazımıdır. Library
+API'si `deploymentAuthorized: true` olmadan install/uninstall/status çalıştırmaz;
+bu yetki hook payload'ından okunmaz ve ajanın kendi eylemine taşıyabileceği
+`--allow-control-plane` muafiyeti değildir.
+
 Kurulabilir başlangıç şablonları paketin `adapters/external-action/` dizinindedir:
 
 - Claude Code: `claude-code-hooks.json` içeriğini proje `.claude/settings.json`

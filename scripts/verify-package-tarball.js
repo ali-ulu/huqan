@@ -186,6 +186,25 @@ function verifyExternalGuard(label, binDir, cwd, env) {
   } else {
     fail(`${label}: installed huqan-gate did not fail closed\n${guard.output.slice(-1000)}`);
   }
+
+  const installRoot = path.join(cwd, 'gate-install-probe');
+  fs.mkdirSync(installRoot, { recursive: true });
+  const install = run(guardBin, ['install', '--profile', 'codex', '--target-root', installRoot], { cwd, env });
+  const status = run(guardBin, ['status', '--profile', 'codex', '--target-root', installRoot], { cwd, env });
+  const uninstall = run(guardBin, ['uninstall', '--profile', 'codex', '--target-root', installRoot], { cwd, env });
+  let installOutput = null;
+  let statusOutput = null;
+  let uninstallOutput = null;
+  try { installOutput = JSON.parse(install.stdout); } catch (_) {}
+  try { statusOutput = JSON.parse(status.stdout); } catch (_) {}
+  try { uninstallOutput = JSON.parse(uninstall.stdout); } catch (_) {}
+  if (install.status === 0 && installOutput?.sentinel?.decision === 'block'
+      && status.status === 0 && statusOutput?.clients?.[0]?.installed === true
+      && uninstall.status === 0 && uninstallOutput?.removed === true) {
+    ok('installed huqan-gate can install, self-validate, report, and uninstall the Codex profile');
+  } else {
+    fail(`${label}: installed huqan-gate management lifecycle failed\n${[install.output, status.output, uninstall.output].join('\n').slice(-2000)}`);
+  }
 }
 
 /**
