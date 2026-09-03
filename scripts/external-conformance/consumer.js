@@ -485,12 +485,44 @@ check('bundles', 'bundle missing another required envelope field fails closed', 
   `unexpected findings: ${JSON.stringify(verifyBundle(bundle))}`);
 });
 
-function parsePythonFindings(stdout) {
+/**
+ * Read the reference verifier's findings out of its own report line.
+ *
+ * The Python verifier prints one line per bundle:
+ *
+ *   <file>   INVALID (<signature status>)  <finding>, <finding>
+ *
+ * The parenthetical is the signature status -- `unsigned`, `invalid`, or
+ * `signed by <ref>` -- and it is not a finding. #1810 added it when signed
+ * portable bundles landed; this parser dates from the original runner and kept
+ * splitting everything after INVALID on commas, so the status was glued to the
+ * first finding and the cross-implementation comparison could never agree:
+ *
+ *   python   ["(unsigned)  bundle_seal_mismatch", "content_tampered@1"]
+ *   consumer ["bundle_seal_mismatch", "content_tampered@1"]
+ *
+ * Two implementations that agree exactly, reported as a disagreement. Stripping
+ * one leading parenthetical is the whole fix; the status itself is returned
+ * separately so a caller can assert on it rather than lose it.
+ */
+function parsePythonReport(stdout) {
   const line = stdout.trim().split('\n').pop() || '';
-  if (/\bVALID\b/.test(line) && !/\bINVALID\b/.test(line)) return [];
+  if (/\bVALID\b/.test(line) && !/\bINVALID\b/.test(line)) {
+    const valid = line.match(/\(([^)]*)\)/);
+    return { findings: [], signatureStatus: valid ? valid[1] : '' };
+  }
   const tail = line.split(/\bINVALID\b/)[1];
   if (tail === undefined) throw new Error(`unparseable verifier output: ${line}`);
-  return tail.split(',').map((s) => s.trim()).filter(Boolean).sort();
+  const status = tail.match(/^\s*\(([^)]*)\)/);
+  const findingsText = status ? tail.slice(status[0].length) : tail;
+  return {
+    findings: findingsText.split(',').map((s) => s.trim()).filter(Boolean).sort(),
+    signatureStatus: status ? status[1] : '',
+  };
+}
+
+function parsePythonFindings(stdout) {
+  return parsePythonReport(stdout).findings;
 }
 
 function findPython() {
