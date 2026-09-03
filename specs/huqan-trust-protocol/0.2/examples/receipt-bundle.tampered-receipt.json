@@ -1,0 +1,85 @@
+{
+  "sealVersion": "huqan-bundle-seal-v2",
+  "schemaVersion": "v4-receipt-bundle-v1",
+  "workspaceId": "default",
+  "exportedAt": "2026-01-01T00:00:00.000Z",
+  "receiptCount": 3,
+  "receipts": [
+    {
+      "schemaVersion": "v4-receipt-v1",
+      "receiptId": "madm_receipt_01",
+      "receiptKind": "memory_admission_receipt",
+      "decision": "allow",
+      "verdict": "allow",
+      "status": "admitted",
+      "admissionId": "madm_01",
+      "workspaceId": "default",
+      "actor": "protocol-0.2-vector-generator",
+      "agentId": "kernel",
+      "memoryDraftId": "draft_01",
+      "provenanceId": "prov_01",
+      "trustPolicyVersion": "1.0.0",
+      "approvalId": "not_applicable",
+      "approvalStatus": "not_required",
+      "reason": "admitted",
+      "riskScore": 0,
+      "createdAt": "2026-01-01T00:00:01.000Z",
+      "metadata": {
+        "vector": true
+      },
+      "previousReceiptHash": "genesis:v4-receipt-chain",
+      "receiptHash": "635ee2494ab2cdb896963a520dd5ebbfc122b38dd0c44819be2287a56155869a"
+    },
+    {
+      "schemaVersion": "v4-receipt-v1",
+      "receiptId": "madm_receipt_02",
+      "receiptKind": "memory_admission_receipt",
+      "decision": "allow",
+      "verdict": "allow",
+      "status": "admitted",
+      "admissionId": "madm_02",
+      "workspaceId": "default",
+      "actor": "protocol-0.2-vector-generator",
+      "agentId": "kernel",
+      "memoryDraftId": "draft_02",
+      "provenanceId": "prov_02",
+      "trustPolicyVersion": "1.0.0",
+      "approvalId": "not_applicable",
+      "approvalStatus": "not_required",
+      "reason": "admitted",
+      "riskScore": 0,
+      "createdAt": "2026-01-01T00:00:02.000Z",
+      "metadata": {
+        "vector": true
+      },
+      "previousReceiptHash": "635ee2494ab2cdb896963a520dd5ebbfc122b38dd0c44819be2287a56155869a",
+      "receiptHash": "59b27842397e933d6750ba3f5a280d91bd123a34232ce22e62bb70e1b74bc4e8"
+    },
+    {
+      "schemaVersion": "v4-receipt-v1",
+      "receiptId": "madm_receipt_03",
+      "receiptKind": "memory_admission_receipt",
+      "decision": "allow",
+      "verdict": "allow",
+      "status": "admitted",
+      "admissionId": "madm_03",
+      "workspaceId": "default",
+      "actor": "protocol-0.2-vector-generator",
+      "agentId": "kernel",
+      "memoryDraftId": "draft_03",
+      "provenanceId": "prov_03",
+      "trustPolicyVersion": "1.0.0",
+      "approvalId": "not_applicable",
+      "approvalStatus": "not_required",
+      "reason": "admitted",
+      "riskScore": 0,
+      "createdAt": "2026-01-01T00:00:03.000Z",
+      "metadata": {
+        "vector": true
+      },
+      "previousReceiptHash": "59b27842397e933d6750ba3f5a280d91bd123a34232ce22e62bb70e1b74bc4e8",
+      "receiptHash": "08c70d2cb2673d43462e30226c54615e21b4c80d25a3bf287592d230fd8e9ee0"
+    }
+  ],
+  "bundleHash": "0054d7186264f71bd6cfd6f22c83d307024c36b675f71828c33627476e24d78d"
+}
