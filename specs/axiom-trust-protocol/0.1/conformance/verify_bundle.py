@@ -157,9 +157,11 @@ def _decode_point(raw):
     return point if _scalar_mult(point, L) == (0, 1) else None
 
 def _spki_ed25519(pem):
-    lines = [line.strip() for line in pem.splitlines() if not line.startswith('---')]
-    try: der = base64.b64decode(''.join(lines), validate=True)
-    except Exception: return None
+    if isinstance(pem, bytes): der = pem
+    else:
+        lines = [line.strip() for line in pem.splitlines() if not line.startswith('---')]
+        try: der = base64.b64decode(''.join(lines), validate=True)
+        except Exception: return None
     prefix = bytes.fromhex('302a300506032b6570032100')
     return der[len(prefix):] if len(der) == len(prefix) + 32 and der.startswith(prefix) else None
 
@@ -180,6 +182,23 @@ def verify_signature(bundle, public_key_pem):
     message = canonical_json(_signature_payload(bundle)).encode('utf-8')
     h = int.from_bytes(hashlib.sha512(signature[:32] + raw_key + message).digest(), 'little') % L
     return (_scalar_mult(B, s) == _add(r, _scalar_mult(a, h)), "signature_invalid")
+
+def registry_public_key(record_path, authority_path):
+    """Resolve an admitted record through a receiver authority, fail-closed."""
+    try:
+        with open(record_path, encoding='utf-8') as handle: document = json.load(handle)
+        with open(authority_path, encoding='utf-8') as handle: authority = json.load(handle)
+        record = document.get('record', document)
+        reference = record.get('trustRootReference')
+        if not isinstance(reference, str) or not reference: return (None, None)
+        matches = [key for key in authority.get('keys', []) if isinstance(key, dict) and key.get('keyReference') == reference]
+        if len(matches) != 1 or matches[0].get('status') != 'active': return (reference, None)
+        encoded = matches[0].get('publicKeySpkiDerBase64')
+        raw = base64.b64decode(encoded, validate=True)
+        if len(raw) != 44: return (reference, None)
+        return (reference, raw)
+    except Exception:
+        return (None, None)
 
 
 def canonical_seal_payload(bundle):
@@ -263,13 +282,22 @@ def verify(bundle, allow_unsealed_envelope=False, public_keys=None, require_sign
 
 
 def main(argv):
-    public_keys = {}; require_signature = False; paths = []
+    public_keys = {}; require_signature = False; paths = []; registry_path = None; authority_path = None
     for arg in argv:
         if arg == '--require-signature': require_signature = True
         elif arg.startswith('--public-key='):
             reference, key_path = arg[len('--public-key='):].split('=', 1)
             with open(key_path, encoding='utf-8') as handle: public_keys[reference] = handle.read()
+        elif arg.startswith('--registry-record='): registry_path = arg[len('--registry-record='):]
+        elif arg.startswith('--authority='): authority_path = arg[len('--authority='):]
         else: paths.append(arg)
+    if (registry_path is None) != (authority_path is None):
+        print('INVALID (registry authority pair required)'); return 1
+    if registry_path is not None:
+        reference, key = registry_public_key(registry_path, authority_path)
+        if reference is None or key is None:
+            print('INVALID (registry key unavailable)'); return 1
+        public_keys[reference] = key
     failed = False
     for path in paths:
         with open(path, encoding="utf-8") as handle:
