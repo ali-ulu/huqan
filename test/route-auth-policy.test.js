@@ -16,6 +16,7 @@ const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 const fs = require('node:fs');
+const { buildReceiptBatch } = require('../lib/external-action-receipt-shipper');
 
 const API_KEY = 'route-auth-policy-test-key';
 process.env.AXIOM_API_KEY = API_KEY;
@@ -23,6 +24,7 @@ process.env.AXIOM_API_KEY = API_KEY;
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-330-'));
 process.env.AXIOM_MEMORY_PATH = path.join(tmpDir, 'memory.json');
 process.env.AXIOM_DB_PATH = path.join(tmpDir, 'memory.db');
+process.env.HUQAN_RECEIPT_COLLECTOR_ROOT = path.join(tmpDir, 'receipt-collector');
 process.env.AXIOM_OBSERVABILITY_AUTHZ_POLICY = JSON.stringify({ memberships: [{ subject: 'local-api-key', workspaceId: 'default', role: 'admin' }] });
 
 const {
@@ -46,6 +48,15 @@ test('policy table: a declared endpoint is authenticated unless published', () =
   assert.equal(decision.known, true);
   assert.equal(decision.authRequired, true);
   assert.equal(decision.reason, 'declared_authenticated');
+});
+
+test('policy table: receipt ingest is absent without durable collector storage and authenticated when enabled', () => {
+  const absent = resolveRouteAuthPolicy('/api/v5/receipts/batches', 'POST');
+  assert.equal(absent.known, false);
+  const enabled = resolveRouteAuthPolicy('/api/v5/receipts/batches', 'POST', { receiptCollectorRouteEnabled: true });
+  assert.equal(enabled.known, true);
+  assert.equal(enabled.authRequired, true);
+  assert.equal(enabled.ruleId, 'receipt-collector-ingest');
 });
 
 test('policy table: a public GET does not make POST on the same path public', () => {
@@ -380,4 +391,22 @@ test('runtime: undeclared route is denied without a key, declared public routes 
   }, auth);
   assert.equal(spoofedProvenanceActor.status, 400);
   assert.equal(JSON.parse(spoofedProvenanceActor.body).error.code, 'ACTOR_MISMATCH');
+
+  const receipt = {
+    receiptId: 'xact_adm_http_runtime_001', receiptKind: 'external_action_admission_receipt',
+    decision: 'block', reason: 'DENYLISTED_COMMAND_BLOCKED', actor: 'codex', workspaceId: 'default',
+    createdAt: '2026-09-03T00:00:00.000Z',
+    metadata: { identity: { identityRef: 'agent:default:codex', agentId: 'codex', ownerActorId: 'owner-a', workspaceId: 'default', attested: false } },
+  };
+  const receiptBatch = buildReceiptBatch({
+    tenant: { workspaceId: 'default', ownerActorId: 'owner-a' }, source: { host: 'route-auth-test' }, receipts: [receipt],
+  });
+  const collectorDenied = await postJson(port, '/api/v5/receipts/batches', receiptBatch);
+  assert.equal(collectorDenied.status, 401);
+  const collectorAccepted = await postJson(port, '/api/v5/receipts/batches', receiptBatch, auth);
+  assert.equal(collectorAccepted.status, 202);
+  assert.equal(JSON.parse(collectorAccepted.body).status, 'stored');
+  const collectorDuplicate = await postJson(port, '/api/v5/receipts/batches', receiptBatch, auth);
+  assert.equal(collectorDuplicate.status, 200);
+  assert.equal(JSON.parse(collectorDuplicate.body).status, 'duplicate');
 });

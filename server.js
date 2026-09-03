@@ -217,6 +217,19 @@ const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: get
 
 // V5 issuer records are receiver-owned; an empty registry remains fail-closed.
 const issuerTrustedKeyRecords = [];
+const receiptCollectorRoot = String(readCompatibleEnvironmentVariable('RECEIPT_COLLECTOR_ROOT') || '').trim();
+let receiptCollectorRouteCache = null;
+function handleReceiptCollectorRoute(req, res, reqUrl) {
+  if (receiptCollectorRouteCache === null) {
+    try {
+      const { createExternalActionReceiptCollectorRoute } = require('./lib/http/external-action-receipt-collector-route');
+      receiptCollectorRouteCache = receiptCollectorRoot
+        ? createExternalActionReceiptCollectorRoute({ parseJsonRequest, collectorRoot: receiptCollectorRoot })
+        : () => false;
+    } catch (_) { receiptCollectorRouteCache = () => false; }
+  }
+  return receiptCollectorRouteCache(req, res, reqUrl);
+}
 let v5PackageImportRouteCache = null;
 function handleV5PackageImportRoute(req, res, reqUrl) {
   if (v5PackageImportRouteCache === null) {
@@ -383,7 +396,9 @@ const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnviron
   // confirms the existence of an unrouted path.
   const routeAuthPolicy = resolveRouteAuthPolicy(reqUrl.pathname, req.method, {
     workspaceId: sanitizeInput(reqUrl.searchParams.get('workspaceId') || ''),
-    externalClientRouteEnabled: externalClientBoundary !== null, ...optionalRoutes.authContext,
+    externalClientRouteEnabled: externalClientBoundary !== null,
+    receiptCollectorRouteEnabled: Boolean(receiptCollectorRoot),
+    ...optionalRoutes.authContext,
   });
   // The memory-context route hardens every one of its own responses with
   // no-store/nosniff, but this central gate answers 401 before that handler
@@ -410,6 +425,7 @@ const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnviron
 
   if (await optionalRoutes.route(req, res, reqUrl)) return;
   if (await handleObservabilityRoute(req, res, reqUrl)) return;
+  if (await handleReceiptCollectorRoute(req, res, reqUrl)) return;
   if (await handleV5PackageImportRoute(req, res, reqUrl)) return;
   if (await handleV5PreflightRoute(req, res, reqUrl)) return;
   if (handleWorkflowContractRoute(req, res, reqUrl) || await handleReadWorkflow(req, res, reqUrl)) return;
