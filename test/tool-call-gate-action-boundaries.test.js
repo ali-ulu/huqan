@@ -18,9 +18,11 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const path = require('node:path');
 
 const {
   evaluateToolCall,
+  hasSecretLookingValue,
   TOOL_GATE_DECISIONS,
   TOOL_GATE_REASONS,
 } = require('../lib/tool-call-gate');
@@ -130,4 +132,48 @@ test('an empty call is still unknown, not read', () => {
   const result = evaluateToolCall({ classifier: lowRiskClassifier() });
   assert.equal(result.decision, TOOL_GATE_DECISIONS.REVIEW);
   assert.equal(result.reason, TOOL_GATE_REASONS.UNKNOWN_ACTION_REVIEW_REQUIRED);
+});
+
+test('where a file sits is not a hint about the call, but what it is called still is', () => {
+  // Escalation keeps reading the whole call loosely -- that asymmetry is the
+  // point of this file. The correction is narrower: the directories a file
+  // happens to be in say nothing about the action. Measured before the fix:
+  // reading `.../wt-ship/README.md` came out dry_run_only while the same call
+  // in `.../wt-base/` was allow, so a checkout directory decided the category
+  // and a test's verdict depended on where it ran (#1804).
+  const read = location => evaluateToolCall({
+    action: 'read',
+    toolName: 'Read',
+    args: { file_path: location },
+    classifier: lowRiskClassifier(),
+  });
+
+  for (const location of ['C:/tmp/wt-ship/README.md', 'C:/tmp/my-deploy-notes/README.md', 'scripts/publish/notes.md', '/home/me/release/README.md']) {
+    assert.equal(read(location).decision, TOOL_GATE_DECISIONS.ALLOW, location);
+  }
+
+  // The file's own name is still payload that can accuse.
+  assert.equal(read('C:/tmp/plain/deploy.sh').decision, TOOL_GATE_DECISIONS.DRY_RUN_ONLY);
+  // And nothing changes for the fields that describe the action itself.
+  assert.equal(evaluateToolCall({
+    action: 'run', toolName: 'Bash', args: { command: 'npm publish' }, classifier: lowRiskClassifier(),
+  }).decision, TOOL_GATE_DECISIONS.DRY_RUN_ONLY);
+  assert.equal(evaluateToolCall({
+    action: 'fetch', toolName: 'client', args: { url: 'https://example.com/deploy' }, classifier: lowRiskClassifier(),
+  }).decision, TOOL_GATE_DECISIONS.DRY_RUN_ONLY);
+});
+
+test('a folder called tokens is a location, a file called credentials is still evidence', () => {
+  // The same confusion in the secret detector, which AB2 and AB9 share: a
+  // checkout under `.../wt-tokens/` made every call in it look like it carried
+  // a secret, so the suite's verdict depended on the directory it ran in
+  // (#1804). Reduced to the file's own name, both answers stay right.
+  const carries = location => hasSecretLookingValue({ file_path: location });
+  const windows = (...segments) => segments.join(path.sep);
+  assert.equal(carries(windows('C:', 'Users', 'me', 'wt-tokens', 'README.md')), false);
+  assert.equal(carries('/home/me/secret-project/README.md'), false);
+  assert.equal(carries(windows('C:', 'Users', 'me', '.aws', 'credentials')), true);
+  assert.equal(carries('/tmp/plain/api_key.txt'), true);
+  // Content is untouched: an argument that actually carries one still counts.
+  assert.equal(hasSecretLookingValue({ command: 'export TOKEN=sk-abcdefghijklmnop' }), true);
 });
