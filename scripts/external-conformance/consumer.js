@@ -485,13 +485,40 @@ check('bundles', 'bundle missing another required envelope field fails closed', 
   `unexpected findings: ${JSON.stringify(verifyBundle(bundle))}`);
 });
 
-function parsePythonFindings(stdout) {
+/**
+ * Read the reference verifier's findings out of its report line, which reads
+ * `<file>  INVALID (<signature status>)  <finding>, <finding>`.
+ *
+ * The parenthetical is the signature status, not a finding. #1810 added it;
+ * this parser predated it and split everything after INVALID on commas, so the
+ * status was glued to the first finding and the comparison could never agree --
+ * `["(unsigned)  bundle_seal_mismatch", ...]` against
+ * `["bundle_seal_mismatch", ...]`, two implementations agreeing exactly and
+ * reported as a disagreement. Optional, since ATP 0.1 prints it and 0.2 does
+ * not. The status is returned rather than dropped: #1788 will need it.
+ *
+ * Stays inline rather than becoming its own module -- worth saying, because
+ * that is the obvious refactor and it does not work. run.js copies *this file
+ * alone* into a temp project (line 78) to prove the package runs without the
+ * repository, so a sibling require resolves to nothing there.
+ */
+function parsePythonReport(stdout) {
   const line = stdout.trim().split('\n').pop() || '';
-  if (/\bVALID\b/.test(line) && !/\bINVALID\b/.test(line)) return [];
+  if (/\bVALID\b/.test(line) && !/\bINVALID\b/.test(line)) {
+    const valid = line.match(/\(([^)]*)\)/);
+    return { findings: [], signatureStatus: valid ? valid[1] : '' };
+  }
   const tail = line.split(/\bINVALID\b/)[1];
   if (tail === undefined) throw new Error(`unparseable verifier output: ${line}`);
-  return tail.split(',').map((s) => s.trim()).filter(Boolean).sort();
+  const status = tail.match(/^\s*\(([^)]*)\)/);
+  const findingsText = status ? tail.slice(status[0].length) : tail;
+  return {
+    findings: findingsText.split(',').map((s) => s.trim()).filter(Boolean).sort(),
+    signatureStatus: status ? status[1] : '',
+  };
 }
+
+const parsePythonFindings = (stdout) => parsePythonReport(stdout).findings;
 
 function findPython() {
   const candidates = process.platform === 'win32'
