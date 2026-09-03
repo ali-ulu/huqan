@@ -94,3 +94,24 @@ jobs:
       # docs tree only, so no dependencies are needed.
       - name: Check V5 document status declarations
         run: node scripts/check-doc-status.js
+
+  docs-drift:
+    name: Require living documentation to agree with the source
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+
+      # #1782 and its class: in a governance product the documentation is part
+      # of the trust surface, so a documented Node floor, tool name, route or
+      # file path the source contradicts is a false claim about the product,
+      # not a typo. Fixing them one at a time is why they kept coming back.
+      # Reads the source tree only, so no dependencies are needed.
+      - name: Check documentation against the source
+        run: node scripts/check-docs-drift.js

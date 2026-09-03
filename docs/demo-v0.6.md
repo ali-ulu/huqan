@@ -12,7 +12,7 @@ Bu doküman, v0.6 productization yüzeyini tek akışta doğrulamak için kullan
 
 ## Ön Koşullar
 
-- Node.js 18+
+- Node.js 22.13.0+
 - `npm install` tamamlanmış olmalı
 - Yerel SQLite storage erişilebilir olmalı
 

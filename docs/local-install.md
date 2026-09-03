@@ -4,7 +4,7 @@
 
 ## Requirements
 
-- **Node.js >= 20** (no GPU, no API key, no Docker)
+- **Node.js >= 22.13.0** (no GPU, no API key, no Docker)
 - **OS**: macOS, Linux, or Windows (PowerShell)
 - **Disk**: ~50 MB (including dependencies)
 - **RAM**: ~100 MB at runtime
@@ -66,7 +66,6 @@ node server.js
 ```
 
 Static demo note:
-- `demo/index.html` is the canonical static public demo surface.
 - `public/index.html` is the canonical local backend-connected UI served by `node server.js`.
 - `docs/index.html` is only a docs/demo chooser and does not replace the local UI.
 
@@ -137,7 +136,7 @@ Teach causal chains:
 ## Troubleshooting
 
 **`npm run setup:sqlite` fails:**
-- Check Node.js version: `node --version` (the project requires Node.js >= 20)
+- Check Node.js version: `node --version` (the project requires Node.js >= 22.13.0)
 - Retry after `npm cache clean --force`.
 - If the message reports an ABI mismatch, the script attempts `npm rebuild better-sqlite3`; if that also fails, remove `node_modules` and run the setup command again.
 
