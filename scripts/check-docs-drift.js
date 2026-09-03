@@ -15,6 +15,12 @@
  * This check closes the class: the drift is measured against the source of
  * truth rather than against a reviewer's memory.
  *
+ * The same applies to a stated release version: `docs/architecture.md` carried
+ * a "Current Release Contract" section naming v0.9.0 and a status endpoint
+ * reading `version=0.9.0` while the package shipped 0.11.1 -- a claim any
+ * reader could falsify by calling the endpoint, since `lib/http/runtime-status`
+ * answers with `pkg.version`.
+ *
  * SCOPE. Only living documentation is held to it. Audits, archives, reviews
  * and evidence packs are records of what was true on the day they were
  * written; "correcting" them would destroy the very thing they exist to
@@ -100,6 +106,24 @@ function requiredNodeMajor() {
   return match[1];
 }
 
+/**
+ * The version the package actually ships.
+ *
+ * Deliberately NOT compared against every semver in the documentation. A survey
+ * of the living set found 121 of them, and the overwhelming majority are
+ * correct as written: an ADR naming the version it was decided under, a
+ * protocol spec numbering itself, a pinned dependency. Failing those would
+ * force "corrections" that destroy the record -- the same mistake RECORD_PATHS
+ * exists to avoid, made one line at a time instead of one file at a time.
+ *
+ * Only a statement that this package is currently at some version is held.
+ */
+function packageVersion() {
+  const version = require(path.join(repoRoot, 'package.json')).version;
+  if (!version) throw new Error('package.json declares no version');
+  return String(version);
+}
+
 function knownToolNames() {
   const { TOOL_SCHEMAS } = require(path.join(repoRoot, 'lib', 'mcp-tool-catalog.js'));
   const { OPERATOR_TOOL_SCHEMAS } = require(path.join(repoRoot, 'mcpServer.js'));
@@ -115,9 +139,6 @@ function registeredRouteSource() {
 }
 
 // Only statements of a requirement -- "Node.js >= 20", "Node 18+", "requires
-// Node.js 20". A bare mention ("Node 20 reached end-of-life") is prose about a
-// runtime, not a claim about what this package runs on.
-// Only statements of a requirement -- "Node.js >= 20", "Node 18+", "requires
 // Node.js 20". A bare mention ("Node 20 reached end-of-life", "the Node 24
 // base image") is prose about a runtime, not a claim about what this package
 // runs on, so the requirement marker is mandatory rather than optional.
@@ -126,6 +147,37 @@ const NODE_MENTIONS = [
   /Node(?:\.js)?\s*(?:>=|≥)\s*v?(\d{2})(?:\.\d+)*/gi,
   /Node(?:\.js)?\s*v?(\d{2})(?:\.\d+)*\s*(?:\+|or newer|or later)/gi,
 ];
+// Two self-marking forms that can only mean the current package: the status
+// endpoint's own contract line, and the published package spec. Both are
+// falsifiable on the spot -- one by calling `/v2-status`, one by `npm view`.
+const RELEASE_VERSION_MENTIONS = [
+  /\bversion\s*=\s*v?(\d+\.\d+\.\d+)/gi,
+  /\bhuqan@(\d+\.\d+\.\d+)/gi,
+];
+// A section headed "Current Release" declares what the product is right now, so
+// every version inside it is a claim about this package and none of them are
+// the historical mentions the survey above protects. The section ends at the
+// next heading of the same or a higher level, so a later "## Roadmap" naming
+// past releases stays out of it.
+const RELEASE_SECTION_HEADING = /^(#{2,6})[^\n]*\bcurrent release\b[^\n]*$/gim;
+const SEMVER = /\bv?(\d+\.\d+\.\d+)\b/g;
+
+/**
+ * The body of every "Current Release" section, keyed by nothing -- callers only
+ * need the text. Returns [] for the overwhelming majority of documents.
+ */
+function releaseSections(text) {
+  const sections = [];
+  for (const heading of text.matchAll(RELEASE_SECTION_HEADING)) {
+    const level = heading[1].length;
+    const bodyStart = heading.index + heading[0].length;
+    const rest = text.slice(bodyStart);
+    const next = rest.match(new RegExp(`^#{1,${level}}\\s`, 'm'));
+    sections.push(next ? rest.slice(0, next.index) : rest);
+  }
+  return sections;
+}
+
 const TOOL_MENTION = /`(?:huqan|axiom)\.([a-z0-9_]+)`/g;
 const ROUTE_MENTION = /`(\/api\/[A-Za-z0-9/_:-]+)`/g;
 // Only paths written as code and rooted at a real source directory: prose like
@@ -144,6 +196,20 @@ function violationsIn(file, text, context) {
     for (const match of text.matchAll(pattern)) {
       if (match[1] !== context.nodeMajor) {
         report('node-version', match[0].trim(), `package.json requires Node ${context.nodeMajor}.x or newer`);
+      }
+    }
+  }
+  for (const pattern of RELEASE_VERSION_MENTIONS) {
+    for (const match of text.matchAll(pattern)) {
+      if (match[1] !== context.packageVersion) {
+        report('release-version', match[0].trim(), `package.json ships ${context.packageVersion}`);
+      }
+    }
+  }
+  for (const section of releaseSections(text)) {
+    for (const match of section.matchAll(SEMVER)) {
+      if (match[1] !== context.packageVersion) {
+        report('release-version', match[0].trim(), `a Current Release section must name ${context.packageVersion}`);
       }
     }
   }
@@ -176,6 +242,7 @@ function violationsIn(file, text, context) {
 function collectDrift() {
   const context = {
     nodeMajor: requiredNodeMajor(),
+    packageVersion: packageVersion(),
     tools: knownToolNames(),
     routes: registeredRouteSource(),
   };
@@ -206,4 +273,4 @@ if (require.main === module) {
   process.exit(main());
 }
 
-module.exports = { collectDrift, violationsIn, isRecord, RECORD_PATHS, ALLOWED };
+module.exports = { collectDrift, violationsIn, isRecord, releaseSections, RECORD_PATHS, ALLOWED };
