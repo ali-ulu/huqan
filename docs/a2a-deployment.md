@@ -230,3 +230,57 @@ may bind exactly one workspace.
 - **No network discovery or routing.** The agent card advertises this
   receiver; nothing discovers it for you.
 - **Effect payload bytes are not exchanged**, only a signed hash reference.
+
+## Registry records (Faz F, #1787)
+
+The exchange verifies signatures against keys the receiver already holds. Until
+now the only way to hold a key was for an operator to write it into the
+authority file by hand, which is why two agents that had never met could not
+talk: certificates worked, there was no CA. The registry is where a receiver
+records "this identity, this trust root" so that binding stops being a manual
+copy.
+
+Configure it with one additional variable, alongside the two above:
+
+```
+HUQAN_REGISTRY_DIR=/var/lib/huqan/registry
+```
+
+The directory must exist, be absolute, and be a real directory — a symlink is
+refused, because whoever controls the link would decide where admitted
+identities are written. Without the variable the routes are not served at all
+and answer `404`, the same shape the exchange uses: a declared-but-unbuildable
+route would turn a configuration mistake into a `401` that confirms the path
+exists.
+
+| Route | Method | What it does |
+|---|---|---|
+| `/api/registry/records` | `POST` | Register an identity the receiver already holds |
+| `/api/registry/records/:recordId` | `GET` | Read one record, trust root re-resolved live |
+
+Both are authenticated. A record binds an identity to a trust root, so reading
+one tells the caller which key this receiver will accept for that agent.
+
+Two properties are worth stating because they are the reason the unit exists:
+
+- **Nothing is admitted on the registrant's word.** Identity is matched against
+  the receiver's own authority, capabilities against the receiver's own offer,
+  and the trust root through the receiver's own key resolver. A registration
+  the receiver cannot independently corroborate is refused whole — there is no
+  partial record.
+- **Revocation reaches readers without an edit.** Every read re-resolves the
+  trust root, so a key revoked in the authority stops resolving for readers
+  immediately. The stored `resolvedKeyState` is a record of an admission, never
+  a permission to reuse.
+
+### What the registry does not claim
+
+- **No discovery.** There is no listing route and no public path. A caller can
+  read a record whose id it already has; nothing enumerates the registry, and
+  the agent card still refuses to publish key material.
+- **No federation.** One receiver, one authority. Which authority is
+  authoritative for which workspace is not decided here.
+- **No revocation distribution.** Revocation takes effect where this receiver
+  reads its own authority; publishing revocation to other parties is not built.
+- **Not a CA yet.** This closes the record and admission half of #1787. The
+  publication and federation halves remain open on that issue.
