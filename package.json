@@ -28,6 +28,7 @@
   "check:docs-drift": "node scripts/check-docs-drift.js",
     "check:file-size": "node scripts/check-file-size.js",
     "check:package-closure": "node scripts/check-package-closure.js",
+    "check:benign-false-block-rate": "node scripts/benign-false-block-rate.js",
     "verify:tarball": "node scripts/verify-package-tarball.js",
     "check:workflow-governance": "node scripts/check-workflow-governance.js",
     "setup:sqlite": "node scripts/setup-sqlite.js",
