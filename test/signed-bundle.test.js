@@ -3,6 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const { signReceiptBundle, verifyReceiptBundleSignature } = require('../lib/receipt/signed-bundle');
+const { exportReceiptBundle, verifyExportedBundle } = require('../lib/receipt/receipt-export');
 test('signs the immutable bundle binding with ed25519', () => {
   const { privateKey, publicKey } = crypto.generateKeyPairSync('ed25519'); const bundle = { sealVersion: 'huqan-bundle-seal-v2', bundleHash: 'a'.repeat(64), workspaceId: 'default', receiptCount: 1 };
   const signed = signReceiptBundle(bundle, { keyReference: 'key:test', privateKeyPem: privateKey.export({ type: 'pkcs8', format: 'pem' }).toString() });
