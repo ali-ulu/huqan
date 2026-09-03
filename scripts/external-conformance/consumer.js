@@ -410,6 +410,7 @@ const BUNDLE_EXPECTATIONS = {
   'receipt-bundle.unicode.valid.json': [],
   'receipt-bundle.broken-chain.json': ['bundle_seal_mismatch', 'content_tampered@1'],
   'receipt-bundle.tampered-bundle-hash.json': ['bundle_seal_mismatch'],
+  'receipt-bundle.tampered-receipt.json': ['bundle_seal_mismatch', 'content_tampered@2'],
 };
 
 check('bundles', 'every shipped bundle fixture has a declared expectation', () => {
@@ -545,16 +546,19 @@ check('cross-implementation', 'the shipped Python verifier reports the same find
     ['legacy ATP 0.1', LEGACY_SPEC_ROOT],
     ['canonical HTP 0.2', CANONICAL_SPEC_ROOT],
   ]) {
+    // Each surface against its OWN vectors: before #1820 both verifiers ran on
+    // 0.1's, so the canonical version was tested through its predecessor.
     const script = path.join(root, 'conformance', 'verify_bundle.py');
-    for (const file of bundleFiles) {
+    const examples = path.join(root, 'examples');
+    for (const file of fs.readdirSync(examples).filter((f) => f.startsWith('receipt-bundle.'))) {
       if (BUNDLE_EXPECTATIONS[file] === undefined) continue;
       const run = spawnSync(
         python.command,
-        [...python.args, script, path.join(EXAMPLES, file)],
+        [...python.args, script, path.join(examples, file)],
         { encoding: 'utf8' },
       );
       const pythonFindings = parsePythonFindings(run.stdout || '');
-      const consumerFindings = [...verifyBundle(readJson(path.join(EXAMPLES, file)))].sort();
+      const consumerFindings = [...verifyBundle(readJson(path.join(examples, file)))].sort();
       if (JSON.stringify(pythonFindings) !== JSON.stringify(consumerFindings)) {
         disagreements.push(
           `${surface}/${file}: python=${JSON.stringify(pythonFindings)} consumer=${JSON.stringify(consumerFindings)}`,

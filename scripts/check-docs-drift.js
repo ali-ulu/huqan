@@ -79,10 +79,10 @@ const ALLOWED = Object.freeze({
   'docs/reports/github-app-trust-loop-blocked-gap.md': {
     'lib/github-app-writeback-contract.js': 'the report proposes this file; it is the gap being reported',
   },
-  'specs/huqan-trust-protocol/0.2/RECEIPT-BUNDLE.md': {
-    'examples/receipt-bundle.valid.json': '0.2 does not yet carry its own vectors; only 0.1 ships them (#1781)',
-    'examples/receipt-bundle.unicode.valid.json': '0.2 does not yet carry its own vectors; only 0.1 ships them (#1781)',
-  },
+  // 0.2's RECEIPT-BUNDLE.md cited example bundles that did not exist, allowed
+  // here because only 0.1 shipped vectors. #1820 generated 0.2's own, so the
+  // citations resolve and the allowance is gone -- which is the shape an
+  // allowance should have: a dated exception, not a standing one.
 });
 
 function isRecord(file) {
