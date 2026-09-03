@@ -64,7 +64,7 @@ const externalClientBoundary = createExternalClientProductionBoundary({
   environment: process.env,
   graph: kernel.graph,
 });
-const optionalRoutes = createOptionalRouteBoundaries({ memoryApproval: { kernel, getParseJsonRequest: () => parseJsonRequest, getWriteJson: () => writeJson, approvalRuntime: () => ({ approvalStore: getIngestApprovalStore() }) }, prGuardian: createPrGuardianOptions({ getApprovalStore: getIngestApprovalStore, getParseJsonRequest: () => parseJsonRequest, getWriteJson: () => writeJson }) });
+const optionalRoutes = createOptionalRouteBoundaries({ memoryApproval: { kernel, getParseJsonRequest: () => parseJsonRequest, getWriteJson: () => writeJson, approvalRuntime: () => ({ approvalStore: getIngestApprovalStore() }) }, prGuardian: createPrGuardianOptions({ getApprovalStore: getIngestApprovalStore, getParseJsonRequest: () => parseJsonRequest, getWriteJson: () => writeJson }), receiptCollector: { collectorRoot: readCompatibleEnvironmentVariable('RECEIPT_COLLECTOR_ROOT'), getParseJsonRequest: () => parseJsonRequest } });
 let companyRuntimeReady = false;
 let ingestApprovalStore = null;
 const INGEST_APPROVAL_WORKER_ID = `http-ingest-${crypto.randomUUID()}`;
@@ -214,7 +214,6 @@ async function submitIngestApproval(data) {
   }
 }
 const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, workspaceId, decision, reason }) => decideIngestApproval({ store: getIngestApprovalStore(), kernel, approvalId, workspaceId, decision, reason, humanOversight: getHttpApprovalRuntimeConfig(), handleIngest, ensureRuntime: ensureCompanyRuntime, recordAudit: recordIngestApprovalAudit, toPublicApproval: publicIngestApproval, workerId: INGEST_APPROVAL_WORKER_ID, leaseMs: INGEST_APPROVAL_LEASE_MS }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, proposeLearn: args => callMcpTool(kernel, { name: 'huqan.learn', arguments: args }, { approvalStore: getIngestApprovalStore() }), submitIngest: submitIngestApproval, createAgent: options => observabilityRuntime.createAgent(options) });
-
 // V5 issuer records are receiver-owned; an empty registry remains fail-closed.
 const issuerTrustedKeyRecords = [];
 let v5PackageImportRouteCache = null;
@@ -383,7 +382,8 @@ const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnviron
   // confirms the existence of an unrouted path.
   const routeAuthPolicy = resolveRouteAuthPolicy(reqUrl.pathname, req.method, {
     workspaceId: sanitizeInput(reqUrl.searchParams.get('workspaceId') || ''),
-    externalClientRouteEnabled: externalClientBoundary !== null, ...optionalRoutes.authContext,
+    externalClientRouteEnabled: externalClientBoundary !== null,
+    ...optionalRoutes.authContext,
   });
   // The memory-context route hardens every one of its own responses with
   // no-store/nosniff, but this central gate answers 401 before that handler
