@@ -435,6 +435,7 @@
     "lib/relation-drift.js",
     "lib/repo-file-pin.js",
     "lib/registry/registry-record-shape.js",
+    "lib/registry/registry-bundle-signing-key-resolver.js",
     "lib/registry/registry-record-store.js",
     "lib/registry/registry-route.js",
     "lib/risk-classify.js",
