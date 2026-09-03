@@ -40,7 +40,16 @@ function isRuntime(filePath) {
   return result.status === 0;
 }
 
-describe('CI runtime classifier is fail-closed (#752)', () => {
+function usableBash() {
+  const probe = spawnSync('bash', [
+    '-c', '[ "$1" = cli.js ] && printf huqan-bash-ok', 'huqan-probe', 'cli.js',
+  ], { encoding: 'utf8' });
+  return probe.status === 0 && probe.stdout === 'huqan-bash-ok';
+}
+
+describe('CI runtime classifier is fail-closed (#752)', {
+  skip: usableBash() ? false : 'requires a usable POSIX bash; Windows system bash.exe is not one',
+}, () => {
   it('classifies the surfaces the issue named', () => {
     for (const file of [
       'adapters/github-adapter.js',

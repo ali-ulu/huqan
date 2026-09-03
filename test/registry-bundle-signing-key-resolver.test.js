@@ -8,6 +8,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { createRegistryBundleSigningKeyResolver } = require('../lib/registry/registry-bundle-signing-key-resolver');
+const huqan = require('..');
 const { exportReceiptBundle, verifyExportedBundle } = require('../lib/receipt/receipt-export');
 
 function material(status = 'active') {
@@ -21,6 +22,10 @@ function material(status = 'active') {
     trustedKeyRecords: [{ keyReference: 'test-key:issuer', status, expiresAt: '2030-01-01T00:00:00.000Z', publicKeySpkiDer }],
   };
 }
+
+test('registry bundle signing resolver is reachable from the public SDK root', () => {
+  assert.equal(huqan.createRegistryBundleSigningKeyResolver, createRegistryBundleSigningKeyResolver);
+});
 
 test('registry resolution verifies a signed bundle through the admitted key only', () => {
   const fixture = material();

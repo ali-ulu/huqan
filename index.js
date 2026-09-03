@@ -39,6 +39,7 @@ const observabilityClient = require('./lib/observability/client');
 const externalActionGuard = require('./lib/external-action-guard');
 const externalActionAdapter = require('./lib/external-action-adapter');
 const externalActionReceipt = require('./lib/external-action-receipt');
+const registryBundleSigningKeyResolver = require('./lib/registry/registry-bundle-signing-key-resolver');
 
 module.exports = KernelV2;
 
@@ -135,3 +136,10 @@ module.exports.createOpenCodeGuardPlugin = externalActionAdapter.createOpenCodeG
 module.exports.registerPiGuard = externalActionAdapter.registerPiGuard;
 module.exports.createDurableExternalActionReceiptWriter = externalActionReceipt.createDurableExternalActionReceiptWriter;
 module.exports.createExternalActionReceiptWriter = externalActionReceipt.createJsonlExternalActionReceiptWriter;
+
+// Registry-backed portable receipt-bundle verification. Exposed from the
+// package root so an external consumer can bind a bundle signature to the same
+// admitted registry identity and receiver-owned trust-root records used by the
+// HTTP registry surface.
+module.exports.createRegistryBundleSigningKeyResolver =
+  registryBundleSigningKeyResolver.createRegistryBundleSigningKeyResolver;
