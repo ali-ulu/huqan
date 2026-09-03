@@ -214,7 +214,6 @@ async function submitIngestApproval(data) {
   }
 }
 const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, workspaceId, decision, reason }) => decideIngestApproval({ store: getIngestApprovalStore(), kernel, approvalId, workspaceId, decision, reason, humanOversight: getHttpApprovalRuntimeConfig(), handleIngest, ensureRuntime: ensureCompanyRuntime, recordAudit: recordIngestApprovalAudit, toPublicApproval: publicIngestApproval, workerId: INGEST_APPROVAL_WORKER_ID, leaseMs: INGEST_APPROVAL_LEASE_MS }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, proposeLearn: args => callMcpTool(kernel, { name: 'huqan.learn', arguments: args }, { approvalStore: getIngestApprovalStore() }), submitIngest: submitIngestApproval, createAgent: options => observabilityRuntime.createAgent(options) });
-
 // V5 issuer records are receiver-owned; an empty registry remains fail-closed.
 const issuerTrustedKeyRecords = [];
 let v5PackageImportRouteCache = null;
