@@ -9,6 +9,7 @@ const PackageKernel = require('..');
 const KernelV2 = require('../kernel.v2');
 const Kernel = require('../kernel');
 const { withoutNestedMember, nestedMemberBody } = require('./helpers/kernel-declaration');
+const { spawnSyncWindowsAware } = require('../scripts/spawn-windows-aware');
 
 const FACADE_METHODS = Object.freeze([
   'learn', 'ask', 'verify', 'reason', 'compare', 'dream',
@@ -527,7 +528,10 @@ test('4C1: installed MCP executable answers over stdio', () => {
     { jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} },
   ].map((r) => JSON.stringify(r)).join('\n') + '\n';
 
-  const result = cp.spawnSync(binPath, [], {
+  // Through the shared shim: on Windows this bin is a .cmd, which Node will not
+  // launch directly, and a raw spawnSync answers `status: null` with an empty
+  // stderr -- indistinguishable from a crashed child.
+  const result = spawnSyncWindowsAware(binPath, [], {
     cwd: info.installDir, input: requests, timeout: 60000, encoding: 'utf8',
     env: {
       ...process.env,
