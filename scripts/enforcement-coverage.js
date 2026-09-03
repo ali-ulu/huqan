@@ -254,10 +254,21 @@ function buildCoverageManifest() {
     schemaVersion: 'huqan.enforcement-coverage.v1',
     // Stated in the artifact, not only in this source, so a reader who only
     // ever sees the published manifest is not misled about what it establishes.
+    //
+    // The subprocess sentence is here rather than only in
+    // docs/external-action-guard.md because that document does not ship: of the
+    // whole docs/ tree, package.json#files publishes one seed file. A consumer
+    // installs the package, gets this manifest, and would otherwise never meet
+    // the boundary that decides what "protected" means.
     establishes: 'The inventory of call sites that can act on the world, and the recorded role of each. '
       + 'It does NOT establish that any site is enforced at run time: that would need call-graph '
       + 'analysis this build does not perform. Indirect calls through a parameter, and dynamic '
-      + 'property access, are invisible to it.',
+      + 'property access, are invisible to it. Nor does any entry here describe what an approved '
+      + 'process goes on to do: the guard evaluates the command it is shown, so a process it '
+      + 'allowed can write, spawn and transmit without a further decision, and an action refused '
+      + 'when requested directly succeeds silently when a permitted process performs it. That '
+      + 'boundary decides what "protected" means for this package; it is demonstrated in '
+      + 'test/subprocess-boundary.contract.test.js.',
     totals: { files: byFile.size, sites: sites.length, byCapability, byRole },
     unguarded: entries.filter((e) => e.role === 'unguarded'),
     entries,
