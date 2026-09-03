@@ -407,7 +407,7 @@ describe('V5-C5A: a clean-room implementation agrees on the bytes', () => {
       .map((line) => line.trim())
       .filter((line) => /^(import|from)\s/.test(line));
     assert.ok(imports.length > 0, 'the probe should import something');
-    const allowed = new Set(['hashlib', 'json', 'sys']);
+    const allowed = new Set(['hashlib', 'json', 'sys', 'base64']);
     for (const line of imports) {
       const moduleName = line.replace(/^(import|from)\s+/, '').split(/[\s.]/)[0];
       assert.ok(allowed.has(moduleName), `unexpected import: ${line}`);

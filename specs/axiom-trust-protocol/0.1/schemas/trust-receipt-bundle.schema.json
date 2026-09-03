@@ -47,6 +47,17 @@
     "receipts": {
       "type": "array",
       "items": { "$ref": "#/definitions/chainedReceipt" }
+    },
+    "bundleSignature": {
+      "type": "object",
+      "required": ["schemaVersion", "algorithm", "keyReference", "signature"],
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": { "type": "string", "enum": ["huqan.receipt-bundle-signature.v1"] },
+        "algorithm": { "type": "string", "enum": ["ed25519"] },
+        "keyReference": { "type": "string", "minLength": 1 },
+        "signature": { "type": "string", "minLength": 1 }
+      }
     }
   },
   "definitions": {
