@@ -69,9 +69,28 @@ async function main() {
   let receiptWriter;
   try {
     const command = process.argv[2];
+    if (command === 'fleet') {
+      const { queryFleet } = require('../lib/external-action-receipt-collector');
+      process.stdout.write(`${JSON.stringify(queryFleet({
+        root: argumentValue('--store'),
+        workspaceId: argumentValue('--workspace') || undefined,
+        ownerActorId: argumentValue('--owner') || undefined,
+        since: argumentValue('--since') || undefined,
+        until: argumentValue('--until') || undefined,
+        ...(argumentValue('--limit') ? { limit: Number.parseInt(argumentValue('--limit'), 10) } : {}),
+      }), null, 2)}\n`);
+      process.exitCode = 0;
+      return;
+    }
     if (command === 'ship') {
       const { shipExternalActionReceipts } = require('../lib/external-action-receipt-shipper');
+      // `--store` keeps a self-hosted deployment whole without HTTP: the same
+      // batches, written straight into a collector store on disk or a share.
+      const storeRoot = argumentValue('--store');
       const result = await shipExternalActionReceipts({
+        ...(storeRoot ? {
+          deliver: batch => require('../lib/external-action-receipt-collector').ingestReceiptBatch({ batch, root: storeRoot }),
+        } : {}),
         endpoint: argumentValue('--endpoint') || undefined,
         token: argumentValue('--token') || undefined,
         path: argumentValue('--receipt-log') || undefined,
