@@ -242,6 +242,8 @@
     "lib/control-plane-paths.js",
     "lib/cross-workspace-access-gate.js",
     "lib/data-egress-gate.js",
+    "lib/data-residency-gate.js",
+    "lib/residency-rule-miner.js",
     "lib/deterministic-json-copy.js",
     "lib/dream-experiment-loop.js",
     "lib/dream-hypothesis-semantics.js",
