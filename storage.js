@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { resolveContainedPath } = require('./lib/memory-store-utils');
 const { applyStorageSchema } = require('./lib/storage/schema');
 const { loadSqliteDriver, sqliteUnavailableError } = require('./lib/sqlite-availability');
+const { applySqliteDurability } = require('./lib/sqlite-durability');
 const { normalizeWorkspaceId } = require('./lib/workspace-id');
 const toolApprovalMethods = require('./lib/storage/tool-approval-methods');
 const { resolveDefaultMemoryPath } = require('./lib/default-persistence-path');
@@ -106,8 +107,10 @@ class HuqanStorage {
       throw sqliteUnavailableError('better-sqlite3 is required for v3 storage.', sqliteLoadError);
     }
     this.db = new Database(this.dbPath);
-    this.db.pragma('journal_mode = WAL');
-    this.db.pragma('synchronous = NORMAL');
+    // RESUMABLE, and that is a choice rather than a default: this store holds
+    // agent checkpoints, so a lost tail costs repeated work and no evidence.
+    // See lib/sqlite-durability.js for the split and what it was measured at.
+    applySqliteDurability(this.db, 'RESUMABLE');
     this._init();
   }
 
