@@ -27,7 +27,7 @@ const { buildFixture } = require('../scripts/a2a-conformance/run.js');
 const { readJsonBody } = require('../requestGuards');
 const { resolveRouteAuthPolicy } = require('../lib/http/route-auth-policy');
 const { CANONICAL_WORKSPACE } = require('../lib/a2a/exchange-route');
-const { CAPABILITIES, PROTOCOL_VERSION } = require('../lib/a2a/agent-card');
+const { CAPABILITIES, PROTOCOL_VERSION, SUPPORTED_PROTOCOL_VERSIONS } = require('../lib/a2a/agent-card');
 const {
   NEGOTIATION_ERRORS,
   MAX_LIST_ITEMS,
@@ -152,10 +152,30 @@ test('negotiation: a caller cannot negotiate itself a path or a method', async (
   assert.equal(agreed.method, 'POST');
 });
 
+test('negotiation: a legacy-only peer can explicitly downgrade to 0.1', async () => {
+  const { boundary } = freshBoundary();
+  const response = await withServer(boundary, (port) => request(port, {
+    body: { protocolVersions: ['0.1'], capabilities: ['bounded-exchange'] },
+  }));
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.agreement.protocolVersion, '0.1');
+});
+
+test('negotiation: receiver preference upgrades to 0.2 when both versions are offered', () => {
+  assert.deepEqual(SUPPORTED_PROTOCOL_VERSIONS, ['0.2', '0.1']);
+  const result = negotiateCapabilities({
+    protocolVersions: ['0.1', '0.2'], capabilities: ['bounded-exchange'],
+  });
+
+  assert.equal(result.decision, 'allow');
+  assert.equal(result.agreement.protocolVersion, '0.2');
+});
+
 test('negotiation: no common protocol version is a refusal, not an empty agreement', async () => {
   const { boundary } = freshBoundary();
   const response = await withServer(boundary, (port) => request(port, {
-    body: { protocolVersions: ['0.1', '9.9'], capabilities: ['bounded-exchange'] },
+    body: { protocolVersions: ['9.9'], capabilities: ['bounded-exchange'] },
   }));
 
   // 409, not 403: the caller was allowed to ask. There is simply nothing in

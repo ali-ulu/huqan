@@ -27,6 +27,9 @@ const OBSERVED_AT = '2026-08-11T11:59:30.000Z';
 const EXPIRES_AT = '2026-08-11T12:10:00.000Z';
 const KEY_EXPIRES_AT = '2027-08-11T12:00:00.000Z';
 const CONSUMER = path.join(__dirname, 'consumer.js');
+const CLEAN_ROOM_RECEIVER = path.join(
+  __dirname, '..', '..', 'examples', 'a2a-third-party-agent', 'receiver.js',
+);
 const RECEIPT_BUNDLE = JSON.parse(fs.readFileSync(path.join(
   __dirname, '..', '..', 'specs', 'axiom-trust-protocol', '0.1',
   'examples', 'receipt-bundle.valid.json',
@@ -490,6 +493,55 @@ async function run() {
     { caseId: 'valid_exchange_once', expected: 'allow/ok', actual: 'allow/ok', passed: true },
     { caseId: 'replay_same_exchange', expected: 'block/replay_detected', actual: 'block/replay_detected', passed: true },
   ];
+  {
+    const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-a2a-clean-room-'));
+    try {
+      const exchangePath = path.join(temp, 'exchange.json');
+      fs.writeFileSync(exchangePath, JSON.stringify({
+        request: fixture.request, authority: fixture.authority,
+      }), 'utf8');
+      const child = spawnSync(process.execPath, [CLEAN_ROOM_RECEIVER, exchangePath], {
+        encoding: 'utf8', windowsHide: true,
+      });
+      assert.equal(child.status, 0, child.stderr);
+      const external = JSON.parse(child.stdout);
+      const producerBytes = encodeJsonStableV1(signingView(fixture.request));
+      const producerHash = crypto.createHash('sha256').update(producerBytes).digest('hex');
+      const producerReplayDigest = canonicalHash({
+        domainLabel: 'HUQAN/V5/D6/A2A-REPLAY/v1',
+        receiverAuthorityId: fixture.authority.authorityId,
+        request: fixture.request,
+      });
+      assert.equal(external.valid, true);
+      assert.equal(external.canonicalSigningBytesBase64, producerBytes.toString('base64'));
+      assert.equal(external.canonicalSigningSha256, producerHash);
+      assert.equal(external.replayDigest, producerReplayDigest);
+      cases.push({
+        caseId: 'third_party_clean_room_receiver_byte_exact_signed_exchange',
+        expected: 'valid and byte-for-byte producer agreement',
+        actual: 'valid and byte-for-byte producer agreement', passed: true,
+      });
+
+      const tampered = clone(fixture.request);
+      tampered.signature.value = `${tampered.signature.value.slice(0, -1)}${
+        tampered.signature.value.endsWith('A') ? 'B' : 'A'
+      }`;
+      fs.writeFileSync(exchangePath, JSON.stringify({
+        request: tampered, authority: fixture.authority,
+      }), 'utf8');
+      const rejected = spawnSync(process.execPath, [CLEAN_ROOM_RECEIVER, exchangePath], {
+        encoding: 'utf8', windowsHide: true,
+      });
+      assert.equal(rejected.status, 1, rejected.stderr);
+      assert.equal(JSON.parse(rejected.stdout).valid, false);
+      cases.push({
+        caseId: 'third_party_clean_room_receiver_rejects_tampered_signature',
+        expected: 'cryptographic refusal', actual: 'cryptographic refusal', passed: true,
+      });
+    } finally {
+      fs.rmSync(temp, { recursive: true, force: true });
+    }
+  }
   for (const [caseId, expectedReason, mutator] of NEGATIVE_CASES) {
     const specimen = mutated(mutator);
     const output = invokeConsumer(specimen.authority, [specimen.request]);
@@ -609,7 +661,6 @@ async function run() {
     verdict: 'V5_D6_BOUNDED_A2A_EXCHANGE_SUFFICIENT',
     nonClaims: [
       'production_transport_not_implemented',
-      'external_counterparty_interoperability_not_proved',
       'network_discovery_routing_and_delivery_not_implemented',
       'effect_payload_bytes_not_exchanged_only_signed_hash_reference',
     ],

@@ -160,7 +160,7 @@ test('agent card: it points at the negotiation route it actually serves', async 
 
   assert.equal(response.body.negotiation.path, '/api/a2a/negotiate');
   assert.equal(response.body.negotiation.method, 'POST');
-  assert.deepEqual(response.body.negotiation.protocolVersions, [PROTOCOL_VERSION]);
+  assert.deepEqual(response.body.negotiation.protocolVersions, [PROTOCOL_VERSION, '0.1']);
 
   // Negotiation is the mechanism for agreeing on capabilities, not one of the
   // capabilities that can be agreed on.

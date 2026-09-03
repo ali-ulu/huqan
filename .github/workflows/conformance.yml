@@ -158,8 +158,8 @@ jobs:
       - name: Install dependencies
         run: npm ci --include=optional
 
-      - name: Run A2A conformance
-        run: node scripts/a2a-conformance/run.js > a2a-conformance.json
+      - name: Run A2A conformance (includes clean-room third-party receiver)
+        run: npm run conformance:a2a > a2a-conformance.json
 
       - name: Publish A2A report
         if: always()

@@ -30,3 +30,16 @@ available at `specs/axiom-trust-protocol/0.1/`.
 
 Published JSON bytes become immutable after the first package or tagged release
 that ships this directory. Contract changes then require a new protocol version.
+
+## Naming and version lifecycle
+
+`HUQAN Trust Protocol` (HTP) is the canonical protocol name and this `0.2`
+directory is its current publication. `AXIOM Trust Protocol` (ATP) 0.1 is the
+superseded compatibility lineage; its published bytes remain available so an
+HTP 0.2 receiver can negotiate a downgrade for a legacy-only peer.
+
+Receivers prefer the newest common version, may accept a documented older
+version, and must refuse when there is no common version. A published version is
+never changed in place. Deprecation is announced in the newer version before
+removal, and removal requires a new major protocol version. Deprecated versions
+receive compatibility and security fixes only, not new fields or capabilities.
