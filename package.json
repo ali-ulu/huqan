@@ -27,6 +27,7 @@
     "check:doc-status": "node scripts/check-doc-status.js",
     "check:file-size": "node scripts/check-file-size.js",
     "check:package-closure": "node scripts/check-package-closure.js",
+    "check:enforcement-coverage": "node scripts/enforcement-coverage.js",
     "verify:tarball": "node scripts/verify-package-tarball.js",
     "check:workflow-governance": "node scripts/check-workflow-governance.js",
     "setup:sqlite": "node scripts/setup-sqlite.js",
@@ -81,6 +82,7 @@
   },
   "files": [
     "NOTICE",
+    "coverage-manifest.json",
     "adapters/external-action",
     "adapters/git-log-adapter.js",
     "adapters/github-adapter.js",
