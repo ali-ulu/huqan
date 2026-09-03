@@ -42,9 +42,33 @@ future work and is not this document.
 | `receiptCount` | integer | number of entries in `receipts`; covered by `bundleHash` |
 | `bundleHash` | string | lowercase hex SHA-256 sealing the envelope and the `receipts` array |
 | `receipts` | array | chained receipt records, in chain order |
+| `bundleSignature` | object, optional | Ed25519 issuer binding; omitted by legacy and explicitly unsigned exports |
 
 `receipts` may be empty. An empty bundle is a valid, verifiable bundle: absence
 of receipts is a truthful state, not an error.
+
+## Issuer signature
+
+An exporter may add `bundleSignature` after computing `bundleHash`. It has the
+following shape:
+
+```json
+{"schemaVersion":"huqan.receipt-bundle-signature.v1","algorithm":"ed25519","keyReference":"registry:issuer-1","signature":"base64-encoded-64-byte-signature"}
+```
+
+The signed UTF-8 bytes are `canonicalJson` of exactly:
+
+```text
+{ schemaVersion: "huqan.receipt-bundle-signature.v1", sealVersion,
+  bundleHash, workspaceId, receiptCount }
+```
+
+The verifier resolves `keyReference` to an Ed25519 SPKI public key through the
+issuer registry, then verifies the signature. A valid unsigned bundle reports
+`VALID (unsigned)`; a valid signed bundle reports `VALID (signed by
+<keyReference>)`. Consumers needing issuer proof must require a signature:
+unsigned, malformed, unavailable-key, wrong-key, or altered-signature bundles
+are then invalid. The hash and chain checks alone remain only integrity checks.
 
 ## Primitives
 

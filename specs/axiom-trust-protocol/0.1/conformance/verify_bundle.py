@@ -28,6 +28,7 @@ Exit status is 0 when every bundle verifies, 1 otherwise.
 import hashlib
 import json
 import sys
+import base64
 
 GENESIS = "genesis:v4-receipt-chain"
 
@@ -113,6 +114,72 @@ def sha256_hex(text):
 
 
 SEAL_VERSION = "huqan-bundle-seal-v2"
+SIGNATURE_SCHEMA_VERSION = "huqan.receipt-bundle-signature.v1"
+
+# RFC 8032 Ed25519 verification.  It is included (rather than imported) so
+# this clean-room verifier keeps its stdlib-only contract.
+Q = 2 ** 255 - 19
+L = 2 ** 252 + 27742317777372353535851937790883648493
+D = (-121665 * pow(121666, Q - 2, Q)) % Q
+I = pow(2, (Q - 1) // 4, Q)
+B_Y = (4 * pow(5, Q - 2, Q)) % Q
+
+def _xrecover(y):
+    xx = (y * y - 1) * pow(D * y * y + 1, Q - 2, Q) % Q
+    x = pow(xx, (Q + 3) // 8, Q)
+    if (x * x - xx) % Q: x = x * I % Q
+    return x
+
+B = (_xrecover(B_Y), B_Y)
+if B[0] & 1: B = (Q - B[0], B[1])
+
+def _add(p, q):
+    x1, y1 = p; x2, y2 = q
+    x3 = (x1 * y2 + x2 * y1) * pow(1 + D * x1 * x2 * y1 * y2, Q - 2, Q) % Q
+    y3 = (y1 * y2 + x1 * x2) * pow(1 - D * x1 * x2 * y1 * y2, Q - 2, Q) % Q
+    return (x3, y3)
+
+def _scalar_mult(p, n):
+    result = (0, 1)
+    while n:
+        if n & 1: result = _add(result, p)
+        p = _add(p, p); n >>= 1
+    return result
+
+def _decode_point(raw):
+    if len(raw) != 32: return None
+    value = int.from_bytes(raw, 'little'); sign = value >> 255; y = value & ((1 << 255) - 1)
+    if y >= Q: return None
+    x = _xrecover(y)
+    if (x * x - (y * y - 1) * pow(D * y * y + 1, Q - 2, Q)) % Q: return None
+    if (x & 1) != sign: x = Q - x
+    point = (x, y)
+    return point if _scalar_mult(point, L) == (0, 1) else None
+
+def _spki_ed25519(pem):
+    lines = [line.strip() for line in pem.splitlines() if not line.startswith('---')]
+    try: der = base64.b64decode(''.join(lines), validate=True)
+    except Exception: return None
+    prefix = bytes.fromhex('302a300506032b6570032100')
+    return der[len(prefix):] if len(der) == len(prefix) + 32 and der.startswith(prefix) else None
+
+def _signature_payload(bundle):
+    return {"schemaVersion": SIGNATURE_SCHEMA_VERSION, "sealVersion": bundle.get("sealVersion"), "bundleHash": bundle.get("bundleHash"), "workspaceId": bundle.get("workspaceId"), "receiptCount": bundle.get("receiptCount")}
+
+def verify_signature(bundle, public_key_pem):
+    envelope = bundle.get("bundleSignature")
+    if not isinstance(envelope, dict): return (False, "signature_missing")
+    if envelope.get("schemaVersion") != SIGNATURE_SCHEMA_VERSION or envelope.get("algorithm") != "ed25519": return (False, "signature_format_invalid")
+    raw_key = _spki_ed25519(public_key_pem or '')
+    if raw_key is None: return (False, "signing_key_unavailable")
+    try: signature = base64.b64decode(envelope.get("signature", ''), validate=True)
+    except Exception: return (False, "signature_format_invalid")
+    if len(signature) != 64: return (False, "signature_format_invalid")
+    r, s, a = _decode_point(signature[:32]), int.from_bytes(signature[32:], 'little'), _decode_point(raw_key)
+    if r is None or a is None or s >= L: return (False, "signature_invalid")
+    message = canonical_json(_signature_payload(bundle)).encode('utf-8')
+    h = int.from_bytes(hashlib.sha512(signature[:32] + raw_key + message).digest(), 'little') % L
+    return (_scalar_mult(B, s) == _add(r, _scalar_mult(a, h)), "signature_invalid")
 
 
 def canonical_seal_payload(bundle):
@@ -161,7 +228,7 @@ def validate_chain(receipts):
     return (True, None, None)
 
 
-def verify(bundle, allow_unsealed_envelope=False):
+def verify(bundle, allow_unsealed_envelope=False, public_keys=None, require_signature=False):
     """Return (ok, findings) for one parsed bundle."""
     findings = []
     if not check_bundle_seal(bundle):
@@ -181,18 +248,37 @@ def verify(bundle, allow_unsealed_envelope=False):
     ok, broken_at, reason = validate_chain(bundle["receipts"])
     if not ok:
         findings.append("%s@%d" % (reason, broken_at))
-    return (not findings, findings)
+    signature = bundle.get("bundleSignature")
+    if signature is None:
+        if require_signature: findings.append("signature_missing")
+        signature_status = "unsigned"
+    elif not isinstance(signature, dict):
+        findings.append("signature_format_invalid"); signature_status = "invalid"
+    else:
+        key = (public_keys or {}).get(signature.get("keyReference"))
+        signature_ok, reason = verify_signature(bundle, key)
+        if not signature_ok: findings.append(reason); signature_status = "invalid"
+        else: signature_status = "signed by %s" % signature.get("keyReference")
+    return (not findings, findings, signature_status)
 
 
 def main(argv):
+    public_keys = {}; require_signature = False; paths = []
+    for arg in argv:
+        if arg == '--require-signature': require_signature = True
+        elif arg.startswith('--public-key='):
+            reference, key_path = arg[len('--public-key='):].split('=', 1)
+            with open(key_path, encoding='utf-8') as handle: public_keys[reference] = handle.read()
+        else: paths.append(arg)
     failed = False
-    for path in argv:
+    for path in paths:
         with open(path, encoding="utf-8") as handle:
             bundle = json.load(handle)
-        ok, findings = verify(bundle)
-        print("%-46s %s%s" % (
+        ok, findings, signature_status = verify(bundle, public_keys=public_keys, require_signature=require_signature)
+        print("%-46s %s (%s)%s" % (
             path.split("/")[-1],
             "VALID" if ok else "INVALID",
+            signature_status,
             "" if ok else "  " + ", ".join(findings),
         ))
         failed = failed or not ok
