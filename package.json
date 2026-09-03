@@ -293,6 +293,7 @@
     "lib/graph-record-utils.js",
     "lib/graph-traversal.js",
     "lib/http-trust-query.js",
+    "lib/legacy-alias-usage.js",
     "lib/http/agent-workflow-routes.js",
     "lib/http/answer-route.js",
     "lib/http/http-provenance.js",
