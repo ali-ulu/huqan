@@ -497,6 +497,30 @@ döndürülür ya da kısaltılırsa durduğu makbuz tutmaz, o zaman son gönder
 zaman damgasından sonrası yeniden gönderilir ve rapor `resynced: true` der —
 sessiz bir yeniden senkron, toplayıcının sessizce kopya alması demek olurdu.
 
+Toplayıcı ucu aynı pakette, **self-hosted öncelikli**: mağaza bir servis değil,
+ekleme-yalnızca JSONL dosyalarından oluşan bir dizin — ajan eylem logları bir
+kurumun dışarı en zor verdiği veri türlerinden, kendi çalıştıramadığı bir
+toplayıcıyı kullanmaz. HTTP'ye hiç ihtiyaç duymadan da çalışır:
+
+```powershell
+npx huqan-gate ship --store D:\huqan-collector          # dogrudan magazaya yaz
+npx huqan-gate fleet --store D:\huqan-collector          # filo gorunumu
+npx huqan-gate fleet --store D:\huqan-collector --workspace team-b --since 2026-09-01
+```
+
+Mağaza kiracıya göre ayrılır (`<workspaceId>/<ownerActorId>/receipts.jsonl`).
+Kiracı adları uzak bir host'tan geldiği için hem muhafazakâr bir slug'a
+indirgenir hem de çözülen yol köke karşı doğrulanır; ikisi ayrı ayrı yeterli
+değil. Aynı `batchId` ikinci kez gelirse `duplicate` denir ve hiçbir şey iki
+kez yazılmaz — gönderici, kabul edilmeyen her şeyi yeniden yolladığı için bu
+istisna değil normal durum. Kiracısı karışık bir batch **reddedilir**: yanlış
+sahibin altına kanıt yazmak, kanıtı kaybetmekten kötüdür.
+
+`fleet` makbuz başına değil **ajan kimliği başına** cevap verir: karar dağılımı,
+ilk/son eylem, son engelleme ve `attested` — bu son alan ancak o kimlik altındaki
+**bütün** eylemler doğrulanmışsa `true` olur; doğrulanmamış bir satırı
+doğrulanmış sanmak tam olarak bu katmanın engellemek için var olduğu hata.
+
 Batch zarfı `huqan.receipt-batch.v1`: `batchId`, `tenant`, `source`, `count`,
 `contentHash` (kopya eleme ve bozuk aktarım tespiti için — imza **değildir**) ve
 `bundleSignature`. Bu son alan ilk sürümden beri var ama değeri şimdilik sabit
