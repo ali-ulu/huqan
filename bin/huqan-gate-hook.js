@@ -82,6 +82,22 @@ async function main() {
       process.exitCode = 0;
       return;
     }
+    // `residency` reads the trail this gate already wrote and reports the rule
+    // its own decisions imply. It proposes and stops: applying it means editing
+    // external-action-policy.json by hand, which is what keeps the resulting
+    // boundary something a receipt can attest to (docs/what-huqan-learns.md).
+    if (command === 'residency') {
+      const { mineResidencyRule } = require('../lib/residency-rule-miner');
+      const { readExternalActionReceipts } = require('../lib/external-action-receipt-reader');
+      const receipts = readExternalActionReceipts({ path: argumentValue('--receipt-log') || undefined });
+      const minObservations = argumentValue('--min-observations');
+      const mined = mineResidencyRule(receipts, {
+        ...(minObservations ? { minObservations: Number.parseInt(minObservations, 10) } : {}),
+      });
+      process.stdout.write(`${JSON.stringify({ ...mined, receiptsRead: receipts.length }, null, 2)}\n`);
+      process.exitCode = 0;
+      return;
+    }
     if (command === 'ship') {
       const { shipExternalActionReceipts } = require('../lib/external-action-receipt-shipper');
       // `--store` keeps a self-hosted deployment whole without HTTP: the same
