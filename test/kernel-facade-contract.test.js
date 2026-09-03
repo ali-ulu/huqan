@@ -9,6 +9,7 @@ const PackageKernel = require('..');
 const KernelV2 = require('../kernel.v2');
 const Kernel = require('../kernel');
 const { withoutNestedMember, nestedMemberBody } = require('./helpers/kernel-declaration');
+const { retainedDeepImportSpecifiers } = require('../scripts/retained-deep-imports');
 
 const FACADE_METHODS = Object.freeze([
   'learn', 'ask', 'verify', 'reason', 'compare', 'dream',
@@ -452,15 +453,10 @@ test.after(() => {
 });
 
 test('4C1: installed tarball smoke — all retained deep imports load', () => {
-  const imports = [
-    'huqan', 'huqan/kernel', 'huqan/kernel.js',
-    'huqan/kernel.v2', 'huqan/kernel.v2.js',
-    'huqan/cli', 'huqan/cli.js',
-    'huqan/lib/sdk', 'huqan/lib/sdk.js',
-    'huqan/mcpServer', 'huqan/mcpServer.js',
-    'huqan/server', 'huqan/server.js',
-    'huqan/packages/huqan-verify', 'huqan/packages/axiom-verify',
-  ];
+  // Read from the same declaration check:package-closure walks, so a surface
+  // cannot be smoke-tested without also being closure-checked, or the other way
+  // round -- which is exactly how huqan/server's subtree went unpublished.
+  const imports = retainedDeepImportSpecifiers();
 
   for (const imp of imports) {
     const code = `

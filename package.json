@@ -299,6 +299,7 @@
     "lib/http/fitness-dashboard-route.js",
     "lib/http/memory-approval-routes.js",
     "lib/http/optional-boundaries.js",
+    "lib/http/external-action-receipt-collector-route.js",
     "lib/http/public-api-commands.js",
     "lib/http/read-workflow-actions.js",
     "lib/http/background-timers.js",
