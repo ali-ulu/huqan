@@ -74,7 +74,7 @@ Beklenen:
 
 Beklenen static demo yüzeyi:
 
-- `demo/index.html`
+- `demo/index.html` (planlanan yüzey; henüz repoda yok — bkz. `docs/product-surfaces.md`)
 
 Beklenen:
 

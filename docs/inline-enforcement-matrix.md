@@ -113,7 +113,7 @@ Bu slice yeni signer, receipt family veya durability otoritesi eklemez.
 - `plugins/repo-memory.js` — GitHub ve dosya/URL ingest production caller’ları
 - `plugins/evidence-validator.js` — opt-in HTTP HEAD reachability caller’ı
 - `cli.js` — GitHub/repo ingest CLI ingress'i
-- Gate'ler: `lib/tool-call-gate.js`, `lib/memory-mutation-gate.js`,
+- Gate'ler: `lib/tool-call-gate.js`, `lib/memory-mutation-gate/`,
   `lib/mcp-gate-adapter.js`
 
 ## Sinir (Boundary)

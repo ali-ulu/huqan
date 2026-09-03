@@ -30,7 +30,7 @@ Canonical repository: `https://github.com/ali-ulu/huqan`
 This policy covers the HUQAN runtime and its security-critical components. Some internal filenames and compatibility identifiers still use the historical AXIOM name; those identifiers do not refer to a separate repository.
 
 - **Runtime:** kernel, KernelV2, graph engine, and SQLite/JSON memory stores
-- **MCP Server:** `mcpServer.js`, `lib/mcp-gate-adapter.js`, `lib/tool-call-gate.js`, `lib/action-risk-classifier.js`, `lib/memory-mutation-gate.js`, `lib/automation-safety-gate.js`, and `lib/sandbox-isolation.js`
+- **MCP Server:** `mcpServer.js`, `lib/mcp-gate-adapter.js`, `lib/tool-call-gate.js`, `lib/action-risk-classifier.js`, `lib/memory-mutation-gate/`, `lib/automation-safety-gate/`, and `lib/sandbox-isolation.js`
 - **REST API:** `server.js`, verification endpoints, and ingest endpoints
 - **Trust Kernel:** `lib/verify.js`, `lib/risk-rules.js`, `lib/contradiction-rules.js`, `lib/semantic-score.js`, and `lib/reasoning-trace.js`
 - **Agent Brake Layer:** action-risk classification, tool-call gating, and AB1–AB6 gates

@@ -31,11 +31,11 @@ git ls-files "*.js" | grep -v node_modules | xargs wc -l | sort -nr | head -20
 | 2398 | `kernel.js` | orchestrator monolith | high blast radius; no V4 PR owns it yet |
 | 2252 | `lib/memory-store.js` | memory persistence | PR5 |
 | 1389 | `graph.js` | graph storage | not V4-core |
-| 1240 | `lib/automation-safety-gate.js` | AB5 gate | downstream of verdict |
+| 1240 | `lib/automation-safety-gate/` | AB5 gate | downstream of verdict |
 | 1128 | `mcpServer.js` | MCP server + tool routing | PR4 |
 | 1113 | `server.js` | REST | not V4-core |
 | 1065 | `agent.js` | agent runtime | not V4-core |
-| 1019 | `lib/memory-mutation-gate.js` | AB4 gate | downstream of verdict |
+| 1019 | `lib/memory-mutation-gate/` | AB4 gate | downstream of verdict |
 | 959 | `workflow-agent.js` | workflow runtime | not V4-core |
 | 946 | `lib/verify.js` | verify service | not V4-core |
 | 909 | `workflow-tools.js` | workflow tools | not V4-core |
@@ -64,8 +64,8 @@ git ls-files "*.js" | grep -v node_modules | xargs wc -l | sort -nr | head -20
 | `kernel.js` (2398) | **NEEDS_MANUAL_REVIEW** | Orchestrator; huge blast radius. No V4 PR forces heavy edits. Do not split speculatively. |
 | `lib/memory-store.js` (2252) | **REFACTOR_BEFORE_PR5** *(conditional)* | Only if PR5 requires heavy edits. If PR5 is read-surface only, LEAVE_AS_IS. |
 | `mcpServer.js` (1128) | **REFACTOR_BEFORE_PR4** *(conditional)* | Only if PR4 requires heavy tool-routing edits. If PR4 adds a thin verdict hook, LEAVE_AS_IS. |
-| `lib/memory-mutation-gate.js` (1019) | **LEAVE_AS_IS** | PR2 wraps its output via an adapter; it is not rewritten. |
-| `lib/automation-safety-gate.js` (1240) | **LEAVE_AS_IS** | Downstream gate; PR2 reads its decision, does not restructure it. |
+| `lib/memory-mutation-gate/` (1019) | **LEAVE_AS_IS** | PR2 wraps its output via an adapter; it is not rewritten. |
+| `lib/automation-safety-gate/` (1240) | **LEAVE_AS_IS** | Downstream gate; PR2 reads its decision, does not restructure it. |
 | `lib/action-risk-classifier.js` (884) | **LEAVE_AS_IS** | Same — adapter-wrapped, not rewritten. |
 | `graph.js`, `server.js`, `agent.js`, `verify.js`, `workflow-*`, `kernel.v2.js`, `sandbox-isolation.js`, `code-change-gate.js`, `cli.js` | **LEAVE_AS_IS** | Not owned by any current V4 PR. |
 
@@ -151,8 +151,8 @@ rule in section 1 still governs when one may happen.
 
 **Baseline at the time of writing** (18 files over threshold, largest first):
 `lib/memory-store.js` 2284, `kernel.js` 2098, `graph.js` 1953, `server.js`
-1461, `mcpServer.js` 1373, `lib/automation-safety-gate.js` 1268,
-`plugins/repo-memory.js` 1217, `agent.js` 1127, `lib/memory-mutation-gate.js`
+1461, `mcpServer.js` 1373, `lib/automation-safety-gate/` 1268,
+`plugins/repo-memory.js` 1217, `agent.js` 1127, `lib/memory-mutation-gate/`
 1032, `workflow-agent.js` 1007, `kernel.v2.js` 975, `lib/verify.js` 967,
 `workflow-tools.js` 962, `cli.js` 938, `lib/action-risk-classifier.js` 902,
 `lib/code-change-gate.js` 891, `scripts/external-conformance/consumer.js` 881,

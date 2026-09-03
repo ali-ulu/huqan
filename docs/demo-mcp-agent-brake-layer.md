@@ -12,7 +12,7 @@ No hallucination. No data corruption. The agent never reaches the filesystem.
 
 ## Prerequisites
 
-- Node.js >= 18
+- Node.js >= 22.13.0
 - Claude Desktop or Cursor (or any MCP-compatible client)
 
 ---

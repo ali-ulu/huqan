@@ -59,7 +59,7 @@ This document defines the primary security threats to HUQAN, categorized using t
 
 **Existing Mitigations**:
 - SHA256 hashing of content, signatures for approved modifications.
-- Memory gate (`lib/memory-mutation-gate.js`) checks request origin and source trust.
+- Memory gate (`lib/memory-mutation-gate/`) checks request origin and source trust.
 - Workspace isolation prevents cross-workspace tampering.
 
 **Remaining Gaps**:
