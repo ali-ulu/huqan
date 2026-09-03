@@ -23,7 +23,7 @@
  * Exit 0 = the published tarball behaves, exit 1 = it does not.
  */
 
-const cp = require('node:child_process');
+const { spawnSyncWindowsAware } = require('./spawn-windows-aware');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -57,10 +57,7 @@ function ok(message) {
 }
 
 function run(command, args, options = {}) {
-  const isWindowsCmd = process.platform === 'win32' && command.toLowerCase().endsWith('.cmd');
-  const result = cp.spawnSync(isWindowsCmd ? process.env.ComSpec : command, isWindowsCmd
-    ? ['/d', '/s', '/c', command, ...args]
-    : args, {
+  const result = spawnSyncWindowsAware(command, args, {
     encoding: 'utf8',
     timeout: options.timeoutMs || 10 * 60 * 1000,
     ...options,
