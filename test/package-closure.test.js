@@ -14,6 +14,11 @@ const {
   publishedFiles,
   packageRoots,
 } = require('../scripts/check-package-closure');
+const {
+  RETAINED_DEEP_IMPORTS,
+  retainedDeepImportFiles,
+  retainedDeepImportSpecifiers,
+} = require('../scripts/retained-deep-imports');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 
@@ -76,6 +81,35 @@ test('the walk starts from the manifest, not from a restated list', () => {
   assert.ok(entries.includes('adapters/markdown-adapter.js'));
 });
 
+test('every retained deep import is an entry point of the walk', () => {
+  // The gap this closes. `server.js` is a supported import that nothing under
+  // `index.js` requires, so its subtree was never walked and
+  // lib/http/external-action-receipt-collector-route.js shipped unpublished
+  // while this gate reported a complete closure. Reaching a module from `main`
+  // is not the same as a consumer being able to load it.
+  const published = publishedFiles(REPO_ROOT);
+  const entries = new Set(loadTimeEntryPoints(REPO_ROOT, published));
+  for (const file of retainedDeepImportFiles()) {
+    assert.ok(entries.has(file), `${file} is a retained deep import but not an entry point`);
+    assert.ok(published.has(file), `${file} is a retained deep import but is not published`);
+  }
+});
+
+test('the two gates over the deep-import surface read one list', () => {
+  // The smoke test in kernel-facade-contract requires each specifier out of a
+  // real installation; this walk covers each file. They disagreed once, which
+  // is why the declaration is shared rather than restated in both places.
+  for (const entry of RETAINED_DEEP_IMPORTS) {
+    assert.ok(fs.existsSync(path.join(REPO_ROOT, entry.file)), `${entry.file} does not exist`);
+    assert.ok(entry.specifier === 'huqan' || entry.specifier.startsWith('huqan/'),
+      `${entry.specifier} is not a specifier for this package`);
+  }
+  const specifiers = retainedDeepImportSpecifiers();
+  assert.ok(specifiers.includes('huqan/server'), 'huqan/server must stay covered');
+  assert.ok(specifiers.includes('huqan/server.js'), 'both spellings resolve, so both are tested');
+  assert.equal(new Set(specifiers).size, specifiers.length, 'no duplicate specifiers');
+});
+
 test('the closure is substantial, so an empty result would not read as a pass', () => {
   const { reached } = analyzePackageClosure({ root: REPO_ROOT });
   assert.ok(reached.length > 150, `only ${reached.length} modules reached`);
@@ -136,16 +170,36 @@ test('bare package specifiers are out of scope', () => {
 });
 
 test('the guarded repo-only families stay out of the closure', () => {
-  // server.js requires the V5 import route inside a try/catch, and
-  // lib/a2a/exchange-route.js does the same for the bounded exchange, so the
-  // installed package boots without them and the routes go unavailable. If
-  // either becomes a load-time require, this test is how that gets noticed --
-  // the check above would then demand the whole V5 family be published.
+  // server.js requires the V5 import route inside a try/catch, so the installed
+  // package boots without it and the route goes unavailable. lib/v5/ ships in
+  // no tarball at all -- 8 files on disk, 0 in `files` -- so a load-time
+  // require of any of them would break every install. If one appears here, the
+  // check above would then demand the whole V5 family be published.
+  const published = publishedFiles(REPO_ROOT);
   const { reached } = analyzePackageClosure({ root: REPO_ROOT });
   for (const file of reached) {
     assert.ok(!file.startsWith('lib/v5/'), `${file} must not load at install time`);
-    assert.notEqual(file, 'lib/a2a/bounded-exchange.js');
   }
+  const v5 = [...published].filter(file => file.startsWith('lib/v5/'));
+  assert.deepEqual(v5, [], 'lib/v5 is repo-only; publishing it would change what this guards');
+});
+
+test('a deferred module that later loads eagerly is only a finding if it is unpublished', () => {
+  // This assertion used to name lib/a2a/bounded-exchange.js beside lib/v5/,
+  // as though both were repo-only. They are not: bounded-exchange is published.
+  // When lib/registry/registry-route.js (#1813) began requiring it at load time
+  // the old shape read that as a regression, when the only thing that had
+  // changed was *when* a shipped module loads. What actually matters is that
+  // whatever loads eagerly is in the tarball, and the closure check above is
+  // what enforces that -- so the distinction is published vs not, not deferred
+  // vs not.
+  const published = publishedFiles(REPO_ROOT);
+  const { reached, missing } = analyzePackageClosure({ root: REPO_ROOT });
+  assert.ok(reached.includes('lib/a2a/bounded-exchange.js'),
+    'the registry route requires it at load time; if that stops being true, drop this test');
+  assert.ok(published.has('lib/a2a/bounded-exchange.js'),
+    'a load-time module must ship, or an installed consumer cannot boot the server');
+  assert.equal(missing.size, 0);
 });
 
 // ─── what `files` does and does not have to say (#1471) ──────────────────────

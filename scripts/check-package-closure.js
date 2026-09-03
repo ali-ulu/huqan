@@ -38,6 +38,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { retainedDeepImportFiles } = require('./retained-deep-imports');
 
 const repoRoot = path.resolve(__dirname, '..');
 
@@ -238,6 +239,15 @@ function resolveLocal(fromFile, spec) {
  * and adapters are entries too: plugin.js loads the plugin directory with
  * readdirSync, which no static walk from `main` can see.
  *
+ * So are the retained deep imports. Reaching a module from `main` is not the
+ * same as a consumer being able to load it: `server.js` is a supported import
+ * that nothing under `index.js` requires, so its whole subtree sat outside this
+ * walk. That is how `lib/http/external-action-receipt-collector-route.js`
+ * shipped unpublished while this gate reported a complete closure -- the 4C1
+ * tarball smoke failed on `require('huqan/server')` and this said OK. Both now
+ * read one list (scripts/retained-deep-imports.js) so they cannot disagree
+ * again.
+ *
  * @param {string} root repository root
  * @param {Set<string>} published expanded file set
  * @returns {string[]} repo-relative entry paths
@@ -251,6 +261,10 @@ function loadTimeEntryPoints(root, published) {
     if (!file.endsWith('.js')) continue;
     if (file.startsWith('plugins/') || file.startsWith('adapters/')) entries.add(file);
   }
+  // Sub-package roots (packages/*) reuse this function; a retained import that
+  // does not exist under the root being analyzed is simply not its surface, and
+  // analyzePackageClosure already skips entries that are absent from disk.
+  for (const file of retainedDeepImportFiles()) entries.add(file);
   return [...entries].sort();
 }
 
