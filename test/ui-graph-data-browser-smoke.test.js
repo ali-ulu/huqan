@@ -65,11 +65,18 @@ describe('default-workspace graph browser smoke (#1821)', { skip: skipReason ?? 
       document.getElementById('save').click();
       true;
     `);
-    // save() sets state from the inputs and calls refresh(); wait until the
-    // graph surface has left CHECKING before the caller asserts on its state.
+    // Wait for the save cycle itself, not for a badge value.
+    //
+    // save() disables the button, awaits refresh(), and re-enables it in a
+    // finally, so the button is the one signal that means *this* save finished.
+    // "The badge is not CHECKING" accepted the badge left over from the
+    // previous case, because the surface had not gone back to CHECKING yet --
+    // the assertion then read a stale verdict and the smoke failed
+    // intermittently on a race in the test rather than in the product.
     await waitFor(
-      `!/● CHECKING/.test(document.getElementById('meshbadgestate').textContent)`,
-      'the graph surface to settle after save',
+      `!document.getElementById('save').disabled`
+      + ` && !/● CHECKING/.test(document.getElementById('meshbadgestate').textContent)`,
+      'the save cycle to complete and the graph surface to settle',
     );
   }
 
