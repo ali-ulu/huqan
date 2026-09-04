@@ -108,10 +108,17 @@ jobs:
         with:
           node-version: '22'
 
+      # Unlike its sibling jobs this one does need the dependencies installed:
+      # the checker reads the operator tool names off mcpServer.js, and loading
+      # that module pulls in the kernel and its runtime requires. Without this
+      # step the job dies on `Cannot find module 'proper-lockfile'` before it
+      # reaches a single document.
+      - name: Install dependencies
+        run: npm ci
+
       # #1782 and its class: in a governance product the documentation is part
       # of the trust surface, so a documented Node floor, tool name, route or
       # file path the source contradicts is a false claim about the product,
       # not a typo. Fixing them one at a time is why they kept coming back.
-      # Reads the source tree only, so no dependencies are needed.
       - name: Check documentation against the source
         run: node scripts/check-docs-drift.js
