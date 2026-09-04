@@ -18,6 +18,15 @@ const path = require('node:path');
 
 const CONNECT_TIMEOUT_MS = 20_000;
 const COMMAND_TIMEOUT_MS = 20_000;
+// One unanswered /json/list attempt is not evidence that the browser is stuck;
+// the deadline below decides that. This only stops a single attempt from
+// waiting forever.
+const ATTEMPT_TIMEOUT_MS = 2_000;
+// Deliberately more patient than the old attempt counter could ever be: 40
+// attempts at 50ms apart bounded a healthy launch at a couple of seconds, and a
+// slow CI runner has to stay inside this, or bounding the wait would trade a
+// rare hang for a common flake.
+const PAGE_TARGET_TIMEOUT_MS = 30_000;
 
 const CHROME_CANDIDATES = Object.freeze([
   process.platform === 'win32' && 'C:/Program Files/Google/Chrome/Application/chrome.exe',
@@ -84,16 +93,36 @@ function waitForDevToolsEndpoint(child) {
   });
 }
 
-async function firstPageTarget(devToolsPort) {
-  // The browser needs a moment before /json/list reports the initial tab.
-  for (let attempt = 0; attempt < 40; attempt += 1) {
-    const response = await fetch(`http://127.0.0.1:${devToolsPort}/json/list`);
-    const targets = await response.json();
-    const page = targets.find(target => target.type === 'page' && target.webSocketDebuggerUrl);
-    if (page) return page.webSocketDebuggerUrl;
+/**
+ * The browser needs a moment before /json/list reports the initial tab, so this
+ * polls -- but the poll has to be bounded in *time*, not in replies.
+ *
+ * An attempt counter alone bounds only the answers that arrive. A DevTools
+ * endpoint that accepts the connection and never answers parks a plain `fetch`
+ * forever, and that is what a CI shard saw: the file produced no test output at
+ * all and was killed by the 90s per-file cap, while every other await in that
+ * hook rejects within 20-30s (#1853). A named failure beats a hang.
+ */
+async function firstPageTarget(devToolsPort, { deadlineMs = PAGE_TARGET_TIMEOUT_MS } = {}) {
+  const deadline = Date.now() + deadlineMs;
+  let lastError = null;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`http://127.0.0.1:${devToolsPort}/json/list`, {
+        signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
+      });
+      const targets = await response.json();
+      const page = targets.find(target => target.type === 'page' && target.webSocketDebuggerUrl);
+      if (page) return page.webSocketDebuggerUrl;
+    } catch (error) {
+      // A refused or timed-out attempt is expected while the browser is still
+      // coming up; only the deadline decides that it never will.
+      lastError = error;
+    }
     await new Promise(resolve => setTimeout(resolve, 50));
   }
-  throw new Error('browser never exposed a page target');
+  throw new Error(`browser never exposed a page target within ${deadlineMs}ms`
+    + `${lastError ? ` (last attempt: ${lastError.message})` : ''}`);
 }
 
 function connect(webSocketDebuggerUrl) {
@@ -221,4 +250,4 @@ async function launchBrowserSession() {
   return { evaluate, navigate, close, exceptions, consoleErrors, executable };
 }
 
-module.exports = { launchBrowserSession, browserSmokeSkipReason, findBrowser };
+module.exports = { launchBrowserSession, browserSmokeSkipReason, findBrowser, firstPageTarget };
