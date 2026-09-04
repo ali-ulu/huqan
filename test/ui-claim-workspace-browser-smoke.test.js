@@ -61,6 +61,28 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     throw new Error(`timed out waiting for ${description} (last value: ${JSON.stringify(last)})`);
   }
 
+  // Save & Connect disables itself for the duration of a connect. A click that
+  // lands during that window is dropped by the browser and the page keeps the
+  // session it already had, with nothing to say the click went nowhere. That is
+  // what #1838 actually was: the re-authentication below fired while the
+  // previous connect was still in flight, the key was never stored, and the
+  // next test waited fifteen seconds on surfaces that were never going to
+  // unlock. Wait for the button, then confirm the key landed, so the helper
+  // fails where the cause is rather than one test later.
+  async function authenticate(workspace = 'default') {
+    await waitFor(`document.getElementById('save').disabled === false`, 'Save & Connect to accept a click');
+    await browser.evaluate(`
+      document.getElementById('key').value = ${JSON.stringify(TEST_API_KEY)};
+      document.getElementById('workspace').value = ${JSON.stringify(workspace)};
+      document.getElementById('save').click();
+      true;
+    `);
+    await waitFor(
+      `sessionStorage.getItem('huqan-api-key') === ${JSON.stringify(TEST_API_KEY)}`,
+      'the session key to be stored, proving the click reached the handler',
+    );
+  }
+
   before(async () => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-ui-smoke-'));
     process.env.AXIOM_MEMORY_PATH = path.join(tempDir, 'memory.json');
@@ -83,12 +105,7 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
 
     // Authenticate through the settings panel rather than seeding storage, so
     // the smoke exercises the same path a first-time user takes.
-    await browser.evaluate(`
-      document.getElementById('key').value = ${JSON.stringify(TEST_API_KEY)};
-      document.getElementById('workspace').value = 'default';
-      document.getElementById('save').click();
-      true;
-    `);
+    await authenticate();
   });
 
   after(async () => {
@@ -182,12 +199,7 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
       // Re-authenticate in `finally` so a failure above fails only this test.
       // Previously the click was unreachable after a timeout, and the next test
       // failed too — which is why #1838 read as a two-directional break.
-      await browser.evaluate(`
-        document.getElementById('key').value = ${JSON.stringify(TEST_API_KEY)};
-        document.getElementById('workspace').value = 'default';
-        document.getElementById('save').click();
-        true;
-      `);
+      await authenticate();
     }
   });
 
