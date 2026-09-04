@@ -49,6 +49,85 @@ function extractRunScript(stepName) {
 
 const authorityScript = extractRunScript('Require an authorized immutable release ref');
 
+// --- Windows bash selection (#1870) ---
+//
+// `spawnSync('bash', [scriptPath])` breaks on Windows boxes where `bash`
+// resolves to the WSL stub (C:\Windows\System32\bash.exe): the stub receives
+// a native path like `C:\Users\...\authority.sh`, eats the backslashes and
+// reports `C:Users...: No such file or directory`. The authority scripts must
+// therefore run under a consciously chosen shell with paths translated for it.
+//
+// On win32 this resolves to Git Bash (native git, same filesystem view) and
+// translates native paths to its POSIX form (`C:\a\b` -> `/c/a/b`). Any other
+// platform keeps plain `bash` with untouched paths, so Linux/CI behaviour is
+// unchanged. When no suitable shell exists the exec tests fail with an
+// explicit environment error instead of a misleading script error.
+function toGitBashPath(absolutePath) {
+  const normalized = path.resolve(absolutePath);
+  const drive = normalized.match(/^([A-Za-z]):[\\/](.*)$/);
+  if (drive) return `/${drive[1].toLowerCase()}/${drive[2].replace(/\\/g, '/')}`;
+  if (normalized.startsWith('\\\\')) return `//${normalized.slice(2).replace(/\\/g, '/')}`;
+  return normalized.replace(/\\/g, '/');
+}
+
+function resolveBash() {
+  if (process.platform !== 'win32') return { command: 'bash', needsPosixPaths: false };
+  const candidates = [
+    'C:\\Program Files\\Git\\bin\\bash.exe',
+    'C:\\Program Files (x86)\\Git\\bin\\bash.exe',
+  ];
+  try {
+    const where = execFileSync('where', ['git'], { encoding: 'utf8' });
+    for (const line of where.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (trimmed) candidates.push(path.join(path.dirname(path.dirname(trimmed)), 'bin', 'bash.exe'));
+    }
+  } catch {
+    // `where` failed; the static candidates above still apply.
+  }
+  for (const candidate of candidates) {
+    try {
+      fs.accessSync(candidate, fs.constants.X_OK);
+      return { command: candidate, needsPosixPaths: true };
+    } catch {
+      // Try the next candidate.
+    }
+  }
+  throw new Error(
+    'No usable bash found on Windows: install Git for Windows (which provides Git Bash). '
+    + 'The WSL stub bash.exe cannot run these authority scripts against native Windows paths.',
+  );
+}
+
+// Lazily resolved so the pure-text assertions in this file still run on a
+// machine without any bash at all; only the executing tests need a shell.
+let cachedBash = null;
+function selectedBash() {
+  if (cachedBash === null) cachedBash = resolveBash();
+  return cachedBash;
+}
+
+function toBashEnv(env, bash) {
+  if (!bash.needsPosixPaths) return env;
+  const converted = { ...env };
+  for (const key of ['GITHUB_OUTPUT', 'NPM_CONFIG_USERCONFIG', 'HOME', 'RUNNER_TEMP']) {
+    if (typeof converted[key] === 'string') converted[key] = toGitBashPath(converted[key]);
+  }
+  if (typeof converted.PATH === 'string') {
+    converted.PATH = converted.PATH.split(path.delimiter)
+      .map(entry => (/^[A-Za-z]:[\\/]/.test(entry) ? toGitBashPath(entry) : entry))
+      .join(':');
+  }
+  return converted;
+}
+
+function spawnBash(scriptPath, options) {
+  const bash = selectedBash();
+  const args = bash.needsPosixPaths ? [toGitBashPath(scriptPath)] : [scriptPath];
+  const env = options && options.env ? toBashEnv(options.env, bash) : options && options.env;
+  return spawnSync(bash.command, args, { ...options, env });
+}
+
 function git(cwd, ...args) {
   execFileSync('git', args, { cwd, stdio: 'pipe' });
 }
@@ -88,7 +167,7 @@ function runAuthority(repo, env) {
   fs.writeFileSync(scriptPath, authorityScript);
   const outputPath = path.join(repo.dir, 'github_output');
   fs.writeFileSync(outputPath, '');
-  return spawnSync('bash', [scriptPath], {
+  return spawnBash(scriptPath, {
     cwd: repo.workspace,
     encoding: 'utf8',
     env: {
@@ -250,7 +329,15 @@ function runPublishCredentials(env) {
 
   const scriptPath = path.join(dir, 'publish.sh');
   fs.writeFileSync(scriptPath, publishScript);
-  const result = spawnSync('bash', [scriptPath], {
+  const bash = selectedBash();
+  if (bash.needsPosixPaths) {
+    // Files created by Node on Windows may lack the msys executable bit the
+    // stub relies on (`#!/bin/sh` + PATH lookup under Git Bash).
+    spawnSync(bash.command, ['-c', `chmod +x ${toGitBashPath(path.join(binDir, 'npm'))}`], {
+      encoding: 'utf8',
+    });
+  }
+  const result = spawnBash(scriptPath, {
     cwd: dir,
     encoding: 'utf8',
     env: {
