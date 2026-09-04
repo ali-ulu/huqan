@@ -68,6 +68,17 @@ class KernelV2 {
     return this.kernel.persist();
   }
 
+  // #1848: Windows cannot rename over an open SQLite file (EPERM) and restore
+  // replaces memory.db, so the CLI closes every handle to it before the replace
+  // and reopens them afterwards. These forward to the wrapped Kernel which owns
+  // the graph's (and memory store's) SQLite handles.
+  closeSqlite() {
+    return this.kernel.closeSqlite();
+  }
+  reopenSqlite() {
+    return this.kernel.reopenSqlite();
+  }
+
   optimize() {
     return this.kernel.optimize();
   }

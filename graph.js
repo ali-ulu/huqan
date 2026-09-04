@@ -98,13 +98,21 @@ class Graph {
     // SQLite kurulumu
     const wantSQLite = opts.useSQLite !== false && Database !== null;
     this._wantSqlite = wantSQLite;
-    this._sqliteOptions = opts; // retained so reopen() can rebuild the handle (#1848)
+    // Retained so reopen() can rebuild the handle against the same options
+    // (busy timeout, migration flags) after restore replaced the DB file.
+    this._sqliteOptions = opts;
     this._db = null;
     this._stmts = null; // SQLite statement güvenliği için null init
-    if (wantSQLite) this._openSqlite(opts);
+    if (wantSQLite) {
+      this._openSqlite(opts);
+    }
   }
 
-  // SQLite handle + schema/statement prep, extractable for restore reopen (#1848).
+  /**
+   * Opens the SQLite handle and runs schema/migration/statement preparation.
+   * Idempotent: safe to call again on a database file that restore just put in
+   * place (CREATE ... IF NOT EXISTS + guarded ALTERs).
+   */
   _openSqlite(opts) {
     const dbPath = this._paths.dbPath;
     const hasExistingDatabase = hasExistingPersistenceFile(dbPath);
@@ -119,16 +127,30 @@ class Graph {
     }
   }
 
-  // Windows can't rename over an open SQLite file (EPERM; rename-over-open is
-  // POSIX-only), and restore replaces memory.db, so the CLI closes the handle
-  // first and reopens it afterwards (#1848).
+  /**
+   * Closes the SQLite handle without touching in-memory state. Windows cannot
+   * rename over an open database file (fs.renameSync -> EPERM; rename-over-open
+   * is POSIX-only), and memory.db is exactly the file restore replaces. The CLI
+   * closes the handle before the replacement and reopens it afterwards. See #1848.
+   */
   closeSqlite() {
-    if (this._db) { try { this._db.close(); } catch (_) {} this._db = null; this._stmts = null; }
+    if (this._db) {
+      try { this._db.close(); } catch (_) {}
+      this._db = null;
+      this._stmts = null;
+    }
   }
 
+  /**
+   * Closes any stale handle and reopens the SQLite database file. In-memory
+   * data is left untouched and the caller still calls `load()` afterwards to
+   * repopulate the graph from the file restore just wrote. No-op when this
+   * graph does not use SQLite (JSON mode or better-sqlite3 unavailable).
+   */
   reopen(opts = this._sqliteOptions) {
     this.closeSqlite();
-    if (this._wantSqlite && Database) this._openSqlite(opts || {});
+    if (!this._wantSqlite || Database === null) return;
+    this._openSqlite(opts || {});
   }
 
   // ─── SQLite şema ──────────────────────────────────────────────────────────
