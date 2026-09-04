@@ -333,6 +333,11 @@ jobs:
     needs: [classify, test-impact-plan]
     if: needs['test-impact-plan'].outputs.run_tests == 'true'
     runs-on: ubuntu-latest
+    # A shard finishes in two to four minutes. Without a cap it inherits the
+    # six-hour default, and a shard that hangs — the browser smokes in shard 2
+    # have twice now — leaves the pull request reporting "pending" for the rest
+    # of the day instead of failing where someone can see it.
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:

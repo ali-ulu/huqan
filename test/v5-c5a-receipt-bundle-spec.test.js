@@ -375,7 +375,11 @@ describe('V5-C5A: a clean-room implementation agrees on the bytes', () => {
     const out = result.stdout;
     assert.match(out, /receipt-bundle\.valid\.json\s+VALID/);
     assert.match(out, /receipt-bundle\.unicode\.valid\.json\s+VALID/);
-    assert.match(out, /receipt-bundle\.tampered-bundle-hash\.json\s+INVALID\s+bundle_seal_mismatch/);
+    // `.*` rather than `\s+` between the verdict and the reason: #1810 added a
+    // signature-status column, so the line now reads `INVALID (unsigned)
+    // bundle_seal_mismatch`. Still one line, so this keeps binding the file to
+    // its own verdict and reason rather than matching across fixtures.
+    assert.match(out, /receipt-bundle\.tampered-bundle-hash\.json\s+INVALID.*bundle_seal_mismatch/);
     assert.match(out, /receipt-bundle\.broken-chain\.json\s+INVALID.*content_tampered@1/);
     assert.equal(result.status, 1, 'exit 1 because two fixtures are invalid by design');
   });

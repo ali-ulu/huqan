@@ -21,9 +21,13 @@ test('V5-D6 bounded A2A conformance is reproducible from the declared command', 
   });
   assert.equal(result.status, 0, result.stderr || 'D6 conformance runner failed');
   const output = JSON.parse(result.stdout);
-  assert.equal(output.report.caseCount, 52);
-  assert.equal(output.report.passed, 52);
+  // 54 since #1814 added the two clean-room interoperability cases. The count
+  // and the digest are pinned together on purpose: the count alone would not
+  // notice a case that changed its verdict, and the digest alone would not say
+  // which way the suite moved.
+  assert.equal(output.report.caseCount, 54);
+  assert.equal(output.report.passed, 54);
   assert.equal(output.report.failed, 0);
   assert.equal(output.report.productionTransportClaimed, false);
-  assert.equal(output.reportSha256, '4daca2aae640928d35bd602fa3a089aeb1ab9413bdb5feac53642dd3f7fcfd11');
+  assert.equal(output.reportSha256, '76536d75d87e44e0fc0956110dc19d5fb56ce43772067cccd3511425f69c5c4b');
 });
