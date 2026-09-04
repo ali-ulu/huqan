@@ -572,6 +572,25 @@ hangi satırın hangi kategoride olduğunu sayar; `signatureVerified` ile
 karıştırılmamalı — o, gönderen host'un kendi kimlik kartı hakkındaki **iddiası**,
 `byBatchSignature` ise bu mağazanın **bulgusu**.
 
+### Kimlik malzemesi: iddia değil, doğrulanabilir kanıt
+
+Makbuz `metadata.identity.signatureVerified` taşıyor — ama bu, **gönderen
+host'un kendi kartı hakkında verdiği karar**. `true` okuyan bir toplayıcı,
+makbuzun ortadan kaldırması gereken varsayımı yapmış oluyor. Bu yüzden makbuz
+artık kararın dayandığı malzemeyi de taşıyor: `metadata.identity.cardSignature`
+(ayrık ed25519 imza zarfı). Kartın kendisini ayrıca taşımaya gerek yok — imzanın
+kapsadığı bütün alanlar zaten kimlik bloğunda duruyor, dolayısıyla trail'de
+değiştirilmiş bir blok, doğrulanan bir karta geri kurulamıyor.
+
+Host imzayı doğrulayamasa bile (o anahtar onda yok diye) zarf yine taşınıyor:
+anahtar toplayıcıda olabilir. Toplayıcı her makbuz için kendi cevabını veriyor:
+`unattested` (kart yok), `none` (kart var, imza yok), `unverified` (güvenilen
+hiçbir anahtar tutmuyor), `verified` (bu mağaza kendisi doğruladı). `fleet`
+çıktısında `byIdentitySignature` bunları sayıyor. Gönderenin iddiası ile
+toplayıcının bulgusu **çelişebilir** ve okuyanın bunu görebilmesi gerekiyor —
+kartı sonradan genişletip `signatureVerified: true` bırakan bir host, toplayıcı
+tarafında `unverified` görünür.
+
 **Neyi kanıtlamaz:** anahtar denetlenen makinede duruyor. Geçerli bir imza
 "bu batch o kurulumdan değişmeden çıktı" der; "operatör imzalamadan önce
 kayıtla oynamadı" demez. Operatöre karşı kanıt, toplayıcının aldığını kendi
