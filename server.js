@@ -293,6 +293,13 @@ function getGraphData(workspaceId = 'default') {
   return buildGraphData({ graph: kernel.graph, memory: kernel.memory, getSafeMemoryLabel, workspaceId });
 }
 
+// Issue #1825: expose whether the observability authorization policy is
+// configured through /v2-status so the Command Center can render a truthful
+// NOT CONFIGURED state. Hoisted function: observabilityRuntime is declared
+// later in this file, but this is only called once a request arrives.
+function observabilityReadiness() {
+  return observabilityRuntime.getAuthorizationReadiness();
+}
 const runtimeStatus = createRuntimeStatusHandlers({
   kernel,
   pkg,
@@ -300,6 +307,7 @@ const runtimeStatus = createRuntimeStatusHandlers({
   agentVersion: CANONICAL_AGENT_VERSION,
   agentRuntimeMode: String(readCompatibleEnvironmentVariable('AGENT_RUNTIME') || '').toLowerCase() || CANONICAL_AGENT_VERSION,
   phases: V2_STATUS_PHASES,
+  observabilityReadiness,
 });
 const { getHealthData, getV2StatusData } = runtimeStatus;
 

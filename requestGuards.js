@@ -202,7 +202,26 @@ function constantTimeEqual(left, right) {
   return crypto.timingSafeEqual(a, b);
 }
 
+const API_AUTH_OPT_OUT_VALUES = new Set(['true', '1']);
+let apiAuthOptOutAnnounced = false;
+
+// Single-operator installs that bind to loopback can trade the API key for
+// convenience. The opt-out is deliberately explicit and off by default, so a
+// fresh clone is never served unauthenticated by accident.
+function isApiAuthDisabled() {
+  const raw = readCompatibleEnvironmentVariable('DISABLE_API_AUTH') || '';
+  return API_AUTH_OPT_OUT_VALUES.has(String(raw).trim().toLowerCase());
+}
+
 function requireApiKey(req, configuredKey = readCompatibleEnvironmentVariable('API_KEY') || '') {
+  if (isApiAuthDisabled()) {
+    if (!apiAuthOptOutAnnounced) {
+      apiAuthOptOutAnnounced = true;
+      console.warn('[auth] HUQAN_DISABLE_API_AUTH is set; every API request is served without authentication');
+    }
+    return { ok: true };
+  }
+
   const apiKey = sanitizeInput(configuredKey, 256);
   const provided = extractApiKey(req.headers || {});
 
@@ -335,6 +354,7 @@ module.exports = {
   enforceRateLimitCap,
   extractApiKey,
   isAllowedPublicCommand,
+  isApiAuthDisabled,
   isUnsafePublicApiCommand,
   readJsonBody,
   rateLimitMap,

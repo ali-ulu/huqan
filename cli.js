@@ -26,7 +26,6 @@ const LLMAdapter = require('./llmAdapter');
 const { createAgent } = require('./agentRuntime');
 const { createBackup, runCliRestore, formatCliRestore } = require('./backupRestore');
 const { resolvePersistencePaths } = require('./persistencePaths');
-const { storageWasOpen, closeRestoreHandles, reopenRestoreHandles } = require('./lib/sqlite-restore');
 const { evaluateMcpGate } = require('./lib/mcp-gate-adapter');
 const {
   CLI_MUTATION_GATE,
@@ -531,16 +530,25 @@ class CLI {
       }
       case 'receipt': return require('./lib/cli-trust-receipt').runCliTrustReceipt(this.kernel, args, opts);
       case 'restore': {
-        // #1848: Windows can't rename over an open SQLite file (EPERM) and restore
-        // replaces memory.db, so close the handles first, reopen after, then reload.
+        // Windows cannot rename over an open SQLite file (EPERM; rename-over-open
+        // is POSIX-only) and memory.db is exactly the file restore replaces. Close
+        // every handle to it before the replace and reopen afterwards, so restore
+        // works for the Windows operator it is meant to rescue. See #1848.
         const storage = this.agent?.storage;
-        const storageOpen = storageWasOpen(storage);
-        closeRestoreHandles({ kernel: this.kernel, storage });
+        const storageWasOpen = !!(storage && storage.db && storage.db.open !== false
+          && typeof storage.close === 'function');
+        this.kernel.closeSqlite();
+        if (storageWasOpen) storage.close();
         let result;
         try {
           result = runCliRestore(args, this._backupOptions({ backupDir: args?.backupDir || args || undefined }));
         } finally {
-          reopenRestoreHandles({ kernel: this.kernel, storage, storageOpen });
+          // Only reopen handles we actually closed: agent storage may already be
+          // closed (tests, standalone reads) or point at a file restore replaced.
+          // Reopening one that was closed up front would try to open whatever it
+          // resolved to and can throw SQLITE_NOTADB for a non-database path.
+          if (storageWasOpen && storage && typeof storage.reopen === 'function') storage.reopen();
+          this.kernel.reopenSqlite();
         }
         if (!result.dryRun) { this.kernel.reload(); this._commitCliMutation('restore'); }
         return formatCliRestore(result, opts.json);

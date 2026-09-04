@@ -122,7 +122,8 @@ test('Claim Workspace exposes truthful surface metadata and actionable empty sta
   assert.match(html, /function surfaceLabel\(s\)/);
   assert.match(html, /function surfaceCta\(k\)/);
   assert.match(html, /id="securemeter"/);
-  assert.match(html, /securemeter'\)\.style\.width=state\.key\?'100%':'0%'/);
+  assert.match(html, /securemeter'\)\.style\.width=ready\?'100%':'0%'/);
+  assert.doesNotMatch(html, /securemeter'\)\.style\.width=state\.key\?'100%':'0%'/);
   assert.match(html, /id="meshstate"/);
   assert.match(html, /id="meshstage"/);
   assert.match(html, /meshstage'\)\.hidden=!hasData/);
