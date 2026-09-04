@@ -580,7 +580,27 @@ class HuqanStorage {
   }
 
   close() {
-    if (this.db) this.db.close();
+    if (this.db) {
+      try { this.db.close(); } catch (_) {}
+    }
+    this.db = null;
+    this._stmts = null;
+  }
+
+  /**
+   * Reopens the SQLite connection after restore replaced the backing memory.db.
+   * The dbPath was resolved in the constructor and durability mode is fixed, so
+   * the handle and statements can be rebuilt without re-running path
+   * resolution. Callers (CLI restore, #1848) close before the file replacement
+   * because Windows refuses to rename over an open database file (EPERM).
+   */
+  reopen() {
+    if (this.db) {
+      try { this.db.close(); } catch (_) {}
+    }
+    this.db = new Database(this.dbPath);
+    applySqliteDurability(this.db, 'RESUMABLE');
+    this._init();
   }
 }
 

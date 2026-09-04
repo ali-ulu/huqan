@@ -26,6 +26,7 @@ const LLMAdapter = require('./llmAdapter');
 const { createAgent } = require('./agentRuntime');
 const { createBackup, runCliRestore, formatCliRestore } = require('./backupRestore');
 const { resolvePersistencePaths } = require('./persistencePaths');
+const { storageWasOpen, closeRestoreHandles, reopenRestoreHandles } = require('./lib/sqlite-restore');
 const { evaluateMcpGate } = require('./lib/mcp-gate-adapter');
 const {
   CLI_MUTATION_GATE,
@@ -530,7 +531,17 @@ class CLI {
       }
       case 'receipt': return require('./lib/cli-trust-receipt').runCliTrustReceipt(this.kernel, args, opts);
       case 'restore': {
-        const result = runCliRestore(args, this._backupOptions({ backupDir: args?.backupDir || args || undefined }));
+        // #1848: Windows can't rename over an open SQLite file (EPERM) and restore
+        // replaces memory.db, so close the handles first, reopen after, then reload.
+        const storage = this.agent?.storage;
+        const storageOpen = storageWasOpen(storage);
+        closeRestoreHandles({ kernel: this.kernel, storage });
+        let result;
+        try {
+          result = runCliRestore(args, this._backupOptions({ backupDir: args?.backupDir || args || undefined }));
+        } finally {
+          reopenRestoreHandles({ kernel: this.kernel, storage, storageOpen });
+        }
         if (!result.dryRun) { this.kernel.reload(); this._commitCliMutation('restore'); }
         return formatCliRestore(result, opts.json);
       }

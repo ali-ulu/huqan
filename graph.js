@@ -97,21 +97,38 @@ class Graph {
 
     // SQLite kurulumu
     const wantSQLite = opts.useSQLite !== false && Database !== null;
+    this._wantSqlite = wantSQLite;
+    this._sqliteOptions = opts; // retained so reopen() can rebuild the handle (#1848)
     this._db = null;
     this._stmts = null; // SQLite statement güvenliği için null init
-    if (wantSQLite) {
-      const dbPath = this._paths.dbPath;
-      const hasExistingDatabase = hasExistingPersistenceFile(dbPath);
-      try {
-        this._db = new Database(dbPath);
-        this._initDB(opts);
-      } catch (e) {
-        try { this._db?.close(); } catch (_) {}
-        this._db = null;
-        this._stmts = null;
-        handleSqliteInitializationError(e, hasExistingDatabase, RECEIPT_FAMILY_MIGRATION_ERROR_CODE);
-      }
+    if (wantSQLite) this._openSqlite(opts);
+  }
+
+  // SQLite handle + schema/statement prep, extractable for restore reopen (#1848).
+  _openSqlite(opts) {
+    const dbPath = this._paths.dbPath;
+    const hasExistingDatabase = hasExistingPersistenceFile(dbPath);
+    try {
+      this._db = new Database(dbPath);
+      this._initDB(opts);
+    } catch (e) {
+      try { this._db?.close(); } catch (_) {}
+      this._db = null;
+      this._stmts = null;
+      handleSqliteInitializationError(e, hasExistingDatabase, RECEIPT_FAMILY_MIGRATION_ERROR_CODE);
     }
+  }
+
+  // Windows can't rename over an open SQLite file (EPERM; rename-over-open is
+  // POSIX-only), and restore replaces memory.db, so the CLI closes the handle
+  // first and reopens it afterwards (#1848).
+  closeSqlite() {
+    if (this._db) { try { this._db.close(); } catch (_) {} this._db = null; this._stmts = null; }
+  }
+
+  reopen(opts = this._sqliteOptions) {
+    this.closeSqlite();
+    if (this._wantSqlite && Database) this._openSqlite(opts || {});
   }
 
   // ─── SQLite şema ──────────────────────────────────────────────────────────

@@ -28,7 +28,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const repoRoot = path.resolve(__dirname, '..');
-const DOC_ROOT = path.join('docs', 'v5');
+// Forward-slash form (not path.join), because the different consumers compare
+// against forward-slash keys: EXEMPT is written that way, listDocs() normalizes
+// with split(path.sep).join('/'), and the CLI summary interpolates DOC_ROOT
+// into prose. path.join('docs','v5') would yield docs\v5 on Windows and break
+// the EXEMPT lookup in doc-status.contract.test.js. See #1848.
+const DOC_ROOT = 'docs/v5';
 
 /**
  * What a document is, in one word, and what claiming it commits you to.

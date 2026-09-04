@@ -620,4 +620,47 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
       managed.close();
     }
   });
+
+  it('restore closes the SQLite handle before the replace and reopens before reload (#1848)', () => {
+    const managed = createIsolatedCli({ useSQLite: true });
+    const graph = managed.cli.kernel.graph;
+    const originalClose = graph.closeSqlite;
+    const originalReopen = graph.reopen;
+    const originalReload = managed.cli.kernel.reload;
+    const order = [];
+    // The orchestration lives in lib/sqlite-restore.js and drives the graph's
+    // (and memory store's) handles directly. graph.reopen() internally closes
+    // again, so suppress that nested close and assert only the top-level order:
+    // the restore's close, the reopen that must follow it, then the reload.
+    let insideReopen = false;
+    graph.closeSqlite = () => {
+      if (!insideReopen) order.push('closeSqlite');
+      return originalClose.call(graph);
+    };
+    graph.reopen = () => {
+      insideReopen = true;
+      order.push('reopenSqlite');
+      try { return originalReopen.call(graph); } finally { insideReopen = false; }
+    };
+    managed.cli.kernel.reload = () => { order.push('reload'); return originalReload.call(managed.cli.kernel); };
+    try {
+      managed.cli.agent.storage.close();
+      managed.cli.kernel.persist();
+      const backupResult = managed.cli.execute('backup', '');
+      assert.match(backupResult, /^Backup complete:/);
+
+      const restoreResult = managed.cli.execute('restore', '');
+      assert.match(restoreResult, /^Restore tamamlandi:/);
+      assert.deepStrictEqual(order, ['closeSqlite', 'reopenSqlite', 'reload']);
+
+      // The reopened SQLite handle must actually be usable against the restored
+      // database, not just closed and left dangling.
+      assert.strictEqual(graph.getStats().nodes, 0);
+    } finally {
+      graph.closeSqlite = originalClose;
+      graph.reopen = originalReopen;
+      managed.cli.kernel.reload = originalReload;
+      managed.close();
+    }
+  });
 });
