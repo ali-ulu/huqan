@@ -103,9 +103,21 @@ async function main() {
       // `--store` keeps a self-hosted deployment whole without HTTP: the same
       // batches, written straight into a collector store on disk or a share.
       const storeRoot = argumentValue('--store');
+      // A local `--store` run checks the signature against the same trusted-key
+      // directory an HTTP collector would use, so "does my signing key actually
+      // verify" is answerable without standing up a server.
+      const trustedKeysDir = argumentValue('--trusted-keys');
       const result = await shipExternalActionReceipts({
         ...(storeRoot ? {
-          deliver: batch => require('../lib/external-action-receipt-collector').ingestReceiptBatch({ batch, root: storeRoot }),
+          deliver: batch => {
+            const collector = require('../lib/external-action-receipt-collector');
+            return collector.ingestReceiptBatch({
+              batch,
+              root: storeRoot,
+              trustedKeys: collector.readTrustedBatchKeys(trustedKeysDir),
+              requireSignature: process.argv.includes('--require-signature'),
+            });
+          },
         } : {}),
         endpoint: argumentValue('--endpoint') || undefined,
         token: argumentValue('--token') || undefined,
@@ -113,6 +125,8 @@ async function main() {
         cursorPath: argumentValue('--cursor') || undefined,
         batchSize: argumentValue('--batch-size') || undefined,
         host: argumentValue('--host') || require('node:os').hostname(),
+        signingKeyPath: argumentValue('--signing-key') || undefined,
+        signingKeyId: argumentValue('--signing-key-id') || undefined,
         dryRun: process.argv.includes('--dry-run'),
       });
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);

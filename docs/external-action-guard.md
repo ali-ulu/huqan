@@ -533,11 +533,52 @@ doğrulanmış sanmak tam olarak bu katmanın engellemek için var olduğu hata.
 
 Batch zarfı `huqan.receipt-batch.v1`: `batchId`, `tenant`, `source`, `count`,
 `contentHash` (kopya eleme ve bozuk aktarım tespiti için — imza **değildir**) ve
-`bundleSignature`. Bu son alan ilk sürümden beri var ama değeri şimdilik sabit
-`unsigned`: ajanı adlandıran kart imzalı (#1786), **bundle'ın kendisi imzasız**
-(#1788). Yani toplayıcı "kimin ürettiği doğrulanmış makbuz" diyebilir,
-"içeriği kaynağında değişmediği kanıtlanmış makbuz" diyemez. Alanın baştan
-durması, #1788 geldiğinde saklanmış batch'lerin şemasını kırmamak içindir.
+`bundleSignature`.
+
+### Batch imzası: kanıtı kimin ürettiği
+
+Makbuzu guard'ın kendisi yazıyor, yani kanıtı üreten makine ile kanıtın hakkında
+olduğu makine aynı. `contentHash` gelen baytların gönderilen baytlar olduğunu
+gösterir ve kopyayı eler; **kimin gönderdiğini göstermez**, çünkü makbuzları
+düzenleyen kişi onu da yeniden hesaplar. Batch imzası bu boşluğu kapatır (#1859):
+
+```powershell
+$env:HUQAN_RECEIPT_SIGNING_KEY    = "C:\huqan\keys\host.pem"   # ed25519 ozel anahtar
+$env:HUQAN_RECEIPT_SIGNING_KEY_ID = "laptop-ali"               # imzada gorunecek ad
+npx huqan-gate ship --endpoint https://collector.example/batches --token <jeton>
+```
+
+İmza `batchId`, `createdAt`, kiracı, `count` ve `contentHash` üzerine atılır —
+yani bir kararı `block`'tan `allow`'a çevirmek, tek bir makbuzu silmek ya da
+batch'i başka bir kiracıya yazmak imzayı bozar. Anahtar adlandırılmış ama
+okunamıyorsa koşum **hata verir**: imzalamayı açtığını sanan bir operatörün
+imzasız kanıt toplaması, hiç açmamış olmasından kötüdür.
+
+Toplayıcı tarafında dört cevap var ve aradaki fark önemli:
+
+| durum | anlamı |
+| --- | --- |
+| `unsigned` | gönderici imza sunmadı — saklanır, damgalanır |
+| `unverified` | imzalı, ama bu kurulumun güvenmesi söylenmemiş bir anahtarla |
+| `verified` | bu mağaza imzayı, güvendiği anahtara karşı **kendisi** doğruladı |
+| `invalid` | imza kendi adlandırdığı anahtara karşı düştü → **reddedilir** |
+
+Sadece `verified` kanıttır. `invalid` bir eksiklik değil çelişkidir, o yüzden
+kurulum ne isterse istesin saklanmaz. Güvenilen anahtarlar dizin olarak verilir
+(`HUQAN_RECEIPT_TRUSTED_KEYS`), dosya adı `keyId` olur — anahtar eklemek dosya
+kopyalamak, iptal etmek silmektir. `HUQAN_RECEIPT_REQUIRE_SIGNATURE=1` diyen bir
+kurulum yalnız `verified` kabul eder. `fleet` çıktısındaki `byBatchSignature`
+hangi satırın hangi kategoride olduğunu sayar; `signatureVerified` ile
+karıştırılmamalı — o, gönderen host'un kendi kimlik kartı hakkındaki **iddiası**,
+`byBatchSignature` ise bu mağazanın **bulgusu**.
+
+**Neyi kanıtlamaz:** anahtar denetlenen makinede duruyor. Geçerli bir imza
+"bu batch o kurulumdan değişmeden çıktı" der; "operatör imzalamadan önce
+kayıtla oynamadı" demez. Operatöre karşı kanıt, toplayıcının aldığını kendi
+anahtarıyla karşı-mühürlemesini gerektirir — toplayıcı ayrı bir host'ta
+(uyum sunucusu ya da barındırılan kurulum) olduğunda anlamlı, ikisi aynı
+dizüstünde olduğunda hiçbir şey. Mekanizma iki kurulumda da aynı; değişen,
+kurulmasına izin verilen iddia.
 
 ### Host güveni: kurulmak devrede olmak değil
 
