@@ -35,7 +35,7 @@ const { readExactWorkspace } = require('./lib/http/exact-workspace');
 const { createSessionStore } = require('./lib/viewer/session-store');
 const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
 const { createExternalClientProductionBoundary } = require('./lib/external-client-production-boundary');
-const { createOptionalRouteBoundaries } = require('./lib/http/optional-boundaries'), { createPrGuardianOptions } = require('./lib/http/pr-guardian-config'), { createFitnessDashboardRoute } = require('./lib/http/fitness-dashboard-route');
+const { createOptionalRouteBoundaries } = require('./lib/http/optional-boundaries'), { createPrGuardianOptions } = require('./lib/http/pr-guardian-config'), { createFitnessDashboardRoute } = require('./lib/http/fitness-dashboard-route'), { readTrustedBatchKeys } = require('./lib/external-action-receipt-collector');
 const { projectUploadAdmission } = require('./lib/http/upload-admission-contract');
 const { createHttpIngestApprovalAuditWriter } = require('./lib/http/ingest-approval-audit-writer');
 const { createTrustEvidenceLedger } = require('./lib/trust-evidence-ledger'); const { callTool: callMcpTool } = require('./mcpServer');
@@ -64,7 +64,7 @@ const externalClientBoundary = createExternalClientProductionBoundary({
   environment: process.env,
   graph: kernel.graph,
 });
-const optionalRoutes = createOptionalRouteBoundaries({ memoryApproval: { kernel, getParseJsonRequest: () => parseJsonRequest, getWriteJson: () => writeJson, approvalRuntime: () => ({ approvalStore: getIngestApprovalStore() }) }, prGuardian: createPrGuardianOptions({ getApprovalStore: getIngestApprovalStore, getParseJsonRequest: () => parseJsonRequest, getWriteJson: () => writeJson }), receiptCollector: { collectorRoot: readCompatibleEnvironmentVariable('RECEIPT_COLLECTOR_ROOT'), getParseJsonRequest: () => parseJsonRequest } });
+const optionalRoutes = createOptionalRouteBoundaries({ memoryApproval: { kernel, getParseJsonRequest: () => parseJsonRequest, getWriteJson: () => writeJson, approvalRuntime: () => ({ approvalStore: getIngestApprovalStore() }) }, prGuardian: createPrGuardianOptions({ getApprovalStore: getIngestApprovalStore, getParseJsonRequest: () => parseJsonRequest, getWriteJson: () => writeJson }), receiptCollector: { collectorRoot: readCompatibleEnvironmentVariable('RECEIPT_COLLECTOR_ROOT'), getParseJsonRequest: () => parseJsonRequest, trustedKeys: readTrustedBatchKeys(readCompatibleEnvironmentVariable('RECEIPT_TRUSTED_KEYS')), requireSignature: readCompatibleEnvironmentVariable('RECEIPT_REQUIRE_SIGNATURE') === '1' } });
 let companyRuntimeReady = false;
 let ingestApprovalStore = null;
 const INGEST_APPROVAL_WORKER_ID = `http-ingest-${crypto.randomUUID()}`;
