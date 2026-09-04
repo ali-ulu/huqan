@@ -354,6 +354,7 @@ module.exports = {
   enforceRateLimitCap,
   extractApiKey,
   isAllowedPublicCommand,
+  isApiAuthDisabled,
   isUnsafePublicApiCommand,
   readJsonBody,
   rateLimitMap,
