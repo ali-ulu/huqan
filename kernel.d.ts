@@ -281,6 +281,11 @@ declare class Kernel {
     close(): void;
     list(opts?: Kernel.MemoryListOptions): Kernel.MemoryListResult;
     queryLinks(opts?: Kernel.MemoryQueryLinksOptions): Kernel.MemoryQueryLinksResult;
+    // Restore replaces memory.db underneath an open handle, so the CLI closes
+    // and reopens the store around it -- see #1848. A consumer writing that
+    // same restore flow needs the method declared.
+    // No parentheses in this comment: the audit reads the block by regex.
+    reopen(): void;
   };
 
   lang: string;

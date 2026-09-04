@@ -477,6 +477,7 @@
     "lib/sqlite-availability.js",
     "lib/sqlite-durability.js",
     "lib/sqlite-persistence-validation.js",
+    "lib/sqlite-restore.js",
     "lib/ssrf-guard.js",
     "lib/storage/schema.js",
     "lib/storage/tool-approval-methods.js",
