@@ -5,7 +5,7 @@
  * what production actually calls, and what the published type declaration
  * promises. The three are not the same, and the gaps are the point of the file.
  *
- * MemoryStore has 36 public methods. Six of them have a non-test caller. One --
+ * MemoryStore has 37 public methods. Seven of them have a non-test caller. One --
  * `search()` -- has no caller anywhere, not even a test: it is a three-line
  * alias for `query()`. The rest are exercised only by the memory suite, which
  * means the tests are the only thing currently defining what they must do.
@@ -50,6 +50,7 @@ const PRODUCTION_SURFACE = Object.freeze({
   supersede: 'lib/error-prevention/{store,engine,lifecycle}.js',
   queryLinks: 'server.js (kernel.memory.queryLinks)',
   close: 'kernel.js',
+  reopen: 'lib/sqlite-restore.js (kernel.memory.reopen), for cli.js restore (#1848)',
 });
 
 /**
@@ -92,7 +93,7 @@ const UNREACHED_SURFACE = Object.freeze({
  * The declared set is deliberately the consumed surface, not the whole class.
  * The other 33 public methods stay classified above rather than published.
  */
-const KERNEL_DECLARED_MEMORY_METHODS = Object.freeze(['close', 'list', 'queryLinks']);
+const KERNEL_DECLARED_MEMORY_METHODS = Object.freeze(['close', 'list', 'queryLinks', 'reopen']);
 const KERNEL_MEMORY_CALLS_UNDECLARED = Object.freeze([]);
 
 function publicMethods(ctor) {
