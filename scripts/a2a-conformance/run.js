@@ -523,9 +523,16 @@ async function run() {
       });
 
       const tampered = clone(fixture.request);
-      tampered.signature.value = `${tampered.signature.value.slice(0, -1)}${
-        tampered.signature.value.endsWith('A') ? 'B' : 'A'
-      }`;
+      // Flip the first character, the way the other two tamper cases do, not
+      // the last one. A 64-byte signature is 86 base64url characters — 516
+      // bits carrying 512 — so the final character's low four bits decode to
+      // nothing. Rewriting it to 'A' or 'B' left the signature byte-identical
+      // whenever it already began with those four bits (any of A-P), the
+      // receiver rightly accepted an exchange nobody had tampered with, and
+      // the case failed for having tampered with nothing. Measured before this
+      // change: 7 of 16 runs red. After: 16 of 16 green, same report digest.
+      const signatureValue = tampered.signature.value;
+      tampered.signature.value = `${signatureValue[0] === 'A' ? 'B' : 'A'}${signatureValue.slice(1)}`;
       fs.writeFileSync(exchangePath, JSON.stringify({
         request: tampered, authority: fixture.authority,
       }), 'utf8');
