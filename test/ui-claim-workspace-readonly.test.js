@@ -151,7 +151,7 @@ test('Graph view trusts the backend default-workspace contract instead of a pree
   const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
   // loadGraph artık key yokken default workspace için /graph-data isteği atar;
   // yalnızca named workspace + key yok kombinasyonu ön kilit (locked) üretir.
-  assert.match(html, /async function loadGraph\(\)\{const isDefaultWorkspace=!state\.ws\|\|state\.ws==='default';if\(!state\.key&&!isDefaultWorkspace\)/);
+  assert.match(html, /async function loadGraph\(\)\{const isDefaultWorkspace=!state\.ws\|\|state\.ws==='default';if\(state\.authRequired&&!state\.key&&!isDefaultWorkspace\)/);
   // 401/403 yanıtında var olan locked hatası korunur (fail-closed davranış).
   assert.match(html, /const locked=r\.status===401\|\|r\.status===403/);
 });
