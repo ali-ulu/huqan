@@ -146,20 +146,49 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
   });
 
   it('shows auth-required states instead of generic errors without a session key', async () => {
-    await browser.evaluate(`document.getElementById('clear').click(); true;`);
-    await waitFor(
-      `document.getElementById('sstatus').textContent === 'API key not set.'
-        && document.getElementById('astate').textContent === 'LOCKED'
-        && /Graph Data\\s*●\\s*LOCKED/.test(document.getElementById('health').textContent)
-        && /Approval Queue\\s*●\\s*LOCKED/.test(document.getElementById('health').textContent)`,
-      'unauthenticated graph and approval surfaces to become locked',
-    );
-    await browser.evaluate(`
-      document.getElementById('key').value = ${JSON.stringify(TEST_API_KEY)};
-      document.getElementById('workspace').value = 'default';
-      document.getElementById('save').click();
-      true;
-    `);
+    // #1821/#1835 made the default workspace's graph readable without a key,
+    // matching the public `/graph-data` backend contract. So "unauthenticated"
+    // is no longer one uniform locked state: the graph reads, the approval
+    // queue does not. Assert that split rather than a blanket LOCKED, which is
+    // what went stale here and produced #1838.
+    try {
+      await browser.evaluate(`document.getElementById('clear').click(); true;`);
+      await waitFor(
+        `document.getElementById('sstatus').textContent === 'API key not set.'
+          && document.getElementById('astate').textContent === 'LOCKED'
+          && /Graph Data\\s*●\\s*(LIVE|EMPTY)/.test(document.getElementById('health').textContent)
+          && /Approval Queue\\s*●\\s*LOCKED/.test(document.getElementById('health').textContent)`,
+        'the unauthenticated default workspace to read its public graph while the approval queue stays locked',
+      );
+
+      // The public read is scoped to the default workspace, and that scope is
+      // enforced by the server: unauthenticated `/graph-data` answers 200 for
+      // `default` and 401 for anything else. #1835's client-side check only
+      // spares the page a request it knows will fail, so deleting that check
+      // leaves this assertion green — verified by mutation. What is pinned here
+      // is therefore the observable boundary, not which layer produces it.
+      await browser.evaluate(`
+        document.getElementById('key').value = '';
+        document.getElementById('workspace').value = 'not-the-default-workspace';
+        document.getElementById('save').click();
+        true;
+      `);
+      await waitFor(
+        `/Graph Data\\s*●\\s*LOCKED/.test(document.getElementById('health').textContent)
+          && /Approval Queue\\s*●\\s*LOCKED/.test(document.getElementById('health').textContent)`,
+        'a non-default workspace to stay locked without a session key',
+      );
+    } finally {
+      // Re-authenticate in `finally` so a failure above fails only this test.
+      // Previously the click was unreachable after a timeout, and the next test
+      // failed too — which is why #1838 read as a two-directional break.
+      await browser.evaluate(`
+        document.getElementById('key').value = ${JSON.stringify(TEST_API_KEY)};
+        document.getElementById('workspace').value = 'default';
+        document.getElementById('save').click();
+        true;
+      `);
+    }
   });
 
   it('settles the connection and shows Graph Data and Approval Queue as live', async () => {
