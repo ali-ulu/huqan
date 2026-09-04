@@ -377,6 +377,16 @@ receipt hem append-only JSONL trail'e hem de SQLite kullanılabiliyorsa HUQAN
 `--memory-path` ve `--db-path` ile sabitlenebilir. Receipt yazılamazsa eylem
 çalışmaz.
 
+**State root.** Guard'ın kendisi için tuttuğu durum — receipt trail ve yanındaki
+komut politikası — tek bir dizinde durur: Windows'ta `%LOCALAPPDATA%\huqan`,
+diğerlerinde `~/.local/state/huqan`. `HUQAN_STATE_ROOT` bu dizinin tamamını
+başka yere alır; `HUQAN_EXTERNAL_GUARD_RECEIPTS` ve `HUQAN_EXTERNAL_GUARD_POLICY`
+tek tek dosyaları adlandırır ve state root'a göre önceliklidir. Test suiti
+`scripts/run-tests.js` üzerinden koşulur: her koşuma tek kullanımlık bir state
+root verilir ve bu iki dar değişken ortamdan düşürülür, böylece bir test
+operatörün gerçek politikasını okuyamaz ve gerçek makbuz zincirine sentetik bir
+karar ekleyemez (#1846).
+
 Executor tamamlandığında library API ile ayrı outcome receipt yazılır:
 
 ```js

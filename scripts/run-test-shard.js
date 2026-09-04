@@ -10,6 +10,7 @@ const {
   discoverTestFiles,
   getShard,
 } = require('./ci-shard-manifest');
+const { createTestStateSandbox } = require('./test-state-sandbox');
 
 function parseArgs(argv) {
   const options = {
@@ -87,17 +88,26 @@ function run(options) {
     return 0;
   }
 
-  const result = spawnSync(process.execPath, [
-    '--test',
-    `--test-concurrency=${options.concurrency}`,
-    '--test-reporter=junit',
-    `--test-reporter-destination=${reportPath}`,
-    ...selected.files,
-  ], {
-    cwd: REPO_ROOT,
-    env: process.env,
-    stdio: 'inherit',
-  });
+  // Sharded runs get the same throwaway gate state root as `npm test`: a shard
+  // run on a developer machine must not read or extend the operator's live
+  // policy and receipt trail either (#1846).
+  const sandbox = createTestStateSandbox();
+  let result;
+  try {
+    result = spawnSync(process.execPath, [
+      '--test',
+      `--test-concurrency=${options.concurrency}`,
+      '--test-reporter=junit',
+      `--test-reporter-destination=${reportPath}`,
+      ...selected.files,
+    ], {
+      cwd: REPO_ROOT,
+      env: sandbox.environment,
+      stdio: 'inherit',
+    });
+  } finally {
+    sandbox.cleanup();
+  }
 
   if (result.error) throw result.error;
   if (result.signal) {
