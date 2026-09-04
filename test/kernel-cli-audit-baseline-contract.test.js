@@ -623,25 +623,16 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
 
   it('restore closes the SQLite handle before the replace and reopens before reload (#1848)', () => {
     const managed = createIsolatedCli({ useSQLite: true });
-    const graph = managed.cli.kernel.graph;
-    const originalClose = graph.closeSqlite;
-    const originalReopen = graph.reopen;
+    const originalClose = managed.cli.kernel.closeSqlite;
+    const originalReopen = managed.cli.kernel.reopenSqlite;
     const originalReload = managed.cli.kernel.reload;
     const order = [];
-    // The orchestration lives in lib/sqlite-restore.js and drives the graph's
-    // (and memory store's) handles directly. graph.reopen() internally closes
-    // again, so suppress that nested close and assert only the top-level order:
-    // the restore's close, the reopen that must follow it, then the reload.
-    let insideReopen = false;
-    graph.closeSqlite = () => {
-      if (!insideReopen) order.push('closeSqlite');
-      return originalClose.call(graph);
-    };
-    graph.reopen = () => {
-      insideReopen = true;
-      order.push('reopenSqlite');
-      try { return originalReopen.call(graph); } finally { insideReopen = false; }
-    };
+    // Windows cannot rename over an open SQLite file (EPERM), so restore must
+    // close the handle before the file replace and reopen it before reload
+    // re-reads the restored database. CI is Linux-only (rename-over-open is
+    // legal there), which is exactly why this order is made load-bearing here.
+    managed.cli.kernel.closeSqlite = () => { order.push('closeSqlite'); return originalClose.call(managed.cli.kernel); };
+    managed.cli.kernel.reopenSqlite = () => { order.push('reopenSqlite'); return originalReopen.call(managed.cli.kernel); };
     managed.cli.kernel.reload = () => { order.push('reload'); return originalReload.call(managed.cli.kernel); };
     try {
       managed.cli.agent.storage.close();
@@ -655,10 +646,10 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
 
       // The reopened SQLite handle must actually be usable against the restored
       // database, not just closed and left dangling.
-      assert.strictEqual(graph.getStats().nodes, 0);
+      assert.strictEqual(managed.cli.kernel.graph.getStats().nodes, 0);
     } finally {
-      graph.closeSqlite = originalClose;
-      graph.reopen = originalReopen;
+      managed.cli.kernel.closeSqlite = originalClose;
+      managed.cli.kernel.reopenSqlite = originalReopen;
       managed.cli.kernel.reload = originalReload;
       managed.close();
     }
