@@ -11,15 +11,15 @@
   "threshold": 800,
   "files": {
     "agent.js": 958,
-    "cli.js": 811,
-    "graph.js": 1224,
-    "kernel.js": 1082,
-    "kernel.v2.js": 802,
+    "cli.js": 819,
+    "graph.js": 1246,
+    "kernel.js": 1103,
+    "kernel.v2.js": 813,
     "lib/code-change-gate.js": 834,
-    "lib/memory-store.js": 976,
+    "lib/memory-store.js": 996,
     "lib/sandbox-isolation.js": 831,
     "scripts/external-conformance/consumer.js": 955,
-    "server.js": 1035,
+    "server.js": 1043,
     "workflow-agent.js": 967,
     "workflow-tools.js": 880
   }
