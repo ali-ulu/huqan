@@ -494,6 +494,7 @@
     "lib/temporal-qualifier.js",
     "lib/tool-call-gate.js",
     "lib/trust-policy.js",
+    "lib/trust-signals/robustness.js",
     "lib/turkish-copula.js",
     "lib/type-lattice.js",
     "lib/verdict/action-verdict.js",
