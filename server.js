@@ -25,7 +25,7 @@ const { readReceiptById } = require('./lib/receipt/receipt-read-index');
 const { createBackgroundTimers } = require('./lib/http/background-timers');
 const { createGracefulShutdown } = require('./lib/http/graceful-shutdown'), { resolveHttpServerTimeouts } = require('./lib/http/server-timeouts'), { resolveRequestUrl } = require('./lib/http/request-origin');
 const { receiptReadFailure } = require('./lib/http/receipt-read-failures');
-const { createWorkbenchReadHttpRouter } = require('./lib/workbench/workbench-read-http-router'), { handlePublicBadgeRequest } = require('./lib/http/public-badge-route');
+const { createWorkbenchReadHttpRouter } = require('./lib/workbench/workbench-read-http-router'), { handlePublicBadgeRequest } = require('./lib/http/public-badge-route'), { handleLlmProxyRequest } = require('./lib/llm-proxy/proxy-mount');
 const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
 const { handleWorkflowContractRoute, writeUnavailableWorkflow } = require('./lib/http/workflow-contract-route');
 const { createReadWorkflowHttpRouter } = require('./lib/http/read-workflow-actions');
@@ -729,7 +729,7 @@ const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnviron
     return;
   }
 
-  if (handlePublicBadgeRequest({ req, res, reqUrl, source: kernel.graph, writeJson }) || handleWorkbenchRead(req, res, reqUrl, kernel.graph)) return;
+  if (handlePublicBadgeRequest({ req, res, reqUrl, source: kernel.graph, writeJson }) || await handleLlmProxyRequest(req, res, reqUrl, { graph: kernel.graph, writeJson }) || handleWorkbenchRead(req, res, reqUrl, kernel.graph)) return;
 
   if (reqUrl.pathname === '/api/provenance' || reqUrl.pathname === '/api/audit' || reqUrl.pathname === '/api/candidate-claims' || reqUrl.pathname === '/api/trust-receipt') {
     if (req.method !== 'GET') {
