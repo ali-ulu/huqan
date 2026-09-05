@@ -21,10 +21,13 @@ test('UI capability manifest advertises only the implemented read workflows', ()
   // so the manifest has to advertise it as ui-available too.
   // #1878 promoted agent-plan / agent-run: the workbench action select now
   // dispatches both through the manifest route. Then ingest-preview and
-  // ingest-execute, which give the batch flow its first panel surface.
+  // ingest-execute, which give the batch flow its first panel surface. Then
+  // trust-receipt-detail, which the Evidence panel reads by id through its
+  // route template instead of the unversioned workbench route.
   assert.deepEqual(enabled, [
     'ask', 'verify', 'advocate', 'approvals', 'memory-search',
     'ingest-preview', 'ingest-execute', 'agent-plan', 'agent-run', 'trust-receipt',
+    'trust-receipt-detail',
   ]);
 });
 

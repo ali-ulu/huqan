@@ -445,6 +445,39 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     assert.ok(raw.includes(receiptId), 'the keyboard-opened receipt does not match the focused identifier');
   });
 
+  // #1878: the receiptId mode now reads through the manifest's
+  // trust-receipt-detail template rather than the unversioned workbench route.
+  it('reads by id through the versioned detail route, in its error vocabulary', async () => {
+    // This session produces no materialized receipt: the ingest approval hands
+    // back a trust-ledger receipt the panel opens in targetId mode, and
+    // readReceiptById reads only receipts materialized into the audit path.
+    // Both routes answer 404 for such an id, before this change and after it,
+    // so a successful read cannot be demonstrated here -- the round trip is
+    // pinned against the real route in test/ui-receipt-detail-route.test.js.
+    //
+    // What a browser can still prove is which route the panel now talks to.
+    // The versioned route answers a miss with the workflow envelope's
+    // `error.code`, which the panel renders verbatim; the unversioned
+    // workbench route carries no error object, so the same miss used to render
+    // as `HTTP 404`. The distinction is the assertion.
+    await browser.evaluate(`
+      document.getElementById('estatus').textContent = '';
+      document.getElementById('raw').textContent = '';
+      document.getElementById('einput').value = 'receipt-that-does-not-exist';
+      document.getElementById('emode').value = 'receiptId';
+      document.getElementById('eload').click();
+      true;
+    `);
+    await waitFor(
+      `document.getElementById('estatus').textContent !== 'Loading evidence…'
+        && document.getElementById('estatus').textContent.length > 0`,
+      'the detail-route read to settle',
+    );
+
+    const estatus = await browser.evaluate(`document.getElementById('estatus').textContent`);
+    assert.equal(estatus, 'failed: receipt_not_found', `not the versioned route's answer: ${estatus}`);
+  });
+
   it('records no uncaught browser exception or console error across the session', () => {
     assert.deepEqual(browser.exceptions, [], `uncaught browser exceptions: ${browser.exceptions.join(' | ')}`);
     // AC-785-10 asks for a clean console, not merely the absence of a crash.
