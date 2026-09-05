@@ -12,8 +12,20 @@ const DASHBOARD = path.join(__dirname, '..', 'public', 'index.html');
 // any authored `display` rule outranks. `.field{display:grid}` did exactly
 // that, so `$('keyfield').hidden = true` set the property and changed nothing
 // on screen. A page that uses el.hidden must state the rule itself.
+// #1894 moved the dashboard's CSS out of the page into public/css/app.css. The
+// rule is a property of what the browser loads, not of where the bytes are
+// stored, so this reads the linked stylesheets too -- otherwise extracting CSS
+// turns the contract red while the page is still correct, which is what
+// happened.
 function stylesheet(html) {
-  return [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
+  const inline = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]);
+  const linked = [...html.matchAll(/<link[^>]+rel="stylesheet"[^>]+href="([^"]+)"/g)]
+    .map((m) => m[1])
+    .filter((href) => href.startsWith('/'))
+    .map((href) => fs.readFileSync(path.join(__dirname, '..', 'public', href.slice(1)), 'utf8'));
+
+  assert.ok(inline.length + linked.length > 0, 'the dashboard must carry a stylesheet somewhere');
+  return [...inline, ...linked].join('\n');
 }
 
 test('the dashboard declares a [hidden] rule that outranks authored display rules', () => {
