@@ -249,6 +249,45 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     await waitFor(`document.getElementById('sstatus').textContent === 'Connected.'`, 'the session to reconnect');
   });
 
+  // #1878: ingest-preview is the read half of the batch flow. Only the preview
+  // runs here -- ingest-execute would queue a second candidate and change what
+  // the approval cases below are looking at.
+  it('previews a manual ingest through the panel fields', async () => {
+    await waitFor(`document.getElementById('wstate').textContent === 'READY'`, 'the manifest');
+    await browser.evaluate(`
+      document.getElementById('action').value = 'ingest-preview';
+      document.getElementById('action').onchange();
+      document.getElementById('ingestsource').value = 'manual';
+      document.getElementById('ingestsource').onchange();
+      document.getElementById('ingestauthor').value = 'browser-smoke';
+      document.getElementById('prompt').value = 'a note the operator wants queued';
+      document.getElementById('run').click();
+      true;
+    `);
+
+    await waitFor(
+      `document.getElementById('run').disabled === false && document.getElementById('result').innerHTML.length > 0`,
+      'the ingest preview to settle',
+    );
+
+    const fields = await browser.evaluate(`JSON.stringify({
+      source: document.getElementById('ingestsourcefield').hidden,
+      title: document.getElementById('ingesttitlefield').hidden,
+      label: document.getElementById('promptlabel').textContent,
+    })`);
+    assert.deepEqual(JSON.parse(fields), { source: false, title: true, label: 'Note text' });
+
+    const status = await browser.evaluate(`document.getElementById('vstatus').textContent`);
+    const result = await browser.evaluate(`document.getElementById('result').textContent`);
+
+    // A body the route rejects reports "failed: body.claim is not allowed.",
+    // so a completed status with the source manifest in the envelope is what
+    // separates a real round trip from a page that rendered an error.
+    assert.match(status, /^ingest-preview: completed$/, `preview did not complete: ${status}`);
+    assert.match(result, /submit_ingest_execute/, `no review handoff rendered: ${result.slice(0, 200)}`);
+    assert.match(result, /"sourceDigest":/, `no source manifest rendered: ${result.slice(0, 200)}`);
+  });
+
   it('runs a verify action against the canonical authenticated endpoint', async () => {
     await waitFor(`document.getElementById('wstate').textContent === 'READY'`, 'the manifest');
     await browser.evaluate(`
