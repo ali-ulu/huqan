@@ -92,7 +92,7 @@ modülün işi değildir — registry, iptal yayını ve federasyon #1787'de aç
 iştir; bugün anahtarı deployment elle taşır. Modül yalnız
 doğrular ve her türden bozuk girdide fail-closed `false` döner.
 
-İmza doğrulaması ayrı, sıkı opt-in bir deployment kararıdır:
+Üretim dışında imza zorunluluğu opt-in bir deployment kararıdır:
 `--require-signed-identity`, library'de
 `requireSignedIdentityCard: true | 'review'`, ya da
 `HUQAN_EXTERNAL_GUARD_REQUIRE_SIGNED_IDENTITY=1|review`. Zorunlu kılındığında
@@ -102,6 +102,74 @@ true` hâlâ yalnız "geçerli biçimli kart sunuldu" demektir —
 `signatureVerified: true` olmadan makbuz kriptografik olarak doğrulanmış bir
 fleet kimliğine bağlanmış sayılmaz. Merkezi makbuz toplamanın (#1781)
 önkoşulu budur.
+
+### Üretimde insan sponsor zorunluluğu (#1889)
+
+`NODE_ENV=production` olduğunda guard kartsız veya imzasız eylemi engeller.
+`requireIdentityCard: false` ve `requireSignedIdentityCard: false` bunu
+gevşetmez. İmza, `ownerActorId` ile eşleşen aktif **human** kaydının açık
+anahtarıyla doğrulanır; başka bir insana ait güvenilir anahtar yeterli değildir.
+`onBehalfOf` aynı insanı belirtmelidir. Workspace ve eylem capability'si hem
+kart hem sponsor kapsamında olmalıdır. Sponsor kapsamında wildcard yoktur.
+
+Operatör, `HUQAN_HUMAN_SPONSOR_AUTHORITY` ortam değişkenini aşağıdaki yapıda
+bir JSON dosyasına yönlendirir. Dosya ajan tarafından yazılamayan, operatörün
+kontrol ettiği bir konumda tutulmalıdır. Anahtarın bir insana ait olduğunun
+kayıt sırasında doğrulanması operatörün sorumluluğudur; bu yerel kayıt harici
+IAM, kimlik belgesi doğrulaması veya federasyon hizmeti değildir.
+
+```json
+{
+  "schemaVersion": "huqan.human-sponsor-authority.v1",
+  "principals": [
+    {
+      "actorId": "human:alice",
+      "kind": "human",
+      "status": "active",
+      "workspaceIds": ["default"],
+      "capabilities": ["file_read", "memory_mutation"],
+      "publicKeys": ["<ed25519 PUBLIC KEY PEM>"]
+    }
+  ],
+  "background": [
+    {"source": "dream", "workspaceId": "default", "actorId": "human:alice"},
+    {
+      "source": "_autoThinkTick",
+      "workspaceId": "default",
+      "mode": "unattended",
+      "justification": "Operatör tarafından tanımlanmış periyodik yerel bakım"
+    }
+  ]
+}
+```
+
+`publicKeys` alanına gerçek PEM yazılır; özel anahtar bu dosyaya konmaz.
+CLI kartı ve detached imzayı mevcut `--identity-card` ve
+`--identity-card-signature` seçenekleriyle alır. Üretimde genel
+`--trusted-identity-keys` listesi sponsor kaydının yerine geçmez. Library
+çağrıcısı aynı yapıyı güvenilir `humanSponsorAuthority` seçeneğinde verebilir;
+eylem payload'undaki kayıt okunmaz. Dosya her kararda yeniden okunur:
+`status` değerini `revoked` yapmak sonraki eylemi engeller. Eksik, bozuk veya
+64 KiB üzerindeki kayıtla doğrulama başarılı sayılmaz.
+
+Kabul edilen eylemin `metadata.identity.humanSponsor` alanı doğrulanan insanı,
+workspace'i ve capability'yi kaydeder. Bu alan host'un doğrulama sonucudur;
+uzak okuyucu kendi güven kaydıyla yeniden doğrulama yapmalıdır.
+
+Üretimde arka plan edge yazıları ve plugin node yazıları için `background`
+kaydı tam `source`/`workspaceId` eşleşmesi gerektirir. İnsan sponsorunun
+`memory_mutation` yetkisi olmalıdır. Tam gözetimsiz çalışmada operatörün açık
+`mode: unattended` kaydı ve boş olmayan gerekçesi gerekir. Provenance içindeki
+`humanSponsor` alanı bu bilgiyi taşır; plugin'in sunduğu sahte alan üzerine
+yazılır. Kayıt yoksa yazıdan önce `background_human_sponsor_required` hatası
+verilir; normal admission bypass bu kontrolü atlatmaz. Geçerli sponsor normal
+admission/approval kontrolünü ortadan kaldırmaz.
+
+Üretim dışındaki mevcut davranış korunur. Bu değişiklik external-action guard
+ve belirtilen kernel background/plugin yollarını kapsar; bütün HUQAN
+mutasyonlarının veya hook dışında çalışan alt süreçlerin sponsor doğrulaması
+iddia edilmez. Üretime geçmeden önce kullanılan her background source için
+operatör kaydı hazırlanmalıdır.
 
 > Bu, external-action guard'a özgü basit capability card sözleşmesidir ve
 > `lib/agent-identity-runtime.js` ile kablolanmış değildir. V5 Agent Identity
@@ -716,9 +784,9 @@ Yeni bir ajan eklemek için çekirdeğe ajan adı eklenmez. Yapılacak iş üç 
   bağlı olmadığı bir istemci aynı dosyayı serbestçe değiştirebilir.
 - Admission receipt eylemin değerlendirildiğini kanıtlar; eylemin çalıştığını
   outcome receipt olmadan kanıtlamaz.
-- Guard capability card'ı imzalanmış değildir. Kartı guard'a veren süreç (hook
-  config veya wrapper) güvenilir kabul edilir; kart deployment'ın verdiği yetki
-  tanımıdır. `lib/agent-identity-runtime.js` receiver-owned authority ve
+- Guard capability card'ının imza ve sponsor güvencesi profile bağlıdır. Kartı
+  guard'a veren süreç (hook config veya wrapper) deployment sınırındadır;
+  üretimde ayrıca kayıtlı insan sponsorun imzası zorunludur. `lib/agent-identity-runtime.js` receiver-owned authority ve
   canonical hash üzerinden ayrı bir opt-in runtime doğrulaması yapar, fakat o
   da kriptografik kart imzası veya anahtar dağıtımı sağlamaz. External-action
   guard bu runtime'ı çağırmadığı için iki güven modeli birbirinin yerine
@@ -727,8 +795,8 @@ Yeni bir ajan eklemek için çekirdeğe ajan adı eklenmez. Yapılacak iş üç 
   fleet kimliğine bağlanmış sayılamaz. Kart için ayrı bir ed25519 imza
   katmanı vardır (yukarıda "Kart imzası"): `signatureVerified: true` bir
   makbuzu imzalayan anahtarın deployment'ın güvenilir anahtarlarından birine
-  bağlar; ancak imza varsayılan olarak opsiyoneldir ve zorunlu kılınmadıkça
-  imzasız makbuzlar bu sınıra takılır.
+  bağlar. Üretimde sponsor kaydına bağlı imza zorunludur; üretim dışında
+  zorunlu kılınmadıkça imzasız makbuzlar bu sınıra takılır.
 - Anahtar **dağıtımı** hiçbir katmanda çözülmüş değildir. Kart imzasını
   doğrulayan taraf güvenilir açık anahtarları deployment'tan alır
   (`--trusted-identity-keys`); A2A tarafında da authority tek bir yerel
