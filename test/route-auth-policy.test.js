@@ -31,6 +31,7 @@ const {
   resolveRouteAuthPolicy,
   isPublicRoute,
   PUBLIC_ROUTES,
+  listAuthenticatedRouteIds,
 } = require('../lib/http/route-auth-policy');
 
 test('policy table: unknown routes are not challenged, they stay a generic 404', () => {
@@ -57,6 +58,41 @@ test('policy table: receipt ingest is absent without durable collector storage a
   assert.equal(enabled.known, true);
   assert.equal(enabled.authRequired, true);
   assert.equal(enabled.ruleId, 'receipt-collector-ingest');
+});
+
+test('policy table: only served preflight subpaths are declared, the bare prefix stays undisclosed (#1879)', () => {
+  // The handler serves exactly two subpaths. A prefix entry challenged the
+  // bare prefix (and any other subpath) with a 401 for a route no handler
+  // owns -- an externally observable existence leak.
+  for (const served of ['/api/v5/preflight/reader', '/api/v5/preflight/structural-signing']) {
+    const decision = resolveRouteAuthPolicy(served, 'POST');
+    assert.equal(decision.known, true);
+    assert.equal(decision.authRequired, true);
+    assert.equal(decision.reason, 'declared_authenticated');
+  }
+  for (const unserved of ['/api/v5/preflight', '/api/v5/preflight/', '/api/v5/preflight/anything']) {
+    assert.deepEqual(resolveRouteAuthPolicy(unserved, 'GET'), {
+      known: false,
+      authRequired: false,
+      ruleId: 'unknown',
+      reason: 'unknown_route',
+    });
+  }
+});
+
+test('policy table: readiness-gated pr-guardian routes live only in the conditional block (#1879)', () => {
+  // Table entries for these paths were dead: the conditional block above the
+  // table loop is authoritative, and an unconditional entry would advertise
+  // auth coverage the handler only provides while configured.
+  assert.deepEqual(
+    listAuthenticatedRouteIds().filter(id => id.includes('pr-guardian')),
+    [],
+  );
+  assert.equal(resolveRouteAuthPolicy('/api/v2/pr-guardian/reviews', 'GET', {}).known, false);
+  assert.equal(resolveRouteAuthPolicy('/api/v2/pr-guardian/dry-run', 'GET', {}).known, false);
+  const enabled = resolveRouteAuthPolicy('/api/v2/pr-guardian/reviews', 'GET', { prGuardianRouteEnabled: true });
+  assert.equal(enabled.known, true);
+  assert.equal(enabled.authRequired, true);
 });
 
 test('policy table: a public GET does not make POST on the same path public', () => {
