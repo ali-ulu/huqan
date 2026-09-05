@@ -945,12 +945,21 @@ describe('Server - API', () => {
     const html = await r.text();
     assert.ok(html.includes('HUQAN'));
     assert.ok(html.includes('Trust Command Center'));
-    // kendi kendine yeten light UI: harici (CDN) betik sarmalanmaz
-    assert.doesNotMatch(html, /<script[^>]*\ssrc=/);
+    // kendi kendine yeten light UI: betik yalniz kendi kaynagimizdan gelir,
+    // harici (CDN) betik sarmalanmaz
+    assert.doesNotMatch(html, /<script[^>]*\ssrc=["']?(?:https?:)?\/\//);
+    assert.match(html, /<script[^>]*\ssrc="\/js\/app\.js"/);
     assert.ok(html.includes('Content-Security-Policy'));
-    // API key yalnız sessionStorage alanında tutulur; kalıcı localStorage değil
-    assert.ok(html.includes("sessionStorage.getItem('huqan-api-key'"));
-    assert.ok(!html.includes('localStorage.setItem'));
+  });
+
+  it('served dashboard script keeps the API key in sessionStorage only', async () => {
+    // Sayfanin betigi ayri bir varliga tasindi (#1895); iddia betigin kendisine
+    // tasinmazsa HTML uzerinden bakan bu kontrol sessizce hicbir sey olcmez.
+    const r = await request(`${BASE}/js/app.js`);
+    assert.strictEqual(r.status, 200);
+    const js = await r.text();
+    assert.ok(js.includes("sessionStorage.getItem('huqan-api-key'"));
+    assert.ok(!js.includes('localStorage.setItem'));
   });
 
   it('bilinmeyen rota 404 dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {

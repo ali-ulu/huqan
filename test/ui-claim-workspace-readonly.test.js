@@ -6,6 +6,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 
+// #1894 and #1895 moved the dashboard's CSS and script into linked files; the
+// helper reads the page the way a browser assembles it.
+const { dashboardSource, dashboardScript } = require('./helpers/dashboard-source');
 const { runReadWorkflow, searchMemory } = require('../lib/http/read-workflow-actions');
 const { publicWorkflowManifest } = require('../lib/workflow-contract');
 
@@ -73,7 +76,7 @@ test('memory search is workspace-scoped, bounded, and projects trust handoff fie
 });
 
 test('Claim Workspace uses manifest routes, session-only auth, real search, and receipt handoff', () => {
-  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  const html = dashboardSource();
   // capability manifest'ten türetilen gerçek ajan çağrısı: manifest fetch + route dispatch
   assert.match(html, /json\('\/api\/v2\/workflows'/);
   assert.match(html, /state\.manifest/);
@@ -88,7 +91,7 @@ test('Claim Workspace uses manifest routes, session-only auth, real search, and 
 });
 
 test('Claim Workspace derives all aggregate dashboard status labels from one helper', () => {
-  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  const html = dashboardSource();
   const match = html.match(/function aggregateStatus\(surfaces\)\{([\s\S]*?)\}function renderHealth/);
   assert.ok(match, 'aggregate status helper must be present');
   const aggregateStatus = vm.runInNewContext(`(function aggregateStatus(surfaces){${match[1]}})`);
@@ -124,7 +127,7 @@ test('Claim Workspace derives all aggregate dashboard status labels from one hel
 });
 
 test('Claim Workspace exposes truthful surface metadata and actionable empty states', () => {
-  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  const html = dashboardSource();
   assert.match(html, /surfaces:\{status:\{label:'Runtime Status'.*reason:'Waiting for runtime status.'.*lastChecked:null.*nextAction:'Refresh'/);
   assert.match(html, /function surface\(k,s,detail=\{\}\)/);
   assert.match(html, /function surfaceLabel\(s\)/);
@@ -140,28 +143,27 @@ test('Claim Workspace exposes truthful surface metadata and actionable empty sta
 });
 
 test('Claim Workspace browser script compiles and wires unknown-to-review through the existing ingest approval runtime', () => {
-  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
-  const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
-  assert.ok(script);
+  const script = dashboardScript();
+  assert.ok(script.trim());
   assert.doesNotThrow(() => new vm.Script(script));
   // bilinmeyen iddia -> review: SHA-256 hash + ingest POST + scoped idempotency key
-  assert.match(html, /crypto\.subtle\.digest\('SHA-256'/);
-  assert.match(html, /json\('\/api\/ingest'/);
-  assert.match(html, /idempotencyKey:\`command-center:\$\{h\}\`/);
+  assert.match(script, /crypto\.subtle\.digest\('SHA-256'/);
+  assert.match(script, /json\('\/api\/ingest'/);
+  assert.match(script, /idempotencyKey:\`command-center:\$\{h\}\`/);
   // approval/review kuyruğu okunur ve karar ingest'e postanır
   // #1877: the queue is read from the manifest's v2 route, never the legacy one.
-  assert.match(html, /json\('\/api\/v2\/approvals\?limit=50&workspaceId='\+encodeURIComponent\(state\.ws\|\|'default'\)/);
-  assert.doesNotMatch(html, /json\('\/api\/ingest\/approvals\?/);
+  assert.match(script, /json\('\/api\/v2\/approvals\?limit=50&workspaceId='\+encodeURIComponent\(state\.ws\|\|'default'\)/);
+  assert.doesNotMatch(script, /json\('\/api\/ingest\/approvals\?/);
   // v2 answers a WorkflowEnvelope, so the list lives under `data.approvals`;
   // the legacy flat `approvals` array stays readable as a fallback.
-  assert.match(html, /d\.data\.approvals/);
-  assert.match(html, /state\.approvals=readApprovals\(d\)/);
-  assert.match(html, /await refresh\(\);const failed=/);
-  assert.match(html, /`\/api\/ingest\/approvals\/\$\{encodeURIComponent\(id\)\}`/);
+  assert.match(script, /d\.data\.approvals/);
+  assert.match(script, /state\.approvals=readApprovals\(d\)/);
+  assert.match(script, /await refresh\(\);const failed=/);
+  assert.match(script, /`\/api\/ingest\/approvals\/\$\{encodeURIComponent\(id\)\}`/);
 });
 
 test('Approval rows keep their source labels after the v2 envelope migration (#1877)', () => {
-  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  const html = dashboardSource();
   // The legacy route flattened `context.snapshot` into the row; v2 returns the
   // raw approval record with the snapshot still nested. The renderer reads the
   // flat fields, so swapping endpoints without this adapter degrades every row
@@ -194,7 +196,7 @@ test('Approval rows keep their source labels after the v2 envelope migration (#1
 });
 
 test('Graph view trusts the backend default-workspace contract instead of a preemptive frontend lock (#1821)', () => {
-  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  const html = dashboardSource();
   // loadGraph artık key yokken default workspace için /graph-data isteği atar;
   // yalnızca named workspace + key yok kombinasyonu ön kilit (locked) üretir.
   assert.match(html, /async function loadGraph\(\)\{const isDefaultWorkspace=!state\.ws\|\|state\.ws==='default';if\(state\.authRequired&&!state\.key&&!isDefaultWorkspace\)/);

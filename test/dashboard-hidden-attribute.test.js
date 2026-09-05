@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { readHtml, dashboardStyles } = require('./helpers/dashboard-source');
+const { dashboardStyles, dashboardScript } = require('./helpers/dashboard-source');
 
 // The dashboard hides elements by setting el.hidden. The HTML `hidden`
 // attribute only carries `display:none` from the user-agent stylesheet, which
@@ -25,9 +25,9 @@ test('the dashboard declares a [hidden] rule that outranks authored display rule
 });
 
 test('elements the dashboard hides are hidden via the hidden property', () => {
-  const html = readHtml();
+  // #1895 moved this line into public/js/app.js; the helper follows the src.
   assert.ok(
-    html.includes("$('keyfield').hidden=open"),
+    dashboardScript().includes("$('keyfield').hidden=open"),
     'the key field is expected to be hidden through el.hidden; update this contract if that changes',
   );
 });

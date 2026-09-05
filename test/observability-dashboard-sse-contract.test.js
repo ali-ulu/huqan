@@ -1,12 +1,19 @@
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const vm = require('node:vm');
 const test = require('node:test');
 
-const dashboard = fs.readFileSync('public/index.html', 'utf8');
-const script = dashboard.match(/<script>([\s\S]*)<\/script>/)?.[1].replace(/\r\n/g, '\n');
+// #1894 and #1895 moved the dashboard's CSS and JS out of public/index.html.
+// The contract is about what the browser loads, not about which file the bytes
+// sit in, so the helper follows the <link> and <script src>.
+const { dashboardSource, dashboardScript } = require('./helpers/dashboard-source');
 
-assert.ok(script, 'dashboard inline script must exist');
+// `dashboard` has always meant everything the page is -- when the CSS and JS
+// were inline, reading index.html gave exactly that. dashboardSource() is the
+// faithful equivalent now that both live in linked files.
+const dashboard = dashboardSource();
+const script = dashboardScript(dashboard);
+
+assert.ok(script.trim(), 'dashboard script must exist');
 
 function loadStreamHelpers() {
   const start = script.indexOf('const STREAM_BASE_RECONNECT_DELAY_MS');

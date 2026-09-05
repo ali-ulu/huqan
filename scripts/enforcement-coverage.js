@@ -193,11 +193,20 @@ function sitesIn(file, source) {
   return found;
 }
 
-/** Production JavaScript: what ships and runs, not tests, benchmarks or tooling. */
+/**
+ * Production JavaScript: what ships and runs, not tests, benchmarks or tooling.
+ *
+ * `public/` is browser code. It cannot spawn a process or write this machine's
+ * disk, and its `fetch` is the operator's browser calling us, not this process
+ * leaving the machine -- a different boundary, defended by CSP and the route
+ * auth policy rather than by admission. It was never in this scan while it sat
+ * inline in index.html; keeping it out is what holds this manifest's claim
+ * about the *process* surface unchanged.
+ */
 function productionFiles() {
   const out = execFileSync('git', ['ls-files', '*.js'], { cwd: repoRoot, encoding: 'utf8' });
   return out.trim().split('\n').filter(Boolean).filter((file) => {
-    if (/(^|\/)(test|benchmarks|scripts)\//.test(file)) return false;
+    if (/(^|\/)(test|benchmarks|scripts|public)\//.test(file)) return false;
     if (/\.test\.js$/.test(file)) return false;
     if (/(^|\/)node_modules\//.test(file)) return false;
     return true;

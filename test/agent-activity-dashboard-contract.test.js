@@ -1,12 +1,21 @@
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const vm = require('node:vm');
 const { describe, it } = require('node:test');
 
-const dashboard = fs.readFileSync('public/index.html', 'utf8');
-const script = dashboard.match(/<script>([\s\S]*)<\/script>/)?.[1];
+// This file keeps the markup and the script apart on purpose: it is the one
+// place that asserts the extraction itself happened, so it must be able to tell
+// which half a string came from. Everywhere else uses dashboardSource().
+const { readHtml, dashboardScript } = require('./helpers/dashboard-source');
+
+const dashboard = readHtml();
+const script = dashboardScript(dashboard);
 
 describe('Agent Activity dashboard contract', () => {
+  it('references the extracted dashboard script from index.html', () => {
+    assert.match(dashboard, /<script src="\/js\/app\.js"><\/script>/);
+    assert.doesNotMatch(dashboard, /<script>'use strict'/);
+  });
+
   it('exposes the activity navigation and read-only timeline view', () => {
     assert.match(dashboard, /data-v="activity"/);
     assert.match(dashboard, /id="v-activity"/);
@@ -61,7 +70,7 @@ describe('Agent Activity dashboard contract', () => {
     assert.ok(script.includes("new Intl.DateTimeFormat('en-US'"));
   });
 
-  it('keeps the inline dashboard script syntactically valid', () => {
+  it('keeps the dashboard script syntactically valid', () => {
     assert.ok(script);
     assert.doesNotThrow(() => new vm.Script(script));
   });
