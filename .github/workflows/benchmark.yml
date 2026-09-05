@@ -344,7 +344,7 @@ jobs:
         # Node 20 reached end-of-life on 2026-04-30 and the package declares
         # engines >=22.13.0, so there is one supported runtime leg.
         node-version: [22]
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -392,7 +392,7 @@ jobs:
           node scripts/run-test-shard.js
           --selection=artifacts/test-impact-plan.json
           --shard=${{ matrix.shard }}
-          --total=3
+          --total=5
           --concurrency=1
           --report=artifacts/test-shard-${{ matrix.shard }}.xml
         env:
