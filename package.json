@@ -329,6 +329,7 @@
     "lib/http/workflow-request-validation.js",
     "lib/http/pr-guardian-config.js",
     "lib/http/pr-guardian-routes.js",
+    "lib/http/public-badge-route.js",
     "lib/http/structured-log.js",
     "lib/http/workflow-envelope.js",
     "lib/http/identity-mutation-admission.js",
