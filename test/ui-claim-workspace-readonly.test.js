@@ -16,7 +16,12 @@ test('UI capability manifest advertises only the implemented read workflows', ()
   // #1877 promoted the approval queue to the panel: it now reads
   // `GET /api/v2/approvals` instead of the legacy `/api/ingest/approvals`,
   // so the manifest has to advertise it as ui-available too.
-  assert.deepEqual(enabled, ['ask', 'verify', 'advocate', 'approvals', 'memory-search', 'trust-receipt']);
+  // #1878 promoted agent-plan / agent-run: the workbench action select now
+  // dispatches both through the manifest route.
+  assert.deepEqual(enabled, [
+    'ask', 'verify', 'advocate', 'approvals', 'memory-search',
+    'agent-plan', 'agent-run', 'trust-receipt',
+  ]);
 });
 
 test('read workflow adapter reuses kernel reads and emits stable envelopes', async () => {
