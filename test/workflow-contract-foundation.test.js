@@ -7,6 +7,7 @@ const {
   WORKFLOW_CAPABILITIES,
   WORKFLOW_STATUSES,
   COMPATIBILITY_COMMANDS,
+  CLI_COMMAND_CAPABILITIES,
   compatibilityHelpText,
   publicWorkflowManifest,
 } = require('../lib/workflow-contract');
@@ -26,6 +27,38 @@ test('workflow manifest uses unique versioned ids and explicitly declares every 
       assert.ok(item.requestSchema, `${item.workflowId} reuses its MCP request schema`);
       assert.ok(item.responseSchema, `${item.workflowId} reuses its MCP response schema`);
     }
+  }
+});
+
+/**
+ * Issue #1880: four maintenance capabilities (auto-think, optimize,
+ * consolidate, evolve) have no route, no MCP tool and no availability flag.
+ * They are internal kernel capabilities awaiting a durable approval/execution
+ * workflow -- deliberately unsurfaced, since exposing operator/admin
+ * mutations without one would open unaudited effects. This locks in both
+ * directions: the unsurfaced set is exactly those four, and each one names
+ * what blocks its exposure, so the next capacity audit reads intention
+ * rather than drift.
+ */
+test('capabilities with no reachable surface declare what blocks exposure', () => {
+  const cliCovered = new Set(CLI_COMMAND_CAPABILITIES.map(item => item.workflowId));
+  const unsurfaced = WORKFLOW_CAPABILITIES.filter(item =>
+    !item.route
+    && !item.mcpTool
+    && !item.availability.api
+    && !item.availability.cli
+    && !item.availability.mcp
+    && !item.availability.ui
+    && !cliCovered.has(item.workflowId));
+  assert.deepEqual(
+    unsurfaced.map(item => item.workflowId).sort(),
+    ['auto-think', 'consolidate', 'evolve', 'optimize'],
+  );
+  for (const item of unsurfaced) {
+    assert.ok(
+      typeof item.exposureBlockedBy === 'string' && item.exposureBlockedBy.length > 0,
+      `${item.workflowId} must name what blocks its exposure`,
+    );
   }
 });
 
