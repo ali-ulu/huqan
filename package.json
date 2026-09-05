@@ -418,6 +418,7 @@
     "lib/memory-store-utils.js",
     "lib/memory-store-json-persistence.js",
     "lib/memory-store-persistence-report.js",
+    "lib/memory-store-reopen.js",
     "lib/memory-store-sqlite-warmup.js",
     "lib/memory-store.js",
     "lib/module-reachability.js",

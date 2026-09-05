@@ -16,7 +16,7 @@
     "kernel.js": 1103,
     "kernel.v2.js": 813,
     "lib/code-change-gate.js": 834,
-    "lib/memory-store.js": 996,
+    "lib/memory-store.js": 970,
     "lib/sandbox-isolation.js": 831,
     "scripts/external-conformance/consumer.js": 955,
     "server.js": 1043,
