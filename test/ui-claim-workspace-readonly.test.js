@@ -13,7 +13,10 @@ test('UI capability manifest advertises only the implemented read workflows', ()
   const enabled = publicWorkflowManifest().workflows
     .filter(item => item.availability.ui)
     .map(item => item.workflowId);
-  assert.deepEqual(enabled, ['ask', 'verify', 'advocate', 'memory-search', 'trust-receipt']);
+  // #1877 promoted the approval queue to the panel: it now reads
+  // `GET /api/v2/approvals` instead of the legacy `/api/ingest/approvals`,
+  // so the manifest has to advertise it as ui-available too.
+  assert.deepEqual(enabled, ['ask', 'verify', 'advocate', 'approvals', 'memory-search', 'trust-receipt']);
 });
 
 test('read workflow adapter reuses kernel reads and emits stable envelopes', async () => {
@@ -141,10 +144,48 @@ test('Claim Workspace browser script compiles and wires unknown-to-review throug
   assert.match(html, /json\('\/api\/ingest'/);
   assert.match(html, /idempotencyKey:\`command-center:\$\{h\}\`/);
   // approval/review kuyruğu okunur ve karar ingest'e postanır
-  assert.match(html, /json\('\/api\/ingest\/approvals\?limit=50&workspaceId='/);
-  assert.match(html, /encodeURIComponent\(state\.ws\)/);
+  // #1877: the queue is read from the manifest's v2 route, never the legacy one.
+  assert.match(html, /json\('\/api\/v2\/approvals\?limit=50&workspaceId='\+encodeURIComponent\(state\.ws\|\|'default'\)/);
+  assert.doesNotMatch(html, /json\('\/api\/ingest\/approvals\?/);
+  // v2 answers a WorkflowEnvelope, so the list lives under `data.approvals`;
+  // the legacy flat `approvals` array stays readable as a fallback.
+  assert.match(html, /d\.data\.approvals/);
+  assert.match(html, /state\.approvals=readApprovals\(d\)/);
   assert.match(html, /await refresh\(\);const failed=/);
   assert.match(html, /`\/api\/ingest\/approvals\/\$\{encodeURIComponent\(id\)\}`/);
+});
+
+test('Approval rows keep their source labels after the v2 envelope migration (#1877)', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  // The legacy route flattened `context.snapshot` into the row; v2 returns the
+  // raw approval record with the snapshot still nested. The renderer reads the
+  // flat fields, so swapping endpoints without this adapter degrades every row
+  // to a bare id and an em dash snapshot -- a silent regression no status
+  // assertion would catch. Verified by mutation: dropping the `snap.` fallbacks
+  // turns this red.
+  const match = html.match(/function approvalView\(x\)\{([\s\S]*?)\}function readApprovals/);
+  assert.ok(match, 'approval view adapter must be present');
+  const approvalView = vm.runInNewContext(`(function approvalView(x){${match[1]}})`);
+
+  const v2Record = {
+    id: 'ingest-approval-1', status: 'pending', decision: '', reason: '',
+    createdAt: 5, updatedAt: 6,
+    context: { snapshot: { snapshotHash: 'sha-1', sourceType: 'text', sourceRef: 'doc:alpha', idempotencyKey: 'k-1' } },
+  };
+  assert.deepEqual({ ...approvalView(v2Record) }, {
+    id: 'ingest-approval-1', status: 'pending', decision: '', reason: '',
+    createdAt: 5, updatedAt: 6,
+    snapshotHash: 'sha-1', sourceType: 'text', sourceRef: 'doc:alpha', idempotencyKey: 'k-1',
+  });
+
+  // The legacy flat shape still reads, so a mixed deployment never blanks out.
+  const legacyRecord = {
+    id: 'ingest-approval-2', status: 'pending', decision: '', reason: '',
+    createdAt: 7, updatedAt: 8,
+    snapshotHash: 'sha-2', sourceType: 'url', sourceRef: 'https://example.test', idempotencyKey: 'k-2',
+  };
+  assert.deepEqual({ ...approvalView(legacyRecord) }, legacyRecord);
+  assert.equal(approvalView(null), null);
 });
 
 test('Graph view trusts the backend default-workspace contract instead of a preemptive frontend lock (#1821)', () => {
