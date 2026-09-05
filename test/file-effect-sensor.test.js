@@ -208,3 +208,123 @@ test('the receipt carries the readings, not the file contents', () => {
     cleanup();
   }
 });
+
+// ─── relative targets resolve against the action cwd (#1865) ────────────────
+
+/** Same as act() but the envelope names the file relative to the action cwd. */
+function actRelative(dir, name, mutate, reportedStatus) {
+  const envelope = {
+    invocationId: `effect-rel-${Math.random().toString(36).slice(2)}`,
+    agentName: 'test-agent',
+    sessionId: 'session',
+    toolName: 'Write',
+    args: { file_path: name },
+    cwd: dir,
+    workspaceRoot: dir,
+  };
+  const writer = { append() {} };
+  const admission = evaluateExternalAction(envelope, { receiptWriter: writer });
+  mutate();
+  const outcome = recordExternalActionOutcome(envelope, admission.receipt,
+    { status: reportedStatus }, { receiptWriter: writer });
+  return { admission: admission.receipt, metadata: outcome.receipt.metadata };
+}
+
+test('a relative target is measured against the action cwd, not the guard process', () => {
+  // The guard process runs from its own cwd; a relative target resolved there
+  // would observe a file that does not exist and report `unchanged` while the
+  // real file changed.
+  const { dir, cleanup } = workspace();
+  try {
+    const name = 'rel.txt';
+    const file = path.join(dir, name);
+    fs.writeFileSync(file, 'v1');
+    const { admission, metadata } = actRelative(dir, name, () => fs.writeFileSync(file, 'v2'), 'success');
+    assert.equal(metadata.fileEffect.observation, EFFECT_OBSERVATIONS.MODIFIED);
+    assert.equal(metadata.effectVerification, 'observed');
+    assert.equal(admission.metadata.fileTarget, file, 'admission pins the resolved target');
+  } finally {
+    cleanup();
+  }
+});
+
+test('relative and absolute spellings of one file agree', () => {
+  const { dir, cleanup } = workspace();
+  try {
+    const name = 'same.txt';
+    const file = path.join(dir, name);
+    fs.writeFileSync(file, 'v1');
+    const viaRelative = actRelative(dir, name, () => fs.writeFileSync(file, 'v2'), 'success').metadata;
+    fs.writeFileSync(file, 'v1');
+    const viaAbsolute = act(dir, file, () => fs.writeFileSync(file, 'v2'), 'success');
+    assert.equal(viaRelative.fileEffect.observation, viaAbsolute.fileEffect.observation);
+    assert.equal(viaRelative.effectVerification, viaAbsolute.effectVerification);
+    assert.equal(viaRelative.fileEffect.after.digest, viaAbsolute.fileEffect.after.digest);
+  } finally {
+    cleanup();
+  }
+});
+
+test('relative create, remove and stay-absent are each observed', () => {
+  const { dir, cleanup } = workspace();
+  try {
+    const name = 'cycle.txt';
+    const file = path.join(dir, name);
+    assert.equal(
+      actRelative(dir, name, () => fs.writeFileSync(file, 'v1'), 'success').metadata.fileEffect.observation,
+      EFFECT_OBSERVATIONS.CREATED);
+    assert.equal(
+      actRelative(dir, name, () => fs.rmSync(file), 'success').metadata.fileEffect.observation,
+      EFFECT_OBSERVATIONS.REMOVED);
+    assert.equal(
+      actRelative(dir, 'never.txt', () => {}, 'success').metadata.fileEffect.observation,
+      EFFECT_OBSERVATIONS.UNCHANGED);
+  } finally {
+    cleanup();
+  }
+});
+
+test('an unreadable relative target stays reported', () => {
+  // A directory is not a file: both readings are `unreadable`, the comparison
+  // is `indeterminate`, and the receipt must say `reported`.
+  const { dir, cleanup } = workspace();
+  try {
+    const metadata = actRelative(dir, '.', () => {}, 'success').metadata;
+    assert.equal(metadata.fileEffect.observation, EFFECT_OBSERVATIONS.INDETERMINATE);
+    assert.equal(metadata.effectVerification, 'reported');
+  } finally {
+    cleanup();
+  }
+});
+
+test('an outcome against a receipt from before target pinning still measures', () => {
+  // Compat: a receipt carrying a first reading but no fileTarget falls back to
+  // the envelope's resolved path rather than degrading to `reported`.
+  const { dir, cleanup } = workspace();
+  try {
+    const file = path.join(dir, 'a.txt');
+    fs.writeFileSync(file, 'v1');
+    const envelope = {
+      invocationId: 'pre-pinning',
+      agentName: 'test-agent',
+      sessionId: 'session',
+      toolName: 'Write',
+      args: { file_path: file },
+      cwd: dir,
+      workspaceRoot: dir,
+    };
+    const writer = { append() {} };
+    const admission = evaluateExternalAction(envelope, { receiptWriter: writer });
+    const legacy = {
+      ...admission.receipt,
+      metadata: { ...admission.receipt.metadata, fileTarget: undefined },
+    };
+    fs.writeFileSync(file, 'v2');
+    const metadata = recordExternalActionOutcome(envelope, legacy,
+      { status: 'success' }, { receiptWriter: writer }).receipt.metadata;
+    assert.equal(metadata.fileEffect.observation, EFFECT_OBSERVATIONS.MODIFIED);
+    assert.equal(metadata.effectVerification, 'observed');
+  } finally {
+    cleanup();
+  }
+});
