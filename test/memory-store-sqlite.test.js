@@ -872,3 +872,68 @@ describe('PR-S3D SQLite mutation snapshot cost (#1535)', () => {
     store.close();
   });
 });
+
+
+describe('reopen() after restore replaces the backing file (#1864)', () => {
+  it('an open store matches a fresh store after the db file is restored', () => {
+    const dbPath = getDbPath('reopen-restore');
+    const backupPath = getDbPath('reopen-restore-backup');
+    const store = new MemoryStore({ useSQLite: true, dbPath });
+    assert.strictEqual(store.store({ content: 'before backup', workspaceId: 'ws1' }).ok, true);
+    store.close();
+    fs.copyFileSync(dbPath, backupPath);
+    store.reopen();
+    const after = store.store({ content: 'after backup', workspaceId: 'ws1' });
+    assert.strictEqual(after.ok, true);
+    store.close();
+    fs.copyFileSync(backupPath, dbPath);
+    store.reopen();
+
+    const fresh = new MemoryStore({ useSQLite: true, dbPath });
+    try {
+      assert.strictEqual(store.list({ workspaceId: 'ws1' }).total, fresh.list({ workspaceId: 'ws1' }).total);
+      assert.strictEqual(store._events.length, fresh._events.length);
+      assert.strictEqual(store._links.length, fresh._links.length);
+      assert.deepStrictEqual(
+        store.list({ workspaceId: 'ws1' }).memories.map((memory) => memory.content),
+        fresh.list({ workspaceId: 'ws1' }).memories.map((memory) => memory.content),
+      );
+    } finally {
+      fresh.close();
+      store.close();
+    }
+  });
+
+  it('repeated reopen does not duplicate events or links', () => {
+    const dbPath = getDbPath('reopen-idempotent');
+    const store = new MemoryStore({ useSQLite: true, dbPath });
+    const first = store.store({ content: 'first', workspaceId: 'ws1' });
+    const second = store.store({ content: 'second', workspaceId: 'ws1' });
+    assert.strictEqual(store.linkMemories({
+      workspaceId: 'ws1',
+      fromMemoryId: first.memory.memoryId,
+      toMemoryId: second.memory.memoryId,
+      relation: 'supports',
+    }).ok, true);
+    const expected = [store.list({ workspaceId: 'ws1' }).total, store._events.length, store._links.length];
+    store.reopen();
+    store.reopen();
+    assert.deepStrictEqual(
+      [store.list({ workspaceId: 'ws1' }).total, store._events.length, store._links.length],
+      expected,
+    );
+    store.close();
+  });
+
+  it('a failed reload keeps the previous cache instead of a partial one', () => {
+    const dbPath = getDbPath('reopen-failure');
+    const store = new MemoryStore({ useSQLite: true, dbPath });
+    assert.strictEqual(store.store({ content: 'keep me', workspaceId: 'ws1' }).ok, true);
+    store.close();
+    fs.writeFileSync(dbPath, 'not a database');
+    assert.throws(() => store.reopen());
+    assert.strictEqual(store.list({ workspaceId: 'ws1' }).total, 1);
+    assert.strictEqual(store.list({ workspaceId: 'ws1' }).memories[0].content, 'keep me');
+    store.close();
+  });
+});
