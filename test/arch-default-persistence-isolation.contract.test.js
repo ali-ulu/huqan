@@ -47,30 +47,103 @@ test('this suite runs under the test runner, so the guard is actually armed', ()
   assert.equal(isTestRunner(), true);
 });
 
+// Snapshot the repo-root artefacts before the test so a pre-existing file
+// (e.g. a developer's own memory.db) is not blamed on the kernel (#1868).
+// Only a file the test itself creates or modifies fails the assertion.
+function snapshotRootArtefacts() {
+  const snapshot = new Map();
+  for (const artefact of ROOT_ARTEFACTS) {
+    const full = path.join(REPO_ROOT, artefact);
+    let stat = null;
+    try {
+      stat = fs.statSync(full);
+    } catch {
+      stat = null;
+    }
+    snapshot.set(artefact, stat ? { mtimeMs: stat.mtimeMs, size: stat.size } : null);
+  }
+  return snapshot;
+}
+
+function assertNoRootArtefactChange(snapshot, actor) {
+  for (const artefact of ROOT_ARTEFACTS) {
+    const full = path.join(REPO_ROOT, artefact);
+    let after = null;
+    try {
+      after = fs.statSync(full);
+    } catch {
+      after = null;
+    }
+    const before = snapshot.get(artefact);
+    if (before === null) {
+      assert.equal(
+        after,
+        null,
+        `${artefact} was written into the repository root by a default-path ${actor}`,
+      );
+    } else {
+      assert.ok(after, `${artefact} disappeared from the repository root during the test`);
+      assert.equal(
+        after.mtimeMs,
+        before.mtimeMs,
+        `${artefact} was modified in the repository root by a default-path ${actor}`,
+      );
+      assert.equal(
+        after.size,
+        before.size,
+        `${artefact} was modified in the repository root by a default-path ${actor}`,
+      );
+    }
+  }
+}
+
 test('a kernel given no path does not write into the repository root', () => {
+  const before = snapshotRootArtefacts();
   const kernel = new Kernel({ noLoad: true, loadPlugins: false });
   assert.equal(isInsideRepo(kernel.graph.memoryPath), false, kernel.graph.memoryPath);
   kernel.learn('default persistence isolation contract');
-  for (const artefact of ROOT_ARTEFACTS) {
-    assert.equal(
-      fs.existsSync(path.join(REPO_ROOT, artefact)),
-      false,
-      `${artefact} was written into the repository root by a default-path kernel`,
-    );
-  }
+  assertNoRootArtefactChange(before, 'kernel');
 });
 
 test('an agent given no memory path does not write into the repository root', () => {
+  const agentArtefact = path.join(REPO_ROOT, 'agent.memory.json');
+  let beforeStat = null;
+  try {
+    beforeStat = fs.statSync(agentArtefact);
+  } catch {
+    beforeStat = null;
+  }
+  const before = beforeStat ? { mtimeMs: beforeStat.mtimeMs, size: beforeStat.size } : null;
   const kernel = new Kernel({ noLoad: true, loadPlugins: false });
   const agent = new Agent({ kernel });
   assert.equal(isInsideRepo(agent.memoryPath), false, agent.memoryPath);
   agent.memory.goals.push({ goal: 'agent default isolation' });
   agent._saveMemory();
-  assert.equal(
-    fs.existsSync(path.join(REPO_ROOT, 'agent.memory.json')),
-    false,
-    'agent.memory.json was written into the repository root by a default-path agent',
-  );
+  let afterStat = null;
+  try {
+    afterStat = fs.statSync(agentArtefact);
+  } catch {
+    afterStat = null;
+  }
+  if (before === null) {
+    assert.equal(
+      afterStat,
+      null,
+      'agent.memory.json was written into the repository root by a default-path agent',
+    );
+  } else {
+    assert.ok(afterStat, 'agent.memory.json disappeared from the repository root during the test');
+    assert.equal(
+      afterStat.mtimeMs,
+      before.mtimeMs,
+      'agent.memory.json was modified in the repository root by a default-path agent',
+    );
+    assert.equal(
+      afterStat.size,
+      before.size,
+      'agent.memory.json was modified in the repository root by a default-path agent',
+    );
+  }
 });
 
 test('noLoad does not make a default path safe -- it skips the read, not the write', () => {
