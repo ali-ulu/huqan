@@ -22,6 +22,19 @@ function readJsonFile(target) {
   return JSON.parse(fs.readFileSync(target, 'utf8'));
 }
 
+/**
+ * The collector's own key for a `--store` run, or nothing. Named but unreadable
+ * throws: an operator who asked for seals and silently got none would read the
+ * resulting store as sealed (#1882).
+ */
+function readSealKeyArgument() {
+  const keyPath = argumentValue('--seal-key');
+  const keyReference = argumentValue('--seal-key-id');
+  if (!keyPath && !keyReference) return null;
+  if (!keyPath || !keyReference) throw new Error('--seal-key and --seal-key-id must be given together');
+  return { keyReference, privateKeyPem: fs.readFileSync(keyPath, 'utf8') };
+}
+
 // One or more PEM public keys, separated by the END line. Used to verify the
 // capability card signature; key distribution stays a deployment decision.
 function readTrustedIdentityKeys(target) {
@@ -69,6 +82,21 @@ async function main() {
   let receiptWriter;
   try {
     const command = process.argv[2];
+    // `seals` asks the one question a stored receipt cannot answer for itself:
+    // has anything been removed from this store since it was received. A break
+    // exits non-zero, because a silent audit is not an audit (#1882).
+    if (command === 'seals') {
+      const collector = require('../lib/external-action-receipt-collector');
+      const report = collector.verifyCollectorSeals({
+        root: argumentValue('--store'),
+        workspaceId: argumentValue('--workspace') || undefined,
+        ownerActorId: argumentValue('--owner') || undefined,
+        trustedKeys: collector.readTrustedBatchKeys(argumentValue('--trusted-keys')),
+      });
+      process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+      process.exitCode = report.ok ? 0 : 1;
+      return;
+    }
     if (command === 'fleet') {
       const { queryFleet } = require('../lib/external-action-receipt-collector');
       process.stdout.write(`${JSON.stringify(queryFleet({
@@ -116,6 +144,10 @@ async function main() {
               root: storeRoot,
               trustedKeys: collector.readTrustedBatchKeys(trustedKeysDir),
               requireSignature: process.argv.includes('--require-signature'),
+              // A store on a share the agent host cannot rewrite is the
+              // self-hosted shape of a counter-seal, so `--store` seals too
+              // when a key is named (#1882).
+              sealKey: readSealKeyArgument(),
             });
           },
         } : {}),

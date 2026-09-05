@@ -591,6 +591,44 @@ toplayıcının bulgusu **çelişebilir** ve okuyanın bunu görebilmesi gerekiy
 kartı sonradan genişletip `signatureVerified: true` bırakan bir host, toplayıcı
 tarafında `unverified` görünür.
 
+### Karşı-mühür: operatörün üretemeyeceği kanıt
+
+Yukarıdaki iki imza da **denetlenen makinedeki** anahtarlarla atılıyor. O
+anahtara erişen bir operatör trail'i düzenleyip yeniden imzalayabilir; her imza
+doğrulanır, çünkü anahtar zaten onundur. Ya da koşumu hiç göndermez ve aşağı
+akıştaki kimse sessiz bir haftayı silinmiş bir haftadan ayıramaz.
+
+Karşı-mühür bunu kapatır: toplayıcı, aldığı şeyi **gönderen host'un
+erişemediği** bir anahtarla imzalar (#1882).
+
+```powershell
+$env:HUQAN_COLLECTOR_SEAL_KEY    = "D:\collector\seal.pem"
+$env:HUQAN_COLLECTOR_SEAL_KEY_ID = "collector-1"
+# veya HTTP'siz: npx huqan-gate ship --store D:\store --seal-key ... --seal-key-id ...
+npx huqan-gate seals --store D:\store --trusted-keys D:\keys   # zinciri denetle
+```
+
+Mühür `batchId`, kiracı, `contentHash`, adet, `receivedAt` ve **bir önceki
+mührün özetini** kapsıyor. İki sonucu var:
+
+- Toplayıcı ne aldığını kanıtlıyor; gönderen de aldığı mührü trail'in yanında
+  (`<trail>.seals.jsonl`) saklıyor, yani elinde kendi üretemeyeceği bir kanıt
+  oluyor: "bu batch şu toplayıcıya şu anda ulaştı".
+- Mühürler **zincir** oluşturuyor. Mağazadan bir batch silinirse kalan mühürler
+  tek tek geçerli kalır ama zincir kopar — `seals` komutu kopmanın sırasını ve
+  sebebini söyler, çıkış kodu 1 verir. Mühürsüz bir kiracı `unsealed` diye
+  raporlanır; "kimse mühürlememiş" ile "mühürler tutuyor" asla aynı görünmez.
+
+Mühürleme istenip yapılamazsa batch **saklanmaz**: sessizce mühürsüz saklamak,
+sonraki her okuyucuya mağazayı mühürlüymüş gibi gösterirdi.
+
+**Bunun da sınırı var, ve kuruluma bağlı:** karşı-mühür ancak toplayıcı, ajanı
+çalıştıran operatörün yönetmediği bir yerdeyse üçüncü taraf kanıtıdır (uyum
+sunucusu ya da bizim işlettiğimiz bulut). İki anahtar da aynı dizüstündeyse aynı
+kişi iki ucu da tutuyor demektir; o zaman mühür yalnızca kazara bozulmayı
+yakalar. Ayrıca `receivedAt` toplayıcının kendi saati — mühür onu sonradan
+değiştirilemez yapar, doğru yapmaz; dış zaman çıpası ayrı bir iş.
+
 **Neyi kanıtlamaz:** anahtar denetlenen makinede duruyor. Geçerli bir imza
 "bu batch o kurulumdan değişmeden çıktı" der; "operatör imzalamadan önce
 kayıtla oynamadı" demez. Operatöre karşı kanıt, toplayıcının aldığını kendi
