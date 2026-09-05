@@ -21,12 +21,21 @@ const path = require('node:path');
 const PUBLIC_ROOT = path.join(__dirname, '..', '..', 'public');
 const DASHBOARD_HTML = path.join(PUBLIC_ROOT, 'index.html');
 
+// Line endings are a checkout artifact, not part of any contract: these files
+// are committed LF and arrive CRLF on a Windows working tree, which silently
+// breaks every multi-line assertion. Several tests each carried their own
+// `.replace(/\r\n/g, '\n')` for this; normalising once here is the reason they
+// no longer have to.
+function normalize(text) {
+  return text.replace(/\r\n/g, '\n');
+}
+
 function readHtml() {
-  return fs.readFileSync(DASHBOARD_HTML, 'utf8');
+  return normalize(fs.readFileSync(DASHBOARD_HTML, 'utf8'));
 }
 
 function readLocalAsset(reference) {
-  return fs.readFileSync(path.join(PUBLIC_ROOT, reference.replace(/^\//, '')), 'utf8');
+  return normalize(fs.readFileSync(path.join(PUBLIC_ROOT, reference.replace(/^\//, '')), 'utf8'));
 }
 
 /** Every CSS rule the page applies: inline `<style>` blocks plus linked same-origin stylesheets. */

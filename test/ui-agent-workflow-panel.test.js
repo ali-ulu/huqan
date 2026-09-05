@@ -6,11 +6,14 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 
+const { dashboardSource } = require('./helpers/dashboard-source');
 const { validateWorkflowHttpRequest } = require('../lib/http/workflow-request-validation');
 const { publicWorkflowManifest } = require('../lib/workflow-contract');
 
-const DASHBOARD = path.join(__dirname, '..', 'public', 'index.html');
-const html = () => fs.readFileSync(DASHBOARD, 'utf8');
+// #1894 and #1895 moved the dashboard's CSS and script into linked files.
+// `html()` has always meant everything the page is, so it reads the page the
+// way a browser assembles it rather than the way it is stored.
+const html = () => dashboardSource();
 
 // #1878: agent-plan and agent-run had live HTTP routes and no panel surface.
 // The workbench dispatcher is generic -- it reads `c.route` and `c.method` off

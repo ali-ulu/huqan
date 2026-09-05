@@ -94,10 +94,28 @@ describe('CI runtime classifier is fail-closed (#752)', {
       'README.md',
       'docs/architecture.md',
       'specs/huqan-trust-protocol/0.2/RECEIPT-BUNDLE.md',
-      'public/index.html',
       'examples/observability-client.js',
     ]) {
       assert.strictEqual(isRuntime(file), false, `${file} must not trigger the runtime suite`);
+    }
+  });
+
+  it('the dashboard assets are runtime, not decoration', () => {
+    // public/* sat in the excluded arm from when it was one self-contained HTML
+    // page. It is not decoration: every file under public/ is listed in
+    // package.json#files, and the suite asserts on their contents. Removing one
+    // attribute from public/index.html -- the aria-label on
+    // `<nav class="nav">` -- turns
+    // test/observability-dashboard-accessibility-responsive-contract.test.js
+    // red, which means a PR touching only that file was having its required
+    // npm test check satisfied by the NOT_APPLICABLE skip job.
+    for (const file of [
+      'public/index.html',
+      'public/css/app.css',
+      'public/js/app.js',
+      'public/viewer/app.mjs',
+    ]) {
+      assert.strictEqual(isRuntime(file), true, `${file} is a shipped surface with contract tests`);
     }
   });
 

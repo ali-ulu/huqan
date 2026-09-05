@@ -9,6 +9,7 @@ const path = require('node:path');
 const {
   PRODUCTION_ENTRY_POINTS,
   NON_RUNTIME_PREFIXES,
+  BROWSER_ASSET_PREFIXES,
   CONSUMER_ENTRY_POINTS,
   TEST_ONLY_FILES,
   STRUCTURAL_FILES,
@@ -68,6 +69,17 @@ test('repository examples are explicit non-runtime artifacts', () => {
   const { unacknowledged, unreachable } = analyzeReachability({ root: REPO_ROOT });
   assert.ok(unreachable.includes('examples/observability-client.js'));
   assert.equal(unacknowledged.includes('examples/observability-client.js'), false);
+});
+
+test('browser assets are classified rather than counted as pending work', () => {
+  // public/js/app.js runs in the browser and is served by lib/http/static-assets.js.
+  // Nothing in Node requires it, and nothing should: listing it as not-yet-wired
+  // would claim there is wiring still owed, and there is not.
+  assert.deepEqual(BROWSER_ASSET_PREFIXES, ['public/']);
+  const { unreachable, unacknowledged } = analyzeReachability({ root: REPO_ROOT });
+  assert.ok(unreachable.includes('public/js/app.js'));
+  assert.equal(unacknowledged.includes('public/js/app.js'), false);
+  assert.equal(Object.hasOwn(NOT_YET_WIRED, 'public/js/app.js'), false);
 });
 
 test('test-only and structural files are classified outside the pending-work list', () => {

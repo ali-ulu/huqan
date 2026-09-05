@@ -88,14 +88,22 @@ jobs:
             # package.json#bin ships it: it is what an installed consumer
             # executes, so a change there is a change to a shipped surface.
             #
+            # public/* was excluded while it held one self-contained HTML page.
+            # #1894 and #1895 moved the dashboard's CSS and its ~370-line script
+            # into public/css/app.css and public/js/app.js, and every file under
+            # public/ is now listed in package.json#files -- these are shipped
+            # surfaces with contract tests, not static decoration. Excluding them
+            # meant a PR that only changed the dashboard script satisfied the
+            # required npm test check through the NOT_APPLICABLE skip job.
+            #
             # The final `*.js` arm is what makes it fail closed: a new root
             # production file counts as runtime until someone classifies it
             # otherwise, rather than being silently exempt.
             case "$1" in
-              docs/*|specs/*|test/*|benchmarks/fixtures/*|fixtures/*|public/*|examples/*)
+              docs/*|specs/*|test/*|benchmarks/fixtures/*|fixtures/*|examples/*)
                 return 1
                 ;;
-              package.json|package-lock.json|plugins/*|lib/*|nlp/*|packages/*|migrations/*|schemas/*|adapters/*|scripts/*|benchmarks/*|bin/*)
+              public/*|package.json|package-lock.json|plugins/*|lib/*|nlp/*|packages/*|migrations/*|schemas/*|adapters/*|scripts/*|benchmarks/*|bin/*)
                 return 0
                 ;;
               */*)

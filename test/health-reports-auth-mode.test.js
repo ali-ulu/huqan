@@ -7,8 +7,12 @@ const path = require('node:path');
 
 const { createRuntimeStatusHandlers } = require('../lib/http/runtime-status');
 
+// The key field is markup, but reading the auth mode and hiding the field are
+// script -- and #1895 moved the script into public/js/app.js. Each half is read
+// from where the browser gets it.
+const { readHtml, dashboardScript } = require('./helpers/dashboard-source');
+
 const DISABLE_VAR = 'HUQAN_DISABLE_API_AUTH';
-const DASHBOARD = path.join(__dirname, '..', 'public', 'index.html');
 
 function handlers() {
   return createRuntimeStatusHandlers({
@@ -54,11 +58,12 @@ test('health never carries the configured key', () => {
 });
 
 test('the dashboard asks health for the auth mode and can hide the key field', () => {
-  const html = fs.readFileSync(DASHBOARD, 'utf8');
+  const html = readHtml();
+  const script = dashboardScript(html);
   assert.ok(html.includes('id="keyfield"'), 'the API key field needs an id so it can be hidden');
-  assert.ok(html.includes('apiAuthRequired'), 'the dashboard must read the auth mode from /health');
+  assert.ok(script.includes('apiAuthRequired'), 'the dashboard must read the auth mode from /health');
   assert.ok(
-    html.includes("$('keyfield').hidden=open"),
+    script.includes("$('keyfield').hidden=open"),
     'the dashboard must hide the key field when the server requires no auth',
   );
 });
