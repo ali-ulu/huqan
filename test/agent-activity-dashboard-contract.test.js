@@ -31,7 +31,11 @@ describe('Agent Activity dashboard contract', () => {
     assert.match(script, /workspaceId:state\.ws/);
     assert.match(script, /limit:'25'/);
     assert.match(script, /cursor/);
-    assert.match(script, /\/api\/workbench\/trust-receipt\//);
+    // #1878 moved the receipt read off the unversioned workbench route and
+    // onto the manifest's trust-receipt-detail template. The link this case
+    // is about is the same one: an activity row opens the receipt by id.
+    assert.match(script, /function openActivityReceipt\(id\)\{[^}]*\$\('emode'\)\.value='receiptId'/);
+    assert.match(script, /capability\('trust-receipt-detail'\)/);
     assert.match(script, /activity failed/);
   });
 
