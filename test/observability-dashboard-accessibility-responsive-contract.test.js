@@ -1,12 +1,18 @@
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const vm = require('node:vm');
 const test = require('node:test');
 
-const dashboard = fs.readFileSync('public/index.html', 'utf8');
-const script = dashboard.match(/<script>([\s\S]*)<\/script>/)?.[1];
+const { readHtml, dashboardStyles, dashboardScript } = require('./helpers/dashboard-source');
 
-assert.ok(script, 'dashboard inline script must exist');
+// Markup assertions read the HTML; CSS assertions read every stylesheet the page
+// applies. #1894 moved the dashboard's CSS into public/css/app.css, so matching
+// rules against the HTML string alone turned this contract red while the page
+// itself was unchanged. Where the bytes live is not part of the contract.
+const markup = readHtml();
+const dashboard = [markup, dashboardStyles(markup)].join('\n');
+const script = dashboardScript(markup);
+
+assert.ok(script.trim(), 'dashboard script must exist');
 
 test('observability dashboard accessibility and responsive contract', async t => {
   await t.test('labels the primary navigation and collapsed controls', () => {
@@ -45,7 +51,7 @@ test('observability dashboard accessibility and responsive contract', async t =>
     assert.match(dashboard, /\.footmid\{gap:8px;overflow:auto;white-space:nowrap\}/);
   });
 
-  await t.test('keeps the inline dashboard script syntactically valid', () => {
+  await t.test('keeps the dashboard script syntactically valid', () => {
     assert.doesNotThrow(() => new vm.Script(script));
   });
 });
