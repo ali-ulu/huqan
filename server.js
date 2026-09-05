@@ -334,21 +334,10 @@ const observabilityRuntime = require('./lib/observability/server-runtime').creat
   readEnvironment: readCompatibleEnvironmentVariable,
 });
 const handleObservabilityRoute = observabilityRuntime.handleRoute;
-const PUBLIC_INDEX_PATH = path.join(__dirname, 'public', 'index.html');
-// The index page is a static build artifact, so read it once and keep the bytes
-// in memory instead of doing sync I/O on every `/` request (#420).
-//
-// Cached lazily rather than at module load: server.js is required directly by
-// the test suite, and reading at load time would turn a missing/unreadable
-// public/index.html into a require-time crash instead of a 500 on `/`. A failed
-// read is not cached either, so fixing the file recovers without a restart.
-let cachedHtmlPage = null;
-function getHtmlPage() {
-  if (cachedHtmlPage === null) {
-    cachedHtmlPage = readFileSync(PUBLIC_INDEX_PATH);
-  }
-  return cachedHtmlPage;
-}
+// The index page and every asset it links are served from one declared table,
+// so extracting CSS or JS out of public/index.html cannot leave the browser with
+// a 404 the way #1894 did. See lib/http/static-assets.js.
+const { getHtmlPage, handleStaticAssetRequest } = require('./lib/http/static-assets');
 const handleAnswerRoute = require('./lib/http/answer-route').createAnswerRoute({ kernel, legacyVerify, sanitizeInput, parseJsonRequest, denyIfUnauthorized, buildCorsHeaders, JSON_CONTENT_TYPE, DEFAULT_MAX_JSON_BODY, writeJson }), handleFitnessDashboardRoute = createFitnessDashboardRoute({ kernel, writeJson, buildCorsHeaders, JSON_CONTENT_TYPE });
 const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnvironmentVariable), async (req, res) => {
   const correlation = createRequestCorrelation(req, res); try {
@@ -957,17 +946,13 @@ const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnviron
     return;
   }
 
-  // --- Ana sayfa ---
-  if (reqUrl.pathname === '/') {
-    try {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', ...buildCorsHeaders(req), 'Cache-Control': 'no-cache' });
-      res.end(getHtmlPage());
-    } catch (err) {
-      writeStructuredLog(console, 'error', 'http.index_error', correlation, { route: '/', method: req.method, errorCode: err?.code || 'INDEX_FAILED' });
-      writeJson(req, res, 500, { error: 'Internal server error' });
-    }
-    return;
-  }
+  // --- Ana sayfa ve panelin linkli statik varlıkları ---
+  // An undeclared path falls through to the generic 404 below.
+  if (handleStaticAssetRequest(req, res, reqUrl.pathname, {
+    buildCorsHeaders,
+    writeJson,
+    onError: (asset, err) => writeStructuredLog(console, 'error', 'http.static_asset_error', correlation, { route: asset.pathname, method: req.method, errorCode: err?.code || asset.logCode }),
+  })) return;
 
   res.writeHead(404, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
   res.end(JSON.stringify({ error: 'Not found' }));
