@@ -48,12 +48,23 @@ test('observability load smoke fails closed when a target is exceeded', () => {
 
 test('latency targets still fail closed, on the surface that enforces them', () => {
   const report = runLoadSmoke({ enforceTargets: false });
+  // #1869: isolate queueClaim so scheduler noise on other wall-clock
+  // surfaces (e.g. listP95Ms) cannot mask or break this contract assertion.
+  const isolated = {
+    ...DEFAULT_TARGETS.targets,
+    eventWriteP95Ms: Number.POSITIVE_INFINITY,
+    listP95Ms: Number.POSITIVE_INFINITY,
+    summaryP95Ms: Number.POSITIVE_INFINITY,
+    sseFanoutP95Ms: Number.POSITIVE_INFINITY,
+    maxQueueLagMs: Number.POSITIVE_INFINITY,
+    queueClaimP95Ms: -1,
+  };
   assert.throws(
-    () => assertTargets(report, { ...DEFAULT_TARGETS.targets, queueClaimP95Ms: -1 }),
-    /OBSERVABILITY_LOAD_TARGET_FAILED: queueClaimP95Ms=/,
+    () => assertTargets(report, isolated),
+    /OBSERVABILITY_LOAD_TARGET_FAILED:.*queueClaimP95Ms=/,
   );
   // ...and are skipped, not silently passed, when the caller opts out.
-  assertTargets(report, { ...DEFAULT_TARGETS.targets, queueClaimP95Ms: -1 }, { latency: false });
+  assertTargets(report, isolated, { latency: false });
 });
 
 test('the best-of-N run reports every attempt, and asserts on the least contended one', () => {

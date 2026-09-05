@@ -1,29 +1,15 @@
 name: External Conformance
 
 on:
+  # No `paths:` filter here. The required "Conformance Gate" context must
+  # report on every pull request: a workflow-only change would otherwise
+  # never trigger this workflow and the pull request would be wedged on
+  # "Expected -- Waiting for status" forever. The classify job below
+  # decides what actually runs; a CI-file-only change costs one cheap
+  # classify leg that reports NOT_APPLICABLE.
   pull_request:
-    paths:
-      - '**.js'
-      - '**.json'
-      - 'specs/**'
-      - 'scripts/**'
-      - 'lib/**'
-      - 'packages/**'
-      - 'package-lock.json'
-      - 'package.json'
-      - '.github/workflows/conformance.yml'
   push:
     branches: [main]
-    paths:
-      - '**.js'
-      - '**.json'
-      - 'specs/**'
-      - 'scripts/**'
-      - 'lib/**'
-      - 'packages/**'
-      - 'package-lock.json'
-      - 'package.json'
-      - '.github/workflows/conformance.yml'
   schedule:
     - cron: '0 10 * * 1'
   workflow_dispatch:
