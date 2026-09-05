@@ -6,7 +6,7 @@ const PluginManager = require('./plugin');
 const createNlp = require('./nlp');
 const VerifyService = require('./lib/verify');
 const { buildProvenance } = require('./lib/provenance-ingest');
-const { buildBackgroundProvenance, provenanceFieldsFrom, commitBackgroundEdge } = require('./lib/background-provenance');
+const { buildBackgroundProvenance, sponsorBackgroundProvenance, provenanceFieldsFrom, commitBackgroundEdge } = require('./lib/background-provenance');
 const { buildLearnAdmissionRequest } = require('./lib/learn-admission-request');
 const { evaluateMemoryAdmission } = require('./lib/memory-admission-gate');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
@@ -315,7 +315,7 @@ class Kernel {
 
     const workspaceId = normalizeWorkspaceId(opts.workspaceId || provenance?.workspaceId || 'default');
     const pluginProvenance = provenance && typeof provenance === 'object'
-      ? provenance
+      ? sponsorBackgroundProvenance(provenance, 'plugin', workspaceId)
       : buildBackgroundProvenance('plugin', workspaceId, {
         sourceType: opts.sourceType || 'plugin',
         sourceRef: opts.sourceRef || '',
