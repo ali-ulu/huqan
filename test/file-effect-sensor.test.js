@@ -328,3 +328,119 @@ test('an outcome against a receipt from before target pinning still measures', (
     cleanup();
   }
 });
+
+// ─── outcome binds to the admission it cites (#1866) ─────────────────────────
+
+function admitFileAction(dir, name, extra = {}) {
+  const file = path.join(dir, name);
+  const envelope = {
+    invocationId: `effect-bind-${Math.random().toString(36).slice(2)}`,
+    agentName: 'test-agent',
+    sessionId: 'session',
+    toolName: 'Write',
+    args: { file_path: file },
+    cwd: dir,
+    workspaceRoot: dir,
+    ...extra,
+  };
+  const writer = { append() {} };
+  const admission = evaluateExternalAction(envelope, { receiptWriter: writer });
+  const outcomeFor = (override = {}) => recordExternalActionOutcome(
+    { ...envelope, ...override }, admission.receipt, { status: 'success' }, { receiptWriter: writer },
+  ).receipt.metadata;
+  return { file, envelope, admission: admission.receipt, outcomeFor };
+}
+
+test('an outcome citing another invocation and target stays reported', () => {
+  // The issue repro: fileBefore measured A, the outcome envelope names B, and
+  // the pair must never become an `observed` verdict about either file.
+  const { dir, cleanup } = workspace();
+  try {
+    fs.writeFileSync(path.join(dir, 'a.txt'), 'original');
+    fs.writeFileSync(path.join(dir, 'b.txt'), 'different');
+    const ctx = admitFileAction(dir, 'a.txt');
+    const metadata = ctx.outcomeFor({
+      invocationId: 'different-action',
+      args: { file_path: path.join(dir, 'b.txt') },
+    });
+    assert.equal(metadata.fileEffect, null);
+    assert.equal(metadata.effectVerification, 'reported');
+    assert.equal(fs.readFileSync(path.join(dir, 'a.txt'), 'utf8'), 'original');
+  } finally {
+    cleanup();
+  }
+});
+
+test('the same invocation naming a different target stays reported', () => {
+  const { dir, cleanup } = workspace();
+  try {
+    fs.writeFileSync(path.join(dir, 'a.txt'), 'v1');
+    fs.writeFileSync(path.join(dir, 'b.txt'), 'v1');
+    const ctx = admitFileAction(dir, 'a.txt');
+    const metadata = ctx.outcomeFor({ args: { file_path: path.join(dir, 'b.txt') } });
+    assert.equal(metadata.fileEffect, null);
+    assert.equal(metadata.effectVerification, 'reported');
+  } finally {
+    cleanup();
+  }
+});
+
+test('the same target under a different invocation stays reported', () => {
+  const { dir, cleanup } = workspace();
+  try {
+    const ctx = admitFileAction(dir, 'a.txt');
+    fs.writeFileSync(ctx.file, 'v1');
+    const metadata = ctx.outcomeFor({ invocationId: 'different-action' });
+    assert.equal(metadata.fileEffect, null);
+    assert.equal(metadata.effectVerification, 'reported');
+  } finally {
+    cleanup();
+  }
+});
+
+test('the same action in a different workspace stays reported', () => {
+  const { dir, cleanup } = workspace();
+  try {
+    const ctx = admitFileAction(dir, 'a.txt');
+    fs.writeFileSync(ctx.file, 'v1');
+    const metadata = ctx.outcomeFor({ workspaceId: 'other' });
+    assert.equal(metadata.fileEffect, null);
+    assert.equal(metadata.effectVerification, 'reported');
+  } finally {
+    cleanup();
+  }
+});
+
+test('a bound outcome still observes a real change', () => {
+  // Binding must not cost the honest case: same invocation, workspace and
+  // target with a file that actually changed stays observed/modified.
+  const { dir, cleanup } = workspace();
+  try {
+    const ctx = admitFileAction(dir, 'a.txt');
+    fs.writeFileSync(ctx.file, 'v2');
+    const metadata = ctx.outcomeFor();
+    assert.equal(metadata.fileEffect.observation, EFFECT_OBSERVATIONS.CREATED);
+    assert.equal(metadata.effectVerification, 'observed');
+  } finally {
+    cleanup();
+  }
+});
+
+test('a malformed first reading measures nothing', () => {
+  const { dir, cleanup } = workspace();
+  try {
+    const ctx = admitFileAction(dir, 'a.txt');
+    fs.writeFileSync(ctx.file, 'v1');
+    const tampered = {
+      ...ctx.admission,
+      metadata: { ...ctx.admission.metadata, fileBefore: 'digested' },
+    };
+    const writer = { append() {} };
+    const metadata = recordExternalActionOutcome(ctx.envelope, tampered,
+      { status: 'success' }, { receiptWriter: writer }).receipt.metadata;
+    assert.equal(metadata.fileEffect, null);
+    assert.equal(metadata.effectVerification, 'reported');
+  } finally {
+    cleanup();
+  }
+});
