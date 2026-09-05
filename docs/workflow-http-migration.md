@@ -16,8 +16,11 @@ by `lib/http/workflow-data-routes.js`, `/api/v2/agent/plan` and
 the OpenAPI output. Invalid calls to these routes fail with 400/405-style
 workflow envelopes, not 404.
 
-None of these four is exposed in the panel UI (`availability.ui` is `false`
-for each); surfacing them in the panel is tracked separately (#1877, #1878).
+Three of these four now have a panel surface as well: `agent-plan` and
+`agent-run` through the workbench action select (#1878), and `ingest-preview`
+alongside `ingest-execute` as the two-step batch flow (#1878). `learn-review`
+is still `availability.ui = false` and reachable only over HTTP, MCP and the
+CLI; the remaining unsurfaced capabilities are tracked in #1878.
 
 The legacy `GET /api?q=...`, `POST /api/ingest`, and `GET /api/trust-receipt`
 routes remain supported in 2.x. New clients should prefer the versioned workflow

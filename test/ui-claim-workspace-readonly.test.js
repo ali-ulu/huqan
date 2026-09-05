@@ -20,10 +20,11 @@ test('UI capability manifest advertises only the implemented read workflows', ()
   // `GET /api/v2/approvals` instead of the legacy `/api/ingest/approvals`,
   // so the manifest has to advertise it as ui-available too.
   // #1878 promoted agent-plan / agent-run: the workbench action select now
-  // dispatches both through the manifest route.
+  // dispatches both through the manifest route. Then ingest-preview and
+  // ingest-execute, which give the batch flow its first panel surface.
   assert.deepEqual(enabled, [
     'ask', 'verify', 'advocate', 'approvals', 'memory-search',
-    'agent-plan', 'agent-run', 'trust-receipt',
+    'ingest-preview', 'ingest-execute', 'agent-plan', 'agent-run', 'trust-receipt',
   ]);
 });
 

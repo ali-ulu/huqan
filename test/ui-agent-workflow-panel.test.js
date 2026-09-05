@@ -63,8 +63,9 @@ test('a run that pauses, blocks, or stalls is reported as an outcome, not a fail
     ['blocked', 'partial', 'paused'],
   );
   // The guard is scoped to agent actions on an HTTP-ok response, so a real
-  // error on any other workflow still throws.
-  assert.match(page, /const soft=r\.ok&&AGENT_ACTIONS\.has\(a\)&&AGENT_SOFT_STATUS\.has\(String\(d\?\.status\|\|''\)\)/);
+  // error on any other workflow still throws. #1878 gave the ingest actions
+  // their own soft status; the agent arm of the guard is unchanged.
+  assert.match(page, /const soft=r\.ok&&\(\(AGENT_ACTIONS\.has\(a\)&&AGENT_SOFT_STATUS\.has\(st\)\)/);
   assert.match(page, /if\(!soft&&\(!r\.ok\|\|d\.ok===false\)\)throw Error/);
 });
 
@@ -87,7 +88,7 @@ test('the panel renders the steps an agent response carries', () => {
 
 test('the goal field replaces the claim field only for the agent actions', () => {
   const page = html();
-  const match = page.match(/function agentFields\(\)\{([\s\S]*?)\}function agentSteps/);
+  const match = page.match(/function agentFields\(\)\{([\s\S]*?)\}function ingestFields/);
   assert.ok(match, 'the field toggle must be present');
 
   const elements = {
@@ -114,5 +115,6 @@ test('the goal field replaces the claim field only for the agent actions', () =>
   // The step budget is hidden with el.hidden, and the page carries the
   // [hidden] rule that makes that inert-proof (see dashboard-hidden-attribute).
   assert.match(page, /id="stepsfield" hidden/);
-  assert.match(page, /\$\('action'\)\.onchange=agentFields;agentFields\(\)/);
+  // #1878 added a second field family, so the select drives both toggles.
+  assert.match(page, /function actionFields\(\)\{agentFields\(\);ingestFields\(\)\}\$\('action'\)\.onchange=actionFields;/);
 });
