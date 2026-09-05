@@ -215,6 +215,7 @@
     "lib/cli-mutation-gate.js",
     "lib/cli-trust-receipt.js",
     "lib/cli-workflow-adapter.js",
+    "lib/cli-audit.js",
     "lib/code-change-gate.js",
     "lib/code-change-path-classification.js",
     "lib/command-exec-gate.js",

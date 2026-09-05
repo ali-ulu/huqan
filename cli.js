@@ -528,7 +528,7 @@ class CLI {
           return formatCliApprovalDecision(result, approval.approvalId, opts.json);
         });
       }
-      case 'receipt': return require('./lib/cli-trust-receipt').runCliTrustReceipt(this.kernel, args, opts);
+      case 'audit': return require('./lib/cli-audit').runCliAudit(this.kernel, args, opts, { getApprovalStore: () => this._approvalRuntime().approvalStore }); case 'receipt': return require('./lib/cli-trust-receipt').runCliTrustReceipt(this.kernel, args, opts);
       case 'restore': {
         // Windows cannot rename over an open SQLite file (EPERM; rename-over-open
         // is POSIX-only) and memory.db is exactly the file restore replaces. Close
