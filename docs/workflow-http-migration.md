@@ -6,10 +6,18 @@ document at `GET /api/v2/openapi.json`. Both are public metadata endpoints and
 return `Cache-Control: no-store`.
 
 Only entries whose `availability.api` is `true` are executable over HTTP and
-only those operations appear in the OpenAPI document. In particular,
-`learn-review`, `ingest-preview`, `agent-plan`, and `agent-run` are not HTTP
-routes. Their manifest entries describe cross-surface capability gaps; clients
-must not synthesize or probe the listed route template.
+only those operations appear in the OpenAPI document. `learn-review`,
+`ingest-preview`, `agent-plan`, and `agent-run` ARE live HTTP routes: they are
+advertised with `availability.api = true` in `lib/workflow-contract.js`, they
+are handled at runtime (`/api/v2/workflows/learn` and `/api/v2/ingest/preview`
+by `lib/http/workflow-data-routes.js`, `/api/v2/agent/plan` and
+`/api/v2/agent/runs` by `lib/http/agent-workflow-routes.js`), and
+`workflowOpenApiDocument()` includes them in
+the OpenAPI output. Invalid calls to these routes fail with 400/405-style
+workflow envelopes, not 404.
+
+None of these four is exposed in the panel UI (`availability.ui` is `false`
+for each); surfacing them in the panel is tracked separately (#1877, #1878).
 
 The legacy `GET /api?q=...`, `POST /api/ingest`, and `GET /api/trust-receipt`
 routes remain supported in 2.x. New clients should prefer the versioned workflow
