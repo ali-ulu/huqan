@@ -331,3 +331,131 @@ test('executor is reachable only after approval and unknown outcome is durably r
     cleanup(dir);
   }
 });
+
+function approveCase(runtime, overrides = {}) {
+  const created = runtime.createReviewCase({ action: action(overrides), firewallDecision: 'review', requesterContext: {} });
+  assert.equal(created.ok, true);
+  const decided = runtime.decide({
+    caseId: created.case.caseId,
+    decisionType: 'approve',
+    approverContext: {},
+    reason: 'operator reviewed',
+    evidenceDigest: created.case.evidenceDigest,
+  });
+  assert.equal(decided.ok, true);
+  return created.case.caseId;
+}
+
+test('concurrent executeApproved runs the executor exactly once', async () => {
+  // Issue #1867 repro: authorization passed twice because nothing reserved the
+  // case between the check and the effect, so two concurrent calls ran two
+  // effects while the second outcome merely replayed.
+  const { runtime, dir } = fixture();
+  try {
+    const caseId = approveCase(runtime);
+    let calls = 0;
+    const execute = () => runtime.executeApproved({
+      caseId,
+      action: action(),
+      requesterContext: {},
+      executor: async () => {
+        calls += 1;
+        await new Promise(resolve => setImmediate(resolve));
+        return { ok: true };
+      },
+    });
+    const results = await Promise.all([execute(), execute()]);
+    assert.equal(calls, 1, 'the executor must run at most once per case');
+    assert.equal(results.filter(result => result.ok).length, 1);
+    assert.equal(results.filter(result => !result.ok).length, 1);
+    assert.equal(results.find(result => !result.ok).reason, RUNTIME_REASONS.APPROVAL_REQUIRED);
+    assert.equal(runtime.getReviewCase(caseId).case.status, 'executed');
+    const third = await execute();
+    assert.equal(third.ok, false, 'a completed execution stays single');
+    assert.equal(calls, 1);
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('the reservation is visible mid-flight and never auto-retries', async () => {
+  const { runtime, dir } = fixture();
+  try {
+    const caseId = approveCase(runtime);
+    let seenDuringExecution = '';
+    const result = await runtime.executeApproved({
+      caseId,
+      action: action(),
+      requesterContext: {},
+      executor: async () => {
+        seenDuringExecution = runtime.getReviewCase(caseId).case.status;
+        return { ok: true };
+      },
+    });
+    assert.equal(result.ok, true);
+    assert.equal(seenDuringExecution, 'executing', 'the claim is committed before the effect runs');
+    assert.equal(runtime.getReviewCase(caseId).case.status, 'executed');
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('an unknown outcome from an executing case reconciles without re-running', async () => {
+  // The throw path records `unknown` from `executing` exactly as it did from
+  // `approved`: visible for manual reconciliation, never an automatic retry.
+  const { runtime, dir } = fixture();
+  try {
+    const caseId = approveCase(runtime);
+    let calls = 0;
+    const result = await runtime.executeApproved({
+      caseId,
+      action: action(),
+      requesterContext: {},
+      executor: async () => {
+        calls += 1;
+        throw new Error('executor crashed mid-effect');
+      },
+    });
+    assert.equal(calls, 1);
+    assert.equal(result.ok, false);
+    assert.equal(result.reason, RUNTIME_REASONS.EXECUTION_RECONCILIATION_REQUIRED);
+    assert.equal(result.execution.execution.outcome, 'unknown');
+    assert.equal(runtime.getReviewCase(caseId).case.status, 'reconciliation_required');
+    const retry = await runtime.executeApproved({
+      caseId,
+      action: action(),
+      requesterContext: {},
+      executor: async () => { calls += 1; return { ok: true }; },
+    });
+    assert.equal(retry.ok, false, 'unknown outcomes never re-run automatically');
+    assert.equal(calls, 1);
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('a stuck executing case accepts an explicit reconciling outcome', async () => {
+  // A crash between claim and outcome leaves `executing`, which authorizes
+  // nothing -- but an operator can still record what actually happened.
+  const { runtime, dir } = fixture();
+  try {
+    const caseId = approveCase(runtime);
+    let release;
+    const gate = new Promise(resolve => { release = resolve; });
+    const pending = runtime.executeApproved({
+      caseId,
+      action: action(),
+      requesterContext: {},
+      executor: () => gate.then(() => ({ ok: false })),
+    });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(runtime.getReviewCase(caseId).case.status, 'executing');
+    const reconciled = runtime.recordExecutionOutcome({ caseId, outcome: 'failed', reason: 'operator confirmed no effect' });
+    assert.equal(reconciled.ok, true);
+    release();
+    const finished = await pending;
+    assert.equal(finished.execution.case.status, 'approved');
+  } finally {
+    cleanup(dir);
+  }
+});
