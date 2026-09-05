@@ -47,7 +47,7 @@ test('audit report carries all three articles with bounded evidence', () => {
   assert.equal(report.schemaVersion, 'huqan-audit-report-v1');
   assert.equal(report.framework, 'eu-ai-act');
   assert.ok(report.generatedAt);
-  assert.deepEqual(Object.keys(report.articles), ['art12_record_keeping', 'art13_transparency', 'art14_human_oversight']);
+  assert.deepEqual(Object.keys(report.articles), ['art12_record_keeping', 'art13_transparency', 'art14_human_oversight', 'trust_score']);
   assert.equal(report.articles.art12_record_keeping.evidence.auditEventsTotal, 7);
   assert.equal(report.articles.art12_record_keeping.evidence.graphNodes, 3);
   assert.ok(Array.isArray(report.limitations) && report.limitations.length > 0);
