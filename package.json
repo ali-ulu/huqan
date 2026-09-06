@@ -465,6 +465,7 @@
     "lib/risk-policy-constants.js",
     "lib/risk-rules.js",
     "lib/safe-file-walk.js",
+    "lib/sandbox-escape-ledger.js",
     "lib/sandbox-isolation.js",
     "lib/sandbox-path-containment.js",
     "lib/sandbox-timeout-policy.js",
