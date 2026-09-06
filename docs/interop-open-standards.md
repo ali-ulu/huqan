@@ -27,6 +27,23 @@ A standard `Ed25519Signature2020` proof is never emitted. Verification always
 re-enters the HUQAN import path (checksum, independent receipt/bundle
 binding, trusted key resolution).
 
+Tamper evidence: the mapping refuses material it cannot vouch for, raising
+`VC_TAMPERED` — a code kept distinct from `VC_INVALID_*` because the document
+is well formed, which is what makes it dangerous.
+
+- **A receipt edited behind its own checksum** is structurally perfect, so
+  shape checks alone would let the envelope launder it into standard tooling.
+  The receipt checksum is verified in both directions.
+- **An edited `credentialSubject` beside an untouched `evidence` receipt**
+  produces a credential that verifies and lies at the same time: read the
+  subject and you see one verdict, re-run the import path and you see another.
+  The evidence receipt is authoritative, divergence is refused, and the error
+  names the field that diverged so an auditor learns what was changed rather
+  than only that something was.
+
+The checksum is keyless. It catches corruption and casual edits, not an editor
+who recomputes it; authenticity still rests on the signature check.
+
 ## OpenTelemetry traces (`lib/interop/otel-mapping.js`)
 
 | HUQAN field | OTel span field |
