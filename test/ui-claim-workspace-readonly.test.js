@@ -23,11 +23,14 @@ test('UI capability manifest advertises only the implemented read workflows', ()
   // dispatches both through the manifest route. Then ingest-preview and
   // ingest-execute, which give the batch flow its first panel surface. Then
   // trust-receipt-detail, which the Evidence panel reads by id through its
-  // route template instead of the unversioned workbench route.
+  // route template instead of the unversioned workbench route. Then
+  // approval-detail: the queue could show only sourceRef and status, so a
+  // reviewer approved without seeing the tool, its input, or the policy that
+  // demanded the approval.
   assert.deepEqual(enabled, [
-    'ask', 'verify', 'advocate', 'approvals', 'approval-decision', 'memory-search',
-    'ingest-preview', 'ingest-execute', 'agent-plan', 'agent-run', 'trust-receipt',
-    'trust-receipt-detail',
+    'ask', 'verify', 'advocate', 'approvals', 'approval-detail', 'approval-decision',
+    'memory-search', 'ingest-preview', 'ingest-execute', 'agent-plan', 'agent-run',
+    'trust-receipt', 'trust-receipt-detail',
   ]);
 });
 
