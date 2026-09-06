@@ -106,6 +106,7 @@ const CLASSIFIED = Object.freeze({
   'persistencePaths.js': Object.freeze({ role: 'persistence', why: 'resolves and creates the product state directories on startup; the paths come from config and platform defaults, never from a request' }),
   'lib/a2a/replay-store.js': Object.freeze({ role: 'persistence', why: 'the A2A replay reservation store; its durability is what makes at-most-once delivery hold across a restart' }),
   'lib/a2a/task-store.js': Object.freeze({ role: 'persistence', why: 'the A2A task store backing at-most-once delivery, under the configured replay directory' }),
+  'lib/a2a/delegation-audit-log.js': Object.freeze({ role: 'persistence', why: 'the A2A delegation audit trail, under the same configured replay directory; one exclusive-create file per exchange, and every write failure is swallowed so recording can never refuse a delegation' }),
   'lib/registry/registry-record-store.js': Object.freeze({ role: 'persistence', why: 'the trust registry record store, under the resolved registry directory' }),
   'lib/github-app-beta-store.js': Object.freeze({ role: 'persistence', why: 'the GitHub App beta store, at HUQAN_GITHUB_APP_STORE_PATH; written only on the deployment-gated beta path' }),
   'lib/github-app-streaming-trust-store.js': Object.freeze({ role: 'persistence', why: 'the streaming trust store, at a configured path and only when the streaming-trust flag is enabled' }),
