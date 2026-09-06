@@ -90,11 +90,8 @@
   button.dataset.v = 'ingest-run';
   button.setAttribute('aria-label', 'Ingest Runs');
   button.innerHTML = '<i class="ico" aria-hidden="true">↻</i><span class="copy"><b>Ingest Runs</b><span>Progress & Receipts</span></span>';
-  nav.insertBefore(button, approvals);
-  button.onclick = () => {
-    document.querySelectorAll('.nav button').forEach(item => item.classList.toggle('active', item === button));
-    document.querySelectorAll('.view').forEach(view => view.classList.toggle('active', view.id === 'v-ingest-run'));
-  };
+  approvals.parentElement.insertBefore(button, approvals);
+  button.onclick = () => window.go('ingest-run');
 
   byId('ingestrunload').onclick = loadRun;
   byId('ingestrunid').onkeydown = event => { if (event.key === 'Enter') loadRun(); };
