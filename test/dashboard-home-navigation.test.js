@@ -32,3 +32,14 @@ test('home and navigation become compact below 900px', () => {
   assert.match(styles, /\.homehero\{[^}]*display:flex/);
   assert.match(styles, /@media\(max-width:900px\)[\s\S]*\.homehero\{[^}]*flex-direction:column/);
 });
+test('home hardens for 320px-768px viewports', () => {
+  const styles = dashboardStyles();
+  assert.match(styles, /@media\(max-width:768px\)/);
+  assert.match(styles, /.homehero{padding:18px;gap:20px}/);
+  assert.match(styles, /@media\(max-width:375px\)/);
+  assert.match(styles, /.homehero{padding:14px;gap:14px}/);
+  assert.match(styles, /@media\(max-width:320px\)/);
+  assert.match(styles, /.homehero{padding:12px;gap:10px}/);
+  assert.match(styles, /.footbrand{overflow:hidden;text-overflow:ellipsis;white-space:nowrap/);
+});
+

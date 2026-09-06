@@ -36,11 +36,11 @@ test('observability dashboard accessibility and responsive contract', async t =>
     assert.match(dashboard, /@media\(max-width:600px\)/);
     assert.match(dashboard, /\.head\{flex-direction:column;align-items:stretch\}/);
     assert.match(dashboard, /\.activityfilters\{grid-template-columns:1fr\}/);
-    assert.match(dashboard, /\.activityfilters>\.btn\{width:100%;min-height:40px\}/);
+    assert.match(dashboard, /\.activityfilters>\.btn\{width:100%;min-height:44px\}/);
     assert.match(dashboard, /\.twocol\{grid-template-columns:1fr\}/);
     assert.match(dashboard, /\.toollegend\{grid-template-columns:1fr;width:100%\}/);
     assert.match(dashboard, /\.nav button\{min-height:52px\}/);
-    assert.match(dashboard, /\.btn\{min-height:40px\}/);
+    assert.match(dashboard, /\.btn\{min-height:44px\}/);
     assert.match(dashboard, /\.footer\{grid-template-columns:72px 1fr;min-height:48px\}/);
   });
 
