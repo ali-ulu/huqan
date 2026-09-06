@@ -30,6 +30,7 @@ test('UI capability manifest advertises only the implemented read workflows', ()
   assert.deepEqual(enabled, [
     'ask', 'verify', 'advocate', 'learn-review', 'approvals', 'approval-detail',
     'approval-decision', 'memory-search', 'ingest-preview', 'ingest-execute',
+    'ingest-run-detail',
     'agent-plan', 'agent-run', 'trust-receipt', 'trust-receipt-detail',
   ]);
 });
