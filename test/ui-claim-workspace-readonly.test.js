@@ -25,7 +25,7 @@ test('UI capability manifest advertises only the implemented read workflows', ()
   // trust-receipt-detail, which the Evidence panel reads by id through its
   // route template instead of the unversioned workbench route.
   assert.deepEqual(enabled, [
-    'ask', 'verify', 'advocate', 'approvals', 'memory-search',
+    'ask', 'verify', 'advocate', 'approvals', 'approval-decision', 'memory-search',
     'ingest-preview', 'ingest-execute', 'agent-plan', 'agent-run', 'trust-receipt',
     'trust-receipt-detail',
   ]);
@@ -163,7 +163,12 @@ test('Claim Workspace browser script compiles and wires unknown-to-review throug
   assert.match(script, /d\.data\.approvals/);
   assert.match(script, /state\.approvals=readApprovals\(d\)/);
   assert.match(script, /await refresh\(\);const failed=/);
-  assert.match(script, /`\/api\/ingest\/approvals\/\$\{encodeURIComponent\(id\)\}`/);
+  // #1878: decisions now use the advertised v2 route template and its nested
+  // response projection; the panel no longer posts through the legacy alias.
+  assert.match(script, /const c=capability\('approval-decision'\)/);
+  assert.match(script, /const path=routeFor\(c,\{id\}\)/);
+  assert.match(script, /const approval=d\.data\?\.approval/);
+  assert.doesNotMatch(script, /`\/api\/ingest\/approvals\/\$\{encodeURIComponent\(id\)\}`/);
 });
 
 test('Approval rows keep their source labels after the v2 envelope migration (#1877)', () => {
