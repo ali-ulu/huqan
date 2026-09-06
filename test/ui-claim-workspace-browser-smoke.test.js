@@ -162,6 +162,45 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     assert.ok(enabled.length > 0, 'no action was enabled by the manifest');
   });
 
+  it('opens each primary home action and exposes the active navigation page', async () => {
+    for (const [label, view] of [['Verify a claim', 'verify'], ['Review decisions', 'approvals'], ['Inspect evidence', 'evidence']]) {
+      await browser.evaluate(`document.querySelector('[data-v="overview"]').click(); true;`);
+      await browser.evaluate(`document.querySelector('[data-go="${view}"]').click(); true;`);
+      const state = await browser.evaluate(`({
+        viewActive: document.getElementById('v-${view}').classList.contains('active'),
+        current: document.querySelector('[data-v="${view}"]').getAttribute('aria-current'),
+        heroHidden: document.getElementById('homehero').hidden,
+      })`);
+      assert.deepEqual(state, { viewActive: true, current: 'page', heroHidden: true }, label);
+    }
+    await browser.evaluate(`document.querySelector('[data-v="overview"]').click(); true;`);
+    const programmatic = await browser.evaluate(`
+      go('activity');
+      ({
+        viewActive: document.getElementById('v-activity').classList.contains('active'),
+        current: document.querySelector('[data-v="activity"]').getAttribute('aria-current'),
+        heroHidden: document.getElementById('homehero').hidden,
+      })
+    `);
+    assert.deepEqual(programmatic, { viewActive: true, current: 'page', heroHidden: true });
+    const ingestRun = await browser.evaluate(`
+      document.querySelector('[data-v="ingest-run"]').click();
+      ({
+        viewActive: document.getElementById('v-ingest-run').classList.contains('active'),
+        current: document.querySelector('[data-v="ingest-run"]').getAttribute('aria-current'),
+        currentCount: document.querySelectorAll('.nav [aria-current="page"]').length,
+      })
+    `);
+    assert.deepEqual(ingestRun, { viewActive: true, current: 'page', currentCount: 1 });
+    await browser.evaluate(`go('overview'); true;`);
+    const homeLayout = await browser.evaluate(`({
+      heroParent: document.getElementById('homehero').parentElement.id,
+      scrollable: document.getElementById('v-overview').scrollHeight >= document.getElementById('v-overview').clientHeight,
+      overflowY: getComputedStyle(document.getElementById('v-overview')).overflowY,
+    })`);
+    assert.deepEqual(homeLayout, { heroParent: 'v-overview', scrollable: true, overflowY: 'auto' });
+  });
+
   it('shows auth-required states instead of generic errors without a session key', async () => {
     // #1821/#1835 made the default workspace's graph readable without a key,
     // matching the public `/graph-data` backend contract. So "unauthenticated"
