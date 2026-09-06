@@ -10,12 +10,15 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const {
   VC_CONTEXT_V2,
   HUQAN_CONTEXT_V1,
   HUQAN_CREDENTIAL_TYPE,
   HUQAN_SIGNED_PROJECTION,
+  DISCLOSURE_KEYS,
   VC_ERRORS,
   publicReceiptToCredential,
   credentialToPublicReceipt,
@@ -120,6 +123,29 @@ test('vc mapping refuses leaky or malformed inputs', () => {
   const { evidence, ...noEvidence } = full;
   assert.equal(evidence.length, 1);
   assert.throws(() => credentialToPublicReceipt(noEvidence), /evidence/);
+});
+
+test('the @context names an artifact this repo actually publishes', () => {
+  // A dangling @context is worse than none: the envelope claims term
+  // definitions a JSON-LD processor cannot fetch, so consumers either fail or
+  // silently drop the terms. The URL must resolve to a published file, and
+  // this test fails the moment the constant and the publication surface part
+  // company.
+  const base = 'https://huqan.dev/specs/huqan-trust-protocol/0.2/contexts/';
+  assert.ok(HUQAN_CONTEXT_V1.startsWith(base), 'context must live in the canonical surface');
+  const published = path.join(
+    __dirname, '..', 'specs', 'huqan-trust-protocol', '0.2', 'contexts',
+    HUQAN_CONTEXT_V1.slice(base.length),
+  );
+  const context = JSON.parse(fs.readFileSync(published, 'utf8'));
+  // Every type the envelope emits must be defined, or the terms are decorative.
+  for (const term of ['HuqanTrustCredential', 'HuqanPublicReceipt', 'HuqanEd25519Signature2020']) {
+    assert.ok(Object.hasOwn(context['@context'], term), `context must define ${term}`);
+  }
+  const subjectTerms = Object.keys(context['@context'].HuqanTrustCredential['@context']);
+  for (const field of DISCLOSURE_KEYS) {
+    assert.ok(subjectTerms.includes(field), `context must define credentialSubject.${field}`);
+  }
 });
 
 test('a receipt edited behind its own checksum cannot become a credential', () => {

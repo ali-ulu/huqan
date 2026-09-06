@@ -18,6 +18,14 @@ const PUBLISHED_JSON = Object.freeze([
   'agent-identity.schema.json',
 ]);
 
+// Published beside the schemas, deliberately NOT inside the RFC-002 schema
+// manifest: a JSON-LD context is not a schema, and both guards over that
+// manifest (this file and scripts/external-conformance/consumer.js) are
+// entitled to keep rejecting anything else that appears in schemas/.
+const PUBLISHED_CONTEXTS = Object.freeze([
+  'trust-receipt-credential-context.json',
+]);
+
 function packageFiles() {
   return JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).files;
 }
@@ -26,6 +34,19 @@ test('M3 canonical publication has the exact literal JSON manifest', () => {
   const actual = fs.readdirSync(path.join(CANONICAL, 'schemas'))
     .filter((name) => name.endsWith('.json')).sort();
   assert.deepStrictEqual(actual, [...PUBLISHED_JSON].sort());
+});
+
+test('M3 canonical contexts carry the exact literal manifest', () => {
+  const actual = fs.readdirSync(path.join(CANONICAL, 'contexts'))
+    .filter((name) => name.endsWith('.json')).sort();
+  assert.deepStrictEqual(actual, [...PUBLISHED_CONTEXTS].sort());
+  const files = packageFiles();
+  for (const name of PUBLISHED_CONTEXTS) {
+    assert.ok(
+      files.includes(`specs/huqan-trust-protocol/0.2/contexts/${name}`),
+      `missing package entry for context: ${name}`,
+    );
+  }
 });
 
 test('M3 canonical JSON and working mirrors are byte-identical', () => {
