@@ -474,6 +474,7 @@
     "lib/secret-patterns.js",
     "lib/self-healer/behavioral-containment.js",
     "lib/post-action-monitor.js",
+    "lib/plugin-provenance-registry.js",
     "lib/self-healer/dryrun-runner.js",
     "lib/self-healer/audit-runner.js",
     "lib/self-healer/finding-classifier.js",
