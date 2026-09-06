@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="{{LOCALE}}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title data-i18n="app.title">HUQAN — Trust Command Center</title>
+<meta name="theme-color" content="#1688ff">
+<link rel="manifest" href="/manifest.json">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; worker-src 'self' blob:">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="app">
+<header class="top">
+  <div class="brand">
+    <div class="mark"><i></i></div>
+    <div><b>HUQAN</b><small data-i18n="app.subtitle">Trust Command Center</small></div>
+  </div>
+  <div class="topmid">
+    <div class="online">
+      <i class="dot" id="sysdot"></i>
+      <span data-i18n="header.systemStatus">System Status</span>
+      <b id="sys" data-i18n="status.checking">CHECKING</b>
+    </div>
+    <div class="search">
+      <span>⌕</span>
+      <input id="search"
+        data-i18n-attr="aria-label:header.searchLabel,placeholder:header.searchPlaceholder"
+        aria-label="Search receipts, claims, and sources"
+        placeholder="Search: receipt ID, claim, source…">
+    </div>
+  </div>
+  <div class="topright">
+    <div class="meta">NODE<b id="node">HUQAN LOCAL</b></div>
+    <div class="meta">TIME<b id="clock">--:--:--</b></div>
+    <div class="avatar" aria-hidden="true">H</div>
+    <div class="meta">
+      <select id="locale-selector">
+        <option value="tr">Türkçe</option>
+        <option value="en">English</option>
+      </select>
+    </div>
+  </div>
+</header>
+<aside class="side">
+  <nav class="nav" aria-label="Primary navigation">
+    <button class="active" data-v="overview" aria-label="Overview">
+      <i class="ico">⌂</i>
+      <span class="copy">
+        <b data-i18n="nav.overview">Overview</b>
+        <span data-i18n="nav.overviewDesc">Command Center</span>
+      </span>
+    </button>
+    <button data-v="verify" aria-label="Verify">
+      <i class="ico">✓</i>
+      <span class="copy">
+        <b data-i18n="nav.verify">Verify</b>
+        <span data-i18n="nav.verifyDesc">Claim Verification</span>
+      </span>
+    </button>
+    <button data-v="approvals" aria-label="Approvals">
+      <i class="ico">⇄</i>
+      <span class="copy">
+        <b data-i18n="nav.approvals">Approvals</b>
+        <span data-i18n="nav.approvalsDesc">Review & Decisions</span>
+      </span>
+      <span class="count" id="acount">0</span>
+    </button>
+    <button data-v="evidence" aria-label="Evidence">
+      <i class="ico">▤</i>
+      <span class="copy">
+        <b data-i18n="nav.evidence">Evidence</b>
+        <span data-i18n="nav.evidenceDesc">Trust Receipts</span>
+      </span>
+    </button>
+    <button data-v="observability" aria-label="Observability">
+      <i class="ico">◉</i>
+      <span class="copy">
+        <b data-i18n="nav.observability">Observability</b>
+        <span data-i18n="nav.observabilityDesc">Agent Telemetry</span>
+      </span>
+      <span class="count" id="obsalertcount">0</span>
+    </button>
+    <button data-v="activity" aria-label="Activity">
+      <i class="ico">◌</i>
+      <span class="copy">
+        <b data-i18n="nav.activity">Activity</b>
+        <span data-i18n="nav.activityDesc">Agent Audit Trail</span>
+      </span>
+      <span class="count" id="activitycount">0</span>
+    </button>
+    <button data-v="graph" aria-label="Graph">
+      <i class="ico">⌘</i>
+      <span class="copy">
+        <b data-i18n="nav.graph">Graph</b>
+        <span data-i18n="nav.graphDesc">Trust Network</span>
+      </span>
+    </button>
+    <button data-v="conflicts" aria-label="Conflicts">
+      <i class="ico">△</i>
+      <span class="copy">
+        <b data-i18n="nav.conflicts">Conflicts</b>
+        <span data-i18n="nav.conflictsDesc">Issue Detection</span>
+      </span>
+      <span class="count" id="ccount">0</span>
+    </button>
+    <button data-v="integrations" aria-label="Integrations">
+      <i class="ico">◎</i>
+      <span class="copy">
+        <b data-i18n="nav.integrations">Integrations</b>
+        <span data-i18n="nav.integrationsDesc">Runtime Surfaces</span>
+      </span>
+    </button>
+    <button data-v="settings" aria-label="Settings">
+      <i class="ico">⚙</i>
+      <span class="copy">
+        <b data-i18n="nav.settings">Settings</b>
+        <span data-i18n="nav.settingsDesc">Local Session</span>
+      </span>
+    </button>
+  </nav>
+  <div class="grow"></div>
+  <div class="secure">
+    <b data-i18n="secure.title">SECURE CHANNEL</b>
+    <span id="securetxt" data-i18n="secure.apiKeyRequired">API key required</span>
+    <div class="meter" role="img" aria-label="Secure channel not connected">
+      <i id="securemeter"></i>
+    </div>
+  </div>
+</aside>
+<main class="main">
+  <section class="view active" id="v-overview">
+    <div class="head">
+      <div>
+        <div class="eyebrow" data-i18n="overview.eyebrow">HUQAN Runtime</div>
+        <h1 data-i18n="overview.title">Trust Command Center</h1>
+        <p data-i18n="overview.description">Real runtime surfaces, evidence flow, and trust infrastructure in one command center.</p>
+      </div>
+      <button class="btn" id="refresh" data-i18n="overview.refresh">↻ Refresh</button>
+    </div>
+    <div class="overview">
+      <div class="left">
+        <div class="metrics">
+          <div class="metric">
+            <label data-i18n="overview.metrics.graphNodes">Graph Nodes</label>
+            <strong id="mnodes">—</strong>
+            <span data-i18n="overview.metrics.graphNodesDesc">live graph-data</span>
+          </div>
+          <div class="metric">
+            <label data-i18n="overview.metrics.relations">Relations</label>
+            <strong id="medges">—</strong>
+            <span data-i18n="overview.metrics.relationsDesc">source-backed graph</span>
+          </div>
+          <div class="metric">
+            <label data-i18n="overview.metrics.pendingReview">Pending Review</label>
+            <strong id="mapprovals">—</strong>
+            <span data-i18n="overview.metrics.pendingReviewDesc">human approval queue</span>
+          </div>
+          <div class="metric">
+            <label data-i18n="overview.metrics.kernel">Kernel</label>
+            <strong id="mkernel">—</strong>
+            <span id="mversion" data-i18n="overview.metrics.version">version —</span>
+          </div>
+        </div>
+        <div class="mesh">
+          <div class="meshtitle">
+            <b data-i18n="overview.mesh.title">GLOBAL TRUST NETWORK</b>
+            <span id="meshsub" data-i18n="overview.mesh.subtitle">Loading graph data…</span>
+          </div>
+          <div id="meshstate" class="empty" hidden></div>
+          <svg class="lines" id="lines" viewBox="0 0 900 388" preserveAspectRatio="none"></svg>
+          <div class="stage" id="meshstage">
+            <div class="floor"></div>
+            <div class="ring r1"></div>
+            <div class="ring r2"></div>
+            <div class="orb"><i class="core"></i><i class="scan"></i></div>
+          </div>
+          <div id="sats"></div>
+          <div class="meshbadge">
+            <b id="meshbadgestate" data-i18n="overview.mesh.badgeState">● CHECKING</b>
+            <span id="meshbadge" data-i18n="overview.mesh.badgeDesc">runtime sync</span>
+          </div>
+        </div>
+        <div class="twocol">
+          <div class="panel">
+            <div class="ph">
+              <b data-i18n="overview.activeNodes.title">ACTIVE GRAPH NODES</b>
+              <button class="btn" data-go="graph" data-i18n="overview.activeNodes.viewAll">View all</button>
+            </div>
+            <div class="pb">
+              <div class="chips" id="chips">
+                <div class="empty" data-i18n="overview.activeNodes.empty">Waiting for graph data.</div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="ph">
+              <b data-i18n="overview.health.title">SYSTEM HEALTH</b>
+              <span class="state" id="healthsum" data-i18n="status.checking">CHECKING</span>
+            </div>
+            <div class="pb">
+              <div class="health" id="health"></div>
+            </div>
+          </div>
+        </div>
+        <div class="panel activitypulse" id="activitypulse" aria-labelledby="activitypulse-title">
+          <div class="ph">
+            <b id="activitypulse-title" data-i18n="overview.activityPulse.title">AGENT ACTIVITY</b>
+            <span class="state" id="activitypulse-state" data-i18n="overview.activityPulse.empty">Waiting for agent activity.</span>
+          </div>
+          <div class="pb">
+            <div class="activity" id="activitybody">
+              <div class="empty" data-i18n="overview.activityPulse.empty">Waiting for agent activity.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="right">
+        <div class="panel"><div class="ph"><b data-i18n="evidence.title">TRUST RECEIPT EXPLORER</b><small data-i18n="evidence.lookup.subtitle">read-only</small></div><div class="pb"><div class="field"><label data-i18n="evidence.lookup.modeLabel">Lookup Mode</label><select id="emode"><option value="targetId">targetId</option><option value="receiptId">receiptId</option><option value="sourceRef">sourceRef</option><option value="provenanceId">provenanceId</option></select></div><div class="field"><label data-i18n="evidence.lookup.inputLabel">Receipt / Source</label><input id="einput" data-i18n-attr="placeholder:evidence.lookup.inputPlaceholder" placeholder="receipt ID or sourceRef"></div><button class="btn primary" id="eload" data-i18n="evidence.lookup.loadBtn">Load evidence</button><div class="status" id="estatus" data-i18n="evidence.lookup.status">Waiting for query.</div><dl class="kv" id="summary"><dt data-i18n="evidence.lookup.summary.status">Status</dt><dd>—</dd></dl></div></div><div class="panel"><div class="ph"><b data-i18n="evidence.raw.title">RAW RECEIPT</b><small data-i18n="evidence.raw.subtitle">immutable read view</small></div><div class="pb"><pre class="json" id="raw" data-i18n="evidence.raw.empty">Query a receipt.</pre></div></div></div>
+      </div>
+    </div>
+  </section>
+  <section class="view" id="v-verify">
+    <div class="head">
+      <div>
+        <div class="eyebrow" data-i18n="verify.eyebrow">Verification</div>
+        <h1 data-i18n="verify.title">Claim Verification</h1>
+        <p data-i18n="verify.description">Run verify, ask, advocate, or memory search via the current workflow contract.</p>
+      </div>
+      <span class="state" id="wstate" data-i18n="verify.workflowState">LOADING</span>
+    </div>
+    <div class="work">
+      <div class="panel">
+        <div class="ph">
+          <b data-i18n="verify.console.title">VERIFICATION CONSOLE</b>
+          <small id="wcontract" data-i18n="verify.console.contract">loading manifest</small>
+        </div>
+        <div class="pb">
+          <div class="field">
+            <label data-i18n="verify.form.workflowLabel">Workflow</label>
+            <select id="action">
+              <option value="verify" data-i18n="verify.form.workflows.verify">Verify</option>
+              <option value="ask" data-i18n="verify.form.workflows.ask">Ask</option>
+              <option value="advocate" data-i18n="verify.form.workflows.advocate">Advocate</option>
+              <option value="memory-search" data-i18n="verify.form.workflows.memorySearch">Memory Search</option>
+              <option value="agent-plan" data-i18n="verify.form.workflows.agentPlan">Agent Plan</option>
+              <option value="agent-run" data-i18n="verify.form.workflows.agentRun">Agent Run</option>
+            </select>
+          </div>
+          <div class="field">
+            <label id="promptlabel" data-i18n="verify.form.promptLabel">Claim / Query</label>
+            <textarea id="prompt" data-i18n-attr="placeholder:verify.form.promptPlaceholder" placeholder="Enter a claim or question to verify…"></textarea>
+          </div>
+          <div class="field" id="stepsfield" hidden>
+            <label for="maxsteps" data-i18n="verify.form.stepsLabel">Step budget</label>
+            <select id="maxsteps">
+              <option value="1" data-i18n="verify.form.steps.1">1 step</option>
+              <option value="2" data-i18n="verify.form.steps.2">2 steps</option>
+              <option value="4" selected data-i18n="verify.form.steps.4">4 steps (default)</option>
+              <option value="6" data-i18n="verify.form.steps.6">6 steps</option>
+              <option value="8" data-i18n="verify.form.steps.8">8 steps (max)</option>
+            </select>
+          </div>
+          <div class="actions">
+            <button class="btn primary" id="run" data-i18n="verify.form.actions.run">Run</button>
+            <button class="btn" id="filebtn" data-i18n="verify.form.actions.fileBtn">Choose file</button>
+            <input type="file" id="file" accept=".txt,.md,text/plain,text/markdown" hidden>
+            <button class="btn" id="review" disabled data-i18n="verify.form.actions.review">Send for review</button>
+          </div>
+          <div class="status" id="vstatus" data-i18n="verify.form.status">Waiting for manifest.</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph">
+          <b data-i18n="verify.result.title">VERIFICATION RESULT</b>
+          <small data-i18n="verify.result.subtitle">source-backed response</small>
+        </div>
+        <div class="pb" id="result">
+          <div class="empty" data-i18n="verify.result.empty">No query run yet.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="view" id="v-approvals">
+    <div class="head">
+      <div>
+        <div class="eyebrow" data-i18n="approvals.eyebrow">Human Review</div>
+        <h1 data-i18n="approvals.title">Approval Queue</h1>
+        <p data-i18n="approvals.description">Resolve pending ingest candidates through the real approval endpoint.</p>
+      </div>
+      <button class="btn" id="arefresh" data-i18n="approvals.refresh">↻ Refresh</button>
+    </div>
+    <div class="panel">
+      <div class="ph">
+        <b data-i18n="approvals.pending.title">PENDING APPROVALS</b>
+        <small id="ahead" data-i18n="approvals.pending.subtitle">loading</small>
+      </div>
+      <div class="pb">
+        <div class="list" id="alist">
+          <div class="empty" data-i18n="approvals.pending.empty">Loading queue.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="view" id="v-observability">
+    <div class="head">
+      <div>
+        <div class="eyebrow" data-i18n="observability.eyebrow">Agent Telemetry</div>
+        <h1 data-i18n="observability.title">Observability & Queue</h1>
+        <p data-i18n="observability.description">Live event stream, persistent run history, performance metrics, alert rules, and a guarded agent queue.</p>
+      </div>
+      <div class="actions">
+        <label class="windowfilter" for="obswindow" data-i18n="observability.windowFilter">Time window</label>
+        <select id="obswindow">
+          <option value="3600000" data-i18n="observability.windows.1h">Last hour</option>
+          <option value="86400000" selected data-i18n="observability.windows.24h">Last 24 hours</option>
+          <option value="604800000" data-i18n="observability.windows.7d">Last 7 days</option>
+          <option value="2678400000" data-i18n="observability.windows.31d">Last 31 days</option>
+        </select>
+        <button class="btn" id="obsrefresh" data-i18n="observability.refresh">↻ Refresh</button>
+      </div>
+    </div>
+    <div class="metrics">
+      <div class="metric">
+        <label data-i18n="observability.metrics.totalRuns">Total Runs</label>
+        <strong id="obstotal">—</strong>
+        <span data-i18n="observability.metrics.totalRunsDesc">selected window</span>
+      </div>
+      <div class="metric">
+        <label data-i18n="observability.metrics.successRate">Success Rate</label>
+        <strong id="obssuccess">—</strong>
+        <span data-i18n="observability.metrics.successRateDesc">terminal runs</span>
+      </div>
+      <div class="metric">
+        <label data-i18n="observability.metrics.p95Latency">P95 Latency</label>
+        <strong id="obslatency">—</strong>
+        <span data-i18n="observability.metrics.p95LatencyDesc">milliseconds</span>
+      </div>
+      <div class="metric">
+        <label data-i18n="observability.metrics.tokens">Tokens</label>
+        <strong id="obstokens">—</strong>
+        <span data-i18n="observability.metrics.tokensDesc">reported when unavailable</span>
+      </div>
+      <div class="metric">
+        <label data-i18n="observability.metrics.cost">Cost</label>
+        <strong id="obscost">—</strong>
+        <span data-i18n="observability.metrics.costDesc">configured rate</span>
+      </div>
+      <div class="metric">
+        <label data-i18n="observability.metrics.queueDepth">Queue Depth</label>
+        <strong id="obsqueue">—</strong>
+        <span data-i18n="observability.metrics.queueDepthDesc">queued + running</span>
+      </div>
+    </div>
+    <div class="panel toolusage-panel">
+      <div class="ph">
+        <b data-i18n="observability.toolUsage.title">TOOL USAGE MIX</b>
+        <small id="obstoolmeta" data-i18n="observability.toolUsage.subtitle">workspace-scoped · latest window</small>
+      </div>
+      <div class="pb">
+        <div class="toolchart">
+          <div class="donut" id="obstooldonut" role="img">
+            <div class="donutcenter">
+              <strong id="obstooltotal">0</strong>
+              <span data-i18n="observability.toolUsage.total">tool calls</span>
+            </div>
+          </div>
+          <div class="toollegend" id="obstoollegend">
+            <div class="empty" data-i18n="emptyStates.noToolCalls">Waiting for tool usage.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="status bad" id="obsreadiness" role="status" aria-live="polite" hidden></div>
+    <div class="status" id="obsstatus" role="status" aria-live="polite" data-i18n="observability.status">Waiting for observability query.</div>
+    <div class="panel">
+      <div class="ph"><b>RUNS</b><small id="obsrunsmeta"></small></div>
+      <div class="pb">
+        <div class="list" id="obsruns">
+          <div class="empty" data-i18n="emptyStates.loading">Loading…</div>
+        </div>
+        <button class="btn" id="obsrunsnext" disabled data-i18n="common.retry">Load more</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="ph"><b>EVENTS</b><small id="obseventmeta"></small></div>
+      <div class="pb">
+        <div class="list" id="obseventhistory">
+          <div class="empty" data-i18n="emptyStates.loading">Loading…</div>
+        </div>
+        <button class="btn" id="obseventnext" disabled data-i18n="common.retry">Load more</button>
+      </div>
+      <div class="filter">
+        <input id="obseventtype" placeholder="Filter by event type">
+        <input id="obseventrun" placeholder="Filter by run ID">
+        <button class="btn" id="obseventapply" data-i18n="common.filter">Apply</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="ph"><b>QUEUE</b></div>
+      <div class="pb">
+        <div class="list" id="obsqueueitems">
+          <div class="empty" data-i18n="emptyStates.noQueue">Queue is empty.</div>
+        </div>
+      </div>
+      <form id="obsqueueform">
+        <div class="field"><input id="obsgoal" placeholder="Queue a new goal…" required></div>
+        <div class="field"><input id="obsmaxsteps" type="number" min="1" max="32" value="4" required></div>
+        <button type="submit" class="btn primary" data-i18n="common.save">Queue</button>
+      </form>
+    </div>
+    <div class="panel">
+      <div class="ph"><b>ALERTS</b></div>
+      <div class="pb">
+        <div class="list" id="obsalerts">
+          <div class="empty" data-i18n="emptyStates.noAlerts">No active alerts.</div>
+        </div>
+      </div>
+      <form id="obsalertform">
+        <div class="field"><select id="obsalertmetric" required>
+          <option value="totalRuns">Total Runs</option>
+          <option value="successRate">Success Rate</option>
+          <option value="p95LatencyMs">P95 Latency</option>
+          <option value="queueDepth">Queue Depth</option>
+        </select></div>
+        <div class="field"><select id="obsalertoperator" required>
+          <option value="gt">Greater than</option>
+          <option value="lt">Less than</option>
+          <option value="eq">Equal to</option>
+        </select></div>
+        <div class="field"><input id="obsalertthreshold" type="number" required></div>
+        <button type="submit" class="btn primary" data-i18n="common.save">Create alert</button>
+      </form>
+    </div>
+  </section>
+  <section class="view" id="v-evidence">
+    <div class="head">
+      <div>
+        <div class="eyebrow" data-i18n="evidence.eyebrow">Evidence</div>
+        <h1 data-i18n="evidence.title">Trust Receipt Explorer</h1>
+        <p data-i18n="evidence.description">Read receipt, provenance, and audit data from the existing trust-receipt API.</p>
+      </div>
+    </div>
+    <div class="work">
+      <div class="panel">
+        <div class="ph">
+          <b data-i18n="evidence.lookup.title">RECEIPT LOOKUP</b>
+          <small data-i18n="evidence.lookup.subtitle">read-only</small>
+        </div>
+        <div class="pb">
+          <div class="field">
+            <label data-i18n="evidence.lookup.modeLabel">Lookup Mode</label>
+            <select id="emode">
+              <option value="targetId" data-i18n="evidence.lookup.modes.targetId">targetId</option>
+              <option value="receiptId" data-i18n="evidence.lookup.modes.receiptId">receiptId</option>
+              <option value="sourceRef" data-i18n="evidence.lookup.modes.sourceRef">sourceRef</option>
+              <option value="provenanceId" data-i18n="evidence.lookup.modes.provenanceId">provenanceId</option>
+            </select>
+          </div>
+          <div class="field">
+            <label data-i18n="evidence.lookup.inputLabel">Receipt / Source</label>
+            <input id="einput" data-i18n-attr="placeholder:evidence.lookup.inputPlaceholder" placeholder="receipt ID or sourceRef">
+          </div>
+          <button class="btn primary" id="eload" data-i18n="evidence.lookup.loadBtn">Load evidence</button>
+          <div class="status" id="estatus" data-i18n="evidence.lookup.status">Waiting for query.</div>
+          <dl class="kv" id="summary">
+            <dt data-i18n="evidence.lookup.summary.status">Status</dt>
+            <dd>—</dd>
+          </dl>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph">
+          <b data-i18n="evidence.raw.title">RAW RECEIPT</b>
+          <small data-i18n="evidence.raw.subtitle">immutable read view</small>
+        </div>
+        <div class="pb">
+          <pre class="json" id="raw" data-i18n="evidence.raw.empty">Query a receipt.</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="view" id="v-graph">
+    <div class="head">
+      <div>
+        <div class="eyebrow" data-i18n="graph.eyebrow">Graph</div>
+        <h1 data-i18n="graph.title">Trust Network</h1>
+        <p data-i18n="graph.description">Inspect nodes and relations from the live graph-data surface.</p>
+      </div>
+      <button class="btn" id="grefresh" data-i18n="graph.refresh">↻ Refresh</button>
+    </div>
+    <div class="panel">
+      <div class="ph">
+        <b data-i18n="graph.relations.title">RELATIONS</b>
+        <small id="gcount">—</small>
+      </div>
+      <div class="pb">
+        <div class="list" id="edges">
+          <div class="empty" data-i18n="emptyStates.noGraphData">Waiting for graph data.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="view" id="v-conflicts">
+    <div class="head">
+      <div>
+        <div class="eyebrow" data-i18n="conflicts.eyebrow">Graph Signals</div>
+        <h1 data-i18n="conflicts.title">Conflict Detection</h1>
+        <p data-i18n="conflicts.description">Derive multi-type, negation, low-confidence, and stale signals from current graph data.</p>
+      </div>
+      <button class="btn" id="crefresh" data-i18n="conflicts.refresh">↻ Refresh</button>
+    </div>
+    <div class="panel">
+      <div class="ph">
+        <b data-i18n="conflicts.signals.title">DETECTED SIGNALS</b>
+        <small id="csummary" data-i18n="conflicts.signals.summary">graph data pending</small>
+      </div>
+      <div class="pb">
+        <div class="list" id="clist">
+          <div class="empty" data-i18n="emptyStates.noConflicts">Waiting for graph data.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="view" id="v-integrations">
+    <div class="head">
+      <div>
+        <div class="eyebrow" data-i18n="integrations.eyebrow">Runtime</div>
+        <h1 data-i18n="integrations.title">Integration Surfaces</h1>
+        <p data-i18n="integrations.description">HTTP surfaces actually reached by this Web UI, not a fabricated connector list.</p>
+      </div>
+    </div>
+    <div class="surfacegrid" id="surfaces"></div>
+  </section>
+  <section class="view" id="v-settings">
+    <div class="head">
+      <div>
+        <div class="eyebrow" data-i18n="settings.eyebrow">Local Session</div>
+        <h1 data-i18n="settings.title">Settings</h1>
+        <p data-i18n="settings.description">The API key is stored only in this browser tab's sessionStorage.</p>
+      </div>
+    </div>
+    <div class="panel" style="max-width:720px">
+      <div class="ph">
+        <b data-i18n="settings.workspace.title">WORKSPACE SESSION</b>
+        <small data-i18n="settings.workspace.subtitle">browser-local</small>
+      </div>
+      <div class="pb">
+        <div class="field" id="keyfield">
+          <label data-i18n="settings.workspace.apiKeyLabel">API Key</label>
+          <input type="password" id="key" autocomplete="off" data-i18n-attr="placeholder:settings.workspace.apiKeyPlaceholder" placeholder="HUQAN API key">
+        </div>
+        <div class="field">
+          <label data-i18n="settings.workspace.workspaceLabel">Workspace</label>
+          <input id="workspace" value="default">
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="save" data-i18n="settings.workspace.saveBtn">Save & Connect</button>
+          <button class="btn bad" id="clear" data-i18n="settings.workspace.clearBtn">Clear Session</button>
+        </div>
+        <div class="status" id="sstatus"></div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer class="footer">
+  <div class="footbrand">
+    <i id="footdot"></i>
+    <span id="footstatus" data-i18n="footer.status">CHECKING · 0/5 surfaces available</span>
+  </div>
+  <div class="footmid">
+    <span id="sync" data-i18n="footer.lastSync">Last sync: —</span>
+    <span id="footws" data-i18n="footer.workspace">Workspace: default</span>
+  </div>
+  <div class="footright" data-i18n="footer.tagline">HUQAN · Trust is verifiable.</div>
+</footer>
+</div>
+<script src="/js/i18n.js"></script>
+<script src="/js/app.js"></script>
+<script src="/js/pwa.js"></script>
+<script>
+  (async () => {
+    if (window.HUQAN_I18N) {
+      await window.HUQAN_I18N.initI18n();
+      window.HUQAN_I18N.setupLocaleSelector();
+    }
+  })();
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then(reg => {
+          console.log('[SW] Registered:', reg.scope);
+          setInterval(() => reg.update(), 60 * 60 * 1000);
+          if (reg.active) {
+            reg.active.postMessage({ type: 'GET_VERSION' });
+          }
+          reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            if (newWorker) {
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  dispatchEvent(new CustomEvent('sw-update-available', { detail: reg }));
+                }
+              });
+            }
+          });
+        })
+        .catch(err => console.error('[SW] Registration failed:', err));
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+      });
+      navigator.serviceWorker.addEventListener('message', event => {
+        if (event.data?.version) {
+          window.__HUQAN_SW_VERSION = event.data.version;
+        }
+      });
+    });
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      deferredPrompt = e;
+      dispatchEvent(new CustomEvent('install-available', { detail: e }));
+    });
+    window.addEventListener('appinstalled', () => {
+      deferredPrompt = null;
+      dispatchEvent(new CustomEvent('app-installed'));
+    });
+    window.__HUQAN_INSTALL = async () => {
+      if (!deferredPrompt) return { ok: false, reason: 'not-available' };
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        deferredPrompt = null;
+        return { ok: true };
+      }
+      return { ok: false, reason: 'dismissed' };
+    };
+  }
+</script>
+</body>
+</html>
