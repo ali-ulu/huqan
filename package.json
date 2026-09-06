@@ -658,7 +658,7 @@
     "specs/huqan-trust-protocol/0.2/schemas/public-receipt-redaction-policy.json",
     "specs/huqan-trust-protocol/0.2/schemas/public-trust-receipt.schema.json",
     "specs/huqan-trust-protocol/0.2/schemas/shared-trust-package.schema.json",
-    "specs/huqan-trust-protocol/0.2/schemas/trust-receipt-credential-context.json",
+    "specs/huqan-trust-protocol/0.2/contexts/trust-receipt-credential-context.json",
     "storage.js",
     "toolPolicy.js",
     "lib/workflow-tool-repo-memory.js",

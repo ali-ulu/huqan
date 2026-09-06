@@ -131,10 +131,10 @@ test('the @context names an artifact this repo actually publishes', () => {
   // silently drop the terms. The URL must resolve to a published file, and
   // this test fails the moment the constant and the publication surface part
   // company.
-  const base = 'https://huqan.dev/specs/huqan-trust-protocol/0.2/schemas/';
+  const base = 'https://huqan.dev/specs/huqan-trust-protocol/0.2/contexts/';
   assert.ok(HUQAN_CONTEXT_V1.startsWith(base), 'context must live in the canonical surface');
   const published = path.join(
-    __dirname, '..', 'specs', 'huqan-trust-protocol', '0.2', 'schemas',
+    __dirname, '..', 'specs', 'huqan-trust-protocol', '0.2', 'contexts',
     HUQAN_CONTEXT_V1.slice(base.length),
   );
   const context = JSON.parse(fs.readFileSync(published, 'utf8'));

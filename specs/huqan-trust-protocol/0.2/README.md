@@ -13,14 +13,15 @@ The complete publication manifest is:
 - `schemas/public-receipt-redaction-policy.json`
 - `schemas/shared-trust-package.schema.json`
 - `schemas/agent-identity.schema.json`
-- `schemas/trust-receipt-credential-context.json`
 
-`trust-receipt-credential-context.json` is the JSON-LD context named by the
-`@context` of the W3C Verifiable Credentials envelope in
-`lib/interop/vc-mapping.js` (see `docs/interop-open-standards.md`). It joined
-this surface after first publication. The addition is additive only: no
-previously published byte changed, and a receiver that ignores it is
-unaffected.
+`contexts/trust-receipt-credential-context.json` is published alongside them:
+the JSON-LD context named by the `@context` of the W3C Verifiable Credentials
+envelope in `lib/interop/vc-mapping.js` (see `docs/interop-open-standards.md`).
+It sits outside the RFC-002 schema manifest on purpose — a JSON-LD context is
+not a schema, and both guards over that manifest stay entitled to reject
+anything unexpected under `schemas/`. It joined this surface after first
+publication; the addition is additive only, no previously published byte
+changed, and a receiver that ignores it is unaffected.
 
 No other file below the repo-internal `schemas/v5/` working directory is public.
 In particular, validators, conformance helpers, readiness and coverage code,

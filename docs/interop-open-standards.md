@@ -20,10 +20,12 @@ package root (`index.js`): `publicReceiptToCredential`,
 | Ed25519 signature | `proof` of type `HuqanEd25519Signature2020` (see below) |
 
 The envelope's second `@context` entry is
-`specs/huqan-trust-protocol/0.2/schemas/trust-receipt-credential-context.json`,
-published in the canonical surface alongside the receipt schema and declared in
-the same manifest. It defines every term the envelope emits — the credential
-type, the evidence type, the proof type, and the seven disclosure fields. A
+`specs/huqan-trust-protocol/0.2/contexts/trust-receipt-credential-context.json`,
+published in the canonical surface alongside the receipt schema but outside the
+RFC-002 schema manifest, because a JSON-LD context is not a schema and the two
+guards over that manifest stay entitled to reject anything unexpected under
+`schemas/`. It defines every term the envelope emits — the credential type, the
+evidence type, the proof type, and the seven disclosure fields. A
 context URL with nothing behind it is worse than none, because the envelope
 would claim term definitions a JSON-LD processor cannot fetch; a test fails if
 the constant and the published artifact ever part company.
