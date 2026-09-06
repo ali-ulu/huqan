@@ -116,5 +116,5 @@ test('the goal field replaces the claim field only for the agent actions', () =>
   // [hidden] rule that makes that inert-proof (see dashboard-hidden-attribute).
   assert.match(page, /id="stepsfield" hidden/);
   // #1878 added a second field family, so the select drives both toggles.
-  assert.match(page, /function actionFields\(\)\{agentFields\(\);ingestFields\(\)\}\$\('action'\)\.onchange=actionFields;/);
+  assert.match(page, /function actionFields\(\)\{agentFields\(\);ingestFields\(\);const a=\$\('action'\)\.value,c=capability\(a\);const hasId=c\?\.route\?\.includes\('\{id\}'\);\$\('idfield'\)\.hidden=!hasId\}/);
 });

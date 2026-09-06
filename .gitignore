@@ -33,3 +33,6 @@ backups/
 
 # MCP operator-capability replay records (#1674)
 .huqan-capability-nonces/
+Onboarding E2E scratch (Playwright) - not run by node:test suite
+test/onboarding-checklist.test.js
+test-results/
