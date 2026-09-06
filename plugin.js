@@ -3,6 +3,19 @@ const path = require('path');
 const crypto = require('crypto');
 const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
 const { createActivationGate } = require('./lib/supply-chain-activation-gate');
+const {
+  createProvenanceRegistry,
+  recordPluginLoad,
+  markDepStatus,
+  markRevoked,
+  verifyDependencyGraph,
+  dependencyGraph,
+  revalidatePlugin,
+  revalidateAll,
+  getRecord,
+  listRecords,
+  listChangelog,
+} = require('./lib/plugin-provenance-registry');
 
 const VERIFIED_PLUGIN = Symbol('axiom.verifiedPlugin');
 
@@ -80,6 +93,32 @@ function pluginComponent(plugin, verification) {
     contentHash: verification.sha256, issuer: manifest.issuer, workspaceId: manifest.workspaceId,
     capabilities: normalizedCapabilityNames(manifest.capabilities)
       || normalizedCapabilityNames(plugin.capabilities) || [], expiresAt: manifest.expiresAt };
+}
+
+/**
+ * Provenance entry for the registry (#1890): signature status, publisher
+ * provenance (issuer), version, content hash, granted capabilities, and
+ * declared plugin-to-plugin dependencies. Programmatic plugins carry no
+ * verification, so their origin is recorded explicitly as unverified rather
+ * than inheriting trust they never presented.
+ */
+function provenanceEntryFor(plugin, verification) {
+  const manifest = (verification && verification.manifest) || {};
+  const manifestValue = name => typeof manifest[name] === 'string' && manifest[name].trim() ? manifest[name].trim() : '';
+  const declared = normalizedCapabilityNames(manifest.capabilities)
+    || normalizedCapabilityNames(plugin.capabilities) || [];
+  const rawDeps = Array.isArray(plugin.dependsOn) ? plugin.dependsOn : [];
+  return {
+    name: plugin.name,
+    version: manifestValue('version') || (typeof plugin.version === 'string' && plugin.version.trim() ? plugin.version.trim() : ''),
+    issuer: manifestValue('issuer') || (typeof plugin.issuer === 'string' && plugin.issuer.trim() ? plugin.issuer.trim() : ''),
+    workspaceId: manifestValue('workspaceId'),
+    signatureStatus: verification ? verification.status : 'unverified',
+    contentHash: (verification && verification.sha256) || '',
+    capabilities: declared,
+    dependencies: rawDeps,
+    filePath: (verification && verification.filePath) || '',
+  };
 }
 
 /**
@@ -209,6 +248,10 @@ class PluginManager {
     this.strictPlugins =
       this.productionPluginEnforcement || readCompatibleEnvironmentVariable('PLUGIN_STRICT') !== '0';
     this.activationGate = loadActivationGate();
+    // #1890: every load records signature, publisher provenance, version,
+    // and granted capabilities; the graph below is verified at load and
+    // re-evaluated at runtime (runCapability / revalidatePlugins).
+    this.provenanceRegistry = createProvenanceRegistry();
     // Capability skips are a configuration state, not output (#1694). They are
     // collected here so `huqan status` can report them on request instead of
     // every command announcing them.
@@ -239,6 +282,18 @@ class PluginManager {
       loaded: this.plugins.map(plugin => plugin.name).sort(),
       skipped: skipped.map(notice => ({ plugin: notice.plugin, capability: notice.capability })),
       degraded: degraded.map(notice => ({ plugin: notice.plugin, capability: notice.capability })),
+      // #1890: identity chain per loaded plugin. Additive -- the three
+      // fields above keep their shape for existing readers.
+      provenance: this.plugins.map(plugin => {
+        const record = getRecord(this.provenanceRegistry, plugin.name);
+        return {
+          plugin: plugin.name,
+          version: record ? record.version : 'unversioned',
+          issuer: record ? record.issuer : 'unattested',
+          signatureStatus: record ? record.signatureStatus : 'unverified',
+          capabilities: record ? [...record.capabilities] : [],
+        };
+      }).sort((a, b) => (a.plugin < b.plugin ? -1 : a.plugin > b.plugin ? 1 : 0)),
     };
   }
 
@@ -308,7 +363,47 @@ class PluginManager {
         console.error(`Plugin failed to load: ${file} - ${err.message}`);
       }
     }
+    // #1890: the dependency graph is verified once the whole directory is
+    // recorded. A dependency can legitimately load after its dependent
+    // (alphabetical order), so per-file verification here would evict plugins
+    // whose dependency simply had not loaded yet.
+    this._evictDependencyOffenders();
     return count;
+  }
+
+  /**
+   * Remove plugins whose recorded dependency edges do not resolve (or form a
+   * cycle) from the active set. Records keep the verdict as `depStatus` so
+   * `huqan status` can say why a plugin is gone.
+   */
+  _evictDependencyOffenders() {
+    const verdict = verifyDependencyGraph(this.provenanceRegistry);
+    if (verdict.ok) {
+      for (const plugin of this.plugins) markDepStatus(this.provenanceRegistry, plugin.name, 'satisfied');
+      return verdict;
+    }
+    const evicted = new Set([
+      ...verdict.unsatisfied.map(item => item.plugin),
+      ...verdict.cycles.flat(),
+    ]);
+    for (const item of verdict.unsatisfied) {
+      markDepStatus(this.provenanceRegistry, item.plugin, 'unsatisfied');
+      console.error(`Plugin dependency unsatisfied: ${item.plugin} requires ${item.dependency} (${item.reason})`);
+    }
+    for (const cycle of verdict.cycles) {
+      for (const name of cycle) markDepStatus(this.provenanceRegistry, name, 'cyclic');
+      console.error(`Plugin dependency cycle: ${cycle.join(' -> ')}`);
+    }
+    if (evicted.size > 0) {
+      this.plugins = this.plugins.filter(plugin => !evicted.has(plugin.name));
+      for (const event of EVENTS) {
+        this._handlers[event] = this._handlers[event].filter(plugin => !evicted.has(plugin.name));
+      }
+    }
+    for (const plugin of this.plugins) {
+      if (!evicted.has(plugin.name)) markDepStatus(this.provenanceRegistry, plugin.name, 'satisfied');
+    }
+    return verdict;
   }
 
   register(plugin) {
@@ -340,6 +435,12 @@ class PluginManager {
       }
     }
     this.plugins.push(plugin);
+    // #1890: record signature, provenance, version, and granted capabilities
+    // at load. Plugin-to-plugin edges (`dependsOn`) are recorded here and
+    // verified once the load set is complete (load()) and at runtime
+    // (runCapability / revalidatePlugins), so load order never evicts a
+    // plugin whose dependency simply registers later.
+    recordPluginLoad(this.provenanceRegistry, provenanceEntryFor(plugin, plugin[VERIFIED_PLUGIN] || null));
     if (typeof plugin.init === 'function') {
       plugin.init(this.kernel, this);
     }
@@ -404,11 +505,34 @@ class PluginManager {
       throw error;
     }
     const verification = plugin[VERIFIED_PLUGIN];
-    return this.activationGate.revoke(pluginComponent(plugin, verification), reason);
+    const receipt = this.activationGate.revoke(pluginComponent(plugin, verification), reason);
+    markRevoked(this.provenanceRegistry, name);
+    return receipt;
   }
 
   listActivationInventory() {
     return this.activationGate ? this.activationGate.inventory() : [];
+  }
+
+  /** #1890: provenance, dependency graph, and capability changelog queries. */
+  provenanceRecord(name) {
+    return getRecord(this.provenanceRegistry, name);
+  }
+
+  provenanceInventory() {
+    return listRecords(this.provenanceRegistry);
+  }
+
+  dependencyGraph() {
+    return dependencyGraph(this.provenanceRegistry);
+  }
+
+  capabilityChangelog() {
+    return listChangelog(this.provenanceRegistry);
+  }
+
+  verifyDependencyGraph() {
+    return verifyDependencyGraph(this.provenanceRegistry);
   }
 
   _reattestPlugin(plugin) {
@@ -518,10 +642,76 @@ class PluginManager {
     if (!plugin || typeof plugin.run !== 'function') {
       throw new Error(`Plugin "${capability.plugin}" cannot run capability: ${name}`);
     }
+    // #1890: a grant checked only at load/install silently survives upgrades,
+    // hash drift, and capabilities switched off afterwards. Re-evaluate the
+    // recorded grant against live state on every invocation, fail-closed.
+    this._revalidateRuntimeGrant(plugin);
     this._reattestPlugin(plugin);
     return plugin.run(this.kernel, input, {
       ...opts,
       capability,
+    });
+  }
+
+  /**
+   * Per-invocation re-evaluation of the grant recorded at load: file hash,
+   * capability set, still-enabled kernel capabilities, and still-satisfied
+   * plugin dependencies. Throws PLUGIN_RUNTIME_REVALIDATION_FAILED rather
+   * than running a plugin whose grant drifted.
+   */
+  _revalidateRuntimeGrant(plugin) {
+    const verification = plugin[VERIFIED_PLUGIN];
+    let liveHash = '';
+    if (verification && verification.filePath && fs.existsSync(verification.filePath)) {
+      try { liveHash = hashFile(verification.filePath); } catch (_) { liveHash = ''; }
+    }
+    const live = {
+      version: verification && verification.manifest ? verification.manifest.version : plugin.version,
+      contentHash: liveHash,
+      capabilities: normalizedCapabilityNames(plugin.capabilities) || [],
+    };
+    const outcome = revalidatePlugin(this.provenanceRegistry, plugin.name, live, {
+      hasCapability: capability => Boolean(this.kernel
+        && typeof this.kernel.hasCapability === 'function' && this.kernel.hasCapability(capability)),
+      requiredCapabilities: Array.isArray(plugin.requires) ? plugin.requires : [],
+      loadedPlugins: this.plugins.map(item => item.name),
+    });
+    if (!outcome.ok) {
+      const error = new Error(`Plugin "${plugin.name}" failed runtime grant re-validation: ${outcome.reason}`
+        + (outcome.capability ? ` (${outcome.capability})` : '')
+        + (outcome.dependency ? ` (${outcome.dependency})` : ''));
+      error.code = 'PLUGIN_RUNTIME_REVALIDATION_FAILED';
+      error.reason = outcome.reason;
+      throw error;
+    }
+    return outcome;
+  }
+
+  /**
+   * Periodic re-validation entry point (#1890): re-evaluate every recorded
+   * grant against live state without invoking anything. Returns per-plugin
+   * `{ plugin, ok, reason }` results; callers decide whether a failure only
+   * pages or also evicts.
+   */
+  revalidatePlugins() {
+    const liveByName = new Map(this.plugins.map(plugin => [plugin.name, plugin]));
+    return revalidateAll(this.provenanceRegistry, name => {
+      const plugin = liveByName.get(name);
+      if (!plugin) return { capabilities: [] };
+      const verification = plugin[VERIFIED_PLUGIN];
+      let liveHash = '';
+      if (verification && verification.filePath && fs.existsSync(verification.filePath)) {
+        try { liveHash = hashFile(verification.filePath); } catch (_) { liveHash = ''; }
+      }
+      return {
+        version: verification && verification.manifest ? verification.manifest.version : plugin.version,
+        contentHash: liveHash,
+        capabilities: normalizedCapabilityNames(plugin.capabilities) || [],
+      };
+    }, {
+      hasCapability: capability => Boolean(this.kernel
+        && typeof this.kernel.hasCapability === 'function' && this.kernel.hasCapability(capability)),
+      loadedPlugins: this.plugins.map(item => item.name),
     });
   }
 }
