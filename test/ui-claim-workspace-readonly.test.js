@@ -28,8 +28,9 @@ test('UI capability manifest advertises only the implemented read workflows', ()
   // reviewer approved without seeing the tool, its input, or the policy that
   // demanded the approval.
   assert.deepEqual(enabled, [
-    'ask', 'verify', 'advocate', 'approvals', 'approval-detail', 'approval-decision',
-    'memory-search', 'ingest-preview', 'ingest-execute', 'ingest-run-detail',
+    'ask', 'verify', 'advocate', 'learn-review', 'approvals', 'approval-detail',
+    'approval-decision', 'memory-search', 'ingest-preview', 'ingest-execute',
+    'ingest-run-detail',
     'agent-plan', 'agent-run', 'trust-receipt', 'trust-receipt-detail',
   ]);
 });
