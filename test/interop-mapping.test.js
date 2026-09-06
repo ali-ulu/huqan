@@ -16,9 +16,11 @@ const {
   HUQAN_CONTEXT_V1,
   HUQAN_CREDENTIAL_TYPE,
   HUQAN_SIGNED_PROJECTION,
+  VC_ERRORS,
   publicReceiptToCredential,
   credentialToPublicReceipt,
 } = require('../lib/interop/vc-mapping');
+const { computePublicReceiptChecksum } = require('../lib/receipt/public-trust-receipt');
 const {
   publicReceiptToSpan,
   toOtlpHttpPayload,
@@ -28,8 +30,16 @@ const HASH_A = 'a'.repeat(64);
 const HASH_B = 'b'.repeat(64);
 const SIG = 'A'.repeat(86);
 
+// Fixtures carry a REAL checksum over their own content. A hand-written
+// placeholder would make every mapping test pass against material the mapping
+// must refuse, which is precisely how the tamper gap stayed invisible.
+function sealed(receipt) {
+  receipt.integrity.checksum = computePublicReceiptChecksum(receipt);
+  return receipt;
+}
+
 function signedReceipt() {
-  return {
+  return sealed({
     schemaVersion: 'v5-public-trust-receipt-v1',
     publicReceiptId: HASH_A,
     issuedAt: '2026-09-06T10:00:01.000Z',
@@ -45,22 +55,22 @@ function signedReceipt() {
     binding: { internalReceiptHash: HASH_B },
     integrity: {
       checksumAlgorithm: 'sha256-canonical-json-v1',
-      checksum: HASH_A,
+      checksum: '0'.repeat(64),
       signed: true,
       signature: { profileId: 'ed25519-v1', keyId: 'test-key:ops-1', value: SIG },
     },
-  };
+  });
 }
 
 function unsignedReceipt() {
   const receipt = signedReceipt();
   receipt.integrity = {
     checksumAlgorithm: 'sha256-canonical-json-v1',
-    checksum: HASH_A,
+    checksum: '0'.repeat(64),
     signed: false,
     signature: null,
   };
-  return receipt;
+  return sealed(receipt);
 }
 
 test('signed receipt maps to a credential with an honest custom proof', () => {
@@ -110,6 +120,66 @@ test('vc mapping refuses leaky or malformed inputs', () => {
   const { evidence, ...noEvidence } = full;
   assert.equal(evidence.length, 1);
   assert.throws(() => credentialToPublicReceipt(noEvidence), /evidence/);
+});
+
+test('a receipt edited behind its own checksum cannot become a credential', () => {
+  const tampered = signedReceipt();
+  assert.notEqual(tampered.disclosure.verdict, 'block');
+  // Flip the verdict and leave the checksum stale -- the shape stays perfect.
+  tampered.disclosure.verdict = 'block';
+  assert.throws(
+    () => publicReceiptToCredential(tampered),
+    (error) => error.code === VC_ERRORS.TAMPERED && /checksum/.test(error.message),
+  );
+});
+
+test('an edited credentialSubject is refused even when the evidence is intact', () => {
+  // The dangerous shape: the envelope verifies and lies at the same time. A
+  // holder reading credentialSubject sees one verdict, a holder re-running the
+  // import path sees another.
+  const credential = JSON.parse(JSON.stringify(publicReceiptToCredential(signedReceipt())));
+  credential.credentialSubject.verdict = 'block';
+  assert.equal(credential.evidence[0].publicReceipt.disclosure.verdict, 'allow');
+  assert.throws(
+    () => credentialToPublicReceipt(credential),
+    // The error names the field, so an auditor learns WHAT was changed and
+    // not merely that something was.
+    (error) => error.code === VC_ERRORS.TAMPERED && /credentialSubject\.verdict/.test(error.message),
+  );
+});
+
+test('subject binding covers identity, extra fields and the bundle hash', () => {
+  const base = publicReceiptToCredential(signedReceipt());
+
+  const rebound = JSON.parse(JSON.stringify(base));
+  rebound.credentialSubject.id = `urn:huqan:internal-receipt-sha256:${'c'.repeat(64)}`;
+  assert.throws(
+    () => credentialToPublicReceipt(rebound),
+    (error) => error.code === VC_ERRORS.TAMPERED && /credentialSubject\.id/.test(error.message),
+  );
+
+  const padded = JSON.parse(JSON.stringify(base));
+  padded.credentialSubject.actor = 'smuggled';
+  assert.throws(
+    () => credentialToPublicReceipt(padded),
+    (error) => error.code === VC_ERRORS.TAMPERED,
+  );
+
+  const invented = JSON.parse(JSON.stringify(base));
+  invented.credentialSubject.bundleHash = 'd'.repeat(64);
+  assert.throws(
+    () => credentialToPublicReceipt(invented),
+    (error) => error.code === VC_ERRORS.TAMPERED && /bundleHash/.test(error.message),
+  );
+});
+
+test('a receipt that carries a bundle binding still round-trips', () => {
+  const receipt = signedReceipt();
+  receipt.binding = { internalReceiptHash: HASH_B, bundleHash: 'e'.repeat(64) };
+  const sealedReceipt = sealed(receipt);
+  const credential = publicReceiptToCredential(sealedReceipt);
+  assert.equal(credential.credentialSubject.bundleHash, 'e'.repeat(64));
+  assert.deepEqual(credentialToPublicReceipt(credential), sealedReceipt);
 });
 
 test('public receipt maps to an OTel span with derived identities', () => {
