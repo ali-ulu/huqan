@@ -16,6 +16,9 @@ const PUBLISHED_JSON = Object.freeze([
   'public-receipt-redaction-policy.json',
   'shared-trust-package.schema.json',
   'agent-identity.schema.json',
+  // The JSON-LD context the VC envelope's @context names. Additive: no
+  // previously published byte changed.
+  'trust-receipt-credential-context.json',
 ]);
 
 function packageFiles() {
