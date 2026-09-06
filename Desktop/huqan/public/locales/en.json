@@ -1,0 +1,453 @@
+{
+  "app": {
+    "title": "HUQAN — Trust Command Center",
+    "brand": "HUQAN",
+    "subtitle": "Trust Command Center"
+  },
+  "nav": {
+    "overview": "Overview",
+    "overviewDesc": "Command Center",
+    "verify": "Verify",
+    "verifyDesc": "Claim Verification",
+    "approvals": "Approvals",
+    "approvalsDesc": "Review & Decisions",
+    "evidence": "Evidence",
+    "evidenceDesc": "Trust Receipts",
+    "observability": "Observability",
+    "observabilityDesc": "Agent Telemetry",
+    "activity": "Activity",
+    "activityDesc": "Agent Audit Trail",
+    "graph": "Graph",
+    "graphDesc": "Trust Network",
+    "conflicts": "Conflicts",
+    "conflictsDesc": "Issue Detection",
+    "integrations": "Integrations",
+    "integrationsDesc": "Runtime Surfaces",
+    "settings": "Settings",
+    "settingsDesc": "Local Session"
+  },
+  "header": {
+    "systemStatus": "System Status",
+    "searchPlaceholder": "Search: receipt ID, claim, source…",
+    "searchLabel": "Search receipts, claims, and sources",
+    "node": "NODE",
+    "time": "TIME"
+  },
+  "secure": {
+    "title": "SECURE CHANNEL",
+    "apiKeyRequired": "API key required"
+  },
+  "overview": {
+    "eyebrow": "HUQAN Runtime",
+    "title": "Trust Command Center",
+    "description": "Real runtime surfaces, evidence flow, and trust infrastructure in one command center.",
+    "refresh": "↻ Refresh",
+    "metrics": {
+      "graphNodes": "Graph Nodes",
+      "graphNodesDesc": "live graph-data",
+      "relations": "Relations",
+      "relationsDesc": "source-backed graph",
+      "pendingReview": "Pending Review",
+      "pendingReviewDesc": "human approval queue",
+      "kernel": "Kernel",
+      "version": "version —"
+    },
+    "mesh": {
+      "title": "GLOBAL TRUST NETWORK",
+      "subtitle": "Loading graph data…",
+      "badgeState": "● CHECKING",
+      "badgeDesc": "runtime sync"
+    },
+    "activeNodes": {
+      "title": "ACTIVE GRAPH NODES",
+      "viewAll": "View all",
+      "empty": "Waiting for graph data."
+    },
+    "health": {
+      "title": "SYSTEM HEALTH",
+      "state": "CHECKING"
+    },
+    "activityPulse": {
+      "title": "AGENT ACTIVITY",
+      "empty": "Waiting for agent activity."
+    }
+  },
+  "verify": {
+    "eyebrow": "Verification",
+    "title": "Claim Verification",
+    "description": "Run verify, ask, advocate, or memory search via the current workflow contract.",
+    "workflowState": "LOADING",
+    "console": {
+      "title": "VERIFICATION CONSOLE",
+      "contract": "loading manifest"
+    },
+    "form": {
+      "workflowLabel": "Workflow",
+      "workflows": {
+        "verify": "Verify",
+        "ask": "Ask",
+        "advocate": "Advocate",
+        "memorySearch": "Memory Search",
+        "agentPlan": "Agent Plan",
+        "agentRun": "Agent Run"
+      },
+      "promptLabel": "Claim / Query",
+      "promptPlaceholder": "Enter a claim or question to verify…",
+      "stepsLabel": "Step budget",
+      "steps": {
+        "1": "1 step",
+        "2": "2 steps",
+        "4": "4 steps (default)",
+        "6": "6 steps",
+        "8": "8 steps (max)"
+      },
+      "actions": {
+        "run": "Run",
+        "fileBtn": "Choose file",
+        "review": "Send for review"
+      },
+      "status": "Waiting for manifest."
+    },
+    "result": {
+      "title": "VERIFICATION RESULT",
+      "subtitle": "source-backed response",
+      "empty": "No query run yet."
+    }
+  },
+  "approvals": {
+    "eyebrow": "Human Review",
+    "title": "Approval Queue",
+    "description": "Resolve pending ingest candidates through the real approval endpoint.",
+    "refresh": "↻ Refresh",
+    "pending": {
+      "title": "PENDING APPROVALS",
+      "subtitle": "loading",
+      "empty": "Loading queue."
+    }
+  },
+  "evidence": {
+    "eyebrow": "Evidence",
+    "title": "Trust Receipt Explorer",
+    "description": "Read receipt, provenance, and audit data from the existing trust-receipt API.",
+    "lookup": {
+      "title": "RECEIPT LOOKUP",
+      "subtitle": "read-only",
+      "modeLabel": "Lookup Mode",
+      "modes": {
+        "targetId": "targetId",
+        "receiptId": "receiptId",
+        "sourceRef": "sourceRef",
+        "provenanceId": "provenanceId"
+      },
+      "inputLabel": "Receipt / Source",
+      "inputPlaceholder": "receipt ID or sourceRef",
+      "loadBtn": "Load evidence",
+      "status": "Waiting for query.",
+      "summary": {
+        "status": "Status"
+      }
+    },
+    "raw": {
+      "title": "RAW RECEIPT",
+      "subtitle": "immutable read view",
+      "empty": "Query a receipt."
+    }
+  },
+  "observability": {
+    "eyebrow": "Agent Telemetry",
+    "title": "Observability & Queue",
+    "description": "Live event stream, persistent run history, performance metrics, alert rules, and a guarded agent queue.",
+    "windowFilter": "Time window",
+    "windows": {
+      "1h": "Last hour",
+      "24h": "Last 24 hours",
+      "7d": "Last 7 days",
+      "31d": "Last 31 days"
+    },
+    "refresh": "↻ Refresh",
+    "metrics": {
+      "totalRuns": "Total Runs",
+      "totalRunsDesc": "selected window",
+      "successRate": "Success Rate",
+      "successRateDesc": "terminal runs",
+      "p95Latency": "P95 Latency",
+      "p95LatencyDesc": "milliseconds",
+      "tokens": "Tokens",
+      "tokensDesc": "reported when unavailable",
+      "cost": "Cost",
+      "costDesc": "configured rate",
+      "queueDepth": "Queue Depth",
+      "queueDepthDesc": "queued + running"
+    },
+    "toolUsage": {
+      "title": "TOOL USAGE MIX",
+      "subtitle": "workspace-scoped · latest window",
+      "total": "tool calls",
+      "unavailable": "Total {total} calls",
+      "unattributed": "Unattributed ({count})",
+      "totalMismatch": "total mismatch"
+    },
+    "events": {
+      "loading": "Loading event history…",
+      "loadingNext": "Loading next event page…",
+      "loadError": "Event history could not be loaded: {message}",
+      "summary": "Showing {count} events · {window}{eventType}{runId}",
+      "nextPage": "next page available",
+      "boundedPage": "bounded page",
+      "empty": "No matching events in this window."
+    },
+    "runs": {
+      "empty": "No persistent runs yet.",
+      "toolText": "no tools used",
+      "nextPage": "next page available",
+      "boundedPage": "bounded page",
+      "loadError": "Run history could not be loaded: {message}"
+    },
+    "queue": {
+      "empty": "Queue is empty.",
+      "attempts": "{attempts}/{maxAttempts} attempts",
+      "goalChars": "{length} characters",
+      "error": "Could not queue: {message}"
+    },
+    "alerts": {
+      "empty": "No active alerts.",
+      "error": "Could not create alert rule: {message}"
+    },
+    "forms": {
+      "queueGoalPlaceholder": "Queue a new goal…",
+      "alertMetric": "Metric",
+      "alertOperator": "Operator",
+      "operators": {
+        "gt": "Greater than",
+        "lt": "Less than",
+        "eq": "Equal to"
+      },
+      "createAlert": "Create alert",
+      "queue": "Queue",
+      "loadMore": "Load more"
+    },
+    "readiness": {
+      "checking": "CHECKING - confirming observability is available for this workspace."
+    },
+    "status": "Waiting for observability query."
+  },
+  "graph": {
+    "eyebrow": "Graph",
+    "title": "Trust Network",
+    "description": "Inspect nodes and relations from the live graph-data surface.",
+    "refresh": "↻ Refresh",
+    "relations": {
+      "title": "RELATIONS",
+      "count": "—",
+      "empty": "Waiting for graph data."
+    }
+  },
+  "conflicts": {
+    "eyebrow": "Graph Signals",
+    "title": "Conflict Detection",
+    "description": "Derive multi-type, negation, low-confidence, and stale signals from current graph data.",
+    "refresh": "↻ Refresh",
+    "signals": {
+      "title": "DETECTED SIGNALS",
+      "summary": "graph data pending",
+      "empty": "Waiting for graph data."
+    }
+  },
+  "integrations": {
+    "eyebrow": "Runtime",
+    "title": "Integration Surfaces",
+    "description": "HTTP surfaces actually reached by this Web UI, not a fabricated connector list."
+  },
+  "settings": {
+    "eyebrow": "Local Session",
+    "title": "Settings",
+    "description": "The API key is stored only in this browser tab's sessionStorage.",
+    "workspace": {
+      "title": "WORKSPACE SESSION",
+      "subtitle": "browser-local",
+      "apiKeyLabel": "API Key",
+      "apiKeyPlaceholder": "HUQAN API key",
+      "workspaceLabel": "Workspace",
+      "saveBtn": "Save & Connect",
+      "clearBtn": "Clear Session"
+    }
+  },
+  "footer": {
+    "status": "CHECKING · 0/5 surfaces available",
+    "lastSync": "Last sync: —",
+    "workspace": "Workspace: default",
+    "tagline": "HUQAN · Trust is verifiable."
+  },
+  "common": {
+    "loading": "Loading…",
+    "error": "Error",
+    "retry": "Retry",
+    "close": "Close",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "view": "View",
+    "search": "Search",
+    "filter": "Filter",
+    "clear": "Clear",
+    "refresh": "Refresh",
+    "empty": "No data",
+    "none": "None",
+    "yes": "Yes",
+    "no": "No",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "active": "Active",
+    "inactive": "Inactive",
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "failed": "Failed",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Info",
+    "install": "Install App",
+    "apply": "Apply",
+    "dismiss": "Later"
+  },
+  "status": {
+    "checking": "CHECKING",
+    "online": "ONLINE",
+    "offline": "OFFLINE",
+    "degraded": "DEGRADED",
+    "healthy": "HEALTHY",
+    "unhealthy": "UNHEALTHY",
+    "unknown": "UNKNOWN"
+  },
+  "validation": {
+    "required": "This field is required",
+    "invalidEmail": "Invalid email format",
+    "minLength": "Must be at least {min} characters",
+    "maxLength": "Must be at most {max} characters",
+    "patternMismatch": "Invalid format"
+  },
+  "emptyStates": {
+    "noData": "No data yet",
+    "noResults": "No results found",
+    "noApprovals": "No pending approvals",
+    "noEvidence": "No evidence found",
+    "noActivity": "No activity",
+    "noConflicts": "No conflicts detected",
+    "noGraphData": "No graph data",
+    "noRuns": "No persistent runs yet",
+    "noEvents": "No matching events in this window",
+    "noQueue": "Queue is empty",
+    "noAlerts": "No active alerts",
+    "noToolCalls": "No tool calls yet"
+  },
+  "onboarding": {
+    "welcome": "Welcome to HUQAN",
+    "subtitle": "Welcome to the Trust Command Center. Get started by saving an API key.",
+    "step1": "Enter your API key in the Settings tab",
+    "step2": "Check system status from Overview",
+    "step3": "Use Verify tab to verify claims",
+    "complete": "You're ready! Start exploring."
+  },
+  "viewer": {
+    "title": "HUQAN Receipt Terminal",
+    "eyebrow": "HUQAN / TRUST LAYER",
+    "heading": "Receipt<br>Terminal",
+    "lede": "Inspect one canonical trust receipt without exposing operator credentials.",
+    "access": {
+      "title": "Session access",
+      "apiKeyLabel": "Operator API key",
+      "workspaceLabel": "Workspace ID",
+      "workspaceHint": "optional, defaults to \"default\"",
+      "submitBtn": "Open session",
+      "logoutBtn": "Close session"
+    },
+    "lookup": {
+      "title": "Receipt lookup",
+      "receiptIdLabel": "Receipt ID",
+      "workspaceLabel": "Workspace ID",
+      "workspaceHint": "optional, must match the session's workspace",
+      "submitBtn": "Inspect evidence"
+    },
+    "result": {
+      "title": "Observed state",
+      "ready": "Ready for a bounded lookup."
+    },
+    "messages": {
+      "unauthorized": "Open a viewer session to inspect receipts.",
+      "invalidRequest": "Enter a valid receipt identifier.",
+      "notFound": "No receipt was found for this bounded lookup.",
+      "chainInvalid": "Receipt chain integrity failed. This receipt is not authoritative and its fields are withheld.",
+      "readError": "The receipt could not be read safely.",
+      "found": "Canonical receipt observed."
+    }
+  },
+  "surfaces": {
+    "status": {
+      "label": "Runtime Status",
+      "reason": "Waiting for runtime status.",
+      "endpoint": "/v2-status",
+      "nextAction": "Refresh"
+    },
+    "workflows": {
+      "label": "Workflow Contract",
+      "reason": "Waiting for capability manifest.",
+      "endpoint": "/api/v2/workflows",
+      "nextAction": "Refresh"
+    },
+    "graph": {
+      "label": "Graph Data",
+      "reason": "Waiting for graph data.",
+      "endpoint": "/graph-data",
+      "nextAction": "Refresh"
+    },
+    "approvals": {
+      "label": "Approval Queue",
+      "reason": "Waiting for approval queue.",
+      "endpoint": "/api/ingest/approvals",
+      "nextAction": "Refresh"
+    },
+    "activity": {
+      "label": "Agent Activity",
+      "reason": "Waiting for activity.",
+      "endpoint": "/api/workbench/activity",
+      "nextAction": "Refresh"
+    },
+    "countFormat": "{available}/{total} surfaces available",
+    "checking": "CHECKING"
+  },
+  "observabilityStatus": {
+    "checking": "CHECKING - confirming observability is available for this workspace.",
+    "loading": "Loading observability…",
+    "ready": "Live and persistent observability ready.",
+    "error": "Observability could not be loaded: {message}",
+    "reconnect": "Reconnecting live stream in {delay} ms…",
+    "unavailable": {
+      "notConfigured": "NOT CONFIGURED · Observability authorization is unavailable. Set OBSERVABILITY_AUTHZ_POLICY on the server and reconnect.",
+      "workspaceForbidden": "UNAVAILABLE · This session has no observability membership for {workspace}. Ask an administrator for access.",
+      "authRequired": "UNAVAILABLE · Observability requires an authenticated session. Save an API key in Settings.",
+      "generic": "UNAVAILABLE · Observability could not be reached: {message}"
+    }
+  },
+  "locale": {
+    "selector": {
+      "tr": "Türkçe",
+      "en": "English"
+    }
+  },
+  "pwa": {
+    "install": "Install App",
+    "installAria": "Install HUQAN as an app",
+    "installing": "Installing…",
+    "installed": "Installed",
+    "installTitle": "INSTALL APP",
+    "installSubtitle": "Add to home screen for offline access",
+    "updateAvailable": "New version available",
+    "offline": "Offline",
+    "cachedShell": "Cached shell only",
+    "liveUnavailable": "Live data unavailable.",
+    "details": "Details",
+    "apply": "Apply",
+    "dismiss": "Later"
+  }
+}
