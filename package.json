@@ -347,6 +347,8 @@
     "lib/is-plain-object.js",
     "lib/ingest-workflow-run.js",
     "lib/ingest.js",
+    "lib/interop/otel-mapping.js",
+    "lib/interop/vc-mapping.js",
     "lib/json-object.js",
     "lib/json-utf8-size.js",
     "lib/kernel-contract.js",

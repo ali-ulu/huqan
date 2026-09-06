@@ -40,6 +40,8 @@ const externalActionGuard = require('./lib/external-action-guard');
 const externalActionAdapter = require('./lib/external-action-adapter');
 const externalActionReceipt = require('./lib/external-action-receipt');
 const registryBundleSigningKeyResolver = require('./lib/registry/registry-bundle-signing-key-resolver');
+const trustInteropVc = require('./lib/interop/vc-mapping');
+const trustInteropOtel = require('./lib/interop/otel-mapping');
 
 module.exports = KernelV2;
 
@@ -143,3 +145,12 @@ module.exports.createExternalActionReceiptWriter = externalActionReceipt.createJ
 // HTTP registry surface.
 module.exports.createRegistryBundleSigningKeyResolver =
   registryBundleSigningKeyResolver.createRegistryBundleSigningKeyResolver;
+
+// Open-standard interop: W3C VC envelopes and OpenTelemetry spans projected
+// from public trust receipts. Pure mappings with no network side effects;
+// verification of the carried evidence always re-enters the HUQAN import path.
+module.exports.publicReceiptToCredential = trustInteropVc.publicReceiptToCredential;
+module.exports.credentialToPublicReceipt = trustInteropVc.credentialToPublicReceipt;
+module.exports.HUQAN_CREDENTIAL_TYPE = trustInteropVc.HUQAN_CREDENTIAL_TYPE;
+module.exports.publicReceiptToSpan = trustInteropOtel.publicReceiptToSpan;
+module.exports.toOtlpHttpPayload = trustInteropOtel.toOtlpHttpPayload;
