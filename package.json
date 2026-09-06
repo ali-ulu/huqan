@@ -250,6 +250,7 @@
     "lib/data-egress-gate.js",
     "lib/file-effect-sensor.js",
     "lib/data-residency-gate.js",
+    "lib/unexpected-egress-gate.js",
     "lib/residency-rule-miner.js",
     "lib/deterministic-json-copy.js",
     "lib/dream-experiment-loop.js",
