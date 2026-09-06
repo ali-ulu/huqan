@@ -138,6 +138,12 @@ declare const huqan: typeof KernelV2 & {
   registerPiGuard: (pi: Record<string, any>, options?: Record<string, unknown>) => void;
   createDurableExternalActionReceiptWriter: (options?: Record<string, unknown>) => { path: string; append: (receipt: Record<string, unknown>) => Record<string, unknown>; close: () => void };
   createExternalActionReceiptWriter: (options?: Record<string, unknown>) => { path: string; append: (receipt: Record<string, unknown>) => Record<string, unknown> };
+
+  publicReceiptToCredential: (receipt: Record<string, unknown>) => Record<string, unknown>;
+  credentialToPublicReceipt: (credential: Record<string, unknown>) => Record<string, unknown>;
+  HUQAN_CREDENTIAL_TYPE: string;
+  publicReceiptToSpan: (receipt: Record<string, unknown>) => Record<string, unknown>;
+  toOtlpHttpPayload: (spans: Record<string, unknown>[], options?: Record<string, unknown>) => Record<string, unknown>;
 };
 
 export = huqan;
