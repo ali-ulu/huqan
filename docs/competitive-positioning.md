@@ -21,7 +21,7 @@ HUQAN is a good fit when the central question is not only “what did the model 
 - local CLI, REST, MCP, and UI surfaces on the supported paths; and
 - two repository-run conformance suites: `npm run conformance:external` (75 cases) and `npm run conformance:a2a` (50 adversarial cases).
 
-These are repository-backed capabilities, not a universal governance or interoperability certification. The external guard enforces only calls that a client hook, wrapper, gateway, or sandbox sends through it before execution; an unconnected agent remains outside HUQAN's control. The [README Current scope](../README.md#current-scope) remains the source of truth for what is real, deployment-gated, or explicitly not claimed.
+These are repository-backed capabilities, not a universal governance or interoperability certification. The external guard enforces only calls that a client hook, wrapper, gateway, or sandbox sends through it before execution; an unconnected agent remains outside HUQAN's control. The [README Limits](../README.md#limits) remains the source of truth for what is real, deployment-gated, or explicitly not claimed.
 
 ## Named alternatives: choose by the problem you need to solve
 
@@ -64,7 +64,7 @@ HUQAN’s public positioning should remain tied to repository evidence:
 | Product maturity | HUQAN is a local-first partial trust layer with bounded memory and action gates. | It is not a finished autonomous self-healer, public certification network, or universal governance suite. |
 | External agent guard | `huqan-gate` applies one policy envelope and receipt contract to current adapters and future generic clients. | Native or wrapper pre-execution wiring must be proven per client; it is not OS-level universal interception. |
 
-For implementation details, see the [scale truth pack](scale-truth-pack.md), the [product positioning guide](product-positioning.md), and the [README Current scope](../README.md#current-scope). Claims about deployed, external, or third-party behavior require evidence from that specific environment rather than documentation intent.
+For implementation details, see the [scale truth pack](scale-truth-pack.md), the [product positioning guide](product-positioning.md), and the [README Limits](../README.md#limits). Claims about deployed, external, or third-party behavior require evidence from that specific environment rather than documentation intent.
 
 ## Public language
 
