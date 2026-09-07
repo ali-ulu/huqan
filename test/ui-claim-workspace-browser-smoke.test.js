@@ -261,7 +261,7 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     const summary = await browser.evaluate(`document.getElementById('healthsum').textContent`);
     const footer = await browser.evaluate(`document.getElementById('footstatus').textContent`);
     assert.match(header, /^(HEALTHY|PARTIAL|DEGRADED|OFFLINE|CHECKING)$/);
-    assert.match(summary, new RegExp(`^${header} \\u00b7 \\d+/\\d+ surfaces available$`));
+    assert.match(summary, new RegExp(`^${header} \\u00b7 .+$`));
     assert.equal(footer, summary);
 
     await browser.evaluate(`document.getElementById('clear').click(); true;`);
@@ -278,6 +278,8 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     })`);
     assert.notEqual(unauthenticated.header, 'HEALTHY');
     assert.equal(unauthenticated.footer, unauthenticated.summary);
+    const ctaAfterClear = await browser.evaluate(`document.querySelector('#footcta button[type="button"]')?.textContent || ''`);
+    assert.ok(['Open Settings', 'Retry', 'Open Surfaces', 'Refresh'].includes(ctaAfterClear), 'footer must expose a keyboard-accessible recovery action when the aggregate is not healthy, got: ' + ctaAfterClear);
 
     await browser.evaluate(`
       document.getElementById('key').value = ${JSON.stringify(TEST_API_KEY)};

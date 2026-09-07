@@ -128,8 +128,12 @@ test('Claim Workspace derives all aggregate dashboard status labels from one hel
   assert.equal(aggregateStatus(surfaces).label, 'DEGRADED');
   assert.match(html, /aggregate=aggregateStatus\(state\.surfaces\)/);
   assert.match(html, /\$\('sys'\)\.textContent=aggregate\.label/);
-  assert.match(html, /\$\('healthsum'\)\.textContent=`\$\{aggregate\.label\} · \$\{n\}\/\$\{a\.length\} surfaces available`/);
-  assert.match(html, /\$\('footstatus'\)\.textContent=`\$\{aggregate\.label\} · \$\{n\}\/\$\{a\.length\} surfaces available`/);
+  assert.match(html, /\$\('healthsum'\)\.textContent=`\$\{aggregate\.label\} · \$\{aggregate\.message\}`/);
+  assert.doesNotMatch(html, /surfaces available/);
+  assert.match(html, /aggregate\.recovery/);
+  assert.match(html, /\$\('healthcta'\)\.innerHTML=rcta/);
+  assert.match(html, /\$\('footcta'\)\.innerHTML=rcta/);
+  assert.match(html, /\$\('footstatus'\)\.textContent=`\$\{aggregate\.label\} · \$\{aggregate\.message\}`/);
   assert.doesNotMatch(html, /\$\('sys'\)\.textContent='ONLINE'/);
   assert.doesNotMatch(html, /\$\('footstatus'\)\.textContent='System Healthy'/);
 });
