@@ -159,6 +159,9 @@ async function launchBrowserSession() {
     '--disable-dev-shm-usage',
     '--no-first-run',
     '--no-default-browser-check',
+    // Browser-smoke assertions use the repository's English contract copy.
+    // Pin the test browser so host locale cannot silently change the DOM.
+    '--lang=en-US',
     '--remote-debugging-port=0',
     `--user-data-dir=${profileDir}`,
     'about:blank',
