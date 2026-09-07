@@ -593,6 +593,7 @@
     "public/index.html",
     "public/css/app.css",
     "public/js/app.js",
+    "public/js/onboarding-checklist.js",
     "public/viewer/app.mjs",
     "public/viewer/index.html",
     "public/viewer/receipt-view-model.mjs",
