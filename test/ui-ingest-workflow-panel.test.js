@@ -140,7 +140,9 @@ test('the ingest fields appear only for the ingest actions, and the title only f
   };
   const ingestFields = vm.runInNewContext(
     `(function ingestFields(){${match[1]}})`,
-    { $: id => elements[id], INGEST_ACTIONS: new Set(['ingest-preview', 'ingest-execute']) },
+    // Field copy is catalogue-backed since #1958; with no catalogue in this
+    // realm the lookup returns the English fallback, which is what is asserted.
+    { $: id => elements[id], INGEST_ACTIONS: new Set(['ingest-preview', 'ingest-execute']), T: (key, fallback) => fallback },
   );
 
   ingestFields();

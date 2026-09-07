@@ -538,9 +538,18 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     const expected = await browser.evaluate(`
       (async () => {
         const tr = await (await fetch('/locales/tr.json', { cache: 'no-store' })).json();
-        return { label: tr.surfaces.graph.label, live: tr.status.live, locked: tr.status.locked, empty: tr.status.empty };
+        return {
+          label: tr.surfaces.graph.label, live: tr.status.live, locked: tr.status.locked, empty: tr.status.empty,
+          idle: tr.ingestRun.query, onboardCta: tr.onboarding.steps.session.cta,
+        };
       })()
     `);
+    // An idle placeholder is copy no read has replaced yet, and a result is copy
+    // that must survive the switch untouched. Mark one of each before switching.
+    await browser.evaluate(`(() => {
+      document.getElementById('raw').textContent = '{"receipt":"kept"}';
+      return true;
+    })()`);
 
     // Each evaluate shares one global scope, so a bare `const` here collides
     // with the one in the switch back to English below.
@@ -567,6 +576,18 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     // the stored-copy path re-resolves rather than only freshly rendered text.
     const surfaces = await browser.evaluate(`document.getElementById('surfaces').textContent`);
     assert.doesNotMatch(surfaces, /Last checked:|Reason:/, 'stored surface metadata was not re-resolved');
+
+    // An untouched placeholder follows the language...
+    const idle = await browser.evaluate(`document.getElementById('ingestrunraw').textContent`);
+    assert.equal(idle, expected.idle, 'an idle placeholder kept its English text after the switch');
+    // ...while a rendered result is left exactly as the reader saw it. This is
+    // the failure mode data-i18n has on these elements, and why they use the
+    // stamped-placeholder path instead.
+    const kept = await browser.evaluate(`document.getElementById('raw').textContent`);
+    assert.equal(kept, '{"receipt":"kept"}', 'a rendered result was overwritten by its placeholder');
+    // The checklist builds its rows in script, so it has to redraw itself.
+    const onboard = await browser.evaluate(`document.getElementById('onboardsteps').textContent`);
+    assert.ok(onboard.includes(expected.onboardCta), `onboarding checklist stayed in English: ${onboard.slice(0, 120)}`);
 
     await browser.evaluate(`(() => {
       const selector = document.getElementById('locale-selector');

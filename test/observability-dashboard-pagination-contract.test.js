@@ -20,7 +20,10 @@ test('observability dashboard run pagination contract', async t => {
     assert.match(dashboard, /id="obsrunsnext" type="button" disabled[^>]*>Next/);
     assert.match(dashboard, /id="obsrunsmeta"[^>]*>workspace-scoped · first page/);
     assert.match(script, /byId\('obsrunsnext'\)\.disabled = !data\.hasMore/);
-    assert.match(script, /byId\('obsrunsmeta'\)\.textContent = `\$\{items\.length\} rows · \$\{data\.hasMore \? 'next page available' : 'bounded page'\}`/);
+    // The meta line is catalogue-backed since #1958; the English text it falls
+    // back to, and the bounded/next-page distinction it draws, are unchanged.
+    assert.match(script, /byId\('obsrunsmeta'\)\.textContent = T\('observability\.runs\.meta', `\$\{items\.length\} rows · \$\{data\.hasMore \? 'next page available' : 'bounded page'\}`/);
+    assert.match(script, /state: data\.hasMore \? T\('observability\.runs\.nextPage', 'next page available'\) : T\('observability\.runs\.boundedPage', 'bounded page'\)/);
   });
 
   await t.test('loads the next cursor page with the selected workspace window', () => {
