@@ -3,54 +3,63 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>HUQAN Receipt Terminal</title>
+  <title data-i18n="viewer.title">HUQAN Receipt Terminal</title>
   <link rel="stylesheet" href="/viewer/viewer.css">
+  <!-- No i18n script tag here on purpose. V4-UI-2 pins this page to exactly four
+       assets and one module, and pulling in the dashboard's i18n.js would widen
+       that surface. app.mjs fetches the catalogue itself instead, which the
+       page's connect-src 'self' already allows. -->
 </head>
 <body>
   <main class="shell">
     <header class="masthead">
-      <p class="eyebrow">HUQAN / TRUST LAYER</p>
-      <h1>Receipt<br>Terminal</h1>
-      <p class="lede">Inspect one canonical trust receipt without exposing operator credentials.</p>
+      <p class="eyebrow" data-i18n="viewer.eyebrow">HUQAN / TRUST LAYER</p>
+      <!-- Two leaves around the break, not one key carrying markup: this page
+           translates with textContent only. -->
+      <h1><span data-i18n="viewer.heading.line1">Receipt</span><br><span data-i18n="viewer.heading.line2">Terminal</span></h1>
+      <p class="lede" data-i18n="viewer.lede">Inspect one canonical trust receipt without exposing operator credentials.</p>
     </header>
 
     <section class="control-panel" aria-labelledby="access-title">
       <div class="panel-heading">
         <span>01</span>
-        <h2 id="access-title">Session access</h2>
+        <h2 id="access-title" data-i18n="viewer.access.title">Session access</h2>
       </div>
       <form id="login-form">
-        <label for="api-key">Operator API key</label>
+        <label for="api-key" data-i18n="viewer.access.apiKeyLabel">Operator API key</label>
         <div class="input-row">
           <input id="api-key" name="apiKey" type="password" autocomplete="current-password" required>
         </div>
-        <label for="login-workspace-id">Workspace ID <small>optional, defaults to "default"</small></label>
+        <label for="login-workspace-id"><span data-i18n="viewer.access.workspaceLabel">Workspace ID</span> <small data-i18n="viewer.access.workspaceHint">optional, defaults to "default"</small></label>
         <input id="login-workspace-id" name="workspaceId" autocomplete="off">
-        <button type="submit">Open session</button>
+        <button type="submit" data-i18n="viewer.access.submitBtn">Open session</button>
       </form>
-      <button id="logout-button" class="quiet-action" type="button">Close session</button>
+      <button id="logout-button" class="quiet-action" type="button" data-i18n="viewer.access.logoutBtn">Close session</button>
     </section>
 
     <section class="control-panel" aria-labelledby="lookup-title">
       <div class="panel-heading">
         <span>02</span>
-        <h2 id="lookup-title">Receipt lookup</h2>
+        <h2 id="lookup-title" data-i18n="viewer.lookup.title">Receipt lookup</h2>
       </div>
       <form id="receipt-form">
-        <label for="receipt-id">Receipt ID</label>
+        <label for="receipt-id" data-i18n="viewer.lookup.receiptIdLabel">Receipt ID</label>
         <input id="receipt-id" name="receiptId" autocomplete="off" required>
-        <label for="workspace-id">Workspace ID <small>optional, must match the session's workspace</small></label>
+        <label for="workspace-id"><span data-i18n="viewer.lookup.workspaceLabel">Workspace ID</span> <small data-i18n="viewer.lookup.workspaceHint">optional, must match the session's workspace</small></label>
         <input id="workspace-id" name="workspaceId" autocomplete="off">
-        <button type="submit">Inspect evidence</button>
+        <button type="submit" data-i18n="viewer.lookup.submitBtn">Inspect evidence</button>
       </form>
     </section>
 
     <section class="result-panel" aria-live="polite" aria-labelledby="result-title">
       <div class="panel-heading">
         <span>03</span>
-        <h2 id="result-title">Observed state</h2>
+        <h2 id="result-title" data-i18n="viewer.result.title">Observed state</h2>
       </div>
-      <p id="status" class="status">Ready for a bounded lookup.</p>
+      <!-- Annotated because nothing writes this line until the reader acts, and
+           the page has no selector that could re-run translation afterwards.
+           Once app.mjs writes a real status, that status stands. -->
+      <p id="status" class="status" data-i18n="viewer.result.ready">Ready for a bounded lookup.</p>
       <dl id="receipt-details" class="receipt-grid"></dl>
     </section>
   </main>

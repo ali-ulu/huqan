@@ -7,13 +7,71 @@ export const RECEIPT_FIELDS = Object.freeze([
   'riskScore', 'canonical', 'reviewed', 'quarantined', 'rejected',
 ]);
 
+// The viewer carries its own tiny catalogue reader rather than loading the
+// dashboard's i18n.js: V4-UI-2 pins this page to four assets and one module, so
+// a second script tag would widen a surface that is deliberately narrow. The
+// fetch is the only new thing, and connect-src 'self' already permits it.
+//
+// English stays inline as the fallback: this module is imported by unit tests
+// that have no window, and the page renders before the catalogue arrives.
+const SUPPORTED_LOCALES = ['tr', 'en'];
+let messages = null;
+
+const T = (key, fallback) => {
+  if (!messages) return fallback;
+  const value = key.split('.').reduce((node, part) => (node && typeof node === 'object' && part in node ? node[part] : undefined), messages);
+  return typeof value === 'string' ? value : fallback;
+};
+
+/**
+ * The browser's language, and nothing else. The dashboard remembers a choice in
+ * storage, but V4-UI-2 keeps every storage API out of this module, so the
+ * viewer reads the request's own signal rather than reaching for that memory.
+ */
+function resolveLocale() {
+  const language = String(navigator.language || '').split('-')[0].toLowerCase();
+  return SUPPORTED_LOCALES.includes(language) ? language : 'tr';
+}
+
+/**
+ * Translates the static shell with textContent only. Every annotated element is
+ * a leaf, so no child is ever destroyed, and no markup is ever assigned —
+ * V4-UI-2 keeps every markup-writing property out of this module, which is also
+ * why a two-line heading is two annotated spans rather than one key with a tag
+ * inside it.
+ */
+function applyTranslations(documentRef) {
+  for (const element of documentRef.querySelectorAll('[data-i18n]')) {
+    const text = T(element.dataset.i18n, null);
+    if (text !== null) element.textContent = text;
+  }
+}
+
+export async function loadCatalogue(documentRef, fetchImpl = fetch) {
+  const locale = resolveLocale();
+  try {
+    const response = await fetchImpl(`/locales/${locale}.json`, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    messages = await response.json();
+  } catch {
+    // A catalogue that will not load leaves the inline English in place, which
+    // is a readable page rather than a screen of raw keys.
+    return null;
+  }
+  documentRef.documentElement.lang = locale;
+  applyTranslations(documentRef);
+  return locale;
+}
+
+// The state key is the contract; only its copy is localised, and it is resolved
+// at render time so a catalogue that lands late still wins.
 const STATE_MESSAGES = Object.freeze({
-  unauthorized: 'Open a viewer session to inspect receipts.',
-  invalid_request: 'Enter a valid receipt identifier.',
-  not_found: 'No receipt was found for this bounded lookup.',
-  chain_invalid: 'Receipt chain integrity failed. This receipt is not authoritative and its fields are withheld.',
-  read_error: 'The receipt could not be read safely.',
-  found: 'Canonical receipt observed.',
+  unauthorized: () => T('viewer.messages.unauthorized', 'Open a viewer session to inspect receipts.'),
+  invalid_request: () => T('viewer.messages.invalidRequest', 'Enter a valid receipt identifier.'),
+  not_found: () => T('viewer.messages.notFound', 'No receipt was found for this bounded lookup.'),
+  chain_invalid: () => T('viewer.messages.chainInvalid', 'Receipt chain integrity failed. This receipt is not authoritative and its fields are withheld.'),
+  read_error: () => T('viewer.messages.readError', 'The receipt could not be read safely.'),
+  found: () => T('viewer.messages.found', 'Canonical receipt observed.'),
 });
 
 function ownPrimitive(receipt, key) {
@@ -45,7 +103,7 @@ export function renderViewState(documentRef, statusNode, detailsNode, viewState)
   } catch {
     state = 'read_error';
   }
-  statusNode.textContent = STATE_MESSAGES[state];
+  statusNode.textContent = STATE_MESSAGES[state]();
   statusNode.dataset.state = state;
   detailsNode.replaceChildren();
   if (state !== 'found' || !receipt || typeof receipt !== 'object') return;
@@ -85,7 +143,7 @@ export function startViewer(documentRef, fetchRef) {
 
   const render = (state) => renderViewState(documentRef, statusNode, detailsNode, state);
   const renderSessionReady = () => {
-    statusNode.textContent = 'Viewer session opened. Enter a receipt identifier.';
+    statusNode.textContent = T('viewer.messages.sessionOpened', 'Viewer session opened. Enter a receipt identifier.');
     statusNode.dataset.state = '';
     detailsNode.replaceChildren();
   };
@@ -144,4 +202,12 @@ export function startViewer(documentRef, fetchRef) {
 
 if (typeof document !== 'undefined' && typeof fetch === 'function') {
   startViewer(document, fetch);
+  // After startViewer, so the catalogue repaints the status line it just wrote
+  // rather than being overwritten by it.
+  loadCatalogue(document).then(() => {
+    const statusNode = document.getElementById('status');
+    if (statusNode && statusNode.dataset.state) {
+      renderViewState(document, statusNode, document.getElementById('receipt-details'), { state: statusNode.dataset.state, receipt: null });
+    }
+  });
 }

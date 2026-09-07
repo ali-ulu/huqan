@@ -24,6 +24,14 @@ const catalogues = {
 
 const scriptNames = fs.readdirSync(path.join(PUBLIC_ROOT, 'js')).filter(name => name.endsWith('.js'));
 const scripts = new Map(scriptNames.map(name => [name, norm(fs.readFileSync(path.join(PUBLIC_ROOT, 'js', name), 'utf8'))]));
+// The receipt viewer is a second page with its own module. It was translated
+// long before it was wired, and left out of every check here, which is exactly
+// how it stayed English while its catalogue entries sat unused (#1960).
+for (const name of ['app.mjs', 'receipt-view-model.mjs']) {
+  scripts.set(`viewer/${name}`, norm(fs.readFileSync(path.join(PUBLIC_ROOT, 'viewer', name), 'utf8')));
+}
+const markup = ['index.html', path.join('viewer', 'index.html')]
+  .map(file => norm(fs.readFileSync(path.join(PUBLIC_ROOT, file), 'utf8')));
 const appScript = scripts.get('app.js');
 
 const { unkeyedCopy } = require('./helpers/unkeyed-copy');
@@ -66,6 +74,27 @@ test('every key the scripts ask for exists in both catalogues', () => {
     }
   }
   assert.deepEqual(missing, [], 'a key the script requests but the catalogue lacks renders as the inline fallback in every language, silently');
+});
+
+test('every key the markup annotates exists in both catalogues', () => {
+  // test/i18n-localization.test.js makes this claim for the dashboard shell.
+  // The viewer is a second page and was outside every check here, which is how
+  // it stayed English with a complete catalogue sitting behind it.
+  const missing = [];
+  for (const html of markup) {
+    const keys = new Set();
+    for (const m of html.matchAll(/data-i18n(?:-html)?="([^"]+)"/g)) keys.add(m[1]);
+    for (const m of html.matchAll(/data-i18n-idle="([^"]+)"/g)) keys.add(m[1]);
+    for (const m of html.matchAll(/data-i18n-attr="([^"]+)"/g)) {
+      m[1].split(',').forEach(pair => { const key = pair.split(':')[1]; if (key) keys.add(key.trim()); });
+    }
+    for (const key of keys) {
+      for (const locale of ['en', 'tr']) {
+        if (typeof lookup(catalogues[locale], key) !== 'string') missing.push(`${locale}.json has no ${key}`);
+      }
+    }
+  }
+  assert.deepEqual(missing, [], 'an annotated element whose key is absent renders the raw key');
 });
 
 test('each inline fallback is the same text the English catalogue holds', () => {
@@ -132,15 +161,19 @@ test('dates render in the reader\'s locale, not a hardcoded one', () => {
 // Wiring more of the dashboard lowers this number; it must never rise. Raising
 // it means new dead copy was added, which is how the original gap was created.
 //
-// 206 → 184 (#1957) → 69 (#1958). What remains is four vocabularies rather than
-// dashboard copy: `common`, `emptyStates` and `validation` are generic word
-// lists no surface renders, and `viewer.*` describes public/viewer/index.html —
-// a page that carries no data-i18n and never loads i18n.js. Wiring the viewer is
-// its own change; deleting the vocabularies is a product decision.
-const UNWIRED_BUDGET = 69;
+// 206 → 184 (#1957) → 69 (#1958) → 0 (#1960). The last 69 split two ways: the
+// receipt viewer's 22 entries were real copy for a page nobody had wired, and
+// the rest were generic word lists (`common`, `emptyStates`, `validation`,
+// three spare `status` tokens) that no surface has ever rendered. The viewer is
+// wired now and the word lists are gone; git holds them if a surface ever wants
+// one back, but it has to arrive with the code that renders it.
+//
+// Zero is the budget from here. A key with no caller is either unfinished
+// wiring or copy that should not have been written yet.
+const UNWIRED_BUDGET = 0;
 
 test('unused catalogue copy only ever shrinks', () => {
-  const referenced = [norm(fs.readFileSync(path.join(PUBLIC_ROOT, 'index.html'), 'utf8')), ...scripts.values()].join('\n');
+  const referenced = [...markup, ...scripts.values()].join('\n');
   const unused = flatten(catalogues.en).filter(key => !referenced.includes(key));
   assert.ok(
     unused.length <= UNWIRED_BUDGET,

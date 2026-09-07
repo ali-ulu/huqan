@@ -67,8 +67,7 @@
       "title": "SİSTEM SAĞLIĞI"
     },
     "activityPulse": {
-      "title": "AJAN AKTİVİTESİ",
-      "empty": "Ajan aktivitesi bekleniyor."
+      "title": "AJAN AKTİVİTESİ"
     }
   },
   "verify": {
@@ -362,46 +361,15 @@
     "workspaceNamed": "Çalışma alanı: {workspace}"
   },
   "common": {
-    "loading": "Yükleniyor…",
-    "error": "Hata",
     "retry": "Tekrar dene",
-    "close": "Kapat",
-    "save": "Kaydet",
-    "cancel": "İptal",
-    "delete": "Sil",
-    "edit": "Düzenle",
-    "view": "Görüntüle",
-    "search": "Ara",
     "filter": "Filtrele",
-    "clear": "Temizle",
-    "refresh": "Yenile",
-    "empty": "Veri yok",
-    "none": "Yok",
-    "yes": "Evet",
-    "no": "Hayır",
-    "enabled": "Etkin",
-    "disabled": "Devre dışı",
-    "active": "Aktif",
-    "inactive": "Pasif",
-    "pending": "Bekliyor",
-    "approved": "Onaylandı",
-    "rejected": "Reddedildi",
-    "failed": "Başarısız",
-    "success": "Başarılı",
-    "warning": "Uyarı",
-    "info": "Bilgi",
-    "install": "Uygulamayı yükle",
-    "apply": "Uygula",
-    "dismiss": "Daha sonra"
+    "refresh": "Yenile"
   },
   "status": {
     "checking": "KONTROL EDİLİYOR",
-    "online": "ÇEVİMİÇİ",
     "offline": "ÇEVRİM DIŞI",
     "degraded": "BOZUK",
     "healthy": "SAĞLIKLI",
-    "unhealthy": "SAĞLIKSIZ",
-    "unknown": "BİLİNMİYOR",
     "live": "CANLI",
     "locked": "KİLİTLİ",
     "error": "HATA",
@@ -409,25 +377,8 @@
     "partial": "KISMİ",
     "unavailable": "KULLANILAMIYOR"
   },
-  "validation": {
-    "required": "Bu alan zorunludur",
-    "invalidEmail": "Geçersiz e-posta formatı",
-    "minLength": "En az {min} karakter olmalıdır",
-    "maxLength": "En fazla {max} karakter olmalıdır",
-    "patternMismatch": "Geçersiz format"
-  },
   "emptyStates": {
-    "noData": "Henüz veri yok",
-    "noResults": "Sonuç bulunamadı",
-    "noApprovals": "Bekleyen onay yok",
-    "noEvidence": "Kanıt bulunamadı",
-    "noActivity": "Aktivite yok",
-    "noConflicts": "Çatışma tespit edilmedi",
     "noGraphData": "Graf verisi yok",
-    "noRuns": "Henüz kalıcı çalışma yok",
-    "noEvents": "Bu pencerde eşleşen olay yok",
-    "noQueue": "Kuyruk boş",
-    "noAlerts": "Aktif uyarı yok",
     "noToolCalls": "Henüz araç çağrısı yok"
   },
   "onboarding": {
@@ -459,7 +410,6 @@
   "viewer": {
     "title": "HUQAN Dekont Terminali",
     "eyebrow": "HUQAN / GÜVEN KATMANI",
-    "heading": "Dekont<br>Terminalleri",
     "lede": "Operatör kimlik bilgilerini açığa çıkarmadan tek bir kanonik güven dekontunu inceleyin.",
     "access": {
       "title": "Oturum Erişimi",
@@ -486,7 +436,12 @@
       "notFound": "Bu sınırlı arama için hiçbir dekont bulunamadı.",
       "chainInvalid": "Dekont zinciri bütünlüğü başarısız. Bu dekont yetkili değil ve alanları gizlenmiştir.",
       "readError": "Dekont güvenli bir şekilde okunamadı.",
-      "found": "Kanonik dekont gözlemlendi."
+      "found": "Kanonik dekont gözlemlendi.",
+      "sessionOpened": "Görüntüleyici oturumu açıldı. Bir makbuz kimliği girin."
+    },
+    "heading": {
+      "line1": "Makbuz",
+      "line2": "Terminali"
     }
   },
   "surfaces": {
