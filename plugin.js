@@ -642,11 +642,16 @@ class PluginManager {
     if (!plugin || typeof plugin.run !== 'function') {
       throw new Error(`Plugin "${capability.plugin}" cannot run capability: ${name}`);
     }
+    // The activation gate is the authoritative policy boundary (allowlist,
+    // revocation with its incident reason, expiry), so it is consulted first
+    // and its rejection reason is what the operator sees.
+    this._reattestPlugin(plugin);
     // #1890: a grant checked only at load/install silently survives upgrades,
     // hash drift, and capabilities switched off afterwards. Re-evaluate the
     // recorded grant against live state on every invocation, fail-closed.
+    // Runs behind the gate: both fail closed, so this only narrows which
+    // reason surfaces, never whether the call is blocked.
     this._revalidateRuntimeGrant(plugin);
-    this._reattestPlugin(plugin);
     return plugin.run(this.kernel, input, {
       ...opts,
       capability,
