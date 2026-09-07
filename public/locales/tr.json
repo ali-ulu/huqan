@@ -1,7 +1,6 @@
 {
   "app": {
     "title": "HUQAN — Güven Komuta Merkezi",
-    "brand": "HUQAN",
     "subtitle": "Güven Komuta Merkezi"
   },
   "nav": {
@@ -39,7 +38,6 @@
   },
   "overview": {
     "eyebrow": "HUQAN Çalışma Zamanı",
-    "title": "Güven Komuta Merkezi",
     "description": "Gerçek çalışma zamanı yüzeyleri, kanıt akışı ve güven altyapısı tek bir komuta merkezinde.",
     "refresh": "↻ Yenile",
     "metrics": {
@@ -64,8 +62,7 @@
       "empty": "Graf verisi bekleniyor."
     },
     "health": {
-      "title": "SİSTEM SAĞLIĞI",
-      "state": "KONTROL EDİLİYOR"
+      "title": "SİSTEM SAĞLIĞI"
     },
     "activityPulse": {
       "title": "AJAN AKTİVİTESİ",
@@ -74,7 +71,6 @@
   },
   "verify": {
     "eyebrow": "Doğrulama",
-    "title": "İddia Doğrulama",
     "description": "Mevcut iş akışı sözleşmesi üzerinden doğrula, soru sor, savunma yap veya bellek arama çalıştır.",
     "workflowState": "YÜKLENİYOR",
     "console": {
@@ -84,7 +80,6 @@
     "form": {
       "workflowLabel": "İş Akışı",
       "workflows": {
-        "verify": "Doğrula",
         "ask": "Soru Sor",
         "advocate": "Savunma Yap",
         "memorySearch": "Bellek Arama",
@@ -106,27 +101,44 @@
         "fileBtn": "Dosya seç",
         "review": "İnceleme için gönder"
       },
-      "status": "Manifest bekleniyor."
+      "status": "Manifest bekleniyor.",
+      "rationaleLabel": "Gerekçe",
+      "noteLabel": "Not metni",
+      "rationalePlaceholder": "Bu neden kararlaştırıldı…",
+      "notePlaceholder": "İncelemeye alınacak not…",
+      "goalPlaceholder": "Ajanın izleyeceği hedefi tanımlayın…"
     },
     "result": {
       "title": "DOĞRULAMA SONUCU",
       "subtitle": "kaynak destekli yanıt",
       "empty": "Henüz sorgu çalıştırılmadı."
+    },
+    "manifestReady": "Yetenek manifestosu hazır.",
+    "manifestUnavailable": "Yetenek manifestosu kullanılamıyor.",
+    "workflowReady": "HAZIR",
+    "errors": {
+      "goalRequired": "Önce bir hedef girin.",
+      "ingestRequired": "Önce alınacak metni girin.",
+      "claimRequired": "Önce bir iddia veya sorgu girin.",
+      "fileType": "Yalnızca .txt ve .md dosyaları desteklenir."
     }
   },
   "approvals": {
     "eyebrow": "İnsan İncelemesi",
     "title": "Onay Kuyruğu",
     "description": "Bekleyen alma adaylarını gerçek onay uç noktası üzerinden çözün.",
-    "refresh": "↻ Yenile",
     "pending": {
       "title": "BEKLEYEN ONAYLAR",
       "subtitle": "yükleniyor",
       "empty": "Kuyruk yükleniyor."
+    },
+    "actions": {
+      "approve": "Onayla",
+      "reject": "Reddet",
+      "inspect": "İncele"
     }
   },
   "evidence": {
-    "eyebrow": "Kanıtlar",
     "title": "Güven Dekont Gezgini",
     "description": "Mevcut güven dekont API'sinden dekont, kaynak ve denetim verilerini okuyun.",
     "lookup": {
@@ -151,10 +163,15 @@
       "title": "HAM DEKONT",
       "subtitle": "değişmez okuma görünümü",
       "empty": "Bir dekont sorgulayın."
-    }
+    },
+    "loading": "Kanıt yükleniyor…",
+    "found": "Makbuz bulundu.",
+    "enterId": "Bir makbuz veya sourceRef girin.",
+    "noReceipt": "Makbuz yok",
+    "defaultLabel": "Güven Makbuzu",
+    "openReceipt": "Makbuzu aç"
   },
   "observability": {
-    "eyebrow": "Ajan Telemetrisi",
     "title": "Gözleblenebilirlik ve Kuyruk",
     "description": "Canlı olay akışı, kalıcı çalışma geçmişi, performans metrikleri, uyarı kuralları ve korumalı ajan kuyruğu.",
     "windowFilter": "Zaman penceresi",
@@ -164,7 +181,6 @@
       "7d": "Son 7 gün",
       "31d": "Son 31 gün"
     },
-    "refresh": "↻ Yenile",
     "metrics": {
       "totalRuns": "Toplam Çalışma",
       "totalRunsDesc": "seçili pencere",
@@ -181,11 +197,15 @@
     },
     "toolUsage": {
       "title": "ARAÇ KULLANIM DAĞILIMI",
-      "subtitle": "çalışma alanı kapsamlı · en son pencere",
+      "subtitle": "çalışma alanına kapsamlı · {window}",
       "total": "araç çağrısı",
-      "unavailable": "Toplam {total} çağrı var",
-      "unattributed": "Atanmamış ({count})",
-      "totalMismatch": "toplam uyuşmazlığı"
+      "totalMismatch": "toplam uyuşmazlığı",
+      "empty": "Henüz araç çağrısı yok.",
+      "breakdownUnavailable": "Araç kullanım dağılımı yok.",
+      "breakdownUnavailableAria": "Araç kullanım dağılımı yok: {total} çağrı",
+      "distributionAria": "Araç kullanım dağılımı: {total} çağrı",
+      "breakdownIncomplete": "; dağılım eksik",
+      "unattributedName": "Atanmamış"
     },
     "events": {
       "loading": "Olay geçmiyesi yükleniyor…",
@@ -194,14 +214,23 @@
       "summary": "{count} olay gösteriliyor · {window}{eventType}{runId}",
       "nextPage": "sonraki sayfa mevcut",
       "boundedPage": "sınırlı sayfa",
-      "empty": "Bu pencerde eşleşen olay yok."
+      "empty": "Bu pencerde eşleşen olay yok.",
+      "meta": "{count} satır · {state}",
+      "runLabel": "Koşum:",
+      "toolLabel": "Araç:",
+      "durationLabel": "Süre:",
+      "runPrefix": "koşum"
     },
     "runs": {
       "empty": "Henüz kalıcı çalışma yok.",
       "toolText": "araç kullanılmadı",
       "nextPage": "sonraki sayfa mevcut",
       "boundedPage": "sınırlı sayfa",
-      "loadError": "Çalışma geçmiyesi yüklenemedi: {message}"
+      "loadError": "Çalışma geçmiyesi yüklenemedi: {message}",
+      "meta": "{count} satır · {state}",
+      "toolsLabel": "Araçlar:",
+      "calls": "{count} çağrı",
+      "tokens": "{tokens} jeton"
     },
     "queue": {
       "empty": "Kuyruk boş",
@@ -214,39 +243,29 @@
       "error": "Uyarı oluşturulamadı: {message}"
     },
     "forms": {
-      "queueGoalPlaceholder": "Yeni bir hedef kuyruğa alın…",
       "alertMetric": "Metrik",
-      "alertOperator": "Eşleşme",
-      "operators": {
-        "gt": "Büyük",
-        "lt": "Küçük",
-        "eq": "Eşit"
-      },
       "createAlert": "Uyarı oluştur",
-      "queue": "Kuyruğa ekle",
-      "loadMore": "Daha fazla yükle"
+      "queue": "Kuyruğa ekle"
     },
-    "readiness": {
-      "checking": "KONTROL EDİLİYOR - bu çalışma alanı için gözleblenebilirlik onaylanıyor."
-    },
-    "status": "Gözleblenebilirlik sorgusu bekleniyor."
+    "status": "Gözleblenebilirlik sorgusu bekleniyor.",
+    "notMeasured": "ölçülmedi",
+    "selectedWindow": "seçili aralık",
+    "unknownError": "bilinmeyen hata",
+    "costUnits": "{amount} birim"
   },
   "graph": {
-    "eyebrow": "Graf",
-    "title": "Güven Ağı",
     "description": "Canlı graf veri yüzeyinden düğümleri ve ilişkileri inceleyin.",
-    "refresh": "↻ Yenile",
     "relations": {
       "title": "İLİŞKİLER",
-      "count": "—",
-      "empty": "Graf verisi bekleniyor."
-    }
+      "count": "—"
+    },
+    "emptyInWorkspace": "Bu çalışma alanında graf verisi yok",
+    "nodeLabel": "Graf düğümü"
   },
   "conflicts": {
     "eyebrow": "Graf Sinyalleri",
     "title": "Çatışma Tespiti",
     "description": "Mevcut graf verisinden çoklu tip, olumsuzlama, düşük güven ve bayat sinyalleri türetir.",
-    "refresh": "↻ Yenile",
     "triage": {
       "title": "ÖNCELİKLENDİRME ÖZETİ",
       "summary": "graf verisi bekleniyor",
@@ -256,7 +275,6 @@
       "title": "TESPİT EDİLEN SİNYALLER",
       "meta": "graf verisi bekleniyor",
       "status": "Graf verisi bekleniyor.",
-      "empty": "Graf verisi bekleniyor.",
       "filtersAria": "Çatışma sinyali süzgeçleri"
     },
     "severity": {
@@ -276,7 +294,9 @@
     },
     "clearFilters": "Süzgeçleri temizle",
     "showMore": "Daha fazla göster",
-    "showTop": "İlk 10’u göster"
+    "showTop": "İlk 10’u göster",
+    "noSignals": "Mevcut graf verisinde çelişki sinyali yok.",
+    "noMatch": "Seçili süzgeçlerle eşleşen sinyal yok."
   },
   "integrations": {
     "eyebrow": "Çalışma Zamanı",
@@ -284,8 +304,6 @@
     "description": "Bu Web UI'sinin gerçekten ulaştığı HTTP yüzeyleri, uydurulmuş bir bağlayıcı listesi değil."
   },
   "settings": {
-    "eyebrow": "Yerel Oturum",
-    "title": "Ayarlar",
     "description": "API anahtarı yalnızca bu tarayıcı sekmesinin sessionStorage'ında saklanır.",
     "workspace": {
       "title": "ÇALIŞMA ALANI OTURUMU",
@@ -295,13 +313,23 @@
       "workspaceLabel": "Çalışma Alanı",
       "saveBtn": "Kaydet ve Bağlan",
       "clearBtn": "Oturumu Temizle"
-    }
+    },
+    "connected": "Bağlandı.",
+    "connectionFailed": "Bağlantı başarısız.",
+    "keyNotSet": "API anahtarı ayarlı değil.",
+    "keyLoaded": "Oturum API anahtarı yüklendi.",
+    "connecting": "Bağlanıyor…",
+    "authDisabledNotice": "Bu sunucu API anahtarı istemiyor.",
+    "authenticatedSession": "kimliği doğrulanmış oturum",
+    "authDisabled": "bu sunucuda API kimlik doğrulaması kapalı",
+    "surfacesLocked": "Bir veya daha fazla yüzey için API anahtarı gerekli."
   },
   "footer": {
     "status": "KONTROL EDİLİYOR · Yüzeyler kontrol ediliyor — sonuçlar henüz dönmedi.",
     "lastSync": "Son senkronizasyon: —",
     "workspace": "Çalışma Alanı: default",
-    "tagline": "HUQAN · Güven doğrulanabilir."
+    "tagline": "HUQAN · Güven doğrulanabilir.",
+    "workspaceNamed": "Çalışma alanı: {workspace}"
   },
   "common": {
     "loading": "Yükleniyor…",
@@ -348,7 +376,8 @@
     "locked": "KİLİTLİ",
     "error": "HATA",
     "empty": "BOŞ",
-    "partial": "KISMİ"
+    "partial": "KISMİ",
+    "unavailable": "KULLANILAMIYOR"
   },
   "validation": {
     "required": "Bu alan zorunludur",
@@ -434,34 +463,28 @@
     "status": {
       "label": "Çalışma Zamanı Durumu",
       "reason": "Çalışma zamanı durumu bekleniyor.",
-      "endpoint": "/v2-status",
       "nextAction": "Yenile"
     },
     "workflows": {
       "label": "İş Akışı Sözleşmesi",
       "reason": "Yetenek bildirimi bekleniyor.",
-      "endpoint": "/api/v2/workflows",
       "nextAction": "Yenile"
     },
     "graph": {
       "label": "Graf Verisi",
       "reason": "Graf verisi bekleniyor.",
-      "endpoint": "/graph-data",
       "nextAction": "Yenile"
     },
     "approvals": {
       "label": "Onay Kuyruğu",
       "reason": "Onay kuyruğu bekleniyor.",
-      "endpoint": "/api/ingest/approvals",
       "nextAction": "Yenile"
     },
     "activity": {
       "label": "Ajan Aktivitesi",
       "reason": "Aktivite bekleniyor.",
-      "endpoint": "/api/workbench/activity",
       "nextAction": "Yenile"
-    },
-    "checking": "KONTROL EDİLİYOR"
+    }
   },
   "observabilityStatus": {
     "checking": "KONTROL EDİLİYOR - bu çalışma alanı için gözleblenebilirlik onaylanıyor.",
@@ -502,9 +525,7 @@
     "actionsAria": "Birincil eylemler",
     "verify": "Bir iddiayı doğrula",
     "review": "Kararları incele",
-    "evidence": "Kanıtları incele",
     "navLabel": "Ana Sayfa",
-    "navDesc": "Komuta Merkezi",
     "claimsActions": "İddialar ve Eylemler",
     "node": "HUQAN YEREL"
   },
@@ -558,7 +579,6 @@
     "alertRule": "UYARI KURALI",
     "thresholdCooldown": "eşik + bekleme",
     "name": "Ad",
-    "metric": "Metrik",
     "operatorThreshold": "İşleç / eşik",
     "windowMs": "Pencere (ms)",
     "alertsEmpty": "Uyarılar yüklenmedi.",
@@ -580,7 +600,12 @@
     "empty": "Henüz aktivite yüklenmedi.",
     "detail": "AKTİVİTE AYRINTISI",
     "noRow": "Satır seçilmedi",
-    "selectRow": "Bir aktivite satırı seçin."
+    "selectRow": "Bir aktivite satırı seçin.",
+    "loading": "Etkinlik yükleniyor…",
+    "updated": "Etkinlik güncellendi.",
+    "noneForFilters": "Bu süzgeçler için etkinlik yok.",
+    "auditOnly": "yalnızca denetim",
+    "receiptLinked": "makbuz bağlı"
   },
   "ingestRun": {
     "eyebrow": "Alım",

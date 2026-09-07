@@ -1,7 +1,6 @@
 {
   "app": {
     "title": "HUQAN — Trust Command Center",
-    "brand": "HUQAN",
     "subtitle": "Trust Command Center"
   },
   "nav": {
@@ -39,7 +38,6 @@
   },
   "overview": {
     "eyebrow": "HUQAN Runtime",
-    "title": "Trust Command Center",
     "description": "Real runtime surfaces, evidence flow, and trust infrastructure in one command center.",
     "refresh": "↻ Refresh",
     "metrics": {
@@ -64,8 +62,7 @@
       "empty": "Waiting for graph data."
     },
     "health": {
-      "title": "SYSTEM HEALTH",
-      "state": "CHECKING"
+      "title": "SYSTEM HEALTH"
     },
     "activityPulse": {
       "title": "AGENT ACTIVITY",
@@ -74,7 +71,6 @@
   },
   "verify": {
     "eyebrow": "Verification",
-    "title": "Claim Verification",
     "description": "Run verify, ask, advocate, or memory search via the current workflow contract.",
     "workflowState": "LOADING",
     "console": {
@@ -84,7 +80,6 @@
     "form": {
       "workflowLabel": "Workflow",
       "workflows": {
-        "verify": "Verify",
         "ask": "Ask",
         "advocate": "Advocate",
         "memorySearch": "Memory Search",
@@ -106,27 +101,44 @@
         "fileBtn": "Choose file",
         "review": "Send for review"
       },
-      "status": "Waiting for manifest."
+      "status": "Waiting for manifest.",
+      "rationaleLabel": "Rationale",
+      "noteLabel": "Note text",
+      "rationalePlaceholder": "Why this was decided…",
+      "notePlaceholder": "The note to queue for review…",
+      "goalPlaceholder": "Describe the goal the agent should pursue…"
     },
     "result": {
       "title": "VERIFICATION RESULT",
       "subtitle": "source-backed response",
       "empty": "No query run yet."
+    },
+    "manifestReady": "Capability manifest ready.",
+    "manifestUnavailable": "Capability manifest unavailable.",
+    "workflowReady": "READY",
+    "errors": {
+      "goalRequired": "Enter a goal first.",
+      "ingestRequired": "Enter the text to ingest first.",
+      "claimRequired": "Enter a claim or query first.",
+      "fileType": "Only .txt and .md files are supported."
     }
   },
   "approvals": {
     "eyebrow": "Human Review",
     "title": "Approval Queue",
     "description": "Resolve pending ingest candidates through the real approval endpoint.",
-    "refresh": "↻ Refresh",
     "pending": {
       "title": "PENDING APPROVALS",
       "subtitle": "loading",
       "empty": "Loading queue."
+    },
+    "actions": {
+      "approve": "Approve",
+      "reject": "Reject",
+      "inspect": "Inspect"
     }
   },
   "evidence": {
-    "eyebrow": "Evidence",
     "title": "Trust Receipt Explorer",
     "description": "Read receipt, provenance, and audit data from the existing trust-receipt API.",
     "lookup": {
@@ -151,10 +163,15 @@
       "title": "RAW RECEIPT",
       "subtitle": "immutable read view",
       "empty": "Query a receipt."
-    }
+    },
+    "loading": "Loading evidence…",
+    "found": "Receipt found.",
+    "enterId": "Enter a receipt or sourceRef.",
+    "noReceipt": "No receipt",
+    "defaultLabel": "Trust Receipt",
+    "openReceipt": "Open receipt"
   },
   "observability": {
-    "eyebrow": "Agent Telemetry",
     "title": "Observability & Queue",
     "description": "Live event stream, persistent run history, performance metrics, alert rules, and a guarded agent queue.",
     "windowFilter": "Time window",
@@ -164,7 +181,6 @@
       "7d": "Last 7 days",
       "31d": "Last 31 days"
     },
-    "refresh": "↻ Refresh",
     "metrics": {
       "totalRuns": "Total Runs",
       "totalRunsDesc": "selected window",
@@ -181,11 +197,15 @@
     },
     "toolUsage": {
       "title": "TOOL USAGE MIX",
-      "subtitle": "workspace-scoped · latest window",
+      "subtitle": "workspace-scoped · {window}",
       "total": "tool calls",
-      "unavailable": "Total {total} calls",
-      "unattributed": "Unattributed ({count})",
-      "totalMismatch": "total mismatch"
+      "totalMismatch": "total mismatch",
+      "empty": "No tool calls yet.",
+      "breakdownUnavailable": "Tool usage breakdown unavailable.",
+      "breakdownUnavailableAria": "Tool usage breakdown unavailable: {total} calls",
+      "distributionAria": "Tool usage distribution: {total} calls",
+      "breakdownIncomplete": "; breakdown incomplete",
+      "unattributedName": "Unattributed"
     },
     "events": {
       "loading": "Loading event history…",
@@ -194,14 +214,23 @@
       "summary": "Showing {count} events · {window}{eventType}{runId}",
       "nextPage": "next page available",
       "boundedPage": "bounded page",
-      "empty": "No matching events in this window."
+      "empty": "No matching events in this window.",
+      "meta": "{count} rows · {state}",
+      "runLabel": "Run:",
+      "toolLabel": "Tool:",
+      "durationLabel": "Duration:",
+      "runPrefix": "run"
     },
     "runs": {
       "empty": "No persistent runs yet.",
       "toolText": "no tools used",
       "nextPage": "next page available",
       "boundedPage": "bounded page",
-      "loadError": "Run history could not be loaded: {message}"
+      "loadError": "Run history could not be loaded: {message}",
+      "meta": "{count} rows · {state}",
+      "toolsLabel": "Tools:",
+      "calls": "{count} calls",
+      "tokens": "{tokens} token"
     },
     "queue": {
       "empty": "Queue is empty.",
@@ -214,39 +243,29 @@
       "error": "Could not create alert rule: {message}"
     },
     "forms": {
-      "queueGoalPlaceholder": "Queue a new goal…",
       "alertMetric": "Metric",
-      "alertOperator": "Operator",
-      "operators": {
-        "gt": "Greater than",
-        "lt": "Less than",
-        "eq": "Equal to"
-      },
       "createAlert": "Create alert",
-      "queue": "Queue",
-      "loadMore": "Load more"
+      "queue": "Queue"
     },
-    "readiness": {
-      "checking": "CHECKING - confirming observability is available for this workspace."
-    },
-    "status": "Waiting for observability query."
+    "status": "Waiting for observability query.",
+    "notMeasured": "not measured",
+    "selectedWindow": "selected window",
+    "unknownError": "unknown error",
+    "costUnits": "{amount} units"
   },
   "graph": {
-    "eyebrow": "Graph",
-    "title": "Trust Network",
     "description": "Inspect nodes and relations from the live graph-data surface.",
-    "refresh": "↻ Refresh",
     "relations": {
       "title": "RELATIONS",
-      "count": "—",
-      "empty": "Waiting for graph data."
-    }
+      "count": "—"
+    },
+    "emptyInWorkspace": "No graph data in this workspace",
+    "nodeLabel": "Graph node"
   },
   "conflicts": {
     "eyebrow": "Graph Signals",
     "title": "Conflict Detection",
     "description": "Derive multi-type, negation, low-confidence, and stale signals from current graph data.",
-    "refresh": "↻ Refresh",
     "triage": {
       "title": "TRIAGE SUMMARY",
       "summary": "graph data pending",
@@ -256,7 +275,6 @@
       "title": "DETECTED SIGNALS",
       "meta": "graph data pending",
       "status": "Waiting for graph data.",
-      "empty": "Waiting for graph data.",
       "filtersAria": "Conflict signal filters"
     },
     "severity": {
@@ -276,7 +294,9 @@
     },
     "clearFilters": "Clear filters",
     "showMore": "Show more",
-    "showTop": "Show top 10"
+    "showTop": "Show top 10",
+    "noSignals": "No conflict signals in current graph data.",
+    "noMatch": "No signals match the selected filters."
   },
   "integrations": {
     "eyebrow": "Runtime",
@@ -284,8 +304,6 @@
     "description": "HTTP surfaces actually reached by this Web UI, not a fabricated connector list."
   },
   "settings": {
-    "eyebrow": "Local Session",
-    "title": "Settings",
     "description": "The API key is stored only in this browser tab's sessionStorage.",
     "workspace": {
       "title": "WORKSPACE SESSION",
@@ -295,13 +313,23 @@
       "workspaceLabel": "Workspace",
       "saveBtn": "Save & Connect",
       "clearBtn": "Clear Session"
-    }
+    },
+    "connected": "Connected.",
+    "connectionFailed": "Connection failed.",
+    "keyNotSet": "API key not set.",
+    "keyLoaded": "Session API key loaded.",
+    "connecting": "Connecting…",
+    "authDisabledNotice": "This server does not require an API key.",
+    "authenticatedSession": "authenticated session",
+    "authDisabled": "API auth disabled on this server",
+    "surfacesLocked": "API key required for one or more surfaces."
   },
   "footer": {
     "status": "CHECKING · Checking surfaces — results have not come back yet.",
     "lastSync": "Last sync: —",
     "workspace": "Workspace: default",
-    "tagline": "HUQAN · Trust is verifiable."
+    "tagline": "HUQAN · Trust is verifiable.",
+    "workspaceNamed": "Workspace: {workspace}"
   },
   "common": {
     "loading": "Loading…",
@@ -348,7 +376,8 @@
     "locked": "LOCKED",
     "error": "ERROR",
     "empty": "EMPTY",
-    "partial": "PARTIAL"
+    "partial": "PARTIAL",
+    "unavailable": "UNAVAILABLE"
   },
   "validation": {
     "required": "This field is required",
@@ -434,34 +463,28 @@
     "status": {
       "label": "Runtime Status",
       "reason": "Waiting for runtime status.",
-      "endpoint": "/v2-status",
       "nextAction": "Refresh"
     },
     "workflows": {
       "label": "Workflow Contract",
       "reason": "Waiting for capability manifest.",
-      "endpoint": "/api/v2/workflows",
       "nextAction": "Refresh"
     },
     "graph": {
       "label": "Graph Data",
       "reason": "Waiting for graph data.",
-      "endpoint": "/graph-data",
       "nextAction": "Refresh"
     },
     "approvals": {
       "label": "Approval Queue",
       "reason": "Waiting for approval queue.",
-      "endpoint": "/api/ingest/approvals",
       "nextAction": "Refresh"
     },
     "activity": {
       "label": "Agent Activity",
       "reason": "Waiting for activity.",
-      "endpoint": "/api/workbench/activity",
       "nextAction": "Refresh"
-    },
-    "checking": "CHECKING"
+    }
   },
   "observabilityStatus": {
     "checking": "CHECKING - confirming observability is available for this workspace.",
@@ -502,9 +525,7 @@
     "actionsAria": "Primary actions",
     "verify": "Verify a claim",
     "review": "Review decisions",
-    "evidence": "Inspect evidence",
     "navLabel": "Home",
-    "navDesc": "Command Center",
     "claimsActions": "Claims & Actions",
     "node": "HUQAN LOCAL"
   },
@@ -558,7 +579,6 @@
     "alertRule": "ALERT RULE",
     "thresholdCooldown": "threshold + cooldown",
     "name": "Name",
-    "metric": "Metric",
     "operatorThreshold": "Operator / threshold",
     "windowMs": "Window (ms)",
     "alertsEmpty": "Alerts not loaded.",
@@ -580,7 +600,12 @@
     "empty": "No activity loaded yet.",
     "detail": "ACTIVITY DETAIL",
     "noRow": "No row selected",
-    "selectRow": "Select an activity row."
+    "selectRow": "Select an activity row.",
+    "loading": "Loading activity…",
+    "updated": "Activity updated.",
+    "noneForFilters": "No activity found for these filters.",
+    "auditOnly": "audit only",
+    "receiptLinked": "receipt linked"
   },
   "ingestRun": {
     "eyebrow": "Ingest",

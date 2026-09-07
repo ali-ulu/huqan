@@ -17,29 +17,32 @@
  * user with saved progress simply sees it collapsed behind a reopen button.
  */
 (() => {
+  // Resolved through app.js when the page loads it, and by the fallback when
+  // this module runs on its own — a unit test, or before app.js has executed.
+  const T = (key, fallback, params) => (typeof window !== 'undefined' && window.HUQAN_T ? window.HUQAN_T(key, fallback, params) : fallback);
   const STORAGE_KEY = 'huqan-onboarding';
   const VERSION = 1;
   const STEPS = [
     {
       id: 'session',
-      title: 'Connect your workspace session',
-      hint: 'Save the API key and workspace, then reach the runtime surfaces.',
+      titleKey: 'onboarding.steps.session.title', title: 'Connect your workspace session',
+      hintKey: 'onboarding.steps.session.hint', hint: 'Save the API key and workspace, then reach the runtime surfaces.',
       view: 'settings',
-      cta: 'Open Settings',
+      ctaKey: 'onboarding.steps.session.cta', cta: 'Open Settings',
     },
     {
       id: 'read',
-      title: 'Run one read workflow',
-      hint: 'Verify a claim or ask a question and get a source-backed answer.',
+      titleKey: 'onboarding.steps.read.title', title: 'Run one read workflow',
+      hintKey: 'onboarding.steps.read.hint', hint: 'Verify a claim or ask a question and get a source-backed answer.',
       view: 'verify',
-      cta: 'Open Verify',
+      ctaKey: 'onboarding.steps.read.cta', cta: 'Open Verify',
     },
     {
       id: 'evidence',
-      title: 'Open the evidence behind an answer',
-      hint: 'Look up the Trust Receipt that records how the answer was reached.',
+      titleKey: 'onboarding.steps.evidence.title', title: 'Open the evidence behind an answer',
+      hintKey: 'onboarding.steps.evidence.hint', hint: 'Look up the Trust Receipt that records how the answer was reached.',
       view: 'evidence',
-      cta: 'Open Evidence',
+      ctaKey: 'onboarding.steps.evidence.cta', cta: 'Open Evidence',
     },
   ];
   const STEP_IDS = STEPS.map(step => step.id);
@@ -110,7 +113,7 @@
     const collapsed = complete || progress.dismissed;
     card.hidden = collapsed;
     reopenWrap.hidden = !collapsed;
-    progressText.textContent = `${progress.done.length} of ${STEP_IDS.length} done`;
+    progressText.textContent = T('onboarding.progress', `${progress.done.length} of ${STEP_IDS.length} done`, { done: progress.done.length, total: STEP_IDS.length });
     list.textContent = '';
     for (const step of STEPS) {
       const state = stepState(progress, step.id);
@@ -126,15 +129,15 @@
 
       const copy = document.createElement('div');
       const title = document.createElement('b');
-      title.textContent = step.title;
+      title.textContent = T(step.titleKey, step.title);
       const hint = document.createElement('span');
-      hint.textContent = step.hint;
+      hint.textContent = T(step.hintKey, step.hint);
       copy.append(title, hint);
 
       const action = document.createElement('button');
       action.type = 'button';
       action.className = state === 'next' ? 'btn primary' : 'btn';
-      action.textContent = step.cta;
+      action.textContent = T(step.ctaKey, step.cta);
       action.disabled = state === 'done';
       action.addEventListener('click', () => window.go(step.view));
 
@@ -195,4 +198,13 @@
   card.after(reopenWrap);
   progress = load();
   render();
+
+  // The checklist builds its rows in script, so applyTranslations never sees
+  // them. It has to redraw itself when the catalogue lands and when the reader
+  // picks a different language. Guarded because the module is also exercised
+  // against a minimal window stub that carries no event target.
+  if (typeof window.addEventListener === 'function') {
+    window.addEventListener('huqan-i18n-ready', render);
+    window.addEventListener('huqan-locale-change', render);
+  }
 })();

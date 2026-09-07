@@ -99,7 +99,9 @@ test('the goal field replaces the claim field only for the agent actions', () =>
   };
   const agentFields = vm.runInNewContext(
     `(function agentFields(){${match[1]}})`,
-    { $: id => elements[id], AGENT_ACTIONS: new Set(['agent-plan', 'agent-run']) },
+    // Field copy is catalogue-backed since #1958; with no catalogue in this
+    // realm the lookup returns the English fallback, which is what is asserted.
+    { $: id => elements[id], AGENT_ACTIONS: new Set(['agent-plan', 'agent-run']), T: (key, fallback) => fallback },
   );
 
   agentFields();

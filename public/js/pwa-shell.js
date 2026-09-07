@@ -1,6 +1,9 @@
 'use strict';
 
 (() => {
+  // Resolved through app.js when the page loads it, and by the fallback when
+  // this module runs on its own — a unit test, or before app.js has executed.
+  const T = (key, fallback, params) => (typeof window !== 'undefined' && window.HUQAN_T ? window.HUQAN_T(key, fallback, params) : fallback);
   const offlineBanner = document.getElementById('offline-banner');
   const installButton = document.getElementById('install-app');
   const installStatus = document.getElementById('install-app-status');
@@ -41,10 +44,10 @@
       await installPrompt.prompt();
       const choice = await installPrompt.userChoice;
       if (choice && choice.outcome === 'dismissed') {
-        installStatus.textContent = 'Installation was dismissed. Use the browser menu when you are ready.';
+        installStatus.textContent = T('pwa.dismissed', 'Installation was dismissed. Use the browser menu when you are ready.');
       }
     } catch (_) {
-      installStatus.textContent = 'Installation was not completed. Use the browser menu to try again.';
+      installStatus.textContent = T('pwa.incomplete', 'Installation was not completed. Use the browser menu to try again.');
     } finally {
       installPrompt = null;
       installButton.disabled = false;
@@ -62,7 +65,7 @@
       scope: '/',
       updateViaCache: 'none',
     }).catch(() => {
-      installStatus.textContent = 'Offline mode is unavailable in this browser session.';
+      installStatus.textContent = T('pwa.unsupported', 'Offline mode is unavailable in this browser session.');
     });
   }
 })();

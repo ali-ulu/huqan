@@ -46,6 +46,11 @@ function loadToolUsageRenderer() {
   const context = {
     byId: id => elements[id],
     escape: value => String(value),
+    // No catalogue here, which is also a browser's state before one loads: the
+    // lookup hands back the English fallback compiled into the source, so the
+    // copy asserted below stays the copy the dashboard ships (#1958).
+    T: (key, fallback) => fallback,
+    formatCount: value => Number(value).toLocaleString('en-US'),
   };
   vm.runInNewContext(`${script.slice(start, end)}\nthis.renderToolUsage = renderToolUsage;`, context);
   return { renderToolUsage: context.renderToolUsage, elements };

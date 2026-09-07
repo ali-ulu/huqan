@@ -43,7 +43,11 @@ const sandbox = vm.runInNewContext([
   region('function nodeLabel(n){', 'function mesh()'),
   region('const CONFLICT_PAGE=', 'function renderConflicts()'),
   '({triageConflicts,filterConflicts,CONFLICT_PAGE,CONFLICT_TYPES,CONFLICT_SEVERITY})',
-].join('\n'));
+// The signal vocabulary is catalogue-backed since #1958. This realm carries no
+// catalogue, which is also a browser's state before one loads: the lookup hands
+// back the English fallback compiled into the source, so the labels asserted
+// below stay exactly the strings the dashboard ships.
+].join('\n'), { M: (key, fallback) => fallback, T: (key, fallback) => fallback, Tx: value => value });
 
 const { triageConflicts, filterConflicts, CONFLICT_PAGE, CONFLICT_TYPES, CONFLICT_SEVERITY } = sandbox;
 

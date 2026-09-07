@@ -104,7 +104,13 @@ test('dates render in the reader\'s locale, not a hardcoded one', () => {
 // languages but that nothing asks for, so it renders as hardcoded English.
 // Wiring more of the dashboard lowers this number; it must never rise. Raising
 // it means new dead copy was added, which is how the original gap was created.
-const UNWIRED_BUDGET = 184;
+//
+// 206 → 184 (#1957) → 69 (#1958). What remains is four vocabularies rather than
+// dashboard copy: `common`, `emptyStates` and `validation` are generic word
+// lists no surface renders, and `viewer.*` describes public/viewer/index.html —
+// a page that carries no data-i18n and never loads i18n.js. Wiring the viewer is
+// its own change; deleting the vocabularies is a product decision.
+const UNWIRED_BUDGET = 69;
 
 test('unused catalogue copy only ever shrinks', () => {
   const referenced = [norm(fs.readFileSync(path.join(PUBLIC_ROOT, 'index.html'), 'utf8')), ...scripts.values()].join('\n');
