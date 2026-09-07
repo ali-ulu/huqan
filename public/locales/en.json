@@ -343,7 +343,12 @@
     "degraded": "DEGRADED",
     "healthy": "HEALTHY",
     "unhealthy": "UNHEALTHY",
-    "unknown": "UNKNOWN"
+    "unknown": "UNKNOWN",
+    "live": "LIVE",
+    "locked": "LOCKED",
+    "error": "ERROR",
+    "empty": "EMPTY",
+    "partial": "PARTIAL"
   },
   "validation": {
     "required": "This field is required",
@@ -603,5 +608,76 @@
     "primaryNav": "Primary navigation",
     "secureChannel": "Secure channel not connected",
     "toolUsage": "Tool usage distribution"
+  },
+  "runtime": {
+    "notChecked": "not checked",
+    "reason": {
+      "locked": "API key required to read this surface.",
+      "error": "The surface could not be loaded.",
+      "graphEmpty": "The graph endpoint returned no nodes or relations.",
+      "empty": "No records are available in this workspace.",
+      "checking": "Waiting for the first response.",
+      "ok": "Response received from the runtime surface."
+    },
+    "health": {
+      "locked": "Some surfaces are locked — an API key is required.",
+      "error": "At least one surface failed to load.",
+      "offline": "No surfaces responded.",
+      "checking": "Checking surfaces — results have not come back yet.",
+      "partial": "Some surfaces are not live yet.",
+      "ok": "All surfaces are live."
+    },
+    "next": {
+      "locked": "Open Settings and add your API key.",
+      "error": "Retry the failed surfaces.",
+      "offline": "Retry all surfaces.",
+      "checking": "Wait a moment, then refresh.",
+      "partial": "Open Surfaces to review each one.",
+      "ok": "Refresh anytime.",
+      "wait": "Wait"
+    },
+    "openSurfaces": "Open Surfaces",
+    "surfaceDesc": {
+      "status": "Reads kernel, version, and runtime status.",
+      "workflows": "UI workflow capability manifest and route contract.",
+      "graph": "Workspace-scoped graph node/relation surface.",
+      "approvals": "Authenticated human-review ingest queue.",
+      "activity": "Workspace-scoped bounded agent activity read surface."
+    },
+    "field": {
+      "status": "Status:",
+      "reason": "Reason:",
+      "lastChecked": "Last checked:",
+      "next": "Next:"
+    },
+    "fetched": {
+      "status": "Runtime status fetched.",
+      "manifest": "Capability manifest fetched.",
+      "graph": "Graph data fetched for this workspace.",
+      "approvals": "Approval queue fetched for this workspace.",
+      "activity": "Activity fetched for this workspace."
+    },
+    "failed": {
+      "status": "Runtime status request failed.",
+      "manifest": "Capability manifest request failed.",
+      "graphHttp": "Graph request failed with HTTP {status}.",
+      "graphNoResponse": "Graph request failed before a response was received.",
+      "approvalsHttp": "Approval request failed with HTTP {status}.",
+      "approvalsNoResponse": "Approval request failed before a response was received.",
+      "activityHttp": "Activity request failed with HTTP {status}.",
+      "activityDetail": "Activity request failed: {message}"
+    },
+    "locked": {
+      "graph": "API key required to read graph data.",
+      "approvals": "API key required to read pending approvals.",
+      "activity": "API key required to read activity."
+    },
+    "empty": {
+      "approvals": "No pending approvals exist in this workspace.",
+      "activity": "No activity exists in this workspace."
+    },
+    "loading": {
+      "activity": "Loading activity."
+    }
   }
 }

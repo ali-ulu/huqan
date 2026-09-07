@@ -103,6 +103,15 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     browser = await launchBrowserSession();
     await browser.navigate(`${base}/`);
 
+    // Runtime copy is catalogue-backed since #1957, so every assertion below
+    // reads whatever language the page resolved. The default is Turkish and the
+    // browser's own language decides otherwise, which would make these
+    // assertions depend on the machine running them. Pin English and reload, so
+    // what is under test is the surface state and not the locale.
+    await browser.evaluate(`localStorage.setItem('huqan-locale','en'); true;`);
+    await browser.navigate(`${base}/`);
+    await waitFor(`document.documentElement.lang === 'en'`, 'the page to settle on the pinned locale');
+
     // Authenticate through the settings panel rather than seeding storage, so
     // the smoke exercises the same path a first-time user takes.
     await authenticate();
@@ -517,6 +526,55 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
 
     const estatus = await browser.evaluate(`document.getElementById('estatus').textContent`);
     assert.equal(estatus, 'failed: receipt_not_found', `not the versioned route's answer: ${estatus}`);
+  });
+
+  it('repaints runtime copy in the language chosen from the selector', async () => {
+    // #1957. The catalogue was complete in both languages long before anything
+    // asked it for a runtime string: the surface panel was rendered from
+    // hardcoded English, so switching the selector translated the static shell
+    // around it and left the surfaces themselves untouched. Assert the switch
+    // where it used to fail — on copy app.js writes, not copy the HTML carries.
+    const englishHealth = await browser.evaluate(`document.getElementById('health').textContent`);
+    const expected = await browser.evaluate(`
+      (async () => {
+        const tr = await (await fetch('/locales/tr.json', { cache: 'no-store' })).json();
+        return { label: tr.surfaces.graph.label, live: tr.status.live, locked: tr.status.locked, empty: tr.status.empty };
+      })()
+    `);
+
+    // Each evaluate shares one global scope, so a bare `const` here collides
+    // with the one in the switch back to English below.
+    await browser.evaluate(`(() => {
+      const selector = document.getElementById('locale-selector');
+      selector.value = 'tr';
+      selector.dispatchEvent(new Event('change'));
+      return true;
+    })()`);
+    await waitFor(`document.documentElement.lang === 'tr'`, 'the selector to apply Turkish');
+    await waitFor(
+      `document.getElementById('health').textContent.includes(${JSON.stringify(expected.label)})`,
+      'the health panel to name the graph surface in Turkish',
+    );
+
+    const turkishHealth = await browser.evaluate(`document.getElementById('health').textContent`);
+    assert.notEqual(turkishHealth, englishHealth, 'the surface panel must not stay in English after the switch');
+    assert.ok(
+      [expected.live, expected.locked, expected.empty].some(state => turkishHealth.includes(state)),
+      `surface state stayed untranslated: ${turkishHealth}`,
+    );
+    assert.doesNotMatch(turkishHealth, /Graph Data|Approval Queue/, 'English surface labels survived the switch');
+    // The reason line is stored on state when a surface resolves, so it proves
+    // the stored-copy path re-resolves rather than only freshly rendered text.
+    const surfaces = await browser.evaluate(`document.getElementById('surfaces').textContent`);
+    assert.doesNotMatch(surfaces, /Last checked:|Reason:/, 'stored surface metadata was not re-resolved');
+
+    await browser.evaluate(`(() => {
+      const selector = document.getElementById('locale-selector');
+      selector.value = 'en';
+      selector.dispatchEvent(new Event('change'));
+      return true;
+    })()`);
+    await waitFor(`document.documentElement.lang === 'en'`, 'the selector to return to English');
   });
 
   it('records no uncaught browser exception or console error across the session', () => {

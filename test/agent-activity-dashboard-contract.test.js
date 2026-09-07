@@ -71,7 +71,11 @@ describe('Agent Activity dashboard contract', () => {
       assert.doesNotMatch(dashboard, new RegExp(legacyCopy.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')));
     }
     assert.match(dashboard, /Search: receipt ID, claim, source…/);
-    assert.ok(script.includes("new Intl.DateTimeFormat('en-US'"));
+    // This pinned `DateTimeFormat('en-US'`, which fixed one locale for every
+    // reader. The dashboard is bilingual since #1957, so the invariant is that
+    // formatting follows the active locale — not that it is hardcoded to any.
+    assert.ok(script.includes('new Intl.DateTimeFormat(locale()'));
+    assert.ok(!script.includes("new Intl.DateTimeFormat('en-US'"));
   });
 
   it('keeps the dashboard script syntactically valid', () => {
