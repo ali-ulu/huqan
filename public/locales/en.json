@@ -67,8 +67,7 @@
       "title": "SYSTEM HEALTH"
     },
     "activityPulse": {
-      "title": "AGENT ACTIVITY",
-      "empty": "Waiting for agent activity."
+      "title": "AGENT ACTIVITY"
     }
   },
   "verify": {
@@ -362,46 +361,15 @@
     "workspaceNamed": "Workspace: {workspace}"
   },
   "common": {
-    "loading": "Loading…",
-    "error": "Error",
     "retry": "Retry",
-    "close": "Close",
-    "save": "Save",
-    "cancel": "Cancel",
-    "delete": "Delete",
-    "edit": "Edit",
-    "view": "View",
-    "search": "Search",
     "filter": "Filter",
-    "clear": "Clear",
-    "refresh": "Refresh",
-    "empty": "No data",
-    "none": "None",
-    "yes": "Yes",
-    "no": "No",
-    "enabled": "Enabled",
-    "disabled": "Disabled",
-    "active": "Active",
-    "inactive": "Inactive",
-    "pending": "Pending",
-    "approved": "Approved",
-    "rejected": "Rejected",
-    "failed": "Failed",
-    "success": "Success",
-    "warning": "Warning",
-    "info": "Info",
-    "install": "Install App",
-    "apply": "Apply",
-    "dismiss": "Later"
+    "refresh": "Refresh"
   },
   "status": {
     "checking": "CHECKING",
-    "online": "ONLINE",
     "offline": "OFFLINE",
     "degraded": "DEGRADED",
     "healthy": "HEALTHY",
-    "unhealthy": "UNHEALTHY",
-    "unknown": "UNKNOWN",
     "live": "LIVE",
     "locked": "LOCKED",
     "error": "ERROR",
@@ -409,25 +377,8 @@
     "partial": "PARTIAL",
     "unavailable": "UNAVAILABLE"
   },
-  "validation": {
-    "required": "This field is required",
-    "invalidEmail": "Invalid email format",
-    "minLength": "Must be at least {min} characters",
-    "maxLength": "Must be at most {max} characters",
-    "patternMismatch": "Invalid format"
-  },
   "emptyStates": {
-    "noData": "No data yet",
-    "noResults": "No results found",
-    "noApprovals": "No pending approvals",
-    "noEvidence": "No evidence found",
-    "noActivity": "No activity",
-    "noConflicts": "No conflicts detected",
     "noGraphData": "No graph data",
-    "noRuns": "No persistent runs yet",
-    "noEvents": "No matching events in this window",
-    "noQueue": "Queue is empty",
-    "noAlerts": "No active alerts",
     "noToolCalls": "No tool calls yet"
   },
   "onboarding": {
@@ -459,7 +410,6 @@
   "viewer": {
     "title": "HUQAN Receipt Terminal",
     "eyebrow": "HUQAN / TRUST LAYER",
-    "heading": "Receipt<br>Terminal",
     "lede": "Inspect one canonical trust receipt without exposing operator credentials.",
     "access": {
       "title": "Session access",
@@ -486,7 +436,12 @@
       "notFound": "No receipt was found for this bounded lookup.",
       "chainInvalid": "Receipt chain integrity failed. This receipt is not authoritative and its fields are withheld.",
       "readError": "The receipt could not be read safely.",
-      "found": "Canonical receipt observed."
+      "found": "Canonical receipt observed.",
+      "sessionOpened": "Viewer session opened. Enter a receipt identifier."
+    },
+    "heading": {
+      "line1": "Receipt",
+      "line2": "Terminal"
     }
   },
   "surfaces": {
