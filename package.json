@@ -598,6 +598,7 @@
     "public/manifest.webmanifest",
     "public/icons/huqan-192.svg",
     "public/icons/huqan-512.svg",
+    "public/js/onboarding-checklist.js",
     "public/viewer/app.mjs",
     "public/viewer/index.html",
     "public/viewer/receipt-view-model.mjs",
