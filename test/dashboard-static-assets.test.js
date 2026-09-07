@@ -138,6 +138,20 @@ test('dashboard static assets', async (t) => {
     assert.match(stylesheet.contentType || '', /^text\/css\b/);
   });
 
+  await t.test('PWA metadata and worker are reachable with browser-safe media types', () => {
+    const [manifest, worker, icon] = probe([
+      '/manifest.webmanifest',
+      '/service-worker.js',
+      '/icons/huqan-192.svg',
+    ]);
+    assert.equal(manifest.status, 200);
+    assert.match(manifest.contentType || '', /^application\/manifest\+json\b/);
+    assert.equal(worker.status, 200);
+    assert.match(worker.contentType || '', /^(?:text|application)\/javascript\b/);
+    assert.equal(icon.status, 200);
+    assert.match(icon.contentType || '', /^image\/svg\+xml\b/);
+  });
+
   await t.test('an undeclared path under a served asset directory stays a 404', () => {
     // The served surface is an explicit table, not a directory: a traversal or a
     // guess at a neighbouring file must not reach the file system.
