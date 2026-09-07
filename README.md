@@ -94,7 +94,20 @@ A verification tool that oversells itself has refuted its own thesis, so:
 - The A2A routes are deployment-gated. Unconfigured, they answer `404` rather than `401`, so an install never advertises a surface it cannot serve.
 - It complements IAM, application and infrastructure security, and human governance. It replaces none of them.
 
-Evals score a model offline. Tracing tells you what happened last night. IAM decides who may call the API. HUQAN answers the one question none of them do: *should this specific output be trusted, right now, before it lands?*
+## Neighbours, not substitutes
+
+Four tools get compared to HUQAN. Each owns a different boundary, and one system can reasonably run all of them:
+
+| Reach for | When the problem is | HUQAN's job instead |
+|---|---|---|
+| [NeMo Guardrails](https://docs.nvidia.com/nemo/guardrails/home) | Filtering an LLM's inputs and outputs — safety, topic, PII, jailbreak controls | Deciding whether an output earned the write, and recording why |
+| [LangChain guardrails and HITL middleware](https://docs.langchain.com/oss/python/langchain/guardrails) | Framework-native checks and a pause-and-resume step around selected tool calls | A durable receipt binding evidence, scope, policy and approval to one decision |
+| [Docker MCP Gateway](https://docs.docker.com/ai/mcp-catalog-and-toolkit/mcp-gateway/) | MCP server lifecycle, credentials, routing, container isolation | The decision inside the call, not the isolation around it |
+| [DeepEval](https://deepeval.com/docs/evaluation-introduction) | Scoring model quality against datasets, in CI | The single live action, judged before it lands |
+
+This is a comparison of focus, not a claim that any of them lacks features outside its primary documentation. Evals score a model offline. Tracing says what happened last night. IAM says who may call the API. HUQAN answers the question none of them ask: *should this specific output be trusted, right now, before it lands?*
+
+Full reasoning, sources, and the cases where HUQAN is the **wrong** choice: [competitive positioning](./docs/competitive-positioning.md).
 
 ## More
 
