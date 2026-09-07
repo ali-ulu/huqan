@@ -74,7 +74,10 @@ test('the panel renders every state-bearing field and links a final receipt', ()
   const source = script();
   for (const field of ['Status', 'Phase', 'Run ID', 'Approval', 'Workspace', 'Source', 'Digest',
     'Idempotency key', 'Progress', 'Next action', 'Retry', 'Resume', 'Receipt']) {
-    assert.match(source, new RegExp(`\\['${field}'`), `${field} must remain visible`);
+    // Row labels are catalogue-backed since #1959, so each ships as the English
+    // fallback of its key rather than a bare literal. Still the same claim: the
+    // field is present and still says what it said.
+    assert.match(source, new RegExp(`\\[T\\('ingestRun\\.rows\\.[A-Za-z]+', '${field}'\\)`), `${field} must remain visible`);
   }
   assert.match(source, /data-ingest-receipt/);
   assert.match(source, /byId\('emode'\)\.value = 'receiptId'/);

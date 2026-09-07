@@ -155,7 +155,7 @@ test('Claim Workspace exposes truthful surface metadata and actionable empty sta
   assert.match(html, /id="meshstate"/);
   assert.match(html, /id="meshstage"/);
   assert.match(html, /meshstage'\)\.hidden=!hasData/);
-  assert.match(html, /No pending approvals\.<\/b><br>\$\{esc\(Tx\(s\.reason\)\)\}/);
+  assert.match(html, /\$\{esc\(T\('approvals\.none','No pending approvals\.'\)\)\}<\/b><br>\$\{esc\(Tx\(s\.reason\)\)\}/);
   assert.ok(html.includes("T('runtime.field.lastChecked','Last checked:')"));
 });
 
