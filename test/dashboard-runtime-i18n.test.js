@@ -26,6 +26,8 @@ const scriptNames = fs.readdirSync(path.join(PUBLIC_ROOT, 'js')).filter(name => 
 const scripts = new Map(scriptNames.map(name => [name, norm(fs.readFileSync(path.join(PUBLIC_ROOT, 'js', name), 'utf8'))]));
 const appScript = scripts.get('app.js');
 
+const { unkeyedCopy } = require('./helpers/unkeyed-copy');
+
 const lookup = (table, key) => key.split('.').reduce((node, part) => (node && typeof node === 'object' && part in node ? node[part] : undefined), table);
 
 function flatten(node, prefix = '', out = []) {
@@ -87,6 +89,31 @@ test('the dashboard resolves its runtime copy through the catalogue', () => {
   assert.ok(calls >= 100, `app.js resolves only ${calls} strings through the catalogue; the wiring has been removed`);
 });
 
+test('no element a script writes is also annotated for applyTranslations', () => {
+  // Two owners for one string is a race whose winner is load order. #1932 hit
+  // it once (the graph surface reverted to CHECKING); #1958 reintroduced it on
+  // the submit button, which learn-review renames — applyTranslations put the
+  // generic "Run" back on a button that submits a learn-review.
+  //
+  // The rule: an element whose text a script assigns is localised by that
+  // script, never by an annotation. Idle placeholders use data-i18n-idle, which
+  // yields the moment real content arrives.
+  const html = norm(fs.readFileSync(path.join(PUBLIC_ROOT, 'index.html'), 'utf8'));
+  const annotated = new Set();
+  for (const m of html.matchAll(/<[a-z]+[^>]*\bid="([^"]+)"[^>]*\bdata-i18n="/g)) annotated.add(m[1]);
+  for (const m of html.matchAll(/<[a-z]+[^>]*\bdata-i18n="[^"]*"[^>]*\bid="([^"]+)"/g)) annotated.add(m[1]);
+
+  const clashes = [];
+  for (const id of annotated) {
+    for (const [name, source] of scripts) {
+      if (name === 'i18n.js') continue;
+      const writes = new RegExp(`(?:\\$|byId)\\('${id}'\\)\\.(?:textContent|innerHTML)\\s*=`);
+      if (writes.test(source)) clashes.push(`#${id} is annotated data-i18n but ${name} writes it`);
+    }
+  }
+  assert.deepEqual(clashes, [], 'these elements have two owners for one string');
+});
+
 test('a locale change repaints what was drawn from stored state', () => {
   // Without this the surfaces keep whichever language won the initial race:
   // app.js paints before i18n.js has fetched a catalogue.
@@ -118,5 +145,46 @@ test('unused catalogue copy only ever shrinks', () => {
   assert.ok(
     unused.length <= UNWIRED_BUDGET,
     `${unused.length} catalogue keys are unreferenced, above the recorded ${UNWIRED_BUDGET}. New copy must be wired to a T()/M()/data-i18n site, not only translated. First offenders: ${unused.slice(0, 8).join(', ')}`,
+  );
+});
+
+// The ratchet above counts catalogue entries nothing renders. It cannot see the
+// opposite direction — copy a script writes with no catalogue key at all, which
+// no catalogue check can detect because there is nothing in the catalogue to
+// check. That is half the original defect, so it gets its own count.
+//
+// 40 (#1958) → 0 (#1959). Anything above zero is a string a reader sees in one
+// language only. The scanner backing this count is itself checked above: its
+// first version returned a wrong zero because a regex literal desynced it.
+const UNKEYED_BUDGET = 0;
+
+// The scanner is the thing making the claim, so it is checked first. Its first
+// version reported zero offenders because a regex literal like /'/g desynced
+// its tokeniser and hid the rest of the file — a green light for a count it had
+// not actually taken.
+test('the unkeyed-copy scanner finds what it claims to, and skips what is wired', () => {
+  const wired = `const a = T('some.key', 'Wired copy here.'); const b = M('other.key', 'Also wired.');`;
+  assert.deepEqual(unkeyedCopy(wired), [], 'a catalogue fallback is not an offender');
+
+  assert.deepEqual(unkeyedCopy(`status('Enter a fact first.');`), ['Enter a fact first.']);
+  assert.deepEqual(unkeyedCopy('el.innerHTML = `<div class="empty">No results here.</div>`;'), ['No results here.']);
+
+  // The regression: a regex holding a quote must not swallow what follows.
+  const withRegex = `const esc = v => String(v).replace(/'/g, '&#39;').replace(/"/g, '&quot;');\nstatus('Enter a run ID.');`;
+  assert.deepEqual(unkeyedCopy(withRegex), ['Enter a run ID.'], 'a regex literal must not desync the tokeniser');
+
+  // Protocol tokens, routes and interpolation are not reader-facing copy.
+  assert.deepEqual(unkeyedCopy(`fetch('/api/v2/workflows'); const s = 'CLAIM_FLAGGED'; const t = \`HTTP \${code}\`;`), []);
+});
+
+test('copy with no catalogue key at all only ever shrinks', () => {
+  const offenders = [];
+  for (const [name, source] of scripts) {
+    if (name === 'i18n.js') continue;
+    for (const text of unkeyedCopy(source)) offenders.push(`${name}: ${JSON.stringify(text)}`);
+  }
+  assert.ok(
+    offenders.length <= UNKEYED_BUDGET,
+    `${offenders.length} strings are rendered with no catalogue key, above the recorded ${UNKEYED_BUDGET}. Each is copy one language never sees. Offenders: ${offenders.slice(0, 10).join(' | ')}`,
   );
 });

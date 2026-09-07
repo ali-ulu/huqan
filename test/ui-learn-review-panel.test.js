@@ -54,6 +54,9 @@ test('leaving learn-review restores the generic review action when a prompt exis
     $: id => elements[id],
     state: { lastPrompt: 'previous successful query' },
     isLearnReviewSelected: () => elements.action.value === 'learn-review',
+    // Labels are catalogue-backed since #1959; with no catalogue in this realm
+    // the lookup returns the English fallback, which is what is asserted below.
+    T: (key, fallback) => fallback,
   });
 
   toggle();
@@ -91,6 +94,7 @@ test('pending projection says learned zero and never presents the proposal as ca
     $: id => elements[id],
     esc: value => String(value ?? ''),
     status: value => { statusText = value; },
+    T: (key, fallback) => fallback,
   });
   render({
     status: 'review_required',

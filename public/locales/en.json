@@ -34,7 +34,9 @@
   },
   "secure": {
     "title": "SECURE CHANNEL",
-    "apiKeyRequired": "API key required"
+    "apiKeyRequired": "API key required",
+    "connected": "Secure channel connected for this session",
+    "notConnected": "Secure channel not connected"
   },
   "overview": {
     "eyebrow": "HUQAN Runtime",
@@ -136,7 +138,9 @@
       "approve": "Approve",
       "reject": "Reject",
       "inspect": "Inspect"
-    }
+    },
+    "none": "No pending approvals.",
+    "queueState": "Approval queue is {state}."
   },
   "evidence": {
     "title": "Trust Receipt Explorer",
@@ -169,7 +173,20 @@
     "enterId": "Enter a receipt or sourceRef.",
     "noReceipt": "No receipt",
     "defaultLabel": "Trust Receipt",
-    "openReceipt": "Open receipt"
+    "openReceipt": "Open receipt",
+    "rows": {
+      "status": "Status",
+      "receiptId": "Receipt ID",
+      "workspace": "Workspace",
+      "target": "Target",
+      "confidence": "Confidence",
+      "canonical": "Canonical",
+      "policy": "Policy"
+    },
+    "values": {
+      "yes": "yes",
+      "no": "no"
+    }
   },
   "observability": {
     "title": "Observability & Queue",
@@ -260,7 +277,13 @@
       "count": "—"
     },
     "emptyInWorkspace": "No graph data in this workspace",
-    "nodeLabel": "Graph node"
+    "nodeLabel": "Graph node",
+    "dataEmpty": "Graph data is empty.",
+    "isEmpty": "Graph is empty.",
+    "noRelations": "No relations yet.",
+    "dataState": "Graph data is {state}.",
+    "isState": "Graph is {state}.",
+    "relationsState": "Relations are {state}."
   },
   "conflicts": {
     "eyebrow": "Graph Signals",
@@ -296,7 +319,14 @@
     "showMore": "Show more",
     "showTop": "Show top 10",
     "noSignals": "No conflict signals in current graph data.",
-    "noMatch": "No signals match the selected filters."
+    "noMatch": "No signals match the selected filters.",
+    "blankWorkspace": "No graph data in this workspace yet.",
+    "nothingToTriage": "No graph data in this workspace yet, so there is nothing to triage.",
+    "detail": {
+      "negation": "Negation and positive relation coexist."
+    },
+    "triageState": "Conflict triage is {state}.",
+    "noSignalsHint": "Signals appear here when the graph carries conflicting types, negations, low confidence, or stale evidence."
   },
   "integrations": {
     "eyebrow": "Runtime",
@@ -547,7 +577,10 @@
     "receipts": "receipts",
     "loading": "Loading activity.",
     "meta": "workspace scoped · waiting",
-    "open": "Open Activity"
+    "open": "Open Activity",
+    "locked": "Activity access is locked. Add an API key in Settings.",
+    "error": "Activity could not be loaded. Try again.",
+    "empty": "No agent actions in this workspace yet."
   },
   "workflows": {
     "learnReview": "Learn (review required)",
@@ -605,7 +638,18 @@
     "updated": "Activity updated.",
     "noneForFilters": "No activity found for these filters.",
     "auditOnly": "audit only",
-    "receiptLinked": "receipt linked"
+    "receiptLinked": "receipt linked",
+    "rows": {
+      "event": "Event",
+      "action": "Action",
+      "actor": "Actor",
+      "target": "Target",
+      "timestamp": "Timestamp",
+      "source": "Source",
+      "provenance": "Provenance",
+      "receipt": "Receipt",
+      "decision": "Decision"
+    }
   },
   "ingestRun": {
     "eyebrow": "Ingest",
@@ -615,7 +659,38 @@
     "load": "Load run",
     "waiting": "Waiting for a run ID.",
     "projection": "RUN PROJECTION",
-    "query": "Query an ingest run."
+    "query": "Query an ingest run.",
+    "nav": {
+      "label": "Ingest Runs",
+      "desc": "Progress & Receipts"
+    },
+    "enterId": "Enter a run ID.",
+    "loading": "Loading ingest run…",
+    "viewRun": "View ingest run",
+    "rows": {
+      "status": "Status",
+      "phase": "Phase",
+      "runId": "Run ID",
+      "approval": "Approval",
+      "workspace": "Workspace",
+      "source": "Source",
+      "digest": "Digest",
+      "idempotencyKey": "Idempotency key",
+      "progress": "Progress",
+      "nextAction": "Next action",
+      "retry": "Retry",
+      "resume": "Resume",
+      "receipt": "Receipt",
+      "evidence": "Evidence"
+    },
+    "values": {
+      "unknown": "unknown",
+      "none": "none",
+      "allowed": "allowed",
+      "notAllowed": "not allowed",
+      "notEmitted": "not emitted",
+      "phaseUnknown": "phase unknown"
+    }
   },
   "placeholders": {
     "goal": "Goal for the agent to execute safely",
@@ -704,5 +779,13 @@
     "loading": {
       "activity": "Loading activity."
     }
+  },
+  "learnReview": {
+    "promptLabel": "Fact to propose",
+    "promptPlaceholder": "Describe the fact to send for human review…",
+    "submit": "Send for human review",
+    "enterFact": "Enter a fact to propose first.",
+    "pending": "Pending human approval",
+    "notCanonical": "not canonical until a human approves"
   }
 }

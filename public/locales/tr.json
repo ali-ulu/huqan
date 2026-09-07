@@ -34,7 +34,9 @@
   },
   "secure": {
     "title": "GÜVENLİ KANAL",
-    "apiKeyRequired": "API anahtarı gerekli"
+    "apiKeyRequired": "API anahtarı gerekli",
+    "connected": "Bu oturum için güvenli kanal bağlı",
+    "notConnected": "Güvenli kanal bağlı değil"
   },
   "overview": {
     "eyebrow": "HUQAN Çalışma Zamanı",
@@ -136,7 +138,9 @@
       "approve": "Onayla",
       "reject": "Reddet",
       "inspect": "İncele"
-    }
+    },
+    "none": "Bekleyen onay yok.",
+    "queueState": "Onay kuyruğu {state}."
   },
   "evidence": {
     "title": "Güven Dekont Gezgini",
@@ -169,7 +173,20 @@
     "enterId": "Bir makbuz veya sourceRef girin.",
     "noReceipt": "Makbuz yok",
     "defaultLabel": "Güven Makbuzu",
-    "openReceipt": "Makbuzu aç"
+    "openReceipt": "Makbuzu aç",
+    "rows": {
+      "status": "Durum",
+      "receiptId": "Makbuz kimliği",
+      "workspace": "Çalışma alanı",
+      "target": "Hedef",
+      "confidence": "Güven",
+      "canonical": "Kanonik",
+      "policy": "Politika"
+    },
+    "values": {
+      "yes": "evet",
+      "no": "hayır"
+    }
   },
   "observability": {
     "title": "Gözleblenebilirlik ve Kuyruk",
@@ -260,7 +277,13 @@
       "count": "—"
     },
     "emptyInWorkspace": "Bu çalışma alanında graf verisi yok",
-    "nodeLabel": "Graf düğümü"
+    "nodeLabel": "Graf düğümü",
+    "dataEmpty": "Graf verisi boş.",
+    "isEmpty": "Graf boş.",
+    "noRelations": "Henüz ilişki yok.",
+    "dataState": "Graf verisi {state}.",
+    "isState": "Graf {state}.",
+    "relationsState": "İlişkiler {state}."
   },
   "conflicts": {
     "eyebrow": "Graf Sinyalleri",
@@ -296,7 +319,14 @@
     "showMore": "Daha fazla göster",
     "showTop": "İlk 10’u göster",
     "noSignals": "Mevcut graf verisinde çelişki sinyali yok.",
-    "noMatch": "Seçili süzgeçlerle eşleşen sinyal yok."
+    "noMatch": "Seçili süzgeçlerle eşleşen sinyal yok.",
+    "blankWorkspace": "Bu çalışma alanında henüz graf verisi yok.",
+    "nothingToTriage": "Bu çalışma alanında henüz graf verisi yok, ayıklanacak bir şey de yok.",
+    "detail": {
+      "negation": "Olumsuzlama ile olumlu ilişki bir arada."
+    },
+    "triageState": "Çelişki ayıklama {state}.",
+    "noSignalsHint": "Graf çelişkili tür, olumsuzlama, düşük güven veya bayat kanıt taşıdığında sinyaller burada görünür."
   },
   "integrations": {
     "eyebrow": "Çalışma Zamanı",
@@ -547,7 +577,10 @@
     "receipts": "dekont",
     "loading": "Aktivite yükleniyor.",
     "meta": "çalışma alanı kapsamlı · bekleniyor",
-    "open": "Aktiviteyi aç"
+    "open": "Aktiviteyi aç",
+    "locked": "Etkinlik erişimi kilitli. Ayarlar’dan bir API anahtarı ekleyin.",
+    "error": "Etkinlik yüklenemedi. Yeniden deneyin.",
+    "empty": "Bu çalışma alanında henüz ajan eylemi yok."
   },
   "workflows": {
     "learnReview": "Öğren (inceleme gerekli)",
@@ -605,7 +638,18 @@
     "updated": "Etkinlik güncellendi.",
     "noneForFilters": "Bu süzgeçler için etkinlik yok.",
     "auditOnly": "yalnızca denetim",
-    "receiptLinked": "makbuz bağlı"
+    "receiptLinked": "makbuz bağlı",
+    "rows": {
+      "event": "Olay",
+      "action": "Eylem",
+      "actor": "Aktör",
+      "target": "Hedef",
+      "timestamp": "Zaman damgası",
+      "source": "Kaynak",
+      "provenance": "Köken",
+      "receipt": "Makbuz",
+      "decision": "Karar"
+    }
   },
   "ingestRun": {
     "eyebrow": "Alım",
@@ -615,7 +659,38 @@
     "load": "Koşumu yükle",
     "waiting": "Bir koşum kimliği bekleniyor.",
     "projection": "KOŞUM İZDÜŞÜMÜ",
-    "query": "Bir alım koşumu sorgulayın."
+    "query": "Bir alım koşumu sorgulayın.",
+    "nav": {
+      "label": "Alım Koşumları",
+      "desc": "İlerleme ve Makbuzlar"
+    },
+    "enterId": "Bir koşum kimliği girin.",
+    "loading": "Alım koşumu yükleniyor…",
+    "viewRun": "Alım koşumunu gör",
+    "rows": {
+      "status": "Durum",
+      "phase": "Aşama",
+      "runId": "Koşum kimliği",
+      "approval": "Onay",
+      "workspace": "Çalışma alanı",
+      "source": "Kaynak",
+      "digest": "Özet",
+      "idempotencyKey": "Idempotency anahtarı",
+      "progress": "İlerleme",
+      "nextAction": "Sonraki eylem",
+      "retry": "Yeniden deneme",
+      "resume": "Sürdürme",
+      "receipt": "Makbuz",
+      "evidence": "Kanıt"
+    },
+    "values": {
+      "unknown": "bilinmiyor",
+      "none": "yok",
+      "allowed": "izinli",
+      "notAllowed": "izinli değil",
+      "notEmitted": "üretilmedi",
+      "phaseUnknown": "aşama bilinmiyor"
+    }
   },
   "placeholders": {
     "goal": "Ajanın güvenle yürüteceği hedef",
@@ -704,5 +779,13 @@
     "loading": {
       "activity": "Etkinlik yükleniyor."
     }
+  },
+  "learnReview": {
+    "promptLabel": "Önerilecek olgu",
+    "promptPlaceholder": "İnsan incelemesine gönderilecek olguyu yazın…",
+    "submit": "İnsan incelemesine gönder",
+    "enterFact": "Önce önerilecek bir olgu girin.",
+    "pending": "İnsan onayı bekliyor",
+    "notCanonical": "bir insan onaylayana kadar kanonik değil"
   }
 }

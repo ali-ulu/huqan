@@ -1,6 +1,9 @@
 'use strict';
 
 (() => {
+  // Resolved through app.js when the page loads it, and by the fallback when
+  // this module runs on its own — a unit test, or before app.js has executed.
+  const T = (key, fallback, params) => (typeof window !== 'undefined' && window.HUQAN_T ? window.HUQAN_T(key, fallback, params) : fallback);
   const byId = id => document.getElementById(id);
   const escapeHtml = value => String(value ?? '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -22,30 +25,32 @@
     const progress = run.progress || {};
     const retry = run.retry || {};
     const resume = run.resume || {};
+    const allowed = T('ingestRun.values.allowed', 'allowed');
+    const notAllowed = T('ingestRun.values.notAllowed', 'not allowed');
     const rows = [
-      ['Status', run.status || 'unknown'],
-      ['Phase', run.phase || '—'],
-      ['Run ID', run.runId || '—'],
-      ['Approval', run.approvalId || '—'],
-      ['Workspace', manifest.workspaceId || workspaceId()],
-      ['Source', `${manifest.sourceType || '—'} · ${manifest.sourceRef || '—'}`],
-      ['Digest', manifest.sourceDigest || '—'],
-      ['Idempotency key', manifest.idempotencyKey || '—'],
-      ['Progress', `${progress.completed ?? '—'} / ${progress.total ?? '—'}`],
-      ['Next action', run.nextAction || 'none'],
-      ['Retry', retry.allowed ? 'allowed' : retry.reason || 'not allowed'],
-      ['Resume', resume.allowed ? 'allowed' : resume.reason || 'not allowed'],
-      ['Receipt', run.receiptId || 'not emitted'],
+      [T('ingestRun.rows.status', 'Status'), run.status || T('ingestRun.values.unknown', 'unknown')],
+      [T('ingestRun.rows.phase', 'Phase'), run.phase || '—'],
+      [T('ingestRun.rows.runId', 'Run ID'), run.runId || '—'],
+      [T('ingestRun.rows.approval', 'Approval'), run.approvalId || '—'],
+      [T('ingestRun.rows.workspace', 'Workspace'), manifest.workspaceId || workspaceId()],
+      [T('ingestRun.rows.source', 'Source'), `${manifest.sourceType || '—'} · ${manifest.sourceRef || '—'}`],
+      [T('ingestRun.rows.digest', 'Digest'), manifest.sourceDigest || '—'],
+      [T('ingestRun.rows.idempotencyKey', 'Idempotency key'), manifest.idempotencyKey || '—'],
+      [T('ingestRun.rows.progress', 'Progress'), `${progress.completed ?? '—'} / ${progress.total ?? '—'}`],
+      [T('ingestRun.rows.nextAction', 'Next action'), run.nextAction || T('ingestRun.values.none', 'none')],
+      [T('ingestRun.rows.retry', 'Retry'), retry.allowed ? allowed : retry.reason || notAllowed],
+      [T('ingestRun.rows.resume', 'Resume'), resume.allowed ? allowed : resume.reason || notAllowed],
+      [T('ingestRun.rows.receipt', 'Receipt'), run.receiptId || T('ingestRun.values.notEmitted', 'not emitted')],
     ];
     byId('ingestrunsummary').innerHTML = rows
       .map(([key, value]) => `<dt>${escapeHtml(key)}</dt><dd>${escapeHtml(value)}</dd>`).join('')
       + (run.receiptId
-        ? `<dt>Evidence</dt><dd><button class="btn" type="button" data-ingest-receipt="${escapeHtml(run.receiptId)}">Open receipt</button></dd>`
+        ? `<dt>${escapeHtml(T('ingestRun.rows.evidence', 'Evidence'))}</dt><dd><button class="btn" type="button" data-ingest-receipt="${escapeHtml(run.receiptId)}">${escapeHtml(T('evidence.openReceipt', 'Open receipt'))}</button></dd>`
         : '');
     byId('ingestrunraw').textContent = JSON.stringify(run, null, 2);
     const tone = run.status === 'completed' ? 'good'
       : ['failed', 'blocked'].includes(run.status) ? 'bad' : '';
-    setStatus(`${run.status || 'unknown'} · ${run.phase || 'phase unknown'}`, tone);
+    setStatus(`${run.status || T('ingestRun.values.unknown', 'unknown')} · ${run.phase || T('ingestRun.values.phaseUnknown', 'phase unknown')}`, tone);
   }
 
   async function workflowCapability() {
@@ -60,8 +65,8 @@
 
   async function loadRun() {
     const runId = byId('ingestrunid').value.trim();
-    if (!runId) return setStatus('Enter a run ID.', 'bad');
-    setStatus('Loading ingest run…');
+    if (!runId) return setStatus(T('ingestRun.enterId', 'Enter a run ID.'), 'bad');
+    setStatus(T('ingestRun.loading', 'Loading ingest run…'));
     try {
       const capability = await workflowCapability();
       const route = capability.route.replace('{id}', encodeURIComponent(runId));
@@ -72,7 +77,7 @@
       if (!body.data || body.data.workflowId !== 'ingest-run-detail') throw new Error('ingest_run_projection_missing');
       renderRun(body.data);
     } catch (error) {
-      byId('ingestrunsummary').innerHTML = '<dt>Status</dt><dd>—</dd>';
+      byId('ingestrunsummary').innerHTML = `<dt>${escapeHtml(T('ingestRun.rows.status', 'Status'))}</dt><dd>—</dd>`;
       byId('ingestrunraw').textContent = '—';
       setStatus(`failed: ${error.message}`, 'bad');
     }
@@ -88,8 +93,14 @@
   const approvals = nav.querySelector('[data-v="approvals"]');
   const button = document.createElement('button');
   button.dataset.v = 'ingest-run';
-  button.setAttribute('aria-label', 'Ingest Runs');
-  button.innerHTML = '<i class="ico" aria-hidden="true">↻</i><span class="copy"><b>Ingest Runs</b><span>Progress & Receipts</span></span>';
+  function paintNavButton() {
+    button.setAttribute('aria-label', T('ingestRun.nav.label', 'Ingest Runs'));
+    button.innerHTML = `<i class="ico" aria-hidden="true">↻</i><span class="copy"><b>${escapeHtml(T('ingestRun.nav.label', 'Ingest Runs'))}</b><span>${escapeHtml(T('ingestRun.nav.desc', 'Progress & Receipts'))}</span></span>`;
+  }
+  paintNavButton();
+  // The nav entry is built in script, so applyTranslations never sees it.
+  window.addEventListener('huqan-i18n-ready', paintNavButton);
+  window.addEventListener('huqan-locale-change', paintNavButton);
   approvals.parentElement.insertBefore(button, approvals);
   button.onclick = () => window.go('ingest-run');
 
@@ -118,7 +129,7 @@
       if (!runId) return;
       const handoff = document.createElement('div');
       handoff.className = 'actions';
-      handoff.innerHTML = `<button class="btn" type="button" data-ingest-run="${escapeHtml(runId)}">View ingest run</button>`;
+      handoff.innerHTML = `<button class="btn" type="button" data-ingest-run="${escapeHtml(runId)}">${escapeHtml(T('ingestRun.viewRun', 'View ingest run'))}</button>`;
       result.prepend(handoff);
     } catch (_) {}
   }).observe(result, { childList: true, subtree: true });

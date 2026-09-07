@@ -207,7 +207,7 @@ test('empty, loading and error states are distinct and name a next step', () => 
   assert.match(script, /if\(b\.dataset\.action==='conflicts-clear'\)\{clearConflictFilters\(\);return\}/);
   // The unreachable-surface empty state reuses the shared recovery CTA so a
   // locked or failed graph offers the same next action as every other surface.
-  assert.match(script, /Conflict triage is \$\{esc\(label\.toLowerCase\(\)\)\}\.<\/b><br>\$\{esc\(Tx\(s\.reason\)\)\}<div class="actions">\$\{surfaceCta\('graph'\)\}/);
+  assert.match(script, /\$\{esc\(T\('conflicts\.triageState',`Conflict triage is \$\{label\.toLowerCase\(\)\}\.`,\{state:label\.toLowerCase\(\)\}\)\)\}<\/b><br>\$\{esc\(Tx\(s\.reason\)\)\}<div class="actions">\$\{surfaceCta\('graph'\)\}/);
   // A refresh has to repaint the conflict view, or the loading state is a
   // state the user can never see.
   assert.match(script, /forEach\(k=>surface\(k,'checking'\)\);renderGraph\(\);await Promise\.allSettled/);

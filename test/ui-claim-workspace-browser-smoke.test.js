@@ -541,13 +541,21 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
         return {
           label: tr.surfaces.graph.label, live: tr.status.live, locked: tr.status.locked, empty: tr.status.empty,
           idle: tr.ingestRun.query, onboardCta: tr.onboarding.steps.session.cta,
+          learnSubmit: tr.learnReview.submit, ingestNav: tr.ingestRun.nav.label,
         };
       })()
     `);
     // An idle placeholder is copy no read has replaced yet, and a result is copy
     // that must survive the switch untouched. Mark one of each before switching.
+    // The workflow select is put on learn-review too: that workflow renames the
+    // submit button, which is why the button carries no data-i18n (#1959).
     await browser.evaluate(`(() => {
       document.getElementById('raw').textContent = '{"receipt":"kept"}';
+      const action = document.getElementById('action');
+      if ([...action.options].some(o => o.value === 'learn-review')) {
+        action.value = 'learn-review';
+        action.dispatchEvent(new Event('change'));
+      }
       return true;
     })()`);
 
@@ -588,6 +596,14 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     // The checklist builds its rows in script, so it has to redraw itself.
     const onboard = await browser.evaluate(`document.getElementById('onboardsteps').textContent`);
     assert.ok(onboard.includes(expected.onboardCta), `onboarding checklist stayed in English: ${onboard.slice(0, 120)}`);
+    // The nav entry ingest-run-detail.js inserts is script-built too.
+    const nav = await browser.evaluate(`document.querySelector('.nav [data-v="ingest-run"]').textContent`);
+    assert.ok(nav.includes(expected.ingestNav), `script-built nav entry stayed in English: ${nav}`);
+    // The submit button is renamed by the learn-review workflow, so it must be
+    // localised by that module and never reset to the generic label by
+    // applyTranslations — the failure a data-i18n annotation would cause.
+    const submit = await browser.evaluate(`document.getElementById('run').textContent`);
+    assert.equal(submit, expected.learnSubmit, 'the learn-review submit label was lost on the locale switch');
 
     await browser.evaluate(`(() => {
       const selector = document.getElementById('locale-selector');
