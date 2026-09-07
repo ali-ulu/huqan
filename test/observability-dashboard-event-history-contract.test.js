@@ -19,8 +19,8 @@ test('observability dashboard event history contract', async t => {
   await t.test('exposes bounded filters, status and disabled-until-needed Next control', () => {
     assert.match(dashboard, /id="obseventtype"/);
     assert.match(dashboard, /id="obseventrun"[^>]*maxlength="128"/);
-    assert.match(dashboard, /id="obseventapply" type="button">Filter/);
-    assert.match(dashboard, /id="obseventnext" type="button" disabled>Next/);
+    assert.match(dashboard, /id="obseventapply" type="button"[^>]*>Filter/);
+    assert.match(dashboard, /id="obseventnext" type="button" disabled[^>]*>Next/);
     assert.match(dashboard, /id="obseventstatus"[^>]*role="status"[^>]*aria-live="polite"/);
     assert.match(dashboard, /id="obseventmeta"[^>]*>workspace-scoped · first page/);
     assert.match(dashboard, /id="obseventhistory"/);
