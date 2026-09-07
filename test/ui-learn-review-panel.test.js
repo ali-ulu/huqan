@@ -37,7 +37,7 @@ test('manifest exposes learn-review to the UI only on its review-gated route', (
 
 test('panel offers the learn form and its optional provenance source fields', () => {
   const html = readHtml();
-  assert.match(html, /<option value="learn-review">Learn \(review required\)<\/option>/);
+  assert.match(html, /<option value="learn-review"[^>]*>Learn \(review required\)<\/option>/);
   for (const id of ['learnsourcefield', 'learnreffield', 'learntitlefield']) {
     assert.match(html, new RegExp(`id="${id}" hidden`));
   }

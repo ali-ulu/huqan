@@ -18,10 +18,10 @@ assert.ok(script.trim(), 'dashboard script must exist');
 test('observability dashboard time-window contract', async t => {
   await t.test('exposes bounded time-window choices in the observability view', () => {
     assert.match(dashboard, /id="obswindow"/);
-    assert.match(dashboard, /value="3600000">Last hour/);
-    assert.match(dashboard, /value="86400000" selected>Last 24 hours/);
-    assert.match(dashboard, /value="604800000">Last 7 days/);
-    assert.match(dashboard, /value="2678400000">Last 31 days/);
+    assert.match(dashboard, /value="3600000"[^>]*>Last hour/);
+    assert.match(dashboard, /value="86400000" selected[^>]*>Last 24 hours/);
+    assert.match(dashboard, /value="604800000"[^>]*>Last 7 days/);
+    assert.match(dashboard, /value="2678400000"[^>]*>Last 31 days/);
   });
 
   await t.test('uses the selected window for metrics and runs while keeping queue/alerts bounded', () => {

@@ -17,7 +17,7 @@ assert.ok(script.trim(), 'dashboard script must exist');
 
 test('observability dashboard run pagination contract', async t => {
   await t.test('exposes a bounded, disabled-until-needed Next control', () => {
-    assert.match(dashboard, /id="obsrunsnext" type="button" disabled>Next/);
+    assert.match(dashboard, /id="obsrunsnext" type="button" disabled[^>]*>Next/);
     assert.match(dashboard, /id="obsrunsmeta"[^>]*>workspace-scoped · first page/);
     assert.match(script, /byId\('obsrunsnext'\)\.disabled = !data\.hasMore/);
     assert.match(script, /byId\('obsrunsmeta'\)\.textContent = `\$\{items\.length\} rows · \$\{data\.hasMore \? 'next page available' : 'bounded page'\}`/);

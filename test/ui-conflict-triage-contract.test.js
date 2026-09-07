@@ -184,11 +184,11 @@ test('the filters are labelled and keyboard reachable', () => {
   assert.ok(view.includes('id="v-conflicts"'), 'the conflicts view must exist');
 
   for (const control of ['cseverity', 'ctype']) {
-    assert.ok(view.includes(`<label for="${control}">`), `#${control} needs an associated <label for>`);
+    assert.match(view, new RegExp(`<label for="${control}"[^>]*>`), `#${control} needs an associated <label for>`);
     assert.ok(view.includes(`<select id="${control}">`), `#${control} must be a real form control`);
   }
-  assert.match(view, /role="group" aria-label="Conflict signal filters"/);
-  assert.match(view, /role="group" aria-label="Filter signals by severity"/);
+  assert.match(view, /role="group"[^>]*aria-label="Conflict signal filters"/);
+  assert.match(view, /role="group"[^>]*aria-label="Filter signals by severity"/);
   assert.match(view, /id="cstatus"[^>]*role="status"[^>]*aria-live="polite"/);
   // The severity summary chips are filters, so they have to be buttons with a
   // pressed state rather than clickable divs.

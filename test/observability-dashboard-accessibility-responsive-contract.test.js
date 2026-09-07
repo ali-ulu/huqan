@@ -16,11 +16,11 @@ assert.ok(script.trim(), 'dashboard script must exist');
 
 test('observability dashboard accessibility and responsive contract', async t => {
   await t.test('labels the primary navigation and collapsed controls', () => {
-    assert.match(dashboard, /<nav class="nav" aria-label="Primary navigation">/);
+    assert.match(dashboard, /<nav class="nav"[^>]*aria-label="Primary navigation"/);
     const navButtons = [...dashboard.matchAll(/<button[^>]*data-v="([^"]+)"[^>]*>/g)];
     assert.equal(navButtons.length, 10);
     for (const [, view] of navButtons) assert.match(navButtons.find(match => match[1] === view)[0], /aria-label="[^"]+"/);
-    assert.match(dashboard, /<input id="search" aria-label="Search receipts, claims, and sources"/);
+    assert.match(dashboard, /<input id="search"[^>]*aria-label="Search receipts, claims, and sources"/);
     assert.match(dashboard, /<div class="avatar" aria-hidden="true">H<\/div>/);
   });
 
