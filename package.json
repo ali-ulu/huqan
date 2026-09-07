@@ -134,6 +134,7 @@
     "lib/a2a/agent-card.js",
     "lib/a2a/bounded-exchange.js",
     "lib/a2a/capability-negotiation.js",
+    "lib/a2a/delegation-audit-log.js",
     "lib/a2a/exchange-route.js",
     "lib/a2a/inter-agent-receipt-chain.js",
     "lib/a2a/negotiate-route.js",
