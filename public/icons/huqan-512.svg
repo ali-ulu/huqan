@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="HUQAN">
+  <rect width="512" height="512" rx="116" fill="#0759ae"/>
+  <circle cx="256" cy="256" r="202" fill="#0b315d" stroke="#24c8ff" stroke-width="16"/>
+  <path d="M132 112v288h67V288h114v112h67V112h-67v112H199V112z" fill="#fff"/>
+</svg>
