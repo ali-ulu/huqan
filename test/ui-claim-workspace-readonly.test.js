@@ -102,7 +102,9 @@ test('Claim Workspace derives all aggregate dashboard status labels from one hel
   const html = dashboardSource();
   const match = html.match(/function aggregateStatus\(surfaces\)\{([\s\S]*?)\}function renderHealth/);
   assert.ok(match, 'aggregate status helper must be present');
-  const aggregateStatus = vm.runInNewContext(`(function aggregateStatus(surfaces){${match[1]}})`);
+  // No catalogue in this context, which is the pre-load state in a browser too:
+  // T/M return the English fallback compiled into the source (#1957).
+  const aggregateStatus = vm.runInNewContext(`(function aggregateStatus(surfaces){${match[1]}})`, { T: (key, fallback) => fallback, M: (key, fallback) => fallback, Tx: value => value });
   const surfaces = {
     status: { s: 'ok' }, workflows: { s: 'ok' }, graph: { s: 'ok' },
     approvals: { s: 'ok' }, activity: { s: 'ok' },
@@ -128,19 +130,22 @@ test('Claim Workspace derives all aggregate dashboard status labels from one hel
   assert.equal(aggregateStatus(surfaces).label, 'DEGRADED');
   assert.match(html, /aggregate=aggregateStatus\(state\.surfaces\)/);
   assert.match(html, /\$\('sys'\)\.textContent=aggregate\.label/);
-  assert.match(html, /\$\('healthsum'\)\.textContent=`\$\{aggregate\.label\} · \$\{aggregate\.message\}`/);
+  assert.match(html, /\$\('healthsum'\)\.textContent=`\$\{aggregate\.labelText\} · \$\{Tx\(aggregate\.message\)\}`/);
   assert.doesNotMatch(html, /surfaces available/);
   assert.match(html, /aggregate\.recovery/);
   assert.match(html, /\$\('healthcta'\)\.innerHTML=rcta/);
   assert.match(html, /\$\('footcta'\)\.innerHTML=rcta/);
-  assert.match(html, /\$\('footstatus'\)\.textContent=`\$\{aggregate\.label\} · \$\{aggregate\.message\}`/);
+  assert.match(html, /\$\('footstatus'\)\.textContent=`\$\{aggregate\.labelText\} · \$\{Tx\(aggregate\.message\)\}`/);
   assert.doesNotMatch(html, /\$\('sys'\)\.textContent='ONLINE'/);
   assert.doesNotMatch(html, /\$\('footstatus'\)\.textContent='System Healthy'/);
 });
 
 test('Claim Workspace exposes truthful surface metadata and actionable empty states', () => {
   const html = dashboardSource();
-  assert.match(html, /surfaces:\{status:\{label:'Runtime Status'.*reason:'Waiting for runtime status.'.*lastChecked:null.*nextAction:'Refresh'/);
+  // Seeded surface metadata is catalogue-backed since #1957, so each field
+  // carries its key next to the English text rather than a bare string. What
+  // this asserts is unchanged: the surface ships real copy, not a placeholder.
+  assert.match(html, /surfaces:\{status:\{label:M\('surfaces\.status\.label','Runtime Status'\).*reason:M\('surfaces\.status\.reason','Waiting for runtime status\.'\).*lastChecked:null.*nextAction:M\('surfaces\.status\.nextAction','Refresh'\)/);
   assert.match(html, /function surface\(k,s,detail=\{\}\)/);
   assert.match(html, /function surfaceLabel\(s\)/);
   assert.match(html, /function surfaceCta\(k\)/);
@@ -150,8 +155,8 @@ test('Claim Workspace exposes truthful surface metadata and actionable empty sta
   assert.match(html, /id="meshstate"/);
   assert.match(html, /id="meshstage"/);
   assert.match(html, /meshstage'\)\.hidden=!hasData/);
-  assert.match(html, /No pending approvals\.<\/b><br>\$\{esc\(s\.reason\)\}/);
-  assert.ok(html.includes('<b>Last checked:</b>'));
+  assert.match(html, /No pending approvals\.<\/b><br>\$\{esc\(Tx\(s\.reason\)\)\}/);
+  assert.ok(html.includes("T('runtime.field.lastChecked','Last checked:')"));
 });
 
 test('Claim Workspace browser script compiles and wires unknown-to-review through the existing ingest approval runtime', () => {

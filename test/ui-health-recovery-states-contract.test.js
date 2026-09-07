@@ -17,7 +17,12 @@ const html = dashboardSource();
 
 const match = script.match(/function aggregateStatus\(surfaces\)\{([\s\S]*?)\}function renderHealth/);
 assert.ok(match, 'aggregate status helper must be present in the dashboard script');
-const aggregateStatus = vm.runInNewContext(`(function aggregateStatus(surfaces){${match[1]}})`);
+// The helper resolves its copy through the catalogue (#1957). This context has
+// no catalogue, which is the same situation as a browser that has not finished
+// loading one: T/M hand back the English fallback compiled into the source, so
+// the assertions below still read the exact copy the dashboard ships with.
+const i18nFallbacks = { T: (key, fallback) => fallback, M: (key, fallback) => fallback, Tx: value => value };
+const aggregateStatus = vm.runInNewContext(`(function aggregateStatus(surfaces){${match[1]}})`, i18nFallbacks);
 
 function surfacesWith(map) {
   return {
@@ -66,8 +71,8 @@ test('no false healthy state: any non-ok surface keeps the aggregate unhealthy',
 test('status projections stay aligned and carry the recovery action', () => {
   assert.match(script, /aggregate=aggregateStatus\(state\.surfaces\)/);
   assert.match(script, /\$\('sys'\)\.textContent=aggregate\.label/);
-  assert.match(script, /\$\('healthsum'\)\.textContent=`\$\{aggregate\.label\} \u00B7 \$\{aggregate\.message\}`/);
-  assert.match(script, /\$\('footstatus'\)\.textContent=`\$\{aggregate\.label\} \u00B7 \$\{aggregate\.message\}`/);
+  assert.match(script, /\$\('healthsum'\)\.textContent=`\$\{aggregate\.labelText\} \u00B7 \$\{Tx\(aggregate\.message\)\}`/);
+  assert.match(script, /\$\('footstatus'\)\.textContent=`\$\{aggregate\.labelText\} \u00B7 \$\{Tx\(aggregate\.message\)\}`/);
   assert.match(script, /\$\('healthcta'\)\.innerHTML=rcta/);
   assert.match(script, /\$\('footcta'\)\.innerHTML=rcta/);
   assert.match(script, /<button type="button" class="btn"/);

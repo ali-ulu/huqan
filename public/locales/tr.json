@@ -343,7 +343,12 @@
     "degraded": "BOZUK",
     "healthy": "SAĞLIKLI",
     "unhealthy": "SAĞLIKSIZ",
-    "unknown": "BİLİNMİYOR"
+    "unknown": "BİLİNMİYOR",
+    "live": "CANLI",
+    "locked": "KİLİTLİ",
+    "error": "HATA",
+    "empty": "BOŞ",
+    "partial": "KISMİ"
   },
   "validation": {
     "required": "Bu alan zorunludur",
@@ -603,5 +608,76 @@
     "primaryNav": "Birincil gezinme",
     "secureChannel": "Güvenli kanal bağlı değil",
     "toolUsage": "Araç kullanım dağılımı"
+  },
+  "runtime": {
+    "notChecked": "denetlenmedi",
+    "reason": {
+      "locked": "Bu yüzeyi okumak için API anahtarı gerekli.",
+      "error": "Yüzey yüklenemedi.",
+      "graphEmpty": "Graf uç noktası hiç düğüm veya ilişki döndürmedi.",
+      "empty": "Bu çalışma alanında kayıt yok.",
+      "checking": "İlk yanıt bekleniyor.",
+      "ok": "Çalışma zamanı yüzeyinden yanıt alındı."
+    },
+    "health": {
+      "locked": "Bazı yüzeyler kilitli — API anahtarı gerekli.",
+      "error": "En az bir yüzey yüklenemedi.",
+      "offline": "Hiçbir yüzey yanıt vermedi.",
+      "checking": "Yüzeyler denetleniyor — sonuçlar henüz dönmedi.",
+      "partial": "Bazı yüzeyler henüz canlı değil.",
+      "ok": "Tüm yüzeyler canlı."
+    },
+    "next": {
+      "locked": "Ayarlar’ı açıp API anahtarınızı ekleyin.",
+      "error": "Başarısız yüzeyleri yeniden deneyin.",
+      "offline": "Tüm yüzeyleri yeniden deneyin.",
+      "checking": "Biraz bekleyip yenileyin.",
+      "partial": "Her birini incelemek için Yüzeyler’i açın.",
+      "ok": "İstediğiniz zaman yenileyin.",
+      "wait": "Bekleyin"
+    },
+    "openSurfaces": "Yüzeyleri aç",
+    "surfaceDesc": {
+      "status": "Çekirdek, sürüm ve çalışma zamanı durumunu okur.",
+      "workflows": "Arayüz iş akışı yetenek manifestosu ve rota sözleşmesi.",
+      "graph": "Çalışma alanına kapsamlı graf düğüm/ilişki yüzeyi.",
+      "approvals": "Kimlik doğrulamalı insan incelemesi alım kuyruğu.",
+      "activity": "Çalışma alanına kapsamlı sınırlı ajan etkinliği okuma yüzeyi."
+    },
+    "field": {
+      "status": "Durum:",
+      "reason": "Gerekçe:",
+      "lastChecked": "Son denetim:",
+      "next": "Sonraki:"
+    },
+    "fetched": {
+      "status": "Çalışma zamanı durumu alındı.",
+      "manifest": "Yetenek manifestosu alındı.",
+      "graph": "Bu çalışma alanı için graf verisi alındı.",
+      "approvals": "Bu çalışma alanı için onay kuyruğu alındı.",
+      "activity": "Bu çalışma alanı için etkinlik alındı."
+    },
+    "failed": {
+      "status": "Çalışma zamanı durumu isteği başarısız oldu.",
+      "manifest": "Yetenek manifestosu isteği başarısız oldu.",
+      "graphHttp": "Graf isteği HTTP {status} ile başarısız oldu.",
+      "graphNoResponse": "Graf isteği yanıt alınmadan başarısız oldu.",
+      "approvalsHttp": "Onay isteği HTTP {status} ile başarısız oldu.",
+      "approvalsNoResponse": "Onay isteği yanıt alınmadan başarısız oldu.",
+      "activityHttp": "Etkinlik isteği HTTP {status} ile başarısız oldu.",
+      "activityDetail": "Etkinlik isteği başarısız oldu: {message}"
+    },
+    "locked": {
+      "graph": "Graf verisini okumak için API anahtarı gerekli.",
+      "approvals": "Bekleyen onayları okumak için API anahtarı gerekli.",
+      "activity": "Etkinliği okumak için API anahtarı gerekli."
+    },
+    "empty": {
+      "approvals": "Bu çalışma alanında bekleyen onay yok.",
+      "activity": "Bu çalışma alanında etkinlik yok."
+    },
+    "loading": {
+      "activity": "Etkinlik yükleniyor."
+    }
   }
 }

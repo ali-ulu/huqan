@@ -68,9 +68,11 @@ test('Agent Activity Pulse dashboard contract', async (t) => {
   });
 
   await t.test('reflects the activity read surface in the Integration Surfaces registry', () => {
-    assert.ok(script.includes("activity:{label:'Agent Activity',endpoint:'/api/workbench/activity',s:'checking',reason:'Waiting for activity."));
-    assert.ok(script.includes("activity:'Workspace-scoped bounded agent activity read surface.'"));
-    assert.ok(script.includes("async function loadActivityPulse(){surface('activity','checking',{reason:'Loading activity.'"));
+    // Copy is catalogue-backed since #1957: the English text stays inline as the
+    // fallback, now paired with the key that localises it.
+    assert.ok(script.includes("activity:{label:M('surfaces.activity.label','Agent Activity'),endpoint:'/api/workbench/activity',s:'checking',reason:M('surfaces.activity.reason','Waiting for activity."));
+    assert.ok(script.includes("activity:T('runtime.surfaceDesc.activity','Workspace-scoped bounded agent activity read surface.')"));
+    assert.ok(script.includes("async function loadActivityPulse(){surface('activity','checking',{reason:M('runtime.loading.activity','Loading activity.')"));
     assert.match(script, /surface\('activity',locked\?'locked':'err',\{reason:/);
     assert.match(script, /surface\('activity',empty\?'empty':'ok',\{reason:/);
     assert.match(script, /surface\('activity','err',\{reason:/);

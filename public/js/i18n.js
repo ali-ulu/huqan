@@ -143,6 +143,13 @@ async function initI18n() {
   updateLocaleUI();
   setupLocaleSelector();
 
+  // app.js paints from stored state before this catalogue finishes loading, so
+  // the catalogue's arrival is itself an event. Without it the first paint keeps
+  // the inline English fallbacks even when the resolved locale is Turkish.
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('huqan-i18n-ready', { detail: { locale: currentLocale } }));
+  }
+
   return currentLocale;
 }
 
