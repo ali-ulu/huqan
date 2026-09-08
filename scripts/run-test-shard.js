@@ -51,6 +51,19 @@ function defaultReportPath(shard) {
   return path.join(os.tmpdir(), `huqan-test-shard-${shard}.xml`);
 }
 
+/**
+ * Where this shard records which files failed, beside its JUnit report.
+ *
+ * The merged JUnit report cannot answer that question: it is assembled from
+ * <testsuite> blocks, and a file declaring only top-level `test(...)` calls
+ * emits none, so every result in it -- pass and fail alike -- is dropped. On
+ * 2026-09-05 shard 5 exited non-zero on test/enforcement-coverage.test.js and
+ * uploaded a report saying failures="0". The nightly alarm reads this sidecar.
+ */
+function failuresSidecarPath(reportPath, shard) {
+  return path.join(path.dirname(reportPath), `test-shard-${shard}-failures.json`);
+}
+
 function loadSelection(selectionPath, knownFiles) {
   const absolute = path.resolve(selectionPath);
   const plan = JSON.parse(fs.readFileSync(absolute, 'utf8'));
@@ -102,6 +115,7 @@ function run(options) {
   }
 
   const partPaths = [];
+  const failedFiles = [];
   let overallStatus = 0;
   let lastSignal = null;
 
@@ -136,6 +150,7 @@ function run(options) {
           const elapsed = ((Date.now() - startedMs) / 1000).toFixed(3);
           console.error(`[shard ${options.shard}/${options.total}] file ${file} timed out after 90s (elapsed ${elapsed}s, signal ${result.signal || 'SIGTERM'}) — killed hanging file, see #1847`);
           overallStatus = 1;
+          failedFiles.push({ file, status: 'timeout' });
           // Leave a minimal JUnit entry so the merged report shows the hang
           // as a failure instead of silently dropping the file.
           try {
@@ -152,15 +167,30 @@ function run(options) {
         console.error(`[shard ${options.shard}/${options.total}] file ${file} terminated by signal ${result.signal}`);
         lastSignal = result.signal;
         overallStatus = 1;
+        failedFiles.push({ file, status: `signal ${result.signal}` });
         break;
       }
       const status = result.status === 0 ? 0 : (result.status || 1);
       const elapsed = ((Date.now() - startedMs) / 1000).toFixed(3);
       console.log(`[shard ${options.shard}/${options.total}] finished ${index + 1}/${selected.files.length}: ${file} -> status ${status} in ${elapsed}s`);
-      if (status !== 0 && overallStatus === 0) overallStatus = status;
+      if (status !== 0) {
+        failedFiles.push({ file, status });
+        if (overallStatus === 0) overallStatus = status;
+      }
     }
   } finally {
     sandbox.cleanup();
+    // Written in `finally` so a shard that throws still leaves the alarm
+    // something to read; best-effort, because failing to write the sidecar
+    // must not change the shard's own verdict.
+    try {
+      fs.writeFileSync(
+        failuresSidecarPath(reportPath, options.shard),
+        `${JSON.stringify({ shard: options.shard, total: options.total, failedFiles }, null, 2)}\n`,
+      );
+    } catch (error) {
+      console.error(`warning: failed to write the shard failure sidecar: ${error.message}`);
+    }
   }
 
   // Merge per-file JUnit reports into the single report the workflow
@@ -227,6 +257,7 @@ if (require.main === module) {
 
 module.exports = {
   defaultReportPath,
+  failuresSidecarPath,
   loadSelection,
   parseArgs,
   run,
