@@ -416,6 +416,18 @@ jobs:
           name: test-timings-node-${{ matrix.node-version }}-shard-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
           path: artifacts/test-shard-${{ matrix.shard }}.xml
           if-no-files-found: warn
+      # The alarm reads this, not the JUnit report above. That report is merged
+      # from <testsuite> blocks, so a file declaring only top-level `test(...)`
+      # calls contributes nothing to it: on 2026-09-05 shard 5 exited non-zero
+      # on test/enforcement-coverage.test.js and still uploaded failures="0".
+      # `always()`, because the shard the alarm needs is the one that failed.
+      - name: Upload shard failure sidecar
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: shard-failures-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
+          path: artifacts/test-shard-${{ matrix.shard }}-failures.json
+          if-no-files-found: warn
 
   runtime-test-skip:
     name: npm test (runtime/test)
@@ -575,6 +587,52 @@ jobs:
           echo "" >> "${GITHUB_STEP_SUMMARY}"
           echo "No Dockerfile / docker-compose / .dockerignore / package.json / package-lock.json changes." >> "${GITHUB_STEP_SUMMARY}"
           echo "Docker build skipped (NOT_APPLICABLE)." >> "${GITHUB_STEP_SUMMARY}"
+
+  # ---------------------------------------------------------------------
+  # ---------------------------------------------------------------------
+  # Nightly alarm. The scheduled run is the only one that executes every known
+  # test -- a pull request runs the *selected* shards -- so it is the only
+  # place a test nobody's change touched can be caught. It was already
+  # catching things: three of the twelve nightly runs before 2026-09-08 were
+  # red (2026-09-07, 2026-09-05, 2026-08-29) and none was noticed, because the
+  # workflow had no failure path at all. A run that fails where nobody looks
+  # is not a safety net, so the failure now files an issue.
+  # ---------------------------------------------------------------------
+  nightly-failure-alarm:
+    name: Nightly failure alarm
+    needs: [runtime-test]
+    # failure() on its own would also fire for every red pull request; the
+    # schedule guard keeps this to the nightly full-suite run.
+    if: ${{ failure() && github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Download shard failure sidecars
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: shard-failures-*-attempt-${{ github.run_attempt }}
+          path: artifacts
+          merge-multiple: true
+      - name: File or update the alarm issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh issue list --state open --limit 100 --json number,title,state > open-issues.json
+          node scripts/nightly-failure-alarm.js artifacts open-issues.json > alarm.json
+          jq -r .body alarm.json > alarm-body.md
+          kind="$(jq -r .kind alarm.json)"
+          if [ "${kind}" = comment ]; then
+            gh issue comment "$(jq -r .number alarm.json)" --body-file alarm-body.md
+          else
+            gh issue create --title "$(jq -r .title alarm.json)" --body-file alarm-body.md --label ci-cd
+          fi
 
   # ---------------------------------------------------------------------
   # Stable required checks. These aggregate the run/skip pairs so branch
