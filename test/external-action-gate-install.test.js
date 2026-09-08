@@ -197,6 +197,36 @@ test('Hermes records the tested gate argv and no longer depends on host PATH', t
   assert.equal(install.sentinel.receiptWritten, true);
 });
 
+// #1797 taught that a command has to be proved against the interpreter that
+// will run it. Hermes does not use one at all: hermes/__init__.py calls
+// subprocess.run(argv, shell=False). Proving a candidate only through
+// cmd.exe/PowerShell is that same defect on a different axis -- on Windows a
+// bare `huqan-gate` resolves through PATHEXT in a shell and fails with
+// WinError 2 without one, so the install recorded a command Hermes cannot
+// start. Every guarded call then blocked as "HUQAN guard failed" rather than
+// on policy: the gate looked safe while never evaluating the denylist at all.
+test('the recorded Hermes argv starts the way Hermes starts it, without a shell', t => {
+  const paths = sandbox(t);
+  const install = manageGate('install', options(paths, 'hermes'));
+  const { argv } = JSON.parse(fs.readFileSync(path.join(install.target, 'huqan-gate.json'), 'utf8'));
+
+  const run = spawnSync(argv[0], [...argv.slice(1), '--profile', 'hermes'], {
+    input: JSON.stringify({
+      tool_name: 'Bash',
+      args: { command: 'rm -rf /' },
+      session_id: 'sentinel',
+      cwd: paths.root,
+    }),
+    encoding: 'utf8',
+    timeout: 30_000,
+    shell: false,
+  });
+
+  assert.equal(run.error, undefined, `Hermes cannot start the recorded argv ${JSON.stringify(argv)}`);
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(JSON.parse(run.stdout).action, 'block');
+});
+
 test('Hermes refuses to reclaim a locally modified gate command', t => {
   const paths = sandbox(t);
   const install = manageGate('install', options(paths, 'hermes'));
@@ -213,13 +243,19 @@ test('an install over an unrunnable recorded command fails and removes nothing',
   // success over it -- and must not delete an entry it did not write.
   const paths = sandbox(t);
   const target = path.join(paths.root, '.codex', 'hooks.json');
-  const stale = { matcher: '.*', hooks: [{ type: 'command', command: 'huqan-gate --profile codex', commandWindows: 'huqan-gate.cmd --profile codex', timeout: 30 }] };
+  // The recorded name is one no host can start, so the case under test exists
+  // on every machine. It used to be a plain `huqan-gate`, guarded by a skip
+  // that asked whether `huqan-gate --help` exits 0 -- but the gate answers a
+  // malformed payload with a block and a non-zero exit, so on a machine where
+  // huqan-gate IS installed the guard read "not runnable", declined to skip,
+  // and the assertion then failed because the command ran perfectly well. The
+  // skip is gone: an environment-dependent test proves nothing either way.
+  // Still a command this install could have written -- ownership is decided by
+  // the basename -- but rooted at a directory that does not exist, so no host
+  // can start it.
+  const stale = { matcher: '.*', hooks: [{ type: 'command', command: '/absent-4f21c9/huqan-gate --profile codex', commandWindows: 'C:/absent-4f21c9/huqan-gate.cmd --profile codex', timeout: 30 }] };
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, JSON.stringify({ hooks: { PreToolUse: [stale] } }));
-  if (spawnSync('huqan-gate', ['--help'], { shell: true }).status === 0) {
-    t.diagnostic('skipped: huqan-gate is on PATH here, so the stale command is runnable');
-    return;
-  }
   assert.throws(() => manageGate('install', options(paths, 'codex')), /hook command/);
   assert.deepEqual(JSON.parse(fs.readFileSync(target, 'utf8')).hooks.PreToolUse, [stale]);
 });

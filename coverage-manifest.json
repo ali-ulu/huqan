@@ -3,9 +3,9 @@
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. Indirect calls through a parameter, and dynamic property access, are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
     "files": 33,
-    "sites": 83,
+    "sites": 84,
     "byCapability": {
-      "process": 10,
+      "process": 11,
       "egress": 3,
       "fs_write": 70
     },
@@ -13,7 +13,7 @@
       "adapter_read": 3,
       "persistence": 30,
       "operator_tool": 18,
-      "enforcement": 15,
+      "enforcement": 16,
       "evidence": 14,
       "unguarded": 3
     }
@@ -337,12 +337,17 @@
           "call": "spawnSync"
         },
         {
-          "line": 400,
+          "line": 398,
           "capability": "process",
           "call": "spawnSync"
         },
         {
-          "line": 620,
+          "line": 431,
+          "capability": "process",
+          "call": "spawnSync"
+        },
+        {
+          "line": 657,
           "capability": "fs_write",
           "call": "fs.rmSync"
         }
