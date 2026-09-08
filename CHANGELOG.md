@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+## v0.12.0
+
+Released 2026-09-08. The first release published by `publish.yml` over GitHub
+OIDC trusted publishing rather than by hand, so this is the first tarball that
+carries an npm provenance attestation tying it to this repository, this
+workflow and the `v0.12.0` commit. The stored `NPM_TOKEN` secrets were deleted
+once the trusted publisher was configured; nothing references them any more.
+
+This release carries 320 commits since `v0.11.1`. The entries below are the
+ones that were recorded as they landed; for the complete list see
+[`v0.11.1...v0.12.0`](https://github.com/ali-ulu/huqan/compare/v0.11.1...v0.12.0).
+
+### Changed
+- **The README was rewritten (#1964, #1965).** It had been an empty file on
+  `main` since a removal on 2026-09-07 left the public repository page blank
+  while npm still served the pre-deletion text. The new page is 137 lines
+  rather than 496: it opens on the quickstart transcript and the write that
+  does not happen, names the four alternatives it is usually compared against,
+  and keeps every scope limit in its own section. One earlier claim was wrong
+  and is gone — a capability table advertised `escalate` as a policy-gate
+  outcome, which no gate returns.
+
 ### Added
 - **Control-plane protection for the external action guard.** Writes, deletes
   and in-place rewrites of the config that wires the guard in —
