@@ -127,25 +127,41 @@ test('every risk severity reaches its verdict from the snapshot text alone', () 
   // READ_SNAPSHOT is used throughout so the action rules further down cannot
   // supply the expected decision by a different route: what is pinned here is
   // the risk-pattern branch itself.
+  // Since #1969 a pattern reads either the intent or the change, not both. The
+  // two that name a kind of file want the file; the two that name a plan still
+  // read the plan, because an announced force-push may have no diff at all.
   const cases = [
-    ['Please force-push the history rewrite.', DECISIONS.BLOCK, 'history_rewrite_or_force_push', 'force-push'],
-    ['Deploy production release tonight.', DECISIONS.DRY_RUN_ONLY, 'production_deploy_requires_explicit_gate', 'deploy'],
-    ['Rotate the production secret and its credential.', DECISIONS.REVIEW, 'secret_or_credential_change', 'secret-change'],
-    ['Add a database migration for the new schema.', DECISIONS.REVIEW, 'database_or_schema_change', 'migration'],
+    [{ body: 'Please force-push the history rewrite.' }, DECISIONS.BLOCK, 'history_rewrite_or_force_push', 'force-push'],
+    [{ body: 'Deploy production release tonight.' }, DECISIONS.DRY_RUN_ONLY, 'production_deploy_requires_explicit_gate', 'deploy'],
+    [{ files: [{ filename: 'config/secrets/api.pem', patch: '' }] }, DECISIONS.REVIEW, 'secret_or_credential_change', 'secret-change'],
+    [{ files: [{ filename: 'db/migrations/002_add_index.sql', patch: '' }] }, DECISIONS.REVIEW, 'database_or_schema_change', 'migration'],
   ];
 
-  for (const [body, decision, reason, label] of cases) {
-    const verdict = evaluatePullRequest(snapshot({ body }), { action: ACTIONS.READ_SNAPSHOT });
-    assert.equal(verdict.decision, decision, body);
-    assert.equal(verdict.reason, reason, body);
-    assert.ok(verdict.riskLabels.includes(label), `${body}: missing risk label ${label}`);
+  for (const [patch, decision, reason, label] of cases) {
+    const verdict = evaluatePullRequest(snapshot(patch), { action: ACTIONS.READ_SNAPSHOT });
+    const description = JSON.stringify(patch);
+    assert.equal(verdict.decision, decision, description);
+    assert.equal(verdict.reason, reason, description);
+    assert.ok(verdict.riskLabels.includes(label), `${description}: missing risk label ${label}`);
   }
 
-  // Severity precedence, and the reason coming from the matching finding
-  // rather than from whichever pattern matched first: this text trips the
-  // REVIEW patterns before the BLOCK one in RISK_PATTERNS order.
+  // The same two severities are also reachable from an added line, which is how
+  // a credential enters a file that is not itself named like one.
+  const written = evaluatePullRequest(
+    snapshot({ files: [{ filename: 'src/client.js', patch: '@@\n-const a = 1;\n+const apiKey = "live_abc";' }] }),
+    { action: ACTIONS.READ_SNAPSHOT },
+  );
+  assert.equal(written.decision, DECISIONS.REVIEW);
+  assert.equal(written.reason, 'secret_or_credential_change');
+
+  // Severity precedence, and the reason coming from the matching finding rather
+  // than from whichever pattern matched first: this trips the REVIEW patterns
+  // before the BLOCK one in RISK_PATTERNS order.
   const mixed = evaluatePullRequest(
-    snapshot({ body: 'Rotate the secret, run the migration, then force-push.' }),
+    snapshot({
+      body: 'Then force-push.',
+      files: [{ filename: 'deploy/secrets/prod.key', patch: '' }, { filename: 'db/migrations/003.sql', patch: '' }],
+    }),
     { action: ACTIONS.READ_SNAPSHOT },
   );
   assert.equal(mixed.decision, DECISIONS.BLOCK);

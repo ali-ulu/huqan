@@ -1,0 +1,49 @@
+name: PR Guardian self-review
+
+# HUQAN governing its own pull requests.
+#
+# The webhook workflow beside this one is the path an operator wires to a
+# deployed HUQAN; it is gated on PR_GUARDIAN_WEBHOOK_URL and has never fired
+# here, because a webhook cannot reach a laptop (#1968). This job needs no
+# endpoint: `evaluatePullRequest` is a pure function over a snapshot, so the
+# snapshot is fetched and evaluated in the runner.
+#
+# What it therefore cannot do is emit a canonical Trust Receipt. That belongs to
+# the runtime, and remains the reason to stand the webhook path up.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: pr-guardian-self-${{ github.repository }}-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: HUQAN PR Guardian
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Pinned to the base tree, never the PR merge commit. The policy this job
+      # runs decides whether the change is safe, so a pull request must not be
+      # able to supply its own copy of it -- a one-line edit to policy.js would
+      # otherwise let any change approve itself.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      # No install step: the policy is dependency-free, and skipping npm ci
+      # keeps the reviewed tree from running any lifecycle script.
+      - name: Evaluate the pull request
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/pr-guardian-self-review.js
