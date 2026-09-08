@@ -116,7 +116,7 @@ test('agent continuation fails closed for invalid token, cross-workspace checkpo
     goal: 'resume safely', workspaceId: 'workspace-787', checkpointId: 'checkpoint-787', resumeToken: 'checkpoint-787', mode: 'repair',
   });
   assert.equal(deniedRepair.ok, false);
-  assert.equal(deniedRepair.error.code, 'AGENT_REPAIR_REASON_REQUIRED');
+  assert.equal(deniedRepair.error.code, 'AGENT_REPAIR_UNSUPPORTED');
 });
 
 test('AgentV3 rejects an explicit continuation whose token does not match the workspace checkpoint', () => {
@@ -143,33 +143,34 @@ test('AgentV3 rejects an explicit continuation whose token does not match the wo
   assert.equal(result.error.code, 'AGENT_RESUME_TOKEN_INVALID');
 });
 
-test('agent continuation rejects terminal checkpoints and exposes repair mode only with a reason', () => {
+test('agent continuation rejects repair mode explicitly without running the agent (H-02)', () => {
   const terminal = executeMcpAgentContinuation(fakeAgent(checkpoint({ state: { status: 'completed' } })), {
     goal: 'resume safely', workspaceId: 'workspace-787', checkpointId: 'checkpoint-787', resumeToken: 'checkpoint-787',
   });
   assert.equal(terminal.ok, false);
   assert.equal(terminal.error.code, 'AGENT_CHECKPOINT_NOT_RESUMABLE');
 
+  // H-02: repair has no execution policy downstream, so even a well-formed
+  // repair request must fail closed here rather than silently running a
+  // normal resume. agent.run() must never be reached.
   const agent = fakeAgent();
-  const repaired = executeMcpAgentContinuation(agent, {
+  const rejected = executeMcpAgentContinuation(agent, {
     goal: 'resume safely', workspaceId: 'workspace-787', checkpointId: 'checkpoint-787', resumeToken: 'checkpoint-787',
     mode: 'repair', repairReason: 'operator-approved checkpoint repair',
   });
-  assert.equal(repaired.ok, true);
-  assert.equal(repaired.data.continuationMode, 'repair');
-  assert.equal(repaired.data.finalAnswer, 'repaired');
-  assert.equal(repaired.data.repairReason, 'operator-approved checkpoint repair');
-  assert.deepEqual(repaired.data.continuationDecision, {
-    mode: 'repair',
-    decision: 'requested',
-    reason: 'operator-approved checkpoint repair',
-    source: 'operator',
-    workspaceId: 'workspace-787',
-    checkpointId: 'checkpoint-787',
+  assert.equal(rejected.ok, false);
+  assert.equal(rejected.error.code, 'AGENT_REPAIR_UNSUPPORTED');
+  assert.equal(agent.calls.some((call) => call.operation === 'run'), false);
+
+  // Normal resume is unaffected by the repair refusal above.
+  const resumed = executeMcpAgentContinuation(agent, {
+    goal: 'resume safely', workspaceId: 'workspace-787', checkpointId: 'checkpoint-787', resumeToken: 'checkpoint-787',
+    mode: 'resume',
   });
-  assert.equal(repaired.data.repairDecision, null);
-  assert.equal(agent.calls[1].options.mode, 'repair');
-  assert.equal(agent.calls[1].options.repairReason, 'operator-approved checkpoint repair');
+  assert.equal(resumed.ok, true);
+  assert.equal(resumed.data.continuationMode, 'resume');
+  assert.equal(resumed.data.repairReason, null);
+  assert.equal(resumed.data.repairDecision, null);
 });
 
 // #880: an explicit checkpointId must select the named row, not be replaced
