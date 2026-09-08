@@ -19,10 +19,11 @@
 
 const fs = require('node:fs');
 const { evaluatePullRequest, DECISIONS } = require('../lib/pr-guardian/policy');
-// HUQAN_-prefixed variables are read through the compat layer, never off
-// process.env: it carries the AXIOM_ fallback and the HUQAN_ENV_CONFLICT check,
-// and lib/environment-compat-bypass.test.js fails the build on a direct read.
-const { readCompatibleEnvironmentVariable } = require('../lib/environment-compat');
+// No HUQAN_-prefixed configuration here on purpose. Reading one directly is
+// caught by lib/environment-compat-bypass.test.js, and reading it through the
+// compat layer requires the suffix to be registered in lib/environment-compat.js
+// -- a supported configuration surface. This job has nothing worth putting
+// there; everything it needs comes from the workflow event.
 
 const MAX_PAGES = 3;
 const PER_PAGE = 100;
@@ -89,7 +90,12 @@ async function main() {
   const snapshot = {
     repo,
     headSha: pr.head?.sha || '',
-    workspaceId: readCompatibleEnvironmentVariable('WORKSPACE_ID') || 'default',
+    // Fixed, not configurable. The snapshot needs a workspace only so the
+    // policy can refuse an incomplete one, and this job always reviews the same
+    // repository. An env var would mean registering a new suffix in
+    // lib/environment-compat.js -- a supported configuration surface -- for a
+    // value with exactly one correct setting.
+    workspaceId: 'default',
     title: pr.title || '',
     body: pr.body || '',
     baseRef: pr.base?.ref || '',

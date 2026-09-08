@@ -20,6 +20,19 @@ name: PR Guardian webhook
 # not exist. Once the variable is set the destination check and the in-step
 # guards below still fail closed on an unsafe destination, a missing secret, a
 # non-2xx response, or an unrecognized decision.
+#
+# STATUS: deliberately off in this repository. No Actions variable is set, so
+# this job has never run -- and a skipped check reads on the pull request page
+# exactly like a passing one, which is why that went unnoticed for as long as it
+# did (#1968).
+#
+# Pull requests here are reviewed by `pr-guardian-self.yml` instead: same policy,
+# evaluated inside the runner, no endpoint required. What that job cannot do is
+# emit a canonical Trust Receipt -- the receipt is written by the runtime, not by
+# a workflow, and that is the whole reason to stand this path up.
+#
+# So what is missing is a deployment, not wiring. The wiring below is finished
+# and covered by test/pr-guardian-webhook-destination.test.js.
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
