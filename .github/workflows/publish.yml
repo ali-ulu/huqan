@@ -203,7 +203,21 @@ jobs:
           npmrc="${NPM_CONFIG_USERCONFIG:-${HOME}/.npmrc}"
           printf 'registry=https://registry.npmjs.org/\n' > "${npmrc}"
 
-          npm publish --access public
+          # The output is captured so a failure can be read rather than only
+          # returned. npm answers an unauthorized upload with 404 on PUT -- the
+          # same code it uses for a package that does not exist -- so the one
+          # message a release engineer sees names the package and says nothing
+          # about the credential. Eight consecutive releases failed on exactly
+          # that. The publish still fails; it now says what to configure.
+          log="${RUNNER_TEMP}/npm-publish.log"
+          set +e
+          npm publish --access public 2>&1 | tee "${log}"
+          publish_status="${PIPESTATUS[0]}"
+          set -e
+          if [ "${publish_status}" -ne 0 ]; then
+            node scripts/explain-npm-publish-failure.js "${log}"
+            exit "${publish_status}"
+          fi
 
       - name: Dry run complete
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run
