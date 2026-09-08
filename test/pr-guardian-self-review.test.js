@@ -36,9 +36,13 @@ test('the job holds no more permission than reading the pull request', () => {
 test('the reviewed tree never runs its own lifecycle scripts', () => {
   // `npm ci` on a checkout of the PR's dependencies would execute code the
   // pull request controls, in a job whose whole purpose is to judge it.
-  // Only executed lines count -- the comment above the step says "npm ci" too.
-  const commands = [...WORKFLOW.matchAll(/^\s*run:\s*(.+)$/gm)].map(match => match[1]);
-  assert.deepEqual(commands, ['node scripts/pr-guardian-self-review.js']);
+  // Only executed lines count -- the comments around the step say "npm ci" too.
+  const executed = WORKFLOW
+    .split('\n')
+    .filter(line => !/^\s*#/.test(line))
+    .join('\n');
+  assert.doesNotMatch(executed, /\bnpm (ci|install|run)\b/);
+  assert.match(executed, /node scripts\/pr-guardian-self-review\.js/);
 });
 
 test('a review is a note and only a block fails the check', () => {

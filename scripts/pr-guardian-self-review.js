@@ -19,6 +19,10 @@
 
 const fs = require('node:fs');
 const { evaluatePullRequest, DECISIONS } = require('../lib/pr-guardian/policy');
+// HUQAN_-prefixed variables are read through the compat layer, never off
+// process.env: it carries the AXIOM_ fallback and the HUQAN_ENV_CONFLICT check,
+// and lib/environment-compat-bypass.test.js fails the build on a direct read.
+const { readCompatibleEnvironmentVariable } = require('../lib/environment-compat');
 
 const MAX_PAGES = 3;
 const PER_PAGE = 100;
@@ -85,7 +89,7 @@ async function main() {
   const snapshot = {
     repo,
     headSha: pr.head?.sha || '',
-    workspaceId: process.env.HUQAN_WORKSPACE_ID || 'default',
+    workspaceId: readCompatibleEnvironmentVariable('WORKSPACE_ID') || 'default',
     title: pr.title || '',
     body: pr.body || '',
     baseRef: pr.base?.ref || '',

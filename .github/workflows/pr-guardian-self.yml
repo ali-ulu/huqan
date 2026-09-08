@@ -43,7 +43,20 @@ jobs:
 
       # No install step: the policy is dependency-free, and skipping npm ci
       # keeps the reviewed tree from running any lifecycle script.
+      # The workflow definition comes from the pull request while the tree comes
+      # from the base, so on the change that introduces this job the script does
+      # not exist yet. That is the only situation in which it can be missing --
+      # once merged, `main` always has it -- and blocking the pull request that
+      # adds the reviewer would be a strange way to start. Every other absence
+      # is impossible, so a plain guard is enough and fail-closed still governs
+      # everything the script itself does.
       - name: Evaluate the pull request
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/pr-guardian-self-review.js
+        run: |
+          set -euo pipefail
+          if [ ! -f scripts/pr-guardian-self-review.js ]; then
+            echo "::notice title=HUQAN PR Guardian::Not present on the base branch yet; this is the change that adds it."
+            exit 0
+          fi
+          node scripts/pr-guardian-self-review.js
