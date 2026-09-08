@@ -7,22 +7,28 @@ const { WORKFLOW_CAPABILITIES } = require('../lib/workflow-contract');
 const { buildIngestWorkflowRun } = require('../lib/ingest-workflow-run');
 
 function fixture(records = [], overrides = {}) {
-  const byId = new Map(records.map(record => [record.id, record]));
   const writes = [];
   const decisions = [];
-  const handler = createWorkflowDataRoutes({
+  const learnDecisions = [];
+  // Learn rows carry their workspace at context.workspaceId (no ingest
+  // snapshot), so the fake store matches the real one's workspace scoping
+  // for both shapes.
+  const recordWorkspace = record => record?.workspaceId
+    || record?.context?.workspaceId
+    || record?.context?.snapshot?.workspaceId;
+  const deps = {
     getApprovalStore: () => ({
       listUnresolvedToolApprovals: (limit, workspaceId) => records
-        .filter(record => record.context?.snapshot?.workspaceId === workspaceId)
+        .filter(record => recordWorkspace(record) === workspaceId)
         .slice(0, limit),
       getToolApprovalById: (id, workspaceId) => {
-        const record = byId.get(id) || null;
-        return record && record.context?.snapshot?.workspaceId === workspaceId ? record : null;
+        const record = records.find(entry => entry.id === id) || null;
+        return record && recordWorkspace(record) === workspaceId ? record : null;
       },
     }),
     decideApproval: async input => {
       decisions.push(input);
-      const record = byId.get(input.approvalId);
+      const record = records.find(entry => entry.id === input.approvalId);
       record.status = input.decision;
       record.decision = input.decision;
       return { status: 200, json: { approval: record, idempotent: false } };
@@ -35,11 +41,23 @@ function fixture(records = [], overrides = {}) {
     proposeLearn: overrides.proposeLearn || (async () => ({ approval: { id: 'approval-learn', persisted: true, context: {} } })),
     submitIngest: async () => ({}),
     createAgent: () => ({ plan: () => ({ ok: true, data: {} }), run: () => ({ ok: true, data: {} }) }),
-  });
+  };
+  // The learn executor is optional on purpose: omitting it must fail closed,
+  // never fall through to the ingest executor.
+  if (!overrides.omitLearnDecision) {
+    deps.decideLearnApproval = overrides.decideLearnApproval || (async input => {
+      learnDecisions.push(input);
+      const record = records.find(entry => entry.id === input.approvalId);
+      record.status = input.decision;
+      record.decision = input.decision;
+      return { status: 200, json: { approval: record, idempotent: false } };
+    });
+  }
+  const handler = createWorkflowDataRoutes(deps);
   const invoke = async (method, path, body) => {
     const req = { method, body };
     const handled = await handler(req, {}, new URL(path, 'http://localhost'));
-    return { handled, write: writes.at(-1), decisions };
+    return { handled, write: writes.at(-1), decisions, learnDecisions };
   };
   return { invoke };
 }
@@ -57,6 +75,21 @@ const approval = (id, workspaceId) => ({
     snapshotHash: `sha256:${'a'.repeat(64)}`,
     idempotencyKey: `ingest-${id}`,
   } },
+});
+
+const learnApproval = (id, workspaceId, tool = 'huqan.learn') => ({
+  id,
+  approval_key: `key-${id}`,
+  tool,
+  status: 'pending',
+  decision: 'review',
+  reason: 'mutating_requires_review',
+  context: {
+    source: 'mcp',
+    workspaceId,
+    candidateId: `cand_${id}`,
+    args: { text: 'cats are animals', workspaceId },
+  },
 });
 
 describe('canonical workflow data routes', () => {
@@ -121,6 +154,52 @@ describe('canonical workflow data routes', () => {
     assert.equal(result.write.json.workflowId, 'approval-decision');
     assert.equal(result.write.json.data.approval.status, 'approved');
     assert.deepEqual(result.decisions, [{ approvalId: 'a', workspaceId: 'alpha', decision: 'approved', reason: '' }]);
+  });
+
+  it('round-trips a learn proposal through list, detail and decision (H-01 #1976)', async () => {
+    const records = [];
+    const { invoke } = fixture(records, {
+      proposeLearn: async () => {
+        const record = learnApproval('learn-1', 'alpha');
+        records.push(record);
+        return { approval: { ...record, persisted: true }, gate: { decision: 'review' } };
+      },
+    });
+    const proposed = await invoke('POST', '/api/v2/workflows/learn', { workspaceId: 'alpha', text: 'cats are animals' });
+    assert.equal(proposed.write.status, 202);
+    assert.equal(proposed.write.json.data.approvalId, 'learn-1');
+
+    const listed = await invoke('GET', '/api/v2/approvals?workspaceId=alpha');
+    assert.equal(listed.write.status, 200);
+    assert.deepEqual(listed.write.json.data.approvals.map(item => item.id), ['learn-1']);
+
+    const detail = await invoke('GET', '/api/v2/approvals/learn-1?workspaceId=alpha');
+    assert.equal(detail.write.status, 200);
+    assert.equal(detail.write.json.data.approval.id, 'learn-1');
+
+    const decided = await invoke('POST', '/api/v2/approvals/learn-1/decision?workspaceId=alpha', { decision: 'approved' });
+    assert.equal(decided.write.status, 200);
+    assert.equal(decided.write.json.workflowId, 'approval-decision');
+    assert.equal(decided.write.json.data.approval.status, 'approved');
+    assert.deepEqual(decided.learnDecisions, [{ approvalId: 'learn-1', workspaceId: 'alpha', decision: 'approved', reason: '' }]);
+    assert.deepEqual(decided.decisions, []);
+  });
+
+  it('lists legacy axiom.learn rows under their canonical huqan.learn name (H-01 #1976)', async () => {
+    const { invoke } = fixture([learnApproval('legacy-1', 'alpha', 'axiom.learn'), approval('a', 'alpha')]);
+    const result = await invoke('GET', '/api/v2/approvals?workspaceId=alpha');
+    assert.equal(result.write.status, 200);
+    assert.deepEqual(result.write.json.data.approvals.map(item => item.id).sort(), ['a', 'legacy-1']);
+  });
+
+  it('fails a learn decision closed when no learn executor is wired (H-01 #1976)', async () => {
+    const { invoke } = fixture([learnApproval('learn-1', 'alpha')], { omitLearnDecision: true });
+    const listed = await invoke('GET', '/api/v2/approvals?workspaceId=alpha');
+    assert.deepEqual(listed.write.json.data.approvals.map(item => item.id), ['learn-1']);
+    const result = await invoke('POST', '/api/v2/approvals/learn-1/decision?workspaceId=alpha', { decision: 'rejected' });
+    assert.equal(result.write.status, 503);
+    assert.equal(result.write.json.error.code, 'APPROVAL_DECISION_UNAVAILABLE');
+    assert.deepEqual(result.decisions, []);
   });
 
   it('enforces the published approval-decision body schema before dispatch', async () => {
