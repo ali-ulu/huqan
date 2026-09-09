@@ -13,6 +13,7 @@ const { emitGateTelemetry } = require('./lib/gate-telemetry');
 const { detectClaimConflict } = require('./lib/conflict-detector');
 const { createKernelReadUseCases } = require('./lib/kernel-read-use-cases');
 const { runLearnUseCase } = require('./lib/learn-use-case');
+const { buildLearnEdgeOptions } = require('./lib/learn-edge-options');
 const { runLearnDocument } = require('./lib/kernel-learn-document');
 const { runSelfLearn } = require('./lib/kernel-self-learn');
 const { runLearnFromLLM } = require('./lib/kernel-learn-from-llm');
@@ -484,16 +485,7 @@ class Kernel {
   }
 
   _learnEdgeOptions(base, meta, text) {
-    const options = {
-      ...base,
-      evidence: Array.isArray(base.evidence) ? base.evidence : [text],
-    };
-    if (meta.sourceRef) options.sourceRef = meta.sourceRef;
-    if (meta.sessionId) options.sessionId = meta.sessionId;
-    if (meta.sourceType) options.sourceType = meta.sourceType;
-    if (meta.evidenceType) options.evidenceType = meta.evidenceType;
-    if (meta.companyMode) options.companyMode = true;
-    return options;
+    return buildLearnEdgeOptions(base, meta, text);
   }
 
   _normalizeProvenanceInput(provenanceInput, opts = {}) {

@@ -369,6 +369,7 @@
     "lib/kernel-auto-think.js",
     "lib/kernel-v2-native.js",
     "lib/learn-admission-request.js",
+    "lib/learn-edge-options.js",
     "lib/learn-use-case.js",
     "lib/mcp-agent-continuation.js",
     "lib/mcp-agent-approval-execution.js",
