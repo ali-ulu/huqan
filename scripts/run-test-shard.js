@@ -193,34 +193,53 @@ function run(options) {
     }
   }
 
-  // Merge per-file JUnit reports into the single report the workflow
-  // uploads as `artifacts/test-shard-*.xml`. Keep it best-effort: a
-  // missing/corrupt part must not hide the exit code.
+  mergeJunitParts(partPaths, selected.files, reportPath);
+
+  console.log(`JUnit timing report: ${reportPath}`);
+  if (lastSignal) {
+    console.error(`test shard terminated by signal ${lastSignal}`);
+    return 1;
+  }
+  return overallStatus;
+}
+
+function escapeXmlAttr(s) {
+  return String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;');
+}
+
+function mergeJunitParts(partPaths, files, reportPath) {
+  // Best-effort: a missing/corrupt part must not hide the exit code.
+  // NOTE (#1973): Node's JUnit reporter only emits <testsuite> for tests
+  // nested in describe/suite. A suite-less file emits its <testcase>
+  // elements directly under <testsuites>, so collecting only <testsuite>
+  // blocks silently drops every result in that file. Wrap orphan
+  // <testcase> elements in a synthetic suite named after the file, and
+  // derive totals from testcases (not suite attributes).
   try {
-    let totalTests = 0;
-    let totalFailures = 0;
-    let totalErrors = 0;
-    let totalSkipped = 0;
     let totalTime = 0;
     const suites = [];
-    for (const partPath of partPaths) {
+    for (let partIndex = 0; partIndex < partPaths.length; partIndex += 1) {
+      const partPath = partPaths[partIndex];
       if (!fs.existsSync(partPath)) continue;
       const xml = fs.readFileSync(partPath, 'utf8');
       const suiteBlocks = xml.match(/<testsuite\b[^>]*>[\s\S]*?<\/testsuite>/g) || [];
       for (const block of suiteBlocks) suites.push(block);
-      // Sum from <testsuite> attributes, not <testsuites>.
+      // Sum time from <testsuite> attributes (synthetic suites below add 0).
       for (const match of xml.matchAll(/<testsuite\b[^>]*>/g)) {
         const tag = match[0];
-        const get = (name) => {
-          const m = tag.match(new RegExp(`${name}="([^"]+)"`));
-          return m ? Number(m[1]) : 0;
-        };
-        totalTests += get('tests');
-        totalFailures += get('failures');
-        totalErrors += get('errors');
-        totalSkipped += get('skipped');
         const t = tag.match(/time="([^"]+)"/);
         if (t) totalTime += Number(t[1]) || 0;
+      }
+      // Suite-less files: orphan <testcase> elements outside any <testsuite>.
+      const withoutSuites = xml.replace(/<testsuite\b[^>]*>[\s\S]*?<\/testsuite>/g, '');
+      const orphanCases = withoutSuites.match(/<testcase\b[\s\S]*?(?:\/>|<\/testcase>)/g) || [];
+      if (orphanCases.length > 0) {
+        const file = (files && files[partIndex]) || partPath;
+        const orphanBody = orphanCases.join('\n');
+        const orphanFailures = (orphanBody.match(/<failure\b/g) || []).length;
+        const orphanErrors = (orphanBody.match(/<error\b/g) || []).length;
+        const orphanSkipped = (orphanBody.match(/<skipped\b/g) || []).length;
+        suites.push(`<testsuite name="${escapeXmlAttr(file)}" tests="${orphanCases.length}" failures="${orphanFailures}" errors="${orphanErrors}" skipped="${orphanSkipped}" time="0">\n${orphanBody}\n</testsuite>`);
       }
       try { fs.rmSync(partPath, { force: true }); } catch { /* ignore */ }
     }
@@ -230,20 +249,20 @@ function run(options) {
       if (!fs.existsSync(reportPath)) {
         fs.writeFileSync(reportPath, '<?xml version="1.0" encoding="utf-8"?>\n<testsuites tests="0" failures="0" skipped="0" time="0" />\n');
       }
-    } else {
-      const merged = `<?xml version="1.0" encoding="utf-8"?>\n<testsuites tests="${totalTests}" failures="${totalFailures}" errors="${totalErrors}" skipped="${totalSkipped}" time="${totalTime.toFixed(3)}">\n${suites.join('\n')}\n</testsuites>\n`;
-      fs.writeFileSync(reportPath, merged);
+      return { suites: [], totalTests: 0, totalFailures: 0, totalErrors: 0, totalSkipped: 0, totalTime };
     }
+    const mergedBody = suites.join('\n');
+    const totalTests = (mergedBody.match(/<testcase\b/g) || []).length;
+    const totalFailures = (mergedBody.match(/<failure\b/g) || []).length;
+    const totalErrors = (mergedBody.match(/<error\b/g) || []).length;
+    const totalSkipped = (mergedBody.match(/<skipped\b/g) || []).length;
+    const merged = `<?xml version="1.0" encoding="utf-8"?>\n<testsuites tests="${totalTests}" failures="${totalFailures}" errors="${totalErrors}" skipped="${totalSkipped}" time="${totalTime.toFixed(3)}">\n${mergedBody}\n</testsuites>\n`;
+    fs.writeFileSync(reportPath, merged);
+    return { suites, totalTests, totalFailures, totalErrors, totalSkipped, totalTime };
   } catch (error) {
     console.error(`warning: failed to merge JUnit parts into ${reportPath}: ${error.message}`);
+    return null;
   }
-
-  console.log(`JUnit timing report: ${reportPath}`);
-  if (lastSignal) {
-    console.error(`test shard terminated by signal ${lastSignal}`);
-    return 1;
-  }
-  return overallStatus;
 }
 
 if (require.main === module) {
@@ -259,6 +278,7 @@ module.exports = {
   defaultReportPath,
   failuresSidecarPath,
   loadSelection,
+  mergeJunitParts,
   parseArgs,
   run,
 };
