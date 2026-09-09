@@ -2,6 +2,7 @@ const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const { resolveContainedPath } = require('./lib/memory-store-utils');
+const { assertStoreOpenAllowed } = require('./lib/sqlite-persistence-validation');
 const { applyStorageSchema } = require('./lib/storage/schema');
 const { loadSqliteDriver, sqliteUnavailableError } = require('./lib/sqlite-availability');
 const { applySqliteDurability } = require('./lib/sqlite-durability');
@@ -96,7 +97,11 @@ function resolveDbPath(opts = {}, kernel) {
   // does through a fake kernel -- stops leaving a memory.db in the working tree.
   const fallback = path.resolve(path.dirname(resolveDefaultMemoryPath()), 'memory.db');
   allowedRoots.push(path.dirname(fallback));
-  return resolveContainedPath(fallback, allowedRoots);
+  const resolved = resolveContainedPath(fallback, allowedRoots);
+  // Only this branch can stray: the two above return a path the caller or the
+  // graph named, and this one is derived from the working directory.
+  assertStoreOpenAllowed(resolved, {});
+  return resolved;
 }
 
 class HuqanStorage {
