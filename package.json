@@ -451,6 +451,7 @@
     "lib/receipt/bounded-receipt-export.js",
     "lib/receipt/canonical-receipt-v2.js",
     "lib/receipt/collector-seal.js",
+    "lib/receipt/issuer-seal.js",
     "lib/receipt/canonical-receipt.js",
     "lib/receipt/receipt-chain.js",
     "lib/receipt/receipt-export.js",
