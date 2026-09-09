@@ -67,6 +67,10 @@ const CLASSIFIED = Object.freeze({
     role: 'enforcement',
     why: 'installs and self-validates the gate hook into an agent profile; the spawns are the gate proving itself and the writes are its own configuration',
   }),
+  'lib/command-policy-editor.js': Object.freeze({
+    role: 'enforcement',
+    why: 'writes the allowed-command list the gate itself reads, atomically and under a cross-process lock; gating this write through admission would be circular, and the route in front of it requires an operator token the agent API key cannot satisfy',
+  }),
 
   // ── the evidence trail ─────────────────────────────────────────────────
   'lib/external-action-receipt.js': Object.freeze({

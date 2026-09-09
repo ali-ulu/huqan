@@ -2,18 +2,18 @@
   "schemaVersion": "huqan.enforcement-coverage.v1",
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. Indirect calls through a parameter, and dynamic property access, are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
-    "files": 34,
-    "sites": 86,
+    "files": 35,
+    "sites": 90,
     "byCapability": {
       "process": 11,
       "egress": 3,
-      "fs_write": 72
+      "fs_write": 76
     },
     "byRole": {
       "adapter_read": 3,
       "persistence": 32,
       "operator_tool": 18,
-      "enforcement": 16,
+      "enforcement": 20,
       "evidence": 14,
       "unguarded": 3
     }
@@ -253,6 +253,36 @@
       ]
     },
     {
+      "file": "lib/command-policy-editor.js",
+      "role": "enforcement",
+      "why": "writes the allowed-command list the gate itself reads, atomically and under a cross-process lock; gating this write through admission would be circular, and the route in front of it requires an operator token the agent API key cannot satisfy",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 56,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 60,
+          "capability": "fs_write",
+          "call": "fs.renameSync"
+        },
+        {
+          "line": 64,
+          "capability": "fs_write",
+          "call": "fs.unlinkSync"
+        },
+        {
+          "line": 66,
+          "capability": "fs_write",
+          "call": "fs.unlinkSync"
+        }
+      ]
+    },
+    {
       "file": "lib/default-persistence-path.js",
       "role": "persistence",
       "why": "creates the resolved state directory before first write; mkdir only, at a path derived from configuration",
@@ -277,77 +307,77 @@
       ],
       "sites": [
         {
-          "line": 27,
+          "line": 32,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 28,
+          "line": 33,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 54,
+          "line": 59,
           "capability": "process",
           "call": "spawnSync"
         },
         {
-          "line": 173,
+          "line": 178,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
-        },
-        {
-          "line": 174,
-          "capability": "fs_write",
-          "call": "fs.writeFileSync"
         },
         {
           "line": 179,
           "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 184,
+          "capability": "fs_write",
           "call": "fs.unlinkSync"
         },
         {
-          "line": 208,
+          "line": 213,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 210,
+          "line": 215,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 226,
+          "line": 231,
           "capability": "fs_write",
           "call": "fs.rmSync"
         },
         {
-          "line": 298,
+          "line": 303,
           "capability": "fs_write",
           "call": "fs.rmSync"
         },
         {
-          "line": 304,
+          "line": 309,
           "capability": "process",
           "call": "spawnSync"
         },
         {
-          "line": 345,
+          "line": 350,
           "capability": "process",
           "call": "spawnSync"
         },
         {
-          "line": 398,
+          "line": 403,
           "capability": "process",
           "call": "spawnSync"
         },
         {
-          "line": 431,
+          "line": 436,
           "capability": "process",
           "call": "spawnSync"
         },
         {
-          "line": 657,
+          "line": 721,
           "capability": "fs_write",
           "call": "fs.rmSync"
         }
