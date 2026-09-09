@@ -176,6 +176,8 @@ test('HTTP learn queues a durable MCP approval that the operator can apply', () 
   assert.equal(learned.status, 'review_required');
   assert.match(learned.data.approvalId, /^approval-/);
   assert.equal(learned.data.approval.persisted, true);
+  assert.equal(learned.data.provenance.sourceType, 'manual');
+  assert.equal(learned.data.provenance.rejectedSourceType, undefined);
 
   assert.equal(result.listedAfter.status, 200);
   const listed = JSON.parse(result.listedAfter.body);
