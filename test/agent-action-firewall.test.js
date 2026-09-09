@@ -142,6 +142,139 @@ test('plain trustedInternal input cannot forge the firewall bypass', () => {
   assert.equal(result.metadata.workspaceId, 'ws-forged');
 });
 
+// #2024: the firewall detects a secret-like value at any depth, but the AB5
+// projection only carries selected action fields and a bounded key list. A
+// nested secret therefore used to lose its signal and reach the executor under
+// an ordinary read classification, while the identical top-level shape blocked.
+test.describe('#2024 nested secret signal survives the AB5 projection', () => {
+  const SYNTHETIC = 'synthetic-audit-value';
+
+  const secretShapes = [
+    ['top-level secret key', { action: 'read', token: SYNTHETIC }],
+    ['nested object secret key', { action: 'read', payload: { token: SYNTHETIC } }],
+    ['array-nested secret key', { action: 'read', items: [{ apiKey: SYNTHETIC }] }],
+    ['deeply nested secret key', { action: 'read', a: { b: { c: { password: SYNTHETIC } } } }],
+    ['nested secret-shaped string', { action: 'read', payload: { value: 'sk-abcdef0123456789' } }],
+    ['nested bearer string', { action: 'read', payload: { value: 'Bearer abcdef0123456789' } }],
+  ];
+
+  for (const [label, input] of secretShapes) {
+    test(`blocks ${label} before execution`, () => {
+      const result = evaluateAgentActionFirewall({
+        surface: 'agent',
+        tool: 'custom-read',
+        action: 'read',
+        input,
+        context: { workspaceId: 'ws-audit' },
+      });
+
+      assert.equal(result.decision, 'block', `${label} must not be allowed`);
+      assert.equal(result.canExecute, false);
+      assert.equal(result.reason, 'SECRET_DETECTED_BLOCKED');
+      assert.equal(JSON.stringify(result).includes(SYNTHETIC), false,
+        'the decision must not carry the original secret-like value');
+    });
+  }
+
+  test('ordinary operator approval does not unlock a nested secret', async () => {
+    const { ToolRegistry, createExternalReviewApproval } = require('../workflow-agent');
+
+    for (const [label, input] of secretShapes) {
+      let executed = false;
+      const registry = new ToolRegistry();
+      registry.registerTool({
+        name: 'custom-read',
+        kind: 'external',
+        inputSchema: { type: 'object' },
+        run: async () => { executed = true; return { ok: true }; },
+      });
+
+      const result = await registry.runTool('custom-read', input, {
+        action: 'read',
+        workspaceId: 'ws-audit',
+        approval: createExternalReviewApproval('Synthetic local audit; no external IO'),
+      });
+
+      assert.equal(executed, false, `${label} reached the executor`);
+      assert.equal(result.status, 'blocked');
+      assert.equal(result.meta.firewall.decision, 'block');
+    }
+  });
+
+  test('clean payloads keep their existing decisions', () => {
+    const nestedClean = evaluateAgentActionFirewall({
+      surface: 'agent',
+      tool: 'custom-read',
+      action: 'read',
+      input: { action: 'read', payload: { value: 'ordinary text' } },
+      context: { workspaceId: 'ws-clean' },
+    });
+    assert.equal(nestedClean.decision, 'allow');
+
+    const readTool = evaluateAgentActionFirewall({
+      surface: 'agent',
+      tool: 'verify',
+      input: { claim: 'the sky is blue' },
+      context: { workspaceId: 'ws-clean' },
+    });
+    assert.equal(readTool.decision, 'allow');
+
+    const learn = evaluateAgentActionFirewall({
+      surface: 'agent',
+      tool: 'learn',
+      input: { content: 'ordinary note' },
+      context: { workspaceId: 'ws-clean' },
+    });
+    assert.equal(learn.decision, 'allow');
+    assert.equal(learn.reason, 'AGENT_MEMORY_WRITE_DELEGATED_TO_AB4');
+  });
+
+  // The receiver-owned internal capability skips AB5 entirely for clean input.
+  // A secret must not become a reason to take that shortcut.
+  test('receiver-owned internal actions are not exempt from a nested secret', () => {
+    const { createReceiverOwnedInternalActionRequest } = require('../lib/agent-action-firewall');
+
+    for (const tool of ['ask', 'learn', 'custom-read']) {
+      for (const [label, input] of secretShapes) {
+        const trusted = createReceiverOwnedInternalActionRequest({
+          tool,
+          action: 'read',
+          input,
+          context: { workspaceId: 'ws-audit' },
+        });
+        const result = evaluateAgentActionFirewall(trusted);
+
+        assert.equal(result.decision, 'block', `${tool} / trusted / ${label}`);
+        assert.equal(result.canExecute, false);
+        assert.notEqual(result.reason, 'AGENT_INTERNAL_TOOL_ALLOWED');
+        assert.equal(JSON.stringify(result).includes(SYNTHETIC), false);
+      }
+    }
+
+    const clean = evaluateAgentActionFirewall(createReceiverOwnedInternalActionRequest({
+      tool: 'custom-read',
+      action: 'read',
+      input: { action: 'read', payload: { value: 'ordinary text' } },
+      context: { workspaceId: 'ws-audit' },
+    }));
+    assert.equal(clean.decision, 'allow');
+    assert.equal(clean.reason, 'AGENT_INTERNAL_TOOL_ALLOWED');
+  });
+
+  test('read-only and learn tools are not exempt from a nested secret', () => {
+    for (const tool of ['verify', 'huqan.ask', 'learn']) {
+      const result = evaluateAgentActionFirewall({
+        surface: 'agent',
+        tool,
+        input: { payload: { token: SYNTHETIC } },
+        context: { workspaceId: 'ws-audit' },
+      });
+      assert.equal(result.decision, 'block', `${tool} must not allow a nested secret`);
+      assert.equal(JSON.stringify(result).includes(SYNTHETIC), false);
+    }
+  });
+});
+
 test('workflow ToolRegistry preserves firewall evidence for an allowed internal tool', async () => {
   const { ToolRegistry } = require('../workflow-agent');
   const registry = new ToolRegistry();
