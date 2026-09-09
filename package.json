@@ -11,6 +11,8 @@
   },
   "scripts": {
     "prepublishOnly": "npm run check:package-closure",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix .",
     "start": "node cli.js",
     "server": "node server.js",
     "server:guarded": "node scripts/huqan-watchdog.js",
@@ -716,5 +718,8 @@
   "optionalDependencies": {
     "pdfjs-dist": "^6.2.108",
     "pdfkit": "^0.19.1"
+  },
+  "devDependencies": {
+    "oxlint": "^1.82.0"
   }
 }

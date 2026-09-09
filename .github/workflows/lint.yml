@@ -1,0 +1,67 @@
+name: Lint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Do not spend runners on stale lint runs after a new PR push.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  oxlint:
+    name: oxlint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+
+      # Reporting only for now. The baseline is 295 errors and 1657 warnings
+      # across 133 files, so a blocking gate would fail every PR regardless of
+      # what the PR changed. This step records the current count in the job
+      # summary; it becomes blocking once the baseline is worked down.
+      - name: Run oxlint (reporting only)
+        id: oxlint
+        continue-on-error: true
+        run: |
+          set +e
+          npm run lint > lint.txt 2>&1
+          status=$?
+          set -e
+          cat lint.txt
+          {
+            echo '## oxlint report'
+            echo
+            echo "- errors: $(grep -c ': error ' lint.txt || true)"
+            echo "- warnings: $(grep -c ': warning ' lint.txt || true)"
+            echo "- files with errors: $(grep ': error ' lint.txt | cut -d: -f1 | sort -u | wc -l)"
+          } >> "$GITHUB_STEP_SUMMARY"
+          printf 'status=%s\n' "$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: oxlint-report
+          path: lint.txt
+          if-no-files-found: warn
+          retention-days: 14
