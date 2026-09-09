@@ -2,16 +2,16 @@
   "schemaVersion": "huqan.enforcement-coverage.v1",
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. Indirect calls through a parameter, and dynamic property access, are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
-    "files": 33,
-    "sites": 84,
+    "files": 34,
+    "sites": 86,
     "byCapability": {
       "process": 11,
       "egress": 3,
-      "fs_write": 70
+      "fs_write": 72
     },
     "byRole": {
       "adapter_read": 3,
-      "persistence": 30,
+      "persistence": 32,
       "operator_tool": 18,
       "enforcement": 16,
       "evidence": 14,
@@ -417,7 +417,7 @@
       ],
       "sites": [
         {
-          "line": 328,
+          "line": 327,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         }
@@ -724,6 +724,26 @@
       ]
     },
     {
+      "file": "lib/store-creation-guard.js",
+      "role": "persistence",
+      "why": "the registry of store paths this machine keeps, under the resolved state root; the recorded path is a store path the runtime already resolved, never a request field, and every write failure is swallowed so the registry can never refuse an open",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 91,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 92,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
       "file": "persistencePaths.js",
       "role": "persistence",
       "why": "resolves and creates the product state directories on startup; the paths come from config and platform defaults, never from a request",
@@ -732,17 +752,17 @@
       ],
       "sites": [
         {
-          "line": 37,
+          "line": 63,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 38,
+          "line": 64,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 39,
+          "line": 65,
           "capability": "fs_write",
           "call": "fs.rmSync"
         }
@@ -757,12 +777,12 @@
       ],
       "sites": [
         {
-          "line": 93,
+          "line": 134,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 94,
+          "line": 135,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         }
@@ -777,12 +797,12 @@
       ],
       "sites": [
         {
-          "line": 166,
+          "line": 204,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 277,
+          "line": 317,
           "capability": "fs_write",
           "call": "fs.createWriteStream"
         }
