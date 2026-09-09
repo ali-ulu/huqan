@@ -56,9 +56,35 @@ function withoutRunnerMarker(run) {
   }
 }
 
-test('refuses to create a store at a path nobody named', () => {
+/**
+ * The guard only refuses once this machine is known to keep a store somewhere,
+ * so every refusal case needs one registered first. A fresh machine is the
+ * first-run case and has its own test below.
+ */
+function withRegisteredStore(box, storePath = path.join(box.root, 'real', 'memory.db')) {
+  fs.mkdirSync(path.dirname(registryPath(box.environment)), { recursive: true });
+  fs.writeFileSync(registryPath(box.environment), JSON.stringify([storePath]));
+  return storePath;
+}
+
+test('creates the first store on a machine that has none', () => {
   const box = sandbox();
   try {
+    withoutRunnerMarker(() => assertStoreCreationAllowed({
+      dbPath: box.dbPath,
+      explicit: false,
+      exists: false,
+      environment: box.environment,
+    }));
+    // And registers it, so the next implicit creation is the one refused.
+    assert.deepEqual(readKnownStores(box.environment), [box.dbPath]);
+  } finally { box.cleanup(); }
+});
+
+test('refuses a second store at a path nobody named', () => {
+  const box = sandbox();
+  try {
+    withRegisteredStore(box);
     const error = withoutRunnerMarker(() => captureThrow(() => assertStoreCreationAllowed({
       dbPath: box.dbPath,
       explicit: false,
@@ -109,9 +135,7 @@ test('rebuild opt-in is the way through', () => {
 test('the refusal names the stores this machine already knows', () => {
   const box = sandbox();
   try {
-    const known = path.join(box.root, 'real', 'memory.db');
-    fs.mkdirSync(path.dirname(registryPath(box.environment)), { recursive: true });
-    fs.writeFileSync(registryPath(box.environment), JSON.stringify([known]));
+    const known = withRegisteredStore(box);
 
     const error = withoutRunnerMarker(() => captureThrow(() => assertStoreCreationAllowed({
       dbPath: box.dbPath,
@@ -125,21 +149,35 @@ test('the refusal names the stores this machine already knows', () => {
   } finally { box.cleanup(); }
 });
 
-test('a malformed registry does not become a reason to refuse differently', () => {
+test('a registry it cannot read leaves the guard open, not refusing blindly', () => {
   const box = sandbox();
   try {
     fs.mkdirSync(path.dirname(registryPath(box.environment)), { recursive: true });
     fs.writeFileSync(registryPath(box.environment), 'not json at all');
     assert.deepEqual(readKnownStores(box.environment), []);
 
-    const error = withoutRunnerMarker(() => captureThrow(() => assertStoreCreationAllowed({
+    // An unreadable registry is indistinguishable from a machine with no store,
+    // and failing open there is deliberate: a registry that cannot be kept is
+    // not a reason to refuse work.
+    withoutRunnerMarker(() => assertStoreCreationAllowed({
       dbPath: box.dbPath,
       explicit: false,
       exists: false,
       environment: box.environment,
-    })));
-    assert.equal(error.code, STORE_CREATION_REFUSED_CODE);
-    assert.doesNotMatch(error.message, /already has a store/);
+    }));
+  } finally { box.cleanup(); }
+});
+
+test('rebuild still works once a store is registered', () => {
+  const box = sandbox();
+  try {
+    withRegisteredStore(box);
+    withoutRunnerMarker(() => assertStoreCreationAllowed({
+      dbPath: box.dbPath,
+      explicit: false,
+      exists: false,
+      environment: { ...box.environment, [REBUILD_OPT_IN_VARIABLE]: '1' },
+    }));
   } finally { box.cleanup(); }
 });
 
