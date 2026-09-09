@@ -226,6 +226,97 @@ function escapeXmlAttr(s) {
   return String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;');
 }
 
+/**
+ * End of the tag that starts at `start`, ignoring any '>' inside an attribute
+ * value. Test names carry them: "learn -> review -> approve" is one.
+ * Returns -1 if the tag never closes.
+ */
+function endOfTag(xml, start) {
+  let cursor = start;
+  let quote = '';
+  while (cursor < xml.length) {
+    const character = xml[cursor];
+    if (quote) {
+      if (character === quote) quote = '';
+    } else if (character === '"' || character === "'") {
+      quote = character;
+    } else if (character === '>') {
+      return cursor;
+    }
+    cursor += 1;
+  }
+  return -1;
+}
+
+/**
+ * Every top-level `<name>` element in `xml`, whole, nesting included.
+ *
+ * Both callers used to be lazy regexes, and both were wrong in the same way —
+ * a lazy match stops at the first candidate end, which is not this element's:
+ *
+ *   /<testsuite\b[^>]*>[\s\S]*?<\/testsuite>/  — a nested describe emits a
+ *     nested <testsuite>, so the match ended at the *inner* close and left the
+ *     outer </testsuite> orphaned.
+ *   /<testcase\b[\s\S]*?(?:\/>|<\/testcase>)/  — the alternation accepts '/>',
+ *     so a case with a self-closing child (skipped cases are written exactly
+ *     that way) ended at the *child's* '/>' and lost its own </testcase>.
+ *
+ * Either one leaves the merged report with more open elements than closes, and
+ * a single unclosed element makes the whole document unparseable rather than
+ * merely inaccurate — 35 open <testcase> against 6 closes in the shard 5
+ * nightly artifact, plus two unclosed <testsuite> from nested describes
+ * (#2038). <failure> hid the testcase half because it is not self-closing.
+ *
+ * Counting depth is what both cases actually need.
+ */
+function extractElements(xml, name) {
+  const blocks = [];
+  const open = new RegExp(`<${name}\\b`, 'g');
+  let match;
+  while ((match = open.exec(xml)) !== null) {
+    const start = match.index;
+    let cursor = start;
+    let depth = 0;
+
+    while (cursor < xml.length && cursor !== -1) {
+      const tagEnd = endOfTag(xml, cursor);
+      if (tagEnd === -1) { cursor = -1; break; }
+      const tag = xml.slice(cursor + 1, tagEnd);
+
+      if (tag.startsWith(`/${name}`)) {
+        depth -= 1;
+        if (depth === 0) break;
+      } else if (new RegExp(`^${name}\\b`).test(tag)) {
+        // A self-closing element is complete on its own.
+        if (tag.endsWith('/')) {
+          if (depth === 0) { cursor = tagEnd; break; }
+        } else {
+          depth += 1;
+        }
+      }
+
+      const next = xml.indexOf('<', tagEnd + 1);
+      if (next === -1) { cursor = -1; break; }
+      cursor = next;
+    }
+
+    if (cursor === -1 || cursor >= xml.length) {
+      // Truncated part file: keep what is there rather than drop it, but close
+      // it, so one damaged part cannot make the whole report unreadable.
+      const firstTagEnd = endOfTag(xml, start);
+      const head = firstTagEnd === -1 ? `<${name}>` : xml.slice(start, firstTagEnd + 1);
+      blocks.push(head.endsWith('/>') ? head : `${head}</${name}>`);
+      break;
+    }
+
+    const end = endOfTag(xml, cursor);
+    const stop = end === -1 ? xml.length : end + 1;
+    blocks.push(xml.slice(start, stop));
+    open.lastIndex = stop;
+  }
+  return blocks;
+}
+
 function mergeJunitParts(partPaths, files, reportPath) {
   // Best-effort: a missing/corrupt part must not hide the exit code.
   // NOTE (#1973): Node's JUnit reporter only emits <testsuite> for tests
@@ -241,17 +332,20 @@ function mergeJunitParts(partPaths, files, reportPath) {
       const partPath = partPaths[partIndex];
       if (!fs.existsSync(partPath)) continue;
       const xml = fs.readFileSync(partPath, 'utf8');
-      const suiteBlocks = xml.match(/<testsuite\b[^>]*>[\s\S]*?<\/testsuite>/g) || [];
+      const suiteBlocks = extractElements(xml, 'testsuite');
       for (const block of suiteBlocks) suites.push(block);
-      // Sum time from <testsuite> attributes (synthetic suites below add 0).
-      for (const match of xml.matchAll(/<testsuite\b[^>]*>/g)) {
-        const tag = match[0];
-        const t = tag.match(/time="([^"]+)"/);
+      // Sum time from the top-level <testsuite> elements only. A nested
+      // describe's time is already included in its parent's, so summing every
+      // open tag counted it twice (#2038).
+      for (const block of suiteBlocks) {
+        const tagEnd = endOfTag(block, 0);
+        const t = (tagEnd === -1 ? block : block.slice(0, tagEnd + 1)).match(/time="([^"]+)"/);
         if (t) totalTime += Number(t[1]) || 0;
       }
       // Suite-less files: orphan <testcase> elements outside any <testsuite>.
-      const withoutSuites = xml.replace(/<testsuite\b[^>]*>[\s\S]*?<\/testsuite>/g, '');
-      const orphanCases = withoutSuites.match(/<testcase\b[\s\S]*?(?:\/>|<\/testcase>)/g) || [];
+      let withoutSuites = xml;
+      for (const block of suiteBlocks) withoutSuites = withoutSuites.replace(block, '');
+      const orphanCases = extractElements(withoutSuites, 'testcase');
       if (orphanCases.length > 0) {
         const file = (files && files[partIndex]) || partPath;
         const orphanBody = orphanCases.join('\n');
