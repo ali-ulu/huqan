@@ -30,7 +30,7 @@ const { derivePersistenceLayout, resolveDefaultMemoryPath } = require('./lib/mem
 const { createMutationRollback } = require('./lib/graph-mutation-rollback');
 const { assertGraphPersistenceWritable, loadJsonGraph } = require('./lib/graph-json-persistence');
 const { commitJsonTransaction, rememberSnapshot, runSnapshotMutation, saveSnapshot, writeCurrentState, writeJsonFiles } = require('./lib/graph-json-snapshot');
-const { handleSqliteInitializationError, hasExistingPersistenceFile, sqlitePersistenceError } = require('./lib/sqlite-persistence-validation');
+const { assertStoreOpenAllowed, handleSqliteInitializationError, hasExistingPersistenceFile, sqlitePersistenceError } = require('./lib/sqlite-persistence-validation');
 const { countAuditEvents, queryAuditEvents, readAuditEvents } = require('./lib/audit-query');
 const { assertChainTipUsable, emptyMutationJournal, readMutationJournal, readCommittedMutationResult, readCommittedMutationResultsByPrefix } = require('./lib/mutation-journal');
 const { applyTemporalEdgeMetadata, beginEdgeTouchScope, downgradeEdge, edgeTouchKey } = require('./lib/graph-edge-mutations');
@@ -115,7 +115,7 @@ class Graph {
    */
   _openSqlite(opts) {
     const dbPath = this._paths.dbPath;
-    const hasExistingDatabase = hasExistingPersistenceFile(dbPath);
+    const hasExistingDatabase = assertStoreOpenAllowed(dbPath, opts);
     try {
       this._db = new Database(dbPath);
       this._initDB(opts);
