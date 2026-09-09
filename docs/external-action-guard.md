@@ -547,6 +547,38 @@ doğrulanmamış yarıyı — yani okuyucunun görmesi gereken yarıyı — gizl
 Kimliği olmayan makbuz hiçbir satıra yazılmaz; tahmin edilen bir ada
 iliştirilmez.
 
+### Bağlı ajanlar ve eylemleri tek listede
+
+`connect` neyi kurduğunu bilir, roster neyin eylem yaptığını. İkisini birleştiren
+görünüm:
+
+```powershell
+npx huqan-gate overview
+npx huqan-gate overview --workspace-id team-a
+```
+
+Bu birleştirme olmadan, yeni bağlanmış bir ajan hiçbir listede görünmez —
+kullanıcı her şeyi koruma altına aldığı anda ekran boş çıkar ve "hiçbir şey
+korunmuyor" diye okunur.
+
+Birleştirme üç durum üretir; asıl değerli olan ortadaki:
+
+| durum | anlamı |
+|---|---|
+| `connected` + `active` | çalışıyor, ve yaptıkları burada |
+| **`connected` + `silent`** | kapı kurulu ama içinden hiçbir şey geçmemiş |
+| `connected:false` + `active` | generic yoldan geçmiş, ya da kurulum sonradan kaldırılmış |
+
+Ortadaki satır ya yeni bir kurulumdur ya da #2048'in tespit ettiği arıza:
+artefakt yerinde ama ajan onu hiç çağırmıyor. Hangisi olduğu buradan
+**türetilemez**, o yüzden satır `installedAt` ve `lastInvocationAt` değerlerini
+yan yana taşır ve sebebi iddia etmez.
+
+İki kaynak arasında hiçbir şey çıkarsanmaz: eylem yapmamış bağlı ajan
+"çalışıyor" diye raporlanmaz, bağlı olmadan eylem yapan ajan gizlenmez. Özel
+ajanın `connected` değeri `false` değil `null`'dır — inceleyecek artefakt yok,
+yani bilinemez.
+
 ### Kendi ajanı olan kullanıcı (`generic`)
 
 Kurulacak bir artefakt yoktur: HUQAN özel bir ajanın yapılandırmasının nerede

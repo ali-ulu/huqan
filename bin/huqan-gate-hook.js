@@ -11,6 +11,7 @@ const { readAllowedCommands } = require('../lib/external-action-command-policy')
 const { queryExternalActionsByIdentity } = require('../lib/external-action-identity-log');
 const { manageGate, connectDetectedAgents } = require('../lib/external-action-gate-install');
 const { buildAgentRoster } = require('../lib/external-action-agent-roster');
+const { buildAgentOverview } = require('../lib/external-action-agent-overview');
 
 const MAX_STDIN_BYTES = 1024 * 1024;
 
@@ -166,6 +167,20 @@ async function main() {
       // A collector that would not take the evidence is a failure worth a
       // non-zero exit, so a scheduled run does not look successful in a log.
       process.exitCode = result.failure ? 1 : 0;
+      return;
+    }
+    if (command === 'overview') {
+      // Connected agents and acting agents in one list -- what a monitoring
+      // tab renders, including the connected-but-silent row (#2060).
+      const overview = buildAgentOverview({
+        root: argumentValue('--target-root') || process.cwd(),
+        home: argumentValue('--home') || undefined,
+        receiptPath: argumentValue('--receipt-log') || undefined,
+        workspaceId: argumentValue('--workspace-id') || undefined,
+      });
+      process.stdout.write(`${JSON.stringify(overview, null, 2)}
+`);
+      process.exitCode = overview.ok ? 0 : 1;
       return;
     }
     if (command === 'agents') {
