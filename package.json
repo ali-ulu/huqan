@@ -418,6 +418,7 @@
     "lib/memory-package-import.js",
     "lib/memory-package-import-runner.js",
     "lib/memory-query-engine.js",
+    "lib/memory-recall-gate.js",
     "lib/memory-record-utils.js",
     "lib/memory-schema.js",
     "lib/memory-store-write.js",
