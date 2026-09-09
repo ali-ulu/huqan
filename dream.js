@@ -49,6 +49,8 @@ class Dream {
   constructor(kernel) {
     this.kernel = kernel;
     this.graph = kernel.graph;
+    this._contradictionSkipped = 0;
+    this._contradictionLastError = null;
   }
 
   _emit(event, data) {
@@ -587,7 +589,19 @@ class Dream {
         });
         added++;
       }
-    } catch (_) {}
+    } catch (error) {
+      // #1986: a detector throw used to be indistinguishable from a genuine
+      // empty result (both yield hypotheses=0 with no signal). Count it and
+      // leave telemetry so callers can tell "detector failed" apart from
+      // "no contradictions found".
+      this._contradictionSkipped += 1;
+      this._contradictionLastError = (error && error.message) || String(error);
+      this._emit('dreamContradictionSkipped', {
+        workspaceId: normalizeWorkspaceId(context ? context.workspaceId : undefined),
+        error: this._contradictionLastError,
+        skippedTotal: this._contradictionSkipped,
+      });
+    }
   }
 
   // ─── Amplify / Simulate / Verify ─────────────────────────────────────────
