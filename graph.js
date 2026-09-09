@@ -28,7 +28,7 @@ const {
 } = require('./lib/graph-record-utils');
 const { derivePersistenceLayout, resolveDefaultMemoryPath } = require('./lib/memory-store-utils');
 const { createMutationRollback } = require('./lib/graph-mutation-rollback');
-const { assertGraphPersistenceWritable, loadJsonGraph } = require('./lib/graph-json-persistence');
+const { assertGraphPersistenceWritable, loadEmbeddingsLenient, loadJsonGraph } = require('./lib/graph-json-persistence');
 const { commitJsonTransaction, rememberSnapshot, runSnapshotMutation, saveSnapshot, writeCurrentState, writeJsonFiles } = require('./lib/graph-json-snapshot');
 const { assertStoreOpenAllowed, handleSqliteInitializationError, hasExistingPersistenceFile, sqlitePersistenceError } = require('./lib/sqlite-persistence-validation');
 const { countAuditEvents, queryAuditEvents, readAuditEvents } = require('./lib/audit-query');
@@ -1180,11 +1180,7 @@ class Graph {
           }));
           this._rebuildIndex();
 
-          // Embedding'leri yükle
-          if (fs.existsSync(this._embeddingPath)) {
-            const emb = JSON.parse(fs.readFileSync(this._embeddingPath, 'utf-8'));
-            this._restoreEmbeddings(emb);
-          }
+          loadEmbeddingsLenient(this);
           return; // SQLite'tan başarıyla yüklendi
         }
       } catch (e) {

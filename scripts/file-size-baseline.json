@@ -12,7 +12,7 @@
   "files": {
     "agent.js": 958,
     "cli.js": 818,
-    "graph.js": 1246,
+    "graph.js": 1242,
     "kernel.js": 1095,
     "kernel.v2.js": 813,
     "lib/code-change-gate.js": 834,
