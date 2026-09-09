@@ -6,7 +6,7 @@ const HuqanStorage = require('./storage');
 const { evaluateAgentLoopBudget, DEFAULT_MAX_ITERATIONS_PER_WINDOW, DEFAULT_WINDOW_MS } = require('./lib/agent-loop-budget-gate');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
 const { initializeBehavioralState } = require('./lib/agent-behavioral-integrity');
-const { loopEnabled, isDreamExperimentVerificationStep, prepareDreamExperiment, prepareDreamQueue, processDreamStep, selectDreamNextAction, labelPlanDataForDreamLoop } = require('./lib/agent-v3-dream-loop-adapter');
+const { ensureState, loopEnabled, isDreamExperimentVerificationStep, prepareDreamExperiment, prepareDreamQueue, processDreamStep, selectDreamNextAction, labelPlanDataForDreamLoop } = require('./lib/agent-v3-dream-loop-adapter');
 const { attachStepErrorSummary } = require('./lib/agent-memory-persistence');
 
 function cloneValue(value) {
