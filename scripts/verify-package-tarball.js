@@ -115,6 +115,7 @@ function verifyInstall(label, tarball, installFlags) {
 
     verifyExternalAdapters(label, consumer);
     verifyExternalGuard(label, binDir, consumer, env);
+    verifyDecisionExplainer(label, consumer, env);
 
     const quickstart = run(packageBin(binDir, 'huqan'), ['quickstart'], { cwd: consumer, env });
     if (quickstart.status !== 0) {
@@ -154,6 +155,44 @@ function verifyExternalAdapters(label, consumer) {
   const missing = required.filter((entry) => !fs.existsSync(path.join(root, entry)));
   if (missing.length === 0) ok('external agent adapter templates are present');
   else fail(`${label}: external adapter templates missing: ${missing.join(', ')}`);
+}
+
+/**
+ * H-10 (#1983): the decision-explainer plugin shipped in the repo but not in
+ * the tarball, so the installed package silently lost the `explain`
+ * capability. `quickstart` still exited 0 -- a missing plugin only prints a
+ * line -- so only an explicit assertion locks the installed-package claim:
+ * both files are present under node_modules/huqan/plugins AND a clean
+ * consumer can run the capability end to end.
+ */
+function verifyDecisionExplainer(label, consumer, env) {
+  const installedDir = path.join(consumer, 'node_modules', 'huqan', 'plugins');
+  const missing = ['decision-explainer.js', 'decision-explainer.manifest.json']
+    .filter((name) => !fs.existsSync(path.join(installedDir, name)));
+  if (missing.length > 0) {
+    fail(`${label}: installed package is missing: ${missing.map((name) => `plugins/${name}`).join(', ')}`);
+    return;
+  }
+  ok('decision-explainer plugin files are present in the install');
+
+  const probe = run(process.execPath, [
+    '-e',
+    "const Kernel = require('huqan/kernel');"
+    + '(async () => {'
+    + ' const k = new Kernel({ noLoad: true });'
+    + " k.enableCapability('pluginCapabilities');"
+    + " const cap = k.getCapability('explain');"
+    + ' if (!cap) { console.error(\'MISSING explain capability\'); process.exit(2); }'
+    + " const result = await k.runCapability('explain', { decision: { decision: 'allow', reason: 'read_only_allow' } });"
+    + ' if (!result || result.ok !== true || result.capability !== \'explain\''
+    + ' || typeof result.data?.explanation !== \'string\''
+    + ' || !result.data.explanation.includes(\'Salt-okunur\')) process.exit(3);'
+    + " console.log('explain ok: ' + result.data.explanation);"
+    + '})().catch((e) => { console.error((e && e.message) || e); process.exit(1); });',
+  ], { cwd: consumer, env });
+
+  if (probe.status === 0) ok('installed consumer runs runCapability(\'explain\')');
+  else fail(`${label}: installed runCapability('explain') failed\n${probe.output.slice(-1000)}`);
 }
 
 function verifyExternalGuard(label, binDir, cwd, env) {

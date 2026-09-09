@@ -563,6 +563,8 @@
     "plugins/contradiction-alert.manifest.json",
     "plugins/daily-digest.js",
     "plugins/daily-digest.manifest.json",
+    "plugins/decision-explainer.js",
+    "plugins/decision-explainer.manifest.json",
     "plugins/devil-advocate.js",
     "plugins/devil-advocate.manifest.json",
     "plugins/discovery-engine.js",
