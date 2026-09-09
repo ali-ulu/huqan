@@ -52,31 +52,38 @@ function resolveAgentRuntime(opts = {}) {
  * @param {object} [opts]
  * @returns {AgentV3|ReturnType<typeof createWorkflowRuntime>}
  */
+function resolveAgentStorage(opts = {}) {
+  if (opts.storage) return opts.storage;
+  try {
+    const storageOpts = { kernel: opts.kernel };
+    if (Object.prototype.hasOwnProperty.call(opts, 'dbPath') && opts.dbPath) {
+      storageOpts.dbPath = opts.dbPath;
+    }
+    return new HuqanStorage(storageOpts);
+  } catch (_) {
+    return null;
+  }
+}
+
 function createAgent(opts = {}) {
   // Validated before the runtime branch so a legacy version request fails the
   // same way whichever runtime it is paired with.
   resolveAgentVersion(opts);
 
   const runtime = resolveAgentRuntime(opts);
+  const storage = resolveAgentStorage(opts);
   if (runtime === 'workflow') {
+    // The workflow runtime stands in for AgentV3, so it is handed the same
+    // approval storage. Without it, countPendingToolApprovals() answered a
+    // hard 0 while HuqanStorage held pending tool_approvals rows (#1992).
     return createWorkflowRuntime(opts.kernel, {
       ...opts,
+      storage,
       runtime: 'workflow',
       kind: 'workflow',
     });
   }
 
-  const storage = opts.storage || (() => {
-    try {
-      const storageOpts = { kernel: opts.kernel };
-      if (Object.prototype.hasOwnProperty.call(opts, 'dbPath') && opts.dbPath) {
-        storageOpts.dbPath = opts.dbPath;
-      }
-      return new HuqanStorage(storageOpts);
-    } catch (_) {
-      return null;
-    }
-  })();
   return new AgentV3({ ...opts, storage });
 }
 

@@ -421,3 +421,44 @@ test('an injected baseAgent is left exactly as the caller built it', (t) => {
     try { custom.storage?.close?.(); } catch (_) {}
   }
 });
+
+test('the workflow runtime reads pending approvals from the same storage as v3', (t) => {
+  const f = fixture(t, 'workflow-approvals');
+  const runtime = f.viaRuntime({ runtime: 'workflow' });
+
+  // createAgent() substitutes this runtime for AgentV3, so it must answer the
+  // pending-approval surface from a real store. It used to return a hard 0/[]
+  // with no store behind it at all (#1992).
+  assert.ok(runtime.storage, 'the workflow runtime must be wired to approval storage');
+  assert.equal(runtime.countPendingToolApprovals(), 0);
+
+  runtime.storage.saveToolApprovalIfAbsent({
+    tool: EXTERNAL_REVIEW_TOOL,
+    input: EXTERNAL_REVIEW_INPUT,
+    status: 'pending',
+  });
+
+  assert.equal(
+    runtime.countPendingToolApprovals(),
+    1,
+    'a pending approval in storage must not be reported as no pending approvals',
+  );
+  const pending = runtime.listPendingToolApprovals(10);
+  assert.equal(pending.length, 1);
+  assert.equal(pending[0].tool, EXTERNAL_REVIEW_TOOL);
+});
+
+test('the workflow runtime scopes pending approvals by workspace like v3', (t) => {
+  const f = fixture(t, 'workflow-approval-scope');
+  const runtime = f.viaRuntime({ runtime: 'workflow' });
+
+  runtime.storage.saveToolApprovalIfAbsent({
+    tool: EXTERNAL_REVIEW_TOOL,
+    input: EXTERNAL_REVIEW_INPUT,
+    status: 'pending',
+    context: { workspaceId: 'team-a' },
+  });
+
+  assert.equal(runtime.countPendingToolApprovals('team-a'), 1);
+  assert.equal(runtime.countPendingToolApprovals('team-b'), 0);
+});

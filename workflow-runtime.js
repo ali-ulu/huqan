@@ -3,6 +3,7 @@ const { ToolRegistry } = require('./workflow-agent');
 const { registerDefaultWorkflowTools } = require('./workflow-tools');
 
 function createWorkflowRuntime(kernel, opts = {}) {
+  const storage = opts.storage || null;
   const registry = opts.registry instanceof ToolRegistry
     ? opts.registry
     : new ToolRegistry({ internalTools: opts.internalTools || [] });
@@ -26,6 +27,7 @@ function createWorkflowRuntime(kernel, opts = {}) {
     kernel,
     registry,
     agent,
+    storage,
     plan(goal, planOpts = {}) {
       return agent.plan(goal, planOpts);
     },
@@ -60,11 +62,17 @@ function createWorkflowRuntime(kernel, opts = {}) {
         },
       };
     },
-    countPendingToolApprovals() {
-      return 0;
+    // Same contract as AgentV3's, because createAgent() substitutes this
+    // runtime for it. These used to answer a hard 0/[] with no store behind
+    // them, so a pending tool approval sitting in HuqanStorage was reported as
+    // no pending approvals at all (#1992).
+    countPendingToolApprovals(workspaceId = 'default') {
+      if (!storage || typeof storage.countPendingToolApprovals !== 'function') return 0;
+      return storage.countPendingToolApprovals(workspaceId);
     },
-    listPendingToolApprovals() {
-      return [];
+    listPendingToolApprovals(limit = 20, workspaceId = 'default') {
+      if (!storage || typeof storage.listPendingToolApprovals !== 'function') return [];
+      return storage.listPendingToolApprovals(limit, workspaceId);
     },
     getStatus() {
       const agentStatus = typeof agent.lastRun === 'object' && agent.lastRun
