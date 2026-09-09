@@ -22,12 +22,8 @@ const {
   normalizeMemoryPath,
   defaultMemoryState,
 } = require('./lib/agent-memory-state');
-const {
-  extractAgentSummary,
-  buildRunRecommendations,
-  suggestNextAction,
-  chooseFollowUp,
-} = require('./lib/agent-run-guidance');
+const { extractAgentSummary, buildRunRecommendations, suggestNextAction, chooseFollowUp } = require('./lib/agent-run-guidance');
+const { memoryPersistenceMeta, noteMemoryFailure, resetMemoryPersistence } = require('./lib/agent-memory-persistence');
 const DEFAULT_MAX_STEPS = 4;
 const ALLOWED_TOOLS = INTERNAL_TOOLS;
 const MEMORY_LIMITS = {
@@ -140,11 +136,11 @@ class Agent {
       tempPath = path.join(dir, `.${path.basename(this.memoryPath)}.${process.pid}.${crypto.randomUUID()}.tmp`);
       fs.writeFileSync(tempPath, JSON.stringify(this.memory, null, 2));
       fs.renameSync(tempPath, this.memoryPath);
-    } catch (_) {
+    } catch (error) {
       if (tempPath) {
         try { fs.unlinkSync(tempPath); } catch (_) { /* best-effort cleanup */ }
       }
-      // Memory persistence is best-effort only.
+      noteMemoryFailure(this, 'saveMemory', error);
     }
   }
 
@@ -223,8 +219,7 @@ class Agent {
           resumed: Boolean(meta.resumed),
           selectedTools: meta.selectedTools || [],
         });
-      } catch (_) {
-      }
+      } catch (error) { noteMemoryFailure(this, 'saveGoalMemory', error); }
     }
   }
 
@@ -328,8 +323,7 @@ class Agent {
           iteration: state.steps ? state.steps.length : 0,
           budgetRemaining: state.budgetRemaining || 0,
         });
-      } catch (_) {
-      }
+      } catch (error) { noteMemoryFailure(this, 'saveRun', error); }
     }
     return entry;
   }
@@ -807,6 +801,7 @@ class Agent {
       capabilities: (activePlan.steps || []).map(step => step.action),
     });
     this._emit('beforeAgentRun', state);
+    resetMemoryPersistence(this);
 
     const queued = Array.isArray(state.queuedSteps) ? [...state.queuedSteps] : [];
     this._rememberRun(state);
@@ -906,6 +901,7 @@ class Agent {
         selectedTools: activePlan.selectedTools,
         resumed: state.resumed,
         report: state.report,
+        ...memoryPersistenceMeta(this),
       }, state);
     }
 
@@ -913,6 +909,7 @@ class Agent {
       objective: activePlan.objective,
       selectedTools: activePlan.selectedTools,
       resumed: state.resumed,
+      ...memoryPersistenceMeta(this),
     });
   }
 
