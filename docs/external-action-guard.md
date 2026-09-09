@@ -483,6 +483,33 @@ recordExternalActionOutcome(invocation, admission.receipt, {
 | Hermes | `--profile hermes` | `{ action: "block" }` | `pre_tool_call` hook event'leri |
 | Gelecekteki/özel ajan | `generic` profil veya doğrudan library API | exit `3` / host kararı | Ortak zarfa çevrilip pre-execution bağlanan çağrılar |
 
+### Tek komutla bağlama
+
+Kullanıcının profil adını bilmesi gerekmez; sürtünme oradaydı. `connect`
+makinedeki ajanları kendisi bulur ve her birine kapıyı kurar:
+
+```powershell
+npx huqan-gate connect
+npx huqan-gate connect --detect   # yalnız tespit, hiçbir şey yazmaz
+```
+
+Tespit, ajanın **config dosyasına değil varlığına** bakar — üç bağımsız sinyal:
+projede ajan dizini (`project`), home'da ajan dizini (`home`), PATH'te ajanın
+başlatıcısı (`path`). Bunlardan biri yeterlidir. `.claude/settings.json` bir şey
+onu yazana kadar yoktur; dosyayı şart koşmak tam da ilk kez kuran kullanıcıyı
+reddederdi, oysa kurulum o dosyayı zaten yaratır.
+
+Bulunan her ajan, kendini sentinel ile kanıtlayan aynı `install` yolundan
+geçer. Yani buradaki `connected`, orada ne anlama geliyorsa onu anlatır:
+bilinen yıkıcı bir eylem, o ajanın kendi sözleşmesi üzerinden gerçekten
+`block` almıştır. Kurulumu reddedilen ajan **sebebiyle birlikte** raporlanır,
+sessizce atlanmaz — gizlenen bir başarısızlık, kullanıcıya korunduğunu
+sandırır. Hiçbir ajana bağlanılamazsa çıkış kodu `1`'dir: bir betik
+"korunuyor" ile "korunacak bir şey bulunamadı" arasını ayırabilmelidir.
+
+Tespit edilen ajan yoksa bu bir hata değildir; kullanıcı kendi ajanını
+çalıştırıyor olabilir. Çıktıdaki `customAgent` alanı o yolu gösterir.
+
 ### Kurulum, durum ve kaldırma
 
 Kurulum komutu profil ile hedef şemayı birlikte doğrular, mevcut hook'ları

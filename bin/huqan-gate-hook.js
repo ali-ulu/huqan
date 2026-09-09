@@ -9,7 +9,7 @@ const {
 const { createDurableExternalActionReceiptWriter } = require('../lib/external-action-receipt');
 const { readAllowedCommands } = require('../lib/external-action-command-policy');
 const { queryExternalActionsByIdentity } = require('../lib/external-action-identity-log');
-const { manageGate } = require('../lib/external-action-gate-install');
+const { manageGate, connectDetectedAgents } = require('../lib/external-action-gate-install');
 
 const MAX_STDIN_BYTES = 1024 * 1024;
 
@@ -165,6 +165,22 @@ async function main() {
       // A collector that would not take the evidence is a failure worth a
       // non-zero exit, so a scheduled run does not look successful in a log.
       process.exitCode = result.failure ? 1 : 0;
+      return;
+    }
+    if (command === 'connect') {
+      // One command, no profile name: detect what is on the machine and
+      // connect each one through the install that proves itself (#2049).
+      const result = connectDetectedAgents({
+        root: argumentValue('--target-root') || process.cwd(),
+        home: argumentValue('--home') || undefined,
+        receiptPath: argumentValue('--receipt-log') || undefined,
+        detectOnly: process.argv.includes('--detect'),
+      });
+      process.stdout.write(`${JSON.stringify(result, null, 2)}
+`);
+      // Nothing connected is not success: a caller in a script must be able to
+      // tell "protected" from "found nothing to protect".
+      process.exitCode = result.connected > 0 || process.argv.includes('--detect') ? 0 : 1;
       return;
     }
     if (['install', 'uninstall', 'status'].includes(command)) {

@@ -227,6 +227,7 @@
     "lib/external-action-guard.js",
     "lib/external-action-gate-install.js",
     "lib/external-action-custom-agent-status.js",
+    "lib/external-action-agent-detection.js",
     "lib/external-action-command-policy.js",
     "lib/command-policy-editor.js",
     "lib/http/command-policy-route.js",
