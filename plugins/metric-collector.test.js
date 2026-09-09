@@ -56,9 +56,9 @@ test('metric-collector: run() export writes a JSON file and returns its path', (
   const kernel = fakeKernel();
   metricCollector.afterGateDecision(kernel, { source: 'mcp-tool-call', decision: 'block' });
 
-  // outputPath must resolve inside the repo root (lib/path-safety) -- a
-  // temp dir under the OS temp root would be legitimately rejected, so this
-  // uses a throwaway path under benchmarks/ itself and cleans it up.
+  // Repo-contained explicit targets stay bounded to benchmarks/ while
+  // tmp/cwd/user-data targets are accepted (H-09); this uses a throwaway
+  // path under benchmarks/ itself and cleans it up.
   const outputPath = path.join(__dirname, '..', 'benchmarks', `tmp-metric-export-test-${process.pid}.json`);
   try {
     const result = metricCollector.run(kernel, { action: 'export', outputPath });
@@ -72,14 +72,19 @@ test('metric-collector: run() export writes a JSON file and returns its path', (
   }
 });
 
-test('metric-collector: run() export rejects a path outside the repo root', () => {
+test('metric-collector: run() export accepts a path under the OS temp root (H-09, #1982)', () => {
   const kernel = fakeKernel();
   metricCollector.afterGateDecision(kernel, { source: 'mcp-tool-call', decision: 'block' });
+  // A read-only install cannot be written to, so tmp/cwd/user-data targets
+  // must be accepted -- previously any path outside the repo was rejected
+  // with PATH_OUTSIDE_ALLOWED_ROOT, which made exports impossible there.
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-metric-export-outside-'));
   try {
-    const result = metricCollector.run(kernel, { action: 'export', outputPath: path.join(dir, 'telemetry.json') });
-    assert.equal(result.ok, false);
-    assert.equal(result.code, 'PATH_OUTSIDE_ALLOWED_ROOT');
+    const outputPath = path.join(dir, 'telemetry.json');
+    const result = metricCollector.run(kernel, { action: 'export', outputPath });
+    assert.equal(result.ok, true);
+    assert.equal(path.resolve(result.outputPath), path.resolve(outputPath));
+    assert.equal(JSON.parse(fs.readFileSync(outputPath, 'utf8')).total, 1);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -98,8 +103,12 @@ test('metric-collector: run() export rejects a repo-root-but-outside-benchmarks/
   assert.equal(result.code, 'PATH_OUTSIDE_ALLOWED_ROOT');
 });
 
-test('metric-collector: run() export defaults to benchmarks/gate-telemetry.json', () => {
-  assert.ok(metricCollector._test.DEFAULT_OUTPUT_PATH.endsWith(path.join('benchmarks', 'gate-telemetry.json')));
+test('metric-collector: run() export defaults to a user-data gate-telemetry.json outside the repo (H-09, #1982)', () => {
+  const repoRoot = path.join(__dirname, '..');
+  const def = metricCollector._test.DEFAULT_OUTPUT_PATH;
+  assert.ok(def.endsWith(path.join(path.sep, 'gate-telemetry.json')) || def.endsWith(path.join('gate-telemetry.json')));
+  assert.equal(path.relative(repoRoot, path.resolve(def)).startsWith('..'), true,
+    'default telemetry path must not live under the install dir');
 });
 
 test('metric-collector: run() rejects an unsupported action', () => {
