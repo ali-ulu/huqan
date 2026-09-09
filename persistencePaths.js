@@ -28,8 +28,34 @@ function resolvePersistencePaths(opts = {}) {
   };
 }
 
-function canWriteTo(targetPath, kind = 'file') {
-  try {
+/**
+ * The user-data root for artefacts that must survive a read-only install
+ * (receipt exports, gate telemetry). Same convention as the external-action
+ * gate's own state root in lib/external-action-receipt.js: HUQAN_STATE_ROOT
+ * wins when set, otherwise the platform state dir (`%LOCALAPPDATA%\huqan` on
+ * Windows, `~/.local/state/huqan` elsewhere). Install-dir paths are never the
+ * default, so a read-only install can still export.
+ */
+function resolveStateRoot(environment = process.env) {
+  const override = environment && typeof environment.HUQAN_STATE_ROOT === 'string'
+    ? environment.HUQAN_STATE_ROOT.trim()
+    : '';
+  if (override) return path.resolve(override);
+  const base = process.platform === 'win32' && environment && environment.LOCALAPPDATA
+    ? environment.LOCALAPPDATA
+    : path.join(os.homedir(), '.local', 'state');
+  return path.join(base, 'huqan');
+}
+
+function resolveReceiptsDir(environment = process.env) {
+  return path.join(resolveStateRoot(environment), 'receipts');
+}
+
+function resolveGateTelemetryPath(environment = process.env) {
+  return path.join(resolveStateRoot(environment), 'gate-telemetry.json');
+}
+
+function canWriteTo(targetPath, kind = 'file') {  try {
     const probePath = kind === 'dir'
       ? path.join(targetPath, `.axiom-write-${process.pid}-${Date.now()}.tmp`)
       : `${targetPath}.axiom-write-${process.pid}-${Date.now()}.tmp`;
@@ -62,4 +88,7 @@ module.exports = {
   canWriteTo,
   inspectPersistence,
   resolvePersistencePaths,
+  resolveStateRoot,
+  resolveReceiptsDir,
+  resolveGateTelemetryPath,
 };

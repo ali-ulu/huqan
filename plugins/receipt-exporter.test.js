@@ -49,10 +49,8 @@ function fakeKernel() {
 
 test('receipt-exporter: exportReceiptToFile writes JSON keyed by receiptId', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-receipt-'));
-  // exportReceiptToFile validates against REPO_ROOT, so the test writes
-  // into a throwaway subdirectory under the repo instead of the OS temp
-  // root -- mirrors metric-collector.test.js's export test for the same
-  // path-safety reason.
+  // Repo-contained explicit targets stay bounded to receipts/ (dev fallback);
+  // this writes into a throwaway subdirectory under it.
   const outputDir = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-export-test-${process.pid}`);
   try {
     const filePath = exportReceiptToFile({ receiptId: 'r-123', ok: true }, outputDir);
@@ -95,13 +93,15 @@ test('receipt-exporter: a second export to the same target fails instead of over
   }
 });
 
-test('receipt-exporter: exportReceiptToFile rejects an outputDir outside the repo root', () => {
+test('receipt-exporter: exportReceiptToFile accepts an outputDir under the OS temp root (H-09, #1982)', () => {
+  // A read-only install cannot be written to, so tmp/cwd/user-data targets
+  // must be accepted -- previously any dir outside the repo was rejected with
+  // PATH_OUTSIDE_ALLOWED_ROOT, which made exports impossible there.
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-receipt-outside-'));
   try {
-    assert.throws(
-      () => exportReceiptToFile({ receiptId: 'r-1' }, dir),
-      /allowed root/i
-    );
+    const filePath = exportReceiptToFile({ receiptId: 'r-tmp-1', ok: true }, dir);
+    assert.ok(filePath.endsWith('r-tmp-1.json'));
+    assert.equal(JSON.parse(fs.readFileSync(filePath, 'utf8')).receiptId, 'r-tmp-1');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -172,10 +172,11 @@ test('receipt-exporter: afterLearn end to end -- a real kernel.learn() with an a
     // since that depends on admission internals outside this plugin's
     // control.
   } finally {
+    // Only remove what this test created: the default output dir is user
+    // data (H-09), never the repo, so it must not be removed wholesale.
     for (const entry of state.exported) {
       fs.rmSync(entry.filePath, { force: true });
     }
-    fs.rmSync(receiptExporter._test.DEFAULT_OUTPUT_DIR, { recursive: true, force: true });
   }
 });
 
@@ -192,13 +193,13 @@ test('receipt-exporter: exportReceiptToPdf writes a real PDF with %PDF magic byt
   }
 });
 
-test('receipt-exporter: exportReceiptToPdf rejects an outputDir outside the repo root', async () => {
+test('receipt-exporter: exportReceiptToPdf accepts an outputDir under the OS temp root (H-09, #1982)', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-receipt-pdf-outside-'));
   try {
-    await assert.rejects(
-      () => exportReceiptToPdf({ receiptId: 'r-1' }, dir),
-      /allowed root/i
-    );
+    const filePath = await exportReceiptToPdf({ receiptId: 'r-pdf-tmp-1' }, dir);
+    assert.ok(filePath.endsWith('r-pdf-tmp-1.pdf'));
+    const head = fs.readFileSync(filePath).subarray(0, 5).toString('ascii');
+    assert.equal(head, '%PDF-');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

@@ -11,8 +11,9 @@
  * Exposes a 'metricCollector' capability with two actions:
  *   - 'summary': returns the in-memory aggregate (counts by source, by
  *     decision, total events since kernel start).
- *   - 'export': writes the current aggregate to a JSON file under
- *     benchmarks/ (default benchmarks/gate-telemetry.json). This is a new,
+ *   - 'export': writes the current aggregate to a JSON file (default
+ *     <user-data>/gate-telemetry.json; repo benchmarks/ stays a valid
+ *     explicit target). This is a new,
  *     separate artifact -- it deliberately does not touch
  *     benchmarks/results.json, which is bench.js's own performance-timing
  *     output with an unrelated schema; writing gate counts into that file
@@ -20,15 +21,23 @@
  */
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
-const { resolvePathWithinRoot } = require('../lib/path-safety');
+const { createPathError, isPathWithinRoot, resolvePathWithinRoot } = require('../lib/path-safety');
+const { resolveGateTelemetryPath } = require('../persistencePaths');
 
-const DEFAULT_OUTPUT_PATH = path.join(__dirname, '..', 'benchmarks', 'gate-telemetry.json');
-// Bounded to benchmarks/, not REPO_ROOT: a caller-controlled outputPath
-// validated only against REPO_ROOT can target any .json file in the repo
-// (package.json, memory.json, even benchmarks/results.json -- bench.js's own
-// unrelated-schema output this module's own docs above say it must not
-// touch), and fs.writeFileSync silently overwrites whatever it finds (#1280).
+// User-data default, resolved lazily per call (see defaultOutputPath): the
+// install dir is never written unless the caller explicitly asks for it
+// (H-09, #1982).
+const DEFAULT_OUTPUT_PATH = resolveGateTelemetryPath();
+
+function defaultOutputPath(environment = process.env) {
+  return resolveGateTelemetryPath(environment);
+}
+const REPO_ROOT = path.join(__dirname, '..');
+// Dev fallback only: the repo checkout's own benchmarks/ stays a valid
+// explicit target, but it is no longer the default -- a read-only install
+// cannot be written to.
 const BENCHMARKS_ROOT = path.join(__dirname, '..', 'benchmarks');
 
 function ensureMetricsState(kernel) {
@@ -54,8 +63,40 @@ function recordDecision(metricsState, event) {
   metricsState.lastEventAt = new Date().toISOString();
 }
 
+/**
+ * Pick the enforcement boundary for a caller-supplied output path.
+ *
+ * Repo-contained paths stay bounded to benchmarks/ exactly as before (#1280):
+ * an explicit benchmarks/results.json-adjacent target is fine, but
+ * '<repo>/package.json' is rejected even though it sits under cwd, because
+ * fs.writeFileSync would silently overwrite it. Anything outside the repo is
+ * a user-data-style target and is accepted under the longest matching root
+ * of the default telemetry dir, the OS temp dir, or the working directory --
+ * so tmp/cwd exports work on a read-only install. Anything else fails closed.
+ */
+function resolveExportRoot(candidatePath) {
+  const absolute = path.resolve(candidatePath);
+  if (isPathWithinRoot(REPO_ROOT, absolute)) {
+    return BENCHMARKS_ROOT;
+  }
+  const roots = [path.dirname(defaultOutputPath()), os.tmpdir(), process.cwd()]
+    .map((root) => path.resolve(root))
+    .filter((root) => isPathWithinRoot(root, absolute))
+    .sort((left, right) => right.length - left.length);
+  if (!roots.length) {
+    throw createPathError(
+      'PATH_OUTSIDE_ALLOWED_ROOT',
+      'Path escapes allowed root',
+      path.dirname(defaultOutputPath()),
+      absolute,
+    );
+  }
+  return roots[0];
+}
+
 function resolveOutputPath(outputPath) {
-  return resolvePathWithinRoot(BENCHMARKS_ROOT, outputPath || DEFAULT_OUTPUT_PATH, { allowMissing: true });
+  const candidate = outputPath || defaultOutputPath();
+  return resolvePathWithinRoot(resolveExportRoot(candidate), candidate, { allowMissing: true });
 }
 
 module.exports = {
@@ -66,7 +107,7 @@ module.exports = {
     {
       name: 'metricCollector',
       command: 'metric-collector',
-      description: 'Aggregates gate-decision telemetry (afterGateDecision) and can export it as a JSON file under benchmarks/.',
+      description: 'Aggregates gate-decision telemetry (afterGateDecision) and can export it as a JSON file under the user-data dir (repo benchmarks/ as dev fallback).',
     },
   ],
 
@@ -99,4 +140,4 @@ module.exports = {
   },
 };
 
-module.exports._test = { ensureMetricsState, recordDecision, resolveOutputPath, DEFAULT_OUTPUT_PATH };
+module.exports._test = { ensureMetricsState, recordDecision, resolveOutputPath, resolveExportRoot, defaultOutputPath, DEFAULT_OUTPUT_PATH, BENCHMARKS_ROOT };
