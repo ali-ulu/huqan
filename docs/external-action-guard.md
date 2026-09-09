@@ -496,6 +496,38 @@ npx huqan-gate status
 npx huqan-gate uninstall --profile codex
 ```
 
+### Kendi ajanı olan kullanıcı (`generic`)
+
+Kurulacak bir artefakt yoktur: HUQAN özel bir ajanın yapılandırmasının nerede
+durduğunu bilmez, hatta bir yapılandırması olup olmadığını da bilmez. Bu yüzden
+`install --profile generic` reddeder ve bunun yerine bağlanma yolunu söyler:
+ajan kendi pre-tool hook'undan `huqan.external-action.v1` zarfını
+`huqan-gate --profile generic` komutuna gönderir.
+
+Bağlantının kurulup kurulmadığı ancak **gözlemlenebilir**:
+
+```powershell
+npx huqan-gate status --profile generic
+npx huqan-gate status --profile generic --agent-name my-agent
+```
+
+Yanıttaki `custom.state` iki değer alır:
+
+| `state` | Anlamı |
+|---|---|
+| `no-invocation` | Bu ajandan hiç zarf gelmemiş; ajan HUQAN'ı çağırmıyor |
+| `envelope-observed` | Zarflar geliyor; çağrı yolu canlı |
+
+Kurulu profillerin (`codex`, `claude-code`, ...) çağrıları bu sayıma **dahil
+edilmez**; çalışan bir Codex kapısı, kullanıcının kendi ajanının bağlı olduğuna
+kanıt değildir.
+
+Üçüncü bir durum — *"zarf geliyor ama gerçek çalıştırıcıya bağlanmamış"* —
+**türetilemez** ve iddia edilmez: bir `block` sonrası ajanın komutu yine de
+çalıştırıp çalıştırmadığını HUQAN'a bildiren hiçbir şey yoktur. Çıktıdaki
+`observationLimit` alanı bunu açıkça söyler. Gelen zarf, ajanın HUQAN'ı
+çağırdığını kanıtlar; kararına uyduğunu kanıtlamaz.
+
 `claude-code`, `codex`, `opencode` ve `pi` varsayılan olarak mevcut çalışma
 dizinine; `hermes` kullanıcı home dizinindeki plugin yoluna kurulur. İzole
 deployment veya test için hedefler `--target-root` ve `--home` ile verilebilir.

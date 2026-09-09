@@ -174,6 +174,8 @@ async function main() {
         root: argumentValue('--target-root') || process.cwd(),
         home: argumentValue('--home') || undefined,
         receiptPath: argumentValue('--receipt-log') || undefined,
+        // Narrows the custom-agent observation to one agent name (#2048).
+        agentName: argumentValue('--agent-name') || undefined,
       });
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
       process.exitCode = 0;
