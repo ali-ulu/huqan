@@ -17,19 +17,55 @@ test('V4-UI-1 receipt view-model contract', async (t) => {
       // A receipt whose materialized chain fails validation is its own
       // terminal state, so the viewer cannot report it as found (#766).
       'chain_invalid',
+      // A receipt that reads and chains cleanly but carries no classified
+      // trust status is not an observation, so it cannot share the found
+      // state (#1991).
+      'unverified',
       'read_error',
       'found',
     ]);
   });
 
   await t.test('passes through a real found receipt without mutation or synthesis', () => {
-    const receipt = Object.freeze({ receiptId: 'receipt-1', verdict: 'ALLOW', reason: 'verified' });
+    const receipt = Object.freeze({
+      receiptId: 'receipt-1', status: 'canonical', verdict: 'ALLOW', reason: 'verified',
+    });
     const input = Object.freeze({ statusCode: 200, body: Object.freeze({ ok: true, receipt }) });
     const result = mapReceiptResponse(input);
     assert.deepEqual(result, { state: 'found', receipt });
     assert.equal(result.receipt, receipt);
     assert.deepEqual(input, { statusCode: 200, body: { ok: true, receipt } });
   });
+
+  for (const status of ['canonical', 'pending', 'flagged', 'rejected']) {
+    await t.test(`reports a receipt classified '${status}' as found`, () => {
+      const receipt = Object.freeze({ receiptId: 'receipt-1', status });
+      const result = mapReceiptResponse({ statusCode: 200, body: { ok: true, receipt } });
+      assert.equal(result.state, 'found');
+      assert.equal(result.receipt, receipt);
+    });
+  }
+
+  // normalizeTrustReceipt() rewrites any status it cannot classify to
+  // 'unknown', and a receipt shell carries no status at all. Both used to
+  // reach the found state, where the panel said "Canonical receipt observed."
+  // over a receipt nothing had classified (#1991).
+  for (const [label, receipt] of [
+    ['an unknown status', Object.freeze({ receiptId: 'receipt-1', status: 'unknown' })],
+    ['no status field', Object.freeze({ receiptId: 'receipt-1', verdict: 'ALLOW' })],
+    ['a non-string status', Object.freeze({ receiptId: 'receipt-1', status: 3 })],
+    ['a status outside the ladder', Object.freeze({ receiptId: 'receipt-1', status: 'canonical-ish' })],
+  ]) {
+    await t.test(`refuses to call a receipt with ${label} found`, () => {
+      const result = mapReceiptResponse({ statusCode: 200, body: { ok: true, receipt } });
+      assert.equal(
+        result.state,
+        'unverified',
+        'a receipt with no classified trust status must not be reported as a canonical observation',
+      );
+      assert.equal(result.receipt, receipt);
+    });
+  }
 
   const failures = [
     ['unauthorized', { statusCode: 401, body: { ok: false, error: { code: 'unauthorized' } } }],

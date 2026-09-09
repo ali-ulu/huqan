@@ -3,8 +3,22 @@ export const TERMINAL_STATES = Object.freeze([
   'invalid_request',
   'not_found',
   'chain_invalid',
+  'unverified',
   'read_error',
   'found',
+]);
+
+// The four statuses that place a receipt somewhere on the trust ladder.
+// normalizeTrustReceipt() in lib/provenance-query.js rewrites anything it
+// cannot classify — including a receipt carrying no status at all — to
+// 'unknown', so 'unknown' is deliberately absent here: it is the absence of a
+// verdict, not a verdict. Reporting such a receipt as found let the panel say
+// "Canonical receipt observed." over a receipt nothing had classified (#1991).
+const CLASSIFIED_RECEIPT_STATUSES = Object.freeze([
+  'canonical',
+  'pending',
+  'flagged',
+  'rejected',
 ]);
 
 function ownDataValue(object, key) {
@@ -40,7 +54,15 @@ export function mapReceiptResponse(input) {
       && receipt.ok && receipt.value && typeof receipt.value === 'object'
       && !Array.isArray(receipt.value)
     ) {
-      return { state: 'found', receipt: receipt.value };
+      const receiptStatus = ownDataValue(receipt.value, 'status');
+      if (receiptStatus.ok && CLASSIFIED_RECEIPT_STATUSES.includes(receiptStatus.value)) {
+        return { state: 'found', receipt: receipt.value };
+      }
+      // The read succeeded and the chain validated — the gateway only returns
+      // 200 for a chain-valid receipt — so the payload is kept. What is missing
+      // is the classification, and the state says so rather than the status
+      // line claiming an observation.
+      return { state: 'unverified', receipt: receipt.value };
     }
 
     const code = errorCode(body);

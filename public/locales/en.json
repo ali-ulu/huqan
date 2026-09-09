@@ -436,6 +436,7 @@
       "invalidRequest": "Enter a valid receipt identifier.",
       "notFound": "No receipt was found for this bounded lookup.",
       "chainInvalid": "Receipt chain integrity failed. This receipt is not authoritative and its fields are withheld.",
+      "unverified": "This receipt carries no trust status. Its fields are shown as read; nothing here is a canonical observation.",
       "readError": "The receipt could not be read safely.",
       "found": "Canonical receipt observed.",
       "sessionOpened": "Viewer session opened. Enter a receipt identifier."

@@ -126,3 +126,29 @@ test('V4-UI-2 keeps credentials same-origin and clears the API key after login',
   await assert.doesNotReject(() => nodes['logout-button'].listeners.click());
   assert.equal(nodes.status.dataset.state, 'unauthorized');
 });
+
+test('V4-UI-2 names an unverified receipt instead of claiming an observation', async () => {
+  const { renderViewState } = await import('../public/viewer/app.mjs');
+  const status = new FakeNode('p');
+  const details = new FakeNode('dl');
+  const receipt = { receiptId: 'receipt-1', status: 'unknown', decision: 'ALLOW' };
+
+  renderViewState(fakeDocument, status, details, { state: 'unverified', receipt });
+
+  assert.equal(status.dataset.state, 'unverified');
+  assert.notEqual(
+    status.textContent,
+    'Canonical receipt observed.',
+    'an unclassified receipt must not be reported as a canonical observation (#1991)',
+  );
+  // The chain validated, so the fields are shown as read; it is the status
+  // line that refuses to vouch for them.
+  assert.deepEqual(details.children.map((pair) => [
+    pair.children[0].textContent,
+    pair.children[1].textContent,
+  ]), [
+    ['receiptId', 'receipt-1'],
+    ['decision', 'ALLOW'],
+    ['status', 'unknown'],
+  ]);
+});

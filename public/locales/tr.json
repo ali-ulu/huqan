@@ -436,6 +436,7 @@
       "invalidRequest": "Geçerli bir dekont tanımlayıcısı girin.",
       "notFound": "Bu sınırlı arama için hiçbir dekont bulunamadı.",
       "chainInvalid": "Dekont zinciri bütünlüğü başarısız. Bu dekont yetkili değil ve alanları gizlenmiştir.",
+      "unverified": "Bu dekont bir güven durumu taşımıyor. Alanları okunduğu gibi gösteriliyor; buradaki hiçbir şey kanonik bir gözlem değil.",
       "readError": "Dekont güvenli bir şekilde okunamadı.",
       "found": "Kanonik dekont gözlemlendi.",
       "sessionOpened": "Görüntüleyici oturumu açıldı. Bir makbuz kimliği girin."
