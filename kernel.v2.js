@@ -405,7 +405,7 @@ class KernelV2 {
   _collectFactTargets(subject, workspaceId = 'default') {
     return this.kernel.graph
       .getEdges(subject, workspaceId)
-      .filter(edge => FACT_RELATIONS.has(String(edge.relation || '').toLowerCase()))
+      .filter(edge => FACT_RELATIONS.has(String(edge.relation || '').toLowerCase()) || TYPE_RELATIONS.has(String(edge.relation || '').toLowerCase()))
       .map(edge => ({
         relation: edge.relation,
         target: this._normalizePredicateToken(edge.to),
@@ -441,7 +441,7 @@ class KernelV2 {
   _buildDirectFactEvidence(subject, workspaceId = 'default') {
     return this.kernel.graph
       .getEdges(subject, workspaceId)
-      .filter(edge => FACT_RELATIONS.has(String(edge.relation || '').toLowerCase()))
+      .filter(edge => FACT_RELATIONS.has(String(edge.relation || '').toLowerCase()) || TYPE_RELATIONS.has(String(edge.relation || '').toLowerCase()))
       .map(edge => ({
         kind: 'direct_edge',
         text: `${edge.from} --[${edge.relation}]--> ${edge.to}`,
