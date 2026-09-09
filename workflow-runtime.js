@@ -60,11 +60,13 @@ function createWorkflowRuntime(kernel, opts = {}) {
         },
       };
     },
-    countPendingToolApprovals() {
-      return 0;
+    countPendingToolApprovals(workspaceId = 'default') {
+      if (!opts.storage || typeof opts.storage.countPendingToolApprovals !== 'function') return 0;
+      return opts.storage.countPendingToolApprovals(workspaceId);
     },
-    listPendingToolApprovals() {
-      return [];
+    listPendingToolApprovals(limit = 20, workspaceId = 'default') {
+      if (!opts.storage || typeof opts.storage.listPendingToolApprovals !== 'function') return [];
+      return opts.storage.listPendingToolApprovals(limit, workspaceId);
     },
     getStatus() {
       const agentStatus = typeof agent.lastRun === 'object' && agent.lastRun

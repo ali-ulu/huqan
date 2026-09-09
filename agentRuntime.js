@@ -59,10 +59,22 @@ function createAgent(opts = {}) {
 
   const runtime = resolveAgentRuntime(opts);
   if (runtime === 'workflow') {
+    const workflowStorage = opts.storage || (() => {
+      try {
+        const storageOpts = { kernel: opts.kernel };
+        if (Object.prototype.hasOwnProperty.call(opts, 'dbPath') && opts.dbPath) {
+          storageOpts.dbPath = opts.dbPath;
+        }
+        return new HuqanStorage(storageOpts);
+      } catch (_) {
+        return null;
+      }
+    })();
     return createWorkflowRuntime(opts.kernel, {
       ...opts,
       runtime: 'workflow',
       kind: 'workflow',
+      storage: workflowStorage,
     });
   }
 
