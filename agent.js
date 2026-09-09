@@ -23,7 +23,7 @@ const {
   defaultMemoryState,
 } = require('./lib/agent-memory-state');
 const { extractAgentSummary, buildRunRecommendations, suggestNextAction, chooseFollowUp } = require('./lib/agent-run-guidance');
-const { memoryPersistenceMeta, noteMemoryFailure, resetMemoryPersistence } = require('./lib/agent-memory-persistence');
+const { noteMemoryFailure, resetMemoryPersistence, runEnvelopeMeta } = require('./lib/agent-memory-persistence');
 const DEFAULT_MAX_STEPS = 4;
 const ALLOWED_TOOLS = INTERNAL_TOOLS;
 const MEMORY_LIMITS = {
@@ -901,7 +901,7 @@ class Agent {
         selectedTools: activePlan.selectedTools,
         resumed: state.resumed,
         report: state.report,
-        ...memoryPersistenceMeta(this),
+        ...runEnvelopeMeta(this, state.steps),
       }, state);
     }
 
@@ -909,7 +909,7 @@ class Agent {
       objective: activePlan.objective,
       selectedTools: activePlan.selectedTools,
       resumed: state.resumed,
-      ...memoryPersistenceMeta(this),
+      ...runEnvelopeMeta(this, state.steps),
     });
   }
 
