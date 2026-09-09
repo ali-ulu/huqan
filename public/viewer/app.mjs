@@ -70,6 +70,7 @@ const STATE_MESSAGES = Object.freeze({
   invalid_request: () => T('viewer.messages.invalidRequest', 'Enter a valid receipt identifier.'),
   not_found: () => T('viewer.messages.notFound', 'No receipt was found for this bounded lookup.'),
   chain_invalid: () => T('viewer.messages.chainInvalid', 'Receipt chain integrity failed. This receipt is not authoritative and its fields are withheld.'),
+  unverified: () => T('viewer.messages.unverified', 'This receipt carries no trust status. Its fields are shown as read; nothing here is a canonical observation.'),
   read_error: () => T('viewer.messages.readError', 'The receipt could not be read safely.'),
   found: () => T('viewer.messages.found', 'Canonical receipt observed.'),
 });
@@ -106,7 +107,10 @@ export function renderViewState(documentRef, statusNode, detailsNode, viewState)
   statusNode.textContent = STATE_MESSAGES[state]();
   statusNode.dataset.state = state;
   detailsNode.replaceChildren();
-  if (state !== 'found' || !receipt || typeof receipt !== 'object') return;
+  // 'unverified' renders its fields too: the chain validated, only the trust
+  // status is missing, and withholding the payload would hide the very thing
+  // the reader needs to see (#1991). The status line above names the state.
+  if ((state !== 'found' && state !== 'unverified') || !receipt || typeof receipt !== 'object') return;
 
   for (const key of RECEIPT_FIELDS) {
     const value = ownPrimitive(receipt, key);
