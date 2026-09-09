@@ -74,9 +74,9 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
     assert.match(option.stderr, /Unknown option:/);
   });
 
-  it('uses exit 3 when the command requires review', () => {
+  it('uses exit 5 when the command requires review', () => {
     const result = runCli(['learn:', 'cats', 'are', 'animals']);
-    assert.strictEqual(result.status, 3);
+    assert.strictEqual(result.status, 5);
     assert.match(result.stdout, /requires review/);
   });
 
@@ -108,9 +108,9 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
     }
   });
 
-  it('uses exit 1 when command execution throws', () => {
+  it('uses exit 8 when command execution throws', () => {
     const result = runCli(['restore:', 'missing-backup']);
-    assert.strictEqual(result.status, 1);
+    assert.strictEqual(result.status, 8);
     assert.match(result.stderr, /Command error:/);
   });
 
@@ -138,7 +138,7 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
     assert.deepStrictEqual(stdout, ['async complete']);
   });
 
-  it('maps a rejected async command to exit 1', async () => {
+  it('maps a rejected async command to exit 8', async () => {
     const stderr = [];
     const cli = {
       parse: () => ({ command: 'async-command', args: '' }),
@@ -153,7 +153,7 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
       stderr: value => stderr.push(value),
     });
 
-    assert.strictEqual(result.exitCode, 1);
+    assert.strictEqual(result.exitCode, 8);
     assert.deepStrictEqual(stderr, ['Command error: async failure']);
   });
 
@@ -173,7 +173,7 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
       stdout: value => stdout.push(value),
     });
 
-    assert.strictEqual(result.exitCode, 3);
+    assert.strictEqual(result.exitCode, 5);
     assert.strictEqual(result.decision, 'review');
     assert.deepStrictEqual(stdout, ['approval required']);
   });

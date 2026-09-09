@@ -96,6 +96,40 @@ test('JSON mode distinguishes invalid, unsupported, partial, and failed outcomes
   }
 });
 
+test('plain-text exit codes match JSON parity for gate review and blocked decisions', async () => {
+  for (const [decision, status] of [['review', 'review_required'], ['block', 'blocked']]) {
+    const stdout = [];
+    let executed = false;
+    const cli = fakeCli({
+      parsed: { command: 'öğret', args: 'cats are animals', workflowId: 'learn-review' },
+      gate: { canExecute: false, decision, reason: 'policy' },
+    });
+    cli.execute = () => { executed = true; };
+    const result = await runCliArgv(['learn:', 'cats', 'are', 'animals'], { cli, stdout: value => stdout.push(value) });
+    assert.equal(result.exitCode, CLI_EXIT_CODES[status]);
+    assert.equal(executed, false);
+  }
+});
+
+test('plain-text exit codes match JSON parity for execution success, partial, and failure', async () => {
+  const cases = [
+    { parsed: { command: 'sor', args: 'x', workflowId: 'ask' }, output: 'ok', expected: CLI_EXIT_CODES.completed },
+    { parsed: { command: 'ajan', args: 'x', workflowId: 'agent-run' }, output: { ok: false, data: { status: 'partial' } }, expected: CLI_EXIT_CODES.partial },
+    { parsed: { command: 'sor', args: 'x', workflowId: 'ask' }, error: Object.assign(new Error('boom'), { code: 'BOOM' }), expected: CLI_EXIT_CODES.failed },
+  ];
+  for (const item of cases) {
+    const stdout = [];
+    const result = await runCliArgv(['command'], { cli: fakeCli(item), stdout: value => stdout.push(value) });
+    assert.equal(result.exitCode, item.expected);
+  }
+});
+
+test('plain-text mode emits invalid_input exit code when no command is given', async () => {
+  const result = await runCliArgv([], {});
+  assert.equal(result.exitCode, CLI_EXIT_CODES.invalid_input);
+  assert.equal(result.interactive, true);
+});
+
 test('JSON trace retains existing AgentV3 checkpoint and resume fields without inventing run IDs', () => {
   const output = cliEnvelope('agent-run', {
     ok: true,
