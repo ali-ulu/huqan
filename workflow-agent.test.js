@@ -433,7 +433,7 @@ describe('WorkflowAgent budget protection (#416)', () => {
 });
 
 describe('WorkflowAgent external-review approval cannot be forged (#388)', () => {
-  it('does not execute an internal tool when the action firewall requires review (#1067)', async () => {
+  it('does not execute an internal tool when the action firewall detects nested credentials (#1067, #2024)', async () => {
     const registry = new ToolRegistry();
     let calls = 0;
     registry.registerTool({
@@ -449,8 +449,8 @@ describe('WorkflowAgent external-review approval cannot be forged (#388)', () =>
     const result = await registry.runTool('ask', { question: 'q', cfg: { credential: 'y' } });
     assert.strictEqual(calls, 0);
     assert.strictEqual(result.ok, false);
-    assert.strictEqual(result.status, 'review');
-    assert.strictEqual(result.error.code, 'AGENT_ACTION_REVIEW_REQUIRED');
+    assert.strictEqual(result.status, 'blocked');
+    assert.strictEqual(result.error.code, 'AGENT_ACTION_BLOCKED');
     assert.strictEqual(result.data.leaked, undefined);
   });
 

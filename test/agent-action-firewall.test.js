@@ -172,3 +172,50 @@ test('package root exposes the same Agent Action Firewall seam', () => {
   });
   assert.equal(decision.decision, 'block');
 });
+
+test('nested secrets stay blocked after the AB5 input projection (#2024)', () => {
+  const { createReceiverOwnedInternalActionRequest } = require('../lib/agent-action-firewall');
+  const synthetic = 'synthetic-audit-value';
+  const secretInputs = [
+    { action: 'read', token: synthetic },
+    { action: 'read', payload: { token: synthetic } },
+    { action: 'read', payload: [{ token: synthetic }] },
+    { action: 'read', payload: { value: 'sk-syntheticaudit12345' } },
+  ];
+  for (const tool of ['ask', 'learn', 'custom-read']) {
+    for (const input of secretInputs) {
+      for (const trusted of [false, true]) {
+        const request = { tool, input, action: 'read', context: { workspaceId: 'audit' } };
+        const result = evaluateAgentActionFirewall(trusted
+          ? createReceiverOwnedInternalActionRequest(request) : request);
+        assert.equal(result.decision, 'block', `${tool}, trusted=${trusted}, ${JSON.stringify(input)}`);
+        assert.equal(result.canExecute, false);
+        assert.equal(result.reason, 'SECRET_DETECTED_BLOCKED');
+        assert.equal(JSON.stringify(result).includes(synthetic), false);
+        assert.equal(JSON.stringify(result).includes('sk-syntheticaudit12345'), false);
+      }
+    }
+  }
+  const clean = evaluateAgentActionFirewall({ tool: 'custom-read', input: { action: 'read', payload: { value: 'hello' } } });
+  assert.equal(clean.decision, 'allow');
+});
+
+test('operator-approved workflow cannot execute a nested secret payload (#2024)', async () => {
+  const { ToolRegistry, createExternalReviewApproval } = require('../workflow-agent');
+  const registry = new ToolRegistry();
+  let calls = 0;
+  registry.registerTool({
+    name: 'custom-read', kind: 'external', inputSchema: { type: 'object' },
+    run: async () => { calls++; return { ok: true, data: { received: true } }; },
+  });
+  const context = { action: 'read', workspaceId: 'audit',
+    approval: createExternalReviewApproval('Synthetic local regression; no external IO') };
+  const clean = await registry.runTool('custom-read', { action: 'read', payload: { value: 'hello' } }, context);
+  assert.equal(clean.status, 'done');
+  assert.equal(calls, 1);
+  const blocked = await registry.runTool('custom-read', { action: 'read', payload: { token: 'synthetic-audit-value' } }, context);
+  assert.equal(calls, 1);
+  assert.equal(blocked.status, 'blocked');
+  assert.equal(blocked.meta.firewall.decision, 'block');
+  assert.equal(blocked.error.code, 'AGENT_ACTION_BLOCKED');
+});
