@@ -1,4 +1,43 @@
 {
+  "pageScroll": {
+    "top": "Back to top",
+    "up": "Scroll up one screen",
+    "down": "Scroll down one screen"
+  },
+  "commandPolicy": {
+    "variables": "Environment variables: HUQAN_POLICY_EDITOR_TOKEN / HUQAN_EXTERNAL_GUARD_POLICY",
+    "title": "Rules",
+    "nav": "Command permissions",
+    "intro": "Manage the shell commands that may pass the command classifier without repeated review.",
+    "scope": "Shared scope: this file affects every hook configured to read the same policy file. The workspace selected in Settings does not isolate these rules.",
+    "limits": "This editor manages command permissions only. It does not create file-access prohibitions or verify that an agent hook is installed.",
+    "setup": "Enable policy editing",
+    "setupHelp": "The server operator must configure a separate editor token of at least 32 characters and a policy file in an existing protected directory. Use the same policy path for the server and the hooks. Keep the editor token separate from the agent API key.",
+    "token": "Operator token",
+    "tokenHelp": "Used only for these requests; never saved in browser storage. Lock the editor when finished.",
+    "load": "Load saved rules",
+    "lock": "Lock editor",
+    "commands": "Allowed commands — one per line",
+    "prefix": "An entry also permits extra arguments: npm test matches npm test -- --watch. Broad entries such as node grant broad command permissions. Built-in safety gates still apply.",
+    "confirm": "I approve this change for every hook using this shared policy file.",
+    "save": "Save rules",
+    "command": "Command to classify",
+    "preview": "Classify saved rules",
+    "previewHelp": "Nothing is executed. This is the saved policy's command classification, not a final allow/block decision or proof of agent enforcement.",
+    "waiting": "Enter operator credentials and load the saved policy.",
+    "working": "Checking…",
+    "loaded": "Saved rules loaded. Agent enforcement has not been verified.",
+    "saved": "Rules saved. Hooks reading this same file will see the update; agent enforcement has not been verified.",
+    "previewed": "Saved policy classified the command. Nothing was executed.",
+    "unsaved": "Unsaved changes. Save before classifying a command.",
+    "notConfigured": "Policy editing is not configured on this server. Open the setup instructions above.",
+    "apiRequired": "Connect with your API key in Settings first.",
+    "operatorRequired": "Operator authorization was refused. The agent API key alone cannot edit rules.",
+    "conflict": "The policy changed elsewhere. Load the latest rules before saving again.",
+    "failed": "The operation failed. No success is confirmed; load the policy again to inspect its state.",
+    "category": "Classification",
+    "matched": "Permission entry used"
+  },
   "app": {
     "title": "HUQAN — Trust Command Center",
     "subtitle": "Trust Command Center"

@@ -1,4 +1,43 @@
 {
+  "pageScroll": {
+    "top": "Sayfanın başına dön",
+    "up": "Bir ekran yukarı kaydır",
+    "down": "Bir ekran aşağı kaydır"
+  },
+  "commandPolicy": {
+    "variables": "Ortam değişkenleri: HUQAN_POLICY_EDITOR_TOKEN / HUQAN_EXTERNAL_GUARD_POLICY",
+    "title": "Kurallar",
+    "nav": "Komut izinleri",
+    "intro": "Komut sınıflandırıcısından tekrar onay istemeden geçebilecek shell komutlarını yönetin.",
+    "scope": "Ortak kapsam: bu dosya, aynı politika dosyasını okuyan bütün hook’ları etkiler. Ayarlar’da seçilen workspace bu kuralları ayırmaz.",
+    "limits": "Bu ekran yalnızca komut izinlerini yönetir. Dosya erişim yasakları oluşturmaz ve ajanın hook kurulumunu doğrulamaz.",
+    "setup": "Kural düzenlemeyi etkinleştirme",
+    "setupHelp": "Sunucu operatörü en az 32 karakterlik ayrı bir düzenleme anahtarı ve mevcut, korunan bir klasörde politika dosyası tanımlamalıdır. Sunucu ve hook’lar aynı politika yolunu kullanmalıdır. Düzenleme anahtarını ajanın API anahtarından ayrı tutun.",
+    "token": "Operatör anahtarı",
+    "tokenHelp": "Yalnızca bu isteklerde kullanılır; tarayıcı depolamasına kaydedilmez. İşiniz bitince ekranı kilitleyin.",
+    "load": "Kayıtlı kuralları yükle",
+    "lock": "Düzenlemeyi kilitle",
+    "commands": "İzin verilen komutlar — her satıra bir komut",
+    "prefix": "Bir kayıt ek argümanları da kapsar: npm test, npm test -- --watch komutuyla eşleşir. node gibi geniş kayıtlar geniş komut izni verir. Yerleşik güvenlik kontrolleri uygulanmaya devam eder.",
+    "confirm": "Bu değişikliği aynı politika dosyasını kullanan bütün hook’lar için onaylıyorum.",
+    "save": "Kuralları kaydet",
+    "command": "Sınıflandırılacak komut",
+    "preview": "Kayıtlı kurallarla sınıflandır",
+    "previewHelp": "Hiçbir komut çalıştırılmaz. Sonuç, kayıtlı politikanın komut sınıflandırmasıdır; nihai izin/engel kararı veya ajan korumasının kanıtı değildir.",
+    "waiting": "Operatör bilgilerini girip kayıtlı politikayı yükleyin.",
+    "working": "Kontrol ediliyor…",
+    "loaded": "Kayıtlı kurallar yüklendi. Ajanın korunduğu doğrulanmadı.",
+    "saved": "Kurallar kaydedildi. Aynı dosyayı okuyan hook’lar değişikliği görecek; ajanın korunduğu doğrulanmadı.",
+    "previewed": "Kayıtlı politika komutu sınıflandırdı. Hiçbir komut çalıştırılmadı.",
+    "unsaved": "Kaydedilmemiş değişiklikler var. Komutu sınıflandırmadan önce kaydedin.",
+    "notConfigured": "Bu sunucuda kural düzenleme yapılandırılmamış. Yukarıdaki kurulum açıklamasını açın.",
+    "apiRequired": "Önce Ayarlar’dan API anahtarınızla bağlanın.",
+    "operatorRequired": "Operatör yetkisi reddedildi. Ajanın API anahtarı tek başına kuralları değiştiremez.",
+    "conflict": "Politika başka bir yerde değiştirildi. Yeniden kaydetmeden önce güncel kuralları yükleyin.",
+    "failed": "İşlem başarısız. Başarı doğrulanmadı; durumu görmek için politikayı yeniden yükleyin.",
+    "category": "Sınıflandırma",
+    "matched": "Kullanılan izin kaydı"
+  },
   "app": {
     "title": "HUQAN — Güven Komuta Merkezi",
     "subtitle": "Güven Komuta Merkezi"
