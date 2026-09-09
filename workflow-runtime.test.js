@@ -405,4 +405,36 @@ describe('workflow-runtime', () => {
     assert.strictEqual(analysis.data.capability, 'resultAnalyzer');
     assert.strictEqual(replication.data.capability, 'replicationChecker');
   });
+
+  // Unit-level companions to the parity contract test added with #1992, which
+  // exercises the same surface against a real HuqanStorage. These two cover
+  // what that one cannot: the no-storage fallback, and that the workspace and
+  // limit arguments are forwarded rather than dropped. From PR #2053.
+  it('returns 0/[] for pending tool approvals when storage is unavailable', () => {
+    const runtime = createWorkflowRuntime(createKernel());
+    assert.strictEqual(runtime.countPendingToolApprovals(), 0);
+    assert.strictEqual(runtime.countPendingToolApprovals('workspace-a'), 0);
+    assert.deepStrictEqual(runtime.listPendingToolApprovals(), []);
+    assert.deepStrictEqual(runtime.listPendingToolApprovals(20, 'workspace-a'), []);
+  });
+
+  it('delegates pending tool approvals to storage when available', () => {
+    const approvals = [{ id: 'a1', tool: 'test-tool' }];
+    let countedWorkspace;
+    const storage = {
+      countPendingToolApprovals(workspaceId) {
+        countedWorkspace = workspaceId;
+        return 3;
+      },
+      listPendingToolApprovals(limit, workspaceId) {
+        assert.strictEqual(limit, 10);
+        assert.strictEqual(workspaceId, 'team-b');
+        return approvals;
+      },
+    };
+    const runtime = createWorkflowRuntime(createKernel(), { storage });
+    assert.strictEqual(runtime.countPendingToolApprovals('team-a'), 3);
+    assert.strictEqual(countedWorkspace, 'team-a');
+    assert.deepStrictEqual(runtime.listPendingToolApprovals(10, 'team-b'), approvals);
+  });
 });
