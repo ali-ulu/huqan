@@ -120,7 +120,7 @@ describe('ingest workflow preview', () => {
       actor: 'http-api',
       sourceRef: '/api/v2/workflows/learn',
       sourceTitle: 'HTTP workflow learn',
-      sourceType: 'upload',
+      sourceType: 'manual',
     });
     assert.equal(writes[0].status, 202);
     assert.equal(writes[0].json.status, 'review_required');
