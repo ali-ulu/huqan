@@ -45,11 +45,11 @@ test('cli.js dogfood client routes öğret through the review gate as a real chi
   };
   try {
     const learnResult = runCli(['learn:', 'kopek dogfood-sentinel hayvandir'], env);
-    // Unapproved learn commands are review-gated (exit code 3) exactly like
+    // Unapproved learn commands are review-gated (exit code 5) exactly like
     // the MCP dogfood harness's axiom.learn review-path assertion -- cli.js
     // is a real out-of-process client subject to the same trust boundary,
     // not an in-process shortcut around it.
-    assert.equal(learnResult.status, 3);
+    assert.equal(learnResult.status, 5);
     assert.match(learnResult.stdout, /requires review/);
     const approvalId = learnResult.stdout.match(/approval-[0-9a-f-]+/)?.[0];
     assert.ok(approvalId, 'learn must return the durable approval id');
