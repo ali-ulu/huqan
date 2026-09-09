@@ -229,6 +229,38 @@ test.describe('#2024 nested secret signal survives the AB5 projection', () => {
     assert.equal(learn.reason, 'AGENT_MEMORY_WRITE_DELEGATED_TO_AB4');
   });
 
+  // The receiver-owned internal capability skips AB5 entirely for clean input.
+  // A secret must not become a reason to take that shortcut.
+  test('receiver-owned internal actions are not exempt from a nested secret', () => {
+    const { createReceiverOwnedInternalActionRequest } = require('../lib/agent-action-firewall');
+
+    for (const tool of ['ask', 'learn', 'custom-read']) {
+      for (const [label, input] of secretShapes) {
+        const trusted = createReceiverOwnedInternalActionRequest({
+          tool,
+          action: 'read',
+          input,
+          context: { workspaceId: 'ws-audit' },
+        });
+        const result = evaluateAgentActionFirewall(trusted);
+
+        assert.equal(result.decision, 'block', `${tool} / trusted / ${label}`);
+        assert.equal(result.canExecute, false);
+        assert.notEqual(result.reason, 'AGENT_INTERNAL_TOOL_ALLOWED');
+        assert.equal(JSON.stringify(result).includes(SYNTHETIC), false);
+      }
+    }
+
+    const clean = evaluateAgentActionFirewall(createReceiverOwnedInternalActionRequest({
+      tool: 'custom-read',
+      action: 'read',
+      input: { action: 'read', payload: { value: 'ordinary text' } },
+      context: { workspaceId: 'ws-audit' },
+    }));
+    assert.equal(clean.decision, 'allow');
+    assert.equal(clean.reason, 'AGENT_INTERNAL_TOOL_ALLOWED');
+  });
+
   test('read-only and learn tools are not exempt from a nested secret', () => {
     for (const tool of ['verify', 'huqan.ask', 'learn']) {
       const result = evaluateAgentActionFirewall({
