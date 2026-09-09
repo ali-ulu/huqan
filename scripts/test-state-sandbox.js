@@ -39,6 +39,11 @@ function createTestStateSandbox(baseEnvironment = process.env) {
   const cleanup = () => {
     if (cleaned) return;
     cleaned = true;
+    // Drop the exit hook as well. A runner that creates one sandbox per test
+    // file (see scripts/run-test-shard.js) would otherwise accumulate one
+    // listener per file and trip the MaxListeners warning partway through a
+    // shard, which reads like a leak in the suite rather than in the runner.
+    process.removeListener('exit', cleanup);
     fs.rmSync(stateRoot, { recursive: true, force: true });
   };
   process.on('exit', cleanup);
