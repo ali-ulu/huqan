@@ -587,6 +587,34 @@ durduğunu bilmez, hatta bir yapılandırması olup olmadığını da bilmez. Bu
 ajan kendi pre-tool hook'undan `huqan.external-action.v1` zarfını
 `huqan-gate --profile generic` komutuna gönderir.
 
+Adaptörü elle yazmak gerekmez; HUQAN üretir:
+
+```powershell
+npx huqan-gate adapter --agent-name my-agent
+```
+
+Bu komut projeye `huqan-adapter.js` yazar ve çağrı yerini basar. İçine gömülen
+gate komutu **tahmin edilmez**: her aday, gerçek bir `huqan.external-action.v1`
+zarfıyla denylist'teki bir komuta karşı çalıştırılır ve `block` +
+`DENYLISTED_COMMAND_BLOCKED` yanıtı vermeden dosyaya yazılmaz. Yalnızca "block
+verdi" yetmez — yanlış şekilli bir yük de bloklanır ama `malformed` gerekçesiyle,
+yani denylist'i değil başka bir yolu kanıtlamış olurdu.
+
+Üretilen adaptör **fail-closed**'dır. Kapı başlatılamazsa, çıktısı
+ayrıştırılamazsa ya da tanımadığı bir karar şeması dönerse eylem çalışmaz.
+Hatasını yutan bir adaptör, kullanıcıya zorlama gibi görünen ama olmayan bir
+dosya vermek olurdu.
+
+Kullanım:
+
+```js
+const { huqanCheck } = require('./huqan-adapter.js');
+
+// ajan aracı çalıştırmadan hemen önce:
+huqanCheck({ agentName: 'my-agent', toolName: 'shell', kind: 'shell', args: { command }, cwd });
+// review veya block'ta HuqanBlocked fırlatır; yakalamayın.
+```
+
 Bağlantının kurulup kurulmadığı ancak **gözlemlenebilir**:
 
 ```powershell

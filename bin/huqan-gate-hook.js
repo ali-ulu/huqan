@@ -12,6 +12,7 @@ const { queryExternalActionsByIdentity } = require('../lib/external-action-ident
 const { manageGate, connectDetectedAgents } = require('../lib/external-action-gate-install');
 const { buildAgentRoster } = require('../lib/external-action-agent-roster');
 const { buildAgentOverview } = require('../lib/external-action-agent-overview');
+const { writeCustomAgentAdapter } = require('../lib/external-action-adapter-generator');
 
 const MAX_STDIN_BYTES = 1024 * 1024;
 
@@ -167,6 +168,19 @@ async function main() {
       // A collector that would not take the evidence is a failure worth a
       // non-zero exit, so a scheduled run does not look successful in a log.
       process.exitCode = result.failure ? 1 : 0;
+      return;
+    }
+    if (command === 'adapter') {
+      // Generate the custom-agent adapter instead of describing it (#2061).
+      const result = writeCustomAgentAdapter({
+        root: argumentValue('--target-root') || process.cwd(),
+        out: argumentValue('--out') || undefined,
+        agentName: argumentValue('--agent-name') || undefined,
+        force: process.argv.includes('--force'),
+      });
+      process.stdout.write(`${JSON.stringify(result, null, 2)}
+`);
+      process.exitCode = 0;
       return;
     }
     if (command === 'overview') {
