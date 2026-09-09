@@ -4,11 +4,16 @@
 
 ## Non-queued behavior
 
-The upload boundary currently does **not** persist an approval candidate. A review-only upload therefore returns HTTP `200` with `ok: true`, `learned: 0`, and an admission whose transport-level `approvalStatus` is `not_queued`.
+The upload boundary currently does **not** persist an approval candidate. A review-only upload therefore returns HTTP `200` with `ok: false`, `status: "not_queued"`, `learned: 0`, and an admission whose transport-level `approvalStatus` is `not_queued`.
+
+`ok` reports whether the proposal became memory, and on this path it did not: nothing was written and nothing was queued. It read `ok: true` until #1990, which made the only review-only outcome indistinguishable from a successful upload for any client checking `ok` or the status code. The status code stays `200` — the request was processed exactly as specified — and `202` is deliberately not used, because nothing was accepted for later processing.
+
+`status` is one of `learned` (the proposal became memory), `not_queued` (held for review, with nothing to resolve), or `review` (held for review with a resolvable approval id — a shape `/upload` does not currently produce).
 
 ```json
 {
-  "ok": true,
+  "ok": false,
+  "status": "not_queued",
   "learned": 0,
   "admission": {
     "outcome": "review",

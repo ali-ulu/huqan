@@ -106,7 +106,10 @@ async function assertUploadReviewOnly(pathname, payload) {
   });
   assert.strictEqual(response.status, 200);
   const body = await response.json();
-  assert.strictEqual(body.ok, true);
+  // Nothing was written and nothing was queued, so the envelope must not read
+  // as a completed upload (#1990).
+  assert.strictEqual(body.ok, false);
+  assert.strictEqual(body.status, NON_QUEUED_APPROVAL_STATUS);
   assert.strictEqual(body.learned, 0);
   assert.ok(body.admission);
   assert.strictEqual(body.admission.outcome, 'review');
@@ -373,7 +376,8 @@ describe('Server - API', () => {
     });
     assert.strictEqual(r.status, 200);
     const j = await r.json();
-    assert.strictEqual(j.ok, true);
+    assert.strictEqual(j.ok, false);
+    assert.strictEqual(j.status, NON_QUEUED_APPROVAL_STATUS);
     assert.strictEqual(j.learned, 0);
     assert.ok(j.admission);
     assert.strictEqual(j.admission.outcome, 'review');

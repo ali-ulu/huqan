@@ -36,7 +36,7 @@ const { createSessionStore } = require('./lib/viewer/session-store');
 const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
 const { createExternalClientProductionBoundary } = require('./lib/external-client-production-boundary');
 const { createOptionalRouteBoundaries } = require('./lib/http/optional-boundaries'), { createPrGuardianOptions } = require('./lib/http/pr-guardian-config'), { createFitnessDashboardRoute } = require('./lib/http/fitness-dashboard-route'), { readTrustedBatchKeys } = require('./lib/external-action-receipt-collector'), { readCollectorSealKey } = require('./lib/collector-seal-config');
-const { projectUploadAdmission } = require('./lib/http/upload-admission-contract');
+const { buildUploadResponse } = require('./lib/http/upload-admission-contract');
 const { createHttpIngestApprovalAuditWriter } = require('./lib/http/ingest-approval-audit-writer');
 const { createTrustEvidenceLedger } = require('./lib/trust-evidence-ledger'); const { callTool: callMcpTool } = require('./mcpServer');
 const pkg = require('./package.json');
@@ -658,9 +658,9 @@ const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnviron
         approvalRequired: true,
         provenance: bindHttpProvenance(data.provenance, { actor: 'http-api', workspaceId, sourceType: sanitizeInput(data.sourceType || '') || 'upload', sourceRef: sanitizeInput(data.sourceRef || '') || reqUrl.pathname, sourceTitle: sanitizeInput(data.sourceTitle || '') || 'HTTP upload' }),
       });
-      const admission = projectUploadAdmission(Array.isArray(learnResult.admissions) ? (learnResult.admissions.find(Boolean) || null) : null);
+      const rawAdmission = Array.isArray(learnResult.admissions) ? (learnResult.admissions.find(Boolean) || null) : null;
       res.writeHead(200, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ ok: true, learned: learnResult.learned, admission }));
+      res.end(JSON.stringify(buildUploadResponse(learnResult.learned, rawAdmission)));
     } catch (err) {
       writeStructuredLog(console, 'error', 'http.upload_error', correlation, { route: '/yukle', method: req.method, errorCode: err?.code || 'UPLOAD_FAILED' });
       writeJson(req, res, 500, { error: 'Internal server error' });
