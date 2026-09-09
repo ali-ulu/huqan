@@ -6,10 +6,11 @@ const {
   EXTERNAL_ADAPTER_PROFILES,
   evaluateHookInvocation,
 } = require('../lib/external-action-adapter');
-const { createDurableExternalActionReceiptWriter } = require('../lib/external-action-receipt');
+const { createDurableExternalActionReceiptWriter, defaultExternalActionReceiptPath } = require('../lib/external-action-receipt');
 const { readAllowedCommands } = require('../lib/external-action-command-policy');
 const { queryExternalActionsByIdentity } = require('../lib/external-action-identity-log');
 const { manageGate, connectDetectedAgents } = require('../lib/external-action-gate-install');
+const { buildAgentRoster } = require('../lib/external-action-agent-roster');
 
 const MAX_STDIN_BYTES = 1024 * 1024;
 
@@ -165,6 +166,21 @@ async function main() {
       // A collector that would not take the evidence is a failure worth a
       // non-zero exit, so a scheduled run does not look successful in a log.
       process.exitCode = result.failure ? 1 : 0;
+      return;
+    }
+    if (command === 'agents') {
+      // Which agents have acted at all -- the roster a monitoring view lists
+      // (#2052). --identity-log answers the next question, per identity.
+      const roster = buildAgentRoster(
+        argumentValue('--receipt-log') || defaultExternalActionReceiptPath(),
+        {
+          workspaceId: argumentValue('--workspace-id') || undefined,
+          since: argumentValue('--since') || undefined,
+        },
+      );
+      process.stdout.write(`${JSON.stringify(roster, null, 2)}
+`);
+      process.exitCode = roster.ok ? 0 : 1;
       return;
     }
     if (command === 'connect') {

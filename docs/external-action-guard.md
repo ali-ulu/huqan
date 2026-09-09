@@ -523,6 +523,30 @@ npx huqan-gate status
 npx huqan-gate uninstall --profile codex
 ```
 
+### Hangi ajanlar ne yaptı
+
+`--identity-log` **bildiğin** bir kimliği sorgular. Hangi ajanların var olduğunu
+ise roster söyler:
+
+```powershell
+npx huqan-gate agents
+npx huqan-gate agents --workspace-id team-a --since 2026-09-01T00:00:00.000Z
+```
+
+Her satır bir **kimliktir** (`identityRef`), bir ad değil. Doğrulanmamış bir
+`agentName` zarfın taşıdığı bir *iddiadır*; iki ayrı kimlik aynı adı iddia
+edebilir. Roster bunları birleştirmez, `nameCollision: true` ile görünür kılar —
+birleştirmek bir ajanın kaydının diğerininkini yutması demektir ve izleme
+ekranının var olma sebebi tam olarak bunu önlemektir.
+
+`attestation` alanı kimlik başınadır ve üç değer alır: `attested`,
+`unattested`, `mixed`. `mixed`, aynı kimliğin hem geçerli capability card ile
+hem de kartsız eylem yaptığı anlamına gelir; bunu tek bir boolean'a indirmek
+doğrulanmamış yarıyı — yani okuyucunun görmesi gereken yarıyı — gizlerdi.
+
+Kimliği olmayan makbuz hiçbir satıra yazılmaz; tahmin edilen bir ada
+iliştirilmez.
+
 ### Kendi ajanı olan kullanıcı (`generic`)
 
 Kurulacak bir artefakt yoktur: HUQAN özel bir ajanın yapılandırmasının nerede
