@@ -42,6 +42,45 @@ test('a deployment that named its own trail keeps it', () => {
   assert.equal(defaultExternalActionPolicyPath(environment), path.join(path.dirname(path.resolve(trail)), 'external-action-policy.json'));
 });
 
+// #2032: the shard runner creates one of these per test file rather than one
+// per shard, so a file inside a shard starts from the same clean state as
+// `node scripts/run-tests.js <file>` gives it. Two properties make that safe at
+// ~157 files per shard.
+test('each sandbox is a separate root, and cleaning one does not touch another', () => {
+  const { createTestStateSandbox } = require('../scripts/test-state-sandbox');
+  const first = createTestStateSandbox({});
+  const second = createTestStateSandbox({});
+
+  assert.notEqual(first.stateRoot, second.stateRoot, 'two sandboxes shared one state root');
+  assert.equal(fs.existsSync(first.stateRoot), true);
+  assert.equal(fs.existsSync(second.stateRoot), true);
+
+  // The receipt trail is append-only, so this is the accumulation that a
+  // shard-wide root handed to every following file.
+  fs.writeFileSync(path.join(first.stateRoot, 'external-action-receipts.jsonl'), '{"receiptId":"from-a-previous-file"}\n', 'utf8');
+  assert.equal(fs.existsSync(path.join(second.stateRoot, 'external-action-receipts.jsonl')), false);
+
+  first.cleanup();
+  assert.equal(fs.existsSync(first.stateRoot), false, 'cleanup left its own root behind');
+  assert.equal(fs.existsSync(second.stateRoot), true, 'cleanup removed an unrelated root');
+  second.cleanup();
+  assert.equal(fs.existsSync(second.stateRoot), false);
+});
+
+test('cleaning up a sandbox releases its exit hook', () => {
+  const { createTestStateSandbox } = require('../scripts/test-state-sandbox');
+  const before = process.listenerCount('exit');
+
+  // Without releasing the hook this accumulates one listener per file and trips
+  // the MaxListeners warning partway through a shard, which reads as a leak in
+  // the suite rather than in the runner.
+  for (let index = 0; index < 40; index += 1) {
+    createTestStateSandbox({}).cleanup();
+  }
+
+  assert.equal(process.listenerCount('exit'), before, 'sandboxes accumulated exit listeners');
+});
+
 test('the test runner points the suite away from the operator live state', t => {
   const home = scratch(t, 'huqan-fake-operator-home-');
   const liveRoot = path.join(home, 'huqan');
@@ -89,4 +128,37 @@ test('the test runner points the suite away from the operator live state', t => 
 
   assert.equal(fs.readFileSync(path.join(liveRoot, 'external-action-receipts.jsonl'), 'utf8'), before);
   assert.equal(fs.existsSync(observed.stateRoot), false, 'the sandbox state root outlived the run');
+});
+
+// The two tests above guard the sandbox primitive. They stay green if the shard
+// runner goes back to building one root for the whole shard, which is the very
+// thing #2032 changed — verified by mutation. This one closes that gap by
+// running the real shard runner over two files and reading the roots it used.
+test('the shard runner gives every file in a shard its own state root', t => {
+  const dir = scratch(t, 'huqan-shard-isolation-');
+  const selection = path.join(dir, 'selection.json');
+  const files = ['test/cli-argv.test.js', 'test/workflow-contract-foundation.test.js'];
+  fs.writeFileSync(selection, JSON.stringify({ schemaVersion: 1, selectedTests: files }), 'utf8');
+
+  const inherited = { ...process.env };
+  for (const name of Object.keys(inherited)) {
+    if (name.startsWith('NODE_TEST')) delete inherited[name];
+  }
+
+  const run = spawnSync(process.execPath, [
+    'scripts/run-test-shard.js',
+    '--shard=1',
+    '--total=1',
+    `--selection=${selection}`,
+    `--report=${path.join(dir, 'report.xml')}`,
+  ], { cwd: REPO_ROOT, encoding: 'utf8', env: inherited });
+
+  assert.equal(run.status, 0, `${run.stdout || ''}${run.stderr || ''}`);
+
+  const roots = [...(run.stdout || '').matchAll(/state-root (\S+)/g)].map(match => match[1]);
+  assert.equal(roots.length, files.length, `expected one state root per file, got ${roots.length}`);
+  assert.equal(new Set(roots).size, files.length, `files shared a state root: ${roots.join(', ')}`);
+  for (const root of roots) {
+    assert.equal(fs.existsSync(root), false, `state root ${root} outlived the shard`);
+  }
 });

@@ -61,6 +61,42 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     throw new Error(`timed out waiting for ${description} (last value: ${JSON.stringify(last)})`);
   }
 
+  /**
+   * Wait for several clauses at once and name the ones that never came true.
+   *
+   * A compound `a && b && c` collapses into one boolean, so a timeout reports
+   * `last value: false` and says nothing about which half of the assertion is
+   * broken. That is what #2032 ran into: the nightly failure named this file
+   * and this subtest, but the report could not distinguish "the public graph
+   * never became readable" from "the approval queue never locked", and the
+   * failure does not reproduce outside CI. Evaluate the clauses separately and
+   * report the whole picture, so the next occurrence arrives diagnosed.
+   *
+   * `clauses` maps a short name to a JavaScript expression string.
+   */
+  async function waitForAll(clauses, description) {
+    const names = Object.keys(clauses);
+    const probe = `(() => ({ ${names
+      .map((name, index) => `${JSON.stringify(String(index))}: Boolean(${clauses[name]})`)
+      .join(', ')} }))()`;
+
+    const deadline = Date.now() + WAIT_TIMEOUT_MS;
+    let last = {};
+    while (Date.now() < deadline) {
+      last = await browser.evaluate(probe);
+      if (names.every((_, index) => last[String(index)] === true)) return last;
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+
+    const pending = names.filter((_, index) => last[String(index)] !== true);
+    const satisfied = names.filter((_, index) => last[String(index)] === true);
+    throw new Error(
+      `timed out waiting for ${description}`
+      + ` — never true: ${pending.join(', ') || '(none)'}`
+      + `; already true: ${satisfied.join(', ') || '(none)'}`,
+    );
+  }
+
   // Save & Connect disables itself for the duration of a connect. A click that
   // lands during that window is dropped by the browser and the page keeps the
   // session it already had, with nothing to say the click went nowhere. That is
@@ -218,13 +254,12 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     // what went stale here and produced #1838.
     try {
       await browser.evaluate(`document.getElementById('clear').click(); true;`);
-      await waitFor(
-        `document.getElementById('sstatus').textContent === 'API key not set.'
-          && document.getElementById('astate').textContent === 'LOCKED'
-          && /Graph Data\\s*●\\s*(LIVE|EMPTY)/.test(document.getElementById('health').textContent)
-          && /Approval Queue\\s*●\\s*LOCKED/.test(document.getElementById('health').textContent)`,
-        'the unauthenticated default workspace to read its public graph while the approval queue stays locked',
-      );
+      await waitForAll({
+        'session status reports no key': `document.getElementById('sstatus').textContent === 'API key not set.'`,
+        'approval state badge is LOCKED': `document.getElementById('astate').textContent === 'LOCKED'`,
+        'health shows Graph Data readable': `/Graph Data\\s*●\\s*(LIVE|EMPTY)/.test(document.getElementById('health').textContent)`,
+        'health shows Approval Queue locked': `/Approval Queue\\s*●\\s*LOCKED/.test(document.getElementById('health').textContent)`,
+      }, 'the unauthenticated default workspace to read its public graph while the approval queue stays locked');
 
       // The public read is scoped to the default workspace, and that scope is
       // enforced by the server: unauthenticated `/graph-data` answers 200 for
@@ -238,11 +273,10 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
         document.getElementById('save').click();
         true;
       `);
-      await waitFor(
-        `/Graph Data\\s*●\\s*LOCKED/.test(document.getElementById('health').textContent)
-          && /Approval Queue\\s*●\\s*LOCKED/.test(document.getElementById('health').textContent)`,
-        'a non-default workspace to stay locked without a session key',
-      );
+      await waitForAll({
+        'health shows Graph Data locked': `/Graph Data\\s*●\\s*LOCKED/.test(document.getElementById('health').textContent)`,
+        'health shows Approval Queue locked': `/Approval Queue\\s*●\\s*LOCKED/.test(document.getElementById('health').textContent)`,
+      }, 'a non-default workspace to stay locked without a session key');
     } finally {
       // Re-authenticate in `finally` so a failure above fails only this test.
       // Previously the click was unreachable after a timeout, and the next test
@@ -252,13 +286,12 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
   });
 
   it('settles the connection and shows Graph Data and Approval Queue as live', async () => {
-    await waitFor(
-      `document.getElementById('sstatus').textContent === 'Connected.'
-        && /^(LIVE|EMPTY)$/.test(document.getElementById('astate').textContent)
-        && /Graph Data\\s*●\\s*(LIVE|EMPTY)/.test(document.getElementById('health').textContent)
-        && /Approval Queue\\s*●\\s*(LIVE|EMPTY)/.test(document.getElementById('health').textContent)`,
-      'the authenticated graph and approval surfaces to become live',
-    );
+    await waitForAll({
+      'session status reports connected': `document.getElementById('sstatus').textContent === 'Connected.'`,
+      'approval state badge is live': `/^(LIVE|EMPTY)$/.test(document.getElementById('astate').textContent)`,
+      'health shows Graph Data live': `/Graph Data\\s*●\\s*(LIVE|EMPTY)/.test(document.getElementById('health').textContent)`,
+      'health shows Approval Queue live': `/Approval Queue\\s*●\\s*(LIVE|EMPTY)/.test(document.getElementById('health').textContent)`,
+    }, 'the authenticated graph and approval surfaces to become live');
     const health = await browser.evaluate(`document.getElementById('health').textContent`);
     assert.match(health, /Graph Data\s*●\s*(LIVE|EMPTY)/);
     assert.match(health, /Approval Queue\s*●\s*(LIVE|EMPTY)/);

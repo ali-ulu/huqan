@@ -104,7 +104,15 @@ function run(options) {
   // Sharded runs get the same throwaway gate state root as `npm test`: a shard
   // run on a developer machine must not read or extend the operator's live
   // policy and receipt trail either (#1846).
-  const sandbox = createTestStateSandbox();
+  //
+  // #2032: the root is created per file rather than once per shard. The files
+  // in a shard are otherwise fully separate -- one process each, their own
+  // mkdtemp fixtures, ephemeral ports -- so this root was their only shared
+  // mutable surface, and the receipt trail under it accumulated across every
+  // preceding file. It is also the one thing that differs between
+  // `node scripts/run-tests.js <file>` and the same file inside a shard, which
+  // is exactly the "passes alone, fails in shard" shape. Per file, a shard run
+  // now reproduces the solo run instead of a 157-file history.
 
   // Announce the full plan upfront so a hang that occurs before the first
   // file starts is still diagnosable, then announce each file as it starts
@@ -125,25 +133,36 @@ function run(options) {
       const partPath = `${reportPath}.part-${index + 1}.xml`;
       partPaths.push(partPath);
       const startedAt = new Date().toISOString();
-      console.log(`[shard ${options.shard}/${options.total}] starting ${index + 1}/${selected.files.length}: ${file} at ${startedAt}`);
       const startedMs = Date.now();
-      const result = spawnSync(process.execPath, [
-        '--test',
-        `--test-concurrency=${options.concurrency}`,
-        '--test-reporter=junit',
-        `--test-reporter-destination=${partPath}`,
-        file,
-      ], {
-        cwd: REPO_ROOT,
-        env: sandbox.environment,
-        stdio: 'inherit',
-        // Cap the indefinite "still running at 22m" (#1847) at the file that
-        // actually hangs. Historical max per-file is ~25s; 90s is 3-4x margin
-        // for slow Linux runners but fails fast instead of waiting for the
-        // 20m job timeout from #1845.
-        timeout: 90_000,
-        killSignal: 'SIGTERM',
-      });
+      const sandbox = createTestStateSandbox();
+      // The state root is named on the starting line rather than logged
+      // separately: it adds no line to a 157-file shard, it tells a hung file's
+      // investigator where that file's state actually lives, and it is what
+      // makes "every file got its own root" observable from outside instead of
+      // a property only the source can attest to (#2032).
+      console.log(`[shard ${options.shard}/${options.total}] starting ${index + 1}/${selected.files.length}: ${file} at ${startedAt} state-root ${sandbox.stateRoot}`);
+      let result;
+      try {
+        result = spawnSync(process.execPath, [
+          '--test',
+          `--test-concurrency=${options.concurrency}`,
+          '--test-reporter=junit',
+          `--test-reporter-destination=${partPath}`,
+          file,
+        ], {
+          cwd: REPO_ROOT,
+          env: sandbox.environment,
+          stdio: 'inherit',
+          // Cap the indefinite "still running at 22m" (#1847) at the file that
+          // actually hangs. Historical max per-file is ~25s; 90s is 3-4x margin
+          // for slow Linux runners but fails fast instead of waiting for the
+          // 20m job timeout from #1845.
+          timeout: 90_000,
+          killSignal: 'SIGTERM',
+        });
+      } finally {
+        sandbox.cleanup();
+      }
 
       if (result.error) {
         if (result.error.code === 'ETIMEDOUT') {
@@ -179,7 +198,7 @@ function run(options) {
       }
     }
   } finally {
-    sandbox.cleanup();
+    // Each file's sandbox is already removed in its own `finally` above.
     // Written in `finally` so a shard that throws still leaves the alarm
     // something to read; best-effort, because failing to write the sidecar
     // must not change the shard's own verdict.
