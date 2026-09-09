@@ -428,6 +428,20 @@ test('runtime: undeclared route is denied without a key, declared public routes 
   assert.equal(spoofedProvenanceActor.status, 400);
   assert.equal(JSON.parse(spoofedProvenanceActor.body).error.code, 'ACTOR_MISMATCH');
 
+  // The review-only upload path writes nothing and queues nothing. Its envelope
+  // used to read ok:true, so a client checking `ok` could not tell it apart
+  // from an upload that became memory (#1990).
+  const reviewOnly = await postJson(port, '/upload', {
+    text: 'review only upload envelope',
+    workspaceId: 'workspace-a',
+  }, auth);
+  assert.equal(reviewOnly.status, 200);
+  const reviewOnlyBody = JSON.parse(reviewOnly.body);
+  assert.equal(reviewOnlyBody.learned, 0);
+  assert.equal(reviewOnlyBody.admission.graphWrite, false);
+  assert.equal(reviewOnlyBody.status, 'not_queued');
+  assert.equal(reviewOnlyBody.ok, false, 'a review-only upload must not report success');
+
   const receipt = {
     receiptId: 'xact_adm_http_runtime_001', receiptKind: 'external_action_admission_receipt',
     decision: 'block', reason: 'DENYLISTED_COMMAND_BLOCKED', actor: 'codex', workspaceId: 'default',
