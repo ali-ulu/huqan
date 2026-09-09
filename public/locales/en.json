@@ -169,6 +169,7 @@
     },
     "loading": "Loading evidence…",
     "found": "Receipt found.",
+    "noEvidence": "No evidence is recorded for this target. If this is a receipt id, switch Lookup Mode to receiptId.",
     "enterId": "Enter a receipt or sourceRef.",
     "noReceipt": "No receipt",
     "defaultLabel": "Trust Receipt",

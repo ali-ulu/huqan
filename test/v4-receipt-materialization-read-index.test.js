@@ -300,6 +300,84 @@ describe('#1520: materialized receipts must match the durable chain anchor', () 
     assert.equal(read.authoritative, false);
   });
 
+  /**
+   * An audit-only receipt: recorded as a decision, never committed as a graph
+   * mutation, so it has no row in the journal. Reviews that changed nothing are
+   * the real producer -- 140 of 201 receipt-bearing audit events in one real
+   * store and 14,895 of 14,996 in another were of this shape, and requiring the
+   * two sets to be equal in size made every V4 receipt in both unreadable.
+   *
+   * Built by cloning a committed receipt onto a fresh id rather than by
+   * constructing a review receipt, because what the chain cross-check sees is
+   * only "an audit receipt with no journal row" -- the kind that produced it is
+   * not what the comparison reads. Filtering by kind would also be the wrong
+   * fix: in the larger store 165 of those review receipts *are* journaled.
+   */
+  function appendAuditOnlyReceipt(kernel, committedReceipt, receiptId) {
+    const events = kernel.graph.getAuditEvents({ workspaceId: 'default' });
+    const template = events.find((event) => (
+      event.details?.receipt?.receiptId === committedReceipt.receiptId
+    ));
+    assert.ok(template, 'a committed receipt must be in the audit trail to clone from');
+    const clone = JSON.parse(JSON.stringify(template));
+    clone.auditId = `${clone.auditId}-audit-only`;
+    clone.details.receipt.receiptId = receiptId;
+    // After the committed ones, so materialized order still matches the journal.
+    clone.timestamp = new Date(Date.parse(clone.timestamp) + 60_000).toISOString();
+    return clone;
+  }
+
+  it('an audit-only receipt does not invalidate the durable chain', (t) => {
+    const kernel = makeKernel(t, true);
+    const first = learnApproved(kernel, 'denetim ilk hayvandir', { provenanceId: 'prov-audit-only-1' });
+    const second = learnApproved(kernel, 'denetim son hayvandir', { provenanceId: 'prov-audit-only-2' });
+    const extra = appendAuditOnlyReceipt(kernel, second.data.admission.receipt, 'madm_receipt_audit_only_0001');
+    const events = [...kernel.graph.getAuditEvents({ workspaceId: 'default' }), extra];
+    const source = {
+      _db: kernel.graph._db,
+      _stmts: kernel.graph._stmts,
+      getAuditEvents: () => events,
+    };
+
+    for (const committed of [first, second]) {
+      const read = readReceiptById(source, committed.data.admission.receipt.receiptId, { workspaceId: 'default' });
+      assert.equal(read.ok, true, `${committed.data.admission.receipt.receiptId} must stay readable`);
+      assert.equal(read.status, 'found');
+      assert.equal(read.authoritative, true);
+      assert.equal(read.chainValidation.valid, true);
+    }
+  });
+
+  it('still refuses when a committed receipt is missing from the audit trail', (t) => {
+    const kernel = makeKernel(t, true);
+    const first = learnApproved(kernel, 'eksik ilk hayvandir', { provenanceId: 'prov-audit-gap-1' });
+    const second = learnApproved(kernel, 'eksik son hayvandir', { provenanceId: 'prov-audit-gap-2' });
+    // The gap found in a real store: two committed admissions whose audit events
+    // never landed. An audit-only receipt alongside it must not disguise the gap
+    // by making the projected count add back up.
+    const extra = appendAuditOnlyReceipt(kernel, second.data.admission.receipt, 'madm_receipt_audit_only_0002');
+    const events = [
+      ...kernel.graph.getAuditEvents({ workspaceId: 'default' })
+        .filter((event) => event.details?.receipt?.receiptId !== first.data.admission.receipt.receiptId),
+      extra,
+    ];
+    const source = {
+      _db: kernel.graph._db,
+      _stmts: kernel.graph._stmts,
+      getAuditEvents: () => events,
+    };
+
+    const read = readReceiptById(source, second.data.admission.receipt.receiptId, { workspaceId: 'default' });
+
+    assert.equal(read.ok, false);
+    assert.equal(read.status, 'chain_invalid');
+    assert.equal(read.chainValidation.reason, 'chain_length_mismatch');
+    assert.equal(read.chainValidation.observedCount, 1);
+    assert.equal(read.chainValidation.expectedCount, 2);
+    assert.equal(read.chainValidation.auditOnlyCount, 1);
+    assert.equal(read.authoritative, false);
+  });
+
   it('SQLite read uses mutation_receipts as the durable anchor', (t) => {
     const kernel = makeKernel(t, true);
     const first = learnApproved(kernel, 'sqlite ilk hayvandir', { provenanceId: 'prov-anchor-sqlite-1' });

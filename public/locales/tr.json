@@ -169,6 +169,7 @@
     },
     "loading": "Kanıt yükleniyor…",
     "found": "Makbuz bulundu.",
+    "noEvidence": "Bu hedef için kayıtlı kanıt yok. Bu bir makbuz kimliğiyse Arama Modu'nu receiptId yapın.",
     "enterId": "Bir makbuz veya sourceRef girin.",
     "noReceipt": "Makbuz yok",
     "defaultLabel": "Güven Makbuzu",
