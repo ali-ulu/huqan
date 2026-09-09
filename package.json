@@ -160,6 +160,7 @@
     "lib/receipt/trusted-key-resolver.js",
     "lib/adversarial-signals.js",
     "lib/agent-loop-budget-gate.js",
+    "lib/agent-memory-persistence.js",
     "lib/agent-memory-state.js",
     "lib/multi-agent-cascade-guard.js",
     "lib/agent-run-guidance.js",
