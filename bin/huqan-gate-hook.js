@@ -169,7 +169,7 @@ async function main() {
     }
     if (command === 'connect') {
       // One command, no profile name: detect what is on the machine and
-      // connect each one through the install that proves itself (#2049).
+      // connect each one through the install that proves itself (#2050).
       const result = connectDetectedAgents({
         root: argumentValue('--target-root') || process.cwd(),
         home: argumentValue('--home') || undefined,

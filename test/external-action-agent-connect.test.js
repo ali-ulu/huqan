@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * #2049 - `huqan-gate connect`: detect the agents on this machine and connect
+ * #2050 - `huqan-gate connect`: detect the agents on this machine and connect
  * the gate to each one, without asking the user which profile they are.
  */
 
