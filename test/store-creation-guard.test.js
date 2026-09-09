@@ -10,6 +10,7 @@ const {
   REBUILD_OPT_IN_VARIABLE,
   STORE_CREATION_REFUSED_CODE,
   assertStoreCreationAllowed,
+  isEphemeralStorePath,
   readKnownStores,
   recordKnownStore,
   registryPath,
@@ -28,7 +29,12 @@ function sandbox() {
     // A state root of its own, so the suite never reads or writes the
     // operator's real store registry.
     environment: { HUQAN_STATE_ROOT: root, NODE_TEST_CONTEXT: '' },
-    dbPath: path.join(root, 'memory.db'),
+    // Deliberately NOT under os.tmpdir(): a temp path is exempt as a throwaway,
+    // so a refusal case has to name a path that looks like a store somebody
+    // keeps. Nothing is created here -- the guard only reads the string.
+    dbPath: path.join(root, 'kept', 'memory.db').replace(path.resolve(os.tmpdir()), path.join(os.homedir(), 'huqan-guard-test')),
+    // The throwaway shape, for the one case that is about the exemption.
+    ephemeralDbPath: path.join(root, 'memory.db'),
     cleanup() { fs.rmSync(root, { recursive: true, force: true }); },
   };
 }
@@ -178,6 +184,24 @@ test('rebuild still works once a store is registered', () => {
       exists: false,
       environment: { ...box.environment, [REBUILD_OPT_IN_VARIABLE]: '1' },
     }));
+  } finally { box.cleanup(); }
+});
+
+test('a store under the OS temp directory is a throwaway, never a stray', () => {
+  const box = sandbox();
+  try {
+    withRegisteredStore(box);
+    // box.root is itself created with mkdtemp under os.tmpdir(), so this is the
+    // packed-tarball smoke's shape: a fresh install into a temp directory on a
+    // machine that already keeps a real store elsewhere.
+    withoutRunnerMarker(() => assertStoreCreationAllowed({
+      dbPath: box.ephemeralDbPath,
+      explicit: false,
+      exists: false,
+      environment: box.environment,
+    }));
+    assert.equal(isEphemeralStorePath(box.ephemeralDbPath), true);
+    assert.equal(isEphemeralStorePath(box.dbPath), false);
   } finally { box.cleanup(); }
 });
 
