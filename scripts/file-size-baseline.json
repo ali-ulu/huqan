@@ -11,7 +11,7 @@
   "threshold": 800,
   "files": {
     "agent.js": 958,
-    "cli.js": 819,
+    "cli.js": 818,
     "graph.js": 1246,
     "kernel.js": 1095,
     "kernel.v2.js": 813,

@@ -24,7 +24,7 @@ const {
 const Dream = require('./dream');
 const LLMAdapter = require('./llmAdapter');
 const { createAgent } = require('./agentRuntime');
-const { createBackup, runCliRestore, formatCliRestore } = require('./backupRestore');
+const { createBackup, runCliRestore, formatCliRestore, formatRestoreError } = require('./backupRestore');
 const { resolvePersistencePaths } = require('./persistencePaths');
 const { evaluateMcpGate } = require('./lib/mcp-gate-adapter');
 const {
@@ -530,10 +530,7 @@ class CLI {
       }
       case 'audit': return require('./lib/cli-audit').runCliAudit(this.kernel, args, opts, { getApprovalStore: () => this._approvalRuntime().approvalStore }); case 'receipt': return require('./lib/cli-trust-receipt').runCliTrustReceipt(this.kernel, args, opts);
       case 'restore': {
-        // Windows cannot rename over an open SQLite file (EPERM; rename-over-open
-        // is POSIX-only) and memory.db is exactly the file restore replaces. Close
-        // every handle to it before the replace and reopen afterwards, so restore
-        // works for the Windows operator it is meant to rescue. See #1848.
+        // Windows EPERM guard (#1848): memory.db is open, so close every handle before restore replaces it.
         const storage = this.agent?.storage;
         const storageWasOpen = !!(storage && storage.db && storage.db.open !== false
           && typeof storage.close === 'function');
@@ -542,6 +539,8 @@ class CLI {
         let result;
         try {
           result = runCliRestore(args, this._backupOptions({ backupDir: args?.backupDir || args || undefined }));
+        } catch (error) {
+          throw Object.assign(new Error(formatRestoreError(error)), { code: error.code, receipt: error.receipt });
         } finally {
           // Only reopen handles we actually closed: agent storage may already be
           // closed (tests, standalone reads) or point at a file restore replaced.
