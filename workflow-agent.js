@@ -8,6 +8,7 @@ const {
   deriveNextAction,
   buildRecommendations,
 } = require('./lib/workflow-run-guidance');
+const { selectBudgetedTools } = require('./lib/workflow-budget-selection');
 
 const EXTERNAL_REVIEW_APPROVAL_TOKEN = Symbol('workflow-agent-external-review-approval');
 
@@ -627,38 +628,7 @@ class WorkflowAgent {
   }
 
   _selectStepTools(goal, rankedTools, objective, maxSteps, budget) {
-    const sequence = preferredSequence(objective);
-    const selected = [];
-    const used = new Set();
-    let estimatedBudget = 0;
-
-    for (const preferredName of sequence) {
-      if (selected.length >= maxSteps) break;
-      const match = rankedTools.find(item => item.tool.name === preferredName);
-      if (!match || used.has(match.tool.name)) continue;
-      if (estimatedBudget + match.tool.cost > budget) break;
-      selected.push(match);
-      used.add(match.tool.name);
-      estimatedBudget += match.tool.cost;
-    }
-
-    for (const item of rankedTools) {
-      if (selected.length >= maxSteps) break;
-      if (used.has(item.tool.name)) continue;
-      if (estimatedBudget + item.tool.cost > budget) break;
-      selected.push(item);
-      used.add(item.tool.name);
-      estimatedBudget += item.tool.cost;
-    }
-
-    if (!selected.length && rankedTools.length) {
-      const first = rankedTools[0];
-      if (first.tool.cost <= budget) {
-        selected.push(first);
-      }
-    }
-
-    return selected;
+    return selectBudgetedTools({ rankedTools, sequence: preferredSequence(objective), maxSteps, budget });
   }
 
   _buildPlan(goal, opts = {}) {
@@ -817,8 +787,12 @@ class WorkflowAgent {
       const registryTool = this.getTool(plannedStep.tool);
       const stepCost = normalizePositiveInteger(plannedStep.cost, registryTool ? registryTool.cost : 1);
       if (stepCost > budgetRemaining) {
+        // A plan may contain an expensive step followed by an affordable one.
+        // Leave the step unexecuted and keep looking; budget exhaustion is
+        // reported through `paused` after every affordable candidate has had a
+        // chance to run.
         paused = true;
-        break;
+        continue;
       }
 
       const context = {
