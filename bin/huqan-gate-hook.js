@@ -6,10 +6,11 @@ const {
   EXTERNAL_ADAPTER_PROFILES,
   evaluateHookInvocation,
 } = require('../lib/external-action-adapter');
-const { createDurableExternalActionReceiptWriter } = require('../lib/external-action-receipt');
+const { createDurableExternalActionReceiptWriter, defaultExternalActionReceiptPath } = require('../lib/external-action-receipt');
 const { readAllowedCommands } = require('../lib/external-action-command-policy');
 const { queryExternalActionsByIdentity } = require('../lib/external-action-identity-log');
-const { manageGate } = require('../lib/external-action-gate-install');
+const { manageGate, connectDetectedAgents } = require('../lib/external-action-gate-install');
+const { buildAgentRoster } = require('../lib/external-action-agent-roster');
 
 const MAX_STDIN_BYTES = 1024 * 1024;
 
@@ -167,6 +168,37 @@ async function main() {
       process.exitCode = result.failure ? 1 : 0;
       return;
     }
+    if (command === 'agents') {
+      // Which agents have acted at all -- the roster a monitoring view lists
+      // (#2052). --identity-log answers the next question, per identity.
+      const roster = buildAgentRoster(
+        argumentValue('--receipt-log') || defaultExternalActionReceiptPath(),
+        {
+          workspaceId: argumentValue('--workspace-id') || undefined,
+          since: argumentValue('--since') || undefined,
+        },
+      );
+      process.stdout.write(`${JSON.stringify(roster, null, 2)}
+`);
+      process.exitCode = roster.ok ? 0 : 1;
+      return;
+    }
+    if (command === 'connect') {
+      // One command, no profile name: detect what is on the machine and
+      // connect each one through the install that proves itself (#2050).
+      const result = connectDetectedAgents({
+        root: argumentValue('--target-root') || process.cwd(),
+        home: argumentValue('--home') || undefined,
+        receiptPath: argumentValue('--receipt-log') || undefined,
+        detectOnly: process.argv.includes('--detect'),
+      });
+      process.stdout.write(`${JSON.stringify(result, null, 2)}
+`);
+      // Nothing connected is not success: a caller in a script must be able to
+      // tell "protected" from "found nothing to protect".
+      process.exitCode = result.connected > 0 || process.argv.includes('--detect') ? 0 : 1;
+      return;
+    }
     if (['install', 'uninstall', 'status'].includes(command)) {
       const result = manageGate(command, {
         deploymentAuthorized: true,
@@ -174,6 +206,8 @@ async function main() {
         root: argumentValue('--target-root') || process.cwd(),
         home: argumentValue('--home') || undefined,
         receiptPath: argumentValue('--receipt-log') || undefined,
+        // Narrows the custom-agent observation to one agent name (#2048).
+        agentName: argumentValue('--agent-name') || undefined,
       });
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
       process.exitCode = 0;

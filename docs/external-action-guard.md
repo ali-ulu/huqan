@@ -483,6 +483,33 @@ recordExternalActionOutcome(invocation, admission.receipt, {
 | Hermes | `--profile hermes` | `{ action: "block" }` | `pre_tool_call` hook event'leri |
 | Gelecekteki/özel ajan | `generic` profil veya doğrudan library API | exit `3` / host kararı | Ortak zarfa çevrilip pre-execution bağlanan çağrılar |
 
+### Tek komutla bağlama
+
+Kullanıcının profil adını bilmesi gerekmez; sürtünme oradaydı. `connect`
+makinedeki ajanları kendisi bulur ve her birine kapıyı kurar:
+
+```powershell
+npx huqan-gate connect
+npx huqan-gate connect --detect   # yalnız tespit, hiçbir şey yazmaz
+```
+
+Tespit, ajanın **config dosyasına değil varlığına** bakar — üç bağımsız sinyal:
+projede ajan dizini (`project`), home'da ajan dizini (`home`), PATH'te ajanın
+başlatıcısı (`path`). Bunlardan biri yeterlidir. `.claude/settings.json` bir şey
+onu yazana kadar yoktur; dosyayı şart koşmak tam da ilk kez kuran kullanıcıyı
+reddederdi, oysa kurulum o dosyayı zaten yaratır.
+
+Bulunan her ajan, kendini sentinel ile kanıtlayan aynı `install` yolundan
+geçer. Yani buradaki `connected`, orada ne anlama geliyorsa onu anlatır:
+bilinen yıkıcı bir eylem, o ajanın kendi sözleşmesi üzerinden gerçekten
+`block` almıştır. Kurulumu reddedilen ajan **sebebiyle birlikte** raporlanır,
+sessizce atlanmaz — gizlenen bir başarısızlık, kullanıcıya korunduğunu
+sandırır. Hiçbir ajana bağlanılamazsa çıkış kodu `1`'dir: bir betik
+"korunuyor" ile "korunacak bir şey bulunamadı" arasını ayırabilmelidir.
+
+Tespit edilen ajan yoksa bu bir hata değildir; kullanıcı kendi ajanını
+çalıştırıyor olabilir. Çıktıdaki `customAgent` alanı o yolu gösterir.
+
 ### Kurulum, durum ve kaldırma
 
 Kurulum komutu profil ile hedef şemayı birlikte doğrular, mevcut hook'ları
@@ -495,6 +522,62 @@ npx huqan-gate install --profile opencode
 npx huqan-gate status
 npx huqan-gate uninstall --profile codex
 ```
+
+### Hangi ajanlar ne yaptı
+
+`--identity-log` **bildiğin** bir kimliği sorgular. Hangi ajanların var olduğunu
+ise roster söyler:
+
+```powershell
+npx huqan-gate agents
+npx huqan-gate agents --workspace-id team-a --since 2026-09-01T00:00:00.000Z
+```
+
+Her satır bir **kimliktir** (`identityRef`), bir ad değil. Doğrulanmamış bir
+`agentName` zarfın taşıdığı bir *iddiadır*; iki ayrı kimlik aynı adı iddia
+edebilir. Roster bunları birleştirmez, `nameCollision: true` ile görünür kılar —
+birleştirmek bir ajanın kaydının diğerininkini yutması demektir ve izleme
+ekranının var olma sebebi tam olarak bunu önlemektir.
+
+`attestation` alanı kimlik başınadır ve üç değer alır: `attested`,
+`unattested`, `mixed`. `mixed`, aynı kimliğin hem geçerli capability card ile
+hem de kartsız eylem yaptığı anlamına gelir; bunu tek bir boolean'a indirmek
+doğrulanmamış yarıyı — yani okuyucunun görmesi gereken yarıyı — gizlerdi.
+
+Kimliği olmayan makbuz hiçbir satıra yazılmaz; tahmin edilen bir ada
+iliştirilmez.
+
+### Kendi ajanı olan kullanıcı (`generic`)
+
+Kurulacak bir artefakt yoktur: HUQAN özel bir ajanın yapılandırmasının nerede
+durduğunu bilmez, hatta bir yapılandırması olup olmadığını da bilmez. Bu yüzden
+`install --profile generic` reddeder ve bunun yerine bağlanma yolunu söyler:
+ajan kendi pre-tool hook'undan `huqan.external-action.v1` zarfını
+`huqan-gate --profile generic` komutuna gönderir.
+
+Bağlantının kurulup kurulmadığı ancak **gözlemlenebilir**:
+
+```powershell
+npx huqan-gate status --profile generic
+npx huqan-gate status --profile generic --agent-name my-agent
+```
+
+Yanıttaki `custom.state` iki değer alır:
+
+| `state` | Anlamı |
+|---|---|
+| `no-invocation` | Bu ajandan hiç zarf gelmemiş; ajan HUQAN'ı çağırmıyor |
+| `envelope-observed` | Zarflar geliyor; çağrı yolu canlı |
+
+Kurulu profillerin (`codex`, `claude-code`, ...) çağrıları bu sayıma **dahil
+edilmez**; çalışan bir Codex kapısı, kullanıcının kendi ajanının bağlı olduğuna
+kanıt değildir.
+
+Üçüncü bir durum — *"zarf geliyor ama gerçek çalıştırıcıya bağlanmamış"* —
+**türetilemez** ve iddia edilmez: bir `block` sonrası ajanın komutu yine de
+çalıştırıp çalıştırmadığını HUQAN'a bildiren hiçbir şey yoktur. Çıktıdaki
+`observationLimit` alanı bunu açıkça söyler. Gelen zarf, ajanın HUQAN'ı
+çağırdığını kanıtlar; kararına uyduğunu kanıtlamaz.
 
 `claude-code`, `codex`, `opencode` ve `pi` varsayılan olarak mevcut çalışma
 dizinine; `hermes` kullanıcı home dizinindeki plugin yoluna kurulur. İzole
