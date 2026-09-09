@@ -12,7 +12,7 @@ const {
   prepareDreamExperiment,
   prepareDreamQueue,
   processDreamStep,
-  selectDreamNextAction,
+  selectDreamNextAction, labelPlanDataForDreamLoop,
 } = require('./lib/agent-v3-dream-loop-adapter');
 
 function cloneValue(value) {
@@ -264,6 +264,7 @@ class AgentV3 {
     // goal returned another workspace's history (#757).
     const memory = this.storage.getGoalMemory(goal, opts.workspaceId);
     const data = cloneValue(result.data);
+    labelPlanDataForDreamLoop(data, opts, this.kernel, this.dreamExperimentLoop);
     data.memory = {
       ...(data.memory || {}),
       storage: {
@@ -378,10 +379,8 @@ class AgentV3 {
       progress: { stalledCount: 0, lastSummary: '' },
       completedSteps: 0,
       remainingSteps: Array.isArray(activePlan.steps) ? activePlan.steps.length : 0,
-      iteration: 0,
-      iterationsAtRunStart: 0,
-      budgetRemaining: this.timeBudgetMs,
-      dreamExperimentLoop: null,
+      iteration: 0, iterationsAtRunStart: 0, budgetRemaining: this.timeBudgetMs,
+      dreamExperimentLoop: null, planSupersededByLoop: false,
     };
   }
 
