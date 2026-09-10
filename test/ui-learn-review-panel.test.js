@@ -114,4 +114,6 @@ test('submission accepts only a persisted review-required response with no canon
   assert.match(script, /d\.data\?\.learned === 0/);
   assert.match(script, /d\.approval\?\.persisted === true/);
   assert.match(script, /addEventListener\('click', submitLearnReview, true\)/);
+  assert.match(script, /learnReviewInFlight/);
+  assert.match(script, /aria-disabled/);
 });
