@@ -485,7 +485,7 @@ class CLI {
         this.kernel.persist();
         return `Memory saved.${this._commitCliMutation('kaydet')}`;
       case 'onaylar': {
-        const approvalArguments = { limit: 50, workspaceId: 'default' };
+        const approvalArguments = { limit: 50, workspaceId: args?.workspaceId || 'default' };
         const result = callMcpTool(
           this.kernel,
           { name: 'huqan.approvals', operatorCapability: this._createOperatorCapability('huqan.approvals', approvalArguments), arguments: approvalArguments },
@@ -505,7 +505,7 @@ class CLI {
             2
           );
         }
-        const approvalArguments = { approvalId: approval.approvalId, decision: approval.decision, workspaceId: 'default' };
+        const approvalArguments = { approvalId: approval.approvalId, decision: approval.decision, workspaceId: approval.workspaceId || 'default' };
         return Promise.resolve(callMcpTool(this.kernel, {
           name: 'huqan.approve',
           operatorCapability: this._createOperatorCapability('huqan.approve', approvalArguments),
