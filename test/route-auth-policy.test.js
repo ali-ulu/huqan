@@ -362,6 +362,10 @@ test('runtime: undeclared route is denied without a key, declared public routes 
   assert.equal(unsupportedBody.error.code, 'UNSUPPORTED_WORKFLOW');
   assert.equal(typeof unsupportedBody.traceId, 'string');
 
+  const save = await request(port, '/api?q=kaydet');
+  assert.equal(save.status, 403);
+  assert.equal(JSON.parse(save.body).error.code, 'UNSUPPORTED_WORKFLOW');
+
   const graph = await request(port, '/graph-data');
   assert.equal(graph.status, 200);
 
