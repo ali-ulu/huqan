@@ -49,6 +49,48 @@ async function fetchFiles({ api, repo, number, token }) {
   return { files, truncated };
 }
 
+/**
+ * Re-derive whatever derivation records the change carries.
+ *
+ * The base side is this checkout -- the job runs on the base tree -- and the
+ * head side is fetched as data. Any failure here becomes `unknown`, which the
+ * policy surfaces without escalating; an error in the reviewer must not read as
+ * a verdict about the change.
+ */
+async function reviewDerivations({ api, repo, ref, token, files }) {
+  try {
+    const { collectDerivations, headReader } = require('../lib/pr-guardian/derivation-fetch');
+    const { summarizeDerivations } = require('../lib/pr-guardian/derivation-check');
+    const { directoryReader } = require('../lib/coder/verify-derivation');
+
+    const collected = await collectDerivations({ api, repo, ref, token, files });
+    if (collected.records.length === 0 && collected.complete) return { status: 'none', total: 0, verified: 0, failures: [] };
+
+    return summarizeDerivations({
+      records: collected.records,
+      readBase: directoryReader(process.cwd()),
+      readHead: headReader(collected.headFiles),
+      complete: collected.complete,
+    });
+  } catch (error) {
+    return { status: 'unknown', total: 0, verified: 0, failures: [{ path: '', reason: 'REVIEWER_ERROR', detail: error.message }] };
+  }
+}
+
+function derivationLine(verdict) {
+  const signal = verdict.derivations || { status: 'none' };
+  if (signal.status === 'none') return null;
+  if (signal.status === 'verified') {
+    return `Derivations: ${signal.verified}/${signal.total} reproduced from the base tree.`;
+  }
+  if (signal.status === 'unknown') {
+    return 'Derivations: present but not checkable in this run; treated as unverified.';
+  }
+  const first = (signal.failures || [])[0];
+  const detail = first ? ` First: \`${first.path}\` — ${first.reason}.` : '';
+  return `Derivations: ${signal.verified}/${signal.total} reproduced.${detail}`;
+}
+
 function summarize(verdict, snapshot) {
   const lines = [
     '## HUQAN PR Guardian',
@@ -58,6 +100,7 @@ function summarize(verdict, snapshot) {
     `**Risk labels:** ${verdict.riskLabels?.length ? verdict.riskLabels.map(l => `\`${l}\``).join(', ') : '_none_'}`,
     '',
     `Snapshot: ${snapshot.files.length} file(s)${snapshot.filesTruncated ? ' (truncated)' : ''}, head \`${snapshot.headSha.slice(0, 12)}\`.`,
+    ...(derivationLine(verdict) ? [derivationLine(verdict)] : []),
     '',
     'Evaluated in the runner by `lib/pr-guardian/policy.js` from the base tree.',
     'Only `block` fails this check; `review` is a note, not a gate.',
@@ -105,6 +148,13 @@ async function main() {
     // and the policy says so rather than reporting a pass it has not earned.
     checks: [],
     filesTruncated: truncated,
+    derivations: await reviewDerivations({
+      api: process.env.GITHUB_API_URL || 'https://api.github.com',
+      repo,
+      ref: pr.head?.sha || '',
+      token,
+      files,
+    }),
   };
 
   const verdict = evaluatePullRequest(snapshot, { action: 'github.pr.snapshot', phase: 'preview' });
