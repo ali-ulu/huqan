@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 
 const { callTool } = require('../mcpServer');
-const { runReadWorkflow } = require('../lib/http/read-workflow-actions');
+const { runReadWorkflow, NO_CAPABILITY_ENSURE } = require('../lib/http/read-workflow-actions');
 const { buildTrustReceipt } = require('../lib/provenance-query');
 const { workflowForMcpTool } = require('../lib/workflow-contract');
 const { runCliArgv } = require('../lib/cli-workflow-adapter');
@@ -182,7 +182,9 @@ test('read workflows preserve field-level parity across MCP and HTTP', async () 
   for (const [toolName, workflowId] of cases) {
     const args = mcpArgsFor(workflowId);
     const mcp = await callTool(kernel, { name: `huqan.${toolName}`, arguments: args });
-    const http = (await runReadWorkflow({ workflowId, kernel, input: httpArgsFor(workflowId) })).body;
+    const http = (await runReadWorkflow({
+      workflowId, kernel, input: httpArgsFor(workflowId), ensureCapabilities: NO_CAPABILITY_ENSURE,
+    })).body;
 
     assertCommonEnvelopeFields(mcp, workflowId);
     assert.equal(http.ok, true, `${workflowId} HTTP fixture must complete`);
@@ -272,6 +274,8 @@ test('advocate reports an unavailable capability instead of throwing an internal
       workflowId: 'advocate',
       kernel: capabilityKernel(capabilities),
       input: { workspaceId: 'default', claim: 'Alpha is documented.' },
+      // The MCP surface, which does not load plugins on purpose (#2001).
+      ensureCapabilities: NO_CAPABILITY_ENSURE,
     });
 
     assert.equal(result.body.ok, false, label);
@@ -292,13 +296,46 @@ test('advocate still runs when the surface does enable the capability', async ()
     },
   };
 
+  let ensured = 0;
   const result = await runReadWorkflow({
     workflowId: 'advocate',
     kernel,
     input: { workspaceId: 'default', claim: 'Alpha is documented.' },
+    // A surface that does enable plugin capabilities must be asked to, before
+    // the availability check reads the kernel.
+    ensureCapabilities: () => { ensured += 1; },
   });
+  assert.equal(ensured, 1, 'the capability must be ensured before it is read');
 
   assert.equal(result.body.ok, true);
   assert.equal(result.body.status, 'completed');
   assert.equal(result.body.data.mode, 'counter');
+});
+
+// #2001: ensureCapabilities defaulted to an anonymous no-op, so a caller that
+// forgot to wire it looked exactly like one that had decided not to. The
+// workflow then reported capability_not_available for a capability that should
+// have been available, and nothing pointed at the missing wiring.
+test('a caller that omits ensureCapabilities fails loudly instead of downgrading', async () => {
+  await assert.rejects(
+    () => runReadWorkflow({
+      workflowId: 'advocate',
+      kernel: capabilityKernel({ pluginCapabilities: true, devilAdvocate: true }),
+      input: { workspaceId: 'default', claim: 'Alpha is documented.' },
+    }),
+    (error) => {
+      assert.ok(error instanceof TypeError);
+      assert.match(error.message, /ensureCapabilities/);
+      // The message has to name the deliberate opt-out, or the next caller
+      // will "fix" this by passing a fresh anonymous no-op.
+      assert.match(error.message, /NO_CAPABILITY_ENSURE/);
+      return true;
+    },
+  );
+});
+
+test('the deliberate opt-out is a shared named function, not a fresh no-op', () => {
+  assert.equal(typeof NO_CAPABILITY_ENSURE, 'function');
+  assert.equal(NO_CAPABILITY_ENSURE(), undefined);
+  assert.equal(NO_CAPABILITY_ENSURE.name, 'NO_CAPABILITY_ENSURE');
 });

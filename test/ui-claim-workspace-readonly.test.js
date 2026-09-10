@@ -9,7 +9,7 @@ const vm = require('node:vm');
 // #1894 and #1895 moved the dashboard's CSS and script into linked files; the
 // helper reads the page the way a browser assembles it.
 const { dashboardSource, dashboardScript } = require('./helpers/dashboard-source');
-const { runReadWorkflow, searchMemory } = require('../lib/http/read-workflow-actions');
+const { runReadWorkflow, searchMemory, NO_CAPABILITY_ENSURE } = require('../lib/http/read-workflow-actions');
 const { publicWorkflowManifest } = require('../lib/workflow-contract');
 
 test('UI capability manifest advertises only the implemented read workflows', () => {
@@ -49,8 +49,8 @@ test('read workflow adapter reuses kernel reads and emits stable envelopes', asy
     graph: { getNodes: () => ({}) },
   };
 
-  const ask = await runReadWorkflow({ workflowId: 'ask', kernel, input: { question: 'q', workspaceId: 'default' } });
-  const verify = await runReadWorkflow({ workflowId: 'verify', kernel, input: { claim: 'c', workspaceId: 'ws-1' } });
+  const ask = await runReadWorkflow({ workflowId: 'ask', kernel, input: { question: 'q', workspaceId: 'default' }, ensureCapabilities: NO_CAPABILITY_ENSURE });
+  const verify = await runReadWorkflow({ workflowId: 'verify', kernel, input: { claim: 'c', workspaceId: 'ws-1' }, ensureCapabilities: NO_CAPABILITY_ENSURE });
 
   assert.equal(ask.body.status, 'completed');
   assert.equal(ask.body.data.answer, 'graph answer');

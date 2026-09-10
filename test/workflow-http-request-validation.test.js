@@ -2,7 +2,7 @@
 
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
-const { createReadWorkflowHttpRouter } = require('../lib/http/read-workflow-actions');
+const { createReadWorkflowHttpRouter, NO_CAPABILITY_ENSURE } = require('../lib/http/read-workflow-actions');
 const { validateWorkflowHttpRequest } = require('../lib/http/workflow-request-validation');
 
 test('published workflow schemas reject unsupported JSON shapes and preserve valid inputs', () => {
@@ -25,6 +25,7 @@ test('read workflow routes validate the advertised body before downstream coerci
     parseJsonRequest: async req => req.body,
     writeJson: (_req, _res, status, json, headers) => writes.push({ status, json, headers }),
     writeApiError: () => assert.fail('validation should use the workflow envelope'),
+    ensureCapabilities: NO_CAPABILITY_ENSURE,
   });
   const handled = await handler({ method: 'POST', body: {
     workspaceId: ['tenant-a'], query: 'cats',
