@@ -456,6 +456,15 @@ function previewRestore(opts = {}) {
  */
 function restoreBackup(opts = {}) {
   const runtime = resolveRuntimePaths(opts);
+  const progressPath = path.join(runtime.rootDir, '.restore-progress.json');
+  if (fs.existsSync(progressPath)) {
+    let progress = null;
+    try { progress = JSON.parse(fs.readFileSync(progressPath, 'utf8')); } catch (_) { progress = { status: 'unknown' }; }
+    const error = new Error('A previous restore was interrupted. Recover from the recorded safety backup before retrying.');
+    error.code = 'RESTORE_INTERRUPTED';
+    error.receipt = progress;
+    throw error;
+  }
   const sourceDir = resolveRestoreSource({ ...opts, rootDir: runtime.rootDir, backupBaseDir: runtime.backupBaseDir });
   if (!sourceDir || !fs.existsSync(sourceDir)) {
     throw new Error(`Backup directory not found: ${sourceDir || runtime.backupBaseDir}`);
@@ -486,6 +495,7 @@ function restoreBackup(opts = {}) {
 
   const restored = [];
   const skipped = [];
+  fs.writeFileSync(progressPath, JSON.stringify({ operationId, kind: 'restore', status: 'in_progress', sourceDir, safetyBackupDir: safety.backupDir, restored, skipped }), 'utf8');
   try {
     for (const destination of runtime.files) {
       const fileName = path.basename(destination);
@@ -496,6 +506,7 @@ function restoreBackup(opts = {}) {
       }
       atomicReplaceFile(source, destination);
       restored.push(fileName);
+      fs.writeFileSync(progressPath, JSON.stringify({ operationId, kind: 'restore', status: 'in_progress', sourceDir, safetyBackupDir: safety.backupDir, restored, skipped }), 'utf8');
     }
   } catch (error) {
     error.receipt = buildOperationReceipt(operationId, 'restore', startedAt, 'partial', {
@@ -507,6 +518,8 @@ function restoreBackup(opts = {}) {
     });
     throw error;
   }
+
+  fs.rmSync(progressPath, { force: true });
 
   for (const stale of [`${runtime.files[0]}-shm`, `${runtime.files[0]}-wal`]) {
     if (!restored.includes(path.basename(stale)) && fs.existsSync(stale)) {
