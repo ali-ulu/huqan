@@ -589,6 +589,7 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
     case 'huqan.fractal-learn': return require('./lib/mcp/fractal-learn-tool').executeMcpFractalLearn(kernel, name, args, gate);
     case 'huqan.self-evolve': return require('./lib/mcp/self-evolve-tool').executeMcpSelfEvolve(kernel, name, args, gate);
     case 'huqan.advocate':
+    case 'huqan.web_research':
     case 'huqan.search':
     case 'huqan.trust_receipt':
       return executeMcpReadWorkflow({ kernel, name, args, gate });
@@ -609,9 +610,8 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
 }
 
 function executeReadOnlyDryRun(kernel, requestedName, args) {
-  // callTool already canonicalizes, but this is exported and called directly by
-  // tests and tooling, so it resolves the alias itself rather than relying on
-  // its caller having done so.
+  // Exported and called directly by tests/tooling, so it resolves the alias
+  // itself rather than relying on callTool having canonicalized it.
   const name = canonicalMcpToolName(requestedName);
   switch (name) {
     case 'huqan.learn':

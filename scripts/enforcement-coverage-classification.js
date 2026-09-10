@@ -157,6 +157,10 @@ const CLASSIFIED = Object.freeze({
     role: 'adapter_read',
     why: 'fetches public GitHub data for ingestion; performs no write against the API',
   }),
+  'lib/web-research.js': Object.freeze({
+    role: 'adapter_read',
+    why: 'fetches public web search results from Brave/Firecrawl/Tavily over pinned https endpoints; sends only the operator query, performs no write against the APIs, and secret/PII queries are blocked by the egress gate before transport',
+  }),
 
   // ── outside the boundary, listed ───────────────────────────────────────
   'rustGraph.js': Object.freeze({

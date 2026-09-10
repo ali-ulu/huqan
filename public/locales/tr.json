@@ -644,8 +644,15 @@
       "source": "Kaynak",
       "provenance": "Köken",
       "receipt": "Makbuz",
-      "decision": "Karar"
-    }
+      "decision": "Karar",
+      "destination": "Sayfa",
+      "browserTool": "Tarayıcı işlemi",
+      "reportedOutcome": "Bildirilen sonuç"
+    },
+    "externalAdmission": "Ajan işlemine izin verildi",
+    "externalOutcome": "Ajan işlem sonucu",
+    "externalRejection": "Ajan işlemi engellendi",
+    "externalReview": "Ajan işlemi inceleme bekliyor"
   },
   "ingestRun": {
     "eyebrow": "Alım",
@@ -783,5 +790,25 @@
     "enterFact": "Önce önerilecek bir olgu girin.",
     "pending": "İnsan onayı bekliyor",
     "notCanonical": "bir insan onaylayana kadar kanonik değil"
+  },
+  "webResearch": {
+    "title": "Web Araştırması",
+    "provider": "Arama sağlayıcısı",
+    "keyHelp": "Seçilen sağlayıcının API anahtarını sunucuda tanımlayın. Ücretsiz haklar sağlayıcıya ve işleme göre değişir.",
+    "search": "Web üzerinde ara",
+    "searching": "Araştırılıyor…",
+    "external": "Dış kaynaklar; henüz doğrulanmadı. Hafızaya kaydedilmedi.",
+    "empty": "Sonuç bulunamadı.",
+    "prepare": "Öğrenme incelemesine hazırla",
+    "prompt": "Araştırma sorusu",
+    "failed": "Araştırma tamamlanamadı.",
+    "missingKey": "Seçilen sağlayıcının API anahtarı sunucuda tanımlı değil.",
+    "prepared": "Kaynak aktarıldı. Bilgiyi inceleyip insan onayına gönderebilirsiniz.",
+    "limit": "Sonuç sayısı",
+    "snippetLength": "Özet uzunluğu",
+    "summarize": "HUQAN özetlesin",
+    "costNote": "Dikkat: sonuç sayısı ve uzunluk arttıkça ücret ve süre artar.",
+    "summaryTitle": "HUQAN özeti (doğrulanmadı)",
+    "summaryUnavailable": "Özet çıkarılamadı; yalnızca kaynaklar gösteriliyor."
   }
 }

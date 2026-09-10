@@ -207,6 +207,63 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     assert.ok(enabled.length > 0, 'no action was enabled by the manifest');
   });
 
+  it('research HTTP route enforces authentication, schema and sensitive-query egress', async () => {
+    const request = (body, authorized = true) => fetch(`${base}/api/v2/workflows/research`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...(authorized ? { Authorization: `Bearer ${TEST_API_KEY}` } : {}) },
+      body: JSON.stringify(body),
+    });
+    const input = { workspaceId: 'default', provider: 'brave', query: 'Public topic' };
+    assert.equal((await request(input, false)).status, 401);
+    assert.equal((await request({ ...input, provider: 'unknown' })).status, 400);
+    const blocked = await request({ ...input, query: 'Contact alice@example.com' });
+    assert.equal(blocked.status, 403);
+    assert.equal((await blocked.json()).error.code, 'RESEARCH_EGRESS_BLOCKED');
+  });
+
+  it('research offers three providers, safely renders sources and prepares review without submitting', async () => {
+    await browser.evaluate(`(() => {
+      window.researchRequests = [];
+      window.originalResearchFetch = window.fetch;
+      window.fetch = async (url, options) => {
+        if (String(url).includes('/api/v2/workflows/research')) {
+          const body = JSON.parse(options.body);
+          window.researchRequests.push(body);
+          return new Response(JSON.stringify({ ok: true, data: {
+            provider: body.provider, sources: [{ title: '<img src=x onerror=alert(1)>',
+              url: 'https://example.com/research', snippet: 'External research fixture' }]
+          }}), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+        return window.originalResearchFetch(url, options);
+      };
+      go('verify');
+      $('action').value = 'web-research';
+      $('action').dispatchEvent(new Event('change'));
+      $('prompt').value = 'Research question';
+      return true;
+    })()`);
+    try {
+      assert.deepEqual(await browser.evaluate(`[...$('researchprovider').options].map(o => o.value)`), ['brave', 'firecrawl', 'tavily']);
+      for (const provider of ['brave', 'firecrawl', 'tavily']) {
+        await browser.evaluate(`$('researchprovider').value = '${provider}'; $('researchprovider').dispatchEvent(new Event('change')); $('run').click(); true;`);
+        await waitFor(`!$('run').disabled && $('result').querySelector('article')`, `${provider} fixture result`);
+        assert.equal(await browser.evaluate(`$('result').querySelector('img') === null`), true);
+        assert.equal(await browser.evaluate(`researchRequests.at(-1).provider`), provider);
+      }
+      const before = await graphCounts();
+      await browser.evaluate(`$('result').querySelector('article button').click(); true;`);
+      assert.deepEqual(await browser.evaluate(`({action:$('action').value, source:$('learnsource').value, ref:$('learnref').value, prompt:$('prompt').value})`), {
+        action: 'learn-review', source: 'web', ref: 'https://example.com/research', prompt: 'External research fixture',
+      });
+      assert.deepEqual(await graphCounts(), before, 'preparing a source must not write to memory');
+      await browser.evaluate(`$('action').value='web-research'; $('action').dispatchEvent(new Event('change')); $('run').click(); true;`);
+      await waitFor(`!$('run').disabled && $('result').querySelector('article')`, 'result before context change');
+      await browser.evaluate(`$('workspace').dispatchEvent(new Event('input')); true;`);
+      assert.equal(await browser.evaluate(`$('result').children.length`), 0);
+    } finally {
+      await browser.evaluate(`window.fetch=window.originalResearchFetch; $('action').value='verify'; $('action').dispatchEvent(new Event('change')); true;`);
+    }
+  });
+
   it('opens each primary home action and exposes the active navigation page', async () => {
     for (const [label, view] of [['Verify a claim', 'verify'], ['Review decisions', 'approvals'], ['Inspect evidence', 'evidence']]) {
       await browser.evaluate(`document.querySelector('[data-v="overview"]').click(); true;`);

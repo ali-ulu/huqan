@@ -10,6 +10,34 @@ const { manageGate, PROFILES } = require('../lib/external-action-gate-install');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 
+test('installed Claude browser outcome command records the matching operation result', t => {
+  const paths = sandbox(t);
+  const install = manageGate('install', options(paths, 'claude-code'));
+  const config = JSON.parse(fs.readFileSync(install.target, 'utf8'));
+  assert.equal(config.hooks.PostToolUse.length, 1);
+  assert.equal(config.hooks.PostToolUseFailure.length, 1);
+  const command = config.hooks.PostToolUse[0].hooks[0].command;
+  const { normalizeHookInvocation } = require('../lib/external-action-adapter');
+  const { normalizeExternalActionEnvelope } = require('../lib/external-action-envelope');
+  const { buildExternalActionAdmissionReceipt } = require('../lib/external-action-receipt');
+  const payload = { hook_event_name: 'PostToolUse', tool_use_id: 'installed-browser', session_id: 'installed-session',
+    tool_name: 'browser_navigate', tool_input: { url: 'https://example.com/page' }, cwd: paths.root };
+  const admission = buildExternalActionAdmissionReceipt(normalizeExternalActionEnvelope(normalizeHookInvocation('claude-code', payload)),
+    { decision: 'allow', reason: 'fixture', findings: [] });
+  const receiptPath = path.join(paths.root, 'browser-receipts.jsonl');
+  fs.writeFileSync(receiptPath, JSON.stringify(admission) + '\n');
+  const invocation = `${command} --receipt-log "${receiptPath}" --memory-path "${path.join(paths.root, 'memory.json')}" --db-path "${path.join(paths.root, 'memory.db')}"`;
+  const shell = process.platform === 'win32'
+    ? { file: 'powershell.exe', argv: ['-NoProfile', '-NonInteractive', '-Command', invocation] }
+    : { file: '/bin/sh', argv: ['-c', invocation] };
+  const result = spawnSync(shell.file, shell.argv, { cwd: paths.root, encoding: 'utf8', timeout: 30000, input: JSON.stringify(payload) });
+  assert.equal(result.status, 0, result.stderr);
+  const receipts = fs.readFileSync(receiptPath, 'utf8').trim().split('\n').map(JSON.parse);
+  assert.equal(receipts.length, 2);
+  assert.equal(receipts[1].receiptKind, 'external_action_outcome_receipt');
+  assert.equal(receipts[1].metadata.outcomeStatus, 'executed');
+});
+
 // The installed opencode/pi artifacts import `huqan` by bare specifier, so a
 // workspace that cannot resolve the package is one where the gate would die on
 // first load. Installs refuse that workspace now (#1792), so a sandbox that is

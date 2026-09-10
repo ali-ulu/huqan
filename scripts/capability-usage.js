@@ -84,6 +84,7 @@ const EVIDENCE = Object.freeze({
   'advocate': { none: 'the counter-argument is returned to the caller and never written down' },
   'tool-policy': { none: 'a policy question is answered, not recorded' },
   'memory-search': { none: 'a search reads the store and returns matches; nothing records that the question was asked' },
+  'web-research': { none: 'external web results are returned, never written; nothing records that the question was asked' },
   'trust-receipt': { none: 'reading a receipt writes nothing' },
   'trust-receipt-detail': { none: 'reading a receipt writes nothing' },
   'compliance-audit': { none: 'the audit report is read-only and is not itself audited' },
