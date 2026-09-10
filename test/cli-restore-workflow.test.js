@@ -49,6 +49,14 @@ test('restore creates a safety backup and verifies restored persistence and rece
   } finally { fs.rmSync(rootDir, { recursive: true, force: true }); }
 });
 
+test('restore refuses to retry after an interrupted operation marker', () => {
+  const { rootDir, opts } = fixture();
+  try {
+    fs.writeFileSync(path.join(rootDir, '.restore-progress.json'), JSON.stringify({ status: 'in_progress', safetyBackupDir: 'pre-restore-test' }));
+    assert.throws(() => restoreBackup({ ...opts, backupDir: path.join(rootDir, 'missing') }), error => error.code === 'RESTORE_INTERRUPTED' && error.receipt.safetyBackupDir === 'pre-restore-test');
+  } finally { fs.rmSync(rootDir, { recursive: true, force: true }); }
+});
+
 test('restore parser and manifest expose dry-run and maintenance capability boundaries', () => {
   const parsed = require('../lib/command-parser').parseCommand('restore --dry-run C:\\backup');
   assert.equal(parsed.workflowId, 'restore');
