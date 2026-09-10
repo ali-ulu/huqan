@@ -3,6 +3,7 @@
 // `learn-review` is intentionally separate from the generic claim dispatcher:
 // its successful outcome is a durable pending approval, never a canonical learn.
 const LEARN_REVIEW_WORKFLOW = 'learn-review';
+let learnReviewInFlight = false;
 
 function isLearnReviewSelected() {
   return $('action').value === LEARN_REVIEW_WORKFLOW;
@@ -51,13 +52,16 @@ async function submitLearnReview(event) {
   if (!isLearnReviewSelected()) return;
   event.preventDefault();
   event.stopImmediatePropagation();
+  if (learnReviewInFlight) return;
   const text = $('prompt').value.trim();
   if (!text) return status(T('learnReview.enterFact', 'Enter a fact to propose first.'), true);
   const capabilityEntry = capability(LEARN_REVIEW_WORKFLOW);
   if (!capabilityEntry?.availability?.ui) {
     return status('learn-review: capability_not_available', true);
   }
+  learnReviewInFlight = true;
   $('run').disabled = true;
+  $('run').setAttribute('aria-disabled', 'true');
   status('learn-review: sending for human review…');
   try {
     const { r, d } = await json(capabilityEntry.route, {
@@ -76,7 +80,9 @@ async function submitLearnReview(event) {
     $('result').innerHTML = `<div class="empty">${esc(error.message)}</div>`;
     status(`failed: ${error.message}`, true);
   } finally {
+    learnReviewInFlight = false;
     $('run').disabled = false;
+    $('run').setAttribute('aria-disabled', 'false');
   }
 }
 
