@@ -528,7 +528,7 @@ class CLI {
           return formatCliApprovalDecision(result, approval.approvalId, opts.json);
         });
       }
-      case 'audit': return require('./lib/cli-audit').runCliAudit(this.kernel, args, opts, { getApprovalStore: () => this._approvalRuntime().approvalStore }); case 'receipt': return require('./lib/cli-trust-receipt').runCliTrustReceipt(this.kernel, args, opts);
+      case 'audit': return require('./lib/cli-audit').runCliAudit(this.kernel, args, opts, { getApprovalStore: () => this._approvalRuntime().approvalStore }); case 'receipt': return require('./lib/cli-trust-receipt').runCliTrustReceipt(this.kernel, args, opts); case 'coder': return require('./lib/cli-coder').runCliCoder(args, opts);
       case 'restore': {
         // Windows EPERM guard (#1848): memory.db is open, so close every handle before restore replaces it.
         const { storageWasOpen, closeRestoreHandles, reopenRestoreHandles } = require('./lib/sqlite-restore');
