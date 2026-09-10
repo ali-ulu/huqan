@@ -7,7 +7,7 @@ const {
   evaluateHookInvocation,
 } = require('../lib/external-action-adapter');
 const { createDurableExternalActionReceiptWriter, defaultExternalActionReceiptPath } = require('../lib/external-action-receipt');
-const { readAllowedCommands } = require('../lib/external-action-command-policy');
+const { defaultExternalActionPolicyPath, readAllowedCommands } = require('../lib/external-action-command-policy');
 const { queryExternalActionsByIdentity } = require('../lib/external-action-identity-log');
 const { manageGate, connectDetectedAgents } = require('../lib/external-action-gate-install');
 const { buildAgentRoster } = require('../lib/external-action-agent-roster');
@@ -239,13 +239,14 @@ async function main() {
       memoryPath: argumentValue('--memory-path') || undefined,
       dbPath: argumentValue('--db-path') || undefined,
     });
+    const workspaceId = argumentValue('--workspace-id', 'default');
     const evaluated = evaluateHookInvocation(profile, payload, {
       receiptWriter,
       // A policy file that cannot be read is a failure, not an empty list: the
       // catch below turns it into a fail-closed exit rather than a quiet allow.
-      allowedCommands: readAllowedCommands(argumentValue('--policy') || undefined),
+      allowedCommands: readAllowedCommands(argumentValue('--policy') || defaultExternalActionPolicyPath(process.env, workspaceId)),
       workspaceRoot: argumentValue('--workspace-root') || undefined,
-      workspaceId: argumentValue('--workspace-id', 'default'),
+      workspaceId,
       agentName: argumentValue('--agent-name') || undefined,
       identityCard: identityCardPath ? readJsonFile(identityCardPath) : undefined,
       identityCardSignature: argumentValue('--identity-card-signature')
