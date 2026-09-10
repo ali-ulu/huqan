@@ -116,6 +116,11 @@ test('CLI restore surfaces the partial receipt instead of only the message (H-08
   });
   cli.agent.storage.close();
   const originalRename = fs.renameSync;
+  // The CLI resolves restore runtime paths against process.cwd(), so a
+  // failing restore leaves .restore-progress.json in the checkout and poisons
+  // later restore tests with RESTORE_INTERRUPTED. See #2088.
+  const cwdProgressPath = path.join(process.cwd(), '.restore-progress.json');
+  const hadCwdProgress = fs.existsSync(cwdProgressPath);
   try {
     fs.writeFileSync(memoryPath, JSON.stringify({ version: 1 }), 'utf8');
     fs.writeFileSync(path.join(rootDir, 'memory.embeddings.json'), 'embedding-v1', 'utf8');
@@ -147,6 +152,7 @@ test('CLI restore surfaces the partial receipt instead of only the message (H-08
     try { cli.kernel.graph.close(); } catch (_) {}
     try { cli.kernel.memory.close(); } catch (_) {}
     fs.rmSync(rootDir, { recursive: true, force: true });
+    if (!hadCwdProgress) fs.rmSync(cwdProgressPath, { force: true });
   }
 });
 
