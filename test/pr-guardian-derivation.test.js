@@ -48,6 +48,36 @@ function derive() {
   return { record: result.record, base, head };
 }
 
+/**
+ * A record that is internally consistent but declares a different schema —
+ * what a verifier running from an older base tree actually meets after a schema
+ * bump. Editing `schemaVersion` in place would not reproduce it: that breaks
+ * the record's own hash and the integrity check answers first, which is a
+ * different failure from the one being tested here.
+ */
+function atSchema(record, schemaVersion) {
+  const { hashDerivationCore } = require('../lib/coder/derivation-record');
+  const { stableStringify, sha256Hex } = require('../lib/receipt/canonical-receipt');
+  const core = {
+    schemaVersion,
+    catalogVersion: record.catalogVersion,
+    operationType: record.operationType,
+    operation: record.operation,
+    allowedPaths: record.allowedPaths,
+    inputs: record.inputs,
+    patch: record.patch,
+    runnerStatus: record.runnerStatus,
+    runnerReason: record.runnerReason,
+  };
+  const rebuilt = {
+    ...record,
+    schemaVersion,
+    derivationHash: hashDerivationCore(core),
+  };
+  delete rebuilt.recordHash;
+  return { ...rebuilt, recordHash: sha256Hex(stableStringify(rebuilt)) };
+}
+
 function summarize(fixture, records) {
   return summarizeDerivations({
     records,
@@ -123,8 +153,40 @@ describe('summarizeDerivations', () => {
       readHead: directoryReader(fixture.head),
     });
 
+    // A reviewer that broke has told us nothing about the change, so this must
+    // not be the status that sends the change to review.
+    assert.equal(summary.status, DERIVATION_STATUS.UNKNOWN);
+    assert.equal(summary.unverifiable[0].reason, 'VERIFIER_ERROR');
+    assert.deepEqual(summary.failures, []);
+  });
+
+  it('treats a record from a newer schema as unverifiable, not as a failure', () => {
+    const fixture = derive();
+    // What actually happens on a schema bump: the verifier runs from the base
+    // tree, which predates the new schema. Calling that a failure would send
+    // every such change to review over the reviewer's own age.
+    const newer = atSchema(fixture.record, 'huqan-derivation-v99');
+
+    const summary = summarize(fixture, [{ path: '.huqan/derivations/one.json', record: newer }]);
+
+    assert.equal(summary.status, DERIVATION_STATUS.UNKNOWN);
+    assert.deepEqual(summary.failures, []);
+    assert.equal(summary.unverifiable.length, 1);
+  });
+
+  it('lets a real failure outrank an unverifiable record', () => {
+    const fixture = derive();
+    write(fixture.head, 'docs/notes.md', 'release v9.9.9 shipped\n');
+    const newer = atSchema(fixture.record, 'huqan-derivation-v99');
+
+    const summary = summarize(fixture, [
+      { path: '.huqan/derivations/newer.json', record: newer },
+      { path: '.huqan/derivations/bad.json', record: fixture.record },
+    ]);
+
     assert.equal(summary.status, DERIVATION_STATUS.FAILED);
-    assert.equal(summary.failures[0].reason, 'VERIFIER_ERROR');
+    assert.equal(summary.failures.length, 1);
+    assert.equal(summary.unverifiable.length, 1);
   });
 });
 
