@@ -194,6 +194,8 @@ test.describe('the hash survives into the stored provenance', () => {
     assert.equal(provenance.contentHash, hash,
       'contentHash did not survive buildProvenance; the adapters record a value nothing stores');
     assert.equal(provenance.contentHashAlgorithm, CONTENT_HASH_ALGORITHM);
+    assert.equal(provenance.contentHashVerified, false,
+      'caller-provided contentHash must be marked as an unverified declaration');
   });
 
   test('a provenance without a hash does not grow empty hash fields', () => {
