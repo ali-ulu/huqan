@@ -531,11 +531,10 @@ class CLI {
       case 'audit': return require('./lib/cli-audit').runCliAudit(this.kernel, args, opts, { getApprovalStore: () => this._approvalRuntime().approvalStore }); case 'receipt': return require('./lib/cli-trust-receipt').runCliTrustReceipt(this.kernel, args, opts);
       case 'restore': {
         // Windows EPERM guard (#1848): memory.db is open, so close every handle before restore replaces it.
+        const { storageWasOpen, closeRestoreHandles, reopenRestoreHandles } = require('./lib/sqlite-restore');
         const storage = this.agent?.storage;
-        const storageWasOpen = !!(storage && storage.db && storage.db.open !== false
-          && typeof storage.close === 'function');
-        this.kernel.closeSqlite();
-        if (storageWasOpen) storage.close();
+        const storageOpen = storageWasOpen(storage);
+        closeRestoreHandles({ kernel: this.kernel, storage });
         let result;
         try {
           result = runCliRestore(args, this._backupOptions({ backupDir: args?.backupDir || args || undefined }));
@@ -546,8 +545,7 @@ class CLI {
           // closed (tests, standalone reads) or point at a file restore replaced.
           // Reopening one that was closed up front would try to open whatever it
           // resolved to and can throw SQLITE_NOTADB for a non-database path.
-          if (storageWasOpen && storage && typeof storage.reopen === 'function') storage.reopen();
-          this.kernel.reopenSqlite();
+          reopenRestoreHandles({ kernel: this.kernel, storage, storageOpen });
         }
         if (!result.dryRun) { this.kernel.reload(); this._commitCliMutation('restore'); }
         return formatCliRestore(result, opts.json);
