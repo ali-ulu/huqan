@@ -84,7 +84,12 @@ function derivationLine(verdict) {
     return `Derivations: ${signal.verified}/${signal.total} reproduced from the base tree.`;
   }
   if (signal.status === 'unknown') {
-    return 'Derivations: present but not checkable in this run; treated as unverified.';
+    const first = (signal.unverifiable || [])[0];
+    // Name the reason. "Not checkable" on its own reads as a shrug, and the
+    // usual cause -- a record newer than the base tree's verifier -- is
+    // something the author can act on.
+    const why = first ? ` (${first.reason}${first.path ? ` on \`${first.path}\`` : ''})` : '';
+    return `Derivations: present but not checkable from the base tree${why}; not counted either way.`;
   }
   const first = (signal.failures || [])[0];
   const detail = first ? ` First: \`${first.path}\` — ${first.reason}.` : '';
