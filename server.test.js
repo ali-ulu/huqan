@@ -694,6 +694,30 @@ describe('Server - API', () => {
     }
   });
 
+  // #1994: the same rejection had two shapes depending on which half of the
+  // server a client reached. A client cannot be expected to parse one envelope
+  // for /viewer and another for everything else.
+  it('the viewer branch and the main branch reject with the same envelope', async () => {
+    const viewer = await request(`${BASE}/viewer/api/trust-receipt/abc`, { skipAuth: true });
+    const main = await request(`${BASE}/api/provenance?targetId=kedi&workspaceId=default`, { skipAuth: true });
+
+    assert.strictEqual(viewer.status, 401);
+    assert.strictEqual(main.status, 401);
+
+    const viewerBody = await viewer.json();
+    const mainBody = await main.json();
+
+    // Same shape, same code. The message may differ -- the viewer names the
+    // session it wants -- but the fields a client reads must not.
+    assert.strictEqual(viewerBody.ok, false);
+    assert.strictEqual(mainBody.ok, false);
+    assert.strictEqual(viewerBody.error.code, 'unauthorized');
+    assert.strictEqual(mainBody.error.code, 'unauthorized');
+    assert.deepStrictEqual(Object.keys(viewerBody).sort(), Object.keys(mainBody).sort());
+    assert.deepStrictEqual(Object.keys(viewerBody.error).sort(), Object.keys(mainBody.error).sort());
+    assert.strictEqual(typeof mainBody.error.message, 'string');
+  });
+
   it('GUV-1 fail-closed: AXIOM_API_KEY unset ise authenticated endpoint 401 dondurur', async () => {
     const previousApiKey = process.env.AXIOM_API_KEY;
     delete process.env.AXIOM_API_KEY;
@@ -704,8 +728,9 @@ describe('Server - API', () => {
       assert.strictEqual(res.status, 401);
       const body = await res.json();
       // Hardened: server no longer leaks 'API key not configured' state.
-      // Same 'Unauthorized' message regardless of config posture.
-      assert.strictEqual(body.error, 'Unauthorized');
+      // Same 'Unauthorized' message regardless of config posture -- now in the
+      // one envelope the viewer branch already used (#1994).
+      assert.deepStrictEqual(body, { ok: false, error: { code: 'unauthorized', message: 'Unauthorized' } });
       assert.strictEqual(res.headers.get('WWW-Authenticate'), 'Bearer');
     } finally {
       if (previousApiKey === undefined) delete process.env.AXIOM_API_KEY;

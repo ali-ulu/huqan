@@ -155,24 +155,29 @@ describe('Request Guards', () => {
     // of whether the server has no key configured or the caller mismatched.
     // Leaking configuration state ('API key not configured') let attackers
     // enumerate deployment posture.
+    // One envelope, shared with the viewer gateway (#1994). Asserting the whole
+    // body rather than one field also pins the non-disclosure above: every
+    // rejection must be byte-identical, whatever the deployment's real state.
+    const UNAUTHORIZED = { ok: false, error: { code: 'unauthorized', message: 'Unauthorized' } };
+
     const missing = requireApiKey({ headers: { authorization: 'Bearer anything' } }, '');
     assert.strictEqual(missing.ok, false);
     assert.strictEqual(missing.status, 401);
     assert.strictEqual(missing.headers['WWW-Authenticate'], 'Bearer');
-    assert.strictEqual(missing.error.error, 'Unauthorized');
+    assert.deepStrictEqual(missing.error, UNAUTHORIZED);
 
     const undefinedKey = requireApiKey({ headers: { 'x-api-key': 'anything' } }, undefined);
     assert.strictEqual(undefinedKey.ok, false);
     assert.strictEqual(undefinedKey.status, 401);
-    assert.strictEqual(undefinedKey.error.error, 'Unauthorized');
+    assert.deepStrictEqual(undefinedKey.error, UNAUTHORIZED);
 
     const whitespace = requireApiKey({ headers: { authorization: 'Bearer anything' } }, '   \t\n  ');
     assert.strictEqual(whitespace.ok, false);
     assert.strictEqual(whitespace.status, 401);
-    assert.strictEqual(whitespace.error.error, 'Unauthorized');
+    assert.deepStrictEqual(whitespace.error, UNAUTHORIZED);
 
     const mismatched = requireApiKey({ headers: { authorization: 'Bearer wrong' } }, 'secret');
-    assert.strictEqual(mismatched.error.error, 'Unauthorized');
+    assert.deepStrictEqual(mismatched.error, UNAUTHORIZED);
   });
 
   it('isUnsafePublicApiCommand blocks public mutating command variants', () => {
