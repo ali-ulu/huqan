@@ -3,7 +3,7 @@
 const { detectTypeLatticeConflict } = require('./lib/type-lattice');
 const { stripCopulaOrKeep } = require('./lib/turkish-copula');
 const { resolveKnownSubject } = require('./lib/subject-resolution');
-const { buildNegationConflict } = require('./lib/kernel-v2-type-negation');
+const { buildNegationConflict, contradictedBaseVerdict } = require('./lib/kernel-v2-type-negation');
 
 // Mechanical 1:1 extraction (#328, docs/kernel-split-plan.md V2-A): pure native
 // helpers, the opposite-predicate seed table, and the manipulation rule
@@ -586,7 +586,7 @@ class KernelV2 {
 
     const workspaceId = (typeof opts.workspaceId === 'string' && opts.workspaceId.trim()) || 'default'; // #734
     const resolvedSubject = resolveKnownSubject(this.kernel.graph, parsed.subject, workspaceId);
-    if (parsed.subject.includes(' ') && !resolvedSubject) return this._withVerifyDetails(this._ok('verify', { status: 'unknown', confidence: 0, unresolvedSubject: parsed.subject, subjectResolution: 'exact_match_required' }), risk);
+    if (parsed.subject.includes(' ') && !resolvedSubject) return this._withVerifyDetails(contradictedBaseVerdict(this.kernel, verificationStatement, opts) || this._ok('verify', { status: 'unknown', confidence: 0, unresolvedSubject: parsed.subject, subjectResolution: 'exact_match_required' }), risk);
     if (resolvedSubject) parsed = { ...parsed, subject: resolvedSubject };
     const knownFacts = this._collectFactTargets(parsed.subject, workspaceId);
     if (parsed.isNegated && knownFacts.length > 0) {
