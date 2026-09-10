@@ -386,6 +386,25 @@ Dosya çağrı anında okunur (mtime ile önbelleklenir), yani uzun ömürlü bi
 editörde kurulumu ya da hook komutunu değiştirmeden düzenlenebilir — hook
 komutunun değişmesi host'un güven kaydını düşürdüğü için bu önemli.
 
+#### Rules ekranı için operator token
+
+`/api/command-policy` Rules ekranı, `HUQAN_POLICY_EDITOR_TOKEN` ile ayrıca
+korunur. Bu token, ajan API anahtarından ayrıdır: API anahtarına sahip olmak
+policy düzenleme yetkisi vermez ve iki değer aynı olamaz. Token en az 32
+karakter olmalı; üretimde rastgele ve uzun bir değer üretip deployment'ın
+secret store'unda tutun, repository'ye veya loglara yazmayın. Örneğin:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+İsteklerde token `X-HUQAN-Policy-Token` başlığıyla gönderilir. Değer eksik,
+çok kısa, bozuk veya API anahtarıyla aynıysa ekran `403 OPERATOR_REQUIRED`
+döner. `HUQAN_POLICY_EDITOR_TOKEN` hiç ayarlanmamışsa Rules route'u
+`404 NOT_CONFIGURED` olarak yoktur; bu, yalnızca oturum açılmamış anlamına
+gelmez. Token'ı workspace policy dosyalarıyla aynı deployment sınırında
+rotasyona tabi tutun.
+
 Guard yalnızca yürütmeden **önce** çağrıldığında enforcement sağlar. Bir ajan
 pre-tool hook sunmuyorsa komutu yalnızca log'dan sonradan görmek yetmez; ajanı
 `huqan-gate` kararına uyan bir wrapper, MCP gateway veya OS sandbox içinde
