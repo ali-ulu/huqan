@@ -60,3 +60,50 @@ None. This audit read live source, tests, and roadmap docs only; no unrelated fi
 ## Verdict
 
 BLOCKED (all three connection points). `GITHUB-APP-TRUST-LOOP-0` (this task-pack's authorized contract-only artifact) is the only closeable increment right now.
+
+---
+
+## Re-check 2026-09-10 — this report is stale on two of its three blockers
+
+The audit above was taken at `main @ 37f68cfd`, package version `0.9.1`. Re-checked at
+`main @ 8db6f84d`, version `0.12.0`. Three of its four "known gaps" have moved. Recorded
+here rather than in a new document so nobody reads the verdict above without this beside it.
+
+| Blocker as recorded | Status on 2026-09-10 | Evidence |
+| --- | --- | --- |
+| `V5_IMPLEMENTATION_ENTRY: FAIL` stands | **PASS** | `docs/current-operating-roadmap.md:29` |
+| "No GitHub write-back code" anywhere | **False now** | `lib/pr-guardian/github-client.js`, `lib/pr-guardian/review-service.js`, `scripts/comment-pr-guardian-block.js` |
+| No Ed25519 key management | **Exists** | `lib/receipt/issuer-seal.js`, `lib/receipt/trusted-key-resolver.js`, `lib/issuer-seal-config.js` |
+| `beta_observation_only` hardcoded, locked by test | **Still true** | `lib/github-app-beta-handler.js:16` |
+
+The report's central claim — "no partial runtime wiring of the loop is safe to ship" —
+rested on all three being blocked at once. That is no longer the situation, so the
+verdict above should not be cited as current.
+
+### What is still genuinely missing, restated
+
+One thing, not three: **a defined notion of what "verified" means for a pull request.**
+The original report was right that inventing one inside an implementation task would be a
+product decision smuggled in as a detail. It remains right about that.
+
+### A candidate definition that does not have to be invented
+
+`lib/coder/verify-derivation.js` answers exactly that question for one class of change:
+
+> A file is verified when re-running its recorded transform against the base tree
+> reproduces the file that is in the tree under review.
+
+This is not a new concept needing product sign-off. It is a mechanical property that
+either holds or does not, checkable by a party that did not produce the patch, which is
+the property the original report said was absent. It covers only derived files, and it
+says nothing about the rest of a diff — a narrow answer that is true, rather than a broad
+one that would need defending.
+
+`huqan coder verify <record.json> --base <ref>` is the surface. It exits non-zero when the
+answer is no.
+
+### Sequencing note
+
+This does not unblock GitHub write-back, and does not touch `beta_observation_only`.
+It supplies the missing input to that decision, so the write-back question can be argued
+about a concrete verdict instead of a hypothetical one.

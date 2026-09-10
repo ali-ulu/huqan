@@ -141,6 +141,10 @@ const CLASSIFIED = Object.freeze({
   'plugins/receipt-exporter.js': Object.freeze({ role: 'operator_tool', why: 'plugin exporting receipts to an operator-named path; runs on explicit invocation, not on an agent request' }),
 
   // ── read-only adapters ─────────────────────────────────────────────────
+  'lib/cli-coder-verify.js': Object.freeze({
+    role: 'adapter_read',
+    why: 'execFileSync of git show to read a file as of a base ref while re-deriving a recorded transform; argv is fixed in source, no shell is involved, and the command only reads history',
+  }),
   'lib/cli-coder.js': Object.freeze({
     role: 'adapter_read',
     why: 'execFileSync of git rev-parse and git status to report branch and dirtiness to the code-change gate; argv is fixed in source, no shell is involved, and nothing outside the process is mutated',
