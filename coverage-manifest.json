@@ -2,16 +2,16 @@
   "schemaVersion": "huqan.enforcement-coverage.v1",
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. Indirect calls through a parameter, and dynamic property access, are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
-    "files": 39,
-    "sites": 100,
+    "files": 40,
+    "sites": 102,
     "byCapability": {
       "process": 15,
-      "egress": 3,
-      "fs_write": 82
+      "egress": 4,
+      "fs_write": 83
     },
     "byRole": {
-      "enforcement": 25,
-      "adapter_read": 5,
+      "enforcement": 26,
+      "adapter_read": 6,
       "persistence": 32,
       "operator_tool": 21,
       "evidence": 14,
@@ -413,62 +413,67 @@
           "call": "spawnSync"
         },
         {
-          "line": 178,
+          "line": 192,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 179,
+          "line": 193,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 184,
+          "line": 198,
           "capability": "fs_write",
           "call": "fs.unlinkSync"
         },
         {
-          "line": 213,
+          "line": 227,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 215,
+          "line": 229,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 231,
+          "line": 245,
           "capability": "fs_write",
           "call": "fs.rmSync"
         },
         {
-          "line": 303,
+          "line": 317,
           "capability": "fs_write",
           "call": "fs.rmSync"
         },
         {
-          "line": 309,
+          "line": 323,
           "capability": "process",
           "call": "spawnSync"
         },
         {
-          "line": 350,
+          "line": 364,
           "capability": "process",
           "call": "spawnSync"
         },
         {
-          "line": 403,
+          "line": 417,
           "capability": "process",
           "call": "spawnSync"
         },
         {
-          "line": 436,
+          "line": 450,
           "capability": "process",
           "call": "spawnSync"
         },
         {
-          "line": 721,
+          "line": 489,
+          "capability": "fs_write",
+          "call": "fs.appendFileSync"
+        },
+        {
+          "line": 762,
           "capability": "fs_write",
           "call": "fs.rmSync"
         }
@@ -538,7 +543,7 @@
       ],
       "sites": [
         {
-          "line": 327,
+          "line": 392,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         }
@@ -861,6 +866,21 @@
           "line": 92,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/web-research.js",
+      "role": "adapter_read",
+      "why": "fetches public web search results from Brave/Firecrawl/Tavily over pinned https endpoints; sends only the operator query, performs no write against the APIs, and secret/PII queries are blocked by the egress gate before transport",
+      "capabilities": [
+        "egress"
+      ],
+      "sites": [
+        {
+          "line": 131,
+          "capability": "egress",
+          "call": "https.request"
         }
       ]
     },

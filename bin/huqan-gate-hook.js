@@ -248,12 +248,27 @@ async function main() {
     const receiptPath = argumentValue('--receipt-log');
     const raw = await readStdin();
     const payload = JSON.parse(raw || '{}');
+    if (command === 'browser-outcome' && !require('../lib/browser-hook-outcome').isBrowserTool(payload.tool_name)) {
+      process.stdout.write('{}\n');
+      process.exitCode = 0;
+      return;
+    }
     receiptWriter = createDurableExternalActionReceiptWriter({
       ...(receiptPath ? { path: receiptPath } : {}),
       memoryPath: argumentValue('--memory-path') || undefined,
       dbPath: argumentValue('--db-path') || undefined,
     });
     const workspaceId = argumentValue('--workspace-id', 'default');
+    if (command === 'browser-outcome') {
+      const { recordBrowserHookOutcome } = require('../lib/browser-hook-outcome');
+      recordBrowserHookOutcome(profile, payload, {
+        receiptWriter, workspaceId,
+        workspaceRoot: argumentValue('--workspace-root') || undefined,
+      });
+      process.stdout.write('{}\n');
+      process.exitCode = 0;
+      return;
+    }
     const evaluated = evaluateHookInvocation(profile, payload, {
       receiptWriter,
       // A policy file that cannot be read is a failure, not an empty list: the

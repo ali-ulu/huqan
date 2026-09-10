@@ -1,5 +1,11 @@
 {
   "hooks": {
+    "PostToolUse": [
+      { "matcher": "*", "hooks": [{ "type": "command", "command": "huqan-gate browser-outcome --profile claude-code", "timeout": 30 }] }
+    ],
+    "PostToolUseFailure": [
+      { "matcher": "*", "hooks": [{ "type": "command", "command": "huqan-gate browser-outcome --profile claude-code", "timeout": 30 }] }
+    ],
     "PreToolUse": [
       {
         "matcher": "*",

@@ -644,8 +644,15 @@
       "source": "Source",
       "provenance": "Provenance",
       "receipt": "Receipt",
-      "decision": "Decision"
-    }
+      "decision": "Decision",
+      "destination": "Page",
+      "browserTool": "Browser operation",
+      "reportedOutcome": "Reported outcome"
+    },
+    "externalAdmission": "Agent operation admitted",
+    "externalOutcome": "Agent operation result",
+    "externalRejection": "Agent operation blocked",
+    "externalReview": "Agent operation awaiting review"
   },
   "ingestRun": {
     "eyebrow": "Ingest",
@@ -783,5 +790,25 @@
     "enterFact": "Enter a fact to propose first.",
     "pending": "Pending human approval",
     "notCanonical": "not canonical until a human approves"
+  },
+  "webResearch": {
+    "title": "Web Research",
+    "provider": "Search provider",
+    "keyHelp": "Configure the selected provider API key on the server. Free allowances vary by provider and operation.",
+    "search": "Search the web",
+    "searching": "Researching…",
+    "external": "External sources; not yet verified. Nothing was saved to memory.",
+    "empty": "No results found.",
+    "prepare": "Prepare for learning review",
+    "prompt": "Research question",
+    "failed": "Research could not be completed.",
+    "missingKey": "The selected provider API key is not configured on the server.",
+    "prepared": "Source prepared. Review the information before submitting for human approval.",
+    "limit": "Results",
+    "snippetLength": "Snippet length",
+    "summarize": "Summarize with HUQAN",
+    "costNote": "Note: more results and longer snippets cost more and take longer.",
+    "summaryTitle": "HUQAN summary (unverified)",
+    "summaryUnavailable": "Summary unavailable; showing sources only."
   }
 }
