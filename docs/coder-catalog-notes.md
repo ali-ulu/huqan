@@ -1,3 +1,3 @@
 Catalog release notes.
 
-Current transform catalog: v1.1.0.
+Current transform catalog: v1.2.0.
