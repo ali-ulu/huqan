@@ -790,8 +790,8 @@ class Agent {
     state.remainingSteps = Array.isArray(state.queuedSteps) ? state.queuedSteps.length : 0;
     state.workspaceId = typeof opts.workspaceId === 'string' && opts.workspaceId.trim()
       ? opts.workspaceId.trim()
-      : (state.workspaceId || 'default');
-    state.agentId = String(opts.agentId || state.agentId || 'agent-v1');
+      : (resumeCandidate?.workspaceId || state.workspaceId || 'default');
+    state.agentId = String(opts.agentId || resumeCandidate?.agentId || state.agentId || 'agent-v1');
     state.executionScope = scopeResult.scope; state.behavioralManifest = resumeCandidate?.behavioralManifest;
     state.behavioralFindings = resumeCandidate?.behavioralFindings ? cloneValue(resumeCandidate.behavioralFindings) : [];
     initializeBehavioralState(state, {
