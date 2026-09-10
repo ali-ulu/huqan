@@ -3,6 +3,7 @@
 const { detectTypeLatticeConflict } = require('./lib/type-lattice');
 const { stripCopulaOrKeep } = require('./lib/turkish-copula');
 const { resolveKnownSubject } = require('./lib/subject-resolution');
+const { buildNegationConflict } = require('./lib/kernel-v2-type-negation');
 
 // Mechanical 1:1 extraction (#328, docs/kernel-split-plan.md V2-A): pure native
 // helpers, the opposite-predicate seed table, and the manipulation rule
@@ -405,7 +406,7 @@ class KernelV2 {
   _collectFactTargets(subject, workspaceId = 'default') {
     return this.kernel.graph
       .getEdges(subject, workspaceId)
-      .filter(edge => FACT_RELATIONS.has(String(edge.relation || '').toLowerCase()) || TYPE_RELATIONS.has(String(edge.relation || '').toLowerCase()))
+      .filter(edge => FACT_RELATIONS.has(String(edge.relation || '').toLowerCase()))
       .map(edge => ({
         relation: edge.relation,
         target: this._normalizePredicateToken(edge.to),
@@ -441,7 +442,7 @@ class KernelV2 {
   _buildDirectFactEvidence(subject, workspaceId = 'default') {
     return this.kernel.graph
       .getEdges(subject, workspaceId)
-      .filter(edge => FACT_RELATIONS.has(String(edge.relation || '').toLowerCase()) || TYPE_RELATIONS.has(String(edge.relation || '').toLowerCase()))
+      .filter(edge => FACT_RELATIONS.has(String(edge.relation || '').toLowerCase()))
       .map(edge => ({
         kind: 'direct_edge',
         text: `${edge.from} --[${edge.relation}]--> ${edge.to}`,
@@ -503,22 +504,9 @@ class KernelV2 {
   _buildContradictionDetails(parsed, normalizedTarget, normalizedTargetToken, opts = {}) {
     const maxDepth = opts.maxDepth || 4;
     const workspaceId = (typeof opts.workspaceId === 'string' && opts.workspaceId.trim()) || 'default'; // #734: never silently fall back to the default workspace
-    const knownFacts = this._collectFactTargets(parsed.subject, workspaceId);
-    if (parsed.isNegated && knownFacts.length > 0) {
-      const directPositive = knownFacts.find(item => item.target === normalizedTargetToken);
-      if (directPositive) {
-        return {
-          status: 'contradicted',
-          confidence: Math.max(0.65, Math.min(0.9, directPositive.weight || 0.72)),
-          inferred: true,
-          contradictionReason: 'negated_statement_conflicts_with_known_fact',
-          conflictTarget: normalizedTarget,
-          confidenceSource: 'known-fact-conflict',
-          evidence: this._buildDirectFactEvidence(parsed.subject, workspaceId),
-          meta: { inferredBy: 'fact-negation-conflict' },
-        };
-      }
-    }
+    // Fact edges first, then type edges (#1989); see lib/kernel-v2-type-negation.js.
+    const negationConflict = buildNegationConflict(this, parsed, normalizedTarget, normalizedTargetToken, workspaceId);
+    if (negationConflict) return negationConflict;
 
     if (!parsed.isNegated) {
       const oppositeConflict = this._findOppositePredicateConflict(

@@ -14,7 +14,7 @@
     "cli.js": 818,
     "graph.js": 1242,
     "kernel.js": 1095,
-    "kernel.v2.js": 813,
+    "kernel.v2.js": 801,
     "lib/code-change-gate.js": 834,
     "lib/memory-store.js": 970,
     "lib/sandbox-isolation.js": 831,
