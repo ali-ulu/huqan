@@ -924,8 +924,6 @@ const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnviron
       let result;
       if (!p) {
         result = 'HATA: Anlamadım.';
-      } else if (p.command === 'kaydet') {
-        result = '⚠️ Kaydet komutu sadece CLI\'dan kullanılabilir.';
       } else {
         result = runPublicApiCommand(p.command, p.args, kernel);
         if (result === null) {
