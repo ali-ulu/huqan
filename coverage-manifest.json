@@ -2,18 +2,18 @@
   "schemaVersion": "huqan.enforcement-coverage.v1",
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. Indirect calls through a parameter, and dynamic property access, are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
-    "files": 35,
-    "sites": 90,
+    "files": 37,
+    "sites": 95,
     "byCapability": {
-      "process": 11,
+      "process": 13,
       "egress": 3,
-      "fs_write": 76
+      "fs_write": 79
     },
     "byRole": {
+      "enforcement": 25,
       "adapter_read": 3,
       "persistence": 32,
       "operator_tool": 18,
-      "enforcement": 20,
       "evidence": 14,
       "unguarded": 3
     }
@@ -66,6 +66,21 @@
     }
   ],
   "entries": [
+    {
+      "file": "adapters/external-action/generic-adapter.js",
+      "role": "enforcement",
+      "why": "the generated custom-agent adapter: its one spawn is the call to the gate itself, made before the agent acts, so gating it would be circular -- it fails closed on a gate it cannot start, parse or recognise",
+      "capabilities": [
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 82,
+          "capability": "process",
+          "call": "spawnSync"
+        }
+      ]
+    },
     {
       "file": "adapters/git-log-adapter.js",
       "role": "adapter_read",
@@ -294,6 +309,37 @@
           "line": 50,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/external-action-adapter-generator.js",
+      "role": "enforcement",
+      "why": "proves a gate command by running it against a denylisted envelope and writes the adapter that will call it; the spawns are the gate proving itself and the write is the integration it just proved, refused entirely if the sentinel does not block",
+      "capabilities": [
+        "fs_write",
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 93,
+          "capability": "process",
+          "call": "spawnSync"
+        },
+        {
+          "line": 111,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        },
+        {
+          "line": 150,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 151,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
         }
       ]
     },
