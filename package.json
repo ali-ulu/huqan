@@ -380,6 +380,7 @@
     "lib/kernel-context-similarity.js",
     "lib/kernel-auto-think.js",
     "lib/kernel-v2-native.js",
+    "lib/kernel-v2-type-negation.js",
     "lib/learn-admission-request.js",
     "lib/learn-edge-options.js",
     "lib/learn-use-case.js",
