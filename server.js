@@ -367,7 +367,7 @@ const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnviron
       'Content-Type': JSON_CONTENT_TYPE,
       ...memoryContextSecurityHeaders(rawPath),
     });
-    res.end(JSON.stringify({ error: 'Too many requests' }));
+    res.end(JSON.stringify({ ok: false, error: { code: 'rate_limited', message: 'Too many requests' } }));
     return;
   }
 

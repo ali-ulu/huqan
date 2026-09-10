@@ -233,7 +233,14 @@ function requireApiKey(req, configuredKey = readCompatibleEnvironmentVariable('A
       ok: false,
       status: 401,
       headers: { 'WWW-Authenticate': 'Bearer' },
-      error: { error: 'Unauthorized' },
+      // One envelope for both branches. The viewer gateway has always answered
+      // { ok:false, error:{ code, message } } while this branch answered a bare
+      // string, so the same rejection had two shapes depending on which half of
+      // the server a client reached (#1994). The browser clients already read
+      // `body.error?.code` and `body.error?.message`, so the string was landing
+      // as undefined and falling back to "HTTP 401" -- converging here is what
+      // they were written for.
+      error: { ok: false, error: { code: 'unauthorized', message: 'Unauthorized' } },
     };
   }
 
