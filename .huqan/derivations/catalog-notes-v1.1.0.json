@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "huqan-derivation-v3",
+  "catalogVersion": "1.0.0",
+  "operationType": "replace_text",
+  "operation": {
+    "type": "replace_text",
+    "path": "docs/coder-catalog-notes.md",
+    "find": "v1.0.0",
+    "replace": "v1.1.0"
+  },
+  "allowedPaths": [
+    "docs/coder-catalog-notes.md"
+  ],
+  "inputs": [
+    {
+      "path": "docs/coder-catalog-notes.md",
+      "sha256": "172507619f1b0a2e91ae119307ea21109c4b2fa2b23796eb645b0b8b47e227f5"
+    }
+  ],
+  "patch": [
+    {
+      "path": "docs/coder-catalog-notes.md",
+      "beforeSha256": "172507619f1b0a2e91ae119307ea21109c4b2fa2b23796eb645b0b8b47e227f5",
+      "afterSha256": "63a33edee2e260568d2e35d364d457166013987842a95a7a342d4a744dd80117"
+    }
+  ],
+  "runnerStatus": "COMPLETED",
+  "runnerReason": "",
+  "derivationHash": "6267b8bc1f4249f52b6f7cafee920c05cdf43c1dd0ea4efd1cc718aba6edae50",
+  "taskId": "catalog-notes-v1.1.0",
+  "workspaceId": "default",
+  "outcome": "applied",
+  "gate": {
+    "decision": "allow",
+    "reason": "LOW_RISK_DOCS_ONLY",
+    "riskLevel": "low",
+    "policyVersion": "AB3-v0.1.0"
+  },
+  "createdAt": "2026-09-10T20:18:04.152Z",
+  "recordHash": "041a71d26f5e94b66b7795f4b84a7f6817b0252805bd23a35d5740dd48ca2a8d"
+}
