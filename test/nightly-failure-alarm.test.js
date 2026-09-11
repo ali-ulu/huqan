@@ -8,10 +8,17 @@ const test = require('node:test');
 
 const {
   ALARM_TITLE,
+  alarmTitleForFile,
   buildIssueBody,
-  chooseAction,
   collectFailedFiles,
+  planAlarmActions,
 } = require('../scripts/nightly-failure-alarm');
+
+const RUN = {
+  runId: '42',
+  runUrl: 'https://github.com/ali-ulu/huqan/actions/runs/42',
+  sha: 'abc1234',
+};
 
 function scratch() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-alarm-test-'));
@@ -83,16 +90,94 @@ test('a red run with no collected file still produces a body that says so', () =
   assert.match(body, /1/);
 });
 
-test('an existing open alarm issue is commented on rather than duplicated', () => {
-  assert.deepEqual(
-    chooseAction([{ number: 42, title: ALARM_TITLE, state: 'OPEN' }]),
-    { kind: 'comment', number: 42 },
-  );
-  assert.deepEqual(chooseAction([]), { kind: 'create', number: null });
-  assert.deepEqual(
-    chooseAction([{ number: 7, title: 'something else entirely', state: 'OPEN' }]),
-    { kind: 'create', number: null },
-  );
+// One issue per failing file, not one per night. A single shared issue mixed
+// unrelated breakages into one thread -- #2030, #2088 and #2101 were three
+// different root causes under the same title -- and each still needed its own
+// fix. Keying the title on the file keeps one thread per defect.
+test('each failing file gets its own issue', () => {
+  const actions = planAlarmActions({
+    ...RUN,
+    failedFiles: [
+      { shard: 1, file: 'test/a.test.js', status: 1 },
+      { shard: 4, file: 'test/b.test.js', status: 1 },
+    ],
+    openIssues: [],
+  });
+
+  assert.deepEqual(actions.map((action) => action.title), [
+    'Nightly red: test/a.test.js',
+    'Nightly red: test/b.test.js',
+  ]);
+  assert.deepEqual(actions.map((action) => action.kind), ['create', 'create']);
+  assert.match(actions[0].body, /test\/a\.test\.js/);
+  assert.doesNotMatch(actions[0].body, /test\/b\.test\.js/);
+});
+
+test('a file whose issue is already open gets a comment, not a duplicate', () => {
+  const actions = planAlarmActions({
+    ...RUN,
+    failedFiles: [
+      { shard: 1, file: 'test/a.test.js', status: 1 },
+      { shard: 2, file: 'test/b.test.js', status: 1 },
+    ],
+    openIssues: [
+      { number: 42, title: alarmTitleForFile('test/a.test.js'), state: 'OPEN' },
+      { number: 7, title: 'something else entirely', state: 'OPEN' },
+    ],
+  });
+
+  assert.deepEqual(actions[0], {
+    kind: 'comment', number: 42, title: alarmTitleForFile('test/a.test.js'), body: actions[0].body,
+  });
+  assert.equal(actions[1].kind, 'create');
+  assert.equal(actions[1].number, null);
+});
+
+// The same file can fail on more than one shard in a matrix re-run. That is one
+// defect, so it stays one issue -- with both shards named in the body.
+test('one file failing on several shards is still one issue', () => {
+  const actions = planAlarmActions({
+    ...RUN,
+    failedFiles: [
+      { shard: 1, file: 'test/a.test.js', status: 1 },
+      { shard: 3, file: 'test/a.test.js', status: 2 },
+    ],
+    openIssues: [],
+  });
+
+  assert.equal(actions.length, 1);
+  assert.match(actions[0].body, /shard 1/);
+  assert.match(actions[0].body, /shard 3/);
+});
+
+// A red run with nothing per-file to blame has no file to key a title on, so it
+// falls back to the shared title. Losing it would restore the original
+// blindness: a failed run nobody hears about.
+test('a red run with no per-file failure falls back to the shared title', () => {
+  const actions = planAlarmActions({ ...RUN, failedFiles: [], openIssues: [] });
+
+  assert.equal(actions.length, 1);
+  assert.equal(actions[0].title, ALARM_TITLE);
+  assert.match(actions[0].body, /no per-file failure/i);
+});
+
+// An unreadable sidecar carries a message, not a path, and the message text
+// varies with the error. Keying the title on it would file a fresh issue every
+// night for the same broken shard.
+test('an unreadable sidecar gets one stable title, not one per error message', () => {
+  const first = planAlarmActions({
+    ...RUN,
+    failedFiles: [{ shard: 3, file: '(unreadable sidecar: Unexpected token t)', status: null, unreadable: true }],
+    openIssues: [],
+  });
+  const second = planAlarmActions({
+    ...RUN,
+    failedFiles: [{ shard: 3, file: '(unreadable sidecar: Unexpected end of JSON input)', status: null, unreadable: true }],
+    openIssues: [],
+  });
+
+  assert.equal(first[0].title, second[0].title);
+  assert.match(first[0].title, /sidecar/i);
 });
 
 // Every assertion above reads a sidecar this test file wrote itself. That
@@ -135,6 +220,12 @@ test('the workflow arms the alarm only on a failed scheduled run', () => {
   assert.match(job, /needs:\s*\[runtime-test\]/);
   assert.match(job, /issues:\s*write/);
   assert.match(job, /node scripts\/nightly-failure-alarm\.js/);
+
+  // The script now emits one action per failing file. A step that read only the
+  // first would file an issue for one broken file and silently drop the rest.
+  assert.match(job, /jq 'length' alarm\.json/);
+  assert.match(job, /for index in \$\(seq 0/);
+  assert.match(job, /\.\[\$\{index\}\]\.kind/);
 });
 
 test('every shard uploads its failure sidecar even when the shard fails', () => {
