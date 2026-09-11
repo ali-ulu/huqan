@@ -23,7 +23,10 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+// The shared title, used only when a red run named no failing file. Everything
+// else is keyed on the file itself -- see alarmTitleForFile.
 const ALARM_TITLE = 'Nightly full-suite run is red';
+const UNREADABLE_TITLE = 'Nightly red: a shard sidecar could not be read';
 const SIDECAR_PATTERN = /^test-shard-(\d+)-failures\.json$/;
 
 /**
@@ -47,7 +50,12 @@ function collectFailedFiles(dir) {
     try {
       parsed = JSON.parse(fs.readFileSync(full, 'utf8'));
     } catch (error) {
-      entries.push({ shard, file: `(unreadable sidecar: ${error.message})`, status: null });
+      entries.push({
+        shard,
+        file: `(unreadable sidecar: ${error.message})`,
+        status: null,
+        unreadable: true,
+      });
       continue;
     }
     const failed = Array.isArray(parsed.failedFiles) ? parsed.failedFiles : [];
@@ -88,23 +96,70 @@ function buildIssueBody({ runId, runUrl, sha, failedFiles }) {
   }
   lines.push(
     '',
-    'This issue is opened by the `nightly-failure-alarm` job in `benchmark.yml`.',
-    'While it stays open, later red nightlies add a comment instead of a new issue.',
+    'This issue is opened by the `nightly-failure-alarm` job in `benchmark.yml`,',
+    'one issue per failing file. While it stays open, later red nightlies on the',
+    'same file add a comment instead of a new issue.',
   );
   return lines.join('\n');
 }
 
-/**
- * One open issue per outage, not one per night: a flaky test would otherwise
- * file a fresh issue every morning and the noise would retrain everyone to
- * ignore it, which is where this started.
- */
-function chooseAction(openIssues) {
-  const existing = (openIssues || []).find((issue) => issue.title === ALARM_TITLE);
-  return existing ? { kind: 'comment', number: existing.number } : { kind: 'create', number: null };
+function alarmTitleForFile(file) {
+  return `Nightly red: ${file}`;
 }
 
-module.exports = { ALARM_TITLE, buildIssueBody, chooseAction, collectFailedFiles };
+/**
+ * One issue per failing file, not one per night.
+ *
+ * The first version filed a single issue titled "Nightly full-suite run is red"
+ * and reused it while open. Closing it after a fix meant the next red night
+ * opened a fresh one -- #2030, #2088 and #2101 were three unrelated defects
+ * under one title in three days -- and any night with two broken files put two
+ * separate fixes in one thread. Keying the title on the file gives each defect
+ * its own thread, so a file that is still broken keeps collecting evidence in
+ * one place and a file that is fixed simply stops appearing.
+ *
+ * Grouping is by file rather than by (file, shard): the same file failing on two
+ * shards is one defect reported twice, and its shards belong in one body.
+ */
+function planAlarmActions({ runId, runUrl, sha, failedFiles, openIssues }) {
+  const entries = failedFiles || [];
+  if (entries.length === 0) {
+    // No file to key a title on. Still report it: a run that failed in the
+    // impact plan, `npm ci`, or a killed shard is exactly the blindness this
+    // alarm exists to remove.
+    return [buildAction({ title: ALARM_TITLE, entries, runId, runUrl, sha, openIssues })];
+  }
+
+  const groups = new Map();
+  for (const entry of entries) {
+    const title = entry.unreadable === true ? UNREADABLE_TITLE : alarmTitleForFile(entry.file);
+    if (!groups.has(title)) groups.set(title, []);
+    groups.get(title).push(entry);
+  }
+
+  return [...groups].map(([title, grouped]) => buildAction({
+    title, entries: grouped, runId, runUrl, sha, openIssues,
+  }));
+}
+
+function buildAction({ title, entries, runId, runUrl, sha, openIssues }) {
+  const existing = (openIssues || []).find((issue) => issue.title === title);
+  return {
+    kind: existing ? 'comment' : 'create',
+    number: existing ? existing.number : null,
+    title,
+    body: buildIssueBody({ runId, runUrl, sha, failedFiles: entries }),
+  };
+}
+
+module.exports = {
+  ALARM_TITLE,
+  UNREADABLE_TITLE,
+  alarmTitleForFile,
+  buildIssueBody,
+  collectFailedFiles,
+  planAlarmActions,
+};
 
 if (require.main === module) {
   // argv: <sidecar dir> [open-issues json produced by `gh issue list --json`]
@@ -119,12 +174,12 @@ if (require.main === module) {
       console.error(`warning: could not read the open issue list: ${error.message}`);
     }
   }
-  const failedFiles = collectFailedFiles(dir);
-  const body = buildIssueBody({
+  const actions = planAlarmActions({
     runId: process.env.GITHUB_RUN_ID || 'unknown',
     runUrl: `${process.env.GITHUB_SERVER_URL || 'https://github.com'}/${process.env.GITHUB_REPOSITORY || ''}/actions/runs/${process.env.GITHUB_RUN_ID || ''}`,
     sha: process.env.GITHUB_SHA || 'unknown',
-    failedFiles,
+    failedFiles: collectFailedFiles(dir),
+    openIssues,
   });
-  process.stdout.write(`${JSON.stringify({ ...chooseAction(openIssues), title: ALARM_TITLE, body })}\n`);
+  process.stdout.write(`${JSON.stringify(actions)}\n`);
 }

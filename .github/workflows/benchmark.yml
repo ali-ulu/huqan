@@ -619,20 +619,23 @@ jobs:
           pattern: shard-failures-*-attempt-${{ github.run_attempt }}
           path: artifacts
           merge-multiple: true
-      - name: File or update the alarm issue
+      - name: File or update one alarm issue per failing file
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           gh issue list --state open --limit 100 --json number,title,state > open-issues.json
           node scripts/nightly-failure-alarm.js artifacts open-issues.json > alarm.json
-          jq -r .body alarm.json > alarm-body.md
-          kind="$(jq -r .kind alarm.json)"
-          if [ "${kind}" = comment ]; then
-            gh issue comment "$(jq -r .number alarm.json)" --body-file alarm-body.md
-          else
-            gh issue create --title "$(jq -r .title alarm.json)" --body-file alarm-body.md --label ci-cd
-          fi
+          count="$(jq 'length' alarm.json)"
+          for index in $(seq 0 $((count - 1))); do
+            jq -r ".[${index}].body" alarm.json > alarm-body.md
+            kind="$(jq -r ".[${index}].kind" alarm.json)"
+            if [ "${kind}" = comment ]; then
+              gh issue comment "$(jq -r ".[${index}].number" alarm.json)" --body-file alarm-body.md
+            else
+              gh issue create --title "$(jq -r ".[${index}].title" alarm.json)" --body-file alarm-body.md --label ci-cd
+            fi
+          done
 
   # ---------------------------------------------------------------------
   # Stable required checks. These aggregate the run/skip pairs so branch
