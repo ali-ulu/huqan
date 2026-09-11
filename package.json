@@ -165,6 +165,8 @@
     "lib/agent-memory-state.js",
     "lib/multi-agent-cascade-guard.js",
     "lib/agent-run-guidance.js",
+    "lib/observability/kernel-sink.js",
+    "lib/observability/instrumentation-marker.js",
     "lib/observability/schema.js",
     "lib/observability/helpers.js",
     "lib/observability/health.js",
