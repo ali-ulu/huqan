@@ -136,14 +136,16 @@ function identityFor(capabilities) {
   return { identityRef: 'agent:ws-1:agent-1', identityHash: 'h', attested: true, capabilities };
 }
 
-test('privilegeEscalationOptions is null unless the deployment opts in', () => {
-  assert.equal(privilegeEscalationOptions({ environment: {} }), null);
-  assert.equal(privilegeEscalationOptions({ privilegeEscalation: { enabled: false }, environment: {} }), null);
+test('privilegeEscalationOptions defaults to observe/review and opts out explicitly (#2157)', () => {
+  const viaConfigOff = privilegeEscalationOptions({ privilegeEscalation: { enabled: false }, environment: {} });
+  assert.equal(viaConfigOff, null);
+  const viaEnvOff = privilegeEscalationOptions({ environment: { HUQAN_EXTERNAL_GUARD_PRIVILEGE_ESCALATION: 'off' } });
+  assert.equal(viaEnvOff, null);
 });
 
-test('privilegeEscalationOptions opts in via config and via environment flag', () => {
-  const viaConfig = privilegeEscalationOptions({ privilegeEscalation: { enabled: true }, environment: {} });
-  assert.equal(viaConfig.decision, 'review', 'review is the default verdict, not block');
+test('privilegeEscalationOptions is default-on review, hardenable via env flag', () => {
+  const unconfigured = privilegeEscalationOptions({ environment: {} });
+  assert.equal(unconfigured.decision, 'review', 'default observe surfaces a widening card as review');
 
   const viaEnv = privilegeEscalationOptions({ environment: { HUQAN_EXTERNAL_GUARD_PRIVILEGE_ESCALATION: 'block' } });
   assert.equal(viaEnv.decision, 'block');

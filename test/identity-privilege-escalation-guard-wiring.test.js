@@ -54,7 +54,7 @@ function escalationFinding(result) {
   return result.findings.find((finding) => finding.gate === 'identity-escalation');
 }
 
-test('an unconfigured guard records no escalation finding, even for a widening card', () => {
+test('an unconfigured guard flags a widening card as review by default (#2157)', () => {
   const options = { environment: {} };
   evaluateExternalAction(invocation('unconfigured-session', ['file_read']), options);
   const widened = evaluateExternalAction(
@@ -62,7 +62,9 @@ test('an unconfigured guard records no escalation finding, even for a widening c
     options,
   );
 
-  assert.equal(escalationFinding(widened), undefined, 'opt-in means unchanged by default');
+  const finding = escalationFinding(widened);
+  assert.ok(finding, 'default observe means the detector is always reached');
+  assert.equal(finding.decision, 'review', 'a widened card must not stay a silent allow');
 });
 
 test('the guard flags a card that widens mid-session once the detector is enabled', () => {
