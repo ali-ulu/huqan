@@ -121,11 +121,6 @@
       "why": "Pre-existing debt recorded when the gate was introduced.",
       "review_by": "2026-12-31"
     },
-    "lib/memory-store.js": {
-      "calls": 21,
-      "why": "Pre-existing debt recorded when the gate was introduced.",
-      "review_by": "2026-12-31"
-    },
     "lib/mutation-journal.js": {
       "calls": 4,
       "why": "Pre-existing debt recorded when the gate was introduced.",

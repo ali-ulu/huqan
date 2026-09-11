@@ -54,7 +54,7 @@ not import an entrypoint.
 A module calls another module's public surface only. Reaching into another
 object's `_private` member across a module boundary is not permitted: the
 member is either part of the contract and should be named as such, or it is
-not and should not be called. 131 such calls exist today across 33 files;
+not and should not be called. 110 such calls exist today across 32 files;
 they are debt on the same burn-down terms as line count.
 
 ## 5. Refactor rules
@@ -83,7 +83,7 @@ gate where it had a freeze.
 | 200-line target | **not yet** | threshold is still 800 |
 | Baseline review dates | **not yet** | field does not exist |
 | Dependency direction | yes | `scripts/check-layers.js`, 3 dated exceptions |
-| Module boundary | yes | `scripts/check-module-boundary.js`, ratcheted at 131 calls |
+| Module boundary | yes | `scripts/check-module-boundary.js`, ratcheted at 110 calls |
 
 Rows marked "not yet" are commitments, not claims. A rule that cannot be
 checked by a script does not belong in this table at all.

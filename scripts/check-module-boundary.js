@@ -16,7 +16,7 @@
  * `this._foo()` is not a violation: a module may use its own internals.
  * Only a call through another binding counts.
  *
- * Like scripts/check-file-size.js this is a ratchet, not a flat ban: 131
+ * Like scripts/check-file-size.js this is a ratchet, not a flat ban: 110
  * such calls exist today and a gate that cannot pass gets disabled. The
  * per-file count may fall and may not rise, and a file that reaches zero is
  * removed from the baseline so the gain cannot be spent later.
@@ -39,12 +39,27 @@ const IS_TEST = /(\.test\.js$|(^|\/)test\/|(^|\/)benchmarks\/|(^|\/)demo)/;
 const CALL = /\b(?:this\.(\w+)|(\w+))\.(_[A-Za-z]\w*)\s*\(/g;
 const NOT_AN_OWNER = new Set(['this', 'module', 'exports', 'globalThis', 'process']);
 
+/**
+ * `const store = this;` then `store._withTransaction()` is a module using its
+ * own internals through an alias, which is what a closure built inside a
+ * method has to do. Counting those as boundary crossings put 21 false
+ * positives into `lib/memory-store.js` alone.
+ *
+ * Collected per file rather than per scope: an alias name is treated as
+ * `this` everywhere in the file. The trade is a false negative if one file
+ * binds `const store = this` in one place and a foreign `store` in another.
+ * That is rarer than the false positive it removes, and the alternative is
+ * parsing scopes -- which means a parser, which means a dependency.
+ */
+const THIS_ALIAS = /\b(?:const|let|var)\s+(\w+)\s*=\s*this\s*;/g;
+
 function violationsIn(file) {
   const source = stripComments(fs.readFileSync(path.join(repoRoot, file), 'utf8'));
+  const aliases = new Set([...source.matchAll(THIS_ALIAS)].map((match) => match[1]));
   const found = [];
   for (const match of source.matchAll(CALL)) {
     const owner = match[1] || match[2];
-    if (!owner || NOT_AN_OWNER.has(owner)) continue;
+    if (!owner || NOT_AN_OWNER.has(owner) || aliases.has(owner)) continue;
     found.push({
       line: source.slice(0, match.index).split('\n').length,
       call: `${owner}.${match[3]}()`,
