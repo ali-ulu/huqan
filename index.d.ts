@@ -133,6 +133,15 @@ declare const huqan: typeof KernelV2 & {
     outcome: Record<string, unknown>,
     options?: Record<string, unknown>,
   ) => Record<string, any>;
+  recordExternalActionReview: (
+    outcomeReceipt: Record<string, unknown>,
+    review: Record<string, unknown>,
+    options?: Record<string, unknown>,
+  ) => Record<string, any>;
+  latestExternalActionReview: (
+    receiptPath: string,
+    outcomeReceiptId: string,
+  ) => Record<string, any> | null;
   ExternalActionAdapter: Record<string, any>;
   createOpenCodeGuardPlugin: (options?: Record<string, unknown>) => (...args: any[]) => Promise<Record<string, any>>;
   registerPiGuard: (pi: Record<string, any>, options?: Record<string, unknown>) => void;
