@@ -8,6 +8,7 @@ const { emitGateTelemetry } = require('./lib/gate-telemetry');
 const { initializeBehavioralState } = require('./lib/agent-behavioral-integrity');
 const { ensureState, loopEnabled, isDreamExperimentVerificationStep, prepareDreamExperiment, prepareDreamQueue, processDreamStep, selectDreamNextAction, labelPlanDataForDreamLoop } = require('./lib/agent-v3-dream-loop-adapter');
 const { attachStepErrorSummary } = require('./lib/agent-memory-persistence');
+const { finalizeAgentRun } = require('./lib/agent-run-finalization');
 
 function cloneValue(value) {
   if (value === undefined) return undefined;
@@ -691,13 +692,10 @@ class AgentV3 {
     // genuinely spent.
     state.iterationsDelta = Math.max(0, Number(state.iteration || 0) - Number(state.iterationsAtRunStart || 0));
 
-    try {
-      this.storage.saveRun(state);
-    } catch (err) {
-      return this._storageFailure('saveRun', err, state);
-    }
-    try {
-      this.storage.saveGoalMemory({
+    const finalized = finalizeAgentRun({
+      storage: this.storage,
+      state,
+      goalMemory: {
         goal,
         workspaceId,
         objective: activePlan.objective,
@@ -706,23 +704,11 @@ class AgentV3 {
         finalAnswer: state.finalAnswer,
         resumed: state.resumed,
         selectedTools: activePlan.selectedTools,
-      });
-    } catch (err) {
-      return this._storageFailure('saveGoalMemory', err, state);
-    }
-
-    if (state.status === 'completed' || state.status === 'blocked') {
-      try {
-        this.storage.deleteCheckpoint(state.checkpointId, goal, workspaceId);
-      } catch (err) {
-        return this._storageFailure('deleteCheckpoint', err, state);
-      }
-    } else {
-      try {
-        this._saveCheckpoint(state);
-      } catch (err) {
-        return this._storageFailure('saveCheckpoint', err, state);
-      }
+      },
+      saveCheckpoint: current => this._saveCheckpoint(current),
+    });
+    if (!finalized.ok) {
+      return this._storageFailure(finalized.operation, finalized.error, state);
     }
 
     this.lastRun = state;
