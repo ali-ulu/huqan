@@ -69,9 +69,9 @@ for (const backend of ['sqlite', 'json']) {
         marker: 'during',
       });
 
-      const scope = graph._captureTemporalEdgeKeys();
+      const scope = graph.captureTemporalEdgeKeys();
       graph.addEdge('a', 'b', 'is_a', { workspaceId: 'w', evidence: ['temporal'] });
-      graph._applyTemporalEdgeMetadata('during-temporal', '2026-08-25T00:00:00.000Z', scope, { workspaceId: 'w' });
+      graph.applyTemporalEdgeMetadata('during-temporal', '2026-08-25T00:00:00.000Z', scope, { workspaceId: 'w' });
 
       graph.addCandidateClaim({
         candidateId: 'c-1',

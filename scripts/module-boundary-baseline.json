@@ -12,8 +12,8 @@
       "review_by": "2026-12-31"
     },
     "kernel.v2.js": {
-      "calls": 8,
-      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "calls": 6,
+      "why": "Two of these are blocked on room in kernel.js, not on willingness. A named write-pipeline seam on Kernel is the fix, and kernel.js sits on its recorded ceiling; _commitBackgroundEdge and _evaluateLearnAdmission also collide with module-level imports of the same names, so a plain rename is not available. Unblocked by the kernel.js split in #2127.",
       "review_by": "2026-12-31"
     },
     "lib/cli-workflow-adapter.js": {
