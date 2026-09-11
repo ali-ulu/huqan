@@ -61,9 +61,9 @@ after(() => {
 // ─── name table ──────────────────────────────────────────────────────────────
 
 describe('RFC-001 MCP tool name table', () => {
-  it('defines twenty-two canonical names and twenty-two legacy aliases', () => {
-    assert.equal(CANONICAL_MCP_TOOL_NAMES.length, 22);
-    assert.equal(LEGACY_MCP_TOOL_NAMES.length, 22);
+  it('defines twenty-three canonical names and twenty-three legacy aliases', () => {
+    assert.equal(CANONICAL_MCP_TOOL_NAMES.length, 23);
+    assert.equal(LEGACY_MCP_TOOL_NAMES.length, 23);
     assert.ok(CANONICAL_MCP_TOOL_NAMES.includes('huqan.trust_receipt_detail'));
     assert.ok(CANONICAL_MCP_TOOL_NAMES.includes('huqan.web_research'));
     assert.ok(CANONICAL_MCP_TOOL_NAMES.includes('huqan.ingest_preview'));
@@ -112,10 +112,13 @@ describe('RFC-001 writer half: only canonical names are advertised', () => {
 
   it('advertises only model-visible canonical tools and no approval operator surface', () => {
     const advertised = MODEL_VISIBLE_TOOL_SCHEMAS.map((tool) => tool.name);
-    const expected = CANONICAL_MCP_TOOL_NAMES.filter(name => !['huqan.approve', 'huqan.approvals', 'huqan.agent_resume'].includes(name));
+    const expected = CANONICAL_MCP_TOOL_NAMES.filter(name => !['huqan.approve', 'huqan.approvals', 'huqan.approval_detail', 'huqan.agent_resume'].includes(name));
     assert.deepEqual([...advertised].sort(), [...expected].sort());
     assert.ok(!advertised.includes('huqan.approve'));
     assert.ok(!advertised.includes('huqan.approvals'));
+    // Reading one approval is the same data as listing them, so it sits behind
+    // the same operator capability and stays out of the model-visible catalog.
+    assert.ok(!advertised.includes('huqan.approval_detail'));
     for (const legacy of LEGACY_MCP_TOOL_NAMES) {
       assert.ok(!advertised.includes(legacy), `tools/list must not advertise ${legacy}`);
     }
@@ -132,7 +135,7 @@ describe('RFC-001 writer half: only canonical names are advertised', () => {
     const server = createServer();
     const listed = server.handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
     const names = listed.result.tools.map((tool) => tool.name);
-    const expected = CANONICAL_MCP_TOOL_NAMES.filter(name => !['huqan.approve', 'huqan.approvals', 'huqan.agent_resume'].includes(name));
+    const expected = CANONICAL_MCP_TOOL_NAMES.filter(name => !['huqan.approve', 'huqan.approvals', 'huqan.approval_detail', 'huqan.agent_resume'].includes(name));
     assert.deepEqual([...names].sort(), [...expected].sort());
     assert.equal(listed.result.tools.length, expected.length);
   });
