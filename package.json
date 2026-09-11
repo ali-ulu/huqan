@@ -414,6 +414,7 @@
     "lib/mcp-tool-policy.js",
     "lib/mcp-operator-capability.js",
     "lib/mcp/read-workflow-tools.js",
+    "lib/mcp/trust-receipt-detail-tool.js",
     "lib/mcp/response-builders.js",
     "lib/mcp/server-lifecycle.js",
     "lib/pr-guardian/derivation-check.js",
