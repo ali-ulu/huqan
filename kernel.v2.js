@@ -127,9 +127,9 @@ class KernelV2 {
     return this.kernel.usePlugin(plugin);
   }
 
-  _ok(type, data = null, evidence = [], meta = {}) {
-    if (typeof this.kernel._ok === 'function') {
-      return this.kernel._ok(type, data, evidence, meta);
+  ok(type, data = null, evidence = [], meta = {}) {
+    if (typeof this.kernel.ok === 'function') {
+      return this.kernel.ok(type, data, evidence, meta);
     }
     return {
       ok: true,
@@ -141,9 +141,9 @@ class KernelV2 {
     };
   }
 
-  _fail(type, code, message, meta = {}) {
-    if (typeof this.kernel._fail === 'function') {
-      return this.kernel._fail(type, code, message, meta);
+  fail(type, code, message, meta = {}) {
+    if (typeof this.kernel.fail === 'function') {
+      return this.kernel.fail(type, code, message, meta);
     }
     return {
       ok: false,
@@ -162,7 +162,7 @@ class KernelV2 {
     const result = this.kernel.learn(text, opts);
     // #733: workspace-scoped, on top of the touch scope narrowing to written edges.
     this.kernel.graph._applyTemporalEdgeMetadata(source, learnedAt, beforeEdgeMap, { workspaceId: opts.workspaceId });
-    return this._ok('learn', result.data, result.evidence, { ...result.meta, source, learnedAt });
+    return this.ok('learn', result.data, result.evidence, { ...result.meta, source, learnedAt });
   }
 
   learnDocument(text, opts = {}) {
@@ -250,7 +250,7 @@ class KernelV2 {
 
   ask(question, opts = {}) {
     const result = this.kernel.ask(question, opts);
-    return this._ok('ask', result.data, result.evidence, {
+    return this.ok('ask', result.data, result.evidence, {
       ...result.meta,
       mode: 'v2',
     });
@@ -586,13 +586,13 @@ class KernelV2 {
 
     const workspaceId = (typeof opts.workspaceId === 'string' && opts.workspaceId.trim()) || 'default'; // #734
     const resolvedSubject = resolveKnownSubject(this.kernel.graph, parsed.subject, workspaceId);
-    if (parsed.subject.includes(' ') && !resolvedSubject) return this._withVerifyDetails(contradictedBaseVerdict(this.kernel, verificationStatement, opts) || this._ok('verify', { status: 'unknown', confidence: 0, unresolvedSubject: parsed.subject, subjectResolution: 'exact_match_required' }), risk);
+    if (parsed.subject.includes(' ') && !resolvedSubject) return this._withVerifyDetails(contradictedBaseVerdict(this.kernel, verificationStatement, opts) || this.ok('verify', { status: 'unknown', confidence: 0, unresolvedSubject: parsed.subject, subjectResolution: 'exact_match_required' }), risk);
     if (resolvedSubject) parsed = { ...parsed, subject: resolvedSubject };
     const knownFacts = this._collectFactTargets(parsed.subject, workspaceId);
     if (parsed.isNegated && knownFacts.length > 0) {
       const directPositive = knownFacts.find(item => item.target === normalizedTargetToken);
       if (directPositive) {
-        return this._withVerifyDetails(this._ok(
+        return this._withVerifyDetails(this.ok(
           'verify',
           {
             status: 'contradicted',
@@ -635,7 +635,7 @@ class KernelV2 {
           && this._isTypeRelation(signal?.meta?.storedRelation)
         ));
       if (typePredicateDriftOnly) {
-        return this._withVerifyDetails(this._ok(
+        return this._withVerifyDetails(this.ok(
           'verify',
           { status: 'unknown', confidence: 0 },
           [],
@@ -646,7 +646,7 @@ class KernelV2 {
     }
 
     const { evidence, meta, ...data } = contradictionDetails;
-    return this._withVerifyDetails(this._ok(
+    return this._withVerifyDetails(this.ok(
       'verify',
       {
         ...data,
@@ -664,7 +664,7 @@ class KernelV2 {
 
   reason(subject, opts = {}) {
     const result = this.kernel.reason(subject, opts);
-    return this._ok('reason', result.data, result.evidence, {
+    return this.ok('reason', result.data, result.evidence, {
       ...result.meta,
       mode: 'v2',
     });
@@ -672,7 +672,7 @@ class KernelV2 {
 
   compare(left, right, opts = {}) {
     const result = this.kernel.compare(left, right, opts);
-    return this._ok('compare', result.data, result.evidence, {
+    return this.ok('compare', result.data, result.evidence, {
       ...result.meta,
       mode: 'v2',
     });
@@ -680,7 +680,7 @@ class KernelV2 {
 
   dream(opts = {}) {
     const result = this.kernel.dream(opts);
-    return this._ok('dream', result.data, result.evidence, {
+    return this.ok('dream', result.data, result.evidence, {
       ...result.meta,
       mode: 'v2',
     });

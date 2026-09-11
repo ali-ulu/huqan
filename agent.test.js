@@ -423,7 +423,7 @@ describe('Agent', () => {
 
     const fakeKernel = {
       plugins: { emit: () => ({}) },
-      _ok(type, data = null, evidence = [], meta = {}) {
+      ok(type, data = null, evidence = [], meta = {}) {
         return {
           ok: true,
           type,
@@ -434,13 +434,13 @@ describe('Agent', () => {
         };
       },
       ask() {
-        return this._ok('ask', { answer: 'Aynı cevap', subject: 'axiom', unknown: false, alternatives: 0 }, []);
+        return this.ok('ask', { answer: 'Aynı cevap', subject: 'axiom', unknown: false, alternatives: 0 }, []);
       },
       reason() {
-        return this._ok('reason', { subject: 'axiom', answer: 'Aynı cevap', forward: [], backward: [], cycles: [] }, []);
+        return this.ok('reason', { subject: 'axiom', answer: 'Aynı cevap', forward: [], backward: [], cycles: [] }, []);
       },
       verify() {
-        return this._ok('verify', { status: 'unknown', confidence: 0.5, evidence: [] }, []);
+        return this.ok('verify', { status: 'unknown', confidence: 0.5, evidence: [] }, []);
       },
     };
 

@@ -112,7 +112,7 @@ class Kernel {
       getGraph: () => this.graph,
       emitPlugin: (...args) => this.plugins.emit(...args),
       normalizeWord: word => this.normalizeWord(word),
-      ok: (...args) => this._ok(...args),
+      ok: (...args) => this.ok(...args),
       reason: (...args) => this.reason(...args),
       alternatives: (...args) => this.alternatives(...args),
       forwardChain: (...args) => this._forwardChain(...args),
@@ -398,11 +398,11 @@ class Kernel {
     return { graph: this.graph, contractVersion: this.contractVersion, paranoidMode: this.paranoidMode };
   }
 
-  _ok(type, data = null, evidence = [], meta = {}) {
+  ok(type, data = null, evidence = [], meta = {}) {
     return envelopeOk(this._envelopeContext, type, data, evidence, meta);
   }
 
-  _fail(type, code, message, meta = {}) {
+  fail(type, code, message, meta = {}) {
     return envelopeFail(this._envelopeContext, type, code, message, meta);
   }
 
@@ -838,7 +838,7 @@ class Kernel {
   ask(question, opts = {}) { return this._readUseCases.ask(question, workspaceIdFrom(opts)); }
 
   alternatives(subject, maxPaths = 3, workspaceId = 'default') {
-    return runAlternatives(value => this.normalizeWord(value), this.graph, (type, data, evidence) => this._ok(type, data, evidence), subject, maxPaths, workspaceId);
+    return runAlternatives(value => this.normalizeWord(value), this.graph, (type, data, evidence) => this.ok(type, data, evidence), subject, maxPaths, workspaceId);
   }
 
   contextSimilarity(a, b, context) {
@@ -948,7 +948,7 @@ class Kernel {
   }
 
   dream(opts = {}) {
-    return runDream(opts, { createDreams: dreamOpts => new Dream(this).dream(dreamOpts), graph: this.graph, commitBackgroundEdge: (from, to, relation, source, commitOpts) => this._commitBackgroundEdge(from, to, relation, source, commitOpts), getDreamCount: () => this._dreamCount, setDreamCount: value => { this._dreamCount = value; }, ok: (type, data, evidence) => this._ok(type, data, evidence) });
+    return runDream(opts, { createDreams: dreamOpts => new Dream(this).dream(dreamOpts), graph: this.graph, commitBackgroundEdge: (from, to, relation, source, commitOpts) => this._commitBackgroundEdge(from, to, relation, source, commitOpts), getDreamCount: () => this._dreamCount, setDreamCount: value => { this._dreamCount = value; }, ok: (type, data, evidence) => this.ok(type, data, evidence) });
   }
 
   learnDocument(text, opts = {}) {
@@ -995,7 +995,7 @@ class Kernel {
       dreamCount: this._dreamCount || 0,
     });
     this.plugins.emit('afterIntrospect', result);
-    return this._ok('introspect', result);
+    return this.ok('introspect', result);
   }
 
   getPersistenceDescriptor() {

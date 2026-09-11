@@ -595,8 +595,8 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
     case 'huqan.ingest_preview': {
       const preview = buildIngestWorkflowPreview(args);
       const result = preview.ok
-        ? kernel._ok('ingest_preview', Object.fromEntries(Object.entries(preview).filter(([key]) => key !== 'ok')))
-        : kernel._fail('ingest_preview', preview.code || 'INGEST_PREVIEW_FAILED', preview.error || 'ingest preview failed');
+        ? kernel.ok('ingest_preview', Object.fromEntries(Object.entries(preview).filter(([key]) => key !== 'ok')))
+        : kernel.fail('ingest_preview', preview.code || 'INGEST_PREVIEW_FAILED', preview.error || 'ingest preview failed');
       return withMcpToolVerdictSurface(result, name, args, gate);
     }
     case 'huqan.ingest_status':

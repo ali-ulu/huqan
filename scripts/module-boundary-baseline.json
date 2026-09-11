@@ -1,16 +1,6 @@
 {
   "threshold": 0,
   "files": {
-    "agent.js": {
-      "calls": 2,
-      "why": "Pre-existing debt recorded when the gate was introduced.",
-      "review_by": "2026-12-31"
-    },
-    "agent.v3.js": {
-      "calls": 2,
-      "why": "Pre-existing debt recorded when the gate was introduced.",
-      "review_by": "2026-12-31"
-    },
     "dream.js": {
       "calls": 1,
       "why": "Pre-existing debt recorded when the gate was introduced.",
@@ -22,7 +12,7 @@
       "review_by": "2026-12-31"
     },
     "kernel.v2.js": {
-      "calls": 10,
+      "calls": 8,
       "why": "Pre-existing debt recorded when the gate was introduced.",
       "review_by": "2026-12-31"
     },
@@ -42,11 +32,6 @@
       "review_by": "2026-12-31"
     },
     "lib/github-connector.js": {
-      "calls": 1,
-      "why": "Pre-existing debt recorded when the gate was introduced.",
-      "review_by": "2026-12-31"
-    },
-    "lib/goal-integrity-gate.js": {
       "calls": 1,
       "why": "Pre-existing debt recorded when the gate was introduced.",
       "review_by": "2026-12-31"
@@ -96,16 +81,6 @@
       "why": "Pre-existing debt recorded when the gate was introduced.",
       "review_by": "2026-12-31"
     },
-    "lib/mcp-ingest-execute-tool.js": {
-      "calls": 2,
-      "why": "Pre-existing debt recorded when the gate was introduced.",
-      "review_by": "2026-12-31"
-    },
-    "lib/mcp-ingest-status-tool.js": {
-      "calls": 5,
-      "why": "Pre-existing debt recorded when the gate was introduced.",
-      "review_by": "2026-12-31"
-    },
     "lib/memory-store-json-persistence.js": {
       "calls": 4,
       "why": "Pre-existing debt recorded when the gate was introduced.",
@@ -142,12 +117,7 @@
       "review_by": "2026-12-31"
     },
     "lib/verify.js": {
-      "calls": 12,
-      "why": "Pre-existing debt recorded when the gate was introduced.",
-      "review_by": "2026-12-31"
-    },
-    "mcpServer.js": {
-      "calls": 2,
+      "calls": 11,
       "why": "Pre-existing debt recorded when the gate was introduced.",
       "review_by": "2026-12-31"
     },

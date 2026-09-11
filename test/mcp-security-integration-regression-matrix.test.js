@@ -51,10 +51,10 @@ function fixtureKernel() {
         meta: { contractVersion: '1.0.0', backend: 'fixture' },
       };
     },
-    _ok(type, data) {
+    ok(type, data) {
       return { ok: true, type, data, evidence: [], error: null, meta: {} };
     },
-    _fail(type, code, message) {
+    fail(type, code, message) {
       return { ok: false, type, data: null, evidence: [], error: { code, message }, meta: {} };
     },
   };

@@ -212,9 +212,9 @@ class AgentV3 {
     }
   }
 
-  _ok(type, data = null, evidence = [], meta = {}) {
-    if (this.kernel && typeof this.kernel._ok === 'function') {
-      return this.kernel._ok(type, data, evidence, meta);
+  ok(type, data = null, evidence = [], meta = {}) {
+    if (this.kernel && typeof this.kernel.ok === 'function') {
+      return this.kernel.ok(type, data, evidence, meta);
     }
     return {
       ok: true,
@@ -226,9 +226,9 @@ class AgentV3 {
     };
   }
 
-  _fail(type, code, message, evidence = [], meta = {}, data = null) {
-    if (this.kernel && typeof this.kernel._fail === 'function') {
-      const result = this.kernel._fail(type, code, message, meta);
+  fail(type, code, message, evidence = [], meta = {}, data = null) {
+    if (this.kernel && typeof this.kernel.fail === 'function') {
+      const result = this.kernel.fail(type, code, message, meta);
       result.data = data;
       if (Array.isArray(evidence) && evidence.length) {
         result.evidence = evidence;
@@ -247,7 +247,7 @@ class AgentV3 {
 
   _storageFailure(operation, err, state = null) {
     const detail = err && err.message ? err.message : 'unknown error';
-    return this._fail('agent', 'AGENT_STORAGE_ERROR',
+    return this.fail('agent', 'AGENT_STORAGE_ERROR',
       `Agent storage operation "${operation}" failed: ${detail}.`,
       state?.evidence || [], { operation }, state);
   }
@@ -298,7 +298,7 @@ class AgentV3 {
       status: 'running',
     });
     this.lastPlan = data;
-    return this._ok('plan', data, result.evidence || [], result.meta || {});
+    return this.ok('plan', data, result.evidence || [], result.meta || {});
   }
 
   inspectToolPolicy(tool, input = '', context = {}) {
@@ -426,7 +426,7 @@ class AgentV3 {
 
   run(goal, opts = {}) {
     const scopeResult = createExecutionScope(goal, opts);
-    if (!scopeResult.ok) return this._fail('agent', scopeResult.reason, 'Untrusted content cannot define an execution goal.', [], { goalBinding: scopeResult.receipt });
+    if (!scopeResult.ok) return this.fail('agent', scopeResult.reason, 'Untrusted content cannot define an execution goal.', [], { goalBinding: scopeResult.receipt });
     const planResult = this.plan(goal, opts);
     if (!planResult || planResult.ok === false) return planResult;
     const activePlan = planResult.data;
@@ -438,11 +438,11 @@ class AgentV3 {
     const requestedResumeToken = normalizeGoal(opts.resumeToken);
     if (requestedCheckpointId || requestedResumeToken) {
       if (!requestedCheckpointId || !requestedResumeToken) {
-        return this._fail('agent', 'AGENT_CONTINUATION_FIELDS_REQUIRED',
+        return this.fail('agent', 'AGENT_CONTINUATION_FIELDS_REQUIRED',
           'checkpointId and resumeToken must be supplied together.');
       }
       if (opts.resume === false) {
-        return this._fail('agent', 'AGENT_CONTINUATION_REQUIRES_RESUME',
+        return this.fail('agent', 'AGENT_CONTINUATION_REQUIRES_RESUME',
           'Explicit checkpoint continuation requires resume=true.');
       }
     }
@@ -468,7 +468,7 @@ class AgentV3 {
     if (requestedCheckpointId || requestedResumeToken) {
       const storedToken = resumeRecord?.state?.resumeToken || resumeRecord?.id || '';
       if (!resumeRecord || resumeRecord.id !== requestedCheckpointId || storedToken !== requestedResumeToken) {
-        return this._fail('agent', 'AGENT_RESUME_TOKEN_INVALID',
+        return this.fail('agent', 'AGENT_RESUME_TOKEN_INVALID',
           'The supplied checkpoint and resume token do not match a workspace-scoped checkpoint.', [], {
             checkpointId: requestedCheckpointId,
             workspaceId,
@@ -535,14 +535,14 @@ class AgentV3 {
     // the ceiling could not be evaluated at all.
     if (budgetCheck.usageKnown === false) {
       this._recordBudgetAuditEvent(goal, workspaceId, budgetCheck);
-      return this._fail('agent', 'AGENT_LOOP_BUDGET_UNAVAILABLE',
+      return this.fail('agent', 'AGENT_LOOP_BUDGET_UNAVAILABLE',
         `Agent loop budget could not be evaluated for workspace "${workspaceId}": ${budgetCheck.detail}. Refusing the run rather than proceeding unbudgeted.`,
         [], { gate: 'AB10', budget: budgetCheck });
     }
 
     if (budgetCheck.decision !== 'allow') {
       this._recordBudgetAuditEvent(goal, workspaceId, budgetCheck);
-      return this._fail('agent', 'AGENT_LOOP_BUDGET_EXCEEDED',
+      return this.fail('agent', 'AGENT_LOOP_BUDGET_EXCEEDED',
         `Agent loop budget ${budgetCheck.decision} for workspace "${workspaceId}": ${budgetCheck.reason} (${budgetCheck.iterationsUsed}/${budgetCheck.maxIterationsPerWindow} iterations used this window).`,
         [], { gate: 'AB10', budget: budgetCheck });
     }
@@ -728,7 +728,7 @@ class AgentV3 {
     }
 
     if (state.status === 'blocked') {
-      return this._fail('agent', 'AGENT_BLOCKED', state.finalAnswer, state.evidence, {
+      return this.fail('agent', 'AGENT_BLOCKED', state.finalAnswer, state.evidence, {
         objective: activePlan.objective,
         selectedTools: activePlan.selectedTools,
         resumed: state.resumed,
@@ -738,7 +738,7 @@ class AgentV3 {
       }, state);
     }
 
-    return this._ok('agent', state, state.evidence, {
+    return this.ok('agent', state, state.evidence, {
       objective: activePlan.objective,
       selectedTools: activePlan.selectedTools,
       resumed: state.resumed,

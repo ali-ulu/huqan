@@ -43,7 +43,7 @@ function makeKernel({ addEdgeReturns }) {
       addEdge: (from, to) => addEdgeReturns(from, to),
       save: () => { calls.save += 1; },
     },
-    _ok: (_operation, data, evidence = []) => ({ ok: true, data, evidence }),
+    ok: (_operation, data, evidence = []) => ({ ok: true, data, evidence }),
     _resolveLearnMetadata: () => ({}),
     _parsePredicate: () => ({ object: 'hayvan', relation: 'tür' }),
     _learnEdgeOptions: () => ({}),

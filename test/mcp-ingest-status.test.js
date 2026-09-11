@@ -31,8 +31,8 @@ function approvalRecord(overrides = {}) {
 
 function kernelStub() {
   return {
-    _ok: (op, data) => ({ ok: true, type: op, data, evidence: [], error: null, meta: {} }),
-    _fail: (op, code, message) => ({ ok: false, type: op, data: null, evidence: [], error: { code, message }, meta: {} }),
+    ok: (op, data) => ({ ok: true, type: op, data, evidence: [], error: null, meta: {} }),
+    fail: (op, code, message) => ({ ok: false, type: op, data: null, evidence: [], error: { code, message }, meta: {} }),
     graph: { appendAuditEvent: () => {} },
   };
 }

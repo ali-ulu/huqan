@@ -50,9 +50,9 @@ class Agent {
     if (this.plugins && typeof this.plugins.emit === 'function') this.plugins.emit(event, data);
     return data;
   }
-  _ok(type, data = null, evidence = [], meta = {}) {
-    if (this.kernel && typeof this.kernel._ok === 'function') {
-      return this.kernel._ok(type, data, evidence, meta);
+  ok(type, data = null, evidence = [], meta = {}) {
+    if (this.kernel && typeof this.kernel.ok === 'function') {
+      return this.kernel.ok(type, data, evidence, meta);
     }
     return {
       ok: true,
@@ -63,9 +63,9 @@ class Agent {
       meta,
     };
   }
-  _fail(type, code, message, evidence = [], meta = {}, data = null) {
-    if (this.kernel && typeof this.kernel._fail === 'function') {
-      const result = this.kernel._fail(type, code, message, meta);
+  fail(type, code, message, evidence = [], meta = {}, data = null) {
+    if (this.kernel && typeof this.kernel.fail === 'function') {
+      const result = this.kernel.fail(type, code, message, meta);
       result.data = data;
       if (Array.isArray(evidence) && evidence.length) {
         result.evidence = evidence;
@@ -507,7 +507,7 @@ class Agent {
     this._emit('beforePlan', plan);
     this._emit('afterPlan', plan);
     this._rememberPlan(plan);
-    return this._ok('plan', plan, [], { objective });
+    return this.ok('plan', plan, [], { objective });
   }
 
   plan(goal, opts = {}) {
@@ -534,7 +534,7 @@ class Agent {
     const approval = this._queueToolApproval(policy, input, context);
     policy.approvalId = approval ? approval.id : null;
     policy.approvalStatus = approval ? approval.status : null;
-    return this._ok('policy', policy, [], {
+    return this.ok('policy', policy, [], {
       tool: policy.tool,
       category: policy.category,
       action: policy.action,
@@ -751,7 +751,7 @@ class Agent {
 
   run(goal, opts = {}) {
     const scopeResult = createExecutionScope(goal, opts);
-    if (!scopeResult.ok) return this._fail('agent', scopeResult.reason, 'Untrusted content cannot define an execution goal.', [], { goalBinding: scopeResult.receipt });
+    if (!scopeResult.ok) return this.fail('agent', scopeResult.reason, 'Untrusted content cannot define an execution goal.', [], { goalBinding: scopeResult.receipt });
     const planResult = this.plan(goal, opts);
     if (!planResult || planResult.ok === false) return planResult; const freshPlan = planResult.data;
     const resumeCandidate = opts.resume === false ? null : this._findResumeRun(goal);
@@ -897,7 +897,7 @@ class Agent {
     this._emit('afterAgentRun', state);
 
     if (state.status === 'blocked') {
-      return this._fail('agent', 'AGENT_BLOCKED', finalAnswer, state.evidence, {
+      return this.fail('agent', 'AGENT_BLOCKED', finalAnswer, state.evidence, {
         objective: activePlan.objective,
         selectedTools: activePlan.selectedTools,
         resumed: state.resumed,
@@ -906,7 +906,7 @@ class Agent {
       }, state);
     }
 
-    return this._ok('agent', state, state.evidence, {
+    return this.ok('agent', state, state.evidence, {
       objective: activePlan.objective,
       selectedTools: activePlan.selectedTools,
       resumed: state.resumed,

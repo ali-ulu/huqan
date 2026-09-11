@@ -83,8 +83,8 @@ test.describe('Agent Action Firewall', () => {
         executed = true;
         return { ok: true, type: 'learn', data: { added: 1 }, evidence: [] };
       },
-      _ok(type, data, evidence, meta) { return { ok: true, type, data, evidence, meta }; },
-      _fail(type, code, message, meta) { return { ok: false, type, data: null, evidence: [], error: { code, message }, meta }; },
+      ok(type, data, evidence, meta) { return { ok: true, type, data, evidence, meta }; },
+      fail(type, code, message, meta) { return { ok: false, type, data: null, evidence: [], error: { code, message }, meta }; },
     };
     const agent = new Agent({ kernel });
     const report = agent._executeStep({
