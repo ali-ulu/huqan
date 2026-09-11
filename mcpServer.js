@@ -59,10 +59,10 @@ function publishMcpWorkflowContract(tool) {
 }
 const WORKFLOW_TOOL_SCHEMAS = Object.freeze(TOOL_SCHEMAS.map(publishMcpWorkflowContract));
 const OPERATOR_TOOL_SCHEMAS = Object.freeze(
-  WORKFLOW_TOOL_SCHEMAS.filter(({ name }) => ['huqan.approve', 'huqan.approvals', 'huqan.agent_resume'].includes(name)),
+  WORKFLOW_TOOL_SCHEMAS.filter(({ name }) => ['huqan.approve', 'huqan.approvals', 'huqan.approval_detail', 'huqan.agent_resume'].includes(name)),
 );
 const MODEL_VISIBLE_TOOL_SCHEMAS = Object.freeze(
-  WORKFLOW_TOOL_SCHEMAS.filter(({ name }) => !['huqan.approve', 'huqan.approvals', 'huqan.agent_resume'].includes(name)),
+  WORKFLOW_TOOL_SCHEMAS.filter(({ name }) => !['huqan.approve', 'huqan.approvals', 'huqan.approval_detail', 'huqan.agent_resume'].includes(name)),
 );
 
 const PROTOCOL_VERSION = '2025-06-18';
@@ -374,7 +374,7 @@ const OPERATOR_AUTHORIZED_VERDICT = Object.freeze({
 function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
   const args = parseJsonObject(safeParams.arguments, {});
 
-  if (name === 'huqan.approve' || name === 'huqan.approvals' || name === 'huqan.agent_resume') {
+  if (name === 'huqan.approve' || name === 'huqan.approvals' || name === 'huqan.approval_detail' || name === 'huqan.agent_resume') {
     if (!operatorCapabilityAuthorized(runtime, name, args, safeParams.operatorCapability, safeParams.operatorToken)) {
       return withMcpToolVerdictSurface(
         failApprovalDecision(
@@ -565,6 +565,7 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
         args,
         gate,
       ));
+    case 'huqan.approval_detail': return require('./lib/mcp/approval-detail-tool').executeMcpApprovalDetail({ store: runtime.approvalStore || createApprovalStoreFromKernel(kernel, runtime), name, args, gate });
     case 'huqan.approvals':
       const approvalStore = runtime.approvalStore || createApprovalStoreFromKernel(kernel, runtime);
       const approvalWorkspaceId = sanitizeMcpString(args.workspaceId, MCP_MAX_SHORT) || 'default';
