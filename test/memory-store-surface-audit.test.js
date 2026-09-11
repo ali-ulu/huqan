@@ -20,9 +20,9 @@
  * than in a later archaeology session.
  *
  * Scope. This audit classifies the surface; it does not move code. Splitting
- * lib/memory-store.js is governed by docs/v4/big-file-refactor-gate.md, which
- * says a large file is split immediately before the PR that must edit it
- * heavily, and not "for cleanliness". No such PR exists today.
+ * lib/memory-store.js is recorded debt under docs/architecture-policy.md and
+ * happens on that burn-down schedule, which no longer requires a runtime PR
+ * to justify it.
  */
 
 const assert = require('node:assert/strict');

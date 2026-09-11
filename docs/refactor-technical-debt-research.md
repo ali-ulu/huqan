@@ -5,7 +5,8 @@
 **Ölçüm tarihi:** 2026-08-14
 
 Bu belge bir araştırmadır. Hiçbir refaktörü yetkilendirmez, hiçbir dosyayı
-bölmez ve `docs/v4/big-file-refactor-gate.md` kapısının yerine geçmez.
+bölmez. (2026-09-11: dayandığı büyük-dosya refaktör kapısı silindi;
+yerine `docs/architecture-policy.md` geçti.)
 Aşağıdaki her sayı, yukarıdaki commit üzerinde çalıştırılmış komutlardan
 gelir; her öneri ayrı onay bekler.
 
@@ -72,7 +73,7 @@ kuralı icat etmek mevcut kapıyla çakışırdı:
 | CI testi | `test/arch-3-file-size-ratchet.contract.test.js` | Karar mantığını doğrudan sabitler |
 | Döngü kapısı | `scripts/check-import-cycles.js` | `require` döngüsü yok |
 | İnce orkestratör | `docs/agent-canon.md` `ARCH-001` | `kernel.js`, `graph.js`, `server.js` vb. dosyalara yeni alan mantığı yasak |
-| Bölme zamanlaması | `docs/v4/big-file-refactor-gate.md` | Bölme "temizlik için" değil, o dosyayı ağır düzenleyecek PR'dan hemen önce |
+| Bölme zamanlaması | büyük-dosya refaktör kapısı (2026-09-11'de silindi) | Yerine `docs/architecture-policy.md`: bölme zamanlı borç eritmeye tabi, bağımlı PR gerekmiyor |
 
 Bu kombinasyon (eşik + baseline ledger + tek yönlü cırcır) yaygın ve
 sağlam bir endüstri desenidir; hedefi 800'den 300'e çekmek şu an **karşı
@@ -242,8 +243,8 @@ değil.
 | 4 | Test yerleşimini tekleştir | 65 dosya `git mv` | Düşük | Bulunabilirlik |
 | 5 | Journal'ı çıkar / learn'i çıkar | `graph.js`, `kernel.js` | Yüksek | Yalnız ağır PR önünde |
 
-3, 4 ve 5 **big-file-refactor-gate kuralına tabidir**: bağımlı PR
-gelmeden başlatılmamalıdır.
+3, 4 ve 5 artık **`docs/architecture-policy.md` borç eritme takvimine**
+tabidir; bağımlı bir PR beklemeleri gerekmiyor.
 
 **#1 yapıldı** — commit `85a3956`: altı entry tabanlı konnektör
 `lib/connectors/entry-ingest-flow.js` içindeki tek yürüyüşe katlandı,

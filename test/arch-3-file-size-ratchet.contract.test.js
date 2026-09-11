@@ -5,10 +5,10 @@
  * in CI.
  *
  * The check is a ratchet rather than a flat limit, because a flat 800-line
- * limit would fail the repository on day one against 18 existing files that
- * `docs/v4/big-file-refactor-gate.md` explicitly forbids splitting right now.
- * A gate that cannot pass gets disabled; a ratchet that says "no worse than
- * today" is enforceable immediately and still converges on the same place.
+ * limit would fail the repository on day one against every file already over
+ * it, and a gate that cannot pass gets disabled. A ratchet is enforceable
+ * immediately -- but "no worse than today" converges only if the ceiling is
+ * also required to fall, which `docs/architecture-policy.md` now mandates.
  *
  * These tests pin the ratchet's decision logic directly, so its edge cases do
  * not depend on the repository's current file sizes.

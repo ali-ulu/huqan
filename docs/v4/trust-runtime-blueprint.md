@@ -2,7 +2,7 @@
 
 **Status:** V4-PR0 docs-only contract.
 **Base at authoring:** `fab6e502f6490baedf8df5b9e08b47c2df3138bc` (`claude/practical-knuth-0ecsze`, post-#145).
-**Depends on:** `docs/v4/v4-pr-plan.md`, `docs/v4/big-file-refactor-gate.md` (merged in #145).
+**Depends on:** `docs/v4/v4-pr-plan.md`, and at authoring time the big-file refactor gate (merged in #145; deleted 2026-09-11, superseded by `docs/architecture-policy.md`).
 
 ---
 
