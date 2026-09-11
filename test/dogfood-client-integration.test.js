@@ -48,20 +48,21 @@ function createDogfoodClient(server) {
   };
 }
 
-test('dogfood: MCP tools/list returns 18 model-visible tools', () => {
+test('dogfood: MCP tools/list returns 19 model-visible tools', () => {
   const server = createServer({ operatorToken: 'test-operator' });
   const client = createDogfoodClient(server);
   const result = client.listTools();
   assert.ok(result, 'tools/list must return result');
   assert.ok(Array.isArray(result.tools), 'result.tools must be array');
-  assert.equal(result.tools.length, 18, 'Must have 18 model-visible MCP tools');
+  assert.equal(result.tools.length, 19, 'Must have 19 model-visible MCP tools');
   const names = result.tools.map(t => t.name).sort();
   // Canonical model-visible names only: approval control remains operator-only
   // and the legacy aliases are callable but must never appear here.
   assert.deepEqual(names, [
     'huqan.advocate', 'huqan.agent', 'huqan.ask', 'huqan.compare', 'huqan.dream', 'huqan.fractal-learn', 'huqan.ingest_execute',
     'huqan.ingest_preview', 'huqan.ingest_status', 'huqan.learn', 'huqan.web_research',
-    'huqan.plan', 'huqan.policy', 'huqan.reason', 'huqan.search', 'huqan.self-evolve', 'huqan.trust_receipt', 'huqan.verify',
+    'huqan.plan', 'huqan.policy', 'huqan.reason', 'huqan.search', 'huqan.self-evolve', 'huqan.trust_receipt',
+    'huqan.trust_receipt_detail', 'huqan.verify',
   ].sort());
 });
 
