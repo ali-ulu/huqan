@@ -44,6 +44,7 @@ const path = require('node:path');
 
 const { WORKFLOW_CAPABILITIES } = require('../lib/workflow-contract');
 const { readCompatibleEnvironmentVariable } = require('../lib/environment-compat');
+const { readInstrumentedSinceFromDb } = require('../lib/observability/instrumentation-marker');
 
 const USAGE_STATUS = Object.freeze({
   USED: 'USED',
@@ -132,6 +133,45 @@ function countApprovals(db, mcpTool) {
   return db.prepare('SELECT COUNT(*) AS c FROM tool_approvals WHERE tool = ? OR tool = ?').get(mcpTool, legacy).c;
 }
 
+/**
+ * The fallback evidence for a read-only capability: the gate decision its call
+ * had to pass through.
+ *
+ * A read leaves no row of its own -- that is exactly why these capabilities
+ * reported UNKNOWN -- but every MCP tool call is gated, and now that gate
+ * telemetry has a sink the decision is recorded against the tool name. So
+ * "nothing records this either way" is true only for capabilities no
+ * instrumented surface reaches.
+ *
+ * Returns null rather than UNKNOWN when it cannot answer -- no MCP tool, no
+ * observability table, no instrumentation stamp -- and the caller falls back to
+ * the declared reason, which stays the honest answer.
+ */
+function gateDecisionEvidence(workflow, db) {
+  if (!workflow.mcpTool || !tableExists(db, 'observability_events')) return null;
+
+  // Before this instant nobody was counting, so silence says nothing. Reading
+  // zero rows as "never used" here would repeat, one layer down, the error this
+  // whole report exists to prevent.
+  const since = readInstrumentedSinceFromDb(db);
+  if (!since) return null;
+
+  const legacy = workflow.mcpTool.replace(/^huqan\./u, 'axiom.');
+  let count = null;
+  try {
+    count = db.prepare(
+      "SELECT COUNT(*) AS c FROM observability_events WHERE event_type = 'gate_decision' AND (tool = ? OR tool = ?)",
+    ).get(workflow.mcpTool, legacy).c;
+  } catch {
+    return null;
+  }
+  if (!Number.isFinite(count)) return null;
+
+  return count > 0
+    ? { status: USAGE_STATUS.USED, count, detail: `${count} gate decision(s) for ${workflow.mcpTool}` }
+    : { status: USAGE_STATUS.NEVER, count: 0, detail: `no gate decision for ${workflow.mcpTool} since ${since}` };
+}
+
 function evidenceFor(workflow, db) {
   const declared = EVIDENCE[workflow.workflowId];
 
@@ -143,7 +183,7 @@ function evidenceFor(workflow, db) {
     };
   }
   if (declared.none) {
-    return { status: USAGE_STATUS.UNKNOWN, detail: declared.none };
+    return gateDecisionEvidence(workflow, db) || { status: USAGE_STATUS.UNKNOWN, detail: declared.none };
   }
   if (declared.approvalTool) {
     const count = countApprovals(db, workflow.mcpTool);
