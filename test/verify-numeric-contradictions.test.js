@@ -22,8 +22,8 @@ const VerifyService = require('../lib/verify');
 // A VerifyService is only needed for its two text helpers, which are pure.
 const service = new VerifyService({ graph: { getEdges: () => [], getNodes: () => ({}) } });
 const text = {
-  extractNumbers: value => service._extractNumbers(value),
-  getTextCore: value => service._getTextCore(value),
+  extractNumbers: value => service.extractNumbers(value),
+  getTextCore: value => service.getTextCore(value),
 };
 
 /** The pre-#1186 implementation, transcribed, as the equivalence reference. */

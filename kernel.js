@@ -10,6 +10,7 @@ const { buildBackgroundProvenance, sponsorBackgroundProvenance, provenanceFields
 const { buildLearnAdmissionRequest } = require('./lib/learn-admission-request');
 const { evaluateMemoryAdmission } = require('./lib/memory-admission-gate');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
+const { evaluateLearnAdmission } = require('./lib/kernel-learn-admission');
 const { detectClaimConflict } = require('./lib/conflict-detector');
 const { createKernelReadUseCases } = require('./lib/kernel-read-use-cases');
 const { runLearnUseCase } = require('./lib/learn-use-case');
@@ -136,7 +137,15 @@ class Kernel {
       const pDir = path.join(__dirname, 'plugins');
       if (fs.existsSync(pDir)) this.plugins.load(pDir);
     }
-    this._verifyService = new VerifyService(this);
+    this._verifyService = new VerifyService(this, {
+      verifyInternal: this._verifyInternal.bind(this),
+      parsePredicate: this._parsePredicate.bind(this),
+      edgeEvidence: this._edgeEvidence.bind(this),
+      findPathWithTimeout: this._findPathWithTimeout.bind(this),
+      findPath: this._findPath.bind(this),
+      pathEvidence: this._pathEvidence.bind(this),
+      edgeRef: this._edgeRef.bind(this),
+    });
     this.strictProvenance = opts.strictProvenance === true; this.trustPolicyPath = typeof opts.trustPolicyPath === 'string' && opts.trustPolicyPath.trim() ? opts.trustPolicyPath.trim() : null;
     
     // r1: single-flight guard for critical operations (verify/learn), enforced
@@ -465,7 +474,7 @@ class Kernel {
   }
 
   _contradictionEvidence(contradiction) {
-    return this._verifyService._contradictionEvidence(contradiction);
+    return this._verifyService.contradictionEvidence(contradiction);
   }
 
   _resolveLearnMetadata(opts = {}) {
@@ -554,42 +563,11 @@ class Kernel {
   }
 
   _evaluateLearnAdmission(text, opts = {}, provenance = null, workspaceId = 'default') {
-    if (this._isLearnAdmissionBypass(opts)) return null;
-
-    const request = buildLearnAdmissionRequest({
-      text,
-      opts,
-      provenance,
-      workspaceId,
+    return evaluateLearnAdmission({
+      kernel: this,
+      isLearnAdmissionBypass: this._isLearnAdmissionBypass.bind(this),
       contractVersion: this.contractVersion,
-    });
-
-    const evaluated = evaluateMemoryAdmission(request, {
-      approvalRequired: request.approvalRequired,
-    });
-    if (!evaluated || !evaluated.ok || !evaluated.decision) {
-      emitGateTelemetry(this, 'memory-admission', { decision: 'review', reason: 'memory_admission_evaluation_failed' });
-      return {
-        outcome: 'review',
-        reason: 'memory_admission_evaluation_failed',
-        graphWrite: false,
-        workspaceId,
-      };
-    }
-
-    emitGateTelemetry(this, 'memory-admission', evaluated.decision);
-
-    return {
-      outcome: evaluated.decision.decision,
-      reason: evaluated.decision.reason,
-      graphWrite: evaluated.decision.allowed,
-      workspaceId,
-      approvalStatus: evaluated.decision.approvalStatus,
-      provenanceId: evaluated.decision.provenanceId,
-      receiptId: evaluated.decision.receiptId,
-      receipt: evaluated.decision.receipt,
-      trustPolicyVersion: evaluated.decision.trustPolicyVersion,
-    };
+    }, text, opts, provenance, workspaceId);
   }
 
   _admissionReceiptDetails(admission) {
@@ -854,7 +832,7 @@ class Kernel {
   compare(a, b, opts = 'default') { return this._readUseCases.compare(a, b, workspaceIdFrom(opts)); }
 
   _parseNumericComparison(text) {
-    return this._verifyService._parseNumericComparison(text);
+    return this._verifyService.parseNumericComparison(text);
   }
 
   // Implementations live in lib/graph-traversal.js. These stay as methods
@@ -975,11 +953,11 @@ class Kernel {
   }
 
   _extractNumbers(text) {
-    return this._verifyService._extractNumbers(text);
+    return this._verifyService.extractNumbers(text);
   }
 
   _getTextCore(text) {
-    return this._verifyService._getTextCore(text);
+    return this._verifyService.getTextCore(text);
   }
 
   introspect(workspaceId = 'default') {

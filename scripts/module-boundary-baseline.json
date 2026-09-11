@@ -7,7 +7,7 @@
       "review_by": "2026-12-31"
     },
     "kernel.js": {
-      "calls": 5,
+      "calls": 1,
       "why": "Pre-existing debt recorded when the gate was introduced.",
       "review_by": "2026-12-31"
     },
@@ -113,11 +113,6 @@
     },
     "lib/receipt/receipt-stamp.js": {
       "calls": 2,
-      "why": "Pre-existing debt recorded when the gate was introduced.",
-      "review_by": "2026-12-31"
-    },
-    "lib/verify.js": {
-      "calls": 11,
       "why": "Pre-existing debt recorded when the gate was introduced.",
       "review_by": "2026-12-31"
     },
