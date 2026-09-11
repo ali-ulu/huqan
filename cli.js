@@ -24,6 +24,7 @@ const {
 const Dream = require('./dream');
 const LLMAdapter = require('./llmAdapter');
 const { createAgent } = require('./agentRuntime');
+const { buildSystemStatus, formatSystemStatusText } = require('./lib/system-status-report');
 const { createBackup, runCliRestore, formatCliRestore, formatRestoreError } = require('./backupRestore');
 const { resolvePersistencePaths } = require('./persistencePaths');
 const { evaluateMcpGate } = require('./lib/mcp-gate-adapter');
@@ -575,20 +576,12 @@ class CLI {
           createOperatorCapability: ({ tool, arguments: args }) => this._createOperatorCapability(tool, args),
         });
       case 'durum': {
-        const stats = this.kernel.graph.getStats();
-        const nodes = stats.nodes;
-        const edges = stats.edges;
-        const entropy = this.kernel.entropy();
-        const gaps = this.kernel.detectGaps();
-        const contradictions = this.kernel.detectContradictions();
-        let out = `Status: ${nodes} nodes, ${edges} edges, entropy: ${entropy.toFixed(3)}`;
-        if (isWorkflowRuntime(this.agent)) out += `\n  Agent runtime: workflow`;
-        if (gaps.length > 0) out += `\n  ${gaps.length} unconnected node(s): ${gaps.slice(0, 10).join(', ')}${gaps.length > 10 ? '...' : ''}`;
-        out += formatPluginCapabilityStatus(this.kernel?.plugins);
-        for (const item of contradictions.slice(0, 5)) {
-          out += `\n  Contradiction [${item.type}]: ${item.node} -> ${item.targets.join(', ')}`;
-        }
-        return out;
+        // The same report huqan.status returns, rendered. Sharing the builder
+        // is what keeps the two surfaces from answering differently.
+        const report = buildSystemStatus(this.kernel, {
+          agentRuntime: isWorkflowRuntime(this.agent) ? 'workflow' : null,
+        });
+        return formatSystemStatusText(report, formatPluginCapabilityStatus(this.kernel?.plugins));
       }
       case 'rüya': {
         const hypotheses = this.dream.dream();

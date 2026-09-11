@@ -590,7 +590,7 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
     case 'huqan.fractal-learn': return require('./lib/mcp/fractal-learn-tool').executeMcpFractalLearn(kernel, name, args, gate);
     case 'huqan.self-evolve': return require('./lib/mcp/self-evolve-tool').executeMcpSelfEvolve(kernel, name, args, gate);
     case 'huqan.advocate': case 'huqan.web_research': case 'huqan.search':
-    case 'huqan.trust_receipt': case 'huqan.trust_receipt_detail':
+    case 'huqan.trust_receipt': case 'huqan.trust_receipt_detail': case 'huqan.status': case 'huqan.audit':
       return executeMcpReadWorkflow({ kernel, name, args, gate });
     case 'huqan.ingest_preview': {
       const preview = buildIngestWorkflowPreview(args);
