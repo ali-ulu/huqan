@@ -156,6 +156,22 @@ describe('RFC-001 reader half: legacy axiom.* names still work', () => {
     assert.deepEqual(legacy.data, canonical.data);
   });
 
+  // Two calls are two runs, so their run and trace identifiers differ by
+  // design -- that is what those fields are for. They became visible here when
+  // gate telemetry got a sink and workflow runs started being recorded; before
+  // that both calls carried `undefined` and compared equal by accident. What
+  // this test is actually about is that the alias reaches the same handler, so
+  // per-run identifiers are excluded the way the dream test already excludes
+  // its cycle counter.
+  const RUN_IDENTIFIERS = ['observabilityRunId', 'traceId', 'runId'];
+
+  function withoutRunIdentifiers(data) {
+    if (!data || typeof data !== 'object') return data;
+    const copy = { ...data };
+    for (const key of RUN_IDENTIFIERS) delete copy[key];
+    return copy;
+  }
+
   it('resolves both spellings to the same handler for every read-only tool', () => {
     const cases = [
       ['ask', { question: 'kedi nedir' }],
@@ -175,7 +191,11 @@ describe('RFC-001 reader half: legacy axiom.* names still work', () => {
       // caller acts on must be identical.
       assert.equal(legacy.ok, canonical.ok, `${suffix}: ok must match`);
       assert.equal(legacy.type, canonical.type, `${suffix}: type must match`);
-      assert.deepEqual(legacy.data, canonical.data, `${suffix}: data must match`);
+      assert.deepEqual(
+        withoutRunIdentifiers(legacy.data),
+        withoutRunIdentifiers(canonical.data),
+        `${suffix}: data must match`,
+      );
       assert.deepEqual(legacy.error, canonical.error, `${suffix}: error must match`);
     }
   });
