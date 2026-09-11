@@ -81,7 +81,7 @@ gate where it had a freeze.
 | No require cycles | yes | `scripts/check-import-cycles.js` |
 | Correctness lint | **not yet** | `npm run lint` exists and reports 883 findings; not wired into CI until they are triaged |
 | 200-line target | **not yet** | threshold is still 800 |
-| Baseline review dates | **not yet** | field does not exist |
+| Baseline review dates | partly | present in the module-boundary baseline; not yet in `scripts/file-size-baseline.json` |
 | Dependency direction | yes | `scripts/check-layers.js`, 3 dated exceptions |
 | Module boundary | yes | `scripts/check-module-boundary.js`, ratcheted at 110 calls |
 
