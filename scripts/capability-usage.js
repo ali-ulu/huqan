@@ -43,6 +43,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { WORKFLOW_CAPABILITIES } = require('../lib/workflow-contract');
+const { readCompatibleEnvironmentVariable } = require('../lib/environment-compat');
 
 const USAGE_STATUS = Object.freeze({
   USED: 'USED',
@@ -190,7 +191,8 @@ function buildUsageReport(db, workflows = WORKFLOW_CAPABILITIES) {
  * evidence about the product.
  */
 function resolveStorePath() {
-  if (process.env.HUQAN_DB_PATH) return process.env.HUQAN_DB_PATH;
+  const configured = readCompatibleEnvironmentVariable('DB_PATH');
+  if (configured) return configured;
   return path.join(process.env.USERPROFILE || process.env.HOME || '.', 'huqan', 'memory.db');
 }
 
