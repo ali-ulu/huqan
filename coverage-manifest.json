@@ -1,21 +1,21 @@
 {
   "schemaVersion": "huqan.enforcement-coverage.v1",
-  "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. Indirect calls through a parameter, and dynamic property access, are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
+  "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. A local alias, and a parameter or destructuring default whose right-hand side is a known binding, are followed; dynamic property access (`fs[name](...)`) and a handle that is never locally bound to a known namespace are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
-    "files": 40,
-    "sites": 102,
+    "files": 42,
+    "sites": 112,
     "byCapability": {
-      "process": 15,
+      "process": 16,
       "egress": 4,
-      "fs_write": 83
+      "fs_write": 92
     },
     "byRole": {
       "enforcement": 26,
       "adapter_read": 6,
-      "persistence": 32,
-      "operator_tool": 21,
+      "persistence": 35,
+      "operator_tool": 25,
       "evidence": 14,
-      "unguarded": 3
+      "unguarded": 6
     }
   },
   "unguarded": [
@@ -37,15 +37,32 @@
     {
       "file": "lib/runtime-watchdog.js",
       "role": "unguarded",
-      "why": "fetches its own health URL on a heartbeat. The default target is the local server and the check is injectable, but the request itself passes no gate",
+      "why": "starts the server it supervises, writes its own hash-chained audit journal and fetches its health URL on a heartbeat. The spawn and the health target default to the local server and both are injectable, but none of the three actions passes a gate",
       "capabilities": [
-        "egress"
+        "egress",
+        "fs_write",
+        "process"
       ],
       "sites": [
+        {
+          "line": 57,
+          "capability": "fs_write",
+          "call": "fileSystem.mkdirSync"
+        },
+        {
+          "line": 70,
+          "capability": "fs_write",
+          "call": "fileSystem.appendFileSync"
+        },
         {
           "line": 85,
           "capability": "egress",
           "call": "fetch"
+        },
+        {
+          "line": 149,
+          "capability": "process",
+          "call": "spawnProcess"
         }
       ]
     },
@@ -309,6 +326,36 @@
           "line": 74,
           "capability": "process",
           "call": "childProcess.execFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/coder/apply-derivation.js",
+      "role": "operator_tool",
+      "why": "applies a deterministic transform to a working tree, but only after evaluateCodeChange returns allow; its writes are the gated action, invoked by the human-run `coder` CLI, and the whole patch is rolled back on the first write failure",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 119,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 120,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 134,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        },
+        {
+          "line": 135,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
         }
       ]
     },
@@ -710,6 +757,31 @@
       ]
     },
     {
+      "file": "lib/mcp-capability-nonce-store.js",
+      "role": "persistence",
+      "why": "the durable single-use MCP capability nonce store, reached from mcpServer.js; the directory is resolved from config or beside memoryPath and the file name is a hash of the attacker-influenced nonce, so a nonce cannot escape that directory",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 90,
+          "capability": "fs_write",
+          "call": "fileSystem.rmSync"
+        },
+        {
+          "line": 102,
+          "capability": "fs_write",
+          "call": "fileSystem.mkdirSync"
+        },
+        {
+          "line": 117,
+          "capability": "fs_write",
+          "call": "fileSystem.writeFileSync"
+        }
+      ]
+    },
+    {
       "file": "lib/memory-store-json-persistence.js",
       "role": "persistence",
       "why": "the JSON memory store backend, writing to the configured memoryStorePath rather than any agent-supplied path",
@@ -822,15 +894,32 @@
     {
       "file": "lib/runtime-watchdog.js",
       "role": "unguarded",
-      "why": "fetches its own health URL on a heartbeat. The default target is the local server and the check is injectable, but the request itself passes no gate",
+      "why": "starts the server it supervises, writes its own hash-chained audit journal and fetches its health URL on a heartbeat. The spawn and the health target default to the local server and both are injectable, but none of the three actions passes a gate",
       "capabilities": [
-        "egress"
+        "egress",
+        "fs_write",
+        "process"
       ],
       "sites": [
+        {
+          "line": 57,
+          "capability": "fs_write",
+          "call": "fileSystem.mkdirSync"
+        },
+        {
+          "line": 70,
+          "capability": "fs_write",
+          "call": "fileSystem.appendFileSync"
+        },
         {
           "line": 85,
           "capability": "egress",
           "call": "fetch"
+        },
+        {
+          "line": 149,
+          "capability": "process",
+          "call": "spawnProcess"
         }
       ]
     },

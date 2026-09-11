@@ -126,6 +126,10 @@ const CLASSIFIED = Object.freeze({
   'lib/huqan-package-format.js': Object.freeze({ role: 'persistence', why: 'writes an exported package to the caller-named output path' }),
   'agent.js': Object.freeze({ role: 'persistence', why: 'writes agent checkpoints and run state so a run can resume; the path is the kernel persistence descriptor, not a request field' }),
   'lib/store-creation-guard.js': Object.freeze({ role: 'persistence', why: 'the registry of store paths this machine keeps, under the resolved state root; the recorded path is a store path the runtime already resolved, never a request field, and every write failure is swallowed so the registry can never refuse an open' }),
+  'lib/mcp-capability-nonce-store.js': Object.freeze({
+    role: 'persistence',
+    why: 'the durable single-use MCP capability nonce store, reached from mcpServer.js; the directory is resolved from config or beside memoryPath and the file name is a hash of the attacker-influenced nonce, so a nonce cannot escape that directory',
+  }),
 
   // ── operator tools ─────────────────────────────────────────────────────
   'backupRestore.js': Object.freeze({
@@ -139,6 +143,10 @@ const CLASSIFIED = Object.freeze({
   }),
   'plugins/metric-collector.js': Object.freeze({ role: 'operator_tool', why: 'plugin writing its own metric output file; loaded only when an operator enables the plugin directory' }),
   'plugins/receipt-exporter.js': Object.freeze({ role: 'operator_tool', why: 'plugin exporting receipts to an operator-named path; runs on explicit invocation, not on an agent request' }),
+  'lib/coder/apply-derivation.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'applies a deterministic transform to a working tree, but only after evaluateCodeChange returns allow; its writes are the gated action, invoked by the human-run `coder` CLI, and the whole patch is rolled back on the first write failure',
+  }),
 
   // ── read-only adapters ─────────────────────────────────────────────────
   'lib/cli-coder-verify.js': Object.freeze({
@@ -169,7 +177,7 @@ const CLASSIFIED = Object.freeze({
   }),
   'lib/runtime-watchdog.js': Object.freeze({
     role: 'unguarded',
-    why: 'fetches its own health URL on a heartbeat. The default target is the local server and the check is injectable, but the request itself passes no gate',
+    why: 'starts the server it supervises, writes its own hash-chained audit journal and fetches its health URL on a heartbeat. The spawn and the health target default to the local server and both are injectable, but none of the three actions passes a gate',
   }),
   'lib/pr-guardian/github-client.js': Object.freeze({
     role: 'unguarded',
