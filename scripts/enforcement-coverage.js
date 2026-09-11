@@ -33,12 +33,20 @@
  * `child_process`, `fs`, `http`/`https` and `net`, and only counts calls
  * through those bindings.
  *
- * KNOWN BLIND SPOT: indirection defeats it. lib/runtime-watchdog.js takes
- * `spawnProcess = spawn` as a parameter default and calls it through that
- * binding; a scan keyed on the module binding sees the default, not the call.
- * Dynamic property access (`fs[name](...)`) is invisible for the same reason.
- * This is why the check demands a human classification rather than claiming to
- * be exhaustive.
+ * KNOWN BLIND SPOTS: indirection defeats it, and dependency injection is
+ * indirection's most ordinary form. The scanner follows a *local alias* of a
+ * binding it already resolved -- `const f = fs;`, `const run = cp.spawnSync;`
+ * -- and a default value in a function parameter or destructuring pattern
+ * whose right-hand side is such a binding: `function f(root, fs = nodeFs)`,
+ * `({ fileSystem = fs } = opts)`, `const { ..., fs = nodeFs, ... } = options;`.
+ * The alias inherits the capability and the members list still decides which
+ * calls count, so injecting a *read-only* handle stays invisible.
+ *
+ * What remains invisible: dynamic property access (`fs[name](...)`), and a
+ * handle that arrives with no local binding to a known namespace -- an alias
+ * created through an expression (a conditional, a map lookup, a value built
+ * elsewhere and merely named at the call site). This is why the check demands
+ * a human classification rather than claiming to be exhaustive.
  */
 
 const fs = require('node:fs');
@@ -164,6 +172,83 @@ function lineOf(text, index) {
   return text.slice(0, index).split('\n').length;
 }
 
+const IDENT = '[A-Za-z_$][\\w$]*';
+
+/**
+ * Did a right-hand side name one of this capability's bindings?
+ *
+ * `fs` (a namespace) and `spawn` (a directly imported member) both count, as
+ * does `cp.spawnSync` -- a member reached through a resolved namespace whose
+ * name is one the capability already counts. Anything else, including a call
+ * expression, resolves to nothing: precision matters more than recall, and an
+ * unresolved right-hand side must not invent a capability the file never bound.
+ */
+function referenceKind(raw, capability, known) {
+  const parts = raw.split('.').map((part) => part.trim());
+  if (parts.length === 1) {
+    if (known.namespaces.has(parts[0])) return 'namespace';
+    if (known.direct.has(parts[0])) return 'direct';
+    return null;
+  }
+  if (parts.length === 2 && known.namespaces.has(parts[0]) && capability.members.includes(parts[1])) {
+    return 'direct';
+  }
+  return null;
+}
+
+/**
+ * Bindings a file introduced by aliasing one it already resolved.
+ *
+ * Two shapes, both conservative:
+ *   declaration   const f = fs;              const run = cp.spawnSync;
+ *   default       function f(root, fs = nodeFs)
+ *                 ({ fileSystem = fs } = opts)
+ *                 const { ..., fs = nodeFs, ... } = options;
+ *
+ * A default is only recognised inside a pattern position -- after `(`, `{` or
+ * `,` and before `,`, `}`, `)` or `]` -- so an ordinary assignment
+ * (`handle = fs;`) is not mistaken for one. Both shapes are read from text with
+ * comments and strings blanked, so a mention in either is not a binding.
+ */
+function aliasesFor(text, capability, known) {
+  const reference = `(${IDENT}(?:\\s*\\.\\s*${IDENT})?)`;
+  const patterns = [
+    new RegExp(`(?:const|let|var)\\s+(${IDENT})\\s*=\\s*${reference}\\s*(?=[;,\\n]|$)`, 'g'),
+    new RegExp(`[({,]\\s*(${IDENT})\\s*=\\s*${reference}\\s*(?=[,}\\)\\]])`, 'g'),
+  ];
+  const found = { namespaces: new Set(), direct: new Set() };
+  for (const pattern of patterns) {
+    for (const match of text.matchAll(pattern)) {
+      const kind = referenceKind(match[2], capability, known);
+      if (kind === 'namespace') found.namespaces.add(match[1]);
+      else if (kind === 'direct') found.direct.add(match[1]);
+    }
+  }
+  return found;
+}
+
+/** How many alias chains to follow before declaring the file resolved. */
+const MAX_ALIAS_PASSES = 5;
+
+/**
+ * Every binding from which this file can reach the capability, require-derived
+ * or aliased. Aliases are read from text with strings blanked (they name
+ * identifiers, never literals), while requires are read with strings intact --
+ * the two transforms preserve length, so offsets agree but blanking the module
+ * name is not an option for the require scan.
+ */
+function resolveBindings(declarations, text, capability) {
+  const { namespaces, direct } = bindingsFor(declarations, capability);
+  for (let pass = 0; pass < MAX_ALIAS_PASSES; pass += 1) {
+    const found = aliasesFor(text, capability, { namespaces, direct });
+    let grew = false;
+    for (const name of found.namespaces) if (!namespaces.has(name)) { namespaces.add(name); grew = true; }
+    for (const name of found.direct) if (!direct.has(name)) { direct.add(name); grew = true; }
+    if (!grew) break;
+  }
+  return { namespaces, direct };
+}
+
 function sitesIn(file, source) {
   // Bindings are read with strings intact; call sites are matched with strings
   // blanked. Both transforms preserve length, so the offsets agree.
@@ -171,7 +256,7 @@ function sitesIn(file, source) {
   const text = stripCommentsAndStrings(source);
   const found = [];
   for (const [name, capability] of Object.entries(CAPABILITIES)) {
-    const { namespaces, direct } = bindingsFor(declarations, capability);
+    const { namespaces, direct } = resolveBindings(declarations, text, capability);
     if (namespaces.size === 0 && direct.size === 0) continue;
     const members = capability.members.join('|');
     for (const ns of namespaces) {
@@ -202,9 +287,23 @@ function sitesIn(file, source) {
  * auth policy rather than by admission. It was never in this scan while it sat
  * inline in index.html; keeping it out is what holds this manifest's claim
  * about the *process* surface unchanged.
+ *
+ * It enumerates untracked files as well as tracked ones. A newly written file
+ * that has not been `git add`ed yet is exactly the kind of file most likely to
+ * hold an unclassified call site, and `git ls-files '*.js'` alone reported it
+ * as absent rather than unclassified -- the scan passing for the reason that it
+ * could not see the file. `--others --exclude-standard` keeps `.gitignore`
+ * authoritative, so build output and local scratch stay out.
+ *
+ * `root` is injectable, defaulting to this repository, so a test can point the
+ * scan at a temporary fixture.
  */
-function productionFiles() {
-  const out = execFileSync('git', ['ls-files', '*.js'], { cwd: repoRoot, encoding: 'utf8' });
+function productionFiles(root = repoRoot) {
+  const out = execFileSync(
+    'git',
+    ['ls-files', '--cached', '--others', '--exclude-standard', '*.js'],
+    { cwd: root, encoding: 'utf8' },
+  );
   return out.trim().split('\n').filter(Boolean).filter((file) => {
     if (/(^|\/)(test|benchmarks|scripts|public)\//.test(file)) return false;
     if (/\.test\.js$/.test(file)) return false;
@@ -213,10 +312,10 @@ function productionFiles() {
   });
 }
 
-function collectSites() {
+function collectSites(root = repoRoot) {
   const sites = [];
-  for (const file of productionFiles()) {
-    const source = fs.readFileSync(path.join(repoRoot, file), 'utf8');
+  for (const file of productionFiles(root)) {
+    const source = fs.readFileSync(path.join(root, file), 'utf8');
     sites.push(...sitesIn(file, source));
   }
   return sites.sort((a, b) => (a.file === b.file ? a.line - b.line : a.file.localeCompare(b.file)));
@@ -228,8 +327,8 @@ function collectSites() {
  * `unclassified` is the failure. Everything else is reported, including the
  * sites deliberately outside the boundary -- listing them is the point.
  */
-function buildCoverageManifest() {
-  const sites = collectSites();
+function buildCoverageManifest(root = repoRoot) {
+  const sites = collectSites(root);
   const byFile = new Map();
   for (const site of sites) {
     if (!byFile.has(site.file)) byFile.set(site.file, []);
@@ -271,8 +370,10 @@ function buildCoverageManifest() {
     // the boundary that decides what "protected" means.
     establishes: 'The inventory of call sites that can act on the world, and the recorded role of each. '
       + 'It does NOT establish that any site is enforced at run time: that would need call-graph '
-      + 'analysis this build does not perform. Indirect calls through a parameter, and dynamic '
-      + 'property access, are invisible to it. Nor does any entry here describe what an approved '
+      + 'analysis this build does not perform. A local alias, and a parameter or destructuring '
+      + 'default whose right-hand side is a known binding, are followed; dynamic property access '
+      + '(`fs[name](...)`) and a handle that is never locally bound to a known namespace are '
+      + 'invisible to it. Nor does any entry here describe what an approved '
       + 'process goes on to do: the guard evaluates the command it is shown, so a process it '
       + 'allowed can write, spawn and transmit without a further decision, and an action refused '
       + 'when requested directly succeeds silently when a permitted process performs it. That '
@@ -283,6 +384,20 @@ function buildCoverageManifest() {
     entries,
     unclassified,
   };
+}
+
+/**
+ * Recorded classifications that no longer describe any call site the scan found.
+ *
+ * The companion failure to `unclassified`: a list stops describing the code
+ * when a file drops its last risky call and keeps its justification. Both
+ * invariants are checked against the same freshly built inventory, so the
+ * script's verdict is the test's verdict rather than a second opinion about an
+ * artifact it just regenerated.
+ */
+function staleClassifications(manifest) {
+  const withSites = new Set(manifest.entries.map((entry) => entry.file));
+  return Object.keys(CLASSIFIED).filter((file) => !withSites.has(file));
 }
 
 function main() {
@@ -306,20 +421,42 @@ function main() {
   console.log('');
   console.log('written: coverage-manifest.json');
 
-  if (manifest.unclassified.length === 0) {
-    console.log('OK: every call site that can act on the world has a recorded role.');
+  const stale = staleClassifications(manifest);
+
+  if (manifest.unclassified.length === 0 && stale.length === 0) {
+    // Deliberately specific about what was verified. An "OK" printed after
+    // regenerating the artifact and checking nothing is how a gate passes while
+    // measuring the wrong thing.
+    console.log(`OK: ${manifest.totals.sites} call site(s) across ${manifest.totals.files} file(s): `
+      + 'every one has a recorded role, and every recorded classification still describes a file '
+      + 'with such a site.');
     return 0;
   }
-  console.error('');
-  console.error(`FAIL: ${manifest.unclassified.length} file(s) can act on the world with no recorded role:`);
-  console.error('');
-  for (const entry of manifest.unclassified) {
-    console.error(`  ${entry.file}  (${entry.sites} site(s): ${entry.capabilities.join(', ')})`);
+
+  if (manifest.unclassified.length > 0) {
+    console.error('');
+    console.error(`FAIL: ${manifest.unclassified.length} file(s) can act on the world with no recorded role:`);
+    console.error('');
+    for (const entry of manifest.unclassified) {
+      console.error(`  ${entry.file}  (${entry.sites} site(s): ${entry.capabilities.join(', ')})`);
+    }
+    console.error('');
+    console.error('Add each to CLASSIFIED in scripts/enforcement-coverage-classification.js with the');
+    console.error('role it plays and why it holds that capability. "unguarded" is a valid answer and');
+    console.error('is published as such; an unexamined one is not.');
   }
-  console.error('');
-  console.error('Add each to CLASSIFIED in scripts/enforcement-coverage-classification.js with the');
-  console.error('role it plays and why it holds that capability. "unguarded" is a valid answer and');
-  console.error('is published as such; an unexamined one is not.');
+
+  if (stale.length > 0) {
+    console.error('');
+    console.error(`FAIL: ${stale.length} recorded classification(s) no longer describe any call site:`);
+    console.error('');
+    for (const file of stale) console.error(`  ${file}`);
+    console.error('');
+    console.error('Remove each from CLASSIFIED in scripts/enforcement-coverage-classification.js. A');
+    console.error('classification is how a file\'s capability is justified; one that describes no call');
+    console.error('site is how the list stops describing the code.');
+  }
+
   return 1;
 }
 
@@ -331,9 +468,11 @@ module.exports = {
   collectSites,
   sitesIn,
   bindingsFor,
+  resolveBindings,
   stripComments,
   stripCommentsAndStrings,
   buildCoverageManifest,
+  staleClassifications,
   CAPABILITIES,
   productionFiles,
 };

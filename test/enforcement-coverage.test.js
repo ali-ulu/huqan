@@ -3,12 +3,17 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 
 const {
   sitesIn,
   bindingsFor,
   buildCoverageManifest,
+  collectSites,
+  productionFiles,
+  staleClassifications,
   CAPABILITIES,
 } = require('../scripts/enforcement-coverage');
 const { ROLES, CLASSIFIED } = require('../scripts/enforcement-coverage-classification');
@@ -138,6 +143,150 @@ test('a read-only fs call is deliberately out of scope', () => {
   const source = "const fs = require('node:fs');\nfs.readFileSync('a');\nfs.existsSync('b');\n";
   assert.deepEqual(sitesIn('probe.js', source), []);
   assert.ok(!CAPABILITIES.fs_write.members.includes('readFileSync'));
+});
+
+// ─── indirection: an injected handle is still the capability ─────────────────
+//
+// Dependency injection is a normal pattern for testability -- it is how a test
+// forces a write failure. A scan keyed only on the imported module identifier
+// therefore had its blind spot lining up exactly with well-tested code. These
+// pin the fix: an alias whose right-hand side is a binding the file resolved is
+// followed, and a read-only handle stays out.
+
+test('a local alias of a bound namespace is followed', () => {
+  const source = "const fs = require('node:fs');\nconst store = fs;\nstore.writeFileSync('a', 'b');\n";
+  const found = sitesIn('probe.js', source);
+  assert.equal(found.length, 1);
+  assert.equal(found[0].capability, 'fs_write');
+  assert.equal(found[0].call, 'store.writeFileSync');
+});
+
+test('a local alias of a destructured member is followed', () => {
+  const source = "const cp = require('node:child_process');\nconst run = cp.spawnSync;\nrun('x');\n";
+  const found = sitesIn('probe.js', source);
+  assert.equal(found.length, 1);
+  assert.equal(found[0].capability, 'process');
+  assert.equal(found[0].call, 'run');
+});
+
+test('a function parameter default that names a binding is followed', () => {
+  // The shape lib/runtime-watchdog.js uses: `spawnProcess = spawn`.
+  const source = [
+    "const { spawn } = require('node:child_process');",
+    'function start({ spawnProcess = spawn } = {}) {',
+    "  spawnProcess('x');",
+    '}',
+  ].join('\n');
+  const found = sitesIn('probe.js', source);
+  assert.equal(found.length, 1);
+  assert.equal(found[0].capability, 'process');
+});
+
+test('a destructuring default that names a binding is followed', () => {
+  // The shape lib/coder/apply-derivation.js uses:
+  // `const { ..., fs = nodeFs, ... } = options;`.
+  const declared = "const nodeFs = require('node:fs');\nconst { fs = nodeFs } = options;\nfs.rmSync('x');\n";
+  const found = sitesIn('probe.js', declared);
+  assert.equal(found.length, 1);
+  assert.equal(found[0].capability, 'fs_write');
+
+  // And the assignment form: `({ fileSystem = fs } = opts)`.
+  const assigned = "const fs = require('node:fs');\n({ fileSystem = fs } = opts);\nfileSystem.mkdirSync('d');\n";
+  const viaAssignment = sitesIn('probe.js', assigned);
+  assert.equal(viaAssignment.length, 1);
+  assert.equal(viaAssignment[0].call, 'fileSystem.mkdirSync');
+});
+
+test('an injected handle used only for reads adds no site', () => {
+  // The precision the alias rule must not cost: lib/coder/verify-derivation.js
+  // and lib/mutation-journal.js both inject fs and only ever read through it.
+  // Following the alias must not turn those into writes.
+  const verify = "const nodeFs = require('node:fs');\nfunction directoryReader(root, fs = nodeFs) {\n  return fs.readFileSync('a', 'utf8');\n}\n";
+  assert.deepEqual(sitesIn('probe.js', verify), []);
+
+  const journal = "const fs = require('node:fs');\nfunction readMutationJournal(p, fileSystem = fs) {\n  return fileSystem.existsSync(p) ? fileSystem.readFileSync(p, 'utf8') : null;\n}\n";
+  assert.deepEqual(sitesIn('probe.js', journal), []);
+});
+
+test('dynamic property access and an unbound handle stay invisible', () => {
+  // Honest limits, pinned rather than asserted away: the alias rule follows an
+  // identifier, not an expression.
+  assert.deepEqual(sitesIn('probe.js', "const fs = require('node:fs');\nfs[name]('a');\n"), []);
+  assert.deepEqual(sitesIn('probe.js', 'function f(handle) {\n  handle.writeFileSync("a", "b");\n}\n'), []);
+});
+
+// ─── untracked files are enumerated ──────────────────────────────────────────
+//
+// `git ls-files '*.js'` reported a not-yet-staged file as *absent*, so a new
+// file passed the check for the reason that the scan could not see it. These
+// pin the enumeration against a real temporary repository.
+
+function git(dir, args) {
+  return execFileSync('git', args, { cwd: dir, encoding: 'utf8' });
+}
+
+function fixtureRepo() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-coverage-'));
+  git(dir, ['init', '--quiet']);
+  fs.mkdirSync(path.join(dir, 'lib'), { recursive: true });
+  fs.mkdirSync(path.join(dir, 'ignored'), { recursive: true });
+  fs.writeFileSync(path.join(dir, '.gitignore'), 'ignored/\n');
+  fs.writeFileSync(
+    path.join(dir, 'ignored', 'hidden-writer.js'),
+    "const fs = require('node:fs');\nfs.writeFileSync('a', 'b');\n",
+  );
+  return { dir, cleanup: () => fs.rmSync(dir, { recursive: true, force: true }) };
+}
+
+test('an untracked file is scanned, not invisible', () => {
+  const { dir, cleanup } = fixtureRepo();
+  try {
+    fs.writeFileSync(
+      path.join(dir, 'lib', 'untracked-writer.js'),
+      "const fs = require('node:fs');\nfs.writeFileSync('a', 'b');\n",
+    );
+
+    // If the old enumeration ever sees this file, the test has stopped proving
+    // anything about the blind spot it exists to close.
+    assert.equal(git(dir, ['ls-files', '*.js']).trim(), '',
+      'the pre-fix enumeration must see nothing here');
+
+    assert.ok(productionFiles(dir).includes('lib/untracked-writer.js'),
+      'an untracked production file must be enumerated');
+
+    const sites = collectSites(dir).filter((site) => site.file === 'lib/untracked-writer.js');
+    assert.equal(sites.length, 1);
+
+    const manifest = buildCoverageManifest(dir);
+    assert.deepEqual(manifest.unclassified.map((entry) => entry.file), ['lib/untracked-writer.js'],
+      'an untracked risky file must fail the invariant, not be absent from it');
+  } finally {
+    cleanup();
+  }
+});
+
+test('untracked enumeration respects .gitignore and still sees staged files', () => {
+  const { dir, cleanup } = fixtureRepo();
+  try {
+    fs.writeFileSync(
+      path.join(dir, 'lib', 'staged-writer.js'),
+      "const fs = require('node:fs');\nfs.writeFileSync('a', 'b');\n",
+    );
+    git(dir, ['add', 'lib/staged-writer.js']);
+
+    assert.ok(productionFiles(dir).includes('lib/staged-writer.js'), 'a staged file is tracked');
+    assert.ok(!productionFiles(dir).includes('ignored/hidden-writer.js'),
+      'a .gitignore match must stay out of the scan');
+  } finally {
+    cleanup();
+  }
+});
+
+test('a classification whose call site is gone is a failure', () => {
+  // The companion invariant main() now evaluates. A list whose entries outlive
+  // the call sites they justify is how the list stops describing the code.
+  assert.deepEqual(staleClassifications({ entries: [] }), Object.keys(CLASSIFIED));
+  assert.deepEqual(staleClassifications(buildCoverageManifest()), []);
 });
 
 // ─── the published artifact ──────────────────────────────────────────────────
