@@ -10,7 +10,6 @@ const { buildBackgroundProvenance, sponsorBackgroundProvenance, provenanceFields
 const { buildLearnAdmissionRequest } = require('./lib/learn-admission-request');
 const { evaluateMemoryAdmission } = require('./lib/memory-admission-gate');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
-const { attachObservabilitySink } = require('./lib/observability/kernel-sink');
 const { detectClaimConflict } = require('./lib/conflict-detector');
 const { createKernelReadUseCases } = require('./lib/kernel-read-use-cases');
 const { runLearnUseCase } = require('./lib/learn-use-case');
@@ -153,10 +152,6 @@ class Kernel {
       dbPath: opts.memoryStoreDbPath || opts.dbPath,
       memoryPath: opts.memoryStorePath || (opts.memoryPath ? siblingPersistencePath(opts.memoryPath, '.memory-store.json') : undefined),
     });
-
-    // Gate telemetry needs somewhere to land in every process, not only inside
-    // the HTTP server. Lazy: the sink is built on first read, not here.
-    attachObservabilitySink(this);
 
     // Hook graph.close to also close memory store db connection
     const originalClose = this.graph.close;

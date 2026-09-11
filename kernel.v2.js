@@ -55,19 +55,6 @@ class KernelV2 {
   get contractVersion() {
     return this.kernel.contractVersion;
   }
-
-  // agent.js, agent.v3.js and the action firewall call
-  // emitGateTelemetry(this.kernel, ...) with whatever kernel they were handed,
-  // which since #329 is usually this facade. Without this passthrough their
-  // decisions would reach a kernel with no sink and be dropped in silence --
-  // the same outage attaching the sink was meant to end.
-  get observability() {
-    return this.kernel.observability;
-  }
-  set observability(value) {
-    this.kernel.observability = value;
-  }
-
   getPersistenceDescriptor() {
     return this.kernel.getPersistenceDescriptor();
   }

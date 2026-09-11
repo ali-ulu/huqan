@@ -29,7 +29,12 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 
-const { KernelV2 } = require('../index.js');
+const KernelV2 = require('../index.js');
+// The sink attaches to whichever kernel object emitted the decision. Kernel is
+// what emits memory-admission telemetry (`emitGateTelemetry(this, ...)`), so it
+// is the object to inspect; the KernelV2 facade above is what proves the row
+// still lands when a caller holds the canonical runtime instead.
+const Kernel = require('../kernel');
 const {
   INSTRUMENTED_SINCE_KEY,
   readInstrumentedSince,
@@ -58,9 +63,15 @@ function countEvents(dbPath) {
   }
 }
 
-test('a kernel has an observability sink without anyone attaching one', { skip: !Database }, () => {
+// Attachment is on first emission, not in the constructor: a kernel that never
+// emits should not run a migration, and `huqan --help` should not touch the
+// schema.
+test('the first gate decision attaches a sink, with nobody asking for one', { skip: !Database }, () => {
   const dbPath = scratchDb();
-  const kernel = new KernelV2({ dbPath });
+  const kernel = new Kernel({ dbPath });
+
+  assert.equal(kernel.observability, undefined, 'nothing has emitted yet');
+  kernel.learn('The first admission is what attaches the sink.');
 
   assert.equal(typeof kernel.observability?.recordGateDecision, 'function');
 });
@@ -109,8 +120,10 @@ test('the server runtime can still replace the default sink', { skip: !Database 
 // has nowhere to write. Telemetry stays a no-op there, and it must say so by
 // being absent rather than by pretending to record.
 test('a kernel with no SQLite handle has no sink and still works', () => {
-  const kernel = new KernelV2({ useSQLite: false, memoryPath: path.join(os.tmpdir(), 'huqan-obs-json.json') });
+  const kernel = new Kernel({ useSQLite: false, memoryPath: path.join(os.tmpdir(), 'huqan-obs-json.json') });
 
-  assert.equal(kernel.observability, null);
   assert.doesNotThrow(() => kernel.learn('json mode still learns'));
+  // Recorded as null rather than left undefined: the answer is settled once,
+  // not recomputed on every gate decision for the life of the process.
+  assert.equal(kernel.observability, null);
 });
