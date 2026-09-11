@@ -409,7 +409,7 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
   }
 
   const gate = applyHumanApprovalToggle(evaluateMcpGate({ tool: name, args, metadata: {} }));
-  emitGateTelemetry(kernel, 'mcp-tool-call', { decision: gate.decision, reason: gate.reason, findings: gate.findings, metadata: gate.metadata });
+  emitGateTelemetry(kernel, 'mcp-tool-call', { tool: name, decision: gate.decision, reason: gate.reason, findings: gate.findings, metadata: gate.metadata });
 
   if (!gate.canExecute) {
     if (gate.decision === 'review' || gate.requiredReview) {
