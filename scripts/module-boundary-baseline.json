@@ -1,0 +1,170 @@
+{
+  "threshold": 0,
+  "files": {
+    "agent.js": {
+      "calls": 2,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "agent.v3.js": {
+      "calls": 19,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "dream.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "kernel.js": {
+      "calls": 5,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "kernel.v2.js": {
+      "calls": 10,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/cli-workflow-adapter.js": {
+      "calls": 3,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/conflict-detector.js": {
+      "calls": 6,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/dream-experiment-loop.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/github-connector.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/goal-integrity-gate.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/graph-json-persistence.js": {
+      "calls": 2,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/graph-json-snapshot.js": {
+      "calls": 4,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/graph-json-transaction.js": {
+      "calls": 6,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/graph-mutation-rollback.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/hypothesis-review.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/kernel-mutation-admission.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/kernel-self-evolve.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/kernel-v2-native.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/kernel-v2-type-negation.js": {
+      "calls": 5,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/mcp-ingest-execute-tool.js": {
+      "calls": 2,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/mcp-ingest-status-tool.js": {
+      "calls": 5,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/memory-store-json-persistence.js": {
+      "calls": 4,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/memory-store-reopen.js": {
+      "calls": 2,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/memory-store-sqlite-warmup.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/memory-store.js": {
+      "calls": 21,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/mutation-journal.js": {
+      "calls": 4,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/reason-sandbox.js": {
+      "calls": 2,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/receipt/receipt-read-index.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/receipt/receipt-stamp.js": {
+      "calls": 2,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/verify.js": {
+      "calls": 12,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "mcpServer.js": {
+      "calls": 2,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "plugins/company-brain.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "plugins/contradiction-alert.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    }
+  }
+}

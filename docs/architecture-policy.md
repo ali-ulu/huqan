@@ -1,13 +1,13 @@
 # HUQAN — Architecture Policy
 
-**Status:** binding. Supersedes `docs/v4/big-file-refactor-gate.md` (deleted).
+**Status:** binding. Supersedes the big-file refactor gate, deleted 2026-09-11.
 **Measured at:** `dc51e65a`, 2026-09-11. 608 runtime files, 123.494 lines.
 
 ---
 
 ## 1. Why the previous policy was removed
 
-`docs/v4/big-file-refactor-gate.md` forbade splitting a large file except
+The deleted document forbade splitting a large file except
 immediately before a runtime PR that had to edit it heavily, and classified
 `kernel.js` as "do not touch speculatively". `scripts/check-file-size.js`
 cites that document as the reason its threshold is 800 rather than a real
@@ -82,8 +82,8 @@ gate where it had a freeze.
 | Correctness lint | **not yet** | `npm run lint` exists and reports 883 findings; not wired into CI until they are triaged |
 | 200-line target | **not yet** | threshold is still 800 |
 | Baseline review dates | **not yet** | field does not exist |
-| Dependency direction | **not yet** | — |
-| Module boundary | **not yet** | — |
+| Dependency direction | yes | `scripts/check-layers.js`, 3 dated exceptions |
+| Module boundary | yes | `scripts/check-module-boundary.js`, ratcheted at 131 calls |
 
 Rows marked "not yet" are commitments, not claims. A rule that cannot be
 checked by a script does not belong in this table at all.

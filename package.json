@@ -25,6 +25,8 @@
     "lint": "oxlint",
     "check:control-chars": "node scripts/check-control-chars.js",
     "check:cycles": "node scripts/check-import-cycles.js",
+    "check:module-boundary": "node scripts/check-module-boundary.js",
+    "check:layers": "node scripts/check-layers.js",
     "check:doc-status": "node scripts/check-doc-status.js",
     "check:docs-drift": "node scripts/check-docs-drift.js",
     "check:file-size": "node scripts/check-file-size.js",
