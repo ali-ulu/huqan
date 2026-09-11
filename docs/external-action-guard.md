@@ -223,19 +223,15 @@ AB1–AB11'den gelen `review` veya `block` kararını asla `allow`'a yükseltmez
 Promotion ayrıca `attested: true` capability-card kimliği ister; yalnız ajan
 adından türetilen unattested kimlik geçmişi devralamaz ve T1'den çıkamaz.
 
-Özellik geriye dönük uyumluluk için opt-in'dir:
-
-```powershell
-$event | huqan-gate --profile generic --graduated-autonomy --receipt-log C:\logs\receipts.jsonl
-$event | huqan-gate --profile generic --graduated-autonomy `
-  --autonomy-activation approval-42 --human-approver actor:ali `
-  --approved-at 2026-01-01T00:10:00.000Z
-```
-
-Library'de `graduatedAutonomy: { enabled: true, receipts?, receiptPath?,
-activation? }`, deployment ortamında
-`HUQAN_EXTERNAL_GUARD_GRADUATED_AUTONOMY=1` kullanılabilir. Hesaplanan tier,
-skor, oranlar, transition ve ilk activation kanıtı admission receipt'in
+Özellik (#2157) varsayılan olarak **observe modunda aktiftir**: her dış action'da tier
+tavanı değerlendirilir ve yetki tavanının üstündeki eylem `review` (insan kararı
+olmadan çalışmaz) üretir; tam promotion için yine `approved` insan activation'ı
+gerekir. Eskisini (ceiling olmadan) isteyen deployment açıkça kapatabilir:
+Library seçeneğinde `graduatedAutonomy: { enabled: false }`, deployment
+ortamında `HUQAN_EXTERNAL_GUARD_GRADUATED_AUTONOMY=0|false|off` ile.
+`graduatedAutonomy: { enabled: true, receipts?, receiptPath?, activation? }` ve
+`HUQAN_EXTERNAL_GUARD_GRADUATED_AUTONOMY=1` önceki davranışı korur. Hesaplanan
+tier, skor, oranlar, transition ve ilk activation kanıtı admission receipt'in
 `metadata.autonomy` alanına hash kapsamında yazılır; outcome aynı kararı
 admission receipt'ten miras alır. Promotion/demotion receipt'i kalıcı
 yazılamazsa geçiş fail-closed `block` olur; yalnız bellekte yetki artışı yoktur.
@@ -286,24 +282,25 @@ recordExternalActionOutcome(invocation, admission.receipt, {
 ```
 
 İlk kurulumda onaylı ve geleceğe tarihlenmemiş bir insan aktivasyonu
-zorunludur. Aktivasyon yoksa sinyal receipt'e `activation_required` olarak
-yazılır fakat otomatik containment devreye girmez. Aktif bir baseline sapması,
-`policyViolation`, `unexpectedSideEffect` veya açık `anomaly` sinyali:
+zorunludur. Aktivasyon yoksa sinyal (#2157, default **observe**) yine toplanır
+ve baseline sapması, `policyViolation`, `unexpectedSideEffect` veya açık
+`anomaly` sinyali **algılanıp** outcome receipt'in `metadata.monitoring` alanına
+`anomaly: true` ve `quarantine.applied: false` / `decision:
+observe_quarantine_required` olarak yazılır; yani anomali görünür olur ama
+otomatik containment devreye girmez. Aktif bir izinsiz eylemle:
 
 - mevcut self-healer finding şemasında sınıflanır;
-- outcome receipt'in `metadata.monitoring` alanına hash-kapsamlı yazılır;
-- receipt durable yazılmışsa identity'yi quarantine eder ve Faz D için kritik
-  ihlal sayılarak bir sonraki kararda T1'e demote eder;
-- durable receipt yoksa `ok:false` döner ve quarantine uygulanmış sayılmaz.
+- yalnız `approved` insan activation'ı varken `quarantine.applied: true` olur;
+- quarantine durable yazılmışsa identity'yi karantinaya alır ve Faz D için
+  kritik ihlal sayılarak bir sonraki kararda T1'e demote eder;
+- durable receipt yoksa quarantine fail-closed uygulanmaz, `ok:false` döner.
 
-Continuous monitoring açıldığında Faz D autonomy tavanı aynı receipt kaynağıyla
-otomatik etkinleşir; çağıranın ikinci bir feature flag vermesi gerekmez.
-`continuousMonitoring.receipts` veya `receiptPath` açıkça verilebilir, aksi halde
-durable writer yolu kullanılır.
-
-Özellik varsayılan kapalıdır. Library seçeneğine ek olarak
-`HUQAN_EXTERNAL_GUARD_CONTINUOUS_MONITORING=1` ile etkinleştirilebilir; yine de
-baseline ve insan aktivasyonu verilmeden otomatik containment kurulmaz.
+Continuous monitoring default-observe'dan kapatılmak istendiğinde
+`continuousMonitoring: { enabled: false }` veya
+`HUQAN_EXTERNAL_GUARD_CONTINUOUS_MONITORING=0|false|off` kullanılır. Açıkken Faz
+D autonomy tavanı aynı receipt kaynağıyla otomatik etkinleşir; çağıranın ikinci
+bir feature flag vermesi gerekmez. `continuousMonitoring.receipts` veya
+`receiptPath` açıkça verilebilir, aksi halde durable writer yolu kullanılır.
 
 ## Karar ve enforcement
 

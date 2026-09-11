@@ -89,7 +89,7 @@ function sealReceipt(receipt) {
   return { ...canonical, receiptHash: hashCanonicalReceiptPayload(canonical) };
 }
 
-test('post-action monitoring requires human activation before automatic containment', () => {
+test('post-action monitoring observes by default, and quarantines only when activated (#2157)', () => {
   const input = invocation();
   const { result: admission, persisted } = admit(input);
   const outcome = recordExternalActionOutcome(input, admission.receipt, { status: 'success' }, {
@@ -98,16 +98,66 @@ test('post-action monitoring requires human activation before automatic containm
     now: () => '2026-01-01T00:11:00.000Z',
   });
 
-  assert.equal(outcome.ok, false);
-  assert.equal(outcome.monitoring.active, false);
+  assert.equal(outcome.ok, true, 'observation succeeds without activation');
+  assert.equal(outcome.monitoring.active, true, 'default observe keeps monitoring active');
+  assert.equal(outcome.monitoring.anomaly, false);
   assert.equal(outcome.monitoring.receiptSummary.activationRequired, true);
-  assert.equal(outcome.quarantined, false);
-  assert.equal(outcome.receipt.metadata.monitoring.decision, 'activation_required');
-  assert.equal(outcome.monitoringError, 'post_action_monitoring_requires_human_activation');
+  assert.equal(outcome.quarantined, false, 'no containment without activation');
+  assert.equal(outcome.receipt.metadata.monitoring.decision, 'observe');
+  assert.equal(outcome.monitoringError, null);
   assert.equal(persisted.length, 2);
 });
 
-test('future-dated or non-human activation cannot arm automatic containment', () => {
+test('an unconfigured guard observes all three gates by default (#2157)', () => {
+  const input = invocation({ invocationId: 'post-action-default-observe' });
+  const { result: admission, persisted } = admit(input);
+
+  // (1) Escalation detection is reached by default: a card that widens
+  // mid-session is surfaced even with no `privilegeEscalation` option. The
+  // shared default ledger records `admit` as the session baseline.
+  const widened = evaluateExternalAction(
+    { ...input, identity: { ...input.identity, capabilities: ['file_read', 'shell'] } },
+    { receiptWriter: { append() {} }, now: () => '2026-01-01T00:10:01.000Z' },
+  );
+  assert.ok(
+    widened.findings.some(finding => finding.gate === 'identity-escalation'),
+    'escalation detector must run and fire in default observe',
+  );
+  assert.equal(widened.decision, 'review', 'a widened card cannot stay a silent allow');
+  // (2) Graduated autonomy stamps a tier by default (observe, up-bounded at T1).
+  assert.equal(admission.receipt.metadata.autonomy.schemaVersion, GRADUATED_AUTONOMY_VERSION);
+
+  // (3) Monitoring runs in observe mode by default: outcome without any
+  // `continuousMonitoring` option still collects and reports a signal, but
+  // never quarantines without a human activation.
+  const observation = recordExternalActionOutcome(
+    input,
+    admission.receipt,
+    { status: 'success', anomaly: true },
+    { receiptWriter: { append: receipt => persisted.push(receipt) }, now: () => '2026-01-01T00:11:00.000Z' },
+  );
+  assert.equal(observation.monitoring.active, true, 'default observe keeps monitoring active');
+  assert.equal(observation.monitoring.anomaly, true, 'anomaly is detected and surfaced');
+  assert.equal(observation.quarantined, false, 'no quarantine without activation');
+  assert.equal(observation.receipt.metadata.monitoring.quarantine.applied, false);
+  assert.equal(observation.receipt.metadata.monitoring.activationRequired, true);
+});
+
+test('a valid human activation arms automatic containment', () => {
+  const input = invocation();
+  const { result: admission, persisted } = admit(input);
+  const outcome = recordExternalActionOutcome(input, admission.receipt, { status: 'success' }, {
+    continuousMonitoring: { enabled: true, baseline: baseline(), activation: activation() },
+    receiptWriter: { append: receipt => persisted.push(receipt) },
+    now: () => '2026-01-01T00:11:00.000Z',
+  });
+
+  assert.equal(outcome.monitoring.active, true);
+  assert.equal(outcome.monitoring.receiptSummary.activationRequired, false);
+  assert.equal(outcome.quarantined, false);
+});
+
+test('future-dated activation cannot arm containment, but the anomaly is still observed (#2157)', () => {
   const input = invocation({ invocationId: 'post-action-invalid-activation' });
   const { result: admission, persisted } = admit(input);
   const outcome = recordExternalActionOutcome(input, admission.receipt, {
@@ -123,11 +173,13 @@ test('future-dated or non-human activation cannot arm automatic containment', ()
     now: () => '2026-01-01T00:11:00.000Z',
   });
 
-  assert.equal(outcome.monitoring.active, false);
-  assert.equal(outcome.monitoring.anomaly, false);
-  assert.equal(outcome.quarantined, false);
+  assert.equal(outcome.monitoring.active, true, 'observe still runs without a valid activation');
+  assert.equal(outcome.monitoring.anomaly, true, 'the anomaly is detected and surfaced, not hidden');
   assert.equal(outcome.receipt.metadata.monitoring.activationRequired, true);
-  assert.equal(outcome.ok, false);
+  assert.equal(outcome.receipt.metadata.monitoring.quarantine.applied, false);
+  assert.equal(outcome.receipt.metadata.monitoring.decision, 'observe_quarantine_required');
+  assert.equal(outcome.quarantined, false, 'future-dated activation cannot arm containment');
+  assert.equal(outcome.ok, true);
 });
 
 test('healthy post-action behavior is collected without containment', () => {
@@ -240,7 +292,11 @@ test('hash-valid quarantine evidence is a critical violation that demotes T3 to 
     admissionId: 'autonomy-t3-state',
     decision: 'allow',
     status: 'admitted',
-    createdAt: '2026-01-01T00:10:30.000Z',
+    // Newest autonomy record: with default-observe (#2157) the admission now
+    // stamps the evaluated T1 onto the receipt, so a later outcome would mask
+    // this T3 promotion. Dating the promotion after the outcome keeps it the
+    // authoritative current tier that the violating action demotes.
+    createdAt: '2026-01-01T00:11:10.000Z',
     metadata: {
       identity: admission.receipt.metadata.identity,
       autonomy: {
