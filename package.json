@@ -165,6 +165,7 @@
     "lib/adversarial-signals.js",
     "lib/agent-loop-budget-gate.js",
     "lib/agent-memory-persistence.js",
+    "lib/agent-report-renderer.js",
     "lib/agent-run-finalization.js",
     "lib/agent-memory-state.js",
     "lib/multi-agent-cascade-guard.js",

@@ -290,7 +290,7 @@ class AgentV3 {
         data.policy.signals.push('goal-memory');
       }
     }
-    data.recommendations = this.baseAgent._buildRunRecommendations({
+    data.recommendations = this._runtime().buildRunRecommendations({
       goal: data.goal,
       objective: data.objective,
       steps: [],
@@ -405,13 +405,23 @@ class AgentV3 {
   }
 
   _renderReport(state) {
-    const baseReport = this.baseAgent._renderReport(state);
+    const baseReport = this._runtime().renderReport(state);
     return [
       `Checkpoint: ${state.checkpointId || 'none'}`,
       `Resume: ${state.resumed ? 'yes' : 'no'}`,
       `Budget remaining: ${Number(state.budgetRemaining || 0)}`,
       baseReport,
     ].join('\n');
+  }
+
+  /** The step-execution seam of the agent underneath. See Agent.stepRuntime. */
+  stepRuntime() {
+    return this._runtime();
+  }
+
+  _runtime() {
+    if (!this._baseRuntime) this._baseRuntime = this.baseAgent.stepRuntime();
+    return this._baseRuntime;
   }
 
   run(goal, opts = {}) {
@@ -477,7 +487,7 @@ class AgentV3 {
     // Keep the public plugin lifecycle contract reachable on the canonical v3
     // path. This intentionally precedes the durable budget gate: a before hook
     // observes every accepted run attempt, including one refused before work.
-    this.baseAgent._emit('beforeAgentRun', state);
+    this._runtime().emit('beforeAgentRun', state);
 
     // Force the run's workspace onto every tool call. agent.js reads
     // per-tool option bags straight through, so without this
@@ -551,10 +561,10 @@ class AgentV3 {
       }
 
       const step = queued.shift();
-      const report = this.baseAgent._executeStepWithRetry(step, state, scopedOpts);
+      const report = this._runtime().executeStepWithRetry(step, state, scopedOpts);
       state.steps.push(report);
-      state.evidence.push(...this.baseAgent._collectEvidence([report.result]));
-      this.baseAgent._updateToolStats(report.tool, report.status);
+      state.evidence.push(...this._runtime().collectEvidence([report.result]));
+      this._runtime().updateToolStats(report.tool, report.status);
       state.notes.push({
         step: report.action,
         summary: report.summary,
@@ -562,15 +572,15 @@ class AgentV3 {
       state.iteration += 1;
       state.lastAction = report.action;
 
-      const summary = this.baseAgent._extractAgentSummary(report.result);
+      const summary = this._runtime().extractAgentSummary(report.result);
       const previousSummary = state.progress?.lastSummary || '';
-      const stalled = this.baseAgent._isStalledProgress(previousSummary, summary.text);
+      const stalled = this._runtime().isStalledProgress(previousSummary, summary.text);
       state.progress = {
         stalledCount: stalled ? (state.progress?.stalledCount || 0) + 1 : 0,
         lastSummary: String(summary.text || '').toLowerCase().replace(/\s+/g, ' ').trim(),
       };
 
-      const followUp = this.baseAgent._chooseFollowUp(step, summary, state);
+      const followUp = this._runtime().chooseFollowUp(step, summary, state);
       const shouldForceDream =
         state.progress.stalledCount >= 2 &&
         state.steps.length < activePlan.maxSteps &&
@@ -615,12 +625,12 @@ class AgentV3 {
           rationale: 'Progress stalled; switching to hypothesis mode.',
         });
       } else if (effectiveFollowUp && state.steps.length < activePlan.maxSteps) {
-        const nextSignature = this.baseAgent._stepSignature(effectiveFollowUp, state);
-        if (this.baseAgent._findRecentFailure(nextSignature)) {
+        const nextSignature = this._runtime().stepSignature(effectiveFollowUp, state);
+        if (this._runtime().findRecentFailure(nextSignature)) {
           const fallback = effectiveFollowUp.action === 'dream'
             ? null
             : { action: 'dream', tool: 'dream', input: {}, rationale: 'Previous failure repeated; safe fallback selected.' };
-          if (fallback && !this.baseAgent._findRecentFailure(this.baseAgent._stepSignature(fallback, state))) {
+          if (fallback && !this._runtime().findRecentFailure(this._runtime().stepSignature(fallback, state))) {
             queued.unshift({
               id: `${fallback.action}-${state.steps.length + 1}`,
               action: fallback.action,
@@ -662,16 +672,16 @@ class AgentV3 {
     }
 
     const finalStep = state.steps[state.steps.length - 1];
-    const finalSummary = finalStep ? this.baseAgent._extractAgentSummary(finalStep.result) : { text: '' };
+    const finalSummary = finalStep ? this._runtime().extractAgentSummary(finalStep.result) : { text: '' };
     state.finalAnswer = finalSummary.text || 'Agent completed but no short summary could be produced.';
     attachStepErrorSummary(state);
     state.completedSteps = state.steps.length;
     state.remainingSteps = queued.length;
-    state.recommendations = this.baseAgent._buildRunRecommendations(state);
+    state.recommendations = this._runtime().buildRunRecommendations(state);
     state.nextAction = selectDreamNextAction(
       dreamLoopActive,
       state,
-      this.baseAgent._suggestNextAction(state),
+      this._runtime().suggestNextAction(state),
     );
     state.report = this._renderReport(state);
     let goalMemory;
@@ -714,7 +724,7 @@ class AgentV3 {
     this.lastRun = state;
 
     if (state.status === 'completed' || state.status === 'blocked') {
-      this.baseAgent._emit('afterAgentRun', state);
+      this._runtime().emit('afterAgentRun', state);
     }
 
     if (state.status === 'blocked') {

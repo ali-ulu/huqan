@@ -5,6 +5,7 @@ const Dream = require('./dream');
 const { INTERNAL_TOOLS, evaluateToolPolicy } = require('./toolPolicy');
 const { mcpToolPolicy } = require('./lib/mcp-tool-policy');
 const { buildFinalSummary } = require('./finalizer');
+const { renderRunReport } = require('./lib/agent-report-renderer');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
 const { enforceAgentActionStep } = require('./lib/agent-action-firewall');
 const { createExecutionScope, evaluateGoalBinding } = require('./lib/goal-binding');
@@ -913,42 +914,41 @@ class Agent {
     });
   }
 
+  /**
+   * The step-execution operations AgentV3 drives this agent through.
+   *
+   * These twelve used to be called as `baseAgent._executeStepWithRetry()` and
+   * the like from agent.v3.js: a contract in everything but its marking, with
+   * no name, no documentation and no stability promise, so changing one broke
+   * a caller its author had no reason to open. Naming them here makes the
+   * contract one thing that can be seen, stubbed and changed deliberately.
+   *
+   * Not promoted individually: arch-4 requires AgentV3 to expose every public
+   * method Agent has, and `stepSignature` or `updateToolStats` are not
+   * promises this package should make to the outside. One seam is.
+   */
+  stepRuntime() {
+    return {
+      emit: (event, data) => this._emit(event, data),
+      executeStepWithRetry: (step, state, opts) => this._executeStepWithRetry(step, state, opts),
+      collectEvidence: (items) => this._collectEvidence(items),
+      updateToolStats: (tool, status) => this._updateToolStats(tool, status),
+      extractAgentSummary: (result) => this._extractAgentSummary(result),
+      isStalledProgress: (previous, current) => this._isStalledProgress(previous, current),
+      chooseFollowUp: (step, summary, state) => this._chooseFollowUp(step, summary, state),
+      stepSignature: (step, state) => this._stepSignature(step, state),
+      findRecentFailure: (signature) => this._findRecentFailure(signature),
+      buildRunRecommendations: (state) => this._buildRunRecommendations(state),
+      suggestNextAction: (state) => this._suggestNextAction(state),
+      renderReport: (state) => this._renderReport(state),
+    };
+  }
+
   _renderReport(state) {
-    const stepLines = state.steps.map((step, index) => {
-      const summary = step.summary ? ` - ${step.summary}` : '';
-      return `${index + 1}. ${step.action} (${step.tool})${summary}`;
+    return renderRunReport(state, {
+      recommendations: this._buildRunRecommendations(state),
+      nextAction: state.nextAction || this._suggestNextAction(state),
     });
-    const finalSummary = state.finalSummary || buildFinalSummary(state);
-    const recommendations = this._buildRunRecommendations(state);
-    const recommendationLines = recommendations.items.map(item => `- ${item}`);
-    const nextAction = state.nextAction || this._suggestNextAction(state);
-    const nextActionLine = `${nextAction.action} -> ${nextAction.tool}: ${nextAction.reason}`;
-    const toolHealthLines = recommendations.toolHealth.length
-      ? recommendations.toolHealth.map(item => `- ${item.tool}: success=${item.success}, blocked=${item.blocked}, error=${item.error}`)
-      : ['- no usage data yet'];
-    return [
-      `Goal: ${state.goal}`,
-      `Objective: ${state.objective}`,
-      `Status: ${state.status}`,
-      `Steps completed: ${state.completedSteps}`,
-      `Progress: ${(state.progress && typeof state.progress.stalledCount === 'number') ? `stalled=${state.progress.stalledCount}` : 'unknown'}`,
-      `Next step: ${nextActionLine}`,
-      'Judgement summary:',
-      `- Mode: ${finalSummary.mode}`,
-      'Known:',
-      ...(finalSummary.knownFacts.length ? finalSummary.knownFacts.map(item => `- ${item}`) : ['- none']),
-      'Unknown:',
-      ...(finalSummary.unknowns.length ? finalSummary.unknowns.map(item => `- ${item}`) : ['- none']),
-      `- Conclusion: ${finalSummary.conclusion}`,
-      'Follow-up questions:',
-      ...(finalSummary.nextQuestions.length ? finalSummary.nextQuestions.map(item => `- ${item}`) : ['- none']),
-      'Recommendation:',
-      ...recommendationLines,
-      'Tool health:',
-      ...toolHealthLines,
-      ...stepLines,
-      `Result: ${state.finalAnswer}`,
-    ].join('\n');
   }
 }
 
