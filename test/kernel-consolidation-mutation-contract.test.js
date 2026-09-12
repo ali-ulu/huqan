@@ -64,14 +64,14 @@ function replaceMethods(target, replacements, run) {
 }
 
 function installGraphMutationSpies(graph, options = {}) {
-  const originalRebuildIndex = graph._rebuildIndex;
+  const originalRebuildIndex = graph.rebuildIndex;
   const calls = {
     rebuild: [],
     save: [],
   };
 
   const restore = replaceMethods.bind(null, graph, {
-    _rebuildIndex(...args) {
+    rebuildIndex(...args) {
       calls.rebuild.push(args);
       return originalRebuildIndex.apply(this, args);
     },
