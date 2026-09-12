@@ -167,3 +167,23 @@ jobs:
       # not a typo. Fixing them one at a time is why they kept coming back.
       - name: Check documentation against the source
         run: node scripts/check-docs-drift.js
+
+  lint:
+    name: Enforce a lint-clean tree
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+
+      # The linter needs the oxlint binary, which is a devDependency.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint

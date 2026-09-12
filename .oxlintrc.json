@@ -10,5 +10,18 @@
   "categories": {
     "correctness": "error"
   },
-  "rules": {}
+  "plugins": [],
+  "rules": {
+    "no-unused-vars": ["error", {
+      "args": "after-used",
+      "argsIgnorePattern": "^_*",
+      "varsIgnorePattern": "^_*",
+      "caughtErrorsIgnorePattern": "^_*"
+    }],
+    "no-control-regex": "off",
+    "constructor-super": "off",
+    "no-unused-expressions": "off",
+    "no-irregular-whitespace": "off",
+    "no-useless-escape": "off"
+  }
 }
