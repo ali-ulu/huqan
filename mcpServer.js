@@ -8,6 +8,8 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { constantTimeEqual } = require('./requestGuards');
+const { createProcessFailureHandlers, failureCodeFor } = require('./lib/http/process-failure-handlers');
+const { writeStructuredLog } = require('./lib/http/structured-log');
 const {
   capabilityBinding,
   createMcpOperatorCapability,
@@ -762,7 +764,16 @@ function runStdio() {
   });
 }
 
+const mcpProcessFailureHandlers = createProcessFailureHandlers({
+  // console.error writes to stderr, so the stdio JSON-RPC frames on stdout stay intact.
+  logError: (kind, cause) => writeStructuredLog(console, 'error', kind === 'uncaughtException' ? 'process.uncaught_exception' : 'process.unhandled_rejection', null, {
+    runtime: 'mcp',
+    errorCode: failureCodeFor(kind, cause),
+  }),
+});
+
 if (require.main === module) {
+  mcpProcessFailureHandlers.bind();
   runStdio();
 }
 

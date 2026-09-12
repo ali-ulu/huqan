@@ -14,7 +14,7 @@
     "agent.v3.js": 790,
     "backupRestore.js": 610,
     "causalSimulator.js": 478,
-    "cli.js": 809,
+    "cli.js": 819,
     "dream.js": 726,
     "finalizer.js": 604,
     "graph.js": 1242,
@@ -69,7 +69,7 @@
     "lib/tool-call-gate.js": 731,
     "lib/v5/runtime-writer.js": 411,
     "lib/verify.js": 741,
-    "mcpServer.js": 799,
+    "mcpServer.js": 810,
     "plugin.js": 728,
     "plugins/company-brain.js": 678,
     "plugins/receipt-exporter.js": 431,
@@ -81,7 +81,7 @@
     "scripts/enforcement-coverage.js": 478,
     "scripts/external-conformance/consumer.js": 955,
     "scripts/launch-installed-package-smoke.js": 636,
-    "server.js": 1026,
+    "server.js": 1034,
     "storage.js": 627,
     "workflow-agent.js": 941,
     "workflow-tools.js": 880
@@ -104,7 +104,7 @@
       "review_by": "2027-03-31"
     },
     "cli.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "why": "Pre-existing debt plus Gate A-1 (#2366 item 1) thin wiring: process-failure handler require and bind only; domain logic lives in lib/http/process-failure-handlers.js.",
       "review_by": "2026-10-31"
     },
     "dream.js": {
@@ -324,7 +324,7 @@
       "review_by": "2027-03-31"
     },
     "mcpServer.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "why": "Pre-existing debt plus Gate A-1 (#2366 item 1) thin wiring: process-failure handler require and bind only; domain logic lives in lib/http/process-failure-handlers.js.",
       "review_by": "2027-03-31"
     },
     "plugin.js": {
@@ -372,7 +372,7 @@
       "review_by": "2027-03-31"
     },
     "server.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "why": "Pre-existing debt plus Gate A-1 (#2366 item 1) thin wiring: process-failure handler require and bind only; domain logic lives in lib/http/process-failure-handlers.js.",
       "review_by": "2026-10-31"
     },
     "storage.js": {

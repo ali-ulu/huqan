@@ -10,6 +10,8 @@ const path = require('path');
 const crypto = require('crypto');
 const readline = require('readline');
 const { createKernel } = require('./lib/kernel-factory');
+const { createProcessFailureHandlers, failureCodeFor } = require('./lib/http/process-failure-handlers');
+const { writeStructuredLog } = require('./lib/http/structured-log');
 const { cliHelpText } = require('./lib/cli-help');
 const { formatCliGateMessage } = require('./lib/cli-gate-message');
 const { formatPluginCapabilityStatus } = require('./lib/cli-plugin-status');
@@ -796,7 +798,15 @@ async function main(argv = process.argv.slice(2)) {
   process.exitCode = result.exitCode;
 }
 
+const cliProcessFailureHandlers = createProcessFailureHandlers({
+  logError: (kind, cause) => writeStructuredLog(console, 'error', kind === 'uncaughtException' ? 'process.uncaught_exception' : 'process.unhandled_rejection', null, {
+    runtime: 'cli',
+    errorCode: failureCodeFor(kind, cause),
+  }),
+});
+
 if (require.main === module) {
+  cliProcessFailureHandlers.bind();
   main().catch(error => {
     console.error(`CLI error: ${error?.message || error}`);
     process.exitCode = 1;

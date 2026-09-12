@@ -13,6 +13,15 @@ const { manageGate, connectDetectedAgents } = require('../lib/external-action-ga
 const { buildAgentRoster } = require('../lib/external-action-agent-roster');
 const { buildAgentOverview } = require('../lib/external-action-agent-overview');
 const { writeCustomAgentAdapter } = require('../lib/external-action-adapter-generator');
+const { createProcessFailureHandlers, failureCodeFor } = require('../lib/http/process-failure-handlers');
+const { writeStructuredLog } = require('../lib/http/structured-log');
+
+createProcessFailureHandlers({
+  logError: (kind, cause) => writeStructuredLog(console, 'error', kind === 'uncaughtException' ? 'process.uncaught_exception' : 'process.unhandled_rejection', null, {
+    runtime: 'gate-hook',
+    errorCode: failureCodeFor(kind, cause),
+  }),
+}).bind();
 
 const MAX_STDIN_BYTES = 1024 * 1024;
 
