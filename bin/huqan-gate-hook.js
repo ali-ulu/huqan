@@ -9,6 +9,7 @@ const { createDurableExternalActionReceiptWriter, defaultExternalActionReceiptPa
 const { defaultExternalActionPolicyPath, readAllowedCommands } = require('../lib/external-action-command-policy');
 const { manageGate, connectDetectedAgents } = require('../lib/external-action-gate-install');
 const { queryIdentityLog } = require('../lib/gate-hook-identity');
+const { runSealsCommand, runFleetCommand, runResidencyCommand } = require('../lib/gate-hook-reports');
 const { buildAgentRoster } = require('../lib/external-action-agent-roster');
 const { buildAgentOverview } = require('../lib/external-action-agent-overview');
 const { writeCustomAgentAdapter } = require('../lib/external-action-adapter-generator');
@@ -37,32 +38,16 @@ async function main() {
   let receiptWriter;
   try {
     const command = process.argv[2];
+    // Read-only report commands live in lib/gate-hook-reports.js (#2248).
     // `seals` asks the one question a stored receipt cannot answer for itself:
     // has anything been removed from this store since it was received. A break
     // exits non-zero, because a silent audit is not an audit (#1882).
     if (command === 'seals') {
-      const collector = require('../lib/external-action-receipt-collector');
-      const report = collector.verifyCollectorSeals({
-        root: argumentValue('--store'),
-        workspaceId: argumentValue('--workspace') || undefined,
-        ownerActorId: argumentValue('--owner') || undefined,
-        trustedKeys: collector.readTrustedBatchKeys(argumentValue('--trusted-keys')),
-      });
-      process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
-      process.exitCode = report.ok ? 0 : 1;
+      runSealsCommand();
       return;
     }
     if (command === 'fleet') {
-      const { queryFleet } = require('../lib/external-action-receipt-collector');
-      process.stdout.write(`${JSON.stringify(queryFleet({
-        root: argumentValue('--store'),
-        workspaceId: argumentValue('--workspace') || undefined,
-        ownerActorId: argumentValue('--owner') || undefined,
-        since: argumentValue('--since') || undefined,
-        until: argumentValue('--until') || undefined,
-        ...(argumentValue('--limit') ? { limit: Number.parseInt(argumentValue('--limit'), 10) } : {}),
-      }), null, 2)}\n`);
-      process.exitCode = 0;
+      runFleetCommand();
       return;
     }
     // `residency` reads the trail this gate already wrote and reports the rule
@@ -70,15 +55,7 @@ async function main() {
     // external-action-policy.json by hand, which is what keeps the resulting
     // boundary something a receipt can attest to (docs/what-huqan-learns.md).
     if (command === 'residency') {
-      const { mineResidencyRule } = require('../lib/residency-rule-miner');
-      const { readExternalActionReceipts } = require('../lib/external-action-receipt-reader');
-      const receipts = readExternalActionReceipts({ path: argumentValue('--receipt-log') || undefined });
-      const minObservations = argumentValue('--min-observations');
-      const mined = mineResidencyRule(receipts, {
-        ...(minObservations ? { minObservations: Number.parseInt(minObservations, 10) } : {}),
-      });
-      process.stdout.write(`${JSON.stringify({ ...mined, receiptsRead: receipts.length }, null, 2)}\n`);
-      process.exitCode = 0;
+      runResidencyCommand();
       return;
     }
     if (command === 'ship') {
