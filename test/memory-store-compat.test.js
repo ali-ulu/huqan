@@ -9,6 +9,10 @@ const { getContentHash } = require('../lib/memory-store-utils');
 function installMockDate(times) {
   const OriginalDate = Date;
   let index = 0;
+  // oxlint reports `constructor-super` here. It is a false positive: a derived
+  // constructor that returns an object is valid and skips the super() call by
+  // design, which is exactly what this stub does. Verified, not suppressed --
+  // do not 'fix' it by calling super(), which would build an unused instance.
   global.Date = class extends OriginalDate {
     constructor(...args) {
       if (args.length > 0) {

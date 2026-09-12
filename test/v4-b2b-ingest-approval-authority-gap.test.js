@@ -172,7 +172,13 @@ describe('V4-B2B: ingest approval authority repair', () => {
     const before = graphCounts();
     const hostile = [
       'tenant-b', 'DEFAULT', ' default', 'default ', '', '   ',
-      0, null === undefined ? null : 123, true, ['default'], { workspaceId: 'default' },
+      // `null === undefined ? null : 123` used to stand here. It is constantly
+      // 123, so this list probed one value while reading as though it probed
+      // three. Only the number is a hostile workspace: `normalizeWorkspaceId`
+      // (lib/workspace-id.js:29) treats null, undefined and '' as *unspecified*
+      // and falls back to the default workspace, which is a deliberate rule and
+      // not a non-default workspace at all. Checked before assuming a hole.
+      0, 123, true, ['default'], { workspaceId: 'default' },
     ];
 
     for (const workspaceId of hostile) {

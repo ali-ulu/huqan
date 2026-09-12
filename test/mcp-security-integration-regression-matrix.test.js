@@ -293,6 +293,11 @@ test('approved MCP ingest initializes the company runtime on a real server-creat
   const environmentKeys = ['AXIOM_MEMORY_PATH', 'AXIOM_DB_PATH', 'AXIOM_USE_SQLITE'];
   const previousEnvironment = Object.fromEntries(environmentKeys.map((key) => [key, process.env[key]]));
   let server = null;
+  // Captured rather than thrown from `finally`: a throw there replaces the
+  // error already propagating, so a genuine assertion failure in this matrix
+  // was reported as whatever the cleanup happened to hit.
+  let primaryError = null;
+  let cleanupError = null;
 
   try {
     process.chdir(tempDir);
@@ -347,8 +352,9 @@ test('approved MCP ingest initializes the company runtime on a real server-creat
     assert.equal(server.kernel.hasCapability('pluginCapabilities'), true);
     assert.equal(pluginLoadCalls, 1);
     assert.deepEqual(pluginLoadArgs, [path.join(__dirname, '..', 'plugins')]);
+  } catch (error) {
+    primaryError = error;
   } finally {
-    let cleanupError = null;
     try { server?.approvalStore?.close?.(); } catch (error) { cleanupError = error; }
     try { server?.kernel?.graph?.close?.(); } catch (error) { cleanupError ||= error; }
     try {
@@ -360,8 +366,10 @@ test('approved MCP ingest initializes the company runtime on a real server-creat
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
-    if (cleanupError) throw cleanupError;
   }
+
+  if (primaryError) throw primaryError;
+  if (cleanupError) throw cleanupError;
 });
 
 test('policy denial and partial-run surfaces remain fail-closed and receipt-free', () => {
