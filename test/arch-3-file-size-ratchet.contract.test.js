@@ -47,7 +47,7 @@ test('a new file over the threshold fails', () => {
 
 test('a new-over-threshold message reports how far over the threshold it is', () => {
   const { violations } = evaluate({ 'lib/big.js': THRESHOLD + 2200 }, {});
-  assert.match(violations[0].message, /2200 over the 800-line threshold/);
+  assert.match(violations[0].message, new RegExp(`2200 over the ${THRESHOLD}-line threshold`));
 });
 
 test('--update alone (no --seed-new) never seeds a new debt entry for a brand-new file (#1289)', () => {
