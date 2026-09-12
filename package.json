@@ -258,6 +258,7 @@
     "public/js/page-scroll.js",
     "lib/external-action-gate-sentinel.js",
     "lib/graduated-autonomy.js",
+    "lib/autonomy-receipt-history.js",
     "lib/external-action-identity.js",
     "lib/identity-privilege-escalation.js",
     "lib/external-action-identity-signing.js",
