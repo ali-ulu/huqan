@@ -264,6 +264,10 @@ async function main() {
       recordBrowserHookOutcome(profile, payload, {
         receiptWriter, workspaceId,
         workspaceRoot: argumentValue('--workspace-root') || undefined,
+        // #2141: page preview is written only when the deployment explicitly
+        // consents, e.g. `--page-preview text,screenshot`. The hook payload
+        // itself can never turn this on.
+        pagePreview: argumentValue('--page-preview') || undefined,
       });
       process.stdout.write('{}\n');
       process.exitCode = 0;
