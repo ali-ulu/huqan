@@ -272,7 +272,6 @@ test('AgentV3 resumes an explicitly named older checkpoint when one exists (#880
       sumAgentIterationsSince: () => 0,
       saveCheckpoint: () => null,
       countRuns: () => ({ total: 0 }),
-      getGoalMemory: () => null,
       listPendingToolApprovals: () => [],
       countPendingToolApprovals: () => 0,
       saveToolApproval: () => null,
