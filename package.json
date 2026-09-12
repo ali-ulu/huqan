@@ -237,6 +237,8 @@
     "lib/coder/derivation-record.js",
     "lib/coder/verify-derivation.js",
     "lib/deterministic-task-runner.js",
+    "lib/task-identifier-lexer.js",
+    "lib/task-schema-sources.js",
     "lib/code-change-gate.js",
     "lib/code-change-path-classification.js",
     "lib/command-exec-gate.js",
