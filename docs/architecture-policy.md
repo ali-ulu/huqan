@@ -25,20 +25,37 @@ per entry.
 
 ## 2. The budget
 
-A runtime source file targets **200 lines**. Files above it are debt and are
-recorded in `scripts/file-size-baseline.json`.
+Length is an alarm, not a defect. A file is worth splitting when something
+about it is wrong — a boundary it reaches across, a dispatch that grows with
+every feature, a fan-out that says it does several jobs. Length only makes
+those more likely; it does not stand in for them. The first version of this
+document set a flat 200-line target, which classified 207 files as debt: 177
+of them had no signal against them other than their size. Chasing those down
+would trade cohesive files for coupled ones and call it progress.
 
-- A file at or under 200 may not cross it.
-- A file above it may not grow.
-- When it shrinks, its recorded ceiling drops to match. Gains are never
+So the budget is banded:
+
+| Size | Treatment |
+|---|---|
+| **≤ 400** | Accepted as it stands. The gate's job is to keep it there. |
+| **401 – 800** | Recorded debt. Reviewed when something else brings the file into play. |
+| **> 800** | Decomposition is owed, with its own issue. |
+| **any size** | A structural signal — a cross-module private call, a growing dispatch, a construction that should be an injection, a fan-out of 20 or more — is its own issue regardless of length. |
+
+`scripts/check-file-size.js` enforces the first two rows as a ratchet at 400:
+
+- A file at or under 400 may not cross it. 542 files are held there.
+- A file above it may not grow. 75 are recorded at today's size.
+- When one shrinks, its recorded ceiling drops to match. Gains are never
   spendable later.
-- At 200 or below, its entry is removed.
-- **New:** every baseline entry carries a justification and a review date.
-  An entry past its review date without a written decision fails the gate.
+- At 400 or below, its entry is removed.
 
-An exception above 200 is allowed where splitting would create more coupling
-than it removes — a table, a generated file, a single cohesive state machine.
-The exception is written down and it is reviewed, not permanent.
+This is stricter than what it replaces, not looser: the threshold was 800,
+so a 250-line module could triple in silence. It cannot now.
+
+An exception above the band is allowed where splitting would create more
+coupling than it removes — a table, a generated file, a single cohesive state
+machine. The exception is written down and it is reviewed, not permanent.
 
 ## 3. Dependency direction
 
@@ -80,7 +97,7 @@ gate where it had a freeze.
 | Line ceiling may not rise | yes | `scripts/check-file-size.js` |
 | No require cycles | yes | `scripts/check-import-cycles.js` |
 | Correctness lint | **not yet** | `npm run lint` exists and reports 883 findings; not wired into CI until they are triaged |
-| 200-line target | **not yet** | threshold is still 800 |
+| Banded budget (400 hard cap) | yes | `scripts/check-file-size.js`, 75 recorded entries |
 | Baseline review dates | partly | present in the module-boundary baseline; not yet in `scripts/file-size-baseline.json` |
 | Dependency direction | yes | `scripts/check-layers.js`, 3 dated exceptions |
 | Module boundary | yes | `scripts/check-module-boundary.js`, ratcheted at 110 calls |

@@ -16,11 +16,18 @@
  * `docs/architecture-policy.md` replaced it. The target is 200 lines, and
  * closing recorded debt no longer needs a runtime PR to justify it.
  *
- * The ratchet below is the right mechanism and is kept. What it lacks is
- * downward pressure -- a ceiling that may fall is not a ceiling that must --
- * so the policy adds a justification and a review date per baseline entry.
- * Until those land, THRESHOLD stays at 800 and this script only stops the
- * problem from growing: the precondition for a burn-down, not a substitute.
+ * The ratchet below is the right mechanism and is kept. What it lacked was
+ * downward pressure -- a ceiling that may fall is not a ceiling that must.
+ *
+ * THRESHOLD is 400, down from 800. That is not the 200-line target and is not
+ * meant to be: a file under 400 with no structural signal against it is
+ * accepted as it stands, and the gate's job there is to keep it that way. The
+ * 542 files at or under 400 can never cross it, and the 75 above it are
+ * recorded at today's size and can only shrink. Splitting is reserved for
+ * files that have a reason beyond their length -- a boundary violation, a
+ * growing dispatch, a fan-out -- which the other gates and the epic track
+ * separately. Chasing every 250-line module down to 200 buys nothing and
+ * risks trading one cohesive file for three coupled ones.
  *
  * The rule is a ratchet, not a flat limit:
  *
@@ -53,7 +60,7 @@ const { execFileSync } = require('child_process');
 const repoRoot = path.resolve(__dirname, '..');
 const BASELINE_PATH = path.join(__dirname, 'file-size-baseline.json');
 
-const THRESHOLD = 800;
+const THRESHOLD = 400;
 
 // Generated bundles are never hand-split -- the gate document classifies them
 // LEAVE_AS_IS -- so counting them would only produce noise no one may act on.
