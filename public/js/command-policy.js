@@ -16,6 +16,7 @@
         <button class="btn" id="policy-lock" type="button" data-rule-copy="lock"></button></div>
       <div id="policy-status" class="status" role="status" aria-live="polite"></div>
       <fieldset id="policy-fields" disabled style="border:0;padding:0;min-width:0">
+        <legend class="sr-only" data-rule-copy="title"></legend>
         <div class="field"><label for="policy-commands" data-rule-copy="commands"></label>
           <textarea id="policy-commands" rows="7" maxlength="51000" spellcheck="false" aria-describedby="policy-prefix"></textarea></div>
         <p id="policy-prefix" data-rule-copy="prefix"></p>

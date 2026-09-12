@@ -59,7 +59,7 @@
       <!-- Annotated because nothing writes this line until the reader acts, and
            the page has no selector that could re-run translation afterwards.
            Once app.mjs writes a real status, that status stands. -->
-      <p id="status" class="status" data-i18n="viewer.result.ready">Ready for a bounded lookup.</p>
+      <p id="status" class="status" role="status" aria-live="polite" data-i18n="viewer.result.ready">Ready for a bounded lookup.</p>
       <dl id="receipt-details" class="receipt-grid"></dl>
     </section>
   </main>
