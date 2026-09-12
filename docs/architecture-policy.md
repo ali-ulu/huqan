@@ -38,7 +38,7 @@ So the budget is banded:
 | Size | Treatment |
 |---|---|
 | **≤ 400** | Accepted as it stands. The gate's job is to keep it there. |
-| **401 – 800** | Recorded debt. Reviewed when something else brings the file into play. |
+| **401 – 800** | Recorded debt, with a reason and a dated review. |
 | **> 800** | Decomposition is owed, with its own issue. |
 | **any size** | A structural signal — a cross-module private call, a growing dispatch, a construction that should be an injection, a fan-out of 20 or more — is its own issue regardless of length. |
 
@@ -49,6 +49,16 @@ So the budget is banded:
 - When one shrinks, its recorded ceiling drops to match. Gains are never
   spendable later.
 - At 400 or below, its entry is removed.
+- **Every recorded entry carries a reason and a review date.** Past that date
+  the gate fails until someone shrinks the file or writes down why it stays and
+  sets the next date. An entry with no date at all fails too, so the rule is not
+  opt-in.
+
+That last rule is the half a ratchet is otherwise missing. A ceiling that *may*
+fall is not a ceiling that *must*, and an entry nobody revisits is a decision
+nobody made — which is exactly how the policy this replaced froze its debt, one
+threshold higher. Dates are staggered: the files that owe a decomposition come
+up first.
 
 This is stricter than what it replaces, not looser: the threshold was 800,
 so a 250-line module could triple in silence. It cannot now.
@@ -96,9 +106,9 @@ gate where it had a freeze.
 |---|---|---|
 | Line ceiling may not rise | yes | `scripts/check-file-size.js` |
 | No require cycles | yes | `scripts/check-import-cycles.js` |
-| Correctness lint | **not yet** | `npm run lint` exists and reports 883 findings; not wired into CI until they are triaged |
+| Correctness lint | **not yet** | `npm run lint` exists and reports 962 findings; not wired into CI until they are triaged |
 | Banded budget (400 hard cap) | yes | `scripts/check-file-size.js`, 75 recorded entries |
-| Baseline review dates | partly | present in the module-boundary baseline; not yet in `scripts/file-size-baseline.json` |
+| Baseline review dates | yes | both baselines; an expired or missing entry fails the gate |
 | Dependency direction | yes | `scripts/check-layers.js`, 3 dated exceptions |
 | Module boundary | yes | `scripts/check-module-boundary.js`, ratcheted at 110 calls |
 

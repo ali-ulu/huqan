@@ -77,8 +77,16 @@ test('a baseline file that grows past its recorded ceiling fails', () => {
   assert.equal(violations[0].limit, 2098);
 });
 
+/** A review entry well inside its window, for the cases that are about the
+ *  ceiling arithmetic rather than about review dates. A recorded entry with no
+ *  review date is itself a violation, so these have to supply one. */
+const reviewed = (...files) => ({
+  reviews: Object.fromEntries(files.map((file) => [file, { why: 'test', review_by: '2099-01-01' }])),
+  today: '2026-09-12',
+});
+
 test('a baseline file that holds exactly at its ceiling passes', () => {
-  const { violations } = evaluate({ 'kernel.js': 2098 }, { 'kernel.js': 2098 });
+  const { violations } = evaluate({ 'kernel.js': 2098 }, { 'kernel.js': 2098 }, THRESHOLD, reviewed('kernel.js'));
   assert.deepEqual(violations, []);
 });
 
@@ -92,7 +100,7 @@ test('--update can never raise an existing ceiling', () => {
 });
 
 test('shrinking a baseline file requires lowering the ledger', () => {
-  const { violations, nextBaseline } = evaluate({ 'kernel.js': 1500 }, { 'kernel.js': 2098 });
+  const { violations, nextBaseline } = evaluate({ 'kernel.js': 1500 }, { 'kernel.js': 2098 }, THRESHOLD, reviewed('kernel.js'));
   assert.deepEqual(kinds(violations), ['baseline-stale']);
   assert.equal(nextBaseline['kernel.js'], 1500, 'the gain must be locked in');
 });
@@ -112,6 +120,8 @@ test('the ratchet reports every independent violation, not just the first', () =
   const { violations } = evaluate(
     { 'a.js': THRESHOLD + 1, 'b.js': 1300, 'c.js': 900 },
     { 'b.js': 1200, 'c.js': 1000 },
+    THRESHOLD,
+    reviewed('b.js', 'c.js'),
   );
   assert.deepEqual(kinds(violations), ['baseline-stale', 'grew', 'new-over-threshold']);
 });
@@ -168,4 +178,44 @@ test('generated bundles and tests are outside the ratchet', () => {
     'the invariant is about the shipped runtime, matching check-import-cycles.js',
   );
   assert.equal(files.includes('kernel.js'), true, 'the runtime is in scope');
+});
+
+test('an entry past its review date fails, so the ledger cannot freeze', () => {
+  // The half the ratchet was missing. A ceiling that may fall is not a ceiling
+  // that must: without this, an entry sits at today's size forever and the
+  // ledger freezes the way the policy this replaced did, one threshold lower.
+  const { violations } = evaluate(
+    { 'lib/big.js': THRESHOLD + 100 },
+    { 'lib/big.js': THRESHOLD + 100 },
+    THRESHOLD,
+    { reviews: { 'lib/big.js': { why: 'recorded', review_by: '2026-01-01' } }, today: '2026-09-12' },
+  );
+
+  const expired = violations.filter((item) => item.kind === 'review-expired');
+  assert.equal(expired.length, 1);
+  assert.match(expired[0].message, /due for review by 2026-01-01/);
+});
+
+test('an entry inside its review window does not fail on that ground', () => {
+  const { violations } = evaluate(
+    { 'lib/big.js': THRESHOLD + 100 },
+    { 'lib/big.js': THRESHOLD + 100 },
+    THRESHOLD,
+    { reviews: { 'lib/big.js': { why: 'recorded', review_by: '2027-03-31' } }, today: '2026-09-12' },
+  );
+
+  assert.deepEqual(violations.filter((item) => item.kind.startsWith('review-')), []);
+});
+
+test('a recorded ceiling with no review date at all is a violation', () => {
+  // Otherwise the date requirement is opt-in, and an entry added by hand
+  // without one would be permanently exempt from the rule meant to catch it.
+  const { violations } = evaluate(
+    { 'lib/big.js': THRESHOLD + 100 },
+    { 'lib/big.js': THRESHOLD + 100 },
+    THRESHOLD,
+    { reviews: {}, today: '2026-09-12' },
+  );
+
+  assert.equal(violations.filter((item) => item.kind === 'review-missing').length, 1);
 });
