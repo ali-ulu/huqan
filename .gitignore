@@ -37,3 +37,4 @@ backups/
 # Onboarding E2E scratch (Playwright) - not run by node:test suite
 test/onboarding-checklist.test.js
 test-results/
+huqan-server.pid
