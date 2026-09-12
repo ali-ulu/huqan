@@ -69,8 +69,8 @@ test('consolidate non-dry run replaces edges, rebuilds once, saves once, and ret
   const originalEdges = kernel.graph._edges;
   let rebuilds = 0;
   let saves = 0;
-  const rebuildIndex = kernel.graph._rebuildIndex.bind(kernel.graph);
-  kernel.graph._rebuildIndex = () => {
+  const rebuildIndex = kernel.graph.rebuildIndex.bind(kernel.graph);
+  kernel.graph.rebuildIndex = () => {
     rebuilds += 1;
     rebuildIndex();
   };
@@ -95,7 +95,7 @@ test('consolidate with no removals does not rebuild or save', () => {
   const retained = addEdge(kernel, 'a', 'b', 'supports', 0.9);
   let rebuilds = 0;
   let saves = 0;
-  kernel.graph._rebuildIndex = () => { rebuilds += 1; };
+  kernel.graph.rebuildIndex = () => { rebuilds += 1; };
   kernel.graph.save = () => { saves += 1; };
 
   const result = kernel.consolidate(false);

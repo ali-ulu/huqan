@@ -108,3 +108,9 @@ test('runMutationOnce no longer takes graph-wide deep snapshot clones', () => {
   assert.doesNotMatch(source, /deepClone\(this\._candidateClaims\)/);
   assert.doesNotMatch(source, /deepClone\(this\._auditEvents\)/);
 });
+
+test('rollback journal drives the public rebuildIndex, not the private underscore surface', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'lib', 'graph-mutation-rollback.js'), 'utf8');
+  assert.doesNotMatch(source, /graph\._rebuildIndex\(\)/);
+  assert.match(source, /graph\.rebuildIndex\(\)/);
+});

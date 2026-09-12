@@ -683,7 +683,7 @@ class Graph {
   }
 
   _consolidateEdges(dryRun = true) {
-    return consolidateEdges({ edges: this._edges, dryRun, replaceEdges: arr => { this._edges = arr; }, rebuildIndex: () => this._rebuildIndex(), save: () => this.save(), logSaveError: error => { console.error('[Kernel] Graph save hatası:', error.message); }, auditRemoval: (edge, reason) => this.appendAuditEvent({ eventType: 'DELETE', targetType: 'edge', targetId: `${edge.from}|${edge.relation}|${edge.to}`, workspaceId: normalizeWorkspaceId(edge.workspaceId), actor: 'graph.consolidate', sourceRef: 'graph.consolidate', details: { reason, weight: edge.weight } }) });
+    return consolidateEdges({ edges: this._edges, dryRun, replaceEdges: arr => { this._edges = arr; }, rebuildIndex: () => this.rebuildIndex(), save: () => this.save(), logSaveError: error => { console.error('[Kernel] Graph save hatası:', error.message); }, auditRemoval: (edge, reason) => this.appendAuditEvent({ eventType: 'DELETE', targetType: 'edge', targetId: `${edge.from}|${edge.relation}|${edge.to}`, workspaceId: normalizeWorkspaceId(edge.workspaceId), actor: 'graph.consolidate', sourceRef: 'graph.consolidate', details: { reason, weight: edge.weight } }) });
   }
 
   getNodes(workspaceId = 'default') {
@@ -824,7 +824,7 @@ class Graph {
     recordNode: storageKey => this._mutationRollback?.recordNode(storageKey),
     deleteNode: storageKey => delete this._nodes[storageKey],
     removeIncidentEdges: (id, workspaceId) => (this._edges = this._edges.filter(edge => !(edge.workspaceId === workspaceId && (edge.from === id || edge.to === id)))),
-    rebuildIndex: () => this._rebuildIndex(),
+    rebuildIndex: () => this.rebuildIndex(),
     persistDeleteEdges: (id, workspaceId) => this._db && this._stmts && this._stmts.deleteEdgesOf.run(id, id, workspaceId),
     persistDeleteNode: (id, workspaceId) => this._db && this._stmts && this._stmts.deleteNode.run(id, workspaceId),
   }; }
@@ -945,7 +945,7 @@ class Graph {
     return runNodeSimilarity((nodeId, scope) => this.getNode(nodeId, scope), aId, bId, workspaceId);
   }
 
-  _pruneStoreApi() { return { getEdges: () => this._edges, setEdges: edges => { this._edges = edges; }, rebuildIndex: () => this._rebuildIndex(), getPruneThreshold: () => this._pruneThreshold, persistPrune: (threshold, scope) => { if (this._db) this._stmts.pruneEdges.run(threshold, scope); } }; }
+  _pruneStoreApi() { return { getEdges: () => this._edges, setEdges: edges => { this._edges = edges; }, rebuildIndex: () => this.rebuildIndex(), getPruneThreshold: () => this._pruneThreshold, persistPrune: (threshold, scope) => { if (this._db) this._stmts.pruneEdges.run(threshold, scope); } }; }
 
   prune(threshold, workspaceId = 'default') {
     return runGraphPrune(this._pruneStoreApi(), threshold, workspaceId);
@@ -1178,7 +1178,7 @@ class Graph {
             trustPolicyVersion: row.trust_policy_version || '',
             details: JSON.parse(row.details || '{}'),
           }));
-          this._rebuildIndex();
+          this.rebuildIndex();
 
           loadEmbeddingsLenient(this);
           return; // SQLite'tan başarıyla yüklendi
@@ -1202,7 +1202,7 @@ class Graph {
     this._inIndex.get(inKey).push(edge);
   }
 
-  _rebuildIndex() {
+  rebuildIndex() {
     this._outIndex.clear();
     this._inIndex.clear();
     for (const e of this._edges) this._indexEdge(e);
