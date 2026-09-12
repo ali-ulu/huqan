@@ -61,6 +61,8 @@ const repoRoot = path.resolve(__dirname, '..');
 const BASELINE_PATH = path.join(__dirname, 'file-size-baseline.json');
 
 const THRESHOLD = 400;
+// Above this a file owes a decomposition, so its entry comes up for review first.
+const DECOMPOSE_AT = 800;
 
 // Generated bundles are never hand-split -- the gate document classifies them
 // LEAVE_AS_IS -- so counting them would only produce noise no one may act on.
@@ -106,9 +108,41 @@ function readBaseline() {
   return parsed && typeof parsed.files === 'object' && parsed.files !== null ? parsed.files : {};
 }
 
-function writeBaseline(files) {
+/**
+ * The reason and the review date for each recorded entry, kept beside the
+ * ceilings rather than inside them so the arithmetic above stays about
+ * numbers.
+ *
+ * This is the half the ratchet was missing. A ceiling that may fall is not a
+ * ceiling that must: without a date, an entry sits at today's size forever and
+ * the ledger freezes exactly the way the policy this replaced did, one
+ * threshold lower. An expired entry fails the gate, which forces the choice to
+ * be made again out loud -- shrink it, or write down why it stays.
+ */
+function readReviews() {
+  if (!fs.existsSync(BASELINE_PATH)) return {};
+  const parsed = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'));
+  return parsed && typeof parsed.reviews === 'object' && parsed.reviews !== null ? parsed.reviews : {};
+}
+
+function defaultReviewDate(lines) {
+  // Staggered so the ledger does not come due all at once, and so the files
+  // that owe a decomposition come up first.
+  return lines > DECOMPOSE_AT ? '2026-10-31' : '2027-03-31';
+}
+
+function writeBaseline(files, previousReviews = {}) {
   const ordered = {};
-  for (const file of Object.keys(files).sort()) ordered[file] = files[file];
+  const reviews = {};
+  for (const file of Object.keys(files).sort()) {
+    ordered[file] = files[file];
+    const recorded = previousReviews[file];
+    reviews[file] = {
+      why: (recorded && recorded.why)
+        || 'Pre-existing debt recorded when the banded budget was introduced.',
+      review_by: (recorded && recorded.review_by) || defaultReviewDate(files[file]),
+    };
+  }
   const document = {
     _comment: [
       'Line-count debt ledger for scripts/check-file-size.js (issue #328).',
@@ -121,6 +155,7 @@ function writeBaseline(files) {
     ],
     threshold: THRESHOLD,
     files: ordered,
+    reviews,
   };
   fs.writeFileSync(BASELINE_PATH, `${JSON.stringify(document, null, 2)}\n`);
 }
@@ -131,6 +166,8 @@ function writeBaseline(files) {
  */
 function evaluate(measured, baseline, threshold = THRESHOLD, opts = {}) {
   const seedNew = Boolean(opts.seedNew);
+  const reviews = opts.reviews || {};
+  const today = opts.today || new Date().toISOString().slice(0, 10);
   const violations = [];
   const nextBaseline = {};
 
@@ -189,6 +226,29 @@ function evaluate(measured, baseline, threshold = THRESHOLD, opts = {}) {
         message: `${file} shrank to ${lines} lines; its baseline still says ${recorded}.`,
       });
     }
+
+    // An entry nobody revisits is a decision nobody made. Past its date it
+    // fails, and the fix is to shrink the file or write down why it stays and
+    // set the next date -- either way, deliberately.
+    const review = reviews[file];
+    if (!review || !review.review_by) {
+      violations.push({
+        kind: 'review-missing',
+        file,
+        lines,
+        limit: recorded,
+        message: `${file} has a recorded ceiling but no review date.`,
+      });
+    } else if (review.review_by < today) {
+      violations.push({
+        kind: 'review-expired',
+        file,
+        lines,
+        limit: recorded,
+        message: `${file} was due for review by ${review.review_by} and is still ${lines} lines.`,
+      });
+    }
+
     nextBaseline[file] = lines;
   }
 
@@ -218,7 +278,8 @@ function main(argv = process.argv.slice(2)) {
   const files = listSourceFiles();
   const measured = measure(files);
   const baseline = readBaseline();
-  const { violations, nextBaseline } = evaluate(measured, baseline, THRESHOLD, { seedNew });
+  const reviews = readReviews();
+  const { violations, nextBaseline } = evaluate(measured, baseline, THRESHOLD, { seedNew, reviews });
 
   if (update) {
     // An existing ceiling is never raised: a `grew` violation keeps its old,
@@ -227,7 +288,7 @@ function main(argv = process.argv.slice(2)) {
     // --seed-new was also passed (#1289) -- a plain --update never adds a
     // new entry -- and even then it is reported loudly, with the added JSON
     // line as what a reviewer sees.
-    writeBaseline(nextBaseline);
+    writeBaseline(nextBaseline, reviews);
     const added = violations.filter((item) => item.kind === 'new-over-threshold');
     const grew = violations.filter((item) => item.kind === 'grew');
 

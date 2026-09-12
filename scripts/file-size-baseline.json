@@ -85,5 +85,307 @@
     "storage.js": 627,
     "workflow-agent.js": 941,
     "workflow-tools.js": 880
+  },
+  "reviews": {
+    "agent.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2026-10-31"
+    },
+    "agent.v3.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "backupRestore.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "causalSimulator.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "cli.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2026-10-31"
+    },
+    "dream.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "finalizer.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "graph.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2026-10-31"
+    },
+    "kernel.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2026-10-31"
+    },
+    "kernel.v2.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2026-10-31"
+    },
+    "lib/a2a/bounded-exchange.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/a2a/exchange-route.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/agent-action-firewall.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/atp-conformance.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/automation-safety-gate/automation-operation-classifier.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/causal/causal-traversal.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/causal/causal-verdict.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/code-change-gate.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2026-10-31"
+    },
+    "lib/command-exec-gate.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/conflict-detector.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/connector-action-firewall.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/contradiction-rules.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/dream-experiment-loop.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/external-action-gate-install.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/external-action-guard.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/external-action-receipt-collector.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/external-action-receipt.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/external-client-mutation-receipt-owner.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/external-client-replay-store.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/external-client-trust-config.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/github-app-streaming-trust.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/github-connector.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/http/route-auth-policy.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/http/workflow-data-routes.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/human-oversight-approval-runtime.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/huqan-package-format.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/ingest.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/kernel-read-use-cases.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/learn-use-case.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/mcp-approval-decision-handler.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/mcp-gate-adapter.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/mcp-tool-catalog.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/mcp-tool-data-schemas.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/memory-admission-gate.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/memory-schema.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/memory-store.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2026-10-31"
+    },
+    "lib/observability/api-contract.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/observability/service.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/provenance-query.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/receipt/public-trust-receipt.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/receipt/receipt-read-index.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/receipt/trusted-key-resolver.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/risk-classify.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/sandbox-isolation.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2026-10-31"
+    },
+    "lib/sdk.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/storage/tool-approval-methods.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/tool-call-gate.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/v5/runtime-writer.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "lib/verify.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "mcpServer.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "plugin.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "plugins/company-brain.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "plugins/receipt-exporter.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "plugins/repo-memory.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "public/js/app.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "sandboxRunner.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "scripts/a2a-conformance/run.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "scripts/ci-impact-plan.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "scripts/enforcement-coverage.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "scripts/external-conformance/consumer.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2026-10-31"
+    },
+    "scripts/launch-installed-package-smoke.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "server.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2026-10-31"
+    },
+    "storage.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2027-03-31"
+    },
+    "workflow-agent.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2026-10-31"
+    },
+    "workflow-tools.js": {
+      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "review_by": "2026-10-31"
+    }
   }
 }
