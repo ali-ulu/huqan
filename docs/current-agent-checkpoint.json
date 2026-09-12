@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "repository": "ali-ulu/huqan",
   "baselineBranch": "main",
-  "canonicalMain": "df1eed1ac9831085e966704ba7b0de21f052707d",
+  "canonicalMain": "e2bd3ee0d8a3aebd5f33eb7c1255e1bc7e512973",
   "worktreePolicy": "REPORT_ONLY",
-  "observedAt": "2026-09-01T20:47:36Z",
+  "observedAt": "2026-09-12T20:26:06Z",
   "program": "V5 implementation track entry (authorized) / multi-agent control plane roadmap #1766 Faz A and Faz B merged, Faz C-E open",
   "completedEvidence": [
     "V4-B1 is closed PASS with authenticated real-server and SQLite Workbench read evidence; Notion candidate 262d357ef37a6d189dc29b1f255c90b7c6ccc745 / PR #264",
@@ -69,7 +69,8 @@
     "V5 implementation entry is PASS. What that authorizes is production wiring of the modules still in NOT_YET_WIRED, each in its own scoped change, plus entry into the gated V5 implementation track. It authorizes no completion claim.",
     "The previous canonicalMain 0fef5948f644e611baa8b725f018249662bcdb5d and the intermediate checkpoint pin ea6466d1081afa2f014b8889fca97236268e050f were not the observed origin/main; canonicalMain is now pinned to the live origin/main 1ddd08eacfe7776013a4c9159846d30b9a10c667. The checkpoint records only the exact #940, #941, #942, #968 and #969 production-wired surfaces above and does not authorize universal connector, autonomous research or regulatory completion claims.",
     "This checkpoint drifted twice before this refresh: it recorded canonicalMain 2032ae2630c552713f0718b64ee7cc3bddd8ba4c and observedAt 2026-08-27T12:03:14Z while live origin/main had moved to 4d911e378f90f56bdeaa598881dcd1429e7a3309 and then to df1eed1ac9831085e966704ba7b0de21f052707d. Issue #1737 recorded that drift as a launch-preflight finding. The first note in this list already outranks the checkpoint by design: when this file and live main disagree, live main is correct and this file is stale.",
-    "A refresh of this checkpoint is not evidence about the code. It records where main is and what was already proven elsewhere; it never converts an unproven claim into a proven one."
+    "A refresh of this checkpoint is not evidence about the code. It records where main is and what was already proven elsewhere; it never converts an unproven claim into a proven one.",
+    "Refresh 2026-09-12T20:26:06Z: canonicalMain df1eed1ac9831085e966704ba7b0de21f052707d was a real ancestor (PR #1774) but 11 days stale, which broke shallow-clone bootstraps that could not resolve it; pinned to live origin/main e2bd3ee0 (PR #2405, main push CI green). df1eed1a ancestry verified locally, so this is plain drift, not a phantom SHA."
   ],
   "authorizationArtifact": "docs/v5/v5-implementation-entry-successor-audit.md"
 }
