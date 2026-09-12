@@ -307,6 +307,7 @@
     "lib/gate-hook-input.js",
     "lib/gate-hook-identity.js",
     "lib/gate-hook-reports.js",
+    "lib/gate-hook-management.js",
     "lib/github-connector.js",
     "lib/github-url.js",
     "lib/graph-causal-chain.js",
