@@ -9,11 +9,13 @@ const test = require('node:test');
 
 const {
   TRACKER_PATH,
-  checkTrackerBaseline,
+  BASELINE_PATH,
+  baselineEvolutionViolations,
   checkTrackerArtifact,
   classify,
   renderMarkdown,
   snapshot,
+  trackedEntries,
 } = require('../scripts/architecture-snapshot');
 
 test('committed architecture tracker matches the generated snapshot', () => {
@@ -55,15 +57,73 @@ test('CRLF checkout content does not create false tracker drift', () => {
   assert.equal(checkTrackerArtifact(expected, expected.replace(/\n/g, '\r\n')), null);
 });
 
-test('tracker baseline rejects increases and requires reviewed decreases to be recorded', () => {
-  const baseline = { decompose: 12, recorded: 58, structural: 22, tracked: 92 };
-  assert.match(
-    checkTrackerBaseline({ ...baseline, structural: 23, tracked: 93 }, baseline),
-    /increased/,
-  );
-  assert.match(
-    checkTrackerBaseline({ ...baseline, decompose: 11, tracked: 91 }, baseline),
-    /decreased/,
-  );
-  assert.equal(checkTrackerBaseline(baseline, baseline), null);
+test('baseline evolution permits only monotonic per-file improvement', () => {
+  const previous = { schemaVersion: 2, entries: {
+    'a.js': { band: 'decompose', lines: 900, signals: ['DIP'] },
+  } };
+  assert.deepEqual(baselineEvolutionViolations(previous, { schemaVersion: 2, entries: {
+    'a.js': { band: 'recorded', lines: 700, signals: [] },
+  } }), []);
+  assert.match(baselineEvolutionViolations(previous, { schemaVersion: 2, entries: {
+    'a.js': previous.entries['a.js'],
+    'b.js': { band: 'structural', lines: 200, signals: ['DIP'] },
+  } })[0], /newly tracked/);
+});
+
+test('numeric signal decreases are improvements while increases are rejected', () => {
+  const previous = { schemaVersion: 2, entries: {
+    'a.js': { band: 'structural', lines: 200, signals: ['FANOUT:35', 'ISP:6', 'OCP:10'] },
+  } };
+  assert.deepEqual(baselineEvolutionViolations(previous, { schemaVersion: 2, entries: {
+    'a.js': { band: 'structural', lines: 200, signals: ['FANOUT:34', 'ISP:5', 'OCP:9'] },
+  } }), []);
+  assert.match(baselineEvolutionViolations(previous, { schemaVersion: 2, entries: {
+    'a.js': { band: 'structural', lines: 200, signals: ['FANOUT:36'] },
+  } })[0], /worsened signal/);
+});
+
+function runFixtureGate(t, mutateGroups) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-architecture-state-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const groups = classify(snapshot());
+  mutateGroups(groups);
+  const trackerPath = path.join(root, 'tracker.md');
+  const baselinePath = path.join(root, 'baseline.json');
+  const snapshotPath = path.join(root, 'snapshot.json');
+  fs.writeFileSync(trackerPath, renderMarkdown(groups));
+  fs.writeFileSync(baselinePath, JSON.stringify({ schemaVersion: 2, entries: trackedEntries(groups) }));
+  fs.writeFileSync(snapshotPath, JSON.stringify(groups));
+  return spawnSync(process.execPath, [
+    path.resolve(__dirname, '../scripts/architecture-snapshot.js'),
+    `--check=${trackerPath}`,
+    `--baseline=${baselinePath}`,
+    `--previous-baseline=${BASELINE_PATH}`,
+    `--snapshot=${snapshotPath}`,
+  ], { encoding: 'utf8' });
+}
+
+test('real CLI rejects count and baseline increased together', (t) => {
+  const result = runFixtureGate(t, (groups) => groups.decompose.push({
+    file: 'lib/new-debt.js', lines: 901, signals: [],
+  }));
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /baseline cannot add debt/);
+});
+
+test('real CLI rejects same-count tracked-file churn', (t) => {
+  const result = runFixtureGate(t, (groups) => {
+    const removed = groups.recorded.shift();
+    groups.recorded.push({ ...removed, file: 'lib/replacement-debt.js' });
+  });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /replacement-debt\.js is newly tracked/);
+});
+
+test('real CLI fails closed when base ref cannot be resolved', () => {
+  const result = spawnSync(process.execPath, [
+    path.resolve(__dirname, '../scripts/architecture-snapshot.js'),
+    '--check',
+    '--base-ref=not-a-real-ref',
+  ], { encoding: 'utf8' });
+  assert.notEqual(result.status, 0);
 });

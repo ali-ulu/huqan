@@ -1,6 +1,561 @@
 {
-  "decompose": 12,
-  "recorded": 58,
-  "structural": 22,
-  "tracked": 92
+  "schemaVersion": 2,
+  "entries": {
+    "agent.js": {
+      "band": "decompose",
+      "lines": 955,
+      "signals": [
+        "OCP:6"
+      ]
+    },
+    "agent.v3.js": {
+      "band": "recorded",
+      "lines": 790,
+      "signals": [
+        "DIP"
+      ]
+    },
+    "backupRestore.js": {
+      "band": "recorded",
+      "lines": 610,
+      "signals": []
+    },
+    "causalSimulator.js": {
+      "band": "recorded",
+      "lines": 478,
+      "signals": []
+    },
+    "cli.js": {
+      "band": "decompose",
+      "lines": 819,
+      "signals": [
+        "FANOUT:27",
+        "OCP:40"
+      ]
+    },
+    "dream.js": {
+      "band": "recorded",
+      "lines": 726,
+      "signals": [
+        "ISP:1"
+      ]
+    },
+    "finalizer.js": {
+      "band": "recorded",
+      "lines": 604,
+      "signals": []
+    },
+    "graph.js": {
+      "band": "decompose",
+      "lines": 1242,
+      "signals": [
+        "FANOUT:35"
+      ]
+    },
+    "kernel.js": {
+      "band": "decompose",
+      "lines": 1073,
+      "signals": [
+        "DIP",
+        "FANOUT:39",
+        "ISP:1"
+      ]
+    },
+    "kernel.v2.js": {
+      "band": "decompose",
+      "lines": 801,
+      "signals": [
+        "DIP",
+        "ISP:6"
+      ]
+    },
+    "lib/a2a/bounded-exchange.js": {
+      "band": "recorded",
+      "lines": 693,
+      "signals": []
+    },
+    "lib/a2a/exchange-route.js": {
+      "band": "recorded",
+      "lines": 493,
+      "signals": []
+    },
+    "lib/agent-action-firewall.js": {
+      "band": "recorded",
+      "lines": 437,
+      "signals": []
+    },
+    "lib/atp-conformance.js": {
+      "band": "recorded",
+      "lines": 510,
+      "signals": [
+        "OCP:9"
+      ]
+    },
+    "lib/automation-safety-gate/automation-operation-classifier.js": {
+      "band": "recorded",
+      "lines": 545,
+      "signals": []
+    },
+    "lib/causal/causal-traversal.js": {
+      "band": "recorded",
+      "lines": 451,
+      "signals": []
+    },
+    "lib/causal/causal-verdict.js": {
+      "band": "recorded",
+      "lines": 555,
+      "signals": []
+    },
+    "lib/cli-helpers.js": {
+      "band": "structural",
+      "lines": 139,
+      "signals": [
+        "OCP:12"
+      ]
+    },
+    "lib/cli-workflow-adapter.js": {
+      "band": "structural",
+      "lines": 269,
+      "signals": [
+        "ISP:3"
+      ]
+    },
+    "lib/code-change-gate.js": {
+      "band": "decompose",
+      "lines": 834,
+      "signals": []
+    },
+    "lib/command-exec-gate.js": {
+      "band": "recorded",
+      "lines": 515,
+      "signals": []
+    },
+    "lib/conflict-detector.js": {
+      "band": "recorded",
+      "lines": 617,
+      "signals": [
+        "ISP:6"
+      ]
+    },
+    "lib/connector-action-firewall.js": {
+      "band": "recorded",
+      "lines": 469,
+      "signals": []
+    },
+    "lib/contradiction-rules.js": {
+      "band": "recorded",
+      "lines": 531,
+      "signals": []
+    },
+    "lib/dream-experiment-loop.js": {
+      "band": "recorded",
+      "lines": 533,
+      "signals": [
+        "ISP:1"
+      ]
+    },
+    "lib/external-action-gate-install.js": {
+      "band": "recorded",
+      "lines": 779,
+      "signals": []
+    },
+    "lib/external-action-guard.js": {
+      "band": "recorded",
+      "lines": 607,
+      "signals": []
+    },
+    "lib/external-action-receipt-collector.js": {
+      "band": "recorded",
+      "lines": 448,
+      "signals": []
+    },
+    "lib/external-action-receipt.js": {
+      "band": "recorded",
+      "lines": 621,
+      "signals": [
+        "DIP"
+      ]
+    },
+    "lib/external-client-mutation-receipt-owner.js": {
+      "band": "recorded",
+      "lines": 741,
+      "signals": []
+    },
+    "lib/external-client-replay-store.js": {
+      "band": "recorded",
+      "lines": 510,
+      "signals": []
+    },
+    "lib/external-client-trust-config.js": {
+      "band": "recorded",
+      "lines": 448,
+      "signals": []
+    },
+    "lib/github-app-streaming-trust.js": {
+      "band": "recorded",
+      "lines": 612,
+      "signals": []
+    },
+    "lib/github-connector.js": {
+      "band": "recorded",
+      "lines": 524,
+      "signals": [
+        "ISP:1",
+        "OCP:6"
+      ]
+    },
+    "lib/graph-json-persistence.js": {
+      "band": "structural",
+      "lines": 125,
+      "signals": [
+        "ISP:1"
+      ]
+    },
+    "lib/graph-json-snapshot.js": {
+      "band": "structural",
+      "lines": 109,
+      "signals": [
+        "ISP:4"
+      ]
+    },
+    "lib/graph-json-transaction.js": {
+      "band": "structural",
+      "lines": 160,
+      "signals": [
+        "ISP:6"
+      ]
+    },
+    "lib/http/route-auth-policy.js": {
+      "band": "recorded",
+      "lines": 453,
+      "signals": []
+    },
+    "lib/http/workflow-data-routes.js": {
+      "band": "recorded",
+      "lines": 477,
+      "signals": [
+        "OCP:14"
+      ]
+    },
+    "lib/human-oversight-approval-runtime.js": {
+      "band": "recorded",
+      "lines": 744,
+      "signals": []
+    },
+    "lib/huqan-package-format.js": {
+      "band": "recorded",
+      "lines": 430,
+      "signals": [
+        "OCP:8"
+      ]
+    },
+    "lib/hypothesis-review.js": {
+      "band": "structural",
+      "lines": 145,
+      "signals": [
+        "ISP:1"
+      ]
+    },
+    "lib/ingest.js": {
+      "band": "recorded",
+      "lines": 587,
+      "signals": []
+    },
+    "lib/kernel-mutation-admission.js": {
+      "band": "structural",
+      "lines": 305,
+      "signals": [
+        "ISP:1"
+      ]
+    },
+    "lib/kernel-read-use-cases.js": {
+      "band": "recorded",
+      "lines": 412,
+      "signals": []
+    },
+    "lib/kernel-self-evolve.js": {
+      "band": "structural",
+      "lines": 108,
+      "signals": [
+        "ISP:1"
+      ]
+    },
+    "lib/kernel-v2-native.js": {
+      "band": "structural",
+      "lines": 152,
+      "signals": [
+        "ISP:1"
+      ]
+    },
+    "lib/kernel-v2-type-negation.js": {
+      "band": "structural",
+      "lines": 91,
+      "signals": [
+        "ISP:5"
+      ]
+    },
+    "lib/learn-use-case.js": {
+      "band": "recorded",
+      "lines": 437,
+      "signals": []
+    },
+    "lib/mcp-approval-decision-handler.js": {
+      "band": "recorded",
+      "lines": 408,
+      "signals": []
+    },
+    "lib/mcp-approval-store.js": {
+      "band": "structural",
+      "lines": 123,
+      "signals": [
+        "DIP"
+      ]
+    },
+    "lib/mcp-gate-adapter.js": {
+      "band": "recorded",
+      "lines": 612,
+      "signals": []
+    },
+    "lib/mcp-tool-catalog.js": {
+      "band": "recorded",
+      "lines": 531,
+      "signals": []
+    },
+    "lib/mcp-tool-data-schemas.js": {
+      "band": "recorded",
+      "lines": 612,
+      "signals": []
+    },
+    "lib/memory-admission-gate.js": {
+      "band": "recorded",
+      "lines": 509,
+      "signals": []
+    },
+    "lib/memory-schema.js": {
+      "band": "recorded",
+      "lines": 568,
+      "signals": []
+    },
+    "lib/memory-store-json-persistence.js": {
+      "band": "structural",
+      "lines": 281,
+      "signals": [
+        "ISP:4"
+      ]
+    },
+    "lib/memory-store-reopen.js": {
+      "band": "structural",
+      "lines": 87,
+      "signals": [
+        "ISP:2"
+      ]
+    },
+    "lib/memory-store-sqlite-warmup.js": {
+      "band": "structural",
+      "lines": 127,
+      "signals": [
+        "ISP:1"
+      ]
+    },
+    "lib/memory-store.js": {
+      "band": "decompose",
+      "lines": 970,
+      "signals": [
+        "FANOUT:23"
+      ]
+    },
+    "lib/mutation-journal.js": {
+      "band": "structural",
+      "lines": 264,
+      "signals": [
+        "ISP:4"
+      ]
+    },
+    "lib/observability/api-contract.js": {
+      "band": "recorded",
+      "lines": 469,
+      "signals": []
+    },
+    "lib/observability/service.js": {
+      "band": "recorded",
+      "lines": 767,
+      "signals": []
+    },
+    "lib/provenance-query.js": {
+      "band": "recorded",
+      "lines": 656,
+      "signals": []
+    },
+    "lib/reason-sandbox.js": {
+      "band": "structural",
+      "lines": 124,
+      "signals": [
+        "ISP:2"
+      ]
+    },
+    "lib/receipt/public-trust-receipt.js": {
+      "band": "recorded",
+      "lines": 660,
+      "signals": []
+    },
+    "lib/receipt/receipt-read-index.js": {
+      "band": "recorded",
+      "lines": 640,
+      "signals": [
+        "ISP:1"
+      ]
+    },
+    "lib/receipt/receipt-stamp.js": {
+      "band": "structural",
+      "lines": 118,
+      "signals": [
+        "ISP:2"
+      ]
+    },
+    "lib/receipt/trusted-key-resolver.js": {
+      "band": "recorded",
+      "lines": 421,
+      "signals": []
+    },
+    "lib/risk-classify.js": {
+      "band": "recorded",
+      "lines": 740,
+      "signals": [
+        "OCP:13"
+      ]
+    },
+    "lib/sandbox-isolation.js": {
+      "band": "decompose",
+      "lines": 831,
+      "signals": []
+    },
+    "lib/sdk.js": {
+      "band": "recorded",
+      "lines": 403,
+      "signals": [
+        "OCP:10"
+      ]
+    },
+    "lib/self-healer/finding-schema.js": {
+      "band": "structural",
+      "lines": 280,
+      "signals": [
+        "OCP:6"
+      ]
+    },
+    "lib/self-healer/source-dependency-graph.js": {
+      "band": "structural",
+      "lines": 286,
+      "signals": [
+        "DIP"
+      ]
+    },
+    "lib/storage/tool-approval-methods.js": {
+      "band": "recorded",
+      "lines": 424,
+      "signals": []
+    },
+    "lib/tool-call-gate.js": {
+      "band": "recorded",
+      "lines": 731,
+      "signals": []
+    },
+    "lib/v5/runtime-writer.js": {
+      "band": "recorded",
+      "lines": 411,
+      "signals": []
+    },
+    "lib/verify-numeric-text.js": {
+      "band": "structural",
+      "lines": 82,
+      "signals": [
+        "OCP:8"
+      ]
+    },
+    "lib/verify.js": {
+      "band": "recorded",
+      "lines": 741,
+      "signals": []
+    },
+    "mcpServer.js": {
+      "band": "decompose",
+      "lines": 810,
+      "signals": [
+        "FANOUT:34",
+        "OCP:23"
+      ]
+    },
+    "plugin.js": {
+      "band": "recorded",
+      "lines": 728,
+      "signals": []
+    },
+    "plugins/company-brain.js": {
+      "band": "recorded",
+      "lines": 678,
+      "signals": [
+        "ISP:1"
+      ]
+    },
+    "plugins/contradiction-alert.js": {
+      "band": "structural",
+      "lines": 165,
+      "signals": [
+        "ISP:1"
+      ]
+    },
+    "plugins/receipt-exporter.js": {
+      "band": "recorded",
+      "lines": 431,
+      "signals": []
+    },
+    "plugins/repo-memory.js": {
+      "band": "recorded",
+      "lines": 726,
+      "signals": []
+    },
+    "public/js/app.js": {
+      "band": "recorded",
+      "lines": 425,
+      "signals": []
+    },
+    "rustGraph.js": {
+      "band": "structural",
+      "lines": 399,
+      "signals": [
+        "DIP"
+      ]
+    },
+    "sandboxRunner.js": {
+      "band": "recorded",
+      "lines": 530,
+      "signals": [
+        "OCP:8"
+      ]
+    },
+    "server.js": {
+      "band": "decompose",
+      "lines": 1034,
+      "signals": [
+        "FANOUT:53"
+      ]
+    },
+    "storage.js": {
+      "band": "recorded",
+      "lines": 627,
+      "signals": []
+    },
+    "workflow-agent.js": {
+      "band": "decompose",
+      "lines": 941,
+      "signals": [
+        "OCP:6"
+      ]
+    },
+    "workflow-tools.js": {
+      "band": "decompose",
+      "lines": 880,
+      "signals": []
+    }
+  }
 }

@@ -19,6 +19,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 const { listSourceFiles, stripComments, buildGraph } = require('./check-import-cycles.js');
 
 const repoRoot = path.resolve(__dirname, '..');
@@ -143,6 +144,16 @@ function counts(groups) {
   return value;
 }
 
+function trackedEntries(groups) {
+  const entries = {};
+  for (const band of ['structural', 'recorded', 'decompose']) {
+    for (const row of groups[band]) {
+      entries[row.file] = { band, lines: row.lines, signals: [...row.signals].sort() };
+    }
+  }
+  return Object.fromEntries(Object.entries(entries).sort(([a], [b]) => a.localeCompare(b)));
+}
+
 function normalizeEol(value) {
   return value.replace(/\r\n/g, '\n');
 }
@@ -151,21 +162,61 @@ function checkTrackerArtifact(expected, actual) {
   return normalizeEol(expected) === normalizeEol(actual) ? null : `Architecture tracker drift: regenerate ${path.relative(repoRoot, TRACKER_PATH).replace(/\\/g, '/')} with npm run arch:snapshot -- --write.`;
 }
 
-function checkTrackerBaseline(current, baseline) {
-  for (const key of ['decompose', 'recorded', 'structural', 'tracked']) {
-    if (current[key] !== baseline[key]) {
-      const direction = current[key] > baseline[key] ? 'increased' : 'decreased';
-      return `Architecture tracker baseline ${key} ${direction}: ${baseline[key]} -> ${current[key]}. Update the baseline only for a reviewed decrease; increases are forbidden.`;
+function trackerBaselineViolations(current, baseline) {
+  const violations = [];
+  const rank = { structural: 1, recorded: 2, decompose: 3 };
+  for (const [file, entry] of Object.entries(current)) {
+    const recorded = baseline.entries[file];
+    if (!recorded) {
+      violations.push(`${file} is newly tracked in ${entry.band}`);
+      continue;
+    }
+    if (rank[entry.band] > rank[recorded.band]) {
+      violations.push(`${file} worsened band ${recorded.band} -> ${entry.band}`);
+    }
+    if (entry.lines > recorded.lines) {
+      violations.push(`${file} grew ${recorded.lines} -> ${entry.lines} lines`);
+    }
+    const recordedSignals = new Map(recorded.signals.map((signal) => {
+      const match = signal.match(/^([^:]+)(?::(\d+))?$/);
+      return [match[1], match[2] === undefined ? null : Number(match[2])];
+    }));
+    for (const signal of entry.signals) {
+      const match = signal.match(/^([^:]+)(?::(\d+))?$/);
+      const kind = match[1];
+      const value = match[2] === undefined ? null : Number(match[2]);
+      if (!recordedSignals.has(kind)) {
+        violations.push(`${file} added signal ${signal}`);
+      } else if (value !== null && value > recordedSignals.get(kind)) {
+        violations.push(`${file} worsened signal ${kind}:${recordedSignals.get(kind)} -> ${value}`);
+      }
     }
   }
-  return null;
+  return violations;
+}
+
+function writeTrackerBaseline(entries) {
+  fs.writeFileSync(BASELINE_PATH, `${JSON.stringify({ schemaVersion: 2, entries }, null, 2)}\n`);
+}
+
+function baselineEvolutionViolations(previous, next) {
+  return trackerBaselineViolations(next.entries, previous);
+}
+
+function optionValue(argv, name) {
+  const arg = argv.find((item) => item.startsWith(`${name}=`));
+  return arg ? arg.slice(arg.indexOf('=') + 1) : null;
 }
 
 function main(argv = process.argv.slice(2)) {
-  const rows = snapshot();
-  const groups = classify(rows);
-  const total = rows.length;
+  const snapshotPath = optionValue(argv, '--snapshot');
+  const rows = snapshotPath ? null : snapshot();
+  const groups = snapshotPath
+    ? JSON.parse(fs.readFileSync(path.resolve(snapshotPath), 'utf8'))
+    : classify(rows);
+  const total = rows ? rows.length : Object.values(groups).flat().length;
   const markdown = renderMarkdown(groups);
+  const entries = trackedEntries(groups);
 
   if (argv.includes('--write')) {
     fs.mkdirSync(path.dirname(TRACKER_PATH), { recursive: true });
@@ -177,17 +228,57 @@ function main(argv = process.argv.slice(2)) {
   const checkArg = argv.find((arg) => arg === '--check' || arg.startsWith('--check='));
   if (checkArg) {
     const trackerPath = checkArg.includes('=') ? path.resolve(checkArg.slice(checkArg.indexOf('=') + 1)) : TRACKER_PATH;
+    const baselinePath = path.resolve(optionValue(argv, '--baseline') || BASELINE_PATH);
     const actual = fs.existsSync(trackerPath) ? fs.readFileSync(trackerPath, 'utf8') : '';
     const error = checkTrackerArtifact(markdown, actual);
     if (error) {
       console.error(error);
       return 1;
     }
-    const baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'));
-    const baselineError = checkTrackerBaseline(counts(groups), baseline);
-    if (baselineError) {
-      console.error(baselineError);
+    const baseline = JSON.parse(fs.readFileSync(baselinePath, 'utf8'));
+    const previousPath = optionValue(argv, '--previous-baseline');
+    const baseRef = optionValue(argv, '--base-ref');
+    let previous = null;
+    if (previousPath) previous = JSON.parse(fs.readFileSync(path.resolve(previousPath), 'utf8'));
+    if (!previousPath && (!baseRef || /^0+$/.test(baseRef))) {
+      console.error('Architecture tracker base ref is required and must resolve to a commit.');
       return 1;
+    }
+    if (baseRef && !/^0+$/.test(baseRef)) {
+      execFileSync('git', ['cat-file', '-e', `${baseRef}^{commit}`], {
+        cwd: repoRoot, stdio: ['ignore', 'ignore', 'ignore'],
+      });
+      try {
+        previous = JSON.parse(execFileSync(
+          'git', ['show', `${baseRef}:scripts/architecture-tracker-baseline.json`],
+          { cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+        ));
+      } catch (error) {
+        // The gate's introducing PR has no predecessor artifact. Once merged,
+        // every later PR/push has one and must prove monotonic evolution.
+        if (error.status !== 128) throw error;
+      }
+    }
+    if (previous) {
+      const evolution = baselineEvolutionViolations(previous, baseline);
+      if (evolution.length > 0) {
+        console.error(`Architecture tracker baseline cannot add debt:\n  ${evolution.join('\n  ')}`);
+        return 1;
+      }
+    }
+    const violations = trackerBaselineViolations(entries, baseline);
+    if (violations.length > 0) {
+      console.error(`Architecture tracker baseline violation:\n  ${violations.join('\n  ')}`);
+      return 1;
+    }
+    const baselineIsCurrent = JSON.stringify(entries) === JSON.stringify(baseline.entries);
+    if (!baselineIsCurrent && !argv.includes('--update-baseline')) {
+      console.error('Architecture tracker baseline has unrecorded improvements; rerun with --update-baseline and commit the lowered baseline.');
+      return 1;
+    }
+    if (argv.includes('--update-baseline')) {
+      writeTrackerBaseline(entries);
+      console.log('Architecture tracker baseline updated with monotonic improvements.');
     }
     console.log('Architecture tracker artifact matches the live snapshot.');
     return 0;
@@ -216,9 +307,11 @@ module.exports = {
   classify,
   renderMarkdown,
   counts,
+  trackedEntries,
   normalizeEol,
   checkTrackerArtifact,
-  checkTrackerBaseline,
+  trackerBaselineViolations,
+  baselineEvolutionViolations,
   TRACKER_PATH,
   BASELINE_PATH,
   ACCEPTED,
