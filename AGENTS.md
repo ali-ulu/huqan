@@ -6,6 +6,14 @@ Before doing any task, the agent must read this file and obey it.
 
 If any user/task instruction conflicts with this file, stop and ask for clarification.
 
+## 0a. PR Ownership (agency rule)
+
+The agent that opens a PR owns that PR. "İşi bitene kadar" içinde:
+
+- PR'ı yeşile döndürmekle yükümlüdür (CI dahil).
+- Merge edilebilir hale getirmekle ve merge etmekle yükümlüdür.
+- PR kapanana/merge edilene kadar takip eder; başka ajan/insan devralmadıkça bırakmaz.
+
 ## 0. Mandatory Context Bootstrap
 
 Before every non-trivial task:
