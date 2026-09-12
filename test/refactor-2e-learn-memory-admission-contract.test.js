@@ -506,7 +506,7 @@ test('KernelV2 delegates temporal metadata around wrapped learn in exact synchro
   const calls = [];
   const beforeKeys = new Set(['existing|relates|target']);
   try {
-    fixture.kernel.graph._captureTemporalEdgeKeys = () => {
+    fixture.kernel.graph.captureTemporalEdgeKeys = () => {
       calls.push('capture');
       return beforeKeys;
     };
@@ -515,7 +515,7 @@ test('KernelV2 delegates temporal metadata around wrapped learn in exact synchro
       calls.push('learn');
       return originalLearn(...args);
     };
-    fixture.kernel.graph._applyTemporalEdgeMetadata = (...args) => {
+    fixture.kernel.graph.applyTemporalEdgeMetadata = (...args) => {
       calls.push('metadata');
       assert.strictEqual(args[0], 'delegated');
       assert.strictEqual(args[1], FIXED_TIME);
@@ -539,7 +539,7 @@ test('KernelV2 propagates metadata failure without rolling back wrapped learn', 
   const v2 = new KernelV2({ kernel: fixture.kernel });
   const failure = new Error('metadata failure');
   try {
-    fixture.kernel.graph._applyTemporalEdgeMetadata = () => {
+    fixture.kernel.graph.applyTemporalEdgeMetadata = () => {
       throw failure;
     };
 

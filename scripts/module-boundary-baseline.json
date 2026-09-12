@@ -1,0 +1,130 @@
+{
+  "threshold": 0,
+  "files": {
+    "dream.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "kernel.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "kernel.v2.js": {
+      "calls": 6,
+      "why": "Two of these are blocked on room in kernel.js, not on willingness. A named write-pipeline seam on Kernel is the fix, and kernel.js sits on its recorded ceiling; _commitBackgroundEdge and _evaluateLearnAdmission also collide with module-level imports of the same names, so a plain rename is not available. Unblocked by the kernel.js split in #2127.",
+      "review_by": "2026-12-31"
+    },
+    "lib/cli-workflow-adapter.js": {
+      "calls": 3,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/conflict-detector.js": {
+      "calls": 6,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/dream-experiment-loop.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/github-connector.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/graph-json-persistence.js": {
+      "calls": 2,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/graph-json-snapshot.js": {
+      "calls": 4,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/graph-json-transaction.js": {
+      "calls": 6,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/graph-mutation-rollback.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/hypothesis-review.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/kernel-mutation-admission.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/kernel-self-evolve.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/kernel-v2-native.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/kernel-v2-type-negation.js": {
+      "calls": 5,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/memory-store-json-persistence.js": {
+      "calls": 4,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/memory-store-reopen.js": {
+      "calls": 2,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/memory-store-sqlite-warmup.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/mutation-journal.js": {
+      "calls": 4,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/reason-sandbox.js": {
+      "calls": 2,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/receipt/receipt-read-index.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "lib/receipt/receipt-stamp.js": {
+      "calls": 2,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "plugins/company-brain.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    },
+    "plugins/contradiction-alert.js": {
+      "calls": 1,
+      "why": "Pre-existing debt recorded when the gate was introduced.",
+      "review_by": "2026-12-31"
+    }
+  }
+}

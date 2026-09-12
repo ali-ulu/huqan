@@ -72,7 +72,7 @@ The following paths are outside the 1B implementation gate:
 | `docs/self-healer-roadmap.md` | Requires a separate current-code and ADR reconciliation audit. |
 | `.kiro/specs/llm-memory-layer/requirements.md` | Architectural and specification value is unresolved. |
 | `docs/v4/v4-demo-script.md` | Active canonical demo document. |
-| `docs/v4/big-file-refactor-gate.md` | Historical technical evidence. |
+| ~~`docs/v4/big-file-refactor-gate.md`~~ | Deleted 2026-09-11; superseded by `docs/architecture-policy.md`. |
 | `docs/launch-uat.md` | Old URLs require the separate `GITHUB-MIGRATION-3A` gate. |
 
 ## Historical Integrity Rules

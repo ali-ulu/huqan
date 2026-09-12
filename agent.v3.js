@@ -8,6 +8,7 @@ const { emitGateTelemetry } = require('./lib/gate-telemetry');
 const { initializeBehavioralState } = require('./lib/agent-behavioral-integrity');
 const { ensureState, loopEnabled, isDreamExperimentVerificationStep, prepareDreamExperiment, prepareDreamQueue, processDreamStep, selectDreamNextAction, labelPlanDataForDreamLoop } = require('./lib/agent-v3-dream-loop-adapter');
 const { attachStepErrorSummary } = require('./lib/agent-memory-persistence');
+const { finalizeAgentRun } = require('./lib/agent-run-finalization');
 
 function cloneValue(value) {
   if (value === undefined) return undefined;
@@ -211,9 +212,9 @@ class AgentV3 {
     }
   }
 
-  _ok(type, data = null, evidence = [], meta = {}) {
-    if (this.kernel && typeof this.kernel._ok === 'function') {
-      return this.kernel._ok(type, data, evidence, meta);
+  ok(type, data = null, evidence = [], meta = {}) {
+    if (this.kernel && typeof this.kernel.ok === 'function') {
+      return this.kernel.ok(type, data, evidence, meta);
     }
     return {
       ok: true,
@@ -225,9 +226,9 @@ class AgentV3 {
     };
   }
 
-  _fail(type, code, message, evidence = [], meta = {}, data = null) {
-    if (this.kernel && typeof this.kernel._fail === 'function') {
-      const result = this.kernel._fail(type, code, message, meta);
+  fail(type, code, message, evidence = [], meta = {}, data = null) {
+    if (this.kernel && typeof this.kernel.fail === 'function') {
+      const result = this.kernel.fail(type, code, message, meta);
       result.data = data;
       if (Array.isArray(evidence) && evidence.length) {
         result.evidence = evidence;
@@ -246,7 +247,7 @@ class AgentV3 {
 
   _storageFailure(operation, err, state = null) {
     const detail = err && err.message ? err.message : 'unknown error';
-    return this._fail('agent', 'AGENT_STORAGE_ERROR',
+    return this.fail('agent', 'AGENT_STORAGE_ERROR',
       `Agent storage operation "${operation}" failed: ${detail}.`,
       state?.evidence || [], { operation }, state);
   }
@@ -289,7 +290,7 @@ class AgentV3 {
         data.policy.signals.push('goal-memory');
       }
     }
-    data.recommendations = this.baseAgent._buildRunRecommendations({
+    data.recommendations = this._runtime().buildRunRecommendations({
       goal: data.goal,
       objective: data.objective,
       steps: [],
@@ -297,7 +298,7 @@ class AgentV3 {
       status: 'running',
     });
     this.lastPlan = data;
-    return this._ok('plan', data, result.evidence || [], result.meta || {});
+    return this.ok('plan', data, result.evidence || [], result.meta || {});
   }
 
   inspectToolPolicy(tool, input = '', context = {}) {
@@ -404,7 +405,7 @@ class AgentV3 {
   }
 
   _renderReport(state) {
-    const baseReport = this.baseAgent._renderReport(state);
+    const baseReport = this._runtime().renderReport(state);
     return [
       `Checkpoint: ${state.checkpointId || 'none'}`,
       `Resume: ${state.resumed ? 'yes' : 'no'}`,
@@ -413,9 +414,19 @@ class AgentV3 {
     ].join('\n');
   }
 
+  /** The step-execution seam of the agent underneath. See Agent.stepRuntime. */
+  stepRuntime() {
+    return this._runtime();
+  }
+
+  _runtime() {
+    if (!this._baseRuntime) this._baseRuntime = this.baseAgent.stepRuntime();
+    return this._baseRuntime;
+  }
+
   run(goal, opts = {}) {
     const scopeResult = createExecutionScope(goal, opts);
-    if (!scopeResult.ok) return this._fail('agent', scopeResult.reason, 'Untrusted content cannot define an execution goal.', [], { goalBinding: scopeResult.receipt });
+    if (!scopeResult.ok) return this.fail('agent', scopeResult.reason, 'Untrusted content cannot define an execution goal.', [], { goalBinding: scopeResult.receipt });
     const planResult = this.plan(goal, opts);
     if (!planResult || planResult.ok === false) return planResult;
     const activePlan = planResult.data;
@@ -427,11 +438,11 @@ class AgentV3 {
     const requestedResumeToken = normalizeGoal(opts.resumeToken);
     if (requestedCheckpointId || requestedResumeToken) {
       if (!requestedCheckpointId || !requestedResumeToken) {
-        return this._fail('agent', 'AGENT_CONTINUATION_FIELDS_REQUIRED',
+        return this.fail('agent', 'AGENT_CONTINUATION_FIELDS_REQUIRED',
           'checkpointId and resumeToken must be supplied together.');
       }
       if (opts.resume === false) {
-        return this._fail('agent', 'AGENT_CONTINUATION_REQUIRES_RESUME',
+        return this.fail('agent', 'AGENT_CONTINUATION_REQUIRES_RESUME',
           'Explicit checkpoint continuation requires resume=true.');
       }
     }
@@ -457,7 +468,7 @@ class AgentV3 {
     if (requestedCheckpointId || requestedResumeToken) {
       const storedToken = resumeRecord?.state?.resumeToken || resumeRecord?.id || '';
       if (!resumeRecord || resumeRecord.id !== requestedCheckpointId || storedToken !== requestedResumeToken) {
-        return this._fail('agent', 'AGENT_RESUME_TOKEN_INVALID',
+        return this.fail('agent', 'AGENT_RESUME_TOKEN_INVALID',
           'The supplied checkpoint and resume token do not match a workspace-scoped checkpoint.', [], {
             checkpointId: requestedCheckpointId,
             workspaceId,
@@ -476,7 +487,7 @@ class AgentV3 {
     // Keep the public plugin lifecycle contract reachable on the canonical v3
     // path. This intentionally precedes the durable budget gate: a before hook
     // observes every accepted run attempt, including one refused before work.
-    this.baseAgent._emit('beforeAgentRun', state);
+    this._runtime().emit('beforeAgentRun', state);
 
     // Force the run's workspace onto every tool call. agent.js reads
     // per-tool option bags straight through, so without this
@@ -524,14 +535,14 @@ class AgentV3 {
     // the ceiling could not be evaluated at all.
     if (budgetCheck.usageKnown === false) {
       this._recordBudgetAuditEvent(goal, workspaceId, budgetCheck);
-      return this._fail('agent', 'AGENT_LOOP_BUDGET_UNAVAILABLE',
+      return this.fail('agent', 'AGENT_LOOP_BUDGET_UNAVAILABLE',
         `Agent loop budget could not be evaluated for workspace "${workspaceId}": ${budgetCheck.detail}. Refusing the run rather than proceeding unbudgeted.`,
         [], { gate: 'AB10', budget: budgetCheck });
     }
 
     if (budgetCheck.decision !== 'allow') {
       this._recordBudgetAuditEvent(goal, workspaceId, budgetCheck);
-      return this._fail('agent', 'AGENT_LOOP_BUDGET_EXCEEDED',
+      return this.fail('agent', 'AGENT_LOOP_BUDGET_EXCEEDED',
         `Agent loop budget ${budgetCheck.decision} for workspace "${workspaceId}": ${budgetCheck.reason} (${budgetCheck.iterationsUsed}/${budgetCheck.maxIterationsPerWindow} iterations used this window).`,
         [], { gate: 'AB10', budget: budgetCheck });
     }
@@ -550,10 +561,10 @@ class AgentV3 {
       }
 
       const step = queued.shift();
-      const report = this.baseAgent._executeStepWithRetry(step, state, scopedOpts);
+      const report = this._runtime().executeStepWithRetry(step, state, scopedOpts);
       state.steps.push(report);
-      state.evidence.push(...this.baseAgent._collectEvidence([report.result]));
-      this.baseAgent._updateToolStats(report.tool, report.status);
+      state.evidence.push(...this._runtime().collectEvidence([report.result]));
+      this._runtime().updateToolStats(report.tool, report.status);
       state.notes.push({
         step: report.action,
         summary: report.summary,
@@ -561,15 +572,15 @@ class AgentV3 {
       state.iteration += 1;
       state.lastAction = report.action;
 
-      const summary = this.baseAgent._extractAgentSummary(report.result);
+      const summary = this._runtime().extractAgentSummary(report.result);
       const previousSummary = state.progress?.lastSummary || '';
-      const stalled = this.baseAgent._isStalledProgress(previousSummary, summary.text);
+      const stalled = this._runtime().isStalledProgress(previousSummary, summary.text);
       state.progress = {
         stalledCount: stalled ? (state.progress?.stalledCount || 0) + 1 : 0,
         lastSummary: String(summary.text || '').toLowerCase().replace(/\s+/g, ' ').trim(),
       };
 
-      const followUp = this.baseAgent._chooseFollowUp(step, summary, state);
+      const followUp = this._runtime().chooseFollowUp(step, summary, state);
       const shouldForceDream =
         state.progress.stalledCount >= 2 &&
         state.steps.length < activePlan.maxSteps &&
@@ -614,12 +625,12 @@ class AgentV3 {
           rationale: 'Progress stalled; switching to hypothesis mode.',
         });
       } else if (effectiveFollowUp && state.steps.length < activePlan.maxSteps) {
-        const nextSignature = this.baseAgent._stepSignature(effectiveFollowUp, state);
-        if (this.baseAgent._findRecentFailure(nextSignature)) {
+        const nextSignature = this._runtime().stepSignature(effectiveFollowUp, state);
+        if (this._runtime().findRecentFailure(nextSignature)) {
           const fallback = effectiveFollowUp.action === 'dream'
             ? null
             : { action: 'dream', tool: 'dream', input: {}, rationale: 'Previous failure repeated; safe fallback selected.' };
-          if (fallback && !this.baseAgent._findRecentFailure(this.baseAgent._stepSignature(fallback, state))) {
+          if (fallback && !this._runtime().findRecentFailure(this._runtime().stepSignature(fallback, state))) {
             queued.unshift({
               id: `${fallback.action}-${state.steps.length + 1}`,
               action: fallback.action,
@@ -661,16 +672,16 @@ class AgentV3 {
     }
 
     const finalStep = state.steps[state.steps.length - 1];
-    const finalSummary = finalStep ? this.baseAgent._extractAgentSummary(finalStep.result) : { text: '' };
+    const finalSummary = finalStep ? this._runtime().extractAgentSummary(finalStep.result) : { text: '' };
     state.finalAnswer = finalSummary.text || 'Agent completed but no short summary could be produced.';
     attachStepErrorSummary(state);
     state.completedSteps = state.steps.length;
     state.remainingSteps = queued.length;
-    state.recommendations = this.baseAgent._buildRunRecommendations(state);
+    state.recommendations = this._runtime().buildRunRecommendations(state);
     state.nextAction = selectDreamNextAction(
       dreamLoopActive,
       state,
-      this.baseAgent._suggestNextAction(state),
+      this._runtime().suggestNextAction(state),
     );
     state.report = this._renderReport(state);
     let goalMemory;
@@ -691,13 +702,10 @@ class AgentV3 {
     // genuinely spent.
     state.iterationsDelta = Math.max(0, Number(state.iteration || 0) - Number(state.iterationsAtRunStart || 0));
 
-    try {
-      this.storage.saveRun(state);
-    } catch (err) {
-      return this._storageFailure('saveRun', err, state);
-    }
-    try {
-      this.storage.saveGoalMemory({
+    const finalized = finalizeAgentRun({
+      storage: this.storage,
+      state,
+      goalMemory: {
         goal,
         workspaceId,
         objective: activePlan.objective,
@@ -706,33 +714,21 @@ class AgentV3 {
         finalAnswer: state.finalAnswer,
         resumed: state.resumed,
         selectedTools: activePlan.selectedTools,
-      });
-    } catch (err) {
-      return this._storageFailure('saveGoalMemory', err, state);
-    }
-
-    if (state.status === 'completed' || state.status === 'blocked') {
-      try {
-        this.storage.deleteCheckpoint(state.checkpointId, goal, workspaceId);
-      } catch (err) {
-        return this._storageFailure('deleteCheckpoint', err, state);
-      }
-    } else {
-      try {
-        this._saveCheckpoint(state);
-      } catch (err) {
-        return this._storageFailure('saveCheckpoint', err, state);
-      }
+      },
+      saveCheckpoint: current => this._saveCheckpoint(current),
+    });
+    if (!finalized.ok) {
+      return this._storageFailure(finalized.operation, finalized.error, state);
     }
 
     this.lastRun = state;
 
     if (state.status === 'completed' || state.status === 'blocked') {
-      this.baseAgent._emit('afterAgentRun', state);
+      this._runtime().emit('afterAgentRun', state);
     }
 
     if (state.status === 'blocked') {
-      return this._fail('agent', 'AGENT_BLOCKED', state.finalAnswer, state.evidence, {
+      return this.fail('agent', 'AGENT_BLOCKED', state.finalAnswer, state.evidence, {
         objective: activePlan.objective,
         selectedTools: activePlan.selectedTools,
         resumed: state.resumed,
@@ -742,7 +738,7 @@ class AgentV3 {
       }, state);
     }
 
-    return this._ok('agent', state, state.evidence, {
+    return this.ok('agent', state, state.evidence, {
       objective: activePlan.objective,
       selectedTools: activePlan.selectedTools,
       resumed: state.resumed,

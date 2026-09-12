@@ -663,7 +663,7 @@ class Graph {
   }
 
   /** Edge-touch scope + temporal stamping; see lib/graph-edge-mutations.js (#733). */
-  _captureTemporalEdgeKeys() {
+  captureTemporalEdgeKeys() {
     this._edgeTouchScope = beginEdgeTouchScope(this);
     return this._edgeTouchScope;
   }
@@ -672,7 +672,7 @@ class Graph {
     if (this._edgeTouchScope) this._edgeTouchScope.touched.add(edgeTouchKey(workspaceId, from, relation, to));
   }
 
-  _applyTemporalEdgeMetadata(source, learnedAt, scope, opts = {}) {
+  applyTemporalEdgeMetadata(source, learnedAt, scope, opts = {}) {
     this._edgeTouchScope = null;
     return applyTemporalEdgeMetadata(this, { source, learnedAt, scope, workspaceId: opts.workspaceId });
   }

@@ -5,7 +5,7 @@ const { resolveEntity } = require('../lib/entity-resolution');
 
 function createStubKernel() {
   return {
-    _ok: (cmd, data, evidence, meta) => ({ ok: true, cmd, data, evidence, meta }),
+    ok: (cmd, data, evidence, meta) => ({ ok: true, cmd, data, evidence, meta }),
     _parseNumericComparison: () => null,
     graph: {
       getNode: () => null,

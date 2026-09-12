@@ -206,6 +206,27 @@ function emitProbe(t, label, { maxSteps = 1 } = {}) {
 
 const EMIT_GOAL = 'kedi hayvandir mi?';
 
+test('failed finalization retains spent budget and suppresses completion until resume', t => {
+  const probe = emitProbe(t, 'finalization-failure');
+  const { agent } = probe;
+  const original = agent.storage.saveGoalMemory.bind(agent.storage);
+  agent.storage.saveGoalMemory = () => { throw new Error('injected goal-memory failure'); };
+  const options = { workspaceId: 'ws-finalize', maxIterations: 200, timeBudgetMs: 8000 };
+  const failed = agent.run(EMIT_GOAL, { ...options, resume: false });
+  assert.equal(failed.error.code, 'AGENT_STORAGE_ERROR');
+  assert.equal(failed.meta.operation, 'saveGoalMemory');
+  assert.equal(probe.seen.length, 0);
+  const spent = agent.storage.sumAgentIterationsSince(options.workspaceId, 0);
+  assert.ok(spent > 0);
+  assert.equal(agent.storage.db.prepare('SELECT status FROM agent_runs').get().status, 'finalizing');
+  assert.ok(agent.storage.loadLatestCheckpoint(EMIT_GOAL, options.workspaceId));
+  agent.storage.saveGoalMemory = original;
+  const resumed = agent.run(EMIT_GOAL, { ...options, resume: true });
+  assert.equal(resumed.ok, true);
+  assert.equal(agent.storage.sumAgentIterationsSince(options.workspaceId, 0), spent + resumed.data.iterationsDelta);
+  assert.equal(probe.seen.length, 1);
+});
+
 test('a completed run emits afterAgentRun exactly once', (t) => {
   const probe = emitProbe(t, 'completed', { maxSteps: 1 });
   const result = probe.agent.run(EMIT_GOAL, {

@@ -522,6 +522,11 @@ class HuqanStorage {
     return next;
   }
 
+  // Synchronous only: all writes must finish before SQLite commits.
+  withTransaction(write) {
+    return this.db.transaction(write)();
+  }
+
   getGoalMemory(goal, workspaceId) {
     const row = this._stmts.getGoalMemory.get(goalMemoryKey(goal, workspaceId));
     if (!row) return null;

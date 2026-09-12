@@ -123,10 +123,12 @@ test('AgentV3 rejects an explicit continuation whose token does not match the wo
   const agent = new AgentV3({
     baseAgent: {
       plan: () => ({ ok: true, data: { goal: 'resume safely', objective: 'investigate', steps: [], selectedTools: [] }, evidence: [], meta: {} }),
-      _buildRunRecommendations: () => ({ items: [] }),
-      _suggestNextAction: () => null,
-      _renderReport: () => 'report',
-      _emit: () => undefined,
+      stepRuntime: () => ({
+        buildRunRecommendations: () => ({ items: [] }),
+        suggestNextAction: () => null,
+        renderReport: () => 'report',
+        emit: () => undefined,
+      }),
     },
     storage: {
       getGoalMemory: () => null,
@@ -251,10 +253,12 @@ test('AgentV3 resumes an explicitly named older checkpoint when one exists (#880
   const agent = new AgentV3({
     baseAgent: {
       plan: () => ({ ok: true, data: { goal: 'resume safely', objective: 'investigate', steps: [], selectedTools: [] }, evidence: [], meta: {} }),
-      _buildRunRecommendations: () => ({ items: [] }),
-      _suggestNextAction: () => null,
-      _renderReport: () => 'report',
-      _emit: () => undefined,
+      stepRuntime: () => ({
+        buildRunRecommendations: () => ({ items: [] }),
+        suggestNextAction: () => null,
+        renderReport: () => 'report',
+        emit: () => undefined,
+      }),
     },
     storage: {
       getGoalMemory: () => null,

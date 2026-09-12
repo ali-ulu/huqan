@@ -758,7 +758,7 @@ describe('Graph - Lifecycle and maintenance baseline contracts', { concurrency: 
     preExisting[1].evidence = ['source:source-b'];
     preExisting[1].source = 'source-b';
 
-    const scope = graph._captureTemporalEdgeKeys();
+    const scope = graph.captureTemporalEdgeKeys();
     assert.deepStrictEqual([...scope.touched], [], 'a fresh scope has touched nothing');
 
     // Only this edge is written inside the scope.
@@ -769,7 +769,7 @@ describe('Graph - Lifecycle and maintenance baseline contracts', { concurrency: 
     let saveCalls = 0;
     graph.save = () => { saveCalls += 1; };
 
-    const stamped = graph._applyTemporalEdgeMetadata('contract', '2026-07-21T00:00:00.000Z', scope, { workspaceId: 'one' });
+    const stamped = graph.applyTemporalEdgeMetadata('contract', '2026-07-21T00:00:00.000Z', scope, { workspaceId: 'one' });
     assert.strictEqual(stamped, 1);
 
     // The newly written edge carries the operation's metadata.
@@ -801,9 +801,9 @@ describe('Graph - Lifecycle and maintenance baseline contracts', { concurrency: 
     }
     graph.addEdge('a', 'b', 'relates', { workspaceId: 'w2', source: 'source-b' });
 
-    const scope = graph._captureTemporalEdgeKeys();
+    const scope = graph.captureTemporalEdgeKeys();
     graph.addEdge('a', 'b', 'relates', { workspaceId: 'w1', source: 'source-a' });
-    graph._applyTemporalEdgeMetadata('source-c', '2026-07-21T00:00:00.000Z', scope, { workspaceId: 'w1' });
+    graph.applyTemporalEdgeMetadata('source-c', '2026-07-21T00:00:00.000Z', scope, { workspaceId: 'w1' });
 
     assert.strictEqual(graph.getEdge('a', 'b', 'relates', 'w1').source, 'source-c');
     assert.strictEqual(graph.getEdge('a', 'b', 'relates', 'w2').source, 'source-b');

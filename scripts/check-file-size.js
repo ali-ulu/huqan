@@ -7,20 +7,20 @@
  *
  * #328 asks for three things: every source file under a threshold, behavior
  * parity after splitting, and the threshold enforced in CI. Only the third is
- * implemented here, deliberately.
+ * implemented here.
  *
- * `docs/v4/big-file-refactor-gate.md` is a binding policy in this repository
- * and it forbids exactly what criteria 1 and 2 would require right now:
+ * This used to be justified by `docs/v4/big-file-refactor-gate.md`, which
+ * forbade splitting a large file except immediately before a runtime PR that
+ * had to edit it heavily, and classified `kernel.js` as "do not touch
+ * speculatively". That document was deleted on 2026-09-11;
+ * `docs/architecture-policy.md` replaced it. The target is 200 lines, and
+ * closing recorded debt no longer needs a runtime PR to justify it.
  *
- *   "A refactor must happen immediately BEFORE the runtime PR that depends on
- *    the file — not earlier 'for cleanliness'."
- *
- * and it classifies `kernel.js` as NEEDS_MANUAL_REVIEW ("do not touch
- * speculatively") with `lib/memory-store.js` and `mcpServer.js` deferred to
- * just-in-time audits. Splitting them now to satisfy a line count would
- * violate that gate. So this file does the part that is safe and unblocked:
- * it stops the problem from growing, which is the precondition for any later
- * split rather than a substitute for it.
+ * The ratchet below is the right mechanism and is kept. What it lacks is
+ * downward pressure -- a ceiling that may fall is not a ceiling that must --
+ * so the policy adds a justification and a review date per baseline entry.
+ * Until those land, THRESHOLD stays at 800 and this script only stops the
+ * problem from growing: the precondition for a burn-down, not a substitute.
  *
  * The rule is a ratchet, not a flat limit:
  *

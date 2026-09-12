@@ -10,7 +10,7 @@ const delegateSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'kernel
 test('Kernel.alternatives is a one-line, cycle-free delegation', () => {
   assert.match(
     kernelSource,
-    /alternatives\(subject, maxPaths = 3, workspaceId = 'default'\) \{\n    return runAlternatives\(value => this\.normalizeWord\(value\), this\.graph, \(type, data, evidence\) => this\._ok\(type, data, evidence\), subject, maxPaths, workspaceId\);\n  \}/,
+    /alternatives\(subject, maxPaths = 3, workspaceId = 'default'\) \{\n    return runAlternatives\(value => this\.normalizeWord\(value\), this\.graph, \(type, data, evidence\) => this\.ok\(type, data, evidence\), subject, maxPaths, workspaceId\);\n  \}/,
   );
   assert.doesNotMatch(delegateSource, /require\(['"].*kernel/);
   assert.doesNotMatch(delegateSource, /this\._(db|stmts|nodes|edges)/);

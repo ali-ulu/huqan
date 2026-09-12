@@ -22,8 +22,11 @@
     "bench:observability": "node benchmarks/observability-agent-v3-baseline.js",
     "bench:observability:load": "node benchmarks/observability-load-smoke.js",
     "bench:observability:soak": "node --expose-gc benchmarks/observability-soak.js",
+    "lint": "oxlint",
     "check:control-chars": "node scripts/check-control-chars.js",
     "check:cycles": "node scripts/check-import-cycles.js",
+    "check:module-boundary": "node scripts/check-module-boundary.js",
+    "check:layers": "node scripts/check-layers.js",
     "check:doc-status": "node scripts/check-doc-status.js",
     "check:docs-drift": "node scripts/check-docs-drift.js",
     "check:file-size": "node scripts/check-file-size.js",
@@ -162,6 +165,10 @@
     "lib/adversarial-signals.js",
     "lib/agent-loop-budget-gate.js",
     "lib/agent-memory-persistence.js",
+    "lib/verify-numeric-text.js",
+    "lib/agent-report-renderer.js",
+    "lib/kernel-learn-admission.js",
+    "lib/agent-run-finalization.js",
     "lib/agent-memory-state.js",
     "lib/multi-agent-cascade-guard.js",
     "lib/agent-run-guidance.js",
@@ -736,5 +743,8 @@
   "optionalDependencies": {
     "pdfjs-dist": "^6.2.108",
     "pdfkit": "^0.19.1"
+  },
+  "devDependencies": {
+    "oxlint": "^1.82.0"
   }
 }

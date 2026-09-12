@@ -54,6 +54,51 @@ jobs:
       - name: Check file sizes
         run: node scripts/check-file-size.js
 
+  module-boundary:
+    name: Forbid cross-module private access
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+
+      # docs/architecture-policy.md §4. Reaching into another object's
+      # `_private` member makes that member the real contract between the two
+      # modules while it keeps the marking that says it is not one — no
+      # documentation, no direct test, no stability promise. That is why
+      # refactors here kept breaking callers nobody had reason to look at.
+      # Ratcheted like file sizes: the recorded count may fall, never rise.
+      # Reads the source tree only, so no dependencies are needed.
+      - name: Check module boundaries
+        run: node scripts/check-module-boundary.js
+
+  layers:
+    name: Enforce dependency direction
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+
+      # docs/architecture-policy.md §3: entrypoint -> domain -> storage, with
+      # shared helpers below all three. An upward edge drags an HTTP server or
+      # a CLI into consumers that wanted neither, and makes the lower layer
+      # impossible to exercise on its own. Exceptions are listed in the script
+      # with a review date, and an expired one fails exactly like a new edge.
+      # Reads the source tree only, so no dependencies are needed.
+      - name: Check layer directions
+        run: node scripts/check-layers.js
+
   control-chars:
     name: Forbid raw control characters in tracked sources
     runs-on: ubuntu-latest
