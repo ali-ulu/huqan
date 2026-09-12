@@ -7,8 +7,8 @@ const {
 } = require('../lib/external-action-adapter');
 const { createDurableExternalActionReceiptWriter, defaultExternalActionReceiptPath } = require('../lib/external-action-receipt');
 const { defaultExternalActionPolicyPath, readAllowedCommands } = require('../lib/external-action-command-policy');
-const { queryExternalActionsByIdentity } = require('../lib/external-action-identity-log');
 const { manageGate, connectDetectedAgents } = require('../lib/external-action-gate-install');
+const { queryIdentityLog } = require('../lib/gate-hook-identity');
 const { buildAgentRoster } = require('../lib/external-action-agent-roster');
 const { buildAgentOverview } = require('../lib/external-action-agent-overview');
 const { writeCustomAgentAdapter } = require('../lib/external-action-adapter-generator');
@@ -30,23 +30,8 @@ createProcessFailureHandlers({
   }),
 }).bind();
 
-// Input helpers live in lib/gate-hook-input.js (#2248).
-
-// Read-only audit mode: answer "what has this identity done?" from the same
-// receipt trail the guard writes. No stdin, no receipt writer, no graph.
-function queryIdentityLog() {
-  const identityRef = argumentValue('--identity-log');
-  const result = queryExternalActionsByIdentity({
-    ...(identityRef.startsWith('agent:') ? { identityRef } : { agentId: identityRef }),
-    ...(argumentValue('--receipt-log') ? { path: argumentValue('--receipt-log') } : {}),
-    ...(argumentValue('--owner') ? { ownerActorId: argumentValue('--owner') } : {}),
-    ...(argumentValue('--since') ? { since: argumentValue('--since') } : {}),
-    ...(argumentValue('--until') ? { until: argumentValue('--until') } : {}),
-    ...(argumentValue('--limit') ? { limit: Number.parseInt(argumentValue('--limit'), 10) } : {}),
-  });
-  process.stdout.write(`${JSON.stringify(result)}\n`);
-  process.exitCode = 0;
-}
+// Input helpers live in lib/gate-hook-input.js, the identity reader in
+// lib/gate-hook-identity.js (#2248).
 
 async function main() {
   let receiptWriter;

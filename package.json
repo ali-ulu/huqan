@@ -305,6 +305,7 @@
     "lib/fuzzy-normalization.js",
     "lib/gate-telemetry.js",
     "lib/gate-hook-input.js",
+    "lib/gate-hook-identity.js",
     "lib/github-connector.js",
     "lib/github-url.js",
     "lib/graph-causal-chain.js",
