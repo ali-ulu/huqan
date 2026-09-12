@@ -169,7 +169,7 @@ const {
 const { runPublicApiCommand } = require('./lib/http/public-api-commands');
 const { V2_STATUS_PHASES } = require('./lib/http/v2-status-phases');
 const { buildGraphData } = require('./lib/server-graph-data');
-const { createRuntimeStatusHandlers } = require('./lib/http/runtime-status'); const { createRequestCorrelation, writeStructuredLog } = require('./lib/http/structured-log');
+const { createRuntimeStatusHandlers } = require('./lib/http/runtime-status'); const { createRequestCorrelation, writeStructuredLog } = require('./lib/http/structured-log'); const { createProcessFailureHandlers, failureCodeFor } = require('./lib/http/process-failure-handlers');
 
 async function submitIngestApproval(data) {
   const snapshot = buildIngestApprovalSnapshot(data);
@@ -1002,13 +1002,21 @@ const gracefulShutdown = createGracefulShutdown({
   }),
 });
 
+const processFailureHandlers = createProcessFailureHandlers({
+  logError: (kind, cause) => writeStructuredLog(console, 'error', kind === 'uncaughtException' ? 'process.uncaught_exception' : 'process.unhandled_rejection', null, {
+    runtime: 'server',
+    errorCode: failureCodeFor(kind, cause),
+  }),
+});
+
 if (require.main === module && readCompatibleEnvironmentVariable('DISABLE_AUTO_LISTEN') !== '1') {
+  processFailureHandlers.bind();
   gracefulShutdown.bind();
   startAgentWorkerIfEnabled();
   startServer(PORT, HOST);
 }
 
-server.closeHuqan = server.closeAxiom = closeHuqan; server.bindGracefulShutdown = gracefulShutdown.bind; // closeAxiom: RFC-001 legacy alias
+server.closeHuqan = server.closeAxiom = closeHuqan; server.bindGracefulShutdown = gracefulShutdown.bind; server.bindProcessFailureHandlers = processFailureHandlers.bind; // closeAxiom: RFC-001 legacy alias
 
 server.startServer = startServer;
 server.configureHttpHumanOversight = configureHttpHumanOversight;
