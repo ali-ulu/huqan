@@ -16,7 +16,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-const { requireApiKeyAtBoot } = require('../lib/http/boot-validation');
+const { requireApiKeyAtBoot } = require('../lib/http/server-boot');
 
 const SERVER = path.join(__dirname, '..', 'server.js');
 
