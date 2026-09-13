@@ -102,10 +102,10 @@ function getCommits(repoPath, options = {}) {
   }
   if (options.pathFilter) args.push('--', String(options.pathFilter));
 
-  const hashes = String(execFileSync('git', args, { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }))
+  const hashes = String(execFileSync('git', args, { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, timeout: 15_000 }))
     .trim().split(/\r?\n/).filter((hash) => /^[0-9a-f]{40,64}$/i.test(hash));
   return hashes.map((hash) => {
-    const raw = execFileSync('git', ['-C', absRepo, 'show', '-s', `--format=%H${FIELD_SEP}%an${FIELD_SEP}%ae${FIELD_SEP}%aI${FIELD_SEP}%s${FIELD_SEP}%b`, hash], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
+    const raw = execFileSync('git', ['-C', absRepo, 'show', '-s', `--format=%H${FIELD_SEP}%an${FIELD_SEP}%ae${FIELD_SEP}%aI${FIELD_SEP}%s${FIELD_SEP}%b`, hash], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, timeout: 15_000 });
     const [commit] = parseGitLog(raw);
     return { ...commit, hash, shortHash: hash.slice(0, 12), repoPath: absRepo };
   });

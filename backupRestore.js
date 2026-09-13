@@ -117,7 +117,7 @@ function backupSqliteIfExists(source, destination) {
     return copyIfExists(source, destination);
   }
   const program = "const Database=require('better-sqlite3');const db=new Database(process.argv[1],{readonly:true});db.backup(process.argv[2]).then(()=>db.close()).catch(e=>{console.error(e.stack||e.message);process.exitCode=1})";
-  const result = spawnSync(process.execPath, ['-e', program, source, destination], { encoding: 'utf8' });
+  const result = spawnSync(process.execPath, ['-e', program, source, destination], { encoding: 'utf8', timeout: 30_000 });
   if (result.status !== 0) throw new Error(`SQLite online backup failed: ${(result.stderr || result.stdout || '').trim()}`);
   return { name: path.basename(source), size: fs.statSync(destination).size };
 }
@@ -370,7 +370,7 @@ function validateSqlitePersistenceFile(filePath) {
     "for(const [table,columns] of Object.entries(profile.jsonColumns)){for(const row of db.prepare('SELECT '+columns.join(',')+' FROM '+table).all()){for(const column of columns){const value=row[column];JSON.parse(value===null||value===''?'null':value);}}}",
     "db.close();}",
   ].join('');
-  const result = spawnSync(process.execPath, ['-e', program, filePath], { encoding: 'utf8' });
+  const result = spawnSync(process.execPath, ['-e', program, filePath], { encoding: 'utf8', timeout: 30_000 });
   if (result.status !== 0) {
     return { valid: false, reason: (result.stderr || result.stdout || 'SQLite integrity/schema validation failed').trim() };
   }
