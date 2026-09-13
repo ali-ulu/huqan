@@ -23,7 +23,7 @@ const { createHttpIngestOversightCase } = require('./lib/http-human-oversight-ad
 const { buildTrustReceipt, queryAuditTrailPage, queryCandidateClaims, queryProvenance } = require('./lib/provenance-query');
 const { readReceiptById } = require('./lib/receipt/receipt-read-index');
 const { createBackgroundTimers } = require('./lib/http/background-timers');
-const { createGracefulShutdown } = require('./lib/http/graceful-shutdown'), { resolveHttpServerTimeouts } = require('./lib/http/server-timeouts'), { resolveRequestUrl } = require('./lib/http/request-origin');
+const { createServerLifecycle, requireApiKeyAtBoot } = require('./lib/http/server-boot'), { resolveHttpServerTimeouts } = require('./lib/http/server-timeouts'), { resolveRequestUrl } = require('./lib/http/request-origin');
 const { receiptReadFailure } = require('./lib/http/receipt-read-failures');
 const { createWorkbenchReadHttpRouter } = require('./lib/workbench/workbench-read-http-router'), { handlePublicBadgeRequest } = require('./lib/http/public-badge-route'), { handleLlmProxyRequest } = require('./lib/llm-proxy/proxy-mount');
 const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
@@ -169,7 +169,7 @@ const {
 const { runPublicApiCommand } = require('./lib/http/public-api-commands');
 const { V2_STATUS_PHASES } = require('./lib/http/v2-status-phases');
 const { buildGraphData } = require('./lib/server-graph-data');
-const { createRuntimeStatusHandlers } = require('./lib/http/runtime-status'); const { createRequestCorrelation, writeStructuredLog } = require('./lib/http/structured-log'); const { createProcessFailureHandlers, failureCodeFor } = require('./lib/http/process-failure-handlers');
+const { createRuntimeStatusHandlers } = require('./lib/http/runtime-status'); const { createRequestCorrelation, writeStructuredLog } = require('./lib/http/structured-log');
 
 async function submitIngestApproval(data) {
   const snapshot = buildIngestApprovalSnapshot(data);
@@ -993,30 +993,22 @@ function closeHuqan() {
   kernel.graph.close();
 }
 
-const gracefulShutdown = createGracefulShutdown({
-  server,
-  closeResources: closeHuqan,
-  logError: (signal, error) => writeStructuredLog(console, 'error', 'http.graceful_shutdown_error', null, {
-    signal,
-    errorCode: error?.code || 'GRACEFUL_SHUTDOWN_FAILED',
-  }),
-});
-
-const processFailureHandlers = createProcessFailureHandlers({
-  logError: (kind, cause) => writeStructuredLog(console, 'error', kind === 'uncaughtException' ? 'process.uncaught_exception' : 'process.unhandled_rejection', null, {
-    runtime: 'server',
-    errorCode: failureCodeFor(kind, cause),
-  }),
-});
+const serverLifecycle = createServerLifecycle({ server, closeResources: closeHuqan });
 
 if (require.main === module && readCompatibleEnvironmentVariable('DISABLE_AUTO_LISTEN') !== '1') {
-  processFailureHandlers.bind();
-  gracefulShutdown.bind();
+  try {
+    requireApiKeyAtBoot();
+  } catch (error) {
+    console.error(`HUQAN server cannot start: ${error.message} (code=${error.code || 'STARTUP_VALIDATION_FAILED'})`);
+    process.exitCode = 1;
+    process.exit(1);
+  }
+  serverLifecycle.bind();
   startAgentWorkerIfEnabled();
   startServer(PORT, HOST);
 }
 
-server.closeHuqan = server.closeAxiom = closeHuqan; server.bindGracefulShutdown = gracefulShutdown.bind; server.bindProcessFailureHandlers = processFailureHandlers.bind; // closeAxiom: RFC-001 legacy alias
+server.closeHuqan = server.closeAxiom = closeHuqan; server.bindGracefulShutdown = serverLifecycle.bind; // closeAxiom: RFC-001 legacy alias
 
 server.startServer = startServer;
 server.configureHttpHumanOversight = configureHttpHumanOversight;
