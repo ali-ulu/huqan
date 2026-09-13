@@ -82,7 +82,7 @@ jobs:
       # rewrite either script and read the secret out. The base ref is the
       # trusted tree: it is what review already approved, and the scripts here
       # have no reason to be the PR's versions of themselves.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           persist-credentials: false
