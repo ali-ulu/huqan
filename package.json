@@ -752,7 +752,7 @@
     "lib/mcp/fractal-learn-tool.js"
   ],
   "dependencies": {
-    "better-sqlite3": "^12.10.0",
+    "better-sqlite3": "^13.0.3",
     "js-yaml": "^5.2.3",
     "proper-lockfile": "4.1.2"
   },
