@@ -8,6 +8,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const Module = require('node:module');
 const os = require('node:os');
 const path = require('node:path');
 
@@ -102,13 +103,35 @@ test('an undetected agent is reported, not omitted', (t) => {
   assert.equal(result.connected, 0);
 });
 
+test('an ancestor huqan install is valid dependency evidence for a detected agent', (t) => {
+  const place = scratch(t);
+  fs.mkdirSync(path.join(place.root, '.opencode'), { recursive: true });
+  const packageRoot = path.join(path.dirname(place.root), 'node_modules', 'huqan');
+  fs.mkdirSync(path.dirname(packageRoot), { recursive: true });
+  fs.symlinkSync(path.resolve(__dirname, '..'), packageRoot, 'junction');
+
+  const result = connectDetectedAgents(place);
+  const opencode = byProfile(result.agents, 'opencode');
+
+  assert.equal(opencode.state, 'connected');
+  assert.equal(result.connected, 1);
+  assert.equal(result.refused, 0);
+});
+
 // A connect run that hid a failure would be the fake green (#1792, #1797) this
 // surface exists to avoid: the user would read "done" and be unprotected.
 test('a refused install is reported with its reason, and does not stop the run', (t) => {
   const place = scratch(t);
-  // `.opencode` installs a plugin that imports the huqan package by name, and
-  // this scratch project has no node_modules, so the install must refuse.
   fs.mkdirSync(path.join(place.root, '.opencode'), { recursive: true });
+  const resolveFilename = Module._resolveFilename;
+  t.mock.method(Module, '_resolveFilename', function rejectHuqan(request, ...args) {
+    if (request === 'huqan') {
+      const error = new Error("Cannot find module 'huqan'");
+      error.code = 'MODULE_NOT_FOUND';
+      throw error;
+    }
+    return resolveFilename.call(this, request, ...args);
+  });
 
   const result = connectDetectedAgents(place);
   const opencode = byProfile(result.agents, 'opencode');
