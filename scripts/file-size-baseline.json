@@ -80,7 +80,7 @@
     "scripts/ci-impact-plan.js": 425,
     "scripts/external-conformance/consumer.js": 955,
     "scripts/launch-installed-package-smoke.js": 636,
-    "server.js": 1034,
+    "server.js": 1047,
     "storage.js": 627,
     "workflow-agent.js": 941,
     "workflow-tools.js": 880
@@ -367,7 +367,7 @@
       "review_by": "2027-03-31"
     },
     "server.js": {
-      "why": "Pre-existing debt plus Gate A-1 (#2366 item 1) thin wiring: process-failure handler require and bind only; domain logic lives in lib/http/process-failure-handlers.js.",
+      "why": "Pre-existing debt plus Gate A-1 (#2366 item 1) and Gate A-6 (#2366 item 6) thin wiring: failure-handler and boot-validation require/bind only; domain logic lives in lib/http/process-failure-handlers.js and lib/http/boot-validation.js.",
       "review_by": "2026-10-31"
     },
     "storage.js": {

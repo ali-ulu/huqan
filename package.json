@@ -359,6 +359,7 @@
     "lib/http/read-workflow-actions.js",
     "lib/http/background-timers.js",
     "lib/http/graceful-shutdown.js",
+    "lib/http/boot-validation.js",
     "lib/http/process-failure-handlers.js",
     "lib/runtime-watchdog.js",
     "lib/http/server-timeouts.js",

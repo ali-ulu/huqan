@@ -1009,7 +1009,19 @@ const processFailureHandlers = createProcessFailureHandlers({
   }),
 });
 
+// Gate A item 6 (#2366): a server without an API key would boot half-working
+// and fail every request at auth instead. The check lives in
+// lib/http/boot-validation.js; the boot path below only orders it first.
+const { requireApiKeyAtBoot } = require('./lib/http/boot-validation');
+
 if (require.main === module && readCompatibleEnvironmentVariable('DISABLE_AUTO_LISTEN') !== '1') {
+  try {
+    requireApiKeyAtBoot();
+  } catch (error) {
+    console.error(`HUQAN server cannot start: ${error.message} (code=${error.code || 'STARTUP_VALIDATION_FAILED'})`);
+    process.exitCode = 1;
+    process.exit(1);
+  }
   processFailureHandlers.bind();
   gracefulShutdown.bind();
   startAgentWorkerIfEnabled();
@@ -1018,6 +1030,7 @@ if (require.main === module && readCompatibleEnvironmentVariable('DISABLE_AUTO_L
 
 server.closeHuqan = server.closeAxiom = closeHuqan; server.bindGracefulShutdown = gracefulShutdown.bind; server.bindProcessFailureHandlers = processFailureHandlers.bind; // closeAxiom: RFC-001 legacy alias
 
+server.requireApiKeyAtBoot = requireApiKeyAtBoot;
 server.startServer = startServer;
 server.configureHttpHumanOversight = configureHttpHumanOversight;
 server.configureHttpAgentIdentity = configureHttpAgentIdentity;
