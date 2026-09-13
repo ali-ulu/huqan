@@ -53,10 +53,10 @@ test('Gate A item 3: resolveRequestLimits env override and bounds', () => {
   assert.equal(DEFAULT_MAX_CONCURRENT_REQUESTS, 100);
   const limits = resolveRequestLimits(() => undefined);
   assert.equal(limits.maxConcurrent, 100);
-  const custom = resolveRequestLimits((k) => k === 'HUQAN_MAX_CONCURRENT_REQUESTS' ? '5' : undefined);
+  const custom = resolveRequestLimits((k) => k === 'MAX_CONCURRENT_REQUESTS' ? '5' : undefined);
   assert.equal(custom.maxConcurrent, 5);
-  assert.throws(() => resolveRequestLimits((k) => k === 'HUQAN_MAX_CONCURRENT_REQUESTS' ? '0' : undefined), (err) => err.code === 'HUQAN_REQUEST_LIMIT_INVALID');
-  assert.throws(() => resolveRequestLimits((k) => k === 'HUQAN_MAX_CONCURRENT_REQUESTS' ? '999999' : undefined), (err) => err.code === 'HUQAN_REQUEST_LIMIT_INVALID');
+  assert.throws(() => resolveRequestLimits((k) => k === 'MAX_CONCURRENT_REQUESTS' ? '0' : undefined), (err) => err.code === 'HUQAN_REQUEST_LIMIT_INVALID');
+  assert.throws(() => resolveRequestLimits((k) => k === 'MAX_CONCURRENT_REQUESTS' ? '999999' : undefined), (err) => err.code === 'HUQAN_REQUEST_LIMIT_INVALID');
 });
 
 test('Gate A item 3: release is idempotent via double-close guard (server.js)', () => {
