@@ -25,6 +25,7 @@
     "lint": "oxlint",
     "check:control-chars": "node scripts/check-control-chars.js",
     "arch:snapshot": "node scripts/architecture-snapshot.js",
+    "check:architecture-trackers": "node scripts/architecture-snapshot.js --check",
     "check:cycles": "node scripts/check-import-cycles.js",
     "check:module-boundary": "node scripts/check-module-boundary.js",
     "check:layers": "node scripts/check-layers.js",

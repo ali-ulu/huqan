@@ -23,6 +23,9 @@ test('requireSignature production caller inventory remains explicit', () => {
     if (/requireSignature\s*:\s*[^,}]+/.test(source)) callers.push(path.relative(ROOT, file).replaceAll(path.sep, '/'));
   }
   assert.deepEqual(callers.sort(), [
+    // lib/gate-hook-management.js carries the ship command's --store delivery
+    // signature check, moved verbatim from bin/huqan-gate-hook.js (#2248).
+    'lib/gate-hook-management.js',
     'lib/http/optional-boundaries.js',
     'lib/receipt/bounded-receipt-export.js',
     'server.js',
