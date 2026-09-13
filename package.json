@@ -758,7 +758,7 @@
   },
   "optionalDependencies": {
     "pdfjs-dist": "^6.2.108",
-    "pdfkit": "^0.19.1"
+    "pdfkit": "^0.20.2"
   },
   "devDependencies": {
     "oxlint": "^1.82.0"
