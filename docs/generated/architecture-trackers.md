@@ -9,7 +9,7 @@ Tracked in total: **92**
 |---|---:|---|
 | `graph.js` | 1242 | FANOUT:35 |
 | `kernel.js` | 1073 | ISP:1 DIP FANOUT:39 |
-| `server.js` | 1034 | FANOUT:53 |
+| `server.js` | 1047 | FANOUT:54 |
 | `lib/memory-store.js` | 970 | FANOUT:23 |
 | `agent.js` | 955 | OCP:6 |
 | `workflow-agent.js` | 941 | OCP:6 |
