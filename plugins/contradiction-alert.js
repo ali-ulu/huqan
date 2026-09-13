@@ -49,8 +49,8 @@ function parseIncoming(kernel, predicate) {
   if (asciiNeg) {
     return { relation: 'değil', object: asciiNeg[1].trim() };
   }
-  if (typeof kernel._parsePredicate === 'function') {
-    return kernel._parsePredicate(raw);
+  if (typeof kernel.parsePredicate === 'function') {
+    return kernel.parsePredicate(raw);
   }
   return null;
 }

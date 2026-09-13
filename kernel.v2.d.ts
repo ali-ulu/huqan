@@ -38,6 +38,7 @@ declare class KernelV2 {
   recordCliMutationAudit(
     intent: Parameters<Kernel['recordCliMutationAudit']>[0]
   ): ReturnType<Kernel['recordCliMutationAudit']>;
+  parsePredicate(predicate: Parameters<Kernel['parsePredicate']>[0]): ReturnType<Kernel['parsePredicate']>;
   commitBackgroundEdge(
     from: Parameters<Kernel['commitBackgroundEdge']>[0],
     to: Parameters<Kernel['commitBackgroundEdge']>[1],

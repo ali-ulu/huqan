@@ -721,9 +721,7 @@ class Kernel {
     return admitCandidateIngress(this, input, opts);
   }
 
-  // Implementations live in lib/predicate-parser.js. These stay as methods
-  // because plugins (contradiction-alert, company-brain), lib/learn-use-case.js
-  // and the test suite call them off a kernel instance.
+  // Public/private compatibility facades; implementation lives in lib/predicate-parser.js.
   _normalizeExplicitRelationObject(rawObject, opts = {}) {
     return normalizeExplicitRelationObject(rawObject, opts, (word) => this.normalizeWord(word));
   }
@@ -732,9 +730,11 @@ class Kernel {
     return parseExplicitRelationPredicate(predicate, (word) => this.normalizeWord(word));
   }
 
-  _parsePredicate(predicate) {
+  parsePredicate(predicate) {
     return parsePredicate(predicate, (word) => this.normalizeWord(word));
   }
+
+  _parsePredicate(predicate) { return this.parsePredicate(predicate); }
 
   /**
    * FAZ2-PR3 (F-001-d): Derive "benzer" (similarity) edges from shared tags.

@@ -163,6 +163,12 @@ export interface BackgroundEdgeCommitResult {
   admission: object | null;
 }
 
+export interface PredicateParseResult {
+  object: string;
+  relation: string;
+  kistlama?: boolean;
+}
+
 /**
  * The `kernel.memory` read surface this product actually consumes.
  *
@@ -312,6 +318,7 @@ declare class Kernel {
   };
 
   recordCliMutationAudit(intent: Kernel.CliMutationAuditIntent): Kernel.CliMutationAuditResult;
+  parsePredicate(predicate: string): Kernel.PredicateParseResult;
   commitBackgroundEdge(
     from: string,
     to: string,

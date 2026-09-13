@@ -462,13 +462,6 @@
         "ISP:1"
       ]
     },
-    "plugins/contradiction-alert.js": {
-      "band": "structural",
-      "lines": 165,
-      "signals": [
-        "ISP:1"
-      ]
-    },
     "plugins/receipt-exporter.js": {
       "band": "recorded",
       "lines": 431,

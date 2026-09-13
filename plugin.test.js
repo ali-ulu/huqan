@@ -1031,7 +1031,7 @@ describe('Plugin - Yonetici', () => {
         capturedArg = nodes;
         return [{ subject: 'kedi', predicate: 'hayvan' }];
       },
-      _parsePredicate(predicate) {
+      parsePredicate(predicate) {
         const parts = String(predicate || '').split(/\s+/);
         return { relation: parts[0] || '', object: parts.slice(1).join(' ') };
       },
@@ -1084,7 +1084,7 @@ describe('Plugin - Yonetici', () => {
         capturedArg = nodes;
         return [{ subject: 'kedi', predicate: 'hayvan' }];
       },
-      _parsePredicate(predicate) {
+      parsePredicate(predicate) {
         const parts = String(predicate || '').split(/\s+/);
         return { relation: parts[0] || '', object: parts.slice(1).join(' ') };
       },
@@ -1157,7 +1157,7 @@ describe('Plugin - Yonetici', () => {
           extractFacts(text, knownNodes) {
             return nlp.extractFacts(text, knownNodes);
           },
-          _parsePredicate(predicate) {
+          parsePredicate(predicate) {
             const parts = String(predicate || '').split(/\s+/);
             return { relation: parts[0] || '', object: parts.slice(1).join(' ') };
           },

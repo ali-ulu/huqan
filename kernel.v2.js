@@ -61,6 +61,7 @@ class KernelV2 {
   recordCliMutationAudit(intent) {
     return this.kernel.recordCliMutationAudit(intent);
   }
+  parsePredicate(predicate) { return this.kernel.parsePredicate(predicate); }
   commitBackgroundEdge(from, to, relation, source, opts = {}) { return this.kernel.commitBackgroundEdge(from, to, relation, source, opts); }
   reload() {
     return this.kernel.reload();
@@ -68,7 +69,6 @@ class KernelV2 {
   persist() {
     return this.kernel.persist();
   }
-
   // #1848: Windows cannot rename over an open SQLite file (EPERM) and restore
   // replaces memory.db, so the CLI closes every handle to it before the replace
   // and reopens them afterwards. These forward to the wrapped Kernel which owns

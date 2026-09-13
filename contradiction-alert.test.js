@@ -6,6 +6,26 @@ const createContradictionAlertPlugin = require('./plugins/contradiction-alert').
 
 const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
+test('contradiction-alert: uses the public predicate parser boundary', () => {
+  const source = require('node:fs').readFileSync(
+    require('node:path').join(__dirname, 'plugins', 'contradiction-alert.js'),
+    'utf8'
+  );
+  assert.match(source, /kernel\.parsePredicate\(raw\)/);
+  assert.doesNotMatch(source, /kernel\._parsePredicate/);
+});
+
+test('Kernel public predicate parser preserves the structured compatibility contract', () => {
+  const kernel = new Kernel({ noLoad: true, loadPlugins: false });
+  const parsed = kernel.parsePredicate('yalnızca süt içer');
+  assert.deepEqual(parsed, { object: 'süt içer', relation: 'yapabilir', kistlama: true });
+  assert.deepEqual(parsed, kernel._parsePredicate('yalnızca süt içer'));
+
+  const declaration = require('node:fs').readFileSync(require('node:path').join(__dirname, 'kernel.d.ts'), 'utf8');
+  assert.match(declaration, /interface PredicateParseResult\s*{[\s\S]*object: string;[\s\S]*relation: string;[\s\S]*kistlama\?: boolean;/);
+  assert.match(declaration, /parsePredicate\(predicate: string\): Kernel\.PredicateParseResult;/);
+});
+
 test('contradiction-alert: detects direct contradiction and returns conflict details', async () => {
   const k = new Kernel({ noLoad: true, loadPlugins: false, capabilities: { temporal: true } });
   k.learn('kedi hayvandir', TEST_FIXTURE_LEARN_BYPASS);
