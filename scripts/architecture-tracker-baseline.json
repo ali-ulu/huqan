@@ -537,7 +537,7 @@
       "band": "decompose",
       "lines": 1026,
       "signals": [
-        "FANOUT:51"
+        "FANOUT:52"
       ]
     },
     "storage.js": {
