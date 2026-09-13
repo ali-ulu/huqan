@@ -406,7 +406,7 @@ describe('Kernel - Dream hypothesis regressions', () => {
     const kernel = freshKernel({ useSQLite: false, loadPlugins: false });
     const Dream = require('./dream');
     const originalDream = Dream.prototype.dream;
-    const originalCommit = kernel._commitBackgroundEdge;
+    const originalCommit = kernel.commitBackgroundEdge;
     const proposedRelations = [];
 
     Dream.prototype.dream = function () {
@@ -417,7 +417,7 @@ describe('Kernel - Dream hypothesis regressions', () => {
         confidence: 0.9,
       }];
     };
-    kernel._commitBackgroundEdge = function (from, to, relation) {
+    kernel.commitBackgroundEdge = function (from, to, relation) {
       proposedRelations.push({ from, to, relation });
       return { decision: 'review', edge: null };
     };
@@ -433,7 +433,7 @@ describe('Kernel - Dream hypothesis regressions', () => {
       assert.strictEqual(result.deferredDetails[0].relation, 'benzer');
     } finally {
       Dream.prototype.dream = originalDream;
-      kernel._commitBackgroundEdge = originalCommit;
+      kernel.commitBackgroundEdge = originalCommit;
     }
   });
 

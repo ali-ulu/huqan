@@ -39,8 +39,10 @@ test('the real CLI exits non-zero for a mutated tracker artifact', (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-architecture-tracker-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const stalePath = path.join(root, 'architecture-trackers.md');
-  const stale = fs.readFileSync(TRACKER_PATH, 'utf8')
-    .replace('Tracked in total: **92**', 'Tracked in total: **93**');
+  const stale = fs.readFileSync(TRACKER_PATH, 'utf8').replace(
+    /Tracked in total: \*\*(\d+)\*\*/,
+    (_, count) => `Tracked in total: **${Number(count) + 1}**`,
+  );
   fs.writeFileSync(stalePath, stale);
 
   const result = spawnSync(process.execPath, [

@@ -535,7 +535,6 @@ class Kernel {
    * commitBackgroundEdge(deps)(from, to, relation, source, opts). The
    * function body is the single authoritative implementation; Kernel only
    * injects its instance methods as dependencies. Behaviour is unchanged.
-   *
    * FAZ2-PR3 (F-001): routes the edge through _evaluateLearnAdmission
    * (same gate the user-facing learn path uses), writes the canonical edge
    * with provenance + source metadata on 'allow' (LEARN audit), or records
@@ -543,7 +542,7 @@ class Kernel {
    *
    * @returns {{decision: string, edge: object|null, audit: object|null, admission: object|null}}
    */
-  _commitBackgroundEdge(from, to, relation, source, opts = {}) {
+  commitBackgroundEdge(from, to, relation, source, opts = {}) {
     return commitBackgroundEdge({
       contractVersion: this.contractVersion,
       trustPolicyPath: this.trustPolicyPath,
@@ -556,6 +555,7 @@ class Kernel {
     })(from, to, relation, source, opts);
   }
 
+  _commitBackgroundEdge(from, to, relation, source, opts = {}) { return this.commitBackgroundEdge(from, to, relation, source, opts); }
   _isLearnAdmissionBypass(opts = {}) {
     return opts[ADMISSION_BYPASS_TOKEN] === true &&
       typeof opts.admissionBypassReason === 'string' &&

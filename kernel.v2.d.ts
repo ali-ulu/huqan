@@ -38,6 +38,13 @@ declare class KernelV2 {
   recordCliMutationAudit(
     intent: Parameters<Kernel['recordCliMutationAudit']>[0]
   ): ReturnType<Kernel['recordCliMutationAudit']>;
+  commitBackgroundEdge(
+    from: Parameters<Kernel['commitBackgroundEdge']>[0],
+    to: Parameters<Kernel['commitBackgroundEdge']>[1],
+    relation: Parameters<Kernel['commitBackgroundEdge']>[2],
+    source: Parameters<Kernel['commitBackgroundEdge']>[3],
+    opts?: Parameters<Kernel['commitBackgroundEdge']>[4]
+  ): ReturnType<Kernel['commitBackgroundEdge']>;
   hasCapability(
     name: Parameters<Kernel['hasCapability']>[0]
   ): ReturnType<Kernel['hasCapability']>;

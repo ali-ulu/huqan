@@ -61,7 +61,7 @@ class KernelV2 {
   recordCliMutationAudit(intent) {
     return this.kernel.recordCliMutationAudit(intent);
   }
-
+  commitBackgroundEdge(from, to, relation, source, opts = {}) { return this.kernel.commitBackgroundEdge(from, to, relation, source, opts); }
   reload() {
     return this.kernel.reload();
   }

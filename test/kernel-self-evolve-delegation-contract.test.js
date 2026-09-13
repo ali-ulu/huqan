@@ -36,6 +36,11 @@ test('KERNEL: selfEvolve delegate is narrow and cycle-free', () => {
   assert.match(delegateSource, /optimize/);
 });
 
+test('KERNEL: selfEvolve uses the public background-edge commit boundary', () => {
+  assert.doesNotMatch(delegateSource, /kernel\._commitBackgroundEdge/);
+  assert.match(delegateSource, /kernel\.commitBackgroundEdge/);
+});
+
 test('KERNEL: selfEvolve preserves relation mapping, deferred admission, and maintenance order', () => {
   const calls = [];
   const result = runSelfEvolve(

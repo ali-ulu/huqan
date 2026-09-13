@@ -156,6 +156,13 @@ export type CliMutationAuditResult = Readonly<{
   errorCode: null | 'AUDIT_WRITE_FAILED';
 }>;
 
+export interface BackgroundEdgeCommitResult {
+  decision: string;
+  edge: object | null;
+  audit: object | null;
+  admission: object | null;
+}
+
 /**
  * The `kernel.memory` read surface this product actually consumes.
  *
@@ -305,6 +312,13 @@ declare class Kernel {
   };
 
   recordCliMutationAudit(intent: Kernel.CliMutationAuditIntent): Kernel.CliMutationAuditResult;
+  commitBackgroundEdge(
+    from: string,
+    to: string,
+    relation: string,
+    source: string,
+    opts?: object
+  ): Kernel.BackgroundEdgeCommitResult;
 
   paranoidMode: boolean;
 
