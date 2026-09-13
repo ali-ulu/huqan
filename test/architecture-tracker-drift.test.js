@@ -53,7 +53,9 @@ test('the real CLI exits non-zero for a mutated tracker artifact', (t) => {
 });
 
 test('CRLF checkout content does not create false tracker drift', () => {
-  const expected = fs.readFileSync(TRACKER_PATH, 'utf8');
+  // Normalize first: on a CRLF checkout the file on disk already carries
+  // \r\n, so building the CRLF variant from the raw read would double it.
+  const expected = fs.readFileSync(TRACKER_PATH, 'utf8').replace(/\r\n/g, '\n');
   assert.equal(checkTrackerArtifact(expected, expected.replace(/\n/g, '\r\n')), null);
 });
 
