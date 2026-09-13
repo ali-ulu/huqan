@@ -218,6 +218,10 @@ Also inspect the rendered npm package page for the expected README, license,
 version, provenance and file list, and compare the published version with the
 Git tag and GitHub Release identity.
 
+Every publish run (dry runs included) also generates a CycloneDX SBOM of the
+production dependency tree from `package-lock.json` and keeps it as the
+`sbom-cyclonedx` run artifact. Attach it to the GitHub Release for the tag.
+
 ## Known release boundaries
 
 - npm versions are immutable release identities; fix mistakes with a new

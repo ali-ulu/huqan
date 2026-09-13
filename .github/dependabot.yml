@@ -1,0 +1,39 @@
+# Version updates. Security updates are enabled separately in the repository
+# settings and open their own PRs regardless of this schedule.
+#
+# Updates are grouped so a week of routine bumps is one PR per ecosystem
+# rather than one per package: every PR here runs the full CI matrix, and the
+# merge policy is one narrow PR at a time. Major versions stay ungrouped so a
+# breaking upgrade (better-sqlite3's native ABI, js-yaml's API) is reviewed on
+# its own and never rides along with a patch.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      npm-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  # Workflow actions are pinned to 40-character SHAs (enforced by
+  # scripts/check-workflow-governance.js). Dependabot updates the SHA and the
+  # trailing version comment together, so pinning does not freeze them.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      github-actions:
+        patterns:
+          - "*"

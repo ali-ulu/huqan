@@ -172,6 +172,23 @@ jobs:
       # checking this repository, this workflow file and this environment
       # against the trusted publisher configured on the package.
       #
+      # Software bill of materials for exactly the dependency tree a consumer
+      # installs (--omit dev), generated from the lockfile that `npm ci` just
+      # honoured. It runs before the upload and on dry runs too, so a release
+      # can never ship without one, and it is kept as a run artifact next to
+      # the provenance attestation npm records for the tarball.
+      - name: Generate CycloneDX SBOM
+        run: |
+          set -euo pipefail
+          npm sbom --sbom-format cyclonedx --omit dev --package-lock-only > "huqan-${GITHUB_REF_NAME}.cdx.json"
+          node -e 'const b=require(process.argv[1]); if (b.bomFormat !== "CycloneDX" || !Array.isArray(b.components)) process.exit(1); console.log(`SBOM: CycloneDX ${b.specVersion}, ${b.components.length} components`)' "./huqan-${GITHUB_REF_NAME}.cdx.json"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sbom-cyclonedx
+          path: huqan-${{ github.ref_name }}.cdx.json
+          if-no-files-found: error
+
       # This replaces secrets.NPM_TOKEN, and the replacement is the point: a
       # granular token expires and has to be minted, scoped and pasted into
       # the environment again on a schedule, and every failure mode of that
