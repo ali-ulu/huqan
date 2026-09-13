@@ -273,13 +273,6 @@
       "lines": 412,
       "signals": []
     },
-    "lib/kernel-self-evolve.js": {
-      "band": "structural",
-      "lines": 108,
-      "signals": [
-        "ISP:1"
-      ]
-    },
     "lib/kernel-v2-native.js": {
       "band": "structural",
       "lines": 152,
