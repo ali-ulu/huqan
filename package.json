@@ -324,6 +324,7 @@
     "lib/error-prevention",
     "lib/errors/provenance-error.js",
     "lib/experience/contract.js",
+    "lib/experience/journal.js",
     "lib/external-client-authority.js",
     "lib/external-client-endpoint-contract.js",
     "lib/external-client-http-adapter.js",
