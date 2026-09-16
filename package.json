@@ -326,6 +326,7 @@
     "lib/experience/contract.js",
     "lib/experience/journal.js",
     "lib/experience/read-model.js",
+    "lib/experience/reconciliation.js",
     "lib/experience/verifier.js",
     "lib/external-client-authority.js",
     "lib/external-client-endpoint-contract.js",
