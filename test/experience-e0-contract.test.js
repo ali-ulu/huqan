@@ -1,55 +1,31 @@
 /**
- * Experience Core E0-b — the ten contract tests, RED milestone (#2374).
+ * Experience Core E0-b — the ten contract tests, GREEN milestone (#2374).
  *
- * Status: RED. These tests are written BEFORE any implementation of the
- * journal/contract (#2376/#2377) and must FAIL against the naive stub below.
- * The stub deliberately implements nothing: no isolation, no sequence checks,
- * no idempotency, no conflict detection, no immutability, no causality, and a
- * manifest that defaults to `verified` (the exact sin rule 7 forbids).
+ * Status: GREEN. These tests were written BEFORE any implementation of the
+ * journal/contract and watched to fail against the naive stub (PR #2539,
+ * RED milestone). The stub is gone: the suite now runs against the real
+ * E2 journal (`lib/experience/journal.js`, #2377) over the E1 contract
+ * (`lib/experience/contract.js`, #2376), and every test passes.
  *
  * Notes:
  * - Rule 5 of #2374 is split into 5a (payload conflict) and 5b (stale-head
  *   conflict): one rule, two independently breakable behaviors.
  * - E1's "repair starts a new attempt and does NOT inherit the old approval"
  *   is a pure-admissibility rule for `lib/experience/contract.js` (#2376), not
- *   a journal rule, so it has no test here. It must get one there.
+ *   a journal rule, so it has no test here. It has one there.
  * - Hermetic: in-memory only, no I/O, no timers, no network.
  */
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
 
-/** Deliberately non-implementing stub. Do NOT "fix" this stub — implement the real journal instead (#2376/#2377). */
+const { createExperienceJournal } = require('../lib/experience/journal');
+
+/** GREEN milestone: the naive stub is replaced by the real journal. */
 function createNaiveJournal() {
-  const events = [];
-  return {
-    append(event, _opts) {
-      const stored = { ...event, sequence: events.length + 1 };
-      events.push(stored);
-      return { ok: true, duplicate: false, sequence: stored.sequence };
-    },
-    read(_runId, _opts) {
-      return events.slice();
-    },
-    close(_runId) {
-      return { ok: true };
-    },
-    manifest(_runId) {
-      return { outcomeStatus: 'verified', learningEligibility: 'positive_procedure' };
-    },
-    runsForAttempt(attemptId) {
-      const runs = [];
-      for (const e of events) {
-        if (e.attemptId === attemptId && !runs.includes(e.runId)) runs.push(e.runId);
-      }
-      return runs;
-    },
-    parentOf(_runId) {
-      return undefined;
-    },
-  };
+  return createExperienceJournal();
 }
 
-describe('E0-b contract tests, RED against naive stub (#2374)', () => {
+describe('E0-b contract tests, GREEN against the real journal (#2374)', () => {
   it('1. run isolation — events of one run never appear in another read', () => {
     const j = createNaiveJournal();
     j.append({ runId: 'runA', workspaceId: 'ws', eventId: 'e1', type: 'run_started' });
