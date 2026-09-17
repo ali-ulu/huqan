@@ -1,0 +1,92 @@
+name: Admin Capability Probe
+
+on:
+  push:
+    branches:
+      - chore/admin-capability-probe
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  wiki-sync:
+    name: Sync native Wiki
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout HUQAN
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Push prepared pages to native Wiki
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          wiki_url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git"
+          git clone "${wiki_url}" /tmp/huqan-wiki
+          rsync -a --delete --include='*.md' --exclude='*' docs/wiki/ /tmp/huqan-wiki/
+          cd /tmp/huqan-wiki
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Native Wiki already matches docs/wiki."
+            exit 0
+          fi
+          git commit -m "docs: sync HUQAN native Wiki"
+          git push origin HEAD
+
+  rulesets:
+    name: Create native Rulesets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout HUQAN
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Create missing repository rulesets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/rulesets"
+          headers=(
+            -H "Accept: application/vnd.github+json"
+            -H "Authorization: Bearer ${GH_TOKEN}"
+            -H "X-GitHub-Api-Version: 2022-11-28"
+          )
+
+          curl -fsS "${headers[@]}" "${api}" > /tmp/rulesets.json
+          cat /tmp/rulesets.json
+
+          create_if_missing() {
+            file="$1"
+            name="$2"
+
+            if jq -e --arg name "${name}" '.[] | select(.name == $name)' /tmp/rulesets.json >/dev/null; then
+              echo "Ruleset already exists: ${name}"
+              return 0
+            fi
+
+            status="$(curl -sS -o /tmp/create-response.json -w '%{http_code}' \
+              "${headers[@]}" \
+              -X POST \
+              --data-binary "@${file}" \
+              "${api}")"
+
+            cat /tmp/create-response.json || true
+            if [ "${status}" != "201" ]; then
+              echo "::error::Ruleset create failed for ${name}: HTTP ${status}" >&2
+              exit 1
+            fi
+
+            echo "Created ruleset: ${name}"
+            curl -fsS "${headers[@]}" "${api}" > /tmp/rulesets.json
+          }
+
+          create_if_missing ".github/rulesets/main-branch.json" "HUQAN main protection"
+          create_if_missing ".github/rulesets/release-tags.json" "HUQAN immutable release tags"
