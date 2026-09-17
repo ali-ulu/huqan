@@ -48,3 +48,15 @@ The tag ruleset prevents deletion and non-fast-forward updates of `v*` tags.
 It intentionally does not block creating a new release tag because the existing
 publish workflow requires maintainers to create a matching immutable
 `v<package version>` tag.
+
+
+## Signed commits evaluation
+
+The main ruleset recipe also includes `required_signatures`. Because the
+ruleset starts in `evaluate` mode, use Ruleset Insights to confirm that normal
+GitHub web merges, squash merges, and the repository's automation produce
+verified commits before switching enforcement to `active`.
+
+If legitimate merge paths would be blocked, remove or defer this rule rather
+than adding a broad bypass actor. The goal is stronger provenance, not a hidden
+escape hatch.
