@@ -1,7 +1,7 @@
 {
   "name": "HUQAN main protection",
   "target": "branch",
-  "enforcement": "active",
+  "enforcement": "evaluate",
   "bypass_actors": [],
   "conditions": {
     "ref_name": {
