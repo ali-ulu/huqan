@@ -36,9 +36,11 @@ guessing a renamed context.
 
 ## Migration safety
 
-Classic branch protection and Rulesets layer together. Import and verify the new
-ruleset first. Only remove classic branch protection after a test PR proves that
-the native Ruleset provides equivalent or stronger enforcement.
+Classic branch protection and Rulesets layer together. The main recipe starts in
+`evaluate` mode so Rule Insights can show what it would block without changing
+merge behavior. After one representative test PR behaves as expected, switch the
+Ruleset to `active`. Only remove classic branch protection after the active
+Ruleset proves equivalent or stronger enforcement.
 
 ## Release tags
 
