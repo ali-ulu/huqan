@@ -58,6 +58,59 @@ Include a short summary with:
 - anything intentionally not touched
 - blockers or unverified items
 
+## Verification and commit workflow
+
+### Before pushing: run `npm run verify`
+
+`npm run verify` is the single comprehensive pre-push gate. It runs the
+environment check, lint, architecture checks, docs drift, package closure,
+and the full test suite in order, and fails if any single check fails.
+
+Fast local iteration:
+
+```bash
+npm run lint && npm run check:cycles && npm run check:module-boundary
+```
+
+### Pre-commit hook
+
+A template hook runs the fast checks before every commit:
+
+```bash
+cp .github/hooks/pre-commit .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+### Common failure modes and fixes
+
+| Failure | Fix |
+|---|---|
+| `verify-test-environment.js` fails on Node version | Install Node.js 22.13.0+ (see Local setup). |
+| `check:docs-drift` fails | Regenerate or update the referenced docs to match current source truth. |
+| `check:module-boundary` fails with new private cross-module calls | Move the call behind the module's public facade; see the Thin Orchestrator rule in `docs/agent-canon.md`. |
+| `check:layers` fails | The import violates layer direction; consult `docs/architecture.md` and `docs/architecture-policy.md`. |
+| `better-sqlite3` native build error | Run `npm ci` again on a supported Node version; prebuilt binaries require Node 22/24. |
+| Flaky or unrelated test failure | Stop, record the exact failing test name and error, do not retry until you understand the cause. |
+
+### Commit message format
+
+HUQAN uses **Conventional Commits**:
+
+```
+<type>(<scope>): <subject> (#<issue>)
+```
+
+Examples from history: `fix(security): ...`, `fix(test): ...`,
+`fix(ci): ...`, `fix(coverage): ...`. Common types: `feat`, `fix`, `docs`,
+`refactor`, `test`, `chore`, `ci`.
+
+## Architecture references
+
+- Architecture overview: [docs/architecture.md](./docs/architecture.md)
+- Architecture policy: [docs/architecture-policy.md](./docs/architecture-policy.md)
+- ADRs: [docs/adr/](./docs/adr/)
+- Stable agent rules: [docs/agent-canon.md](./docs/agent-canon.md)
+
 ## Review and release gates
 
 - Human review is required for merge.
