@@ -90,3 +90,26 @@ jobs:
 
           create_if_missing ".github/rulesets/main-branch.json" "HUQAN main protection"
           create_if_missing ".github/rulesets/release-tags.json" "HUQAN immutable release tags"
+
+          main_id="$(jq -r '.[] | select(.name == "HUQAN main protection") | .id' /tmp/rulesets.json)"
+          if [ -z "${main_id}" ] || [ "${main_id}" = "null" ]; then
+            echo "::error::HUQAN main protection ruleset ID not found after create/read." >&2
+            exit 1
+          fi
+
+          jq '.enforcement = "active"' .github/rulesets/main-branch.json > /tmp/main-active.json
+          status="$(curl -sS -o /tmp/update-response.json -w '%{http_code}' \
+            "${headers[@]}" \
+            -X PUT \
+            --data-binary "@/tmp/main-active.json" \
+            "${api}/${main_id}")"
+
+          cat /tmp/update-response.json || true
+          if [ "${status}" != "200" ]; then
+            echo "::error::Ruleset activation failed: HTTP ${status}" >&2
+            exit 1
+          fi
+
+          actual="$(jq -r '.enforcement' /tmp/update-response.json)"
+          test "${actual}" = "active"
+          echo "Activated HUQAN main protection ruleset ${main_id}."
