@@ -40,10 +40,10 @@ A passing verification is **not** a certificate of truth. It is a decision made 
 
 The repository currently distinguishes these surfaces:
 
-1. **Local developer UI** at `public/index.html`, served by `node server.js`.
-2. **Read-only Trust Receipt Viewer** at `/viewer` on the running local server.
-3. **Docs entry surface** at `docs/index.html`.
-4. A public static demo was planned but is not currently present in the repository.
+1. **Public static 60-second demo** at `demo/index.html`. It is a backend-free simulation, not live HUQAN engine output.
+2. **Local developer UI** at `public/index.html`, served by `node server.js`.
+3. **Read-only Trust Receipt Viewer** at `/viewer` on the running local server.
+4. **Docs entry surface** at `docs/index.html`.
 
 See the canonical source: [docs/product-surfaces.md](https://github.com/ali-ulu/huqan/blob/main/docs/product-surfaces.md).
 
