@@ -6,13 +6,42 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { mergeJunitParts } = require('../scripts/run-test-shard');
+const { mergeJunitParts, fileTimeoutMs, DEFAULT_FILE_TIMEOUT_MS, HEAVY_FILE_TIMEOUT_MS, HEAVY_FILES } = require('../scripts/run-test-shard');
 
 function writeTmp(dir, name, content) {
   const p = path.join(dir, name);
   fs.writeFileSync(p, content);
   return p;
 }
+
+// #1847 capped a per-file hang at 90s. That cap then killed files that were not
+// hanging at all: kernel-facade-contract runs a real `npm pack` + `npm install`,
+// and on the Windows runner it intermittently crossed 90s while still working.
+// It was reddening CI on main and on PRs that never touched it. The deadline is
+// now per-file, and these tests pin both halves of that: heavy files get room,
+// everything else keeps the fast hang detection.
+describe('run-test-shard per-file deadlines (#1847 follow-up)', () => {
+  test('a file that installs a package gets more than the default deadline', () => {
+    assert.equal(fileTimeoutMs('test/kernel-facade-contract.test.js'), HEAVY_FILE_TIMEOUT_MS);
+    assert.ok(HEAVY_FILE_TIMEOUT_MS > DEFAULT_FILE_TIMEOUT_MS);
+  });
+
+  test('every allowlisted file is a real test file that exists', () => {
+    // A typo in the allowlist would silently do nothing: the file would run
+    // under the default deadline and flake exactly as before.
+    for (const file of HEAVY_FILES) {
+      assert.ok(fs.existsSync(path.join(__dirname, '..', file)), `${file} does not exist`);
+    }
+    assert.ok(HEAVY_FILES.size > 0, 'allowlist must not be empty');
+  });
+
+  test('an ordinary file keeps the 90s hang cap', () => {
+    // The point of #1847 was to fail fast on a hang. A blanket raise would
+    // trade one silent red for a slower one.
+    assert.equal(fileTimeoutMs('test/graph.test.js'), DEFAULT_FILE_TIMEOUT_MS);
+    assert.equal(DEFAULT_FILE_TIMEOUT_MS, 90_000);
+  });
+});
 
 describe('run-test-shard mergeJunitParts (#1973)', () => {
   test('suite-less file results are wrapped, not dropped', () => {

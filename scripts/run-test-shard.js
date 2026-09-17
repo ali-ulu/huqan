@@ -13,6 +13,36 @@ const {
 const { createTestStateSandbox } = require('./test-state-sandbox');
 const { mergeJunitParts } = require('./junit-merge');
 
+// Per-file deadline for a single test file inside a shard.
+//
+// 90s is 3-4x the historical max per-file wall time and is what makes a hang
+// visible instead of waiting for the 20m job timeout (#1845, #1847).
+const DEFAULT_FILE_TIMEOUT_MS = 90_000;
+
+// Files that legitimately take longer than that because they install a package
+// and run it, rather than because they hang.
+//
+// kernel-facade-contract runs a real `npm pack` + `npm install` of the tarball
+// (internal subprocess timeouts alone allow 60s + 15s + 120s). On the Windows
+// runner that crossed the 90s cap intermittently, killing a file that was still
+// working and reddening CI on PRs that never touched it. The other three spawn
+// a full external runner or a browser; they are slow by construction too.
+//
+// The cap stays 90s for everything else: this widens the deadline for exactly
+// the paths that do install-scale work, and leaves the hang detection that
+// #1847 added intact everywhere it was aimed.
+const HEAVY_FILE_TIMEOUT_MS = 240_000;
+const HEAVY_FILES = Object.freeze(new Set([
+  'test/kernel-facade-contract.test.js',
+  'test/external-action-gate-install.test.js',
+  'test/v5-c5-external-conformance.test.js',
+  'test/ui-conflict-triage-browser-smoke.test.js',
+]));
+
+function fileTimeoutMs(relativePath) {
+  return HEAVY_FILES.has(relativePath) ? HEAVY_FILE_TIMEOUT_MS : DEFAULT_FILE_TIMEOUT_MS;
+}
+
 function parseArgs(argv) {
   const options = {
     shard: null,
@@ -137,6 +167,7 @@ function run(options) {
       const startedAt = new Date().toISOString();
       const startedMs = Date.now();
       const sandbox = createTestStateSandbox();
+      const fileTimeout = fileTimeoutMs(file);
       // The state root is named on the starting line rather than logged
       // separately: it adds no line to a 157-file shard, it tells a hung file's
       // investigator where that file's state actually lives, and it is what
@@ -158,8 +189,9 @@ function run(options) {
           // Cap the indefinite "still running at 22m" (#1847) at the file that
           // actually hangs. Historical max per-file is ~25s; 90s is 3-4x margin
           // for slow Linux runners but fails fast instead of waiting for the
-          // 20m job timeout from #1845.
-          timeout: 90_000,
+          // 20m job timeout from #1845. Files that install a package are given
+          // more room -- see fileTimeoutMs().
+          timeout: fileTimeout,
           killSignal: 'SIGTERM',
         });
       } finally {
@@ -169,7 +201,8 @@ function run(options) {
       if (result.error) {
         if (result.error.code === 'ETIMEDOUT') {
           const elapsed = ((Date.now() - startedMs) / 1000).toFixed(3);
-          console.error(`[shard ${options.shard}/${options.total}] file ${file} timed out after 90s (elapsed ${elapsed}s, signal ${result.signal || 'SIGTERM'}) — killed hanging file, see #1847`);
+          const limitSeconds = (fileTimeout / 1000).toFixed(0);
+          console.error(`[shard ${options.shard}/${options.total}] file ${file} timed out after ${limitSeconds}s (elapsed ${elapsed}s, signal ${result.signal || 'SIGTERM'}) — killed hanging file, see #1847`);
           overallStatus = 1;
           failedFiles.push({ file, status: 'timeout' });
           // Leave a minimal JUnit entry so the merged report shows the hang
@@ -177,7 +210,7 @@ function run(options) {
           try {
             if (!fs.existsSync(partPath) || fs.readFileSync(partPath, 'utf8').trim().length === 0) {
               const safe = file.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;');
-              fs.writeFileSync(partPath, `<?xml version="1.0" encoding="utf-8"?>\n<testsuites>\n<testsuite name="${safe}" tests="1" failures="1" errors="0" skipped="0" time="90.000"><testcase name="shard timeout (90s) — file hung" classname="shard"><failure message="file hung and was killed after 90s">File ${safe} did not exit within 90s (likely CDP/browser hang, see #1847). Check the preceding [shard] starting log.</failure></testcase></testsuite>\n</testsuites>\n`);
+              fs.writeFileSync(partPath, `<?xml version="1.0" encoding="utf-8"?>\n<testsuites>\n<testsuite name="${safe}" tests="1" failures="1" errors="0" skipped="0" time="${limitSeconds}.000"><testcase name="shard timeout (${limitSeconds}s) — file hung" classname="shard"><failure message="file hung and was killed after ${limitSeconds}s">File ${safe} did not exit within ${limitSeconds}s (likely CDP/browser hang, see #1847). Check the preceding [shard] starting log.</failure></testcase></testsuite>\n</testsuites>\n`);
             }
           } catch { /* ignore */ }
           continue;
@@ -237,8 +270,12 @@ if (require.main === module) {
 }
 
 module.exports = {
+  DEFAULT_FILE_TIMEOUT_MS,
+  HEAVY_FILE_TIMEOUT_MS,
+  HEAVY_FILES,
   defaultReportPath,
   failuresSidecarPath,
+  fileTimeoutMs,
   loadSelection,
   mergeJunitParts,
   parseArgs,
