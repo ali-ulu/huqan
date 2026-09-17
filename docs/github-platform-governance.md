@@ -20,6 +20,15 @@ The repository uses:
 Repository metadata currently reports Issues, Projects, Wiki and Discussions as
 enabled.
 
+Repository-native collaboration metadata also includes:
+
+- structured Bug and Feature issue forms;
+- a pull request template with HUQAN trust/security checks;
+- Ideas and Q&A Discussion category forms for the default `ideas` and `q-a`
+  category slugs;
+- `.github/release.yml` categories for GitHub-generated release notes;
+- `CITATION.cff`, which lets GitHub expose **Cite this repository**.
+
 ## Verified main-branch protection
 
 Live repository inspection on 2026-09-18 reports `main` as protected.
@@ -160,6 +169,17 @@ If Pages is enabled, deployment configuration should preserve:
 GitHub Projects is enabled for the repository. The installed connector does not
 expose Project board items or fields, so board content cannot be independently
 audited from this automation surface.
+
+A separate native GitHub Milestone is verified:
+
+- milestone #1: **HUQAN 100**;
+- description: repository-engineering improvements under developer control;
+- observed on 2026-09-18 with 30 open issues and 0 closed issues;
+- no due date is set.
+
+Milestones and Projects are different layers: the milestone groups bounded work
+toward one objective, while the Project may provide status/priority views over
+the same durable Issues.
 
 The desired project model is:
 
