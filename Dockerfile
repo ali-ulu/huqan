@@ -15,7 +15,7 @@
 # rather than a version nothing exercises. package.json engines still accepts
 # Node >= 20: this changes what the *image* runs, not what the package
 # supports.
-FROM node:22-bookworm-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436 AS dependencies
+FROM node:26-bookworm-slim@sha256:c8fedd782bcd1b68d8a7d1ed2577b5f820eba820871323f605292651ff11e3c6 AS dependencies
 
 WORKDIR /app
 
@@ -27,7 +27,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev --no-audit --no-fund
 
 
-FROM node:22-bookworm-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436 AS runtime
+FROM node:26-bookworm-slim@sha256:c8fedd782bcd1b68d8a7d1ed2577b5f820eba820871323f605292651ff11e3c6 AS runtime
 
 WORKDIR /app
 
