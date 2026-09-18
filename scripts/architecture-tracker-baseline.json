@@ -44,7 +44,7 @@
     },
     "kernel.js": {
       "band": "decompose",
-      "lines": 1073,
+      "lines": 1062,
       "signals": [
         "DIP",
         "FANOUT:39"
@@ -182,13 +182,6 @@
       "lines": 587,
       "signals": []
     },
-    "lib/kernel-mutation-admission.js": {
-      "band": "structural",
-      "lines": 305,
-      "signals": [
-        "ISP:1"
-      ]
-    },
     "lib/kernel-read-use-cases.js": {
       "band": "recorded",
       "lines": 412,
@@ -196,7 +189,7 @@
     },
     "lib/learn-use-case.js": {
       "band": "recorded",
-      "lines": 437,
+      "lines": 432,
       "signals": []
     },
     "lib/mcp-gate-adapter.js": {

@@ -435,17 +435,6 @@ class Kernel {
     return pathEvidence(this.graph, pathArr, kind, confidence, workspaceId);
   }
 
-  _runBeforeLearn(text, opts = {}) {
-    const payload = { text, opts: { ...opts } };
-    if (this.plugins && typeof this.plugins.emitStrict === 'function') {
-      return this.plugins.emitStrict('beforeLearn', payload);
-    }
-    if (this.plugins && typeof this.plugins.emit === 'function') {
-      return this.plugins.emit('beforeLearn', payload);
-    }
-    return payload;
-  }
-
   /**
    * Async pre-ingest pass, run by learnAsync() before the synchronous
    * learn() pipeline is entered. Handlers may do I/O; a rejection aborts

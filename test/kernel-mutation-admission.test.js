@@ -38,6 +38,7 @@ const {
   CANDIDATE_ABSENCE_REASONS,
   CANDIDATE_INGRESS_ACTION,
   LEARN_ACTION,
+  runBeforeLearn,
   admitAddCandidateClaim,
   admitCandidateIngress,
   admitLearn,
@@ -48,12 +49,54 @@ const FIXED_CLOCK = () => new Date('2026-08-16T12:00:00.000Z');
 
 /** A kernel stub exposing only what admitLearn touches. */
 function makeKernel(beforeLearn) {
+  const transform = beforeLearn || ((text, opts) => ({ text, opts }));
   return {
-    _runBeforeLearn: beforeLearn || ((text, opts) => ({ text, opts })),
+    plugins: {
+      emitStrict: (_event, payload) => transform(payload.text, payload.opts),
+    },
   };
 }
 
 // --- 1. ordering ----------------------------------------------------------
+
+
+test('beforeLearn helper preserves strict, legacy emit and no-plugin behavior', () => {
+  const calls = [];
+  const originalOpts = { workspaceId: 'w1' };
+  const strictKernel = {
+    plugins: {
+      emitStrict: (event, payload) => {
+        calls.push(['strict', event, payload]);
+        return { text: 'strict text', opts: { workspaceId: 'strict' } };
+      },
+      emit: () => { throw new Error('legacy emit must not run when emitStrict exists'); },
+    },
+  };
+
+  const strict = runBeforeLearn(strictKernel, 'original', originalOpts);
+  assert.deepEqual(strict, { text: 'strict text', opts: { workspaceId: 'strict' } });
+  assert.equal(calls[0][1], 'beforeLearn');
+  assert.equal(calls[0][2].text, 'original');
+  assert.deepEqual(calls[0][2].opts, originalOpts);
+  assert.notEqual(calls[0][2].opts, originalOpts, 'plugin payload must receive a shallow opts copy');
+
+  const legacyKernel = {
+    plugins: {
+      emit: (event, payload) => {
+        calls.push(['legacy', event, payload]);
+        return { text: 'legacy text', opts: payload.opts };
+      },
+    },
+  };
+  assert.equal(runBeforeLearn(legacyKernel, 'original', originalOpts).text, 'legacy text');
+  assert.equal(calls[1][1], 'beforeLearn');
+
+  const passthrough = runBeforeLearn({}, 'original', originalOpts);
+  assert.equal(passthrough.text, 'original');
+  assert.deepEqual(passthrough.opts, originalOpts);
+  assert.notEqual(passthrough.opts, originalOpts);
+});
+
 
 test('ordering: admission sees the payload the plugins produced, not the original', () => {
   const kernel = makeKernel(() => ({
@@ -79,12 +122,15 @@ test('ordering: the transform cannot be reached without going through admission'
   // transform itself, so there is no arrangement in which admission is skipped
   // or run first.
   const source = fs.readFileSync(path.join(repoRoot, 'lib/kernel-mutation-admission.js'), 'utf8');
-  assert.match(source, /_runBeforeLearn\(text, opts\)/);
+  assert.match(source, /runBeforeLearn\(kernel, text, opts\)/);
+  assert.doesNotMatch(source, /kernel\._runBeforeLearn/);
 
   const kernelSource = fs.readFileSync(path.join(repoRoot, 'kernel.js'), 'utf8');
-  // kernel.learn no longer calls the transform directly.
-  assert.equal((kernelSource.match(/this\._runBeforeLearn\(/g) || []).length, 0,
-    'kernel.learn must reach the transform only through admitLearn');
+  const useCaseSource = fs.readFileSync(path.join(repoRoot, 'lib/learn-use-case.js'), 'utf8');
+  assert.doesNotMatch(kernelSource, /_runBeforeLearn\(/,
+    'Kernel must not expose a private before-learn seam');
+  assert.doesNotMatch(useCaseSource, /_runBeforeLearn\(/,
+    'learn-use-case must not retain a second before-learn path');
   assert.match(kernelSource, /admitLearn\(this, text, opts\)/);
 });
 
