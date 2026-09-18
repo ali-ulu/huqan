@@ -52,7 +52,7 @@
     },
     "kernel.v2.js": {
       "band": "recorded",
-      "lines": 771,
+      "lines": 707,
       "signals": [
         "DIP",
         "ISP:6"
