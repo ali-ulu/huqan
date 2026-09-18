@@ -18,7 +18,6 @@ Tracked in total: **65**
 |---|---:|---|
 | `lib/external-action-gate-install.js` | 779 | — |
 | `agent.v3.js` | 778 | DIP |
-| `kernel.v2.js` | 771 | ISP:6 DIP |
 | `lib/observability/service.js` | 767 | — |
 | `lib/human-oversight-approval-runtime.js` | 744 | — |
 | `lib/external-client-mutation-receipt-owner.js` | 741 | — |
@@ -28,6 +27,7 @@ Tracked in total: **65**
 | `plugin.js` | 728 | — |
 | `dream.js` | 726 | — |
 | `plugins/repo-memory.js` | 726 | — |
+| `kernel.v2.js` | 707 | ISP:6 DIP |
 | `lib/a2a/bounded-exchange.js` | 693 | — |
 | `plugins/company-brain.js` | 678 | — |
 | `lib/receipt/public-trust-receipt.js` | 660 | — |
