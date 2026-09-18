@@ -65,7 +65,7 @@ Tracked in total: **64**
 | `lib/causal/causal-traversal.js` | 451 | — |
 | `lib/external-action-receipt-collector.js` | 448 | — |
 | `lib/external-client-trust-config.js` | 448 | — |
-| `lib/learn-use-case.js` | 437 | — |
+| `lib/learn-use-case.js` | 432 | — |
 | `plugins/receipt-exporter.js` | 430 | — |
 | `lib/huqan-package-format.js` | 428 | — |
 | `public/js/app.js` | 425 | — |
