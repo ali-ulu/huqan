@@ -8,7 +8,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 mod hypotheses;
 
 fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64
 }
 
 const DEFAULT_WORKSPACE: &str = "default";
@@ -153,9 +156,8 @@ impl Graph {
         let before = self.edges.len();
         // Only this workspace's edges follow the node out; an identically named
         // node in another workspace keeps its own relationships.
-        self.edges.retain(|e| {
-            normalize_workspace(&e.workspace_id) != ws || (e.from != id && e.to != id)
-        });
+        self.edges
+            .retain(|e| normalize_workspace(&e.workspace_id) != ws || (e.from != id && e.to != id));
         if self.edges.len() != before {
             self.rebuild_index();
         }
@@ -183,7 +185,9 @@ impl Graph {
                 && e.relation == relation
                 && normalize_workspace(&e.workspace_id) == workspace_id
         }) {
-            e.weight = explicit_weight.unwrap_or_else(|| (e.weight + 0.1).min(1.0)).clamp(0.0, 1.0);
+            e.weight = explicit_weight
+                .unwrap_or_else(|| (e.weight + 0.1).min(1.0))
+                .clamp(0.0, 1.0);
             if explicit_confidence.is_some() {
                 e.confidence = explicit_confidence;
             }
@@ -283,7 +287,13 @@ impl Graph {
         let entries: Vec<(String, String, String)> = self
             .nodes
             .iter()
-            .map(|(key, n)| (key.clone(), n.id.clone(), normalize_workspace(&n.workspace_id)))
+            .map(|(key, n)| {
+                (
+                    key.clone(),
+                    n.id.clone(),
+                    normalize_workspace(&n.workspace_id),
+                )
+            })
             .collect();
         let mut removed = 0;
         for (key, id, ws) in &entries {
@@ -306,7 +316,10 @@ impl Graph {
         let ws = normalize_workspace(&self.edges[idx].workspace_id);
         let from = storage_key(&self.edges[idx].from, &ws);
         let to = storage_key(&self.edges[idx].to, &ws);
-        self.out_index.entry(from).or_insert_with(Vec::new).push(idx);
+        self.out_index
+            .entry(from)
+            .or_insert_with(Vec::new)
+            .push(idx);
         self.in_index.entry(to).or_insert_with(Vec::new).push(idx);
     }
 
@@ -391,7 +404,8 @@ impl Graph {
 
     fn save(&self, path: &str) -> io::Result<()> {
         let snapshot = self.to_snapshot();
-        let data = serde_json::to_vec(&snapshot).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        let data =
+            serde_json::to_vec(&snapshot).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
         std::fs::write(path, data)
     }
 
@@ -605,13 +619,22 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
         "ask" => {
             let question = get_str(cmd, "question");
             let parts: Vec<&str> = question.trim().split_whitespace().collect();
-            let subject = if parts.is_empty() { String::new() } else { parts[0].to_string() };
+            let subject = if parts.is_empty() {
+                String::new()
+            } else {
+                parts[0].to_string()
+            };
             let workspace = normalize_workspace(&get_str(cmd, "workspaceId"));
             let mut edge_list = graph.get_edges(&subject, &workspace);
-            if !graph.nodes.contains_key(&storage_key(&subject, &workspace)) || edge_list.is_empty() {
+            if !graph.nodes.contains_key(&storage_key(&subject, &workspace)) || edge_list.is_empty()
+            {
                 return json!({ "ok": true, "answer": "Bilmiyorum" });
             }
-            edge_list.sort_by(|a, b| b.weight.partial_cmp(&a.weight).unwrap_or(std::cmp::Ordering::Equal));
+            edge_list.sort_by(|a, b| {
+                b.weight
+                    .partial_cmp(&a.weight)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
             let mut results: Vec<String> = Vec::new();
             for e in &edge_list {
                 if !results.contains(&e.to) {
@@ -689,21 +712,33 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
             })
         }
         "save" => {
-            let path = cmd.get("path").and_then(|v| v.as_str()).map(|s| s.to_string()).unwrap_or_else(|| DEFAULT_MEMORY_PATH.to_string());
+            let path = cmd
+                .get("path")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| DEFAULT_MEMORY_PATH.to_string());
             match graph.save(&path) {
                 Ok(()) => json!({ "ok": true, "path": path }),
                 Err(e) => json!({ "ok": false, "error": e.to_string() }),
             }
         }
         "load" => {
-            let path = cmd.get("path").and_then(|v| v.as_str()).map(|s| s.to_string()).unwrap_or_else(|| DEFAULT_MEMORY_PATH.to_string());
+            let path = cmd
+                .get("path")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| DEFAULT_MEMORY_PATH.to_string());
             match graph.load(&path) {
                 Ok(()) => json!({ "ok": true, "path": path }),
                 Err(e) => json!({ "ok": false, "error": e.to_string() }),
             }
         }
         "batch" => {
-            let commands = cmd.get("commands").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+            let commands = cmd
+                .get("commands")
+                .and_then(|v| v.as_array())
+                .cloned()
+                .unwrap_or_default();
             let results: Vec<Value> = commands.iter().map(|c| run_command(graph, c)).collect();
             json!({ "ok": true, "results": results })
         }
