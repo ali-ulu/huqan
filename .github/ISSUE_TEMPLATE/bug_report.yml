@@ -7,7 +7,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting a HUQAN defect. Please separate observed behavior from expectations and include the smallest reproducible case you can.
+        Thanks for reporting a HUQAN defect. Please separate observed behavior from expectations and include the smallest reproducible case you can. If you are also preparing a fix, run `npm run verify` before pushing it.
   - type: input
     id: version
     attributes:
