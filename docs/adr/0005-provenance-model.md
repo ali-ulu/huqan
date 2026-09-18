@@ -18,7 +18,7 @@ Untrusted input is evidence/candidate material, not canonical knowledge by defau
 - Legacy data with incomplete provenance must remain distinguishable from fully evidenced records.
 
 ## References
-- `lib/provenance.js`
+- `lib/provenance-ingest.js`
 - `lib/kernel-learn-admission.js`
 - `docs/adr/ADR-012-audit-evidence-and-admission.md`
 - Issue #2640 (A4)
