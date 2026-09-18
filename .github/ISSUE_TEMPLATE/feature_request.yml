@@ -4,6 +4,10 @@ title: "feat: "
 labels:
   - enhancement
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Scope the request before implementation. If you later contribute the implementation, run `npm run verify` before pushing it.
   - type: textarea
     id: problem
     attributes:
