@@ -1,0 +1,63 @@
+name: Feature request
+description: Propose a scoped HUQAN capability or improvement
+title: "feat: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What concrete problem should HUQAN solve better?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Describe the smallest useful change, not only the desired outcome.
+    validations:
+      required: true
+  - type: dropdown
+    id: boundary
+    attributes:
+      label: Primary boundary
+      options:
+        - Verification / trust
+        - Human approval
+        - MCP
+        - External action guard
+        - A2A / interoperability
+        - Provenance / receipts
+        - Storage / graph / memory
+        - Security
+        - Packaging / release
+        - Developer experience
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: invariants
+    attributes:
+      label: Security or trust invariants
+      description: What must remain true if this is implemented? For example, model cannot self-approve, unknown actions fail closed, receipt integrity cannot weaken.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence / references
+      description: Related docs, issues, receipts, benchmarks, specifications, or prior art.
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: Non-goals
+      description: What should explicitly stay outside this request?
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues and discussions for overlap.
+          required: true
+        - label: I have described a bounded change rather than implying unverified product claims.
+          required: true

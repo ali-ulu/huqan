@@ -1,0 +1,27 @@
+{
+  "name": "HUQAN Development",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+  "remoteUser": "node",
+  "containerEnv": {
+    "NODE_ENV": "development"
+  },
+  "postCreateCommand": "npm ci",
+  "postStartCommand": "node --version && npm --version",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "HUQAN local server",
+      "onAutoForward": "notify"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "files.eol": "\n"
+      },
+      "extensions": [
+        "github.vscode-github-actions"
+      ]
+    }
+  }
+}

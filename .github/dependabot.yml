@@ -37,3 +37,27 @@ updates:
       github-actions:
         patterns:
           - "*"
+
+  # Keep the digest-pinned runtime base image reviewable and current.
+  # Dependabot opens a PR; the existing Docker build + runtime smoke gate decides
+  # whether the new digest is acceptable.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "chore(container)"
+
+  # The optional Rust graph accelerator has its own lockfile under huqan-core.
+  # Treat it as a separate ecosystem instead of letting Cargo dependencies age
+  # outside the npm/Actions update loop.
+  - package-ecosystem: cargo
+    directory: /huqan-core
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(rust-deps)"

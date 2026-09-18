@@ -216,6 +216,21 @@ jobs:
           fetch-depth: 0
       - name: Fetch baseline branch for live Git validation
         run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+      # A push, nightly or manual run checks out the baseline branch at the
+      # commit that triggered it, then fetches whatever tip main has reached by
+      # fetch time. When main moves in between -- an ordinary burst of merges --
+      # HEAD sits on the triggering commit while origin/main has moved past it,
+      # and the live Git guard read that as a baseline HEAD trailing its remote
+      # and failed closed on an unchanged tree (#2616, run 35284470491).
+      # The guard's baseline-branch rule is about a local clone sitting behind
+      # its remote; a CI checkout is deliberately at the triggering commit. On a
+      # non-pull-request run the baseline this run validates is therefore pinned
+      # to the commit under test, which keeps the ancestry and identity checks
+      # measuring that commit instead of a moving ref. Pull-request runs keep
+      # the fetched tip, because there the branch must descend from current main.
+      - name: Pin the baseline ref to the commit under test
+        if: github.event_name != 'pull_request'
+        run: git update-ref refs/remotes/origin/main "$GITHUB_SHA"
       # actions/checkout intentionally leaves pull-request worktrees detached.
       # The live Git guard requires branch identity as evidence; name the
       # checked-out commit without changing the commit or weakening ancestry.
@@ -273,6 +288,7 @@ jobs:
     outputs:
       run_tests: ${{ steps.plan.outputs.run_tests }}
       full_suite: ${{ steps.plan.outputs.full_suite }}
+      artifact_id: ${{ steps.upload-plan.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -324,6 +340,7 @@ jobs:
             } >> "${GITHUB_STEP_SUMMARY}"
           fi
       - name: Upload impact plan
+        id: upload-plan
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -369,6 +386,21 @@ jobs:
       # so fetch the baseline explicitly after checkout.
       - name: Fetch baseline branch for live Git validation
         run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+      # A push, nightly or manual run checks out the baseline branch at the
+      # commit that triggered it, then fetches whatever tip main has reached by
+      # fetch time. When main moves in between -- an ordinary burst of merges --
+      # HEAD sits on the triggering commit while origin/main has moved past it,
+      # and the live Git guard read that as a baseline HEAD trailing its remote
+      # and failed closed on an unchanged tree (#2616, run 35284470491).
+      # The guard's baseline-branch rule is about a local clone sitting behind
+      # its remote; a CI checkout is deliberately at the triggering commit. On a
+      # non-pull-request run the baseline this run validates is therefore pinned
+      # to the commit under test, which keeps the ancestry and identity checks
+      # measuring that commit instead of a moving ref. Pull-request runs keep
+      # the fetched tip, because there the branch must descend from current main.
+      - name: Pin the baseline ref to the commit under test
+        if: github.event_name != 'pull_request'
+        run: git update-ref refs/remotes/origin/main "$GITHUB_SHA"
       # Pull-request checkouts are detached by design. Name the checked-out
       # commit so live Git validation has branch identity as evidence; this
       # does not alter the commit or weaken the ancestry check.
@@ -398,10 +430,17 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci --include=optional
+      # A failed-jobs rerun retains the successful producer's outputs. Its
+      # artifact belongs to that producer attempt, not github.run_attempt here.
+      - name: Require impact plan artifact
+        env:
+          PLAN_ARTIFACT_ID: ${{ needs['test-impact-plan'].outputs.artifact_id }}
+        run: test -n "$PLAN_ARTIFACT_ID"
       - name: Download validated impact plan
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: test-impact-plan-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          artifact-ids: ${{ needs['test-impact-plan'].outputs.artifact_id }}
+          merge-multiple: true
           path: artifacts
       - name: Run selected weighted test shard
         run: >-

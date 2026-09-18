@@ -1,0 +1,152 @@
+name: Rust Accelerator
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  classify:
+    name: Classify Rust surface
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.classify.outputs.rust }}
+    steps:
+      - name: Checkout with history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Classify changed files
+        id: classify
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            echo "rust=yes" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.event.pull_request.head.sha }}"
+          else
+            base="${{ github.event.before }}"
+            head="${GITHUB_SHA}"
+          fi
+
+          changed="$(git diff --name-only "${base}" "${head}" || true)"
+          rust=no
+          while IFS= read -r file; do
+            case "${file}" in
+              huqan-core/*|rustGraph.js|kernel.js|lib/reason-sandbox.js|benchmarks/rust-vs-js-graph.js|rustGraph.test.js|test/rustGraph*.test.js|test/rust-*.test.js|test/huqan-core-*.test.js|test/reason-sandbox-isolation.test.js)
+                rust=yes
+                break
+                ;;
+            esac
+          done <<< "${changed}"
+
+          echo "rust=${rust}" >> "${GITHUB_OUTPUT}"
+
+  rust:
+    name: Rust accelerator (${{ matrix.os }})
+    needs: classify
+    if: needs.classify.outputs.rust == 'yes'
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Show Rust toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustc --version
+          cargo --version
+
+      - name: Check Rust formatting
+        working-directory: huqan-core
+        run: cargo fmt --all -- --check
+
+      - name: Run Rust lints
+        working-directory: huqan-core
+        run: cargo clippy --locked --all-targets
+
+      - name: Run Rust unit tests
+        working-directory: huqan-core
+        run: cargo test --locked
+
+      - name: Build release accelerator
+        working-directory: huqan-core
+        run: cargo build --release --locked
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install JavaScript dependencies
+        run: npm ci --include=optional
+
+      - name: Exercise the real Rust bridge and JS parity
+        run: >-
+          node --test
+          rustGraph.test.js
+          test/rustGraph-provenance.test.js
+          test/rustGraph-workspace-isolation.test.js
+          test/huqan-core-hypothesis-fitness-parity.test.js
+          test/rust-learn-accelerator.test.js
+          test/reason-sandbox-isolation.test.js
+
+  rust-skip:
+    name: Rust accelerator
+    needs: classify
+    if: needs.classify.outputs.rust != 'yes'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report NOT_APPLICABLE
+        run: echo "Rust accelerator surface unchanged; gate is NOT_APPLICABLE."
+
+  rust-gate:
+    name: Rust accelerator gate
+    needs:
+      - classify
+      - rust
+      - rust-skip
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require applicable Rust path to pass
+        shell: bash
+        env:
+          CLASSIFY_RESULT: ${{ needs.classify.result }}
+          RUST_RESULT: ${{ needs.rust.result }}
+          SKIP_RESULT: ${{ needs.rust-skip.result }}
+        run: |
+          set -euo pipefail
+          test "${CLASSIFY_RESULT}" = success
+          if [ "${RUST_RESULT}" != success ] && [ "${SKIP_RESULT}" != success ]; then
+            echo "Neither the Rust matrix nor its NOT_APPLICABLE path passed." >&2
+            exit 1
+          fi

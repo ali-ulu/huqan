@@ -1,0 +1,64 @@
+title: "[Idea] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use Ideas for exploration before work is scoped. Once a proposal has a bounded problem, acceptance criteria, and owner, it can graduate into an Issue.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What concrete problem or friction are you trying to solve?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed direction
+      description: Describe the smallest useful direction, not only the desired end state.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Primary HUQAN surface
+      options:
+        - Verification / trust
+        - Human approval
+        - MCP
+        - External action guard
+        - A2A / interoperability
+        - Provenance / Trust Receipts
+        - Storage / graph / memory
+        - Security
+        - Packaging / release
+        - Developer experience
+        - Documentation / community
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: invariants
+    attributes:
+      label: Trust or security boundaries
+      description: Which invariants must remain true if this idea moves forward?
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Existing HUQAN paths or other approaches that might solve the same problem.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before posting
+      options:
+        - label: I searched existing Discussions and Issues for overlap.
+          required: true
+        - label: I am not posting secrets or sensitive vulnerability details.
+          required: true

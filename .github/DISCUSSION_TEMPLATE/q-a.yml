@@ -1,0 +1,61 @@
+title: "[Q&A] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ask usage and architecture questions here. For reproducible defects use the Bug report issue form. For sensitive vulnerabilities follow SECURITY.md.
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: What are you working with?
+      options:
+        - CLI
+        - Library / Kernel
+        - MCP
+        - REST API
+        - External action guard
+        - A2A
+        - Trust Receipts / Viewer
+        - Plugins
+        - Packaging / release
+        - Development / contribution
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: HUQAN version or commit
+      placeholder: v0.12.0 or commit SHA
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What are you trying to understand or accomplish?
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you tried?
+      description: Commands, docs, configuration, or experiments already attempted.
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Relevant output
+      description: Logs, receipt metadata, or errors with secrets and sensitive data removed.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before posting
+      options:
+        - label: I checked README/docs/Wiki and existing Discussions.
+          required: true
+        - label: I removed credentials, secrets, and private data.
+          required: true

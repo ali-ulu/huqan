@@ -315,7 +315,7 @@ test('6: the duplicate stays deleted while later reviewed audit writes are count
   );
   assert.ok(unroutedLedger.length > 0);
   assert.equal(unroutedLedger.includes(MCP_TOOL), false, 'the MCP surface must leave the unrouted ledger');
-  assert.match(ledger, /assert\.equal\(unrouted, 25,/);
+  assert.match(ledger, /assert\.equal\(unrouted, 26,/);
   // K2 (#328): a later routing step delegated the background edge commit to
   // lib/background-provenance.js as a *new* ledgered entry -- routed rose
   // 24->26 and the total 46->48. DEL then added one routed audit append inside
@@ -330,5 +330,5 @@ test('6: the duplicate stays deleted while later reviewed audit writes are count
   // the routed and total numbers and not the difference between them: each
   // shape has its own finding.
   assert.match(ledger, /assert\.equal\(routed, 29,/);
-  assert.match(ledger, /assert\.equal\(unrouted \+ routed, 54,/);
+  assert.match(ledger, /assert\.equal\(unrouted \+ routed, 55,/);
 });

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/ali-ulu/huqan/security/policy
+    about: Report sensitive security issues through the private vulnerability process described in SECURITY.md.
+  - name: Questions and design discussion
+    url: https://github.com/ali-ulu/huqan/discussions
+    about: Use Discussions for usage questions, ideas that are not yet scoped work, and design conversations.

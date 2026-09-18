@@ -389,9 +389,25 @@ test('4C1: packed manifest — zero forbidden entries', () => {
 
 let INSTALL_DIR = null;
 let TARBALL_PATH = null;
+let INSTALL_READY = false;
+let INSTALL_ERROR = null;
 
 function setupTarballInstall() {
-  if (INSTALL_DIR) return { installDir: INSTALL_DIR, tarballPath: TARBALL_PATH };
+  if (INSTALL_ERROR) throw INSTALL_ERROR;
+  if (INSTALL_READY) return { installDir: INSTALL_DIR, tarballPath: TARBALL_PATH };
+  try {
+    const info = createTarballInstall();
+    INSTALL_READY = true;
+    return info;
+  } catch (error) {
+    // Preserve the setup failure instead of running consumers against a partial
+    // node_modules tree or retrying the same expensive install for every test.
+    INSTALL_ERROR = error;
+    throw error;
+  }
+}
+
+function createTarballInstall() {
   INSTALL_DIR = path.join(os.tmpdir(), `huqan-4c1-smoke-${Date.now()}`);
   fs.mkdirSync(INSTALL_DIR, { recursive: true });
   const packResult = cp.spawnSync('npm', ['pack', '--json', '--ignore-scripts', `--pack-destination=${INSTALL_DIR}`], {
@@ -415,12 +431,17 @@ function setupTarballInstall() {
 
   // npm init + install in temp project
   cp.spawnSync('npm', ['init', '-y'], { cwd: INSTALL_DIR, encoding: 'utf8', shell: true, timeout: 15000 });
-  const installResult = cp.spawnSync('npm', ['install', '--no-audit', '--no-fund', TARBALL_PATH], {
+  // --foreground-scripts + --loglevel=http: a timeout must name the step and
+  // the last registry URL it was waiting on (spawnSync returns captured output
+  // even when it kills the child). This is instrumentation, not a budget
+  // change: the 120s deadline that fired on the Windows/Node 24 runner stays.
+  const installResult = cp.spawnSync('npm', ['install', '--no-audit', '--no-fund', '--foreground-scripts', '--loglevel=http', TARBALL_PATH], {
     cwd: INSTALL_DIR, encoding: 'utf8', timeout: 120000, shell: true,
     env: { ...process.env, NO_COLOR: '1' },
   });
-  if (installResult.error) assert.fail(`npm install error: ${installResult.error.message}`);
-  if (installResult.status !== 0) assert.fail(`npm install exit ${installResult.status}: ${installResult.stderr?.slice(0, 300)}`);
+  const installOutput = `${installResult.stdout || ''}\n${installResult.stderr || ''}`.slice(-4000);
+  if (installResult.error) assert.fail(`npm install error: ${installResult.error.message}\n${installOutput}`);
+  if (installResult.status !== 0) assert.fail(`npm install exit ${installResult.status}: ${installOutput}`);
   assert.ok(fs.existsSync(path.join(INSTALL_DIR, 'node_modules', 'huqan')), 'huqan must be installed');
   return { installDir: INSTALL_DIR, tarballPath: TARBALL_PATH };
 }
@@ -443,6 +464,7 @@ function cleanupTarballInstall() {
   if (INSTALL_DIR) {
     try { fs.rmSync(INSTALL_DIR, { recursive: true, force: true }); } catch {}
     INSTALL_DIR = null; TARBALL_PATH = null;
+    INSTALL_READY = false; INSTALL_ERROR = null;
   }
 }
 
