@@ -10,6 +10,7 @@
 
 - [ ] Tests added or updated where behavior changed
 - [ ] `npm test` (or the relevant scoped suite) passes
+- [ ] `npm run verify` passes before push/merge when the change requires the full local gate
 - [ ] Conformance / architecture / benchmark checks considered where applicable
 - [ ] Package/install behavior considered if public exports, CLI, MCP, REST, dependencies, or packaging changed
 
