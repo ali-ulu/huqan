@@ -58,6 +58,61 @@ Include a short summary with:
 - anything intentionally not touched
 - blockers or unverified items
 
+## Verification and commit workflow
+
+### Before pushing: run `npm run verify`
+
+`npm run verify` is the comprehensive local pre-push gate. It runs the
+environment check, lint, architecture checks, documentation drift checks,
+package-closure checks, and the full test suite in sequence.
+
+For fast local iteration before the full gate:
+
+```bash
+npm run lint && npm run check:cycles && npm run check:module-boundary
+```
+
+### Pre-commit hook
+
+A repository template hook runs the fast checks before each commit:
+
+```bash
+cp .github/hooks/pre-commit .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+The hook is intentionally lightweight. It does not replace `npm run verify`
+before pushing.
+
+### Common verification failures
+
+| Failure | What to do |
+|---|---|
+| Node version check fails | Use Node.js 22.13.0+; Node 22 LTS or 24 LTS is recommended. |
+| `check:docs-drift` fails | Update the affected living documentation so it agrees with current source truth. |
+| `check:module-boundary` fails | Move cross-module behavior behind the owning module's public facade; see `docs/agent-canon.md`. |
+| `check:layers` fails | Fix the import direction according to `docs/architecture.md` and `docs/architecture-policy.md`. |
+| `better-sqlite3` native setup fails | Re-run `npm ci` on a supported Node version and verify the local native module install. |
+| An unrelated/flaky test fails | Record the exact test and error. Do not claim the full gate is green until the failure is understood or resolved. |
+
+### Commit message format
+
+Use Conventional Commits where practical:
+
+```text
+<type>(<scope>): <subject>
+```
+
+Common types include `feat`, `fix`, `docs`, `refactor`, `test`,
+`chore`, and `ci`.
+
+### Architecture references
+
+- [Architecture overview](./docs/architecture.md)
+- [Architecture policy](./docs/architecture-policy.md)
+- [Architecture decision records](./docs/adr/)
+- [Stable agent rules](./docs/agent-canon.md)
+
 ## Review and release gates
 
 - Human review is required for merge.
