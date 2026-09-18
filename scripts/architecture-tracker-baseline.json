@@ -44,7 +44,7 @@
     },
     "kernel.js": {
       "band": "decompose",
-      "lines": 1073,
+      "lines": 1062,
       "signals": [
         "DIP",
         "FANOUT:39"
@@ -181,13 +181,6 @@
       "band": "recorded",
       "lines": 587,
       "signals": []
-    },
-    "lib/kernel-mutation-admission.js": {
-      "band": "structural",
-      "lines": 305,
-      "signals": [
-        "ISP:1"
-      ]
     },
     "lib/kernel-read-use-cases.js": {
       "band": "recorded",
