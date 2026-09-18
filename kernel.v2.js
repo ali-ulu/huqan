@@ -21,6 +21,8 @@ const {
 } = require('./lib/kernel-v2-native');
 const {
   analyseManipulation,
+  prepareRiskAwareLearnFromLLM,
+  withLearnFromLLMRisk,
   withManipulationRisk,
 } = require('./lib/text-safety-scorer');
 
@@ -174,78 +176,12 @@ class KernelV2 {
       return this.kernel.learnFromLLM(text, opts);
     }
 
-    const skipConflicts = opts.skipConflicts !== false;
-    const minWords = opts.minWords || 2;
-    const maxSentences = opts.maxSentences || 20;
-    const allowRiskyLearning = opts.allowRiskyLearning === true;
-    const blockThreshold = opts.riskBlockThreshold ?? 0.7;
-    const downgradeThreshold = opts.riskDowngradeThreshold ?? 0.35;
-
-    const sentences = String(text || '')
-      .split(/[.!?\n]+/)
-      .map(s => s.trim())
-      .filter(s => s.length > 3);
-
-    const safeSentences = [];
-    const riskDetails = [];
-    let blocked = 0;
-    let downgraded = 0;
-
-    for (const sentence of sentences.slice(0, maxSentences)) {
-      const cleaned = sentence
-        .replace(/^[\s#*\-–—•>]+/, '')
-        .replace(/\*\*(.+?)\*\*/g, '$1')
-        .replace(/`(.+?)`/g, '$1')
-        .trim();
-
-      const words = cleaned.split(/\s+/).filter(Boolean);
-      if (words.length < minWords) continue;
-
-      const risk = analyseManipulation(cleaned);
-      let action = 'allow';
-      if (risk.manipulation && risk.score >= blockThreshold && !allowRiskyLearning) {
-        action = 'block';
-        blocked++;
-      } else if (risk.manipulation && risk.score >= downgradeThreshold) {
-        action = 'downgrade';
-        downgraded++;
-        safeSentences.push(cleaned);
-      } else {
-        safeSentences.push(cleaned);
-      }
-
-      if (risk.manipulation) {
-        riskDetails.push({
-          text: cleaned,
-          score: risk.score,
-          labels: risk.labels,
-          reasons: risk.reasons,
-          action,
-          extractedStatement: risk.extractedStatement,
-        });
-      }
-    }
-
-    const result = this.kernel.learnFromLLM(safeSentences.join('\n'), {
+    const riskAssessment = prepareRiskAwareLearnFromLLM(text, opts);
+    const result = this.kernel.learnFromLLM(riskAssessment.text, {
       ...opts,
-      skipConflicts,
+      skipConflicts: opts.skipConflicts !== false,
     });
-
-    if (riskDetails.length === 0) return result;
-    return {
-      ...result,
-      learned: result.learned,
-      skipped: (result.skipped || 0) + blocked,
-      risk: {
-        manipulation: true,
-        score: Number(Math.min(1, Math.max(0, riskDetails.reduce((max, item) => Math.max(max, item.score), 0))).toFixed(2)),
-        blocked,
-        downgraded,
-        sentences: riskDetails,
-        labels: [...new Set(riskDetails.flatMap(item => item.labels))],
-        reasons: [...new Set(riskDetails.flatMap(item => item.reasons))],
-      },
-    };
+    return withLearnFromLLMRisk(result, riskAssessment);
   }
 
   ask(question, opts = {}) {
