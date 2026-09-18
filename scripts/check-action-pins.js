@@ -10,7 +10,10 @@ const workflowNames = fs.readdirSync(workflowsDir)
 
 const usesPattern = /^\s*(?:-\s*)?uses:\s*([^\s#]+)(?:\s+#\s*(.+))?\s*$/;
 const immutableRefPattern = /^[0-9a-f]{40}$/i;
-const versionAnnotationPattern = /(?:^|\s)v?\d+\.\d+(?:\.\d+)?(?:[-+][0-9A-Za-z.-]+)?(?:\s|$)/;
+// Action publishers commonly annotate immutable SHAs with either a release
+// channel (for example v4) or a full release (for example v4.2.2). Both are
+// useful human-readable versions; arbitrary prose is not.
+const versionAnnotationPattern = /(?:^|\s)v?\d+(?:\.\d+){0,2}(?:[-+][0-9A-Za-z.-]+)?(?:\s|$)/;
 const failures = [];
 let checked = 0;
 
@@ -41,7 +44,7 @@ for (const workflowName of workflowNames) {
     }
 
     if (!versionAnnotationPattern.test(annotation)) {
-      failures.push(`${workflowName}:${index + 1}: pinned action annotation must include a readable version (for example, # v4.2.2)`);
+      failures.push(`${workflowName}:${index + 1}: pinned action annotation must include a readable version (for example, # v4 or # v4.2.2)`);
     }
   });
 }
