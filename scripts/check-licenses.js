@@ -22,12 +22,13 @@ function checkLicenses(lockfile, exceptions = {}) {
   for (const [packagePath, metadata] of Object.entries(packages)) {
     if (packagePath === '') continue;
     const name = packageNameFromPath(packagePath);
-    const license = metadata && metadata.license;
+    const declaredLicense = metadata && metadata.license;
+    const license = typeof declaredLicense === 'string' && declaredLicense.trim() ? declaredLicense : '<missing>';
     const exception = exceptions[name];
 
     if (exception && exception.license === license && exception.reason) continue;
-    if (typeof license !== 'string' || !license.trim()) {
-      violations.push({ package: name, license: '<missing>', reason: 'dependency does not declare a license' });
+    if (license === '<missing>') {
+      violations.push({ package: name, license, reason: 'dependency does not declare a license' });
       continue;
     }
     if (DENIED_LICENSE.test(license) || NON_COMMERCIAL.test(license) || /SEE LICENSE IN/i.test(license)) {
