@@ -39,6 +39,12 @@ test('license exceptions require an exact license and documented reason', () => 
   assert.equal(checkLicenses(lockfile, { legacy: { license: 'MIT', reason: 'Wrong license' } }).length, 1);
 });
 
+test('missing license metadata requires an explicit documented sentinel exception', () => {
+  const lockfile = { packages: { '': {}, 'node_modules/legacy': {} } };
+  assert.equal(checkLicenses(lockfile, { legacy: { license: '<missing>', reason: 'License verified upstream' } }).length, 0);
+  assert.equal(checkLicenses(lockfile, { legacy: { license: 'MIT', reason: 'Not exact lockfile metadata' } }).length, 1);
+});
+
 test('scoped package names are preserved', () => {
   assert.equal(packageNameFromPath('node_modules/@scope/pkg'), '@scope/pkg');
 });
