@@ -50,7 +50,7 @@ jobs:
           rust=no
           while IFS= read -r file; do
             case "${file}" in
-              huqan-core/*|rustGraph.js|kernel.js|lib/reason-sandbox.js|benchmarks/rust-vs-js-graph.js|rustGraph.test.js|test/rustGraph*.test.js|test/rust-*.test.js|test/huqan-core-*.test.js|test/reason-sandbox-isolation.test.js)
+              huqan-core/*|rustGraph.js|kernel.js|lib/reason-sandbox.js|benchmarks/rust-vs-js-graph.js|rustGraph.test.js|test/rustGraph*.test.js|test/rust-*.test.js|test/huqan-core-*.test.js|test/reason-sandbox-isolation.test.js|.github/workflows/rust-accelerator.yml)
                 rust=yes
                 break
                 ;;
@@ -82,6 +82,13 @@ jobs:
           set -euo pipefail
           rustc --version
           cargo --version
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      - name: Audit Rust dependencies
+        working-directory: huqan-core
+        run: cargo audit
 
       - name: Check Rust formatting
         working-directory: huqan-core
