@@ -23,7 +23,7 @@
     "bench:observability:load": "node benchmarks/observability-load-smoke.js",
     "bench:observability:soak": "node --expose-gc benchmarks/observability-soak.js",
     "lint": "oxlint",
-    "verify": "node scripts/verify-test-environment.js && npm run lint && npm run check:cycles && npm run check:module-boundary && npm run check:layers && npm run check:file-size && npm run check:docs-drift && npm run check:package-closure && npm test",
+    "verify": "node scripts/verify-test-environment.js && npm run lint && npm run check:cycles && npm run check:module-boundary && npm run check:layers && npm run check:file-size && npm run check:docs-drift && npm run check:package-closure && npm run test:property && npm test",
     "check:control-chars": "node scripts/check-control-chars.js",
     "arch:snapshot": "node scripts/architecture-snapshot.js",
     "check:architecture-trackers": "node scripts/architecture-snapshot.js --check",
@@ -45,6 +45,7 @@
     "train": "node scripts/knowledge-graph-demo.js --demo",
     "test": "node scripts/run-tests.js --test-concurrency=4",
     "test:serial": "node scripts/run-tests.js --test-concurrency=1",
+    "test:property": "node scripts/run-tests.js \"test/property/*.test.js\"",
     "test:watch": "node scripts/run-tests.js --watch",
     "test:graph": "node scripts/run-tests.js graph.test.js",
     "test:kernel": "node scripts/run-tests.js kernel.test.js",
@@ -857,6 +858,7 @@
     "pdfkit": "^0.20.2"
   },
   "devDependencies": {
+    "fast-check": "^4.10.1",
     "oxlint": "^1.82.0"
   }
 }
