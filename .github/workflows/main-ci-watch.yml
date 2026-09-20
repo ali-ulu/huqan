@@ -88,10 +88,6 @@ jobs:
                         )
                       )
                     | {
-                        name,
-                        conclusion,
-                        run_number,
-                        run_attempt,
                         id,
                         name,
                         conclusion,
