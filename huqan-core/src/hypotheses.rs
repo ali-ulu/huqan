@@ -39,7 +39,10 @@ fn bounded_number(v: &Value, key: &str, fallback: f64, min: f64, max: f64) -> f6
 }
 
 fn bounded_int(v: &Value, key: &str, fallback: usize, min: usize) -> usize {
-    let n = v.get(key).and_then(|x| x.as_u64()).unwrap_or(fallback as u64) as usize;
+    let n = v
+        .get(key)
+        .and_then(|x| x.as_u64())
+        .unwrap_or(fallback as u64) as usize;
     if n >= min {
         n
     } else {
@@ -101,7 +104,10 @@ fn find_causal_cycles(node_ids: &[String], edges: &[&Edge]) -> Vec<Vec<String>> 
             continue;
         }
         if adjacency.contains_key(e.from.as_str()) && adjacency.contains_key(e.to.as_str()) {
-            adjacency.get_mut(e.from.as_str()).unwrap().push(e.to.as_str());
+            adjacency
+                .get_mut(e.from.as_str())
+                .unwrap()
+                .push(e.to.as_str());
         }
     }
     for v in adjacency.values_mut() {
@@ -166,8 +172,14 @@ fn connected_components(node_ids: &[String], edges: &[&Edge]) -> Vec<Vec<String>
     }
     for e in edges {
         if adjacency.contains_key(e.from.as_str()) && adjacency.contains_key(e.to.as_str()) {
-            adjacency.get_mut(e.from.as_str()).unwrap().push(e.to.as_str());
-            adjacency.get_mut(e.to.as_str()).unwrap().push(e.from.as_str());
+            adjacency
+                .get_mut(e.from.as_str())
+                .unwrap()
+                .push(e.to.as_str());
+            adjacency
+                .get_mut(e.to.as_str())
+                .unwrap()
+                .push(e.from.as_str());
         }
     }
 
@@ -183,10 +195,7 @@ fn connected_components(node_ids: &[String], edges: &[&Edge]) -> Vec<Vec<String>
         while !queue.is_empty() {
             let current = queue.remove(0);
             component.push(current.to_string());
-            let mut nbrs: Vec<&str> = adjacency
-                .get(current)
-                .cloned()
-                .unwrap_or_default();
+            let mut nbrs: Vec<&str> = adjacency.get(current).cloned().unwrap_or_default();
             nbrs.sort_unstable();
             for next in nbrs {
                 if !visited.contains(next) {
@@ -438,8 +447,11 @@ pub fn build_fitness_report(graph: &Graph, options: &Value) -> Value {
             _ => {}
         }
     }
-    let hypothesis_accuracy: Option<f64> =
-        if reviewed > 0 { Some(accepted as f64 / reviewed as f64) } else { None };
+    let hypothesis_accuracy: Option<f64> = if reviewed > 0 {
+        Some(accepted as f64 / reviewed as f64)
+    } else {
+        None
+    };
 
     let node_count = report["meta"]["nodeCount"].as_u64().unwrap_or(0) as usize;
     let edge_count = edges.len();
