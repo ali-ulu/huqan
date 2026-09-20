@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  actions: read
+  actions: write
   contents: read
   issues: write
 
@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Open one alert issue per red main commit
+      - name: Re-run transient failures once, then alert on persistent red commits
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -59,6 +59,11 @@ jobs:
                         conclusion,
                         run_number,
                         run_attempt,
+                        id,
+                        name,
+                        conclusion,
+                        run_number,
+                        run_attempt,
                         html_url
                       }
                   ]
@@ -68,6 +73,17 @@ jobs:
             count="$(jq 'length' <<<"$failures")"
             if [[ "$count" -eq 0 ]]; then
               echo "$short: no current failed/cancelled workflow."
+              continue
+            fi
+
+            rerunnable="$(jq '[.[] | select(.run_attempt == 1 and (.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "startup_failure"))]' <<<"$failures")"
+            rerun_count="$(jq 'length' <<<"$rerunnable")"
+
+            if [[ "$rerun_count" -gt 0 ]]; then
+              while IFS= read -r run_id; do
+                echo "$short: re-running failed jobs for workflow run $run_id once."
+                gh api --method POST "repos/$REPO/actions/runs/$run_id/rerun-failed-jobs"
+              done < <(jq -r '.[].id' <<<"$rerunnable")
               continue
             fi
 
@@ -95,7 +111,7 @@ jobs:
               echo "### Current failing workflows"
               jq -r '.[] | "- **\(.name)**: \(.conclusion) ([run #\(.run_number), attempt \(.run_attempt)](\(.html_url)))"' <<<"$failures"
               echo
-              echo "_Created automatically by the repository-native Main CI Watch workflow. The watcher scans the latest 10 main commits and treats a later successful rerun as the current state for that workflow._"
+              echo "_Created automatically by the repository-native Main CI Watch workflow. The watcher scans the latest 10 main commits, automatically re-runs eligible failed jobs once, and opens an issue only when the failure persists or cannot be safely re-run._"
             } > /tmp/main-ci-watch.md
 
             gh issue create \
