@@ -23,6 +23,8 @@
     "bench:observability:load": "node benchmarks/observability-load-smoke.js",
     "bench:observability:soak": "node --expose-gc benchmarks/observability-soak.js",
     "lint": "oxlint",
+    "changelog": "node scripts/changelog.js --write",
+    "changelog:preview": "node scripts/changelog.js",
     "verify": "node scripts/verify-suite.js",
     "check:action-pins": "node scripts/check-action-pins.js",
     "check:licenses": "node scripts/check-licenses.js",

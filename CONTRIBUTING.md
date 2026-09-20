@@ -110,7 +110,19 @@ Use Conventional Commits where practical:
 ```
 
 Common types include `feat`, `fix`, `docs`, `refactor`, `test`,
-`chore`, and `ci`.
+`chore`, and `ci`. This repository also uses `security` and
+`deprecate`.
+
+The changelog is generated from these subjects. `npm run changelog`
+prepends the commits since the last tag to `CHANGELOG.md`, filing
+`feat` under Added, `fix` under Fixed, `security` under Security,
+`deprecate` under Deprecated, a `!` marker or a `BREAKING CHANGE:`
+footer under Breaking Changes, and the housekeeping types under
+Internal. A subject that does not parse as conventional lands under
+Other rather than being dropped. `npm run changelog:preview` prints
+the entry without writing the file. The generator is not a gate:
+`npm run verify` never reads the changelog back, so a stale entry
+cannot fail a push.
 
 ### Architecture references
 
