@@ -8,7 +8,7 @@ Tracked in total: **64**
 | File | Lines | Signals |
 |---|---:|---|
 | `graph.js` | 1242 | FANOUT:35 |
-| `kernel.js` | 1062 | DIP FANOUT:39 |
+| `kernel.js` | 1062 | FANOUT:39 |
 | `server.js` | 1017 | FANOUT:52 |
 | `lib/memory-store.js` | 968 | FANOUT:23 |
 

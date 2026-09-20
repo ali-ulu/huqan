@@ -46,7 +46,6 @@
       "band": "decompose",
       "lines": 1062,
       "signals": [
-        "DIP",
         "FANOUT:39"
       ]
     },

@@ -105,8 +105,8 @@
       "review_by": "2026-10-31"
     },
     "kernel.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2026-10-31"
+      "why": "Kernel is the public compatibility facade and composition root for the v1 runtime: it assembles Graph, MemoryStore, PluginManager, VerifyService and the ephemeral sandbox Kernel. Moving those constructions outward would leak runtime assembly into callers; further size reduction is still owed where cohesive seams can be extracted without increasing coupling. Review alongside #2127 successor decomposition work.",
+      "review_by": "2026-12-31"
     },
     "kernel.v2.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",

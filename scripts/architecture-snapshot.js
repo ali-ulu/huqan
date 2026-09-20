@@ -50,7 +50,7 @@ const CONSTRUCTS = /new\s+(Kernel|KernelV2|Agent|AgentV3|HuqanStorage|Graph|Memo
 const isCompositionRoot = (file) => file.startsWith('bin/')
   || file.startsWith('scripts/')
   || file.startsWith('examples/')
-  || ['cli.js', 'server.js', 'mcpServer.js', 'index.js', 'agentRuntime.js'].includes(file)
+  || ['cli.js', 'server.js', 'mcpServer.js', 'index.js', 'agentRuntime.js', 'kernel.js'].includes(file)
   || /factory|runtime/.test(path.basename(file));
 
 /**
@@ -359,6 +359,7 @@ module.exports = {
   trackerBaselineViolations,
   baselineEvolutionViolations,
   DIP_ALLOWED,
+  isCompositionRoot,
   dipExceptionViolations,
   TRACKER_PATH,
   BASELINE_PATH,
