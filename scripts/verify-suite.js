@@ -43,6 +43,7 @@ const STAGES = [
   { name: 'file-size', command: ['npm', 'run', 'check:file-size', '--silent'] },
   { name: 'action-pins', command: ['npm', 'run', 'check:action-pins', '--silent'] },
   { name: 'licenses', command: ['npm', 'run', 'check:licenses', '--silent'] },
+  { name: 'deprecations', command: ['node', 'scripts/check-deprecations.js'] },
   { name: 'docs-drift', command: ['npm', 'run', 'check:docs-drift', '--silent'] },
   // The tracker check compares the committed artifact against the live tree
   // relative to a git ref; without one it refuses to guess. origin/main is
@@ -59,7 +60,7 @@ const STAGES = [
  * Windows note: `npm` is an `npm.cmd` shim there, which spawnSync refuses to
  * launch directly (CVE-2024-27980 hardening) and a bare `shell: true` breaks
  * again on executable paths that contain spaces (for example
- * `C:\Program Files\nodejs\node.exe`). spawnSyncWindowsAware carries the
+ * `C:\\Program Files\\nodejs\\node.exe`). spawnSyncWindowsAware carries the
  * working workaround and is what every other script-invoking call site uses.
  *
  * @param {{name: string, command: string[], slow?: boolean}} stage
@@ -76,10 +77,6 @@ function runStage(stage, opts = {}) {
     timeout: timeoutMs,
   });
   const timedOut = Boolean(result.error && result.error.code === 'ETIMEDOUT');
-  // A stage can end without a usable exit code: killed from outside (signal)
-  // or never started (spawn error). Both are failures, but a plain FAIL hides
-  // the difference between "the checker found a problem" and "the checker was
-  // killed mid-run", which is exactly the difference a red gate must show.
   const abnormal = result.error
     ? `spawn error: ${result.error.message}`
     : result.signal
@@ -95,12 +92,6 @@ function runStage(stage, opts = {}) {
   };
 }
 
-/**
- * Run stages in order, stopping at the first failure.
- *
- * @param {Array<{name: string, command: string[], slow?: boolean}>} [stages]
- * @returns {Array<ReturnType<typeof runStage>>} results for the stages that ran
- */
 function runVerify(stages = STAGES) {
   const results = [];
   for (const stage of stages) {
@@ -115,15 +106,6 @@ function formatSeconds(ms) {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
-/**
- * Human-readable pass/fail summary with per-stage timings. A failing stage's
- * own output is included (tail only, so one hung checker cannot flood the
- * console) followed by an explicit list of stages that did not run.
- *
- * @param {Array<ReturnType<typeof runStage>>} results
- * @param {Array<{name: string}>} [stages] full manifest, for the skipped list
- * @returns {string}
- */
 function renderSummary(results, stages = STAGES) {
   const lines = [];
   for (const result of results) {
