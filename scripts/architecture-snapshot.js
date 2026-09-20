@@ -14,13 +14,14 @@
  * baselines the gates enforce. `--markdown` prints tracker bodies ready to
  * paste; no flag prints the summary.
  *
- * Usage:  node scripts/architecture-snapshot.js [--markdown|--write|--check]
+ * Usage:  node scripts/architecture-snapshot.js [--markdown|--mermaid|--write|--check]
  */
 
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { listSourceFiles, stripComments, buildGraph } = require('./check-import-cycles.js');
+const { renderMermaid } = require('./architecture-mermaid');
 
 const repoRoot = path.resolve(__dirname, '..');
 const TRACKER_PATH = path.join(repoRoot, 'docs', 'generated', 'architecture-trackers.md');
@@ -249,6 +250,14 @@ function optionValue(argv, name) {
 }
 
 function main(argv = process.argv.slice(2)) {
+  if (argv.includes('--mermaid')) {
+    const all = listSourceFiles();
+    const source = all.filter((file) => !IS_TEST.test(file));
+    const graph = buildGraph(all, source);
+    process.stdout.write(`${renderMermaid(graph)}\n`);
+    return 0;
+  }
+
   const snapshotPath = optionValue(argv, '--snapshot');
   const rows = snapshotPath ? null : snapshot();
   const groups = snapshotPath
