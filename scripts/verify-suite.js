@@ -41,6 +41,8 @@ const STAGES = [
   { name: 'module-boundary', command: ['npm', 'run', 'check:module-boundary', '--silent'] },
   { name: 'layers', command: ['npm', 'run', 'check:layers', '--silent'] },
   { name: 'file-size', command: ['npm', 'run', 'check:file-size', '--silent'] },
+  // M1 (#2648): fail verification when dead modules or public dispatch surfaces drift.
+  { name: 'dead-code', command: ['node', 'scripts/check-dead-code.js'] },
   { name: 'action-pins', command: ['npm', 'run', 'check:action-pins', '--silent'] },
   { name: 'licenses', command: ['npm', 'run', 'check:licenses', '--silent'] },
   { name: 'docs-drift', command: ['npm', 'run', 'check:docs-drift', '--silent'] },
