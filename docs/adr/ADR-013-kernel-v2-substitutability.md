@@ -5,7 +5,7 @@
 - **Deciders:** repository owner
 - **Supersedes:** —
 - **Cross-references:** #2117, #2115, #1171, #1989, #1619, [architecture policy](../architecture-policy.md)
-- **Scope:** `kernel.v2.js` `verify` and the `Kernel` instance it wraps
+- **Scope:** `kernel.v2.js` `verify`, `learnFromLLM`, and the `Kernel` instance it wraps
 
 ## Context
 
@@ -49,6 +49,31 @@ The fact-negation verdict used to be written twice — once inline in
 `kernel.v2.js`, once in `buildNegationConflict` — with identical fields. It now
 has one producer.
 
+
+### LLM-learning risk policy
+
+`Kernel.learnFromLLM` remains the single owner of sentence conflict checks,
+admission, provenance and canonical learning. `KernelV2` adds one named
+pre-policy for manipulation risk before delegating to that owner.
+
+The policy lives in
+`lib/text-safety-scorer.js#prepareRiskAwareLearnFromLLM`, not in a second
+sentence-processing loop in `KernelV2`:
+
+- the default block threshold is `0.7`;
+- the default downgrade threshold is `0.35`;
+- a block-eligible sentence is removed unless `allowRiskyLearning === true`;
+- when risky learning is explicitly allowed, that sentence is retained and
+  recorded as `downgrade`;
+- blocked sentences are added to the returned `skipped` count;
+- risk details are attached after the wrapped Kernel completes its normal
+  conflict/admission path.
+
+This is a named V2 rule, not a second learning authority. The existing
+`kernel.v2.test.js` block test and
+`test/kernel-learn-from-llm-delegation-contract.test.js` pin the behavior and
+the single-owner structure.
+
 ### Removed
 
 A branch that turned a v1 `contradicted` into `unknown` when every semantic
@@ -63,5 +88,4 @@ invariant that makes it unreachable is now pinned by
 
 - A new difference between the two layers is a new row in the table, with its
   producer and its test, or it is a defect.
-- `learnFromLLM` still runs its own loop in `KernelV2` with its own risk
-  thresholds. It is outside this decision and remains open under #2117.
+- `learnFromLLM` no longer owns a duplicate sentence/risk loop in `KernelV2`; V2-specific manipulation filtering is a named pre-policy in `lib/text-safety-scorer.js`, while the wrapped Kernel remains the conflict/admission owner.

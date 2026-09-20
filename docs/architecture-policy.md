@@ -134,6 +134,10 @@ their ceiling, so in those the directive rides on the annotated line.
 a named rule with one producer and a test. The rules, and what a caller may
 assume holds for both, are in
 [ADR-013](adr/ADR-013-kernel-v2-substitutability.md) (#2117).
+`learnFromLLM` follows the same rule at the learning boundary: V2-specific
+manipulation filtering is a named pre-policy in `lib/text-safety-scorer.js`,
+while the wrapped Kernel remains the single owner of conflict checks,
+admission and canonical learning.
 
 ## 7. Changing this policy
 
