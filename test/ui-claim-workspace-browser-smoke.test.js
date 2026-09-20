@@ -21,7 +21,11 @@ const { launchBrowserSession, browserSmokeSkipReason } = require('./helpers/cdp-
 const { publicWorkflowManifest } = require('../lib/workflow-contract');
 
 const TEST_API_KEY = 'test-ui-browser-secret';
-const WAIT_TIMEOUT_MS = 15_000;
+// Browser smoke runs are materially slower under shared CI runner load than in local
+// isolation. Keep the assertions fail-closed, but give asynchronous UI/network
+// state twice the local settling budget in CI so transient scheduler pressure does
+// not turn a healthy page into a red build.
+const WAIT_TIMEOUT_MS = process.env.CI ? 30_000 : 15_000;
 
 const skipReason = browserSmokeSkipReason();
 
