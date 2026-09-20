@@ -244,3 +244,29 @@ test('v2 adds manipulation metadata that v1 deliberately does not emit', (t) => 
     assert.equal(v2Meta.includes(shared), true, `v2 must emit ${shared}`);
   }
 });
+
+
+test('v2 ask/reason/compare/dream preserve v1 data and evidence while adding mode metadata', (t) => {
+  const f = fixture(t, 'mode-envelope');
+  const inner = f.make(Kernel);
+  const v2 = new KernelV2({ kernel: inner });
+  const calls = {
+    ask: ['what is known?'],
+    reason: ['ali'],
+    compare: ['ali', 'veli'],
+    dream: [{}],
+  };
+
+  for (const [method, args] of Object.entries(calls)) {
+    const data = { method, marker: 'same-data' };
+    const evidence = [{ kind: 'contract-probe', method }];
+    inner[method] = () => inner.ok(method, data, evidence, { origin: 'v1' });
+
+    const result = v2[method](...args);
+
+    assert.deepEqual(result.data, data, `${method} must preserve v1 data`);
+    assert.deepEqual(result.evidence, evidence, `${method} must preserve v1 evidence`);
+    assert.equal(result.meta.origin, 'v1', `${method} must preserve v1 metadata`);
+    assert.equal(result.meta.mode, 'v2', `${method} must add only the documented v2 mode marker`);
+  }
+});
