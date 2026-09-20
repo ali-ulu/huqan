@@ -15,7 +15,7 @@ test('renderMermaid emits deterministic layer nodes and aggregated directed edge
   ]);
 
   const output = renderMermaid(graph);
-  assert.match(output, /^\`\`\`mermaid\nflowchart TB/m);
+  assert.match(output, /^```mermaid\nflowchart TB/m);
   assert.match(output, /entrypoint\["entrypoint"\]/);
   assert.match(output, /domain\["domain"\]/);
   assert.match(output, /storage\["storage"\]/);
