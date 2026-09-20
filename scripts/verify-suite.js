@@ -41,6 +41,7 @@ const STAGES = [
   { name: 'module-boundary', command: ['npm', 'run', 'check:module-boundary', '--silent'] },
   { name: 'layers', command: ['npm', 'run', 'check:layers', '--silent'] },
   { name: 'file-size', command: ['npm', 'run', 'check:file-size', '--silent'] },
+  { name: 'dead-code', command: ['npm', 'run', 'check:dead-code', '--silent'] },
   { name: 'action-pins', command: ['npm', 'run', 'check:action-pins', '--silent'] },
   { name: 'licenses', command: ['npm', 'run', 'check:licenses', '--silent'] },
   { name: 'docs-drift', command: ['npm', 'run', 'check:docs-drift', '--silent'] },
@@ -59,7 +60,7 @@ const STAGES = [
  * Windows note: `npm` is an `npm.cmd` shim there, which spawnSync refuses to
  * launch directly (CVE-2024-27980 hardening) and a bare `shell: true` breaks
  * again on executable paths that contain spaces (for example
- * `C:\Program Files\nodejs\node.exe`). spawnSyncWindowsAware carries the
+ * `C:\\Program Files\\nodejs\\node.exe`). spawnSyncWindowsAware carries the
  * working workaround and is what every other script-invoking call site uses.
  *
  * @param {{name: string, command: string[], slow?: boolean}} stage
