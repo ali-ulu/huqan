@@ -38,6 +38,9 @@ test('an unclassified orphan fails the gate', () => {
     fs.writeFileSync(path.join(root, 'lib', 'mcp', 'tool-dispatch.js'), "if (name === 'huqan.learn') {}\n");
     fs.writeFileSync(path.join(root, 'lib', 'mcp-tool-catalog.js'), "name: 'huqan.learn',\n");
     fs.writeFileSync(path.join(root, 'lib', 'mcp', 'operator-tool-schemas.js'), '// none\n');
+    fs.writeFileSync(path.join(root, 'lib', 'workflow-contract.js'),
+      'const CLI_COMMAND_CAPABILITIES = Object.freeze([].map(Boolean));\n');
+    fs.writeFileSync(path.join(root, 'lib', 'cli-workflow-adapter.js'), '// no CLI adapter commands\n');
 
     const result = checkDeadCode({ root });
     assert.equal(result.ok, false);
