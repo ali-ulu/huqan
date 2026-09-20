@@ -11,7 +11,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 
 const { createOperationLedger } = require('../lib/experience/reconciliation');
 
@@ -140,7 +140,7 @@ describe('E5: restart and crash recovery (SQLite)', () => {
     }
   });
 
-  it('a kill at any instant leaves no torn rows', (t) => {
+  it('a kill at any instant leaves no torn rows', async (t) => {
     let Database;
     try {
       Database = require('better-sqlite3');
@@ -162,11 +162,15 @@ describe('E5: restart and crash recovery (SQLite)', () => {
         if (i % 2 === 0) ledger.complete({ operationId: 'op-' + i, outcome: { i } });
       }
     `;
-    const child = require('node:child_process').spawn(process.execPath, ['-e', worker], { stdio: 'ignore' });
-    setTimeout(() => child.kill('SIGKILL'), 150).unref?.();
-    child.on('exit', () => {});
-    const waited = spawnSync(process.execPath, ['-e', 'setTimeout(()=>{},300)'], { timeout: 5000 });
-    void waited;
+    const child = spawn(process.execPath, ['-e', worker], { stdio: 'ignore' });
+    const exited = new Promise((resolve, reject) => {
+      child.once('error', reject);
+      child.once('exit', (code, signal) => resolve({ code, signal }));
+    });
+    const killTimer = setTimeout(() => child.kill('SIGKILL'), 150);
+    const exit = await exited;
+    clearTimeout(killTimer);
+    assert.equal(exit.signal, 'SIGKILL', 'crash worker must still be running when SIGKILL is injected');
     const check = spawnSync(process.execPath, ['-e', `
       const Database = require(${JSON.stringify(require.resolve('better-sqlite3'))});
       const db = new Database(${JSON.stringify(dbPath)});
