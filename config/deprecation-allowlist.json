@@ -1,0 +1,9 @@
+{
+  "silentRootAliases": [
+    {
+      "file": "index.js",
+      "symbol": "KernelV1",
+      "reason": "Package root must not emit on require; JSDoc + types document the alias until the next major."
+    }
+  ]
+}
