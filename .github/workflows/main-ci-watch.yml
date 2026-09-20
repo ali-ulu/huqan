@@ -16,11 +16,11 @@ concurrency:
 
 jobs:
   inspect-main:
-    name: Inspect latest main CI
+    name: Inspect recent main CI
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
-      - name: Open one alert issue for a red main commit
+      - name: Open one alert issue per red main commit
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -28,71 +28,82 @@ jobs:
         run: |
           set -euo pipefail
 
-          sha="$(gh api "repos/$REPO/commits/main" --jq '.sha')"
-          short="${sha:0:7}"
+          mapfile -t shas < <(
+            gh api "repos/$REPO/commits?sha=main&per_page=10" --jq '.[].sha'
+          )
 
-          failures="$(
-            gh api "repos/$REPO/actions/runs?head_sha=$sha&per_page=100" \
-              --jq '
-                [
-                  .workflow_runs
-                  | group_by(.name)[]
-                  | max_by([.run_number, .run_attempt])
-                  | select(
-                      .status == "completed"
-                      and (
-                        .conclusion == "failure"
-                        or .conclusion == "cancelled"
-                        or .conclusion == "timed_out"
-                        or .conclusion == "action_required"
-                        or .conclusion == "startup_failure"
+          alerts=0
+
+          for sha in "${shas[@]}"; do
+            short="${sha:0:7}"
+
+            failures="$(
+              gh api "repos/$REPO/actions/runs?head_sha=$sha&per_page=100" \
+                --jq '
+                  [
+                    .workflow_runs
+                    | group_by(.name)[]
+                    | max_by([.run_number, .run_attempt])
+                    | select(
+                        .status == "completed"
+                        and (
+                          .conclusion == "failure"
+                          or .conclusion == "cancelled"
+                          or .conclusion == "timed_out"
+                          or .conclusion == "action_required"
+                          or .conclusion == "startup_failure"
+                        )
                       )
-                    )
-                  | {
-                      name,
-                      conclusion,
-                      run_number,
-                      run_attempt,
-                      html_url
-                    }
-                ]
-              '
-          )"
+                    | {
+                        name,
+                        conclusion,
+                        run_number,
+                        run_attempt,
+                        html_url
+                      }
+                  ]
+                '
+            )"
 
-          count="$(jq 'length' <<<"$failures")"
-          if [[ "$count" -eq 0 ]]; then
-            echo "Latest main commit $short has no current failed/cancelled workflow."
-            exit 0
-          fi
+            count="$(jq 'length' <<<"$failures")"
+            if [[ "$count" -eq 0 ]]; then
+              echo "$short: no current failed/cancelled workflow."
+              continue
+            fi
 
-          title="ci(main): $short has failing workflow(s)"
-          existing="$(
-            gh issue list \
+            title="ci(main): $short has failing workflow(s)"
+            existing="$(
+              gh issue list \
+                --repo "$REPO" \
+                --state open \
+                --search "$short in:title" \
+                --json number,title \
+                --jq '.[] | select(.title == "'"$title"'") | .number' \
+                | head -n 1
+            )"
+
+            if [[ -n "$existing" ]]; then
+              echo "$short: alert issue #$existing already exists."
+              continue
+            fi
+
+            {
+              echo "Main commit \`$sha\` has completed workflow failures."
+              echo
+              echo "Commit: https://github.com/$REPO/commit/$sha"
+              echo
+              echo "### Current failing workflows"
+              jq -r '.[] | "- **\(.name)**: \(.conclusion) ([run #\(.run_number), attempt \(.run_attempt)](\(.html_url)))"' <<<"$failures"
+              echo
+              echo "_Created automatically by the repository-native Main CI Watch workflow. The watcher scans the latest 10 main commits and treats a later successful rerun as the current state for that workflow._"
+            } > /tmp/main-ci-watch.md
+
+            gh issue create \
               --repo "$REPO" \
-              --state open \
-              --search "$short in:title" \
-              --json number,title \
-              --jq '.[] | select(.title == "'"$title"'") | .number' \
-              | head -n 1
-          )"
+              --title "$title" \
+              --body-file /tmp/main-ci-watch.md
 
-          if [[ -n "$existing" ]]; then
-            echo "Alert issue #$existing already tracks $short."
-            exit 0
-          fi
+            alerts=$((alerts + 1))
+          done
 
-          {
-            echo "Latest main commit \`$sha\` has completed workflow failures."
-            echo
-            echo "Commit: https://github.com/$REPO/commit/$sha"
-            echo
-            echo "### Current failing workflows"
-            jq -r '.[] | "- **\(.name)**: \(.conclusion) ([run #\(.run_number), attempt \(.run_attempt)](\(.html_url)))"' <<<"$failures"
-            echo
-            echo "_Created automatically by the repository-native Main CI Watch workflow. Later successful reruns are treated as current state and are not reported as failures._"
-          } > /tmp/main-ci-watch.md
-
-          gh issue create \
-            --repo "$REPO" \
-            --title "$title" \
-            --body-file /tmp/main-ci-watch.md
+          echo "Scanned ${#shas[@]} recent main commits; opened $alerts new alert issue(s)."
