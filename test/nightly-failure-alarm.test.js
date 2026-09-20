@@ -256,11 +256,11 @@ test('every shard uploads its failure sidecar even when the shard fails', () => 
   assert.match(upload.slice(0, 700), /matrix\.node-version/);
 });
 
-test('workflow runs the PR and nightly platform matrix with explicit Windows shell', () => {
+test('workflow runs PR tests on Ubuntu and keeps the broader post-merge platform matrix', () => {
   const workflow = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'benchmark.yml'), 'utf8');
   const job = workflow.slice(workflow.indexOf('  runtime-test:'));
   assert.match(job, /os: \$\{\{ fromJSON\(github\.event_name == 'pull_request'/);
-  assert.match(job, /\["ubuntu-latest", "windows-latest"\]/);
+  assert.match(job, /github\.event_name == 'pull_request' && '\["ubuntu-latest"\]' \|\| '\["ubuntu-latest", "windows-latest", "macos-latest"\]'/);
   assert.match(job, /\["ubuntu-latest", "windows-latest", "macos-latest"\]/);
   assert.match(job, /node-version: \$\{\{ fromJSON\(github\.event_name == 'pull_request'/);
   assert.match(job, /\[22, 24\]/);
