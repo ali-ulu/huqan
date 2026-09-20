@@ -52,6 +52,17 @@ function fail(message) {
   console.error(`FAIL: ${message}`);
 }
 
+/**
+ * Hand the failures recorded by the shared verifiers below to another
+ * script. verify-published-round-trip.js (#2631) reuses these verifiers but
+ * owns its own verdict, so it drains this list after each consumer instead
+ * of sharing the exit code. The messages were already printed once by
+ * fail(); the drained strings must be recorded silently.
+ */
+function takeSharedFailures() {
+  return failures.splice(0, failures.length);
+}
+
 function ok(message) {
   console.log(`  ok: ${message}`);
 }
@@ -68,6 +79,48 @@ function run(command, args, options = {}) {
     stderr: result.stderr || '',
     output: `${result.stdout || ''}${result.stderr || ''}`,
   };
+}
+
+/**
+ * Every declared bin is present in the install and reports the expected
+ * version. Shared with scripts/verify-published-round-trip.js (#2631), which
+ * checks the registry copy instead of a local pack.
+ */
+function verifyBinsAndVersion(label, binDir, consumer, env, expectedVersion = pkg.version) {
+  const binMap = pkg.bin || {};
+  for (const binName of Object.keys(binMap)) {
+    const binPath = packageBin(binDir, binName);
+    if (fs.existsSync(binPath)) ok(`bin present: ${binName}`);
+    else fail(`${label}: declared bin is missing from the install: ${binName}`);
+  }
+
+  const version = run(packageBin(binDir, 'huqan'), ['--version'], { cwd: consumer, env });
+  if (version.stdout.trim() === expectedVersion) ok(`huqan --version reports ${expectedVersion}`);
+  else fail(`${label}: huqan --version said "${version.stdout.trim()}", expected "${expectedVersion}"`);
+}
+
+/**
+ * quickstart must exit 0 AND print no module-load failure lines, then produce
+ * a canonical Trust Receipt. Shared with verify-published-round-trip.js (#2631).
+ */
+function verifyQuickstart(label, binDir, consumer, env) {
+  const quickstart = run(packageBin(binDir, 'huqan'), ['quickstart'], { cwd: consumer, env });
+  if (quickstart.status !== 0) {
+    fail(`${label}: quickstart exited ${quickstart.status}\n${quickstart.output.slice(-2000)}`);
+  } else {
+    // The point of the whole script: read the output, not the exit code.
+    const loadErrors = quickstart.output.split(/\r?\n/)
+      .filter((line) => LOAD_FAILURE_PATTERNS.some((pattern) => pattern.test(line)));
+    if (loadErrors.length > 0) {
+      fail(`${label}: quickstart succeeded but ${loadErrors.length} module(s) failed to load:\n`
+        + loadErrors.map((line) => `      ${line.trim()}`).join('\n'));
+    } else {
+      ok('quickstart runs with no module load failures');
+    }
+
+    if (/status\s+:\s*canonical/.test(quickstart.output)) ok('quickstart produces a canonical Trust Receipt');
+    else fail(`${label}: quickstart did not produce a canonical Trust Receipt`);
+  }
 }
 
 /**
@@ -103,37 +156,13 @@ function verifyInstall(label, tarball, installFlags) {
     ok(`installs (${installFlags.join(' ') || 'default'})`);
 
     const binDir = path.join(consumer, 'node_modules', '.bin');
-    for (const binName of Object.keys(pkg.bin || {})) {
-      const binPath = packageBin(binDir, binName);
-      if (fs.existsSync(binPath)) ok(`bin present: ${binName}`);
-      else fail(`${label}: declared bin is missing from the install: ${binName}`);
-    }
-
-    const version = run(packageBin(binDir, 'huqan'), ['--version'], { cwd: consumer, env });
-    if (version.stdout.trim() === pkg.version) ok(`huqan --version reports ${pkg.version}`);
-    else fail(`${label}: huqan --version said "${version.stdout.trim()}", expected "${pkg.version}"`);
+    verifyBinsAndVersion(label, binDir, consumer, env);
 
     verifyExternalAdapters(label, consumer);
     verifyExternalGuard(label, binDir, consumer, env);
     verifyDecisionExplainer(label, consumer, env);
 
-    const quickstart = run(packageBin(binDir, 'huqan'), ['quickstart'], { cwd: consumer, env });
-    if (quickstart.status !== 0) {
-      fail(`${label}: quickstart exited ${quickstart.status}\n${quickstart.output.slice(-2000)}`);
-    } else {
-      // The point of the whole script: read the output, not the exit code.
-      const loadErrors = quickstart.output.split(/\r?\n/)
-        .filter((line) => LOAD_FAILURE_PATTERNS.some((pattern) => pattern.test(line)));
-      if (loadErrors.length > 0) {
-        fail(`${label}: quickstart succeeded but ${loadErrors.length} module(s) failed to load:\n`
-          + loadErrors.map((line) => `      ${line.trim()}`).join('\n'));
-      } else {
-        ok('quickstart runs with no module load failures');
-      }
-
-      if (/status\s+:\s*canonical/.test(quickstart.output)) ok('quickstart produces a canonical Trust Receipt');
-      else fail(`${label}: quickstart did not produce a canonical Trust Receipt`);
-    }
+    verifyQuickstart(label, binDir, consumer, env);
 
     verifyMcp(label, binDir, consumer, env);
     verifyA2aRuntime(label, consumer, env);
@@ -263,7 +292,7 @@ function verifyA2aRuntime(label, cwd, env) {
  * The MCP executable is what every editor integration starts, so a tarball
  * that installs but cannot answer `initialize` is broken for its main use.
  */
-function verifyMcp(label, binDir, cwd, env) {
+function verifyMcp(label, binDir, cwd, env, expectedVersion = pkg.version) {
   const mcpBin = packageBin(binDir, 'huqan-mcp');
   if (!fs.existsSync(mcpBin)) return;
 
@@ -294,11 +323,11 @@ function verifyMcp(label, binDir, cwd, env) {
     fail(`${label}: huqan-mcp did not answer initialize\n${mcp.output.slice(-1000)}`);
     return;
   }
-  if (serverInfo.name !== 'huqan' || serverInfo.version !== pkg.version) {
+  if (serverInfo.name !== 'huqan' || serverInfo.version !== expectedVersion) {
     fail(`${label}: huqan-mcp identified as ${JSON.stringify(serverInfo)}, expected `
-      + `{"name":"huqan","version":"${pkg.version}"}`);
+      + `{"name":"huqan","version":"${expectedVersion}"}`);
   } else {
-    ok(`huqan-mcp answers initialize as huqan ${pkg.version}`);
+    ok(`huqan-mcp answers initialize as huqan ${expectedVersion}`);
   }
 
   if (toolCount > 0) ok(`huqan-mcp lists ${toolCount} tools`);
@@ -342,4 +371,17 @@ function main() {
 
 if (require.main === module) process.exit(main());
 
-module.exports = { LOAD_FAILURE_PATTERNS };
+module.exports = {
+  LOAD_FAILURE_PATTERNS,
+  NPM_COMMAND,
+  packageBin,
+  run,
+  takeSharedFailures,
+  verifyA2aRuntime,
+  verifyBinsAndVersion,
+  verifyDecisionExplainer,
+  verifyExternalAdapters,
+  verifyExternalGuard,
+  verifyMcp,
+  verifyQuickstart,
+};

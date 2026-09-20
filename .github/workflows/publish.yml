@@ -251,6 +251,22 @@ jobs:
             exit "${publish_status}"
           fi
 
+      # Registry round-trip (#2631, C4): prove the copy npm now serves is
+      # the release that was just authorized. Installs name@version from the
+      # public registry into an empty project and replays the consumer smoke
+      # (quickstart, huqan-mcp initialize, huqan-gate block), then checks the
+      # provenance attestation on the dist record and that the pre-upload SBOM
+      # describes the published manifest. The script waits out replication lag
+      # internally, so a failure here means the release itself, not the CDN.
+      #
+      # A failure cannot unpublish -- npm versions are immutable -- so this
+      # fails the run loudly instead of letting a consumer find out first.
+      # Same gate as Publish: nothing was uploaded on a dry run, so there is
+      # nothing to download back.
+      - name: Verify the published package round-trips through the registry
+        if: github.event_name == 'push' || inputs.dry_run == false
+        run: node scripts/verify-published-round-trip.js --sbom "huqan-${GITHUB_REF_NAME}.cdx.json"
+
       - name: Dry run complete
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run
         run: echo "Every gate passed on tag ${GITHUB_REF_NAME}. Re-run with dry_run unchecked, or push a v* tag, to publish."
