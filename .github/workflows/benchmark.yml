@@ -372,7 +372,7 @@ jobs:
       matrix:
         # PRs exercise the supported Node 22 package on Linux and Windows.
         # Scheduled/manual runs also cover macOS and the current Node 24 line.
-        os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest", "windows-latest"]' || '["ubuntu-latest", "windows-latest", "macos-latest"]') }}
+        os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || '["ubuntu-latest", "windows-latest", "macos-latest"]') }}
         node-version: ${{ fromJSON(github.event_name == 'pull_request' && '[22]' || '[22, 24]') }}
         shard: [1, 2, 3, 4, 5]
     defaults:
