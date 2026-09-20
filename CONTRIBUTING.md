@@ -62,9 +62,15 @@ Include a short summary with:
 
 ### Before pushing: run `npm run verify`
 
-`npm run verify` is the comprehensive local pre-push gate. It runs the
-environment check, lint, architecture checks, documentation drift checks,
-package-closure checks, and the full test suite in sequence.
+`npm run verify` is the comprehensive local pre-push gate. It is driven by
+`scripts/verify-suite.js`, which owns the check manifest: environment
+check, lint, import cycles, module boundary, layers, file size, GitHub
+Action pins, dependency licenses, documentation drift, architecture
+trackers, package closure, property tests, and the full test suite.
+Checks run fast-first, the run stops at the first failing check, and a
+per-check pass/fail summary with timings is printed; any failing check
+fails the gate. To add a check to the gate, add a stage to `STAGES` in
+`scripts/verify-suite.js` — do not grow a shell chain in `package.json`.
 
 For fast local iteration before the full gate:
 
