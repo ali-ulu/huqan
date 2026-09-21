@@ -54,6 +54,7 @@ const STAGES = [
   { name: 'package-closure', command: ['npm', 'run', 'check:package-closure', '--silent'] },
   { name: 'doctor-contract', command: ['node', 'scripts/run-tests.js', 'test/cli-doctor.test.js'] },
   { name: 'property-tests', command: ['npm', 'run', 'test:property', '--silent'] },
+  { name: 'fuzz-tests', command: ['npm', 'run', 'test:fuzz', '--silent'] },
   { name: 'tests', command: ['npm', 'test'], slow: true },
 ];
 
