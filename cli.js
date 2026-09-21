@@ -46,8 +46,7 @@ const {
   mapCliCommandToMcpTool,
   commandFailure,
 } = require('./lib/cli-helpers');
-const { runCompanyIngest } = require('./lib/cli-company-ingest');
-const { runBackupCommand, runRestoreCommand } = require('./lib/cli-backup-commands');
+const { runCompanyIngest } = require('./lib/cli-company-ingest'); const { runBackupCommand, runRestoreCommand } = require('./lib/cli-backup-commands');
 const { runStatusCommand, runDoctorCommand } = require('./lib/cli-status-command');
 
 // #2136: one handler per CLI command; a new command is a row, not a case. Handlers get the command context
@@ -296,7 +295,8 @@ const CLI_COMMAND_HANDLERS = Object.freeze(Object.assign(Object.create(null), {
       createOperatorCapability: ({ tool, arguments: args }) => cli.createOperatorCapability(tool, args),
     });
   },
-  'durum': (cli) => runStatusCommand(cli), 'doctor': () => runDoctorCommand({ rootDir: process.cwd() }),
+  'durum': (cli) => runStatusCommand(cli),
+  'doctor': () => runDoctorCommand({ rootDir: process.cwd() }),
   'rüya': (cli, args, opts, command) => {
     const hypotheses = cli.dream.dream();
     if (hypotheses.length === 0) return 'I could not produce a hypothesis; I need more information.';
