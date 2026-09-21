@@ -686,6 +686,7 @@
     "lib/workflow-tool-registration.js",
     "llmAdapter.js",
     "mcpServer.js",
+    "migrations",
     "nlp/index.js",
     "nlp/lang-ar.js",
     "nlp/lang-de.js",
