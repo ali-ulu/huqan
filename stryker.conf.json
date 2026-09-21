@@ -80,7 +80,9 @@
       "test/v5-d3-public-trust-receipt.test.js",
       "test/memory-lifecycle-restore-receipt-chain.test.js",
       "test/json-mutations-journal-backup-restore.test.js",
-      "test/receipt-trust-root-4-migration-compatibility.test.js"
+      "test/receipt-trust-root-4-migration-compatibility.test.js",
+      "test/mcp-tool-policy-mutation.test.js",
+      "test/receipt-validation-cache-mutation.test.js"
     ],
     "forceBail": true
   },
