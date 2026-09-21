@@ -1,0 +1,10 @@
+[
+  {
+    "name": "KernelV1",
+    "kind": "export",
+    "deprecatedIn": "0.12.0",
+    "removalIn": "1.0.0",
+    "migrationPath": "docs/migrations/kernel-v2.md",
+    "warnedIn": ["index.js"]
+  }
+]

@@ -12,9 +12,12 @@
  * The root export is KernelV2. The v1 Kernel stays reachable under an
  * explicitly deprecated name so consumers that genuinely depend on it are not
  * broken abruptly; it is no longer the default and no longer a runtime option.
- * The deprecation lives in JSDoc, the type declarations and the docs — not in
- * a runtime `console.warn`, so importing this library stays free of side
- * effects. `KernelV1` can be removed in the next major release.
+ * Deprecation contract: DEPRECATION_POLICY.md; registry: deprecations.json.
+ * `KernelV1` is recorded there as deprecated in 0.12.0 with removal in 1.0.0,
+ * warned by construction below and guided by docs/migrations/kernel-v2.md --
+ * importing this library stays free of side effects because no deprecated
+ * export warns at require time. `KernelV1` can be removed in the next major
+ * release.
  *
  * Note on CommonJS mechanics: `module.exports = KernelV2` followed by property
  * assignment attaches those properties to the KernelV2 class object itself, so
@@ -48,7 +51,17 @@ module.exports = KernelV2;
 module.exports.KernelV2 = KernelV2;
 
 /** @deprecated Use KernelV2 / require('huqan'). Removed in the next major. */
-module.exports.KernelV1 = Kernel;
+Object.defineProperty(module.exports, 'KernelV1', {
+  enumerable: true,
+  configurable: false,
+  get() {
+    process.emitWarning(
+      'KernelV1 is deprecated since 0.12.0 and will be removed in 1.0.0. Use KernelV2.',
+      { type: 'DeprecationWarning' },
+    );
+    return Kernel;
+  },
+});
 
 // These four were part of the published surface while `main` was kernel.js:
 // `require('huqan').ProvenanceError` and
