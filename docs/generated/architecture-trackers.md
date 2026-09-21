@@ -37,7 +37,7 @@ Tracked in total: **64**
 | `storage.js` | 627 | — |
 | `lib/conflict-detector.js` | 617 | ISP:6 |
 | `lib/github-app-streaming-trust.js` | 612 | — |
-| `lib/mcp-tool-data-schemas.js` | 612 | — |
+| `lib/mcp-tool-data-schemas.js` | 611 | — |
 | `backupRestore.js` | 610 | — |
 | `lib/mcp-gate-adapter.js` | 606 | — |
 | `finalizer.js` | 604 | — |
@@ -61,7 +61,7 @@ Tracked in total: **64**
 | `causalSimulator.js` | 478 | — |
 | `lib/http/workflow-data-routes.js` | 477 | — |
 | `lib/connector-action-firewall.js` | 469 | — |
-| `lib/observability/api-contract.js` | 469 | — |
+| `lib/observability/api-contract.js` | 468 | — |
 | `lib/causal/causal-traversal.js` | 451 | — |
 | `lib/external-action-receipt-collector.js` | 448 | — |
 | `lib/external-client-trust-config.js` | 448 | — |
