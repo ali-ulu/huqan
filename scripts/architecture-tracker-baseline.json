@@ -213,7 +213,7 @@
     },
     "lib/memory-store.js": {
       "band": "decompose",
-      "lines": 968,
+      "lines": 966,
       "signals": [
         "FANOUT:23"
       ]
