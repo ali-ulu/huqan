@@ -1,0 +1,25 @@
+name: CodeQL PR 2762 Probe
+
+on:
+  push:
+    branches:
+      - chore/codeql-pr2762-probe
+
+permissions:
+  contents: read
+  security-events: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: List open CodeQL alerts on PR 2762
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api \
+            -H "X-GitHub-Api-Version: 2026-03-10" \
+            "repos/${GITHUB_REPOSITORY}/code-scanning/alerts?state=open&tool_name=CodeQL&pr=2762&per_page=100" \
+            --jq '.[] | {number, rule: .rule.id, severity: .rule.severity, description: .rule.description, message: .most_recent_instance.message.text, path: .most_recent_instance.location.path, start_line: .most_recent_instance.location.start_line, ref: .most_recent_instance.ref, commit_sha: .most_recent_instance.commit_sha}'
