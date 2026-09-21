@@ -160,3 +160,55 @@ test('runRiskRules composes independent core detectors', () => {
   assert.ok(rules.includes(RISK_RULES.ABSOLUTE_CLAIM));
   assert.ok(rules.includes(RISK_RULES.PROVENANCE_MISSING));
 });
+
+test('scope and relation detectors accept statement/claim/from/verb fallbacks', () => {
+  const scope = detectScopeExpansion(
+    { statement: 'cats sometimes purr' },
+    { claim: 'cats always purr' },
+  );
+  assert.equal(scope.rule, RISK_RULES.SCOPE_EXPANSION);
+  assert.equal(scope.meta.storedText, 'cats sometimes purr');
+  assert.equal(scope.meta.incomingText, 'cats always purr');
+
+  const relation = detectRelationDrift(
+    { statement: 'alpha likes beta', from: 'alpha', verb: 'likes' },
+    { claim: 'alpha hates beta', from: 'alpha', verb: 'hates' },
+  );
+  assert.equal(relation.rule, RISK_RULES.RELATION_DRIFT);
+  assert.deepEqual(relation.meta, { storedRelation: 'likes', incomingRelation: 'hates' });
+
+  const inferredSubject = detectRelationDrift('alpha likes beta', 'alpha hates beta');
+  assert.equal(inferredSubject.rule, RISK_RULES.RELATION_DRIFT);
+  assert.deepEqual(inferredSubject.meta, { storedRelation: '', incomingRelation: '' });
+});
+
+test('multilingual detector recognizes each supported non-Latin script independently', () => {
+  for (const [text, script] of [
+    ['abc مرحبا', 'rtl'],
+    ['abc привет', 'cyrillic'],
+    ['abc 世界', 'cjk'],
+  ]) {
+    const result = detectMultilingualAmbiguity(text);
+    assert.equal(result.rule, RISK_RULES.MULTILINGUAL_AMBIGUITY, script);
+    assert.ok(result.meta.scripts.includes('latin'), script);
+    assert.ok(result.meta.scripts.includes(script), script);
+  }
+
+  for (const word of ['what', 'was', 'wo', 'welche', 'hangi', 'nedir', 'ne', 'quest', 'que']) {
+    assert.ok(detectMultilingualAmbiguity(`${word} value`), word);
+  }
+});
+
+test('runRiskRules accepts match from options and all incoming text aliases', () => {
+  for (const incoming of [
+    { text: 'medical always' },
+    { statement: 'medical always' },
+    { claim: 'medical always' },
+    'medical always',
+  ]) {
+    const rules = runRiskRules({ incoming }, { match: { score: 0.1 } }).map(item => item.rule);
+    assert.ok(rules.includes(RISK_RULES.WEAK_PARTIAL_MATCH));
+    assert.ok(rules.includes(RISK_RULES.HIGH_RISK_DOMAIN));
+    assert.ok(rules.includes(RISK_RULES.ABSOLUTE_CLAIM));
+  }
+});
