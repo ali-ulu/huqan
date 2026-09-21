@@ -136,3 +136,9 @@ When a summary and the repository disagree, the repository wins: [product surfac
 ---
 
 **Confidence is not truth. Verify before you trust.**
+
+## Support
+
+If HUQAN saves you from a bad write, consider supporting the project:
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-aliulu-ffdd00?logo=buy-me-a-coffee\&logoColor=black)](https://buymeacoffee.com/aliulu)
