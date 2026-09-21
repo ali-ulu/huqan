@@ -83,7 +83,16 @@
       "test/receipt-trust-root-4-migration-compatibility.test.js",
       "test/mcp-tool-policy-mutation.test.js",
       "test/receipt-validation-cache-mutation.test.js",
-      "test/server-timeouts.test.js"
+      "test/server-timeouts.test.js",
+      "test/workflow-request-validation-mutation.test.js",
+      "test/server-timeouts-mutation.test.js",
+      "test/risk-rules-mutation.test.js",
+      "test/path-safety-mutation.test.js",
+      "test/canonical-receipt-mutation.test.js",
+      "test/approval-flow-mutation.test.js",
+      "test/risk-classify-boundaries-mutation.test.js",
+      "test/tool-call-gate-mutation.test.js",
+      "test/memory-admission-mutation.test.js"
     ],
     "forceBail": true
   },
