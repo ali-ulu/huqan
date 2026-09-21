@@ -93,7 +93,7 @@
     },
     "lib/conflict-detector.js": {
       "band": "recorded",
-      "lines": 614,
+      "lines": 617,
       "signals": []
     },
     "lib/connector-action-firewall.js": {
