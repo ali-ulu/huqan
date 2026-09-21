@@ -43,6 +43,7 @@ const {
   admitCandidateIngress,
   admitLearn,
 } = require('../lib/kernel-mutation-admission.js');
+const { routeCandidateClaim } = require('../lib/conflict-detector.js');
 
 const repoRoot = path.join(__dirname, '..');
 const FIXED_CLOCK = () => new Date('2026-08-16T12:00:00.000Z');
@@ -374,6 +375,7 @@ test('candidate ingress: the real seam admits, and kernel.ingestCandidateClaim h
 
 test('candidate ingress: conflict detector does not depend on Kernel private seams (#2166)', () => {
   const kernel = makeCandidateKernel('conflict-detector-public-boundary');
+  const evaluateLearnAdmission = kernel._evaluateLearnAdmission.bind(kernel);
   const forbidden = [
     '_appendAuditEvent',
     '_backgroundProvenance',
@@ -387,7 +389,9 @@ test('candidate ingress: conflict detector does not depend on Kernel private sea
     };
   }
 
-  const routed = kernel.ingestCandidateClaim(makeClaim(), { workspaceId: 'workspace-a' });
+  const routed = routeCandidateClaim(kernel, makeClaim(), { workspaceId: 'workspace-a' }, {
+    evaluateLearnAdmission,
+  });
 
   assert.equal(routed.candidate.status, 'accepted');
   assert.ok(kernel.graph.getEdge('kedi', 'hayvan', 'IS_A', 'workspace-a'));
@@ -398,7 +402,7 @@ test('candidate ingress: conflict detector does not depend on Kernel private sea
 
   const source = fs.readFileSync(path.join(repoRoot, 'lib/conflict-detector.js'), 'utf8');
   for (const name of forbidden) {
-    assert.doesNotMatch(source, new RegExp(`\\\\.${name.replace(/^_/, '\\_')}\\\\s*\\\\(`),
+    assert.doesNotMatch(source, new RegExp(`\\.${name}\\s*\\(`),
       `conflict-detector must not call ${name}`);
   }
 });
