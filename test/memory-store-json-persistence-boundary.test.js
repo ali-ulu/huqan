@@ -67,12 +67,10 @@ test('#2272: JSON transaction orchestration receives its transaction boundary', 
   assert.equal(calls, 1);
 });
 
-test('#2272: JSON persistence shapes write errors without a private store callback', () => {
-  const missingDir = path.join(
-    os.tmpdir(),
-    `huqan-json-boundary-${process.pid}-${Date.now()}`,
-    'missing',
-  );
+test('#2272: JSON persistence shapes write errors without a private store callback', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-json-boundary-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const missingDir = path.join(root, 'missing');
   const store = {
     _jsonPath: path.join(missingDir, 'memory.json'),
     _persistenceError() {
