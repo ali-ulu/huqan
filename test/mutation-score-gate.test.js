@@ -74,15 +74,22 @@ test('baseline ratchet cannot remove a target or lower a stored score', () => {
   ]);
 });
 
-test('PR mutation target selection is limited to changed protected source files', () => {
+test('PR mutation target selection is changed-source-only after the bootstrap', () => {
   assert.deepEqual(
     selectMutationTargetsFromFiles(['stryker.conf.json', 'config/mutation-baseline.json'], baseline),
     [],
-    'mutation infrastructure is validated by its own tests and baseline ratchet; full Stryker runs nightly/manual',
+    'mutation infrastructure alone does not force a full run once a trusted baseline exists',
   );
 
   assert.deepEqual(
     selectMutationTargetsFromFiles(['lib/a.js', 'README.md', 'lib/b.js'], baseline),
+    ['lib/a.js', 'lib/b.js'],
+  );
+});
+
+test('the introducing PR measures every protected target once before the baseline is trusted', () => {
+  assert.deepEqual(
+    selectMutationTargetsFromFiles(['README.md'], baseline, { bootstrap: true }),
     ['lib/a.js', 'lib/b.js'],
   );
 });
