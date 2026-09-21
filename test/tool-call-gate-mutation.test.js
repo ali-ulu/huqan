@@ -306,7 +306,7 @@ test('every read/write/destructive/deploy/side-effect action token keeps its aut
       reason: 'LOW_RISK_ACTION',
     },
     {
-      actions: ['write','update','create','set','edit','patch','save','insert','add','modify'],
+      actions: ['write','update','create','set','edit','save','insert','add','modify'],
       decision: 'review',
       reason: 'REVIEW_REQUIRED',
     },
@@ -334,6 +334,13 @@ test('every read/write/destructive/deploy/side-effect action token keeps its aut
       assert.equal(result.reason, group.reason, action);
     }
   }
+});
+
+test('bare patch is classified by the network-mutation branch, not the generic write branch', () => {
+  const result = evaluateToolCall({ action: 'patch', toolName: 'patch-tool', classifier });
+  assert.equal(result.decision, 'review');
+  assert.equal(result.reason, 'EXTERNAL_SIDE_EFFECT_REVIEW_REQUIRED');
+  assert.deepEqual(result.risk, { level: 'high', score: 0.85, category: 'external_side_effect' });
 });
 
 test('every network mutation phrase escalates payload text with the external-side-effect reason', () => {
