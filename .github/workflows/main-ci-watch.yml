@@ -109,9 +109,33 @@ jobs:
                 '
             )"
 
+            # A cancelled run with zero jobs never reached repository code. This
+            # is infrastructure/supersession noise, not a product or benchmark
+            # failure, so do not rerun it or open a CI incident for it.
+            filtered_failures='[]'
+            while IFS= read -r failure; do
+              run_id="$(jq -r '.id' <<<"$failure")"
+              conclusion="$(jq -r '.conclusion' <<<"$failure")"
+
+              if [[ "$conclusion" == "cancelled" ]]; then
+                jobs_count="$(
+                  gh api "repos/$REPO/actions/runs/$run_id/jobs?per_page=1" --jq '.total_count'
+                )"
+                if [[ "$jobs_count" -eq 0 ]]; then
+                  echo "$short: workflow run $run_id was cancelled before any job started; ignoring as superseded/infrastructure cancellation."
+                  continue
+                fi
+              fi
+
+              filtered_failures="$(
+                jq --argjson failure "$failure" '. + [$failure]' <<<"$filtered_failures"
+              )"
+            done < <(jq -c '.[]' <<<"$failures")
+
+            failures="$filtered_failures"
             count="$(jq 'length' <<<"$failures")"
             if [[ "$count" -eq 0 ]]; then
-              echo "$short: no current failed/cancelled workflow."
+              echo "$short: no actionable failed/cancelled workflow."
               continue
             fi
 
