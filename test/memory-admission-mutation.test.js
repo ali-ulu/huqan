@@ -5,6 +5,8 @@ const test = require('node:test');
 const {
   MEMORY_ADMISSION_POLICY_VERSION,
   normalizeMemoryAdmissionDecision,
+  normalizeMemoryAdmissionRequest,
+  buildMemoryAdmissionRequest,
   buildMemoryAdmissionReceipt,
   validateMemoryAdmissionRequest,
   evaluateMemoryAdmission,
@@ -267,4 +269,182 @@ test('quarantine signal vocabulary covers tombstone, delete, supersede and statu
     assert.equal(result.decision.decision, 'quarantine', JSON.stringify(proposedMemory));
     assert.ok(result.decision.signals.some(signal => signal.reason === 'quarantine_signal_detected'));
   }
+});
+
+
+test('request-builder mutation sentinels pin precedence, defaults and deterministic ids', () => {
+  const overridden = buildMemoryAdmissionRequest({
+    ...base,
+    admissionId: '',
+    workspaceId: '',
+    approvalId: '',
+    approvalStatus: '',
+    metadata: undefined,
+  }, {
+    admissionId: 'adm-option',
+    workspaceId: 'workspace-option',
+    createdAt: '2026-07-01T00:00:00.000Z',
+    riskScore: 55,
+    approvalRequired: true,
+    metadata: { source: 'option' },
+  });
+  assert.equal(overridden.ok, true);
+  assert.equal(overridden.type, 'memory-admission-request');
+  assert.equal(overridden.request.admissionId, 'adm-option');
+  assert.equal(overridden.request.workspaceId, 'workspace-option');
+  assert.equal(overridden.request.createdAt, '2026-07-01T00:00:00.000Z');
+  assert.equal(overridden.request.riskScore, 55);
+  assert.equal(overridden.request.approvalRequired, true);
+  assert.equal(overridden.request.approvalStatus, 'pending');
+  assert.deepEqual(overridden.request.metadata, { source: 'option' });
+
+  const crypto = require('node:crypto');
+  const generatedInput = {
+    ...base,
+    admissionId: '',
+    approvalId: '',
+    approvalStatus: 'not_required',
+    createdAt: '2026-07-02T00:00:00.000Z',
+  };
+  const generated = buildMemoryAdmissionRequest(generatedInput, {
+    createdAt: generatedInput.createdAt,
+  });
+  const expected = 'madm_' + crypto
+    .createHash('sha256')
+    .update([
+      generated.request.workspaceId,
+      generated.request.agentId,
+      generated.request.actor,
+      generated.request.memoryDraftId,
+      generated.request.provenanceId,
+      generated.request.reason,
+      generated.request.createdAt,
+    ].join('|'), 'utf8')
+    .digest('hex')
+    .slice(0, 32);
+  assert.equal(generated.ok, true);
+  assert.equal(generated.request.admissionId, expected);
+
+  const normalized = normalizeMemoryAdmissionRequest({
+    ...base,
+    approvalId: '',
+    approvalStatus: '',
+    riskScore: 101.6,
+  }, {
+    approvalRequired: false,
+  });
+  assert.equal(normalized.approvalStatus, 'not_required');
+  assert.equal(normalized.riskScore, 100);
+});
+
+test('decision projection mutation sentinels pin every fallback surface', () => {
+  const requestProjection = {
+    ...base,
+    workspaceId: 'request-workspace',
+    actor: 'request-actor',
+    agentId: 'request-agent',
+    memoryDraftId: 'request-draft',
+    provenanceId: 'request-prov',
+    trustPolicyVersion: 'request-policy',
+    approvalId: 'request-approval',
+    approvalStatus: 'approved',
+    createdAt: '2026-08-01T00:00:00.000Z',
+    proposedMemory: { content: 'request-content' },
+  };
+  const normalized = normalizeMemoryAdmissionDecision({
+    ok: false,
+    decision: 'quarantine',
+    reason: ' explicit reason ',
+    signals: [
+      { decision: 'review', reason: ' review reason ' },
+      { decision: 'quarantine', reason: ' quarantine reason ' },
+    ],
+    risk: { level: ' HIGH ', score: 91 },
+    warnings: ['warning'],
+    errors: ['plain-error', { field: 'x', message: 'structured' }],
+    request: requestProjection,
+    receipt: { receiptId: 'nested-receipt', marker: true },
+    metadata: { policyVersion: 'policy-x', workspaceId: 'metadata-workspace' },
+    admissionId: 'admission-x',
+  });
+
+  assert.equal(normalized.ok, false);
+  assert.equal(normalized.decision, 'quarantine');
+  assert.equal(normalized.allowed, false);
+  assert.equal(normalized.canApply, false);
+  assert.equal(normalized.canDryRun, true);
+  assert.equal(normalized.requiresReview, true);
+  assert.equal(normalized.requiredReview, true);
+  assert.equal(normalized.quarantined, true);
+  assert.equal(normalized.rejected, false);
+  assert.equal(normalized.reason, 'explicit reason');
+  assert.deepEqual(normalized.signals, [
+    { decision: 'review', reason: 'review reason' },
+    { decision: 'quarantine', reason: 'quarantine reason' },
+  ]);
+  assert.deepEqual(normalized.risk, { level: 'high', score: 91 });
+  assert.deepEqual(normalized.warnings, ['warning']);
+  assert.deepEqual(normalized.errors, [
+    { message: 'plain-error' },
+    { field: 'x', message: 'structured' },
+  ]);
+  assert.deepEqual(normalized.request, requestProjection);
+  assert.deepEqual(normalized.receipt, { receiptId: 'nested-receipt', marker: true });
+  assert.deepEqual(normalized.metadata, {
+    policyVersion: 'policy-x',
+    workspaceId: 'metadata-workspace',
+  });
+  assert.equal(normalized.admissionId, 'admission-x');
+  assert.equal(normalized.workspaceId, 'request-workspace');
+  assert.equal(normalized.actor, 'request-actor');
+  assert.equal(normalized.agentId, 'request-agent');
+  assert.equal(normalized.memoryDraftId, 'request-draft');
+  assert.equal(normalized.provenanceId, 'request-prov');
+  assert.equal(normalized.trustPolicyVersion, 'request-policy');
+  assert.equal(normalized.approvalId, 'request-approval');
+  assert.equal(normalized.approvalStatus, 'approved');
+  assert.equal(normalized.receiptId, 'nested-receipt');
+  assert.equal(normalized.createdAt, '2026-08-01T00:00:00.000Z');
+  assert.deepEqual(normalized.proposedMemory, { content: 'request-content' });
+});
+
+test('receipt mutation sentinels pin generated id, reason, signals and full status projection', () => {
+  const crypto = require('node:crypto');
+  const createdAt = '2026-09-01T00:00:00.000Z';
+  const normalized = normalizeMemoryAdmissionDecision({
+    ...base,
+    decision: 'review',
+    reason: 'review-required',
+    signals: [{ decision: 'review', reason: 'signal-review' }],
+    request: base,
+    admissionId: 'madm_001',
+    workspaceId: 'workspace-a',
+    receiptId: '',
+    createdAt,
+  });
+  const receipt = buildMemoryAdmissionReceipt(normalized, { createdAt });
+  const expectedId = 'madm_receipt_' + crypto
+    .createHash('sha256')
+    .update(['madm_001', 'workspace-a', 'review', createdAt].join('|'), 'utf8')
+    .digest('hex')
+    .slice(0, 32);
+  assert.equal(receipt.receiptId, expectedId);
+  assert.equal(receipt.receiptKind, 'memory_review_receipt');
+  assert.equal(receipt.receiptType, 'memory-review');
+  assert.equal(receipt.decision, 'review');
+  assert.equal(receipt.status, 'review');
+  assert.equal(receipt.reason, 'review-required');
+  assert.deepEqual(receipt.signals, [{ decision: 'review', reason: 'signal-review' }]);
+  assert.equal(receipt.canonical, false);
+  assert.equal(receipt.reviewed, true);
+  assert.equal(receipt.quarantined, false);
+  assert.equal(receipt.rejected, false);
+  assert.equal(receipt.createdAt, createdAt);
+
+  const invalid = evaluateMemoryAdmission(null, { createdAt });
+  assert.equal(invalid.ok, false);
+  assert.equal(invalid.type, 'memory-admission-decision');
+  assert.equal(invalid.decision, null);
+  assert.equal(invalid.receipt, null);
+  assert.ok(invalid.errors.length > 0);
 });
