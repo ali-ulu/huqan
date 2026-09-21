@@ -370,7 +370,8 @@ test('candidate ingress: the real seam admits, and kernel.ingestCandidateClaim h
   const kernelSource = fs.readFileSync(path.join(repoRoot, 'kernel.js'), 'utf8');
   assert.equal((kernelSource.match(/routeCandidateClaim\(/g) || []).length, 0,
     'kernel.js must reach routeCandidateClaim only through admitCandidateIngress');
-  assert.match(kernelSource, /admitCandidateIngress\(this, input, opts\)/);
+  assert.match(kernelSource, /admitCandidateIngress\(this, input, opts, null,[\s\S]{0,180}?this\._evaluateLearnAdmission\(/,
+    'kernel.js must inject its admission evaluator at the composition root');
 });
 
 test('candidate ingress: conflict detector does not depend on Kernel private seams (#2166)', () => {
