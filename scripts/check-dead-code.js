@@ -189,7 +189,11 @@ function checkDeadCode(opts = {}) {
   if (staleAcknowledgements.length > 0) {
     lines.push(`FAIL: ${staleAcknowledgements.length} stale NOT_YET_WIRED acknowledgement(s) (now reachable or gone):`);
     const reachabilityFile = 'lib/module-reachability.js';
-    const reachabilitySource = fs.readFileSync(path.join(root, reachabilityFile), 'utf8');
+    const requestedReachabilityPath = path.join(root, reachabilityFile);
+    const reachabilityPath = fs.existsSync(requestedReachabilityPath)
+      ? requestedReachabilityPath
+      : path.join(REPO_ROOT, reachabilityFile);
+    const reachabilitySource = fs.readFileSync(reachabilityPath, 'utf8');
     for (const file of staleAcknowledgements) {
       lines.push(`  - ${at(reachabilityFile, reachabilitySource, file)} stale acknowledgement for ${file}`);
     }
