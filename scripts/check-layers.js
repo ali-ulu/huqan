@@ -161,4 +161,4 @@ function main() {
 
 if (require.main === module) process.exit(main());
 
-module.exports = { layerOf, sharedOf, ALLOWED };
+module.exports = { layerOf, sharedOf, isEntrypoint, isAllowed, RANK, ALLOWED };
