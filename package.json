@@ -62,7 +62,8 @@
     "conformance:external": "node scripts/external-conformance/run.js",
     "conformance:a2a": "node scripts/a2a-conformance/run.js",
     "check:v5-identity": "node scripts/check-v5-identity-readiness.js",
-    "check:deterministic-path": "node scripts/check-deterministic-path.js"
+    "check:deterministic-path": "node scripts/check-deterministic-path.js",
+    "check:dead-code": "node scripts/check-dead-code.js"
   },
   "keywords": [
     "ai-governance",
