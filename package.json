@@ -195,6 +195,7 @@
     "lib/agent-memory-persistence.js",
     "lib/verify-numeric-text.js",
     "lib/agent-report-renderer.js",
+    "lib/admission-receipt-details.js",
     "lib/kernel-learn-admission.js",
     "lib/agent-run-finalization.js",
     "lib/agent-step-executor.js",
