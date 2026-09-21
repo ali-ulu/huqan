@@ -45,7 +45,7 @@ test('an unclassified orphan fails the gate', () => {
     const result = checkDeadCode({ root });
     assert.equal(result.ok, false);
     assert.ok(result.unacknowledged.includes('orphan.js'));
-    assert.match(result.report, /orphan\.js/);
+    assert.match(result.report, /orphan\.js:1/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
