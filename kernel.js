@@ -10,7 +10,7 @@ const { buildBackgroundProvenance, sponsorBackgroundProvenance, provenanceFields
 const { buildLearnAdmissionRequest } = require('./lib/learn-admission-request');
 const { evaluateMemoryAdmission } = require('./lib/memory-admission-gate');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
-const { evaluateLearnAdmission } = require('./lib/kernel-learn-admission');
+const { admissionReceiptDetails, evaluateLearnAdmission } = require('./lib/kernel-learn-admission');
 const { detectClaimConflict } = require('./lib/conflict-detector');
 const { createKernelReadUseCases } = require('./lib/kernel-read-use-cases');
 const { runLearnUseCase } = require('./lib/learn-use-case');
@@ -560,13 +560,7 @@ class Kernel {
   }
 
   _admissionReceiptDetails(admission) {
-    if (!admission || typeof admission !== 'object') return {};
-    const details = {};
-    if (admission.receiptId) details.receiptId = admission.receiptId;
-    if (admission.receipt && typeof admission.receipt === 'object') {
-      details.receipt = JSON.parse(JSON.stringify(admission.receipt));
-    }
-    return details;
+    return admissionReceiptDetails(admission);
   }
 
   // The async form of learn(). It does NOT add locking: the critical
