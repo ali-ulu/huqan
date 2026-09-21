@@ -33,7 +33,7 @@ test('unused named exports are reported with file:line and consumed exports are 
     path.join(root, 'lib', 'surface.js'),
     [
       "function used() { return 'used'; }",
-      "function dead() { return 'dead'; }",
+      "function dead() { return 2; }",
       'module.exports = {',
       '  used,',
       '  dead,',
@@ -106,6 +106,25 @@ test('whole-module or dynamic namespace use is treated conservatively instead of
   const root = fixtureRoot();
   fs.writeFileSync(path.join(root, 'lib', 'surface.js'), 'module.exports = { one, two };\nfunction one() {} function two() {}\n');
   fs.writeFileSync(path.join(root, 'consumer.js'), "const surface = require('./lib/surface');\nObject.keys(surface);\n");
+
+  const result = checkUnusedNamedExports({ root, allowlist: allowlist() });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.unused, []);
+});
+
+
+test('an internally used export is not dead merely because no external consumer selects it', () => {
+  const root = fixtureRoot();
+  fs.writeFileSync(
+    path.join(root, 'lib', 'surface.js'),
+    [
+      'function publicHelper() { return 1; }',
+      'function internalConsumer() { return publicHelper(); }',
+      'module.exports = { publicHelper, internalConsumer };',
+      '',
+    ].join('\n'),
+  );
+  fs.writeFileSync(path.join(root, 'consumer.js'), "const { internalConsumer } = require('./lib/surface');\ninternalConsumer();\n");
 
   const result = checkUnusedNamedExports({ root, allowlist: allowlist() });
   assert.equal(result.ok, true);
