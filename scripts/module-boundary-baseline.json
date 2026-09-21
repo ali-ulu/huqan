@@ -1,11 +1,6 @@
 {
   "threshold": 0,
   "files": {
-    "kernel.v2.js": {
-      "calls": 5,
-      "why": "The pre-ingest reach-through was removed in #2138 by using a public async-hook seam. Five admission/audit compatibility wrappers remain and must be migrated by caller intent rather than exposed as public aliases.",
-      "review_by": "2026-12-31"
-    },
     "lib/conflict-detector.js": {
       "calls": 6,
       "why": "Pre-existing debt recorded when the gate was introduced.",
