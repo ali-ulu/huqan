@@ -22,6 +22,12 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const { listSourceFiles, stripComments, buildGraph } = require('./check-import-cycles.js');
 const { renderMermaid } = require('./architecture-mermaid');
+const {
+  buildArchitectureGraphSnapshot,
+  readGraphPolicy,
+  graphEvolutionViolations,
+  graphBaselineMatches,
+} = require('./architecture-graph-snapshot');
 
 const repoRoot = path.resolve(__dirname, '..');
 const TRACKER_PATH = path.join(repoRoot, 'docs', 'generated', 'architecture-trackers.md');
@@ -236,8 +242,8 @@ function trackerBaselineViolations(current, baseline) {
   return violations;
 }
 
-function writeTrackerBaseline(entries) {
-  fs.writeFileSync(BASELINE_PATH, `${JSON.stringify({ schemaVersion: 2, entries }, null, 2)}\n`);
+function writeTrackerBaseline(entries, graph) {
+  fs.writeFileSync(BASELINE_PATH, `${JSON.stringify({ schemaVersion: 3, entries, graph }, null, 2)}\n`);
 }
 
 function baselineEvolutionViolations(previous, next) {
@@ -266,6 +272,7 @@ function main(argv = process.argv.slice(2)) {
   const total = rows ? rows.length : Object.values(groups).flat().length;
   const markdown = renderMarkdown(groups);
   const entries = trackedEntries(groups);
+  const architectureGraph = snapshotPath ? null : buildArchitectureGraphSnapshot();
 
   if (argv.includes('--write')) {
     fs.mkdirSync(path.dirname(TRACKER_PATH), { recursive: true });
@@ -315,6 +322,34 @@ function main(argv = process.argv.slice(2)) {
         return 1;
       }
     }
+
+    if (!snapshotPath) {
+      const graphPolicy = readGraphPolicy();
+      const liveGraphViolations = graphEvolutionViolations(null, architectureGraph, graphPolicy);
+      if (liveGraphViolations.length > 0) {
+        console.error(`Architecture graph violation:\n  ${liveGraphViolations.join('\n  ')}`);
+        return 1;
+      }
+
+      if (previous?.graph && baseline.graph) {
+        const graphEvolution = graphEvolutionViolations(previous.graph, baseline.graph, graphPolicy);
+        if (graphEvolution.length > 0) {
+          console.error(`Architecture graph baseline violation:\n  ${graphEvolution.join('\n  ')}`);
+          return 1;
+        }
+      }
+
+      if (!baseline.graph && !argv.includes('--update-baseline')) {
+        console.error('Architecture graph baseline is missing; regenerate the architecture baseline intentionally.');
+        return 1;
+      }
+
+      if (baseline.graph && !graphBaselineMatches(architectureGraph, baseline.graph)
+        && !argv.includes('--update-baseline')) {
+        console.error('Architecture graph drift: regenerate the architecture baseline intentionally.');
+        return 1;
+      }
+    }
     const violations = trackerBaselineViolations(entries, baseline);
     if (violations.length > 0) {
       console.error(`Architecture tracker baseline violation:\n  ${violations.join('\n  ')}`);
@@ -332,8 +367,19 @@ function main(argv = process.argv.slice(2)) {
       return 1;
     }
     if (argv.includes('--update-baseline')) {
-      writeTrackerBaseline(entries);
-      console.log('Architecture tracker baseline updated with monotonic improvements.');
+      if (!snapshotPath && previous?.graph) {
+        const graphEvolution = graphEvolutionViolations(
+          previous.graph,
+          architectureGraph,
+          readGraphPolicy(),
+        );
+        if (graphEvolution.length > 0) {
+          console.error(`Architecture graph update exceeds policy:\n  ${graphEvolution.join('\n  ')}`);
+          return 1;
+        }
+      }
+      writeTrackerBaseline(entries, architectureGraph || baseline.graph || null);
+      console.log('Architecture tracker and dependency graph baseline updated.');
     }
     console.log('Architecture tracker artifact matches the live snapshot.');
     return 0;
@@ -367,6 +413,7 @@ module.exports = {
   checkTrackerArtifact,
   trackerBaselineViolations,
   baselineEvolutionViolations,
+  writeTrackerBaseline,
   DIP_ALLOWED,
   isCompositionRoot,
   dipExceptionViolations,
