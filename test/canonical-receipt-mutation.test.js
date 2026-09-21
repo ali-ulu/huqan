@@ -34,6 +34,22 @@ function receipt(overrides = {}) {
   };
 }
 
+
+test('canonical receipt schema vocabulary is independently pinned', () => {
+  assert.equal(CANONICAL_RECEIPT_SCHEMA_VERSION, 'v4-receipt-v1');
+  assert.deepEqual(REQUIRED_RECEIPT_FIELDS, [
+    'receiptId',
+    'receiptKind',
+    'decision',
+    'status',
+    'admissionId',
+    'workspaceId',
+    'provenanceId',
+    'trustPolicyVersion',
+    'createdAt',
+  ]);
+});
+
 test('stableStringify pins primitives, array order and recursively sorted object keys', () => {
   assert.equal(stableStringify(null), 'null');
   assert.equal(stableStringify(true), 'true');
