@@ -376,7 +376,7 @@ test('malformed, unknown and option-derived classification contracts are exact',
   assert.equal(malformed.hardBlocked, false);
   assert.equal(malformed.reason, 'Malformed action input');
   assert.deepEqual(malformed.reasons, ['Malformed action input']);
-  assert.deepEqual(malformed.flags.sort(), [FLAGS.MALFORMED_ACTION, FLAGS.AUTO_DEPLOY].sort());
+  assert.deepEqual([...malformed.flags].sort(), [FLAGS.MALFORMED_ACTION, FLAGS.AUTO_DEPLOY].sort());
   assert.equal(malformed.trustReceipt.reason, 'Malformed action input');
   assert.equal(malformed.trustReceipt.timestamp, '2026-02-01T00:00:00.000Z');
 
@@ -394,7 +394,7 @@ test('malformed, unknown and option-derived classification contracts are exact',
   assert.equal(unknown.decision, ACTION_DECISIONS.HUMAN_REVIEW);
   assert.equal(unknown.reason, 'Unknown action category');
   assert.deepEqual(unknown.reasons, ['Unknown action category']);
-  assert.deepEqual(unknown.flags.sort(), ['custom', FLAGS.SELF_ESCALATION, FLAGS.UNKNOWN_ACTION_CATEGORY].sort());
+  assert.deepEqual([...unknown.flags].sort(), ['custom', FLAGS.SELF_ESCALATION, FLAGS.UNKNOWN_ACTION_CATEGORY].sort());
   assert.equal(unknown.trustReceipt.reason, 'Unknown action category');
   assert.equal(unknown.trustReceipt.timestamp, '2026-02-02T00:00:00.000Z');
 
