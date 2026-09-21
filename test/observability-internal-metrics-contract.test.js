@@ -32,6 +32,13 @@ function harness() {
         summary: { calls: 1, totalDurationMs: 0, slowCalls: 0 },
         alertEvaluation: { calls: 1, failures: 0, totalDurationMs: 0 },
         database: { calls: 4, totalDurationMs: 1, slowCalls: 0 },
+        verification_latency_ms: { count: 3, p50: 10, p95: 30, p99: 30 },
+        retrieval_latency_ms: { count: 2, p50: 5, p95: 8, p99: 8 },
+        graph_operations_total: { read: 2, write: 1, delete: 0, traverse: 1 },
+        denied_actions_total: { policy_denied: 2 },
+        approval_requests_total: { allow: 1, review: 2, block: 1 },
+        db_errors_total: { sqlite_busy: 1 },
+        rust_fallback_total: 1,
       };
     },
     subscribe(listener, options) {
@@ -74,6 +81,13 @@ test('metrics response exposes only the bounded internal snapshot for the reques
     summary: { calls: 1, totalDurationMs: 0, slowCalls: 0 },
     alertEvaluation: { calls: 1, failures: 0, totalDurationMs: 0 },
     database: { calls: 4, totalDurationMs: 1, slowCalls: 0 },
+    verification_latency_ms: { count: 3, p50: 10, p95: 30, p99: 30 },
+    retrieval_latency_ms: { count: 2, p50: 5, p95: 8, p99: 8 },
+    graph_operations_total: { read: 2, write: 1, delete: 0, traverse: 1 },
+    denied_actions_total: { policy_denied: 2 },
+    approval_requests_total: { allow: 1, review: 2, block: 1 },
+    db_errors_total: { sqlite_busy: 1 },
+    rust_fallback_total: 1,
   });
 });
 
@@ -101,7 +115,10 @@ test('OpenAPI metrics schema names the internal snapshot and its bounded fields'
   assert.equal(response.properties.data.properties.internal.$ref, '#/components/schemas/InternalMetrics');
   const internal = spec.components.schemas.InternalMetrics;
   assert.deepEqual(Object.keys(internal.properties).sort(), [
-    'alertEvaluation', 'database', 'droppedEvents', 'eventWrites', 'projectionFailures', 'subscriberCount', 'summary', 'workspaceId',
+    'alertEvaluation', 'approval_requests_total', 'database', 'db_errors_total', 'denied_actions_total',
+    'droppedEvents', 'eventWrites', 'graph_operations_total', 'projectionFailures',
+    'retrieval_latency_ms', 'rust_fallback_total', 'subscriberCount', 'summary',
+    'verification_latency_ms', 'workspaceId',
   ].sort());
   assert.equal(internal.additionalProperties, false);
 });

@@ -1,19 +1,35 @@
 # Observability Structured Logging and Correlation
 
-Bu dilim, HTTP ve workflow observability sınırlarında **request**, **run** ve **trace** kimliklerinin güvenli structured log metadata’sı olarak taşınmasını sağlar. Structured log satırları JSON’dur ve yalnızca bounded, allowlist edilmiş operasyon metadata’sı içerir.
+Bu sözleşme HTTP, CLI, MCP ve workflow sınırlarında güvenli structured logging davranışını tanımlar. Her structured log satırı JSON'dur; operasyon metadata'sı allowlist ile sınırlıdır ve secret-scrub gate üzerinden geçirilir.
 
-## Doğrulanan sözleşme
+## O4 canonical record
+
+Her kayıt en az şu alanları taşır:
 
 | Alan | Davranış |
 | --- | --- |
-| Request correlation | Her HTTP request için server-owned `req-<UUID>` üretilir ve response’a `X-Request-Id` header’ı yazılır. Caller’ın gönderdiği request ID güvenilmez ve yeniden kullanılmaz. |
-| Workflow correlation | Workflow run için mevcut `runId`, `traceId` ve varsa caller-provided request ID structured log context’ine bağlanır; run ve step observability kayıtlarında trace ID korunur. |
-| Bounded IDs | Log kimlikleri en fazla 128 karakterdir ve yalnızca sınırlı identifier karakterlerinden oluşur; newline, whitespace, kontrol karakteri ve uzun değerler düşürülür. |
-| Allowlist | Log fields yalnızca route, method, status, errorCode, workspaceId, runId, traceId, durationMs, outcome ve runtime alanlarından oluşur. |
-| Redaction | Prompt, goal, input, output, secret, credential, error message, body ve response payload structured log’a yazılmaz. Hata kaydında yalnız bounded error code tutulur. |
-| Sink isolation | Logger sink hata verirse request, worker veya fail-closed karar yolu bozulmaz. |
-| Production callers | HTTP server error boundary’leri ve workflow run start/finish/failure noktaları helper’ı kullanır; mevcut ürün response payload’ları değiştirilmez. |
+| `event` | Bounded event identifier. |
+| `reason` | Bounded machine-readable reason; caller vermiyorsa error code/outcome, son çare `unspecified`. |
+| `request_id` | UUID. HTTP request correlation içindeki `req-<UUID>` canonical UUID'ye çevrilir; request context olmayan sistem loglarında yeni UUID üretilir. |
+| `timestamp` | ISO 8601 UTC timestamp. |
+| `workspace_id` | Exact bounded workspace ID; sistem-scope kayıtlarında `system`. |
+| `agent_id` | Agent bağlamı varsa bounded identifier. |
+| `level` | `debug`, `info`, `warn` veya `error`. |
 
-## Kapsam sınırları
+Mevcut local consumer'ları kırmamak için `requestId`, `traceId`, `runId`, `workspaceId` ve `agentId` compatibility alias'ları korunur.
 
-Bu çalışma structured log metadata ve correlation wiring için source/test kanıtıdır. Harici log aggregation, distributed tracing backend’i, OpenTelemetry exporter, retention/SIEM politikası, tüm bağımlılıkların iç loglarının dönüştürülmesi, hosted deployment veya operasyonel SLA kanıtı değildir. Request ID response header’ı public payload veya observability API response schema’sına ek bir hassas alan olarak taşınmaz.
+## Güvenlik ve seviye politikası
+
+- `HUQAN_LOG_LEVEL` minimum emit seviyesini belirler; varsayılan `info`'dur.
+- Allowlist dışında prompt, goal, input/output payload, credential ve body alanları structured log'a girmez.
+- Allowlist içindeki değerler de `lib/secret-scrub-gate.js` ile scrub edilir.
+- Logger sink hatası request, worker veya fail-closed karar yolunu değiştirmez.
+- Request correlation server-owned'dur; caller tarafından gönderilen request ID yeniden kullanılmaz.
+
+## Retention sınırı
+
+`writeStructuredLog` kendi başına disk persistence yapmaz; JSON satırını seçilen sink'e verir. HUQAN içinde kalıcı observability kayıtları `observability_events` üzerinden tutulur ve `lib/observability/retention.js` içindeki event retention politikasına tabidir. Böylece structured logging yeni, retention dışı ikinci bir kalıcı log deposu oluşturmaz. Harici stdout/stderr collector retention süresi ise collector'ın kendi operasyon politikasının parçasıdır.
+
+## Doğrulama
+
+`npm run check:structured-log` canonical alanları, UUID/timestamp formatını, secret scrubbing'i ve `HUQAN_LOG_LEVEL` filtresini doğrular. Bu gate `npm run verify` manifestine dahildir.

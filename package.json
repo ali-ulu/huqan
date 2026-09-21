@@ -29,6 +29,7 @@
     "check:action-pins": "node scripts/check-action-pins.js",
     "check:licenses": "node scripts/check-licenses.js",
     "check:control-chars": "node scripts/check-control-chars.js",
+    "check:structured-log": "node scripts/check-structured-log-format.js",
     "arch:snapshot": "node scripts/architecture-snapshot.js",
     "check:architecture-trackers": "node scripts/architecture-snapshot.js --check",
     "check:cycles": "node scripts/check-import-cycles.js",
