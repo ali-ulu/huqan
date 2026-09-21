@@ -8,7 +8,7 @@ Tracked in total: **64**
 | File | Lines | Signals |
 |---|---:|---|
 | `graph.js` | 1242 | FANOUT:35 |
-| `kernel.js` | 1062 | FANOUT:39 |
+| `kernel.js` | 1057 | FANOUT:39 |
 | `server.js` | 1017 | FANOUT:52 |
 | `lib/memory-store.js` | 968 | FANOUT:23 |
 
@@ -35,7 +35,7 @@ Tracked in total: **64**
 | `cli.js` | 637 | FANOUT:26 |
 | `lib/receipt/receipt-read-index.js` | 637 | — |
 | `storage.js` | 627 | — |
-| `lib/conflict-detector.js` | 617 | ISP:6 |
+| `lib/conflict-detector.js` | 615 | — |
 | `lib/github-app-streaming-trust.js` | 612 | — |
 | `lib/mcp-tool-data-schemas.js` | 611 | — |
 | `backupRestore.js` | 610 | — |
