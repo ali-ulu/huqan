@@ -21,6 +21,16 @@ const { analyzeReachability } = require('../lib/module-reachability');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 
+function sourceLine(source, needle) {
+  const index = source.indexOf(needle);
+  if (index < 0) return 1;
+  return source.slice(0, index).split('\n').length;
+}
+
+function at(file, source, needle) {
+  return `${file}:${sourceLine(source, needle)}`;
+}
+
 function extractMcpSuffixes(source) {
   const match = source.match(/MCP_TOOL_SUFFIXES\s*=\s*Object\.freeze\(\[([\s\S]*?)\]\)/);
   if (!match) return [];
@@ -42,24 +52,43 @@ function extractSchemaSuffixes(source) {
 function checkMcpToolSurface(opts = {}) {
   const root = opts.root || REPO_ROOT;
   const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
-  const suffixes = extractMcpSuffixes(read('lib/mcp-tool-names.js'));
-  const handlers = extractHandlerSuffixes(read('lib/mcp/tool-handlers.js'));
-  const special = extractDispatchSpecialSuffixes(read('lib/mcp/tool-dispatch.js'));
-  const catalog = extractSchemaSuffixes(read('lib/mcp-tool-catalog.js'));
-  const operatorSchemas = extractSchemaSuffixes(read('lib/mcp/operator-tool-schemas.js'));
+  const namesFile = 'lib/mcp-tool-names.js';
+  const handlersFile = 'lib/mcp/tool-handlers.js';
+  const dispatchFile = 'lib/mcp/tool-dispatch.js';
+  const catalogFile = 'lib/mcp-tool-catalog.js';
+  const operatorSchemasFile = 'lib/mcp/operator-tool-schemas.js';
+  const namesSource = read(namesFile);
+  const handlersSource = read(handlersFile);
+  const dispatchSource = read(dispatchFile);
+  const catalogSource = read(catalogFile);
+  const operatorSchemasSource = read(operatorSchemasFile);
+  const suffixes = extractMcpSuffixes(namesSource);
+  const handlers = extractHandlerSuffixes(handlersSource);
+  const special = extractDispatchSpecialSuffixes(dispatchSource);
+  const catalog = extractSchemaSuffixes(catalogSource);
+  const operatorSchemas = extractSchemaSuffixes(operatorSchemasSource);
   const dispatchable = new Set([...handlers, ...special]);
   const published = new Set([...catalog, ...operatorSchemas]);
   const advertised = new Set(suffixes);
   const gaps = [];
   for (const suffix of [...advertised].sort()) {
-    if (!dispatchable.has(suffix)) gaps.push(`advertised huqan.${suffix} has no handler and no tool-dispatch special case`);
-    if (!published.has(suffix)) gaps.push(`advertised huqan.${suffix} is missing from tool-catalog and operator-tool-schemas`);
+    const location = at(namesFile, namesSource, `'${suffix}'`);
+    if (!dispatchable.has(suffix)) gaps.push(`${location} advertised huqan.${suffix} has no handler and no tool-dispatch special case`);
+    if (!published.has(suffix)) gaps.push(`${location} advertised huqan.${suffix} is missing from tool-catalog and operator-tool-schemas`);
   }
   for (const suffix of [...dispatchable].sort()) {
-    if (!advertised.has(suffix)) gaps.push(`dispatchable huqan.${suffix} is not listed in MCP_TOOL_SUFFIXES`);
+    if (!advertised.has(suffix)) {
+      const file = handlers.has(suffix) ? handlersFile : dispatchFile;
+      const source = handlers.has(suffix) ? handlersSource : dispatchSource;
+      gaps.push(`${at(file, source, `huqan.${suffix}`)} dispatchable huqan.${suffix} is not listed in MCP_TOOL_SUFFIXES`);
+    }
   }
   for (const suffix of [...published].sort()) {
-    if (!dispatchable.has(suffix)) gaps.push(`published schema huqan.${suffix} is not dispatchable`);
+    if (!dispatchable.has(suffix)) {
+      const file = catalog.has(suffix) ? catalogFile : operatorSchemasFile;
+      const source = catalog.has(suffix) ? catalogSource : operatorSchemasSource;
+      gaps.push(`${at(file, source, `huqan.${suffix}`)} published schema huqan.${suffix} is not dispatchable`);
+    }
   }
   const lines = [`MCP tool surface: ${advertised.size} advertised, ${handlers.size} handlers, ${special.size} dispatch-special, ${published.size} published schemas`];
   if (gaps.length) {
@@ -74,7 +103,8 @@ function checkMcpToolSurface(opts = {}) {
 function checkCliCommandSurface(opts = {}) {
   const root = opts.root || REPO_ROOT;
   const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
-  const contract = read('lib/workflow-contract.js');
+  const contractFile = 'lib/workflow-contract.js';
+  const contract = read(contractFile);
   const capMatch = contract.match(/CLI_COMMAND_CAPABILITIES = Object\.freeze\(\[([\s\S]*?)\]\.map/);
   const advertised = new Set();
   if (capMatch) {
@@ -94,7 +124,7 @@ function checkCliCommandSurface(opts = {}) {
   const gaps = [];
   for (const cmd of [...advertised].sort()) {
     if (!dispatchable.has(cmd)) {
-      gaps.push(`CLI capability '${cmd}' has no handler in cli.js and no cli-workflow-adapter path`);
+      gaps.push(`${at(contractFile, contract, `'${cmd}'`)} CLI capability '${cmd}' has no handler in cli.js and no cli-workflow-adapter path`);
     }
   }
   const lines = [
@@ -111,7 +141,8 @@ function checkCliCommandSurface(opts = {}) {
 
 function checkRestRouteSurface(opts = {}) {
   const root = opts.root || REPO_ROOT;
-  const contract = fs.readFileSync(path.join(root, 'lib/workflow-contract.js'), 'utf8');
+  const contractFile = 'lib/workflow-contract.js';
+  const contract = fs.readFileSync(path.join(root, contractFile), 'utf8');
   const routes = [...contract.matchAll(/route:\s*'([^']+)'/g)].map((m) => m[1]);
   const httpDir = path.join(root, 'lib', 'http');
   let httpBlob = '';
@@ -132,7 +163,7 @@ function checkRestRouteSurface(opts = {}) {
   for (const route of uniqueRoutes) {
     const probe = route.split('{')[0].replace(/\/$/, '');
     if (!httpBlob.includes(probe)) {
-      gaps.push(`REST route '${route}' from workflow-contract not found under lib/http/ or server registrars`);
+      gaps.push(`${at(contractFile, contract, `'${route}'`)} REST route '${route}' from workflow-contract not found under lib/http/ or server registrars`);
     }
   }
   const lines = [`REST route surface: ${uniqueRoutes.length} workflow route(s) checked against HTTP registrars`];
@@ -152,12 +183,16 @@ function checkDeadCode(opts = {}) {
   lines.push(`Dead-code check (module reachability): ${reachable.length} reachable, ${unreachable.length} unreachable classified or pending`);
   if (unacknowledged.length > 0) {
     lines.push(`FAIL: ${unacknowledged.length} unreachable module(s) are not classified:`);
-    for (const file of unacknowledged) lines.push(`  - ${file}`);
+    for (const file of unacknowledged) lines.push(`  - ${file}:1`);
     lines.push('Wire a production caller, or add the path to NOT_YET_WIRED in lib/module-reachability.js with a durable reason.');
   }
   if (staleAcknowledgements.length > 0) {
     lines.push(`FAIL: ${staleAcknowledgements.length} stale NOT_YET_WIRED acknowledgement(s) (now reachable or gone):`);
-    for (const file of staleAcknowledgements) lines.push(`  - ${file}`);
+    const reachabilityFile = 'lib/module-reachability.js';
+    const reachabilitySource = fs.readFileSync(path.join(root, reachabilityFile), 'utf8');
+    for (const file of staleAcknowledgements) {
+      lines.push(`  - ${at(reachabilityFile, reachabilitySource, file)} stale acknowledgement for ${file}`);
+    }
     lines.push('Remove them from NOT_YET_WIRED so the ledger stays meaningful.');
   }
   const mcp = checkMcpToolSurface({ root });
