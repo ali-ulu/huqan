@@ -33,6 +33,49 @@ jobs:
           )
 
           alerts=0
+          latest_sha="${shas[0]}"
+
+          latest_state="$(
+            gh api "repos/$REPO/actions/runs?head_sha=$latest_sha&per_page=100" \
+              --jq '
+                [
+                  .workflow_runs
+                  | select(.name != "Main CI Watch")
+                ]
+                | group_by(.name)
+                | map(max_by([.run_number, .run_attempt]))
+              '
+          )"
+
+          latest_count="$(jq 'length' <<<"$latest_state")"
+          latest_blocking="$(
+            jq '[
+              .[]
+              | select(
+                  .status != "completed"
+                  or (
+                    .conclusion != "success"
+                    and .conclusion != "skipped"
+                    and .conclusion != "neutral"
+                  )
+                )
+            ] | length' <<<"$latest_state"
+          )"
+
+          latest_committed_at="$(
+            gh api "repos/$REPO/commits/$latest_sha" --jq '.commit.committer.date'
+          )"
+          latest_epoch="$(date -d "$latest_committed_at" +%s)"
+          now_epoch="$(date -u +%s)"
+          settled=false
+          if (( now_epoch - latest_epoch >= 300 )); then
+            settled=true
+          fi
+
+          main_green=false
+          if [[ "$settled" == "true" && "$latest_count" -gt 0 && "$latest_blocking" -eq 0 ]]; then
+            main_green=true
+          fi
 
           for sha in "${shas[@]}"; do
             short="${sha:0:7}"
@@ -55,10 +98,6 @@ jobs:
                         )
                       )
                     | {
-                        name,
-                        conclusion,
-                        run_number,
-                        run_attempt,
                         id,
                         name,
                         conclusion,
@@ -121,5 +160,28 @@ jobs:
 
             alerts=$((alerts + 1))
           done
+
+          if [[ "$main_green" == "true" ]]; then
+            mapfile -t resolved_issues < <(
+              gh issue list \
+                --repo "$REPO" \
+                --state open \
+                --limit 100 \
+                --json number,title,body \
+                --jq '.[] | select(
+                  (.title | startswith("ci(main): "))
+                  and (.body | contains("Created automatically by the repository-native Main CI Watch workflow"))
+                ) | .number'
+            )
+
+            for issue_number in "${resolved_issues[@]}"; do
+              gh issue comment "$issue_number" \
+                --repo "$REPO" \
+                --body "Current main \`$latest_sha\` is fully green across its latest workflow attempts. Closing this CI alert."
+              gh issue close "$issue_number" --repo "$REPO" --reason completed
+            done
+          else
+            echo "Current main is not fully green or has not settled for 5 minutes; CI alert issues remain open."
+          fi
 
           echo "Scanned ${#shas[@]} recent main commits; opened $alerts new alert issue(s)."
