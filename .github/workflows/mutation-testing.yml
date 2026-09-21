@@ -2,8 +2,6 @@ name: Mutation Testing
 
 on:
   pull_request:
-  schedule:
-    - cron: '23 2 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -119,7 +117,7 @@ jobs:
 
   nightly-mutation-suite:
     if: github.event_name != 'pull_request'
-    name: Nightly mutation suite
+    name: Full mutation suite (manual)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
