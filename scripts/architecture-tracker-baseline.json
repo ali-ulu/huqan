@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "entries": {
     "agent.v3.js": {
       "band": "recorded",
@@ -336,5 +336,4129 @@
       "lines": 562,
       "signals": []
     }
+  },
+  "dependencyGraph": {
+    "threshold": 50,
+    "layers": {
+      "adapters/external-action/generic-adapter.js": "Adapters",
+      "adapters/external-action/pi-extension.js": "Adapters",
+      "adapters/git-log-adapter.js": "Adapters",
+      "adapters/github-adapter.js": "Adapters",
+      "adapters/http-adapter.js": "Adapters",
+      "adapters/json-adapter.js": "Adapters",
+      "adapters/markdown-adapter.js": "Adapters",
+      "adapters/pdf-adapter.js": "Adapters",
+      "adapters/utils/learn-entries.js": "Adapters",
+      "adapters/yaml-adapter.js": "Adapters",
+      "agent.js": "Application",
+      "agent.v3.js": "Application",
+      "agentRuntime.js": "Application",
+      "backupRestore.js": "Adapters",
+      "bin/huqan-gate-hook.js": "UI",
+      "bin/huqan-mcp.js": "UI",
+      "causalSimulator.js": "Core",
+      "cli.js": "UI",
+      "dream.js": "Application",
+      "egitim.js": "Core",
+      "evidence-ranker.js": "Core",
+      "examples/a2a-third-party-agent/receiver.js": "UI",
+      "examples/browser-observation-client.js": "UI",
+      "examples/mcp-observation-client.js": "UI",
+      "examples/observability-client.js": "UI",
+      "examples/shell-observation-client.js": "UI",
+      "finalizer.js": "Application",
+      "github-app-server.js": "UI",
+      "graph.js": "Core",
+      "index.js": "UI",
+      "kernel.js": "Core",
+      "kernel.v2.js": "Core",
+      "lib/a2a/agent-card-route.js": "Application",
+      "lib/a2a/agent-card.js": "Application",
+      "lib/a2a/bounded-exchange.js": "Application",
+      "lib/a2a/capability-negotiation.js": "Application",
+      "lib/a2a/delegation-audit-log.js": "Application",
+      "lib/a2a/exchange-route.js": "Application",
+      "lib/a2a/inter-agent-receipt-chain.js": "Application",
+      "lib/a2a/negotiate-route.js": "Application",
+      "lib/a2a/replay-store.js": "Application",
+      "lib/a2a/retry-classification.js": "Application",
+      "lib/a2a/routes.js": "Application",
+      "lib/a2a/task-route.js": "Application",
+      "lib/a2a/task-store.js": "Application",
+      "lib/action-risk-classifier.js": "Core",
+      "lib/adversarial-signals.js": "Core",
+      "lib/agent-action-decisions.js": "Core",
+      "lib/agent-action-firewall.js": "Core",
+      "lib/agent-action-signals.js": "Core",
+      "lib/agent-action-step-enforcement.js": "Core",
+      "lib/agent-behavioral-integrity.js": "Core",
+      "lib/agent-failure-signature.js": "Core",
+      "lib/agent-identity-runtime.js": "Core",
+      "lib/agent-loop-budget-gate.js": "Core",
+      "lib/agent-memory-persistence.js": "Core",
+      "lib/agent-memory-records.js": "Core",
+      "lib/agent-memory-runtime.js": "Core",
+      "lib/agent-memory-state.js": "Core",
+      "lib/agent-plan-runtime.js": "Core",
+      "lib/agent-planning-policy.js": "Core",
+      "lib/agent-report-renderer.js": "Core",
+      "lib/agent-run-finalization.js": "Core",
+      "lib/agent-run-guidance.js": "Core",
+      "lib/agent-step-executor.js": "Core",
+      "lib/agent-v3-dream-loop-adapter.js": "Core",
+      "lib/agent-v3-storage-factory.js": "Core",
+      "lib/approval-execution-evidence.js": "Core",
+      "lib/approval-flow.js": "Core",
+      "lib/approval-schema.js": "Core",
+      "lib/atp-conformance.js": "Core",
+      "lib/audit-bounded-read.js": "Core",
+      "lib/audit-log.js": "Core",
+      "lib/audit-query-primitives.js": "Core",
+      "lib/audit-query.js": "Core",
+      "lib/automation-safety-gate/automation-findings-summary.js": "Application",
+      "lib/automation-safety-gate/automation-input-normalizer.js": "Application",
+      "lib/automation-safety-gate/automation-operation-classifier.js": "Application",
+      "lib/automation-safety-gate/automation-safety-decision.js": "Application",
+      "lib/automation-safety-gate/automation-safety-vocabulary.js": "Application",
+      "lib/automation-safety-gate/index.js": "Application",
+      "lib/autonomy-receipt-history.js": "Core",
+      "lib/autonomy-state.js": "Core",
+      "lib/autonomy-trust-score.js": "Core",
+      "lib/axiom-package-format.js": "Core",
+      "lib/background-provenance.js": "Core",
+      "lib/behavioral-stop-bridge.js": "Core",
+      "lib/blast-radius.js": "Core",
+      "lib/bounded-ingest-errors.js": "Core",
+      "lib/browser-hook-outcome.js": "Core",
+      "lib/browser-session-observer.js": "Core",
+      "lib/causal-edge-strength.js": "Core",
+      "lib/causal/causal-edge-errors.js": "Application",
+      "lib/causal/causal-edge.js": "Application",
+      "lib/causal/causal-traversal.js": "Application",
+      "lib/causal/causal-verdict.js": "Application",
+      "lib/causal/index.js": "Application",
+      "lib/claim-decomposition.js": "Core",
+      "lib/cli-audit.js": "Core",
+      "lib/cli-backup-commands.js": "Core",
+      "lib/cli-coder-verify.js": "Core",
+      "lib/cli-coder.js": "Core",
+      "lib/cli-company-ingest.js": "Core",
+      "lib/cli-doctor.js": "Core",
+      "lib/cli-experience-read.js": "Core",
+      "lib/cli-gate-message.js": "Core",
+      "lib/cli-help.js": "Core",
+      "lib/cli-helpers.js": "Core",
+      "lib/cli-hypotheses.js": "Core",
+      "lib/cli-ingest-batch.js": "Core",
+      "lib/cli-ingest-preview.js": "Core",
+      "lib/cli-learn-review.js": "Core",
+      "lib/cli-mutation-audit-intent.js": "Core",
+      "lib/cli-mutation-audit.js": "Core",
+      "lib/cli-mutation-gate.js": "Core",
+      "lib/cli-plugin-status.js": "Core",
+      "lib/cli-status-command.js": "Core",
+      "lib/cli-trust-receipt.js": "Core",
+      "lib/cli-workflow-adapter.js": "Core",
+      "lib/cli-workflow-envelope.js": "Core",
+      "lib/code-change-decision-summary.js": "Core",
+      "lib/code-change-file-classifier.js": "Core",
+      "lib/code-change-gate-vocabulary.js": "Core",
+      "lib/code-change-gate.js": "Core",
+      "lib/code-change-input.js": "Core",
+      "lib/code-change-path-classification.js": "Core",
+      "lib/coder/apply-derivation.js": "Application",
+      "lib/coder/derivation-record.js": "Application",
+      "lib/coder/verify-derivation.js": "Application",
+      "lib/collector-seal-config.js": "Core",
+      "lib/command-exec-gate.js": "Core",
+      "lib/command-parser.js": "Core",
+      "lib/command-policy-editor.js": "Core",
+      "lib/company-ingest-gate.js": "Core",
+      "lib/conflict-detector.js": "Core",
+      "lib/connector-action-firewall.js": "Core",
+      "lib/connector-local-path.js": "Core",
+      "lib/connectors/entry-ingest-flow.js": "Adapters",
+      "lib/connectors/repo-memory-firewall.js": "Adapters",
+      "lib/content-hash.js": "Core",
+      "lib/contradiction-rules.js": "Core",
+      "lib/control-plane-paths.js": "Core",
+      "lib/cross-workspace-access-gate.js": "Core",
+      "lib/data-egress-gate.js": "Core",
+      "lib/data-residency-gate.js": "Core",
+      "lib/default-persistence-path.js": "Core",
+      "lib/delegation-service.js": "Core",
+      "lib/deterministic-json-copy.js": "Core",
+      "lib/deterministic-task-runner.js": "Core",
+      "lib/dream-experiment-loop.js": "Core",
+      "lib/dream-hypothesis-semantics.js": "Core",
+      "lib/emergency-stop-chain.js": "Core",
+      "lib/emergency-stop.js": "Core",
+      "lib/entity-resolution.js": "Core",
+      "lib/environment-compat.js": "Core",
+      "lib/error-prevention/admission.js": "Application",
+      "lib/error-prevention/audit.js": "Application",
+      "lib/error-prevention/authority.js": "Application",
+      "lib/error-prevention/decision.js": "Application",
+      "lib/error-prevention/engine.js": "Application",
+      "lib/error-prevention/evidence.js": "Application",
+      "lib/error-prevention/failure-record.js": "Application",
+      "lib/error-prevention/fingerprint.js": "Application",
+      "lib/error-prevention/index.js": "Application",
+      "lib/error-prevention/input.js": "Application",
+      "lib/error-prevention/integrity.js": "Application",
+      "lib/error-prevention/lifecycle.js": "Application",
+      "lib/error-prevention/rule-proposal.js": "Application",
+      "lib/error-prevention/store.js": "Application",
+      "lib/error-prevention/subject.js": "Application",
+      "lib/error-prevention/trust.js": "Application",
+      "lib/errors/provenance-error.js": "Core",
+      "lib/experience/canary.js": "Application",
+      "lib/experience/capability-trust-canary-extension.js": "Application",
+      "lib/experience/capability-trust-fallback-extension.js": "Application",
+      "lib/experience/capability-trust.js": "Application",
+      "lib/experience/compiler.js": "Application",
+      "lib/experience/contract.js": "Application",
+      "lib/experience/journal.js": "Application",
+      "lib/experience/learning.js": "Application",
+      "lib/experience/optimization-hypothesis.js": "Application",
+      "lib/experience/permitted-fallback-trust.js": "Application",
+      "lib/experience/permitted-fallback.js": "Application",
+      "lib/experience/personal-execution-model.js": "Application",
+      "lib/experience/procedure-registry.js": "Application",
+      "lib/experience/read-model.js": "Application",
+      "lib/experience/reconciliation.js": "Application",
+      "lib/experience/repair.js": "Application",
+      "lib/experience/router.js": "Application",
+      "lib/experience/verifier.js": "Application",
+      "lib/external-action-action-binding.js": "Core",
+      "lib/external-action-adapter-generator.js": "Core",
+      "lib/external-action-adapter.js": "Core",
+      "lib/external-action-agent-detection.js": "Core",
+      "lib/external-action-agent-overview.js": "Core",
+      "lib/external-action-agent-roster.js": "Core",
+      "lib/external-action-command-policy.js": "Core",
+      "lib/external-action-custom-agent-status.js": "Core",
+      "lib/external-action-egress-gates.js": "Core",
+      "lib/external-action-envelope.js": "Core",
+      "lib/external-action-gate-install.js": "Core",
+      "lib/external-action-gate-sentinel.js": "Core",
+      "lib/external-action-guard.js": "Core",
+      "lib/external-action-identity-log.js": "Core",
+      "lib/external-action-identity-signing.js": "Core",
+      "lib/external-action-identity.js": "Core",
+      "lib/external-action-receipt-collector.js": "Core",
+      "lib/external-action-receipt-reader.js": "Core",
+      "lib/external-action-receipt-shipper.js": "Core",
+      "lib/external-action-receipt-writer-factory.js": "Core",
+      "lib/external-action-receipt.js": "Core",
+      "lib/external-client-authority-errors.js": "Core",
+      "lib/external-client-authority-primitives.js": "Core",
+      "lib/external-client-authority.js": "Core",
+      "lib/external-client-endpoint-contract.js": "Core",
+      "lib/external-client-http-adapter.js": "Core",
+      "lib/external-client-mutation-receipt-owner.js": "Core",
+      "lib/external-client-package-gate.js": "Core",
+      "lib/external-client-production-boundary.js": "Core",
+      "lib/external-client-replay-store.js": "Core",
+      "lib/external-client-trust-config.js": "Core",
+      "lib/external-client-trusted-key-snapshot.js": "Core",
+      "lib/file-effect-sensor.js": "Core",
+      "lib/financial-action-policy.js": "Core",
+      "lib/fitness-history.js": "Core",
+      "lib/fluent-answer.js": "Core",
+      "lib/fractal-learn-autotune.js": "Core",
+      "lib/fractal-learn.js": "Core",
+      "lib/fuzzy-normalization.js": "Core",
+      "lib/gate-hook-evaluate.js": "Core",
+      "lib/gate-hook-identity.js": "Core",
+      "lib/gate-hook-input.js": "Core",
+      "lib/gate-hook-management.js": "Core",
+      "lib/gate-hook-reports.js": "Core",
+      "lib/gate-telemetry.js": "Core",
+      "lib/github-app-beta-auth.js": "Core",
+      "lib/github-app-beta-handler.js": "Core",
+      "lib/github-app-beta-http-boundary.js": "Core",
+      "lib/github-app-beta-store.js": "Core",
+      "lib/github-app-streaming-auth.js": "Core",
+      "lib/github-app-streaming-trust-handler.js": "Core",
+      "lib/github-app-streaming-trust-store.js": "Core",
+      "lib/github-app-streaming-trust.js": "Core",
+      "lib/github-connector.js": "Core",
+      "lib/github-url.js": "Core",
+      "lib/goal-binding.js": "Core",
+      "lib/goal-integrity-gate.js": "Core",
+      "lib/graduated-autonomy.js": "Core",
+      "lib/graph-candidate-claims-read.js": "Core",
+      "lib/graph-candidate-claims-write.js": "Core",
+      "lib/graph-causal-chain.js": "Core",
+      "lib/graph-causal-relation-read.js": "Core",
+      "lib/graph-consolidate-edges.js": "Core",
+      "lib/graph-count-read.js": "Core",
+      "lib/graph-edge-mutations.js": "Core",
+      "lib/graph-edge-read.js": "Core",
+      "lib/graph-edge-write.js": "Core",
+      "lib/graph-hypotheses.js": "Core",
+      "lib/graph-json-persistence.js": "Core",
+      "lib/graph-json-snapshot.js": "Core",
+      "lib/graph-json-transaction.js": "Core",
+      "lib/graph-mutation-receipt-read.js": "Core",
+      "lib/graph-mutation-receipt-schema.js": "Core",
+      "lib/graph-mutation-receipt-write.js": "Core",
+      "lib/graph-mutation-rollback.js": "Core",
+      "lib/graph-node-delete.js": "Core",
+      "lib/graph-node-read.js": "Core",
+      "lib/graph-node-similarity.js": "Core",
+      "lib/graph-node-tag.js": "Core",
+      "lib/graph-node-touch.js": "Core",
+      "lib/graph-node-weight.js": "Core",
+      "lib/graph-node-write.js": "Core",
+      "lib/graph-optimize.js": "Core",
+      "lib/graph-prune.js": "Core",
+      "lib/graph-query-read.js": "Core",
+      "lib/graph-record-utils.js": "Core",
+      "lib/graph-sqlite-pragmas.js": "Core",
+      "lib/graph-stats.js": "Core",
+      "lib/graph-traversal.js": "Core",
+      "lib/http-human-oversight-adapter.js": "Core",
+      "lib/http-trust-query.js": "Core",
+      "lib/http/agent-workflow-routes.js": "UI",
+      "lib/http/answer-route.js": "UI",
+      "lib/http/background-timers.js": "UI",
+      "lib/http/command-policy-route.js": "UI",
+      "lib/http/crash-recovery-inventory.js": "UI",
+      "lib/http/deployment-gated-route-auth.js": "UI",
+      "lib/http/emergency-stop-routes.js": "UI",
+      "lib/http/exact-workspace.js": "UI",
+      "lib/http/experience-read-route.js": "UI",
+      "lib/http/external-action-receipt-collector-route.js": "UI",
+      "lib/http/fitness-dashboard-route.js": "UI",
+      "lib/http/graceful-shutdown.js": "UI",
+      "lib/http/http-provenance.js": "UI",
+      "lib/http/identity-mutation-admission.js": "UI",
+      "lib/http/ingest-approval-audit-writer.js": "UI",
+      "lib/http/memory-approval-routes.js": "UI",
+      "lib/http/optional-boundaries.js": "UI",
+      "lib/http/pr-guardian-config.js": "UI",
+      "lib/http/pr-guardian-routes.js": "UI",
+      "lib/http/process-failure-handlers.js": "UI",
+      "lib/http/public-api-commands.js": "UI",
+      "lib/http/public-badge-route.js": "UI",
+      "lib/http/read-workflow-actions.js": "UI",
+      "lib/http/receipt-read-failures.js": "UI",
+      "lib/http/request-limits.js": "UI",
+      "lib/http/request-origin.js": "UI",
+      "lib/http/route-auth-policy.js": "UI",
+      "lib/http/runtime-status.js": "UI",
+      "lib/http/server-boot.js": "UI",
+      "lib/http/server-timeouts.js": "UI",
+      "lib/http/static-assets.js": "UI",
+      "lib/http/structured-log.js": "UI",
+      "lib/http/upload-admission-contract.js": "UI",
+      "lib/http/v2-status-phases.js": "UI",
+      "lib/http/v5-package-import-route.js": "UI",
+      "lib/http/v5-preflight-route.js": "UI",
+      "lib/http/workflow-contract-route.js": "UI",
+      "lib/http/workflow-data-routes.js": "UI",
+      "lib/http/workflow-envelope.js": "UI",
+      "lib/http/workflow-request-validation.js": "UI",
+      "lib/human-approval-toggle.js": "Core",
+      "lib/human-oversight-approval-runtime-primitives.js": "Core",
+      "lib/human-oversight-approval-runtime.js": "Core",
+      "lib/human-sponsor-authority.js": "Core",
+      "lib/huqan-package-format.js": "Core",
+      "lib/huqan-state-root.js": "Core",
+      "lib/hypothesis-feedback.js": "Core",
+      "lib/hypothesis-fitness.js": "Core",
+      "lib/hypothesis-review-audit.js": "Core",
+      "lib/hypothesis-review.js": "Core",
+      "lib/hypothesis-thresholds.js": "Core",
+      "lib/hypothesis-tuning.js": "Core",
+      "lib/identity-privilege-escalation.js": "Core",
+      "lib/ingest-workflow-preview.js": "Core",
+      "lib/ingest-workflow-run.js": "Core",
+      "lib/ingest.js": "Core",
+      "lib/integrity-violation-notifier.js": "Core",
+      "lib/interop/otel-mapping.js": "Adapters",
+      "lib/interop/vc-mapping.js": "Adapters",
+      "lib/is-plain-object.js": "Core",
+      "lib/issuer-seal-config.js": "Core",
+      "lib/json-clone.js": "Core",
+      "lib/json-object.js": "Core",
+      "lib/json-utf8-size.js": "Core",
+      "lib/kernel-alternatives.js": "Core",
+      "lib/kernel-auto-think.js": "Core",
+      "lib/kernel-context-similarity.js": "Core",
+      "lib/kernel-contract.js": "Core",
+      "lib/kernel-dream.js": "Core",
+      "lib/kernel-envelope.js": "Core",
+      "lib/kernel-factory.js": "Core",
+      "lib/kernel-introspect-report.js": "Core",
+      "lib/kernel-learn-admission.js": "Core",
+      "lib/kernel-learn-document.js": "Core",
+      "lib/kernel-learn-from-llm.js": "Core",
+      "lib/kernel-mutation-admission.js": "Core",
+      "lib/kernel-read-use-cases.js": "Core",
+      "lib/kernel-self-evolve.js": "Core",
+      "lib/kernel-self-learn.js": "Core",
+      "lib/kernel-v2-native.js": "Core",
+      "lib/kernel-v2-type-negation.js": "Core",
+      "lib/learn-admission-request.js": "Core",
+      "lib/learn-edge-options.js": "Core",
+      "lib/learn-use-case.js": "Core",
+      "lib/legacy-alias-usage.js": "Core",
+      "lib/llm-proxy/proxy-config.js": "Adapters",
+      "lib/llm-proxy/proxy-handler.js": "Adapters",
+      "lib/llm-proxy/proxy-mount.js": "Adapters",
+      "lib/mcp-agent-approval-execution.js": "Core",
+      "lib/mcp-agent-continuation.js": "Core",
+      "lib/mcp-approval-admission.js": "Core",
+      "lib/mcp-approval-decision-handler.js": "Core",
+      "lib/mcp-approval-learn-execution.js": "Core",
+      "lib/mcp-approval-store-factory.js": "Core",
+      "lib/mcp-approval-store.js": "Core",
+      "lib/mcp-approval-views.js": "Core",
+      "lib/mcp-capability-nonce-store.js": "Core",
+      "lib/mcp-configuration-errors.js": "Core",
+      "lib/mcp-envelope-format.js": "Core",
+      "lib/mcp-envelope-schema.js": "Core",
+      "lib/mcp-gate-adapter.js": "Core",
+      "lib/mcp-human-oversight-adapter.js": "Core",
+      "lib/mcp-ingest-execute-tool.js": "Core",
+      "lib/mcp-ingest-status-tool.js": "Core",
+      "lib/mcp-input-sanitizers.js": "Core",
+      "lib/mcp-operator-capability.js": "Core",
+      "lib/mcp-tool-catalog.js": "Core",
+      "lib/mcp-tool-data-schemas.js": "Core",
+      "lib/mcp-tool-names.js": "Core",
+      "lib/mcp-tool-policy.js": "Core",
+      "lib/mcp/approval-detail-tool.js": "UI",
+      "lib/mcp/compliance-audit-tool.js": "UI",
+      "lib/mcp/experience-read-tool.js": "UI",
+      "lib/mcp/fractal-learn-tool.js": "UI",
+      "lib/mcp/gate-refusal.js": "UI",
+      "lib/mcp/json-rpc-handler.js": "UI",
+      "lib/mcp/operator-authorization.js": "UI",
+      "lib/mcp/operator-tool-schemas.js": "UI",
+      "lib/mcp/read-workflow-tools.js": "UI",
+      "lib/mcp/response-builders.js": "UI",
+      "lib/mcp/self-evolve-tool.js": "UI",
+      "lib/mcp/server-lifecycle.js": "UI",
+      "lib/mcp/stdio-transport.js": "UI",
+      "lib/mcp/system-status-tool.js": "UI",
+      "lib/mcp/tool-dispatch.js": "UI",
+      "lib/mcp/tool-handlers.js": "UI",
+      "lib/mcp/tool-surface.js": "UI",
+      "lib/mcp/transient-agent.js": "UI",
+      "lib/mcp/trust-receipt-detail-tool.js": "UI",
+      "lib/memory-admission-gate.js": "Adapters",
+      "lib/memory-blast-radius.js": "Adapters",
+      "lib/memory-event-read.js": "Adapters",
+      "lib/memory-link-read.js": "Adapters",
+      "lib/memory-link-write.js": "Adapters",
+      "lib/memory-mutation-gate/index.js": "Adapters",
+      "lib/memory-mutation-gate/memory-mutation-classifier.js": "Adapters",
+      "lib/memory-mutation-gate/memory-mutation-decision.js": "Adapters",
+      "lib/memory-mutation-gate/memory-mutation-entry-predicates.js": "Adapters",
+      "lib/memory-mutation-gate/memory-mutation-findings-summary.js": "Adapters",
+      "lib/memory-mutation-gate/memory-mutation-normalizer.js": "Adapters",
+      "lib/memory-mutation-gate/memory-mutation-vocabulary.js": "Adapters",
+      "lib/memory-package-export.js": "Adapters",
+      "lib/memory-package-import-runner.js": "Adapters",
+      "lib/memory-package-import.js": "Adapters",
+      "lib/memory-patch-metadata.js": "Adapters",
+      "lib/memory-query-engine.js": "Adapters",
+      "lib/memory-recall-gate.js": "Adapters",
+      "lib/memory-record-read.js": "Adapters",
+      "lib/memory-record-utils.js": "Adapters",
+      "lib/memory-schema.js": "Adapters",
+      "lib/memory-store-json-persistence.js": "Adapters",
+      "lib/memory-store-persistence-report.js": "Adapters",
+      "lib/memory-store-reopen.js": "Adapters",
+      "lib/memory-store-rollback.js": "Adapters",
+      "lib/memory-store-sqlite-warmup.js": "Adapters",
+      "lib/memory-store-utils.js": "Adapters",
+      "lib/memory-store-write.js": "Adapters",
+      "lib/memory-store.js": "Adapters",
+      "lib/memory-supersede.js": "Adapters",
+      "lib/memory-temporal.js": "Adapters",
+      "lib/memory-tombstone.js": "Adapters",
+      "lib/module-reachability.js": "Core",
+      "lib/multi-agent-cascade-guard.js": "Core",
+      "lib/mutation-admission.js": "Core",
+      "lib/mutation-journal-lock.js": "Core",
+      "lib/mutation-journal.js": "Core",
+      "lib/observability/agent-worker.js": "Application",
+      "lib/observability/alert-lifecycle.js": "Application",
+      "lib/observability/api-contract.js": "Application",
+      "lib/observability/authorization.js": "Application",
+      "lib/observability/client.js": "Application",
+      "lib/observability/health.js": "Application",
+      "lib/observability/helpers.js": "Application",
+      "lib/observability/http-router.js": "Application",
+      "lib/observability/instrumentation-marker.js": "Application",
+      "lib/observability/internal-metrics.js": "Application",
+      "lib/observability/kernel-sink.js": "Application",
+      "lib/observability/migrations.js": "Application",
+      "lib/observability/notification-adapter.js": "Application",
+      "lib/observability/rate-limiter.js": "Application",
+      "lib/observability/retention.js": "Application",
+      "lib/observability/schema.js": "Application",
+      "lib/observability/server-runtime.js": "Application",
+      "lib/observability/service.js": "Application",
+      "lib/observability/sse-stream-lifecycle.js": "Application",
+      "lib/observability/workflow-agent-instrumentation.js": "Application",
+      "lib/path-safety.js": "Core",
+      "lib/pilot/test-database-boundary.js": "Application",
+      "lib/pilot/trust-receipt-pilot-archive.js": "Application",
+      "lib/pilot/trust-receipt-pilot.js": "Application",
+      "lib/plugin-provenance-registry.js": "Core",
+      "lib/post-action-monitor.js": "Core",
+      "lib/pr-guardian/derivation-check.js": "Application",
+      "lib/pr-guardian/derivation-fetch.js": "Application",
+      "lib/pr-guardian/github-client.js": "Application",
+      "lib/pr-guardian/index.js": "Application",
+      "lib/pr-guardian/policy.js": "Application",
+      "lib/pr-guardian/review-receipt.js": "Application",
+      "lib/pr-guardian/review-service.js": "Application",
+      "lib/pr-guardian/snapshot.js": "Application",
+      "lib/pre-ingest.js": "Core",
+      "lib/predicate-parser.js": "Core",
+      "lib/provenance-ingest-adapter.js": "Core",
+      "lib/provenance-ingest.js": "Core",
+      "lib/provenance-query.js": "Core",
+      "lib/provenance-record-utils.js": "Core",
+      "lib/quickstart-cli.js": "Core",
+      "lib/quickstart.js": "Core",
+      "lib/reason-sandbox.js": "Core",
+      "lib/reasoning-trace.js": "Core",
+      "lib/receipt/bounded-receipt-export.js": "Application",
+      "lib/receipt/canonical-receipt-v2.js": "Application",
+      "lib/receipt/canonical-receipt.js": "Application",
+      "lib/receipt/collector-seal.js": "Application",
+      "lib/receipt/cryptographic-profile-contract.js": "Application",
+      "lib/receipt/cryptographic-verification-adapter.js": "Application",
+      "lib/receipt/issuer-seal.js": "Application",
+      "lib/receipt/public-trust-receipt.js": "Application",
+      "lib/receipt/receipt-chain.js": "Application",
+      "lib/receipt/receipt-export.js": "Application",
+      "lib/receipt/receipt-read-index.js": "Application",
+      "lib/receipt/receipt-stamp.js": "Application",
+      "lib/receipt/receipt-validation-cache.js": "Application",
+      "lib/receipt/signed-bundle.js": "Application",
+      "lib/receipt/signed-receipt-batch.js": "Application",
+      "lib/receipt/trusted-key-resolver.js": "Application",
+      "lib/receipt/v4-receipt-family.js": "Application",
+      "lib/registry/registry-bundle-signing-key-resolver.js": "Application",
+      "lib/registry/registry-record-shape.js": "Application",
+      "lib/registry/registry-record-store.js": "Application",
+      "lib/registry/registry-route.js": "Application",
+      "lib/relation-drift.js": "Core",
+      "lib/repo-file-pin.js": "Core",
+      "lib/residency-rule-miner.js": "Core",
+      "lib/risk-classify.js": "Core",
+      "lib/risk-policy-constants.js": "Core",
+      "lib/risk-rules.js": "Core",
+      "lib/risk-scale.js": "Core",
+      "lib/run-impact.js": "Core",
+      "lib/runtime-watchdog-audit.js": "Core",
+      "lib/runtime-watchdog.js": "Core",
+      "lib/rust-graph-fallback-factory.js": "Core",
+      "lib/safe-file-walk.js": "Core",
+      "lib/sandbox-escape-ledger.js": "Core",
+      "lib/sandbox-isolation-input.js": "Core",
+      "lib/sandbox-isolation-output.js": "Core",
+      "lib/sandbox-isolation-vocabulary.js": "Core",
+      "lib/sandbox-isolation.js": "Core",
+      "lib/sandbox-operation-classifier.js": "Core",
+      "lib/sandbox-path-containment.js": "Core",
+      "lib/sandbox-source-scan.js": "Core",
+      "lib/sandbox-temp-artifact-risk.js": "Core",
+      "lib/sandbox-timeout-policy.js": "Core",
+      "lib/sdk.js": "Core",
+      "lib/secret-patterns.js": "Core",
+      "lib/secret-scrub-gate.js": "Core",
+      "lib/self-evolve-adapter.js": "Core",
+      "lib/self-evolve-probe.js": "Core",
+      "lib/self-healer/approval-bridge.js": "Application",
+      "lib/self-healer/audit-runner.js": "Application",
+      "lib/self-healer/behavioral-containment.js": "Application",
+      "lib/self-healer/dryrun-runner.js": "Application",
+      "lib/self-healer/finding-classifier.js": "Application",
+      "lib/self-healer/finding-schema.js": "Application",
+      "lib/self-healer/index.js": "Application",
+      "lib/self-healer/safety-decision.js": "Application",
+      "lib/self-healer/source-dependency-graph.js": "Application",
+      "lib/self-healer/source-dogfood-simulator.js": "Application",
+      "lib/self-test-oracle.js": "Core",
+      "lib/semantic-score.js": "Core",
+      "lib/semantic-signals.js": "Core",
+      "lib/server-graph-data.js": "Core",
+      "lib/server-response-helpers.js": "Core",
+      "lib/session-impact.js": "Core",
+      "lib/shield.js": "Core",
+      "lib/sqlite-availability.js": "Adapters",
+      "lib/sqlite-durability.js": "Adapters",
+      "lib/sqlite-persistence-validation.js": "Adapters",
+      "lib/sqlite-restore.js": "Adapters",
+      "lib/ssrf-guard.js": "Core",
+      "lib/storage/schema.js": "Adapters",
+      "lib/storage/tool-approval-methods.js": "Adapters",
+      "lib/store-creation-guard.js": "Core",
+      "lib/subject-resolution.js": "Core",
+      "lib/supply-chain-activation-gate.js": "Core",
+      "lib/system-status-report.js": "Core",
+      "lib/task-identifier-lexer.js": "Core",
+      "lib/task-schema-sources.js": "Core",
+      "lib/temporal-qualifier.js": "Core",
+      "lib/text-safety-scorer.js": "Core",
+      "lib/text-utils.js": "Core",
+      "lib/tool-call-gate.js": "Core",
+      "lib/trust-evidence-ledger.js": "Core",
+      "lib/trust-policy.js": "Core",
+      "lib/trust-score-aggregator.js": "Core",
+      "lib/trust-signals/robustness.js": "Application",
+      "lib/trust-signals/verify-wiring.js": "Application",
+      "lib/turkish-copula.js": "Core",
+      "lib/type-lattice.js": "Core",
+      "lib/unexpected-egress-gate.js": "Core",
+      "lib/v5/cryptographic-profile-contract.js": "Application",
+      "lib/v5/cryptographic-verification-adapter.js": "Application",
+      "lib/v5/public-trust-receipt.js": "Application",
+      "lib/v5/runtime-reader.js": "Application",
+      "lib/v5/runtime-writer.js": "Application",
+      "lib/v5/structural-signing-helper.js": "Application",
+      "lib/v5/trusted-key-resolver.js": "Application",
+      "lib/v5/verification-core.js": "Application",
+      "lib/verdict/action-verdict.js": "Application",
+      "lib/verify-contradiction-evidence.js": "Core",
+      "lib/verify-native.js": "Core",
+      "lib/verify-numeric-contradictions.js": "Core",
+      "lib/verify-numeric-text.js": "Core",
+      "lib/verify-status-vocabulary.js": "Core",
+      "lib/verify-turkish-text.js": "Core",
+      "lib/verify.js": "Core",
+      "lib/viewer/session-cookie.js": "UI",
+      "lib/viewer/session-store.js": "UI",
+      "lib/viewer/viewer-gateway.js": "UI",
+      "lib/web-research-workflow.js": "Core",
+      "lib/web-research.js": "Core",
+      "lib/workbench/activity-read.js": "UI",
+      "lib/workbench/activity-route.js": "UI",
+      "lib/workbench/ingest-approval-action.js": "UI",
+      "lib/workbench/ingest-approval-audit-writer.js": "UI",
+      "lib/workbench/ingest-approval-audit.js": "UI",
+      "lib/workbench/memory-context-audit-source.js": "UI",
+      "lib/workbench/memory-context-inspector.js": "UI",
+      "lib/workbench/memory-context-route.js": "UI",
+      "lib/workbench/receipt-bundle-export-route.js": "UI",
+      "lib/workbench/receipt-bundle-exporter.js": "UI",
+      "lib/workbench/trust-receipt-inspector.js": "UI",
+      "lib/workbench/trust-receipt-route.js": "UI",
+      "lib/workbench/workbench-read-http-router.js": "UI",
+      "lib/workflow-budget-selection.js": "Core",
+      "lib/workflow-contract.js": "Core",
+      "lib/workflow-review-approval.js": "Core",
+      "lib/workflow-run-guidance.js": "Core",
+      "lib/workflow-tool-capability-runner.js": "Core",
+      "lib/workflow-tool-envelope.js": "Core",
+      "lib/workflow-tool-kernel-queries.js": "Core",
+      "lib/workflow-tool-registration.js": "Core",
+      "lib/workflow-tool-registry.js": "Core",
+      "lib/workflow-tool-repo-memory.js": "Core",
+      "lib/workflow-tool-run-capability.js": "Core",
+      "lib/workflow-tool-specialized-capabilities.js": "Core",
+      "lib/workflow-values.js": "Core",
+      "lib/workspace-id.js": "Core",
+      "llmAdapter.js": "Adapters",
+      "mcpServer.js": "UI",
+      "nlp/index.js": "Core",
+      "nlp/lang-ar.js": "Core",
+      "nlp/lang-de.js": "Core",
+      "nlp/lang-en.js": "Core",
+      "nlp/lang-tr.js": "Core",
+      "nlp/normalize-phrase.js": "Core",
+      "packages/axiom-verify/index.js": "Adapters",
+      "packages/huqan-verify/index.js": "Adapters",
+      "persistencePaths.js": "Adapters",
+      "plugin.js": "Application",
+      "plugins/company-brain.js": "Application",
+      "plugins/contradiction-alert.js": "Application",
+      "plugins/daily-digest.js": "Application",
+      "plugins/decision-explainer.js": "Application",
+      "plugins/devil-advocate.js": "Application",
+      "plugins/discovery-engine.js": "Application",
+      "plugins/evidence-validator.js": "Application",
+      "plugins/experiment-planner.js": "Application",
+      "plugins/idea-mri.js": "Application",
+      "plugins/knowledge-freshness.js": "Application",
+      "plugins/llm-memory-plugin.js": "Application",
+      "plugins/metric-collector.js": "Application",
+      "plugins/policy-watchdog.js": "Application",
+      "plugins/receipt-exporter.js": "Application",
+      "plugins/replication-checker.js": "Application",
+      "plugins/repo-memory.js": "Application",
+      "plugins/result-analyzer.js": "Application",
+      "plugins/secret-masker.js": "Application",
+      "plugins/self-healer-audit.js": "Application",
+      "plugins/workspace-sync.js": "Application",
+      "public/control-room/js/control-room-activity.js": "UI",
+      "public/control-room/js/control-room-agents.js": "UI",
+      "public/control-room/js/control-room-app.js": "UI",
+      "public/control-room/js/control-room-approvals.js": "UI",
+      "public/control-room/js/control-room-data.js": "UI",
+      "public/control-room/js/control-room-overview.js": "UI",
+      "public/control-room/js/control-room-receipts.js": "UI",
+      "public/js/app.js": "UI",
+      "public/js/command-policy.js": "UI",
+      "public/js/home-navigation.js": "UI",
+      "public/js/i18n.js": "UI",
+      "public/js/ingest-run-detail.js": "UI",
+      "public/js/learn-review.js": "UI",
+      "public/js/onboarding-checklist.js": "UI",
+      "public/js/page-scroll.js": "UI",
+      "public/js/pwa-shell.js": "UI",
+      "public/js/web-research.js": "UI",
+      "public/service-worker.js": "UI",
+      "requestGuards.js": "Core",
+      "rustGraph.js": "Adapters",
+      "sandboxRunner.js": "Adapters",
+      "schemas/v5/agent-identity-conformance.js": "Core",
+      "schemas/v5/agent-identity-coverage.js": "Core",
+      "schemas/v5/agent-identity-readiness.js": "Core",
+      "schemas/v5/agent-identity-validator.js": "Core",
+      "schemas/v5/shared-trust-package-validator.js": "Core",
+      "scripts/a2a-conformance/clean-room/verify-exchange.js": "UI",
+      "scripts/a2a-conformance/consumer.js": "UI",
+      "scripts/a2a-conformance/replay-store.js": "UI",
+      "scripts/a2a-conformance/run.js": "UI",
+      "scripts/a2a-conformance/verifier.js": "UI",
+      "scripts/agent-context.js": "UI",
+      "scripts/api-snapshot-diff.js": "UI",
+      "scripts/api-snapshot-surface.js": "UI",
+      "scripts/api-snapshot.js": "UI",
+      "scripts/architecture-mermaid.js": "UI",
+      "scripts/architecture-snapshot.js": "UI",
+      "scripts/backup.js": "UI",
+      "scripts/benign-false-block-rate.js": "UI",
+      "scripts/binding-site-scan.js": "UI",
+      "scripts/capability-usage.js": "UI",
+      "scripts/changelog.js": "UI",
+      "scripts/check-action-pins.js": "UI",
+      "scripts/check-control-chars.js": "UI",
+      "scripts/check-dead-code.js": "UI",
+      "scripts/check-deprecations.js": "UI",
+      "scripts/check-deterministic-path.js": "UI",
+      "scripts/check-doc-status.js": "UI",
+      "scripts/check-docs-drift.js": "UI",
+      "scripts/check-file-size.js": "UI",
+      "scripts/check-import-cycles.js": "UI",
+      "scripts/check-layers.js": "UI",
+      "scripts/check-licenses.js": "UI",
+      "scripts/check-module-boundary.js": "UI",
+      "scripts/check-mutation-score.js": "UI",
+      "scripts/check-package-closure.js": "UI",
+      "scripts/check-pr-guardian-webhook-url.js": "UI",
+      "scripts/check-structured-log-format.js": "UI",
+      "scripts/check-v5-identity-readiness.js": "UI",
+      "scripts/check-workflow-governance.js": "UI",
+      "scripts/ci-impact-plan.js": "UI",
+      "scripts/ci-impact-rules.js": "UI",
+      "scripts/ci-shard-manifest.js": "UI",
+      "scripts/ci-test-selection.js": "UI",
+      "scripts/comment-pr-guardian-block.js": "UI",
+      "scripts/container-server.js": "UI",
+      "scripts/dead-code-symbols.js": "UI",
+      "scripts/deprecation-policy.js": "UI",
+      "scripts/enforcement-coverage-classification.js": "UI",
+      "scripts/enforcement-coverage.js": "UI",
+      "scripts/explain-npm-publish-failure.js": "UI",
+      "scripts/external-client.js": "UI",
+      "scripts/external-conformance/consumer.js": "UI",
+      "scripts/external-conformance/run.js": "UI",
+      "scripts/file-size-policy.js": "UI",
+      "scripts/fitness-dashboard.js": "UI",
+      "scripts/generate-protocol-vectors.js": "UI",
+      "scripts/huqan-watchdog.js": "UI",
+      "scripts/junit-merge.js": "UI",
+      "scripts/knowledge-graph-demo.js": "UI",
+      "scripts/launch-installed-package-smoke.js": "UI",
+      "scripts/list-mutation-targets.js": "UI",
+      "scripts/migrate-prov-ids.js": "UI",
+      "scripts/nightly-failure-alarm.js": "UI",
+      "scripts/pr-guardian-self-review.js": "UI",
+      "scripts/release-verify.js": "UI",
+      "scripts/require-scan.js": "UI",
+      "scripts/restore.js": "UI",
+      "scripts/retained-deep-imports.js": "UI",
+      "scripts/run-test-shard.js": "UI",
+      "scripts/run-tests.js": "UI",
+      "scripts/run-trust-receipt-pilot.js": "UI",
+      "scripts/seed-demo.js": "UI",
+      "scripts/setup-sqlite.js": "UI",
+      "scripts/spawn-windows-aware.js": "UI",
+      "scripts/test-state-sandbox.js": "UI",
+      "scripts/verify-package-tarball.js": "UI",
+      "scripts/verify-published-round-trip.js": "UI",
+      "scripts/verify-suite.js": "UI",
+      "scripts/verify-test-environment.js": "UI",
+      "server.js": "UI",
+      "storage.js": "Adapters",
+      "toolPolicy.js": "Core",
+      "workflow-agent.js": "Application",
+      "workflow-runtime.js": "Application",
+      "workflow-tools.js": "Application"
+    },
+    "edges": {
+      "adapters/git-log-adapter.js": [
+        "adapters/utils/learn-entries.js",
+        "lib/content-hash.js",
+        "lib/path-safety.js"
+      ],
+      "adapters/github-adapter.js": [
+        "lib/content-hash.js",
+        "lib/github-url.js"
+      ],
+      "adapters/http-adapter.js": [
+        "adapters/utils/learn-entries.js",
+        "lib/content-hash.js",
+        "lib/ssrf-guard.js"
+      ],
+      "adapters/json-adapter.js": [
+        "adapters/utils/learn-entries.js",
+        "lib/content-hash.js",
+        "lib/safe-file-walk.js"
+      ],
+      "adapters/markdown-adapter.js": [
+        "lib/content-hash.js",
+        "lib/safe-file-walk.js"
+      ],
+      "adapters/pdf-adapter.js": [
+        "adapters/utils/learn-entries.js",
+        "lib/content-hash.js",
+        "lib/safe-file-walk.js"
+      ],
+      "adapters/yaml-adapter.js": [
+        "adapters/utils/learn-entries.js",
+        "lib/content-hash.js",
+        "lib/safe-file-walk.js"
+      ],
+      "agent.js": [
+        "dream.js",
+        "lib/agent-memory-persistence.js",
+        "lib/agent-memory-runtime.js",
+        "lib/agent-memory-state.js",
+        "lib/agent-plan-runtime.js",
+        "lib/agent-report-renderer.js",
+        "lib/agent-run-guidance.js",
+        "lib/agent-step-executor.js",
+        "lib/mcp-tool-policy.js",
+        "toolPolicy.js"
+      ],
+      "agent.v3.js": [
+        "agent.js",
+        "dream.js",
+        "lib/agent-behavioral-integrity.js",
+        "lib/agent-loop-budget-gate.js",
+        "lib/agent-memory-persistence.js",
+        "lib/agent-run-finalization.js",
+        "lib/agent-v3-dream-loop-adapter.js",
+        "lib/agent-v3-storage-factory.js",
+        "lib/gate-telemetry.js",
+        "lib/goal-binding.js"
+      ],
+      "agentRuntime.js": [
+        "agent.js",
+        "agent.v3.js",
+        "lib/environment-compat.js",
+        "storage.js",
+        "workflow-runtime.js"
+      ],
+      "backupRestore.js": [
+        "lib/memory-store-utils.js",
+        "lib/path-safety.js",
+        "persistencePaths.js"
+      ],
+      "bin/huqan-gate-hook.js": [
+        "lib/browser-session-observer.js",
+        "lib/gate-hook-evaluate.js",
+        "lib/gate-hook-identity.js",
+        "lib/gate-hook-input.js",
+        "lib/gate-hook-management.js",
+        "lib/gate-hook-reports.js",
+        "lib/http/process-failure-handlers.js",
+        "lib/http/structured-log.js"
+      ],
+      "bin/huqan-mcp.js": [
+        "mcpServer.js"
+      ],
+      "causalSimulator.js": [
+        "graph.js"
+      ],
+      "cli.js": [
+        "agentRuntime.js",
+        "dream.js",
+        "lib/cli-audit.js",
+        "lib/cli-backup-commands.js",
+        "lib/cli-coder.js",
+        "lib/cli-company-ingest.js",
+        "lib/cli-gate-message.js",
+        "lib/cli-help.js",
+        "lib/cli-helpers.js",
+        "lib/cli-hypotheses.js",
+        "lib/cli-learn-review.js",
+        "lib/cli-mutation-gate.js",
+        "lib/cli-status-command.js",
+        "lib/cli-trust-receipt.js",
+        "lib/cli-workflow-adapter.js",
+        "lib/command-parser.js",
+        "lib/environment-compat.js",
+        "lib/http/process-failure-handlers.js",
+        "lib/http/structured-log.js",
+        "lib/kernel-factory.js",
+        "lib/mcp-approval-views.js",
+        "lib/mcp-gate-adapter.js",
+        "lib/quickstart-cli.js",
+        "llmAdapter.js",
+        "mcpServer.js",
+        "persistencePaths.js"
+      ],
+      "dream.js": [
+        "lib/dream-hypothesis-semantics.js",
+        "lib/graph-record-utils.js"
+      ],
+      "examples/a2a-third-party-agent/receiver.js": [
+        "scripts/a2a-conformance/clean-room/verify-exchange.js"
+      ],
+      "examples/observability-client.js": [
+        "index.js"
+      ],
+      "github-app-server.js": [
+        "lib/environment-compat.js",
+        "lib/github-app-beta-http-boundary.js"
+      ],
+      "graph.js": [
+        "lib/audit-log.js",
+        "lib/audit-query.js",
+        "lib/conflict-detector.js",
+        "lib/graph-candidate-claims-read.js",
+        "lib/graph-candidate-claims-write.js",
+        "lib/graph-causal-chain.js",
+        "lib/graph-causal-relation-read.js",
+        "lib/graph-consolidate-edges.js",
+        "lib/graph-count-read.js",
+        "lib/graph-edge-mutations.js",
+        "lib/graph-edge-read.js",
+        "lib/graph-edge-write.js",
+        "lib/graph-json-persistence.js",
+        "lib/graph-json-snapshot.js",
+        "lib/graph-mutation-receipt-read.js",
+        "lib/graph-mutation-receipt-schema.js",
+        "lib/graph-mutation-rollback.js",
+        "lib/graph-node-delete.js",
+        "lib/graph-node-read.js",
+        "lib/graph-node-similarity.js",
+        "lib/graph-node-tag.js",
+        "lib/graph-node-touch.js",
+        "lib/graph-node-weight.js",
+        "lib/graph-node-write.js",
+        "lib/graph-optimize.js",
+        "lib/graph-prune.js",
+        "lib/graph-query-read.js",
+        "lib/graph-record-utils.js",
+        "lib/graph-sqlite-pragmas.js",
+        "lib/graph-stats.js",
+        "lib/memory-store-utils.js",
+        "lib/mutation-journal.js",
+        "lib/receipt/receipt-chain.js",
+        "lib/receipt/v4-receipt-family.js",
+        "lib/sqlite-persistence-validation.js"
+      ],
+      "index.js": [
+        "kernel.js",
+        "kernel.v2.js",
+        "lib/agent-action-firewall.js",
+        "lib/agent-identity-runtime.js",
+        "lib/error-prevention/index.js",
+        "lib/external-action-adapter.js",
+        "lib/external-action-guard.js",
+        "lib/external-action-receipt.js",
+        "lib/human-oversight-approval-runtime.js",
+        "lib/interop/otel-mapping.js",
+        "lib/interop/vc-mapping.js",
+        "lib/multi-agent-cascade-guard.js",
+        "lib/observability/client.js",
+        "lib/pilot/test-database-boundary.js",
+        "lib/pilot/trust-receipt-pilot-archive.js",
+        "lib/pilot/trust-receipt-pilot.js",
+        "lib/pr-guardian/index.js",
+        "lib/registry/registry-bundle-signing-key-resolver.js",
+        "lib/trust-evidence-ledger.js"
+      ],
+      "kernel.js": [
+        "dream.js",
+        "graph.js",
+        "lib/background-provenance.js",
+        "lib/cli-mutation-audit-intent.js",
+        "lib/cli-mutation-audit.js",
+        "lib/conflict-detector.js",
+        "lib/environment-compat.js",
+        "lib/errors/provenance-error.js",
+        "lib/gate-telemetry.js",
+        "lib/graph-traversal.js",
+        "lib/kernel-alternatives.js",
+        "lib/kernel-auto-think.js",
+        "lib/kernel-context-similarity.js",
+        "lib/kernel-contract.js",
+        "lib/kernel-dream.js",
+        "lib/kernel-envelope.js",
+        "lib/kernel-introspect-report.js",
+        "lib/kernel-learn-admission.js",
+        "lib/kernel-learn-document.js",
+        "lib/kernel-learn-from-llm.js",
+        "lib/kernel-mutation-admission.js",
+        "lib/kernel-read-use-cases.js",
+        "lib/kernel-self-evolve.js",
+        "lib/kernel-self-learn.js",
+        "lib/learn-admission-request.js",
+        "lib/learn-edge-options.js",
+        "lib/learn-use-case.js",
+        "lib/memory-admission-gate.js",
+        "lib/memory-store-utils.js",
+        "lib/memory-store.js",
+        "lib/predicate-parser.js",
+        "lib/provenance-ingest.js",
+        "lib/reason-sandbox.js",
+        "lib/receipt/canonical-receipt.js",
+        "lib/verdict/action-verdict.js",
+        "lib/verify.js",
+        "nlp/index.js",
+        "plugin.js",
+        "rustGraph.js"
+      ],
+      "kernel.v2.js": [
+        "kernel.js",
+        "lib/kernel-v2-native.js",
+        "lib/kernel-v2-type-negation.js",
+        "lib/pre-ingest.js",
+        "lib/subject-resolution.js",
+        "lib/text-safety-scorer.js",
+        "lib/turkish-copula.js",
+        "lib/type-lattice.js"
+      ],
+      "lib/a2a/agent-card-route.js": [
+        "lib/a2a/agent-card.js",
+        "lib/a2a/exchange-route.js",
+        "lib/server-response-helpers.js"
+      ],
+      "lib/a2a/bounded-exchange.js": [
+        "lib/a2a/inter-agent-receipt-chain.js",
+        "lib/external-client-package-gate.js",
+        "lib/receipt/cryptographic-profile-contract.js",
+        "lib/receipt/cryptographic-verification-adapter.js",
+        "lib/receipt/public-trust-receipt.js",
+        "lib/receipt/trusted-key-resolver.js"
+      ],
+      "lib/a2a/capability-negotiation.js": [
+        "lib/a2a/agent-card.js"
+      ],
+      "lib/a2a/exchange-route.js": [
+        "lib/a2a/agent-card.js",
+        "lib/a2a/bounded-exchange.js",
+        "lib/a2a/delegation-audit-log.js",
+        "lib/a2a/inter-agent-receipt-chain.js",
+        "lib/a2a/replay-store.js",
+        "lib/a2a/retry-classification.js",
+        "lib/a2a/task-store.js",
+        "lib/agent-action-firewall.js",
+        "lib/environment-compat.js",
+        "lib/server-response-helpers.js",
+        "requestGuards.js"
+      ],
+      "lib/a2a/inter-agent-receipt-chain.js": [
+        "lib/emergency-stop.js",
+        "lib/receipt/cryptographic-profile-contract.js",
+        "lib/risk-scale.js"
+      ],
+      "lib/a2a/negotiate-route.js": [
+        "lib/a2a/agent-card.js",
+        "lib/a2a/capability-negotiation.js",
+        "lib/a2a/exchange-route.js",
+        "lib/environment-compat.js",
+        "lib/server-response-helpers.js",
+        "requestGuards.js"
+      ],
+      "lib/a2a/replay-store.js": [
+        "lib/a2a/task-store.js"
+      ],
+      "lib/a2a/routes.js": [
+        "lib/a2a/agent-card-route.js",
+        "lib/a2a/exchange-route.js",
+        "lib/a2a/negotiate-route.js",
+        "lib/a2a/task-route.js"
+      ],
+      "lib/a2a/task-route.js": [
+        "lib/a2a/task-store.js",
+        "lib/environment-compat.js",
+        "lib/server-response-helpers.js"
+      ],
+      "lib/action-risk-classifier.js": [
+        "lib/risk-classify.js"
+      ],
+      "lib/adversarial-signals.js": [
+        "lib/text-utils.js"
+      ],
+      "lib/agent-action-decisions.js": [
+        "lib/agent-action-signals.js",
+        "lib/automation-safety-gate/automation-safety-vocabulary.js",
+        "lib/automation-safety-gate/index.js"
+      ],
+      "lib/agent-action-firewall.js": [
+        "lib/agent-action-decisions.js",
+        "lib/agent-action-signals.js",
+        "lib/automation-safety-gate/automation-input-normalizer.js",
+        "lib/automation-safety-gate/index.js"
+      ],
+      "lib/agent-action-signals.js": [
+        "lib/automation-safety-gate/automation-safety-vocabulary.js"
+      ],
+      "lib/agent-action-step-enforcement.js": [
+        "lib/agent-action-decisions.js",
+        "lib/agent-action-firewall.js",
+        "lib/agent-action-signals.js",
+        "lib/gate-telemetry.js"
+      ],
+      "lib/agent-behavioral-integrity.js": [
+        "lib/self-healer/behavioral-containment.js"
+      ],
+      "lib/agent-failure-signature.js": [
+        "lib/agent-memory-state.js"
+      ],
+      "lib/agent-identity-runtime.js": [
+        "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/agent-memory-records.js": [
+        "lib/agent-memory-state.js"
+      ],
+      "lib/agent-memory-runtime.js": [
+        "lib/agent-failure-signature.js",
+        "lib/agent-memory-persistence.js",
+        "lib/agent-memory-records.js",
+        "lib/agent-memory-state.js"
+      ],
+      "lib/agent-memory-state.js": [
+        "lib/default-persistence-path.js"
+      ],
+      "lib/agent-plan-runtime.js": [
+        "lib/agent-memory-state.js",
+        "lib/agent-planning-policy.js",
+        "lib/goal-integrity-gate.js"
+      ],
+      "lib/agent-planning-policy.js": [
+        "lib/agent-failure-signature.js",
+        "lib/agent-memory-records.js",
+        "lib/agent-memory-state.js"
+      ],
+      "lib/agent-report-renderer.js": [
+        "finalizer.js"
+      ],
+      "lib/agent-run-finalization.js": [
+        "lib/run-impact.js"
+      ],
+      "lib/agent-step-executor.js": [
+        "finalizer.js",
+        "lib/agent-action-step-enforcement.js",
+        "lib/agent-behavioral-integrity.js",
+        "lib/agent-memory-persistence.js",
+        "lib/agent-memory-state.js",
+        "lib/agent-run-guidance.js",
+        "lib/behavioral-stop-bridge.js",
+        "lib/emergency-stop.js",
+        "lib/gate-telemetry.js",
+        "lib/goal-binding.js",
+        "toolPolicy.js"
+      ],
+      "lib/agent-v3-dream-loop-adapter.js": [
+        "lib/dream-experiment-loop.js"
+      ],
+      "lib/agent-v3-storage-factory.js": [
+        "storage.js"
+      ],
+      "lib/approval-execution-evidence.js": [
+        "lib/receipt/receipt-read-index.js"
+      ],
+      "lib/approval-flow.js": [
+        "lib/approval-schema.js",
+        "lib/is-plain-object.js",
+        "lib/json-clone.js"
+      ],
+      "lib/approval-schema.js": [
+        "lib/json-clone.js"
+      ],
+      "lib/atp-conformance.js": [
+        "lib/is-plain-object.js"
+      ],
+      "lib/audit-bounded-read.js": [
+        "lib/audit-log.js",
+        "lib/json-utf8-size.js"
+      ],
+      "lib/audit-query-primitives.js": [
+        "lib/audit-log.js"
+      ],
+      "lib/audit-query.js": [
+        "lib/audit-log.js",
+        "lib/audit-query-primitives.js",
+        "lib/graph-record-utils.js"
+      ],
+      "lib/automation-safety-gate/automation-findings-summary.js": [
+        "lib/automation-safety-gate/automation-input-normalizer.js",
+        "lib/automation-safety-gate/automation-safety-vocabulary.js",
+        "lib/text-utils.js"
+      ],
+      "lib/automation-safety-gate/automation-input-normalizer.js": [
+        "lib/automation-safety-gate/automation-safety-vocabulary.js",
+        "lib/is-plain-object.js",
+        "lib/text-utils.js"
+      ],
+      "lib/automation-safety-gate/automation-operation-classifier.js": [
+        "lib/automation-safety-gate/automation-input-normalizer.js",
+        "lib/automation-safety-gate/automation-safety-vocabulary.js",
+        "lib/text-utils.js"
+      ],
+      "lib/automation-safety-gate/automation-safety-decision.js": [
+        "lib/automation-safety-gate/automation-findings-summary.js",
+        "lib/automation-safety-gate/automation-input-normalizer.js",
+        "lib/automation-safety-gate/automation-operation-classifier.js",
+        "lib/automation-safety-gate/automation-safety-vocabulary.js"
+      ],
+      "lib/automation-safety-gate/index.js": [
+        "lib/automation-safety-gate/automation-findings-summary.js",
+        "lib/automation-safety-gate/automation-input-normalizer.js",
+        "lib/automation-safety-gate/automation-operation-classifier.js",
+        "lib/automation-safety-gate/automation-safety-decision.js",
+        "lib/automation-safety-gate/automation-safety-vocabulary.js"
+      ],
+      "lib/autonomy-receipt-history.js": [
+        "lib/external-action-receipt.js",
+        "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/autonomy-state.js": [
+        "lib/action-risk-classifier.js",
+        "lib/autonomy-receipt-history.js"
+      ],
+      "lib/autonomy-trust-score.js": [
+        "lib/autonomy-receipt-history.js"
+      ],
+      "lib/axiom-package-format.js": [
+        "lib/huqan-package-format.js"
+      ],
+      "lib/background-provenance.js": [
+        "lib/cli-mutation-audit-intent.js",
+        "lib/human-sponsor-authority.js",
+        "lib/trust-policy.js"
+      ],
+      "lib/behavioral-stop-bridge.js": [
+        "lib/agent-action-firewall.js",
+        "lib/self-healer/behavioral-containment.js"
+      ],
+      "lib/blast-radius.js": [
+        "lib/file-effect-sensor.js",
+        "lib/risk-policy-constants.js",
+        "lib/risk-scale.js"
+      ],
+      "lib/browser-hook-outcome.js": [
+        "lib/external-action-adapter.js",
+        "lib/external-action-envelope.js",
+        "lib/external-action-guard.js",
+        "lib/external-action-receipt.js",
+        "lib/receipt/canonical-receipt.js",
+        "lib/verdict/action-verdict.js"
+      ],
+      "lib/browser-session-observer.js": [
+        "lib/browser-hook-outcome.js",
+        "lib/external-action-receipt.js",
+        "lib/gate-hook-input.js",
+        "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/causal-edge-strength.js": [
+        "graph.js"
+      ],
+      "lib/causal/causal-edge.js": [
+        "graph.js",
+        "lib/causal/causal-edge-errors.js"
+      ],
+      "lib/causal/causal-traversal.js": [
+        "lib/causal/causal-edge.js"
+      ],
+      "lib/causal/causal-verdict.js": [
+        "lib/causal/causal-traversal.js"
+      ],
+      "lib/causal/index.js": [
+        "lib/causal/causal-edge-errors.js",
+        "lib/causal/causal-edge.js",
+        "lib/causal/causal-traversal.js",
+        "lib/causal/causal-verdict.js"
+      ],
+      "lib/claim-decomposition.js": [
+        "lib/text-utils.js"
+      ],
+      "lib/cli-audit.js": [
+        "lib/trust-score-aggregator.js"
+      ],
+      "lib/cli-backup-commands.js": [
+        "backupRestore.js",
+        "lib/sqlite-restore.js"
+      ],
+      "lib/cli-coder-verify.js": [
+        "lib/coder/verify-derivation.js"
+      ],
+      "lib/cli-coder.js": [
+        "lib/cli-coder-verify.js",
+        "lib/coder/apply-derivation.js",
+        "lib/coder/derivation-record.js"
+      ],
+      "lib/cli-company-ingest.js": [
+        "lib/cli-helpers.js"
+      ],
+      "lib/cli-doctor.js": [
+        "lib/environment-compat.js",
+        "lib/sqlite-availability.js",
+        "lib/storage/schema.js",
+        "persistencePaths.js",
+        "rustGraph.js"
+      ],
+      "lib/cli-experience-read.js": [
+        "lib/experience/read-model.js"
+      ],
+      "lib/cli-help.js": [
+        "lib/workflow-contract.js"
+      ],
+      "lib/cli-helpers.js": [
+        "lib/command-parser.js",
+        "lib/environment-compat.js",
+        "lib/path-safety.js"
+      ],
+      "lib/cli-hypotheses.js": [
+        "lib/fitness-history.js",
+        "lib/graph-hypotheses.js",
+        "lib/hypothesis-feedback.js",
+        "lib/hypothesis-fitness.js",
+        "lib/hypothesis-review.js",
+        "lib/hypothesis-thresholds.js",
+        "lib/hypothesis-tuning.js"
+      ],
+      "lib/cli-ingest-batch.js": [
+        "lib/ingest-workflow-preview.js"
+      ],
+      "lib/cli-ingest-preview.js": [
+        "lib/ingest-workflow-preview.js"
+      ],
+      "lib/cli-mutation-audit-intent.js": [
+        "lib/is-plain-object.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/cli-mutation-audit.js": [
+        "lib/cli-mutation-audit-intent.js"
+      ],
+      "lib/cli-mutation-gate.js": [
+        "lib/command-parser.js"
+      ],
+      "lib/cli-status-command.js": [
+        "lib/cli-doctor.js",
+        "lib/cli-helpers.js",
+        "lib/cli-plugin-status.js",
+        "lib/system-status-report.js"
+      ],
+      "lib/cli-trust-receipt.js": [
+        "lib/receipt/receipt-read-index.js"
+      ],
+      "lib/cli-workflow-adapter.js": [
+        "lib/cli-gate-message.js",
+        "lib/cli-ingest-batch.js",
+        "lib/cli-ingest-preview.js",
+        "lib/cli-workflow-envelope.js",
+        "lib/emergency-stop.js",
+        "lib/environment-compat.js",
+        "lib/integrity-violation-notifier.js",
+        "lib/observability/notification-adapter.js",
+        "lib/workflow-contract.js"
+      ],
+      "lib/cli-workflow-envelope.js": [
+        "lib/http/workflow-envelope.js",
+        "lib/workflow-contract.js"
+      ],
+      "lib/code-change-decision-summary.js": [
+        "lib/code-change-gate-vocabulary.js",
+        "lib/is-plain-object.js",
+        "lib/text-utils.js"
+      ],
+      "lib/code-change-file-classifier.js": [
+        "lib/code-change-gate-vocabulary.js",
+        "lib/code-change-input.js",
+        "lib/code-change-path-classification.js",
+        "lib/text-utils.js"
+      ],
+      "lib/code-change-gate-vocabulary.js": [
+        "lib/text-utils.js"
+      ],
+      "lib/code-change-gate.js": [
+        "lib/code-change-decision-summary.js",
+        "lib/code-change-file-classifier.js",
+        "lib/code-change-gate-vocabulary.js",
+        "lib/code-change-input.js",
+        "lib/is-plain-object.js",
+        "lib/text-utils.js"
+      ],
+      "lib/code-change-input.js": [
+        "lib/code-change-gate-vocabulary.js",
+        "lib/is-plain-object.js",
+        "lib/text-utils.js"
+      ],
+      "lib/coder/apply-derivation.js": [
+        "lib/code-change-gate.js",
+        "lib/coder/derivation-record.js",
+        "lib/deterministic-task-runner.js",
+        "lib/path-safety.js"
+      ],
+      "lib/coder/derivation-record.js": [
+        "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/coder/verify-derivation.js": [
+        "lib/coder/derivation-record.js",
+        "lib/deterministic-task-runner.js",
+        "lib/path-safety.js",
+        "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/collector-seal-config.js": [
+        "lib/environment-compat.js"
+      ],
+      "lib/command-exec-gate.js": [
+        "lib/path-safety.js"
+      ],
+      "lib/command-parser.js": [
+        "lib/cli-workflow-adapter.js"
+      ],
+      "lib/command-policy-editor.js": [
+        "lib/external-action-envelope.js"
+      ],
+      "lib/company-ingest-gate.js": [
+        "lib/data-egress-gate.js",
+        "lib/secret-scrub-gate.js"
+      ],
+      "lib/conflict-detector.js": [
+        "lib/audit-log.js",
+        "lib/background-provenance.js",
+        "lib/is-plain-object.js",
+        "lib/provenance-ingest.js",
+        "lib/receipt/canonical-receipt.js",
+        "lib/verdict/action-verdict.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/connector-action-firewall.js": [
+        "lib/agent-action-firewall.js",
+        "lib/connector-local-path.js",
+        "lib/github-url.js"
+      ],
+      "lib/connector-local-path.js": [
+        "lib/connectors/entry-ingest-flow.js"
+      ],
+      "lib/connectors/entry-ingest-flow.js": [
+        "lib/environment-compat.js"
+      ],
+      "lib/connectors/repo-memory-firewall.js": [
+        "lib/connector-action-firewall.js"
+      ],
+      "lib/contradiction-rules.js": [
+        "lib/relation-drift.js",
+        "lib/text-utils.js"
+      ],
+      "lib/cross-workspace-access-gate.js": [
+        "lib/is-plain-object.js"
+      ],
+      "lib/data-egress-gate.js": [
+        "lib/is-plain-object.js",
+        "lib/tool-call-gate.js"
+      ],
+      "lib/delegation-service.js": [
+        "lib/multi-agent-cascade-guard.js"
+      ],
+      "lib/deterministic-task-runner.js": [
+        "lib/task-identifier-lexer.js",
+        "lib/task-schema-sources.js"
+      ],
+      "lib/dream-experiment-loop.js": [
+        "causalSimulator.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/dream-hypothesis-semantics.js": [
+        "lib/type-lattice.js"
+      ],
+      "lib/emergency-stop-chain.js": [
+        "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/emergency-stop.js": [
+        "lib/emergency-stop-chain.js",
+        "lib/huqan-state-root.js",
+        "lib/receipt/canonical-receipt.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/environment-compat.js": [
+        "lib/legacy-alias-usage.js"
+      ],
+      "lib/error-prevention/admission.js": [
+        "lib/memory-admission-gate.js"
+      ],
+      "lib/error-prevention/audit.js": [
+        "lib/audit-log.js"
+      ],
+      "lib/error-prevention/authority.js": [
+        "lib/error-prevention/subject.js",
+        "lib/json-clone.js"
+      ],
+      "lib/error-prevention/decision.js": [
+        "lib/receipt/canonical-receipt.js",
+        "lib/verdict/action-verdict.js"
+      ],
+      "lib/error-prevention/engine.js": [
+        "lib/error-prevention/admission.js",
+        "lib/error-prevention/audit.js",
+        "lib/error-prevention/authority.js",
+        "lib/error-prevention/decision.js",
+        "lib/error-prevention/evidence.js",
+        "lib/error-prevention/failure-record.js",
+        "lib/error-prevention/fingerprint.js",
+        "lib/error-prevention/input.js",
+        "lib/error-prevention/integrity.js",
+        "lib/error-prevention/lifecycle.js",
+        "lib/error-prevention/rule-proposal.js",
+        "lib/error-prevention/store.js",
+        "lib/error-prevention/trust.js",
+        "lib/json-clone.js"
+      ],
+      "lib/error-prevention/failure-record.js": [
+        "lib/error-prevention/decision.js",
+        "lib/error-prevention/fingerprint.js"
+      ],
+      "lib/error-prevention/fingerprint.js": [
+        "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/error-prevention/index.js": [
+        "lib/error-prevention/decision.js",
+        "lib/error-prevention/engine.js",
+        "lib/error-prevention/fingerprint.js",
+        "lib/error-prevention/subject.js",
+        "lib/error-prevention/trust.js"
+      ],
+      "lib/error-prevention/input.js": [
+        "lib/deterministic-json-copy.js"
+      ],
+      "lib/error-prevention/integrity.js": [
+        "lib/error-prevention/subject.js"
+      ],
+      "lib/error-prevention/rule-proposal.js": [
+        "lib/error-prevention/decision.js"
+      ],
+      "lib/error-prevention/subject.js": [
+        "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/experience/canary.js": [
+        "lib/experience/router.js"
+      ],
+      "lib/experience/capability-trust-canary-extension.js": [
+        "lib/experience/optimization-hypothesis.js"
+      ],
+      "lib/experience/capability-trust.js": [
+        "lib/experience/capability-trust-canary-extension.js",
+        "lib/experience/capability-trust-fallback-extension.js"
+      ],
+      "lib/experience/journal.js": [
+        "lib/experience/contract.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/experience/optimization-hypothesis.js": [
+        "lib/experience/canary.js"
+      ],
+      "lib/experience/permitted-fallback.js": [
+        "lib/agent-action-firewall.js",
+        "lib/experience/router.js",
+        "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/experience/personal-execution-model.js": [
+        "lib/environment-compat.js",
+        "lib/experience/capability-trust.js",
+        "lib/experience/router.js",
+        "lib/human-approval-toggle.js",
+        "lib/trust-policy.js"
+      ],
+      "lib/experience/verifier.js": [
+        "lib/experience/contract.js"
+      ],
+      "lib/external-action-action-binding.js": [
+        "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/external-action-adapter.js": [
+        "lib/external-action-command-policy.js",
+        "lib/external-action-guard.js",
+        "lib/external-action-receipt.js"
+      ],
+      "lib/external-action-agent-overview.js": [
+        "lib/external-action-agent-detection.js",
+        "lib/external-action-agent-roster.js",
+        "lib/external-action-gate-install.js"
+      ],
+      "lib/external-action-agent-roster.js": [
+        "lib/external-action-identity-log.js"
+      ],
+      "lib/external-action-command-policy.js": [
+        "lib/external-action-receipt.js"
+      ],
+      "lib/external-action-custom-agent-status.js": [
+        "lib/external-action-identity-log.js"
+      ],
+      "lib/external-action-egress-gates.js": [
+        "lib/data-egress-gate.js",
+        "lib/data-residency-gate.js",
+        "lib/external-action-command-policy.js",
+        "lib/unexpected-egress-gate.js"
+      ],
+      "lib/external-action-envelope.js": [
+        "lib/action-risk-classifier.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/external-action-gate-install.js": [
+        "lib/external-action-adapter.js",
+        "lib/external-action-agent-detection.js",
+        "lib/external-action-custom-agent-status.js",
+        "lib/external-action-envelope.js",
+        "lib/external-action-receipt.js"
+      ],
+      "lib/external-action-guard.js": [
+        "lib/action-risk-classifier.js",
+        "lib/automation-safety-gate/index.js",
+        "lib/command-exec-gate.js",
+        "lib/control-plane-paths.js",
+        "lib/cross-workspace-access-gate.js",
+        "lib/external-action-egress-gates.js",
+        "lib/external-action-envelope.js",
+        "lib/external-action-identity.js",
+        "lib/external-action-receipt.js",
+        "lib/file-effect-sensor.js",
+        "lib/graduated-autonomy.js",
+        "lib/identity-privilege-escalation.js",
+        "lib/memory-mutation-gate/index.js",
+        "lib/path-safety.js",
+        "lib/post-action-monitor.js",
+        "lib/risk-scale.js",
+        "lib/session-impact.js",
+        "lib/tool-call-gate.js"
+      ],
+      "lib/external-action-identity-log.js": [
+        "lib/external-action-identity.js",
+        "lib/external-action-receipt.js"
+      ],
+      "lib/external-action-identity-signing.js": [
+        "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/external-action-identity.js": [
+        "lib/emergency-stop.js",
+        "lib/external-action-envelope.js",
+        "lib/external-action-identity-signing.js",
+        "lib/human-sponsor-authority.js",
+        "lib/is-plain-object.js",
+        "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/external-action-receipt-collector.js": [
+        "lib/external-action-identity-log.js",
+        "lib/external-action-identity-signing.js",
+        "lib/external-action-receipt-shipper.js",
+        "lib/path-safety.js",
+        "lib/receipt/collector-seal.js",
+        "lib/receipt/signed-receipt-batch.js"
+      ],
+      "lib/external-action-receipt-reader.js": [
+        "lib/external-action-receipt.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/external-action-receipt-shipper.js": [
+        "lib/external-action-identity-log.js",
+        "lib/external-action-receipt.js",
+        "lib/receipt/signed-receipt-batch.js"
+      ],
+      "lib/external-action-receipt-writer-factory.js": [
+        "graph.js"
+      ],
+      "lib/external-action-receipt.js": [
+        "lib/blast-radius.js",
+        "lib/external-action-envelope.js",
+        "lib/external-action-identity.js",
+        "lib/external-action-receipt-writer-factory.js",
+        "lib/file-effect-sensor.js",
+        "lib/huqan-state-root.js",
+        "lib/receipt/canonical-receipt.js",
+        "lib/verdict/action-verdict.js"
+      ],
+      "lib/external-client-authority.js": [
+        "lib/deterministic-json-copy.js",
+        "lib/external-client-authority-errors.js",
+        "lib/external-client-authority-primitives.js",
+        "lib/external-client-package-gate.js",
+        "lib/external-client-trusted-key-snapshot.js",
+        "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/external-client-http-adapter.js": [
+        "lib/external-client-endpoint-contract.js",
+        "requestGuards.js"
+      ],
+      "lib/external-client-mutation-receipt-owner.js": [
+        "lib/agent-identity-runtime.js",
+        "lib/huqan-package-format.js",
+        "lib/is-plain-object.js",
+        "lib/mutation-admission.js",
+        "lib/receipt/canonical-receipt-v2.js",
+        "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/external-client-package-gate.js": [
+        "lib/huqan-package-format.js",
+        "lib/receipt/canonical-receipt.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/external-client-production-boundary.js": [
+        "lib/environment-compat.js",
+        "lib/external-client-endpoint-contract.js",
+        "lib/external-client-http-adapter.js",
+        "lib/external-client-mutation-receipt-owner.js",
+        "lib/external-client-replay-store.js",
+        "lib/external-client-trust-config.js",
+        "lib/receipt/canonical-receipt.js",
+        "lib/sdk.js"
+      ],
+      "lib/external-client-replay-store.js": [
+        "lib/external-client-authority.js",
+        "lib/is-plain-object.js",
+        "lib/memory-store-utils.js"
+      ],
+      "lib/external-client-trust-config.js": [
+        "lib/external-client-authority.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/external-client-trusted-key-snapshot.js": [
+        "lib/external-client-authority-errors.js",
+        "lib/external-client-authority-primitives.js"
+      ],
+      "lib/financial-action-policy.js": [
+        "lib/risk-policy-constants.js"
+      ],
+      "lib/fitness-history.js": [
+        "lib/memory-store-utils.js"
+      ],
+      "lib/fractal-learn.js": [
+        "lib/fractal-learn-autotune.js",
+        "lib/hypothesis-feedback.js",
+        "lib/hypothesis-tuning.js"
+      ],
+      "lib/fuzzy-normalization.js": [
+        "lib/adversarial-signals.js",
+        "lib/text-utils.js"
+      ],
+      "lib/gate-hook-evaluate.js": [
+        "lib/browser-hook-outcome.js",
+        "lib/external-action-adapter.js",
+        "lib/external-action-command-policy.js",
+        "lib/external-action-receipt.js",
+        "lib/gate-hook-input.js"
+      ],
+      "lib/gate-hook-identity.js": [
+        "lib/external-action-identity-log.js",
+        "lib/gate-hook-input.js"
+      ],
+      "lib/gate-hook-management.js": [
+        "lib/external-action-adapter-generator.js",
+        "lib/external-action-agent-overview.js",
+        "lib/external-action-agent-roster.js",
+        "lib/external-action-gate-install.js",
+        "lib/external-action-receipt-collector.js",
+        "lib/external-action-receipt-shipper.js",
+        "lib/external-action-receipt.js",
+        "lib/gate-hook-input.js"
+      ],
+      "lib/gate-hook-reports.js": [
+        "lib/external-action-receipt-collector.js",
+        "lib/external-action-receipt-reader.js",
+        "lib/gate-hook-input.js",
+        "lib/residency-rule-miner.js"
+      ],
+      "lib/gate-telemetry.js": [
+        "lib/observability/kernel-sink.js"
+      ],
+      "lib/github-app-beta-handler.js": [
+        "lib/github-app-beta-auth.js",
+        "lib/github-app-beta-store.js",
+        "lib/is-plain-object.js",
+        "lib/receipt/canonical-receipt.js",
+        "lib/receipt/receipt-chain.js",
+        "lib/verdict/action-verdict.js"
+      ],
+      "lib/github-app-beta-http-boundary.js": [
+        "lib/environment-compat.js",
+        "lib/github-app-beta-auth.js",
+        "lib/github-app-beta-handler.js",
+        "lib/github-app-beta-store.js",
+        "lib/github-app-streaming-trust-handler.js",
+        "lib/github-app-streaming-trust-store.js",
+        "lib/github-app-streaming-trust.js"
+      ],
+      "lib/github-app-beta-store.js": [
+        "lib/is-plain-object.js",
+        "lib/receipt/canonical-receipt.js",
+        "lib/receipt/receipt-chain.js"
+      ],
+      "lib/github-app-streaming-auth.js": [
+        "lib/github-app-beta-auth.js"
+      ],
+      "lib/github-app-streaming-trust-handler.js": [
+        "lib/github-app-beta-handler.js",
+        "lib/github-app-streaming-trust.js"
+      ],
+      "lib/github-app-streaming-trust-store.js": [
+        "lib/is-plain-object.js",
+        "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/github-app-streaming-trust.js": [
+        "lib/code-change-gate.js",
+        "lib/github-app-beta-auth.js",
+        "lib/github-app-streaming-auth.js",
+        "lib/is-plain-object.js",
+        "lib/receipt/canonical-receipt.js",
+        "lib/receipt/receipt-chain.js",
+        "lib/verdict/action-verdict.js"
+      ],
+      "lib/github-connector.js": [
+        "lib/audit-log.js",
+        "lib/conflict-detector.js",
+        "lib/content-hash.js",
+        "lib/github-url.js",
+        "lib/provenance-ingest.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/graduated-autonomy.js": [
+        "lib/autonomy-receipt-history.js",
+        "lib/autonomy-state.js",
+        "lib/autonomy-trust-score.js"
+      ],
+      "lib/graph-candidate-claims-read.js": [
+        "lib/graph-record-utils.js"
+      ],
+      "lib/graph-candidate-claims-write.js": [
+        "lib/conflict-detector.js",
+        "lib/graph-record-utils.js"
+      ],
+      "lib/graph-causal-chain.js": [
+        "lib/graph-record-utils.js"
+      ],
+      "lib/graph-consolidate-edges.js": [
+        "lib/graph-record-utils.js"
+      ],
+      "lib/graph-count-read.js": [
+        "lib/graph-record-utils.js"
+      ],
+      "lib/graph-edge-mutations.js": [
+        "lib/graph-record-utils.js"
+      ],
+      "lib/graph-edge-read.js": [
+        "lib/graph-record-utils.js"
+      ],
+      "lib/graph-edge-write.js": [
+        "lib/graph-record-utils.js"
+      ],
+      "lib/graph-hypotheses.js": [
+        "lib/causal-edge-strength.js"
+      ],
+      "lib/graph-json-persistence.js": [
+        "lib/audit-log.js",
+        "lib/conflict-detector.js",
+        "lib/graph-json-snapshot.js",
+        "lib/graph-record-utils.js"
+      ],
+      "lib/graph-json-snapshot.js": [
+        "lib/graph-json-transaction.js",
+        "lib/graph-record-utils.js",
+        "lib/mutation-journal-lock.js"
+      ],
+      "lib/graph-json-transaction.js": [
+        "lib/graph-record-utils.js"
+      ],
+      "lib/graph-mutation-receipt-schema.js": [
+        "lib/graph-record-utils.js",
+        "lib/receipt/v4-receipt-family.js"
+      ],
+      "lib/graph-mutation-receipt-write.js": [
+        "lib/receipt/issuer-seal.js",
+        "lib/receipt/receipt-chain.js"
+      ],
+      "lib/graph-mutation-rollback.js": [
+        "lib/graph-record-utils.js"
+      ],
+      "lib/graph-node-delete.js": [
+        "lib/graph-record-utils.js"
+      ],
+      "lib/graph-node-read.js": [
+        "lib/graph-record-utils.js"
+      ],
+      "lib/graph-node-tag.js": [
+        "lib/graph-record-utils.js"
+      ],
+      "lib/graph-node-touch.js": [
+        "lib/graph-record-utils.js"
+      ],
+      "lib/graph-node-write.js": [
+        "lib/graph-record-utils.js"
+      ],
+      "lib/graph-optimize.js": [
+        "lib/graph-record-utils.js"
+      ],
+      "lib/graph-prune.js": [
+        "lib/graph-record-utils.js"
+      ],
+      "lib/graph-query-read.js": [
+        "lib/graph-record-utils.js"
+      ],
+      "lib/graph-record-utils.js": [
+        "lib/audit-log.js",
+        "lib/is-plain-object.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/http-human-oversight-adapter.js": [
+        "lib/agent-action-firewall.js",
+        "lib/agent-identity-runtime.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/http-trust-query.js": [
+        "requestGuards.js"
+      ],
+      "lib/http/agent-workflow-routes.js": [
+        "lib/http/workflow-envelope.js",
+        "lib/http/workflow-request-validation.js",
+        "lib/mcp-input-sanitizers.js"
+      ],
+      "lib/http/answer-route.js": [
+        "lib/fluent-answer.js"
+      ],
+      "lib/http/command-policy-route.js": [
+        "lib/command-policy-editor.js",
+        "lib/external-action-command-policy.js",
+        "requestGuards.js"
+      ],
+      "lib/http/emergency-stop-routes.js": [
+        "lib/emergency-stop.js",
+        "lib/environment-compat.js",
+        "lib/mcp-operator-capability.js",
+        "lib/mcp/operator-authorization.js"
+      ],
+      "lib/http/experience-read-route.js": [
+        "lib/experience/read-model.js"
+      ],
+      "lib/http/external-action-receipt-collector-route.js": [
+        "lib/external-action-receipt-collector.js",
+        "lib/server-response-helpers.js"
+      ],
+      "lib/http/fitness-dashboard-route.js": [
+        "lib/fitness-history.js",
+        "lib/http/structured-log.js",
+        "lib/hypothesis-thresholds.js",
+        "scripts/fitness-dashboard.js"
+      ],
+      "lib/http/identity-mutation-admission.js": [
+        "lib/agent-identity-runtime.js",
+        "lib/mutation-admission.js"
+      ],
+      "lib/http/ingest-approval-audit-writer.js": [
+        "lib/http/identity-mutation-admission.js",
+        "lib/workbench/ingest-approval-audit-writer.js"
+      ],
+      "lib/http/memory-approval-routes.js": [
+        "lib/environment-compat.js",
+        "mcpServer.js"
+      ],
+      "lib/http/optional-boundaries.js": [
+        "lib/a2a/routes.js",
+        "lib/http/command-policy-route.js",
+        "lib/http/emergency-stop-routes.js",
+        "lib/http/external-action-receipt-collector-route.js",
+        "lib/http/memory-approval-routes.js",
+        "lib/http/pr-guardian-routes.js",
+        "lib/registry/registry-route.js"
+      ],
+      "lib/http/pr-guardian-config.js": [
+        "lib/environment-compat.js"
+      ],
+      "lib/http/pr-guardian-routes.js": [
+        "lib/environment-compat.js",
+        "lib/pr-guardian/github-client.js",
+        "lib/pr-guardian/policy.js",
+        "lib/pr-guardian/review-service.js",
+        "requestGuards.js"
+      ],
+      "lib/http/public-api-commands.js": [
+        "lib/workflow-contract.js",
+        "requestGuards.js"
+      ],
+      "lib/http/public-badge-route.js": [
+        "lib/receipt/receipt-read-index.js",
+        "lib/workbench/trust-receipt-inspector.js"
+      ],
+      "lib/http/read-workflow-actions.js": [
+        "lib/entity-resolution.js",
+        "lib/http/workflow-envelope.js",
+        "lib/http/workflow-request-validation.js",
+        "lib/web-research-workflow.js"
+      ],
+      "lib/http/request-limits.js": [
+        "lib/http/server-timeouts.js"
+      ],
+      "lib/http/route-auth-policy.js": [
+        "lib/http/deployment-gated-route-auth.js"
+      ],
+      "lib/http/runtime-status.js": [
+        "lib/legacy-alias-usage.js",
+        "requestGuards.js"
+      ],
+      "lib/http/server-boot.js": [
+        "lib/environment-compat.js",
+        "lib/http/graceful-shutdown.js",
+        "lib/http/process-failure-handlers.js",
+        "lib/http/structured-log.js"
+      ],
+      "lib/http/structured-log.js": [
+        "lib/secret-scrub-gate.js"
+      ],
+      "lib/http/v5-package-import-route.js": [
+        "lib/audit-log.js",
+        "lib/receipt/trusted-key-resolver.js",
+        "lib/server-response-helpers.js",
+        "lib/tool-call-gate.js",
+        "lib/v5/runtime-writer.js",
+        "lib/v5/verification-core.js",
+        "schemas/v5/shared-trust-package-validator.js"
+      ],
+      "lib/http/v5-preflight-route.js": [
+        "lib/server-response-helpers.js",
+        "lib/v5/runtime-reader.js",
+        "lib/v5/structural-signing-helper.js"
+      ],
+      "lib/http/workflow-contract-route.js": [
+        "lib/http/workflow-envelope.js",
+        "lib/server-response-helpers.js",
+        "lib/workflow-contract.js"
+      ],
+      "lib/http/workflow-data-routes.js": [
+        "lib/http/agent-workflow-routes.js",
+        "lib/http/exact-workspace.js",
+        "lib/http/http-provenance.js",
+        "lib/http/receipt-read-failures.js",
+        "lib/http/workflow-envelope.js",
+        "lib/http/workflow-request-validation.js",
+        "lib/ingest-workflow-preview.js",
+        "lib/ingest-workflow-run.js",
+        "lib/mcp-approval-decision-handler.js",
+        "lib/mcp-approval-views.js",
+        "lib/mcp-tool-names.js"
+      ],
+      "lib/http/workflow-envelope.js": [
+        "lib/workflow-contract.js"
+      ],
+      "lib/http/workflow-request-validation.js": [
+        "lib/workflow-contract.js"
+      ],
+      "lib/human-approval-toggle.js": [
+        "lib/environment-compat.js"
+      ],
+      "lib/human-oversight-approval-runtime-primitives.js": [
+        "lib/agent-action-firewall.js",
+        "lib/is-plain-object.js",
+        "lib/receipt/canonical-receipt.js",
+        "lib/trust-evidence-ledger.js"
+      ],
+      "lib/human-oversight-approval-runtime.js": [
+        "lib/human-oversight-approval-runtime-primitives.js"
+      ],
+      "lib/human-sponsor-authority.js": [
+        "lib/external-action-identity-signing.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/huqan-package-format.js": [
+        "lib/atp-conformance.js",
+        "lib/deterministic-json-copy.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/hypothesis-feedback.js": [
+        "lib/hypothesis-review.js"
+      ],
+      "lib/hypothesis-fitness.js": [
+        "lib/graph-hypotheses.js",
+        "lib/hypothesis-feedback.js"
+      ],
+      "lib/hypothesis-review.js": [
+        "lib/hypothesis-review-audit.js"
+      ],
+      "lib/hypothesis-thresholds.js": [
+        "lib/graph-hypotheses.js",
+        "lib/memory-store-utils.js"
+      ],
+      "lib/hypothesis-tuning.js": [
+        "lib/graph-hypotheses.js"
+      ],
+      "lib/ingest-workflow-preview.js": [
+        "lib/ingest.js"
+      ],
+      "lib/ingest-workflow-run.js": [
+        "lib/ingest-workflow-preview.js"
+      ],
+      "lib/ingest.js": [
+        "lib/github-url.js"
+      ],
+      "lib/interop/vc-mapping.js": [
+        "lib/is-plain-object.js",
+        "lib/receipt/public-trust-receipt.js"
+      ],
+      "lib/issuer-seal-config.js": [
+        "lib/environment-compat.js",
+        "lib/receipt/issuer-seal.js"
+      ],
+      "lib/kernel-dream.js": [
+        "lib/workspace-id.js"
+      ],
+      "lib/kernel-factory.js": [
+        "kernel.js",
+        "kernel.v2.js",
+        "lib/environment-compat.js"
+      ],
+      "lib/kernel-learn-admission.js": [
+        "lib/gate-telemetry.js",
+        "lib/learn-admission-request.js",
+        "lib/memory-admission-gate.js",
+        "lib/memory-blast-radius.js"
+      ],
+      "lib/kernel-learn-from-llm.js": [
+        "lib/cli-mutation-audit-intent.js",
+        "lib/human-approval-toggle.js",
+        "lib/kernel-contract.js"
+      ],
+      "lib/kernel-mutation-admission.js": [
+        "lib/conflict-detector.js",
+        "lib/mutation-admission.js"
+      ],
+      "lib/kernel-self-evolve.js": [
+        "lib/graph-record-utils.js"
+      ],
+      "lib/kernel-v2-native.js": [
+        "lib/turkish-copula.js"
+      ],
+      "lib/learn-admission-request.js": [
+        "lib/background-provenance.js",
+        "lib/human-approval-toggle.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/learn-use-case.js": [
+        "lib/type-lattice.js"
+      ],
+      "lib/llm-proxy/proxy-config.js": [
+        "lib/environment-compat.js"
+      ],
+      "lib/llm-proxy/proxy-handler.js": [
+        "lib/secret-scrub-gate.js",
+        "lib/trust-evidence-ledger.js"
+      ],
+      "lib/llm-proxy/proxy-mount.js": [
+        "lib/llm-proxy/proxy-config.js",
+        "lib/llm-proxy/proxy-handler.js"
+      ],
+      "lib/mcp-agent-approval-execution.js": [
+        "agentRuntime.js",
+        "lib/human-approval-toggle.js",
+        "lib/mcp-approval-views.js",
+        "lib/mcp-gate-adapter.js",
+        "lib/mcp-input-sanitizers.js"
+      ],
+      "lib/mcp-approval-decision-handler.js": [
+        "lib/approval-execution-evidence.js",
+        "lib/json-object.js",
+        "lib/mcp-agent-approval-execution.js",
+        "lib/mcp-approval-learn-execution.js",
+        "lib/mcp-approval-store.js",
+        "lib/mcp-approval-views.js",
+        "lib/mcp-human-oversight-adapter.js",
+        "lib/mcp-ingest-execute-tool.js",
+        "lib/mcp-input-sanitizers.js",
+        "lib/mcp-tool-names.js"
+      ],
+      "lib/mcp-approval-learn-execution.js": [
+        "lib/approval-execution-evidence.js",
+        "lib/mcp-approval-admission.js",
+        "lib/mcp-approval-views.js",
+        "lib/mcp-human-oversight-adapter.js",
+        "lib/mcp-input-sanitizers.js"
+      ],
+      "lib/mcp-approval-store-factory.js": [
+        "storage.js"
+      ],
+      "lib/mcp-approval-store.js": [
+        "lib/conflict-detector.js",
+        "lib/kernel-factory.js",
+        "lib/mcp-approval-store-factory.js",
+        "lib/mcp-approval-views.js",
+        "lib/mcp-ingest-execute-tool.js",
+        "lib/mcp-input-sanitizers.js",
+        "lib/mcp-tool-names.js"
+      ],
+      "lib/mcp-approval-views.js": [
+        "lib/json-object.js",
+        "lib/tool-call-gate.js"
+      ],
+      "lib/mcp-capability-nonce-store.js": [
+        "lib/environment-compat.js"
+      ],
+      "lib/mcp-configuration-errors.js": [
+        "lib/environment-compat.js",
+        "lib/kernel-contract.js"
+      ],
+      "lib/mcp-envelope-schema.js": [
+        "lib/environment-compat.js",
+        "lib/verify-status-vocabulary.js"
+      ],
+      "lib/mcp-gate-adapter.js": [
+        "lib/action-risk-classifier.js",
+        "lib/automation-safety-gate/index.js",
+        "lib/command-exec-gate.js",
+        "lib/cross-workspace-access-gate.js",
+        "lib/data-egress-gate.js",
+        "lib/is-plain-object.js",
+        "lib/mcp-tool-names.js",
+        "lib/memory-mutation-gate/index.js",
+        "lib/risk-scale.js",
+        "lib/tool-call-gate.js"
+      ],
+      "lib/mcp-human-oversight-adapter.js": [
+        "lib/agent-action-firewall.js",
+        "lib/agent-identity-runtime.js",
+        "lib/errors/provenance-error.js",
+        "lib/is-plain-object.js",
+        "lib/mcp-approval-admission.js"
+      ],
+      "lib/mcp-ingest-execute-tool.js": [
+        "lib/ingest.js",
+        "lib/mcp-approval-views.js",
+        "lib/mcp-input-sanitizers.js",
+        "lib/mutation-admission.js",
+        "lib/workbench/ingest-approval-action.js",
+        "lib/workbench/ingest-approval-audit-writer.js"
+      ],
+      "lib/mcp-ingest-status-tool.js": [
+        "lib/ingest-workflow-run.js",
+        "lib/mcp-approval-store.js",
+        "lib/mcp-approval-views.js",
+        "lib/mcp-input-sanitizers.js"
+      ],
+      "lib/mcp-input-sanitizers.js": [
+        "lib/mcp-tool-names.js",
+        "lib/secret-scrub-gate.js"
+      ],
+      "lib/mcp-operator-capability.js": [
+        "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/mcp-tool-catalog.js": [
+        "lib/mcp-envelope-schema.js",
+        "lib/mcp-tool-data-schemas.js",
+        "lib/mcp/operator-tool-schemas.js"
+      ],
+      "lib/mcp-tool-data-schemas.js": [
+        "lib/mcp-envelope-schema.js"
+      ],
+      "lib/mcp-tool-names.js": [
+        "lib/legacy-alias-usage.js"
+      ],
+      "lib/mcp-tool-policy.js": [
+        "lib/mcp-gate-adapter.js",
+        "lib/mcp-tool-names.js"
+      ],
+      "lib/mcp/approval-detail-tool.js": [
+        "lib/mcp-approval-views.js",
+        "lib/mcp-input-sanitizers.js",
+        "lib/mcp/response-builders.js"
+      ],
+      "lib/mcp/compliance-audit-tool.js": [
+        "lib/cli-audit.js",
+        "lib/mcp-input-sanitizers.js",
+        "lib/mcp/response-builders.js"
+      ],
+      "lib/mcp/experience-read-tool.js": [
+        "lib/experience/read-model.js",
+        "lib/mcp-input-sanitizers.js",
+        "lib/mcp/response-builders.js"
+      ],
+      "lib/mcp/fractal-learn-tool.js": [
+        "lib/fractal-learn.js",
+        "lib/mcp-input-sanitizers.js",
+        "lib/mcp/response-builders.js"
+      ],
+      "lib/mcp/gate-refusal.js": [
+        "lib/mcp-approval-decision-handler.js",
+        "lib/mcp-approval-store.js",
+        "lib/mcp/response-builders.js"
+      ],
+      "lib/mcp/json-rpc-handler.js": [
+        "lib/mcp-configuration-errors.js",
+        "lib/mcp-envelope-format.js",
+        "lib/mcp/tool-surface.js"
+      ],
+      "lib/mcp/operator-authorization.js": [
+        "lib/mcp-operator-capability.js",
+        "requestGuards.js"
+      ],
+      "lib/mcp/operator-tool-schemas.js": [
+        "lib/mcp-envelope-schema.js",
+        "lib/mcp-tool-data-schemas.js"
+      ],
+      "lib/mcp/read-workflow-tools.js": [
+        "lib/http-trust-query.js",
+        "lib/http/read-workflow-actions.js",
+        "lib/mcp-approval-store.js",
+        "lib/mcp-input-sanitizers.js",
+        "lib/mcp/compliance-audit-tool.js",
+        "lib/mcp/response-builders.js",
+        "lib/mcp/system-status-tool.js",
+        "lib/mcp/trust-receipt-detail-tool.js",
+        "lib/provenance-query.js"
+      ],
+      "lib/mcp/response-builders.js": [
+        "lib/mcp-envelope-schema.js",
+        "lib/mcp-gate-adapter.js",
+        "lib/mcp-tool-names.js",
+        "lib/verdict/action-verdict.js",
+        "lib/verify-status-vocabulary.js",
+        "lib/workflow-contract.js"
+      ],
+      "lib/mcp/self-evolve-tool.js": [
+        "lib/mcp-input-sanitizers.js",
+        "lib/mcp/response-builders.js",
+        "lib/self-evolve-adapter.js"
+      ],
+      "lib/mcp/stdio-transport.js": [
+        "lib/mcp-envelope-format.js"
+      ],
+      "lib/mcp/system-status-tool.js": [
+        "lib/mcp/response-builders.js",
+        "lib/system-status-report.js"
+      ],
+      "lib/mcp/tool-dispatch.js": [
+        "lib/emergency-stop.js",
+        "lib/gate-telemetry.js",
+        "lib/human-approval-toggle.js",
+        "lib/json-object.js",
+        "lib/mcp-agent-continuation.js",
+        "lib/mcp-approval-decision-handler.js",
+        "lib/mcp-gate-adapter.js",
+        "lib/mcp-input-sanitizers.js",
+        "lib/mcp-tool-names.js",
+        "lib/mcp/gate-refusal.js",
+        "lib/mcp/operator-authorization.js",
+        "lib/mcp/response-builders.js",
+        "lib/mcp/tool-handlers.js",
+        "lib/mcp/tool-surface.js"
+      ],
+      "lib/mcp/tool-handlers.js": [
+        "lib/ingest-workflow-preview.js",
+        "lib/mcp-approval-store.js",
+        "lib/mcp-approval-views.js",
+        "lib/mcp-ingest-execute-tool.js",
+        "lib/mcp-ingest-status-tool.js",
+        "lib/mcp-input-sanitizers.js",
+        "lib/mcp-tool-names.js",
+        "lib/mcp/approval-detail-tool.js",
+        "lib/mcp/fractal-learn-tool.js",
+        "lib/mcp/read-workflow-tools.js",
+        "lib/mcp/response-builders.js",
+        "lib/mcp/self-evolve-tool.js",
+        "lib/secret-scrub-gate.js"
+      ],
+      "lib/mcp/tool-surface.js": [
+        "lib/mcp-tool-catalog.js",
+        "lib/workflow-contract.js"
+      ],
+      "lib/mcp/transient-agent.js": [
+        "lib/environment-compat.js"
+      ],
+      "lib/mcp/trust-receipt-detail-tool.js": [
+        "lib/mcp-input-sanitizers.js",
+        "lib/mcp/response-builders.js",
+        "lib/receipt/receipt-read-index.js"
+      ],
+      "lib/memory-admission-gate.js": [
+        "lib/approval-schema.js",
+        "lib/is-plain-object.js",
+        "lib/json-clone.js",
+        "lib/risk-scale.js"
+      ],
+      "lib/memory-blast-radius.js": [
+        "causalSimulator.js",
+        "lib/blast-radius.js",
+        "lib/graph-traversal.js",
+        "lib/risk-policy-constants.js",
+        "lib/risk-scale.js"
+      ],
+      "lib/memory-event-read.js": [
+        "lib/memory-record-utils.js",
+        "lib/memory-store-utils.js"
+      ],
+      "lib/memory-link-read.js": [
+        "lib/memory-record-utils.js",
+        "lib/memory-store-utils.js"
+      ],
+      "lib/memory-link-write.js": [
+        "lib/memory-record-utils.js",
+        "lib/memory-schema.js",
+        "lib/memory-store-utils.js"
+      ],
+      "lib/memory-mutation-gate/index.js": [
+        "lib/memory-mutation-gate/memory-mutation-classifier.js",
+        "lib/memory-mutation-gate/memory-mutation-decision.js",
+        "lib/memory-mutation-gate/memory-mutation-findings-summary.js",
+        "lib/memory-mutation-gate/memory-mutation-normalizer.js",
+        "lib/memory-mutation-gate/memory-mutation-vocabulary.js"
+      ],
+      "lib/memory-mutation-gate/memory-mutation-classifier.js": [
+        "lib/memory-mutation-gate/memory-mutation-entry-predicates.js",
+        "lib/memory-mutation-gate/memory-mutation-normalizer.js",
+        "lib/memory-mutation-gate/memory-mutation-vocabulary.js"
+      ],
+      "lib/memory-mutation-gate/memory-mutation-decision.js": [
+        "lib/memory-mutation-gate/memory-mutation-classifier.js",
+        "lib/memory-mutation-gate/memory-mutation-findings-summary.js",
+        "lib/memory-mutation-gate/memory-mutation-normalizer.js",
+        "lib/memory-mutation-gate/memory-mutation-vocabulary.js"
+      ],
+      "lib/memory-mutation-gate/memory-mutation-entry-predicates.js": [
+        "lib/memory-mutation-gate/memory-mutation-normalizer.js",
+        "lib/memory-mutation-gate/memory-mutation-vocabulary.js",
+        "lib/text-utils.js"
+      ],
+      "lib/memory-mutation-gate/memory-mutation-findings-summary.js": [
+        "lib/memory-mutation-gate/memory-mutation-normalizer.js",
+        "lib/memory-mutation-gate/memory-mutation-vocabulary.js",
+        "lib/text-utils.js"
+      ],
+      "lib/memory-mutation-gate/memory-mutation-normalizer.js": [
+        "lib/is-plain-object.js",
+        "lib/memory-mutation-gate/memory-mutation-vocabulary.js",
+        "lib/text-utils.js"
+      ],
+      "lib/memory-package-export.js": [
+        "lib/memory-record-utils.js",
+        "lib/memory-schema.js",
+        "lib/memory-store-utils.js"
+      ],
+      "lib/memory-package-import-runner.js": [
+        "lib/memory-record-utils.js",
+        "lib/memory-schema.js",
+        "lib/memory-store-utils.js"
+      ],
+      "lib/memory-package-import.js": [
+        "lib/memory-schema.js"
+      ],
+      "lib/memory-patch-metadata.js": [
+        "lib/memory-record-utils.js",
+        "lib/memory-schema.js",
+        "lib/memory-store-utils.js"
+      ],
+      "lib/memory-query-engine.js": [
+        "lib/memory-recall-gate.js",
+        "lib/memory-record-utils.js",
+        "lib/memory-store-utils.js"
+      ],
+      "lib/memory-recall-gate.js": [
+        "lib/is-plain-object.js"
+      ],
+      "lib/memory-record-read.js": [
+        "lib/memory-record-utils.js",
+        "lib/memory-store-utils.js"
+      ],
+      "lib/memory-record-utils.js": [
+        "lib/memory-store-utils.js"
+      ],
+      "lib/memory-schema.js": [
+        "lib/is-plain-object.js",
+        "lib/json-clone.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/memory-store-json-persistence.js": [
+        "lib/memory-schema.js",
+        "lib/memory-store-utils.js"
+      ],
+      "lib/memory-store-reopen.js": [
+        "lib/memory-store-json-persistence.js",
+        "lib/sqlite-availability.js",
+        "lib/sqlite-durability.js"
+      ],
+      "lib/memory-store-sqlite-warmup.js": [
+        "lib/memory-schema.js"
+      ],
+      "lib/memory-store-utils.js": [
+        "lib/default-persistence-path.js",
+        "lib/path-safety.js",
+        "lib/sqlite-persistence-validation.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/memory-store-write.js": [
+        "lib/memory-record-utils.js",
+        "lib/memory-schema.js",
+        "lib/memory-store-utils.js"
+      ],
+      "lib/memory-store.js": [
+        "lib/memory-event-read.js",
+        "lib/memory-link-read.js",
+        "lib/memory-link-write.js",
+        "lib/memory-package-export.js",
+        "lib/memory-package-import-runner.js",
+        "lib/memory-package-import.js",
+        "lib/memory-patch-metadata.js",
+        "lib/memory-query-engine.js",
+        "lib/memory-record-read.js",
+        "lib/memory-record-utils.js",
+        "lib/memory-schema.js",
+        "lib/memory-store-json-persistence.js",
+        "lib/memory-store-persistence-report.js",
+        "lib/memory-store-reopen.js",
+        "lib/memory-store-rollback.js",
+        "lib/memory-store-sqlite-warmup.js",
+        "lib/memory-store-utils.js",
+        "lib/memory-store-write.js",
+        "lib/memory-supersede.js",
+        "lib/memory-temporal.js",
+        "lib/memory-tombstone.js",
+        "lib/sqlite-availability.js",
+        "lib/sqlite-durability.js"
+      ],
+      "lib/memory-supersede.js": [
+        "lib/memory-record-utils.js",
+        "lib/memory-schema.js",
+        "lib/memory-store-utils.js"
+      ],
+      "lib/memory-temporal.js": [
+        "lib/memory-record-utils.js",
+        "lib/memory-store-utils.js"
+      ],
+      "lib/memory-tombstone.js": [
+        "lib/memory-record-utils.js",
+        "lib/memory-schema.js",
+        "lib/memory-store-utils.js"
+      ],
+      "lib/module-reachability.js": [
+        "lib/is-plain-object.js"
+      ],
+      "lib/mutation-journal-lock.js": [
+        "lib/graph-record-utils.js"
+      ],
+      "lib/mutation-journal.js": [
+        "lib/graph-mutation-receipt-read.js",
+        "lib/is-plain-object.js",
+        "lib/mutation-journal-lock.js"
+      ],
+      "lib/observability/alert-lifecycle.js": [
+        "lib/observability/helpers.js"
+      ],
+      "lib/observability/api-contract.js": [
+        "lib/observability/service.js"
+      ],
+      "lib/observability/client.js": [
+        "lib/observability/helpers.js"
+      ],
+      "lib/observability/helpers.js": [
+        "lib/json-clone.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/observability/http-router.js": [
+        "lib/http/exact-workspace.js",
+        "lib/observability/api-contract.js",
+        "lib/observability/rate-limiter.js",
+        "lib/observability/sse-stream-lifecycle.js"
+      ],
+      "lib/observability/kernel-sink.js": [
+        "lib/observability/instrumentation-marker.js",
+        "lib/observability/service.js"
+      ],
+      "lib/observability/migrations.js": [
+        "lib/observability/schema.js"
+      ],
+      "lib/observability/notification-adapter.js": [
+        "lib/observability/helpers.js"
+      ],
+      "lib/observability/server-runtime.js": [
+        "lib/http/structured-log.js",
+        "lib/observability/agent-worker.js",
+        "lib/observability/authorization.js",
+        "lib/observability/health.js",
+        "lib/observability/http-router.js",
+        "lib/observability/service.js",
+        "lib/observability/workflow-agent-instrumentation.js"
+      ],
+      "lib/observability/service.js": [
+        "lib/observability/alert-lifecycle.js",
+        "lib/observability/helpers.js",
+        "lib/observability/internal-metrics.js",
+        "lib/observability/migrations.js",
+        "lib/observability/notification-adapter.js",
+        "lib/observability/retention.js"
+      ],
+      "lib/observability/workflow-agent-instrumentation.js": [
+        "lib/http/structured-log.js"
+      ],
+      "lib/pilot/trust-receipt-pilot.js": [
+        "lib/receipt/canonical-receipt.js",
+        "lib/tool-call-gate.js"
+      ],
+      "lib/post-action-monitor.js": [
+        "lib/self-healer/behavioral-containment.js",
+        "lib/self-healer/finding-classifier.js"
+      ],
+      "lib/pr-guardian/derivation-check.js": [
+        "lib/coder/verify-derivation.js"
+      ],
+      "lib/pr-guardian/derivation-fetch.js": [
+        "lib/pr-guardian/derivation-check.js"
+      ],
+      "lib/pr-guardian/github-client.js": [
+        "lib/pr-guardian/snapshot.js"
+      ],
+      "lib/pr-guardian/index.js": [
+        "lib/pr-guardian/derivation-check.js",
+        "lib/pr-guardian/derivation-fetch.js",
+        "lib/pr-guardian/github-client.js",
+        "lib/pr-guardian/policy.js",
+        "lib/pr-guardian/review-service.js",
+        "lib/pr-guardian/snapshot.js"
+      ],
+      "lib/pr-guardian/review-service.js": [
+        "lib/mcp-approval-views.js",
+        "lib/pr-guardian/policy.js",
+        "lib/pr-guardian/review-receipt.js",
+        "lib/pr-guardian/snapshot.js"
+      ],
+      "lib/pr-guardian/snapshot.js": [
+        "lib/github-connector.js"
+      ],
+      "lib/predicate-parser.js": [
+        "lib/turkish-copula.js"
+      ],
+      "lib/provenance-ingest-adapter.js": [
+        "lib/provenance-ingest.js",
+        "lib/provenance-record-utils.js",
+        "lib/trust-policy.js"
+      ],
+      "lib/provenance-ingest.js": [
+        "lib/errors/provenance-error.js",
+        "lib/provenance-record-utils.js",
+        "lib/trust-policy.js"
+      ],
+      "lib/provenance-query.js": [
+        "lib/audit-log.js",
+        "lib/audit-query.js",
+        "lib/causal/causal-verdict.js",
+        "lib/conflict-detector.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/quickstart-cli.js": [
+        "lib/kernel-factory.js",
+        "lib/provenance-query.js",
+        "lib/quickstart.js"
+      ],
+      "lib/reason-sandbox.js": [
+        "rustGraph.js"
+      ],
+      "lib/reasoning-trace.js": [
+        "lib/text-utils.js"
+      ],
+      "lib/receipt/bounded-receipt-export.js": [
+        "lib/audit-bounded-read.js",
+        "lib/is-plain-object.js",
+        "lib/json-utf8-size.js",
+        "lib/receipt/receipt-chain.js",
+        "lib/receipt/receipt-export.js",
+        "lib/receipt/receipt-read-index.js",
+        "lib/receipt/v4-receipt-family.js"
+      ],
+      "lib/receipt/canonical-receipt-v2.js": [
+        "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/receipt/canonical-receipt.js": [
+        "lib/verdict/action-verdict.js"
+      ],
+      "lib/receipt/collector-seal.js": [
+        "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/receipt/cryptographic-verification-adapter.js": [
+        "lib/is-plain-object.js"
+      ],
+      "lib/receipt/issuer-seal.js": [
+        "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/receipt/public-trust-receipt.js": [
+        "lib/is-plain-object.js",
+        "lib/receipt/canonical-receipt.js",
+        "lib/receipt/cryptographic-profile-contract.js",
+        "lib/receipt/cryptographic-verification-adapter.js",
+        "lib/receipt/receipt-export.js",
+        "lib/receipt/trusted-key-resolver.js",
+        "lib/receipt/v4-receipt-family.js",
+        "lib/tool-call-gate.js",
+        "lib/verdict/action-verdict.js"
+      ],
+      "lib/receipt/receipt-chain.js": [
+        "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/receipt/receipt-export.js": [
+        "lib/receipt/canonical-receipt.js",
+        "lib/receipt/signed-bundle.js",
+        "lib/receipt/v4-receipt-family.js"
+      ],
+      "lib/receipt/receipt-read-index.js": [
+        "lib/is-plain-object.js",
+        "lib/json-clone.js",
+        "lib/receipt/canonical-receipt-v2.js",
+        "lib/receipt/canonical-receipt.js",
+        "lib/receipt/receipt-chain.js",
+        "lib/receipt/receipt-export.js",
+        "lib/receipt/v4-receipt-family.js",
+        "lib/verdict/action-verdict.js"
+      ],
+      "lib/receipt/receipt-stamp.js": [
+        "lib/graph-record-utils.js",
+        "lib/receipt/canonical-receipt-v2.js",
+        "lib/receipt/receipt-chain.js"
+      ],
+      "lib/receipt/receipt-validation-cache.js": [
+        "lib/is-plain-object.js",
+        "lib/receipt/receipt-chain.js"
+      ],
+      "lib/receipt/signed-bundle.js": [
+        "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/receipt/signed-receipt-batch.js": [
+        "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/receipt/trusted-key-resolver.js": [
+        "lib/is-plain-object.js"
+      ],
+      "lib/receipt/v4-receipt-family.js": [
+        "lib/is-plain-object.js",
+        "lib/receipt/canonical-receipt-v2.js",
+        "lib/receipt/canonical-receipt.js",
+        "lib/receipt/receipt-chain.js"
+      ],
+      "lib/registry/registry-bundle-signing-key-resolver.js": [
+        "lib/receipt/trusted-key-resolver.js",
+        "lib/registry/registry-record-shape.js"
+      ],
+      "lib/registry/registry-record-shape.js": [
+        "lib/is-plain-object.js",
+        "lib/receipt/trusted-key-resolver.js"
+      ],
+      "lib/registry/registry-route.js": [
+        "lib/a2a/agent-card.js",
+        "lib/a2a/bounded-exchange.js",
+        "lib/a2a/exchange-route.js",
+        "lib/environment-compat.js",
+        "lib/registry/registry-record-shape.js",
+        "lib/registry/registry-record-store.js"
+      ],
+      "lib/relation-drift.js": [
+        "lib/text-utils.js"
+      ],
+      "lib/repo-file-pin.js": [
+        "lib/content-hash.js",
+        "lib/provenance-ingest.js"
+      ],
+      "lib/residency-rule-miner.js": [
+        "lib/is-plain-object.js"
+      ],
+      "lib/risk-classify.js": [
+        "lib/is-plain-object.js",
+        "lib/risk-policy-constants.js"
+      ],
+      "lib/risk-rules.js": [
+        "lib/adversarial-signals.js",
+        "lib/text-utils.js"
+      ],
+      "lib/run-impact.js": [
+        "lib/risk-scale.js"
+      ],
+      "lib/runtime-watchdog.js": [
+        "lib/runtime-watchdog-audit.js"
+      ],
+      "lib/rust-graph-fallback-factory.js": [
+        "graph.js"
+      ],
+      "lib/safe-file-walk.js": [
+        "lib/path-safety.js"
+      ],
+      "lib/sandbox-escape-ledger.js": [
+        "lib/trust-evidence-ledger.js"
+      ],
+      "lib/sandbox-isolation-input.js": [
+        "lib/is-plain-object.js",
+        "lib/sandbox-isolation-vocabulary.js",
+        "lib/sandbox-timeout-policy.js",
+        "lib/text-utils.js"
+      ],
+      "lib/sandbox-isolation-output.js": [
+        "lib/is-plain-object.js",
+        "lib/sandbox-isolation-vocabulary.js"
+      ],
+      "lib/sandbox-isolation-vocabulary.js": [
+        "lib/text-utils.js"
+      ],
+      "lib/sandbox-isolation.js": [
+        "lib/sandbox-isolation-input.js",
+        "lib/sandbox-isolation-output.js",
+        "lib/sandbox-isolation-vocabulary.js",
+        "lib/sandbox-operation-classifier.js",
+        "lib/sandbox-source-scan.js",
+        "lib/sandbox-timeout-policy.js"
+      ],
+      "lib/sandbox-operation-classifier.js": [
+        "lib/sandbox-isolation-vocabulary.js",
+        "lib/sandbox-source-scan.js",
+        "lib/sandbox-temp-artifact-risk.js",
+        "lib/sandbox-timeout-policy.js"
+      ],
+      "lib/sandbox-source-scan.js": [
+        "lib/text-utils.js"
+      ],
+      "lib/sandbox-temp-artifact-risk.js": [
+        "lib/is-plain-object.js",
+        "lib/sandbox-path-containment.js",
+        "lib/sandbox-source-scan.js"
+      ],
+      "lib/sdk.js": [
+        "lib/external-client-authority.js",
+        "lib/external-client-package-gate.js",
+        "lib/receipt/canonical-receipt.js",
+        "lib/shield.js"
+      ],
+      "lib/secret-scrub-gate.js": [
+        "lib/is-plain-object.js",
+        "lib/secret-patterns.js",
+        "lib/tool-call-gate.js"
+      ],
+      "lib/self-evolve-adapter.js": [
+        "dream.js",
+        "lib/fractal-learn.js",
+        "lib/kernel-self-evolve.js",
+        "lib/self-evolve-probe.js"
+      ],
+      "lib/self-evolve-probe.js": [
+        "lib/graph-hypotheses.js"
+      ],
+      "lib/self-healer/approval-bridge.js": [
+        "lib/agent-action-firewall.js"
+      ],
+      "lib/self-healer/audit-runner.js": [
+        "lib/is-plain-object.js",
+        "lib/json-clone.js",
+        "lib/self-healer/finding-schema.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/self-healer/behavioral-containment.js": [
+        "lib/is-plain-object.js",
+        "lib/self-healer/finding-schema.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/self-healer/dryrun-runner.js": [
+        "lib/agent-loop-budget-gate.js",
+        "lib/approval-schema.js",
+        "lib/is-plain-object.js",
+        "lib/self-healer/finding-schema.js",
+        "lib/self-healer/safety-decision.js"
+      ],
+      "lib/self-healer/finding-classifier.js": [
+        "lib/is-plain-object.js",
+        "lib/self-healer/finding-schema.js"
+      ],
+      "lib/self-healer/finding-schema.js": [
+        "lib/is-plain-object.js",
+        "lib/json-clone.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/self-healer/index.js": [
+        "lib/self-healer/audit-runner.js",
+        "lib/self-healer/dryrun-runner.js",
+        "lib/self-healer/finding-classifier.js",
+        "lib/self-healer/finding-schema.js",
+        "lib/self-healer/safety-decision.js"
+      ],
+      "lib/self-healer/safety-decision.js": [
+        "lib/is-plain-object.js"
+      ],
+      "lib/self-healer/source-dependency-graph.js": [
+        "dream.js",
+        "graph.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/self-healer/source-dogfood-simulator.js": [
+        "lib/code-change-gate.js",
+        "lib/sandbox-escape-ledger.js",
+        "lib/self-healer/source-dependency-graph.js",
+        "rustGraph.js",
+        "sandboxRunner.js"
+      ],
+      "lib/self-test-oracle.js": [
+        "lib/text-utils.js"
+      ],
+      "lib/semantic-score.js": [
+        "lib/semantic-signals.js",
+        "lib/text-utils.js"
+      ],
+      "lib/semantic-signals.js": [
+        "lib/contradiction-rules.js",
+        "lib/risk-rules.js",
+        "lib/text-utils.js"
+      ],
+      "lib/server-response-helpers.js": [
+        "lib/environment-compat.js",
+        "lib/verify-status-vocabulary.js",
+        "requestGuards.js"
+      ],
+      "lib/session-impact.js": [
+        "lib/autonomy-receipt-history.js"
+      ],
+      "lib/shield.js": [
+        "lib/verify-status-vocabulary.js"
+      ],
+      "lib/sqlite-persistence-validation.js": [
+        "lib/store-creation-guard.js"
+      ],
+      "lib/storage/tool-approval-methods.js": [
+        "lib/workspace-id.js"
+      ],
+      "lib/store-creation-guard.js": [
+        "lib/default-persistence-path.js",
+        "lib/huqan-state-root.js"
+      ],
+      "lib/text-safety-scorer.js": [
+        "lib/kernel-v2-native.js"
+      ],
+      "lib/text-utils.js": [
+        "lib/is-plain-object.js"
+      ],
+      "lib/tool-call-gate.js": [
+        "lib/is-plain-object.js",
+        "lib/secret-patterns.js",
+        "lib/text-utils.js"
+      ],
+      "lib/trust-evidence-ledger.js": [
+        "lib/receipt/canonical-receipt.js",
+        "lib/receipt/receipt-chain.js",
+        "lib/verdict/action-verdict.js"
+      ],
+      "lib/trust-policy.js": [
+        "lib/environment-compat.js",
+        "lib/json-clone.js",
+        "lib/path-safety.js"
+      ],
+      "lib/trust-signals/robustness.js": [
+        "lib/contradiction-rules.js"
+      ],
+      "lib/trust-signals/verify-wiring.js": [
+        "lib/trust-signals/robustness.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/type-lattice.js": [
+        "lib/text-utils.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/unexpected-egress-gate.js": [
+        "lib/data-residency-gate.js"
+      ],
+      "lib/v5/cryptographic-profile-contract.js": [
+        "lib/receipt/cryptographic-profile-contract.js"
+      ],
+      "lib/v5/cryptographic-verification-adapter.js": [
+        "lib/receipt/cryptographic-verification-adapter.js"
+      ],
+      "lib/v5/public-trust-receipt.js": [
+        "lib/receipt/public-trust-receipt.js"
+      ],
+      "lib/v5/runtime-reader.js": [
+        "lib/is-plain-object.js"
+      ],
+      "lib/v5/runtime-writer.js": [
+        "lib/is-plain-object.js"
+      ],
+      "lib/v5/structural-signing-helper.js": [
+        "lib/is-plain-object.js"
+      ],
+      "lib/v5/trusted-key-resolver.js": [
+        "lib/receipt/trusted-key-resolver.js"
+      ],
+      "lib/v5/verification-core.js": [
+        "lib/is-plain-object.js"
+      ],
+      "lib/verify-native.js": [
+        "lib/claim-decomposition.js",
+        "lib/contradiction-rules.js",
+        "lib/entity-resolution.js",
+        "lib/fuzzy-normalization.js",
+        "lib/reasoning-trace.js",
+        "lib/risk-rules.js",
+        "lib/semantic-score.js",
+        "lib/semantic-signals.js",
+        "lib/type-lattice.js",
+        "lib/verify-contradiction-evidence.js"
+      ],
+      "lib/verify-numeric-contradictions.js": [
+        "lib/temporal-qualifier.js"
+      ],
+      "lib/verify-turkish-text.js": [
+        "lib/text-utils.js",
+        "lib/turkish-copula.js"
+      ],
+      "lib/verify.js": [
+        "lib/claim-decomposition.js",
+        "lib/contradiction-rules.js",
+        "lib/entity-resolution.js",
+        "lib/fuzzy-normalization.js",
+        "lib/reasoning-trace.js",
+        "lib/risk-rules.js",
+        "lib/semantic-score.js",
+        "lib/semantic-signals.js",
+        "lib/text-utils.js",
+        "lib/trust-signals/verify-wiring.js",
+        "lib/type-lattice.js",
+        "lib/verify-contradiction-evidence.js",
+        "lib/verify-native.js",
+        "lib/verify-numeric-contradictions.js",
+        "lib/verify-numeric-text.js",
+        "lib/verify-turkish-text.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/viewer/viewer-gateway.js": [
+        "lib/environment-compat.js",
+        "lib/viewer/session-cookie.js",
+        "requestGuards.js"
+      ],
+      "lib/web-research-workflow.js": [
+        "lib/data-egress-gate.js",
+        "lib/http/workflow-envelope.js",
+        "lib/http/workflow-request-validation.js",
+        "lib/web-research.js",
+        "llmAdapter.js"
+      ],
+      "lib/workbench/activity-read.js": [
+        "lib/audit-query.js"
+      ],
+      "lib/workbench/activity-route.js": [
+        "lib/http/exact-workspace.js",
+        "lib/workbench/activity-read.js"
+      ],
+      "lib/workbench/ingest-approval-action.js": [
+        "lib/approval-flow.js",
+        "lib/http-human-oversight-adapter.js",
+        "lib/ingest.js",
+        "lib/workbench/ingest-approval-audit.js"
+      ],
+      "lib/workbench/ingest-approval-audit-writer.js": [
+        "lib/mutation-admission.js"
+      ],
+      "lib/workbench/memory-context-audit-source.js": [
+        "lib/is-plain-object.js"
+      ],
+      "lib/workbench/memory-context-route.js": [
+        "lib/workbench/memory-context-audit-source.js",
+        "lib/workbench/memory-context-inspector.js"
+      ],
+      "lib/workbench/receipt-bundle-export-route.js": [
+        "lib/workbench/receipt-bundle-exporter.js"
+      ],
+      "lib/workbench/receipt-bundle-exporter.js": [
+        "lib/receipt/bounded-receipt-export.js"
+      ],
+      "lib/workbench/trust-receipt-inspector.js": [
+        "lib/json-clone.js",
+        "lib/receipt/receipt-read-index.js",
+        "lib/receipt/receipt-stamp.js"
+      ],
+      "lib/workbench/trust-receipt-route.js": [
+        "lib/workbench/trust-receipt-inspector.js"
+      ],
+      "lib/workbench/workbench-read-http-router.js": [
+        "lib/http/exact-workspace.js",
+        "lib/receipt/receipt-validation-cache.js",
+        "lib/workbench/activity-route.js",
+        "lib/workbench/memory-context-route.js",
+        "lib/workbench/receipt-bundle-export-route.js",
+        "lib/workbench/trust-receipt-route.js"
+      ],
+      "lib/workflow-contract.js": [
+        "lib/mcp-tool-catalog.js"
+      ],
+      "lib/workflow-run-guidance.js": [
+        "finalizer.js"
+      ],
+      "lib/workflow-tool-envelope.js": [
+        "lib/workflow-values.js"
+      ],
+      "lib/workflow-tool-kernel-queries.js": [
+        "evidence-ranker.js",
+        "lib/workflow-tool-envelope.js",
+        "lib/workflow-values.js"
+      ],
+      "lib/workflow-tool-registry.js": [
+        "lib/agent-action-decisions.js",
+        "lib/agent-action-firewall.js",
+        "lib/agent-action-step-enforcement.js",
+        "lib/workflow-review-approval.js",
+        "lib/workflow-tool-registration.js",
+        "lib/workflow-values.js",
+        "toolPolicy.js"
+      ],
+      "lib/workflow-tool-run-capability.js": [
+        "lib/workflow-tool-capability-runner.js",
+        "lib/workflow-tool-envelope.js"
+      ],
+      "lib/workflow-tool-specialized-capabilities.js": [
+        "lib/workflow-tool-capability-runner.js",
+        "lib/workflow-tool-envelope.js"
+      ],
+      "mcpServer.js": [
+        "agentRuntime.js",
+        "lib/environment-compat.js",
+        "lib/http/process-failure-handlers.js",
+        "lib/http/structured-log.js",
+        "lib/kernel-factory.js",
+        "lib/mcp-approval-store.js",
+        "lib/mcp-capability-nonce-store.js",
+        "lib/mcp-envelope-format.js",
+        "lib/mcp-envelope-schema.js",
+        "lib/mcp-input-sanitizers.js",
+        "lib/mcp-operator-capability.js",
+        "lib/mcp-tool-names.js",
+        "lib/mcp/json-rpc-handler.js",
+        "lib/mcp/operator-authorization.js",
+        "lib/mcp/server-lifecycle.js",
+        "lib/mcp/stdio-transport.js",
+        "lib/mcp/tool-dispatch.js",
+        "lib/mcp/tool-surface.js",
+        "lib/mcp/transient-agent.js"
+      ],
+      "nlp/index.js": [
+        "nlp/lang-ar.js",
+        "nlp/lang-de.js",
+        "nlp/lang-en.js",
+        "nlp/lang-tr.js"
+      ],
+      "nlp/lang-ar.js": [
+        "nlp/normalize-phrase.js"
+      ],
+      "nlp/lang-de.js": [
+        "nlp/normalize-phrase.js"
+      ],
+      "nlp/lang-en.js": [
+        "nlp/normalize-phrase.js"
+      ],
+      "packages/axiom-verify/index.js": [
+        "packages/huqan-verify/index.js"
+      ],
+      "packages/huqan-verify/index.js": [
+        "lib/atp-conformance.js",
+        "lib/huqan-package-format.js"
+      ],
+      "persistencePaths.js": [
+        "lib/environment-compat.js",
+        "lib/memory-store-utils.js"
+      ],
+      "plugin.js": [
+        "lib/environment-compat.js",
+        "lib/plugin-provenance-registry.js",
+        "lib/supply-chain-activation-gate.js"
+      ],
+      "plugins/company-brain.js": [
+        "evidence-ranker.js",
+        "lib/bounded-ingest-errors.js",
+        "lib/causal-edge-strength.js",
+        "lib/company-ingest-gate.js",
+        "lib/entity-resolution.js",
+        "llmAdapter.js"
+      ],
+      "plugins/contradiction-alert.js": [
+        "evidence-ranker.js",
+        "lib/entity-resolution.js"
+      ],
+      "plugins/devil-advocate.js": [
+        "evidence-ranker.js",
+        "llmAdapter.js"
+      ],
+      "plugins/discovery-engine.js": [
+        "evidence-ranker.js"
+      ],
+      "plugins/evidence-validator.js": [
+        "adapters/http-adapter.js",
+        "lib/connector-action-firewall.js"
+      ],
+      "plugins/experiment-planner.js": [
+        "evidence-ranker.js"
+      ],
+      "plugins/llm-memory-plugin.js": [
+        "llmAdapter.js"
+      ],
+      "plugins/metric-collector.js": [
+        "lib/path-safety.js",
+        "persistencePaths.js"
+      ],
+      "plugins/policy-watchdog.js": [
+        "lib/trust-policy.js"
+      ],
+      "plugins/receipt-exporter.js": [
+        "lib/path-safety.js",
+        "persistencePaths.js"
+      ],
+      "plugins/replication-checker.js": [
+        "evidence-ranker.js"
+      ],
+      "plugins/repo-memory.js": [
+        "adapters/git-log-adapter.js",
+        "adapters/github-adapter.js",
+        "adapters/http-adapter.js",
+        "adapters/json-adapter.js",
+        "adapters/markdown-adapter.js",
+        "adapters/pdf-adapter.js",
+        "adapters/yaml-adapter.js",
+        "lib/bounded-ingest-errors.js",
+        "lib/connectors/entry-ingest-flow.js",
+        "lib/connectors/repo-memory-firewall.js",
+        "lib/provenance-ingest.js",
+        "lib/repo-file-pin.js"
+      ],
+      "plugins/result-analyzer.js": [
+        "evidence-ranker.js"
+      ],
+      "plugins/secret-masker.js": [
+        "lib/secret-patterns.js"
+      ],
+      "plugins/self-healer-audit.js": [
+        "lib/agent-loop-budget-gate.js",
+        "lib/module-reachability.js",
+        "lib/self-healer/approval-bridge.js",
+        "lib/self-healer/audit-runner.js",
+        "lib/self-healer/behavioral-containment.js",
+        "lib/self-healer/dryrun-runner.js",
+        "lib/self-healer/finding-classifier.js",
+        "lib/self-healer/source-dogfood-simulator.js"
+      ],
+      "plugins/workspace-sync.js": [
+        "lib/cross-workspace-access-gate.js",
+        "lib/gate-telemetry.js"
+      ],
+      "requestGuards.js": [
+        "lib/environment-compat.js"
+      ],
+      "rustGraph.js": [
+        "lib/environment-compat.js",
+        "lib/rust-graph-fallback-factory.js"
+      ],
+      "sandboxRunner.js": [
+        "lib/sandbox-isolation.js"
+      ],
+      "schemas/v5/agent-identity-conformance.js": [
+        "schemas/v5/agent-identity-validator.js"
+      ],
+      "schemas/v5/agent-identity-coverage.js": [
+        "schemas/v5/agent-identity-conformance.js"
+      ],
+      "schemas/v5/agent-identity-readiness.js": [
+        "schemas/v5/agent-identity-coverage.js"
+      ],
+      "scripts/a2a-conformance/consumer.js": [
+        "scripts/a2a-conformance/replay-store.js",
+        "scripts/a2a-conformance/verifier.js"
+      ],
+      "scripts/a2a-conformance/replay-store.js": [
+        "lib/a2a/replay-store.js"
+      ],
+      "scripts/a2a-conformance/run.js": [
+        "lib/a2a/inter-agent-receipt-chain.js",
+        "lib/receipt/canonical-receipt.js",
+        "lib/receipt/cryptographic-profile-contract.js",
+        "lib/receipt/public-trust-receipt.js",
+        "scripts/a2a-conformance/verifier.js"
+      ],
+      "scripts/a2a-conformance/verifier.js": [
+        "lib/a2a/bounded-exchange.js"
+      ],
+      "scripts/api-snapshot-diff.js": [
+        "scripts/api-snapshot-surface.js"
+      ],
+      "scripts/api-snapshot-surface.js": [
+        "lib/http/route-auth-policy.js",
+        "lib/mcp-tool-catalog.js",
+        "lib/workflow-contract.js"
+      ],
+      "scripts/api-snapshot.js": [
+        "scripts/api-snapshot-diff.js",
+        "scripts/api-snapshot-surface.js"
+      ],
+      "scripts/architecture-mermaid.js": [
+        "scripts/check-layers.js"
+      ],
+      "scripts/architecture-snapshot.js": [
+        "scripts/architecture-mermaid.js",
+        "scripts/check-import-cycles.js"
+      ],
+      "scripts/backup.js": [
+        "backupRestore.js",
+        "lib/environment-compat.js"
+      ],
+      "scripts/benign-false-block-rate.js": [
+        "lib/external-action-guard.js"
+      ],
+      "scripts/capability-usage.js": [
+        "lib/environment-compat.js",
+        "lib/observability/instrumentation-marker.js",
+        "lib/workflow-contract.js"
+      ],
+      "scripts/check-dead-code.js": [
+        "lib/module-reachability.js",
+        "scripts/dead-code-symbols.js"
+      ],
+      "scripts/check-deprecations.js": [
+        "scripts/deprecation-policy.js"
+      ],
+      "scripts/check-file-size.js": [
+        "scripts/file-size-policy.js"
+      ],
+      "scripts/check-layers.js": [
+        "scripts/check-import-cycles.js"
+      ],
+      "scripts/check-module-boundary.js": [
+        "scripts/check-import-cycles.js"
+      ],
+      "scripts/check-package-closure.js": [
+        "scripts/require-scan.js",
+        "scripts/retained-deep-imports.js"
+      ],
+      "scripts/check-structured-log-format.js": [
+        "lib/http/structured-log.js"
+      ],
+      "scripts/check-v5-identity-readiness.js": [
+        "schemas/v5/agent-identity-readiness.js"
+      ],
+      "scripts/ci-impact-plan.js": [
+        "scripts/ci-impact-rules.js",
+        "scripts/ci-shard-manifest.js",
+        "scripts/ci-test-selection.js"
+      ],
+      "scripts/container-server.js": [
+        "lib/environment-compat.js",
+        "server.js"
+      ],
+      "scripts/enforcement-coverage.js": [
+        "scripts/binding-site-scan.js",
+        "scripts/enforcement-coverage-classification.js"
+      ],
+      "scripts/fitness-dashboard.js": [
+        "lib/fitness-history.js"
+      ],
+      "scripts/generate-protocol-vectors.js": [
+        "lib/receipt/canonical-receipt.js",
+        "lib/receipt/receipt-chain.js",
+        "lib/receipt/receipt-export.js"
+      ],
+      "scripts/huqan-watchdog.js": [
+        "lib/runtime-watchdog.js"
+      ],
+      "scripts/knowledge-graph-demo.js": [
+        "dream.js",
+        "kernel.js",
+        "lib/environment-compat.js"
+      ],
+      "scripts/launch-installed-package-smoke.js": [
+        "scripts/spawn-windows-aware.js"
+      ],
+      "scripts/migrate-prov-ids.js": [
+        "lib/provenance-ingest.js"
+      ],
+      "scripts/pr-guardian-self-review.js": [
+        "lib/coder/verify-derivation.js",
+        "lib/pr-guardian/derivation-check.js",
+        "lib/pr-guardian/derivation-fetch.js",
+        "lib/pr-guardian/policy.js"
+      ],
+      "scripts/release-verify.js": [
+        "scripts/spawn-windows-aware.js"
+      ],
+      "scripts/restore.js": [
+        "backupRestore.js",
+        "lib/environment-compat.js"
+      ],
+      "scripts/run-test-shard.js": [
+        "scripts/ci-shard-manifest.js",
+        "scripts/junit-merge.js",
+        "scripts/test-state-sandbox.js"
+      ],
+      "scripts/run-tests.js": [
+        "scripts/test-state-sandbox.js",
+        "scripts/verify-test-environment.js"
+      ],
+      "scripts/run-trust-receipt-pilot.js": [
+        "lib/pilot/trust-receipt-pilot-archive.js",
+        "lib/pilot/trust-receipt-pilot.js"
+      ],
+      "scripts/seed-demo.js": [
+        "kernel.v2.js",
+        "lib/environment-compat.js"
+      ],
+      "scripts/setup-sqlite.js": [
+        "lib/sqlite-availability.js"
+      ],
+      "scripts/verify-package-tarball.js": [
+        "scripts/spawn-windows-aware.js"
+      ],
+      "scripts/verify-published-round-trip.js": [
+        "scripts/verify-package-tarball.js"
+      ],
+      "scripts/verify-suite.js": [
+        "scripts/spawn-windows-aware.js"
+      ],
+      "server.js": [
+        "agentRuntime.js",
+        "lib/collector-seal-config.js",
+        "lib/command-parser.js",
+        "lib/environment-compat.js",
+        "lib/external-action-receipt-collector.js",
+        "lib/external-client-production-boundary.js",
+        "lib/http-human-oversight-adapter.js",
+        "lib/http-trust-query.js",
+        "lib/http/answer-route.js",
+        "lib/http/background-timers.js",
+        "lib/http/exact-workspace.js",
+        "lib/http/fitness-dashboard-route.js",
+        "lib/http/http-provenance.js",
+        "lib/http/ingest-approval-audit-writer.js",
+        "lib/http/optional-boundaries.js",
+        "lib/http/pr-guardian-config.js",
+        "lib/http/public-api-commands.js",
+        "lib/http/public-badge-route.js",
+        "lib/http/read-workflow-actions.js",
+        "lib/http/receipt-read-failures.js",
+        "lib/http/request-origin.js",
+        "lib/http/route-auth-policy.js",
+        "lib/http/runtime-status.js",
+        "lib/http/server-boot.js",
+        "lib/http/server-timeouts.js",
+        "lib/http/static-assets.js",
+        "lib/http/structured-log.js",
+        "lib/http/upload-admission-contract.js",
+        "lib/http/v2-status-phases.js",
+        "lib/http/v5-package-import-route.js",
+        "lib/http/v5-preflight-route.js",
+        "lib/http/workflow-contract-route.js",
+        "lib/http/workflow-data-routes.js",
+        "lib/ingest.js",
+        "lib/kernel-factory.js",
+        "lib/llm-proxy/proxy-mount.js",
+        "lib/observability/server-runtime.js",
+        "lib/provenance-query.js",
+        "lib/receipt/receipt-read-index.js",
+        "lib/server-graph-data.js",
+        "lib/server-response-helpers.js",
+        "lib/shield.js",
+        "lib/trust-evidence-ledger.js",
+        "lib/verify-status-vocabulary.js",
+        "lib/viewer/session-store.js",
+        "lib/viewer/viewer-gateway.js",
+        "lib/workbench/ingest-approval-action.js",
+        "lib/workbench/workbench-read-http-router.js",
+        "llmAdapter.js",
+        "mcpServer.js",
+        "requestGuards.js",
+        "storage.js"
+      ],
+      "storage.js": [
+        "lib/default-persistence-path.js",
+        "lib/memory-store-utils.js",
+        "lib/sqlite-availability.js",
+        "lib/sqlite-durability.js",
+        "lib/sqlite-persistence-validation.js",
+        "lib/storage/schema.js",
+        "lib/storage/tool-approval-methods.js",
+        "lib/workspace-id.js"
+      ],
+      "toolPolicy.js": [
+        "lib/mcp-tool-names.js"
+      ],
+      "workflow-agent.js": [
+        "finalizer.js",
+        "lib/goal-binding.js",
+        "lib/workflow-budget-selection.js",
+        "lib/workflow-review-approval.js",
+        "lib/workflow-run-guidance.js",
+        "lib/workflow-tool-registration.js",
+        "lib/workflow-tool-registry.js",
+        "lib/workflow-values.js"
+      ],
+      "workflow-runtime.js": [
+        "workflow-agent.js",
+        "workflow-tools.js"
+      ],
+      "workflow-tools.js": [
+        "lib/workflow-tool-capability-runner.js",
+        "lib/workflow-tool-envelope.js",
+        "lib/workflow-tool-kernel-queries.js",
+        "lib/workflow-tool-repo-memory.js",
+        "lib/workflow-tool-run-capability.js",
+        "lib/workflow-tool-specialized-capabilities.js",
+        "workflow-agent.js"
+      ]
+    },
+    "violations": [
+      {
+        "from": "graph.js",
+        "to": "lib/memory-store-utils.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "graph.js",
+        "to": "lib/receipt/receipt-chain.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "graph.js",
+        "to": "lib/receipt/v4-receipt-family.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "graph.js",
+        "to": "lib/sqlite-persistence-validation.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "kernel.js",
+        "to": "dream.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "kernel.js",
+        "to": "lib/memory-admission-gate.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "kernel.js",
+        "to": "lib/memory-store-utils.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "kernel.js",
+        "to": "lib/memory-store.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "kernel.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "kernel.js",
+        "to": "lib/verdict/action-verdict.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "kernel.js",
+        "to": "plugin.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "kernel.js",
+        "to": "rustGraph.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "lib/agent-action-decisions.js",
+        "to": "lib/automation-safety-gate/automation-safety-vocabulary.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/agent-action-decisions.js",
+        "to": "lib/automation-safety-gate/index.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/agent-action-firewall.js",
+        "to": "lib/automation-safety-gate/automation-input-normalizer.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/agent-action-firewall.js",
+        "to": "lib/automation-safety-gate/index.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/agent-action-signals.js",
+        "to": "lib/automation-safety-gate/automation-safety-vocabulary.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/agent-behavioral-integrity.js",
+        "to": "lib/self-healer/behavioral-containment.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/agent-identity-runtime.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/agent-report-renderer.js",
+        "to": "finalizer.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/agent-step-executor.js",
+        "to": "finalizer.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/agent-v3-storage-factory.js",
+        "to": "storage.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "lib/approval-execution-evidence.js",
+        "to": "lib/receipt/receipt-read-index.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/autonomy-receipt-history.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/behavioral-stop-bridge.js",
+        "to": "lib/self-healer/behavioral-containment.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/browser-hook-outcome.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/browser-hook-outcome.js",
+        "to": "lib/verdict/action-verdict.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/browser-session-observer.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/cli-backup-commands.js",
+        "to": "backupRestore.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "lib/cli-backup-commands.js",
+        "to": "lib/sqlite-restore.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "lib/cli-coder-verify.js",
+        "to": "lib/coder/verify-derivation.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/cli-coder.js",
+        "to": "lib/coder/apply-derivation.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/cli-coder.js",
+        "to": "lib/coder/derivation-record.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/cli-doctor.js",
+        "to": "lib/sqlite-availability.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "lib/cli-doctor.js",
+        "to": "lib/storage/schema.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "lib/cli-doctor.js",
+        "to": "persistencePaths.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "lib/cli-doctor.js",
+        "to": "rustGraph.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "lib/cli-experience-read.js",
+        "to": "lib/experience/read-model.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/cli-trust-receipt.js",
+        "to": "lib/receipt/receipt-read-index.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/cli-workflow-adapter.js",
+        "to": "lib/observability/notification-adapter.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/cli-workflow-envelope.js",
+        "to": "lib/http/workflow-envelope.js",
+        "fromLayer": "Core",
+        "toLayer": "UI"
+      },
+      {
+        "from": "lib/conflict-detector.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/conflict-detector.js",
+        "to": "lib/verdict/action-verdict.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/connector-local-path.js",
+        "to": "lib/connectors/entry-ingest-flow.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "lib/emergency-stop-chain.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/emergency-stop.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/external-action-action-binding.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/external-action-guard.js",
+        "to": "lib/automation-safety-gate/index.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/external-action-guard.js",
+        "to": "lib/memory-mutation-gate/index.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "lib/external-action-identity-signing.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/external-action-identity.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/external-action-receipt-collector.js",
+        "to": "lib/receipt/collector-seal.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/external-action-receipt-collector.js",
+        "to": "lib/receipt/signed-receipt-batch.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/external-action-receipt-shipper.js",
+        "to": "lib/receipt/signed-receipt-batch.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/external-action-receipt.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/external-action-receipt.js",
+        "to": "lib/verdict/action-verdict.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/external-client-authority.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/external-client-mutation-receipt-owner.js",
+        "to": "lib/receipt/canonical-receipt-v2.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/external-client-mutation-receipt-owner.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/external-client-package-gate.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/external-client-production-boundary.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/external-client-replay-store.js",
+        "to": "lib/memory-store-utils.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "lib/fitness-history.js",
+        "to": "lib/memory-store-utils.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "lib/gate-telemetry.js",
+        "to": "lib/observability/kernel-sink.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/github-app-beta-handler.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/github-app-beta-handler.js",
+        "to": "lib/receipt/receipt-chain.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/github-app-beta-handler.js",
+        "to": "lib/verdict/action-verdict.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/github-app-beta-store.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/github-app-beta-store.js",
+        "to": "lib/receipt/receipt-chain.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/github-app-streaming-trust-store.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/github-app-streaming-trust.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/github-app-streaming-trust.js",
+        "to": "lib/receipt/receipt-chain.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/github-app-streaming-trust.js",
+        "to": "lib/verdict/action-verdict.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/graph-mutation-receipt-schema.js",
+        "to": "lib/receipt/v4-receipt-family.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/graph-mutation-receipt-write.js",
+        "to": "lib/receipt/issuer-seal.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/graph-mutation-receipt-write.js",
+        "to": "lib/receipt/receipt-chain.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/human-oversight-approval-runtime-primitives.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/hypothesis-thresholds.js",
+        "to": "lib/memory-store-utils.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "lib/interop/vc-mapping.js",
+        "to": "lib/receipt/public-trust-receipt.js",
+        "fromLayer": "Adapters",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/issuer-seal-config.js",
+        "to": "lib/receipt/issuer-seal.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/kernel-learn-admission.js",
+        "to": "lib/memory-admission-gate.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "lib/kernel-learn-admission.js",
+        "to": "lib/memory-blast-radius.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "lib/mcp-agent-approval-execution.js",
+        "to": "agentRuntime.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/mcp-approval-store-factory.js",
+        "to": "storage.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "lib/mcp-gate-adapter.js",
+        "to": "lib/automation-safety-gate/index.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/mcp-gate-adapter.js",
+        "to": "lib/memory-mutation-gate/index.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "lib/mcp-ingest-execute-tool.js",
+        "to": "lib/workbench/ingest-approval-action.js",
+        "fromLayer": "Core",
+        "toLayer": "UI"
+      },
+      {
+        "from": "lib/mcp-ingest-execute-tool.js",
+        "to": "lib/workbench/ingest-approval-audit-writer.js",
+        "fromLayer": "Core",
+        "toLayer": "UI"
+      },
+      {
+        "from": "lib/mcp-operator-capability.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/mcp-tool-catalog.js",
+        "to": "lib/mcp/operator-tool-schemas.js",
+        "fromLayer": "Core",
+        "toLayer": "UI"
+      },
+      {
+        "from": "lib/observability/http-router.js",
+        "to": "lib/http/exact-workspace.js",
+        "fromLayer": "Application",
+        "toLayer": "UI"
+      },
+      {
+        "from": "lib/observability/server-runtime.js",
+        "to": "lib/http/structured-log.js",
+        "fromLayer": "Application",
+        "toLayer": "UI"
+      },
+      {
+        "from": "lib/observability/workflow-agent-instrumentation.js",
+        "to": "lib/http/structured-log.js",
+        "fromLayer": "Application",
+        "toLayer": "UI"
+      },
+      {
+        "from": "lib/post-action-monitor.js",
+        "to": "lib/self-healer/behavioral-containment.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/post-action-monitor.js",
+        "to": "lib/self-healer/finding-classifier.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/provenance-query.js",
+        "to": "lib/causal/causal-verdict.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/reason-sandbox.js",
+        "to": "rustGraph.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "lib/sdk.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/self-evolve-adapter.js",
+        "to": "dream.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/trust-evidence-ledger.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/trust-evidence-ledger.js",
+        "to": "lib/receipt/receipt-chain.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/trust-evidence-ledger.js",
+        "to": "lib/verdict/action-verdict.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/verify.js",
+        "to": "lib/trust-signals/verify-wiring.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/web-research-workflow.js",
+        "to": "lib/http/workflow-envelope.js",
+        "fromLayer": "Core",
+        "toLayer": "UI"
+      },
+      {
+        "from": "lib/web-research-workflow.js",
+        "to": "lib/http/workflow-request-validation.js",
+        "fromLayer": "Core",
+        "toLayer": "UI"
+      },
+      {
+        "from": "lib/web-research-workflow.js",
+        "to": "llmAdapter.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "lib/workflow-run-guidance.js",
+        "to": "finalizer.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      }
+    ]
   }
 }

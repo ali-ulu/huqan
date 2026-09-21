@@ -74,7 +74,26 @@ entrypoint (cli, server, mcpServer)  ->  use case  ->  domain  ->  storage
 ```
 
 Arrows point one way. Storage does not reach back into domain; domain does
-not import an entrypoint. 
+not import an entrypoint.
+
+The ring model (#2641) is the same graph under the four names Clean
+Architecture gives it:
+
+```
+UI (0)  ->  Application (1)  ->  Adapters (2)  ->  Core (3)
+```
+
+An edge is a violation when it points from an inner ring at a more outward
+one — `Core -> UI` and `Core -> Adapters` are the cases #2641 names, and
+`Application -> UI` is the edge `scripts/check-layers.js` already records as
+debt. Assignment is a path rule in
+`scripts/architecture-dependency-graph.js`, never a fallback: a module that
+matches no rule is *unassigned* and the gate fails on it. The snapshot, edges
+and violations are committed in `scripts/architecture-tracker-baseline.json`
+(`dependencyGraph`); `npm run arch:snapshot -- --graph` prints what the gate
+sees, and `npm run check:architecture-trackers` fails on an unassigned
+module, a violation that is neither recorded nor covered by a dated exception,
+and graph drift past the recorded threshold (`threshold`, 50).
 
 ## 4. Module boundary
 
@@ -110,6 +129,7 @@ gate where it had a freeze.
 | Banded budget (400 hard cap) | yes | `scripts/check-file-size.js`, 74 recorded entries |
 | Baseline review dates | yes | both baselines; an expired or missing entry fails the gate |
 | Dependency direction | yes | `scripts/check-layers.js`, 3 dated exceptions |
+| Layer graph and drift | yes | `scripts/architecture-snapshot.js --check` against the `dependencyGraph` section of `scripts/architecture-tracker-baseline.json` (#2641): every module in a ring (`UI`, `Application`, `Adapters`, `Core`), directed import edges, outward edges recorded; a module with no ring, a violation that is neither recorded nor under a dated exception, and drift past the recorded threshold (50) fail the gate |
 | Construction instead of injection (DIP) | yes, as a ratchet | `scripts/architecture-snapshot.js --check`: a new DIP signal fails the baseline evolution check; composition roots are exempt by path; a construction that is not a coupling defect is a dated exception in `DIP_ALLOWED` (1, #2268), and an expired or stale entry fails the gate |
 | Module boundary | yes | `scripts/check-module-boundary.js`, ratcheted at 48 calls in 18 files |
 
