@@ -1,0 +1,51 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "mutate": [
+    "lib/approval-flow.js",
+    "lib/tool-call-gate.js",
+    "lib/mcp-tool-policy.js",
+    "lib/http/request-limits.js",
+    "lib/http/request-origin.js",
+    "lib/http/workflow-request-validation.js",
+    "lib/path-safety.js",
+    "lib/risk-classify.js",
+    "lib/risk-rules.js",
+    "lib/memory-admission-gate.js",
+    "lib/receipt/canonical-receipt.js",
+    "lib/receipt/receipt-validation-cache.js"
+  ],
+  "testRunner": "tap",
+  "tap": {
+    "testFiles": [
+      "test/approval-flow.test.js",
+      "test/tool-call-gate.test.js",
+      "test/mcp-tool-policy.test.js",
+      "test/gateA-limits-backpressure.test.js",
+      "test/http-request-origin.test.js",
+      "test/workflow-http-request-validation.test.js",
+      "test/path-safety.test.js",
+      "test/risk-rules.test.js",
+      "test/memory-admission-gate.test.js",
+      "test/v4-trust-receipt-primitive.test.js",
+      "test/receipt-validation-cache.test.js",
+      "test/receipt-validation-cache-wiring.test.js",
+      "test/receipt-chain-order-matches-stamp.test.js"
+    ],
+    "forceBail": true
+  },
+  "coverageAnalysis": "perTest",
+  "reporters": ["clear-text", "progress", "html", "json"],
+  "htmlReporter": {
+    "fileName": "reports/mutation/index.html"
+  },
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  },
+  "thresholds": {
+    "high": 80,
+    "low": 80,
+    "break": 80
+  },
+  "concurrency": 2,
+  "timeoutMS": 60000
+}
