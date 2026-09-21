@@ -100,3 +100,14 @@ test('intentional externally-consumed declaration types can be allowlisted', () 
   assert.equal(result.ok, true);
   assert.equal(result.allowed.length, 1);
 });
+
+
+test('whole-module or dynamic namespace use is treated conservatively instead of producing false positives', () => {
+  const root = fixtureRoot();
+  fs.writeFileSync(path.join(root, 'lib', 'surface.js'), 'module.exports = { one, two };\nfunction one() {} function two() {}\n');
+  fs.writeFileSync(path.join(root, 'consumer.js'), "const surface = require('./lib/surface');\nObject.keys(surface);\n");
+
+  const result = checkUnusedNamedExports({ root, allowlist: allowlist() });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.unused, []);
+});
