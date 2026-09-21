@@ -164,3 +164,107 @@ test('approval-required canonical writes expose both independent review reasons'
   assert.ok(reasons.includes('canonical_mutation_requires_provenance'));
   assert.ok(reasons.includes('canonical_mutation_requires_approved_approval'));
 });
+
+test('decision signal normalization drops malformed signals and preserves valid order', () => {
+  const normalized = normalizeMemoryAdmissionDecision({
+    decision: 'review',
+    signals: [
+      null,
+      {},
+      { decision: 'bogus', reason: 'x' },
+      { decision: 'review', reason: '' },
+      { decision: ' REVIEW ', reason: ' one ' },
+      { decision: 'reject', reason: 'two' },
+    ],
+    createdAt: '2026-01-01T00:00:00.000Z',
+  });
+  assert.deepEqual(normalized.signals, [
+    { decision: 'review', reason: 'one' },
+    { decision: 'reject', reason: 'two' },
+  ]);
+});
+
+test('risk score normalization clamps external decision scores and preserves warnings/errors', () => {
+  const high = normalizeMemoryAdmissionDecision({
+    decision: 'quarantine',
+    risk: { level: ' HIGH ', score: 200 },
+    warnings: ['', 'warning', null],
+    errors: ['bad', { field: 'x', message: 'y' }],
+    createdAt: '2026-01-01T00:00:00.000Z',
+  });
+  assert.deepEqual(high.risk, { level: 'high', score: 100 });
+  assert.deepEqual(high.warnings, ['warning']);
+  assert.deepEqual(high.errors, [{ message: 'bad' }, { field: 'x', message: 'y' }]);
+
+  const low = normalizeMemoryAdmissionDecision({
+    decision: 'allow',
+    riskScore: -10,
+    createdAt: '2026-01-01T00:00:00.000Z',
+  });
+  assert.deepEqual(low.risk, { level: 'low', score: 0 });
+});
+
+test('receipt metadata carries only declared finite confidence, expiry and supported provenance source', () => {
+  const normalized = normalizeMemoryAdmissionDecision({
+    ...base,
+    decision: 'allow',
+    request: {
+      ...base,
+      declaredConfidence: 0.75,
+      expiresAt: '2027-01-01T00:00:00.000Z',
+      provenanceSource: 'deterministic',
+    },
+  });
+  const receipt = buildMemoryAdmissionReceipt(normalized, {
+    receiptId: 'metadata-receipt',
+    createdAt: '2026-06-11T12:30:00.000Z',
+    metadata: { source: 'manual' },
+  });
+  assert.deepEqual(receipt.metadata, {
+    source: 'manual',
+    declaredConfidence: 0.75,
+    expiresAt: '2027-01-01T00:00:00.000Z',
+    provenanceSource: 'deterministic',
+  });
+
+  const absent = buildMemoryAdmissionReceipt(normalizeMemoryAdmissionDecision({
+    ...base,
+    decision: 'allow',
+    request: { ...base, declaredConfidence: Number.NaN },
+  }), {
+    receiptId: 'metadata-absent',
+    createdAt: '2026-06-11T12:30:00.000Z',
+  });
+  assert.deepEqual(absent.metadata, {});
+});
+
+test('approval cancellation and expiry become quarantine at high risk', () => {
+  for (const approvalStatus of ['cancelled', 'expired']) {
+    const result = evaluateMemoryAdmission({
+      ...base,
+      approvalStatus,
+      riskScore: 90,
+    }, { approvalRequired: true });
+    assert.equal(result.decision.decision, 'quarantine', approvalStatus);
+    assert.ok(result.decision.signals.some(signal =>
+      signal.decision === 'quarantine' && signal.reason === `approval_${approvalStatus}`
+    ));
+  }
+});
+
+test('quarantine signal vocabulary covers tombstone, delete, supersede and status spellings', () => {
+  for (const proposedMemory of [
+    { tombstone: true },
+    { tombstoned: true },
+    { deleted: true },
+    { deletedAt: '2026-01-01T00:00:00.000Z' },
+    { superseded: true },
+    { supersede: true },
+    { status: ' deleted ' },
+    { status: ' SUPERSEDED ' },
+  ]) {
+    const result = evaluateMemoryAdmission({ ...base, proposedMemory });
+    assert.equal(result.decision.decision, 'quarantine', JSON.stringify(proposedMemory));
+    assert.ok(result.decision.signals.some(signal => signal.reason === 'quarantine_signal_detected'));
+  }
+});
