@@ -3,11 +3,29 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const zlib = require('node:zlib');
 const { buildSnapshot, stableStringify } = require('./api-snapshot-surface');
 const { diffSnapshots, reportMarkdown } = require('./api-snapshot-diff');
 
 function readJson(file) {
-  return JSON.parse(fs.readFileSync(path.resolve(file), 'utf8'));
+  const parsed = JSON.parse(fs.readFileSync(path.resolve(file), 'utf8'));
+  if (parsed?.formatVersion === 'huqan.api-snapshot-baseline.v1' && parsed.encoding === 'gzip-base64') {
+    const json = zlib.gunzipSync(Buffer.from(parsed.payload, 'base64')).toString('utf8');
+    return JSON.parse(json);
+  }
+  return parsed;
+}
+
+function writeBaseline(file, value) {
+  const compact = stableStringify(value, 0);
+  const payload = zlib.gzipSync(Buffer.from(compact), { level: 9 }).toString('base64');
+  const baseline = {
+    formatVersion: 'huqan.api-snapshot-baseline.v1',
+    encoding: 'gzip-base64',
+    digest: value.digest,
+    payload,
+  };
+  fs.writeFileSync(path.resolve(file), `${JSON.stringify(baseline)}\n`);
 }
 
 function writeJson(file, value) {
@@ -37,6 +55,7 @@ function main(argv = process.argv.slice(2)) {
   const snapshot = args.snapshot ? readJson(args.snapshot) : buildSnapshot();
 
   if (args.write) writeJson(args.write, snapshot);
+  if (args['write-baseline']) writeBaseline(args['write-baseline'], snapshot);
 
   if (args['check-baseline']) {
     const baseline = readJson(args['check-baseline']);
@@ -62,11 +81,11 @@ function main(argv = process.argv.slice(2)) {
     process.stdout.write(report);
   }
 
-  if (!args.write && !args.compare && !args['check-baseline'] && !args['bootstrap-report']) {
+  if (!args.write && !args['write-baseline'] && !args.compare && !args['check-baseline'] && !args['bootstrap-report']) {
     process.stdout.write(`${stableStringify(snapshot)}\n`);
   }
 }
 
 if (require.main === module) main();
 
-module.exports = { main, parseArgs, readJson, writeJson };
+module.exports = { main, parseArgs, readJson, writeJson, writeBaseline };
