@@ -8,14 +8,6 @@ on:
       - 'packages/**/package.json'
       - 'packages/**/package-lock.json'
       - '.github/workflows/dependency-audit.yml'
-  push:
-    branches: [main]
-    paths:
-      - 'package.json'
-      - 'package-lock.json'
-      - 'packages/**/package.json'
-      - 'packages/**/package-lock.json'
-      - '.github/workflows/dependency-audit.yml'
   schedule:
     # Weekly full dependency audit and update report.
     - cron: '30 9 * * 1'

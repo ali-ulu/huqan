@@ -8,8 +8,6 @@ on:
   # decides what actually runs; a CI-file-only change costs one cheap
   # classify leg that reports NOT_APPLICABLE.
   pull_request:
-  push:
-    branches: [main]
   schedule:
     - cron: '0 10 * * 1'
   workflow_dispatch:

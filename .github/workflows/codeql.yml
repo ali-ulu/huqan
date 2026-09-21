@@ -9,10 +9,16 @@ name: CodeQL
 # making it blocking before that baseline is triaged would turn existing
 # findings into a red main.
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+    paths:
+      - '**/*.js'
+      - 'lib/**'
+      - 'packages/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/codeql.yml'
   schedule:
     - cron: '17 3 * * 1'
   workflow_dispatch:
