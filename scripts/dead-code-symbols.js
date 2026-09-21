@@ -85,35 +85,58 @@ function resolveModule(root, importer, specifier) {
   return null;
 }
 
-function addUse(uses, target, name) {
+function addUse(state, target, name) {
   if (!target || !name) return;
   const key = target + '#' + name;
-  uses.set(key, (uses.get(key) || 0) + 1);
+  state.named.set(key, (state.named.get(key) || 0) + 1);
+  state.modules.add(target);
+}
+
+function markOpaque(state, target) {
+  if (!target) return;
+  state.modules.add(target);
+  state.opaque.add(target);
 }
 
 function collectUses(root, files) {
-  const uses = new Map();
+  const state = { named: new Map(), modules: new Set(), opaque: new Set() };
   for (const importer of files.filter((file) => /\.(?:js|cjs|mjs)$/.test(file))) {
     const source = fs.readFileSync(path.join(root, importer), 'utf8');
     for (const match of source.matchAll(/\b(?:const|let|var)\s*\{([^}]+)\}\s*=\s*require\s*\(\s*['"]([^'"]+)['"]\s*\)/g)) {
       const target = resolveModule(root, importer, match[2]);
-      for (const raw of match[1].split(',')) addUse(uses, target, raw.trim().split(':')[0].trim());
+      for (const raw of match[1].split(',')) addUse(state, target, raw.trim().split(':')[0].trim());
     }
     for (const match of source.matchAll(/\bimport\s*\{([^}]+)\}\s*from\s*['"]([^'"]+)['"]/g)) {
       const target = resolveModule(root, importer, match[2]);
-      for (const raw of match[1].split(',')) addUse(uses, target, raw.trim().split(/\s+as\s+/)[0].trim());
+      for (const raw of match[1].split(',')) addUse(state, target, raw.trim().split(/\s+as\s+/)[0].trim());
     }
     for (const match of source.matchAll(/require\s*\(\s*['"]([^'"]+)['"]\s*\)\s*(?:\.|\[\s*['"])([A-Za-z_$][\w$]*)/g)) {
-      addUse(uses, resolveModule(root, importer, match[1]), match[2]);
+      addUse(state, resolveModule(root, importer, match[1]), match[2]);
     }
     for (const match of source.matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*require\s*\(\s*['"]([^'"]+)['"]\s*\)/g)) {
       const target = resolveModule(root, importer, match[2]);
-      const escaped = match[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (!target) continue;
+      state.modules.add(target);
+      const escaped = match[1].replace(/[.*+?^$(){}|[\]\\]/g, '\\$&');
       const property = new RegExp('\\b' + escaped + '\\.([A-Za-z_$][\\w$]*)', 'g');
-      for (const prop of source.matchAll(property)) addUse(uses, target, prop[1]);
+      const consumedRanges = [];
+      for (const prop of source.matchAll(property)) {
+        addUse(state, target, prop[1]);
+        consumedRanges.push([prop.index, prop.index + prop[0].length]);
+      }
+      const identifier = new RegExp('\\b' + escaped + '\\b', 'g');
+      for (const use of source.matchAll(identifier)) {
+        if (use.index >= match.index && use.index < match.index + match[0].length) continue;
+        if (consumedRanges.some((range) => use.index >= range[0] && use.index < range[1])) continue;
+        markOpaque(state, target);
+        break;
+      }
+    }
+    for (const match of source.matchAll(/(?:module\.exports\s*=|\.\.\.)\s*require\s*\(\s*['"]([^'"]+)['"]\s*\)/g)) {
+      markOpaque(state, resolveModule(root, importer, match[1]));
     }
   }
-  return uses;
+  return state;
 }
 
 function checkUnusedNamedExports(opts) {
@@ -129,11 +152,11 @@ function checkUnusedNamedExports(opts) {
   const allowed = [];
   for (const entry of candidates) {
     const key = entry.file + '#' + entry.name;
-    if ((uses.get(key) || 0) > 0) continue;
+    if ((uses.named.get(key) || 0) > 0) continue;
     if (moduleAllow.has(entry.file) || exactAllow.has(key)) allowed.push(entry);
-    else unused.push(entry);
+    else if (uses.modules.has(entry.file) && !uses.opaque.has(entry.file)) unused.push(entry);
   }
-  const lines = ['Named-export check: ' + candidates.length + ' static export(s), ' + unused.length + ' unused, ' + allowed.length + ' allowlisted'];
+  const lines = ['Named-export check: ' + candidates.length + ' static export(s), ' + unused.length + ' provably unused, ' + allowed.length + ' allowlisted, ' + uses.opaque.size + ' module(s) conservatively opaque'];
   if (unused.length) {
     lines.push('FAIL: ' + unused.length + ' unused named export(s):');
     for (const entry of unused) lines.push('  - ' + entry.file + ':' + entry.line + " exported '" + entry.name + "' has no repository consumer");
@@ -163,7 +186,7 @@ function checkUnusedTypes(opts) {
   const unused = [];
   const allowed = [];
   for (const entry of declarations) {
-    const escaped = entry.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const escaped = entry.name.replace(/[.*+?^$(){}|[\]\\]/g, '\\$&');
     const word = new RegExp('\\b' + escaped + '\\b', 'g');
     let refs = 0;
     for (const pair of sources) {
