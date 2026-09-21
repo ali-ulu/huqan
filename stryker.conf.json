@@ -37,7 +37,7 @@
       "test/property/path-containment.property.test.js",
       "test/connector-resolved-path.test.js",
       "test/risk-rules.test.js",
-      "test/risk-category-rules.test.js",
+      "test/risk-classify-mutation.test.js",
       "test/semantic-score.test.js",
       "test/action-risk-classifier.test.js",
       "test/trust-receipt-absent-evidence.test.js",
