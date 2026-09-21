@@ -1,0 +1,25 @@
+name: Disable Auto Merge Helper
+
+on:
+  push:
+    branches:
+      - chore/disable-auto-merge-helper
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  disable:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disable auto-merge on policy-controlled PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for pr_id in             PR_kwDOTYucQM8AAAABEfjiQg             PR_kwDOTYucQM8AAAABEfwYzg
+          do
+            gh api graphql               -f query='mutation($id:ID!){disablePullRequestAutoMerge(input:{pullRequestId:$id}){pullRequest{number autoMergeRequest{enabledAt}}}}'               -F id="$pr_id"
+          done
