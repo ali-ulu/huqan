@@ -9,15 +9,14 @@
  * Slice 3 — CLI command surface (capabilities ↔ cli.js / cli-workflow-adapter)
  * Slice 4 — REST route surface (workflow routes ↔ HTTP registrars)
  *
- * Deferred:
- *   - Unused named exports (static CJS export scan is too noisy without a
- *     large allowlist; revisit with knip or path-aware AST later)
- *   - Unused TypeScript types
+ * Slice 5 — unused named CommonJS exports with explicit public-API allowlisting
+ * Slice 6 — unused exported TypeScript declaration types
  */
 
 const fs = require('node:fs');
 const path = require('node:path');
 const { analyzeReachability } = require('../lib/module-reachability');
+const { checkSymbolDeadCode } = require('./dead-code-symbols');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 
@@ -205,13 +204,16 @@ function checkDeadCode(opts = {}) {
   lines.push(cliSurface.report);
   const rest = checkRestRouteSurface({ root });
   lines.push(rest.report);
+  const symbols = checkSymbolDeadCode({ root });
+  lines.push(symbols.report);
   const ok = unacknowledged.length === 0
     && staleAcknowledgements.length === 0
     && mcp.ok
     && cliSurface.ok
-    && rest.ok;
+    && rest.ok
+    && symbols.ok;
   if (ok) {
-    lines.push(`Dead-code check passed: reachability + MCP + CLI + REST (${unreachable.length} classified unreachable modules)`);
+    lines.push(`Dead-code check passed: reachability + MCP + CLI + REST + named exports + declaration types (${unreachable.length} classified unreachable modules)`);
   }
   return {
     ok,
@@ -220,6 +222,8 @@ function checkDeadCode(opts = {}) {
     mcpGaps: mcp.gaps,
     cliGaps: cliSurface.gaps,
     restGaps: rest.gaps,
+    unusedExportGaps: symbols.namedExports.unused,
+    unusedTypeGaps: symbols.types.unused,
     reachableCount: reachable.length,
     unreachableCount: unreachable.length,
     report: lines.join('\n'),
