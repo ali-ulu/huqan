@@ -778,6 +778,7 @@
     "public/viewer/viewer.css",
     "public/pr-guardian/index.html",
     "requestGuards.js",
+    "lib/rust-graph-fallback-factory.js",
     "rustGraph.js",
     "sandboxRunner.js",
     "scripts/backup.js",

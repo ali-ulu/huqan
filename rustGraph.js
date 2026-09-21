@@ -2,7 +2,7 @@ const { StringDecoder } = require('string_decoder');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-const Graph = require('./graph');
+const { createRustGraphFallback } = require('./lib/rust-graph-fallback-factory');
 const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
 
 /**
@@ -44,12 +44,12 @@ function resolveRustBin(environment = process.env) {
 const RUST_BIN = resolveRustBin();
 const RUST_REQUEST_TIMEOUT_MS = 10000;
 const RUST_MAX_LINE_BYTES = 10 * 1024 * 1024;
-
 class RustGraph {
   constructor(opts) {
     if (typeof opts === 'string') opts = { memoryPath: opts };
     opts = opts || {};
     this.memoryPath = opts.memoryPath || 'memory.json';
+    this._createFallbackGraph = typeof opts.createFallbackGraph === 'function' ? opts.createFallbackGraph : createRustGraphFallback;
     this._fallback = null;
     this._proc = null;
     this._pending = new Map();
@@ -86,7 +86,7 @@ class RustGraph {
     // different Graph instance and no state ever accumulated.
     if (this._proc || this._fallback) return;
     if (!fs.existsSync(RUST_BIN)) {
-      this._fallback = new Graph({ memoryPath: this.memoryPath });
+      this._fallback = this._createFallbackGraph({ memoryPath: this.memoryPath });
       this._ready = true;
       return;
     }
@@ -94,7 +94,7 @@ class RustGraph {
       this._proc = spawn(RUST_BIN, [], { stdio: ['pipe', 'pipe', 'pipe'] });
       this._proc.stdout.on('data', (chunk) => this._onData(chunk));
       this._proc.on('exit', () => { this._proc = null; this._rejectAll(); });
-      this._proc.on('error', () => { this._fallback = new Graph({ memoryPath: this.memoryPath }); this._ready = true; });
+      this._proc.on('error', () => { this._fallback = this._createFallbackGraph({ memoryPath: this.memoryPath }); this._ready = true; });
       this._proc.stdin.on('error', () => {});
       this._proc.unref();
       this._proc.stdin.unref();
@@ -102,7 +102,7 @@ class RustGraph {
       this._proc.stderr.unref();
       this._ready = true;
     } catch {
-      this._fallback = new Graph({ memoryPath: this.memoryPath });
+      this._fallback = this._createFallbackGraph({ memoryPath: this.memoryPath });
       this._ready = true;
     }
   }
