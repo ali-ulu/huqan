@@ -48,8 +48,7 @@ const {
 } = require('./lib/cli-helpers');
 const { runCompanyIngest } = require('./lib/cli-company-ingest');
 const { runBackupCommand, runRestoreCommand } = require('./lib/cli-backup-commands');
-const { runStatusCommand } = require('./lib/cli-status-command');
-const { runDoctorCommand } = require('./lib/cli-doctor');
+const { runStatusCommand } = require('./lib/cli-status-command'); const { runDoctorCommand } = require('./lib/cli-doctor');
 
 // #2136: one handler per CLI command; a new command is a row, not a case. Handlers get the command context
 // CLI#execute builds, not the instance; lazy requires keep a block body so require-scan still sees them deferred.
@@ -297,8 +296,7 @@ const CLI_COMMAND_HANDLERS = Object.freeze(Object.assign(Object.create(null), {
       createOperatorCapability: ({ tool, arguments: args }) => cli.createOperatorCapability(tool, args),
     });
   },
-  'durum': (cli) => runStatusCommand(cli),
-  'doctor': (cli, args, opts) => runDoctorCommand({ rootDir: process.cwd() }),
+  'durum': (cli) => runStatusCommand(cli), 'doctor': () => runDoctorCommand({ rootDir: process.cwd() }),
   'rüya': (cli, args, opts, command) => {
     const hypotheses = cli.dream.dream();
     if (hypotheses.length === 0) return 'I could not produce a hypothesis; I need more information.';
