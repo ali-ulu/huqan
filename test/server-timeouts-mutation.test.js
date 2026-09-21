@@ -13,6 +13,18 @@ const {
 
 const reader = (values = {}) => (name) => values[name];
 
+
+test('HTTP timeout and request-limit defaults are independently pinned', () => {
+  assert.deepEqual(DEFAULT_HTTP_TIMEOUTS, {
+    headersTimeout: 10000,
+    requestTimeout: 30000,
+    keepAliveTimeout: 5000,
+    connectionsCheckingInterval: 1000,
+  });
+  assert.equal(DEFAULT_MAX_CONCURRENT_REQUESTS, 100);
+  assert.equal(DEFAULT_RETRY_AFTER_MS, 1000);
+});
+
 test('timeout resolver accepts every documented inclusive boundary', () => {
   assert.deepEqual(resolveHttpServerTimeouts(reader({
     HEADERS_TIMEOUT_MS: '1000',
