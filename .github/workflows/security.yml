@@ -8,8 +8,6 @@ on:
   # never ran (#681). npm audit, gitleaks and Semgrep are fail-closed gates;
   # they cost a few CI minutes on the stacked head and stay silent otherwise.
   pull_request:
-  push:
-    branches: [main]
   schedule:
     # Run weekly on Monday at 9 AM UTC
     - cron: '0 9 * * 1'

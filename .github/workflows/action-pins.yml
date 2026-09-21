@@ -5,11 +5,6 @@ on:
     paths:
       - '.github/workflows/**'
       - 'scripts/check-action-pins.js'
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/**'
-      - 'scripts/check-action-pins.js'
   workflow_dispatch:
 
 concurrency:

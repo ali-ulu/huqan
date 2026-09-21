@@ -3,6 +3,11 @@ name: Dependency Review
 on:
   pull_request:
     branches: [main]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'packages/**/package.json'
+      - 'packages/**/package-lock.json'
 
 permissions:
   contents: read

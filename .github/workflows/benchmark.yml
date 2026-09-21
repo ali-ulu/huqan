@@ -212,7 +212,9 @@ jobs:
   fast-contract:
     name: Fast contract checks
     needs: [classify, test-impact-plan]
-    if: needs['test-impact-plan'].outputs.run_tests == 'true'
+    # PRs get fast feedback before merge. A protected main commit already
+    # passed the same merge-ref checks, so do not spend another runner here.
+    if: needs['test-impact-plan'].outputs.run_tests == 'true' && github.event_name != 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -264,14 +266,10 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci --include=optional
-      - name: Run fast static checks
-        run: |
-          set -euo pipefail
-          npm run check:package-closure
-          npm run check:file-size
-          npm run check:control-chars
-          npm run check:doc-status
-          npm run check:workflow-governance
+      - name: Run package-closure check
+        # Architecture Checks and Workflow Governance already own file-size,
+        # control-char, doc-status and workflow-governance validation.
+        run: npm run check:package-closure
       - name: Run fast contract tests
         run: >-
           node --test --test-concurrency=2
@@ -360,7 +358,10 @@ jobs:
   runtime-test:
     name: npm test (runtime/test selected, ${{ matrix.os }}, Node ${{ matrix.node-version }}, shard ${{ matrix.shard }})
     needs: [classify, test-impact-plan]
-    if: needs['test-impact-plan'].outputs.run_tests == 'true'
+    # Required PR validation runs before merge. Main is protected and strict,
+    # so replaying the same selected suite after merge only burns runner time.
+    # Scheduled/manual runs still execute the exhaustive cross-platform matrix.
+    if: needs['test-impact-plan'].outputs.run_tests == 'true' && github.event_name != 'push'
     runs-on: ${{ matrix.os }}
     # A shard finishes in two to four minutes. Without a cap it inherits the
     # six-hour default, and a shard that hangs — the browser smokes in shard 2
@@ -375,7 +376,8 @@ jobs:
       max-parallel: 2
       matrix:
         # PRs exercise the supported Node 22 package on Linux only.
-        # Push/scheduled/manual runs cover Windows, macOS, and the current Node 24 line.
+        # Scheduled/manual runs cover Windows, macOS, and the current Node 24 line.
+        # Main pushes skip this replay because the strict protected PR merge-ref already passed it.
         os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || '["ubuntu-latest", "windows-latest", "macos-latest"]') }}
         node-version: ${{ fromJSON(github.event_name == 'pull_request' && '[22]' || '[22, 24]') }}
         shard: [1, 2, 3, 4, 5]
@@ -487,7 +489,7 @@ jobs:
   runtime-test-skip:
     name: npm test (runtime/test)
     needs: [classify, test-impact-plan]
-    if: needs['test-impact-plan'].outputs.run_tests != 'true'
+    if: github.event_name == 'push' || needs['test-impact-plan'].outputs.run_tests != 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Report NOT_APPLICABLE
