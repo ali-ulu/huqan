@@ -129,8 +129,16 @@ function parseArgs(argv) {
 }
 
 function baselineFromGitRef(ref) {
-  const raw = execFileSync('git', ['show', `${ref}:${BASELINE_PATH}`], { encoding: 'utf8' });
-  return JSON.parse(raw);
+  execFileSync('git', ['rev-parse', '--verify', ref], { stdio: 'pipe' });
+  try {
+    const raw = execFileSync('git', ['show', `${ref}:${BASELINE_PATH}`], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return JSON.parse(raw);
+  } catch (_) {
+    return null;
+  }
 }
 
 function main(argv = process.argv.slice(2)) {
@@ -140,8 +148,12 @@ function main(argv = process.argv.slice(2)) {
   let failures = [];
 
   if (args.againstRef) {
-    const previousBaseline = validateBaseline(baselineFromGitRef(args.againstRef));
-    failures.push(...checkBaselineRatchet(currentBaseline, previousBaseline));
+    const previousBaseline = baselineFromGitRef(args.againstRef);
+    if (previousBaseline === null) {
+      process.stdout.write(`No prior mutation baseline at ${args.againstRef}; treating this as bootstrap.\n`);
+    } else {
+      failures.push(...checkBaselineRatchet(currentBaseline, validateBaseline(previousBaseline)));
+    }
   }
 
   if (args.report) {
