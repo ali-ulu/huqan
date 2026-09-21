@@ -9,7 +9,7 @@ const { spawnFixture, tempDir, waitForExit, waitForLine } = require('./helpers')
 test('approval recorded then process kill persists the claim and recovery fails it closed', async (t) => {
   const root = tempDir(t, 'huqan-fault-approval-');
   const dbPath = path.join(root, 'memory.db');
-  const child = spawnFixture('approval-kill-child.js', [dbPath]);
+  const child = spawnFixture('approval-kill-child.cjs', [dbPath]);
   t.after(() => {
     if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
   });

@@ -12,7 +12,7 @@ test('partial append after process kill preserves earlier receipts and reports t
   const receiptPath = path.join(root, 'receipts.jsonl');
   fs.writeFileSync(receiptPath, JSON.stringify({ receiptId: 'stable', status: 'admitted' }) + '\n');
 
-  const child = spawnFixture('partial-write-child.js', [receiptPath]);
+  const child = spawnFixture('partial-write-child.cjs', [receiptPath]);
   t.after(() => {
     if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
   });

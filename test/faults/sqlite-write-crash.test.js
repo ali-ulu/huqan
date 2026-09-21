@@ -9,7 +9,7 @@ const { spawnFixture, tempDir, waitForExit, waitForLine } = require('./helpers')
 test('SQLite write crash mid-transaction rolls back the uncommitted row and reopens cleanly', async (t) => {
   const root = tempDir(t, 'huqan-fault-sqlite-');
   const dbPath = path.join(root, 'memory.db');
-  const child = spawnFixture('sqlite-mid-transaction-child.js', [dbPath]);
+  const child = spawnFixture('sqlite-mid-transaction-child.cjs', [dbPath]);
   t.after(() => {
     if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
   });
