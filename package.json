@@ -67,7 +67,8 @@
     "check:dead-code": "node scripts/check-dead-code.js",
     "test:faults": "node scripts/run-tests.js --test-concurrency=1 \"test/faults/*.test.js\"",
     "api:snapshot": "node scripts/api-snapshot.js",
-    "check:api-contract": "node scripts/api-snapshot.js --check-baseline api-snapshot-baseline.json"
+    "check:api-contract": "node scripts/api-snapshot.js --check-baseline api-snapshot-baseline.json",
+    "test:recovery": "node scripts/run-tests.js \"test/recovery/*.test.js\""
   },
   "keywords": [
     "ai-governance",
