@@ -39,7 +39,7 @@ jobs:
             gh api "repos/$REPO/actions/runs?head_sha=$latest_sha&per_page=100" \
               --jq '
                 [
-                  .workflow_runs
+                  .workflow_runs[]
                   | select(.name != "Main CI Watch")
                 ]
                 | group_by(.name)
@@ -85,6 +85,7 @@ jobs:
                 --jq '
                   [
                     .workflow_runs
+                    | map(select(.name != "Main CI Watch"))
                     | group_by(.name)[]
                     | max_by([.run_number, .run_attempt])
                     | select(
