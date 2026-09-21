@@ -274,3 +274,147 @@ test('filesystem, network, sandbox and tool-chain rules pin all three-way outcom
   assert.equal(chain.decision, ACTION_DECISIONS.BLOCK);
   assert.ok(chain.flags.includes(FLAGS.UNGATED_TOOL_CHAIN));
 });
+
+
+test('mutation sentinels pin optional hard-block inputs, exact reasons and category guards', () => {
+  const base = {
+    category: ACTION_CATEGORIES.READ_ONLY,
+    riskLevel: RISK_LEVELS.LOW,
+    decision: ACTION_DECISIONS.ALLOW,
+    flags: [],
+    reasons: [],
+    hardBlocked: false,
+    target: null,
+  };
+
+  const untouched = applyHardBlockRules(undefined, { ...base, flags: [], reasons: [] });
+  assert.equal(untouched.decision, ACTION_DECISIONS.ALLOW);
+  assert.equal(untouched.hardBlocked, false);
+  assert.deepEqual(untouched.flags, []);
+  assert.deepEqual(untouched.reasons, []);
+
+  const cases = [
+    [FLAGS.AUTO_MERGE, 'Auto-merge is blocked.'],
+    [FLAGS.AUTO_DEPLOY, 'Auto-deploy is blocked.'],
+    [FLAGS.SELF_ESCALATION, 'Self-escalation is blocked.'],
+  ];
+  for (const [flag, reason] of cases) {
+    const out = applyHardBlockRules({ flags: [flag] }, { ...base, flags: [], reasons: [] });
+    assert.equal(out.decision, ACTION_DECISIONS.BLOCK, flag);
+    assert.equal(out.hardBlocked, true, flag);
+    assert.equal(out.riskLevel, RISK_LEVELS.CRITICAL, flag);
+    assert.deepEqual(out.flags, [flag, FLAGS.HARD_BLOCKED], flag);
+    assert.deepEqual(out.reasons, [reason], flag);
+  }
+
+  const security = applyHardBlockRules({}, {
+    ...base,
+    category: ACTION_CATEGORIES.SECURITY_POLICY_CHANGE,
+    flags: [],
+    reasons: [],
+  });
+  assert.deepEqual(security.flags, [FLAGS.HARD_BLOCKED]);
+  assert.deepEqual(security.reasons, ['Security policy changes default to block.']);
+
+  const production = applyHardBlockRules({}, {
+    ...base,
+    category: ACTION_CATEGORIES.DEPLOYMENT,
+    flags: [],
+    reasons: [],
+  });
+  assert.deepEqual(production.flags, [FLAGS.HARD_BLOCKED]);
+  assert.deepEqual(production.reasons, ['Production-side mutation is blocked.']);
+
+  const admission = applyHardBlockRules({ flags: [FLAGS.BYPASS_ADMISSION] }, {
+    ...base,
+    category: ACTION_CATEGORIES.MEMORY_WRITE,
+    flags: [],
+    reasons: [],
+  });
+  assert.deepEqual(admission.flags, [FLAGS.BYPASS_ADMISSION, FLAGS.HARD_BLOCKED, FLAGS.PRODUCTION_SIDE]);
+  assert.deepEqual(admission.reasons, ['Admission bypass or production-side target is blocked.']);
+
+  const sandbox = applyHardBlockRules({ flags: [FLAGS.REAL_DB] }, {
+    ...base,
+    category: ACTION_CATEGORIES.SANDBOX_SIMULATION,
+    flags: [],
+    reasons: [],
+  });
+  assert.deepEqual(sandbox.flags, [FLAGS.REAL_DB, FLAGS.HARD_BLOCKED]);
+  assert.deepEqual(sandbox.reasons, ['Sandbox must not write to a real DB.']);
+
+  const chain = applyHardBlockRules({ flags: [FLAGS.UNGATED_TOOL_CHAIN] }, {
+    ...base,
+    category: ACTION_CATEGORIES.TOOL_CHAIN_EXECUTION,
+    flags: [],
+    reasons: [],
+  });
+  assert.deepEqual(chain.flags, [FLAGS.UNGATED_TOOL_CHAIN, FLAGS.HARD_BLOCKED]);
+  assert.deepEqual(chain.reasons, ['Tool-chain execution must be gated.']);
+
+  const unrelatedUngated = applyHardBlockRules({ flags: [FLAGS.UNGATED_TOOL_CHAIN] }, {
+    ...base,
+    category: ACTION_CATEGORIES.READ_ONLY,
+    flags: [],
+    reasons: [],
+  });
+  assert.equal(unrelatedUngated.decision, ACTION_DECISIONS.ALLOW);
+  assert.equal(unrelatedUngated.hardBlocked, false);
+  assert.deepEqual(unrelatedUngated.flags, [FLAGS.UNGATED_TOOL_CHAIN]);
+  assert.deepEqual(unrelatedUngated.reasons, []);
+});
+
+test('malformed, unknown and option-derived classification contracts are exact', () => {
+  const malformed = classifyAgentAction(null, {
+    flags: [FLAGS.AUTO_DEPLOY],
+    now: '2026-02-01T00:00:00.000Z',
+  });
+  assert.equal(malformed.category, null);
+  assert.equal(malformed.action, null);
+  assert.equal(malformed.riskLevel, RISK_LEVELS.HIGH);
+  assert.equal(malformed.decision, ACTION_DECISIONS.HUMAN_REVIEW);
+  assert.equal(malformed.hardBlocked, false);
+  assert.equal(malformed.reason, 'Malformed action input');
+  assert.deepEqual(malformed.reasons, ['Malformed action input']);
+  assert.deepEqual(malformed.flags.sort(), [FLAGS.MALFORMED_ACTION, FLAGS.AUTO_DEPLOY].sort());
+  assert.equal(malformed.trustReceipt.reason, 'Malformed action input');
+  assert.equal(malformed.trustReceipt.timestamp, '2026-02-01T00:00:00.000Z');
+
+  const unknown = classifyAgentAction({
+    category: 'not-real',
+    action: 'probe',
+    flags: ['custom'],
+    now: '2026-02-02T00:00:00.000Z',
+  }, {
+    context: { flags: [FLAGS.SELF_ESCALATION] },
+  });
+  assert.equal(unknown.category, null);
+  assert.equal(unknown.action, 'probe');
+  assert.equal(unknown.riskLevel, RISK_LEVELS.HIGH);
+  assert.equal(unknown.decision, ACTION_DECISIONS.HUMAN_REVIEW);
+  assert.equal(unknown.reason, 'Unknown action category');
+  assert.deepEqual(unknown.reasons, ['Unknown action category']);
+  assert.deepEqual(unknown.flags.sort(), ['custom', FLAGS.SELF_ESCALATION, FLAGS.UNKNOWN_ACTION_CATEGORY].sort());
+  assert.equal(unknown.trustReceipt.reason, 'Unknown action category');
+  assert.equal(unknown.trustReceipt.timestamp, '2026-02-02T00:00:00.000Z');
+
+  const optionFlag = classifyAgentAction({ category: 'read' }, {
+    context: { flags: [FLAGS.AUTO_MERGE] },
+    now: '2026-02-03T00:00:00.000Z',
+  });
+  assert.equal(optionFlag.decision, ACTION_DECISIONS.BLOCK);
+  assert.equal(optionFlag.hardBlocked, true);
+  assert.ok(optionFlag.flags.includes(FLAGS.AUTO_MERGE));
+  assert.ok(optionFlag.flags.includes(FLAGS.HARD_BLOCKED));
+  assert.ok(optionFlag.reasons.includes('Auto-merge is blocked.'));
+  assert.equal(optionFlag.timestamp, '2026-02-03T00:00:00.000Z');
+
+  const inputTime = classifyAgentAction({
+    category: 'read',
+    now: '2026-02-04T00:00:00.000Z',
+  }, {
+    now: '2026-02-05T00:00:00.000Z',
+  });
+  assert.equal(inputTime.timestamp, '2026-02-05T00:00:00.000Z');
+  assert.equal(inputTime.trustReceipt.timestamp, '2026-02-05T00:00:00.000Z');
+});
