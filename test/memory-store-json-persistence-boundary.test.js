@@ -12,12 +12,13 @@ const repoRoot = path.join(__dirname, '..');
 
 test('#2272: JSON persistence has no cross-module private MemoryStore calls', () => {
   const source = fs.readFileSync(path.join(repoRoot, 'lib/memory-store-json-persistence.js'), 'utf8');
-  for (const member of ['_persistenceError', '_withTransaction', '_makeMemoryKey']) {
-    assert.doesNotMatch(
-      source,
-      new RegExp(`\\.${member}\\s*\\(`),
-      `JSON persistence must not call MemoryStore.${member}`,
-    );
+  const privateSeams = [
+    [/\\._persistenceError\\s*\\(/, '_persistenceError'],
+    [/\\._withTransaction\\s*\\(/, '_withTransaction'],
+    [/\\._makeMemoryKey\\s*\\(/, '_makeMemoryKey'],
+  ];
+  for (const [pattern, member] of privateSeams) {
+    assert.doesNotMatch(source, pattern, `JSON persistence must not call MemoryStore.${member}`);
   }
 });
 
