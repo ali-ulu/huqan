@@ -10,7 +10,8 @@ const { buildBackgroundProvenance, sponsorBackgroundProvenance, provenanceFields
 const { buildLearnAdmissionRequest } = require('./lib/learn-admission-request');
 const { evaluateMemoryAdmission } = require('./lib/memory-admission-gate');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
-const { admissionReceiptDetails, evaluateLearnAdmission } = require('./lib/kernel-learn-admission');
+const { evaluateLearnAdmission } = require('./lib/kernel-learn-admission');
+const { admissionReceiptDetails } = require('./lib/admission-receipt-details');
 const { detectClaimConflict } = require('./lib/conflict-detector');
 const { createKernelReadUseCases } = require('./lib/kernel-read-use-cases');
 const { runLearnUseCase } = require('./lib/learn-use-case');
@@ -551,12 +552,16 @@ class Kernel {
       opts.admissionBypassReason.trim().length > 0;
   }
 
-  _evaluateLearnAdmission(text, opts = {}, provenance = null, workspaceId = 'default') {
+  evaluateLearnAdmission(text, opts = {}, provenance = null, workspaceId = 'default') {
     return evaluateLearnAdmission({
       kernel: this,
       isLearnAdmissionBypass: this._isLearnAdmissionBypass.bind(this),
       contractVersion: this.contractVersion,
     }, text, opts, provenance, workspaceId);
+  }
+
+  _evaluateLearnAdmission(text, opts = {}, provenance = null, workspaceId = 'default') {
+    return this.evaluateLearnAdmission(text, opts, provenance, workspaceId);
   }
 
   _admissionReceiptDetails(admission) {
