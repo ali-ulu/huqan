@@ -1,0 +1,65 @@
+name: A6 Baseline Bootstrap
+
+on:
+  push:
+    branches:
+      - chore/architecture-graph-drift-staging
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: chore/architecture-graph-drift-staging
+          fetch-depth: 0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
+      - name: Generate tracker, graph baseline and Mermaid artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/architecture-snapshot.js --write
+          node - <<'NODE'
+          const fs = require('fs');
+          const {
+            snapshot,
+            classify,
+            trackedEntries,
+          } = require('./scripts/architecture-snapshot');
+          const { buildArchitectureGraphSnapshot } = require('./scripts/architecture-graph-snapshot');
+          const entries = trackedEntries(classify(snapshot()));
+          const graph = buildArchitectureGraphSnapshot();
+          fs.writeFileSync(
+            'scripts/architecture-tracker-baseline.json',
+            JSON.stringify({ schemaVersion: 3, entries, graph }, null, 2) + '\n',
+          );
+          NODE
+          mkdir -p docs/generated
+          node scripts/architecture-snapshot.js --mermaid > docs/generated/architecture-layers.md
+
+      - name: Verify generated architecture state
+        run: |
+          node --test test/architecture-graph-drift.test.js test/architecture-tracker-drift.test.js
+          node scripts/architecture-snapshot.js --check --base-ref=origin/main
+
+      - name: Commit generated architecture state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/architecture-tracker-baseline.json docs/generated/architecture-trackers.md docs/generated/architecture-layers.md
+          if git diff --cached --quiet; then
+            echo "Generated architecture state is already current."
+            exit 0
+          fi
+          git commit -m "arch: bootstrap dependency graph baseline"
+          git push origin HEAD:chore/architecture-graph-drift-staging
