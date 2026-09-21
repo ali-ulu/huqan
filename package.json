@@ -570,6 +570,7 @@
     "lib/mutation-journal-lock.js",
     "lib/path-safety.js",
     "lib/predicate-parser.js",
+    "lib/pre-ingest.js",
     "lib/provenance-ingest.js",
     "lib/provenance-ingest-adapter.js",
     "lib/provenance-record-utils.js",
