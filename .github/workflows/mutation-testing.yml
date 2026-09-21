@@ -1,0 +1,155 @@
+name: Mutation Testing
+
+on:
+  pull_request:
+  schedule:
+    - cron: '23 2 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '22'
+  STRYKER_VERSION: '10.0.0'
+
+jobs:
+  pr-mutation-plan:
+    if: github.event_name == 'pull_request'
+    name: Mutation target plan
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.mutation-targets.outputs.run }}
+      targets: ${{ steps.mutation-targets.outputs.targets }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Enforce mutation baseline ratchet
+        run: node scripts/check-mutation-score.js --against-ref "origin/${{ github.base_ref }}"
+
+      - name: Select changed mutation targets
+        id: mutation-targets
+        shell: bash
+        run: |
+          TARGETS="$(node scripts/list-mutation-targets.js "origin/${{ github.base_ref }}")"
+          if [[ -n "$TARGETS" ]]; then
+            TARGETS_JSON="$(node -e 'process.stdout.write(JSON.stringify(process.argv[1].split(",").filter(Boolean)))' "$TARGETS")"
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "targets=$TARGETS_JSON" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo 'targets=[]' >> "$GITHUB_OUTPUT"
+          fi
+
+  pr-mutation-target:
+    if: needs.pr-mutation-plan.outputs.run == 'true'
+    needs: pr-mutation-plan
+    name: Mutation target (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.pr-mutation-plan.outputs.targets) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Run mutation tests for protected target
+        run: >-
+          npx --yes
+          --package=@stryker-mutator/core@${{ env.STRYKER_VERSION }}
+          --package=@stryker-mutator/tap-runner@${{ env.STRYKER_VERSION }}
+          stryker run
+          --mutate "${{ matrix.target }}"
+
+      - name: Enforce target mutation score
+        run: node scripts/check-mutation-score.js --report reports/mutation/mutation.json --allow-partial
+
+      - name: Upload target mutation report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mutation-report-pr-${{ github.event.pull_request.number }}-${{ strategy.job-index }}
+          path: reports/mutation/
+          if-no-files-found: warn
+          retention-days: 14
+
+  pr-mutation-gate:
+    if: always() && github.event_name == 'pull_request'
+    needs:
+      - pr-mutation-plan
+      - pr-mutation-target
+    name: Mutation score PR gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require applicable mutation checks to pass
+        shell: bash
+        env:
+          PLAN_RESULT: ${{ needs.pr-mutation-plan.result }}
+          RUN_REQUIRED: ${{ needs.pr-mutation-plan.outputs.run }}
+          TARGET_RESULT: ${{ needs.pr-mutation-target.result }}
+        run: |
+          set -euo pipefail
+          test "$PLAN_RESULT" = "success"
+          if [[ "$RUN_REQUIRED" == "true" ]]; then
+            test "$TARGET_RESULT" = "success"
+          fi
+
+  nightly-mutation-suite:
+    if: github.event_name != 'pull_request'
+    name: Nightly mutation suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Run full mutation suite
+        run: >-
+          npx --yes
+          --package=@stryker-mutator/core@${{ env.STRYKER_VERSION }}
+          --package=@stryker-mutator/tap-runner@${{ env.STRYKER_VERSION }}
+          stryker run
+
+      - name: Enforce per-file mutation baselines
+        run: node scripts/check-mutation-score.js --report reports/mutation/mutation.json
+
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mutation-report-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: reports/mutation/
+          if-no-files-found: warn
+          retention-days: 30

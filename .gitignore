@@ -38,3 +38,7 @@ backups/
 test/onboarding-checklist.test.js
 test-results/
 huqan-server.pid
+
+# Stryker mutation-testing scratch and generated reports
+.stryker-tmp/
+reports/mutation/

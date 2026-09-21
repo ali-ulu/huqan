@@ -23,7 +23,7 @@ Tracked in total: **63**
 | `lib/external-client-mutation-receipt-owner.js` | 741 | — |
 | `lib/risk-classify.js` | 739 | — |
 | `lib/verify.js` | 739 | — |
-| `lib/tool-call-gate.js` | 731 | — |
+| `lib/tool-call-gate.js` | 729 | — |
 | `plugin.js` | 728 | — |
 | `dream.js` | 726 | — |
 | `plugins/repo-memory.js` | 726 | — |
@@ -55,11 +55,11 @@ Tracked in total: **63**
 | `lib/command-exec-gate.js` | 515 | — |
 | `lib/mcp-tool-catalog.js` | 511 | — |
 | `lib/external-client-replay-store.js` | 510 | — |
-| `lib/memory-admission-gate.js` | 506 | — |
 | `lib/atp-conformance.js` | 504 | — |
 | `lib/a2a/exchange-route.js` | 493 | — |
 | `causalSimulator.js` | 478 | — |
 | `lib/http/workflow-data-routes.js` | 477 | — |
+| `lib/memory-admission-gate.js` | 471 | — |
 | `lib/connector-action-firewall.js` | 469 | — |
 | `lib/observability/api-contract.js` | 468 | — |
 | `lib/causal/causal-traversal.js` | 451 | — |

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "minimumScore": 80,
+  "files": {
+    "lib/approval-flow.js": 80,
+    "lib/tool-call-gate.js": 80,
+    "lib/mcp-tool-policy.js": 80,
+    "lib/http/server-timeouts.js": 80,
+    "lib/http/request-origin.js": 80,
+    "lib/http/workflow-request-validation.js": 80,
+    "lib/path-safety.js": 80,
+    "lib/risk-classify.js": 80,
+    "lib/risk-rules.js": 80,
+    "lib/memory-admission-gate.js": 80,
+    "lib/receipt/canonical-receipt.js": 80,
+    "lib/receipt/receipt-validation-cache.js": 80
+  }
+}

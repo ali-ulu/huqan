@@ -203,7 +203,7 @@
     },
     "lib/memory-admission-gate.js": {
       "band": "recorded",
-      "lines": 506,
+      "lines": 471,
       "signals": []
     },
     "lib/memory-schema.js": {
@@ -267,7 +267,7 @@
     },
     "lib/tool-call-gate.js": {
       "band": "recorded",
-      "lines": 731,
+      "lines": 729,
       "signals": []
     },
     "lib/v5/runtime-writer.js": {
