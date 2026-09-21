@@ -5,20 +5,11 @@ name: CodeQL
 # HTTP body or MCP tool argument that reaches fs, child_process or a SQL
 # string several calls later. Results land in the Security tab as alerts.
 #
-# Not a required check yet: the first scan establishes the alert baseline, and
-# making it blocking before that baseline is triaged would turn existing
-# findings into a red main.
+# CodeQL is a required main-branch gate, so it runs on every pull request to
+# main and publishes a stable aggregate check named "CodeQL".
 on:
   pull_request:
     branches: [main]
-    paths:
-      - '**/*.js'
-      - 'lib/**'
-      - 'packages/**'
-      - 'scripts/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - '.github/workflows/codeql.yml'
   schedule:
     - cron: '17 3 * * 1'
   workflow_dispatch:
@@ -61,3 +52,17 @@ jobs:
       - uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4
         with:
           category: /language:javascript-typescript
+
+  codeql-gate:
+    name: CodeQL
+    needs: analyze
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Require CodeQL analysis to pass
+        env:
+          RESULT: ${{ needs.analyze.result }}
+        run: test "$RESULT" = "success"
