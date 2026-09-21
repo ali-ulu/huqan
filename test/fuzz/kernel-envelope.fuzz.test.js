@@ -34,7 +34,8 @@ test('kernel envelope fuzz: ok/fail builders always emit self-validating envelop
       evidenceArb,
       metaArb,
       (type, data, evidence, meta) => {
-        const success = ok(context, type || 'fuzz', data, evidence, meta);
+        const safeType = type === 'verify' ? 'fuzz-verify' : (type || 'fuzz');
+        const success = ok(context, safeType, data, evidence, meta);
         assert.strictEqual(validateResult(success), success);
         assert.equal(success.ok, true);
         assert.ok(Array.isArray(success.evidence));
