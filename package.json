@@ -685,6 +685,7 @@
     "lib/llm-proxy/proxy-mount.js",
     "lib/web-research.js",
     "lib/browser-hook-outcome.js",
+    "lib/browser-session-observer.js",
     "lib/web-research-workflow.js",
     "lib/workflow-contract.js",
     "lib/workflow-run-guidance.js",

@@ -647,12 +647,21 @@
       "decision": "Decision",
       "destination": "Page",
       "browserTool": "Browser operation",
-      "reportedOutcome": "Reported outcome"
+      "reportedOutcome": "Reported outcome",
+      "browserSession": "Browser session",
+      "browserEvent": "Browser event",
+      "networkMethod": "Network method",
+      "networkStatus": "Network status",
+      "consoleType": "Console type",
+      "boundOutcome": "Bound outcome"
     },
     "externalAdmission": "Agent operation admitted",
     "externalOutcome": "Agent operation result",
     "externalRejection": "Agent operation blocked",
-    "externalReview": "Agent operation awaiting review"
+    "externalReview": "Agent operation awaiting review",
+    "browserSessionEvent": "Browser session event",
+    "observationOnly": "observation-only",
+    "observed": "OBSERVED"
   },
   "ingestRun": {
     "eyebrow": "Ingest",
