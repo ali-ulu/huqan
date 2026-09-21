@@ -44,7 +44,7 @@
     },
     "kernel.js": {
       "band": "decompose",
-      "lines": 1057,
+      "lines": 1056,
       "signals": [
         "FANOUT:39"
       ]
@@ -93,7 +93,7 @@
     },
     "lib/conflict-detector.js": {
       "band": "recorded",
-      "lines": 615,
+      "lines": 614,
       "signals": []
     },
     "lib/connector-action-firewall.js": {
