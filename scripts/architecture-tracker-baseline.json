@@ -51,10 +51,9 @@
     },
     "kernel.v2.js": {
       "band": "recorded",
-      "lines": 707,
+      "lines": 702,
       "signals": [
-        "DIP",
-        "ISP:5"
+        "DIP"
       ]
     },
     "lib/a2a/bounded-exchange.js": {
