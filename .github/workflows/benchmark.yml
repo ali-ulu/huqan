@@ -28,9 +28,10 @@ on:
 
 # A new push to the same PR supersedes stale classification/test work.
 concurrency:
-  # Keep scheduled/full validation from blocking a newer push to main. PRs,
-  # pushes, schedules, and manual runs each get their own event-scoped lane.
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  # Only supersede stale runs for the same PR. Every non-PR run (including
+  # each push to main) gets its own run-id lane so rapid merges cannot cancel
+  # a pending main validation before any job starts.
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
