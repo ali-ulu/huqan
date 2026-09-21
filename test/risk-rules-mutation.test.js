@@ -16,6 +16,53 @@ const {
   runRiskRules,
 } = require('../lib/risk-rules');
 
+
+const EXPECTED_RISK_RULES = Object.freeze({
+  WEAK_PARTIAL_MATCH: 'WEAK_PARTIAL_MATCH',
+  HIGH_RISK_DOMAIN: 'HIGH_RISK_DOMAIN',
+  ABSOLUTE_CLAIM: 'ABSOLUTE_CLAIM',
+  SCOPE_EXPANSION: 'SCOPE_EXPANSION',
+  RELATION_DRIFT: 'RELATION_DRIFT',
+  MULTILINGUAL_AMBIGUITY: 'MULTILINGUAL_AMBIGUITY',
+  PROVENANCE_MISSING: 'PROVENANCE_MISSING',
+  DOUBLE_NEGATION: 'DOUBLE_NEGATION',
+  WEASEL_WORDS: 'WEASEL_WORDS',
+  STRAWMAN_ATTRIBUTION: 'STRAWMAN_ATTRIBUTION',
+  ALIAS_NORMALIZATION: 'ALIAS_NORMALIZATION',
+});
+
+const EXPECTED_HIGH_RISK_DOMAINS = Object.freeze({
+  medical: [
+    'medical', 'medicine', 'aspirin', 'ilaç', 'tedavi', 'hastalık', 'kanser', 'aşı', 'insülin', 'hipertansiyon',
+    'kan inceltici', 'kan pıhtılaştırıcı', 'doz', 'semptom',
+  ],
+  aviation: [
+    'B737', 'A380', 'C172', 'EDDF', 'squawk', 'Mayday', 'Pan-Pan', 'TCAS', 'V1', 'VR', 'ISA', 'FAR Part 25',
+    'aircraft', 'engine', 'emergency', 'distress', 'urgency', 'decision speed', 'rotation speed', 'transport category', 'normal category',
+  ],
+  legal: [
+    'legal', 'hukuk', 'sözleşme', 'dava', 'kvkk', 'gdpr', 'izin', 'yasak', 'veri', 'mahremiyet', 'ceza',
+  ],
+  financial: [
+    'finance', 'financial', 'bank', 'loan', 'credit', 'faiz', 'borsa', 'yatırım', 'para', 'risk',
+  ],
+  security: [
+    'security', 'güvenlik', 'attack', 'exploit', 'vulnerability', 'saldırı', 'yetki', 'auth', 'authentication', 'authorization',
+  ],
+});
+
+const EXPECTED_ABSOLUTE_TERMS = Object.freeze([
+  'always', 'never', 'all', 'every', 'guaranteed', '100%', 'eliminate',
+  'her zaman', 'asla', 'tüm', 'bütün', 'hiçbir', 'kesin', 'garanti',
+  'yüzde yüz', 'daima', 'mutlaka',
+]);
+
+test('risk rule configuration is an independent exact contract', () => {
+  assert.deepEqual(RISK_RULES, EXPECTED_RISK_RULES);
+  assert.deepEqual(HIGH_RISK_DOMAINS, EXPECTED_HIGH_RISK_DOMAINS);
+  assert.deepEqual(ABSOLUTE_TERMS, EXPECTED_ABSOLUTE_TERMS);
+});
+
 test('every configured high-risk token remains reachable and mapped to its domain', () => {
   for (const [domain, tokens] of Object.entries(HIGH_RISK_DOMAINS)) {
     for (const token of tokens) {
