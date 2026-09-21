@@ -17,15 +17,25 @@ concurrency:
 permissions:
   contents: read
 
+# CI cost: these gates used to be one job per check (~10 runners, each with
+# checkout + setup-node). They share one tree and almost no install, so they
+# run sequentially on two runners:
+#   static-gates  — dependency-free source/docs policy scripts
+#   source-gates  — lint + docs-drift (need npm ci once)
+# Ruleset check contexts must match the job `name:` fields during migration.
+# Compatibility jobs below keep those required contexts real until that migration lands.
+
 jobs:
-  tracker-drift:
-    name: Require architecture tracker snapshot to be current
+  static-gates:
+    name: Architecture static gates
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # tracker-drift compares against a base ref; needs history.
           fetch-depth: 0
 
       - name: Set up Node.js
@@ -33,134 +43,33 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Check generated architecture tracker
+      # No npm ci: every script below only reads the source/docs tree.
+
+      - name: Require architecture tracker snapshot to be current
         run: npm run check:architecture-trackers -- --base-ref=${{ github.event.pull_request.base.sha || github.event.before || 'origin/main' }}
 
-  import-cycles:
-    name: Require graph is acyclic
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '22'
-
-      # No dependencies needed: the checker only reads the source tree.
-      - name: Check for require cycles
+      - name: Require graph is acyclic
         run: node scripts/check-import-cycles.js
 
-  file-size:
-    name: Enforce the large-file threshold
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '22'
-
-      # Ratchet, not a flat limit (#328): files at or under the threshold must
-      # stay there, and the files already over it may not grow. Reads the
-      # source tree only, so no dependencies are needed.
-      - name: Check file sizes
+      - name: Enforce the large-file threshold
         run: node scripts/check-file-size.js
 
-  module-boundary:
-    name: Forbid cross-module private access
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '22'
-
-      # docs/architecture-policy.md §4. Reaching into another object's
-      # `_private` member makes that member the real contract between the two
-      # modules while it keeps the marking that says it is not one — no
-      # documentation, no direct test, no stability promise. That is why
-      # refactors here kept breaking callers nobody had reason to look at.
-      # Ratcheted like file sizes: the recorded count may fall, never rise.
-      # Reads the source tree only, so no dependencies are needed.
-      - name: Check module boundaries
+      - name: Forbid cross-module private access
         run: node scripts/check-module-boundary.js
 
-  layers:
-    name: Enforce dependency direction
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '22'
-
-      # docs/architecture-policy.md §3: entrypoint -> domain -> storage, with
-      # shared helpers below all three. An upward edge drags an HTTP server or
-      # a CLI into consumers that wanted neither, and makes the lower layer
-      # impossible to exercise on its own. Exceptions are listed in the script
-      # with a review date, and an expired one fails exactly like a new edge.
-      # Reads the source tree only, so no dependencies are needed.
-      - name: Check layer directions
+      - name: Enforce dependency direction
         run: node scripts/check-layers.js
 
-  control-chars:
-    name: Forbid raw control characters in tracked sources
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '22'
-
-      # #1042: a raw control byte makes git classify a source file as binary,
-      # so its changes render as `Bin X -> Y bytes` with no line diff and grep
-      # reports only "binary file matches" — the file drops out of review and
-      # out of every codebase-wide search. Reads the source tree only, so no
-      # dependencies are needed.
-      - name: Check for raw control characters
+      - name: Forbid raw control characters in tracked sources
         run: node scripts/check-control-chars.js
 
-  doc-status:
-    name: Require every V5 document to declare its status
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '22'
-
-      # #295: the V5 set holds shipped work, authorized specifications and
-      # directions nobody has authorized, written in the same voice. Each
-      # document declares which it is; this fails when one does not. Reads the
-      # docs tree only, so no dependencies are needed.
-      - name: Check V5 document status declarations
+      - name: Require every V5 document to declare its status
         run: node scripts/check-doc-status.js
 
-  docs-drift:
-    name: Require living documentation to agree with the source
+  source-gates:
+    name: Architecture source gates
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repository
@@ -170,38 +79,71 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '22'
+          cache: npm
 
-      # Unlike its sibling jobs this one does need the dependencies installed:
-      # the checker reads the operator tool names off mcpServer.js, and loading
-      # that module pulls in the kernel and its runtime requires. Without this
-      # step the job dies on `Cannot find module 'proper-lockfile'` before it
-      # reaches a single document.
+      # docs-drift loads mcpServer.js (needs runtime deps); lint needs oxlint.
       - name: Install dependencies
         run: npm ci
 
-      # #1782 and its class: in a governance product the documentation is part
-      # of the trust surface, so a documented Node floor, tool name, route or
-      # file path the source contradicts is a false claim about the product,
-      # not a typo. Fixing them one at a time is why they kept coming back.
-      - name: Check documentation against the source
+      - name: Require living documentation to agree with the source
         run: node scripts/check-docs-drift.js
 
-  lint:
-    name: Enforce a lint-clean tree
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '22'
-
-      # The linter needs the oxlint binary, which is a devDependency.
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run linter
+      - name: Enforce a lint-clean tree
         run: npm run lint
+
+
+  compat-tracker-drift:
+    name: Require architecture tracker snapshot to be current
+    needs: static-gates
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.static-gates.result }}" = "success"
+
+  compat-import-cycles:
+    name: Require graph is acyclic
+    needs: static-gates
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.static-gates.result }}" = "success"
+
+  compat-file-size:
+    name: Enforce the large-file threshold
+    needs: static-gates
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.static-gates.result }}" = "success"
+
+  compat-control-chars:
+    name: Forbid raw control characters in tracked sources
+    needs: static-gates
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.static-gates.result }}" = "success"
+
+  compat-doc-status:
+    name: Require every V5 document to declare its status
+    needs: static-gates
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.static-gates.result }}" = "success"
+
+  compat-docs-drift:
+    name: Require living documentation to agree with the source
+    needs: source-gates
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.source-gates.result }}" = "success"
+
+  compat-lint:
+    name: Enforce a lint-clean tree
+    needs: source-gates
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.source-gates.result }}" = "success"
