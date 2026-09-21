@@ -20,7 +20,7 @@ test('verify manifest is fast-first with the test suite last', () => {
 
 test('verify manifest keeps the checks the gate historically ran', () => {
   const names = STAGES.map((stage) => stage.name);
-  for (const name of ['environment', 'lint', 'cycles', 'module-boundary', 'layers', 'file-size', 'docs-drift', 'package-closure', 'property-tests', 'tests']) {
+  for (const name of ['environment', 'lint', 'cycles', 'module-boundary', 'layers', 'file-size', 'docs-drift', 'package-closure', 'property-tests', 'fuzz-tests', 'tests']) {
     assert.ok(names.includes(name), `missing historical check: ${name}`);
   }
 });
