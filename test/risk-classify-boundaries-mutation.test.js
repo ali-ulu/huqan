@@ -407,7 +407,7 @@ test('malformed, unknown and option-derived classification contracts are exact',
   assert.ok(optionFlag.flags.includes(FLAGS.AUTO_MERGE));
   assert.ok(optionFlag.flags.includes(FLAGS.HARD_BLOCKED));
   assert.ok(optionFlag.reasons.includes('Auto-merge is blocked.'));
-  assert.equal(optionFlag.timestamp, '2026-02-03T00:00:00.000Z');
+  assert.equal(optionFlag.trustReceipt.timestamp, '2026-02-03T00:00:00.000Z');
 
   const inputTime = classifyAgentAction({
     category: 'read',
@@ -415,6 +415,5 @@ test('malformed, unknown and option-derived classification contracts are exact',
   }, {
     now: '2026-02-05T00:00:00.000Z',
   });
-  assert.equal(inputTime.timestamp, '2026-02-05T00:00:00.000Z');
   assert.equal(inputTime.trustReceipt.timestamp, '2026-02-05T00:00:00.000Z');
 });
