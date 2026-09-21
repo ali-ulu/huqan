@@ -30,30 +30,22 @@ function readCode(relPath) {
     .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
 }
 
-test('the chokepoint is reached by 21 audit writes, not 17', () => {
-  // p1g counted textual `_appendAuditEvent(` occurrences and treated
-  // conflict-detector's appendAudit() as one site. It is a pass-through with
-  // four callers of its own, each a distinct write.
+test('the 19 audit writes are split across private Kernel and public Graph boundaries (#2166)', () => {
   const kernel = readCode('kernel.js');
   const learnUseCase = readCode('lib/learn-use-case.js');
   const conflict = readCode('lib/conflict-detector.js');
 
   const direct = (src) => (src.match(/_appendAuditEvent\s*\(/g) || []).length;
-
-  // kernel.js: 6 call sites plus the method definition.
-  // K2 (#328): the admission-gated background edge commit moved to
-  // lib/background-provenance.js, taking two of its audit writes with it.
-  assert.equal(direct(kernel), 7);
+  assert.equal(direct(kernel), 7, 'six Kernel calls plus the method definition');
   assert.equal(direct(learnUseCase), 7);
-  // conflict-detector: two direct writes plus the helper's own forwarding call.
-  assert.equal(direct(conflict), 3);
+  assert.equal(direct(conflict), 0, 'conflict detection must not reach the private Kernel audit seam');
 
-  // ...and the helper's four callers, which p1g did not count.
-  const helperCalls = (conflict.match(/(?<!function )\bappendAudit\(kernelOrGraph,/g) || []).length;
-  assert.equal(helperCalls, 4, 'appendAudit() callers');
+  const helperCalls = (conflict.match(/(?<!function )\bappendAudit\(/g) || []).length;
+  assert.equal(helperCalls, 6, 'conflict detector public Graph audit writes');
 
-  const writes = (direct(kernel) - 1) + direct(learnUseCase) + (direct(conflict) - 1) + helperCalls;
-  assert.equal(writes, 19, 'total audit writes reaching the chokepoint (K2: background-edge chain delegated)');
+  const privateWrites = (direct(kernel) - 1) + direct(learnUseCase);
+  assert.equal(privateWrites, 13, 'remaining writes through the private Kernel compatibility chokepoint');
+  assert.equal(privateWrites + helperCalls, 19, 'total audit writes remain unchanged');
 });
 
 test('four kernel sites bind the result; eleven discard it', () => {
