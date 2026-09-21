@@ -49,17 +49,35 @@ test('structured correlation logging contract', async t => {
     );
     assert.equal(lines.length, 1);
     assert.deepEqual(JSON.parse(lines[0]), record);
-    assert.deepEqual(record, {
-      event: 'observability.workflow_run_finished',
-      requestId: 'req-1',
-      traceId: 'trace-1',
-      runId: 'run-1',
-      workspaceId: 'workspace-1',
-      durationMs: 42,
-      outcome: 'completed',
-      runtime: 'workflow',
-    });
+    assert.equal(record.event, 'observability.workflow_run_finished');
+    assert.equal(record.reason, 'completed');
+    assert.match(record.request_id, /^[0-9a-f-]{36}$/);
+    assert.equal(Number.isNaN(Date.parse(record.timestamp)), false);
+    assert.equal(record.workspace_id, 'workspace-1');
+    assert.equal(record.level, 'info');
+    assert.equal(record.requestId, 'req-1');
+    assert.equal(record.traceId, 'trace-1');
+    assert.equal(record.runId, 'run-1');
+    assert.equal(record.workspaceId, 'workspace-1');
+    assert.equal(record.durationMs, 42);
+    assert.equal(record.outcome, 'completed');
+    assert.equal(record.runtime, 'workflow');
     for (const forbidden of ['goal', 'prompt', 'output', 'secret', 'credential']) assert.equal(Object.hasOwn(record, forbidden), false);
+  });
+
+  await t.test('honors HUQAN_LOG_LEVEL without changing returned records', () => {
+    const original = process.env.HUQAN_LOG_LEVEL;
+    process.env.HUQAN_LOG_LEVEL = 'warn';
+    try {
+      const lines = [];
+      const record = writeStructuredLog({ info(line) { lines.push(line); } }, 'info', 'filtered.info', {}, {});
+      assert.equal(lines.length, 0);
+      assert.equal(record.level, 'info');
+      assert.equal(record.workspace_id, 'system');
+    } finally {
+      if (original === undefined) delete process.env.HUQAN_LOG_LEVEL;
+      else process.env.HUQAN_LOG_LEVEL = original;
+    }
   });
 
   await t.test('never lets a logger failure alter the caller path', () => {

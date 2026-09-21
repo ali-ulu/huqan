@@ -37,6 +37,7 @@ const TEST_STAGE_TIMEOUT_MS = 60 * 60 * 1000;
 const STAGES = [
   { name: 'environment', command: ['node', 'scripts/verify-test-environment.js'] },
   { name: 'lint', command: ['npm', 'run', 'lint', '--silent'] },
+  { name: 'structured-log-format', command: ['npm', 'run', 'check:structured-log', '--silent'] },
   { name: 'cycles', command: ['npm', 'run', 'check:cycles', '--silent'] },
   { name: 'module-boundary', command: ['npm', 'run', 'check:module-boundary', '--silent'] },
   { name: 'layers', command: ['npm', 'run', 'check:layers', '--silent'] },
