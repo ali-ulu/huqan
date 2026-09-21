@@ -50,6 +50,7 @@
     "train": "node scripts/knowledge-graph-demo.js --demo",
     "test": "node scripts/run-tests.js --test-concurrency=4",
     "test:serial": "node scripts/run-tests.js --test-concurrency=1",
+    "test:mutation": "npx --yes --package=@stryker-mutator/core@10.0.0 --package=@stryker-mutator/tap-runner@10.0.0 stryker run",
     "test:property": "node scripts/run-tests.js \"test/property/*.test.js\"",
     "test:watch": "node scripts/run-tests.js --watch",
     "test:graph": "node scripts/run-tests.js graph.test.js",
