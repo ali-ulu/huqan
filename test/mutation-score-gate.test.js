@@ -8,6 +8,7 @@ const {
   checkReport,
   scoreMutants,
 } = require('../scripts/check-mutation-score');
+const { selectMutationTargetsFromFiles } = require('../scripts/list-mutation-targets');
 
 const baseline = {
   schemaVersion: 1,
@@ -71,4 +72,12 @@ test('baseline ratchet cannot remove a target or lower a stored score', () => {
     'minimumScore decreased: 80 -> 70',
     'lib/b.js: baseline decreased: 90 -> 85',
   ]);
+});
+
+test('mutation infrastructure changes force the full protected target set', () => {
+  const targets = selectMutationTargetsFromFiles(['stryker.conf.json'], baseline);
+  assert.deepEqual(targets, ['lib/a.js', 'lib/b.js']);
+
+  const sourceOnly = selectMutationTargetsFromFiles(['lib/a.js', 'README.md'], baseline);
+  assert.deepEqual(sourceOnly, ['lib/a.js']);
 });
