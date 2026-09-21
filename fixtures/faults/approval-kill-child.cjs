@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const HuqanStorage = require('../../../storage');
+const HuqanStorage = require('../../storage');
 
 const dbPath = process.argv[2];
 if (!dbPath) process.exit(2);
