@@ -115,14 +115,7 @@ test('the evidence signal is already consumed by a production caller', () => {
   assert.match(source, /return \{ decision: admission\.outcome, node: null, audit, admission \};/);
 });
 
-test('the chokepoint reaches 15 production call sites, not 8', () => {
-  // ADR-012 says "eight-call-site kernel chokepoint", which counted only
-  // kernel.js. Pinned here so the corrected number cannot drift back.
-  //
-  // K2 (#328): the background edge commit moved to
-  // lib/background-provenance.js, taking two of its audit writes with it
-  // (its writes still reach the chokepoint -- they pass through the same
-  // graph sink).
+test('conflict detection no longer reaches the private Kernel audit chokepoint (#2166)', () => {
   const count = (relPath) => {
     const source = fs.readFileSync(path.join(REPO_ROOT, relPath), 'utf8')
       .replace(/\/\*[\s\S]*?\*\//g, ' ')
@@ -130,15 +123,12 @@ test('the chokepoint reaches 15 production call sites, not 8', () => {
     return (source.match(/_appendAuditEvent\s*\(/g) || []).length;
   };
 
-  // kernel.js holds 6 call sites plus the method definition itself.
-  assert.equal(count('kernel.js'), 7);
+  // The legacy Kernel/learn paths still use the compatibility chokepoint.
+  assert.equal(count('kernel.js'), 7, 'six Kernel calls plus the method definition');
   assert.equal(count('lib/learn-use-case.js'), 7);
-  // conflict-detector reaches it twice directly, plus once through its own
-  // appendAudit pass-through helper.
-  assert.equal(count('lib/conflict-detector.js'), 3);
+  // #2166 moves conflict detection to Graph.appendAuditEvent instead.
+  assert.equal(count('lib/conflict-detector.js'), 0);
 
-  // The connector is now production-reachable through PR Guardian, so it is
-  // no longer excluded from the production total.
   const { NOT_YET_WIRED } = require('../lib/module-reachability.js');
   assert.equal(Object.prototype.hasOwnProperty.call(NOT_YET_WIRED, 'lib/github-connector.js'), false);
 });
