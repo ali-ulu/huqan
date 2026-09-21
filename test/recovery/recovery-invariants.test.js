@@ -162,6 +162,7 @@ test('T5/T4 SQLite crash mid-transaction rolls back state and journal atomically
     const result = await runProcess(['-e', script, path.join(__dirname, '..', '..', 'graph.js'), memoryPath, dbPath]);
     assert.equal(result.signal, 'SIGKILL');
     const recovered = new Graph({ memoryPath, dbPath, useSQLite: true });
+    recovered.load();
     try {
       assert.ok(recovered.getNode('baseline-survives', 'w'), 'pre-fault committed state must survive');
       assert.equal(recovered.getNode('must-roll-back', 'w'), null);
