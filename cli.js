@@ -46,9 +46,8 @@ const {
   mapCliCommandToMcpTool,
   commandFailure,
 } = require('./lib/cli-helpers');
-const { runCompanyIngest } = require('./lib/cli-company-ingest');
-const { runBackupCommand, runRestoreCommand } = require('./lib/cli-backup-commands');
-const { runStatusCommand } = require('./lib/cli-status-command');
+const { runCompanyIngest } = require('./lib/cli-company-ingest'); const { runBackupCommand, runRestoreCommand } = require('./lib/cli-backup-commands');
+const { runStatusCommand, runDoctorCommand } = require('./lib/cli-status-command');
 
 // #2136: one handler per CLI command; a new command is a row, not a case. Handlers get the command context
 // CLI#execute builds, not the instance; lazy requires keep a block body so require-scan still sees them deferred.
@@ -297,6 +296,7 @@ const CLI_COMMAND_HANDLERS = Object.freeze(Object.assign(Object.create(null), {
     });
   },
   'durum': (cli) => runStatusCommand(cli),
+  'doctor': (cli) => runDoctorCommand({ rootDir: process.cwd(), kernel: cli.kernel }),
   'rüya': (cli, args, opts, command) => {
     const hypotheses = cli.dream.dream();
     if (hypotheses.length === 0) return 'I could not produce a hypothesis; I need more information.';
@@ -506,7 +506,7 @@ class CLI {
         console.log(this.execute('llm-sor', parsed.args));
       } else {
         const output = await Promise.resolve(this.execute(parsed.command, parsed.args));
-        console.log(output);
+        console.log(parsed.command === 'doctor' && output?.text ? output.text : output);
       }
     };
 
