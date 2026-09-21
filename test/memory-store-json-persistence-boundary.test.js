@@ -15,7 +15,7 @@ test('#2272: JSON persistence has no cross-module private MemoryStore calls', ()
   for (const member of ['_persistenceError', '_withTransaction', '_makeMemoryKey']) {
     assert.doesNotMatch(
       source,
-      new RegExp('\\\\.' + member + '\\\\s*\\\\('),
+      new RegExp(`\\.${member}\\s*\\(`),
       `JSON persistence must not call MemoryStore.${member}`,
     );
   }
