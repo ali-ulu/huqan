@@ -131,6 +131,7 @@ function runProcess(args, timeoutMs = 5000) {
 }
 
 test('T5/T4 SQLite crash mid-transaction rolls back state and journal atomically', async (t) => {
+  if (process.platform === 'win32') return t.skip('POSIX process-kill semantics are required');
   try {
     require.resolve('better-sqlite3');
   } catch (_) {
@@ -141,6 +142,10 @@ test('T5/T4 SQLite crash mid-transaction rolls back state and journal atomically
   const dbPath = path.join(root, 'memory.db');
   const memoryPath = path.join(root, 'memory.json');
   const prime = new Graph({ memoryPath, dbPath, useSQLite: true });
+  prime.runMutationOnce('sqlite-baseline', () => {
+    prime.addNode('baseline-survives', 'committed before crash');
+    return { applied: true };
+  });
   prime.close();
 
   const script = `
@@ -158,6 +163,7 @@ test('T5/T4 SQLite crash mid-transaction rolls back state and journal atomically
     assert.equal(result.signal, 'SIGKILL');
     const recovered = new Graph({ memoryPath, dbPath, useSQLite: true });
     try {
+      assert.ok(recovered.getNode('baseline-survives'), 'pre-fault committed state must survive');
       assert.equal(recovered.getNode('must-roll-back'), null);
       assert.equal(recovered.getCommittedMutationReceiptByOperation('sqlite-crash'), null);
       assertRecoveryInvariants({ graph: recovered });
