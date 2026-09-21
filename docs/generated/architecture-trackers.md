@@ -51,7 +51,7 @@ Tracked in total: **64**
 | `lib/contradiction-rules.js` | 531 | — |
 | `lib/external-action-guard.js` | 531 | — |
 | `sandboxRunner.js` | 530 | OCP:8 |
-| `lib/github-connector.js` | 518 | ISP:1 |
+| `lib/github-connector.js` | 518 | — |
 | `lib/command-exec-gate.js` | 515 | — |
 | `lib/mcp-tool-catalog.js` | 511 | — |
 | `lib/external-client-replay-store.js` | 510 | — |
