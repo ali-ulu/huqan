@@ -5,15 +5,6 @@ const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 
 const BASELINE_PATH = path.join('config', 'mutation-baseline.json');
-const MUTATION_INFRA_PATHS = new Set([
-  'stryker.conf.json',
-  'config/mutation-baseline.json',
-  'scripts/check-mutation-score.js',
-  'scripts/list-mutation-targets.js',
-  '.github/workflows/mutation-testing.yml',
-  'package.json',
-]);
-
 function normalizePath(value) {
   return String(value).replaceAll('\\', '/').replace(/^\.\//, '');
 }
@@ -28,9 +19,6 @@ function selectMutationTargetsFromFiles(files, baseline) {
   const tracked = new Set(trackedFiles);
   const normalizedFiles = files.map(normalizePath);
 
-  if (normalizedFiles.some(file => MUTATION_INFRA_PATHS.has(file))) {
-    return trackedFiles;
-  }
   return normalizedFiles.filter(file => tracked.has(file));
 }
 
@@ -54,7 +42,6 @@ if (require.main === module) {
 }
 
 module.exports = {
-  MUTATION_INFRA_PATHS,
   normalizePath,
   selectMutationTargets,
   selectMutationTargetsFromFiles,
