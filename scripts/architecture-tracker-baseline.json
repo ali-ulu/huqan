@@ -314,13 +314,6 @@
       "lines": 425,
       "signals": []
     },
-    "rustGraph.js": {
-      "band": "structural",
-      "lines": 399,
-      "signals": [
-        "DIP"
-      ]
-    },
     "sandboxRunner.js": {
       "band": "recorded",
       "lines": 530,
