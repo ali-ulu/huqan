@@ -1,0 +1,11 @@
+{
+  "_comment": "Root runtime entrypoints are package/CLI/server public surfaces; their named exports may be externally consumed even when the repository has no internal caller. Exact internal export/type exceptions must include a durable reason.",
+  "exportModules": [
+    "index.js",
+    "cli.js",
+    "mcpServer.js",
+    "server.js"
+  ],
+  "exports": [],
+  "types": []
+}
