@@ -21,6 +21,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, auto_merge_enabled, auto_merge_disabled]
   schedule:
     - cron: '17 2 * * *'
   workflow_dispatch:
@@ -700,12 +701,18 @@ jobs:
     steps:
       - name: Require the applicable test path to pass
         env:
+          EVENT_NAME: ${{ github.event_name }}
+          AUTO_MERGE_ENABLED: ${{ github.event.pull_request.auto_merge != null }}
           CLASSIFY_RESULT: ${{ needs.classify.result }}
           PLAN_RESULT: ${{ needs['test-impact-plan'].result }}
           TEST_RESULT: ${{ needs['runtime-test'].result }}
           SKIP_RESULT: ${{ needs['runtime-test-skip'].result }}
         run: |
           set -euo pipefail
+          if [ "${EVENT_NAME}" = "pull_request" ] && [ "${AUTO_MERGE_ENABLED}" = "true" ]; then
+            echo "Auto-merge is forbidden by repository policy; pull requests must be merged manually." >&2
+            exit 1
+          fi
           test "${CLASSIFY_RESULT}" = success
           test "${PLAN_RESULT}" = success
           if [ "${TEST_RESULT}" != success ] && [ "${SKIP_RESULT}" != success ]; then
