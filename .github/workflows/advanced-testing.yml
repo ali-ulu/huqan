@@ -1,0 +1,144 @@
+name: Advanced Testing
+
+on:
+  pull_request:
+  schedule:
+    # T6 schedule: mutation testing stays off the PR path because it is slow.
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_VERSION: '22'
+  CI: true
+  NPM_CONFIG_AUDIT: false
+  NPM_CONFIG_FUND: false
+
+jobs:
+  pr-advanced-tests:
+    name: ${{ matrix.name }}
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Property tests
+            script: test:property
+            suite: property
+          - name: Fuzz tests
+            script: test:fuzz
+            suite: fuzz
+          - name: Fault injection tests
+            script: test:faults
+            suite: faults
+          - name: Recovery tests
+            script: test:recovery
+            suite: recovery
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ${{ matrix.name }}
+        if: matrix.suite != 'fuzz'
+        run: npm run ${{ matrix.script }}
+
+      - name: Run fuzz tests and capture replay output
+        if: matrix.suite == 'fuzz'
+        shell: bash
+        run: |
+          mkdir -p artifacts/fuzz-crash-corpus
+          set -o pipefail
+          npm run test:fuzz 2>&1 | tee artifacts/fuzz-crash-corpus/fuzz-run.log
+
+      - name: Collect fuzz crash corpus
+        if: always() && matrix.suite == 'fuzz'
+        shell: bash
+        run: |
+          mkdir -p artifacts/fuzz-crash-corpus
+          if [[ -d test/fuzz/corpus ]]; then
+            cp -R test/fuzz/corpus/. artifacts/fuzz-crash-corpus/ || true
+          fi
+          if [[ -z "$(find artifacts/fuzz-crash-corpus -mindepth 1 -print -quit)" ]]; then
+            printf 'No fuzz output or crash corpus was produced in this run.\n' > artifacts/fuzz-crash-corpus/README.txt
+          fi
+
+      - name: Upload fuzz crash corpus
+        if: always() && matrix.suite == 'fuzz'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fuzz-crash-corpus-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: artifacts/fuzz-crash-corpus/
+          if-no-files-found: error
+          retention-days: 14
+
+  mutation-baseline-guard:
+    name: Mutation baseline cannot decrease
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Enforce mutation baseline ratchet
+        run: node scripts/check-mutation-score.js --against-ref "origin/${{ github.base_ref }}"
+
+  scheduled-mutation:
+    name: Scheduled mutation testing
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run full mutation suite
+        run: npm run test:mutation
+
+      - name: Enforce per-file mutation baselines
+        run: node scripts/check-mutation-score.js --report reports/mutation/mutation.json
+
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mutation-report-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: reports/mutation/
+          if-no-files-found: warn
+          retention-days: 30

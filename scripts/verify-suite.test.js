@@ -18,9 +18,9 @@ test('verify manifest is fast-first with the test suite last', () => {
   assert.equal(STAGES.filter((stage) => stage.slow).length, 1, 'only the test suite is marked slow');
 });
 
-test('verify manifest keeps the checks the gate historically ran', () => {
+test('verify manifest keeps the required core and advanced checks', () => {
   const names = STAGES.map((stage) => stage.name);
-  for (const name of ['environment', 'lint', 'cycles', 'module-boundary', 'layers', 'file-size', 'docs-drift', 'package-closure', 'property-tests', 'fuzz-tests', 'tests']) {
+  for (const name of ['environment', 'lint', 'cycles', 'module-boundary', 'layers', 'file-size', 'docs-drift', 'package-closure', 'recovery-invariants', 'property-tests', 'fuzz-tests', 'fault-injection-tests', 'tests']) {
     assert.ok(names.includes(name), `missing historical check: ${name}`);
   }
 });
