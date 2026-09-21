@@ -17,6 +17,7 @@ function readJson(file) {
 }
 
 function writeBaseline(file, value) {
+  // Keep the committed baseline compact while preserving deterministic snapshot bytes.
   const compact = stableStringify(value, 0);
   const payload = zlib.gzipSync(Buffer.from(compact), { level: 9 }).toString('base64');
   const baseline = {
