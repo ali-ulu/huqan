@@ -54,7 +54,7 @@
       "lines": 707,
       "signals": [
         "DIP",
-        "ISP:6"
+        "ISP:5"
       ]
     },
     "lib/a2a/bounded-exchange.js": {
