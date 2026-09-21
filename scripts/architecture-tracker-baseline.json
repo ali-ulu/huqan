@@ -203,7 +203,7 @@
     },
     "lib/mcp-tool-data-schemas.js": {
       "band": "recorded",
-      "lines": 612,
+      "lines": 611,
       "signals": []
     },
     "lib/memory-admission-gate.js": {
@@ -232,7 +232,7 @@
     },
     "lib/observability/api-contract.js": {
       "band": "recorded",
-      "lines": 469,
+      "lines": 468,
       "signals": []
     },
     "lib/observability/service.js": {
