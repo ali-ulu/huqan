@@ -27,7 +27,7 @@ Tracked in total: **64**
 | `plugin.js` | 728 | — |
 | `dream.js` | 726 | — |
 | `plugins/repo-memory.js` | 726 | — |
-| `kernel.v2.js` | 707 | ISP:6 DIP |
+| `kernel.v2.js` | 707 | ISP:5 DIP |
 | `lib/a2a/bounded-exchange.js` | 693 | — |
 | `plugins/company-brain.js` | 678 | — |
 | `lib/receipt/public-trust-receipt.js` | 660 | — |
