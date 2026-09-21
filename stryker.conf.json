@@ -4,7 +4,7 @@
     "lib/approval-flow.js",
     "lib/tool-call-gate.js",
     "lib/mcp-tool-policy.js",
-    "lib/http/request-limits.js",
+    "lib/http/server-timeouts.js",
     "lib/http/request-origin.js",
     "lib/http/workflow-request-validation.js",
     "lib/path-safety.js",
@@ -82,7 +82,8 @@
       "test/json-mutations-journal-backup-restore.test.js",
       "test/receipt-trust-root-4-migration-compatibility.test.js",
       "test/mcp-tool-policy-mutation.test.js",
-      "test/receipt-validation-cache-mutation.test.js"
+      "test/receipt-validation-cache-mutation.test.js",
+      "test/server-timeouts.test.js"
     ],
     "forceBail": true
   },
