@@ -65,6 +65,7 @@
     "check:v5-identity": "node scripts/check-v5-identity-readiness.js",
     "check:deterministic-path": "node scripts/check-deterministic-path.js",
     "check:dead-code": "node scripts/check-dead-code.js",
+    "test:faults": "node scripts/run-tests.js --test-concurrency=1 \"test/faults/*.test.js\"",
     "test:recovery": "node scripts/run-tests.js \"test/recovery/*.test.js\""
   },
   "keywords": [
