@@ -72,6 +72,11 @@ async function main() {
       runConnectCommand();
       return;
     }
+    if (command === 'browser-session') {
+      const { runBrowserSessionCommand } = require('../lib/browser-session-observer');
+      await runBrowserSessionCommand();
+      return;
+    }
     if (['install', 'uninstall', 'status'].includes(command)) {
       runGateCommand(command);
       return;
