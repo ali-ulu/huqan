@@ -1,5 +1,5 @@
 ﻿const Kernel = require('./kernel');
-
+const { runPreIngest } = require('./lib/pre-ingest');
 const { detectTypeLatticeConflict } = require('./lib/type-lattice');
 const { stripCopulaOrKeep } = require('./lib/turkish-copula');
 const { resolveKnownSubject } = require('./lib/subject-resolution');
@@ -695,7 +695,7 @@ class KernelV2 {
   // this.verify(). Both therefore run the v1 pre-pass and then re-enter the
   // v2 method, so the async and sync paths agree under v2.
   async learnAsync(text, opts = {}) {
-    const prepared = await this.kernel._runPreIngest(text, opts);
+    const prepared = await runPreIngest(this.plugins, text, opts);
     return this.learn(prepared.text, prepared.opts || opts);
   }
 
