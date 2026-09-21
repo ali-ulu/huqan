@@ -154,6 +154,18 @@ function run(options) {
     console.log(`[shard ${options.shard}/${options.total}] queued ${file}`);
   }
 
+  const coverageManifestPath = path.join(REPO_ROOT, 'coverage-manifest.json');
+  const initialCoverageManifest = fs.existsSync(coverageManifestPath)
+    ? fs.readFileSync(coverageManifestPath, 'utf8')
+    : null;
+  const coverageSiteLine = (body) => {
+    try {
+      const value = JSON.parse(body);
+      return value.entries?.find((entry) => entry.file === 'rustGraph.js')?.sites?.find((site) => site.call === 'spawn')?.line ?? null;
+    } catch { return null; }
+  };
+  console.log(`[shard ${options.shard}/${options.total}] coverage-manifest initial rustGraph.spawn line=${coverageSiteLine(initialCoverageManifest)}`);
+
   const partPaths = [];
   const failedFiles = [];
   let overallStatus = 0;
@@ -227,6 +239,12 @@ function run(options) {
       const status = result.status === 0 ? 0 : (result.status || 1);
       const elapsed = ((Date.now() - startedMs) / 1000).toFixed(3);
       console.log(`[shard ${options.shard}/${options.total}] finished ${index + 1}/${selected.files.length}: ${file} -> status ${status} in ${elapsed}s`);
+      if (initialCoverageManifest !== null && fs.existsSync(coverageManifestPath)) {
+        const currentCoverageManifest = fs.readFileSync(coverageManifestPath, 'utf8');
+        if (currentCoverageManifest !== initialCoverageManifest) {
+          console.error(`[shard ${options.shard}/${options.total}] coverage-manifest changed after ${file}: rustGraph.spawn line=${coverageSiteLine(currentCoverageManifest)}`);
+        }
+      }
       if (status !== 0) {
         failedFiles.push({ file, status });
         if (overallStatus === 0) overallStatus = status;
