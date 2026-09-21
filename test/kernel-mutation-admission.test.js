@@ -372,6 +372,37 @@ test('candidate ingress: the real seam admits, and kernel.ingestCandidateClaim h
   assert.match(kernelSource, /admitCandidateIngress\(this, input, opts\)/);
 });
 
+test('candidate ingress: conflict detector does not depend on Kernel private seams (#2166)', () => {
+  const kernel = makeCandidateKernel('conflict-detector-public-boundary');
+  const forbidden = [
+    '_appendAuditEvent',
+    '_backgroundProvenance',
+    '_evaluateLearnAdmission',
+    '_admissionReceiptDetails',
+  ];
+
+  for (const name of forbidden) {
+    kernel[name] = () => {
+      throw new Error(`conflict-detector reached private Kernel seam: ${name}`);
+    };
+  }
+
+  const routed = kernel.ingestCandidateClaim(makeClaim(), { workspaceId: 'workspace-a' });
+
+  assert.equal(routed.candidate.status, 'accepted');
+  assert.ok(kernel.graph.getEdge('kedi', 'hayvan', 'IS_A', 'workspace-a'));
+  assert.ok(kernel.graph.getAuditEvents({
+    eventType: AUDIT_EVENTS.CLAIM_ACCEPTED,
+    workspaceId: 'workspace-a',
+  }).length >= 1);
+
+  const source = fs.readFileSync(path.join(repoRoot, 'lib/conflict-detector.js'), 'utf8');
+  for (const name of forbidden) {
+    assert.doesNotMatch(source, new RegExp(`\\\\.${name.replace(/^_/, '\\_')}\\\\s*\\\\(`),
+      `conflict-detector must not call ${name}`);
+  }
+});
+
 test('candidate family: all three production entry points are routed', () => {
   // This test has now been restated twice, once per entry point routed, which
   // is what it is for: the family-level claim may not be inherited, only
