@@ -5,7 +5,7 @@
     "lib/approval-flow.js": 80,
     "lib/tool-call-gate.js": 80,
     "lib/mcp-tool-policy.js": 80,
-    "lib/http/request-limits.js": 80,
+    "lib/http/server-timeouts.js": 80,
     "lib/http/request-origin.js": 80,
     "lib/http/workflow-request-validation.js": 80,
     "lib/path-safety.js": 80,
