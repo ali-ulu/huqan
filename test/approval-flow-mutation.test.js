@@ -269,3 +269,61 @@ test('invalid approval request errors are carried with approvalRequest field pre
     error.message === 'actionPayload is required'
   ));
 });
+
+
+test('mutation sentinels pin validation shape, metadata projection and generated id basis', () => {
+  const invalidActor = buildApprovalDecision({ ...request, actor: '' }, {
+    actor: '',
+    decisionStatus: 'approved',
+    createdAt: '2026-06-11T12:10:00.000Z',
+  });
+  assert.equal(invalidActor.ok, false);
+  assert.equal(invalidActor.type, 'approval-decision');
+  assert.equal(invalidActor.decision, null);
+  assert.equal(invalidActor.receipt, null);
+  assert.equal(invalidActor.auditEvent, null);
+  assert.ok(invalidActor.errors.some(error =>
+    error.code === 'VALIDATION_ERROR' &&
+    error.field === 'actor' &&
+    error.message === 'actor is required'
+  ));
+
+  const projected = approveRequest(request, {
+    actor: 'agent-1',
+    createdAt: '2026-06-11T12:10:00.000Z',
+    receiptId: 'metadata-receipt',
+    eventId: 'metadata-event',
+    metadata: { source: 'operator', nested: { safe: true } },
+  });
+  assert.equal(projected.type, 'approval-decision');
+  assert.deepEqual(projected.decision.metadata, { source: 'operator', nested: { safe: true } });
+  assert.deepEqual(projected.receipt.metadata, { source: 'operator', nested: { safe: true } });
+  assert.deepEqual(projected.auditEvent.metadata, { source: 'operator', nested: { safe: true } });
+
+  const crypto = require('node:crypto');
+  const createdAt = '2026-06-11T12:10:00.000Z';
+  const blocked = buildBlockedActionReceipt({ ...decision, receiptId: '' }, { createdAt });
+  const expectedBlockedId = 'apr_receipt_' + crypto
+    .createHash('sha256')
+    .update(['apr_001', 'workspace-a', 'agent-1', 'rejected', createdAt].join('|'), 'utf8')
+    .digest('hex')
+    .slice(0, 32);
+  assert.equal(blocked.receiptId, expectedBlockedId);
+
+  const reviewed = buildReviewedActionReceipt({ ...decision, receiptId: '' }, { createdAt });
+  const expectedReviewedId = 'apr_receipt_' + crypto
+    .createHash('sha256')
+    .update(['apr_001', 'workspace-a', 'agent-1', 'approved', createdAt].join('|'), 'utf8')
+    .digest('hex')
+    .slice(0, 32);
+  assert.equal(reviewed.receiptId, expectedReviewedId);
+  assert.notEqual(reviewed.receiptId, blocked.receiptId);
+
+  const requestReceipt = approveRequest({ ...request, receiptId: 'receipt-from-request' }, {
+    actor: 'agent-1',
+    createdAt,
+  });
+  assert.equal(requestReceipt.ok, true);
+  assert.equal(requestReceipt.decision.receiptId, 'receipt-from-request');
+  assert.equal(requestReceipt.receipt.receiptId, 'receipt-from-request');
+});
