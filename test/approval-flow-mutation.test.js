@@ -212,3 +212,60 @@ test('decision validation pins unsupported and missing decision states', () => {
   assert.equal(upper.ok, true);
   assert.equal(upper.decision.decisionStatus, 'approved');
 });
+
+test('generated receipt and event ids are deterministic 128-bit sha256 prefixes', () => {
+  const noReceiptId = { ...decision, receiptId: '' };
+  const reviewedA = buildReviewedActionReceipt(noReceiptId, { createdAt: decision.createdAt });
+  const reviewedB = buildReviewedActionReceipt(noReceiptId, { createdAt: decision.createdAt });
+  const blocked = buildBlockedActionReceipt({
+    ...noReceiptId,
+    decisionStatus: 'rejected',
+    status: 'rejected',
+  }, { createdAt: decision.createdAt });
+
+  assert.match(reviewedA.receiptId, /^apr_receipt_[a-f0-9]{32}$/);
+  assert.equal(reviewedA.receiptId, reviewedB.receiptId);
+  assert.notEqual(reviewedA.receiptId, blocked.receiptId);
+  assert.deepEqual(reviewedA.metadata, {});
+  assert.deepEqual(blocked.metadata, {});
+
+  const approvedA = approveRequest(request, {
+    actor: 'agent-1',
+    createdAt: '2026-06-11T12:10:00.000Z',
+    receiptId: 'fixed-receipt',
+  });
+  const approvedB = approveRequest(request, {
+    actor: 'agent-1',
+    createdAt: '2026-06-11T12:10:00.000Z',
+    receiptId: 'fixed-receipt',
+  });
+  const rejected = rejectRequest(request, {
+    actor: 'agent-1',
+    createdAt: '2026-06-11T12:10:00.000Z',
+    receiptId: 'fixed-receipt',
+  });
+
+  assert.match(approvedA.auditEvent.eventId, /^approval_event_[a-f0-9]{32}$/);
+  assert.equal(approvedA.auditEvent.eventId, approvedB.auditEvent.eventId);
+  assert.notEqual(approvedA.auditEvent.eventId, rejected.auditEvent.eventId);
+});
+
+test('invalid approval request errors are carried with approvalRequest field prefixes', () => {
+  const invalid = buildApprovalDecision({
+    ...request,
+    actionPayload: null,
+  }, {
+    actor: 'agent-1',
+    decisionStatus: 'approved',
+    createdAt: '2026-06-11T12:10:00.000Z',
+  });
+
+  assert.equal(invalid.ok, false);
+  assert.equal(invalid.decision, null);
+  assert.equal(invalid.receipt, null);
+  assert.equal(invalid.auditEvent, null);
+  assert.ok(invalid.errors.some(error =>
+    error.field === 'approvalRequest.actionPayload' &&
+    error.message === 'actionPayload is required'
+  ));
+});
