@@ -51,7 +51,6 @@
     "test": "node scripts/run-tests.js --test-concurrency=4",
     "test:serial": "node scripts/run-tests.js --test-concurrency=1",
     "test:property": "node scripts/run-tests.js \"test/property/*.test.js\"",
-    "test:fuzz": "node scripts/run-tests.js \"test/fuzz/*.test.js\"",
     "test:watch": "node scripts/run-tests.js --watch",
     "test:graph": "node scripts/run-tests.js graph.test.js",
     "test:kernel": "node scripts/run-tests.js kernel.test.js",
@@ -66,7 +65,10 @@
     "check:v5-identity": "node scripts/check-v5-identity-readiness.js",
     "check:deterministic-path": "node scripts/check-deterministic-path.js",
     "check:dead-code": "node scripts/check-dead-code.js",
-    "test:faults": "node scripts/run-tests.js --test-concurrency=1 \"test/faults/*.test.js\""
+    "test:faults": "node scripts/run-tests.js --test-concurrency=1 \"test/faults/*.test.js\"",
+    "api:snapshot": "node scripts/api-snapshot.js",
+    "check:api-contract": "node scripts/api-snapshot.js --check-baseline api-snapshot-baseline.json",
+    "test:fuzz": "node scripts/run-tests.js \"test/fuzz/*.test.js\""
   },
   "keywords": [
     "ai-governance",

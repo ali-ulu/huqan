@@ -1,0 +1,99 @@
+name: API Contract
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  api-contract:
+    name: API contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
+      - name: Generate API snapshot
+        run: |
+          mkdir -p artifacts
+          node scripts/api-snapshot.js --write artifacts/api-snapshot.json
+
+      - name: Compare with pull-request base
+        if: always() && github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if git cat-file -e "${BASE_SHA}:api-snapshot-baseline.json" 2>/dev/null; then
+            git show "${BASE_SHA}:api-snapshot-baseline.json" > /tmp/api-snapshot-base.json
+            node scripts/api-snapshot.js \
+              --snapshot artifacts/api-snapshot.json \
+              --compare /tmp/api-snapshot-base.json \
+              --report artifacts/api-contract-report.md
+          else
+            node scripts/api-snapshot.js \
+              --bootstrap-report \
+              --report artifacts/api-contract-report.md
+          fi
+
+      - name: Require committed baseline to match head
+        if: always()
+        run: |
+          test -f api-snapshot-baseline.json
+          node scripts/api-snapshot.js \
+            --snapshot artifacts/api-snapshot.json \
+            --check-baseline api-snapshot-baseline.json
+
+      - name: Upload API contract artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: api-contract-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: |
+            artifacts/api-snapshot.json
+            artifacts/api-contract-report.md
+          if-no-files-found: error
+
+      - name: Update PR contract comment
+        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const fs = require('node:fs');
+            const marker = '<!-- huqan-api-contract -->';
+            const reportPath = 'artifacts/api-contract-report.md';
+            const body = fs.existsSync(reportPath)
+              ? fs.readFileSync(reportPath, 'utf8')
+              : `${marker}\n## HUQAN API contract\n\n❌ Contract gate failed before a report was produced.\n`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number, per_page: 100,
+            });
+            const existing = comments.find((comment) =>
+              comment.user?.type === 'Bot' && comment.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner, repo, comment_id: existing.id, body,
+              });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
