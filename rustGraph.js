@@ -44,7 +44,6 @@ function resolveRustBin(environment = process.env) {
 const RUST_BIN = resolveRustBin();
 const RUST_REQUEST_TIMEOUT_MS = 10000;
 const RUST_MAX_LINE_BYTES = 10 * 1024 * 1024;
-
 class RustGraph {
   constructor(opts) {
     if (typeof opts === 'string') opts = { memoryPath: opts };
