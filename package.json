@@ -189,6 +189,7 @@
     "lib/receipt/public-trust-receipt.js",
     "lib/receipt/trusted-key-resolver.js",
     "lib/runtime-watchdog-audit.js",
+    "lib/rust-graph-fallback-factory.js",
     "lib/adversarial-signals.js",
     "lib/agent-loop-budget-gate.js",
     "lib/agent-memory-persistence.js",
