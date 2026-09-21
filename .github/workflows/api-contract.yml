@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 jobs:
@@ -25,6 +25,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -35,6 +36,26 @@ jobs:
         run: |
           mkdir -p artifacts
           node scripts/api-snapshot.js --write artifacts/api-snapshot.json
+
+      - name: Bootstrap committed baseline
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          if ! git cat-file -e "${BASE_SHA}:api-snapshot-baseline.json" 2>/dev/null; then
+            node scripts/api-snapshot.js \
+              --snapshot artifacts/api-snapshot.json \
+              --write-baseline api-snapshot-baseline.json
+
+            if ! git diff --quiet -- api-snapshot-baseline.json; then
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git add api-snapshot-baseline.json
+              git commit -m "chore(api): bootstrap API snapshot baseline"
+              git push origin "HEAD:${HEAD_REF}"
+            fi
+          fi
 
       - name: Compare with pull-request base
         if: always() && github.event_name == 'pull_request'
