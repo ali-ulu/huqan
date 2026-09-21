@@ -143,16 +143,16 @@ test('T5/T4 SQLite crash mid-transaction rolls back state and journal atomically
   const memoryPath = path.join(root, 'memory.json');
   const prime = new Graph({ memoryPath, dbPath, useSQLite: true });
   prime.runMutationOnce('sqlite-baseline', () => {
-    prime.addNode('baseline-survives', 'committed before crash');
+    prime.addNode('baseline-survives', 'committed before crash', null, { workspaceId: 'w' });
     return { applied: true };
-  });
+  }, { buildCanonicalReceipt: () => receiptFor('sqlite-baseline', 'w') });
   prime.close();
 
   const script = `
     const Graph = require(process.argv[1]);
     const graph = new Graph({ memoryPath: process.argv[2], dbPath: process.argv[3], useSQLite: true });
     graph.runMutationOnce('sqlite-crash', () => {
-      graph.addNode('must-roll-back', 'mid transaction crash', null, { workspaceId: 'default' });
+      graph.addNode('must-roll-back', 'mid transaction crash', null, { workspaceId: 'w' });
       process.kill(process.pid, 'SIGKILL');
       return { applied: true };
     });
@@ -163,10 +163,10 @@ test('T5/T4 SQLite crash mid-transaction rolls back state and journal atomically
     assert.equal(result.signal, 'SIGKILL');
     const recovered = new Graph({ memoryPath, dbPath, useSQLite: true });
     try {
-      assert.ok(recovered.getNode('baseline-survives'), 'pre-fault committed state must survive');
-      assert.equal(recovered.getNode('must-roll-back'), null);
+      assert.ok(recovered.getNode('baseline-survives', 'w'), 'pre-fault committed state must survive');
+      assert.equal(recovered.getNode('must-roll-back', 'w'), null);
       assert.equal(recovered.getCommittedMutationReceiptByOperation('sqlite-crash'), null);
-      assertRecoveryInvariants({ graph: recovered });
+      assertRecoveryInvariants({ graph: recovered, workspaceId: 'w' });
     } finally {
       recovered.close();
     }
