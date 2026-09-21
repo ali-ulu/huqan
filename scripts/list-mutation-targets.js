@@ -14,16 +14,34 @@ function changedFiles(baseRef) {
   return output.split(/\r?\n/).map(normalizePath).filter(Boolean);
 }
 
-function selectMutationTargetsFromFiles(files, baseline) {
+function selectMutationTargetsFromFiles(files, baseline, { bootstrap = false } = {}) {
   const trackedFiles = Object.keys(baseline.files || {}).map(normalizePath);
   const tracked = new Set(trackedFiles);
   const normalizedFiles = files.map(normalizePath);
 
+  // The introducing PR has no trusted baseline on its base branch yet. Measure
+  // every protected target once before that 80% floor becomes canonical.
+  if (bootstrap) return trackedFiles;
   return normalizedFiles.filter(file => tracked.has(file));
 }
 
+function baselineExistsAtRef(baseRef) {
+  try {
+    execFileSync('git', ['cat-file', '-e', `${baseRef}:${BASELINE_PATH}`], {
+      stdio: ['ignore', 'ignore', 'ignore'],
+    });
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 function selectMutationTargets(baseRef, baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'))) {
-  return selectMutationTargetsFromFiles(changedFiles(baseRef), baseline);
+  return selectMutationTargetsFromFiles(
+    changedFiles(baseRef),
+    baseline,
+    { bootstrap: !baselineExistsAtRef(baseRef) },
+  );
 }
 
 function main(argv = process.argv.slice(2)) {
@@ -42,6 +60,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  baselineExistsAtRef,
   normalizePath,
   selectMutationTargets,
   selectMutationTargetsFromFiles,
