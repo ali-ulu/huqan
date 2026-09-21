@@ -156,9 +156,7 @@
     "lib/github-connector.js": {
       "band": "recorded",
       "lines": 518,
-      "signals": [
-        "ISP:1"
-      ]
+      "signals": []
     },
     "lib/http/workflow-data-routes.js": {
       "band": "recorded",

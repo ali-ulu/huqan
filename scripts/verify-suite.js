@@ -53,6 +53,7 @@ const STAGES = [
   { name: 'architecture-trackers', command: ['node', 'scripts/architecture-snapshot.js', '--check', '--base-ref=origin/main'] },
   { name: 'package-closure', command: ['npm', 'run', 'check:package-closure', '--silent'] },
   { name: 'doctor-contract', command: ['node', 'scripts/run-tests.js', 'test/cli-doctor.test.js'] },
+  { name: 'recovery-invariants', command: ['npm', 'run', 'test:recovery', '--silent'] },
   { name: 'property-tests', command: ['npm', 'run', 'test:property', '--silent'] },
   { name: 'fuzz-tests', command: ['npm', 'run', 'test:fuzz', '--silent'] },
   { name: 'tests', command: ['npm', 'test'], slow: true },

@@ -68,7 +68,8 @@
     "test:faults": "node scripts/run-tests.js --test-concurrency=1 \"test/faults/*.test.js\"",
     "api:snapshot": "node scripts/api-snapshot.js",
     "check:api-contract": "node scripts/api-snapshot.js --check-baseline api-snapshot-baseline.json",
-    "test:fuzz": "node scripts/run-tests.js \"test/fuzz/*.test.js\""
+    "test:fuzz": "node scripts/run-tests.js \"test/fuzz/*.test.js\"",
+    "test:recovery": "node scripts/run-tests.js \"test/recovery/*.test.js\""
   },
   "keywords": [
     "ai-governance",
@@ -189,7 +190,6 @@
     "lib/receipt/public-trust-receipt.js",
     "lib/receipt/trusted-key-resolver.js",
     "lib/runtime-watchdog-audit.js",
-    "lib/rust-graph-fallback-factory.js",
     "lib/adversarial-signals.js",
     "lib/agent-loop-budget-gate.js",
     "lib/agent-memory-persistence.js",
@@ -685,6 +685,7 @@
     "lib/llm-proxy/proxy-mount.js",
     "lib/web-research.js",
     "lib/browser-hook-outcome.js",
+    "lib/browser-session-observer.js",
     "lib/web-research-workflow.js",
     "lib/workflow-contract.js",
     "lib/workflow-run-guidance.js",
@@ -777,6 +778,7 @@
     "public/viewer/viewer.css",
     "public/pr-guardian/index.html",
     "requestGuards.js",
+    "lib/rust-graph-fallback-factory.js",
     "rustGraph.js",
     "sandboxRunner.js",
     "scripts/backup.js",

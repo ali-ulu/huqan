@@ -647,12 +647,21 @@
       "decision": "Karar",
       "destination": "Sayfa",
       "browserTool": "Tarayıcı işlemi",
-      "reportedOutcome": "Bildirilen sonuç"
+      "reportedOutcome": "Bildirilen sonuç",
+      "browserSession": "Tarayıcı oturumu",
+      "browserEvent": "Tarayıcı olayı",
+      "networkMethod": "Ağ yöntemi",
+      "networkStatus": "Ağ durumu",
+      "consoleType": "Konsol türü",
+      "boundOutcome": "Bağlı sonuç"
     },
     "externalAdmission": "Ajan işlemine izin verildi",
     "externalOutcome": "Ajan işlem sonucu",
     "externalRejection": "Ajan işlemi engellendi",
-    "externalReview": "Ajan işlemi inceleme bekliyor"
+    "externalReview": "Ajan işlemi inceleme bekliyor",
+    "browserSessionEvent": "Tarayıcı oturumu olayı",
+    "observationOnly": "yalnızca gözlem",
+    "observed": "GÖZLEMLENDİ"
   },
   "ingestRun": {
     "eyebrow": "Alım",
