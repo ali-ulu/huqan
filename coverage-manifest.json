@@ -1120,7 +1120,7 @@
       ],
       "sites": [
         {
-          "line": 95,
+          "line": 94,
           "capability": "process",
           "call": "spawn"
         }
