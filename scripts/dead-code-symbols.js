@@ -35,7 +35,67 @@ function allowSet(entries) {
   return new Set((entries || []).map((entry) => entry.path + '#' + entry.name));
 }
 
+function simpleExportBinding(text) {
+  const shorthand = text.match(/^([A-Za-z_$][\\w$]*)$/);
+  if (shorthand) return { name: shorthand[1], local: shorthand[1] };
+  const alias = text.match(/^([A-Za-z_$][\\w$]*)\\s*:\\s*([A-Za-z_$][\\w$]*)$/);
+  if (alias) return { name: alias[1], local: alias[2] };
+  return null;
+}
+
 function collectExports(root, files) {
+  const out = [];
+  for (const file of files) {
+    if (!(ROOT_ENTRIES.has(file) || file.startsWith('lib/')) || !file.endsWith('.js')) continue;
+    const source = fs.readFileSync(path.join(root, file), 'utf8');
+    const seen = new Set();
+    const object = /module\\.exports\\s*=\\s*(?:Object\\.freeze\\s*\\(\\s*)?\\{([\\s\\S]*?)\\}\\s*\\)?\\s*;/g;
+    for (const match of source.matchAll(object)) {
+      const body = match[1];
+      const bodyStart = match.index + match[0].indexOf('{') + 1;
+      let cursor = 0;
+      for (const raw of body.split(',')) {
+        const leading = raw.match(/^\\s*/)[0].length;
+        const binding = simpleExportBinding(raw.trim());
+        if (binding) {
+          const key = file + '#' + binding.name;
+          if (!seen.has(key)) {
+            seen.add(key);
+            out.push({
+              file,
+              name: binding.name,
+              local: binding.local,
+              line: lineOf(source, bodyStart + cursor + leading),
+            });
+          }
+        }
+        cursor += raw.length + 1;
+      }
+    }
+    const assigned = [
+      /module\\.exports\\.([A-Za-z_$][\\w$]*)\\s*=\\s*([A-Za-z_$][\\w$]*)/g,
+      /(^|[^.\\w])exports\\.([A-Za-z_$][\\w$]*)\\s*=\\s*([A-Za-z_$][\\w$]*)/gm,
+    ];
+    for (const pattern of assigned) {
+      for (const match of source.matchAll(pattern)) {
+        const name = match.length === 3 ? match[1] : match[2];
+        const local = match.length === 3 ? match[2] : match[3];
+        if (!name || !local) continue;
+        const key = file + '#' + name;
+        if (!seen.has(key)) {
+          seen.add(key);
+          out.push({ file, name, local, line: lineOf(source, match.index) });
+        }
+      }
+    }
+  }
+  return out;
+}
+
+function locallyUnreferenced(root, entry) {
+  if (!entry.local) return false;
+  const source = fs.readFileSync(path.join(root, entry.file), 'utf8');
+  const escaped = entry.local.replace(/[.*+?^$(){}|[\\]\\\\]/g, '\\\\function collectExports(root, files) {
   const out = [];
   for (const file of files) {
     if (!(ROOT_ENTRIES.has(file) || file.startsWith('lib/')) || !file.endsWith('.js')) continue;
@@ -72,6 +132,19 @@ function collectExports(root, files) {
     }
   }
   return out;
+}
+');
+  const declarations = [
+    new RegExp('\\\\bfunction\\\\s+' + escaped + '\\\\b'),
+    new RegExp('\\\\bclass\\\\s+' + escaped + '\\\\b'),
+    new RegExp('\\\\b(?:const|let|var)\\\\s+' + escaped + '\\\\b'),
+  ];
+  if (!declarations.some((pattern) => pattern.test(source))) return false;
+  const occurrences = [...source.matchAll(new RegExp('\\\\b' + escaped + '\\\\b', 'g'))];
+  // A high-confidence dead export has exactly two lexical mentions: its local
+  // declaration and the export binding. Extra mentions are treated as live or
+  // ambiguous rather than forcing a large historical allowlist.
+  return occurrences.length <= 2;
 }
 
 function resolveModule(root, importer, specifier) {
@@ -154,12 +227,16 @@ function checkUnusedNamedExports(opts) {
     const key = entry.file + '#' + entry.name;
     if ((uses.named.get(key) || 0) > 0) continue;
     if (moduleAllow.has(entry.file) || exactAllow.has(key)) allowed.push(entry);
-    else if (uses.modules.has(entry.file) && !uses.opaque.has(entry.file)) unused.push(entry);
+    else if (
+      uses.modules.has(entry.file)
+      && !uses.opaque.has(entry.file)
+      && locallyUnreferenced(root, entry)
+    ) unused.push(entry);
   }
-  const lines = ['Named-export check: ' + candidates.length + ' static export(s), ' + unused.length + ' provably unused, ' + allowed.length + ' allowlisted, ' + uses.opaque.size + ' module(s) conservatively opaque'];
+  const lines = ['Named-export check: ' + candidates.length + ' static export(s), ' + unused.length + ' high-confidence unused, ' + allowed.length + ' allowlisted, ' + uses.opaque.size + ' module(s) conservatively opaque'];
   if (unused.length) {
     lines.push('FAIL: ' + unused.length + ' unused named export(s):');
-    for (const entry of unused) lines.push('  - ' + entry.file + ':' + entry.line + " exported '" + entry.name + "' has no repository consumer");
+    for (const entry of unused) lines.push('  - ' + entry.file + ':' + entry.line + " exported '" + entry.name + "' has no repository consumer and its local binding has no internal use");
   } else lines.push('Named-export surface has no unallowlisted unused exports.');
   return { ok: unused.length === 0, unused, allowed, candidateCount: candidates.length, report: lines.join('\n') };
 }
