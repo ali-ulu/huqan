@@ -65,6 +65,7 @@ test('MCP surface gap fails the gate', () => {
     const result = checkMcpToolSurface({ root });
     assert.equal(result.ok, false);
     assert.ok(result.gaps.some((g) => g.includes('ghost')));
+    assert.match(result.report, /lib\\/mcp-tool-names\\.js:1 advertised huqan\\.ghost/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
