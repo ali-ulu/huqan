@@ -251,6 +251,7 @@
     "lib/cli-plugin-status.js",
     "lib/cli-helpers.js",
     "lib/cli-company-ingest.js",
+    "lib/cli-doctor.js",
     "lib/cli-backup-commands.js",
     "lib/cli-status-command.js",
     "lib/cli-learn-review.js",
