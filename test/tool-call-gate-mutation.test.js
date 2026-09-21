@@ -161,3 +161,116 @@ test('policy floor can only raise authority and emits the exact override reason'
   assert.equal(cannotLower.decision, TOOL_GATE_DECISIONS.BLOCK);
   assert.equal(cannotLower.reason, TOOL_GATE_REASONS.CRITICAL_MUTATION_BLOCKED);
 });
+
+test('classifier extraction accepts top-level, nested and metadata versions with risk synonyms', () => {
+  const top = normalizeToolCall({
+    action: 'read',
+    classifierVersion: 'top-v1',
+    risk: { level: 'minimal', score: -1, category: '' },
+  });
+  assert.deepEqual(top.classifier, {
+    classifierVersion: 'top-v1',
+    risk: { level: 'low', score: 0, category: 'unknown' },
+    valid: true,
+  });
+
+  const nested = normalizeToolCall({
+    action: 'read',
+    classifier: {
+      meta: { classifierVersion: 'meta-v2' },
+      risk: { level: 'severe', score: 2, category: 'security' },
+    },
+  });
+  assert.deepEqual(nested.classifier, {
+    classifierVersion: 'meta-v2',
+    risk: { level: 'critical', score: 1, category: 'security' },
+    valid: true,
+  });
+
+  const riskOnly = normalizeToolCall({
+    action: 'read',
+    risk: { level: 'moderate', score: '0.4', category: 'read' },
+  });
+  assert.deepEqual(riskOnly.classifier, {
+    classifierVersion: '',
+    risk: { level: 'medium', score: 0.4, category: 'read' },
+    valid: true,
+  });
+
+  assert.equal(normalizeToolCall({ action: 'read' }).classifier, null);
+});
+
+test('argument normalization recursively clones arrays and plain objects', () => {
+  const source = { nested: [{ x: 1 }, ['y']], scalar: 2 };
+  const normalized = normalizeToolCall({ action: 'read', args: source, classifier });
+  assert.deepEqual(normalized.args, source);
+  assert.notEqual(normalized.args, source);
+  assert.notEqual(normalized.args.nested, source.nested);
+  assert.notEqual(normalized.args.nested[0], source.nested[0]);
+});
+
+test('location directory names never escalate a read but location basenames still can', () => {
+  for (const key of [
+    'file_path', 'filepath', 'path', 'targetpath', 'target_path', 'destination',
+    'dir', 'directory', 'cwd', 'workspaceroot', 'workspace_root',
+    'notebook_path', 'notebookpath', 'output_path', 'outputpath',
+  ]) {
+    const args = { [key]: '/tmp/deploy/release/publish/readme.md' };
+    const result = evaluateToolCall({ action: 'read', toolName: 'get-file', args, classifier });
+    assert.equal(result.decision, TOOL_GATE_DECISIONS.ALLOW, key);
+  }
+
+  const basename = evaluateToolCall({
+    action: 'read',
+    toolName: 'get-file',
+    args: { path: '/tmp/ordinary/deploy.sh' },
+    classifier,
+  });
+  assert.equal(basename.decision, TOOL_GATE_DECISIONS.DRY_RUN_ONLY);
+  assert.equal(basename.reason, TOOL_GATE_REASONS.HIGH_RISK_ACTION_DRY_RUN_ONLY);
+});
+
+test('warnings are exact for malformed identity, secret args and dry-run-only actions', () => {
+  const malformed = evaluateToolCall({ classifier });
+  assert.ok(malformed.warnings.includes('Action could not be normalized.'));
+
+  const secret = evaluateToolCall({
+    action: 'deploy',
+    toolName: 'release',
+    args: { token: 'x' },
+    classifier,
+  });
+  assert.ok(secret.warnings.includes('Sensitive arguments detected.'));
+  assert.ok(secret.warnings.includes('Dry-run-only operation requires simulation.'));
+
+  const missing = evaluateToolCall({ action: 'deploy', toolName: 'release' });
+  assert.ok(missing.warnings.includes('Missing or malformed AB1 classifier output.'));
+});
+
+test('normalizeGateDecision respects explicit booleans instead of recomputing them', () => {
+  const normalized = normalizeGateDecision({
+    ok: false,
+    decision: 'allow',
+    allowed: false,
+    canExecute: false,
+    canDryRun: false,
+    requiredReview: true,
+    dryRunOnly: true,
+    risk: { level: 'high', score: 'not-number', category: '' },
+    warnings: ['', 'kept', null],
+    metadata: { policyVersion: 'p', classifierVersion: 7, workspaceId: '' },
+  });
+  assert.equal(normalized.ok, false);
+  assert.equal(normalized.allowed, false);
+  assert.equal(normalized.canExecute, false);
+  assert.equal(normalized.canDryRun, false);
+  assert.equal(normalized.requiredReview, true);
+  assert.equal(normalized.dryRunOnly, true);
+  assert.deepEqual(normalized.warnings, ['kept']);
+  assert.deepEqual(normalized.risk, { level: 'high', score: 0.5, category: 'unknown' });
+  assert.deepEqual(normalized.metadata, {
+    policyVersion: 'p',
+    classifierVersion: '7',
+    workspaceId: 'default',
+  });
+});
