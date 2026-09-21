@@ -547,7 +547,7 @@ class PluginManager {
   }
 
   emit(event, data) {
-    for (const plugin of this._handlers[event]) {
+    for (const plugin of this._handlers[event] || []) {
       try {
         plugin[event](this.kernel, data);
       } catch (err) {
