@@ -188,3 +188,89 @@ test('representative classifyAgentAction hard blocks and allowlist outcomes are 
   assert.equal(prod.hardBlocked, true);
   assert.ok(prod.flags.includes(FLAGS.PRODUCTION_SIDE));
 });
+
+test('every supported flag alias normalizes to the exact canonical safety flag', () => {
+  const aliases = new Map([
+    ['auto_merge', FLAGS.AUTO_MERGE],
+    ['auto_merge_requested', FLAGS.AUTO_MERGE],
+    ['auto-deploy', FLAGS.AUTO_DEPLOY],
+    ['auto_deployment', FLAGS.AUTO_DEPLOY],
+    ['self_escalation', FLAGS.SELF_ESCALATION],
+    ['self-escalate', FLAGS.SELF_ESCALATION],
+    ['malformed_action', FLAGS.MALFORMED_ACTION],
+    ['unknown_action_category', FLAGS.UNKNOWN_ACTION_CATEGORY],
+    ['path_security_sensitive', FLAGS.PATH_SECURITY_SENSITIVE],
+    ['path_outside_allowlist', FLAGS.PATH_OUTSIDE_ALLOWLIST],
+    ['url_outside_allowlist', FLAGS.URL_OUTSIDE_ALLOWLIST],
+    ['production_side', FLAGS.PRODUCTION_SIDE],
+    ['production', FLAGS.PRODUCTION_SIDE],
+    ['bypass_admission', FLAGS.BYPASS_ADMISSION],
+    ['real_db', FLAGS.REAL_DB],
+    ['ungated', FLAGS.UNGATED_TOOL_CHAIN],
+    ['ungated_tool_chain', FLAGS.UNGATED_TOOL_CHAIN],
+    ['explicit_human_approval', FLAGS.EXPLICIT_HUMAN_APPROVAL],
+  ]);
+  for (const [input, expected] of aliases) {
+    const normalized = normalizeActionRequest({ category: 'read', flags: [input] });
+    assert.deepEqual(normalized.flags, [expected], input);
+  }
+
+  const unknown = normalizeActionRequest({ category: 'read', flags: ['custom-flag'] });
+  assert.deepEqual(unknown.flags, ['custom-flag']);
+});
+
+test('action target and timestamp normalization cover primitive and Date inputs', () => {
+  const stringTarget = normalizeActionRequest({ category: 'read', target: 'resource' });
+  assert.deepEqual(stringTarget.target, { value: 'resource' });
+
+  const numericTarget = normalizeActionRequest({ category: 'read', target: 7 });
+  assert.deepEqual(numericTarget.target, { value: '7' });
+
+  const date = new Date('2026-01-01T00:00:00.000Z');
+  const classifiedDate = classifyAgentAction({ category: 'read', now: date });
+  assert.equal(classifiedDate.trustReceipt.timestamp, date.toISOString());
+
+  const classifiedNumber = classifyAgentAction({ category: 'read', timestamp: 0 });
+  assert.equal(classifiedNumber.trustReceipt.timestamp, '1970-01-01T00:00:00.000Z');
+
+  const classifiedBadDate = classifyAgentAction({ category: 'read', now: new Date('invalid') });
+  assert.equal(classifiedBadDate.trustReceipt.timestamp, null);
+});
+
+test('filesystem, network, sandbox and tool-chain rules pin all three-way outcomes', () => {
+  const fsSensitive = classifyAgentAction({
+    category: 'filesystem_write', target: { path: 'lib/risk-rules.js' },
+  });
+  assert.equal(fsSensitive.decision, ACTION_DECISIONS.BLOCK);
+  assert.ok(fsSensitive.flags.includes(FLAGS.PATH_SECURITY_SENSITIVE));
+
+  const fsAllowed = classifyAgentAction({
+    category: 'filesystem_write', target: { path: 'tmp/file.txt' },
+  }, { allowlistedPaths: ['tmp'] });
+  assert.equal(fsAllowed.decision, ACTION_DECISIONS.QUARANTINE);
+
+  const fsUnknown = classifyAgentAction({
+    category: 'filesystem_write', target: { path: 'elsewhere/file.txt' },
+  }, { allowlistedPaths: ['tmp'] });
+  assert.equal(fsUnknown.decision, ACTION_DECISIONS.HUMAN_REVIEW);
+  assert.ok(fsUnknown.flags.includes(FLAGS.PATH_OUTSIDE_ALLOWLIST));
+
+  const netAllowed = classifyAgentAction({
+    category: 'network_call', target: { url: 'https://example.com/api/v1' },
+  }, { allowlistedUrls: ['https://example.com/api'] });
+  assert.equal(netAllowed.decision, ACTION_DECISIONS.QUARANTINE);
+
+  const netUnknown = classifyAgentAction({
+    category: 'network_call', target: { url: 'https://other.example.com/api' },
+  }, { allowlistedUrls: ['https://example.com/api'] });
+  assert.equal(netUnknown.decision, ACTION_DECISIONS.HUMAN_REVIEW);
+  assert.ok(netUnknown.flags.includes(FLAGS.URL_OUTSIDE_ALLOWLIST));
+
+  const sandbox = classifyAgentAction({ category: 'sandbox_simulation', flags: ['real_db'] });
+  assert.equal(sandbox.decision, ACTION_DECISIONS.BLOCK);
+  assert.ok(sandbox.flags.includes(FLAGS.REAL_DB));
+
+  const chain = classifyAgentAction({ category: 'tool_chain_execution', flags: ['ungated'] });
+  assert.equal(chain.decision, ACTION_DECISIONS.BLOCK);
+  assert.ok(chain.flags.includes(FLAGS.UNGATED_TOOL_CHAIN));
+});
