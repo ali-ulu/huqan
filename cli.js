@@ -296,7 +296,7 @@ const CLI_COMMAND_HANDLERS = Object.freeze(Object.assign(Object.create(null), {
     });
   },
   'durum': (cli) => runStatusCommand(cli),
-  'doctor': () => runDoctorCommand({ rootDir: process.cwd() }),
+  'doctor': (cli) => runDoctorCommand({ rootDir: process.cwd(), kernel: cli.kernel }),
   'rüya': (cli, args, opts, command) => {
     const hypotheses = cli.dream.dream();
     if (hypotheses.length === 0) return 'I could not produce a hypothesis; I need more information.';
