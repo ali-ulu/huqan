@@ -48,7 +48,7 @@ const {
 } = require('./lib/cli-helpers');
 const { runCompanyIngest } = require('./lib/cli-company-ingest');
 const { runBackupCommand, runRestoreCommand } = require('./lib/cli-backup-commands');
-const { runStatusCommand } = require('./lib/cli-status-command'); const { runDoctorCommand } = require('./lib/cli-doctor');
+const { runStatusCommand, runDoctorCommand } = require('./lib/cli-status-command');
 
 // #2136: one handler per CLI command; a new command is a row, not a case. Handlers get the command context
 // CLI#execute builds, not the instance; lazy requires keep a block body so require-scan still sees them deferred.
