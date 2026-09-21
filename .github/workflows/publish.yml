@@ -251,21 +251,27 @@ jobs:
             exit "${publish_status}"
           fi
 
-      # Registry round-trip (#2631, C4): prove the copy npm now serves is
-      # the release that was just authorized. Installs name@version from the
-      # public registry into an empty project and replays the consumer smoke
-      # (quickstart, huqan-mcp initialize, huqan-gate block), then checks the
-      # provenance attestation on the dist record and that the pre-upload SBOM
-      # describes the published manifest. The script waits out replication lag
-      # internally, so a failure here means the release itself, not the CDN.
-      #
-      # A failure cannot unpublish -- npm versions are immutable -- so this
-      # fails the run loudly instead of letting a consumer find out first.
-      # Same gate as Publish: nothing was uploaded on a dry run, so there is
-      # nothing to download back.
-      - name: Verify the published package round-trips through the registry
+      # Final release checklist (#2633, C7). This is deliberately the last
+      # real-publish gate. It reuses the local tarball verifier and the C4
+      # registry round-trip verifier, then adds version/tag, changelog and
+      # CycloneDX shape/component-count checks around them. The registry proof
+      # also verifies npm provenance and matches the SBOM to the published
+      # manifest. One script therefore owns the final release verdict and emits
+      # both a human summary and a machine-readable JSON report.
+      - name: Verify the complete release checklist
         if: github.event_name == 'push' || inputs.dry_run == false
-        run: node scripts/verify-published-round-trip.js --sbom "huqan-${GITHUB_REF_NAME}.cdx.json"
+        run: node scripts/release-verify.js --sbom "huqan-${GITHUB_REF_NAME}.cdx.json" --json "release-verification-${GITHUB_REF_NAME}.json"
+
+      # Preserve the structured verdict even when the checklist fails. A
+      # missing report should not mask the original verification error, so the
+      # upload warns instead of becoming a second failure.
+      - name: Upload release verification report
+        if: always() && (github.event_name == 'push' || inputs.dry_run == false)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-verification-report
+          path: release-verification-${{ github.ref_name }}.json
+          if-no-files-found: warn
 
       - name: Dry run complete
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run
