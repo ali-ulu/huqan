@@ -551,16 +551,12 @@ class Kernel {
       opts.admissionBypassReason.trim().length > 0;
   }
 
-  evaluateLearnAdmission(text, opts = {}, provenance = null, workspaceId = 'default') {
+  _evaluateLearnAdmission(text, opts = {}, provenance = null, workspaceId = 'default') {
     return evaluateLearnAdmission({
       kernel: this,
       isLearnAdmissionBypass: this._isLearnAdmissionBypass.bind(this),
       contractVersion: this.contractVersion,
     }, text, opts, provenance, workspaceId);
-  }
-
-  _evaluateLearnAdmission(text, opts = {}, provenance = null, workspaceId = 'default') {
-    return this.evaluateLearnAdmission(text, opts, provenance, workspaceId);
   }
 
   _admissionReceiptDetails(admission) {
@@ -706,7 +702,8 @@ class Kernel {
   }
 
   ingestCandidateClaim(input = {}, opts = {}) {
-    return admitCandidateIngress(this, input, opts);
+    return admitCandidateIngress(this, input, opts, null, (text, admissionOpts, provenance, workspaceId) =>
+      this._evaluateLearnAdmission(text, admissionOpts, provenance, workspaceId));
   }
 
   // Public/private compatibility facades; implementation lives in lib/predicate-parser.js.
