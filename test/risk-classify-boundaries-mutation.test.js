@@ -8,6 +8,7 @@ const {
   RISK_LEVELS,
   FLAGS,
   SECURITY_SENSITIVE_PATH_TOKENS,
+  POLICY_VERSION,
   normalizeActionType,
   normalizeActionRequest,
   classifyActionCategory,
@@ -416,4 +417,102 @@ test('malformed, unknown and option-derived classification contracts are exact',
     now: '2026-02-05T00:00:00.000Z',
   });
   assert.equal(inputTime.trustReceipt.timestamp, '2026-02-05T00:00:00.000Z');
+});
+
+
+test('mutation survivor sentinels pin immutability and normalization edge cases', () => {
+  const classified = classifyAgentAction(
+    { category: 'read', target: { path: 'docs/nested/item.md' } },
+    { allowlistedPaths: ['docs'], now: '2026-03-01T00:00:00.000Z' },
+  );
+  assert.equal(Object.isFrozen(classified), true);
+  assert.equal(Object.isFrozen(classified.flags), true);
+  assert.equal(Object.isFrozen(classified.reasons), true);
+  assert.equal(Object.isFrozen(classified.target), true);
+  assert.equal(Object.isFrozen(classified.trustReceipt), true);
+  assert.equal(Object.isFrozen(classified.trustReceipt.flags), true);
+  assert.equal(Object.isFrozen(classified.trustReceipt.reasons), true);
+  assert.equal(Object.isFrozen(classified.trustReceipt.target), true);
+
+  assert.equal(normalizeActionType('  read-only  '), ACTION_CATEGORIES.READ_ONLY);
+  assert.equal(normalizeActionType('tool---chain   execution'), ACTION_CATEGORIES.TOOL_CHAIN_EXECUTION);
+  assert.equal(normalizeActionType('   '), null);
+  assert.equal(normalizeActionType(undefined), null);
+
+  assert.equal(isPathInList('  docs\\nested//item.md  ', ['docs']), true);
+  assert.equal(isPathInList('.', ['docs']), false);
+  assert.equal(isUrlInList('  https://example.com/api/v1  ', [' https://example.com/api ']), true);
+  assert.equal(isUrlInList(7, ['https://example.com']), false);
+  assert.equal(isUrlInList('   ', ['https://example.com']), false);
+});
+
+test('mutation survivor sentinels pin decision fallback precedence and metadata', () => {
+  const explicit = normalizeActionDecision({
+    ok: false,
+    actionType: 'read',
+    category: 'memory_write',
+    actionCategory: 'code_change',
+    riskLevel: ' low ',
+    decision: ' allow ',
+    reasons: ['fallback reason'],
+    flags: ['custom'],
+    hardBlocked: false,
+    policyVersion: 'custom-policy',
+    reason: 'explicit reason',
+  });
+  assert.equal(explicit.ok, false);
+  assert.equal(explicit.actionType, ACTION_CATEGORIES.READ_ONLY);
+  assert.equal(explicit.category, ACTION_CATEGORIES.MEMORY_WRITE);
+  assert.equal(explicit.actionCategory, ACTION_CATEGORIES.CODE_CHANGE);
+  assert.equal(explicit.riskLevel, RISK_LEVELS.LOW);
+  assert.equal(explicit.decision, ACTION_DECISIONS.ALLOW);
+  assert.equal(explicit.policyVersion, 'custom-policy');
+  assert.equal(explicit.reason, 'explicit reason');
+  assert.deepEqual(explicit.reasons, ['fallback reason']);
+  assert.deepEqual(explicit.flags, ['custom']);
+
+  const fallback = normalizeActionDecision({
+    actionCategory: 'test_change',
+    riskLevel: 7,
+    decision: 7,
+    reasons: ['first', '', 'first'],
+    flags: ['', 'x', 'x'],
+    policyVersion: 7,
+    reason: 7,
+  });
+  assert.equal(fallback.ok, true);
+  assert.equal(fallback.actionType, ACTION_CATEGORIES.TEST_CHANGE);
+  assert.equal(fallback.category, ACTION_CATEGORIES.TEST_CHANGE);
+  assert.equal(fallback.actionCategory, ACTION_CATEGORIES.TEST_CHANGE);
+  assert.equal(fallback.riskLevel, RISK_LEVELS.HIGH);
+  assert.equal(fallback.decision, ACTION_DECISIONS.HUMAN_REVIEW);
+  assert.equal(fallback.policyVersion, POLICY_VERSION);
+  assert.equal(fallback.reason, 'first');
+  assert.deepEqual(fallback.reasons, ['first']);
+  assert.deepEqual(fallback.flags, ['x']);
+
+  const malformed = normalizeActionDecision(null);
+  assert.equal(malformed.ok, true);
+  assert.equal(malformed.hardBlocked, false);
+  assert.deepEqual(malformed.reasons, []);
+  assert.deepEqual(malformed.flags, [FLAGS.MALFORMED_ACTION]);
+  assert.equal(malformed.policyVersion, POLICY_VERSION);
+  assert.equal(malformed.trustReceipt.hardBlocked, false);
+  assert.deepEqual(malformed.trustReceipt.reasons, []);
+  assert.deepEqual(malformed.trustReceipt.flags, [FLAGS.MALFORMED_ACTION]);
+  assert.equal(malformed.trustReceipt.reason, 'Malformed action input');
+});
+
+test('mutation survivor sentinels pin every production target vocabulary token', () => {
+  for (const value of ['prod', 'production', 'live', 'canonical']) {
+    const out = classifyAgentAction({
+      category: ACTION_CATEGORIES.MEMORY_WRITE,
+      target: { env: `  ${value.toUpperCase()}  ` },
+    });
+    assert.equal(out.decision, ACTION_DECISIONS.BLOCK, value);
+    assert.equal(out.hardBlocked, true, value);
+    assert.ok(out.flags.includes(FLAGS.PRODUCTION_SIDE), value);
+    assert.ok(out.flags.includes(FLAGS.HARD_BLOCKED), value);
+    assert.ok(out.reasons.includes('Admission bypass or production-side target is blocked.'), value);
+  }
 });
