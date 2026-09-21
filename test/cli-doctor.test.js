@@ -2,6 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const packageManifest = require('../package.json');
 
 const { parseCommand } = require('../lib/command-parser');
 const { runCliArgv } = require('../lib/cli-workflow-adapter');
@@ -21,6 +22,10 @@ function passingCheckers(overrides = {}) {
     overrides[key] || (() => ({ ok: true, detail: key })),
   ]));
 }
+
+test('doctor migration artifacts are shipped in the npm package', () => {
+  assert.equal(packageManifest.files.includes('migrations'), true);
+});
 
 test('storage schema version tracks the additive migration registry', () => {
   assert.equal(STORAGE_SCHEMA_VERSION, ADDITIVE_COLUMNS.length);
