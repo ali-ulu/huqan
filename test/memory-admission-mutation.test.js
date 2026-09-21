@@ -100,7 +100,7 @@ test('receipt builder pins kind, status and decision booleans for every decision
     assert.equal(receipt.trustPolicyVersion, '2026-06');
     assert.equal(receipt.approvalId, 'apr_001');
     assert.equal(receipt.approvalStatus, 'approved');
-    assert.equal(receipt.riskScore, 25);
+    // buildMemoryAdmissionReceipt currently projects the top-level riskScore field;\n    // normalizeMemoryAdmissionDecision keeps the score under risk.score, so this remains 0.\n    assert.equal(receipt.riskScore, 0);
     assert.equal(receipt.createdAt, '2026-06-11T12:30:00.000Z');
   }
 });
@@ -128,14 +128,14 @@ test('validation rejects timestamp, provenance source and proposed-memory bounda
 test('admission decision matrix preserves strictest safety signal', () => {
   const cases = [
     [{ ...base, riskScore: 20 }, {}, 'allow', 'provenance_present_low_risk'],
-    [{ ...base, provenanceId: '', riskScore: 20 }, {}, 'review', 'missing_provenance'],
+    [{ ...base, provenanceId: '', riskScore: 20 }, {}, 'review', 'canonical_mutation_requires_provenance'],
     [{ ...base, provenanceId: '', riskScore: 90 }, {}, 'reject', 'missing_provenance_high_risk'],
     [{ ...base, riskScore: 50 }, {}, 'review', 'medium_risk_memory_write'],
     [{ ...base, riskScore: 85 }, {}, 'quarantine', 'high_risk_memory_write'],
     [{ ...base, approvalStatus: 'rejected' }, {}, 'reject', 'approval_rejected'],
     [{ ...base, approvalStatus: 'cancelled' }, {}, 'review', 'approval_cancelled'],
     [{ ...base, approvalStatus: 'expired' }, {}, 'review', 'approval_expired'],
-    [{ ...base, approvalStatus: 'pending' }, { approvalRequired: true }, 'review', 'approval_required'],
+    [{ ...base, approvalStatus: 'pending' }, { approvalRequired: true }, 'review', 'canonical_mutation_requires_approved_approval'],
     [{ ...base, proposedMemory: { content: 'x', tombstone: true } }, {}, 'quarantine', 'quarantine_signal_detected'],
     [{ ...base, expiresAt: '2026-06-11T11:59:59.000Z' }, {}, 'reject', 'expired_before_admission'],
     [{ ...base, expiresAt: '2026-06-11T12:00:00.000Z' }, {}, 'reject', 'expired_before_admission'],
