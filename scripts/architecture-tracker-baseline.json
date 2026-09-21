@@ -211,16 +211,9 @@
       "lines": 565,
       "signals": []
     },
-    "lib/memory-store-json-persistence.js": {
-      "band": "structural",
-      "lines": 281,
-      "signals": [
-        "ISP:4"
-      ]
-    },
     "lib/memory-store.js": {
       "band": "decompose",
-      "lines": 968,
+      "lines": 966,
       "signals": [
         "FANOUT:23"
       ]
