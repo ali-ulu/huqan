@@ -274,3 +274,90 @@ test('normalizeGateDecision respects explicit booleans instead of recomputing th
     workspaceId: 'default',
   });
 });
+
+test('tool gate public decision and reason vocabulary is independently pinned', () => {
+  assert.equal(AB2_POLICY_VERSION, 'AB2-v0.1.0');
+  assert.deepEqual(TOOL_GATE_DECISIONS, {
+    ALLOW: 'allow',
+    REVIEW: 'review',
+    BLOCK: 'block',
+    DRY_RUN_ONLY: 'dry_run_only',
+  });
+  assert.deepEqual(TOOL_GATE_REASONS, {
+    LOW_RISK_ACTION: 'LOW_RISK_ACTION',
+    REVIEW_REQUIRED: 'REVIEW_REQUIRED',
+    CRITICAL_MUTATION_BLOCKED: 'CRITICAL_MUTATION_BLOCKED',
+    HIGH_RISK_ACTION_DRY_RUN_ONLY: 'HIGH_RISK_ACTION_DRY_RUN_ONLY',
+    UNKNOWN_ACTION_REVIEW_REQUIRED: 'UNKNOWN_ACTION_REVIEW_REQUIRED',
+    SECRET_ARGS_REVIEW_REQUIRED: 'SECRET_ARGS_REVIEW_REQUIRED',
+    MALFORMED_INPUT_REVIEW_REQUIRED: 'MALFORMED_INPUT_REVIEW_REQUIRED',
+    POLICY_OVERRIDE_REVIEW: 'POLICY_OVERRIDE_REVIEW',
+    POLICY_OVERRIDE_BLOCK: 'POLICY_OVERRIDE_BLOCK',
+    EXTERNAL_SIDE_EFFECT_REVIEW_REQUIRED: 'EXTERNAL_SIDE_EFFECT_REVIEW_REQUIRED',
+    DRY_RUN_REQUESTED: 'DRY_RUN_REQUESTED',
+  });
+});
+
+test('every read/write/destructive/deploy/side-effect action token keeps its authority class', () => {
+  const groups = [
+    {
+      actions: ['read','get','list','fetch','inspect','view','show','open','query','search','status','describe','check','health'],
+      decision: 'allow',
+      reason: 'LOW_RISK_ACTION',
+    },
+    {
+      actions: ['write','update','create','set','edit','patch','save','insert','add','modify'],
+      decision: 'review',
+      reason: 'REVIEW_REQUIRED',
+    },
+    {
+      actions: ['delete','remove','destroy','drop','purge','wipe','truncate','format','reset','erase','revoke','kill','shutdown'],
+      decision: 'block',
+      reason: 'CRITICAL_MUTATION_BLOCKED',
+    },
+    {
+      actions: ['deploy','publish','release','ship','promote','push','upload'],
+      decision: 'dry_run_only',
+      reason: 'HIGH_RISK_ACTION_DRY_RUN_ONLY',
+    },
+    {
+      actions: ['send','notify','message','post','email','webhook','call','execute','run','sync','broadcast'],
+      decision: 'review',
+      reason: 'EXTERNAL_SIDE_EFFECT_REVIEW_REQUIRED',
+    },
+  ];
+
+  for (const group of groups) {
+    for (const action of group.actions) {
+      const result = evaluateToolCall({ action, toolName: `${action}-tool`, classifier });
+      assert.equal(result.decision, group.decision, action);
+      assert.equal(result.reason, group.reason, action);
+    }
+  }
+});
+
+test('every network mutation phrase escalates payload text with the external-side-effect reason', () => {
+  for (const phrase of [
+    'post', 'put', 'patch', 'webhook', 'api write', 'external api write',
+    'remote update', 'create issue', 'create comment', 'create pull request',
+    'create pr', 'payment', 'billing', 'third-party mutation',
+  ]) {
+    const result = evaluateToolCall({
+      action: 'read',
+      toolName: 'reader',
+      input: `request intends ${phrase} now`,
+      classifier,
+    });
+    assert.equal(result.decision, 'review', phrase);
+    assert.equal(result.reason, 'EXTERNAL_SIDE_EFFECT_REVIEW_REQUIRED', phrase);
+  }
+});
+
+test('secret key vocabulary remains fail-closed', () => {
+  for (const key of [
+    'api_key', 'api-key', 'secret', 'password', 'passwd', 'token',
+    'bearer', 'credential', 'private key', 'client_secret', 'client-secret',
+  ]) {
+    assert.equal(hasSecretLookingValue({ [key]: 'safe-looking-value' }), true, key);
+  }
+});
