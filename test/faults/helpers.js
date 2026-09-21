@@ -12,7 +12,7 @@ function tempDir(t, prefix = 'huqan-fault-') {
 }
 
 function spawnFixture(name, args = [], options = {}) {
-  return spawn(process.execPath, [path.join(__dirname, 'fixtures', name), ...args], {
+  return spawn(process.execPath, [path.join(__dirname, '..', '..', 'fixtures', 'faults', name), ...args], {
     stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env, ...(options.env || {}) },
     windowsHide: true,
