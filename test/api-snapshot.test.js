@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 
 const { buildSnapshot } = require('../scripts/api-snapshot-surface');
-const { diffSnapshots } = require('../scripts/api-snapshot-diff');
+const { diffSnapshots, reportMarkdown } = require('../scripts/api-snapshot-diff');
 
 test('API snapshot covers the declared public surfaces', () => {
   const snapshot = buildSnapshot();
@@ -57,6 +57,7 @@ test('API diff rejects removals and newly required MCP input', () => {
     item.area === 'mcp'
       && item.key === 'huqan.learn'
       && item.reason.includes('new required input')));
+  assert.match(reportMarkdown(result), /⚠️ Breaking change detected\. Major version bump required\./);
 });
 
 test('API diff permits additive optional fields and new tools', () => {
