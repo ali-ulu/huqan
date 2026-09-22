@@ -112,11 +112,20 @@ class HuqanStorage {
       throw sqliteUnavailableError('better-sqlite3 is required for v3 storage.', sqliteLoadError);
     }
     this.db = new Database(this.dbPath);
-    // RESUMABLE, and that is a choice rather than a default: this store holds
-    // agent checkpoints, so a lost tail costs repeated work and no evidence.
-    // See lib/sqlite-durability.js for the split and what it was measured at.
-    applySqliteDurability(this.db, 'RESUMABLE');
-    this._init();
+    try {
+      // RESUMABLE, and that is a choice rather than a default: this store holds
+      // agent checkpoints, so a lost tail costs repeated work and no evidence.
+      // See lib/sqlite-durability.js for the split and what it was measured at.
+      applySqliteDurability(this.db, 'RESUMABLE');
+      this._init();
+    } catch (error) {
+      // If initialization fails (for example on a corrupt SQLite file), release
+      // the handle before rethrowing. Windows will otherwise keep memory.db
+      // locked and even fail deterministic cleanup of the rejected store.
+      try { this.db.close(); } catch (_) {}
+      this.db = null;
+      throw error;
+    }
   }
 
   _init() {
