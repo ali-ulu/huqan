@@ -68,6 +68,7 @@
     "test:faults": "node scripts/run-tests.js --test-concurrency=1 \"test/faults/*.test.js\"",
     "api:snapshot": "node scripts/api-snapshot.js",
     "check:api-contract": "node scripts/api-snapshot.js --check-baseline api-snapshot-baseline.json",
+    "test:consumer-compile": "node scripts/test-consumer-compile.js",
     "test:fuzz": "node scripts/run-tests.js \"test/fuzz/*.test.js\"",
     "test:recovery": "node scripts/run-tests.js \"test/recovery/*.test.js\"",
     "test:mutation": "npx --yes --package=@stryker-mutator/core@10.0.0 --package=@stryker-mutator/tap-runner@10.0.0 stryker run"
