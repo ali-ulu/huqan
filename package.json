@@ -188,6 +188,7 @@
     "lib/human-oversight-approval-runtime-primitives.js",
     "lib/http-human-oversight-adapter.js",
     "lib/trust-evidence-ledger.js",
+    "lib/post-incident-review.js",
     "lib/receipt/cryptographic-profile-contract.js",
     "lib/receipt/cryptographic-verification-adapter.js",
     "lib/receipt/public-trust-receipt.js",
