@@ -51,7 +51,7 @@
     },
     "kernel.v2.js": {
       "band": "recorded",
-      "lines": 702,
+      "lines": 662,
       "signals": [
         "DIP"
       ]
@@ -694,6 +694,7 @@
       "lib/kernel-read-use-cases.js": "Core",
       "lib/kernel-self-evolve.js": "Core",
       "lib/kernel-self-learn.js": "Core",
+      "lib/kernel-v2-evidence.js": "Core",
       "lib/kernel-v2-native.js": "Core",
       "lib/kernel-v2-type-negation.js": "Core",
       "lib/learn-admission-request.js": "Core",
@@ -1338,12 +1339,12 @@
       ],
       "kernel.v2.js": [
         "kernel.js",
+        "lib/kernel-v2-evidence.js",
         "lib/kernel-v2-native.js",
         "lib/kernel-v2-type-negation.js",
         "lib/pre-ingest.js",
         "lib/subject-resolution.js",
         "lib/text-safety-scorer.js",
-        "lib/turkish-copula.js",
         "lib/type-lattice.js"
       ],
       "lib/a2a/agent-card-route.js": [
@@ -2453,6 +2454,10 @@
       ],
       "lib/kernel-self-evolve.js": [
         "lib/graph-record-utils.js"
+      ],
+      "lib/kernel-v2-evidence.js": [
+        "lib/kernel-v2-native.js",
+        "lib/turkish-copula.js"
       ],
       "lib/kernel-v2-native.js": [
         "lib/turkish-copula.js"
