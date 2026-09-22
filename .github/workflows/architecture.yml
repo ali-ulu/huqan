@@ -72,6 +72,9 @@ jobs:
           path: artifacts/dead-code-report.txt
           if-no-files-found: error
 
+      - name: Require security invariants to map to live tests
+        run: npm run check:security-invariants
+
       - name: Forbid raw control characters in tracked sources
         run: node scripts/check-control-chars.js
 
