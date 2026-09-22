@@ -223,7 +223,7 @@ describe('PR-S3 transaction safety & concurrency', () => {
       assert.deepStrictEqual(types, ['CREATED', 'TOMBSTONE']);
     });
 
-    test('in-memory: _withTransaction restores snapshot on mid-transaction throw (no partial state)', () => {
+    test('in-memory: withTransaction restores snapshot on mid-transaction throw (no partial state)', () => {
       const store = new MemoryStore();
       const r1 = store.store({ content: 'pre-tx-1' }).memory;
       const r2 = store.store({ content: 'pre-tx-2' }).memory;
@@ -235,7 +235,7 @@ describe('PR-S3 transaction safety & concurrency', () => {
       const preList = store.list().memories.map(m => m.memoryId).sort();
 
       assert.throws(() => {
-        store._withTransaction(() => {
+        store.withTransaction(() => {
           store.store({ content: 'will-be-rolled-back' });
           store.linkMemories({ fromMemoryId: r1.memoryId, toMemoryId: r2.memoryId, relation: 'contradicts' });
           throw new Error('forced in-memory mid-transaction failure');

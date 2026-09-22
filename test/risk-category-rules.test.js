@@ -63,10 +63,9 @@ const GOLDEN = {
   TOOL_CHAIN_EXECUTION: '4c43784fb7ea3ca7e02d3a51822f919636f84daeb2593ebd3452e1858addcfb4',
   SANDBOX_SIMULATION: '1510932f082d27be1d06e2730fb71ac08e548062eff7a4f0996594ecd85c82c5',
   PRODUCTION_MUTATION: '241ddb942c2e162342bdc6d387d304443ee603b0b171149dd7832f4e3139831f',
-  // #2505/D: no dedicated rule yet, so the unknown-category rule holds
-  // (HUMAN_REVIEW + UNKNOWN_ACTION_CATEGORY). Recorded, not bypassed: the
-  // amount/destination/reversibility rule replaces this digest when it lands.
-  FINANCIAL_TRANSACTION: 'e8d22838554d704e730eedfb144d49a91d87f8e5c6031a3f84e3a42fa027de83',
+  // #2505/D: category output is now input-sensitive through the dedicated
+  // amount/destination/reversibility policy and is asserted below.
+  FINANCIAL_TRANSACTION: 'financial-policy-v1',
 };
 
 describe('classifyAgentAction per-category outputs (unchanged)', () => {
@@ -80,7 +79,17 @@ describe('classifyAgentAction per-category outputs (unchanged)', () => {
   });
 
   for (const category of Object.values(ACTION_CATEGORIES)) {
-    it(`${category} output is byte-identical to main`, () => {
+    it(`${category} output follows its pinned contract`, () => {
+      if (category === ACTION_CATEGORIES.FINANCIAL_TRANSACTION) {
+        for (const output of outputsFor(category)) {
+          assert.equal(output.riskLevel, 'CRITICAL');
+          assert.equal(output.reason, 'FINANCIAL_DETAILS_ABSENT');
+          assert.ok(!output.flags.includes('UNKNOWN_ACTION_CATEGORY'));
+          if (output.flags.includes('HARD_BLOCKED')) assert.equal(output.decision, 'BLOCK');
+          else assert.equal(output.decision, 'HUMAN_REVIEW');
+        }
+        return;
+      }
       assert.equal(digest(outputsFor(category)), GOLDEN[category]);
     });
   }

@@ -72,7 +72,8 @@
     "test:consumer-compile": "node scripts/test-consumer-compile.js",
     "test:fuzz": "node scripts/run-tests.js \"test/fuzz/*.test.js\"",
     "test:recovery": "node scripts/run-tests.js \"test/recovery/*.test.js\"",
-    "test:mutation": "npx --yes --package=@stryker-mutator/core@10.0.0 --package=@stryker-mutator/tap-runner@10.0.0 stryker run"
+    "test:mutation": "npx --yes --package=@stryker-mutator/core@10.0.0 --package=@stryker-mutator/tap-runner@10.0.0 stryker run",
+    "test:security-release": "node scripts/security-release-evaluation.js"
   },
   "keywords": [
     "ai-governance",
@@ -292,6 +293,7 @@
     "lib/command-exec-gate.js",
     "lib/external-action-adapter.js",
     "lib/external-action-envelope.js",
+    "lib/financial-action-policy.js",
     "lib/external-action-guard.js",
     "lib/external-action-egress-gates.js",
     "lib/external-action-gate-install.js",
@@ -574,6 +576,7 @@
     "lib/memory-store-persistence-report.js",
     "lib/memory-store-reopen.js",
     "lib/memory-store-sqlite-warmup.js",
+    "lib/memory-store-sqlite-writer.js",
     "lib/memory-store.js",
     "lib/module-reachability.js",
     "lib/mutation-admission.js",
