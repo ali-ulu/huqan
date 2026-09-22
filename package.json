@@ -574,6 +574,7 @@
     "lib/memory-store-persistence-report.js",
     "lib/memory-store-reopen.js",
     "lib/memory-store-sqlite-warmup.js",
+    "lib/memory-store-sqlite-writer.js",
     "lib/memory-store.js",
     "lib/module-reachability.js",
     "lib/mutation-admission.js",

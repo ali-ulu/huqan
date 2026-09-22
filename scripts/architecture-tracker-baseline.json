@@ -212,8 +212,8 @@
       "signals": []
     },
     "lib/memory-store.js": {
-      "band": "decompose",
-      "lines": 966,
+      "band": "recorded",
+      "lines": 631,
       "signals": [
         "FANOUT:23"
       ]
@@ -769,6 +769,7 @@
       "lib/memory-store-reopen.js": "Adapters",
       "lib/memory-store-rollback.js": "Adapters",
       "lib/memory-store-sqlite-warmup.js": "Adapters",
+      "lib/memory-store-sqlite-writer.js": "Adapters",
       "lib/memory-store-utils.js": "Adapters",
       "lib/memory-store-write.js": "Adapters",
       "lib/memory-store.js": "Adapters",
@@ -1026,9 +1027,11 @@
       "scripts/a2a-conformance/run.js": "UI",
       "scripts/a2a-conformance/verifier.js": "UI",
       "scripts/agent-context.js": "UI",
+      "scripts/api-semver-gate.js": "UI",
       "scripts/api-snapshot-diff.js": "UI",
       "scripts/api-snapshot-surface.js": "UI",
       "scripts/api-snapshot.js": "UI",
+      "scripts/architecture-dependency-graph.js": "UI",
       "scripts/architecture-mermaid.js": "UI",
       "scripts/architecture-snapshot.js": "UI",
       "scripts/backup.js": "UI",
@@ -1089,6 +1092,7 @@
       "scripts/seed-demo.js": "UI",
       "scripts/setup-sqlite.js": "UI",
       "scripts/spawn-windows-aware.js": "UI",
+      "scripts/test-consumer-compile.js": "UI",
       "scripts/test-state-sandbox.js": "UI",
       "scripts/verify-package-tarball.js": "UI",
       "scripts/verify-published-round-trip.js": "UI",
@@ -2783,6 +2787,7 @@
       ],
       "lib/memory-store-json-persistence.js": [
         "lib/memory-schema.js",
+        "lib/memory-store-persistence-report.js",
         "lib/memory-store-utils.js"
       ],
       "lib/memory-store-reopen.js": [
@@ -2792,6 +2797,11 @@
       ],
       "lib/memory-store-sqlite-warmup.js": [
         "lib/memory-schema.js"
+      ],
+      "lib/memory-store-sqlite-writer.js": [
+        "lib/memory-schema.js",
+        "lib/memory-store-json-persistence.js",
+        "lib/memory-store-utils.js"
       ],
       "lib/memory-store-utils.js": [
         "lib/default-persistence-path.js",
@@ -2815,12 +2825,12 @@
         "lib/memory-query-engine.js",
         "lib/memory-record-read.js",
         "lib/memory-record-utils.js",
-        "lib/memory-schema.js",
         "lib/memory-store-json-persistence.js",
         "lib/memory-store-persistence-report.js",
         "lib/memory-store-reopen.js",
         "lib/memory-store-rollback.js",
         "lib/memory-store-sqlite-warmup.js",
+        "lib/memory-store-sqlite-writer.js",
         "lib/memory-store-utils.js",
         "lib/memory-store-write.js",
         "lib/memory-supersede.js",
@@ -3584,6 +3594,10 @@
       "scripts/a2a-conformance/verifier.js": [
         "lib/a2a/bounded-exchange.js"
       ],
+      "scripts/api-semver-gate.js": [
+        "scripts/api-snapshot-diff.js",
+        "scripts/api-snapshot-surface.js"
+      ],
       "scripts/api-snapshot-diff.js": [
         "scripts/api-snapshot-surface.js"
       ],
@@ -3600,6 +3614,7 @@
         "scripts/check-layers.js"
       ],
       "scripts/architecture-snapshot.js": [
+        "scripts/architecture-dependency-graph.js",
         "scripts/architecture-mermaid.js",
         "scripts/check-import-cycles.js"
       ],
@@ -3708,6 +3723,9 @@
       ],
       "scripts/setup-sqlite.js": [
         "lib/sqlite-availability.js"
+      ],
+      "scripts/test-consumer-compile.js": [
+        "scripts/spawn-windows-aware.js"
       ],
       "scripts/verify-package-tarball.js": [
         "scripts/spawn-windows-aware.js"

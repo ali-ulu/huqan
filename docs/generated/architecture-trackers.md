@@ -3,16 +3,15 @@
 
 Tracked in total: **62**
 
-## Decomposition owed, over 800 lines (4)
+## Decomposition owed, over 800 lines (3)
 
 | File | Lines | Signals |
 |---|---:|---|
 | `graph.js` | 1242 | FANOUT:35 |
 | `kernel.js` | 1058 | FANOUT:39 |
 | `server.js` | 1017 | FANOUT:52 |
-| `lib/memory-store.js` | 966 | FANOUT:23 |
 
-## Recorded debt, 401-800 lines (57)
+## Recorded debt, 401-800 lines (58)
 
 | File | Lines | Signals |
 |---|---:|---|
@@ -34,6 +33,7 @@ Tracked in total: **62**
 | `lib/provenance-query.js` | 656 | — |
 | `cli.js` | 637 | FANOUT:26 |
 | `lib/receipt/receipt-read-index.js` | 637 | — |
+| `lib/memory-store.js` | 631 | FANOUT:23 |
 | `storage.js` | 627 | — |
 | `lib/conflict-detector.js` | 616 | — |
 | `lib/github-app-streaming-trust.js` | 612 | — |
