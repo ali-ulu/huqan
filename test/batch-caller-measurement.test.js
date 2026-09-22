@@ -166,7 +166,11 @@ test('the legacy candidate ingest path has no direct HTTP, CLI, or MCP entry', (
   const server = readCode('server.js');
 
   assert.equal(server.includes('ingestCandidateClaim'), false, 'no HTTP ingest entry');
-  assert.match(server, /queryCandidateClaims/, 'the HTTP surface reads candidate claims');
+  // #2128 slice 2: the four trust query routes moved to the mount, so the
+  // HTTP surface spans both files now. The claim still holds: candidate
+  // claims are read, not written, from HTTP.
+  const httpSurface = server + '\n' + readCode('lib/http/trust-query-routes.js');
+  assert.match(httpSurface, /queryCandidateClaims/, 'the HTTP surface reads candidate claims');
   assert.equal(readCode('cli.js').includes('ingestCandidateClaim'), false);
   assert.equal(readCode('mcpServer.js').includes('ingestCandidateClaim'), false);
 
