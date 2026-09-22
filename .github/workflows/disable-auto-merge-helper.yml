@@ -13,13 +13,12 @@ jobs:
   disable:
     runs-on: ubuntu-latest
     steps:
-      - name: Disable auto-merge on policy-controlled PRs
+      - name: Disable auto-merge on policy-controlled PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
-          for pr_id in             PR_kwDOTYucQM8AAAABEfjiQg             PR_kwDOTYucQM8AAAABEfwYzg
-          do
-            gh api graphql               -f query='mutation($id:ID!){disablePullRequestAutoMerge(input:{pullRequestId:$id}){pullRequest{number autoMergeRequest{enabledAt}}}}'               -F id="$pr_id"
-          done
+          gh api graphql \
+            -f query='mutation($id:ID!){disablePullRequestAutoMerge(input:{pullRequestId:$id}){pullRequest{number autoMergeRequest{enabledAt}}}}' \
+            -F id='PR_kwDOTYucQM8AAAABEjo3ZQ'
