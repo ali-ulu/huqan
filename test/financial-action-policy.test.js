@@ -4,7 +4,7 @@
 // allow. Amount limits and keyword inference are explicit follow-ups.
 
 const assert = require('node:assert/strict');
-const { describe, it } = require('node:test');
+const { describe, it, test } = require('node:test');
 
 const { evaluateFinancialAction, FINANCIAL_REASONS } = require('../lib/financial-action-policy');
 const { classifyAgentAction } = require('../lib/action-risk-classifier');
