@@ -31,6 +31,7 @@ const PROVENANCE_PATHS = [
   'adapters/pdf-adapter.js',
   'adapters/yaml-adapter.js',
   'lib/background-provenance.js',
+  'lib/background-provenance-projection.js',
   'lib/conflict-detector.js',
   'lib/connectors/entry-ingest-flow.js',
   'lib/github-connector.js',
@@ -70,10 +71,14 @@ const PINNED = new Set([
  */
 const NOT_PINNED = {
   'lib/background-provenance.js':
-    'builds provenance for the kernel\'s own writes and for the plugin edge '
-    + 'surface. It originates no external content, so it has nothing of its own '
-    + 'to pin -- but it does forward a caller\'s pin through '
-    + 'provenanceFieldsFrom, which is what carries company-brain API ingest.',
+    'owns the admission-gated background edge commit and delegates provenance '
+    + 'construction to background-provenance-projection. It originates no '
+    + 'external content, so it has nothing of its own to pin.',
+  'lib/background-provenance-projection.js':
+    'builds synthetic provenance for kernel and plugin writes. It originates no '
+    + 'external content, so it has nothing of its own to pin -- but it forwards '
+    + 'a caller\'s pin through provenanceFieldsFrom, which is what carries '
+    + 'company-brain API ingest.',
   'lib/conflict-detector.js':
     'records a conflict between claims already in the graph. No external content '
     + 'is read, so there is nothing to pin.',

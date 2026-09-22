@@ -37,7 +37,7 @@
     },
     "graph.js": {
       "band": "decompose",
-      "lines": 1242,
+      "lines": 976,
       "signals": [
         "FANOUT:35"
       ]
@@ -610,6 +610,7 @@
       "lib/graph-query-read.js": "Core",
       "lib/graph-record-utils.js": "Core",
       "lib/graph-sqlite-pragmas.js": "Core",
+      "lib/graph-sqlite-schema.js": "Core",
       "lib/graph-stats.js": "Core",
       "lib/graph-traversal.js": "Core",
       "lib/http-human-oversight-adapter.js": "Core",
@@ -1266,7 +1267,7 @@
         "lib/graph-prune.js",
         "lib/graph-query-read.js",
         "lib/graph-record-utils.js",
-        "lib/graph-sqlite-pragmas.js",
+        "lib/graph-sqlite-schema.js",
         "lib/graph-stats.js",
         "lib/memory-store-utils.js",
         "lib/mutation-journal.js",
@@ -2226,6 +2227,10 @@
         "lib/audit-log.js",
         "lib/is-plain-object.js",
         "lib/workspace-id.js"
+      ],
+      "lib/graph-sqlite-schema.js": [
+        "lib/graph-mutation-receipt-schema.js",
+        "lib/graph-sqlite-pragmas.js"
       ],
       "lib/http-human-oversight-adapter.js": [
         "lib/agent-action-firewall.js",
