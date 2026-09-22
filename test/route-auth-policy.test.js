@@ -167,11 +167,19 @@ test('policy table: trailing slash cannot bypass the deny default', () => {
  * this fails instead of silently shipping an unreviewed surface.
  */
 test('every route handled by server.js is declared in the policy table', () => {
-  const source = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  // Dispatch sites: server.js plus the route mounts it delegates to (#2128:
+  // viewer-mount, trust-query-routes). A route that moves out of server.js
+  // stays handled, so the scan follows it instead of going blind.
+  const sources = [
+    fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8'),
+    fs.readFileSync(path.join(__dirname, '..', 'lib', 'http', 'trust-query-routes.js'), 'utf8'),
+  ];
 
   const handled = new Set();
-  for (const match of source.matchAll(/(?:reqUrl\.pathname|pathname)\s*===\s*'([^']+)'/g)) {
-    handled.add(match[1]);
+  for (const source of sources) {
+    for (const match of source.matchAll(/(?:reqUrl\.pathname|pathname)\s*===\s*'([^']+)'/g)) {
+      handled.add(match[1]);
+    }
   }
 
   assert.ok(handled.size >= 15, `expected to discover server routes, found ${handled.size}`);

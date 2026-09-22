@@ -8,8 +8,8 @@ Tracked in total: **62**
 | File | Lines | Signals |
 |---|---:|---|
 | `kernel.js` | 1058 | FANOUT:39 |
-| `server.js` | 990 | FANOUT:51 |
 | `graph.js` | 976 | FANOUT:35 |
+| `server.js` | 920 | FANOUT:51 |
 
 ## Recorded debt, 401-800 lines (58)
 

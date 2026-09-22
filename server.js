@@ -20,7 +20,6 @@ const { handleIngest, buildIngestApprovalSnapshot, sha256 } = require('./lib/ing
 const HuqanStorage = require('./storage');
 const { decideIngestApproval } = require('./lib/workbench/ingest-approval-action');
 const { createHttpIngestOversightCase } = require('./lib/http-human-oversight-adapter');
-const { buildTrustReceipt, queryAuditTrailPage, queryCandidateClaims, queryProvenance } = require('./lib/provenance-query');
 const { readReceiptById } = require('./lib/receipt/receipt-read-index');
 const { createBackgroundTimers } = require('./lib/http/background-timers');
 const { createServerLifecycle, requireApiKeyAtBoot } = require('./lib/http/server-boot'), { resolveHttpServerTimeouts, resolveRequestLimits, createConcurrencyLimiter, DEFAULT_RETRY_AFTER_MS } = require('./lib/http/server-timeouts'), { resolveRequestUrl } = require('./lib/http/request-origin');
@@ -32,6 +31,8 @@ const { createReadWorkflowHttpRouter } = require('./lib/http/read-workflow-actio
 const { createWorkflowDataRoutes, createLearnApprovalDecision } = require('./lib/http/workflow-data-routes');
 const { bindHttpProvenance } = require('./lib/http/http-provenance');
 const { readExactWorkspace } = require('./lib/http/exact-workspace');
+// #2128 slice 2: trust query routes live in lib/http/trust-query-routes.js.
+const { createTrustQueryRoutes } = require('./lib/http/trust-query-routes');
 // #2128: viewer mount (rate limiter + session store + gateway) lives in
 // lib/http/viewer-mount.js; the root keeps the single mount handle.
 const { createViewerMount } = require('./lib/http/viewer-mount');
@@ -314,6 +315,16 @@ const handleObservabilityRoute = observabilityRuntime.handleRoute;
 // a 404 the way #1894 did. See lib/http/static-assets.js.
 const { getHtmlPage, handleStaticAssetRequest } = require('./lib/http/static-assets');
 const handleAnswerRoute = require('./lib/http/answer-route').createAnswerRoute({ kernel, legacyVerify, sanitizeInput, parseJsonRequest, denyIfUnauthorized, buildCorsHeaders, JSON_CONTENT_TYPE, DEFAULT_MAX_JSON_BODY, writeJson }), handleFitnessDashboardRoute = createFitnessDashboardRoute({ kernel, writeJson, buildCorsHeaders, JSON_CONTENT_TYPE });
+const { handleTrustQueryRoutes } = createTrustQueryRoutes({
+  graph: kernel.graph,
+  writeJson,
+  writeApiError,
+  denyIfUnauthorized,
+  readExactWorkspace,
+  readTrustFilters,
+  hasTrustQuery,
+  writeStructuredLog,
+});
 const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnvironmentVariable), async (req, res) => {
   if (!concurrencyLimiter.tryAcquire()) { res.writeHead(503, { 'Content-Type': JSON_CONTENT_TYPE, 'Retry-After': String(Math.ceil(DEFAULT_RETRY_AFTER_MS / 1000)), 'Cache-Control': 'no-store' }); res.end(JSON.stringify({ ok: false, error: { code: 'service_unavailable', message: 'Server at capacity' } })); return; }
   let cr=false;const rel=()=>{if(!cr){cr=true;concurrencyLimiter.release();}};res.on('finish',rel);res.on('close',rel);
@@ -694,88 +705,7 @@ const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnviron
 
   if (handlePublicBadgeRequest({ req, res, reqUrl, source: kernel.graph, writeJson }) || await handleLlmProxyRequest(req, res, reqUrl, { graph: kernel.graph, writeJson }) || handleWorkbenchRead(req, res, reqUrl, kernel.graph)) return;
 
-  if (reqUrl.pathname === '/api/provenance' || reqUrl.pathname === '/api/audit' || reqUrl.pathname === '/api/candidate-claims' || reqUrl.pathname === '/api/trust-receipt') {
-    if (req.method !== 'GET') {
-      writeApiError(req, res, 405, 'METHOD_NOT_ALLOWED', 'Method not allowed');
-      return;
-    }
-    if (!denyIfUnauthorized(req, res)) return;
-    const exactWorkspaceRequired = reqUrl.pathname === '/api/audit'
-      || reqUrl.pathname === '/api/trust-receipt';
-    const workspace = exactWorkspaceRequired ? readExactWorkspace(reqUrl.searchParams) : null;
-    if (workspace && !workspace.ok) {
-      writeApiError(req, res, 400, workspace.code, 'Exactly one non-empty workspaceId is required.');
-      return;
-    }
-    const filters = readTrustFilters(reqUrl);
-    const workspaceId = workspace ? workspace.workspaceId : (filters.workspaceId || 'default');
-    const graph = kernel.graph;
-    try {
-      if (reqUrl.pathname === '/api/provenance') {
-        if (!hasTrustQuery(filters, ['targetId', 'provenanceId', 'sourceRef', 'sourceType', 'actor'])) {
-          writeApiError(req, res, 400, 'INVALID_QUERY', 'targetId, provenanceId, sourceRef, sourceType, or actor is required.');
-          return;
-        }
-        const items = queryProvenance(graph, { ...filters, workspaceId });
-        writeJson(req, res, 200, {
-          ok: true,
-          data: {
-            items,
-            total: items.length,
-            workspaceId,
-          },
-        }, { 'Cache-Control': 'no-cache' });
-        return;
-      }
-
-      if (reqUrl.pathname === '/api/audit') {
-        if (!hasTrustQuery(filters, ['targetId', 'provenanceId', 'sourceRef', 'eventType', 'actor'])) {
-          writeApiError(req, res, 400, 'INVALID_QUERY', 'targetId, provenanceId, sourceRef, eventType, or actor is required.');
-          return;
-        }
-        // Bounded page, not the whole trail (#729). `total` is this page's
-        // item count; hasMore/nextCursor carry continuation.
-        const page = queryAuditTrailPage(graph, { ...filters, workspaceId });
-        const { items, limit, hasMore, nextCursor } = page;
-        writeJson(req, res, 200, {
-          ok: true,
-          data: { items, total: items.length, limit, hasMore, nextCursor, workspaceId },
-        }, { 'Cache-Control': 'no-cache' });
-        return;
-      }
-
-      if (reqUrl.pathname === '/api/candidate-claims') {
-        if (!hasTrustQuery(filters, ['candidateId', 'status', 'recommendation', 'sourceRef', 'targetId'])) {
-          writeApiError(req, res, 400, 'INVALID_QUERY', 'candidateId, status, recommendation, sourceRef, or targetId is required.');
-          return;
-        }
-        const items = queryCandidateClaims(graph, { ...filters, workspaceId });
-        writeJson(req, res, 200, {
-          ok: true,
-          data: {
-            items,
-            total: items.length,
-            workspaceId,
-          },
-        }, { 'Cache-Control': 'no-cache' });
-        return;
-      }
-
-      if (!hasTrustQuery(filters, ['targetId', 'provenanceId', 'sourceRef', 'candidateId', 'eventType'])) {
-        writeApiError(req, res, 400, 'INVALID_QUERY', 'targetId, provenanceId, sourceRef, candidateId, or eventType is required.');
-        return;
-      }
-      const receipt = buildTrustReceipt({ ...filters, workspaceId }, { target: graph });
-      writeJson(req, res, 200, {
-        ok: true,
-        data: receipt,
-      }, { 'Cache-Control': 'no-cache' });
-    } catch (err) {
-      writeStructuredLog(console, 'error', 'http.trust_query_error', correlation, { route: '/api/trust', method: req.method, errorCode: err?.code || 'TRUST_QUERY_FAILED' });
-      writeApiError(req, res, 500, 'TRUST_QUERY_FAILED', 'trust query failed');
-    }
-    return;
-  }
+  if (handleTrustQueryRoutes(req, res, reqUrl, correlation)) return;
 
   if (reqUrl.pathname === '/api/ingest/approvals') {
     if (req.method !== 'GET') {

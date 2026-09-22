@@ -446,6 +446,7 @@
     "lib/http/request-origin.js",
     "lib/http/receipt-read-failures.js",
     "lib/http/route-auth-policy.js",
+    "lib/http/trust-query-routes.js",
     "lib/http/static-assets.js",
     "lib/http/upload-admission-contract.js",
     "lib/http/v2-status-phases.js",

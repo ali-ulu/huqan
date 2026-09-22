@@ -314,7 +314,7 @@
     },
     "server.js": {
       "band": "decompose",
-      "lines": 990,
+      "lines": 920,
       "signals": [
         "FANOUT:51"
       ]
@@ -418,6 +418,7 @@
       "lib/autonomy-state.js": "Core",
       "lib/autonomy-trust-score.js": "Core",
       "lib/axiom-package-format.js": "Core",
+      "lib/background-provenance-projection.js": "Core",
       "lib/background-provenance.js": "Core",
       "lib/behavioral-stop-bridge.js": "Core",
       "lib/blast-radius.js": "Core",
@@ -647,6 +648,7 @@
       "lib/http/server-timeouts.js": "UI",
       "lib/http/static-assets.js": "UI",
       "lib/http/structured-log.js": "UI",
+      "lib/http/trust-query-routes.js": "UI",
       "lib/http/upload-admission-contract.js": "UI",
       "lib/http/v2-status-phases.js": "UI",
       "lib/http/v5-package-import-route.js": "UI",
@@ -1555,10 +1557,13 @@
       "lib/axiom-package-format.js": [
         "lib/huqan-package-format.js"
       ],
-      "lib/background-provenance.js": [
-        "lib/cli-mutation-audit-intent.js",
+      "lib/background-provenance-projection.js": [
         "lib/human-sponsor-authority.js",
         "lib/trust-policy.js"
+      ],
+      "lib/background-provenance.js": [
+        "lib/background-provenance-projection.js",
+        "lib/cli-mutation-audit-intent.js"
       ],
       "lib/behavioral-stop-bridge.js": [
         "lib/agent-action-firewall.js",
@@ -2337,6 +2342,9 @@
       ],
       "lib/http/structured-log.js": [
         "lib/secret-scrub-gate.js"
+      ],
+      "lib/http/trust-query-routes.js": [
+        "lib/provenance-query.js"
       ],
       "lib/http/v5-package-import-route.js": [
         "lib/audit-log.js",
@@ -3792,6 +3800,7 @@
         "lib/http/server-timeouts.js",
         "lib/http/static-assets.js",
         "lib/http/structured-log.js",
+        "lib/http/trust-query-routes.js",
         "lib/http/upload-admission-contract.js",
         "lib/http/v2-status-phases.js",
         "lib/http/v5-package-import-route.js",
@@ -3803,7 +3812,6 @@
         "lib/kernel-factory.js",
         "lib/llm-proxy/proxy-mount.js",
         "lib/observability/server-runtime.js",
-        "lib/provenance-query.js",
         "lib/receipt/receipt-read-index.js",
         "lib/server-graph-data.js",
         "lib/server-response-helpers.js",
