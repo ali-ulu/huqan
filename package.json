@@ -803,6 +803,7 @@
     "scripts/restore.js",
     "scripts/run-trust-receipt-pilot.js",
     "scripts/fitness-dashboard.js",
+    "scripts/fitness-dashboard-charts.js",
     "scripts/huqan-watchdog.js",
     "server.js",
     "specs/axiom-package-format/0.1/README.md",

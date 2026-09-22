@@ -8,6 +8,30 @@ const {
   gradeColor,
   gradeLabel,
 } = require('../scripts/fitness-dashboard');
+test('dashboard splits into charts + page modules (#2244)', () => {
+  const charts = require('../scripts/fitness-dashboard-charts');
+  const facade = require('../scripts/fitness-dashboard');
+
+  assert.equal(typeof charts.buildScoreSvg, 'function');
+  assert.equal(typeof charts.buildComponentSvg, 'function');
+  assert.equal(typeof charts.buildRecordsTable, 'function');
+  assert.equal(typeof charts.buildThresholdsPanel, 'function');
+  assert.equal(typeof charts.escapeHtml, 'function');
+  assert.equal(typeof charts.gradeColor, 'function');
+  assert.equal(typeof charts.gradeLabel, 'function');
+  assert.equal(Array.isArray(charts.GRADE_BANDS), true);
+  assert.equal(Array.isArray(charts.COMPONENT_ORDER), true);
+
+  // The facade stays the public contract: same functions, same behavior.
+  assert.equal(facade.buildFitnessDashboard, require('../scripts/fitness-dashboard').buildFitnessDashboard);
+  assert.equal(facade.buildScoreSvg, charts.buildScoreSvg);
+  assert.equal(facade.escapeHtml, charts.escapeHtml);
+  assert.equal(facade.gradeColor, charts.gradeColor);
+  assert.equal(facade.gradeLabel, charts.gradeLabel);
+  assert.equal(typeof facade.buildFitnessDashboard, 'function');
+});
+
+
 
 function sampleEntry(score, grade, ts = '2026-08-29T10:00:00.000Z') {
   return {
