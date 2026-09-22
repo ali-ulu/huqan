@@ -168,6 +168,10 @@ const ROUTED_SINK_CALLS = Object.freeze({
     why: 'candidate family, human review verdict; delegates to the admitted kernel.addCandidateClaim',
     sinks: { addCandidateClaim: 1 },
   },
+  'lib/web-research-candidate-pipeline.js': {
+    why: 'external research candidate family; pending-only pipeline delegates to admitted kernel.addCandidateClaim and never calls Graph directly',
+    sinks: { addCandidateClaim: 1 },
+  },
   // Lexical. The durable commit -- runMutationOnce and the sink inside it -- is
   // the admitted effect, so a refusal leaves no journal entry, row or receipt.
   // This is the only routed caller whose identity is receiver-verified before
@@ -399,6 +403,6 @@ test('mutation admission: the debt ledger reflects the routing done so far', () 
   // is the point of this ledger, and the entry stays unrouted until the
   // family-independent admission seam covers audit events.
   assert.equal(unrouted, 26, 'unrouted sink calls');
-  assert.equal(routed, 29, 'sink calls routed through admission (K2 + DEL callbacks + hypothesis surface)');
-  assert.equal(unrouted + routed, 55, 'total sink calls, raised by K2 delegation, DEL audit, maintenance evidence, the hypothesis surface, the external-action receipt projection, and the now-visible review audit write');
+  assert.equal(routed, 30, 'sink calls routed through admission (K2 + DEL callbacks + hypothesis + research candidate surfaces)');
+  assert.equal(unrouted + routed, 56, 'total sink calls, including the admitted pending-only external research candidate surface');
 });

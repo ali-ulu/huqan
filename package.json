@@ -701,6 +701,7 @@
     "lib/llm-proxy/proxy-handler.js",
     "lib/llm-proxy/proxy-mount.js",
     "lib/web-research.js",
+    "lib/web-research-candidate-pipeline.js",
     "lib/browser-hook-outcome.js",
     "lib/browser-session-observer.js",
     "lib/web-research-workflow.js",

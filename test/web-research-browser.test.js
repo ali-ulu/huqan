@@ -22,12 +22,14 @@ describe('Web research real-browser UI with provider fixtures', { skip: skip || 
     }
     throw Error(`Browser condition timed out: ${expression}`);
   }
-  async function search(provider = 'brave') {
+  async function search(provider = 'brave', openCandidates = false) {
     await browser.evaluate(`(() => {
       document.getElementById('action').value = 'web-research';
       document.getElementById('action').dispatchEvent(new Event('change'));
       document.getElementById('researchprovider').value = ${JSON.stringify(provider)};
       document.getElementById('researchprovider').dispatchEvent(new Event('change'));
+      document.getElementById('researchcandidates').checked = ${JSON.stringify(openCandidates)};
+      document.getElementById('researchcandidates').dispatchEvent(new Event('change'));
       document.getElementById('prompt').value = 'fixture research question';
       document.getElementById('run').click();
     })()`);
@@ -60,7 +62,8 @@ describe('Web research real-browser UI with provider fixtures', { skip: skip || 
         const input = JSON.parse(init.body);
         return new Response(JSON.stringify({ ok: true, data: { provider: input.provider, sources: [{
           title: '<img src=x onerror=alert(1)> fixture', url: 'https://example.com/research', snippet: '<script>fixture</script> safe text'
-        }], canonicalWrite: false, evidenceStatus: 'external_unverified', evidenceLadder: { schemaVersion: 'huqan-evidence-ladder-v1', current: 'external_research', levels: [{ id: 'external_research' }, { id: 'review_candidate' }, { id: 'canonical_evidence' }, { id: 'verified_claim' }] } } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }], canonicalWrite: false, evidenceStatus: 'external_unverified', evidenceLadder: { schemaVersion: 'huqan-evidence-ladder-v1', current: 'external_research', levels: [{ id: 'external_research' }, { id: 'review_candidate' }, { id: 'canonical_evidence' }, { id: 'verified_claim' }] },
+          ...(input.openCandidates ? { candidatePipeline: { enabled: true, opened: 1, contradictions: 1, canonicalWrite: false, items: [{ candidateId: 'research_fixture', status: 'pending', recommendation: 'flag', contradictionCount: 1 }] } } : {}) } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       };
     })()`);
   });
@@ -87,6 +90,18 @@ describe('Web research real-browser UI with provider fixtures', { skip: skip || 
       assert.match(await browser.evaluate("document.querySelector('[data-evidence-ladder]').textContent"), /External research/);
     }
   });
+  it('requests pending candidates only when the operator opts in', async () => {
+    await search('brave', true);
+    const result = await browser.evaluate(`(() => ({
+      body: window.researchFixtureCalls.at(-1).body,
+      candidateText: document.querySelector('[data-research-candidates]')?.textContent || '',
+    }))()`);
+    assert.equal(result.body.openCandidates, true);
+    assert.match(result.candidateText, /1/);
+    await search('brave', false);
+    assert.equal(await browser.evaluate('window.researchFixtureCalls.at(-1).body.openCandidates'), false);
+  });
+
   it('prepares learning review without submitting a write', async () => {
     await search();
     const beforeCount = await browser.evaluate('window.researchFixtureCalls.length');

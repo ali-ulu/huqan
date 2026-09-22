@@ -825,6 +825,11 @@
       "review_candidate": "Review candidate",
       "canonical_evidence": "Canonical evidence",
       "verified_claim": "Verified claim"
-    }
+    },
+    "openCandidates": "Open pending research candidates",
+    "candidateNote": "External results stay unverified and require human review; research never writes canonical memory.",
+    "externalCandidates": "External sources remain unverified. Pending review candidates were opened; canonical memory was not changed.",
+    "candidatesOpened": "Pending research candidates opened",
+    "contradictionsFound": "contradictions found"
   }
 }
