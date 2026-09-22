@@ -33,7 +33,6 @@ Tracked in total: **62**
 | `lib/provenance-query.js` | 656 | — |
 | `cli.js` | 637 | FANOUT:26 |
 | `lib/receipt/receipt-read-index.js` | 637 | — |
-| `lib/memory-store.js` | 631 | FANOUT:23 |
 | `storage.js` | 627 | — |
 | `lib/conflict-detector.js` | 616 | — |
 | `lib/github-app-streaming-trust.js` | 612 | — |
@@ -41,6 +40,7 @@ Tracked in total: **62**
 | `backupRestore.js` | 610 | — |
 | `lib/mcp-gate-adapter.js` | 606 | — |
 | `finalizer.js` | 604 | — |
+| `lib/memory-store.js` | 594 | FANOUT:20 |
 | `lib/external-action-receipt.js` | 589 | — |
 | `lib/ingest.js` | 587 | — |
 | `lib/memory-schema.js` | 565 | — |

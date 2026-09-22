@@ -16,8 +16,8 @@ const delegateCode = delegateSource
 
 test('MS: event-read methods are delegated to lib/memory-event-read.js', () => {
   assert.ok(
-    storeSource.includes("const { runEventsForMemory, runTimeline, runGetEvents } = require('./memory-event-read');"),
-    'lib/memory-store.js imports both event-read delegates',
+    storeSource.includes("const { runEventsForMemory, runTimeline, runGetEvents, runHistory } = require('./memory-event-read');"),
+    'lib/memory-store.js imports the event-read delegates including runHistory (#2129)',
   );
 
   const eventsMatch = storeSource.match(/eventsForMemory\(memoryId, opts = \{\}\) \{[\s\S]*?\n  \}/);
@@ -48,6 +48,14 @@ test('MS: event-read methods are delegated to lib/memory-event-read.js', () => {
   assert.ok(contextMatch, '_eventReadContext exists');
   assert.match(contextMatch[0], /events: this\._events/);
   assert.match(contextMatch[0], /findMemory:/);
+
+  const historyMatch = storeSource.match(/history\(memoryId, opts = \{\}\) \{[\s\S]*?\n  \}/);
+  assert.ok(historyMatch, 'history method still exists');
+  assert.match(
+    historyMatch[0],
+    /history\(memoryId, opts = \{\}\) \{\s*return runHistory\(this\._eventReadContext\(\), memoryId, opts\);/,
+    'history is a one-line delegation (#2129)',
+  );
 });
 
 test('MS: pinned call sites — event-read delegation remains read-only', () => {
@@ -55,7 +63,8 @@ test('MS: pinned call sites — event-read delegation remains read-only', () => 
   assert.equal((storeSource.match(/runEventsForMemory\(/g) || []).length, 1, 'runEventsForMemory has one call site');
   assert.equal((storeSource.match(/runTimeline\(/g) || []).length, 1, 'runTimeline has one call site');
   assert.equal((storeSource.match(/runGetEvents\(/g) || []).length, 1, 'runGetEvents has one call site');
-  assert.equal((storeSource.match(/_eventReadContext\(\)/g) || []).length, 4, 'context factory has one definition plus three call sites');
+  assert.equal((storeSource.match(/runHistory\(/g) || []).length, 1, 'runHistory has one call site (#2129)');
+  assert.equal((storeSource.match(/_eventReadContext\(\)/g) || []).length, 5, 'context factory has one definition plus four call sites');
 
   assert.equal((delegateCode.match(/this\./g) || []).length, 0, 'delegate has no this/store receiver access');
   assert.ok(!delegateCode.includes("require('./memory-store')"), 'delegate has no cycle back into memory-store');

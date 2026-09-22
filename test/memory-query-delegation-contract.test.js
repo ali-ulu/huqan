@@ -10,7 +10,7 @@ const path = require('node:path');
 
 const STORE_SOURCE = path.join(__dirname, '..', 'lib', 'memory-store.js');
 const ENGINE_SOURCE = path.join(__dirname, '..', 'lib', 'memory-query-engine.js');
-const ENGINE_IMPORT = "const { runQuery } = require('./memory-query-engine');";
+const ENGINE_IMPORT = "const { runQuery, runMemoriesBetween } = require('./memory-query-engine');";
 const ENGINE_REQUIRE_REGEX = /require\('\.\/memory-query-engine'\)/;
 
 const storeSource = fs.readFileSync(STORE_SOURCE, 'utf8').replace(/\r\n/g, '\n');
@@ -74,6 +74,17 @@ test('MS: pinned call sites — query delegation (post-MS count)', () => {
 
   const runQueryCalls = (storeSource.match(/runQuery\(/g) || []).length;
   assert.equal(runQueryCalls, 1, 'runQuery is invoked from exactly one call site (query method)');
+
+  // #2129: memoriesBetween validates its range in the engine and reuses the
+  // same runQuery context the query method builds.
+  const betweenMatch = storeSource.match(/memoriesBetween\(start, end, opts = \{\}\) \{[\s\S]*?\n  \}/);
+  assert.ok(betweenMatch, 'memoriesBetween method still exists');
+  assert.match(
+    betweenMatch[0],
+    /return runMemoriesBetween\(\{ memories: this\._memories, isActiveRecord: this\._isActiveRecord\.bind\(this\) \}, start, end, opts\);/,
+    'memoriesBetween is a one-line delegation to runMemoriesBetween',
+  );
+  assert.equal((storeSource.match(/runMemoriesBetween\(/g) || []).length, 1, 'runMemoriesBetween has one call site');
 
   const queryDelegations = (storeSource.match(/return this\.query\(opts\);/g) || []).length;
   assert.equal(queryDelegations, 1, 'search remains the single query alias');

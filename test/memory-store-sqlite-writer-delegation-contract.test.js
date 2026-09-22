@@ -27,6 +27,7 @@ test('#2129: SQLite write path is delegated to the writer module', () => {
   for (const name of [
     'initMemorySchema',
     'createMemoryStmts',
+    'openMemoryDatabase',
     'persistStoreWrite',
     'persistLinkMemories',
     'persistPatchMetadata',

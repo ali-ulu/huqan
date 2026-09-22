@@ -213,9 +213,9 @@
     },
     "lib/memory-store.js": {
       "band": "recorded",
-      "lines": 631,
+      "lines": 594,
       "signals": [
-        "FANOUT:23"
+        "FANOUT:20"
       ]
     },
     "lib/observability/api-contract.js": {
@@ -1054,6 +1054,7 @@
       "scripts/check-mutation-score.js": "UI",
       "scripts/check-package-closure.js": "UI",
       "scripts/check-pr-guardian-webhook-url.js": "UI",
+      "scripts/check-security-invariants.js": "UI",
       "scripts/check-structured-log-format.js": "UI",
       "scripts/check-v5-identity-readiness.js": "UI",
       "scripts/check-workflow-governance.js": "UI",
@@ -2801,7 +2802,9 @@
       "lib/memory-store-sqlite-writer.js": [
         "lib/memory-schema.js",
         "lib/memory-store-json-persistence.js",
-        "lib/memory-store-utils.js"
+        "lib/memory-store-utils.js",
+        "lib/sqlite-availability.js",
+        "lib/sqlite-durability.js"
       ],
       "lib/memory-store-utils.js": [
         "lib/default-persistence-path.js",
@@ -2824,7 +2827,6 @@
         "lib/memory-patch-metadata.js",
         "lib/memory-query-engine.js",
         "lib/memory-record-read.js",
-        "lib/memory-record-utils.js",
         "lib/memory-store-json-persistence.js",
         "lib/memory-store-persistence-report.js",
         "lib/memory-store-reopen.js",
@@ -2835,9 +2837,7 @@
         "lib/memory-store-write.js",
         "lib/memory-supersede.js",
         "lib/memory-temporal.js",
-        "lib/memory-tombstone.js",
-        "lib/sqlite-availability.js",
-        "lib/sqlite-durability.js"
+        "lib/memory-tombstone.js"
       ],
       "lib/memory-supersede.js": [
         "lib/memory-record-utils.js",
@@ -3082,6 +3082,7 @@
         "lib/is-plain-object.js"
       ],
       "lib/risk-classify.js": [
+        "lib/financial-action-policy.js",
         "lib/is-plain-object.js",
         "lib/risk-policy-constants.js"
       ],

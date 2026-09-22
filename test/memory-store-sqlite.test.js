@@ -245,9 +245,13 @@ describe('memory-store-sqlite', () => {
       return originalLoad.apply(this, arguments);
     };
 
-    // Clear require cache of memory-store
+    // Clear require cache of memory-store and its SQLite writer: the driver
+    // load state lives at the writer's top level since #2129, so clearing
+    // the store alone would keep the previously loaded Database.
     const storeKey = require.resolve('../lib/memory-store');
+    const writerKey = require.resolve('../lib/memory-store-sqlite-writer');
     delete require.cache[storeKey];
+    delete require.cache[writerKey];
 
     const MemoryStoreMock = require('../lib/memory-store');
 
@@ -258,6 +262,7 @@ describe('memory-store-sqlite', () => {
     // Restore load and require cache
     Module._load = originalLoad;
     delete require.cache[storeKey];
+    delete require.cache[writerKey];
   });
 
   it('runs safely in in-memory mode when useSQLite is false', () => {
