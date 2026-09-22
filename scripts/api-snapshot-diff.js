@@ -162,7 +162,7 @@ function reportMarkdown(result, options = {}) {
   }
   if (result.breaking.length === 0) lines.push('', '✅ No breaking API changes detected.');
   else {
-    lines.push('', `❌ ${result.breaking.length} breaking API change(s) detected:`, '');
+    lines.push('', '⚠️ Breaking change detected. Major version bump required.', '', `❌ ${result.breaking.length} breaking API change(s) detected:`, '');
     for (const item of result.breaking) lines.push(`- **${item.area}** \`${item.key}\`: ${item.reason}`);
   }
   if (result.added.length > 0) {
