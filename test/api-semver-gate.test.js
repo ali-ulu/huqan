@@ -49,3 +49,14 @@ test('API semver verdict blocks a breaking diff without the major bump', () => {
   assert.equal(allowed.breaking, true);
   assert.equal(allowed.ok, true);
 });
+
+
+test('semver gate does not silently bootstrap past a legacy release without a committed baseline', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'api-semver-gate.js'), 'utf8');
+  assert.match(source, /function buildSnapshotAtTag\(tag\)/);
+  assert.match(source, /worktree', 'add'/);
+  assert.match(source, /reconstructed historical snapshot/);
+  assert.doesNotMatch(source, /predates api-snapshot-baseline\.json/);
+});
