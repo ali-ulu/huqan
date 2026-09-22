@@ -332,6 +332,7 @@
     "lib/company-ingest-gate.js",
     "lib/connector-action-firewall.js",
     "lib/connector-local-path.js",
+    "lib/conflict-candidate-review.js",
     "lib/conflict-detector.js",
     "lib/connectors/entry-ingest-flow.js",
     "lib/connectors/repo-memory-firewall.js",

@@ -509,6 +509,7 @@
       "lib/error-prevention/subject.js": "Application",
       "lib/error-prevention/trust.js": "Application",
       "lib/errors/provenance-error.js": "Core",
+      "lib/evidence-ladder.js": "Core",
       "lib/experience/canary.js": "Application",
       "lib/experience/capability-trust-canary-extension.js": "Application",
       "lib/experience/capability-trust-fallback-extension.js": "Application",
@@ -3421,6 +3422,9 @@
         "lib/http/workflow-request-validation.js",
         "lib/web-research.js",
         "llmAdapter.js"
+      ],
+      "lib/web-research.js": [
+        "lib/evidence-ladder.js"
       ],
       "lib/workbench/activity-read.js": [
         "lib/audit-query.js"
