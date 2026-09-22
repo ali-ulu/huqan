@@ -164,6 +164,13 @@ jobs:
       - name: Run the full test suite
         run: npm test
 
+      # #2505/H: release-specific security evaluation. The full suite above is
+      # necessary but not sufficient evidence for this release claim: this
+      # named gate keeps adversarial, prompt-injection/jailbreak and
+      # privilege/authority-overreach cases as an explicit release contract.
+      - name: Run release security evaluation
+        run: npm run test:security-release
+
       # Trusted publishing needs a newer npm than any Node 22 image ships
       # (setup-node's Node 22 comes with npm 10.x). The OIDC exchange lives in
       # npm >= 11.5.1; on an older CLI `npm publish` silently falls back to
