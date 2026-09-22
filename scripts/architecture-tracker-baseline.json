@@ -51,7 +51,7 @@
     },
     "kernel.v2.js": {
       "band": "recorded",
-      "lines": 702,
+      "lines": 662,
       "signals": [
         "DIP"
       ]
@@ -277,7 +277,7 @@
     },
     "lib/verify.js": {
       "band": "recorded",
-      "lines": 739,
+      "lines": 693,
       "signals": []
     },
     "plugin.js": {
@@ -695,6 +695,7 @@
       "lib/kernel-read-use-cases.js": "Core",
       "lib/kernel-self-evolve.js": "Core",
       "lib/kernel-self-learn.js": "Core",
+      "lib/kernel-v2-evidence.js": "Core",
       "lib/kernel-v2-native.js": "Core",
       "lib/kernel-v2-type-negation.js": "Core",
       "lib/learn-admission-request.js": "Core",
@@ -932,6 +933,7 @@
       "lib/verify-numeric-contradictions.js": "Core",
       "lib/verify-numeric-text.js": "Core",
       "lib/verify-status-vocabulary.js": "Core",
+      "lib/verify-subject.js": "Core",
       "lib/verify-turkish-text.js": "Core",
       "lib/verify.js": "Core",
       "lib/viewer/session-cookie.js": "UI",
@@ -1339,12 +1341,12 @@
       ],
       "kernel.v2.js": [
         "kernel.js",
+        "lib/kernel-v2-evidence.js",
         "lib/kernel-v2-native.js",
         "lib/kernel-v2-type-negation.js",
         "lib/pre-ingest.js",
         "lib/subject-resolution.js",
         "lib/text-safety-scorer.js",
-        "lib/turkish-copula.js",
         "lib/type-lattice.js"
       ],
       "lib/a2a/agent-card-route.js": [
@@ -2459,6 +2461,10 @@
       "lib/kernel-self-evolve.js": [
         "lib/graph-record-utils.js"
       ],
+      "lib/kernel-v2-evidence.js": [
+        "lib/kernel-v2-native.js",
+        "lib/turkish-copula.js"
+      ],
       "lib/kernel-v2-native.js": [
         "lib/turkish-copula.js"
       ],
@@ -3335,6 +3341,10 @@
       "lib/verify-numeric-contradictions.js": [
         "lib/temporal-qualifier.js"
       ],
+      "lib/verify-subject.js": [
+        "lib/text-utils.js",
+        "lib/verify-turkish-text.js"
+      ],
       "lib/verify-turkish-text.js": [
         "lib/text-utils.js",
         "lib/turkish-copula.js"
@@ -3355,6 +3365,7 @@
         "lib/verify-native.js",
         "lib/verify-numeric-contradictions.js",
         "lib/verify-numeric-text.js",
+        "lib/verify-subject.js",
         "lib/verify-turkish-text.js",
         "lib/workspace-id.js"
       ],

@@ -1,7 +1,14 @@
 ﻿const Kernel = require('./kernel');
 const { runPreIngest } = require('./lib/pre-ingest');
 const { detectTypeLatticeConflict } = require('./lib/type-lattice');
-const { stripCopulaOrKeep } = require('./lib/turkish-copula');
+const {
+  normalizePredicateToken: evidenceNormalizePredicateToken,
+  normalizeCopulaTail,
+  toPathEvidence,
+  aggregatePathConfidence,
+  buildReasoningPath,
+  summarizeEvidence,
+} = require('./lib/kernel-v2-evidence');
 const { resolveKnownSubject } = require('./lib/subject-resolution');
 const { buildNegationConflict, contradictedBaseVerdict } = require('./lib/kernel-v2-type-negation');
 
@@ -15,7 +22,6 @@ const {
   FACT_RELATIONS,
   OPPOSITE_PREDICATES,
   nowIso,
-  normalizeAscii,
   parseSimpleTurkishStatement,
   resolveNegativeClaimFallback,
 } = require('./lib/kernel-v2-native');
@@ -197,12 +203,10 @@ class KernelV2 {
   }
 
   // Guarded: bare spelling collapsed `kültür` onto `kül`, verifying a false claim at 0.95 (#1167).
-  _normalizeCopulaTail(predicate) {
-    return stripCopulaOrKeep(String(predicate || '')).trim();
-  }
+
 
   normalizePredicateToken(predicate) {
-    return normalizeAscii(this._normalizeCopulaTail(predicate));
+    return evidenceNormalizePredicateToken(predicate);
   }
 
   _inferTypeChain(subject, target, maxDepth = 4, workspaceId = 'default') {
@@ -233,53 +237,9 @@ class KernelV2 {
     return null;
   }
 
-  _toPathEvidence(chain) {
-    return chain.map(e => ({
-      kind: 'path',
-      text: `${e.from} --[${e.relation}]--> ${e.to}`,
-      confidence: Math.max(0.4, Math.min(0.9, e.weight || 0.5)),
-      nodes: [e.from, e.to],
-      edges: [{ from: e.from, to: e.to, relation: e.relation }],
-    }));
-  }
 
-  _aggregatePathConfidence(chain) {
-    if (!Array.isArray(chain) || chain.length === 0) return 0.5;
-    let total = 0;
-    for (const edge of chain) {
-      total += Math.max(0.4, Math.min(0.9, edge.weight || 0.5));
-    }
-    const avg = total / chain.length;
-    return Number(Math.max(0.4, Math.min(0.9, avg)).toFixed(2));
-  }
 
-  _buildReasoningPath(chain) {
-    return chain.map(edge => ({
-      from: edge.from,
-      relation: edge.relation,
-      to: edge.to,
-    }));
-  }
 
-  _summarizeEvidence(evidence = [], reasoningPath = []) {
-    const summary = [];
-    for (const item of Array.isArray(evidence) ? evidence : []) {
-      if (!item || typeof item.text !== 'string') continue;
-      if (!summary.includes(item.text)) summary.push(item.text);
-      if (summary.length >= 4) break;
-    }
-
-    if (summary.length === 0 && Array.isArray(reasoningPath) && reasoningPath.length > 0) {
-      for (const step of reasoningPath) {
-        if (!step || !step.from || !step.relation || !step.to) continue;
-        const text = `${step.from} --[${step.relation}]--> ${step.to}`;
-        if (!summary.includes(text)) summary.push(text);
-        if (summary.length >= 4) break;
-      }
-    }
-
-    return summary;
-  }
 
   _buildVerifyExplanation(data, evidenceSummary = [], risk = null) {
     const parts = [];
@@ -317,7 +277,7 @@ class KernelV2 {
     const hasDataObject = result && result.data && typeof result.data === 'object' && !Array.isArray(result.data);
     const data = hasDataObject ? { ...result.data } : result.data;
     const reasoningPath = Array.isArray(data?.reasoningPath) ? data.reasoningPath : [];
-    const evidenceSummary = this._summarizeEvidence(result?.evidence || [], reasoningPath);
+    const evidenceSummary = summarizeEvidence(result?.evidence || [], reasoningPath);
     const explanation = this._buildVerifyExplanation(data, evidenceSummary, risk);
     const enriched = hasDataObject
       ? {
@@ -345,7 +305,7 @@ class KernelV2 {
       .filter(edge => FACT_RELATIONS.has(String(edge.relation || '').toLowerCase()))
       .map(edge => ({
         relation: edge.relation,
-        target: this.normalizePredicateToken(edge.to),
+        target: evidenceNormalizePredicateToken(edge.to),
         rawTarget: edge.to,
         weight: edge.weight,
       }));
@@ -356,7 +316,7 @@ class KernelV2 {
       .getEdges(subject, workspaceId)
       .map(edge => ({
         relation: edge.relation,
-        target: this.normalizePredicateToken(edge.to),
+        target: evidenceNormalizePredicateToken(edge.to),
         rawTarget: edge.to,
         weight: edge.weight,
       }));
@@ -424,15 +384,15 @@ class KernelV2 {
 
     return {
       status: 'contradicted',
-      confidence: this._aggregatePathConfidence(oppositeChain),
+      confidence: aggregatePathConfidence(oppositeChain),
       inferred: true,
       contradictionReason: 'opposite_predicate_conflict',
       conflictTarget: opposite,
       requestedTarget: normalizedTargetToken,
-      reasoningPath: this._buildReasoningPath(oppositeChain),
+      reasoningPath: buildReasoningPath(oppositeChain),
       pathLength: oppositeChain.length,
       confidenceSource: 'type-chain-opposite',
-      evidence: this._toPathEvidence(oppositeChain),
+      evidence: toPathEvidence(oppositeChain),
       meta: { inferredBy: 'opposite-predicate-chain' },
     };
   }
@@ -483,13 +443,13 @@ class KernelV2 {
     if (chain && parsed.isNegated) {
       return {
         status: 'contradicted',
-        confidence: this._aggregatePathConfidence(chain),
+        confidence: aggregatePathConfidence(chain),
         inferred: true,
         contradictionReason: 'negated_statement_conflicts_with_type_chain',
-        reasoningPath: this._buildReasoningPath(chain),
+        reasoningPath: buildReasoningPath(chain),
         pathLength: chain.length,
         confidenceSource: 'path-average',
-        evidence: this._toPathEvidence(chain),
+        evidence: toPathEvidence(chain),
         meta: { inferredBy: 'type-chain-negation' },
       };
     }
@@ -497,12 +457,12 @@ class KernelV2 {
     if (chain && !parsed.isNegated) {
       return {
         status: 'verified',
-        confidence: this._aggregatePathConfidence(chain),
+        confidence: aggregatePathConfidence(chain),
         inferred: true,
-        reasoningPath: this._buildReasoningPath(chain),
+        reasoningPath: buildReasoningPath(chain),
         pathLength: chain.length,
         confidenceSource: 'path-average',
-        evidence: this._toPathEvidence(chain),
+        evidence: toPathEvidence(chain),
         meta: { inferredBy: 'type-chain' },
       };
     }
@@ -516,9 +476,9 @@ class KernelV2 {
     let parsed = parseSimpleTurkishStatement(verificationStatement);
     if (!parsed) return this._withVerifyDetails(this.kernel.verify(verificationStatement, opts), risk);
 
-    const normalizedTarget = this._normalizeCopulaTail(parsed.predicate);
+    const normalizedTarget = normalizeCopulaTail(parsed.predicate);
     if (!normalizedTarget) return this._withVerifyDetails(this.kernel.verify(verificationStatement, opts), risk);
-    const normalizedTargetToken = this.normalizePredicateToken(normalizedTarget);
+    const normalizedTargetToken = evidenceNormalizePredicateToken(normalizedTarget);
 
     const workspaceId = (typeof opts.workspaceId === 'string' && opts.workspaceId.trim()) || 'default'; // #734
     const resolvedSubject = resolveKnownSubject(this.kernel.graph, parsed.subject, workspaceId);
