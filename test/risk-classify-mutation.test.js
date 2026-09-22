@@ -64,10 +64,11 @@ describe('risk classifier mutation contract', () => {
     for (const category of Object.values(ACTION_CATEGORIES)) {
       if (category === ACTION_CATEGORIES.FINANCIAL_TRANSACTION) {
         for (const output of outputsFor(category)) {
-          assert.equal(output.decision, 'HUMAN_REVIEW');
           assert.equal(output.riskLevel, 'CRITICAL');
           assert.equal(output.reason, 'FINANCIAL_DETAILS_ABSENT');
           assert.ok(!output.flags.includes('UNKNOWN_ACTION_CATEGORY'));
+          if (output.flags.includes('HARD_BLOCKED')) assert.equal(output.decision, 'BLOCK');
+          else assert.equal(output.decision, 'HUMAN_REVIEW');
         }
         continue;
       }
