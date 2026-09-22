@@ -20,6 +20,10 @@ test('brave wire contract + normalize', async () => {
   assert.deepEqual(out.sources, [{ title: 'T', url: 'https://a.example/x', snippet: 'D' }]);
   assert.equal(out.canonicalWrite, false);
   assert.equal(out.evidenceStatus, 'external_unverified');
+  assert.equal(out.evidenceLadder.schemaVersion, 'huqan-evidence-ladder-v1');
+  assert.equal(out.evidenceLadder.current, 'external_research');
+  assert.equal(out.evidenceLadder.canonical, false);
+  assert.deepEqual(out.evidenceLadder.levels.map(level => level.id), ['external_research', 'review_candidate', 'canonical_evidence', 'verified_claim']);
 });
 
 test('firecrawl wire', async () => {
@@ -135,6 +139,8 @@ test('workflow blocks sensitive queries before transport and preserves unverifie
   assert.equal(completed.body.data.workspaceId, 'team-a');
   assert.equal(completed.body.data.canonicalWrite, false);
   assert.equal(completed.body.data.evidenceStatus, 'external_unverified');
+  assert.equal(completed.body.data.evidenceLadder.current, 'external_research');
+  assert.equal(completed.body.data.evidenceLadder.next, 'review_candidate');
   assert.equal(calls, 1);
 });
 
