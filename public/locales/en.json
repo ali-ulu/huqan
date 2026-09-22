@@ -818,6 +818,13 @@
     "summarize": "Summarize with HUQAN",
     "costNote": "Note: more results and longer snippets cost more and take longer.",
     "summaryTitle": "HUQAN summary (unverified)",
-    "summaryUnavailable": "Summary unavailable; showing sources only."
+    "summaryUnavailable": "Summary unavailable; showing sources only.",
+    "evidenceLadder": "Evidence ladder",
+    "evidence": {
+      "external_research": "External research",
+      "review_candidate": "Review candidate",
+      "canonical_evidence": "Canonical evidence",
+      "verified_claim": "Verified claim"
+    }
   }
 }
