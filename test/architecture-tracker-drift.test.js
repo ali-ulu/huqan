@@ -94,15 +94,23 @@ function runFixtureGate(t, mutateGroups) {
   const trackerPath = path.join(root, 'tracker.md');
   const baselinePath = path.join(root, 'baseline.json');
   const snapshotPath = path.join(root, 'snapshot.json');
+  const graphPath = path.join(root, 'graph.json');
+  // The graph half of the artifact is compared too (#2641). An empty recorded
+  // graph keeps these fixtures about the size tracker and nothing else.
+  const emptyGraph = { threshold: 10, layers: {}, edges: {}, violations: [], unassigned: [] };
   fs.writeFileSync(trackerPath, renderMarkdown(groups));
-  fs.writeFileSync(baselinePath, JSON.stringify({ schemaVersion: 2, entries: trackedEntries(groups) }));
+  fs.writeFileSync(baselinePath, JSON.stringify({
+    schemaVersion: 3, entries: trackedEntries(groups), dependencyGraph: emptyGraph,
+  }));
   fs.writeFileSync(snapshotPath, JSON.stringify(groups));
+  fs.writeFileSync(graphPath, JSON.stringify(emptyGraph));
   return spawnSync(process.execPath, [
     path.resolve(__dirname, '../scripts/architecture-snapshot.js'),
     `--check=${trackerPath}`,
     `--baseline=${baselinePath}`,
     `--previous-baseline=${BASELINE_PATH}`,
     `--snapshot=${snapshotPath}`,
+    `--graph-snapshot=${graphPath}`,
   ], { encoding: 'utf8' });
 }
 
