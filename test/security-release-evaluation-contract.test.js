@@ -57,3 +57,13 @@ test('selected test list is deterministic and de-duplicated', () => {
     'test/c.test.js',
   ]);
 });
+
+
+test('package command and publish workflow keep the release evaluation gate wired', () => {
+  const root = path.resolve(__dirname, '..');
+  const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  const workflow = fs.readFileSync(path.join(root, '.github/workflows/publish.yml'), 'utf8');
+  assert.equal(packageJson.scripts['test:security-release'], 'node scripts/security-release-evaluation.js');
+  assert.match(workflow, /name: Run release security evaluation/);
+  assert.match(workflow, /run: npm run test:security-release/);
+});
