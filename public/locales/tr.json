@@ -818,6 +818,13 @@
     "summarize": "HUQAN özetlesin",
     "costNote": "Dikkat: sonuç sayısı ve uzunluk arttıkça ücret ve süre artar.",
     "summaryTitle": "HUQAN özeti (doğrulanmadı)",
-    "summaryUnavailable": "Özet çıkarılamadı; yalnızca kaynaklar gösteriliyor."
+    "summaryUnavailable": "Özet çıkarılamadı; yalnızca kaynaklar gösteriliyor.",
+    "evidenceLadder": "Kanıt merdiveni",
+    "evidence": {
+      "external_research": "Dış araştırma",
+      "review_candidate": "İnceleme adayı",
+      "canonical_evidence": "Kanonik kanıt",
+      "verified_claim": "Doğrulanmış iddia"
+    }
   }
 }
