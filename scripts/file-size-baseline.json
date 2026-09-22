@@ -50,7 +50,7 @@
     "lib/mcp-tool-data-schemas.js": 611,
     "lib/memory-admission-gate.js": 471,
     "lib/memory-schema.js": 565,
-    "lib/memory-store.js": 966,
+    "lib/memory-store.js": 631,
     "lib/observability/api-contract.js": 468,
     "lib/observability/service.js": 767,
     "lib/provenance-query.js": 656,
