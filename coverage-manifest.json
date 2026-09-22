@@ -854,12 +854,12 @@
       ],
       "sites": [
         {
-          "line": 18,
+          "line": 19,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 19,
+          "line": 20,
           "capability": "fs_write",
           "call": "fs.renameSync"
         }
