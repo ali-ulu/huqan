@@ -113,6 +113,8 @@ class HuqanStorage {
     }
     this.db = new Database(this.dbPath);
     try {
+      // RESUMABLE is deliberate: this store holds agent checkpoints, so losing
+      // the final fsync repeats bounded work rather than losing trust evidence.
       applySqliteDurability(this.db, 'RESUMABLE');
       this._init();
     } catch (error) {
