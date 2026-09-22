@@ -1,4 +1,4 @@
-name: CodeQL PR 2762 Probe
+name: Windows corrupt DB probe
 
 on:
   push:
@@ -7,19 +7,27 @@ on:
 
 permissions:
   contents: read
-  security-events: read
 
 jobs:
-  inspect:
-    runs-on: ubuntu-latest
+  corrupt-db:
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    runs-on: windows-latest
     steps:
-      - name: List open CodeQL alerts on PR 2762
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout PR 2770 head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 480449a6e0294ea65767dd60489d932aaadc931f
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - name: Install dependencies
         shell: bash
-        run: |
-          set -euo pipefail
-          gh api \
-            -H "X-GitHub-Api-Version: 2026-03-10" \
-            "repos/${GITHUB_REPOSITORY}/code-scanning/alerts?state=open&tool_name=CodeQL&pr=2762&per_page=100" \
-            --jq '.[] | {number, rule: .rule.id, severity: .rule.severity, description: .rule.description, message: .most_recent_instance.message.text, path: .most_recent_instance.location.path, start_line: .most_recent_instance.location.start_line, ref: .most_recent_instance.ref, commit_sha: .most_recent_instance.commit_sha}'
+        run: npm ci --include=optional
+      - name: Reproduce corrupt DB fault test
+        shell: bash
+        run: node --test test/faults/corrupt-db.test.js
