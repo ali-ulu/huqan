@@ -53,7 +53,7 @@
     "lib/memory-store.js": 594,
     "lib/observability/api-contract.js": 468,
     "lib/observability/service.js": 767,
-    "lib/provenance-query.js": 656,
+    "lib/provenance-query.js": 641,
     "lib/receipt/public-trust-receipt.js": 660,
     "lib/receipt/receipt-read-index.js": 637,
     "lib/receipt/trusted-key-resolver.js": 421,
