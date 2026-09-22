@@ -32,7 +32,6 @@ const errorPrevention = require('./lib/error-prevention');
 const agentActionFirewall = require('./lib/agent-action-firewall');
 const agentIdentityRuntime = require('./lib/agent-identity-runtime');
 const trustEvidenceLedger = require('./lib/trust-evidence-ledger');
-const postIncidentReview = require('./lib/post-incident-review');
 const humanOversightApprovalRuntime = require('./lib/human-oversight-approval-runtime');
 const prGuardian = require('./lib/pr-guardian');
 const multiAgentCascadeGuard = require('./lib/multi-agent-cascade-guard');
@@ -105,14 +104,6 @@ module.exports.createTrustEvidenceLedger = trustEvidenceLedger.createTrustEviden
 module.exports.buildTrustEvidencePayload = trustEvidenceLedger.buildTrustEvidencePayload;
 module.exports.verifyTrustEvidenceReceipt = trustEvidenceLedger.verifyTrustEvidenceReceipt;
 module.exports.TRUST_EVIDENCE_SCHEMA_VERSION = trustEvidenceLedger.TRUST_EVIDENCE_SCHEMA_VERSION;
-
-// Post-incident review record. Uses the Trust Evidence Ledger as the durability
-// authority and requires explicit responsibility state for company, developer,
-// user and agent identity.
-module.exports.PostIncidentReview = postIncidentReview;
-module.exports.recordPostIncidentReview = postIncidentReview.recordPostIncidentReview;
-module.exports.readPostIncidentReviews = postIncidentReview.readPostIncidentReviews;
-module.exports.POST_INCIDENT_REVIEW_VERSION = postIncidentReview.POST_INCIDENT_REVIEW_VERSION;
 
 // Human Oversight & Approval Runtime. The factory requires receiver-owned
 // identity resolution, the existing Graph mutation journal, and the existing
