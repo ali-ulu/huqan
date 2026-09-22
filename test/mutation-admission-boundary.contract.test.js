@@ -168,6 +168,10 @@ const ROUTED_SINK_CALLS = Object.freeze({
     why: 'candidate family, human review verdict; delegates to the admitted kernel.addCandidateClaim',
     sinks: { addCandidateClaim: 1 },
   },
+  'lib/conflict-candidate-review.js': {
+    why: 'candidate family, human review verdict on a conflict candidate; delegates to the admitted kernel.addCandidateClaim, same shape as hypothesis-review.js',
+    sinks: { addCandidateClaim: 1 },
+  },
   // Lexical. The durable commit -- runMutationOnce and the sink inside it -- is
   // the admitted effect, so a refusal leaves no journal entry, row or receipt.
   // This is the only routed caller whose identity is receiver-verified before
@@ -398,7 +402,11 @@ test('mutation admission: the debt ledger reflects the routing done so far', () 
   // so the total rises by one without any new write existing. That visibility
   // is the point of this ledger, and the entry stays unrouted until the
   // family-independent admission seam covers audit events.
+  // #2794: a second candidate-family human review verdict, this time on a
+  // conflict candidate rather than a hypothesis one (lib/conflict-candidate-review.js),
+  // delegates to the same admitted kernel.addCandidateClaim as
+  // lib/hypothesis-review.js above -- one more routed write, same shape.
   assert.equal(unrouted, 26, 'unrouted sink calls');
-  assert.equal(routed, 29, 'sink calls routed through admission (K2 + DEL callbacks + hypothesis surface)');
-  assert.equal(unrouted + routed, 55, 'total sink calls, raised by K2 delegation, DEL audit, maintenance evidence, the hypothesis surface, the external-action receipt projection, and the now-visible review audit write');
+  assert.equal(routed, 30, 'sink calls routed through admission (K2 + DEL callbacks + hypothesis surface + conflict-candidate review)');
+  assert.equal(unrouted + routed, 56, 'total sink calls, raised by K2 delegation, DEL audit, maintenance evidence, the hypothesis surface, the external-action receipt projection, the now-visible review audit write, and the conflict-candidate review verdict');
 });

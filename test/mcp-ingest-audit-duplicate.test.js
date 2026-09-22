@@ -329,6 +329,9 @@ test('6: the duplicate stays deleted while later reviewed audit writes are count
   // This is the opposite of a deletion, which is exactly why this test pins
   // the routed and total numbers and not the difference between them: each
   // shape has its own finding.
-  assert.match(ledger, /assert\.equal\(routed, 29,/);
-  assert.match(ledger, /assert\.equal\(unrouted \+ routed, 55,/);
+  // #2794 then added a second candidate-family human review verdict, this
+  // time on a conflict candidate rather than a hypothesis one, delegating to
+  // the same admitted sink as the hypothesis review above -- 30/56.
+  assert.match(ledger, /assert\.equal\(routed, 30,/);
+  assert.match(ledger, /assert\.equal\(unrouted \+ routed, 56,/);
 });
