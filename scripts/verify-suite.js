@@ -44,7 +44,8 @@ const STAGES = [
   { name: 'file-size', command: ['npm', 'run', 'check:file-size', '--silent'] },
   // M1 (#2648): fail verification when dead modules or public dispatch surfaces drift.
   { name: 'dead-code', command: ['npm', 'run', 'check:dead-code'] },
-  { name: 'action-pins', command: ['npm', 'run', 'check:action-pins', '--silent'] },\n  { name: 'security-invariants', command: ['npm', 'run', 'check:security-invariants', '--silent'] },
+  { name: 'action-pins', command: ['npm', 'run', 'check:action-pins', '--silent'] },
+  { name: 'security-invariants', command: ['npm', 'run', 'check:security-invariants', '--silent'] },
   { name: 'licenses', command: ['npm', 'run', 'check:licenses', '--silent'] },
   { name: 'docs-drift', command: ['npm', 'run', 'check:docs-drift', '--silent'] },
   // The tracker check compares the committed artifact against the live tree
