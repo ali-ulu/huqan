@@ -71,7 +71,7 @@
     "scripts/a2a-conformance/run.js": 688,
     "scripts/external-conformance/consumer.js": 955,
     "scripts/launch-installed-package-smoke.js": 636,
-    "server.js": 1017,
+    "server.js": 990,
     "storage.js": 627,
     "workflow-agent.js": 562
   },

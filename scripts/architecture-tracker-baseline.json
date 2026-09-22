@@ -314,9 +314,9 @@
     },
     "server.js": {
       "band": "decompose",
-      "lines": 1017,
+      "lines": 990,
       "signals": [
-        "FANOUT:52"
+        "FANOUT:51"
       ]
     },
     "storage.js": {
@@ -650,6 +650,7 @@
       "lib/http/v2-status-phases.js": "UI",
       "lib/http/v5-package-import-route.js": "UI",
       "lib/http/v5-preflight-route.js": "UI",
+      "lib/http/viewer-mount.js": "UI",
       "lib/http/workflow-contract-route.js": "UI",
       "lib/http/workflow-data-routes.js": "UI",
       "lib/http/workflow-envelope.js": "UI",
@@ -807,6 +808,7 @@
       "lib/pilot/trust-receipt-pilot.js": "Application",
       "lib/plugin-provenance-registry.js": "Core",
       "lib/post-action-monitor.js": "Core",
+      "lib/post-incident-review.js": "Core",
       "lib/pr-guardian/derivation-check.js": "Application",
       "lib/pr-guardian/derivation-fetch.js": "Application",
       "lib/pr-guardian/github-client.js": "Application",
@@ -1090,6 +1092,7 @@
       "scripts/run-test-shard.js": "UI",
       "scripts/run-tests.js": "UI",
       "scripts/run-trust-receipt-pilot.js": "UI",
+      "scripts/security-release-evaluation.js": "UI",
       "scripts/seed-demo.js": "UI",
       "scripts/setup-sqlite.js": "UI",
       "scripts/spawn-windows-aware.js": "UI",
@@ -2342,6 +2345,10 @@
         "lib/v5/runtime-reader.js",
         "lib/v5/structural-signing-helper.js"
       ],
+      "lib/http/viewer-mount.js": [
+        "lib/viewer/session-store.js",
+        "lib/viewer/viewer-gateway.js"
+      ],
       "lib/http/workflow-contract-route.js": [
         "lib/http/workflow-envelope.js",
         "lib/server-response-helpers.js",
@@ -2918,8 +2925,12 @@
         "lib/tool-call-gate.js"
       ],
       "lib/post-action-monitor.js": [
+        "lib/post-incident-review.js",
         "lib/self-healer/behavioral-containment.js",
         "lib/self-healer/finding-classifier.js"
+      ],
+      "lib/post-incident-review.js": [
+        "lib/trust-evidence-ledger.js"
       ],
       "lib/pr-guardian/derivation-check.js": [
         "lib/coder/verify-derivation.js"
@@ -3769,6 +3780,7 @@
         "lib/http/v2-status-phases.js",
         "lib/http/v5-package-import-route.js",
         "lib/http/v5-preflight-route.js",
+        "lib/http/viewer-mount.js",
         "lib/http/workflow-contract-route.js",
         "lib/http/workflow-data-routes.js",
         "lib/ingest.js",
@@ -3782,8 +3794,6 @@
         "lib/shield.js",
         "lib/trust-evidence-ledger.js",
         "lib/verify-status-vocabulary.js",
-        "lib/viewer/session-store.js",
-        "lib/viewer/viewer-gateway.js",
         "lib/workbench/ingest-approval-action.js",
         "lib/workbench/workbench-read-http-router.js",
         "llmAdapter.js",

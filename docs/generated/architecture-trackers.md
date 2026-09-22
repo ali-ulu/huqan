@@ -9,7 +9,7 @@ Tracked in total: **62**
 |---|---:|---|
 | `graph.js` | 1242 | FANOUT:35 |
 | `kernel.js` | 1058 | FANOUT:39 |
-| `server.js` | 1017 | FANOUT:52 |
+| `server.js` | 990 | FANOUT:51 |
 
 ## Recorded debt, 401-800 lines (58)
 

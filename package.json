@@ -436,6 +436,7 @@
     "lib/http/background-timers.js",
     "lib/http/graceful-shutdown.js",
     "lib/http/server-boot.js",
+    "lib/http/viewer-mount.js",
     "lib/http/process-failure-handlers.js",
     "lib/runtime-watchdog.js",
     "lib/http/server-timeouts.js",

@@ -32,8 +32,9 @@ const { createReadWorkflowHttpRouter } = require('./lib/http/read-workflow-actio
 const { createWorkflowDataRoutes, createLearnApprovalDecision } = require('./lib/http/workflow-data-routes');
 const { bindHttpProvenance } = require('./lib/http/http-provenance');
 const { readExactWorkspace } = require('./lib/http/exact-workspace');
-const { createSessionStore } = require('./lib/viewer/session-store');
-const { createViewerGateway } = require('./lib/viewer/viewer-gateway');
+// #2128: viewer mount (rate limiter + session store + gateway) lives in
+// lib/http/viewer-mount.js; the root keeps the single mount handle.
+const { createViewerMount } = require('./lib/http/viewer-mount');
 const { createExternalClientProductionBoundary } = require('./lib/external-client-production-boundary');
 const { createOptionalRouteBoundaries } = require('./lib/http/optional-boundaries'), { createPrGuardianOptions } = require('./lib/http/pr-guardian-config'), { createFitnessDashboardRoute } = require('./lib/http/fitness-dashboard-route'), { readTrustedBatchKeys } = require('./lib/external-action-receipt-collector'), { readCollectorSealKey } = require('./lib/collector-seal-config');
 const { buildUploadResponse } = require('./lib/http/upload-admission-contract');
@@ -136,10 +137,6 @@ const backgroundTimers = createBackgroundTimers();
 backgroundTimers.add(setInterval(() => {
   clearExpiredRateLimitEntries();
 }, 60_000));
-const VIEWER_RATE_LIMIT_WINDOW_MS = 60_000;
-const VIEWER_RATE_LIMIT_MAX = 120;
-const VIEWER_RATE_LIMIT_MAX_ENTRIES = 2048;
-const viewerRateLimits = new Map();
 backgroundTimers.add(setInterval(() => { try { recoverExpiredIngestApprovals(); } catch (error) { writeStructuredLog(console, 'error', 'http.ingest_approval_recovery_error', {}, { runtime: 'http', errorCode: error?.code || 'INGEST_APPROVAL_RECOVERY_FAILED' }); } }, Math.max(5_000, Math.floor(INGEST_APPROVAL_LEASE_MS / 2))));
 
 const {
@@ -241,30 +238,7 @@ function handleV5PreflightRoute(req, res, reqUrl) {
   }
   return v5PreflightRouteCache(req, res, reqUrl);
 }
-function checkViewerRateLimit(req, timestamp = Date.now()) {
-  const key = String(req.socket?.remoteAddress || 'unknown');
-  let record = viewerRateLimits.get(key);
-  if (record && timestamp >= record.resetAt) {
-    viewerRateLimits.delete(key);
-    record = null;
-  }
-  if (!record) {
-    if (viewerRateLimits.size >= VIEWER_RATE_LIMIT_MAX_ENTRIES) {
-      for (const [candidate, entry] of viewerRateLimits) {
-        if (timestamp >= entry.resetAt) viewerRateLimits.delete(candidate);
-      }
-    }
-    if (viewerRateLimits.size >= VIEWER_RATE_LIMIT_MAX_ENTRIES) return false;
-    record = { count: 0, resetAt: timestamp + VIEWER_RATE_LIMIT_WINDOW_MS };
-    viewerRateLimits.set(key, record);
-  }
-  record.count += 1;
-  return record.count <= VIEWER_RATE_LIMIT_MAX;
-}
-
-const viewerSessionStore = createSessionStore();
-const viewerGateway = createViewerGateway({
-  sessionStore: viewerSessionStore,
+const viewerMount = createViewerMount({
   readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters),
 });
 
@@ -349,13 +323,13 @@ const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnviron
   // Resolved once, before any route -- a malformed client-controlled Host is
   // the client's mistake, not an internal fault; see lib/http/request-origin.js.
   const reqUrl = resolveRequestUrl(req); if (reqUrl === null) return writeJson(req, res, 400, { error: 'Bad request' });
-  if (viewerGateway.isViewerPath(rawPath)) {
-    if (!checkViewerRateLimit(req)) {
+  if (viewerMount.isViewerPath(rawPath)) {
+    if (!viewerMount.checkRateLimit(req)) {
       res.writeHead(429, { 'Content-Type': JSON_CONTENT_TYPE, 'Cache-Control': 'no-store' });
       res.end(JSON.stringify({ ok: false, error: { code: 'rate_limited', message: 'Too many requests' } }));
       return;
     }
-    await viewerGateway.handle(req, res, reqUrl);
+    await viewerMount.handle(req, res, reqUrl);
     return;
   }
   if (req.method === 'OPTIONS') {
@@ -972,8 +946,7 @@ function startAgentWorkerIfEnabled() {
 function closeHuqan() {
   observabilityRuntime.stop();
   backgroundTimers.clearAll();
-  viewerRateLimits.clear();
-  viewerSessionStore.reset();
+  viewerMount.reset();
   if (ingestApprovalStore && typeof ingestApprovalStore.close === 'function') {
     try { ingestApprovalStore.close(); } catch (_) {}
     ingestApprovalStore = null;
