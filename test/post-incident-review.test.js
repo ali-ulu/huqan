@@ -10,9 +10,11 @@ const Graph = require('../graph');
 const {
   POST_INCIDENT_OPERATION_PREFIX,
   normalizeResponsibility,
+} = require('../lib/post-incident-review');
+const {
   recordPostIncidentReview,
   readPostIncidentReviews,
-} = require('../lib/post-incident-review');
+} = require('../lib/post-action-monitor');
 
 function graphIn(t) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-post-incident-'));
