@@ -50,6 +50,15 @@ declare const huqan: typeof KernelV2 & {
   HUMAN_OVERSIGHT_RUNTIME_VERSION: string;
   HUMAN_OVERSIGHT_RUNTIME_REASONS: Record<string, string>;
 
+  PostIncidentReview: {
+    POST_INCIDENT_REVIEW_VERSION: string;
+    recordPostIncidentReview: (input: Record<string, any>) => Readonly<Record<string, any>>;
+    readPostIncidentReviews: (graph: any) => ReadonlyArray<Readonly<Record<string, any>>>;
+  };
+  recordPostIncidentReview: (input: Record<string, any>) => Readonly<Record<string, any>>;
+  readPostIncidentReviews: (graph: any) => ReadonlyArray<Readonly<Record<string, any>>>;
+  POST_INCIDENT_REVIEW_VERSION: string;
+
   PrGuardian: {
     TOOL: string;
     ACTIONS: Record<string, string>;
