@@ -112,9 +112,7 @@ class HuqanStorage {
       throw sqliteUnavailableError('better-sqlite3 is required for v3 storage.', sqliteLoadError);
     }
     this.db = new Database(this.dbPath);
-    try {
-      // RESUMABLE is deliberate: this store holds agent checkpoints, so losing
-      // the final fsync repeats bounded work rather than losing trust evidence.
+    try { // Agent checkpoints may resume from the prior checkpoint after a lost final fsync.
       applySqliteDurability(this.db, 'RESUMABLE');
       this._init();
     } catch (error) {
