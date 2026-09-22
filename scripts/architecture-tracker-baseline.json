@@ -37,7 +37,7 @@
     },
     "graph.js": {
       "band": "decompose",
-      "lines": 1242,
+      "lines": 976,
       "signals": [
         "FANOUT:35"
       ]
@@ -610,6 +610,7 @@
       "lib/graph-query-read.js": "Core",
       "lib/graph-record-utils.js": "Core",
       "lib/graph-sqlite-pragmas.js": "Core",
+      "lib/graph-sqlite-schema.js": "Core",
       "lib/graph-stats.js": "Core",
       "lib/graph-traversal.js": "Core",
       "lib/http-human-oversight-adapter.js": "Core",
@@ -807,6 +808,7 @@
       "lib/pilot/trust-receipt-pilot.js": "Application",
       "lib/plugin-provenance-registry.js": "Core",
       "lib/post-action-monitor.js": "Core",
+      "lib/post-incident-review.js": "Core",
       "lib/pr-guardian/derivation-check.js": "Application",
       "lib/pr-guardian/derivation-fetch.js": "Application",
       "lib/pr-guardian/github-client.js": "Application",
@@ -1090,6 +1092,7 @@
       "scripts/run-test-shard.js": "UI",
       "scripts/run-tests.js": "UI",
       "scripts/run-trust-receipt-pilot.js": "UI",
+      "scripts/security-release-evaluation.js": "UI",
       "scripts/seed-demo.js": "UI",
       "scripts/setup-sqlite.js": "UI",
       "scripts/spawn-windows-aware.js": "UI",
@@ -1263,7 +1266,7 @@
         "lib/graph-prune.js",
         "lib/graph-query-read.js",
         "lib/graph-record-utils.js",
-        "lib/graph-sqlite-pragmas.js",
+        "lib/graph-sqlite-schema.js",
         "lib/graph-stats.js",
         "lib/memory-store-utils.js",
         "lib/mutation-journal.js",
@@ -2224,6 +2227,10 @@
         "lib/is-plain-object.js",
         "lib/workspace-id.js"
       ],
+      "lib/graph-sqlite-schema.js": [
+        "lib/graph-mutation-receipt-schema.js",
+        "lib/graph-sqlite-pragmas.js"
+      ],
       "lib/http-human-oversight-adapter.js": [
         "lib/agent-action-firewall.js",
         "lib/agent-identity-runtime.js",
@@ -2918,8 +2925,12 @@
         "lib/tool-call-gate.js"
       ],
       "lib/post-action-monitor.js": [
+        "lib/post-incident-review.js",
         "lib/self-healer/behavioral-containment.js",
         "lib/self-healer/finding-classifier.js"
+      ],
+      "lib/post-incident-review.js": [
+        "lib/trust-evidence-ledger.js"
       ],
       "lib/pr-guardian/derivation-check.js": [
         "lib/coder/verify-derivation.js"
