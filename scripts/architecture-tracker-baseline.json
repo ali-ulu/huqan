@@ -277,7 +277,7 @@
     },
     "lib/verify.js": {
       "band": "recorded",
-      "lines": 739,
+      "lines": 693,
       "signals": []
     },
     "plugin.js": {
@@ -932,6 +932,7 @@
       "lib/verify-numeric-contradictions.js": "Core",
       "lib/verify-numeric-text.js": "Core",
       "lib/verify-status-vocabulary.js": "Core",
+      "lib/verify-subject.js": "Core",
       "lib/verify-turkish-text.js": "Core",
       "lib/verify.js": "Core",
       "lib/viewer/session-cookie.js": "UI",
@@ -3335,6 +3336,10 @@
       "lib/verify-numeric-contradictions.js": [
         "lib/temporal-qualifier.js"
       ],
+      "lib/verify-subject.js": [
+        "lib/text-utils.js",
+        "lib/verify-turkish-text.js"
+      ],
       "lib/verify-turkish-text.js": [
         "lib/text-utils.js",
         "lib/turkish-copula.js"
@@ -3355,6 +3360,7 @@
         "lib/verify-native.js",
         "lib/verify-numeric-contradictions.js",
         "lib/verify-numeric-text.js",
+        "lib/verify-subject.js",
         "lib/verify-turkish-text.js",
         "lib/workspace-id.js"
       ],

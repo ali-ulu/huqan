@@ -21,12 +21,12 @@ Tracked in total: **62**
 | `lib/human-oversight-approval-runtime.js` | 744 | — |
 | `lib/external-client-mutation-receipt-owner.js` | 741 | — |
 | `lib/risk-classify.js` | 739 | — |
-| `lib/verify.js` | 739 | — |
 | `lib/tool-call-gate.js` | 729 | — |
 | `plugin.js` | 728 | — |
 | `dream.js` | 726 | — |
 | `plugins/repo-memory.js` | 726 | — |
 | `lib/a2a/bounded-exchange.js` | 693 | — |
+| `lib/verify.js` | 693 | — |
 | `plugins/company-brain.js` | 678 | — |
 | `kernel.v2.js` | 662 | DIP |
 | `lib/receipt/public-trust-receipt.js` | 660 | — |

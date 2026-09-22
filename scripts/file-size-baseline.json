@@ -61,7 +61,7 @@
     "lib/storage/tool-approval-methods.js": 424,
     "lib/tool-call-gate.js": 729,
     "lib/v5/runtime-writer.js": 411,
-    "lib/verify.js": 739,
+    "lib/verify.js": 693,
     "plugin.js": 728,
     "plugins/company-brain.js": 678,
     "plugins/receipt-exporter.js": 430,
