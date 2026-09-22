@@ -143,6 +143,9 @@ jobs:
 
       - run: npm ci --include=optional
 
+      - name: Enforce breaking API release semver
+        run: node scripts/api-semver-gate.js
+
       # The gate no static check replaces: pack the tarball, install it into an
       # empty project, and read the output. A plugin that fails to load prints
       # a line and still exits 0, which is how v0.10.0 nearly shipped three
