@@ -8,6 +8,7 @@ const { test } = require('node:test');
 
 const Kernel = require('../kernel');
 const MemoryStore = require('../lib/memory-store');
+const { violationsIn } = require('../scripts/check-module-boundary');
 
 function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-memory-json-'));
@@ -16,6 +17,10 @@ function tempDir() {
 function close(store) {
   if (store && typeof store.close === 'function') store.close();
 }
+
+test('JSON persistence does not call MemoryStore private methods across the module boundary', () => {
+  assert.deepEqual(violationsIn('lib/memory-store-json-persistence.js'), []);
+});
 
 test('JSON MemoryStore persists every mutation and reloads it with validation', () => {
   const dir = tempDir();

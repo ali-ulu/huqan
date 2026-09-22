@@ -10,7 +10,7 @@ on:
     types: [closed]
 
 permissions:
-  contents: write
+  contents: read
 
 # One cleanup per pull request; a re-close should not race an in-flight run.
 concurrency:
@@ -21,6 +21,8 @@ jobs:
   delete-unmerged-head-branch:
     name: Delete the head branch of an unmerged closed PR
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     # Merged branches are the built-in setting's job, and a fork's branch is
     # not ours to delete. `pull_request` also hands fork runs a read-only
     # token, so this guard is belt and braces.

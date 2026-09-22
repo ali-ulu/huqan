@@ -21,6 +21,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { listSourceFiles, stripComments, buildGraph } = require('./check-import-cycles.js');
+const { buildDependencySnapshot, checkDependencyGraph, dependencyGraphBaseline, renderGraphSummary } = require('./architecture-dependency-graph.js');
 const { renderMermaid } = require('./architecture-mermaid');
 
 const repoRoot = path.resolve(__dirname, '..');
@@ -98,10 +99,20 @@ const isProduct = (file) => !file.startsWith('scripts/')
   && !file.startsWith('examples/')
   && !file.startsWith('bin/');
 
-function snapshot() {
-  const all = listSourceFiles();
-  const source = all.filter((file) => !IS_TEST.test(file));
-  const graph = buildGraph(all, source);
+// Built at most once per process: the size tracker and the layer snapshot read the same tree.
+let sourceGraphCache = null;
+function sourceGraph() {
+  if (!sourceGraphCache) {
+    const all = listSourceFiles();
+    const source = all.filter((file) => !IS_TEST.test(file));
+    sourceGraphCache = { source, graph: buildGraph(all, source) };
+  }
+  return sourceGraphCache;
+}
+
+function snapshot(state = sourceGraph()) {
+  const source = state.source;
+  const graph = state.graph;
   const boundary = JSON.parse(
     fs.readFileSync(path.join(__dirname, 'module-boundary-baseline.json'), 'utf8'),
   ).files;
@@ -236,8 +247,8 @@ function trackerBaselineViolations(current, baseline) {
   return violations;
 }
 
-function writeTrackerBaseline(entries) {
-  fs.writeFileSync(BASELINE_PATH, `${JSON.stringify({ schemaVersion: 2, entries }, null, 2)}\n`);
+function writeTrackerBaseline(entries, dependencyGraph, targetPath = BASELINE_PATH) {
+  fs.writeFileSync(targetPath, `${JSON.stringify({ schemaVersion: 3, entries, dependencyGraph }, null, 2)}\n`);
 }
 
 function baselineEvolutionViolations(previous, next) {
@@ -250,16 +261,17 @@ function optionValue(argv, name) {
 }
 
 function main(argv = process.argv.slice(2)) {
-  if (argv.includes('--mermaid')) {
-    const all = listSourceFiles();
-    const source = all.filter((file) => !IS_TEST.test(file));
-    const graph = buildGraph(all, source);
-    process.stdout.write(`${renderMermaid(graph)}\n`);
-    return 0;
-  }
+  // Both flags print a view of the same graph and exit: --mermaid the four rings
+  // scripts/check-layers.js enforces, --graph the #2641 layer snapshot.
+  if (argv.includes('--mermaid')) { process.stdout.write(`${renderMermaid(sourceGraph().graph)}\n`); return 0; }
+  if (argv.includes('--graph')) { process.stdout.write(`${renderGraphSummary(buildDependencySnapshot(sourceGraph().graph))}\n`); return 0; }
 
   const snapshotPath = optionValue(argv, '--snapshot');
   const rows = snapshotPath ? null : snapshot();
+  const graphSnapshotPath = optionValue(argv, '--graph-snapshot');
+  const dependency = graphSnapshotPath
+    ? JSON.parse(fs.readFileSync(path.resolve(graphSnapshotPath), 'utf8'))
+    : buildDependencySnapshot(sourceGraph().graph);
   const groups = snapshotPath
     ? JSON.parse(fs.readFileSync(path.resolve(snapshotPath), 'utf8'))
     : classify(rows);
@@ -326,14 +338,21 @@ function main(argv = process.argv.slice(2)) {
       for (const violation of dipViolations) console.error(`  ${violation}`);
       return 1;
     }
+    // The layer graph is checked against the same artifact (#2641): no ring, a
+    // new violation, or drift past the threshold fails in this one command.
+    const update = argv.includes('--update-baseline') || argv.includes('--update');
+    const graphCheck = checkDependencyGraph(dependency, dependencyGraphBaseline(baseline), argv, dependencyGraphBaseline(previous));
+    for (const message of graphCheck.messages) console.error(message);
+    if (!graphCheck.ok) return 1;
     const baselineIsCurrent = JSON.stringify(entries) === JSON.stringify(baseline.entries);
-    if (!baselineIsCurrent && !argv.includes('--update-baseline')) {
-      console.error('Architecture tracker baseline has unrecorded improvements; rerun with --update-baseline and commit the lowered baseline.');
+    if (!baselineIsCurrent && !update) {
+      console.error('Architecture tracker baseline has unrecorded improvements; rerun with --update and commit the lowered baseline.');
       return 1;
     }
-    if (argv.includes('--update-baseline')) {
-      writeTrackerBaseline(entries);
+    if (update) {
+      writeTrackerBaseline(entries, graphCheck.recorded, baselinePath);
       console.log('Architecture tracker baseline updated with monotonic improvements.');
+      return 0;
     }
     console.log('Architecture tracker artifact matches the live snapshot.');
     return 0;

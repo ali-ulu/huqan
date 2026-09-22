@@ -20,8 +20,6 @@ concurrency:
 
 permissions:
   contents: read
-  security-events: write
-  pull-requests: write
 
 env:
   NODE_VERSION: '22'
@@ -31,6 +29,10 @@ jobs:
   security:
     name: Security Checks
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: write
 
     # Every step below is load-bearing: a failure here must fail the job.
     # This workflow previously ended each command with `|| echo "...continuing"`

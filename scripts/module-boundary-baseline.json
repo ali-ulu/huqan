@@ -1,10 +1,4 @@
 {
   "threshold": 0,
-  "files": {
-    "lib/memory-store-json-persistence.js": {
-      "calls": 4,
-      "why": "Pre-existing debt recorded when the gate was introduced.",
-      "review_by": "2026-12-31"
-    }
-  }
+  "files": {}
 }
