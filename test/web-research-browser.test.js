@@ -60,7 +60,7 @@ describe('Web research real-browser UI with provider fixtures', { skip: skip || 
         const input = JSON.parse(init.body);
         return new Response(JSON.stringify({ ok: true, data: { provider: input.provider, sources: [{
           title: '<img src=x onerror=alert(1)> fixture', url: 'https://example.com/research', snippet: '<script>fixture</script> safe text'
-        }], canonicalWrite: false, evidenceStatus: 'external_unverified' } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }], canonicalWrite: false, evidenceStatus: 'external_unverified', evidenceLadder: { schemaVersion: 'huqan-evidence-ladder-v1', current: 'external_research', levels: [{ id: 'external_research' }, { id: 'review_candidate' }, { id: 'canonical_evidence' }, { id: 'verified_claim' }] } } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       };
     })()`);
   });
@@ -84,6 +84,7 @@ describe('Web research real-browser UI with provider fixtures', { skip: skip || 
       assert.equal(result.title, '<img src=x onerror=alert(1)> fixture');
       assert.equal(result.href, 'https://example.com/research');
       assert.equal(result.unsafeElements, 0);
+      assert.match(await browser.evaluate("document.querySelector('[data-evidence-ladder]').textContent"), /External research/);
     }
   });
   it('prepares learning review without submitting a write', async () => {
