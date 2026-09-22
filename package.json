@@ -291,6 +291,7 @@
     "lib/command-exec-gate.js",
     "lib/external-action-adapter.js",
     "lib/external-action-envelope.js",
+    "lib/financial-action-policy.js",
     "lib/external-action-guard.js",
     "lib/external-action-egress-gates.js",
     "lib/external-action-gate-install.js",
