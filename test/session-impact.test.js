@@ -17,10 +17,18 @@ const { summarizeSessionImpact } = require('../lib/session-impact');
 
 let sequence = 0;
 
-function sealed({ sessionId, score, kind = 'external_action_admission_receipt' } = {}) {
+function sealed({
+  sessionId,
+  score,
+  kind = 'external_action_admission_receipt',
+  toolName,
+  inputDigest,
+} = {}) {
   sequence += 1;
   const metadata = { sessionId };
   if (score !== undefined) metadata.justification = { blastRadius: { score } };
+  if (toolName !== undefined) metadata.toolName = toolName;
+  if (inputDigest !== undefined) metadata.inputDigest = inputDigest;
   const receipt = {
     receiptId: `adm-budget-${sequence}`,
     receiptKind: kind,
@@ -259,6 +267,35 @@ test('rejection receipts in the session are counted as refused actions', () => {
   assert.equal(summary.recordedScoreTotal, 70);
   assert.equal(summary.status, 'partial');
   assert.match(summary.reasons.join('\n'), /1 refused action\(s\) in the session \(rejection receipts\)/);
+});
+
+
+test('repeated refusal of the same tool and input digest is recorded as a retry signal', () => {
+  const digest = 'a'.repeat(64);
+  const summary = summarizeSessionImpact([
+    sealed({ sessionId: 's1', score: 40, kind: 'external_action_rejection_receipt', toolName: 'payment.execute', inputDigest: digest }),
+    sealed({ sessionId: 's1', score: 30, kind: 'external_action_rejection_receipt', toolName: 'payment.execute', inputDigest: digest }),
+    sealed({ sessionId: 's1', score: 20, kind: 'external_action_rejection_receipt', toolName: 'payment.execute', inputDigest: digest }),
+  ], 's1');
+  assert.equal(summary.refusedActions, 3);
+  assert.equal(summary.retriedRefusedActions, 2);
+  assert.match(summary.reasons.join('\n'), /2 retried refused action\(s\) matched an earlier tool and input digest/);
+});
+
+test('different inputs, different tools and legacy refusals are not guessed into retry count', () => {
+  const summary = summarizeSessionImpact([
+    sealed({ sessionId: 's1', score: 40, kind: 'external_action_rejection_receipt', toolName: 'payment.execute', inputDigest: 'a'.repeat(64) }),
+    sealed({ sessionId: 's1', score: 30, kind: 'external_action_rejection_receipt', toolName: 'payment.execute', inputDigest: 'b'.repeat(64) }),
+    sealed({ sessionId: 's1', score: 20, kind: 'external_action_rejection_receipt', toolName: 'other.tool', inputDigest: 'a'.repeat(64) }),
+    sealed({ sessionId: 's1', score: 10, kind: 'external_action_rejection_receipt' }),
+  ], 's1');
+  assert.equal(summary.refusedActions, 4);
+  assert.equal(summary.retriedRefusedActions, 0);
+});
+
+test('no history keeps retry count unknown instead of reporting a measured zero', () => {
+  const summary = summarizeSessionImpact(undefined, 's1');
+  assert.equal(summary.retriedRefusedActions, null);
 });
 
 test('review receipts are legitimate flow, not refusals; no history means no count', () => {
