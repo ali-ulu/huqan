@@ -230,7 +230,7 @@
     },
     "lib/provenance-query.js": {
       "band": "recorded",
-      "lines": 656,
+      "lines": 641,
       "signals": []
     },
     "lib/receipt/public-trust-receipt.js": {
@@ -425,6 +425,7 @@
       "lib/bounded-ingest-errors.js": "Core",
       "lib/browser-hook-outcome.js": "Core",
       "lib/browser-session-observer.js": "Core",
+      "lib/canonical-target-match.js": "Core",
       "lib/causal-edge-strength.js": "Core",
       "lib/causal/causal-edge-errors.js": "Application",
       "lib/causal/causal-edge.js": "Application",
@@ -432,6 +433,7 @@
       "lib/causal/causal-verdict.js": "Application",
       "lib/causal/index.js": "Application",
       "lib/claim-decomposition.js": "Core",
+      "lib/claim-read.js": "Core",
       "lib/cli-audit.js": "Core",
       "lib/cli-backup-commands.js": "Core",
       "lib/cli-coder-verify.js": "Core",
@@ -474,6 +476,7 @@
       "lib/connectors/entry-ingest-flow.js": "Adapters",
       "lib/connectors/repo-memory-firewall.js": "Adapters",
       "lib/content-hash.js": "Core",
+      "lib/contested-read-policy.js": "Core",
       "lib/contradiction-rules.js": "Core",
       "lib/control-plane-paths.js": "Core",
       "lib/cross-workspace-access-gate.js": "Core",
@@ -929,6 +932,10 @@
       "lib/v5/structural-signing-helper.js": "Application",
       "lib/v5/trusted-key-resolver.js": "Application",
       "lib/v5/verification-core.js": "Application",
+      "lib/v5/verification-evaluator.js": "Application",
+      "lib/v5/verification-evidence-normalizer.js": "Application",
+      "lib/v5/verification-input-shape.js": "Application",
+      "lib/v5/verification-reason-mapping.js": "Application",
       "lib/verdict/action-verdict.js": "Application",
       "lib/verify-contradiction-evidence.js": "Core",
       "lib/verify-native.js": "Core",
@@ -1610,6 +1617,10 @@
       "lib/claim-decomposition.js": [
         "lib/text-utils.js"
       ],
+      "lib/claim-read.js": [
+        "lib/contested-read-policy.js",
+        "lib/provenance-query.js"
+      ],
       "lib/cli-audit.js": [
         "lib/trust-score-aggregator.js"
       ],
@@ -1775,6 +1786,11 @@
       ],
       "lib/connectors/repo-memory-firewall.js": [
         "lib/connector-action-firewall.js"
+      ],
+      "lib/contested-read-policy.js": [
+        "lib/canonical-target-match.js",
+        "lib/risk-policy-constants.js",
+        "lib/risk-scale.js"
       ],
       "lib/contradiction-rules.js": [
         "lib/relation-drift.js",
@@ -2993,6 +3009,7 @@
       "lib/provenance-query.js": [
         "lib/audit-log.js",
         "lib/audit-query.js",
+        "lib/canonical-target-match.js",
         "lib/causal/causal-verdict.js",
         "lib/conflict-detector.js",
         "lib/workspace-id.js"
@@ -3330,6 +3347,25 @@
       ],
       "lib/v5/trusted-key-resolver.js": [
         "lib/receipt/trusted-key-resolver.js"
+      ],
+      "lib/v5/verification-core.js": [
+        "lib/v5/verification-evaluator.js",
+        "lib/v5/verification-evidence-normalizer.js"
+      ],
+      "lib/v5/verification-evaluator.js": [
+        "lib/is-plain-object.js",
+        "lib/v5/verification-input-shape.js",
+        "lib/v5/verification-reason-mapping.js"
+      ],
+      "lib/v5/verification-evidence-normalizer.js": [
+        "lib/is-plain-object.js"
+      ],
+      "lib/v5/verification-input-shape.js": [
+        "lib/is-plain-object.js"
+      ],
+      "lib/v5/verification-reason-mapping.js": [
+        "lib/is-plain-object.js",
+        "lib/v5/verification-input-shape.js"
       ],
       "lib/verify-native.js": [
         "lib/claim-decomposition.js",
