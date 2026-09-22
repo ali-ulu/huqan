@@ -345,6 +345,7 @@
     "lib/deterministic-json-copy.js",
     "lib/dream-experiment-loop.js",
     "lib/dream-hypothesis-semantics.js",
+    "lib/evidence-ladder.js",
     "lib/entity-resolution.js",
     "lib/environment-compat.js",
     "lib/error-prevention",
