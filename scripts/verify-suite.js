@@ -52,6 +52,7 @@ const STAGES = [
   // the drift baseline a local pre-push run actually wants.
   { name: 'architecture-trackers', command: ['node', 'scripts/architecture-snapshot.js', '--check', '--base-ref=origin/main'] },
   { name: 'package-closure', command: ['npm', 'run', 'check:package-closure', '--silent'] },
+  { name: 'consumer-compile', command: ['npm', 'run', 'test:consumer-compile', '--silent'] },
   { name: 'doctor-contract', command: ['node', 'scripts/run-tests.js', 'test/cli-doctor.test.js'] },
   { name: 'recovery-invariants', command: ['npm', 'run', 'test:recovery', '--silent'] },
   { name: 'property-tests', command: ['npm', 'run', 'test:property', '--silent'] },
