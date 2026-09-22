@@ -2,6 +2,7 @@
 'use strict';
 
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const zlib = require('node:zlib');
 const { execFileSync } = require('node:child_process');
@@ -64,6 +65,36 @@ function git(args, options = {}) {
   }
 }
 
+function buildSnapshotAtTag(tag) {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-api-semver-'));
+  const worktree = path.join(tempRoot, 'release-tree');
+  try {
+    git(['worktree', 'add', '--detach', '--quiet', worktree, tag]);
+    const scriptsDir = path.join(worktree, 'scripts');
+    for (const file of ['api-snapshot.js', 'api-snapshot-surface.js', 'api-snapshot-diff.js']) {
+      fs.copyFileSync(path.join(ROOT, 'scripts', file), path.join(scriptsDir, file));
+    }
+    const output = path.join(tempRoot, 'release-snapshot.json');
+    execFileSync(process.execPath, [path.join(scriptsDir, 'api-snapshot.js'), '--write', output], {
+      cwd: worktree,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return JSON.parse(fs.readFileSync(output, 'utf8'));
+  } finally {
+    git(['worktree', 'remove', '--force', worktree], { allowFailure: true });
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+}
+
+function releaseSnapshot(tag) {
+  const baselineText = git(['show', `${tag}:api-snapshot-baseline.json`], { allowFailure: true });
+  if (baselineText) {
+    return { snapshot: decodeBaseline(baselineText), source: 'committed baseline' };
+  }
+  return { snapshot: buildSnapshotAtTag(tag), source: 'reconstructed historical snapshot' };
+}
+
 function evaluateSemverGate(previousSnapshot, currentSnapshot, previousVersion, currentVersion) {
   const result = diffSnapshots(previousSnapshot, currentSnapshot);
   const breaking = result.breaking.length > 0;
@@ -95,18 +126,11 @@ function main() {
   }
 
   const previousVersion = previousTag.slice(1);
-  const baselineText = git(['show', `${previousTag}:api-snapshot-baseline.json`], { allowFailure: true });
-  if (!baselineText) {
-    console.log(
-      `API semver gate bootstrap: ${previousTag} predates api-snapshot-baseline.json; `
-      + `${currentVersion} establishes the first release baseline.`,
-    );
-    return;
-  }
+  const previous = releaseSnapshot(previousTag);
+  console.log(`API semver gate: comparing against ${previousTag} via ${previous.source}.`);
 
-  const previousSnapshot = decodeBaseline(baselineText);
   const currentSnapshot = buildSnapshot();
-  const verdict = evaluateSemverGate(previousSnapshot, currentSnapshot, previousVersion, currentVersion);
+  const verdict = evaluateSemverGate(previous.snapshot, currentSnapshot, previousVersion, currentVersion);
 
   if (!verdict.breaking) {
     console.log(`API semver gate: no breaking changes since ${previousTag}.`);
@@ -141,4 +165,5 @@ module.exports = {
   isRequiredMajorBump,
   parseStableSemver,
   previousReleaseTag,
+  releaseSnapshot,
 };
