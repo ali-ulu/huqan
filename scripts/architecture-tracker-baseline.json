@@ -3331,9 +3331,6 @@
       "lib/v5/trusted-key-resolver.js": [
         "lib/receipt/trusted-key-resolver.js"
       ],
-      "lib/v5/verification-core.js": [
-        "lib/is-plain-object.js"
-      ],
       "lib/verify-native.js": [
         "lib/claim-decomposition.js",
         "lib/contradiction-rules.js",

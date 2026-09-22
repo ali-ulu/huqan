@@ -320,3 +320,31 @@ test('cryptographic evidence handoff is separate from bounded verification evalu
     cryptographicState: 'valid'
   }), { cryptographicState: 'valid' });
 });
+
+test('facade re-exports the extracted verification modules (#2257)', () => {
+  const shape = require('../lib/v5/verification-input-shape');
+  const normalizer = require('../lib/v5/verification-evidence-normalizer');
+  const reasons = require('../lib/v5/verification-reason-mapping');
+  const evaluator = require('../lib/v5/verification-evaluator');
+  const facade = require('../lib/v5/verification-core');
+
+  assert.equal(typeof shape.hasOnlyKeys, 'function');
+  assert.equal(typeof shape.containsForbiddenKeyMaterial, 'function');
+  assert.equal(typeof shape.malformedInput, 'function');
+  assert.equal(typeof normalizer.hasOnlyOwnDataKeys, 'function');
+  assert.equal(typeof normalizer.normalizeCryptographicVerificationEvidence, 'function');
+  assert.equal(typeof reasons.forbiddenClaimReason, 'function');
+  assert.equal(typeof reasons.keyStateReason, 'function');
+  assert.equal(typeof reasons.signatureReason, 'function');
+  assert.equal(typeof evaluator.evaluateBoundedVerification, 'function');
+
+  // The facade stays the public contract: same functions, same behavior.
+  assert.equal(facade.evaluateBoundedVerification, evaluator.evaluateBoundedVerification);
+  assert.equal(
+    facade.normalizeCryptographicVerificationEvidence,
+    normalizer.normalizeCryptographicVerificationEvidence
+  );
+  assert.equal(typeof facade.SUPPORTED_SCHEMA_VERSION, 'string');
+  assert.equal(typeof facade.SUPPORTED_ALGORITHM, 'string');
+});
+
