@@ -26,10 +26,15 @@
     const line = document.createElement('p');
     line.className = 'evidence-ladder';
     line.dataset.evidenceLadder = ladder.schemaVersion || '';
+    const evidenceLabels = {
+      external_research: T('webResearch.evidence.external_research', 'External research'),
+      review_candidate: T('webResearch.evidence.review_candidate', 'Review candidate'),
+      canonical_evidence: T('webResearch.evidence.canonical_evidence', 'Canonical evidence'),
+      verified_claim: T('webResearch.evidence.verified_claim', 'Verified claim'),
+    };
     const labels = ladder.levels.map(level => {
-      const key = `webResearch.evidence.${level.id}`;
       const fallback = String(level.id || '').replaceAll('_', ' ');
-      return `${level.id === ladder.current ? '●' : '○'} ${T(key, fallback)}`;
+      return `${level.id === ladder.current ? '●' : '○'} ${evidenceLabels[level.id] || fallback}`;
     });
     line.textContent = `${T('webResearch.evidenceLadder', 'Evidence ladder')}: ${labels.join(' → ')}`;
     root.append(line);
