@@ -391,15 +391,15 @@ describe('AB1 v2 classifier behavior', () => {
     }
   });
 
-  it('financial transactions resolve CRITICAL and hold for human review until the dedicated rule lands (#2505/D)', () => {
+  it('financial transactions use the dedicated fail-closed policy (#2505/D)', () => {
     assert.strictEqual(resolveRiskLevel('FINANCIAL_TRANSACTION'), RISK_LEVELS.CRITICAL);
     for (const token of ['FINANCIAL_TRANSACTION', 'payment', 'billing', 'invoice', 'refund', 'charge', 'payout']) {
       const r = classifyAgentAction({ category: token });
       assert.strictEqual(r.category, ACTION_CATEGORIES.FINANCIAL_TRANSACTION, token);
-      // No dedicated CATEGORY_RULES entry yet (that table cannot grow without
-      // a module split): the unknown-category rule holds, fail-closed.
       assert.strictEqual(r.decision, ACTION_DECISIONS.HUMAN_REVIEW, token);
-      assert.ok(r.flags.includes(FLAGS.UNKNOWN_ACTION_CATEGORY), token);
+      assert.strictEqual(r.riskLevel, RISK_LEVELS.CRITICAL, token);
+      assert.strictEqual(r.reason, 'FINANCIAL_DETAILS_ABSENT', token);
+      assert.ok(!r.flags.includes(FLAGS.UNKNOWN_ACTION_CATEGORY), token);
     }
   });
 

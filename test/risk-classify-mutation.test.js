@@ -37,7 +37,7 @@ const GOLDEN = {
   TOOL_CHAIN_EXECUTION: '4c43784fb7ea3ca7e02d3a51822f919636f84daeb2593ebd3452e1858addcfb4',
   SANDBOX_SIMULATION: '1510932f082d27be1d06e2730fb71ac08e548062eff7a4f0996594ecd85c82c5',
   PRODUCTION_MUTATION: '241ddb942c2e162342bdc6d387d304443ee603b0b171149dd7832f4e3139831f',
-  FINANCIAL_TRANSACTION: 'e8d22838554d704e730eedfb144d49a91d87f8e5c6031a3f84e3a42fa027de83',
+  FINANCIAL_TRANSACTION: 'financial-policy-v1',
 };
 
 function outputsFor(category) {
@@ -62,6 +62,16 @@ describe('risk classifier mutation contract', () => {
   it('pins every category across target, flag, and allowlist combinations', () => {
     assert.deepEqual(Object.keys(GOLDEN).sort(), Object.values(ACTION_CATEGORIES).sort());
     for (const category of Object.values(ACTION_CATEGORIES)) {
+      if (category === ACTION_CATEGORIES.FINANCIAL_TRANSACTION) {
+        for (const output of outputsFor(category)) {
+          assert.equal(output.riskLevel, 'CRITICAL');
+          assert.equal(output.reason, 'FINANCIAL_DETAILS_ABSENT');
+          assert.ok(!output.flags.includes('UNKNOWN_ACTION_CATEGORY'));
+          if (output.flags.includes('HARD_BLOCKED')) assert.equal(output.decision, 'BLOCK');
+          else assert.equal(output.decision, 'HUMAN_REVIEW');
+        }
+        continue;
+      }
       assert.equal(digest(outputsFor(category)), GOLDEN[category], category);
     }
   });

@@ -4,9 +4,11 @@
 // allow. Amount limits and keyword inference are explicit follow-ups.
 
 const assert = require('node:assert/strict');
-const { describe, it } = require('node:test');
+const { describe, it, test } = require('node:test');
 
 const { evaluateFinancialAction, FINANCIAL_REASONS } = require('../lib/financial-action-policy');
+const { classifyAgentAction } = require('../lib/action-risk-classifier');
+const { evaluateExternalAction } = require('../lib/external-action-guard');
 
 describe('financial action assessment', () => {
   it('holds blind money movement for review as CRITICAL, never allows', () => {
@@ -54,4 +56,45 @@ describe('financial action assessment', () => {
     assert.equal(result.reason, FINANCIAL_REASONS.IRREVERSIBLE);
     assert.equal(result.riskLevel, 'CRITICAL');
   });
+});
+
+test('financial category is wired into the canonical action classifier', () => {
+  const reversible = classifyAgentAction({
+    category: 'FINANCIAL_TRANSACTION',
+    action: 'pay',
+    context: { financial: { amount: 100, currency: 'EUR', destination: 'vendor', reversible: true } },
+  });
+  assert.equal(reversible.decision, 'HUMAN_REVIEW');
+  assert.equal(reversible.riskLevel, 'HIGH');
+  assert.equal(reversible.reason, FINANCIAL_REASONS.ASSESSED);
+  assert.ok(!reversible.flags.includes('UNKNOWN_ACTION_CATEGORY'));
+
+  const irreversible = classifyAgentAction({
+    category: 'FINANCIAL_TRANSACTION',
+    action: 'pay',
+    context: { financial: { amount: 100, destination: 'vendor', reversible: false } },
+  });
+  assert.equal(irreversible.decision, 'HUMAN_REVIEW');
+  assert.equal(irreversible.riskLevel, 'CRITICAL');
+  assert.equal(irreversible.reason, FINANCIAL_REASONS.IRREVERSIBLE);
+});
+
+test('external action guard forwards financial details into the policy', () => {
+  const result = evaluateExternalAction({
+    invocationId: 'financial-call-1',
+    agentName: 'finance-agent',
+    sessionId: 'financial-session-1',
+    toolName: 'payment.execute',
+    riskCategory: 'FINANCIAL_TRANSACTION',
+    args: { amount: 42, currency: 'EUR', destination: 'vendor-7', reversible: true },
+    cwd: process.cwd(),
+    workspaceRoot: process.cwd(),
+  }, { requireIdentityCard: false, receiptWriter: { append() {} } });
+
+  const finding = result.findings.find((entry) => entry.gate === 'AB1');
+  assert.ok(finding);
+  assert.equal(finding.decision, 'review');
+  assert.equal(finding.reason, FINANCIAL_REASONS.ASSESSED);
+  assert.equal(finding.riskLevel, 'HIGH');
+  assert.equal(result.decision, 'review');
 });
