@@ -113,17 +113,10 @@ class HuqanStorage {
     }
     this.db = new Database(this.dbPath);
     try {
-      // RESUMABLE, and that is a choice rather than a default: this store holds
-      // agent checkpoints, so a lost tail costs repeated work and no evidence.
-      // See lib/sqlite-durability.js for the split and what it was measured at.
       applySqliteDurability(this.db, 'RESUMABLE');
       this._init();
     } catch (error) {
-      // If initialization fails (for example on a corrupt SQLite file), release
-      // the handle before rethrowing. Windows will otherwise keep memory.db
-      // locked and even fail deterministic cleanup of the rejected store.
       try { this.db.close(); } catch (_) {}
-      this.db = null;
       throw error;
     }
   }
@@ -588,8 +581,6 @@ class HuqanStorage {
   countCheckpoints() {
     return Number(this._stmts.countCheckpoints.get()?.c || 0);
   }
-
-
   _hydrateToolApproval(row) {
     return {
       ...row,
