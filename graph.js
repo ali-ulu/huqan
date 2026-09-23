@@ -72,10 +72,10 @@ const {
 } = require('./lib/graph-store-adapters');
 const {
   isSqliteAvailable,
-  openSqlite: runOpenSqlite,
-  closeSqlite: runCloseSqlite,
-  reopen: runReopenSqlite,
-} = require('./lib/graph-sqlite-lifecycle');
+  openGraphSqlite: runOpenSqlite,
+  closeGraphSqlite: runCloseSqlite,
+  reopenGraphSqlite: runReopenSqlite,
+} = require('./lib/sqlite-persistence-validation');
 const { initGraphSchema, createGraphStmts } = require('./lib/graph-sqlite-schema');
 const { ensureMutationReceiptFamilySchema: runMutationReceiptFamilySchema } = require('./lib/graph-mutation-receipt-schema');
 const { getCommittedMutationReceiptByOperation: runReceiptByOperationRead, getCommittedMutationReceiptById: runReceiptByIdRead } = require('./lib/graph-mutation-receipt-read');
