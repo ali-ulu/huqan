@@ -12,7 +12,6 @@ const { CANONICAL_AGENT_VERSION, createAgent } = require('./agentRuntime');
 const { readReceiptById } = require('./lib/receipt/receipt-read-index');
 const { createBackgroundTimers } = require('./lib/http/background-timers');
 const { createServerLifecycle, requireApiKeyAtBoot } = require('./lib/http/server-boot'), { resolveHttpServerTimeouts, resolveRequestLimits, createConcurrencyLimiter, DEFAULT_RETRY_AFTER_MS } = require('./lib/http/server-timeouts'), { resolveRequestUrl } = require('./lib/http/request-origin');
-const { receiptReadFailure } = require('./lib/http/receipt-read-failures');
 const { createWorkbenchReadHttpRouter } = require('./lib/workbench/workbench-read-http-router'), { handlePublicBadgeRequest } = require('./lib/http/public-badge-route'), { handleLlmProxyRequest } = require('./lib/llm-proxy/proxy-mount');
 const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
 const { handleWorkflowContractRoute } = require('./lib/http/workflow-contract-route');
@@ -89,7 +88,6 @@ const {
   TRUST_RECEIPT_READ_PREFIX,
   readTrustFilters,
   hasTrustQuery,
-  readPathReceiptId,
 } = require('./lib/http-trust-query');
 const { V2_STATUS_PHASES } = require('./lib/http/v2-status-phases');
 const { buildGraphData } = require('./lib/server-graph-data');
@@ -98,6 +96,7 @@ const { createCoreHttpRoutes } = require('./lib/http/core-http-routes');
 const { createIngestApprovalRuntime } = require('./lib/http/ingest-approval-runtime');
 const { createIngestHttpRoutes } = require('./lib/http/ingest-http-routes');
 const { createPublicApiRoute } = require('./lib/http/public-api-route');
+const { createReceiptReadRoute } = require('./lib/http/receipt-read-route');
 
 const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: args => ingestApprovalRuntime.decide(args), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, proposeLearn: args => callMcpTool(kernel, { name: 'huqan.learn', arguments: args }, { approvalStore: getIngestApprovalStore() }), submitIngest: data => ingestApprovalRuntime.submit(data), createAgent: options => observabilityRuntime.createAgent(options), decideLearnApproval: createLearnApprovalDecision({ kernel, getApprovalStore: getIngestApprovalStore }) });
 // V5 issuer records are receiver-owned; an empty registry remains fail-closed.
@@ -234,6 +233,12 @@ const handlePublicApiRoute = createPublicApiRoute({
   writeJson,
   JSON_CONTENT_TYPE,
 });
+const handleReceiptReadRoute = createReceiptReadRoute({
+  graph: kernel.graph,
+  denyIfUnauthorized,
+  writeJson,
+  writeApiError,
+});
 const { handleTrustQueryRoutes } = createTrustQueryRoutes({
   graph: kernel.graph,
   writeJson,
@@ -308,49 +313,7 @@ const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnviron
 
   if (await handleIngestHttpRoutes(req, res, reqUrl, correlation)) return;
 
-  const receiptReadRequest = readPathReceiptId(reqUrl.pathname);
-  if (receiptReadRequest) {
-    if (req.method !== 'GET') {
-      writeApiError(req, res, 405, 'method_not_allowed', 'Method not allowed');
-      return;
-    }
-    if (!denyIfUnauthorized(req, res)) return;
-    if (!receiptReadRequest.ok) {
-      writeJson(req, res, 400, {
-        ok: false,
-        error: {
-          code: receiptReadRequest.code,
-          message: receiptReadRequest.code === 'missing_receipt_id'
-            ? 'receiptId is required'
-            : 'receiptId must be a non-empty string',
-        },
-      }, { 'Cache-Control': 'no-cache' });
-      return;
-    }
-    const workspace = readExactWorkspace(reqUrl.searchParams);
-    if (!workspace.ok) {
-      writeApiError(req, res, 400, workspace.code, 'Exactly one non-empty workspaceId is required.');
-      return;
-    }
-    const filters = readTrustFilters(reqUrl);
-    const readFilters = { workspaceId: workspace.workspaceId };
-    const read = readReceiptById(kernel.graph, receiptReadRequest.receiptId, readFilters);
-    if (!read.ok) {
-      // A receipt from a broken chain is never served as an ordinary 200, and
-      // it is not "not found" either -- it gets its own code (#766).
-      const failure = receiptReadFailure(read.status);
-      writeJson(req, res, failure.statusCode, {
-        ok: false,
-        error: { code: failure.code, message: read.error?.message || 'receipt could not be read' },
-      }, { 'Cache-Control': 'no-cache' });
-      return;
-    }
-    writeJson(req, res, 200, {
-      ok: true,
-      receipt: read.receipt,
-    }, { 'Cache-Control': 'no-cache' });
-    return;
-  }
+  if (handleReceiptReadRoute(req, res, reqUrl)) return;
 
   if (handlePublicBadgeRequest({ req, res, reqUrl, source: kernel.graph, writeJson }) || await handleLlmProxyRequest(req, res, reqUrl, { graph: kernel.graph, writeJson }) || handleWorkbenchRead(req, res, reqUrl, kernel.graph)) return;
 
