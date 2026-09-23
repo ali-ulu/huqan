@@ -109,9 +109,13 @@ test('site 5: the rejection propagates regardless of the audit — from source',
 test('the evidence signal is already consumed by a production caller', () => {
   // ADR-012 step 1 was constrained to invent no new error contract. It does not
   // need to: `audit` is already in the return shape and already read.
+  // #2127: the read moved with the _crossLink body to lib/kernel-cross-link.js.
+  const crossLink = fs.readFileSync(path.join(REPO_ROOT, 'lib', 'kernel-cross-link.js'), 'utf8');
+
+  assert.match(crossLink, /if \(result\.audit\) audits\+\+;/);
   const source = fs.readFileSync(path.join(REPO_ROOT, 'kernel.js'), 'utf8');
 
-  assert.match(source, /if \(result\.audit\) audits\+\+;/);
+  assert.match(source, /return runCrossLink\(\{ graph: this\.graph,/);
   assert.match(source, /return \{ decision: admission\.outcome, node: null, audit, admission \};/);
 });
 
