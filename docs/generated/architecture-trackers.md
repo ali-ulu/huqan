@@ -37,9 +37,9 @@ Tracked in total: **62**
 | `lib/github-app-streaming-trust.js` | 612 | — |
 | `lib/mcp-tool-data-schemas.js` | 611 | — |
 | `backupRestore.js` | 610 | — |
-| `lib/provenance-query.js` | 600 | — |
 | `lib/mcp-gate-adapter.js` | 606 | — |
 | `finalizer.js` | 604 | — |
+| `lib/provenance-query.js` | 600 | — |
 | `lib/memory-store.js` | 594 | FANOUT:20 |
 | `lib/external-action-receipt.js` | 589 | — |
 | `lib/ingest.js` | 587 | — |
