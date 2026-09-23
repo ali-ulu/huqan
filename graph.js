@@ -49,8 +49,6 @@ const {
   writeJsonJournal: runWriteJsonJournal,
   readMutationReceiptFromJsonJournal: runReadMutationReceiptFromJsonJournal,
   readMutationReceipt: runReadMutationReceipt,
-  getCommittedMutationReceiptByOperation: runCommittedReceiptByOperation,
-  getCommittedMutationReceiptById: runCommittedReceiptById,
   mutationReceiptReadStoreApi: runMutationReceiptReadStoreApi,
   getCommittedMutationResultByOperation: runCommittedMutationResult,
   getCommittedMutationResultsByPrefix: runCommittedMutationResultsByPrefix,
@@ -77,9 +75,13 @@ const {
   openSqlite: runOpenSqlite,
   closeSqlite: runCloseSqlite,
   reopen: runReopenSqlite,
-  initDb: runInitGraphDb,
-  ensureMutationReceiptFamilySchema: runMutationReceiptFamilySchema,
 } = require('./lib/graph-sqlite-lifecycle');
+const { initGraphSchema, createGraphStmts } = require('./lib/graph-sqlite-schema');
+const { ensureMutationReceiptFamilySchema: runMutationReceiptFamilySchema } = require('./lib/graph-mutation-receipt-schema');
+const {
+  getCommittedMutationReceiptByOperation: runReceiptByOperationRead,
+  getCommittedMutationReceiptById: runReceiptByIdRead,
+} = require('./lib/graph-mutation-receipt-read');
 
 class Graph {
   /**
@@ -123,8 +125,14 @@ class Graph {
   _openSqlite(opts) { return runOpenSqlite(this, opts); }
   closeSqlite() { return runCloseSqlite(this); }
   reopen(opts = this._sqliteOptions) { return runReopenSqlite(this, opts); }
-  _initDB(opts = {}) { return runInitGraphDb(this, opts); }
-  _ensureMutationReceiptFamilySchema() { return runMutationReceiptFamilySchema(this); }
+  _initDB(opts = {}) {
+    initGraphSchema(this._db, opts);
+    this._stmts = createGraphStmts(this._db);
+  }
+
+  _ensureMutationReceiptFamilySchema() {
+    return runMutationReceiptFamilySchema(this._db);
+  }
 
   /**
    * JSON-backend durable mutation journal file, sibling to memoryPath (same
@@ -150,10 +158,10 @@ class Graph {
   }
   _readMutationReceipt(row) { return runReadMutationReceipt(row); }
   getCommittedMutationReceiptByOperation(operationId) {
-    return runCommittedReceiptByOperation(this, operationId);
+    return runReceiptByOperationRead(this._mutationReceiptReadStoreApi(), operationId);
   }
   getCommittedMutationReceiptById(receiptId) {
-    return runCommittedReceiptById(this, receiptId);
+    return runReceiptByIdRead(this._mutationReceiptReadStoreApi(), receiptId);
   }
   _mutationReceiptReadStoreApi() { return runMutationReceiptReadStoreApi(this); }
   getCommittedMutationResultByOperation(operationId) { return runCommittedMutationResult(this, operationId); }
