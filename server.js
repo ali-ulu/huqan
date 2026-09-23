@@ -11,11 +11,6 @@ const { readFileSync } = require('fs');
 const { createKernel, CANONICAL_KERNEL_VERSION } = require('./lib/kernel-factory');
 const { CANONICAL_AGENT_VERSION, createAgent } = require('./agentRuntime');
 const { parseCommand } = require('./lib/command-parser');
-const { evaluateLlmSor, llmSorCheckFields } = require('./lib/shield');
-const {
-  toPublicVerifyPayload,
-  toPublicVerifyEnvelope,
-} = require('./lib/verify-status-vocabulary');
 const { handleIngest, buildIngestApprovalSnapshot, sha256 } = require('./lib/ingest');
 const HuqanStorage = require('./storage');
 const { decideIngestApproval } = require('./lib/workbench/ingest-approval-action');
@@ -29,7 +24,6 @@ const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
 const { handleWorkflowContractRoute, writeUnavailableWorkflow } = require('./lib/http/workflow-contract-route');
 const { createReadWorkflowHttpRouter } = require('./lib/http/read-workflow-actions');
 const { createWorkflowDataRoutes, createLearnApprovalDecision } = require('./lib/http/workflow-data-routes');
-const { bindHttpProvenance } = require('./lib/http/http-provenance');
 const { readExactWorkspace } = require('./lib/http/exact-workspace');
 // #2128 slice 2: trust query routes live in lib/http/trust-query-routes.js.
 const { createTrustQueryRoutes } = require('./lib/http/trust-query-routes');
@@ -38,7 +32,6 @@ const { createTrustQueryRoutes } = require('./lib/http/trust-query-routes');
 const { createViewerMount } = require('./lib/http/viewer-mount');
 const { createExternalClientProductionBoundary } = require('./lib/external-client-production-boundary');
 const { createOptionalRouteBoundaries } = require('./lib/http/optional-boundaries'), { createPrGuardianOptions } = require('./lib/http/pr-guardian-config'), { createFitnessDashboardRoute } = require('./lib/http/fitness-dashboard-route'), { readTrustedBatchKeys } = require('./lib/external-action-receipt-collector'), { readCollectorSealKey } = require('./lib/collector-seal-config');
-const { buildUploadResponse } = require('./lib/http/upload-admission-contract');
 const { createHttpIngestApprovalAuditWriter } = require('./lib/http/ingest-approval-audit-writer');
 const { createTrustEvidenceLedger } = require('./lib/trust-evidence-ledger'); const { callTool: callMcpTool } = require('./mcpServer');
 const pkg = require('./package.json');
@@ -169,6 +162,7 @@ const { runPublicApiCommand } = require('./lib/http/public-api-commands');
 const { V2_STATUS_PHASES } = require('./lib/http/v2-status-phases');
 const { buildGraphData } = require('./lib/server-graph-data');
 const { createRuntimeStatusHandlers } = require('./lib/http/runtime-status'); const { createRequestCorrelation, writeStructuredLog } = require('./lib/http/structured-log');
+const { createCoreHttpRoutes } = require('./lib/http/core-http-routes');
 
 async function submitIngestApproval(data) {
   const snapshot = buildIngestApprovalSnapshot(data);
@@ -315,6 +309,19 @@ const handleObservabilityRoute = observabilityRuntime.handleRoute;
 // a 404 the way #1894 did. See lib/http/static-assets.js.
 const { getHtmlPage, handleStaticAssetRequest } = require('./lib/http/static-assets');
 const handleAnswerRoute = require('./lib/http/answer-route').createAnswerRoute({ kernel, legacyVerify, sanitizeInput, parseJsonRequest, denyIfUnauthorized, buildCorsHeaders, JSON_CONTENT_TYPE, DEFAULT_MAX_JSON_BODY, writeJson }), handleFitnessDashboardRoute = createFitnessDashboardRoute({ kernel, writeJson, buildCorsHeaders, JSON_CONTENT_TYPE });
+const handleCoreRoutes = createCoreHttpRoutes({
+  kernel,
+  getGraphData,
+  getV2StatusData,
+  getHealthData,
+  handleAnswerRoute,
+  parseJsonRequest,
+  denyIfUnauthorized,
+  buildCorsHeaders,
+  writeJson,
+  legacyVerify,
+  JSON_CONTENT_TYPE,
+});
 const { handleTrustQueryRoutes } = createTrustQueryRoutes({
   graph: kernel.graph,
   writeJson,
@@ -385,262 +392,7 @@ const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnviron
   if (await handleV5PreflightRoute(req, res, reqUrl)) return;
   if (handleWorkflowContractRoute(req, res, reqUrl) || await handleReadWorkflow(req, res, reqUrl)) return;
   if (await handleWorkflowDataRoute(req, res, reqUrl) || await handleFitnessDashboardRoute(req, res, reqUrl)) return;
-  // --- /graph-data ---
-  if (reqUrl.pathname === '/graph-data') {
-    if (req.method !== 'GET') {
-      res.writeHead(405); res.end(); return;
-    }
-    const rawWorkspaceId = reqUrl.searchParams.get('workspaceId') || '';
-    const requestedWorkspaceId = sanitizeInput(rawWorkspaceId);
-    const isDefaultScope = !requestedWorkspaceId || requestedWorkspaceId === 'default';
-    if (!isDefaultScope && !denyIfUnauthorized(req, res)) return;
-    const workspaceId = requestedWorkspaceId || 'default';
-    try {
-      const data = getGraphData(workspaceId);
-      res.writeHead(200, {
-        'Content-Type': JSON_CONTENT_TYPE,
-        ...buildCorsHeaders(req),
-        'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
-      });
-      res.end(JSON.stringify(data));
-    } catch (err) {
-      writeStructuredLog(console, 'error', 'http.graph_data_error', correlation, { route: '/graph-data', method: req.method, errorCode: err?.code || 'GRAPH_DATA_FAILED' });
-      writeJson(req, res, 500, { error: 'Internal server error' });
-    }
-    return;
-  }
-
-  if (reqUrl.pathname === '/v2-status') {
-    if (req.method !== 'GET') {
-      res.writeHead(405, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ error: 'Method not allowed' }));
-      return;
-    }
-    try {
-      const data = getV2StatusData();
-      res.writeHead(200, {
-        'Content-Type': JSON_CONTENT_TYPE,
-        ...buildCorsHeaders(req),
-        'Cache-Control': 'no-cache',
-      });
-      res.end(JSON.stringify(data));
-    } catch (err) {
-      writeStructuredLog(console, 'error', 'http.v2_status_error', correlation, { route: '/v2-status', method: req.method, errorCode: err?.code || 'V2_STATUS_FAILED' });
-      writeJson(req, res, 500, { error: 'Internal server error' });
-    }
-    return;
-  }
-
-  if (reqUrl.pathname === '/health') {
-    if (req.method !== 'GET') {
-      res.writeHead(405, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ error: 'Method not allowed' }));
-      return;
-    }
-    try {
-      res.writeHead(200, {
-        'Content-Type': JSON_CONTENT_TYPE,
-        ...buildCorsHeaders(req),
-        'Cache-Control': 'no-cache', 'X-Content-Type-Options': 'nosniff',
-      });
-      res.end(JSON.stringify(getHealthData()));
-    } catch (err) {
-      writeStructuredLog(console, 'error', 'http.health_error', correlation, { route: '/health', method: req.method, errorCode: err?.code || 'HEALTH_FAILED' });
-      writeJson(req, res, 500, { error: 'Internal server error' });
-    }
-    return;
-  }
-
-  // Structured v2 contract endpoint. Legacy /dogrula stays unchanged below.
-  if (reqUrl.pathname === '/v2/verify') {
-    // POST only. The guard used to admit GET as well, but nothing served it:
-    // GET passed this check, skipped the POST branch, and fell to an
-    // unconditional 405 at the end of the block. The `&& req.method !== 'GET'`
-    // was doing no work — GET was refused either way, just from a different
-    // line — while making the route read as though GET were supported (#1035).
-    if (req.method !== 'POST') {
-      writeJson(req, res, 405, { error: 'Method not allowed' });
-      return;
-    }
-
-    const sendVerifyResult = (statement, workspaceId = '') => {
-      const text = sanitizeInput(statement || '');
-      if (!text) {
-        writeJson(req, res, 400, { error: 'claim, statement or text is required' });
-        return;
-      }
-      try {
-        const normalizedWorkspaceId = sanitizeInput(workspaceId || reqUrl.searchParams.get('workspaceId') || '');
-        const result = kernel.verify(text, normalizedWorkspaceId ? { workspaceId: normalizedWorkspaceId } : {});
-        // Boundary projection only — the kernel envelope itself is unchanged.
-        writeJson(req, res, 200, toPublicVerifyEnvelope(result), { 'Cache-Control': 'no-cache' });
-      } catch (err) {
-        writeStructuredLog(console, 'error', 'http.v2_verify_error', correlation, { route: '/v2/verify', method: req.method, errorCode: err?.code || 'V2_VERIFY_FAILED' });
-        writeJson(req, res, 500, { error: 'Internal server error' });
-      }
-    };
-
-    if (!denyIfUnauthorized(req, res)) return;
-    const data = await parseJsonRequest(req, res, { maxBytes: 4_096 });
-    if (!data) return;
-    sendVerifyResult(data.claim || data.statement || data.text || '', data.workspaceId || '');
-    return;
-  }
-
-  // /answer -> lib/http/answer-route.js (#328)
-  if (reqUrl.pathname === '/answer') { handleAnswerRoute(req, res, reqUrl); return; }
-
-  // --- /llm-sor ---
-  if (reqUrl.pathname === '/llm-sor') {
-    if (req.method !== 'POST') {
-      res.writeHead(405, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ error: 'Method not allowed' }));
-      return;
-    }
-    if (!denyIfUnauthorized(req, res)) return;
-    const data = await parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_JSON_BODY });
-    if (!data) return;
-    const question = sanitizeInput(data.question || data.q || '');
-    const autoLearn = data.autoLearn === true;
-    const workspaceId = sanitizeInput(data.workspaceId || reqUrl.searchParams.get('workspaceId') || '');
-    if (!question) {
-      res.writeHead(400, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ error: 'question is required' }));
-      return;
-    }
-
-    try {
-      // HUQAN pre-verification
-      const huqanCheck = legacyVerify(kernel.verify(question, workspaceId ? { workspaceId } : {}));
-
-      // LLM'ye sor
-      const LLMAdapter = require('./llmAdapter');
-      const llm = new LLMAdapter();
-      const llmRes = await llm.ask(question);
-
-      if (!llmRes.ok) {
-        res.writeHead(200, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-        res.end(JSON.stringify({
-          ok: false,
-          error: llmRes.error,
-          ...llmSorCheckFields(huqanCheck),
-        }));
-        return;
-      }
-
-      const llmText = llmRes.data.text;
-
-      // LLM yanıtını doğrula
-      const llmCheck = legacyVerify(kernel.verify(llmText.slice(0, 300), workspaceId ? { workspaceId } : {}));
-
-      const shield = evaluateLlmSor({
-        kernel: kernel,
-        question,
-        llmText,
-        huqanCheck,
-        llmCheck,
-        autoLearn,
-        maxSentences: 15,
-        workspaceId,
-      });
-
-      res.writeHead(200, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({
-        ok: true,
-        question,
-        llmAnswer: llmText,
-        model: llmRes.data.model,
-        ...llmSorCheckFields(huqanCheck),
-        // normalizeCheck() now yields canonical status, so this projection is
-        // a no-op for it; kept because the guard also accepts legacy input.
-        llmCheck: toPublicVerifyPayload(shield.llmCheck),
-        label: shield.label,
-        shield: shield.shield,
-        learnResult: shield.learnResult,
-      }));
-    } catch (err) {
-      writeStructuredLog(console, 'error', 'http.llm_sor_error', correlation, { route: '/llm-sor', method: req.method, errorCode: err?.code || 'LLM_SOR_FAILED' });
-      writeJson(req, res, 500, { error: 'Internal server error' });
-    }
-    return;
-  }
-  if (reqUrl.pathname === '/dogrula' || reqUrl.pathname === '/verify') {
-    // POST only, for the same reason as /v2/verify above (#1035).
-    if (req.method !== 'POST') {
-      res.writeHead(405, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ error: 'Method not allowed' }));
-      return;
-    }
-    if (!denyIfUnauthorized(req, res)) return;
-    const data = await parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_JSON_BODY });
-    if (!data) return;
-    // `claim` is the canonical English input field. `statement` and `text`
-    // remain accepted as compatibility spellings (RFC-001 reader rule).
-    const text = sanitizeInput(data.claim || data.statement || data.text || '');
-    // Not GET leftovers: the body-then-query order is how /llm-sor and /yukle
-    // read workspaceId too, and it is reachable from POST whenever the body
-    // omits the field.
-    const workspaceId = sanitizeInput(data.workspaceId || reqUrl.searchParams.get('workspaceId') || '');
-    if (!text) {
-      res.writeHead(400, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ error: 'claim, statement or text is required' }));
-      return;
-    }
-    try {
-      const result = legacyVerify(kernel.verify(text, workspaceId ? { workspaceId } : {}));
-      res.writeHead(200, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-      res.end(JSON.stringify(result));
-    } catch (err) {
-      writeStructuredLog(console, 'error', 'http.verify_error', correlation, { route: '/dogrula', method: req.method, errorCode: err?.code || 'VERIFY_FAILED' });
-      writeJson(req, res, 500, { error: 'Internal server error' });
-    }
-    return;
-  }
-  if (reqUrl.pathname === '/yukle' || reqUrl.pathname === '/upload') {
-    if (req.method !== 'POST') {
-      res.writeHead(405, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ error: 'Method not allowed' }));
-      return;
-    }
-    if (!denyIfUnauthorized(req, res)) return;
-    const contentLength = Number(req.headers['content-length'] || 0);
-    if (Number.isFinite(contentLength) && contentLength > DEFAULT_MAX_UPLOAD_BODY) {
-      res.writeHead(413, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ error: 'Payload too large (max 1MB)' }));
-      return;
-    }
-    const data = await parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_UPLOAD_BODY });
-    if (!data) return;
-    const text = data.text || data.content || '';
-    if (!text) {
-      res.writeHead(400, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ error: 'text or content is required' }));
-      return;
-    }
-    const workspaceId = sanitizeInput(data.workspaceId || reqUrl.searchParams.get('workspaceId') || '');
-    const suppliedActors = [data.actor, data.provenance?.actor]
-      .map(actor => sanitizeInput(actor || ''))
-      .filter(Boolean);
-    if (suppliedActors.some(actor => actor !== 'http-api')) {
-      writeApiError(req, res, 400, 'ACTOR_MISMATCH', 'actor is derived from the authenticated HTTP boundary.');
-      return;
-    }
-    try {
-      const learnResult = kernel.learnDocument(text, {
-        returnDetails: true,
-        workspaceId,
-        approvalRequired: true,
-        provenance: bindHttpProvenance(data.provenance, { actor: 'http-api', workspaceId, sourceType: sanitizeInput(data.sourceType || '') || 'upload', sourceRef: sanitizeInput(data.sourceRef || '') || reqUrl.pathname, sourceTitle: sanitizeInput(data.sourceTitle || '') || 'HTTP upload' }),
-      });
-      const rawAdmission = Array.isArray(learnResult.admissions) ? (learnResult.admissions.find(Boolean) || null) : null;
-      res.writeHead(200, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-      res.end(JSON.stringify(buildUploadResponse(learnResult.learned, rawAdmission)));
-    } catch (err) {
-      writeStructuredLog(console, 'error', 'http.upload_error', correlation, { route: '/yukle', method: req.method, errorCode: err?.code || 'UPLOAD_FAILED' });
-      writeJson(req, res, 500, { error: 'Internal server error' });
-    }
-    return;
-  }
+  if (await handleCoreRoutes(req, res, reqUrl, correlation)) return;
 
   if (reqUrl.pathname === '/api/ingest/status') {
     if (req.method !== 'GET') {
