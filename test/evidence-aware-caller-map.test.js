@@ -102,12 +102,15 @@ test('the gap is now visible in the difference between the two counters', () => 
 test('both _crossLink branches now guard the counter the same way', () => {
   // The two branches had different contracts for the same counter. They now
   // agree: each increments only on a produced audit event.
-  const source = readCode('kernel.js');
+  // #2127: the branch bodies moved verbatim to lib/kernel-cross-link.js;
+  // the guard shapes are pinned there, kernel.js keeps only the delegation.
+  const source = readCode('lib/kernel-cross-link.js');
 
   assert.match(source, /\}, parentProvenance, workspaceId\);\s*if \(audit\) audits\+\+;/);
   assert.match(source, /if \(result\.audit\) audits\+\+;/);
   // And the unconditional form is gone rather than merely shadowed.
   assert.doesNotMatch(source, /workspaceId\);\s*audits\+\+;/);
+  assert.match(readCode('kernel.js'), /return runCrossLink\(\{ graph: this\.graph,/);
 });
 
 test('the fifteen discarding sites are five caller functions', () => {
@@ -130,10 +133,11 @@ test('the fifteen discarding sites are five caller functions', () => {
   // learn discarding site (the ProvenanceError re-append) is line 655;
   // #2255 removed `_runBeforeLearn` and main added `addCandidateClaim`
   // right after `learn`, so the old pin at 694 now lands in the wrong
-  // method. _crossLink's derivation site remains at 796, and the
-  // strict-provenance helper added before executeLearn shifts its pinned
-  // sites by 29 lines.
-  assert.deepEqual(new Set(enclosing('kernel.js', [796, 655])), new Set(['learn', '_crossLink']));
+  // method. #2127 extracted _crossLink's body to lib/kernel-cross-link.js
+  // and left a one-line facade at 743; the require added one line above,
+  // so the learn site moved 655 -> 656. The strict-provenance helper
+  // added before executeLearn shifts its pinned sites by 29 lines.
+  assert.deepEqual(new Set(enclosing('kernel.js', [743, 656])), new Set(['learn', '_crossLink']));
   // The strict provenance helper now precedes executeLearn, so keep the
   // measurement pinned to the seven current learn-use-case sink lines.
   assert.deepEqual(
@@ -168,11 +172,15 @@ test('no accumulation seam exists; the nearest mechanism is HTTP-shaped', () => 
 test('all four batch callers already return somewhere to report a gap', () => {
   // Why "one common accumulation mechanism" is not supported by the evidence:
   // each caller already has a field for this answer.
+  // #2127: the { written, audits, skipped } producer moved verbatim to
+  // lib/kernel-cross-link.js; kernel.js keeps the delegation.
   const kernel = readCode('kernel.js');
+  const crossLink = readCode('lib/kernel-cross-link.js');
   const conflict = readCode('lib/conflict-detector.js');
   const learnUseCase = readCode('lib/learn-use-case.js');
 
-  assert.match(kernel, /return \{ written, audits, skipped \};/);
+  assert.match(crossLink, /return \{ written, audits, skipped \};/);
+  assert.match(kernel, /return runCrossLink\(\{ graph: this\.graph,/);
   assert.equal((conflict.match(/warnings: built\.warnings/g) || []).length >= 3, true);
   assert.match(learnUseCase, /provenanceWarnings/);
 });

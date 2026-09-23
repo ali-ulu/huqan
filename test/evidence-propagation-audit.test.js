@@ -60,9 +60,16 @@ test('four kernel sites bind the result; eleven discard it', () => {
   //
   // K2 (#328): the background-edge commit delegation moved three of the
   // kernel's result-binding sites to lib/background-provenance.js.
+  // #2127: _crossLink's `const audit = ..._appendAuditEvent(` site moved
+  // the same way to lib/kernel-cross-link.js; kernel.js keeps three.
   const bound = (relPath) => (readCode(relPath).match(/=\s*this\._appendAuditEvent\s*\(/g) || []).length;
 
-  assert.equal(bound('kernel.js'), 4, 'kernel.js binds four results (K2: three bound sites delegated)');
+  assert.equal(bound('kernel.js'), 3, 'kernel.js binds three results (K2: three bound sites delegated, #2127: cross-link site delegated)');
+  assert.equal(
+    (readCode('lib/kernel-cross-link.js').match(/=\s*appendAuditEvent\s*\(/g) || []).length,
+    1,
+    'the delegated cross-link module still binds its audit result',
+  );
   assert.equal(bound('lib/learn-use-case.js'), 0);
   assert.equal(bound('lib/conflict-detector.js'), 0);
 
@@ -76,10 +83,12 @@ test('four kernel sites bind the result; eleven discard it', () => {
 test('exactly one production consumer is evidence-aware', () => {
   // _crossLink counts evidence separately from writes. Every other consumer of
   // proposeNode/proposeEdge reads only decision and node/edge.
-  const kernel = readCode('kernel.js');
+  // #2127: the read moved with the body to lib/kernel-cross-link.js.
+  const crossLink = readCode('lib/kernel-cross-link.js');
 
-  assert.match(kernel, /if \(result\.audit\) audits\+\+;/);
-  assert.equal((kernel.match(/result\.audit/g) || []).length, 1, 'only one evidence-aware read');
+  assert.match(crossLink, /if \(result\.audit\) audits\+\+;/);
+  assert.equal((crossLink.match(/result\.audit/g) || []).length, 1, 'only one evidence-aware read');
+  assert.match(readCode('kernel.js'), /return runCrossLink\(\{ graph: this\.graph,/);
 });
 
 /** Runs `body` against a kernel whose audit sink throws, and one where it works. */

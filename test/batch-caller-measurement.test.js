@@ -200,5 +200,7 @@ test('_crossLink returns evidence that executeLearn still discards', () => {
   assert.match(learnUseCase, /^\s*this\._crossLink\(subject, object, relation, workspaceId, \{/m);
   assert.doesNotMatch(learnUseCase, /=\s*this\._crossLink\(/, 'the return value is still discarded');
   // ...and the value on the other side is real.
-  assert.match(readCode('kernel.js'), /return \{ written, audits, skipped \};/);
+  // #2127: produced in lib/kernel-cross-link.js now; kernel.js delegates.
+  assert.match(readCode('lib/kernel-cross-link.js'), /return \{ written, audits, skipped \};/);
+  assert.match(readCode('kernel.js'), /return runCrossLink\(\{ graph: this\.graph,/);
 });

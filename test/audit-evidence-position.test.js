@@ -136,15 +136,21 @@ test('the kernel chokepoint straddles both positions', () => {
   // addEdge-then-audit chain counts against the delegated module, not
   // kernel.js. If that delegation is ever dropped back into kernel.js, the
   // post-mutation count below will rise and this test must catch it.
+  // #2127: _crossLink's derived-edge addEdge-then-audit chain moved the
+  // same way to lib/kernel-cross-link.js -- kernel.js keeps one chain.
   const postMutation = source.match(
     /this\.graph\.add(?:Node|Edge)\([^;]*\);(?:(?!_appendAuditEvent|graph\.add)[\s\S]){0,900}?this\._appendAuditEvent\(/g,
   ) || [];
-  assert.equal(postMutation.length, 2, 'post-mutation kernel audit sites');
+  assert.equal(postMutation.length, 1, 'post-mutation kernel audit sites');
+  const delegated = readSource('lib/kernel-cross-link.js').match(
+    /graph\.addEdge\([^;]*\);(?:(?!appendAuditEvent|graph\.add)[\s\S]){0,900}?appendAuditEvent\(/g,
+  ) || [];
+  assert.equal(delegated.length, 1, 'the moved chain still exists in the delegated module');
 
   // Pre-mutation: the remainder record a refusal or a rejection.
   const total = (source.match(/this\._appendAuditEvent\s*\(/g) || []).length;
   assert.equal(total, 6, 'total kernel audit call sites (K2: background-edge chain delegated to lib/background-provenance.js)');
-  assert.equal(total - postMutation.length, 4, 'pre-mutation kernel audit sites');
+  assert.equal(total - postMutation.length, 5, 'pre-mutation kernel audit sites');
 });
 
 test('the kernel swallows failures at both positions today', () => {
