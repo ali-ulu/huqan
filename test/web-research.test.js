@@ -233,7 +233,7 @@ test('summarize attaches a HUQAN summary and fails soft', async () => {
 
 test('workflow wires summarize through and rejects bad flags', async () => {
   const { runWebResearchWorkflow } = require('../lib/web-research-workflow');
-  const options = { env: { TAVILY_API_KEY: 'k' }, request: async () => ({ status: 200, bodyText: '{"results":[{"title":"T","url":"https://a.example/","snippet":"S"}]}' }), summarize: async () => 'wf ozeti' };
+  const options = { env: { TAVILY_API_KEY: 'k' }, request: async () => ({ status: 200, bodyText: '{"results":[{"title":"T","url":"https://a.example/","snippet":"S"}]}' }), summarize: async () => 'wf ozeti', kernel: { graph: { getAllEdges: () => [] } } };
   const done = await runWebResearchWorkflow({ workspaceId: 'default', provider: 'tavily', query: 'q', limit: 3, maxSnippet: 1000, summarize: true }, options);
   assert.equal(done.statusCode, 200);
   assert.equal(done.body.data.limit, 3);
@@ -241,6 +241,9 @@ test('workflow wires summarize through and rejects bad flags', async () => {
   assert.equal(done.body.data.sources[0].snippet, 'S');
   assert.deepEqual(done.body.data.summary, { text: 'wf ozeti', by: 'huqan-llm', sources: 1 });
   assert.equal(done.body.data.summaryStatus, 'ok');
+  assert.equal(done.body.data.summaryVerification.status, 'no_contradiction_found');
+  assert.equal(done.body.data.summaryVerification.verified, false);
+  assert.equal(done.body.data.summaryVerification.canonicalWrite, false);
   const bad = await runWebResearchWorkflow({ workspaceId: 'default', provider: 'tavily', query: 'q', summarize: 'yes' }, options);
   assert.equal(bad.statusCode, 400);
 });
