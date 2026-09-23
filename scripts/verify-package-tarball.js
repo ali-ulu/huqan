@@ -23,105 +23,38 @@
  * Exit 0 = the published tarball behaves, exit 1 = it does not.
  */
 
-const { spawnSyncWindowsAware } = require('./spawn-windows-aware');
+// #2230: tarball install orchestrator. This file keeps only this job: pack,
+// install both supported shapes, run the verifiers, verdict. Primitives live
+// in verify-tarball-shared.js, verifiers in verify-tarball-checks-core.js and
+// verify-tarball-checks-guard.js.
+//
+// verify-published-round-trip.js (#2631) requires THIS module (not the parts)
+// so its `require('./verify-package-tarball')` keeps working unchanged.
+
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const repoRoot = path.resolve(__dirname, '..');
-const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-// npm and package bins are .cmd files on Windows.  PowerShell resolves their
-// extension interactively, but child_process does not add it for us.
-const NPM_COMMAND = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-
-function packageBin(binDir, name) {
-  return path.join(binDir, process.platform === 'win32' ? `${name}.cmd` : name);
-}
-
-/** Output that means a module did not load, whatever the exit code said. */
-const LOAD_FAILURE_PATTERNS = [
-  /Plugin failed to load/i,
-  /Cannot find module/i,
-  /MODULE_NOT_FOUND/,
-];
-
-const failures = [];
-
-function fail(message) {
-  failures.push(message);
-  console.error(`FAIL: ${message}`);
-}
-
-/**
- * Hand the failures recorded by the shared verifiers below to another
- * script. verify-published-round-trip.js (#2631) reuses these verifiers but
- * owns its own verdict, so it drains this list after each consumer instead
- * of sharing the exit code. The messages were already printed once by
- * fail(); the drained strings must be recorded silently.
- */
-function takeSharedFailures() {
-  return failures.splice(0, failures.length);
-}
-
-function ok(message) {
-  console.log(`  ok: ${message}`);
-}
-
-function run(command, args, options = {}) {
-  const result = spawnSyncWindowsAware(command, args, {
-    encoding: 'utf8',
-    timeout: options.timeoutMs || 10 * 60 * 1000,
-    ...options,
-  });
-  return {
-    status: result.status,
-    stdout: result.stdout || '',
-    stderr: result.stderr || '',
-    output: `${result.stdout || ''}${result.stderr || ''}`,
-  };
-}
-
-/**
- * Every declared bin is present in the install and reports the expected
- * version. Shared with scripts/verify-published-round-trip.js (#2631), which
- * checks the registry copy instead of a local pack.
- */
-function verifyBinsAndVersion(label, binDir, consumer, env, expectedVersion = pkg.version) {
-  const binMap = pkg.bin || {};
-  for (const binName of Object.keys(binMap)) {
-    const binPath = packageBin(binDir, binName);
-    if (fs.existsSync(binPath)) ok(`bin present: ${binName}`);
-    else fail(`${label}: declared bin is missing from the install: ${binName}`);
-  }
-
-  const version = run(packageBin(binDir, 'huqan'), ['--version'], { cwd: consumer, env });
-  if (version.stdout.trim() === expectedVersion) ok(`huqan --version reports ${expectedVersion}`);
-  else fail(`${label}: huqan --version said "${version.stdout.trim()}", expected "${expectedVersion}"`);
-}
-
-/**
- * quickstart must exit 0 AND print no module-load failure lines, then produce
- * a canonical Trust Receipt. Shared with verify-published-round-trip.js (#2631).
- */
-function verifyQuickstart(label, binDir, consumer, env) {
-  const quickstart = run(packageBin(binDir, 'huqan'), ['quickstart'], { cwd: consumer, env });
-  if (quickstart.status !== 0) {
-    fail(`${label}: quickstart exited ${quickstart.status}\n${quickstart.output.slice(-2000)}`);
-  } else {
-    // The point of the whole script: read the output, not the exit code.
-    const loadErrors = quickstart.output.split(/\r?\n/)
-      .filter((line) => LOAD_FAILURE_PATTERNS.some((pattern) => pattern.test(line)));
-    if (loadErrors.length > 0) {
-      fail(`${label}: quickstart succeeded but ${loadErrors.length} module(s) failed to load:\n`
-        + loadErrors.map((line) => `      ${line.trim()}`).join('\n'));
-    } else {
-      ok('quickstart runs with no module load failures');
-    }
-
-    if (/status\s+:\s*canonical/.test(quickstart.output)) ok('quickstart produces a canonical Trust Receipt');
-    else fail(`${label}: quickstart did not produce a canonical Trust Receipt`);
-  }
-}
+const {
+  NPM_COMMAND,
+  fail,
+  failures,
+  ok,
+  pkg,
+  repoRoot,
+  run,
+} = require('./verify-tarball-shared');
+const {
+  verifyBinsAndVersion,
+  verifyExternalAdapters,
+  verifyQuickstart,
+} = require('./verify-tarball-checks-core');
+const {
+  verifyA2aRuntime,
+  verifyDecisionExplainer,
+  verifyExternalGuard,
+  verifyMcp,
+} = require('./verify-tarball-checks-guard');
 
 /**
  * @param {string} label human name for this install shape
@@ -171,169 +104,6 @@ function verifyInstall(label, tarball, installFlags) {
   }
 }
 
-function verifyExternalAdapters(label, consumer) {
-  const root = path.join(consumer, 'node_modules', 'huqan', 'adapters', 'external-action');
-  const required = [
-    'claude-code-hooks.json',
-    'codex-hooks.json',
-    'opencode-plugin.mjs',
-    'pi-extension.js',
-    path.join('hermes', 'plugin.yaml'),
-    path.join('hermes', '__init__.py'),
-  ];
-  const missing = required.filter((entry) => !fs.existsSync(path.join(root, entry)));
-  if (missing.length === 0) ok('external agent adapter templates are present');
-  else fail(`${label}: external adapter templates missing: ${missing.join(', ')}`);
-}
-
-/**
- * H-10 (#1983): the decision-explainer plugin shipped in the repo but not in
- * the tarball, so the installed package silently lost the `explain`
- * capability. `quickstart` still exited 0 -- a missing plugin only prints a
- * line -- so only an explicit assertion locks the installed-package claim:
- * both files are present under node_modules/huqan/plugins AND a clean
- * consumer can run the capability end to end.
- */
-function verifyDecisionExplainer(label, consumer, env) {
-  const installedDir = path.join(consumer, 'node_modules', 'huqan', 'plugins');
-  const missing = ['decision-explainer.js', 'decision-explainer.manifest.json']
-    .filter((name) => !fs.existsSync(path.join(installedDir, name)));
-  if (missing.length > 0) {
-    fail(`${label}: installed package is missing: ${missing.map((name) => `plugins/${name}`).join(', ')}`);
-    return;
-  }
-  ok('decision-explainer plugin files are present in the install');
-
-  const probe = run(process.execPath, [
-    '-e',
-    "const Kernel = require('huqan/kernel');"
-    + '(async () => {'
-    + ' const k = new Kernel({ noLoad: true });'
-    + " k.enableCapability('pluginCapabilities');"
-    + " const cap = k.getCapability('explain');"
-    + ' if (!cap) { console.error(\'MISSING explain capability\'); process.exit(2); }'
-    + " const result = await k.runCapability('explain', { decision: { decision: 'allow', reason: 'read_only_allow' } });"
-    + ' if (!result || result.ok !== true || result.capability !== \'explain\''
-    + ' || typeof result.data?.explanation !== \'string\''
-    + ' || !result.data.explanation.includes(\'Salt-okunur\')) process.exit(3);'
-    + " console.log('explain ok: ' + result.data.explanation);"
-    + '})().catch((e) => { console.error((e && e.message) || e); process.exit(1); });',
-  ], { cwd: consumer, env });
-
-  if (probe.status === 0) ok('installed consumer runs runCapability(\'explain\')');
-  else fail(`${label}: installed runCapability('explain') failed\n${probe.output.slice(-1000)}`);
-}
-
-function verifyExternalGuard(label, binDir, cwd, env) {
-  const guardBin = packageBin(binDir, 'huqan-gate');
-  if (!fs.existsSync(guardBin)) return;
-  const receiptLog = path.join(cwd, 'guard-receipts.jsonl');
-  const payload = JSON.stringify({
-    invocationId: 'installed-guard-probe',
-    agentName: 'future-agent',
-    sessionId: 'installed-session',
-    toolName: 'shell',
-    args: { command: 'rm -rf /' },
-    cwd,
-    workspaceRoot: cwd,
-  });
-  const guard = run(guardBin, [
-    '--profile', 'generic',
-    '--workspace-root', cwd,
-    '--receipt-log', receiptLog,
-    '--memory-path', path.join(cwd, 'guard-memory.json'),
-    '--db-path', path.join(cwd, 'guard-memory.db'),
-  ], { cwd, env, input: payload, timeoutMs: 60 * 1000 });
-  let output = null;
-  try { output = JSON.parse(guard.stdout); } catch (_) {}
-  if (guard.status === 2 && output?.decision === 'block' && fs.existsSync(receiptLog)) {
-    ok('installed huqan-gate blocks a denylisted command and persists a receipt');
-  } else {
-    fail(`${label}: installed huqan-gate did not fail closed\n${guard.output.slice(-1000)}`);
-  }
-
-  const installRoot = path.join(cwd, 'gate-install-probe');
-  fs.mkdirSync(installRoot, { recursive: true });
-  const install = run(guardBin, ['install', '--profile', 'codex', '--target-root', installRoot], { cwd, env });
-  const status = run(guardBin, ['status', '--profile', 'codex', '--target-root', installRoot], { cwd, env });
-  const uninstall = run(guardBin, ['uninstall', '--profile', 'codex', '--target-root', installRoot], { cwd, env });
-  let installOutput = null;
-  let statusOutput = null;
-  let uninstallOutput = null;
-  try { installOutput = JSON.parse(install.stdout); } catch (_) {}
-  try { statusOutput = JSON.parse(status.stdout); } catch (_) {}
-  try { uninstallOutput = JSON.parse(uninstall.stdout); } catch (_) {}
-  if (install.status === 0 && installOutput?.sentinel?.decision === 'block'
-      && status.status === 0 && statusOutput?.clients?.[0]?.installed === true
-      && uninstall.status === 0 && uninstallOutput?.removed === true) {
-    ok('installed huqan-gate can install, self-validate, report, and uninstall the Codex profile');
-  } else {
-    fail(`${label}: installed huqan-gate management lifecycle failed\n${[install.output, status.output, uninstall.output].join('\n').slice(-2000)}`);
-  }
-}
-
-/**
- * The HTTP boundary loads the evaluator and replay store dynamically so the
- * static package-closure check cannot see this dependency chain. Load the
- * evaluator from the installed tarball to prove every A2A/V5 dependency was
- * actually published.
- */
-function verifyA2aRuntime(label, cwd, env) {
-  const probe = run(process.execPath, [
-    '-e',
-    "const a2a = require('huqan/lib/a2a/bounded-exchange'); if (typeof a2a.evaluateBoundedExchange !== 'function') process.exit(2);",
-  ], { cwd, env });
-
-  if (probe.status === 0) ok('installed A2A evaluator loads with its V5 dependency closure');
-  else fail(`${label}: installed A2A evaluator cannot load\n${probe.output.slice(-2000)}`);
-}
-
-/**
- * The MCP executable is what every editor integration starts, so a tarball
- * that installs but cannot answer `initialize` is broken for its main use.
- */
-function verifyMcp(label, binDir, cwd, env, expectedVersion = pkg.version) {
-  const mcpBin = packageBin(binDir, 'huqan-mcp');
-  if (!fs.existsSync(mcpBin)) return;
-
-  const requests = [
-    { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'verify-package-tarball', version: '1' } } },
-    { jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} },
-  ].map((request) => JSON.stringify(request)).join('\n');
-
-  const mcp = run(mcpBin, [], { cwd, env, input: `${requests}\n`, timeoutMs: 60 * 1000 });
-
-  let serverInfo = null;
-  let toolCount = 0;
-  for (const line of mcp.stdout.split(/\r?\n/)) {
-    if (!line.trim()) continue;
-    let message;
-    try {
-      message = JSON.parse(line);
-    } catch (_) {
-      continue;
-    }
-    const result = message && message.result;
-    if (!result) continue;
-    if (result.serverInfo) serverInfo = result.serverInfo;
-    if (Array.isArray(result.tools)) toolCount = result.tools.length;
-  }
-
-  if (!serverInfo) {
-    fail(`${label}: huqan-mcp did not answer initialize\n${mcp.output.slice(-1000)}`);
-    return;
-  }
-  if (serverInfo.name !== 'huqan' || serverInfo.version !== expectedVersion) {
-    fail(`${label}: huqan-mcp identified as ${JSON.stringify(serverInfo)}, expected `
-      + `{"name":"huqan","version":"${expectedVersion}"}`);
-  } else {
-    ok(`huqan-mcp answers initialize as huqan ${expectedVersion}`);
-  }
-
-  if (toolCount > 0) ok(`huqan-mcp lists ${toolCount} tools`);
-  else fail(`${label}: huqan-mcp listed no tools`);
-}
-
 function main() {
   console.log(`Verifying the ${pkg.name}@${pkg.version} tarball as an installed consumer sees it.`);
 
@@ -372,16 +142,7 @@ function main() {
 if (require.main === module) process.exit(main());
 
 module.exports = {
-  LOAD_FAILURE_PATTERNS,
-  NPM_COMMAND,
-  packageBin,
-  run,
-  takeSharedFailures,
-  verifyA2aRuntime,
-  verifyBinsAndVersion,
-  verifyDecisionExplainer,
-  verifyExternalAdapters,
-  verifyExternalGuard,
-  verifyMcp,
-  verifyQuickstart,
+  ...require('./verify-tarball-shared'),
+  ...require('./verify-tarball-checks-core'),
+  ...require('./verify-tarball-checks-guard'),
 };

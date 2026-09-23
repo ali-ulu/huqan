@@ -70,9 +70,14 @@ test('every launcher of an installed bin goes through the shim', () => {
   // The bug was not the missing workaround, it was that the workaround was
   // copied into two scripts and therefore absent from the third caller. This
   // fails if a fourth site open-codes it again.
+  //
+  // #2230 moved verify-package-tarball.js's call site into
+  // scripts/verify-tarball-shared.js (one `run` for every tarball launcher),
+  // so that module is the site now -- and the orchestrator is pinned to
+  // delegating through it, so a fifth site cannot open-code the shim either.
   const root = path.resolve(__dirname, '..');
   const sites = [
-    'scripts/verify-package-tarball.js',
+    'scripts/verify-tarball-shared.js',
     'scripts/launch-installed-package-smoke.js',
     'test/kernel-facade-contract.test.js',
   ];
@@ -81,4 +86,11 @@ test('every launcher of an installed bin goes through the shim', () => {
     assert.ok(text.includes('spawnSyncWindowsAware'), `${site} must use the shared shim`);
     assert.ok(!/ComSpec/.test(text), `${site} re-implements the shim instead of requiring it`);
   }
+
+  const orchestrator = fs.readFileSync(path.join(root, 'scripts/verify-package-tarball.js'), 'utf8');
+  assert.ok(
+    orchestrator.includes("require('./verify-tarball-shared')"),
+    'scripts/verify-package-tarball.js must delegate spawns through verify-tarball-shared',
+  );
+  assert.ok(!/ComSpec/.test(orchestrator), 'scripts/verify-package-tarball.js re-implements the shim');
 });
