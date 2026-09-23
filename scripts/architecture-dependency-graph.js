@@ -266,9 +266,13 @@ function recordedSection(current, threshold) {
  * `--update` may record violations at their current size; from then on the
  * recorded set is a ceiling that may only fall.
  *
+ * `exceptions` defaults to LAYER_EXCEPTIONS, which describe the live tree; a
+ * caller checking a fixture graph passes its own list, since a real exception
+ * is necessarily stale against a graph that does not contain its module.
+ *
  * @returns {{ok: boolean, messages: string[], recorded: object|null, threshold: number}}
  */
-function checkDependencyGraph(current, baseline, argv = [], previous = null) {
+function checkDependencyGraph(current, baseline, argv = [], previous = null, exceptions = LAYER_EXCEPTIONS) {
   const update = argv.some((arg) => UPDATE_FLAGS.includes(arg));
   const threshold = resolveThreshold(argv, baseline);
   const today = new Date().toISOString().slice(0, 10);
@@ -281,14 +285,14 @@ function checkDependencyGraph(current, baseline, argv = [], previous = null) {
     );
     if (current.unassigned.length > 10) messages.push(`    ...and ${current.unassigned.length - 10} more.`);
   }
-  messages.push(...exceptionMessages(LAYER_EXCEPTIONS, current, today));
+  messages.push(...exceptionMessages(exceptions, current, today));
 
   // The committed baseline may not grow relative to the base ref either: the
   // ratchet that keeps the size tracker honest is the same one, and a PR that
   // edits a violation into the baseline is adding debt, not recording it.
   if (previous) {
     const before = new Set((previous.violations || []).map((edge) => `${edge.from}>${edge.to}`));
-    const excepted = new Set(LAYER_EXCEPTIONS.map((entry) => `${entry.from}>${entry.to}`));
+    const excepted = new Set(exceptions.map((entry) => `${entry.from}>${entry.to}`));
     const gained = (baseline?.violations || [])
       .filter((edge) => !before.has(`${edge.from}>${edge.to}`) && !excepted.has(`${edge.from}>${edge.to}`));
     if (gained.length > 0) {
@@ -307,7 +311,7 @@ function checkDependencyGraph(current, baseline, argv = [], previous = null) {
 
   if (baseline) {
     const recorded = new Set((baseline.violations || []).map((edge) => `${edge.from}>${edge.to}`));
-    const excepted = new Set(LAYER_EXCEPTIONS.map((entry) => `${entry.from}>${entry.to}`));
+    const excepted = new Set(exceptions.map((entry) => `${entry.from}>${entry.to}`));
     const added = current.violations.filter((edge) => !recorded.has(edgeKey(edge)) && !excepted.has(edgeKey(edge)));
     if (added.length > 0) {
       messages.push(

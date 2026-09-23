@@ -341,7 +341,9 @@ function main(argv = process.argv.slice(2)) {
     // The layer graph is checked against the same artifact (#2641): no ring, a
     // new violation, or drift past the threshold fails in this one command.
     const update = argv.includes('--update-baseline') || argv.includes('--update');
-    const graphCheck = checkDependencyGraph(dependency, dependencyGraphBaseline(baseline), argv, dependencyGraphBaseline(previous));
+    const exceptionsPath = optionValue(argv, '--layer-exceptions');
+    const exceptions = exceptionsPath ? JSON.parse(fs.readFileSync(path.resolve(exceptionsPath), 'utf8')) : undefined;
+    const graphCheck = checkDependencyGraph(dependency, dependencyGraphBaseline(baseline), argv, dependencyGraphBaseline(previous), exceptions);
     for (const message of graphCheck.messages) console.error(message);
     if (!graphCheck.ok) return 1;
     const baselineIsCurrent = JSON.stringify(entries) === JSON.stringify(baseline.entries);
