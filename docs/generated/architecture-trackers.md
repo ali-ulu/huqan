@@ -30,9 +30,9 @@ Tracked in total: **62**
 | `plugins/company-brain.js` | 678 | — |
 | `kernel.v2.js` | 662 | DIP |
 | `lib/receipt/public-trust-receipt.js` | 660 | — |
-| `lib/provenance-query.js` | 633 | — |
 | `cli.js` | 637 | FANOUT:26 |
 | `lib/receipt/receipt-read-index.js` | 637 | — |
+| `lib/provenance-query.js` | 633 | — |
 | `storage.js` | 627 | — |
 | `lib/conflict-detector.js` | 616 | — |
 | `lib/github-app-streaming-trust.js` | 612 | — |
