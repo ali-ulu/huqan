@@ -230,7 +230,7 @@
     },
     "lib/provenance-query.js": {
       "band": "recorded",
-      "lines": 641,
+      "lines": 608,
       "signals": []
     },
     "lib/receipt/public-trust-receipt.js": {
@@ -470,6 +470,7 @@
       "lib/command-parser.js": "Core",
       "lib/command-policy-editor.js": "Core",
       "lib/company-ingest-gate.js": "Core",
+      "lib/conflict-candidate-review.js": "Core",
       "lib/conflict-detector.js": "Core",
       "lib/connector-action-firewall.js": "Core",
       "lib/connector-local-path.js": "Core",
@@ -949,6 +950,7 @@
       "lib/viewer/session-cookie.js": "UI",
       "lib/viewer/session-store.js": "UI",
       "lib/viewer/viewer-gateway.js": "UI",
+      "lib/web-research-candidate-pipeline.js": "Core",
       "lib/web-research-workflow.js": "Core",
       "lib/web-research.js": "Core",
       "lib/workbench/activity-read.js": "UI",
@@ -1088,6 +1090,7 @@
       "scripts/external-conformance/consumer.js": "UI",
       "scripts/external-conformance/run.js": "UI",
       "scripts/file-size-policy.js": "UI",
+      "scripts/fitness-dashboard-charts.js": "UI",
       "scripts/fitness-dashboard.js": "UI",
       "scripts/generate-protocol-vectors.js": "UI",
       "scripts/huqan-watchdog.js": "UI",
@@ -1764,6 +1767,10 @@
       "lib/company-ingest-gate.js": [
         "lib/data-egress-gate.js",
         "lib/secret-scrub-gate.js"
+      ],
+      "lib/conflict-candidate-review.js": [
+        "lib/audit-log.js",
+        "lib/hypothesis-review-audit.js"
       ],
       "lib/conflict-detector.js": [
         "lib/audit-log.js",
@@ -3416,10 +3423,16 @@
         "lib/viewer/session-cookie.js",
         "requestGuards.js"
       ],
+      "lib/web-research-candidate-pipeline.js": [
+        "lib/conflict-detector.js",
+        "lib/contradiction-rules.js",
+        "lib/text-utils.js"
+      ],
       "lib/web-research-workflow.js": [
         "lib/data-egress-gate.js",
         "lib/http/workflow-envelope.js",
         "lib/http/workflow-request-validation.js",
+        "lib/web-research-candidate-pipeline.js",
         "lib/web-research.js",
         "llmAdapter.js"
       ],
@@ -3743,7 +3756,8 @@
         "scripts/enforcement-coverage-classification.js"
       ],
       "scripts/fitness-dashboard.js": [
-        "lib/fitness-history.js"
+        "lib/fitness-history.js",
+        "scripts/fitness-dashboard-charts.js"
       ],
       "scripts/generate-protocol-vectors.js": [
         "lib/receipt/canonical-receipt.js",
