@@ -9,14 +9,13 @@ const path = require('path');
 const { readFileSync } = require('fs');
 const { createKernel, CANONICAL_KERNEL_VERSION } = require('./lib/kernel-factory');
 const { CANONICAL_AGENT_VERSION, createAgent } = require('./agentRuntime');
-const { parseCommand } = require('./lib/command-parser');
 const { readReceiptById } = require('./lib/receipt/receipt-read-index');
 const { createBackgroundTimers } = require('./lib/http/background-timers');
 const { createServerLifecycle, requireApiKeyAtBoot } = require('./lib/http/server-boot'), { resolveHttpServerTimeouts, resolveRequestLimits, createConcurrencyLimiter, DEFAULT_RETRY_AFTER_MS } = require('./lib/http/server-timeouts'), { resolveRequestUrl } = require('./lib/http/request-origin');
 const { receiptReadFailure } = require('./lib/http/receipt-read-failures');
 const { createWorkbenchReadHttpRouter } = require('./lib/workbench/workbench-read-http-router'), { handlePublicBadgeRequest } = require('./lib/http/public-badge-route'), { handleLlmProxyRequest } = require('./lib/llm-proxy/proxy-mount');
 const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
-const { handleWorkflowContractRoute, writeUnavailableWorkflow } = require('./lib/http/workflow-contract-route');
+const { handleWorkflowContractRoute } = require('./lib/http/workflow-contract-route');
 const { createReadWorkflowHttpRouter } = require('./lib/http/read-workflow-actions');
 const { createWorkflowDataRoutes, createLearnApprovalDecision } = require('./lib/http/workflow-data-routes');
 const { readExactWorkspace } = require('./lib/http/exact-workspace');
@@ -34,9 +33,6 @@ const {
   DEFAULT_MAX_JSON_BODY,
   checkRateLimit,
   clearExpiredRateLimitEntries,
-  isAllowedPublicCommand,
-  commandRequiresAuthentication,
-  isUnsafePublicApiCommand,
   readJsonBody,
   requireApiKey,
   sanitizeInput,
@@ -61,11 +57,8 @@ const ingestApprovalRuntime = createIngestApprovalRuntime({
   ensureRuntime: ensureCompanyRuntime,
 });
 const getIngestApprovalStore = () => ingestApprovalRuntime.getStore();
-const recoverExpiredIngestApprovals = store => ingestApprovalRuntime.recover(store);
 const configureHttpHumanOversight = config => ingestApprovalRuntime.configureHumanOversight(config);
 const configureHttpAgentIdentity = config => ingestApprovalRuntime.configureAgentIdentity(config);
-const getHttpApprovalRuntimeConfig = () => ingestApprovalRuntime.getApprovalRuntimeConfig();
-const submitIngestApproval = data => ingestApprovalRuntime.submit(data);
 
 const requestLimits = resolveRequestLimits(readCompatibleEnvironmentVariable);
 const concurrencyLimiter = createConcurrencyLimiter({ maxConcurrent: requestLimits.maxConcurrent });
@@ -73,7 +66,7 @@ const backgroundTimers = createBackgroundTimers();
 backgroundTimers.add(setInterval(() => {
   clearExpiredRateLimitEntries();
 }, 60_000));
-backgroundTimers.add(setInterval(() => { try { recoverExpiredIngestApprovals(); } catch (error) { writeStructuredLog(console, 'error', 'http.ingest_approval_recovery_error', {}, { runtime: 'http', errorCode: error?.code || 'INGEST_APPROVAL_RECOVERY_FAILED' }); } }, Math.max(5_000, Math.floor(ingestApprovalRuntime.leaseMs / 2))));
+backgroundTimers.add(setInterval(() => { try { ingestApprovalRuntime.recover(); } catch (error) { writeStructuredLog(console, 'error', 'http.ingest_approval_recovery_error', {}, { runtime: 'http', errorCode: error?.code || 'INGEST_APPROVAL_RECOVERY_FAILED' }); } }, Math.max(5_000, Math.floor(ingestApprovalRuntime.leaseMs / 2))));
 
 const {
   ALLOWED_CORS_HOSTS,
@@ -86,7 +79,6 @@ const {
   sendOptions,
   getRateLimitKey,
   getSafeMemoryLabel,
-  publicIngestApproval,
   legacyVerify,
 } = require('./lib/server-response-helpers');
 
@@ -99,14 +91,15 @@ const {
   hasTrustQuery,
   readPathReceiptId,
 } = require('./lib/http-trust-query');
-const { runPublicApiCommand } = require('./lib/http/public-api-commands');
 const { V2_STATUS_PHASES } = require('./lib/http/v2-status-phases');
 const { buildGraphData } = require('./lib/server-graph-data');
 const { createRuntimeStatusHandlers } = require('./lib/http/runtime-status'); const { createRequestCorrelation, writeStructuredLog } = require('./lib/http/structured-log');
 const { createCoreHttpRoutes } = require('./lib/http/core-http-routes');
 const { createIngestApprovalRuntime } = require('./lib/http/ingest-approval-runtime');
+const { createIngestHttpRoutes } = require('./lib/http/ingest-http-routes');
+const { createPublicApiRoute } = require('./lib/http/public-api-route');
 
-const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, workspaceId, decision, reason }) => ingestApprovalRuntime.decide({ approvalId, workspaceId, decision, reason }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, proposeLearn: args => callMcpTool(kernel, { name: 'huqan.learn', arguments: args }, { approvalStore: getIngestApprovalStore() }), submitIngest: submitIngestApproval, createAgent: options => observabilityRuntime.createAgent(options), decideLearnApproval: createLearnApprovalDecision({ kernel, getApprovalStore: getIngestApprovalStore }) });
+const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: args => ingestApprovalRuntime.decide(args), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, proposeLearn: args => callMcpTool(kernel, { name: 'huqan.learn', arguments: args }, { approvalStore: getIngestApprovalStore() }), submitIngest: data => ingestApprovalRuntime.submit(data), createAgent: options => observabilityRuntime.createAgent(options), decideLearnApproval: createLearnApprovalDecision({ kernel, getApprovalStore: getIngestApprovalStore }) });
 // V5 issuer records are receiver-owned; an empty registry remains fail-closed.
 const issuerTrustedKeyRecords = [];
 let v5PackageImportRouteCache = null;
@@ -223,6 +216,24 @@ const handleCoreRoutes = createCoreHttpRoutes({
   legacyVerify,
   JSON_CONTENT_TYPE,
 });
+const handleIngestHttpRoutes = createIngestHttpRoutes({
+  kernel,
+  approvalRuntime: ingestApprovalRuntime,
+  ensureCompanyRuntime,
+  parseJsonRequest,
+  denyIfUnauthorized,
+  writeJson,
+  writeApiError,
+  buildCorsHeaders,
+  JSON_CONTENT_TYPE,
+});
+const handlePublicApiRoute = createPublicApiRoute({
+  kernel,
+  denyIfUnauthorized,
+  buildCorsHeaders,
+  writeJson,
+  JSON_CONTENT_TYPE,
+});
 const { handleTrustQueryRoutes } = createTrustQueryRoutes({
   graph: kernel.graph,
   writeJson,
@@ -295,22 +306,7 @@ const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnviron
   if (await handleWorkflowDataRoute(req, res, reqUrl) || await handleFitnessDashboardRoute(req, res, reqUrl)) return;
   if (await handleCoreRoutes(req, res, reqUrl, correlation)) return;
 
-  if (reqUrl.pathname === '/api/ingest/status') {
-    if (req.method !== 'GET') {
-      res.writeHead(405, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ error: 'Method not allowed' }));
-      return;
-    }
-    try {
-      ensureCompanyRuntime();
-      const status = await kernel.runCapability('ingestStatus', {});
-      writeJson(req, res, 200, status, { 'Cache-Control': 'no-cache' });
-    } catch (err) {
-      writeStructuredLog(console, 'error', 'http.ingest_status_error', correlation, { route: '/api/ingest/status', method: req.method, errorCode: err?.code || 'INGEST_STATUS_FAILED' });
-      writeJson(req, res, 500, { error: 'ingest status failed' });
-    }
-    return;
-  }
+  if (await handleIngestHttpRoutes(req, res, reqUrl, correlation)) return;
 
   const receiptReadRequest = readPathReceiptId(reqUrl.pathname);
   if (receiptReadRequest) {
@@ -360,126 +356,7 @@ const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnviron
 
   if (handleTrustQueryRoutes(req, res, reqUrl, correlation)) return;
 
-  if (reqUrl.pathname === '/api/ingest/approvals') {
-    if (req.method !== 'GET') {
-      writeApiError(req, res, 405, 'METHOD_NOT_ALLOWED', 'Method not allowed');
-      return;
-    }
-    if (!denyIfUnauthorized(req, res)) return;
-    try {
-      recoverExpiredIngestApprovals();
-      const limit = Math.min(100, Math.max(1, Number(reqUrl.searchParams.get('limit')) || 50));
-      const approvals = getIngestApprovalStore().listUnresolvedToolApprovals(limit, sanitizeInput(reqUrl.searchParams.get('workspaceId') || 'default', 128) || 'default')
-        .filter(item => item.tool === 'http.ingest')
-        .map(publicIngestApproval);
-      writeJson(req, res, 200, { ok: true, approvals }, { 'Cache-Control': 'no-cache' });
-    } catch (error) {
-      writeApiError(req, res, 503, 'APPROVAL_STORE_UNAVAILABLE', 'Persistent ingest approval store is unavailable.');
-    }
-    return;
-  }
-
-  const ingestApprovalMatch = reqUrl.pathname.match(/^\/api\/ingest\/approvals\/([^/]+)$/);
-  if (ingestApprovalMatch) {
-    if (req.method !== 'POST') {
-      writeApiError(req, res, 405, 'METHOD_NOT_ALLOWED', 'Method not allowed');
-      return;
-    }
-    if (!denyIfUnauthorized(req, res)) return;
-    const body = await parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_JSON_BODY });
-    if (!body) return;
-    const approvalId = sanitizeInput(decodeURIComponent(ingestApprovalMatch[1]), 256);
-    const decision = String(body.decision || '').trim().toLowerCase();
-    if (!approvalId || !['approved', 'rejected'].includes(decision)) {
-      writeApiError(req, res, 400, 'INVALID_APPROVAL_DECISION', 'approval id and decision approved|rejected are required.');
-      return;
-    }
-    try {
-      const store = getIngestApprovalStore();
-      recoverExpiredIngestApprovals(store);
-      const outcome = await ingestApprovalRuntime.decide({
-        approvalId,
-        workspaceId: sanitizeInput(reqUrl.searchParams.get('workspaceId') || 'default', 128) || 'default',
-        decision,
-        reason: String(body.reason || ''),
-      });
-      if (outcome.error) {
-        writeApiError(req, res, outcome.status, outcome.error.code, outcome.error.message, outcome.error.details);
-        return;
-      }
-      writeJson(req, res, outcome.status, outcome.json, { 'Cache-Control': 'no-cache' });
-    } catch (error) {
-      writeStructuredLog(console, 'error', 'http.ingest_approval_error', correlation, { route: '/api/ingest/approval', method: req.method, errorCode: error?.code || 'INGEST_APPROVAL_FAILED' });
-      writeApiError(req, res, 500, 'INGEST_APPROVAL_FAILED', 'Ingest approval failed; inspect unresolved approvals.');
-    }
-    return;
-  }
-
-  if (reqUrl.pathname === '/api/ingest') {
-    if (req.method !== 'POST') {
-      res.writeHead(405, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ error: 'Method not allowed' }));
-      return;
-    }
-    if (!denyIfUnauthorized(req, res)) return;
-    const data = await parseJsonRequest(req, res, { maxBytes: DEFAULT_MAX_UPLOAD_BODY });
-    if (!data) return;
-    const outcome = await submitIngestApproval(data);
-    if (outcome.error) writeApiError(req, res, outcome.status, outcome.error.code, outcome.error.message);
-    else writeJson(req, res, outcome.status, outcome.json, { 'Cache-Control': 'no-cache' });
-    return;
-  }
-
-  if (reqUrl.pathname === '/api') {
-    if (req.method !== 'GET') {
-      res.writeHead(405, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ error: 'Method not allowed' }));
-      return;
-    }
-    const raw = reqUrl.searchParams.get('q') || '';
-    const q = sanitizeInput(raw);
-    if (!q) {
-      res.writeHead(400, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
-      res.end(JSON.stringify({ result: 'HATA: Boş girdi.' }));
-      return;
-    }
-    if (isUnsafePublicApiCommand(q)) {
-      writeUnavailableWorkflow(req, res);
-      return;
-    }
-    try {
-      const p = parseCommand(q, kernel);
-
-      if (p && (!isAllowedPublicCommand(p.command) || isUnsafePublicApiCommand(p.command))) {
-        writeUnavailableWorkflow(req, res);
-        return;
-      }
-
-      // /api is public, but only for fixed-response commands: `sor`/`durum`
-      // read live workspace state, so they need a key (#727).
-      if (p && commandRequiresAuthentication(p.command) && !denyIfUnauthorized(req, res)) return;
-      let result;
-      if (!p) {
-        result = 'HATA: Anlamadım.';
-      } else {
-        result = runPublicApiCommand(p.command, p.args, kernel);
-        if (result === null) {
-          writeUnavailableWorkflow(req, res);
-          return;
-        }
-      }
-      res.writeHead(200, {
-        'Content-Type': JSON_CONTENT_TYPE,
-        ...buildCorsHeaders(req),
-        'X-Content-Type-Options': 'nosniff',
-      });
-      res.end(JSON.stringify({ result }));
-    } catch (err) {
-      writeStructuredLog(console, 'error', 'http.api_error', correlation, { route: '/api', method: req.method, errorCode: err?.code || 'API_FAILED' });
-      writeJson(req, res, 500, { error: 'Internal server error' });
-    }
-    return;
-  }
+  if (await handlePublicApiRoute(req, res, reqUrl, correlation)) return;
 
   // --- Ana sayfa ve panelin linkli statik varlıkları ---
   // An undeclared path falls through to the generic 404 below.
