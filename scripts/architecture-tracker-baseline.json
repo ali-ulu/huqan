@@ -36,10 +36,10 @@
       "signals": []
     },
     "graph.js": {
-      "band": "decompose",
-      "lines": 976,
+      "band": "structural",
+      "lines": 394,
       "signals": [
-        "FANOUT:35"
+        "FANOUT:34"
       ]
     },
     "kernel.js": {
@@ -605,6 +605,7 @@
       "lib/graph-mutation-receipt-schema.js": "Core",
       "lib/graph-mutation-receipt-write.js": "Core",
       "lib/graph-mutation-rollback.js": "Core",
+      "lib/graph-mutation-runtime.js": "Core",
       "lib/graph-node-delete.js": "Core",
       "lib/graph-node-read.js": "Core",
       "lib/graph-node-similarity.js": "Core",
@@ -613,12 +614,14 @@
       "lib/graph-node-weight.js": "Core",
       "lib/graph-node-write.js": "Core",
       "lib/graph-optimize.js": "Core",
+      "lib/graph-persistence-runtime.js": "Core",
       "lib/graph-prune.js": "Core",
       "lib/graph-query-read.js": "Core",
       "lib/graph-record-utils.js": "Core",
       "lib/graph-sqlite-pragmas.js": "Core",
       "lib/graph-sqlite-schema.js": "Core",
       "lib/graph-stats.js": "Core",
+      "lib/graph-store-adapters.js": "Core",
       "lib/graph-traversal.js": "Core",
       "lib/http-human-oversight-adapter.js": "Core",
       "lib/http-trust-query.js": "Core",
@@ -1257,9 +1260,7 @@
         "lib/github-app-beta-http-boundary.js"
       ],
       "graph.js": [
-        "lib/audit-log.js",
         "lib/audit-query.js",
-        "lib/conflict-detector.js",
         "lib/graph-candidate-claims-read.js",
         "lib/graph-candidate-claims-write.js",
         "lib/graph-causal-chain.js",
@@ -1273,7 +1274,7 @@
         "lib/graph-json-snapshot.js",
         "lib/graph-mutation-receipt-read.js",
         "lib/graph-mutation-receipt-schema.js",
-        "lib/graph-mutation-rollback.js",
+        "lib/graph-mutation-runtime.js",
         "lib/graph-node-delete.js",
         "lib/graph-node-read.js",
         "lib/graph-node-similarity.js",
@@ -1282,13 +1283,14 @@
         "lib/graph-node-weight.js",
         "lib/graph-node-write.js",
         "lib/graph-optimize.js",
+        "lib/graph-persistence-runtime.js",
         "lib/graph-prune.js",
         "lib/graph-query-read.js",
         "lib/graph-record-utils.js",
         "lib/graph-sqlite-schema.js",
         "lib/graph-stats.js",
+        "lib/graph-store-adapters.js",
         "lib/memory-store-utils.js",
-        "lib/mutation-journal.js",
         "lib/receipt/receipt-chain.js",
         "lib/receipt/v4-receipt-family.js",
         "lib/sqlite-persistence-validation.js"
@@ -2236,6 +2238,14 @@
       "lib/graph-mutation-rollback.js": [
         "lib/graph-record-utils.js"
       ],
+      "lib/graph-mutation-runtime.js": [
+        "lib/graph-json-persistence.js",
+        "lib/graph-json-snapshot.js",
+        "lib/graph-mutation-receipt-read.js",
+        "lib/graph-mutation-rollback.js",
+        "lib/graph-record-utils.js",
+        "lib/mutation-journal.js"
+      ],
       "lib/graph-node-delete.js": [
         "lib/graph-record-utils.js"
       ],
@@ -2254,6 +2264,13 @@
       "lib/graph-optimize.js": [
         "lib/graph-record-utils.js"
       ],
+      "lib/graph-persistence-runtime.js": [
+        "lib/audit-log.js",
+        "lib/conflict-detector.js",
+        "lib/graph-json-persistence.js",
+        "lib/graph-json-snapshot.js",
+        "lib/graph-record-utils.js"
+      ],
       "lib/graph-prune.js": [
         "lib/graph-record-utils.js"
       ],
@@ -2268,6 +2285,11 @@
       "lib/graph-sqlite-schema.js": [
         "lib/graph-mutation-receipt-schema.js",
         "lib/graph-sqlite-pragmas.js"
+      ],
+      "lib/graph-store-adapters.js": [
+        "lib/audit-log.js",
+        "lib/graph-candidate-claims-read.js",
+        "lib/graph-record-utils.js"
       ],
       "lib/http-human-oversight-adapter.js": [
         "lib/agent-action-firewall.js",
@@ -3304,6 +3326,7 @@
         "lib/verify-status-vocabulary.js"
       ],
       "lib/sqlite-persistence-validation.js": [
+        "lib/graph-record-utils.js",
         "lib/store-creation-guard.js"
       ],
       "lib/storage/tool-approval-methods.js": [
