@@ -164,14 +164,18 @@ test('claim 3: MCP and HTTP drive the same approval owner', () => {
   // transports call decideIngestApproval and differ only in the recordAudit
   // port they inject.
   const owner = 'workbench/ingest-approval-action';
+  // #2128 moved the HTTP side out of server.js into the ingest approval runtime.
+  const httpOwner = 'lib/http/ingest-approval-runtime.js';
   assert.match(readSource('lib/mcp-ingest-execute-tool.js'), new RegExp(`require\\('\\./${owner}'\\)`));
-  assert.match(readSource('server.js'), new RegExp(`require\\('\\./lib/${owner}'\\)`));
+  assert.match(readSource(httpOwner), new RegExp(`require\\('\\.\\./${owner}'\\)`));
 
   // Both now inject the routed writer. This assertion is the inverted form of
   // the one that stood here while the duplicate existed -- inverted rather
   // than deleted, so the resolution of verdict 3 stays visible in the guard
   // that recorded the problem.
-  assert.match(readSource('server.js'), /recordIngestApprovalAudit = createHttpIngestApprovalAuditWriter\(\{/);
+  assert.match(readSource(httpOwner), /const recordAudit = createHttpIngestApprovalAuditWriter\(\{/);
+  assert.match(readSource(httpOwner), /decideIngestApproval\(\{[^}]*\brecordAudit,/s,
+    'the HTTP runtime must inject the routed writer into the shared owner');
   assert.ok(
     countMatches(readCode('lib/mcp-ingest-execute-tool.js'), /createIngestApprovalAuditWriter/g) > 0,
     'the MCP surface must build the routed writer, not a copy of it',

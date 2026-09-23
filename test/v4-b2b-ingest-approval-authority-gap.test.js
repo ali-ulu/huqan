@@ -423,11 +423,15 @@ describe('V4-B2B: ingest approval authority repair', () => {
 
   it('keeps server.js a thin orchestrator and excludes reviewed-external execution', () => {
     const serverSource = fs.readFileSync(require.resolve('../server'), 'utf8');
+    // #2128 moved the HTTP call into the ingest approval runtime.
+    const runtimeSource = fs.readFileSync(path.join(REPO_ROOT, 'lib/http/ingest-approval-runtime.js'), 'utf8');
     const ownerSource = fs.readFileSync(path.join(REPO_ROOT, 'lib/workbench/ingest-approval-action.js'), 'utf8');
 
-    assert.doesNotMatch(serverSource, /await handleIngest\(/);
-    assert.match(serverSource, /await decideIngestApproval\(/);
-    assert.doesNotMatch(serverSource, /executeReviewedExternalGraphMutation/);
+    for (const source of [serverSource, runtimeSource]) {
+      assert.doesNotMatch(source, /await handleIngest\(/);
+      assert.doesNotMatch(source, /executeReviewedExternalGraphMutation/);
+    }
+    assert.match(runtimeSource, /return decideIngestApproval\(/);
     assert.doesNotMatch(ownerSource, /executeReviewedExternalGraphMutation/);
     // The owner must not write to the Graph itself.
     assert.doesNotMatch(ownerSource, /graph\.(addNode|addEdge|appendAuditEvent|save)\(/);
