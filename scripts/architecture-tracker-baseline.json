@@ -924,6 +924,7 @@
       "lib/trust-score-aggregator.js": "Core",
       "lib/trust-signals/robustness.js": "Application",
       "lib/trust-signals/verify-wiring.js": "Application",
+      "lib/trust-status.js": "Core",
       "lib/turkish-copula.js": "Core",
       "lib/type-lattice.js": "Core",
       "lib/unexpected-egress-gate.js": "Core",
@@ -3026,6 +3027,7 @@
         "lib/canonical-target-match.js",
         "lib/causal/causal-verdict.js",
         "lib/conflict-detector.js",
+        "lib/trust-status.js",
         "lib/workspace-id.js"
       ],
       "lib/quickstart-cli.js": [
@@ -3333,6 +3335,9 @@
       "lib/trust-signals/verify-wiring.js": [
         "lib/trust-signals/robustness.js",
         "lib/workspace-id.js"
+      ],
+      "lib/trust-status.js": [
+        "lib/canonical-target-match.js"
       ],
       "lib/type-lattice.js": [
         "lib/text-utils.js",
