@@ -30,12 +30,16 @@ candidate that:
 - actually targets the canonical record being read
   (`matchesCanonicalTarget`, `lib/canonical-target-match.js`).
 
-**`lib/contradiction-rules.js`'s text-level `SEMANTIC_OPPOSITION` signals are
-not covered.** That module produces a verdict at read time and saves nothing
--- there is no stored candidate for this predicate to see. Wiring those
-signals into the conflict-detector queue is producer-side work tracked under
-#2144/#2146; this policy will pick them up automatically once they land there,
-with no change needed here.
+Web-research contradiction signals, including `SEMANTIC_OPPOSITION`,
+are now covered when candidate mode is enabled. #2144 stores the external
+research result as a live pending candidate and #2146 records provenance-bound
+opposition targets inside that candidate. `matchesCanonicalTarget` therefore
+sees the contested canonical edge without treating the external statement as
+canonical truth.
+
+The boundary remains narrow: only a stored live candidate can contest a read.
+A transient contradiction-rules result that was never admitted to the
+candidate store still has no effect on this policy.
 
 ## Read behavior by risk class
 
