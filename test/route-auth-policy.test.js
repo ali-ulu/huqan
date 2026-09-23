@@ -167,17 +167,24 @@ test('policy table: trailing slash cannot bypass the deny default', () => {
  * this fails instead of silently shipping an unreviewed surface.
  */
 test('every route handled by server.js is declared in the policy table', () => {
-  // Dispatch sites: server.js plus the route mounts it delegates to (#2128:
-  // viewer-mount, trust-query-routes). A route that moves out of server.js
-  // stays handled, so the scan follows it instead of going blind.
+  // Dispatch sites: server.js plus the route mounts it delegates to (#2128).
+  // A route that moves out of server.js stays handled, so the scan follows it
+  // instead of going blind.
   const sources = [
-    fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8'),
-    fs.readFileSync(path.join(__dirname, '..', 'lib', 'http', 'trust-query-routes.js'), 'utf8'),
-  ];
+    'server.js',
+    'lib/http/server-request-handler.js',
+    'lib/http/trust-query-routes.js',
+    'lib/http/core-http-routes.js',
+    'lib/http/ingest-http-routes.js',
+    'lib/http/public-api-route.js',
+    'lib/http/receipt-read-route.js',
+  ].map((file) => fs.readFileSync(path.join(__dirname, '..', ...file.split('/')), 'utf8'));
 
+  // Extracted mounts guard with an early return (`pathname !== '/api'`), so
+  // both comparison forms name a handled route.
   const handled = new Set();
   for (const source of sources) {
-    for (const match of source.matchAll(/(?:reqUrl\.pathname|pathname)\s*===\s*'([^']+)'/g)) {
+    for (const match of source.matchAll(/(?:reqUrl\.pathname|pathname)\s*[!=]==\s*'([^']+)'/g)) {
       handled.add(match[1]);
     }
   }

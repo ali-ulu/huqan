@@ -312,13 +312,6 @@
         "OCP:8"
       ]
     },
-    "server.js": {
-      "band": "decompose",
-      "lines": 920,
-      "signals": [
-        "FANOUT:51"
-      ]
-    },
     "storage.js": {
       "band": "recorded",
       "lines": 627,
@@ -336,7 +329,9 @@
       "adapters/external-action/generic-adapter.js": "Adapters",
       "adapters/external-action/pi-extension.js": "Adapters",
       "adapters/git-log-adapter.js": "Adapters",
+      "adapters/github-adapter-utils.js": "Adapters",
       "adapters/github-adapter.js": "Adapters",
+      "adapters/github-tree.js": "Adapters",
       "adapters/http-adapter.js": "Adapters",
       "adapters/json-adapter.js": "Adapters",
       "adapters/markdown-adapter.js": "Adapters",
@@ -402,7 +397,9 @@
       "lib/agent-v3-dream-loop-adapter.js": "Core",
       "lib/agent-v3-storage-factory.js": "Core",
       "lib/approval-execution-evidence.js": "Core",
+      "lib/approval-flow-utils.js": "Core",
       "lib/approval-flow.js": "Core",
+      "lib/approval-receipts.js": "Core",
       "lib/approval-schema.js": "Core",
       "lib/atp-conformance.js": "Core",
       "lib/audit-bounded-read.js": "Core",
@@ -630,6 +627,7 @@
       "lib/http/background-timers.js": "UI",
       "lib/http/claim-read-route.js": "UI",
       "lib/http/command-policy-route.js": "UI",
+      "lib/http/core-http-routes.js": "UI",
       "lib/http/crash-recovery-inventory.js": "UI",
       "lib/http/deployment-gated-route-auth.js": "UI",
       "lib/http/emergency-stop-routes.js": "UI",
@@ -641,20 +639,32 @@
       "lib/http/http-provenance.js": "UI",
       "lib/http/identity-mutation-admission.js": "UI",
       "lib/http/ingest-approval-audit-writer.js": "UI",
+      "lib/http/ingest-approval-runtime.js": "UI",
+      "lib/http/ingest-http-routes.js": "UI",
       "lib/http/memory-approval-routes.js": "UI",
       "lib/http/optional-boundaries.js": "UI",
+      "lib/http/pr-guardian-auth.js": "UI",
+      "lib/http/pr-guardian-body.js": "UI",
       "lib/http/pr-guardian-config.js": "UI",
       "lib/http/pr-guardian-routes.js": "UI",
+      "lib/http/pr-guardian-ui-route.js": "UI",
+      "lib/http/pr-guardian-webhook-route.js": "UI",
       "lib/http/process-failure-handlers.js": "UI",
       "lib/http/public-api-commands.js": "UI",
+      "lib/http/public-api-route.js": "UI",
       "lib/http/public-badge-route.js": "UI",
       "lib/http/read-workflow-actions.js": "UI",
       "lib/http/receipt-read-failures.js": "UI",
+      "lib/http/receipt-read-route.js": "UI",
       "lib/http/request-limits.js": "UI",
       "lib/http/request-origin.js": "UI",
       "lib/http/route-auth-policy.js": "UI",
       "lib/http/runtime-status.js": "UI",
       "lib/http/server-boot.js": "UI",
+      "lib/http/server-ingest-workflow-runtime.js": "UI",
+      "lib/http/server-read-route-runtime.js": "UI",
+      "lib/http/server-request-handler.js": "UI",
+      "lib/http/server-route-runtime.js": "UI",
       "lib/http/server-timeouts.js": "UI",
       "lib/http/static-assets.js": "UI",
       "lib/http/structured-log.js": "UI",
@@ -663,6 +673,7 @@
       "lib/http/v2-status-phases.js": "UI",
       "lib/http/v5-package-import-route.js": "UI",
       "lib/http/v5-preflight-route.js": "UI",
+      "lib/http/v5-route-mounts.js": "UI",
       "lib/http/viewer-mount.js": "UI",
       "lib/http/workflow-contract-route.js": "UI",
       "lib/http/workflow-data-routes.js": "UI",
@@ -774,6 +785,7 @@
       "lib/memory-package-import-runner.js": "Adapters",
       "lib/memory-package-import.js": "Adapters",
       "lib/memory-patch-metadata.js": "Adapters",
+      "lib/memory-persistence-paths.js": "Adapters",
       "lib/memory-query-engine.js": "Adapters",
       "lib/memory-recall-gate.js": "Adapters",
       "lib/memory-record-read.js": "Adapters",
@@ -907,6 +919,7 @@
       "lib/session-impact.js": "Core",
       "lib/shield.js": "Core",
       "lib/sqlite-availability.js": "Adapters",
+      "lib/sqlite-busy-retry.js": "Adapters",
       "lib/sqlite-durability.js": "Adapters",
       "lib/sqlite-persistence-validation.js": "Adapters",
       "lib/sqlite-restore.js": "Adapters",
@@ -955,6 +968,7 @@
       "lib/verify.js": "Core",
       "lib/viewer/session-cookie.js": "UI",
       "lib/viewer/session-store.js": "UI",
+      "lib/viewer/viewer-gateway-primitives.js": "UI",
       "lib/viewer/viewer-gateway.js": "UI",
       "lib/web-research-candidate-pipeline.js": "Core",
       "lib/web-research-workflow.js": "Core",
@@ -1137,9 +1151,17 @@
         "lib/content-hash.js",
         "lib/path-safety.js"
       ],
+      "adapters/github-adapter-utils.js": [
+        "lib/github-url.js"
+      ],
       "adapters/github-adapter.js": [
+        "adapters/github-adapter-utils.js",
+        "adapters/github-tree.js",
         "lib/content-hash.js",
         "lib/github-url.js"
+      ],
+      "adapters/github-tree.js": [
+        "adapters/github-adapter-utils.js"
       ],
       "adapters/http-adapter.js": [
         "adapters/utils/learn-entries.js",
@@ -1512,8 +1534,14 @@
         "lib/receipt/receipt-read-index.js"
       ],
       "lib/approval-flow.js": [
+        "lib/approval-flow-utils.js",
+        "lib/approval-receipts.js",
         "lib/approval-schema.js",
         "lib/is-plain-object.js",
+        "lib/json-clone.js"
+      ],
+      "lib/approval-receipts.js": [
+        "lib/approval-flow-utils.js",
         "lib/json-clone.js"
       ],
       "lib/approval-schema.js": [
@@ -2316,6 +2344,15 @@
         "lib/external-action-command-policy.js",
         "requestGuards.js"
       ],
+      "lib/http/core-http-routes.js": [
+        "lib/http/http-provenance.js",
+        "lib/http/structured-log.js",
+        "lib/http/upload-admission-contract.js",
+        "lib/shield.js",
+        "lib/verify-status-vocabulary.js",
+        "llmAdapter.js",
+        "requestGuards.js"
+      ],
       "lib/http/emergency-stop-routes.js": [
         "lib/emergency-stop.js",
         "lib/environment-compat.js",
@@ -2343,6 +2380,20 @@
         "lib/http/identity-mutation-admission.js",
         "lib/workbench/ingest-approval-audit-writer.js"
       ],
+      "lib/http/ingest-approval-runtime.js": [
+        "lib/http-human-oversight-adapter.js",
+        "lib/http/ingest-approval-audit-writer.js",
+        "lib/ingest.js",
+        "lib/server-response-helpers.js",
+        "lib/trust-evidence-ledger.js",
+        "lib/workbench/ingest-approval-action.js",
+        "storage.js"
+      ],
+      "lib/http/ingest-http-routes.js": [
+        "lib/http/structured-log.js",
+        "lib/server-response-helpers.js",
+        "requestGuards.js"
+      ],
       "lib/http/memory-approval-routes.js": [
         "lib/environment-compat.js",
         "mcpServer.js"
@@ -2356,18 +2407,36 @@
         "lib/http/pr-guardian-routes.js",
         "lib/registry/registry-route.js"
       ],
+      "lib/http/pr-guardian-auth.js": [
+        "requestGuards.js"
+      ],
       "lib/http/pr-guardian-config.js": [
         "lib/environment-compat.js"
       ],
       "lib/http/pr-guardian-routes.js": [
         "lib/environment-compat.js",
+        "lib/http/pr-guardian-auth.js",
+        "lib/http/pr-guardian-body.js",
+        "lib/http/pr-guardian-ui-route.js",
+        "lib/http/pr-guardian-webhook-route.js",
         "lib/pr-guardian/github-client.js",
         "lib/pr-guardian/policy.js",
-        "lib/pr-guardian/review-service.js",
-        "requestGuards.js"
+        "lib/pr-guardian/review-service.js"
+      ],
+      "lib/http/pr-guardian-webhook-route.js": [
+        "lib/http/pr-guardian-auth.js",
+        "lib/http/pr-guardian-body.js",
+        "lib/pr-guardian/policy.js"
       ],
       "lib/http/public-api-commands.js": [
         "lib/workflow-contract.js",
+        "requestGuards.js"
+      ],
+      "lib/http/public-api-route.js": [
+        "lib/command-parser.js",
+        "lib/http/public-api-commands.js",
+        "lib/http/structured-log.js",
+        "lib/http/workflow-contract-route.js",
         "requestGuards.js"
       ],
       "lib/http/public-badge-route.js": [
@@ -2379,6 +2448,12 @@
         "lib/http/workflow-envelope.js",
         "lib/http/workflow-request-validation.js",
         "lib/web-research-workflow.js"
+      ],
+      "lib/http/receipt-read-route.js": [
+        "lib/http-trust-query.js",
+        "lib/http/exact-workspace.js",
+        "lib/http/receipt-read-failures.js",
+        "lib/receipt/receipt-read-index.js"
       ],
       "lib/http/request-limits.js": [
         "lib/http/server-timeouts.js"
@@ -2395,6 +2470,52 @@
         "lib/http/graceful-shutdown.js",
         "lib/http/process-failure-handlers.js",
         "lib/http/structured-log.js"
+      ],
+      "lib/http/server-ingest-workflow-runtime.js": [
+        "lib/collector-seal-config.js",
+        "lib/external-action-receipt-collector.js",
+        "lib/http/ingest-approval-runtime.js",
+        "lib/http/ingest-http-routes.js",
+        "lib/http/pr-guardian-config.js",
+        "lib/http/read-workflow-actions.js",
+        "lib/http/workflow-data-routes.js",
+        "lib/observability/server-runtime.js",
+        "lib/receipt/receipt-read-index.js",
+        "lib/server-response-helpers.js"
+      ],
+      "lib/http/server-read-route-runtime.js": [
+        "lib/http-trust-query.js",
+        "lib/http/answer-route.js",
+        "lib/http/core-http-routes.js",
+        "lib/http/exact-workspace.js",
+        "lib/http/fitness-dashboard-route.js",
+        "lib/http/public-api-route.js",
+        "lib/http/receipt-read-route.js",
+        "lib/http/runtime-status.js",
+        "lib/http/structured-log.js",
+        "lib/http/v2-status-phases.js",
+        "lib/kernel-factory.js",
+        "lib/receipt/receipt-read-index.js",
+        "lib/server-response-helpers.js",
+        "lib/workbench/workbench-read-http-router.js",
+        "requestGuards.js"
+      ],
+      "lib/http/server-request-handler.js": [
+        "lib/http/public-badge-route.js",
+        "lib/http/request-origin.js",
+        "lib/http/route-auth-policy.js",
+        "lib/http/server-timeouts.js",
+        "lib/http/static-assets.js",
+        "lib/http/structured-log.js",
+        "lib/http/workflow-contract-route.js",
+        "lib/llm-proxy/proxy-mount.js",
+        "lib/server-response-helpers.js",
+        "requestGuards.js"
+      ],
+      "lib/http/server-route-runtime.js": [
+        "lib/http/server-ingest-workflow-runtime.js",
+        "lib/http/server-read-route-runtime.js",
+        "lib/http/v5-route-mounts.js"
       ],
       "lib/http/structured-log.js": [
         "lib/secret-scrub-gate.js"
@@ -2416,6 +2537,10 @@
         "lib/server-response-helpers.js",
         "lib/v5/runtime-reader.js",
         "lib/v5/structural-signing-helper.js"
+      ],
+      "lib/http/v5-route-mounts.js": [
+        "lib/http/v5-package-import-route.js",
+        "lib/http/v5-preflight-route.js"
       ],
       "lib/http/viewer-mount.js": [
         "lib/viewer/session-store.js",
@@ -2850,6 +2975,11 @@
         "lib/memory-schema.js",
         "lib/memory-store-utils.js"
       ],
+      "lib/memory-persistence-paths.js": [
+        "lib/default-persistence-path.js",
+        "lib/path-safety.js",
+        "lib/sqlite-persistence-validation.js"
+      ],
       "lib/memory-query-engine.js": [
         "lib/memory-recall-gate.js",
         "lib/memory-record-utils.js",
@@ -2892,8 +3022,8 @@
       ],
       "lib/memory-store-utils.js": [
         "lib/default-persistence-path.js",
-        "lib/path-safety.js",
-        "lib/sqlite-persistence-validation.js",
+        "lib/memory-persistence-paths.js",
+        "lib/sqlite-busy-retry.js",
         "lib/workspace-id.js"
       ],
       "lib/memory-store-write.js": [
@@ -3457,9 +3587,13 @@
         "lib/verify-turkish-text.js",
         "lib/workspace-id.js"
       ],
+      "lib/viewer/viewer-gateway-primitives.js": [
+        "requestGuards.js"
+      ],
       "lib/viewer/viewer-gateway.js": [
         "lib/environment-compat.js",
         "lib/viewer/session-cookie.js",
+        "lib/viewer/viewer-gateway-primitives.js",
         "requestGuards.js"
       ],
       "lib/web-research-candidate-pipeline.js": [
@@ -3864,56 +3998,23 @@
       ],
       "server.js": [
         "agentRuntime.js",
-        "lib/collector-seal-config.js",
-        "lib/command-parser.js",
         "lib/environment-compat.js",
-        "lib/external-action-receipt-collector.js",
         "lib/external-client-production-boundary.js",
-        "lib/http-human-oversight-adapter.js",
-        "lib/http-trust-query.js",
-        "lib/http/answer-route.js",
         "lib/http/background-timers.js",
-        "lib/http/exact-workspace.js",
-        "lib/http/fitness-dashboard-route.js",
-        "lib/http/http-provenance.js",
-        "lib/http/ingest-approval-audit-writer.js",
         "lib/http/optional-boundaries.js",
-        "lib/http/pr-guardian-config.js",
-        "lib/http/public-api-commands.js",
-        "lib/http/public-badge-route.js",
-        "lib/http/read-workflow-actions.js",
-        "lib/http/receipt-read-failures.js",
-        "lib/http/request-origin.js",
-        "lib/http/route-auth-policy.js",
-        "lib/http/runtime-status.js",
         "lib/http/server-boot.js",
+        "lib/http/server-request-handler.js",
+        "lib/http/server-route-runtime.js",
         "lib/http/server-timeouts.js",
         "lib/http/static-assets.js",
         "lib/http/structured-log.js",
         "lib/http/trust-query-routes.js",
-        "lib/http/upload-admission-contract.js",
-        "lib/http/v2-status-phases.js",
-        "lib/http/v5-package-import-route.js",
-        "lib/http/v5-preflight-route.js",
         "lib/http/viewer-mount.js",
-        "lib/http/workflow-contract-route.js",
-        "lib/http/workflow-data-routes.js",
-        "lib/ingest.js",
         "lib/kernel-factory.js",
-        "lib/llm-proxy/proxy-mount.js",
-        "lib/observability/server-runtime.js",
-        "lib/receipt/receipt-read-index.js",
         "lib/server-graph-data.js",
         "lib/server-response-helpers.js",
-        "lib/shield.js",
-        "lib/trust-evidence-ledger.js",
-        "lib/verify-status-vocabulary.js",
-        "lib/workbench/ingest-approval-action.js",
-        "lib/workbench/workbench-read-http-router.js",
-        "llmAdapter.js",
         "mcpServer.js",
-        "requestGuards.js",
-        "storage.js"
+        "requestGuards.js"
       ],
       "storage.js": [
         "lib/default-persistence-path.js",
