@@ -154,9 +154,9 @@ class Graph {
   _mutationReceiptReadStoreApi() { return runMutationReceiptReadStoreApi(this); }
   getCommittedMutationResultByOperation(operationId) { return runCommittedMutationResult(this, operationId); }
   getCommittedMutationResultsByPrefix(prefix) { return runCommittedMutationResultsByPrefix(this, prefix); }
-  runMutationOnce(operationId, mutate, opts = {}) { return runMutationOnce(this, operationId, mutate, opts); }
+  runMutationOnce(operationId, mutate, opts = {}) { return runMutationOnce(this, operationId, mutate, opts, mutationReceiptDeps); }
   _runMutationOnceSqlite(id, mutate, opts) { return runMutationOnceSqlite(this, id, mutate, opts, mutationReceiptDeps); }
-  _runMutationOnceJson(id, mutate, opts) { return runMutationOnceJson(this, id, mutate, opts); }
+  _runMutationOnceJson(id, mutate, opts) { return runMutationOnceJson(this, id, mutate, opts, mutationReceiptDeps); }
   _runMutationOnceJsonLocked(id, mutate, opts) { return runMutationOnceJsonLocked(this, id, mutate, opts, mutationReceiptDeps); }
 
   // ─── Node işlemleri ───────────────────────────────────────────────────────
@@ -256,7 +256,7 @@ class Graph {
 
   // ─── Edge işlemleri ───────────────────────────────────────────────────────
 
-  _edgeWriteStoreApi() { return runEdgeWriteStoreApi(this); }
+  _edgeWriteStoreApi() { return runEdgeWriteStoreApi(this, { indexEdge: edge => this._indexEdge(edge), recordEdgeTouch: (...args) => this._recordEdgeTouch(...args) }); }
 
   addEdge(fromId, toId, relation, opts = {}) {
     return runEdgeWrite(this._edgeWriteStoreApi(), fromId, toId, relation, opts);
