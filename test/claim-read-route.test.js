@@ -225,8 +225,16 @@ test('missing intent is a fail-safe block', () => {
   assert.equal(body.reason, 'intent_absent');
 });
 
-test('server.js mounts the route', () => {
-  const source = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
-  assert.ok(source.includes("require('./lib/http/claim-read-route')"), 'server requires the mount');
-  assert.ok(source.includes('if (handleTrustQueryRoutes(req, res, reqUrl, correlation) || handleClaimReadRoute(req, res, reqUrl, correlation)) return;'), 'router delegates');
+test('server.js mounts the route through trust-query-routes, not directly', () => {
+  // Kept off server.js's own fan-out (which is at its line-budget ceiling):
+  // lib/http/trust-query-routes.js requires this module and folds
+  // handleClaimReadRoute into the single handleTrustQueryRoutes it already
+  // returns, so server.js's one existing require/mount line covers both.
+  const serverSource = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  assert.ok(!serverSource.includes("require('./lib/http/claim-read-route')"), 'server.js does not require this module directly');
+  assert.ok(serverSource.includes('if (handleTrustQueryRoutes(req, res, reqUrl, correlation)) return;'), 'router delegates through the existing mount');
+
+  const mountSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'http', 'trust-query-routes.js'), 'utf8');
+  assert.ok(mountSource.includes("require('./claim-read-route')"), 'trust-query-routes mounts the claim-read route');
+  assert.ok(mountSource.includes('handleClaimReadRoute(req, res, reqUrl, correlation)'), 'trust-query-routes delegates to it');
 });

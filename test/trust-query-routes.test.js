@@ -82,11 +82,11 @@ test('#2128: server.js routes the four paths through the mount', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
   assert.ok(source.includes("require('./lib/http/trust-query-routes')"), 'server requires the mount');
   assert.ok(!source.includes("require('./lib/provenance-query')"), 'provenance-query require moved out with its uses');
-  // #2788 Phase 2 merged this delegate onto one line with handleClaimReadRoute
-  // (lib/http/claim-read-route.js), the same || short-circuit style server.js
-  // already used above this call site -- server.js is at its line-budget
-  // ceiling, so a second standalone `if (...) return;` was not an option.
-  assert.ok(source.includes('if (handleTrustQueryRoutes(req, res, reqUrl, correlation) || handleClaimReadRoute(req, res, reqUrl, correlation)) return;'), 'router delegates');
+  assert.ok(source.includes('if (handleTrustQueryRoutes(req, res, reqUrl, correlation)) return;'), 'router delegates');
+  // #2788 Phase 2: /api/claim-read (lib/http/claim-read-route.js) mounts
+  // through this same module rather than a second server.js require, so the
+  // new route does not add to server.js's own fan-out.
+  assert.ok(!source.includes("require('./lib/http/claim-read-route')"), 'claim-read route is not required directly by server.js');
   for (const gone of ['queryProvenance(', 'queryAuditTrailPage(', 'queryCandidateClaims(', 'buildTrustReceipt(']) {
     assert.ok(!source.includes(gone), `query call moved out of server.js (${gone})`);
   }
