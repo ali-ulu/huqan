@@ -9,8 +9,6 @@ const { createKernel } = require('./lib/kernel-factory');
 const { createBackgroundTimers } = require('./lib/http/background-timers');
 const { createServerLifecycle, requireApiKeyAtBoot } = require('./lib/http/server-boot'), { resolveHttpServerTimeouts, resolveRequestLimits, createConcurrencyLimiter } = require('./lib/http/server-timeouts');
 const { createTrustQueryRoutes } = require('./lib/http/trust-query-routes');
-// #2128: viewer mount (rate limiter + session store + gateway) lives in
-// lib/http/viewer-mount.js; the root keeps the single mount handle.
 const { createViewerMount } = require('./lib/http/viewer-mount');
 const { createExternalClientProductionBoundary } = require('./lib/external-client-production-boundary');
 const { createServerRouteRuntime } = require('./lib/http/server-route-runtime');
@@ -189,16 +187,10 @@ server.closeHuqan = server.closeAxiom = closeHuqan; server.bindGracefulShutdown 
 server.startServer = startServer;
 server.configureHttpHumanOversight = configureHttpHumanOversight;
 server.configureHttpAgentIdentity = configureHttpAgentIdentity;
-// Exposed for tests that need to assert against the same kernel/graph
-// instance the HTTP handlers use (e.g. checking audit events a request
-// produced). server.js owns this kernel directly now (#326); it is no
-// longer reachable by intercepting a CLI instance server.js used to build.
 server.kernel = kernel;
 server.concurrencyLimiter = concurrencyLimiter;
 server.requestLimits = requestLimits;
 module.exports = server;
 module.exports.getRateLimitKey = getRateLimitKey;
-// Exposed so the index-page cache (#420) can be asserted directly, without
-// having to intercept fs from outside the module.
 module.exports.getHtmlPage = getHtmlPage;
 
