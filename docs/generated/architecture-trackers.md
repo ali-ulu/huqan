@@ -3,12 +3,11 @@
 
 Tracked in total: **62**
 
-## Decomposition owed, over 800 lines (3)
+## Decomposition owed, over 800 lines (2)
 
 | File | Lines | Signals |
 |---|---:|---|
 | `kernel.js` | 1058 | FANOUT:39 |
-| `graph.js` | 976 | FANOUT:35 |
 | `server.js` | 920 | FANOUT:51 |
 
 ## Recorded debt, 401-800 lines (58)
@@ -74,8 +73,9 @@ Tracked in total: **62**
 | `lib/kernel-read-use-cases.js` | 412 | — |
 | `lib/v5/runtime-writer.js` | 411 | — |
 
-## At or under 400 lines, tracked for a signal (1)
+## At or under 400 lines, tracked for a signal (2)
 
 | File | Lines | Signals |
 |---|---:|---|
+| `graph.js` | 394 | FANOUT:34 |
 | `lib/verify-numeric-text.js` | 82 | OCP:8 |
