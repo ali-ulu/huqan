@@ -78,10 +78,7 @@ const {
 } = require('./lib/graph-sqlite-lifecycle');
 const { initGraphSchema, createGraphStmts } = require('./lib/graph-sqlite-schema');
 const { ensureMutationReceiptFamilySchema: runMutationReceiptFamilySchema } = require('./lib/graph-mutation-receipt-schema');
-const {
-  getCommittedMutationReceiptByOperation: runReceiptByOperationRead,
-  getCommittedMutationReceiptById: runReceiptByIdRead,
-} = require('./lib/graph-mutation-receipt-read');
+const { getCommittedMutationReceiptByOperation: runReceiptByOperationRead, getCommittedMutationReceiptById: runReceiptByIdRead } = require('./lib/graph-mutation-receipt-read');
 
 class Graph {
   /**
@@ -125,10 +122,7 @@ class Graph {
   _openSqlite(opts) { return runOpenSqlite(this, opts); }
   closeSqlite() { return runCloseSqlite(this); }
   reopen(opts = this._sqliteOptions) { return runReopenSqlite(this, opts); }
-  _initDB(opts = {}) {
-    initGraphSchema(this._db, opts);
-    this._stmts = createGraphStmts(this._db);
-  }
+  _initDB(opts = {}) { initGraphSchema(this._db, opts); this._stmts = createGraphStmts(this._db); }
 
   _ensureMutationReceiptFamilySchema() {
     return runMutationReceiptFamilySchema(this._db);
