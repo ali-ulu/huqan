@@ -379,6 +379,7 @@
       "lib/a2a/task-route.js": "Application",
       "lib/a2a/task-store.js": "Application",
       "lib/action-risk-classifier.js": "Core",
+      "lib/admission-horizon.js": "Core",
       "lib/adversarial-signals.js": "Core",
       "lib/agent-action-decisions.js": "Core",
       "lib/agent-action-firewall.js": "Core",
@@ -1422,6 +1423,9 @@
       ],
       "lib/action-risk-classifier.js": [
         "lib/risk-classify.js"
+      ],
+      "lib/admission-horizon.js": [
+        "lib/risk-scale.js"
       ],
       "lib/adversarial-signals.js": [
         "lib/text-utils.js"
@@ -2747,6 +2751,7 @@
         "lib/receipt/receipt-read-index.js"
       ],
       "lib/memory-admission-gate.js": [
+        "lib/admission-horizon.js",
         "lib/approval-schema.js",
         "lib/is-plain-object.js",
         "lib/json-clone.js",
