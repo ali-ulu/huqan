@@ -3,7 +3,6 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
 const {
   DEFAULT_SHARDS,
   REPO_ROOT,
@@ -12,6 +11,7 @@ const {
 } = require('./ci-shard-manifest');
 const { createTestStateSandbox } = require('./test-state-sandbox');
 const { mergeJunitParts } = require('./junit-merge');
+const { runFileToDeadline } = require('./shard-hang-diagnostics');
 
 // Per-file deadline for a single test file inside a shard.
 //
@@ -110,7 +110,7 @@ function loadSelection(selectionPath, knownFiles) {
   return selected;
 }
 
-function run(options) {
+async function run(options) {
   assertPositiveInteger(options.total, 'total');
   assertPositiveInteger(options.shard, 'shard');
   assertPositiveInteger(options.concurrency, 'concurrency');
@@ -176,46 +176,62 @@ function run(options) {
       console.log(`[shard ${options.shard}/${options.total}] starting ${index + 1}/${selected.files.length}: ${file} at ${startedAt} state-root ${sandbox.stateRoot}`);
       let result;
       try {
-        result = spawnSync(process.execPath, [
-          '--test',
-          `--test-concurrency=${options.concurrency}`,
-          '--test-reporter=junit',
-          `--test-reporter-destination=${partPath}`,
-          file,
-        ], {
+        result = await runFileToDeadline({
           cwd: REPO_ROOT,
+          file,
+          partPath,
+          concurrency: options.concurrency,
           env: sandbox.environment,
-          stdio: 'inherit',
-          // Cap the indefinite "still running at 22m" (#1847) at the file that
-          // actually hangs. Historical max per-file is ~25s; 90s is 3-4x margin
-          // for slow Linux runners but fails fast instead of waiting for the
-          // 20m job timeout from #1845. Files that install a package are given
-          // more room -- see fileTimeoutMs().
-          timeout: fileTimeout,
-          killSignal: 'SIGTERM',
+          timeoutMs: fileTimeout,
+          shard: options.shard,
         });
       } finally {
         sandbox.cleanup();
       }
 
-      if (result.error) {
-        if (result.error.code === 'ETIMEDOUT') {
-          const elapsed = ((Date.now() - startedMs) / 1000).toFixed(3);
-          const limitSeconds = (fileTimeout / 1000).toFixed(0);
-          console.error(`[shard ${options.shard}/${options.total}] file ${file} timed out after ${limitSeconds}s (elapsed ${elapsed}s, signal ${result.signal || 'SIGTERM'}) — killed hanging file, see #1847`);
-          overallStatus = 1;
-          failedFiles.push({ file, status: 'timeout' });
-          // Leave a minimal JUnit entry so the merged report shows the hang
-          // as a failure instead of silently dropping the file.
+      if (result.error) throw result.error;
+      if (result.timedOut) {
+        const elapsed = ((Date.now() - startedMs) / 1000).toFixed(3);
+        const limitSeconds = (fileTimeout / 1000).toFixed(0);
+        // The process tree printed above this line is the diagnostic #2814
+        // asked for; the verdict below is unchanged from #1847.
+        console.error(`[shard ${options.shard}/${options.total}] file ${file} timed out after ${limitSeconds}s (elapsed ${elapsed}s, signal ${result.signal || 'SIGTERM'}) — killed hanging file, see #1847 and #2814`);
+        overallStatus = 1;
+        failedFiles.push({ file, status: 'timeout' });
+        // Leave a minimal JUnit entry so the merged report shows the hang
+        // as a failure instead of silently dropping the file. Written with
+        // exclusive create plus rename: a check-then-act on a rival-owned path
+        // would lose to a test process still flushing its junit part, and the
+        // fallback below (CodeQL js/file-system-race) must never erase the
+        // child's own report. Rename is atomic on the same volume.
+        try {
+          const safe = file.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;');
+          const payload = `<?xml version="1.0" encoding="utf-8"?>\n<testsuites>\n<testsuite name="${safe}" tests="1" failures="1" errors="0" skipped="0" time="${limitSeconds}.000"><testcase name="shard timeout (${limitSeconds}s) — file hung" classname="shard"><failure message="file hung and was killed after ${limitSeconds}s">File ${safe} did not exit within ${limitSeconds}s (likely CDP/browser hang, see #1847). Check the preceding [shard] starting log and the streamed reporter output above it.</failure></testcase></testsuite>\n</testsuites>\n`;
+          let existing = null;
           try {
-            if (!fs.existsSync(partPath) || fs.readFileSync(partPath, 'utf8').trim().length === 0) {
-              const safe = file.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;');
-              fs.writeFileSync(partPath, `<?xml version="1.0" encoding="utf-8"?>\n<testsuites>\n<testsuite name="${safe}" tests="1" failures="1" errors="0" skipped="0" time="${limitSeconds}.000"><testcase name="shard timeout (${limitSeconds}s) — file hung" classname="shard"><failure message="file hung and was killed after ${limitSeconds}s">File ${safe} did not exit within ${limitSeconds}s (likely CDP/browser hang, see #1847). Check the preceding [shard] starting log.</failure></testcase></testsuite>\n</testsuites>\n`);
+            existing = fs.readFileSync(partPath, 'utf8');
+          } catch (error) {
+            if (error.code !== 'ENOENT') throw error;
+          }
+          if (existing === null || existing.trim().length === 0) {
+            const dir = path.dirname(partPath);
+            const tmpPath = path.join(dir, `.${path.basename(partPath)}.${process.pid}.tmp`);
+            const fd = fs.openSync(tmpPath, 'wx', 0o600);
+            try {
+              fs.writeFileSync(fd, payload);
+            } finally {
+              fs.closeSync(fd);
             }
-          } catch { /* ignore */ }
-          continue;
-        }
-        throw result.error;
+            try {
+              fs.linkSync(tmpPath, partPath);
+            } catch (error) {
+              if (error.code !== 'EEXIST') throw error;
+            } finally {
+              fs.rmSync(tmpPath, { force: true });
+            }
+          }
+        } catch { /* ignore */ }
+        continue;
       }
       if (result.signal) {
         console.error(`[shard ${options.shard}/${options.total}] file ${file} terminated by signal ${result.signal}`);
@@ -257,12 +273,20 @@ function run(options) {
   return overallStatus;
 }
 
-// JUnit parsing/merging lives in scripts/junit-merge.js (#2212); run() below
-// keeps process orchestration, shard selection and exit codes only.
+// JUnit parsing/merging lives in scripts/junit-merge.js (#2212) and the
+// per-file deadline plus its hang diagnostic in scripts/shard-hang-diagnostics.js
+// (#2814); run() below keeps process orchestration, shard selection and exit
+// codes only. That split is also why it is now async: the deadline must be able
+// to look at the child while it is still alive.
 
 if (require.main === module) {
   try {
-    process.exitCode = run(parseArgs(process.argv.slice(2)));
+    // Exit code 2 for a rejected run matches the synchronous version's
+    // behaviour, and parseArgs still fails synchronously before any child starts.
+    run(parseArgs(process.argv.slice(2))).then(
+      (code) => { process.exitCode = code; },
+      (error) => { console.error(error.message); process.exitCode = 2; },
+    );
   } catch (error) {
     console.error(error.message);
     process.exitCode = 2;
