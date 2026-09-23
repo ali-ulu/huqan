@@ -205,7 +205,19 @@ function driftCount(current, baseline) {
  *
  * @type {ReadonlyArray<{from: string, to: string, why: string, review_by: string}>}
  */
-const LAYER_EXCEPTIONS = Object.freeze([]);
+const LAYER_EXCEPTIONS = Object.freeze([
+  {
+    from: 'lib/provenance-query-trust-receipt.js',
+    to: 'lib/causal/causal-verdict.js',
+    why: 'The trust-receipt causal bridge block normalizes a caller-supplied causal verdict into'
+      + ' the published receipt shape. The same Core -> Application edge was a recorded baseline'
+      + ' violation on lib/provenance-query.js; #2162 split that file and the edge moved onto the'
+      + ' new module name, which the cannot-add-debt ratchet treats as new. The verdict stays'
+      + ' caller-supplied (no production caller passes one), so the follow-up fix is to lift the'
+      + ' bridge behind an injected normalizer rather than move the causal verdict into Core.',
+    review_by: '2026-12-31',
+  },
+]);
 
 function exceptionMessages(exceptions, current, today) {
   const live = new Set(current.violations.map(edgeKey));
