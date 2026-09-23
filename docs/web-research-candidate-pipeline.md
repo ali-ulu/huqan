@@ -32,9 +32,23 @@ A repeated provider result produces the same candidate id, so the candidate-stor
 
 The pipeline compares a bounded set of canonical graph edges with each external snippet. A pair is evaluated only when the external text mentions the canonical subject or has meaningful textual overlap. The existing nine-rule contradiction engine then produces signals.
 
-Signals are attached to the pending candidate. They do not become graph opposition edges in this issue. External-source provenance opposition remains owned by #2146.
+Signals are attached to the pending candidate. Issue #2146 also projects each contradiction into a candidate-scoped external-source opposition record. The record names the canonical edge target, carries the external source provenance, and uses the explicit relation `OPPOSES`.
+
+These opposition records are **not canonical graph edges**. They remain inside the pending candidate conflict object, so the research path still never calls `Graph.addNode` or `Graph.addEdge`. Trust/provenance reads can target the canonical edge id and surface the pending external opposition without granting it canonical authority.
 
 The scan is bounded to 500 canonical edges and 8 contradiction signals per external source. The response reports whether the edge scan was truncated.
+
+## Summary semantic verification
+
+When HUQAN produces a web-research summary, the workflow runs the same bounded contradiction rules against canonical graph evidence. The result is returned as `summaryVerification`.
+
+A summary can be:
+
+- `opposed` when contradiction signals are found;
+- `no_contradiction_found` when the bounded pass finds none;
+- `unavailable` when graph evidence cannot be read.
+
+None of those states means the summary is true. `verified` remains `false`, `evidenceStatus` remains `external_unverified`, and `canonicalWrite` remains `false`. Summary opposition records carry the summary provenance and canonical target provenance in the same read-only shape used by source candidates.
 
 ## Failure behavior
 
