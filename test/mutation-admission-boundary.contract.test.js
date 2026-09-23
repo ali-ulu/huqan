@@ -86,7 +86,7 @@ const SINK_METHODS = Object.freeze([
  */
 const UNROUTED_SINK_CALLS = Object.freeze({
   // --- production mutation paths: the ones P1 must route -------------------
-  'kernel.js': { why: 'knowledge and audit families; its candidate write now lives in lib/kernel-mutation-admission.js; its benzer cross-link write now lives in lib/kernel-cross-link.js (#2127)', sinks: { addNode: 1, addEdge: 2, appendAuditEvent: 1 } },
+  'kernel.js': { why: 'knowledge and audit families; its candidate write now lives in lib/kernel-mutation-admission.js; its benzer cross-link write now lives in lib/kernel-cross-link.js (#2127); its plugin node write now lives in lib/kernel-propose-node.js (#2127 dilim 2)', sinks: { addEdge: 2, appendAuditEvent: 1 } },
   'agent.v3.js': { why: 'audit family', sinks: { appendAuditEvent: 2 } },
   'lib/cli-mutation-audit.js': { why: 'audit family, CLI surface', sinks: { appendAuditEvent: 1 } },
   'graph.js': { why: 'graph consolidate maintenance audit remains on the Graph composition surface until the family-independent admission seam covers maintenance operations', sinks: { appendAuditEvent: 1 } },
@@ -248,6 +248,17 @@ const ROUTED_SINK_CALLS = Object.freeze({
   'lib/kernel-cross-link.js': {
     why: '#2127-delegated benzer derivation; parent-allowed inherits parent admission, background path routes via the commitBackgroundEdge gate',
     sinks: { addEdge: 1 },
+  },
+  // --- #2127 dilim 2: delegated plugin node write ---------------------------
+  // The admission-gated plugin node write moved from kernel.js to this module
+  // as runProposeNode(collaborators). Unavailable admission audits REVIEW, a
+  // refusing admission audits REJECT/REVIEW, and only an allowed admission
+  // reaches graph.addNode -- the same fail-closed shape kernel.js owned
+  // before, so this entry is ROUTED, not debt. The audit appends ride the
+  // injected dotless alias; only the graph.addNode dot-call is ledgered.
+  'lib/kernel-propose-node.js': {
+    why: '#2127-delegated plugin node write; writes only on allowed admission, audits otherwise',
+    sinks: { addNode: 1 },
   },
 });
 
@@ -431,7 +442,9 @@ test('mutation admission: the debt ledger reflects the routing done so far', () 
   // #2127: kernel.js addEdge 3 -> 2 as the benzer cross-link write moves to
   // lib/kernel-cross-link.js (routed, K2 shape). Unrouted falls by one,
   // routed rises by one, the total does not move.
-  assert.equal(unrouted, 25, 'unrouted sink calls');
-  assert.equal(routed, 32, 'sink calls routed through admission (K2 + DEL callbacks + hypothesis + conflict-candidate review + research candidate surfaces + cross-link derivation)');
+  // #2127 dilim 2: kernel.js addNode 1 -> 0 as the plugin node write moves
+  // to lib/kernel-propose-node.js (routed). Same one-for-one shape.
+  assert.equal(unrouted, 24, 'unrouted sink calls');
+  assert.equal(routed, 33, 'sink calls routed through admission (K2 + DEL callbacks + hypothesis + conflict-candidate review + research candidate surfaces + cross-link derivation + plugin node write)');
   assert.equal(unrouted + routed, 57, 'total sink calls, raised by K2 delegation, DEL audit, maintenance evidence, the hypothesis surface, the external-action receipt projection, the now-visible review audit write, the conflict-candidate review verdict, and the external research candidate surface');
 });

@@ -116,7 +116,12 @@ test('the evidence signal is already consumed by a production caller', () => {
   const source = fs.readFileSync(path.join(REPO_ROOT, 'kernel.js'), 'utf8');
 
   assert.match(source, /return runCrossLink\(\{ graph: this\.graph,/);
-  assert.match(source, /return \{ decision: admission\.outcome, node: null, audit, admission \};/);
+  assert.match(source, /return runProposeNode\(\{ graph: this\.graph,/);
+  // #2127 dilim 2: the proposeNode reject return moved with its body to
+  // lib/kernel-propose-node.js; the evidence shape is pinned there.
+  const proposeNode = fs.readFileSync(path.join(REPO_ROOT, 'lib', 'kernel-propose-node.js'), 'utf8');
+
+  assert.match(proposeNode, /return \{ decision: admission\.outcome, node: null, audit, admission \};/);
 });
 
 test('conflict detection no longer reaches the private Kernel audit chokepoint (#2166)', () => {
@@ -128,7 +133,11 @@ test('conflict detection no longer reaches the private Kernel audit chokepoint (
   };
 
   // The legacy Kernel/learn paths still use the compatibility chokepoint.
-  assert.equal(count('kernel.js'), 7, 'six Kernel calls plus the method definition');
+  // #2127: proposeNode's three chokepoint calls moved with its body to
+  // lib/kernel-propose-node.js behind the injected alias (K2 shape), and the
+  // facade arrow repays one; cross-link did the same in dilim 1. Count is the
+  // method definition plus two facade arrows plus two direct calls.
+  assert.equal(count('kernel.js'), 5, 'facades plus direct calls plus the method definition, cross-link and proposeNode delegated');
   assert.equal(count('lib/learn-use-case.js'), 7);
   // #2166 moves conflict detection to Graph.appendAuditEvent instead.
   assert.equal(count('lib/conflict-detector.js'), 0);

@@ -36,7 +36,10 @@ test('the 19 audit writes are split across private Kernel and public Graph bound
   const conflict = readCode('lib/conflict-detector.js');
 
   const direct = (src) => (src.match(/_appendAuditEvent\s*\(/g) || []).length;
-  assert.equal(direct(kernel), 7, 'six Kernel calls plus the method definition');
+  // #2127: cross-link (dilim 1) moved one chokepoint call and proposeNode
+  // (dilim 2) three more behind the injected alias (K2 shape); each facade
+  // arrow repays one textual occurrence. learn-use-case is untouched.
+  assert.equal(direct(kernel), 5, 'two facade arrows plus two direct calls plus the method definition');
   assert.equal(direct(learnUseCase), 7);
   assert.equal(direct(conflict), 0, 'conflict detection must not reach the private Kernel audit seam');
 
@@ -44,11 +47,11 @@ test('the 19 audit writes are split across private Kernel and public Graph bound
   assert.equal(helperCalls, 6, 'conflict detector public Graph audit writes');
 
   const privateWrites = (direct(kernel) - 1) + direct(learnUseCase);
-  assert.equal(privateWrites, 13, 'remaining writes through the private Kernel compatibility chokepoint');
-  assert.equal(privateWrites + helperCalls, 19, 'total audit writes remain unchanged');
+  assert.equal(privateWrites, 11, 'remaining writes through the private Kernel compatibility chokepoint');
+  assert.equal(privateWrites + helperCalls, 17, 'total audit writes remain unchanged');
 });
 
-test('four kernel sites bind the result; eleven discard it', () => {
+test('kernel binding sites move out with their bodies; eleven discard it', () => {
   // This is what makes a chokepoint-only fix insufficient: at the remaining
   // sites there is nothing to receive a signal it would start producing.
   //
@@ -60,24 +63,29 @@ test('four kernel sites bind the result; eleven discard it', () => {
   //
   // K2 (#328): the background-edge commit delegation moved three of the
   // kernel's result-binding sites to lib/background-provenance.js.
-  // #2127: _crossLink's `const audit = ..._appendAuditEvent(` site moved
-  // the same way to lib/kernel-cross-link.js; kernel.js keeps three.
+  // #2127: _crossLink's site moved to lib/kernel-cross-link.js (dilim 1)
+  // and proposeNode's three sites to lib/kernel-propose-node.js (dilim 2).
+  // Kernel keeps none; the modules bind one and three respectively.
   const bound = (relPath) => (readCode(relPath).match(/=\s*this\._appendAuditEvent\s*\(/g) || []).length;
 
-  assert.equal(bound('kernel.js'), 3, 'kernel.js binds three results (K2: three bound sites delegated, #2127: cross-link site delegated)');
-  assert.equal(
-    (readCode('lib/kernel-cross-link.js').match(/=\s*appendAuditEvent\s*\(/g) || []).length,
-    1,
-    'the delegated cross-link module still binds its audit result',
-  );
+  assert.equal(bound('kernel.js'), 0, 'kernel.js binds no results directly anymore (K2 + #2127 delegated)');
+  const moduleBound = (relPath) => (readCode(relPath).match(/=\s*appendAuditEvent\s*\(/g) || []).length;
+  assert.equal(moduleBound('lib/kernel-cross-link.js'), 1, 'cross-link module binds its audit result');
+  assert.equal(moduleBound('lib/kernel-propose-node.js'), 3, 'propose-node module binds its three audit results');
   assert.equal(bound('lib/learn-use-case.js'), 0);
   assert.equal(bound('lib/conflict-detector.js'), 0);
 
   // The binding sites propagate it to the caller. K2 (#328): the background
   // edge commit delegation moved one propagation site to
   // lib/background-provenance.js, so the kernel floor is now 3.
+  // #2127: cross-link (dilim 1) and proposeNode (dilim 2) moved the rest;
+  // the floor now lives in lib/kernel-propose-node.js, kernel.js keeps
+  // only the delegation.
   const kernel = readCode('kernel.js');
-  assert.equal((kernel.match(/audit,\s*(?:admission|node|edge)/g) || []).length >= 3, true);
+  assert.equal((kernel.match(/audit,\s*(?:admission|node|edge)/g) || []).length, 0, 'no propagation site left inline');
+  const proposeNode = readCode('lib/kernel-propose-node.js');
+  assert.equal((proposeNode.match(/audit,\s*(?:admission|node|edge)/g) || []).length, 3, 'proposeNode returns propagate audit+admission');
+  assert.match(kernel, /return runProposeNode\(\{ graph: this\.graph,/);
 });
 
 test('exactly one production consumer is evidence-aware', () => {

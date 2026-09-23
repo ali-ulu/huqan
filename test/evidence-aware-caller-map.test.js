@@ -134,10 +134,12 @@ test('the fifteen discarding sites are five caller functions', () => {
   // #2255 removed `_runBeforeLearn` and main added `addCandidateClaim`
   // right after `learn`, so the old pin at 694 now lands in the wrong
   // method. #2127 extracted _crossLink's body to lib/kernel-cross-link.js
-  // and left a one-line facade at 743; the require added one line above,
-  // so the learn site moved 655 -> 656. The strict-provenance helper
-  // added before executeLearn shifts its pinned sites by 29 lines.
-  assert.deepEqual(new Set(enclosing('kernel.js', [743, 656])), new Set(['learn', '_crossLink']));
+  // (facade at 743) and proposeNode's body to lib/kernel-propose-node.js
+  // (dilim 2, -78 net above the facade); the dead-require removals shift
+  // one line each. Current pins: _crossLink facade at 664, learn site
+  // at 577. The strict-provenance helper added before executeLearn shifts
+  // its pinned sites by 29 lines.
+  assert.deepEqual(new Set(enclosing('kernel.js', [664, 577])), new Set(['learn', '_crossLink']));
   // The strict provenance helper now precedes executeLearn, so keep the
   // measurement pinned to the seven current learn-use-case sink lines.
   assert.deepEqual(
