@@ -7,7 +7,6 @@ const createNlp = require('./nlp');
 const VerifyService = require('./lib/verify');
 const { buildProvenance } = require('./lib/provenance-ingest');
 const { buildBackgroundProvenance, sponsorBackgroundProvenance, provenanceFieldsFrom, commitBackgroundEdge } = require('./lib/background-provenance');
-const { evaluateMemoryAdmission } = require('./lib/memory-admission-gate');
 const { evaluateLearnAdmission } = require('./lib/kernel-learn-admission');
 const { detectClaimConflict } = require('./lib/conflict-detector');
 const { createKernelReadUseCases } = require('./lib/kernel-read-use-cases');
@@ -25,6 +24,8 @@ const { runAutoThinkTick } = require('./lib/kernel-auto-think');
 const { runCrossLink } = require('./lib/kernel-cross-link');
 const { runProposeNode } = require('./lib/kernel-propose-node');
 const MemoryStore = require('./lib/memory-store'); const { siblingPersistencePath } = require('./lib/memory-store-utils');
+const { buildCanonicalReceiptPayload } = require('./lib/receipt/canonical-receipt');
+const { toCanonicalVerdict } = require('./lib/verdict/action-verdict');
 const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
 const { runRustSandbox } = require('./lib/reason-sandbox');
 
@@ -34,6 +35,25 @@ const RUST_BIN = RustGraph && RustGraph.resolveRustBin ? RustGraph.resolveRustBi
 const hasRust = !!RUST_BIN && fs.existsSync(RUST_BIN) && typeof RustGraph !== 'undefined';
 
 function workspaceIdFrom(options) { return normalizeWorkspaceId(options && typeof options === 'object' && !Array.isArray(options) ? options.workspaceId : options); }
+
+// Canonical receipt projection for a committed learn mutation. Kept here
+// (rather than in lib/kernel-learn-transaction.js) because the receipt and
+// verdict modules live in the Application layer while that module is Core:
+// a direct require would be a new Core -> Application layer violation, and
+// the layer contract prefers an injected seam over a new exception. The
+// transaction receives this as buildCanonicalReceipt.
+function buildLearnCanonicalReceipt(receipt, operationId, committedAt) {
+  return buildCanonicalReceiptPayload({
+    ...receipt,
+    metadata: {
+      ...(receipt.metadata || {}),
+      mutationOperationId: operationId,
+      committedAt,
+    },
+  }, {
+    verdict: toCanonicalVerdict('admission', receipt.decision),
+  });
+}
 
 const {
   AXIOM_ERROR,
@@ -514,7 +534,7 @@ class Kernel {
   // callers (CLI, plugins, direct API use) get the same idempotent-replay
   // and crash-safety guarantee, not just MCP-approved learns.
   learn(text, opts = {}) {
-    return runLearnTransaction({ graph: this.graph, kernel: this, enterCriticalSection: (op) => this._enterCriticalSection(op), exitCriticalSection: () => this._exitCriticalSection(), appendAuditEvent: (...args) => this._appendAuditEvent(...args), admit: (k, t, o) => admitLearn(k, t, o), runUseCase: (k, t, o, d) => runLearnUseCase(k, t, o, d) }, text, opts);
+    return runLearnTransaction({ graph: this.graph, kernel: this, enterCriticalSection: (op) => this._enterCriticalSection(op), exitCriticalSection: () => this._exitCriticalSection(), appendAuditEvent: (...args) => this._appendAuditEvent(...args), admit: (k, t, o) => admitLearn(k, t, o), runUseCase: (k, t, o, d) => runLearnUseCase(k, t, o, d), buildCanonicalReceipt: (receipt, operationId, committedAt) => buildLearnCanonicalReceipt(receipt, operationId, committedAt) }, text, opts);
   }
 
   // r1: Internal learn implementation

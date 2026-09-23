@@ -11,7 +11,7 @@ const delegateSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'kernel
 test('Kernel.learn is a one-line, cycle-free delegation (#2127)', () => {
   assert.match(
     kernelSource,
-    /learn\(text, opts = \{\}\) \{\n    return runLearnTransaction\(\{ graph: this\.graph, kernel: this, enterCriticalSection: \(op\) => this\._enterCriticalSection\(op\), exitCriticalSection: \(\) => this\._exitCriticalSection\(\), appendAuditEvent: \(\.\.\.args\) => this\._appendAuditEvent\(\.\.\.args\), admit: \(k, t, o\) => admitLearn\(k, t, o\), runUseCase: \(k, t, o, d\) => runLearnUseCase\(k, t, o, d\) \}, text, opts\);\n  \}/,
+    /learn\(text, opts = \{\}\) \{\n    return runLearnTransaction\(\{ graph: this\.graph, kernel: this, enterCriticalSection: \(op\) => this\._enterCriticalSection\(op\), exitCriticalSection: \(\) => this\._exitCriticalSection\(\), appendAuditEvent: \(\.\.\.args\) => this\._appendAuditEvent\(\.\.\.args\), admit: \(k, t, o\) => admitLearn\(k, t, o\), runUseCase: \(k, t, o, d\) => runLearnUseCase\(k, t, o, d\), buildCanonicalReceipt: \(receipt, operationId, committedAt\) => buildLearnCanonicalReceipt\(receipt, operationId, committedAt\) \}, text, opts\);\n  \}/,
   );
   assert.doesNotMatch(delegateSource, /require\(['"].*kernel/);
   assert.doesNotMatch(delegateSource, /\bthis\./);
@@ -49,6 +49,7 @@ function harness(overrides = {}) {
       assert.equal(k, kernel);
       return { ok: true, learned: 1 };
     },
+    buildCanonicalReceipt: () => ({ unit: 'receipt-test' }),
     ...overrides,
   };
   return { deps, kernel, sections, runs, calls };

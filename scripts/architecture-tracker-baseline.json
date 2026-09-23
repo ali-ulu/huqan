@@ -44,9 +44,9 @@
     },
     "kernel.js": {
       "band": "decompose",
-      "lines": 835,
+      "lines": 855,
       "signals": [
-        "FANOUT:37"
+        "FANOUT:39"
       ]
     },
     "kernel.v2.js": {
@@ -712,6 +712,7 @@
       "lib/kernel-learn-admission.js": "Core",
       "lib/kernel-learn-document.js": "Core",
       "lib/kernel-learn-from-llm.js": "Core",
+      "lib/kernel-learn-transaction.js": "Core",
       "lib/kernel-mutation-admission.js": "Core",
       "lib/kernel-propose-node.js": "Core",
       "lib/kernel-read-use-cases.js": "Core",
@@ -1368,6 +1369,7 @@
         "lib/kernel-learn-admission.js",
         "lib/kernel-learn-document.js",
         "lib/kernel-learn-from-llm.js",
+        "lib/kernel-learn-transaction.js",
         "lib/kernel-mutation-admission.js",
         "lib/kernel-propose-node.js",
         "lib/kernel-read-use-cases.js",
@@ -1375,12 +1377,13 @@
         "lib/kernel-self-learn.js",
         "lib/learn-edge-options.js",
         "lib/learn-use-case.js",
-        "lib/memory-admission-gate.js",
         "lib/memory-store-utils.js",
         "lib/memory-store.js",
         "lib/predicate-parser.js",
         "lib/provenance-ingest.js",
         "lib/reason-sandbox.js",
+        "lib/receipt/canonical-receipt.js",
+        "lib/verdict/action-verdict.js",
         "lib/verify.js",
         "nlp/index.js",
         "plugin.js",
@@ -2670,6 +2673,10 @@
         "lib/cli-mutation-audit-intent.js",
         "lib/human-approval-toggle.js",
         "lib/kernel-contract.js"
+      ],
+      "lib/kernel-learn-transaction.js": [
+        "lib/cli-mutation-audit-intent.js",
+        "lib/errors/provenance-error.js"
       ],
       "lib/kernel-mutation-admission.js": [
         "lib/conflict-detector.js",
@@ -4159,12 +4166,6 @@
       },
       {
         "from": "kernel.js",
-        "to": "lib/memory-admission-gate.js",
-        "fromLayer": "Core",
-        "toLayer": "Adapters"
-      },
-      {
-        "from": "kernel.js",
         "to": "lib/memory-store-utils.js",
         "fromLayer": "Core",
         "toLayer": "Adapters"
@@ -4174,6 +4175,18 @@
         "to": "lib/memory-store.js",
         "fromLayer": "Core",
         "toLayer": "Adapters"
+      },
+      {
+        "from": "kernel.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "kernel.js",
+        "to": "lib/verdict/action-verdict.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
       },
       {
         "from": "kernel.js",
