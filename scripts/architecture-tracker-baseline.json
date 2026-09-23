@@ -51,7 +51,7 @@
     },
     "kernel.v2.js": {
       "band": "recorded",
-      "lines": 662,
+      "lines": 556,
       "signals": [
         "DIP"
       ]
@@ -569,9 +569,14 @@
       "lib/github-app-beta-auth.js": "Core",
       "lib/github-app-beta-handler.js": "Core",
       "lib/github-app-beta-http-boundary.js": "Core",
+      "lib/github-app-beta-http-config.js": "Core",
+      "lib/github-app-beta-http-errors.js": "Core",
+      "lib/github-app-beta-http-responses.js": "Core",
       "lib/github-app-beta-store.js": "Core",
       "lib/github-app-streaming-auth.js": "Core",
       "lib/github-app-streaming-trust-handler.js": "Core",
+      "lib/github-app-streaming-trust-store-files.js": "Core",
+      "lib/github-app-streaming-trust-store-records.js": "Core",
       "lib/github-app-streaming-trust-store.js": "Core",
       "lib/github-app-streaming-trust.js": "Core",
       "lib/github-connector.js": "Core",
@@ -718,6 +723,7 @@
       "lib/kernel-read-use-cases.js": "Core",
       "lib/kernel-self-evolve.js": "Core",
       "lib/kernel-self-learn.js": "Core",
+      "lib/kernel-v2-contradiction.js": "Core",
       "lib/kernel-v2-evidence.js": "Core",
       "lib/kernel-v2-native.js": "Core",
       "lib/kernel-v2-type-negation.js": "Core",
@@ -1147,6 +1153,9 @@
       "scripts/verify-package-tarball.js": "UI",
       "scripts/verify-published-round-trip.js": "UI",
       "scripts/verify-suite.js": "UI",
+      "scripts/verify-tarball-checks-core.js": "UI",
+      "scripts/verify-tarball-checks-guard.js": "UI",
+      "scripts/verify-tarball-shared.js": "UI",
       "scripts/verify-test-environment.js": "UI",
       "server.js": "UI",
       "storage.js": "Adapters",
@@ -1391,13 +1400,13 @@
       ],
       "kernel.v2.js": [
         "kernel.js",
+        "lib/kernel-v2-contradiction.js",
         "lib/kernel-v2-evidence.js",
         "lib/kernel-v2-native.js",
         "lib/kernel-v2-type-negation.js",
         "lib/pre-ingest.js",
         "lib/subject-resolution.js",
-        "lib/text-safety-scorer.js",
-        "lib/type-lattice.js"
+        "lib/text-safety-scorer.js"
       ],
       "lib/a2a/agent-card-route.js": [
         "lib/a2a/agent-card.js",
@@ -2192,13 +2201,29 @@
         "lib/verdict/action-verdict.js"
       ],
       "lib/github-app-beta-http-boundary.js": [
-        "lib/environment-compat.js",
         "lib/github-app-beta-auth.js",
         "lib/github-app-beta-handler.js",
+        "lib/github-app-beta-http-config.js",
+        "lib/github-app-beta-http-errors.js",
+        "lib/github-app-beta-http-responses.js",
         "lib/github-app-beta-store.js",
-        "lib/github-app-streaming-trust-handler.js",
+        "lib/github-app-streaming-trust-handler.js"
+      ],
+      "lib/github-app-beta-http-config.js": [
+        "lib/environment-compat.js",
+        "lib/github-app-beta-auth.js",
+        "lib/github-app-streaming-trust-store.js"
+      ],
+      "lib/github-app-beta-http-errors.js": [
+        "lib/github-app-beta-auth.js",
+        "lib/github-app-beta-handler.js",
+        "lib/github-app-beta-http-responses.js",
+        "lib/github-app-beta-store.js",
         "lib/github-app-streaming-trust-store.js",
         "lib/github-app-streaming-trust.js"
+      ],
+      "lib/github-app-beta-http-responses.js": [
+        "lib/github-app-beta-handler.js"
       ],
       "lib/github-app-beta-store.js": [
         "lib/is-plain-object.js",
@@ -2212,7 +2237,16 @@
         "lib/github-app-beta-handler.js",
         "lib/github-app-streaming-trust.js"
       ],
+      "lib/github-app-streaming-trust-store-files.js": [
+        "lib/github-app-streaming-trust-store-records.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/github-app-streaming-trust-store-records.js": [
+        "lib/is-plain-object.js"
+      ],
       "lib/github-app-streaming-trust-store.js": [
+        "lib/github-app-streaming-trust-store-files.js",
+        "lib/github-app-streaming-trust-store-records.js",
         "lib/is-plain-object.js",
         "lib/receipt/canonical-receipt.js"
       ],
@@ -2688,6 +2722,12 @@
       ],
       "lib/kernel-self-evolve.js": [
         "lib/graph-record-utils.js"
+      ],
+      "lib/kernel-v2-contradiction.js": [
+        "lib/kernel-v2-evidence.js",
+        "lib/kernel-v2-native.js",
+        "lib/kernel-v2-type-negation.js",
+        "lib/type-lattice.js"
       ],
       "lib/kernel-v2-evidence.js": [
         "lib/kernel-v2-native.js",
@@ -4068,12 +4108,23 @@
         "scripts/spawn-windows-aware.js"
       ],
       "scripts/verify-package-tarball.js": [
-        "scripts/spawn-windows-aware.js"
+        "scripts/verify-tarball-checks-core.js",
+        "scripts/verify-tarball-checks-guard.js",
+        "scripts/verify-tarball-shared.js"
       ],
       "scripts/verify-published-round-trip.js": [
         "scripts/verify-package-tarball.js"
       ],
       "scripts/verify-suite.js": [
+        "scripts/spawn-windows-aware.js"
+      ],
+      "scripts/verify-tarball-checks-core.js": [
+        "scripts/verify-tarball-shared.js"
+      ],
+      "scripts/verify-tarball-checks-guard.js": [
+        "scripts/verify-tarball-shared.js"
+      ],
+      "scripts/verify-tarball-shared.js": [
         "scripts/spawn-windows-aware.js"
       ],
       "server.js": [

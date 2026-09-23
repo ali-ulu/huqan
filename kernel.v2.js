@@ -1,16 +1,13 @@
 ﻿const Kernel = require('./kernel');
 const { runPreIngest } = require('./lib/pre-ingest');
-const { detectTypeLatticeConflict } = require('./lib/type-lattice');
 const {
   normalizePredicateToken: evidenceNormalizePredicateToken,
   normalizeCopulaTail,
-  toPathEvidence,
-  aggregatePathConfidence,
-  buildReasoningPath,
   summarizeEvidence,
 } = require('./lib/kernel-v2-evidence');
 const { resolveKnownSubject } = require('./lib/subject-resolution');
 const { buildNegationConflict, contradictedBaseVerdict } = require('./lib/kernel-v2-type-negation');
+const { runContradictionDetails, findOppositePredicateConflict } = require('./lib/kernel-v2-contradiction');
 
 // Mechanical 1:1 extraction (#328, docs/kernel-split-plan.md V2-A): pure native
 // helpers, the opposite-predicate seed table, and the manipulation rule
@@ -20,7 +17,6 @@ const { buildNegationConflict, contradictedBaseVerdict } = require('./lib/kernel
 const {
   TYPE_RELATIONS,
   FACT_RELATIONS,
-  OPPOSITE_PREDICATES,
   nowIso,
   parseSimpleTurkishStatement,
   resolveNegativeClaimFallback,
@@ -361,113 +357,11 @@ class KernelV2 {
   }
 
   _findOppositePredicateConflict(subject, normalizedTargetToken, maxDepth = 4, workspaceId = 'default') {
-    const opposite = OPPOSITE_PREDICATES.get(normalizedTargetToken);
-    if (!opposite) return null;
-
-    const directOpposite = this._collectPredicateTargets(subject, workspaceId).find(item => item.target === opposite);
-    if (directOpposite) {
-      return {
-        status: 'contradicted',
-        confidence: Math.max(0.65, Math.min(0.9, directOpposite.weight || 0.72)),
-        inferred: true,
-        contradictionReason: 'opposite_predicate_conflict',
-        conflictTarget: directOpposite.rawTarget,
-        requestedTarget: normalizedTargetToken,
-        confidenceSource: 'opposite-predicate-map',
-        evidence: this._buildPredicateEvidence(subject, workspaceId),
-        meta: { inferredBy: 'opposite-predicate-conflict' },
-      };
-    }
-
-    const oppositeChain = this._inferTypeChain(subject, opposite, maxDepth, workspaceId);
-    if (!oppositeChain) return null;
-
-    return {
-      status: 'contradicted',
-      confidence: aggregatePathConfidence(oppositeChain),
-      inferred: true,
-      contradictionReason: 'opposite_predicate_conflict',
-      conflictTarget: opposite,
-      requestedTarget: normalizedTargetToken,
-      reasoningPath: buildReasoningPath(oppositeChain),
-      pathLength: oppositeChain.length,
-      confidenceSource: 'type-chain-opposite',
-      evidence: toPathEvidence(oppositeChain),
-      meta: { inferredBy: 'opposite-predicate-chain' },
-    };
+    return findOppositePredicateConflict({ v2: this, graph: this.kernel.graph, collectPredicateTargets: (...args) => this._collectPredicateTargets(...args), collectTypeTargets: (...args) => this._collectTypeTargets(...args), inferTypeChain: (...args) => this._inferTypeChain(...args), buildPredicateEvidence: (...args) => this._buildPredicateEvidence(...args), directTypeEvidence: (...args) => this.buildDirectTypeEvidence(...args) }, subject, normalizedTargetToken, maxDepth, workspaceId);
   }
 
   _buildContradictionDetails(parsed, normalizedTarget, normalizedTargetToken, opts = {}) {
-    const maxDepth = opts.maxDepth || 4;
-    const workspaceId = (typeof opts.workspaceId === 'string' && opts.workspaceId.trim()) || 'default'; // #734: never silently fall back to the default workspace
-    // Fact edges first, then type edges (#1989); see lib/kernel-v2-type-negation.js.
-    const negationConflict = buildNegationConflict(this, parsed, normalizedTarget, normalizedTargetToken, workspaceId);
-    if (negationConflict) return negationConflict;
-
-    if (!parsed.isNegated) {
-      const oppositeConflict = this._findOppositePredicateConflict(
-        parsed.subject,
-        normalizedTargetToken,
-        maxDepth,
-        workspaceId
-      );
-      if (oppositeConflict) {
-        return oppositeConflict;
-      }
-    }
-
-    if (!parsed.isNegated) {
-      const knownTypes = this._collectTypeTargets(parsed.subject, workspaceId);
-      const typeConflict = detectTypeLatticeConflict(
-        this.kernel.graph,
-        parsed.subject,
-        normalizedTarget,
-        workspaceId,
-      );
-      if (typeConflict) {
-        return {
-          status: 'contradicted',
-          confidence: typeConflict.confidence || 0.72,
-          inferred: true,
-          contradictionReason: 'type_mismatch_with_known_types',
-          knownTypes,
-          requestedType: normalizedTarget,
-          confidenceSource: 'type-lattice-conflict',
-          evidence: typeConflict.evidence || this.buildDirectTypeEvidence(parsed.subject, workspaceId),
-          meta: { inferredBy: 'type-conflict' },
-        };
-      }
-    }
-
-    const chain = this._inferTypeChain(parsed.subject, normalizedTarget, maxDepth, workspaceId);
-    if (chain && parsed.isNegated) {
-      return {
-        status: 'contradicted',
-        confidence: aggregatePathConfidence(chain),
-        inferred: true,
-        contradictionReason: 'negated_statement_conflicts_with_type_chain',
-        reasoningPath: buildReasoningPath(chain),
-        pathLength: chain.length,
-        confidenceSource: 'path-average',
-        evidence: toPathEvidence(chain),
-        meta: { inferredBy: 'type-chain-negation' },
-      };
-    }
-
-    if (chain && !parsed.isNegated) {
-      return {
-        status: 'verified',
-        confidence: aggregatePathConfidence(chain),
-        inferred: true,
-        reasoningPath: buildReasoningPath(chain),
-        pathLength: chain.length,
-        confidenceSource: 'path-average',
-        evidence: toPathEvidence(chain),
-        meta: { inferredBy: 'type-chain' },
-      };
-    }
-
-    return null;
+    return runContradictionDetails({ v2: this, graph: this.kernel.graph, collectPredicateTargets: (...args) => this._collectPredicateTargets(...args), collectTypeTargets: (...args) => this._collectTypeTargets(...args), inferTypeChain: (...args) => this._inferTypeChain(...args), buildPredicateEvidence: (...args) => this._buildPredicateEvidence(...args), directTypeEvidence: (...args) => this.buildDirectTypeEvidence(...args) }, parsed, normalizedTarget, normalizedTargetToken, opts);
   }
 
   verify(statement, opts = {}) {

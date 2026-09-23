@@ -532,6 +532,7 @@
     "lib/kernel-v2-native.js",
     "lib/kernel-v2-evidence.js",
     "lib/kernel-v2-type-negation.js",
+    "lib/kernel-v2-contradiction.js",
     "lib/learn-admission-request.js",
     "lib/learn-edge-options.js",
     "lib/learn-use-case.js",

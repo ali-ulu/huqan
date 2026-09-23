@@ -82,8 +82,14 @@ test('claim 1: the kernel chokepoint governs its six call sites', () => {
   // sites now live in the delegated module -- if that delegation is ever
   // dropped back into kernel.js, this count will rise and must fail loudly
   // with a comment explaining why.
+  // #2127: _crossLink's site moved to lib/kernel-cross-link.js (net zero:
+  // one call out, one facade arrow in) and proposeNode's three sites moved
+  // to lib/kernel-propose-node.js (net minus two: three calls out, one
+  // facade arrow in). Fixed here -- the move happened in #2822 but this
+  // file runs in the nightly suite, not the PR shards, so the pin went
+  // red on main unnoticed.
   const callSites = countMatches(source, /this\._appendAuditEvent\s*\(/g);
-  assert.equal(callSites, 6, 'kernel audit call sites reaching the chokepoint (K2: background-edge chain delegated)');
+  assert.equal(callSites, 4, 'kernel audit call sites reaching the chokepoint (K2 + #2127 delegated)');
 });
 
 test('claim 1: kernel.v2 adds no second audit path', () => {

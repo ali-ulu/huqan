@@ -26,7 +26,6 @@ Tracked in total: **59**
 | `lib/a2a/bounded-exchange.js` | 693 | — |
 | `lib/verify.js` | 693 | — |
 | `plugins/company-brain.js` | 678 | — |
-| `kernel.v2.js` | 662 | DIP |
 | `lib/receipt/public-trust-receipt.js` | 660 | — |
 | `cli.js` | 637 | FANOUT:26 |
 | `lib/receipt/receipt-read-index.js` | 637 | — |
@@ -42,6 +41,7 @@ Tracked in total: **59**
 | `lib/ingest.js` | 587 | — |
 | `lib/memory-schema.js` | 565 | — |
 | `workflow-agent.js` | 562 | — |
+| `kernel.v2.js` | 556 | DIP |
 | `lib/automation-safety-gate/automation-operation-classifier.js` | 545 | — |
 | `lib/dream-experiment-loop.js` | 533 | — |
 | `lib/contradiction-rules.js` | 531 | — |
