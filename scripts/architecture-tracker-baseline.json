@@ -223,11 +223,6 @@
       "lines": 767,
       "signals": []
     },
-    "lib/provenance-query.js": {
-      "band": "recorded",
-      "lines": 600,
-      "signals": []
-    },
     "lib/receipt/public-trust-receipt.js": {
       "band": "recorded",
       "lines": 660,
@@ -423,6 +418,10 @@
       "lib/causal/causal-edge-errors.js": "Application",
       "lib/causal/causal-edge.js": "Application",
       "lib/causal/causal-traversal.js": "Application",
+      "lib/causal/causal-verdict-normalize.js": "Application",
+      "lib/causal/causal-verdict-score.js": "Application",
+      "lib/causal/causal-verdict-trace.js": "Application",
+      "lib/causal/causal-verdict-weights.js": "Application",
       "lib/causal/causal-verdict.js": "Application",
       "lib/causal/index.js": "Application",
       "lib/claim-decomposition.js": "Core",
@@ -1645,6 +1644,24 @@
       ],
       "lib/causal/causal-traversal.js": [
         "lib/causal/causal-edge.js"
+      ],
+      "lib/causal/causal-verdict-normalize.js": [
+        "lib/causal/causal-traversal.js",
+        "lib/causal/causal-verdict-weights.js"
+      ],
+      "lib/causal/causal-verdict-score.js": [
+        "lib/causal/causal-verdict-normalize.js",
+        "lib/causal/causal-verdict-weights.js"
+      ],
+      "lib/causal/causal-verdict-trace.js": [
+        "lib/causal/causal-verdict-normalize.js",
+        "lib/causal/causal-verdict-weights.js"
+      ],
+      "lib/causal/causal-verdict.js": [
+        "lib/causal/causal-verdict-normalize.js",
+        "lib/causal/causal-verdict-score.js",
+        "lib/causal/causal-verdict-trace.js",
+        "lib/causal/causal-verdict-weights.js"
       ],
       "lib/causal/index.js": [
         "lib/causal/causal-edge-errors.js",
@@ -3181,15 +3198,6 @@
         "lib/provenance-record-utils.js",
         "lib/trust-policy.js"
       ],
-      "lib/provenance-query.js": [
-        "lib/audit-log.js",
-        "lib/audit-query.js",
-        "lib/canonical-target-match.js",
-        "lib/causal/causal-verdict.js",
-        "lib/conflict-detector.js",
-        "lib/trust-status.js",
-        "lib/workspace-id.js"
-      ],
       "lib/quickstart-cli.js": [
         "lib/kernel-factory.js",
         "lib/provenance-query.js",
@@ -4632,12 +4640,6 @@
       {
         "from": "lib/post-action-monitor.js",
         "to": "lib/self-healer/finding-classifier.js",
-        "fromLayer": "Core",
-        "toLayer": "Application"
-      },
-      {
-        "from": "lib/provenance-query.js",
-        "to": "lib/causal/causal-verdict.js",
         "fromLayer": "Core",
         "toLayer": "Application"
       },
