@@ -23,6 +23,7 @@ const { runSelfEvolve, buildSelfEvolveCollaborators } = require('./lib/kernel-se
 const { runAlternatives } = require('./lib/kernel-alternatives');
 const { runContextSimilarity } = require('./lib/kernel-context-similarity');
 const { runAutoThinkTick } = require('./lib/kernel-auto-think');
+const { runCrossLink } = require('./lib/kernel-cross-link');
 const MemoryStore = require('./lib/memory-store'); const { siblingPersistencePath } = require('./lib/memory-store-utils');
 const { buildCanonicalReceiptPayload } = require('./lib/receipt/canonical-receipt');
 const { toCanonicalVerdict } = require('./lib/verdict/action-verdict');
@@ -740,62 +741,7 @@ class Kernel {
    * Either path produces an audit event so the attempt is observable.
    */
   _crossLink(subject, object, relation, workspaceId = 'default', context = {}) {
-    const subjNode = this.graph.getNode(subject, workspaceId);
-    const objNode = this.graph.getNode(object, workspaceId);
-    if (!subjNode || !objNode) return { written: 0, audits: 0, skipped: 0 };
-
-    const parentAllowed = Boolean(context && context.parentAdmissionAllowed);
-    const parentProvenance = context && context.parentProvenance ? context.parentProvenance : null;
-    const parentAdmission = context && context.parentAdmission ? context.parentAdmission : null;
-
-    let written = 0;
-    let audits = 0;
-    let skipped = 0;
-
-    for (const tag of Object.keys(subjNode.vector)) {
-      if (tag !== object && this.graph.getNode(tag, workspaceId) && objNode.vector[tag]) {
-        const existing = this.graph.getEdge(subject, object, 'benzer', workspaceId);
-        if (!existing) {
-          if (parentAllowed) {
-            // Parent learn admission already permitted the canonical write
-            // that triggered this derivation.  Carry parent provenance + audit.
-            const edgeOptions = { workspaceId };
-            if (parentProvenance) edgeOptions.provenance = parentProvenance;
-            edgeOptions.source = (context && context.derivedSource) || 'cross-link';
-            const edge = this.graph.addEdge(subject, object, 'benzer', edgeOptions);
-            if (edge) {
-              written++;
-              const audit = this._appendAuditEvent({
-                eventType: 'LEARN',
-                targetType: 'derived_edge',
-                targetId: `${edge.from}|${edge.relation}|${edge.to}`,
-                details: {
-                  derivation: 'cross_link',
-                  triggerSubject: subject,
-                  triggerObject: object,
-                  triggerRelation: relation,
-                  via: tag,
-                  ...this._admissionReceiptDetails(parentAdmission),
-                },
-              }, parentProvenance, workspaceId);
-              if (audit) audits++;
-            }
-          } else {
-            // Background invocation — route through admission gate.
-            const result = this._commitBackgroundEdge(subject, object, 'benzer', '_crossLink', {
-              workspaceId,
-              edgeOptions: { source: 'cross-link' },
-              provenanceExtra: { derivation: 'cross_link', via: tag },
-            });
-            if (result.audit) audits++;
-            if (result.decision === 'allow' && result.edge) written++;
-            else skipped++;
-          }
-        }
-      }
-    }
-
-    return { written, audits, skipped };
+    return runCrossLink({ graph: this.graph, appendAuditEvent: (...args) => this._appendAuditEvent(...args), admissionReceiptDetails: admission => this._admissionReceiptDetails(admission), commitBackgroundEdge: (...args) => this._commitBackgroundEdge(...args) }, subject, object, relation, workspaceId, context);
   }
 
   ask(question, opts = {}) { return this._readUseCases.ask(question, workspaceIdFrom(opts)); }
