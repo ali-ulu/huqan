@@ -465,6 +465,7 @@
     "lib/http/pr-guardian-routes.js",
     "lib/http/pr-guardian-transport.js",
     "lib/http/pr-guardian-webhook-route.js",
+    "lib/http/pr-guardian-ui-route.js",
     "lib/http/public-badge-route.js",
     "lib/http/structured-log.js",
     "lib/http/workflow-envelope.js",
