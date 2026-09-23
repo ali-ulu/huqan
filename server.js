@@ -18,7 +18,6 @@ const { handleWorkflowContractRoute } = require('./lib/http/workflow-contract-ro
 const { createReadWorkflowHttpRouter } = require('./lib/http/read-workflow-actions');
 const { createWorkflowDataRoutes, createLearnApprovalDecision } = require('./lib/http/workflow-data-routes');
 const { readExactWorkspace } = require('./lib/http/exact-workspace');
-// #2128 slice 2: trust query routes live in lib/http/trust-query-routes.js.
 const { createTrustQueryRoutes } = require('./lib/http/trust-query-routes');
 // #2128: viewer mount (rate limiter + session store + gateway) lives in
 // lib/http/viewer-mount.js; the root keeps the single mount handle.
