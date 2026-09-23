@@ -12,20 +12,39 @@ const setupSource = source.slice(source.indexOf('let INSTALL_DIR = null;'), sour
 
 function fixture(installResult) {
   const calls = [];
+  const timeouts = [];
   const context = vm.createContext({
     assert, path, process, REPO_ROOT: __dirname,
     os: { tmpdir: () => __dirname },
     fs: { mkdirSync() {}, existsSync: () => true },
-    cp: { spawnSync(command, args) {
+    cp: { spawnSync(command, args, options = {}) {
       calls.push(args[0]);
+      timeouts.push([args[0], options.timeout]);
       if (args[0] === 'pack') return { status: 0, stdout: '[{"filename":"huqan.tgz"}]' };
       if (args[0] === 'init') return { status: 0 };
       return installResult;
     } },
   });
   vm.runInContext(setupSource, context);
-  return { calls, setup: () => vm.runInContext('setupTarballInstall()', context) };
+  return {
+    calls,
+    timeouts,
+    setup: () => vm.runInContext('setupTarballInstall()', context),
+    create: platform => vm.runInContext(`createTarballInstall(${JSON.stringify(platform)})`, context),
+  };
 }
+
+test('Windows tarball install gets bounded extra time without widening other platforms (#2803)', () => {
+  const windows = fixture({ status: 0 });
+  windows.create('win32');
+  assert.deepEqual(windows.calls, ['pack', 'init', 'install']);
+  assert.equal(windows.timeouts[2][1], 180_000);
+
+  const linux = fixture({ status: 0 });
+  linux.create('linux');
+  assert.deepEqual(linux.calls, ['pack', 'init', 'install']);
+  assert.equal(linux.timeouts[2][1], 120_000);
+});
 
 test('failed tarball installation is never reused as a ready package', () => {
   const f = fixture({ status: null, error: new Error('ETIMEDOUT'), stderr: 'install diagnostic' });

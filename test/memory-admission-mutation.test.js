@@ -206,7 +206,7 @@ test('risk score normalization clamps external decision scores and preserves war
   assert.deepEqual(low.risk, { level: 'low', score: 0 });
 });
 
-test('receipt metadata carries only declared finite confidence, expiry and supported provenance source', () => {
+test('receipt metadata carries only declared finite confidence, expiry, computed horizon and supported provenance source', () => {
   const normalized = normalizeMemoryAdmissionDecision({
     ...base,
     decision: 'allow',
@@ -226,6 +226,9 @@ test('receipt metadata carries only declared finite confidence, expiry and suppo
     source: 'manual',
     declaredConfidence: 0.75,
     expiresAt: '2027-01-01T00:00:00.000Z',
+    // #2795: the computed reverificationHorizon equals the declared expiresAt
+    // here because a declared expiry always wins over the risk-computed one.
+    reverificationHorizon: '2027-01-01T00:00:00.000Z',
     provenanceSource: 'deterministic',
   });
 

@@ -392,6 +392,13 @@ let TARBALL_PATH = null;
 let INSTALL_READY = false;
 let INSTALL_ERROR = null;
 
+const DEFAULT_INSTALL_TIMEOUT_MS = 120_000;
+const WINDOWS_INSTALL_TIMEOUT_MS = 180_000;
+
+function installTimeoutMs(platform = process.platform) {
+  return platform === 'win32' ? WINDOWS_INSTALL_TIMEOUT_MS : DEFAULT_INSTALL_TIMEOUT_MS;
+}
+
 function setupTarballInstall() {
   if (INSTALL_ERROR) throw INSTALL_ERROR;
   if (INSTALL_READY) return { installDir: INSTALL_DIR, tarballPath: TARBALL_PATH };
@@ -407,7 +414,7 @@ function setupTarballInstall() {
   }
 }
 
-function createTarballInstall() {
+function createTarballInstall(platform = process.platform) {
   INSTALL_DIR = path.join(os.tmpdir(), `huqan-4c1-smoke-${Date.now()}`);
   fs.mkdirSync(INSTALL_DIR, { recursive: true });
   const packResult = cp.spawnSync('npm', ['pack', '--json', '--ignore-scripts', `--pack-destination=${INSTALL_DIR}`], {
@@ -433,14 +440,17 @@ function createTarballInstall() {
   cp.spawnSync('npm', ['init', '-y'], { cwd: INSTALL_DIR, encoding: 'utf8', shell: true, timeout: 15000 });
   // --foreground-scripts + --loglevel=http: a timeout must name the step and
   // the last registry URL it was waiting on (spawnSync returns captured output
-  // even when it kills the child). This is instrumentation, not a budget
-  // change: the 120s deadline that fired on the Windows/Node 24 runner stays.
+  // even when it kills the child). Keep the 120s budget everywhere except
+  // Windows, where hosted runners have now crossed that boundary while still
+  // making registry progress (#2803). The file-level shard deadline remains
+  // the outer hang guard; this only gives the real package install more room.
+  const installTimeout = installTimeoutMs(platform);
   const installResult = cp.spawnSync('npm', ['install', '--no-audit', '--no-fund', '--foreground-scripts', '--loglevel=http', TARBALL_PATH], {
-    cwd: INSTALL_DIR, encoding: 'utf8', timeout: 120000, shell: true,
+    cwd: INSTALL_DIR, encoding: 'utf8', timeout: installTimeout, shell: true,
     env: { ...process.env, NO_COLOR: '1' },
   });
   const installOutput = `${installResult.stdout || ''}\n${installResult.stderr || ''}`.slice(-4000);
-  if (installResult.error) assert.fail(`npm install error: ${installResult.error.message}\n${installOutput}`);
+  if (installResult.error) assert.fail(`npm install error after ${installTimeout / 1000}s: ${installResult.error.message}\n${installOutput}`);
   if (installResult.status !== 0) assert.fail(`npm install exit ${installResult.status}: ${installOutput}`);
   assert.ok(fs.existsSync(path.join(INSTALL_DIR, 'node_modules', 'huqan')), 'huqan must be installed');
   return { installDir: INSTALL_DIR, tarballPath: TARBALL_PATH };

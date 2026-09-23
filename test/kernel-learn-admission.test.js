@@ -97,3 +97,35 @@ test('the workspace the caller asked about is the one reported back', () => {
 
   assert.equal(result.workspaceId, 'tenant-b');
 });
+
+// #2795: canonical graph-edge admission has no expiry concept of its own --
+// this module delegates straight to lib/memory-admission-gate.js's
+// evaluateMemoryAdmission (the same gate MemoryStore records go through), so
+// a computed reverification horizon reaches a learn-write's receipt for free
+// once the gate computes one, with no changes needed here. This exercises
+// the real gate (the `deps()` default), not the injectable stub the tests
+// above use, specifically to prove that wiring.
+test('a high-risk learn write receives a computed reverification horizon on its receipt', () => {
+  const result = evaluateLearnAdmission(
+    deps(),
+    'a cat is an animal',
+    { riskScore: 90, provenanceId: 'prov-high-risk' },
+  );
+
+  assert.equal(result.outcome, 'quarantine');
+  assert.ok(result.receipt.metadata.reverificationHorizon, 'expected a computed horizon on a high-risk write');
+  const horizonMs = Date.parse(result.receipt.metadata.reverificationHorizon);
+  const createdMs = Date.parse(result.receipt.createdAt);
+  assert.ok(horizonMs - createdMs <= 7 * 24 * 60 * 60 * 1000, 'high risk should not get a horizon longer than 7 days');
+});
+
+test('a low-risk learn write receives no computed horizon', () => {
+  const result = evaluateLearnAdmission(
+    deps(),
+    'a cat is an animal',
+    { riskScore: 0, provenanceId: 'prov-low-risk', approvalRequired: false },
+  );
+
+  assert.equal(result.outcome, 'allow');
+  assert.equal(result.receipt.metadata.reverificationHorizon, undefined);
+});
