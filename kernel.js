@@ -9,7 +9,6 @@ const { buildProvenance } = require('./lib/provenance-ingest');
 const { buildBackgroundProvenance, sponsorBackgroundProvenance, provenanceFieldsFrom, commitBackgroundEdge } = require('./lib/background-provenance');
 const { buildLearnAdmissionRequest } = require('./lib/learn-admission-request');
 const { evaluateMemoryAdmission } = require('./lib/memory-admission-gate');
-const { emitGateTelemetry } = require('./lib/gate-telemetry');
 const { evaluateLearnAdmission } = require('./lib/kernel-learn-admission');
 const { detectClaimConflict } = require('./lib/conflict-detector');
 const { createKernelReadUseCases } = require('./lib/kernel-read-use-cases');
