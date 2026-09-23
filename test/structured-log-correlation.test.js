@@ -9,7 +9,7 @@ const {
   writeStructuredLog,
 } = require('../lib/http/structured-log');
 
-const serverSource = fs.readFileSync('server.js', 'utf8');
+const requestHandlerSource = fs.readFileSync('lib/http/server-request-handler.js', 'utf8');
 const runtimeSource = fs.readFileSync('lib/observability/server-runtime.js', 'utf8');
 
 test('structured correlation logging contract', async t => {
@@ -85,8 +85,8 @@ test('structured correlation logging contract', async t => {
   });
 
   await t.test('wires the context and structured logger at production boundaries', () => {
-    assert.match(serverSource, /createRequestCorrelation\(req, res\)/);
-    assert.match(serverSource, /writeStructuredLog\(console, 'error', 'http\.unhandled_error'/);
+    assert.match(requestHandlerSource, /createRequestCorrelation\(req, res\)/);
+    assert.match(requestHandlerSource, /writeStructuredLog\(console, 'error', 'http\.unhandled_error'/);
     const instrumentationSource = fs.readFileSync(path.join(__dirname, '../lib/observability/workflow-agent-instrumentation.js'), 'utf8');
     assert.match(instrumentationSource, /writeStructuredLog\(console, 'info', 'observability\.workflow_run_started'/);
     assert.match(instrumentationSource, /writeStructuredLog\(console, 'info', 'observability\.workflow_run_finished'/);
