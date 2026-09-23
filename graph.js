@@ -113,9 +113,9 @@ class Graph {
     }
   }
 
-  _openSqlite(opts) { return runOpenSqlite(this, opts); }
+  _openSqlite(opts) { return runOpenSqlite(this, opts, nextOpts => this._initDB(nextOpts)); }
   closeSqlite() { return runCloseSqlite(this); }
-  reopen(opts = this._sqliteOptions) { return runReopenSqlite(this, opts); }
+  reopen(opts = this._sqliteOptions) { return runReopenSqlite(this, opts, nextOpts => this._initDB(nextOpts)); }
   _initDB(opts = {}) { initGraphSchema(this._db, opts); this._stmts = createGraphStmts(this._db); }
 
   _ensureMutationReceiptFamilySchema() {
