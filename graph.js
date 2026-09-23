@@ -7,6 +7,8 @@ const {
 } = require('./lib/graph-record-utils');
 const { derivePersistenceLayout, resolveDefaultMemoryPath } = require('./lib/memory-store-utils');
 const { assertGraphPersistenceWritable } = require('./lib/graph-json-persistence');
+const { appendReceiptToChain } = require('./lib/receipt/receipt-chain');
+const { assertDurableV4WriteAllowed, classifyReceiptFamily } = require('./lib/receipt/v4-receipt-family');
 const { saveSnapshot, writeCurrentState } = require('./lib/graph-json-snapshot');
 const { countAuditEvents, queryAuditEvents, readAuditEvents } = require('./lib/audit-query');
 const { applyTemporalEdgeMetadata, beginEdgeTouchScope, downgradeEdge, edgeTouchKey } = require('./lib/graph-edge-mutations');
@@ -36,12 +38,7 @@ const { optimize: runGraphOptimize } = require('./lib/graph-optimize');
 const { isCausalRelation: runIsCausalRelation, getCausalRelations: runCausalRelations, getCausalEdges: runCausalEdges } = require('./lib/graph-causal-relation-read');
 const { addEdge: runEdgeWrite } = require('./lib/graph-edge-write');
 const consolidateEdges = require('./lib/graph-consolidate-edges');
-const {
-  stripEmbeddings: runStripEmbeddings,
-  restoreEmbeddings: runRestoreEmbeddings,
-  writeStrippedState: runWriteStrippedState,
-  load: runGraphPersistenceLoad,
-} = require('./lib/graph-persistence-runtime');
+const { stripEmbeddings: runStripEmbeddings, restoreEmbeddings: runRestoreEmbeddings, writeStrippedState: runWriteStrippedState, load: runGraphPersistenceLoad } = require('./lib/graph-persistence-runtime');
 const {
   jsonJournalPath: runJsonJournalPath,
   emptyJsonJournal: runEmptyJsonJournal,
@@ -70,15 +67,12 @@ const {
   optimizeStoreApi: runOptimizeStoreApi,
   statsStoreApi: runStatsStoreApi,
 } = require('./lib/graph-store-adapters');
-const {
-  isSqliteAvailable,
-  openGraphSqlite: runOpenSqlite,
-  closeGraphSqlite: runCloseSqlite,
-  reopenGraphSqlite: runReopenSqlite,
-} = require('./lib/sqlite-persistence-validation');
+const { isSqliteAvailable, openGraphSqlite: runOpenSqlite, closeGraphSqlite: runCloseSqlite, reopenGraphSqlite: runReopenSqlite, sqlitePersistenceError } = require('./lib/sqlite-persistence-validation');
 const { initGraphSchema, createGraphStmts } = require('./lib/graph-sqlite-schema');
 const { ensureMutationReceiptFamilySchema: runMutationReceiptFamilySchema } = require('./lib/graph-mutation-receipt-schema');
 const { getCommittedMutationReceiptByOperation: runReceiptByOperationRead, getCommittedMutationReceiptById: runReceiptByIdRead } = require('./lib/graph-mutation-receipt-read');
+
+const mutationReceiptDeps = { appendReceiptToChain, assertDurableV4WriteAllowed, classifyReceiptFamily };
 
 class Graph {
   /**
@@ -161,9 +155,9 @@ class Graph {
   getCommittedMutationResultByOperation(operationId) { return runCommittedMutationResult(this, operationId); }
   getCommittedMutationResultsByPrefix(prefix) { return runCommittedMutationResultsByPrefix(this, prefix); }
   runMutationOnce(operationId, mutate, opts = {}) { return runMutationOnce(this, operationId, mutate, opts); }
-  _runMutationOnceSqlite(id, mutate, opts) { return runMutationOnceSqlite(this, id, mutate, opts); }
+  _runMutationOnceSqlite(id, mutate, opts) { return runMutationOnceSqlite(this, id, mutate, opts, mutationReceiptDeps); }
   _runMutationOnceJson(id, mutate, opts) { return runMutationOnceJson(this, id, mutate, opts); }
-  _runMutationOnceJsonLocked(id, mutate, opts) { return runMutationOnceJsonLocked(this, id, mutate, opts); }
+  _runMutationOnceJsonLocked(id, mutate, opts) { return runMutationOnceJsonLocked(this, id, mutate, opts, mutationReceiptDeps); }
 
   // ─── Node işlemleri ───────────────────────────────────────────────────────
 
@@ -346,7 +340,7 @@ class Graph {
   }
 
   load() {
-    return runGraphPersistenceLoad(this);
+    return runGraphPersistenceLoad(this, sqlitePersistenceError);
   }
 
   // ─── Index yönetimi ───────────────────────────────────────────────────────
