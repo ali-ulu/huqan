@@ -168,6 +168,7 @@
     "lib/a2a/task-route.js",
     "lib/a2a/task-store.js",
     "lib/action-risk-classifier.js",
+    "lib/admission-horizon.js",
     "lib/blast-radius.js",
     "lib/memory-blast-radius.js",
     "lib/session-impact.js",

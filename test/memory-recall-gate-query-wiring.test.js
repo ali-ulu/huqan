@@ -50,31 +50,47 @@ describe('query engine: recall gate is opt-in', () => {
 });
 
 describe('query engine: recall gate when enabled', () => {
-  test('drops the stale record and reports why', () => {
+  // #2795: a stale (degraded) record is no longer dropped from `memories` --
+  // lib/memory-recall-gate.js's own contract says "degrade is not false", and
+  // dropping it here made a degraded record indistinguishable from a withheld
+  // one. It still surfaces its reason under `result.recall`.
+  test('keeps the stale record in the page and reports why it is degraded', () => {
     const result = runQuery(contextWith([FRESH, STALE]), {
       recall: { currentTrustPolicyVersion: CURRENT_POLICY },
     });
     assert.strictEqual(result.ok, true);
-    assert.deepStrictEqual(result.memories.map((m) => m.memoryId), ['mem-fresh']);
+    assert.deepStrictEqual(result.memories.map((m) => m.memoryId).sort(), ['mem-fresh', 'mem-stale']);
     assert.strictEqual(result.recall.summary.degraded, 1);
     assert.strictEqual(result.recall.degraded[0].memoryId, 'mem-stale');
   });
 
-  test('total counts admitted records, not withheld ones', () => {
-    const result = runQuery(contextWith([FRESH, STALE]), {
+  test('total counts admitted and degraded records, not withheld ones', () => {
+    const withheld = record('mem-withheld', { provenance: null });
+    const result = runQuery(contextWith([FRESH, STALE, withheld]), {
       recall: { currentTrustPolicyVersion: CURRENT_POLICY },
     });
-    assert.strictEqual(result.total, 1);
+    assert.strictEqual(result.total, 2);
+    assert.strictEqual(result.recall.summary.withheld, 1);
+  });
+
+  test('a withheld record is dropped from the page and reported', () => {
+    const withheld = record('mem-withheld', { provenance: null });
+    const result = runQuery(contextWith([FRESH, withheld]), {
+      recall: { currentTrustPolicyVersion: CURRENT_POLICY },
+    });
+    assert.deepStrictEqual(result.memories.map((m) => m.memoryId), ['mem-fresh']);
+    assert.strictEqual(result.recall.withheld[0].memoryId, 'mem-withheld');
   });
 
   test('gating happens before pagination, so a page is never padded with withheld records', () => {
-    const many = [STALE, FRESH, record('mem-fresh-2')];
+    const withheld = record('mem-withheld', { provenance: null });
+    const many = [withheld, FRESH, record('mem-fresh-2')];
     const result = runQuery(contextWith(many), {
       limit: 2,
       recall: { currentTrustPolicyVersion: CURRENT_POLICY },
     });
     assert.strictEqual(result.memories.length, 2);
-    assert.ok(!result.memories.some((m) => m.memoryId === 'mem-stale'));
+    assert.ok(!result.memories.some((m) => m.memoryId === 'mem-withheld'));
   });
 
   test('recall: true enables the gate but makes no staleness claim', () => {
