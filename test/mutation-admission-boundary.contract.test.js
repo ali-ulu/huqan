@@ -172,6 +172,10 @@ const ROUTED_SINK_CALLS = Object.freeze({
     why: 'candidate family, human review verdict on a conflict candidate; delegates to the admitted kernel.addCandidateClaim, same shape as hypothesis-review.js',
     sinks: { addCandidateClaim: 1 },
   },
+  'lib/web-research-candidate-pipeline.js': {
+    why: 'external research candidate family; pending-only pipeline delegates to admitted kernel.addCandidateClaim and never calls Graph directly',
+    sinks: { addCandidateClaim: 1 },
+  },
   // Lexical. The durable commit -- runMutationOnce and the sink inside it -- is
   // the admitted effect, so a refusal leaves no journal entry, row or receipt.
   // This is the only routed caller whose identity is receiver-verified before
@@ -406,7 +410,11 @@ test('mutation admission: the debt ledger reflects the routing done so far', () 
   // conflict candidate rather than a hypothesis one (lib/conflict-candidate-review.js),
   // delegates to the same admitted kernel.addCandidateClaim as
   // lib/hypothesis-review.js above -- one more routed write, same shape.
+  // #2144 (concurrent with #2794): a third candidate-family surface,
+  // lib/web-research-candidate-pipeline.js, delegates to the same admitted
+  // kernel.addCandidateClaim -- pending-only, never calls Graph directly.
+  // Both additions land together, so routed/total rise by two, not one.
   assert.equal(unrouted, 26, 'unrouted sink calls');
-  assert.equal(routed, 30, 'sink calls routed through admission (K2 + DEL callbacks + hypothesis surface + conflict-candidate review)');
-  assert.equal(unrouted + routed, 56, 'total sink calls, raised by K2 delegation, DEL audit, maintenance evidence, the hypothesis surface, the external-action receipt projection, the now-visible review audit write, and the conflict-candidate review verdict');
+  assert.equal(routed, 31, 'sink calls routed through admission (K2 + DEL callbacks + hypothesis + conflict-candidate review + research candidate surfaces)');
+  assert.equal(unrouted + routed, 57, 'total sink calls, raised by K2 delegation, DEL audit, maintenance evidence, the hypothesis surface, the external-action receipt projection, the now-visible review audit write, the conflict-candidate review verdict, and the external research candidate surface');
 });

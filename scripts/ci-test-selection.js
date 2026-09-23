@@ -113,8 +113,8 @@ function listTrackedFiles(root = REPO_ROOT) {
 function isTestFile(file) {
   const normalized = normalizePath(file);
   const base = path.posix.basename(normalized);
-  return normalized.startsWith('test/')
-    || base.endsWith('.test.js')
+  if (normalized.startsWith('test/')) return base.endsWith('.js');
+  return base.endsWith('.test.js')
     || base.endsWith('.spec.js')
     || base.endsWith('-test.js')
     || base.endsWith('_test.js')

@@ -144,6 +144,56 @@ test('workflow blocks sensitive queries before transport and preserves unverifie
   assert.equal(calls, 1);
 });
 
+test('workflow opt-in opens only pending external research candidates', async () => {
+  const { runWebResearchWorkflow } = require('../lib/web-research-workflow');
+  const writes = [];
+  const kernel = {
+    graph: {
+      getAllEdges: () => [{
+        from: 'engine', relation: 'has_limit', to: '100 knots', workspaceId: 'team-a',
+        evidence: ['engine limit is 100 knots'],
+      }],
+    },
+    addCandidateClaim(candidate) {
+      writes.push(candidate);
+      return candidate;
+    },
+  };
+  const options = {
+    kernel,
+    env: { TAVILY_API_KEY: 'fixture' },
+    request: async () => ({ status: 200, bodyText: JSON.stringify({ results: [{
+      title: 'External', url: 'https://example.com/research', snippet: 'engine limit is 120 knots',
+    }] }) }),
+  };
+  const completed = await runWebResearchWorkflow({
+    workspaceId: 'team-a', provider: 'tavily', query: 'engine limit', openCandidates: true,
+  }, options);
+  assert.equal(completed.statusCode, 200);
+  assert.equal(completed.body.data.canonicalWrite, false);
+  assert.equal(completed.body.data.candidatePipeline.enabled, true);
+  assert.equal(completed.body.data.candidatePipeline.opened, 1);
+  assert.equal(completed.body.data.candidatePipeline.contradictions, 1);
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0].status, 'pending');
+  assert.equal(writes[0].recommendation, 'flag');
+  assert.equal(writes[0].proposedEdge, null);
+  assert.equal(writes[0].conflict.conflict, true);
+});
+
+test('workflow fails closed when pending candidate mode has no writable kernel', async () => {
+  const { runWebResearchWorkflow } = require('../lib/web-research-workflow');
+  const options = {
+    env: { TAVILY_API_KEY: 'fixture' },
+    request: async () => ({ status: 200, bodyText: '{"results":[]}' }),
+  };
+  const completed = await runWebResearchWorkflow({
+    workspaceId: 'team-a', provider: 'tavily', query: 'public topic', openCandidates: true,
+  }, options);
+  assert.equal(completed.statusCode, 503);
+  assert.equal(completed.body.error.code, 'RESEARCH_CANDIDATE_PIPELINE_UNAVAILABLE');
+});
+
 test('maxSnippet trims sources and validates bounds', async () => {
   const long = 'x'.repeat(9000);
   const req = async () => ({ status: 200, bodyText: JSON.stringify({ results: [{ title: 'T', url: 'https://a.example/', snippet: long }] }) });

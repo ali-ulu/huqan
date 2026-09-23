@@ -40,14 +40,30 @@
     root.append(line);
   }
 
+  function resultStatusText() {
+    return result?.candidatePipeline?.enabled
+      ? T('webResearch.externalCandidates', 'External sources remain unverified. Pending review candidates were opened; canonical memory was not changed.')
+      : T('webResearch.external', 'External sources; not yet verified. Nothing was saved to memory.');
+  }
+
+  function renderCandidatePipeline(root) {
+    const pipeline = result && result.candidatePipeline;
+    if (!pipeline?.enabled) return;
+    const line = document.createElement('p');
+    line.dataset.researchCandidates = 'pending';
+    line.textContent = `${T('webResearch.candidatesOpened', 'Pending research candidates opened')}: ${pipeline.opened} · ${T('webResearch.contradictionsFound', 'contradictions found')}: ${pipeline.contradictions}`;
+    root.append(line);
+  }
+
   function render() {
     if (!result || !selected() || !sameContext()) return;
     const root = $('result');
     root.replaceChildren();
     const note = document.createElement('p');
-    note.textContent = `${result.provider} — ${T('webResearch.external', 'External sources; not yet verified. Nothing was saved to memory.')}`;
+    note.textContent = `${result.provider} — ${resultStatusText()}`;
     root.append(note);
     renderEvidenceLadder(root);
+    renderCandidatePipeline(root);
     if (result.summary && result.summary.text) {
       const box = document.createElement('article');
       const head = document.createElement('strong');
@@ -113,6 +129,7 @@
   $('researchlimit').addEventListener('change', clearResult);
   $('researchsnippet').addEventListener('change', clearResult);
   $('researchsummarize').addEventListener('change', clearResult);
+  $('researchcandidates').addEventListener('change', clearResult);
   $('run').addEventListener('click', async event => {
     if (!selected()) return;
     event.preventDefault();
@@ -132,7 +149,7 @@
       const { r, d } = await json(entry.route, {
         method: entry.method,
         headers: headers(true),
-        body: JSON.stringify({ workspaceId: state.ws, provider: $('researchprovider').value, query: $('prompt').value.trim(), limit: Number($('researchlimit').value) || 5, maxSnippet: Number($('researchsnippet').value) || 4000, summarize: $('researchsummarize').checked === true }),
+        body: JSON.stringify({ workspaceId: state.ws, provider: $('researchprovider').value, query: $('prompt').value.trim(), limit: Number($('researchlimit').value) || 5, maxSnippet: Number($('researchsnippet').value) || 4000, summarize: $('researchsummarize').checked === true, openCandidates: $('researchcandidates').checked === true }),
       });
       if (current !== generation || !selected() || !sameContext()) return;
       if (!r.ok || !d.ok) {
@@ -142,7 +159,7 @@
       }
       result = d.data;
       render();
-      status(T('webResearch.external', 'External sources; not yet verified. Nothing was saved to memory.'));
+      status(resultStatusText());
     } catch (error) {
       if (current === generation && selected() && sameContext()) status(error.message, true);
     } finally {

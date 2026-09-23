@@ -81,6 +81,7 @@ test('a require cycle does not hang reachability', () => {
 
 test('test file detection matches the shard manifest vocabulary', () => {
   assert.equal(isTestFile('test/anything.js'), true);
+  assert.equal(isTestFile('test/fixtures/input.json'), false);
   assert.equal(isTestFile('lib/thing.test.js'), true);
   assert.equal(isTestFile('lib/thing.spec.js'), true);
   assert.equal(isTestFile('lib/thing-test.js'), true);

@@ -825,6 +825,11 @@
       "review_candidate": "İnceleme adayı",
       "canonical_evidence": "Kanonik kanıt",
       "verified_claim": "Doğrulanmış iddia"
-    }
+    },
+    "openCandidates": "Bekleyen araştırma adayları aç",
+    "candidateNote": "Dış sonuçlar doğrulanmamış kalır ve insan incelemesi gerektirir; araştırma kanonik hafızaya yazmaz.",
+    "externalCandidates": "Dış kaynaklar doğrulanmamış durumda. Bekleyen inceleme adayları açıldı; kanonik hafıza değiştirilmedi.",
+    "candidatesOpened": "Açılan bekleyen araştırma adayı",
+    "contradictionsFound": "bulunan çelişki"
   }
 }
