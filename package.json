@@ -671,6 +671,8 @@
     "lib/post-action-monitor.js",
     "lib/plugin-provenance-registry.js",
     "lib/self-healer/dryrun-runner.js",
+    "lib/self-healer/dryrun-projections.js",
+    "lib/self-healer/dryrun-budget-gate.js",
     "lib/self-healer/audit-runner.js",
     "lib/self-healer/finding-classifier.js",
     "lib/self-healer/approval-bridge.js",
