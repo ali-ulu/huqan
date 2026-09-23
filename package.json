@@ -432,6 +432,7 @@
     "lib/legacy-alias-usage.js",
     "lib/http/agent-workflow-routes.js",
     "lib/http/answer-route.js",
+    "lib/http/claim-read-route.js",
     "lib/http/http-provenance.js",
     "lib/http/exact-workspace.js",
     "lib/http/fitness-dashboard-route.js",

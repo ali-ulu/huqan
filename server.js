@@ -324,7 +324,7 @@ const { handleTrustQueryRoutes } = createTrustQueryRoutes({
   readTrustFilters,
   hasTrustQuery,
   writeStructuredLog,
-});
+}), { handleClaimReadRoute } = require('./lib/http/claim-read-route').createClaimReadRoute({ graph: kernel.graph, writeJson, writeApiError, denyIfUnauthorized, readExactWorkspace, writeStructuredLog });
 const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnvironmentVariable), async (req, res) => {
   if (!concurrencyLimiter.tryAcquire()) { res.writeHead(503, { 'Content-Type': JSON_CONTENT_TYPE, 'Retry-After': String(Math.ceil(DEFAULT_RETRY_AFTER_MS / 1000)), 'Cache-Control': 'no-store' }); res.end(JSON.stringify({ ok: false, error: { code: 'service_unavailable', message: 'Server at capacity' } })); return; }
   let cr=false;const rel=()=>{if(!cr){cr=true;concurrencyLimiter.release();}};res.on('finish',rel);res.on('close',rel);
@@ -705,7 +705,7 @@ const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnviron
 
   if (handlePublicBadgeRequest({ req, res, reqUrl, source: kernel.graph, writeJson }) || await handleLlmProxyRequest(req, res, reqUrl, { graph: kernel.graph, writeJson }) || handleWorkbenchRead(req, res, reqUrl, kernel.graph)) return;
 
-  if (handleTrustQueryRoutes(req, res, reqUrl, correlation)) return;
+  if (handleTrustQueryRoutes(req, res, reqUrl, correlation) || handleClaimReadRoute(req, res, reqUrl, correlation)) return;
 
   if (reqUrl.pathname === '/api/ingest/approvals') {
     if (req.method !== 'GET') {
