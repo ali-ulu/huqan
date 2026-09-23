@@ -4,17 +4,12 @@ const {
 } = require('./lib/environment-compat');
 validateEnvironmentCompatibility();
 
-const crypto = require('crypto');
 const http = require('http');
 const path = require('path');
 const { readFileSync } = require('fs');
 const { createKernel, CANONICAL_KERNEL_VERSION } = require('./lib/kernel-factory');
 const { CANONICAL_AGENT_VERSION, createAgent } = require('./agentRuntime');
 const { parseCommand } = require('./lib/command-parser');
-const { handleIngest, buildIngestApprovalSnapshot, sha256 } = require('./lib/ingest');
-const HuqanStorage = require('./storage');
-const { decideIngestApproval } = require('./lib/workbench/ingest-approval-action');
-const { createHttpIngestOversightCase } = require('./lib/http-human-oversight-adapter');
 const { readReceiptById } = require('./lib/receipt/receipt-read-index');
 const { createBackgroundTimers } = require('./lib/http/background-timers');
 const { createServerLifecycle, requireApiKeyAtBoot } = require('./lib/http/server-boot'), { resolveHttpServerTimeouts, resolveRequestLimits, createConcurrencyLimiter, DEFAULT_RETRY_AFTER_MS } = require('./lib/http/server-timeouts'), { resolveRequestUrl } = require('./lib/http/request-origin');
@@ -32,8 +27,7 @@ const { createTrustQueryRoutes } = require('./lib/http/trust-query-routes');
 const { createViewerMount } = require('./lib/http/viewer-mount');
 const { createExternalClientProductionBoundary } = require('./lib/external-client-production-boundary');
 const { createOptionalRouteBoundaries } = require('./lib/http/optional-boundaries'), { createPrGuardianOptions } = require('./lib/http/pr-guardian-config'), { createFitnessDashboardRoute } = require('./lib/http/fitness-dashboard-route'), { readTrustedBatchKeys } = require('./lib/external-action-receipt-collector'), { readCollectorSealKey } = require('./lib/collector-seal-config');
-const { createHttpIngestApprovalAuditWriter } = require('./lib/http/ingest-approval-audit-writer');
-const { createTrustEvidenceLedger } = require('./lib/trust-evidence-ledger'); const { callTool: callMcpTool } = require('./mcpServer');
+const { callTool: callMcpTool } = require('./mcpServer');
 const pkg = require('./package.json');
 const {
   DEFAULT_MAX_UPLOAD_BODY,
@@ -61,69 +55,17 @@ const externalClientBoundary = createExternalClientProductionBoundary({
 });
 const optionalRoutes = createOptionalRouteBoundaries({ memoryApproval: { kernel, getParseJsonRequest: () => parseJsonRequest, getWriteJson: () => writeJson, approvalRuntime: () => ({ approvalStore: getIngestApprovalStore() }) }, prGuardian: createPrGuardianOptions({ getApprovalStore: getIngestApprovalStore, getParseJsonRequest: () => parseJsonRequest, getWriteJson: () => writeJson }), receiptCollector: { collectorRoot: readCompatibleEnvironmentVariable('RECEIPT_COLLECTOR_ROOT'), getParseJsonRequest: () => parseJsonRequest, trustedKeys: readTrustedBatchKeys(readCompatibleEnvironmentVariable('RECEIPT_TRUSTED_KEYS')), requireSignature: readCompatibleEnvironmentVariable('RECEIPT_REQUIRE_SIGNATURE') === '1', sealKey: readCollectorSealKey() } });
 let companyRuntimeReady = false;
-let ingestApprovalStore = null;
-const INGEST_APPROVAL_WORKER_ID = `http-ingest-${crypto.randomUUID()}`;
-const INGEST_APPROVAL_LEASE_MS = Math.max(30_000, Math.min(900_000, Number(readCompatibleEnvironmentVariable('INGEST_APPROVAL_LEASE_MS')) || 120_000));
-function getIngestApprovalStore() {
-  if (ingestApprovalStore) return ingestApprovalStore;
-  ingestApprovalStore = new HuqanStorage({ kernel });
-  recoverExpiredIngestApprovals(ingestApprovalStore);
-  return ingestApprovalStore;
-}
-
-function recoverExpiredIngestApprovals(store = ingestApprovalStore) {
-  if (!store || typeof store.recoverExpiredToolApprovals !== 'function') return [];
-  return store.recoverExpiredToolApprovals({
-    tool: 'http.ingest',
-    reason: 'execution_outcome_unknown:lease_expired',
-  });
-}
-
-// P1's first caller routed through the mutation admission seam. The context it
-// has to build lives in the writer rather than here, so this file keeps gaining
-// wiring and delegation only (ARCH-001).
-const trustEvidenceLedger = createTrustEvidenceLedger({ graph: kernel.graph });
-let httpHumanOversightConfig = null;
-let httpAgentIdentityConfig = null;
-
-function configureHttpHumanOversight(config = null) {
-  if (config === null || config === undefined) {
-    httpHumanOversightConfig = null;
-    return null;
-  }
-  const runtime = config.runtime || config.humanOversightApprovalRuntime;
-  if (!runtime || typeof runtime.createReviewCase !== 'function'
-      || typeof runtime.getReviewCase !== 'function'
-      || typeof runtime.decide !== 'function'
-      || typeof runtime.executeApproved !== 'function') {
-    throw new TypeError('human oversight approval runtime is required');
-  }
-  httpHumanOversightConfig = Object.freeze({ ...config, runtime });
-  return httpHumanOversightConfig;
-}
-
-function configureHttpAgentIdentity(config = null) {
-  if (config === null || config === undefined) {
-    httpAgentIdentityConfig = null;
-    return null;
-  }
-  if (!config || typeof config !== 'object' || Array.isArray(config)
-      || !config.action || typeof config.action !== 'object' || Array.isArray(config.action)) {
-    throw new TypeError('agent identity runtime config with action is required');
-  }
-  httpAgentIdentityConfig = Object.freeze({ ...config, action: Object.freeze({ ...config.action }) });
-  return httpAgentIdentityConfig;
-}
-
-function getHttpApprovalRuntimeConfig() {
-  if (!httpHumanOversightConfig && httpAgentIdentityConfig === null) return null;
-  return Object.freeze({
-    ...(httpHumanOversightConfig || {}),
-    ...(httpAgentIdentityConfig !== null ? { agentIdentityRuntime: httpAgentIdentityConfig } : {}),
-  });
-}
-
-const recordIngestApprovalAudit = createHttpIngestApprovalAuditWriter({ graph: kernel.graph, getIdentityConfig: () => httpAgentIdentityConfig, hashResult: sha256, ledger: trustEvidenceLedger });
+const ingestApprovalRuntime = createIngestApprovalRuntime({
+  kernel,
+  readEnvironment: readCompatibleEnvironmentVariable,
+  ensureRuntime: ensureCompanyRuntime,
+});
+const getIngestApprovalStore = () => ingestApprovalRuntime.getStore();
+const recoverExpiredIngestApprovals = store => ingestApprovalRuntime.recover(store);
+const configureHttpHumanOversight = config => ingestApprovalRuntime.configureHumanOversight(config);
+const configureHttpAgentIdentity = config => ingestApprovalRuntime.configureAgentIdentity(config);
+const getHttpApprovalRuntimeConfig = () => ingestApprovalRuntime.getApprovalRuntimeConfig();
+const submitIngestApproval = data => ingestApprovalRuntime.submit(data);
 
 const requestLimits = resolveRequestLimits(readCompatibleEnvironmentVariable);
 const concurrencyLimiter = createConcurrencyLimiter({ maxConcurrent: requestLimits.maxConcurrent });
@@ -131,7 +73,7 @@ const backgroundTimers = createBackgroundTimers();
 backgroundTimers.add(setInterval(() => {
   clearExpiredRateLimitEntries();
 }, 60_000));
-backgroundTimers.add(setInterval(() => { try { recoverExpiredIngestApprovals(); } catch (error) { writeStructuredLog(console, 'error', 'http.ingest_approval_recovery_error', {}, { runtime: 'http', errorCode: error?.code || 'INGEST_APPROVAL_RECOVERY_FAILED' }); } }, Math.max(5_000, Math.floor(INGEST_APPROVAL_LEASE_MS / 2))));
+backgroundTimers.add(setInterval(() => { try { recoverExpiredIngestApprovals(); } catch (error) { writeStructuredLog(console, 'error', 'http.ingest_approval_recovery_error', {}, { runtime: 'http', errorCode: error?.code || 'INGEST_APPROVAL_RECOVERY_FAILED' }); } }, Math.max(5_000, Math.floor(ingestApprovalRuntime.leaseMs / 2))));
 
 const {
   ALLOWED_CORS_HOSTS,
@@ -144,7 +86,6 @@ const {
   sendOptions,
   getRateLimitKey,
   getSafeMemoryLabel,
-  newIngestApprovalId,
   publicIngestApproval,
   legacyVerify,
 } = require('./lib/server-response-helpers');
@@ -163,50 +104,9 @@ const { V2_STATUS_PHASES } = require('./lib/http/v2-status-phases');
 const { buildGraphData } = require('./lib/server-graph-data');
 const { createRuntimeStatusHandlers } = require('./lib/http/runtime-status'); const { createRequestCorrelation, writeStructuredLog } = require('./lib/http/structured-log');
 const { createCoreHttpRoutes } = require('./lib/http/core-http-routes');
+const { createIngestApprovalRuntime } = require('./lib/http/ingest-approval-runtime');
 
-async function submitIngestApproval(data) {
-  const snapshot = buildIngestApprovalSnapshot(data);
-  if (!snapshot.ok) return { status: snapshot.code === 'INGEST_WORKSPACE_UNSUPPORTED' ? 400 : 409, error: { code: snapshot.code || 'INGEST_SNAPSHOT_REQUIRED', message: snapshot.error || 'Ingest cannot be queued safely.' } };
-  try {
-    const store = getIngestApprovalStore();
-    const approvalKey = `http.ingest.${snapshot.sourceType}.${snapshot.idempotencyKey}.${snapshot.snapshotHash}`;
-    const saved = store.saveToolApprovalIfAbsent({
-      id: newIngestApprovalId(), approvalKey, tool: 'http.ingest', input: JSON.stringify(snapshot.payload),
-      status: 'pending', decision: 'review', reason: 'http_ingest_requires_review',
-      context: {
-        source: 'http-ingest',
-        snapshot,
-        ...(httpHumanOversightConfig ? { oversightRequired: true } : {}),
-      },
-      policy: { action: 'ingest', approval: 'review', snapshotIntegrity: 'sha256' },
-    });
-    const oversightCase = httpHumanOversightConfig
-      ? createHttpIngestOversightCase({ approval: saved.approval, humanOversight: getHttpApprovalRuntimeConfig() })
-      : { enabled: false, ok: true };
-    if (oversightCase.enabled && !oversightCase.ok) {
-      return {
-        status: 503,
-        error: {
-          code: 'REVIEW_CASE_NOT_PERSISTED',
-          message: 'Human Oversight review case was not durably recorded; ingest remains unexecuted.',
-        },
-      };
-    }
-    return {
-      status: saved.approval.status === 'pending' ? 202 : 200,
-      json: {
-        ok: true,
-        status: saved.approval.status,
-        idempotent: !saved.inserted,
-        approval: publicIngestApproval(saved.approval),
-        ...(oversightCase.enabled ? { oversight: oversightCase.summary } : {}),
-      },
-    };
-  } catch (_) {
-    return { status: 503, error: { code: 'APPROVAL_STORE_UNAVAILABLE', message: 'Persistent ingest approval store is unavailable.' } };
-  }
-}
-const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, workspaceId, decision, reason }) => decideIngestApproval({ store: getIngestApprovalStore(), kernel, approvalId, workspaceId, decision, reason, humanOversight: getHttpApprovalRuntimeConfig(), handleIngest, ensureRuntime: ensureCompanyRuntime, recordAudit: recordIngestApprovalAudit, toPublicApproval: publicIngestApproval, workerId: INGEST_APPROVAL_WORKER_ID, leaseMs: INGEST_APPROVAL_LEASE_MS }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, proposeLearn: args => callMcpTool(kernel, { name: 'huqan.learn', arguments: args }, { approvalStore: getIngestApprovalStore() }), submitIngest: submitIngestApproval, createAgent: options => observabilityRuntime.createAgent(options), decideLearnApproval: createLearnApprovalDecision({ kernel, getApprovalStore: getIngestApprovalStore }) });
+const handleWorkflowDataRoute = createWorkflowDataRoutes({ getApprovalStore: getIngestApprovalStore, decideApproval: ({ approvalId, workspaceId, decision, reason }) => ingestApprovalRuntime.decide({ approvalId, workspaceId, decision, reason }), readReceipt: (receiptId, filters) => readReceiptById(kernel.graph, receiptId, filters), parseJsonRequest, writeJson, proposeLearn: args => callMcpTool(kernel, { name: 'huqan.learn', arguments: args }, { approvalStore: getIngestApprovalStore() }), submitIngest: submitIngestApproval, createAgent: options => observabilityRuntime.createAgent(options), decideLearnApproval: createLearnApprovalDecision({ kernel, getApprovalStore: getIngestApprovalStore }) });
 // V5 issuer records are receiver-owned; an empty registry remains fail-closed.
 const issuerTrustedKeyRecords = [];
 let v5PackageImportRouteCache = null;
@@ -497,20 +397,11 @@ const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnviron
     try {
       const store = getIngestApprovalStore();
       recoverExpiredIngestApprovals(store);
-      const outcome = await decideIngestApproval({
-        store,
-        kernel,
+      const outcome = await ingestApprovalRuntime.decide({
         approvalId,
         workspaceId: sanitizeInput(reqUrl.searchParams.get('workspaceId') || 'default', 128) || 'default',
         decision,
         reason: String(body.reason || ''),
-        humanOversight: getHttpApprovalRuntimeConfig(),
-        handleIngest,
-        ensureRuntime: ensureCompanyRuntime,
-        recordAudit: recordIngestApprovalAudit,
-        toPublicApproval: publicIngestApproval,
-        workerId: INGEST_APPROVAL_WORKER_ID,
-        leaseMs: INGEST_APPROVAL_LEASE_MS,
       });
       if (outcome.error) {
         writeApiError(req, res, outcome.status, outcome.error.code, outcome.error.message, outcome.error.details);
@@ -630,10 +521,7 @@ function closeHuqan() {
   observabilityRuntime.stop();
   backgroundTimers.clearAll();
   viewerMount.reset();
-  if (ingestApprovalStore && typeof ingestApprovalStore.close === 'function') {
-    try { ingestApprovalStore.close(); } catch (_) {}
-    ingestApprovalStore = null;
-  }
+  ingestApprovalRuntime.close();
   try { externalClientBoundary?.close(); } catch (_) {}
   kernel.graph.close();
 }
