@@ -28,12 +28,19 @@
   function fillFilterOptions() {
     const agentSel = $('#act-agent');
     const toolSel = $('#act-tool');
+    // A saved view may have chosen an agent or tool before this page loaded;
+    // keep that choice across the refill.
+    const chosen = { agent: agentSel.value, tool: toolSel.value };
     const keepFirst = (sel) => { while (sel.options.length > 1) sel.remove(1); };
     keepFirst(agentSel); keepFirst(toolSel);
     const agents = new Set(); const tools = new Set();
     items.forEach((it) => { if (it.actor) agents.add(it.actor); if (it.tool) tools.add(it.tool); });
+    if (chosen.agent) agents.add(chosen.agent);
+    if (chosen.tool) tools.add(chosen.tool);
     [...agents].sort().forEach((a) => agentSel.insertAdjacentHTML('beforeend', `<option>${esc(a)}</option>`));
     [...tools].sort().forEach((t) => toolSel.insertAdjacentHTML('beforeend', `<option>${esc(t)}</option>`));
+    agentSel.value = chosen.agent;
+    toolSel.value = chosen.tool;
   }
 
   function render() {
@@ -100,11 +107,6 @@
   });
 
   async function loadPage(reset) {
-    if (!Data.hasKey()) {
-      $('#act-status').textContent = 'Connect an API key in the sidebar to load activity.';
-      $('#act-status').className = 'status bad';
-      return;
-    }
     if (reset) { items = []; nextCursor = null; }
     $('#act-status').textContent = 'Loading…';
     $('#act-status').className = 'status';

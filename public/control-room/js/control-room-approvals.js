@@ -21,12 +21,6 @@
 
   function renderQueue() {
     const status = $('#appr-status');
-    if (!Data.hasKey()) {
-      status.textContent = 'Connect an API key in the sidebar to load the approval queue.';
-      status.className = 'status bad';
-      $('#appr-queue').innerHTML = '';
-      return;
-    }
     status.textContent = '';
     status.className = 'status';
     const items = tab === 'open' ? open : decidedThisSession;
@@ -45,7 +39,7 @@
             <p class="why">${esc(a.reason || 'Policy requires a person for this action.')}</p>
             <p class="why" style="color:var(--soft)">${esc(inputSummary(a.input))}</p>
           </div>
-          <div class="acts">
+          <div class="acts" data-role-hide="viewer">
             <button class="btn danger" data-decide="rejected" data-id="${esc(a.id)}">Reject</button>
             <button class="btn primary" data-decide="approved" data-id="${esc(a.id)}">Approve</button>
           </div>
@@ -95,7 +89,6 @@
   }));
 
   async function load() {
-    if (!Data.hasKey()) { renderQueue(); return; }
     $('#appr-status').textContent = 'Loading…';
     $('#appr-status').className = 'status';
     const result = await Data.fetchOpenApprovals();

@@ -51,11 +51,6 @@
   }
 
   async function loadPage(reset) {
-    if (!Data.hasKey()) {
-      $('#rcpt-status').textContent = 'Connect an API key in the sidebar to load receipts.';
-      $('#rcpt-status').className = 'status bad';
-      return;
-    }
     if (reset) { rows = []; nextCursor = null; }
     $('#rcpt-status').textContent = 'Loading…';
     $('#rcpt-status').className = 'status';

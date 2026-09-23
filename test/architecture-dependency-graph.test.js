@@ -14,7 +14,7 @@ const {
   assignLayer,
   isViolation,
   buildDependencySnapshot,
-  checkDependencyGraph,
+  checkDependencyGraph: checkLiveDependencyGraph,
   driftCount,
 } = require('../scripts/architecture-dependency-graph');
 const {
@@ -23,6 +23,12 @@ const {
 } = require('../scripts/architecture-snapshot');
 
 const CLI = path.resolve(__dirname, '../scripts/architecture-snapshot.js');
+
+// LAYER_EXCEPTIONS name modules in the live tree, so against a fixture graph
+// every one of them reads as stale. Fixture checks pass their own list.
+function checkDependencyGraph(current, baseline, argv = [], previous = null, exceptions = []) {
+  return checkLiveDependencyGraph(current, baseline, argv, previous, exceptions);
+}
 
 function graphObject(graph) {
   return new Map(Object.entries(graph));
@@ -224,6 +230,30 @@ test('a baseline may not record debt the base ref did not have', () => {
  * graph from --graph-snapshot, both baselines from disk. Nothing in these tests
  * walks the live tree, which is what keeps them fast enough to run on every
  * push while still exercising the real command CI runs.
+test('a dated exception covers its live violation, and fails once stale or expired', () => {
+  const current = buildDependencySnapshot(graphObject({
+    'kernel.js': ['cli.js'],
+    'cli.js': [],
+  }));
+  const baseline = {
+    threshold: 10,
+    layers: { 'kernel.js': 'Core', 'cli.js': 'UI' },
+    edges: { 'kernel.js': ['cli.js'], 'cli.js': [] },
+    violations: [],
+  };
+  const entry = { from: 'kernel.js', to: 'cli.js', why: 'fixture', review_by: '2999-12-31' };
+  assert.equal(checkDependencyGraph(current, baseline, [], null, [entry]).ok, true);
+
+  const expired = checkDependencyGraph(current, baseline, [], null, [{ ...entry, review_by: '2000-01-01' }]);
+  assert.equal(expired.ok, false);
+  assert.ok(expired.messages.some((message) => /expired layer exception: kernel\.js -> cli\.js/.test(message)));
+
+  const fixed = buildDependencySnapshot(graphObject({ 'kernel.js': [], 'cli.js': [] }));
+  const stale = checkDependencyGraph(fixed, { ...baseline, edges: { 'kernel.js': [], 'cli.js': [] } }, [], null, [entry]);
+  assert.equal(stale.ok, false);
+  assert.ok(stale.messages.some((message) => /stale layer exception: kernel\.js -> cli\.js/.test(message)));
+});
+
 test('a baseline with no recorded graph fails instead of passing quietly', () => {
   const current = buildDependencySnapshot(graphObject({ 'kernel.js': [] }));
   const failed = checkDependencyGraph(current, null);
@@ -268,6 +298,7 @@ function fixtureCli(t, { dependency, baseline, previous }) {
     graph: write('graph.json', dependency),
     baseline: write('baseline.json', baseline ?? { schemaVersion: 3, entries: {}, dependencyGraph: graphFixture() }),
     previous: write('previous.json', previous ?? { schemaVersion: 3, entries: {}, dependencyGraph: graphFixture() }),
+    exceptions: write('exceptions.json', []),
   };
   const run = (extra = []) => spawnSync(process.execPath, [
     CLI,
@@ -276,6 +307,7 @@ function fixtureCli(t, { dependency, baseline, previous }) {
     `--previous-baseline=${paths.previous}`,
     `--snapshot=${paths.snapshot}`,
     `--graph-snapshot=${paths.graph}`,
+    `--layer-exceptions=${paths.exceptions}`,
     ...extra,
   ], { encoding: 'utf8' });
   return { run, paths };

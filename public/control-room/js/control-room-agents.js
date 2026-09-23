@@ -21,12 +21,6 @@
   }
 
   async function load() {
-    if (!Data.hasKey()) {
-      $('#agents-status').textContent = 'Connect an API key in the sidebar to load agent activity.';
-      $('#agents-status').className = 'status bad';
-      $('#agents-list').innerHTML = '';
-      return;
-    }
     $('#agents-status').textContent = 'Loading…';
     $('#agents-status').className = 'status';
     const result = await Data.fetchGateDecisions({ windowMs: 604800000 });
