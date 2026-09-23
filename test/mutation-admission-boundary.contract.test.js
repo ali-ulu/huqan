@@ -86,7 +86,7 @@ const SINK_METHODS = Object.freeze([
  */
 const UNROUTED_SINK_CALLS = Object.freeze({
   // --- production mutation paths: the ones P1 must route -------------------
-  'kernel.js': { why: 'knowledge and audit families; its candidate write now lives in lib/kernel-mutation-admission.js', sinks: { addNode: 1, addEdge: 3, appendAuditEvent: 1 } },
+  'kernel.js': { why: 'knowledge and audit families; its candidate write now lives in lib/kernel-mutation-admission.js; its benzer cross-link write now lives in lib/kernel-cross-link.js (#2127)', sinks: { addNode: 1, addEdge: 2, appendAuditEvent: 1 } },
   'agent.v3.js': { why: 'audit family', sinks: { appendAuditEvent: 2 } },
   'lib/cli-mutation-audit.js': { why: 'audit family, CLI surface', sinks: { appendAuditEvent: 1 } },
   'graph.js': { why: 'graph consolidate maintenance audit remains on the Graph composition surface until the family-independent admission seam covers maintenance operations', sinks: { appendAuditEvent: 1 } },
@@ -235,6 +235,19 @@ const ROUTED_SINK_CALLS = Object.freeze({
   'lib/dream-experiment-loop.js': {
     why: 'bounded dream transition audit is inside Graph.runMutationOnce callback; no second durability authority is introduced',
     sinks: { appendAuditEvent: 1 },
+  },
+  // --- #2127: delegated derived-edge write ----------------------------------
+  // The benzer cross-link derivation moved from kernel.js to this module as
+  // runCrossLink(collaborators). Delegation moved the code, not the boundary:
+  // the parent-allowed branch inherits the already-admitted parent write and
+  // the background branch routes through the admission-gated
+  // commitBackgroundEdge seam, so this entry is ROUTED, not debt.
+  // The scan only ledgeres dot-call sinks, so this entry contributes the
+  // graph.addEdge write; the audit append rides the injected dotless alias,
+  // the same shape as the K2 entry above.
+  'lib/kernel-cross-link.js': {
+    why: '#2127-delegated benzer derivation; parent-allowed inherits parent admission, background path routes via the commitBackgroundEdge gate',
+    sinks: { addEdge: 1 },
   },
 });
 
@@ -415,7 +428,10 @@ test('mutation admission: the debt ledger reflects the routing done so far', () 
   // lib/web-research-candidate-pipeline.js, delegates to the same admitted
   // kernel.addCandidateClaim -- pending-only, never calls Graph directly.
   // Both additions land together, so routed/total rise by two, not one.
-  assert.equal(unrouted, 26, 'unrouted sink calls');
-  assert.equal(routed, 31, 'sink calls routed through admission (K2 + DEL callbacks + hypothesis + conflict-candidate review + research candidate surfaces)');
+  // #2127: kernel.js addEdge 3 -> 2 as the benzer cross-link write moves to
+  // lib/kernel-cross-link.js (routed, K2 shape). Unrouted falls by one,
+  // routed rises by one, the total does not move.
+  assert.equal(unrouted, 25, 'unrouted sink calls');
+  assert.equal(routed, 32, 'sink calls routed through admission (K2 + DEL callbacks + hypothesis + conflict-candidate review + research candidate surfaces + cross-link derivation)');
   assert.equal(unrouted + routed, 57, 'total sink calls, raised by K2 delegation, DEL audit, maintenance evidence, the hypothesis surface, the external-action receipt projection, the now-visible review audit write, the conflict-candidate review verdict, and the external research candidate surface');
 });
