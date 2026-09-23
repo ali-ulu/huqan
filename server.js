@@ -319,6 +319,7 @@ const handleCoreRoutes = createCoreHttpRoutes({
   denyIfUnauthorized,
   buildCorsHeaders,
   writeJson,
+  writeApiError,
   legacyVerify,
   JSON_CONTENT_TYPE,
 });
