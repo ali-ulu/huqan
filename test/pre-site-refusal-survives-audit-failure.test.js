@@ -94,16 +94,20 @@ test('site 5: the rejection propagates regardless of the audit — from source',
   // Not executed. Reaching this branch through the public `learn` surface was
   // attempted and did not trigger, so no execution evidence is claimed; the
   // conclusion is structural and is asserted as such.
-  const source = fs.readFileSync(path.join(REPO_ROOT, 'kernel.js'), 'utf8');
+  // #2127 dilim 3: the re-append block moved with learn() to
+  // lib/kernel-learn-transaction.js; kernel.js keeps the delegation.
+  const source = fs.readFileSync(path.join(REPO_ROOT, 'lib', 'kernel-learn-transaction.js'), 'utf8');
 
   // _appendAuditEvent cannot throw: it catches internally and returns null.
-  assert.match(source, /_appendAuditEvent\([\s\S]{0,400}?catch \(error\) \{[\s\S]{0,120}?return null;/);
+  const kernelSource = fs.readFileSync(path.join(REPO_ROOT, 'kernel.js'), 'utf8');
+  assert.match(kernelSource, /_appendAuditEvent\([\s\S]{0,400}?catch \(error\) \{[\s\S]{0,120}?return null;/);
   // ...and the rejection is rethrown unconditionally after it.
   assert.match(
     source,
-    /PROVENANCE_REQUIRED'\) \{\s*this\._appendAuditEvent\(\{[\s\S]{0,700}?\}\s*throw error;/,
+    /PROVENANCE_REQUIRED'\) \{\s*appendAuditEvent\(\{[\s\S]{0,700}?\}\s*throw error;/,
     'the rethrow must not be conditional on the audit write',
   );
+  assert.match(kernelSource, /return runLearnTransaction\(\{ graph: this\.graph,/);
 });
 
 test('the evidence signal is already consumed by a production caller', () => {

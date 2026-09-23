@@ -44,9 +44,9 @@
     },
     "kernel.js": {
       "band": "decompose",
-      "lines": 925,
+      "lines": 835,
       "signals": [
-        "FANOUT:39"
+        "FANOUT:37"
       ]
     },
     "kernel.v2.js": {
@@ -1381,8 +1381,6 @@
         "lib/predicate-parser.js",
         "lib/provenance-ingest.js",
         "lib/reason-sandbox.js",
-        "lib/receipt/canonical-receipt.js",
-        "lib/verdict/action-verdict.js",
         "lib/verify.js",
         "nlp/index.js",
         "plugin.js",
@@ -4176,18 +4174,6 @@
         "to": "lib/memory-store.js",
         "fromLayer": "Core",
         "toLayer": "Adapters"
-      },
-      {
-        "from": "kernel.js",
-        "to": "lib/receipt/canonical-receipt.js",
-        "fromLayer": "Core",
-        "toLayer": "Application"
-      },
-      {
-        "from": "kernel.js",
-        "to": "lib/verdict/action-verdict.js",
-        "fromLayer": "Core",
-        "toLayer": "Application"
       },
       {
         "from": "kernel.js",

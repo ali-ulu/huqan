@@ -132,18 +132,27 @@ test('ordering: the transform cannot be reached without going through admission'
     'Kernel must not expose a private before-learn seam');
   assert.doesNotMatch(useCaseSource, /_runBeforeLearn\(/,
     'learn-use-case must not retain a second before-learn path');
-  assert.match(kernelSource, /admitLearn\(this, text, opts\)/);
+  // #2127 dilim 3: learn()'s body moved to lib/kernel-learn-transaction.js;
+  // the transform call is pinned there, kernel.js keeps the delegation.
+  const transactionSource = fs.readFileSync(path.join(repoRoot, 'lib', 'kernel-learn-transaction.js'), 'utf8');
+  assert.match(transactionSource, /admit\(kernel, text, opts\)/);
+  assert.match(kernelSource, /admit: \(k, t, o\) => admitLearn\(k, t, o\)/);
 });
 
 test('ordering: admission precedes the critical section and the durable journal', () => {
-  const kernelSource = fs.readFileSync(path.join(repoRoot, 'kernel.js'), 'utf8');
-  const admitAt = kernelSource.indexOf('admitLearn(this, text, opts)');
-  const criticalAt = kernelSource.indexOf("_enterCriticalSection('learn')");
-  const journalAt = kernelSource.indexOf('runMutationOnce(operationId');
+  // #2127 dilim 3: the ordered sequence moved with learn() to
+  // lib/kernel-learn-transaction.js; the order itself is unchanged.
+  const transactionSource = fs.readFileSync(path.join(repoRoot, 'lib', 'kernel-learn-transaction.js'), 'utf8');
+  const admitAt = transactionSource.indexOf('admit(kernel, text, opts)');
+  const criticalAt = transactionSource.indexOf("enterCriticalSection('learn')");
+  const journalAt = transactionSource.indexOf('runMutationOnce(operationId');
 
   assert.ok(admitAt > 0 && criticalAt > 0 && journalAt > 0);
   assert.ok(admitAt < criticalAt, 'admission must precede the critical section');
   assert.ok(criticalAt < journalAt, 'the critical section still precedes the journal');
+
+  const kernelSource = fs.readFileSync(path.join(repoRoot, 'kernel.js'), 'utf8');
+  assert.match(kernelSource, /return runLearnTransaction\(\{ graph: this\.graph,/);
 });
 
 test('ordering: a refusal produces no payload, so nothing downstream can proceed', () => {
@@ -178,13 +187,15 @@ test('durability: an admission refusal is not the journal-unavailable failure', 
   try { admitLearn(kernel, 'text', {}, admission); } catch (error) { code = error.code; }
 
   // "may not happen" and "cannot be recorded safely" are different operational
-  // states and an operator responds differently to each. kernel.js still throws
-  // DURABLE_MUTATION_JOURNAL_UNAVAILABLE on its own path.
+  // states and an operator responds differently to each. The learn
+  // transaction still throws DURABLE_MUTATION_JOURNAL_UNAVAILABLE on its
+  // own path -- #2127 dilim 3 moved that path to
+  // lib/kernel-learn-transaction.js.
   assert.equal(code, 'MUTATION_ADMISSION_REFUSED');
   assert.notEqual(code, 'DURABLE_MUTATION_JOURNAL_UNAVAILABLE');
 
-  const kernelSource = fs.readFileSync(path.join(repoRoot, 'kernel.js'), 'utf8');
-  assert.match(kernelSource, /DURABLE_MUTATION_JOURNAL_UNAVAILABLE/);
+  const transactionSource = fs.readFileSync(path.join(repoRoot, 'lib', 'kernel-learn-transaction.js'), 'utf8');
+  assert.match(transactionSource, /DURABLE_MUTATION_JOURNAL_UNAVAILABLE/);
 });
 
 // --- 3. the family reaches one boundary -----------------------------------

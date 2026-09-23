@@ -525,6 +525,7 @@
     "lib/kernel-dream.js",
     "lib/kernel-cross-link.js",
     "lib/kernel-propose-node.js",
+    "lib/kernel-learn-transaction.js",
     "lib/kernel-self-evolve.js",
     "lib/kernel-context-similarity.js",
     "lib/kernel-auto-think.js",
