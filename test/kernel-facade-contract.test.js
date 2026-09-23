@@ -414,7 +414,7 @@ function setupTarballInstall() {
   }
 }
 
-function createTarballInstall() {
+function createTarballInstall(platform = process.platform) {
   INSTALL_DIR = path.join(os.tmpdir(), `huqan-4c1-smoke-${Date.now()}`);
   fs.mkdirSync(INSTALL_DIR, { recursive: true });
   const packResult = cp.spawnSync('npm', ['pack', '--json', '--ignore-scripts', `--pack-destination=${INSTALL_DIR}`], {
@@ -444,7 +444,7 @@ function createTarballInstall() {
   // Windows, where hosted runners have now crossed that boundary while still
   // making registry progress (#2803). The file-level shard deadline remains
   // the outer hang guard; this only gives the real package install more room.
-  const installTimeout = installTimeoutMs();
+  const installTimeout = installTimeoutMs(platform);
   const installResult = cp.spawnSync('npm', ['install', '--no-audit', '--no-fund', '--foreground-scripts', '--loglevel=http', TARBALL_PATH], {
     cwd: INSTALL_DIR, encoding: 'utf8', timeout: installTimeout, shell: true,
     env: { ...process.env, NO_COLOR: '1' },
