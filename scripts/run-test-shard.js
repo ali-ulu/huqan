@@ -199,11 +199,36 @@ async function run(options) {
         overallStatus = 1;
         failedFiles.push({ file, status: 'timeout' });
         // Leave a minimal JUnit entry so the merged report shows the hang
-        // as a failure instead of silently dropping the file.
+        // as a failure instead of silently dropping the file. Written with
+        // exclusive create plus rename: a check-then-act on a rival-owned path
+        // would lose to a test process still flushing its junit part, and the
+        // fallback below (CodeQL js/file-system-race) must never erase the
+        // child's own report. Rename is atomic on the same volume.
         try {
-          if (!fs.existsSync(partPath) || fs.readFileSync(partPath, 'utf8').trim().length === 0) {
-            const safe = file.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;');
-            fs.writeFileSync(partPath, `<?xml version="1.0" encoding="utf-8"?>\n<testsuites>\n<testsuite name="${safe}" tests="1" failures="1" errors="0" skipped="0" time="${limitSeconds}.000"><testcase name="shard timeout (${limitSeconds}s) — file hung" classname="shard"><failure message="file hung and was killed after ${limitSeconds}s">File ${safe} did not exit within ${limitSeconds}s (likely CDP/browser hang, see #1847). Check the preceding [shard] starting log and the streamed reporter output above it.</failure></testcase></testsuite>\n</testsuites>\n`);
+          const safe = file.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;');
+          const payload = `<?xml version="1.0" encoding="utf-8"?>\n<testsuites>\n<testsuite name="${safe}" tests="1" failures="1" errors="0" skipped="0" time="${limitSeconds}.000"><testcase name="shard timeout (${limitSeconds}s) — file hung" classname="shard"><failure message="file hung and was killed after ${limitSeconds}s">File ${safe} did not exit within ${limitSeconds}s (likely CDP/browser hang, see #1847). Check the preceding [shard] starting log and the streamed reporter output above it.</failure></testcase></testsuite>\n</testsuites>\n`;
+          let existing = null;
+          try {
+            existing = fs.readFileSync(partPath, 'utf8');
+          } catch (error) {
+            if (error.code !== 'ENOENT') throw error;
+          }
+          if (existing === null || existing.trim().length === 0) {
+            const dir = path.dirname(partPath);
+            const tmpPath = path.join(dir, `.${path.basename(partPath)}.${process.pid}.tmp`);
+            const fd = fs.openSync(tmpPath, 'wx', 0o600);
+            try {
+              fs.writeFileSync(fd, payload);
+            } finally {
+              fs.closeSync(fd);
+            }
+            try {
+              fs.linkSync(tmpPath, partPath);
+            } catch (error) {
+              if (error.code !== 'EEXIST') throw error;
+            } finally {
+              fs.rmSync(tmpPath, { force: true });
+            }
           }
         } catch { /* ignore */ }
         continue;
