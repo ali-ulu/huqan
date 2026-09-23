@@ -16,7 +16,6 @@
     "cli.js": 637,
     "dream.js": 726,
     "finalizer.js": 604,
-    "graph.js": 976,
     "kernel.js": 1058,
     "kernel.v2.js": 662,
     "lib/a2a/bounded-exchange.js": 693,
@@ -99,10 +98,6 @@
     "finalizer.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
-    },
-    "graph.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2026-10-31"
     },
     "kernel.js": {
       "why": "Kernel is the public compatibility facade and composition root for the v1 runtime: it assembles Graph, MemoryStore, PluginManager, VerifyService and the ephemeral sandbox Kernel. Moving those constructions outward would leak runtime assembly into callers; further size reduction is still owed where cohesive seams can be extracted without increasing coupling. Review alongside #2127 successor decomposition work.",
