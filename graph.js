@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { buildAuditEvent, normalizeAuditEvent } = require('./lib/audit-log');
-const { normalizeCandidateClaim } = require('./lib/conflict-detector');
+const { buildAuditEvent } = require('./lib/audit-log');
 const { appendReceiptToChain } = require('./lib/receipt/receipt-chain');
 const {
   assertDurableV4WriteAllowed,
@@ -21,16 +20,14 @@ const {
   nodeStorageKey,
   edgeIndexKey,
   nowIso,
-  normalizeNodeRecord,
   compareCausalEdges,
-  normalizeLoadedEdge,
   edgeUpdateArgs,
 } = require('./lib/graph-record-utils');
 const { derivePersistenceLayout, resolveDefaultMemoryPath } = require('./lib/memory-store-utils');
 const { createMutationRollback } = require('./lib/graph-mutation-rollback');
-const { assertGraphPersistenceWritable, loadEmbeddingsLenient, loadJsonGraph } = require('./lib/graph-json-persistence');
-const { commitJsonTransaction, rememberSnapshot, runSnapshotMutation, saveSnapshot, writeCurrentState, writeJsonFiles } = require('./lib/graph-json-snapshot');
-const { assertStoreOpenAllowed, handleSqliteInitializationError, hasExistingPersistenceFile, sqlitePersistenceError } = require('./lib/sqlite-persistence-validation');
+const { assertGraphPersistenceWritable } = require('./lib/graph-json-persistence');
+const { commitJsonTransaction, rememberSnapshot, runSnapshotMutation, saveSnapshot, writeCurrentState } = require('./lib/graph-json-snapshot');
+const { assertStoreOpenAllowed, handleSqliteInitializationError, hasExistingPersistenceFile } = require('./lib/sqlite-persistence-validation');
 const { countAuditEvents, queryAuditEvents, readAuditEvents } = require('./lib/audit-query');
 const { assertChainTipUsable, emptyMutationJournal, readMutationJournal, readCommittedMutationResult, readCommittedMutationResultsByPrefix } = require('./lib/mutation-journal');
 const { applyTemporalEdgeMetadata, beginEdgeTouchScope, downgradeEdge, edgeTouchKey } = require('./lib/graph-edge-mutations');
@@ -68,6 +65,12 @@ const { isCausalRelation: runIsCausalRelation, getCausalRelations: runCausalRela
 const { addEdge: runEdgeWrite } = require('./lib/graph-edge-write');
 const { ensureMutationReceiptFamilySchema: runMutationReceiptFamilySchema } = require('./lib/graph-mutation-receipt-schema');
 const consolidateEdges = require('./lib/graph-consolidate-edges');
+const {
+  stripEmbeddings: runStripEmbeddings,
+  restoreEmbeddings: runRestoreEmbeddings,
+  writeStrippedState: runWriteStrippedState,
+  load: runGraphPersistenceLoad,
+} = require('./lib/graph-persistence-runtime');
 
 class Graph {
   /**
@@ -700,28 +703,11 @@ class Graph {
   // ─── Kalıcılık ────────────────────────────────────────────────────────────
 
   stripEmbeddings() {
-    const embeddings = {};
-    for (const [id, node] of Object.entries(this._nodes)) {
-      if (node.embedding) {
-        embeddings[id] = Array.from(node.embedding);
-        delete node.embedding;
-      }
-    }
-    return embeddings;
+    return runStripEmbeddings(this);
   }
 
   restoreEmbeddings(embeddings) {
-    for (const [id, vec] of Object.entries(embeddings)) {
-      if (this._nodes[id]) {
-        this._nodes[id].embedding = new Float64Array(vec);
-      } else {
-        const [workspaceId, nodeId] = id.includes('::') ? id.split('::') : ['default', id];
-        const storageKey = nodeStorageKey(nodeId, workspaceId);
-        if (this._nodes[storageKey]) {
-          this._nodes[storageKey].embedding = new Float64Array(vec);
-        }
-      }
-    }
+    return runRestoreEmbeddings(this, embeddings);
   }
 
   save() {
@@ -729,200 +715,12 @@ class Graph {
     return this._db && this._stmts ? writeCurrentState(this) : saveSnapshot(this, () => writeCurrentState(this), this._jsonTransactionFault);
   }
 
-  // Split out of save() purely so the restore above can live in a finally
-  // without reindenting the entire write path.
   writeStrippedState(embeddings) {
-    if (this._db && this._stmts) {
-      // SQLite: toplu yazma (transaction)
-      const saveAll = this._db.transaction(() => {
-        for (const node of Object.values(this._nodes)) {
-          this._db.prepare(`
-            INSERT INTO nodes (id, workspace_id, label, weight, created, created_at, last_accessed, last_seen, vector, provenance)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(workspace_id, id) DO UPDATE SET
-              workspace_id = excluded.workspace_id,
-              label = excluded.label,
-              weight = excluded.weight,
-              last_accessed = excluded.last_accessed,
-              last_seen = excluded.last_seen,
-              vector = excluded.vector,
-              provenance = excluded.provenance
-          `).run(
-            node.id, normalizeWorkspaceId(node.workspaceId), node.label, node.weight,
-            node.created,
-            node.created_at || nowIso(),
-            node.lastAccessed,
-            node.last_seen || node.lastSeen || nowIso(),
-            JSON.stringify(node.vector || {}),
-            JSON.stringify(node.provenance ?? null)
-          );
-        }
-        for (const edge of this._edges) {
-          // The shared `upsertEdge` statement, not a second copy of it.
-          //
-          // This loop used to inline its own INSERT ... ON CONFLICT whose
-          // column list had drifted from `_initDB`'s: `strength` was absent
-          // from both the columns and the DO UPDATE SET, so save() could not
-          // repair a strength the update path had already failed to write.
-          // Two UPSERTs over one table is what let them diverge (#1024).
-          this._stmts.upsertEdge.run(
-            normalizeWorkspaceId(edge.workspaceId),
-            edge.from,
-            edge.to,
-            edge.relation,
-            edge.weight,
-            edge.confidence ?? edge.weight ?? 0.5,
-            edge.source || 'manual',
-            edge.source_ref || '',
-            edge.session_id || '',
-            JSON.stringify(edge.evidence || []),
-            edge.evidence_type || '',
-            JSON.stringify(edge.confidence_history || []),
-            edge.company_mode ? 1 : 0,
-            edge.source_type || '',
-            edge.updated_at || nowIso(),
-            edge.created_at || nowIso(),
-            JSON.stringify(edge.provenance ?? null),
-            JSON.stringify(edge.meta ?? {}),
-            edge.created,
-            edge.strength ?? 0.5
-          );
-        }
-        for (const candidate of this._candidateClaims) {
-          this._stmts.upsertCandidateClaim.run(
-            candidate.candidateId,
-            normalizeWorkspaceId(candidate.workspaceId),
-            candidate.claim || '',
-            JSON.stringify(candidate.proposedEdge ?? null),
-            JSON.stringify(candidate.provenance ?? null),
-            JSON.stringify(candidate.conflict ?? null),
-            candidate.recommendation || 'accept',
-            candidate.status || 'pending',
-            candidate.createdAt || nowIso(),
-            candidate.reviewedAt || '',
-            candidate.reviewedBy || '',
-            JSON.stringify(candidate.warnings || []),
-          );
-        }
-        for (const event of this._auditEvents) {
-          this._stmts.insertAuditEvent.run(
-            event.auditId,
-            event.eventType,
-            event.targetType || '',
-            event.targetId || '',
-            event.workspaceId || 'default',
-            event.actor || 'system',
-            event.timestamp,
-            event.sourceRef || '',
-            event.provenanceId || '',
-            event.trustPolicyVersion || '',
-            JSON.stringify(event.details ?? {}),
-          );
-        }
-      });
-      saveAll();
-    }
-
-    writeJsonFiles(this, embeddings);
+    return runWriteStrippedState(this, embeddings);
   }
 
   load() {
-    if (!this._db || !this._stmts) return loadJsonGraph(this);
-    this._nodes = {};
-    this._edges = [];
-    this._candidateClaims = [];
-    this._auditEvents = [];
-    this._outIndex.clear();
-    this._inIndex.clear();
-
-    if (this._db && this._stmts) {
-      // SQLite'tan yükle
-      try {
-        const nodes = this._stmts.allNodes.all();
-        const edges = this._stmts.allEdges.all();
-        const candidateRows = this._stmts.allCandidateClaims.all();
-        const auditRows = this._stmts.allAuditEvents.all();
-
-        if (nodes.length > 0 || edges.length > 0 || auditRows.length > 0 || candidateRows.length > 0) {
-          this._nodes = {};
-          for (const row of nodes) {
-            const node = normalizeNodeRecord({
-              id: row.id,
-              workspaceId: row.workspace_id || 'default',
-              label: row.label,
-              weight: row.weight,
-              created: row.created,
-              created_at: row.created_at || '',
-              lastAccessed: row.last_accessed,
-              last_seen: row.last_seen || '',
-              vector: JSON.parse(row.vector || '{}'),
-              provenance: JSON.parse(row.provenance || 'null'),
-            });
-            this._nodes[nodeStorageKey(node.id, node.workspaceId)] = {
-              ...node,
-              lastAccessed: row.last_accessed,
-            };
-          }
-          this._edges = edges.map(row => normalizeLoadedEdge({
-            workspaceId: row.workspace_id || 'default',
-            from: row.from_id,
-            to: row.to_id,
-            relation: row.relation,
-            weight: row.weight,
-            confidence: row.confidence ?? row.weight ?? 0.5,
-            source: row.source || 'manual',
-            source_ref: row.source_ref || '',
-            session_id: row.session_id || '',
-            evidence: JSON.parse(row.evidence || '[]'),
-            evidence_type: row.evidence_type || '',
-            confidence_history: JSON.parse(row.confidence_history || '[]'),
-            company_mode: Number(row.company_mode || 0),
-              source_type: row.source_type || '',
-              updated_at: row.updated_at || '',
-              created_at: row.created_at || '',
-              provenance: JSON.parse(row.provenance || 'null'),
-              meta: JSON.parse(row.meta || '{}'),
-              created: row.created,
-              strength: row.strength,
-            }));
-          this._candidateClaims = candidateRows.map(row => normalizeCandidateClaim({
-            candidateId: row.candidate_id,
-            workspaceId: row.workspace_id || 'default',
-            claim: row.claim || '',
-            proposedEdge: JSON.parse(row.proposed_edge || 'null'),
-            provenance: JSON.parse(row.provenance || 'null'),
-            conflict: JSON.parse(row.conflict || 'null'),
-            recommendation: row.recommendation || 'accept',
-            status: row.status || 'pending',
-            createdAt: row.created_at || '',
-            reviewedAt: row.reviewed_at || '',
-            reviewedBy: row.reviewed_by || '',
-            warnings: JSON.parse(row.warnings || '[]'),
-          }));
-          this._auditEvents = auditRows.map(row => normalizeAuditEvent({
-            auditId: row.audit_id,
-            eventType: row.event_type,
-            targetType: row.target_type || '',
-            targetId: row.target_id || '',
-            workspaceId: row.workspace_id || 'default',
-            actor: row.actor || 'system',
-            timestamp: row.timestamp,
-            sourceRef: row.source_ref || '',
-            provenanceId: row.provenance_id || '',
-            trustPolicyVersion: row.trust_policy_version || '',
-            details: JSON.parse(row.details || '{}'),
-          }));
-          this.rebuildIndex();
-
-          loadEmbeddingsLenient(this);
-          return; // SQLite'tan başarıyla yüklendi
-        }
-      } catch (e) {
-        throw sqlitePersistenceError('load', e);
-      }
-    }
-
-    return loadJsonGraph(this);
+    return runGraphPersistenceLoad(this);
   }
 
   // ─── Index yönetimi ───────────────────────────────────────────────────────
