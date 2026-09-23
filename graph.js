@@ -1,11 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 const { buildAuditEvent } = require('./lib/audit-log');
-const { appendReceiptToChain } = require('./lib/receipt/receipt-chain');
-const {
-  assertDurableV4WriteAllowed,
-  classifyReceiptFamily,
-} = require('./lib/receipt/v4-receipt-family');
 
 // SQLite opsiyonel — yoksa JSON fallback
 let Database;
@@ -15,7 +10,6 @@ const {
   CAUSAL_RELATIONS,
   STANDARD_RELATIONS,
   RECEIPT_FAMILY_MIGRATION_ERROR_CODE,
-  atomicWriteFileSync,
   normalizeWorkspaceId,
   nodeStorageKey,
   edgeIndexKey,
@@ -24,12 +18,10 @@ const {
   edgeUpdateArgs,
 } = require('./lib/graph-record-utils');
 const { derivePersistenceLayout, resolveDefaultMemoryPath } = require('./lib/memory-store-utils');
-const { createMutationRollback } = require('./lib/graph-mutation-rollback');
 const { assertGraphPersistenceWritable } = require('./lib/graph-json-persistence');
-const { commitJsonTransaction, rememberSnapshot, runSnapshotMutation, saveSnapshot, writeCurrentState } = require('./lib/graph-json-snapshot');
+const { saveSnapshot, writeCurrentState } = require('./lib/graph-json-snapshot');
 const { assertStoreOpenAllowed, handleSqliteInitializationError, hasExistingPersistenceFile } = require('./lib/sqlite-persistence-validation');
 const { countAuditEvents, queryAuditEvents, readAuditEvents } = require('./lib/audit-query');
-const { assertChainTipUsable, emptyMutationJournal, readMutationJournal, readCommittedMutationResult, readCommittedMutationResultsByPrefix } = require('./lib/mutation-journal');
 const { applyTemporalEdgeMetadata, beginEdgeTouchScope, downgradeEdge, edgeTouchKey } = require('./lib/graph-edge-mutations');
 const { getCausalChain: runCausalChain } = require('./lib/graph-causal-chain');
 const { getCandidateClaims: runCandidateClaimsRead } = require('./lib/graph-candidate-claims-read');
@@ -43,12 +35,6 @@ const {
   getInEdges: runInEdgesRead,
   getAllEdges: runAllEdgesRead,
 } = require('./lib/graph-edge-read');
-const {
-  readMutationReceiptFromJsonJournal,
-  readMutationReceipt,
-  getCommittedMutationReceiptByOperation: runReceiptByOperationRead,
-  getCommittedMutationReceiptById: runReceiptByIdRead,
-} = require('./lib/graph-mutation-receipt-read');
 const { getNode: runNodeRead, getNodes: runNodesRead } = require('./lib/graph-node-read');
 const { addNode: runNodeWrite } = require('./lib/graph-node-write');
 const { removeNode: runNodeDelete } = require('./lib/graph-node-delete');
@@ -71,6 +57,23 @@ const {
   writeStrippedState: runWriteStrippedState,
   load: runGraphPersistenceLoad,
 } = require('./lib/graph-persistence-runtime');
+const {
+  jsonJournalPath: runJsonJournalPath,
+  emptyJsonJournal: runEmptyJsonJournal,
+  readJsonJournal: runReadJsonJournal,
+  writeJsonJournal: runWriteJsonJournal,
+  readMutationReceiptFromJsonJournal: runReadMutationReceiptFromJsonJournal,
+  readMutationReceipt: runReadMutationReceipt,
+  getCommittedMutationReceiptByOperation: runCommittedReceiptByOperation,
+  getCommittedMutationReceiptById: runCommittedReceiptById,
+  mutationReceiptReadStoreApi: runMutationReceiptReadStoreApi,
+  getCommittedMutationResultByOperation: runCommittedMutationResult,
+  getCommittedMutationResultsByPrefix: runCommittedMutationResultsByPrefix,
+  runMutationOnce,
+  runMutationOnceSqlite,
+  runMutationOnceJson,
+  runMutationOnceJsonLocked,
+} = require('./lib/graph-mutation-runtime');
 
 class Graph {
   /**
@@ -181,216 +184,28 @@ class Graph {
    *
    * Public journal-path surface for the JSON backend (#2343, #2353).
    */
-  jsonJournalPath() { return this._paths.journalPath; }
-
-  _emptyJsonJournal() {
-    return emptyMutationJournal();
-  }
-
-  /**
-   * Fails closed on an existing-but-unreadable journal (#731); only a genuinely
-   * absent journal yields empty history. See lib/mutation-journal.js.
-   * Public read surface for the JSON journal (#2352).
-   */
-  readJsonJournal() { return readMutationJournal(this.jsonJournalPath()); }
+  jsonJournalPath() { return runJsonJournalPath(this); }
+  _emptyJsonJournal() { return runEmptyJsonJournal(); }
+  readJsonJournal() { return runReadJsonJournal(this); }
   _readJsonJournal() { return this.readJsonJournal(); }
-
-  _writeJsonJournal(journal) {
-    atomicWriteFileSync(this.jsonJournalPath(), JSON.stringify(journal));
-  }
+  _writeJsonJournal(journal) { return runWriteJsonJournal(this, journal); }
   _readMutationReceiptFromJsonJournal(journal, operationId) {
-    return readMutationReceiptFromJsonJournal(journal, operationId);
+    return runReadMutationReceiptFromJsonJournal(journal, operationId);
   }
-
-  _readMutationReceipt(row) {
-    return readMutationReceipt(row);
-  }
-
+  _readMutationReceipt(row) { return runReadMutationReceipt(row); }
   getCommittedMutationReceiptByOperation(operationId) {
-    return runReceiptByOperationRead(this._mutationReceiptReadStoreApi(), operationId);
+    return runCommittedReceiptByOperation(this, operationId);
   }
-
   getCommittedMutationReceiptById(receiptId) {
-    return runReceiptByIdRead(this._mutationReceiptReadStoreApi(), receiptId);
+    return runCommittedReceiptById(this, receiptId);
   }
-
-  _mutationReceiptReadStoreApi() {
-    return {
-      hasSqlite: () => Boolean(this._db && this._stmts),
-      getMutationReceiptByOperation: id => this._stmts.getMutationReceiptByOperation.get(id),
-      getMutationReceiptById: id => this._stmts.getMutationReceiptById.get(id),
-      readJsonJournal: () => this._readJsonJournal(),
-    };
-  }
-  getCommittedMutationResultByOperation(operationId) { return readCommittedMutationResult(this, operationId); } getCommittedMutationResultsByPrefix(prefix) { return readCommittedMutationResultsByPrefix(this, prefix); }
-  runMutationOnce(operationId, mutate, opts = {}) {
-    assertGraphPersistenceWritable(this);
-    const id = typeof operationId === 'string' ? operationId.trim() : '';
-    if (!id) throw new Error('mutation operationId is required');
-    if (typeof mutate !== 'function') throw new TypeError('mutation callback is required');
-    if (this._db && this._stmts) return this._runMutationOnceSqlite(id, mutate, opts);
-    return this._runMutationOnceJson(id, mutate, opts);
-  }
-
-  _runMutationOnceSqlite(id, mutate, opts) {
-    const readStored = () => {
-      const row = this._stmts.getMutationJournal.get(id);
-      return row && row.status === 'completed' ? JSON.parse(row.result) : null;
-    };
-    const stored = readStored();
-    if (stored !== null) return { replayed: true, result: stored, receipt: this.getCommittedMutationReceiptByOperation(id) };
-
-    const previousRollback = this._mutationRollback;
-    const rollback = createMutationRollback(this);
-    this._mutationRollback = rollback;
-    try {
-      const execute = this._db.transaction(() => {
-        const alreadyCompleted = readStored();
-        if (alreadyCompleted !== null) return { replayed: true, result: alreadyCompleted, receipt: this.getCommittedMutationReceiptByOperation(id) };
-        const result = mutate();
-        let receipt = null;
-        if (typeof opts.buildCanonicalReceipt === 'function') {
-          const payload = opts.buildCanonicalReceipt(result);
-          // null/undefined explicitly means "this mutation has no receipt"
-          // (e.g. a bypass-mode learn with no admission decision) -- the
-          // mutation still commits and journals, just without a receipt.
-          // Anything else must be a valid canonical payload, or fail.
-          if (payload !== null && payload !== undefined) {
-            if (typeof payload !== 'object' || !payload.receiptId || !payload.workspaceId) {
-              throw new Error('durable mutation receipt payload is invalid');
-            }
-            assertDurableV4WriteAllowed(payload, { operationId: id });
-            const receiptFamily = classifyReceiptFamily(payload);
-            const previous = this._stmts.getLatestMutationReceiptHash.get(payload.workspaceId, receiptFamily);
-            const chained = appendReceiptToChain(payload, previous?.receipt_hash);
-            const committedAt = nowIso();
-            this._stmts.insertMutationReceipt.run(
-              id, chained.receiptId, payload.workspaceId, receiptFamily, JSON.stringify(payload),
-              chained.previousReceiptHash, chained.receiptHash, committedAt,
-            );
-            receipt = this._readMutationReceipt(this._stmts.getMutationReceiptByOperation.get(id));
-          }
-        }
-        this._stmts.insertMutationJournal.run(id, 'completed', JSON.stringify(result), nowIso());
-        return { replayed: false, result, receipt };
-      });
-      return (typeof execute.immediate === 'function' ? execute.immediate : execute)();
-    } catch (error) {
-      // SQLite rolls back durably; the lazy journal restores only in-memory
-      // records and collection roots touched by this callback.
-      rollback.restore();
-      const completed = readStored();
-      if (completed !== null) {
-        return { replayed: true, result: completed, receipt: this.getCommittedMutationReceiptByOperation(id) };
-      }
-      throw error;
-    } finally {
-      this._mutationRollback = previousRollback;
-    }
-  }
-
-  /**
-   * JSON-backend counterpart to _runMutationOnceSqlite. Same external
-   * contract ({replayed, result, receipt}), same idempotent-replay and
-   * rollback-on-error guarantees, same receipt-chain logic (reuses
-   * classifyReceiptFamily/appendReceiptToChain/assertDurableV4WriteAllowed
-   * unchanged) -- durability comes from the journal file being written with
-   * atomicWriteFileSync() (never a torn write) rather than a SQL transaction.
-   */
-  _runMutationOnceJson(id, mutate, opts) { return runSnapshotMutation(this, () => this._runMutationOnceJsonLocked(id, mutate, opts), this._jsonTransactionFault); }
-  _runMutationOnceJsonLocked(id, mutate, opts) {
-    const readStored = () => {
-      const journal = this._readJsonJournal();
-      const op = journal.operations[id];
-      return op && op.status === 'completed' ? { result: op.result, journal } : null;
-    };
-
-    const alreadyCompleted = readStored();
-    if (alreadyCompleted !== null) {
-      return {
-        replayed: true,
-        result: alreadyCompleted.result,
-        receipt: this._readMutationReceiptFromJsonJournal(alreadyCompleted.journal, id),
-      };
-    }
-
-    const previousRollback = this._mutationRollback;
-    const rollback = createMutationRollback(this);
-    this._mutationRollback = rollback;
-    try {
-      // Re-check immediately before mutating (mirrors the SQLite path's
-      // in-transaction re-check) to keep the replay race window minimal.
-      const recheck = readStored();
-      if (recheck !== null) {
-        return {
-          replayed: true,
-          result: recheck.result,
-          receipt: this._readMutationReceiptFromJsonJournal(recheck.journal, id),
-        };
-      }
-
-      const result = mutate();
-      const journal = this._readJsonJournal();
-      let receipt = null;
-
-      if (typeof opts.buildCanonicalReceipt === 'function') {
-        const payload = opts.buildCanonicalReceipt(result);
-        // null/undefined explicitly means "this mutation has no receipt"
-        // (e.g. a bypass-mode learn with no admission decision) -- the
-        // mutation still commits and journals, just without a receipt.
-        if (payload !== null && payload !== undefined) {
-          if (typeof payload !== 'object' || !payload.receiptId || !payload.workspaceId) {
-            throw new Error('durable mutation receipt payload is invalid');
-          }
-          assertDurableV4WriteAllowed(payload, { operationId: id });
-          const receiptFamily = classifyReceiptFamily(payload);
-          const chainKey = `${payload.workspaceId}::${receiptFamily}`;
-          // Re-checked here so a damaged tip is caught before it is linked
-          // against, not after a broken chain has been written (#731).
-          const previousReceiptHash = assertChainTipUsable(journal.chainTips, chainKey, this.jsonJournalPath());
-          const chained = appendReceiptToChain(payload, previousReceiptHash);
-          const committedAt = nowIso();
-          journal.receipts[id] = {
-            receiptId: chained.receiptId,
-            workspaceId: payload.workspaceId,
-            receiptFamily,
-            canonicalPayload: payload,
-            previousReceiptHash: chained.previousReceiptHash,
-            receiptHash: chained.receiptHash,
-            committedAt,
-          };
-          journal.receiptsById[chained.receiptId] = id;
-          journal.chainTips[chainKey] = chained.receiptHash;
-          receipt = this._readMutationReceiptFromJsonJournal(journal, id);
-        }
-      }
-
-      journal.operations[id] = { status: 'completed', result, receiptId: receipt?.receiptId || null, committedAt: nowIso() };
-      // Prepare one redo record before publishing graph, embedding sidecar,
-      // and completed journal after-images. Restart recovery finishes that
-      // exact record, so a prepared operation neither double-applies nor
-      // produces a phantom completion.
-      commitJsonTransaction(this, id, journal, this._jsonTransactionFault);
-      rememberSnapshot(this);
-
-      // persisted: true tells the caller save() already happened as part of
-      // committing this mutation (unlike the SQLite path, where the DB
-      // transaction is the persistence and a caller-side save() afterward
-      // additionally syncs the JSON fallback export) -- so a caller that
-      // unconditionally saves after every non-replayed outcome can skip
-      // that redundant second save for the JSON backend specifically.
-      return { replayed: false, result, receipt, persisted: true };
-    } catch (error) {
-      rollback.restore();
-      const completed = readStored();
-      if (completed !== null) {
-        return { replayed: true, result: completed.result, receipt: this._readMutationReceiptFromJsonJournal(completed.journal, id) };
-      }
-      throw error;
-    } finally {
-      this._mutationRollback = previousRollback;
-    }
-  }
+  _mutationReceiptReadStoreApi() { return runMutationReceiptReadStoreApi(this); }
+  getCommittedMutationResultByOperation(operationId) { return runCommittedMutationResult(this, operationId); }
+  getCommittedMutationResultsByPrefix(prefix) { return runCommittedMutationResultsByPrefix(this, prefix); }
+  runMutationOnce(operationId, mutate, opts = {}) { return runMutationOnce(this, operationId, mutate, opts); }
+  _runMutationOnceSqlite(id, mutate, opts) { return runMutationOnceSqlite(this, id, mutate, opts); }
+  _runMutationOnceJson(id, mutate, opts) { return runMutationOnceJson(this, id, mutate, opts); }
+  _runMutationOnceJsonLocked(id, mutate, opts) { return runMutationOnceJsonLocked(this, id, mutate, opts); }
 
   // ─── Node işlemleri ───────────────────────────────────────────────────────
 
