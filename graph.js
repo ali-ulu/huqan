@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const { buildAuditEvent } = require('./lib/audit-log');
 
 // SQLite opsiyonel — yoksa JSON fallback
 let Database;
@@ -15,7 +14,6 @@ const {
   edgeIndexKey,
   nowIso,
   compareCausalEdges,
-  edgeUpdateArgs,
 } = require('./lib/graph-record-utils');
 const { derivePersistenceLayout, resolveDefaultMemoryPath } = require('./lib/memory-store-utils');
 const { assertGraphPersistenceWritable } = require('./lib/graph-json-persistence');
@@ -74,6 +72,19 @@ const {
   runMutationOnceJson,
   runMutationOnceJsonLocked,
 } = require('./lib/graph-mutation-runtime');
+const {
+  nodeWriteStoreApi: runNodeWriteStoreApi,
+  nodeTouchStoreApi: runNodeTouchStoreApi,
+  appendAuditEvent: runAppendAuditEvent,
+  auditQueryContext: runAuditQueryContext,
+  candidateClaimWriteStoreApi: runCandidateClaimWriteStoreApi,
+  nodeDeleteStoreApi: runNodeDeleteStoreApi,
+  nodeTagStoreApi: runNodeTagStoreApi,
+  edgeWriteStoreApi: runEdgeWriteStoreApi,
+  pruneStoreApi: runPruneStoreApi,
+  optimizeStoreApi: runOptimizeStoreApi,
+  statsStoreApi: runStatsStoreApi,
+} = require('./lib/graph-store-adapters');
 
 class Graph {
   /**
@@ -242,33 +253,7 @@ class Graph {
     return runNodesRead(this._nodes, workspaceId);
   }
 
-  _nodeWriteStoreApi() {
-    return {
-      readPersisted: (id, workspaceId) => {
-        if (this._db && this._stmts) {
-          return { enabled: true, existing: this._stmts.getNode.get(id, workspaceId) };
-        }
-        return { enabled: false, existing: null };
-      },
-      get: storageKey => this._nodes[storageKey],
-      recordNode: storageKey => this._mutationRollback?.recordNode(storageKey),
-      set: (storageKey, value) => { this._nodes[storageKey] = value; },
-      persist: ({ id, workspaceId, label, weight, created, createdAt, lastAccessed, lastSeen, vector, provenance }) => {
-        this._stmts.upsertNode.run(
-          id,
-          workspaceId,
-          label,
-          weight,
-          created,
-          createdAt,
-          lastAccessed,
-          lastSeen,
-          vector,
-          provenance,
-        );
-      },
-    };
-  }
+  _nodeWriteStoreApi() { return runNodeWriteStoreApi(this); }
 
   addNode(id, label, provenance = null, opts = {}) {
     return runNodeWrite(this._nodeWriteStoreApi(), id, label, provenance, opts);
@@ -278,45 +263,15 @@ class Graph {
     return runNodeRead(this._nodes, id, workspaceId);
   }
 
-  _nodeTouchStoreApi() { return {
-    get: storageKey => this._nodes[storageKey],
-    recordNode: storageKey => this._mutationRollback?.recordNode(storageKey),
-    persist: (accessedAt, id, workspaceId) => this._db && this._stmts && this._stmts.touchNode.run(accessedAt, id, workspaceId),
-  }; }
+  _nodeTouchStoreApi() { return runNodeTouchStoreApi(this); }
 
   touchNode(id, workspaceId = 'default') {
     return runNodeTouch(this._nodeTouchStoreApi(), id, workspaceId);
   }
 
-  appendAuditEvent(event, opts = {}) {
-    const normalized = buildAuditEvent(event, opts);
-    this._auditEvents.push(normalized);
-    if (this._db && this._stmts) {
-      this._stmts.insertAuditEvent.run(
-        normalized.auditId,
-        normalized.eventType,
-        normalized.targetType || '',
-        normalized.targetId || '',
-        normalized.workspaceId || 'default',
-        normalized.actor || 'system',
-        normalized.timestamp,
-        normalized.sourceRef || '',
-        normalized.provenanceId || '',
-        normalized.trustPolicyVersion || '',
-        JSON.stringify(normalized.details ?? {}),
-      );
-    }
-    return normalized;
-  }
+  appendAuditEvent(event, opts = {}) { return runAppendAuditEvent(this, event, opts); }
 
-  _auditQueryContext() {
-    return {
-      db: this._db,
-      stmts: this._stmts,
-      events: this._auditEvents,
-      statementCache: this._auditQueryStmts,
-    };
-  }
+  _auditQueryContext() { return runAuditQueryContext(this); }
 
   getAuditEvents(filters = {}) {
     return readAuditEvents(this._auditQueryContext(), filters);
@@ -332,36 +287,7 @@ class Graph {
     return queryAuditEvents(this._auditQueryContext(), options);
   }
 
-  _candidateClaimWriteStoreApi() {
-    return {
-      recordCandidateClaim: index => this._mutationRollback?.recordCandidateClaim(index),
-      findIndex: (candidateId, workspaceId) => this._candidateClaims.findIndex(item =>
-        item.candidateId === candidateId && normalizeWorkspaceId(item.workspaceId) === workspaceId
-      ),
-      get: index => this._candidateClaims[index],
-      replace: (index, value) => { this._candidateClaims[index] = value; },
-      append: value => { this._candidateClaims.push(value); },
-      persist: (normalized, workspaceId) => {
-        if (this._db && this._stmts) {
-          this._stmts.upsertCandidateClaim.run(
-            normalized.candidateId,
-            workspaceId,
-            normalized.claim || '',
-            JSON.stringify(normalized.proposedEdge ?? null),
-            JSON.stringify(normalized.provenance ?? null),
-            JSON.stringify(normalized.conflict ?? null),
-            normalized.recommendation || 'accept',
-            normalized.status || 'pending',
-            normalized.createdAt || nowIso(),
-            normalized.reviewedAt || '',
-            normalized.reviewedBy || '',
-            JSON.stringify(normalized.warnings || []),
-          );
-        }
-      },
-      read: filters => runCandidateClaimsRead(this._candidateClaims, filters),
-    };
-  }
+  _candidateClaimWriteStoreApi() { return runCandidateClaimWriteStoreApi(this); }
 
   addCandidateClaim(candidate, opts = {}) {
     return runCandidateClaimWrite(this._candidateClaimWriteStoreApi(), candidate, opts);
@@ -371,15 +297,7 @@ class Graph {
     return runCandidateClaimsRead(this._candidateClaims, filters);
   }
 
-  _nodeDeleteStoreApi() { return {
-    getNode: (id, workspaceId) => this.getNode(id, workspaceId),
-    recordNode: storageKey => this._mutationRollback?.recordNode(storageKey),
-    deleteNode: storageKey => delete this._nodes[storageKey],
-    removeIncidentEdges: (id, workspaceId) => (this._edges = this._edges.filter(edge => !(edge.workspaceId === workspaceId && (edge.from === id || edge.to === id)))),
-    rebuildIndex: () => this.rebuildIndex(),
-    persistDeleteEdges: (id, workspaceId) => this._db && this._stmts && this._stmts.deleteEdgesOf.run(id, id, workspaceId),
-    persistDeleteNode: (id, workspaceId) => this._db && this._stmts && this._stmts.deleteNode.run(id, workspaceId),
-  }; }
+  _nodeDeleteStoreApi() { return runNodeDeleteStoreApi(this); }
 
   removeNode(id, workspaceId = 'default') {
     return runNodeDelete(this._nodeDeleteStoreApi(), id, workspaceId);
@@ -389,10 +307,7 @@ class Graph {
     return runNodeWeight((nodeId, scope) => this.getNode(nodeId, scope), this._decayLambda, id, workspaceId);
   }
 
-  _nodeTagStoreApi() { return {
-    get: storageKey => this._nodes[storageKey],
-    recordNode: storageKey => this._mutationRollback?.recordNode(storageKey),
-  }; }
+  _nodeTagStoreApi() { return runNodeTagStoreApi(this); }
 
   addTag(nodeId, dim, weight, workspaceId = 'default') {
     return runNodeTag(this._nodeTagStoreApi(), nodeId, dim, weight, workspaceId);
@@ -400,58 +315,7 @@ class Graph {
 
   // ─── Edge işlemleri ───────────────────────────────────────────────────────
 
-  _edgeWriteStoreApi() {
-    return {
-      hasNode: (id, workspaceId) => Boolean(this.getNode(id, workspaceId)),
-      touchNode: (id, workspaceId) => this.touchNode(id, workspaceId),
-      findExisting: (fromId, toId, relation, workspaceId) => (
-        (this._outIndex.get(edgeIndexKey(fromId, workspaceId)) || []).find(
-          edge => edge.to === toId
-            && edge.relation === relation
-            && normalizeWorkspaceId(edge.workspaceId) === workspaceId
-        ) || null
-      ),
-      recordEdge: edge => this._mutationRollback?.recordEdge(edge),
-      append: edge => {
-        this._edges.push(edge);
-        this._indexEdge(edge);
-      },
-      persistUpdate: (edge, workspaceId, fromId, toId, relation, isoNow) => {
-        if (!this._db || !this._stmts) return;
-        this._stmts.updateEdgeWeight.run(
-          ...edgeUpdateArgs(edge, workspaceId, fromId, toId, relation, isoNow),
-        );
-      },
-      persistCreate: (edge, workspaceId, fromId, toId, relation, isoNow) => {
-        if (!this._db || !this._stmts) return;
-        this._stmts.upsertEdge.run(
-          workspaceId,
-          fromId,
-          toId,
-          relation,
-          edge.weight,
-          edge.confidence,
-          edge.source,
-          edge.source_ref || '',
-          edge.session_id || '',
-          JSON.stringify(edge.evidence || []),
-          edge.evidence_type || '',
-          JSON.stringify(edge.confidence_history || []),
-          edge.company_mode ? 1 : 0,
-          edge.source_type || '',
-          edge.updated_at || isoNow,
-          edge.created_at || isoNow,
-          JSON.stringify(edge.provenance ?? null),
-          JSON.stringify(edge.meta ?? {}),
-          edge.created,
-          edge.strength ?? 0.5,
-        );
-      },
-      recordTouch: (workspaceId, fromId, relation, toId) => {
-        this._recordEdgeTouch(workspaceId, fromId, relation, toId);
-      },
-    };
-  }
+  _edgeWriteStoreApi() { return runEdgeWriteStoreApi(this); }
 
   addEdge(fromId, toId, relation, opts = {}) {
     return runEdgeWrite(this._edgeWriteStoreApi(), fromId, toId, relation, opts);
@@ -497,19 +361,19 @@ class Graph {
     return runNodeSimilarity((nodeId, scope) => this.getNode(nodeId, scope), aId, bId, workspaceId);
   }
 
-  _pruneStoreApi() { return { getEdges: () => this._edges, setEdges: edges => { this._edges = edges; }, rebuildIndex: () => this.rebuildIndex(), getPruneThreshold: () => this._pruneThreshold, persistPrune: (threshold, scope) => { if (this._db) this._stmts.pruneEdges.run(threshold, scope); } }; }
+  _pruneStoreApi() { return runPruneStoreApi(this); }
 
   prune(threshold, workspaceId = 'default') {
     return runGraphPrune(this._pruneStoreApi(), threshold, workspaceId);
   }
 
-  _optimizeStoreApi() { return { prune: scope => this.prune(undefined, scope), getNodes: () => this._nodes, getEdges: (nodeId, scope) => this.getEdges(nodeId, scope), getInEdges: (nodeId, scope) => this.getInEdges(nodeId, scope), decayLambda: this._decayLambda, recordNode: id => this._mutationRollback?.recordNode(id), deleteNode: id => { this._mutationRollback?.recordNode(id); delete this._nodes[id]; }, persistDeleteNode: (id, scope) => { if (this._db && this._stmts) this._stmts.deleteNode.run(id, scope); }, auditRemoval: (node, decayedWeight) => this.appendAuditEvent({ eventType: 'DELETE', targetType: 'node', targetId: node.id, workspaceId: normalizeWorkspaceId(node.workspaceId), actor: 'graph.optimize', sourceRef: 'graph.optimize', details: { reason: 'decayed_isolated_node', decayedWeight } }) }; }
+  _optimizeStoreApi() { return runOptimizeStoreApi(this); }
 
   optimize(workspaceId = 'default') {
     return runGraphOptimize(this._optimizeStoreApi(), workspaceId);
   }
 
-  _statsStoreApi() { return { nodeCount: () => this.nodeCount(), edgeCount: () => this.edgeCount(), candidateClaims: this._candidateClaims, decayLambda: this._decayLambda, hasSqlite: Boolean(this._db) }; }
+  _statsStoreApi() { return runStatsStoreApi(this); }
 
   getStats() {
     return runGraphStats(this._statsStoreApi());
