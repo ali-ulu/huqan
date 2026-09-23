@@ -30,7 +30,6 @@ Tracked in total: **62**
 | `plugins/company-brain.js` | 678 | — |
 | `kernel.v2.js` | 662 | DIP |
 | `lib/receipt/public-trust-receipt.js` | 660 | — |
-| `lib/provenance-query.js` | 641 | — |
 | `cli.js` | 637 | FANOUT:26 |
 | `lib/receipt/receipt-read-index.js` | 637 | — |
 | `storage.js` | 627 | — |
@@ -38,6 +37,7 @@ Tracked in total: **62**
 | `lib/github-app-streaming-trust.js` | 612 | — |
 | `lib/mcp-tool-data-schemas.js` | 611 | — |
 | `backupRestore.js` | 610 | — |
+| `lib/provenance-query.js` | 608 | — |
 | `lib/mcp-gate-adapter.js` | 606 | — |
 | `finalizer.js` | 604 | — |
 | `lib/memory-store.js` | 594 | FANOUT:20 |
