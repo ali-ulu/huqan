@@ -59,6 +59,41 @@ test('research contradiction pass compares relevant canonical edge evidence', ()
   }], 'completely unrelated external statement'), []);
 });
 
+
+test('semantic opposition is persisted as provenance-bound graph opposition without a canonical edge proposal', () => {
+  const signals = contradictionSignals([{
+    from: 'route',
+    relation: 'status',
+    to: 'güvenli',
+    workspaceId: 'w',
+    evidence: ['route güvenli'],
+    provenance: { sourceRef: 'docs/canonical.md#route' },
+  }], 'route riskli');
+
+  const semantic = signals.find(signal => signal.rule === 'SEMANTIC_OPPOSITION');
+  assert.ok(semantic);
+
+  const candidate = buildResearchCandidate({
+    workspaceId: 'w',
+    provider: 'brave',
+    source: { title: 'External source', url: 'https://example.com/opposition' },
+    claim: 'route riskli',
+    signals,
+  });
+
+  assert.equal(candidate.proposedEdge, null);
+  assert.equal(candidate.status, 'pending');
+  assert.equal(candidate.conflict.oppositions.length > 0, true);
+  const opposition = candidate.conflict.oppositions.find(item => item.rule === 'SEMANTIC_OPPOSITION');
+  assert.ok(opposition);
+  assert.equal(opposition.role, 'external_source_opposition');
+  assert.equal(opposition.targetId, 'route|status|güvenli');
+  assert.equal(opposition.sourceRef, 'https://example.com/opposition');
+  assert.equal(opposition.provenanceId, candidate.provenance.provenanceId);
+  assert.equal(opposition.canonicalEdge.sourceRef, 'docs/canonical.md#route');
+  assert.equal(opposition.canonicalWrite, false);
+});
+
 test('pipeline opens idempotent pending candidates and never writes canonical graph state', () => {
   const kernel = kernelWith([{
     from: 'engine',
