@@ -124,6 +124,10 @@ test('pipeline opens idempotent pending candidates and never writes canonical gr
   assert.equal(kernel.writes[0].conflict.conflict, true);
   assert.equal(result.items[0].oppositionCount, 1);
   assert.deepEqual(result.items[0].oppositionTargets, ['engine|has_limit|100 knots']);
+  assert.deepEqual(
+    kernel.writes[0].conflict.oppositions[0].rules,
+    ['NUMERICAL_CONFLICT', 'UNIT_CONFLICT']
+  );
 
   const again = openExternalResearchCandidates(kernelWith([]), {
     provider: 'brave',
