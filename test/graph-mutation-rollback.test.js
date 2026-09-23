@@ -101,12 +101,17 @@ for (const backend of ['sqlite', 'json']) {
 }
 
 test('runMutationOnce no longer takes graph-wide deep snapshot clones', () => {
-  const source = fs.readFileSync(path.join(__dirname, '..', 'graph.js'), 'utf8');
-  assert.match(source, /createMutationRollback/);
-  assert.doesNotMatch(source, /cloneNodeMap\(this\._nodes\)/);
-  assert.doesNotMatch(source, /deepClone\(this\._edges\)/);
-  assert.doesNotMatch(source, /deepClone\(this\._candidateClaims\)/);
-  assert.doesNotMatch(source, /deepClone\(this\._auditEvents\)/);
+  const graphSource = fs.readFileSync(path.join(__dirname, '..', 'graph.js'), 'utf8');
+  const runtimeSource = fs.readFileSync(
+    path.join(__dirname, '..', 'lib', 'graph-mutation-runtime.js'),
+    'utf8',
+  );
+  assert.match(runtimeSource, /createMutationRollback/);
+  assert.doesNotMatch(graphSource, /cloneNodeMap\(this\._nodes\)/);
+  assert.doesNotMatch(runtimeSource, /cloneNodeMap\(graph\._nodes\)/);
+  assert.doesNotMatch(runtimeSource, /deepClone\(graph\._edges\)/);
+  assert.doesNotMatch(runtimeSource, /deepClone\(graph\._candidateClaims\)/);
+  assert.doesNotMatch(runtimeSource, /deepClone\(graph\._auditEvents\)/);
 });
 
 test('rollback journal drives the public rebuildIndex, not the private underscore surface', () => {

@@ -253,3 +253,19 @@ test('V5 shared trust package validator keeps route_receipt receipt route requir
     true
   );
 });
+
+test('V5 shared trust package validator rejects empty and non-array nonClaims', () => {
+  for (const nonClaims of [[], 'not-an-array', [42]]) {
+    const fixture = clone(readFixture('valid-minimal.json'));
+    fixture.nonClaims = nonClaims;
+
+    const result = validateSharedTrustPackage(fixture);
+
+    assert.equal(result.valid, false);
+    assertStructuredResult(result);
+    assert.equal(
+      result.errors.some((error) => error.path === 'nonClaims' || error.path.startsWith('nonClaims[')),
+      true
+    );
+  }
+});
