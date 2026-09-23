@@ -81,11 +81,6 @@
       "lines": 451,
       "signals": []
     },
-    "lib/causal/causal-verdict.js": {
-      "band": "recorded",
-      "lines": 555,
-      "signals": []
-    },
     "lib/command-exec-gate.js": {
       "band": "recorded",
       "lines": 515,
@@ -589,8 +584,10 @@
       "lib/graph-candidate-claims-write.js": "Core",
       "lib/graph-causal-chain.js": "Core",
       "lib/graph-causal-relation-read.js": "Core",
+      "lib/graph-chain-traversal.js": "Core",
       "lib/graph-consolidate-edges.js": "Core",
       "lib/graph-count-read.js": "Core",
+      "lib/graph-cycle-search.js": "Core",
       "lib/graph-edge-mutations.js": "Core",
       "lib/graph-edge-read.js": "Core",
       "lib/graph-edge-write.js": "Core",
@@ -611,6 +608,7 @@
       "lib/graph-node-weight.js": "Core",
       "lib/graph-node-write.js": "Core",
       "lib/graph-optimize.js": "Core",
+      "lib/graph-path-search.js": "Core",
       "lib/graph-persistence-runtime.js": "Core",
       "lib/graph-prune.js": "Core",
       "lib/graph-query-read.js": "Core",
@@ -1057,6 +1055,8 @@
       "schemas/v5/agent-identity-coverage.js": "Core",
       "schemas/v5/agent-identity-readiness.js": "Core",
       "schemas/v5/agent-identity-validator.js": "Core",
+      "schemas/v5/shared-trust-package-guards.js": "Core",
+      "schemas/v5/shared-trust-package-sections.js": "Core",
       "schemas/v5/shared-trust-package-validator.js": "Core",
       "scripts/a2a-conformance/clean-room/verify-exchange.js": "UI",
       "scripts/a2a-conformance/consumer.js": "UI",
@@ -1131,6 +1131,7 @@
       "scripts/security-release-evaluation.js": "UI",
       "scripts/seed-demo.js": "UI",
       "scripts/setup-sqlite.js": "UI",
+      "scripts/shard-hang-diagnostics.js": "UI",
       "scripts/spawn-windows-aware.js": "UI",
       "scripts/test-consumer-compile.js": "UI",
       "scripts/test-state-sandbox.js": "UI",
@@ -1644,9 +1645,6 @@
       ],
       "lib/causal/causal-traversal.js": [
         "lib/causal/causal-edge.js"
-      ],
-      "lib/causal/causal-verdict.js": [
-        "lib/causal/causal-traversal.js"
       ],
       "lib/causal/index.js": [
         "lib/causal/causal-edge-errors.js",
@@ -2318,6 +2316,11 @@
         "lib/audit-log.js",
         "lib/graph-candidate-claims-read.js",
         "lib/graph-record-utils.js"
+      ],
+      "lib/graph-traversal.js": [
+        "lib/graph-chain-traversal.js",
+        "lib/graph-cycle-search.js",
+        "lib/graph-path-search.js"
       ],
       "lib/http-human-oversight-adapter.js": [
         "lib/agent-action-firewall.js",
@@ -3836,6 +3839,13 @@
       "schemas/v5/agent-identity-readiness.js": [
         "schemas/v5/agent-identity-coverage.js"
       ],
+      "schemas/v5/shared-trust-package-sections.js": [
+        "schemas/v5/shared-trust-package-guards.js"
+      ],
+      "schemas/v5/shared-trust-package-validator.js": [
+        "schemas/v5/shared-trust-package-guards.js",
+        "schemas/v5/shared-trust-package-sections.js"
+      ],
       "scripts/a2a-conformance/consumer.js": [
         "scripts/a2a-conformance/replay-store.js",
         "scripts/a2a-conformance/verifier.js"
@@ -3967,6 +3977,7 @@
       "scripts/run-test-shard.js": [
         "scripts/ci-shard-manifest.js",
         "scripts/junit-merge.js",
+        "scripts/shard-hang-diagnostics.js",
         "scripts/test-state-sandbox.js"
       ],
       "scripts/run-tests.js": [
