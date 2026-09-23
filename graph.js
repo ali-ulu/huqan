@@ -1,30 +1,18 @@
-const fs = require('fs');
-const path = require('path');
-
-// SQLite opsiyonel — yoksa JSON fallback
-let Database;
-try { Database = require('better-sqlite3'); } catch (_) { Database = null; }
-
 const {
   CAUSAL_RELATIONS,
   STANDARD_RELATIONS,
-  RECEIPT_FAMILY_MIGRATION_ERROR_CODE,
   normalizeWorkspaceId,
-  nodeStorageKey,
   edgeIndexKey,
-  nowIso,
   compareCausalEdges,
 } = require('./lib/graph-record-utils');
 const { derivePersistenceLayout, resolveDefaultMemoryPath } = require('./lib/memory-store-utils');
 const { assertGraphPersistenceWritable } = require('./lib/graph-json-persistence');
 const { saveSnapshot, writeCurrentState } = require('./lib/graph-json-snapshot');
-const { assertStoreOpenAllowed, handleSqliteInitializationError, hasExistingPersistenceFile } = require('./lib/sqlite-persistence-validation');
 const { countAuditEvents, queryAuditEvents, readAuditEvents } = require('./lib/audit-query');
 const { applyTemporalEdgeMetadata, beginEdgeTouchScope, downgradeEdge, edgeTouchKey } = require('./lib/graph-edge-mutations');
 const { getCausalChain: runCausalChain } = require('./lib/graph-causal-chain');
 const { getCandidateClaims: runCandidateClaimsRead } = require('./lib/graph-candidate-claims-read');
 const { addCandidateClaim: runCandidateClaimWrite } = require('./lib/graph-candidate-claims-write');
-const { initGraphSchema, createGraphStmts } = require('./lib/graph-sqlite-schema');
 const {
   getEdge: runEdgeRead,
   getEdgesBetween: runEdgesBetweenRead,
@@ -47,7 +35,6 @@ const { prune: runGraphPrune } = require('./lib/graph-prune');
 const { optimize: runGraphOptimize } = require('./lib/graph-optimize');
 const { isCausalRelation: runIsCausalRelation, getCausalRelations: runCausalRelations, getCausalEdges: runCausalEdges } = require('./lib/graph-causal-relation-read');
 const { addEdge: runEdgeWrite } = require('./lib/graph-edge-write');
-const { ensureMutationReceiptFamilySchema: runMutationReceiptFamilySchema } = require('./lib/graph-mutation-receipt-schema');
 const consolidateEdges = require('./lib/graph-consolidate-edges');
 const {
   stripEmbeddings: runStripEmbeddings,
@@ -85,6 +72,14 @@ const {
   optimizeStoreApi: runOptimizeStoreApi,
   statsStoreApi: runStatsStoreApi,
 } = require('./lib/graph-store-adapters');
+const {
+  isSqliteAvailable,
+  openSqlite: runOpenSqlite,
+  closeSqlite: runCloseSqlite,
+  reopen: runReopenSqlite,
+  initDb: runInitGraphDb,
+  ensureMutationReceiptFamilySchema: runMutationReceiptFamilySchema,
+} = require('./lib/graph-sqlite-lifecycle');
 
 class Graph {
   /**
@@ -113,7 +108,7 @@ class Graph {
     this._edgeTouchScope = null;
 
     // SQLite kurulumu
-    const wantSQLite = opts.useSQLite !== false && Database !== null;
+    const wantSQLite = opts.useSQLite !== false && isSqliteAvailable();
     this._wantSqlite = wantSQLite;
     // Retained so reopen() can rebuild the handle against the same options
     // (busy timeout, migration flags) after restore replaced the DB file.
@@ -125,61 +120,11 @@ class Graph {
     }
   }
 
-  /**
-   * Opens the SQLite handle and runs schema/migration/statement preparation.
-   * Idempotent: safe to call again on a database file that restore just put in
-   * place (CREATE ... IF NOT EXISTS + guarded ALTERs).
-   */
-  _openSqlite(opts) {
-    const dbPath = this._paths.dbPath;
-    const hasExistingDatabase = assertStoreOpenAllowed(dbPath, opts);
-    try {
-      this._db = new Database(dbPath);
-      this._initDB(opts);
-    } catch (e) {
-      try { this._db?.close(); } catch (_) {}
-      this._db = null;
-      this._stmts = null;
-      handleSqliteInitializationError(e, hasExistingDatabase, RECEIPT_FAMILY_MIGRATION_ERROR_CODE);
-    }
-  }
-
-  /**
-   * Closes the SQLite handle without touching in-memory state. Windows cannot
-   * rename over an open database file (fs.renameSync -> EPERM; rename-over-open
-   * is POSIX-only), and memory.db is exactly the file restore replaces. The CLI
-   * closes the handle before the replacement and reopens it afterwards. See #1848.
-   */
-  closeSqlite() {
-    if (this._db) {
-      try { this._db.close(); } catch (_) {}
-      this._db = null;
-      this._stmts = null;
-    }
-  }
-
-  /**
-   * Closes any stale handle and reopens the SQLite database file. In-memory
-   * data is left untouched and the caller still calls `load()` afterwards to
-   * repopulate the graph from the file restore just wrote. No-op when this
-   * graph does not use SQLite (JSON mode or better-sqlite3 unavailable).
-   */
-  reopen(opts = this._sqliteOptions) {
-    this.closeSqlite();
-    if (!this._wantSqlite || Database === null) return;
-    this._openSqlite(opts || {});
-  }
-
-  // ─── SQLite şema ──────────────────────────────────────────────────────────
-
-  _initDB(opts = {}) {
-    initGraphSchema(this._db, opts);
-    this._stmts = createGraphStmts(this._db);
-  }
-
-  _ensureMutationReceiptFamilySchema() {
-    return runMutationReceiptFamilySchema(this._db);
-  }
+  _openSqlite(opts) { return runOpenSqlite(this, opts); }
+  closeSqlite() { return runCloseSqlite(this); }
+  reopen(opts = this._sqliteOptions) { return runReopenSqlite(this, opts); }
+  _initDB(opts = {}) { return runInitGraphDb(this, opts); }
+  _ensureMutationReceiptFamilySchema() { return runMutationReceiptFamilySchema(this); }
 
   /**
    * JSON-backend durable mutation journal file, sibling to memoryPath (same
