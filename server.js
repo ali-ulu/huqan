@@ -5,11 +5,10 @@ const {
 validateEnvironmentCompatibility();
 
 const http = require('http');
-const { readFileSync } = require('fs');
 const { createKernel } = require('./lib/kernel-factory');
 const { createBackgroundTimers } = require('./lib/http/background-timers');
 const { createServerLifecycle, requireApiKeyAtBoot } = require('./lib/http/server-boot'), { resolveHttpServerTimeouts, resolveRequestLimits, createConcurrencyLimiter, DEFAULT_RETRY_AFTER_MS } = require('./lib/http/server-timeouts'), { resolveRequestUrl } = require('./lib/http/request-origin');
-{ handlePublicBadgeRequest } = require('./lib/http/public-badge-route'), { handleLlmProxyRequest } = require('./lib/llm-proxy/proxy-mount');
+const { handlePublicBadgeRequest } = require('./lib/http/public-badge-route'), { handleLlmProxyRequest } = require('./lib/llm-proxy/proxy-mount');
 const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
 const { handleWorkflowContractRoute } = require('./lib/http/workflow-contract-route');
 const { createTrustQueryRoutes } = require('./lib/http/trust-query-routes');
@@ -18,11 +17,9 @@ const { createTrustQueryRoutes } = require('./lib/http/trust-query-routes');
 const { createViewerMount } = require('./lib/http/viewer-mount');
 const { createExternalClientProductionBoundary } = require('./lib/external-client-production-boundary');
 const { createServerRouteRuntime } = require('./lib/http/server-route-runtime');
-const { createOptionalRouteBoundaries } = require('./lib/http/optional-boundaries'), { createPrGuardianOptions } = require('./lib/http/pr-guardian-config'), { createFitnessDashboardRoute } = require('./lib/http/fitness-dashboard-route'), { readTrustedBatchKeys } = require('./lib/external-action-receipt-collector'), { readCollectorSealKey } = require('./lib/collector-seal-config');
+const { createOptionalRouteBoundaries } = require('./lib/http/optional-boundaries');
 const pkg = require('./package.json');
 const {
-  DEFAULT_MAX_UPLOAD_BODY,
-  DEFAULT_MAX_JSON_BODY,
   checkRateLimit,
   clearExpiredRateLimitEntries,
   readJsonBody,
@@ -43,16 +40,12 @@ const backgroundTimers = createBackgroundTimers();
 backgroundTimers.add(setInterval(() => {
   clearExpiredRateLimitEntries();
 }, 60_000));
-backgroundTimers.add(setInterval(() => { try { ingestApprovalRuntime.recover(); } catch (error) { writeStructuredLog(console, 'error', 'http.ingest_approval_recovery_error', {}, { runtime: 'http', errorCode: error?.code || 'INGEST_APPROVAL_RECOVERY_FAILED' }); } }, Math.max(5_000, Math.floor(ingestApprovalRuntime.leaseMs / 2))));
 
 const {
-  ALLOWED_CORS_HOSTS,
   JSON_CONTENT_TYPE,
-  isSafeOrigin,
   buildCorsHeaders,
   memoryContextSecurityHeaders,
   writeJson,
-  writeApiError,
   sendOptions,
   getRateLimitKey,
   getSafeMemoryLabel,
