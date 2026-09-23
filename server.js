@@ -11,6 +11,8 @@ const { createServerLifecycle, requireApiKeyAtBoot } = require('./lib/http/serve
 const { createTrustQueryRoutes } = require('./lib/http/trust-query-routes');
 const { createViewerMount } = require('./lib/http/viewer-mount');
 const { createExternalClientProductionBoundary } = require('./lib/external-client-production-boundary');
+const { CANONICAL_AGENT_VERSION, createAgent } = require('./agentRuntime');
+const { callTool: callMcpTool } = require('./mcpServer');
 const { createServerRouteRuntime } = require('./lib/http/server-route-runtime');
 const { createServerRequestHandler } = require('./lib/http/server-request-handler');
 const { createOptionalRouteBoundaries } = require('./lib/http/optional-boundaries');
@@ -80,6 +82,9 @@ const routeRuntime = createServerRouteRuntime({
   createTrustQueryRoutes,
   createOptionalRouteBoundaries,
   createExternalClientProductionBoundary,
+  createAgent,
+  callMcpTool,
+  agentVersion: CANONICAL_AGENT_VERSION,
 });
 const {
   externalClientBoundary,
@@ -192,5 +197,5 @@ server.concurrencyLimiter = concurrencyLimiter;
 server.requestLimits = requestLimits;
 module.exports = server;
 module.exports.getRateLimitKey = getRateLimitKey;
-module.exports.getHtmlPage = getHtmlPage;
+module.exports.getHtmlPage = require('./lib/http/static-assets').getHtmlPage;
 
