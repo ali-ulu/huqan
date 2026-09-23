@@ -44,7 +44,7 @@
     },
     "kernel.js": {
       "band": "decompose",
-      "lines": 1003,
+      "lines": 925,
       "signals": [
         "FANOUT:39"
       ]
@@ -713,6 +713,7 @@
       "lib/kernel-learn-document.js": "Core",
       "lib/kernel-learn-from-llm.js": "Core",
       "lib/kernel-mutation-admission.js": "Core",
+      "lib/kernel-propose-node.js": "Core",
       "lib/kernel-read-use-cases.js": "Core",
       "lib/kernel-self-evolve.js": "Core",
       "lib/kernel-self-learn.js": "Core",
@@ -1368,10 +1369,10 @@
         "lib/kernel-learn-document.js",
         "lib/kernel-learn-from-llm.js",
         "lib/kernel-mutation-admission.js",
+        "lib/kernel-propose-node.js",
         "lib/kernel-read-use-cases.js",
         "lib/kernel-self-evolve.js",
         "lib/kernel-self-learn.js",
-        "lib/learn-admission-request.js",
         "lib/learn-edge-options.js",
         "lib/learn-use-case.js",
         "lib/memory-admission-gate.js",
@@ -2675,6 +2676,10 @@
       "lib/kernel-mutation-admission.js": [
         "lib/conflict-detector.js",
         "lib/mutation-admission.js"
+      ],
+      "lib/kernel-propose-node.js": [
+        "lib/background-provenance.js",
+        "lib/cli-mutation-audit-intent.js"
       ],
       "lib/kernel-self-evolve.js": [
         "lib/graph-record-utils.js"

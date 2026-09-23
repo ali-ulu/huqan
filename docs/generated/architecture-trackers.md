@@ -7,7 +7,7 @@ Tracked in total: **59**
 
 | File | Lines | Signals |
 |---|---:|---|
-| `kernel.js` | 1003 | FANOUT:39 |
+| `kernel.js` | 925 | FANOUT:39 |
 
 ## Recorded debt, 401-800 lines (56)
 
