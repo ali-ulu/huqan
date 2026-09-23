@@ -257,12 +257,15 @@ describe('V4-B2A: existing durable ingest approval runtime contract', () => {
     assert.equal(durable.status, 'approved');
     assert.equal(durable.context.receipt.receiptId, approved.body.receipt.receiptId);
 
-    // Superseded: the route no longer executes ingest inline. server.js now
-    // delegates to the bounded action owner, which is the only caller.
+    // Superseded: the route no longer executes ingest inline. The HTTP ingest
+    // approval runtime delegates to the bounded action owner, which is the only caller.
     const source = fs.readFileSync(require.resolve('../server'), 'utf8');
-    assert.doesNotMatch(source, /await handleIngest\(/);
-    assert.match(source, /await decideIngestApproval\(/);
-    assert.doesNotMatch(source, /executeReviewedExternalGraphMutation/);
+    const runtimeSource = fs.readFileSync(require.resolve('../lib/http/ingest-approval-runtime'), 'utf8');
+    for (const owner of [source, runtimeSource]) {
+      assert.doesNotMatch(owner, /await handleIngest\(/);
+      assert.doesNotMatch(owner, /executeReviewedExternalGraphMutation/);
+    }
+    assert.match(runtimeSource, /return decideIngestApproval\(/);
     assert.equal(VERDICT, 'V4_B2_EXISTING_RUNTIME_CONTRACT_BLOCKED_GAP');
   });
 });

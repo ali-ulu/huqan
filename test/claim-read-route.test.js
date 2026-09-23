@@ -231,8 +231,9 @@ test('server.js mounts the route through trust-query-routes, not directly', () =
   // handleClaimReadRoute into the single handleTrustQueryRoutes it already
   // returns, so server.js's one existing require/mount line covers both.
   const serverSource = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  const dispatcherSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'http', 'server-request-handler.js'), 'utf8');
   assert.ok(!serverSource.includes("require('./lib/http/claim-read-route')"), 'server.js does not require this module directly');
-  assert.ok(serverSource.includes('if (handleTrustQueryRoutes(req, res, reqUrl, correlation)) return;'), 'router delegates through the existing mount');
+  assert.ok(dispatcherSource.includes('if (handleTrustQueryRoutes(req, res, reqUrl, correlation)) return;'), 'dispatcher delegates through the existing mount');
 
   const mountSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'http', 'trust-query-routes.js'), 'utf8');
   assert.ok(mountSource.includes("require('./claim-read-route')"), 'trust-query-routes mounts the claim-read route');

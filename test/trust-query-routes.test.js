@@ -80,9 +80,10 @@ test('#2128: empty query is INVALID_QUERY without touching the graph', () => {
 
 test('#2128: server.js routes the four paths through the mount', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  const dispatcherSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'http', 'server-request-handler.js'), 'utf8');
   assert.ok(source.includes("require('./lib/http/trust-query-routes')"), 'server requires the mount');
   assert.ok(!source.includes("require('./lib/provenance-query')"), 'provenance-query require moved out with its uses');
-  assert.ok(source.includes('if (handleTrustQueryRoutes(req, res, reqUrl, correlation)) return;'), 'router delegates');
+  assert.ok(dispatcherSource.includes('if (handleTrustQueryRoutes(req, res, reqUrl, correlation)) return;'), 'dispatcher delegates');
   // #2788 Phase 2: /api/claim-read (lib/http/claim-read-route.js) mounts
   // through this same module rather than a second server.js require, so the
   // new route does not add to server.js's own fan-out.

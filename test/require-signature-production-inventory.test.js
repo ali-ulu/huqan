@@ -27,7 +27,9 @@ test('requireSignature production caller inventory remains explicit', () => {
     // signature check, moved verbatim from bin/huqan-gate-hook.js (#2248).
     'lib/gate-hook-management.js',
     'lib/http/optional-boundaries.js',
+    // The receipt collector's RECEIPT_REQUIRE_SIGNATURE wiring moved out of
+    // server.js with the rest of the ingest workflow runtime (#2128).
+    'lib/http/server-ingest-workflow-runtime.js',
     'lib/receipt/bounded-receipt-export.js',
-    'server.js',
   ]);
 });

@@ -338,14 +338,21 @@ test('a2a route: the production call chain reaches the V5 verification modules',
   const serverSource = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
   assert.ok(serverSource.includes("require('./lib/http/optional-boundaries')"),
     'server.js must require the optional-route boundary');
-  assert.ok(serverSource.includes('optionalRoutes.route(req, res, reqUrl)'),
-    'server.js must dispatch to the optional-route boundary');
+  // #2128 split server.js: the ingest workflow runtime builds the boundary and
+  // the request handler dispatches to it. Both hops are asserted so a runtime
+  // that stopped building it cannot pass on the handler's text alone.
+  const ingestRuntimeSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'http', 'server-ingest-workflow-runtime.js'), 'utf8');
+  assert.ok(ingestRuntimeSource.includes('createOptionalRouteBoundaries({'),
+    'the ingest workflow runtime must build the optional-route boundary');
+  const handlerSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'http', 'server-request-handler.js'), 'utf8');
+  assert.ok(handlerSource.includes('optionalRoutes.route(req, res, reqUrl)'),
+    'the request handler must dispatch to the optional-route boundary');
   // P0-D moved the individual flags into one spreadable authContext so that
   // adding a route stops editing server.js. The enablement still has to reach
   // the auth policy, so the assertion follows it to its new owner rather than
   // being dropped.
-  assert.ok(serverSource.includes('...optionalRoutes.authContext'),
-    'server.js must pass the enablement context to the auth policy');
+  assert.ok(handlerSource.includes('...optionalRoutes.authContext'),
+    'the request handler must pass the enablement context to the auth policy');
 
   // A second composite now sits above the A2A one: the memory-approval route
   // was the first deployment-gated route that is not A2A, and server.js may not
