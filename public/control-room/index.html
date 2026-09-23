@@ -22,27 +22,34 @@
       <button data-go="approvals"><svg viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7"/></svg>Approvals<span class="count num" id="nav-approvals-count" hidden>0</span></button>
       <button data-go="receipts"><svg viewBox="0 0 16 16"><path d="M4 1.5h8v13l-2-1.3-2 1.3-2-1.3-2 1.3z"/><path d="M6 5.5h4M6 8.5h4"/></svg>Receipts</button>
       <button data-go="agents"><svg viewBox="0 0 16 16"><circle cx="8" cy="5.5" r="3"/><path d="M2.5 14.5c.8-3 3-4.5 5.5-4.5s4.7 1.5 5.5 4.5"/></svg>Agents</button>
+      <button data-go="errors" data-role-hide="approver viewer"><svg viewBox="0 0 16 16"><path d="M8 1.8l6.5 12H1.5z"/><path d="M8 6.5v3.2M8 11.8v.2"/></svg>Errors<span class="count warn num" id="nav-errors-count" hidden>0</span></button>
+      <button data-go="customize"><svg viewBox="0 0 16 16"><path d="M2 4h7M12 4h2M2 12h2M7 12h7"/><circle cx="10.5" cy="4" r="1.5"/><circle cx="5.5" cy="12" r="1.5"/></svg>Customize</button>
       <button data-go="soon"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2"/><path d="M8 4.5V8l2.5 1.5"/></svg>Coming soon</button>
     </nav>
     <div class="grow"></div>
     <div class="side-foot">
-      <div class="session-status-row">
-        <span class="session-state" id="session-state">Not connected</span>
-        <button type="button" class="side-edit" id="settings-toggle" aria-expanded="false" aria-controls="session-form">Settings</button>
-      </div>
+      <div class="live" id="gate-live"><i></i><span>Checking gate&hellip;</span></div>
       <form id="session-form" class="session-form" hidden>
+        <span class="session-note" id="session-note"></span>
         <label for="session-key">API key<input type="password" id="session-key" autocomplete="off" placeholder="HUQAN API key"></label>
         <label for="session-ws">Workspace<input type="text" id="session-ws" value="default"></label>
         <div class="session-actions"><button class="btn" type="submit">Connect</button></div>
-        <label for="theme">Theme
-          <select id="theme">
-            <option value="system">System</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
-        </label>
       </form>
-      <a class="side-edit" id="bug-report-link" href="https://github.com/ali-ulu/huqan/issues/new" target="_blank" rel="noopener">Report a bug</a>
+      <button class="side-edit" data-go="customize">Drag items to reorder, or edit here</button>
+      <label for="role">View as
+        <select id="role">
+          <option value="admin">Admin</option>
+          <option value="approver">Approver</option>
+          <option value="viewer">Viewer</option>
+        </select>
+      </label>
+      <label for="theme">Theme
+        <select id="theme">
+          <option value="system">System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </label>
     </div>
   </aside>
 
@@ -50,55 +57,65 @@
     <!-- OVERVIEW -->
     <section class="view" data-view="overview">
       <div class="topbar">
-        <div><h1>Overview</h1><p>Everything your agents tried in the selected window, what HUQAN decided, and what is waiting on you.</p></div>
+        <div><h1>Is HUQAN doing its job?</h1><p>Everything your agents tried in the selected window, what HUQAN decided, and what is waiting on you.</p></div>
         <div class="tools">
           <div class="seg" role="group" aria-label="Time window" id="ov-window">
             <button aria-pressed="false" data-win="3600000">1h</button>
             <button aria-pressed="true" data-win="86400000">24h</button>
             <button aria-pressed="false" data-win="604800000">7d</button>
           </div>
-          <button class="btn" id="ov-refresh">&#8635; Refresh</button>
-          <input type="password" id="ib-cap" autocomplete="off" placeholder="operator capability" aria-label="Operator capability for a single integrity check" style="max-width:190px">
-          <button class="btn" id="ib-check">Check integrity</button>
         </div>
       </div>
       <div class="ibanner" id="ibanner" hidden role="alert"></div>
       <div class="status" id="ov-status" hidden></div>
       <div class="grid" id="ov-grid">
-        <article class="panel verdict span-12">
+        <article class="panel verdict span-12" data-widget="verdict">
           <div class="verdict-top">
             <span class="big num" id="ov-total">&mdash;</span>
             <span class="lbl" id="ov-total-label">agent actions watched</span>
+            <div class="ring-wrap">
+              <svg viewBox="0 0 64 64" width="64" height="64" aria-hidden="true">
+                <defs><linearGradient id="ring-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--accent)"/><stop offset="1" style="stop-color:var(--pass)"/></linearGradient></defs>
+                <circle cx="32" cy="32" r="26" class="ring-bg"/>
+                <circle cx="32" cy="32" r="26" class="ring-fg" id="ring-fg"/>
+              </svg>
+              <div><b class="num" id="ov-ring-pct">&ndash;</b><span>decided by policy,<br>no person needed</span></div>
+            </div>
           </div>
           <div class="vbar" aria-hidden="true" id="ov-vbar">
-            <span data-bar="pass"></span>
-            <span data-bar="approved"></span>
-            <span data-bar="auto"></span>
-            <span data-bar="review"></span>
-            <span data-bar="block"></span>
+            <span data-bar="pass" hidden></span>
+            <span data-bar="approved" hidden></span>
+            <span data-bar="auto" hidden></span>
+            <span data-bar="review" hidden></span>
+            <span data-bar="block" hidden></span>
           </div>
           <div class="vlegend" id="ov-vlegend"></div>
           <p class="counting-since" id="ov-since"></p>
         </article>
 
-        <article class="panel chart span-7">
-          <div class="panel-head"><h2>Recent days</h2><span class="hint">actions per day, by decision</span></div>
+        <article class="panel chart span-7" data-widget="trend">
+          <div class="panel-head"><h2>Last 7 days</h2><span class="hint">actions per day, by decision</span></div>
           <div id="ov-chart"></div>
         </article>
 
-        <article class="panel span-5">
+        <article class="panel span-5" data-widget="approvals">
           <div class="panel-head"><h2>Waiting on you</h2><button class="link" data-go="approvals">All approvals</button></div>
           <div class="rows" id="ov-approvals"><div class="empty">Loading.</div></div>
         </article>
 
-        <article class="panel span-5">
-          <div class="panel-head"><h2>Agents observed</h2><button class="link" data-go="agents">Manage</button></div>
+        <article class="panel span-5" data-widget="agents">
+          <div class="panel-head"><h2>Connected agents</h2><button class="link" data-go="agents">Manage</button></div>
           <div class="rows" id="ov-agents"><div class="empty">Loading.</div></div>
         </article>
 
-        <article class="panel span-7">
+        <article class="panel span-7" data-widget="recent">
           <div class="panel-head"><h2>Just now</h2><button class="link" data-go="activity">Full activity</button></div>
           <div class="rows" id="ov-recent"><div class="empty">Loading.</div></div>
+        </article>
+
+        <article class="panel span-12 health" data-widget="health">
+          <div class="health-text"><span class="chip c-pass" id="ov-health-chip">No system errors</span><span>HUQAN's own problems are kept off this page so they never read as agent decisions.</span></div>
+          <button class="btn" data-go="errors" data-role-hide="approver viewer">Open Errors</button>
         </article>
       </div>
     </section>
@@ -117,6 +134,7 @@
           <option value="review">Waiting for review</option>
           <option value="block">Blocked</option>
         </select>
+        <button class="btn" id="act-save" type="button">Save view</button>
         <span class="result num" id="act-count"></span>
       </div>
       <div class="status" id="act-status"></div>
@@ -179,12 +197,35 @@
       <div class="agents" id="agents-list"></div>
     </section>
 
+    <!-- ERRORS -->
+    <section class="view" data-view="errors" hidden>
+      <div class="topbar"><div><h1>Errors</h1><p>Problems with HUQAN itself: connections, storage, receipt checks. Kept apart from agent decisions.</p></div></div>
+      <div class="rows panel" id="errors"></div>
+      <div class="panel integrity">
+        <div class="panel-head"><h2>Emergency-stop integrity</h2><span class="hint">Operator only &middot; one check per capability</span></div>
+        <div class="integrity-form">
+          <input type="password" id="ib-cap" autocomplete="off" placeholder="Operator capability" aria-label="Operator capability for a single integrity check">
+          <button class="btn" id="ib-check" type="button">Check integrity</button>
+        </div>
+      </div>
+      <a class="side-edit" id="bug-report-link" href="https://github.com/ali-ulu/huqan/issues/new" target="_blank" rel="noopener">Report a bug</a>
+    </section>
+
+    <!-- CUSTOMIZE -->
+    <section class="view" data-view="customize" hidden>
+      <div class="topbar"><div><h1>Customize</h1><p>Put things in the order you work. Drag a row or use the arrows; untick to hide. Saved in this browser only.</p></div><button class="btn" id="reset-layout" type="button">Reset to default</button></div>
+      <div class="grid">
+        <div class="panel span-6"><div class="panel-head"><h2>Sidebar</h2><span class="hint">You can also drag items in the sidebar itself</span></div><ul class="order" id="order-nav"></ul></div>
+        <div class="panel span-6"><div class="panel-head"><h2>Overview</h2><span class="hint">Top to bottom</span></div><ul class="order" id="order-widgets"></ul></div>
+      </div>
+      <h2 class="saved-head">Saved views</h2>
+      <div class="rows panel" id="saved"></div>
+    </section>
+
     <!-- SOON -->
     <section class="view" data-view="soon" hidden>
       <div class="topbar"><div><h1>Coming soon</h1><p>Planned, not built. Listed here so they never appear as locked panels on the pages you use.</p></div></div>
       <div class="roadmap">
-        <div class="plan"><span class="chip c-muted">Planned</span><h3>Errors view</h3><p>A bounded feed of HUQAN's own problems &mdash; connection, storage, receipt-check failures &mdash; kept apart from agent decisions. Today's sources are scattered across a few subsystems and not yet unified into one feed.</p></div>
-        <div class="plan"><span class="chip c-muted">Planned</span><h3>Customize</h3><p>Reorder and hide sidebar items and Overview widgets, saved to this browser.</p></div>
         <div class="plan"><span class="chip c-muted">Planned</span><h3>Roles (Admin / Approver / Viewer)</h3><p>Needs an authorization model before approve buttons can be role-gated for real.</p></div>
         <div class="plan"><span class="chip c-muted">Planned</span><h3>Chat notifications</h3><p>Slack, Telegram, Microsoft Teams and email adapters behind the existing signed webhook boundary.</p></div>
         <div class="plan"><span class="chip c-muted">Planned</span><h3>Approve from chat</h3><p>Decide on a paused action without opening the Control Room. Requires an authenticated, signed callback first.</p></div>

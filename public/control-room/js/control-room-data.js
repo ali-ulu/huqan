@@ -11,6 +11,55 @@
   const apiKey = () => sessionStorage.getItem('huqan-api-key') || '';
   const hasKey = () => Boolean(apiKey());
 
+  // HUQAN's own failures (network, 5xx, refused auth) are kept here, apart
+  // from agent decisions, and shown in the Errors view. Bounded: the newest
+  // MAX_SYSTEM_ERRORS only, for this page load.
+  const MAX_SYSTEM_ERRORS = 50;
+  let systemErrors = [];
+  function recordSystemError(path, status, error) {
+    const entry = {
+      at: new Date().toISOString(),
+      path: String(path).split('?')[0],
+      status: status || null,
+      code: (error && error.code) || (status ? `HTTP_${status}` : 'NETWORK_ERROR'),
+      message: (error && error.message) || '',
+    };
+    systemErrors = [entry, ...systemErrors].slice(0, MAX_SYSTEM_ERRORS);
+    global.dispatchEvent(new CustomEvent('huqan:system-error', { detail: entry }));
+  }
+
+  // A request only counts as a system error when HUQAN itself failed: no
+  // answer, a server error, or refused credentials. A 4xx about the request
+  // (bad filter, unknown receipt) is the caller's to explain.
+  function isSystemFailure(status) {
+    return !status || status >= 500 || status === 401;
+  }
+
+  function failure(path, status, body) {
+    const error = body.error || { code: `HTTP_${status}`, message: `HTTP ${status}` };
+    if (isSystemFailure(status)) recordSystemError(path, status, error);
+    if (status === 401) global.dispatchEvent(new CustomEvent('huqan:auth-required'));
+    return { ok: false, status, error };
+  }
+
+  // GET /health is public and says whether this server wants an API key at
+  // all. The key form is shown only when it does.
+  async function fetchHealth() {
+    let response;
+    try {
+      response = await fetch('/health', { cache: 'no-store' });
+    } catch (error) {
+      recordSystemError('/health', null, { code: 'NETWORK_ERROR', message: error.message });
+      return { ok: false };
+    }
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || body.ok !== true) {
+      recordSystemError('/health', response.status, body.error);
+      return { ok: false };
+    }
+    return { ok: true, apiAuthRequired: body.apiAuthRequired === true };
+  }
+
   function authHeaders(extra) {
     const key = apiKey();
     return Object.assign({}, extra || {}, key ? { Authorization: `Bearer ${key}` } : {});
@@ -26,16 +75,12 @@
     try {
       response = await fetch(withWorkspace(path), { headers: authHeaders(), cache: 'no-store' });
     } catch (error) {
-      return { ok: false, error: { code: 'NETWORK_ERROR', message: error.message } };
+      const networkError = { code: 'NETWORK_ERROR', message: error.message };
+      recordSystemError(path, null, networkError);
+      return { ok: false, error: networkError };
     }
     const body = await response.json().catch(() => ({}));
-    if (!response.ok || body.ok === false) {
-      return {
-        ok: false,
-        status: response.status,
-        error: body.error || { code: `HTTP_${response.status}`, message: `HTTP ${response.status}` },
-      };
-    }
+    if (!response.ok || body.ok === false) return failure(path, response.status, body);
     return { ok: true, body };
   }
 
@@ -53,16 +98,12 @@
         body: JSON.stringify(payload || {}),
       });
     } catch (error) {
-      return { ok: false, error: { code: 'NETWORK_ERROR', message: error.message } };
+      const networkError = { code: 'NETWORK_ERROR', message: error.message };
+      recordSystemError(path, null, networkError);
+      return { ok: false, error: networkError };
     }
     const body = await response.json().catch(() => ({}));
-    if (!response.ok || body.ok === false) {
-      return {
-        ok: false,
-        status: response.status,
-        error: body.error || { code: `HTTP_${response.status}`, message: `HTTP ${response.status}` },
-      };
-    }
+    if (!response.ok || body.ok === false) return failure(path, response.status, body);
     return { ok: true, body };
   }
 
@@ -157,6 +198,8 @@
   global.HuqanControlRoomData = {
     workspace,
     hasKey,
+    fetchHealth,
+    systemErrors: () => systemErrors.slice(),
     setSession(key, ws) {
       if (key !== undefined) sessionStorage.setItem('huqan-api-key', key || '');
       if (ws !== undefined) sessionStorage.setItem('huqan-workspace', ws || 'default');

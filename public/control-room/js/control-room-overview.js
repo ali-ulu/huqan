@@ -55,50 +55,99 @@
     $('#ov-total').textContent = total.toLocaleString();
     $('#ov-total-label').textContent = `agent actions watched in ${WINDOW_LABEL[currentWindowMs] || 'the selected window'}`;
     const bar = $('#ov-vbar');
-    const set = (name, value) => { const seg = bar.querySelector(`[data-bar="${name}"]`); if (seg) seg.style.flexGrow = Math.max(value, total ? 0 : 1); };
+    const set = (name, value) => {
+      const seg = bar.querySelector(`[data-bar="${name}"]`);
+      if (!seg) return;
+      seg.style.flexGrow = value;
+      seg.hidden = !value;
+    };
     set('pass', counts.pass); set('approved', approved); set('auto', counts.auto); set('review', counts.review); set('block', counts.block);
+    // Auto-approved stays its own bucket (design section 3) but, like the
+    // mockup's four columns, only takes a column when it actually happened.
     $('#ov-vlegend').innerHTML = `
       <div class="vl" style="--c:var(--pass)"><b class="num">${counts.pass}</b><span>Passed on policy</span></div>
-      <div class="vl" style="--c:color-mix(in oklab, var(--pass) 55%, var(--surface))"><b class="num">${approved}</b><span>Passed after your approval (this session)</span></div>
-      <div class="vl" style="--c:var(--gold)"><b class="num">${counts.auto}</b><span>Auto-approved</span></div>
-      <div class="vl" style="--c:var(--review)"><b class="num">${counts.review}</b><span>Waiting for review (${openReviewCount} open now)</span><br><button class="link" data-go="approvals">Review now</button></div>
-      <div class="vl" style="--c:var(--block)"><b class="num">${counts.block}</b><span>Blocked before they ran</span></div>
+      <div class="vl" style="--c:color-mix(in oklab, var(--pass) 55%, var(--surface))"><b class="num">${approved}</b><span>Passed after your approval</span></div>
+      ${counts.auto ? `<div class="vl" style="--c:var(--gold)"><b class="num">${counts.auto}</b><span>Auto-approved</span></div>` : ''}
+      <div class="vl" style="--c:var(--review)"><b class="num">${counts.review}</b><span>Waiting for review</span>${openReviewCount ? '<br><button class="link" data-go="approvals">Review now</button>' : ''}</div>
+      <div class="vl" style="--c:var(--block)"><b class="num">${counts.block}</b><span>Blocked before they ran</span>${counts.block ? '<br><button class="link" data-jump-verdict="block">See what was stopped</button>' : ''}</div>
     `;
-    const since = earliest ? new Date(earliest).toLocaleString() : 'no decisions recorded yet';
-    $('#ov-since').textContent = `Counting gate decisions since ${since}${truncated ? ' (more events exist than shown; this window was truncated at the read cap)' : ''}. HUQAN does not re-record a gate decision when it is later resolved, so "Waiting for review" here is every review decision made in the window; the "open now" figure is the live queue. "Passed after your approval" only counts approvals made in this browser session — the runtime does not yet expose historical approval outcomes.`;
+    $('#ov-vlegend').style.gridTemplateColumns = `repeat(${counts.auto ? 5 : 4}, minmax(0, 1fr))`;
+    const byPolicy = total ? Math.round(((counts.pass + counts.block) / total) * 100) : 0;
+    $('#ov-ring-pct').textContent = total ? `${byPolicy}%` : '–';
+    const C = 2 * Math.PI * 26;
+    $('#ring-fg').style.strokeDasharray = `${(C * byPolicy / 100).toFixed(1)} ${C.toFixed(1)}`;
+    $('#ring-fg').style.visibility = byPolicy ? '' : 'hidden';
+    $('#ov-since').textContent = earliest
+      ? `Counting since ${new Date(earliest).toLocaleString()}${truncated ? ' · window truncated at the read cap' : ''}`
+      : '';
   }
 
-  function renderChart(dailyItems) {
-    const byDay = new Map();
-    dailyItems.forEach((item) => {
-      const day = new Date(item.createdAt).toISOString().slice(0, 10);
-      const bucket = byDay.get(day) || { pass: 0, review: 0, block: 0 };
-      const status = String(item.status || '').toLowerCase();
-      if (status === 'block') bucket.block += 1;
-      else if (status === 'review') bucket.review += 1;
-      else if (status === 'allow') bucket.pass += 1;
-      byDay.set(day, bucket);
+  const DAY_MS = 86400000;
+  const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  function lastSevenDays(items) {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today.getTime() - (6 - i) * DAY_MS);
+      return { key: d.toDateString(), label: i === 6 ? 'Today' : DAY_NAMES[d.getDay()], pass: 0, review: 0, block: 0 };
     });
-    const days = [...byDay.keys()].sort().slice(-7);
-    if (!days.length) { $('#ov-chart').innerHTML = '<p class="empty">No gate decisions recorded in the last 7 days.</p>'; return; }
-    const rows = days.map((d) => ({ label: d.slice(5), ...byDay.get(d) }));
-    const max = Math.max(1, ...rows.map((r) => r.pass + r.review + r.block));
-    const W = 640, H = 200, L = 30, R = 10, T = 10, B = 24;
-    const barW = (W - L - R) / rows.length;
+    const byKey = new Map(days.map((d) => [d.key, d]));
+    items.forEach((item) => {
+      const day = byKey.get(new Date(item.createdAt).toDateString());
+      if (!day) return;
+      const status = String(item.status || '').toLowerCase();
+      if (status === 'block') day.block += 1;
+      else if (status === 'review') day.review += 1;
+      else if (status === 'allow') day.pass += 1;
+    });
+    return days;
+  }
+
+  function niceMax(v) {
+    if (v <= 4) return 4;
+    const step = 10 ** Math.floor(Math.log10(v));
+    return Math.ceil(v / step) * step;
+  }
+
+  function smoothPath(points, move) {
+    const f = (n) => n.toFixed(1);
+    return points.map((pt, i) => {
+      if (i === 0) return `${move}${f(pt[0])},${f(pt[1])}`;
+      const p0 = points[i - 2] || points[i - 1];
+      const p1 = points[i - 1];
+      const p3 = points[i + 1] || pt;
+      return `C${f(p1[0] + (pt[0] - p0[0]) / 6)},${f(p1[1] + (pt[1] - p0[1]) / 6)} ${f(pt[0] - (p3[0] - p1[0]) / 6)},${f(pt[1] - (p3[1] - p1[1]) / 6)} ${f(pt[0])},${f(pt[1])}`;
+    }).join(' ');
+  }
+
+  function renderChart(weekItems) {
+    const data = lastSevenDays(weekItems);
+    const totals = data.map((d) => d.pass + d.review + d.block);
+    const max = niceMax(Math.max(...totals));
+    const W = 640, H = 240, L = 34, R = 18, T = 18, B = 30;
     const y = (v) => T + (H - T - B) * (1 - v / max);
-    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Gate decisions per day for the last 7 days">`;
-    [0, 0.5, 1].forEach((f) => { const v = Math.round(max * f); s += `<line class="grid-line" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke-dasharray="2 6"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`; });
-    rows.forEach((r, i) => {
-      const x = L + i * barW + barW * 0.18;
-      const w = barW * 0.64;
-      let cursor = H - B;
-      [['block', 'var(--block)'], ['review', 'var(--review)'], ['pass', 'var(--pass)']].forEach(([key, color]) => {
-        const v = r[key];
-        const h = (H - T - B) * (v / max);
-        cursor -= h;
-        s += `<rect x="${x.toFixed(1)}" y="${cursor.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="${color}"><title>${esc(r.label)}: ${v} ${key}</title></rect>`;
-      });
-      s += `<text x="${(x + w / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle">${esc(r.label)}</text>`;
+    const x = (i) => L + i * (W - L - R) / (data.length - 1);
+    const cum = { pass: data.map((d) => d.pass), review: data.map((d) => d.pass + d.review), block: totals };
+    const pts = (arr) => arr.map((v, i) => [x(i), y(v)]);
+    const zero = data.map(() => 0);
+    const bands = [['pass', '--pass', zero, cum.pass], ['review', '--review', cum.pass, cum.review], ['block', '--block', cum.review, cum.block]];
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Gate decisions per day for the last 7 days, stacked by decision"><defs>`;
+    bands.forEach(([k, v]) => { s += `<linearGradient id="g-${k}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(${v});stop-opacity:.72"/><stop offset="1" style="stop-color:var(${v});stop-opacity:.16"/></linearGradient>`; });
+    s += `<linearGradient id="fade-x" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity=".25"/><stop offset=".14" stop-color="#fff" stop-opacity="1"/><stop offset="1" stop-color="#fff" stop-opacity="1"/></linearGradient><mask id="m-fade"><rect x="0" y="0" width="${W}" height="${H}" fill="url(#fade-x)"/></mask></defs>`;
+    [0, 0.25, 0.5, 0.75, 1].forEach((fr) => { const v = Math.round(max * fr); s += `<line class="grid-line" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke-dasharray="2 6"/><text x="${L - 10}" y="${y(v) + 4}" text-anchor="end">${v}</text>`; });
+    s += '<g mask="url(#m-fade)">';
+    bands.forEach(([k, v, lo, hi]) => {
+      s += `<path d="${smoothPath(pts(hi), 'M')} ${smoothPath(pts(lo).reverse(), 'L')} Z" fill="url(#g-${k})"/>`;
+      s += `<path d="${smoothPath(pts(hi), 'M')}" fill="none" style="stroke:var(${v})" stroke-width="1.6" stroke-linecap="round"/>`;
+    });
+    s += '</g>';
+    const ex = x(6), ey = y(totals[6]);
+    s += `<line x1="${ex}" x2="${ex}" y1="${ey}" y2="${y(0)}" style="stroke:var(--ink)" stroke-opacity=".16" stroke-dasharray="2 4"/>`;
+    s += `<circle cx="${ex}" cy="${ey}" r="11" style="fill:var(--block)" fill-opacity=".14"/><circle cx="${ex}" cy="${ey}" r="4.5" style="fill:var(--surface);stroke:var(--block)" stroke-width="2"/>`;
+    s += `<text x="${ex - 16}" y="${ey + 4}" text-anchor="end" style="fill:var(--ink);font-weight:600">${totals[6]} today</text>`;
+    data.forEach((d, i) => {
+      s += `<text x="${x(i)}" y="${H - 9}" text-anchor="${i === 0 ? 'start' : i === 6 ? 'end' : 'middle'}" style="${i === 6 ? 'fill:var(--ink);font-weight:600' : ''}">${d.label}</text>`;
+      s += `<rect x="${x(i) - 22}" y="${T}" width="44" height="${H - T - B}" fill="transparent"><title>${esc(d.label)}: ${d.pass} passed, ${d.review} review, ${d.block} blocked</title></rect>`;
     });
     s += '</svg><div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px"><span class="chip sq c-pass">Passed</span><span class="chip sq c-review">Review</span><span class="chip sq c-block">Blocked</span></div>';
     $('#ov-chart').innerHTML = s;
@@ -120,8 +169,8 @@
   function renderAgentsPanel(agentsSeen) {
     const entries = [...agentsSeen.entries()].sort((a, b) => new Date(b[1]) - new Date(a[1])).slice(0, 5);
     $('#ov-agents').innerHTML = entries.length ? entries.map(([id, seen]) => `
-      <div class="row"><span class="t mono">${esc(id)}</span><span class="r"><span class="chip c-pass">Seen recently</span></span>
-      <span class="s">last gate decision ${ago(seen)}</span></div>`).join('')
+      <div class="row"><span class="t mono">${esc(id)}</span><span class="r"><span class="chip c-pass">Connected</span></span>
+      <span class="s">last seen ${ago(seen)}</span></div>`).join('')
       : '<p class="empty">No agent identity has reached a gate yet in this window.</p>';
   }
 
@@ -135,10 +184,6 @@
   }
 
   async function load() {
-    if (!Data.hasKey()) {
-      renderStatus('Connect an API key in the sidebar to load real Overview data.', true);
-      return;
-    }
     renderStatus('Loading…');
     const [decisionsResult, approvalsResult, activityResult, weekResult] = await Promise.all([
       Data.fetchGateDecisions({ windowMs: currentWindowMs }),
@@ -172,12 +217,10 @@
     $$('#ov-window [data-win]').forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
     load();
   }));
-  $('#ov-refresh')?.addEventListener('click', load);
 
   // ---------- emergency-stop integrity banner (#2591, operator-only) ----------
-  // No polling: the endpoint needs a scoped single-use operator capability,
-  // so every check is one explicit click with a fresh capability pasted in.
-  // The localStorage flag is set only by a verified violation response and
+  // The check itself lives in the Errors view (control-room-app.js); this
+  // view only shows its recorded result. The localStorage flag is set only by a verified violation response and
   // cleared only by a verified clean one; an unavailable answer (403/404 or
   // network) changes nothing -- unknown is not clean.
   const IBANNER_FLAG = 'huqan-integrity-flag';
@@ -201,32 +244,9 @@
       + `${flag.reason ? ` Signal: <span class="mono">${esc(flag.reason)}</span>.` : ''}</small>`;
   }
 
-  async function checkIntegrityOnce() {
-    const input = $('#ib-cap');
-    const capability = (input ? input.value : '').trim();
-    if (input) input.value = ''; // single-use: never retain it
-    if (!capability) { toast('Paste a fresh operator capability first.'); return; }
-    const result = await Data.fetchEmergencyStopState({ operatorCapability: capability });
-    if (!result.ok) {
-      toast(`Integrity check unavailable: ${result.error?.message || result.error?.code || 'unknown error'}. Nothing changed.`);
-      return;
-    }
-    const state = result.state || {};
-    if (state.integrityViolation === true || state.reason === 'emergency_stop_integrity_violation') {
-      const flag = { workspaceId: Data.workspace(), seenAt: new Date().toISOString(), reason: String((state.details && state.details.ledgerReason) || state.reason || '') };
-      try { localStorage.setItem(IBANNER_FLAG, JSON.stringify(flag)); } catch (_) { /* banner still shows this session */ }
-      renderIntegrityBanner(flag);
-      toast('Integrity violation confirmed. Agents stay halted.');
-      return;
-    }
-    try { localStorage.removeItem(IBANNER_FLAG); } catch (_) { /* ignore */ }
-    renderIntegrityBanner(null);
-    toast(state.stopped ? 'Stopped, ledger verifies.' : 'Ledger verifies, no violations.');
-  }
-
-  $('#ib-check')?.addEventListener('click', checkIntegrityOnce);
   renderIntegrityBanner(readIntegrityFlag());
 
+  window.addEventListener('huqan:integrity-flag', (e) => renderIntegrityBanner(e.detail));
   UI.registerView('overview', { onShow: load });
   window.HuqanControlRoomOverview = { reload: load };
 })();
