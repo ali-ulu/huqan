@@ -89,7 +89,8 @@ const UNROUTED_SINK_CALLS = Object.freeze({
   'kernel.js': { why: 'knowledge and audit families; its candidate write now lives in lib/kernel-mutation-admission.js', sinks: { addNode: 1, addEdge: 3, appendAuditEvent: 1 } },
   'agent.v3.js': { why: 'audit family', sinks: { appendAuditEvent: 2 } },
   'lib/cli-mutation-audit.js': { why: 'audit family, CLI surface', sinks: { appendAuditEvent: 1 } },
-  'graph.js': { why: 'graph optimize and consolidate maintenance audits; DELETE evidence is emitted by the Graph persistence owner until the family-independent admission seam covers maintenance operations', sinks: { appendAuditEvent: 2 } },
+  'graph.js': { why: 'graph consolidate maintenance audit remains on the Graph composition surface until the family-independent admission seam covers maintenance operations', sinks: { appendAuditEvent: 1 } },
+  'lib/graph-store-adapters.js': { why: 'graph optimize maintenance audit moved with the optimize store adapter in #2126; same unrouted maintenance-family debt, new implementation owner', sinks: { appendAuditEvent: 1 } },
   'lib/external-action-receipt-writer-factory.js': { why: 'audit family (moved from lib/external-action-receipt.js with the writer factory, #2192); the external action guard projects each bounded receipt into the graph append-only audit_log next to its primary crash-safe JSONL trail, mirroring agent.v3/cli-mutation-audit until the family-independent admission seam covers audit events', sinks: { appendAuditEvent: 1 } },
   'lib/hypothesis-review-audit.js': { why: 'audit family; human review verdicts append CLAIM_ACCEPTED/CLAIM_REJECTED via the public graph surface (moved off the kernel-private call, #2345) until the family-independent admission seam covers audit events', sinks: { appendAuditEvent: 1 } },
 
