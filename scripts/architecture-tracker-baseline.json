@@ -44,7 +44,7 @@
     },
     "kernel.js": {
       "band": "decompose",
-      "lines": 1058,
+      "lines": 1003,
       "signals": [
         "FANOUT:39"
       ]
@@ -704,6 +704,7 @@
       "lib/kernel-auto-think.js": "Core",
       "lib/kernel-context-similarity.js": "Core",
       "lib/kernel-contract.js": "Core",
+      "lib/kernel-cross-link.js": "Core",
       "lib/kernel-dream.js": "Core",
       "lib/kernel-envelope.js": "Core",
       "lib/kernel-factory.js": "Core",
@@ -844,6 +845,11 @@
       "lib/predicate-parser.js": "Core",
       "lib/provenance-ingest-adapter.js": "Core",
       "lib/provenance-ingest.js": "Core",
+      "lib/provenance-query-audit-page.js": "Core",
+      "lib/provenance-query-query-helpers.js": "Core",
+      "lib/provenance-query-records.js": "Core",
+      "lib/provenance-query-shapes.js": "Core",
+      "lib/provenance-query-trust-receipt.js": "Core",
       "lib/provenance-query.js": "Core",
       "lib/provenance-record-utils.js": "Core",
       "lib/quickstart-cli.js": "Core",
@@ -901,6 +907,8 @@
       "lib/self-healer/approval-bridge.js": "Application",
       "lib/self-healer/audit-runner.js": "Application",
       "lib/self-healer/behavioral-containment.js": "Application",
+      "lib/self-healer/dryrun-budget-gate.js": "Application",
+      "lib/self-healer/dryrun-projections.js": "Application",
       "lib/self-healer/dryrun-runner.js": "Application",
       "lib/self-healer/finding-classifier.js": "Application",
       "lib/self-healer/finding-schema.js": "Application",
@@ -1347,12 +1355,12 @@
         "lib/conflict-detector.js",
         "lib/environment-compat.js",
         "lib/errors/provenance-error.js",
-        "lib/gate-telemetry.js",
         "lib/graph-traversal.js",
         "lib/kernel-alternatives.js",
         "lib/kernel-auto-think.js",
         "lib/kernel-context-similarity.js",
         "lib/kernel-contract.js",
+        "lib/kernel-cross-link.js",
         "lib/kernel-dream.js",
         "lib/kernel-envelope.js",
         "lib/kernel-introspect-report.js",
@@ -3198,6 +3206,42 @@
         "lib/provenance-record-utils.js",
         "lib/trust-policy.js"
       ],
+      "lib/provenance-query-audit-page.js": [
+        "lib/audit-query.js",
+        "lib/canonical-target-match.js",
+        "lib/provenance-query-query-helpers.js",
+        "lib/provenance-query-shapes.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/provenance-query-query-helpers.js": [
+        "lib/workspace-id.js"
+      ],
+      "lib/provenance-query-records.js": [
+        "lib/canonical-target-match.js",
+        "lib/provenance-query-query-helpers.js",
+        "lib/provenance-query-shapes.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/provenance-query-shapes.js": [
+        "lib/audit-log.js",
+        "lib/conflict-detector.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/provenance-query-trust-receipt.js": [
+        "lib/canonical-target-match.js",
+        "lib/causal/causal-verdict.js",
+        "lib/provenance-query-audit-page.js",
+        "lib/provenance-query-records.js",
+        "lib/provenance-query-shapes.js",
+        "lib/trust-status.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/provenance-query.js": [
+        "lib/provenance-query-audit-page.js",
+        "lib/provenance-query-records.js",
+        "lib/provenance-query-shapes.js",
+        "lib/provenance-query-trust-receipt.js"
+      ],
       "lib/quickstart-cli.js": [
         "lib/kernel-factory.js",
         "lib/provenance-query.js",
@@ -3405,10 +3449,17 @@
         "lib/self-healer/finding-schema.js",
         "lib/workspace-id.js"
       ],
-      "lib/self-healer/dryrun-runner.js": [
-        "lib/agent-loop-budget-gate.js",
+      "lib/self-healer/dryrun-budget-gate.js": [
+        "lib/agent-loop-budget-gate.js"
+      ],
+      "lib/self-healer/dryrun-projections.js": [
         "lib/approval-schema.js",
+        "lib/self-healer/safety-decision.js"
+      ],
+      "lib/self-healer/dryrun-runner.js": [
         "lib/is-plain-object.js",
+        "lib/self-healer/dryrun-budget-gate.js",
+        "lib/self-healer/dryrun-projections.js",
         "lib/self-healer/finding-schema.js",
         "lib/self-healer/safety-decision.js"
       ],
@@ -4640,6 +4691,12 @@
       {
         "from": "lib/post-action-monitor.js",
         "to": "lib/self-healer/finding-classifier.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/provenance-query-trust-receipt.js",
+        "to": "lib/causal/causal-verdict.js",
         "fromLayer": "Core",
         "toLayer": "Application"
       },
