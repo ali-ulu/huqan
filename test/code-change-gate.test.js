@@ -1,5 +1,8 @@
 'use strict';
 
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -649,8 +652,10 @@ describe('AB3 code change gate core decisions', () => {
       'metadata',
     ]);
     assert.deepEqual(Object.keys(result.risk), ['level', 'score', 'categories']);
-    assert.deepEqual(Object.keys(result.metadata), ['policyVersion', 'workspaceId']);
+    assert.deepEqual(Object.keys(result.metadata), ['policyVersion', 'workspaceId', 'blastRadius']);
     assert.equal(result.metadata.policyVersion, CODE_CHANGE_POLICY_VERSION);
+    assert.equal(result.metadata.blastRadius.version, 'huqan-code-blast-radius-v1');
+    assert.equal(result.metadata.blastRadius.enforced, false);
     assert.deepEqual(Object.keys(result.fileFindings[0]), [
       'ok',
       'path',
@@ -700,5 +705,81 @@ describe('AB3 code change gate core decisions', () => {
     assert.equal(normalized.metadata.workspaceId, 'ws-a');
     assert.equal(normalized.metadata.policyVersion, 'AB3-v9.9.9');
     assert.equal(normalized.fileFindings[0].decision, CODE_CHANGE_GATE_DECISIONS.ALLOW);
+  });
+});
+
+describe('code-change blast radius recording (#2505 A)', () => {
+  const { summarizeCodeChangeBlastRadius } = require('../lib/code-change-blast-radius');
+
+  function fixtureRoot(t) {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-code-fanin-'));
+    t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+    fs.writeFileSync(path.join(directory, 'a.js'), "require('./b');\n");
+    fs.writeFileSync(path.join(directory, 'b.js'), "module.exports = 1;\n");
+    fs.mkdirSync(path.join(directory, 'sub'));
+    fs.writeFileSync(path.join(directory, 'sub', 'c.js'), "require('../b');\n");
+    return directory;
+  }
+
+  it('counts dependents from the require graph, not file counts', (t) => {
+    const root = fixtureRoot(t);
+    const summary = summarizeCodeChangeBlastRadius([{ path: 'b.js' }, { path: 'a.js' }], { repoRoot: root });
+    assert.equal(summary.status, 'computed');
+    assert.equal(summary.enforced, false);
+    assert.equal(summary.maxFanIn, 2);
+    const byPath = new Map(summary.files.map((entry) => [entry.path, entry]));
+    assert.equal(byPath.get('b.js').fanIn, 2);
+    assert.deepEqual(byPath.get('b.js').dependents, ['a.js', 'sub/c.js']);
+    assert.equal(byPath.get('a.js').fanIn, 0);
+  });
+
+  it('unknown is never 0: outside-graph files are unknown with a reason', (t) => {
+    const root = fixtureRoot(t);
+    const summary = summarizeCodeChangeBlastRadius(
+      [{ path: 'b.js' }, { path: 'docs/notes.md' }, { path: 'missing.js' }],
+      { repoRoot: root },
+    );
+    assert.equal(summary.status, 'partial');
+    assert.equal(summary.maxFanIn, 2);
+    const byPath = new Map(summary.files.map((entry) => [entry.path, entry]));
+    assert.equal(byPath.get('docs/notes.md').fanIn, null);
+    assert.equal(byPath.get('missing.js').fanIn, null);
+    assert.ok(summary.reasons.length >= 2);
+  });
+
+  it('an unreadable root degrades to unknown instead of throwing', () => {
+    const summary = summarizeCodeChangeBlastRadius(
+      [{ path: 'b.js' }],
+      { repoRoot: path.join(os.tmpdir(), 'huqan-no-such-root-xyz') },
+    );
+    assert.equal(summary.status, 'unknown');
+    assert.equal(summary.maxFanIn, null);
+    assert.equal(summary.enforced, false);
+  });
+
+  it('the gate records fan-in next to the decision without changing it', (t) => {
+    const root = fixtureRoot(t);
+    const input = makeInput({
+      files: [{ path: 'b.js', status: 'modified', changeType: 'source', additions: 1, deletions: 0 }],
+      intent: 'touch shared module',
+      patchMetadata: { fileCount: 1, totalAdditions: 1, totalDeletions: 0 },
+    });
+    const recorded = evaluateCodeChange(input, { repoRoot: root });
+    const unrecorded = evaluateCodeChange(input);
+    assert.equal(recorded.decision, unrecorded.decision, 'recording must not move the decision');
+    assert.equal(recorded.metadata.blastRadius.files[0].fanIn, 2);
+    assert.equal(recorded.metadata.blastRadius.enforced, false);
+  });
+
+  it('a malformed blastRadius never reaches the receipt', () => {
+    const normalized = normalizeCodeChangeDecision({
+      decision: 'ALLOW',
+      reason: 'LOW_RISK_DOCS_ONLY',
+      risk: { level: 'LOW', score: 0.1, categories: ['docs'] },
+      metadata: { blastRadius: { version: 'bogus', files: ['x'] } },
+      fileFindings: [],
+      warnings: [],
+    });
+    assert.ok(!('blastRadius' in normalized.metadata));
   });
 });

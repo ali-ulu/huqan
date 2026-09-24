@@ -335,6 +335,7 @@
     "lib/code-change-gate-vocabulary.js",
     "lib/code-change-input.js",
     "lib/code-change-file-classifier.js",
+    "lib/code-change-blast-radius.js",
     "lib/code-change-decision-summary.js",
     "lib/code-change-path-classification.js",
     "lib/command-exec-gate.js",
