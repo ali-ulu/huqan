@@ -655,6 +655,8 @@
       "lib/human-oversight-approval-runtime-cases.js": "Core",
       "lib/human-oversight-approval-runtime-decide.js": "Core",
       "lib/human-oversight-approval-runtime-execution.js": "Core",
+      "lib/human-oversight-approval-runtime-primitives-normalize.js": "Core",
+      "lib/human-oversight-approval-runtime-primitives-values.js": "Core",
       "lib/human-oversight-approval-runtime-primitives.js": "Core",
       "lib/human-oversight-approval-runtime-state.js": "Core",
       "lib/human-oversight-approval-runtime.js": "Core",
@@ -2750,10 +2752,20 @@
       "lib/human-oversight-approval-runtime-execution.js": [
         "lib/human-oversight-approval-runtime-primitives.js"
       ],
+      "lib/human-oversight-approval-runtime-primitives-normalize.js": [
+        "lib/agent-action-firewall.js",
+        "lib/human-oversight-approval-runtime-primitives-values.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/human-oversight-approval-runtime-primitives-values.js": [
+        "lib/is-plain-object.js",
+        "lib/receipt/canonical-receipt.js"
+      ],
       "lib/human-oversight-approval-runtime-primitives.js": [
         "lib/agent-action-firewall.js",
+        "lib/human-oversight-approval-runtime-primitives-normalize.js",
+        "lib/human-oversight-approval-runtime-primitives-values.js",
         "lib/is-plain-object.js",
-        "lib/receipt/canonical-receipt.js",
         "lib/trust-evidence-ledger.js"
       ],
       "lib/human-oversight-approval-runtime-state.js": [
@@ -4876,7 +4888,7 @@
         "toLayer": "Application"
       },
       {
-        "from": "lib/human-oversight-approval-runtime-primitives.js",
+        "from": "lib/human-oversight-approval-runtime-primitives-values.js",
         "to": "lib/receipt/canonical-receipt.js",
         "fromLayer": "Core",
         "toLayer": "Application"
