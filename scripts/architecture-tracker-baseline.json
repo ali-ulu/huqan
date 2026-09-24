@@ -143,11 +143,6 @@
       "lines": 739,
       "signals": []
     },
-    "lib/storage/tool-approval-methods.js": {
-      "band": "recorded",
-      "lines": 424,
-      "signals": []
-    },
     "lib/v5/runtime-writer.js": {
       "band": "recorded",
       "lines": 411,
@@ -931,6 +926,8 @@
       "lib/sqlite-restore.js": "Adapters",
       "lib/ssrf-guard.js": "Core",
       "lib/storage/schema.js": "Adapters",
+      "lib/storage/tool-approval-methods-decide.js": "Adapters",
+      "lib/storage/tool-approval-methods-lease.js": "Adapters",
       "lib/storage/tool-approval-methods.js": "Adapters",
       "lib/store-creation-guard.js": "Core",
       "lib/subject-resolution.js": "Core",
@@ -3974,7 +3971,15 @@
         "lib/graph-record-utils.js",
         "lib/store-creation-guard.js"
       ],
+      "lib/storage/tool-approval-methods-decide.js": [
+        "lib/workspace-id.js"
+      ],
+      "lib/storage/tool-approval-methods-lease.js": [
+        "lib/workspace-id.js"
+      ],
       "lib/storage/tool-approval-methods.js": [
+        "lib/storage/tool-approval-methods-decide.js",
+        "lib/storage/tool-approval-methods-lease.js",
         "lib/workspace-id.js"
       ],
       "lib/store-creation-guard.js": [

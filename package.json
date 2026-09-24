@@ -798,6 +798,8 @@
     "lib/sqlite-restore.js",
     "lib/ssrf-guard.js",
     "lib/storage/schema.js",
+    "lib/storage/tool-approval-methods-decide.js",
+    "lib/storage/tool-approval-methods-lease.js",
     "lib/storage/tool-approval-methods.js",
     "lib/subject-resolution.js",
     "lib/text-safety-scorer.js",
