@@ -911,6 +911,8 @@
       "lib/self-evolve-probe.js": "Core",
       "lib/self-healer/approval-bridge.js": "Application",
       "lib/self-healer/audit-runner.js": "Application",
+      "lib/self-healer/behavioral-containment-baseline.js": "Application",
+      "lib/self-healer/behavioral-containment-records.js": "Application",
       "lib/self-healer/behavioral-containment.js": "Application",
       "lib/self-healer/dryrun-budget-gate.js": "Application",
       "lib/self-healer/dryrun-projections.js": "Application",
@@ -3693,10 +3695,18 @@
         "lib/self-healer/finding-schema.js",
         "lib/workspace-id.js"
       ],
+      "lib/self-healer/behavioral-containment-baseline.js": [
+        "lib/is-plain-object.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/self-healer/behavioral-containment-records.js": [
+        "lib/self-healer/behavioral-containment-baseline.js",
+        "lib/self-healer/finding-schema.js"
+      ],
       "lib/self-healer/behavioral-containment.js": [
         "lib/is-plain-object.js",
-        "lib/self-healer/finding-schema.js",
-        "lib/workspace-id.js"
+        "lib/self-healer/behavioral-containment-baseline.js",
+        "lib/self-healer/behavioral-containment-records.js"
       ],
       "lib/self-healer/dryrun-budget-gate.js": [
         "lib/agent-loop-budget-gate.js"

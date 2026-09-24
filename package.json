@@ -722,6 +722,8 @@
     "lib/sdk.js",
     "lib/secret-scrub-gate.js",
     "lib/secret-patterns.js",
+    "lib/self-healer/behavioral-containment-baseline.js",
+    "lib/self-healer/behavioral-containment-records.js",
     "lib/self-healer/behavioral-containment.js",
     "lib/post-action-monitor.js",
     "lib/plugin-provenance-registry.js",
