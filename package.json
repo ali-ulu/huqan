@@ -474,6 +474,8 @@
     "lib/graph-mutation-rollback.js",
     "lib/graph-sqlite-pragmas.js",
     "lib/graph-sqlite-schema.js",
+    "lib/graph-record-utils-edges.js",
+    "lib/graph-record-utils-nodes.js",
     "lib/graph-record-utils.js",
     "lib/graph-traversal.js",
     "lib/graph-chain-traversal.js",

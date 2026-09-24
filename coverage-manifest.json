@@ -799,12 +799,12 @@
       ],
       "sites": [
         {
-          "line": 45,
+          "line": 23,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 46,
+          "line": 24,
           "capability": "fs_write",
           "call": "fs.renameSync"
         }

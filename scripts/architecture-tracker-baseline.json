@@ -586,6 +586,8 @@
       "lib/graph-persistence-runtime.js": "Core",
       "lib/graph-prune.js": "Core",
       "lib/graph-query-read.js": "Core",
+      "lib/graph-record-utils-edges.js": "Core",
+      "lib/graph-record-utils-nodes.js": "Core",
       "lib/graph-record-utils.js": "Core",
       "lib/graph-sqlite-pragmas.js": "Core",
       "lib/graph-sqlite-schema.js": "Core",
@@ -2468,8 +2470,17 @@
       "lib/graph-query-read.js": [
         "lib/graph-record-utils.js"
       ],
+      "lib/graph-record-utils-edges.js": [
+        "lib/is-plain-object.js"
+      ],
+      "lib/graph-record-utils-nodes.js": [
+        "lib/is-plain-object.js",
+        "lib/workspace-id.js"
+      ],
       "lib/graph-record-utils.js": [
         "lib/audit-log.js",
+        "lib/graph-record-utils-edges.js",
+        "lib/graph-record-utils-nodes.js",
         "lib/is-plain-object.js",
         "lib/workspace-id.js"
       ],
