@@ -969,12 +969,12 @@
       ],
       "sites": [
         {
-          "line": 581,
+          "line": 58,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 594,
+          "line": 71,
           "capability": "fs_write",
           "call": "fs.unlinkSync"
         }
