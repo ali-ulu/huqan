@@ -121,11 +121,6 @@
       "lines": 589,
       "signals": []
     },
-    "lib/external-client-mutation-receipt-owner.js": {
-      "band": "recorded",
-      "lines": 741,
-      "signals": []
-    },
     "lib/external-client-replay-store.js": {
       "band": "recorded",
       "lines": 510,
@@ -534,6 +529,10 @@
       "lib/external-client-authority.js": "Core",
       "lib/external-client-endpoint-contract.js": "Core",
       "lib/external-client-http-adapter.js": "Core",
+      "lib/external-client-mutation-receipt-owner-contract.js": "Core",
+      "lib/external-client-mutation-receipt-owner-dependencies.js": "Core",
+      "lib/external-client-mutation-receipt-owner-json.js": "Core",
+      "lib/external-client-mutation-receipt-owner-snapshot.js": "Core",
       "lib/external-client-mutation-receipt-owner.js": "Core",
       "lib/external-client-package-gate.js": "Core",
       "lib/external-client-production-boundary.js": "Core",
@@ -2143,10 +2142,24 @@
         "lib/external-client-endpoint-contract.js",
         "requestGuards.js"
       ],
+      "lib/external-client-mutation-receipt-owner-dependencies.js": [
+        "lib/external-client-mutation-receipt-owner-contract.js",
+        "lib/external-client-mutation-receipt-owner-json.js"
+      ],
+      "lib/external-client-mutation-receipt-owner-json.js": [
+        "lib/is-plain-object.js"
+      ],
+      "lib/external-client-mutation-receipt-owner-snapshot.js": [
+        "lib/external-client-mutation-receipt-owner-contract.js",
+        "lib/external-client-mutation-receipt-owner-json.js",
+        "lib/huqan-package-format.js"
+      ],
       "lib/external-client-mutation-receipt-owner.js": [
         "lib/agent-identity-runtime.js",
-        "lib/huqan-package-format.js",
-        "lib/is-plain-object.js",
+        "lib/external-client-mutation-receipt-owner-contract.js",
+        "lib/external-client-mutation-receipt-owner-dependencies.js",
+        "lib/external-client-mutation-receipt-owner-json.js",
+        "lib/external-client-mutation-receipt-owner-snapshot.js",
         "lib/mutation-admission.js",
         "lib/receipt/canonical-receipt-v2.js",
         "lib/receipt/canonical-receipt.js"

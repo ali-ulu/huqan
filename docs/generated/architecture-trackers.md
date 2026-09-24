@@ -14,7 +14,6 @@ Tracked in total: **55**
 | File | Lines | Signals |
 |---|---:|---|
 | `agent.v3.js` | 778 | DIP |
-| `lib/external-client-mutation-receipt-owner.js` | 741 | — |
 | `lib/risk-classify.js` | 739 | — |
 | `lib/tool-call-gate.js` | 729 | — |
 | `plugin.js` | 728 | — |
