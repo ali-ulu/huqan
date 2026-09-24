@@ -41,7 +41,6 @@ Tracked in total: **59**
 | `lib/ingest.js` | 587 | — |
 | `lib/memory-schema.js` | 565 | — |
 | `workflow-agent.js` | 562 | — |
-| `kernel.v2.js` | 556 | DIP |
 | `lib/automation-safety-gate/automation-operation-classifier.js` | 545 | — |
 | `lib/dream-experiment-loop.js` | 533 | — |
 | `lib/contradiction-rules.js` | 531 | — |
@@ -52,6 +51,7 @@ Tracked in total: **59**
 | `lib/mcp-tool-catalog.js` | 511 | — |
 | `lib/external-client-replay-store.js` | 510 | — |
 | `lib/atp-conformance.js` | 504 | — |
+| `kernel.v2.js` | 497 | DIP |
 | `lib/a2a/exchange-route.js` | 493 | — |
 | `causalSimulator.js` | 478 | — |
 | `lib/http/workflow-data-routes.js` | 477 | — |

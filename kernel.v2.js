@@ -2,11 +2,9 @@
 const { runPreIngest } = require('./lib/pre-ingest');
 const {
   normalizePredicateToken: evidenceNormalizePredicateToken,
-  normalizeCopulaTail,
   summarizeEvidence,
 } = require('./lib/kernel-v2-evidence');
-const { resolveKnownSubject } = require('./lib/subject-resolution');
-const { buildNegationConflict, contradictedBaseVerdict } = require('./lib/kernel-v2-type-negation');
+const { runVerify } = require('./lib/kernel-v2-verify');
 const { runContradictionDetails, findOppositePredicateConflict } = require('./lib/kernel-v2-contradiction');
 
 // Mechanical 1:1 extraction (#328, docs/kernel-split-plan.md V2-A): pure native
@@ -18,11 +16,8 @@ const {
   TYPE_RELATIONS,
   FACT_RELATIONS,
   nowIso,
-  parseSimpleTurkishStatement,
-  resolveNegativeClaimFallback,
 } = require('./lib/kernel-v2-native');
 const {
-  analyseManipulation,
   prepareRiskAwareLearnFromLLM,
   withLearnFromLLMRisk,
   withManipulationRisk,
@@ -365,61 +360,7 @@ class KernelV2 {
   }
 
   verify(statement, opts = {}) {
-    const risk = analyseManipulation(statement);
-    const verificationStatement = risk.extractedStatement || statement;
-    let parsed = parseSimpleTurkishStatement(verificationStatement);
-    if (!parsed) return this._withVerifyDetails(this.kernel.verify(verificationStatement, opts), risk);
-
-    const normalizedTarget = normalizeCopulaTail(parsed.predicate);
-    if (!normalizedTarget) return this._withVerifyDetails(this.kernel.verify(verificationStatement, opts), risk);
-    const normalizedTargetToken = evidenceNormalizePredicateToken(normalizedTarget);
-
-    const workspaceId = (typeof opts.workspaceId === 'string' && opts.workspaceId.trim()) || 'default'; // #734
-    const resolvedSubject = resolveKnownSubject(this.kernel.graph, parsed.subject, workspaceId);
-    // #2117: KernelV2 substitutes a v1 verdict only through a named rule; see
-    // docs/adr/ADR-013-kernel-v2-substitutability.md. Rule: unresolved multi-word subject.
-    if (parsed.subject.includes(' ') && !resolvedSubject) return this._withVerifyDetails(contradictedBaseVerdict(this.kernel, verificationStatement, opts) || this.ok('verify', { status: 'unknown', confidence: 0, unresolvedSubject: parsed.subject, subjectResolution: 'exact_match_required' }), risk);
-    if (resolvedSubject) parsed = { ...parsed, subject: resolvedSubject };
-    // Rule: negated statement vs known fact edge, applied before v1 is consulted.
-    const factConflict = buildNegationConflict(this, parsed, normalizedTarget, normalizedTargetToken, workspaceId, { factsOnly: true });
-    if (factConflict) {
-      const { evidence: factEvidence, meta: factMeta, ...factData } = factConflict;
-      return this._withVerifyDetails(this.ok('verify', factData, factEvidence, factMeta), risk);
-    }
-
-    const base = this.kernel.verify(verificationStatement, opts);
-    if (base?.data?.status !== 'unknown') {
-      const contradictionReason = base?.data?.contradictionReason;
-      if (base?.data?.status !== 'contradicted' || contradictionReason) {
-        if (!(parsed.isNegated && base?.data?.status === 'verified')) return this._withVerifyDetails(base, risk);
-      }
-    }
-    const contradictionDetails = this._buildContradictionDetails(
-      parsed,
-      normalizedTarget,
-      normalizedTargetToken,
-      opts
-    );
-
-    if (!contradictionDetails) {
-      return this._withVerifyDetails(resolveNegativeClaimFallback(this.kernel, base, verificationStatement, opts, workspaceId, parsed, normalizedTarget), risk);
-    }
-
-    const { evidence, meta, ...data } = contradictionDetails;
-    return this._withVerifyDetails(this.ok(
-      'verify',
-      {
-        ...data,
-        ...(data.conflictTarget ? { conflictTarget: data.conflictTarget } : {}),
-        ...(data.requestedType ? { requestedType: data.requestedType } : {}),
-        ...(data.requestedTarget ? { requestedTarget: data.requestedTarget } : {}),
-      },
-      evidence,
-      {
-        ...base.meta,
-        ...meta,
-      }
-    ), risk);
+    return runVerify({ v2: this, kernel: this.kernel, verifyBase: (...args) => this.kernel.verify(...args), ok: (...args) => this.ok(...args), withVerifyDetails: (...args) => this._withVerifyDetails(...args), buildContradictionDetails: (...args) => this._buildContradictionDetails(...args) }, statement, opts);
   }
 
   reason(subject, opts = {}) {
