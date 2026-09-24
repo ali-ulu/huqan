@@ -71,11 +71,6 @@
       "lines": 545,
       "signals": []
     },
-    "lib/causal/causal-traversal.js": {
-      "band": "recorded",
-      "lines": 451,
-      "signals": []
-    },
     "lib/conflict-detector.js": {
       "band": "recorded",
       "lines": 616,
@@ -327,6 +322,8 @@
       "lib/causal-edge-strength.js": "Core",
       "lib/causal/causal-edge-errors.js": "Application",
       "lib/causal/causal-edge.js": "Application",
+      "lib/causal/causal-traversal-edges.js": "Application",
+      "lib/causal/causal-traversal-resolvers.js": "Application",
       "lib/causal/causal-traversal.js": "Application",
       "lib/causal/causal-verdict-normalize.js": "Application",
       "lib/causal/causal-verdict-score.js": "Application",
@@ -1675,8 +1672,13 @@
         "graph.js",
         "lib/causal/causal-edge-errors.js"
       ],
+      "lib/causal/causal-traversal-resolvers.js": [
+        "lib/causal/causal-edge.js",
+        "lib/causal/causal-traversal-edges.js"
+      ],
       "lib/causal/causal-traversal.js": [
-        "lib/causal/causal-edge.js"
+        "lib/causal/causal-traversal-edges.js",
+        "lib/causal/causal-traversal-resolvers.js"
       ],
       "lib/causal/causal-verdict-normalize.js": [
         "lib/causal/causal-traversal.js",
