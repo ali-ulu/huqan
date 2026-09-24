@@ -385,7 +385,22 @@ test('a2a route: the production call chain reaches the V5 verification modules',
   assert.ok(routeSource.includes("require('./bounded-exchange')"),
     'the route must call the relocated evaluator');
 
-  const evaluatorSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'a2a', 'bounded-exchange.js'), 'utf8');
+  // #2158 split the evaluator into bounded-exchange-*.js parts. The chain is
+  // followed through every part the evaluator (transitively) requires, so a
+  // part that stopped being required would drop its dependencies from view.
+  const a2aDir = path.join(__dirname, '..', 'lib', 'a2a');
+  const reached = new Set();
+  const pending = ['bounded-exchange'];
+  let evaluatorSource = '';
+  while (pending.length) {
+    const name = pending.pop();
+    if (reached.has(name)) continue;
+    reached.add(name);
+    const source = fs.readFileSync(path.join(a2aDir, `${name}.js`), 'utf8');
+    evaluatorSource += source;
+    for (const match of source.matchAll(/require\('\.\/(bounded-exchange-[\w-]+)'\)/g)) pending.push(match[1]);
+  }
+  assert.ok(reached.size > 1, 'the evaluator must require its bounded-exchange-* parts');
   for (const dependency of [
     '../receipt/cryptographic-profile-contract',
     '../receipt/cryptographic-verification-adapter',
