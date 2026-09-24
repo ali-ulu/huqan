@@ -17,7 +17,7 @@ assert.ok(script.trim(), 'dashboard script must exist');
 
 function loadStreamHelpers() {
   const start = script.indexOf('const STREAM_BASE_RECONNECT_DELAY_MS');
-  const end = script.indexOf('\n\n  function renderToolUsage', start);
+  const end = script.indexOf('\n  async function loadEventHistory', start);
   assert.ok(start >= 0 && end > start, 'stream helper source must be present');
   const context = {};
   vm.runInNewContext(`${script.slice(start, end)}\nthis.exports = { streamEventKey, rememberStreamEvent, streamSeenEvents, STREAM_MAX_SEEN_EVENTS };`, context);

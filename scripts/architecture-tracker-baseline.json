@@ -155,11 +155,6 @@
       "lines": 726,
       "signals": []
     },
-    "public/js/app.js": {
-      "band": "recorded",
-      "lines": 425,
-      "signals": []
-    },
     "sandboxRunner.js": {
       "band": "recorded",
       "lines": 530,
@@ -1032,6 +1027,10 @@
       "public/control-room/js/control-room-data.js": "UI",
       "public/control-room/js/control-room-overview.js": "UI",
       "public/control-room/js/control-room-receipts.js": "UI",
+      "public/js/app-observability-readiness.js": "UI",
+      "public/js/app-observability-render.js": "UI",
+      "public/js/app-observability-stream.js": "UI",
+      "public/js/app-observability.js": "UI",
       "public/js/app.js": "UI",
       "public/js/command-policy.js": "UI",
       "public/js/home-navigation.js": "UI",
