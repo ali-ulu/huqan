@@ -22,6 +22,7 @@
       "test/v4-receipt-materialization-read-index.test.js",
       "test/tool-call-gate.test.js",
       "test/tool-call-gate-action-boundaries.test.js",
+      "test/tool-call-gate-decision-precedence.test.js",
       "test/secret-patterns-conformance.test.js",
       "test/secret-scrub-gate.test.js",
       "test/mcp-gate-risk-block-wiring.test.js",
