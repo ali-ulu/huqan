@@ -137,6 +137,13 @@ for (const [label, lead] of [
   });
 }
 
+test('a regex the scanner mistakes for a division still cannot hide the next line', () => {
+  // Without a semicolon, `1\n/["]/` reads as a division, so the quote opens a
+  // string. A quoted string cannot span lines, so the damage stops there.
+  const source = `${SPAWN_HEAD}const y = 1\n/["]/.test(z)\nspawnSync('rm');\n`;
+  assert.equal(sitesIn('probe.js', source).length, 1);
+});
+
 test('a call inside a template ${...} is code, and the template text is not', () => {
   assert.equal(sitesIn('probe.js', `${SPAWN_HEAD}const s = \`run \${spawnSync('rm')}\`;\n`).length, 1);
   assert.equal(sitesIn('probe.js', `${SPAWN_HEAD}const s = \`spawnSync('rm') {}\`;\n`).length, 0);
