@@ -280,6 +280,8 @@
     "lib/causal-edge-strength.js",
     "lib/causal/causal-edge-errors.js",
     "lib/causal/causal-edge.js",
+    "lib/causal/causal-traversal-edges.js",
+    "lib/causal/causal-traversal-resolvers.js",
     "lib/causal/causal-traversal.js",
     "lib/causal/causal-verdict.js",
     "lib/causal/causal-verdict-normalize.js",
