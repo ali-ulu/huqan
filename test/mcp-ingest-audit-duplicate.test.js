@@ -338,6 +338,9 @@ test('6: the duplicate stays deleted while later reviewed audit writes are count
   // pending-candidate surface (lib/web-research-candidate-pipeline.js), both
   // delegating to the same admitted kernel.addCandidateClaim as the
   // hypothesis review above -- together, 31/57.
-  assert.match(ledger, /assert\.equal\(routed, 31,/);
+  // #2127 (#2820, #2822) then moved kernel.js's cross-link and plugin-node
+  // writes behind admission in their own modules: two sinks went from
+  // unrouted to routed, 33/57, the total unchanged.
+  assert.match(ledger, /assert\.equal\(routed, 33,/);
   assert.match(ledger, /assert\.equal\(unrouted \+ routed, 57,/);
 });
