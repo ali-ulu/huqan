@@ -86,11 +86,6 @@
       "lines": 616,
       "signals": []
     },
-    "lib/connector-action-firewall.js": {
-      "band": "recorded",
-      "lines": 469,
-      "signals": []
-    },
     "lib/dream-experiment-loop.js": {
       "band": "recorded",
       "lines": 533,
@@ -434,6 +429,9 @@
       "lib/company-ingest-gate.js": "Core",
       "lib/conflict-candidate-review.js": "Core",
       "lib/conflict-detector.js": "Core",
+      "lib/connector-action-firewall-contracts.js": "Core",
+      "lib/connector-action-firewall-normalize.js": "Core",
+      "lib/connector-action-firewall-summary.js": "Core",
       "lib/connector-action-firewall.js": "Core",
       "lib/connector-local-path.js": "Core",
       "lib/connectors/entry-ingest-flow.js": "Adapters",
@@ -1878,10 +1876,21 @@
         "lib/verdict/action-verdict.js",
         "lib/workspace-id.js"
       ],
-      "lib/connector-action-firewall.js": [
+      "lib/connector-action-firewall-normalize.js": [
         "lib/agent-action-firewall.js",
+        "lib/connector-action-firewall-contracts.js",
         "lib/connector-local-path.js",
         "lib/github-url.js"
+      ],
+      "lib/connector-action-firewall-summary.js": [
+        "lib/agent-action-firewall.js",
+        "lib/connector-action-firewall-normalize.js"
+      ],
+      "lib/connector-action-firewall.js": [
+        "lib/agent-action-firewall.js",
+        "lib/connector-action-firewall-contracts.js",
+        "lib/connector-action-firewall-normalize.js",
+        "lib/connector-action-firewall-summary.js"
       ],
       "lib/connector-local-path.js": [
         "lib/connectors/entry-ingest-flow.js"
