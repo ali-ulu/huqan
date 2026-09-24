@@ -141,11 +141,6 @@
       "lines": 448,
       "signals": []
     },
-    "lib/github-app-streaming-trust.js": {
-      "band": "recorded",
-      "lines": 612,
-      "signals": []
-    },
     "lib/github-connector.js": {
       "band": "recorded",
       "lines": 518,
@@ -569,7 +564,12 @@
       "lib/github-app-beta-http-responses.js": "Core",
       "lib/github-app-beta-store.js": "Core",
       "lib/github-app-streaming-auth.js": "Core",
+      "lib/github-app-streaming-trust-binding.js": "Core",
+      "lib/github-app-streaming-trust-check-run.js": "Core",
+      "lib/github-app-streaming-trust-contract.js": "Core",
+      "lib/github-app-streaming-trust-github-api.js": "Core",
       "lib/github-app-streaming-trust-handler.js": "Core",
+      "lib/github-app-streaming-trust-receipt.js": "Core",
       "lib/github-app-streaming-trust-store-files.js": "Core",
       "lib/github-app-streaming-trust-store-records.js": "Core",
       "lib/github-app-streaming-trust-store.js": "Core",
@@ -1128,6 +1128,7 @@
       "scripts/external-client.js": "UI",
       "scripts/external-conformance/consumer.js": "UI",
       "scripts/external-conformance/run.js": "UI",
+      "scripts/external-conformance/verify-bundle.js": "UI",
       "scripts/file-size-policy.js": "UI",
       "scripts/fitness-dashboard-charts.js": "UI",
       "scripts/fitness-dashboard.js": "UI",
@@ -1136,6 +1137,7 @@
       "scripts/junit-merge.js": "UI",
       "scripts/knowledge-graph-demo.js": "UI",
       "scripts/launch-installed-package-smoke.js": "UI",
+      "scripts/launch-smoke-receipts.js": "UI",
       "scripts/list-mutation-targets.js": "UI",
       "scripts/migrate-prov-ids.js": "UI",
       "scripts/nightly-failure-alarm.js": "UI",
@@ -2236,9 +2238,33 @@
       "lib/github-app-streaming-auth.js": [
         "lib/github-app-beta-auth.js"
       ],
+      "lib/github-app-streaming-trust-binding.js": [
+        "lib/github-app-streaming-trust-contract.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/github-app-streaming-trust-check-run.js": [
+        "lib/github-app-streaming-trust-binding.js",
+        "lib/github-app-streaming-trust-contract.js",
+        "lib/github-app-streaming-trust-github-api.js",
+        "lib/github-app-streaming-trust-receipt.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/github-app-streaming-trust-github-api.js": [
+        "lib/github-app-beta-auth.js",
+        "lib/github-app-streaming-trust-contract.js",
+        "lib/is-plain-object.js"
+      ],
       "lib/github-app-streaming-trust-handler.js": [
         "lib/github-app-beta-handler.js",
         "lib/github-app-streaming-trust.js"
+      ],
+      "lib/github-app-streaming-trust-receipt.js": [
+        "lib/code-change-gate.js",
+        "lib/github-app-streaming-trust-binding.js",
+        "lib/github-app-streaming-trust-contract.js",
+        "lib/receipt/canonical-receipt.js",
+        "lib/receipt/receipt-chain.js",
+        "lib/verdict/action-verdict.js"
       ],
       "lib/github-app-streaming-trust-store-files.js": [
         "lib/github-app-streaming-trust-store-records.js",
@@ -2254,13 +2280,12 @@
         "lib/receipt/canonical-receipt.js"
       ],
       "lib/github-app-streaming-trust.js": [
-        "lib/code-change-gate.js",
-        "lib/github-app-beta-auth.js",
         "lib/github-app-streaming-auth.js",
-        "lib/is-plain-object.js",
-        "lib/receipt/canonical-receipt.js",
-        "lib/receipt/receipt-chain.js",
-        "lib/verdict/action-verdict.js"
+        "lib/github-app-streaming-trust-binding.js",
+        "lib/github-app-streaming-trust-check-run.js",
+        "lib/github-app-streaming-trust-contract.js",
+        "lib/github-app-streaming-trust-github-api.js",
+        "lib/github-app-streaming-trust-receipt.js"
       ],
       "lib/github-connector.js": [
         "lib/audit-log.js",
@@ -4089,6 +4114,9 @@
         "scripts/binding-site-scan.js",
         "scripts/enforcement-coverage-classification.js"
       ],
+      "scripts/external-conformance/consumer.js": [
+        "scripts/external-conformance/verify-bundle.js"
+      ],
       "scripts/fitness-dashboard.js": [
         "lib/fitness-history.js",
         "scripts/fitness-dashboard-charts.js"
@@ -4107,6 +4135,7 @@
         "lib/environment-compat.js"
       ],
       "scripts/launch-installed-package-smoke.js": [
+        "scripts/launch-smoke-receipts.js",
         "scripts/spawn-windows-aware.js"
       ],
       "scripts/migrate-prov-ids.js": [
@@ -4636,26 +4665,26 @@
         "toLayer": "Application"
       },
       {
-        "from": "lib/github-app-streaming-trust-store.js",
+        "from": "lib/github-app-streaming-trust-receipt.js",
         "to": "lib/receipt/canonical-receipt.js",
         "fromLayer": "Core",
         "toLayer": "Application"
       },
       {
-        "from": "lib/github-app-streaming-trust.js",
-        "to": "lib/receipt/canonical-receipt.js",
-        "fromLayer": "Core",
-        "toLayer": "Application"
-      },
-      {
-        "from": "lib/github-app-streaming-trust.js",
+        "from": "lib/github-app-streaming-trust-receipt.js",
         "to": "lib/receipt/receipt-chain.js",
         "fromLayer": "Core",
         "toLayer": "Application"
       },
       {
-        "from": "lib/github-app-streaming-trust.js",
+        "from": "lib/github-app-streaming-trust-receipt.js",
         "to": "lib/verdict/action-verdict.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/github-app-streaming-trust-store.js",
+        "to": "lib/receipt/canonical-receipt.js",
         "fromLayer": "Core",
         "toLayer": "Application"
       },

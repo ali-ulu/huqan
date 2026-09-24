@@ -35,7 +35,6 @@
     "lib/external-client-mutation-receipt-owner.js": 741,
     "lib/external-client-replay-store.js": 510,
     "lib/external-client-trust-config.js": 448,
-    "lib/github-app-streaming-trust.js": 612,
     "lib/github-connector.js": 518,
     "lib/http/workflow-data-routes.js": 477,
     "lib/human-oversight-approval-runtime.js": 744,
@@ -168,10 +167,6 @@
       "review_by": "2027-03-31"
     },
     "lib/external-client-trust-config.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
-    "lib/github-app-streaming-trust.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },
