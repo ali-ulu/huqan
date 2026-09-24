@@ -2,7 +2,7 @@
   "schemaVersion": "huqan.enforcement-coverage.v1",
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. A local alias, and a parameter or destructuring default whose right-hand side is a known binding, are followed; dynamic property access (`fs[name](...)`) and a handle that is never locally bound to a known namespace are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
-    "files": 45,
+    "files": 50,
     "sites": 123,
     "byCapability": {
       "process": 16,
@@ -480,91 +480,141 @@
       ]
     },
     {
-      "file": "lib/external-action-gate-install.js",
+      "file": "lib/external-action-gate-install-command.js",
       "role": "enforcement",
-      "why": "installs and self-validates the gate hook into an agent profile; the spawns are the gate proving itself and the writes are its own configuration",
+      "why": "asks cmd.exe for the 8.3 short name of a gate path with spaces, so the recorded hook command runs in both cmd.exe and PowerShell (#1797); fixed argv, no agent input",
+      "capabilities": [
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 36,
+          "capability": "process",
+          "call": "spawnSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/external-action-gate-install-files.js",
+      "role": "enforcement",
+      "why": "writes and removes the gate's own plugin files for the OpenCode, Pi and Hermes profiles, refusing to overwrite or delete anything it did not write",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 18,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 19,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 24,
+          "capability": "fs_write",
+          "call": "fs.unlinkSync"
+        },
+        {
+          "line": 53,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 55,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 71,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/external-action-gate-install-sentinel.js",
+      "role": "enforcement",
+      "why": "runs a candidate gate command against the synthetic rm -rf / sentinel under each host shell, inside a throwaway directory it creates and removes; the spawns are the gate proving itself",
       "capabilities": [
         "fs_write",
         "process"
       ],
       "sites": [
         {
-          "line": 32,
-          "capability": "fs_write",
-          "call": "fs.mkdirSync"
-        },
-        {
-          "line": 33,
-          "capability": "fs_write",
-          "call": "fs.writeFileSync"
-        },
-        {
-          "line": 59,
-          "capability": "process",
-          "call": "spawnSync"
-        },
-        {
-          "line": 195,
-          "capability": "fs_write",
-          "call": "fs.mkdirSync"
-        },
-        {
-          "line": 196,
-          "capability": "fs_write",
-          "call": "fs.writeFileSync"
-        },
-        {
-          "line": 201,
-          "capability": "fs_write",
-          "call": "fs.unlinkSync"
-        },
-        {
-          "line": 230,
-          "capability": "fs_write",
-          "call": "fs.mkdirSync"
-        },
-        {
-          "line": 232,
-          "capability": "fs_write",
-          "call": "fs.writeFileSync"
-        },
-        {
-          "line": 248,
+          "line": 50,
           "capability": "fs_write",
           "call": "fs.rmSync"
         },
         {
-          "line": 320,
-          "capability": "fs_write",
-          "call": "fs.rmSync"
-        },
-        {
-          "line": 326,
+          "line": 75,
           "capability": "process",
           "call": "spawnSync"
         },
         {
-          "line": 367,
+          "line": 128,
           "capability": "process",
           "call": "spawnSync"
         },
         {
-          "line": 420,
-          "capability": "process",
-          "call": "spawnSync"
-        },
-        {
-          "line": 453,
-          "capability": "process",
-          "call": "spawnSync"
-        },
-        {
-          "line": 492,
+          "line": 158,
           "capability": "fs_write",
           "call": "fs.appendFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/external-action-gate-install-spec.js",
+      "role": "enforcement",
+      "why": "writeJson is the one JSON writer for the gate's own hook and Hermes configuration; every install path writes through it",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 24,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
         },
         {
-          "line": 765,
+          "line": 25,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/external-action-gate-install-validate.js",
+      "role": "enforcement",
+      "why": "loads the just-installed artifact (Node runner or the Hermes Python plugin) in a child process and drives the sentinel through it; the spawns are the gate proving itself",
+      "capabilities": [
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 47,
+          "capability": "process",
+          "call": "spawnSync"
+        },
+        {
+          "line": 80,
+          "capability": "process",
+          "call": "spawnSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/external-action-gate-install.js",
+      "role": "enforcement",
+      "why": "removes the gate artifact this install call just wrote when the sentinel refuses it, so a failed install leaves nothing behind; the rest of the installer lives in the external-action-gate-install-*.js modules below",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 148,
           "capability": "fs_write",
           "call": "fs.rmSync"
         }

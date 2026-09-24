@@ -65,7 +65,27 @@ const CLASSIFIED = Object.freeze({
   }),
   'lib/external-action-gate-install.js': Object.freeze({
     role: 'enforcement',
-    why: 'installs and self-validates the gate hook into an agent profile; the spawns are the gate proving itself and the writes are its own configuration',
+    why: 'removes the gate artifact this install call just wrote when the sentinel refuses it, so a failed install leaves nothing behind; the rest of the installer lives in the external-action-gate-install-*.js modules below',
+  }),
+  'lib/external-action-gate-install-spec.js': Object.freeze({
+    role: 'enforcement',
+    why: 'writeJson is the one JSON writer for the gate\'s own hook and Hermes configuration; every install path writes through it',
+  }),
+  'lib/external-action-gate-install-files.js': Object.freeze({
+    role: 'enforcement',
+    why: 'writes and removes the gate\'s own plugin files for the OpenCode, Pi and Hermes profiles, refusing to overwrite or delete anything it did not write',
+  }),
+  'lib/external-action-gate-install-command.js': Object.freeze({
+    role: 'enforcement',
+    why: 'asks cmd.exe for the 8.3 short name of a gate path with spaces, so the recorded hook command runs in both cmd.exe and PowerShell (#1797); fixed argv, no agent input',
+  }),
+  'lib/external-action-gate-install-sentinel.js': Object.freeze({
+    role: 'enforcement',
+    why: 'runs a candidate gate command against the synthetic rm -rf / sentinel under each host shell, inside a throwaway directory it creates and removes; the spawns are the gate proving itself',
+  }),
+  'lib/external-action-gate-install-validate.js': Object.freeze({
+    role: 'enforcement',
+    why: 'loads the just-installed artifact (Node runner or the Hermes Python plugin) in a child process and drives the sentinel through it; the spawns are the gate proving itself',
   }),
   'lib/external-action-adapter-generator.js': Object.freeze({
     role: 'enforcement',

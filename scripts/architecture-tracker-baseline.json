@@ -91,19 +91,9 @@
       "lines": 469,
       "signals": []
     },
-    "lib/contradiction-rules.js": {
-      "band": "recorded",
-      "lines": 531,
-      "signals": []
-    },
     "lib/dream-experiment-loop.js": {
       "band": "recorded",
       "lines": 533,
-      "signals": []
-    },
-    "lib/external-action-gate-install.js": {
-      "band": "recorded",
-      "lines": 779,
       "signals": []
     },
     "lib/external-action-guard.js": {
@@ -119,11 +109,6 @@
     "lib/external-action-receipt.js": {
       "band": "recorded",
       "lines": 589,
-      "signals": []
-    },
-    "lib/external-client-mutation-receipt-owner.js": {
-      "band": "recorded",
-      "lines": 741,
       "signals": []
     },
     "lib/external-client-replay-store.js": {
@@ -149,11 +134,6 @@
     "lib/http/workflow-data-routes.js": {
       "band": "recorded",
       "lines": 477,
-      "signals": []
-    },
-    "lib/human-oversight-approval-runtime.js": {
-      "band": "recorded",
-      "lines": 744,
       "signals": []
     },
     "lib/huqan-package-format.js": {
@@ -236,11 +216,6 @@
     "lib/storage/tool-approval-methods.js": {
       "band": "recorded",
       "lines": 424,
-      "signals": []
-    },
-    "lib/tool-call-gate.js": {
-      "band": "recorded",
-      "lines": 729,
       "signals": []
     },
     "lib/v5/runtime-writer.js": {
@@ -465,6 +440,10 @@
       "lib/connectors/repo-memory-firewall.js": "Adapters",
       "lib/content-hash.js": "Core",
       "lib/contested-read-policy.js": "Core",
+      "lib/contradiction-rules-opposition-detectors.js": "Core",
+      "lib/contradiction-rules-text.js": "Core",
+      "lib/contradiction-rules-value-detectors.js": "Core",
+      "lib/contradiction-rules-vocabulary.js": "Core",
       "lib/contradiction-rules.js": "Core",
       "lib/control-plane-paths.js": "Core",
       "lib/cross-workspace-access-gate.js": "Core",
@@ -526,6 +505,13 @@
       "lib/external-action-custom-agent-status.js": "Core",
       "lib/external-action-egress-gates.js": "Core",
       "lib/external-action-envelope.js": "Core",
+      "lib/external-action-gate-install-command.js": "Core",
+      "lib/external-action-gate-install-files.js": "Core",
+      "lib/external-action-gate-install-hooks.js": "Core",
+      "lib/external-action-gate-install-host-trust.js": "Core",
+      "lib/external-action-gate-install-sentinel.js": "Core",
+      "lib/external-action-gate-install-spec.js": "Core",
+      "lib/external-action-gate-install-validate.js": "Core",
       "lib/external-action-gate-install.js": "Core",
       "lib/external-action-gate-sentinel.js": "Core",
       "lib/external-action-guard.js": "Core",
@@ -542,6 +528,10 @@
       "lib/external-client-authority.js": "Core",
       "lib/external-client-endpoint-contract.js": "Core",
       "lib/external-client-http-adapter.js": "Core",
+      "lib/external-client-mutation-receipt-owner-contract.js": "Core",
+      "lib/external-client-mutation-receipt-owner-dependencies.js": "Core",
+      "lib/external-client-mutation-receipt-owner-json.js": "Core",
+      "lib/external-client-mutation-receipt-owner-snapshot.js": "Core",
       "lib/external-client-mutation-receipt-owner.js": "Core",
       "lib/external-client-package-gate.js": "Core",
       "lib/external-client-production-boundary.js": "Core",
@@ -677,7 +667,11 @@
       "lib/http/workflow-envelope.js": "UI",
       "lib/http/workflow-request-validation.js": "UI",
       "lib/human-approval-toggle.js": "Core",
+      "lib/human-oversight-approval-runtime-cases.js": "Core",
+      "lib/human-oversight-approval-runtime-decide.js": "Core",
+      "lib/human-oversight-approval-runtime-execution.js": "Core",
       "lib/human-oversight-approval-runtime-primitives.js": "Core",
+      "lib/human-oversight-approval-runtime-state.js": "Core",
       "lib/human-oversight-approval-runtime.js": "Core",
       "lib/human-sponsor-authority.js": "Core",
       "lib/huqan-package-format.js": "Core",
@@ -951,6 +945,10 @@
       "lib/temporal-qualifier.js": "Core",
       "lib/text-safety-scorer.js": "Core",
       "lib/text-utils.js": "Core",
+      "lib/tool-call-gate-classify.js": "Core",
+      "lib/tool-call-gate-normalize.js": "Core",
+      "lib/tool-call-gate-secrets.js": "Core",
+      "lib/tool-call-gate-vocabulary.js": "Core",
       "lib/tool-call-gate.js": "Core",
       "lib/trust-evidence-ledger.js": "Core",
       "lib/trust-policy.js": "Core",
@@ -1899,9 +1897,25 @@
         "lib/risk-policy-constants.js",
         "lib/risk-scale.js"
       ],
-      "lib/contradiction-rules.js": [
+      "lib/contradiction-rules-opposition-detectors.js": [
+        "lib/contradiction-rules-text.js",
+        "lib/contradiction-rules-vocabulary.js",
+        "lib/text-utils.js"
+      ],
+      "lib/contradiction-rules-text.js": [
+        "lib/text-utils.js"
+      ],
+      "lib/contradiction-rules-value-detectors.js": [
+        "lib/contradiction-rules-opposition-detectors.js",
+        "lib/contradiction-rules-text.js",
+        "lib/contradiction-rules-vocabulary.js",
         "lib/relation-drift.js",
         "lib/text-utils.js"
+      ],
+      "lib/contradiction-rules.js": [
+        "lib/contradiction-rules-opposition-detectors.js",
+        "lib/contradiction-rules-value-detectors.js",
+        "lib/contradiction-rules-vocabulary.js"
       ],
       "lib/cross-workspace-access-gate.js": [
         "lib/is-plain-object.js"
@@ -2056,11 +2070,37 @@
         "lib/action-risk-classifier.js",
         "lib/is-plain-object.js"
       ],
-      "lib/external-action-gate-install.js": [
+      "lib/external-action-gate-install-command.js": [
+        "lib/external-action-gate-install-sentinel.js",
+        "lib/external-action-gate-install-spec.js"
+      ],
+      "lib/external-action-gate-install-files.js": [
+        "lib/external-action-gate-install-hooks.js",
+        "lib/external-action-gate-install-spec.js"
+      ],
+      "lib/external-action-gate-install-hooks.js": [
+        "lib/external-action-gate-install-spec.js"
+      ],
+      "lib/external-action-gate-install-sentinel.js": [
         "lib/external-action-adapter.js",
+        "lib/external-action-envelope.js",
+        "lib/external-action-gate-install-spec.js",
+        "lib/external-action-receipt.js"
+      ],
+      "lib/external-action-gate-install-validate.js": [
+        "lib/external-action-gate-install-hooks.js",
+        "lib/external-action-gate-install-sentinel.js",
+        "lib/external-action-gate-install-spec.js"
+      ],
+      "lib/external-action-gate-install.js": [
         "lib/external-action-agent-detection.js",
         "lib/external-action-custom-agent-status.js",
-        "lib/external-action-envelope.js",
+        "lib/external-action-gate-install-command.js",
+        "lib/external-action-gate-install-files.js",
+        "lib/external-action-gate-install-hooks.js",
+        "lib/external-action-gate-install-host-trust.js",
+        "lib/external-action-gate-install-spec.js",
+        "lib/external-action-gate-install-validate.js",
         "lib/external-action-receipt.js"
       ],
       "lib/external-action-guard.js": [
@@ -2140,10 +2180,24 @@
         "lib/external-client-endpoint-contract.js",
         "requestGuards.js"
       ],
+      "lib/external-client-mutation-receipt-owner-dependencies.js": [
+        "lib/external-client-mutation-receipt-owner-contract.js",
+        "lib/external-client-mutation-receipt-owner-json.js"
+      ],
+      "lib/external-client-mutation-receipt-owner-json.js": [
+        "lib/is-plain-object.js"
+      ],
+      "lib/external-client-mutation-receipt-owner-snapshot.js": [
+        "lib/external-client-mutation-receipt-owner-contract.js",
+        "lib/external-client-mutation-receipt-owner-json.js",
+        "lib/huqan-package-format.js"
+      ],
       "lib/external-client-mutation-receipt-owner.js": [
         "lib/agent-identity-runtime.js",
-        "lib/huqan-package-format.js",
-        "lib/is-plain-object.js",
+        "lib/external-client-mutation-receipt-owner-contract.js",
+        "lib/external-client-mutation-receipt-owner-dependencies.js",
+        "lib/external-client-mutation-receipt-owner-json.js",
+        "lib/external-client-mutation-receipt-owner-snapshot.js",
         "lib/mutation-admission.js",
         "lib/receipt/canonical-receipt-v2.js",
         "lib/receipt/canonical-receipt.js"
@@ -2666,14 +2720,30 @@
       "lib/human-approval-toggle.js": [
         "lib/environment-compat.js"
       ],
+      "lib/human-oversight-approval-runtime-cases.js": [
+        "lib/human-oversight-approval-runtime-primitives.js"
+      ],
+      "lib/human-oversight-approval-runtime-decide.js": [
+        "lib/human-oversight-approval-runtime-primitives.js"
+      ],
+      "lib/human-oversight-approval-runtime-execution.js": [
+        "lib/human-oversight-approval-runtime-primitives.js"
+      ],
       "lib/human-oversight-approval-runtime-primitives.js": [
         "lib/agent-action-firewall.js",
         "lib/is-plain-object.js",
         "lib/receipt/canonical-receipt.js",
         "lib/trust-evidence-ledger.js"
       ],
-      "lib/human-oversight-approval-runtime.js": [
+      "lib/human-oversight-approval-runtime-state.js": [
         "lib/human-oversight-approval-runtime-primitives.js"
+      ],
+      "lib/human-oversight-approval-runtime.js": [
+        "lib/human-oversight-approval-runtime-cases.js",
+        "lib/human-oversight-approval-runtime-decide.js",
+        "lib/human-oversight-approval-runtime-execution.js",
+        "lib/human-oversight-approval-runtime-primitives.js",
+        "lib/human-oversight-approval-runtime-state.js"
       ],
       "lib/human-sponsor-authority.js": [
         "lib/external-action-identity-signing.js",
@@ -3649,10 +3719,30 @@
       "lib/text-utils.js": [
         "lib/is-plain-object.js"
       ],
-      "lib/tool-call-gate.js": [
+      "lib/tool-call-gate-classify.js": [
+        "lib/is-plain-object.js",
+        "lib/text-utils.js",
+        "lib/tool-call-gate-normalize.js",
+        "lib/tool-call-gate-vocabulary.js"
+      ],
+      "lib/tool-call-gate-normalize.js": [
+        "lib/is-plain-object.js",
+        "lib/text-utils.js",
+        "lib/tool-call-gate-vocabulary.js"
+      ],
+      "lib/tool-call-gate-secrets.js": [
         "lib/is-plain-object.js",
         "lib/secret-patterns.js",
-        "lib/text-utils.js"
+        "lib/tool-call-gate-classify.js",
+        "lib/tool-call-gate-normalize.js",
+        "lib/tool-call-gate-vocabulary.js"
+      ],
+      "lib/tool-call-gate.js": [
+        "lib/is-plain-object.js",
+        "lib/tool-call-gate-classify.js",
+        "lib/tool-call-gate-normalize.js",
+        "lib/tool-call-gate-secrets.js",
+        "lib/tool-call-gate-vocabulary.js"
       ],
       "lib/trust-evidence-ledger.js": [
         "lib/receipt/canonical-receipt.js",
