@@ -681,25 +681,25 @@
       ]
     },
     {
-      "file": "lib/github-app-streaming-trust-store.js",
+      "file": "lib/github-app-streaming-trust-store-files.js",
       "role": "persistence",
-      "why": "the streaming trust store, at a configured path and only when the streaming-trust flag is enabled",
+      "why": "the streaming trust store file writes, moved here from lib/github-app-streaming-trust-store.js by #2826 without reclassification; at a configured path and only when the streaming-trust flag is enabled",
       "capabilities": [
         "fs_write"
       ],
       "sites": [
         {
-          "line": 162,
+          "line": 25,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 176,
+          "line": 39,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 195,
+          "line": 58,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         }
