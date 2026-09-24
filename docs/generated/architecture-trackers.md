@@ -14,7 +14,6 @@ Tracked in total: **58**
 | File | Lines | Signals |
 |---|---:|---|
 | `agent.v3.js` | 778 | DIP |
-| `lib/observability/service.js` | 767 | — |
 | `lib/human-oversight-approval-runtime.js` | 744 | — |
 | `lib/external-client-mutation-receipt-owner.js` | 741 | — |
 | `lib/risk-classify.js` | 739 | — |
