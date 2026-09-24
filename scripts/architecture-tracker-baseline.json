@@ -1128,6 +1128,7 @@
       "scripts/external-client.js": "UI",
       "scripts/external-conformance/consumer.js": "UI",
       "scripts/external-conformance/run.js": "UI",
+      "scripts/external-conformance/verify-bundle.js": "UI",
       "scripts/file-size-policy.js": "UI",
       "scripts/fitness-dashboard-charts.js": "UI",
       "scripts/fitness-dashboard.js": "UI",
@@ -1136,6 +1137,7 @@
       "scripts/junit-merge.js": "UI",
       "scripts/knowledge-graph-demo.js": "UI",
       "scripts/launch-installed-package-smoke.js": "UI",
+      "scripts/launch-smoke-receipts.js": "UI",
       "scripts/list-mutation-targets.js": "UI",
       "scripts/migrate-prov-ids.js": "UI",
       "scripts/nightly-failure-alarm.js": "UI",
@@ -4086,6 +4088,9 @@
         "scripts/binding-site-scan.js",
         "scripts/enforcement-coverage-classification.js"
       ],
+      "scripts/external-conformance/consumer.js": [
+        "scripts/external-conformance/verify-bundle.js"
+      ],
       "scripts/fitness-dashboard.js": [
         "lib/fitness-history.js",
         "scripts/fitness-dashboard-charts.js"
@@ -4104,6 +4109,7 @@
         "lib/environment-compat.js"
       ],
       "scripts/launch-installed-package-smoke.js": [
+        "scripts/launch-smoke-receipts.js",
         "scripts/spawn-windows-aware.js"
       ],
       "scripts/migrate-prov-ids.js": [
