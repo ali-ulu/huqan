@@ -1,5 +1,11 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+const Graph = require('./graph');
+const { readSandboxEscapes } = require('./lib/sandbox-escape-ledger');
 
 const {
   DEFAULT_MAX_SOURCE_BYTES,
@@ -115,5 +121,56 @@ describe('Sandbox Runner', () => {
     const followup = runSandboxed('({ alive: true })');
     assert.strictEqual(followup.ok, true);
     assert.deepStrictEqual(followup.data, { alive: true });
+  });
+
+  // #2505 G: the runner is the production producer of escape attempts --------
+  function tempGraph(t) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-sandbox-producer-'));
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    return new Graph({ useSQLite: false, memoryPath: path.join(dir, 'memory.json') });
+  }
+
+  it('records a block verdict when the caller supplies a graph', (t) => {
+    const graph = tempGraph(t);
+    const result = runSandboxed('(() => ({ ok: true }))()', {}, {
+      sourceTrust: 'untrusted',
+      graph,
+      workspaceId: 'workspace-a',
+      sourceRef: 'test:producer',
+    });
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.meta.ab6.decision, 'block');
+    const escapes = readSandboxEscapes(graph);
+    assert.strictEqual(escapes.length, 1);
+    assert.strictEqual(escapes[0].decision, 'block');
+    assert.strictEqual(escapes[0].workspaceId, 'workspace-a');
+  });
+
+  it('records a quarantine verdict and nothing for an allow', (t) => {
+    const graph = tempGraph(t);
+    const quarantined = runSandboxed('(() => ({ ok: true }))()', {}, { graph });
+    assert.strictEqual(quarantined.meta.ab6.decision, 'quarantine');
+    const allowed = runSandboxed('(() => ({ ok: true }))()', {}, {
+      sourceTrust: 'validated',
+      graph,
+    });
+    assert.strictEqual(allowed.meta.ab6.decision, 'allow');
+    const escapes = readSandboxEscapes(graph);
+    assert.strictEqual(escapes.length, 1, 'only the quarantine is recorded');
+    assert.strictEqual(escapes[0].decision, 'quarantine');
+  });
+
+  it('without a graph the verdict travels exactly as before', () => {
+    const result = runSandboxed('(() => ({ ok: true }))()', {}, { sourceTrust: 'untrusted' });
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.meta.ab6.decision, 'block');
+    assert.strictEqual(result.meta.ab6.reason, 'UNTRUSTED_SOURCE_BLOCK');
+  });
+
+  it('a failing recorder never breaks execution', () => {
+    const broken = { runMutationOnce: () => { throw new Error('store down'); } };
+    const result = runSandboxed('(() => ({ ok: true }))()', {}, { sourceTrust: 'untrusted', graph: broken });
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.meta.ab6.decision, 'block');
   });
 });

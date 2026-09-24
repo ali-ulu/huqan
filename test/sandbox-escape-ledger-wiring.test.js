@@ -11,10 +11,11 @@
  *  2. The self-healer caller forwards the verdict rather than dropping it, as
  *     it did before this change.
  *
- * What is NOT claimed: that this caller ever records anything. Its sandbox
- * source is a literal it declares `validated`, so AB6 answers `allow` and
- * nothing is written. That is correct behaviour, not a gap, and the test below
- * pins it so nobody later reads an empty ledger as a broken wire.
+ * What is NOT claimed: that the simulator ever records anything on its own. Its
+ * sandbox source is a literal it declares `validated`, so AB6 answers `allow`
+ * and nothing is written. That is correct behaviour, not a gap, and the test
+ * below pins it so nobody later reads an empty ledger as a broken wire. The
+ * runner records instead, whenever any caller hands it a graph (#2505 G).
  */
 
 const assert = require('node:assert/strict');
@@ -96,18 +97,20 @@ test('this call site writes nothing, and the reason is its verdict, not a missin
 test('a validated source is still recorded when the runner blocks it for another reason', () => {
   // The escape branch is not reachable *through the simulator* today, but it is
   // not exclusive to untrusted sources either: AB6 blocks a validated source
-  // whose timeout exceeds policy. This is the case that keeps the recorder
-  // meaningful for trusted call sites.
+  // whose timeout exceeds policy. The runner itself records when it is given a
+  // graph (#2505 G) -- no caller has to persist `meta.ab6` by hand.
   const { graph, dir } = makeTempGraph();
   try {
     const result = runSandboxed('(() => ({ ok: true }))()', {}, {
       sourceTrust: 'validated',
       timeoutMs: 60000,
+      graph,
+      workspaceId: 'workspace-a',
+      sourceRef: 'test:validated-timeout',
     });
     assert.equal(result.meta.ab6.decision, 'block');
     assert.equal(result.meta.ab6.reason, 'TIMEOUT_EXCEEDED_BLOCK');
 
-    recordSandboxVerdict({ graph, verdict: result.meta.ab6, workspaceId: 'workspace-a' });
     const escapes = readSandboxEscapes(graph);
 
     assert.equal(escapes.length, 1);
