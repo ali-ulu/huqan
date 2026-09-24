@@ -792,6 +792,7 @@
       "lib/memory-supersede.js": "Adapters",
       "lib/memory-temporal.js": "Adapters",
       "lib/memory-tombstone.js": "Adapters",
+      "lib/module-reachability-walk.js": "Core",
       "lib/module-reachability.js": "Core",
       "lib/multi-agent-cascade-guard.js": "Core",
       "lib/mutation-admission.js": "Core",
@@ -3303,7 +3304,8 @@
         "lib/memory-store-utils.js"
       ],
       "lib/module-reachability.js": [
-        "lib/is-plain-object.js"
+        "lib/is-plain-object.js",
+        "lib/module-reachability-walk.js"
       ],
       "lib/mutation-journal-lock.js": [
         "lib/graph-record-utils.js"

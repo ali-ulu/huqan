@@ -670,6 +670,7 @@
     "lib/memory-store-sqlite-writer.js",
     "lib/memory-store.js",
     "lib/module-reachability.js",
+    "lib/module-reachability-walk.js",
     "lib/mutation-admission.js",
     "lib/mutation-journal.js",
     "lib/mutation-journal-lock.js",
