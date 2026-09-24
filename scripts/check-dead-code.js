@@ -59,7 +59,15 @@ function checkMcpToolSurface(opts = {}) {
   const namesSource = read(namesFile);
   const handlersSource = read(handlersFile);
   const dispatchSource = read(dispatchFile);
-  const catalogSource = read(catalogFile);
+  // #2186 split the catalog into lib/mcp-tool-catalog-*.js domain arrays; the
+  // schemas are read from every part the catalog requires, so a tool dropped
+  // from a part is still a gap.
+  const catalogMain = read(catalogFile);
+  const catalogParts = [...catalogMain.matchAll(/require\('\.\/(mcp-tool-catalog-[\w-]+)'\)/g)]
+    .map((match) => `lib/${match[1]}.js`);
+  const catalogSources = [[catalogFile, catalogMain], ...catalogParts.map((file) => [file, read(file)])];
+  const catalogSource = catalogSources.map(([, source]) => source).join('\n');
+  const catalogFileFor = (suffix) => (catalogSources.find(([, source]) => source.includes(`huqan.${suffix}`)) || [catalogFile])[0];
   const operatorSchemasSource = read(operatorSchemasFile);
   const suffixes = extractMcpSuffixes(namesSource);
   const handlers = extractHandlerSuffixes(handlersSource);
@@ -84,8 +92,8 @@ function checkMcpToolSurface(opts = {}) {
   }
   for (const suffix of [...published].sort()) {
     if (!dispatchable.has(suffix)) {
-      const file = catalog.has(suffix) ? catalogFile : operatorSchemasFile;
-      const source = catalog.has(suffix) ? catalogSource : operatorSchemasSource;
+      const file = catalog.has(suffix) ? catalogFileFor(suffix) : operatorSchemasFile;
+      const source = catalog.has(suffix) ? read(file) : operatorSchemasSource;
       gaps.push(`${at(file, source, `huqan.${suffix}`)} published schema huqan.${suffix} is not dispatchable`);
     }
   }
