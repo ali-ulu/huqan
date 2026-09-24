@@ -218,11 +218,6 @@
       "lines": 468,
       "signals": []
     },
-    "lib/observability/service.js": {
-      "band": "recorded",
-      "lines": 767,
-      "signals": []
-    },
     "lib/receipt/public-trust-receipt.js": {
       "band": "recorded",
       "lines": 660,
@@ -832,6 +827,13 @@
       "lib/observability/retention.js": "Application",
       "lib/observability/schema.js": "Application",
       "lib/observability/server-runtime.js": "Application",
+      "lib/observability/service-alert-rules.js": "Application",
+      "lib/observability/service-constants.js": "Application",
+      "lib/observability/service-events.js": "Application",
+      "lib/observability/service-jobs.js": "Application",
+      "lib/observability/service-queries.js": "Application",
+      "lib/observability/service-runs.js": "Application",
+      "lib/observability/service-statements.js": "Application",
       "lib/observability/service.js": "Application",
       "lib/observability/sse-stream-lifecycle.js": "Application",
       "lib/observability/workflow-agent-instrumentation.js": "Application",
@@ -1084,6 +1086,7 @@
       "scripts/api-snapshot-diff.js": "UI",
       "scripts/api-snapshot-surface.js": "UI",
       "scripts/api-snapshot.js": "UI",
+      "scripts/architecture-carried-violations.js": "UI",
       "scripts/architecture-dependency-graph.js": "UI",
       "scripts/architecture-mermaid.js": "UI",
       "scripts/architecture-snapshot.js": "UI",
@@ -3201,13 +3204,42 @@
         "lib/observability/service.js",
         "lib/observability/workflow-agent-instrumentation.js"
       ],
+      "lib/observability/service-alert-rules.js": [
+        "lib/observability/helpers.js",
+        "lib/observability/service-constants.js"
+      ],
+      "lib/observability/service-constants.js": [
+        "lib/observability/helpers.js"
+      ],
+      "lib/observability/service-events.js": [
+        "lib/observability/helpers.js",
+        "lib/observability/service-constants.js"
+      ],
+      "lib/observability/service-jobs.js": [
+        "lib/observability/helpers.js",
+        "lib/observability/service-constants.js"
+      ],
+      "lib/observability/service-queries.js": [
+        "lib/observability/helpers.js",
+        "lib/observability/service-constants.js"
+      ],
+      "lib/observability/service-runs.js": [
+        "lib/observability/helpers.js"
+      ],
       "lib/observability/service.js": [
         "lib/observability/alert-lifecycle.js",
         "lib/observability/helpers.js",
         "lib/observability/internal-metrics.js",
         "lib/observability/migrations.js",
         "lib/observability/notification-adapter.js",
-        "lib/observability/retention.js"
+        "lib/observability/retention.js",
+        "lib/observability/service-alert-rules.js",
+        "lib/observability/service-constants.js",
+        "lib/observability/service-events.js",
+        "lib/observability/service-jobs.js",
+        "lib/observability/service-queries.js",
+        "lib/observability/service-runs.js",
+        "lib/observability/service-statements.js"
       ],
       "lib/observability/workflow-agent-instrumentation.js": [
         "lib/http/structured-log.js"
@@ -3994,6 +4026,9 @@
       "scripts/api-snapshot.js": [
         "scripts/api-snapshot-diff.js",
         "scripts/api-snapshot-surface.js"
+      ],
+      "scripts/architecture-dependency-graph.js": [
+        "scripts/architecture-carried-violations.js"
       ],
       "scripts/architecture-mermaid.js": [
         "scripts/check-layers.js"
