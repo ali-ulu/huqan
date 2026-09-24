@@ -79,6 +79,9 @@ try {
 
   log('4/4  run consumer');
   fs.copyFileSync(path.join(__dirname, 'consumer.js'), path.join(project, 'consumer.js'));
+  // consumer.js requires its sibling bundle-verification module; both travel
+  // together so the sandbox still proves the package runs standalone (#2131).
+  fs.copyFileSync(path.join(__dirname, 'verify-bundle.js'), path.join(project, 'verify-bundle.js'));
   const run = spawnSync(process.execPath, ['consumer.js'], {
     cwd: project,
     encoding: 'utf8',

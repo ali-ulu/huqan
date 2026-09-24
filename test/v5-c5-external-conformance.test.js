@@ -14,6 +14,13 @@ const CONSUMER = path.join(RUNNER_DIR, 'consumer.js');
 const consumerSource = fs.readFileSync(CONSUMER, 'utf8');
 const runnerSource = fs.readFileSync(RUNNER, 'utf8');
 
+// The files the runner copies into the sandbox beside consumer.js (#2131),
+// read from run.js itself so this list cannot drift from what actually ships.
+const SANDBOX_SIBLINGS = [...runnerSource.matchAll(/fs\.copyFileSync\(path\.join\(__dirname, '([^']+)'\)/g)]
+  .map((match) => match[1])
+  .filter((file) => file !== 'consumer.js');
+const siblingSpecifier = (spec) => SANDBOX_SIBLINGS.some((file) => spec === `./${file}` || `${spec}.js` === `./${file}`);
+
 test.describe('V5-C5: the consumer only sees the published package', () => {
   function requiredSpecifiers(source) {
     const specifiers = [];
@@ -26,18 +33,35 @@ test.describe('V5-C5: the consumer only sees the published package', () => {
     return specifiers;
   }
 
-  test('it requires only node builtins and the installed huqan package', () => {
-    const offending = requiredSpecifiers(consumerSource).filter((spec) => (
-      !spec.startsWith('node:') && spec !== 'huqan' && !spec.startsWith('huqan/')
-    ));
-    assert.deepStrictEqual(offending, [],
-      `consumer must not require anything outside node: and huqan: ${offending.join(', ')}`);
+  // What runs in the sandbox: consumer.js plus the siblings copied with it.
+  const shipped = [
+    ['consumer.js', consumerSource],
+    ...SANDBOX_SIBLINGS.map((file) => [file, fs.readFileSync(path.join(RUNNER_DIR, file), 'utf8')]),
+  ];
+
+  test('it requires only node builtins, the installed huqan package, and siblings copied with it', () => {
+    for (const [file, source] of shipped) {
+      const offending = requiredSpecifiers(source).filter((spec) => (
+        !spec.startsWith('node:') && spec !== 'huqan' && !spec.startsWith('huqan/') && !siblingSpecifier(spec)
+      ));
+      assert.deepStrictEqual(offending, [],
+        `${file} must not require anything outside node:, huqan and the copied siblings: ${offending.join(', ')}`);
+    }
   });
 
   test('it has no relative import that could escape into the repository', () => {
-    const relative = requiredSpecifiers(consumerSource).filter((spec) => spec.startsWith('.'));
-    assert.deepStrictEqual(relative, [],
-      `relative requires would resolve against the sandbox: ${relative.join(', ')}`);
+    for (const [file, source] of shipped) {
+      const relative = requiredSpecifiers(source).filter((spec) => spec.startsWith('.') && !siblingSpecifier(spec));
+      assert.deepStrictEqual(relative, [],
+        `${file}: relative requires would resolve against the sandbox: ${relative.join(', ')}`);
+    }
+  });
+
+  test('every copied sibling is plain JavaScript beside consumer.js, not a path out of the sandbox', () => {
+    for (const file of SANDBOX_SIBLINGS) {
+      assert.match(file, /^[\w-]+\.js$/, `${file} must be a file name in the runner directory`);
+      assert.ok(fs.existsSync(path.join(RUNNER_DIR, file)), `${file} is copied but does not exist`);
+    }
   });
 
   test('every filesystem root it reads is derived from the resolved package root', () => {
