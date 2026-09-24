@@ -506,3 +506,48 @@ test('evaluateMcpGate: dangerous action expressed only in agent goal is blocked 
   assert.equal(r.reason, MCP_GATE_REASONS.AB5_BLOCKED);
   assert.ok(r.findings.some(f => f.gate === 'AB5' && f.decision === 'block'));
 });
+
+// --- verdict justification (#2505 B) ------------------------------------------
+
+const {
+  buildDecision: buildMcpDecision,
+  buildMcpJustification,
+} = require('../lib/mcp-gate-adapter-decisions');
+
+test('every verdict carries its justification in the ledger fields, including the allow', () => {
+  for (const input of [
+    { tool: 'huqan.ask', args: { text: 'water boils at 100 degrees' }, metadata: {} },
+    { tool: 'huqan.nope', args: {}, metadata: {} },
+  ]) {
+    const verdict = evaluateMcpGate(input);
+    assert.equal(verdict.justification.version, 'huqan-decision-justification-v1', input.tool);
+    assert.equal(verdict.justification.score, verdict.risk.score, input.tool);
+    assert.equal(verdict.justification.unknown, '', input.tool);
+    assert.deepEqual(verdict.justification.thresholds, { criticalAt: 75, highAt: 50, mediumAt: 25 });
+    assert.ok(verdict.justification.dimensions.length > 0, input.tool);
+    assert.ok(Object.isFrozen(verdict.justification), input.tool);
+  }
+  const blocked = evaluateMcpGate({ tool: 'huqan.nope', args: {}, metadata: {} });
+  assert.equal(blocked.decision, MCP_GATE_DECISIONS.block);
+  assert.equal(blocked.justification.score, 100);
+});
+
+test('unknown is never 0 on the verdict surface either', () => {
+  const bare = buildMcpDecision('block', 'some-reason');
+  assert.equal(bare.justification.score, null);
+  assert.ok(bare.justification.unknown.length > 0);
+  assert.equal(bare.risk.score, 0, 'the legacy default risk field is untouched by this slice');
+});
+
+test('finding dimensions are bounded and the explicit task wins over volume', () => {
+  const findings = Array.from({ length: 20 }, (_, index) => ({ gate: `AB${index}`, decision: 'review' }));
+  const justified = buildMcpJustification({
+    score: 50,
+    unknown: '',
+    findings,
+    reason: 'mutating_requires_review',
+    classification: { category: 'write', known: true, mutating: true },
+  });
+  assert.equal(justified.dimensions.length, 16);
+  assert.ok(justified.dimensions.some(entry => entry.dimension === 'tool-category'));
+});
