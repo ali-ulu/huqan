@@ -424,6 +424,8 @@
     "lib/external-client-mutation-receipt-owner-dependencies.js",
     "lib/external-client-mutation-receipt-owner-json.js",
     "lib/external-client-mutation-receipt-owner-snapshot.js",
+    "lib/external-client-package-gate-inputs.js",
+    "lib/external-client-package-gate-verify.js",
     "lib/external-client-package-gate.js",
     "lib/goal-binding.js",
     "lib/supply-chain-activation-gate.js",
