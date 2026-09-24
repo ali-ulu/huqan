@@ -1085,7 +1085,7 @@
       ],
       "sites": [
         {
-          "line": 103,
+          "line": 101,
           "capability": "fs_write",
           "call": "fs.rmSync"
         }
