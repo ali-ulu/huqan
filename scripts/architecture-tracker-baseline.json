@@ -186,11 +186,6 @@
       "lines": 511,
       "signals": []
     },
-    "lib/mcp-tool-data-schemas.js": {
-      "band": "recorded",
-      "lines": 611,
-      "signals": []
-    },
     "lib/memory-admission-gate.js": {
       "band": "recorded",
       "lines": 471,
@@ -751,6 +746,11 @@
       "lib/mcp-input-sanitizers.js": "Core",
       "lib/mcp-operator-capability.js": "Core",
       "lib/mcp-tool-catalog.js": "Core",
+      "lib/mcp-tool-data-schemas-agent.js": "Core",
+      "lib/mcp-tool-data-schemas-governance.js": "Core",
+      "lib/mcp-tool-data-schemas-ingest.js": "Core",
+      "lib/mcp-tool-data-schemas-knowledge.js": "Core",
+      "lib/mcp-tool-data-schemas-trust.js": "Core",
       "lib/mcp-tool-data-schemas.js": "Core",
       "lib/mcp-tool-names.js": "Core",
       "lib/mcp-tool-policy.js": "Core",
@@ -2893,8 +2893,22 @@
         "lib/mcp-tool-data-schemas.js",
         "lib/mcp/operator-tool-schemas.js"
       ],
-      "lib/mcp-tool-data-schemas.js": [
+      "lib/mcp-tool-data-schemas-agent.js": [
         "lib/mcp-envelope-schema.js"
+      ],
+      "lib/mcp-tool-data-schemas-knowledge.js": [
+        "lib/mcp-envelope-schema.js"
+      ],
+      "lib/mcp-tool-data-schemas-trust.js": [
+        "lib/mcp-envelope-schema.js"
+      ],
+      "lib/mcp-tool-data-schemas.js": [
+        "lib/mcp-envelope-schema.js",
+        "lib/mcp-tool-data-schemas-agent.js",
+        "lib/mcp-tool-data-schemas-governance.js",
+        "lib/mcp-tool-data-schemas-ingest.js",
+        "lib/mcp-tool-data-schemas-knowledge.js",
+        "lib/mcp-tool-data-schemas-trust.js"
       ],
       "lib/mcp-tool-names.js": [
         "lib/legacy-alias-usage.js"
