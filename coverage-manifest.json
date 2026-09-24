@@ -488,7 +488,7 @@
       ],
       "sites": [
         {
-          "line": 36,
+          "line": 39,
           "capability": "process",
           "call": "spawnSync"
         }
