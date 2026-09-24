@@ -33,7 +33,6 @@
     "lib/memory-admission-gate.js": 471,
     "lib/memory-store.js": 594,
     "lib/receipt/receipt-read-index.js": 637,
-    "lib/receipt/trusted-key-resolver.js": 421,
     "lib/risk-classify.js": 739,
     "lib/storage/tool-approval-methods.js": 424,
     "lib/v5/runtime-writer.js": 411,
@@ -140,10 +139,6 @@
       "review_by": "2026-10-31"
     },
     "lib/receipt/receipt-read-index.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
-    "lib/receipt/trusted-key-resolver.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },
