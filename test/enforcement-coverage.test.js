@@ -73,7 +73,10 @@ test('the known process-execution sites are all present', () => {
     'rustGraph.js',
     'backupRestore.js',
     'adapters/git-log-adapter.js',
-    'lib/external-action-gate-install.js',
+    // #2145 split the gate installer; its spawns now live in these three.
+    'lib/external-action-gate-install-command.js',
+    'lib/external-action-gate-install-sentinel.js',
+    'lib/external-action-gate-install-validate.js',
   ]) {
     assert.ok(processFiles.has(file), `${file} should hold a process call site`);
   }

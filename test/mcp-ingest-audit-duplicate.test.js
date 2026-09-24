@@ -315,7 +315,10 @@ test('6: the duplicate stays deleted while later reviewed audit writes are count
   );
   assert.ok(unroutedLedger.length > 0);
   assert.equal(unroutedLedger.includes(MCP_TOOL), false, 'the MCP surface must leave the unrouted ledger');
-  assert.match(ledger, /assert\.equal\(unrouted, 26,/);
+  // #2127 (#2820, #2822) moved kernel.js's cross-link and plugin-node writes
+  // into their own modules and lowered the boundary contract's unrouted total
+  // 26 -> 24; this pin follows it.
+  assert.match(ledger, /assert\.equal\(unrouted, 24,/);
   // K2 (#328): a later routing step delegated the background edge commit to
   // lib/background-provenance.js as a *new* ledgered entry -- routed rose
   // 24->26 and the total 46->48. DEL then added one routed audit append inside
@@ -335,6 +338,9 @@ test('6: the duplicate stays deleted while later reviewed audit writes are count
   // pending-candidate surface (lib/web-research-candidate-pipeline.js), both
   // delegating to the same admitted kernel.addCandidateClaim as the
   // hypothesis review above -- together, 31/57.
-  assert.match(ledger, /assert\.equal\(routed, 31,/);
+  // #2127 (#2820, #2822) then moved kernel.js's cross-link and plugin-node
+  // writes behind admission in their own modules: two sinks went from
+  // unrouted to routed, 33/57, the total unchanged.
+  assert.match(ledger, /assert\.equal\(routed, 33,/);
   assert.match(ledger, /assert\.equal\(unrouted \+ routed, 57,/);
 });
