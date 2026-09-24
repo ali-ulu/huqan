@@ -176,11 +176,6 @@
       "lines": 432,
       "signals": []
     },
-    "lib/mcp-gate-adapter.js": {
-      "band": "recorded",
-      "lines": 606,
-      "signals": []
-    },
     "lib/mcp-tool-catalog.js": {
       "band": "recorded",
       "lines": 511,
@@ -744,6 +739,9 @@
       "lib/mcp-configuration-errors.js": "Core",
       "lib/mcp-envelope-format.js": "Core",
       "lib/mcp-envelope-schema.js": "Core",
+      "lib/mcp-gate-adapter-contract.js": "Core",
+      "lib/mcp-gate-adapter-decisions.js": "Core",
+      "lib/mcp-gate-adapter-inputs.js": "Core",
       "lib/mcp-gate-adapter.js": "Core",
       "lib/mcp-human-oversight-adapter.js": "Core",
       "lib/mcp-ingest-execute-tool.js": "Core",
@@ -2848,14 +2846,30 @@
         "lib/environment-compat.js",
         "lib/verify-status-vocabulary.js"
       ],
+      "lib/mcp-gate-adapter-contract.js": [
+        "lib/action-risk-classifier.js",
+        "lib/risk-scale.js"
+      ],
+      "lib/mcp-gate-adapter-decisions.js": [
+        "lib/action-risk-classifier.js",
+        "lib/mcp-gate-adapter-contract.js",
+        "lib/risk-scale.js"
+      ],
+      "lib/mcp-gate-adapter-inputs.js": [
+        "lib/action-risk-classifier.js",
+        "lib/is-plain-object.js",
+        "lib/mcp-gate-adapter-contract.js",
+        "lib/mcp-tool-names.js"
+      ],
       "lib/mcp-gate-adapter.js": [
         "lib/action-risk-classifier.js",
         "lib/automation-safety-gate/index.js",
         "lib/command-exec-gate.js",
         "lib/cross-workspace-access-gate.js",
         "lib/data-egress-gate.js",
-        "lib/is-plain-object.js",
-        "lib/mcp-tool-names.js",
+        "lib/mcp-gate-adapter-contract.js",
+        "lib/mcp-gate-adapter-decisions.js",
+        "lib/mcp-gate-adapter-inputs.js",
         "lib/memory-mutation-gate/index.js",
         "lib/risk-scale.js",
         "lib/tool-call-gate.js"

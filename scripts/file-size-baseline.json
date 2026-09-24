@@ -42,7 +42,6 @@
     "lib/ingest.js": 587,
     "lib/kernel-read-use-cases.js": 412,
     "lib/learn-use-case.js": 432,
-    "lib/mcp-gate-adapter.js": 606,
     "lib/mcp-tool-catalog.js": 511,
     "lib/mcp-tool-data-schemas.js": 611,
     "lib/memory-admission-gate.js": 471,
@@ -195,10 +194,6 @@
       "review_by": "2027-03-31"
     },
     "lib/learn-use-case.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
-    "lib/mcp-gate-adapter.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },
