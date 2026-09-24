@@ -218,11 +218,6 @@
       "lines": 468,
       "signals": []
     },
-    "lib/receipt/public-trust-receipt.js": {
-      "band": "recorded",
-      "lines": 660,
-      "signals": []
-    },
     "lib/receipt/receipt-read-index.js": {
       "band": "recorded",
       "lines": 637,
@@ -874,6 +869,11 @@
       "lib/receipt/cryptographic-profile-contract.js": "Application",
       "lib/receipt/cryptographic-verification-adapter.js": "Application",
       "lib/receipt/issuer-seal.js": "Application",
+      "lib/receipt/public-trust-receipt-contract.js": "Application",
+      "lib/receipt/public-trust-receipt-export.js": "Application",
+      "lib/receipt/public-trust-receipt-import.js": "Application",
+      "lib/receipt/public-trust-receipt-integrity.js": "Application",
+      "lib/receipt/public-trust-receipt-values.js": "Application",
       "lib/receipt/public-trust-receipt.js": "Application",
       "lib/receipt/receipt-chain.js": "Application",
       "lib/receipt/receipt-export.js": "Application",
@@ -1128,6 +1128,7 @@
       "scripts/external-client.js": "UI",
       "scripts/external-conformance/consumer.js": "UI",
       "scripts/external-conformance/run.js": "UI",
+      "scripts/external-conformance/verify-bundle.js": "UI",
       "scripts/file-size-policy.js": "UI",
       "scripts/fitness-dashboard-charts.js": "UI",
       "scripts/fitness-dashboard.js": "UI",
@@ -1136,6 +1137,7 @@
       "scripts/junit-merge.js": "UI",
       "scripts/knowledge-graph-demo.js": "UI",
       "scripts/launch-installed-package-smoke.js": "UI",
+      "scripts/launch-smoke-receipts.js": "UI",
       "scripts/list-mutation-targets.js": "UI",
       "scripts/migrate-prov-ids.js": "UI",
       "scripts/nightly-failure-alarm.js": "UI",
@@ -3366,16 +3368,43 @@
       "lib/receipt/issuer-seal.js": [
         "lib/receipt/canonical-receipt.js"
       ],
-      "lib/receipt/public-trust-receipt.js": [
-        "lib/is-plain-object.js",
+      "lib/receipt/public-trust-receipt-export.js": [
         "lib/receipt/canonical-receipt.js",
         "lib/receipt/cryptographic-profile-contract.js",
+        "lib/receipt/public-trust-receipt-contract.js",
+        "lib/receipt/public-trust-receipt-integrity.js",
+        "lib/receipt/public-trust-receipt-values.js",
+        "lib/tool-call-gate.js"
+      ],
+      "lib/receipt/public-trust-receipt-import.js": [
+        "lib/receipt/cryptographic-profile-contract.js",
         "lib/receipt/cryptographic-verification-adapter.js",
+        "lib/receipt/public-trust-receipt-contract.js",
+        "lib/receipt/public-trust-receipt-integrity.js",
+        "lib/receipt/public-trust-receipt-values.js",
+        "lib/receipt/trusted-key-resolver.js"
+      ],
+      "lib/receipt/public-trust-receipt-integrity.js": [
+        "lib/receipt/canonical-receipt.js",
+        "lib/receipt/cryptographic-profile-contract.js",
+        "lib/receipt/public-trust-receipt-contract.js",
+        "lib/receipt/public-trust-receipt-values.js",
         "lib/receipt/receipt-export.js",
-        "lib/receipt/trusted-key-resolver.js",
         "lib/receipt/v4-receipt-family.js",
         "lib/tool-call-gate.js",
         "lib/verdict/action-verdict.js"
+      ],
+      "lib/receipt/public-trust-receipt-values.js": [
+        "lib/is-plain-object.js",
+        "lib/receipt/cryptographic-profile-contract.js",
+        "lib/receipt/public-trust-receipt-contract.js"
+      ],
+      "lib/receipt/public-trust-receipt.js": [
+        "lib/receipt/public-trust-receipt-contract.js",
+        "lib/receipt/public-trust-receipt-export.js",
+        "lib/receipt/public-trust-receipt-import.js",
+        "lib/receipt/public-trust-receipt-integrity.js",
+        "lib/receipt/public-trust-receipt-values.js"
       ],
       "lib/receipt/receipt-chain.js": [
         "lib/receipt/canonical-receipt.js"
@@ -4089,6 +4118,9 @@
         "scripts/binding-site-scan.js",
         "scripts/enforcement-coverage-classification.js"
       ],
+      "scripts/external-conformance/consumer.js": [
+        "scripts/external-conformance/verify-bundle.js"
+      ],
       "scripts/fitness-dashboard.js": [
         "lib/fitness-history.js",
         "scripts/fitness-dashboard-charts.js"
@@ -4107,6 +4139,7 @@
         "lib/environment-compat.js"
       ],
       "scripts/launch-installed-package-smoke.js": [
+        "scripts/launch-smoke-receipts.js",
         "scripts/spawn-windows-aware.js"
       ],
       "scripts/migrate-prov-ids.js": [
