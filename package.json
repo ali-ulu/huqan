@@ -242,6 +242,8 @@
     "lib/observability/service-statements.js",
     "lib/observability/internal-metrics.js",
     "lib/observability/api-contract.js",
+    "lib/observability/api-contract-schemas.js",
+    "lib/observability/api-contract-spec.js",
     "lib/observability/notification-adapter.js",
     "lib/observability/alert-lifecycle.js",
     "lib/observability/migrations.js",
