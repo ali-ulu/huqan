@@ -91,31 +91,6 @@
       "lines": 589,
       "signals": []
     },
-    "lib/external-client-replay-store-contract.js": {
-      "band": "structural",
-      "lines": 92,
-      "signals": []
-    },
-    "lib/external-client-replay-store-schema.js": {
-      "band": "structural",
-      "lines": 170,
-      "signals": []
-    },
-    "lib/external-client-replay-store-snapshot.js": {
-      "band": "structural",
-      "lines": 214,
-      "signals": []
-    },
-    "lib/external-client-trust-config-guards.js": {
-      "band": "structural",
-      "lines": 172,
-      "signals": []
-    },
-    "lib/external-client-trust-config-keys.js": {
-      "band": "structural",
-      "lines": 165,
-      "signals": []
-    },
     "lib/github-connector.js": {
       "band": "recorded",
       "lines": 518,
