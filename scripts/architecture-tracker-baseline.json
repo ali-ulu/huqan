@@ -96,19 +96,9 @@
       "lines": 469,
       "signals": []
     },
-    "lib/contradiction-rules.js": {
-      "band": "recorded",
-      "lines": 531,
-      "signals": []
-    },
     "lib/dream-experiment-loop.js": {
       "band": "recorded",
       "lines": 533,
-      "signals": []
-    },
-    "lib/external-action-guard.js": {
-      "band": "recorded",
-      "lines": 531,
       "signals": []
     },
     "lib/external-action-receipt-collector.js": {
@@ -450,6 +440,10 @@
       "lib/connectors/repo-memory-firewall.js": "Adapters",
       "lib/content-hash.js": "Core",
       "lib/contested-read-policy.js": "Core",
+      "lib/contradiction-rules-opposition-detectors.js": "Core",
+      "lib/contradiction-rules-text.js": "Core",
+      "lib/contradiction-rules-value-detectors.js": "Core",
+      "lib/contradiction-rules-vocabulary.js": "Core",
       "lib/contradiction-rules.js": "Core",
       "lib/control-plane-paths.js": "Core",
       "lib/cross-workspace-access-gate.js": "Core",
@@ -520,6 +514,9 @@
       "lib/external-action-gate-install-validate.js": "Core",
       "lib/external-action-gate-install.js": "Core",
       "lib/external-action-gate-sentinel.js": "Core",
+      "lib/external-action-guard-gates.js": "Core",
+      "lib/external-action-guard-records.js": "Core",
+      "lib/external-action-guard-rules.js": "Core",
       "lib/external-action-guard.js": "Core",
       "lib/external-action-identity-log.js": "Core",
       "lib/external-action-identity-signing.js": "Core",
@@ -1875,9 +1872,25 @@
         "lib/risk-policy-constants.js",
         "lib/risk-scale.js"
       ],
-      "lib/contradiction-rules.js": [
+      "lib/contradiction-rules-opposition-detectors.js": [
+        "lib/contradiction-rules-text.js",
+        "lib/contradiction-rules-vocabulary.js",
+        "lib/text-utils.js"
+      ],
+      "lib/contradiction-rules-text.js": [
+        "lib/text-utils.js"
+      ],
+      "lib/contradiction-rules-value-detectors.js": [
+        "lib/contradiction-rules-opposition-detectors.js",
+        "lib/contradiction-rules-text.js",
+        "lib/contradiction-rules-vocabulary.js",
         "lib/relation-drift.js",
         "lib/text-utils.js"
+      ],
+      "lib/contradiction-rules.js": [
+        "lib/contradiction-rules-opposition-detectors.js",
+        "lib/contradiction-rules-value-detectors.js",
+        "lib/contradiction-rules-vocabulary.js"
       ],
       "lib/cross-workspace-access-gate.js": [
         "lib/is-plain-object.js"
@@ -2065,6 +2078,19 @@
         "lib/external-action-gate-install-validate.js",
         "lib/external-action-receipt.js"
       ],
+      "lib/external-action-guard-gates.js": [
+        "lib/action-risk-classifier.js",
+        "lib/external-action-guard-rules.js",
+        "lib/external-action-receipt.js",
+        "lib/file-effect-sensor.js",
+        "lib/risk-scale.js"
+      ],
+      "lib/external-action-guard-records.js": [
+        "lib/external-action-envelope.js",
+        "lib/external-action-identity.js",
+        "lib/external-action-receipt.js",
+        "lib/post-action-monitor.js"
+      ],
       "lib/external-action-guard.js": [
         "lib/action-risk-classifier.js",
         "lib/automation-safety-gate/index.js",
@@ -2073,9 +2099,10 @@
         "lib/cross-workspace-access-gate.js",
         "lib/external-action-egress-gates.js",
         "lib/external-action-envelope.js",
+        "lib/external-action-guard-gates.js",
+        "lib/external-action-guard-records.js",
+        "lib/external-action-guard-rules.js",
         "lib/external-action-identity.js",
-        "lib/external-action-receipt.js",
-        "lib/file-effect-sensor.js",
         "lib/graduated-autonomy.js",
         "lib/identity-privilege-escalation.js",
         "lib/memory-mutation-gate/index.js",
