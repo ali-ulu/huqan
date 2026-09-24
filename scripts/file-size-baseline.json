@@ -35,7 +35,6 @@
     "lib/verify.js": 693,
     "plugin.js": 728,
     "plugins/company-brain.js": 678,
-    "plugins/receipt-exporter.js": 430,
     "plugins/repo-memory.js": 726,
     "public/js/app.js": 425,
     "sandboxRunner.js": 530,
@@ -143,10 +142,6 @@
       "review_by": "2027-03-31"
     },
     "plugins/company-brain.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
-    "plugins/receipt-exporter.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },

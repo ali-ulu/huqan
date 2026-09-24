@@ -193,6 +193,23 @@ test('receipt-exporter: exportReceiptToPdf writes a real PDF with %PDF magic byt
   }
 });
 
+test('receipt-exporter: a second PDF export to the same target fails instead of overwriting the first (#1280)', async () => {
+  const outputDir = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-pdf-exclusive-${process.pid}`);
+  try {
+    const first = await exportReceiptToPdf({ receiptId: 'r-pdf-exclusive-1', decision: 'first' }, outputDir);
+    const original = fs.readFileSync(first);
+
+    await assert.rejects(
+      exportReceiptToPdf({ receiptId: 'r-pdf-exclusive-1', decision: 'second' }, outputDir),
+      (e) => e.code === 'RECEIPT_EXPORT_TARGET_EXISTS',
+    );
+    // The original file must survive untouched -- not silently overwritten.
+    assert.ok(fs.readFileSync(first).equals(original));
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
+});
+
 test('receipt-exporter: exportReceiptToPdf accepts an outputDir under the OS temp root (H-09, #1982)', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-receipt-pdf-outside-'));
   try {

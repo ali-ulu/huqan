@@ -150,11 +150,6 @@
       "lines": 678,
       "signals": []
     },
-    "plugins/receipt-exporter.js": {
-      "band": "recorded",
-      "lines": 430,
-      "signals": []
-    },
     "plugins/repo-memory.js": {
       "band": "recorded",
       "lines": 726,
@@ -845,6 +840,8 @@
       "lib/receipt/public-trust-receipt.js": "Application",
       "lib/receipt/receipt-chain.js": "Application",
       "lib/receipt/receipt-export.js": "Application",
+      "lib/receipt/receipt-exporter-paths.js": "Application",
+      "lib/receipt/receipt-exporter-pdf.js": "Application",
       "lib/receipt/receipt-read-index.js": "Application",
       "lib/receipt/receipt-stamp.js": "Application",
       "lib/receipt/receipt-validation-cache.js": "Application",
@@ -3752,6 +3749,14 @@
         "lib/receipt/signed-bundle.js",
         "lib/receipt/v4-receipt-family.js"
       ],
+      "lib/receipt/receipt-exporter-paths.js": [
+        "lib/path-safety.js",
+        "persistencePaths.js"
+      ],
+      "lib/receipt/receipt-exporter-pdf.js": [
+        "lib/path-safety.js",
+        "lib/receipt/receipt-exporter-paths.js"
+      ],
       "lib/receipt/receipt-read-index.js": [
         "lib/is-plain-object.js",
         "lib/json-clone.js",
@@ -4349,8 +4354,8 @@
         "lib/trust-policy.js"
       ],
       "plugins/receipt-exporter.js": [
-        "lib/path-safety.js",
-        "persistencePaths.js"
+        "lib/receipt/receipt-exporter-paths.js",
+        "lib/receipt/receipt-exporter-pdf.js"
       ],
       "plugins/replication-checker.js": [
         "evidence-ranker.js"

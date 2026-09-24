@@ -173,7 +173,8 @@ const CLASSIFIED = Object.freeze({
     why: 'writes a simulated source tree for the dogfood run; never reached by an agent request',
   }),
   'plugins/metric-collector.js': Object.freeze({ role: 'operator_tool', why: 'plugin writing its own metric output file; loaded only when an operator enables the plugin directory' }),
-  'plugins/receipt-exporter.js': Object.freeze({ role: 'operator_tool', why: 'plugin exporting receipts to an operator-named path; runs on explicit invocation, not on an agent request' }),
+  'lib/receipt/receipt-exporter-paths.js': Object.freeze({ role: 'operator_tool', why: 'writes the receipt-exporter plugin JSON export to an operator-named path; runs on explicit invocation, not on an agent request' }),
+  'lib/receipt/receipt-exporter-pdf.js': Object.freeze({ role: 'operator_tool', why: 'writes the receipt-exporter plugin PDF export to an operator-named path; runs on explicit invocation, not on an agent request' }),
   'lib/coder/apply-derivation.js': Object.freeze({
     role: 'operator_tool',
     why: 'applies a deterministic transform to a working tree, but only after evaluateCodeChange returns allow; its writes are the gated action, invoked by the human-run `coder` CLI, and the whole patch is rolled back on the first write failure',
