@@ -248,11 +248,6 @@
       "lines": 424,
       "signals": []
     },
-    "lib/tool-call-gate.js": {
-      "band": "recorded",
-      "lines": 729,
-      "signals": []
-    },
     "lib/v5/runtime-writer.js": {
       "band": "recorded",
       "lines": 411,
@@ -949,6 +944,10 @@
       "lib/temporal-qualifier.js": "Core",
       "lib/text-safety-scorer.js": "Core",
       "lib/text-utils.js": "Core",
+      "lib/tool-call-gate-classify.js": "Core",
+      "lib/tool-call-gate-normalize.js": "Core",
+      "lib/tool-call-gate-secrets.js": "Core",
+      "lib/tool-call-gate-vocabulary.js": "Core",
       "lib/tool-call-gate.js": "Core",
       "lib/trust-evidence-ledger.js": "Core",
       "lib/trust-policy.js": "Core",
@@ -1084,6 +1083,7 @@
       "scripts/api-snapshot-diff.js": "UI",
       "scripts/api-snapshot-surface.js": "UI",
       "scripts/api-snapshot.js": "UI",
+      "scripts/architecture-carried-violations.js": "UI",
       "scripts/architecture-dependency-graph.js": "UI",
       "scripts/architecture-mermaid.js": "UI",
       "scripts/architecture-snapshot.js": "UI",
@@ -1125,6 +1125,7 @@
       "scripts/external-client.js": "UI",
       "scripts/external-conformance/consumer.js": "UI",
       "scripts/external-conformance/run.js": "UI",
+      "scripts/external-conformance/verify-bundle.js": "UI",
       "scripts/file-size-policy.js": "UI",
       "scripts/fitness-dashboard-charts.js": "UI",
       "scripts/fitness-dashboard.js": "UI",
@@ -1133,6 +1134,7 @@
       "scripts/junit-merge.js": "UI",
       "scripts/knowledge-graph-demo.js": "UI",
       "scripts/launch-installed-package-smoke.js": "UI",
+      "scripts/launch-smoke-receipts.js": "UI",
       "scripts/list-mutation-targets.js": "UI",
       "scripts/migrate-prov-ids.js": "UI",
       "scripts/nightly-failure-alarm.js": "UI",
@@ -3591,10 +3593,30 @@
       "lib/text-utils.js": [
         "lib/is-plain-object.js"
       ],
-      "lib/tool-call-gate.js": [
+      "lib/tool-call-gate-classify.js": [
+        "lib/is-plain-object.js",
+        "lib/text-utils.js",
+        "lib/tool-call-gate-normalize.js",
+        "lib/tool-call-gate-vocabulary.js"
+      ],
+      "lib/tool-call-gate-normalize.js": [
+        "lib/is-plain-object.js",
+        "lib/text-utils.js",
+        "lib/tool-call-gate-vocabulary.js"
+      ],
+      "lib/tool-call-gate-secrets.js": [
         "lib/is-plain-object.js",
         "lib/secret-patterns.js",
-        "lib/text-utils.js"
+        "lib/tool-call-gate-classify.js",
+        "lib/tool-call-gate-normalize.js",
+        "lib/tool-call-gate-vocabulary.js"
+      ],
+      "lib/tool-call-gate.js": [
+        "lib/is-plain-object.js",
+        "lib/tool-call-gate-classify.js",
+        "lib/tool-call-gate-normalize.js",
+        "lib/tool-call-gate-secrets.js",
+        "lib/tool-call-gate-vocabulary.js"
       ],
       "lib/trust-evidence-ledger.js": [
         "lib/receipt/canonical-receipt.js",
@@ -3995,6 +4017,9 @@
         "scripts/api-snapshot-diff.js",
         "scripts/api-snapshot-surface.js"
       ],
+      "scripts/architecture-dependency-graph.js": [
+        "scripts/architecture-carried-violations.js"
+      ],
       "scripts/architecture-mermaid.js": [
         "scripts/check-layers.js"
       ],
@@ -4054,6 +4079,9 @@
         "scripts/binding-site-scan.js",
         "scripts/enforcement-coverage-classification.js"
       ],
+      "scripts/external-conformance/consumer.js": [
+        "scripts/external-conformance/verify-bundle.js"
+      ],
       "scripts/fitness-dashboard.js": [
         "lib/fitness-history.js",
         "scripts/fitness-dashboard-charts.js"
@@ -4072,6 +4100,7 @@
         "lib/environment-compat.js"
       ],
       "scripts/launch-installed-package-smoke.js": [
+        "scripts/launch-smoke-receipts.js",
         "scripts/spawn-windows-aware.js"
       ],
       "scripts/migrate-prov-ids.js": [
