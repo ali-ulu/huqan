@@ -56,11 +56,6 @@
         "DIP"
       ]
     },
-    "lib/a2a/bounded-exchange.js": {
-      "band": "recorded",
-      "lines": 693,
-      "signals": []
-    },
     "lib/a2a/exchange-route.js": {
       "band": "recorded",
       "lines": 493,
@@ -347,6 +342,11 @@
       "kernel.v2.js": "Core",
       "lib/a2a/agent-card-route.js": "Application",
       "lib/a2a/agent-card.js": "Application",
+      "lib/a2a/bounded-exchange-authority.js": "Application",
+      "lib/a2a/bounded-exchange-contract.js": "Application",
+      "lib/a2a/bounded-exchange-signing.js": "Application",
+      "lib/a2a/bounded-exchange-validation.js": "Application",
+      "lib/a2a/bounded-exchange-values.js": "Application",
       "lib/a2a/bounded-exchange.js": "Application",
       "lib/a2a/capability-negotiation.js": "Application",
       "lib/a2a/delegation-audit-log.js": "Application",
@@ -1128,6 +1128,7 @@
       "scripts/external-client.js": "UI",
       "scripts/external-conformance/consumer.js": "UI",
       "scripts/external-conformance/run.js": "UI",
+      "scripts/external-conformance/verify-bundle.js": "UI",
       "scripts/file-size-policy.js": "UI",
       "scripts/fitness-dashboard-charts.js": "UI",
       "scripts/fitness-dashboard.js": "UI",
@@ -1136,6 +1137,7 @@
       "scripts/junit-merge.js": "UI",
       "scripts/knowledge-graph-demo.js": "UI",
       "scripts/launch-installed-package-smoke.js": "UI",
+      "scripts/launch-smoke-receipts.js": "UI",
       "scripts/list-mutation-targets.js": "UI",
       "scripts/migrate-prov-ids.js": "UI",
       "scripts/nightly-failure-alarm.js": "UI",
@@ -1416,13 +1418,37 @@
         "lib/a2a/exchange-route.js",
         "lib/server-response-helpers.js"
       ],
-      "lib/a2a/bounded-exchange.js": [
+      "lib/a2a/bounded-exchange-authority.js": [
+        "lib/a2a/bounded-exchange-contract.js",
+        "lib/a2a/bounded-exchange-values.js"
+      ],
+      "lib/a2a/bounded-exchange-signing.js": [
+        "lib/a2a/bounded-exchange-contract.js",
+        "lib/a2a/bounded-exchange-values.js",
+        "lib/receipt/cryptographic-profile-contract.js",
+        "lib/receipt/cryptographic-verification-adapter.js",
+        "lib/receipt/trusted-key-resolver.js"
+      ],
+      "lib/a2a/bounded-exchange-validation.js": [
+        "lib/a2a/bounded-exchange-authority.js",
+        "lib/a2a/bounded-exchange-contract.js",
+        "lib/a2a/bounded-exchange-signing.js",
+        "lib/a2a/bounded-exchange-values.js",
         "lib/a2a/inter-agent-receipt-chain.js",
         "lib/external-client-package-gate.js",
         "lib/receipt/cryptographic-profile-contract.js",
-        "lib/receipt/cryptographic-verification-adapter.js",
-        "lib/receipt/public-trust-receipt.js",
-        "lib/receipt/trusted-key-resolver.js"
+        "lib/receipt/public-trust-receipt.js"
+      ],
+      "lib/a2a/bounded-exchange-values.js": [
+        "lib/a2a/bounded-exchange-contract.js",
+        "lib/receipt/cryptographic-profile-contract.js"
+      ],
+      "lib/a2a/bounded-exchange.js": [
+        "lib/a2a/bounded-exchange-authority.js",
+        "lib/a2a/bounded-exchange-contract.js",
+        "lib/a2a/bounded-exchange-signing.js",
+        "lib/a2a/bounded-exchange-validation.js",
+        "lib/a2a/bounded-exchange-values.js"
       ],
       "lib/a2a/capability-negotiation.js": [
         "lib/a2a/agent-card.js"
@@ -4089,6 +4115,9 @@
         "scripts/binding-site-scan.js",
         "scripts/enforcement-coverage-classification.js"
       ],
+      "scripts/external-conformance/consumer.js": [
+        "scripts/external-conformance/verify-bundle.js"
+      ],
       "scripts/fitness-dashboard.js": [
         "lib/fitness-history.js",
         "scripts/fitness-dashboard-charts.js"
@@ -4107,6 +4136,7 @@
         "lib/environment-compat.js"
       ],
       "scripts/launch-installed-package-smoke.js": [
+        "scripts/launch-smoke-receipts.js",
         "scripts/spawn-windows-aware.js"
       ],
       "scripts/migrate-prov-ids.js": [
