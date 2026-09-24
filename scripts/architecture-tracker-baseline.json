@@ -505,7 +505,9 @@
       "lib/external-action-gate-install.js": "Core",
       "lib/external-action-gate-sentinel.js": "Core",
       "lib/external-action-guard.js": "Core",
+      "lib/external-action-identity-card.js": "Core",
       "lib/external-action-identity-log.js": "Core",
+      "lib/external-action-identity-records.js": "Core",
       "lib/external-action-identity-signing.js": "Core",
       "lib/external-action-identity.js": "Core",
       "lib/external-action-receipt-collector.js": "Core",
@@ -2123,20 +2125,29 @@
         "lib/session-impact.js",
         "lib/tool-call-gate.js"
       ],
+      "lib/external-action-identity-card.js": [
+        "lib/emergency-stop.js",
+        "lib/external-action-envelope.js",
+        "lib/is-plain-object.js",
+        "lib/receipt/canonical-receipt.js"
+      ],
       "lib/external-action-identity-log.js": [
         "lib/external-action-identity.js",
         "lib/external-action-receipt.js"
+      ],
+      "lib/external-action-identity-records.js": [
+        "lib/external-action-identity-card.js",
+        "lib/external-action-identity-signing.js"
       ],
       "lib/external-action-identity-signing.js": [
         "lib/receipt/canonical-receipt.js"
       ],
       "lib/external-action-identity.js": [
         "lib/emergency-stop.js",
-        "lib/external-action-envelope.js",
+        "lib/external-action-identity-card.js",
+        "lib/external-action-identity-records.js",
         "lib/external-action-identity-signing.js",
-        "lib/human-sponsor-authority.js",
-        "lib/is-plain-object.js",
-        "lib/receipt/canonical-receipt.js"
+        "lib/human-sponsor-authority.js"
       ],
       "lib/external-action-receipt-collector.js": [
         "lib/external-action-identity-log.js",
@@ -4686,13 +4697,13 @@
         "toLayer": "Adapters"
       },
       {
-        "from": "lib/external-action-identity-signing.js",
+        "from": "lib/external-action-identity-card.js",
         "to": "lib/receipt/canonical-receipt.js",
         "fromLayer": "Core",
         "toLayer": "Application"
       },
       {
-        "from": "lib/external-action-identity.js",
+        "from": "lib/external-action-identity-signing.js",
         "to": "lib/receipt/canonical-receipt.js",
         "fromLayer": "Core",
         "toLayer": "Application"
