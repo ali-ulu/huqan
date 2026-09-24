@@ -26,7 +26,6 @@
     "lib/command-exec-gate.js": 515,
     "lib/conflict-detector.js": 616,
     "lib/connector-action-firewall.js": 469,
-    "lib/contradiction-rules.js": 531,
     "lib/dream-experiment-loop.js": 533,
     "lib/external-action-guard.js": 531,
     "lib/external-action-receipt-collector.js": 448,
@@ -129,10 +128,6 @@
       "review_by": "2027-03-31"
     },
     "lib/connector-action-firewall.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
-    "lib/contradiction-rules.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },

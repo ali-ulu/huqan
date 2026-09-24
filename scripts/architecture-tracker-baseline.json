@@ -96,11 +96,6 @@
       "lines": 469,
       "signals": []
     },
-    "lib/contradiction-rules.js": {
-      "band": "recorded",
-      "lines": 531,
-      "signals": []
-    },
     "lib/dream-experiment-loop.js": {
       "band": "recorded",
       "lines": 533,
@@ -450,6 +445,10 @@
       "lib/connectors/repo-memory-firewall.js": "Adapters",
       "lib/content-hash.js": "Core",
       "lib/contested-read-policy.js": "Core",
+      "lib/contradiction-rules-opposition-detectors.js": "Core",
+      "lib/contradiction-rules-text.js": "Core",
+      "lib/contradiction-rules-value-detectors.js": "Core",
+      "lib/contradiction-rules-vocabulary.js": "Core",
       "lib/contradiction-rules.js": "Core",
       "lib/control-plane-paths.js": "Core",
       "lib/cross-workspace-access-gate.js": "Core",
@@ -1875,9 +1874,25 @@
         "lib/risk-policy-constants.js",
         "lib/risk-scale.js"
       ],
-      "lib/contradiction-rules.js": [
+      "lib/contradiction-rules-opposition-detectors.js": [
+        "lib/contradiction-rules-text.js",
+        "lib/contradiction-rules-vocabulary.js",
+        "lib/text-utils.js"
+      ],
+      "lib/contradiction-rules-text.js": [
+        "lib/text-utils.js"
+      ],
+      "lib/contradiction-rules-value-detectors.js": [
+        "lib/contradiction-rules-opposition-detectors.js",
+        "lib/contradiction-rules-text.js",
+        "lib/contradiction-rules-vocabulary.js",
         "lib/relation-drift.js",
         "lib/text-utils.js"
+      ],
+      "lib/contradiction-rules.js": [
+        "lib/contradiction-rules-opposition-detectors.js",
+        "lib/contradiction-rules-value-detectors.js",
+        "lib/contradiction-rules-vocabulary.js"
       ],
       "lib/cross-workspace-access-gate.js": [
         "lib/is-plain-object.js"
