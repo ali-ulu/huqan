@@ -179,10 +179,18 @@ test('readable local output does not imply trust, authorization, or verification
 });
 
 test('writer and reader helpers remain isolated from exchange and persistence surfaces', () => {
-  const writerSource = fs.readFileSync(
-    path.join(__dirname, '..', 'lib', 'v5', 'runtime-writer.js'),
-    'utf8'
-  );
+  // The writer is split across runtime-writer*.js (#2206): follow its own
+  // require chain so every part is held to the same rule.
+  const v5Dir = path.join(__dirname, '..', 'lib', 'v5');
+  const writerFiles = ['runtime-writer.js'];
+  for (let i = 0; i < writerFiles.length; i += 1) {
+    const text = fs.readFileSync(path.join(v5Dir, writerFiles[i]), 'utf8');
+    for (const [, name] of text.matchAll(/require\(['"]\.\/(runtime-writer[\w-]*)['"]\)/g)) {
+      if (!writerFiles.includes(`${name}.js`)) writerFiles.push(`${name}.js`);
+    }
+  }
+  assert.ok(writerFiles.length > 1, 'the writer parts are reachable from its entry file');
+  const writerSource = writerFiles.map((file) => fs.readFileSync(path.join(v5Dir, file), 'utf8')).join('\n');
   const readerSource = fs.readFileSync(
     path.join(__dirname, '..', 'lib', 'v5', 'runtime-reader.js'),
     'utf8'

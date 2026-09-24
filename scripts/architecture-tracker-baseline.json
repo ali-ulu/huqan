@@ -148,11 +148,6 @@
       "lines": 424,
       "signals": []
     },
-    "lib/v5/runtime-writer.js": {
-      "band": "recorded",
-      "lines": 411,
-      "signals": []
-    },
     "lib/verify-numeric-text.js": {
       "band": "structural",
       "lines": 82,
@@ -959,6 +954,8 @@
       "lib/v5/cryptographic-verification-adapter.js": "Application",
       "lib/v5/public-trust-receipt.js": "Application",
       "lib/v5/runtime-reader.js": "Application",
+      "lib/v5/runtime-writer-guards.js": "Application",
+      "lib/v5/runtime-writer-sections.js": "Application",
       "lib/v5/runtime-writer.js": "Application",
       "lib/v5/structural-signing-helper.js": "Application",
       "lib/v5/trusted-key-resolver.js": "Application",
@@ -4051,8 +4048,17 @@
       "lib/v5/runtime-reader.js": [
         "lib/is-plain-object.js"
       ],
-      "lib/v5/runtime-writer.js": [
+      "lib/v5/runtime-writer-guards.js": [
         "lib/is-plain-object.js"
+      ],
+      "lib/v5/runtime-writer-sections.js": [
+        "lib/is-plain-object.js",
+        "lib/v5/runtime-writer-guards.js"
+      ],
+      "lib/v5/runtime-writer.js": [
+        "lib/is-plain-object.js",
+        "lib/v5/runtime-writer-guards.js",
+        "lib/v5/runtime-writer-sections.js"
       ],
       "lib/v5/structural-signing-helper.js": [
         "lib/is-plain-object.js"
