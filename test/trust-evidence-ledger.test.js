@@ -191,3 +191,107 @@ test('ingest approval writer does not reach ledger when admission refuses', () =
   );
   assert.equal(ledgerCalls.length, 0);
 });
+
+// --- decision justification (#2505 B) ----------------------------------------
+
+function justification(overrides = {}) {
+  return {
+    score: 65,
+    unknown: '',
+    dimensions: [
+      { dimension: 'breadth', value: 'multiple', source: 'external-action-guard' },
+      { dimension: 'reversibility', value: 'reversible', source: 'blast-radius' },
+    ],
+    thresholds: { reviewAt: 40, blockAt: 90 },
+    ...overrides,
+  };
+}
+
+test('a scored justification is recorded next to the decision, deterministically', () => {
+  const first = buildTrustEvidencePayload(event('op-j1', { justification: justification() }));
+  const second = buildTrustEvidencePayload(event('op-j1', { justification: justification() }));
+  assert.equal(first.receiptId, second.receiptId);
+  assert.deepEqual(first.justification, {
+    version: 'huqan-decision-justification-v1',
+    score: 65,
+    unknown: '',
+    dimensions: [
+      { dimension: 'breadth', value: 'multiple', source: 'external-action-guard' },
+      { dimension: 'reversibility', value: 'reversible', source: 'blast-radius' },
+    ],
+    thresholds: { reviewAt: 40, blockAt: 90 },
+  });
+  assert.ok(Object.isFrozen(first.justification));
+});
+
+test('an unrecorded justification leaves historical payloads byte-identical', () => {
+  const payload = buildTrustEvidencePayload(event('op-j2'));
+  assert.ok(!('justification' in payload));
+});
+
+test('unknown is never 0: an unscored justification requires a reason', () => {
+  const recorded = buildTrustEvidencePayload(event('op-j3', {
+    justification: { score: null, unknown: 'insufficient-data', dimensions: [], thresholds: {} },
+  }));
+  assert.equal(recorded.justification.score, null);
+  assert.equal(recorded.justification.unknown, 'insufficient-data');
+
+  const zero = buildTrustEvidencePayload(event('op-j4', { justification: justification({ score: 0 }) }));
+  assert.equal(zero.justification.score, 0, '0 is a real score, not unknown');
+
+  for (const bad of [
+    { score: null, unknown: '' },
+    { score: null },
+    { score: 150, unknown: '' },
+    { score: 'high', unknown: '' },
+    { score: 65, unknown: 'insufficient-data' },
+    { version: 'huqan-decision-justification-v99', score: 1, unknown: '' },
+  ]) {
+    assert.throws(
+      () => buildTrustEvidencePayload(event('op-j5', { justification: bad })),
+      /justification/,
+      JSON.stringify(bad),
+    );
+  }
+});
+
+test('malformed justification dimensions and thresholds are rejected, never persisted', () => {
+  const many = Array.from({ length: 17 }, (_, index) => ({ dimension: `d${index}`, value: 1, source: 't' }));
+  const thresholds = {};
+  for (let index = 0; index < 17; index += 1) thresholds[`t${index}`] = index;
+  for (const bad of [
+    justification({ dimensions: many }),
+    justification({ dimensions: [{ dimension: '', value: 1, source: 't' }] }),
+    justification({ dimensions: [{ dimension: 'breadth', value: { nested: true }, source: 't' }] }),
+    justification({ dimensions: 'breadth' }),
+    justification({ thresholds }),
+    justification({ thresholds: { '': 1 } }),
+    justification({ thresholds: { token: 'secret' } }),
+    7,
+  ]) {
+    assert.throws(
+      () => buildTrustEvidencePayload(event('op-j6', { justification: bad })),
+      /justification|trust evidence field/,
+      JSON.stringify(bad),
+    );
+  }
+});
+
+test('a justified event appends through Graph durability with a verified receipt', () => {
+  const { graph, dir } = makeTempGraph();
+  try {
+    const ledger = createTrustEvidenceLedger({ graph });
+    const appended = ledger.append({
+      operationId: 'trust-evidence:op-j7',
+      event: event('trust-evidence:op-j7', { justification: justification() }),
+      mutate: () => ({ applied: true }),
+    });
+    assert.equal(appended.verification.valid, true);
+    assert.equal(appended.receipt.canonicalPayload.justification.score, 65);
+    const read = ledger.readByOperation('trust-evidence:op-j7');
+    assert.equal(read.verification.valid, true);
+    assert.deepEqual(read.receipt.canonicalPayload.justification.thresholds, { reviewAt: 40, blockAt: 90 });
+  } finally {
+    cleanup(dir);
+  }
+});
