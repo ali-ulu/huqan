@@ -18,7 +18,6 @@
     "finalizer.js": 604,
     "kernel.js": 855,
     "kernel.v2.js": 497,
-    "lib/a2a/bounded-exchange.js": 693,
     "lib/a2a/exchange-route.js": 493,
     "lib/atp-conformance.js": 504,
     "lib/automation-safety-gate/automation-operation-classifier.js": 545,
@@ -26,31 +25,23 @@
     "lib/conflict-detector.js": 616,
     "lib/connector-action-firewall.js": 469,
     "lib/dream-experiment-loop.js": 533,
-    "lib/external-action-guard.js": 531,
     "lib/external-action-receipt-collector.js": 448,
     "lib/external-action-receipt.js": 589,
     "lib/external-client-replay-store.js": 510,
     "lib/external-client-trust-config.js": 448,
-    "lib/github-app-streaming-trust.js": 612,
     "lib/github-connector.js": 518,
     "lib/http/workflow-data-routes.js": 477,
     "lib/huqan-package-format.js": 428,
-    "lib/ingest.js": 587,
     "lib/kernel-read-use-cases.js": 412,
     "lib/learn-use-case.js": 432,
-    "lib/mcp-gate-adapter.js": 606,
     "lib/mcp-tool-catalog.js": 511,
-    "lib/mcp-tool-data-schemas.js": 611,
     "lib/memory-admission-gate.js": 471,
-    "lib/memory-schema.js": 565,
     "lib/memory-store.js": 594,
     "lib/observability/api-contract.js": 468,
-    "lib/receipt/public-trust-receipt.js": 660,
     "lib/receipt/receipt-read-index.js": 637,
     "lib/receipt/trusted-key-resolver.js": 421,
     "lib/risk-classify.js": 739,
     "lib/storage/tool-approval-methods.js": 424,
-    "lib/tool-call-gate.js": 729,
     "lib/v5/runtime-writer.js": 411,
     "lib/verify.js": 693,
     "plugin.js": 728,
@@ -98,10 +89,6 @@
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2026-10-31"
     },
-    "lib/a2a/bounded-exchange.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
     "lib/a2a/exchange-route.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
@@ -130,10 +117,6 @@
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },
-    "lib/external-action-guard.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
     "lib/external-action-receipt-collector.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
@@ -150,10 +133,6 @@
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },
-    "lib/github-app-streaming-trust.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
     "lib/github-connector.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
@@ -166,10 +145,6 @@
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },
-    "lib/ingest.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
     "lib/kernel-read-use-cases.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
@@ -178,23 +153,11 @@
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },
-    "lib/mcp-gate-adapter.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
     "lib/mcp-tool-catalog.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },
-    "lib/mcp-tool-data-schemas.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
     "lib/memory-admission-gate.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
-    "lib/memory-schema.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },
@@ -203,10 +166,6 @@
       "review_by": "2026-10-31"
     },
     "lib/observability/api-contract.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
-    "lib/receipt/public-trust-receipt.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },
@@ -223,10 +182,6 @@
       "review_by": "2027-03-31"
     },
     "lib/storage/tool-approval-methods.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
-    "lib/tool-call-gate.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },
