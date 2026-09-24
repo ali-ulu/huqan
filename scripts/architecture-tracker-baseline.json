@@ -116,11 +116,6 @@
       "lines": 510,
       "signals": []
     },
-    "lib/external-client-trust-config.js": {
-      "band": "recorded",
-      "lines": 448,
-      "signals": []
-    },
     "lib/github-connector.js": {
       "band": "recorded",
       "lines": 518,
@@ -526,6 +521,8 @@
       "lib/external-client-package-gate.js": "Core",
       "lib/external-client-production-boundary.js": "Core",
       "lib/external-client-replay-store.js": "Core",
+      "lib/external-client-trust-config-guards.js": "Core",
+      "lib/external-client-trust-config-keys.js": "Core",
       "lib/external-client-trust-config.js": "Core",
       "lib/external-client-trusted-key-snapshot.js": "Core",
       "lib/file-effect-sensor.js": "Core",
@@ -2222,8 +2219,18 @@
         "lib/is-plain-object.js",
         "lib/memory-store-utils.js"
       ],
+      "lib/external-client-trust-config-guards.js": [
+        "lib/external-client-authority.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/external-client-trust-config-keys.js": [
+        "lib/external-client-authority.js",
+        "lib/external-client-trust-config-guards.js"
+      ],
       "lib/external-client-trust-config.js": [
         "lib/external-client-authority.js",
+        "lib/external-client-trust-config-guards.js",
+        "lib/external-client-trust-config-keys.js",
         "lib/is-plain-object.js"
       ],
       "lib/external-client-trusted-key-snapshot.js": [

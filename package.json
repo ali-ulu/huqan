@@ -429,6 +429,8 @@
     "lib/supply-chain-activation-gate.js",
     "lib/external-client-production-boundary.js",
     "lib/external-client-replay-store.js",
+    "lib/external-client-trust-config-guards.js",
+    "lib/external-client-trust-config-keys.js",
     "lib/external-client-trust-config.js",
     "lib/fluent-answer.js",
     "lib/fuzzy-normalization.js",
