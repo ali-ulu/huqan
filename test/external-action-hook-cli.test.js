@@ -133,7 +133,7 @@ test('shipped adapter templates bind every supported host to HUQAN before execut
 
 // --- Faz C (#1769): identity card + identity log query over the CLI --------
 
-function identityCardFile(directory) {
+function identityCardFile(directory, taskScope = null) {
   const target = path.join(directory, 'card.json');
   // The hook evaluates the card against the real clock, so the window is built
   // around it: #2505 C requires an expiry and caps the lifetime at 24h.
@@ -148,6 +148,7 @@ function identityCardFile(directory) {
     capabilities: ['shell'],
     issuedAt,
     expiresAt,
+    ...(taskScope ? { taskScope } : {}),
   }));
   return target;
 }
@@ -225,4 +226,23 @@ test('--graduated-autonomy exposes the enforced T1 score and tier in CLI output'
   const receipt = JSON.parse(fs.readFileSync(run.receiptLog, 'utf8').trim());
   assert.equal(receipt.metadata.autonomy.schemaVersion, 'huqan.graduated-autonomy.v1');
   assert.equal(receipt.metadata.autonomy.requiredTier, 'T1');
+});
+
+test('--task-id binds a task-scoped card to its task end to end (#2505 C)', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-gate-task-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const card = identityCardFile(directory, { taskId: 'task-7' });
+
+  const matched = runHookWithCard(genericPayload('git status'), directory, [
+    '--identity-card', card,
+    '--task-id', 'task-7',
+  ]);
+  assert.equal(matched.process.status, 0, matched.process.stderr);
+  assert.equal(JSON.parse(matched.process.stdout).decision, 'allow');
+
+  const floating = runHookWithCard(genericPayload('git status'), directory, [
+    '--identity-card', card,
+  ]);
+  assert.equal(floating.process.status, 2, floating.process.stderr);
+  assert.equal(JSON.parse(floating.process.stdout).decision, 'block');
 });

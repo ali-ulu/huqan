@@ -16,6 +16,7 @@ const {
   createOpenCodeGuardPlugin,
   registerPiGuard,
 } = require('../lib/external-action-adapter');
+const { IDENTITY_REASONS } = require('../lib/external-action-identity');
 
 const workspaceRoot = path.resolve(__dirname, '..');
 
@@ -361,4 +362,70 @@ test('host-reported fields are bounded and string-only', () => {
   assert.equal(host.agentId.length, 200);
   assert.equal(host.model, '');
   assert.equal(host.agentType, '');
+});
+
+// --- taskId plumbing for task-scoped cards (#2505 C) -------------------------
+
+function taskCard(overrides = {}) {
+  const issuedAt = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  return {
+    schemaVersion: 'huqan.agent-identity-card.v1',
+    agentId: 'codex',
+    agentName: 'codex',
+    ownerActorId: 'actor:ali',
+    workspaceId: 'default',
+    capabilities: ['*'],
+    issuedAt,
+    expiresAt,
+    ...overrides,
+  };
+}
+
+function taskOptions(overrides = {}) {
+  return {
+    workspaceRoot,
+    allowControlPlane: true,
+    receiptWriter: null,
+    requireSignedIdentityCard: false,
+    ...overrides,
+  };
+}
+
+function identityReason(evaluated) {
+  return evaluated.result.findings.find(finding => finding.gate === 'identity');
+}
+
+test('an explicit taskId allows a matching task-bound card and blocks a floating one', () => {
+  const card = taskCard({ taskScope: { taskId: 'task-7' } });
+  const allowed = evaluateHookInvocation('codex', codexPayload(), taskOptions({ identityCard: card, taskId: 'task-7' }));
+  assert.equal(identityReason(allowed).decision, 'allow');
+  assert.equal(identityReason(allowed).reason, IDENTITY_REASONS.ATTESTED);
+
+  const floating = evaluateHookInvocation('codex', codexPayload(), taskOptions({ identityCard: card }));
+  assert.equal(floating.result.decision, 'block');
+  assert.equal(identityReason(floating).reason, IDENTITY_REASONS.TASK_SCOPE_MISMATCH);
+
+  const wrong = evaluateHookInvocation('codex', codexPayload(), taskOptions({ identityCard: card, taskId: 'task-9' }));
+  assert.equal(wrong.result.decision, 'block');
+  assert.equal(identityReason(wrong).reason, IDENTITY_REASONS.TASK_SCOPE_MISMATCH);
+});
+
+test('a host-reported payload task is only a fallback and never overrides the explicit task', () => {
+  const card = taskCard({ taskScope: { taskId: 'task-7' } });
+  const viaPayload = evaluateHookInvocation('codex', codexPayload({ task_id: 'task-7' }), taskOptions({ identityCard: card }));
+  assert.equal(identityReason(viaPayload).decision, 'allow');
+  assert.equal(identityReason(viaPayload).reason, IDENTITY_REASONS.ATTESTED);
+
+  const payloadMismatch = evaluateHookInvocation('codex', codexPayload({ task_id: 'task-9' }), taskOptions({ identityCard: card }));
+  assert.equal(payloadMismatch.result.decision, 'block');
+  assert.equal(identityReason(payloadMismatch).reason, IDENTITY_REASONS.TASK_SCOPE_MISMATCH);
+
+  const explicitWins = evaluateHookInvocation(
+    'codex',
+    codexPayload({ task_id: 'task-9' }),
+    taskOptions({ identityCard: card, taskId: 'task-7' }),
+  );
+  assert.equal(identityReason(explicitWins).decision, 'allow', 'the deployment task overrides the host claim');
+  assert.equal(identityReason(explicitWins).reason, IDENTITY_REASONS.ATTESTED);
 });
