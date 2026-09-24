@@ -81,11 +81,6 @@
       "lines": 533,
       "signals": []
     },
-    "lib/external-action-receipt-collector.js": {
-      "band": "recorded",
-      "lines": 448,
-      "signals": []
-    },
     "lib/external-action-receipt.js": {
       "band": "recorded",
       "lines": 589,
@@ -448,6 +443,8 @@
       "lib/external-action-identity-records.js": "Core",
       "lib/external-action-identity-signing.js": "Core",
       "lib/external-action-identity.js": "Core",
+      "lib/external-action-receipt-collector-fleet.js": "Core",
+      "lib/external-action-receipt-collector-store.js": "Core",
       "lib/external-action-receipt-collector.js": "Core",
       "lib/external-action-receipt-reader.js": "Core",
       "lib/external-action-receipt-shipper.js": "Core",
@@ -2181,13 +2178,21 @@
         "lib/external-action-identity-signing.js",
         "lib/human-sponsor-authority.js"
       ],
-      "lib/external-action-receipt-collector.js": [
+      "lib/external-action-receipt-collector-fleet.js": [
+        "lib/external-action-identity-log.js",
+        "lib/external-action-receipt-collector-store.js"
+      ],
+      "lib/external-action-receipt-collector-store.js": [
         "lib/external-action-identity-log.js",
         "lib/external-action-identity-signing.js",
         "lib/external-action-receipt-shipper.js",
         "lib/path-safety.js",
         "lib/receipt/collector-seal.js",
         "lib/receipt/signed-receipt-batch.js"
+      ],
+      "lib/external-action-receipt-collector.js": [
+        "lib/external-action-receipt-collector-fleet.js",
+        "lib/external-action-receipt-collector-store.js"
       ],
       "lib/external-action-receipt-reader.js": [
         "lib/external-action-receipt.js",
@@ -4933,13 +4938,13 @@
         "toLayer": "Application"
       },
       {
-        "from": "lib/external-action-receipt-collector.js",
+        "from": "lib/external-action-receipt-collector-store.js",
         "to": "lib/receipt/collector-seal.js",
         "fromLayer": "Core",
         "toLayer": "Application"
       },
       {
-        "from": "lib/external-action-receipt-collector.js",
+        "from": "lib/external-action-receipt-collector-store.js",
         "to": "lib/receipt/signed-receipt-batch.js",
         "fromLayer": "Core",
         "toLayer": "Application"

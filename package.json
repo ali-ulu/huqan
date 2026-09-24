@@ -383,6 +383,8 @@
     "lib/external-action-receipt-shipper.js",
     "lib/external-action-receipt-reader.js",
     "lib/external-action-receipt-collector.js",
+    "lib/external-action-receipt-collector-fleet.js",
+    "lib/external-action-receipt-collector-store.js",
     "lib/collector-seal-config.js",
     "lib/issuer-seal-config.js",
     "lib/command-parser.js",

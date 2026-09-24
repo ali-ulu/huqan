@@ -23,7 +23,6 @@
     "lib/automation-safety-gate/automation-operation-classifier.js": 545,
     "lib/conflict-detector.js": 616,
     "lib/dream-experiment-loop.js": 533,
-    "lib/external-action-receipt-collector.js": 448,
     "lib/external-action-receipt.js": 589,
     "lib/github-connector.js": 518,
     "lib/http/workflow-data-routes.js": 477,
@@ -97,10 +96,6 @@
       "review_by": "2027-03-31"
     },
     "lib/dream-experiment-loop.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
-    "lib/external-action-receipt-collector.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },

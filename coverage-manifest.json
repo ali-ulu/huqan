@@ -629,22 +629,22 @@
       ],
       "sites": [
         {
-          "line": 198,
+          "line": 48,
           "capability": "fs_write",
           "call": "fs.appendFileSync"
         },
         {
-          "line": 236,
+          "line": 86,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 270,
+          "line": 120,
           "capability": "fs_write",
           "call": "fs.appendFileSync"
         },
         {
-          "line": 282,
+          "line": 132,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         }
