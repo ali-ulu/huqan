@@ -322,6 +322,8 @@
       "lib/agent-action-step-enforcement.js": "Core",
       "lib/agent-behavioral-integrity.js": "Core",
       "lib/agent-failure-signature.js": "Core",
+      "lib/agent-identity-runtime-resolve.js": "Core",
+      "lib/agent-identity-runtime-shape.js": "Core",
       "lib/agent-identity-runtime.js": "Core",
       "lib/agent-loop-budget-gate.js": "Core",
       "lib/agent-memory-persistence.js": "Core",
@@ -1524,8 +1526,15 @@
       "lib/agent-failure-signature.js": [
         "lib/agent-memory-state.js"
       ],
-      "lib/agent-identity-runtime.js": [
+      "lib/agent-identity-runtime-resolve.js": [
+        "lib/agent-identity-runtime-shape.js"
+      ],
+      "lib/agent-identity-runtime-shape.js": [
         "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/agent-identity-runtime.js": [
+        "lib/agent-identity-runtime-resolve.js",
+        "lib/agent-identity-runtime-shape.js"
       ],
       "lib/agent-memory-records.js": [
         "lib/agent-memory-state.js"
@@ -4528,7 +4537,7 @@
         "toLayer": "Application"
       },
       {
-        "from": "lib/agent-identity-runtime.js",
+        "from": "lib/agent-identity-runtime-shape.js",
         "to": "lib/receipt/canonical-receipt.js",
         "fromLayer": "Core",
         "toLayer": "Application"

@@ -189,6 +189,8 @@
     "lib/agent-behavioral-integrity.js",
     "lib/behavioral-stop-bridge.js",
     "lib/agent-failure-signature.js",
+    "lib/agent-identity-runtime-resolve.js",
+    "lib/agent-identity-runtime-shape.js",
     "lib/agent-identity-runtime.js",
     "lib/goal-integrity-gate.js",
     "lib/agent-v3-dream-loop-adapter.js",
