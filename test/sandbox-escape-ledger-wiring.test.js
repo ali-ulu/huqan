@@ -28,7 +28,7 @@ const path = require('node:path');
 
 const Graph = require('../graph');
 const { runSandboxed } = require('../sandboxRunner');
-const { runSandboxedWithEscapeRecording } = require('../lib/sandbox-escape-producer');
+const { createSandboxEscapeProducer } = require('../lib/sandbox-escape-producer');
 const { recordSandboxVerdict, readSandboxEscapes } = require('../lib/sandbox-escape-ledger');
 const { simulateInSandbox } = require('../lib/self-healer/source-dogfood-simulator');
 
@@ -43,6 +43,10 @@ const DEPENDENCY_GRAPH = {
   edges: [],
 };
 const CANDIDATE = { from: 'a.js', to: 'b.js', candidateId: 'c1', confidence: 0.6, hypothesisType: 'test' };
+
+// The collaborator is handed in, mirroring the production wiring: the inner
+// producer ring may not require the outer runner (layer check).
+const { runSandboxedWithEscapeRecording } = createSandboxEscapeProducer({ runSandboxed });
 
 test('an untrusted source really does produce a quarantine verdict the ledger accepts', () => {
   const { graph, dir } = makeTempGraph();
@@ -181,4 +185,9 @@ test('a failing recorder never breaks execution', () => {
   const result = runSandboxedWithEscapeRecording('(() => ({ ok: true }))()', {}, { sourceTrust: 'untrusted', graph: broken });
   assert.equal(result.ok, false);
   assert.equal(result.meta.ab6.decision, 'block');
+});
+
+test('the producer refuses to build without a runner', () => {
+  assert.throws(() => createSandboxEscapeProducer({}), /requires a runSandboxed runner/);
+  assert.throws(() => createSandboxEscapeProducer(), /requires a runSandboxed runner/);
 });
