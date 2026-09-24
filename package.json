@@ -769,6 +769,7 @@
     "lib/risk-rules.js",
     "lib/safe-file-walk.js",
     "lib/sandbox-escape-ledger.js",
+    "lib/sandbox-escape-producer.js",
     "lib/sandbox-isolation.js",
     "lib/sandbox-isolation-vocabulary.js",
     "lib/sandbox-isolation-input.js",

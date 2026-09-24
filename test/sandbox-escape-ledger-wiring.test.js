@@ -16,6 +16,8 @@
  * and nothing is written. That is correct behaviour, not a gap, and the test
  * below pins it so nobody later reads an empty ledger as a broken wire. The
  * runner records instead, whenever any caller hands it a graph (#2505 G).
+ * That recording lives in lib/sandbox-escape-producer.js rather than in
+ * sandboxRunner.js itself, which is over the large-file threshold (#328).
  */
 
 const assert = require('node:assert/strict');
@@ -26,6 +28,7 @@ const path = require('node:path');
 
 const Graph = require('../graph');
 const { runSandboxed } = require('../sandboxRunner');
+const { runSandboxedWithEscapeRecording } = require('../lib/sandbox-escape-producer');
 const { recordSandboxVerdict, readSandboxEscapes } = require('../lib/sandbox-escape-ledger');
 const { simulateInSandbox } = require('../lib/self-healer/source-dogfood-simulator');
 
@@ -101,7 +104,7 @@ test('a validated source is still recorded when the runner blocks it for another
   // graph (#2505 G) -- no caller has to persist `meta.ab6` by hand.
   const { graph, dir } = makeTempGraph();
   try {
-    const result = runSandboxed('(() => ({ ok: true }))()', {}, {
+    const result = runSandboxedWithEscapeRecording('(() => ({ ok: true }))()', {}, {
       sourceTrust: 'validated',
       timeoutMs: 60000,
       graph,
@@ -124,4 +127,58 @@ test('the simulator still works when no graph is supplied', () => {
   const sandbox = simulateInSandbox(DEPENDENCY_GRAPH, CANDIDATE);
 
   assert.equal(sandbox.ok, true);
+});
+
+// #2505 G: the producer records at the runner, not at each call site --------
+
+test('the producer records a block verdict when given a graph', () => {
+  const { graph, dir } = makeTempGraph();
+  try {
+    const result = runSandboxedWithEscapeRecording('(() => ({ ok: true }))()', {}, {
+      sourceTrust: 'untrusted',
+      graph,
+      workspaceId: 'workspace-a',
+      sourceRef: 'test:producer',
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.meta.ab6.decision, 'block');
+    const escapes = readSandboxEscapes(graph);
+    assert.equal(escapes.length, 1);
+    assert.equal(escapes[0].decision, 'block');
+    assert.equal(escapes[0].workspaceId, 'workspace-a');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('the producer records a quarantine and nothing for an allow', () => {
+  const { graph, dir } = makeTempGraph();
+  try {
+    const quarantined = runSandboxedWithEscapeRecording('(() => ({ ok: true }))()', {}, { graph });
+    assert.equal(quarantined.meta.ab6.decision, 'quarantine');
+    const allowed = runSandboxedWithEscapeRecording('(() => ({ ok: true }))()', {}, {
+      sourceTrust: 'validated',
+      graph,
+    });
+    assert.equal(allowed.meta.ab6.decision, 'allow');
+    const escapes = readSandboxEscapes(graph);
+    assert.equal(escapes.length, 1, 'only the quarantine is recorded');
+    assert.equal(escapes[0].decision, 'quarantine');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('without a graph the verdict travels exactly as before', () => {
+  const result = runSandboxedWithEscapeRecording('(() => ({ ok: true }))()', {}, { sourceTrust: 'untrusted' });
+  assert.equal(result.ok, false);
+  assert.equal(result.meta.ab6.decision, 'block');
+  assert.equal(result.meta.ab6.reason, 'UNTRUSTED_SOURCE_BLOCK');
+});
+
+test('a failing recorder never breaks execution', () => {
+  const broken = { runMutationOnce: () => { throw new Error('store down'); } };
+  const result = runSandboxedWithEscapeRecording('(() => ({ ok: true }))()', {}, { sourceTrust: 'untrusted', graph: broken });
+  assert.equal(result.ok, false);
+  assert.equal(result.meta.ab6.decision, 'block');
 });
