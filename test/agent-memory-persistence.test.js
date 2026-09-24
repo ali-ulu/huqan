@@ -97,3 +97,64 @@ describe('intermediate step errors survive in the envelope (#1987)', () => {
     assert.equal(meta.stepErrorCount, 1);
   });
 });
+
+describe('agent memory save absorbs transient Windows file locks (#2868)', () => {
+  function bareAgent(memoryPath) {
+    return new Agent({ memoryPath });
+  }
+
+  it('retries a transient EPERM rename and still persists', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-agent-save-retry-'));
+    const memoryPath = path.join(tmpDir, 'agent.memory.json');
+    const agent = bareAgent(memoryPath);
+    const originalRenameSync = fs.renameSync;
+    let calls = 0;
+    fs.renameSync = (source, destination) => {
+      calls += 1;
+      if (calls <= 2) throw Object.assign(new Error('rename locked by scanner'), { code: 'EPERM' });
+      return originalRenameSync(source, destination);
+    };
+    try {
+      agent._saveMemory();
+    } finally {
+      fs.renameSync = originalRenameSync;
+    }
+    try {
+      assert.ok(calls > 1);
+      assert.equal(agent._memoryPersisted === false, false);
+      assert.ok(!agent._memoryErrors || agent._memoryErrors.length === 0);
+      assert.deepStrictEqual(JSON.parse(fs.readFileSync(memoryPath, 'utf8')).version, 1);
+      assert.deepStrictEqual(fs.readdirSync(tmpDir), ['agent.memory.json']);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('still fails closed when the lock never clears', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-agent-save-stuck-'));
+    const memoryPath = path.join(tmpDir, 'agent.memory.json');
+    const existingMemory = '{"version":1,"plans":["preserve-me"]}';
+    fs.writeFileSync(memoryPath, existingMemory);
+    const agent = bareAgent(memoryPath);
+    const originalRenameSync = fs.renameSync;
+    let calls = 0;
+    fs.renameSync = () => {
+      calls += 1;
+      throw Object.assign(new Error('rename permanently locked'), { code: 'EPERM' });
+    };
+    try {
+      agent._saveMemory();
+    } finally {
+      fs.renameSync = originalRenameSync;
+    }
+    try {
+      assert.ok(calls > 1);
+      assert.equal(agent._memoryPersisted, false);
+      assert.ok(agent._memoryErrors.some((e) => e.operation === 'saveMemory'));
+      assert.strictEqual(fs.readFileSync(memoryPath, 'utf8'), existingMemory);
+      assert.deepStrictEqual(fs.readdirSync(tmpDir), ['agent.memory.json']);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
