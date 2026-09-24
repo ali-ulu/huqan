@@ -67,7 +67,7 @@
     "sandboxRunner.js": 530,
     "scripts/a2a-conformance/run.js": 688,
     "scripts/external-conformance/consumer.js": 815,
-    "scripts/launch-installed-package-smoke.js": 636,
+    "scripts/launch-installed-package-smoke.js": 580,
     "storage.js": 627,
     "workflow-agent.js": 562
   },
