@@ -29,6 +29,7 @@
  * that moves with it cannot be reviewed as a decision.
  */
 
+const { pairCarriedViolations } = require('./architecture-carried-violations');
 const RINGS = ['UI', 'Application', 'Adapters', 'Core'];
 const RANK = Object.freeze({ UI: 0, Application: 1, Adapters: 2, Core: 3 });
 
@@ -277,6 +278,7 @@ function checkDependencyGraph(current, baseline, argv = [], previous = null, exc
   const threshold = resolveThreshold(argv, baseline);
   const today = new Date().toISOString().slice(0, 10);
   const messages = [];
+  const excepted = new Set(exceptions.map(edgeKey));
 
   if (current.unassigned.length > 0) {
     messages.push(
@@ -292,9 +294,10 @@ function checkDependencyGraph(current, baseline, argv = [], previous = null, exc
   // edits a violation into the baseline is adding debt, not recording it.
   if (previous) {
     const before = new Set((previous.violations || []).map((edge) => `${edge.from}>${edge.to}`));
-    const excepted = new Set(exceptions.map((entry) => `${entry.from}>${entry.to}`));
-    const gained = (baseline?.violations || [])
-      .filter((edge) => !before.has(`${edge.from}>${edge.to}`) && !excepted.has(`${edge.from}>${edge.to}`));
+    const kept = new Set((baseline?.violations || []).map(edgeKey));
+    const { unexplained: gained } = pairCarriedViolations(
+      (baseline?.violations || []).filter((edge) => !before.has(edgeKey(edge)) && !excepted.has(edgeKey(edge))),
+      (previous.violations || []).filter((edge) => !kept.has(edgeKey(edge))), previous.layers);
     if (gained.length > 0) {
       messages.push(
         `FAIL baseline cannot add debt: ${gained.length} violation(s) in this branch's baseline are not in the base ref's:`,
@@ -311,8 +314,10 @@ function checkDependencyGraph(current, baseline, argv = [], previous = null, exc
 
   if (baseline) {
     const recorded = new Set((baseline.violations || []).map((edge) => `${edge.from}>${edge.to}`));
-    const excepted = new Set(exceptions.map((entry) => `${entry.from}>${entry.to}`));
-    const added = current.violations.filter((edge) => !recorded.has(edgeKey(edge)) && !excepted.has(edgeKey(edge)));
+    const live = new Set(current.violations.map(edgeKey));
+    const { unexplained: added, stillGone: fixed } = pairCarriedViolations(
+      current.violations.filter((edge) => !recorded.has(edgeKey(edge)) && !excepted.has(edgeKey(edge))),
+      (baseline.violations || []).filter((edge) => !live.has(edgeKey(edge))), baseline.layers);
     if (added.length > 0) {
       messages.push(
         `FAIL new layer violation(s) (${added.length}):`,
@@ -323,8 +328,6 @@ function checkDependencyGraph(current, baseline, argv = [], previous = null, exc
     }
 
     if (!update) {
-      const live = new Set(current.violations.map(edgeKey));
-      const fixed = (baseline.violations || []).filter((edge) => !live.has(`${edge.from}>${edge.to}`));
       if (fixed.length > 0) {
         messages.push(
           `FAIL unrecorded gain: ${fixed.length} recorded layer violation(s) are gone; rerun with --update to lock the gain in.`,
