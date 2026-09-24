@@ -592,6 +592,8 @@
       "lib/graph-stats.js": "Core",
       "lib/graph-store-adapters.js": "Core",
       "lib/graph-traversal.js": "Core",
+      "lib/http-human-oversight-adapter-identity.js": "Core",
+      "lib/http-human-oversight-adapter-input.js": "Core",
       "lib/http-human-oversight-adapter.js": "Core",
       "lib/http-trust-query.js": "Core",
       "lib/http/agent-workflow-routes.js": "UI",
@@ -2487,10 +2489,18 @@
         "lib/graph-cycle-search.js",
         "lib/graph-path-search.js"
       ],
-      "lib/http-human-oversight-adapter.js": [
-        "lib/agent-action-firewall.js",
+      "lib/http-human-oversight-adapter-identity.js": [
         "lib/agent-identity-runtime.js",
+        "lib/http-human-oversight-adapter-input.js",
         "lib/is-plain-object.js"
+      ],
+      "lib/http-human-oversight-adapter-input.js": [
+        "lib/agent-action-firewall.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/http-human-oversight-adapter.js": [
+        "lib/http-human-oversight-adapter-identity.js",
+        "lib/http-human-oversight-adapter-input.js"
       ],
       "lib/http-trust-query.js": [
         "requestGuards.js"
