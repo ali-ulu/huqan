@@ -44,7 +44,6 @@
     "lib/mcp-tool-catalog.js": 511,
     "lib/mcp-tool-data-schemas.js": 611,
     "lib/memory-admission-gate.js": 471,
-    "lib/memory-schema.js": 565,
     "lib/memory-store.js": 594,
     "lib/observability/api-contract.js": 468,
     "lib/receipt/public-trust-receipt.js": 660,
@@ -201,10 +200,6 @@
       "review_by": "2027-03-31"
     },
     "lib/memory-admission-gate.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
-    "lib/memory-schema.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },
