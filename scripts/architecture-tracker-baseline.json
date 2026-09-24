@@ -136,11 +136,6 @@
       "lines": 432,
       "signals": []
     },
-    "lib/mcp-tool-catalog.js": {
-      "band": "recorded",
-      "lines": 511,
-      "signals": []
-    },
     "lib/memory-admission-gate.js": {
       "band": "recorded",
       "lines": 471,
@@ -721,6 +716,11 @@
       "lib/mcp-ingest-status-tool.js": "Core",
       "lib/mcp-input-sanitizers.js": "Core",
       "lib/mcp-operator-capability.js": "Core",
+      "lib/mcp-tool-catalog-core.js": "Core",
+      "lib/mcp-tool-catalog-governance.js": "Core",
+      "lib/mcp-tool-catalog-ingest.js": "Core",
+      "lib/mcp-tool-catalog-reasoning.js": "Core",
+      "lib/mcp-tool-catalog-trust.js": "Core",
       "lib/mcp-tool-catalog.js": "Core",
       "lib/mcp-tool-data-schemas-agent.js": "Core",
       "lib/mcp-tool-data-schemas-governance.js": "Core",
@@ -3031,9 +3031,32 @@
       "lib/mcp-operator-capability.js": [
         "lib/receipt/canonical-receipt.js"
       ],
-      "lib/mcp-tool-catalog.js": [
+      "lib/mcp-tool-catalog-core.js": [
         "lib/mcp-envelope-schema.js",
-        "lib/mcp-tool-data-schemas.js",
+        "lib/mcp-tool-data-schemas.js"
+      ],
+      "lib/mcp-tool-catalog-governance.js": [
+        "lib/mcp-envelope-schema.js",
+        "lib/mcp-tool-data-schemas.js"
+      ],
+      "lib/mcp-tool-catalog-ingest.js": [
+        "lib/mcp-envelope-schema.js",
+        "lib/mcp-tool-data-schemas.js"
+      ],
+      "lib/mcp-tool-catalog-reasoning.js": [
+        "lib/mcp-envelope-schema.js",
+        "lib/mcp-tool-data-schemas.js"
+      ],
+      "lib/mcp-tool-catalog-trust.js": [
+        "lib/mcp-envelope-schema.js",
+        "lib/mcp-tool-data-schemas.js"
+      ],
+      "lib/mcp-tool-catalog.js": [
+        "lib/mcp-tool-catalog-core.js",
+        "lib/mcp-tool-catalog-governance.js",
+        "lib/mcp-tool-catalog-ingest.js",
+        "lib/mcp-tool-catalog-reasoning.js",
+        "lib/mcp-tool-catalog-trust.js",
         "lib/mcp/operator-tool-schemas.js"
       ],
       "lib/mcp-tool-data-schemas-agent.js": [
