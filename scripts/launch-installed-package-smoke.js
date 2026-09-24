@@ -19,6 +19,7 @@
  */
 
 const { spawnSyncWindowsAware } = require('./spawn-windows-aware');
+const { validateApprovedReceipt, cliVerifyIsVerified, mcpVerifyIsVerified } = require('./launch-smoke-receipts');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -102,63 +103,6 @@ function makeSurfaceEnv(baseEnv, consumer, name) {
   };
 }
 
-function receiptSemantics(receipt) {
-  return {
-    receiptKind: receipt?.receiptKind || null,
-    receiptType: receipt?.receiptType || null,
-    decision: receipt?.decision || null,
-    status: receipt?.status || null,
-    workspaceId: receipt?.workspaceId || null,
-    approvalStatus: receipt?.approvalStatus || null,
-    canonical: receipt?.canonical === true,
-    reviewed: receipt?.reviewed === true,
-    quarantined: receipt?.quarantined === true,
-    rejected: receipt?.rejected === true,
-    trustPolicyVersion: receipt?.trustPolicyVersion || null,
-  };
-}
-
-function validateApprovedReceipt(label, receipt, approvalId, refs = null) {
-  if (!receipt || typeof receipt !== 'object' || typeof receipt.receiptId !== 'string' || !receipt.receiptId) {
-    fail(`${label} did not return a real receiptId`);
-    return null;
-  }
-  const semantics = receiptSemantics(receipt);
-  const expected = semantics.receiptKind === 'memory_admission_receipt'
-    && semantics.receiptType === 'memory-admission'
-    && semantics.decision === 'allow'
-    && semantics.status === 'admitted'
-    && semantics.workspaceId === PARITY_WORKSPACE
-    && semantics.approvalStatus === 'approved'
-    && semantics.canonical === true
-    && semantics.reviewed === false
-    && semantics.quarantined === false
-    && semantics.rejected === false
-    && typeof semantics.trustPolicyVersion === 'string'
-    && semantics.trustPolicyVersion.length > 0
-    && receipt.approvalId === approvalId
-    && typeof receipt.provenanceId === 'string'
-    && receipt.provenanceId.length > 0;
-  if (!expected) {
-    fail(`${label} receipt does not represent the approved canonical admission: ${JSON.stringify(receipt).slice(-2500)}`);
-    return null;
-  }
-  if (refs?.provenanceId && refs.provenanceId !== receipt.provenanceId) {
-    fail(`${label} receipt provenanceId contradicts approval execution refs`);
-    return null;
-  }
-  return semantics;
-}
-
-function cliVerifyIsVerified(envelope) {
-  return /Verify:\s*verified\b/i.test(String(envelope?.data?.output || ''));
-}
-
-function mcpVerifyIsVerified(surface) {
-  const status = String(surface?.data?.status || '').toLowerCase();
-  return status === 'verified' || status === 'dogrulandi';
-}
-
 function verifyCliApprovedReceipt(binDir, consumer, baseEnv) {
   const cliPath = packageBin(binDir, 'huqan');
   const env = makeSurfaceEnv(baseEnv, consumer, 'cli-parity');
@@ -197,7 +141,7 @@ function verifyCliApprovedReceipt(binDir, consumer, baseEnv) {
   }
   const decision = firstJson(approvedRun, 'CLI approval');
   const receipt = decision?.data?.receipt;
-  const semantics = validateApprovedReceipt('CLI', receipt, approvalId, decision?.data?.refs);
+  const semantics = validateApprovedReceipt('CLI', receipt, approvalId, decision?.data?.refs, { fail, workspaceId: PARITY_WORKSPACE });
   if (!semantics) return null;
 
   const afterRun = run(cliPath, ['verify:', PARITY_CLAIM, '--json'], { cwd: consumer, env, timeoutMs: 60 * 1000 });
@@ -331,7 +275,7 @@ function verifyMcpApprovedReceipt(binDir, consumer, baseEnv) {
     return null;
   }
   const receipt = decision?.data?.receipt;
-  const semantics = validateApprovedReceipt('MCP', receipt, approvalId, decision?.data?.refs);
+  const semantics = validateApprovedReceipt('MCP', receipt, approvalId, decision?.data?.refs, { fail, workspaceId: PARITY_WORKSPACE });
   if (!semantics) return null;
   if (!mcpVerifyIsVerified(after)) {
     fail(`MCP approval did not make the claim verifiable\n${JSON.stringify(after || null).slice(-2000)}`);
@@ -530,7 +474,7 @@ function verifyServerApprovedReceiptAndViewer(consumer, baseEnv) {
     fail(`installed server smoke emitted no REST parity payload\n${result.output.slice(-2500)}`);
     return null;
   }
-  const semantics = validateApprovedReceipt('REST', payload.receipt, payload.approvalId, payload.refs);
+  const semantics = validateApprovedReceipt('REST', payload.receipt, payload.approvalId, payload.refs, { fail, workspaceId: PARITY_WORKSPACE });
   if (!semantics) return null;
   if (payload.viewerReceipt?.receiptId !== payload.receipt.receiptId
       || payload.viewerReceipt?.approvalId !== payload.approvalId) {
