@@ -80,7 +80,7 @@ const RULES = [
     why: 'The domain: the kernel and graph, the policy and ranking modules they are built from, the flat `lib/*.js` modules that implement domain rules, and the pure data contracts under schemas/.',
     files: [
       'causalSimulator.js', 'egitim.js', 'evidence-ranker.js', 'graph.js', 'kernel.js', 'kernel.v2.js',
-      'requestGuards.js', 'toolPolicy.js',
+      'requestGuards.js', 'requestGuards-body.js', 'requestGuards-command-policy.js', 'requestGuards-rate-limit.js', 'toolPolicy.js',
     ],
     dirs: ['nlp/', 'lib/errors/', 'schemas/'],
     pattern: /^lib\/[^/]+\.js$/,

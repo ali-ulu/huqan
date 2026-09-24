@@ -1048,6 +1048,9 @@
       "public/js/pwa-shell.js": "UI",
       "public/js/web-research.js": "UI",
       "public/service-worker.js": "UI",
+      "requestGuards-body.js": "Core",
+      "requestGuards-command-policy.js": "Core",
+      "requestGuards-rate-limit.js": "Core",
       "requestGuards.js": "Core",
       "rustGraph.js": "Adapters",
       "sandboxRunner.js": "Adapters",
@@ -4375,7 +4378,10 @@
         "lib/gate-telemetry.js"
       ],
       "requestGuards.js": [
-        "lib/environment-compat.js"
+        "lib/environment-compat.js",
+        "requestGuards-body.js",
+        "requestGuards-command-policy.js",
+        "requestGuards-rate-limit.js"
       ],
       "rustGraph.js": [
         "lib/environment-compat.js",
