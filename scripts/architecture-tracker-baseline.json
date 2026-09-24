@@ -106,11 +106,6 @@
       "lines": 533,
       "signals": []
     },
-    "lib/external-action-gate-install.js": {
-      "band": "recorded",
-      "lines": 779,
-      "signals": []
-    },
     "lib/external-action-guard.js": {
       "band": "recorded",
       "lines": 531,
@@ -149,11 +144,6 @@
     "lib/http/workflow-data-routes.js": {
       "band": "recorded",
       "lines": 477,
-      "signals": []
-    },
-    "lib/human-oversight-approval-runtime.js": {
-      "band": "recorded",
-      "lines": 744,
       "signals": []
     },
     "lib/huqan-package-format.js": {
@@ -211,11 +201,6 @@
     "lib/observability/api-contract.js": {
       "band": "recorded",
       "lines": 468,
-      "signals": []
-    },
-    "lib/observability/service.js": {
-      "band": "recorded",
-      "lines": 767,
       "signals": []
     },
     "lib/receipt/public-trust-receipt.js": {
@@ -526,6 +511,13 @@
       "lib/external-action-custom-agent-status.js": "Core",
       "lib/external-action-egress-gates.js": "Core",
       "lib/external-action-envelope.js": "Core",
+      "lib/external-action-gate-install-command.js": "Core",
+      "lib/external-action-gate-install-files.js": "Core",
+      "lib/external-action-gate-install-hooks.js": "Core",
+      "lib/external-action-gate-install-host-trust.js": "Core",
+      "lib/external-action-gate-install-sentinel.js": "Core",
+      "lib/external-action-gate-install-spec.js": "Core",
+      "lib/external-action-gate-install-validate.js": "Core",
       "lib/external-action-gate-install.js": "Core",
       "lib/external-action-gate-sentinel.js": "Core",
       "lib/external-action-guard.js": "Core",
@@ -681,7 +673,11 @@
       "lib/http/workflow-envelope.js": "UI",
       "lib/http/workflow-request-validation.js": "UI",
       "lib/human-approval-toggle.js": "Core",
+      "lib/human-oversight-approval-runtime-cases.js": "Core",
+      "lib/human-oversight-approval-runtime-decide.js": "Core",
+      "lib/human-oversight-approval-runtime-execution.js": "Core",
       "lib/human-oversight-approval-runtime-primitives.js": "Core",
+      "lib/human-oversight-approval-runtime-state.js": "Core",
       "lib/human-oversight-approval-runtime.js": "Core",
       "lib/human-sponsor-authority.js": "Core",
       "lib/huqan-package-format.js": "Core",
@@ -831,6 +827,13 @@
       "lib/observability/retention.js": "Application",
       "lib/observability/schema.js": "Application",
       "lib/observability/server-runtime.js": "Application",
+      "lib/observability/service-alert-rules.js": "Application",
+      "lib/observability/service-constants.js": "Application",
+      "lib/observability/service-events.js": "Application",
+      "lib/observability/service-jobs.js": "Application",
+      "lib/observability/service-queries.js": "Application",
+      "lib/observability/service-runs.js": "Application",
+      "lib/observability/service-statements.js": "Application",
       "lib/observability/service.js": "Application",
       "lib/observability/sse-stream-lifecycle.js": "Application",
       "lib/observability/workflow-agent-instrumentation.js": "Application",
@@ -2029,11 +2032,37 @@
         "lib/action-risk-classifier.js",
         "lib/is-plain-object.js"
       ],
-      "lib/external-action-gate-install.js": [
+      "lib/external-action-gate-install-command.js": [
+        "lib/external-action-gate-install-sentinel.js",
+        "lib/external-action-gate-install-spec.js"
+      ],
+      "lib/external-action-gate-install-files.js": [
+        "lib/external-action-gate-install-hooks.js",
+        "lib/external-action-gate-install-spec.js"
+      ],
+      "lib/external-action-gate-install-hooks.js": [
+        "lib/external-action-gate-install-spec.js"
+      ],
+      "lib/external-action-gate-install-sentinel.js": [
         "lib/external-action-adapter.js",
+        "lib/external-action-envelope.js",
+        "lib/external-action-gate-install-spec.js",
+        "lib/external-action-receipt.js"
+      ],
+      "lib/external-action-gate-install-validate.js": [
+        "lib/external-action-gate-install-hooks.js",
+        "lib/external-action-gate-install-sentinel.js",
+        "lib/external-action-gate-install-spec.js"
+      ],
+      "lib/external-action-gate-install.js": [
         "lib/external-action-agent-detection.js",
         "lib/external-action-custom-agent-status.js",
-        "lib/external-action-envelope.js",
+        "lib/external-action-gate-install-command.js",
+        "lib/external-action-gate-install-files.js",
+        "lib/external-action-gate-install-hooks.js",
+        "lib/external-action-gate-install-host-trust.js",
+        "lib/external-action-gate-install-spec.js",
+        "lib/external-action-gate-install-validate.js",
         "lib/external-action-receipt.js"
       ],
       "lib/external-action-guard.js": [
@@ -2653,14 +2682,30 @@
       "lib/human-approval-toggle.js": [
         "lib/environment-compat.js"
       ],
+      "lib/human-oversight-approval-runtime-cases.js": [
+        "lib/human-oversight-approval-runtime-primitives.js"
+      ],
+      "lib/human-oversight-approval-runtime-decide.js": [
+        "lib/human-oversight-approval-runtime-primitives.js"
+      ],
+      "lib/human-oversight-approval-runtime-execution.js": [
+        "lib/human-oversight-approval-runtime-primitives.js"
+      ],
       "lib/human-oversight-approval-runtime-primitives.js": [
         "lib/agent-action-firewall.js",
         "lib/is-plain-object.js",
         "lib/receipt/canonical-receipt.js",
         "lib/trust-evidence-ledger.js"
       ],
-      "lib/human-oversight-approval-runtime.js": [
+      "lib/human-oversight-approval-runtime-state.js": [
         "lib/human-oversight-approval-runtime-primitives.js"
+      ],
+      "lib/human-oversight-approval-runtime.js": [
+        "lib/human-oversight-approval-runtime-cases.js",
+        "lib/human-oversight-approval-runtime-decide.js",
+        "lib/human-oversight-approval-runtime-execution.js",
+        "lib/human-oversight-approval-runtime-primitives.js",
+        "lib/human-oversight-approval-runtime-state.js"
       ],
       "lib/human-sponsor-authority.js": [
         "lib/external-action-identity-signing.js",
@@ -3217,13 +3262,42 @@
         "lib/observability/service.js",
         "lib/observability/workflow-agent-instrumentation.js"
       ],
+      "lib/observability/service-alert-rules.js": [
+        "lib/observability/helpers.js",
+        "lib/observability/service-constants.js"
+      ],
+      "lib/observability/service-constants.js": [
+        "lib/observability/helpers.js"
+      ],
+      "lib/observability/service-events.js": [
+        "lib/observability/helpers.js",
+        "lib/observability/service-constants.js"
+      ],
+      "lib/observability/service-jobs.js": [
+        "lib/observability/helpers.js",
+        "lib/observability/service-constants.js"
+      ],
+      "lib/observability/service-queries.js": [
+        "lib/observability/helpers.js",
+        "lib/observability/service-constants.js"
+      ],
+      "lib/observability/service-runs.js": [
+        "lib/observability/helpers.js"
+      ],
       "lib/observability/service.js": [
         "lib/observability/alert-lifecycle.js",
         "lib/observability/helpers.js",
         "lib/observability/internal-metrics.js",
         "lib/observability/migrations.js",
         "lib/observability/notification-adapter.js",
-        "lib/observability/retention.js"
+        "lib/observability/retention.js",
+        "lib/observability/service-alert-rules.js",
+        "lib/observability/service-constants.js",
+        "lib/observability/service-events.js",
+        "lib/observability/service-jobs.js",
+        "lib/observability/service-queries.js",
+        "lib/observability/service-runs.js",
+        "lib/observability/service-statements.js"
       ],
       "lib/observability/workflow-agent-instrumentation.js": [
         "lib/http/structured-log.js"

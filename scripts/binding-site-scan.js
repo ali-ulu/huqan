@@ -63,44 +63,130 @@ const GLOBAL_EGRESS = /(?<![.\w])fetch\s*\(/g;
  * read `require('node:fs')`, and blanking strings erases the module name, which
  * is what made the first version of this scanner report three call sites in a
  * tree that has eighty.
+ *
+ * Strings, template literals and regex literals are always *skipped* -- a
+ * `//` inside `'https://...'` or `/https?:\/\//` is not a comment -- and only
+ * *blanked* when `strings` is set. Two gaps used to hide real call sites from
+ * the inventory: a regex holding a quote (`/["]/`) was read as the start of a
+ * string that swallowed the code after it, and the `${...}` of a template
+ * literal was blanked although it is code. Both are handled below.
  */
+// After these words a `/` begins a regex literal, not a division.
+const REGEX_AFTER_WORD = new Set([
+  'return', 'typeof', 'instanceof', 'in', 'of', 'new', 'delete', 'void', 'throw', 'case', 'do', 'else', 'yield', 'await',
+]);
+
+function startsRegex(source, i) {
+  let k = i - 1;
+  while (k >= 0 && /\s/.test(source[k])) k -= 1;
+  if (k < 0) return true;
+  if (/[\w$]/.test(source[k])) {
+    let s = k;
+    while (s >= 0 && /[\w$]/.test(source[s])) s -= 1;
+    return REGEX_AFTER_WORD.has(source.slice(s + 1, k + 1));
+  }
+  // A value just ended: `a / b`, `f() / 2`, `x[0] / y`, `'s' / 1`.
+  return !/[)\]'"`]/.test(source[k]);
+}
+
+/** End index (exclusive) of the regex literal at i, or -1 if it is not one. */
+function regexEnd(source, i) {
+  let j = i + 1;
+  let inClass = false;
+  while (j < source.length) {
+    const c = source[j];
+    if (c === '\n') return -1;
+    if (c === '\\') { j += 2; continue; }
+    if (c === '[') inClass = true;
+    else if (c === ']') inClass = false;
+    else if (c === '/' && !inClass) break;
+    j += 1;
+  }
+  if (j >= source.length) return -1;
+  j += 1;
+  while (j < source.length && /[a-z]/i.test(source[j])) j += 1;
+  return j;
+}
+
 function blankRegions(source, options) {
   const strings = Boolean(options && options.strings);
-  let out = '';
-  let i = 0;
   const blankLike = (from, to) => {
     let chunk = '';
     for (let k = from; k < to; k += 1) chunk += source[k] === '\n' ? '\n' : ' ';
     return chunk;
   };
-  while (i < source.length) {
-    const two = source.slice(i, i + 2);
-    if (two === '//') {
-      const end = source.indexOf('\n', i);
-      const stop = end === -1 ? source.length : end;
-      out += blankLike(i, stop);
-      i = stop;
-    } else if (two === '/*') {
-      const end = source.indexOf('*/', i + 2);
-      const stop = end === -1 ? source.length : end + 2;
-      out += blankLike(i, stop);
-      i = stop;
-    } else if (strings && (source[i] === '"' || source[i] === "'" || source[i] === '`')) {
-      const quote = source[i];
-      let j = i + 1;
-      while (j < source.length && source[j] !== quote) {
-        if (source[j] === '\\') j += 1;
+  const literal = (from, to) => (strings ? blankLike(from, to) : source.slice(from, to));
+
+  // Scans code from i. With `closeBrace`, stops at the `}` that closes a
+  // template's `${`, and returns there.
+  function code(i, closeBrace) {
+    let out = '';
+    let depth = 0;
+    while (i < source.length) {
+      const c = source[i];
+      const two = source.slice(i, i + 2);
+      if (two === '//') {
+        const end = source.indexOf('\n', i);
+        const stop = end === -1 ? source.length : end;
+        out += blankLike(i, stop);
+        i = stop;
+      } else if (two === '/*') {
+        const end = source.indexOf('*/', i + 2);
+        const stop = end === -1 ? source.length : end + 2;
+        out += blankLike(i, stop);
+        i = stop;
+      } else if (c === '"' || c === "'") {
+        let j = i + 1;
+        while (j < source.length && source[j] !== c && source[j] !== '\n') j += source[j] === '\\' ? 2 : 1;
+        const stop = Math.min(j + 1, source.length);
+        out += literal(i, stop);
+        i = stop;
+      } else if (c === '`') {
+        const [chunk, stop] = template(i);
+        out += chunk;
+        i = stop;
+      } else if (c === '/' && startsRegex(source, i) && regexEnd(source, i) !== -1) {
+        const stop = regexEnd(source, i);
+        out += literal(i, stop);
+        i = stop;
+      } else {
+        if (c === '{') depth += 1;
+        if (c === '}') {
+          if (closeBrace && depth === 0) return [out, i];
+          depth -= 1;
+        }
+        out += c;
+        i += 1;
+      }
+    }
+    return [out, i];
+  }
+
+  // A template literal from its opening backtick: the text is literal, each
+  // `${...}` is code.
+  function template(i) {
+    let out = literal(i, i + 1);
+    let j = i + 1;
+    while (j < source.length && source[j] !== '`') {
+      if (source[j] === '\\') {
+        out += literal(j, Math.min(j + 2, source.length));
+        j += 2;
+      } else if (source.slice(j, j + 2) === '${') {
+        out += literal(j, j + 2);
+        const [inner, stop] = code(j + 2, true);
+        out += inner;
+        j = stop;
+        if (j < source.length) { out += literal(j, j + 1); j += 1; }
+      } else {
+        out += literal(j, j + 1);
         j += 1;
       }
-      const stop = Math.min(j + 1, source.length);
-      out += blankLike(i, stop);
-      i = stop;
-    } else {
-      out += source[i];
-      i += 1;
     }
+    if (j < source.length) { out += literal(j, j + 1); j += 1; }
+    return [out, j];
   }
-  return out;
+
+  return code(0, false)[0];
 }
 
 const stripComments = (source) => blankRegions(source, { strings: false });
