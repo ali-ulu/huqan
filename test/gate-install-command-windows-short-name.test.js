@@ -21,7 +21,7 @@ const base = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-gate-unspaced-'));
 const spacedDirectory = path.join(base, 'a directory with spaces');
 fs.mkdirSync(spacedDirectory);
 const spacedTarget = path.join(spacedDirectory, 'huqan-gate-hook.js');
-fs.writeFileSync(spacedTarget, '');
+fs.writeFileSync(spacedTarget, 'long-path');
 
 after(() => fs.rmSync(base, { recursive: true, force: true }));
 
@@ -30,8 +30,8 @@ describe('unspaced() on a real path that contains a space', { skip: process.plat
     const short = unspaced(spacedTarget);
     assert.notEqual(short, spacedTarget);
     assert.equal(/\s/.test(short), false);
-    assert.equal(fs.existsSync(short), true);
-    assert.equal(fs.realpathSync(short), fs.realpathSync(spacedTarget));
+    fs.appendFileSync(short, ':short-path');
+    assert.equal(fs.readFileSync(spacedTarget, 'utf8'), 'long-path:short-path');
   });
 });
 

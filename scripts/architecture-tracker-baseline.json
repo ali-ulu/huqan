@@ -133,19 +133,9 @@
       "lines": 637,
       "signals": []
     },
-    "lib/receipt/trusted-key-resolver.js": {
-      "band": "recorded",
-      "lines": 421,
-      "signals": []
-    },
     "lib/risk-classify.js": {
       "band": "recorded",
       "lines": 739,
-      "signals": []
-    },
-    "lib/v5/runtime-writer.js": {
-      "band": "recorded",
-      "lines": 411,
       "signals": []
     },
     "lib/verify-numeric-text.js": {
@@ -865,6 +855,8 @@
       "lib/receipt/receipt-validation-cache.js": "Application",
       "lib/receipt/signed-bundle.js": "Application",
       "lib/receipt/signed-receipt-batch.js": "Application",
+      "lib/receipt/trusted-key-resolver-guards.js": "Application",
+      "lib/receipt/trusted-key-resolver-snapshot.js": "Application",
       "lib/receipt/trusted-key-resolver.js": "Application",
       "lib/receipt/v4-receipt-family.js": "Application",
       "lib/registry/registry-bundle-signing-key-resolver.js": "Application",
@@ -956,6 +948,8 @@
       "lib/v5/cryptographic-verification-adapter.js": "Application",
       "lib/v5/public-trust-receipt.js": "Application",
       "lib/v5/runtime-reader.js": "Application",
+      "lib/v5/runtime-writer-guards.js": "Application",
+      "lib/v5/runtime-writer-sections.js": "Application",
       "lib/v5/runtime-writer.js": "Application",
       "lib/v5/structural-signing-helper.js": "Application",
       "lib/v5/trusted-key-resolver.js": "Application",
@@ -3763,8 +3757,17 @@
       "lib/receipt/signed-receipt-batch.js": [
         "lib/receipt/canonical-receipt.js"
       ],
-      "lib/receipt/trusted-key-resolver.js": [
+      "lib/receipt/trusted-key-resolver-guards.js": [
         "lib/is-plain-object.js"
+      ],
+      "lib/receipt/trusted-key-resolver-snapshot.js": [
+        "lib/is-plain-object.js",
+        "lib/receipt/trusted-key-resolver-guards.js"
+      ],
+      "lib/receipt/trusted-key-resolver.js": [
+        "lib/is-plain-object.js",
+        "lib/receipt/trusted-key-resolver-guards.js",
+        "lib/receipt/trusted-key-resolver-snapshot.js"
       ],
       "lib/receipt/v4-receipt-family.js": [
         "lib/is-plain-object.js",
@@ -4056,8 +4059,17 @@
       "lib/v5/runtime-reader.js": [
         "lib/is-plain-object.js"
       ],
-      "lib/v5/runtime-writer.js": [
+      "lib/v5/runtime-writer-guards.js": [
         "lib/is-plain-object.js"
+      ],
+      "lib/v5/runtime-writer-sections.js": [
+        "lib/is-plain-object.js",
+        "lib/v5/runtime-writer-guards.js"
+      ],
+      "lib/v5/runtime-writer.js": [
+        "lib/is-plain-object.js",
+        "lib/v5/runtime-writer-guards.js",
+        "lib/v5/runtime-writer-sections.js"
       ],
       "lib/v5/structural-signing-helper.js": [
         "lib/is-plain-object.js"

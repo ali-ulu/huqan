@@ -216,6 +216,8 @@
     "lib/receipt/public-trust-receipt-import.js",
     "lib/receipt/public-trust-receipt-integrity.js",
     "lib/receipt/public-trust-receipt-values.js",
+    "lib/receipt/trusted-key-resolver-guards.js",
+    "lib/receipt/trusted-key-resolver-snapshot.js",
     "lib/receipt/trusted-key-resolver.js",
     "lib/runtime-watchdog-audit.js",
     "lib/adversarial-signals.js",
