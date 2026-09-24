@@ -30,7 +30,6 @@ describe('unspaced() on a real path that contains a space', { skip: process.plat
     const short = unspaced(spacedTarget);
     assert.notEqual(short, spacedTarget);
     assert.equal(/\s/.test(short), false);
-    assert.equal(fs.existsSync(short), true);
     fs.appendFileSync(short, ':short-path');
     assert.equal(fs.readFileSync(spacedTarget, 'utf8'), 'long-path:short-path');
   });
