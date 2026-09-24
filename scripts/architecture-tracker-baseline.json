@@ -101,11 +101,6 @@
       "lines": 428,
       "signals": []
     },
-    "lib/kernel-read-use-cases.js": {
-      "band": "recorded",
-      "lines": 412,
-      "signals": []
-    },
     "lib/learn-use-case.js": {
       "band": "recorded",
       "lines": 432,
@@ -659,6 +654,9 @@
       "lib/kernel-learn-transaction.js": "Core",
       "lib/kernel-mutation-admission.js": "Core",
       "lib/kernel-propose-node.js": "Core",
+      "lib/kernel-read-use-cases-analysis.js": "Core",
+      "lib/kernel-read-use-cases-ask.js": "Core",
+      "lib/kernel-read-use-cases-language.js": "Core",
       "lib/kernel-read-use-cases.js": "Core",
       "lib/kernel-self-evolve.js": "Core",
       "lib/kernel-self-learn.js": "Core",
@@ -1066,6 +1064,9 @@
       "scripts/a2a-conformance/replay-store.js": "UI",
       "scripts/a2a-conformance/run.js": "UI",
       "scripts/a2a-conformance/verifier.js": "UI",
+      "scripts/agent-context-baseline.js": "UI",
+      "scripts/agent-context-git.js": "UI",
+      "scripts/agent-context-primitives.js": "UI",
       "scripts/agent-context.js": "UI",
       "scripts/api-semver-gate.js": "UI",
       "scripts/api-snapshot-diff.js": "UI",
@@ -1099,6 +1100,10 @@
       "scripts/check-structured-log-format.js": "UI",
       "scripts/check-v5-identity-readiness.js": "UI",
       "scripts/check-workflow-governance.js": "UI",
+      "scripts/ci-impact-plan-agent.js": "UI",
+      "scripts/ci-impact-plan-build.js": "UI",
+      "scripts/ci-impact-plan-paths.js": "UI",
+      "scripts/ci-impact-plan-validate.js": "UI",
       "scripts/ci-impact-plan.js": "UI",
       "scripts/ci-impact-rules.js": "UI",
       "scripts/ci-shard-manifest.js": "UI",
@@ -2968,6 +2973,13 @@
         "lib/background-provenance.js",
         "lib/cli-mutation-audit-intent.js"
       ],
+      "lib/kernel-read-use-cases-ask.js": [
+        "lib/kernel-read-use-cases-language.js"
+      ],
+      "lib/kernel-read-use-cases.js": [
+        "lib/kernel-read-use-cases-analysis.js",
+        "lib/kernel-read-use-cases-ask.js"
+      ],
       "lib/kernel-self-evolve.js": [
         "lib/graph-record-utils.js"
       ],
@@ -4423,6 +4435,18 @@
       "scripts/a2a-conformance/verifier.js": [
         "lib/a2a/bounded-exchange.js"
       ],
+      "scripts/agent-context-baseline.js": [
+        "scripts/agent-context-primitives.js"
+      ],
+      "scripts/agent-context-git.js": [
+        "scripts/agent-context-baseline.js",
+        "scripts/agent-context-primitives.js"
+      ],
+      "scripts/agent-context.js": [
+        "scripts/agent-context-baseline.js",
+        "scripts/agent-context-git.js",
+        "scripts/agent-context-primitives.js"
+      ],
       "scripts/api-semver-gate.js": [
         "scripts/api-snapshot-diff.js",
         "scripts/api-snapshot-surface.js"
@@ -4488,10 +4512,33 @@
       "scripts/check-v5-identity-readiness.js": [
         "schemas/v5/agent-identity-readiness.js"
       ],
-      "scripts/ci-impact-plan.js": [
+      "scripts/ci-impact-plan-agent.js": [
+        "scripts/ci-impact-plan-paths.js",
+        "scripts/ci-shard-manifest.js"
+      ],
+      "scripts/ci-impact-plan-build.js": [
+        "scripts/ci-impact-plan-agent.js",
+        "scripts/ci-impact-plan-paths.js",
         "scripts/ci-impact-rules.js",
         "scripts/ci-shard-manifest.js",
         "scripts/ci-test-selection.js"
+      ],
+      "scripts/ci-impact-plan-paths.js": [
+        "scripts/ci-impact-rules.js",
+        "scripts/ci-shard-manifest.js"
+      ],
+      "scripts/ci-impact-plan-validate.js": [
+        "scripts/ci-impact-plan-agent.js",
+        "scripts/ci-impact-plan-paths.js",
+        "scripts/ci-impact-rules.js",
+        "scripts/ci-test-selection.js"
+      ],
+      "scripts/ci-impact-plan.js": [
+        "scripts/ci-impact-plan-agent.js",
+        "scripts/ci-impact-plan-build.js",
+        "scripts/ci-impact-plan-paths.js",
+        "scripts/ci-impact-plan-validate.js",
+        "scripts/ci-impact-rules.js"
       ],
       "scripts/container-server.js": [
         "lib/environment-compat.js",

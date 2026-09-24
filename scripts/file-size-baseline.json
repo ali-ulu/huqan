@@ -27,7 +27,6 @@
     "lib/github-connector.js": 518,
     "lib/http/workflow-data-routes.js": 477,
     "lib/huqan-package-format.js": 428,
-    "lib/kernel-read-use-cases.js": 412,
     "lib/learn-use-case.js": 432,
     "lib/memory-admission-gate.js": 471,
     "lib/memory-store.js": 594,
@@ -112,10 +111,6 @@
       "review_by": "2027-03-31"
     },
     "lib/huqan-package-format.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
-    "lib/kernel-read-use-cases.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },
