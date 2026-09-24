@@ -81,11 +81,6 @@
       "lines": 451,
       "signals": []
     },
-    "lib/command-exec-gate.js": {
-      "band": "recorded",
-      "lines": 515,
-      "signals": []
-    },
     "lib/conflict-detector.js": {
       "band": "recorded",
       "lines": 616,
@@ -433,6 +428,9 @@
       "lib/coder/derivation-record.js": "Application",
       "lib/coder/verify-derivation.js": "Application",
       "lib/collector-seal-config.js": "Core",
+      "lib/command-exec-gate-structure.js": "Core",
+      "lib/command-exec-gate-targets.js": "Core",
+      "lib/command-exec-gate-vocabulary.js": "Core",
       "lib/command-exec-gate.js": "Core",
       "lib/command-parser.js": "Core",
       "lib/command-policy-editor.js": "Core",
@@ -1829,8 +1827,18 @@
       "lib/collector-seal-config.js": [
         "lib/environment-compat.js"
       ],
-      "lib/command-exec-gate.js": [
+      "lib/command-exec-gate-structure.js": [
+        "lib/command-exec-gate-vocabulary.js"
+      ],
+      "lib/command-exec-gate-targets.js": [
+        "lib/command-exec-gate-structure.js",
+        "lib/command-exec-gate-vocabulary.js",
         "lib/path-safety.js"
+      ],
+      "lib/command-exec-gate.js": [
+        "lib/command-exec-gate-structure.js",
+        "lib/command-exec-gate-targets.js",
+        "lib/command-exec-gate-vocabulary.js"
       ],
       "lib/command-parser.js": [
         "lib/cli-workflow-adapter.js"
