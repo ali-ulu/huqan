@@ -311,3 +311,76 @@ test('a missing receipt log answers empty instead of throwing', () => {
   assert.equal(result.summary.total, 0);
 });
 
+// --- criterion: task-scoped grants (#2505 C) ---------------------------------
+
+test('a taskScope normalizes onto the card only when bound', () => {
+  const { card: bound, errors } = normalizeAgentIdentityCard(card({ taskScope: { runId: 'session-1' } }));
+  assert.deepEqual(errors, []);
+  assert.deepEqual(bound.taskScope, { taskId: null, runId: 'session-1' });
+  assert.ok(Object.isFrozen(bound.taskScope));
+
+  const { card: both } = normalizeAgentIdentityCard(card({ taskScope: { taskId: 'task-7', runId: 'session-1' } }));
+  assert.deepEqual(both.taskScope, { taskId: 'task-7', runId: 'session-1' });
+
+  const { card: plain, errors: plainErrors } = normalizeAgentIdentityCard(card());
+  assert.deepEqual(plainErrors, []);
+  assert.ok(!('taskScope' in plain), 'an unscoped card keeps its exact canonical shape');
+});
+
+test('a malformed taskScope never yields a card', () => {
+  const cases = [
+    'session-1',
+    ['session-1'],
+    {},
+    { taskId: '   ' },
+    { runId: '' },
+    { other: 'session-1' },
+  ];
+  for (const taskScope of cases) {
+    const { card: normalized, errors } = normalizeAgentIdentityCard(card({ taskScope }));
+    assert.equal(normalized, null, `${JSON.stringify(taskScope)} must not produce a card`);
+    assert.ok(errors.includes('identity_card_task_scope_invalid'));
+  }
+});
+
+test('a run-bound card grants only inside its session', () => {
+  const bound = card({ taskScope: { runId: 'session-1' } });
+  const allowed = evaluateExternalAction(
+    { ...invocation(), identity: bound },
+    atNow({ requireSignedIdentityCard: false }),
+  );
+  assert.equal(allowed.decision, 'allow');
+  assert.equal(identityFinding(allowed).reason, IDENTITY_REASONS.ATTESTED);
+  assert.deepEqual(allowed.receipt.metadata.identity.taskScope, { taskId: null, runId: 'session-1' });
+
+  const escaped = evaluateExternalAction(
+    { ...invocation({ sessionId: 'other-session' }), identity: bound },
+    atNow({ requireSignedIdentityCard: false }),
+  );
+  assert.equal(escaped.decision, 'block');
+  assert.equal(identityFinding(escaped).reason, IDENTITY_REASONS.TASK_SCOPE_MISMATCH);
+});
+
+test('a task-bound card requires the caller-supplied task', () => {
+  const bound = card({ taskScope: { taskId: 'task-7' } });
+  const allowed = evaluateExternalAction(
+    { ...invocation(), identity: bound },
+    atNow({ requireSignedIdentityCard: false, taskId: 'task-7' }),
+  );
+  assert.equal(allowed.decision, 'allow');
+
+  const floating = evaluateExternalAction(
+    { ...invocation(), identity: bound },
+    atNow({ requireSignedIdentityCard: false }),
+  );
+  assert.equal(floating.decision, 'block', 'a bound grant with no task in context fails closed');
+  assert.equal(identityFinding(floating).reason, IDENTITY_REASONS.TASK_SCOPE_MISMATCH);
+
+  const wrong = evaluateExternalAction(
+    { ...invocation(), identity: bound },
+    atNow({ requireSignedIdentityCard: false, taskId: 'task-9' }),
+  );
+  assert.equal(wrong.decision, 'block');
+  assert.equal(identityFinding(wrong).reason, IDENTITY_REASONS.TASK_SCOPE_MISMATCH);
+});
+
