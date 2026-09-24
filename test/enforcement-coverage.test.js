@@ -137,6 +137,14 @@ for (const [label, lead] of [
   });
 }
 
+test('a call between two divisions is not read as the body of a regex', () => {
+  // If `/` after `)` or `]` started a regex, `/ 2 + spawnSync(...) /` would be
+  // blanked as one and the spawn would vanish.
+  for (const expr of ["f(a) / 2 + spawnSync('rm').status / 1", "x[0] / 2 + spawnSync('rm').status / 1"]) {
+    assert.equal(sitesIn('probe.js', `${SPAWN_HEAD}const v = ${expr};\n`).length, 1, expr);
+  }
+});
+
 test('a regex the scanner mistakes for a division still cannot hide the next line', () => {
   // Without a semicolon, `1\n/["]/` reads as a division, so the quote opens a
   // string. A quoted string cannot span lines, so the damage stops there.
