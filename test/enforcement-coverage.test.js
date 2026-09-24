@@ -116,6 +116,48 @@ test('a call named in a comment or a string is not a call', () => {
   assert.deepEqual(sitesIn('probe.js', source), []);
 });
 
+// Each of these hid the spawn from the inventory before the scanner learned
+// regex literals and template `${...}`: a quote inside a regex read as an
+// open string that swallowed the code after it (found in #2145).
+const SPAWN_HEAD = "const { spawnSync } = require('node:child_process');\n";
+for (const [label, lead] of [
+  ['a regex holding a double quote', 'const unsafe = /["%]/;\n'],
+  ['a regex holding a single quote', "const apostrophe = /[']/;\n"],
+  ['a regex holding //', 'const url = /https?:\\/\\//;\n'],
+  ['a regex after return', "function f() { return /'/.test(x); }\n"],
+  ['divisions that are not regexes', 'const a = b / c; const d = e / f;\n'],
+]) {
+  test(`a spawn after ${label} is still found, on the next line and on the same one`, () => {
+    const nextLine = sitesIn('probe.js', `${SPAWN_HEAD}${lead}spawnSync('rm');\n`);
+    assert.equal(nextLine.length, 1);
+    assert.equal(nextLine[0].line, lead.split('\n').length + 1);
+    const sameLine = sitesIn('probe.js', `${SPAWN_HEAD}${lead.trimEnd()} spawnSync('rm');\n`);
+    assert.equal(sameLine.length, 1);
+    assert.equal(sameLine[0].line, 2);
+  });
+}
+
+test('a call between two divisions is not read as the body of a regex', () => {
+  // If `/` after `)` or `]` started a regex, `/ 2 + spawnSync(...) /` would be
+  // blanked as one and the spawn would vanish.
+  for (const expr of ["f(a) / 2 + spawnSync('rm').status / 1", "x[0] / 2 + spawnSync('rm').status / 1"]) {
+    assert.equal(sitesIn('probe.js', `${SPAWN_HEAD}const v = ${expr};\n`).length, 1, expr);
+  }
+});
+
+test('a regex the scanner mistakes for a division still cannot hide the next line', () => {
+  // Without a semicolon, `1\n/["]/` reads as a division, so the quote opens a
+  // string. A quoted string cannot span lines, so the damage stops there.
+  const source = `${SPAWN_HEAD}const y = 1\n/["]/.test(z)\nspawnSync('rm');\n`;
+  assert.equal(sitesIn('probe.js', source).length, 1);
+});
+
+test('a call inside a template ${...} is code, and the template text is not', () => {
+  assert.equal(sitesIn('probe.js', `${SPAWN_HEAD}const s = \`run \${spawnSync('rm')}\`;\n`).length, 1);
+  assert.equal(sitesIn('probe.js', `${SPAWN_HEAD}const s = \`spawnSync('rm') {}\`;\n`).length, 0);
+  assert.equal(sitesIn('probe.js', `${SPAWN_HEAD}const s = \`a \${ { k: 1 }.k } b\`;\nspawnSync('rm');\n`).length, 1);
+});
+
 test('blanking strings does not hide the require that declares the binding', () => {
   // The bug the first version of this scanner shipped with: call sites were
   // matched on text with strings blanked, and bindings were resolved from the
