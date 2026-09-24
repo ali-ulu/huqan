@@ -56,11 +56,6 @@
         "DIP"
       ]
     },
-    "lib/a2a/bounded-exchange.js": {
-      "band": "recorded",
-      "lines": 693,
-      "signals": []
-    },
     "lib/a2a/exchange-route.js": {
       "band": "recorded",
       "lines": 493,
@@ -96,11 +91,6 @@
       "lines": 469,
       "signals": []
     },
-    "lib/contradiction-rules.js": {
-      "band": "recorded",
-      "lines": 531,
-      "signals": []
-    },
     "lib/dream-experiment-loop.js": {
       "band": "recorded",
       "lines": 533,
@@ -131,11 +121,6 @@
       "lines": 448,
       "signals": []
     },
-    "lib/github-app-streaming-trust.js": {
-      "band": "recorded",
-      "lines": 612,
-      "signals": []
-    },
     "lib/github-connector.js": {
       "band": "recorded",
       "lines": 518,
@@ -161,19 +146,9 @@
       "lines": 432,
       "signals": []
     },
-    "lib/mcp-gate-adapter.js": {
-      "band": "recorded",
-      "lines": 606,
-      "signals": []
-    },
     "lib/mcp-tool-catalog.js": {
       "band": "recorded",
       "lines": 511,
-      "signals": []
-    },
-    "lib/mcp-tool-data-schemas.js": {
-      "band": "recorded",
-      "lines": 611,
       "signals": []
     },
     "lib/memory-admission-gate.js": {
@@ -198,11 +173,6 @@
       "lines": 468,
       "signals": []
     },
-    "lib/receipt/public-trust-receipt.js": {
-      "band": "recorded",
-      "lines": 660,
-      "signals": []
-    },
     "lib/receipt/receipt-read-index.js": {
       "band": "recorded",
       "lines": 637,
@@ -221,11 +191,6 @@
     "lib/storage/tool-approval-methods.js": {
       "band": "recorded",
       "lines": 424,
-      "signals": []
-    },
-    "lib/tool-call-gate.js": {
-      "band": "recorded",
-      "lines": 729,
       "signals": []
     },
     "lib/v5/runtime-writer.js": {
@@ -327,6 +292,11 @@
       "kernel.v2.js": "Core",
       "lib/a2a/agent-card-route.js": "Application",
       "lib/a2a/agent-card.js": "Application",
+      "lib/a2a/bounded-exchange-authority.js": "Application",
+      "lib/a2a/bounded-exchange-contract.js": "Application",
+      "lib/a2a/bounded-exchange-signing.js": "Application",
+      "lib/a2a/bounded-exchange-validation.js": "Application",
+      "lib/a2a/bounded-exchange-values.js": "Application",
       "lib/a2a/bounded-exchange.js": "Application",
       "lib/a2a/capability-negotiation.js": "Application",
       "lib/a2a/delegation-audit-log.js": "Application",
@@ -445,6 +415,10 @@
       "lib/connectors/repo-memory-firewall.js": "Adapters",
       "lib/content-hash.js": "Core",
       "lib/contested-read-policy.js": "Core",
+      "lib/contradiction-rules-opposition-detectors.js": "Core",
+      "lib/contradiction-rules-text.js": "Core",
+      "lib/contradiction-rules-value-detectors.js": "Core",
+      "lib/contradiction-rules-vocabulary.js": "Core",
       "lib/contradiction-rules.js": "Core",
       "lib/control-plane-paths.js": "Core",
       "lib/cross-workspace-access-gate.js": "Core",
@@ -560,7 +534,12 @@
       "lib/github-app-beta-http-responses.js": "Core",
       "lib/github-app-beta-store.js": "Core",
       "lib/github-app-streaming-auth.js": "Core",
+      "lib/github-app-streaming-trust-binding.js": "Core",
+      "lib/github-app-streaming-trust-check-run.js": "Core",
+      "lib/github-app-streaming-trust-contract.js": "Core",
+      "lib/github-app-streaming-trust-github-api.js": "Core",
       "lib/github-app-streaming-trust-handler.js": "Core",
+      "lib/github-app-streaming-trust-receipt.js": "Core",
       "lib/github-app-streaming-trust-store-files.js": "Core",
       "lib/github-app-streaming-trust-store-records.js": "Core",
       "lib/github-app-streaming-trust-store.js": "Core",
@@ -742,6 +721,9 @@
       "lib/mcp-configuration-errors.js": "Core",
       "lib/mcp-envelope-format.js": "Core",
       "lib/mcp-envelope-schema.js": "Core",
+      "lib/mcp-gate-adapter-contract.js": "Core",
+      "lib/mcp-gate-adapter-decisions.js": "Core",
+      "lib/mcp-gate-adapter-inputs.js": "Core",
       "lib/mcp-gate-adapter.js": "Core",
       "lib/mcp-human-oversight-adapter.js": "Core",
       "lib/mcp-ingest-execute-tool.js": "Core",
@@ -749,6 +731,11 @@
       "lib/mcp-input-sanitizers.js": "Core",
       "lib/mcp-operator-capability.js": "Core",
       "lib/mcp-tool-catalog.js": "Core",
+      "lib/mcp-tool-data-schemas-agent.js": "Core",
+      "lib/mcp-tool-data-schemas-governance.js": "Core",
+      "lib/mcp-tool-data-schemas-ingest.js": "Core",
+      "lib/mcp-tool-data-schemas-knowledge.js": "Core",
+      "lib/mcp-tool-data-schemas-trust.js": "Core",
       "lib/mcp-tool-data-schemas.js": "Core",
       "lib/mcp-tool-names.js": "Core",
       "lib/mcp-tool-policy.js": "Core",
@@ -874,6 +861,11 @@
       "lib/receipt/cryptographic-profile-contract.js": "Application",
       "lib/receipt/cryptographic-verification-adapter.js": "Application",
       "lib/receipt/issuer-seal.js": "Application",
+      "lib/receipt/public-trust-receipt-contract.js": "Application",
+      "lib/receipt/public-trust-receipt-export.js": "Application",
+      "lib/receipt/public-trust-receipt-import.js": "Application",
+      "lib/receipt/public-trust-receipt-integrity.js": "Application",
+      "lib/receipt/public-trust-receipt-values.js": "Application",
       "lib/receipt/public-trust-receipt.js": "Application",
       "lib/receipt/receipt-chain.js": "Application",
       "lib/receipt/receipt-export.js": "Application",
@@ -951,6 +943,10 @@
       "lib/temporal-qualifier.js": "Core",
       "lib/text-safety-scorer.js": "Core",
       "lib/text-utils.js": "Core",
+      "lib/tool-call-gate-classify.js": "Core",
+      "lib/tool-call-gate-normalize.js": "Core",
+      "lib/tool-call-gate-secrets.js": "Core",
+      "lib/tool-call-gate-vocabulary.js": "Core",
       "lib/tool-call-gate.js": "Core",
       "lib/trust-evidence-ledger.js": "Core",
       "lib/trust-policy.js": "Core",
@@ -1418,13 +1414,37 @@
         "lib/a2a/exchange-route.js",
         "lib/server-response-helpers.js"
       ],
-      "lib/a2a/bounded-exchange.js": [
+      "lib/a2a/bounded-exchange-authority.js": [
+        "lib/a2a/bounded-exchange-contract.js",
+        "lib/a2a/bounded-exchange-values.js"
+      ],
+      "lib/a2a/bounded-exchange-signing.js": [
+        "lib/a2a/bounded-exchange-contract.js",
+        "lib/a2a/bounded-exchange-values.js",
+        "lib/receipt/cryptographic-profile-contract.js",
+        "lib/receipt/cryptographic-verification-adapter.js",
+        "lib/receipt/trusted-key-resolver.js"
+      ],
+      "lib/a2a/bounded-exchange-validation.js": [
+        "lib/a2a/bounded-exchange-authority.js",
+        "lib/a2a/bounded-exchange-contract.js",
+        "lib/a2a/bounded-exchange-signing.js",
+        "lib/a2a/bounded-exchange-values.js",
         "lib/a2a/inter-agent-receipt-chain.js",
         "lib/external-client-package-gate.js",
         "lib/receipt/cryptographic-profile-contract.js",
-        "lib/receipt/cryptographic-verification-adapter.js",
-        "lib/receipt/public-trust-receipt.js",
-        "lib/receipt/trusted-key-resolver.js"
+        "lib/receipt/public-trust-receipt.js"
+      ],
+      "lib/a2a/bounded-exchange-values.js": [
+        "lib/a2a/bounded-exchange-contract.js",
+        "lib/receipt/cryptographic-profile-contract.js"
+      ],
+      "lib/a2a/bounded-exchange.js": [
+        "lib/a2a/bounded-exchange-authority.js",
+        "lib/a2a/bounded-exchange-contract.js",
+        "lib/a2a/bounded-exchange-signing.js",
+        "lib/a2a/bounded-exchange-validation.js",
+        "lib/a2a/bounded-exchange-values.js"
       ],
       "lib/a2a/capability-negotiation.js": [
         "lib/a2a/agent-card.js"
@@ -1875,9 +1895,25 @@
         "lib/risk-policy-constants.js",
         "lib/risk-scale.js"
       ],
-      "lib/contradiction-rules.js": [
+      "lib/contradiction-rules-opposition-detectors.js": [
+        "lib/contradiction-rules-text.js",
+        "lib/contradiction-rules-vocabulary.js",
+        "lib/text-utils.js"
+      ],
+      "lib/contradiction-rules-text.js": [
+        "lib/text-utils.js"
+      ],
+      "lib/contradiction-rules-value-detectors.js": [
+        "lib/contradiction-rules-opposition-detectors.js",
+        "lib/contradiction-rules-text.js",
+        "lib/contradiction-rules-vocabulary.js",
         "lib/relation-drift.js",
         "lib/text-utils.js"
+      ],
+      "lib/contradiction-rules.js": [
+        "lib/contradiction-rules-opposition-detectors.js",
+        "lib/contradiction-rules-value-detectors.js",
+        "lib/contradiction-rules-vocabulary.js"
       ],
       "lib/cross-workspace-access-gate.js": [
         "lib/is-plain-object.js"
@@ -2278,9 +2314,33 @@
       "lib/github-app-streaming-auth.js": [
         "lib/github-app-beta-auth.js"
       ],
+      "lib/github-app-streaming-trust-binding.js": [
+        "lib/github-app-streaming-trust-contract.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/github-app-streaming-trust-check-run.js": [
+        "lib/github-app-streaming-trust-binding.js",
+        "lib/github-app-streaming-trust-contract.js",
+        "lib/github-app-streaming-trust-github-api.js",
+        "lib/github-app-streaming-trust-receipt.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/github-app-streaming-trust-github-api.js": [
+        "lib/github-app-beta-auth.js",
+        "lib/github-app-streaming-trust-contract.js",
+        "lib/is-plain-object.js"
+      ],
       "lib/github-app-streaming-trust-handler.js": [
         "lib/github-app-beta-handler.js",
         "lib/github-app-streaming-trust.js"
+      ],
+      "lib/github-app-streaming-trust-receipt.js": [
+        "lib/code-change-gate.js",
+        "lib/github-app-streaming-trust-binding.js",
+        "lib/github-app-streaming-trust-contract.js",
+        "lib/receipt/canonical-receipt.js",
+        "lib/receipt/receipt-chain.js",
+        "lib/verdict/action-verdict.js"
       ],
       "lib/github-app-streaming-trust-store-files.js": [
         "lib/github-app-streaming-trust-store-records.js",
@@ -2296,13 +2356,12 @@
         "lib/receipt/canonical-receipt.js"
       ],
       "lib/github-app-streaming-trust.js": [
-        "lib/code-change-gate.js",
-        "lib/github-app-beta-auth.js",
         "lib/github-app-streaming-auth.js",
-        "lib/is-plain-object.js",
-        "lib/receipt/canonical-receipt.js",
-        "lib/receipt/receipt-chain.js",
-        "lib/verdict/action-verdict.js"
+        "lib/github-app-streaming-trust-binding.js",
+        "lib/github-app-streaming-trust-check-run.js",
+        "lib/github-app-streaming-trust-contract.js",
+        "lib/github-app-streaming-trust-github-api.js",
+        "lib/github-app-streaming-trust-receipt.js"
       ],
       "lib/github-connector.js": [
         "lib/audit-log.js",
@@ -2896,14 +2955,30 @@
         "lib/environment-compat.js",
         "lib/verify-status-vocabulary.js"
       ],
+      "lib/mcp-gate-adapter-contract.js": [
+        "lib/action-risk-classifier.js",
+        "lib/risk-scale.js"
+      ],
+      "lib/mcp-gate-adapter-decisions.js": [
+        "lib/action-risk-classifier.js",
+        "lib/mcp-gate-adapter-contract.js",
+        "lib/risk-scale.js"
+      ],
+      "lib/mcp-gate-adapter-inputs.js": [
+        "lib/action-risk-classifier.js",
+        "lib/is-plain-object.js",
+        "lib/mcp-gate-adapter-contract.js",
+        "lib/mcp-tool-names.js"
+      ],
       "lib/mcp-gate-adapter.js": [
         "lib/action-risk-classifier.js",
         "lib/automation-safety-gate/index.js",
         "lib/command-exec-gate.js",
         "lib/cross-workspace-access-gate.js",
         "lib/data-egress-gate.js",
-        "lib/is-plain-object.js",
-        "lib/mcp-tool-names.js",
+        "lib/mcp-gate-adapter-contract.js",
+        "lib/mcp-gate-adapter-decisions.js",
+        "lib/mcp-gate-adapter-inputs.js",
         "lib/memory-mutation-gate/index.js",
         "lib/risk-scale.js",
         "lib/tool-call-gate.js"
@@ -2941,8 +3016,22 @@
         "lib/mcp-tool-data-schemas.js",
         "lib/mcp/operator-tool-schemas.js"
       ],
-      "lib/mcp-tool-data-schemas.js": [
+      "lib/mcp-tool-data-schemas-agent.js": [
         "lib/mcp-envelope-schema.js"
+      ],
+      "lib/mcp-tool-data-schemas-knowledge.js": [
+        "lib/mcp-envelope-schema.js"
+      ],
+      "lib/mcp-tool-data-schemas-trust.js": [
+        "lib/mcp-envelope-schema.js"
+      ],
+      "lib/mcp-tool-data-schemas.js": [
+        "lib/mcp-envelope-schema.js",
+        "lib/mcp-tool-data-schemas-agent.js",
+        "lib/mcp-tool-data-schemas-governance.js",
+        "lib/mcp-tool-data-schemas-ingest.js",
+        "lib/mcp-tool-data-schemas-knowledge.js",
+        "lib/mcp-tool-data-schemas-trust.js"
       ],
       "lib/mcp-tool-names.js": [
         "lib/legacy-alias-usage.js"
@@ -3444,16 +3533,43 @@
       "lib/receipt/issuer-seal.js": [
         "lib/receipt/canonical-receipt.js"
       ],
-      "lib/receipt/public-trust-receipt.js": [
-        "lib/is-plain-object.js",
+      "lib/receipt/public-trust-receipt-export.js": [
         "lib/receipt/canonical-receipt.js",
         "lib/receipt/cryptographic-profile-contract.js",
+        "lib/receipt/public-trust-receipt-contract.js",
+        "lib/receipt/public-trust-receipt-integrity.js",
+        "lib/receipt/public-trust-receipt-values.js",
+        "lib/tool-call-gate.js"
+      ],
+      "lib/receipt/public-trust-receipt-import.js": [
+        "lib/receipt/cryptographic-profile-contract.js",
         "lib/receipt/cryptographic-verification-adapter.js",
+        "lib/receipt/public-trust-receipt-contract.js",
+        "lib/receipt/public-trust-receipt-integrity.js",
+        "lib/receipt/public-trust-receipt-values.js",
+        "lib/receipt/trusted-key-resolver.js"
+      ],
+      "lib/receipt/public-trust-receipt-integrity.js": [
+        "lib/receipt/canonical-receipt.js",
+        "lib/receipt/cryptographic-profile-contract.js",
+        "lib/receipt/public-trust-receipt-contract.js",
+        "lib/receipt/public-trust-receipt-values.js",
         "lib/receipt/receipt-export.js",
-        "lib/receipt/trusted-key-resolver.js",
         "lib/receipt/v4-receipt-family.js",
         "lib/tool-call-gate.js",
         "lib/verdict/action-verdict.js"
+      ],
+      "lib/receipt/public-trust-receipt-values.js": [
+        "lib/is-plain-object.js",
+        "lib/receipt/cryptographic-profile-contract.js",
+        "lib/receipt/public-trust-receipt-contract.js"
+      ],
+      "lib/receipt/public-trust-receipt.js": [
+        "lib/receipt/public-trust-receipt-contract.js",
+        "lib/receipt/public-trust-receipt-export.js",
+        "lib/receipt/public-trust-receipt-import.js",
+        "lib/receipt/public-trust-receipt-integrity.js",
+        "lib/receipt/public-trust-receipt-values.js"
       ],
       "lib/receipt/receipt-chain.js": [
         "lib/receipt/canonical-receipt.js"
@@ -3701,10 +3817,30 @@
       "lib/text-utils.js": [
         "lib/is-plain-object.js"
       ],
-      "lib/tool-call-gate.js": [
+      "lib/tool-call-gate-classify.js": [
+        "lib/is-plain-object.js",
+        "lib/text-utils.js",
+        "lib/tool-call-gate-normalize.js",
+        "lib/tool-call-gate-vocabulary.js"
+      ],
+      "lib/tool-call-gate-normalize.js": [
+        "lib/is-plain-object.js",
+        "lib/text-utils.js",
+        "lib/tool-call-gate-vocabulary.js"
+      ],
+      "lib/tool-call-gate-secrets.js": [
         "lib/is-plain-object.js",
         "lib/secret-patterns.js",
-        "lib/text-utils.js"
+        "lib/tool-call-gate-classify.js",
+        "lib/tool-call-gate-normalize.js",
+        "lib/tool-call-gate-vocabulary.js"
+      ],
+      "lib/tool-call-gate.js": [
+        "lib/is-plain-object.js",
+        "lib/tool-call-gate-classify.js",
+        "lib/tool-call-gate-normalize.js",
+        "lib/tool-call-gate-secrets.js",
+        "lib/tool-call-gate-vocabulary.js"
       ],
       "lib/trust-evidence-ledger.js": [
         "lib/receipt/canonical-receipt.js",
@@ -4718,26 +4854,26 @@
         "toLayer": "Application"
       },
       {
-        "from": "lib/github-app-streaming-trust-store.js",
+        "from": "lib/github-app-streaming-trust-receipt.js",
         "to": "lib/receipt/canonical-receipt.js",
         "fromLayer": "Core",
         "toLayer": "Application"
       },
       {
-        "from": "lib/github-app-streaming-trust.js",
-        "to": "lib/receipt/canonical-receipt.js",
-        "fromLayer": "Core",
-        "toLayer": "Application"
-      },
-      {
-        "from": "lib/github-app-streaming-trust.js",
+        "from": "lib/github-app-streaming-trust-receipt.js",
         "to": "lib/receipt/receipt-chain.js",
         "fromLayer": "Core",
         "toLayer": "Application"
       },
       {
-        "from": "lib/github-app-streaming-trust.js",
+        "from": "lib/github-app-streaming-trust-receipt.js",
         "to": "lib/verdict/action-verdict.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/github-app-streaming-trust-store.js",
+        "to": "lib/receipt/canonical-receipt.js",
         "fromLayer": "Core",
         "toLayer": "Application"
       },
