@@ -164,30 +164,38 @@ async function digestsByTool() {
 // delegate call, and the gate's risk level is now the taxonomy band of its
 // score (review at 80: MEDIUM -> CRITICAL). That one field is the only
 // difference; the other twenty digests are unchanged.
+//
+// #2505 B re-recorded the twelve tools whose dispatch output embeds the gate
+// verdict: every verdict now carries its justification next to the decision.
+// Decisions, reasons, findings and risk scores are pinned by
+// test/mcp-gate-risk-characterization.test.js and did not move; only the
+// added justification block moves these digests.
+//
+// Regenerate only on purpose: UPDATE_MCP_DISPATCH_GOLDEN=1 node --test <this file>
 const GOLDEN = {
   'huqan.learn': 'e0edb52a102cb075b64861d689bd7ffa09f64325846033e3bad379cda46eff7f',
   'huqan.ask': 'ad49c39a897ce936e3558e2cb3ee7d1af721dd380bbd92da3c913e11fa5df795',
-  'huqan.verify': '59eb4fe1103eea6d6d4a3d974b3dd50df76bafddee4635644b1d5014c2830a1a',
+  'huqan.verify': '7dda822caa950b13331909b07e7b26429ea8b0a95cbac0f36715afc72dbd212d',
   'huqan.plan': '318e9c5e41e5502e0c4d57cbe0e6ea959df862e44e4db143f5abefeda499bfd5',
   'huqan.agent': '8872f29b4272a8c0441668a788d88e04ebadf19afb0f3f0006dd07e0e268e280',
   'huqan.policy': '8a0f76759a9014b814077ea1bb109dc893d6b2be1c1196c8d174fef4b11a7f33',
-  'huqan.approval_detail': '4d7233feff812ac838747c89e5e17f5a5bdc2c9e860ae17a6a277a60fdcdf181',
+  'huqan.approval_detail': 'dc906393ef1c7ce7e213f5d4e85a0f044b785876ea962cdb807256844e9189b5',
   'huqan.approvals': 'f31a675da052e5edf832f0a712974737f3e9ba68776c86b8a942e30c19ad3860',
   'huqan.reason': 'a3cfb1b72319c626258724fe87e1af8dd968614d9123835d2bf8041b896695b3',
   'huqan.compare': '93e037979e4fd8e61ed75fd4e01242081501b8f3fc4445c47005e5d2a72be761',
   'huqan.dream': '432937e74cf96220e0dac5caba33dac1991a943731740adefa621dc5fe45c48e',
-  'huqan.fractal-learn': '8d3731022fce6f059ac948ed8e895da83d2f11c4b6bd2530778fd6c78f93375b',
-  'huqan.self-evolve': 'f2e83da098a902a017c9cc86cdd24b8341bf9d9f39629d95a3b77d807de34f6f',
-  'huqan.advocate': '8979354f31d03d0614f11cfbed314691a80017e07743c3786b358a579bdcca46',
-  'huqan.web_research': '1ba027fa57be28a656a49b30dbca897c8031a0c2b894ece4a085c168febf6e94',
-  'huqan.search': '2694d2290ddd2b65e074a5590c158fc686914d332a91b5606ad0ebceb0022146',
-  'huqan.trust_receipt': '3f62bc5f5f00e42a86158fc0b13e4c362dc602df0e4d45d2f83bacfb0f359b82',
-  'huqan.trust_receipt_detail': '90560e0efab740b53b804253eb70706dce2d11ce54f0ffae657cf7f7883d9cba',
-  'huqan.status': 'c607cc0330ff8c5b478b4425398d50ddc201c77fe654d3ab10c035eaa775d733',
-  'huqan.audit': 'c0bfd55ce7b9ce7735f8d46685568f52962c93e682790e03b0c3f7da111427d7',
+  'huqan.fractal-learn': '4e6688a86934e7ce282c9fdd2937fdda68f590d2e34b287b6519c4485c5867f4',
+  'huqan.self-evolve': '0b65d54a9dfb43c5dfc685399a8e21e66e230f3295ac6aa77cebd269e433090d',
+  'huqan.advocate': 'aef0acf08df752d40c675646c9f2cb36bc40e94a4cbc949baedfbb7bceac7019',
+  'huqan.web_research': '79af213587410e4b0a37b21734ef445177ee3c03f5a8f6fd4ad0b7921a3aa41c',
+  'huqan.search': '926ca1f8f09e765e67c47f38f3617a40acb20eb51c0a44d4f3536fc5d55885b7',
+  'huqan.trust_receipt': '66e019f308aecf021d7e7f3ec800b3a0c8c5ce9550ac273145cad180772e5d01',
+  'huqan.trust_receipt_detail': '18f203a2cb598e106d30e89ad16a0d7b0bd0c8b33a34c94abb9d8172cda9e48e',
+  'huqan.status': 'b309ccdcf8283be9ea88d858c4158d93933817c9ebd948006bbb9a3b59ac223a',
+  'huqan.audit': '632975316f346e33239e2d02bebf60a5fc53753211030af3828af83ef7143d4d',
   'huqan.ingest_preview': 'c865da9cf3eaed67fa72e57f4f2ec765889a0e4a23c014f56c3f2a16241ed719',
   'huqan.ingest_status': '5eb079bc6a66e3237af883639d70d66c32a05c9458a1dae99636aee0f32dc2d3',
-  'huqan.ingest_execute': 'f9926414c4d0807dd5afa0bd435b56adba9087e481870ac6861340edb8645189',
+  'huqan.ingest_execute': 'e9cf3f549fc0f97eac1b4d6e1f49630f64fcdd135e5361ccd5a33d75a0fd046e',
   'huqan.emergency_stop': '7d5114510b49e68654c189636d00cfbdcf605a30063abff2d272c6b150f1fc9c',
 };
 
@@ -212,6 +220,7 @@ describe('MCP tool dispatch (unchanged)', () => {
   for (const name of Object.keys(GOLDEN)) {
     it(`${name} is byte-identical to main`, async () => {
       actual ||= await digestsByTool();
+      if (process.env.UPDATE_MCP_DISPATCH_GOLDEN === '1') GOLDEN[name] = actual[name];
       assert.equal(actual[name], GOLDEN[name]);
     });
   }
@@ -239,8 +248,7 @@ describe('MCP tool dispatch (unchanged)', () => {
   });
 });
 
-describe('the MCP tool handlers are a registry (#2142)', () => {
-  it('mcpServer.js no longer has a case per tool', () => {
+describe('the MCP tool handlers are a registry (#2142)', () => {  it('mcpServer.js no longer has a case per tool', () => {
     const source = fs.readFileSync(path.join(__dirname, '..', 'mcpServer.js'), 'utf8');
     assert.doesNotMatch(source, /case 'huqan\.ask'/);
   });
@@ -250,4 +258,22 @@ describe('the MCP tool handlers are a registry (#2142)', () => {
     assert.ok(row, 'the file is measured');
     assert.ok(!row.signals.some((signal) => signal.startsWith('OCP')), JSON.stringify(row.signals));
   });
+});
+
+// Re-records GOLDEN after an intended dispatch-output change. The digests pin
+// collaborator calls and projected output byte-for-byte, so decisions,
+// reasons, findings and risk scores must be verified unchanged elsewhere
+// (test/mcp-gate-risk-characterization.test.js) before re-recording.
+it('re-record dispatch GOLDEN digests (UPDATE_MCP_DISPATCH_GOLDEN=1 only)', async () => {
+  if (process.env.UPDATE_MCP_DISPATCH_GOLDEN !== '1') return;
+  const actual = await digestsByTool();
+  const sourcePath = __filename;
+  let source = fs.readFileSync(sourcePath, 'utf8');
+  for (const [name, digest] of Object.entries(actual)) {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp(`('${escaped}': ')[0-9a-f]{64}'`);
+    if (!pattern.test(source)) throw new Error(`GOLDEN has no entry to re-record for ${name}`);
+    source = source.replace(pattern, `$1${digest}'`);
+  }
+  fs.writeFileSync(sourcePath, source);
 });
