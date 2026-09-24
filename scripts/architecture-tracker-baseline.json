@@ -71,34 +71,14 @@
       "lines": 545,
       "signals": []
     },
-    "lib/causal/causal-traversal.js": {
-      "band": "recorded",
-      "lines": 451,
-      "signals": []
-    },
-    "lib/command-exec-gate.js": {
-      "band": "recorded",
-      "lines": 515,
-      "signals": []
-    },
     "lib/conflict-detector.js": {
       "band": "recorded",
       "lines": 616,
       "signals": []
     },
-    "lib/connector-action-firewall.js": {
-      "band": "recorded",
-      "lines": 469,
-      "signals": []
-    },
     "lib/dream-experiment-loop.js": {
       "band": "recorded",
       "lines": 533,
-      "signals": []
-    },
-    "lib/external-action-guard.js": {
-      "band": "recorded",
-      "lines": 531,
       "signals": []
     },
     "lib/external-action-receipt-collector.js": {
@@ -111,9 +91,29 @@
       "lines": 589,
       "signals": []
     },
-    "lib/external-client-replay-store.js": {
-      "band": "recorded",
-      "lines": 510,
+    "lib/external-client-replay-store-contract.js": {
+      "band": "structural",
+      "lines": 92,
+      "signals": []
+    },
+    "lib/external-client-replay-store-schema.js": {
+      "band": "structural",
+      "lines": 170,
+      "signals": []
+    },
+    "lib/external-client-replay-store-snapshot.js": {
+      "band": "structural",
+      "lines": 214,
+      "signals": []
+    },
+    "lib/external-client-trust-config-guards.js": {
+      "band": "structural",
+      "lines": 172,
+      "signals": []
+    },
+    "lib/external-client-trust-config-keys.js": {
+      "band": "structural",
+      "lines": 165,
       "signals": []
     },
     "lib/github-connector.js": {
@@ -131,11 +131,6 @@
       "lines": 428,
       "signals": []
     },
-    "lib/ingest.js": {
-      "band": "recorded",
-      "lines": 587,
-      "signals": []
-    },
     "lib/kernel-read-use-cases.js": {
       "band": "recorded",
       "lines": 412,
@@ -146,29 +141,9 @@
       "lines": 432,
       "signals": []
     },
-    "lib/mcp-gate-adapter.js": {
-      "band": "recorded",
-      "lines": 606,
-      "signals": []
-    },
-    "lib/mcp-tool-catalog.js": {
-      "band": "recorded",
-      "lines": 511,
-      "signals": []
-    },
-    "lib/mcp-tool-data-schemas.js": {
-      "band": "recorded",
-      "lines": 611,
-      "signals": []
-    },
     "lib/memory-admission-gate.js": {
       "band": "recorded",
       "lines": 471,
-      "signals": []
-    },
-    "lib/memory-schema.js": {
-      "band": "recorded",
-      "lines": 565,
       "signals": []
     },
     "lib/memory-store.js": {
@@ -177,11 +152,6 @@
       "signals": [
         "FANOUT:20"
       ]
-    },
-    "lib/observability/api-contract.js": {
-      "band": "recorded",
-      "lines": 468,
-      "signals": []
     },
     "lib/receipt/receipt-read-index.js": {
       "band": "recorded",
@@ -327,6 +297,8 @@
       "lib/agent-action-step-enforcement.js": "Core",
       "lib/agent-behavioral-integrity.js": "Core",
       "lib/agent-failure-signature.js": "Core",
+      "lib/agent-identity-runtime-resolve.js": "Core",
+      "lib/agent-identity-runtime-shape.js": "Core",
       "lib/agent-identity-runtime.js": "Core",
       "lib/agent-loop-budget-gate.js": "Core",
       "lib/agent-memory-persistence.js": "Core",
@@ -372,6 +344,8 @@
       "lib/causal-edge-strength.js": "Core",
       "lib/causal/causal-edge-errors.js": "Application",
       "lib/causal/causal-edge.js": "Application",
+      "lib/causal/causal-traversal-edges.js": "Application",
+      "lib/causal/causal-traversal-resolvers.js": "Application",
       "lib/causal/causal-traversal.js": "Application",
       "lib/causal/causal-verdict-normalize.js": "Application",
       "lib/causal/causal-verdict-score.js": "Application",
@@ -413,12 +387,18 @@
       "lib/coder/derivation-record.js": "Application",
       "lib/coder/verify-derivation.js": "Application",
       "lib/collector-seal-config.js": "Core",
+      "lib/command-exec-gate-structure.js": "Core",
+      "lib/command-exec-gate-targets.js": "Core",
+      "lib/command-exec-gate-vocabulary.js": "Core",
       "lib/command-exec-gate.js": "Core",
       "lib/command-parser.js": "Core",
       "lib/command-policy-editor.js": "Core",
       "lib/company-ingest-gate.js": "Core",
       "lib/conflict-candidate-review.js": "Core",
       "lib/conflict-detector.js": "Core",
+      "lib/connector-action-firewall-contracts.js": "Core",
+      "lib/connector-action-firewall-normalize.js": "Core",
+      "lib/connector-action-firewall-summary.js": "Core",
       "lib/connector-action-firewall.js": "Core",
       "lib/connector-local-path.js": "Core",
       "lib/connectors/entry-ingest-flow.js": "Adapters",
@@ -499,8 +479,13 @@
       "lib/external-action-gate-install-validate.js": "Core",
       "lib/external-action-gate-install.js": "Core",
       "lib/external-action-gate-sentinel.js": "Core",
+      "lib/external-action-guard-gates.js": "Core",
+      "lib/external-action-guard-records.js": "Core",
+      "lib/external-action-guard-rules.js": "Core",
       "lib/external-action-guard.js": "Core",
+      "lib/external-action-identity-card.js": "Core",
       "lib/external-action-identity-log.js": "Core",
+      "lib/external-action-identity-records.js": "Core",
       "lib/external-action-identity-signing.js": "Core",
       "lib/external-action-identity.js": "Core",
       "lib/external-action-receipt-collector.js": "Core",
@@ -518,8 +503,13 @@
       "lib/external-client-mutation-receipt-owner-json.js": "Core",
       "lib/external-client-mutation-receipt-owner-snapshot.js": "Core",
       "lib/external-client-mutation-receipt-owner.js": "Core",
+      "lib/external-client-package-gate-inputs.js": "Core",
+      "lib/external-client-package-gate-verify.js": "Core",
       "lib/external-client-package-gate.js": "Core",
       "lib/external-client-production-boundary.js": "Core",
+      "lib/external-client-replay-store-contract.js": "Core",
+      "lib/external-client-replay-store-schema.js": "Core",
+      "lib/external-client-replay-store-snapshot.js": "Core",
       "lib/external-client-replay-store.js": "Core",
       "lib/external-client-trust-config-guards.js": "Core",
       "lib/external-client-trust-config-keys.js": "Core",
@@ -593,12 +583,16 @@
       "lib/graph-persistence-runtime.js": "Core",
       "lib/graph-prune.js": "Core",
       "lib/graph-query-read.js": "Core",
+      "lib/graph-record-utils-edges.js": "Core",
+      "lib/graph-record-utils-nodes.js": "Core",
       "lib/graph-record-utils.js": "Core",
       "lib/graph-sqlite-pragmas.js": "Core",
       "lib/graph-sqlite-schema.js": "Core",
       "lib/graph-stats.js": "Core",
       "lib/graph-store-adapters.js": "Core",
       "lib/graph-traversal.js": "Core",
+      "lib/http-human-oversight-adapter-identity.js": "Core",
+      "lib/http-human-oversight-adapter-input.js": "Core",
       "lib/http-human-oversight-adapter.js": "Core",
       "lib/http-trust-query.js": "Core",
       "lib/http/agent-workflow-routes.js": "UI",
@@ -662,6 +656,8 @@
       "lib/human-oversight-approval-runtime-cases.js": "Core",
       "lib/human-oversight-approval-runtime-decide.js": "Core",
       "lib/human-oversight-approval-runtime-execution.js": "Core",
+      "lib/human-oversight-approval-runtime-primitives-normalize.js": "Core",
+      "lib/human-oversight-approval-runtime-primitives-values.js": "Core",
       "lib/human-oversight-approval-runtime-primitives.js": "Core",
       "lib/human-oversight-approval-runtime-state.js": "Core",
       "lib/human-oversight-approval-runtime.js": "Core",
@@ -675,6 +671,11 @@
       "lib/hypothesis-thresholds.js": "Core",
       "lib/hypothesis-tuning.js": "Core",
       "lib/identity-privilege-escalation.js": "Core",
+      "lib/ingest-approval.js": "Core",
+      "lib/ingest-capability.js": "Core",
+      "lib/ingest-snapshot-build.js": "Core",
+      "lib/ingest-snapshot-verify.js": "Core",
+      "lib/ingest-values.js": "Core",
       "lib/ingest-workflow-preview.js": "Core",
       "lib/ingest-workflow-run.js": "Core",
       "lib/ingest.js": "Core",
@@ -728,13 +729,26 @@
       "lib/mcp-configuration-errors.js": "Core",
       "lib/mcp-envelope-format.js": "Core",
       "lib/mcp-envelope-schema.js": "Core",
+      "lib/mcp-gate-adapter-contract.js": "Core",
+      "lib/mcp-gate-adapter-decisions.js": "Core",
+      "lib/mcp-gate-adapter-inputs.js": "Core",
       "lib/mcp-gate-adapter.js": "Core",
       "lib/mcp-human-oversight-adapter.js": "Core",
       "lib/mcp-ingest-execute-tool.js": "Core",
       "lib/mcp-ingest-status-tool.js": "Core",
       "lib/mcp-input-sanitizers.js": "Core",
       "lib/mcp-operator-capability.js": "Core",
+      "lib/mcp-tool-catalog-core.js": "Core",
+      "lib/mcp-tool-catalog-governance.js": "Core",
+      "lib/mcp-tool-catalog-ingest.js": "Core",
+      "lib/mcp-tool-catalog-reasoning.js": "Core",
+      "lib/mcp-tool-catalog-trust.js": "Core",
       "lib/mcp-tool-catalog.js": "Core",
+      "lib/mcp-tool-data-schemas-agent.js": "Core",
+      "lib/mcp-tool-data-schemas-governance.js": "Core",
+      "lib/mcp-tool-data-schemas-ingest.js": "Core",
+      "lib/mcp-tool-data-schemas-knowledge.js": "Core",
+      "lib/mcp-tool-data-schemas-trust.js": "Core",
       "lib/mcp-tool-data-schemas.js": "Core",
       "lib/mcp-tool-names.js": "Core",
       "lib/mcp-tool-policy.js": "Core",
@@ -778,6 +792,11 @@
       "lib/memory-recall-gate.js": "Adapters",
       "lib/memory-record-read.js": "Adapters",
       "lib/memory-record-utils.js": "Adapters",
+      "lib/memory-schema-checks.js": "Adapters",
+      "lib/memory-schema-normalize.js": "Adapters",
+      "lib/memory-schema-package.js": "Adapters",
+      "lib/memory-schema-types.js": "Adapters",
+      "lib/memory-schema-validate.js": "Adapters",
       "lib/memory-schema.js": "Adapters",
       "lib/memory-store-json-persistence.js": "Adapters",
       "lib/memory-store-persistence-report.js": "Adapters",
@@ -791,6 +810,7 @@
       "lib/memory-supersede.js": "Adapters",
       "lib/memory-temporal.js": "Adapters",
       "lib/memory-tombstone.js": "Adapters",
+      "lib/module-reachability-walk.js": "Core",
       "lib/module-reachability.js": "Core",
       "lib/multi-agent-cascade-guard.js": "Core",
       "lib/mutation-admission.js": "Core",
@@ -798,6 +818,8 @@
       "lib/mutation-journal.js": "Core",
       "lib/observability/agent-worker.js": "Application",
       "lib/observability/alert-lifecycle.js": "Application",
+      "lib/observability/api-contract-schemas.js": "Application",
+      "lib/observability/api-contract-spec.js": "Application",
       "lib/observability/api-contract.js": "Application",
       "lib/observability/authorization.js": "Application",
       "lib/observability/client.js": "Application",
@@ -908,6 +930,8 @@
       "lib/self-evolve-probe.js": "Core",
       "lib/self-healer/approval-bridge.js": "Application",
       "lib/self-healer/audit-runner.js": "Application",
+      "lib/self-healer/behavioral-containment-baseline.js": "Application",
+      "lib/self-healer/behavioral-containment-records.js": "Application",
       "lib/self-healer/behavioral-containment.js": "Application",
       "lib/self-healer/dryrun-budget-gate.js": "Application",
       "lib/self-healer/dryrun-projections.js": "Application",
@@ -1523,8 +1547,15 @@
       "lib/agent-failure-signature.js": [
         "lib/agent-memory-state.js"
       ],
-      "lib/agent-identity-runtime.js": [
+      "lib/agent-identity-runtime-resolve.js": [
+        "lib/agent-identity-runtime-shape.js"
+      ],
+      "lib/agent-identity-runtime-shape.js": [
         "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/agent-identity-runtime.js": [
+        "lib/agent-identity-runtime-resolve.js",
+        "lib/agent-identity-runtime-shape.js"
       ],
       "lib/agent-memory-records.js": [
         "lib/agent-memory-state.js"
@@ -1685,8 +1716,13 @@
         "graph.js",
         "lib/causal/causal-edge-errors.js"
       ],
+      "lib/causal/causal-traversal-resolvers.js": [
+        "lib/causal/causal-edge.js",
+        "lib/causal/causal-traversal-edges.js"
+      ],
       "lib/causal/causal-traversal.js": [
-        "lib/causal/causal-edge.js"
+        "lib/causal/causal-traversal-edges.js",
+        "lib/causal/causal-traversal-resolvers.js"
       ],
       "lib/causal/causal-verdict-normalize.js": [
         "lib/causal/causal-traversal.js",
@@ -1849,8 +1885,18 @@
       "lib/collector-seal-config.js": [
         "lib/environment-compat.js"
       ],
-      "lib/command-exec-gate.js": [
+      "lib/command-exec-gate-structure.js": [
+        "lib/command-exec-gate-vocabulary.js"
+      ],
+      "lib/command-exec-gate-targets.js": [
+        "lib/command-exec-gate-structure.js",
+        "lib/command-exec-gate-vocabulary.js",
         "lib/path-safety.js"
+      ],
+      "lib/command-exec-gate.js": [
+        "lib/command-exec-gate-structure.js",
+        "lib/command-exec-gate-targets.js",
+        "lib/command-exec-gate-vocabulary.js"
       ],
       "lib/command-parser.js": [
         "lib/cli-workflow-adapter.js"
@@ -1875,10 +1921,21 @@
         "lib/verdict/action-verdict.js",
         "lib/workspace-id.js"
       ],
-      "lib/connector-action-firewall.js": [
+      "lib/connector-action-firewall-normalize.js": [
         "lib/agent-action-firewall.js",
+        "lib/connector-action-firewall-contracts.js",
         "lib/connector-local-path.js",
         "lib/github-url.js"
+      ],
+      "lib/connector-action-firewall-summary.js": [
+        "lib/agent-action-firewall.js",
+        "lib/connector-action-firewall-normalize.js"
+      ],
+      "lib/connector-action-firewall.js": [
+        "lib/agent-action-firewall.js",
+        "lib/connector-action-firewall-contracts.js",
+        "lib/connector-action-firewall-normalize.js",
+        "lib/connector-action-firewall-summary.js"
       ],
       "lib/connector-local-path.js": [
         "lib/connectors/entry-ingest-flow.js"
@@ -2100,6 +2157,19 @@
         "lib/external-action-gate-install-validate.js",
         "lib/external-action-receipt.js"
       ],
+      "lib/external-action-guard-gates.js": [
+        "lib/action-risk-classifier.js",
+        "lib/external-action-guard-rules.js",
+        "lib/external-action-receipt.js",
+        "lib/file-effect-sensor.js",
+        "lib/risk-scale.js"
+      ],
+      "lib/external-action-guard-records.js": [
+        "lib/external-action-envelope.js",
+        "lib/external-action-identity.js",
+        "lib/external-action-receipt.js",
+        "lib/post-action-monitor.js"
+      ],
       "lib/external-action-guard.js": [
         "lib/action-risk-classifier.js",
         "lib/automation-safety-gate/index.js",
@@ -2108,9 +2178,10 @@
         "lib/cross-workspace-access-gate.js",
         "lib/external-action-egress-gates.js",
         "lib/external-action-envelope.js",
+        "lib/external-action-guard-gates.js",
+        "lib/external-action-guard-records.js",
+        "lib/external-action-guard-rules.js",
         "lib/external-action-identity.js",
-        "lib/external-action-receipt.js",
-        "lib/file-effect-sensor.js",
         "lib/graduated-autonomy.js",
         "lib/identity-privilege-escalation.js",
         "lib/memory-mutation-gate/index.js",
@@ -2120,20 +2191,29 @@
         "lib/session-impact.js",
         "lib/tool-call-gate.js"
       ],
+      "lib/external-action-identity-card.js": [
+        "lib/emergency-stop.js",
+        "lib/external-action-envelope.js",
+        "lib/is-plain-object.js",
+        "lib/receipt/canonical-receipt.js"
+      ],
       "lib/external-action-identity-log.js": [
         "lib/external-action-identity.js",
         "lib/external-action-receipt.js"
+      ],
+      "lib/external-action-identity-records.js": [
+        "lib/external-action-identity-card.js",
+        "lib/external-action-identity-signing.js"
       ],
       "lib/external-action-identity-signing.js": [
         "lib/receipt/canonical-receipt.js"
       ],
       "lib/external-action-identity.js": [
         "lib/emergency-stop.js",
-        "lib/external-action-envelope.js",
+        "lib/external-action-identity-card.js",
+        "lib/external-action-identity-records.js",
         "lib/external-action-identity-signing.js",
-        "lib/human-sponsor-authority.js",
-        "lib/is-plain-object.js",
-        "lib/receipt/canonical-receipt.js"
+        "lib/human-sponsor-authority.js"
       ],
       "lib/external-action-receipt-collector.js": [
         "lib/external-action-identity-log.js",
@@ -2199,9 +2279,14 @@
         "lib/receipt/canonical-receipt-v2.js",
         "lib/receipt/canonical-receipt.js"
       ],
-      "lib/external-client-package-gate.js": [
+      "lib/external-client-package-gate-verify.js": [
+        "lib/external-client-package-gate-inputs.js",
         "lib/huqan-package-format.js",
-        "lib/receipt/canonical-receipt.js",
+        "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/external-client-package-gate.js": [
+        "lib/external-client-package-gate-inputs.js",
+        "lib/external-client-package-gate-verify.js",
         "lib/workspace-id.js"
       ],
       "lib/external-client-production-boundary.js": [
@@ -2214,10 +2299,23 @@
         "lib/receipt/canonical-receipt.js",
         "lib/sdk.js"
       ],
-      "lib/external-client-replay-store.js": [
+      "lib/external-client-replay-store-contract.js": [
         "lib/external-client-authority.js",
-        "lib/is-plain-object.js",
         "lib/memory-store-utils.js"
+      ],
+      "lib/external-client-replay-store-schema.js": [
+        "lib/external-client-authority.js",
+        "lib/external-client-replay-store-contract.js"
+      ],
+      "lib/external-client-replay-store-snapshot.js": [
+        "lib/external-client-authority.js",
+        "lib/external-client-replay-store-contract.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/external-client-replay-store.js": [
+        "lib/external-client-replay-store-contract.js",
+        "lib/external-client-replay-store-schema.js",
+        "lib/external-client-replay-store-snapshot.js"
       ],
       "lib/external-client-trust-config-guards.js": [
         "lib/external-client-authority.js",
@@ -2477,8 +2575,17 @@
       "lib/graph-query-read.js": [
         "lib/graph-record-utils.js"
       ],
+      "lib/graph-record-utils-edges.js": [
+        "lib/is-plain-object.js"
+      ],
+      "lib/graph-record-utils-nodes.js": [
+        "lib/is-plain-object.js",
+        "lib/workspace-id.js"
+      ],
       "lib/graph-record-utils.js": [
         "lib/audit-log.js",
+        "lib/graph-record-utils-edges.js",
+        "lib/graph-record-utils-nodes.js",
         "lib/is-plain-object.js",
         "lib/workspace-id.js"
       ],
@@ -2496,10 +2603,18 @@
         "lib/graph-cycle-search.js",
         "lib/graph-path-search.js"
       ],
-      "lib/http-human-oversight-adapter.js": [
-        "lib/agent-action-firewall.js",
+      "lib/http-human-oversight-adapter-identity.js": [
         "lib/agent-identity-runtime.js",
+        "lib/http-human-oversight-adapter-input.js",
         "lib/is-plain-object.js"
+      ],
+      "lib/http-human-oversight-adapter-input.js": [
+        "lib/agent-action-firewall.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/http-human-oversight-adapter.js": [
+        "lib/http-human-oversight-adapter-identity.js",
+        "lib/http-human-oversight-adapter-input.js"
       ],
       "lib/http-trust-query.js": [
         "requestGuards.js"
@@ -2759,10 +2874,20 @@
       "lib/human-oversight-approval-runtime-execution.js": [
         "lib/human-oversight-approval-runtime-primitives.js"
       ],
+      "lib/human-oversight-approval-runtime-primitives-normalize.js": [
+        "lib/agent-action-firewall.js",
+        "lib/human-oversight-approval-runtime-primitives-values.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/human-oversight-approval-runtime-primitives-values.js": [
+        "lib/is-plain-object.js",
+        "lib/receipt/canonical-receipt.js"
+      ],
       "lib/human-oversight-approval-runtime-primitives.js": [
         "lib/agent-action-firewall.js",
+        "lib/human-oversight-approval-runtime-primitives-normalize.js",
+        "lib/human-oversight-approval-runtime-primitives-values.js",
         "lib/is-plain-object.js",
-        "lib/receipt/canonical-receipt.js",
         "lib/trust-evidence-ledger.js"
       ],
       "lib/human-oversight-approval-runtime-state.js": [
@@ -2801,6 +2926,22 @@
       "lib/hypothesis-tuning.js": [
         "lib/graph-hypotheses.js"
       ],
+      "lib/ingest-approval.js": [
+        "lib/ingest-capability.js",
+        "lib/ingest-values.js"
+      ],
+      "lib/ingest-capability.js": [
+        "lib/github-url.js",
+        "lib/ingest-values.js"
+      ],
+      "lib/ingest-snapshot-build.js": [
+        "lib/github-url.js",
+        "lib/ingest-values.js"
+      ],
+      "lib/ingest-snapshot-verify.js": [
+        "lib/ingest-snapshot-build.js",
+        "lib/ingest-values.js"
+      ],
       "lib/ingest-workflow-preview.js": [
         "lib/ingest.js"
       ],
@@ -2808,7 +2949,11 @@
         "lib/ingest-workflow-preview.js"
       ],
       "lib/ingest.js": [
-        "lib/github-url.js"
+        "lib/ingest-approval.js",
+        "lib/ingest-capability.js",
+        "lib/ingest-snapshot-build.js",
+        "lib/ingest-snapshot-verify.js",
+        "lib/ingest-values.js"
       ],
       "lib/interop/vc-mapping.js": [
         "lib/is-plain-object.js",
@@ -2944,14 +3089,30 @@
         "lib/environment-compat.js",
         "lib/verify-status-vocabulary.js"
       ],
+      "lib/mcp-gate-adapter-contract.js": [
+        "lib/action-risk-classifier.js",
+        "lib/risk-scale.js"
+      ],
+      "lib/mcp-gate-adapter-decisions.js": [
+        "lib/action-risk-classifier.js",
+        "lib/mcp-gate-adapter-contract.js",
+        "lib/risk-scale.js"
+      ],
+      "lib/mcp-gate-adapter-inputs.js": [
+        "lib/action-risk-classifier.js",
+        "lib/is-plain-object.js",
+        "lib/mcp-gate-adapter-contract.js",
+        "lib/mcp-tool-names.js"
+      ],
       "lib/mcp-gate-adapter.js": [
         "lib/action-risk-classifier.js",
         "lib/automation-safety-gate/index.js",
         "lib/command-exec-gate.js",
         "lib/cross-workspace-access-gate.js",
         "lib/data-egress-gate.js",
-        "lib/is-plain-object.js",
-        "lib/mcp-tool-names.js",
+        "lib/mcp-gate-adapter-contract.js",
+        "lib/mcp-gate-adapter-decisions.js",
+        "lib/mcp-gate-adapter-inputs.js",
         "lib/memory-mutation-gate/index.js",
         "lib/risk-scale.js",
         "lib/tool-call-gate.js"
@@ -2984,13 +3145,50 @@
       "lib/mcp-operator-capability.js": [
         "lib/receipt/canonical-receipt.js"
       ],
-      "lib/mcp-tool-catalog.js": [
+      "lib/mcp-tool-catalog-core.js": [
         "lib/mcp-envelope-schema.js",
-        "lib/mcp-tool-data-schemas.js",
+        "lib/mcp-tool-data-schemas.js"
+      ],
+      "lib/mcp-tool-catalog-governance.js": [
+        "lib/mcp-envelope-schema.js",
+        "lib/mcp-tool-data-schemas.js"
+      ],
+      "lib/mcp-tool-catalog-ingest.js": [
+        "lib/mcp-envelope-schema.js",
+        "lib/mcp-tool-data-schemas.js"
+      ],
+      "lib/mcp-tool-catalog-reasoning.js": [
+        "lib/mcp-envelope-schema.js",
+        "lib/mcp-tool-data-schemas.js"
+      ],
+      "lib/mcp-tool-catalog-trust.js": [
+        "lib/mcp-envelope-schema.js",
+        "lib/mcp-tool-data-schemas.js"
+      ],
+      "lib/mcp-tool-catalog.js": [
+        "lib/mcp-tool-catalog-core.js",
+        "lib/mcp-tool-catalog-governance.js",
+        "lib/mcp-tool-catalog-ingest.js",
+        "lib/mcp-tool-catalog-reasoning.js",
+        "lib/mcp-tool-catalog-trust.js",
         "lib/mcp/operator-tool-schemas.js"
       ],
-      "lib/mcp-tool-data-schemas.js": [
+      "lib/mcp-tool-data-schemas-agent.js": [
         "lib/mcp-envelope-schema.js"
+      ],
+      "lib/mcp-tool-data-schemas-knowledge.js": [
+        "lib/mcp-envelope-schema.js"
+      ],
+      "lib/mcp-tool-data-schemas-trust.js": [
+        "lib/mcp-envelope-schema.js"
+      ],
+      "lib/mcp-tool-data-schemas.js": [
+        "lib/mcp-envelope-schema.js",
+        "lib/mcp-tool-data-schemas-agent.js",
+        "lib/mcp-tool-data-schemas-governance.js",
+        "lib/mcp-tool-data-schemas-ingest.js",
+        "lib/mcp-tool-data-schemas-knowledge.js",
+        "lib/mcp-tool-data-schemas-trust.js"
       ],
       "lib/mcp-tool-names.js": [
         "lib/legacy-alias-usage.js"
@@ -3209,10 +3407,33 @@
       "lib/memory-record-utils.js": [
         "lib/memory-store-utils.js"
       ],
-      "lib/memory-schema.js": [
+      "lib/memory-schema-checks.js": [
+        "lib/is-plain-object.js"
+      ],
+      "lib/memory-schema-normalize.js": [
         "lib/is-plain-object.js",
         "lib/json-clone.js",
         "lib/workspace-id.js"
+      ],
+      "lib/memory-schema-package.js": [
+        "lib/is-plain-object.js",
+        "lib/memory-schema-checks.js",
+        "lib/memory-schema-types.js",
+        "lib/memory-schema-validate.js"
+      ],
+      "lib/memory-schema-types.js": [
+        "lib/memory-schema-checks.js"
+      ],
+      "lib/memory-schema-validate.js": [
+        "lib/is-plain-object.js",
+        "lib/memory-schema-checks.js",
+        "lib/memory-schema-types.js"
+      ],
+      "lib/memory-schema.js": [
+        "lib/memory-schema-normalize.js",
+        "lib/memory-schema-package.js",
+        "lib/memory-schema-types.js",
+        "lib/memory-schema-validate.js"
       ],
       "lib/memory-store-json-persistence.js": [
         "lib/memory-schema.js",
@@ -3282,7 +3503,8 @@
         "lib/memory-store-utils.js"
       ],
       "lib/module-reachability.js": [
-        "lib/is-plain-object.js"
+        "lib/is-plain-object.js",
+        "lib/module-reachability-walk.js"
       ],
       "lib/mutation-journal-lock.js": [
         "lib/graph-record-utils.js"
@@ -3295,7 +3517,13 @@
       "lib/observability/alert-lifecycle.js": [
         "lib/observability/helpers.js"
       ],
+      "lib/observability/api-contract-schemas.js": [
+        "lib/observability/api-contract-spec.js",
+        "lib/observability/service.js"
+      ],
       "lib/observability/api-contract.js": [
+        "lib/observability/api-contract-schemas.js",
+        "lib/observability/api-contract-spec.js",
         "lib/observability/service.js"
       ],
       "lib/observability/client.js": [
@@ -3686,10 +3914,18 @@
         "lib/self-healer/finding-schema.js",
         "lib/workspace-id.js"
       ],
+      "lib/self-healer/behavioral-containment-baseline.js": [
+        "lib/is-plain-object.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/self-healer/behavioral-containment-records.js": [
+        "lib/self-healer/behavioral-containment-baseline.js",
+        "lib/self-healer/finding-schema.js"
+      ],
       "lib/self-healer/behavioral-containment.js": [
         "lib/is-plain-object.js",
-        "lib/self-healer/finding-schema.js",
-        "lib/workspace-id.js"
+        "lib/self-healer/behavioral-containment-baseline.js",
+        "lib/self-healer/behavioral-containment-records.js"
       ],
       "lib/self-healer/dryrun-budget-gate.js": [
         "lib/agent-loop-budget-gate.js"
@@ -4507,7 +4743,7 @@
         "toLayer": "Application"
       },
       {
-        "from": "lib/agent-identity-runtime.js",
+        "from": "lib/agent-identity-runtime-shape.js",
         "to": "lib/receipt/canonical-receipt.js",
         "fromLayer": "Core",
         "toLayer": "Application"
@@ -4693,13 +4929,13 @@
         "toLayer": "Adapters"
       },
       {
-        "from": "lib/external-action-identity-signing.js",
+        "from": "lib/external-action-identity-card.js",
         "to": "lib/receipt/canonical-receipt.js",
         "fromLayer": "Core",
         "toLayer": "Application"
       },
       {
-        "from": "lib/external-action-identity.js",
+        "from": "lib/external-action-identity-signing.js",
         "to": "lib/receipt/canonical-receipt.js",
         "fromLayer": "Core",
         "toLayer": "Application"
@@ -4753,7 +4989,7 @@
         "toLayer": "Application"
       },
       {
-        "from": "lib/external-client-package-gate.js",
+        "from": "lib/external-client-package-gate-verify.js",
         "to": "lib/receipt/canonical-receipt.js",
         "fromLayer": "Core",
         "toLayer": "Application"
@@ -4765,7 +5001,7 @@
         "toLayer": "Application"
       },
       {
-        "from": "lib/external-client-replay-store.js",
+        "from": "lib/external-client-replay-store-contract.js",
         "to": "lib/memory-store-utils.js",
         "fromLayer": "Core",
         "toLayer": "Adapters"
@@ -4855,7 +5091,7 @@
         "toLayer": "Application"
       },
       {
-        "from": "lib/human-oversight-approval-runtime-primitives.js",
+        "from": "lib/human-oversight-approval-runtime-primitives-values.js",
         "to": "lib/receipt/canonical-receipt.js",
         "fromLayer": "Core",
         "toLayer": "Application"
