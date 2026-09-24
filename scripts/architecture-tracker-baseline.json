@@ -156,11 +156,6 @@
       "lines": 428,
       "signals": []
     },
-    "lib/ingest.js": {
-      "band": "recorded",
-      "lines": 587,
-      "signals": []
-    },
     "lib/kernel-read-use-cases.js": {
       "band": "recorded",
       "lines": 412,
@@ -690,6 +685,11 @@
       "lib/hypothesis-thresholds.js": "Core",
       "lib/hypothesis-tuning.js": "Core",
       "lib/identity-privilege-escalation.js": "Core",
+      "lib/ingest-approval.js": "Core",
+      "lib/ingest-capability.js": "Core",
+      "lib/ingest-snapshot-build.js": "Core",
+      "lib/ingest-snapshot-verify.js": "Core",
+      "lib/ingest-values.js": "Core",
       "lib/ingest-workflow-preview.js": "Core",
       "lib/ingest-workflow-run.js": "Core",
       "lib/ingest.js": "Core",
@@ -2720,6 +2720,22 @@
       "lib/hypothesis-tuning.js": [
         "lib/graph-hypotheses.js"
       ],
+      "lib/ingest-approval.js": [
+        "lib/ingest-capability.js",
+        "lib/ingest-values.js"
+      ],
+      "lib/ingest-capability.js": [
+        "lib/github-url.js",
+        "lib/ingest-values.js"
+      ],
+      "lib/ingest-snapshot-build.js": [
+        "lib/github-url.js",
+        "lib/ingest-values.js"
+      ],
+      "lib/ingest-snapshot-verify.js": [
+        "lib/ingest-snapshot-build.js",
+        "lib/ingest-values.js"
+      ],
       "lib/ingest-workflow-preview.js": [
         "lib/ingest.js"
       ],
@@ -2727,7 +2743,11 @@
         "lib/ingest-workflow-preview.js"
       ],
       "lib/ingest.js": [
-        "lib/github-url.js"
+        "lib/ingest-approval.js",
+        "lib/ingest-capability.js",
+        "lib/ingest-snapshot-build.js",
+        "lib/ingest-snapshot-verify.js",
+        "lib/ingest-values.js"
       ],
       "lib/interop/vc-mapping.js": [
         "lib/is-plain-object.js",
