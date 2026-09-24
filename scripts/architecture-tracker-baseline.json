@@ -156,11 +156,6 @@
       "lines": 477,
       "signals": []
     },
-    "lib/human-oversight-approval-runtime.js": {
-      "band": "recorded",
-      "lines": 744,
-      "signals": []
-    },
     "lib/huqan-package-format.js": {
       "band": "recorded",
       "lines": 428,
@@ -682,7 +677,11 @@
       "lib/http/workflow-envelope.js": "UI",
       "lib/http/workflow-request-validation.js": "UI",
       "lib/human-approval-toggle.js": "Core",
+      "lib/human-oversight-approval-runtime-cases.js": "Core",
+      "lib/human-oversight-approval-runtime-decide.js": "Core",
+      "lib/human-oversight-approval-runtime-execution.js": "Core",
       "lib/human-oversight-approval-runtime-primitives.js": "Core",
+      "lib/human-oversight-approval-runtime-state.js": "Core",
       "lib/human-oversight-approval-runtime.js": "Core",
       "lib/human-sponsor-authority.js": "Core",
       "lib/huqan-package-format.js": "Core",
@@ -1084,6 +1083,7 @@
       "scripts/api-snapshot-diff.js": "UI",
       "scripts/api-snapshot-surface.js": "UI",
       "scripts/api-snapshot.js": "UI",
+      "scripts/architecture-carried-violations.js": "UI",
       "scripts/architecture-dependency-graph.js": "UI",
       "scripts/architecture-mermaid.js": "UI",
       "scripts/architecture-snapshot.js": "UI",
@@ -1125,6 +1125,7 @@
       "scripts/external-client.js": "UI",
       "scripts/external-conformance/consumer.js": "UI",
       "scripts/external-conformance/run.js": "UI",
+      "scripts/external-conformance/verify-bundle.js": "UI",
       "scripts/file-size-policy.js": "UI",
       "scripts/fitness-dashboard-charts.js": "UI",
       "scripts/fitness-dashboard.js": "UI",
@@ -2637,14 +2638,30 @@
       "lib/human-approval-toggle.js": [
         "lib/environment-compat.js"
       ],
+      "lib/human-oversight-approval-runtime-cases.js": [
+        "lib/human-oversight-approval-runtime-primitives.js"
+      ],
+      "lib/human-oversight-approval-runtime-decide.js": [
+        "lib/human-oversight-approval-runtime-primitives.js"
+      ],
+      "lib/human-oversight-approval-runtime-execution.js": [
+        "lib/human-oversight-approval-runtime-primitives.js"
+      ],
       "lib/human-oversight-approval-runtime-primitives.js": [
         "lib/agent-action-firewall.js",
         "lib/is-plain-object.js",
         "lib/receipt/canonical-receipt.js",
         "lib/trust-evidence-ledger.js"
       ],
-      "lib/human-oversight-approval-runtime.js": [
+      "lib/human-oversight-approval-runtime-state.js": [
         "lib/human-oversight-approval-runtime-primitives.js"
+      ],
+      "lib/human-oversight-approval-runtime.js": [
+        "lib/human-oversight-approval-runtime-cases.js",
+        "lib/human-oversight-approval-runtime-decide.js",
+        "lib/human-oversight-approval-runtime-execution.js",
+        "lib/human-oversight-approval-runtime-primitives.js",
+        "lib/human-oversight-approval-runtime-state.js"
       ],
       "lib/human-sponsor-authority.js": [
         "lib/external-action-identity-signing.js",
@@ -3995,6 +4012,9 @@
         "scripts/api-snapshot-diff.js",
         "scripts/api-snapshot-surface.js"
       ],
+      "scripts/architecture-dependency-graph.js": [
+        "scripts/architecture-carried-violations.js"
+      ],
       "scripts/architecture-mermaid.js": [
         "scripts/check-layers.js"
       ],
@@ -4053,6 +4073,9 @@
       "scripts/enforcement-coverage.js": [
         "scripts/binding-site-scan.js",
         "scripts/enforcement-coverage-classification.js"
+      ],
+      "scripts/external-conformance/consumer.js": [
+        "scripts/external-conformance/verify-bundle.js"
       ],
       "scripts/fitness-dashboard.js": [
         "lib/fitness-history.js",
