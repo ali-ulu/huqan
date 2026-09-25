@@ -14,12 +14,12 @@ Tracked in total: **30**
 | File | Lines | Signals |
 |---|---:|---|
 | `lib/risk-classify.js` | 739 | — |
-| `agent.v3.js` | 728 | DIP |
 | `plugin.js` | 728 | — |
 | `dream.js` | 726 | — |
 | `plugins/repo-memory.js` | 726 | — |
 | `lib/verify.js` | 693 | — |
 | `plugins/company-brain.js` | 678 | — |
+| `agent.v3.js` | 647 | DIP |
 | `cli.js` | 637 | FANOUT:26 |
 | `lib/receipt/receipt-read-index.js` | 637 | — |
 | `storage.js` | 627 | — |
