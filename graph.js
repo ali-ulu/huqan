@@ -6,10 +6,8 @@ const {
   compareCausalEdges,
 } = require('./lib/graph-record-utils');
 const { derivePersistenceLayout, resolveDefaultMemoryPath } = require('./lib/memory-store-utils');
-const { assertGraphPersistenceWritable } = require('./lib/graph-json-persistence');
 const { appendReceiptToChain } = require('./lib/receipt/receipt-chain');
 const { assertDurableV4WriteAllowed, classifyReceiptFamily } = require('./lib/receipt/v4-receipt-family');
-const { saveSnapshot, writeCurrentState } = require('./lib/graph-json-snapshot');
 const { countAuditEvents, queryAuditEvents, readAuditEvents } = require('./lib/audit-query');
 const { applyTemporalEdgeMetadata, beginEdgeTouchScope, downgradeEdge, edgeTouchKey } = require('./lib/graph-edge-mutations');
 const { getCausalChain: runCausalChain } = require('./lib/graph-causal-chain');
@@ -38,7 +36,7 @@ const { optimize: runGraphOptimize } = require('./lib/graph-optimize');
 const { isCausalRelation: runIsCausalRelation, getCausalRelations: runCausalRelations, getCausalEdges: runCausalEdges } = require('./lib/graph-causal-relation-read');
 const { addEdge: runEdgeWrite } = require('./lib/graph-edge-write');
 const consolidateEdges = require('./lib/graph-consolidate-edges');
-const { stripEmbeddings: runStripEmbeddings, restoreEmbeddings: runRestoreEmbeddings, writeStrippedState: runWriteStrippedState, load: runGraphPersistenceLoad } = require('./lib/graph-persistence-runtime');
+const { createGraphStorePort } = require('./lib/graph-store-port');
 const {
   jsonJournalPath: runJsonJournalPath,
   emptyJsonJournal: runEmptyJsonJournal,
@@ -108,6 +106,7 @@ class Graph {
     this._sqliteOptions = opts;
     this._db = null;
     this._stmts = null; // SQLite statement güvenliği için null init
+    this._storePort = createGraphStorePort(this, sqlitePersistenceError);
     if (wantSQLite) {
       this._openSqlite(opts);
     }
@@ -323,24 +322,23 @@ class Graph {
   // ─── Kalıcılık ────────────────────────────────────────────────────────────
 
   stripEmbeddings() {
-    return runStripEmbeddings(this);
+    return this._storePort.stripEmbeddings();
   }
 
   restoreEmbeddings(embeddings) {
-    return runRestoreEmbeddings(this, embeddings);
+    return this._storePort.restoreEmbeddings(embeddings);
   }
 
   save() {
-    assertGraphPersistenceWritable(this);
-    return this._db && this._stmts ? writeCurrentState(this) : saveSnapshot(this, () => writeCurrentState(this), this._jsonTransactionFault);
+    return this._storePort.save(this._jsonTransactionFault);
   }
 
   writeStrippedState(embeddings) {
-    return runWriteStrippedState(this, embeddings);
+    return this._storePort.writeStrippedState(embeddings);
   }
 
   load() {
-    return runGraphPersistenceLoad(this, sqlitePersistenceError);
+    return this._storePort.load();
   }
 
   // ─── Index yönetimi ───────────────────────────────────────────────────────

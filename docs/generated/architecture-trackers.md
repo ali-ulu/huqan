@@ -45,5 +45,5 @@ Tracked in total: **30**
 
 | File | Lines | Signals |
 |---|---:|---|
-| `graph.js` | 394 | FANOUT:34 |
+| `graph.js` | 392 | FANOUT:31 |
 | `lib/verify-numeric-text.js` | 82 | OCP:8 |

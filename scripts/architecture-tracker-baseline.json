@@ -37,9 +37,9 @@
     },
     "graph.js": {
       "band": "structural",
-      "lines": 394,
+      "lines": 392,
       "signals": [
-        "FANOUT:34"
+        "FANOUT:31"
       ]
     },
     "kernel.js": {
@@ -401,6 +401,7 @@
       "lib/experience/reconciliation.js": "Application",
       "lib/experience/repair.js": "Application",
       "lib/experience/router.js": "Application",
+      "lib/experience/runtime-seam.js": "Application",
       "lib/experience/verifier.js": "Application",
       "lib/experience/write-cost-budget.js": "Application",
       "lib/external-action-action-binding.js": "Core",
@@ -1221,6 +1222,7 @@
         "lib/agent-report-renderer.js",
         "lib/agent-run-guidance.js",
         "lib/agent-step-executor.js",
+        "lib/experience/runtime-seam.js",
         "lib/mcp-tool-policy.js",
         "toolPolicy.js"
       ],
@@ -1318,8 +1320,6 @@
         "lib/graph-edge-mutations.js",
         "lib/graph-edge-read.js",
         "lib/graph-edge-write.js",
-        "lib/graph-json-persistence.js",
-        "lib/graph-json-snapshot.js",
         "lib/graph-mutation-receipt-read.js",
         "lib/graph-mutation-receipt-schema.js",
         "lib/graph-mutation-runtime.js",
@@ -1331,7 +1331,6 @@
         "lib/graph-node-weight.js",
         "lib/graph-node-write.js",
         "lib/graph-optimize.js",
-        "lib/graph-persistence-runtime.js",
         "lib/graph-prune.js",
         "lib/graph-query-read.js",
         "lib/graph-record-utils.js",
@@ -2082,6 +2081,9 @@
         "lib/experience/router.js",
         "lib/human-approval-toggle.js",
         "lib/trust-policy.js"
+      ],
+      "lib/experience/runtime-seam.js": [
+        "lib/experience/contract.js"
       ],
       "lib/experience/verifier.js": [
         "lib/experience/contract.js"

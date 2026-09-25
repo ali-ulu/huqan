@@ -149,6 +149,7 @@
     "dream.js",
     "evidence-ranker.js",
     "finalizer.js",
+    "lib/graph-store-port.js",
     "graph.js",
     "index.d.ts",
     "index.js",
