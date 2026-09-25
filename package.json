@@ -443,6 +443,7 @@
     "lib/experience/repair.js",
     "lib/experience/router.js",
     "lib/experience/verifier.js",
+    "lib/experience/write-cost-budget.js",
     "lib/external-client-authority.js",
     "lib/external-client-authority-errors.js",
     "lib/external-client-authority-primitives.js",
