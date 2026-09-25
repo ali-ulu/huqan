@@ -58,6 +58,80 @@ test('resolveExperienceJournal honours an injected journal', () => {
   assert.equal(kernel.experienceJournal, injected);
 });
 
+test('an explicit null turns Experience off even when a durable store is present', () => {
+  // #2375 decision 5: "off means off rather than best-effort". Before this, the
+  // factory read `opts.experienceJournal || (store ? build : null)`, so a caller
+  // asking for no journal silently got one and the off path was unreachable --
+  // a confirmation about a state nothing could enter.
+  const dir = tempDir();
+  const storage = new HuqanStorage({ dbPath: path.join(dir, 'off.db') });
+  try {
+    assert.equal(resolveExperienceJournal({ experienceJournal: null }, storage), null);
+    // An absent option still means the default, not off: existing callers must
+    // not lose their journal by not mentioning it.
+    assert.ok(resolveExperienceJournal({}, storage), 'absent option keeps the default journal');
+  } finally {
+    cleanup(dir, storage);
+  }
+});
+
+test('HUQAN_EXPERIENCE_ENABLED=false turns Experience off for the deployment', () => {
+  const dir = tempDir();
+  const storage = new HuqanStorage({ dbPath: path.join(dir, 'env.db') });
+  const previous = process.env.HUQAN_EXPERIENCE_ENABLED;
+  try {
+    process.env.HUQAN_EXPERIENCE_ENABLED = 'false';
+    assert.equal(resolveExperienceJournal({}, storage), null);
+    // A caller that injects its own journal still wins: the switch turns off the
+    // journal the factory would build, it does not confiscate one handed in.
+    const injected = createExperienceJournal();
+    assert.equal(resolveExperienceJournal({ experienceJournal: injected }, storage), injected);
+    process.env.HUQAN_EXPERIENCE_ENABLED = 'true';
+    assert.ok(resolveExperienceJournal({}, storage), 'any value other than false is on');
+  } finally {
+    if (previous === undefined) delete process.env.HUQAN_EXPERIENCE_ENABLED;
+    else process.env.HUQAN_EXPERIENCE_ENABLED = previous;
+    cleanup(dir, storage);
+  }
+});
+
+test('with Experience off a real run writes no events at all', () => {
+  // The measurement #2375 asks for: not "the write is cheaper" but "there is no
+  // write". A run driven with the switch off must leave the journal table empty
+  // and the kernel without a journal object.
+  const dir = tempDir();
+  const storage = new HuqanStorage({ dbPath: path.join(dir, 'offrun.db') });
+  const previous = process.env.HUQAN_EXPERIENCE_ENABLED;
+  try {
+    process.env.HUQAN_EXPERIENCE_ENABLED = 'false';
+    const kernel = makeKernel(dir);
+    const agent = createAgent({ kernel, storage, maxSteps: 2, maxIterations: 2, timeBudgetMs: 5000, dreamExperimentLoop: false });
+    // The journal reaches the run through the kernel (agent.js reads
+    // `this.experienceJournal || this.kernel?.experienceJournal`), so off means
+    // it is absent in both places.
+    assert.equal(agent.experienceJournal, undefined, 'the agent must hold no journal');
+    assert.equal(kernel.experienceJournal, undefined, 'the kernel must hold no journal');
+
+    agent.baseAgent.plan = (goal) => ({
+      ok: true, type: 'plan',
+      data: { goal, objective: 'off run', selectedTools: ['ask'], steps: [{ id: 's1', action: 'ask', tool: 'ask', input: 'x' }], maxSteps: 1 },
+    });
+    kernel.ask = () => ({ ok: true, type: 'ask', data: { summary: 'a' }, evidence: [] });
+    agent.run('run with Experience off');
+
+    // Stronger than "zero rows": with off the journal table is never created,
+    // so there is no surface to write to even by accident.
+    const table = storage.db.prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'experience_journal'",
+    ).get();
+    assert.equal(table, undefined, 'off must not even create the journal table');
+  } finally {
+    if (previous === undefined) delete process.env.HUQAN_EXPERIENCE_ENABLED;
+    else process.env.HUQAN_EXPERIENCE_ENABLED = previous;
+    cleanup(dir, storage);
+  }
+});
+
 test('the seam is a no-op when no journal is configured', () => {
   const { emitRunLifecycle } = require('../lib/experience/runtime-seam');
   // A run with no journal is the pre-wiring state every existing caller is in,

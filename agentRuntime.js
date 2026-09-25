@@ -73,12 +73,35 @@ function resolveAgentStorage(opts = {}) {
  * fail-closed is the point, and an in-memory journal that a restart erases is
  * not that. The journal is attached to the kernel so both runtimes reach it
  * through the same place; a caller may still pass its own via opts.
+ *
+ * `#2375` decision 5 asks for the disabled path — "off means off rather than
+ * best-effort". Off has to be *reachable*, or that confirmation is a claim
+ * about a state nothing can enter. Two ways in, both explicit:
+ *
+ * - `opts.experienceJournal === null` — the caller turned it off by hand. An
+ *   absent/`undefined` option keeps the default (build one when the store is
+ *   durable); only an explicit `null` means off.
+ * - `HUQAN_EXPERIENCE_ENABLED=false` — the deployment turned it off.
+ *
+ * With off there is no journal object at all, so the seam is a no-op and no
+ * event is written. That is what makes it off rather than best-effort: there
+ * is nothing left running to be slow.
  */
 function resolveExperienceJournal(opts = {}, storage) {
-  const journal = opts.experienceJournal
-    || (storage && storage.db ? createExperienceJournal({ store: storage }) : null);
+  const journal = resolveExperienceJournalOption(opts, storage);
   if (journal && opts.kernel && !opts.kernel.experienceJournal) opts.kernel.experienceJournal = journal;
   return journal;
+}
+
+function experienceDisabled(opts) {
+  if (Object.prototype.hasOwnProperty.call(opts, 'experienceJournal')) return opts.experienceJournal === null;
+  return String(readCompatibleEnvironmentVariable('EXPERIENCE_ENABLED') ?? '').toLowerCase() === 'false';
+}
+
+function resolveExperienceJournalOption(opts, storage) {
+  if (experienceDisabled(opts)) return null;
+  if (opts.experienceJournal) return opts.experienceJournal;
+  return storage && storage.db ? createExperienceJournal({ store: storage }) : null;
 }
 
 function createAgent(opts = {}) {
