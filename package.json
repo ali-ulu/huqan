@@ -392,6 +392,7 @@
     "lib/identity-privilege-escalation.js",
     "lib/impact-budget-ledger.js",
     "lib/impact-budget-gate.js",
+    "lib/external-action-action-binding.js",
     "lib/external-action-identity-signing.js",
     "lib/external-action-identity-log.js",
     "lib/external-action-receipt-writer-factory.js",
