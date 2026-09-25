@@ -13,8 +13,8 @@ Tracked in total: **31**
 
 | File | Lines | Signals |
 |---|---:|---|
-| `agent.v3.js` | 778 | DIP |
 | `lib/risk-classify.js` | 739 | — |
+| `agent.v3.js` | 728 | DIP |
 | `plugin.js` | 728 | — |
 | `dream.js` | 726 | — |
 | `plugins/repo-memory.js` | 726 | — |

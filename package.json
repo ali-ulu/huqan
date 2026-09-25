@@ -194,6 +194,7 @@
     "lib/agent-identity-runtime.js",
     "lib/goal-integrity-gate.js",
     "lib/agent-v3-dream-loop-adapter.js",
+    "lib/agent-v3-loop-budget.js",
     "lib/agent-v3-storage-factory.js",
     "lib/human-oversight-approval-runtime.js",
     "lib/human-oversight-approval-runtime-cases.js",
