@@ -249,6 +249,7 @@
       "lib/agent-step-executor.js": "Core",
       "lib/agent-v3-dream-loop-adapter.js": "Core",
       "lib/agent-v3-loop-budget.js": "Core",
+      "lib/agent-v3-run-state.js": "Core",
       "lib/agent-v3-storage-factory.js": "Core",
       "lib/approval-execution-evidence.js": "Core",
       "lib/approval-flow-utils.js": "Core",
@@ -1231,6 +1232,7 @@
         "lib/agent-run-finalization.js",
         "lib/agent-v3-dream-loop-adapter.js",
         "lib/agent-v3-loop-budget.js",
+        "lib/agent-v3-run-state.js",
         "lib/agent-v3-storage-factory.js",
         "lib/goal-binding.js"
       ],
@@ -1238,6 +1240,7 @@
         "agent.js",
         "agent.v3.js",
         "lib/environment-compat.js",
+        "lib/experience/journal.js",
         "storage.js",
         "workflow-runtime.js"
       ],
@@ -1583,6 +1586,9 @@
       "lib/agent-v3-loop-budget.js": [
         "lib/agent-loop-budget-gate.js",
         "lib/gate-telemetry.js"
+      ],
+      "lib/agent-v3-run-state.js": [
+        "lib/agent-v3-dream-loop-adapter.js"
       ],
       "lib/agent-v3-storage-factory.js": [
         "storage.js"

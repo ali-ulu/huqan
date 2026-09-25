@@ -2,6 +2,7 @@ const Agent = require('./agent');
 const AgentV3 = require('./agent.v3');
 const HuqanStorage = require('./storage');
 const { createWorkflowRuntime } = require('./workflow-runtime');
+const { createExperienceJournal } = require('./lib/experience/journal');
 const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
 
 /**
@@ -65,6 +66,21 @@ function resolveAgentStorage(opts = {}) {
   }
 }
 
+/**
+ * Builds the production Experience journal (#2378) from a real store, or
+ * returns null when there is no durable backing. A journal needs SQLite to be
+ * durable and fail-closed, so an ephemeral store (or none) means no journal:
+ * fail-closed is the point, and an in-memory journal that a restart erases is
+ * not that. The journal is attached to the kernel so both runtimes reach it
+ * through the same place; a caller may still pass its own via opts.
+ */
+function resolveExperienceJournal(opts = {}, storage) {
+  const journal = opts.experienceJournal
+    || (storage && storage.db ? createExperienceJournal({ store: storage }) : null);
+  if (journal && opts.kernel && !opts.kernel.experienceJournal) opts.kernel.experienceJournal = journal;
+  return journal;
+}
+
 function createAgent(opts = {}) {
   // Validated before the runtime branch so a legacy version request fails the
   // same way whichever runtime it is paired with.
@@ -72,6 +88,7 @@ function createAgent(opts = {}) {
 
   const runtime = resolveAgentRuntime(opts);
   const storage = resolveAgentStorage(opts);
+  const experienceJournal = resolveExperienceJournal(opts, storage);
   if (runtime === 'workflow') {
     // The workflow runtime stands in for AgentV3, so it is handed the same
     // approval storage. Without it, countPendingToolApprovals() answered a
@@ -79,18 +96,20 @@ function createAgent(opts = {}) {
     return createWorkflowRuntime(opts.kernel, {
       ...opts,
       storage,
+      experienceJournal,
       runtime: 'workflow',
       kind: 'workflow',
     });
   }
 
-  return new AgentV3({ ...opts, storage });
+  return new AgentV3({ ...opts, storage, experienceJournal });
 }
 
 module.exports = {
   createAgent,
   resolveAgentVersion,
   resolveAgentRuntime,
+  resolveExperienceJournal,
   CANONICAL_AGENT_VERSION,
   Agent,
   AgentV3,

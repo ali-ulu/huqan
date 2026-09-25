@@ -8,6 +8,7 @@ const { noteMemoryFailure, resetMemoryPersistence } = require('./lib/agent-memor
 const { memoryRuntime } = require('./lib/agent-memory-runtime');
 const { buildAgentPlan } = require('./lib/agent-plan-runtime');
 const { executeAgentStep, executeStepWithRetry, executeAgentRun } = require('./lib/agent-step-executor');
+const { emitRunLifecycle } = require('./lib/agent-experience-emit');
 const DEFAULT_MAX_STEPS = 4;
 const ALLOWED_TOOLS = INTERNAL_TOOLS;
 class Agent {
@@ -25,6 +26,15 @@ class Agent {
   }
   _emit(event, data) {
     try { this.kernel?.observability?.recordLifecycle?.(event, data); } catch (_) {}
+    // Experience Core E3 (#2378): the run's lifecycle seam. Journal presence is
+    // optional and best-effort here, exactly like observability -- a run with no
+    // journal stays the pre-wiring state, and a refused append never derails the
+    // run loop. This is the one seam both runtimes share, because AgentV3
+    // delegates its before/afterAgentRun to this method.
+    const journal = this.experienceJournal || this.kernel?.experienceJournal;
+    if (journal) {
+      try { emitRunLifecycle(event, data, journal); } catch (_) {}
+    }
     if (this.plugins && typeof this.plugins.emit === 'function') this.plugins.emit(event, data);
     return data;
   }
