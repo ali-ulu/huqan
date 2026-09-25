@@ -78,7 +78,7 @@ test('every launcher of an installed bin goes through the shim', () => {
   const root = path.resolve(__dirname, '..');
   const sites = [
     'scripts/verify-tarball-shared.js',
-    'scripts/launch-installed-package-smoke.js',
+    'scripts/launch-installed-package-smoke-context.js',
     'test/kernel-facade-contract.test.js',
   ];
   for (const site of sites) {
@@ -93,4 +93,11 @@ test('every launcher of an installed bin goes through the shim', () => {
     'scripts/verify-package-tarball.js must delegate spawns through verify-tarball-shared',
   );
   assert.ok(!/ComSpec/.test(orchestrator), 'scripts/verify-package-tarball.js re-implements the shim');
+
+  const launchSmoke = fs.readFileSync(path.join(root, 'scripts/launch-installed-package-smoke.js'), 'utf8');
+  assert.ok(
+    launchSmoke.includes("require('./launch-installed-package-smoke-context')"),
+    'scripts/launch-installed-package-smoke.js must delegate spawns through launch-installed-package-smoke-context',
+  );
+  assert.ok(!/ComSpec/.test(launchSmoke), 'scripts/launch-installed-package-smoke.js re-implements the shim');
 });

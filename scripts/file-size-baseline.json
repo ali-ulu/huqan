@@ -39,7 +39,6 @@
     "sandboxRunner.js": 530,
     "scripts/a2a-conformance/run.js": 688,
     "scripts/external-conformance/consumer.js": 815,
-    "scripts/launch-installed-package-smoke.js": 580,
     "storage.js": 627,
     "workflow-agent.js": 562
   },
@@ -159,10 +158,6 @@
     "scripts/external-conformance/consumer.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2026-10-31"
-    },
-    "scripts/launch-installed-package-smoke.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
     },
     "storage.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
