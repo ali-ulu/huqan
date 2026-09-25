@@ -12,6 +12,7 @@ const {
   reserveImpact,
   commitReservation,
   releaseReservation,
+  projectBudgetVerdict,
 } = require('../lib/impact-budget-ledger');
 
 function tempDir(t) {
@@ -111,4 +112,28 @@ test('malformed calls fail closed without writing rows', (t) => {
     reserved: 0,
     committed: 0,
   });
+});
+
+test('projected verdicts include reserved, committed and proposed with equality triggering', (t) => {
+  const graph = memoryGraph(tempDir(t));
+  reserveImpact(graph, { scope: SCOPE, amount: 150, idempotencyKey: 'k1' });
+  commitReservation(graph, { reservationId: 'res:k1', idempotencyKey: 'c1' });
+  reserveImpact(graph, { scope: SCOPE, amount: 100, idempotencyKey: 'k2' });
+  const state = readBudgetState(graph, SCOPE);
+  assert.deepEqual([state.reserved, state.committed], [100, 150]);
+
+  const bands = { reviewAt: 200, quorumAt: 300, blockAt: 400 };
+  assert.deepEqual(projectBudgetVerdict(state, 49, bands), {
+    projected: 299, verdict: 'review', bands,
+  });
+  assert.equal(projectBudgetVerdict(state, 50, bands).verdict, 'quorum');
+  assert.equal(projectBudgetVerdict(state, 150, bands).verdict, 'block');
+  assert.equal(projectBudgetVerdict({ reserved: 0, committed: 0 }, 0, bands).verdict, 'allow');
+
+  for (const bad of [
+    [null, 1], [{}, 1], [{ reserved: 1 }, 1], [{ reserved: 0, committed: 0 }, -1],
+    [{ reserved: 0, committed: 0 }, 1, null], [{ reserved: 0, committed: 0 }, 1, { reviewAt: 3, quorumAt: 2, blockAt: 4 }],
+  ]) {
+    assert.throws(() => projectBudgetVerdict(...bad), /budgetState|proposedAmount|bands|reviewAt|quorumAt|blockAt/);
+  }
 });
