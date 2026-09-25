@@ -40,6 +40,7 @@ describe('financial action assessment', () => {
     assert.equal(result.riskLevel, 'CRITICAL');
     assert.deepEqual(result.assessment, {
       amount: 25, currency: 'USD', destinationPresent: true, reversible: false, limitsConfigured: false,
+      aggregatedDestinationTotal: null, aggregatedTaskTotal: null,
     });
   });
 
@@ -55,6 +56,42 @@ describe('financial action assessment', () => {
     const result = evaluateFinancialAction({ amount: 10, destination: 'vendor' });
     assert.equal(result.reason, FINANCIAL_REASONS.IRREVERSIBLE);
     assert.equal(result.riskLevel, 'CRITICAL');
+  });
+
+  it('carries matching aggregated totals without changing the verdict', () => {
+    const totals = {
+      byDestination: { vendor: { USD: { units: '11000', scale: 2 } } },
+      byTask: { 'task-1': { USD: { units: '6000', scale: 2 } } },
+    };
+    const result = evaluateFinancialAction({
+      amount: 50, currency: 'usd', destination: 'vendor', reversible: true,
+      taskId: 'task-1', aggregatedTotals: totals,
+    });
+    assert.equal(result.decision, 'HUMAN_REVIEW');
+    assert.equal(result.reason, FINANCIAL_REASONS.ASSESSED);
+    assert.deepEqual(result.assessment.aggregatedDestinationTotal, { units: '11000', scale: 2 });
+    assert.deepEqual(result.assessment.aggregatedTaskTotal, { units: '6000', scale: 2 });
+    assert.ok(Object.isFrozen(result.assessment.aggregatedDestinationTotal));
+  });
+
+  it('unmatched or malformed totals degrade to null, never zero and never throw', () => {
+    const totals = { byDestination: { vendor: { USD: { units: '11000', scale: 2 } } }, byTask: {} };
+    const wrongCurrency = evaluateFinancialAction({
+      amount: 50, currency: 'EUR', destination: 'vendor', reversible: true, aggregatedTotals: totals,
+    });
+    assert.equal(wrongCurrency.assessment.aggregatedDestinationTotal, null);
+    const wrongVendor = evaluateFinancialAction({
+      amount: 50, currency: 'USD', destination: 'other', reversible: true, aggregatedTotals: totals,
+    });
+    assert.equal(wrongVendor.assessment.aggregatedDestinationTotal, null);
+    for (const bad of [null, 42, 'totals', { byDestination: { vendor: { USD: { units: 'x', scale: 2 } } } }, { byDestination: null }]) {
+      const result = evaluateFinancialAction({
+        amount: 50, currency: 'USD', destination: 'vendor', reversible: true, aggregatedTotals: bad,
+      });
+      assert.equal(result.decision, 'HUMAN_REVIEW', JSON.stringify(bad));
+      assert.equal(result.assessment.aggregatedDestinationTotal, null, JSON.stringify(bad));
+      assert.equal(result.assessment.aggregatedTaskTotal, null, JSON.stringify(bad));
+    }
   });
 });
 
