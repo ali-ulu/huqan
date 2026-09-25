@@ -374,6 +374,7 @@
     "lib/external-action-gate-sentinel.js",
     "lib/agent-capability-report.js",
     "lib/delegation-rate-counter.js",
+    "lib/financial-aggregation.js",
     "lib/graduated-autonomy.js",
     "lib/autonomy-receipt-history.js",
     "lib/autonomy-state.js",
