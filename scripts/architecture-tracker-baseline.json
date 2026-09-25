@@ -231,6 +231,7 @@
       "lib/agent-action-signals.js": "Core",
       "lib/agent-action-step-enforcement.js": "Core",
       "lib/agent-behavioral-integrity.js": "Core",
+      "lib/agent-capability-report.js": "Core",
       "lib/agent-failure-signature.js": "Core",
       "lib/agent-identity-runtime-resolve.js": "Core",
       "lib/agent-identity-runtime-shape.js": "Core",
@@ -247,6 +248,7 @@
       "lib/agent-run-guidance.js": "Core",
       "lib/agent-step-executor.js": "Core",
       "lib/agent-v3-dream-loop-adapter.js": "Core",
+      "lib/agent-v3-loop-budget.js": "Core",
       "lib/agent-v3-storage-factory.js": "Core",
       "lib/approval-execution-evidence.js": "Core",
       "lib/approval-flow-utils.js": "Core",
@@ -275,6 +277,8 @@
       "lib/bounded-ingest-errors.js": "Core",
       "lib/browser-hook-outcome.js": "Core",
       "lib/browser-session-observer.js": "Core",
+      "lib/bypass-response.js": "Core",
+      "lib/bypass-signal-state.js": "Core",
       "lib/canonical-target-match.js": "Core",
       "lib/causal-edge-strength.js": "Core",
       "lib/causal/causal-edge-errors.js": "Application",
@@ -312,6 +316,7 @@
       "lib/cli-trust-receipt.js": "Core",
       "lib/cli-workflow-adapter.js": "Core",
       "lib/cli-workflow-envelope.js": "Core",
+      "lib/code-change-blast-radius.js": "Core",
       "lib/code-change-decision-summary.js": "Core",
       "lib/code-change-file-classifier.js": "Core",
       "lib/code-change-gate-vocabulary.js": "Core",
@@ -350,6 +355,7 @@
       "lib/data-egress-gate.js": "Core",
       "lib/data-residency-gate.js": "Core",
       "lib/default-persistence-path.js": "Core",
+      "lib/delegation-rate-counter.js": "Core",
       "lib/delegation-service.js": "Core",
       "lib/deterministic-json-copy.js": "Core",
       "lib/deterministic-task-runner.js": "Core",
@@ -395,6 +401,7 @@
       "lib/experience/repair.js": "Application",
       "lib/experience/router.js": "Application",
       "lib/experience/verifier.js": "Application",
+      "lib/experience/write-cost-budget.js": "Application",
       "lib/external-action-action-binding.js": "Core",
       "lib/external-action-adapter-generator.js": "Core",
       "lib/external-action-adapter.js": "Core",
@@ -454,6 +461,7 @@
       "lib/external-client-trusted-key-snapshot.js": "Core",
       "lib/file-effect-sensor.js": "Core",
       "lib/financial-action-policy.js": "Core",
+      "lib/financial-aggregation.js": "Core",
       "lib/fitness-history.js": "Core",
       "lib/fluent-answer.js": "Core",
       "lib/fractal-learn-autotune.js": "Core",
@@ -608,6 +616,7 @@
       "lib/hypothesis-thresholds.js": "Core",
       "lib/hypothesis-tuning.js": "Core",
       "lib/identity-privilege-escalation.js": "Core",
+      "lib/impact-budget-ledger.js": "Core",
       "lib/ingest-approval.js": "Core",
       "lib/ingest-capability.js": "Core",
       "lib/ingest-snapshot-build.js": "Core",
@@ -858,6 +867,7 @@
       "lib/rust-graph-fallback-factory.js": "Core",
       "lib/safe-file-walk.js": "Core",
       "lib/sandbox-escape-ledger.js": "Core",
+      "lib/sandbox-escape-producer.js": "Core",
       "lib/sandbox-isolation-input.js": "Core",
       "lib/sandbox-isolation-output.js": "Core",
       "lib/sandbox-isolation-vocabulary.js": "Core",
@@ -971,6 +981,7 @@
       "lib/workbench/workbench-read-http-router.js": "UI",
       "lib/workflow-budget-selection.js": "Core",
       "lib/workflow-contract.js": "Core",
+      "lib/workflow-planning.js": "Core",
       "lib/workflow-review-approval.js": "Core",
       "lib/workflow-run-guidance.js": "Core",
       "lib/workflow-tool-capability-runner.js": "Core",
@@ -1117,6 +1128,12 @@
       "scripts/huqan-watchdog.js": "UI",
       "scripts/junit-merge.js": "UI",
       "scripts/knowledge-graph-demo.js": "UI",
+      "scripts/launch-installed-package-smoke-cli.js": "UI",
+      "scripts/launch-installed-package-smoke-context.js": "UI",
+      "scripts/launch-installed-package-smoke-mcp.js": "UI",
+      "scripts/launch-installed-package-smoke-parity.js": "UI",
+      "scripts/launch-installed-package-smoke-rest-probe.js": "UI",
+      "scripts/launch-installed-package-smoke-rest.js": "UI",
       "scripts/launch-installed-package-smoke.js": "UI",
       "scripts/launch-smoke-receipts.js": "UI",
       "scripts/list-mutation-targets.js": "UI",
@@ -1124,6 +1141,7 @@
       "scripts/nightly-failure-alarm.js": "UI",
       "scripts/pr-guardian-self-review.js": "UI",
       "scripts/release-verify.js": "UI",
+      "scripts/replay-impact-thresholds.js": "UI",
       "scripts/require-scan.js": "UI",
       "scripts/restore.js": "UI",
       "scripts/retained-deep-imports.js": "UI",
@@ -1209,12 +1227,11 @@
         "agent.js",
         "dream.js",
         "lib/agent-behavioral-integrity.js",
-        "lib/agent-loop-budget-gate.js",
         "lib/agent-memory-persistence.js",
         "lib/agent-run-finalization.js",
         "lib/agent-v3-dream-loop-adapter.js",
+        "lib/agent-v3-loop-budget.js",
         "lib/agent-v3-storage-factory.js",
-        "lib/gate-telemetry.js",
         "lib/goal-binding.js"
       ],
       "agentRuntime.js": [
@@ -1563,6 +1580,10 @@
       "lib/agent-v3-dream-loop-adapter.js": [
         "lib/dream-experiment-loop.js"
       ],
+      "lib/agent-v3-loop-budget.js": [
+        "lib/agent-loop-budget-gate.js",
+        "lib/gate-telemetry.js"
+      ],
       "lib/agent-v3-storage-factory.js": [
         "storage.js"
       ],
@@ -1802,7 +1823,11 @@
         "lib/http/workflow-envelope.js",
         "lib/workflow-contract.js"
       ],
+      "lib/code-change-blast-radius.js": [
+        "lib/module-reachability-walk.js"
+      ],
       "lib/code-change-decision-summary.js": [
+        "lib/code-change-blast-radius.js",
         "lib/code-change-gate-vocabulary.js",
         "lib/is-plain-object.js",
         "lib/text-utils.js"
@@ -1817,6 +1842,7 @@
         "lib/text-utils.js"
       ],
       "lib/code-change-gate.js": [
+        "lib/code-change-blast-radius.js",
         "lib/code-change-decision-summary.js",
         "lib/code-change-file-classifier.js",
         "lib/code-change-gate-vocabulary.js",
@@ -2060,6 +2086,7 @@
       "lib/external-action-adapter.js": [
         "lib/external-action-command-policy.js",
         "lib/external-action-guard.js",
+        "lib/external-action-identity-card.js",
         "lib/external-action-receipt.js"
       ],
       "lib/external-action-agent-overview.js": [
@@ -3073,7 +3100,8 @@
       "lib/mcp-gate-adapter-decisions.js": [
         "lib/action-risk-classifier.js",
         "lib/mcp-gate-adapter-contract.js",
-        "lib/risk-scale.js"
+        "lib/risk-scale.js",
+        "lib/trust-evidence-ledger.js"
       ],
       "lib/mcp-gate-adapter-inputs.js": [
         "lib/action-risk-classifier.js",
@@ -3844,6 +3872,9 @@
       "lib/sandbox-escape-ledger.js": [
         "lib/trust-evidence-ledger.js"
       ],
+      "lib/sandbox-escape-producer.js": [
+        "lib/sandbox-escape-ledger.js"
+      ],
       "lib/sandbox-isolation-input.js": [
         "lib/is-plain-object.js",
         "lib/sandbox-isolation-vocabulary.js",
@@ -3961,7 +3992,7 @@
       ],
       "lib/self-healer/source-dogfood-simulator.js": [
         "lib/code-change-gate.js",
-        "lib/sandbox-escape-ledger.js",
+        "lib/sandbox-escape-producer.js",
         "lib/self-healer/source-dependency-graph.js",
         "rustGraph.js",
         "sandboxRunner.js"
@@ -4230,6 +4261,9 @@
       ],
       "lib/workflow-contract.js": [
         "lib/mcp-tool-catalog.js"
+      ],
+      "lib/workflow-planning.js": [
+        "lib/workflow-values.js"
       ],
       "lib/workflow-run-guidance.js": [
         "finalizer.js"
@@ -4567,9 +4601,32 @@
         "kernel.js",
         "lib/environment-compat.js"
       ],
-      "scripts/launch-installed-package-smoke.js": [
+      "scripts/launch-installed-package-smoke-cli.js": [
+        "scripts/launch-installed-package-smoke-context.js",
+        "scripts/launch-smoke-receipts.js"
+      ],
+      "scripts/launch-installed-package-smoke-context.js": [
         "scripts/launch-smoke-receipts.js",
         "scripts/spawn-windows-aware.js"
+      ],
+      "scripts/launch-installed-package-smoke-mcp.js": [
+        "scripts/launch-installed-package-smoke-context.js",
+        "scripts/launch-smoke-receipts.js"
+      ],
+      "scripts/launch-installed-package-smoke-parity.js": [
+        "scripts/launch-installed-package-smoke-context.js"
+      ],
+      "scripts/launch-installed-package-smoke-rest.js": [
+        "scripts/launch-installed-package-smoke-context.js",
+        "scripts/launch-installed-package-smoke-rest-probe.js",
+        "scripts/launch-smoke-receipts.js"
+      ],
+      "scripts/launch-installed-package-smoke.js": [
+        "scripts/launch-installed-package-smoke-cli.js",
+        "scripts/launch-installed-package-smoke-context.js",
+        "scripts/launch-installed-package-smoke-mcp.js",
+        "scripts/launch-installed-package-smoke-parity.js",
+        "scripts/launch-installed-package-smoke-rest.js"
       ],
       "scripts/migrate-prov-ids.js": [
         "lib/provenance-ingest.js"
@@ -4582,6 +4639,9 @@
       ],
       "scripts/release-verify.js": [
         "scripts/spawn-windows-aware.js"
+      ],
+      "scripts/replay-impact-thresholds.js": [
+        "lib/autonomy-receipt-history.js"
       ],
       "scripts/restore.js": [
         "backupRestore.js",
@@ -4668,6 +4728,7 @@
         "finalizer.js",
         "lib/goal-binding.js",
         "lib/workflow-budget-selection.js",
+        "lib/workflow-planning.js",
         "lib/workflow-review-approval.js",
         "lib/workflow-run-guidance.js",
         "lib/workflow-tool-registration.js",
