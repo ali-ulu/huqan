@@ -8,11 +8,13 @@ const path = require('node:path');
 
 const Graph = require('../graph');
 const { recordBypassSignal, readBypassState } = require('../lib/bypass-signal-state');
+const { proposeBehavioralStop } = require('../lib/behavioral-stop-bridge');
 
 const {
   RESPONSE_VERSION,
   normalizePolicy,
   evaluateBypassResponse,
+  recommendationsForBypass,
 } = require('../lib/bypass-response');
 
 // The Codex design's proposed starter, kept in tests and docs -- never in
@@ -94,4 +96,25 @@ test('recorded signals flow into the evaluator unchanged', (t) => {
   const result = evaluateBypassResponse(stored, STARTER);
   assert.equal(result.responses[digest].response, 'review');
   assert.equal(result.responses[digest].count, 2);
+});
+
+test('mapped recommendations fit the behavioral bridge without proposing', () => {
+  const evaluation = evaluateBypassResponse(state({
+    twice: { count: 2, kinds: ['refused-retry'] },
+    thrice: { count: 3, kinds: ['refused-retry'] },
+    quiet: { count: 1, kinds: ['refused-retry'] },
+  }), STARTER);
+  const mapped = recommendationsForBypass(evaluation, { workspaceId: 'workspace-a', agentId: 'agent-1' });
+  assert.equal(mapped.length, 2);
+  assert.deepEqual(mapped.map((entry) => entry.decision), ['require_review', 'block']);
+  for (const recommendation of mapped) {
+    // No approval runtime: the bridge must report back, never propose, which
+    // proves the mapped shape survived the bridge's own validation.
+    const outcome = proposeBehavioralStop({ recommendation });
+    assert.equal(outcome.proposed, false);
+    assert.equal(outcome.reason, 'approval_runtime_not_configured');
+    assert.ok(Object.isFrozen(recommendation));
+  }
+  assert.throws(() => recommendationsForBypass(evaluation, {}), /workspaceId is required/);
+  assert.throws(() => recommendationsForBypass(null, { workspaceId: 'w' }), /evaluateBypassResponse result/);
 });
