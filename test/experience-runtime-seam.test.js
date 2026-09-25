@@ -16,6 +16,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 
 const KernelV2 = require('../kernel.v2');
 const HuqanStorage = require('../storage');
@@ -213,6 +214,76 @@ test('an unfinished run stays open rather than looking finished (SQLite)', () =>
     assert.equal(manifest.closed, false);
     assert.equal(manifest.eventCount, 1);
     assert.equal(manifest.learningEligibility, 'ineligible');
+  } finally {
+    cleanup(dir, storage);
+  }
+});
+
+test('a process killed mid-run leaves an incomplete, unclosed Experience (real SIGKILL)', () => {
+  // The test above simulates the kill by calling the emit hook by hand. That
+  // pins the manifest's shape but proves nothing about durability: a journal
+  // held only in memory would pass it. This one kills a real process with
+  // SIGKILL after the first step's events are written, then reads the run back
+  // from a fresh handle on the same file. It is the acceptance `#2378` states
+  // -- "killing the process mid-run leaves a run that is recorded as
+  // incomplete rather than one that looks finished" -- and the read-back is
+  // what makes it evidence rather than assertion.
+  const dir = tempDir();
+  const dbPath = path.join(dir, 'seam.db');
+  const script = `
+    const path = require('node:path');
+    const Storage = require('./storage');
+    const KernelV2 = require('./kernel.v2');
+    const { createAgent } = require('./agentRuntime');
+    const [dbPath, dir] = process.argv.slice(1);
+    const storage = new Storage({ dbPath });
+    const kernel = new KernelV2({ noLoad: true, useSQLite: false, loadPlugins: false, memoryPath: path.join(dir, 'graph-memory.json') });
+    const agent = createAgent({ kernel, storage, maxSteps: 3, maxIterations: 3, timeBudgetMs: 10000, dreamExperimentLoop: false });
+    agent.baseAgent.plan = (goal) => ({
+      ok: true, type: 'plan',
+      data: { goal, objective: 'killed mid-run', selectedTools: ['ask'],
+        steps: [1, 2, 3].map((n) => ({ id: 's' + n, action: 'ask', tool: 'ask', input: 'q' + n })), maxSteps: 3 },
+    });
+    let calls = 0;
+    kernel.ask = () => {
+      calls += 1;
+      if (calls === 2) {
+        // Step 1's events are durable; the process now dies without ever
+        // reaching the close event.
+        const row = storage.db.prepare('SELECT run_id FROM experience_journal LIMIT 1').get();
+        require('node:fs').writeSync(1, 'killed:' + row.run_id);
+        process.kill(process.pid, 'SIGKILL');
+      }
+      return { ok: true, type: 'ask', data: { summary: 'answer' }, evidence: [] };
+    };
+    agent.run('killed mid-run');
+  `;
+  let storage = null;
+  try {
+    const child = spawnSync(process.execPath, ['-e', script, dbPath, dir], {
+      cwd: path.resolve(__dirname, '..'), encoding: 'utf8', timeout: 20000,
+    });
+    assert.equal(child.error, undefined);
+    assert.notEqual(child.status, 0, 'the child must actually have been killed');
+    const match = /killed:(\S+)/.exec(child.stdout);
+    assert.ok(match, `the child must report the run it wrote, got: ${JSON.stringify(child.stdout)}`);
+    const runId = match[1];
+
+    // A fresh handle on the same file: nothing is inherited from the child.
+    storage = new HuqanStorage({ dbPath });
+    const journal = createExperienceJournal({ store: storage });
+    const manifest = journal.manifest(runId);
+    assert.equal(manifest.closed, false, 'a killed run must not look finished');
+    assert.equal(manifest.learningEligibility, 'ineligible');
+    assert.ok(manifest.eventCount >= 3, `the killed run must keep its durable events, got ${manifest.eventCount}`);
+
+    const events = journal.read(runId);
+    assert.equal(events[0].type, 'run_started');
+    assert.equal(events[events.length - 1].type, 'action_proposed', 'the last durable event is the step that never finished');
+    assert.ok(!events.some((e) => e.type === 'run_closed'), 'the close event must never have been written');
+    // Ordered and gapless across the restart, so an interrupted run is still
+    // readable as a prefix rather than a corrupted record.
+    events.forEach((e, i) => assert.equal(e.sequence, i + 1));
   } finally {
     cleanup(dir, storage);
   }
