@@ -36,7 +36,6 @@ const { optimize: runGraphOptimize } = require('./lib/graph-optimize');
 const { isCausalRelation: runIsCausalRelation, getCausalRelations: runCausalRelations, getCausalEdges: runCausalEdges } = require('./lib/graph-causal-relation-read');
 const { addEdge: runEdgeWrite } = require('./lib/graph-edge-write');
 const consolidateEdges = require('./lib/graph-consolidate-edges');
-const { createGraphStorePort } = require('./lib/graph-store-port');
 const {
   jsonJournalPath: runJsonJournalPath,
   emptyJsonJournal: runEmptyJsonJournal,
@@ -64,6 +63,7 @@ const {
   pruneStoreApi: runPruneStoreApi,
   optimizeStoreApi: runOptimizeStoreApi,
   statsStoreApi: runStatsStoreApi,
+  createGraphStorePort,
 } = require('./lib/graph-store-adapters');
 const { isSqliteAvailable, openGraphSqlite: runOpenSqlite, closeGraphSqlite: runCloseSqlite, reopenGraphSqlite: runReopenSqlite, sqlitePersistenceError } = require('./lib/sqlite-persistence-validation');
 const { initGraphSchema, createGraphStmts } = require('./lib/graph-sqlite-schema');
