@@ -39,8 +39,9 @@ describe('financial action assessment', () => {
     assert.equal(result.reason, FINANCIAL_REASONS.IRREVERSIBLE);
     assert.equal(result.riskLevel, 'CRITICAL');
     assert.deepEqual(result.assessment, {
-      amount: 25, currency: 'USD', destinationPresent: true, reversible: false, limitsConfigured: false,
-      aggregatedDestinationTotal: null, aggregatedTaskTotal: null,
+      amount: 25, exactAmount: { units: '25', scale: 0 }, currency: 'USD', destinationPresent: true,
+      reversible: false, limitsConfigured: false,
+      aggregatedDestinationTotal: null, aggregatedTaskTotal: null, tier: null, requiredApprovers: 0,
     });
   });
 
@@ -68,7 +69,7 @@ describe('financial action assessment', () => {
       taskId: 'task-1', aggregatedTotals: totals,
     });
     assert.equal(result.decision, 'HUMAN_REVIEW');
-    assert.equal(result.reason, FINANCIAL_REASONS.ASSESSED);
+    assert.equal(result.reason, FINANCIAL_REASONS.TIER_SINGLE_REVIEW);
     assert.deepEqual(result.assessment.aggregatedDestinationTotal, { units: '11000', scale: 2 });
     assert.deepEqual(result.assessment.aggregatedTaskTotal, { units: '6000', scale: 2 });
     assert.ok(Object.isFrozen(result.assessment.aggregatedDestinationTotal));
@@ -92,6 +93,43 @@ describe('financial action assessment', () => {
       assert.equal(result.assessment.aggregatedDestinationTotal, null, JSON.stringify(bad));
       assert.equal(result.assessment.aggregatedTaskTotal, null, JSON.stringify(bad));
     }
+  });
+
+  it('USD tiers escalate single review, quorum and mandate block on exact amounts', () => {
+    const pay = (amount) => evaluateFinancialAction({
+      amount, currency: 'USD', destination: 'vendor', reversible: true,
+    });
+    const single = pay('100');
+    assert.equal(single.decision, 'HUMAN_REVIEW');
+    assert.equal(single.reason, FINANCIAL_REASONS.TIER_SINGLE_REVIEW);
+    assert.equal(single.riskLevel, 'HIGH');
+    assert.equal(single.assessment.tier, 'single');
+    assert.equal(single.assessment.requiredApprovers, 1);
+
+    const quorum = pay('100.01');
+    assert.equal(quorum.decision, 'HUMAN_REVIEW');
+    assert.equal(quorum.reason, FINANCIAL_REASONS.TIER_QUORUM);
+    assert.equal(quorum.riskLevel, 'CRITICAL');
+    assert.equal(quorum.assessment.tier, 'quorum');
+    assert.equal(quorum.assessment.requiredApprovers, 2);
+
+    const edge = pay('1000');
+    assert.equal(edge.reason, FINANCIAL_REASONS.TIER_QUORUM);
+
+    const mandate = pay('1000.01');
+    assert.equal(mandate.decision, 'BLOCK');
+    assert.equal(mandate.reason, FINANCIAL_REASONS.TIER_MANDATE_BLOCK);
+    assert.equal(mandate.riskLevel, 'CRITICAL');
+    assert.equal(mandate.assessment.tier, 'mandate');
+
+    const nonUsd = evaluateFinancialAction({ amount: '5000', currency: 'EUR', destination: 'vendor', reversible: true });
+    assert.equal(nonUsd.decision, 'HUMAN_REVIEW');
+    assert.equal(nonUsd.reason, FINANCIAL_REASONS.ASSESSED);
+    assert.equal(nonUsd.assessment.tier, null);
+
+    const floatInput = evaluateFinancialAction({ amount: 50.5, currency: 'USD', destination: 'vendor', reversible: true });
+    assert.equal(floatInput.reason, FINANCIAL_REASONS.ASSESSED, 'inexact input cannot enter a tier');
+    assert.equal(floatInput.assessment.tier, null);
   });
 });
 
