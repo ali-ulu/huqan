@@ -166,11 +166,6 @@
       "band": "recorded",
       "lines": 627,
       "signals": []
-    },
-    "workflow-agent.js": {
-      "band": "recorded",
-      "lines": 562,
-      "signals": []
     }
   },
   "dependencyGraph": {
