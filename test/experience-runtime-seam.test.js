@@ -58,7 +58,7 @@ test('resolveExperienceJournal honours an injected journal', () => {
 });
 
 test('the seam is a no-op when no journal is configured', () => {
-  const { emitRunLifecycle } = require('../lib/agent-experience-emit');
+  const { emitRunLifecycle } = require('../lib/experience/runtime-seam');
   // A run with no journal is the pre-wiring state every existing caller is in,
   // and it must stay silent rather than throw into the run loop.
   assert.equal(emitRunLifecycle('beforeAgentRun', { runId: 'r', goal: 'g' }, null), null);

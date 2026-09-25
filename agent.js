@@ -8,7 +8,7 @@ const { noteMemoryFailure, resetMemoryPersistence } = require('./lib/agent-memor
 const { memoryRuntime } = require('./lib/agent-memory-runtime');
 const { buildAgentPlan } = require('./lib/agent-plan-runtime');
 const { executeAgentStep, executeStepWithRetry, executeAgentRun } = require('./lib/agent-step-executor');
-const { emitRunLifecycle } = require('./lib/agent-experience-emit');
+const { emitRunLifecycle } = require('./lib/experience/runtime-seam');
 const DEFAULT_MAX_STEPS = 4;
 const ALLOWED_TOOLS = INTERNAL_TOOLS;
 class Agent {
