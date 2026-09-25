@@ -10,7 +10,7 @@
   ],
   "threshold": 400,
   "files": {
-    "agent.v3.js": 778,
+    "agent.v3.js": 728,
     "backupRestore.js": 610,
     "causalSimulator.js": 478,
     "cli.js": 637,

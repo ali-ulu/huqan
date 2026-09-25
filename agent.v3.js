@@ -2,8 +2,7 @@ const crypto = require('crypto');
 const { createExecutionScope } = require('./lib/goal-binding');
 const Agent = require('./agent');
 const { createDefaultAgentV3Storage } = require('./lib/agent-v3-storage-factory');
-const { evaluateAgentLoopBudget, DEFAULT_MAX_ITERATIONS_PER_WINDOW, DEFAULT_WINDOW_MS } = require('./lib/agent-loop-budget-gate');
-const { emitGateTelemetry } = require('./lib/gate-telemetry');
+const { evaluateAgentV3LoopBudget, unavailableBudget, DEFAULT_MAX_ITERATIONS_PER_WINDOW, DEFAULT_WINDOW_MS } = require('./lib/agent-v3-loop-budget');
 const { initializeBehavioralState } = require('./lib/agent-behavioral-integrity');
 const { ensureState, loopEnabled, isDreamExperimentVerificationStep, prepareDreamExperiment, prepareDreamQueue, processDreamStep, selectDreamNextAction, labelPlanDataForDreamLoop } = require('./lib/agent-v3-dream-loop-adapter');
 const { attachStepErrorSummary } = require('./lib/agent-memory-persistence');
@@ -76,15 +75,8 @@ class AgentV3 {
 
   /**
    * AB10: looks up durable per-workspace usage and evaluates it against the
-   * budget gate.
-   *
-   * Fail-closed on an unreadable counter. A storage that does not implement
-   * `sumAgentIterationsSince`, or one whose read throws, previously fell back
-   * to `iterationsUsed = 0`, which made every run look like a fresh workspace
-   * and silently disabled the durable ceiling entirely -- the failure mode
-   * least likely to be noticed, since it looks exactly like normal operation.
-   * Usage that cannot be measured is now reported as `usageKnown: false` and
-   * the caller refuses the run rather than proceeding unbudgeted.
+   * budget gate. Fail-closed behavior and rationale live in
+   * lib/agent-v3-loop-budget.js, which this delegates to.
    *
    * @param {string} workspaceId
    * @param {object} [opts]
@@ -92,47 +84,13 @@ class AgentV3 {
    *   perform; defaults to the configured per-call ceiling when not supplied.
    */
   _checkAgentLoopBudget(workspaceId, opts = {}, requestedIterations = null) {
-    const maxIterationsPerWindow = Number.isInteger(opts.maxIterationsPerWindow) ? opts.maxIterationsPerWindow : this.maxIterationsPerWindow;
-    const windowMs = Number.isInteger(opts.agentLoopBudgetWindowMs) ? opts.agentLoopBudgetWindowMs : this.agentLoopBudgetWindowMs;
-
-    if (typeof this.storage?.sumAgentIterationsSince !== 'function') {
-      return this._unavailableBudget(maxIterationsPerWindow, 'storage does not implement sumAgentIterationsSince');
-    }
-
-    let iterationsUsed;
-    try {
-      iterationsUsed = this.storage.sumAgentIterationsSince(workspaceId, Date.now() - windowMs);
-    } catch (err) {
-      return this._unavailableBudget(maxIterationsPerWindow, `usage lookup failed: ${err && err.message ? err.message : 'unknown error'}`);
-    }
-
-    // `null`, `undefined` and `''` all coerce to 0 through Number(), which
-    // would read a missing counter as "nothing spent" -- the same fail-open
-    // this method exists to close. Reject them before coercing.
-    if (iterationsUsed === null || iterationsUsed === undefined || iterationsUsed === ''
-      || !Number.isFinite(Number(iterationsUsed))) {
-      return this._unavailableBudget(maxIterationsPerWindow, 'usage lookup returned a non-numeric value');
-    }
-
-    // Ask only for what this run can actually spend. Using the configured
-    // per-call ceiling instead would project a run that can execute at most a
-    // couple of steps as if it intended to spend all of them, tripping REVIEW
-    // while most of the window budget is genuinely free.
-    const requested = Number.isFinite(requestedIterations) && requestedIterations > 0
-      ? requestedIterations
-      : (Number.isInteger(opts.maxIterations) ? opts.maxIterations : this.maxIterations);
-
-    const budgetDecision = evaluateAgentLoopBudget(
-      { iterationsUsed: Number(iterationsUsed), requestedIterations: requested },
-      { maxIterationsPerWindow },
-    );
-    emitGateTelemetry(this.kernel, 'agent-loop-budget', budgetDecision);
-
-    return {
-      ...budgetDecision,
-      requestedIterations: requested,
-      usageKnown: true,
-    };
+    return evaluateAgentV3LoopBudget({
+      storage: this.storage,
+      kernel: this.kernel,
+      maxIterationsPerWindow: this.maxIterationsPerWindow,
+      agentLoopBudgetWindowMs: this.agentLoopBudgetWindowMs,
+      maxIterations: this.maxIterations,
+    }, workspaceId, opts, requestedIterations);
   }
 
   /**
@@ -156,15 +114,7 @@ class AgentV3 {
   }
 
   _unavailableBudget(maxIterationsPerWindow, detail) {
-    return {
-      decision: 'block',
-      reason: 'budget_usage_unavailable',
-      detail,
-      iterationsUsed: null,
-      maxIterationsPerWindow,
-      remaining: null,
-      usageKnown: false,
-    };
+    return unavailableBudget(maxIterationsPerWindow, detail);
   }
 
   /**

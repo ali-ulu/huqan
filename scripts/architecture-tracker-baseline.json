@@ -3,7 +3,7 @@
   "entries": {
     "agent.v3.js": {
       "band": "recorded",
-      "lines": 778,
+      "lines": 728,
       "signals": [
         "DIP"
       ]
