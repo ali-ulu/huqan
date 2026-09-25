@@ -4,14 +4,10 @@ const Agent = require('./agent');
 const { createDefaultAgentV3Storage } = require('./lib/agent-v3-storage-factory');
 const { evaluateAgentV3LoopBudget, unavailableBudget, DEFAULT_MAX_ITERATIONS_PER_WINDOW, DEFAULT_WINDOW_MS } = require('./lib/agent-v3-loop-budget');
 const { initializeBehavioralState } = require('./lib/agent-behavioral-integrity');
-const { ensureState, loopEnabled, isDreamExperimentVerificationStep, prepareDreamExperiment, prepareDreamQueue, processDreamStep, selectDreamNextAction, labelPlanDataForDreamLoop } = require('./lib/agent-v3-dream-loop-adapter');
+const { loopEnabled, isDreamExperimentVerificationStep, prepareDreamExperiment, prepareDreamQueue, processDreamStep, selectDreamNextAction, labelPlanDataForDreamLoop } = require('./lib/agent-v3-dream-loop-adapter');
 const { attachStepErrorSummary } = require('./lib/agent-memory-persistence');
 const { finalizeAgentRun } = require('./lib/agent-run-finalization');
-
-function cloneValue(value) {
-  if (value === undefined) return undefined;
-  return JSON.parse(JSON.stringify(value));
-}
+const { cloneValue, hydrateRunState, saveRunCheckpoint } = require('./lib/agent-v3-run-state');
 
 function nowIso() {
   return new Date().toISOString();
@@ -258,88 +254,11 @@ class AgentV3 {
   }
 
   _hydrateState(activePlan, checkpoint = null) {
-    if (checkpoint && checkpoint.state) {
-      const state = cloneValue(checkpoint.state);
-      state.plan = state.plan || cloneValue(activePlan);
-      state.goal = state.goal || activePlan.goal;
-      state.objective = state.objective || activePlan.objective;
-      state.selectedTools = Array.isArray(state.selectedTools) ? state.selectedTools : [...(activePlan.selectedTools || [])];
-      state.steps = Array.isArray(state.steps) ? state.steps : [];
-      state.evidence = Array.isArray(state.evidence) ? state.evidence : [];
-      state.notes = Array.isArray(state.notes) ? state.notes : [];
-      state.queuedSteps = Array.isArray(state.queuedSteps) && state.queuedSteps.length
-        ? state.queuedSteps
-        : cloneValue(activePlan.steps || []);
-      state.resumed = true;
-      state.resumedFrom = checkpoint.id;
-      state.resumeToken = checkpoint.id;
-      state.checkpointId = checkpoint.id;
-      state.status = 'running';
-      state.progress = state.progress || { stalledCount: 0, lastSummary: '' };
-      if (state.dreamExperimentLoop && typeof state.dreamExperimentLoop === 'object') {
-        state.dreamExperimentLoop = ensureState(state.dreamExperimentLoop, {
-          workspaceId: state.workspaceId,
-          goal: state.goal,
-          checkpointId: state.checkpointId,
-        });
-      }
-      state.completedSteps = Number(state.steps.length || 0);
-      state.remainingSteps = Array.isArray(state.queuedSteps) ? state.queuedSteps.length : 0;
-      state.iteration = Number(state.iteration || state.steps.length || 0);
-      // Remember where this run() picked up, so the durable run row can record
-      // what this call actually spent rather than the whole running total.
-      state.iterationsAtRunStart = state.iteration;
-      state.budgetRemaining = Number(checkpoint.budget_remaining || this.timeBudgetMs);
-      state.startedAt = state.startedAt || nowIso();
-      return state;
-    }
-
-    return {
-      goal: activePlan.goal,
-      objective: activePlan.objective,
-      selectedTools: [...(activePlan.selectedTools || [])],
-      plan: cloneValue(activePlan),
-      steps: [],
-      evidence: [],
-      status: 'running',
-      notes: [],
-      queuedSteps: cloneValue(activePlan.steps || []),
-      resumed: false,
-      resumedFrom: null,
-      resumeToken: null,
-      checkpointId: null,
-      startedAt: nowIso(),
-      progress: { stalledCount: 0, lastSummary: '' },
-      completedSteps: 0,
-      remainingSteps: Array.isArray(activePlan.steps) ? activePlan.steps.length : 0,
-      iteration: 0, iterationsAtRunStart: 0, budgetRemaining: this.timeBudgetMs,
-      dreamExperimentLoop: null, planSupersededByLoop: false,
-    };
+    return hydrateRunState(activePlan, checkpoint, { timeBudgetMs: this.timeBudgetMs });
   }
 
   _saveCheckpoint(state) {
-    const checkpointId = state.checkpointId || state.resumeToken || `checkpoint-${crypto.randomUUID?.() || Date.now()}`;
-    state.checkpointId = checkpointId;
-    state.resumeToken = checkpointId;
-    state.budgetRemaining = Math.max(0, Number(state.budgetRemaining || 0));
-    this.storage.saveCheckpoint({
-      checkpointId,
-      id: checkpointId,
-      goal: state.goal,
-      iteration: Number(state.iteration || 0),
-      budgetRemaining: state.budgetRemaining,
-      lastAction: state.lastAction || '',
-      evidence: state.evidence || [],
-      status: state.status || 'running',
-      // Must be carried explicitly: storage reads the workspace off this
-      // object, not off the nested `state`, so omitting it would file every
-      // checkpoint under 'default' and make workspace-scoped resume never
-      // find anything.
-      workspaceId: state.workspaceId,
-      startedAtMs: Date.parse(state.startedAt || nowIso()) || Date.now(),
-      state,
-    });
-    return checkpointId;
+    return saveRunCheckpoint(state, { storage: this.storage });
   }
 
   _renderReport(state) {

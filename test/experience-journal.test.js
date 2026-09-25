@@ -217,3 +217,120 @@ describe('E2 journal: failure and integrity behaviour', () => {
     }
   });
 });
+
+describe('E2 journal: rolled-back append never reaches memory (#2894)', () => {
+  // A store whose transaction rolls the insert back after the callback has
+  // run: SQLite drops the row, so the journal must not have recorded it.
+  const rollingBack = (dir, label) => {
+    const Database = require('better-sqlite3');
+    const db = new Database(path.join(dir, 'exp.db'));
+    const store = {
+      db,
+      withTransaction: (fn) => db.transaction(() => { fn(); throw new Error(label); })(),
+    };
+    return { db, store };
+  };
+
+  const withDb = (t, body) => {
+    try {
+      require('better-sqlite3');
+    } catch (_) {
+      t.skip('better-sqlite3 unavailable');
+      return;
+    }
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-exp-rollback-'));
+    try {
+      body(dir);
+    } finally {
+      try { fs.rmSync(dir, { recursive: true, force: true }); } catch (_) {}
+    }
+  };
+
+  it('a rolled-back first append leaves zero durable rows and zero memory', (t) => {
+    withDb(t, (dir) => {
+      const { db, store } = rollingBack(dir, 'forced rollback');
+      try {
+        const j = createExperienceJournal({ store });
+        const res = j.append(evt());
+        assert.equal(res.ok, false);
+        assert.equal(res.code, 'persist_failed');
+        assert.equal(db.prepare('SELECT count(*) AS n FROM experience_journal').get().n, 0);
+        assert.equal(j.manifest('r').eventCount, 0);
+        assert.equal(j.manifest('r').head, 0);
+        assert.equal(j.read('r', { workspaceId: 'ws' }).length, 0);
+      } finally { db.close(); }
+    });
+  });
+
+  it('a retry after the rollback writes sequence 1', (t) => {
+    withDb(t, (dir) => {
+      let roll = true;
+      const Database = require('better-sqlite3');
+      const db = new Database(path.join(dir, 'exp.db'));
+      const store = {
+        db,
+        withTransaction: (fn) => (roll
+          ? db.transaction(() => { fn(); throw new Error('forced rollback'); })()
+          : db.transaction(fn)()),
+      };
+      try {
+        const j = createExperienceJournal({ store });
+        assert.equal(j.append(evt()).ok, false);
+        roll = false;
+        const retry = j.append(evt());
+        assert.equal(retry.ok, true);
+        assert.equal(retry.sequence, 1);
+        assert.equal(db.prepare('SELECT count(*) AS n FROM experience_journal').get().n, 1);
+      } finally { db.close(); }
+    });
+  });
+
+  it('a rollback after one committed event keeps the committed head', (t) => {
+    withDb(t, (dir) => {
+      let roll = false;
+      const Database = require('better-sqlite3');
+      const db = new Database(path.join(dir, 'exp.db'));
+      const store = {
+        db,
+        withTransaction: (fn) => (roll
+          ? db.transaction(() => { fn(); throw new Error('forced rollback'); })()
+          : db.transaction(fn)()),
+      };
+      try {
+        const j = createExperienceJournal({ store });
+        assert.equal(j.append(evt()).ok, true);
+        roll = true;
+        const res = j.append(evt({ eventId: 'e2', type: 'action_proposed' }));
+        assert.equal(res.code, 'persist_failed');
+        assert.equal(db.prepare('SELECT count(*) AS n FROM experience_journal').get().n, 1);
+        assert.equal(j.manifest('r').eventCount, 1);
+        assert.equal(j.manifest('r').head, 1);
+      } finally { db.close(); }
+    });
+  });
+
+  it('a rolled-back run_closed leaves the run open', (t) => {
+    withDb(t, (dir) => {
+      let roll = false;
+      const Database = require('better-sqlite3');
+      const db = new Database(path.join(dir, 'exp.db'));
+      const store = {
+        db,
+        withTransaction: (fn) => (roll
+          ? db.transaction(() => { fn(); throw new Error('forced rollback'); })()
+          : db.transaction(fn)()),
+      };
+      try {
+        const j = createExperienceJournal({ store });
+        j.append(evt());
+        roll = true;
+        const res = j.append(evt({ eventId: 'e2', type: 'run_closed' }));
+        assert.equal(res.code, 'persist_failed');
+        assert.equal(j.manifest('r').closed, false);
+        assert.equal(j.append(evt({ eventId: 'e3', type: 'action_proposed' })).ok, false);
+        roll = false;
+        assert.equal(j.append(evt({ eventId: 'e3', type: 'action_proposed' })).ok, true);
+      } finally { db.close(); }
+    });
+  });
+});
