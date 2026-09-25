@@ -376,6 +376,7 @@
     "lib/delegation-rate-counter.js",
     "lib/financial-aggregation.js",
     "lib/bypass-signal-state.js",
+    "lib/bypass-response.js",
     "lib/graduated-autonomy.js",
     "lib/autonomy-receipt-history.js",
     "lib/autonomy-state.js",
