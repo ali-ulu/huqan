@@ -5,7 +5,9 @@ const assert = require('node:assert/strict');
 
 const {
   CAPABILITY_REPORT_VERSION,
+  CAPABILITY_PROJECTION_VERSION,
   buildAgentCapabilityReport,
+  projectPublicCapabilityReport,
 } = require('../lib/agent-capability-report');
 
 function card(overrides = {}) {
@@ -86,4 +88,29 @@ test('missing inputs are partial with reasons, and the report is deterministic',
   const first = buildAgentCapabilityReport({ card: card(), sessionImpact: impact() });
   const second = buildAgentCapabilityReport({ card: card(), sessionImpact: impact() });
   assert.deepEqual(first, second);
+});
+
+test('the public projection withholds identity, scope and expiry, keeps measurements', () => {
+  const scope = Object.freeze({ taskId: 'task-7', runId: 'session-9' });
+  const report = buildAgentCapabilityReport({ card: card({ taskScope: scope }), sessionImpact: impact() });
+  const projected = projectPublicCapabilityReport(report);
+  assert.equal(projected.version, CAPABILITY_PROJECTION_VERSION);
+  assert.deepEqual(projected.capabilities, ['file_read', 'shell']);
+  assert.deepEqual(projected.measuredBlastRadius, { total: 120, max: 80, scoredActions: 2, unscoredActions: 1 });
+  assert.deepEqual(projected.bypassSignals, { refusedActions: 1, retriedRefusedActions: 1, sandboxEscapeAttempts: 0 });
+  assert.ok(!('agentRef' in projected));
+  assert.ok(!('taskScope' in projected));
+  assert.ok(!('identityExpiresAt' in projected));
+  const serialized = JSON.stringify(projected);
+  assert.ok(!serialized.includes('task-7'));
+  assert.ok(!serialized.includes('session-9'));
+  assert.ok(!serialized.includes('future-agent-2035'));
+  assert.ok(Object.isFrozen(projected));
+});
+
+test('foreign versions are refused, degraded content degrades to null', () => {
+  assert.throws(() => projectPublicCapabilityReport(null), /capability report/);
+  assert.throws(() => projectPublicCapabilityReport({ version: 'v9' }), /version must be/);
+  const degraded = projectPublicCapabilityReport({ version: CAPABILITY_REPORT_VERSION, capabilities: 'all' });
+  assert.equal(degraded.capabilities, null);
 });
