@@ -604,6 +604,7 @@
       "lib/identity-privilege-escalation.js": "Core",
       "lib/impact-budget-gate.js": "Core",
       "lib/impact-budget-ledger.js": "Core",
+      "lib/incident-envelope.js": "Core",
       "lib/ingest-approval.js": "Core",
       "lib/ingest-capability.js": "Core",
       "lib/ingest-snapshot-build.js": "Core",
@@ -1099,6 +1100,7 @@
       "scripts/architecture-carried-violations.js": "UI",
       "scripts/architecture-dependency-graph.js": "UI",
       "scripts/architecture-mermaid.js": "UI",
+      "scripts/architecture-review-queue.js": "UI",
       "scripts/architecture-snapshot.js": "UI",
       "scripts/backup.js": "UI",
       "scripts/benign-false-block-rate.js": "UI",
@@ -1140,6 +1142,14 @@
       "scripts/enforcement-coverage.js": "UI",
       "scripts/explain-npm-publish-failure.js": "UI",
       "scripts/external-client.js": "UI",
+      "scripts/external-conformance/consumer-bundles.js": "UI",
+      "scripts/external-conformance/consumer-harness.js": "UI",
+      "scripts/external-conformance/consumer-objects.js": "UI",
+      "scripts/external-conformance/consumer-package-wire.js": "UI",
+      "scripts/external-conformance/consumer-python.js": "UI",
+      "scripts/external-conformance/consumer-replay.js": "UI",
+      "scripts/external-conformance/consumer-schema.js": "UI",
+      "scripts/external-conformance/consumer-v5.js": "UI",
       "scripts/external-conformance/consumer.js": "UI",
       "scripts/external-conformance/run.js": "UI",
       "scripts/external-conformance/verify-bundle.js": "UI",
@@ -4834,6 +4844,10 @@
       "scripts/architecture-mermaid.js": [
         "scripts/check-layers.js"
       ],
+      "scripts/architecture-review-queue.js": [
+        "scripts/architecture-snapshot.js",
+        "scripts/check-layers.js"
+      ],
       "scripts/architecture-snapshot.js": [
         "scripts/architecture-dependency-graph.js",
         "scripts/architecture-mermaid.js",
@@ -4913,8 +4927,43 @@
         "scripts/binding-site-scan.js",
         "scripts/enforcement-coverage-classification.js"
       ],
-      "scripts/external-conformance/consumer.js": [
+      "scripts/external-conformance/consumer-bundles.js": [
+        "scripts/external-conformance/consumer-harness.js",
+        "scripts/external-conformance/consumer-objects.js",
         "scripts/external-conformance/verify-bundle.js"
+      ],
+      "scripts/external-conformance/consumer-objects.js": [
+        "scripts/external-conformance/consumer-harness.js"
+      ],
+      "scripts/external-conformance/consumer-package-wire.js": [
+        "scripts/external-conformance/consumer-harness.js"
+      ],
+      "scripts/external-conformance/consumer-python.js": [
+        "scripts/external-conformance/consumer-bundles.js",
+        "scripts/external-conformance/consumer-harness.js",
+        "scripts/external-conformance/consumer-objects.js",
+        "scripts/external-conformance/verify-bundle.js"
+      ],
+      "scripts/external-conformance/consumer-replay.js": [
+        "scripts/external-conformance/consumer-harness.js",
+        "scripts/external-conformance/consumer-package-wire.js"
+      ],
+      "scripts/external-conformance/consumer-schema.js": [
+        "scripts/external-conformance/consumer-harness.js"
+      ],
+      "scripts/external-conformance/consumer-v5.js": [
+        "scripts/external-conformance/consumer-harness.js",
+        "scripts/external-conformance/consumer-schema.js"
+      ],
+      "scripts/external-conformance/consumer.js": [
+        "scripts/external-conformance/consumer-bundles.js",
+        "scripts/external-conformance/consumer-harness.js",
+        "scripts/external-conformance/consumer-objects.js",
+        "scripts/external-conformance/consumer-package-wire.js",
+        "scripts/external-conformance/consumer-python.js",
+        "scripts/external-conformance/consumer-replay.js",
+        "scripts/external-conformance/consumer-schema.js",
+        "scripts/external-conformance/consumer-v5.js"
       ],
       "scripts/fitness-dashboard.js": [
         "lib/fitness-history.js",

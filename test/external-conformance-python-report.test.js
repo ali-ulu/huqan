@@ -5,13 +5,13 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-// The runner is a script, not a module: it executes its whole case list on
+// The case sections are scripts, not modules: they execute their cases on
 // require. Lift the parser out by source so it can be tested in isolation,
 // which is what the original lack of a unit test cost here.
-const RUNNER = path.resolve(__dirname, '..', 'scripts', 'external-conformance', 'consumer.js');
+const RUNNER = path.resolve(__dirname, '..', 'scripts', 'external-conformance', 'consumer-python.js');
 const source = fs.readFileSync(RUNNER, 'utf8');
 const extracted = source.match(/function parsePythonReport\([\s\S]*?\n}/);
-assert.ok(extracted, 'parsePythonReport must exist in the external conformance runner');
+assert.ok(extracted, 'parsePythonReport must exist in the external conformance Python section');
 // eslint-disable-next-line no-new-func
 const parsePythonReport = new Function(`${extracted[0]}; return parsePythonReport;`)();
 

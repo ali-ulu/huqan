@@ -11,14 +11,18 @@ const RUNNER_DIR = path.join(REPO_ROOT, 'scripts', 'external-conformance');
 const RUNNER = path.join(RUNNER_DIR, 'run.js');
 const CONSUMER = path.join(RUNNER_DIR, 'consumer.js');
 
-const consumerSource = fs.readFileSync(CONSUMER, 'utf8');
 const runnerSource = fs.readFileSync(RUNNER, 'utf8');
 
-// The files the runner copies into the sandbox beside consumer.js (#2131),
-// read from run.js itself so this list cannot drift from what actually ships.
-const SANDBOX_SIBLINGS = [...runnerSource.matchAll(/fs\.copyFileSync\(path\.join\(__dirname, '([^']+)'\)/g)]
-  .map((match) => match[1])
-  .filter((file) => file !== 'consumer.js');
+// The files the runner copies into the sandbox beside consumer.js (#2131): the
+// consumer-*.js case sections and verify-bundle.js. The selection rule is
+// asserted against run.js below, so this list cannot drift from what ships.
+const SANDBOX_SIBLINGS = fs.readdirSync(RUNNER_DIR)
+  .filter((file) => /^consumer-[a-z0-9-]+\.js$/.test(file) || file === 'verify-bundle.js')
+  .sort();
+// Everything that runs in the sandbox, read as one source for the textual
+// guards below: consumer.js is only the entry point that requires the sections.
+const consumerSource = [CONSUMER, ...SANDBOX_SIBLINGS.map((file) => path.join(RUNNER_DIR, file))]
+  .map((file) => fs.readFileSync(file, 'utf8')).join('\n');
 const siblingSpecifier = (spec) => SANDBOX_SIBLINGS.some((file) => spec === `./${file}` || `${spec}.js` === `./${file}`);
 
 test.describe('V5-C5: the consumer only sees the published package', () => {
@@ -35,7 +39,7 @@ test.describe('V5-C5: the consumer only sees the published package', () => {
 
   // What runs in the sandbox: consumer.js plus the siblings copied with it.
   const shipped = [
-    ['consumer.js', consumerSource],
+    ['consumer.js', fs.readFileSync(CONSUMER, 'utf8')],
     ...SANDBOX_SIBLINGS.map((file) => [file, fs.readFileSync(path.join(RUNNER_DIR, file), 'utf8')]),
   ];
 
@@ -55,6 +59,12 @@ test.describe('V5-C5: the consumer only sees the published package', () => {
       assert.deepStrictEqual(relative, [],
         `${file}: relative requires would resolve against the sandbox: ${relative.join(', ')}`);
     }
+  });
+
+  test('run.js copies exactly consumer.js, its consumer-*.js sections and verify-bundle.js', () => {
+    assert.match(runnerSource, /\/\^consumer\(-\[a-z0-9-\]\+\)\?\\\.js\$\/\.test\(name\) \|\| name === 'verify-bundle\.js'/);
+    assert.ok(SANDBOX_SIBLINGS.includes('verify-bundle.js'));
+    assert.ok(SANDBOX_SIBLINGS.some((file) => file.startsWith('consumer-')));
   });
 
   test('every copied sibling is plain JavaScript beside consumer.js, not a path out of the sandbox', () => {
@@ -213,21 +223,31 @@ test.describe('V5-C5: external conformance run', { concurrency: 1 }, () => {
     assert.equal(item.evidenceLevel, 'self-test');
   });
 
+  // A mutant edits one case section in the kept sandbox, runs the untouched
+  // consumer.js entry point, and restores the section afterwards.
+  function runMutant(section, mutate, label) {
+    const sectionPath = path.join(project, section);
+    const original = fs.readFileSync(sectionPath, 'utf8');
+    const mutated = mutate(original);
+    assert.notEqual(mutated, original, label);
+    fs.writeFileSync(sectionPath, mutated);
+    try {
+      return cp.spawnSync(process.execPath, [path.join(project, 'consumer.js')], {
+        cwd: project,
+        encoding: 'utf8',
+        timeout: 300000,
+      });
+    } finally {
+      fs.writeFileSync(sectionPath, original);
+    }
+  }
+
   test('the replay case fails if duplicate reservation is bypassed', () => {
     assert.ok(project && fs.existsSync(project), 'kept consumer project is missing');
-    const source = fs.readFileSync(path.join(project, 'consumer.js'), 'utf8');
-    const mutated = source.replace(
+    const result = runMutant('consumer-replay.js', (source) => source.replace(
       'if (seen.has(record.replayKey)) return { reserved: false, existing:',
       'if (false && seen.has(record.replayKey)) return { reserved: false, existing:',
-    );
-    assert.notEqual(mutated, source, 'replay-store mutation did not apply');
-    const mutantPath = path.join(project, 'consumer.replay-mutant.js');
-    fs.writeFileSync(mutantPath, mutated);
-    const result = cp.spawnSync(process.execPath, [mutantPath], {
-      cwd: project,
-      encoding: 'utf8',
-      timeout: 300000,
-    });
+    ), 'replay-store mutation did not apply');
     assert.equal(result.status, 1, 'replay bypass mutant passed');
     const mutantReport = JSON.parse(result.stdout);
     const failures = mutantReport.cases.filter((candidate) => candidate.status === 'fail');
@@ -238,20 +258,10 @@ test.describe('V5-C5: external conformance run', { concurrency: 1 }, () => {
   test('the consumer fails when an expectation no longer holds', () => {
     assert.ok(project && fs.existsSync(project), 'kept consumer project is missing');
 
-    const source = fs.readFileSync(path.join(project, 'consumer.js'), 'utf8');
-    const mutated = source.replace(
+    const result = runMutant('consumer-bundles.js', (source) => source.replace(
       "'receipt-bundle.valid.json': [],",
       "'receipt-bundle.valid.json': ['bundle_seal_mismatch'],",
-    );
-    assert.notEqual(mutated, source, 'mutation did not apply; the expectation table moved');
-
-    const mutantPath = path.join(project, 'consumer.mutant.js');
-    fs.writeFileSync(mutantPath, mutated);
-    const result = cp.spawnSync(process.execPath, [mutantPath], {
-      cwd: project,
-      encoding: 'utf8',
-      timeout: 300000,
-    });
+    ), 'mutation did not apply; the expectation table moved');
 
     assert.equal(result.status, 1,
       'mutated consumer passed; the runner cannot detect a wrong expectation');
@@ -264,18 +274,8 @@ test.describe('V5-C5: external conformance run', { concurrency: 1 }, () => {
   test('python unavailable is a skip, never a pass', () => {
     assert.ok(project && fs.existsSync(project), 'kept consumer project is missing');
 
-    const source = fs.readFileSync(path.join(project, 'consumer.js'), 'utf8');
-    const mutated = source.replace('function findPython() {',
-      'function findPython() { return null;');
-    assert.notEqual(mutated, source, 'python probe mutation did not apply');
-
-    const mutantPath = path.join(project, 'consumer.no-python.js');
-    fs.writeFileSync(mutantPath, mutated);
-    const result = cp.spawnSync(process.execPath, [mutantPath], {
-      cwd: project,
-      encoding: 'utf8',
-      timeout: 300000,
-    });
+    const result = runMutant('consumer-python.js', (source) => source.replace('function findPython() {',
+      'function findPython() { return null;'), 'python probe mutation did not apply');
 
     assert.equal(result.status, 0, 'python absence should skip only that comparison');
     const mutantReport = JSON.parse(result.stdout);
@@ -296,25 +296,17 @@ test.describe('V5-C5: external conformance run', { concurrency: 1 }, () => {
   test('a non-Python-3 candidate is rejected, never cross-implementation evidence', () => {
     assert.ok(project && fs.existsSync(project), 'kept consumer project is missing');
 
-    const source = fs.readFileSync(path.join(project, 'consumer.js'), 'utf8');
     const candidateStart = "const candidates = process.platform === 'win32'";
     const candidateEnd = ": [{ command: 'python3', args: [] }, { command: 'python', args: [] }];";
-    const start = source.indexOf(candidateStart);
-    const end = source.indexOf(candidateEnd, start);
-    assert.ok(start >= 0 && end >= 0, 'Python candidate table moved');
     const simulatedNon3 = `const candidates = [{ command: ${JSON.stringify(process.execPath)}, args: [
       '-e', 'process.exit(process.argv.some((arg) => arg.includes("sys.version_info")) ? 1 : 0)',
     ] }];`;
-    const mutated = source.slice(0, start) + simulatedNon3
-      + source.slice(end + candidateEnd.length);
-
-    const mutantPath = path.join(project, 'consumer.non-python-3.js');
-    fs.writeFileSync(mutantPath, mutated);
-    const result = cp.spawnSync(process.execPath, [mutantPath], {
-      cwd: project,
-      encoding: 'utf8',
-      timeout: 300000,
-    });
+    const result = runMutant('consumer-python.js', (source) => {
+      const start = source.indexOf(candidateStart);
+      const end = source.indexOf(candidateEnd, start);
+      assert.ok(start >= 0 && end >= 0, 'Python candidate table moved');
+      return source.slice(0, start) + simulatedNon3 + source.slice(end + candidateEnd.length);
+    }, 'python candidate mutation did not apply');
 
     assert.equal(result.status, 0, 'non-Python-3 candidate should skip only that comparison');
     const mutantReport = JSON.parse(result.stdout);

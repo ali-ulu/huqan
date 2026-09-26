@@ -96,7 +96,7 @@ test('the runner declares an expectation for every 0.2 vector', () => {
   // An undeclared fixture is silently skipped by the cross-implementation
   // comparison, which would look identical to passing.
   const consumer = fs.readFileSync(
-    path.join(REPO_ROOT, 'scripts', 'external-conformance', 'consumer.js'), 'utf8');
+    path.join(REPO_ROOT, 'scripts', 'external-conformance', 'consumer-bundles.js'), 'utf8');
   for (const name of [...POSITIVE, ...NEGATIVE]) {
     assert.ok(consumer.includes(`'${name}'`), `${name} has no BUNDLE_EXPECTATIONS entry`);
   }

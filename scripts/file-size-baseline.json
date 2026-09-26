@@ -25,8 +25,7 @@
     "lib/receipt/receipt-read-index.js": 637,
     "lib/risk-classify.js": 739,
     "plugins/company-brain.js": 678,
-    "sandboxRunner.js": 530,
-    "scripts/external-conformance/consumer.js": 815
+    "sandboxRunner.js": 530
   },
   "reviews": {
     "agent.v3.js": {
@@ -92,10 +91,6 @@
     "sandboxRunner.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
-    },
-    "scripts/external-conformance/consumer.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2026-10-31"
     }
   }
 }
