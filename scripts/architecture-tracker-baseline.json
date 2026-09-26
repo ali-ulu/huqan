@@ -1074,6 +1074,11 @@
       "scripts/a2a-conformance/clean-room/verify-exchange.js": "UI",
       "scripts/a2a-conformance/consumer.js": "UI",
       "scripts/a2a-conformance/replay-store.js": "UI",
+      "scripts/a2a-conformance/run-cases.js": "UI",
+      "scripts/a2a-conformance/run-consumer.js": "UI",
+      "scripts/a2a-conformance/run-fixture.js": "UI",
+      "scripts/a2a-conformance/run-properties.js": "UI",
+      "scripts/a2a-conformance/run-support.js": "UI",
       "scripts/a2a-conformance/run.js": "UI",
       "scripts/a2a-conformance/verifier.js": "UI",
       "scripts/agent-context-baseline.js": "UI",
@@ -4658,11 +4663,41 @@
       "scripts/a2a-conformance/replay-store.js": [
         "lib/a2a/replay-store.js"
       ],
-      "scripts/a2a-conformance/run.js": [
+      "scripts/a2a-conformance/run-cases.js": [
+        "scripts/a2a-conformance/run-fixture.js",
+        "scripts/a2a-conformance/run-support.js",
+        "scripts/a2a-conformance/verifier.js"
+      ],
+      "scripts/a2a-conformance/run-consumer.js": [
+        "lib/receipt/cryptographic-profile-contract.js",
+        "scripts/a2a-conformance/run-fixture.js",
+        "scripts/a2a-conformance/run-support.js",
+        "scripts/a2a-conformance/verifier.js"
+      ],
+      "scripts/a2a-conformance/run-fixture.js": [
+        "lib/a2a/inter-agent-receipt-chain.js",
+        "lib/receipt/canonical-receipt.js",
+        "lib/receipt/public-trust-receipt.js",
+        "scripts/a2a-conformance/run-support.js",
+        "scripts/a2a-conformance/verifier.js"
+      ],
+      "scripts/a2a-conformance/run-properties.js": [
+        "scripts/a2a-conformance/run-fixture.js",
+        "scripts/a2a-conformance/run-support.js",
+        "scripts/a2a-conformance/verifier.js"
+      ],
+      "scripts/a2a-conformance/run-support.js": [
         "lib/a2a/inter-agent-receipt-chain.js",
         "lib/receipt/canonical-receipt.js",
         "lib/receipt/cryptographic-profile-contract.js",
-        "lib/receipt/public-trust-receipt.js",
+        "scripts/a2a-conformance/verifier.js"
+      ],
+      "scripts/a2a-conformance/run.js": [
+        "scripts/a2a-conformance/run-cases.js",
+        "scripts/a2a-conformance/run-consumer.js",
+        "scripts/a2a-conformance/run-fixture.js",
+        "scripts/a2a-conformance/run-properties.js",
+        "scripts/a2a-conformance/run-support.js",
         "scripts/a2a-conformance/verifier.js"
       ],
       "scripts/a2a-conformance/verifier.js": [
