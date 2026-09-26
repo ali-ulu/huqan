@@ -64,7 +64,7 @@ REOPEN olarak kaydedilmiş ve kendi PR'larıyla kapatılmıştır.
 
 | Issue | Dosya | Satır | Karar | Kaynak sembolleri / korunan invariant / test / gerekçe |
 |---|---|---:|---|---|
-| #2229 | `lib/causal/causal-edge.js` | 345 | REFACTOR | `validateCausalEdge` 187 satırlık tek fonksiyon: her alan için bir `hasOwnProperty(field)` bloğu (`id`, `from`/`to`, `relation`, `strength`, `confidence`, `workspaceId`, `provenanceId`, `trustPolicyVersion`, `createdAt`, `edgeSchemaVersion`, gelecek alanlar). Öneri: alan → doğrulayıcı tablosu; yeni alan yeni satır olur. Korunacak: hata/uyarı sırası ve kodları, `from === to` reddi, `CAUSAL_FUTURE_FIELDS` uyarıları. Test: `test/causal-edge.test.js`, `test/causal-edge-schema.test.js`. |
+| #2229 | `lib/causal/causal-edge.js` | 262 | REFACTORED | 187 satırlık alan-başına-if doğrulayıcısı sıralı `FIELD_RULES` tablosuna çevrildi (self-edge kuralı uç noktalarla `relation` arasındaki yerinde); `futureFieldErrors`, `strengthLabelError` çapraz-alan kontrolleri, `unitIntervalError` strength/confidence için ortak. Önce karakterizasyon: `test/causal-edge-validation-characterization.test.js` 87 girdinin tam sonucunu (hata kodu, mesaj, alan, sıra) fixture ile karşılaştırır ve her hata koduna ulaşır; iki kuralın yer değiştirmesi ya da self-edge kuralının silinmesi yakalanır. Test: `test/causal-edge.test.js`, `test/causal-edge-schema.test.js`. |
 | #2231 | `lib/github-app-beta-http-boundary.js` | 138 | REFACTORED | #2823: `github-app-beta-http-config`, `-errors`, `-responses`. |
 | #2232 | `lib/graph-traversal.js` | 66 | REFACTORED | #2815: `graph-chain-traversal`, `graph-cycle-search`, `graph-path-search`. |
 | #2233 | `lib/approval-flow.js` | 184 | REFACTORED | #2810: `approval-flow-utils`, `approval-receipts`. |
