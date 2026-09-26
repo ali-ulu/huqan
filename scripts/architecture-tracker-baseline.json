@@ -25,11 +25,6 @@
       "lines": 726,
       "signals": []
     },
-    "finalizer.js": {
-      "band": "recorded",
-      "lines": 604,
-      "signals": []
-    },
     "graph.js": {
       "band": "structural",
       "lines": 392,
@@ -457,6 +452,10 @@
       "lib/external-client-trust-config.js": "Core",
       "lib/external-client-trusted-key-snapshot.js": "Core",
       "lib/file-effect-sensor.js": "Core",
+      "lib/finalizer-causal-normalize.js": "Core",
+      "lib/finalizer-causal-summary.js": "Core",
+      "lib/finalizer-run-summary.js": "Core",
+      "lib/finalizer-text.js": "Core",
       "lib/financial-action-policy.js": "Core",
       "lib/financial-aggregation.js": "Core",
       "lib/fitness-history.js": "Core",
@@ -1313,6 +1312,11 @@
       ],
       "examples/observability-client.js": [
         "index.js"
+      ],
+      "finalizer.js": [
+        "lib/finalizer-causal-summary.js",
+        "lib/finalizer-run-summary.js",
+        "lib/finalizer-text.js"
       ],
       "github-app-server.js": [
         "lib/environment-compat.js",
@@ -2409,6 +2413,16 @@
       "lib/external-client-trusted-key-snapshot.js": [
         "lib/external-client-authority-errors.js",
         "lib/external-client-authority-primitives.js"
+      ],
+      "lib/finalizer-causal-normalize.js": [
+        "lib/finalizer-text.js"
+      ],
+      "lib/finalizer-causal-summary.js": [
+        "lib/finalizer-causal-normalize.js",
+        "lib/finalizer-text.js"
+      ],
+      "lib/finalizer-run-summary.js": [
+        "lib/finalizer-text.js"
       ],
       "lib/financial-action-policy.js": [
         "lib/financial-aggregation.js",
