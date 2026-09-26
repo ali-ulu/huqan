@@ -11,7 +11,6 @@
   "threshold": 400,
   "files": {
     "agent.v3.js": 647,
-    "cli.js": 637,
     "dream.js": 726,
     "kernel.js": 855,
     "lib/atp-conformance.js": 504,
@@ -34,10 +33,6 @@
     "agent.v3.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
-    },
-    "cli.js": {
-      "why": "Pre-existing debt plus Gate A-1 (#2366 item 1) thin wiring: process-failure handler require and bind only; domain logic lives in lib/http/process-failure-handlers.js.",
-      "review_by": "2026-10-31"
     },
     "dream.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
