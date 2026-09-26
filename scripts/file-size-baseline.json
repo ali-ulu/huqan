@@ -70,7 +70,7 @@
       "review_by": "2027-03-31"
     },
     "lib/learn-use-case.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
+      "why": "Kept whole on purpose (#2198, 2026-09-26). executeLearn holds the knowledge family's eight graph sinks (addNode 3, addEdge 4, addTag 1), and their admission is a transitive claim: this module exports only runLearnUseCase and kernel.js is its only caller, so every sink sits behind kernel.learn's admit(). test/kernel-mutation-admission.test.js and test/mutation-admission-boundary.contract.test.js assert exactly that. Moving any sink-bearing step into a sibling module gives that step an export, i.e. a second way into the sinks, and would weaken the admission guarantee to make the line count smaller. The non-sink helpers are already small; splitting only them would not reach 200.",
       "review_by": "2027-03-31"
     },
     "lib/memory-store.js": {
