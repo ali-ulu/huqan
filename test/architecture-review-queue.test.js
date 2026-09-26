@@ -81,6 +81,13 @@ test('disagreeingBands is empty when the artifact matches the live groups', () =
   assert.deepEqual(disagreeingBands(FIXTURE_GROUPS, parseTrackerArtifact(markdown)), []);
 });
 
+test('a CRLF checkout of the artifact parses the same as LF (Windows core.autocrlf)', () => {
+  const markdown = renderMarkdown(FIXTURE_GROUPS);
+  const crlf = markdown.replace(/\n/g, '\r\n');
+  assert.deepEqual(parseTrackerArtifact(crlf), parseTrackerArtifact(markdown));
+  assert.deepEqual(disagreeingBands(FIXTURE_GROUPS, parseTrackerArtifact(crlf)), []);
+});
+
 test('disagreeingBands names a band that drifted from the artifact', () => {
   const markdown = renderMarkdown(FIXTURE_GROUPS);
   const parsed = parseTrackerArtifact(markdown);

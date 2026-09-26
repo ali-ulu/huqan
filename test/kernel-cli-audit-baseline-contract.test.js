@@ -664,6 +664,9 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
     assert.ok(conn, 'the CLI must attach the journal connection to the kernel');
     const journal = managed.cli.kernel.experienceJournal;
     assert.ok(journal, 'the CLI must build the production journal');
+    // Setup, not the restore under test: storage.close() also closes the
+    // journal handle it was opened beside, so it runs before the spies.
+    managed.cli.agent.storage.close();
     const closeCalls = [];
     const reopenCalls = [];
     const originalConnClose = conn.close;
@@ -671,7 +674,6 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
     conn.close = () => { closeCalls.push('close'); return originalConnClose.call(conn); };
     conn.reopen = () => { reopenCalls.push('reopen'); return originalConnReopen.call(conn); };
     try {
-      managed.cli.agent.storage.close();
       managed.cli.kernel.persist();
       assert.match(managed.cli.execute('backup', ''), /^Backup complete:/);
       assert.match(managed.cli.execute('restore', ''), /^Restore tamamlandi:/);

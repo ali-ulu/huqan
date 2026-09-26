@@ -107,6 +107,25 @@ function attachJournalConnection(kernel, connection) {
   return connection;
 }
 
+/**
+ * The journal's handle lives exactly as long as the storage it was opened
+ * beside. Nothing else closed it, so every caller that shut the agent down by
+ * closing storage left `memory.db` open, and Windows then refused to delete or
+ * replace the file (EBUSY). `close()` is idempotent, and restore's reopen()
+ * still works after it.
+ */
+function closeWithStorage(storage, connection) {
+  if (typeof storage.close !== 'function') return;
+  const closeStorage = storage.close;
+  storage.close = function closeStorageAndJournal(...args) {
+    try {
+      return closeStorage.apply(this, args);
+    } finally {
+      connection.close();
+    }
+  };
+}
+
 function experienceDisabled(opts) {
   if (Object.prototype.hasOwnProperty.call(opts, 'experienceJournal')) return opts.experienceJournal === null;
   return String(readCompatibleEnvironmentVariable('EXPERIENCE_ENABLED') ?? '').toLowerCase() === 'false';
@@ -121,7 +140,10 @@ function resolveExperienceJournalOption(opts, storage) {
   // storage connection when no shared path is available (an in-memory store, or
   // better-sqlite3 missing) rather than dropping the journal entirely.
   const own = openJournalConnection({ dbPath: storage.dbPath });
-  if (own) attachJournalConnection(opts.kernel, own);
+  if (own) {
+    attachJournalConnection(opts.kernel, own);
+    closeWithStorage(storage, own);
+  }
   return own
     ? createExperienceJournal({ store: own })
     : createExperienceJournal({ store: storage });

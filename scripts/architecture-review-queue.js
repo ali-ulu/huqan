@@ -98,7 +98,9 @@ function buildQueue(groups = classify(snapshot()), exceptions = LAYER_EXCEPTIONS
 
 function splitSections(markdown) {
   const sections = {};
-  for (const part of markdown.split(/\n(?=## )/)) {
+  // A Windows checkout (core.autocrlf) hands this file over with CRLF; the
+  // trailing \r would otherwise stick to every title and defeat every row.
+  for (const part of String(markdown).replace(/\r\n/g, '\n').split(/\n(?=## )/)) {
     const title = part.match(/^## (.+)$/m);
     if (title) sections[title[1]] = part;
   }

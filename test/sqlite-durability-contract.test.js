@@ -140,3 +140,27 @@ test('the journal connection refuses an in-memory path instead of forking it (#2
   assert.equal(openJournalConnection({ dbPath: ':memory:' }), null);
   assert.equal(openJournalConnection({}), null);
 });
+
+test('closing storage closes the journal connection it was opened beside (#2915)', () => {
+  // Nothing else closed this handle, so on Windows every test that shut the
+  // agent down through storage.close() left memory.db locked and its temp
+  // directory could not be removed (EBUSY). Restore's reopen() must still work.
+  const HuqanStorage = require('../storage');
+  const { resolveExperienceJournal } = require('../agentRuntime');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-journal-close-'));
+  const storage = new HuqanStorage({ dbPath: path.join(dir, 'memory.db') });
+  try {
+    const kernel = {};
+    resolveExperienceJournal({ kernel }, storage);
+    const conn = kernel.experienceJournalConnection;
+    assert.ok(conn && conn.db, 'the journal connection must be open');
+    storage.close();
+    assert.equal(conn.db, null, 'storage.close() must also close the journal connection');
+    conn.reopen();
+    assert.ok(conn.db, 'the journal connection must still reopen after restore');
+    conn.close();
+  } finally {
+    try { storage.db?.close(); } catch (_) {}
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
