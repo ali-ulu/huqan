@@ -95,9 +95,7 @@ function dipExceptionViolations(entries = DIP_ALLOWED, { today = new Date().toIS
   return violations;
 }
 
-const isProduct = (file) => !file.startsWith('scripts/')
-  && !file.startsWith('examples/')
-  && !file.startsWith('bin/');
+const { isProduct, packagedBins } = require('./architecture-snapshot-scope');
 
 // Built at most once per process: the size tracker and the layer snapshot read the same tree.
 let sourceGraphCache = null;
@@ -390,6 +388,8 @@ module.exports = {
   baselineEvolutionViolations,
   DIP_ALLOWED,
   isCompositionRoot,
+  isProduct,
+  packagedBins,
   dipExceptionViolations,
   TRACKER_PATH,
   BASELINE_PATH,

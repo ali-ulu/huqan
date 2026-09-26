@@ -1103,6 +1103,7 @@
       "scripts/architecture-dependency-graph.js": "UI",
       "scripts/architecture-mermaid.js": "UI",
       "scripts/architecture-review-queue.js": "UI",
+      "scripts/architecture-snapshot-scope.js": "UI",
       "scripts/architecture-snapshot.js": "UI",
       "scripts/backup.js": "UI",
       "scripts/benign-false-block-rate.js": "UI",
@@ -4864,6 +4865,7 @@
       "scripts/architecture-snapshot.js": [
         "scripts/architecture-dependency-graph.js",
         "scripts/architecture-mermaid.js",
+        "scripts/architecture-snapshot-scope.js",
         "scripts/check-import-cycles.js"
       ],
       "scripts/backup.js": [

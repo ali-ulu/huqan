@@ -21,3 +21,19 @@ test('ordinary domain modules are not made composition roots by the Kernel exemp
   assert.equal(isCompositionRoot('lib/verify.js'), false);
   assert.equal(isCompositionRoot('lib/memory-store.js'), false);
 });
+
+test('executables package.json ships as bin are measured as product code (#2401)', () => {
+  const { isProduct, packagedBins, classify } = require('../scripts/architecture-snapshot');
+  const bins = packagedBins();
+  assert.ok(bins.has('bin/huqan-gate-hook.js'), 'the packaged huqan-gate hook is a bin entry');
+  assert.equal(isProduct('bin/huqan-gate-hook.js'), true);
+  assert.equal(isProduct('bin/not-shipped.js'), false, 'an unlisted bin/ file stays tooling');
+  assert.equal(isProduct('scripts/architecture-snapshot.js'), false);
+  // Derived, not listed: drop the entry from package.json and it leaves product scope.
+  const withoutGate = packagedBins({ name: 'huqan', bin: { huqan: './cli.js' } });
+  assert.equal(isProduct('bin/huqan-gate-hook.js', withoutGate), false);
+  // A packaged bin over the accepted size lands in a product band, not tooling.
+  const groups = classify([{ file: 'bin/huqan-gate-hook.js', lines: 450, signals: [] }]);
+  assert.equal(groups.recorded.length, 1);
+  assert.equal(groups.tooling.length, 0);
+});
