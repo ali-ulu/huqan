@@ -77,8 +77,8 @@ queries only. The adapter keeps the public methods and their results intact.
 When the huqan-core binary is missing and a `RustGraph` has not started yet,
 the first `save()`/`load()` builds the fallback inside `send()` and returns
 `undefined` without calling the fallback Graph. This predates the port and is
-preserved because the change must not alter behavior; it is tracked
-separately.
+preserved because the change must not alter behavior; it is tracked in
+[#2963](https://github.com/ali-ulu/huqan/issues/2963).
 
 ## Evidence
 
