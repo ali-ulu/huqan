@@ -9,7 +9,7 @@ Tracked in total: **21**
 |---|---:|---|
 | `kernel.js` | 855 | FANOUT:39 |
 
-## Recorded debt, 401-800 lines (17)
+## Recorded debt, 401-800 lines (16)
 
 | File | Lines | Signals |
 |---|---:|---|
@@ -18,7 +18,6 @@ Tracked in total: **21**
 | `lib/verify.js` | 693 | — |
 | `plugins/company-brain.js` | 678 | — |
 | `agent.v3.js` | 647 | DIP |
-| `cli.js` | 637 | FANOUT:26 |
 | `lib/receipt/receipt-read-index.js` | 637 | — |
 | `lib/conflict-detector.js` | 616 | — |
 | `lib/memory-store.js` | 594 | FANOUT:20 |
@@ -31,10 +30,11 @@ Tracked in total: **21**
 | `lib/learn-use-case.js` | 432 | — |
 | `lib/huqan-package-format.js` | 428 | — |
 
-## At or under 400 lines, tracked for a signal (3)
+## At or under 400 lines, tracked for a signal (4)
 
 | File | Lines | Signals |
 |---|---:|---|
 | `graph.js` | 392 | FANOUT:31 |
+| `cli.js` | 200 | FANOUT:24 |
 | `kernel.v2.js` | 194 | DIP |
 | `lib/verify-numeric-text.js` | 82 | OCP:8 |

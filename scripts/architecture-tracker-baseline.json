@@ -9,10 +9,10 @@
       ]
     },
     "cli.js": {
-      "band": "recorded",
-      "lines": 637,
+      "band": "structural",
+      "lines": 200,
       "signals": [
-        "FANOUT:26"
+        "FANOUT:24"
       ]
     },
     "dream.js": {
@@ -262,24 +262,32 @@
       "lib/causal/index.js": "Application",
       "lib/claim-decomposition.js": "Core",
       "lib/claim-read.js": "Core",
+      "lib/cli-agent-commands.js": "Core",
+      "lib/cli-approval-commands.js": "Core",
       "lib/cli-audit.js": "Core",
       "lib/cli-backup-commands.js": "Core",
+      "lib/cli-capabilities.js": "Core",
+      "lib/cli-capability-commands.js": "Core",
       "lib/cli-coder-verify.js": "Core",
       "lib/cli-coder.js": "Core",
       "lib/cli-company-ingest.js": "Core",
       "lib/cli-doctor.js": "Core",
       "lib/cli-experience-read.js": "Core",
+      "lib/cli-gate-evaluation.js": "Core",
       "lib/cli-gate-message.js": "Core",
       "lib/cli-help.js": "Core",
       "lib/cli-helpers.js": "Core",
       "lib/cli-hypotheses.js": "Core",
       "lib/cli-ingest-batch.js": "Core",
       "lib/cli-ingest-preview.js": "Core",
+      "lib/cli-knowledge-commands.js": "Core",
       "lib/cli-learn-review.js": "Core",
       "lib/cli-mutation-audit-intent.js": "Core",
       "lib/cli-mutation-audit.js": "Core",
       "lib/cli-mutation-gate.js": "Core",
       "lib/cli-plugin-status.js": "Core",
+      "lib/cli-repl.js": "Core",
+      "lib/cli-runtime-methods.js": "Core",
       "lib/cli-status-command.js": "Core",
       "lib/cli-trust-receipt.js": "Core",
       "lib/cli-workflow-adapter.js": "Core",
@@ -1287,27 +1295,25 @@
       "cli.js": [
         "agentRuntime.js",
         "dream.js",
-        "lib/cli-audit.js",
+        "lib/cli-agent-commands.js",
+        "lib/cli-approval-commands.js",
         "lib/cli-backup-commands.js",
-        "lib/cli-coder.js",
+        "lib/cli-capability-commands.js",
         "lib/cli-company-ingest.js",
-        "lib/cli-gate-message.js",
+        "lib/cli-gate-evaluation.js",
         "lib/cli-help.js",
         "lib/cli-helpers.js",
-        "lib/cli-hypotheses.js",
-        "lib/cli-learn-review.js",
+        "lib/cli-knowledge-commands.js",
         "lib/cli-mutation-gate.js",
+        "lib/cli-repl.js",
+        "lib/cli-runtime-methods.js",
         "lib/cli-status-command.js",
-        "lib/cli-trust-receipt.js",
         "lib/cli-workflow-adapter.js",
         "lib/command-parser.js",
         "lib/environment-compat.js",
         "lib/http/process-failure-handlers.js",
         "lib/http/structured-log.js",
         "lib/kernel-factory.js",
-        "lib/mcp-approval-views.js",
-        "lib/mcp-gate-adapter.js",
-        "lib/quickstart-cli.js",
         "llmAdapter.js",
         "mcpServer.js",
         "persistencePaths.js"
@@ -1812,12 +1818,29 @@
         "lib/contested-read-policy.js",
         "lib/provenance-query.js"
       ],
+      "lib/cli-agent-commands.js": [
+        "lib/cli-helpers.js",
+        "lib/cli-hypotheses.js",
+        "lib/cli-mutation-gate.js",
+        "lib/quickstart-cli.js"
+      ],
+      "lib/cli-approval-commands.js": [
+        "lib/cli-audit.js",
+        "lib/cli-coder.js",
+        "lib/cli-helpers.js",
+        "lib/cli-trust-receipt.js",
+        "lib/command-parser.js",
+        "lib/mcp-approval-views.js"
+      ],
       "lib/cli-audit.js": [
         "lib/trust-score-aggregator.js"
       ],
       "lib/cli-backup-commands.js": [
         "backupRestore.js",
         "lib/sqlite-restore.js"
+      ],
+      "lib/cli-capability-commands.js": [
+        "lib/cli-helpers.js"
       ],
       "lib/cli-coder-verify.js": [
         "lib/coder/verify-derivation.js"
@@ -1839,6 +1862,11 @@
       ],
       "lib/cli-experience-read.js": [
         "lib/experience/read-model.js"
+      ],
+      "lib/cli-gate-evaluation.js": [
+        "lib/cli-helpers.js",
+        "lib/command-parser.js",
+        "lib/mcp-gate-adapter.js"
       ],
       "lib/cli-help.js": [
         "lib/workflow-contract.js"
@@ -1863,6 +1891,9 @@
       "lib/cli-ingest-preview.js": [
         "lib/ingest-workflow-preview.js"
       ],
+      "lib/cli-knowledge-commands.js": [
+        "lib/cli-helpers.js"
+      ],
       "lib/cli-mutation-audit-intent.js": [
         "lib/is-plain-object.js",
         "lib/workspace-id.js"
@@ -1872,6 +1903,15 @@
       ],
       "lib/cli-mutation-gate.js": [
         "lib/command-parser.js"
+      ],
+      "lib/cli-repl.js": [
+        "lib/cli-mutation-gate.js"
+      ],
+      "lib/cli-runtime-methods.js": [
+        "lib/cli-capabilities.js",
+        "lib/cli-gate-message.js",
+        "lib/cli-learn-review.js",
+        "lib/cli-mutation-gate.js"
       ],
       "lib/cli-status-command.js": [
         "lib/cli-doctor.js",
