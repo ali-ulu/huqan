@@ -9,7 +9,7 @@ Tracked in total: **30**
 |---|---:|---|
 | `kernel.js` | 855 | FANOUT:39 |
 
-## Recorded debt, 401-800 lines (27)
+## Recorded debt, 401-800 lines (26)
 
 | File | Lines | Signals |
 |---|---:|---|
@@ -33,7 +33,6 @@ Tracked in total: **30**
 | `sandboxRunner.js` | 530 | OCP:8 |
 | `lib/github-connector.js` | 518 | — |
 | `lib/atp-conformance.js` | 504 | — |
-| `kernel.v2.js` | 497 | DIP |
 | `lib/a2a/exchange-route.js` | 493 | — |
 | `causalSimulator.js` | 478 | — |
 | `lib/http/workflow-data-routes.js` | 477 | — |
@@ -41,9 +40,10 @@ Tracked in total: **30**
 | `lib/learn-use-case.js` | 432 | — |
 | `lib/huqan-package-format.js` | 428 | — |
 
-## At or under 400 lines, tracked for a signal (2)
+## At or under 400 lines, tracked for a signal (3)
 
 | File | Lines | Signals |
 |---|---:|---|
 | `graph.js` | 392 | FANOUT:31 |
+| `kernel.v2.js` | 194 | DIP |
 | `lib/verify-numeric-text.js` | 82 | OCP:8 |

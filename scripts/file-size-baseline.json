@@ -17,7 +17,6 @@
     "dream.js": 726,
     "finalizer.js": 604,
     "kernel.js": 855,
-    "kernel.v2.js": 497,
     "lib/a2a/exchange-route.js": 493,
     "lib/atp-conformance.js": 504,
     "lib/automation-safety-gate/automation-operation-classifier.js": 545,
@@ -69,10 +68,6 @@
     "kernel.js": {
       "why": "Kernel is the public compatibility facade and composition root for the v1 runtime: it assembles Graph, MemoryStore, PluginManager, VerifyService and the ephemeral sandbox Kernel. Moving those constructions outward would leak runtime assembly into callers; further size reduction is still owed where cohesive seams can be extracted without increasing coupling. Review alongside #2127 successor decomposition work.",
       "review_by": "2026-12-31"
-    },
-    "kernel.v2.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2026-10-31"
     },
     "lib/a2a/exchange-route.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
