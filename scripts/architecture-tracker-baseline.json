@@ -1109,6 +1109,7 @@
       "scripts/architecture-review-queue.js": "UI",
       "scripts/architecture-snapshot-scope.js": "UI",
       "scripts/architecture-snapshot.js": "UI",
+      "scripts/audit-impact-replay-coverage.js": "UI",
       "scripts/backup.js": "UI",
       "scripts/benign-false-block-rate.js": "UI",
       "scripts/binding-site-scan.js": "UI",
@@ -4882,6 +4883,9 @@
         "scripts/architecture-mermaid.js",
         "scripts/architecture-snapshot-scope.js",
         "scripts/check-import-cycles.js"
+      ],
+      "scripts/audit-impact-replay-coverage.js": [
+        "lib/autonomy-receipt-history.js"
       ],
       "scripts/backup.js": [
         "backupRestore.js",
