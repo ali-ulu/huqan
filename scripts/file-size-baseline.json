@@ -26,7 +26,6 @@
     "lib/http/workflow-data-routes.js": 477,
     "lib/huqan-package-format.js": 428,
     "lib/learn-use-case.js": 432,
-    "lib/memory-admission-gate.js": 471,
     "lib/memory-store.js": 594,
     "lib/receipt/receipt-read-index.js": 637,
     "lib/risk-classify.js": 739,
@@ -101,10 +100,6 @@
       "review_by": "2027-03-31"
     },
     "lib/learn-use-case.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
-    "lib/memory-admission-gate.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },
