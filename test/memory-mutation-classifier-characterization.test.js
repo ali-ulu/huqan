@@ -86,7 +86,9 @@ test('classifyMemoryMutation matches its recorded verdict for every characterize
   const golden = JSON.parse(fs.readFileSync(GOLDEN, 'utf8'));
   assert.deepEqual(Object.keys(actual), Object.keys(golden), 'the case list and the fixture must match');
   const mismatches = Object.keys(golden).filter((name) => {
-    try { assert.deepEqual(actual[name], golden[name]); return false; } catch { return true; }
+    // Compared as serialized JSON, so key order is pinned too: a verdict that
+    // reaches a receipt is hashed in the order its fields were written.
+    return JSON.stringify(actual[name]) !== JSON.stringify(golden[name]);
   });
   assert.deepEqual(mismatches.slice(0, 10), [], `${mismatches.length} verdict(s) differ`);
 });
