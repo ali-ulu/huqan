@@ -99,3 +99,44 @@ test('an unknown durability class is refused rather than defaulted', () => {
     /unknown durability class/,
   );
 });
+
+/**
+ * #2915: the production journal must be EVIDENCE while `storage.db` stays
+ * RESUMABLE, in the same process, over the same file. The Epic claims durable
+ * fail-closed history; the runtime used to answer it from a RESUMABLE handle,
+ * where a commit can return and still be lost on a power cut.
+ */
+test('the production journal fsyncs while its storage connection does not (#2915)', () => {
+  const HuqanStorage = require('../storage');
+  const { resolveExperienceJournal } = require('../agentRuntime');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-journal-durability-'));
+  const storage = new HuqanStorage({ dbPath: path.join(dir, 'memory.db') });
+  try {
+    const kernel = {};
+    const journal = resolveExperienceJournal({ kernel }, storage);
+    assert.ok(journal, 'the factory must build the production journal');
+    const conn = kernel.experienceJournalConnection;
+    assert.ok(conn, 'the factory must expose the journal connection for restore');
+    // The class is a property of the handle, so both must hold at once.
+    assert.equal(conn.db.pragma('synchronous')[0].synchronous, 2,
+      'the journal connection must be EVIDENCE (FULL)');
+    assert.equal(storage.db.pragma('synchronous')[0].synchronous, 1,
+      'storage.db must stay RESUMABLE (NORMAL): its checkpoints chose that');
+    assert.notEqual(conn.db, storage.db, 'they must be separate handles');
+    // And an acknowledged append lands on the EVIDENCE handle, not storage.db.
+    assert.equal(journal.append({ runId: 'r', workspaceId: 'ws', eventId: 'e1', type: 'run_started' }).ok, true);
+    assert.equal(conn.db.prepare('SELECT count(*) AS n FROM experience_journal').get().n, 1);
+  } finally {
+    try { storage.db.close(); } catch (_) {}
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('the journal connection refuses an in-memory path instead of forking it (#2915)', () => {
+  // A second connection to `:memory:` is a second, empty database, so the
+  // journal would look durable while writing nowhere the runtime reads.
+  const { openJournalConnection, isSharedableDbPath } = require('../lib/experience/journal-connection');
+  assert.equal(isSharedableDbPath(':memory:'), false);
+  assert.equal(openJournalConnection({ dbPath: ':memory:' }), null);
+  assert.equal(openJournalConnection({}), null);
+});

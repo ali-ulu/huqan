@@ -445,6 +445,7 @@
     "lib/experience/contract.js",
     "lib/experience/compiler.js",
     "lib/experience/journal.js",
+    "lib/experience/journal-connection.js",
     "lib/experience/learning.js",
     "lib/experience/optimization-hypothesis.js",
     "lib/experience/permitted-fallback.js",
