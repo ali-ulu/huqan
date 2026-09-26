@@ -2,6 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const {
   isCompositionRoot,
@@ -56,4 +58,17 @@ test('composition roots are an explicit, dated list, not a file-name pattern (#2
     { file: 'lib/gone.js', why: 'fixture', review_by: '2099-01-01' },
   ], { today: '2026-09-26', readSource: (file) => sources[file] ?? null });
   assert.equal(violations.length, 3, JSON.stringify(violations));
+});
+
+test('a long if/else-if chain is an OCP signal like a long switch (#2401)', () => {
+  const { longestIfChain } = require('../scripts/architecture-snapshot-scope');
+  const chain = (n) => Array.from({ length: n }, (_, i) => `${i ? ' else ' : ''}if (x === ${i}) { f(${i}); }`).join('');
+  assert.equal(longestIfChain(chain(6)), 6);
+  assert.equal(longestIfChain(`${chain(5)} else { g(); }`), 5);
+  assert.equal(longestIfChain('if (a) { if (b) { } else if (c) { } }'), 2);
+  // No measured file carries one: the last chain (risk-classify flag aliases) is a table now.
+  const { stripComments } = require('../scripts/check-import-cycles');
+  const chained = snapshot().filter((row) => longestIfChain(stripComments(
+    fs.readFileSync(path.join(__dirname, '..', row.file), 'utf8'))) >= 6);
+  assert.deepEqual(chained.map((row) => row.file), []);
 });

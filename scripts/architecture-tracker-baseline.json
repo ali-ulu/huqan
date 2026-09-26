@@ -95,7 +95,7 @@
     },
     "lib/risk-classify.js": {
       "band": "recorded",
-      "lines": 739,
+      "lines": 734,
       "signals": []
     },
     "lib/verify-numeric-text.js": {

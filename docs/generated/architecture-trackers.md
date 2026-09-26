@@ -13,7 +13,7 @@ Tracked in total: **20**
 
 | File | Lines | Signals |
 |---|---:|---|
-| `lib/risk-classify.js` | 739 | — |
+| `lib/risk-classify.js` | 734 | — |
 | `dream.js` | 726 | — |
 | `plugins/company-brain.js` | 678 | — |
 | `agent.v3.js` | 647 | DIP |

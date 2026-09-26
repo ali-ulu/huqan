@@ -66,7 +66,44 @@ function compositionRootViolations(entries = COMPOSITION_ROOTS, { today = new Da
   return violations;
 }
 
+function matchingClose(body, start, open, close) {
+  let depth = 0;
+  for (let i = start; i < body.length; i += 1) {
+    if (body[i] === open) depth += 1;
+    else if (body[i] === close && (depth -= 1) === 0) return i;
+  }
+  return -1;
+}
+
+/**
+ * The longest `if { } else if { } ...` chain in comment-stripped source
+ * (#2401): the if-shaped twin of a long switch, counted per branch. Braceless
+ * branches end a chain, so the count is a lower bound, never an overcount.
+ */
+function longestIfChain(body) {
+  let longest = 0;
+  for (const head of body.matchAll(/\bif\s*\(/g)) {
+    if (/else\s*$/.test(body.slice(Math.max(0, head.index - 8), head.index))) continue;
+    let at = head.index;
+    let branches = 0;
+    for (;;) {
+      const condEnd = matchingClose(body, body.indexOf('(', at), '(', ')');
+      if (condEnd < 0) break;
+      branches += 1;
+      const blockStart = body.slice(condEnd + 1).search(/\S/) + condEnd + 1;
+      if (body[blockStart] !== '{') break;
+      const blockEnd = matchingClose(body, blockStart, '{', '}');
+      const next = blockEnd < 0 ? null : /^\s*else\s+if\s*\(/.exec(body.slice(blockEnd + 1, blockEnd + 40));
+      if (!next) break;
+      at = blockEnd + next[0].length;
+    }
+    longest = Math.max(longest, branches);
+  }
+  return longest;
+}
+
 module.exports = {
+  longestIfChain,
   isProduct,
   packagedBins,
   isCompositionRoot,

@@ -45,7 +45,7 @@ function countLines(file) {
 }
 
 const scope = require('./architecture-snapshot-scope');
-const { isProduct, packagedBins, isCompositionRoot, compositionRootViolations, COMPOSITION_ROOTS, CONSTRUCTS } = scope;
+const { isProduct, packagedBins, isCompositionRoot, compositionRootViolations, COMPOSITION_ROOTS, CONSTRUCTS, longestIfChain } = scope;
 
 /**
  * Constructions the DIP regex matches that are not a coupling defect (#2268).
@@ -123,6 +123,8 @@ function snapshot(state = sourceGraph()) {
       const cases = (tail.slice(0, end > 0 ? end : 4000).match(/\bcase\s/g) || []).length;
       if (cases >= 6) { signals.push(`OCP:${cases}`); break; }
     }
+    const ifChain = longestIfChain(body);
+    if (ifChain >= 6 && !signals.some((signal) => signal.startsWith('OCP:'))) signals.push(`OCP:${ifChain}`);
     const fanOut = new Set(graph.get(file) || []).size;
     if (fanOut >= FAN_OUT_SIGNAL) signals.push(`FANOUT:${fanOut}`);
     return { file, lines: countLines(file), signals, fanOut };

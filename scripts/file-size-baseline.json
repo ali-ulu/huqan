@@ -23,7 +23,7 @@
     "lib/learn-use-case.js": 432,
     "lib/memory-store.js": 594,
     "lib/receipt/receipt-read-index.js": 637,
-    "lib/risk-classify.js": 739,
+    "lib/risk-classify.js": 734,
     "plugins/company-brain.js": 678,
     "sandboxRunner.js": 530
   },
