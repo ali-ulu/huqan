@@ -56,11 +56,6 @@
       "lines": 504,
       "signals": []
     },
-    "lib/automation-safety-gate/automation-operation-classifier.js": {
-      "band": "recorded",
-      "lines": 545,
-      "signals": []
-    },
     "lib/conflict-detector.js": {
       "band": "recorded",
       "lines": 616,
@@ -253,6 +248,10 @@
       "lib/audit-query.js": "Core",
       "lib/automation-safety-gate/automation-findings-summary.js": "Application",
       "lib/automation-safety-gate/automation-input-normalizer.js": "Application",
+      "lib/automation-safety-gate/automation-operation-classifier-delivery.js": "Application",
+      "lib/automation-safety-gate/automation-operation-classifier-entry.js": "Application",
+      "lib/automation-safety-gate/automation-operation-classifier-fallback.js": "Application",
+      "lib/automation-safety-gate/automation-operation-classifier-hazards.js": "Application",
       "lib/automation-safety-gate/automation-operation-classifier.js": "Application",
       "lib/automation-safety-gate/automation-safety-decision.js": "Application",
       "lib/automation-safety-gate/automation-safety-vocabulary.js": "Application",
@@ -1665,9 +1664,28 @@
         "lib/is-plain-object.js",
         "lib/text-utils.js"
       ],
+      "lib/automation-safety-gate/automation-operation-classifier-delivery.js": [
+        "lib/automation-safety-gate/automation-input-normalizer.js",
+        "lib/automation-safety-gate/automation-safety-vocabulary.js"
+      ],
+      "lib/automation-safety-gate/automation-operation-classifier-entry.js": [
+        "lib/automation-safety-gate/automation-input-normalizer.js",
+        "lib/automation-safety-gate/automation-safety-vocabulary.js"
+      ],
+      "lib/automation-safety-gate/automation-operation-classifier-fallback.js": [
+        "lib/automation-safety-gate/automation-input-normalizer.js",
+        "lib/automation-safety-gate/automation-safety-vocabulary.js"
+      ],
+      "lib/automation-safety-gate/automation-operation-classifier-hazards.js": [
+        "lib/automation-safety-gate/automation-input-normalizer.js",
+        "lib/automation-safety-gate/automation-safety-vocabulary.js"
+      ],
       "lib/automation-safety-gate/automation-operation-classifier.js": [
         "lib/automation-safety-gate/automation-input-normalizer.js",
-        "lib/automation-safety-gate/automation-safety-vocabulary.js",
+        "lib/automation-safety-gate/automation-operation-classifier-delivery.js",
+        "lib/automation-safety-gate/automation-operation-classifier-entry.js",
+        "lib/automation-safety-gate/automation-operation-classifier-fallback.js",
+        "lib/automation-safety-gate/automation-operation-classifier-hazards.js",
         "lib/text-utils.js"
       ],
       "lib/automation-safety-gate/automation-safety-decision.js": [
