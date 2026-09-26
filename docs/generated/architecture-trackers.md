@@ -19,8 +19,8 @@ Tracked in total: **20**
 | `agent.v3.js` | 647 | DIP |
 | `lib/receipt/receipt-read-index.js` | 637 | — |
 | `lib/conflict-detector.js` | 616 | — |
-| `lib/memory-store.js` | 594 | FANOUT:20 |
 | `lib/external-action-receipt.js` | 589 | — |
+| `lib/memory-store.js` | 578 | FANOUT:20 |
 | `lib/dream-experiment-loop.js` | 533 | — |
 | `sandboxRunner.js` | 530 | OCP:8 |
 | `lib/github-connector.js` | 518 | — |

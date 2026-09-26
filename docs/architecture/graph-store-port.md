@@ -1,8 +1,9 @@
 # GraphStorePort: caller and source map
 
 Scope: the Graph half of [#2906](https://github.com/ali-ulu/huqan/issues/2906).
-MemoryStorePort is a separate contract and a separate change; nothing in this
-document assigns MemoryStore persistence to GraphStorePort.
+MemoryStorePort is a separate contract, mapped in
+[memory-store-port.md](memory-store-port.md); nothing in this document assigns
+MemoryStore persistence to GraphStorePort.
 
 This map describes the code as it is after the Graph half landed. It introduces
 no behavior: the characterization tests named below pass unchanged against the
