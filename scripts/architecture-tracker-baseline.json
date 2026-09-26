@@ -105,11 +105,6 @@
         "OCP:8"
       ]
     },
-    "lib/verify.js": {
-      "band": "recorded",
-      "lines": 693,
-      "signals": []
-    },
     "plugins/company-brain.js": {
       "band": "recorded",
       "lines": 678,
@@ -968,10 +963,15 @@
       "lib/v5/verification-input-shape.js": "Application",
       "lib/v5/verification-reason-mapping.js": "Application",
       "lib/verdict/action-verdict.js": "Application",
+      "lib/verify-compound.js": "Core",
       "lib/verify-contradiction-evidence.js": "Core",
+      "lib/verify-contradiction-scan.js": "Core",
+      "lib/verify-edge-phases.js": "Core",
+      "lib/verify-graph-phases.js": "Core",
       "lib/verify-native.js": "Core",
       "lib/verify-numeric-contradictions.js": "Core",
       "lib/verify-numeric-text.js": "Core",
+      "lib/verify-result.js": "Core",
       "lib/verify-status-vocabulary.js": "Core",
       "lib/verify-subject.js": "Core",
       "lib/verify-turkish-text.js": "Core",
@@ -4423,6 +4423,28 @@
         "lib/is-plain-object.js",
         "lib/v5/verification-input-shape.js"
       ],
+      "lib/verify-compound.js": [
+        "lib/reasoning-trace.js"
+      ],
+      "lib/verify-contradiction-scan.js": [
+        "lib/type-lattice.js",
+        "lib/verify-numeric-contradictions.js",
+        "lib/verify-numeric-text.js",
+        "lib/verify-turkish-text.js"
+      ],
+      "lib/verify-edge-phases.js": [
+        "lib/risk-rules.js",
+        "lib/verify-native.js",
+        "lib/verify-numeric-text.js",
+        "lib/verify-turkish-text.js"
+      ],
+      "lib/verify-graph-phases.js": [
+        "lib/fuzzy-normalization.js",
+        "lib/semantic-signals.js",
+        "lib/type-lattice.js",
+        "lib/verify-native.js",
+        "lib/verify-turkish-text.js"
+      ],
       "lib/verify-native.js": [
         "lib/claim-decomposition.js",
         "lib/contradiction-rules.js",
@@ -4438,6 +4460,15 @@
       "lib/verify-numeric-contradictions.js": [
         "lib/temporal-qualifier.js"
       ],
+      "lib/verify-result.js": [
+        "lib/claim-decomposition.js",
+        "lib/entity-resolution.js",
+        "lib/reasoning-trace.js",
+        "lib/trust-signals/verify-wiring.js",
+        "lib/verify-contradiction-evidence.js",
+        "lib/verify-native.js",
+        "lib/workspace-id.js"
+      ],
       "lib/verify-subject.js": [
         "lib/text-utils.js",
         "lib/verify-turkish-text.js"
@@ -4448,23 +4479,14 @@
       ],
       "lib/verify.js": [
         "lib/claim-decomposition.js",
-        "lib/contradiction-rules.js",
-        "lib/entity-resolution.js",
-        "lib/fuzzy-normalization.js",
-        "lib/reasoning-trace.js",
-        "lib/risk-rules.js",
-        "lib/semantic-score.js",
-        "lib/semantic-signals.js",
-        "lib/text-utils.js",
-        "lib/trust-signals/verify-wiring.js",
-        "lib/type-lattice.js",
+        "lib/verify-compound.js",
         "lib/verify-contradiction-evidence.js",
-        "lib/verify-native.js",
-        "lib/verify-numeric-contradictions.js",
+        "lib/verify-contradiction-scan.js",
+        "lib/verify-edge-phases.js",
+        "lib/verify-graph-phases.js",
         "lib/verify-numeric-text.js",
-        "lib/verify-subject.js",
-        "lib/verify-turkish-text.js",
-        "lib/workspace-id.js"
+        "lib/verify-result.js",
+        "lib/verify-subject.js"
       ],
       "lib/viewer/viewer-gateway-primitives.js": [
         "requestGuards.js"
@@ -5672,7 +5694,7 @@
         "toLayer": "Application"
       },
       {
-        "from": "lib/verify.js",
+        "from": "lib/verify-result.js",
         "to": "lib/trust-signals/verify-wiring.js",
         "fromLayer": "Core",
         "toLayer": "Application"
