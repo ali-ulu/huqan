@@ -83,4 +83,30 @@ REOPEN olarak kaydedilmiş ve kendi PR'larıyla kapatılmıştır.
 | #2249 | `lib/llm-proxy/proxy-handler.js` | 314 | DEFER | `createLlmProxyHandler` (191 satır) kapanış fabrikası: `recordReceipt`, `forward`, `handleChatCompletions`, `handleModels`, yönlendirici. İki handler anahtar-yok ve `MAX_RESPONSE_BYTES` yanıtlarını tekrarlar. Tetikleyici: üçüncü endpoint; o zaman ortak yanıt yardımcısı çıkarılır. Test: `test/llm-proxy-handler.test.js`. |
 | #2251 | `lib/mcp/response-builders.js` | 313 | KEEP | Bağımsız saf yanıt kurucuları (en uzunu `buildMemoryAdmissionSurface` 47 satır); tek konu MCP yanıt yüzeyi. Test: `test/mcp-security-integration-regression-matrix.test.js`, `test/mcp-learn-agent-contract.test.js`. |
 
-Açık kalan: #2252'den başlayan adaylar (sonraki partiler).
+## Parti 4 — `lib/`, `adapters/` (#2252–#2279)
+
+İnceleme tabanı: `origin/main` @ `1c05cf4`. Fonksiyon uzunluğu, fonksiyonun kapanan `}` satırına kadar ölçüldü.
+
+| Issue | Dosya | Satır | Karar | Kaynak sembolleri / korunan invariant / test / gerekçe |
+|---|---|---:|---|---|
+| #2252 | `lib/external-action-receipt-shipper.js` | 308 | KEEP | `shipExternalActionReceipts` (105 satır) sıralı boru hattı: oku → cursor → `unsentReceipts` → imza anahtarı (ilk batch'ten önce, yanlış anahtar hiçbir şey göndermeden düşsün diye) → tenant/run batch'leri → HTTP ya da `deliver`. Sıra invariantın kendisi; adımlar zaten ayrı fonksiyonlar. Test: `test/external-action-receipt-batch-signature.test.js`. |
+| #2253 | `lib/memory-mutation-gate/memory-mutation-classifier.js` | 307 | REFACTOR | `classifyMemoryMutation` 279 satırlık tek fonksiyon: 11 sıralı `if (predicate) return {…}` bloğu (cross-workspace → secret → audit → release/auto → destructive delete → graph → package/import → read-only → metadata-only → content), her biri aynı 11 ortak alanı yeniden yazıyor. Öneri: ortak alanlar tek kurucuda, `[predicate, verdict]` sıralı kural tablosu. Korunacak: sıra, her dalın karar/gerekçe/risk değeri (graph dalının asla `_BLOCKED` gerekçesi vermemesi dahil). Önce karakterizasyon. Test: `test/classifier-downgrade-fail-closed.test.js`, `test/inline-enforcement-matrix.test.js`. |
+| #2254 | `lib/github-app-beta-store.js` | 306 | KEEP | `createGitHubAppBetaStore` (101 satır) içi küçük kapanışlardan oluşan fabrika (`reserveDelivery`, `commitReceipt`, `readReceipt`); `assertSafeRoot` kök doğrulaması ayrı. Tek kaynak: teslim rezervasyon/receipt dizinleri. Test: `test/v5-c7-github-app-beta.test.js`. |
+| #2256 | `lib/receipt/v4-receipt-family.js` | 305 | KEEP | 13 fonksiyon, en uzunu 56 satır; tek V4 receipt ailesinin kuralları. Test: `test/receipt-trust-root-3a-family-chain.test.js`. |
+| #2257 | `lib/v5/verification-core.js` | 22 | REFACTORED | #2789: `verification-evaluator`, `-evidence-normalizer`, `-input-shape`, `-reason-mapping`. |
+| #2259 | `lib/external-client-http-adapter.js` | 300 | KEEP | 21 küçük HTTP sınır yardımcısı (en uzunu `readBody` 52 satır, sınırlı gövde okuma). Test: `test/faults/network-disconnect.test.js`. |
+| #2260 | `lib/memory-link-read.js` | 298 | KEEP | 8 okuma fonksiyonu, en uzunu `traverseLinks` 68 satır; workspace kapsamlı tek okuma yüzeyi. Test: `test/memory-link-read-delegation-contract.test.js`. |
+| #2261 | `lib/v5/structural-signing-helper.js` | 298 | KEEP | `validateStructuralSigningInput` (76 satır) + imzalama yardımcıları; tek şema. Test: `test/v5-structural-signing-helper.test.js`. |
+| #2262 | `lib/v5/runtime-reader.js` | 297 | KEEP | `validateReaderCandidate` (80 satır) + okuyucu; yazıcı tarafı zaten `runtime-writer-*` modüllerinde. Test: `test/v5-runtime-writer-reader-local-contract.test.js`. |
+| #2263 | `lib/workflow-contract.js` | 303 | KEEP | Ağırlıkla veri: `WORKFLOW_CAPABILITIES`, `CLI_COMMAND_CAPABILITIES`, `COMPATIBILITY_COMMANDS` kataloğu; fonksiyonlar kısa (en uzunu `workflowOpenApiDocument` 42). Katalog tek kaynak olmalı (`capability-usage.js` ve manifest onu okur). Test: `test/cli-restore-workflow.test.js`. |
+| #2265 | `lib/agent-behavioral-integrity.js` | 290 | KEEP | 16 fonksiyon, en uzunu 49 satır. Test: `test/agent-behavioral-integrity.test.js`. |
+| #2266 | `lib/external-client-authority.js` | 149 | REFACTORED | #2585: `external-client-authority-errors`, `-primitives`, `external-client-trusted-key-snapshot`. |
+| #2267 | `lib/workbench/ingest-approval-action.js` | 288 | KEEP | `executeApprovedIngest` (102 satır) lease'li yürütme işlemi: önce kalıcı claim (ret ancak executing satırı kalıcıyken yazılabilir), snapshot doğrulama, oversight, heartbeat, sonuç sınıflandırma, receipt. Sıra doğruluk invariantı ve yorumla gerekçeli. Test: `test/v4-b2b-ingest-approval-authority-gap.test.js`, `test/ingest-approval-audit-evidence.test.js`. |
+| #2269 | `lib/workbench/trust-receipt-inspector.js` | 288 | DEFER | `inspectTrustReceipt` (116 satır) okuma sonucunu dört duruma (ok, invalid_request, chain_invalid, not_found) göre yanıta çeviriyor; `chain_invalid` asla bulunmuş receipt sayılmıyor (#766). Tetikleyici: beşinci durum; o zaman durum → yanıt kurucusu tablosu. Test: `test/v4-wb1-trust-receipt-inspector.test.js`. |
+| #2270 | `lib/audit-query.js` | 193 | REFACTORED | #2270: `audit-query-primitives`. |
+| #2271 | `adapters/pdf-adapter.js` | 282 | KEEP | `parsePdf` (86 satır) tek ayrıştırma döngüsü; ortak provenance/learn akışı zaten `adapters/utils/learn-entries.js`'te (`13742190`). Test: `test/provenance-pinning-audit.test.js`, `test/connector-firewall-coverage.contract.test.js`. |
+| #2275 | `lib/interop/vc-mapping.js` | 279 | KEEP | 9 fonksiyon, en uzunu 49 satır; tek eşleme (receipt ↔ VC). Test: `test/interop-mapping.test.js`. |
+| #2276 | `lib/http/public-badge-route.js` | 278 | KEEP | 13 fonksiyon, en uzunu 33 satır; tek rota. Test: `test/public-badge-route.test.js`. |
+| #2277 | `lib/trust-evidence-ledger.js` | 365 | KEEP | 12 fonksiyon, en uzunu `buildTrustEvidencePayload` 59 satır; tek defter. Test: `test/mcp-ingest-trust-evidence-ledger.test.js`. |
+
+Açık kalan: #2280'den başlayan adaylar (sonraki partiler).
