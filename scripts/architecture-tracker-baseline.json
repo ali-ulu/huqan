@@ -110,11 +110,6 @@
       "lines": 693,
       "signals": []
     },
-    "plugin.js": {
-      "band": "recorded",
-      "lines": 728,
-      "signals": []
-    },
     "plugins/company-brain.js": {
       "band": "recorded",
       "lines": 678,
@@ -794,7 +789,13 @@
       "lib/pilot/test-database-boundary.js": "Application",
       "lib/pilot/trust-receipt-pilot-archive.js": "Application",
       "lib/pilot/trust-receipt-pilot.js": "Application",
+      "lib/plugin-capability-records.js": "Core",
+      "lib/plugin-manager-events.js": "Core",
+      "lib/plugin-manager-grants.js": "Core",
+      "lib/plugin-manager-provenance.js": "Core",
+      "lib/plugin-manager-register.js": "Core",
       "lib/plugin-provenance-registry.js": "Core",
+      "lib/plugin-verification.js": "Core",
       "lib/post-action-monitor.js": "Core",
       "lib/post-incident-review.js": "Core",
       "lib/pr-guardian/derivation-check.js": "Application",
@@ -3784,6 +3785,25 @@
         "lib/receipt/canonical-receipt.js",
         "lib/tool-call-gate.js"
       ],
+      "lib/plugin-manager-grants.js": [
+        "lib/plugin-capability-records.js",
+        "lib/plugin-provenance-registry.js",
+        "lib/plugin-verification.js"
+      ],
+      "lib/plugin-manager-provenance.js": [
+        "lib/plugin-capability-records.js",
+        "lib/plugin-provenance-registry.js",
+        "lib/plugin-verification.js"
+      ],
+      "lib/plugin-manager-register.js": [
+        "lib/plugin-capability-records.js",
+        "lib/plugin-provenance-registry.js",
+        "lib/plugin-verification.js"
+      ],
+      "lib/plugin-verification.js": [
+        "lib/environment-compat.js",
+        "lib/supply-chain-activation-gate.js"
+      ],
       "lib/post-action-monitor.js": [
         "lib/post-incident-review.js",
         "lib/self-healer/behavioral-containment.js",
@@ -4559,8 +4579,12 @@
       ],
       "plugin.js": [
         "lib/environment-compat.js",
+        "lib/plugin-manager-events.js",
+        "lib/plugin-manager-grants.js",
+        "lib/plugin-manager-provenance.js",
+        "lib/plugin-manager-register.js",
         "lib/plugin-provenance-registry.js",
-        "lib/supply-chain-activation-gate.js"
+        "lib/plugin-verification.js"
       ],
       "plugins/company-brain.js": [
         "evidence-ranker.js",
