@@ -1041,6 +1041,7 @@
     "sandboxRunner.js",
     "scripts/backup.js",
     "scripts/knowledge-graph-demo.js",
+    "scripts/knowledge-graph-demo-corpus.json",
     "scripts/restore.js",
     "scripts/run-trust-receipt-pilot.js",
     "scripts/fitness-dashboard.js",

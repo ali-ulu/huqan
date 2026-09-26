@@ -102,3 +102,21 @@ describe('#363 knowledge-graph demo güvenliği', () => {
     assert.match(pkg.scripts.train, /scripts\/knowledge-graph-demo\.js/);
   });
 });
+
+describe('knowledge-graph demo corpus (#2401)', () => {
+  it('is data: identity facts first, then every group in order', () => {
+    const { buildDemoCorpus } = demoMod;
+    const corpus = require('../scripts/knowledge-graph-demo-corpus.json');
+    const groups = corpus.groups.map((group) => group.group);
+    assert.deepEqual(groups, ['Mantik', 'Felsefe', 'Ogrenme', 'Bilim', 'Matematik', 'Sistem']);
+
+    const { identityFacts, veriler } = buildDemoCorpus({ facts: ['kimlik', ''] });
+    assert.deepEqual(identityFacts, ['kimlik']);
+    assert.equal(veriler.length, 1 + 76);
+    assert.equal(veriler[0], 'kimlik');
+    assert.equal(veriler[1], 'her A Bdir');
+    assert.equal(veriler.at(-1), 'bilinmeyeni kabul etmek öğrenmenin başlangıcıdır');
+    // An injected corpus replaces the file, so the builder stays testable without disk.
+    assert.deepEqual(buildDemoCorpus({ facts: [] }, { groups: [{ group: 'g', facts: ['a'] }] }).veriler, ['a']);
+  });
+});

@@ -28,6 +28,7 @@ const Kernel = require('../kernel');
 const Dream = require('../dream');
 
 const IDENTITY_SEED_PATH = path.join(__dirname, '..', 'docs', 'seed', 'huqan-identity.seed.json');
+const DEMO_CORPUS_PATH = path.join(__dirname, 'knowledge-graph-demo-corpus.json');
 const DEMO_BYPASS_REASON = 'knowledge graph demo seed';
 
 // #363: izole dizin. Production memory'nin bulunduğu yere hiçbir koşulda
@@ -53,101 +54,16 @@ function loadIdentityFacts() {
   return JSON.parse(fs.readFileSync(IDENTITY_SEED_PATH, 'utf8'));
 }
 
-// Kimlik tohumu + statik Türkçe külliyat. Metinler orijinal egitim.js ile
-// birebir aynıdır (UTF-8).
-function buildDemoCorpus(identitySeed) {
+// Kimlik tohumu + statik Türkçe külliyat. Külliyat veri dosyasındadır
+// (knowledge-graph-demo-corpus.json, #2401); metinler orijinal egitim.js ile
+// birebir aynıdır (UTF-8) ve grup sırasıyla öğrenilir.
+function loadDemoCorpus() {
+  return JSON.parse(fs.readFileSync(DEMO_CORPUS_PATH, 'utf8'));
+}
+
+function buildDemoCorpus(identitySeed, corpus = loadDemoCorpus()) {
   const identityFacts = Array.isArray(identitySeed.facts) ? identitySeed.facts.filter(Boolean) : [];
-  const veriler = [
-    ...identityFacts,
-
-    // Mantik
-    'her A Bdir',
-    'bazı A Bdir',
-    'hiçbir A B değildir',
-    'mantık doğru düşünme yöntemidir',
-    'önerme doğru veya yanlış olabilir',
-    'çıkarım önermelerden sonuç bulmaktır',
-    'tümdengelim genelden özele gider',
-    'tümevarım özelden genele gider',
-    'sebep sonuç ilişkisine neden denir',
-    'A ise B ve A doğruysa B doğrudur',
-    'A ise B ve B yanlışsa A yanlıştır',
-    'çelişki aynı anda hem doğru hem yanlış olamaz',
-
-    // Felsefe
-    'felsefe bilgelik sevgisidir',
-    'bilgi güçtür',
-    'merak öğrenmenin temelidir',
-    'şüphe düşüncenin başlangıcıdır',
-    'soru cevaptan değerlidir',
-    'her cevap yeni soru doğurur',
-    'düşünce soyut kavramlar üretir',
-    'kavram düşüncenin yapı taşıdır',
-    'bağlantı kavramlar arası köprüdür',
-    'anlamak bağlantıları görmektir',
-    'gerçek kanıtlanabilir olgudur',
-    'hipotez test edilebilir varsayımdır',
-    'teori kanıtlanmış hipotezler bütünüdür',
-    'paradoks kendisiyle çelişen ifadedir',
-    'bilinmezlik öğrenme fırsatıdır',
-
-    // Ogrenme
-    'öğrenmek yeni bağlantılar kurmaktır',
-    'öğrenme tekrarla güçlenir',
-    'gözlem veri toplamaktır',
-    'veri ham bilgidir',
-    'bilgi işlenmiş veridir',
-    'deneyim öğrenmenin en iyi yoludur',
-    'hata öğrenme fırsatıdır',
-    'benzerlik yeni kavramları anlamayı kolaylaştırır',
-    'farklılık kavramları ayırt etmeyi sağlar',
-    'kategorize etmek bilgiyi düzenlemektir',
-    'karşılaştırma analizin temelidir',
-    'sınıflandırma bilgiyi hiyerarşik düzenler',
-
-    // Bilim
-    'bilim gözlemle başlar',
-    'deney hipotezi test eder',
-    'veri analizi pattern bulur',
-    'pattern düzenli tekrardır',
-    'model gerçeğin basitleştirilmiş halidir',
-    'simülasyon modelin çalıştırılmasıdır',
-    'doğrulama teorinin test edilmesidir',
-    'yanlışlama bilimsel ilerlemenin motorudur',
-    'sebep sonuca neden olur',
-    'sonuç sebebin etkisidir',
-
-    // Matematik
-    'küme nesneler topluluğudur',
-    'Venn şeması kümeleri görselleştirir',
-    'kesişim ortak özellikleri bulur',
-    'birleşim tüm özellikleri toplar',
-    'fonksiyon girdiyi çıktıya dönüştürür',
-    'vektör yön ve büyüklük içerir',
-    'matris sayıların dikdörtgen dizisidir',
-    'dönüşüm bir şeyi başka şeye çevirir',
-    'entropi düzensizlik ölçüsüdür',
-    'olasılık belirsizlik ölçüsüdür',
-    'eğilim olası en kısa yoldur',
-
-    // Sistem
-    'AXIOM bilgi grafiği motorudur',
-    'düğüm kavramı temsil eder',
-    'kenar ilişkiyi temsil eder',
-    'weight ilişkinin gücünü gösterir',
-    'rüya hipotez üretmektir',
-    'doğruluk hipotezi test eder',
-    'amplifikasyon doğru cevabı güçlendirir',
-    'simülasyon hipotezleri karşılaştırır',
-    'gömme vektör kavramı sayılarla temsil eder',
-    'benzerlik vektörler arası açıdır',
-    'unutma eğrisi zamanla zayıflamayı modeller',
-    'budama gereksiz bağlantıları temizler',
-    'plugin sistemi genişletilebilirlik sağlar',
-    'Rust hızlandırıcı büyük grafikler için',
-    'Bilmiyorum bilinmeyeni kabul etmektir',
-    'bilinmeyeni kabul etmek öğrenmenin başlangıcıdır',
-  ];
+  const veriler = [...identityFacts, ...corpus.groups.flatMap((group) => group.facts)];
   return { identityFacts, veriler };
 }
 
