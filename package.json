@@ -32,6 +32,7 @@
     "check:structured-log": "node scripts/check-structured-log-format.js",
     "arch:snapshot": "node scripts/architecture-snapshot.js",
     "check:architecture-trackers": "node scripts/architecture-snapshot.js --check",
+    "review:queue": "node scripts/architecture-review-queue.js",
     "check:cycles": "node scripts/check-import-cycles.js",
     "check:module-boundary": "node scripts/check-module-boundary.js",
     "check:layers": "node scripts/check-layers.js",
