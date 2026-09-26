@@ -42,3 +42,7 @@ huqan-server.pid
 # Stryker mutation-testing scratch and generated reports
 .stryker-tmp/
 reports/mutation/
+
+# Local progress state for scripts/architecture-review-queue.js (#2924) --
+# which queue items a reviewer has already marked done. Not shared state.
+.architecture-review-queue-state.json

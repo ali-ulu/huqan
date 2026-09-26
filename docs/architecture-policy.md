@@ -132,6 +132,7 @@ gate where it had a freeze.
 | Layer graph and drift | yes | `scripts/architecture-snapshot.js --check` against the `dependencyGraph` section of `scripts/architecture-tracker-baseline.json` (#2641): every module in a ring (`UI`, `Application`, `Adapters`, `Core`), directed import edges, outward edges recorded; a module with no ring, a violation that is neither recorded nor under a dated exception, and drift past the recorded threshold (50) fail the gate |
 | Construction instead of injection (DIP) | yes, as a ratchet | `scripts/architecture-snapshot.js --check`: a new DIP signal fails the baseline evolution check; composition roots are exempt by path; a construction that is not a coupling defect is a dated exception in `DIP_ALLOWED` (1, #2268), and an expired or stale entry fails the gate |
 | Module boundary | yes | `scripts/check-module-boundary.js`, ratcheted at 48 calls in 18 files |
+| Deterministic review order | yes, on demand | `scripts/architecture-review-queue.js --check` re-parses the committed tracker artifact and fails if it disagrees with the live snapshot (#2924); not run automatically in CI, and picking order itself is a review aid, not a gate |
 
 No row is marked "not yet" any more. Every rule here is checked by a script or
 by the linter, and every check runs in CI — a rule nothing enforces is asserted
