@@ -95,7 +95,11 @@ const GUARDED_EXECUTOR_CALLS = Object.freeze({
  */
 const ADAPTER_INTERNAL_CALLS = Object.freeze({
   'adapters/github-adapter.js': { fetchRepoFiles: 2 },
-  'adapters/http-adapter.js': { ingestUrls: 2, fetchUrl: 4 },
+  'adapters/http-adapter.js': { ingestUrls: 2, fetchUrl: 1 },
+  // #2401: the transport's redirect loop and the robots.txt fetch moved out of
+  // http-adapter.js; the calls are the same ones, counted where they now live.
+  'adapters/http-adapter-transport.js': { fetchUrl: 2 },
+  'adapters/http-adapter-robots.js': { fetchUrl: 1 },
   'adapters/markdown-adapter.js': { ingestMarkdown: 2 },
   'adapters/json-adapter.js': { ingestJson: 2 },
   'adapters/yaml-adapter.js': { ingestYaml: 2 },
