@@ -28,9 +28,11 @@ function stripTags(html) {
  */
 function parseHtml(html, sourceUrl) {
   const body = String(html || '')
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<!--[\s\S]*?-->/g, ' ');
+    // End tags as browsers close them: `</script >` and `</script foo>` end
+    // the element too, and `--!>` ends a comment (CodeQL bad-HTML-filtering).
+    .replace(/<script\b[\s\S]*?<\/script\b[^>]*>/gi, ' ')
+    .replace(/<style\b[\s\S]*?<\/style\b[^>]*>/gi, ' ')
+    .replace(/<!--[\s\S]*?--!?>/g, ' ');
 
   const headingMatches = [...body.matchAll(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi)];
   if (headingMatches.length === 0) {

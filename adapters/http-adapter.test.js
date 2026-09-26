@@ -446,3 +446,18 @@ test('http-adapter: ingestAndLearn end to end -- a real kernel runs preIngest on
     assert.equal(seen[0], `${baseUrl}/claim#root`);
   });
 });
+
+test('http-adapter: parseHtml drops script/style bodies whatever the end-tag spelling', () => {
+  const html = [
+    '<h1>Title</h1>',
+    '<p>kept</p>',
+    '<script>var a = 1;</script >',
+    '<SCRIPT type="x">var b = 2;</script foo="bar">',
+    '<style>.x{}</style >',
+    '<!-- hidden one -->',
+    '<!-- hidden two --!>',
+    '<p>also kept</p>',
+  ].join('');
+  const [entry] = parseHtml(html, 'https://example.com/doc');
+  assert.equal(entry.content, 'kept also kept');
+});
