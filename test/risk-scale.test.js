@@ -122,7 +122,7 @@ test('riskLevelForScore spells the level in the caller vocabulary and is null wi
 
 test('every gate the MCP adapter and the external action guard name has a declared scale', () => {
   const root = path.join(__dirname, '..');
-  for (const file of ['lib/mcp-gate-adapter.js', 'lib/external-action-guard.js', 'lib/external-action-egress-gates.js']) {
+  for (const file of ['lib/mcp-gate-adapter.js', 'lib/external-action-guard-gate-phase.js', 'lib/external-action-egress-gates.js']) {
     const source = fs.readFileSync(path.join(root, file), 'utf8');
     const named = new Set([
       ...[...source.matchAll(/gate:\s*'(AB\d+)'/g)].map((match) => match[1]),
