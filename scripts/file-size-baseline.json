@@ -17,7 +17,6 @@
     "finalizer.js": 604,
     "kernel.js": 855,
     "lib/atp-conformance.js": 504,
-    "lib/automation-safety-gate/automation-operation-classifier.js": 545,
     "lib/conflict-detector.js": 616,
     "lib/dream-experiment-loop.js": 533,
     "lib/external-action-receipt.js": 589,
@@ -63,10 +62,6 @@
       "review_by": "2026-12-31"
     },
     "lib/atp-conformance.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
-    "lib/automation-safety-gate/automation-operation-classifier.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },
