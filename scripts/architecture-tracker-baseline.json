@@ -83,7 +83,7 @@
     },
     "lib/memory-store.js": {
       "band": "recorded",
-      "lines": 594,
+      "lines": 578,
       "signals": [
         "FANOUT:20"
       ]
@@ -747,6 +747,7 @@
       "lib/memory-schema.js": "Adapters",
       "lib/memory-store-json-persistence.js": "Adapters",
       "lib/memory-store-persistence-report.js": "Adapters",
+      "lib/memory-store-port.js": "Adapters",
       "lib/memory-store-reopen.js": "Adapters",
       "lib/memory-store-rollback.js": "Adapters",
       "lib/memory-store-sqlite-warmup.js": "Adapters",
@@ -3688,8 +3689,12 @@
         "lib/memory-store-persistence-report.js",
         "lib/memory-store-utils.js"
       ],
-      "lib/memory-store-reopen.js": [
+      "lib/memory-store-port.js": [
         "lib/memory-store-json-persistence.js",
+        "lib/memory-store-persistence-report.js",
+        "lib/memory-store-sqlite-writer.js"
+      ],
+      "lib/memory-store-reopen.js": [
         "lib/sqlite-availability.js",
         "lib/sqlite-durability.js"
       ],
@@ -3698,7 +3703,6 @@
       ],
       "lib/memory-store-sqlite-writer.js": [
         "lib/memory-schema.js",
-        "lib/memory-store-json-persistence.js",
         "lib/memory-store-utils.js",
         "lib/sqlite-availability.js",
         "lib/sqlite-durability.js"
@@ -3724,8 +3728,8 @@
         "lib/memory-patch-metadata.js",
         "lib/memory-query-engine.js",
         "lib/memory-record-read.js",
-        "lib/memory-store-json-persistence.js",
         "lib/memory-store-persistence-report.js",
+        "lib/memory-store-port.js",
         "lib/memory-store-reopen.js",
         "lib/memory-store-rollback.js",
         "lib/memory-store-sqlite-warmup.js",
