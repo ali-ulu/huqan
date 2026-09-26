@@ -127,6 +127,9 @@
       "adapters/github-adapter-utils.js": "Adapters",
       "adapters/github-adapter.js": "Adapters",
       "adapters/github-tree.js": "Adapters",
+      "adapters/http-adapter-html.js": "Adapters",
+      "adapters/http-adapter-robots.js": "Adapters",
+      "adapters/http-adapter-transport.js": "Adapters",
       "adapters/http-adapter.js": "Adapters",
       "adapters/json-adapter.js": "Adapters",
       "adapters/markdown-adapter.js": "Adapters",
@@ -868,6 +871,7 @@
       "lib/runtime-watchdog-audit.js": "Core",
       "lib/runtime-watchdog.js": "Core",
       "lib/rust-graph-fallback-factory.js": "Core",
+      "lib/rust-graph-store-port.js": "Core",
       "lib/safe-file-walk.js": "Core",
       "lib/sandbox-escape-ledger.js": "Core",
       "lib/sandbox-escape-producer.js": "Core",
@@ -1223,10 +1227,17 @@
       "adapters/github-tree.js": [
         "adapters/github-adapter-utils.js"
       ],
-      "adapters/http-adapter.js": [
-        "adapters/utils/learn-entries.js",
-        "lib/content-hash.js",
+      "adapters/http-adapter-robots.js": [
+        "adapters/http-adapter-transport.js"
+      ],
+      "adapters/http-adapter-transport.js": [
         "lib/ssrf-guard.js"
+      ],
+      "adapters/http-adapter.js": [
+        "adapters/http-adapter-html.js",
+        "adapters/http-adapter-robots.js",
+        "adapters/http-adapter-transport.js",
+        "adapters/utils/learn-entries.js"
       ],
       "adapters/json-adapter.js": [
         "adapters/utils/learn-entries.js",
@@ -4756,7 +4767,8 @@
       ],
       "rustGraph.js": [
         "lib/environment-compat.js",
-        "lib/rust-graph-fallback-factory.js"
+        "lib/rust-graph-fallback-factory.js",
+        "lib/rust-graph-store-port.js"
       ],
       "sandboxRunner.js": [
         "lib/sandbox-isolation.js"
