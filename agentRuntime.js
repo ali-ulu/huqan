@@ -3,6 +3,7 @@ const AgentV3 = require('./agent.v3');
 const HuqanStorage = require('./storage');
 const { createWorkflowRuntime } = require('./workflow-runtime');
 const { createExperienceJournal } = require('./lib/experience/journal');
+const { openJournalConnection } = require('./lib/experience/journal-connection');
 const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
 
 /**
@@ -93,6 +94,19 @@ function resolveExperienceJournal(opts = {}, storage) {
   return journal;
 }
 
+/**
+ * The journal's own EVIDENCE connection (#2915), if the factory opened one.
+ * Attached to the kernel next to the journal so the restore path can close it
+ * before replacing the file: it points at the same `memory.db` the graph and
+ * storage hold, and Windows refuses to rename over any open handle (#1848).
+ */
+function attachJournalConnection(kernel, connection) {
+  if (kernel && connection && !kernel.experienceJournalConnection) {
+    kernel.experienceJournalConnection = connection;
+  }
+  return connection;
+}
+
 function experienceDisabled(opts) {
   if (Object.prototype.hasOwnProperty.call(opts, 'experienceJournal')) return opts.experienceJournal === null;
   return String(readCompatibleEnvironmentVariable('EXPERIENCE_ENABLED') ?? '').toLowerCase() === 'false';
@@ -101,7 +115,16 @@ function experienceDisabled(opts) {
 function resolveExperienceJournalOption(opts, storage) {
   if (experienceDisabled(opts)) return null;
   if (opts.experienceJournal) return opts.experienceJournal;
-  return storage && storage.db ? createExperienceJournal({ store: storage }) : null;
+  if (!storage || !storage.db) return null;
+  // #2915: the journal gets its own connection at EVIDENCE, because the class
+  // is per-handle and `storage.db` is RESUMABLE by choice. Falls back to the
+  // storage connection when no shared path is available (an in-memory store, or
+  // better-sqlite3 missing) rather than dropping the journal entirely.
+  const own = openJournalConnection({ dbPath: storage.dbPath });
+  if (own) attachJournalConnection(opts.kernel, own);
+  return own
+    ? createExperienceJournal({ store: own })
+    : createExperienceJournal({ store: storage });
 }
 
 function createAgent(opts = {}) {

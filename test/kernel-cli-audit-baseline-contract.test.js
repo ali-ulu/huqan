@@ -654,4 +654,41 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
       managed.close();
     }
   });
+
+  it('restore closes and reopens the journal EVIDENCE handle too (#2915)', () => {
+    // The journal's own connection points at the same memory.db, so leaving it
+    // open reintroduces the Windows EPERM that #1848 fixed -- and a journal left
+    // on a closed handle would fail every append after the restore.
+    const managed = createIsolatedCli({ useSQLite: true });
+    const conn = managed.cli.kernel.experienceJournalConnection;
+    assert.ok(conn, 'the CLI must attach the journal connection to the kernel');
+    const journal = managed.cli.kernel.experienceJournal;
+    assert.ok(journal, 'the CLI must build the production journal');
+    const closeCalls = [];
+    const reopenCalls = [];
+    const originalConnClose = conn.close;
+    const originalConnReopen = conn.reopen;
+    conn.close = () => { closeCalls.push('close'); return originalConnClose.call(conn); };
+    conn.reopen = () => { reopenCalls.push('reopen'); return originalConnReopen.call(conn); };
+    try {
+      managed.cli.agent.storage.close();
+      managed.cli.kernel.persist();
+      assert.match(managed.cli.execute('backup', ''), /^Backup complete:/);
+      assert.match(managed.cli.execute('restore', ''), /^Restore tamamlandi:/);
+
+      assert.deepStrictEqual(closeCalls, ['close']);
+      assert.deepStrictEqual(reopenCalls, ['reopen']);
+      // Reopened for real, and the journal still writes through it afterwards.
+      assert.ok(conn.db, 'the journal handle must be open after restore');
+      assert.equal(conn.db.pragma('synchronous')[0].synchronous, 2,
+        'the reopened handle must still be EVIDENCE');
+      const appended = journal.append({ runId: 'post-restore', workspaceId: 'ws', eventId: 'e1', type: 'run_started' });
+      assert.equal(appended.ok, true);
+      assert.equal(conn.db.prepare('SELECT count(*) AS n FROM experience_journal').get().n, 1);
+    } finally {
+      conn.close = originalConnClose;
+      conn.reopen = originalConnReopen;
+      managed.close();
+    }
+  });
 });
