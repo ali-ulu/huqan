@@ -1,0 +1,7547 @@
+{
+  "verifiedHigh/none/plain/none": {
+    "status": "verified",
+    "classification": "verified",
+    "supportScore": 0.9,
+    "contradictionScore": 0,
+    "riskScore": 0,
+    "matchType": "unknown",
+    "warnings": [],
+    "risk": {
+      "score": 0,
+      "flags": [],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": false
+    },
+    "signals": [],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedHigh/partial/plain/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.49,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "partial_match",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "WEAK_PARTIAL_MATCH"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "partial_match",
+            "text": "kahve ~ uyarıcı"
+          }
+        ],
+        "meta": {
+          "confidence": 0.49
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "partial_match"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedHigh/path/plain/none": {
+    "status": "verified",
+    "classification": "verified",
+    "supportScore": 0.9,
+    "contradictionScore": 0,
+    "riskScore": 0,
+    "matchType": "path",
+    "warnings": [],
+    "risk": {
+      "score": 0,
+      "flags": [],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": false
+    },
+    "signals": [],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "path"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedHigh/direct/plain/none": {
+    "status": "verified",
+    "classification": "verified",
+    "supportScore": 0.9,
+    "contradictionScore": 0,
+    "riskScore": 0,
+    "matchType": "direct_edge",
+    "warnings": [],
+    "risk": {
+      "score": 0,
+      "flags": [],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": false
+    },
+    "signals": [],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedHigh/direct/highRisk/none": {
+    "status": "verified",
+    "classification": "verified",
+    "supportScore": 0.9,
+    "contradictionScore": 0,
+    "riskScore": 0.9,
+    "matchType": "direct_edge",
+    "warnings": [
+      "HIGH_RISK_DOMAIN"
+    ],
+    "risk": {
+      "score": 0.9,
+      "flags": [
+        "HIGH_RISK_DOMAIN"
+      ],
+      "domain": "medical",
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "HIGH_RISK_DOMAIN",
+        "kind": "risk",
+        "severity": 0.8,
+        "confidence": 0.9,
+        "flags": [
+          "HIGH_RISK_DOMAIN"
+        ],
+        "detail": "High-risk domain detected: medical.",
+        "evidence": [
+          {
+            "text": "aspirin kanser tedavi eder",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "domain": "medical"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "aspirin kanser tedavi eder",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedHigh/direct/absolute/none": {
+    "status": "verified",
+    "classification": "verified",
+    "supportScore": 0.9,
+    "contradictionScore": 0,
+    "riskScore": 0.85,
+    "matchType": "direct_edge",
+    "warnings": [
+      "ABSOLUTE_CLAIM",
+      "DOUBLE_NEGATION"
+    ],
+    "risk": {
+      "score": 0.85,
+      "flags": [
+        "ABSOLUTE_CLAIM",
+        "DOUBLE_NEGATION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": true,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "ABSOLUTE_CLAIM",
+        "kind": "risk",
+        "severity": 0.7,
+        "confidence": 0.85,
+        "flags": [
+          "ABSOLUTE_CLAIM"
+        ],
+        "detail": "Absolute or sweeping claim detected.",
+        "evidence": [
+          {
+            "text": "kahve asla zararlı olmaz",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "term": "asla"
+        }
+      },
+      {
+        "rule": "DOUBLE_NEGATION",
+        "kind": "risk",
+        "severity": 0.55,
+        "confidence": 0.8,
+        "flags": [
+          "DOUBLE_NEGATION"
+        ],
+        "detail": "Double negation or repeated negation detected.",
+        "evidence": [
+          {
+            "text": "kahve asla zararlı olmaz",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "negCount": 2
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve asla zararlı olmaz",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedHigh/direct/doubleNegation/none": {
+    "status": "verified",
+    "classification": "verified",
+    "supportScore": 0.9,
+    "contradictionScore": 0,
+    "riskScore": 0.8,
+    "matchType": "direct_edge",
+    "warnings": [
+      "DOUBLE_NEGATION"
+    ],
+    "risk": {
+      "score": 0.8,
+      "flags": [
+        "DOUBLE_NEGATION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "DOUBLE_NEGATION",
+        "kind": "risk",
+        "severity": 0.55,
+        "confidence": 0.8,
+        "flags": [
+          "DOUBLE_NEGATION"
+        ],
+        "detail": "Double negation or repeated negation detected.",
+        "evidence": [
+          {
+            "text": "it is not not true",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "negCount": 2
+        }
+      }
+    ],
+    "meta": {
+      "statement": "it is not not true",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedHigh/direct/weasel/none": {
+    "status": "verified",
+    "classification": "verified",
+    "supportScore": 0.9,
+    "contradictionScore": 0,
+    "riskScore": 0.75,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEASEL_WORDS"
+    ],
+    "risk": {
+      "score": 0.75,
+      "flags": [
+        "WEASEL_WORDS"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEASEL_WORDS",
+        "kind": "risk",
+        "severity": 0.35,
+        "confidence": 0.75,
+        "flags": [
+          "WEASEL_WORDS"
+        ],
+        "detail": "Weasel language detected; claim should not be treated as strong evidence.",
+        "evidence": [
+          {
+            "text": "coffee might probably be healthy",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "term": "probably"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "coffee might probably be healthy",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedHigh/direct/strawman/none": {
+    "status": "verified",
+    "classification": "verified",
+    "supportScore": 0.9,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "direct_edge",
+    "warnings": [
+      "STRAWMAN_ATTRIBUTION"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "STRAWMAN_ATTRIBUTION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "STRAWMAN_ATTRIBUTION",
+        "kind": "risk",
+        "severity": 0.5,
+        "confidence": 0.7,
+        "flags": [
+          "STRAWMAN_ATTRIBUTION"
+        ],
+        "detail": "Attribution framing detected; quoted claims should not be treated as ground truth.",
+        "evidence": [
+          {
+            "text": "he said that coffee is poison",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "attribution": true
+        }
+      }
+    ],
+    "meta": {
+      "statement": "he said that coffee is poison",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedHigh/direct/alias/none": {
+    "status": "verified",
+    "classification": "verified",
+    "supportScore": 0.9,
+    "contradictionScore": 0,
+    "riskScore": 0.85,
+    "matchType": "direct_edge",
+    "warnings": [
+      "ALIAS_NORMALIZATION"
+    ],
+    "risk": {
+      "score": 0.85,
+      "flags": [
+        "ALIAS_NORMALIZATION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "ALIAS_NORMALIZATION",
+        "kind": "risk",
+        "severity": 0.2,
+        "confidence": 0.85,
+        "flags": [
+          "ALIAS_NORMALIZATION"
+        ],
+        "detail": "Alias normalization applied to preserve semantic equivalence.",
+        "evidence": [
+          {
+            "text": "react-native is node.js",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "canonicalText": "react native is node js"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "react-native is node.js",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedHigh/direct/multilingual/none": {
+    "status": "verified",
+    "classification": "verified",
+    "supportScore": 0.9,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "direct_edge",
+    "warnings": [
+      "MULTILINGUAL_AMBIGUITY"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "MULTILINGUAL_AMBIGUITY"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "MULTILINGUAL_AMBIGUITY",
+        "kind": "risk",
+        "severity": 0.45,
+        "confidence": 0.7,
+        "flags": [
+          "MULTILINGUAL_AMBIGUITY"
+        ],
+        "detail": "Mixed-language or ambiguous query detected.",
+        "evidence": [
+          {
+            "text": "kahve nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "scripts": [
+            "latin"
+          ]
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve nedir",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedHigh/direct/all/none": {
+    "status": "verified",
+    "classification": "verified",
+    "supportScore": 0.9,
+    "contradictionScore": 0,
+    "riskScore": 0.9,
+    "matchType": "direct_edge",
+    "warnings": [
+      "HIGH_RISK_DOMAIN",
+      "ABSOLUTE_CLAIM",
+      "DOUBLE_NEGATION",
+      "WEASEL_WORDS",
+      "STRAWMAN_ATTRIBUTION",
+      "ALIAS_NORMALIZATION",
+      "MULTILINGUAL_AMBIGUITY"
+    ],
+    "risk": {
+      "score": 0.9,
+      "flags": [
+        "HIGH_RISK_DOMAIN",
+        "ABSOLUTE_CLAIM",
+        "DOUBLE_NEGATION",
+        "WEASEL_WORDS",
+        "STRAWMAN_ATTRIBUTION",
+        "ALIAS_NORMALIZATION",
+        "MULTILINGUAL_AMBIGUITY"
+      ],
+      "domain": "medical",
+      "manipulation": false,
+      "absoluteClaim": true,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "HIGH_RISK_DOMAIN",
+        "kind": "risk",
+        "severity": 0.8,
+        "confidence": 0.9,
+        "flags": [
+          "HIGH_RISK_DOMAIN"
+        ],
+        "detail": "High-risk domain detected: medical.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "domain": "medical"
+        }
+      },
+      {
+        "rule": "ABSOLUTE_CLAIM",
+        "kind": "risk",
+        "severity": 0.7,
+        "confidence": 0.85,
+        "flags": [
+          "ABSOLUTE_CLAIM"
+        ],
+        "detail": "Absolute or sweeping claim detected.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "term": "never"
+        }
+      },
+      {
+        "rule": "DOUBLE_NEGATION",
+        "kind": "risk",
+        "severity": 0.55,
+        "confidence": 0.8,
+        "flags": [
+          "DOUBLE_NEGATION"
+        ],
+        "detail": "Double negation or repeated negation detected.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "negCount": 3
+        }
+      },
+      {
+        "rule": "WEASEL_WORDS",
+        "kind": "risk",
+        "severity": 0.35,
+        "confidence": 0.75,
+        "flags": [
+          "WEASEL_WORDS"
+        ],
+        "detail": "Weasel language detected; claim should not be treated as strong evidence.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "term": "probably"
+        }
+      },
+      {
+        "rule": "STRAWMAN_ATTRIBUTION",
+        "kind": "risk",
+        "severity": 0.5,
+        "confidence": 0.7,
+        "flags": [
+          "STRAWMAN_ATTRIBUTION"
+        ],
+        "detail": "Attribution framing detected; quoted claims should not be treated as ground truth.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "attribution": true
+        }
+      },
+      {
+        "rule": "ALIAS_NORMALIZATION",
+        "kind": "risk",
+        "severity": 0.2,
+        "confidence": 0.85,
+        "flags": [
+          "ALIAS_NORMALIZATION"
+        ],
+        "detail": "Alias normalization applied to preserve semantic equivalence.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "canonicalText": "he said that aspirin never cures kanser, it is not not true, probably, react native nedir"
+        }
+      },
+      {
+        "rule": "MULTILINGUAL_AMBIGUITY",
+        "kind": "risk",
+        "severity": 0.45,
+        "confidence": 0.7,
+        "flags": [
+          "MULTILINGUAL_AMBIGUITY"
+        ],
+        "detail": "Mixed-language or ambiguous query detected.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "scripts": [
+            "latin"
+          ]
+        }
+      }
+    ],
+    "meta": {
+      "statement": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedHigh/none/plain/conflicting": {
+    "status": "verified",
+    "classification": "verified",
+    "supportScore": 0.9,
+    "contradictionScore": 0,
+    "riskScore": 0,
+    "matchType": "unknown",
+    "warnings": [],
+    "risk": {
+      "score": 0,
+      "flags": [],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": false
+    },
+    "signals": [],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedHigh/none/plain/opposite": {
+    "status": "verified",
+    "classification": "verified",
+    "supportScore": 0.9,
+    "contradictionScore": 0,
+    "riskScore": 0,
+    "matchType": "unknown",
+    "warnings": [],
+    "risk": {
+      "score": 0,
+      "flags": [],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": false
+    },
+    "signals": [],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedLow/none/plain/none": {
+    "status": "verified",
+    "classification": "verified",
+    "supportScore": 0.3,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "unknown",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "WEAK_PARTIAL_MATCH"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [],
+        "meta": {
+          "confidence": 0.3
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.3,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedLow/partial/plain/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.3,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "partial_match",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "WEAK_PARTIAL_MATCH"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "partial_match",
+            "text": "kahve ~ uyarıcı"
+          }
+        ],
+        "meta": {
+          "confidence": 0.3
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "partial_match"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.3,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedLow/path/plain/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.3,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "path",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "WEAK_PARTIAL_MATCH"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "path",
+            "text": "kahve -> kafein -> uyarıcı"
+          }
+        ],
+        "meta": {
+          "confidence": 0.3
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "path"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.3,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedLow/direct/plain/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.3,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "WEAK_PARTIAL_MATCH"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0.3
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.3,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedLow/direct/highRisk/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.3,
+    "contradictionScore": 0,
+    "riskScore": 0.9,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH",
+      "HIGH_RISK_DOMAIN"
+    ],
+    "risk": {
+      "score": 0.9,
+      "flags": [
+        "WEAK_PARTIAL_MATCH",
+        "HIGH_RISK_DOMAIN"
+      ],
+      "domain": "medical",
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0.3
+        }
+      },
+      {
+        "rule": "HIGH_RISK_DOMAIN",
+        "kind": "risk",
+        "severity": 0.8,
+        "confidence": 0.9,
+        "flags": [
+          "HIGH_RISK_DOMAIN"
+        ],
+        "detail": "High-risk domain detected: medical.",
+        "evidence": [
+          {
+            "text": "aspirin kanser tedavi eder",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "domain": "medical"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "aspirin kanser tedavi eder",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.3,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedLow/direct/absolute/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.3,
+    "contradictionScore": 0,
+    "riskScore": 0.85,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH",
+      "ABSOLUTE_CLAIM",
+      "DOUBLE_NEGATION"
+    ],
+    "risk": {
+      "score": 0.85,
+      "flags": [
+        "WEAK_PARTIAL_MATCH",
+        "ABSOLUTE_CLAIM",
+        "DOUBLE_NEGATION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": true,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0.3
+        }
+      },
+      {
+        "rule": "ABSOLUTE_CLAIM",
+        "kind": "risk",
+        "severity": 0.7,
+        "confidence": 0.85,
+        "flags": [
+          "ABSOLUTE_CLAIM"
+        ],
+        "detail": "Absolute or sweeping claim detected.",
+        "evidence": [
+          {
+            "text": "kahve asla zararlı olmaz",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "term": "asla"
+        }
+      },
+      {
+        "rule": "DOUBLE_NEGATION",
+        "kind": "risk",
+        "severity": 0.55,
+        "confidence": 0.8,
+        "flags": [
+          "DOUBLE_NEGATION"
+        ],
+        "detail": "Double negation or repeated negation detected.",
+        "evidence": [
+          {
+            "text": "kahve asla zararlı olmaz",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "negCount": 2
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve asla zararlı olmaz",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.3,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedLow/direct/doubleNegation/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.3,
+    "contradictionScore": 0,
+    "riskScore": 0.8,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH",
+      "DOUBLE_NEGATION"
+    ],
+    "risk": {
+      "score": 0.8,
+      "flags": [
+        "WEAK_PARTIAL_MATCH",
+        "DOUBLE_NEGATION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0.3
+        }
+      },
+      {
+        "rule": "DOUBLE_NEGATION",
+        "kind": "risk",
+        "severity": 0.55,
+        "confidence": 0.8,
+        "flags": [
+          "DOUBLE_NEGATION"
+        ],
+        "detail": "Double negation or repeated negation detected.",
+        "evidence": [
+          {
+            "text": "it is not not true",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "negCount": 2
+        }
+      }
+    ],
+    "meta": {
+      "statement": "it is not not true",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.3,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedLow/direct/weasel/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.3,
+    "contradictionScore": 0,
+    "riskScore": 0.75,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH",
+      "WEASEL_WORDS"
+    ],
+    "risk": {
+      "score": 0.75,
+      "flags": [
+        "WEAK_PARTIAL_MATCH",
+        "WEASEL_WORDS"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0.3
+        }
+      },
+      {
+        "rule": "WEASEL_WORDS",
+        "kind": "risk",
+        "severity": 0.35,
+        "confidence": 0.75,
+        "flags": [
+          "WEASEL_WORDS"
+        ],
+        "detail": "Weasel language detected; claim should not be treated as strong evidence.",
+        "evidence": [
+          {
+            "text": "coffee might probably be healthy",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "term": "probably"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "coffee might probably be healthy",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.3,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedLow/direct/strawman/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.3,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH",
+      "STRAWMAN_ATTRIBUTION"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "WEAK_PARTIAL_MATCH",
+        "STRAWMAN_ATTRIBUTION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0.3
+        }
+      },
+      {
+        "rule": "STRAWMAN_ATTRIBUTION",
+        "kind": "risk",
+        "severity": 0.5,
+        "confidence": 0.7,
+        "flags": [
+          "STRAWMAN_ATTRIBUTION"
+        ],
+        "detail": "Attribution framing detected; quoted claims should not be treated as ground truth.",
+        "evidence": [
+          {
+            "text": "he said that coffee is poison",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "attribution": true
+        }
+      }
+    ],
+    "meta": {
+      "statement": "he said that coffee is poison",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.3,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedLow/direct/alias/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.3,
+    "contradictionScore": 0,
+    "riskScore": 0.85,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH",
+      "ALIAS_NORMALIZATION"
+    ],
+    "risk": {
+      "score": 0.85,
+      "flags": [
+        "WEAK_PARTIAL_MATCH",
+        "ALIAS_NORMALIZATION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0.3
+        }
+      },
+      {
+        "rule": "ALIAS_NORMALIZATION",
+        "kind": "risk",
+        "severity": 0.2,
+        "confidence": 0.85,
+        "flags": [
+          "ALIAS_NORMALIZATION"
+        ],
+        "detail": "Alias normalization applied to preserve semantic equivalence.",
+        "evidence": [
+          {
+            "text": "react-native is node.js",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "canonicalText": "react native is node js"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "react-native is node.js",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.3,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedLow/direct/multilingual/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.3,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH",
+      "MULTILINGUAL_AMBIGUITY"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "WEAK_PARTIAL_MATCH",
+        "MULTILINGUAL_AMBIGUITY"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0.3
+        }
+      },
+      {
+        "rule": "MULTILINGUAL_AMBIGUITY",
+        "kind": "risk",
+        "severity": 0.45,
+        "confidence": 0.7,
+        "flags": [
+          "MULTILINGUAL_AMBIGUITY"
+        ],
+        "detail": "Mixed-language or ambiguous query detected.",
+        "evidence": [
+          {
+            "text": "kahve nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "scripts": [
+            "latin"
+          ]
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve nedir",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.3,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedLow/direct/all/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.3,
+    "contradictionScore": 0,
+    "riskScore": 0.9,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH",
+      "HIGH_RISK_DOMAIN",
+      "ABSOLUTE_CLAIM",
+      "DOUBLE_NEGATION",
+      "WEASEL_WORDS",
+      "STRAWMAN_ATTRIBUTION",
+      "ALIAS_NORMALIZATION",
+      "MULTILINGUAL_AMBIGUITY"
+    ],
+    "risk": {
+      "score": 0.9,
+      "flags": [
+        "WEAK_PARTIAL_MATCH",
+        "HIGH_RISK_DOMAIN",
+        "ABSOLUTE_CLAIM",
+        "DOUBLE_NEGATION",
+        "WEASEL_WORDS",
+        "STRAWMAN_ATTRIBUTION",
+        "ALIAS_NORMALIZATION",
+        "MULTILINGUAL_AMBIGUITY"
+      ],
+      "domain": "medical",
+      "manipulation": false,
+      "absoluteClaim": true,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0.3
+        }
+      },
+      {
+        "rule": "HIGH_RISK_DOMAIN",
+        "kind": "risk",
+        "severity": 0.8,
+        "confidence": 0.9,
+        "flags": [
+          "HIGH_RISK_DOMAIN"
+        ],
+        "detail": "High-risk domain detected: medical.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "domain": "medical"
+        }
+      },
+      {
+        "rule": "ABSOLUTE_CLAIM",
+        "kind": "risk",
+        "severity": 0.7,
+        "confidence": 0.85,
+        "flags": [
+          "ABSOLUTE_CLAIM"
+        ],
+        "detail": "Absolute or sweeping claim detected.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "term": "never"
+        }
+      },
+      {
+        "rule": "DOUBLE_NEGATION",
+        "kind": "risk",
+        "severity": 0.55,
+        "confidence": 0.8,
+        "flags": [
+          "DOUBLE_NEGATION"
+        ],
+        "detail": "Double negation or repeated negation detected.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "negCount": 3
+        }
+      },
+      {
+        "rule": "WEASEL_WORDS",
+        "kind": "risk",
+        "severity": 0.35,
+        "confidence": 0.75,
+        "flags": [
+          "WEASEL_WORDS"
+        ],
+        "detail": "Weasel language detected; claim should not be treated as strong evidence.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "term": "probably"
+        }
+      },
+      {
+        "rule": "STRAWMAN_ATTRIBUTION",
+        "kind": "risk",
+        "severity": 0.5,
+        "confidence": 0.7,
+        "flags": [
+          "STRAWMAN_ATTRIBUTION"
+        ],
+        "detail": "Attribution framing detected; quoted claims should not be treated as ground truth.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "attribution": true
+        }
+      },
+      {
+        "rule": "ALIAS_NORMALIZATION",
+        "kind": "risk",
+        "severity": 0.2,
+        "confidence": 0.85,
+        "flags": [
+          "ALIAS_NORMALIZATION"
+        ],
+        "detail": "Alias normalization applied to preserve semantic equivalence.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "canonicalText": "he said that aspirin never cures kanser, it is not not true, probably, react native nedir"
+        }
+      },
+      {
+        "rule": "MULTILINGUAL_AMBIGUITY",
+        "kind": "risk",
+        "severity": 0.45,
+        "confidence": 0.7,
+        "flags": [
+          "MULTILINGUAL_AMBIGUITY"
+        ],
+        "detail": "Mixed-language or ambiguous query detected.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "scripts": [
+            "latin"
+          ]
+        }
+      }
+    ],
+    "meta": {
+      "statement": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.3,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedLow/none/plain/conflicting": {
+    "status": "verified",
+    "classification": "verified",
+    "supportScore": 0.3,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "unknown",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "WEAK_PARTIAL_MATCH"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [],
+        "meta": {
+          "confidence": 0.3
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.3,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedLow/none/plain/opposite": {
+    "status": "verified",
+    "classification": "verified",
+    "supportScore": 0.3,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "unknown",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "WEAK_PARTIAL_MATCH"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [],
+        "meta": {
+          "confidence": 0.3
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.3,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedNoConfidence/none/plain/none": {
+    "status": "verified",
+    "classification": "verified",
+    "supportScore": 0,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "unknown",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "WEAK_PARTIAL_MATCH"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [],
+        "meta": {
+          "confidence": 0
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedNoConfidence/partial/plain/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.35,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "partial_match",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "WEAK_PARTIAL_MATCH"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "partial_match",
+            "text": "kahve ~ uyarıcı"
+          }
+        ],
+        "meta": {
+          "confidence": 0.35
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "partial_match"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.35,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedNoConfidence/path/plain/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "path",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "WEAK_PARTIAL_MATCH"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "path",
+            "text": "kahve -> kafein -> uyarıcı"
+          }
+        ],
+        "meta": {
+          "confidence": 0
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "path"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedNoConfidence/direct/plain/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "WEAK_PARTIAL_MATCH"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedNoConfidence/direct/highRisk/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0,
+    "contradictionScore": 0,
+    "riskScore": 0.9,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH",
+      "HIGH_RISK_DOMAIN"
+    ],
+    "risk": {
+      "score": 0.9,
+      "flags": [
+        "WEAK_PARTIAL_MATCH",
+        "HIGH_RISK_DOMAIN"
+      ],
+      "domain": "medical",
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0
+        }
+      },
+      {
+        "rule": "HIGH_RISK_DOMAIN",
+        "kind": "risk",
+        "severity": 0.8,
+        "confidence": 0.9,
+        "flags": [
+          "HIGH_RISK_DOMAIN"
+        ],
+        "detail": "High-risk domain detected: medical.",
+        "evidence": [
+          {
+            "text": "aspirin kanser tedavi eder",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "domain": "medical"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "aspirin kanser tedavi eder",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedNoConfidence/direct/absolute/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0,
+    "contradictionScore": 0,
+    "riskScore": 0.85,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH",
+      "ABSOLUTE_CLAIM",
+      "DOUBLE_NEGATION"
+    ],
+    "risk": {
+      "score": 0.85,
+      "flags": [
+        "WEAK_PARTIAL_MATCH",
+        "ABSOLUTE_CLAIM",
+        "DOUBLE_NEGATION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": true,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0
+        }
+      },
+      {
+        "rule": "ABSOLUTE_CLAIM",
+        "kind": "risk",
+        "severity": 0.7,
+        "confidence": 0.85,
+        "flags": [
+          "ABSOLUTE_CLAIM"
+        ],
+        "detail": "Absolute or sweeping claim detected.",
+        "evidence": [
+          {
+            "text": "kahve asla zararlı olmaz",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "term": "asla"
+        }
+      },
+      {
+        "rule": "DOUBLE_NEGATION",
+        "kind": "risk",
+        "severity": 0.55,
+        "confidence": 0.8,
+        "flags": [
+          "DOUBLE_NEGATION"
+        ],
+        "detail": "Double negation or repeated negation detected.",
+        "evidence": [
+          {
+            "text": "kahve asla zararlı olmaz",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "negCount": 2
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve asla zararlı olmaz",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedNoConfidence/direct/doubleNegation/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0,
+    "contradictionScore": 0,
+    "riskScore": 0.8,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH",
+      "DOUBLE_NEGATION"
+    ],
+    "risk": {
+      "score": 0.8,
+      "flags": [
+        "WEAK_PARTIAL_MATCH",
+        "DOUBLE_NEGATION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0
+        }
+      },
+      {
+        "rule": "DOUBLE_NEGATION",
+        "kind": "risk",
+        "severity": 0.55,
+        "confidence": 0.8,
+        "flags": [
+          "DOUBLE_NEGATION"
+        ],
+        "detail": "Double negation or repeated negation detected.",
+        "evidence": [
+          {
+            "text": "it is not not true",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "negCount": 2
+        }
+      }
+    ],
+    "meta": {
+      "statement": "it is not not true",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedNoConfidence/direct/weasel/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0,
+    "contradictionScore": 0,
+    "riskScore": 0.75,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH",
+      "WEASEL_WORDS"
+    ],
+    "risk": {
+      "score": 0.75,
+      "flags": [
+        "WEAK_PARTIAL_MATCH",
+        "WEASEL_WORDS"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0
+        }
+      },
+      {
+        "rule": "WEASEL_WORDS",
+        "kind": "risk",
+        "severity": 0.35,
+        "confidence": 0.75,
+        "flags": [
+          "WEASEL_WORDS"
+        ],
+        "detail": "Weasel language detected; claim should not be treated as strong evidence.",
+        "evidence": [
+          {
+            "text": "coffee might probably be healthy",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "term": "probably"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "coffee might probably be healthy",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedNoConfidence/direct/strawman/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH",
+      "STRAWMAN_ATTRIBUTION"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "WEAK_PARTIAL_MATCH",
+        "STRAWMAN_ATTRIBUTION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0
+        }
+      },
+      {
+        "rule": "STRAWMAN_ATTRIBUTION",
+        "kind": "risk",
+        "severity": 0.5,
+        "confidence": 0.7,
+        "flags": [
+          "STRAWMAN_ATTRIBUTION"
+        ],
+        "detail": "Attribution framing detected; quoted claims should not be treated as ground truth.",
+        "evidence": [
+          {
+            "text": "he said that coffee is poison",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "attribution": true
+        }
+      }
+    ],
+    "meta": {
+      "statement": "he said that coffee is poison",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedNoConfidence/direct/alias/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0,
+    "contradictionScore": 0,
+    "riskScore": 0.85,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH",
+      "ALIAS_NORMALIZATION"
+    ],
+    "risk": {
+      "score": 0.85,
+      "flags": [
+        "WEAK_PARTIAL_MATCH",
+        "ALIAS_NORMALIZATION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0
+        }
+      },
+      {
+        "rule": "ALIAS_NORMALIZATION",
+        "kind": "risk",
+        "severity": 0.2,
+        "confidence": 0.85,
+        "flags": [
+          "ALIAS_NORMALIZATION"
+        ],
+        "detail": "Alias normalization applied to preserve semantic equivalence.",
+        "evidence": [
+          {
+            "text": "react-native is node.js",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "canonicalText": "react native is node js"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "react-native is node.js",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedNoConfidence/direct/multilingual/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH",
+      "MULTILINGUAL_AMBIGUITY"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "WEAK_PARTIAL_MATCH",
+        "MULTILINGUAL_AMBIGUITY"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0
+        }
+      },
+      {
+        "rule": "MULTILINGUAL_AMBIGUITY",
+        "kind": "risk",
+        "severity": 0.45,
+        "confidence": 0.7,
+        "flags": [
+          "MULTILINGUAL_AMBIGUITY"
+        ],
+        "detail": "Mixed-language or ambiguous query detected.",
+        "evidence": [
+          {
+            "text": "kahve nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "scripts": [
+            "latin"
+          ]
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve nedir",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedNoConfidence/direct/all/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0,
+    "contradictionScore": 0,
+    "riskScore": 0.9,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH",
+      "HIGH_RISK_DOMAIN",
+      "ABSOLUTE_CLAIM",
+      "DOUBLE_NEGATION",
+      "WEASEL_WORDS",
+      "STRAWMAN_ATTRIBUTION",
+      "ALIAS_NORMALIZATION",
+      "MULTILINGUAL_AMBIGUITY"
+    ],
+    "risk": {
+      "score": 0.9,
+      "flags": [
+        "WEAK_PARTIAL_MATCH",
+        "HIGH_RISK_DOMAIN",
+        "ABSOLUTE_CLAIM",
+        "DOUBLE_NEGATION",
+        "WEASEL_WORDS",
+        "STRAWMAN_ATTRIBUTION",
+        "ALIAS_NORMALIZATION",
+        "MULTILINGUAL_AMBIGUITY"
+      ],
+      "domain": "medical",
+      "manipulation": false,
+      "absoluteClaim": true,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0
+        }
+      },
+      {
+        "rule": "HIGH_RISK_DOMAIN",
+        "kind": "risk",
+        "severity": 0.8,
+        "confidence": 0.9,
+        "flags": [
+          "HIGH_RISK_DOMAIN"
+        ],
+        "detail": "High-risk domain detected: medical.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "domain": "medical"
+        }
+      },
+      {
+        "rule": "ABSOLUTE_CLAIM",
+        "kind": "risk",
+        "severity": 0.7,
+        "confidence": 0.85,
+        "flags": [
+          "ABSOLUTE_CLAIM"
+        ],
+        "detail": "Absolute or sweeping claim detected.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "term": "never"
+        }
+      },
+      {
+        "rule": "DOUBLE_NEGATION",
+        "kind": "risk",
+        "severity": 0.55,
+        "confidence": 0.8,
+        "flags": [
+          "DOUBLE_NEGATION"
+        ],
+        "detail": "Double negation or repeated negation detected.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "negCount": 3
+        }
+      },
+      {
+        "rule": "WEASEL_WORDS",
+        "kind": "risk",
+        "severity": 0.35,
+        "confidence": 0.75,
+        "flags": [
+          "WEASEL_WORDS"
+        ],
+        "detail": "Weasel language detected; claim should not be treated as strong evidence.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "term": "probably"
+        }
+      },
+      {
+        "rule": "STRAWMAN_ATTRIBUTION",
+        "kind": "risk",
+        "severity": 0.5,
+        "confidence": 0.7,
+        "flags": [
+          "STRAWMAN_ATTRIBUTION"
+        ],
+        "detail": "Attribution framing detected; quoted claims should not be treated as ground truth.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "attribution": true
+        }
+      },
+      {
+        "rule": "ALIAS_NORMALIZATION",
+        "kind": "risk",
+        "severity": 0.2,
+        "confidence": 0.85,
+        "flags": [
+          "ALIAS_NORMALIZATION"
+        ],
+        "detail": "Alias normalization applied to preserve semantic equivalence.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "canonicalText": "he said that aspirin never cures kanser, it is not not true, probably, react native nedir"
+        }
+      },
+      {
+        "rule": "MULTILINGUAL_AMBIGUITY",
+        "kind": "risk",
+        "severity": 0.45,
+        "confidence": 0.7,
+        "flags": [
+          "MULTILINGUAL_AMBIGUITY"
+        ],
+        "detail": "Mixed-language or ambiguous query detected.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "scripts": [
+            "latin"
+          ]
+        }
+      }
+    ],
+    "meta": {
+      "statement": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedNoConfidence/none/plain/conflicting": {
+    "status": "verified",
+    "classification": "verified",
+    "supportScore": 0,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "unknown",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "WEAK_PARTIAL_MATCH"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [],
+        "meta": {
+          "confidence": 0
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedNoConfidence/none/plain/opposite": {
+    "status": "verified",
+    "classification": "verified",
+    "supportScore": 0,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "unknown",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "WEAK_PARTIAL_MATCH"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [],
+        "meta": {
+          "confidence": 0
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "contradicted/none/plain/none": {
+    "status": "contradicted",
+    "classification": "contradicted",
+    "supportScore": 0,
+    "contradictionScore": 0.9,
+    "riskScore": 0,
+    "matchType": "contradiction",
+    "warnings": [
+      "VERIFY_CONTRADICTION"
+    ],
+    "risk": {
+      "score": 0,
+      "flags": [
+        "VERIFY_CONTRADICTION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": false
+    },
+    "signals": [
+      {
+        "rule": "VERIFY_CONTRADICTION",
+        "kind": "contradiction",
+        "severity": 0.9,
+        "confidence": 0.8,
+        "flags": [
+          "VERIFY_CONTRADICTION"
+        ],
+        "detail": "Verify returned contradiction.",
+        "evidence": [],
+        "meta": {
+          "statement": "kahve uyarıcıdır",
+          "subject": "kahve",
+          "predicate": "uyarıcı"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "contradicted/partial/plain/none": {
+    "status": "contradicted",
+    "classification": "contradicted",
+    "supportScore": 0,
+    "contradictionScore": 0.9,
+    "riskScore": 0,
+    "matchType": "partial_match",
+    "warnings": [
+      "VERIFY_CONTRADICTION"
+    ],
+    "risk": {
+      "score": 0,
+      "flags": [
+        "VERIFY_CONTRADICTION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": false
+    },
+    "signals": [
+      {
+        "rule": "VERIFY_CONTRADICTION",
+        "kind": "contradiction",
+        "severity": 0.9,
+        "confidence": 0.8,
+        "flags": [
+          "VERIFY_CONTRADICTION"
+        ],
+        "detail": "Verify returned contradiction.",
+        "evidence": [
+          {
+            "kind": "partial_match",
+            "text": "kahve ~ uyarıcı"
+          }
+        ],
+        "meta": {
+          "statement": "kahve uyarıcıdır",
+          "subject": "kahve",
+          "predicate": "uyarıcı"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "partial_match"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "contradicted/path/plain/none": {
+    "status": "contradicted",
+    "classification": "contradicted",
+    "supportScore": 0,
+    "contradictionScore": 0.9,
+    "riskScore": 0,
+    "matchType": "path",
+    "warnings": [
+      "VERIFY_CONTRADICTION"
+    ],
+    "risk": {
+      "score": 0,
+      "flags": [
+        "VERIFY_CONTRADICTION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": false
+    },
+    "signals": [
+      {
+        "rule": "VERIFY_CONTRADICTION",
+        "kind": "contradiction",
+        "severity": 0.9,
+        "confidence": 0.8,
+        "flags": [
+          "VERIFY_CONTRADICTION"
+        ],
+        "detail": "Verify returned contradiction.",
+        "evidence": [
+          {
+            "kind": "path",
+            "text": "kahve -> kafein -> uyarıcı"
+          }
+        ],
+        "meta": {
+          "statement": "kahve uyarıcıdır",
+          "subject": "kahve",
+          "predicate": "uyarıcı"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "path"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "contradicted/direct/plain/none": {
+    "status": "contradicted",
+    "classification": "contradicted",
+    "supportScore": 0,
+    "contradictionScore": 0.9,
+    "riskScore": 0,
+    "matchType": "direct_edge",
+    "warnings": [
+      "VERIFY_CONTRADICTION"
+    ],
+    "risk": {
+      "score": 0,
+      "flags": [
+        "VERIFY_CONTRADICTION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": false
+    },
+    "signals": [
+      {
+        "rule": "VERIFY_CONTRADICTION",
+        "kind": "contradiction",
+        "severity": 0.9,
+        "confidence": 0.8,
+        "flags": [
+          "VERIFY_CONTRADICTION"
+        ],
+        "detail": "Verify returned contradiction.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "statement": "kahve uyarıcıdır",
+          "subject": "kahve",
+          "predicate": "uyarıcı"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "contradicted/direct/highRisk/none": {
+    "status": "contradicted",
+    "classification": "contradicted",
+    "supportScore": 0,
+    "contradictionScore": 0.9,
+    "riskScore": 0.9,
+    "matchType": "direct_edge",
+    "warnings": [
+      "VERIFY_CONTRADICTION",
+      "HIGH_RISK_DOMAIN"
+    ],
+    "risk": {
+      "score": 0.9,
+      "flags": [
+        "VERIFY_CONTRADICTION",
+        "HIGH_RISK_DOMAIN"
+      ],
+      "domain": "medical",
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "VERIFY_CONTRADICTION",
+        "kind": "contradiction",
+        "severity": 0.9,
+        "confidence": 0.8,
+        "flags": [
+          "VERIFY_CONTRADICTION"
+        ],
+        "detail": "Verify returned contradiction.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "statement": "aspirin kanser tedavi eder",
+          "subject": "kahve",
+          "predicate": "uyarıcı"
+        }
+      },
+      {
+        "rule": "HIGH_RISK_DOMAIN",
+        "kind": "risk",
+        "severity": 0.8,
+        "confidence": 0.9,
+        "flags": [
+          "HIGH_RISK_DOMAIN"
+        ],
+        "detail": "High-risk domain detected: medical.",
+        "evidence": [
+          {
+            "text": "aspirin kanser tedavi eder",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "domain": "medical"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "aspirin kanser tedavi eder",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "contradicted/direct/absolute/none": {
+    "status": "contradicted",
+    "classification": "contradicted",
+    "supportScore": 0,
+    "contradictionScore": 0.9,
+    "riskScore": 0.85,
+    "matchType": "direct_edge",
+    "warnings": [
+      "VERIFY_CONTRADICTION",
+      "ABSOLUTE_CLAIM",
+      "DOUBLE_NEGATION"
+    ],
+    "risk": {
+      "score": 0.85,
+      "flags": [
+        "VERIFY_CONTRADICTION",
+        "ABSOLUTE_CLAIM",
+        "DOUBLE_NEGATION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": true,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "VERIFY_CONTRADICTION",
+        "kind": "contradiction",
+        "severity": 0.9,
+        "confidence": 0.8,
+        "flags": [
+          "VERIFY_CONTRADICTION"
+        ],
+        "detail": "Verify returned contradiction.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "statement": "kahve asla zararlı olmaz",
+          "subject": "kahve",
+          "predicate": "uyarıcı"
+        }
+      },
+      {
+        "rule": "ABSOLUTE_CLAIM",
+        "kind": "risk",
+        "severity": 0.7,
+        "confidence": 0.85,
+        "flags": [
+          "ABSOLUTE_CLAIM"
+        ],
+        "detail": "Absolute or sweeping claim detected.",
+        "evidence": [
+          {
+            "text": "kahve asla zararlı olmaz",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "term": "asla"
+        }
+      },
+      {
+        "rule": "DOUBLE_NEGATION",
+        "kind": "risk",
+        "severity": 0.55,
+        "confidence": 0.8,
+        "flags": [
+          "DOUBLE_NEGATION"
+        ],
+        "detail": "Double negation or repeated negation detected.",
+        "evidence": [
+          {
+            "text": "kahve asla zararlı olmaz",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "negCount": 2
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve asla zararlı olmaz",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "contradicted/direct/doubleNegation/none": {
+    "status": "contradicted",
+    "classification": "contradicted",
+    "supportScore": 0,
+    "contradictionScore": 0.9,
+    "riskScore": 0.8,
+    "matchType": "direct_edge",
+    "warnings": [
+      "VERIFY_CONTRADICTION",
+      "DOUBLE_NEGATION"
+    ],
+    "risk": {
+      "score": 0.8,
+      "flags": [
+        "VERIFY_CONTRADICTION",
+        "DOUBLE_NEGATION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "VERIFY_CONTRADICTION",
+        "kind": "contradiction",
+        "severity": 0.9,
+        "confidence": 0.8,
+        "flags": [
+          "VERIFY_CONTRADICTION"
+        ],
+        "detail": "Verify returned contradiction.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "statement": "it is not not true",
+          "subject": "kahve",
+          "predicate": "uyarıcı"
+        }
+      },
+      {
+        "rule": "DOUBLE_NEGATION",
+        "kind": "risk",
+        "severity": 0.55,
+        "confidence": 0.8,
+        "flags": [
+          "DOUBLE_NEGATION"
+        ],
+        "detail": "Double negation or repeated negation detected.",
+        "evidence": [
+          {
+            "text": "it is not not true",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "negCount": 2
+        }
+      }
+    ],
+    "meta": {
+      "statement": "it is not not true",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "contradicted/direct/weasel/none": {
+    "status": "contradicted",
+    "classification": "contradicted",
+    "supportScore": 0,
+    "contradictionScore": 0.9,
+    "riskScore": 0.75,
+    "matchType": "direct_edge",
+    "warnings": [
+      "VERIFY_CONTRADICTION",
+      "WEASEL_WORDS"
+    ],
+    "risk": {
+      "score": 0.75,
+      "flags": [
+        "VERIFY_CONTRADICTION",
+        "WEASEL_WORDS"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "VERIFY_CONTRADICTION",
+        "kind": "contradiction",
+        "severity": 0.9,
+        "confidence": 0.8,
+        "flags": [
+          "VERIFY_CONTRADICTION"
+        ],
+        "detail": "Verify returned contradiction.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "statement": "coffee might probably be healthy",
+          "subject": "kahve",
+          "predicate": "uyarıcı"
+        }
+      },
+      {
+        "rule": "WEASEL_WORDS",
+        "kind": "risk",
+        "severity": 0.35,
+        "confidence": 0.75,
+        "flags": [
+          "WEASEL_WORDS"
+        ],
+        "detail": "Weasel language detected; claim should not be treated as strong evidence.",
+        "evidence": [
+          {
+            "text": "coffee might probably be healthy",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "term": "probably"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "coffee might probably be healthy",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "contradicted/direct/strawman/none": {
+    "status": "contradicted",
+    "classification": "contradicted",
+    "supportScore": 0,
+    "contradictionScore": 0.9,
+    "riskScore": 0.7,
+    "matchType": "direct_edge",
+    "warnings": [
+      "VERIFY_CONTRADICTION",
+      "STRAWMAN_ATTRIBUTION"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "VERIFY_CONTRADICTION",
+        "STRAWMAN_ATTRIBUTION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "VERIFY_CONTRADICTION",
+        "kind": "contradiction",
+        "severity": 0.9,
+        "confidence": 0.8,
+        "flags": [
+          "VERIFY_CONTRADICTION"
+        ],
+        "detail": "Verify returned contradiction.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "statement": "he said that coffee is poison",
+          "subject": "kahve",
+          "predicate": "uyarıcı"
+        }
+      },
+      {
+        "rule": "STRAWMAN_ATTRIBUTION",
+        "kind": "risk",
+        "severity": 0.5,
+        "confidence": 0.7,
+        "flags": [
+          "STRAWMAN_ATTRIBUTION"
+        ],
+        "detail": "Attribution framing detected; quoted claims should not be treated as ground truth.",
+        "evidence": [
+          {
+            "text": "he said that coffee is poison",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "attribution": true
+        }
+      }
+    ],
+    "meta": {
+      "statement": "he said that coffee is poison",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "contradicted/direct/alias/none": {
+    "status": "contradicted",
+    "classification": "contradicted",
+    "supportScore": 0,
+    "contradictionScore": 0.9,
+    "riskScore": 0.85,
+    "matchType": "direct_edge",
+    "warnings": [
+      "VERIFY_CONTRADICTION",
+      "ALIAS_NORMALIZATION"
+    ],
+    "risk": {
+      "score": 0.85,
+      "flags": [
+        "VERIFY_CONTRADICTION",
+        "ALIAS_NORMALIZATION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "VERIFY_CONTRADICTION",
+        "kind": "contradiction",
+        "severity": 0.9,
+        "confidence": 0.8,
+        "flags": [
+          "VERIFY_CONTRADICTION"
+        ],
+        "detail": "Verify returned contradiction.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "statement": "react-native is node.js",
+          "subject": "kahve",
+          "predicate": "uyarıcı"
+        }
+      },
+      {
+        "rule": "ALIAS_NORMALIZATION",
+        "kind": "risk",
+        "severity": 0.2,
+        "confidence": 0.85,
+        "flags": [
+          "ALIAS_NORMALIZATION"
+        ],
+        "detail": "Alias normalization applied to preserve semantic equivalence.",
+        "evidence": [
+          {
+            "text": "react-native is node.js",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "canonicalText": "react native is node js"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "react-native is node.js",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "contradicted/direct/multilingual/none": {
+    "status": "contradicted",
+    "classification": "contradicted",
+    "supportScore": 0,
+    "contradictionScore": 0.9,
+    "riskScore": 0.7,
+    "matchType": "direct_edge",
+    "warnings": [
+      "VERIFY_CONTRADICTION",
+      "MULTILINGUAL_AMBIGUITY"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "VERIFY_CONTRADICTION",
+        "MULTILINGUAL_AMBIGUITY"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "VERIFY_CONTRADICTION",
+        "kind": "contradiction",
+        "severity": 0.9,
+        "confidence": 0.8,
+        "flags": [
+          "VERIFY_CONTRADICTION"
+        ],
+        "detail": "Verify returned contradiction.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "statement": "kahve nedir",
+          "subject": "kahve",
+          "predicate": "uyarıcı"
+        }
+      },
+      {
+        "rule": "MULTILINGUAL_AMBIGUITY",
+        "kind": "risk",
+        "severity": 0.45,
+        "confidence": 0.7,
+        "flags": [
+          "MULTILINGUAL_AMBIGUITY"
+        ],
+        "detail": "Mixed-language or ambiguous query detected.",
+        "evidence": [
+          {
+            "text": "kahve nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "scripts": [
+            "latin"
+          ]
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve nedir",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "contradicted/direct/all/none": {
+    "status": "contradicted",
+    "classification": "contradicted",
+    "supportScore": 0,
+    "contradictionScore": 0.9,
+    "riskScore": 0.9,
+    "matchType": "direct_edge",
+    "warnings": [
+      "VERIFY_CONTRADICTION",
+      "HIGH_RISK_DOMAIN",
+      "ABSOLUTE_CLAIM",
+      "DOUBLE_NEGATION",
+      "WEASEL_WORDS",
+      "STRAWMAN_ATTRIBUTION",
+      "ALIAS_NORMALIZATION",
+      "MULTILINGUAL_AMBIGUITY"
+    ],
+    "risk": {
+      "score": 0.9,
+      "flags": [
+        "VERIFY_CONTRADICTION",
+        "HIGH_RISK_DOMAIN",
+        "ABSOLUTE_CLAIM",
+        "DOUBLE_NEGATION",
+        "WEASEL_WORDS",
+        "STRAWMAN_ATTRIBUTION",
+        "ALIAS_NORMALIZATION",
+        "MULTILINGUAL_AMBIGUITY"
+      ],
+      "domain": "medical",
+      "manipulation": false,
+      "absoluteClaim": true,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "VERIFY_CONTRADICTION",
+        "kind": "contradiction",
+        "severity": 0.9,
+        "confidence": 0.8,
+        "flags": [
+          "VERIFY_CONTRADICTION"
+        ],
+        "detail": "Verify returned contradiction.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "statement": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+          "subject": "kahve",
+          "predicate": "uyarıcı"
+        }
+      },
+      {
+        "rule": "HIGH_RISK_DOMAIN",
+        "kind": "risk",
+        "severity": 0.8,
+        "confidence": 0.9,
+        "flags": [
+          "HIGH_RISK_DOMAIN"
+        ],
+        "detail": "High-risk domain detected: medical.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "domain": "medical"
+        }
+      },
+      {
+        "rule": "ABSOLUTE_CLAIM",
+        "kind": "risk",
+        "severity": 0.7,
+        "confidence": 0.85,
+        "flags": [
+          "ABSOLUTE_CLAIM"
+        ],
+        "detail": "Absolute or sweeping claim detected.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "term": "never"
+        }
+      },
+      {
+        "rule": "DOUBLE_NEGATION",
+        "kind": "risk",
+        "severity": 0.55,
+        "confidence": 0.8,
+        "flags": [
+          "DOUBLE_NEGATION"
+        ],
+        "detail": "Double negation or repeated negation detected.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "negCount": 3
+        }
+      },
+      {
+        "rule": "WEASEL_WORDS",
+        "kind": "risk",
+        "severity": 0.35,
+        "confidence": 0.75,
+        "flags": [
+          "WEASEL_WORDS"
+        ],
+        "detail": "Weasel language detected; claim should not be treated as strong evidence.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "term": "probably"
+        }
+      },
+      {
+        "rule": "STRAWMAN_ATTRIBUTION",
+        "kind": "risk",
+        "severity": 0.5,
+        "confidence": 0.7,
+        "flags": [
+          "STRAWMAN_ATTRIBUTION"
+        ],
+        "detail": "Attribution framing detected; quoted claims should not be treated as ground truth.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "attribution": true
+        }
+      },
+      {
+        "rule": "ALIAS_NORMALIZATION",
+        "kind": "risk",
+        "severity": 0.2,
+        "confidence": 0.85,
+        "flags": [
+          "ALIAS_NORMALIZATION"
+        ],
+        "detail": "Alias normalization applied to preserve semantic equivalence.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "canonicalText": "he said that aspirin never cures kanser, it is not not true, probably, react native nedir"
+        }
+      },
+      {
+        "rule": "MULTILINGUAL_AMBIGUITY",
+        "kind": "risk",
+        "severity": 0.45,
+        "confidence": 0.7,
+        "flags": [
+          "MULTILINGUAL_AMBIGUITY"
+        ],
+        "detail": "Mixed-language or ambiguous query detected.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "scripts": [
+            "latin"
+          ]
+        }
+      }
+    ],
+    "meta": {
+      "statement": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "contradicted/none/plain/conflicting": {
+    "status": "contradicted",
+    "classification": "contradicted",
+    "supportScore": 0,
+    "contradictionScore": 0.9,
+    "riskScore": 0,
+    "matchType": "contradiction",
+    "warnings": [
+      "VERIFY_CONTRADICTION"
+    ],
+    "risk": {
+      "score": 0,
+      "flags": [
+        "VERIFY_CONTRADICTION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": false
+    },
+    "signals": [
+      {
+        "rule": "VERIFY_CONTRADICTION",
+        "kind": "contradiction",
+        "severity": 0.9,
+        "confidence": 0.8,
+        "flags": [
+          "VERIFY_CONTRADICTION"
+        ],
+        "detail": "Verify returned contradiction.",
+        "evidence": [],
+        "meta": {
+          "statement": "kahve uyarıcıdır",
+          "subject": "kahve",
+          "predicate": "uyarıcı"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "contradicted/none/plain/opposite": {
+    "status": "contradicted",
+    "classification": "contradicted",
+    "supportScore": 0,
+    "contradictionScore": 0.9,
+    "riskScore": 0,
+    "matchType": "contradiction",
+    "warnings": [
+      "VERIFY_CONTRADICTION"
+    ],
+    "risk": {
+      "score": 0,
+      "flags": [
+        "VERIFY_CONTRADICTION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": false
+    },
+    "signals": [
+      {
+        "rule": "VERIFY_CONTRADICTION",
+        "kind": "contradiction",
+        "severity": 0.9,
+        "confidence": 0.8,
+        "flags": [
+          "VERIFY_CONTRADICTION"
+        ],
+        "detail": "Verify returned contradiction.",
+        "evidence": [],
+        "meta": {
+          "statement": "kahve uyarıcıdır",
+          "subject": "kahve",
+          "predicate": "uyarıcı"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "unknown/none/plain/none": {
+    "status": "unknown",
+    "classification": "weak_match",
+    "supportScore": 0.2,
+    "contradictionScore": 0,
+    "riskScore": 0,
+    "matchType": "unknown",
+    "warnings": [],
+    "risk": {
+      "score": 0,
+      "flags": [],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": false
+    },
+    "signals": [],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.2,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "unknown/partial/plain/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.2,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "partial_match",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "WEAK_PARTIAL_MATCH"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "partial_match",
+            "text": "kahve ~ uyarıcı"
+          }
+        ],
+        "meta": {
+          "confidence": 0.2
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "partial_match"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.2,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "unknown/path/plain/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.2,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "path",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "WEAK_PARTIAL_MATCH"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "path",
+            "text": "kahve -> kafein -> uyarıcı"
+          }
+        ],
+        "meta": {
+          "confidence": 0.2
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "path"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.2,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "unknown/direct/plain/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.2,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "WEAK_PARTIAL_MATCH"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0.2
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.2,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "unknown/direct/highRisk/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.2,
+    "contradictionScore": 0,
+    "riskScore": 0.9,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH",
+      "HIGH_RISK_DOMAIN"
+    ],
+    "risk": {
+      "score": 0.9,
+      "flags": [
+        "WEAK_PARTIAL_MATCH",
+        "HIGH_RISK_DOMAIN"
+      ],
+      "domain": "medical",
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0.2
+        }
+      },
+      {
+        "rule": "HIGH_RISK_DOMAIN",
+        "kind": "risk",
+        "severity": 0.8,
+        "confidence": 0.9,
+        "flags": [
+          "HIGH_RISK_DOMAIN"
+        ],
+        "detail": "High-risk domain detected: medical.",
+        "evidence": [
+          {
+            "text": "aspirin kanser tedavi eder",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "domain": "medical"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "aspirin kanser tedavi eder",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.2,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "unknown/direct/absolute/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.2,
+    "contradictionScore": 0,
+    "riskScore": 0.85,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH",
+      "ABSOLUTE_CLAIM",
+      "DOUBLE_NEGATION"
+    ],
+    "risk": {
+      "score": 0.85,
+      "flags": [
+        "WEAK_PARTIAL_MATCH",
+        "ABSOLUTE_CLAIM",
+        "DOUBLE_NEGATION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": true,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0.2
+        }
+      },
+      {
+        "rule": "ABSOLUTE_CLAIM",
+        "kind": "risk",
+        "severity": 0.7,
+        "confidence": 0.85,
+        "flags": [
+          "ABSOLUTE_CLAIM"
+        ],
+        "detail": "Absolute or sweeping claim detected.",
+        "evidence": [
+          {
+            "text": "kahve asla zararlı olmaz",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "term": "asla"
+        }
+      },
+      {
+        "rule": "DOUBLE_NEGATION",
+        "kind": "risk",
+        "severity": 0.55,
+        "confidence": 0.8,
+        "flags": [
+          "DOUBLE_NEGATION"
+        ],
+        "detail": "Double negation or repeated negation detected.",
+        "evidence": [
+          {
+            "text": "kahve asla zararlı olmaz",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "negCount": 2
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve asla zararlı olmaz",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.2,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "unknown/direct/doubleNegation/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.2,
+    "contradictionScore": 0,
+    "riskScore": 0.8,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH",
+      "DOUBLE_NEGATION"
+    ],
+    "risk": {
+      "score": 0.8,
+      "flags": [
+        "WEAK_PARTIAL_MATCH",
+        "DOUBLE_NEGATION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0.2
+        }
+      },
+      {
+        "rule": "DOUBLE_NEGATION",
+        "kind": "risk",
+        "severity": 0.55,
+        "confidence": 0.8,
+        "flags": [
+          "DOUBLE_NEGATION"
+        ],
+        "detail": "Double negation or repeated negation detected.",
+        "evidence": [
+          {
+            "text": "it is not not true",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "negCount": 2
+        }
+      }
+    ],
+    "meta": {
+      "statement": "it is not not true",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.2,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "unknown/direct/weasel/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.2,
+    "contradictionScore": 0,
+    "riskScore": 0.75,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH",
+      "WEASEL_WORDS"
+    ],
+    "risk": {
+      "score": 0.75,
+      "flags": [
+        "WEAK_PARTIAL_MATCH",
+        "WEASEL_WORDS"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0.2
+        }
+      },
+      {
+        "rule": "WEASEL_WORDS",
+        "kind": "risk",
+        "severity": 0.35,
+        "confidence": 0.75,
+        "flags": [
+          "WEASEL_WORDS"
+        ],
+        "detail": "Weasel language detected; claim should not be treated as strong evidence.",
+        "evidence": [
+          {
+            "text": "coffee might probably be healthy",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "term": "probably"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "coffee might probably be healthy",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.2,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "unknown/direct/strawman/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.2,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH",
+      "STRAWMAN_ATTRIBUTION"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "WEAK_PARTIAL_MATCH",
+        "STRAWMAN_ATTRIBUTION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0.2
+        }
+      },
+      {
+        "rule": "STRAWMAN_ATTRIBUTION",
+        "kind": "risk",
+        "severity": 0.5,
+        "confidence": 0.7,
+        "flags": [
+          "STRAWMAN_ATTRIBUTION"
+        ],
+        "detail": "Attribution framing detected; quoted claims should not be treated as ground truth.",
+        "evidence": [
+          {
+            "text": "he said that coffee is poison",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "attribution": true
+        }
+      }
+    ],
+    "meta": {
+      "statement": "he said that coffee is poison",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.2,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "unknown/direct/alias/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.2,
+    "contradictionScore": 0,
+    "riskScore": 0.85,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH",
+      "ALIAS_NORMALIZATION"
+    ],
+    "risk": {
+      "score": 0.85,
+      "flags": [
+        "WEAK_PARTIAL_MATCH",
+        "ALIAS_NORMALIZATION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0.2
+        }
+      },
+      {
+        "rule": "ALIAS_NORMALIZATION",
+        "kind": "risk",
+        "severity": 0.2,
+        "confidence": 0.85,
+        "flags": [
+          "ALIAS_NORMALIZATION"
+        ],
+        "detail": "Alias normalization applied to preserve semantic equivalence.",
+        "evidence": [
+          {
+            "text": "react-native is node.js",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "canonicalText": "react native is node js"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "react-native is node.js",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.2,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "unknown/direct/multilingual/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.2,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH",
+      "MULTILINGUAL_AMBIGUITY"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "WEAK_PARTIAL_MATCH",
+        "MULTILINGUAL_AMBIGUITY"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0.2
+        }
+      },
+      {
+        "rule": "MULTILINGUAL_AMBIGUITY",
+        "kind": "risk",
+        "severity": 0.45,
+        "confidence": 0.7,
+        "flags": [
+          "MULTILINGUAL_AMBIGUITY"
+        ],
+        "detail": "Mixed-language or ambiguous query detected.",
+        "evidence": [
+          {
+            "text": "kahve nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "scripts": [
+            "latin"
+          ]
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve nedir",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.2,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "unknown/direct/all/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.2,
+    "contradictionScore": 0,
+    "riskScore": 0.9,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH",
+      "HIGH_RISK_DOMAIN",
+      "ABSOLUTE_CLAIM",
+      "DOUBLE_NEGATION",
+      "WEASEL_WORDS",
+      "STRAWMAN_ATTRIBUTION",
+      "ALIAS_NORMALIZATION",
+      "MULTILINGUAL_AMBIGUITY"
+    ],
+    "risk": {
+      "score": 0.9,
+      "flags": [
+        "WEAK_PARTIAL_MATCH",
+        "HIGH_RISK_DOMAIN",
+        "ABSOLUTE_CLAIM",
+        "DOUBLE_NEGATION",
+        "WEASEL_WORDS",
+        "STRAWMAN_ATTRIBUTION",
+        "ALIAS_NORMALIZATION",
+        "MULTILINGUAL_AMBIGUITY"
+      ],
+      "domain": "medical",
+      "manipulation": false,
+      "absoluteClaim": true,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "direct_edge",
+            "text": "kahve uyarıcıdır"
+          }
+        ],
+        "meta": {
+          "confidence": 0.2
+        }
+      },
+      {
+        "rule": "HIGH_RISK_DOMAIN",
+        "kind": "risk",
+        "severity": 0.8,
+        "confidence": 0.9,
+        "flags": [
+          "HIGH_RISK_DOMAIN"
+        ],
+        "detail": "High-risk domain detected: medical.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "domain": "medical"
+        }
+      },
+      {
+        "rule": "ABSOLUTE_CLAIM",
+        "kind": "risk",
+        "severity": 0.7,
+        "confidence": 0.85,
+        "flags": [
+          "ABSOLUTE_CLAIM"
+        ],
+        "detail": "Absolute or sweeping claim detected.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "term": "never"
+        }
+      },
+      {
+        "rule": "DOUBLE_NEGATION",
+        "kind": "risk",
+        "severity": 0.55,
+        "confidence": 0.8,
+        "flags": [
+          "DOUBLE_NEGATION"
+        ],
+        "detail": "Double negation or repeated negation detected.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "negCount": 3
+        }
+      },
+      {
+        "rule": "WEASEL_WORDS",
+        "kind": "risk",
+        "severity": 0.35,
+        "confidence": 0.75,
+        "flags": [
+          "WEASEL_WORDS"
+        ],
+        "detail": "Weasel language detected; claim should not be treated as strong evidence.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "term": "probably"
+        }
+      },
+      {
+        "rule": "STRAWMAN_ATTRIBUTION",
+        "kind": "risk",
+        "severity": 0.5,
+        "confidence": 0.7,
+        "flags": [
+          "STRAWMAN_ATTRIBUTION"
+        ],
+        "detail": "Attribution framing detected; quoted claims should not be treated as ground truth.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "attribution": true
+        }
+      },
+      {
+        "rule": "ALIAS_NORMALIZATION",
+        "kind": "risk",
+        "severity": 0.2,
+        "confidence": 0.85,
+        "flags": [
+          "ALIAS_NORMALIZATION"
+        ],
+        "detail": "Alias normalization applied to preserve semantic equivalence.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "canonicalText": "he said that aspirin never cures kanser, it is not not true, probably, react native nedir"
+        }
+      },
+      {
+        "rule": "MULTILINGUAL_AMBIGUITY",
+        "kind": "risk",
+        "severity": 0.45,
+        "confidence": 0.7,
+        "flags": [
+          "MULTILINGUAL_AMBIGUITY"
+        ],
+        "detail": "Mixed-language or ambiguous query detected.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "scripts": [
+            "latin"
+          ]
+        }
+      }
+    ],
+    "meta": {
+      "statement": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.2,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "unknown/none/plain/conflicting": {
+    "status": "unknown",
+    "classification": "weak_match",
+    "supportScore": 0.2,
+    "contradictionScore": 0,
+    "riskScore": 0,
+    "matchType": "unknown",
+    "warnings": [],
+    "risk": {
+      "score": 0,
+      "flags": [],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": false
+    },
+    "signals": [],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.2,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "unknown/none/plain/opposite": {
+    "status": "unknown",
+    "classification": "weak_match",
+    "supportScore": 0.2,
+    "contradictionScore": 0,
+    "riskScore": 0,
+    "matchType": "unknown",
+    "warnings": [],
+    "risk": {
+      "score": 0,
+      "flags": [],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": false
+    },
+    "signals": [],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.2,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "odd/none/plain/none": {
+    "status": "unknown",
+    "classification": "weak_match",
+    "supportScore": 0.5,
+    "contradictionScore": 0,
+    "riskScore": 0,
+    "matchType": "unknown",
+    "warnings": [],
+    "risk": {
+      "score": 0,
+      "flags": [],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": false
+    },
+    "signals": [],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.5,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "odd/partial/plain/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.49,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "partial_match",
+    "warnings": [
+      "WEAK_PARTIAL_MATCH"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "WEAK_PARTIAL_MATCH"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEAK_PARTIAL_MATCH",
+        "kind": "risk",
+        "severity": 0.4,
+        "confidence": 0.7,
+        "flags": [
+          "WEAK_PARTIAL_MATCH"
+        ],
+        "detail": "Lexical overlap is weak and should not be treated as verified truth.",
+        "evidence": [
+          {
+            "kind": "partial_match",
+            "text": "kahve ~ uyarıcı"
+          }
+        ],
+        "meta": {
+          "confidence": 0.49
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "partial_match"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.5,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "odd/path/plain/none": {
+    "status": "unknown",
+    "classification": "weak_match",
+    "supportScore": 0.5,
+    "contradictionScore": 0,
+    "riskScore": 0,
+    "matchType": "path",
+    "warnings": [],
+    "risk": {
+      "score": 0,
+      "flags": [],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": false
+    },
+    "signals": [],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "path"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.5,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "odd/direct/plain/none": {
+    "status": "unknown",
+    "classification": "weak_match",
+    "supportScore": 0.5,
+    "contradictionScore": 0,
+    "riskScore": 0,
+    "matchType": "direct_edge",
+    "warnings": [],
+    "risk": {
+      "score": 0,
+      "flags": [],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": false
+    },
+    "signals": [],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.5,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "odd/direct/highRisk/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.5,
+    "contradictionScore": 0,
+    "riskScore": 0.9,
+    "matchType": "direct_edge",
+    "warnings": [
+      "HIGH_RISK_DOMAIN"
+    ],
+    "risk": {
+      "score": 0.9,
+      "flags": [
+        "HIGH_RISK_DOMAIN"
+      ],
+      "domain": "medical",
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "HIGH_RISK_DOMAIN",
+        "kind": "risk",
+        "severity": 0.8,
+        "confidence": 0.9,
+        "flags": [
+          "HIGH_RISK_DOMAIN"
+        ],
+        "detail": "High-risk domain detected: medical.",
+        "evidence": [
+          {
+            "text": "aspirin kanser tedavi eder",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "domain": "medical"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "aspirin kanser tedavi eder",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.5,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "odd/direct/absolute/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.5,
+    "contradictionScore": 0,
+    "riskScore": 0.85,
+    "matchType": "direct_edge",
+    "warnings": [
+      "ABSOLUTE_CLAIM",
+      "DOUBLE_NEGATION"
+    ],
+    "risk": {
+      "score": 0.85,
+      "flags": [
+        "ABSOLUTE_CLAIM",
+        "DOUBLE_NEGATION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": true,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "ABSOLUTE_CLAIM",
+        "kind": "risk",
+        "severity": 0.7,
+        "confidence": 0.85,
+        "flags": [
+          "ABSOLUTE_CLAIM"
+        ],
+        "detail": "Absolute or sweeping claim detected.",
+        "evidence": [
+          {
+            "text": "kahve asla zararlı olmaz",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "term": "asla"
+        }
+      },
+      {
+        "rule": "DOUBLE_NEGATION",
+        "kind": "risk",
+        "severity": 0.55,
+        "confidence": 0.8,
+        "flags": [
+          "DOUBLE_NEGATION"
+        ],
+        "detail": "Double negation or repeated negation detected.",
+        "evidence": [
+          {
+            "text": "kahve asla zararlı olmaz",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "negCount": 2
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve asla zararlı olmaz",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.5,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "odd/direct/doubleNegation/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.5,
+    "contradictionScore": 0,
+    "riskScore": 0.8,
+    "matchType": "direct_edge",
+    "warnings": [
+      "DOUBLE_NEGATION"
+    ],
+    "risk": {
+      "score": 0.8,
+      "flags": [
+        "DOUBLE_NEGATION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "DOUBLE_NEGATION",
+        "kind": "risk",
+        "severity": 0.55,
+        "confidence": 0.8,
+        "flags": [
+          "DOUBLE_NEGATION"
+        ],
+        "detail": "Double negation or repeated negation detected.",
+        "evidence": [
+          {
+            "text": "it is not not true",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "negCount": 2
+        }
+      }
+    ],
+    "meta": {
+      "statement": "it is not not true",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.5,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "odd/direct/weasel/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.5,
+    "contradictionScore": 0,
+    "riskScore": 0.75,
+    "matchType": "direct_edge",
+    "warnings": [
+      "WEASEL_WORDS"
+    ],
+    "risk": {
+      "score": 0.75,
+      "flags": [
+        "WEASEL_WORDS"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "WEASEL_WORDS",
+        "kind": "risk",
+        "severity": 0.35,
+        "confidence": 0.75,
+        "flags": [
+          "WEASEL_WORDS"
+        ],
+        "detail": "Weasel language detected; claim should not be treated as strong evidence.",
+        "evidence": [
+          {
+            "text": "coffee might probably be healthy",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "term": "probably"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "coffee might probably be healthy",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.5,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "odd/direct/strawman/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.5,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "direct_edge",
+    "warnings": [
+      "STRAWMAN_ATTRIBUTION"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "STRAWMAN_ATTRIBUTION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "STRAWMAN_ATTRIBUTION",
+        "kind": "risk",
+        "severity": 0.5,
+        "confidence": 0.7,
+        "flags": [
+          "STRAWMAN_ATTRIBUTION"
+        ],
+        "detail": "Attribution framing detected; quoted claims should not be treated as ground truth.",
+        "evidence": [
+          {
+            "text": "he said that coffee is poison",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "attribution": true
+        }
+      }
+    ],
+    "meta": {
+      "statement": "he said that coffee is poison",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.5,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "odd/direct/alias/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.5,
+    "contradictionScore": 0,
+    "riskScore": 0.85,
+    "matchType": "direct_edge",
+    "warnings": [
+      "ALIAS_NORMALIZATION"
+    ],
+    "risk": {
+      "score": 0.85,
+      "flags": [
+        "ALIAS_NORMALIZATION"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "ALIAS_NORMALIZATION",
+        "kind": "risk",
+        "severity": 0.2,
+        "confidence": 0.85,
+        "flags": [
+          "ALIAS_NORMALIZATION"
+        ],
+        "detail": "Alias normalization applied to preserve semantic equivalence.",
+        "evidence": [
+          {
+            "text": "react-native is node.js",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "canonicalText": "react native is node js"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "react-native is node.js",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.5,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "odd/direct/multilingual/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.5,
+    "contradictionScore": 0,
+    "riskScore": 0.7,
+    "matchType": "direct_edge",
+    "warnings": [
+      "MULTILINGUAL_AMBIGUITY"
+    ],
+    "risk": {
+      "score": 0.7,
+      "flags": [
+        "MULTILINGUAL_AMBIGUITY"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "MULTILINGUAL_AMBIGUITY",
+        "kind": "risk",
+        "severity": 0.45,
+        "confidence": 0.7,
+        "flags": [
+          "MULTILINGUAL_AMBIGUITY"
+        ],
+        "detail": "Mixed-language or ambiguous query detected.",
+        "evidence": [
+          {
+            "text": "kahve nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "scripts": [
+            "latin"
+          ]
+        }
+      }
+    ],
+    "meta": {
+      "statement": "kahve nedir",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.5,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "odd/direct/all/none": {
+    "status": "unknown",
+    "classification": "needs_review",
+    "supportScore": 0.5,
+    "contradictionScore": 0,
+    "riskScore": 0.9,
+    "matchType": "direct_edge",
+    "warnings": [
+      "HIGH_RISK_DOMAIN",
+      "ABSOLUTE_CLAIM",
+      "DOUBLE_NEGATION",
+      "WEASEL_WORDS",
+      "STRAWMAN_ATTRIBUTION",
+      "ALIAS_NORMALIZATION",
+      "MULTILINGUAL_AMBIGUITY"
+    ],
+    "risk": {
+      "score": 0.9,
+      "flags": [
+        "HIGH_RISK_DOMAIN",
+        "ABSOLUTE_CLAIM",
+        "DOUBLE_NEGATION",
+        "WEASEL_WORDS",
+        "STRAWMAN_ATTRIBUTION",
+        "ALIAS_NORMALIZATION",
+        "MULTILINGUAL_AMBIGUITY"
+      ],
+      "domain": "medical",
+      "manipulation": false,
+      "absoluteClaim": true,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "HIGH_RISK_DOMAIN",
+        "kind": "risk",
+        "severity": 0.8,
+        "confidence": 0.9,
+        "flags": [
+          "HIGH_RISK_DOMAIN"
+        ],
+        "detail": "High-risk domain detected: medical.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "domain": "medical"
+        }
+      },
+      {
+        "rule": "ABSOLUTE_CLAIM",
+        "kind": "risk",
+        "severity": 0.7,
+        "confidence": 0.85,
+        "flags": [
+          "ABSOLUTE_CLAIM"
+        ],
+        "detail": "Absolute or sweeping claim detected.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "term": "never"
+        }
+      },
+      {
+        "rule": "DOUBLE_NEGATION",
+        "kind": "risk",
+        "severity": 0.55,
+        "confidence": 0.8,
+        "flags": [
+          "DOUBLE_NEGATION"
+        ],
+        "detail": "Double negation or repeated negation detected.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "negCount": 3
+        }
+      },
+      {
+        "rule": "WEASEL_WORDS",
+        "kind": "risk",
+        "severity": 0.35,
+        "confidence": 0.75,
+        "flags": [
+          "WEASEL_WORDS"
+        ],
+        "detail": "Weasel language detected; claim should not be treated as strong evidence.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "term": "probably"
+        }
+      },
+      {
+        "rule": "STRAWMAN_ATTRIBUTION",
+        "kind": "risk",
+        "severity": 0.5,
+        "confidence": 0.7,
+        "flags": [
+          "STRAWMAN_ATTRIBUTION"
+        ],
+        "detail": "Attribution framing detected; quoted claims should not be treated as ground truth.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "attribution": true
+        }
+      },
+      {
+        "rule": "ALIAS_NORMALIZATION",
+        "kind": "risk",
+        "severity": 0.2,
+        "confidence": 0.85,
+        "flags": [
+          "ALIAS_NORMALIZATION"
+        ],
+        "detail": "Alias normalization applied to preserve semantic equivalence.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "canonicalText": "he said that aspirin never cures kanser, it is not not true, probably, react native nedir"
+        }
+      },
+      {
+        "rule": "MULTILINGUAL_AMBIGUITY",
+        "kind": "risk",
+        "severity": 0.45,
+        "confidence": 0.7,
+        "flags": [
+          "MULTILINGUAL_AMBIGUITY"
+        ],
+        "detail": "Mixed-language or ambiguous query detected.",
+        "evidence": [
+          {
+            "text": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "scripts": [
+            "latin"
+          ]
+        }
+      }
+    ],
+    "meta": {
+      "statement": "he said that aspirin never cures kanser, it is not not true, probably, react-native nedir",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [
+        "direct_edge"
+      ],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.5,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "odd/none/plain/conflicting": {
+    "status": "unknown",
+    "classification": "weak_match",
+    "supportScore": 0.5,
+    "contradictionScore": 0,
+    "riskScore": 0,
+    "matchType": "unknown",
+    "warnings": [],
+    "risk": {
+      "score": 0,
+      "flags": [],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": false
+    },
+    "signals": [],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.5,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "odd/none/plain/opposite": {
+    "status": "unknown",
+    "classification": "weak_match",
+    "supportScore": 0.5,
+    "contradictionScore": 0,
+    "riskScore": 0,
+    "matchType": "unknown",
+    "warnings": [],
+    "risk": {
+      "score": 0,
+      "flags": [],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": false
+    },
+    "signals": [],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "kahve",
+      "predicate": "uyarıcı",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.5,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "unknown/typeConflict+seed": {
+    "status": "contradicted",
+    "classification": "contradicted",
+    "supportScore": 0.2,
+    "contradictionScore": 0.8,
+    "riskScore": 0,
+    "matchType": "contradiction",
+    "warnings": [
+      "SEED",
+      "TYPE_CONFLICT"
+    ],
+    "risk": {
+      "score": 0,
+      "flags": [
+        "SEED",
+        "TYPE_CONFLICT"
+      ],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": false
+    },
+    "signals": [
+      {
+        "rule": "SEED",
+        "kind": "contradiction",
+        "severity": 0,
+        "confidence": 0.4,
+        "flags": [
+          "SEED"
+        ],
+        "detail": "",
+        "evidence": [],
+        "meta": {}
+      },
+      {
+        "rule": "TYPE_LATTICE",
+        "kind": "contradiction",
+        "severity": 0.8,
+        "confidence": 0,
+        "flags": [
+          "TYPE_CONFLICT"
+        ],
+        "detail": "",
+        "evidence": [],
+        "meta": {}
+      }
+    ],
+    "meta": {
+      "statement": "kahve uyarıcıdır",
+      "subject": "",
+      "predicate": "",
+      "workspaceId": "ws-1",
+      "evidenceKinds": [],
+      "pathSearch": {
+        "depth": 2
+      },
+      "fuzzy": {
+        "overlap": 0.5
+      },
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.8,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "unknown/rule-edge/count-conflict": {
+    "status": "contradicted",
+    "classification": "contradicted",
+    "supportScore": 0.2,
+    "contradictionScore": 0.95,
+    "riskScore": 0.9,
+    "matchType": "contradiction",
+    "warnings": [
+      "NUMERICAL_CONFLICT",
+      "VALUE_CONFLICT",
+      "HIGH_RISK_DOMAIN"
+    ],
+    "risk": {
+      "score": 0.9,
+      "flags": [
+        "NUMERICAL_CONFLICT",
+        "VALUE_CONFLICT",
+        "HIGH_RISK_DOMAIN"
+      ],
+      "domain": "aviation",
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "NUMERICAL_CONFLICT",
+        "kind": "contradiction",
+        "severity": 0.9,
+        "confidence": 0.95,
+        "flags": [
+          "NUMERICAL_CONFLICT",
+          "VALUE_CONFLICT"
+        ],
+        "detail": "Different numeric values detected for the same subject/predicate.",
+        "evidence": [
+          {
+            "text": "b737 has 2 engines",
+            "role": "stored"
+          },
+          {
+            "text": "b737 has 4 engines",
+            "role": "incoming"
+          }
+        ],
+        "meta": {
+          "storedNumbers": [
+            "2"
+          ],
+          "incomingNumbers": [
+            "4"
+          ]
+        }
+      },
+      {
+        "rule": "HIGH_RISK_DOMAIN",
+        "kind": "risk",
+        "severity": 0.8,
+        "confidence": 0.9,
+        "flags": [
+          "HIGH_RISK_DOMAIN"
+        ],
+        "detail": "High-risk domain detected: aviation.",
+        "evidence": [
+          {
+            "text": "B737 has 4 engines",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "domain": "aviation"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "B737 has 4 engines",
+      "subject": "B737",
+      "predicate": "has",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.95,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedHigh/rule-edge/count-conflict": {
+    "status": "verified",
+    "classification": "verified",
+    "supportScore": 0.9,
+    "contradictionScore": 0,
+    "riskScore": 0.9,
+    "matchType": "unknown",
+    "warnings": [
+      "HIGH_RISK_DOMAIN"
+    ],
+    "risk": {
+      "score": 0.9,
+      "flags": [
+        "HIGH_RISK_DOMAIN"
+      ],
+      "domain": "aviation",
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "HIGH_RISK_DOMAIN",
+        "kind": "risk",
+        "severity": 0.8,
+        "confidence": 0.9,
+        "flags": [
+          "HIGH_RISK_DOMAIN"
+        ],
+        "detail": "High-risk domain detected: aviation.",
+        "evidence": [
+          {
+            "text": "B737 has 4 engines",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "domain": "aviation"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "B737 has 4 engines",
+      "subject": "B737",
+      "predicate": "has",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "contradicted/rule-edge/count-conflict": {
+    "status": "contradicted",
+    "classification": "contradicted",
+    "supportScore": 0,
+    "contradictionScore": 0.95,
+    "riskScore": 0.9,
+    "matchType": "contradiction",
+    "warnings": [
+      "NUMERICAL_CONFLICT",
+      "VALUE_CONFLICT",
+      "HIGH_RISK_DOMAIN"
+    ],
+    "risk": {
+      "score": 0.9,
+      "flags": [
+        "NUMERICAL_CONFLICT",
+        "VALUE_CONFLICT",
+        "HIGH_RISK_DOMAIN"
+      ],
+      "domain": "aviation",
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "NUMERICAL_CONFLICT",
+        "kind": "contradiction",
+        "severity": 0.9,
+        "confidence": 0.95,
+        "flags": [
+          "NUMERICAL_CONFLICT",
+          "VALUE_CONFLICT"
+        ],
+        "detail": "Different numeric values detected for the same subject/predicate.",
+        "evidence": [
+          {
+            "text": "b737 has 2 engines",
+            "role": "stored"
+          },
+          {
+            "text": "b737 has 4 engines",
+            "role": "incoming"
+          }
+        ],
+        "meta": {
+          "storedNumbers": [
+            "2"
+          ],
+          "incomingNumbers": [
+            "4"
+          ]
+        }
+      },
+      {
+        "rule": "HIGH_RISK_DOMAIN",
+        "kind": "risk",
+        "severity": 0.8,
+        "confidence": 0.9,
+        "flags": [
+          "HIGH_RISK_DOMAIN"
+        ],
+        "detail": "High-risk domain detected: aviation.",
+        "evidence": [
+          {
+            "text": "B737 has 4 engines",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "domain": "aviation"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "B737 has 4 engines",
+      "subject": "B737",
+      "predicate": "has",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.95,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "unknown/rule-edge/cause-prevent": {
+    "status": "contradicted",
+    "classification": "contradicted",
+    "supportScore": 0.2,
+    "contradictionScore": 0.95,
+    "riskScore": 0.9,
+    "matchType": "contradiction",
+    "warnings": [
+      "CAUSE_PREVENT_OPPOSITION",
+      "SEMANTIC_OPPOSITION",
+      "HIGH_RISK_DOMAIN"
+    ],
+    "risk": {
+      "score": 0.9,
+      "flags": [
+        "CAUSE_PREVENT_OPPOSITION",
+        "SEMANTIC_OPPOSITION",
+        "HIGH_RISK_DOMAIN"
+      ],
+      "domain": "aviation",
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "CAUSE_PREVENT_OPPOSITION",
+        "kind": "contradiction",
+        "severity": 0.9,
+        "confidence": 0.95,
+        "flags": [
+          "CAUSE_PREVENT_OPPOSITION",
+          "SEMANTIC_OPPOSITION"
+        ],
+        "detail": "Deterministic cause/prevent opposition detected for the same subject.",
+        "evidence": [
+          {
+            "text": "engine causes failure",
+            "role": "stored"
+          },
+          {
+            "text": "engine prevents failure",
+            "role": "incoming"
+          }
+        ],
+        "meta": {
+          "storedRelation": "causes",
+          "incomingRelation": "prevents",
+          "oppositionFamily": "cause_prevent"
+        }
+      },
+      {
+        "rule": "HIGH_RISK_DOMAIN",
+        "kind": "risk",
+        "severity": 0.8,
+        "confidence": 0.9,
+        "flags": [
+          "HIGH_RISK_DOMAIN"
+        ],
+        "detail": "High-risk domain detected: aviation.",
+        "evidence": [
+          {
+            "text": "engine prevents failure",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "domain": "aviation"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "engine prevents failure",
+      "subject": "engine",
+      "predicate": "prevents",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.95,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedHigh/rule-edge/cause-prevent": {
+    "status": "verified",
+    "classification": "verified",
+    "supportScore": 0.9,
+    "contradictionScore": 0,
+    "riskScore": 0.9,
+    "matchType": "unknown",
+    "warnings": [
+      "HIGH_RISK_DOMAIN"
+    ],
+    "risk": {
+      "score": 0.9,
+      "flags": [
+        "HIGH_RISK_DOMAIN"
+      ],
+      "domain": "aviation",
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "HIGH_RISK_DOMAIN",
+        "kind": "risk",
+        "severity": 0.8,
+        "confidence": 0.9,
+        "flags": [
+          "HIGH_RISK_DOMAIN"
+        ],
+        "detail": "High-risk domain detected: aviation.",
+        "evidence": [
+          {
+            "text": "engine prevents failure",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "domain": "aviation"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "engine prevents failure",
+      "subject": "engine",
+      "predicate": "prevents",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "contradicted/rule-edge/cause-prevent": {
+    "status": "contradicted",
+    "classification": "contradicted",
+    "supportScore": 0,
+    "contradictionScore": 0.95,
+    "riskScore": 0.9,
+    "matchType": "contradiction",
+    "warnings": [
+      "CAUSE_PREVENT_OPPOSITION",
+      "SEMANTIC_OPPOSITION",
+      "HIGH_RISK_DOMAIN"
+    ],
+    "risk": {
+      "score": 0.9,
+      "flags": [
+        "CAUSE_PREVENT_OPPOSITION",
+        "SEMANTIC_OPPOSITION",
+        "HIGH_RISK_DOMAIN"
+      ],
+      "domain": "aviation",
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "CAUSE_PREVENT_OPPOSITION",
+        "kind": "contradiction",
+        "severity": 0.9,
+        "confidence": 0.95,
+        "flags": [
+          "CAUSE_PREVENT_OPPOSITION",
+          "SEMANTIC_OPPOSITION"
+        ],
+        "detail": "Deterministic cause/prevent opposition detected for the same subject.",
+        "evidence": [
+          {
+            "text": "engine causes failure",
+            "role": "stored"
+          },
+          {
+            "text": "engine prevents failure",
+            "role": "incoming"
+          }
+        ],
+        "meta": {
+          "storedRelation": "causes",
+          "incomingRelation": "prevents",
+          "oppositionFamily": "cause_prevent"
+        }
+      },
+      {
+        "rule": "HIGH_RISK_DOMAIN",
+        "kind": "risk",
+        "severity": 0.8,
+        "confidence": 0.9,
+        "flags": [
+          "HIGH_RISK_DOMAIN"
+        ],
+        "detail": "High-risk domain detected: aviation.",
+        "evidence": [
+          {
+            "text": "engine prevents failure",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "domain": "aviation"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "engine prevents failure",
+      "subject": "engine",
+      "predicate": "prevents",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.95,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "unknown/rule-edge/two-edges": {
+    "status": "contradicted",
+    "classification": "contradicted",
+    "supportScore": 0.2,
+    "contradictionScore": 0.95,
+    "riskScore": 0.9,
+    "matchType": "contradiction",
+    "warnings": [
+      "NUMERICAL_CONFLICT",
+      "VALUE_CONFLICT",
+      "HIGH_RISK_DOMAIN"
+    ],
+    "risk": {
+      "score": 0.9,
+      "flags": [
+        "NUMERICAL_CONFLICT",
+        "VALUE_CONFLICT",
+        "HIGH_RISK_DOMAIN"
+      ],
+      "domain": "aviation",
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "NUMERICAL_CONFLICT",
+        "kind": "contradiction",
+        "severity": 0.9,
+        "confidence": 0.95,
+        "flags": [
+          "NUMERICAL_CONFLICT",
+          "VALUE_CONFLICT"
+        ],
+        "detail": "Different numeric values detected for the same subject/predicate.",
+        "evidence": [
+          {
+            "text": "b737 has 2 engines",
+            "role": "stored"
+          },
+          {
+            "text": "b737 has 4 engines",
+            "role": "incoming"
+          }
+        ],
+        "meta": {
+          "storedNumbers": [
+            "2"
+          ],
+          "incomingNumbers": [
+            "4"
+          ]
+        }
+      },
+      {
+        "rule": "HIGH_RISK_DOMAIN",
+        "kind": "risk",
+        "severity": 0.8,
+        "confidence": 0.9,
+        "flags": [
+          "HIGH_RISK_DOMAIN"
+        ],
+        "detail": "High-risk domain detected: aviation.",
+        "evidence": [
+          {
+            "text": "B737 has 4 engines",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "domain": "aviation"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "B737 has 4 engines",
+      "subject": "B737",
+      "predicate": "has",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.95,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "verifiedHigh/rule-edge/two-edges": {
+    "status": "verified",
+    "classification": "verified",
+    "supportScore": 0.9,
+    "contradictionScore": 0,
+    "riskScore": 0.9,
+    "matchType": "unknown",
+    "warnings": [
+      "HIGH_RISK_DOMAIN"
+    ],
+    "risk": {
+      "score": 0.9,
+      "flags": [
+        "HIGH_RISK_DOMAIN"
+      ],
+      "domain": "aviation",
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "HIGH_RISK_DOMAIN",
+        "kind": "risk",
+        "severity": 0.8,
+        "confidence": 0.9,
+        "flags": [
+          "HIGH_RISK_DOMAIN"
+        ],
+        "detail": "High-risk domain detected: aviation.",
+        "evidence": [
+          {
+            "text": "B737 has 4 engines",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "domain": "aviation"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "B737 has 4 engines",
+      "subject": "B737",
+      "predicate": "has",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.9,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "contradicted/rule-edge/two-edges": {
+    "status": "contradicted",
+    "classification": "contradicted",
+    "supportScore": 0,
+    "contradictionScore": 0.95,
+    "riskScore": 0.9,
+    "matchType": "contradiction",
+    "warnings": [
+      "NUMERICAL_CONFLICT",
+      "VALUE_CONFLICT",
+      "HIGH_RISK_DOMAIN"
+    ],
+    "risk": {
+      "score": 0.9,
+      "flags": [
+        "NUMERICAL_CONFLICT",
+        "VALUE_CONFLICT",
+        "HIGH_RISK_DOMAIN"
+      ],
+      "domain": "aviation",
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": true
+    },
+    "signals": [
+      {
+        "rule": "NUMERICAL_CONFLICT",
+        "kind": "contradiction",
+        "severity": 0.9,
+        "confidence": 0.95,
+        "flags": [
+          "NUMERICAL_CONFLICT",
+          "VALUE_CONFLICT"
+        ],
+        "detail": "Different numeric values detected for the same subject/predicate.",
+        "evidence": [
+          {
+            "text": "b737 has 2 engines",
+            "role": "stored"
+          },
+          {
+            "text": "b737 has 4 engines",
+            "role": "incoming"
+          }
+        ],
+        "meta": {
+          "storedNumbers": [
+            "2"
+          ],
+          "incomingNumbers": [
+            "4"
+          ]
+        }
+      },
+      {
+        "rule": "HIGH_RISK_DOMAIN",
+        "kind": "risk",
+        "severity": 0.8,
+        "confidence": 0.9,
+        "flags": [
+          "HIGH_RISK_DOMAIN"
+        ],
+        "detail": "High-risk domain detected: aviation.",
+        "evidence": [
+          {
+            "text": "B737 has 4 engines",
+            "role": "input"
+          }
+        ],
+        "meta": {
+          "domain": "aviation"
+        }
+      }
+    ],
+    "meta": {
+      "statement": "B737 has 4 engines",
+      "subject": "B737",
+      "predicate": "has",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0.95,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  },
+  "defaults": {
+    "status": "unknown",
+    "classification": "unsupported",
+    "supportScore": 0,
+    "contradictionScore": 0,
+    "riskScore": 0,
+    "matchType": "unknown",
+    "warnings": [],
+    "risk": {
+      "score": 0,
+      "flags": [],
+      "domain": null,
+      "manipulation": false,
+      "absoluteClaim": false,
+      "relationDrift": false,
+      "highRisk": false
+    },
+    "signals": [],
+    "meta": {
+      "statement": "",
+      "subject": "",
+      "predicate": "",
+      "workspaceId": "default",
+      "evidenceKinds": [],
+      "pathSearch": null,
+      "fuzzy": null,
+      "thresholds": {
+        "supportVerified": 0.75,
+        "contradictionConflict": 0.5,
+        "riskHigh": 0.4
+      }
+    },
+    "confidence": 0,
+    "thresholds": {
+      "supportVerified": 0.75,
+      "contradictionConflict": 0.5,
+      "riskHigh": 0.4
+    }
+  }
+}
