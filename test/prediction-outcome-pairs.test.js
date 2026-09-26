@@ -12,6 +12,7 @@ const {
   recordPrediction,
   recordOutcome,
   readPredictionPairs,
+  comparePredictionOutcome,
 } = require('../lib/prediction-outcome-pairs');
 
 function tempDir(t) {
@@ -79,4 +80,35 @@ test('pairs survive reopening and malformed calls fail closed', (t) => {
   assert.throws(() => recordPrediction(null, { decisionId: 'd', score: 1 }), /graph/);
   assert.throws(() => recordPrediction(graph, { decisionId: 'd', score: 101 }), /between 0 and 100/);
   assert.deepEqual(readPredictionPairs(graph), {});
+});
+
+test('comparison agrees, misses and false-alarms on the canonical high band', () => {
+  assert.deepEqual(comparePredictionOutcome({ score: 80, outcome: 'incident' }), {
+    agrees: true, predictedHigh: true, reason: 'high_estimate_met_adverse_outcome',
+  });
+  assert.deepEqual(comparePredictionOutcome({ score: 20, outcome: 'incident' }), {
+    agrees: false, predictedHigh: false, reason: 'missed_adverse_outcome',
+  });
+  assert.deepEqual(comparePredictionOutcome({ score: 80, outcome: 'confirmed' }), {
+    agrees: false, predictedHigh: true, reason: 'false_alarm',
+  });
+  assert.deepEqual(comparePredictionOutcome({ score: 20, outcome: 'confirmed' }), {
+    agrees: true, predictedHigh: false, reason: 'low_estimate_confirmed',
+  });
+  for (const outcome of ['rollback', 'compensation', 'contradiction', 'reviewer-rejection']) {
+    assert.equal(comparePredictionOutcome({ score: 90, outcome }).agrees, true, outcome);
+  }
+});
+
+test('unscored predictions and unknown outcomes never agree nor disagree', () => {
+  for (const input of [
+    { score: null, outcome: 'incident' },
+    { score: 80, outcome: null },
+    { score: 80, outcome: 'censored' },
+    { score: 80, outcome: 'exploded' },
+    {},
+  ]) {
+    assert.equal(comparePredictionOutcome(input).agrees, null, JSON.stringify(input));
+  }
+  assert.equal(comparePredictionOutcome({ score: 50, outcome: 'confirmed' }).predictedHigh, true);
 });
