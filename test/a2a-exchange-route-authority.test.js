@@ -36,3 +36,11 @@ test('an empty or oversized authority file is refused as unsafe', () => withDir(
 test('a relative authority path is refused', () => {
   assert.throws(() => readReceiverAuthority('authority.json'), /absolute receiver authority required/);
 });
+
+test('a symlinked authority file is refused as unsafe', { skip: process.platform === 'win32' }, () => withDir((dir) => {
+  const target = path.join(dir, 'authority.json');
+  fs.writeFileSync(target, JSON.stringify({ evaluationTime: 'x' }));
+  const link = path.join(dir, 'link.json');
+  fs.symlinkSync(target, link);
+  assert.throws(() => readReceiverAuthority(link), /receiver authority path is unsafe/);
+}));
