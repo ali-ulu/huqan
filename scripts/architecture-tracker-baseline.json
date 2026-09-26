@@ -384,6 +384,7 @@
       "lib/error-prevention/trust.js": "Application",
       "lib/errors/provenance-error.js": "Core",
       "lib/evidence-ladder.js": "Core",
+      "lib/experience/adapter-scope.js": "Application",
       "lib/experience/canary.js": "Application",
       "lib/experience/capability-trust-canary-extension.js": "Application",
       "lib/experience/capability-trust-fallback-extension.js": "Application",
@@ -423,7 +424,9 @@
       "lib/external-action-gate-install-validate.js": "Core",
       "lib/external-action-gate-install.js": "Core",
       "lib/external-action-gate-sentinel.js": "Core",
+      "lib/external-action-guard-gate-phase.js": "Core",
       "lib/external-action-guard-gates.js": "Core",
+      "lib/external-action-guard-identity.js": "Core",
       "lib/external-action-guard-records.js": "Core",
       "lib/external-action-guard-rules.js": "Core",
       "lib/external-action-guard.js": "Core",
@@ -537,6 +540,7 @@
       "lib/graph-sqlite-schema.js": "Core",
       "lib/graph-stats.js": "Core",
       "lib/graph-store-adapters.js": "Core",
+      "lib/graph-store-port.js": "Core",
       "lib/graph-traversal.js": "Core",
       "lib/http-human-oversight-adapter-identity.js": "Core",
       "lib/http-human-oversight-adapter-input.js": "Core",
@@ -618,6 +622,7 @@
       "lib/hypothesis-thresholds.js": "Core",
       "lib/hypothesis-tuning.js": "Core",
       "lib/identity-privilege-escalation.js": "Core",
+      "lib/impact-budget-gate.js": "Core",
       "lib/impact-budget-ledger.js": "Core",
       "lib/ingest-approval.js": "Core",
       "lib/ingest-capability.js": "Core",
@@ -680,7 +685,9 @@
       "lib/mcp-configuration-errors.js": "Core",
       "lib/mcp-envelope-format.js": "Core",
       "lib/mcp-envelope-schema.js": "Core",
+      "lib/mcp-gate-adapter-action-gates.js": "Core",
       "lib/mcp-gate-adapter-contract.js": "Core",
+      "lib/mcp-gate-adapter-data-gates.js": "Core",
       "lib/mcp-gate-adapter-decisions.js": "Core",
       "lib/mcp-gate-adapter-inputs.js": "Core",
       "lib/mcp-gate-adapter.js": "Core",
@@ -813,6 +820,7 @@
       "lib/pr-guardian/snapshot.js": "Application",
       "lib/pre-ingest.js": "Core",
       "lib/predicate-parser.js": "Core",
+      "lib/prediction-outcome-pairs.js": "Core",
       "lib/provenance-ingest-adapter.js": "Core",
       "lib/provenance-ingest.js": "Core",
       "lib/provenance-query-audit-page.js": "Core",
@@ -857,6 +865,7 @@
       "lib/registry/registry-record-store.js": "Application",
       "lib/registry/registry-route.js": "Application",
       "lib/relation-drift.js": "Core",
+      "lib/release-evaluation-record.js": "Core",
       "lib/repo-file-pin.js": "Core",
       "lib/residency-rule-miner.js": "Core",
       "lib/risk-classify.js": "Core",
@@ -2154,12 +2163,34 @@
         "lib/external-action-gate-install-validate.js",
         "lib/external-action-receipt.js"
       ],
+      "lib/external-action-guard-gate-phase.js": [
+        "lib/action-risk-classifier.js",
+        "lib/automation-safety-gate/index.js",
+        "lib/command-exec-gate.js",
+        "lib/cross-workspace-access-gate.js",
+        "lib/external-action-egress-gates.js",
+        "lib/external-action-envelope.js",
+        "lib/external-action-guard-gates.js",
+        "lib/external-action-guard-rules.js",
+        "lib/memory-mutation-gate/index.js",
+        "lib/tool-call-gate.js"
+      ],
       "lib/external-action-guard-gates.js": [
         "lib/action-risk-classifier.js",
         "lib/external-action-guard-rules.js",
         "lib/external-action-receipt.js",
         "lib/file-effect-sensor.js",
+        "lib/impact-budget-gate.js",
         "lib/risk-scale.js"
+      ],
+      "lib/external-action-guard-identity.js": [
+        "lib/action-risk-classifier.js",
+        "lib/external-action-guard-gates.js",
+        "lib/external-action-guard-rules.js",
+        "lib/external-action-identity.js",
+        "lib/graduated-autonomy.js",
+        "lib/identity-privilege-escalation.js",
+        "lib/session-impact.js"
       ],
       "lib/external-action-guard-records.js": [
         "lib/external-action-envelope.js",
@@ -2169,24 +2200,16 @@
       ],
       "lib/external-action-guard.js": [
         "lib/action-risk-classifier.js",
-        "lib/automation-safety-gate/index.js",
-        "lib/command-exec-gate.js",
         "lib/control-plane-paths.js",
-        "lib/cross-workspace-access-gate.js",
-        "lib/external-action-egress-gates.js",
         "lib/external-action-envelope.js",
+        "lib/external-action-guard-gate-phase.js",
         "lib/external-action-guard-gates.js",
+        "lib/external-action-guard-identity.js",
         "lib/external-action-guard-records.js",
         "lib/external-action-guard-rules.js",
-        "lib/external-action-identity.js",
-        "lib/graduated-autonomy.js",
-        "lib/identity-privilege-escalation.js",
-        "lib/memory-mutation-gate/index.js",
         "lib/path-safety.js",
         "lib/post-action-monitor.js",
-        "lib/risk-scale.js",
-        "lib/session-impact.js",
-        "lib/tool-call-gate.js"
+        "lib/risk-scale.js"
       ],
       "lib/external-action-identity-card.js": [
         "lib/emergency-stop.js",
@@ -2341,6 +2364,7 @@
         "lib/external-client-authority-primitives.js"
       ],
       "lib/financial-action-policy.js": [
+        "lib/financial-aggregation.js",
         "lib/risk-policy-constants.js"
       ],
       "lib/fitness-history.js": [
@@ -2601,7 +2625,13 @@
       "lib/graph-store-adapters.js": [
         "lib/audit-log.js",
         "lib/graph-candidate-claims-read.js",
-        "lib/graph-record-utils.js"
+        "lib/graph-record-utils.js",
+        "lib/graph-store-port.js"
+      ],
+      "lib/graph-store-port.js": [
+        "lib/graph-json-persistence.js",
+        "lib/graph-json-snapshot.js",
+        "lib/graph-persistence-runtime.js"
       ],
       "lib/graph-traversal.js": [
         "lib/graph-chain-traversal.js",
@@ -2931,6 +2961,13 @@
       "lib/hypothesis-tuning.js": [
         "lib/graph-hypotheses.js"
       ],
+      "lib/impact-budget-gate.js": [
+        "lib/action-risk-classifier.js",
+        "lib/blast-radius.js",
+        "lib/external-action-action-binding.js",
+        "lib/external-action-guard-rules.js",
+        "lib/impact-budget-ledger.js"
+      ],
       "lib/ingest-approval.js": [
         "lib/ingest-capability.js",
         "lib/ingest-values.js"
@@ -3101,8 +3138,28 @@
         "lib/environment-compat.js",
         "lib/verify-status-vocabulary.js"
       ],
+      "lib/mcp-gate-adapter-action-gates.js": [
+        "lib/action-risk-classifier.js",
+        "lib/automation-safety-gate/index.js",
+        "lib/command-exec-gate.js",
+        "lib/mcp-gate-adapter-contract.js",
+        "lib/mcp-gate-adapter-decisions.js",
+        "lib/mcp-gate-adapter-inputs.js",
+        "lib/risk-scale.js",
+        "lib/tool-call-gate.js"
+      ],
       "lib/mcp-gate-adapter-contract.js": [
         "lib/action-risk-classifier.js",
+        "lib/risk-scale.js"
+      ],
+      "lib/mcp-gate-adapter-data-gates.js": [
+        "lib/action-risk-classifier.js",
+        "lib/cross-workspace-access-gate.js",
+        "lib/data-egress-gate.js",
+        "lib/mcp-gate-adapter-contract.js",
+        "lib/mcp-gate-adapter-decisions.js",
+        "lib/mcp-gate-adapter-inputs.js",
+        "lib/memory-mutation-gate/index.js",
         "lib/risk-scale.js"
       ],
       "lib/mcp-gate-adapter-decisions.js": [
@@ -3119,16 +3176,12 @@
       ],
       "lib/mcp-gate-adapter.js": [
         "lib/action-risk-classifier.js",
-        "lib/automation-safety-gate/index.js",
-        "lib/command-exec-gate.js",
-        "lib/cross-workspace-access-gate.js",
-        "lib/data-egress-gate.js",
+        "lib/mcp-gate-adapter-action-gates.js",
         "lib/mcp-gate-adapter-contract.js",
+        "lib/mcp-gate-adapter-data-gates.js",
         "lib/mcp-gate-adapter-decisions.js",
         "lib/mcp-gate-adapter-inputs.js",
-        "lib/memory-mutation-gate/index.js",
-        "lib/risk-scale.js",
-        "lib/tool-call-gate.js"
+        "lib/risk-scale.js"
       ],
       "lib/mcp-human-oversight-adapter.js": [
         "lib/agent-action-firewall.js",
@@ -3651,6 +3704,9 @@
       ],
       "lib/predicate-parser.js": [
         "lib/turkish-copula.js"
+      ],
+      "lib/prediction-outcome-pairs.js": [
+        "lib/risk-scale.js"
       ],
       "lib/provenance-ingest-adapter.js": [
         "lib/provenance-ingest.js",
@@ -5035,13 +5091,13 @@
         "toLayer": "Application"
       },
       {
-        "from": "lib/external-action-guard.js",
+        "from": "lib/external-action-guard-gate-phase.js",
         "to": "lib/automation-safety-gate/index.js",
         "fromLayer": "Core",
         "toLayer": "Application"
       },
       {
-        "from": "lib/external-action-guard.js",
+        "from": "lib/external-action-guard-gate-phase.js",
         "to": "lib/memory-mutation-gate/index.js",
         "fromLayer": "Core",
         "toLayer": "Adapters"
@@ -5257,13 +5313,13 @@
         "toLayer": "Adapters"
       },
       {
-        "from": "lib/mcp-gate-adapter.js",
+        "from": "lib/mcp-gate-adapter-action-gates.js",
         "to": "lib/automation-safety-gate/index.js",
         "fromLayer": "Core",
         "toLayer": "Application"
       },
       {
-        "from": "lib/mcp-gate-adapter.js",
+        "from": "lib/mcp-gate-adapter-data-gates.js",
         "to": "lib/memory-mutation-gate/index.js",
         "fromLayer": "Core",
         "toLayer": "Adapters"
