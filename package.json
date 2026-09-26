@@ -1112,6 +1112,8 @@
     "lib/workflow-tool-run-capability.js",
     "lib/workflow-tool-specialized-capabilities.js",
     "lib/workflow-budget-selection.js",
+    "lib/workflow-agent-plan.js",
+    "lib/workflow-agent-steps.js",
     "lib/workflow-planning.js",
     "lib/workflow-review-approval.js",
     "lib/workflow-tool-registry.js",

@@ -997,6 +997,8 @@
       "lib/workbench/trust-receipt-inspector.js": "UI",
       "lib/workbench/trust-receipt-route.js": "UI",
       "lib/workbench/workbench-read-http-router.js": "UI",
+      "lib/workflow-agent-plan.js": "Core",
+      "lib/workflow-agent-steps.js": "Core",
       "lib/workflow-budget-selection.js": "Core",
       "lib/workflow-contract.js": "Core",
       "lib/workflow-planning.js": "Core",
@@ -4568,6 +4570,17 @@
         "lib/workbench/receipt-bundle-export-route.js",
         "lib/workbench/trust-receipt-route.js"
       ],
+      "lib/workflow-agent-plan.js": [
+        "lib/workflow-budget-selection.js",
+        "lib/workflow-planning.js",
+        "lib/workflow-run-guidance.js",
+        "lib/workflow-values.js"
+      ],
+      "lib/workflow-agent-steps.js": [
+        "lib/goal-binding.js",
+        "lib/workflow-review-approval.js",
+        "lib/workflow-values.js"
+      ],
       "lib/workflow-contract.js": [
         "lib/mcp-tool-catalog.js"
       ],
@@ -5113,6 +5126,8 @@
       "workflow-agent.js": [
         "finalizer.js",
         "lib/goal-binding.js",
+        "lib/workflow-agent-plan.js",
+        "lib/workflow-agent-steps.js",
         "lib/workflow-budget-selection.js",
         "lib/workflow-planning.js",
         "lib/workflow-review-approval.js",
