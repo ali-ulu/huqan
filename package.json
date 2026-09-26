@@ -382,6 +382,7 @@
     "lib/bypass-response.js",
     "lib/prediction-outcome-pairs.js",
     "lib/release-evaluation-record.js",
+    "lib/incident-envelope.js",
     "lib/graduated-autonomy.js",
     "lib/autonomy-receipt-history.js",
     "lib/autonomy-state.js",
