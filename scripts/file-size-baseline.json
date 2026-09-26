@@ -14,7 +14,6 @@
     "backupRestore.js": 610,
     "cli.js": 637,
     "dream.js": 726,
-    "finalizer.js": 604,
     "kernel.js": 855,
     "lib/atp-conformance.js": 504,
     "lib/conflict-detector.js": 616,
@@ -50,10 +49,6 @@
       "review_by": "2026-10-31"
     },
     "dream.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
-    "finalizer.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },
