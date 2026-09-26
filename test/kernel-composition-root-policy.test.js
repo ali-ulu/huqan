@@ -37,3 +37,23 @@ test('executables package.json ships as bin are measured as product code (#2401)
   assert.equal(groups.recorded.length, 1);
   assert.equal(groups.tooling.length, 0);
 });
+
+test('composition roots are an explicit, dated list, not a file-name pattern (#2401)', () => {
+  const { COMPOSITION_ROOTS, compositionRootViolations } = require('../scripts/architecture-snapshot');
+  for (const entry of COMPOSITION_ROOTS) {
+    assert.equal(isCompositionRoot(entry.file), true, entry.file);
+    assert.match(entry.review_by, /^\d{4}-\d{2}-\d{2}$/);
+  }
+  // A name alone no longer exempts a file from the DIP signal.
+  assert.equal(isCompositionRoot('lib/some-new-factory.js'), false);
+  assert.equal(isCompositionRoot('lib/http/ingest-approval-runtime.js'), false);
+  assert.deepEqual(compositionRootViolations(), []);
+
+  const sources = { 'lib/a.js': 'new Graph()', 'lib/b.js': 'module.exports = {};' };
+  const violations = compositionRootViolations([
+    { file: 'lib/a.js', why: 'fixture', review_by: '2026-01-01' },
+    { file: 'lib/b.js', why: 'fixture', review_by: '2099-01-01' },
+    { file: 'lib/gone.js', why: 'fixture', review_by: '2099-01-01' },
+  ], { today: '2026-09-26', readSource: (file) => sources[file] ?? null });
+  assert.equal(violations.length, 3, JSON.stringify(violations));
+});

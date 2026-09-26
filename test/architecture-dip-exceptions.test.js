@@ -38,7 +38,7 @@ test('an expired, a stale and a composition-root entry are each reported', () =>
   const sources = {
     'lib/constructs.js': "const g = new Graph({ useSQLite: false });",
     'lib/constructs-nothing.js': "module.exports = {};",
-    'lib/some-factory.js': "module.exports = () => new Graph();",
+    'lib/kernel-factory.js': "module.exports = () => new KernelV2();",
   };
   const readSource = (file) => (file in sources ? sources[file] : null);
   const today = '2026-09-14';
@@ -47,12 +47,12 @@ test('an expired, a stale and a composition-root entry are each reported', () =>
     { file: 'lib/constructs.js', why: 'fixture: expired', review_by: '2026-01-01' },
     { file: 'lib/constructs-nothing.js', why: 'fixture: stale', review_by: '2026-12-31' },
     { file: 'lib/missing.js', why: 'fixture: gone', review_by: '2026-12-31' },
-    { file: 'lib/some-factory.js', why: 'fixture: root', review_by: '2026-12-31' },
+    { file: 'lib/kernel-factory.js', why: 'fixture: root', review_by: '2026-12-31' },
   ], { today, readSource });
 
   assert.equal(violations.length, 4, JSON.stringify(violations));
   assert.ok(violations.some((v) => /expired/.test(v) && /lib\/constructs\.js/.test(v)));
   assert.ok(violations.some((v) => /stale/.test(v) && /constructs-nothing/.test(v)));
   assert.ok(violations.some((v) => /stale/.test(v) && /missing/.test(v)));
-  assert.ok(violations.some((v) => /composition root/.test(v) && /some-factory/.test(v)));
+  assert.ok(violations.some((v) => /composition root/.test(v) && /kernel-factory/.test(v)));
 });

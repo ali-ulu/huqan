@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { stripComments } = require('./check-import-cycles.js');
 
 const repoRoot = path.resolve(__dirname, '..');
 
@@ -22,4 +23,54 @@ const isProduct = (file, bins = PACKAGED_BINS) => bins.has(file) || (!file.start
   && !file.startsWith('examples/')
   && !file.startsWith('bin/'));
 
-module.exports = { isProduct, packagedBins };
+const CONSTRUCTS = /new\s+(Kernel|KernelV2|Agent|AgentV3|HuqanStorage|Graph|MemoryStore|WorkflowAgent)\s*\(/g;
+
+const ENTRYPOINTS = ['cli.js', 'server.js', 'mcpServer.js', 'index.js', 'agentRuntime.js', 'kernel.js'];
+
+/**
+ * Library files whose job is building collaborators (#2401). Named here with
+ * the reason and a review date instead of matched by a `factory|runtime` name
+ * regex, which let any file opt out of the DIP signal by being renamed.
+ * `--check` fails on an expired entry and on one that constructs nothing.
+ */
+const COMPOSITION_ROOTS = Object.freeze([
+  { file: 'lib/kernel-factory.js', why: 'Assembles KernelV2 for the CLI, server and MCP entrypoints.', review_by: '2027-03-31' },
+  { file: 'lib/agent-v3-storage-factory.js', why: 'Opens the HuqanStorage an AgentV3 is handed when the caller passes none.', review_by: '2027-03-31' },
+  { file: 'lib/mcp-approval-store-factory.js', why: 'Opens the HuqanStorage behind the MCP approval store.', review_by: '2027-03-31' },
+  { file: 'lib/external-action-receipt-writer-factory.js', why: 'Builds the Graph an external-action receipt writer persists to.', review_by: '2027-03-31' },
+  { file: 'lib/rust-graph-fallback-factory.js', why: 'Builds the JavaScript Graph used when the Rust accelerator is unavailable.', review_by: '2027-03-31' },
+  { file: 'workflow-runtime.js', why: 'The workflow runtime entry: constructs the WorkflowAgent it stands in for.', review_by: '2027-03-31' },
+]);
+
+const isCompositionRoot = (file, roots = COMPOSITION_ROOTS) => file.startsWith('bin/')
+  || file.startsWith('scripts/')
+  || file.startsWith('examples/')
+  || ENTRYPOINTS.includes(file)
+  || roots.some((entry) => entry.file === file);
+
+function compositionRootViolations(entries = COMPOSITION_ROOTS, { today = new Date().toISOString().slice(0, 10), readSource } = {}) {
+  const read = readSource || ((file) => {
+    const full = path.join(repoRoot, file);
+    return fs.existsSync(full) ? fs.readFileSync(full, 'utf8') : null;
+  });
+  const violations = [];
+  for (const entry of entries) {
+    if (entry.review_by < today) {
+      violations.push(`${entry.file}: composition root expired on ${entry.review_by}`);
+      continue;
+    }
+    const source = read(entry.file);
+    if (source === null) violations.push(`${entry.file}: composition root is stale, the file is gone`);
+    else if (!stripComments(source).match(CONSTRUCTS)) violations.push(`${entry.file}: composition root is stale, nothing is constructed any more`);
+  }
+  return violations;
+}
+
+module.exports = {
+  isProduct,
+  packagedBins,
+  isCompositionRoot,
+  compositionRootViolations,
+  COMPOSITION_ROOTS,
+  CONSTRUCTS,
+};

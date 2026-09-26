@@ -4862,6 +4862,9 @@
         "scripts/architecture-snapshot.js",
         "scripts/check-layers.js"
       ],
+      "scripts/architecture-snapshot-scope.js": [
+        "scripts/check-import-cycles.js"
+      ],
       "scripts/architecture-snapshot.js": [
         "scripts/architecture-dependency-graph.js",
         "scripts/architecture-mermaid.js",

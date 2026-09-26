@@ -44,16 +44,8 @@ function countLines(file) {
   return lines;
 }
 
-const CONSTRUCTS = /new\s+(Kernel|KernelV2|Agent|AgentV3|HuqanStorage|Graph|MemoryStore|WorkflowAgent)\s*\(/g;
-
-/** An entrypoint, factory or runtime is a composition root: building its
- *  collaborators is its job, and counting that as a coupling defect produced
- *  eight false findings the first time round. */
-const isCompositionRoot = (file) => file.startsWith('bin/')
-  || file.startsWith('scripts/')
-  || file.startsWith('examples/')
-  || ['cli.js', 'server.js', 'mcpServer.js', 'index.js', 'agentRuntime.js', 'kernel.js'].includes(file)
-  || /factory|runtime/.test(path.basename(file));
+const scope = require('./architecture-snapshot-scope');
+const { isProduct, packagedBins, isCompositionRoot, compositionRootViolations, COMPOSITION_ROOTS, CONSTRUCTS } = scope;
 
 /**
  * Constructions the DIP regex matches that are not a coupling defect (#2268).
@@ -69,6 +61,13 @@ const DIP_ALLOWED = Object.freeze([
     file: 'lib/self-healer/source-dependency-graph.js',
     why: 'dreamDependencyCandidates builds a throwaway in-memory Graph (useSQLite: false; measured: no filesystem access) '
       + 'so Dream can run over a source dependency graph. A local data structure, not a collaborator to inject.',
+    review_by: '2026-12-31',
+  },
+  {
+    file: 'lib/http/ingest-approval-runtime.js',
+    why: 'getStore() lazily opens the HuqanStorage behind HTTP ingest approvals. Named a composition root only by its '
+      + '"runtime" file name until #2401; injecting the store means threading it from server.js through '
+      + 'server-ingest-workflow-runtime.js, left as its own change.',
     review_by: '2026-12-31',
   },
 ]);
@@ -94,8 +93,6 @@ function dipExceptionViolations(entries = DIP_ALLOWED, { today = new Date().toIS
   }
   return violations;
 }
-
-const { isProduct, packagedBins } = require('./architecture-snapshot-scope');
 
 // Built at most once per process: the size tracker and the layer snapshot read the same tree.
 let sourceGraphCache = null;
@@ -330,9 +327,9 @@ function main(argv = process.argv.slice(2)) {
       console.error(`Architecture tracker baseline violation:\n  ${violations.join('\n  ')}`);
       return 1;
     }
-    const dipViolations = dipExceptionViolations();
+    const dipViolations = [...dipExceptionViolations(), ...compositionRootViolations()];
     if (dipViolations.length > 0) {
-      console.error('DIP exception list is out of date:');
+      console.error('DIP exception or composition root list is out of date:');
       for (const violation of dipViolations) console.error(`  ${violation}`);
       return 1;
     }
@@ -391,6 +388,8 @@ module.exports = {
   isProduct,
   packagedBins,
   dipExceptionViolations,
+  compositionRootViolations,
+  COMPOSITION_ROOTS,
   TRACKER_PATH,
   BASELINE_PATH,
   ACCEPTED,
