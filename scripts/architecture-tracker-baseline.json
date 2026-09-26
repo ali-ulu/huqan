@@ -101,11 +101,6 @@
       "lines": 432,
       "signals": []
     },
-    "lib/memory-admission-gate.js": {
-      "band": "recorded",
-      "lines": 471,
-      "signals": []
-    },
     "lib/memory-store.js": {
       "band": "recorded",
       "lines": 594,
@@ -729,6 +724,9 @@
       "lib/mcp/tool-surface.js": "UI",
       "lib/mcp/transient-agent.js": "UI",
       "lib/mcp/trust-receipt-detail-tool.js": "UI",
+      "lib/memory-admission-gate-contract.js": "Adapters",
+      "lib/memory-admission-gate-receipt.js": "Adapters",
+      "lib/memory-admission-gate-request.js": "Adapters",
       "lib/memory-admission-gate.js": "Adapters",
       "lib/memory-blast-radius.js": "Adapters",
       "lib/memory-event-read.js": "Adapters",
@@ -3392,11 +3390,23 @@
         "lib/mcp/response-builders.js",
         "lib/receipt/receipt-read-index.js"
       ],
-      "lib/memory-admission-gate.js": [
-        "lib/admission-horizon.js",
+      "lib/memory-admission-gate-contract.js": [
         "lib/approval-schema.js",
         "lib/is-plain-object.js",
-        "lib/json-clone.js",
+        "lib/json-clone.js"
+      ],
+      "lib/memory-admission-gate-receipt.js": [
+        "lib/admission-horizon.js",
+        "lib/memory-admission-gate-contract.js"
+      ],
+      "lib/memory-admission-gate-request.js": [
+        "lib/approval-schema.js",
+        "lib/memory-admission-gate-contract.js"
+      ],
+      "lib/memory-admission-gate.js": [
+        "lib/memory-admission-gate-contract.js",
+        "lib/memory-admission-gate-receipt.js",
+        "lib/memory-admission-gate-request.js",
         "lib/risk-scale.js"
       ],
       "lib/memory-blast-radius.js": [
