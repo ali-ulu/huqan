@@ -8,11 +8,6 @@
         "DIP"
       ]
     },
-    "backupRestore.js": {
-      "band": "recorded",
-      "lines": 610,
-      "signals": []
-    },
     "cli.js": {
       "band": "recorded",
       "lines": 637,
@@ -378,6 +373,7 @@
       "lib/experience/capability-trust.js": "Application",
       "lib/experience/compiler.js": "Application",
       "lib/experience/contract.js": "Application",
+      "lib/experience/journal-connection.js": "Application",
       "lib/experience/journal.js": "Application",
       "lib/experience/learning.js": "Application",
       "lib/experience/optimization-hypothesis.js": "Application",
@@ -434,9 +430,11 @@
       "lib/external-client-authority.js": "Core",
       "lib/external-client-endpoint-contract.js": "Core",
       "lib/external-client-http-adapter.js": "Core",
+      "lib/external-client-mutation-receipt-owner-candidate.js": "Core",
       "lib/external-client-mutation-receipt-owner-contract.js": "Core",
       "lib/external-client-mutation-receipt-owner-dependencies.js": "Core",
       "lib/external-client-mutation-receipt-owner-json.js": "Core",
+      "lib/external-client-mutation-receipt-owner-records.js": "Core",
       "lib/external-client-mutation-receipt-owner-snapshot.js": "Core",
       "lib/external-client-mutation-receipt-owner.js": "Core",
       "lib/external-client-package-gate-inputs.js": "Core",
@@ -916,6 +914,11 @@
       "lib/sqlite-persistence-validation.js": "Adapters",
       "lib/sqlite-restore.js": "Adapters",
       "lib/ssrf-guard.js": "Core",
+      "lib/storage/backup-restore-create.js": "Adapters",
+      "lib/storage/backup-restore-paths.js": "Adapters",
+      "lib/storage/backup-restore-restore.js": "Adapters",
+      "lib/storage/backup-restore-store.js": "Adapters",
+      "lib/storage/backup-restore-validate.js": "Adapters",
       "lib/storage/schema.js": "Adapters",
       "lib/storage/tool-approval-methods-decide.js": "Adapters",
       "lib/storage/tool-approval-methods-lease.js": "Adapters",
@@ -1144,6 +1147,7 @@
       "scripts/launch-installed-package-smoke.js": "UI",
       "scripts/launch-smoke-receipts.js": "UI",
       "scripts/list-mutation-targets.js": "UI",
+      "scripts/measure-journal-durability.js": "UI",
       "scripts/migrate-prov-ids.js": "UI",
       "scripts/nightly-failure-alarm.js": "UI",
       "scripts/pr-guardian-self-review.js": "UI",
@@ -1247,14 +1251,15 @@
         "agent.js",
         "agent.v3.js",
         "lib/environment-compat.js",
+        "lib/experience/journal-connection.js",
         "lib/experience/journal.js",
         "storage.js",
         "workflow-runtime.js"
       ],
       "backupRestore.js": [
-        "lib/memory-store-utils.js",
-        "lib/path-safety.js",
-        "persistencePaths.js"
+        "lib/storage/backup-restore-create.js",
+        "lib/storage/backup-restore-paths.js",
+        "lib/storage/backup-restore-restore.js"
       ],
       "bin/huqan-gate-hook.js": [
         "lib/browser-session-observer.js",
@@ -2123,6 +2128,11 @@
         "lib/experience/capability-trust-canary-extension.js",
         "lib/experience/capability-trust-fallback-extension.js"
       ],
+      "lib/experience/journal-connection.js": [
+        "lib/memory-store-utils.js",
+        "lib/sqlite-availability.js",
+        "lib/sqlite-durability.js"
+      ],
       "lib/experience/journal.js": [
         "lib/experience/contract.js",
         "lib/is-plain-object.js"
@@ -2336,12 +2346,23 @@
         "lib/external-client-endpoint-contract.js",
         "requestGuards.js"
       ],
+      "lib/external-client-mutation-receipt-owner-candidate.js": [
+        "lib/external-client-mutation-receipt-owner-contract.js",
+        "lib/external-client-mutation-receipt-owner-json.js",
+        "lib/external-client-mutation-receipt-owner-records.js"
+      ],
       "lib/external-client-mutation-receipt-owner-dependencies.js": [
         "lib/external-client-mutation-receipt-owner-contract.js",
         "lib/external-client-mutation-receipt-owner-json.js"
       ],
       "lib/external-client-mutation-receipt-owner-json.js": [
         "lib/is-plain-object.js"
+      ],
+      "lib/external-client-mutation-receipt-owner-records.js": [
+        "lib/external-client-mutation-receipt-owner-contract.js",
+        "lib/external-client-mutation-receipt-owner-json.js",
+        "lib/receipt/canonical-receipt-v2.js",
+        "lib/receipt/canonical-receipt.js"
       ],
       "lib/external-client-mutation-receipt-owner-snapshot.js": [
         "lib/external-client-mutation-receipt-owner-contract.js",
@@ -2350,13 +2371,13 @@
       ],
       "lib/external-client-mutation-receipt-owner.js": [
         "lib/agent-identity-runtime.js",
+        "lib/external-client-mutation-receipt-owner-candidate.js",
         "lib/external-client-mutation-receipt-owner-contract.js",
         "lib/external-client-mutation-receipt-owner-dependencies.js",
         "lib/external-client-mutation-receipt-owner-json.js",
+        "lib/external-client-mutation-receipt-owner-records.js",
         "lib/external-client-mutation-receipt-owner-snapshot.js",
-        "lib/mutation-admission.js",
-        "lib/receipt/canonical-receipt-v2.js",
-        "lib/receipt/canonical-receipt.js"
+        "lib/mutation-admission.js"
       ],
       "lib/external-client-package-gate-verify.js": [
         "lib/external-client-package-gate-inputs.js",
@@ -4166,6 +4187,27 @@
         "lib/graph-record-utils.js",
         "lib/store-creation-guard.js"
       ],
+      "lib/storage/backup-restore-create.js": [
+        "lib/path-safety.js",
+        "lib/storage/backup-restore-paths.js",
+        "lib/storage/backup-restore-store.js"
+      ],
+      "lib/storage/backup-restore-paths.js": [
+        "lib/memory-store-utils.js",
+        "lib/path-safety.js",
+        "persistencePaths.js"
+      ],
+      "lib/storage/backup-restore-restore.js": [
+        "lib/path-safety.js",
+        "lib/storage/backup-restore-create.js",
+        "lib/storage/backup-restore-paths.js",
+        "lib/storage/backup-restore-validate.js"
+      ],
+      "lib/storage/backup-restore-validate.js": [
+        "lib/path-safety.js",
+        "lib/storage/backup-restore-create.js",
+        "lib/storage/backup-restore-paths.js"
+      ],
       "lib/storage/tool-approval-methods-decide.js": [
         "lib/workspace-id.js"
       ],
@@ -4770,6 +4812,10 @@
         "scripts/launch-installed-package-smoke-parity.js",
         "scripts/launch-installed-package-smoke-rest.js"
       ],
+      "scripts/measure-journal-durability.js": [
+        "lib/experience/journal.js",
+        "storage.js"
+      ],
       "scripts/migrate-prov-ids.js": [
         "lib/provenance-ingest.js"
       ],
@@ -5229,13 +5275,13 @@
         "toLayer": "Application"
       },
       {
-        "from": "lib/external-client-mutation-receipt-owner.js",
+        "from": "lib/external-client-mutation-receipt-owner-records.js",
         "to": "lib/receipt/canonical-receipt-v2.js",
         "fromLayer": "Core",
         "toLayer": "Application"
       },
       {
-        "from": "lib/external-client-mutation-receipt-owner.js",
+        "from": "lib/external-client-mutation-receipt-owner-records.js",
         "to": "lib/receipt/canonical-receipt.js",
         "fromLayer": "Core",
         "toLayer": "Application"

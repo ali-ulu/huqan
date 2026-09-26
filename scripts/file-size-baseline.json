@@ -11,7 +11,6 @@
   "threshold": 400,
   "files": {
     "agent.v3.js": 647,
-    "backupRestore.js": 610,
     "cli.js": 637,
     "dream.js": 726,
     "kernel.js": 855,
@@ -37,10 +36,6 @@
   },
   "reviews": {
     "agent.v3.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
-    "backupRestore.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },

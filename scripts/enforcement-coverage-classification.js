@@ -159,9 +159,22 @@ const CLASSIFIED = Object.freeze({
     why: 'writes the emergency stop records that the identity gate, MCP dispatch, the agent step executor and A2A admission read before acting, and appends the receipt of each stop and lift; gating these writes through admission would be circular. The directory comes from HUQAN_EMERGENCY_STOP_DIR or the state root, never a request field; each record file is named by a hash of its scope and created exclusively, so a stop cannot be overwritten',
   }),
   // ── operator tools ─────────────────────────────────────────────────────
-  'backupRestore.js': Object.freeze({
+  // #2168 split backupRestore.js; its writes and spawns now live in these three.
+  'lib/storage/backup-restore-store.js': Object.freeze({
     role: 'operator_tool',
-    why: 'backup and restore, invoked from the CLI by a human; spawns are the SQLite backup path',
+    why: 'the backup store behind the human-invoked backup/restore CLI: directory and file copies, pruning, the manifest, and the SQLite online-backup child process',
+  }),
+  'lib/storage/backup-restore-validate.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'restore-source validation behind the human-invoked restore CLI; its only spawn is the read-only SQLite integrity check of the candidate file',
+  }),
+  'lib/storage/backup-restore-restore.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'the human-invoked restore: atomic file replacement, the progress marker and stale temp cleanup, after a safety backup',
+  }),
+  'lib/storage/backup-restore-create.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'the human-invoked backup: staging directory rename into place and cleanup of a failed staging directory',
   }),
   'lib/quickstart-cli.js': Object.freeze({ role: 'operator_tool', why: 'the quickstart writes a demo workspace on explicit invocation' }),
   'lib/integrity-violation-notifier.js': Object.freeze({
