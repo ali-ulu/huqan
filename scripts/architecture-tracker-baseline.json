@@ -120,11 +120,6 @@
       "lines": 678,
       "signals": []
     },
-    "plugins/repo-memory.js": {
-      "band": "recorded",
-      "lines": 726,
-      "signals": []
-    },
     "sandboxRunner.js": {
       "band": "recorded",
       "lines": 530,
@@ -321,6 +316,9 @@
       "lib/connector-local-path.js": "Core",
       "lib/connectors/entry-ingest-flow.js": "Adapters",
       "lib/connectors/repo-memory-firewall.js": "Adapters",
+      "lib/connectors/repo-memory-github.js": "Adapters",
+      "lib/connectors/repo-memory-path-ingest.js": "Adapters",
+      "lib/connectors/repo-memory-records.js": "Adapters",
       "lib/content-hash.js": "Core",
       "lib/contested-read-policy.js": "Core",
       "lib/contradiction-rules-opposition-detectors.js": "Core",
@@ -2008,6 +2006,20 @@
       ],
       "lib/connectors/repo-memory-firewall.js": [
         "lib/connector-action-firewall.js"
+      ],
+      "lib/connectors/repo-memory-github.js": [
+        "lib/connectors/repo-memory-firewall.js",
+        "lib/connectors/repo-memory-records.js",
+        "lib/repo-file-pin.js"
+      ],
+      "lib/connectors/repo-memory-path-ingest.js": [
+        "lib/connectors/entry-ingest-flow.js",
+        "lib/connectors/repo-memory-firewall.js",
+        "lib/connectors/repo-memory-records.js",
+        "lib/repo-file-pin.js"
+      ],
+      "lib/connectors/repo-memory-records.js": [
+        "lib/bounded-ingest-errors.js"
       ],
       "lib/contested-read-policy.js": [
         "lib/canonical-target-match.js",
@@ -4601,10 +4613,9 @@
         "adapters/markdown-adapter.js",
         "adapters/pdf-adapter.js",
         "adapters/yaml-adapter.js",
-        "lib/bounded-ingest-errors.js",
-        "lib/connectors/entry-ingest-flow.js",
-        "lib/connectors/repo-memory-firewall.js",
-        "lib/provenance-ingest.js",
+        "lib/connectors/repo-memory-github.js",
+        "lib/connectors/repo-memory-path-ingest.js",
+        "lib/connectors/repo-memory-records.js",
         "lib/repo-file-pin.js"
       ],
       "plugins/result-analyzer.js": [

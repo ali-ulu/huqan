@@ -34,6 +34,8 @@ const PROVENANCE_PATHS = [
   'lib/background-provenance-projection.js',
   'lib/conflict-detector.js',
   'lib/connectors/entry-ingest-flow.js',
+  'lib/connectors/repo-memory-github.js',
+  'lib/connectors/repo-memory-path-ingest.js',
   'lib/github-connector.js',
   'plugins/repo-memory.js',
   'lib/repo-file-pin.js',
@@ -59,6 +61,9 @@ const PINNED = new Set([
   // to move out of the plugin. It computes the hash, so it is classified here
   // rather than excused as "nothing to pin".
   'lib/repo-file-pin.js',
+  // repo-memory's github path, moved out of the plugin by the same ratchet. It
+  // builds the pinned file provenance from the commit the adapter resolved.
+  'lib/connectors/repo-memory-github.js',
 ]);
 
 /**
@@ -87,6 +92,11 @@ const NOT_PINNED = {
     + 'run. It reads nothing itself: every entry, including its sourceRef, is '
     + 'handed to it by an adapter that already pinned the content, so it has '
     + 'nothing of its own to pin and forwards what it was given.',
+  'lib/connectors/repo-memory-path-ingest.js':
+    'is the guarded wrapper around entry-ingest-flow for the entry-based '
+    + 'connectors in plugins/repo-memory.js. The adapter call it runs is handed '
+    + 'to it by the plugin, and every entry it forwards was already pinned by '
+    + 'that adapter, so it has nothing of its own to pin.',
   'lib/provenance-ingest-adapter.js':
     'is the kernel.learn orchestration over provenance that lib/provenance-ingest.js '
     + 'already built. It reads no external content itself, so there is nothing of '
