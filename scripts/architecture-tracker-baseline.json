@@ -13,11 +13,6 @@
       "lines": 610,
       "signals": []
     },
-    "causalSimulator.js": {
-      "band": "recorded",
-      "lines": 478,
-      "signals": []
-    },
     "cli.js": {
       "band": "recorded",
       "lines": 637,
@@ -282,6 +277,9 @@
       "lib/bypass-signal-state.js": "Core",
       "lib/canonical-target-match.js": "Core",
       "lib/causal-edge-strength.js": "Core",
+      "lib/causal-simulator-chains.js": "Core",
+      "lib/causal-simulator-report.js": "Core",
+      "lib/causal-simulator-scoring.js": "Core",
       "lib/causal/causal-edge-errors.js": "Application",
       "lib/causal/causal-edge.js": "Application",
       "lib/causal/causal-traversal-edges.js": "Application",
@@ -1276,7 +1274,10 @@
         "mcpServer.js"
       ],
       "causalSimulator.js": [
-        "graph.js"
+        "graph.js",
+        "lib/causal-simulator-chains.js",
+        "lib/causal-simulator-report.js",
+        "lib/causal-simulator-scoring.js"
       ],
       "cli.js": [
         "agentRuntime.js",
@@ -1712,6 +1713,13 @@
       ],
       "lib/causal-edge-strength.js": [
         "graph.js"
+      ],
+      "lib/causal-simulator-chains.js": [
+        "lib/causal-simulator-report.js",
+        "lib/causal-simulator-scoring.js"
+      ],
+      "lib/causal-simulator-report.js": [
+        "lib/causal-simulator-scoring.js"
       ],
       "lib/causal/causal-edge.js": [
         "graph.js",

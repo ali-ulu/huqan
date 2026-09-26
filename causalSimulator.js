@@ -1,157 +1,11 @@
 const { Graph } = require('./graph');
 
-const RELATION_PROFILES = Object.freeze({
-  CAUSES: {
-    effect: 'direct',
-    impactBias: 1,
-    riskBias: 1,
-    severityBias: 0.03,
-  },
-  PREVENTS: {
-    effect: 'blocking',
-    impactBias: 1.05,
-    riskBias: 1.18,
-    severityBias: 0.12,
-  },
-  ENABLES: {
-    effect: 'enabling',
-    impactBias: 0.9,
-    riskBias: 0.82,
-    severityBias: -0.05,
-  },
-  DEPENDS_ON: {
-    effect: 'dependency',
-    impactBias: 0.95,
-    riskBias: 1,
-    severityBias: 0.07,
-  },
-  LEADS_TO: {
-    effect: 'downstream',
-    impactBias: 1,
-    riskBias: 1,
-    severityBias: 0.02,
-  },
-});
+// Scoring helpers, per-chain scoring and the prose report live in
+// lib/causal-simulator-*.js (#2187).
+const { clamp01, findScopedNode, simulationOverlay, uniqueStrings } = require('./lib/causal-simulator-scoring');
+const { dedupeAffectedNodes, missingNodeResult, scoreChains } = require('./lib/causal-simulator-chains');
+const { describeChain, deriveRecommendation, generateSummary } = require('./lib/causal-simulator-report');
 
-function clamp01(value) {
-  if (!Number.isFinite(value)) return 0;
-  if (value <= 0) return 0;
-  if (value >= 1) return 1;
-  return value;
-}
-
-function average(values) {
-  const filtered = values.filter(value => Number.isFinite(value));
-  if (filtered.length === 0) return 0;
-  return filtered.reduce((sum, value) => sum + value, 0) / filtered.length;
-}
-
-function uniqueStrings(values) {
-  return [...new Set(values.filter(value => typeof value === 'string' && value.trim()))];
-}
-
-function relationProfile(relation) {
-  return RELATION_PROFILES[relation] || RELATION_PROFILES.CAUSES;
-}
-
-function severityFromScore(score, profile) {
-  const adjusted = clamp01(score + (profile.severityBias || 0));
-  if (adjusted >= 0.88) return 'critical';
-  if (adjusted >= 0.7) return 'high';
-  if (adjusted >= 0.5) return 'medium';
-  if (adjusted >= 0.3) return 'low';
-  return 'unknown';
-}
-
-function rankSeverity(severity) {
-  return {
-    unknown: 0,
-    low: 1,
-    medium: 2,
-    high: 3,
-    critical: 4,
-  }[severity] ?? 0;
-}
-
-function normalizeStep(step) {
-  return {
-    from: step.from || '',
-    to: step.to || '',
-    relation: step.relation || '',
-    strength: typeof step.strength === 'number' ? step.strength : 0.5,
-    confidence: typeof step.confidence === 'number' ? step.confidence : 0.5,
-    source: step.source || 'manual',
-    source_ref: step.source_ref || '',
-    session_id: step.session_id || '',
-    evidence: Array.isArray(step.evidence) ? [...step.evidence] : [],
-    evidence_type: step.evidence_type || '',
-    created_at: step.created_at || '',
-    updated_at: step.updated_at || '',
-  };
-}
-
-function describeRelation(relation) {
-  switch (relation) {
-    case 'CAUSES':
-      return 'causes';
-    case 'PREVENTS':
-      return 'prevents';
-    case 'ENABLES':
-      return 'enables';
-    case 'DEPENDS_ON':
-      return 'depends on';
-    case 'LEADS_TO':
-      return 'leads to';
-    default:
-      return relation.toLowerCase().replace(/_/g, ' ');
-  }
-}
-
-function collectEvidence(chain) {
-  return uniqueStrings(chain.flatMap(step => (Array.isArray(step.evidence) ? step.evidence : [])));
-}
-
-function findScopedNode(nodes, nodeId) {
-  if (!nodes || typeof nodes !== 'object') return null;
-  if (nodes[nodeId]?.id === nodeId) return nodes[nodeId];
-  return Object.values(nodes).find(node => node?.id === nodeId) || null;
-}
-
-function cloneState(value) {
-  if (typeof value === 'undefined') return null;
-  try { return JSON.parse(JSON.stringify(value)); } catch (_) { return String(value); }
-}
-
-function stateImpact(changeType, newState) {
-  const type = String(changeType || 'unknown').trim().toLowerCase();
-  if (type === 'remove') return 0;
-  if (type === 'add') return 1;
-  if (type !== 'modify') return 1;
-  if (typeof newState === 'boolean') return newState ? 1 : 0;
-  if (!newState || typeof newState !== 'object') return 1;
-  for (const key of ['enabled', 'active', 'available']) {
-    if (typeof newState[key] === 'boolean') return newState[key] ? 1 : 0;
-  }
-  const state = String(newState.status || newState.state || '').trim().toLowerCase();
-  if (['disabled', 'inactive', 'removed', 'offline', 'blocked', 'off'].includes(state)) return 0;
-  return 1;
-}
-
-function simulationOverlay(changeType, newState) {
-  const type = String(changeType || 'unknown').trim().toLowerCase() || 'unknown';
-  const impact = stateImpact(type, newState);
-  return {
-    changeType: type,
-    stateImpact: impact,
-    effect: type === 'remove' || impact === 0 ? 'suppressed' : type === 'add' ? 'activated' : type === 'modify' ? 'modified' : 'observed',
-    newState: cloneState(newState),
-  };
-}
-
-/**
- * Causal Simulator for v0.7
- * Simulates "what-if" scenarios using causal chains
- */
 class CausalSimulator {
   constructor(graph) {
     if (!graph || !(graph instanceof Graph)) {
@@ -181,32 +35,7 @@ class CausalSimulator {
     const scopedNodes = this.graph.getNodes(workspaceId);
     const node = findScopedNode(scopedNodes, nodeId);
     if (!node) {
-      return {
-        ok: false,
-        mode: 'missing-node',
-        error: `Node '${nodeId}' not found in graph`,
-        workspaceId,
-        action: action || `Simulate change on ${nodeId}`,
-        input: {
-          action: action || `Simulate change on ${nodeId}`,
-          nodeId,
-          changeType: changeType || 'unknown',
-          newState: typeof newState === 'undefined' ? null : newState,
-          maxDepth,
-          workspaceId,
-        },
-        affectedNodes: [],
-        evidence: [],
-        unknowns: [`Node '${nodeId}' not found in graph`],
-        recommendation: 'Node not found; seed the graph before simulating.',
-        outcomes: [],
-        risks: [],
-        confidence: 0,
-        causalChains: 0,
-        causalChainDetails: [],
-        traversal: null,
-        summary: `Node '${nodeId}' not found in graph`,
-      };
+      return missingNodeResult({ action, nodeId, changeType, newState, maxDepth, workspaceId });
     }
 
     const simulation = simulationOverlay(changeType, newState);
@@ -215,100 +44,9 @@ class CausalSimulator {
       ? traversal
       : (traversal && Array.isArray(traversal.chain) ? traversal.chain : []);
 
-    const outcomes = [];
-    const risks = [];
-    const affectedNodes = [];
-    const evidence = [];
-    const unknowns = [];
-
-    let totalConfidence = 0;
-    let confidenceCount = 0;
-
-    for (const rawChain of causalChains) {
-      if (!Array.isArray(rawChain) || rawChain.length === 0) {
-        continue;
-      }
-
-      const chain = rawChain.map(normalizeStep);
-      const terminalEdge = chain[chain.length - 1];
-      const profile = relationProfile(terminalEdge.relation);
-      const chainStrength = average(chain.map(step => clamp01(step.strength)));
-      const chainConfidence = average(chain.map(step => clamp01(step.confidence)));
-      const lengthPenalty = Math.max(0.55, 1 - Math.max(0, chain.length - 1) * 0.08);
-      const baseImpact = clamp01(chainStrength * profile.impactBias * lengthPenalty);
-      const baseConfidence = clamp01((chainConfidence * 0.65 + chainStrength * 0.35) * lengthPenalty);
-      const impact = clamp01(baseImpact * simulation.stateImpact);
-      const confidence = clamp01(baseConfidence * simulation.stateImpact);
-      const riskScore = clamp01((impact * 0.65 + confidence * 0.35) * profile.riskBias);
-      const severity = severityFromScore(riskScore, profile);
-      const chainEvidence = collectEvidence(chain);
-      const terminalNodeId = terminalEdge.to || '';
-
-      totalConfidence += confidence;
-      confidenceCount += 1;
-
-      outcomes.push({
-        chain,
-        relation: terminalEdge.relation,
-        effect: profile.effect,
-        impact,
-        confidence,
-        severity,
-        simulationEffect: simulation.effect,
-        evidence: chainEvidence,
-        description: this._describeChain(chain),
-      });
-
-      if (severity !== 'unknown') {
-        risks.push({
-          chain: chain.map(step => step.to || ''),
-          relation: terminalEdge.relation,
-          severity,
-          impact,
-          confidence,
-          simulationEffect: simulation.effect,
-          description: `${terminalEdge.relation}: ${terminalEdge.from} → ${terminalEdge.to} (impact: ${impact.toFixed(3)}, confidence: ${confidence.toFixed(3)})`,
-        });
-      }
-
-      affectedNodes.push({
-        nodeId: terminalNodeId,
-        label: findScopedNode(scopedNodes, terminalNodeId)?.label || terminalNodeId,
-        relation: terminalEdge.relation,
-        effect: profile.effect,
-        impact,
-        confidence,
-        severity,
-        path: chain.map(step => step.to || ''),
-      });
-
-      evidence.push(...chainEvidence);
-
-      if (chainEvidence.length === 0) {
-        unknowns.push(`Missing evidence for ${this._describeChain(chain)}`);
-      }
-    }
-
-    const dedupAffectedNodes = [];
-    const affectedNodeIndex = new Map();
-    for (const item of affectedNodes) {
-      const existing = affectedNodeIndex.get(item.nodeId);
-      if (!existing) {
-        affectedNodeIndex.set(item.nodeId, item);
-        dedupAffectedNodes.push(item);
-        continue;
-      }
-
-      const currentRank = rankSeverity(item.severity);
-      const existingRank = rankSeverity(existing.severity);
-      if (
-        currentRank > existingRank ||
-        (currentRank === existingRank && item.impact > existing.impact) ||
-        (currentRank === existingRank && item.impact === existing.impact && item.confidence > existing.confidence)
-      ) {
-        Object.assign(existing, item);
-      }
-    }
+    const { outcomes, risks, affectedNodes, evidence, unknowns, totalConfidence, confidenceCount } =
+      scoreChains(causalChains, scopedNodes, simulation);
+    const dedupAffectedNodes = dedupeAffectedNodes(affectedNodes);
 
     const avgConfidence = confidenceCount > 0 ? totalConfidence / confidenceCount : 0;
     const traversalMetadata = traversal && typeof traversal === 'object' ? traversal : null;
@@ -374,90 +112,16 @@ class CausalSimulator {
     };
   }
 
-  /**
-   * Describe a causal chain in natural language
-   * @private
-   */
   _describeChain(chain) {
-    if (chain.length === 0) return 'No causal chain';
-
-    const parts = chain.map(e => {
-      const relation = describeRelation(e.relation);
-      return `${e.from} ${relation} ${e.to}`;
-    });
-
-    return parts.join(' → ');
+    return describeChain(chain);
   }
 
-  /**
-   * Generate a summary of the simulation
-   * @private
-   */
-  _generateSummary({ mode, outcomes, risks, confidence, unknowns, traversalStoppedReason, simulation = null }) {
-    const riskCount = risks.length;
-    const outcomeCount = outcomes.length;
-    const effect = simulation?.effect && simulation.effect !== 'observed' ? ` (${simulation.effect})` : '';
-
-    let summary = `${mode === 'causal-backed' ? 'Simulation found' : 'Simulation had'} ${outcomeCount} causal outcome(s)${effect}`;
-    if (riskCount > 0) {
-      summary += ` with ${riskCount} high-risk consequence(s)`;
-    }
-    summary += `. Overall confidence: ${(confidence * 100).toFixed(1)}%`;
-
-    if (riskCount > 0) {
-      const criticalRisks = risks.filter(r => r.severity === 'critical');
-      if (criticalRisks.length > 0) {
-        summary += `. CRITICAL: ${criticalRisks.length} critical risk(s) detected.`;
-      }
-    }
-
-    if (mode !== 'causal-backed') {
-      summary += `. Mode: ${mode}.`;
-    }
-
-    if (traversalStoppedReason === 'maxDepth') {
-      summary += ` Traversal stopped at maxDepth.`;
-    }
-
-    if (unknowns && unknowns.length > 0) {
-      summary += ` Unknowns: ${unknowns.length}.`;
-    }
-
-    return summary;
+  _generateSummary(input) {
+    return generateSummary(input);
   }
 
   _deriveRecommendation(risks, confidence, mode, simulation = null) {
-    if (mode === 'missing-node') {
-      return 'Node not found; seed the graph before simulating.';
-    }
-
-    if (simulation?.stateImpact === 0) {
-      return 'Hypothetical removal or disabled state suppresses downstream causal consequences; no active risk is projected.';
-    }
-
-    if (risks.length === 0) {
-      if (confidence >= 0.75) {
-        return 'Change looks safe with current evidence; proceed cautiously.';
-      }
-      return 'No direct risk detected, but confidence is low; gather more evidence.';
-    }
-
-    const criticalRisks = risks.filter(r => r.severity === 'critical');
-    if (criticalRisks.length > 0) {
-      return `CRITICAL: ${criticalRisks.length} critical risk(s) detected. Change is not recommended.`;
-    }
-
-    const highRisks = risks.filter(r => r.severity === 'high');
-    if (highRisks.length > 0) {
-      return `HIGH RISK: ${highRisks.length} high risk(s) detected. Review alternatives before proceeding.`;
-    }
-
-    const mediumRisks = risks.filter(r => r.severity === 'medium');
-    if (mediumRisks.length > 0) {
-      return `${mediumRisks.length} medium risk(s) detected. Evaluate the trade-off before proceeding.`;
-    }
-
-    return `${risks.length} risk(s) detected. Review before acting.`;
+    return deriveRecommendation(risks, confidence, mode, simulation);
   }
 
   /**
