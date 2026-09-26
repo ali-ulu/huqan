@@ -2,7 +2,7 @@
   "schemaVersion": "huqan.enforcement-coverage.v1",
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. A local alias, and a parameter or destructuring default whose right-hand side is a known binding, are followed; dynamic property access (`fs[name](...)`) and a handle that is never locally bound to a known namespace are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
-    "files": 51,
+    "files": 54,
     "sites": 123,
     "byCapability": {
       "process": 16,
@@ -12,8 +12,8 @@
     "byRole": {
       "enforcement": 35,
       "adapter_read": 6,
-      "operator_tool": 27,
       "persistence": 35,
+      "operator_tool": 27,
       "evidence": 16,
       "unguarded": 4
     }
@@ -119,92 +119,6 @@
           "line": 30,
           "capability": "egress",
           "call": "fetch"
-        }
-      ]
-    },
-    {
-      "file": "backupRestore.js",
-      "role": "operator_tool",
-      "why": "backup and restore, invoked from the CLI by a human; spawns are the SQLite backup path",
-      "capabilities": [
-        "fs_write",
-        "process"
-      ],
-      "sites": [
-        {
-          "line": 98,
-          "capability": "fs_write",
-          "call": "fs.mkdirSync"
-        },
-        {
-          "line": 104,
-          "capability": "fs_write",
-          "call": "fs.copyFileSync"
-        },
-        {
-          "line": 120,
-          "capability": "process",
-          "call": "spawnSync"
-        },
-        {
-          "line": 171,
-          "capability": "fs_write",
-          "call": "fs.rmSync"
-        },
-        {
-          "line": 178,
-          "capability": "fs_write",
-          "call": "fs.writeFileSync"
-        },
-        {
-          "line": 272,
-          "capability": "fs_write",
-          "call": "fs.renameSync"
-        },
-        {
-          "line": 286,
-          "capability": "fs_write",
-          "call": "fs.rmSync"
-        },
-        {
-          "line": 345,
-          "capability": "fs_write",
-          "call": "fs.copyFileSync"
-        },
-        {
-          "line": 347,
-          "capability": "fs_write",
-          "call": "fs.renameSync"
-        },
-        {
-          "line": 349,
-          "capability": "fs_write",
-          "call": "fs.rmSync"
-        },
-        {
-          "line": 373,
-          "capability": "process",
-          "call": "spawnSync"
-        },
-        {
-          "line": 498,
-          "capability": "fs_write",
-          "call": "fs.writeFileSync"
-        },
-        {
-          "line": 509,
-          "capability": "fs_write",
-          "call": "fs.writeFileSync"
-        },
-        {
-          "line": 522,
-          "capability": "fs_write",
-          "call": "fs.rmSync"
-        },
-        {
-          "line": 526,
-          "capability": "fs_write",
-          "call": "fs.rmSync"
         }
       ]
     },
@@ -1088,6 +1002,122 @@
           "line": 101,
           "capability": "fs_write",
           "call": "fs.rmSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/storage/backup-restore-create.js",
+      "role": "operator_tool",
+      "why": "the human-invoked backup: staging directory rename into place and cleanup of a failed staging directory",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 62,
+          "capability": "fs_write",
+          "call": "fs.renameSync"
+        },
+        {
+          "line": 76,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/storage/backup-restore-restore.js",
+      "role": "operator_tool",
+      "why": "the human-invoked restore: atomic file replacement, the progress marker and stale temp cleanup, after a safety backup",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 19,
+          "capability": "fs_write",
+          "call": "fs.copyFileSync"
+        },
+        {
+          "line": 21,
+          "capability": "fs_write",
+          "call": "fs.renameSync"
+        },
+        {
+          "line": 23,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        },
+        {
+          "line": 114,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 125,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 138,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        },
+        {
+          "line": 142,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/storage/backup-restore-store.js",
+      "role": "operator_tool",
+      "why": "the backup store behind the human-invoked backup/restore CLI: directory and file copies, pruning, the manifest, and the SQLite online-backup child process",
+      "capabilities": [
+        "fs_write",
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 10,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 16,
+          "capability": "fs_write",
+          "call": "fs.copyFileSync"
+        },
+        {
+          "line": 32,
+          "capability": "process",
+          "call": "spawnSync"
+        },
+        {
+          "line": 83,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        },
+        {
+          "line": 90,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/storage/backup-restore-validate.js",
+      "role": "operator_tool",
+      "why": "restore-source validation behind the human-invoked restore CLI; its only spawn is the read-only SQLite integrity check of the candidate file",
+      "capabilities": [
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 58,
+          "capability": "process",
+          "call": "spawnSync"
         }
       ]
     },

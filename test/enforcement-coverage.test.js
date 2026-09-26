@@ -71,7 +71,9 @@ test('the known process-execution sites are all present', () => {
   for (const file of [
     'sandboxRunner.js',
     'rustGraph.js',
-    'backupRestore.js',
+    // #2168 split backup/restore; its spawns now live in these two.
+    'lib/storage/backup-restore-store.js',
+    'lib/storage/backup-restore-validate.js',
     'adapters/git-log-adapter.js',
     // #2145 split the gate installer; its spawns now live in these three.
     'lib/external-action-gate-install-command.js',
