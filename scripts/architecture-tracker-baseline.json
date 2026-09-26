@@ -51,11 +51,6 @@
         "DIP"
       ]
     },
-    "lib/a2a/exchange-route.js": {
-      "band": "recorded",
-      "lines": 493,
-      "signals": []
-    },
     "lib/atp-conformance.js": {
       "band": "recorded",
       "lines": 504,
@@ -205,6 +200,11 @@
       "lib/a2a/bounded-exchange.js": "Application",
       "lib/a2a/capability-negotiation.js": "Application",
       "lib/a2a/delegation-audit-log.js": "Application",
+      "lib/a2a/exchange-route-authority.js": "Application",
+      "lib/a2a/exchange-route-contract.js": "Application",
+      "lib/a2a/exchange-route-firewall.js": "Application",
+      "lib/a2a/exchange-route-handler.js": "Application",
+      "lib/a2a/exchange-route-refusals.js": "Application",
       "lib/a2a/exchange-route.js": "Application",
       "lib/a2a/inter-agent-receipt-chain.js": "Application",
       "lib/a2a/negotiate-route.js": "Application",
@@ -1465,16 +1465,35 @@
       "lib/a2a/capability-negotiation.js": [
         "lib/a2a/agent-card.js"
       ],
+      "lib/a2a/exchange-route-authority.js": [
+        "lib/a2a/exchange-route-contract.js",
+        "lib/environment-compat.js"
+      ],
+      "lib/a2a/exchange-route-firewall.js": [
+        "lib/a2a/exchange-route-contract.js"
+      ],
+      "lib/a2a/exchange-route-handler.js": [
+        "lib/a2a/agent-card.js",
+        "lib/a2a/exchange-route-contract.js",
+        "lib/a2a/exchange-route-firewall.js",
+        "lib/a2a/exchange-route-refusals.js",
+        "lib/a2a/inter-agent-receipt-chain.js"
+      ],
+      "lib/a2a/exchange-route-refusals.js": [
+        "lib/a2a/exchange-route-firewall.js",
+        "lib/a2a/retry-classification.js"
+      ],
       "lib/a2a/exchange-route.js": [
         "lib/a2a/agent-card.js",
         "lib/a2a/bounded-exchange.js",
         "lib/a2a/delegation-audit-log.js",
-        "lib/a2a/inter-agent-receipt-chain.js",
+        "lib/a2a/exchange-route-authority.js",
+        "lib/a2a/exchange-route-contract.js",
+        "lib/a2a/exchange-route-firewall.js",
+        "lib/a2a/exchange-route-handler.js",
         "lib/a2a/replay-store.js",
-        "lib/a2a/retry-classification.js",
         "lib/a2a/task-store.js",
         "lib/agent-action-firewall.js",
-        "lib/environment-compat.js",
         "lib/server-response-helpers.js",
         "requestGuards.js"
       ],
