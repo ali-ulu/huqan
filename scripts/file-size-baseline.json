@@ -31,8 +31,7 @@
     "plugins/repo-memory.js": 726,
     "sandboxRunner.js": 530,
     "scripts/a2a-conformance/run.js": 688,
-    "scripts/external-conformance/consumer.js": 815,
-    "storage.js": 627
+    "scripts/external-conformance/consumer.js": 815
   },
   "reviews": {
     "agent.v3.js": {
@@ -122,10 +121,6 @@
     "scripts/external-conformance/consumer.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2026-10-31"
-    },
-    "storage.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
     }
   }
 }

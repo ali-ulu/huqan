@@ -131,11 +131,6 @@
       "signals": [
         "OCP:8"
       ]
-    },
-    "storage.js": {
-      "band": "recorded",
-      "lines": 627,
-      "signals": []
     }
   },
   "dependencyGraph": {
@@ -919,7 +914,12 @@
       "lib/storage/backup-restore-restore.js": "Adapters",
       "lib/storage/backup-restore-store.js": "Adapters",
       "lib/storage/backup-restore-validate.js": "Adapters",
+      "lib/storage/db-path.js": "Adapters",
+      "lib/storage/run-state-keys.js": "Adapters",
+      "lib/storage/run-state-methods.js": "Adapters",
       "lib/storage/schema.js": "Adapters",
+      "lib/storage/statements-tool-approval.js": "Adapters",
+      "lib/storage/statements.js": "Adapters",
       "lib/storage/tool-approval-methods-decide.js": "Adapters",
       "lib/storage/tool-approval-methods-lease.js": "Adapters",
       "lib/storage/tool-approval-methods.js": "Adapters",
@@ -4201,12 +4201,28 @@
         "lib/path-safety.js",
         "lib/storage/backup-restore-create.js",
         "lib/storage/backup-restore-paths.js",
+        "lib/storage/backup-restore-store.js",
         "lib/storage/backup-restore-validate.js"
       ],
       "lib/storage/backup-restore-validate.js": [
         "lib/path-safety.js",
         "lib/storage/backup-restore-create.js",
         "lib/storage/backup-restore-paths.js"
+      ],
+      "lib/storage/db-path.js": [
+        "lib/default-persistence-path.js",
+        "lib/memory-store-utils.js",
+        "lib/sqlite-persistence-validation.js"
+      ],
+      "lib/storage/run-state-keys.js": [
+        "lib/workspace-id.js"
+      ],
+      "lib/storage/run-state-methods.js": [
+        "lib/storage/run-state-keys.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/storage/statements.js": [
+        "lib/storage/statements-tool-approval.js"
       ],
       "lib/storage/tool-approval-methods-decide.js": [
         "lib/workspace-id.js"
@@ -4900,12 +4916,13 @@
         "requestGuards.js"
       ],
       "storage.js": [
-        "lib/default-persistence-path.js",
-        "lib/memory-store-utils.js",
         "lib/sqlite-availability.js",
         "lib/sqlite-durability.js",
-        "lib/sqlite-persistence-validation.js",
+        "lib/storage/db-path.js",
+        "lib/storage/run-state-keys.js",
+        "lib/storage/run-state-methods.js",
         "lib/storage/schema.js",
+        "lib/storage/statements.js",
         "lib/storage/tool-approval-methods.js",
         "lib/workspace-id.js"
       ],
