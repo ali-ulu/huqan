@@ -3,6 +3,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const { createRustGraphFallback } = require('./lib/rust-graph-fallback-factory');
+const { createRustGraphStorePort } = require('./lib/rust-graph-store-port');
 const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
 
 /**
@@ -76,6 +77,7 @@ class RustGraph {
     this._requestTimeoutMs = Number.isFinite(opts.requestTimeoutMs) && opts.requestTimeoutMs > 0
       ? opts.requestTimeoutMs
       : RUST_REQUEST_TIMEOUT_MS;
+    this._storePort = createRustGraphStorePort(this);
   }
 
   _start() {
@@ -366,15 +368,11 @@ class RustGraph {
   }
 
   async save(memPath) {
-    if (this._fallback) { this._fallback.save(); return; }
-    const res = await this.send({ cmd: 'save', path: memPath || this.memoryPath });
-    return res && res.ok;
+    return this._storePort.save(memPath);
   }
 
   async load(memPath) {
-    if (this._fallback) { this._fallback.load(); return; }
-    const res = await this.send({ cmd: 'load', path: memPath || this.memoryPath });
-    return res && res.ok;
+    return this._storePort.load(memPath);
   }
 
   destroy() {

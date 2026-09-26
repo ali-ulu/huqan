@@ -1037,6 +1037,7 @@
     "requestGuards-command-policy.js",
     "requestGuards-rate-limit.js",
     "lib/rust-graph-fallback-factory.js",
+    "lib/rust-graph-store-port.js",
     "rustGraph.js",
     "sandboxRunner.js",
     "scripts/backup.js",
