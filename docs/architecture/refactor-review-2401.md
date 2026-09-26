@@ -58,4 +58,29 @@ REOPEN olarak kaydedilmiş ve kendi PR'larıyla kapatılmıştır.
 | #2226 | `adapters/github-adapter.js` | 186 | REFACTORED | #2811: `github-adapter-utils`, `github-tree`. Test: `test/source-version-pinning-e2e.test.js`. |
 | #2228 | `lib/self-healer/dryrun-runner.js` | 197 | REFACTORED | #2817: `dryrun-budget-gate`, `dryrun-projections`. Test: `test/self-healer-dryrun-runner.test.js`. |
 
-Açık kalan: `lib/` ve `adapters/` altında #2229'dan başlayan adaylar, `schemas/`, `public/`, `plugins/` ve kök dosyalar (sonraki partiler).
+## Parti 3 — `lib/`, `schemas/` (#2229–#2251)
+
+İnceleme tabanı: `origin/main` @ `10ac795`.
+
+| Issue | Dosya | Satır | Karar | Kaynak sembolleri / korunan invariant / test / gerekçe |
+|---|---|---:|---|---|
+| #2229 | `lib/causal/causal-edge.js` | 345 | REFACTOR | `validateCausalEdge` 187 satırlık tek fonksiyon: her alan için bir `hasOwnProperty(field)` bloğu (`id`, `from`/`to`, `relation`, `strength`, `confidence`, `workspaceId`, `provenanceId`, `trustPolicyVersion`, `createdAt`, `edgeSchemaVersion`, gelecek alanlar). Öneri: alan → doğrulayıcı tablosu; yeni alan yeni satır olur. Korunacak: hata/uyarı sırası ve kodları, `from === to` reddi, `CAUSAL_FUTURE_FIELDS` uyarıları. Test: `test/causal-edge.test.js`, `test/causal-edge-schema.test.js`. |
+| #2231 | `lib/github-app-beta-http-boundary.js` | 138 | REFACTORED | #2823: `github-app-beta-http-config`, `-errors`, `-responses`. |
+| #2232 | `lib/graph-traversal.js` | 66 | REFACTORED | #2815: `graph-chain-traversal`, `graph-cycle-search`, `graph-path-search`. |
+| #2233 | `lib/approval-flow.js` | 184 | REFACTORED | #2810: `approval-flow-utils`, `approval-receipts`. |
+| #2234 | `schemas/v5/agent-identity-validator.js` | 342 | KEEP | Zaten kayıt tabanlı: `REASON_CODE_SHAPES` reason code → şekil doğrulayıcı haritası; her `validate*Shape` 10–30 satır, tek şemanın tek sorumluluğu. Yeni reason code bir satır + bir fonksiyon. Test: `test/v5-agent-identity-validator.test.js`. |
+| #2236 | `lib/http/pr-guardian-routes.js` | 191 | REFACTORED | #2807: `pr-guardian-ui-route`, `pr-guardian-webhook-route`. |
+| #2237 | `lib/plugin-provenance-registry.js` | 333 | KEEP | Tek bir kayıt defterinin API'si: `recordPluginLoad`, `verifyDependencyGraph`, `revalidatePlugin`, `markRevoked`, changelog okuyucuları; 17 fonksiyonun en uzunu ~50 satır ve hepsi aynı `registry` yapısı üzerinde. Çağıranlar `plugin-manager-*` modülleri. Test: `plugin-provenance.test.js`. |
+| #2238 | `lib/graph-hypotheses.js` | 332 | DEFER | `generateHypotheses` sırayla dört kural uygular (düğüm, kenar, döngü, bağlı bileşen), yardımcılar (`findCausalCycles`, `connectedComponents`) zaten ayrık. Tetikleyici: beşinci kural eklendiğinde kuralları `(graph, context) => hypotheses[]` listesine çevir. Korunacak: `hypothesisSort` sırası, `KANIT_EKSİK` ile paylaşılan `hasEvidence`. Test: `test/graph-hypotheses-edge-cases.test.js`, `test/hypothesis-thresholds.test.js`. |
+| #2239 | `lib/pr-guardian/policy.js` | 332 | KEEP | `RISK_PATTERNS` veri (~45 satır) + `evaluatePullRequest` sıralı karar yükseltmesi (eksik alan → risk şiddeti → kesik dosya listesi → check'ler → derivation → action → onaylı yürütme). Sıra politikanın kendisi ve her adım yorumla gerekçeli; bölmek sırayı dağıtır. Test: `test/pr-guardian-derivation.test.js`, `test/pr-guardian-execute-once.test.js`. |
+| #2240 | `lib/viewer/viewer-gateway.js` | 192 | REFACTORED | #2806: `viewer-gateway-primitives`. |
+| #2241 | `lib/memory-store-utils.js` | 114 | REFACTORED | #2805: `memory-persistence-paths`, `sqlite-busy-retry`. |
+| #2242 | `lib/automation-safety-gate/automation-input-normalizer.js` | 324 | KEEP | 16 küçük normalizasyon yardımcısı + `normalizeAutomationSafetyInput` (~95 satır) tek girdi sözleşmesini kurar; `isSecretLikeValue` iç içe sır tespiti AB5 düzeltmesiyle (`f1590825`) bu sözleşmeye bağlı. Test: `test/automation-safety-gate.test.js`, `test/classifier-downgrade-fail-closed.test.js`. |
+| #2243 | `lib/command-parser.js` | 324 | REFACTOR | `parseCommand` 156 satır, 53 `if`: serbest metin → `{ command, args }` kalıp zinciri. Öneri: sıralı `{ match, build }` komut tablosu. Önkoşul: karakterizasyon testi (REPL ve `/api?q=` ortak girdileri, iki yazımlı önekler — RFC-001 karar 7); sıra ve diakritik katlama birebir korunmalı. Test: `test/cli-restore-workflow.test.js`, `test/workflow-contract-foundation.test.js`. |
+| #2245 | `lib/background-provenance.js` | 165 | REFACTORED | #2783: `background-provenance-projection`. |
+| #2246 | `lib/provenance-ingest.js` | 216 | DEFER | `buildProvenance` 170 satır ama gövdenin büyük kısmı politika gerekçesi yorumları (F1a beyan edilen güven, içerik hash'i yokluğu). Alan normalizasyonu ile güven politikası tek fonksiyonda; ayrılabilir ama her satır admission kararına dokunur. Tetikleyici: yeni bir provenance alanı. Test: `test/ingest-content-hash-pinning.test.js`, `test/source-version-pinning-e2e.test.js`. |
+| #2247 | `lib/risk-rules.js` | 316 | KEEP | Dedektör kataloğu: her `detect*` bağımsız, en uzunu 32 satır; `runRiskRules` onları sırayla çalıştırır. Adversarial dedektörler `adversarial-signals.js`'te. Test: `test/risk-rules-mutation.test.js`, `test/verify-semantic-trust-characterization.test.js`. |
+| #2249 | `lib/llm-proxy/proxy-handler.js` | 314 | DEFER | `createLlmProxyHandler` (191 satır) kapanış fabrikası: `recordReceipt`, `forward`, `handleChatCompletions`, `handleModels`, yönlendirici. İki handler anahtar-yok ve `MAX_RESPONSE_BYTES` yanıtlarını tekrarlar. Tetikleyici: üçüncü endpoint; o zaman ortak yanıt yardımcısı çıkarılır. Test: `test/llm-proxy-handler.test.js`. |
+| #2251 | `lib/mcp/response-builders.js` | 313 | KEEP | Bağımsız saf yanıt kurucuları (en uzunu `buildMemoryAdmissionSurface` 47 satır); tek konu MCP yanıt yüzeyi. Test: `test/mcp-security-integration-regression-matrix.test.js`, `test/mcp-learn-agent-contract.test.js`. |
+
+Açık kalan: #2252'den başlayan adaylar (sonraki partiler).
