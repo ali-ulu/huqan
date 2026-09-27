@@ -47649,20 +47649,20 @@
   "auditChanged": false
  },
  "malformed/null": {
-  "ok": true,
+  "ok": false,
   "id": "",
   "action": "",
   "changeType": "",
   "scope": "default",
   "workspaceId": "default",
   "targetSpace": "default",
-  "category": "unknown",
+  "category": "malformed",
   "riskLevel": "medium",
-  "riskScore": 0.55,
+  "riskScore": 0.6,
   "decision": "review",
-  "reason": "UNKNOWN_OPERATION_TYPE_REVIEW_REQUIRED",
+  "reason": "MALFORMED_INPUT_REVIEW_REQUIRED",
   "notes": [
-   "Memory mutation surface could not be safely categorized."
+   "Memory entry could not be normalized."
   ],
   "sensitive": false,
   "contentChanged": false,
@@ -47670,20 +47670,20 @@
   "auditChanged": false
  },
  "malformed/empty": {
-  "ok": true,
+  "ok": false,
   "id": "",
   "action": "",
   "changeType": "",
   "scope": "default",
   "workspaceId": "default",
   "targetSpace": "default",
-  "category": "unknown",
+  "category": "malformed",
   "riskLevel": "medium",
-  "riskScore": 0.55,
+  "riskScore": 0.6,
   "decision": "review",
-  "reason": "UNKNOWN_OPERATION_TYPE_REVIEW_REQUIRED",
+  "reason": "MALFORMED_INPUT_REVIEW_REQUIRED",
   "notes": [
-   "Memory mutation surface could not be safely categorized."
+   "Memory entry could not be normalized."
   ],
   "sensitive": false,
   "contentChanged": false,
@@ -47691,20 +47691,20 @@
   "auditChanged": false
  },
  "malformed/array": {
-  "ok": true,
+  "ok": false,
   "id": "",
   "action": "",
   "changeType": "",
   "scope": "default",
   "workspaceId": "default",
   "targetSpace": "default",
-  "category": "unknown",
+  "category": "malformed",
   "riskLevel": "medium",
-  "riskScore": 0.55,
+  "riskScore": 0.6,
   "decision": "review",
-  "reason": "UNKNOWN_OPERATION_TYPE_REVIEW_REQUIRED",
+  "reason": "MALFORMED_INPUT_REVIEW_REQUIRED",
   "notes": [
-   "Memory mutation surface could not be safely categorized."
+   "Memory entry could not be normalized."
   ],
   "sensitive": false,
   "contentChanged": false,

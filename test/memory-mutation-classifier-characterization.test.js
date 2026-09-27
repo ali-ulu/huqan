@@ -96,7 +96,7 @@ test('classifyMemoryMutation matches its recorded verdict for every characterize
 test('the characterized inputs reach every category and both dynamic reasons/decisions', () => {
   const golden = Object.values(JSON.parse(fs.readFileSync(GOLDEN, 'utf8')));
   const categories = new Set(golden.map((row) => row.category));
-  for (const category of ['cross_workspace', 'secret', 'audit', 'release_or_auto', 'delete', 'graph', 'package_import', 'read_only', 'metadata', 'content', 'unknown']) {
+  for (const category of ['cross_workspace', 'secret', 'audit', 'release_or_auto', 'delete', 'graph', 'package_import', 'read_only', 'metadata', 'content', 'unknown', 'malformed']) {
     assert.ok(categories.has(category), `category ${category} is reached`);
   }
   const releaseReasons = new Set(golden.filter((row) => row.category === 'release_or_auto').map((row) => row.reason));
@@ -105,13 +105,34 @@ test('the characterized inputs reach every category and both dynamic reasons/dec
   assert.equal(graphDecisions.size, 2, 'both review and dry-run-only graph decisions are reached');
 });
 
-// Finding recorded in docs/architecture/refactor-review-2401.md (#2253): the
-// 'malformed' branch requires an empty scope, but normalizeEntry always falls
-// back to the default workspace, so no input reaches it. Pinned here as the
-// current behavior; changing it is a separate bug, not part of the refactor.
-test('the malformed branch is currently unreachable: empty input falls through', () => {
+// #2253: the 'malformed' branch used to require an empty scope, but
+// normalizeEntry always falls back to the default workspace, so no input
+// reached it (`null`/`{}` fell through to `unknown`). The scope conjunct was
+// removed from the guard, so an entry with no identity and no operation signal
+// is now reported as malformed.
+test('empty input is reported as malformed', () => {
   const golden = JSON.parse(fs.readFileSync(GOLDEN, 'utf8'));
-  assert.equal(Object.values(golden).some((row) => row.category === 'malformed'), false);
-  assert.notEqual(golden['malformed/null'].category, 'malformed');
-  assert.notEqual(golden['malformed/empty'].category, 'malformed');
+  assert.equal(golden['malformed/null'].category, 'malformed');
+  assert.equal(golden['malformed/empty'].category, 'malformed');
+  assert.equal(golden['malformed/array'].category, 'malformed');
+  assert.equal(golden['malformed/null'].reason, 'MALFORMED_INPUT_REVIEW_REQUIRED');
+  assert.equal(golden['changeType-only'].category, 'graph');
+});
+
+test('anonymous flag-bearing entries keep their substantive routing, never malformed', () => {
+  // Fail-closed (#2253): the malformed guard must not swallow entries that
+  // carry a mutation signal. An anonymous delete still blocks, an anonymous
+  // graph flag still reviews as graph, and context signals still route.
+  const flagged = [
+    [{ deleted: true }, {}, 'delete', 'block'],
+    [{ tombstoned: true }, {}, 'graph', 'review'],
+    [{ contentChanged: true }, {}, 'content', 'review'],
+    [{}, { diffSummary: 'deploy to prod' }, 'release_or_auto', 'block'],
+    [{}, { operationType: 'audit rewrite' }, 'audit', 'block'],
+  ];
+  for (const [entry, context, category, decision] of flagged) {
+    const verdict = classifyMemoryMutation(entry, context);
+    assert.equal(verdict.category, category, `${JSON.stringify(entry)} must route to ${category}`);
+    assert.equal(verdict.decision, decision);
+  }
 });
