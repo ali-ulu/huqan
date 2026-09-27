@@ -1,8 +1,9 @@
-const { normalizeWorkspaceId } = require('./lib/graph-record-utils');
+const { normalizeWorkspaceId, nodeStorageKey } = require('./lib/graph-record-utils');
 const { isSymmetricRelation, nodesAreDisjoint, isEligibleHypothesisNode } = require('./lib/dream-hypothesis-semantics');
 const {
   projectionWeight,
   nodeSignatureWeight,
+  biasedWalk,
   runEmbedding,
 } = require('./lib/dream-embedding');
 
@@ -68,7 +69,30 @@ class Dream {
   // ─── Embedding ────────────────────────────────────────────────────────────
 
   embedding(opts = {}) {
-    return runEmbedding(this, opts);
+    return runEmbedding(this._embeddingContext(), opts);
+  }
+
+  /**
+   * The embedding pass lives in `lib/dream-embedding.js`; it takes this
+   * context instead of the Dream instance so the extracted module never reaches
+   * into `this._*` from outside (docs/architecture-policy.md §4). Every member
+   * is read off `this` at call time, so a caller that overrides
+   * `_biasedWalk`/`_nodeSignatureWeight`/`_projectionWeight` is still honoured.
+   */
+  _embeddingContext() {
+    return {
+      emit: (event, data) => this._emit(event, data),
+      seededRandom: seed => this._seededRandom(seed),
+      biasedWalk: (start, length, p, q, random, workspaceId) =>
+        this._biasedWalk(start, length, p, q, random, workspaceId),
+      projectionWeight: (str, dim, totalDims) => this._projectionWeight(str, dim, totalDims),
+      nodeSignatureWeight: (node, dim, totalDims, workspaceId) =>
+        this._nodeSignatureWeight(node, dim, totalDims, workspaceId),
+      nodesInWorkspace: workspaceId => Object.values(this.graph._nodes)
+        .filter(node => normalizeWorkspaceId(node.workspaceId) === workspaceId)
+        .map(node => ({ id: node.id, storageKey: nodeStorageKey(node.id, workspaceId), node })),
+      assignEmbedding: (storageKey, vector) => this.graph.assignEmbedding(storageKey, vector),
+    };
   }
 
   _projectionWeight(str, dim, totalDims) {
@@ -122,43 +146,7 @@ class Dream {
   }
 
   _biasedWalk(start, length, p, q, random = Math.random, workspaceId = 'default') {
-    const path    = [start];
-    const visited = new Set([start]); // döngü önleme için Set kullan
-    let prev      = null;
-    let current   = start;
-
-    for (let i = 0; i < length; i++) {
-      const edges = this.graph.getEdges(current, workspaceId);
-      // Ziyaret edilmemiş komşuları filtrele
-      const candidates = edges.filter(e => !visited.has(e.to));
-      if (candidates.length === 0) break;
-
-      // node2vec bias ağırlıkları
-      const weights = candidates.map(e => {
-        if (prev === null) return e.weight;
-        if (e.to === prev) return e.weight / p;                    // geri dön
-        const prevEdges = this.graph.getEdges(prev, workspaceId);
-        const connected = prevEdges.some(pe => pe.to === e.to);
-        return e.weight / (connected ? 1.0 : q);                   // BFS vs DFS
-      });
-
-      const total = weights.reduce((s, w) => s + w, 0);
-      if (total === 0) break;
-
-      let r    = random() * total;
-      let pick = candidates[candidates.length - 1]; // fallback
-      for (let j = 0; j < candidates.length; j++) {
-        r -= weights[j];
-        if (r <= 0) { pick = candidates[j]; break; }
-      }
-
-      path.push(pick.to);
-      visited.add(pick.to);
-      prev    = current;
-      current = pick.to;
-    }
-
-    return path;
+    return biasedWalk(this.graph, start, length, p, q, random, workspaceId);
   }
 
   // ─── Composite Skorlama ──────────────────────────────────────────────────

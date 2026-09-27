@@ -17,7 +17,7 @@
     },
     "dream.js": {
       "band": "recorded",
-      "lines": 636,
+      "lines": 624,
       "signals": []
     },
     "graph.js": {
@@ -336,6 +336,7 @@
       "lib/delegation-service.js": "Core",
       "lib/deterministic-json-copy.js": "Core",
       "lib/deterministic-task-runner.js": "Core",
+      "lib/dream-embedding.js": "Core",
       "lib/dream-experiment-loop.js": "Core",
       "lib/dream-hypothesis-semantics.js": "Core",
       "lib/emergency-stop-chain.js": "Core",
@@ -1346,6 +1347,7 @@
         "persistencePaths.js"
       ],
       "dream.js": [
+        "lib/dream-embedding.js",
         "lib/dream-hypothesis-semantics.js",
         "lib/graph-record-utils.js"
       ],
@@ -2127,6 +2129,9 @@
       "lib/deterministic-task-runner.js": [
         "lib/task-identifier-lexer.js",
         "lib/task-schema-sources.js"
+      ],
+      "lib/dream-embedding.js": [
+        "lib/graph-record-utils.js"
       ],
       "lib/dream-experiment-loop.js": [
         "causalSimulator.js",

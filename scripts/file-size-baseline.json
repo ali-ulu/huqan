@@ -11,7 +11,7 @@
   "threshold": 400,
   "files": {
     "agent.v3.js": 647,
-    "dream.js": 636,
+    "dream.js": 624,
     "kernel.js": 842,
     "lib/atp-conformance.js": 504,
     "lib/conflict-detector.js": 616,
