@@ -2025,7 +2025,8 @@
       ],
       "lib/coder/experience-reporter.js": [
         "lib/experience/adapter-scope.js",
-        "lib/experience/contract.js"
+        "lib/experience/contract.js",
+        "lib/experience/verifier.js"
       ],
       "lib/coder/journal-store.js": [
         "lib/experience/journal.js",
