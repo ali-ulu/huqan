@@ -111,11 +111,12 @@ test('the production journal fsyncs while its storage connection does not (#2915
   const { resolveExperienceJournal } = require('../agentRuntime');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-journal-durability-'));
   const storage = new HuqanStorage({ dbPath: path.join(dir, 'memory.db') });
+  let conn = null;
   try {
     const kernel = {};
     const journal = resolveExperienceJournal({ kernel }, storage);
     assert.ok(journal, 'the factory must build the production journal');
-    const conn = kernel.experienceJournalConnection;
+    conn = kernel.experienceJournalConnection;
     assert.ok(conn, 'the factory must expose the journal connection for restore');
     // The class is a property of the handle, so both must hold at once.
     assert.equal(conn.db.pragma('synchronous')[0].synchronous, 2,
@@ -127,6 +128,11 @@ test('the production journal fsyncs while its storage connection does not (#2915
     assert.equal(journal.append({ runId: 'r', workspaceId: 'ws', eventId: 'e1', type: 'run_started' }).ok, true);
     assert.equal(conn.db.prepare('SELECT count(*) AS n FROM experience_journal').get().n, 1);
   } finally {
+    // The journal's EVIDENCE handle is a second connection on the same file
+    // (#2915, Windows EBUSY on rmSync when left open, #2990). storage.close()
+    // already closes it via closeWithStorage, but close explicitly so the
+    // cleanup does not depend on that wiring.
+    try { conn?.close(); } catch (_) {}
     try { storage.db.close(); } catch (_) {}
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -162,5 +168,30 @@ test('closing storage closes the journal connection it was opened beside (#2915)
   } finally {
     try { storage.db?.close(); } catch (_) {}
     fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a reopen onto a non-database file leaves no open handle behind (#2991)', () => {
+  // Restore replaces memory.db and then reopens the journal handle. When the
+  // replaced file is not a database (a restore fixture like the CLI test's
+  // 'db-v1', or a wrong dbPath), new Database() succeeds and the durability
+  // PRAGMA raises SQLITE_NOTADB. Nulling the assigned handle without closing
+  // it leaked an open handle, and Windows refused the next rmSync with EBUSY.
+  const { openJournalConnection } = require('../lib/experience/journal-connection');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-journal-reopen-'));
+  const dbPath = path.join(dir, 'memory.db');
+  const conn = openJournalConnection({ dbPath });
+  assert.ok(conn && conn.db, 'the connection must open on a real database');
+  try {
+    conn.close();
+    fs.writeFileSync(dbPath, 'db-v1', 'utf8');
+    conn.reopen();
+    assert.equal(conn.db, null, 'reopen onto a non-database file must yield no handle');
+    // The proof: Windows locks the directory if the failed reopen left its
+    // handle open. force rmSync then throws EBUSY instead of cleaning up.
+    fs.rmSync(dir, { recursive: true, force: true });
+  } catch (error) {
+    fs.rmSync(dir, { recursive: true, force: true });
+    throw error;
   }
 });

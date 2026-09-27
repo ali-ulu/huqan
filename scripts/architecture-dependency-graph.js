@@ -30,6 +30,7 @@
  */
 
 const { pairCarriedViolations } = require('./architecture-carried-violations');
+const { LAYER_EXCEPTIONS, exceptionMessages } = require('./architecture-layer-exceptions');
 const RINGS = ['UI', 'Application', 'Adapters', 'Core'];
 const RANK = Object.freeze({ UI: 0, Application: 1, Adapters: 2, Core: 3 });
 
@@ -195,42 +196,6 @@ function driftCount(current, baseline) {
     for (const dep of deps) if (!live.has(dep)) drift += 1;
   }
   return drift;
-}
-
-/**
- * Deliberate acceptances of a violation, on scripts/check-layers.js's terms: a
- * reason and a review date, with `--check` failing on an entry that expired or
- * that no longer describes a live edge. Existing violations are not listed here
- * -- they are the recorded baseline, which is machine-written, reviewed as a
- * diff, and may only shrink.
- *
- * @type {ReadonlyArray<{from: string, to: string, why: string, review_by: string}>}
- */
-const LAYER_EXCEPTIONS = Object.freeze([
-  {
-    from: 'lib/provenance-query-trust-receipt.js',
-    to: 'lib/causal/causal-verdict.js',
-    why: 'The trust-receipt causal bridge block normalizes a caller-supplied causal verdict into'
-      + ' the published receipt shape. The same Core -> Application edge was a recorded baseline'
-      + ' violation on lib/provenance-query.js; #2162 split that file and the edge moved onto the'
-      + ' new module name, which the cannot-add-debt ratchet treats as new. The verdict stays'
-      + ' caller-supplied (no production caller passes one), so the follow-up fix is to lift the'
-      + ' bridge behind an injected normalizer rather than move the causal verdict into Core.',
-    review_by: '2026-12-31',
-  },
-]);
-
-function exceptionMessages(exceptions, current, today) {
-  const live = new Set(current.violations.map(edgeKey));
-  const messages = [];
-  for (const entry of exceptions) {
-    if (entry.review_by < today) {
-      messages.push(`FAIL expired layer exception: ${entry.from} -> ${entry.to} was due by ${entry.review_by}.`);
-    } else if (!live.has(`${entry.from}>${entry.to}`)) {
-      messages.push(`FAIL stale layer exception: ${entry.from} -> ${entry.to} is no longer a live violation.`);
-    }
-  }
-  return messages;
 }
 
 function resolveThreshold(argv, baseline) {
