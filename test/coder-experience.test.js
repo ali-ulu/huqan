@@ -21,6 +21,7 @@ const path = require('node:path');
 const { DERIVATION_OUTCOMES } = require('../lib/coder/derivation-record');
 const { REFUSAL_REASONS, applyDerivation } = require('../lib/coder/apply-derivation');
 const { createExperienceJournal } = require('../lib/experience/journal');
+const { buildExperienceRead } = require('../lib/experience/read-model');
 
 function makeRoot() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-coder-xp-'));
@@ -113,10 +114,68 @@ describe('coder experience pilot', () => {
     assert.equal(byType.execution_finished.executionStatus, 'completed');
     assert.equal(byType.execution_finished.payload.derivationHash, result.record.derivationHash);
     assert.equal(byType.verification.outcomeStatus, 'verified');
+    assert.deepEqual(byType.verification.proofs, {
+      integrity: true, coverage: true, verification: true, provenance: true, permission: true,
+    });
+    assert.equal(journal.manifest(runId).learningEligibility, 'positive_procedure');
     assert.equal(byType.verification.payload.checks.length, 1);
     assert.equal(byType.verification.payload.checks[0].match, true);
     assert.equal(byType.run_closed.payload.verdict, 'complete');
     assert.equal(byType.run_closed.outcomeStatus, 'verified');
+  });
+
+  it('persists an eligible coder run and reads the same sealed projection after restart', (t) => {
+    const Database = require('better-sqlite3');
+    const root = makeRoot();
+    const dbPath = path.join(root, 'experience.sqlite');
+    write(root, 'docs/notes.md', 'release v1.0.0 shipped\n');
+    const firstDb = new Database(dbPath);
+    const firstStore = { db: firstDb, withTransaction: (fn) => firstDb.transaction(fn)() };
+    let runId;
+    let firstEvents;
+    try {
+      const journal = createExperienceJournal({ store: firstStore });
+      const result = applyDerivation({
+        task: docsTask(), root, repoState: CLEAN_BRANCH,
+        now: () => FIXED_NOW, journal, workspaceId: 'default',
+      });
+      assert.equal(result.ok, true);
+      runId = result.experience.runId;
+      assert.equal(journal.manifest(runId).learningEligibility, 'positive_procedure');
+      firstEvents = journal.read(runId);
+      for (const row of firstDb.prepare('SELECT event_id, body FROM experience_journal').all()) {
+        assert.doesNotThrow(() => JSON.parse(row.body), row.event_id);
+      }
+    } finally {
+      firstDb.close();
+    }
+    const reopenedDb = new Database(dbPath);
+    t.after(() => reopenedDb.close());
+    const reopened = createExperienceJournal({
+      store: { db: reopenedDb, withTransaction: (fn) => reopenedDb.transaction(fn)() },
+    });
+    const projection = buildExperienceRead(reopened, { runId, workspaceId: 'default' });
+    assert.equal(projection.ok, true, JSON.stringify(projection));
+    assert.equal(projection.manifest.learningEligibility, 'positive_procedure');
+    assert.deepEqual(projection.events, firstEvents);
+    assert.deepEqual(projection.events.map((event) => event.sequence), [1, 2, 3, 4, 5, 6, 7]);
+    assert.equal(read(root, 'docs/notes.md'), 'release v1.1.0 shipped\n');
+  });
+
+  it('an injected filesystem cannot claim independent native read-back', () => {
+    const root = makeRoot();
+    write(root, 'docs/notes.md', 'release v1.0.0 shipped\n');
+    const journal = createExperienceJournal();
+    const delegatedFs = new Proxy(fs, {});
+    const result = applyDerivation({
+      task: docsTask(), root, repoState: CLEAN_BRANCH,
+      now: () => FIXED_NOW, journal, workspaceId: 'default', fs: delegatedFs,
+    });
+    assert.equal(result.ok, true);
+    assert.equal(journal.manifest(result.experience.runId).learningEligibility, 'ineligible');
+    const verification = journal.read(result.experience.runId).find((event) => event.type === 'verification');
+    assert.equal(verification.proofs.verification, false);
+    assert.equal(verification.outcomeStatus, 'unknown');
   });
 
   it('a gate refusal closes incomplete and writes nothing (no fake execution events)', () => {
@@ -147,6 +206,7 @@ describe('coder experience pilot', () => {
     assert.equal(byType.failure.causedByEventId, byType.policy_decided.eventId);
     assert.equal(byType.run_closed.payload.verdict, 'incomplete');
     assert.equal(byType.run_closed.outcomeStatus, 'failed');
+    assert.equal(journal.manifest(result.experience.runId).learningEligibility, 'ineligible');
   });
 
   it('a journal that cannot write never blocks the derivation (evidence gap is reported)', () => {
