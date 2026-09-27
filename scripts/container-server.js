@@ -4,7 +4,7 @@ const {
   readCompatibleEnvironmentVariable,
   validateEnvironmentCompatibility,
 } = require('../lib/environment-compat');
-const { enforceApiAuthOptOutPolicy } = require('../lib/http/api-auth-opt-out');
+const { enforceApiAuthOptOutPolicy } = require('../lib/api-auth-opt-out');
 
 // AGENT_VERSION is deliberately absent (#774). agentRuntime pins AgentV3 as
 // the canonical agent and rejects every non-empty selector other than 'v3', so

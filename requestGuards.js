@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
-const apiAuthOptOut = require('./lib/http/api-auth-opt-out');
+const apiAuthOptOut = require('./lib/api-auth-opt-out');
 const commandPolicy = require('./requestGuards-command-policy');
 const rateLimit = require('./requestGuards-rate-limit');
 const body = require('./requestGuards-body');

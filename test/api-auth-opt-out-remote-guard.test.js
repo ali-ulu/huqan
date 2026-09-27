@@ -22,7 +22,7 @@ const {
   isApiAuthRemoteOptInSet,
   isLoopbackHost,
   resetApiAuthOptOutAnnouncement,
-} = require('../lib/http/api-auth-opt-out');
+} = require('../lib/api-auth-opt-out');
 const { requireApiKey } = require('../requestGuards');
 const { requireApiKeyAtBoot } = require('../lib/http/server-boot');
 const { prepareContainerEnvironment } = require('../scripts/container-server');

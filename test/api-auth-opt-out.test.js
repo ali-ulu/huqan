@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const { requireApiKey } = require('../requestGuards');
-const { enforceApiAuthOptOutPolicy } = require('../lib/http/api-auth-opt-out');
+const { enforceApiAuthOptOutPolicy } = require('../lib/api-auth-opt-out');
 
 const ANONYMOUS = { headers: {} };
 const DISABLE_VAR = 'HUQAN_DISABLE_API_AUTH';
